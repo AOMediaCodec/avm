@@ -3040,6 +3040,272 @@ void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
   memset(output + 16 * 32, 0, 16 * 32 * sizeof(*output));
 }
 
+#if CONFIG_FLEX_PARTITION
+void av1_lowbd_fwd_txfm2d_4x32_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type, int bd) {
+  (void)bd;
+  __m128i buf0[32], buf1[32];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X32];
+  const int txw_idx = get_txw_idx(TX_4X32);
+  const int txh_idx = get_txh_idx(TX_4X32);
+  const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
+  const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
+  const int width = 4;
+  const int height = 32;
+  const transform_1d_sse2 col_txfm = col_txfm8x32_arr[tx_type];
+  const transform_1d_sse2 row_txfm = row_txfm8x4_arr[tx_type];
+  int ud_flip, lr_flip;
+
+  get_flip_cfg(tx_type, &ud_flip, &lr_flip);
+  if (ud_flip) {
+    load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, height);
+  } else {
+    load_buffer_16bit_to_16bit_w4(input, stride, buf0, height);
+  }
+  round_shift_16bit(buf0, height, shift[0]);
+  col_txfm(buf0, buf0, cos_bit_col);
+  round_shift_16bit(buf0, height, shift[1]);
+  transpose_16bit_4x8(buf0, buf1);
+  transpose_16bit_4x8(buf0 + 8, buf1 + 8);
+  transpose_16bit_4x8(buf0 + 16, buf1 + 16);
+  transpose_16bit_4x8(buf0 + 24, buf1 + 24);
+
+  for (int i = 0; i < 4; i++) {
+    __m128i *buf;
+    if (lr_flip) {
+      buf = buf0;
+      flip_buf_sse2(buf1 + 8 * i, buf, width);
+    } else {
+      buf = buf1 + 8 * i;
+    }
+    row_txfm(buf, buf, cos_bit_row);
+    round_shift_16bit(buf, width, shift[2]);
+    transpose_16bit_8x4(buf, buf);
+    store_rect_buffer_16bit_to_32bit_w4(buf, output + 8 * width * i, width, 8);
+  }
+}
+
+void av1_lowbd_fwd_txfm2d_32x4_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type, int bd) {
+  (void)bd;
+  __m128i buf0[32], buf1[32];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X4];
+  const int txw_idx = get_txw_idx(TX_32X4);
+  const int txh_idx = get_txh_idx(TX_32X4);
+  const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
+  const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
+  const int width = 32;
+  const int height = 4;
+  const transform_1d_sse2 col_txfm = col_txfm8x4_arr[tx_type];
+  const transform_1d_sse2 row_txfm = row_txfm8x32_arr[tx_type];
+  __m128i *buf;
+  int ud_flip, lr_flip;
+
+  get_flip_cfg(tx_type, &ud_flip, &lr_flip);
+  for (int i = 0; i < 4; i++) {
+    if (ud_flip) {
+      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, height);
+    } else {
+      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
+    }
+    round_shift_16bit(buf0, height, shift[0]);
+    col_txfm(buf0, buf0, cos_bit_col);
+    round_shift_16bit(buf0, height, shift[1]);
+    transpose_16bit_8x4(buf0, buf1 + 8 * i);
+  }
+
+  if (lr_flip) {
+    buf = buf0;
+    flip_buf_sse2(buf1, buf, width);
+  } else {
+    buf = buf1;
+  }
+  row_txfm(buf, buf, cos_bit_row);
+  round_shift_16bit(buf, width, shift[2]);
+  transpose_16bit_4x8(buf, buf);
+  store_rect_buffer_16bit_to_32bit_w8(buf, output, width, height);
+  transpose_16bit_4x8(buf + 8, buf + 8);
+  store_rect_buffer_16bit_to_32bit_w8(buf + 8, output + 8, width, height);
+  transpose_16bit_4x8(buf + 16, buf + 16);
+  store_rect_buffer_16bit_to_32bit_w8(buf + 16, output + 16, width, height);
+  transpose_16bit_4x8(buf + 24, buf + 24);
+  store_rect_buffer_16bit_to_32bit_w8(buf + 24, output + 24, width, height);
+}
+
+void av1_lowbd_fwd_txfm2d_8x64_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type, int bd) {
+  (void)bd;
+  (void)tx_type;
+  assert(tx_type == DCT_DCT);
+  const TX_SIZE tx_size = TX_8X64;
+  __m128i buf0[64], buf1[128];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
+  const int txw_idx = get_txw_idx(tx_size);
+  const int txh_idx = get_txh_idx(tx_size);
+  const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
+  const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+  const transform_1d_sse2 col_txfm = av1_fdct8x64_new_sse2;
+  const transform_1d_sse2 row_txfm = fdct8x8_new_sse2;
+  const int width_div8 = (width >> 3);
+  const int height_div8 = (height >> 3);
+
+  for (int i = 0; i < width_div8; i++) {
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
+    round_shift_16bit(buf0, height, shift[0]);
+    col_txfm(buf0, buf0, cos_bit_col);
+    round_shift_16bit(buf0, height, shift[1]);
+    for (int j = 0; j < height_div8; ++j) {
+      transpose_16bit_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
+    }
+  }
+
+  for (int i = 0; i < AOMMIN(8, height_div8); i++) {
+    __m128i *buf = buf1 + width * i;
+    row_txfm(buf, buf, cos_bit_row);
+    round_shift_16bit(buf, width, shift[2]);
+    int32_t *output8 = output + 8 * width * i;
+    for (int j = 0; j < width_div8; ++j) {
+      __m128i *buf8 = buf + 8 * j;
+      transpose_16bit_8x8(buf8, buf8);
+      store_rect_buffer_16bit_to_32bit_w8(buf8, output8 + 8 * j, width, 8);
+    }
+  }
+  // Zero out the bottom 8x32 area.
+  memset(output + 8 * 32, 0, 8 * 32 * sizeof(*output));
+}
+
+void av1_lowbd_fwd_txfm2d_64x8_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type, int bd) {
+  (void)bd;
+  (void)tx_type;
+  assert(tx_type == DCT_DCT);
+  const TX_SIZE tx_size = TX_64X8;
+  __m128i buf0[64], buf1[128];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
+  const int txw_idx = get_txw_idx(tx_size);
+  const int txh_idx = get_txh_idx(tx_size);
+  const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
+  const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+  const transform_1d_sse2 col_txfm = fdct8x8_new_sse2;
+  const transform_1d_sse2 row_txfm = av1_fdct8x64_new_sse2;
+  const int width_div8 = (width >> 3);
+  const int height_div8 = (height >> 3);
+
+  for (int i = 0; i < width_div8; i++) {
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
+    round_shift_16bit(buf0, height, shift[0]);
+    col_txfm(buf0, buf0, cos_bit_col);
+    round_shift_16bit(buf0, height, shift[1]);
+    for (int j = 0; j < height_div8; ++j) {
+      transpose_16bit_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
+    }
+  }
+
+  for (int i = 0; i < height_div8; i++) {
+    __m128i *buf = buf1 + width * i;
+    row_txfm(buf, buf, cos_bit_row);
+    round_shift_16bit(buf, width, shift[2]);
+    int32_t *output8 = output + 8 * 32 * i;
+    for (int j = 0; j < 4; ++j) {
+      __m128i *buf8 = buf + 8 * j;
+      transpose_16bit_8x8(buf8, buf8);
+      store_rect_buffer_16bit_to_32bit_w8(buf8, output8 + 8 * j, 32, 8);
+    }
+  }
+}
+
+void av1_lowbd_fwd_txfm2d_4x64_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type, int bd) {
+  (void)bd;
+  __m128i buf0[64], buf1[64];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X64];
+  const int txw_idx = get_txw_idx(TX_4X64);
+  const int txh_idx = get_txh_idx(TX_4X64);
+  const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
+  const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
+  const int width = 4;
+  const int height = 64;
+  const transform_1d_sse2 col_txfm = av1_fdct8x64_new_sse2;
+  const transform_1d_sse2 row_txfm = row_txfm8x4_arr[tx_type];
+  int ud_flip, lr_flip;
+
+  get_flip_cfg(tx_type, &ud_flip, &lr_flip);
+  if (ud_flip) {
+    load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, height);
+  } else {
+    load_buffer_16bit_to_16bit_w4(input, stride, buf0, height);
+  }
+  round_shift_16bit(buf0, height, shift[0]);
+  col_txfm(buf0, buf0, cos_bit_col);
+  round_shift_16bit(buf0, height, shift[1]);
+  transpose_16bit_4x8(buf0, buf1);
+  transpose_16bit_4x8(buf0 + 8, buf1 + 8);
+  transpose_16bit_4x8(buf0 + 16, buf1 + 16);
+  transpose_16bit_4x8(buf0 + 24, buf1 + 24);
+  transpose_16bit_4x8(buf0 + 32, buf1 + 32);
+  transpose_16bit_4x8(buf0 + 40, buf1 + 40);
+  transpose_16bit_4x8(buf0 + 48, buf1 + 48);
+  transpose_16bit_4x8(buf0 + 56, buf1 + 56);
+
+  for (int i = 0; i < 8; i++) {
+    __m128i *buf;
+    if (lr_flip) {
+      buf = buf0;
+      flip_buf_sse2(buf1 + 8 * i, buf, width);
+    } else {
+      buf = buf1 + 8 * i;
+    }
+    row_txfm(buf, buf, cos_bit_row);
+    round_shift_16bit(buf, width, shift[2]);
+    transpose_16bit_8x4(buf, buf);
+    store_buffer_16bit_to_32bit_w4(buf, output + 8 * width * i, width, 8);
+  }
+  // Zero out the bottom 4x32 area.
+  memset(output + 4 * 32, 0, 4 * 32 * sizeof(*output));
+}
+
+void av1_lowbd_fwd_txfm2d_64x4_sse2(const int16_t *input, int32_t *output,
+                                    int stride, TX_TYPE tx_type, int bd) {
+  (void)bd;
+  (void)tx_type;
+  assert(tx_type == DCT_DCT);
+  const TX_SIZE tx_size = TX_64X4;
+  __m128i buf0[64], buf1[128];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
+  const int txw_idx = get_txw_idx(tx_size);
+  const int txh_idx = get_txh_idx(tx_size);
+  const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
+  const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+  const transform_1d_sse2 col_txfm = fdct8x4_new_sse2;
+  const transform_1d_sse2 row_txfm = av1_fdct8x64_new_sse2;
+  const int width_div8 = (width >> 3);
+
+  for (int i = 0; i < width_div8; i++) {
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
+    round_shift_16bit(buf0, height, shift[0]);
+    col_txfm(buf0, buf0, cos_bit_col);
+    round_shift_16bit(buf0, height, shift[1]);
+    transpose_16bit_8x4(buf0, buf1 + 8 * i);
+  }
+
+  __m128i *buf = buf1;
+  row_txfm(buf, buf, cos_bit_row);
+  round_shift_16bit(buf, width, shift[2]);
+  int32_t *output8 = output;
+  for (int j = 0; j < 4; ++j) {
+    __m128i *buf8 = buf + 8 * j;
+    transpose_16bit_4x8(buf8, buf8);
+    store_buffer_16bit_to_32bit_w8(buf8, output8 + 8 * j, 32, 8);
+  }
+}
+#endif  // CONFIG_FLEX_PARTITION
+
 static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
   av1_lowbd_fwd_txfm2d_4x4_sse2,    // 4x4 transform
   av1_lowbd_fwd_txfm2d_8x8_sse2,    // 8x8 transform
@@ -3060,6 +3326,14 @@ static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
   av1_lowbd_fwd_txfm2d_32x8_sse2,   // 32x8 transform
   av1_lowbd_fwd_txfm2d_16x64_sse2,  // 16x64 transform
   av1_lowbd_fwd_txfm2d_64x16_sse2,  // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  av1_lowbd_fwd_txfm2d_4x32_sse2,  // 4x16 transform
+  av1_lowbd_fwd_txfm2d_32x4_sse2,  // 16x4 transform
+  av1_lowbd_fwd_txfm2d_8x64_sse2,  // 8x32 transform
+  av1_lowbd_fwd_txfm2d_64x8_sse2,  // 32x8 transform
+  av1_lowbd_fwd_txfm2d_4x64_sse2,  // 16x64 transform
+  av1_lowbd_fwd_txfm2d_64x4_sse2,  // 64x16 transform
+#endif                             // CONFIG_FLEX_PARTITION
 };
 
 void av1_lowbd_fwd_txfm_sse2(const int16_t *src_diff, tran_low_t *coeff,

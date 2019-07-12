@@ -61,6 +61,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       68, 68, 68,
 #endif  // CONFIG_BLOCK_256
       64, 64, 70, 70, 68, 68,
+#if CONFIG_FLEX_PARTITION
+      60, 60, 68, 68, 68, 68,
+#endif  // CONFIG_FLEX_PARTITION
   },
   {
       88, 88, 88, 86, 87, 87, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
@@ -68,6 +71,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       68, 68, 68,
 #endif  // CONFIG_BLOCK_256
       88, 88, 86, 86, 68, 68,
+#if CONFIG_FLEX_PARTITION
+      87, 87, 68, 68, 68, 68,
+#endif  // CONFIG_FLEX_PARTITION
   },
   {
       90, 93, 93, 90, 93, 93, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
@@ -75,6 +81,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       74, 74, 74,
 #endif  // CONFIG_BLOCK_256
       90, 90, 90, 90, 74, 74,
+#if CONFIG_FLEX_PARTITION
+      93, 93, 74, 74, 74, 74,
+#endif  // CONFIG_FLEX_PARTITION
   },
 };
 
@@ -90,6 +99,9 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
   TX_16X16, TX_16X16, TX_16X16,
 #endif  // CONFIG_BLOCK_256
   TX_4X16,  TX_16X4,  TX_8X8,   TX_8X8,   TX_16X16, TX_16X16,
+#if CONFIG_FLEX_PARTITION
+  TX_4X16,  TX_16X4,  TX_8X32,  TX_32X8,  TX_4X16,  TX_16X4,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 // look-up table for sqrt of number of pixels in a transform block
@@ -628,13 +640,30 @@ static AOM_INLINE void get_energy_distribution_fine(
   const int bh = block_size_high[bsize];
   unsigned int esq[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-  if (bsize < BLOCK_16X16 || (bsize >= BLOCK_4X16 && bsize <= BLOCK_32X8)) {
+  if (bsize < BLOCK_16X16 || (bsize >= BLOCK_4X16 && bsize <= BLOCK_32X8)
+#if CONFIG_FLEX_PARTITION
+      || (bsize >= BLOCK_4X32 && bsize <= BLOCK_64X4)
+#endif  // CONFIG_FLEX_PARTITION
+  ) {
     // Special cases: calculate 'esq' values manually, as we don't have 'vf'
     // functions for the 16 (very small) sub-blocks of this block.
-    const int w_shift = (bw == 4) ? 0 : (bw == 8) ? 1 : (bw == 16) ? 2 : 3;
-    const int h_shift = (bh == 4) ? 0 : (bh == 8) ? 1 : (bh == 16) ? 2 : 3;
+    const int w_shift = (bw == 4)    ? 0
+                        : (bw == 8)  ? 1
+                        : (bw == 16) ? 2
+                        : (bw == 32) ? 3
+                                     : 4;
+    const int h_shift = (bh == 4)    ? 0
+                        : (bh == 8)  ? 1
+                        : (bh == 16) ? 2
+                        : (bh == 32) ? 3
+                                     : 4;
+#if CONFIG_FLEX_PARTITION
+    assert(bw <= 64);
+    assert(bh <= 64);
+#else
     assert(bw <= 32);
     assert(bh <= 32);
+#endif  // CONFIG_FLEX_PARTITION
     assert(((bw - 1) >> w_shift) + (((bh - 1) >> h_shift) << 2) == 15);
     for (int i = 0; i < bh; ++i)
       for (int j = 0; j < bw; ++j) {
@@ -1785,6 +1814,20 @@ static const float *prune_2D_adaptive_thresholds[] = {
   NULL,
   // TX_64X16
   NULL,
+#if CONFIG_FLEX_PARTITION
+  // TX_4X32
+  NULL,
+  // TX_32X4
+  NULL,
+  // TX_8X64
+  NULL,
+  // TX_64X8
+  NULL,
+  // TX_4X64
+  NULL,
+  // TX_64X4
+  NULL,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 // Probablities are sorted in descending order.

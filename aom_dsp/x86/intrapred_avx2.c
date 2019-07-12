@@ -418,7 +418,11 @@ static void highbd_dr_prediction_z1_4xN_avx2(int N, uint16_t *dst,
                                              const uint16_t *above,
                                              int upsample_above, int dx, int bd,
                                              int mrl_index) {
+#if CONFIG_FLEX_PARTITION
+  __m128i dstvec[64];
+#else
   __m128i dstvec[16];
+#endif  // CONFIG_FLEX_PARTITION
   if (bd < 12) {
     highbd_dr_prediction_z1_4xN_internal_avx2(N, dstvec, above, upsample_above,
                                               dx, mrl_index);
@@ -603,7 +607,11 @@ static void highbd_dr_prediction_z1_8xN_avx2(int N, uint16_t *dst,
                                              const uint16_t *above,
                                              int upsample_above, int dx, int bd,
                                              int mrl_index) {
+#if CONFIG_FLEX_PARTITION
+  __m128i dstvec[64];
+#else
   __m128i dstvec[32];
+#endif  // CONFIG_FLEX_PARTITION
   if (bd < 12) {
     highbd_dr_prediction_z1_8xN_internal_avx2(N, dstvec, above, upsample_above,
                                               dx, mrl_index);
@@ -2585,6 +2593,149 @@ static void highbd_dr_prediction_z3_64x16_avx2(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
+#if CONFIG_FLEX_PARTITION
+static void highbd_dr_prediction_z3_32x4_avx2(uint16_t *dst, ptrdiff_t stride,
+                                              const uint16_t *left,
+                                              int upsample_left, int dy, int bd,
+                                              int mrl_index) {
+  __m128i dstvec[32], d[16];
+  if (bd < 12) {
+    highbd_dr_prediction_z1_4xN_internal_avx2(32, dstvec, left, upsample_left,
+                                              dy, mrl_index);
+  } else {
+    highbd_dr_prediction_32bit_z1_4xN_internal_avx2(
+        32, dstvec, left, upsample_left, dy, mrl_index);
+  }
+  highbd_transpose16x4_8x8_sse2(dstvec, d);
+  highbd_transpose16x4_8x8_sse2(dstvec + 16, d + 8);
+
+  for (int i = 0; i < 4; i++) {
+    _mm_storeu_si128((__m128i *)(dst + i * stride), d[2 * i]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 8), d[2 * i + 1]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 16), d[2 * i + 8]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 24), d[2 * i + 9]);
+  }
+}
+
+static void highbd_dr_prediction_z3_64x4_avx2(uint16_t *dst, ptrdiff_t stride,
+                                              const uint16_t *left,
+                                              int upsample_left, int dy, int bd,
+                                              int mrl_index) {
+  __m128i dstvec[64], d[32];
+  if (bd < 12) {
+    highbd_dr_prediction_z1_4xN_internal_avx2(64, dstvec, left, upsample_left,
+                                              dy, mrl_index);
+  } else {
+    highbd_dr_prediction_32bit_z1_4xN_internal_avx2(
+        64, dstvec, left, upsample_left, dy, mrl_index);
+  }
+  highbd_transpose16x4_8x8_sse2(dstvec, d);
+  highbd_transpose16x4_8x8_sse2(dstvec + 16, d + 8);
+  highbd_transpose16x4_8x8_sse2(dstvec + 32, d + 16);
+  highbd_transpose16x4_8x8_sse2(dstvec + 48, d + 24);
+
+  for (int i = 0; i < 4; i++) {
+    _mm_storeu_si128((__m128i *)(dst + i * stride), d[2 * i]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 8), d[2 * i + 1]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 16), d[2 * i + 8]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 24), d[2 * i + 9]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 32), d[2 * i + 16]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 40), d[2 * i + 17]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 48), d[2 * i + 24]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 56), d[2 * i + 25]);
+  }
+}
+
+static void highbd_dr_prediction_z3_4x32_avx2(uint16_t *dst, ptrdiff_t stride,
+                                              const uint16_t *left,
+                                              int upsample_left, int dy, int bd,
+                                              int mrl_index) {
+  __m256i dstvec[8], d[8];
+  if (bd < 12) {
+    highbd_dr_prediction_z1_32xN_internal_avx2(4, dstvec, left, upsample_left,
+                                               dy, mrl_index);
+  } else {
+    highbd_dr_prediction_32bit_z1_32xN_internal_avx2(
+        4, dstvec, left, upsample_left, dy, mrl_index);
+  }
+
+  highbd_transpose8x16_16x8_avx2(dstvec, d);
+
+  for (int i = 0; i < 8; i++) {
+    __m128i temp_lo = _mm256_castsi256_si128(d[i]);
+    __m128i temp_hi = _mm256_extracti128_si256(d[i], 1);
+    _mm_storel_epi64((__m128i *)(dst + i * stride), temp_lo);
+    _mm_storel_epi64((__m128i *)(dst + (i + 16) * stride),
+                     _mm_srli_si128(temp_lo, 8));
+    _mm_storel_epi64((__m128i *)(dst + (i + 8) * stride), temp_hi);
+    _mm_storel_epi64((__m128i *)(dst + (i + 24) * stride),
+                     _mm_srli_si128(temp_hi, 8));
+  }
+}
+
+static void highbd_dr_prediction_z3_64x8_avx2(uint16_t *dst, ptrdiff_t stride,
+                                              const uint16_t *left,
+                                              int upsample_left, int dy, int bd,
+                                              int mrl_index) {
+  __m128i dstvec[64], d[64];
+  if (bd < 12) {
+    highbd_dr_prediction_z1_8xN_internal_avx2(64, dstvec, left, upsample_left,
+                                              dy, mrl_index);
+  } else {
+    highbd_dr_prediction_32bit_z1_8xN_internal_avx2(
+        64, dstvec, left, upsample_left, dy, mrl_index);
+  }
+
+  for (int i = 0; i < 64; i += 8) {
+    highbd_transpose8x8_sse2(&dstvec[0 + i], &dstvec[1 + i], &dstvec[2 + i],
+                             &dstvec[3 + i], &dstvec[4 + i], &dstvec[5 + i],
+                             &dstvec[6 + i], &dstvec[7 + i], &d[0 + i],
+                             &d[1 + i], &d[2 + i], &d[3 + i], &d[4 + i],
+                             &d[5 + i], &d[6 + i], &d[7 + i]);
+  }
+  for (int i = 0; i < 8; i++) {
+    _mm_storeu_si128((__m128i *)(dst + i * stride), d[i]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 8), d[i + 8]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 16), d[i + 16]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 24), d[i + 24]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 32), d[i + 32]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 40), d[i + 40]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 48), d[i + 48]);
+    _mm_storeu_si128((__m128i *)(dst + i * stride + 56), d[i + 56]);
+  }
+}
+
+static void highbd_dr_prediction_z3_4x64_avx2(uint16_t *dst, ptrdiff_t stride,
+                                              const uint16_t *left,
+                                              int upsample_left, int dy, int bd,
+                                              int mrl_index) {
+  DECLARE_ALIGNED(16, uint16_t, dstT[64 * 4]);
+  if (bd < 12) {
+    highbd_dr_prediction_z1_64xN_avx2(4, dstT, 64, left, upsample_left, dy,
+                                      mrl_index);
+  } else {
+    highbd_dr_prediction_32bit_z1_64xN_avx2(4, dstT, 64, left, upsample_left,
+                                            dy, mrl_index);
+  }
+  highbd_transpose(dstT, 64, dst, stride, 4, 64);
+}
+
+static void highbd_dr_prediction_z3_8x64_avx2(uint16_t *dst, ptrdiff_t stride,
+                                              const uint16_t *left,
+                                              int upsample_left, int dy, int bd,
+                                              int mrl_index) {
+  DECLARE_ALIGNED(16, uint16_t, dstT[64 * 8]);
+  if (bd < 12) {
+    highbd_dr_prediction_z1_64xN_avx2(8, dstT, 64, left, upsample_left, dy,
+                                      mrl_index);
+  } else {
+    highbd_dr_prediction_32bit_z1_64xN_avx2(8, dstT, 64, left, upsample_left,
+                                            dy, mrl_index);
+  }
+  highbd_transpose(dstT, 64, dst, stride, 8, 64);
+}
+#endif  // CONFIG_FLEX_PARTITION
+
 void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
                                       int bh, const uint16_t *above,
                                       const uint16_t *left, int upsample_left,
@@ -2642,12 +2793,27 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
       } else {
         switch (bw) {
           case 4:
-            highbd_dr_prediction_z3_4x16_avx2(dst, stride, left, upsample_left,
-                                              dy, bd, mrl_index);
+#if CONFIG_FLEX_PARTITION
+            if (bh == 32)
+              highbd_dr_prediction_z3_4x32_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
+            else if (bh == 64)
+              highbd_dr_prediction_z3_4x64_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_4x16_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
           case 8:
-            highbd_dr_prediction_z3_8x32_avx2(dst, stride, left, upsample_left,
-                                              dy, bd, mrl_index);
+#if CONFIG_FLEX_PARTITION
+            if (bh == 64)
+              highbd_dr_prediction_z3_8x64_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_8x32_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
           case 16:
             highbd_dr_prediction_z3_16x64_avx2(dst, stride, left, upsample_left,
@@ -2678,12 +2844,27 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
       } else {
         switch (bh) {
           case 4:
-            highbd_dr_prediction_z3_16x4_avx2(dst, stride, left, upsample_left,
-                                              dy, bd, mrl_index);
+#if CONFIG_FLEX_PARTITION
+            if (bw == 64)
+              highbd_dr_prediction_z3_64x4_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
+            else if (bw == 32)
+              highbd_dr_prediction_z3_32x4_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_16x4_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
           case 8:
-            highbd_dr_prediction_z3_32x8_avx2(dst, stride, left, upsample_left,
-                                              dy, bd, mrl_index);
+#if CONFIG_FLEX_PARTITION
+            if (bw == 64)
+              highbd_dr_prediction_z3_64x8_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_32x8_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
             break;
           case 16:
             highbd_dr_prediction_z3_64x16_avx2(dst, stride, left, upsample_left,

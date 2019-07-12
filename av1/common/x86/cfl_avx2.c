@@ -17,6 +17,44 @@
 
 #include "av1/common/x86/cfl_simd.h"
 
+#if CONFIG_FLEX_PARTITION
+#define CFL_GET_SUBSAMPLE_FUNCTION_AVX2(sub, bd)                               \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 32)                                         \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 16)                                         \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 8)                                          \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 4)                                          \
+  cfl_subsample_##bd##_fn cfl_get_luma_subsampling_##sub##_##bd##_avx2(        \
+      TX_SIZE tx_size) {                                                       \
+    static const cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = {         \
+      cfl_subsample_##bd##_##sub##_4x4_ssse3,   /* 4x4 */                      \
+      cfl_subsample_##bd##_##sub##_8x8_ssse3,   /* 8x8 */                      \
+      cfl_subsample_##bd##_##sub##_16x16_ssse3, /* 16x16 */                    \
+      cfl_subsample_##bd##_##sub##_32x32_avx2,  /* 32x32 */                    \
+      NULL,                                     /* 64x64 (invalid CFL size) */ \
+      cfl_subsample_##bd##_##sub##_4x8_ssse3,   /* 4x8 */                      \
+      cfl_subsample_##bd##_##sub##_8x4_ssse3,   /* 8x4 */                      \
+      cfl_subsample_##bd##_##sub##_8x16_ssse3,  /* 8x16 */                     \
+      cfl_subsample_##bd##_##sub##_16x8_ssse3,  /* 16x8 */                     \
+      cfl_subsample_##bd##_##sub##_16x32_ssse3, /* 16x32 */                    \
+      cfl_subsample_##bd##_##sub##_32x16_avx2,  /* 32x16 */                    \
+      NULL,                                     /* 32x64 (invalid CFL size) */ \
+      NULL,                                     /* 64x32 (invalid CFL size) */ \
+      cfl_subsample_##bd##_##sub##_4x16_ssse3,  /* 4x16  */                    \
+      cfl_subsample_##bd##_##sub##_16x4_ssse3,  /* 16x4  */                    \
+      cfl_subsample_##bd##_##sub##_8x32_ssse3,  /* 8x32  */                    \
+      cfl_subsample_##bd##_##sub##_32x8_avx2,   /* 32x8  */                    \
+      NULL,                                     /* 16x64 (invalid CFL size) */ \
+      NULL,                                     /* 64x16 (invalid CFL size) */ \
+      cfl_subsample_##bd##_##sub##_4x32_ssse3,  /* 4x32  */                    \
+      cfl_subsample_##bd##_##sub##_32x4_avx2,   /* 32x4  */                    \
+      NULL,                                     /* 8x64 (invalid CFL size) */  \
+      NULL,                                     /* 64x8 (invalid CFL size) */  \
+      NULL,                                     /* 4x64 (invalid CFL size) */  \
+      NULL,                                     /* 64x4 (invalid CFL size) */  \
+    };                                                                         \
+    return subfn_##sub[tx_size];                                               \
+  }
+#else
 #define CFL_GET_SUBSAMPLE_FUNCTION_AVX2(sub, bd)                               \
   CFL_SUBSAMPLE(avx2, sub, bd, 32, 32)                                         \
   CFL_SUBSAMPLE(avx2, sub, bd, 32, 16)                                         \
@@ -46,6 +84,7 @@
     };                                                                         \
     return subfn_##sub[tx_size];                                               \
   }
+#endif  // CONFIG_FLEX_PARTITION
 
 /**
  * Adds 4 pixels (in a 2x2 grid) and multiplies them by 2. Resulting in a more
@@ -195,6 +234,9 @@ CFL_PREDICT_X(avx2, 16, 32, hbd)
 CFL_PREDICT_X(avx2, 32, 8, hbd)
 CFL_PREDICT_X(avx2, 32, 16, hbd)
 CFL_PREDICT_X(avx2, 32, 32, hbd)
+#if CONFIG_FLEX_PARTITION
+CFL_PREDICT_X(avx2, 32, 4, hbd)
+#endif  // CONFIG_FLEX_PARTITION
 
 cfl_predict_hbd_fn cfl_get_predict_hbd_fn_avx2(TX_SIZE tx_size) {
   static const cfl_predict_hbd_fn pred[TX_SIZES_ALL] = {
@@ -217,6 +259,14 @@ cfl_predict_hbd_fn cfl_get_predict_hbd_fn_avx2(TX_SIZE tx_size) {
     cfl_predict_hbd_32x8_avx2,  /* 32x8  */
     NULL,                       /* 16x64 (invalid CFL size) */
     NULL,                       /* 64x16 (invalid CFL size) */
+#if CONFIG_FLEX_PARTITION
+    cfl_predict_hbd_4x32_ssse3, /* 4x32  */
+    cfl_predict_hbd_32x4_avx2,  /* 32x4  */
+    NULL,                       /* 8x64 (invalid CFL size) */
+    NULL,                       /* 64x8 (invalid CFL size) */
+    NULL,                       /* 4x64 (invalid CFL size) */
+    NULL,                       /* 64x4 (invalid CFL size) */
+#endif                          // CONFIG_FLEX_PARTITION
   };
   // Modulo TX_SIZES_ALL to ensure that an attacker won't be able to index the
   // function pointer array out of bounds.
@@ -310,6 +360,9 @@ CFL_SUB_AVG_X(avx2, 16, 32, 256, 9)
 CFL_SUB_AVG_X(avx2, 32, 8, 128, 8)
 CFL_SUB_AVG_X(avx2, 32, 16, 256, 9)
 CFL_SUB_AVG_X(avx2, 32, 32, 512, 10)
+#if CONFIG_FLEX_PARTITION
+CFL_SUB_AVG_X(avx2, 32, 4, 64, 7)
+#endif  // CONFIG_FLEX_PARTITION
 
 // Based on the observation that for small blocks AVX2 does not outperform
 // SSE2, we call the SSE2 code for block widths 4 and 8.
@@ -334,6 +387,14 @@ cfl_subtract_average_fn cfl_get_subtract_average_fn_avx2(TX_SIZE tx_size) {
     cfl_subtract_average_32x8_avx2,  /* 32x8 */
     NULL,                            /* 16x64 (invalid CFL size) */
     NULL,                            /* 64x16 (invalid CFL size) */
+#if CONFIG_FLEX_PARTITION
+    cfl_subtract_average_4x32_sse2, /* 4x32  */
+    cfl_subtract_average_32x4_avx2, /* 32x4  */
+    NULL,                           /* 8x64 (invalid CFL size) */
+    NULL,                           /* 64x8 (invalid CFL size) */
+    NULL,                           /* 4x64 (invalid CFL size) */
+    NULL,                           /* 64x4 (invalid CFL size) */
+#endif                              // CONFIG_FLEX_PARTITION
   };
   // Modulo TX_SIZES_ALL to ensure that an attacker won't be able to
   // index the function pointer array out of bounds.

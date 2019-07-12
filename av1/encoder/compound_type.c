@@ -136,13 +136,21 @@ static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
     //                            4X4
     BLOCK_INVALID,
     // 4X8,        8X4,           8X8
-    BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X4,
+    BLOCK_INVALID,
+    BLOCK_INVALID,
+    BLOCK_4X4,
     // 8X16,       16X8,          16X16
-    BLOCK_4X8, BLOCK_8X4, BLOCK_8X8,
+    BLOCK_4X8,
+    BLOCK_8X4,
+    BLOCK_8X8,
     // 16X32,      32X16,         32X32
-    BLOCK_8X16, BLOCK_16X8, BLOCK_16X16,
+    BLOCK_8X16,
+    BLOCK_16X8,
+    BLOCK_16X16,
     // 32X64,      64X32,         64X64
-    BLOCK_16X32, BLOCK_32X16, BLOCK_32X32,
+    BLOCK_16X32,
+    BLOCK_32X16,
+    BLOCK_32X32,
     // 64x128,     128x64,        128x128
     BLOCK_32X64, BLOCK_64X32, BLOCK_64X64,
 #if CONFIG_BLOCK_256
@@ -150,9 +158,21 @@ static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
     BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
 #endif  // CONFIG_BLOCK_256
     // 4X16,       16X4,          8X32
-    BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X16,
+    BLOCK_INVALID,
+    BLOCK_INVALID,
+    BLOCK_4X16,
     // 32X8,       16X64,         64X16
-    BLOCK_16X4, BLOCK_8X32, BLOCK_32X8
+    BLOCK_16X4,
+    BLOCK_8X32,
+    BLOCK_32X8,
+#if CONFIG_FLEX_PARTITION
+    BLOCK_INVALID,  // 32X4
+    BLOCK_INVALID,  // 4X32
+    BLOCK_32X4,     // 64X8
+    BLOCK_4X32,     // 8X64
+    BLOCK_INVALID,  // 4X64
+    BLOCK_INVALID,  // 64X4
+#endif              // CONFIG_FLEX_PARTITION
   };
   /* clang-format on */
   const struct macroblock_plane *const p = &x->plane[0];

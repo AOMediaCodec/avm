@@ -484,6 +484,29 @@ static intra_high_pred_fn ibp_dc_pred_high[2][2][TX_SIZES_ALL];
 static void init_intra_predictors_internal(void) {
   assert(NELEMENTS(mode_to_angle_map) == INTRA_MODES);
 
+#if CONFIG_FLEX_PARTITION
+#define INIT_RECTANGULAR(p, type)             \
+  p[TX_4X8] = aom_##type##_predictor_4x8;     \
+  p[TX_8X4] = aom_##type##_predictor_8x4;     \
+  p[TX_8X16] = aom_##type##_predictor_8x16;   \
+  p[TX_16X8] = aom_##type##_predictor_16x8;   \
+  p[TX_16X32] = aom_##type##_predictor_16x32; \
+  p[TX_32X16] = aom_##type##_predictor_32x16; \
+  p[TX_32X64] = aom_##type##_predictor_32x64; \
+  p[TX_64X32] = aom_##type##_predictor_64x32; \
+  p[TX_4X16] = aom_##type##_predictor_4x16;   \
+  p[TX_16X4] = aom_##type##_predictor_16x4;   \
+  p[TX_8X32] = aom_##type##_predictor_8x32;   \
+  p[TX_32X8] = aom_##type##_predictor_32x8;   \
+  p[TX_16X64] = aom_##type##_predictor_16x64; \
+  p[TX_64X16] = aom_##type##_predictor_64x16; \
+  p[TX_4X32] = aom_##type##_predictor_4x32;   \
+  p[TX_32X4] = aom_##type##_predictor_32x4;   \
+  p[TX_8X64] = aom_##type##_predictor_8x64;   \
+  p[TX_64X8] = aom_##type##_predictor_64x8;   \
+  p[TX_4X64] = aom_##type##_predictor_4x64;   \
+  p[TX_64X4] = aom_##type##_predictor_64x4;
+#else
 #define INIT_RECTANGULAR(p, type)             \
   p[TX_4X8] = aom_##type##_predictor_4x8;     \
   p[TX_8X4] = aom_##type##_predictor_8x4;     \
@@ -499,6 +522,7 @@ static void init_intra_predictors_internal(void) {
   p[TX_32X8] = aom_##type##_predictor_32x8;   \
   p[TX_16X64] = aom_##type##_predictor_16x64; \
   p[TX_64X16] = aom_##type##_predictor_64x16;
+#endif  // CONFIG_FLEX_PARTITION
 
 #define INIT_NO_4X4(p, type)                  \
   p[TX_8X8] = aom_##type##_predictor_8x8;     \

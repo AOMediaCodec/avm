@@ -133,6 +133,14 @@ MASK_SUBPIX_VAR8XH_SSSE3(32)
 MASK_SUBPIX_VAR_SSSE3(32, 8)
 MASK_SUBPIX_VAR_SSSE3(64, 16)
 MASK_SUBPIX_VAR_SSSE3(16, 64)
+#if CONFIG_FLEX_PARTITION
+MASK_SUBPIX_VAR_SSSE3(64, 8)
+MASK_SUBPIX_VAR8XH_SSSE3(64)
+MASK_SUBPIX_VAR_SSSE3(32, 4)
+MASK_SUBPIX_VAR4XH_SSSE3(32)
+MASK_SUBPIX_VAR_SSSE3(64, 4)
+MASK_SUBPIX_VAR4XH_SSSE3(64)
+#endif  // CONFIG_FLEX_PARTITION
 
 static INLINE __m128i filter_block(const __m128i a, const __m128i b,
                                    const __m128i filter) {
@@ -539,7 +547,7 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
                                       const uint16_t *a_ptr,
                                       const uint16_t *b_ptr,
                                       const uint8_t *m_ptr, int m_stride,
-                                      int height, int *sse, int *sum_);
+                                      int height, uint32_t *sse, int *sum_);
 
 #define HIGHBD_MASK_SUBPIX_VAR_SSSE3(W, H)                                  \
   unsigned int aom_highbd_8_masked_sub_pixel_variance##W##x##H##_ssse3(     \
@@ -611,7 +619,7 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
       const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
       const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
-    int sse_;                                                               \
+    uint32_t sse_;                                                          \
     int sum;                                                                \
     uint16_t temp[(H + 1) * 4];                                             \
                                                                             \
@@ -630,7 +638,7 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
       const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
       const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
-    int sse_;                                                               \
+    uint32_t sse_;                                                          \
     int sum;                                                                \
     int64_t var;                                                            \
     uint16_t temp[(H + 1) * 4];                                             \
@@ -652,7 +660,7 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
       const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
       const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
-    int sse_;                                                               \
+    uint32_t sse_;                                                          \
     int sum;                                                                \
     int64_t var;                                                            \
     uint16_t temp[(H + 1) * 4];                                             \
@@ -698,6 +706,14 @@ HIGHBD_MASK_SUBPIX_VAR_SSSE3(8, 32)
 HIGHBD_MASK_SUBPIX_VAR_SSSE3(32, 8)
 HIGHBD_MASK_SUBPIX_VAR_SSSE3(16, 64)
 HIGHBD_MASK_SUBPIX_VAR_SSSE3(64, 16)
+#if CONFIG_FLEX_PARTITION
+HIGHBD_MASK_SUBPIX_VAR_SSSE3(8, 64)
+HIGHBD_MASK_SUBPIX_VAR_SSSE3(64, 8)
+HIGHBD_MASK_SUBPIX_VAR4XH_SSSE3(32)
+HIGHBD_MASK_SUBPIX_VAR_SSSE3(32, 4)
+HIGHBD_MASK_SUBPIX_VAR4XH_SSSE3(64)
+HIGHBD_MASK_SUBPIX_VAR_SSSE3(64, 4)
+#endif  // CONFIG_FLEX_PARTITION
 
 static INLINE __m128i highbd_filter_block(const __m128i a, const __m128i b,
                                           const __m128i filter) {
@@ -953,7 +969,7 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
                                       const uint16_t *a_ptr,
                                       const uint16_t *b_ptr,
                                       const uint8_t *m_ptr, int m_stride,
-                                      int height, int *sse, int *sum_) {
+                                      int height, uint32_t *sse, int *sum_) {
   int y;
   // Note: For this function, h <= 8 (or maybe 16 if we add 4:1 partitions).
   // So the maximum value of sum is (2^12 - 1) * 4 * 16 =~ 2^18
@@ -1011,7 +1027,7 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
   sum = _mm_hadd_epi32(sum, sum_sq);
   sum = _mm_hadd_epi32(sum, zero);
   *sum_ = _mm_cvtsi128_si32(sum);
-  *sse = _mm_cvtsi128_si32(_mm_srli_si128(sum, 4));
+  *sse = (uint32_t)_mm_cvtsi128_si32(_mm_srli_si128(sum, 4));
 }
 
 void aom_comp_mask_pred_ssse3(uint8_t *comp_pred, const uint8_t *pred,

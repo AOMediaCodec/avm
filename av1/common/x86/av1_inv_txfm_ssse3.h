@@ -135,6 +135,14 @@ DECLARE_ALIGNED(16, static const int16_t *,
   av1_eob_to_eobxy_32x8_default,
   av1_eob_to_eobxy_16x32_default,
   av1_eob_to_eobxy_32x16_default,
+#if CONFIG_FLEX_PARTITION
+  NULL,
+  NULL,
+  av1_eob_to_eobxy_8x32_default,
+  av1_eob_to_eobxy_32x8_default,
+  NULL,
+  NULL,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static const int highbd_txfm_all_1d_zeros_idx[32] = {
@@ -145,6 +153,9 @@ static const int highbd_txfm_all_1d_zeros_idx[32] = {
 // Transform block width in log2 for eob (size of 64 map to 32)
 static const int tx_size_wide_log2_eob[TX_SIZES_ALL] = {
   2, 3, 4, 5, 5, 2, 3, 3, 4, 4, 5, 5, 5, 2, 4, 3, 5, 4, 5,
+#if CONFIG_FLEX_PARTITION
+  2, 5, 3, 5, 2, 5,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static INLINE void get_eobx_eoby_scan_default(int *eobx, int *eoby,

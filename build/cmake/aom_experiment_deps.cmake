@@ -101,4 +101,9 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_UNEVEN_4WAY 0 !CONFIG_EXT_RECUR_PARTITIONS)
   endif()
 
+  # CONFIG_FLEX_PARTITION is dependent on CONFIG_UNEVEN_4WAY.
+  if(NOT CONFIG_UNEVEN_4WAY AND CONFIG_FLEX_PARTITION)
+    change_config_and_warn(CONFIG_FLEX_PARTITION 0 !CONFIG_UNEVEN_4WAY)
+  endif()
+
 endmacro()

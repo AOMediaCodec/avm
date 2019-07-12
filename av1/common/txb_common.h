@@ -477,6 +477,8 @@ static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats(
       // This is the algorithm to generate av1_nz_map_ctx_offset[][]
       //   const int width = tx_size_wide[tx_size];
       //   const int height = tx_size_high[tx_size];
+      //   const int row = coeff_idx >> bwl;
+      //   const int col = coeff_idx - (row << bwl);
       //   if (width < height) {
       //     if (row < 2) return 11 + ctx;
       //   } else if (width > height) {

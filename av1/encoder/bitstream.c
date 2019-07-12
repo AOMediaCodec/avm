@@ -3207,7 +3207,7 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
@@ -3229,7 +3229,7 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
@@ -3251,7 +3251,7 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
@@ -3273,7 +3273,7 @@ static AOM_INLINE void write_modes_sb(
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);

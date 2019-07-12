@@ -493,4 +493,40 @@ static INLINE void transpose8x16_16x8_sse2(
   *d14d15 = _mm_unpackhi_epi64(w7, w15);
 }
 
+#if CONFIG_FLEX_PARTITION
+static INLINE void transpose16x4_4x16_sse2(
+    __m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3, __m128i *x4,
+    __m128i *x5, __m128i *x6, __m128i *x7, __m128i *x8, __m128i *x9,
+    __m128i *x10, __m128i *x11, __m128i *x12, __m128i *x13, __m128i *x14,
+    __m128i *x15, __m128i *d0, __m128i *d1, __m128i *d2, __m128i *d3) {
+  __m128i w0, w1, w2, w3, w4, w5, w6, w7, w8, w9;
+  __m128i w10, w11, w12, w13, w14, w15;
+
+  w0 = _mm_unpacklo_epi8(*x0, *x1);
+  w1 = _mm_unpacklo_epi8(*x2, *x3);
+  w2 = _mm_unpacklo_epi8(*x4, *x5);
+  w3 = _mm_unpacklo_epi8(*x6, *x7);
+
+  w8 = _mm_unpacklo_epi8(*x8, *x9);
+  w9 = _mm_unpacklo_epi8(*x10, *x11);
+  w10 = _mm_unpacklo_epi8(*x12, *x13);
+  w11 = _mm_unpacklo_epi8(*x14, *x15);
+
+  w4 = _mm_unpacklo_epi16(w0, w1);
+  w5 = _mm_unpacklo_epi16(w2, w3);
+  w12 = _mm_unpacklo_epi16(w8, w9);
+  w13 = _mm_unpacklo_epi16(w10, w11);
+
+  w6 = _mm_unpacklo_epi32(w4, w5);
+  w7 = _mm_unpackhi_epi32(w4, w5);
+  w14 = _mm_unpacklo_epi32(w12, w13);
+  w15 = _mm_unpackhi_epi32(w12, w13);
+
+  // Store first 4-line result
+  *d0 = _mm_unpacklo_epi64(w6, w14);
+  *d1 = _mm_unpackhi_epi64(w6, w14);
+  *d2 = _mm_unpacklo_epi64(w7, w15);
+  *d3 = _mm_unpackhi_epi64(w7, w15);
+}
+#endif  // CONFIG_FLEX_PARTITION
 #endif  // AOM_AOM_DSP_X86_LPF_COMMON_SSE2_H_

@@ -763,17 +763,17 @@ void aom_highbd_v_predictor_16x32_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i above1_u16 = _mm_load_si128((const __m128i *)(above + 8));
   int i;
   for (i = 0; i < 8; ++i) {
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
   }
 }
@@ -931,17 +931,17 @@ void aom_highbd_dc_predictor_16x32_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 8; ++i) {
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
   }
 }

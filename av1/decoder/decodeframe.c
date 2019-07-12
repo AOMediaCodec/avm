@@ -2709,7 +2709,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       int this_mi_row = mi_row;
       DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
       this_mi_row += ebs_h;
@@ -2727,7 +2727,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       int this_mi_row = mi_row;
       DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
       this_mi_row += ebs_h;
@@ -2745,7 +2745,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       int this_mi_col = mi_col;
       DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
       this_mi_col += ebs_w;
@@ -2763,7 +2763,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
       const BLOCK_SIZE bsize_med =
           get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       int this_mi_col = mi_col;
       DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
       this_mi_col += ebs_w;

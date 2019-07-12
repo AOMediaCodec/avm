@@ -2829,6 +2829,14 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     2,
     2,
     3,
+#if CONFIG_FLEX_PARTITION
+    0,
+    2,
+    1,
+    3,
+    0,
+    3,
+#endif  // CONFIG_FLEX_PARTITION
   };
   static const uint8_t tw_h_log2_table[BLOCK_SIZES_ALL] = {
     0,
@@ -2858,6 +2866,14 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     1,
     3,
     2,
+#if CONFIG_FLEX_PARTITION
+    2,
+    0,
+    3,
+    1,
+    3,
+    0,
+#endif  // CONFIG_FLEX_PARTITION
   };
   static const uint8_t stride_log2_table[BLOCK_SIZES_ALL] = {
     0,
@@ -2887,6 +2903,14 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
     1,
     0,
     1,
+#if CONFIG_FLEX_PARTITION
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
+#endif  // CONFIG_FLEX_PARTITION
   };
   const int index =
       ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
@@ -3340,6 +3364,14 @@ static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
     2,
     2,
     2,
+#if CONFIG_FLEX_PARTITION
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+#endif  // CONFIG_FLEX_PARTITION
   };
   return bsize_to_max_depth_table[bsize];
 }
@@ -3386,6 +3418,14 @@ static INLINE int bsize_to_tx_size_cat(BLOCK_SIZE bsize) {
     3,
     4,
     4,
+#if CONFIG_FLEX_PARTITION
+    3,
+    3,
+    4,
+    4,
+    4,
+    4,
+#endif  // CONFIG_FLEX_PARTITION
   };
   const int depth = bsize_to_tx_size_depth_table[bsize];
   assert(depth <= MAX_TX_CATS);
@@ -3406,6 +3446,12 @@ static INLINE TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
     case TX_32X64: return TX_32X32;
     case TX_64X16: return TX_32X16;
     case TX_16X64: return TX_16X32;
+#if CONFIG_FLEX_PARTITION
+    case TX_64X8: return TX_32X8;
+    case TX_8X64: return TX_8X32;
+    case TX_64X4: return TX_32X4;
+    case TX_4X64: return TX_4X32;
+#endif  // CONFIG_FLEX_PARTITION
     default: return tx_size;
   }
 }
@@ -3784,6 +3830,14 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   if (tx_size == TX_16X64 || tx_size == TX_64X16) {
     return 512;
   }
+#if CONFIG_FLEX_PARTITION
+  if (tx_size == TX_8X64 || tx_size == TX_64X8) {
+    return 256;
+  }
+  if (tx_size == TX_4X64 || tx_size == TX_64X4) {
+    return 128;
+  }
+#endif  // CONFIG_FLEX_PARTITION
   return tx_size_2d[tx_size];
 }
 

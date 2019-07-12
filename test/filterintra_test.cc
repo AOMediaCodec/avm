@@ -160,9 +160,13 @@ const PredFuncMode kPredFuncMdArray[] = {
              FILTER_PAETH_PRED),
 };
 
-const TX_SIZE kTxSize[] = { TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_4X8,
-                            TX_8X4,  TX_8X16, TX_16X8,  TX_16X32, TX_32X16,
-                            TX_4X16, TX_16X4, TX_8X32,  TX_32X8 };
+const TX_SIZE kTxSize[] = {
+  TX_4X4,  TX_8X8,   TX_16X16, TX_32X32, TX_4X8,  TX_8X4,  TX_8X16,
+  TX_16X8, TX_16X32, TX_32X16, TX_4X16,  TX_16X4, TX_8X32, TX_32X8,
+#if CONFIG_FLEX_PARTITION
+  TX_4X32, TX_32X4,
+#endif  // CONFIG_FLEX_PARTITION
+};
 
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, AV1FilterIntraPredTest,

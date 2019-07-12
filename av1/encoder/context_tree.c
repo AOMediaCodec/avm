@@ -493,7 +493,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             get_partition_subsize(bsize, PARTITION_HORZ);
         const BLOCK_SIZE bsize_med =
             get_partition_subsize(bsize_big, PARTITION_HORZ);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+        assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_med, bsize_big,
                                          subsize };
         for (int i = 0; i < 4; ++i) {
@@ -522,7 +522,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             get_partition_subsize(bsize, PARTITION_HORZ);
         const BLOCK_SIZE bsize_med =
             get_partition_subsize(bsize_big, PARTITION_HORZ);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+        assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_big, bsize_med,
                                          subsize };
         for (int i = 0; i < 4; ++i) {
@@ -551,7 +551,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             get_partition_subsize(bsize, PARTITION_VERT);
         const BLOCK_SIZE bsize_med =
             get_partition_subsize(bsize_big, PARTITION_VERT);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+        assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_med, bsize_big,
                                          subsize };
         for (int i = 0; i < 4; ++i) {
@@ -580,7 +580,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             get_partition_subsize(bsize, PARTITION_VERT);
         const BLOCK_SIZE bsize_med =
             get_partition_subsize(bsize_big, PARTITION_VERT);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+        assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_big, bsize_med,
                                          subsize };
         for (int i = 0; i < 4; ++i) {
