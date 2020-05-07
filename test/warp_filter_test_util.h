@@ -101,6 +101,39 @@ class AV1HighbdWarpFilterTest
 
 }  // namespace AV1HighbdWarpFilter
 
+#if CONFIG_EXT_WARP_FILTER
+namespace AV1ExtHighbdWarpFilter {
+typedef void (*ext_highbd_warp_affine_func)(
+    const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
+    uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
+    int p_stride, int subsampling_x, int subsampling_y, int bd,
+    ConvolveParams *conv_params);
+
+typedef ::testing::tuple<int, int, int, int, ext_highbd_warp_affine_func>
+    ExtHighbdWarpTestParam;
+typedef ::testing::tuple<ExtHighbdWarpTestParam, int, int, int, int>
+    ExtHighbdWarpTestParams;
+
+::testing::internal::ParamGenerator<ExtHighbdWarpTestParams> BuildParams(
+    ext_highbd_warp_affine_func filter);
+
+class AV1ExtHighbdWarpFilterTest
+    : public ::testing::TestWithParam<ExtHighbdWarpTestParams> {
+ public:
+  virtual ~AV1ExtHighbdWarpFilterTest();
+  virtual void SetUp();
+
+  virtual void TearDown();
+
+ protected:
+  void RunCheckOutput(ext_highbd_warp_affine_func test_impl);
+  void RunSpeedTest(ext_highbd_warp_affine_func test_impl);
+
+  libaom_test::ACMRandom rnd_;
+};
+
+}  // namespace AV1ExtHighbdWarpFilter
+#endif  // CONFIG_EXT_WARP_FILTER
 }  // namespace libaom_test
 
 #endif  // AOM_TEST_WARP_FILTER_TEST_UTIL_H_

@@ -279,6 +279,8 @@ set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
 
 set_aom_config_var(CONFIG_CWG_D067_IMPROVED_WARP 1
                    "Improvement of warp motions")
+set_aom_config_var(CONFIG_EXT_WARP_FILTER 1 "Enable extended warp filter")
+
 set_aom_config_var(CONFIG_ADST_TUNED 1
                    "AV2 experiment to replace the ADST 4, 8 and 16 basis")
 
