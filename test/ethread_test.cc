@@ -432,8 +432,8 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood),
                            ::testing::Values(0, 1, 3, 5),
-                           ::testing::Values(0, 1, 2, 6),
-                           ::testing::Values(0, 1, 2, 6), ::testing::Values(0));
+                           ::testing::Values(1, 6),
+                           ::testing::Values(1, 6), ::testing::Values(0));
 
 class AVxEncoderThreadLSTest : public AVxEncoderThreadTest {
   virtual void SetTileSize(libaom_test::Encoder *encoder) {
