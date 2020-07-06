@@ -470,6 +470,6 @@ TEST_P(AVxEncoderThreadLSTestLarge, EncoderResultTest) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadLSTestLarge, GOODQUALITY_TEST_MODES,
-                           ::testing::Range(0, 4), ::testing::Values(0, 6),
-                           ::testing::Values(0, 6), ::testing::Values(0, 1));
+                           ::testing::Range(1, 3), ::testing::Values(0, 6),
+                           ::testing::Values(0, 6), ::testing::Values(1));
 }  // namespace
