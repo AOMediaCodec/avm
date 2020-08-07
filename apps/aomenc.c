@@ -586,10 +586,10 @@ struct stream_state {
   FILE *file;
   struct rate_hist *rate_hist;
   struct WebmOutputContext webm_ctx;
-  uint64_t psnr_sse_total;
-  uint64_t psnr_samples_total;
-  double psnr_totals[4];
-  int psnr_count;
+  uint64_t psnr_sse_total[2];
+  uint64_t psnr_samples_total[2];
+  double psnr_totals[2][4];
+  int psnr_count[2];
   int counts[QINDEX_RANGE];
   aom_codec_ctx_t encoder;
   unsigned int frames_out;
@@ -751,6 +751,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
   global->passes = 1;
   global->color_type = I420;
   global->csp = AOM_CSP_UNKNOWN;
+  global->show_psnr = 0;
   global->step_frames = 1;
 
   int cfg_included = 0;
@@ -810,7 +811,10 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
         die("--step must be positive");
       }
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.psnrarg, argi)) {
-      global->show_psnr = 1;
+      if (arg.val)
+        global->show_psnr = arg_parse_int(&arg);
+      else
+        global->show_psnr = 1;
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.recontest, argi)) {
       global->test_decode = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.framerate, argi)) {
@@ -1738,7 +1742,7 @@ static void initialize_encoder(struct stream_state *stream,
   int i;
   int flags = 0;
 
-  flags |= global->show_psnr ? AOM_CODEC_USE_PSNR : 0;
+  flags |= (global->show_psnr >= 1) ? AOM_CODEC_USE_PSNR : 0;
   flags |= global->quiet ? 0 : AOM_CODEC_USE_PER_FRAME_STATS;
 
   /* Construct Encoder Context */
@@ -1989,15 +1993,25 @@ static void get_cx_data(struct stream_state *stream,
         break;
 
       case AOM_CODEC_PSNR_PKT:
-        if (global->show_psnr) {
+        if (global->show_psnr >= 1) {
           int i;
 
-          stream->psnr_sse_total += pkt->data.psnr.sse[0];
-          stream->psnr_samples_total += pkt->data.psnr.samples[0];
+          stream->psnr_sse_total[0] += pkt->data.psnr.sse[0];
+          stream->psnr_samples_total[0] += pkt->data.psnr.samples[0];
           for (i = 0; i < 4; i++) {
-            stream->psnr_totals[i] += pkt->data.psnr.psnr[i];
+            stream->psnr_totals[0][i] += pkt->data.psnr.psnr[i];
           }
-          stream->psnr_count++;
+          stream->psnr_count[0]++;
+
+          if (stream->config.cfg.g_input_bit_depth <
+              stream->config.cfg.g_bit_depth) {
+            stream->psnr_sse_total[1] += pkt->data.psnr.sse_hbd[0];
+            stream->psnr_samples_total[1] += pkt->data.psnr.samples_hbd[0];
+            for (i = 0; i < 4; i++) {
+              stream->psnr_totals[1][i] += pkt->data.psnr.psnr_hbd[i];
+            }
+            stream->psnr_count[1]++;
+          }
         }
 
         break;
@@ -2284,6 +2298,20 @@ int main(int argc, const char **argv_) {
                 "match input format.\n",
                 stream->config.cfg.g_profile);
       }
+      if ((global.show_psnr == 2) && (stream->config.cfg.g_input_bit_depth ==
+                                      stream->config.cfg.g_bit_depth)) {
+        fprintf(stderr,
+                "Warning: --psnr==2 and --psnr==1 will provide same "
+                "results when input bit-depth == stream bit-depth, "
+                "falling back to default psnr value\n");
+        global.show_psnr = 1;
+      }
+      if (global.show_psnr < 0 || global.show_psnr > 2) {
+        fprintf(stderr,
+                "Warning: --psnr can take only 0,1,2 as values,"
+                "falling back to default psnr value\n");
+        global.show_psnr = 1;
+      }
       /* Set limit */
       stream->config.cfg.g_limit = global.limit;
     }
@@ -2457,17 +2485,23 @@ int main(int argc, const char **argv_) {
         const double kbps = (bpf * (double)global.framerate.num /
                              (double)global.framerate.den) /
                             1000.0;
+        if (global.show_psnr >= 1) {
+          const int psnr_bit_depth = (global.show_psnr == 1)
+                                         ? stream->config.cfg.g_input_bit_depth
+                                         : stream->config.cfg.g_bit_depth;
+          const int psnr_idx = (global.show_psnr == 1) ? 0 : 1;
 #if CONFIG_AV2CTC_PSNR_PEAK
-        const double peak = (255 << (stream->config.cfg.g_input_bit_depth - 8));
+          const double peak = (255 << (psnr_bit_depth - 8));
 #else
-        const double peak = (1 << stream->config.cfg.g_input_bit_depth) - 1;
+          const double peak = (1 << psnr_bit_depth) - 1;
 #endif  // CONFIG_AV2CTC_PSNR_PEAK
-        const double ovpsnr = sse_to_psnr((double)stream->psnr_samples_total,
-                                          peak, (double)stream->psnr_sse_total);
-        double psnr[4] = { 0.0 };
-        if (global.show_psnr) {
+          const double ovpsnr =
+              sse_to_psnr((double)stream->psnr_samples_total[psnr_idx], peak,
+                          (double)stream->psnr_sse_total[psnr_idx]);
+          double psnr[4] = { 0.0 };
           for (int i = 0; i < 4; i++) {
-            psnr[i] = stream->psnr_totals[i] / stream->psnr_count;
+            psnr[i] =
+                stream->psnr_totals[psnr_idx][i] / stream->psnr_count[psnr_idx];
           }
           fprintf(stdout,
                   "\n         Bitrate(kbps)  |  PSNR(Y)  |  PSNR(U)  "

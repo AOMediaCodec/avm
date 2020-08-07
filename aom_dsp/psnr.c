@@ -222,9 +222,9 @@ void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
   uint64_t total_sse = 0;
   uint32_t total_samples = 0;
 #if CONFIG_AV2CTC_PSNR_PEAK
-  const double peak = (double)(255 << (in_bit_depth - 8));
+  double peak = (double)(255 << (in_bit_depth - 8));
 #else
-  const double peak = (double)((1 << in_bit_depth) - 1);
+  double peak = (double)((1 << in_bit_depth) - 1);
 #endif  // CONFIG_AV2CTC_PSNR_PEAK
   const unsigned int input_shift = bit_depth - in_bit_depth;
 
@@ -253,4 +253,33 @@ void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
   psnr->samples[0] = total_samples;
   psnr->psnr[0] =
       aom_sse_to_psnr((double)total_samples, peak, (double)total_sse);
+
+  // Compute PSNR based on stream bit depth
+  if (in_bit_depth < bit_depth) {
+#if CONFIG_AV2CTC_PSNR_PEAK
+    peak = (double)(255 << (bit_depth - 8));
+#else
+    peak = (double)((1 << bit_depth) - 1);
+#endif  // CONFIG_AV2CTC_PSNR_PEAK
+    total_sse = 0;
+    total_samples = 0;
+    for (i = 0; i < 3; ++i) {
+      const int w = widths[i];
+      const int h = heights[i];
+      const uint32_t samples = w * h;
+      uint64_t sse;
+      sse = highbd_get_sse(a->buffers[i], a_strides[i], b->buffers[i],
+                           b_strides[i], w, h);
+      psnr->sse_hbd[1 + i] = sse;
+      psnr->samples_hbd[1 + i] = samples;
+      psnr->psnr_hbd[1 + i] = aom_sse_to_psnr(samples, peak, (double)sse);
+      total_sse += sse;
+      total_samples += samples;
+    }
+
+    psnr->sse_hbd[0] = total_sse;
+    psnr->samples_hbd[0] = total_samples;
+    psnr->psnr_hbd[0] =
+        aom_sse_to_psnr((double)total_samples, peak, (double)total_sse);
+  }
 }

@@ -132,8 +132,17 @@ typedef struct aom_codec_cx_pkt {
       unsigned int samples[4]; /**< Number of samples, total/y/u/v */
       uint64_t sse[4];         /**< sum squared error, total/y/u/v */
       double psnr[4];          /**< PSNR, total/y/u/v */
-    } psnr;                    /**< data for PSNR packet */
-    aom_fixed_buf_t raw;       /**< data for arbitrary packets */
+      /*!\brief Number of samples, total/y/u/v when
+       * input bit-depth < stream bit-depth.*/
+      unsigned int samples_hbd[4];
+      /*!\brief sum squared error, total/y/u/v when
+       * input bit-depth < stream bit-depth.*/
+      uint64_t sse_hbd[4];
+      /*!\brief PSNR, total/y/u/v when
+       * input bit-depth < stream bit-depth.*/
+      double psnr_hbd[4];
+    } psnr;              /**< data for PSNR packet */
+    aom_fixed_buf_t raw; /**< data for arbitrary packets */
 
     /* This packet size is fixed to allow codecs to extend this
      * interface without having to manage storage for raw packets,

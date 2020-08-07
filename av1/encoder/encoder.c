@@ -1102,18 +1102,22 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cpi->b_calculate_blockiness = 1;
   cpi->b_calculate_consistency = 1;
   cpi->total_inconsistency = 0;
-  cpi->psnr.worst = 100.0;
+  cpi->psnr[0].worst = 100.0;
+  cpi->psnr[1].worst = 100.0;
   cpi->worst_ssim = 100.0;
 
-  cpi->count = 0;
+  cpi->count[0] = 0;
+  cpi->count[1] = 0;
   cpi->bytes = 0;
 #if CONFIG_SPEED_STATS
   cpi->tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
 
   if (cpi->b_calculate_psnr) {
-    cpi->total_sq_error = 0;
-    cpi->total_samples = 0;
+    cpi->total_sq_error[0] = 0;
+    cpi->total_samples[0] = 0;
+    cpi->total_sq_error[1] = 0;
+    cpi->total_samples[1] = 0;
     cpi->tot_recode_hits = 0;
     cpi->summed_quality = 0;
     cpi->summed_weights = 0;
@@ -1353,8 +1357,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
       const double rate_err = ((100.0 * (dr - target_rate)) / target_rate);
 
       if (cpi->b_calculate_psnr) {
-        const double total_psnr = aom_sse_to_psnr(
-            (double)cpi->total_samples, peak, (double)cpi->total_sq_error);
+        const double total_psnr =
+            aom_sse_to_psnr((double)cpi->total_samples[0], peak,
+                            (double)cpi->total_sq_error[0]);
         const double total_ssim =
             100 * pow(cpi->summed_quality / cpi->summed_weights, 8.0);
         snprintf(headings, sizeof(headings),
@@ -1367,24 +1372,25 @@ void av1_remove_compressor(AV1_COMP *cpi) {
                  "%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
                  "%7.3f\t%7.3f\t%7.3f\t%7.3f\t"
                  "%7.3f\t%7.3f\t%7.3f",
-                 dr, cpi->psnr.stat[STAT_ALL] / cpi->count, total_psnr,
-                 cpi->psnr.stat[STAT_ALL] / cpi->count, total_psnr, total_ssim,
-                 total_ssim, cpi->fastssim.stat[STAT_ALL] / cpi->count,
-                 cpi->psnrhvs.stat[STAT_ALL] / cpi->count, cpi->psnr.worst,
-                 cpi->worst_ssim, cpi->fastssim.worst, cpi->psnrhvs.worst,
-                 cpi->psnr.stat[STAT_Y] / cpi->count,
-                 cpi->psnr.stat[STAT_U] / cpi->count,
-                 cpi->psnr.stat[STAT_V] / cpi->count);
+                 dr, cpi->psnr[0].stat[STAT_ALL] / cpi->count[0], total_psnr,
+                 cpi->psnr[0].stat[STAT_ALL] / cpi->count[0], total_psnr,
+                 total_ssim, total_ssim,
+                 cpi->fastssim.stat[STAT_ALL] / cpi->count[0],
+                 cpi->psnrhvs.stat[STAT_ALL] / cpi->count[0],
+                 cpi->psnr[0].worst, cpi->worst_ssim, cpi->fastssim.worst,
+                 cpi->psnrhvs.worst, cpi->psnr[0].stat[STAT_Y] / cpi->count[0],
+                 cpi->psnr[0].stat[STAT_U] / cpi->count[0],
+                 cpi->psnr[0].stat[STAT_V] / cpi->count[0]);
 
         if (cpi->b_calculate_blockiness) {
           SNPRINT(headings, "\t  Block\tWstBlck");
-          SNPRINT2(results, "\t%7.3f", cpi->total_blockiness / cpi->count);
+          SNPRINT2(results, "\t%7.3f", cpi->total_blockiness / cpi->count[0]);
           SNPRINT2(results, "\t%7.3f", cpi->worst_blockiness);
         }
 
         if (cpi->b_calculate_consistency) {
           double consistency =
-              aom_sse_to_psnr((double)cpi->total_samples, peak,
+              aom_sse_to_psnr((double)cpi->total_samples[0], peak,
                               (double)cpi->total_inconsistency);
 
           SNPRINT(headings, "\tConsist\tWstCons");
@@ -1392,16 +1398,44 @@ void av1_remove_compressor(AV1_COMP *cpi) {
           SNPRINT2(results, "\t%7.3f", cpi->worst_consistency);
         }
 
-        SNPRINT(headings, "\t    Time\tRcErr\tAbsErr");
+        SNPRINT(headings, "\t   Time\tRcErr\tAbsErr");
         SNPRINT2(results, "\t%8.0f", total_encode_time);
-        SNPRINT2(results, "\t%7.2f", rate_err);
-        SNPRINT2(results, "\t%7.2f", fabs(rate_err));
+        SNPRINT2(results, " %7.2f", rate_err);
+        SNPRINT2(results, " %7.2f", fabs(rate_err));
 
-        fprintf(f, "%s\tAPsnr611\n", headings);
-        fprintf(f, "%s\t%7.3f\n", results,
-                (6 * cpi->psnr.stat[STAT_Y] + cpi->psnr.stat[STAT_U] +
-                 cpi->psnr.stat[STAT_V]) /
-                    (cpi->count * 8));
+        SNPRINT(headings, "\tAPsnr611");
+        SNPRINT2(results, " %7.3f",
+                 (6 * cpi->psnr[0].stat[STAT_Y] + cpi->psnr[0].stat[STAT_U] +
+                  cpi->psnr[0].stat[STAT_V]) /
+                     (cpi->count[0] * 8));
+
+        const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
+        const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
+        if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
+            (in_bit_depth < bit_depth)) {
+          const double peak_hbd = (double)((1 << bit_depth) - 1);
+          const double total_psnr_hbd =
+              aom_sse_to_psnr((double)cpi->total_samples[1], peak_hbd,
+                              (double)cpi->total_sq_error[1]);
+          SNPRINT(headings,
+                  "\t AVGPsnrH GLBPsnrH AVPsnrPH GLPsnrPH"
+                  " AVPsnrYH APsnrCbH APsnrCrH WstPsnrH");
+          SNPRINT2(results, "\t%7.3f",
+                   cpi->psnr[1].stat[STAT_ALL] / cpi->count[1]);
+          SNPRINT2(results, "  %7.3f", total_psnr_hbd);
+          SNPRINT2(results, "  %7.3f",
+                   cpi->psnr[1].stat[STAT_ALL] / cpi->count[1]);
+          SNPRINT2(results, "  %7.3f", total_psnr_hbd);
+          SNPRINT2(results, "  %7.3f",
+                   cpi->psnr[1].stat[STAT_Y] / cpi->count[1]);
+          SNPRINT2(results, "  %7.3f",
+                   cpi->psnr[1].stat[STAT_U] / cpi->count[1]);
+          SNPRINT2(results, "  %7.3f",
+                   cpi->psnr[1].stat[STAT_V] / cpi->count[1]);
+          SNPRINT2(results, "  %7.3f", cpi->psnr[1].worst);
+        }
+        fprintf(f, "%s\n", headings);
+        fprintf(f, "%s\n", results);
       }
 
       fclose(f);
@@ -1502,6 +1536,16 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
     pkt.data.psnr.sse[i] = psnr.sse[i];
     pkt.data.psnr.psnr[i] = psnr.psnr[i];
   }
+
+  if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
+      (in_bit_depth < bit_depth)) {
+    for (i = 0; i < 4; ++i) {
+      pkt.data.psnr.samples_hbd[i] = psnr.samples_hbd[i];
+      pkt.data.psnr.sse_hbd[i] = psnr.sse_hbd[i];
+      pkt.data.psnr.psnr_hbd[i] = psnr.psnr_hbd[i];
+    }
+  }
+
   pkt.kind = AOM_CODEC_PSNR_PKT;
   aom_codec_pkt_list_add(cpi->output_pkt_list, &pkt);
 }
@@ -4245,22 +4289,32 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
     const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
     double y, u, v, frame_all;
 
-    cpi->count++;
+    cpi->count[0]++;
+    cpi->count[1]++;
     if (cpi->b_calculate_psnr) {
       PSNR_STATS psnr;
       double frame_ssim2 = 0.0, weight = 0.0;
       aom_clear_system_state();
       aom_calc_highbd_psnr(orig, recon, &psnr, bit_depth, in_bit_depth);
       adjust_image_stat(psnr.psnr[1], psnr.psnr[2], psnr.psnr[3], psnr.psnr[0],
-                        &cpi->psnr);
-      cpi->total_sq_error += psnr.sse[0];
-      cpi->total_samples += psnr.samples[0];
+                        &(cpi->psnr[0]));
+      cpi->total_sq_error[0] += psnr.sse[0];
+      cpi->total_samples[0] += psnr.samples[0];
       frame_ssim2 =
           aom_highbd_calc_ssim(orig, recon, &weight, bit_depth, in_bit_depth);
 
       cpi->worst_ssim = AOMMIN(cpi->worst_ssim, frame_ssim2);
       cpi->summed_quality += frame_ssim2 * weight;
       cpi->summed_weights += weight;
+
+      // Compute PSNR based on stream bit depth
+      if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
+          (in_bit_depth < bit_depth)) {
+        adjust_image_stat(psnr.psnr_hbd[1], psnr.psnr_hbd[2], psnr.psnr_hbd[3],
+                          psnr.psnr_hbd[0], &cpi->psnr[1]);
+        cpi->total_sq_error[1] += psnr.sse_hbd[0];
+        cpi->total_samples[1] += psnr.samples_hbd[0];
+      }
 
 #if 0
       {
