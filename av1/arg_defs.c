@@ -157,7 +157,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .rt_dl = ARG_DEF(NULL, "rt", 0, "Use Realtime Quality Deadline"),
   .quietarg = ARG_DEF("q", "quiet", 0, "Do not print encode progress"),
   .verbosearg = ARG_DEF("v", "verbose", 0, "Show encoder parameters"),
-  .psnrarg = ARG_DEF(NULL, "psnr", 0, "Show PSNR in status line"),
+  .psnrarg = ARG_DEF(
+      NULL, "psnr", -1,
+      "Show PSNR in status line"
+      "(0: Disable PSNR status line display, 1: PSNR calculated using input "
+      "bit-depth (default), 2: PSNR calculated using stream bit-depth), "
+      "takes default option when arguments are not specified"),
   .use_cfg = ARG_DEF("c", "cfg", 1, "Config file to use"),
   .recontest = ARG_DEF_ENUM(NULL, "test-decode", 1,
                             "Test encode/decode mismatch", test_decode_enum),

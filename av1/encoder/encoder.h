@@ -2371,10 +2371,10 @@ typedef struct AV1_COMP {
 
   unsigned int mode_chosen_counts[MAX_MODES];
 
-  int count;
-  uint64_t total_sq_error;
-  uint64_t total_samples;
-  ImageStat psnr;
+  int count[2];
+  uint64_t total_sq_error[2];
+  uint64_t total_samples[2];
+  ImageStat psnr[2];
 
   double total_blockiness;
   double worst_blockiness;

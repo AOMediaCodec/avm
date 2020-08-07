@@ -2425,6 +2425,7 @@ static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
 
   for (i = 0; i < 4; ++i) {
     psnr->psnr[i] = stats.psnr[i];
+    psnr->psnr_hbd[i] = stats.psnr_hbd[i];
   }
 }
 
@@ -2439,6 +2440,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
 
   for (int i = 0; i < 4; ++i) {
     psnr.psnr[i] = 0;
+    psnr.psnr_hbd[i] = 0;
   }
 
   if (cpi->b_calculate_psnr) {
@@ -2457,6 +2459,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                              : ref_poc[ref_idx];
     }
     if (cpi->b_calculate_psnr) {
+      const bool use_hbd_psnr = 1;  // TODO(now).
       fprintf(stdout,
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
               " Bytes, "
@@ -2466,8 +2469,10 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
               cm->cur_frame->absolute_poc,
               frameType[cm->current_frame.frame_type],
               cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
-              cx_time / 1000.0, psnr.psnr[1], psnr.psnr[2], psnr.psnr[3],
-              psnr.psnr[0]);
+              cx_time / 1000.0, use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
+              use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
+              use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
+              use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
     } else {
       fprintf(stdout,
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
