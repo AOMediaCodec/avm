@@ -202,4 +202,31 @@ TEST(Y4MHeaderTest, RegularHeader) {
   y4m_input_close(&y4m);
 }
 
+// Testing that headers over 100 characters can be parsed.
+static const char kY4MLongHeader[] =
+    "YUV4MPEG2 W4 H4 F30:1 Ip A0:0 C420jpeg XYSCSS=420JPEG "
+    "XCOLORRANGE=LIMITED XSOME_UNKNOWN_METADATA XOTHER_UNKNOWN_METADATA\n"
+    "FRAME\n"
+    "012345678912345601230123";
+
+TEST(Y4MHeaderTest, LongHeader) {
+  libaom_test::TempOutFile tmpfile;
+  FILE *f = tmpfile.file();
+  fwrite(kY4MLongHeader, 1, sizeof(kY4MLongHeader), f);
+  fflush(f);
+  EXPECT_EQ(fseek(f, 0, 0), 0);
+
+  y4m_input y4m;
+  EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNKNOWN,
+                           /*only_420=*/0),
+            0);
+  EXPECT_EQ(y4m.pic_w, 4);
+  EXPECT_EQ(y4m.pic_h, 4);
+  EXPECT_EQ(y4m.fps_n, 30);
+  EXPECT_EQ(y4m.fps_d, 1);
+  EXPECT_EQ(y4m.interlace, 'p');
+  EXPECT_EQ(strcmp("420jpeg", y4m.chroma_type), 0);
+  y4m_input_close(&y4m);
+}
+
 }  // namespace
