@@ -871,7 +871,8 @@ static int main_loop(int argc, const char **argv_) {
               len = y4m_write_file_header(
                   y4m_buf, sizeof(y4m_buf), aom_input_ctx.width,
                   aom_input_ctx.height, &aom_input_ctx.framerate,
-                  img->monochrome, img->csp, img->fmt, img->bit_depth);
+                  img->monochrome, img->csp, img->fmt, img->bit_depth,
+                  img->range);
               if (img->csp == AOM_CSP_COLOCATED) {
                 fprintf(stderr,
                         "Warning: Y4M lacks a colorspace for colocated "

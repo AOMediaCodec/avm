@@ -150,7 +150,7 @@ class Y4mVideoWriteTest : public Y4mVideoSourceTest {
     ASSERT_TRUE(tmpfile_->file() != NULL);
     y4m_write_file_header(buf, sizeof(buf), kWidth, kHeight, &framerate,
                           img()->monochrome, img()->csp, y4m_.aom_fmt,
-                          y4m_.bit_depth);
+                          y4m_.bit_depth, AOM_CR_STUDIO_RANGE);
     fputs(buf, tmpfile_->file());
     for (unsigned int i = start_; i < limit_; i++) {
       y4m_write_frame_header(buf, sizeof(buf));
@@ -198,6 +198,7 @@ TEST(Y4MHeaderTest, RegularHeader) {
   EXPECT_EQ(y4m.fps_n, 30);
   EXPECT_EQ(y4m.fps_d, 1);
   EXPECT_EQ(y4m.interlace, 'p');
+  EXPECT_EQ(y4m.color_range, AOM_CR_STUDIO_RANGE);
   EXPECT_EQ(strcmp("420jpeg", y4m.chroma_type), 0);
   y4m_input_close(&y4m);
 }
@@ -225,8 +226,58 @@ TEST(Y4MHeaderTest, LongHeader) {
   EXPECT_EQ(y4m.fps_n, 30);
   EXPECT_EQ(y4m.fps_d, 1);
   EXPECT_EQ(y4m.interlace, 'p');
+  EXPECT_EQ(y4m.color_range, AOM_CR_STUDIO_RANGE);
   EXPECT_EQ(strcmp("420jpeg", y4m.chroma_type), 0);
   y4m_input_close(&y4m);
+}
+
+static const char kY4MFullRangeHeader[] =
+    "YUV4MPEG2 W4 H4 F30:1 Ip A0:0 C420jpeg XYSCSS=420JPEG XCOLORRANGE=FULL\n"
+    "FRAME\n"
+    "012345678912345601230123";
+
+TEST(Y4MHeaderTest, FullRangeHeader) {
+  libaom_test::TempOutFile tmpfile;
+  FILE *f = tmpfile.file();
+  fwrite(kY4MFullRangeHeader, 1, sizeof(kY4MFullRangeHeader), f);
+  fflush(f);
+  EXPECT_EQ(fseek(f, 0, 0), 0);
+
+  y4m_input y4m;
+  EXPECT_EQ(y4m_input_open(&y4m, f, NULL, 0, AOM_CSP_UNKNOWN,
+                           /*only_420=*/0),
+            0);
+  EXPECT_EQ(y4m.pic_w, 4);
+  EXPECT_EQ(y4m.pic_h, 4);
+  EXPECT_EQ(y4m.fps_n, 30);
+  EXPECT_EQ(y4m.fps_d, 1);
+  EXPECT_EQ(y4m.interlace, 'p');
+  EXPECT_EQ(strcmp("420jpeg", y4m.chroma_type), 0);
+  EXPECT_EQ(y4m.color_range, AOM_CR_FULL_RANGE);
+  y4m_input_close(&y4m);
+}
+
+TEST(Y4MHeaderTest, WriteStudioColorRange) {
+  char buf[128];
+  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
+  EXPECT_GE(y4m_write_file_header(
+                buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
+                /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
+                /*bit_depth=*/8, AOM_CR_STUDIO_RANGE),
+            0);
+  EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg\n", buf), 0);
+}
+
+TEST(Y4MHeaderTest, WriteFullColorRange) {
+  char buf[128];
+  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
+  EXPECT_GE(y4m_write_file_header(
+                buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
+                /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
+                /*bit_depth=*/8, AOM_CR_FULL_RANGE),
+            0);
+  EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg XCOLORRANGE=FULL\n", buf),
+            0);
 }
 
 }  // namespace

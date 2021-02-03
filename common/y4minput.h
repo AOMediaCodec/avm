@@ -55,6 +55,7 @@ struct y4m_input {
   enum aom_img_fmt aom_fmt;
   int bps;
   unsigned int bit_depth;
+  aom_color_range_t color_range;
 };
 
 /**

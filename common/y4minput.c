@@ -53,6 +53,28 @@ static int file_read(void *buf, size_t size, FILE *file) {
   return len == size;
 }
 
+// Stores the color range in 'y4m_ctx', returning 1 if successfully parsed,
+// 0 otherwise.
+static int parse_color_range(y4m_input *y4m_ctx, const char *buf) {
+  // Note that default is studio range.
+  if (strcmp(buf, "LIMITED") == 0) {
+    return 1;
+  }
+  if (strcmp(buf, "FULL") == 0) {
+    y4m_ctx->color_range = AOM_CR_FULL_RANGE;
+    return 1;
+  }
+  fprintf(stderr, "Unknown color range value: %s\n", buf);
+  return 0;
+}
+
+static int parse_metadata(y4m_input *y4m_ctx, const char *buf) {
+  if (strncmp(buf, "COLORRANGE=", 11) == 0) {
+    return parse_color_range(y4m_ctx, buf + 11);
+  }
+  return 1;  // No support for other metadata, just ignore them.
+}
+
 static int y4m_parse_tags(y4m_input *_y4m, char *_tags) {
   char *p;
   char *q;
@@ -90,7 +112,10 @@ static int y4m_parse_tags(y4m_input *_y4m, char *_tags) {
         memcpy(_y4m->chroma_type, p + 1, q - p - 1);
         _y4m->chroma_type[q - p - 1] = '\0';
       } break;
-        /*Ignore unknown tags.*/
+      case 'X': {
+        if (!parse_metadata(_y4m, p + 1)) return -1;
+      } break;
+      default: break; /*Ignore unknown tags.*/
     }
   }
   return 0;
@@ -146,6 +171,7 @@ static int parse_tags(y4m_input *y4m_ctx, FILE *file) {
   y4m_ctx->par_n = 0;
   y4m_ctx->par_d = 0;
   y4m_ctx->interlace = '?';
+  y4m_ctx->color_range = AOM_CR_STUDIO_RANGE;
   snprintf(y4m_ctx->chroma_type, sizeof(y4m_ctx->chroma_type), "420");
 
   // Find one tag at a time.
@@ -840,8 +866,6 @@ static void y4m_convert_null(y4m_input *_y4m, unsigned char *_dst,
 }
 
 static const char TAG[] = "YUV4MPEG2";
-// Temporary until arbitrary header parsing submitted.
-#define Y4M_HEADER_BUF_SIZE 200
 
 int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
                    int num_skip, aom_chroma_sample_position_t csp,

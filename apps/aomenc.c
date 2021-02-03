@@ -515,6 +515,7 @@ struct stream_config {
 #endif
   const char *subgop_config_str;
   const char *subgop_config_path;
+  aom_color_range_t color_range;
 };
 
 struct stream_state {
@@ -758,6 +759,7 @@ static void open_input_file(struct AvxInputContext *input,
       input->framerate.denominator = input->y4m.fps_d;
       input->fmt = input->y4m.aom_fmt;
       input->bit_depth = input->y4m.bit_depth;
+      input->color_range = input->y4m.color_range;
     } else
       fatal("Unsupported Y4M stream.");
   } else if (input->detect.buf_read == 4 && fourcc_is_ivf(input->detect.buf)) {
@@ -1547,6 +1549,8 @@ static void initialize_encoder(struct stream_state *stream,
     AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_FILM_GRAIN_TABLE,
                                   stream->config.film_grain_filename);
   }
+  AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_COLOR_RANGE,
+                                stream->config.color_range);
 
   if (stream->config.subgop_config_str) {
     AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_SUBGOP_CONFIG_STR,
@@ -2069,6 +2073,7 @@ int main(int argc, const char **argv_) {
 
     FOREACH_STREAM(stream, streams) {
       set_stream_dimensions(stream, input.width, input.height);
+      stream->config.color_range = input.color_range;
     }
     FOREACH_STREAM(stream, streams) { validate_stream_config(stream, &global); }
 
