@@ -19,6 +19,8 @@ include(ProcessorCount)
 include("${AOM_ROOT}/test/test_data_util.cmake")
 
 set(AOM_UNIT_TEST_DATA_LIST_FILE "${AOM_ROOT}/test/test-data.sha1")
+set(AOM_IDE_TEST_FOLDER "test")
+set(AOM_IDE_TESTDATA_FOLDER "testdata")
 
 list(APPEND AOM_UNIT_TEST_WRAPPER_SOURCES "${AOM_GEN_SRC_DIR}/usage_exit.c"
      "${AOM_ROOT}/test/test_libaom.cc")
@@ -277,6 +279,7 @@ if(ENABLE_TESTS)
   add_library(
     aom_gtest STATIC
     "${AOM_ROOT}/third_party/googletest/src/googletest/src/gtest-all.cc")
+  set_property(TARGET aom_gtest PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
   if(MSVC OR WIN32)
     target_compile_definitions(aom_gtest PRIVATE GTEST_OS_WINDOWS=1)
   elseif(CONFIG_MULTITHREAD AND CMAKE_USE_PTHREADS_INIT)
@@ -296,15 +299,18 @@ function(setup_aom_test_targets)
   # list into separate object library targets, and then linking them into
   # test_libaom.
   add_library(test_aom_common OBJECT ${AOM_UNIT_TEST_COMMON_SOURCES})
+  set_property(TARGET test_aom_common PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
   add_dependencies(test_aom_common aom)
 
   if(CONFIG_AV1_DECODER)
     add_library(test_aom_decoder OBJECT ${AOM_UNIT_TEST_DECODER_SOURCES})
+    set_property(TARGET test_aom_decoder PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
     add_dependencies(test_aom_decoder aom)
   endif()
 
   if(CONFIG_AV1_ENCODER)
     add_library(test_aom_encoder OBJECT ${AOM_UNIT_TEST_ENCODER_SOURCES})
+    set_property(TARGET test_aom_encoder PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
     add_dependencies(test_aom_encoder aom)
   endif()
 
@@ -312,6 +318,7 @@ function(setup_aom_test_targets)
     test_libaom
     ${AOM_UNIT_TEST_WRAPPER_SOURCES} $<TARGET_OBJECTS:aom_common_app_util>
     $<TARGET_OBJECTS:test_aom_common>)
+  set_property(TARGET test_libaom PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
   list(APPEND AOM_APP_TARGETS test_libaom)
 
   if(CONFIG_AV1_DECODER)
@@ -335,6 +342,8 @@ function(setup_aom_test_targets)
       add_executable(
         test_intra_pred_speed ${AOM_TEST_INTRA_PRED_SPEED_SOURCES}
                               $<TARGET_OBJECTS:aom_common_app_util>)
+      set_property(TARGET test_intra_pred_speed PROPERTY FOLDER
+                                                         ${AOM_IDE_TEST_FOLDER})
       target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} aom
                             aom_gtest)
       list(APPEND AOM_APP_TARGETS test_intra_pred_speed)
@@ -393,12 +402,15 @@ function(setup_aom_test_targets)
           -DAOM_ROOT="${AOM_ROOT}" -DAOM_TEST_FILE="${test_file}"
           -DAOM_TEST_CHECKSUM=${test_file_checksum} -P
           "${AOM_ROOT}/test/test_data_download_worker.cmake")
+      set_property(TARGET testdata_${test_index}
+                   PROPERTY FOLDER ${AOM_IDE_TESTDATA_FOLDER})
       list(APPEND testdata_targets testdata_${test_index})
     endforeach()
 
     # Create a custom build target for running each test data download target.
     add_custom_target(testdata)
     add_dependencies(testdata ${testdata_targets})
+    set_property(TARGET testdata PROPERTY FOLDER ${AOM_IDE_TESTDATA_FOLDER})
 
     # Skip creation of test run targets when generating for Visual Studio and
     # Xcode unless the user explicitly requests IDE test hosting. This is done
@@ -425,9 +437,11 @@ function(setup_aom_test_targets)
             -DTEST_LIBAOM=$<TARGET_FILE:test_libaom> -P
             "${AOM_ROOT}/test/test_runner.cmake"
           DEPENDS testdata test_libaom)
+        set_property(TARGET ${test_name} PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
         list(APPEND test_targets ${test_name})
       endforeach()
       add_custom_target(runtests)
+      set_property(TARGET runtests PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
       add_dependencies(runtests ${test_targets})
     endif()
   endif()

@@ -48,6 +48,9 @@ endif()
 set(SO_VERSION 2)
 set(SO_FILE_VERSION 2.0.0)
 
+# Enable generators like Xcode and Visual Studio to place projects in folders.
+set_property(GLOBAL PROPERTY USE_FOLDERS TRUE)
+
 include("${AOM_ROOT}/build/cmake/aom_configure.cmake")
 include("${AOM_ROOT}/aom_dsp/aom_dsp.cmake")
 include("${AOM_ROOT}/aom_mem/aom_mem.cmake")
@@ -339,19 +342,23 @@ if(ENABLE_EXAMPLES
    OR ENABLE_TESTS
    OR ENABLE_TOOLS)
   add_library(aom_common_app_util OBJECT ${AOM_COMMON_APP_UTIL_SOURCES})
+  set_property(TARGET ${example} PROPERTY FOLDER examples)
   if(CONFIG_AV1_DECODER)
     add_library(aom_decoder_app_util OBJECT ${AOM_DECODER_APP_UTIL_SOURCES})
+    set_property(TARGET ${example} PROPERTY FOLDER examples)
     # obudec depends on internal headers that require *rtcd.h
     add_dependencies(aom_decoder_app_util aom_rtcd)
   endif()
   if(CONFIG_AV1_ENCODER)
     add_library(aom_encoder_app_util OBJECT ${AOM_ENCODER_APP_UTIL_SOURCES})
+    set_property(TARGET ${example} PROPERTY FOLDER examples)
   endif()
 endif()
 
 if((CONFIG_AV1_DECODER OR CONFIG_AV1_ENCODER) AND ENABLE_EXAMPLES)
   add_executable(resize_util "${AOM_ROOT}/examples/resize_util.c"
                              $<TARGET_OBJECTS:aom_common_app_util>)
+  set_property(TARGET ${example} PROPERTY FOLDER examples)
   list(APPEND AOM_APP_TARGETS resize_util)
   add_executable(
     lanczos_resample_y4m
@@ -932,12 +939,14 @@ endif()
 if(ENABLE_EXAMPLES)
   foreach(example ${AOM_EXAMPLE_TARGETS})
     list(APPEND AOM_DIST_EXAMPLES $<TARGET_FILE:${example}>)
+    set_property(TARGET ${example} PROPERTY FOLDER examples)
   endforeach()
 endif()
 
 if(ENABLE_TOOLS)
   foreach(tool ${AOM_TOOL_TARGETS})
     list(APPEND AOM_DIST_TOOLS $<TARGET_FILE:${tool}>)
+    set_property(TARGET ${tool} PROPERTY FOLDER tools)
   endforeach()
 endif()
 
