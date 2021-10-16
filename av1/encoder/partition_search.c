@@ -2198,7 +2198,13 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   }
 
   PARTITION_TREE *sub_tree[4] = { NULL, NULL, NULL, NULL };
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // If two pass partition tree is enable, then store the partition types in
+  // ptree even if it's dry run.
+  if (!dry_run || (cpi->sf.part_sf.two_pass_partition_search && ptree)) {
+#else
   if (!dry_run) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     assert(ptree);
 
     ptree->partition = partition;
@@ -3279,7 +3285,7 @@ static void rd_pick_rect_partition(AV1_COMP *const cpi, TileDataEnc *tile_data,
 static void rd_pick_rect_partition(
     AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
     TokenExtra **tp, MACROBLOCK *x, PC_TREE *pc_tree,
-    PartitionSearchState *part_search_state, RD_STATS *best_rdc,
+    PartitionSearchState *part_search_state, const RD_STATS *best_rdc,
     RECT_PART_TYPE rect_type,
     const int mi_pos_rect[NUM_RECT_PARTS][SUB_PARTITIONS_RECT][2],
     BLOCK_SIZE bsize, const int is_not_edge_block[NUM_RECT_PARTS],
@@ -3301,7 +3307,8 @@ static void rd_pick_rect_partition(
   bool partition_found = av1_rd_pick_partition(
       cpi, td, tile_data, tp, mi_pos_rect[rect_type][0][0],
       mi_pos_rect[rect_type][0][1], bsize, &this_rdc, best_remain_rdcost,
-      sub_tree[0], track_ptree_luma ? ptree_luma->sub_tree[0] : NULL,
+      sub_tree[0],
+      track_ptree_luma ? ptree_luma->sub_tree[0] : NULL,
       get_partition_subtree_const(template_tree, 0), NULL, NULL,
       multi_pass_mode, NULL);
   av1_rd_cost_update(x->rdmult, &this_rdc);
@@ -3320,7 +3327,8 @@ static void rd_pick_rect_partition(
     partition_found = av1_rd_pick_partition(
         cpi, td, tile_data, tp, mi_pos_rect[rect_type][1][0],
         mi_pos_rect[rect_type][1][1], bsize, &this_rdc, best_remain_rdcost,
-        sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
+        sub_tree[1],
+        track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
         get_partition_subtree_const(template_tree, 1), NULL, NULL,
         multi_pass_mode, NULL);
     av1_rd_cost_update(x->rdmult, &this_rdc);
@@ -4553,9 +4561,9 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   if (rdo_data->is_splittable) {
     if (!av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
                                &this_rdc, rdcost_remaining, rdo_data->pc_tree,
-                               rdo_data->ptree_luma, rdo_data->template_tree,
-                               rdo_data->sms_tree, NULL, multi_pass_mode,
-                               NULL)) {
+                               rdo_data->ptree_luma,
+                               rdo_data->template_tree, rdo_data->sms_tree,
+                               NULL, multi_pass_mode, NULL)) {
       av1_invalid_rd_stats(sum_rdc);
       return 0;
     }
@@ -4722,18 +4730,19 @@ static INLINE void search_partition_horz_3(
 
     if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) break;
 
-    SUBBLOCK_RDO_DATA rdo_data = { NULL,
-                                   pc_tree->horizontal3[i],
-                                   get_partition_subtree_const(ptree_luma, i),
-                                   get_partition_subtree_const(template_tree,
-                                                               i),
-                                   NULL,
-                                   this_mi_row,
-                                   mi_col,
-                                   subblock_sizes[i],
-                                   PARTITION_HORZ_3,
-                                   i == 2,
-                                   1 };
+    SUBBLOCK_RDO_DATA rdo_data = {
+      NULL,
+      pc_tree->horizontal3[i],
+      get_partition_subtree_const(ptree_luma, i),
+      get_partition_subtree_const(template_tree, i),
+      NULL,
+      this_mi_row,
+      mi_col,
+      subblock_sizes[i],
+      PARTITION_HORZ_3,
+      i == 2,
+      1
+    };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode)) {
       av1_invalid_rd_stats(&sum_rdc);
@@ -4872,18 +4881,19 @@ static INLINE void search_partition_vert_3(
 
     if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) break;
 
-    SUBBLOCK_RDO_DATA rdo_data = { NULL,
-                                   pc_tree->vertical3[i],
-                                   get_partition_subtree_const(ptree_luma, i),
-                                   get_partition_subtree_const(template_tree,
-                                                               i),
-                                   NULL,
-                                   mi_row,
-                                   this_mi_col,
-                                   subblock_sizes[i],
-                                   PARTITION_VERT_3,
-                                   i == 2,
-                                   1 };
+    SUBBLOCK_RDO_DATA rdo_data = {
+      NULL,
+      pc_tree->vertical3[i],
+      get_partition_subtree_const(ptree_luma, i),
+      get_partition_subtree_const(template_tree, i),
+      NULL,
+      mi_row,
+      this_mi_col,
+      subblock_sizes[i],
+      PARTITION_VERT_3,
+      i == 2,
+      1
+    };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode)) {
       av1_invalid_rd_stats(&sum_rdc);
@@ -4929,6 +4939,48 @@ picked partitions and mode info for the
 current block
 * \param[in]    ptree_luma Pointer to the luma partition tree so that the
 *                          encoder to estimate the partition type for chroma.
+* \param[in]    template_tree      A partial tree that contains the partition
+*                                  structure to be used as a template.
+* \param[in]    sms_tree           Pointer to struct holding simple motion
+search data for the current block
+* \param[in]    none_rd            Pointer to the rd cost in the case of not
+splitting the current block
+* \param[in]    multi_pass_mode    SB_SINGLE_PASS/SB_DRY_PASS/SB_WET_PASS
+* \param[in]    rect_part_win_info Pointer to struct storing whether horz/vert
+partition outperforms previously tested
+partitions
+*
+* \return A bool value is returned indicating if a valid partition is found.
+* The pc_tree struct is modified to store the picked partition and modes.
+* The rd_cost struct is also updated with the RD stats corresponding to the
+* best partition found.
+*/
+#elif CONFIG_EXT_RECUR_PARTITIONS
+/*!\brief AV1 block partition search (full search).
+*
+* \ingroup partition_search
+* \callgraph
+* Searches for the best partition pattern for a block based on the
+* rate-distortion cost, and returns a bool value to indicate whether a valid
+* partition pattern is found. The partition can recursively go down to the
+* smallest block size.
+*
+* \param[in]    cpi                Top-level encoder structure
+* \param[in]    td                 Pointer to thread data
+* \param[in]    tile_data          Pointer to struct holding adaptive
+data/contexts/models for the tile during
+encoding
+* \param[in]    tp                 Pointer to the starting token
+* \param[in]    mi_row             Row coordinate of the block in a step size
+of MI_SIZE
+* \param[in]    mi_col             Column coordinate of the block in a step
+size of MI_SIZE
+* \param[in]    bsize              Current block size
+* \param[in]    rd_cost            Pointer to the final rd cost of the block
+* \param[in]    best_rdc           Upper bound of rd cost of a valid partition
+* \param[in]    pc_tree            Pointer to the PC_TREE node storing the
+picked partitions and mode info for the
+current block
 * \param[in]    template_tree      A partial tree that contains the partition
 *                                  structure to be used as a template.
 * \param[in]    sms_tree           Pointer to struct holding simple motion
@@ -4995,6 +5047,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            RD_STATS best_rdc, PC_TREE *pc_tree,
 #if CONFIG_EXT_RECUR_PARTITIONS
                            const PARTITION_TREE *ptree_luma,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
                            const PARTITION_TREE *template_tree,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                            SIMPLE_MOTION_DATA_TREE *sms_tree, int64_t *none_rd,
@@ -5454,6 +5508,15 @@ BEGIN_PARTITION_SEARCH:
 #endif
     goto BEGIN_PARTITION_SEARCH;
   }
+#if CONFIG_EXT_RECUR_PARTITIONS && !defined(NDEBUG)
+  if (template_tree && template_tree->partition != PARTITION_INVALID &&
+      pc_tree->partitioning != template_tree->partition) {
+    assert(0);
+    printf("Mismatch with template at fr: %d, mi: (%d, %d), BLOCK_%dX%d\n",
+           cm->current_frame.order_hint, mi_row, mi_col, block_size_wide[bsize],
+           block_size_high[bsize]);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !defined(NDEBUG)
 
   // Store the final rd cost
   *rd_cost = best_rdc;

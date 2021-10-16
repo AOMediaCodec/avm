@@ -207,6 +207,38 @@ typedef enum ATTRIBUTE_PACKED {
   BLOCK_LARGEST = (BLOCK_SIZES - 1)
 } BLOCK_SIZE;
 
+static AOM_INLINE BLOCK_SIZE get_larger_sqr_bsize(BLOCK_SIZE bsize) {
+  switch (bsize) {
+    case BLOCK_4X4:
+    case BLOCK_4X8:
+    case BLOCK_8X4: return BLOCK_8X8;
+
+    case BLOCK_8X8:
+    case BLOCK_8X16:
+    case BLOCK_16X8:
+    case BLOCK_4X16:
+    case BLOCK_16X4: return BLOCK_16X16;
+
+    case BLOCK_16X16:
+    case BLOCK_16X32:
+    case BLOCK_32X16:
+    case BLOCK_8X32:
+    case BLOCK_32X8: return BLOCK_32X32;
+
+    case BLOCK_32X32:
+    case BLOCK_32X64:
+    case BLOCK_64X32:
+    case BLOCK_16X64:
+    case BLOCK_64X16: return BLOCK_64X64;
+
+    case BLOCK_64X64:
+    case BLOCK_64X128:
+    case BLOCK_128X64:
+    case BLOCK_128X128: return BLOCK_128X128;
+    default: return BLOCK_INVALID;
+  }
+}
+
 enum {
   SHARED_PART = 0,
   LUMA_PART = 1,

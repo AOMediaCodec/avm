@@ -1560,6 +1560,9 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
 #if CONFIG_C043_MVP_IMPROVEMENTS
   sb_fp_stats->ref_mv_bank = td->mb.e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  sb_fp_stats->min_partition_size = x->sb_enc.min_partition_size;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   memcpy(sb_fp_stats->mode_chosen_counts, cpi->mode_chosen_counts,
@@ -1595,6 +1598,9 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 #if CONFIG_C043_MVP_IMPROVEMENTS
   x->e_mbd.ref_mv_bank = sb_fp_stats->ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->sb_enc.min_partition_size = sb_fp_stats->min_partition_size;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   memcpy(cpi->mode_chosen_counts, sb_fp_stats->mode_chosen_counts,

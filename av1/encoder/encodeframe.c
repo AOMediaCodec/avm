@@ -522,10 +522,27 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
+/*!\brief Parameters for \ref perform_one_partition_pass to support multiple sb
+ * passes.
+ * \ingroup partition_search
+ * */
+typedef struct SbMultiPassParams {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*!\brief The reference partition tree template. */
+  const PARTITION_TREE *template_tree;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+} SbMultiPassParams;
+
+/*!\brief Call \ref av1_rd_pick_partition.
+ *
+ * \ingroup partition_search
+ * This is a helper function used to handle some SDP related logics.
+ */
 static AOM_INLINE void perform_one_partition_pass(
     AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
     const int mi_row, const int mi_col,
-    const SB_MULTI_PASS_MODE multi_pass_mode) {
+    const SB_MULTI_PASS_MODE multi_pass_mode,
+    const SbMultiPassParams *multi_pass_params) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -551,11 +568,23 @@ static AOM_INLINE void perform_one_partition_pass(
                       1);
     PC_TREE *const pc_root = av1_alloc_pc_tree_node(
         mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const PARTITION_TREE *template_tree =
+        multi_pass_params ? multi_pass_params->template_tree : NULL;
+    assert(IMPLIES(template_tree, total_loop_num == 1) &&
+           "perform_one_partition_pass cannot handle fixed partitioning for "
+           "erp yet.");
+#else
+  (void)multi_pass_params;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     av1_rd_pick_partition(
         cpi, td, tile_data, tp, mi_row, mi_col, sb_size, &dummy_rdc, dummy_rdc,
         pc_root,
 #if CONFIG_EXT_RECUR_PARTITIONS
-        xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL, NULL,
+        xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+        template_tree,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
         sms_root, NULL, multi_pass_mode, NULL);
     sb_enc->min_partition_size = min_partition_size;
@@ -563,6 +592,12 @@ static AOM_INLINE void perform_one_partition_pass(
   xd->tree_type = SHARED_PART;
 }
 
+/*!\brief Call \ref av1_rd_pick_partition twice.
+ *
+ * \ingroup partition_search
+ * This function is mostly used to unit tests to make sure that
+ * SB_FIRST_PASS_STATS caches the correct statistics to recode the superblock.
+ */
 static AOM_INLINE void perform_two_partition_passes(
     AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
     const int mi_row, const int mi_col) {
@@ -580,7 +615,7 @@ static AOM_INLINE void perform_two_partition_passes(
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
 #endif  // WARP_CU_BANK
   perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                             SB_DRY_PASS);
+                             SB_DRY_PASS, NULL);
 
   // Second pass
   RD_STATS dummy_rdc;
@@ -597,8 +632,92 @@ static AOM_INLINE void perform_two_partition_passes(
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
 #endif  // WARP_CU_BANK
   perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                             SB_WET_PASS);
+                             SB_WET_PASS, NULL);
 }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+/*!\brief Set all tree nodes <= min_bsize to PARTITION_INVALID.
+ *
+ * \ingroup partition_search
+ */
+static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
+                                               BLOCK_SIZE min_bsize) {
+  const BLOCK_SIZE bsize = part_tree->bsize;
+  const PARTITION_TYPE part_type = part_tree->partition;
+  if (!is_bsize_geq(bsize, min_bsize) || bsize == min_bsize) {
+    part_tree->partition = PARTITION_INVALID;
+    for (int idx = 0; idx < 4; idx++) {
+      av1_free_ptree_recursive(part_tree->sub_tree[idx]);
+      part_tree->sub_tree[idx] = NULL;
+    }
+
+    return;
+  }
+
+  int num_subtrees = 0;
+  switch (part_type) {
+    case PARTITION_NONE: num_subtrees = 0; break;
+    case PARTITION_HORZ:
+    case PARTITION_VERT: num_subtrees = 2; break;
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3: num_subtrees = 3; break;
+    default:
+      assert(0 && "Invalid partition type in set_min_none_to_invalid!");
+      return;
+  }
+
+  for (int idx = 0; idx < num_subtrees; idx++) {
+    set_min_none_to_invalid(part_tree->sub_tree[idx], min_bsize);
+  }
+}
+
+/*!\brief Performs partition search in two passes.
+ *
+ * \ingroup partition_search
+ * In the first pass, this function calls \ref av1_rd_pick_partition with the
+ * minimum bsize set to BLOCK_16X16. In the second pass, this function calls
+ * \ref av1_rd_pick_partition with the same partition tree from the first pass,
+ * but \ref av1_rd_pick_partition is allowed to search recursively starting from
+ * BLOCK_32X32.
+ */
+static AOM_INLINE void perform_two_pass_partition_search(
+    AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+    const int mi_row, const int mi_col) {
+  SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
+
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  assert(!frame_is_intra_only(cm));
+
+  // First pass to estimate  partition structures
+  SB_FIRST_PASS_STATS sb_fp_stats;
+  av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+  const BLOCK_SIZE fp_min_bsize = BLOCK_16X16;
+  x->sb_enc.min_partition_size = fp_min_bsize;
+  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                             SB_DRY_PASS, NULL);
+  PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
+  // Set this to NULL otherwise part_ref will get freed in the second pass.
+  xd->sbi->ptree_root[0] = NULL;
+  set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(fp_min_bsize));
+
+  // Second pass
+  RD_STATS dummy_rdc;
+  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
+                    0);
+  av1_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
+  av1_reset_simple_motion_tree_partition(sms_root, sb_size);
+
+  SbMultiPassParams multi_pass_params = { part_ref };
+  av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                             SB_WET_PASS, &multi_pass_params);
+
+  av1_free_ptree_recursive(part_ref);
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 /*!\brief Encode a superblock (RD-search-based)
  *
@@ -730,23 +849,26 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     // as the starting block size for partitioning the sb
     set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
 
-    // The superblock can be searched only once, or twice consecutively for
-    // better quality. Note that the meaning of passes here is different from
-    // the general concept of 1-pass/2-pass encoders.
-    const int num_passes =
-        cpi->oxcf.unit_test_cfg.sb_multipass_unit_test ? 2 : 1;
 
 #if CONFIG_FLEX_MVRES
     // Sets the sb_mv_precision
     x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
 #endif  // CONFIG_FLEX_MVRES
 
-    if (num_passes == 1) {
-      perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
-                                 SB_SINGLE_PASS);
-    } else {
+    if (cpi->oxcf.unit_test_cfg.sb_multipass_unit_test) {
       perform_two_partition_passes(cpi, td, tile_data, tp, mi_row, mi_col);
     }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    else if (!frame_is_intra_only(cm) &&
+             sf->part_sf.two_pass_partition_search) {
+      perform_two_pass_partition_search(cpi, td, tile_data, tp, mi_row, mi_col);
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    else {
+      perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                                 SB_SINGLE_PASS, NULL);
+    }
+
     // Reset to 0 so that it wouldn't be used elsewhere mistakenly.
     sb_enc->tpl_data_count = 0;
 #if CONFIG_COLLECT_COMPONENT_TIMING

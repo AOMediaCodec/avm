@@ -1668,6 +1668,19 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
 }
 #undef MAKE_SMS_ARR_SWITCH_CASE
 
+void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs) {
+  for (BLOCK_SIZE bsize = BLOCK_4X4; bsize < BLOCK_SIZES_ALL; bsize++) {
+    SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
+    const int mi_wide = mi_size_wide[bsize];
+    const int mi_high = mi_size_high[bsize];
+    const int sms_wide = get_sms_count_from_length(mi_wide);
+    const int sms_high = get_sms_count_from_length(mi_high);
+    const int sms_count = sms_wide * sms_high;
+    for (int idx = 0; idx < sms_count; idx++) {
+      sms_arr[idx].has_prev_partition = false;
+    }
+  }
+}
 // Retrieves the SimpleMotionData from SimpleMotionDataBufs
 SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
