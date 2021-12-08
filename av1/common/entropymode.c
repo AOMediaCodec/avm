@@ -258,6 +258,64 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_AIMC
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if ERP_LIMIT_PARTITION3_128
+static const aom_cdf_prob
+    default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(
+        EXT_PARTITION_TYPES)] = { {
+                                      // 8x8
+                                      { AOM_CDF3(25405, 29765) },
+                                      { AOM_CDF3(20718, 26547) },
+                                      { AOM_CDF3(18495, 29033) },
+                                      { AOM_CDF3(14030, 27418) },
+                                      // 16x16
+                                      { AOM_CDF5(15705, 24698, 30151, 31348) },
+                                      { AOM_CDF5(10123, 17513, 28757, 29814) },
+                                      { AOM_CDF5(8267, 23946, 29392, 31642) },
+                                      { AOM_CDF5(6944, 18062, 28486, 29807) },
+                                      // 32x32
+                                      { AOM_CDF5(11358, 23987, 28485, 30307) },
+                                      { AOM_CDF5(7088, 16986, 26979, 28409) },
+                                      { AOM_CDF5(4685, 24314, 29065, 31522) },
+                                      { AOM_CDF5(5350, 16601, 27139, 28898) },
+                                      // 64x64
+                                      { AOM_CDF5(8574, 24292, 30323, 31196) },
+                                      { AOM_CDF5(6190, 14189, 27009, 27534) },
+                                      { AOM_CDF5(2445, 26650, 31079, 32195) },
+                                      { AOM_CDF5(2445, 26650, 31079, 32195) },
+                                      // 128x128
+                                      { AOM_CDF3(22143, 27468) },
+                                      { AOM_CDF3(6754, 12691) },
+                                      { AOM_CDF3(2715, 30175) },
+                                      { AOM_CDF3(2286, 20850) },
+                                  },
+                                  {
+                                      // 8x8
+                                      { AOM_CDF3(25405, 29765) },
+                                      { AOM_CDF3(20718, 26547) },
+                                      { AOM_CDF3(18495, 29033) },
+                                      { AOM_CDF3(14030, 27418) },
+                                      // 16x16
+                                      { AOM_CDF5(15705, 24698, 30151, 31348) },
+                                      { AOM_CDF5(10123, 17513, 28757, 29814) },
+                                      { AOM_CDF5(8267, 23946, 29392, 31642) },
+                                      { AOM_CDF5(6944, 18062, 28486, 29807) },
+                                      // 32x32
+                                      { AOM_CDF5(11358, 23987, 28485, 30307) },
+                                      { AOM_CDF5(7088, 16986, 26979, 28409) },
+                                      { AOM_CDF5(4685, 24314, 29065, 31522) },
+                                      { AOM_CDF5(5350, 16601, 27139, 28898) },
+                                      // 64x64
+                                      { AOM_CDF5(8574, 24292, 30323, 31196) },
+                                      { AOM_CDF5(6190, 14189, 27009, 27534) },
+                                      { AOM_CDF5(2445, 26650, 31079, 32195) },
+                                      { AOM_CDF5(2445, 26650, 31079, 32195) },
+                                      // 128x128
+                                      { AOM_CDF3(22143, 27468) },
+                                      { AOM_CDF3(6754, 12691) },
+                                      { AOM_CDF3(2715, 30175) },
+                                      { AOM_CDF3(2286, 20850) },
+                                  } };
+#else   // !ERP_LIMIT_PARTITION3_128
 static const aom_cdf_prob
     default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(
         EXT_PARTITION_TYPES)] = { {
@@ -314,6 +372,7 @@ static const aom_cdf_prob
                                       { AOM_CDF3(9603, 21021) },
                                       { AOM_CDF3(1736, 12989) },
                                   } };
+#endif  // ERP_LIMIT_PARTITION3_128
 #else
 static const aom_cdf_prob
     default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(
@@ -390,6 +449,37 @@ static const aom_cdf_prob
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if ERP_LIMIT_PARTITION3_128
+static const aom_cdf_prob
+    default_partition_rec_cdf[PARTITION_CONTEXTS_REC]
+                             [CDF_SIZE(PARTITION_TYPES_REC)] = {
+                               // 8x4, 4x8
+                               { AOM_CDF2(30612) },
+                               { AOM_CDF2(26074) },
+                               { AOM_CDF2(28683) },
+                               { AOM_CDF2(21191) },
+                               // 16x8, 8x16
+                               { AOM_CDF4(21708, 29163, 30522) },
+                               { AOM_CDF4(13852, 27221, 30664) },
+                               { AOM_CDF4(19187, 27661, 29952) },
+                               { AOM_CDF4(9933, 21239, 25921) },
+                               // 32x16, 16x32
+                               { AOM_CDF4(14474, 25684, 29998) },
+                               { AOM_CDF4(5925, 22613, 30845) },
+                               { AOM_CDF4(12840, 23573, 29664) },
+                               { AOM_CDF4(6088, 16570, 29275) },
+                               // 64x32, 32x64
+                               { AOM_CDF4(11157, 25388, 30679) },
+                               { AOM_CDF4(3692, 24449, 31809) },
+                               { AOM_CDF4(13455, 23113, 30099) },
+                               { AOM_CDF4(13455, 23113, 30099) },
+                               // 128x64, 64x128
+                               { AOM_CDF2(9487) },
+                               { AOM_CDF2(2668) },
+                               { AOM_CDF2(8532) },
+                               { AOM_CDF2(8532) },
+                             };
+#else   // !ERP_LIMIT_PARTITION3_128
 static const aom_cdf_prob
     default_partition_rec_cdf[PARTITION_CONTEXTS_REC]
                              [CDF_SIZE(PARTITION_TYPES_REC)] = {
@@ -419,6 +509,7 @@ static const aom_cdf_prob
                                { AOM_CDF3(9068, 21038) },
                                { AOM_CDF3(10923, 21845) },
                              };
+#endif  // ERP_LIMIT_PARTITION3_128
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static const aom_cdf_prob default_intra_ext_tx_cdf

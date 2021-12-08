@@ -2514,7 +2514,11 @@ static INLINE int partition_rec_cdf_length(BLOCK_SIZE bsize) {
     case BLOCK_4X8:
     case BLOCK_8X4: return (PARTITION_LONG_SIDE_2_REC + 1);
     case BLOCK_64X128:
+#if ERP_LIMIT_PARTITION3_128
+    case BLOCK_128X64: return (PARTITION_LONG_SIDE_2_REC + 1);
+#else
     case BLOCK_128X64: return (PARTITION_LONG_SIDE_3_REC + 1);
+#endif
     case BLOCK_8X16:
     case BLOCK_16X8:
     case BLOCK_16X32:
