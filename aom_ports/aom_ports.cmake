@@ -69,13 +69,12 @@ function(setup_aom_ports_targets)
   endif()
 
   if(aom_ports_has_symbols)
+    # Note AOM_PORTS_INCLUDES_X86 are not added to the aom_ports target to avoid
+    # compilation issues in projects that enable ASM language support in
+    # project(). These sources were never included in libaom_srcs.*; if it
+    # becomes necessary for a particular generator another method should be
+    # used.
     target_sources(aom_ports PRIVATE ${AOM_PORTS_INCLUDES})
-
-    if("${AOM_TARGET_CPU}" STREQUAL "x86" OR "${AOM_TARGET_CPU}" STREQUAL
-                                             "x86_64")
-      target_sources(aom_ports PRIVATE ${AOM_PORTS_INCLUDES_X86})
-    endif()
-
     set(AOM_LIB_TARGETS
         ${AOM_LIB_TARGETS}
         PARENT_SCOPE)
