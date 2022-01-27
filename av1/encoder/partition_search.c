@@ -3109,7 +3109,7 @@ static void set_partition_cost_for_edge_blk(
   const int has_rows = blk_params.has_rows;
   const int has_cols = blk_params.has_cols;
   (void)cm;
-  if (!(has_rows && has_cols)) {
+  if (!(has_rows && has_cols) && is_square_block(blk_params.bsize)) {
     if (!has_rows && !has_cols) {
       // At the bottom right, horz or vert
       aom_cdf_prob binary_cdf[2] = { 16384, AOM_ICDF(CDF_PROB_TOP) };
