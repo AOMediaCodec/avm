@@ -510,6 +510,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prunes PARTITION_3 if PARTITION_NONE is used instead of PARTITION_HORZ|VERT
   int prune_part_3_with_part_none;
 
+  // Prunes PARTITION_3 partition 3 doesn't split in the same direction
+  int prune_part_3_with_part_rect;
+
   int two_pass_partition_search;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;

@@ -4607,6 +4607,18 @@ typedef struct {
   int is_last_subblock;
   int is_splittable;
 } SUBBLOCK_RDO_DATA;
+
+static AOM_INLINE bool node_uses_horz(const PC_TREE *pc_tree) {
+  assert(pc_tree);
+  return pc_tree->partitioning == PARTITION_HORZ ||
+         pc_tree->partitioning == PARTITION_HORZ_3;
+}
+
+static AOM_INLINE bool node_uses_vert(const PC_TREE *pc_tree) {
+  assert(pc_tree);
+  return pc_tree->partitioning == PARTITION_VERT ||
+         pc_tree->partitioning == PARTITION_VERT_3;
+}
 /*!\endcond */
 
 // Try searching for an encoding for the given subblock. Returns zero if the
@@ -5526,29 +5538,57 @@ BEGIN_PARTITION_SEARCH:
       ext_partition_allowed && bsize != BLOCK_128X128;
   const int is_wide_block = block_size_wide[bsize] > block_size_high[bsize];
   const int is_tall_block = block_size_wide[bsize] < block_size_high[bsize];
-  const int horz_3_allowed =
-      partition_3_allowed && (is_square_block(bsize) || is_tall_block) &&
+  const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
+  int horz_3_allowed =
+      partition_3_allowed && !is_wide_block &&
       horz_3_allowed_sdp &&
       check_is_chroma_size_valid(PARTITION_HORZ_3, bsize, mi_row, mi_col,
                                  part_search_state.ss_x, part_search_state.ss_y,
                                  pc_tree) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_3),
-                   blk_params.min_partition_size) &&
-      IMPLIES(cpi->sf.part_sf.prune_part_3_with_part_none,
-              frame_is_intra_only(cm) || forced_partition == PARTITION_HORZ_3 ||
-                  pc_tree->partitioning != PARTITION_NONE);
+                   blk_params.min_partition_size);
+  // Prune horz 3 with speed features
+  if (horz_3_allowed && !frame_is_intra_only(cm) &&
+      forced_partition != PARTITION_HORZ_3) {
+    if (part_sf->prune_part_3_with_part_none &&
+        pc_tree->partitioning == PARTITION_NONE) {
+      // Prune if the best partition does not split
+      horz_3_allowed = 0;
+    }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_HORZ &&
+        !node_uses_horz(pc_tree->horizontal[0]) &&
+        !node_uses_horz(pc_tree->horizontal[1])) {
+      // Prune if the best partition is horz but horz did not further split in
+      // horz
+      horz_3_allowed = 0;
+    }
+  }
 
-  const int vert_3_allowed =
-      partition_3_allowed && (is_square_block(bsize) || is_wide_block) &&
+  int vert_3_allowed =
+      partition_3_allowed && !is_tall_block &&
       vert_3_allowed_sdp &&
       check_is_chroma_size_valid(PARTITION_VERT_3, bsize, mi_row, mi_col,
                                  part_search_state.ss_x, part_search_state.ss_y,
                                  pc_tree) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_3),
-                   blk_params.min_partition_size) &&
-      IMPLIES(cpi->sf.part_sf.prune_part_3_with_part_none,
-              frame_is_intra_only(cm) || forced_partition == PARTITION_VERT_3 ||
-                  pc_tree->partitioning != PARTITION_NONE);
+                   blk_params.min_partition_size);
+  if (vert_3_allowed && !frame_is_intra_only(cm) &&
+      forced_partition != PARTITION_VERT_3) {
+    if (part_sf->prune_part_3_with_part_none &&
+        pc_tree->partitioning == PARTITION_NONE) {
+      // Prune if the best partition does not split
+      vert_3_allowed = 0;
+    }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_VERT &&
+        !node_uses_vert(pc_tree->vertical[0]) &&
+        !node_uses_vert(pc_tree->vertical[1])) {
+      // Prune if the best partition is vert but vert did not further split in
+      // vert
+      vert_3_allowed = 0;
+    }
+  }
 
   // PARTITION_HORZ_3
   if (IS_FORCED_PARTITION_TYPE(PARTITION_HORZ_3) && horz_3_allowed) {
