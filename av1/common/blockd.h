@@ -721,6 +721,46 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
   else
     return PARTITION_INVALID_REC;
 }
+
+static INLINE PARTITION_TYPE get_symbol_from_limited_partition(
+    PARTITION_TYPE part, PARTITION_TYPE parent_part) {
+  assert(part != PARTITION_INVALID);
+  assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
+  static const int partition_to_symbol_map[NUM_LIMITED_PARTITION_PARENTS]
+                                          [EXT_PARTITION_TYPES] = {
+                                            // PARTITION_HORZ_3
+                                            { 0, PARTITION_INVALID_REC, 1, 2,
+                                              3 },
+                                            // PARTITION_VERT_3
+                                            { 0, 1, PARTITION_INVALID_REC, 2,
+                                              3 },
+                                          };
+  const int dir = (parent_part == PARTITION_HORZ_3) ? 0 : 1;
+  const int symbol = partition_to_symbol_map[dir][part];
+  return symbol;
+}
+
+static INLINE PARTITION_TYPE
+get_limited_partition_from_symbol(int symbol, PARTITION_TYPE parent_part) {
+  assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
+  static const PARTITION_TYPE horz3_parts[EXT_PARTITION_TYPES - 1] = {
+    PARTITION_NONE, /* PARTITION_HORZ, */ PARTITION_VERT, PARTITION_HORZ_3,
+    PARTITION_VERT_3
+  };
+  static const PARTITION_TYPE vert3_parts[EXT_PARTITION_TYPES - 1] = {
+    PARTITION_NONE, PARTITION_HORZ, /* PARTITION_VERT, */ PARTITION_HORZ_3,
+    PARTITION_VERT_3
+  };
+  switch (parent_part) {
+    case PARTITION_HORZ_3: return horz3_parts[symbol];
+    case PARTITION_VERT_3: return vert3_parts[symbol];
+    default:
+      assert(0 &&
+             "Invalid parent partition in get_limited_partition from symbol");
+      return PARTITION_INVALID;
+  }
+}
+
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {

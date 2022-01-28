@@ -1397,11 +1397,33 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                        ctx_tr->partition_cdf[plane_index][i], 8, CDF_SIZE(10));
       }
     }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
+      for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+        if (i < 4) {
+          AVG_CDF_STRIDE(ctx_left->limited_partition_cdf[plane_index][dir][i],
+                         ctx_tr->limited_partition_cdf[plane_index][dir][i], 2,
+                         CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
+        } else if (i < 16) {
+          AVERAGE_CDF(ctx_left->limited_partition_cdf[plane_index][dir][i],
+                      ctx_tr->limited_partition_cdf[plane_index][dir][i],
+                      LIMITED_EXT_PARTITION_TYPES);
+        } else {
+          AVG_CDF_STRIDE(ctx_left->limited_partition_cdf[plane_index][dir][i],
+                         ctx_tr->limited_partition_cdf[plane_index][dir][i], 2,
+                         CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
+        }
+      }
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
   for (int i = 0; i < PARTITION_CONTEXTS_REC; ++i) {
     AVERAGE_CDF(ctx_left->partition_rec_cdf[i], ctx_tr->partition_rec_cdf[i],
-                4);
+                PARTITION_CONTEXTS_REC);
+    AVERAGE_CDF(ctx_left->partition_middle_rec_cdf[i],
+                ctx_tr->partition_middle_rec_cdf[i],
+                PARTITION_TYPES_MIDDLE_REC);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,

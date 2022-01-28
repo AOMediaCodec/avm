@@ -332,8 +332,16 @@ typedef struct frame_contexts {
   aom_cdf_prob partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                             [CDF_SIZE(EXT_PARTITION_TYPES)];
 #if CONFIG_EXT_RECUR_PARTITIONS
+  aom_cdf_prob limited_partition_cdf[PARTITION_STRUCTURE_NUM]
+                                    [NUM_LIMITED_PARTITION_PARENTS]
+                                    [PARTITION_CONTEXTS]
+                                    [CDF_SIZE(LIMITED_EXT_PARTITION_TYPES)];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   aom_cdf_prob partition_rec_cdf[PARTITION_CONTEXTS_REC]
                                 [CDF_SIZE(PARTITION_TYPES_REC)];
+  aom_cdf_prob partition_middle_rec_cdf[PARTITION_CONTEXTS_REC]
+                                       [CDF_SIZE(PARTITION_TYPES_MIDDLE_REC)];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   aom_cdf_prob switchable_interp_cdf[SWITCHABLE_FILTER_CONTEXTS]
                                     [CDF_SIZE(SWITCHABLE_FILTERS)];

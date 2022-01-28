@@ -302,6 +302,24 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                                  CDF_SIZE(10));
       }
     }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
+      for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+        if (i < 4) {
+          RESET_CDF_COUNTER_STRIDE(
+              fc->limited_partition_cdf[plane_index][dir][i], 2,
+              CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
+        } else if (i < 16) {
+          RESET_CDF_COUNTER(fc->limited_partition_cdf[plane_index][dir][i],
+                            LIMITED_EXT_PARTITION_TYPES);
+        } else {
+          RESET_CDF_COUNTER_STRIDE(
+              fc->limited_partition_cdf[plane_index][dir][i], 2,
+              CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
+        }
+      }
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
   RESET_CDF_COUNTER(fc->switchable_interp_cdf, SWITCHABLE_FILTERS);
 #if !CONFIG_AIMC

@@ -753,8 +753,17 @@ typedef struct {
   int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                     [EXT_PARTITION_TYPES];
 #if CONFIG_EXT_RECUR_PARTITIONS
+  //! Cost for coding the limited partition.
+  int limited_partition_cost[PARTITION_STRUCTURE_NUM]
+                            [NUM_LIMITED_PARTITION_PARENTS][PARTITION_CONTEXTS]
+                            [EXT_PARTITION_TYPES];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
   /*! Cost for coding the partition for rectangular blocks. */
   int partition_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
+  /*! Cost for coding the partition for rectangular blocks in the middle of
+   * 3-way partitions. */
+  int partition_middle_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 

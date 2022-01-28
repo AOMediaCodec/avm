@@ -2712,7 +2712,10 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
                                        int mi_col, PARTITION_TYPE p,
                                        BLOCK_SIZE bsize,
 #if CONFIG_EXT_RECUR_PARTITIONS
-                                       PARTITION_TREE *ptree_luma,
+                                       const PARTITION_TREE *ptree,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+                                       const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                        aom_writer *w) {
   if (!is_partition_point(bsize)) return;
@@ -2739,6 +2742,14 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 #if CONFIG_EXT_RECUR_PARTITIONS
+  const PARTITION_TYPE parent_partition =
+      ptree->parent ? ptree->parent->partition : PARTITION_INVALID;
+  const bool is_middle_block = (parent_partition == PARTITION_HORZ_3 ||
+                                parent_partition == PARTITION_VERT_3) &&
+                               ptree->index == 1;
+  const bool limit_rect_split = is_middle_block &&
+                                is_bsize_geq(bsize, BLOCK_8X8) &&
+                                is_bsize_geq(BLOCK_64X64, bsize);
   if (is_square_block(bsize)) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     const int hbs_w = mi_size_wide[bsize] / 2;
@@ -2749,7 +2760,16 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (has_rows && has_cols) {
       aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
-      aom_write_symbol(w, p, partition_cdf, partition_cdf_length(bsize));
+      if (limit_rect_split) {
+        const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
+        partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
+        const int symbol =
+            get_symbol_from_limited_partition(p, parent_partition);
+        aom_write_symbol(w, symbol, partition_cdf,
+                         limited_partition_cdf_length(bsize));
+      } else {
+        aom_write_symbol(w, p, partition_cdf, partition_cdf_length(bsize));
+      }
     } else if (!has_rows && has_cols) {
       assert(p == PARTITION_HORZ);
     } else if (has_rows && !has_cols) {
@@ -2760,10 +2780,25 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
       aom_write_cdf(w, p == PARTITION_VERT, cdf, 2);
     }
   } else {  // 1:2 or 2:1 rectangular blocks
-    const PARTITION_TYPE_REC symbol =
-        get_symbol_from_partition_rec_block(bsize, p);
-    aom_write_symbol(w, symbol, ec_ctx->partition_rec_cdf[ctx],
-                     partition_rec_cdf_length(bsize));
+    if (limit_rect_split) {
+      assert(IMPLIES(parent_partition == PARTITION_HORZ_3,
+                     block_size_wide[bsize] == 2 * block_size_high[bsize]));
+      assert(IMPLIES(parent_partition == PARTITION_VERT_3,
+                     2 * block_size_wide[bsize] == block_size_high[bsize]));
+      assert(
+          IMPLIES(parent_partition == PARTITION_HORZ_3, p != PARTITION_HORZ));
+      assert(
+          IMPLIES(parent_partition == PARTITION_VERT_3, p != PARTITION_VERT));
+      const PARTITION_TYPE_REC symbol =
+          get_symbol_from_partition_rec_block(bsize, p);
+      aom_write_symbol(w, symbol, ec_ctx->partition_middle_rec_cdf[ctx],
+                       partition_middle_rec_cdf_length(bsize));
+    } else {
+      const PARTITION_TYPE_REC symbol =
+          get_symbol_from_partition_rec_block(bsize, p);
+      aom_write_symbol(w, symbol, ec_ctx->partition_rec_cdf[ctx],
+                       partition_rec_cdf_length(bsize));
+    }
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
   if (!has_rows && !has_cols) {
@@ -2845,7 +2880,8 @@ static AOM_INLINE void write_modes_sb(
   }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree_luma, w);
+  write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree, ptree_luma,
+                  w);
   const int track_ptree_luma =
       ptree_luma ? (partition == ptree_luma->partition) : 0;
 #else
