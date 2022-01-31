@@ -2138,7 +2138,11 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       if (has_rows && has_cols) {
 #if CONFIG_ENTROPY_STATS
+#if CONFIG_SDP
+        td->counts->partition[plane_index][ctx][partition]++;
+#else   // CONFIG_SDP
         td->counts->partition[ctx][partition]++;
+#endif  // CONFIG_SCP
 #endif
         if (tile_data->allow_update_cdf) {
           FRAME_CONTEXT *fc = xd->tile_ctx;
