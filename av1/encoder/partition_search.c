@@ -2084,23 +2084,23 @@ static void update_partition_stats(MACROBLOCKD *const xd,
         }
       }
 #else  // CONFIG_EXT_RECUR_PARTITIONS
-      int luma_split_flag = 0;
-      if (xd->tree_type == CHROMA_PART &&
-          parent_block_width >= SHARED_PART_SIZE) {
-        luma_split_flag = get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
-      }
-      if (luma_split_flag <= 3) {
+    int luma_split_flag = 0;
+    if (xd->tree_type == CHROMA_PART &&
+        parent_block_width >= SHARED_PART_SIZE) {
+      luma_split_flag = get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
+    }
+    if (luma_split_flag <= 3) {
 #if CONFIG_ENTROPY_STATS
-        counts->partition[plane_index][ctx][partition]++;
+      counts->partition[plane_index][ctx][partition]++;
 #endif  // CONFIG_ENTROPY_STATS
-        if (allow_update_cdf) {
-          update_cdf(fc->partition_cdf[plane_index][ctx], partition,
-                     partition_cdf_length(bsize));
-        }
-      } else {
-        // if luma blocks uses smaller blocks, then chroma will also split
-        assert(partition == PARTITION_SPLIT);
+      if (allow_update_cdf) {
+        update_cdf(fc->partition_cdf[plane_index][ctx], partition,
+                   partition_cdf_length(bsize));
       }
+    } else {
+      // if luma blocks uses smaller blocks, then chroma will also split
+      assert(partition == PARTITION_SPLIT);
+    }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     }
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -2251,8 +2251,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
                            tile_data->allow_update_cdf, mi_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
-                           ptree,
-                           ptree_luma,
+                           ptree, ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                            partition, mi_row, mi_col, bsize, ctx);
 
@@ -2949,11 +2948,14 @@ static INLINE int check_is_chroma_size_valid(PARTITION_TYPE partition,
 
 static AOM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
-    const PC_TREE *pc_tree, TREE_TYPE tree_type) {
+    const PC_TREE *pc_tree, const CommonModeInfoParams *mi_params,
+    TREE_TYPE tree_type) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row;
   const int mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
+  const bool has_rows = blk_params->has_rows;
+  const bool has_cols = blk_params->has_cols;
 
   part_search_state->do_rectangular_split =
       part_cfg->enable_rect_partitions &&
@@ -2961,8 +2963,8 @@ static AOM_INLINE void init_allowed_partitions(
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-  // TODO(chiyotsai,yuec@google.com): Fix the rect_allowed condition when both
-  // SDP and ERP are on.
+  // TODO(chiyotsai,yuec@google.com): Fix the rect_allowed condition when
+  // ERP is on.
   const int is_horz_size_valid =
       is_partition_valid(bsize, PARTITION_HORZ) &&
       IMPLIES(tree_type == SHARED_PART,
@@ -2981,21 +2983,54 @@ static AOM_INLINE void init_allowed_partitions(
   part_search_state->is_block_splittable = is_partition_point(bsize);
   part_search_state->partition_none_allowed =
       (tree_type == CHROMA_PART && bsize == BLOCK_8X8) ||
-      (blk_params->has_rows && blk_params->has_cols &&
+      (has_rows && has_cols &&
        is_bsize_geq(blk_params->bsize, blk_params->min_partition_size));
   part_search_state->partition_rect_allowed[HORZ] =
-      IMPLIES(is_square_block(bsize),
-              blk_params->has_cols || !blk_params->has_rows) &&
       part_cfg->enable_rect_partitions &&
       is_bsize_geq(horz_subsize, blk_params->min_partition_size) &&
       is_horz_size_valid;
   part_search_state->partition_rect_allowed[VERT] =
-      IMPLIES(is_square_block(bsize),
-              blk_params->has_rows || !blk_params->has_cols) &&
       part_cfg->enable_rect_partitions &&
       is_bsize_geq(vert_subsize, blk_params->min_partition_size) &&
       is_vert_size_valid;
 
+  // Boundary Handling
+  if (is_square_block(bsize)) {
+    if (!has_rows) {
+      // Force PARTITION_HORZ
+      part_search_state->partition_none_allowed = false;
+      part_search_state->partition_rect_allowed[VERT] = false;
+    } else if (!has_cols) {
+      // Force PARTITION_VERT
+      part_search_state->partition_none_allowed = false;
+      part_search_state->partition_rect_allowed[HORZ] = false;
+    }
+  } else if (!has_rows || !has_cols) {
+    // Rectangular boundary blocks
+    if (is_tall_block(bsize)) {
+      // Force PARTITION_HORZ if
+      //  * The current size is tall and we are missing rows
+      //  * PARTITION_VERT will produce 1:4 block that is still missing cols
+      const int mi_step = blk_params->mi_step_w;
+      const bool sub_has_cols =
+          mi_step <= 1 || (mi_col + mi_step / 2) < mi_params->mi_cols;
+      if (!has_rows || !sub_has_cols) {
+        // Force PARTITION_HORZ
+        part_search_state->partition_none_allowed = false;
+        part_search_state->partition_rect_allowed[VERT] = false;
+      }
+    } else {
+      assert(is_wide_block(bsize));
+      const int mi_step = blk_params->mi_step_h;
+      const bool sub_has_rows =
+          mi_step <= 1 || (mi_row + mi_step / 2) < mi_params->mi_rows;
+      if (!has_cols || !sub_has_rows) {
+        // Force PARTITION_VERT
+        part_search_state->partition_none_allowed = false;
+        part_search_state->partition_rect_allowed[HORZ] = false;
+      }
+    }
+  }
   // Reset the flag indicating whether a partition leading to a rdcost lower
   // than the bound best_rdc has been found.
   part_search_state->found_best_partition = false;
@@ -3160,7 +3195,7 @@ static void init_partition_search_state_params(
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg, pc_tree,
-                          xd->tree_type);
+                          &cm->mi_params, xd->tree_type);
 #else
   part_search_state->do_square_split =
       blk_params->bsize_at_least_8x8 &&
@@ -3206,26 +3241,43 @@ static void init_partition_search_state_params(
 static void set_partition_cost_for_edge_blk(
     AV1_COMMON const *cm, MACROBLOCKD *const xd,
     PartitionSearchState *part_search_state) {
-  PartitionBlkParams blk_params = part_search_state->part_blk_params;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int has_rows = blk_params.has_rows;
-  const int has_cols = blk_params.has_cols;
-  (void)cm;
-  if (!(has_rows && has_cols) && is_square_block(blk_params.bsize)) {
-    if (!has_rows && !has_cols) {
-      // At the bottom right, horz or vert
-      aom_cdf_prob binary_cdf[2] = { 16384, AOM_ICDF(CDF_PROB_TOP) };
-      static const int binary_inv_map[2] = { PARTITION_HORZ, PARTITION_VERT };
-      av1_cost_tokens_from_cdf(part_search_state->tmp_partition_cost,
-                               binary_cdf, binary_inv_map);
-    } else {
-      for (int i = 0; i < PARTITION_TYPES; ++i)
-        part_search_state->tmp_partition_cost[i] = 0;
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const int mi_row = blk_params->mi_row;
+  const int mi_col = blk_params->mi_col;
+  const int has_rows = blk_params->has_rows;
+  const int has_cols = blk_params->has_cols;
+  const BLOCK_SIZE bsize = is_square_block(blk_params->bsize);
+  const CommonModeInfoParams *mi_params = &cm->mi_params;
+  assert(!has_rows || !has_cols);
+  bool is_partition_forced = false;
+  if (is_square_block(bsize)) {
+    is_partition_forced = true;
+  } else if (is_tall_block(bsize)) {
+    const int mi_step = blk_params->mi_step_w;
+    const bool sub_has_cols =
+        mi_step <= 1 || (mi_col + mi_step / 2) < mi_params->mi_cols;
+    if (!has_rows || !sub_has_cols) {
+      is_partition_forced = true;
+    }
+  } else {
+    assert(is_wide_block(bsize));
+    const int mi_step = blk_params->mi_step_h;
+    const bool sub_has_rows =
+        mi_step <= 1 || (mi_row + mi_step / 2) < mi_params->mi_rows;
+    if (!has_cols || !sub_has_rows) {
+      is_partition_forced = true;
+    }
+  }
+  if (is_partition_forced) {
+    for (int i = 0; i < PARTITION_TYPES; ++i) {
+      part_search_state->tmp_partition_cost[i] = 0;
     }
     part_search_state->partition_cost = part_search_state->tmp_partition_cost;
   }
   (void)xd;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
+  PartitionBlkParams blk_params = part_search_state->part_blk_params;
   assert(blk_params.bsize_at_least_8x8 && part_search_state->pl_ctx_idx >= 0);
   const int plane = xd->tree_type == CHROMA_PART;
   const aom_cdf_prob *partition_cdf =
@@ -3351,8 +3403,7 @@ static void rd_pick_rect_partition(
   bool partition_found = av1_rd_pick_partition(
       cpi, td, tile_data, tp, mi_pos_rect[rect_type][0][0],
       mi_pos_rect[rect_type][0][1], bsize, &this_rdc, best_remain_rdcost,
-      sub_tree[0],
-      track_ptree_luma ? ptree_luma->sub_tree[0] : NULL,
+      sub_tree[0], track_ptree_luma ? ptree_luma->sub_tree[0] : NULL,
       get_partition_subtree_const(template_tree, 0), NULL, NULL,
       multi_pass_mode, NULL);
   av1_rd_cost_update(x->rdmult, &this_rdc);
@@ -3371,8 +3422,7 @@ static void rd_pick_rect_partition(
     partition_found = av1_rd_pick_partition(
         cpi, td, tile_data, tp, mi_pos_rect[rect_type][1][0],
         mi_pos_rect[rect_type][1][1], bsize, &this_rdc, best_remain_rdcost,
-        sub_tree[1],
-        track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
+        sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
         get_partition_subtree_const(template_tree, 1), NULL, NULL,
         multi_pass_mode, NULL);
     av1_rd_cost_update(x->rdmult, &this_rdc);
@@ -4643,9 +4693,9 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   if (rdo_data->is_splittable) {
     if (!av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
                                &this_rdc, rdcost_remaining, rdo_data->pc_tree,
-                               rdo_data->ptree_luma,
-                               rdo_data->template_tree, rdo_data->sms_tree,
-                               NULL, multi_pass_mode, NULL)) {
+                               rdo_data->ptree_luma, rdo_data->template_tree,
+                               rdo_data->sms_tree, NULL, multi_pass_mode,
+                               NULL)) {
       av1_invalid_rd_stats(sum_rdc);
       return 0;
     }
@@ -4812,19 +4862,18 @@ static INLINE void search_partition_horz_3(
 
     if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) break;
 
-    SUBBLOCK_RDO_DATA rdo_data = {
-      NULL,
-      pc_tree->horizontal3[i],
-      get_partition_subtree_const(ptree_luma, i),
-      get_partition_subtree_const(template_tree, i),
-      NULL,
-      this_mi_row,
-      mi_col,
-      subblock_sizes[i],
-      PARTITION_HORZ_3,
-      i == 2,
-      1
-    };
+    SUBBLOCK_RDO_DATA rdo_data = { NULL,
+                                   pc_tree->horizontal3[i],
+                                   get_partition_subtree_const(ptree_luma, i),
+                                   get_partition_subtree_const(template_tree,
+                                                               i),
+                                   NULL,
+                                   this_mi_row,
+                                   mi_col,
+                                   subblock_sizes[i],
+                                   PARTITION_HORZ_3,
+                                   i == 2,
+                                   1 };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode)) {
       av1_invalid_rd_stats(&sum_rdc);
@@ -4963,19 +5012,18 @@ static INLINE void search_partition_vert_3(
 
     if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) break;
 
-    SUBBLOCK_RDO_DATA rdo_data = {
-      NULL,
-      pc_tree->vertical3[i],
-      get_partition_subtree_const(ptree_luma, i),
-      get_partition_subtree_const(template_tree, i),
-      NULL,
-      mi_row,
-      this_mi_col,
-      subblock_sizes[i],
-      PARTITION_VERT_3,
-      i == 2,
-      1
-    };
+    SUBBLOCK_RDO_DATA rdo_data = { NULL,
+                                   pc_tree->vertical3[i],
+                                   get_partition_subtree_const(ptree_luma, i),
+                                   get_partition_subtree_const(template_tree,
+                                                               i),
+                                   NULL,
+                                   mi_row,
+                                   this_mi_col,
+                                   subblock_sizes[i],
+                                   PARTITION_VERT_3,
+                                   i == 2,
+                                   1 };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode)) {
       av1_invalid_rd_stats(&sum_rdc);
@@ -5326,7 +5374,7 @@ BEGIN_PARTITION_SEARCH:
   if (x->must_find_valid_partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     init_allowed_partitions(&part_search_state, &cpi->oxcf.part_cfg, pc_tree,
-                            xd->tree_type);
+                            &cm->mi_params, xd->tree_type);
 #else
     reset_part_limitations(cpi, &part_search_state);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -5526,21 +5574,25 @@ BEGIN_PARTITION_SEARCH:
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int ext_partition_allowed =
-      (blk_params.has_rows && blk_params.has_cols) || !is_square_block(bsize);
+  const int ext_partition_allowed = IMPLIES(
+      is_square_block(bsize), blk_params.has_rows && blk_params.has_cols);
   const int partition_3_allowed =
       ext_partition_allowed && bsize != BLOCK_128X128;
   const int is_wide_block = block_size_wide[bsize] > block_size_high[bsize];
   const int is_tall_block = block_size_wide[bsize] < block_size_high[bsize];
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
+
+  const bool sub_has_cols =
+      mi_size_wide[bsize] < 4 ||
+      (mi_col + mi_size_wide[bsize] / 4) < cm->mi_params.mi_cols;
   int horz_3_allowed =
-      partition_3_allowed && !is_wide_block &&
-      horz_3_allowed_sdp &&
+      partition_3_allowed && !is_wide_block && horz_3_allowed_sdp &&
       check_is_chroma_size_valid(PARTITION_HORZ_3, bsize, mi_row, mi_col,
                                  part_search_state.ss_x, part_search_state.ss_y,
                                  pc_tree) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_3),
-                   blk_params.min_partition_size);
+                   blk_params.min_partition_size) &&
+      IMPLIES(is_tall_block, blk_params.has_rows && sub_has_cols);
   // Prune horz 3 with speed features
   if (horz_3_allowed && !frame_is_intra_only(cm) &&
       forced_partition != PARTITION_HORZ_3) {
@@ -5559,14 +5611,18 @@ BEGIN_PARTITION_SEARCH:
     }
   }
 
+  const bool sub_has_rows =
+      mi_size_high[bsize] < 4 ||
+      (mi_row + mi_size_high[bsize] / 4) < cm->mi_params.mi_rows;
   int vert_3_allowed =
-      partition_3_allowed && !is_tall_block &&
-      vert_3_allowed_sdp &&
+      partition_3_allowed && !is_tall_block && vert_3_allowed_sdp &&
       check_is_chroma_size_valid(PARTITION_VERT_3, bsize, mi_row, mi_col,
                                  part_search_state.ss_x, part_search_state.ss_y,
                                  pc_tree) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_3),
-                   blk_params.min_partition_size);
+                   blk_params.min_partition_size) &&
+      IMPLIES(is_wide_block, blk_params.has_cols && sub_has_rows);
+
   if (vert_3_allowed && !frame_is_intra_only(cm) &&
       forced_partition != PARTITION_VERT_3) {
     if (part_sf->prune_part_3_with_part_none &&

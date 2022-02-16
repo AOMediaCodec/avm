@@ -826,6 +826,16 @@ static INLINE int is_square_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] == block_size_wide[bsize];
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE bool is_tall_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] > block_size_wide[bsize];
+}
+
+static INLINE bool is_wide_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] < block_size_wide[bsize];
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 static INLINE int is_partition_point(BLOCK_SIZE bsize) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;

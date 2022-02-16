@@ -2775,11 +2775,32 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
     } else if (has_rows && !has_cols) {
       assert(p == PARTITION_VERT);
     } else {
-      assert(p == PARTITION_HORZ || p == PARTITION_VERT);
-      aom_cdf_prob cdf[2] = { 16384, AOM_ICDF(CDF_PROB_TOP) };
-      aom_write_cdf(w, p == PARTITION_VERT, cdf, 2);
+      assert(p == PARTITION_HORZ);
     }
   } else {  // 1:2 or 2:1 rectangular blocks
+    const int hbs_w = mi_size_wide[bsize] / 2;
+    const int hbs_h = mi_size_high[bsize] / 2;
+    const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
+    const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
+    // Handle boundary
+    if (!has_rows || !has_cols) {
+      if (is_tall_block(bsize)) {
+        const bool sub_has_cols =
+            (mi_col + mi_size_wide[bsize] / 4) < cm->mi_params.mi_cols;
+        if (!has_rows || (mi_size_wide[bsize] >= 4 && !sub_has_cols)) {
+          assert(p == PARTITION_HORZ);
+          return;
+        }
+      } else {
+        assert(is_wide_block(bsize));
+        const bool sub_has_rows =
+            (mi_row + mi_size_high[bsize] / 4) < cm->mi_params.mi_rows;
+        if (!has_cols || (mi_size_high[bsize] >= 4 && !sub_has_rows)) {
+          assert(p = PARTITION_VERT);
+          return;
+        }
+      }
+    }
     if (limit_rect_split) {
       assert(IMPLIES(parent_partition == PARTITION_HORZ_3,
                      block_size_wide[bsize] == 2 * block_size_high[bsize]));

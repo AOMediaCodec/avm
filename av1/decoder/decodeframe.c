@@ -1970,27 +1970,56 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   if (is_square_block(bsize)) {
     if (!has_rows && has_cols) return PARTITION_HORZ;
     if (has_rows && !has_cols) return PARTITION_VERT;
-
+    if (!has_rows && !has_cols) return PARTITION_HORZ;
+    assert(has_rows && has_cols);
     assert(ctx >= 0);
-    if (has_rows && has_cols) {
-      aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
+    aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
 
-      if (limit_rect_split) {
-        const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
-        partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
-        const int symbol = aom_read_symbol(
-            r, partition_cdf, limited_partition_cdf_length(bsize), ACCT_STR);
-        return get_limited_partition_from_symbol(symbol, parent_partition);
-      } else {
-        return (PARTITION_TYPE)aom_read_symbol(
-            r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
-      }
-    } else {  // !has_rows && !has_cols
-      aom_cdf_prob cdf[2] = { 16384, AOM_ICDF(CDF_PROB_TOP) };
-      return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_VERT
-                                               : PARTITION_HORZ;
+    if (limit_rect_split) {
+      const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
+      partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
+      const int symbol = aom_read_symbol(
+          r, partition_cdf, limited_partition_cdf_length(bsize), ACCT_STR);
+      return get_limited_partition_from_symbol(symbol, parent_partition);
+    } else {
+      return (PARTITION_TYPE)aom_read_symbol(
+          r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
     }
   } else {
+    // Handle boundary
+    if (!has_rows || !has_cols) {
+      // Force PARTITION_HORZ if
+      //  * The current size is tall and we are missing rows
+      //  * PARTITION_VERT will produce 1:4 block that is still missing cols
+      if (is_tall_block(bsize)) {
+        if (!has_rows) {
+          return PARTITION_HORZ;
+        } else {
+          assert(!has_cols);
+          const bool sub_has_cols =
+              (mi_col + mi_size_wide[bsize] / 4) < cm->mi_params.mi_cols;
+          if (mi_size_wide[bsize] >= 4 && !sub_has_cols) {
+            return PARTITION_HORZ;
+          }
+        }
+      } else {
+        // Force PARTITION_VERT if
+        //  * The current size is wide and we are missing cols
+        //  * PARTITION_HORZ will produce 1:4 block that is still missing rows
+        assert(is_wide_block(bsize));
+        if (!has_cols) {
+          return PARTITION_VERT;
+        } else {
+          assert(!has_rows);
+          const bool sub_has_rows =
+              (mi_row + mi_size_high[bsize] / 4) < cm->mi_params.mi_rows;
+          if (mi_size_high[bsize] >= 4 && !sub_has_rows) {
+            return PARTITION_VERT;
+          }
+        }
+      }
+    }
+
     if (limit_rect_split) {
       // If we are the middle block of a 3-way partitioning, disable HORZ/VERT
       // of the middle partition because it is redundant.
