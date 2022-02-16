@@ -2946,8 +2946,62 @@ static INLINE int check_is_chroma_size_valid(PARTITION_TYPE partition,
   }
   return is_valid;
 }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+static AOM_INLINE void init_allowed_partitions(
+    PartitionSearchState *part_search_state, const MACROBLOCK *x,
+    const AV1_COMP *const cpi, const PC_TREE *pc_tree) {
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const int mi_row = blk_params->mi_row;
+  const int mi_col = blk_params->mi_col;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+
+  part_search_state->do_rectangular_split =
+      cpi->oxcf.part_cfg.enable_rect_partitions &&
+      (xd->tree_type != CHROMA_PART || is_bsize_gt(bsize, BLOCK_8X8));
+
+  const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+  const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
+  // TODO(chiyotsai,yuec@google.com): Fix the rect_allowed condition when both
+  // SDP and ERP are on.
+  const int is_horz_size_valid =
+      is_partition_valid(bsize, PARTITION_HORZ) &&
+      IMPLIES(xd->tree_type == SHARED_PART,
+              check_is_chroma_size_valid(PARTITION_HORZ, bsize, mi_row, mi_col,
+                                         part_search_state->ss_x,
+                                         part_search_state->ss_y, pc_tree));
+
+  const int is_vert_size_valid =
+      is_partition_valid(bsize, PARTITION_VERT) &&
+      IMPLIES(xd->tree_type == SHARED_PART,
+              check_is_chroma_size_valid(PARTITION_VERT, bsize, mi_row, mi_col,
+                                         part_search_state->ss_x,
+                                         part_search_state->ss_y, pc_tree));
+
+  // Initialize allowed partition types for the partition block.
+  part_search_state->is_block_splittable = is_partition_point(bsize);
+  part_search_state->partition_none_allowed =
+      (xd->tree_type == CHROMA_PART && bsize == BLOCK_8X8) ||
+      (blk_params->has_rows && blk_params->has_cols &&
+       is_bsize_geq(blk_params->bsize, blk_params->min_partition_size));
+  part_search_state->partition_rect_allowed[HORZ] =
+      IMPLIES(is_square_block(bsize),
+              blk_params->has_cols || !blk_params->has_rows) &&
+      cpi->oxcf.part_cfg.enable_rect_partitions &&
+      is_bsize_geq(horz_subsize, blk_params->min_partition_size) &&
+      is_horz_size_valid;
+  part_search_state->partition_rect_allowed[VERT] =
+      IMPLIES(is_square_block(bsize),
+              blk_params->has_rows || !blk_params->has_cols) &&
+      cpi->oxcf.part_cfg.enable_rect_partitions &&
+      is_bsize_geq(vert_subsize, blk_params->min_partition_size) &&
+      is_vert_size_valid;
+
+  // Reset the flag indicating whether a partition leading to a rdcost lower
+  // than the bound best_rdc has been found.
+  part_search_state->found_best_partition = false;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 // Initialize state variables of partition search used in
 // av1_rd_pick_partition().
 static void init_partition_search_state_params(
@@ -3105,38 +3159,18 @@ static void init_partition_search_state_params(
 
   av1_zero(part_search_state->prune_rect_part);
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  init_allowed_partitions(part_search_state, x, cpi, pc_tree);
+#else
   part_search_state->do_square_split =
       blk_params->bsize_at_least_8x8 &&
       (xd->tree_type != CHROMA_PART || bsize > BLOCK_8X8);
   part_search_state->do_rectangular_split =
       cpi->oxcf.part_cfg.enable_rect_partitions &&
       (xd->tree_type != CHROMA_PART || bsize > BLOCK_8X8);
-#else
-  part_search_state->do_rectangular_split =
-      cpi->oxcf.part_cfg.enable_rect_partitions &&
-      (xd->tree_type != CHROMA_PART || is_bsize_gt(bsize, BLOCK_8X8));
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-#if CONFIG_EXT_RECUR_PARTITIONS
-  // TODO(chiyotsai,yuec@google.com): Fix the rect_allowed condition when both
-  // SDP and ERP are on.
-  const int is_horz_size_valid =
-      is_partition_valid(bsize, PARTITION_HORZ) &&
-      IMPLIES(xd->tree_type == SHARED_PART,
-              check_is_chroma_size_valid(PARTITION_HORZ, bsize, mi_row, mi_col,
-                                         part_search_state->ss_x,
-                                         part_search_state->ss_y, pc_tree));
-
-  const int is_vert_size_valid =
-      is_partition_valid(bsize, PARTITION_VERT) &&
-      IMPLIES(xd->tree_type == SHARED_PART,
-              check_is_chroma_size_valid(PARTITION_VERT, bsize, mi_row, mi_col,
-                                         part_search_state->ss_x,
-                                         part_search_state->ss_y, pc_tree));
-#else
   const int is_horz_size_valid =
       horz_subsize != BLOCK_INVALID &&
       get_plane_block_size(horz_subsize, part_search_state->ss_x,
@@ -3145,56 +3179,27 @@ static void init_partition_search_state_params(
       vert_subsize != BLOCK_INVALID &&
       get_plane_block_size(vert_subsize, part_search_state->ss_x,
                            part_search_state->ss_y) != BLOCK_INVALID;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_EXT_RECUR_PARTITIONS
   const bool no_sub_16_chroma_part =
       xd->tree_type != CHROMA_PART ||
       (block_size_wide[bsize] > 8 && block_size_high[bsize] > 8);
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   // Initialize allowed partition types for the partition block.
   part_search_state->is_block_splittable = is_partition_point(bsize);
-#if CONFIG_EXT_RECUR_PARTITIONS
-  part_search_state->partition_none_allowed =
-      (xd->tree_type == CHROMA_PART && bsize == BLOCK_8X8) ||
-      (blk_params->has_rows && blk_params->has_cols &&
-       is_bsize_geq(blk_params->bsize, blk_params->min_partition_size));
-#else
   part_search_state->partition_none_allowed =
       blk_params->has_rows && blk_params->has_cols;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_search_state->partition_rect_allowed[HORZ] =
-#if CONFIG_EXT_RECUR_PARTITIONS
-      IMPLIES(is_square_block(bsize), blk_params->has_cols || !blk_params->has_rows) &&
-#else
-      blk_params->has_cols &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_EXT_RECUR_PARTITIONS
-      blk_params->bsize_at_least_8x8 && no_sub_16_chroma_part &&
-#endif  //  !CONFIG_EXT_RECUR_PARTITIONS
-      cpi->oxcf.part_cfg.enable_rect_partitions &&
-#if CONFIG_EXT_RECUR_PARTITIONS
-      is_bsize_geq(horz_subsize, blk_params->min_partition_size) &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      blk_params->has_cols && blk_params->bsize_at_least_8x8 &&
+      no_sub_16_chroma_part && cpi->oxcf.part_cfg.enable_rect_partitions &&
       is_horz_size_valid;
   part_search_state->partition_rect_allowed[VERT] =
-#if CONFIG_EXT_RECUR_PARTITIONS
-      IMPLIES(is_square_block(bsize), blk_params->has_rows || !blk_params->has_cols) &&
-#else
-      blk_params->has_rows &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_EXT_RECUR_PARTITIONS
-      blk_params->bsize_at_least_8x8 && no_sub_16_chroma_part &&
-#endif  //  !CONFIG_EXT_RECUR_PARTITIONS
-      cpi->oxcf.part_cfg.enable_rect_partitions &&
-#if CONFIG_EXT_RECUR_PARTITIONS
-      is_bsize_geq(vert_subsize, blk_params->min_partition_size) &&
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      blk_params->has_rows && blk_params->bsize_at_least_8x8 &&
+      no_sub_16_chroma_part && cpi->oxcf.part_cfg.enable_rect_partitions &&
       is_vert_size_valid;
 
   // Reset the flag indicating whether a partition leading to a rdcost lower
   // than the bound best_rdc has been found.
   part_search_state->found_best_partition = false;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 // Override partition cost buffer for the edge blocks.
@@ -3525,7 +3530,7 @@ static void rectangular_partition_search(
   const PARTITION_TYPE forced_partition =
       get_forced_partition_type(cm, x, blk_params.mi_row, blk_params.mi_col,
                                 blk_params.bsize, template_tree);
-#else  // !CONFIG_EXT_RECUR_PARTITIONS
+#else   // !CONFIG_EXT_RECUR_PARTITIONS
   (void)part_none_rd;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   // mi_pos_rect[NUM_RECT_PARTS][SUB_PARTITIONS_RECT][0]: mi_row postion of
