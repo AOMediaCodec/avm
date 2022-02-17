@@ -2018,6 +2018,130 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   x->rdmult = origin_mult;
 }
 
+static void update_partition_stats(MACROBLOCKD *const xd,
+#if CONFIG_ENTROPY_STATS
+                                   FRAME_COUNTS *counts,
+#endif  // CONFIG_ENTROPY_STATS
+                                   int allow_update_cdf,
+                                   const CommonModeInfoParams *const mi_params,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                                   PARTITION_TREE const *ptree,
+                                   PARTITION_TREE const *ptree_luma,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                                   PARTITION_TYPE partition, const int mi_row,
+                                   const int mi_col, BLOCK_SIZE bsize,
+                                   const int ctx) {
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int has_rows = (mi_row + hbs_h) < mi_params->mi_rows;
+  const int has_cols = (mi_col + hbs_w) < mi_params->mi_cols;
+  FRAME_CONTEXT *fc = xd->tile_ctx;
+
+  const int plane_index = xd->tree_type == CHROMA_PART;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const PARTITION_TYPE parent_partition =
+      ptree->parent ? ptree->parent->partition : PARTITION_INVALID;
+  const bool is_middle_block = (parent_partition == PARTITION_HORZ_3 ||
+                                parent_partition == PARTITION_VERT_3) &&
+                               ptree->index == 1;
+  const bool limit_rect_split = is_middle_block &&
+                                is_bsize_geq(bsize, BLOCK_8X8) &&
+                                is_bsize_geq(BLOCK_64X64, bsize);
+  if (is_square_block(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    if (has_rows && has_cols) {
+      int parent_block_width = block_size_wide[bsize];
+#if CONFIG_EXT_RECUR_PARTITIONS
+      const int min_bsize_1d =
+          AOMMIN(block_size_high[bsize], parent_block_width);
+      if (xd->tree_type == CHROMA_PART && ptree_luma &&
+          min_bsize_1d >= SHARED_PART_SIZE) {
+        const int ss_x = xd->plane[1].subsampling_x;
+        const int ss_y = xd->plane[1].subsampling_y;
+        PARTITION_TYPE derived_partition_mode =
+            sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
+        if (partition != derived_partition_mode)
+          assert(0 && "Chroma partition does not match the derived mode.");
+      } else if (limit_rect_split) {
+        const int dir_idx = (parent_partition == PARTITION_HORZ_3) ? 0 : 1;
+        const int symbol =
+            get_symbol_from_limited_partition(partition, parent_partition);
+
+#if CONFIG_ENTROPY_STATS
+        counts->limited_partition[plane_index][dir_idx][ctx][symbol]++;
+#endif  // CONFIG_ENTROPY_STATS
+        if (allow_update_cdf) {
+          update_cdf(fc->limited_partition_cdf[plane_index][dir_idx][ctx],
+                     symbol, limited_partition_cdf_length(bsize));
+        }
+      } else {
+#if CONFIG_ENTROPY_STATS
+        counts->partition[plane_index][ctx][partition]++;
+#endif  // CONFIG_ENTROPY_STATS
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_cdf[plane_index][ctx], partition,
+                     partition_cdf_length(bsize));
+        }
+      }
+#else  // CONFIG_EXT_RECUR_PARTITIONS
+      int luma_split_flag = 0;
+      if (xd->tree_type == CHROMA_PART &&
+          parent_block_width >= SHARED_PART_SIZE) {
+        luma_split_flag = get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
+      }
+      if (luma_split_flag <= 3) {
+#if CONFIG_ENTROPY_STATS
+        counts->partition[plane_index][ctx][partition]++;
+#endif  // CONFIG_ENTROPY_STATS
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_cdf[plane_index][ctx], partition,
+                     partition_cdf_length(bsize));
+        }
+      } else {
+        // if luma blocks uses smaller blocks, then chroma will also split
+        assert(partition == PARTITION_SPLIT);
+      }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  } else {  // Rectangular blocks
+    int parent_block_width = block_size_wide[bsize];
+    const int min_bsize_1d = AOMMIN(block_size_high[bsize], parent_block_width);
+    if (xd->tree_type == CHROMA_PART && ptree_luma &&
+        min_bsize_1d >= SHARED_PART_SIZE) {
+      const int ss_x = xd->plane[1].subsampling_x;
+      const int ss_y = xd->plane[1].subsampling_y;
+      PARTITION_TYPE derived_partition_mode =
+          sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
+      assert(partition == derived_partition_mode);
+      (void)derived_partition_mode;
+    } else {
+      const PARTITION_TYPE_REC p_rec =
+          get_symbol_from_partition_rec_block(bsize, partition);
+      if (limit_rect_split) {
+#if CONFIG_ENTROPY_STATS
+        counts->partition_middle_rec[ctx][p_rec]++;
+#endif  // CONFIG_ENTROPY_STATS
+
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_middle_rec_cdf[ctx], p_rec,
+                     partition_middle_rec_cdf_length(bsize));
+        }
+      } else {
+#if CONFIG_ENTROPY_STATS
+        counts->partition_rec[ctx][p_rec]++;
+#endif  // CONFIG_ENTROPY_STATS
+
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_rec_cdf[ctx], p_rec,
+                     partition_rec_cdf_length(bsize));
+        }
+      }
+    }
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+}
+
 #if CONFIG_EXT_RECUR_PARTITIONS
 /*!\brief Reconstructs a partition (may contain multiple coding blocks)
  *
@@ -2120,108 +2244,17 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   assert(partition != PARTITION_SPLIT);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-  if (!dry_run && ctx >= 0) {
-    const int has_rows = (mi_row + hbs_h) < mi_params->mi_rows;
-    const int has_cols = (mi_col + hbs_w) < mi_params->mi_cols;
-
-    const int plane_index = xd->tree_type == CHROMA_PART;
-#if CONFIG_EXT_RECUR_PARTITIONS
-    const PARTITION_TYPE parent_partition =
-        ptree->parent ? ptree->parent->partition : PARTITION_INVALID;
-    const bool is_middle_block = (parent_partition == PARTITION_HORZ_3 ||
-                                  parent_partition == PARTITION_VERT_3) &&
-                                 ptree->index == 1;
-    const bool limit_rect_split = is_middle_block &&
-                                  is_bsize_geq(bsize, BLOCK_8X8) &&
-                                  is_bsize_geq(BLOCK_64X64, bsize);
-    if (is_square_block(bsize)) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-      if (has_rows && has_cols) {
+  if (!dry_run && ctx >= 0)
+    update_partition_stats(xd,
 #if CONFIG_ENTROPY_STATS
-        td->counts->partition[plane_index][ctx][partition]++;
-#endif
-        if (tile_data->allow_update_cdf) {
-          FRAME_CONTEXT *fc = xd->tile_ctx;
-          int parent_block_width = block_size_wide[bsize];
-#if CONFIG_EXT_RECUR_PARTITIONS
-          const int min_bsize_1d =
-              AOMMIN(block_size_high[bsize], parent_block_width);
-          if (xd->tree_type == CHROMA_PART && ptree_luma &&
-              min_bsize_1d >= SHARED_PART_SIZE) {
-            const int ss_x = xd->plane[1].subsampling_x;
-            const int ss_y = xd->plane[1].subsampling_y;
-            PARTITION_TYPE derived_partition_mode = sdp_chroma_part_from_luma(
-                bsize, ptree_luma->partition, ss_x, ss_y);
-            if (partition != derived_partition_mode)
-              assert(0 && "Chroma partition does not match the derived mode.");
-          } else if (limit_rect_split) {
-            const int dir_idx = (parent_partition == PARTITION_HORZ_3) ? 0 : 1;
-            const int symbol =
-                get_symbol_from_limited_partition(partition, parent_partition);
-            update_cdf(fc->limited_partition_cdf[plane_index][dir_idx][ctx],
-                       symbol, limited_partition_cdf_length(bsize));
-          } else {
-            update_cdf(fc->partition_cdf[plane_index][ctx], partition,
-                       partition_cdf_length(bsize));
-          }
-#else   // CONFIG_EXT_RECUR_PARTITIONS
-        int luma_split_flag = 0;
-        if (xd->tree_type == CHROMA_PART &&
-            parent_block_width >= SHARED_PART_SIZE) {
-          luma_split_flag =
-              get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
-        }
-        if (luma_split_flag <= 3) {
-          update_cdf(fc->partition_cdf[plane_index][ctx], partition,
-                     partition_cdf_length(bsize));
-        } else {
-          // if luma blocks uses smaller blocks, then chroma will also split
-          assert(partition == PARTITION_SPLIT);
-        }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-        }
-      }
-#if CONFIG_EXT_RECUR_PARTITIONS
-    } else {
-      int parent_block_width = block_size_wide[bsize];
-      const int min_bsize_1d =
-          AOMMIN(block_size_high[bsize], parent_block_width);
-      if (xd->tree_type == CHROMA_PART && ptree_luma &&
-          min_bsize_1d >= SHARED_PART_SIZE) {
-        const int ss_x = xd->plane[1].subsampling_x;
-        const int ss_y = xd->plane[1].subsampling_y;
-        PARTITION_TYPE derived_partition_mode =
-            sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
-        assert(partition == derived_partition_mode);
-        (void)derived_partition_mode;
-      } else {
-        const PARTITION_TYPE_REC p_rec =
-            get_symbol_from_partition_rec_block(bsize, partition);
-        if (limit_rect_split) {
-#if CONFIG_ENTROPY_STATS
-          td->counts->partition_middle_rec[ctx][p_rec]++;
+                           td->counts,
 #endif  // CONFIG_ENTROPY_STATS
-
-          if (tile_data->allow_update_cdf) {
-            FRAME_CONTEXT *fc = xd->tile_ctx;
-            update_cdf(fc->partition_middle_rec_cdf[ctx], p_rec,
-                       partition_middle_rec_cdf_length(bsize));
-          }
-        } else {
-#if CONFIG_ENTROPY_STATS
-          td->counts->partition_rec[ctx][p_rec]++;
-#endif  // CONFIG_ENTROPY_STATS
-
-          if (tile_data->allow_update_cdf) {
-            FRAME_CONTEXT *fc = xd->tile_ctx;
-            update_cdf(fc->partition_rec_cdf[ctx], p_rec,
-                       partition_rec_cdf_length(bsize));
-          }
-        }
-      }
-    }
+                           tile_data->allow_update_cdf, mi_params,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                           ptree,
+                           ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  }
+                           partition, mi_row, mi_col, bsize, ctx);
 
   PARTITION_TREE *sub_tree[4] = { NULL, NULL, NULL, NULL };
 #if CONFIG_EXT_RECUR_PARTITIONS

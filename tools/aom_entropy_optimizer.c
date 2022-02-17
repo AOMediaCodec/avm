@@ -258,6 +258,80 @@ static void optimize_cdf_table_var_modes_4d(aom_count_type *counts,
   fprintf(logfile, "============================\n");
 }
 
+// Like optimize_cdf_table_var_modes_3d, but the number of modes varies across
+// the context dimension.
+static void optimize_cdf_table_var_modes_3d_inner(
+    aom_count_type *counts, FILE *const probsfile, int dim_of_cts,
+    int *cts_each_dim, int **modes_each_ctx, char *prefix) {
+  aom_count_type *ct_ptr = counts;
+
+  assert(dim_of_cts == 3);
+  (void)dim_of_cts;
+
+  fprintf(probsfile, "%s = {\n", prefix);
+  fprintf(logfile, "%s\n", prefix);
+
+  for (int d0_idx = 0; d0_idx < cts_each_dim[0]; ++d0_idx) {
+    fprintf(probsfile, "%*c{\n", SPACES_PER_TAB, ' ');
+    for (int d1_idx = 0; d1_idx < cts_each_dim[1]; ++d1_idx) {
+      int num_of_modes = modes_each_ctx[d0_idx][d1_idx];
+
+      if (num_of_modes > 0) {
+        fprintf(probsfile, "%*c{ ", 2 * SPACES_PER_TAB, ' ');
+        parse_counts_for_cdf_opt(&ct_ptr, probsfile, 0, 1, &num_of_modes);
+        ct_ptr += cts_each_dim[2] - num_of_modes;
+        fprintf(probsfile, " },\n");
+      } else {
+        fprintf(probsfile, "%*c{ 0 },\n", 2 * SPACES_PER_TAB, ' ');
+        fprintf(logfile, "dummy cdf, no need to optimize\n");
+        ct_ptr += cts_each_dim[2];
+      }
+    }
+    fprintf(probsfile, "%*c},\n", SPACES_PER_TAB, ' ');
+  }
+  fprintf(probsfile, "};\n\n");
+  fprintf(logfile, "============================\n");
+}
+
+// Like optimize_cdf_table_var_modes_4d, but the number of modes varies across
+// the last dimension.
+static void optimize_cdf_table_var_modes_4d_inner(
+    aom_count_type *counts, FILE *const probsfile, int dim_of_cts,
+    int *cts_each_dim, int *modes_each_ctx, char *prefix) {
+  aom_count_type *ct_ptr = counts;
+
+  assert(dim_of_cts == 4);
+  (void)dim_of_cts;
+
+  fprintf(probsfile, "%s = {\n", prefix);
+  fprintf(logfile, "%s\n", prefix);
+
+  for (int d0_idx = 0; d0_idx < cts_each_dim[0]; ++d0_idx) {
+    fprintf(probsfile, "%*c{\n", SPACES_PER_TAB, ' ');
+    for (int d1_idx = 0; d1_idx < cts_each_dim[1]; ++d1_idx) {
+      fprintf(probsfile, "%*c{\n", 2 * SPACES_PER_TAB, ' ');
+      for (int d2_idx = 0; d2_idx < cts_each_dim[2]; ++d2_idx) {
+        int num_of_modes = modes_each_ctx[d2_idx];
+
+        if (num_of_modes > 0) {
+          fprintf(probsfile, "%*c{ ", 3 * SPACES_PER_TAB, ' ');
+          parse_counts_for_cdf_opt(&ct_ptr, probsfile, 0, 1, &num_of_modes);
+          ct_ptr += cts_each_dim[3] - num_of_modes;
+          fprintf(probsfile, " },\n");
+        } else {
+          fprintf(probsfile, "%*c{ 0 },\n", 3 * SPACES_PER_TAB, ' ');
+          fprintf(logfile, "dummy cdf, no need to optimize\n");
+          ct_ptr += cts_each_dim[3];
+        }
+      }
+      fprintf(probsfile, "%*c},\n", 2 * SPACES_PER_TAB, ' ');
+    }
+    fprintf(probsfile, "%*c},\n", SPACES_PER_TAB, ' ');
+  }
+  fprintf(probsfile, "};\n\n");
+  fprintf(logfile, "============================\n");
+}
+
 int main(int argc, const char **argv) {
   if (argc < 2) {
     fprintf(stderr, "Please specify the input stats file!\n");
@@ -387,6 +461,35 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_CROSS_CHROMA_TX
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_SDP
+  cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
+  cts_each_dim[1] = NUM_LIMITED_PARTITION_PARENTS;
+  cts_each_dim[2] = PARTITION_CONTEXTS;
+  cts_each_dim[3] = LIMITED_EXT_PARTITION_TYPES;
+#else   // CONFIG_SDP
+  cts_each_dim[0] = NUM_LIMITED_PARTITION_PARENTS;
+  cts_each_dim[1] = PARTITION_CONTEXTS;
+  cts_each_dim[2] = LIMITED_EXT_PARTITION_TYPES;
+#endif  // CONFIG_SDP
+  int part_types_each_ctx_limited_part[PARTITION_CONTEXTS] = {
+    2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2
+  };
+#if CONFIG_SDP
+  optimize_cdf_table_var_modes_4d_inner(
+      &fc.limited_partition[0][0][0][0], probsfile, 4, cts_each_dim,
+      part_types_each_ctx_limited_part,
+      "static const aom_cdf_prob default_limited_partition_cdf "
+      "[PARTITION_STRUCTURE_NUM][NUM_LIMITED_PARTITION_PARENTS]"
+      "[PARTITION_CONTEXTS][CDF_SIZE(LIMITED_EXT_PARTITION_TYPES)]");
+#else   // CONFIG_SDP
+  optimize_cdf_table_var_modes_3d_inner(
+      &fc.limited_partition[0][0][0], probsfile, 3, cts_each_dim,
+      part_types_each_ctx_limited_part,
+      "static const aom_cdf_prob default_limited_partition_cdf "
+      "[NUM_LIMITED_PARTITION_PARENTS][PARTITION_CONTEXTS]"
+      "[CDF_SIZE(LIMITED_EXT_PARTITION_TYPES)]");
+#endif  // CONFIG_SDP
+
   cts_each_dim[0] = PARTITION_CONTEXTS_REC;
   cts_each_dim[1] = PARTITION_TYPES_REC;
   int part_types_each_ctx_rec[PARTITION_CONTEXTS_REC] = {
