@@ -72,6 +72,9 @@
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/tx_search.h"
+#if CONFIG_EXT_RECUR_PARTITIONS
+#include "av1/encoder/partition_strategy.h"
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #define LAST_NEW_MV_INDEX 6
 
@@ -7709,7 +7712,11 @@ static int inter_mode_search_order_independent_skip(
     return 0;
 
   int skip_motion_mode = 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (!x->inter_mode_cache && skip_ref_frame_mask) {
+#else
   if (mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
     assert(ref_type <
            (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / 2 + 2));
@@ -8823,6 +8830,50 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #else
   int picked_ref_frames_mask = 0;
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
+      !x->inter_mode_cache && !is_square_block(bsize)) {
+    bool prune_ref_frames = false;
+    assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
+
+    // Prune reference frames if we are either a 1:4 block, or if we are a 1:2
+    // block, and we have searched any of the rectangular subblock.
+    if (!is_partition_point(bsize)) {
+      prune_ref_frames = true;
+    } else {
+      for (RECT_PART_TYPE rect_type = HORZ; rect_type < NUM_RECT_PARTS;
+           rect_type++) {
+        const int mi_pos_rect[NUM_RECT_PARTS][SUB_PARTITIONS_RECT][2] = {
+          { { xd->mi_row, xd->mi_col },
+            { xd->mi_row + mi_size_high[bsize] / 2, xd->mi_col } },
+          { { xd->mi_row, xd->mi_col },
+            { xd->mi_row, xd->mi_col + mi_size_wide[bsize] } }
+        };
+        const PARTITION_TYPE part =
+            (rect_type == HORZ) ? PARTITION_HORZ : PARTITION_VERT;
+        const BLOCK_SIZE subsize = get_partition_subsize(bsize, part);
+        if (subsize == BLOCK_INVALID) {
+          continue;
+        }
+        for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
+          const PARTITION_TYPE prev_part =
+              av1_get_prev_partition(x, mi_pos_rect[rect_type][sub_idx][0],
+                                     mi_pos_rect[rect_type][sub_idx][1],
+                                     subsize, cm->seq_params.sb_size);
+          if (prev_part != PARTITION_INVALID) {
+            prune_ref_frames = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (prune_ref_frames) {
+      picked_ref_frames_mask =
+          fetch_picked_ref_frames_mask(x, bsize, cm->seq_params.mib_size);
+    }
+  }
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
       mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
     // prune_ref_frame_for_rect_partitions = 1 implies prune only extended
@@ -8835,6 +8886,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           fetch_picked_ref_frames_mask(x, bsize, cm->seq_params.mib_size);
     }
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Skip ref frames that never selected by square blocks.
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
