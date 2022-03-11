@@ -777,7 +777,7 @@ if(CONFIG_AV2_ENCODER)
         target_link_libraries(avm PRIVATE ${VMAF_LDFLAGS} ${VMAF_LIBRARIES}
                                           -static)
       endif()
-      target_include_directories(avm PRIVATE ${VMAF_INCLUDE_DIRS})
+      target_include_directories(avm_dsp_encoder PRIVATE ${VMAF_INCLUDE_DIRS})
       if(VMAF_CFLAGS)
         append_compiler_flag("${VMAF_CFLAGS}")
       endif()
