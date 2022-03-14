@@ -487,6 +487,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_ORIP
   seq->enable_orip = oxcf->intra_mode_cfg.enable_orip;
 #endif
+#if CONFIG_IDIF
+  seq->enable_idif = oxcf->intra_mode_cfg.enable_idif;
+#endif  // CONFIG_IDIF
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;

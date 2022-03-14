@@ -6377,6 +6377,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_ORIP
   seq_params->enable_orip = aom_rb_read_bit(rb);
 #endif
+#if CONFIG_IDIF
+  seq_params->enable_idif = aom_rb_read_bit(rb);
+#endif  // CONFIG_IDIF
 #if CONFIG_OPTFLOW_REFINEMENT
   seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
                                        ? aom_rb_read_literal(rb, 2)

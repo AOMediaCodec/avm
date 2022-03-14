@@ -450,6 +450,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_ORIP
   &g_av1_codec_arg_defs.enable_orip,
 #endif
+#if CONFIG_IDIF
+  &g_av1_codec_arg_defs.enable_idif,
+#endif  // CONFIG_IDIF
   &g_av1_codec_arg_defs.enable_ist,
 #if CONFIG_CROSS_CHROMA_TX
   &g_av1_codec_arg_defs.enable_cctx,
@@ -651,6 +654,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_ORIP
   config->enable_orip = 1;
 #endif
+#if CONFIG_IDIF
+  config->enable_idif = 1;
+#endif  // CONFIG_IDIF
   config->enable_ist = 1;
 #if CONFIG_CROSS_CHROMA_TX
   config->enable_cctx = 1;
@@ -1514,6 +1520,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_ORIP
           ", ORIP(%d)"
 #endif  // CONFIG_CONFIG_ORIP
+#if CONFIG_IDIF
+          ", IDIF(%d)"
+#endif  // CONFIG_IDIF
           ", IBP(%d)"
           "\n",
           encoder_cfg->enable_intra_edge_filter,
@@ -1523,6 +1532,10 @@ static void show_stream_config(struct stream_state *stream,
           ,
           encoder_cfg->enable_orip
 #endif  //  CONFIG_ORIP
+#if CONFIG_IDIF
+          ,
+          encoder_cfg->enable_idif
+#endif  //  CONFIG_IDIF
           ,
           encoder_cfg->enable_ibp);
 

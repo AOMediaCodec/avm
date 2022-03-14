@@ -144,6 +144,9 @@ struct av1_extracfg {
 #if CONFIG_ORIP
   int enable_orip;  // enable ORIP
 #endif              // CONFIG_ORIP
+#if CONFIG_IDIF
+  int enable_idif;  // enable IDIF
+#endif              // CONFIG_IDIF
   int enable_ist;   // enable intra secondary transform
 #if CONFIG_CROSS_CHROMA_TX
   int enable_cctx;  // enable cross-chroma component transform
@@ -478,6 +481,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_ORIP
   1,    // enable ORIP
 #endif  // CONFIG_ORIP
+#if CONFIG_IDIF
+  1,    // enable IDIF
+#endif  // CONFIG_IDIF
   1,    // enable intra secondary transform
 #if CONFIG_CROSS_CHROMA_TX
   1,    // enable cross-chroma component transform
@@ -973,6 +979,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_ORIP
   cfg->enable_orip = extra_cfg->enable_orip;
 #endif
+#if CONFIG_IDIF
+  cfg->enable_idif = extra_cfg->enable_idif;
+#endif  // CONFIG_IDIF
   cfg->enable_ist = extra_cfg->enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   cfg->enable_cctx = extra_cfg->enable_cctx;
@@ -1090,6 +1099,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_ORIP
   extra_cfg->enable_orip = cfg->enable_orip;
 #endif
+#if CONFIG_IDIF
+  extra_cfg->enable_idif = cfg->enable_idif;
+#endif  // CONFIG_IDIF
   extra_cfg->enable_ist = cfg->enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   extra_cfg->enable_cctx = cfg->enable_cctx;
@@ -1663,6 +1675,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_ORIP
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
 #endif
+#if CONFIG_IDIF
+  intra_mode_cfg->enable_idif = extra_cfg->enable_idif;
+#endif  // CONFIG_IDIF
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
 
   // Set transform size/type configuration.
@@ -3832,6 +3847,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_orip = arg_parse_int_helper(&arg, err_string);
 #endif
+#if CONFIG_IDIF
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_idif, argv,
+                              err_string)) {
+    extra_cfg.enable_idif = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_IDIF
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ist, argv,
                               err_string)) {
     extra_cfg.enable_ist = arg_parse_int_helper(&arg, err_string);
@@ -4316,6 +4336,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_ORIP
         1,
 #endif
+#if CONFIG_IDIF
+        1,
+#endif      // CONFIG_IDIF
         1,  // IST
 #if CONFIG_CROSS_CHROMA_TX
         1,

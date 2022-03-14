@@ -168,6 +168,9 @@ set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
 set_aom_config_var(
   CONFIG_ORIP 1
   "AV2 experiment flag to enable offset based refinement of intra prediction.")
+set_aom_config_var(
+  CONFIG_IDIF 1
+  "AV2 experiment flag to enable Intra Directional Interpolation Filter.")
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0

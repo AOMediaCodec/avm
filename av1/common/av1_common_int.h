@@ -445,6 +445,10 @@ typedef struct SequenceHeader {
 #if CONFIG_ORIP
   uint8_t enable_orip;  // To turn on/off sub-block based ORIP
 #endif
+#if CONFIG_IDIF
+  uint8_t
+      enable_idif;  // enables/disables Intra Directional Interpolation Filter
+#endif              // CONFIG_IDIF
   uint8_t enable_ist;  // enables/disables intra secondary transform
 #if CONFIG_CROSS_CHROMA_TX
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform

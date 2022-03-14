@@ -288,6 +288,12 @@ typedef struct {
    */
   bool enable_orip;
 #endif
+#if CONFIG_IDIF
+  /*!
+   * Flag to indicate if IDIF should be enabled
+   */
+  bool enable_idif;
+#endif
   /*!
    * Flag to indicate if IBP should be enabled
    */

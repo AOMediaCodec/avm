@@ -170,6 +170,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_ORIP
   arg_def_t enable_orip;
 #endif
+#if CONFIG_IDIF
+  arg_def_t enable_idif;
+#endif  // CONFIG_IDIF
   arg_def_t enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   arg_def_t enable_cctx;
