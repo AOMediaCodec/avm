@@ -575,7 +575,7 @@ static AOM_INLINE void perform_one_partition_pass(
            "perform_one_partition_pass cannot handle fixed partitioning for "
            "erp yet.");
 #else
-  (void)multi_pass_params;
+    (void)multi_pass_params;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     av1_rd_pick_partition(
         cpi, td, tile_data, tp, mi_row, mi_col, sb_size, &dummy_rdc, dummy_rdc,
