@@ -529,8 +529,7 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   MACROBLOCKD *xd = &x->e_mbd;
   const CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
   const int txb_offset =
-      x->mbmi_ext_frame->cb_offset[plane > 0 && xd->tree_type == CHROMA_PART] /
-      (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+      x->mbmi_ext_frame->cb_offset[plane] / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
 
 #if CONFIG_CONTEXT_DERIVATION
   const int width = get_txb_wide(tx_size);
@@ -611,8 +610,7 @@ void av1_write_coeffs_txb_skip(const AV1_COMMON *const cm, MACROBLOCK *const x,
   uint8_t levels_buf[TX_PAD_2D];
   int8_t signs_buf[TX_PAD_2D];
   const tran_low_t *tcoeff_txb =
-      cb_coef_buff->tcoeff[plane] +
-      x->mbmi_ext_frame->cb_offset[plane > 0 && xd->tree_type == CHROMA_PART];
+      cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane];
   const tran_low_t *tcoeff = tcoeff_txb + BLOCK_OFFSET(block);
   av1_txb_init_levels_signs(tcoeff, width, height, levels_buf, signs_buf);
   uint8_t *const levels = set_levels(levels_buf, width);
@@ -3646,9 +3644,7 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
     }
     CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
     const int txb_offset =
-        x->mbmi_ext_frame
-            ->cb_offset[(plane > 0 && xd->tree_type == CHROMA_PART) ? 1 : 0] /
-        (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+        x->mbmi_ext_frame->cb_offset[plane] / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
     uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
     uint8_t *const entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
     entropy_ctx[block] = txb_ctx.txb_skip_ctx;
@@ -3662,8 +3658,7 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
     const int segment_id = mbmi->segment_id;
     const int seg_eob = av1_get_tx_eob(&cpi->common.seg, segment_id, tx_size);
     tran_low_t *tcoeff_txb =
-        cb_coef_buff->tcoeff[plane] +
-        x->mbmi_ext_frame->cb_offset[plane > 0 && xd->tree_type == CHROMA_PART];
+        cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane];
     tcoeff = tcoeff_txb + block_offset;
     memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
 
