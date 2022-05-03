@@ -422,6 +422,9 @@ const arg_def_t *av1_ctrl_args[] = {
 const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.disable_ml_transform_speed_features,
   &g_av1_codec_arg_defs.disable_ml_partition_speed_features,
+#if CONFIG_EXT_RECUR_PARTITIONS
+  &g_av1_codec_arg_defs.erp_pruning_level,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   &g_av1_codec_arg_defs.enable_sdp,
   &g_av1_codec_arg_defs.enable_mrls,
   &g_av1_codec_arg_defs.enable_wiener,
@@ -620,6 +623,9 @@ static void init_config(cfg_options_t *config) {
   config->disable_ml_partition_speed_features = 1;
 #else
   config->disable_ml_partition_speed_features = 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  config->erp_pruning_level = 4;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;
   config->enable_mrls = 1;

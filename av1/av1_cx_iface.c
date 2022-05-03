@@ -114,6 +114,9 @@ struct av1_extracfg {
   unsigned int motion_vector_unit_test;
   unsigned int cdf_update_mode;
   int disable_ml_partition_speed_features;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  unsigned int erp_pruning_level;
+#endif                         // CONFIG_EXT_RECUR_PARTITIONS
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
   int enable_1to4_partitions;  // enable 1:4 and 4:1 partitions for sequence
@@ -439,6 +442,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // disable ML based partition speed up features
 #else
   0,  // disable ML based partition speed up features
+#endif
+#if CONFIG_EXT_RECUR_PARTITIONS
+  4,  // aggressiveness for erp pruning
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions
@@ -931,6 +937,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_angle_delta = extra_cfg->enable_angle_delta;
   cfg->disable_ml_partition_speed_features =
       extra_cfg->disable_ml_partition_speed_features;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
   cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
@@ -1047,6 +1056,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
       cfg->disable_ml_transform_speed_features;
   extra_cfg->disable_ml_partition_speed_features =
       cfg->disable_ml_partition_speed_features;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  extra_cfg->erp_pruning_level = cfg->erp_pruning_level;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->enable_sdp = cfg->enable_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
 #if CONFIG_TIP
@@ -1597,8 +1609,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   part_cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
   part_cfg->enable_sdp = extra_cfg->enable_sdp;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  part_cfg->disable_ml_partition_speed_features =
-      extra_cfg->disable_ml_partition_speed_features;
+  part_cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->min_partition_size = extra_cfg->min_partition_size;
   part_cfg->max_partition_size = extra_cfg->max_partition_size;
@@ -3742,6 +3753,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                  argv, err_string)) {
     extra_cfg.disable_ml_partition_speed_features =
         arg_parse_int_helper(&arg, err_string);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.erp_pruning_level,
+                              argv, err_string)) {
+    extra_cfg.erp_pruning_level = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   } else if (arg_match_helper(
                  &arg,
                  &g_av1_codec_arg_defs.disable_ml_transform_speed_features,
@@ -4243,6 +4259,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #else   // CONFIG_EXT_RECUR_PARTITIONS
         0,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+        4,  // aggressiveness for erp pruning
+#endif
         0, 1,   1,
 #if CONFIG_TIP
         1,

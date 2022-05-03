@@ -359,14 +359,8 @@ static void set_good_speed_features_framesize_independent(
 
   sf->part_sf.less_rectangular_check_level = 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  sf->part_sf.enable_fast_erp = 0;
   sf->part_sf.ml_prune_4_partition = 0;
   sf->part_sf.ml_prune_ab_partition = 0;
-
-  sf->part_sf.prune_rect_with_none_rd = 1;
-  sf->part_sf.prune_part_3_with_part_none = 1;
-  sf->part_sf.prune_part_3_with_part_rect = 1;
-  sf->part_sf.two_pass_partition_search = 0;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
   sf->part_sf.ml_prune_4_partition = 1;
   sf->part_sf.ml_prune_ab_partition = 1;
@@ -375,11 +369,6 @@ static void set_good_speed_features_framesize_independent(
   sf->part_sf.prune_ext_partition_types_search_level = 1;
   sf->part_sf.simple_motion_search_prune_rect = 1;
 
-#if CONFIG_EXT_RECUR_PARTITIONS
-  sf->inter_sf.reuse_erp_mode_flag =
-      (REUSE_PARTITION_MODE_FLAG | REUSE_INTER_MODE_IN_INTERFRAME_FLAG |
-       REUSE_INTRA_MODE_IN_INTERFRAME_FLAG);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   sf->inter_sf.disable_wedge_search_var_thresh = 0;
   // TODO(debargha): Test, tweak and turn on either 1 or 2
   sf->inter_sf.inter_mode_rd_model_estimation = 1;
@@ -387,10 +376,14 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.prune_compound_using_single_ref = 1;
   sf->inter_sf.prune_mode_search_simple_translation = 1;
   sf->inter_sf.prune_motion_mode_level = 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  sf->inter_sf.prune_ref_frame_for_rect_partitions = 0;
+#else
   sf->inter_sf.prune_ref_frame_for_rect_partitions =
       (boosted || (allow_screen_content_tools))
           ? 0
           : (is_boosted_arf2_bwd_type ? 1 : 2);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
   sf->inter_sf.reduce_inter_modes = 1;
   sf->inter_sf.selective_ref_frame = 1;
@@ -968,9 +961,7 @@ static void av1_disable_ml_based_partition_sf(
   part_sf->ml_prune_ab_partition = 0;
   part_sf->ml_prune_rect_partition = 0;
   part_sf->ml_early_term_after_part_split_level = 0;
-#if !CONFIG_EXT_RECUR_PARTITIONS
   part_sf->auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   part_sf->intra_cnn_split = 0;
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;
@@ -1002,6 +993,42 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
     av1_disable_ml_based_transform_sf(&sf->tx_sf);
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
+  SPEED_FEATURES *const sf = &cpi->sf;
+  const AV1_COMMON *const cm = &cpi->common;
+  const GF_GROUP *const gf_group = &cpi->gf_group;
+  const int boosted = frame_is_boosted(cpi);
+  const int is_boosted_arf2_bwd_type =
+      boosted || gf_group->update_type[gf_group->index] == INTNL_ARF_UPDATE;
+  const int allow_screen_content_tools =
+      cm->features.allow_screen_content_tools;
+  const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
+
+  switch (erp_pruning_level) {
+    case 4:
+      sf->part_sf.prune_part_3_with_part_rect = 1;
+      AOM_FALLTHROUGH_INTENDED;
+    case 3:
+      sf->part_sf.prune_part_3_with_part_none = 1;
+      AOM_FALLTHROUGH_INTENDED;
+    case 2:
+      sf->inter_sf.prune_ref_frame_for_rect_partitions =
+          (boosted || (allow_screen_content_tools))
+              ? 0
+              : (is_boosted_arf2_bwd_type ? 1 : 2);
+      AOM_FALLTHROUGH_INTENDED;
+    case 1:
+      sf->inter_sf.reuse_erp_mode_flag =
+          (REUSE_PARTITION_MODE_FLAG | REUSE_INTERFRAME_FLAG);
+      sf->part_sf.prune_rect_with_none_rd = 1;
+      AOM_FALLTHROUGH_INTENDED;
+    case 0: break;
+    default: assert(0 && "Invalid ERP pruning level.");
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
   WinnerModeParams *const winner_mode_params = &cpi->winner_mode_params;
@@ -1027,6 +1054,10 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
   if (oxcf->mode == GOOD)
     set_good_speed_features_framesize_independent(cpi, sf, speed);
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  set_erp_speed_features(cpi);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (!cpi->seq_params_locked) {
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;

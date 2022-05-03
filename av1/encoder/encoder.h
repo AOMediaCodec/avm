@@ -207,6 +207,12 @@ typedef struct {
    * disabled.
    */
   bool disable_ml_partition_speed_features;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*!
+   * Flag to indicate aggressiveness of erp pruning
+   * */
+  unsigned int erp_pruning_level;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!
    * Flag to indicate if rectanguar partitions should be enabled.
    */
