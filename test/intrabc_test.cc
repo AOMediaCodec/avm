@@ -153,6 +153,9 @@ TEST(IntrabcTest, DvValidation) {
   xd.plane[1].subsampling_y = 1;
   xd.plane[2].subsampling_x = 1;
   xd.plane[2].subsampling_y = 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  xd.mi = NULL;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   AV1_COMMON cm;
   memset(&cm, 0, sizeof(cm));
