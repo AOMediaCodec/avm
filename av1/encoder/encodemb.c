@@ -853,8 +853,15 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
     int blk_w = block_size_wide[bsize];
     int blk_h = block_size_high[bsize];
-    mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
-                    blk_row, pd->subsampling_x, pd->subsampling_y);
+    if (plane) {
+      mi_to_pixel_loc(&pixel_c, &pixel_r,
+                      mbmi->chroma_ref_info.mi_col_chroma_base,
+                      mbmi->chroma_ref_info.mi_row_chroma_base, blk_col,
+                      blk_row, pd->subsampling_x, pd->subsampling_y);
+    } else {
+      mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
+                      blk_row, pd->subsampling_x, pd->subsampling_y);
+    }
 #if CONFIG_CROSS_CHROMA_TX
     if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd))
       mismatch_record_block_tx(dst_c1, pd_c1->dst.stride,

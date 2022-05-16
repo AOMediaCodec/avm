@@ -396,9 +396,16 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       for (int plane = plane_start; plane < plane_end; ++plane) {
         const struct macroblockd_plane *pd = &xd->plane[plane];
         int pixel_c, pixel_r;
-        mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, 0, 0,
-                        pd->subsampling_x, pd->subsampling_y);
         if (plane && !xd->is_chroma_ref) continue;
+        if (plane) {
+          mi_to_pixel_loc(&pixel_c, &pixel_r,
+                          mbmi->chroma_ref_info.mi_col_chroma_base,
+                          mbmi->chroma_ref_info.mi_row_chroma_base, 0, 0,
+                          pd->subsampling_x, pd->subsampling_y);
+        } else {
+          mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, 0, 0,
+                          pd->subsampling_x, pd->subsampling_y);
+        }
         mismatch_record_block_pre(pd->dst.buf, pd->dst.stride,
                                   cm->current_frame.order_hint, plane, pixel_c,
                                   pixel_r, pd->width, pd->height);

@@ -327,8 +327,16 @@ static AOM_INLINE void inverse_transform_inter_block(
   int blk_h = block_size_high[bsize];
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
   const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
-  mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, blk_col, blk_row,
-                  pd->subsampling_x, pd->subsampling_y);
+  if (plane) {
+    MB_MODE_INFO *const mbmi = xd->mi[0];
+    mi_to_pixel_loc(&pixel_c, &pixel_r,
+                    mbmi->chroma_ref_info.mi_col_chroma_base,
+                    mbmi->chroma_ref_info.mi_row_chroma_base, blk_col, blk_row,
+                    pd->subsampling_x, pd->subsampling_y);
+  } else {
+    mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, blk_col, blk_row,
+                    pd->subsampling_x, pd->subsampling_y);
+  }
   mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
                           plane, pixel_c, pixel_r, blk_w, blk_h);
 #endif
@@ -1318,9 +1326,16 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
   for (int plane = plane_start; plane < plane_end; ++plane) {
     const struct macroblockd_plane *pd = &xd->plane[plane];
     int pixel_c, pixel_r;
-    mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, 0, 0, pd->subsampling_x,
-                    pd->subsampling_y);
     if (plane && !xd->is_chroma_ref) continue;
+    if (plane) {
+      mi_to_pixel_loc(&pixel_c, &pixel_r,
+                      mbmi->chroma_ref_info.mi_col_chroma_base,
+                      mbmi->chroma_ref_info.mi_row_chroma_base, 0, 0,
+                      pd->subsampling_x, pd->subsampling_y);
+    } else {
+      mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, 0, 0,
+                      pd->subsampling_x, pd->subsampling_y);
+    }
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
                              cm->current_frame.order_hint, plane, pixel_c,
                              pixel_r, pd->width, pd->height);
