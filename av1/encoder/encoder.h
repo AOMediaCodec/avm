@@ -212,6 +212,10 @@ typedef struct {
    * Flag to indicate aggressiveness of erp pruning
    * */
   unsigned int erp_pruning_level;
+  /*!
+   * Flag to indicate the use of ml model for erp pruning.
+   * */
+  int use_ml_erp_pruning;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!
    * Flag to indicate if rectanguar partitions should be enabled.

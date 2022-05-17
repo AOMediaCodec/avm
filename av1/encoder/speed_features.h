@@ -517,6 +517,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   int prune_part_3_with_part_rect;
 
   int two_pass_partition_search;
+
+  // Prunes rect partition with ml model
+  int prune_rect_with_ml;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 

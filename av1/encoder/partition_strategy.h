@@ -326,6 +326,12 @@ PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
 static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
   memset(data_bufs, 0, sizeof(*data_bufs));
 }
+
+void av1_gather_erp_rect_features(
+    float *ml_features, AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *tile_info,
+    const PC_TREE *pc_tree,
+    const struct PartitionSearchState *part_search_state, int64_t part_none_rd,
+    const int (*mi_pos_rect)[SUB_PARTITIONS_RECT][2]);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_full_sb(const CommonModeInfoParams *const mi_params,
@@ -356,5 +362,4 @@ static INLINE int use_auto_max_partition(const AV1_COMP *const cpi,
              KFFLT_OVERLAY_UPDATE &&
          cpi->gf_group.update_type[cpi->gf_group.index] != INTNL_OVERLAY_UPDATE;
 }
-
 #endif  // AOM_AV1_ENCODER_PARTITION_STRATEGY_H_

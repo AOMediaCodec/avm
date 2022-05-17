@@ -85,6 +85,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(disable_ml_transform_speed_features);
 #if CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(erp_pruning_level);
+    GET_PARAMS(use_ml_erp_pruning);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(enable_sdp);
     GET_PARAMS(enable_mrls);

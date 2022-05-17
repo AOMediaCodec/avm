@@ -12,6 +12,7 @@
 
 #include <float.h>
 
+#include "av1/encoder/encodeframe_utils.h"
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom_ports/system_state.h"
@@ -1987,5 +1988,93 @@ bool av1_prune_part_hv_with_sms(AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
   }
   return false;
+}
+
+static AOM_INLINE int64_t clip_rate(const int rate) {
+  if (rate == INT_MAX) {
+    return av1_cost_symbol(EC_MIN_PROB);
+  }
+  return rate;
+}
+
+void av1_gather_erp_rect_features(
+    float *ml_features, AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *tile_info,
+    const PC_TREE *pc_tree, const PartitionSearchState *part_search_state,
+    int64_t part_none_rd, const int (*mi_pos_rect)[SUB_PARTITIONS_RECT][2]) {
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const BLOCK_SIZE bsize = blk_params->bsize;
+  int num_features = 0;
+  // Partition costs
+  ml_features[num_features++] = x->rdmult;
+  ml_features[num_features++] = part_none_rd;
+  ml_features[num_features++] =
+      clip_rate(part_search_state->partition_cost[PARTITION_NONE]);
+  ml_features[num_features++] =
+      clip_rate(part_search_state->partition_cost[PARTITION_HORZ]);
+  ml_features[num_features++] =
+      clip_rate(part_search_state->partition_cost[PARTITION_VERT]);
+
+  const SimpleMotionData *blk_none = av1_get_sms_data(
+      cpi, tile_info, x, blk_params->mi_row, blk_params->mi_col, bsize);
+
+  const BLOCK_SIZE h_size = get_partition_subsize(bsize, PARTITION_HORZ);
+  const SimpleMotionData *blk_h1 =
+      h_size != BLOCK_INVALID
+          ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[HORZ][0][0],
+                             mi_pos_rect[HORZ][0][1], h_size)
+          : NULL;
+  const SimpleMotionData *blk_h2 =
+      h_size != BLOCK_INVALID
+          ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[HORZ][1][0],
+                             mi_pos_rect[HORZ][1][1], h_size)
+          : NULL;
+
+  const BLOCK_SIZE v_size = get_partition_subsize(bsize, PARTITION_VERT);
+  const SimpleMotionData *blk_v1 =
+      v_size != BLOCK_INVALID
+          ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[VERT][0][0],
+                             mi_pos_rect[VERT][0][1], v_size)
+          : NULL;
+  const SimpleMotionData *blk_v2 =
+      v_size != BLOCK_INVALID
+          ? av1_get_sms_data(cpi, tile_info, x, mi_pos_rect[VERT][1][0],
+                             mi_pos_rect[VERT][1][1], v_size)
+          : NULL;
+
+  // Results of SMS on the subblocks
+  ml_features[num_features++] = blk_none->sse;
+  ml_features[num_features++] = blk_none->var;
+  if (h_size != BLOCK_INVALID) {
+    ml_features[num_features++] = 1;
+    ml_features[num_features++] = blk_h1->sse;
+    ml_features[num_features++] = blk_h1->var;
+    ml_features[num_features++] = blk_h2->sse;
+    ml_features[num_features++] = blk_h2->var;
+  } else {
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+  }
+  if (v_size != BLOCK_INVALID) {
+    ml_features[num_features++] = 1;
+    ml_features[num_features++] = blk_v1->sse;
+    ml_features[num_features++] = blk_v1->var;
+    ml_features[num_features++] = blk_v2->sse;
+    ml_features[num_features++] = blk_v2->var;
+  } else {
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+    ml_features[num_features++] = 0;
+  }
+
+  // Whether we are in the middle of a PARTITION_3 subblock
+  const PC_TREE *parent = pc_tree->parent;
+  ml_features[num_features++] = parent && parent->horizontal3[1] == pc_tree;
+  ml_features[num_features++] = parent && parent->vertical3[1] == pc_tree;
+  assert(num_features == 19);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

@@ -116,6 +116,7 @@ struct av1_extracfg {
   int disable_ml_partition_speed_features;
 #if CONFIG_EXT_RECUR_PARTITIONS
   unsigned int erp_pruning_level;
+  int use_ml_erp_pruning;
 #endif                         // CONFIG_EXT_RECUR_PARTITIONS
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
@@ -440,11 +441,10 @@ static struct av1_extracfg default_extra_cfg = {
   1,                            // CDF update mode
 #if CONFIG_EXT_RECUR_PARTITIONS
   1,  // disable ML based partition speed up features
+  4,  // aggressiveness for erp pruning
+  1,  // use ml model for erp pruning
 #else
   0,  // disable ML based partition speed up features
-#endif
-#if CONFIG_EXT_RECUR_PARTITIONS
-  4,  // aggressiveness for erp pruning
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions
@@ -939,6 +939,7 @@ static void update_encoder_config(cfg_options_t *cfg,
       extra_cfg->disable_ml_partition_speed_features;
 #if CONFIG_EXT_RECUR_PARTITIONS
   cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
+  cfg->use_ml_erp_pruning = extra_cfg->use_ml_erp_pruning;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
@@ -1058,6 +1059,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
       cfg->disable_ml_partition_speed_features;
 #if CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->erp_pruning_level = cfg->erp_pruning_level;
+  extra_cfg->use_ml_erp_pruning = cfg->use_ml_erp_pruning;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->enable_sdp = cfg->enable_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
@@ -1610,6 +1612,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   part_cfg->enable_sdp = extra_cfg->enable_sdp;
 #if CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
+  part_cfg->use_ml_erp_pruning = extra_cfg->use_ml_erp_pruning;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->min_partition_size = extra_cfg->min_partition_size;
   part_cfg->max_partition_size = extra_cfg->max_partition_size;
@@ -3757,6 +3760,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.erp_pruning_level,
                               argv, err_string)) {
     extra_cfg.erp_pruning_level = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.use_ml_erp_pruning,
+                              argv, err_string)) {
+    extra_cfg.use_ml_erp_pruning = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   } else if (arg_match_helper(
                  &arg,
@@ -4256,12 +4262,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0, 128, 128, 4, 1, 1, 1,
 #if CONFIG_EXT_RECUR_PARTITIONS
         1,
-#else   // CONFIG_EXT_RECUR_PARTITIONS
-        0,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_RECUR_PARTITIONS
         4,  // aggressiveness for erp pruning
-#endif
+        1,  // use ml model for erp pruning
+#else       // CONFIG_EXT_RECUR_PARTITIONS
+        0,
+#endif      // CONFIG_EXT_RECUR_PARTITIONS
         0, 1,   1,
 #if CONFIG_TIP
         1,

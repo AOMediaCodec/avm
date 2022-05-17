@@ -102,6 +102,16 @@ if(CONFIG_LPF_MASK)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
 endif()
 
+if(CONFIG_EXT_RECUR_PARTITIONS)
+  list(
+    APPEND
+    AOM_AV1_COMMON_SOURCES
+    "${AOM_ROOT}/av1/encoder/erp_tflite.cc"
+    "${AOM_ROOT}/av1/encoder/erp_tflite.h"
+    "${AOM_ROOT}/av1/tflite_models/op_registrations.cc"
+    "${AOM_ROOT}/av1/tflite_models/op_registrations.h")
+endif()
+
 if(CONFIG_CCSO)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/ccso.c"
        "${AOM_ROOT}/av1/common/ccso.h")

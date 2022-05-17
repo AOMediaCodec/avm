@@ -33,6 +33,9 @@
 #if CONFIG_ADAPTIVE_MVD
 #include "av1/common/reconinter.h"
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_EXT_RECUR_PARTITIONS
+#include "av1/encoder/erp_tflite.h"
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #include "aom_util/debug_util.h"
 
@@ -3560,6 +3563,30 @@ static void rectangular_partition_search(
   };
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  const BLOCK_SIZE bsize = blk_params.bsize;
+  const bool is_whole_block_inside =
+      (blk_params.mi_row + mi_size_high[bsize] < mi_params->mi_rows) &&
+      (blk_params.mi_col + mi_size_wide[bsize] < mi_params->mi_cols);
+  const bool try_prune_with_ml =
+      cpi->sf.part_sf.prune_rect_with_ml && !frame_is_intra_only(cm) &&
+      forced_partition == PARTITION_INVALID && is_whole_block_inside &&
+      part_none_rd < INT64_MAX;
+
+  bool prune_horz = false, prune_vert = false;
+  if (try_prune_with_ml && bsize != BLOCK_4X8 && bsize != BLOCK_8X4 &&
+      is_partition_point(bsize)) {
+    float ml_features[19];
+    av1_gather_erp_rect_features(ml_features, cpi, x, &tile_data->tile_info,
+                                 pc_tree, part_search_state, part_none_rd,
+                                 mi_pos_rect);
+    const bool is_hd = AOMMIN(cm->width, cm->height) >= 1080;
+
+    av1_erp_prune_rect(bsize, is_hd, ml_features, &prune_horz, &prune_vert);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   // Loop over rectangular partition types.
   for (RECT_PART_TYPE i = HORZ; i < NUM_RECT_PARTS; i++) {
     assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
@@ -3604,6 +3631,12 @@ static void rectangular_partition_search(
                                      best_rdc, &blk_params, i, part_hv_rate)) {
         continue;
       }
+    }
+
+    if (partition_type == PARTITION_HORZ && prune_horz) {
+      continue;
+    } else if (partition_type == PARTITION_VERT && prune_vert) {
+      continue;
     }
 
     if (cpi->sf.part_sf.prune_rect_with_none_rd &&
