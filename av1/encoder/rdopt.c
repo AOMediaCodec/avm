@@ -9062,8 +9062,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
               ? INTRA_FRAME
               : ((rf == cm->ref_frames_info.num_total_refs) ? TIP_FRAME : rf);
       if (is_tip_ref_frame(ref_frame) &&
-          (!is_tip_allowed_bsize(bsize) || !is_tip_mode(this_mode) ||
-           !cm->features.tip_frame_mode))
+#if CONFIG_EXT_RECUR_PARTITIONS
+          (!is_tip_allowed_bsize(mbmi) ||
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+          (!is_tip_allowed_bsize(bsize) ||
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+           !is_tip_mode(this_mode) || !cm->features.tip_frame_mode))
         continue;
 #else
     for (MV_REFERENCE_FRAME rf = NONE_FRAME;
@@ -9111,7 +9115,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     const MV_REFERENCE_FRAME *ref_frames = mode_def->ref_frame;
 #if CONFIG_TIP
     if (is_tip_mode(mode_enum) &&
-        (!is_tip_allowed_bsize(bsize) || !cm->features.tip_frame_mode))
+#if CONFIG_EXT_RECUR_PARTITIONS
+        (!is_tip_allowed_bsize(mbmi) ||
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        (!is_tip_allowed_bsize(bsize) ||
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+         !cm->features.tip_frame_mode))
       continue;
 #endif  // CONFIG_TIP
 

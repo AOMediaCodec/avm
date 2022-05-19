@@ -2040,7 +2040,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     av1_collect_neighbors_ref_counts(xd);
 
 #if CONFIG_TIP
-    if (cm->features.tip_frame_mode && is_tip_allowed_bsize(bsize)) {
+    if (cm->features.tip_frame_mode &&
+#if CONFIG_EXT_RECUR_PARTITIONS
+        is_tip_allowed_bsize(mbmi)) {
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        is_tip_allowed_bsize(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       const int tip_ctx = get_tip_ctx(xd);
       aom_write_symbol(w, is_tip_ref_frame(mbmi->ref_frame[0]),
                        ec_ctx->tip_cdf[tip_ctx], 2);

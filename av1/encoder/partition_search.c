@@ -1207,7 +1207,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       const MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
 
 #if CONFIG_TIP
-      if (cm->features.tip_frame_mode && is_tip_allowed_bsize(bsize)) {
+      if (cm->features.tip_frame_mode &&
+#if CONFIG_EXT_RECUR_PARTITIONS
+          is_tip_allowed_bsize(mbmi)) {
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+          is_tip_allowed_bsize(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         const int tip_ctx = get_tip_ctx(xd);
         update_cdf(fc->tip_cdf[tip_ctx], is_tip_ref_frame(ref0), 2);
 #if CONFIG_ENTROPY_STATS

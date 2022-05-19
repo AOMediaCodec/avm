@@ -2004,8 +2004,15 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #if CONFIG_TIP
   ref_frame[0] = NONE_FRAME;
   ref_frame[1] = NONE_FRAME;
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-  if (cm->features.tip_frame_mode && is_tip_allowed_bsize(bsize)) {
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+  if (cm->features.tip_frame_mode &&
+#if CONFIG_EXT_RECUR_PARTITIONS
+      is_tip_allowed_bsize(xd->mi[0])) {
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+      is_tip_allowed_bsize(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const int tip_ctx = get_tip_ctx(xd);
     if (aom_read_symbol(r, xd->tile_ctx->tip_cdf[tip_ctx], 2, ACCT_STR)) {
       ref_frame[0] = TIP_FRAME;

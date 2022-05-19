@@ -2815,10 +2815,23 @@ static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
 }
 
 #if CONFIG_TIP
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int is_tip_allowed_bsize(const MB_MODE_INFO *mbmi) {
+  const BLOCK_SIZE bsize = mbmi->sb_type[0];
+  const BLOCK_SIZE chroma_bsize_base = mbmi->chroma_ref_info.bsize_base;
+  const int is_chroma_ref = mbmi->chroma_ref_info.is_chroma_ref;
+
+  assert(bsize < BLOCK_SIZES_ALL);
+  assert(chroma_bsize_base < BLOCK_SIZES_ALL);
+  return is_chroma_ref && (bsize == chroma_bsize_base) &&
+         (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8);
+}
+#else   // CONFIG_EXT_RECUR_PARTITIONS
 static INLINE int is_tip_allowed_bsize(BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
   return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
 }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // CONFIG_TIP
 
 static INLINE int is_interintra_allowed_bsize(const BLOCK_SIZE bsize) {
