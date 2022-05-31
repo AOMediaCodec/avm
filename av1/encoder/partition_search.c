@@ -3580,7 +3580,11 @@ static void rectangular_partition_search(
   const bool try_prune_with_ml =
       cpi->sf.part_sf.prune_rect_with_ml && !frame_is_intra_only(cm) &&
       forced_partition == PARTITION_INVALID && is_whole_block_inside &&
-      part_none_rd < INT64_MAX;
+      part_none_rd < INT64_MAX &&
+      (is_rect_part_allowed(cpi, part_search_state, active_edge_type, HORZ,
+                            mi_pos_rect[HORZ][0][HORZ]) ||
+       is_rect_part_allowed(cpi, part_search_state, active_edge_type, VERT,
+                            mi_pos_rect[VERT][0][VERT]));
 
   bool prune_horz = false, prune_vert = false;
   if (try_prune_with_ml && bsize != BLOCK_4X8 && bsize != BLOCK_8X4 &&

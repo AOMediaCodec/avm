@@ -171,10 +171,51 @@ extern "C" int av1_erp_prune_rect(BLOCK_SIZE bsize, bool is_hd,
   float probs[3];
   av1_nn_softmax(output, probs, 3);
 
-  if (probs[1] < 0.05f) {
+  static const float threshes[2][5] = {
+    // Non-hd
+    {
+        // 128, 64, 32, 16, 8
+        0.00889f,
+        0.00268f,
+        0.01480f,
+        0.03531f,
+        0.04103f,
+    },
+    // HD
+    {
+        // 128, 64, 32, 16, 8
+        0.01911f,
+        0.00327f,
+        0.00520f,
+        0.01669f,
+        0.00176f,
+    },
+  };
+
+  float thresh = 0.0f;
+  switch (bsize) {
+    case BLOCK_128X128:
+    case BLOCK_128X64:
+    case BLOCK_64X128: thresh = threshes[is_hd][0]; break;
+    case BLOCK_64X64:
+    case BLOCK_64X32:
+    case BLOCK_32X64: thresh = threshes[is_hd][1]; break;
+    case BLOCK_32X32:
+    case BLOCK_32X16:
+    case BLOCK_16X32: thresh = threshes[is_hd][2]; break;
+    case BLOCK_16X16:
+    case BLOCK_16X8:
+    case BLOCK_8X16: thresh = threshes[is_hd][3]; break;
+    case BLOCK_8X8: thresh = threshes[is_hd][4]; break;
+    default:
+      assert("Unexpected block size in erp pruning model!\n");
+      thresh = 0.0f;
+  }
+
+  if (probs[1] < thresh) {
     *prune_horz = true;
   }
-  if (probs[2] < 0.05f) {
+  if (probs[2] < thresh) {
     *prune_vert = true;
   }
 
