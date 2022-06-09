@@ -559,6 +559,10 @@ static AOM_INLINE void perform_one_partition_pass(
        cm->seq_params.enable_sdp)
           ? 2
           : 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->is_whole_sb = mi_row + mi_size_high[sb_size] <= cm->mi_params.mi_rows &&
+                   mi_col + mi_size_wide[sb_size] <= cm->mi_params.mi_cols;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
     const BLOCK_SIZE min_partition_size = sb_enc->min_partition_size;
     xd->tree_type =
@@ -590,6 +594,9 @@ static AOM_INLINE void perform_one_partition_pass(
     sb_enc->min_partition_size = min_partition_size;
   }
   xd->tree_type = SHARED_PART;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->is_whole_sb = 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 /*!\brief Call \ref av1_rd_pick_partition twice.

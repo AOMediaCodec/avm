@@ -520,6 +520,10 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Prunes rect partition with ml model
   int prune_rect_with_ml;
+
+  // End partition search if the grandparent, parent, and current block all
+  // failed PARTITION_NONE
+  int end_part_search_after_consec_failures;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 

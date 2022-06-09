@@ -763,6 +763,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_part_3_with_part_rect = 0;
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
+  part_sf->end_part_search_after_consec_failures = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
@@ -1018,6 +1019,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
           (boosted || (allow_screen_content_tools))
               ? 0
               : (is_boosted_arf2_bwd_type ? 1 : 2);
+      sf->part_sf.end_part_search_after_consec_failures = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 1:
       sf->inter_sf.reuse_erp_mode_flag =

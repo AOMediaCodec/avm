@@ -99,6 +99,9 @@ typedef struct PC_TREE {
   int is_last_subblock;
   CHROMA_REF_INFO chroma_ref_info;
   RD_STATS rd_cost;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  RD_STATS none_rd;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PC_TREE;
 
 typedef struct SIMPLE_MOTION_DATA_TREE {

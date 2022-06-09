@@ -1588,6 +1588,8 @@ typedef struct macroblock {
   int reuse_inter_mode_cache_type;
   /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
   MB_MODE_INFO *inter_mode_cache;
+  /*! \brief Whether the whole superblock is inside the frame boudnary */
+  bool is_whole_sb;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 } MACROBLOCK;
