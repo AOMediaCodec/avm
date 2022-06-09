@@ -1277,6 +1277,10 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
         sf->tx_sf.use_intra_txb_hash = 1;
+
+        if (!frame_is_intra_only(cm)) {
+          sf->part_sf.default_min_partition_size = BLOCK_8X8;
+        }
       }
     }
   }
