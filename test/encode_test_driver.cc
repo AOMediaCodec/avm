@@ -189,14 +189,14 @@ void EncoderTest::RunLoop(VideoSource *video) {
     std::unique_ptr<Decoder> decoder(
         codec_->CreateDecoder(dec_cfg, 0 /* flags */));
 
-    number_spatial_layers_ = GetNumEmbeddedLayers();
+    int number_spatial_layers = GetNumEmbeddedLayers();
 
     bool again;
     DxDataIterator dec_iter = decoder->GetDxData();
     for (again = true; again; video->Next()) {
       again = (video->img() != NULL);
 
-      for (int sl = 0; sl < number_spatial_layers_; sl++) {
+      for (int sl = 0; sl < number_spatial_layers; sl++) {
         PreEncodeFrameHook(video);
         PreEncodeFrameHook(video, encoder.get());
         PreDecodeFrameHook(video, decoder.get());
@@ -219,7 +219,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
                 has_dxdata = true;
               }
               ASSERT_GE(pkt->data.frame.pts, last_pts);
-              if (sl == number_spatial_layers_) last_pts = pkt->data.frame.pts;
+              if (sl == number_spatial_layers - 1)
+                last_pts = pkt->data.frame.pts;
               FramePktHook(pkt, &dec_iter);
               break;
             case AVM_CODEC_CX_FRAME_PKT:
@@ -241,7 +242,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
                 pkt_decoded = true;
               }
               ASSERT_GE(pkt->data.frame.pts, last_pts);
-              if (sl == number_spatial_layers_) last_pts = pkt->data.frame.pts;
+              if (sl == number_spatial_layers - 1)
+                last_pts = pkt->data.frame.pts;
               FramePktHook(pkt, NULL);
               break;
 

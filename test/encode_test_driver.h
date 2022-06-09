@@ -180,7 +180,7 @@ class EncoderTest {
  protected:
   explicit EncoderTest(const CodecFactory *codec)
       : codec_(codec), abort_(false), init_flags_(0), frame_flags_(0),
-        mode_(kOnePassGood), number_spatial_layers_(1) {
+        mode_(kOnePassGood) {
     // Default to 1 thread.
     cfg_.g_threads = 1;
   }
@@ -272,7 +272,6 @@ class EncoderTest {
   avm_codec_flags_t init_flags_;
   unsigned long frame_flags_;
   TestMode mode_;
-  int number_spatial_layers_;
 };
 
 }  // namespace libavm_test
