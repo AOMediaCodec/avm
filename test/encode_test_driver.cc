@@ -168,7 +168,7 @@ void EncoderTest::RunLoop(VideoSource *video) {
 
   ASSERT_EQ(1, (int)passes_);
   for (unsigned int pass = 0; pass < passes_; pass++) {
-    last_pts_ = 0;
+    avm_codec_pts_t last_pts = 0;
 
     if (passes_ == 1)
       cfg_.g_pass = AVM_RC_ONE_PASS;
@@ -218,8 +218,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
                 if (!HandleDecodeResult(res_dec, decoder.get())) break;
                 has_dxdata = true;
               }
-              ASSERT_GE(pkt->data.frame.pts, last_pts_);
-              if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
+              ASSERT_GE(pkt->data.frame.pts, last_pts);
+              if (sl == number_spatial_layers_) last_pts = pkt->data.frame.pts;
               FramePktHook(pkt, &dec_iter);
               break;
             case AVM_CODEC_CX_FRAME_PKT:
@@ -240,8 +240,8 @@ void EncoderTest::RunLoop(VideoSource *video) {
                 has_dxdata = true;
                 pkt_decoded = true;
               }
-              ASSERT_GE(pkt->data.frame.pts, last_pts_);
-              if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
+              ASSERT_GE(pkt->data.frame.pts, last_pts);
+              if (sl == number_spatial_layers_) last_pts = pkt->data.frame.pts;
               FramePktHook(pkt, NULL);
               break;
 
