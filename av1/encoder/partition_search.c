@@ -3401,7 +3401,7 @@ static void rd_pick_rect_partition(
     const int mi_pos_rect[NUM_RECT_PARTS][SUB_PARTITIONS_RECT][2],
     BLOCK_SIZE bsize, const int is_not_edge_block[NUM_RECT_PARTS],
     SB_MULTI_PASS_MODE multi_pass_mode, const PARTITION_TREE *ptree_luma,
-    const PARTITION_TREE *template_tree) {
+    const PARTITION_TREE *template_tree, bool *both_blocks_skippable) {
   const PARTITION_TYPE partition_type = rect_partition_type[rect_type];
   RD_STATS *sum_rdc = &part_search_state->sum_rdc;
 
@@ -3414,6 +3414,7 @@ static void rd_pick_rect_partition(
       (rect_type == HORZ) ? pc_tree->horizontal : pc_tree->vertical;
   const int track_ptree_luma =
       ptree_luma && ptree_luma->partition == partition_type;
+  *both_blocks_skippable = true;
   av1_rd_stats_subtraction(x->rdmult, best_rdc, sum_rdc, &best_remain_rdcost);
   bool partition_found = av1_rd_pick_partition(
       cpi, td, tile_data, tp, mi_pos_rect[rect_type][0][0],
@@ -3426,6 +3427,7 @@ static void rd_pick_rect_partition(
     av1_invalid_rd_stats(sum_rdc);
     return;
   } else {
+    *both_blocks_skippable &= sub_tree[0]->skippable;
     sum_rdc->rate += this_rdc.rate;
     sum_rdc->dist += this_rdc.dist;
     av1_rd_cost_update(x->rdmult, sum_rdc);
@@ -3447,6 +3449,7 @@ static void rd_pick_rect_partition(
       av1_invalid_rd_stats(sum_rdc);
       return;
     } else {
+      *both_blocks_skippable &= sub_tree[1]->skippable;
       sum_rdc->rate += this_rdc.rate;
       sum_rdc->dist += this_rdc.dist;
       av1_rd_cost_update(x->rdmult, sum_rdc);
@@ -3682,10 +3685,12 @@ static void rectangular_partition_search(
         mi_pos_rect[i][1][0], mi_pos_rect[i][1][1], blk_params.subsize, pc_tree,
         partition_type, 1, 1, ss_x, ss_y);
 
-    rd_pick_rect_partition(cpi, td, tile_data, tp, x, pc_tree,
-                           part_search_state, best_rdc, i, mi_pos_rect,
-                           blk_params.subsize, is_not_edge_block,
-                           multi_pass_mode, ptree_luma, template_tree);
+    bool both_blocks_skippable = true;
+
+    rd_pick_rect_partition(
+        cpi, td, tile_data, tp, x, pc_tree, part_search_state, best_rdc, i,
+        mi_pos_rect, blk_params.subsize, is_not_edge_block, multi_pass_mode,
+        ptree_luma, template_tree, &both_blocks_skippable);
 #else
     int sub_part_idx = 0;
     for (int j = 0; j < SUB_PARTITIONS_RECT; j++) {
@@ -3750,6 +3755,9 @@ static void rectangular_partition_search(
     if (sum_rdc->rdcost < best_rdc->rdcost) {
       sum_rdc->rdcost = RDCOST(x->rdmult, sum_rdc->rate, sum_rdc->dist);
       if (sum_rdc->rdcost < best_rdc->rdcost) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+        pc_tree->skippable = both_blocks_skippable;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
         *best_rdc = *sum_rdc;
 #if CONFIG_C043_MVP_IMPROVEMENTS
         *best_level_bank = x->e_mbd.ref_mv_bank;
@@ -3773,6 +3781,23 @@ static void rectangular_partition_search(
 #endif  // WARP_CU_BANK
     av1_restore_context(cm, x, x_ctx, blk_params.mi_row, blk_params.mi_col,
                         blk_params.bsize, av1_num_planes(cm));
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (sum_rdc->rdcost < INT64_MAX && both_blocks_skippable &&
+        !frame_is_intra_only(cm)) {
+      const int64_t dist_breakout_thr =
+          (int64_t)(cpi->sf.part_sf.partition_search_breakout_dist_thr / 4) >>
+          ((2 * (MAX_SB_SIZE_LOG2 - 2)) -
+           (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]));
+      const int rate_breakout_thr =
+          (int64_t)25 * cpi->sf.part_sf.partition_search_breakout_rate_thr *
+          num_pels_log2_lookup[bsize];
+      if (sum_rdc->dist < dist_breakout_thr &&
+          sum_rdc->rate < rate_breakout_thr) {
+        part_search_state->terminate_partition_search = true;
+        break;
+      }
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 }
 
@@ -4506,6 +4531,9 @@ static void none_partition_search(
   pc_tree->none_rd = *this_rdc;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (this_rdc->rate != INT_MAX) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    pc_tree->skippable = pc_tree->none->skippable;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     // Record picked ref frame to prune ref frames for other partition types.
     if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions) {
       const int ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame);
@@ -4724,7 +4752,8 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
                                TileDataEnc *tile_data, TokenExtra **tp,
                                SUBBLOCK_RDO_DATA *rdo_data,
                                RD_STATS best_rdcost, RD_STATS *sum_rdc,
-                               SB_MULTI_PASS_MODE multi_pass_mode) {
+                               SB_MULTI_PASS_MODE multi_pass_mode,
+                               bool *skippable) {
   MACROBLOCK *const x = &td->mb;
   const int orig_mult = x->rdmult;
   const int mi_row = rdo_data->mi_row;
@@ -4764,8 +4793,10 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   }
 
   if (this_rdc.rate == INT_MAX) {
+    *skippable = false;
     sum_rdc->rdcost = INT64_MAX;
   } else {
+    *skippable &= rdo_data->pc_tree->skippable;
     sum_rdc->rate += this_rdc.rate;
     sum_rdc->dist += this_rdc.dist;
     av1_rd_cost_update(x->rdmult, sum_rdc);
@@ -4906,6 +4937,7 @@ static INLINE void search_partition_horz_3(
   }
 
   int this_mi_row = mi_row;
+  bool skippable = true;
   for (int i = 0; i < 3; ++i) {
     this_mi_row += quarter_step * step_multipliers[i];
 
@@ -4924,7 +4956,7 @@ static INLINE void search_partition_horz_3(
                                    i == 2,
                                    1 };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
-                             &sum_rdc, multi_pass_mode)) {
+                             &sum_rdc, multi_pass_mode, &skippable)) {
       av1_invalid_rd_stats(&sum_rdc);
       break;
     }
@@ -4935,6 +4967,7 @@ static INLINE void search_partition_horz_3(
     *best_rdc = sum_rdc;
     search_state->found_best_partition = true;
     pc_tree->partitioning = PARTITION_HORZ_3;
+    pc_tree->skippable = skippable;
   }
 
   av1_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
@@ -5056,6 +5089,7 @@ static INLINE void search_partition_vert_3(
   }
 
   int this_mi_col = mi_col;
+  bool skippable = true;
   for (int i = 0; i < 3; ++i) {
     this_mi_col += quarter_step * step_multipliers[i];
 
@@ -5074,7 +5108,7 @@ static INLINE void search_partition_vert_3(
                                    i == 2,
                                    1 };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
-                             &sum_rdc, multi_pass_mode)) {
+                             &sum_rdc, multi_pass_mode, &skippable)) {
       av1_invalid_rd_stats(&sum_rdc);
       break;
     }
@@ -5085,6 +5119,7 @@ static INLINE void search_partition_vert_3(
     *best_rdc = sum_rdc;
     search_state->found_best_partition = true;
     pc_tree->partitioning = PARTITION_VERT_3;
+    pc_tree->skippable = skippable;
   }
   av1_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, num_planes);
 }

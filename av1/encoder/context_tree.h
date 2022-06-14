@@ -101,6 +101,7 @@ typedef struct PC_TREE {
   RD_STATS rd_cost;
 #if CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS none_rd;
+  bool skippable;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PC_TREE;
 

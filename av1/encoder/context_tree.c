@@ -182,6 +182,7 @@ PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
   av1_invalid_rd_stats(&pc_tree->rd_cost);
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_invalid_rd_stats(&pc_tree->none_rd);
+  pc_tree->skippable = false;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   set_chroma_ref_info(mi_row, mi_col, index, bsize, &pc_tree->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
@@ -305,6 +306,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
   dst->partitioning = src->partitioning;
   dst->rd_cost = src->rd_cost;
   dst->none_rd = src->none_rd;
+  dst->skippable = src->skippable;
   const BLOCK_SIZE bsize = dst->block_size;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, src->partitioning);
   const int mi_row = src->mi_row;
