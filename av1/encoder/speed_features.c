@@ -983,9 +983,7 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
 
   switch (erp_pruning_level) {
-    case 4: AOM_FALLTHROUGH_INTENDED;
-    case 3: AOM_FALLTHROUGH_INTENDED;
-    case 2:
+    case 5:
       if (is_1080p_or_larger) {
         sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
         sf->part_sf.partition_search_breakout_rate_thr = 110;
@@ -994,6 +992,9 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
         sf->part_sf.partition_search_breakout_rate_thr = 100;
       }
       AOM_FALLTHROUGH_INTENDED;
+    case 4: AOM_FALLTHROUGH_INTENDED;
+    case 3: AOM_FALLTHROUGH_INTENDED;
+    case 2: AOM_FALLTHROUGH_INTENDED;
     case 1: AOM_FALLTHROUGH_INTENDED;
     case 0: break;
     default: assert(0 && "Invalid ERP pruning level.");
@@ -1039,6 +1040,9 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
 
   switch (erp_pruning_level) {
+    case 5:
+      sf->part_sf.end_part_search_after_consec_failures = 1;
+      AOM_FALLTHROUGH_INTENDED;
     case 4:
       sf->part_sf.prune_part_3_with_part_rect = 1;
       AOM_FALLTHROUGH_INTENDED;
@@ -1050,7 +1054,6 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
           (boosted || (allow_screen_content_tools))
               ? 0
               : (is_boosted_arf2_bwd_type ? 1 : 2);
-      sf->part_sf.end_part_search_after_consec_failures = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 1:
       sf->inter_sf.reuse_erp_mode_flag =
@@ -1232,6 +1235,34 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   }
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE void set_erp_speed_features_qindex_dependent(AV1_COMP *cpi) {
+  SPEED_FEATURES *const sf = &cpi->sf;
+  const AV1_COMMON *const cm = &cpi->common;
+  const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
+  const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
+
+  const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
+  const int qindex_thresh2 = 113 + qindex_offset;
+
+  switch (erp_pruning_level) {
+    case 5:
+      if (is_1080p_or_larger &&
+          cm->quant_params.base_qindex <= qindex_thresh2 &&
+          !frame_is_intra_only(cm)) {
+        sf->part_sf.default_min_partition_size = BLOCK_8X8;
+      }
+      AOM_FALLTHROUGH_INTENDED;
+    case 4: AOM_FALLTHROUGH_INTENDED;
+    case 3: AOM_FALLTHROUGH_INTENDED;
+    case 2: AOM_FALLTHROUGH_INTENDED;
+    case 1: AOM_FALLTHROUGH_INTENDED;
+    case 0: break;
+    default: assert(0 && "Invalid ERP pruning level.");
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // Override some speed features based on qindex
 void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   AV1_COMMON *const cm = &cpi->common;
@@ -1277,10 +1308,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
         sf->tx_sf.use_intra_txb_hash = 1;
-
-        if (!frame_is_intra_only(cm)) {
-          sf->part_sf.default_min_partition_size = BLOCK_8X8;
-        }
       }
     }
   }
@@ -1314,4 +1341,8 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
     }
   }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  set_erp_speed_features_qindex_dependent(cpi);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
