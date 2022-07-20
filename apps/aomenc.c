@@ -626,8 +626,8 @@ static void init_config(cfg_options_t *config) {
   config->disable_ml_partition_speed_features = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
-  config->erp_pruning_level = 4;
-  config->use_ml_erp_pruning = 1;
+  config->erp_pruning_level = 5;
+  config->use_ml_erp_pruning = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;
   config->enable_mrls = 1;
