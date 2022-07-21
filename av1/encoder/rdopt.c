@@ -7610,23 +7610,23 @@ static INLINE int is_mode_intra(PREDICTION_MODE mode) {
 // Returns 0 if no pruning is done, 1 if we are skipping the current mod
 // completely, 2 if we skip compound only, but still try single motion modes
 static INLINE int skip_inter_mode_with_cached_mode(
-    const MACROBLOCK *x, PREDICTION_MODE mode,
+    const AV1_COMMON *cm, const MACROBLOCK *x, PREDICTION_MODE mode,
     const MV_REFERENCE_FRAME *ref_frame) {
   const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
 
   // If there is no cache, then no pruning is possible.
-  if (!cached_mi) {
+  // Returns 0 here if we are not reusing inter_modes
+  if (!should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) ||
+      !cached_mi) {
     return 0;
   }
 
   const PREDICTION_MODE cached_mode = cached_mi->mode;
   const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
-  const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
+  const int cached_mode_is_single = is_inter_singleref_mode(cached_mode);
 
-  // Returns 0 here if we are not reusing inter_modes
-  if (!should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) ||
-      !cached_mi) {
-    return 0;
+  if (is_mode_intra(cached_mode)) {
+    return 1;
   }
 
   // If the cached mode is single inter mode, then we match the mode and
@@ -7637,19 +7637,41 @@ static INLINE int skip_inter_mode_with_cached_mode(
     }
   } else {
     // If the cached mode is compound, then we need to consider several cases.
-    const int mode_is_single = ref_frame[1] <= INTRA_FRAME;
+    const int mode_is_single = is_inter_singleref_mode(mode);
     if (mode_is_single) {
       // If the mode is single, we know the modes can't match. But we might
       // still want to search it if compound mode depends on the current mode.
       int skip_motion_mode_only = 0;
-      if (cached_mode == NEW_NEARMV) {
+      if (cached_mode == NEW_NEARMV
+#if CONFIG_OPTFLOW_REFINEMENT
+          || cached_mode == NEW_NEARMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      ) {
         skip_motion_mode_only = (ref_frame[0] == cached_frame[0]);
-      } else if (cached_mode == NEAR_NEWMV) {
+      } else if (cached_mode == NEAR_NEWMV
+#if CONFIG_OPTFLOW_REFINEMENT
+                 || cached_mode == NEAR_NEWMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      ) {
         skip_motion_mode_only = (ref_frame[0] == cached_frame[1]);
-      } else if (cached_mode == NEW_NEWMV) {
+      } else if (cached_mode == NEW_NEWMV
+#if CONFIG_OPTFLOW_REFINEMENT
+                 || cached_mode == NEW_NEWMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      ) {
         skip_motion_mode_only = (ref_frame[0] == cached_frame[0] ||
                                  ref_frame[0] == cached_frame[1]);
       }
+#if CONFIG_JOINT_MVD
+      else if (is_joint_mvd_coding_mode(cached_mode)) {
+        const int jmvd_base_ref_list =
+            get_joint_mvd_base_ref_list(cm, cached_mi);
+        skip_motion_mode_only =
+            ref_frame[0] == cached_frame[jmvd_base_ref_list];
+      }
+#else
+      (void)cm;
+#endif  // CONFIG_JOINT_MVD
 
       return 1 + skip_motion_mode_only;
     } else {
@@ -7698,7 +7720,7 @@ static int inter_mode_search_order_independent_skip(
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
   const int cached_skip_ret =
-      skip_inter_mode_with_cached_mode(x, mode, ref_frame);
+      skip_inter_mode_with_cached_mode(cm, x, mode, ref_frame);
   if (cached_skip_ret > 0) {
     return cached_skip_ret;
   }
