@@ -985,12 +985,11 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
   switch (erp_pruning_level) {
     case 5:
       if (is_1080p_or_larger) {
-        sf->part_sf.partition_search_breakout_dist_thr = (1 << 23);
-        sf->part_sf.partition_search_breakout_rate_thr = 110;
+        sf->part_sf.partition_search_breakout_dist_thr = (1 << 22) + (1 << 21);
       } else {
         sf->part_sf.partition_search_breakout_dist_thr = (1 << 22);
-        sf->part_sf.partition_search_breakout_rate_thr = 100;
       }
+      sf->part_sf.partition_search_breakout_rate_thr = 100;
       AOM_FALLTHROUGH_INTENDED;
     case 4: AOM_FALLTHROUGH_INTENDED;
     case 3: AOM_FALLTHROUGH_INTENDED;
