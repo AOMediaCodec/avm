@@ -5422,6 +5422,9 @@ static int read_global_motion_params(WarpedMotionParams *params,
   }
 
   if (params->wmtype <= AFFINE) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    av1_reduce_warp_model(params);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     int good_shear_params = av1_get_shear_params(params);
     if (!good_shear_params) return 0;
   }

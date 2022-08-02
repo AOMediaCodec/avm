@@ -381,6 +381,7 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 #endif  // CONFIG_WARP_REF_LIST
 
+  av1_reduce_warp_model(params);
   int valid = av1_get_shear_params(params);
   params->invalid = !valid;
   if (!valid) {

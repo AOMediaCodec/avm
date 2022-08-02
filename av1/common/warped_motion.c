@@ -212,6 +212,13 @@ void av1_set_warp_translation(int mi_row, int mi_col, BLOCK_SIZE bsize, MV mv,
   wm->wmmat[1] = mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3)) -
                  (center_x * wm->wmmat[4] +
                   center_y * (wm->wmmat[5] - (1 << WARPEDMODEL_PREC_BITS)));
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
+                       WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
+  wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
+                       WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 const uint16_t div_lut[DIV_LUT_NUM + 1] = {
@@ -302,6 +309,37 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
 
   return 1;
 }
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+// Reduce the precision of a warp model, ready for use in the warp filter
+// and for storage. This should be called after the non-translational parameters
+// are calculated, but before av1_set_warp_translation() or
+// av1_get_shear_params() are called
+//
+// This also clamps the values. The clamping range is well outside the
+// "useful" range (ie, what is_affine_shear_allowed() permits), but it
+// ensures that hardware can store each value in a signed integer with
+// (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS) total bits
+void av1_reduce_warp_model(WarpedMotionParams *wm) {
+  // Think of this range as an int<N>, multiplied by (1 <<
+  // WARP_PARAM_REDUCE_BITS). In other words, the max is -2^(N-1) and max is
+  // (2^(N-1) - 1), but with an extra multiplier applied to both terms
+  const int min_value = -(1 << (WARPEDMODEL_PREC_BITS - 1));
+  const int max_value =
+      (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
+
+  for (int i = 2; i < 6; i++) {
+    int offset = (i == 2 || i == 5) ? (1 << WARPEDMODEL_PREC_BITS) : 0;
+
+    int original = wm->wmmat[i] - offset;
+    int rounded = ROUND_POWER_OF_TWO_SIGNED(original, WARP_PARAM_REDUCE_BITS) *
+                  (1 << WARP_PARAM_REDUCE_BITS);
+    int clamped = clamp(rounded, min_value, max_value);
+
+    wm->wmmat[i] = clamped + offset;
+  }
+}
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE int highbd_error_measure(int err, int bd) {
   const int b = bd - 8;
@@ -814,14 +852,19 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
   wm->wmmat[4] = get_mult_shift_ndiag(Py[0], iDet, shift);
   wm->wmmat[5] = get_mult_shift_diag(Py[1], iDet, shift);
 
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  av1_reduce_warp_model(wm);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   // check compatibility with the fast warp filter
   if (!av1_get_shear_params(wm)) return 1;
 
   av1_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - 1);
   wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - 1);
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
   wm->wmmat[6] = wm->wmmat[7] = 0;
   return 0;
@@ -930,6 +973,7 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
         ROUND_POWER_OF_TWO(proj_center_y - proj_left_y, half_width_log2);
   }
 
+  av1_reduce_warp_model(wm_params);
   // check compatibility with the fast warp filter
   if (!av1_get_shear_params(wm_params)) return 1;
 

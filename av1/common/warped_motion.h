@@ -287,6 +287,14 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
 int av1_get_shear_params(WarpedMotionParams *wm);
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
+// Reduce the precision of a warp model, ready for use in the warp filter
+// and for storage. This should be called after the non-translational parameters
+// are calculated, but before av1_set_warp_translation() or
+// av1_get_shear_params() are called
+void av1_reduce_warp_model(WarpedMotionParams *wm);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
 int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
                           const MV *center_mv, const int mi_row,
                           const int mi_col,

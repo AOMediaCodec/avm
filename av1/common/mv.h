@@ -234,19 +234,54 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
 }
 #endif  // CONFIG_FLEX_MVRES
 
-// Bits of precision used for the model
+// Calculation precision for warp models
 #define WARPEDMODEL_PREC_BITS 16
 #define WARPEDMODEL_ROW3HOMO_PREC_BITS 16
 
-#define WARPEDMODEL_TRANS_CLAMP (128 << WARPEDMODEL_PREC_BITS)
+#if CONFIG_EXTENDED_WARP_PREDICTION
+// Storage precision for warp models
+//
+// Warp models are initially calculated using WARPEDMODEL_PREC_BITS fractional
+// bits. This value is set quite high to reduce rounding error, especially
+// during the least-squares process.
+//
+// However, this precision is far more than is needed for the warp filter and
+// during storage, and excessive precision requires more hardware resources
+// for little gain. So we reduce the parameters to a lower precision
+// of (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS) after calculation.
+//
+// Note that the constraints in av1_get_shear_params() imply that the
+// non-translational parameters are limited to a range a little wider than
+// (-1/4, +1/4), but certainly narrower than (-1/2, +1/2). So they can be safely
+// stored in (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS) bits, including
+// the sign bit.
+//
+// In addition, the translational part of a warp model is clamped, to further
+// limit the number of bits required for storage.
+//
+// The upshot of this is that, to store a single 6-parameter AFFINE warp model,
+// hardware requires:
+// * (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS) bits for each of the 4
+//   non-translational parameters
+// * (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS + WARP_TRANS_INTEGER_BITS)
+//   bits for each of the 2 translational parameters
+//
+// for a total of 4 * 10 + 2 * 22 = 84 bits/model
+#define WARP_PARAM_REDUCE_BITS 6
+#define WARP_TRANS_INTEGER_BITS 12
+#else
+#define WARP_PARAM_REDUCE_BITS 6
+#define WARP_TRANS_INTEGER_BITS 8
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#define WARPEDMODEL_TRANS_CLAMP \
+  (1 << (WARPEDMODEL_PREC_BITS + WARP_TRANS_INTEGER_BITS - 1))
 #define WARPEDMODEL_NONDIAGAFFINE_CLAMP (1 << (WARPEDMODEL_PREC_BITS - 3))
 #define WARPEDMODEL_ROW3HOMO_CLAMP (1 << (WARPEDMODEL_PREC_BITS - 2))
 
 // Bits of subpel precision for warped interpolation
 #define WARPEDPIXEL_PREC_BITS 6
 #define WARPEDPIXEL_PREC_SHIFTS (1 << WARPEDPIXEL_PREC_BITS)
-
-#define WARP_PARAM_REDUCE_BITS 6
 
 #define WARPEDDIFF_PREC_BITS (WARPEDMODEL_PREC_BITS - WARPEDPIXEL_PREC_BITS)
 

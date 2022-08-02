@@ -200,8 +200,12 @@ int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                        int p_stride, int subsampling_x, int subsampling_y,
                        int64_t best_error, uint8_t *segment_map,
                        int segment_map_stride) {
-  if (wm->wmtype <= AFFINE)
+  if (wm->wmtype <= AFFINE) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    av1_reduce_warp_model(wm);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     if (!av1_get_shear_params(wm)) return INT64_MAX;
+  }
 
   return highbd_warp_error(wm, ref, width, height, stride, dst, p_col, p_row,
                            p_width, p_height, p_stride, subsampling_x,
