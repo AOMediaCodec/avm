@@ -1565,7 +1565,7 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   av1_save_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size, num_planes);
 
-  sb_fp_stats->rd_count = cpi->td.rd_counts;
+  sb_fp_stats->rd_count = td->rd_counts;
   sb_fp_stats->split_count = x->txfm_search_info.txb_split_count;
 
   sb_fp_stats->fc = *td->counts;
@@ -1604,7 +1604,7 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
   av1_restore_context(cm, x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size,
                       num_planes);
 
-  cpi->td.rd_counts = sb_fp_stats->rd_count;
+  td->rd_counts = sb_fp_stats->rd_count;
   x->txfm_search_info.txb_split_count = sb_fp_stats->split_count;
 
   *td->counts = sb_fp_stats->fc;
