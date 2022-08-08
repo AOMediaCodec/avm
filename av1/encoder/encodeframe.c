@@ -651,7 +651,7 @@ static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
                                                BLOCK_SIZE min_bsize) {
   const BLOCK_SIZE bsize = part_tree->bsize;
   const PARTITION_TYPE part_type = part_tree->partition;
-  if (!is_bsize_geq(bsize, min_bsize) || bsize == min_bsize) {
+  if (!is_bsize_geq(bsize, min_bsize)) {
     part_tree->partition = PARTITION_INVALID;
     for (int idx = 0; idx < 4; idx++) {
       av1_free_ptree_recursive(part_tree->sub_tree[idx]);

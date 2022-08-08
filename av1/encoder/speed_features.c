@@ -1250,7 +1250,7 @@ static AOM_INLINE void set_erp_speed_features_qindex_dependent(AV1_COMP *cpi) {
       if (is_1080p_or_larger &&
           cm->quant_params.base_qindex <= qindex_thresh2 &&
           !frame_is_intra_only(cm)) {
-        sf->part_sf.default_min_partition_size = BLOCK_8X8;
+        sf->part_sf.two_pass_partition_search = 1;
       }
       AOM_FALLTHROUGH_INTENDED;
     case 4: AOM_FALLTHROUGH_INTENDED;
