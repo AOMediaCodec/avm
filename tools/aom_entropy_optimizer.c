@@ -262,7 +262,7 @@ static void optimize_cdf_table_var_modes_4d(aom_count_type *counts,
 // the context dimension.
 static void optimize_cdf_table_var_modes_3d_inner(
     aom_count_type *counts, FILE *const probsfile, int dim_of_cts,
-    int *cts_each_dim, int **modes_each_ctx, char *prefix) {
+    int *cts_each_dim, int *modes_each_ctx, char *prefix) {
   aom_count_type *ct_ptr = counts;
 
   assert(dim_of_cts == 3);
@@ -274,7 +274,7 @@ static void optimize_cdf_table_var_modes_3d_inner(
   for (int d0_idx = 0; d0_idx < cts_each_dim[0]; ++d0_idx) {
     fprintf(probsfile, "%*c{\n", SPACES_PER_TAB, ' ');
     for (int d1_idx = 0; d1_idx < cts_each_dim[1]; ++d1_idx) {
-      int num_of_modes = modes_each_ctx[d0_idx][d1_idx];
+      int num_of_modes = modes_each_ctx[d1_idx];
 
       if (num_of_modes > 0) {
         fprintf(probsfile, "%*c{ ", 2 * SPACES_PER_TAB, ' ');
@@ -420,14 +420,9 @@ int main(int argc, const char **argv) {
                    "[CDF_SIZE(UV_INTRA_MODES)]");
 
   /* block partition */
-#if CONFIG_SDP
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = PARTITION_CONTEXTS;
   cts_each_dim[2] = EXT_PARTITION_TYPES;
-#else   // CONFIG_SDP
-  cts_each_dim[0] = PARTITION_CONTEXTS;
-  cts_each_dim[1] = EXT_PARTITION_TYPES;
-#endif  // CONFIG_SDP
 #if CONFIG_EXT_RECUR_PARTITIONS
   int part_types_each_ctx[PARTITION_CONTEXTS] = {
     3, 3, 3, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3
@@ -437,18 +432,11 @@ int main(int argc, const char **argv) {
                                                   10, 10, 10, 10, 10, 10, 10,
                                                   10, 10, 8,  8,  8,  8 };
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_SDP
-  optimize_cdf_table_var_modes_3d(
+  optimize_cdf_table_var_modes_3d_inner(
       &fc.partition[0][0][0], probsfile, 3, cts_each_dim, part_types_each_ctx,
       "static const aom_cdf_prob "
       "default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]"
       "[CDF_SIZE(EXT_PARTITION_TYPES)]");
-#else   // CONFIG_SDP
-  optimize_cdf_table_var_modes_2d(
-      &fc.partition[0][0], probsfile, 2, cts_each_dim, part_types_each_ctx,
-      "static const aom_cdf_prob default_partition_cdf[PARTITION_CONTEXTS]"
-      "[CDF_SIZE(EXT_PARTITION_TYPES)]");
-#endif  // CONFIG_SDP
 
 #if CONFIG_CROSS_CHROMA_TX
   /* cctx type */
@@ -461,34 +449,19 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_CROSS_CHROMA_TX
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_SDP
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_LIMITED_PARTITION_PARENTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = LIMITED_EXT_PARTITION_TYPES;
-#else   // CONFIG_SDP
-  cts_each_dim[0] = NUM_LIMITED_PARTITION_PARENTS;
-  cts_each_dim[1] = PARTITION_CONTEXTS;
-  cts_each_dim[2] = LIMITED_EXT_PARTITION_TYPES;
-#endif  // CONFIG_SDP
   int part_types_each_ctx_limited_part[PARTITION_CONTEXTS] = {
     2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2
   };
-#if CONFIG_SDP
   optimize_cdf_table_var_modes_4d_inner(
       &fc.limited_partition[0][0][0][0], probsfile, 4, cts_each_dim,
       part_types_each_ctx_limited_part,
       "static const aom_cdf_prob default_limited_partition_cdf "
       "[PARTITION_STRUCTURE_NUM][NUM_LIMITED_PARTITION_PARENTS]"
       "[PARTITION_CONTEXTS][CDF_SIZE(LIMITED_EXT_PARTITION_TYPES)]");
-#else   // CONFIG_SDP
-  optimize_cdf_table_var_modes_3d_inner(
-      &fc.limited_partition[0][0][0], probsfile, 3, cts_each_dim,
-      part_types_each_ctx_limited_part,
-      "static const aom_cdf_prob default_limited_partition_cdf "
-      "[NUM_LIMITED_PARTITION_PARENTS][PARTITION_CONTEXTS]"
-      "[CDF_SIZE(LIMITED_EXT_PARTITION_TYPES)]");
-#endif  // CONFIG_SDP
 
   cts_each_dim[0] = PARTITION_CONTEXTS_REC;
   cts_each_dim[1] = PARTITION_TYPES_REC;
