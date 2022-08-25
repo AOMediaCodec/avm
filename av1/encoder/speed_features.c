@@ -895,6 +895,9 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->use_intra_txb_hash = 0;
   tx_sf->use_inter_txb_hash = 1;
   tx_sf->refine_fast_tx_search_results = 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  tx_sf->use_largest_tx_size_for_small_bsize = false;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
@@ -1040,6 +1043,9 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
 
   switch (erp_pruning_level) {
     case 5:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       sf->part_sf.end_part_search_after_consec_failures = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 4:

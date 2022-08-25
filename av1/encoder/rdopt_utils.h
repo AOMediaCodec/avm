@@ -666,7 +666,12 @@ static INLINE int is_winner_mode_processing_enabled(
 static INLINE void set_tx_size_search_method(
     const AV1_COMMON *cm, const WinnerModeParams *winner_mode_params,
     TxfmSearchParams *txfm_params, int enable_winner_mode_for_tx_size_srch,
-    int is_winner_mode) {
+    int is_winner_mode
+#if CONFIG_EXT_RECUR_PARTITIONS
+    ,
+    const MACROBLOCK *x, bool use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+) {
   // Populate transform size search method/transform mode appropriately
   txfm_params->tx_size_search_method =
       winner_mode_params->tx_size_search_methods[DEFAULT_EVAL];
@@ -678,6 +683,14 @@ static INLINE void set_tx_size_search_method(
       txfm_params->tx_size_search_method =
           winner_mode_params->tx_size_search_methods[MODE_EVAL];
   }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize = x->e_mbd.mi[0]->sb_type[0];
+  if (!frame_is_intra_only(cm) && x->sb_enc.min_partition_size == BLOCK_4X4 &&
+      use_largest_tx_size_for_small_bsize && is_bsize_geq(BLOCK_16X16, bsize)) {
+    txfm_params->tx_size_search_method = USE_LARGESTALL;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   txfm_params->tx_mode_search_type =
       select_tx_mode(cm, txfm_params->tx_size_search_method);
 }
@@ -748,7 +761,12 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
           winner_mode_params->coeff_opt_satd_threshold, 0, 0);
 
       // Set default transform size search method
-      set_tx_size_search_method(cm, winner_mode_params, txfm_params, 0, 0);
+      set_tx_size_search_method(cm, winner_mode_params, txfm_params, 0, 0
+#if CONFIG_EXT_RECUR_PARTITIONS
+                                ,
+                                x, sf->tx_sf.use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
       // Set default transform type prune
       set_tx_type_prune(sf, txfm_params, 0, 0);
       break;
@@ -779,7 +797,12 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
       // Set the transform size search method for mode evaluation
       set_tx_size_search_method(
           cm, winner_mode_params, txfm_params,
-          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 0);
+          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 0
+#if CONFIG_EXT_RECUR_PARTITIONS
+          ,
+          x, sf->tx_sf.use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
       // Set transform type prune for mode evaluation
       set_tx_type_prune(sf, txfm_params,
                         sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,
@@ -810,7 +833,12 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
       // Set the transform size search method for winner mode evaluation
       set_tx_size_search_method(
           cm, winner_mode_params, txfm_params,
-          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1);
+          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1
+#if CONFIG_EXT_RECUR_PARTITIONS
+          ,
+          x, sf->tx_sf.use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
       // Set default transform type prune mode for winner mode evaluation
       set_tx_type_prune(sf, txfm_params,
                         sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,

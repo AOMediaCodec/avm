@@ -312,7 +312,12 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
   set_tx_size_search_method(
       cm, &cpi->winner_mode_params, txfm_params,
-      cpi->sf.winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1);
+      cpi->sf.winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1
+#if CONFIG_EXT_RECUR_PARTITIONS
+      ,
+      x, cpi->sf.tx_sf.use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  );
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;

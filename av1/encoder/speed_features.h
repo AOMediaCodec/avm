@@ -871,6 +871,12 @@ typedef struct TX_SPEED_FEATURES {
 
   // Refine TX type after fast TX search.
   int refine_fast_tx_search_results;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // On inter frames, use the smallest txfm size for block_sizes smaller than or
+  // equal to BLOCK_16X16.
+  bool use_largest_tx_size_for_small_bsize;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {
