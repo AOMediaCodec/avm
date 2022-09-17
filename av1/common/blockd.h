@@ -399,6 +399,10 @@ typedef struct MB_MODE_INFO {
   /*! \brief The block size of the current coding block */
   // Common for both INTER and INTRA blocks
   BLOCK_SIZE sb_type[PARTITION_STRUCTURE_NUM];
+  /*! \brief Starting mi_row of current coding block */
+  int mi_row_start;
+  /*! \brief Starting mi_col of current coding block */
+  int mi_col_start;
   /*! \brief The partition type of the current coding block. */
   PARTITION_TYPE partition;
   /*! \brief The prediction mode used */

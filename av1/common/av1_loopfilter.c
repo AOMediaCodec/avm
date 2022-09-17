@@ -611,8 +611,10 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   if ((plane == AOM_PLANE_Y) && is_inter_block(mbmi, SHARED_PART) &&
       !mbmi->skip_txfm[SHARED_PART]) {
     const BLOCK_SIZE sb_type = mbmi->sb_type[plane_type];
-    const int blk_row = mi_row & (mi_size_high[sb_type] - 1);
-    const int blk_col = mi_col & (mi_size_wide[sb_type] - 1);
+    const int blk_row = mi_row - mbmi->mi_row_start;
+    const int blk_col = mi_col - mbmi->mi_col_start;
+    assert(blk_row >= 0);
+    assert(blk_col >= 0);
     const TX_SIZE mb_tx_size =
         mbmi->inter_tx_size[av1_get_txb_size_index(sb_type, blk_row, blk_col)];
     assert(mb_tx_size < TX_SIZES_ALL);

@@ -2171,6 +2171,8 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
+  xd->mi[0]->mi_row_start = mi_row;
+  xd->mi[0]->mi_col_start = mi_col;
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   xd->tile.mi_col_start = tile->mi_col_start;
