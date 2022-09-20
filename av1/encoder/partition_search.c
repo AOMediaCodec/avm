@@ -3473,6 +3473,12 @@ static AOM_INLINE int is_rect_part_allowed(
     const AV1_COMP *cpi, PartitionSearchState *part_search_state,
     active_edge_info *active_edge, RECT_PART_TYPE rect_part, const int mi_pos) {
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int mi_step =
+      (rect_part == HORZ) ? blk_params.mi_step_h : blk_params.mi_step_w;
+#else
+  const int mi_step = blk_params.mi_step;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int is_part_allowed =
       (!part_search_state->terminate_partition_search &&
        part_search_state->partition_rect_allowed[rect_part] &&
@@ -3481,7 +3487,7 @@ static AOM_INLINE int is_rect_part_allowed(
        is_partition_valid(blk_params.bsize, rect_partition_type[rect_part]) &&
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
        (part_search_state->do_rectangular_split ||
-        active_edge[rect_part](cpi, mi_pos, blk_params.mi_step)));
+        active_edge[rect_part](cpi, mi_pos, mi_step)));
   return is_part_allowed;
 }
 
@@ -5016,7 +5022,7 @@ static INLINE void search_partition_vert_3(
   if (search_state->terminate_partition_search || !blk_params->has_cols ||
       !is_partition_valid(bsize, PARTITION_VERT_3) ||
       !(search_state->do_rectangular_split ||
-        av1_active_v_edge(cpi, mi_row, blk_params->mi_step_h))) {
+        av1_active_v_edge(cpi, mi_col, blk_params->mi_step_w))) {
     return;
   }
 
@@ -5674,7 +5680,7 @@ BEGIN_PARTITION_SEARCH:
   if (!part_search_state.terminate_partition_search &&
       part4_search_allowed[VERT4] && blk_params.has_cols &&
       (part_search_state.do_rectangular_split ||
-       av1_active_v_edge(cpi, mi_row, blk_params.mi_step))) {
+       av1_active_v_edge(cpi, mi_col, blk_params.mi_step))) {
     const int inc_step[NUM_PART4_TYPES] = { 0, mi_size_wide[blk_params.bsize] /
                                                    4 };
     // Evaluation of Vert4 partition type.
