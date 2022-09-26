@@ -1043,10 +1043,11 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
 
   switch (erp_pruning_level) {
     case 5:
-#if CONFIG_EXT_RECUR_PARTITIONS
       sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-      sf->part_sf.end_part_search_after_consec_failures = 1;
+      // TODO(chiyotsai@google.com): This speed feature causes large regression
+      // on b2 testset. Disable this for now until we figure out how to avoid
+      // the loss.
+      // sf->part_sf.end_part_search_after_consec_failures = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 4:
       sf->part_sf.prune_part_3_with_part_rect = 1;
