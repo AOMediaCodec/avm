@@ -372,7 +372,11 @@ static int64_t pick_interintra_wedge(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(av1_is_wedge_used(bsize));
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  assert(cpi->common.features.enabled_motion_modes & (1 << INTERINTRA));
+#else
   assert(cpi->common.seq_params.enable_interintra_compound);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   const struct buf_2d *const src = &x->plane[0].src;
   const int bw = block_size_wide[bsize];

@@ -379,7 +379,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
                                   start_plane, av1_num_planes(cm) - 1);
     if (mbmi->motion_mode == OBMC_CAUSAL) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+      assert(cm->features.enabled_motion_modes & (1 << OBMC_CAUSAL));
+#else
       assert(cpi->oxcf.motion_mode_cfg.enable_obmc);
+#endif
       av1_build_obmc_inter_predictors_sb(cm, xd);
     }
 
@@ -479,8 +483,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_REF_MV_BANK && !CONFIG_C043_MVP_IMPROVEMENTS
 
 #if CONFIG_WARP_REF_LIST
-    if (cm->features.allow_warped_motion && is_inter)
-      av1_update_warp_param_bank(cm, xd, mbmi);
+    if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
 #endif  // CONFIG_WARP_REF_LIST
   }
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
@@ -1861,8 +1864,12 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     // Gather obmc and warped motion count to update the probability.
     if ((!cpi->sf.inter_sf.disable_obmc &&
          cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) ||
+#if CONFIG_EXTENDED_WARP_PREDICTION
+        cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+#else
         (cm->features.allow_warped_motion &&
          cpi->sf.inter_sf.prune_warped_prob_thresh > 0)) {
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
       const int inter_block = is_inter_block(mbmi, xd->tree_type);
 #if CONFIG_NEW_REF_SIGNALING
       const int seg_ref_active = 0;

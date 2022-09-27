@@ -190,6 +190,11 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_interintra_wedge;
   arg_def_t enable_global_motion;
   arg_def_t enable_warped_motion;
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  arg_def_t enable_warped_causal;
+  arg_def_t enable_warp_delta;
+  arg_def_t enable_warp_extend;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   arg_def_t enable_filter_intra;
   arg_def_t enable_smooth_intra;
   arg_def_t enable_paeth_intra;

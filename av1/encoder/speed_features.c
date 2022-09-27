@@ -985,8 +985,18 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
     cpi->common.seq_params.enable_masked_compound &=
         !sf->inter_sf.disable_masked_comp;
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    if (sf->inter_sf.disable_wedge_interintra_search) {
+      cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << INTERINTRA);
+    }
+    if (sf->inter_sf.disable_obmc) {
+      cpi->common.seq_params.seq_enabled_motion_modes &= ~(1 << OBMC_CAUSAL);
+    }
+#else
     cpi->common.seq_params.enable_interintra_compound &=
         !sf->inter_sf.disable_wedge_interintra_search;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   }
 
   // sf->part_sf.partition_search_breakout_dist_thr is set assuming max 64x64

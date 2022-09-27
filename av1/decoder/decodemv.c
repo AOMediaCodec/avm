@@ -3116,8 +3116,7 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
 
 #if CONFIG_WARP_REF_LIST
     MB_MODE_INFO *const mbmi_tmp = xd->mi[0];
-    if (cm->features.allow_warped_motion &&
-        is_inter_block(mbmi_tmp, xd->tree_type))
+    if (is_inter_block(mbmi_tmp, xd->tree_type))
       av1_update_warp_param_bank(cm, xd, mbmi_tmp);
 #endif  // CONFIG_WARP_REF_LIST
 

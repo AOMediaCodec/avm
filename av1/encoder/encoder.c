@@ -464,8 +464,13 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_BAWP
   seq->enable_bawp = tool_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  seq->seq_enabled_motion_modes =
+      oxcf->motion_mode_cfg.seq_enabled_motion_modes;
+#else
   seq->enable_warped_motion = oxcf->motion_mode_cfg.enable_warped_motion;
   seq->enable_interintra_compound = tool_cfg->enable_interintra_comp;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;
   seq->enable_filter_intra = oxcf->intra_mode_cfg.enable_filter_intra;
@@ -841,7 +846,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->features.interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   cm->features.switchable_motion_mode = 1;
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
+
 #if CONFIG_OPTFLOW_REFINEMENT
   cm->features.opfl_refine_type = REFINE_SWITCHABLE;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -3246,12 +3254,16 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // is separated from frame_might_allow_ref_frame_mvs().
   features->allow_ref_frame_mvs &= !cm->tiles.large_scale;
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   features->allow_warped_motion = oxcf->motion_mode_cfg.allow_warped_motion &&
                                   frame_might_allow_warped_motion(cm);
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
+
   // temporal set of frame level enable_bawp flag.
 #if CONFIG_BAWP
   features->enable_bawp = seq_params->enable_bawp;
 #endif
+
   cpi->last_frame_type = current_frame->frame_type;
 
   if (frame_is_sframe(cm)) {

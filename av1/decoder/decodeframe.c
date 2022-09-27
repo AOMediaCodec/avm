@@ -5221,9 +5221,15 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   seq_params->enable_filter_intra = aom_rb_read_bit(rb);
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
   if (seq_params->reduced_still_picture_hdr) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
+#else
     seq_params->enable_interintra_compound = 0;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->enable_masked_compound = 0;
+#if !CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->enable_warped_motion = 0;
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->order_hint_info.enable_order_hint = 0;
     seq_params->order_hint_info.enable_ref_frame_mvs = 0;
     seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
@@ -5233,9 +5239,23 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   } else {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
+    for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+         motion_mode++) {
+      int enabled = aom_rb_read_bit(rb);
+      if (enabled) {
+        seq_enabled_motion_modes |= (1 << motion_mode);
+      }
+    }
+    seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
+#else
     seq_params->enable_interintra_compound = aom_rb_read_bit(rb);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
+#if !CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->enable_warped_motion = aom_rb_read_bit(rb);
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
     seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
     seq_params->order_hint_info.enable_ref_frame_mvs =
         seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
@@ -6241,7 +6261,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif
 
         features->interp_filter = read_frame_interp_filter(rb);
-        features->switchable_motion_mode = aom_rb_read_bit(rb);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+        int seq_enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
+        int frame_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
+        for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+             motion_mode++) {
+          if (seq_enabled_motion_modes & (1 << motion_mode)) {
+            int enabled = aom_rb_read_bit(rb);
+            if (enabled) {
+              frame_enabled_motion_modes |= (1 << motion_mode);
+            }
+          }
+        }
+        features->enabled_motion_modes = frame_enabled_motion_modes;
+#else
+      features->switchable_motion_mode = aom_rb_read_bit(rb);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_OPTFLOW_REFINEMENT
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           features->opfl_refine_type = aom_rb_read_literal(rb, 2);
@@ -6507,10 +6542,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   current_frame->skip_mode_info.skip_mode_flag =
       current_frame->skip_mode_info.skip_mode_allowed ? aom_rb_read_bit(rb) : 0;
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   if (frame_might_allow_warped_motion(cm))
     features->allow_warped_motion = aom_rb_read_bit(rb);
   else
     features->allow_warped_motion = 0;
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_BAWP
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)

@@ -432,7 +432,7 @@ typedef struct MB_MODE_INFO {
 #endif
   /*! \brief The motion mode used by the inter prediction. */
   MOTION_MODE motion_mode;
-  /*! \brief Number of samples used by warp causal */
+  /*! \brief Number of samples used by spatial warp prediction */
   uint8_t num_proj_ref;
   /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
    * mode. */

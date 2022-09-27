@@ -452,6 +452,7 @@ static AOM_INLINE void write_motion_mode(
   const int allowed_motion_modes =
       motion_mode_allowed(cm, xd, mbmi_ext_frame->ref_mv_stack, mbmi);
   assert((allowed_motion_modes & (1 << mbmi->motion_mode)) != 0);
+  assert((cm->features.enabled_motion_modes & (1 << mbmi->motion_mode)) != 0);
 
   MOTION_MODE motion_mode = mbmi->motion_mode;
 
@@ -3859,9 +3860,24 @@ static AOM_INLINE void write_sequence_header(
   aom_wb_write_bit(wb, seq_params->enable_filter_intra);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
   if (!seq_params->reduced_still_picture_hdr) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    // Encode allowed motion modes
+    // Skip SIMPLE_TRANSLATION, as that is always enabled
+    int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
+    assert((seq_enabled_motion_modes & (1 << SIMPLE_TRANSLATION)) != 0);
+    for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+         motion_mode++) {
+      int enabled =
+          (seq_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
+      aom_wb_write_bit(wb, enabled);
+    }
+#else
     aom_wb_write_bit(wb, seq_params->enable_interintra_compound);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);
+#if !CONFIG_EXTENDED_WARP_PREDICTION
     aom_wb_write_bit(wb, seq_params->enable_warped_motion);
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
     aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
 
     if (seq_params->order_hint_info.enable_order_hint) {
@@ -4477,7 +4493,23 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif
 
         write_frame_interp_filter(features->interp_filter, wb);
-        aom_wb_write_bit(wb, features->switchable_motion_mode);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+        int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
+        int frame_enabled_motion_modes = features->enabled_motion_modes;
+        assert((frame_enabled_motion_modes & (1 << SIMPLE_TRANSLATION)) != 0);
+        for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+             motion_mode++) {
+          if (seq_enabled_motion_modes & (1 << motion_mode)) {
+            int enabled =
+                (frame_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
+            aom_wb_write_bit(wb, enabled);
+          } else {
+            assert((frame_enabled_motion_modes & (1 << motion_mode)) == 0);
+          }
+        }
+#else
+      aom_wb_write_bit(wb, features->switchable_motion_mode);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_OPTFLOW_REFINEMENT
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           aom_wb_write_literal(wb, features->opfl_refine_type, 2);
@@ -4576,10 +4608,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (current_frame->skip_mode_info.skip_mode_allowed)
     aom_wb_write_bit(wb, current_frame->skip_mode_info.skip_mode_flag);
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   if (frame_might_allow_warped_motion(cm))
     aom_wb_write_bit(wb, features->allow_warped_motion);
   else
     assert(!features->allow_warped_motion);
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_BAWP
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)

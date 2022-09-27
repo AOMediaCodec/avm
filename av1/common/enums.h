@@ -669,7 +669,7 @@ enum {
   INTERINTRA,
 #endif            // CONFIG_EXTENDED_WARP_PREDICTION
   OBMC_CAUSAL,    // 2-sided OBMC
-  WARPED_CAUSAL,  // 2-sided WARPED
+  WARPED_CAUSAL,  // Warp estimation from spatial MVs
 #if CONFIG_EXTENDED_WARP_PREDICTION
   WARP_DELTA,   // Directly-signaled warp model
   WARP_EXTEND,  // Extension of an existing warp model into another block

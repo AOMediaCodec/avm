@@ -476,6 +476,11 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_PAR_HIDING
   &g_av1_codec_arg_defs.enable_parity_hiding,
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  &g_av1_codec_arg_defs.enable_warped_causal,
+  &g_av1_codec_arg_defs.enable_warp_delta,
+  &g_av1_codec_arg_defs.enable_warp_extend,
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   NULL,
 };
 
@@ -650,6 +655,11 @@ static void init_config(cfg_options_t *config) {
 #endif
   config->enable_obmc = 1;
   config->enable_warped_motion = 1;
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  config->enable_warped_causal = 1;
+  config->enable_warp_delta = 1;
+  config->enable_warp_extend = 1;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   config->enable_global_motion = 1;
   config->enable_diff_wtd_comp = 1;
   config->enable_interintra_comp = 1;
@@ -1497,10 +1507,21 @@ static void show_stream_config(struct stream_state *stream,
   );
 
   fprintf(stdout,
-          "Tool setting (Inter)           : OBMC (%d), WarpMotion (%d), "
-          "GlobalMotion (%d)\n",
-          encoder_cfg->enable_obmc, encoder_cfg->enable_warped_motion,
-          encoder_cfg->enable_global_motion);
+          "Tool setting (Inter)           : InterIntra (%d), OBMC (%d), "
+          "Warp (%d)\n",
+          encoder_cfg->enable_interintra_comp, encoder_cfg->enable_obmc,
+          encoder_cfg->enable_warped_motion);
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  if (encoder_cfg->enable_warped_motion) {
+    fprintf(stdout,
+            "                               : WARPED_CAUSAL (%d), "
+            "WARP_DELTA (%d), WARP_EXTEND (%d)\n",
+            encoder_cfg->enable_warped_causal, encoder_cfg->enable_warp_delta,
+            encoder_cfg->enable_warp_extend);
+  }
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
 #if CONFIG_TIP
   fprintf(stdout, "                               : TIP (%d)\n",
           encoder_cfg->enable_tip);
@@ -1511,10 +1532,9 @@ static void show_stream_config(struct stream_state *stream,
 #endif  // CONFIG_BAWP
 
   fprintf(stdout,
-          "                               : DiffCompound "
-          "(%d), InterIntra (%d)\n",
-          encoder_cfg->enable_diff_wtd_comp,
-          encoder_cfg->enable_interintra_comp);
+          "                               : GlobalMotion (%d), "
+          "DiffCompound (%d)\n",
+          encoder_cfg->enable_global_motion, encoder_cfg->enable_diff_wtd_comp);
 
   fprintf(stdout,
           "                               : MaskCompound: (%d), "

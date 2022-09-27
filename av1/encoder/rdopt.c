@@ -2394,8 +2394,13 @@ static int64_t motion_mode_rd(
           get_frame_update_type(&cpi->gf_group);
       const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                              cpi->sf.inter_sf.prune_obmc_prob_thresh;
-      if ((!cpi->oxcf.motion_mode_cfg.enable_obmc ||
-           cpi->sf.inter_sf.disable_obmc || prune_obmc) &&
+#if CONFIG_EXTENDED_WARP_PREDICTION
+      bool enable_obmc =
+          (cm->features.enabled_motion_modes & (1 << OBMC_CAUSAL)) != 0;
+#else
+    bool enable_obmc = cpi->oxcf.motion_mode_cfg.enable_obmc;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+      if ((!enable_obmc || cpi->sf.inter_sf.disable_obmc || prune_obmc) &&
           mbmi->motion_mode == OBMC_CAUSAL)
         continue;
 
@@ -6994,9 +6999,13 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
   const int prune_obmc = cpi->frame_probs.obmc_probs[update_type][bsize] <
                          cpi->sf.inter_sf.prune_obmc_prob_thresh;
-  if (cpi->oxcf.motion_mode_cfg.enable_obmc && !cpi->sf.inter_sf.disable_obmc &&
-
-      !prune_obmc) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  bool enable_obmc =
+      (cm->features.enabled_motion_modes & (1 << OBMC_CAUSAL)) != 0;
+#else
+  bool enable_obmc = cpi->oxcf.motion_mode_cfg.enable_obmc;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  if (enable_obmc && !cpi->sf.inter_sf.disable_obmc && !prune_obmc) {
     if (check_num_overlappable_neighbors(mbmi) &&
         is_motion_variation_allowed_bsize(bsize)) {
       int dst_width1[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };

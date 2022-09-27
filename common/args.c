@@ -128,6 +128,11 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_obmc);
     GET_PARAMS(enable_warped_motion);
     GET_PARAMS(enable_global_motion);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    GET_PARAMS(enable_warped_causal);
+    GET_PARAMS(enable_warp_delta);
+    GET_PARAMS(enable_warp_extend);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     GET_PARAMS(enable_diff_wtd_comp);
     GET_PARAMS(enable_interintra_comp);
     GET_PARAMS(enable_masked_comp);

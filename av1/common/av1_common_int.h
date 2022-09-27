@@ -490,21 +490,31 @@ typedef struct SequenceHeader {
 #endif                           // CONFIG_ADAPTIVE_DS_FILTER
 
 #if CONFIG_JOINT_MVD
-  uint8_t enable_joint_mvd;            // enables/disables joint MVD coding
-#endif                                 // CONFIG_JOINT_MVD
+  uint8_t enable_joint_mvd;  // enables/disables joint MVD coding
+#endif                       // CONFIG_JOINT_MVD
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
+                                 // sequence
+#endif
+
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_interintra_compound;  // enables/disables interintra_compound
-  uint8_t enable_masked_compound;      // enables/disables masked compound
+#endif
+  uint8_t enable_masked_compound;  // enables/disables masked compound
 #if CONFIG_OPTFLOW_REFINEMENT
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#endif                           // 1 - enable vert/horz filter selection
+#endif  // 1 - enable vert/horz filter selection
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_warped_motion;  // 0 - disable warp for the sequence
                                  // 1 - enable warp for the sequence
-  uint8_t enable_superres;       // 0 - Disable superres for the sequence
-                                 //     and no frame level superres flag
-                                 // 1 - Enable superres for the sequence
-                                 //     enable per-frame superres flag
-  uint8_t enable_cdef;           // To turn on/off CDEF
+#endif
+  uint8_t enable_superres;  // 0 - Disable superres for the sequence
+                            //     and no frame level superres flag
+                            // 1 - Enable superres for the sequence
+                            //     enable per-frame superres flag
+  uint8_t enable_cdef;      // To turn on/off CDEF
 
   uint8_t enable_restoration;  // To turn on/off loop restoration
 #if CONFIG_CCSO
@@ -631,7 +641,9 @@ typedef struct {
   bool allow_local_intrabc;  /*!< If true, intra block copy tool may use the
                               local  search range. */
 #endif                       // CONFIG_IBC_SR_EXT
-  bool allow_warped_motion;  /*!< If true, frame may use warped motion mode. */
+#if !CONFIG_EXTENDED_WARP_PREDICTION
+  bool allow_warped_motion; /*!< If true, frame may use warped motion mode. */
+#endif
   /*!
    * If true, using previous frames' motion vectors for prediction is allowed.
    */
@@ -655,11 +667,13 @@ typedef struct {
    * independently of previously decoded frames.
    */
   bool error_resilient_mode;
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   /*!
    * If false, only MOTION_MODE that may be used is SIMPLE_TRANSLATION;
    * if true, all MOTION_MODES may be used.
    */
   bool switchable_motion_mode;
+#endif
   TX_MODE tx_mode;            /*!< Transform mode at frame level. */
   InterpFilter interp_filter; /*!< Interpolation filter at frame level. */
   /*!
@@ -715,6 +729,12 @@ typedef struct {
    */
   bool enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  /*!
+   * Bit mask of enabled motion modes for this frame
+   */
+  int enabled_motion_modes;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 } FeatureFlags;
 
 /*!
@@ -1880,11 +1900,13 @@ static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
          !frame_is_intra_only(cm);
 }
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
 // Returns 1 if this frame might use warped_motion
 static INLINE int frame_might_allow_warped_motion(const AV1_COMMON *cm) {
   return !cm->features.error_resilient_mode && !frame_is_intra_only(cm) &&
          cm->seq_params.enable_warped_motion;
 }
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
   const int buf_rows = buf->mi_rows;
@@ -3118,37 +3140,38 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const CANDIDATE_MV *ref_mv_stack,
                                       const MB_MODE_INFO *mbmi) {
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
-  int allowed_motion_modes = (1 << SIMPLE_TRANSLATION);
 
   if (mbmi->skip_mode || mbmi->ref_frame[0] == INTRA_FRAME) {
-    return allowed_motion_modes;
+    return (1 << SIMPLE_TRANSLATION);
   }
 
 #if CONFIG_BAWP
-  if (mbmi->bawp_flag == 1) return allowed_motion_modes;
+  if (mbmi->bawp_flag == 1) {
+    return (1 << SIMPLE_TRANSLATION);
+  }
 #endif  // CONFIG_BAWP
+
+  int enabled_motion_modes = cm->features.enabled_motion_modes;
+
+  int allowed_motion_modes = (1 << SIMPLE_TRANSLATION);
 
   bool interintra_allowed =
       cm->current_frame.reference_mode != COMPOUND_REFERENCE &&
-      cm->seq_params.enable_interintra_compound && is_interintra_allowed(mbmi);
+      is_interintra_allowed(mbmi);
 
   if (interintra_allowed) {
     allowed_motion_modes |= (1 << INTERINTRA);
   }
 
-  if (!cm->features.switchable_motion_mode) {
-    return allowed_motion_modes;
-  }
-
 #if CONFIG_TIP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
-    return allowed_motion_modes;
+    return (allowed_motion_modes & enabled_motion_modes);
   }
 #endif  // CONFIG_TIP
 
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
   if (mbmi->ref_frame[0] == mbmi->ref_frame[1]) {
-    return allowed_motion_modes;
+    return (allowed_motion_modes & enabled_motion_modes);
   }
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 
@@ -3156,7 +3179,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     const TransformationType gm_type =
         cm->global_motion[mbmi->ref_frame[0]].wmtype;
     if (is_global_mv_block(mbmi, gm_type)) {
-      return allowed_motion_modes;
+      return (allowed_motion_modes & enabled_motion_modes);
     }
   }
 
@@ -3173,7 +3196,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 
   // From here on, all modes are warped, so have some common criteria:
   const int allow_warped_motion =
-      motion_variation_allowed && cm->features.allow_warped_motion &&
+      motion_variation_allowed &&
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
       !xd->cur_frame_force_integer_mv;
 
@@ -3259,7 +3282,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     allowed_motion_modes |= (1 << WARP_DELTA);
   }
 
-  return allowed_motion_modes;
+  return (allowed_motion_modes & enabled_motion_modes);
 }
 #else
 static INLINE MOTION_MODE motion_mode_allowed(const AV1_COMMON *cm,

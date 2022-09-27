@@ -2545,9 +2545,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_REF_MV_BANK && !CONFIG_C043_MVP_IMPROVEMENTS
 
 #if CONFIG_WARP_REF_LIST
-
-  if (cm->features.allow_warped_motion && warp_param_stack &&
-      valid_num_warp_candidates &&
+  if (warp_param_stack && valid_num_warp_candidates &&
       *valid_num_warp_candidates < max_num_of_warp_candidates) {
     // Insert warp parameters from the bank
     const WARP_PARAM_BANK *warp_param_bank = xd->warp_param_bank_pt;
@@ -2758,8 +2756,7 @@ void av1_find_mv_refs(
   }
 
 #if CONFIG_WARP_REF_LIST
-  bool derive_wrl = cm->features.allow_warped_motion &&
-                    (warp_param_stack && valid_num_warp_candidates &&
+  bool derive_wrl = (warp_param_stack && valid_num_warp_candidates &&
                      max_num_of_warp_candidates);
   derive_wrl &= (ref_frame < SINGLE_REF_FRAMES);
   derive_wrl &= is_motion_variation_allowed_bsize(mi->sb_type[PLANE_TYPE_Y]);

@@ -19,6 +19,9 @@
 #include "av1/common/obu_util.h"
 #include "common/av1_config.h"
 #include "config/aom_config.h"
+#if CONFIG_EXTENDED_WARP_PREDICTION
+#include "av1/common/enums.h"
+#endif
 
 // Helper macros to reduce verbosity required to check for read errors.
 //
@@ -396,9 +399,18 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_filter_intra);
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_intra_edge_filter);
   if (!reduced_still_picture_header) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+         motion_mode++) {
+      AV1C_READ_BIT_OR_RETURN_ERROR(seq_enabled_motion_modes);
+    }
+#else
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_interintra_compound);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_masked_compound);
+#if !CONFIG_EXTENDED_WARP_PREDICTION
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_warped_motion);
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_order_hint);
     if (enable_order_hint) {
       AV1C_READ_BIT_OR_RETURN_ERROR(enable_ref_frame_mvs);
