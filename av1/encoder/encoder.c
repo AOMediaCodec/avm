@@ -3223,6 +3223,10 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     // Use superres for Key-frames and Alt-ref frames only.
     const GF_GROUP *const gf_group = &cpi->gf_group;
     if (gf_group->update_type[gf_group->index] != OVERLAY_UPDATE &&
+#if CONFIG_EXT_SUPERRES
+        gf_group->update_type[gf_group->index] != ARF_UPDATE &&
+        gf_group->update_type[gf_group->index] != GF_UPDATE &&
+#endif
         gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
 #if CONFIG_EXT_SUPERRES
       for (int this_index = 0; this_index < SUPERRES_SCALES; ++this_index) {
