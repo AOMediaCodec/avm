@@ -105,13 +105,16 @@ static uint16_t aom_rb_read_primitive_subexpfin(struct aom_read_bit_buffer *rb,
 
 static uint16_t aom_rb_read_primitive_refsubexpfin(
     struct aom_read_bit_buffer *rb, uint16_t n, uint16_t k, uint16_t ref) {
+  assert(ref < n);
   return inv_recenter_finite_nonneg(n, ref,
                                     aom_rb_read_primitive_subexpfin(rb, n, k));
 }
 
 int16_t aom_rb_read_signed_primitive_refsubexpfin(
     struct aom_read_bit_buffer *rb, uint16_t n, uint16_t k, int16_t ref) {
-  ref += n - 1;
+  assert(n > 0);
+  const uint16_t offset = n - 1;
   const uint16_t scaled_n = (n << 1) - 1;
-  return aom_rb_read_primitive_refsubexpfin(rb, scaled_n, k, ref) - n + 1;
+  return aom_rb_read_primitive_refsubexpfin(rb, scaled_n, k, ref + offset) -
+         offset;
 }

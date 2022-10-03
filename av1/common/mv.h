@@ -279,6 +279,9 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
 #define WARPEDMODEL_NONDIAGAFFINE_CLAMP (1 << (WARPEDMODEL_PREC_BITS - 3))
 #define WARPEDMODEL_ROW3HOMO_CLAMP (1 << (WARPEDMODEL_PREC_BITS - 2))
 
+// Shift required to convert between warp parameter and MV precision
+#define WARPEDMODEL_TO_MV_SHIFT (WARPEDMODEL_PREC_BITS - 3)
+
 // Bits of subpel precision for warped interpolation
 #define WARPEDPIXEL_PREC_BITS 6
 #define WARPEDPIXEL_PREC_SHIFTS (1 << WARPEDPIXEL_PREC_BITS)
@@ -362,6 +365,21 @@ static const WarpedMotionParams default_warp_params = {
 // XX_MIN, XX_MAX are also computed to avoid repeated computation
 
 #define SUBEXPFIN_K 3
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+#define GM_TRANS_PREC_BITS 3
+#define GM_ABS_TRANS_BITS 14
+#define GM_ABS_TRANS_ONLY_BITS (GM_ABS_TRANS_BITS - GM_TRANS_PREC_BITS + 3)
+#define GM_TRANS_PREC_DIFF (WARPEDMODEL_PREC_BITS - GM_TRANS_PREC_BITS)
+#define GM_TRANS_ONLY_PREC_DIFF (WARPEDMODEL_PREC_BITS - 3)
+#define GM_TRANS_DECODE_FACTOR (1 << GM_TRANS_PREC_DIFF)
+#define GM_TRANS_ONLY_DECODE_FACTOR (1 << GM_TRANS_ONLY_PREC_DIFF)
+
+#define GM_ALPHA_PREC_BITS 10
+#define GM_ABS_ALPHA_BITS 7
+#define GM_ALPHA_PREC_DIFF (WARPEDMODEL_PREC_BITS - GM_ALPHA_PREC_BITS)
+#define GM_ALPHA_DECODE_FACTOR (1 << GM_ALPHA_PREC_DIFF)
+#else
 #define GM_TRANS_PREC_BITS 6
 #define GM_ABS_TRANS_BITS 12
 #define GM_ABS_TRANS_ONLY_BITS (GM_ABS_TRANS_BITS - GM_TRANS_PREC_BITS + 3)
@@ -374,6 +392,7 @@ static const WarpedMotionParams default_warp_params = {
 #define GM_ABS_ALPHA_BITS 12
 #define GM_ALPHA_PREC_DIFF (WARPEDMODEL_PREC_BITS - GM_ALPHA_PREC_BITS)
 #define GM_ALPHA_DECODE_FACTOR (1 << GM_ALPHA_PREC_DIFF)
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #define GM_ROW3HOMO_PREC_BITS 16
 #define GM_ABS_ROW3HOMO_BITS 11
@@ -489,8 +508,8 @@ static INLINE int_mv get_warp_motion_vector(const WarpedMotionParams *model,
     // After the right shifts, there are 3 fractional bits of precision. If
     // precision < MV_SUBPEL_EIGHTH is false, the bottom bit is always zero
     // (so we don't need a call to convert_to_trans_prec here)
-    res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
-    res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
+    res.as_mv.col = model->wmmat[0] >> WARPEDMODEL_TO_MV_SHIFT;
+    res.as_mv.row = model->wmmat[1] >> WARPEDMODEL_TO_MV_SHIFT;
 
     // When extended warp prediction is enabled, the warp model can be derived
     // from the neighbor. Neighbor may have different MV precision than current
@@ -508,8 +527,8 @@ static INLINE int_mv get_warp_motion_vector(const WarpedMotionParams *model,
     // After the right shifts, there are 3 fractional bits of precision. If
     // allow_hp is false, the bottom bit is always zero (so we don't need a
     // call to convert_to_trans_prec here)
-    res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
-    res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
+    res.as_mv.col = model->wmmat[0] >> WARPEDMODEL_TO_MV_SHIFT;
+    res.as_mv.row = model->wmmat[1] >> WARPEDMODEL_TO_MV_SHIFT;
     assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));
     if (is_integer) {
       integer_mv_precision(&res.as_mv);
