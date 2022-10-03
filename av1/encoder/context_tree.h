@@ -102,6 +102,9 @@ typedef struct PC_TREE {
 #if CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS none_rd;
   bool skippable;
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  REF_MV_BANK ref_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PC_TREE;
 

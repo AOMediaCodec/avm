@@ -2269,9 +2269,13 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 #if CONFIG_C043_MVP_IMPROVEMENTS
   xd->is_last_horizontal_rect = 0;
   if (xd->width > xd->height) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (mi_row & (xd->width - 1)) xd->is_last_horizontal_rect = 1;
+#else
     if (!((mi_row + xd->height) & (xd->width - 1))) {
       xd->is_last_horizontal_rect = 1;
     }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 
   xd->is_first_vertical_rect = 0;
