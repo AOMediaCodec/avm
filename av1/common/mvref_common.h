@@ -910,26 +910,75 @@ static INLINE void av1_get_warp_base_params(
   }
 }
 
-static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
-                                               const MB_MODE_INFO *neighbor_mi,
+// Try to get the neighbor's warp model
+// If this is possible, return true and set *wm_params to the neighbor's warp
+// model.
+// If this is not possible, return false and leave *wm_params unmodified.
+//
+// Encoders should only select warp_extend mode if this function returns true
+// (indicating a useful model was available).
+// But decoders must be prepared for the possibility than an encoder selects
+// warp_extend even if this function returns false. In that case, the decoder
+// should fall back to translational motion, generally by setting
+// mbmi->wm_params[0].invalid = 1;
+static INLINE bool av1_get_neighbor_warp_model(const AV1_COMMON *cm,
+                                               const MACROBLOCKD *xd,
+                                               CANDIDATE_MV *ref_mv_stack,
                                                WarpedMotionParams *wm_params) {
-  const WarpedMotionParams *gm_params =
-      &cm->global_motion[neighbor_mi->ref_frame[0]];
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
 
-  if (is_warp_mode(neighbor_mi->motion_mode)) {
-    *wm_params = neighbor_mi->wm_params[0];
-  } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
-    *wm_params = *gm_params;
-  } else {
-    // Neighbor block is translation-only, so doesn't have
-    // a warp model. So we need to synthesize one
-    *wm_params = default_warp_params;
-    wm_params->wmtype = TRANSLATION;
-    wm_params->wmmat[0] =
-        neighbor_mi->mv[0].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
-    wm_params->wmmat[1] =
-        neighbor_mi->mv[0].as_mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3));
+  bool neighbor_is_above = xd->up_available && (neighbor->row_offset == -1 &&
+                                                neighbor->col_offset >= 0);
+  bool neighbor_is_left = xd->left_available && (neighbor->col_offset == -1 &&
+                                                 neighbor->row_offset >= 0);
+  bool neighbor_is_adjacent = neighbor_is_above || neighbor_is_left;
+
+  if (neighbor_is_adjacent) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[neighbor->row_offset * xd->mi_stride + neighbor->col_offset];
+
+    const WarpedMotionParams *gm_params =
+        &cm->global_motion[mbmi->ref_frame[0]];
+
+    if (is_warp_mode(neighbor_mi->motion_mode)) {
+      *wm_params = neighbor_mi->wm_params[0];
+      return true;
+    } else if (mbmi->mode == NEARMV) {
+      // For NEARMV, we're trying to copy a neighboring warp model without
+      // modification. So warp_extend only makes sense for this mode if the
+      // neighbor is warped
+      return false;
+    } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
+      *wm_params = *gm_params;
+      return true;
+    } else {
+      // Neighbor block is translation-only, so doesn't have
+      // a warp model. So we need to synthesize one.
+      // Note that, in this case, the neighbor might be compound, but the
+      // current block will always be single ref. So we have to figure out
+      // which of the neighbor's ref frames matches ours, and take that MV.
+      *wm_params = default_warp_params;
+      wm_params->wmtype = TRANSLATION;
+
+      int ref_frame = mbmi->ref_frame[0];
+      if (neighbor_mi->ref_frame[0] == ref_frame) {
+        wm_params->wmmat[0] =
+            neighbor_mi->mv[0].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
+        wm_params->wmmat[1] =
+            neighbor_mi->mv[0].as_mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3));
+      } else {
+        assert(neighbor_mi->ref_frame[1] == ref_frame);
+        wm_params->wmmat[0] =
+            neighbor_mi->mv[1].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
+        wm_params->wmmat[1] =
+            neighbor_mi->mv[1].as_mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3));
+      }
+      return true;
+    }
   }
+
+  return false;
 }
 
 // The use_warp_extend symbol has two components to its context:

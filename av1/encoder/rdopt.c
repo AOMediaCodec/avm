@@ -2603,28 +2603,25 @@ static int64_t motion_mode_rd(
         }
 #endif
 
-        CANDIDATE_MV *neighbor =
-            &mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]][mbmi->ref_mv_idx];
-        assert(neighbor->row_offset == -1 || neighbor->col_offset == -1);
-        const MB_MODE_INFO *neighbor_mi =
-            xd->mi[neighbor->row_offset * xd->mi_stride + neighbor->col_offset];
+        CANDIDATE_MV *ref_mv_stack = mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]];
+        WarpedMotionParams neighbor_params;
+        bool valid_neighbor =
+            av1_get_neighbor_warp_model(cm, xd, ref_mv_stack, &neighbor_params);
+
+        if (!valid_neighbor) {
+          // Skip
+          continue;
+        }
 
         if (mbmi->mode == NEARMV) {
-          assert(is_warp_mode(neighbor_mi->motion_mode));
-          if (neighbor_mi->wm_params[0].invalid) {
-            // Skip invalid models
-            continue;
-          }
-          mbmi->wm_params[0] = neighbor_mi->wm_params[0];
+          mbmi->wm_params[0] = neighbor_params;
         } else {
           assert(mbmi->mode == NEWMV);
 
+          CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
           bool neighbor_is_above =
               xd->up_available &&
               (neighbor->row_offset == -1 && neighbor->col_offset >= 0);
-
-          WarpedMotionParams neighbor_params;
-          av1_get_neighbor_warp_model(cm, neighbor_mi, &neighbor_params);
 
           const int_mv ref_mv = av1_get_ref_mv(x, 0);
           SUBPEL_MOTION_SEARCH_PARAMS ms_params;

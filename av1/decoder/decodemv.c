@@ -2875,31 +2875,34 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 
   if (mbmi->motion_mode == WARP_EXTEND) {
-    CANDIDATE_MV *neighbor = &xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx];
-    assert(neighbor->row_offset == -1 || neighbor->col_offset == -1);
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[neighbor->row_offset * xd->mi_stride + neighbor->col_offset];
-
-    if (mbmi->mode == NEARMV) {
-      assert(is_warp_mode(neighbor_mi->motion_mode));
-      mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-    } else {
-      assert(mbmi->mode == NEWMV);
-
-      bool neighbor_is_above =
-          xd->up_available &&
-          (neighbor->row_offset == -1 && neighbor->col_offset >= 0);
-
-      WarpedMotionParams neighbor_params;
-      av1_get_neighbor_warp_model(cm, neighbor_mi, &neighbor_params);
-      if (av1_extend_warp_model(neighbor_is_above, bsize, &mbmi->mv[0].as_mv,
-                                mi_row, mi_col, &neighbor_params,
-                                &mbmi->wm_params[0])) {
+    CANDIDATE_MV *ref_mv_stack = xd->ref_mv_stack[mbmi->ref_frame[0]];
+    WarpedMotionParams neighbor_params;
+    bool valid_neighbor =
+        av1_get_neighbor_warp_model(cm, xd, ref_mv_stack, &neighbor_params);
+    if (valid_neighbor) {
+      if (mbmi->mode == NEARMV) {
+        mbmi->wm_params[0] = neighbor_params;
+      } else {
+        assert(mbmi->mode == NEWMV);
+        CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
+        bool neighbor_is_above =
+            xd->up_available &&
+            (neighbor->row_offset == -1 && neighbor->col_offset >= 0);
+        bool valid_model = !av1_extend_warp_model(
+            neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row, mi_col,
+            &neighbor_params, &mbmi->wm_params[0]);
+        if (!valid_model) {
 #if WARPED_MOTION_DEBUG
-        printf("Warning: unexpected warped model from aomenc\n");
+          printf("Warning: unexpected warped model from aomenc\n");
 #endif
-        mbmi->wm_params[0].invalid = 1;
+          mbmi->wm_params[0].invalid = 1;
+        }
       }
+    } else {
+#if WARPED_MOTION_DEBUG
+      printf("Warning: unexpected warp_extend mode from aomenc\n");
+#endif
+      mbmi->wm_params[0].invalid = 1;
     }
 #if CONFIG_C071_SUBBLK_WARPMV
     assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
