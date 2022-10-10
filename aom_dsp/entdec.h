@@ -61,6 +61,12 @@ struct od_ec_dec {
 void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf, uint32_t storage)
     OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
+#if CONFIG_BYPASS_IMPROVEMENT
+OD_WARN_UNUSED_RESULT int od_ec_decode_bool_bypass(od_ec_dec *dec)
+    OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT int od_ec_decode_literal_bypass(od_ec_dec *dec, int n_bits)
+    OD_ARG_NONNULL(1);
+#endif
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *dec,

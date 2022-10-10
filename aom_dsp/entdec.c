@@ -138,6 +138,18 @@ static int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif, unsigned rng,
   return ret;
 }
 
+#if CONFIG_BYPASS_IMPROVEMENT
+static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
+                                      int n_bypass, int ret) {
+  /*n_bypass bits in dec->dif are consumed.*/
+  dec->cnt -= n_bypass;
+  /*This is equivalent to shifting in 1's instead of 0's.*/
+  dec->dif = ((dif + 1) << n_bypass) - 1;
+  if (dec->cnt < 0) od_ec_dec_refill(dec);
+  return ret;
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
+
 /*Initializes the decoder.
   buf: The input buffer to use.
   storage: The size in bytes of the input buffer.*/
@@ -182,6 +194,49 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   return od_ec_dec_normalize(dec, dif, r_new, ret);
 }
 
+#if CONFIG_BYPASS_IMPROVEMENT
+/*Decode a single binary value, with 50/50 probability.
+  Return: The value decoded (0 or 1).*/
+int od_ec_decode_bool_bypass(od_ec_dec *dec) {
+  return od_ec_decode_literal_bypass(dec, 1);
+}
+
+/*Decode a literal of n_bits
+  n_bits: Number of bits to decode 1..15
+  Return: The value decoded (0..2^n_bits-1).*/
+int od_ec_decode_literal_bypass(od_ec_dec *dec, int n_bits) {
+  if (dec->cnt < n_bits - 1) od_ec_dec_refill(dec);
+  od_ec_window dif;
+  od_ec_window vw;
+  unsigned r;
+  int ret;
+  dif = dec->dif;
+  r = dec->rng;
+  assert((r & 1) == 0);
+  assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
+  assert(32768U <= r);
+  assert(0 < n_bits && n_bits <= 32);
+  vw = (od_ec_window)r << (OD_EC_WINDOW_SIZE - 16);
+  ret = 0;
+  for (int bit = 0; bit < n_bits; bit++) {
+    vw >>= 1;
+    ret <<= 1;
+    if (dif >= vw) {
+      dif -= vw;
+    } else {
+      ret |= 1;
+    }
+  }
+  return od_ec_dec_bypass_normalize(dec, dif, n_bits, ret);
+}
+
+static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
+  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
+           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1)) << 1) +
+         EC_MIN_PROB * n;
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
+
 /*Decodes a symbol given an inverse cumulative distribution function (CDF)
    table in Q15.
   icdf: CDF_PROB_TOP minus the CDF, such that symbol s falls in the range
@@ -212,9 +267,14 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
   ret = -1;
   do {
     u = v;
+#if CONFIG_BYPASS_IMPROVEMENT
+    ret++;
+    v = od_ec_prob_scale(icdf[ret], r, N - ret);
+#else
     v = ((r >> 8) * (uint32_t)(icdf[++ret] >> EC_PROB_SHIFT) >>
          (7 - EC_PROB_SHIFT - CDF_SHIFT));
     v += EC_MIN_PROB * (N - ret);
+#endif  // CONFIG_BYPASS_IMPROVEMENT
   } while (c < v);
   assert(v < u);
   assert(u <= r);

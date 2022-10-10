@@ -55,14 +55,30 @@
   low: The new value of low.
   rng: The new value of the range.*/
 static void od_ec_enc_normalize(od_ec_enc *enc, od_ec_window low,
+#if CONFIG_BYPASS_IMPROVEMENT
+                                unsigned rng, int n_bypass) {
+#else
                                 unsigned rng) {
+#endif  // CONFIG_BYPASS_IMPROVEMENT
   int d;
   int c;
   int s;
-  c = enc->cnt;
   assert(rng <= 65535U);
+#if CONFIG_BYPASS_IMPROVEMENT
+  if (n_bypass > 0) {
+    /* n_bypass: # of bits bypass encoded.*/
+    c = enc->cnt + n_bypass;
+    d = 0;
+  } else {
+    c = enc->cnt;
+    /*The number of leading zeros in the 16-bit binary representation of rng.*/
+    d = 16 - OD_ILOG_NZ(rng);
+  }
+#else
+  c = enc->cnt;
   /*The number of leading zeros in the 16-bit binary representation of rng.*/
   d = 16 - OD_ILOG_NZ(rng);
+#endif  // CONFIG_BYPASS_IMPROVEMENT
   s = c + d;
   /*TODO: Right now we flush every time we have at least one byte available.
     Instead we should use an od_ec_window and flush right before we're about to
@@ -147,6 +163,14 @@ void od_ec_enc_clear(od_ec_enc *enc) {
   free(enc->buf);
 }
 
+#if CONFIG_BYPASS_IMPROVEMENT
+static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
+  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
+           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1)) << 1) +
+         EC_MIN_PROB * n;
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
+
 /*Encodes a symbol given its frequency in Q15.
   fl: CDF_PROB_TOP minus the cumulative frequency of all symbols that come
   before the
@@ -162,28 +186,45 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
   unsigned v;
   l = enc->low;
   r = enc->rng;
+#if CONFIG_BYPASS_IMPROVEMENT
+  assert ((r & 1) == 0);
+#endif  // CONFIG_BYPASS_IMPROVEMENT
   assert(32768U <= r);
   assert(fh <= fl);
   assert(fl <= 32768U);
   assert(7 - EC_PROB_SHIFT - CDF_SHIFT >= 0);
   const int N = nsyms - 1;
   if (fl < CDF_PROB_TOP) {
+#if CONFIG_BYPASS_IMPROVEMENT
+    u = od_ec_prob_scale(fl, r, N - (s - 1));
+    v = od_ec_prob_scale(fh, r, N - (s - 0));
+#else
     u = ((r >> 8) * (uint32_t)(fl >> EC_PROB_SHIFT) >>
          (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
         EC_MIN_PROB * (N - (s - 1));
     v = ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >>
          (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
         EC_MIN_PROB * (N - (s + 0));
+#endif  // CONFIG_BYPASS_IMPROVEMENT
     l += r - u;
     r = u - v;
   } else {
+#if CONFIG_BYPASS_IMPROVEMENT
+    v = od_ec_prob_scale(fh, r, N - (s + 0));
+    r -= v;
+#else
     r -= ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >>
           (7 - EC_PROB_SHIFT - CDF_SHIFT)) +
          EC_MIN_PROB * (N - (s + 0));
+#endif  // CONFIG_BYPASS_IMPROVEMENT
   }
+#if CONFIG_BYPASS_IMPROVEMENT
+  od_ec_enc_normalize(enc, l, r, 0);
+#else
   od_ec_enc_normalize(enc, l, r);
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 #if OD_MEASURE_EC_OVERHEAD
-  enc->entropy -= OD_LOG2((double)(OD_ICDF(fh) - OD_ICDF(fl)) / CDF_PROB_TOP.);
+  enc->entropy -= OD_LOG2(((double)(OD_ICDF(fh) - OD_ICDF(fl)) / CDF_PROB_TOP));
   enc->nb_symbols++;
 #endif
 }
@@ -200,16 +241,53 @@ void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f) {
   l = enc->low;
   r = enc->rng;
   assert(32768U <= r);
+#if CONFIG_BYPASS_IMPROVEMENT
+  v = od_ec_prob_scale(f, r, 1);
+#else
   v = ((r >> 8) * (uint32_t)(f >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT));
   v += EC_MIN_PROB;
+#endif
   if (val) l += r - v;
   r = val ? v : r - v;
+#if CONFIG_BYPASS_IMPROVEMENT
+  od_ec_enc_normalize(enc, l, r, 0);
+#else
   od_ec_enc_normalize(enc, l, r);
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 #if OD_MEASURE_EC_OVERHEAD
   enc->entropy -= OD_LOG2((double)(val ? f : (32768 - f)) / 32768.);
   enc->nb_symbols++;
 #endif
 }
+
+#if CONFIG_BYPASS_IMPROVEMENT
+/*Encode a single binary value.
+  val: The value to encode (0 or 1). */
+void od_ec_encode_bool_bypass(od_ec_enc *enc, int val) {
+  od_ec_encode_literal_bypass(enc, val, 1);
+}
+
+/*Encode a single binary value.
+  val: The value to encode
+  n_bits: number of bits (limit of 16 for now) */
+void od_ec_encode_literal_bypass(od_ec_enc *enc, int val, int n_bits) {
+  od_ec_window l;
+  unsigned r;
+  l = enc->low;
+  r = enc->rng;
+  assert(32768U <= r);
+  assert((r & 1) == 0);
+  l <<= n_bits;
+  l += r * val;
+  od_ec_enc_normalize(enc, l, r, n_bits);
+#if OD_MEASURE_EC_OVERHEAD
+  enc->entropy -= OD_LOG2((double)16384) * n_bits;
+  enc->nb_symbols += n_bits;
+  enc->nb_bypass += n_bits;
+  enc->nb_bits[n_bits]++;
+#endif
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*Encodes a symbol given a cumulative distribution function (CDF) table in Q15.
   s: The index of the symbol to encode.

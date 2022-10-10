@@ -76,13 +76,27 @@ static INLINE void aom_write(aom_writer *w, int bit, int probability) {
 }
 
 static INLINE void aom_write_bit(aom_writer *w, int bit) {
+#if CONFIG_BYPASS_IMPROVEMENT
+  od_ec_encode_literal_bypass(&w->ec, bit, 1);
+#else
   aom_write(w, bit, 128);  // aom_prob_half
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 }
 
 static INLINE void aom_write_literal(aom_writer *w, int data, int bits) {
+#if CONFIG_BYPASS_IMPROVEMENT
+  int n;
+  while (bits > 0) {
+    n = bits >= 8 ? 8 : bits;
+    od_ec_encode_literal_bypass(&w->ec, (data >> (bits - n)), n);
+    bits -= n;
+    data &= ((1 << bits) - 1);
+  }
+#else
   int bit;
 
   for (bit = bits - 1; bit >= 0; bit--) aom_write_bit(w, 1 & (data >> bit));
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 }
 
 static INLINE void aom_write_cdf(aom_writer *w, int symb,
