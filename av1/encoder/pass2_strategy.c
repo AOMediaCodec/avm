@@ -1268,7 +1268,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
 
     // reaches next key frame, break here
     if (i >= rc->frames_to_key) {
-      cut_pos[count_cuts] = AOMMIN(i, active_max_gf_interval);
+      cut_pos[count_cuts] = i;
       // When there exists a single subgop in a kf-interval, correct the
       // gf_interval appropriately. gf-interval always accounts only for the
       // total number of inter frames in the sub-gop.
@@ -1281,6 +1281,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       // curr_frame_type == KEY_FRAME, which is the only frame in subgop,
       // then gf-interval will account for KEY_FRAME.
       if (is_keyframe_subgop) cut_pos[count_cuts] = cut_pos[count_cuts] - 1;
+      cut_pos[count_cuts] = AOMMIN(cut_pos[count_cuts], active_max_gf_interval);
       count_cuts++;
       break;
     }
