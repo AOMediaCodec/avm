@@ -2745,6 +2745,56 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
 #endif  // CONFIG_CROSS_CHROMA_TX
   xd->tx_type_map_stride = mi_params->mi_stride;
 }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE bool is_bsize_above_decoupled_thresh(BLOCK_SIZE bsize) {
+  return bsize == BLOCK_128X128;
+}
+
+static AOM_INLINE bool tree_has_bsize_smaller_than(const PARTITION_TREE *ptree,
+                                                   int width, int height) {
+  if (!ptree || ptree->partition == PARTITION_INVALID) {
+    return false;
+  }
+  const BLOCK_SIZE bsize = ptree->bsize;
+  if (ptree->partition == PARTITION_NONE) {
+    return block_size_wide[bsize] < width && block_size_high[bsize] < height;
+  }
+  for (int idx = 0; idx < 4; idx++) {
+    if (tree_has_bsize_smaller_than(ptree->sub_tree[idx], width, height)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static AOM_INLINE bool should_chroma_track_luma_partition(
+    TREE_TYPE tree_type, const PARTITION_TREE *ptree_luma, BLOCK_SIZE bsize) {
+  if (tree_type != CHROMA_PART || !ptree_luma ||
+      !is_bsize_above_decoupled_thresh(bsize)) {
+    return false;
+  }
+  if (ptree_luma->partition == PARTITION_NONE) {
+    return false;
+  }
+  // For now, follow the logic in baseline SDP. i.e. we will force the current
+  // chroma partition to follow the luma split iff all the luma subblocks
+  // split further into blocks that's strictly smaller than half of the current
+  // bsize.
+  const int width_threshold = block_size_wide[bsize] / 2,
+            height_threshold = block_size_high[bsize] / 2;
+  for (int idx = 0; idx < 4; idx++) {
+    const PARTITION_TREE *sub_tree = ptree_luma->sub_tree[idx];
+    if (sub_tree && sub_tree->partition != PARTITION_INVALID) {
+      if (!tree_has_bsize_smaller_than(sub_tree, width_threshold,
+                                       height_threshold)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+#else
 // Return the number of sub-blocks whose width and height are
 // less than half of the parent block.
 static INLINE int get_luma_split_flag(
@@ -2781,6 +2831,7 @@ static INLINE int get_luma_split_flag(
   }
   return luma_split_flag;
 }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE void txfm_partition_update(TXFM_CONTEXT *above_ctx,
                                          TXFM_CONTEXT *left_ctx,

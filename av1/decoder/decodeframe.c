@@ -1965,13 +1965,10 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   if (plane == 1 && bsize == BLOCK_8X8) {
     return PARTITION_NONE;
   }
-  const int min_bsize_1d =
-      AOMMIN(block_size_high[bsize], block_size_wide[bsize]);
-  if (plane && min_bsize_1d >= SHARED_PART_SIZE) {
+  if (should_chroma_track_luma_partition(xd->tree_type, ptree_luma, bsize)) {
     const int ssx = cm->seq_params.subsampling_x;
     const int ssy = cm->seq_params.subsampling_y;
-    if (ptree_luma)
-      return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy);
+    return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy);
   }
   const PARTITION_TYPE parent_partition =
       ptree->parent ? ptree->parent->partition : PARTITION_INVALID;

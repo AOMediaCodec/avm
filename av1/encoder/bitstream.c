@@ -2727,21 +2727,16 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 
   const int plane = xd->tree_type == CHROMA_PART;
   if (bsize == BLOCK_8X8 && plane > 0) return;
-  const int parent_block_width = block_size_wide[bsize];
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int min_bsize_1d = AOMMIN(block_size_high[bsize], parent_block_width);
-  if (xd->tree_type == CHROMA_PART && min_bsize_1d >= SHARED_PART_SIZE) {
+  if (should_chroma_track_luma_partition(xd->tree_type, ptree_luma, bsize)) {
     const int ssx = cm->seq_params.subsampling_x;
     const int ssy = cm->seq_params.subsampling_y;
     (void)ssx;
     (void)ssy;
-    if (ptree_luma) {
-      assert(p ==
-             sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy));
-      return;
-    }
+    assert(p ==
+           sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy));
+    return;
   }
-  (void)ptree_luma;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
@@ -2833,6 +2828,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   }
 
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int parent_block_width = block_size_wide[bsize];
   if (xd->tree_type == CHROMA_PART && parent_block_width >= SHARED_PART_SIZE) {
     int luma_split_flag = get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
     // if luma blocks uses smaller blocks, then chroma will also split
