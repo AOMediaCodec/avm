@@ -74,6 +74,7 @@
   Even relatively modest values like 100 would work fine.*/
 #define OD_EC_LOTS_OF_BITS (0x4000)
 
+/* Minimum # of preloaded bits to maintain in od_ec_window. */
 #if CONFIG_BYPASS_IMPROVEMENT
 #define OD_EC_MIN_BITS 8
 #else
@@ -233,6 +234,38 @@ int od_ec_decode_literal_bypass(od_ec_dec *dec, int n_bits) {
     }
   }
   return od_ec_dec_bypass_normalize(dec, dif, n_bits, ret);
+}
+
+/*Decode unary-coded symbol.
+  max_bits: Max number of decoded bits.
+  Return: The value decoded (0..2^n_bits-1).*/
+OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits)
+    OD_ARG_NONNULL(1);
+int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
+  if (dec->cnt < max_bits - 1) od_ec_dec_refill(dec);
+  od_ec_window dif;
+  od_ec_window vw;
+  unsigned r;
+  int ret;
+  dif = dec->dif;
+  r = dec->rng;
+  assert((r & 1) == 0);
+  assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
+  assert(32768U <= r);
+  assert(0 < max_bits && max_bits <= 32);
+  vw = (od_ec_window)r << (OD_EC_WINDOW_SIZE - 16);
+  ret = 0;
+  int bit;
+  for (bit = 0; bit < max_bits; bit++) {
+    vw >>= 1;
+    if (dif >= vw) {
+      dif -= vw;
+      ret++;
+    } else {
+      break;
+    }
+  }
+  return od_ec_dec_bypass_normalize(dec, dif, bit + 1, ret);
 }
 
 static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {

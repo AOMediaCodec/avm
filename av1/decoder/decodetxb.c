@@ -27,8 +27,17 @@
 static int read_golomb(MACROBLOCKD *xd, aom_reader *r) {
   int x = 1;
   int length = 0;
-  int i = 0;
 
+#if CONFIG_BYPASS_IMPROVEMENT
+  length = aom_read_unary(r, 21, ACCT_STR);
+  if (length > 20) {
+    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid length in read_golomb");
+  }
+  x = 1 << length;
+  x += aom_read_literal(r, length, ACCT_STR);
+#else
+  int i = 0;
   while (!i) {
     i = aom_read_bit(r, ACCT_STR);
     ++length;
@@ -38,11 +47,11 @@ static int read_golomb(MACROBLOCKD *xd, aom_reader *r) {
       break;
     }
   }
-
   for (i = 0; i < length - 1; ++i) {
     x <<= 1;
     x += aom_read_bit(r, ACCT_STR);
   }
+#endif
 
   return x - 1;
 }
@@ -587,12 +596,16 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       eob_extra += (1 << (eob_offset_bits - 1));
     }
 
+#if CONFIG_BYPASS_IMPROVEMENT
+    eob_extra += aom_read_literal(r, eob_offset_bits - 1, ACCT_STR);
+#else
     for (int i = 1; i < eob_offset_bits; i++) {
       bit = aom_read_bit(r, ACCT_STR);
       if (bit) {
         eob_extra += (1 << (eob_offset_bits - 1 - i));
       }
     }
+#endif
   }
   *eob = rec_eob_pos(eob_pt, eob_extra);
 

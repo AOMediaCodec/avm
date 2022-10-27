@@ -66,6 +66,8 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_bool_bypass(od_ec_dec *dec)
     OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT int od_ec_decode_literal_bypass(od_ec_dec *dec, int n_bits)
     OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits)
+    OD_ARG_NONNULL(1);
 #endif
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);

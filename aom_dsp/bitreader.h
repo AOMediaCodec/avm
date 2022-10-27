@@ -55,6 +55,11 @@
 #define aom_read_symbol(r, cdf, nsymbs, ACCT_STR_NAME) \
   aom_read_symbol_(r, cdf, nsymbs ACCT_STR_ARG(ACCT_STR_NAME))
 
+#if CONFIG_BYPASS_IMPROVEMENT
+#define aom_read_unary(r, bits, ACCT_STR_NAME) \
+  aom_read_unary_(r, bits ACCT_STR_ARG(ACCT_STR_NAME))
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -222,6 +227,23 @@ static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_STR_PARAM) {
 #endif  // CONFIG_BYPASS_IMPROVEMENT
   return literal;
 }
+
+#if CONFIG_BYPASS_IMPROVEMENT
+// Deocode unary coded symbol with truncation at max_bits.
+static INLINE int aom_read_unary_(aom_reader *r, int max_bits ACCT_STR_PARAM) {
+  int ret = od_ec_decode_unary_bypass(&r->ec, max_bits);
+#if CONFIG_ACCOUNTING
+  int n_bits = ret < max_bits ? ret + 1 : max_bits;
+  if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
+#if CONFIG_THROUGHPUT_ANALYSIS
+  aom_update_symb_counts(r, 1, 0, n_bits);
+#else
+  aom_update_symb_counts(r, 1, n_bits);
+#endif
+#endif
+  return ret;
+}
+#endif
 
 static INLINE int aom_read_cdf_(aom_reader *r, const aom_cdf_prob *cdf,
                                 int nsymbs ACCT_STR_PARAM) {

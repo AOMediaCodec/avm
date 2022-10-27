@@ -111,9 +111,15 @@ void av1_free_txb_buf(AV1_COMP *cpi) { aom_free(cpi->coeff_buffer_base); }
 
 static void write_golomb(aom_writer *w, int level) {
   int x = level + 1;
-  int i = x;
   int length = 0;
 
+#if CONFIG_BYPASS_IMPROVEMENT
+  length = get_msb(x) + 1;
+  assert(length > 0);
+  aom_write_literal(w, 0, length - 1);
+  aom_write_literal(w, x, length);
+#else
+  int i = x;
   while (i) {
     i >>= 1;
     ++length;
@@ -123,6 +129,8 @@ static void write_golomb(aom_writer *w, int level) {
   for (i = 0; i < length - 1; ++i) aom_write_bit(w, 0);
 
   for (i = length - 1; i >= 0; --i) aom_write_bit(w, (x >> i) & 0x01);
+#endif
+
 }
 
 static INLINE int64_t get_coeff_dist(tran_low_t tcoeff, tran_low_t dqcoeff,
@@ -805,11 +813,17 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
     aom_write_symbol(w, bit,
                      ec_ctx->eob_extra_cdf[txs_ctx][plane_type][eob_ctx], 2);
+#if CONFIG_BYPASS_IMPROVEMENT
+    // Zero out top bit; write (eob_offset_bits - 1) lsb bits.
+    eob_extra &= (1 << (eob_offset_bits - 1)) - 1;
+    aom_write_literal(w, eob_extra, eob_offset_bits - 1);
+#else
     for (int i = 1; i < eob_offset_bits; i++) {
       eob_shift = eob_offset_bits - 1 - i;
       bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
       aom_write_bit(w, bit);
     }
+#endif
   }
 
 #if CONFIG_IST
