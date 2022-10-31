@@ -74,6 +74,12 @@
   Even relatively modest values like 100 would work fine.*/
 #define OD_EC_LOTS_OF_BITS (0x4000)
 
+#if CONFIG_BYPASS_IMPROVEMENT
+#define OD_EC_MIN_BITS 8
+#else
+#define OD_EC_MIN_BITS 0
+#endif
+
 /*The return value of od_ec_dec_tell does not change across an od_ec_dec_refill
    call.*/
 static void od_ec_dec_refill(od_ec_dec *dec) {
@@ -134,7 +140,7 @@ static int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif, unsigned rng,
   /*This is equivalent to shifting in 1's instead of 0's.*/
   dec->dif = ((dif + 1) << d) - 1;
   dec->rng = rng << d;
-  if (dec->cnt < 0) od_ec_dec_refill(dec);
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
   return ret;
 }
 
@@ -145,7 +151,7 @@ static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
   dec->cnt -= n_bypass;
   /*This is equivalent to shifting in 1's instead of 0's.*/
   dec->dif = ((dif + 1) << n_bypass) - 1;
-  if (dec->cnt < 0) od_ec_dec_refill(dec);
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
   return ret;
 }
 #endif  // CONFIG_BYPASS_IMPROVEMENT
@@ -156,12 +162,12 @@ static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
 void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf,
                     uint32_t storage) {
   dec->buf = buf;
-  dec->tell_offs = 10 - (OD_EC_WINDOW_SIZE - 8);
   dec->end = buf + storage;
   dec->bptr = buf;
   dec->dif = ((od_ec_window)1 << (OD_EC_WINDOW_SIZE - 1)) - 1;
   dec->rng = 0x8000;
   dec->cnt = -15;
+  dec->tell_offs = dec->cnt + 1;
   od_ec_dec_refill(dec);
 }
 
@@ -202,10 +208,9 @@ int od_ec_decode_bool_bypass(od_ec_dec *dec) {
 }
 
 /*Decode a literal of n_bits
-  n_bits: Number of bits to decode 1..15
+  n_bits: Number of bits to decode 1..8
   Return: The value decoded (0..2^n_bits-1).*/
 int od_ec_decode_literal_bypass(od_ec_dec *dec, int n_bits) {
-  if (dec->cnt < n_bits - 1) od_ec_dec_refill(dec);
   od_ec_window dif;
   od_ec_window vw;
   unsigned r;
