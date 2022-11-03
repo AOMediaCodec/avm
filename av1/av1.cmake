@@ -103,13 +103,14 @@ if(CONFIG_LPF_MASK)
 endif()
 
 if(CONFIG_EXT_RECUR_PARTITIONS)
-  list(
-    APPEND
-    AOM_AV1_COMMON_SOURCES
-    "${AOM_ROOT}/av1/encoder/erp_tflite.cc"
-    "${AOM_ROOT}/av1/encoder/erp_tflite.h"
-    "${AOM_ROOT}/av1/tflite_models/op_registrations.cc"
-    "${AOM_ROOT}/av1/tflite_models/op_registrations.h")
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/encoder/erp_tflite.cc"
+       "${AOM_ROOT}/av1/encoder/erp_tflite.h")
+endif()
+
+if(CONFIG_TENSORFLOW_LITE)
+  list(APPEND AOM_AV1_COMMON_SOURCES
+       "${AOM_ROOT}/av1/tflite_models/op_registrations.cc"
+       "${AOM_ROOT}/av1/tflite_models/op_registrations.h")
 endif()
 
 if(CONFIG_CCSO)
