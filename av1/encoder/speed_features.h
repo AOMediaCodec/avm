@@ -524,6 +524,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // End partition search if the grandparent, parent, and current block all
   // failed PARTITION_NONE
   int end_part_search_after_consec_failures;
+
+  // The recursion depth allowed for ext partitions
+  int ext_recur_depth;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 

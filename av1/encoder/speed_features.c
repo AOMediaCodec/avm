@@ -764,6 +764,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
+  part_sf->ext_recur_depth = INT_MAX;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
@@ -1042,6 +1043,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
 
   switch (erp_pruning_level) {
+    case 6: sf->part_sf.ext_recur_depth = 1; AOM_FALLTHROUGH_INTENDED;
     case 5:
       sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
       // TODO(chiyotsai@google.com): This speed feature causes large regression

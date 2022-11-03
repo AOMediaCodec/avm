@@ -586,9 +586,7 @@ static AOM_INLINE void perform_one_partition_pass(
         pc_root,
 #if CONFIG_EXT_RECUR_PARTITIONS
         xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_RECUR_PARTITIONS
-        template_tree,
+        template_tree, INT_MAX,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
         sms_root, NULL, multi_pass_mode, NULL);
     sb_enc->min_partition_size = min_partition_size;
@@ -855,7 +853,6 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     // Estimate the maximum square partition block size, which will be used
     // as the starting block size for partitioning the sb
     set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
-
 
 #if CONFIG_FLEX_MVRES
     // Sets the sb_mv_precision
