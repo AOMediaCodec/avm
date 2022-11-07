@@ -3259,7 +3259,7 @@ static void set_partition_cost_for_edge_blk(
   const int mi_col = blk_params->mi_col;
   const int has_rows = blk_params->has_rows;
   const int has_cols = blk_params->has_cols;
-  const BLOCK_SIZE bsize = is_square_block(blk_params->bsize);
+  const BLOCK_SIZE bsize = blk_params->bsize;
   const CommonModeInfoParams *mi_params = &cm->mi_params;
   assert(!has_rows || !has_cols);
   bool is_partition_forced = false;
