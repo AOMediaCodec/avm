@@ -168,7 +168,8 @@ void av1_prune_partitions_before_search(
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
     int *partition_none_allowed, int *partition_horz_allowed,
     int *partition_vert_allowed, int *do_rectangular_split,
-    int *do_square_split, int *prune_horz, int *prune_vert);
+    int *do_square_split, int *prune_horz, int *prune_vert,
+    const PC_TREE *pc_tree);
 
 // Prune out partitions that lead to coding block sizes outside the min and max
 // bsizes set by the encoder. Max and min square partition levels are defined as

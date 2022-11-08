@@ -3568,7 +3568,7 @@ static void rectangular_partition_search(
 #if CONFIG_EXT_RECUR_PARTITIONS
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-  const PARTITION_TYPE forced_partition =
+  PARTITION_TYPE forced_partition =
       get_forced_partition_type(cm, x, blk_params.mi_row, blk_params.mi_col,
                                 blk_params.bsize, template_tree);
 #else   // !CONFIG_EXT_RECUR_PARTITIONS
@@ -5289,7 +5289,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                                      mi_row, mi_col, bsize);
   PartitionBlkParams blk_params = part_search_state.part_blk_params;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const PARTITION_TYPE forced_partition =
+  PARTITION_TYPE forced_partition =
       get_forced_partition_type(cm, x, mi_row, mi_col, bsize, template_tree);
   if (sms_tree != NULL)
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -5398,17 +5398,33 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 
   int *partition_horz_allowed = &part_search_state.partition_rect_allowed[HORZ];
   int *partition_vert_allowed = &part_search_state.partition_rect_allowed[VERT];
-#if !CONFIG_EXT_RECUR_PARTITIONS
-  int *prune_horz = &part_search_state.prune_rect_part[HORZ];
-  int *prune_vert = &part_search_state.prune_rect_part[VERT];
-  // Pruning: before searching any partition type, using source and simple
-  // motion search results to prune out unlikely partitions.
-  av1_prune_partitions_before_search(
-      cpi, x, mi_row, mi_col, bsize, sms_tree,
-      &part_search_state.partition_none_allowed, partition_horz_allowed,
-      partition_vert_allowed, &part_search_state.do_rectangular_split,
-      &part_search_state.do_square_split, prune_horz, prune_vert);
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (forced_partition == PARTITION_INVALID) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    int *prune_horz = &part_search_state.prune_rect_part[HORZ];
+    int *prune_vert = &part_search_state.prune_rect_part[VERT];
+#if CONFIG_EXT_RECUR_PARTITIONS
+    int do_square_split = true;
+    int *sqr_split_ptr = &do_square_split;
+    // Pruning: before searching any partition type, using source and simple
+    // motion search results to prune out unlikely partitions.
+    SimpleMotionData *sms_data = av1_get_sms_data_entry(
+        x->sms_bufs, mi_row, mi_col, bsize, cm->seq_params.sb_size);
+    sms_tree = sms_data->old_sms;
+#else
+  int *sqr_split_ptr = &part_search_state.do_square_split;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    av1_prune_partitions_before_search(
+        cpi, x, mi_row, mi_col, bsize, sms_tree,
+        &part_search_state.partition_none_allowed, partition_horz_allowed,
+        partition_vert_allowed, &part_search_state.do_rectangular_split,
+        sqr_split_ptr, prune_horz, prune_vert, pc_tree);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    forced_partition =
+        get_forced_partition_type(cm, x, blk_params.mi_row, blk_params.mi_col,
+                                  blk_params.bsize, template_tree);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Pruning: eliminating partition types leading to coding block sizes
   // outside the min and max bsize limitations set from the encoder.
@@ -5745,7 +5761,6 @@ BEGIN_PARTITION_SEARCH:
       AOMMIN(max_recursion_depth - 1, cpi->sf.part_sf.ext_recur_depth);
 
   // PARTITION_HORZ_3
-  const int recur_limit = 1;
   if (IS_FORCED_PARTITION_TYPE(PARTITION_HORZ_3) && horz_3_allowed) {
     search_partition_horz_3(
         &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,

@@ -501,6 +501,7 @@ typedef struct SimpleMotionData {
   int has_prev_partition;                  /*!< has previous partition */
   PARTITION_TYPE prev_partition;           /*!< previous partition */
   struct PICK_MODE_CONTEXT *mode_cache[1]; /*!< mode cache */
+  struct SIMPLE_MOTION_DATA_TREE *old_sms; /*!< old sms */
 } SimpleMotionData;
 
 /*!\cond */

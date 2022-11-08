@@ -12,6 +12,7 @@
 
 #include <float.h>
 
+#include "av1/encoder/context_tree.h"
 #include "av1/encoder/encodeframe_utils.h"
 #include "config/aom_dsp_rtcd.h"
 
@@ -290,9 +291,11 @@ void av1_simple_motion_search_based_split(
 
   if (score > split_only_thresh) {
     *partition_none_allowed = 0;
+#if !CONFIG_EXT_RECUR_PARTITIONS
     *partition_horz_allowed = 0;
     *partition_vert_allowed = 0;
     *do_rectangular_split = 0;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   }
 
   if (cpi->sf.part_sf.simple_motion_search_split >= 2 &&
@@ -362,7 +365,9 @@ static int simple_motion_search_get_best_ref(
           for (int r_idx = 0; r_idx < SUB_PARTITIONS_SPLIT; r_idx++) {
             // Propagate the new motion vectors to a lower level
             SIMPLE_MOTION_DATA_TREE *sub_tree = sms_tree->split[r_idx];
-            sub_tree->start_mvs[ref] = sms_tree->start_mvs[ref];
+            if (sub_tree) {
+              sub_tree->start_mvs[ref] = sms_tree->start_mvs[ref];
+            }
           }
         }
       }
@@ -1307,7 +1312,8 @@ void av1_prune_partitions_before_search(
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
     int *partition_none_allowed, int *partition_horz_allowed,
     int *partition_vert_allowed, int *do_rectangular_split,
-    int *do_square_split, int *prune_horz, int *prune_vert) {
+    int *do_square_split, int *prune_horz, int *prune_vert,
+    const PC_TREE *pc_tree) {
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -1338,13 +1344,39 @@ void av1_prune_partitions_before_search(
       bsize >= BLOCK_8X8 &&
       mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
-      !frame_is_intra_only(cm) && !av1_superres_scaled(cm);
+      !frame_is_intra_only(cm) && !av1_superres_scaled(cm) &&
+      is_square_block(bsize) && sms_tree && *partition_none_allowed;
 
   if (try_split_only) {
     av1_simple_motion_search_based_split(
         cpi, x, sms_tree, mi_row, mi_col, bsize, partition_none_allowed,
         partition_horz_allowed, partition_vert_allowed, do_rectangular_split,
         do_square_split);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (!*partition_none_allowed) {
+      if (!pc_tree->parent || pc_tree != pc_tree->parent->horizontal3[1]) {
+        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
+                                 cm->seq_params.sb_size, PARTITION_HORZ);
+        const int mi_step = block_size_high[bsize] / 2;
+        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
+                                 cm->seq_params.sb_size, PARTITION_VERT);
+        av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
+                                 cm->seq_params.sb_size, PARTITION_VERT);
+      } else if (pc_tree != pc_tree->parent->vertical[1]) {
+        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
+                                 cm->seq_params.sb_size, PARTITION_VERT);
+        const int mi_step = block_size_wide[bsize] / 2;
+        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
+                                 cm->seq_params.sb_size, PARTITION_HORZ);
+        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col + mi_step, subsize,
+                                 cm->seq_params.sb_size, PARTITION_HORZ);
+      }
+    }
+#else
+    (void)pc_tree;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 
   // Use simple motion search to prune out rectangular partition in some

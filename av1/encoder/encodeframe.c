@@ -464,6 +464,29 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 #define AVG_CDF_WEIGHT_LEFT 3
 #define AVG_CDF_WEIGHT_TOP_RIGHT 1
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
+                         SIMPLE_MOTION_DATA_TREE *sms_node, int mi_row,
+                         int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+  SimpleMotionData *sms_data =
+      av1_get_sms_data_entry(data_buf, mi_row, mi_col, bsize, sb_size);
+  sms_data->old_sms = sms_node;
+  if (bsize >= BLOCK_8X8) {
+    const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
+    for (int r_idx = 0; r_idx < SUB_PARTITIONS_SPLIT; r_idx++) {
+      const int w_mi = mi_size_wide[bsize];
+      const int h_mi = mi_size_high[bsize];
+      const int sub_mi_col = mi_col + (r_idx & 1) * w_mi / 2;
+      const int sub_mi_row = mi_row + (r_idx >> 1) * h_mi / 2;
+      SIMPLE_MOTION_DATA_TREE *sub_tree = sms_node->split[r_idx];
+
+      fill_sms_buf(data_buf, sub_tree, sub_mi_row, sub_mi_col, subsize,
+                   sb_size);
+    }
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // This function initializes the stats for encode_rd_sb.
 static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                      const TileDataEnc *tile_data,
@@ -513,7 +536,11 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   av1_zero(x->picked_ref_frames_mask);
   av1_invalid_rd_stats(rd_cost);
 #if CONFIG_EXT_RECUR_PARTITIONS
-  av1_init_sms_data_bufs(x->sms_bufs);
+  SimpleMotionDataBufs *data_bufs = x->sms_bufs;
+  av1_init_sms_data_bufs(data_bufs);
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, BLOCK_128X128,
+               cm->seq_params.sb_size);
+
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (x->e_mbd.tree_type == CHROMA_PART) {
     assert(is_bsize_square(x->sb_enc.min_partition_size));

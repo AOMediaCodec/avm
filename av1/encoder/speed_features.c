@@ -987,6 +987,7 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
 
   switch (erp_pruning_level) {
+    case 6: AOM_FALLTHROUGH_INTENDED;
     case 5:
       if (is_1080p_or_larger) {
         sf->part_sf.partition_search_breakout_dist_thr = (1 << 22) + (1 << 21);
@@ -1012,10 +1013,6 @@ void av1_set_speed_features_framesize_dependent(AV1_COMP *cpi, int speed) {
   if (oxcf->mode == GOOD) {
     set_good_speed_feature_framesize_dependent(cpi, sf, speed);
   }
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-  set_erp_speed_features_framesize_dependent(cpi);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // This is only used in motion vector unit test.
   if (cpi->oxcf.unit_test_cfg.motion_vector_unit_test == 1)
@@ -1043,7 +1040,10 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
 
   switch (erp_pruning_level) {
-    case 6: sf->part_sf.ext_recur_depth = 1; AOM_FALLTHROUGH_INTENDED;
+    case 6:
+      sf->part_sf.ext_recur_depth = 1;
+      sf->part_sf.simple_motion_search_split = 1;
+      AOM_FALLTHROUGH_INTENDED;
     case 5:
       sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
       // TODO(chiyotsai@google.com): This speed feature causes large regression
@@ -1103,10 +1103,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 
   if (oxcf->mode == GOOD)
     set_good_speed_features_framesize_independent(cpi, sf, speed);
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-  set_erp_speed_features(cpi);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (!cpi->seq_params_locked) {
     cpi->common.seq_params.enable_restoration &= !sf->lpf_sf.disable_lr_filter;
@@ -1254,6 +1250,7 @@ static AOM_INLINE void set_erp_speed_features_qindex_dependent(AV1_COMP *cpi) {
   const int qindex_thresh2 = 113 + qindex_offset;
 
   switch (erp_pruning_level) {
+    case 6: AOM_FALLTHROUGH_INTENDED;
     case 5:
       if (is_1080p_or_larger &&
           cm->quant_params.base_qindex <= qindex_thresh2 &&
@@ -1291,8 +1288,10 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       memcpy(winner_mode_params->coeff_opt_dist_threshold,
              coeff_opt_dist_thresholds[sf->rd_sf.perform_coeff_opt],
              sizeof(winner_mode_params->coeff_opt_dist_threshold));
+#if !CONFIG_EXT_RECUR_PARTITIONS
       sf->part_sf.simple_motion_search_split =
           cm->features.allow_screen_content_tools ? 1 : 2;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
       sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
       sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
       sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
@@ -1305,8 +1304,10 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
         sf->rd_sf.tx_domain_dist_thres_level = 1;
         sf->part_sf.simple_motion_search_early_term_none = 1;
+#if !CONFIG_EXT_RECUR_PARTITIONS
         sf->part_sf.simple_motion_search_split =
             cm->features.allow_screen_content_tools ? 1 : 2;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_NEW_TX_PARTITION
         sf->tx_sf.tx_type_search.ml_tx_split_thresh = 400;
 #else
@@ -1351,6 +1352,8 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+  set_erp_speed_features(cpi);
+  set_erp_speed_features_framesize_dependent(cpi);
   set_erp_speed_features_qindex_dependent(cpi);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
