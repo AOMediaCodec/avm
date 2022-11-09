@@ -1043,6 +1043,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
     case 6:
       sf->part_sf.ext_recur_depth = 1;
       sf->part_sf.simple_motion_search_split = 1;
+      sf->part_sf.simple_motion_search_early_term_none = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 5:
       sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
@@ -1303,8 +1304,8 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->inter_sf.selective_ref_frame = 2;
         sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
         sf->rd_sf.tx_domain_dist_thres_level = 1;
-        sf->part_sf.simple_motion_search_early_term_none = 1;
 #if !CONFIG_EXT_RECUR_PARTITIONS
+        sf->part_sf.simple_motion_search_early_term_none = 1;
         sf->part_sf.simple_motion_search_split =
             cm->features.allow_screen_content_tools ? 1 : 2;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS

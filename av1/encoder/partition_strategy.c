@@ -291,7 +291,11 @@ void av1_simple_motion_search_based_split(
 
   if (score > split_only_thresh) {
     *partition_none_allowed = 0;
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+    (void)partition_horz_allowed;
+    (void)partition_vert_allowed;
+    (void)do_rectangular_split;
+#else
     *partition_horz_allowed = 0;
     *partition_vert_allowed = 0;
     *do_rectangular_split = 0;

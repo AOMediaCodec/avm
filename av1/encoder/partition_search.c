@@ -4355,9 +4355,7 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
-#if !CONFIG_EXT_RECUR_PARTITIONS
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS *this_rdc = &part_search_state->this_rdc;
   const BLOCK_SIZE bsize = blk_params.bsize;
   assert(bsize < BLOCK_SIZES_ALL);
@@ -4412,23 +4410,28 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
     }
   }
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
   // Early termination: using simple_motion_search features and the
   // rate, distortion, and rdcost of PARTITION_NONE, a DNN will make a
   // decision on early terminating at PARTITION_NONE.
-  if (cpi->sf.part_sf.simple_motion_search_early_term_none && cm->show_frame &&
+  bool is_early_term_allowed =
+      cpi->sf.part_sf.simple_motion_search_early_term_none &&
       !frame_is_intra_only(cm) && bsize >= BLOCK_16X16 &&
       blk_params.mi_row_edge < mi_params->mi_rows &&
       blk_params.mi_col_edge < mi_params->mi_cols &&
       this_rdc->rdcost < INT64_MAX && this_rdc->rdcost >= 0 &&
-      this_rdc->rate < INT_MAX && this_rdc->rate >= 0 &&
-      (part_search_state->do_square_split ||
-       part_search_state->do_rectangular_split)) {
+      this_rdc->rate < INT_MAX && this_rdc->rate >= 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  is_early_term_allowed &= part_search_state->do_rectangular_split && sms_tree;
+#else
+  is_early_term_allowed &=
+      cm->show_frame && (part_search_state->do_square_split ||
+                         part_search_state->do_rectangular_split);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  if (is_early_term_allowed) {
     av1_simple_motion_search_early_term_none(
         cpi, x, sms_tree, blk_params.mi_row, blk_params.mi_col, bsize, this_rdc,
         &part_search_state->terminate_partition_search);
   }
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 }
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
@@ -5395,6 +5398,13 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  {
+    SimpleMotionData *sms_data = av1_get_sms_data_entry(
+        x->sms_bufs, mi_row, mi_col, bsize, cm->seq_params.sb_size);
+    sms_tree = sms_data->old_sms;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int *partition_horz_allowed = &part_search_state.partition_rect_allowed[HORZ];
   int *partition_vert_allowed = &part_search_state.partition_rect_allowed[VERT];
@@ -5406,14 +5416,11 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
     int do_square_split = true;
     int *sqr_split_ptr = &do_square_split;
-    // Pruning: before searching any partition type, using source and simple
-    // motion search results to prune out unlikely partitions.
-    SimpleMotionData *sms_data = av1_get_sms_data_entry(
-        x->sms_bufs, mi_row, mi_col, bsize, cm->seq_params.sb_size);
-    sms_tree = sms_data->old_sms;
 #else
   int *sqr_split_ptr = &part_search_state.do_square_split;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+    // Pruning: before searching any partition type, using source and simple
+    // motion search results to prune out unlikely partitions.
     av1_prune_partitions_before_search(
         cpi, x, mi_row, mi_col, bsize, sms_tree,
         &part_search_state.partition_none_allowed, partition_horz_allowed,
