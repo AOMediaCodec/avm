@@ -2794,6 +2794,76 @@ static AOM_INLINE bool should_chroma_track_luma_partition(
   }
   return true;
 }
+
+// Returns true if partition is implied for blocks near bottom/right
+// border, and not signaled in the bistream. And when it returns true, it also
+// sets `implied_partition` appropriately.
+// Note: `implied_partition` can be passed NULL.
+static AOM_INLINE bool is_partition_implied_at_boundary(
+    const CommonModeInfoParams *const mi_params, int mi_row, int mi_col,
+    BLOCK_SIZE bsize, PARTITION_TYPE *implied_partition) {
+  bool is_implied = false;
+  if (implied_partition) *implied_partition = PARTITION_INVALID;
+
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int has_rows = (mi_row + hbs_h) < mi_params->mi_rows;
+  const int has_cols = (mi_col + hbs_w) < mi_params->mi_cols;
+
+  if (has_rows && has_cols) return false;  // Not at boundary.
+  assert(!has_rows || !has_cols);
+
+  if (is_square_block(bsize)) {
+    is_implied = true;
+    if (implied_partition) {
+      if (has_rows && !has_cols) {
+        *implied_partition = PARTITION_VERT;
+      } else {
+        *implied_partition = PARTITION_HORZ;
+      }
+    }
+  } else if (is_tall_block(bsize)) {
+    // Force PARTITION_HORZ if
+    //  * We are missing rows, OR
+    //  * We are missing cols and PARTITION_VERT will produce 1:4 block that is
+    //    still missing cols.
+    if (!has_rows) {
+      is_implied = true;
+      if (implied_partition) *implied_partition = PARTITION_HORZ;
+    } else {
+      assert(!has_cols);
+      const bool sub_has_cols =
+          (mi_col + mi_size_wide[bsize] / 4) < mi_params->mi_cols;
+      if (mi_size_wide[bsize] >= 4 && !sub_has_cols) {
+        is_implied = true;
+        if (implied_partition) *implied_partition = PARTITION_HORZ;
+      }
+    }
+  } else {
+    assert(is_wide_block(bsize));
+    // Force PARTITION_VERT if
+    //  * We are missing cols, OR
+    //  * We are missing rows and PARTITION_HORZ will produce 1:4 block that is
+    //    still missing rows.
+    if (!has_cols) {
+      is_implied = true;
+      if (implied_partition) *implied_partition = PARTITION_VERT;
+    } else {
+      assert(!has_rows);
+      const bool sub_has_rows =
+          (mi_row + mi_size_high[bsize] / 4) < mi_params->mi_rows;
+      if (mi_size_high[bsize] >= 4 && !sub_has_rows) {
+        is_implied = true;
+        if (implied_partition) *implied_partition = PARTITION_VERT;
+      }
+    }
+  }
+  assert(IMPLIES(is_implied && implied_partition,
+                 *implied_partition == PARTITION_HORZ ||
+                     *implied_partition == PARTITION_VERT));
+  return is_implied;
+}
+
 #else
 // Return the number of sub-blocks whose width and height are
 // less than half of the parent block.

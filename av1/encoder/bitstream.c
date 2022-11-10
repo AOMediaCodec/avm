@@ -2727,6 +2727,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 
   const int plane = xd->tree_type == CHROMA_PART;
   if (bsize == BLOCK_8X8 && plane > 0) return;
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (should_chroma_track_luma_partition(xd->tree_type, ptree_luma, bsize)) {
     const int ssx = cm->seq_params.subsampling_x;
@@ -2735,6 +2736,14 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
     (void)ssy;
     assert(p ==
            sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy));
+    return;
+  }
+
+  PARTITION_TYPE implied_partition;
+  const bool is_part_implied = is_partition_implied_at_boundary(
+      &cm->mi_params, mi_row, mi_col, bsize, &implied_partition);
+  if (is_part_implied) {
+    assert(p == implied_partition);
     return;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -2751,56 +2760,17 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
   if (is_square_block(bsize)) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    const int hbs_w = mi_size_wide[bsize] / 2;
-    const int hbs_h = mi_size_high[bsize] / 2;
-    const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
-    const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-    if (has_rows && has_cols) {
-      aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
-      if (limit_rect_split) {
-        const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
-        partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
-        const int symbol =
-            get_symbol_from_limited_partition(p, parent_partition);
-        aom_write_symbol(w, symbol, partition_cdf,
-                         limited_partition_cdf_length(bsize));
-      } else {
-        aom_write_symbol(w, p, partition_cdf, partition_cdf_length(bsize));
-      }
-    } else if (!has_rows && has_cols) {
-      assert(p == PARTITION_HORZ);
-    } else if (has_rows && !has_cols) {
-      assert(p == PARTITION_VERT);
+    aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
+    if (limit_rect_split) {
+      const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
+      partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
+      const int symbol = get_symbol_from_limited_partition(p, parent_partition);
+      aom_write_symbol(w, symbol, partition_cdf,
+                       limited_partition_cdf_length(bsize));
     } else {
-      assert(p == PARTITION_HORZ);
+      aom_write_symbol(w, p, partition_cdf, partition_cdf_length(bsize));
     }
   } else {  // 1:2 or 2:1 rectangular blocks
-    const int hbs_w = mi_size_wide[bsize] / 2;
-    const int hbs_h = mi_size_high[bsize] / 2;
-    const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
-    const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
-    // Handle boundary
-    if (!has_rows || !has_cols) {
-      if (is_tall_block(bsize)) {
-        const bool sub_has_cols =
-            (mi_col + mi_size_wide[bsize] / 4) < cm->mi_params.mi_cols;
-        if (!has_rows || (mi_size_wide[bsize] >= 4 && !sub_has_cols)) {
-          assert(p == PARTITION_HORZ);
-          return;
-        }
-      } else {
-        assert(is_wide_block(bsize));
-        const bool sub_has_rows =
-            (mi_row + mi_size_high[bsize] / 4) < cm->mi_params.mi_rows;
-        if (!has_cols || (mi_size_high[bsize] >= 4 && !sub_has_rows)) {
-          assert(p = PARTITION_VERT);
-          return;
-        }
-      }
-    }
     if (limit_rect_split) {
       assert(IMPLIES(parent_partition == PARTITION_HORZ_3,
                      block_size_wide[bsize] == 2 * block_size_high[bsize]));
@@ -2822,6 +2792,10 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
     }
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
+  const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
   if (!has_rows && !has_cols) {
     assert(p == PARTITION_SPLIT);
     return;
