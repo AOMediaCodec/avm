@@ -716,12 +716,13 @@ extern "C" int TFlite_Predict_quadtree_hbd(
     }
   }
 
-  int scale, A0_min, A1_min;
+  int scale0, scale1, A0_min, A1_min;
   int *quadtset;
   quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
-  scale = quadtset[0];
-  A0_min = quadtset[1];
-  A1_min = quadtset[2];
+  scale0 = quadtset[0];
+  scale1 = quadtset[1];
+  A0_min = quadtset[2];
+  A1_min = quadtset[3];
 
   int cols = int(ceil(double(height) / unit_height));
   int rows = int(ceil(double(width) / unit_width));
@@ -882,8 +883,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
         A0 += mid[0][i] * sub_r_flatten[i];
         A1 += mid[1][i] * sub_r_flatten[i];
       }
-      A0 = A0 * scale;
-      A1 = A1 * scale;
+      A0 = A0 * scale0;
+      A1 = A1 * scale1;
       A0 = int(round(A0));
       A1 = int(round(A1));
       if (A0 < A0_min) {
@@ -905,8 +906,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
       // printf("A0:%lf  A1:%lf\n", A0, A1);
       for (int i = start_clow; i < end_clow; i++) {
         for (int j = start_row; j < end_row; j++) {
-          repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale +
-                                  A1 * r1[i][j] / scale));
+          repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
+                                  A1 * r1[i][j] / scale1));
           // repic[i][j] = int(round(sub_dgr[i][j]));
           repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
         }
@@ -1080,12 +1081,13 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
       r1[r][c] = output[r * 2 * out_stride + c * 2 + 1] * max_val;
     }
   }
-  int scale, A0_min, A1_min;
+  int scale0, scale1, A0_min, A1_min;
   int *quadtset;
   quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
-  scale = quadtset[0];
-  A0_min = quadtset[1];
-  A1_min = quadtset[2];
+  scale0 = quadtset[0];
+  scale1 = quadtset[1];
+  A0_min = quadtset[2];
+  A1_min = quadtset[3];
 
   int index_A = 0;
   int index_split = 0;
@@ -1123,8 +1125,8 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
           for (int i = start_row; i < end_row; i++) {
             for (int j = start_clow; j < end_clow; j++) {
-              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale +
-                                      a1 * r1[i][j] / scale));
+              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                      a1 * r1[i][j] / scale1));
               repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
             }
           }
@@ -1178,8 +1180,8 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
             for (int i = start_row; i < end_row; i++) {
               for (int j = start_clow; j < end_clow; j++) {
-                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale +
-                                        a1 * r1[i][j] / scale));
+                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                        a1 * r1[i][j] / scale1));
                 repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
               }
             }
@@ -1224,8 +1226,8 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
             for (int i = start_row; i < end_row; i++) {
               for (int j = start_clow; j < end_clow; j++) {
-                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale +
-                                        a1 * r1[i][j] / scale));
+                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                        a1 * r1[i][j] / scale1));
                 repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
               }
             }
@@ -1269,8 +1271,8 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
             for (int i = start_row; i < end_row; i++) {
               for (int j = start_clow; j < end_clow; j++) {
-                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale +
-                                        a1 * r1[i][j] / scale));
+                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                        a1 * r1[i][j] / scale1));
                 repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
               }
             }
@@ -1398,12 +1400,13 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
       r1[r][c] = output[r * 2 * out_stride + c * 2 + 1] * max_val;
     }
   }
-  int scale, A0_min, A1_min;
+  int scale0, scale1, A0_min, A1_min;
   int *quadtset;
   quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
-  scale = quadtset[0];
-  A0_min = quadtset[1];
-  A1_min = quadtset[2];
+  scale0 = quadtset[0];
+  scale1 = quadtset[1];
+  A0_min = quadtset[2];
+  A1_min = quadtset[3];
 
   int index_A = 0;
   int index_regular_A = 0;
@@ -1433,8 +1436,8 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
 
         for (int i = start_row; i < end_row; i++) {
           for (int j = start_clow; j < end_clow; j++) {
-            repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale +
-                                    a1 * r1[i][j] / scale));
+            repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                    a1 * r1[i][j] / scale1));
             repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
           }
         }
@@ -1468,8 +1471,8 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
 
           for (int i = start_row; i < end_row; i++) {
             for (int j = start_clow; j < end_clow; j++) {
-              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale +
-                                      a1 * r1[i][j] / scale));
+              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                      a1 * r1[i][j] / scale1));
               repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
             }
           }
