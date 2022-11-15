@@ -163,47 +163,42 @@ int CalculateIndex_tflite(int width, int block_size_h, int block_size_w,
   return index;
 }
 
-int qp235_quadtree_model_quantSet[] = { 64, 0, -16 };     // unet
-int qp210_quadtree_model_quantSet[] = { 64, 0, -16 };     // unet
-int qp185_quadtree_model_quantSet[] = { 64, 0, -30 };     // unet
-int qp160_quadtree_model_quantSet[] = { 128, 14, -32 };   // unet
-int qp135_quadtree_model_quantSet[] = { 256, 32, -48 };   // unet
-int qp110_quadtree_model_quantSet[] = { 2048, 20, -36 };  // unet
-int qp85_quadtree_model_quantSet[] = { 2048, 7, -22 };    // unet
+int qp255_quadtree_model_quantSet[] = { 64, 64, 0, -16 };     // unet
+int qp205_quadtree_model_quantSet[] = { 64, 64, 0, -30 };     // unet
+int qp175_quadtree_model_quantSet[] = { 128, 128, 14, -32 };   // unet
+int qp145_quadtree_model_quantSet[] = { 256, 256, 32, -48 };   // unet
+int qp120_quadtree_model_quantSet[] = { 2048, 2048, 20, -36 };  // unet
+int qp90_quadtree_model_quantSet[] = { 2048, 2048, 7, -22 };    // unet
 
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_luma,
                               int cnn_index) {
   if (superres_denom == SCALE_NUMERATOR) {  // quadtree
     if (is_luma) {
-      if (qindex <= 85) {
-        return (cnn_index == 0)   ? qp85_quadtree_model_quantSet
-               : (cnn_index == 1) ? qp110_quadtree_model_quantSet
-                                  : qp135_quadtree_model_quantSet;
+      if (qindex <= 90) {
+        return (cnn_index == 0)   ? qp90_quadtree_model_quantSet
+               : (cnn_index == 1) ? qp120_quadtree_model_quantSet
+                                  : qp145_quadtree_model_quantSet;
 
-      } else if (qindex <= 110) {
-        return (cnn_index == 0)   ? qp110_quadtree_model_quantSet
-               : (cnn_index == 1) ? qp85_quadtree_model_quantSet
-                                  : qp135_quadtree_model_quantSet;
-      } else if (qindex <= 135) {
-        return (cnn_index == 0)   ? qp135_quadtree_model_quantSet
-               : (cnn_index == 1) ? qp110_quadtree_model_quantSet
-                                  : qp160_quadtree_model_quantSet;
-      } else if (qindex <= 160) {
-        return (cnn_index == 0)   ? qp160_quadtree_model_quantSet
-               : (cnn_index == 1) ? qp135_quadtree_model_quantSet
-                                  : qp185_quadtree_model_quantSet;
-      } else if (qindex <= 185) {
-        return (cnn_index == 0)   ? qp185_quadtree_model_quantSet
-               : (cnn_index == 1) ? qp160_quadtree_model_quantSet
-                                  : qp210_quadtree_model_quantSet;
-      } else if (qindex <= 210) {
-        return (cnn_index == 0)   ? qp210_quadtree_model_quantSet
-               : (cnn_index == 1) ? qp185_quadtree_model_quantSet
-                                  : qp235_quadtree_model_quantSet;
+      } else if (qindex <= 120) {
+        return (cnn_index == 0)   ? qp120_quadtree_model_quantSet
+               : (cnn_index == 1) ? qp90_quadtree_model_quantSet
+                                  : qp145_quadtree_model_quantSet;
+      } else if (qindex <= 145) {
+        return (cnn_index == 0)   ? qp145_quadtree_model_quantSet
+               : (cnn_index == 1) ? qp120_quadtree_model_quantSet
+                                  : qp175_quadtree_model_quantSet;
+      } else if (qindex <= 175) {
+        return (cnn_index == 0)   ? qp175_quadtree_model_quantSet
+               : (cnn_index == 1) ? qp145_quadtree_model_quantSet
+                                  : qp205_quadtree_model_quantSet;
+      } else if (qindex <= 205) {
+        return (cnn_index == 0)   ? qp205_quadtree_model_quantSet
+               : (cnn_index == 1) ? qp175_quadtree_model_quantSet
+                                  : qp255_quadtree_model_quantSet;
       } else {
-        return (cnn_index == 0)   ? qp235_quadtree_model_quantSet
-               : (cnn_index == 1) ? qp210_quadtree_model_quantSet
-                                  : qp185_quadtree_model_quantSet;
+        return (cnn_index == 0)   ? qp255_quadtree_model_quantSet
+               : (cnn_index == 1) ? qp205_quadtree_model_quantSet
+                                  : qp175_quadtree_model_quantSet;
       }
     }
   }
