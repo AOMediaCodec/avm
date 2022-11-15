@@ -424,11 +424,14 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(
     int qindex, int superres_denom, const uint16_t *dgd, int width, int height,
     int dgd_stride, uint16_t *rst, int rst_stride, int num_threads,
     int bit_depth, int is_intra_only, int is_luma, int cnn_index) {
+  // Ensure image can be downscaled by factor of 8 on each axis
+  int padding_width = int(ceil(float(width)/8.0)*8);
+  int padding_height = int(ceil(float(height)/8.0)*8);
 #if USE_XNNPACK
   TfLiteDelegate *xnnpack_delegate = get_tflite_xnnpack_delegate(num_threads);
 #endif  // USE_XNNPACK
   std::unique_ptr<tflite::Interpreter> interpreter =
-      get_tflite_interpreter(qindex, superres_denom, width, height, num_threads,
+      get_tflite_interpreter(qindex, superres_denom, padding_width, padding_height, num_threads,
                              is_intra_only, is_luma, cnn_index
 #if USE_XNNPACK
                              ,
@@ -438,14 +441,28 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(
 
   // Prepare input.
   const auto max_val = static_cast<float>((1 << bit_depth) - 1);
-  const int in_stride = width;
+  const int in_stride = padding_width;
   auto input = interpreter->typed_input_tensor<float>(0);
-  for (int r = 0; r < height; ++r) {
-    for (int c = 0; c < width; ++c) {
-      input[r * in_stride + c] =
-          static_cast<float>(dgd[r * dgd_stride + c]) / max_val;
-      assert(input[r * in_stride + c] >= 0.0f);
-      assert(input[r * in_stride + c] <= 1.0f);
+  for (int r = 0; r < padding_height; ++r) {
+    for (int c = 0; c < padding_width; ++c) {
+      if(r < height && c < width){
+        input[r * in_stride + c] =
+            static_cast<float>(dgd[r * dgd_stride + c]) / max_val;
+        assert(input[r * in_stride + c] >= 0.0f);
+        assert(input[r * in_stride + c] <= 1.0f);
+      } else {
+        // Padding with either zeros or by copies
+        //input[r * in_stride + c] = 0;  // Pad with zeros
+        int w_copy_idx = c;
+        if(c >= width) {
+          w_copy_idx = width + (width - c) - 1;
+        }
+        int h_copy_idx = r;
+        if(r >= height) {
+          h_copy_idx = height + (height - r) - 1;
+        }
+        input[r * in_stride + c] = input[h_copy_idx * in_stride + w_copy_idx];
+      }
     }
   }
 

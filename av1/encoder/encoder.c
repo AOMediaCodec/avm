@@ -2506,7 +2506,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       }
       apply_loop_restoration(cpi, cm);
 
-      /*
+
       fprintf(stderr,
               "\ngf_index = %d, use_cnn[0] = %d, use_cnn[1] = %d, "
               "use_cnn[2] = %d",
@@ -2516,7 +2516,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
         fprintf(stderr, ", cnn_indices[0] = %d", cm->cnn_indices[0]);
       }
       fprintf(stderr, "\n");
-      */
+
     } else {
 #endif  // CONFIG_CNN_RESTORATION
       pick_and_apply_loop_restoration(cpi, cm);
