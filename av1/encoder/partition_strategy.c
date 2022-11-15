@@ -1371,7 +1371,7 @@ void av1_prune_partitions_before_search(
         av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
                                  cm->seq_params.sb_size, PARTITION_VERT);
         const int mi_step = block_size_wide[bsize] / 2;
-        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_VERT);
         av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
                                  cm->seq_params.sb_size, PARTITION_HORZ);
         av1_cache_best_partition(x->sms_bufs, mi_row, mi_col + mi_step, subsize,

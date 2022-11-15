@@ -5409,7 +5409,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   int *partition_horz_allowed = &part_search_state.partition_rect_allowed[HORZ];
   int *partition_vert_allowed = &part_search_state.partition_rect_allowed[VERT];
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (forced_partition == PARTITION_INVALID) {
+  if (forced_partition == PARTITION_INVALID &&
+      is_bsize_gt(bsize, x->sb_enc.min_partition_size)) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     int *prune_horz = &part_search_state.prune_rect_part[HORZ];
     int *prune_vert = &part_search_state.prune_rect_part[VERT];
