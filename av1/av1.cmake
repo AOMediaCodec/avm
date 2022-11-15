@@ -521,20 +521,18 @@ if(CONFIG_CNN_RESTORATION)
       AOM_AV1_COMMON_SOURCES
       "${AOM_ROOT}/av1/common/guided_quadtree.c"
       "${AOM_ROOT}/av1/common/guided_quadtree.h"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp85_quadtree.cc"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp85_quadtree.h"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp110_quadtree.cc"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp110_quadtree.h"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp135_quadtree.cc"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp135_quadtree.h"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp160_quadtree.cc"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp160_quadtree.h"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp185_quadtree.cc"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp185_quadtree.h"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp210_quadtree.cc"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp210_quadtree.h"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp235_quadtree.cc"
-      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp235_quadtree.h")
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp0_90_quadtree.cc"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp0_90_quadtree.h"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp91_120_quadtree.cc"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp91_120_quadtree.h"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp121_145_quadtree.cc"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp121_145_quadtree.h"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp146_175_quadtree.cc"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp146_175_quadtree.h"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp176_205_quadtree.cc"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp176_205_quadtree.h"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp206_255_quadtree.cc"
+      "${AOM_ROOT}/av1/tflite_models/intra_frame_model/qp206_255_quadtree.h")
   endif()
 endif()
 

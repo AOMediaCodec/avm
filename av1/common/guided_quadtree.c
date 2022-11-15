@@ -21,10 +21,10 @@
 #include "av1/common/reconinter.h"
 #include "av1/encoder/cost.h"
 
-#if CONFIG_CNN_GUIDED_QUADTREE
-
-#include "av1/tflite_models/intra_frame_model/qp235_quadtree.cc"
-#endif
+//#if CONFIG_CNN_GUIDED_QUADTREE
+//
+//#include "av1/tflite_models/intra_frame_model/qp235_quadtree.cc"
+//#endif
 
 // utils
 
