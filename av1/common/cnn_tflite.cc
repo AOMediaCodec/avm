@@ -902,6 +902,7 @@ extern "C" int TFlite_Predict_quadtree_hbd(
         A1 = A1_min + 15;
       }
       A[index_A] = int(A1);
+      //fprintf(stderr, "ENCODER A VALUES ARE %d, %d\n", int(A0), int(A1));
       index_A = index_A + 1;
       // printf("A0:%lf  A1:%lf\n", A0, A1);
       for (int i = start_clow; i < end_clow; i++) {
