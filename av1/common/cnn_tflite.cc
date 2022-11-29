@@ -66,6 +66,12 @@
 #endif  // CONFIG_EXT_SUPERRES
 
 #if CONFIG_CNN_GUIDED_QUADTREE
+#include "av1/tflite_models/inter_frame_model/qp0_90_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp91_120_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp121_145_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp146_175_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp176_205_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp206_255_quadtree.h"
 #include "av1/tflite_models/intra_frame_model/qp0_90_quadtree.h"
 #include "av1/tflite_models/intra_frame_model/qp91_120_quadtree.h"
 #include "av1/tflite_models/intra_frame_model/qp121_145_quadtree.h"
@@ -249,29 +255,29 @@ static const unsigned char *get_inter_model_from_qindex(int qindex,
   if (superres_denom == SCALE_NUMERATOR) {  // quadtree
     if (is_luma) {
       if (qindex <= 90) {
-        return (cnn_index == 0)   ? qp0_90_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp91_120_quadtree_model_tflite_data
-                                  : qp121_145_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp0_90_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp91_120_quadtree_inter_model_tflite_data
+                                  : qp121_145_quadtree_inter_model_tflite_data;
       } else if (qindex <= 120) {
-        return (cnn_index == 0)   ? qp91_120_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp0_90_quadtree_model_tflite_data
-                                  : qp121_145_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp91_120_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp0_90_quadtree_inter_model_tflite_data
+                                  : qp121_145_quadtree_inter_model_tflite_data;
       } else if (qindex <= 145) {
-        return (cnn_index == 0)   ? qp121_145_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp91_120_quadtree_model_tflite_data
-                                  : qp146_175_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp121_145_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp91_120_quadtree_inter_model_tflite_data
+                                  : qp146_175_quadtree_inter_model_tflite_data;
       } else if (qindex <= 175) {
-        return (cnn_index == 0)   ? qp146_175_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp121_145_quadtree_model_tflite_data
-                                  : qp176_205_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp146_175_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp121_145_quadtree_inter_model_tflite_data
+                                  : qp176_205_quadtree_inter_model_tflite_data;
       } else if (qindex <= 205) {
-        return (cnn_index == 0)   ? qp176_205_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp146_175_quadtree_model_tflite_data
-                                  : qp206_255_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp176_205_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp146_175_quadtree_inter_model_tflite_data
+                                  : qp206_255_quadtree_inter_model_tflite_data;
       } else {
-        return (cnn_index == 0)   ? qp206_255_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp176_205_quadtree_model_tflite_data
-                                  : qp146_175_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp206_255_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp176_205_quadtree_inter_model_tflite_data
+                                  : qp146_175_quadtree_inter_model_tflite_data;
       }
     }
   }
