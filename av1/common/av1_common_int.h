@@ -542,10 +542,8 @@ typedef struct SequenceHeader {
   uint8_t enable_parity_hiding;  // To turn on/off PAR_HIDING
 #endif                           // CONFIG_PAR_HIDING
 #if CONFIG_EXT_RECUR_PARTITIONS
-  uint8_t disable_3way_part_64xn;  // disable 3way part in 64xn/nx64(n <= 64)
-  uint8_t disable_3way_part_32xn;  // disable 3way part in 32xn/nx32(n <= 32)
-  uint8_t disable_3way_part_16xn;  // disable 3way part in 16xn/nx16(n <= 16)
-#endif                             // CONFIG_EXT_RECUR_PARTITIONS
+  uint8_t enable_ternary_partitions;  // enable ternary partitions
+#endif                                // CONFIG_EXT_RECUR_PARTITIONS
   BITSTREAM_PROFILE profile;
 
   // Color config.

@@ -2759,11 +2759,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const bool limit_rect_split = is_middle_block &&
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
-  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
-  const bool disable_ext_part =
-      (max_1dsize == 64 && cm->seq_params.disable_3way_part_64xn) ||
-      (max_1dsize == 32 && cm->seq_params.disable_3way_part_32xn) ||
-      (max_1dsize == 16 && cm->seq_params.disable_3way_part_16xn);
+  const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
   if (is_square_block(bsize)) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -4441,9 +4437,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
 #if CONFIG_EXT_RECUR_PARTITIONS
-  aom_wb_write_bit(wb, seq_params->disable_3way_part_64xn);
-  aom_wb_write_bit(wb, seq_params->disable_3way_part_32xn);
-  aom_wb_write_bit(wb, seq_params->disable_3way_part_16xn);
+  aom_wb_write_bit(wb, seq_params->enable_ternary_partitions);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 

@@ -217,17 +217,9 @@ typedef struct {
    * */
   int use_ml_erp_pruning;
   /*!
-   * Flag to indicate if ternary partitions are disabled in 64xN/Nx64(N<=64).
+   * Flag to indicate if ternary partitions are enabled.
    * */
-  unsigned int disable_3way_part_64xn;
-  /*!
-   * Flag to indicate if ternary partitions are disabled in 32xN/Nx32(N<=32).
-   * */
-  unsigned int disable_3way_part_32xn;
-  /*!
-   * Flag to indicate if ternary partitions are disabled in 16xN/Nx16(N<=16).
-   * */
-  unsigned int disable_3way_part_16xn;
+  unsigned int enable_ternary_partitions;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!
    * Flag to indicate if rectanguar partitions should be enabled.

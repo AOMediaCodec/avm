@@ -86,9 +86,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(erp_pruning_level);
     GET_PARAMS(use_ml_erp_pruning);
-    GET_PARAMS(disable_3way_part_64xn);
-    GET_PARAMS(disable_3way_part_32xn);
-    GET_PARAMS(disable_3way_part_16xn);
+    GET_PARAMS(enable_ternary_partitions);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(enable_sdp);
     GET_PARAMS(enable_mrls);

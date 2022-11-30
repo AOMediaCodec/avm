@@ -425,9 +425,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_EXT_RECUR_PARTITIONS
   &g_av1_codec_arg_defs.erp_pruning_level,
   &g_av1_codec_arg_defs.use_ml_erp_pruning,
-  &g_av1_codec_arg_defs.disable_3way_part_64xn,
-  &g_av1_codec_arg_defs.disable_3way_part_32xn,
-  &g_av1_codec_arg_defs.disable_3way_part_16xn,
+  &g_av1_codec_arg_defs.enable_ternary_partitions,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   &g_av1_codec_arg_defs.enable_sdp,
   &g_av1_codec_arg_defs.enable_mrls,
@@ -631,9 +629,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   config->erp_pruning_level = 5;
   config->use_ml_erp_pruning = 0;
-  config->disable_3way_part_64xn = 0;
-  config->disable_3way_part_32xn = 0;
-  config->disable_3way_part_16xn = 0;
+  config->enable_ternary_partitions = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;
   config->enable_mrls = 1;

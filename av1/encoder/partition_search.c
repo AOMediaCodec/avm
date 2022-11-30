@@ -2291,11 +2291,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
-  const bool disable_ext_part =
-      (max_1dsize == 64 && cm->seq_params.disable_3way_part_64xn) ||
-      (max_1dsize == 32 && cm->seq_params.disable_3way_part_32xn) ||
-      (max_1dsize == 16 && cm->seq_params.disable_3way_part_16xn);
+  const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
 #else
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -3217,11 +3213,7 @@ static void init_partition_search_state_params(
   const bool limit_rect_split = is_middle_block &&
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
-  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
-  const bool disable_ext_part =
-      (max_1dsize == 64 && cm->seq_params.disable_3way_part_64xn) ||
-      (max_1dsize == 32 && cm->seq_params.disable_3way_part_32xn) ||
-      (max_1dsize == 16 && cm->seq_params.disable_3way_part_16xn);
+  const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
   const int pl = part_search_state->pl_ctx_idx;
   const int plane_index = xd->tree_type == CHROMA_PART;
   if (is_square_block(bsize)) {
@@ -5806,13 +5798,9 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_EXT_RECUR_PARTITIONS
   const int ext_partition_allowed = !is_partition_implied_at_boundary(
       &cm->mi_params, mi_row, mi_col, bsize, NULL);
-  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
   const int partition_3_allowed =
       ext_partition_allowed && bsize != BLOCK_128X128 &&
-      max_recursion_depth > 0 &&
-      IMPLIES(max_1dsize == 64, !cpi->oxcf.part_cfg.disable_3way_part_64xn) &&
-      IMPLIES(max_1dsize == 32, !cpi->oxcf.part_cfg.disable_3way_part_32xn) &&
-      IMPLIES(max_1dsize == 16, !cpi->oxcf.part_cfg.disable_3way_part_16xn);
+      max_recursion_depth > 0 && cpi->oxcf.part_cfg.enable_ternary_partitions;
   const int is_wide_block = block_size_wide[bsize] > block_size_high[bsize];
   const int is_tall_block = block_size_wide[bsize] < block_size_high[bsize];
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;

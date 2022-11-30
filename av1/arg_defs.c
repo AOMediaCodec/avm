@@ -364,18 +364,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .use_ml_erp_pruning = ARG_DEF(NULL, "use-ml-erp-pruning", 1,
                                 "Use ML model to perform ERP Pruning."
                                 "(0: off (default), 1: on)."),
-  .disable_3way_part_64xn =
-      ARG_DEF(NULL, "disable-3way-part-64xn", 1,
-              "Disable ternary partitions in 64xN/Nx64 (N<=64) blocks."
-              "(0: off (default), 1: on)."),
-  .disable_3way_part_32xn =
-      ARG_DEF(NULL, "disable-3way-part-32xn", 1,
-              "Disable ternary partitions in 32xN/Nx32 (N<=32) blocks."
-              "(0: off (default), 1: on)."),
-  .disable_3way_part_16xn =
-      ARG_DEF(NULL, "disable-3way-part-16xn", 1,
-              "Disable ternary partitions in 16xN/Nx16 (N<=16) blocks."
-              "(0: off (default), 1: on)."),
+  .enable_ternary_partitions = ARG_DEF(NULL, "enable-ternary-partitions", 1,
+                                       "Enable ternary partitions"
+                                       "(0: off (default), 1: on)."),
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   .enable_rect_partitions = ARG_DEF(NULL, "enable-rect-partitions", 1,
                                     "Enable rectangular partitions "
