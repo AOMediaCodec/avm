@@ -2045,6 +2045,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                                    int allow_update_cdf,
                                    const CommonModeInfoParams *const mi_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
+                                   int disable_ext_part,
                                    PARTITION_TREE const *ptree,
                                    PARTITION_TREE const *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -2087,47 +2088,84 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
   if (is_square_block(bsize)) {
-    if (limit_rect_split) {
-      const int dir_idx = (parent_partition == PARTITION_HORZ_3) ? 0 : 1;
-      const int symbol =
-          get_symbol_from_limited_partition(partition, parent_partition);
+    if (disable_ext_part) {
+      if (limit_rect_split) {
+        const int dir_idx = (parent_partition == PARTITION_HORZ_3) ? 0 : 1;
+        const int symbol = get_symbol_from_limited_partition_noext(
+            partition, parent_partition);
 
-#if CONFIG_ENTROPY_STATS
-      counts->limited_partition[plane_index][dir_idx][ctx][symbol]++;
-#endif  // CONFIG_ENTROPY_STATS
-      if (allow_update_cdf) {
-        update_cdf(fc->limited_partition_cdf[plane_index][dir_idx][ctx], symbol,
-                   limited_partition_cdf_length(bsize));
+        if (allow_update_cdf) {
+          update_cdf(fc->limited_partition_noext_cdf[plane_index][dir_idx][ctx],
+                     symbol, LIMITED_PARTITION_TYPES);
+        }
+      } else {
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_noext_cdf[plane_index][ctx], partition,
+                     PARTITION_TYPES);
+        }
       }
     } else {
+      if (limit_rect_split) {
+        const int dir_idx = (parent_partition == PARTITION_HORZ_3) ? 0 : 1;
+        const int symbol =
+            get_symbol_from_limited_partition(partition, parent_partition);
+
 #if CONFIG_ENTROPY_STATS
-      counts->partition[plane_index][ctx][partition]++;
+        counts->limited_partition[plane_index][dir_idx][ctx][symbol]++;
 #endif  // CONFIG_ENTROPY_STATS
-      if (allow_update_cdf) {
-        update_cdf(fc->partition_cdf[plane_index][ctx], partition,
-                   partition_cdf_length(bsize));
+        if (allow_update_cdf) {
+          update_cdf(fc->limited_partition_cdf[plane_index][dir_idx][ctx],
+                     symbol, limited_partition_cdf_length(bsize));
+        }
+      } else {
+#if CONFIG_ENTROPY_STATS
+        counts->partition[plane_index][ctx][partition]++;
+#endif  // CONFIG_ENTROPY_STATS
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_cdf[plane_index][ctx], partition,
+                     partition_cdf_length(bsize));
+        }
       }
     }
   } else {  // Rectangular blocks
-    const PARTITION_TYPE_REC p_rec =
-        get_symbol_from_partition_rec_block(bsize, partition);
-    if (limit_rect_split) {
-#if CONFIG_ENTROPY_STATS
-      counts->partition_middle_rec[ctx][p_rec]++;
-#endif  // CONFIG_ENTROPY_STATS
-
-      if (allow_update_cdf) {
-        update_cdf(fc->partition_middle_rec_cdf[ctx], p_rec,
-                   partition_middle_rec_cdf_length(bsize));
+    if (disable_ext_part) {
+      if (limit_rect_split) {
+        const PARTITION_TYPE_REC p_rec =
+            get_symbol_from_limited_partition_noext(partition,
+                                                    parent_partition);
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_middle_noext_rec_cdf[ctx], p_rec,
+                     partition_middle_noext_rec_cdf_length(bsize));
+        }
+      } else {
+        const PARTITION_TYPE_REC p_rec =
+            get_symbol_from_partition_noext_rec_block(bsize, partition);
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_noext_rec_cdf[ctx], p_rec,
+                     partition_noext_rec_cdf_length(bsize));
+        }
       }
     } else {
+      const PARTITION_TYPE_REC p_rec =
+          get_symbol_from_partition_rec_block(bsize, partition);
+      if (limit_rect_split) {
 #if CONFIG_ENTROPY_STATS
-      counts->partition_rec[ctx][p_rec]++;
+        counts->partition_middle_rec[ctx][p_rec]++;
 #endif  // CONFIG_ENTROPY_STATS
 
-      if (allow_update_cdf) {
-        update_cdf(fc->partition_rec_cdf[ctx], p_rec,
-                   partition_rec_cdf_length(bsize));
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_middle_rec_cdf[ctx], p_rec,
+                     partition_middle_rec_cdf_length(bsize));
+        }
+      } else {
+#if CONFIG_ENTROPY_STATS
+        counts->partition_rec[ctx][p_rec]++;
+#endif  // CONFIG_ENTROPY_STATS
+
+        if (allow_update_cdf) {
+          update_cdf(fc->partition_rec_cdf[ctx], p_rec,
+                     partition_rec_cdf_length(bsize));
+        }
       }
     }
   }
@@ -2252,9 +2290,15 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                       : -1;
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
-#if !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
+  const bool disable_ext_part =
+      (max_1dsize == 64 && cm->seq_params.disable_3way_part_64xn) ||
+      (max_1dsize == 32 && cm->seq_params.disable_3way_part_32xn) ||
+      (max_1dsize == 16 && cm->seq_params.disable_3way_part_16xn);
+#else
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
-#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (subsize == BLOCK_INVALID) return;
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -2268,7 +2312,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
                            tile_data->allow_update_cdf, mi_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
-                           ptree, ptree_luma,
+                           disable_ext_part, ptree, ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                            partition, mi_row, mi_col, bsize, ctx);
 
@@ -3173,47 +3217,101 @@ static void init_partition_search_state_params(
   const bool limit_rect_split = is_middle_block &&
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
+  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
+  const bool disable_ext_part =
+      (max_1dsize == 64 && cm->seq_params.disable_3way_part_64xn) ||
+      (max_1dsize == 32 && cm->seq_params.disable_3way_part_32xn) ||
+      (max_1dsize == 16 && cm->seq_params.disable_3way_part_16xn);
   const int pl = part_search_state->pl_ctx_idx;
   const int plane_index = xd->tree_type == CHROMA_PART;
   if (is_square_block(bsize)) {
-    if (limit_rect_split) {
-      const PARTITION_TYPE parent_part =
-          (pc_tree->parent->horizontal3[1] == pc_tree) ? PARTITION_HORZ_3
-                                                       : PARTITION_VERT_3;
-      const int dir = (parent_part == PARTITION_HORZ_3) ? 0 : 1;
-      for (PARTITION_TYPE p = PARTITION_NONE; p < EXT_PARTITION_TYPES; ++p) {
-        const int symbol = get_symbol_from_limited_partition(p, parent_part);
-        if (symbol == PARTITION_INVALID_REC) {
-          part_search_state->partition_cost_table[p] = INT_MAX;
-        } else {
-          part_search_state->partition_cost_table[p] =
-              mode_costs->limited_partition_cost[plane_index][dir][pl][symbol];
+    if (disable_ext_part) {
+      if (limit_rect_split) {
+        const PARTITION_TYPE parent_part =
+            (pc_tree->parent->horizontal3[1] == pc_tree) ? PARTITION_HORZ_3
+                                                         : PARTITION_VERT_3;
+        const int dir = (parent_part == PARTITION_HORZ_3) ? 0 : 1;
+        for (PARTITION_TYPE p = PARTITION_NONE; p < EXT_PARTITION_TYPES; ++p) {
+          const int symbol =
+              get_symbol_from_limited_partition_noext(p, parent_part);
+          if (symbol == PARTITION_INVALID_REC) {
+            part_search_state->partition_cost_table[p] = INT_MAX;
+          } else {
+            part_search_state->partition_cost_table[p] =
+                mode_costs->limited_partition_noext_cost[plane_index][dir][pl]
+                                                        [symbol];
+          }
+          part_search_state->partition_cost =
+              part_search_state->partition_cost_table;
         }
+      } else {
         part_search_state->partition_cost =
-            part_search_state->partition_cost_table;
+            mode_costs->partition_noext_cost[plane_index][pl];
       }
     } else {
-      part_search_state->partition_cost =
-          mode_costs->partition_cost[plane_index][pl];
+      if (limit_rect_split) {
+        const PARTITION_TYPE parent_part =
+            (pc_tree->parent->horizontal3[1] == pc_tree) ? PARTITION_HORZ_3
+                                                         : PARTITION_VERT_3;
+        const int dir = (parent_part == PARTITION_HORZ_3) ? 0 : 1;
+        for (PARTITION_TYPE p = PARTITION_NONE; p < EXT_PARTITION_TYPES; ++p) {
+          const int symbol = get_symbol_from_limited_partition(p, parent_part);
+          if (symbol == PARTITION_INVALID_REC) {
+            part_search_state->partition_cost_table[p] = INT_MAX;
+          } else {
+            part_search_state->partition_cost_table[p] =
+                mode_costs
+                    ->limited_partition_cost[plane_index][dir][pl][symbol];
+          }
+          part_search_state->partition_cost =
+              part_search_state->partition_cost_table;
+        }
+      } else {
+        part_search_state->partition_cost =
+            mode_costs->partition_cost[plane_index][pl];
+      }
     }
   } else {
     for (PARTITION_TYPE p = PARTITION_NONE; p < EXT_PARTITION_TYPES; ++p) {
-      PARTITION_TYPE_REC p_rec = get_symbol_from_partition_rec_block(bsize, p);
-      if (limit_rect_split) {
-        if ((pc_tree->parent->horizontal3[1] == pc_tree &&
-             p == PARTITION_HORZ) ||
-            (pc_tree->parent->vertical3[1] == pc_tree && p == PARTITION_VERT)) {
-          p_rec = PARTITION_INVALID_REC;
+      PARTITION_TYPE_REC p_rec = PARTITION_INVALID_REC;
+      if (disable_ext_part) {
+        if (limit_rect_split) {
+          const PARTITION_TYPE parent_part =
+              (pc_tree->parent->horizontal3[1] == pc_tree) ? PARTITION_HORZ_3
+                                                           : PARTITION_VERT_3;
+          p_rec = get_symbol_from_limited_partition_noext(p, parent_part);
+        } else {
+          p_rec = get_symbol_from_partition_noext_rec_block(bsize, p);
+        }
+      } else {
+        p_rec = get_symbol_from_partition_rec_block(bsize, p);
+        if (limit_rect_split) {
+          if ((pc_tree->parent->horizontal3[1] == pc_tree &&
+               p == PARTITION_HORZ) ||
+              (pc_tree->parent->vertical3[1] == pc_tree &&
+               p == PARTITION_VERT)) {
+            p_rec = PARTITION_INVALID_REC;
+          }
         }
       }
 
       if (p_rec != PARTITION_INVALID_REC) {
-        if (limit_rect_split) {
-          part_search_state->partition_cost_table[p] =
-              mode_costs->partition_middle_rec_cost[pl][p_rec];
+        if (disable_ext_part) {
+          if (limit_rect_split) {
+            part_search_state->partition_cost_table[p] =
+                mode_costs->partition_middle_noext_rec_cost[pl][p_rec];
+          } else {
+            part_search_state->partition_cost_table[p] =
+                mode_costs->partition_noext_rec_cost[pl][p_rec];
+          }
         } else {
-          part_search_state->partition_cost_table[p] =
-              mode_costs->partition_rec_cost[pl][p_rec];
+          if (limit_rect_split) {
+            part_search_state->partition_cost_table[p] =
+                mode_costs->partition_middle_rec_cost[pl][p_rec];
+          } else {
+            part_search_state->partition_cost_table[p] =
+                mode_costs->partition_rec_cost[pl][p_rec];
+          }
         }
       } else {
         part_search_state->partition_cost_table[p] = INT_MAX;
@@ -5708,9 +5806,13 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_EXT_RECUR_PARTITIONS
   const int ext_partition_allowed = !is_partition_implied_at_boundary(
       &cm->mi_params, mi_row, mi_col, bsize, NULL);
-  const int partition_3_allowed = ext_partition_allowed &&
-                                  bsize != BLOCK_128X128 &&
-                                  max_recursion_depth > 0;
+  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
+  const int partition_3_allowed =
+      ext_partition_allowed && bsize != BLOCK_128X128 &&
+      max_recursion_depth > 0 &&
+      IMPLIES(max_1dsize == 64, !cpi->oxcf.part_cfg.disable_3way_part_64xn) &&
+      IMPLIES(max_1dsize == 32, !cpi->oxcf.part_cfg.disable_3way_part_32xn) &&
+      IMPLIES(max_1dsize == 16, !cpi->oxcf.part_cfg.disable_3way_part_16xn);
   const int is_wide_block = block_size_wide[bsize] > block_size_high[bsize];
   const int is_tall_block = block_size_wide[bsize] < block_size_high[bsize];
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;

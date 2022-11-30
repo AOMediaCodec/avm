@@ -108,10 +108,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #if CONFIG_EXT_RECUR_PARTITIONS
     for (i = 0; i < PARTITION_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->partition_noext_cost[plane_index][i],
+                               fc->partition_noext_cdf[plane_index][i], NULL);
+    }
+    for (i = 0; i < PARTITION_CONTEXTS; ++i) {
       for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
         av1_cost_tokens_from_cdf(
             mode_costs->limited_partition_cost[plane_index][dir][i],
             fc->limited_partition_cdf[plane_index][dir][i], NULL);
+      }
+    }
+    for (i = 0; i < PARTITION_CONTEXTS; ++i) {
+      for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
+        av1_cost_tokens_from_cdf(
+            mode_costs->limited_partition_noext_cost[plane_index][dir][i],
+            fc->limited_partition_noext_cdf[plane_index][dir][i], NULL);
       }
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -123,6 +134,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              fc->partition_rec_cdf[i], NULL);
     av1_cost_tokens_from_cdf(mode_costs->partition_middle_rec_cost[i],
                              fc->partition_middle_rec_cdf[i], NULL);
+    av1_cost_tokens_from_cdf(mode_costs->partition_noext_rec_cost[i],
+                             fc->partition_noext_rec_cdf[i], NULL);
+    av1_cost_tokens_from_cdf(mode_costs->partition_middle_noext_rec_cost[i],
+                             fc->partition_middle_noext_rec_cdf[i], NULL);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 

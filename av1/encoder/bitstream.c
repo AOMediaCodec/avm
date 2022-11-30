@@ -2759,36 +2759,84 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const bool limit_rect_split = is_middle_block &&
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
+  const int max_1dsize = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
+  const bool disable_ext_part =
+      (max_1dsize == 64 && cm->seq_params.disable_3way_part_64xn) ||
+      (max_1dsize == 32 && cm->seq_params.disable_3way_part_32xn) ||
+      (max_1dsize == 16 && cm->seq_params.disable_3way_part_16xn);
   if (is_square_block(bsize)) {
-    aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
-    if (limit_rect_split) {
-      const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
-      partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
-      const int symbol = get_symbol_from_limited_partition(p, parent_partition);
-      aom_write_symbol(w, symbol, partition_cdf,
-                       limited_partition_cdf_length(bsize));
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (disable_ext_part) {
+      aom_cdf_prob *partition_cdf;
+      int symbol, cdf_length;
+      if (limit_rect_split) {
+        const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
+        partition_cdf =
+            ec_ctx->limited_partition_noext_cdf[plane][dir_index][ctx];
+        symbol = get_symbol_from_limited_partition_noext(p, parent_partition);
+        cdf_length = LIMITED_PARTITION_TYPES;
+      } else {
+        partition_cdf = ec_ctx->partition_noext_cdf[plane][ctx];
+        symbol = p;
+        cdf_length = PARTITION_TYPES;
+      }
+      aom_write_symbol(w, symbol, partition_cdf, cdf_length);
     } else {
-      aom_write_symbol(w, p, partition_cdf, partition_cdf_length(bsize));
+      aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
+      if (limit_rect_split) {
+        const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
+        partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
+        const int symbol =
+            get_symbol_from_limited_partition(p, parent_partition);
+        aom_write_symbol(w, symbol, partition_cdf,
+                         limited_partition_cdf_length(bsize));
+      } else {
+        aom_write_symbol(w, p, partition_cdf, partition_cdf_length(bsize));
+      }
     }
   } else {  // 1:2 or 2:1 rectangular blocks
-    if (limit_rect_split) {
-      assert(IMPLIES(parent_partition == PARTITION_HORZ_3,
-                     block_size_wide[bsize] == 2 * block_size_high[bsize]));
-      assert(IMPLIES(parent_partition == PARTITION_VERT_3,
-                     2 * block_size_wide[bsize] == block_size_high[bsize]));
-      assert(
-          IMPLIES(parent_partition == PARTITION_HORZ_3, p != PARTITION_HORZ));
-      assert(
-          IMPLIES(parent_partition == PARTITION_VERT_3, p != PARTITION_VERT));
-      const PARTITION_TYPE_REC symbol =
-          get_symbol_from_partition_rec_block(bsize, p);
-      aom_write_symbol(w, symbol, ec_ctx->partition_middle_rec_cdf[ctx],
-                       partition_middle_rec_cdf_length(bsize));
+    if (disable_ext_part) {
+      if (limit_rect_split) {
+        assert(IMPLIES(parent_partition == PARTITION_HORZ_3,
+                       block_size_wide[bsize] == 2 * block_size_high[bsize]));
+        assert(IMPLIES(parent_partition == PARTITION_VERT_3,
+                       2 * block_size_wide[bsize] == block_size_high[bsize]));
+        assert(
+            IMPLIES(parent_partition == PARTITION_HORZ_3, p != PARTITION_HORZ));
+        assert(
+            IMPLIES(parent_partition == PARTITION_VERT_3, p != PARTITION_VERT));
+        const PARTITION_TYPE_REC symbol =
+            get_symbol_from_limited_partition_noext(bsize, p);
+        aom_write_symbol(w, symbol, ec_ctx->partition_middle_noext_rec_cdf[ctx],
+                         partition_middle_noext_rec_cdf_length(bsize));
+      } else {
+        const PARTITION_TYPE_REC symbol =
+            get_symbol_from_partition_noext_rec_block(bsize, p);
+        aom_write_symbol(w, symbol, ec_ctx->partition_noext_rec_cdf[ctx],
+                         partition_noext_rec_cdf_length(bsize));
+      }
     } else {
-      const PARTITION_TYPE_REC symbol =
-          get_symbol_from_partition_rec_block(bsize, p);
-      aom_write_symbol(w, symbol, ec_ctx->partition_rec_cdf[ctx],
-                       partition_rec_cdf_length(bsize));
+      if (limit_rect_split) {
+        assert(IMPLIES(parent_partition == PARTITION_HORZ_3,
+                       block_size_wide[bsize] == 2 * block_size_high[bsize]));
+        assert(IMPLIES(parent_partition == PARTITION_VERT_3,
+                       2 * block_size_wide[bsize] == block_size_high[bsize]));
+        assert(
+            IMPLIES(parent_partition == PARTITION_HORZ_3, p != PARTITION_HORZ));
+        assert(
+            IMPLIES(parent_partition == PARTITION_VERT_3, p != PARTITION_VERT));
+        const PARTITION_TYPE_REC symbol =
+            get_symbol_from_partition_rec_block(bsize, p);
+        aom_write_symbol(w, symbol, ec_ctx->partition_middle_rec_cdf[ctx],
+                         partition_middle_rec_cdf_length(bsize));
+      } else {
+        const PARTITION_TYPE_REC symbol =
+            get_symbol_from_partition_rec_block(bsize, p);
+        aom_write_symbol(w, symbol, ec_ctx->partition_rec_cdf[ctx],
+                         partition_rec_cdf_length(bsize));
+      }
     }
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
@@ -4392,6 +4440,11 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_PAR_HIDING
   aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_EXT_RECUR_PARTITIONS
+  aom_wb_write_bit(wb, seq_params->disable_3way_part_64xn);
+  aom_wb_write_bit(wb, seq_params->disable_3way_part_32xn);
+  aom_wb_write_bit(wb, seq_params->disable_3way_part_16xn);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 static AOM_INLINE void write_global_motion_params(

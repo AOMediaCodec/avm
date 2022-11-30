@@ -703,7 +703,19 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
          is_inter_ref_frame(mbmi->ref_frame[0]);
 }
 
+static INLINE int is_square_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] == block_size_wide[bsize];
+}
+
 #if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE bool is_tall_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] > block_size_wide[bsize];
+}
+
+static INLINE bool is_wide_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] < block_size_wide[bsize];
+}
+
 static INLINE PARTITION_TYPE get_partition_from_symbol_rec_block(
     BLOCK_SIZE bsize, PARTITION_TYPE_REC partition_rec) {
   if (block_size_wide[bsize] > block_size_high[bsize])
@@ -712,6 +724,26 @@ static INLINE PARTITION_TYPE get_partition_from_symbol_rec_block(
     return partition_map_from_symbol_block_hgtw[partition_rec];
   else
     return PARTITION_INVALID;
+}
+
+static INLINE PARTITION_TYPE
+get_partition_noext_from_symbol_rec_block(BLOCK_SIZE bsize, int symbol) {
+  if (symbol == 0) {
+    return PARTITION_NONE;
+  } else {
+    const int is_wide = is_wide_block(bsize);
+    const PARTITION_TYPE partition_longside_2way =
+        is_wide ? PARTITION_VERT : PARTITION_HORZ;
+    const PARTITION_TYPE partition_shortside_2way =
+        is_wide ? PARTITION_HORZ : PARTITION_VERT;
+
+    if (symbol == 1)
+      return partition_longside_2way;
+    else if (symbol == 2)
+      return partition_shortside_2way;
+    else
+      return PARTITION_INVALID;
+  }
 }
 
 static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
@@ -724,6 +756,23 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
     return symbol_map_from_partition_block_hgtw[partition];
   else
     return PARTITION_INVALID_REC;
+}
+
+static INLINE PARTITION_TYPE_REC get_symbol_from_partition_noext_rec_block(
+    BLOCK_SIZE bsize, PARTITION_TYPE partition) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  assert(partition < EXT_PARTITION_TYPES);
+
+  if (partition >= PARTITION_TYPES) return PARTITION_INVALID_REC;
+  if (partition == PARTITION_NONE) return 0;
+
+  PARTITION_TYPE partition_longside_2way =
+      is_wide_block(bsize) ? PARTITION_VERT : PARTITION_HORZ;
+  if (is_bsize_geq(BLOCK_8X8, bsize) || is_bsize_geq(bsize, BLOCK_64X64)) {
+    return partition == partition_longside_2way ? 1 : PARTITION_INVALID_REC;
+  } else {
+    return partition == partition_longside_2way ? 1 : 2;
+  }
 }
 
 static INLINE PARTITION_TYPE get_symbol_from_limited_partition(
@@ -744,6 +793,26 @@ static INLINE PARTITION_TYPE get_symbol_from_limited_partition(
   return symbol;
 }
 
+static INLINE PARTITION_TYPE get_symbol_from_limited_partition_noext(
+    PARTITION_TYPE part, PARTITION_TYPE parent_part) {
+  assert(part != PARTITION_INVALID);
+  assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
+  static const int partition_to_symbol_map[NUM_LIMITED_PARTITION_PARENTS]
+                                          [EXT_PARTITION_TYPES] = {
+                                            // PARTITION_HORZ_3
+                                            { 0, PARTITION_INVALID_REC, 1,
+                                              PARTITION_INVALID_REC,
+                                              PARTITION_INVALID_REC },
+                                            // PARTITION_VERT_3
+                                            { 0, 1, PARTITION_INVALID_REC,
+                                              PARTITION_INVALID_REC,
+                                              PARTITION_INVALID_REC },
+                                          };
+  const int dir = (parent_part == PARTITION_HORZ_3) ? 0 : 1;
+  const int symbol = partition_to_symbol_map[dir][part];
+  return symbol;
+}
+
 static INLINE PARTITION_TYPE
 get_limited_partition_from_symbol(int symbol, PARTITION_TYPE parent_part) {
   assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
@@ -754,6 +823,25 @@ get_limited_partition_from_symbol(int symbol, PARTITION_TYPE parent_part) {
   static const PARTITION_TYPE vert3_parts[EXT_PARTITION_TYPES - 1] = {
     PARTITION_NONE, PARTITION_HORZ, /* PARTITION_VERT, */ PARTITION_HORZ_3,
     PARTITION_VERT_3
+  };
+  switch (parent_part) {
+    case PARTITION_HORZ_3: return horz3_parts[symbol];
+    case PARTITION_VERT_3: return vert3_parts[symbol];
+    default:
+      assert(0 &&
+             "Invalid parent partition in get_limited_partition from symbol");
+      return PARTITION_INVALID;
+  }
+}
+
+static INLINE PARTITION_TYPE get_limited_partition_noext_from_symbol(
+    int symbol, PARTITION_TYPE parent_part) {
+  assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
+  static const PARTITION_TYPE horz3_parts[LIMITED_PARTITION_TYPES] = {
+    PARTITION_NONE, PARTITION_VERT
+  };
+  static const PARTITION_TYPE vert3_parts[LIMITED_PARTITION_TYPES] = {
+    PARTITION_NONE, PARTITION_HORZ
   };
   switch (parent_part) {
     case PARTITION_HORZ_3: return horz3_parts[symbol];
@@ -825,20 +913,6 @@ static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
   return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION &&
          block_size_allowed;
 }
-
-static INLINE int is_square_block(BLOCK_SIZE bsize) {
-  return block_size_high[bsize] == block_size_wide[bsize];
-}
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-static INLINE bool is_tall_block(BLOCK_SIZE bsize) {
-  return block_size_high[bsize] > block_size_wide[bsize];
-}
-
-static INLINE bool is_wide_block(BLOCK_SIZE bsize) {
-  return block_size_high[bsize] < block_size_wide[bsize];
-}
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_partition_point(BLOCK_SIZE bsize) {
 #if CONFIG_EXT_RECUR_PARTITIONS

@@ -465,36 +465,9 @@ int main(int argc, const char **argv) {
 
   cts_each_dim[0] = PARTITION_CONTEXTS_REC;
   cts_each_dim[1] = PARTITION_TYPES_REC;
-  int part_types_each_ctx_rec[PARTITION_CONTEXTS_REC] = {
-    2,
-    2,
-    2,
-    2,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-#if ERP_LIMIT_PARTITION3_128
-    2,
-    2,
-    2,
-    2
-  };
-#else
-    3,
-    3,
-    3,
-    3
-  };
-#endif
+  int part_types_each_ctx_rec[PARTITION_CONTEXTS_REC] = { 2, 2, 2, 2, 4, 4, 4,
+                                                          4, 4, 4, 4, 4, 4, 4,
+                                                          4, 4, 2, 2, 2, 2 };
   optimize_cdf_table_var_modes_2d(
       &fc.partition_rec[0][0], probsfile, 2, cts_each_dim,
       part_types_each_ctx_rec,

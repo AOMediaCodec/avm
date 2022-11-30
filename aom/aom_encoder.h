@@ -280,6 +280,18 @@ typedef struct cfg_options {
    *
    */
   unsigned int use_ml_erp_pruning;
+  /*!\brief disable 3-way partitions for 64xN and Nx64 (N <= 64) blocks
+   *
+   */
+  unsigned int disable_3way_part_64xn;
+  /*!\brief disable 3-way partitions for 32xN and Nx32 (N <= 32) blocks
+   *
+   */
+  unsigned int disable_3way_part_32xn;
+  /*!\brief disable 3-way partitions for 16xN and Nx16 (N <= 16) blocks
+   *
+   */
+  unsigned int disable_3way_part_16xn;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief disable ml-based speed-up for transform search
    *

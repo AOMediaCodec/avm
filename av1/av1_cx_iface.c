@@ -117,6 +117,9 @@ struct av1_extracfg {
 #if CONFIG_EXT_RECUR_PARTITIONS
   unsigned int erp_pruning_level;
   int use_ml_erp_pruning;
+  unsigned int disable_3way_part_64xn;
+  unsigned int disable_3way_part_32xn;
+  unsigned int disable_3way_part_16xn;
 #endif                         // CONFIG_EXT_RECUR_PARTITIONS
   int enable_rect_partitions;  // enable rectangular partitions for sequence
   int enable_ab_partitions;    // enable AB partitions for sequence
@@ -443,6 +446,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // disable ML based partition speed up features
   5,  // aggressiveness for erp pruning
   0,  // use ml model for erp pruning
+  0,  // disable ternary partitions in 64xN/Nx64(N<=64) blocks
+  0,  // disable ternary partitions in 32xN/Nx32(N<=32) blocks
+  0,  // disable ternary partitions in 16xN/Nx16(N<=16) blocks
 #else
   0,  // disable ML based partition speed up features
 #endif
@@ -940,6 +946,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_EXT_RECUR_PARTITIONS
   cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
   cfg->use_ml_erp_pruning = extra_cfg->use_ml_erp_pruning;
+  cfg->disable_3way_part_64xn = extra_cfg->disable_3way_part_64xn;
+  cfg->disable_3way_part_32xn = extra_cfg->disable_3way_part_32xn;
+  cfg->disable_3way_part_16xn = extra_cfg->disable_3way_part_16xn;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   cfg->enable_rect_partitions = extra_cfg->enable_rect_partitions;
   cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
@@ -1060,6 +1069,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->erp_pruning_level = cfg->erp_pruning_level;
   extra_cfg->use_ml_erp_pruning = cfg->use_ml_erp_pruning;
+  extra_cfg->disable_3way_part_64xn = cfg->disable_3way_part_64xn;
+  extra_cfg->disable_3way_part_32xn = cfg->disable_3way_part_32xn;
+  extra_cfg->disable_3way_part_16xn = cfg->disable_3way_part_16xn;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   extra_cfg->enable_sdp = cfg->enable_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
@@ -1613,6 +1625,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->erp_pruning_level = extra_cfg->erp_pruning_level;
   part_cfg->use_ml_erp_pruning = extra_cfg->use_ml_erp_pruning;
+  part_cfg->disable_3way_part_64xn = extra_cfg->disable_3way_part_64xn;
+  part_cfg->disable_3way_part_32xn = extra_cfg->disable_3way_part_32xn;
+  part_cfg->disable_3way_part_16xn = extra_cfg->disable_3way_part_16xn;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->min_partition_size = extra_cfg->min_partition_size;
   part_cfg->max_partition_size = extra_cfg->max_partition_size;
@@ -3763,6 +3778,18 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.use_ml_erp_pruning,
                               argv, err_string)) {
     extra_cfg.use_ml_erp_pruning = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.disable_3way_part_64xn,
+                              argv, err_string)) {
+    extra_cfg.disable_3way_part_64xn = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.disable_3way_part_32xn,
+                              argv, err_string)) {
+    extra_cfg.disable_3way_part_32xn = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.disable_3way_part_16xn,
+                              argv, err_string)) {
+    extra_cfg.disable_3way_part_16xn = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   } else if (arg_match_helper(
                  &arg,
@@ -4264,6 +4291,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
         5,  // aggressiveness for erp pruning
         0,  // use ml model for erp pruning
+        0,  // disable ternary partition in 64xN/Nx64(N<=64) blocks
+        0,  // disable ternary partition in 32xN/Nx32(N<=32) blocks
+        0,  // disable ternary partition in 16xN/Nx16(N<=16) blocks
 #else       // CONFIG_EXT_RECUR_PARTITIONS
         0,
 #endif      // CONFIG_EXT_RECUR_PARTITIONS
