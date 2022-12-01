@@ -137,7 +137,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 
 #if CONFIG_CNN_GUIDED_QUADTREE
 static AOM_INLINE void read_filter_quadtree(int QP, int cnn_index,
-                                            int superres_denom, QUADInfo *qi,
+                                            int superres_denom,
+                                            int is_intra_only, QUADInfo *qi,
                                             aom_reader *rb);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
@@ -1822,11 +1823,14 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 }
 #if CONFIG_CNN_GUIDED_QUADTREE
 static AOM_INLINE void read_filter_quadtree(int QP, int cnn_index,
-                                            int superres_denom, QUADInfo *qi,
+                                            int superres_denom,
+                                            int is_intra_only,
+                                            QUADInfo *qi,
                                             aom_reader *rb) {
   int A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, 1, cnn_index);
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1,
+                                      cnn_index);
   A0_min = quadtset[2];
   A1_min = quadtset[3];
 
@@ -1901,8 +1905,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     if (cm->use_quadtree && !cm->postcnn_quad_info.is_write) {
       cm->postcnn_quad_info.is_write = 1;
       int superres_denom = cm->superres_scale_denominator;
+      const int is_intra_only = frame_is_intra_only(cm);
       read_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_index,
-                           superres_denom, &cm->postcnn_quad_info, reader);
+                           superres_denom, is_intra_only,
+                           &cm->postcnn_quad_info, reader);
     }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
