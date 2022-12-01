@@ -724,7 +724,7 @@ extern "C" int TFlite_Predict_quadtree_hbd(
 
   int scale0, scale1, A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, is_luma, cnn_index);
   scale0 = quadtset[0];
   scale1 = quadtset[1];
   A0_min = quadtset[2];
@@ -1090,7 +1090,7 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
   }
   int scale0, scale1, A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, is_luma, cnn_index);
   scale0 = quadtset[0];
   scale1 = quadtset[1];
   A0_min = quadtset[2];
@@ -1409,7 +1409,7 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
   }
   int scale0, scale1, A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, is_luma, cnn_index);
   scale0 = quadtset[0];
   scale1 = quadtset[1];
   A0_min = quadtset[2];
