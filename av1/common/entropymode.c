@@ -544,7 +544,7 @@ static const aom_cdf_prob default_limited_partition_noext_cdf
             { AOM_CDF2(22750) },
             { AOM_CDF2(8951) },
             { AOM_CDF2(8126) },
-            { AOM_CDF2(49802) },
+            { AOM_CDF2(4980) },
             // 128x128
             { AOM_CDF2(27774) },
             { AOM_CDF2(16584) },

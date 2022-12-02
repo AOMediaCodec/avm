@@ -319,6 +319,13 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
         }
       }
     }
+    for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
+      for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+        RESET_CDF_COUNTER_STRIDE(
+            fc->limited_partition_noext_cdf[plane_index][dir][i], 2,
+            CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
+      }
+    }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
   RESET_CDF_COUNTER(fc->switchable_interp_cdf, SWITCHABLE_FILTERS);

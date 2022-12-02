@@ -1415,6 +1415,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
         }
       }
     }
+    for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
+      for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+        AVG_CDF_STRIDE(
+            ctx_left->limited_partition_noext_cdf[plane_index][dir][i],
+            ctx_tr->limited_partition_noext_cdf[plane_index][dir][i], 2,
+            CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
+      }
+    }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
