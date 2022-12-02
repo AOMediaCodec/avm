@@ -1813,21 +1813,6 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   return;
 }
 
-#if CONFIG_DEBUG
-static INLINE void print_sms(const SimpleMotionData *sms_data, char *prefix) {
-  BLOCK_SIZE bsize = sms_data->bsize;
-  MV fullmv = sms_data->fullmv;
-  MV submv = sms_data->submv;
-  printf("%s:: bsize: (%d, %d), mi_row: %d, mi_col: %d, rd: %ld\n", prefix,
-         block_size_wide[bsize], block_size_high[bsize], sms_data->mi_row,
-         sms_data->mi_col, sms_data->rdcost);
-  printf("%s:: fullmv: (%d, %d), submv: (%d, %d),\n", prefix, fullmv.row,
-         fullmv.col, submv.row, submv.col);
-  printf("%s:: mv_cost_type: %d, sadpb: %d, errpb: %d\n", prefix,
-         sms_data->mv_cost_type, sms_data->sadpb, sms_data->errorperbit);
-}
-#endif
-
 static INLINE void add_start_mv_to_block(SimpleMotionData *block, MV start_mv) {
   if (block->num_start_mvs == kSMSMaxStartMVs) {
     return;
