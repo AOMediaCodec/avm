@@ -1723,6 +1723,7 @@ SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
                                          int mi_row, int mi_col,
                                          BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
   assert(mi_size_high[sb_size] == mi_size_wide[sb_size]);
+  assert(bsize < BLOCK_SIZES_ALL);
   const int mi_in_sb = mi_size_high[sb_size];
   const int mi_row_in_sb = mi_row % mi_in_sb;
   const int mi_col_in_sb = mi_col % mi_in_sb;
@@ -1755,6 +1756,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   const int ref_frame =
       cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
+  assert(ref_frame >= 0);
   if (mi_col >= cm->mi_params.mi_cols || mi_row >= cm->mi_params.mi_rows) {
     // If the whole block is outside of the image, set the var and sse to 0.
     sms_data->sse = 0;

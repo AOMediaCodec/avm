@@ -2687,6 +2687,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
   const ModeCosts *mode_costs = &x->mode_costs;
+  assert(bsize < BLOCK_SIZES_ALL);
   const int bs = mi_size_wide[bsize];
   const int hbs = bs / 2;
 #if CONFIG_EXT_RECUR_PARTITIONS

@@ -474,6 +474,7 @@ static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
   if (bsize >= BLOCK_8X8) {
     const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
     for (int r_idx = 0; r_idx < SUB_PARTITIONS_SPLIT; r_idx++) {
+      assert(bsize < BLOCK_SIZES_ALL);
       const int w_mi = mi_size_wide[bsize];
       const int h_mi = mi_size_high[bsize];
       const int sub_mi_col = mi_col + (r_idx & 1) * w_mi / 2;
