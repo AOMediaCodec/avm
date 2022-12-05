@@ -107,16 +107,16 @@ void aom_highbd_h_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
 static INLINE void h_store_16_unpacklo(uint16_t **dst, const ptrdiff_t stride,
                                        const __m128i *row) {
   const __m128i val = _mm_unpacklo_epi64(*row, *row);
-  _mm_store_si128((__m128i *)*dst, val);
-  _mm_store_si128((__m128i *)(*dst + 8), val);
+  _mm_storeu_si128((__m128i *)*dst, val);
+  _mm_storeu_si128((__m128i *)(*dst + 8), val);
   *dst += stride;
 }
 
 static INLINE void h_store_16_unpackhi(uint16_t **dst, const ptrdiff_t stride,
                                        const __m128i *row) {
   const __m128i val = _mm_unpackhi_epi64(*row, *row);
-  _mm_store_si128((__m128i *)(*dst), val);
-  _mm_store_si128((__m128i *)(*dst + 8), val);
+  _mm_storeu_si128((__m128i *)(*dst), val);
+  _mm_storeu_si128((__m128i *)(*dst + 8), val);
   *dst += stride;
 }
 
@@ -483,8 +483,8 @@ static INLINE void dc_store_16xh(uint16_t *dst, ptrdiff_t stride, int height,
   const __m128i dc_dup = _mm_unpacklo_epi64(dc_dup_lo, dc_dup_lo);
   int i;
   for (i = 0; i < height; ++i, dst += stride) {
-    _mm_store_si128((__m128i *)dst, dc_dup);
-    _mm_store_si128((__m128i *)(dst + 8), dc_dup);
+    _mm_storeu_si128((__m128i *)dst, dc_dup);
+    _mm_storeu_si128((__m128i *)(dst + 8), dc_dup);
   }
 }
 
@@ -739,17 +739,17 @@ void aom_highbd_v_predictor_16x8_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i above1_u16 = _mm_load_si128((const __m128i *)(above + 8));
   int i;
   for (i = 0; i < 2; ++i) {
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, above0_u16);
-    _mm_store_si128((__m128i *)(dst + 8), above1_u16);
+    _mm_storeu_si128((__m128i *)dst, above0_u16);
+    _mm_storeu_si128((__m128i *)(dst + 8), above1_u16);
     dst += stride;
   }
 }
@@ -901,17 +901,17 @@ void aom_highbd_dc_predictor_16x8_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 2; ++i) {
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
-    _mm_store_si128((__m128i *)(dst + 8), row);
+    _mm_storeu_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)(dst + 8), row);
     dst += stride;
   }
 }

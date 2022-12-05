@@ -181,6 +181,12 @@ typedef struct PartitionSearchState {
   bool ext_partition_allowed;
   bool partition_3_allowed[NUM_RECT_PARTS];
   bool prune_partition_3[NUM_RECT_PARTS];
+#if CONFIG_UNEVEN_4WAY
+  bool partition_4a_allowed[NUM_RECT_PARTS];
+  bool partition_4b_allowed[NUM_RECT_PARTS];
+  bool prune_partition_4a[NUM_RECT_PARTS];
+  bool prune_partition_4b[NUM_RECT_PARTS];
+#endif  // CONFIG_UNEVEN_4WAY
   PARTITION_TYPE forced_partition;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   bool prune_rect_part[NUM_RECT_PARTS];

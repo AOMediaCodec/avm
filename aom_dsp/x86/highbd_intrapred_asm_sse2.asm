@@ -106,14 +106,14 @@ cglobal highbd_dc_predictor_16x16, 4, 5, 5, dst, stride, above, left, goffset
   pshuflw               m0, m0, 0x0
   punpcklqdq            m0, m0
 .loop:
-  mova   [dstq              ], m0
-  mova   [dstq           +16], m0
-  mova   [dstq+strideq*2    ], m0
-  mova   [dstq+strideq*2 +16], m0
-  mova   [dstq+strideq*4    ], m0
-  mova   [dstq+strideq*4 +16], m0
-  mova   [dstq+stride3q*2   ], m0
-  mova   [dstq+stride3q*2+16], m0
+  movu   [dstq              ], m0
+  movu   [dstq           +16], m0
+  movu   [dstq+strideq*2    ], m0
+  movu   [dstq+strideq*2 +16], m0
+  movu   [dstq+strideq*4    ], m0
+  movu   [dstq+strideq*4 +16], m0
+  movu   [dstq+stride3q*2   ], m0
+  movu   [dstq+stride3q*2+16], m0
   lea                 dstq, [dstq+strideq*8]
   dec              lines4d
   jnz .loop
@@ -214,14 +214,14 @@ cglobal highbd_v_predictor_16x16, 3, 4, 2, dst, stride, above
   lea             stride3q, [strideq*3]
   mov              nlines4d, 4
 .loop:
-  mova    [dstq              ], m0
-  mova    [dstq           +16], m1
-  mova    [dstq+strideq*2    ], m0
-  mova    [dstq+strideq*2 +16], m1
-  mova    [dstq+strideq*4    ], m0
-  mova    [dstq+strideq*4 +16], m1
-  mova    [dstq+stride3q*2   ], m0
-  mova    [dstq+stride3q*2+16], m1
+  movu    [dstq              ], m0
+  movu    [dstq           +16], m1
+  movu    [dstq+strideq*2    ], m0
+  movu    [dstq+strideq*2 +16], m1
+  movu    [dstq+strideq*4    ], m0
+  movu    [dstq+strideq*4 +16], m1
+  movu    [dstq+stride3q*2   ], m0
+  movu    [dstq+stride3q*2+16], m1
   lea                 dstq, [dstq+strideq*8]
   dec             nlines4d
   jnz .loop

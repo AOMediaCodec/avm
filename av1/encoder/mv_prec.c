@@ -629,10 +629,14 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
 
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
-#if !CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  const int ebs_w = mi_size_wide[bsize] / 8;
+  const int ebs_h = mi_size_high[bsize] / 8;
+#endif  // CONFIG_UNEVEN_4WAY
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_H_PARTITION
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
   switch (partition) {
     case PARTITION_NONE:
       collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);
@@ -669,6 +673,68 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
       break;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_med,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 3 * ebs_h, mi_col, bsize_big,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 7 * ebs_h, mi_col, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+    case PARTITION_HORZ_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_big,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 5 * ebs_h, mi_col, bsize_med,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 7 * ebs_h, mi_col, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+    case PARTITION_VERT_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_med,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 3 * ebs_w, bsize_big,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 7 * ebs_w, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+    case PARTITION_VERT_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_big,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 5 * ebs_w, bsize_med,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 7 * ebs_w, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+#endif  // CONFIG_UNEVEN_4WAY
 #if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: {
@@ -685,7 +751,8 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
       }
       break;
     }
-#else
+#endif  // CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
     case PARTITION_HORZ_3: {
       collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
                           ptree->sub_tree[0]);
@@ -706,7 +773,7 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
                           ptree->sub_tree[2]);
       break;
     }
-#endif  // CONFIG_H_PARTITION
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
       collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);

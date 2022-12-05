@@ -123,6 +123,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
         av1_cost_tokens_from_cdf(
             mode_costs->do_ext_partition_cost[plane_index][rect_type][i],
             fc->do_ext_partition_cdf[plane_index][rect_type][i], NULL);
+#if CONFIG_UNEVEN_4WAY
+        av1_cost_tokens_from_cdf(
+            mode_costs->do_uneven_4way_partition_cost[plane_index][rect_type][i],
+            fc->do_uneven_4way_partition_cdf[plane_index][rect_type][i], NULL);
+        av1_cost_tokens_from_cdf(
+            mode_costs->uneven_4way_partition_type_cost[plane_index][rect_type][i],
+            fc->uneven_4way_partition_type_cdf[plane_index][rect_type][i], NULL);
+#endif  // CONFIG_UNEVEN_4WAY
       }
     }
   }
@@ -145,15 +153,36 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
             mode_costs->partition_cost[plane_index][ctx][part] +=
                 mode_costs->rect_type_cost[plane_index][ctx][rect_type];
           }
-          const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
           const bool ext_partition_allowed =
-              !disable_ext_part &&
+              cm->seq_params.enable_ext_partitions &&
               is_ext_partition_allowed(bsize, rect_type, tree_type);
           if (ext_partition_allowed) {
             const bool do_ext_partition = (part >= PARTITION_HORZ_3);
             mode_costs->partition_cost[plane_index][ctx][part] +=
                 mode_costs->do_ext_partition_cost[plane_index][rect_type][ctx]
                                                  [do_ext_partition];
+#if CONFIG_UNEVEN_4WAY
+            if (do_ext_partition) {
+              const bool uneven_4way_partition_allowed =
+                  is_uneven_4way_partition_allowed(bsize, rect_type, tree_type);
+              if (uneven_4way_partition_allowed) {
+                const bool do_uneven_4way_partition =
+                    (part >= PARTITION_HORZ_4A);
+                mode_costs->partition_cost[plane_index][ctx][part] +=
+                    mode_costs->do_uneven_4way_partition_cost
+                        [plane_index][rect_type][ctx][do_uneven_4way_partition];
+                if (do_uneven_4way_partition) {
+                  const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
+                      (part == PARTITION_HORZ_4A || part == PARTITION_VERT_4A)
+                          ? UNEVEN_4A
+                          : UNEVEN_4B;
+                  mode_costs->partition_cost[plane_index][ctx][part] +=
+                      mode_costs->uneven_4way_partition_type_cost
+                          [plane_index][rect_type][ctx][uneven_4way_type];
+                }
+              }
+            }
+#endif  // CONFIG_UNEVEN_4WAY
           }
         }
       }

@@ -305,18 +305,18 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
                            CDF_SIZE(UV_INTRA_MODES));
   RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
+
+  // For partition CDFs, number of partition types vary by block size. So:
+  // - we first infer block size from partition context, and
+  // - then compute the number of partition types from block size.
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
     for (int i = 0; i < PARTITION_CONTEXTS; i++) {
-      if (i < 4) {
-        RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[plane_index][i], 4,
-                                 CDF_SIZE(10));
-      } else if (i < 16) {
-        RESET_CDF_COUNTER(fc->partition_cdf[plane_index][i], 10);
-      } else {
-        RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[plane_index][i], 8,
-                                 CDF_SIZE(10));
-      }
+      const BLOCK_SIZE bsize = BLOCK_8X8 + 3 * (i / PARTITION_PLOFFSET);
+      const int num_part_types = partition_cdf_length(bsize);
+      RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[plane_index][i],
+                               num_part_types,
+                               CDF_SIZE(PARTITION_TYPES_SQUARE));
     }
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -337,6 +337,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_PARTS; rect++) {
       for (int i = 0; i < PARTITION_CONTEXTS; i++) {
         RESET_CDF_COUNTER(fc->do_ext_partition_cdf[plane_index][rect][i], 2);
+#if CONFIG_UNEVEN_4WAY
+        RESET_CDF_COUNTER(fc->do_uneven_4way_partition_cdf[plane_index][rect][i], 2);
+        RESET_CDF_COUNTER(fc->uneven_4way_partition_type_cdf[plane_index][rect][i], NUM_UNEVEN_4WAY_PARTS);
+#endif  // CONFIG_UNEVEN_4WAY
       }
     }
   }

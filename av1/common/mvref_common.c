@@ -877,6 +877,7 @@ static AOM_INLINE void scan_row_mbmi(
   const int plane_type = (xd->tree_type == CHROMA_PART);
   for (int i = 0; i < end_mi;) {
 #if CONFIG_EXT_RECUR_PARTITIONS
+    if (xd->mi_col + col_offset + i >= cm->mi_params.mi_cols) break;
     const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
     const int mask_row = mi_row & (sb_mi_size - 1);
     const int mask_col = mi_col & (sb_mi_size - 1);
@@ -891,6 +892,7 @@ static AOM_INLINE void scan_row_mbmi(
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MB_MODE_INFO *const candidate = candidate_mi0[col_offset + i];
+    assert(candidate != NULL);
 #if CONFIG_C071_SUBBLK_WARPMV
     const SUBMB_INFO *const submi = submi_mi0[col_offset + i];
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -1036,6 +1038,7 @@ static AOM_INLINE void scan_col_mbmi(
 
   for (i = 0; i < end_mi;) {
 #if CONFIG_EXT_RECUR_PARTITIONS
+    if (xd->mi_row + row_offset + i >= cm->mi_params.mi_rows) break;
     const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
     const int mask_row = mi_row & (sb_mi_size - 1);
     const int mask_col = mi_col & (sb_mi_size - 1);
@@ -1050,6 +1053,7 @@ static AOM_INLINE void scan_col_mbmi(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MB_MODE_INFO *const candidate =
         xd->mi[(row_offset + i) * xd->mi_stride + col_offset];
+    assert(candidate != NULL);
 #if CONFIG_C071_SUBBLK_WARPMV
     const SUBMB_INFO *const submi =
         xd->submi[(row_offset + i) * xd->mi_stride + col_offset];

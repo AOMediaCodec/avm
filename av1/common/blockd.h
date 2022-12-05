@@ -781,6 +781,26 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
   return true;
 }
 
+#if CONFIG_UNEVEN_4WAY
+/*!\brief Checks whether uneven 4-way partition is allowed for current bsize and
+ * rect_type. */
+static AOM_INLINE bool is_uneven_4way_partition_allowed(BLOCK_SIZE bsize,
+                                                RECT_PART_TYPE rect_type,
+                                                TREE_TYPE tree_type) {
+  assert(is_ext_partition_allowed(bsize, rect_type, tree_type));
+
+  if (rect_type == HORZ) {
+    if (bsize == BLOCK_32X64) return true;
+    if (bsize == BLOCK_16X32 && tree_type != CHROMA_PART) return true;
+  } else {
+    assert(rect_type == VERT);
+    if (bsize == BLOCK_64X32) return true;
+    if (bsize == BLOCK_32X16 && tree_type != CHROMA_PART) return true;
+  }
+  return false;
+}
+#endif  // CONFIG_UNEVEN_4WAY
+
 /*!\brief Returns the rect_type that's implied by the bsize. If the rect_type
  * cannot be derived from bsize, returns RECT_INVALID. */
 static AOM_INLINE RECT_PART_TYPE
@@ -1004,21 +1024,34 @@ static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
   const int bh_less_than_4 = bh < 4;
   const int hbw_less_than_4 = bw < 8;
   const int hbh_less_than_4 = bh < 8;
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
   const int qbw_less_than_4 = bw < 16;
   const int qbh_less_than_4 = bh < 16;
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  const int ebw_less_than_4 = bw < 32;
+  const int ebh_less_than_4 = bh < 32;
+#endif  // CONFIG_UNEVEN_4WAY
   switch (partition) {
     case PARTITION_NONE: return bw_less_than_4 || bh_less_than_4;
     case PARTITION_HORZ: return bw_less_than_4 || hbh_less_than_4;
     case PARTITION_VERT: return hbw_less_than_4 || bh_less_than_4;
     case PARTITION_SPLIT: return hbw_less_than_4 || hbh_less_than_4;
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B: return bw_less_than_4 || ebh_less_than_4;
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: return ebw_less_than_4 || bh_less_than_4;
+#endif  // CONFIG_UNEVEN_4WAY
 #if CONFIG_H_PARTITION
     case PARTITION_HORZ_3: return hbw_less_than_4 || qbh_less_than_4;
     case PARTITION_VERT_3: return qbw_less_than_4 || hbh_less_than_4;
-#else
+#endif  // CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
     case PARTITION_HORZ_3: return bw_less_than_4 || qbh_less_than_4;
     case PARTITION_VERT_3: return qbw_less_than_4 || bh_less_than_4;
-#endif  // CONFIG_H_PARTITION
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
@@ -1068,13 +1101,20 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
           return 1;
       }
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: return index == 3;
+#endif  // CONFIG_UNEVEN_4WAY
 #if CONFIG_H_PARTITION
     case PARTITION_VERT_3:
     case PARTITION_HORZ_3: return index == 3;
-#else
+#endif  // CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
     case PARTITION_VERT_3:
     case PARTITION_HORZ_3: return index == 2;
-#endif  // CONFIG_H_PARTITION
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
@@ -1153,8 +1193,16 @@ static INLINE void set_chroma_ref_offset_size(
     case PARTITION_HORZ:
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B:
+#endif  // CONFIG_UNEVEN_4WAY
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
     case PARTITION_VERT_3:
     case PARTITION_HORZ_3:
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
       info->mi_col_chroma_base = parent_info->mi_col_chroma_base;

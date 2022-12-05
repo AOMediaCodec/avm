@@ -521,12 +521,21 @@ typedef struct SimpleMotionData {
 } SimpleMotionData;
 
 /*!\cond */
+#if CONFIG_UNEVEN_4WAY
+#define BLOCK_128_COUNT 1
+#define BLOCK_64_COUNT 3
+#define BLOCK_32_COUNT 15
+#define BLOCK_16_COUNT 31
+#define BLOCK_8_COUNT 32
+#define BLOCK_4_COUNT 32
+#else
 #define BLOCK_128_COUNT 1
 #define BLOCK_64_COUNT 3
 #define BLOCK_32_COUNT 7
 #define BLOCK_16_COUNT 15
 #define BLOCK_8_COUNT 31
 #define BLOCK_4_COUNT 32
+#endif  // CONFIG_UNEVEN_4WAY
 
 #define MAKE_SM_DATA_BUF(width, height) \
   SimpleMotionData                      \
@@ -777,6 +786,14 @@ typedef struct {
   /*! Cost for sending do_ext_partition token. */
   int do_ext_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
                            [PARTITION_CONTEXTS][2];
+#if CONFIG_UNEVEN_4WAY
+  /*! Cost for sending do_uneven_4way_partition token. */
+  int do_uneven_4way_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                           [PARTITION_CONTEXTS][2];
+  /*! Cost for sending uneven_4way_partition_type token. */
+  int uneven_4way_partition_type_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                           [PARTITION_CONTEXTS][NUM_UNEVEN_4WAY_PARTS];
+#endif  // CONFIG_UNEVEN_4WAY
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 
