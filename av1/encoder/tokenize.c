@@ -248,19 +248,31 @@ static void tokenize_vartx(ThreadData *td, TX_SIZE tx_size,
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
+  const TX_SIZE plane_tx_size =
+      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
+                                    pd->subsampling_y)
+            : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
+                                                         blk_col)];
+#else
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(mbmi->sb_type[xd->tree_type == CHROMA_PART],
                                     pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (tx_size == plane_tx_size || plane) {
-    plane_bsize =
-        get_plane_block_size(mbmi->sb_type[xd->tree_type == CHROMA_PART],
-                             pd->subsampling_x, pd->subsampling_y);
+    plane_bsize = get_mb_plane_block_size(xd, mbmi, plane, pd->subsampling_x,
+                                          pd->subsampling_y);
+#if !CONFIG_EXT_RECUR_PARTITIONS
+    assert(plane_bsize ==
+           get_plane_block_size(mbmi->sb_type[xd->tree_type == CHROMA_PART],
+                                pd->subsampling_x, pd->subsampling_y));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     av1_update_and_record_txb_context(plane, block, blk_row, blk_col,
                                       plane_bsize, tx_size, arg);
-
   } else {
 #if CONFIG_NEW_TX_PARTITION
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
@@ -328,6 +340,7 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct tokenize_b_args arg = { cpi, td, 0, allow_update_cdf, dry_run };
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
+    assert(bsize == mbmi->sb_type[av1_get_sdp_idx(xd->tree_type)]);
     av1_reset_entropy_context(xd, bsize, num_planes);
     return;
   }
@@ -336,7 +349,12 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const int ss_x = pd->subsampling_x;
     const int ss_y = pd->subsampling_y;
-    const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+    const BLOCK_SIZE plane_bsize =
+        get_mb_plane_block_size(xd, mbmi, plane, ss_x, ss_y);
+    const BLOCK_SIZE bsize_base =
+        plane ? mbmi->chroma_ref_info.bsize_base : bsize;
+    assert(plane_bsize == get_plane_block_size(bsize_base, ss_x, ss_y));
+    (void)bsize_base;
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int mi_width = mi_size_wide[plane_bsize];
     const int mi_height = mi_size_high[plane_bsize];

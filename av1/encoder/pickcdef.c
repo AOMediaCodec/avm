@@ -381,8 +381,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   const int total_strengths = nb_cdef_strengths[pick_method];
   DECLARE_ALIGNED(32, uint16_t, tmp_dst[1 << (MAX_SB_SIZE_LOG2 * 2)]);
   const int num_planes = av1_num_planes(cm);
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, frame, 0, 0, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
   uint64_t(*mse[2])[TOTAL_STRENGTHS];
   mse[0] = aom_malloc(sizeof(**mse) * nvfb * nhfb);
   mse[1] = aom_malloc(sizeof(**mse) * nvfb * nhfb);

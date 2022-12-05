@@ -77,7 +77,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       backup_yv12[i] = xd->plane[i].pre[ref_idx];
     }
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   // Work out the size of the first step in the mv step search.
@@ -499,7 +499,7 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
       backup_yv12[i] = xd->plane[i].pre[ref_idx];
     }
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
@@ -716,7 +716,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         for (i = 0; i < num_planes; i++)
           backup_yv12[ref][i] = xd->plane[i].pre[ref];
         av1_setup_pre_planes(xd, ref, scaled_ref_frame[ref], mi_row, mi_col,
-                             NULL, num_planes);
+                             NULL, num_planes, &mbmi->chroma_ref_info);
       }
     }
 
@@ -905,7 +905,7 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   int bestsme = INT_MAX;
@@ -1022,7 +1022,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, &mbmi->chroma_ref_info);
   }
 
   int bestsme = INT_MAX;
@@ -1453,12 +1453,12 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   int_mv best_mv;
 
   av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
-                       get_ref_scale_factors(cm, ref), num_planes);
+                       get_ref_scale_factors(cm, ref), num_planes, NULL);
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   if (scaled_ref_frame) {
     backup_yv12 = xd->plane[AOM_PLANE_Y].pre[ref_idx];
     av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
-                         num_planes);
+                         num_planes, NULL);
   }
 
   // Allow more mesh searches for screen content type on the ARF.
@@ -1560,3 +1560,132 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   return best_mv;
 }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
+                     MACROBLOCK *const x, int mi_row, int mi_col,
+                     BLOCK_SIZE bsize, const CHROMA_REF_INFO *chr_ref_info);
+int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
+                                    const TileInfo *const tile, MACROBLOCK *x,
+                                    int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                    int ref, FULLPEL_MV start_mv,
+                                    int num_planes, int use_subpixel,
+                                    SimpleMotionData *sms_data) {
+  assert(num_planes == 1 &&
+         "Currently simple_motion_search only supports luma plane");
+  assert(!frame_is_intra_only(&cpi->common) &&
+         "Simple motion search only enabled for non-key frames");
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+
+  // TODO(debargha,chiyotsai): Can we use set_offsets_for_motion_search()
+  av1_set_offsets(cpi, tile, x, mi_row, mi_col, bsize, NULL);
+  // set_offsets_for_motion_search(cpi, x, mi_row, mi_col, bsize);
+
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  mbmi->sb_type[0] = mbmi->sb_type[1] = bsize;
+  mbmi->ref_frame[0] = ref;
+  mbmi->ref_frame[1] = NONE_FRAME;
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+  mbmi->interp_fltr = EIGHTTAP_REGULAR;
+
+  const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref);
+  const YV12_BUFFER_CONFIG *scaled_ref_frame =
+      av1_get_scaled_ref_frame(cpi, ref);
+  struct buf_2d backup_yv12;
+  // ref_mv is used to calculate the cost of the motion vector
+  const MV ref_mv = kZeroMv;
+  const int step_param =
+      AOMMIN(cpi->mv_search_params.mv_step_param +
+                 cpi->sf.part_sf.simple_motion_search_reduce_search_steps,
+             MAX_MVSEARCH_STEPS - 2);
+  const search_site_config *src_search_sites =
+      cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
+  int cost_list[5];
+  const int ref_idx = 0;
+  int var;
+  int_mv best_mv;
+
+  av1_setup_pre_planes(xd, ref_idx, yv12, mi_row, mi_col,
+                       get_ref_scale_factors(cm, ref), num_planes, NULL);
+  set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
+  if (scaled_ref_frame) {
+    backup_yv12 = xd->plane[AOM_PLANE_Y].pre[ref_idx];
+    av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
+                         num_planes, NULL);
+  }
+
+  // Allow more mesh searches for screen content type on the ARF.
+  const int fine_search_interval = use_fine_search_interval(cpi);
+  sms_data->sadpb = x->mv_costs.sadperbit;
+  sms_data->errorperbit = x->mv_costs.errorperbit;
+
+#if CONFIG_FLEX_MVRES
+  const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
+#if CONFIG_BVCOST_UPDATE
+  const int is_ibc_cost = 0;
+#endif
+#endif
+
+  FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
+  av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
+#if CONFIG_FLEX_MVRES
+                                     pb_mv_precision,
+#if CONFIG_BVCOST_UPDATE
+                                     is_ibc_cost,
+#endif
+#endif
+                                     src_search_sites, fine_search_interval);
+#if CONFIG_FLEX_MVRES
+  full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
+#endif
+
+  var = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
+                              cond_cost_list(cpi, cost_list),
+                              &best_mv.as_fullmv, NULL);
+
+  sms_data->fullmv = best_mv.as_mv;
+  const int use_subpel_search =
+      var < INT_MAX && !cpi->common.features.cur_frame_force_integer_mv &&
+      use_subpixel;
+  if (scaled_ref_frame) {
+    xd->plane[AOM_PLANE_Y].pre[ref_idx] = backup_yv12;
+  }
+  if (use_subpel_search) {
+    int not_used = 0;
+
+    SUBPEL_MOTION_SEARCH_PARAMS ms_params;
+    av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
+#if CONFIG_FLEX_MVRES
+                                      pb_mv_precision,
+#endif
+                                      cost_list);
+    // TODO(yunqing): integrate this into av1_make_default_subpel_ms_params().
+    ms_params.forced_stop = cpi->sf.mv_sf.simple_motion_subpel_force_stop;
+
+    MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
+
+    cpi->mv_search_params.find_fractional_mv_step(
+        xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
+        &x->pred_sse[ref], NULL);
+  } else {
+    // Manually convert from units of pixel to 1/8-pixels if we are not doing
+    // subpel search
+    convert_fullmv_to_mv(&best_mv);
+  }
+  sms_data->submv = best_mv.as_mv;
+  mbmi->mv[0] = best_mv;
+
+  // Get a copy of the prediction output
+  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                AOM_PLANE_Y, AOM_PLANE_Y);
+
+  aom_clear_system_state();
+
+  if (scaled_ref_frame) {
+    xd->plane[AOM_PLANE_Y].pre[ref_idx] = backup_yv12;
+  }
+
+  return best_mv;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS

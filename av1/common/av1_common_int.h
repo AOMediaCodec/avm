@@ -23,6 +23,7 @@
 #if CONFIG_PEF
 #include "av1/common/pef.h"
 #endif  // CONFIG_PEF
+#include "av1/common/blockd.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
@@ -992,12 +993,11 @@ struct CommonModeInfoParams {
                     int height);
   /**@}*/
 };
-#if CONFIG_FLEX_MVRES
-typedef struct CommonSBInfoParams CommonSBInfoParams;
+
 /*!
  * \brief Params related to SB_INFO arrays and related info.
  */
-struct CommonSBInfoParams {
+typedef struct CommonSBInfoParams {
   /*!
    * Grid of pointers to SB_INFO structs.
    */
@@ -1018,8 +1018,7 @@ struct CommonSBInfoParams {
    * Number of SB_INFO structs that are currently allocated.
    */
   int sbi_alloc_size;
-};
-#endif
+} CommonSBInfoParams;
 
 typedef struct CommonQuantParams CommonQuantParams;
 /*!
@@ -1523,12 +1522,11 @@ typedef struct AV1Common {
    */
   CommonModeInfoParams mi_params;
 
-#if CONFIG_FLEX_MVRES
   /*!
    * Params related to SB_INFO arrays and related info.
    */
   CommonSBInfoParams sbi_params;
-#endif
+
 #if CONFIG_ENTROPY_STATS
   /*!
    * Context type used by token CDFs, in the range 0 .. (TOKEN_CDF_Q_CTXS - 1).
@@ -2084,20 +2082,19 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd) {
 }
 
 static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,
-                                       const int num_planes) {
-  int i;
-  int row_offset = mi_row;
-  int col_offset = mi_col;
-  for (i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
+                                       const int num_planes,
+                                       const CHROMA_REF_INFO *chr_ref_info) {
+  for (int i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
     // Offset the buffer pointer
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
-    if (pd->subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
-      row_offset = mi_row - 1;
-    if (pd->subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
-      col_offset = mi_col - 1;
-    int above_idx = col_offset;
-    int left_idx = row_offset & MAX_MIB_MASK;
+    const int row_offset =
+        i && chr_ref_info ? chr_ref_info->mi_row_chroma_base : mi_row;
+    const int col_offset =
+        i && chr_ref_info ? chr_ref_info->mi_col_chroma_base : mi_col;
+    assert(row_offset >= 0);
+    assert(col_offset >= 0);
+    const int above_idx = col_offset;
+    const int left_idx = row_offset & MAX_MIB_MASK;
     pd->above_entropy_context =
         &xd->above_entropy_context[i][above_idx >> pd->subsampling_x];
     pd->left_entropy_context =
@@ -2111,11 +2108,22 @@ static INLINE int calc_mi_size(int len) {
 }
 
 static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
-                                const int num_planes) {
+                                const int num_planes,
+                                const CHROMA_REF_INFO *chr_ref_info) {
   int i;
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; i++) {
-    xd->plane[i].width = (bw * MI_SIZE) >> xd->plane[i].subsampling_x;
-    xd->plane[i].height = (bh * MI_SIZE) >> xd->plane[i].subsampling_y;
+    if (chr_ref_info && i > 0) {
+      const BLOCK_SIZE plane_bsize = chr_ref_info->bsize_base;
+      assert(plane_bsize < BLOCK_SIZES_ALL);
+
+      xd->plane[i].width =
+          block_size_wide[plane_bsize] >> xd->plane[i].subsampling_x;
+      xd->plane[i].height =
+          block_size_high[plane_bsize] >> xd->plane[i].subsampling_y;
+    } else {
+      xd->plane[i].width = (bw * MI_SIZE) >> xd->plane[i].subsampling_x;
+      xd->plane[i].height = (bh * MI_SIZE) >> xd->plane[i].subsampling_y;
+    }
 
     xd->plane[i].width = AOMMAX(xd->plane[i].width, 4);
     xd->plane[i].height = AOMMAX(xd->plane[i].height, 4);
@@ -2154,7 +2162,8 @@ static INLINE void fetch_spatial_neighbors(MACROBLOCKD *xd) {
 
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
                                   int mi_row, int bh, int mi_col, int bw,
-                                  int mi_rows, int mi_cols) {
+                                  int mi_rows, int mi_cols,
+                                  const CHROMA_REF_INFO *chr_ref_info) {
   xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
   xd->mb_to_bottom_edge = GET_MV_SUBPEL((mi_rows - bh - mi_row) * MI_SIZE);
   xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col * MI_SIZE));
@@ -2172,17 +2181,9 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   // Are edges available for intra prediction?
   xd->up_available = (mi_row > tile->mi_row_start);
-
-  const int ss_x = xd->plane[1].subsampling_x;
-  const int ss_y = xd->plane[1].subsampling_y;
-
   xd->left_available = (mi_col > tile->mi_col_start);
   xd->chroma_up_available = xd->up_available;
   xd->chroma_left_available = xd->left_available;
-  if (ss_x && bw < mi_size_wide[BLOCK_8X8])
-    xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
-  if (ss_y && bh < mi_size_high[BLOCK_8X8])
-    xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {
@@ -2210,28 +2211,38 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   fetch_spatial_neighbors(xd);
 
-  const int chroma_ref = ((mi_row & 0x01) || !(bh & 0x01) || !ss_y) &&
-                         ((mi_col & 0x01) || !(bw & 0x01) || !ss_x);
-  xd->is_chroma_ref = chroma_ref;
-  if (chroma_ref) {
-    // To help calculate the "above" and "left" chroma blocks, note that the
-    // current block may cover multiple luma blocks (eg, if partitioned into
-    // 4x4 luma blocks).
-    // First, find the top-left-most luma block covered by this chroma block
-    MB_MODE_INFO **base_mi =
-        &xd->mi[-(mi_row & ss_y) * xd->mi_stride - (mi_col & ss_x)];
+  if (chr_ref_info) {
+    xd->is_chroma_ref = chr_ref_info->is_chroma_ref;
+    xd->chroma_left_available =
+        chr_ref_info->mi_col_chroma_base > tile->mi_col_start;
+    xd->chroma_up_available =
+        chr_ref_info->mi_row_chroma_base > tile->mi_row_start;
+    if (xd->is_chroma_ref) {
+      // To help calculate the "above" and "left" chroma blocks, note that the
+      // current block may cover multiple luma blocks (eg, if partitioned into
+      // 4x4 luma blocks).
+      // First, find the top-left-most luma block covered by this chroma block
+      const int ss_x = xd->plane[1].subsampling_x;
+      const int ss_y = xd->plane[1].subsampling_y;
+      const int mi_row_offset = mi_row - chr_ref_info->mi_row_chroma_base;
+      const int mi_col_offset = mi_col - chr_ref_info->mi_col_chroma_base;
+      MB_MODE_INFO **base_mi =
+          &xd->mi[-mi_row_offset * xd->mi_stride - mi_col_offset];
 
-    // Then, we consider the luma region covered by the left or above 4x4 chroma
-    // prediction. We want to point to the chroma reference block in that
-    // region, which is the bottom-right-most mi unit.
-    // This leads to the following offsets:
-    MB_MODE_INFO *chroma_above_mi =
-        xd->chroma_up_available ? base_mi[-xd->mi_stride + ss_x] : NULL;
-    xd->chroma_above_mbmi = chroma_above_mi;
+      // Then, we consider the luma region covered by the left or above 4x4
+      // chroma prediction. We want to point to the chroma reference block in
+      // that region, which is the bottom-right-most mi unit. This leads to the
+      // following offsets:
+      MB_MODE_INFO *chroma_above_mi =
+          xd->chroma_up_available ? base_mi[-xd->mi_stride + ss_x] : NULL;
+      xd->chroma_above_mbmi = chroma_above_mi;
 
-    MB_MODE_INFO *chroma_left_mi =
-        xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
-    xd->chroma_left_mbmi = chroma_left_mi;
+      MB_MODE_INFO *chroma_left_mi =
+          xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
+      xd->chroma_left_mbmi = chroma_left_mi;
+    }
+  } else {
+    xd->is_chroma_ref = 1;
   }
 
   xd->height = bh;
@@ -2239,9 +2250,16 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   xd->is_last_vertical_rect = 0;
   if (xd->width < xd->height) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    // For PARTITION_VERT_3, it would be (0, 1, 1), because 2nd subpartition has
+    // ratio 1:2, so not enough top-right pixels are available.
+    // For other partitions, it would be (0, 1).
+    if (mi_col & (xd->height - 1)) xd->is_last_vertical_rect = 1;
+#else
     if (!((mi_col + xd->width) & (xd->height - 1))) {
       xd->is_last_vertical_rect = 1;
     }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 
   xd->is_first_horizontal_rect = 0;
@@ -2313,6 +2331,7 @@ static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
       xd->above_partition_context[plane] + mi_col;
   PARTITION_CONTEXT *const left_ctx =
       xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
+  assert(bsize < BLOCK_SIZES_ALL);
 
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
@@ -2343,10 +2362,14 @@ static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
   out[0] = CDF_PROB_TOP;
   out[0] -= cdf_element_prob(in, PARTITION_HORZ);
   out[0] -= cdf_element_prob(in, PARTITION_SPLIT);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_3);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_B);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_4);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -2358,10 +2381,14 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[0] = CDF_PROB_TOP;
   out[0] -= cdf_element_prob(in, PARTITION_VERT);
   out[0] -= cdf_element_prob(in, PARTITION_SPLIT);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_3);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_B);
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_4);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -2370,9 +2397,13 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                                 int mi_col, BLOCK_SIZE subsize,
                                                 BLOCK_SIZE bsize,
                                                 PARTITION_TYPE partition) {
-  if (bsize >= BLOCK_8X8) {
+  if (is_partition_point(bsize)) {
     const int hbs = mi_size_wide[bsize] / 2;
-    BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const int quarter_step = hbs / 2;
+#else
+    const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     switch (partition) {
       case PARTITION_SPLIT:
         if (bsize != BLOCK_8X8) break;
@@ -2380,10 +2411,28 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
       case PARTITION_NONE:
       case PARTITION_HORZ:
       case PARTITION_VERT:
-      case PARTITION_HORZ_4:
-      case PARTITION_VERT_4:
         update_partition_context(xd, mi_row, mi_col, subsize, bsize);
         break;
+#if CONFIG_EXT_RECUR_PARTITIONS
+      case PARTITION_HORZ_3: {
+        const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
+        update_partition_context(xd, mi_row, mi_col, subsize, subsize);
+        update_partition_context(xd, mi_row + quarter_step, mi_col, bsize3,
+                                 bsize3);
+        update_partition_context(xd, mi_row + 3 * quarter_step, mi_col, subsize,
+                                 subsize);
+        break;
+      }
+      case PARTITION_VERT_3: {
+        const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
+        update_partition_context(xd, mi_row, mi_col, subsize, subsize);
+        update_partition_context(xd, mi_row, mi_col + quarter_step, bsize3,
+                                 bsize3);
+        update_partition_context(xd, mi_row, mi_col + 3 * quarter_step, subsize,
+                                 subsize);
+        break;
+      }
+#else   // CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ_A:
         update_partition_context(xd, mi_row, mi_col, bsize2, subsize);
         update_partition_context(xd, mi_row + hbs, mi_col, subsize, subsize);
@@ -2400,6 +2449,11 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
         update_partition_context(xd, mi_row, mi_col, subsize, subsize);
         update_partition_context(xd, mi_row, mi_col + hbs, bsize2, subsize);
         break;
+      case PARTITION_HORZ_4:
+      case PARTITION_VERT_4:
+        update_partition_context(xd, mi_row, mi_col, subsize, bsize);
+        break;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: assert(0 && "Invalid partition type");
     }
   }
@@ -2412,26 +2466,67 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
       xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
-  // Minimum partition point is 8x8. Offset the bsl accordingly.
-  const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
-  int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (is_square_block(bsize)) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    // Minimum partition point is 8x8. Offset the bsl accordingly.
+    const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
+    int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
 
-  assert(mi_size_wide_log2[bsize] == mi_size_high_log2[bsize]);
-  assert(bsl >= 0);
+    assert(mi_size_wide_log2[bsize] == mi_size_high_log2[bsize]);
+    assert(bsl >= 0);
 
-  return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
+    return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  } else {
+    const int bsl_w = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
+    const int bsl_h = mi_size_high_log2[bsize] - mi_size_high_log2[BLOCK_8X8];
+
+    const int above = (*above_ctx >> AOMMAX(bsl_w, 0)) & 1;
+    const int left = (*left_ctx >> AOMMAX(bsl_h, 0)) & 1;
+
+    return (left * 2 + above) +
+           AOMMIN(bsl_w + 1, bsl_h + 1) * PARTITION_PLOFFSET;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 // Return the number of elements in the partition CDF when
 // partitioning the (square) block with luma block size of bsize.
 static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (bsize <= BLOCK_8X8 || bsize == BLOCK_128X128) return PARTITION_TYPES;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   if (bsize <= BLOCK_8X8)
     return PARTITION_TYPES;
   else if (bsize == BLOCK_128X128)
     return EXT_PARTITION_TYPES - 2;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   else
     return EXT_PARTITION_TYPES;
 }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int partition_rec_cdf_length(BLOCK_SIZE bsize) {
+  assert(block_size_wide[bsize] != block_size_high[bsize]);
+
+  switch (bsize) {
+    case BLOCK_4X8:
+    case BLOCK_8X4: return (PARTITION_LONG_SIDE_2_REC + 1);
+    case BLOCK_64X128:
+    case BLOCK_128X64: return (PARTITION_LONG_SIDE_3_REC + 1);
+    case BLOCK_8X16:
+    case BLOCK_16X8:
+    case BLOCK_16X32:
+    case BLOCK_32X16:
+    case BLOCK_32X64:
+    case BLOCK_64X32: return PARTITION_TYPES_REC;
+    default:
+      assert(0 && "Invalid splittable rectangular bsize");
+      return PARTITION_INVALID_REC;
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                  int plane) {
@@ -2908,22 +3003,41 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // Smaller height but same width. Is PARTITION_HORZ_4, PARTITION_HORZ or
       // PARTITION_HORZ_B. To distinguish the latter two, check if the lower
       // half was split.
-      if (sshigh * 4 == bhigh) return PARTITION_HORZ_4;
+      if (sshigh * 4 == bhigh) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_HORZ_3;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_HORZ_4;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      }
+#if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sshigh * 2 == bhigh);
-      if (mbmi_below->sb_type[plane_type] == subsize)
-        return PARTITION_HORZ;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+      if (mbmi_below->sb_type[plane_type] == subsize) return PARTITION_HORZ;
+#if !CONFIG_EXT_RECUR_PARTITIONS
       else
         return PARTITION_HORZ_B;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     } else if (sshigh == bhigh) {
       // Smaller width but same height. Is PARTITION_VERT_4, PARTITION_VERT or
       // PARTITION_VERT_B. To distinguish the latter two, check if the right
       // half was split.
-      if (sswide * 4 == bwide) return PARTITION_VERT_4;
+      if (sswide * 4 == bwide) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_VERT_3;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_VERT_4;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      }
+#if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sswide * 2 == bhigh);
-      if (mbmi_right->sb_type[plane_type] == subsize)
-        return PARTITION_VERT;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+      if (mbmi_right->sb_type[plane_type] == subsize) return PARTITION_VERT;
+
+#if !CONFIG_EXT_RECUR_PARTITIONS
       else
         return PARTITION_VERT_B;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     } else {
       // Smaller width and smaller height. Might be PARTITION_SPLIT or could be
       // PARTITION_HORZ_A or PARTITION_VERT_A. If subsize isn't halved in both
@@ -2932,11 +3046,19 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // PARTITION_VERT_A, the right block will have height bhigh; with
       // PARTITION_HORZ_A, the lower block with have width bwide. Otherwise
       // it's PARTITION_SPLIT.
+#if CONFIG_EXT_RECUR_PARTITIONS
+      if (sswide * 2 != bwide || sshigh * 2 != bhigh) {
+        if (mi_size_wide[mbmi_below->sb_type[plane_type]] < bwide &&
+            mi_size_high[mbmi_right->sb_type[plane_type]] < bhigh)
+          return PARTITION_SPLIT;
+      }
+#else   // CONFIG_EXT_RECUR_PARTITIONS
       if (sswide * 2 != bwide || sshigh * 2 != bhigh) return PARTITION_SPLIT;
       if (mi_size_wide[mbmi_below->sb_type[plane_type]] == bwide)
         return PARTITION_HORZ_A;
       if (mi_size_high[mbmi_right->sb_type[plane_type]] == bhigh)
         return PARTITION_VERT_A;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       return PARTITION_SPLIT;
     }
   }
@@ -2996,8 +3118,8 @@ static INLINE void av1_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,
 }
 #endif  // CONFIG_LR_FLEX_SYNTAX
 
-#if CONFIG_FLEX_MVRES
-static INLINE SB_INFO *av1_get_sb_info(AV1_COMMON *cm, int mi_row, int mi_col) {
+static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,
+                                       int mi_col) {
   const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
   const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
   return cm->sbi_params.sbi_grid_base + sb_row * cm->sbi_params.sbi_stride +
@@ -3011,9 +3133,10 @@ static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
   sbi->mi_row = mi_row;
   sbi->mi_col = mi_col;
 
+#if CONFIG_FLEX_MVRES
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
 }
-#endif
 
 // Returns true if the frame is fully lossless at the coded resolution.
 // Note: If super-resolution is used, such a frame will still NOT be lossless at
@@ -3316,9 +3439,9 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     }
   }
 
-  bool motion_variation_allowed = is_motion_variation_allowed_bsize(bsize) &&
-                                  is_inter_mode(mbmi->mode) &&
-                                  is_motion_variation_allowed_compound(mbmi);
+  bool motion_variation_allowed =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      is_inter_mode(mbmi->mode) && is_motion_variation_allowed_compound(mbmi);
 
   bool obmc_allowed =
       motion_variation_allowed && check_num_overlappable_neighbors(mbmi);

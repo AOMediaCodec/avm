@@ -1304,14 +1304,14 @@ static void write_buffer_8x8(__m128i *in, uint16_t *output, int stride,
 
   round_shift_8x8(in, shift);
 
-  v0 = _mm_load_si128((__m128i const *)(output + 0 * stride));
-  v1 = _mm_load_si128((__m128i const *)(output + 1 * stride));
-  v2 = _mm_load_si128((__m128i const *)(output + 2 * stride));
-  v3 = _mm_load_si128((__m128i const *)(output + 3 * stride));
-  v4 = _mm_load_si128((__m128i const *)(output + 4 * stride));
-  v5 = _mm_load_si128((__m128i const *)(output + 5 * stride));
-  v6 = _mm_load_si128((__m128i const *)(output + 6 * stride));
-  v7 = _mm_load_si128((__m128i const *)(output + 7 * stride));
+  v0 = _mm_loadu_si128((__m128i const *)(output + 0 * stride));
+  v1 = _mm_loadu_si128((__m128i const *)(output + 1 * stride));
+  v2 = _mm_loadu_si128((__m128i const *)(output + 2 * stride));
+  v3 = _mm_loadu_si128((__m128i const *)(output + 3 * stride));
+  v4 = _mm_loadu_si128((__m128i const *)(output + 4 * stride));
+  v5 = _mm_loadu_si128((__m128i const *)(output + 5 * stride));
+  v6 = _mm_loadu_si128((__m128i const *)(output + 6 * stride));
+  v7 = _mm_loadu_si128((__m128i const *)(output + 7 * stride));
 
   if (flipud) {
     u0 = get_recon_8x8(v0, in[14], in[15], fliplr, bd);
@@ -1333,14 +1333,14 @@ static void write_buffer_8x8(__m128i *in, uint16_t *output, int stride,
     u7 = get_recon_8x8(v7, in[14], in[15], fliplr, bd);
   }
 
-  _mm_store_si128((__m128i *)(output + 0 * stride), u0);
-  _mm_store_si128((__m128i *)(output + 1 * stride), u1);
-  _mm_store_si128((__m128i *)(output + 2 * stride), u2);
-  _mm_store_si128((__m128i *)(output + 3 * stride), u3);
-  _mm_store_si128((__m128i *)(output + 4 * stride), u4);
-  _mm_store_si128((__m128i *)(output + 5 * stride), u5);
-  _mm_store_si128((__m128i *)(output + 6 * stride), u6);
-  _mm_store_si128((__m128i *)(output + 7 * stride), u7);
+  _mm_storeu_si128((__m128i *)(output + 0 * stride), u0);
+  _mm_storeu_si128((__m128i *)(output + 1 * stride), u1);
+  _mm_storeu_si128((__m128i *)(output + 2 * stride), u2);
+  _mm_storeu_si128((__m128i *)(output + 3 * stride), u3);
+  _mm_storeu_si128((__m128i *)(output + 4 * stride), u4);
+  _mm_storeu_si128((__m128i *)(output + 5 * stride), u5);
+  _mm_storeu_si128((__m128i *)(output + 6 * stride), u6);
+  _mm_storeu_si128((__m128i *)(output + 7 * stride), u7);
 }
 
 void av1_inv_txfm2d_add_8x8_sse4_1(const int32_t *input, uint16_t *output,

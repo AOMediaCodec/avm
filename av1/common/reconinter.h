@@ -596,16 +596,17 @@ static INLINE int64_t scaled_buffer_offset(int x_offset, int y_offset,
   return (int64_t)y * stride + x;
 }
 
-static INLINE void setup_pred_plane(struct buf_2d *dst, BLOCK_SIZE bsize,
-                                    uint16_t *src, int width, int height,
-                                    int stride, int mi_row, int mi_col,
+static INLINE void setup_pred_plane(struct buf_2d *dst, uint16_t *src,
+                                    int width, int height, int stride,
+                                    int mi_row, int mi_col,
                                     const struct scale_factors *scale,
-                                    int subsampling_x, int subsampling_y) {
+                                    int subsampling_x, int subsampling_y,
+                                    const CHROMA_REF_INFO *chr_ref_info) {
   // Offset the buffer pointer
-  if (subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
-    mi_row -= 1;
-  if (subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
-    mi_col -= 1;
+  if (chr_ref_info && (subsampling_x || subsampling_y)) {
+    mi_row = chr_ref_info->mi_row_chroma_base;
+    mi_col = chr_ref_info->mi_col_chroma_base;
+  }
 
   const int x = (MI_SIZE * mi_col) >> subsampling_x;
   const int y = (MI_SIZE * mi_row) >> subsampling_y;
@@ -616,13 +617,15 @@ static INLINE void setup_pred_plane(struct buf_2d *dst, BLOCK_SIZE bsize,
   dst->stride = stride;
 }
 
-void av1_setup_dst_planes(struct macroblockd_plane *planes, BLOCK_SIZE bsize,
+void av1_setup_dst_planes(struct macroblockd_plane *planes,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
-                          const int plane_start, const int plane_end);
+                          const int plane_start, const int plane_end,
+                          const CHROMA_REF_INFO *chr_ref_info);
 
 void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
-                          const struct scale_factors *sf, const int num_planes);
+                          const struct scale_factors *sf, const int num_planes,
+                          const CHROMA_REF_INFO *chr_ref_info);
 
 static INLINE void set_default_interp_filters(
     MB_MODE_INFO *const mbmi,
@@ -710,11 +713,18 @@ void av1_build_interintra_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     const BUFFER_SET *ctx, int plane,
                                     BLOCK_SIZE bsize);
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
+                                               MACROBLOCKD *xd, int plane,
+                                               const BUFFER_SET *ctx,
+                                               uint16_t *dst, int dst_stride);
+#else
 void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
                                                MACROBLOCKD *xd,
                                                BLOCK_SIZE bsize, int plane,
                                                const BUFFER_SET *ctx,
                                                uint16_t *dst, int dst_stride);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             const uint16_t *inter_pred, int inter_stride,

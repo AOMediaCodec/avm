@@ -67,18 +67,6 @@ typedef struct {
 struct AV1_COMP;
 struct SPEED_FEATURES;
 
-// =============================================================================
-//  Cost functions
-// =============================================================================
-
-enum {
-  MV_COST_ENTROPY,    // Use the entropy rate of the mv as the cost
-  MV_COST_L1_LOWRES,  // Use the l1 norm of the mv as the cost (<480p)
-  MV_COST_L1_MIDRES,  // Use the l1 norm of the mv as the cost (>=480p)
-  MV_COST_L1_HDRES,   // Use the l1 norm of the mv as the cost (>=720p)
-  MV_COST_NONE        // Use 0 as as cost irrespective of the current mv
-} UENUM1BYTE(MV_COST_TYPE);
-
 typedef struct {
   // The reference mv used to compute the mv cost
   const MV *ref_mv;

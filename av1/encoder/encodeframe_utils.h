@@ -56,6 +56,9 @@ typedef struct SB_FIRST_PASS_STATS {
   int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
 #endif  // CONFIG_NEW_REF_SIGNALING
   int current_qindex;
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  REF_MV_BANK ref_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
 
 #if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
   unsigned int mode_chosen_counts[MAX_MODES];
@@ -64,9 +67,13 @@ typedef struct SB_FIRST_PASS_STATS {
 
 // This structure contains block size related
 // variables for use in rd_pick_partition().
-typedef struct {
+typedef struct PartitionBlkParams {
   // Half of block width to determine block edge.
   int mi_step;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int mi_step_h;
+  int mi_step_w;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Block row and column indices.
   int mi_row;
@@ -79,11 +86,18 @@ typedef struct {
   // Block width of current partition block.
   int width;
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // Minimum partition size allowed.
+  BLOCK_SIZE min_partition_size;
+#else
   // Block width of minimum partition size allowed.
   int min_partition_size_1d;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   // Flag to indicate if partition is 8x8 or higher size.
   int bsize_at_least_8x8;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   // Indicates edge blocks in frame.
   int has_rows;
@@ -100,7 +114,7 @@ typedef struct {
 } PartitionBlkParams;
 
 // Structure holding state variables for partition search.
-typedef struct {
+typedef struct PartitionSearchState {
   // Intra partitioning related info.
   PartitionSearchInfo *intra_part_info;
 
@@ -118,6 +132,9 @@ typedef struct {
 
   // Array holding partition type cost.
   int tmp_partition_cost[PARTITION_TYPES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int partition_cost_table[EXT_PARTITION_TYPES];
+#endif
 
   // Pointer to partition cost buffer
   int *partition_cost;
@@ -130,6 +147,10 @@ typedef struct {
   // rect_part_rd[1][i] is the RD cost of ith partition index of PARTITION_VERT.
   int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT];
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // New Simple Motion Result for PARTITION_NONE
+  SMSPartitionStats none_data;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   // Flags indicating if the corresponding partition was winner or not.
   // Used to bypass similar blocks during AB partition evaluation.
   int is_split_ctx_is_ready[2];
@@ -140,8 +161,11 @@ typedef struct {
   int partition_none_allowed;
   int partition_rect_allowed[NUM_RECT_PARTS];
   int do_rectangular_split;
+#if !CONFIG_EXT_RECUR_PARTITIONS
   int do_square_split;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   int prune_rect_part[NUM_RECT_PARTS];
+  int is_block_splittable;
 
   // Chroma subsampling in x and y directions.
   int ss_x;
@@ -282,9 +306,9 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                          MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi);
 
-void av1_restore_context(MACROBLOCK *x, const RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
-                         int mi_row, int mi_col, BLOCK_SIZE bsize,
-                         const int num_planes);
+void av1_restore_context(const AV1_COMMON *cm, MACROBLOCK *x,
+                         const RD_SEARCH_MACROBLOCK_CONTEXT *ctx, int mi_row,
+                         int mi_col, BLOCK_SIZE bsize, const int num_planes);
 
 void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
                       int mi_row, int mi_col, BLOCK_SIZE bsize,
@@ -324,6 +348,12 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
                            const TileInfo *const tile_info, const int mi_row,
                            const int mi_col);
+
+#ifndef NDEBUG
+static AOM_INLINE int is_bsize_square(BLOCK_SIZE bsize) {
+  return block_size_wide[bsize] == block_size_high[bsize];
+}
+#endif  // NDEBUG
 
 #ifdef __cplusplus
 }  // extern "C"

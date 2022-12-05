@@ -696,8 +696,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     memset(xd->tmp_sign, 0, width * height * sizeof(int32_t));
 #endif  // CONFIG_CONTEXT_DERIVATION
   const int txb_offset =
-      x->mbmi_ext_frame->cb_offset[plane > 0 && xd->tree_type == CHROMA_PART] /
-      (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+      x->mbmi_ext_frame->cb_offset[plane] / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
   const uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
   const uint16_t eob = eob_txb[block];
   const uint8_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
@@ -834,8 +833,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, width);
   const tran_low_t *tcoeff_txb =
-      cb_coef_buff->tcoeff[plane] +
-      x->mbmi_ext_frame->cb_offset[plane > 0 && xd->tree_type == CHROMA_PART];
+      cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane];
   const tran_low_t *tcoeff = tcoeff_txb + BLOCK_OFFSET(block);
   av1_txb_init_levels(tcoeff, width, height, levels);
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
@@ -3889,9 +3887,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 
     CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
     const int txb_offset =
-        x->mbmi_ext_frame
-            ->cb_offset[(plane > 0 && xd->tree_type == CHROMA_PART) ? 1 : 0] /
-        (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+        x->mbmi_ext_frame->cb_offset[plane] / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
     uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
     uint8_t *const entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
     entropy_ctx[block] = txb_ctx.txb_skip_ctx;
@@ -3910,8 +3906,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     const int segment_id = mbmi->segment_id;
     const int seg_eob = av1_get_tx_eob(&cpi->common.seg, segment_id, tx_size);
     tran_low_t *tcoeff_txb =
-        cb_coef_buff->tcoeff[plane] +
-        x->mbmi_ext_frame->cb_offset[plane > 0 && xd->tree_type == CHROMA_PART];
+        cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane];
     tcoeff = tcoeff_txb + block_offset;
     memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
 
@@ -3987,6 +3982,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 AOMMIN(level, 3) - 1, 3);
           }
 #else
+          assert(level > 0);
           update_cdf(
               ec_ctx->coeff_base_eob_cdf[txsize_ctx][plane_type][coeff_ctx],
               AOMMIN(level, 3) - 1, 3);
@@ -4013,6 +4009,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
       }
       if (c == eob - 1) {
         assert(coeff_ctx < 4);
+        assert(level > 0);
 #if CONFIG_ENTROPY_STATS
 #if CONFIG_ATC_COEFCODING
         const int row = pos >> bwl;
@@ -4380,6 +4377,7 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct tokenize_b_args arg = { cpi, td, 0, allow_update_cdf, dry_run };
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
+    assert(bsize == mbmi->sb_type[av1_get_sdp_idx(xd->tree_type)]);
     av1_reset_entropy_context(xd, bsize, num_planes);
     return;
   }
@@ -4390,7 +4388,11 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const int ss_x = pd->subsampling_x;
     const int ss_y = pd->subsampling_y;
-    const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+    const BLOCK_SIZE plane_bsize =
+        get_mb_plane_block_size(xd, mbmi, plane, ss_x, ss_y);
+#if !CONFIG_EXT_RECUR_PARTITIONS
+    assert(plane_bsize == get_plane_block_size(bsize, ss_x, ss_y));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     av1_foreach_transformed_block_in_plane(
         xd, plane_bsize, plane, av1_update_and_record_txb_context, &arg);
   }

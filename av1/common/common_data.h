@@ -13,6 +13,9 @@
 #ifndef AOM_AV1_COMMON_COMMON_DATA_H_
 #define AOM_AV1_COMMON_COMMON_DATA_H_
 
+#include <assert.h>
+#include <stdbool.h>
+
 #include "av1/common/enums.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
@@ -72,6 +75,111 @@ static const uint8_t num_pels_log2_lookup[BLOCK_SIZES_ALL] = {
   4, 5, 5, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13, 13, 14, 6, 6, 8, 8, 10, 10
 };
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static const PARTITION_TYPE
+    partition_map_from_symbol_block_wgth[PARTITION_TYPES_REC] = {
+      PARTITION_NONE,
+      PARTITION_VERT,
+      PARTITION_VERT_3,
+      PARTITION_HORZ,
+    };
+
+static const PARTITION_TYPE_REC
+    symbol_map_from_partition_block_wgth[EXT_PARTITION_TYPES] = {
+      PARTITION_NONE_REC,        PARTITION_SHORT_SIDE_2_REC,
+      PARTITION_LONG_SIDE_2_REC, PARTITION_INVALID_REC,
+      PARTITION_LONG_SIDE_3_REC,
+    };
+
+static const PARTITION_TYPE
+    partition_map_from_symbol_block_hgtw[PARTITION_TYPES_REC] = {
+      PARTITION_NONE,
+      PARTITION_HORZ,
+      PARTITION_HORZ_3,
+      PARTITION_VERT,
+    };
+
+static const PARTITION_TYPE_REC
+    symbol_map_from_partition_block_hgtw[EXT_PARTITION_TYPES] = {
+      PARTITION_NONE_REC,         PARTITION_LONG_SIDE_2_REC,
+      PARTITION_SHORT_SIDE_2_REC, PARTITION_LONG_SIDE_3_REC,
+      PARTITION_INVALID_REC,
+    };
+
+/* clang-format off */
+// This table covers all square blocks and 1:2/2:1 rectangular blocks
+static const BLOCK_SIZE
+    subsize_lookup[EXT_PARTITION_TYPES + 1][BLOCK_SIZES_ALL] = {
+  {     // PARTITION_NONE
+    BLOCK_4X4, BLOCK_4X8, BLOCK_8X4, BLOCK_8X8, BLOCK_8X16, BLOCK_16X8,
+    BLOCK_16X16, BLOCK_16X32, BLOCK_32X16, BLOCK_32X32, BLOCK_32X64,
+    BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
+    BLOCK_4X16, BLOCK_16X4, BLOCK_8X32, BLOCK_32X8, BLOCK_16X64, BLOCK_64X16,
+  }, {  // PARTITION_HORZ
+    BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID, BLOCK_8X4, BLOCK_8X8, BLOCK_16X4,
+    BLOCK_16X8, BLOCK_16X16, BLOCK_32X8, BLOCK_32X16, BLOCK_32X32, BLOCK_64X16,
+    BLOCK_64X32, BLOCK_64X64, BLOCK_INVALID, BLOCK_128X64,
+    BLOCK_4X8, BLOCK_INVALID, BLOCK_8X16, BLOCK_INVALID, BLOCK_16X32,
+    BLOCK_INVALID,
+  }, {  // PARTITION_VERT
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X4, BLOCK_4X8, BLOCK_4X16, BLOCK_8X8,
+    BLOCK_8X16, BLOCK_8X32, BLOCK_16X16, BLOCK_16X32, BLOCK_16X64, BLOCK_32X32,
+    BLOCK_32X64, BLOCK_INVALID, BLOCK_64X64, BLOCK_64X128,
+    BLOCK_INVALID, BLOCK_8X4, BLOCK_INVALID, BLOCK_16X8, BLOCK_INVALID,
+    BLOCK_32X16,
+  }, {  // PARTITION_HORZ_3
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_8X4,
+    BLOCK_INVALID, BLOCK_16X4, BLOCK_16X8,
+    BLOCK_INVALID,
+    BLOCK_32X8, BLOCK_32X16,
+    BLOCK_INVALID,
+    BLOCK_64X16, BLOCK_64X32, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_4X4, BLOCK_INVALID, BLOCK_8X8, BLOCK_INVALID, BLOCK_16X16,
+    BLOCK_INVALID,
+  }, {  // PARTITION_VERT_3
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_4X8, BLOCK_4X16,
+    BLOCK_INVALID,
+    BLOCK_8X16, BLOCK_8X32,
+    BLOCK_INVALID,
+    BLOCK_16X32, BLOCK_16X64, BLOCK_INVALID, BLOCK_32X64, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID, BLOCK_8X8,
+    BLOCK_INVALID, BLOCK_16X16,
+  }, {  // PARTITION_SPLIT
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_8X8, BLOCK_INVALID, BLOCK_INVALID, BLOCK_16X16,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_32X32, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_64X64, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID,
+  },
+};
+
+static AOM_INLINE PARTITION_TYPE sdp_chroma_part_from_luma(BLOCK_SIZE bsize,
+                                         PARTITION_TYPE luma_part, int ssx,
+                                         int ssy) {
+  const int bh_chr = block_size_high[bsize] >> ssy;
+  const int bw_chr = block_size_wide[bsize] >> ssx;
+
+  switch (luma_part) {
+    case PARTITION_NONE: return PARTITION_NONE;
+    case PARTITION_HORZ: return (bh_chr < 8) ? PARTITION_NONE : PARTITION_HORZ;
+    case PARTITION_HORZ_3:
+      if (bh_chr >= 16)
+        return PARTITION_HORZ_3;
+      else
+        return (bh_chr < 8) ? PARTITION_NONE : PARTITION_HORZ;
+    case PARTITION_VERT: return (bw_chr < 8) ? PARTITION_NONE : PARTITION_VERT;
+    case PARTITION_VERT_3:
+      if (bw_chr >= 16)
+        return PARTITION_VERT_3;
+      else
+        return (bw_chr < 8) ? PARTITION_NONE : PARTITION_VERT;
+    default: assert(0);
+  }
+  return PARTITION_INVALID;
+}
+
+#else  // CONFIG_EXT_RECUR_PARTITIONS
 // A compressed version of the Partition_Subsize table in the spec (9.3.
 // Conversion tables), for square block sizes only.
 /* clang-format off */
@@ -108,6 +216,7 @@ static const BLOCK_SIZE subsize_lookup[EXT_PARTITION_TYPES][SQR_BLOCK_SIZES] = {
     BLOCK_8X32, BLOCK_16X64, BLOCK_INVALID
   }
 };
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static const TX_SIZE max_txsize_lookup[BLOCK_SIZES_ALL] = {
   //                   4X4
@@ -486,6 +595,22 @@ static const int av1_size_class[MODE_DEPTX_TXSIZES] = {
   0, 1, 2, 3, 3, 0, 0, 1, 1, 2, 2, 3, 3, 0, 0, 1, 1, 2, 2,
 };
 #endif  // CONFIG_ATC_NEWTXSETS
+
+static AOM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
+  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
+    return false;
+  }
+  return block_size_wide[bsize1] >= block_size_wide[bsize2] &&
+         block_size_high[bsize1] >= block_size_high[bsize2];
+}
+
+static AOM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
+  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
+    return false;
+  }
+  return block_size_wide[bsize1] > block_size_wide[bsize2] &&
+         block_size_high[bsize1] > block_size_high[bsize2];
+}
 
 #if CONFIG_IST
 // Mapping of intra modes to IST kernel set

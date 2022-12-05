@@ -54,8 +54,9 @@ static void count_segs(const AV1_COMMON *cm, MACROBLOCKD *xd,
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
   xd->mi = mi;
+  assert(xd->mi && xd->mi[0]);
   set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows,
-                 mi_params->mi_cols);
+                 mi_params->mi_cols, &xd->mi[0]->chroma_ref_info);
 
   // Count the number of hits on each segment with no prediction
   const int segment_id = xd->mi[0]->segment_id;
@@ -117,6 +118,19 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
       CSEGS(hbs, bs, 0, 0);
       CSEGS(hbs, bs, 0, hbs);
       break;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ_3:
+      CSEGS(bs, qbs, 0, 0);
+      CSEGS(bs, hbs, qbs, 0);
+      if (mi_row + 3 * qbs < mi_params->mi_rows) CSEGS(bs, qbs, 3 * qbs, 0);
+      break;
+
+    case PARTITION_VERT_3:
+      CSEGS(qbs, bs, 0, 0);
+      CSEGS(hbs, bs, 0, qbs);
+      if (mi_col + 3 * qbs < mi_params->mi_cols) CSEGS(qbs, bs, 0, 3 * qbs);
+      break;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
       CSEGS(hbs, hbs, 0, 0);
       CSEGS(hbs, hbs, 0, hbs);
@@ -143,14 +157,13 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
       CSEGS(bs, qbs, 2 * qbs, 0);
       if (mi_row + 3 * qbs < mi_params->mi_rows) CSEGS(bs, qbs, 3 * qbs, 0);
       break;
-
     case PARTITION_VERT_4:
       CSEGS(qbs, bs, 0, 0);
       CSEGS(qbs, bs, 0, qbs);
       CSEGS(qbs, bs, 0, 2 * qbs);
       if (mi_col + 3 * qbs < mi_params->mi_cols) CSEGS(qbs, bs, 0, 3 * qbs);
       break;
-
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT: {
       const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
       int n;

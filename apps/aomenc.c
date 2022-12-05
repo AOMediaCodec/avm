@@ -616,7 +616,11 @@ static void init_config(cfg_options_t *config) {
   config->enable_rect_partitions = 1;
   config->enable_1to4_partitions = 1;
   config->disable_ml_transform_speed_features = 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  config->disable_ml_partition_speed_features = 1;
+#else
   config->disable_ml_partition_speed_features = 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;
   config->enable_mrls = 1;
 #if CONFIG_TIP

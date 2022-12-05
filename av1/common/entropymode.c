@@ -257,6 +257,64 @@ static const aom_cdf_prob
                     9875, 10521, 29048) } }
     };
 #endif  // CONFIG_AIMC
+#if CONFIG_EXT_RECUR_PARTITIONS
+static const aom_cdf_prob
+    default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(
+        EXT_PARTITION_TYPES)] = { {
+                                      // 8x8
+                                      { AOM_CDF3(22187, 28914) },
+                                      { AOM_CDF3(17354, 25544) },
+                                      { AOM_CDF3(16287, 28824) },
+                                      { AOM_CDF3(15189, 27217) },
+                                      // 16x16
+                                      { AOM_CDF5(14665, 22357, 28960, 30645) },
+                                      { AOM_CDF5(7804, 13703, 27420, 29025) },
+                                      { AOM_CDF5(7508, 23180, 28044, 30882) },
+                                      { AOM_CDF5(5058, 16122, 25275, 28359) },
+                                      // 32x32
+                                      { AOM_CDF5(11795, 19886, 27120, 29401) },
+                                      { AOM_CDF5(5127, 12682, 26374, 28387) },
+                                      { AOM_CDF5(5522, 19614, 27318, 30668) },
+                                      { AOM_CDF5(3450, 12856, 24163, 28493) },
+                                      // 64x64
+                                      { AOM_CDF5(21562, 26118, 30872, 31711) },
+                                      { AOM_CDF5(5489, 14515, 28365, 29969) },
+                                      { AOM_CDF5(5873, 19195, 28209, 31603) },
+                                      { AOM_CDF5(1674, 15579, 28805, 31560) },
+                                      // 128x128
+                                      { AOM_CDF3(25710, 28640) },
+                                      { AOM_CDF3(7561, 14721) },
+                                      { AOM_CDF3(9603, 21021) },
+                                      { AOM_CDF3(1736, 12989) },
+                                  },
+                                  {
+                                      // 8x8
+                                      { AOM_CDF3(22187, 28914) },
+                                      { AOM_CDF3(17354, 25544) },
+                                      { AOM_CDF3(16287, 28824) },
+                                      { AOM_CDF3(15189, 27217) },
+                                      // 16x16
+                                      { AOM_CDF5(14665, 22357, 28960, 30645) },
+                                      { AOM_CDF5(7804, 13703, 27420, 29025) },
+                                      { AOM_CDF5(7508, 23180, 28044, 30882) },
+                                      { AOM_CDF5(5058, 16122, 25275, 28359) },
+                                      // 32x32
+                                      { AOM_CDF5(11795, 19886, 27120, 29401) },
+                                      { AOM_CDF5(5127, 12682, 26374, 28387) },
+                                      { AOM_CDF5(5522, 19614, 27318, 30668) },
+                                      { AOM_CDF5(3450, 12856, 24163, 28493) },
+                                      // 64x64
+                                      { AOM_CDF5(21562, 26118, 30872, 31711) },
+                                      { AOM_CDF5(5489, 14515, 28365, 29969) },
+                                      { AOM_CDF5(5873, 19195, 28209, 31603) },
+                                      { AOM_CDF5(1674, 15579, 28805, 31560) },
+                                      // 128x128
+                                      { AOM_CDF3(25710, 28640) },
+                                      { AOM_CDF3(7561, 14721) },
+                                      { AOM_CDF3(9603, 21021) },
+                                      { AOM_CDF3(1736, 12989) },
+                                  } };
+#else
 static const aom_cdf_prob
     default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(
         EXT_PARTITION_TYPES)] = {
@@ -329,6 +387,39 @@ static const aom_cdf_prob
           { AOM_CDF8(711, 966, 1172, 32448, 32538, 32617, 32664) },
       }
     };
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static const aom_cdf_prob
+    default_partition_rec_cdf[PARTITION_CONTEXTS_REC]
+                             [CDF_SIZE(PARTITION_TYPES_REC)] = {
+                               // 8x4, 4x8
+                               { AOM_CDF2(30462) },
+                               { AOM_CDF2(25506) },
+                               { AOM_CDF2(27632) },
+                               { AOM_CDF2(19443) },
+                               // 16x8, 8x16
+                               { AOM_CDF4(19986, 29676, 30790) },
+                               { AOM_CDF4(12672, 24996, 30937) },
+                               { AOM_CDF4(16895, 30097, 30155) },
+                               { AOM_CDF4(10676, 22283, 25595) },
+                               // 32x16, 16x32
+                               { AOM_CDF4(13648, 24298, 31008) },
+                               { AOM_CDF4(6941, 18823, 31326) },
+                               { AOM_CDF4(8081, 19947, 30935) },
+                               { AOM_CDF4(4728, 17352, 30577) },
+                               // 64x32, 32x64
+                               { AOM_CDF4(14004, 23614, 30662) },
+                               { AOM_CDF4(5530, 18449, 30965) },
+                               { AOM_CDF4(6144, 19185, 31435) },
+                               { AOM_CDF4(7382, 19434, 30389) },
+                               // 128x64, 64x128
+                               { AOM_CDF3(15208, 24398) },
+                               { AOM_CDF3(6597, 18232) },
+                               { AOM_CDF3(9068, 21038) },
+                               { AOM_CDF3(10923, 21845) },
+                             };
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static const aom_cdf_prob default_intra_ext_tx_cdf
     [EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES][CDF_SIZE(TX_TYPES)] = {
@@ -2569,6 +2660,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
   av1_copy(fc->partition_cdf, default_partition_cdf);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_copy(fc->partition_rec_cdf, default_partition_rec_cdf);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   av1_copy(fc->intra_ext_tx_cdf, default_intra_ext_tx_cdf);
   av1_copy(fc->inter_ext_tx_cdf, default_inter_ext_tx_cdf);
   av1_copy(fc->skip_mode_cdfs, default_skip_mode_cdfs);

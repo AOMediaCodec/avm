@@ -16,6 +16,7 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
+#include "av1/common/enums.h"
 
 #if CONFIG_AIMC
 PREDICTION_MODE av1_get_joint_mode(const MB_MODE_INFO *mi) {
@@ -32,14 +33,15 @@ PREDICTION_MODE av1_get_block_mode(const MB_MODE_INFO *mi) {
 }
 #endif  // CONFIG_AIMC
 
-#if CONFIG_IBC_SR_EXT
 void av1_reset_is_mi_coded_map(MACROBLOCKD *xd, int stride) {
   av1_zero(xd->is_mi_coded);
   xd->is_mi_coded_stride = stride;
 }
 
-void av1_mark_block_as_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
-                             BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+void av1_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                             BLOCK_SIZE sb_size) {
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
   const int sb_mi_size = mi_size_wide[sb_size];
   const int mi_row_offset = mi_row & (sb_mi_size - 1);
   const int mi_col_offset = mi_col & (sb_mi_size - 1);
@@ -48,7 +50,15 @@ void av1_mark_block_as_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
     for (int c = 0; c < mi_size_wide[bsize]; ++c) {
       const int pos =
           (mi_row_offset + r) * xd->is_mi_coded_stride + mi_col_offset + c;
-      xd->is_mi_coded[pos] = 1;
+      switch (xd->tree_type) {
+        case SHARED_PART:
+          xd->is_mi_coded[0][pos] = 1;
+          xd->is_mi_coded[1][pos] = 1;
+          break;
+        case LUMA_PART: xd->is_mi_coded[0][pos] = 1; break;
+        case CHROMA_PART: xd->is_mi_coded[1][pos] = 1; break;
+        default: assert(0 && "Invalid tree type");
+      }
     }
 }
 
@@ -59,13 +69,56 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
   const int mi_col_offset = mi_col & (sb_mi_size - 1);
 
   for (int r = 0; r < mi_size_high[bsize]; ++r) {
-    uint8_t *row_ptr =
-        &xd->is_mi_coded[(mi_row_offset + r) * xd->is_mi_coded_stride +
-                         mi_col_offset];
-    memset(row_ptr, 0, mi_size_wide[bsize] * sizeof(xd->is_mi_coded[0]));
+    const int pos =
+        (mi_row_offset + r) * xd->is_mi_coded_stride + mi_col_offset;
+    uint8_t *row_ptr_luma = &xd->is_mi_coded[0][pos];
+    uint8_t *row_ptr_chroma = &xd->is_mi_coded[1][pos];
+    switch (xd->tree_type) {
+      case SHARED_PART:
+        av1_zero_array(row_ptr_luma, mi_size_wide[bsize]);
+        av1_zero_array(row_ptr_chroma, mi_size_wide[bsize]);
+        break;
+      case LUMA_PART: av1_zero_array(row_ptr_luma, mi_size_wide[bsize]); break;
+      case CHROMA_PART:
+        av1_zero_array(row_ptr_chroma, mi_size_wide[bsize]);
+        break;
+      default: assert(0 && "Invalid tree type");
+    }
   }
 }
-#endif  // CONFIG_IBC_SR_EXT
+
+PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index) {
+  PARTITION_TREE *ptree = NULL;
+  struct aom_internal_error_info error;
+
+  AOM_CHECK_MEM_ERROR(&error, ptree, aom_calloc(1, sizeof(*ptree)));
+
+  ptree->parent = parent;
+  ptree->index = index;
+  ptree->partition = PARTITION_NONE;
+  ptree->is_settled = 0;
+  for (int i = 0; i < 4; ++i) ptree->sub_tree[i] = NULL;
+
+  return ptree;
+}
+
+void av1_free_ptree_recursive(PARTITION_TREE *ptree) {
+  if (ptree == NULL) return;
+
+  for (int i = 0; i < 4; ++i) {
+    av1_free_ptree_recursive(ptree->sub_tree[i]);
+    ptree->sub_tree[i] = NULL;
+  }
+
+  aom_free(ptree);
+}
+
+void av1_reset_ptree_in_sbi(SB_INFO *sbi, TREE_TYPE tree_type) {
+  const int idx = av1_get_sdp_idx(tree_type);
+  if (sbi->ptree_root[idx]) av1_free_ptree_recursive(sbi->ptree_root[idx]);
+
+  sbi->ptree_root[idx] = av1_alloc_ptree_node(NULL, 0);
+}
 
 void av1_set_entropy_contexts(const MACROBLOCKD *xd,
                               struct macroblockd_plane *pd, int plane,
@@ -96,14 +149,37 @@ void av1_set_entropy_contexts(const MACROBLOCKD *xd,
     memset(l, has_eob, sizeof(*l) * txs_high);
   }
 }
+
 void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                const int num_planes) {
-  assert(bsize < BLOCK_SIZES_ALL);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // TODO(chiyotsai): This part is needed to avoid encoder/decoder mismatch.
+  // Investigate why this is the case. It seems like on the decoder side, the
+  // decoder is failing to clear the context after encoding a skip_txfm chroma
+  // block.
+  const int plane_start = (xd->tree_type == CHROMA_PART);
+  int plane_end = 0;
+  switch (xd->tree_type) {
+    case LUMA_PART: plane_end = 1; break;
+    case CHROMA_PART: plane_end = num_planes; break;
+    case SHARED_PART:
+      plane_end = 1 + (num_planes - 1) * xd->is_chroma_ref;
+      break;
+    default: assert(0);
+  }
+  for (int i = plane_start; i < plane_end; ++i) {
+#else
   const int nplanes = 1 + (num_planes - 1) * xd->is_chroma_ref;
   for (int i = 0; i < nplanes; i++) {
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     struct macroblockd_plane *const pd = &xd->plane[i];
-    const BLOCK_SIZE plane_bsize =
-        get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
+        xd, xd->mi[0], i, pd->subsampling_x, pd->subsampling_y);
+#if !CONFIG_EXT_RECUR_PARTITIONS
+    assert(plane_bsize ==
+           get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+    (void)bsize;
     const int txs_wide = mi_size_wide[plane_bsize];
     const int txs_high = mi_size_high[plane_bsize];
     memset(pd->above_entropy_context, 0, sizeof(ENTROPY_CONTEXT) * txs_wide);

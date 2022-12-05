@@ -379,8 +379,8 @@ static int firstpass_intra_prediction(
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
   set_mi_row_col(xd, tile, mb_row * mb_scale, mi_size_high[bsize],
                  mb_col * mb_scale, mi_size_wide[bsize], mi_params->mi_rows,
-                 mi_params->mi_cols);
-  set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], num_planes);
+                 mi_params->mi_cols, NULL);
+  set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], num_planes, NULL);
   xd->mi[0]->segment_id = 0;
   xd->lossless[xd->mi[0]->segment_id] = (qindex == 0);
   xd->mi[0]->mode = DC_PRED;
@@ -960,6 +960,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
 
+  xd->tile = *tile;
 #if CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME_PROXY);
@@ -1030,7 +1031,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                         cpi->oxcf.border_in_pixels);
 
   av1_setup_src_planes(x, cpi->source, mb_row << FP_MIB_SIZE_LOG2,
-                       tile->mi_col_start, num_planes, fp_block_size);
+                       tile->mi_col_start, num_planes, NULL);
 
   // Fix - zero the 16x16 block first. This ensures correct this_intra_error for
   // block sizes smaller than 16x16.
@@ -1167,12 +1168,11 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_setup_block_planes(xd, seq_params->subsampling_x,
                          seq_params->subsampling_y, num_planes);
 
-  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, fp_block_size);
-  av1_setup_dst_planes(xd->plane, seq_params->sb_size, this_frame, 0, 0, 0,
-                       num_planes);
+  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, NULL);
+  av1_setup_dst_planes(xd->plane, this_frame, 0, 0, 0, num_planes, NULL);
 
   if (!frame_is_intra_only(cm)) {
-    av1_setup_pre_planes(xd, 0, last_frame, 0, 0, NULL, num_planes);
+    av1_setup_pre_planes(xd, 0, last_frame, 0, 0, NULL, num_planes, NULL);
   }
 
   set_mi_offsets(mi_params, xd, 0, 0

@@ -184,13 +184,12 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
  * \param[in]    x              Pointer to structure holding the data for the
                                 current encoding macroblock
  * \param[in]    rd_stats       Pointer to struct to keep track of the RD stats
- * \param[in]    bsize          Current macroblock size
  * \param[in]    ref_best_rd    Best RD cost seen for this block so far
  * \return       An integer value is returned. 0: early termination triggered,
                  no valid rd cost available; 1: rd cost values are valid.
  */
 int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
-                  BLOCK_SIZE bsize, int64_t ref_best_rd);
+                  int64_t ref_best_rd);
 
 /*!\brief Transform type search with fixed transform size.
  *

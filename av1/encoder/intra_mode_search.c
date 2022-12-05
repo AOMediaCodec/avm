@@ -239,13 +239,12 @@ static int64_t pick_intra_angle_routine_sbuv(
     int rate_overhead, int64_t best_rd_in, int *rate, RD_STATS *rd_stats,
     int *best_angle_delta, int64_t *best_rd) {
   MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
-  assert(!is_inter_block(mbmi, x->e_mbd.tree_type));
+  assert(!is_inter_block(mbmi, cpi->td.mb.e_mbd.tree_type));
   int this_rate;
   int64_t this_rd;
   RD_STATS tokenonly_rd_stats;
 
-  if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, best_rd_in))
-    return INT64_MAX;
+  if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, best_rd_in)) return INT64_MAX;
   this_rate = tokenonly_rd_stats.rate +
               intra_mode_info_cost_uv(cpi, x, mbmi, bsize, rate_overhead);
   this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
@@ -333,8 +332,8 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   const MACROBLOCKD_PLANE *pd = &xd->plane[AOM_PLANE_U];
   const ModeCosts *mode_costs = &x->mode_costs;
   assert(xd->tree_type != LUMA_PART);
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(
-      mbmi->sb_type[PLANE_TYPE_UV], pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
+      xd, mbmi, PLANE_TYPE_UV, pd->subsampling_x, pd->subsampling_y);
 
   assert(is_cfl_allowed(xd) && cpi->oxcf.intra_mode_cfg.enable_cfl_intra);
   assert(plane_bsize < BLOCK_SIZES_ALL);
@@ -602,11 +601,6 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   xd->cfl.store_y = store_cfl_required_rdo(cm, x);
   if (xd->tree_type == SHARED_PART) {
     if (xd->cfl.store_y) {
-      // Restore reconstructed luma values.
-      // TODO(chiyotsai@google.com): right now we are re-computing the txfm in
-      // this function everytime we search through uv modes. There is some
-      // potential speed up here if we cache the result to avoid redundant
-      // computation.
       av1_encode_intra_block_plane(cpi, x, mbmi->sb_type[PLANE_TYPE_Y],
                                    AOM_PLANE_Y, DRY_RUN_NORMAL,
                                    cpi->optimize_seg_arr[mbmi->segment_id]);
@@ -681,7 +675,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #else
     mode_cost += cfl_alpha_rate;
 #endif
-    if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, best_rd)) {
+    if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, best_rd)) {
       continue;
     }
 #else
@@ -697,7 +691,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         continue;
     } else {
       // Predict directly if we don't need to search for angle delta.
-      if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, best_rd)) {
+      if (!av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, best_rd)) {
         continue;
       }
     }
@@ -1114,6 +1108,17 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
       best_rd_so_far = RDCOST(x->rdmult, tmp_rate, rd_stats_y->dist);
       try_filter_intra = (best_rd_so_far / 2) <= best_rd;
     }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
+    const FILTER_INTRA_MODE_INFO *cached_fi_mode =
+        cached_mode ? &cached_mode->filter_intra_mode_info : NULL;
+    if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+        !frame_is_intra_only(cm) && cached_fi_mode &&
+        !cached_fi_mode->use_filter_intra) {
+      // assert(cached_mode->mode == DC_PRED);
+      try_filter_intra = 0;
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
     if (try_filter_intra) {
       handle_filter_intra_mode(cpi, x, bsize, ctx, rd_stats_y, mode_cost,

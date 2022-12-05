@@ -98,7 +98,7 @@ SECTION .text
 ; PROCESS_8x2x4 first, off_{first,second}_{src,ref}, advance_at_end
 %macro HIGH_PROCESS_8x2x4 5-6 0
   ; 1st 8 px
-  mova                  m0, [srcq +%2*2]
+  movu                  m0, [srcq +%2*2]
 %if %1 == 1
   movu                  m4, [ref1q+%3*2]
   movu                  m5, [ref2q+%3*2]
@@ -156,7 +156,7 @@ SECTION .text
 %endif
 
   ; 2nd 8 px
-  mova                  m0, [srcq +(%4)*2]
+  movu                  m0, [srcq +(%4)*2]
   mova                  m3, m0
   movu                  m2, [ref1q+(%5)*2]
   psubusw               m3, m2

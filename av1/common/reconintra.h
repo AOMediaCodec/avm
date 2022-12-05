@@ -96,6 +96,7 @@ static INLINE int av1_is_directional_mode(PREDICTION_MODE mode) {
   return mode >= V_PRED && mode <= D67_PRED;
 }
 
+// TODO(any): Verify the correct behavior when we have BLOCK_4X16
 static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
   return bsize >= BLOCK_8X8;
 }

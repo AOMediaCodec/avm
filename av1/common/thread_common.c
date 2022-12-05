@@ -288,8 +288,8 @@ static INLINE void thread_loop_filter_rows(
              mi_col += MAX_MIB_SIZE) {
           c = mi_col >> MAX_MIB_SIZE_LOG2;
 
-          av1_setup_dst_planes(planes, cm->seq_params.sb_size, frame_buffer,
-                               mi_row, mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
 
           av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
                                       mi_col);
@@ -308,8 +308,8 @@ static INLINE void thread_loop_filter_rows(
           // completed
           sync_read(lf_sync, r + 1, c, plane);
 
-          av1_setup_dst_planes(planes, cm->seq_params.sb_size, frame_buffer,
-                               mi_row, mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
           av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
                                       mi_col);
         }
@@ -355,8 +355,8 @@ static INLINE void thread_loop_filter_bitmask_rows(
              mi_col += MI_SIZE_64X64) {
           c = mi_col >> MIN_MIB_SIZE_LOG2;
 
-          av1_setup_dst_planes(planes, BLOCK_64X64, frame_buffer, mi_row,
-                               mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
 
           av1_filter_block_plane_bitmask_vert(cm, &planes[plane], plane, mi_row,
                                               mi_col);
@@ -375,8 +375,8 @@ static INLINE void thread_loop_filter_bitmask_rows(
           // completed
           sync_read(lf_sync, r + 1, c, plane);
 
-          av1_setup_dst_planes(planes, BLOCK_64X64, frame_buffer, mi_row,
-                               mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
           av1_filter_block_plane_bitmask_horz(cm, &planes[plane], plane, mi_row,
                                               mi_col);
         }
@@ -511,8 +511,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 
       // TODO(chengchen): can we remove this?
       struct macroblockd_plane *pd = xd->plane;
-      av1_setup_dst_planes(pd, cm->seq_params.sb_size, frame, 0, 0, plane,
-                           plane + 1);
+      av1_setup_dst_planes(pd, frame, 0, 0, plane, plane + 1, NULL);
 
       av1_build_bitmask_vert_info(cm, &pd[plane], plane);
       av1_build_bitmask_horz_info(cm, &pd[plane], plane);

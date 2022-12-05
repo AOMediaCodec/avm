@@ -462,6 +462,101 @@ typedef struct {
   uint8_t *tmp_best_mask_buf;
 } CompoundTypeRdBuffers;
 
+/*!\cond */
+/*! \brief MV cost types
+ */
+enum {
+  MV_COST_ENTROPY,    // Use the entropy rate of the mv as the cost
+  MV_COST_L1_LOWRES,  // Use the l1 norm of the mv as the cost (<480p)
+  MV_COST_L1_MIDRES,  // Use the l1 norm of the mv as the cost (>=480p)
+  MV_COST_L1_HDRES,   // Use the l1 norm of the mv as the cost (>=720p)
+  MV_COST_NONE        // Use 0 as as cost irrespective of the current mv
+} UENUM1BYTE(MV_COST_TYPE);
+/*!\endcond */
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+/*! \brief max length of start Mv list
+ */
+#define kSMSMaxStartMVs 1
+/*! \brief Contains data for simple motion
+ */
+typedef struct SimpleMotionData {
+  MV mv_ref;                               /*!< mv reference */
+  MV fullmv;                               /*!< mv full */
+  MV submv;                                /*!< mv subpel */
+  unsigned int sse;                        /*!< sse */
+  unsigned int var;                        /*!< variance */
+  int64_t dist;                            /*!< distortion */
+  int rate;                                /*!< rate */
+  int64_t rdcost;                          /*!< rdcost */
+  int valid;                               /*!< whether valid */
+  BLOCK_SIZE bsize;                        /*!< blocksize */
+  int mi_row;                              /*!< row position in mi units */
+  int mi_col;                              /*!< col position in mi units */
+  MV_COST_TYPE mv_cost_type;               /*!< mv cost type */
+  int sadpb;                               /*!< sad per bit */
+  int errorperbit;                         /*!< error per bit */
+  MV start_mv_list[kSMSMaxStartMVs];       /*!< start mv list */
+  int num_start_mvs;                       /*!< number of start mvs */
+  int has_prev_partition;                  /*!< has previous partition */
+  PARTITION_TYPE prev_partition;           /*!< previous partition */
+  struct PICK_MODE_CONTEXT *mode_cache[1]; /*!< mode cache */
+} SimpleMotionData;
+
+/*!\cond */
+#define BLOCK_128_COUNT 1
+#define BLOCK_64_COUNT 3
+#define BLOCK_32_COUNT 7
+#define BLOCK_16_COUNT 15
+#define BLOCK_8_COUNT 31
+#define BLOCK_4_COUNT 32
+
+#define MAKE_SM_DATA_BUF(width, height) \
+  SimpleMotionData                      \
+      b_##width##x##height[BLOCK_##width##_COUNT * BLOCK_##height##_COUNT]
+/*!\endcond */
+
+/*! \brief Simple motion data buffers
+ */
+typedef struct SimpleMotionDataBufs {
+  /*!\cond */
+  // Square blocks
+  MAKE_SM_DATA_BUF(128, 128);
+  MAKE_SM_DATA_BUF(64, 64);
+  MAKE_SM_DATA_BUF(32, 32);
+  MAKE_SM_DATA_BUF(16, 16);
+  MAKE_SM_DATA_BUF(8, 8);
+  MAKE_SM_DATA_BUF(4, 4);
+
+  // 1:2 blocks
+  MAKE_SM_DATA_BUF(64, 128);
+  MAKE_SM_DATA_BUF(32, 64);
+  MAKE_SM_DATA_BUF(16, 32);
+  MAKE_SM_DATA_BUF(8, 16);
+  MAKE_SM_DATA_BUF(4, 8);
+
+  // 2:1 blocks
+  MAKE_SM_DATA_BUF(128, 64);
+  MAKE_SM_DATA_BUF(64, 32);
+  MAKE_SM_DATA_BUF(32, 16);
+  MAKE_SM_DATA_BUF(16, 8);
+  MAKE_SM_DATA_BUF(8, 4);
+
+  // 1:4 blocks
+  MAKE_SM_DATA_BUF(16, 64);
+  MAKE_SM_DATA_BUF(8, 32);
+  MAKE_SM_DATA_BUF(4, 16);
+
+  // 4:1 blocks
+  MAKE_SM_DATA_BUF(64, 16);
+  MAKE_SM_DATA_BUF(32, 8);
+  MAKE_SM_DATA_BUF(16, 4);
+  /*!\endcond */
+} SimpleMotionDataBufs;
+
+#undef MAKE_SM_DATA_BUF
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 /*! \brief Holds some parameters related to partitioning schemes in AV1.
  */
 // TODO(chiyotsai@google.com): Consolidate this with SIMPLE_MOTION_DATA_TREE
@@ -657,6 +752,10 @@ typedef struct {
   //! Cost for coding the partition.
   int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                     [EXT_PARTITION_TYPES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*! Cost for coding the partition for rectangular blocks. */
+  int partition_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 
   /*****************************************************************************
@@ -1473,6 +1572,14 @@ typedef struct macroblock {
   unsigned int source_variance;
   //! SSE of the current predictor.
   unsigned int pred_sse[SINGLE_REF_FRAMES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*! Simple motion search buffers. */
+  SimpleMotionDataBufs *sms_bufs;
+  /*! \brief Determines what encoding decision should be reused. */
+  int reuse_inter_mode_cache_type;
+  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
+  MB_MODE_INFO *inter_mode_cache;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
@@ -1579,6 +1686,11 @@ static INLINE int is_blk_skip(uint8_t *txb_skip, int plane, int blk_idx) {
   return (txb_skip[blk_idx] >> plane) & 1;
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int should_reuse_mode(const MACROBLOCK *x, int mode_flag) {
+  return x->reuse_inter_mode_cache_type & mode_flag;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 /*!\endcond */
 
 #ifdef __cplusplus

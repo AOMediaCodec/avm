@@ -163,9 +163,7 @@ TEST(IntrabcTest, DvValidation) {
   for (const DvTestCase &dv_case : kDvCases) {
     const int mi_row = xd.tile.mi_row_start + dv_case.mi_row_offset;
     const int mi_col = xd.tile.mi_col_start + dv_case.mi_col_offset;
-    xd.is_chroma_ref = is_chroma_reference(mi_row, mi_col, dv_case.bsize,
-                                           xd.plane[1].subsampling_x,
-                                           xd.plane[1].subsampling_y);
+    xd.is_chroma_ref = 1;
     EXPECT_EQ(static_cast<int>(dv_case.valid),
               av1_is_dv_valid(dv_case.dv, &cm, &xd, mi_row, mi_col,
                               dv_case.bsize, MAX_MIB_SIZE_LOG2));

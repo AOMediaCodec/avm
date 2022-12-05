@@ -1231,6 +1231,9 @@ typedef struct FRAME_COUNTS {
                                      [PALETTE_COLOR_INDEX_CONTEXTS]
                                      [PALETTE_COLORS];
   unsigned int partition[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  unsigned int partition_rec[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   unsigned int txb_skip[TOKEN_CDF_Q_CTXS][TX_SIZES][TXB_SKIP_CONTEXTS][2];
 #if CONFIG_CONTEXT_DERIVATION
   unsigned int v_txb_skip[TOKEN_CDF_Q_CTXS][V_TXB_SKIP_CONTEXTS][2];
@@ -1622,6 +1625,9 @@ typedef struct ThreadData {
   PC_TREE_SHARED_BUFFERS shared_coeff_buf;
   SIMPLE_MOTION_DATA_TREE *sms_tree;
   SIMPLE_MOTION_DATA_TREE *sms_root;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  struct SimpleMotionDataBufs *sms_bufs;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   InterModesInfo *inter_modes_info;
   uint32_t *hash_value_buffer[2][2];
   OBMCBuffer obmc_buffer;

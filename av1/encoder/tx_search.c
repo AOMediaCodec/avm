@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include "av1/common/blockd.h"
 #include "av1/common/cfl.h"
 #include "av1/common/reconintra.h"
 #include "av1/encoder/block.h"
@@ -888,8 +889,8 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x) {
   for (int plane = 0; plane < num_planes; ++plane) {
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-    const BLOCK_SIZE bs = get_plane_block_size(mbmi->sb_type, pd->subsampling_x,
-                                               pd->subsampling_y);
+    const BLOCK_SIZE bs = get_mb_plane_block_size(
+        xd, mbmi, plane, pd->subsampling_x, pd->subsampling_y);
     unsigned int sse;
 
     if (x->skip_chroma_rd && plane) continue;
@@ -2626,7 +2627,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       (txsize_sqr_up_map[tx_size] != TX_64X64) &&
 #if CONFIG_IST
       // Use pixel domain distortion for IST
-      // TODO: Make IST compatible with tx domain distortion
+      // TODO(any): Make IST compatible with tx domain distortion
       !cm->seq_params.enable_ist &&
 #endif
       // Use pixel domain distortion for DC only blocks
@@ -4026,14 +4027,14 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
     assert(!is_inter || plane_bsize < BLOCK_8X8);
 #if CONFIG_ADAPTIVE_DS_FILTER
-    cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize,
+    cfl_store_tx(xd, blk_row, blk_col, tx_size,
 #if DS_FRAME_LEVEL
                  cm->features.ds_filter_type);
 #else
                  cm->seq_params.enable_cfl_ds_filter);
 #endif  // DS_FRAME_LEVEL
 #else
-    cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize);
+    cfl_store_tx(xd, blk_row, blk_col, tx_size);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
   }
 
@@ -4751,7 +4752,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
 }
 
 int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
-                  BLOCK_SIZE bsize, int64_t ref_best_rd) {
+                  int64_t ref_best_rd) {
   av1_init_rd_stats(rd_stats);
   if (ref_best_rd < 0) return 0;
   if (!x->e_mbd.is_chroma_ref) return 1;
@@ -4761,8 +4762,8 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   int64_t this_rd = 0, skip_txfm_rd = 0;
-  const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+  const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
+      xd, mbmi, AOM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
 
   if (is_inter) {
     for (int plane = 1; plane < MAX_MB_PLANE; ++plane)
@@ -4948,7 +4949,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                             AOMMIN(non_skip_txfm_rdcosty, skip_txfm_rdcosty));
     }
     const int is_cost_valid_uv =
-        av1_txfm_uvrd(cpi, x, rd_stats_uv, bsize, ref_best_chroma_rd);
+        av1_txfm_uvrd(cpi, x, rd_stats_uv, ref_best_chroma_rd);
     if (!is_cost_valid_uv) return 0;
     av1_merge_rd_stats(rd_stats, rd_stats_uv);
   }

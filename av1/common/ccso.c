@@ -427,8 +427,7 @@ void apply_ccso_filter_hbd(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
                 uint16_t *ext_rec_y) {
   const int num_planes = av1_num_planes(cm);
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, frame, 0, 0, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
 
   const uint8_t quant_sz[4] = { 16, 8, 32, 64 };
 #if CONFIG_CCSO_EXT

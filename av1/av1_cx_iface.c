@@ -435,13 +435,17 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // film_grain_table_filename
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
-  0,                            // disable ML based partition speed up features
-  1,                            // enable rectangular partitions
-  1,                            // enable ab shape partitions
-  1,                            // enable 1:4 and 4:1 partitions
-  0,                            // disable ml based transform speed features
-  1,                            // enable semi-decoupled partitioning
-  1,                            // enable multiple reference line selection
+#if CONFIG_EXT_RECUR_PARTITIONS
+  1,  // disable ML based partition speed up features
+#else
+  0,  // disable ML based partition speed up features
+#endif
+  1,  // enable rectangular partitions
+  1,  // enable ab shape partitions
+  1,  // enable 1:4 and 4:1 partitions
+  0,  // disable ml based transform speed features
+  1,  // enable semi-decoupled partitioning
+  1,  // enable multiple reference line selection
 #if CONFIG_TIP
   1,    // enable temporal interpolated prediction (TIP)
 #endif  // CONFIG_TIP
@@ -1592,6 +1596,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   part_cfg->enable_ab_partitions = extra_cfg->enable_ab_partitions;
   part_cfg->enable_1to4_partitions = extra_cfg->enable_1to4_partitions;
   part_cfg->enable_sdp = extra_cfg->enable_sdp;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  part_cfg->disable_ml_partition_speed_features =
+      extra_cfg->disable_ml_partition_speed_features;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->min_partition_size = extra_cfg->min_partition_size;
   part_cfg->max_partition_size = extra_cfg->max_partition_size;
 
@@ -4229,7 +4237,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // frame_hash_metadata;
     0,                           // frame_hash_per_plane;
     {
-        0, 128, 128, 4, 1, 1, 1, 0, 0, 1, 1,
+        0, 128, 128, 4, 1, 1, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+        1,
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        0,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        0, 1,   1,
 #if CONFIG_TIP
         1,
 #endif  // CONFIG_TIP

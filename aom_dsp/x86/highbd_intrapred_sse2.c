@@ -55,13 +55,13 @@ void aom_highbd_h_predictor_8x4_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i row3 = _mm_shufflelo_epi16(left_u16, 0xff);
   (void)above;
   (void)bd;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row0, row0));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row0, row0));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row1, row1));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row1, row1));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row2, row2));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row2, row2));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row3, row3));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row3, row3));
 }
 
 void aom_highbd_h_predictor_8x8_sse2(uint16_t *dst, ptrdiff_t stride,
@@ -78,21 +78,21 @@ void aom_highbd_h_predictor_8x8_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i row7 = _mm_shufflehi_epi16(left_u16, 0xff);
   (void)above;
   (void)bd;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row0, row0));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row0, row0));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row1, row1));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row1, row1));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row2, row2));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row2, row2));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpacklo_epi64(row3, row3));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpacklo_epi64(row3, row3));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpackhi_epi64(row4, row4));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpackhi_epi64(row4, row4));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpackhi_epi64(row5, row5));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpackhi_epi64(row5, row5));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpackhi_epi64(row6, row6));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpackhi_epi64(row6, row6));
   dst += stride;
-  _mm_store_si128((__m128i *)dst, _mm_unpackhi_epi64(row7, row7));
+  _mm_storeu_si128((__m128i *)dst, _mm_unpackhi_epi64(row7, row7));
 }
 
 void aom_highbd_h_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
@@ -358,7 +358,7 @@ static INLINE void dc_store_8xh(uint16_t *dst, ptrdiff_t stride, int height,
   const __m128i dc_dup = _mm_unpacklo_epi64(dc_dup_lo, dc_dup_lo);
   int i;
   for (i = 0; i < height; ++i, dst += stride) {
-    _mm_store_si128((__m128i *)dst, dc_dup);
+    _mm_storeu_si128((__m128i *)dst, dc_dup);
   }
 }
 
@@ -708,10 +708,10 @@ void aom_highbd_v_predictor_8x4_sse2(uint16_t *dst, ptrdiff_t stride,
   (void)left;
   (void)bd;
   const __m128i above_u16 = _mm_load_si128((const __m128i *)above);
-  _mm_store_si128((__m128i *)dst, above_u16);
-  _mm_store_si128((__m128i *)(dst + stride), above_u16);
-  _mm_store_si128((__m128i *)(dst + 2 * stride), above_u16);
-  _mm_store_si128((__m128i *)(dst + 3 * stride), above_u16);
+  _mm_storeu_si128((__m128i *)dst, above_u16);
+  _mm_storeu_si128((__m128i *)(dst + stride), above_u16);
+  _mm_storeu_si128((__m128i *)(dst + 2 * stride), above_u16);
+  _mm_storeu_si128((__m128i *)(dst + 3 * stride), above_u16);
 }
 
 void aom_highbd_v_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
@@ -722,10 +722,10 @@ void aom_highbd_v_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i above_u16 = _mm_load_si128((const __m128i *)above);
   int i;
   for (i = 0; i < 4; ++i) {
-    _mm_store_si128((__m128i *)dst, above_u16);
-    _mm_store_si128((__m128i *)(dst + stride), above_u16);
-    _mm_store_si128((__m128i *)(dst + 2 * stride), above_u16);
-    _mm_store_si128((__m128i *)(dst + 3 * stride), above_u16);
+    _mm_storeu_si128((__m128i *)dst, above_u16);
+    _mm_storeu_si128((__m128i *)(dst + stride), above_u16);
+    _mm_storeu_si128((__m128i *)(dst + 2 * stride), above_u16);
+    _mm_storeu_si128((__m128i *)(dst + 3 * stride), above_u16);
     dst += stride << 2;
   }
 }
@@ -849,13 +849,13 @@ void aom_highbd_dc_predictor_8x4_sse2(uint16_t *dst, ptrdiff_t stride,
   sum32 /= 12;
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
 
-  _mm_store_si128((__m128i *)dst, row);
+  _mm_storeu_si128((__m128i *)dst, row);
   dst += stride;
-  _mm_store_si128((__m128i *)dst, row);
+  _mm_storeu_si128((__m128i *)dst, row);
   dst += stride;
-  _mm_store_si128((__m128i *)dst, row);
+  _mm_storeu_si128((__m128i *)dst, row);
   dst += stride;
-  _mm_store_si128((__m128i *)dst, row);
+  _mm_storeu_si128((__m128i *)dst, row);
 }
 
 void aom_highbd_dc_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
@@ -874,13 +874,13 @@ void aom_highbd_dc_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 4; ++i) {
-    _mm_store_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)dst, row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)dst, row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)dst, row);
     dst += stride;
-    _mm_store_si128((__m128i *)dst, row);
+    _mm_storeu_si128((__m128i *)dst, row);
     dst += stride;
   }
 }

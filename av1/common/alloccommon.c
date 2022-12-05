@@ -158,18 +158,23 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
   above_contexts->num_mi_cols = 0;
   above_contexts->num_planes = 0;
 }
-#if CONFIG_FLEX_MVRES
+
 static void free_sbi(CommonSBInfoParams *sbi_params) {
+  for (int i = 0; i < sbi_params->sbi_alloc_size; ++i) {
+    av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[0]);
+    av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[1]);
+  }
+
   aom_free(sbi_params->sbi_grid_base);
+#if CONFIG_FLEX_MVRES
   sbi_params->sbi_grid_base = NULL;
   sbi_params->sbi_alloc_size = 0;
+#endif  // CONFIG_FLEX_MVRES
 }
-#endif
+
 void av1_free_context_buffers(AV1_COMMON *cm) {
   cm->mi_params.free_mi(&cm->mi_params);
-#if CONFIG_FLEX_MVRES
   free_sbi(&cm->sbi_params);
-#endif
 
   av1_free_above_context_buffers(&cm->above_contexts);
 
@@ -265,7 +270,7 @@ static int alloc_mi(CommonModeInfoParams *mi_params) {
 
   return 0;
 }
-#if CONFIG_FLEX_MVRES
+
 static void set_sb_si(AV1_COMMON *cm) {
   CommonSBInfoParams *const sbi_params = &cm->sbi_params;
   const int mib_size_log2 = cm->seq_params.mib_size_log2;
@@ -287,21 +292,23 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
     if (!sbi_params->sbi_grid_base) return 1;
 
     sbi_params->sbi_alloc_size = sbi_size;
+    for (int i = 0; i < sbi_size; ++i) {
+      sbi_params->sbi_grid_base[i].ptree_root[0] = NULL;
+      sbi_params->sbi_grid_base[i].ptree_root[1] = NULL;
+    }
   }
 
   return 0;
 }
-#endif
 
 int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->set_mb_mi(mi_params, width, height);
   if (alloc_mi(mi_params)) goto fail;
-#if CONFIG_FLEX_MVRES
+
   CommonSBInfoParams *const sbi_params = &cm->sbi_params;
   set_sb_si(cm);
   if (alloc_sbi(sbi_params)) goto fail;
-#endif
 
   return 0;
 

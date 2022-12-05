@@ -901,8 +901,8 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
     return;
 #endif
   const int num_planes = av1_num_planes(cm);
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, &cm->cur_frame->buf,
-                       0, 0, 0, num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
+                       NULL);
   ccso_stride = xd->plane[0].dst.width;
   ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
 #if CONFIG_CCSO_EXT

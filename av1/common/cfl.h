@@ -26,9 +26,7 @@
 static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (xd->tree_type == LUMA_PART) return CFL_DISALLOWED;
-  const BLOCK_SIZE bsize =
-      mbmi->sb_type[xd->tree_type == SHARED_PART ? PLANE_TYPE_Y
-                                                 : PLANE_TYPE_UV];
+  const BLOCK_SIZE bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
   assert(bsize < BLOCK_SIZES_ALL);
   if (xd->lossless[mbmi->segment_id]) {
     // In lossless, CfL is available when the partition size is equal to the
@@ -86,8 +84,7 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 );
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
-                  BLOCK_SIZE bsize
+void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
 #if CONFIG_ADAPTIVE_DS_FILTER
                   ,
                   int filter_type

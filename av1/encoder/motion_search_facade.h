@@ -89,7 +89,14 @@ int_mv av1_simple_motion_sse_var(struct AV1_COMP *cpi, MACROBLOCK *x,
                                  int mi_row, int mi_col, BLOCK_SIZE bsize,
                                  const FULLPEL_MV start_mv, int use_subpixel,
                                  unsigned int *sse, unsigned int *var);
-
+#if CONFIG_EXT_RECUR_PARTITIONS
+int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
+                                    const TileInfo *const tile, MACROBLOCK *x,
+                                    int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                    int ref, FULLPEL_MV start_mv,
+                                    int num_planes, int use_subpixel,
+                                    SimpleMotionData *sms_data);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #ifdef __cplusplus
 }  // extern "C"
 #endif

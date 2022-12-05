@@ -744,7 +744,7 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
         }
       }
 
-      av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, bsize, *best_rd);
+      av1_txfm_uvrd(cpi, x, &tokenonly_rd_stats, *best_rd);
       if (tokenonly_rd_stats.rate == INT_MAX) continue;
       this_rate = tokenonly_rd_stats.rate +
                   intra_mode_info_cost_uv(cpi, x, mbmi, bsize, dc_mode_cost);

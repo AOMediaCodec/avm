@@ -1220,7 +1220,7 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
       mv->mv[0].as_int = 0;
       mv->mv[1].as_int = 0;
       if (tpl_mv->mfmv0.as_int != INVALID_MV) {
-        int_mv this_mv[2] = { 0 };
+        int_mv this_mv[2] = { { 0 } };
         tip_get_mv_projection(&this_mv[0].as_mv, tpl_mv->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[0]);
         tip_get_mv_projection(&this_mv[1].as_mv, tpl_mv->mfmv0.as_mv,

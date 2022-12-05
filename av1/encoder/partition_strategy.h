@@ -13,6 +13,7 @@
 #ifndef AOM_AV1_ENCODER_PARTITION_STRATEGY_H_
 #define AOM_AV1_ENCODER_PARTITION_STRATEGY_H_
 
+#include "av1/encoder/block.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encoder.h"
@@ -192,6 +193,67 @@ void av1_prune_ab_partitions(
     int *horza_partition_allowed, int *horzb_partition_allowed,
     int *verta_partition_allowed, int *vertb_partition_allowed);
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
+                                         int mi_row, int mi_col,
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
+                                   const TileInfo *const tile, MACROBLOCK *x,
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize);
+
+static AOM_INLINE void av1_add_mode_search_context_to_cache(
+    SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {
+  if (!sms_data->mode_cache[0] ||
+      sms_data->mode_cache[0]->rd_stats.rdcost > ctx->rd_stats.rdcost) {
+    sms_data->mode_cache[0] = ctx;
+  }
+}
+
+static INLINE void av1_set_best_mode_cache(MACROBLOCK *x,
+                                           PICK_MODE_CONTEXT *mode_cache[1]) {
+  if (mode_cache[0] && mode_cache[0]->rd_stats.rate != INT_MAX) {
+    x->inter_mode_cache = &mode_cache[0]->mic;
+  } else {
+    x->inter_mode_cache = NULL;
+  }
+}
+
+typedef struct SMSPartitionStats {
+  const SimpleMotionData *sms_data[4];
+  int num_sub_parts;
+  int part_rate;
+} SMSPartitionStats;
+
+static INLINE void av1_init_sms_partition_stats(SMSPartitionStats *stats) {
+  memset(stats->sms_data, 0, sizeof(stats->sms_data));
+  stats->num_sub_parts = 0;
+  stats->part_rate = INT_MAX;
+}
+
+// Returns 1 if we think the old part is better and we should prune new
+// partition, 0 otherwise.
+int av1_prune_new_part(const SMSPartitionStats *old_part,
+                       const SMSPartitionStats *new_part, int rdmult,
+                       BLOCK_SIZE bsize, const SPEED_FEATURES *sf);
+
+void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
+                              int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                              PARTITION_TYPE partition);
+
+void av1_copy_sms_part(const SimpleMotionData **part_dst, int *part_size_dst,
+                       int *part_rate_dst,
+                       const SimpleMotionData *const *part_src,
+                       int part_size_src, int part_rate_src);
+
+struct PartitionBlkParams;
+struct PartitionSearchState;
+bool av1_prune_part_hv_with_sms(
+    AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *x,
+    const struct PartitionSearchState *part_search_state,
+    const RD_STATS *best_rdc, const struct PartitionBlkParams *blk_params,
+    RECT_PART_TYPE rect_type, int part_rate);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // A simplified version of set_offsets meant to be used for
 // simple_motion_search.
 static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
@@ -214,15 +276,15 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   );
 
   // Set up destination pointers.
-  av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, NULL);
 
   // Set up limit values for MV components.
   // Mv beyond the range do not produce new/different prediction block.
   av1_set_mv_limits(mi_params, &x->mv_limits, mi_row, mi_col, mi_height,
                     mi_width, cpi->oxcf.border_in_pixels);
 
-  set_plane_n4(xd, mi_width, mi_height, num_planes);
+  set_plane_n4(xd, mi_width, mi_height, num_planes, NULL);
 
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
@@ -237,7 +299,7 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
       GET_MV_SUBPEL((mi_params->mi_cols - mi_width - mi_col) * MI_SIZE);
 
   // Set up source buffers.
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
 }
 
 static INLINE void init_simple_motion_search_mvs(
@@ -255,6 +317,15 @@ static INLINE void init_simple_motion_search_mvs(
     init_simple_motion_search_mvs(sms_tree->split[3]);
   }
 }
+
+PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
+                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
+  memset(data_bufs, 0, sizeof(*data_bufs));
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_full_sb(const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, BLOCK_SIZE sb_size) {

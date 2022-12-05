@@ -879,11 +879,20 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
+  const TX_SIZE plane_tx_size =
+      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
+                                    pd->subsampling_y)
+            : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
+                                                         blk_col)];
+#else
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(mbmi->sb_type[xd->tree_type == CHROMA_PART],
                                     pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (!plane) {
     assert(tx_size_wide[tx_size] >= tx_size_wide[plane_tx_size] &&
            tx_size_high[tx_size] >= tx_size_high[plane_tx_size]);
@@ -1041,6 +1050,7 @@ void av1_encode_sby_pass1(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize) {
 
 void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                    RUN_TYPE dry_run, int plane_start, int plane_end) {
+  (void)bsize;
   assert(bsize < BLOCK_SIZES_ALL);
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -1079,8 +1089,17 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     const int subsampling_x = pd->subsampling_x;
     const int subsampling_y = pd->subsampling_y;
     if (plane && !xd->is_chroma_ref) break;
+
     const BLOCK_SIZE plane_bsize =
-        get_plane_block_size(bsize, subsampling_x, subsampling_y);
+        get_mb_plane_block_size(xd, mbmi, plane, subsampling_x, subsampling_y);
+#if !CONFIG_EXT_RECUR_PARTITIONS
+    const BLOCK_SIZE bsize_base =
+        plane ? mbmi->chroma_ref_info.bsize_base
+              : mbmi->sb_type[xd->tree_type == CHROMA_PART];
+    assert(plane_bsize ==
+           get_plane_block_size(bsize_base, subsampling_x, subsampling_y));
+    (void)bsize_base;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     assert(plane_bsize < BLOCK_SIZES_ALL);
     const int mi_width = mi_size_wide[plane_bsize];
     const int mi_height = mi_size_high[plane_bsize];
@@ -1320,14 +1339,14 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   *(args->skip) = 0;
   if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
 #if CONFIG_ADAPTIVE_DS_FILTER
-    cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize,
+    cfl_store_tx(xd, blk_row, blk_col, tx_size,
 #if DS_FRAME_LEVEL
                  cm->features.ds_filter_type);
 #else
                  cm->seq_params.enable_cfl_ds_filter);
 #endif  // DS_FRAME_LEVEL
 #else
-    cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize);
+    cfl_store_tx(xd, blk_row, blk_col, tx_size);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
   }
 }
@@ -1335,7 +1354,6 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
                                   BLOCK_SIZE bsize, int plane, RUN_TYPE dry_run,
                                   TRELLIS_OPT_TYPE enable_optimize_b) {
-  assert(bsize < BLOCK_SIZES_ALL);
   const MACROBLOCKD *const xd = &x->e_mbd;
   if (plane && !xd->is_chroma_ref) return;
 
@@ -1344,11 +1362,16 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
   const int ss_y = pd->subsampling_y;
   ENTROPY_CONTEXT ta[MAX_MIB_SIZE] = { 0 };
   ENTROPY_CONTEXT tl[MAX_MIB_SIZE] = { 0 };
-  struct encode_b_args arg = {
-    cpi, x,  NULL,    &(xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART]),
-    ta,  tl, dry_run, enable_optimize_b
-  };
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+  int8_t *skip_txfm = &(xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART]);
+
+  struct encode_b_args arg = { cpi, x,  NULL,    skip_txfm,
+                               ta,  tl, dry_run, enable_optimize_b };
+  const BLOCK_SIZE plane_bsize =
+      get_mb_plane_block_size(xd, xd->mi[0], plane, ss_x, ss_y);
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  assert(plane_bsize == get_plane_block_size(bsize, ss_x, ss_y));
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+  (void)bsize;
   if (enable_optimize_b) {
     av1_get_entropy_contexts(plane_bsize, pd, ta, tl);
   }

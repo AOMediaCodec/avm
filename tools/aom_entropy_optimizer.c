@@ -348,9 +348,15 @@ int main(int argc, const char **argv) {
   /* block partition */
   cts_each_dim[0] = PARTITION_CONTEXTS;
   cts_each_dim[1] = EXT_PARTITION_TYPES;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int part_types_each_ctx[PARTITION_CONTEXTS] = {
+    3, 3, 3, 3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 3, 3
+  };
+#else
   int part_types_each_ctx[PARTITION_CONTEXTS] = { 4,  4,  4,  4,  10, 10, 10,
                                                   10, 10, 10, 10, 10, 10, 10,
                                                   10, 10, 8,  8,  8,  8 };
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   optimize_cdf_table_var_modes_2d(
       &fc.partition[0][0], probsfile, 2, cts_each_dim, part_types_each_ctx,
       "static const aom_cdf_prob default_partition_cdf[PARTITION_CONTEXTS]"
@@ -365,6 +371,20 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_cctx_type[EXT_TX_SIZES]"
                      "[CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)]");
 #endif  // CONFIG_CROSS_CHROMA_TX
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  cts_each_dim[0] = PARTITION_CONTEXTS_REC;
+  cts_each_dim[1] = PARTITION_TYPES_REC;
+  int part_types_each_ctx_rec[PARTITION_CONTEXTS_REC] = { 2, 2, 2, 2, 4, 4, 4,
+                                                          4, 4, 4, 4, 4, 4, 4,
+                                                          4, 4, 3, 3, 3, 3 };
+  optimize_cdf_table_var_modes_2d(
+      &fc.partition_rec[0][0], probsfile, 2, cts_each_dim,
+      part_types_each_ctx_rec,
+      "static const aom_cdf_prob "
+      "default_partition_rec_cdf[PARTITION_CONTEXTS_REC]"
+      "[CDF_SIZE(PARTITION_TYPES_REC)]");
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   /* tx type */
   cts_each_dim[0] = EXT_TX_SETS_INTRA;
