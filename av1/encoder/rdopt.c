@@ -7793,6 +7793,7 @@ static int inter_mode_search_order_independent_skip(
       skip_ref = 0;
       // If the cache only needs the current reference type for compound
       // prediction, then we can skip motion mode search.
+      assert(x->inter_mode_cache->ref_frame);
 #if CONFIG_NEW_REF_SIGNALING
       skip_motion_mode = (ref_type < INTER_REFS_PER_FRAME &&
                           x->inter_mode_cache->ref_frame[1] != INTRA_FRAME);
