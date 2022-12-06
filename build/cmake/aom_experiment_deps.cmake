@@ -85,4 +85,9 @@ macro(fix_experiment_configs)
                            !CONFIG_EXTENDED_WARP_PREDICTION)
   endif()
 
+  # CONFIG_WARPMV depends on CONFIG_WARP_REF_LIST
+  if(NOT CONFIG_WARP_REF_LIST AND CONFIG_WARPMV)
+    change_config_and_warn(CONFIG_WARPMV 0 !CONFIG_WARP_REF_LIST)
+  endif()
+
 endmacro()

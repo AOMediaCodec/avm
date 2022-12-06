@@ -266,8 +266,29 @@ static INTERINTRA_MODE read_interintra_mode(MACROBLOCKD *xd, aom_reader *r,
 }
 
 static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
-                                       int16_t ctx) {
+                                       int16_t ctx
+#if CONFIG_WARPMV
+                                       ,
+                                       const AV1_COMMON *const cm,
+                                       const MACROBLOCKD *xd,
+                                       const MB_MODE_INFO *mbmi,
+                                       BLOCK_SIZE bsize
+#endif  // CONFIG_WARPMV
+) {
   const int16_t ismode_ctx = inter_single_mode_ctx(ctx);
+
+#if CONFIG_WARPMV
+  int is_warpmv = 0;
+  if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
+    const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+    is_warpmv = aom_read_symbol(
+        r, ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2, ACCT_STR);
+    if (is_warpmv) {
+      return WARPMV;
+    }
+  }
+#endif  // CONFIG_WARPMV
+
   return SINGLE_INTER_MODE_START +
          aom_read_symbol(r, ec_ctx->inter_single_mode_cdf[ismode_ctx],
                          INTER_SINGLE_MODES, ACCT_STR);
@@ -344,9 +365,9 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   int mi_col = xd->mi_col;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
 
-#if CONFIG_WARP_REF_LIST
+#if CONFIG_WARP_REF_LIST && !CONFIG_WARPMV
   read_warp_ref_idx(xd->tile_ctx, mbmi, r);
-#endif  // CONFIG_WARP_REF_LIST
+#endif  // CONFIG_WARP_REF_LIST && !CONFIG_WARPMV
 
   // Figure out what parameters to use as a base
   WarpedMotionParams base_params;
@@ -406,6 +427,17 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int allowed_motion_modes =
       motion_mode_allowed(cm, xd, xd->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
 
+#if CONFIG_WARPMV
+  if (mbmi->mode == WARPMV) {
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+      int use_warped_causal = aom_read_symbol(
+          r, xd->tile_ctx->warped_causal_warpmv_cdf[bsize], 2, ACCT_STR);
+      return use_warped_causal ? WARPED_CAUSAL : WARP_DELTA;
+    }
+    return WARP_DELTA;
+  }
+#endif  // CONFIG_WARPMV
+
   mbmi->use_wedge_interintra = 0;
   if (allowed_motion_modes & (1 << INTERINTRA)) {
     const int bsize_group = size_group_lookup[bsize];
@@ -463,6 +495,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
         aom_read_symbol(r, xd->tile_ctx->warp_delta_cdf[bsize], 2, ACCT_STR);
     if (use_warp_delta) {
       mbmi->motion_mode = WARP_DELTA;
+#if !CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
       WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES];
       mbmi->max_num_warp_candidates =
@@ -483,6 +516,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
                       warp_param_stack
 #endif  // CONFIG_WARP_REF_LIST
       );
+#endif  // !CONFIG_WARPMV
       return WARP_DELTA;
     }
   }
@@ -2179,6 +2213,10 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #else
                             MvSubpelPrecision precision,
 #endif
+#if CONFIG_WARPMV
+                            const WarpedMotionParams *ref_warp_model,
+#endif  // CONFIG_WARPMV
+
                             aom_reader *r) {
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -2239,6 +2277,14 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       mv[0].as_int = ref_mv[0].as_int;
       break;
     }
+#if CONFIG_WARPMV
+    case WARPMV: {
+      assert(ref_warp_model);
+      mbmi->mv[0] = get_mv_from_wrl(ref_warp_model, MV_PRECISION_ONE_EIGHTH_PEL,
+                                    bsize, xd->mi_col, xd->mi_row);
+      break;
+    }
+#endif  // CONFIG_WARPMV
     case GLOBALMV: {
 #if CONFIG_FLEX_MVRES
       mv[0].as_int = get_warp_motion_vector(&cm->global_motion[ref_frame[0]],
@@ -2628,6 +2674,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
+
+#if CONFIG_WARPMV
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+  WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES];
+  WarpedMotionParams ref_warp_model;
+#endif  // CONFIG_WARPMV
   if (mbmi->skip_mode) {
     assert(is_compound);
 #if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
@@ -2663,7 +2715,54 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
       else
-        mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx);
+        mbmi->mode = read_inter_mode(ec_ctx, r, mode_ctx
+#if CONFIG_WARPMV
+                                     ,
+                                     cm, xd, mbmi, bsize
+#endif  // CONFIG_WARPMV
+        );
+
+#if CONFIG_WARPMV
+      if (cm->features.enable_bawp && av1_allow_bawp(mbmi)) {
+        mbmi->bawp_flag =
+            aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2, ACCT_STR);
+      }
+
+      for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+        const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
+        xd->block_ref_scale_factors[ref] =
+            get_ref_scale_factors_const(cm, frame);
+      }
+      if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+#if CONFIG_TIP
+          !is_tip_ref_frame(mbmi->ref_frame[0]) &&
+#endif  // CONFIG_TIP
+          !mbmi->skip_mode && !has_second_ref(mbmi)) {
+        mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+      }
+      av1_count_overlappable_neighbors(cm, xd);
+      mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
+      int is_warpmv_warp_causal =
+          (mbmi->motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV);
+      if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal) {
+        mbmi->max_num_warp_candidates =
+            (mbmi->mode == GLOBALMV || mbmi->mode == NEARMV)
+                ? 1
+                : MAX_WARP_REF_CANDIDATES;
+        if (is_warpmv_warp_causal) {
+          mbmi->max_num_warp_candidates = MAX_WARP_REF_CANDIDATES;
+        }
+        av1_find_warp_delta_base_candidates(
+            xd, mbmi, warp_param_stack,
+            xd->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)],
+            xd->valid_num_warp_candidates[av1_ref_frame_type(mbmi->ref_frame)],
+            NULL);
+
+        read_warp_ref_idx(xd->tile_ctx, mbmi, r);
+        ref_warp_model = warp_param_stack[mbmi->warp_ref_idx].wm_params;
+      }
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       mbmi->jmvd_scale_mode = read_jmvd_scale_mode(xd, r, mbmi);
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -2728,28 +2827,32 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
   }
 
-  const int mv_corrupted_flag = !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame,
-                                           mbmi->mv, ref_mv, is_compound,
+  const int mv_corrupted_flag = !assign_mv(
+      cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv, is_compound,
 #if CONFIG_FLEX_MVRES
-                                           mbmi->pb_mv_precision,
+      mbmi->pb_mv_precision,
 #else
-                                           allow_hp,
+      allow_hp,
 #endif
 
-                                           r);
+#if CONFIG_WARPMV
+      (mbmi->mode == WARPMV ? &ref_warp_model : NULL),
+#endif  // CONFIG_WARPMV
+
+      r);
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
-#if CONFIG_BAWP
+#if CONFIG_BAWP && !CONFIG_WARPMV
   if (cm->features.enable_bawp && av1_allow_bawp(mbmi))
     mbmi->bawp_flag = aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2, ACCT_STR);
 #endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
+#if !CONFIG_WARPMV
   for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     xd->block_ref_scale_factors[ref] = get_ref_scale_factors_const(cm, frame);
   }
-
   if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
 #if CONFIG_TIP
       !is_tip_ref_frame(mbmi->ref_frame[0]) &&
@@ -2757,9 +2860,22 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       !mbmi->skip_mode && !has_second_ref(mbmi)) {
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
   }
-  av1_count_overlappable_neighbors(cm, xd);
 
+  av1_count_overlappable_neighbors(cm, xd);
   mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
+#else
+  assert(IMPLIES(mbmi->motion_mode != SIMPLE_TRANSLATION,
+                 mbmi->mode >= SINGLE_INTER_MODE_START &&
+                     mbmi->mode < SINGLE_INTER_MODE_END));
+  if (mbmi->motion_mode == WARP_DELTA) {
+    read_warp_delta(cm, xd, mbmi, r
+#if CONFIG_WARP_REF_LIST
+                    ,
+                    warp_param_stack
+#endif  // CONFIG_WARP_REF_LIST
+    );
+  }
+#endif  // !CONFIG_WARPMV
 #else
   mbmi->use_wedge_interintra = 0;
   if (cm->seq_params.enable_interintra_compound && !mbmi->skip_mode &&

@@ -1029,6 +1029,13 @@ void av1_find_warp_delta_base_candidates(
     uint8_t num_wrl_cand, uint8_t *p_valid_num_candidates);
 #endif  // CONFIG_WARP_REF_LIST
 
+#if CONFIG_WARPMV
+bool is_warp_candidate_inside_of_frame(const AV1_COMMON *cm,
+                                       const MACROBLOCKD *xd, int_mv cand_mv);
+int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                              const MB_MODE_INFO *mbmi);
+
+#endif  // CONFIG_WARPMV
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -807,6 +807,7 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
+
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);
   av1_rd_pick_palette_intra_sby(
@@ -958,6 +959,7 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   set_mv_precision(mbmi, mbmi->max_mv_precision);
 #endif
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
 
   RD_STATS rd_stats_y_fi;
   int filter_intra_selected_flag = 0;
@@ -1479,6 +1481,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
   pmi->palette_size[0] = 0;
+
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
 
   // Set params for mode evaluation
   set_mode_eval_params(cpi, x, MODE_EVAL);

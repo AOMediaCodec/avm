@@ -281,7 +281,7 @@ enum {
   TX_SIZES_ALL,       // Includes rectangular transforms
   TX_SIZES = TX_4X8,  // Does NOT include rectangular transforms
   TX_SIZES_LARGEST = TX_64X64,
-  TX_INVALID = 255  // Invalid transform size
+  TX_INVALID = 255    // Invalid transform size
 } UENUM1BYTE(TX_SIZE);
 
 #if CONFIG_NEW_TX_PARTITION
@@ -386,22 +386,22 @@ enum {
 } UENUM1BYTE(TX_TYPE_1D);
 
 enum {
-  DCT_DCT,            // DCT in both horizontal and vertical
-  ADST_DCT,           // ADST in vertical, DCT in horizontal
-  DCT_ADST,           // DCT in vertical, ADST in horizontal
-  ADST_ADST,          // ADST in both directions
-  FLIPADST_DCT,       // FLIPADST in vertical, DCT in horizontal
-  DCT_FLIPADST,       // DCT in vertical, FLIPADST in horizontal
-  FLIPADST_FLIPADST,  // FLIPADST in both directions
-  ADST_FLIPADST,      // ADST in vertical, FLIPADST in horizontal
-  FLIPADST_ADST,      // FLIPADST in vertical, ADST in horizontal
-  IDTX,               // Identity in both directions
-  V_DCT,              // DCT in vertical, identity in horizontal
-  H_DCT,              // Identity in vertical, DCT in horizontal
-  V_ADST,             // ADST in vertical, identity in horizontal
-  H_ADST,             // Identity in vertical, ADST in horizontal
-  V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
-  H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
+  DCT_DCT,                    // DCT in both horizontal and vertical
+  ADST_DCT,                   // ADST in vertical, DCT in horizontal
+  DCT_ADST,                   // DCT in vertical, ADST in horizontal
+  ADST_ADST,                  // ADST in both directions
+  FLIPADST_DCT,               // FLIPADST in vertical, DCT in horizontal
+  DCT_FLIPADST,               // DCT in vertical, FLIPADST in horizontal
+  FLIPADST_FLIPADST,          // FLIPADST in both directions
+  ADST_FLIPADST,              // ADST in vertical, FLIPADST in horizontal
+  FLIPADST_ADST,              // FLIPADST in vertical, ADST in horizontal
+  IDTX,                       // Identity in both directions
+  V_DCT,                      // DCT in vertical, identity in horizontal
+  H_DCT,                      // Identity in vertical, DCT in horizontal
+  V_ADST,                     // ADST in vertical, identity in horizontal
+  H_ADST,                     // Identity in vertical, ADST in horizontal
+  V_FLIPADST,                 // FLIPADST in vertical, identity in horizontal
+  H_FLIPADST,                 // Identity in vertical, FLIPADST in horizontal
   TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM1BYTE(TX_TYPE);
@@ -591,7 +591,11 @@ enum {
 #if IMPROVED_AMVD
   AMVDNEWMV,
 #endif  // IMPROVED_AMVD
-        // Compound ref compound modes
+
+#if CONFIG_WARPMV
+  WARPMV,  // WARPMV mode
+#endif     // CONFIG_WARPMV
+           // Compound ref compound modes
   NEAR_NEARMV,
   NEAR_NEWMV,
   NEW_NEARMV,
@@ -656,7 +660,7 @@ enum {
   UV_PAETH_PRED,     // Predict from the direction of smallest gradient
   UV_CFL_PRED,       // Chroma-from-Luma
   UV_INTRA_MODES,
-  UV_MODE_INVALID,  // For uv_mode in inter blocks
+  UV_MODE_INVALID,   // For uv_mode in inter blocks
 } UENUM1BYTE(UV_PREDICTION_MODE);
 
 #if CONFIG_IMPROVED_CFL
@@ -681,8 +685,8 @@ enum {
   OBMC_CAUSAL,    // 2-sided OBMC
   WARPED_CAUSAL,  // Warp estimation from spatial MVs
 #if CONFIG_EXTENDED_WARP_PREDICTION
-  WARP_DELTA,   // Directly-signaled warp model
-  WARP_EXTEND,  // Extension of an existing warp model into another block
+  WARP_DELTA,     // Directly-signaled warp model
+  WARP_EXTEND,    // Extension of an existing warp model into another block
 #endif
   MOTION_MODES
 } UENUM1BYTE(MOTION_MODE);
@@ -752,7 +756,13 @@ enum {
 #define TOTAL_ANGLE_DELTA_COUNT 7
 #endif
 
+#if CONFIG_WARPMV
+// The warpmv mode is signalled as a separate flag
+// So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-1)
+#define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 1)
+#else
 #define INTER_SINGLE_MODES SINGLE_INTER_MODE_NUM
+#endif  // CONFIG_WARPMV
 #define INTER_COMPOUND_MODES COMP_INTER_MODE_NUM
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
@@ -787,6 +797,10 @@ enum {
 #else
 #define DRL_MODE_CONTEXTS (NEWMV_MODE_CONTEXTS * GLOBALMV_MODE_CONTEXTS)
 #endif  // CONFIG_C076_INTER_MOD_CTX
+
+#if CONFIG_WARPMV
+#define WARPMV_MODE_CONTEXT 10
+#endif  // CONFIG_WARPMV
 
 #if CONFIG_BVP_IMPROVEMENT
 #define MAX_REF_BV_STACK_SIZE 4
@@ -1033,7 +1047,7 @@ typedef enum {
   PROJ_DEFAULT,        /**< Default values */
   WARP_PROJ_TYPES = 5, /**< Num projection types */
 } WarpProjectionType;
-#endif  // CONFIG_WARP_REF_LIST
+#endif                 // CONFIG_WARP_REF_LIST
 
 /*!\endcond */
 

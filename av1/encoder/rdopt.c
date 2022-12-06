@@ -942,6 +942,9 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
 #if CONFIG_OPTFLOW_REFINEMENT
                        const AV1_COMMON *cm, const MB_MODE_INFO *const mbmi,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_WARPMV
+                       const MACROBLOCKD *xd,
+#endif  // CONFIG_WARPMV
                        int16_t mode_context) {
   if (is_inter_compound_mode(mode)) {
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -964,8 +967,23 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
   assert(is_inter_mode(mode));
 
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
-  return mode_costs
-      ->inter_single_mode_cost[ismode_ctx][mode - SINGLE_INTER_MODE_START];
+
+#if CONFIG_WARPMV
+  int warp_mode_cost = 0;
+  if (is_warpmv_mode_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y])) {
+    const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+    warp_mode_cost =
+        mode_costs->inter_warp_mode_cost[iswarpmvmode_ctx][mode == WARPMV];
+    if (mode == WARPMV) return warp_mode_cost;
+  }
+#endif  // CONFIG_WARPMV
+
+  return (mode_costs->inter_single_mode_cost[ismode_ctx]
+                                            [mode - SINGLE_INTER_MODE_START]
+#if CONFIG_WARPMV
+          + warp_mode_cost
+#endif  // CONFIG_WARPMV
+  );
 }
 
 #if CONFIG_FLEX_MVRES
@@ -1528,13 +1546,27 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
       av1_mode_context_analyzer(mbmi_ext->mode_context, ref_frames);
 #if CONFIG_OPTFLOW_REFINEMENT
   const MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
-  const int compare_cost =
-      cost_mv_ref(&x->mode_costs, compare_mode, cm, mbmi, mode_ctx);
-  const int this_cost =
-      cost_mv_ref(&x->mode_costs, this_mode, cm, mbmi, mode_ctx);
+  const int compare_cost = cost_mv_ref(&x->mode_costs, compare_mode, cm, mbmi,
+#if CONFIG_WARPMV
+                                       &x->e_mbd,
+#endif  // CONFIG_WARPMV
+                                       mode_ctx);
+  const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, cm, mbmi,
+#if CONFIG_WARPMV
+                                    &x->e_mbd,
+#endif  // CONFIG_WARPMV
+                                    mode_ctx);
 #else
-  const int compare_cost = cost_mv_ref(&x->mode_costs, compare_mode, mode_ctx);
-  const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, mode_ctx);
+  const int compare_cost = cost_mv_ref(&x->mode_costs, compare_mode,
+#if CONFIG_WARPMV
+                                       &x->e_mbd,
+#endif  // CONFIG_WARPMV
+                                       mode_ctx);
+  const int this_cost = cost_mv_ref(&x->mode_costs, this_mode,
+#if CONFIG_WARPMV
+                                    &x->e_mbd,
+#endif  // CONFIG_WARPMV
+                                    mode_ctx);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
   // Only skip if the mode cost is larger than compare mode cost
@@ -2254,6 +2286,10 @@ static int64_t motion_mode_rd(
 #endif  // !CONFIG_EXTENDED_WARP_PREDICTION
   int pts0[SAMPLES_ARRAY_SIZE], pts_inref0[SAMPLES_ARRAY_SIZE];
 
+#if CONFIG_WARPMV
+  assert(IMPLIES(mbmi->mode == WARPMV, (rate_mv0 == 0)));
+#endif  // CONFIG_WARPMV
+
   assert(mbmi->ref_frame[1] != INTRA_FRAME);
   const MV_REFERENCE_FRAME ref_frame_1 = mbmi->ref_frame[1];
   (void)tile_data;
@@ -2264,20 +2300,23 @@ static int64_t motion_mode_rd(
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
   int allowed_motion_modes = motion_mode_allowed(
       cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
-  if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+  if ((allowed_motion_modes & (1 << WARPED_CAUSAL))) {
     // Collect projection samples used in least squares approximation of
     // the warped motion parameters if WARPED_CAUSAL is going to be searched.
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
   }
+
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
     // Do not search WARPED_CAUSAL if there are no samples to use to determine
     // warped parameters.
     allowed_motion_modes &= ~(1 << WARPED_CAUSAL);
   }
+
 #else
   MOTION_MODE last_motion_mode_allowed = motion_mode_allowed(cm, xd, mbmi);
   if (last_motion_mode_allowed == WARPED_CAUSAL) {
@@ -2310,8 +2349,14 @@ static int64_t motion_mode_rd(
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 #if CONFIG_EXTENDED_WARP_PREDICTION
-  int modes_to_search = select_modes_to_search(
-      cpi, allowed_motion_modes, eval_motion_mode, args->skip_motion_mode);
+  int modes_to_search =
+#if CONFIG_WARPMV
+      (base_mbmi.mode == WARPMV)
+          ? allowed_motion_modes
+          :
+#endif  // CONFIG_WARPMV
+          select_modes_to_search(cpi, allowed_motion_modes, eval_motion_mode,
+                                 args->skip_motion_mode);
 #else
   int mode_index_start, mode_index_end;
   // Modify the start and end index according to speed features. For example,
@@ -2337,14 +2382,29 @@ static int64_t motion_mode_rd(
     const int is_interintra_mode = mode_index > (int)last_motion_mode_allowed;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if CONFIG_WARPMV
+    int is_warpmv_warp_causal =
+        (mode_index == WARPED_CAUSAL) && (base_mbmi.mode == WARPMV);
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_WARP_REF_LIST
     int max_warp_ref_idx = 1;
     uint8_t valid_num_candidates = 0;
-    if (mode_index == WARP_DELTA) {
+    if (mode_index == WARP_DELTA
+#if CONFIG_WARPMV
+        || is_warpmv_warp_causal
+#endif  // CONFIG_WARPMV
+    ) {
       max_warp_ref_idx =
           (base_mbmi.mode == GLOBALMV || base_mbmi.mode == NEARMV)
               ? 1
               : MAX_WARP_REF_CANDIDATES;
+#if CONFIG_WARPMV
+      if (is_warpmv_warp_causal) {
+        max_warp_ref_idx = MAX_WARP_REF_CANDIDATES;
+      }
+#endif  // CONFIG_WARPMV
+
       av1_find_warp_delta_base_candidates(
           xd, &base_mbmi,
           mbmi_ext->warp_param_stack[av1_ref_frame_type(base_mbmi.ref_frame)],
@@ -2352,11 +2412,24 @@ static int64_t motion_mode_rd(
           xd->valid_num_warp_candidates[av1_ref_frame_type(
               base_mbmi.ref_frame)],
           &valid_num_candidates);
+
+#if CONFIG_WARPMV
+      if (is_warpmv_warp_causal) {
+        if (valid_num_candidates > max_warp_ref_idx)
+          valid_num_candidates = max_warp_ref_idx;
+      }
+#endif  // CONFIG_WARPMV
     }
     for (int warp_ref_idx = 0; warp_ref_idx < max_warp_ref_idx;
          warp_ref_idx++) {
       if (mode_index == WARP_DELTA && warp_ref_idx >= valid_num_candidates)
         continue;
+
+#if CONFIG_WARPMV
+      if (is_warpmv_warp_causal && warp_ref_idx >= valid_num_candidates)
+        continue;
+#endif  // CONFIG_WARPMV
+
 #endif  // CONFIG_WARP_REF_LIST
 
       int tmp_rate2 = rate2_nocoeff;
@@ -2368,8 +2441,13 @@ static int64_t motion_mode_rd(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_WARP_REF_LIST
       mbmi->warp_ref_idx = warp_ref_idx;
-      mbmi->max_num_warp_candidates =
-          (mode_index == WARP_DELTA) ? max_warp_ref_idx : 0;
+      mbmi->max_num_warp_candidates = (mode_index == WARP_DELTA
+#if CONFIG_WARPMV
+                                       || is_warpmv_warp_causal
+#endif  // CONFIG_WARPMV
+                                       )
+                                          ? max_warp_ref_idx
+                                          : 0;
       assert(valid_num_candidates <= mbmi->max_num_warp_candidates);
 
 #endif  // CONFIG_WARP_REF_LIST
@@ -2387,6 +2465,12 @@ static int64_t motion_mode_rd(
       assert(mbmi->ref_frame[1] != INTRA_FRAME);
     }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_WARPMV
+      // Only WARP_DELTA and WARPED_CAUSAL are supported for WARPMV mode
+      assert(IMPLIES(mbmi->mode == WARPMV,
+                     mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal));
+#endif  // CONFIG_WARPMV
 
       // Do not search OBMC if the probability of selecting it is below a
       // predetermined threshold for this update_type and block size.
@@ -2438,6 +2522,21 @@ static int64_t motion_mode_rd(
 #else
       mbmi->wm_params.wmtype = DEFAULT_WMTYPE;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_WARPMV
+        // Build the motion vector of the WARPMV mode
+        if (mbmi->mode == WARPMV) {
+          WarpedMotionParams ref_model =
+              mbmi_ext
+                  ->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)]
+                                    [mbmi->warp_ref_idx]
+                  .wm_params;
+          mbmi->mv[0] = get_mv_from_wrl(&ref_model, MV_PRECISION_ONE_EIGHTH_PEL,
+                                        bsize, xd->mi_col, xd->mi_row);
+          if (!is_warp_candidate_inside_of_frame(cm, xd, mbmi->mv[0])) continue;
+          assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+        }
+#endif  // CONFIG_WARPMV
 
         memcpy(pts, pts0, total_samples * 2 * sizeof(*pts0));
         memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
@@ -2532,7 +2631,20 @@ static int64_t motion_mode_rd(
           continue;
         }
 #endif
-
+#if CONFIG_WARPMV
+        // Build the motion vector of the WARPMV mode
+        if (mbmi->mode == WARPMV) {
+          WarpedMotionParams ref_model =
+              mbmi_ext
+                  ->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)]
+                                    [mbmi->warp_ref_idx]
+                  .wm_params;
+          mbmi->mv[0] = get_mv_from_wrl(&ref_model, MV_PRECISION_ONE_EIGHTH_PEL,
+                                        bsize, xd->mi_col, xd->mi_row);
+          assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+          if (!is_warp_candidate_inside_of_frame(cm, xd, mbmi->mv[0])) continue;
+        }
+#endif  // CONFIG_WARPMV
         int_mv mv0 = mbmi->mv[0];
         const int_mv ref_mv = av1_get_ref_mv(x, 0);
         SUBPEL_MOTION_SEARCH_PARAMS ms_params;
@@ -2592,6 +2704,9 @@ static int64_t motion_mode_rd(
 #endif
 
           tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
+#if CONFIG_WARPMV
+          assert(mbmi->mode == NEWMV);
+#endif  // CONFIG_WARPMV
         }
 #if CONFIG_C071_SUBBLK_WARPMV
         assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
@@ -2741,6 +2856,7 @@ static int64_t motion_mode_rd(
             mbmi->wm_params[0] = wm_params0;
           }
         }
+
 #if CONFIG_C071_SUBBLK_WARPMV
         assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
                       mi_col);
@@ -2771,9 +2887,14 @@ static int64_t motion_mode_rd(
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
       MOTION_MODE motion_mode = mbmi->motion_mode;
+#if CONFIG_WARPMV
+      bool continue_motion_mode_signaling = (mbmi->mode != WARPMV);
+#else
       bool continue_motion_mode_signaling = true;
+#endif  // CONFIG_WARPMV
 
-      if (allowed_motion_modes & (1 << INTERINTRA)) {
+      if (continue_motion_mode_signaling &&
+          allowed_motion_modes & (1 << INTERINTRA)) {
         rd_stats->rate +=
             mode_costs->interintra_cost[size_group_lookup[bsize]]
                                        [motion_mode == INTERINTRA];
@@ -2818,17 +2939,34 @@ static int64_t motion_mode_rd(
           allowed_motion_modes & (1 << WARP_DELTA)) {
         rd_stats->rate +=
             mode_costs->warp_delta_cost[bsize][motion_mode == WARP_DELTA];
-        if (motion_mode == WARP_DELTA) {
+      }
+
+#if CONFIG_WARPMV
+      if (mbmi->mode == WARPMV) {
+        if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+          rd_stats->rate +=
+              mode_costs->warped_causal_warpmv_cost[bsize][motion_mode ==
+                                                           WARPED_CAUSAL];
+        } else {
+          assert(motion_mode == WARP_DELTA);
+        }
+      }
+#endif  // CONFIG_WARPMV
+
+      if (motion_mode == WARP_DELTA
+#if CONFIG_WARPMV
+          || (motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV)
+#endif  // CONFIG_WARPMV
+      ) {
 #if CONFIG_WARP_REF_LIST
-          rd_stats->rate += get_warp_ref_idx_cost(mbmi, x);
+        rd_stats->rate += get_warp_ref_idx_cost(mbmi, x);
 #endif  // CONFIG_WARP_REF_LIST
 
-          rd_stats->rate +=
-              av1_cost_warp_delta(cm, xd, mbmi, mbmi_ext, mode_costs);
-          // The following line is commented out to remove a spurious
-          // static analysis warning. Uncomment when adding a new motion mode
-          // continue_motion_mode_signaling = false;
-        }
+        rd_stats->rate +=
+            av1_cost_warp_delta(cm, xd, mbmi, mbmi_ext, mode_costs);
+        // The following line is commented out to remove a spurious
+        // static analysis warning. Uncomment when adding a new motion mode
+        // continue_motion_mode_signaling = false;
       }
 #else
     if (interintra_allowed) {
@@ -3123,7 +3261,15 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
         check_repeat_ref_mv(mbmi_ext, ref_idx, ref_frame, single_mode))
       return 0;
     *this_mv = mbmi_ext->global_mvs[ref_frame[ref_idx]];
-  } else {
+  }
+#if CONFIG_WARPMV
+  // For WARPMV mode we will extract the MV in motion_mode_rd
+  // Here we just return zero MVs.
+  else if (single_mode == WARPMV) {
+    this_mv->as_int = 0;
+  }
+#endif  // CONFIG_WARPMV
+  else {
     assert(single_mode == NEARMV);
     const int ref_mv_offset = ref_mv_idx;
     const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
@@ -3312,7 +3458,11 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   int has_drl = have_drl_index(mode);
   if (!has_drl) {
-    assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV);
+    assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV
+#if CONFIG_WARPMV
+           || mode == WARPMV
+#endif  // CONFIG_WARPMV
+    );
     return 1;
   }
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
@@ -3436,7 +3586,6 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->num_proj_ref = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->ref_mv_idx = ref_mv_idx;
-
   rd_stats->rate += args->ref_frame_cost + args->single_comp_cost;
 #if CONFIG_FLEX_MVRES
   rd_stats->rate += flex_mv_cost;
@@ -3462,6 +3611,9 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_OPTFLOW_REFINEMENT
                                       cm, mbmi,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_WARPMV
+                                      xd,
+#endif  // CONFIG_WARPMV
                                       mode_ctx);
   rd_stats->rate += ref_mv_cost;
 
@@ -3588,6 +3740,10 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
+
+#if CONFIG_WARPMV
+  if (this_mode == WARPMV) return 1;  // Always search WARPMV mode
+#endif                                // CONFIG_WARPMV
 
   // Only search indices if they have some chance of being good.
   int good_indices = 0;
@@ -4401,7 +4557,12 @@ static int64_t handle_inter_mode(
   // of this function.
   const int ref_set = get_drl_refmv_count(cm->features.max_drl_bits, x,
                                           mbmi->ref_frame, this_mode);
-  // Save MV results from first 2 ref_mv_idx.
+
+#if CONFIG_WARPMV
+  assert(IMPLIES(this_mode == WARPMV, ref_set == 1));
+#endif  // CONFIG_WARPMV
+
+        // Save MV results from first 2 ref_mv_idx.
 #if CONFIG_FLEX_MVRES
   int_mv save_mv[NUM_MV_PRECISIONS][MAX_REF_MV_SEARCH - 1][2];
 #else
@@ -4420,6 +4581,9 @@ static int64_t handle_inter_mode(
 #if CONFIG_OPTFLOW_REFINEMENT
                                       cm, mbmi,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_WARPMV
+                                      xd,
+#endif  // CONFIG_WARPMV
                                       mode_ctx);
 
   const int base_rate =
@@ -4553,9 +4717,12 @@ static int64_t handle_inter_mode(
       mbmi->num_proj_ref = 0;
       mbmi->motion_mode = SIMPLE_TRANSLATION;
       mbmi->ref_mv_idx = ref_mv_idx;
-
       set_mv_precision(mbmi, mbmi->max_mv_precision);
-      if (prune_modes_based_on_tpl && !ref_match_found_in_above_nb &&
+      if (
+#if CONFIG_WARPMV
+          mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+          prune_modes_based_on_tpl && !ref_match_found_in_above_nb &&
           !ref_match_found_in_left_nb && (ref_best_rd != INT64_MAX)) {
         // Skip mode if TPL model indicates it will not be beneficial.
         if (prune_modes_based_on_tpl_stats(
@@ -4618,7 +4785,12 @@ static int64_t handle_inter_mode(
         mode_info[ref_mv_idx].full_search_mv.as_int = INVALID_MV;
         mode_info[ref_mv_idx].mv.as_int = INVALID_MV;
         mode_info[ref_mv_idx].rd = INT64_MAX;
-        if (!mask_check_bit(idx_mask, ref_mv_idx)) {
+        if (
+#if CONFIG_WARPMV
+            mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+
+            !mask_check_bit(idx_mask, ref_mv_idx)) {
           // MV did not perform well in simple translation search. Skip it.
           continue;
         }
@@ -4639,7 +4811,6 @@ static int64_t handle_inter_mode(
         mbmi->num_proj_ref = 0;
         mbmi->motion_mode = SIMPLE_TRANSLATION;
         mbmi->ref_mv_idx = ref_mv_idx;
-
         // Compute cost for signalling this DRL index
         rd_stats->rate = base_rate;
         const int drl_cost =
@@ -4656,9 +4827,23 @@ static int64_t handle_inter_mode(
         int skip_repeated_ref_mv =
             is_comp_pred ? 0 : cpi->sf.inter_sf.skip_repeated_ref_mv;
         // Generate the current mv according to the prediction mode
-        if (!build_cur_mv(cur_mv, this_mode, cm, x, skip_repeated_ref_mv)) {
+        if (
+#if CONFIG_WARPMV
+            mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+            !build_cur_mv(cur_mv, this_mode, cm, x, skip_repeated_ref_mv)) {
           continue;
         }
+#if CONFIG_WARPMV
+        // For WARPMV mode we will build MV in the later stage
+        // Currently initialize to 0
+        if (mbmi->mode == WARPMV) {
+          cur_mv[0].as_int = 0;
+          cur_mv[1].as_int = 0;
+          assert(ref_mv_idx == 0);
+        }
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_FLEX_MVRES
 #if !CONFIG_BAWP
         mode_info[mbmi->pb_mv_precision][ref_mv_idx].full_search_mv.as_int =
@@ -4666,16 +4851,29 @@ static int64_t handle_inter_mode(
         mode_info[mbmi->pb_mv_precision][ref_mv_idx].mv.as_int = INVALID_MV;
         mode_info[mbmi->pb_mv_precision][ref_mv_idx].rd = INT64_MAX;
         mode_info[mbmi->pb_mv_precision][ref_mv_idx].drl_cost = drl_cost;
-        if (!mask_check_bit(idx_mask[mbmi->pb_mv_precision], ref_mv_idx)) {
+        if (
+#if CONFIG_WARPMV
+            mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+            !mask_check_bit(idx_mask[mbmi->pb_mv_precision], ref_mv_idx)) {
           // MV did not perform well in simple translation search. Skip it.
           continue;
         }
 #endif
 
-        if (cpi->sf.flexmv_sf.skip_similar_ref_mv &&
+        if (
+#if CONFIG_WARPMV
+            mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+            cpi->sf.flexmv_sf.skip_similar_ref_mv &&
             skip_similar_ref_mv(cpi, x, bsize)) {
           continue;
         }
+
+#if CONFIG_WARPMV
+        assert(IMPLIES(mbmi->mode == WARPMV,
+                       mbmi->pb_mv_precision == mbmi->max_mv_precision));
+#endif  // CONFIG_WARPMV
 #endif
 
 #if CONFIG_BAWP
@@ -4772,7 +4970,7 @@ static int64_t handle_inter_mode(
               }
             }
             if (mv_outlim) continue;
-#endif  // CONFIG_C071_SUBBLK_WARPMV
+#endif        // CONFIG_C071_SUBBLK_WARPMV
 
               // skip NEWMV mode in drl if the motion search result is the same
               // as a previous result
@@ -4854,6 +5052,9 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
           const int like_nearest = (mbmi->mode == NEARMV ||
+#if CONFIG_WARPMV
+                                    mbmi->mode == WARPMV ||
+#endif  // CONFIG_WARPMV
 #if CONFIG_OPTFLOW_REFINEMENT
                                     mbmi->mode == NEAR_NEARMV_OPTFLOW ||
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -4937,16 +5138,24 @@ static int64_t handle_inter_mode(
           if (args->modelled_rd != NULL && !is_comp_pred) {
             args->modelled_rd[this_mode][ref_mv_idx][refs[0]] = rd;
           }
-          if (ret_val != 0) {
-            restore_dst_buf(xd, orig_dst, num_planes);
-            continue;
-          } else if (cpi->sf.inter_sf.model_based_post_interp_filter_breakout &&
-                     ref_best_rd != INT64_MAX && (rd >> 3) * 3 > ref_best_rd) {
-            restore_dst_buf(xd, orig_dst, num_planes);
-            continue;
-          }
 
-          // Compute modelled RD if enabled
+#if CONFIG_WARPMV
+          if (mbmi->mode != WARPMV) {
+#endif  // CONFIG_WARPMV
+            if (ret_val != 0) {
+              restore_dst_buf(xd, orig_dst, num_planes);
+              continue;
+            } else if (cpi->sf.inter_sf
+                           .model_based_post_interp_filter_breakout &&
+                       ref_best_rd != INT64_MAX &&
+                       (rd >> 3) * 3 > ref_best_rd) {
+              restore_dst_buf(xd, orig_dst, num_planes);
+              continue;
+            }
+#if CONFIG_WARPMV
+          }
+#endif  // CONFIG_WARPMV
+        // Compute modelled RD if enabled
           if (args->modelled_rd != NULL) {
 #if CONFIG_OPTFLOW_REFINEMENT
             if (is_comp_pred && this_mode < NEAR_NEARMV_OPTFLOW) {
@@ -4966,18 +5175,32 @@ static int64_t handle_inter_mode(
             }
           }
           rd_stats->rate += compmode_interinter_cost;
-          if (skip_build_pred != 1) {
+          if (skip_build_pred != 1
+#if CONFIG_WARPMV
+              && (mbmi->mode != WARPMV)
+#endif  // CONFIG_WARPMV
+
+          ) {
             // Build this inter predictor if it has not been previously built
             av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst,
                                           bsize, 0, av1_num_planes(cm) - 1);
           }
 
+#if CONFIG_WARPMV
+          // So far we did not make prediction for WARPMV mode
+          assert(IMPLIES(mbmi->mode == WARPMV, skip_build_pred != 1));
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
           start_timing(cpi, motion_mode_rd_time);
 #endif
           int rate2_nocoeff = rd_stats->rate;
-          // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
-          // OBMC_CAUSAL or WARPED_CAUSAL
+#if CONFIG_WARPMV
+          assert(IMPLIES(mbmi->mode == WARPMV,
+                         (rd_stats->rate == base_rate && rate_mv == 0)));
+#endif  // CONFIG_WARPMV
+        // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
+        // OBMC_CAUSAL or WARPED_CAUSAL
           ret_val = motion_mode_rd(cpi, tile_data, x, bsize, rd_stats,
                                    rd_stats_y, rd_stats_uv, args, ref_best_rd,
                                    skip_rd, &rate_mv, &orig_dst, best_est_rd,
@@ -5407,6 +5630,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
   for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
        dir < IBC_MOTION_DIRECTIONS; ++dir) {
 #if CONFIG_IBC_SR_EXT
@@ -5651,6 +5875,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->warp_ref_idx = 0;
     mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
+
+    mbmi->motion_mode = SIMPLE_TRANSLATION;
+
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                   av1_num_planes(cm) - 1);
 
@@ -6066,7 +6293,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
       orig_dst.plane[i] = xd->plane[i].dst.buf;
       orig_dst.stride[i] = xd->plane[i].dst.stride;
     }
-#else   // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#else  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   for (int i = 0; i < num_planes; i++) {
     xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
@@ -6097,6 +6324,10 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ref_mv_idx++) {
     mbmi->ref_mv_idx = ref_mv_idx;
+
+#if CONFIG_WARPMV
+    CHECK_WARPMV(mbmi->mode == WARPMV, " warpmv is not allowed for skip mode");
+#endif  // CONFIG_WARPMV
 
     if (!build_cur_mv(mbmi->mv, this_mode, cm, x, 0)) {
       assert(av1_check_newmv_joint_nonzero(cm, x));
@@ -8064,6 +8295,10 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   }
 #endif  // CONFIG_TIP
 
+#if CONFIG_WARPMV
+  if (this_mode == WARPMV) return 0;
+#endif  // CONFIG_WARPMV
+
   // Check if this mode should be skipped because it is incompatible with the
   // current frame
   if (inter_mode_compatible_skip(cpi, x, bsize, this_mode, ref_frames))
@@ -8718,6 +8953,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     );
 #endif  // CONFIG_IBC_SR_EXT
 
+#if CONFIG_WARPMV
+        if (this_mode == WARPMV && !is_warpmv_mode_allowed(cm, mbmi, bsize))
+          continue;
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_C071_SUBBLK_WARPMV
         init_submi(xd, cm, mi_row, mi_col, bsize);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -9317,7 +9557,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   assert(search_state.best_mbmode.mode != MODE_INVALID);
 
 #if CONFIG_WARP_REF_LIST
-  if (mbmi->motion_mode == WARP_DELTA) {
+  if (mbmi->motion_mode == WARP_DELTA
+#if CONFIG_WARPMV
+      || (mbmi->motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV)
+#endif  // CONFIG_WARPMV
+  ) {
     // Rebuild the warp candidate list with the best coding results
     av1_find_warp_delta_base_candidates(
         xd, mbmi,

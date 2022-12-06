@@ -152,6 +152,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_FORWARDSKIP
   RESET_CDF_COUNTER(fc->coeff_br_cdf, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->inter_single_mode_cdf, INTER_SINGLE_MODES);
+#if CONFIG_WARPMV
+  RESET_CDF_COUNTER(fc->inter_warp_mode_cdf, 2);
+#endif  // CONFIG_WARPMV
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
@@ -177,6 +180,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
   RESET_CDF_COUNTER(fc->warp_delta_cdf, 2);
+#if CONFIG_WARPMV
+  RESET_CDF_COUNTER(fc->warped_causal_warpmv_cdf, 2);
+#endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[0], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[1], 2);

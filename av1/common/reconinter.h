@@ -218,7 +218,11 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
 #if CONFIG_WARP_REF_LIST
 // Check if the signaling of the warp delta parameters are allowed
 static INLINE int allow_warp_parameter_signaling(const MB_MODE_INFO *mbmi) {
-  return (mbmi->motion_mode == WARP_DELTA && mbmi->warp_ref_idx == 1);
+  return (
+#if CONFIG_WARPMV
+      mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+      mbmi->motion_mode == WARP_DELTA && mbmi->warp_ref_idx == 1);
 }
 #endif  // CONFIG_WARP_REF_LIST
 
@@ -648,6 +652,11 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
   (void)cm;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   if (mbmi->skip_mode) return 0;
+
+#if CONFIG_WARPMV
+  if (mbmi->mode == WARPMV) return 0;
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_OPTFLOW_REFINEMENT
   // No interpolation filter search when optical flow MV refinement is used.
   if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
@@ -774,6 +783,30 @@ int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize);
 
 #endif
+
+#if CONFIG_WARPMV
+// check if the WARPMV mode is allwed for a given blocksize
+static INLINE int is_warpmv_allowed_bsize(BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
+}
+
+// check if WARPMV mode is allowed
+static INLINE int is_warpmv_mode_allowed(const AV1_COMMON *const cm,
+                                         const MB_MODE_INFO *mbmi,
+                                         BLOCK_SIZE bsize) {
+  if (has_second_ref(mbmi) || !cm->features.enabled_motion_modes
+#if CONFIG_TIP
+      || is_tip_ref_frame(mbmi->ref_frame[0])
+#endif  // CONFIG_TIP
+  )
+    return 0;
+
+  int frame_warp_delta_allowed =
+      cm->features.enabled_motion_modes & (1 << WARP_DELTA);
+  return frame_warp_delta_allowed && is_warpmv_allowed_bsize(bsize);
+}
+#endif  // CONFIG_WARPMV
 
 #ifdef __cplusplus
 }  // extern "C"

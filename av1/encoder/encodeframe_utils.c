@@ -408,12 +408,29 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 }
 
 void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
-                                 PREDICTION_MODE mode, int16_t mode_context) {
+                                 PREDICTION_MODE mode, int16_t mode_context
+#if CONFIG_WARPMV
+                                 ,
+                                 const AV1_COMMON *const cm,
+                                 const MACROBLOCKD *xd,
+                                 const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
+#endif  // CONFIG_WARPMV
+
+) {
   (void)counts;
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
 #if CONFIG_ENTROPY_STATS
   ++counts->inter_single_mode[ismode_ctx][mode - SINGLE_INTER_MODE_START];
 #endif  // CONFIG_ENTROPY_STATS
+
+#if CONFIG_WARPMV
+  if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
+    const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+    update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx], mode == WARPMV, 2);
+    if (mode == WARPMV) return;
+  }
+#endif  // CONFIG_WARPMV
+
   update_cdf(fc->inter_single_mode_cdf[ismode_ctx],
              mode - SINGLE_INTER_MODE_START, INTER_SINGLE_MODES);
 }
@@ -1221,6 +1238,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->coeff_br_cdf, ctx_tr->coeff_br_cdf, BR_CDF_SIZE);
   AVERAGE_CDF(ctx_left->inter_single_mode_cdf, ctx_tr->inter_single_mode_cdf,
               INTER_SINGLE_MODES);
+
+#if CONFIG_WARPMV
+  AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
+#endif  // CONFIG_WARPMV
+
   AVERAGE_CDF(ctx_left->drl_cdf[0], ctx_tr->drl_cdf[0], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[1], ctx_tr->drl_cdf[1], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[2], ctx_tr->drl_cdf[2], 2);
@@ -1253,6 +1275,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
   AVERAGE_CDF(ctx_left->warp_delta_param_cdf, ctx_tr->warp_delta_param_cdf,
               WARP_DELTA_NUM_SYMBOLS);
+
+#if CONFIG_WARPMV
+  AVERAGE_CDF(ctx_left->warped_causal_warpmv_cdf,
+              ctx_tr->warped_causal_warpmv_cdf, 2);
+#endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[0], ctx_tr->warp_ref_idx_cdf[0], 2);
   AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[1], ctx_tr->warp_ref_idx_cdf[1], 2);

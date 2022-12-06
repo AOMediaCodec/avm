@@ -865,6 +865,9 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
   assert(have_drl_index(mbmi->mode));
+#if CONFIG_WARPMV
+  assert(IMPLIES(mbmi->mode == WARPMV, 0));
+#endif  // CONFIG_WARPMV
 #if IMPROVED_AMVD
   if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
 #endif  // IMPROVED_AMVD
@@ -1387,9 +1390,30 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       const int allowed_motion_modes = motion_mode_allowed(
           cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
       MOTION_MODE motion_mode = mbmi->motion_mode;
-      bool continue_motion_mode_signaling = true;
 
-      if (allowed_motion_modes & (1 << INTERINTRA)) {
+#if CONFIG_WARPMV
+      if (mbmi->mode == WARPMV) {
+        if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+          update_cdf(fc->warped_causal_warpmv_cdf[bsize],
+                     motion_mode == WARPED_CAUSAL, 2);
+        }
+      }
+#endif  // CONFIG_WARPMV
+
+      bool continue_motion_mode_signaling =
+#if CONFIG_WARPMV
+          (mbmi->mode == WARPMV) ? false :
+#endif  // CONFIG_WARPMV
+                                 true;
+
+#if CONFIG_WARPMV
+      assert(IMPLIES(mbmi->mode == WARPMV,
+                     mbmi->motion_mode == WARP_DELTA ||
+                         mbmi->motion_mode == WARPED_CAUSAL));
+#endif  // CONFIG_WARPMV
+
+      if (continue_motion_mode_signaling &&
+          (allowed_motion_modes & (1 << INTERINTRA))) {
         const int bsize_group = size_group_lookup[bsize];
 #if CONFIG_ENTROPY_STATS
         counts->interintra[bsize_group][motion_mode == INTERINTRA]++;
@@ -1422,7 +1446,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
       if (continue_motion_mode_signaling &&
-          allowed_motion_modes & (1 << OBMC_CAUSAL)) {
+          (allowed_motion_modes & (1 << OBMC_CAUSAL))) {
 #if CONFIG_ENTROPY_STATS
         counts->obmc[bsize][motion_mode == OBMC_CAUSAL]++;
 #endif
@@ -1447,7 +1471,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
       if (continue_motion_mode_signaling &&
-          allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+          (allowed_motion_modes & (1 << WARPED_CAUSAL))) {
 #if CONFIG_ENTROPY_STATS
         counts->warped_causal[bsize][motion_mode == WARPED_CAUSAL]++;
 #endif
@@ -1459,26 +1483,32 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
       if (continue_motion_mode_signaling &&
-          allowed_motion_modes & (1 << WARP_DELTA)) {
+          (allowed_motion_modes & (1 << WARP_DELTA))) {
 #if CONFIG_ENTROPY_STATS
         counts->warp_delta[bsize][motion_mode == WARP_DELTA]++;
 #endif
         update_cdf(fc->warp_delta_cdf[bsize], motion_mode == WARP_DELTA, 2);
-        if (motion_mode == WARP_DELTA) {
-          update_warp_delta_stats(cm,
-#if !CONFIG_WARP_REF_LIST
-                                  xd,
-#endif  //! CONFIG_WARP_REF_LIST
-                                  mbmi, mbmi_ext,
-#if CONFIG_ENTROPY_STATS
-                                  counts,
-#endif  // CONFIG_ENTROPY_STATS
-                                  fc);
-          // The following line is commented out to remove a spurious
-          // static analysis warning. Uncomment when adding a new motion mode
-          // continue_motion_mode_signaling = false;
-        }
       }
+
+      if (motion_mode == WARP_DELTA
+#if CONFIG_WARPMV
+          || (motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV)
+#endif  // CONFIG_WARPMV
+      ) {
+        update_warp_delta_stats(cm,
+#if !CONFIG_WARP_REF_LIST
+                                xd,
+#endif  //! CONFIG_WARP_REF_LIST
+                                mbmi, mbmi_ext,
+#if CONFIG_ENTROPY_STATS
+                                counts,
+#endif  // CONFIG_ENTROPY_STATS
+                                fc);
+        // The following line is commented out to remove a spurious
+        // static analysis warning. Uncomment when adding a new motion mode
+        // continue_motion_mode_signaling = false;
+      }
+
 #else
       if (cm->seq_params.enable_interintra_compound &&
           is_interintra_allowed(mbmi)) {
@@ -1627,7 +1657,13 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
     } else {
-      av1_update_inter_mode_stats(fc, counts, mode, mode_ctx);
+      av1_update_inter_mode_stats(fc, counts, mode, mode_ctx
+#if CONFIG_WARPMV
+                                  ,
+                                  cm, xd, mbmi, bsize
+#endif  // CONFIG_WARPMV
+
+      );
     }
 
     const int new_mv = have_newmv_in_each_reference(mbmi->mode);

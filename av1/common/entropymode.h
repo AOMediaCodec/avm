@@ -167,6 +167,10 @@ typedef struct frame_contexts {
 
   aom_cdf_prob inter_single_mode_cdf[INTER_SINGLE_MODE_CONTEXTS]
                                     [CDF_SIZE(INTER_SINGLE_MODES)];
+#if CONFIG_WARPMV
+  aom_cdf_prob inter_warp_mode_cdf[WARPMV_MODE_CONTEXT][CDF_SIZE(2)];
+#endif  // CONFIG_WARPMV
+
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   aom_cdf_prob skip_drl_cdf[3][CDF_SIZE(2)];
@@ -195,6 +199,9 @@ typedef struct frame_contexts {
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#if CONFIG_WARPMV
+  aom_cdf_prob warped_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   aom_cdf_prob warp_ref_idx_cdf[3][WARP_REF_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_WARP_REF_LIST
@@ -475,50 +482,50 @@ static const int av1_md_idx2type[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
       { 0, 3, 2, 10, 11, 12, 13 },  // mode_class: 12
   },                                // size_class: 0
   {
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 0
-      { 0, 3, 1, 2, 7, 10, 12 },   // mode_class: 1
-      { 0, 3, 1, 2, 8, 11, 13 },   // mode_class: 2
-      { 0, 3, 1, 2, 6, 7, 8 },     // mode_class: 3
-      { 0, 3, 1, 2, 5, 7, 8 },     // mode_class: 4
-      { 0, 3, 1, 2, 5, 7, 12 },    // mode_class: 5
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 6
-      { 0, 3, 1, 2, 4, 8, 13 },    // mode_class: 7
-      { 0, 3, 1, 2, 5, 6, 7 },     // mode_class: 8
-      { 0, 3, 1, 2, 6, 7, 8 },     // mode_class: 9
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 10
-      { 0, 3, 1, 2, 5, 7, 8 },     // mode_class: 11
-      { 0, 3, 1, 2, 10, 11, 13 },  // mode_class: 12
-  },                               // size_class: 1
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 0
+      { 0, 3, 1, 2, 7, 10, 12 },    // mode_class: 1
+      { 0, 3, 1, 2, 8, 11, 13 },    // mode_class: 2
+      { 0, 3, 1, 2, 6, 7, 8 },      // mode_class: 3
+      { 0, 3, 1, 2, 5, 7, 8 },      // mode_class: 4
+      { 0, 3, 1, 2, 5, 7, 12 },     // mode_class: 5
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 6
+      { 0, 3, 1, 2, 4, 8, 13 },     // mode_class: 7
+      { 0, 3, 1, 2, 5, 6, 7 },      // mode_class: 8
+      { 0, 3, 1, 2, 6, 7, 8 },      // mode_class: 9
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 10
+      { 0, 3, 1, 2, 5, 7, 8 },      // mode_class: 11
+      { 0, 3, 1, 2, 10, 11, 13 },   // mode_class: 12
+  },                                // size_class: 1
   {
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 0
-      { 0, 3, 1, 2, 5, 7, 10 },    // mode_class: 1
-      { 0, 3, 1, 2, 4, 8, 11 },    // mode_class: 2
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 3
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 4
-      { 0, 3, 1, 2, 5, 7, 8 },     // mode_class: 5
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 6
-      { 0, 3, 1, 2, 4, 6, 8 },     // mode_class: 7
-      { 0, 3, 1, 2, 5, 7, 8 },     // mode_class: 8
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 9
-      { 0, 3, 1, 2, 4, 7, 8 },     // mode_class: 10
-      { 0, 3, 1, 2, 5, 7, 8 },     // mode_class: 11
-      { 0, 3, 1, 2, 10, 11, 12 },  // mode_class: 12
-  },                               // size_class: 2
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 0
+      { 0, 3, 1, 2, 5, 7, 10 },     // mode_class: 1
+      { 0, 3, 1, 2, 4, 8, 11 },     // mode_class: 2
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 3
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 4
+      { 0, 3, 1, 2, 5, 7, 8 },      // mode_class: 5
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 6
+      { 0, 3, 1, 2, 4, 6, 8 },      // mode_class: 7
+      { 0, 3, 1, 2, 5, 7, 8 },      // mode_class: 8
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 9
+      { 0, 3, 1, 2, 4, 7, 8 },      // mode_class: 10
+      { 0, 3, 1, 2, 5, 7, 8 },      // mode_class: 11
+      { 0, 3, 1, 2, 10, 11, 12 },   // mode_class: 12
+  },                                // size_class: 2
   {
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 0
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 1
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 2
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 3
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 4
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 5
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 6
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 7
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 8
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 9
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 10
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 11
-      { 0, 3, 1, 2, 4, 5, 6 },  // mode_class: 12
-  },                            // size_class: 3
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 0
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 1
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 2
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 3
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 4
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 5
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 6
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 7
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 8
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 9
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 10
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 11
+      { 0, 3, 1, 2, 4, 5, 6 },      // mode_class: 12
+  },                                // size_class: 3
 };
 
 static INLINE int av1_tx_type_to_idx(int tx_type, int tx_set_type,

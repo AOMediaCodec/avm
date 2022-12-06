@@ -5034,11 +5034,13 @@ static INLINE unsigned int compute_motion_cost(
   const aom_variance_fn_ptr_t *vfp = ms_params->var_params.vfp;
 
   mse = vfp->vf(dst, dst_stride, src, src_stride, &sse);
+
 #if CONFIG_FLEX_MVRES
   mse += mv_err_cost(*this_mv, &ms_params->mv_cost_params);
 #else
   mse += mv_err_cost_(this_mv, &ms_params->mv_cost_params);
 #endif
+
   return mse;
 }
 

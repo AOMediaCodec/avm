@@ -1256,6 +1256,7 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
       calc_subpel_params_func(&(mv_refined[n_blocks * 2 + ref].as_mv),
                               inter_pred_params, xd, mi_x + i, mi_y + j, ref, 1,
                               mc_buf, &pre, subpel_params, &src_stride);
+
       av1_make_inter_predictor(pre, src_stride, dst, dst_stride,
                                inter_pred_params, subpel_params);
       n_blocks++;
@@ -1797,6 +1798,15 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int build_for_obmc, int bw, int bh, int mi_x,
                                 int mi_y, uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
+#if CONFIG_WARPMV
+  // just for debugging purpose
+  // Can be removed later on
+  if (mi->mode == WARPMV) {
+    assert(mi->ref_mv_idx == 0);
+    assert(mi->motion_mode == WARP_DELTA || mi->motion_mode == WARPED_CAUSAL);
+  }
+#endif  // CONFIG_WARPMV
+
   if (is_sub8x8_inter(xd, plane, mi->sb_type[PLANE_TYPE_Y],
                       is_intrabc_block(mi, xd->tree_type), build_for_obmc)) {
     assert(bw < 8 || bh < 8);

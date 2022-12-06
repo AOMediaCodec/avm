@@ -99,8 +99,29 @@ static AOM_INLINE void write_intra_y_mode_kf(FRAME_CONTEXT *frame_ctx,
 #endif  // !CONFIG_AIMC
 static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
                                         FRAME_CONTEXT *ec_ctx,
-                                        const int16_t mode_ctx) {
+                                        const int16_t mode_ctx
+#if CONFIG_WARPMV
+                                        ,
+                                        const AV1_COMMON *const cm,
+                                        const MACROBLOCKD *xd,
+                                        const MB_MODE_INFO *mbmi,
+                                        BLOCK_SIZE bsize
+#endif  // CONFIG_WARPMV
+
+) {
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_ctx);
+
+#if CONFIG_WARPMV
+  if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
+    const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+    aom_write_symbol(w, mode == WARPMV,
+                     ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2);
+    if (mode == WARPMV) return;
+  } else {
+    assert(mode != WARPMV);
+  }
+#endif  // CONFIG_WARPMV
+
   aom_write_symbol(w, mode - SINGLE_INTER_MODE_START,
                    ec_ctx->inter_single_mode_cdf[ismode_ctx],
                    INTER_SINGLE_MODES);
@@ -113,6 +134,9 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
   assert(!mbmi->skip_mode);
 #endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_WARPMV
+  assert(IMPLIES(mbmi->mode == WARPMV, 0));
+#endif  // CONFIG_WARPMV
   // Write the DRL index as a sequence of bits encoding a decision tree:
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
   // Also use the number of reference MVs for a frame type to reduce the
@@ -412,7 +436,9 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                              aom_writer *w) {
 #if CONFIG_WARP_REF_LIST
   assert(mbmi->warp_ref_idx < mbmi->max_num_warp_candidates);
+#if !CONFIG_WARPMV
   write_warp_ref_idx(xd->tile_ctx, mbmi, w);
+#endif  // !CONFIG_WARPMV
   if (!allow_warp_parameter_signaling(mbmi)) {
     return;
   }
@@ -460,6 +486,19 @@ static AOM_INLINE void write_motion_mode(
   // various places to mean "is this block interintra?". This assertion is a
   // quick check to ensure these conditions can't get out of sync.
   assert((mbmi->ref_frame[1] == INTRA_FRAME) == (motion_mode == INTERINTRA));
+
+#if CONFIG_WARPMV
+  if (mbmi->mode == WARPMV) {
+    assert(mbmi->motion_mode == WARP_DELTA ||
+           mbmi->motion_mode == WARPED_CAUSAL);
+    // Signal if the motion mode is WARP_CAUSAL or WARP_DELTA
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
+                       xd->tile_ctx->warped_causal_warpmv_cdf[bsize], 2);
+    }
+    return;
+  }
+#endif  // CONFIG_WARPMV
 
   if (allowed_motion_modes & (1 << INTERINTRA)) {
     const int bsize_group = size_group_lookup[bsize];
@@ -512,11 +551,12 @@ static AOM_INLINE void write_motion_mode(
   if (allowed_motion_modes & (1 << WARP_DELTA)) {
     aom_write_symbol(w, motion_mode == WARP_DELTA,
                      xd->tile_ctx->warp_delta_cdf[bsize], 2);
-
+#if !CONFIG_WARPMV
     if (motion_mode == WARP_DELTA) {
       write_warp_delta(cm, xd, mbmi, mbmi_ext_frame, w);
       return;
     }
+#endif  // !CONFIG_WARPMV
   }
 }
 #else
@@ -1901,6 +1941,25 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   write_delta_q_params(cpi, skip, w);
 
+#if CONFIG_WARPMV
+  // Just for debugging purpose
+  if (mbmi->mode == WARPMV) {
+    assert(mbmi->skip_mode == 0);
+    assert(mbmi->motion_mode == WARP_DELTA ||
+           mbmi->motion_mode == WARPED_CAUSAL);
+    assert(mbmi->ref_mv_idx == 0);
+    assert(!is_tip_ref_frame(mbmi->ref_frame[0]));
+    assert(is_inter);
+    assert(!have_drl_index(mode));
+#if CONFIG_FLEX_MVRES
+    assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+#endif
+#if CONFIG_BAWP
+    assert(mbmi->bawp_flag == 0);
+#endif
+  }
+#endif  // CONFIG_WARPMV
+
   if (!mbmi->skip_mode)
     write_is_inter(cm, xd, mbmi->segment_id, w, is_inter
 #if CONFIG_CONTEXT_DERIVATION
@@ -1965,7 +2024,24 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                   mode_ctx);
       else if (is_inter_singleref_mode(mode))
-        write_inter_mode(w, mode, ec_ctx, mode_ctx);
+        write_inter_mode(w, mode, ec_ctx, mode_ctx
+#if CONFIG_WARPMV
+                         ,
+                         cm, xd, mbmi, bsize
+#endif  // CONFIG_WARPMV
+        );
+
+#if CONFIG_WARPMV
+      if (cm->features.enable_bawp && av1_allow_bawp(mbmi)) {
+        aom_write_symbol(w, mbmi->bawp_flag == 1, xd->tile_ctx->bawp_cdf, 2);
+      }
+      write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
+      int is_warpmv_warp_causal =
+          (mbmi->motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV);
+      if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal)
+        write_warp_ref_idx(xd->tile_ctx, mbmi, w);
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       write_jmvd_scale_mode(xd, w, mbmi);
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -2058,14 +2134,20 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                     allow_hp);
 #endif
     }
-#if CONFIG_BAWP
+#if CONFIG_BAWP && !CONFIG_WARPMV
     if (cm->features.enable_bawp && av1_allow_bawp(mbmi)) {
       aom_write_symbol(w, mbmi->bawp_flag == 1, xd->tile_ctx->bawp_cdf, 2);
     }
 #endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
+#if !CONFIG_WARPMV
     write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
+#else
+    if (mbmi->motion_mode == WARP_DELTA) {
+      write_warp_delta(cm, xd, mbmi, mbmi_ext_frame, w);
+    }
+#endif  // !CONFIG_WARPMV
 #else
     if (cpi->common.current_frame.reference_mode != COMPOUND_REFERENCE &&
         cpi->common.seq_params.enable_interintra_compound &&
@@ -2103,6 +2185,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         && !is_joint_amvd_coding_mode(mbmi->mode)
 #endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
     ) {
+
       const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                        cm->seq_params.enable_masked_compound;
 

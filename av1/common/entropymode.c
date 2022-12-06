@@ -863,6 +863,17 @@ static const aom_cdf_prob
       { AOM_CDF3(31022, 32009) }, { AOM_CDF3(2963, 32093) },
       { AOM_CDF3(601, 943) },     { AOM_CDF3(14969, 21398) }
     };
+
+#if CONFIG_WARPMV
+static const aom_cdf_prob
+    default_inter_warp_mode_cdf[WARPMV_MODE_CONTEXT][CDF_SIZE(2)] = {
+      { AOM_CDF2(24626) }, { AOM_CDF2(24626) }, { AOM_CDF2(24626) },
+      { AOM_CDF2(24626) }, { AOM_CDF2(24626) }, { AOM_CDF2(24626) },
+      { AOM_CDF2(24626) }, { AOM_CDF2(24626) }, { AOM_CDF2(24626) },
+      { AOM_CDF2(24626) }
+    };
+#endif  // CONFIG_WARPMV
+
 #if IMPROVED_AMVD
 #if CONFIG_C076_INTER_MOD_CTX
 static const aom_cdf_prob
@@ -1196,6 +1207,19 @@ static const aom_cdf_prob default_warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
             { AOM_CDF2(31582) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
             { AOM_CDF2(30177) }, { AOM_CDF2(30093) }, { AOM_CDF2(31776) },
             { AOM_CDF2(31514) } };
+#if CONFIG_WARPMV
+static const aom_cdf_prob
+    default_warped_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(21827) }, { AOM_CDF2(20801) }, { AOM_CDF2(22822) },
+      { AOM_CDF2(28283) }, { AOM_CDF2(17490) }, { AOM_CDF2(22156) },
+      { AOM_CDF2(29137) }, { AOM_CDF2(26381) }, { AOM_CDF2(25945) },
+      { AOM_CDF2(29190) }, { AOM_CDF2(30434) }, { AOM_CDF2(30786) },
+      { AOM_CDF2(31582) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(30177) }, { AOM_CDF2(30093) }, { AOM_CDF2(31776) },
+      { AOM_CDF2(31514) }
+    };
+#endif  // CONFIG_WARPMV
 
 static const aom_cdf_prob default_warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
     2)] = { { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -2418,6 +2442,11 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_NEW_TX_PARTITION
   av1_copy(fc->comp_group_idx_cdf, default_comp_group_idx_cdfs);
   av1_copy(fc->inter_single_mode_cdf, default_inter_single_mode_cdf);
+
+#if CONFIG_WARPMV
+  av1_copy(fc->inter_warp_mode_cdf, default_inter_warp_mode_cdf);
+#endif  // CONFIG_WARPMV
+
 #if CONFIG_REF_MV_BANK
   if (seq_params->enable_refmvbank) {
     av1_copy(fc->drl_cdf[0], default_drl0_cdf_refmvbank);
@@ -2437,6 +2466,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->obmc_cdf, default_obmc_cdf);
   av1_copy(fc->warped_causal_cdf, default_warped_causal_cdf);
   av1_copy(fc->warp_delta_cdf, default_warp_delta_cdf);
+#if CONFIG_WARPMV
+  av1_copy(fc->warped_causal_warpmv_cdf, default_warped_causal_warpmv_cdf);
+#endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   av1_copy(fc->warp_ref_idx_cdf[0], default_warp_ref_idx0_cdf);
   av1_copy(fc->warp_ref_idx_cdf[1], default_warp_ref_idx1_cdf);

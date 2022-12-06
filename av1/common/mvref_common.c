@@ -52,7 +52,6 @@ void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
       for (int idx = 0; idx < 2; ++idx) {
         mv->ref_frame[idx] = NONE_FRAME;
         mv->mv[idx].as_int = 0;
-
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame) && !is_tip_ref_frame(ref_frame)) {
           if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
@@ -775,6 +774,13 @@ static int is_this_param_already_in_list(
         (neigh_params.wmmat[4] == warp_candidates[i].wm_params.wmmat[4]);
     same_param &=
         (neigh_params.wmmat[5] == warp_candidates[i].wm_params.wmmat[5]);
+#if CONFIG_WARPMV
+    // The translational part is used for WARPMV mode
+    same_param &=
+        (neigh_params.wmmat[0] == warp_candidates[i].wm_params.wmmat[0]);
+    same_param &=
+        (neigh_params.wmmat[1] == warp_candidates[i].wm_params.wmmat[1]);
+#endif  // CONFIG_WARPMV
     if (same_param) return 1;
   }
 
@@ -1367,7 +1373,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_tip_ref_frame(rf[0])) {
     return 0;
   }
-#endif  // CONFIG_TIP
+#endif                             // CONFIG_TIP
 
   const uint16_t weight_unit = 1;  // mi_size_wide[BLOCK_8X8];
   const int cur_frame_index = cm->cur_frame->order_hint;
@@ -2768,7 +2774,7 @@ void av1_find_mv_refs(
     valid_num_warp_candidates[ref_frame] =
         0;  // initialize the number of valid candidates to 0 at the beginning
   }
-#endif  // CONFIG_WARP_REF_LIST
+#endif      // CONFIG_WARP_REF_LIST
 
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   if (mi->skip_mode) {
@@ -3743,7 +3749,6 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
       if (col_offset < 0) do_top_left = 0;
       if (col_offset + above_block_width > xd->width) do_top_right = 0;
-
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
         if (above_mbmi->ref_frame[ref] == ref_frame) {
@@ -3806,7 +3811,6 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       const int row_offset = -mi_row % left_block_height;
 
       if (row_offset < 0) do_top_left = 0;
-
 #if CONFIG_COMPOUND_WARP_SAMPLES
       for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
         if (left_mbmi->ref_frame[ref] == ref_frame) {
@@ -3833,6 +3837,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         left_mbmi = xd->mi[mi_col_offset + i * mi_stride];
         left_block_height = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
         mi_step = AOMMIN(xd->height, left_block_height);
+
 #if CONFIG_COMPOUND_WARP_SAMPLES
         for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
           if (left_mbmi->ref_frame[ref] == ref_frame) {
@@ -4440,8 +4445,39 @@ void av1_find_warp_delta_base_candidates(
 #endif  // CONFIG_WARP_REF_LIST
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_WARPMV
+// check if the the derive MV is inside of frame boundary
+// return false if the MV is outside of the frame boundary
+bool is_warp_candidate_inside_of_frame(const AV1_COMMON *cm,
+                                       const MACROBLOCKD *xd, int_mv cand_mv) {
+  // Check if the MV candidate is pointing to ref block inside frame boundary.
+
+  const int block_width = xd->width * MI_SIZE;
+  const int block_height = xd->height * MI_SIZE;
+  int frame_width = cm->width;
+  int frame_height = cm->height;
+
+  const int mv_row = (cand_mv.as_mv.row) / 8;
+  const int mv_col = (cand_mv.as_mv.col) / 8;
+  const int ref_x = xd->mi_col * MI_SIZE + mv_col;
+  const int ref_y = xd->mi_row * MI_SIZE + mv_row;
+  if (ref_x <= -block_width || ref_y <= -block_height || ref_x >= frame_width ||
+      ref_y >= frame_height) {
+    return false;
+  }
+  return true;
+}
+
+#endif  // CONFIG_WARPMV
+
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                    const MB_MODE_INFO *mbmi) {
+                    const MB_MODE_INFO *mbmi
+#if CONFIG_WARPMV
+                    ,
+                    int *p_num_of_warp_neighbors
+#endif  // CONFIG_WARPMV
+
+) {
   const TileInfo *const tile = &xd->tile;
   const int bs = AOMMAX(xd->width, xd->height);
   const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
@@ -4450,6 +4486,11 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   int allow_new_ext = 0;
   int allow_near_ext = 0;
+
+#if CONFIG_WARPMV
+  // counter to count number of warp neighbors
+  int num_of_warp_neighbors = 0;
+#endif  // CONFIG_WARPMV
 
   // left
   mi_pos.row = xd->height - 1;
@@ -4461,6 +4502,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4474,6 +4519,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4487,6 +4536,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4500,6 +4553,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4512,6 +4569,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4524,6 +4585,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4537,6 +4602,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4549,6 +4618,10 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
 
@@ -4561,8 +4634,19 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
       allow_new_ext |= 1;
       allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+#if CONFIG_WARPMV
+      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
+        num_of_warp_neighbors++;
+#endif  // CONFIG_WARPMV
     }
   }
+
+#if CONFIG_WARPMV
+  if (p_num_of_warp_neighbors) {
+    *p_num_of_warp_neighbors = num_of_warp_neighbors;
+    return num_of_warp_neighbors;
+  }
+#endif  // CONFIG_WARPMV
 
   if (mbmi->mode == NEWMV) {
     return allow_new_ext;
@@ -4680,3 +4764,13 @@ int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   return 0;
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_WARPMV
+int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                              const MB_MODE_INFO *mbmi) {
+  int num_of_warp_neighbors = 0;
+  int ctx = allow_extend_nb(cm, xd, mbmi, &num_of_warp_neighbors);
+  assert(num_of_warp_neighbors == ctx);
+  assert(ctx < WARPMV_MODE_CONTEXT);
+  return ctx;
+}
+#endif  // CONFIG_WARPMV

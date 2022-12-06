@@ -270,7 +270,14 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
                       int mi_col, BLOCK_SIZE bsize, RUN_TYPE dry_run);
 
 void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
-                                 PREDICTION_MODE mode, int16_t mode_context);
+                                 PREDICTION_MODE mode, int16_t mode_context
+#if CONFIG_WARPMV
+                                 ,
+                                 const AV1_COMMON *const cm,
+                                 const MACROBLOCKD *xd,
+                                 const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
+#endif  // CONFIG_WARPMV
+);
 
 void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                          MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi);

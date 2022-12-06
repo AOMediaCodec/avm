@@ -345,7 +345,7 @@ typedef struct {
   int cdef_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for luma */
   int cdef_uv_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for
                                                 chroma */
-  int cdef_bits; /*!< Number of CDEF strength values in bits */
+  int cdef_bits;         /*!< Number of CDEF strength values in bits */
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
 #endif                   // CONFIG_FIX_CDEF_SYNTAX
@@ -429,9 +429,9 @@ typedef struct SequenceHeader {
   uint8_t frame_id_numbers_present_flag;
   int frame_id_length;
   int delta_frame_id_length;
-  BLOCK_SIZE sb_size;  // Size of the superblock used for this frame
-  int mib_size;        // Size of the superblock in units of MI blocks
-  int mib_size_log2;   // Log 2 of above.
+  BLOCK_SIZE sb_size;          // Size of the superblock used for this frame
+  int mib_size;                // Size of the superblock in units of MI blocks
+  int mib_size_log2;           // Log 2 of above.
 #if CONFIG_NEW_REF_SIGNALING
   int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
   int max_reference_frames;    // Number of reference frames allowed
@@ -454,15 +454,15 @@ typedef struct SequenceHeader {
   uint8_t enable_sdp;   // enables/disables semi-decoupled partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection
 #if CONFIG_TIP
-  uint8_t enable_tip;  // enables/disables temporal interpolated prediction
+  uint8_t enable_tip;   // enables/disables temporal interpolated prediction
   uint8_t enable_tip_hole_fill;  // enables/disables hole fill for TIP
 #endif                           // CONFIG_TIP
 #if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
 #endif                  // CONFIG_BAWP
 #if CONFIG_FORWARDSKIP
-  uint8_t enable_fsc;                // enables/disables forward skip coding
-#endif                               // CONFIG_FORWARDSKIP
+  uint8_t enable_fsc;   // enables/disables forward skip coding
+#endif                  // CONFIG_FORWARDSKIP
   uint8_t enable_filter_intra;       // enables/disables filterintra
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
 
@@ -476,14 +476,14 @@ typedef struct SequenceHeader {
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
 #endif                  // CONFIG_CROSS_CHROMA_TX
 #if CONFIG_IBP_DC || CONFIG_IBP_DIR
-  uint8_t enable_ibp;  // enables/disables intra bi-prediction(IBP)
+  uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
 #endif
 #if CONFIG_ADAPTIVE_MVD
   uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
 #endif                          // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
-  uint8_t enable_flex_mvres;  // enables/disables flexible MV resolution
-#endif                        // CONFIG_FLEX_MVRES
+  uint8_t enable_flex_mvres;    // enables/disables flexible MV resolution
+#endif                          // CONFIG_FLEX_MVRES
 
 #if CONFIG_ADAPTIVE_DS_FILTER
   uint8_t enable_cfl_ds_filter;  // enable/disables adaptive downsampling filter
@@ -501,28 +501,28 @@ typedef struct SequenceHeader {
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_interintra_compound;  // enables/disables interintra_compound
 #endif
-  uint8_t enable_masked_compound;  // enables/disables masked compound
+  uint8_t enable_masked_compound;      // enables/disables masked compound
 #if CONFIG_OPTFLOW_REFINEMENT
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#endif  // 1 - enable vert/horz filter selection
+#endif                           // 1 - enable vert/horz filter selection
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_warped_motion;  // 0 - disable warp for the sequence
                                  // 1 - enable warp for the sequence
 #endif
-  uint8_t enable_superres;  // 0 - Disable superres for the sequence
-                            //     and no frame level superres flag
-                            // 1 - Enable superres for the sequence
-                            //     enable per-frame superres flag
-  uint8_t enable_cdef;      // To turn on/off CDEF
+  uint8_t enable_superres;       // 0 - Disable superres for the sequence
+                                 //     and no frame level superres flag
+                                 // 1 - Enable superres for the sequence
+                                 //     enable per-frame superres flag
+  uint8_t enable_cdef;           // To turn on/off CDEF
 
-  uint8_t enable_restoration;  // To turn on/off loop restoration
+  uint8_t enable_restoration;    // To turn on/off loop restoration
 #if CONFIG_CCSO
-  uint8_t enable_ccso;  // To turn on/off CCSO
+  uint8_t enable_ccso;           // To turn on/off CCSO
 #endif
 #if CONFIG_REF_MV_BANK
-  uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
-#endif                       // CONFIG_REF_MV_BANK
+  uint8_t enable_refmvbank;      // To turn on/off Ref MV Bank
+#endif                           // CONFIG_REF_MV_BANK
 #if CONFIG_PAR_HIDING
   uint8_t enable_parity_hiding;  // To turn on/off PAR_HIDING
 #endif                           // CONFIG_PAR_HIDING
@@ -634,7 +634,7 @@ typedef struct {
    * If true, palette tool and/or intra block copy tools may be used.
    */
   bool allow_screen_content_tools;
-  bool allow_intrabc; /*!< If true, intra block copy tool may be used. */
+  bool allow_intrabc;        /*!< If true, intra block copy tool may be used. */
 #if CONFIG_IBC_SR_EXT
   bool allow_global_intrabc; /*!< If true, intra block copy tool may use the
                                global search range. */
@@ -642,7 +642,7 @@ typedef struct {
                               local  search range. */
 #endif                       // CONFIG_IBC_SR_EXT
 #if !CONFIG_EXTENDED_WARP_PREDICTION
-  bool allow_warped_motion; /*!< If true, frame may use warped motion mode. */
+  bool allow_warped_motion;  /*!< If true, frame may use warped motion mode. */
 #endif
   /*!
    * If true, using previous frames' motion vectors for prediction is allowed.
@@ -3145,8 +3145,16 @@ static INLINE bool is_warp_mode(MOTION_MODE motion_mode) {
 
 // Returns true WARP_EXTEND is allowed by checking the top and left neighboring
 // blocks.
+// this function is used for two cases (a) to decide if WARP_EXTEND mode is
+// allowed or not (b) to derive the CDFs for WARPMV mode
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                    const MB_MODE_INFO *mbmi);
+                    const MB_MODE_INFO *mbmi
+#if CONFIG_WARPMV
+                    ,
+                    int *p_num_of_warp_neighbors
+#endif  // CONFIG_WARPMV
+
+);
 
 static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd,
@@ -3154,6 +3162,20 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const MB_MODE_INFO *mbmi) {
   (void)ref_mv_stack;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
+  int enabled_motion_modes = cm->features.enabled_motion_modes;
+
+#if CONFIG_WARPMV
+  // only WARP_DELTA and WARPED_CAUSAL are supported for WARPMV mode
+  if (mbmi->mode == WARPMV) {
+    int allowed_motion_mode_warpmv = (1 << WARP_DELTA);
+    int frame_warp_causal_allowed =
+        cm->features.enabled_motion_modes & (1 << WARPED_CAUSAL);
+    if (frame_warp_causal_allowed && mbmi->num_proj_ref >= 1) {
+      allowed_motion_mode_warpmv |= (1 << WARPED_CAUSAL);
+    }
+    return (allowed_motion_mode_warpmv & enabled_motion_modes);
+  }
+#endif  // CONFIG_WARPMV
 
   if (mbmi->skip_mode || mbmi->ref_frame[0] == INTRA_FRAME) {
     return (1 << SIMPLE_TRANSLATION);
@@ -3164,8 +3186,6 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     return (1 << SIMPLE_TRANSLATION);
   }
 #endif  // CONFIG_BAWP
-
-  int enabled_motion_modes = cm->features.enabled_motion_modes;
 
   int allowed_motion_modes = (1 << SIMPLE_TRANSLATION);
 
@@ -3214,15 +3234,29 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
       !xd->cur_frame_force_integer_mv;
 
-  if (obmc_allowed && allow_warped_motion && mbmi->num_proj_ref >= 1) {
+  if (obmc_allowed && allow_warped_motion && mbmi->num_proj_ref >= 1
+#if CONFIG_WARPMV
+      && mbmi->mode != NEARMV
+#endif  // CONFIG_WARPMV
+  ) {
     allowed_motion_modes |= (1 << WARPED_CAUSAL);
   }
 
   bool warp_extend_allowed = false;
   PREDICTION_MODE mode = mbmi->mode;
 
-  if (allow_warped_motion && (mode == NEARMV || mode == NEWMV)) {
-    warp_extend_allowed = allow_extend_nb(cm, xd, mbmi);
+  if (allow_warped_motion && (
+#if !CONFIG_WARPMV
+                                 mode == NEARMV ||
+#endif  // !CONFIG_WARPMV
+                                 mode == NEWMV)) {
+    warp_extend_allowed = allow_extend_nb(cm, xd, mbmi
+#if CONFIG_WARPMV
+                                          ,
+                                          NULL
+#endif  // CONFIG_WARPMV
+
+    );
   }
 
   if (warp_extend_allowed) {

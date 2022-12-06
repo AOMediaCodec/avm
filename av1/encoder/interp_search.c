@@ -407,6 +407,10 @@ int64_t av1_interpolation_filter_search(
 #endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   RD_STATS rd_stats_luma, rd_stats;
 
+#if CONFIG_WARPMV
+  if (mbmi->mode == WARPMV) return 0;
+#endif  // CONFIG_WARPMV
+
   // Initialization of rd_stats structures with default values
   av1_init_rd_stats(&rd_stats_luma);
   av1_init_rd_stats(&rd_stats);

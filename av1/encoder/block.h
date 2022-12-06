@@ -756,6 +756,12 @@ typedef struct {
   int skip_mode_cost[SKIP_MODE_CONTEXTS][2];
   //! inter single mode cost
   int inter_single_mode_cost[INTER_SINGLE_MODE_CONTEXTS][INTER_SINGLE_MODES];
+
+#if CONFIG_WARPMV
+  //! inter warpmv mode cost
+  int inter_warp_mode_cost[WARPMV_MODE_CONTEXT][2];
+#endif  // CONFIG_WARPMV
+
   //! drl_mode_cost
   int drl_mode_cost[3][DRL_MODE_CONTEXTS][2];
 #if CONFIG_FLEX_MVRES
@@ -878,6 +884,11 @@ typedef struct {
   int warped_causal_cost[BLOCK_SIZES_ALL][2];
   //! warp_delta_cost
   int warp_delta_cost[BLOCK_SIZES_ALL][2];
+
+#if CONFIG_WARPMV
+  //! warped_causal_warpmv_cost
+  int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_WARPMV
 
   //! warp_delta_param_cost
   int warp_delta_param_cost[2][WARP_DELTA_NUM_SYMBOLS];
