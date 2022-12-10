@@ -300,11 +300,18 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
 
 #if CONFIG_WARP_REF_LIST
 // Check if the signaling of the warp delta parameters are allowed
-static INLINE int allow_warp_parameter_signaling(const MB_MODE_INFO *mbmi) {
+static INLINE int allow_warp_parameter_signaling(
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    const AV1_COMMON *const cm,
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+    const MB_MODE_INFO *mbmi) {
   return (
 #if CONFIG_WARPMV
       mbmi->mode != WARPMV &&
 #endif  // CONFIG_WARPMV
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      cm->features.allow_warpmv_mode &&
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
       mbmi->motion_mode == WARP_DELTA && mbmi->warp_ref_idx == 1);
 }
 #endif  // CONFIG_WARP_REF_LIST
@@ -937,6 +944,9 @@ static INLINE int is_warpmv_mode_allowed(const AV1_COMMON *const cm,
 #if CONFIG_TIP
       || is_tip_ref_frame(mbmi->ref_frame[0])
 #endif  // CONFIG_TIP
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      || !cm->features.allow_warpmv_mode
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   )
     return 0;
 
@@ -944,6 +954,16 @@ static INLINE int is_warpmv_mode_allowed(const AV1_COMMON *const cm,
       cm->features.enabled_motion_modes & (1 << WARP_DELTA);
   return frame_warp_delta_allowed && is_warpmv_allowed_bsize(bsize);
 }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+// check if warpmv with mvd is allowed or not
+static INLINE int allow_warpmv_with_mvd_coding(const AV1_COMMON *const cm,
+                                               const MB_MODE_INFO *mbmi) {
+  if (!cm->features.allow_warpmv_mode) return 0;
+  return (mbmi->mode == WARPMV && mbmi->warp_ref_idx < 2);
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
 #endif  // CONFIG_WARPMV
 
 #ifdef __cplusplus

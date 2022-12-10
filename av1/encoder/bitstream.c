@@ -183,6 +183,16 @@ static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
     if (mbmi->warp_ref_idx == bit_idx) break;
   }
 }
+#if CONFIG_CWG_D067_IMPROVED_WARP
+static void write_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx,
+                                       const MB_MODE_INFO *mbmi,
+                                       aom_writer *w) {
+  aom_write_symbol(
+      w, mbmi->warpmv_with_mvd_flag,
+      ec_ctx->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]], 2);
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
 #endif  // CONFIG_WARP_REF_LIST
 
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -481,7 +491,11 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #if !CONFIG_WARPMV
   write_warp_ref_idx(xd->tile_ctx, mbmi, w);
 #endif  // !CONFIG_WARPMV
-  if (!allow_warp_parameter_signaling(mbmi)) {
+  if (!allow_warp_parameter_signaling(
+#if CONFIG_CWG_D067_IMPROVED_WARP
+          cm,
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+          mbmi)) {
     return;
   }
 #endif  // CONFIG_WARP_REF_LIST
@@ -2031,10 +2045,18 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
       int is_warpmv_warp_causal =
-          (mbmi->motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV);
+          ((mbmi->motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV);
       if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal)
         write_warp_ref_idx(xd->tile_ctx, mbmi, w);
 #endif  // CONFIG_WARPMV
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
+        write_warpmv_with_mvd_flag(xd->tile_ctx, mbmi, w);
+      } else {
+        assert(mbmi->warpmv_with_mvd_flag == 0);
+      }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       write_jmvd_scale_mode(xd, w, mbmi);
@@ -2061,65 +2083,19 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_FLEX_MVRES
     }
 
-    if (have_newmv_in_each_reference(mode)) {
-      for (ref = 0; ref < 1 + is_compound; ++ref) {
-        nmv_context *nmvc = &ec_ctx->nmvc;
-        const int_mv ref_mv = get_ref_mv(x, ref);
-
-        av1_encode_mv(cpi, w,
-#if CONFIG_FLEX_MVRES
-                      mbmi->mv[ref].as_mv, ref_mv.as_mv,
-#else
-                      &mbmi->mv[ref].as_mv, &ref_mv.as_mv,
-#endif
-                      nmvc,
-#if CONFIG_FLEX_MVRES
-                      pb_mv_precision);
-#else
-                      allow_hp);
-#endif
-      }
-    } else if (mode == NEAR_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-               || mode == NEAR_NEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
-               || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)
-#endif  // CONFIG_JOINT_MVD
-    ) {
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    if (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag) {
       nmv_context *nmvc = &ec_ctx->nmvc;
-      const int_mv ref_mv = get_ref_mv(x, 1);
-
-      av1_encode_mv(cpi, w,
-#if CONFIG_FLEX_MVRES
-                    mbmi->mv[1].as_mv, ref_mv.as_mv,
-#else
-                    &mbmi->mv[1].as_mv, &ref_mv.as_mv,
-#endif
-                    nmvc,
-#if CONFIG_FLEX_MVRES
-                    pb_mv_precision);
-#else
-                    allow_hp);
-#endif
-
-    } else if (mode == NEW_NEARMV
-#if CONFIG_OPTFLOW_REFINEMENT
-               || mode == NEW_NEARMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
-               || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)
-#endif  // CONFIG_JOINT_MVD
-    ) {
-      nmv_context *nmvc = &ec_ctx->nmvc;
-      const int_mv ref_mv = get_ref_mv(x, 0);
-
+      WarpedMotionParams ref_warp_model =
+          x->mbmi_ext_frame->warp_param_stack[mbmi->warp_ref_idx].wm_params;
+      const int_mv ref_mv =
+          get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
+                          xd->mi_col, xd->mi_row);
       av1_encode_mv(cpi, w,
 #if CONFIG_FLEX_MVRES
                     mbmi->mv[0].as_mv, ref_mv.as_mv,
-
 #else
-                    &mbmi->mv[0].as_mv, &ref_mv.as_mv,
+                    &mbmi->mv[ref].as_mv, &ref_mv.as_mv,
 #endif
                     nmvc,
 #if CONFIG_FLEX_MVRES
@@ -2128,6 +2104,81 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                     allow_hp);
 #endif
     }
+
+    else {
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
+      if (have_newmv_in_each_reference(mode)) {
+        for (ref = 0; ref < 1 + is_compound; ++ref) {
+          nmv_context *nmvc = &ec_ctx->nmvc;
+          const int_mv ref_mv = get_ref_mv(x, ref);
+
+          av1_encode_mv(cpi, w,
+#if CONFIG_FLEX_MVRES
+                        mbmi->mv[ref].as_mv, ref_mv.as_mv,
+#else
+                      &mbmi->mv[ref].as_mv, &ref_mv.as_mv,
+#endif
+                        nmvc,
+#if CONFIG_FLEX_MVRES
+                        pb_mv_precision);
+#else
+                      allow_hp);
+#endif
+        }
+      } else if (mode == NEAR_NEWMV
+#if CONFIG_OPTFLOW_REFINEMENT
+                 || mode == NEAR_NEWMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_JOINT_MVD
+                 || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)
+#endif  // CONFIG_JOINT_MVD
+      ) {
+        nmv_context *nmvc = &ec_ctx->nmvc;
+        const int_mv ref_mv = get_ref_mv(x, 1);
+
+        av1_encode_mv(cpi, w,
+#if CONFIG_FLEX_MVRES
+                      mbmi->mv[1].as_mv, ref_mv.as_mv,
+#else
+                    &mbmi->mv[1].as_mv, &ref_mv.as_mv,
+#endif
+                      nmvc,
+#if CONFIG_FLEX_MVRES
+                      pb_mv_precision);
+#else
+                    allow_hp);
+#endif
+
+      } else if (mode == NEW_NEARMV
+#if CONFIG_OPTFLOW_REFINEMENT
+                 || mode == NEW_NEARMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_JOINT_MVD
+                 || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)
+#endif  // CONFIG_JOINT_MVD
+      ) {
+        nmv_context *nmvc = &ec_ctx->nmvc;
+        const int_mv ref_mv = get_ref_mv(x, 0);
+
+        av1_encode_mv(cpi, w,
+#if CONFIG_FLEX_MVRES
+                      mbmi->mv[0].as_mv, ref_mv.as_mv,
+
+#else
+                    &mbmi->mv[0].as_mv, &ref_mv.as_mv,
+#endif
+                      nmvc,
+#if CONFIG_FLEX_MVRES
+                      pb_mv_precision);
+#else
+                    allow_hp);
+#endif
+      }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #if CONFIG_BAWP && !CONFIG_WARPMV
     if (cm->features.enable_bawp &&
         av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
@@ -5350,6 +5401,14 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)
     aom_wb_write_bit(wb, features->enable_bawp);
 #endif  // CONFIG_BAWP
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  if (!frame_is_intra_only(cm) && features->enabled_motion_modes) {
+    aom_wb_write_bit(wb, features->allow_warpmv_mode);
+  } else {
+    assert(IMPLIES(!frame_is_intra_only(cm), !features->allow_warpmv_mode));
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   aom_wb_write_bit(wb, features->reduced_tx_set_used);
 

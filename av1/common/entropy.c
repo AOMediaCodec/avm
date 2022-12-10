@@ -202,6 +202,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[0], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[1], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[2], 2);
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  RESET_CDF_COUNTER(fc->warpmv_with_mvd_flag_cdf, 2);
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   RESET_CDF_COUNTER(fc->warp_delta_param_cdf, WARP_DELTA_NUM_SYMBOLS);
   RESET_CDF_COUNTER(fc->warp_extend_cdf, 2);

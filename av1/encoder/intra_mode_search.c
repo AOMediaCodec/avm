@@ -797,6 +797,9 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  mbmi->warpmv_with_mvd_flag = 0;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);

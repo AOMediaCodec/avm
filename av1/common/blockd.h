@@ -586,6 +586,10 @@ typedef struct MB_MODE_INFO {
   /*! \brief Maximum number of warp reference indices to use for warp base
    * parameter. */
   uint8_t max_num_warp_candidates;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  /*! \brief warpmv_with_mvd_flag. */
+  uint8_t warpmv_with_mvd_flag;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
 
   /*! \brief Indicates if masked compound is used(1) or not (0). */

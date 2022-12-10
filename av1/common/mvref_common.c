@@ -1879,6 +1879,29 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif
 
+#if CONFIG_WARP_REF_LIST && CONFIG_CWG_D067_IMPROVED_WARP
+  // derive a warp model from the 3 corner MVs
+  if (warp_param_stack && valid_num_warp_candidates &&
+      *valid_num_warp_candidates < max_num_of_warp_candidates) {
+    int mvs_32[2 * 3];
+    int pts[2 * 3];
+    int np = 0;
+    WarpedMotionParams cand_warp_param = default_warp_params;
+    int valid_points = generate_points_from_corners(cm, xd, xd->mi[0], pts,
+                                                    mvs_32, &np, ref_frame);
+    int valid_model =
+        get_model_from_corner_mvs(&cand_warp_param, pts, valid_points, mvs_32,
+                                  xd->mi[0]->sb_type[PLANE_TYPE_Y], 1);
+    if (valid_model && !cand_warp_param.invalid &&
+        !is_this_param_already_in_list(*valid_num_warp_candidates,
+                                       warp_param_stack, cand_warp_param)) {
+      insert_neighbor_warp_candidate(warp_param_stack, &cand_warp_param,
+                                     *valid_num_warp_candidates, PROJ_SPATIAL);
+      (*valid_num_warp_candidates)++;
+    }
+  }
+#endif  // CONFIG_WARP_REF_LIST && CONFIG_CWG_D067_IMPROVED_WARP
+
   // Find valid maximum row/col offset.
   if (xd->up_available) {
 #if CONFIG_SMVP_IMPROVEMENT
@@ -4400,7 +4423,14 @@ void av1_find_warp_delta_base_candidates(
          num_wrl_cand * sizeof(wrl_list[0]));
   if (p_valid_num_candidates) {
     // for NEARMV mode, the maximum number of candidates is 1
-    *p_valid_num_candidates = (mbmi->mode == NEARMV) ? 1 : num_wrl_cand;
+    *p_valid_num_candidates = (mbmi->mode == NEARMV
+#if CONFIG_CWG_D067_IMPROVED_WARP
+                               || mbmi->mode == AMVDNEWMV
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
+                               )
+                                  ? 1
+                                  : num_wrl_cand;
   }
 }
 
@@ -4736,3 +4766,103 @@ int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   return ctx;
 }
 #endif  // CONFIG_WARPMV
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+// return 1 if valid point is found
+// return 0 if the point is not valid
+static int fill_warp_corner_projected_point(const MB_MODE_INFO *neighbor_mi,
+                                            MV_REFERENCE_FRAME this_ref,
+                                            const int pos_col,
+                                            const int pos_row, int *pts,
+                                            int *mvs, int *n_points) {
+  // return if the source point is invalid
+  if (pos_col < 0 || pos_row < 0) return 0;
+
+  if (!is_inter_ref_frame(neighbor_mi->ref_frame[0])) return 0;
+  if (neighbor_mi->ref_frame[0] != this_ref) return 0;
+  int mv_row;
+  int mv_col;
+  if (is_warp_mode(neighbor_mi->motion_mode)) {
+    int_mv warp_mv =
+        get_warp_motion_vector_xy_pos(&neighbor_mi->wm_params[0], pos_col,
+                                      pos_row, MV_PRECISION_ONE_EIGHTH_PEL);
+    mv_row = warp_mv.as_mv.row;
+    mv_col = warp_mv.as_mv.col;
+  } else {
+    mv_row = neighbor_mi->mv[0].as_mv.row;
+    mv_col = neighbor_mi->mv[0].as_mv.col;
+  }
+  pts[2 * (*n_points)] = pos_col;
+  pts[2 * (*n_points) + 1] = pos_row;
+  mvs[2 * (*n_points)] = mv_col;
+  mvs[2 * (*n_points) + 1] = mv_row;
+  ++(*n_points);
+  return 1;
+}
+// Check all 3 neighbors to generate projected points
+int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                                 const MB_MODE_INFO *mbmi, int *pts, int *mvs,
+                                 int *np, MV_REFERENCE_FRAME ref_frame) {
+  const TileInfo *const tile = &xd->tile;
+  (void)cm;
+
+  POSITION mi_pos;
+  int valid_points = 0;
+
+  (void)mbmi;
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame);
+  MV_REFERENCE_FRAME this_ref = rf[0];
+  const int bw = xd->width * MI_SIZE;
+  const int bh = xd->height * MI_SIZE;
+
+  // top-left
+  mi_pos.row = -1;
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available &&
+      xd->left_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    int pos_row = xd->mi_row * MI_SIZE;
+    int pos_col = xd->mi_col * MI_SIZE;
+    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
+                                                 pos_row, pts, mvs, np);
+    if (valid) {
+      valid_points++;
+    }
+  }
+
+  // top-right
+  mi_pos.row = -1;
+  mi_pos.col = xd->width - 1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    int pos_row = xd->mi_row * MI_SIZE;
+    int pos_col = xd->mi_col * MI_SIZE + bw;
+    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
+                                                 pos_row, pts, mvs, np);
+    if (valid) {
+      valid_points++;
+    }
+  }
+
+  // bottom-left
+  mi_pos.row = xd->height - 1;
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    int pos_row = xd->mi_row * MI_SIZE + bh;
+    int pos_col = xd->mi_col * MI_SIZE;
+    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
+                                                 pos_row, pts, mvs, np);
+    if (valid) {
+      valid_points++;
+    }
+  }
+
+  assert(valid_points <= 3);
+  return valid_points;
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP

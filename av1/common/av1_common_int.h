@@ -635,6 +635,9 @@ typedef struct {
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   bool allow_warped_motion; /*!< If true, frame may use warped motion mode. */
 #endif
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  bool allow_warpmv_mode; /*!< If true, frame may use WARPMV mode. */
+#endif                    // CONFIG_CWG_D067_IMPROVED_WARP
   /*!
    * If true, using previous frames' motion vectors for prediction is allowed.
    */

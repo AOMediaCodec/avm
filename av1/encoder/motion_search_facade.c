@@ -50,12 +50,23 @@ static int use_fine_search_interval(const AV1_COMP *const cpi) {
 void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                               BLOCK_SIZE bsize, int ref_idx, int *rate_mv,
                               int search_range, inter_mode_info *mode_info,
-                              int_mv *best_mv) {
+                              int_mv *best_mv
+#if CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+                              ,
+                              const int_mv *warp_ref_mv
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+) {
   MACROBLOCKD *xd = &x->e_mbd;
   const AV1_COMMON *cm = &cpi->common;
   const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+  MOTION_MODE backup_motion_mode = mbmi->motion_mode;
+  // Make the motion mode transalational, so that transalation MS can be used.
+  if (mbmi->mode == WARPMV) mbmi->motion_mode = SIMPLE_TRANSLATION;
+#endif  // CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+
   struct buf_2d backup_yv12[MAX_MB_PLANE] = { { 0, 0, 0, 0, 0 } };
   int bestsme = INT_MAX;
   const int ref = mbmi->ref_frame[ref_idx];
@@ -97,7 +108,11 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
 #if CONFIG_FLEX_MVRES
-  MV ref_mv_low_prec = av1_get_ref_mv(x, ref_idx).as_mv;
+  MV ref_mv_low_prec =
+#if CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+      (mbmi->mode == WARPMV) ? warp_ref_mv->as_mv :
+#endif  // CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+                             av1_get_ref_mv(x, ref_idx).as_mv;
 #if CONFIG_C071_SUBBLK_WARPMV
   MV sub_mv_offset = { 0, 0 };
   get_phase_from_mv(ref_mv_low_prec, &sub_mv_offset, mbmi->pb_mv_precision);
@@ -305,6 +320,9 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   //     for the other ref_mv.
   if (cpi->sf.inter_sf.skip_repeated_full_newmv &&
       mbmi->motion_mode == SIMPLE_TRANSLATION &&
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      mbmi->mode != WARPMV &&
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
       best_mv->as_int != INVALID_MV) {
     int_mv this_mv;
     this_mv.as_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
@@ -477,6 +495,10 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   assert(is_this_mv_precision_compliant(best_mv->as_mv, mbmi->pb_mv_precision));
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
 #endif
+#if CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+  // Restore the motion mode
+  if (mbmi->mode == WARPMV) mbmi->motion_mode = backup_motion_mode;
+#endif  // CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
 }
 
 #if CONFIG_FLEX_MVRES

@@ -264,6 +264,10 @@ set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 
+set_aom_config_var(CONFIG_CWG_D067_IMPROVED_WARP 1
+                   "Improvement of warp motions")
+
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

@@ -1497,6 +1497,18 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  features->allow_warpmv_mode = features->enabled_motion_modes ? 1 : 0;
+  if (features->allow_warpmv_mode &&
+      cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
+    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    if (frame_probs->warped_probs[update_type] <
+        cpi->sf.inter_sf.prune_warpmv_prob_thresh) {
+      features->allow_warpmv_mode = 0;
+    }
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
   int hash_table_created = 0;
   if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) {
     // TODO(any): move this outside of the recoding loop to avoid recalculating
@@ -1784,6 +1796,17 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     frame_probs->warped_probs[update_type] =
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  if (cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
+    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    int sum = 0;
+    for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
+    const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
+    frame_probs->warped_probs[update_type] =
+        (frame_probs->warped_probs[update_type] + new_prob) >> 1;
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) ||
       hash_table_created) {

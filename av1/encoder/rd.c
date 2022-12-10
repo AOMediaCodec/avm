@@ -623,6 +623,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->warped_causal_warpmv_cdf[i], NULL);
     }
 #endif  // CONFIG_WARPMV
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
+      av1_cost_tokens_from_cdf(mode_costs->warpmv_with_mvd_flag_cost[i],
+                               fc->warpmv_with_mvd_flag_cdf[i], NULL);
+    }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #if CONFIG_WARP_REF_LIST
     for (i = 0; i < 3; i++) {

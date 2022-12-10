@@ -384,6 +384,16 @@ static void read_warp_ref_idx(FRAME_CONTEXT *ec_ctx, MB_MODE_INFO *mbmi,
     if (!warp_idx) break;
   }
 }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+static void read_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx, MB_MODE_INFO *mbmi,
+                                      aom_reader *r) {
+  mbmi->warpmv_with_mvd_flag = aom_read_symbol(
+      r, ec_ctx->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]], 2,
+      ACCT_STR);
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
 #endif  // CONFIG_WARP_REF_LIST
 // Read the delta for a single warp parameter
 // Each delta is coded as a symbol in the range
@@ -437,7 +447,11 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   // TODO(rachelbarker): Allow signaling warp type?
 #if CONFIG_WARP_REF_LIST
-  if (allow_warp_parameter_signaling(mbmi)) {
+  if (allow_warp_parameter_signaling(
+#if CONFIG_CWG_D067_IMPROVED_WARP
+          cm,
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+          mbmi)) {
 #endif  // CONFIG_WARP_REF_LIST
     params->wmtype = ROTZOOM;
     params->wmmat[2] = base_params.wmmat[2] + read_warp_delta_param(xd, 2, r);
@@ -2286,6 +2300,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     allow_hp = MV_SUBPEL_NONE;
   }
 #endif
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  (void)ref_warp_model;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #if CONFIG_JOINT_MVD
   int first_ref_dist = 0;
   int sec_ref_dist = 0;
@@ -2335,6 +2352,28 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
 #if CONFIG_WARPMV
     case WARPMV: {
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      mbmi->mv[0] = ref_mv[0];
+      if (mbmi->warpmv_with_mvd_flag) {
+        nmv_context *const nmvc = &ec_ctx->nmvc;
+        read_mv(r, &mv[0].as_mv,
+#if CONFIG_FLEX_MVRES
+                ref_mv[0].as_mv,
+#else
+                &ref_mv[0].as_mv,
+#endif
+#if CONFIG_ADAPTIVE_MVD
+                is_adaptive_mvd,
+#endif  // CONFIG_ADAPTIVE_MVD
+                nmvc,
+#if CONFIG_FLEX_MVRES
+                precision);
+#else
+                allow_hp);
+#endif
+      }
+
+#else
       assert(ref_warp_model);
       mbmi->mv[0] = get_mv_from_wrl(xd, ref_warp_model,
 
@@ -2344,6 +2383,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     1, 0,
 #endif
                                     bsize, xd->mi_col, xd->mi_row);
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
       break;
     }
 #endif  // CONFIG_WARPMV
@@ -2743,9 +2784,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_WARP_REF_LIST
 
 #if CONFIG_WARPMV
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  mbmi->warpmv_with_mvd_flag = 0;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES];
-  WarpedMotionParams ref_warp_model;
+  WarpedMotionParams ref_warp_model = default_warp_params;
 #endif  // CONFIG_WARPMV
   if (mbmi->skip_mode) {
     assert(is_compound);
@@ -2818,12 +2862,15 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       av1_count_overlappable_neighbors(cm, xd);
       mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
       int is_warpmv_warp_causal =
-          (mbmi->motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV);
+          ((mbmi->motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV);
       if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal) {
-        mbmi->max_num_warp_candidates =
-            (mbmi->mode == GLOBALMV || mbmi->mode == NEARMV)
-                ? 1
-                : MAX_WARP_REF_CANDIDATES;
+        mbmi->max_num_warp_candidates = (mbmi->mode == GLOBALMV ||
+#if CONFIG_CWG_D067_IMPROVED_WARP
+                                         mbmi->mode == AMVDNEWMV ||
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+                                         mbmi->mode == NEARMV)
+                                            ? 1
+                                            : MAX_WARP_REF_CANDIDATES;
         if (is_warpmv_warp_causal) {
           mbmi->max_num_warp_candidates = MAX_WARP_REF_CANDIDATES;
         }
@@ -2837,6 +2884,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         ref_warp_model = warp_param_stack[mbmi->warp_ref_idx].wm_params;
       }
 #endif  // CONFIG_WARPMV
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
+        read_warpmv_with_mvd_flag(xd->tile_ctx, mbmi, r);
+      } else {
+        mbmi->warpmv_with_mvd_flag = 0;
+      }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       mbmi->jmvd_scale_mode = read_jmvd_scale_mode(xd, r, mbmi);
@@ -2876,7 +2931,20 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                        mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   }
 
-  ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  if (mbmi->mode == WARPMV) {
+    ref_mv[0] = get_mv_from_wrl(xd, &ref_warp_model,
+                                !mbmi->warpmv_with_mvd_flag
+                                    ? MV_PRECISION_ONE_EIGHTH_PEL
+                                    : mbmi->pb_mv_precision,
+                                bsize, xd->mi_col, xd->mi_row);
+
+  } else {
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+    ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   if (is_compound && mbmi->mode != GLOBAL_GLOBALMV) {
     ref_mv[1] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].comp_mv;
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -3229,6 +3297,9 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  mbmi->warpmv_with_mvd_flag = 0;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
 #if CONFIG_NEW_CONTEXT_MODELING
   mbmi->use_intrabc[0] = 0;
@@ -3387,7 +3458,9 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
   MACROBLOCKD *const xd = &dcb->xd;
   MB_MODE_INFO *const mi = xd->mi[0];
   mi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  mi->warpmv_with_mvd_flag = 0;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   if (xd->tree_type == SHARED_PART)
     mi->sb_type[PLANE_TYPE_UV] = mi->sb_type[PLANE_TYPE_Y];
 

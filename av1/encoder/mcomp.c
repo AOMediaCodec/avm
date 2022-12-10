@@ -5612,7 +5612,15 @@ int av1_refine_mv_for_base_param_warp_model(
   int mi_row = xd->mi_row;
   int mi_col = xd->mi_col;
 
-  bool can_refine_mv = (mbmi->mode == NEWMV);
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  assert(IMPLIES(mbmi->warpmv_with_mvd_flag, mbmi->mode == WARPMV));
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
+  bool can_refine_mv = (mbmi->mode == NEWMV
+#if CONFIG_CWG_D067_IMPROVED_WARP
+                        || (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag)
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+  );
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
   // get the base parameters

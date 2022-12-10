@@ -1157,7 +1157,7 @@ typedef enum {
   PROJ_SPATIAL,        /**< Project from spatial neighborhood */
   PROJ_PARAM_BANK,     /**< Project from circular buffer */
   PROJ_DEFAULT,        /**< Default values */
-  WARP_PROJ_TYPES = 5, /**< Num projection types */
+  WARP_PROJ_TYPES = 4, /**< Num projection types */
 } WarpProjectionType;
 #endif  // CONFIG_WARP_REF_LIST
 

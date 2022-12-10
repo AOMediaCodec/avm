@@ -236,6 +236,9 @@ typedef struct frame_contexts {
 #endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   aom_cdf_prob warp_ref_idx_cdf[3][WARP_REF_CONTEXTS][CDF_SIZE(2)];
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  aom_cdf_prob warpmv_with_mvd_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   aom_cdf_prob warp_delta_param_cdf[2][CDF_SIZE(WARP_DELTA_NUM_SYMBOLS)];
 
