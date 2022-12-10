@@ -722,6 +722,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
 
+#if CONFIG_WARPMV_WITH_MVD
+  // Prune warpmv with mvd search using previous frame stats.
+  int prune_warpmv_prob_thresh;
+#endif
+
   // Enable/disable interintra wedge search.
   int disable_wedge_interintra_search;
 

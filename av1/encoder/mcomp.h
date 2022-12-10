@@ -576,10 +576,10 @@ static INLINE void av1_set_subpel_mv_search_range(
       av1_lower_mv_limit(GET_MV_SUBPEL(mv_limits->row_min), sub_pel_prec_shift);
   int row_max =
       av1_lower_mv_limit(GET_MV_SUBPEL(mv_limits->row_max), sub_pel_prec_shift);
-
+#if 0
   const int mv_low = av1_lower_mv_limit(MV_LOW + 1, sub_pel_prec_shift);
   const int mv_upp = av1_lower_mv_limit(MV_UPP - 1, sub_pel_prec_shift);
-
+#endif
   int minc = AOMMAX(col_min, low_prec_ref_mv.col - max_mv);
   int maxc = AOMMIN(col_max, low_prec_ref_mv.col + max_mv);
   int minr = AOMMAX(row_min, low_prec_ref_mv.row - max_mv);
@@ -587,11 +587,18 @@ static INLINE void av1_set_subpel_mv_search_range(
 
   maxc = AOMMAX(minc, maxc);
   maxr = AOMMAX(minr, maxr);
-
+#if 0
   subpel_limits->col_min = AOMMAX(mv_low + (1 << sub_pel_prec_shift), minc);
   subpel_limits->col_max = AOMMIN(mv_upp - (1 << sub_pel_prec_shift), maxc);
   subpel_limits->row_min = AOMMAX(mv_low + (1 << sub_pel_prec_shift), minr);
   subpel_limits->row_max = AOMMIN(mv_upp - (1 << sub_pel_prec_shift), maxr);
+#else
+  subpel_limits->col_min = AOMMAX(MV_LOW + (1 << sub_pel_prec_shift), minc);
+  subpel_limits->col_max = AOMMIN(MV_UPP - (1 << sub_pel_prec_shift), maxc);
+  subpel_limits->row_min = AOMMAX(MV_LOW + (1 << sub_pel_prec_shift), minr);
+  subpel_limits->row_max = AOMMIN(MV_UPP - (1 << sub_pel_prec_shift), maxr);
+
+#endif
 #else
 
   const int max_mv = GET_MV_SUBPEL(MAX_FULL_PEL_VAL);

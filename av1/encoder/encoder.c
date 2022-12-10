@@ -3305,7 +3305,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   features->allow_warped_motion = oxcf->motion_mode_cfg.allow_warped_motion &&
                                   frame_might_allow_warped_motion(cm);
 #endif  // !CONFIG_EXTENDED_WARP_PREDICTION
-
+#if CONFIG_WARPMV_WITH_MVD
+  features->allow_warpmv_mode = features->enabled_motion_modes;
+#endif
   // temporal set of frame level enable_bawp flag.
 #if CONFIG_BAWP
   features->enable_bawp = seq_params->enable_bawp;

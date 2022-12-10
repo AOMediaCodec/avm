@@ -7243,6 +7243,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->enable_bawp = 0;
 #endif  // CONFIG_BAWP
 
+#if CONFIG_WARPMV_WITH_MVD
+  features->allow_warpmv_mode = 0;
+  if (!frame_is_intra_only(cm) && features->enabled_motion_modes) {
+    features->allow_warpmv_mode = aom_rb_read_bit(rb);
+  }
+#endif
+
   features->reduced_tx_set_used = aom_rb_read_bit(rb);
 
   if (features->allow_ref_frame_mvs && !frame_might_allow_ref_frame_mvs(cm)) {

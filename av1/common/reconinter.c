@@ -2511,6 +2511,9 @@ int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi,
                               const BLOCK_SIZE bsize) {
   (void)bsize;
+#if CONFIG_WARPMV
+  if (mbmi->mode == WARPMV) return 0;
+#endif
 #if CONFIG_ADAPTIVE_MVD
   if (enable_adaptive_mvd_resolution(cm, mbmi)) return 0;
 #endif

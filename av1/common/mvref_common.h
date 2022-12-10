@@ -1132,6 +1132,13 @@ static INLINE int is_ref_motion_field_eligible(
   return 1;
 }
 
+#if CONFIG_DERIVEMODEL_IN_WRL
+int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                                 const MB_MODE_INFO *mbmi, int *pts, int *mvs,
+                                 int *np, MV_REFERENCE_FRAME ref_frame);
+
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

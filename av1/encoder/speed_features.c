@@ -849,6 +849,10 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   inter_sf->reuse_erp_mode_flag = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_WARPMV_WITH_MVD
+  inter_sf->prune_warpmv_prob_thresh = 32;
+#endif
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {

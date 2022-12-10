@@ -975,7 +975,11 @@ static void update_warp_delta_stats(const AV1_COMMON *cm,
       if (mbmi->warp_ref_idx == bit_idx) break;
     }
   }
-  if (allow_warp_parameter_signaling(mbmi)) {
+  if (allow_warp_parameter_signaling(
+#if CONFIG_WARPMV_WITH_MVD
+          cm,
+#endif
+          mbmi)) {
 #endif  // CONFIG_WARP_REF_LIST
     const WarpedMotionParams *params = &mbmi->wm_params[0];
     WarpedMotionParams base_params;
@@ -1308,7 +1312,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       if (mbmi->mode == WARPMV) {
         if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
           update_cdf(fc->warped_causal_warpmv_cdf[bsize],
-                     motion_mode == WARPED_CAUSAL, 2);
+                     motion_mode != WARP_DELTA, 2);
         }
       }
 #endif  // CONFIG_WARPMV
@@ -1414,7 +1418,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
       if (motion_mode == WARP_DELTA
 #if CONFIG_WARPMV
-          || (motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV)
+          || ((motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV)
 #endif  // CONFIG_WARPMV
       ) {
         update_warp_delta_stats(cm,
@@ -1492,6 +1496,15 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_WARPMV_WITH_MVD
+      if (allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize)) {
+        update_cdf(fc->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]],
+                   mbmi->warpmv_with_mvd_flag, 2);
+      } else {
+        assert(mbmi->warpmv_with_mvd_flag == 0);
+      }
+#endif
 
       if (has_second_ref(mbmi)
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1626,11 +1639,44 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       update_drl_index_stats(cm->features.max_drl_bits, mode_ctx_pristine, fc,
                              counts, mbmi, mbmi_ext);
     }
-    if (have_newmv_in_inter_mode(mbmi->mode) && xd->tree_type != CHROMA_PART) {
+
+#if CONFIG_WARPMV_WITH_MVD
+    if (xd->tree_type != CHROMA_PART && mbmi->mode == WARPMV) {
+      if (mbmi->warpmv_with_mvd_flag) {
+        WarpedMotionParams ref_warp_model =
+            mbmi_ext
+                ->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)]
+                                  [mbmi->warp_ref_idx]
+                .wm_params;
+        const int_mv ref_mv =
+            get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
+                            xd->mi_col, xd->mi_row);
+        assert(is_adaptive_mvd == 0);
+
 #if CONFIG_FLEX_MVRES
-      const int pb_mv_precision = mbmi->pb_mv_precision;
-      assert(IMPLIES(cm->features.cur_frame_force_integer_mv,
-                     pb_mv_precision == MV_PRECISION_ONE_PEL));
+        av1_update_mv_stats(mbmi->mv[0].as_mv, ref_mv.as_mv, &fc->nmvc,
+#if CONFIG_ADAPTIVE_MVD
+                            is_adaptive_mvd,
+#endif  // CONFIG_ADAPTIVE_MVD
+                            mbmi->pb_mv_precision);
+#else
+        av1_update_mv_stats(&mbmi->mv[0].as_mv, &ref_mv.as_mv, &fc->nmvc,
+#if CONFIG_ADAPTIVE_MVD
+                            is_adaptive_mvd,
+#endif  // CONFIG_ADAPTIVE_MVD
+                            allow_hp);
+#endif
+      }
+
+    } else {
+#endif
+
+      if (have_newmv_in_inter_mode(mbmi->mode) &&
+          xd->tree_type != CHROMA_PART) {
+#if CONFIG_FLEX_MVRES
+        const int pb_mv_precision = mbmi->pb_mv_precision;
+        assert(IMPLIES(cm->features.cur_frame_force_integer_mv,
+                       pb_mv_precision == MV_PRECISION_ONE_PEL));
 #else
       const int allow_hp = cm->features.cur_frame_force_integer_mv
                                ? MV_SUBPEL_NONE
@@ -1638,41 +1684,42 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif
 
 #if CONFIG_FLEX_MVRES
-      if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
+        if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
 #if CONFIG_ADAPTIVE_MVD
-        assert(!is_adaptive_mvd);
+          assert(!is_adaptive_mvd);
 #endif
-        assert(mbmi->most_probable_pb_mv_precision <= mbmi->max_mv_precision);
-        const int mpp_flag_context = av1_get_mpp_flag_context(cm, xd);
-        const int mpp_flag =
-            (mbmi->pb_mv_precision == mbmi->most_probable_pb_mv_precision);
-        update_cdf(fc->pb_mv_mpp_flag_cdf[mpp_flag_context], mpp_flag, 2);
+          assert(mbmi->most_probable_pb_mv_precision <= mbmi->max_mv_precision);
+          const int mpp_flag_context = av1_get_mpp_flag_context(cm, xd);
+          const int mpp_flag =
+              (mbmi->pb_mv_precision == mbmi->most_probable_pb_mv_precision);
+          update_cdf(fc->pb_mv_mpp_flag_cdf[mpp_flag_context], mpp_flag, 2);
 
-        if (!mpp_flag) {
-          const PRECISION_SET *precision_def =
-              &av1_mv_precision_sets[mbmi->mb_precision_set];
-          int down = av1_get_pb_mv_precision_index(mbmi);
-          int nsymbs = precision_def->num_precisions - 1;
+          if (!mpp_flag) {
+            const PRECISION_SET *precision_def =
+                &av1_mv_precision_sets[mbmi->mb_precision_set];
+            int down = av1_get_pb_mv_precision_index(mbmi);
+            int nsymbs = precision_def->num_precisions - 1;
 
-          const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
+            const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
 
-          update_cdf(fc->pb_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
-                                                       MV_PRECISION_HALF_PEL],
-                     down, nsymbs);
+            update_cdf(
+                fc->pb_mv_precision_cdf[down_ctx][mbmi->max_mv_precision -
+                                                  MV_PRECISION_HALF_PEL],
+                down, nsymbs);
+          }
         }
-      }
 #endif  // CONFIG_FLEX_MVRES
 
-      if (new_mv) {
-        for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-          const int_mv ref_mv = av1_get_ref_mv(x, ref);
+        if (new_mv) {
+          for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+            const int_mv ref_mv = av1_get_ref_mv(x, ref);
 
 #if CONFIG_FLEX_MVRES
-          av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
+            av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
 #if CONFIG_ADAPTIVE_MVD
-                              is_adaptive_mvd,
+                                is_adaptive_mvd,
 #endif  // CONFIG_ADAPTIVE_MVD
-                              pb_mv_precision);
+                                pb_mv_precision);
 #else
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
 #if CONFIG_ADAPTIVE_MVD
@@ -1680,23 +1727,23 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ADAPTIVE_MVD
                               allow_hp);
 #endif
-        }
-      } else if (have_nearmv_newmv_in_inter_mode(mbmi->mode)) {
-        const int ref =
+          }
+        } else if (have_nearmv_newmv_in_inter_mode(mbmi->mode)) {
+          const int ref =
 #if CONFIG_OPTFLOW_REFINEMENT
-            mbmi->mode == NEAR_NEWMV_OPTFLOW ||
+              mbmi->mode == NEAR_NEWMV_OPTFLOW ||
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_JOINT_MVD
-            jmvd_base_ref_list ||
+              jmvd_base_ref_list ||
 #endif  // CONFIG_JOINT_MVD
-            mbmi->mode == NEAR_NEWMV;
-        const int_mv ref_mv = av1_get_ref_mv(x, ref);
+              mbmi->mode == NEAR_NEWMV;
+          const int_mv ref_mv = av1_get_ref_mv(x, ref);
 #if CONFIG_FLEX_MVRES
-        av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
+          av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
 #if CONFIG_ADAPTIVE_MVD
-                            is_adaptive_mvd,
+                              is_adaptive_mvd,
 #endif  // CONFIG_ADAPTIVE_MVD
-                            pb_mv_precision);
+                              pb_mv_precision);
 #else
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
 #if CONFIG_ADAPTIVE_MVD
@@ -1704,8 +1751,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ADAPTIVE_MVD
                             allow_hp);
 #endif
+        }
       }
+
+#if CONFIG_WARPMV_WITH_MVD
     }
+#endif
   }
 }
 
@@ -1861,7 +1912,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     if ((!cpi->sf.inter_sf.disable_obmc &&
          cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) ||
 #if CONFIG_EXTENDED_WARP_PREDICTION
-        cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+        cpi->sf.inter_sf.prune_warped_prob_thresh > 0
+#if CONFIG_WARPMV_WITH_MVD
+        || cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0
+#endif
+    ) {
 #else
         (cm->features.allow_warped_motion &&
          cpi->sf.inter_sf.prune_warped_prob_thresh > 0)) {
@@ -1876,9 +1931,18 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           if (allowed_motion_modes & (1 << OBMC_CAUSAL)) {
             td->rd_counts.obmc_used[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
           }
+#if CONFIG_WARPMV_WITH_MVD
+          int is_warp_allowed = (allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
+                                (allowed_motion_modes & (1 << WARP_DELTA)) ||
+                                (allowed_motion_modes & (1 << WARP_EXTEND));
+          if (is_warp_allowed) {
+            td->rd_counts.warped_used[mbmi->motion_mode >= WARPED_CAUSAL]++;
+          }
+#else
           if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
             td->rd_counts.warped_used[mbmi->motion_mode == WARPED_CAUSAL]++;
           }
+#endif
           // TODO(rachelbarker): Add counts and pruning for WARP_DELTA and
           // WARP_EXTEND
         }

@@ -35,7 +35,19 @@ typedef struct {
 void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                               BLOCK_SIZE bsize, int ref_idx, int *rate_mv,
                               int search_range, inter_mode_info *mode_info,
-                              int_mv *best_mv);
+                              int_mv *best_mv
+#if CONFIG_WARPMV && CONFIG_WARPMV_WITH_MVD
+                              ,
+                              const int_mv *warp_ref_mv
+#endif
+);
+
+#if CONFIG_WARPMV && CONFIG_WARPMV_WITH_MVD
+void av1_warpmv_single_transalational_motion_search(
+    const AV1_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int ref_idx,
+    int *rate_mv, int search_range, inter_mode_info *mode_info, int_mv *best_mv,
+    const int_mv warp_ref_mv);
+#endif
 #if CONFIG_FLEX_MVRES
 void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
                                              MACROBLOCK *x, BLOCK_SIZE bsize,

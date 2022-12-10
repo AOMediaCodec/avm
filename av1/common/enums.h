@@ -1085,9 +1085,12 @@ enum {
  * \brief This enumeration defines various warp projection type supported
  */
 typedef enum {
-  PROJ_GLOBAL_MOTION,  /**< block is from global motion */
-  PROJ_SPATIAL,        /**< Project from spatial neighborhood */
-  PROJ_PARAM_BANK,     /**< Project from circular buffer */
+  PROJ_GLOBAL_MOTION, /**< block is from global motion */
+  PROJ_SPATIAL,       /**< Project from spatial neighborhood */
+  PROJ_PARAM_BANK,    /**< Project from circular buffer */
+#if CONFIG_DERIVEMODEL_IN_WRL
+  PROJ_DERIVED, /**< Project from derived model */
+#endif
   PROJ_DEFAULT,        /**< Default values */
   WARP_PROJ_TYPES = 5, /**< Num projection types */
 } WarpProjectionType;
