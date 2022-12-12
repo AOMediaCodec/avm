@@ -2729,7 +2729,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   if (bsize == BLOCK_8X8 && plane > 0) return;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (should_chroma_track_luma_partition(xd->tree_type, ptree_luma, bsize)) {
+  if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
     const int ssx = cm->seq_params.subsampling_x;
     const int ssy = cm->seq_params.subsampling_y;
     (void)ssx;

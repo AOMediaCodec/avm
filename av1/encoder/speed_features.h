@@ -505,8 +505,6 @@ typedef struct PARTITION_SPEED_FEATURES {
   int early_term_after_none_split;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  int enable_fast_erp;
-
   // Prunes PARTITION_3 if PARTITION_NONE is used instead of PARTITION_HORZ|VERT
   int prune_rect_with_none_rd;
 

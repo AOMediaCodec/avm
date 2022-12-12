@@ -376,12 +376,20 @@ typedef struct {
 #define N_OF_OFFSETS 1
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
+/*! \brief Stores the coordinate/bsize for chroma plane. */
 typedef struct CHROMA_REF_INFO {
+  /*! \brief Whether the current luma block also contains chroma info. */
   int is_chroma_ref;
+  /*! \brief Whether the luma and chroma block has different coordinate. */
   int offset_started;
+  /*! \brief If offset_started, this stores the mi_row of the chroma block. */
   int mi_row_chroma_base;
+  /*! \brief If offset_started, this stores the mi_row of the chroma block. */
   int mi_col_chroma_base;
+  /*! \brief The block size of the current luma block. */
   BLOCK_SIZE bsize;
+  /*! \brief Stores the size of that the current chroma block needs to be coded
+   * at. */
   BLOCK_SIZE bsize_base;
 } CHROMA_REF_INFO;
 
@@ -630,15 +638,27 @@ static INLINE int get_partition_plane_end(int tree_type, int num_planes) {
   return (tree_type == LUMA_PART) ? 1 : num_planes;
 }
 
+/*! \brief Stores partition structure of the current block. */
 typedef struct PARTITION_TREE {
+  /*! \brief Pointer to the parent node. */
   struct PARTITION_TREE *parent;
+  /*! \brief Pointers to the children if the current block is further split. */
   struct PARTITION_TREE *sub_tree[4];
+  /*! \brief The partition type used to split the current block. */
   PARTITION_TYPE partition;
+  /*! \brief Block size of the current block. */
   BLOCK_SIZE bsize;
+  /*! \brief Whether the chroma block info is ready. */
   int is_settled;
+  /*! \brief The row coordinate of the current block in units of mi. */
   int mi_row;
+  /*! \brief The col coordinate of the current block in units of mi. */
   int mi_col;
+  /*! \brief The index of current node among its siblings. i.e. current ==
+   * current->parent->sub_tree[current->index]. */
   int index;
+  /*! \brief Data related to the chroma block that the current luma block
+   * corresponds to. */
   CHROMA_REF_INFO chroma_ref_info;
 } PARTITION_TREE;
 
@@ -703,29 +723,36 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
          is_inter_ref_frame(mbmi->ref_frame[0]);
 }
 
+/*!\brief Returns whether the current block size is square */
 static INLINE int is_square_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] == block_size_wide[bsize];
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+/*!\brief Returns whether the current block size has height > width. */
 static INLINE bool is_tall_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] > block_size_wide[bsize];
 }
 
+/*!\brief Returns whether the current block size has width > height. */
 static INLINE bool is_wide_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] < block_size_wide[bsize];
 }
 
+/*!\brief Returns the partition type for a non-square block based on the symbol
+ * transmitted through the bitstream. */
 static INLINE PARTITION_TYPE get_partition_from_symbol_rec_block(
     BLOCK_SIZE bsize, PARTITION_TYPE_REC partition_rec) {
-  if (block_size_wide[bsize] > block_size_high[bsize])
+  if (is_wide_block(bsize))
     return partition_map_from_symbol_block_wgth[partition_rec];
-  else if (block_size_high[bsize] > block_size_wide[bsize])
+  else if (is_tall_block(bsize))
     return partition_map_from_symbol_block_hgtw[partition_rec];
   else
     return PARTITION_INVALID;
 }
 
+/*!\brief Returns the partition type for a non-square block based on the symbol
+ * transmitted through the bitstream when extended partition is disabled. */
 static INLINE PARTITION_TYPE
 get_partition_noext_from_symbol_rec_block(BLOCK_SIZE bsize, int symbol) {
   if (symbol == 0) {
@@ -746,18 +773,23 @@ get_partition_noext_from_symbol_rec_block(BLOCK_SIZE bsize, int symbol) {
   }
 }
 
+/*!\brief Returns the symbol to be transmitted through the bitstream for
+ * a non-square block based on the partition type. */
 static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
     BLOCK_SIZE bsize, PARTITION_TYPE partition) {
   assert(bsize < BLOCK_SIZES_ALL);
   assert(partition < EXT_PARTITION_TYPES);
-  if (block_size_wide[bsize] > block_size_high[bsize])
+  if (is_wide_block(bsize))
     return symbol_map_from_partition_block_wgth[partition];
-  else if (block_size_high[bsize] > block_size_wide[bsize])
+  else if (is_tall_block(bsize))
     return symbol_map_from_partition_block_hgtw[partition];
   else
     return PARTITION_INVALID_REC;
 }
 
+/*!\brief Returns the symbol to be transmitted through the bitstream for
+ * a non-square block based on the partition type when extended partition is
+ * disabled. */
 static INLINE PARTITION_TYPE_REC get_symbol_from_partition_noext_rec_block(
     BLOCK_SIZE bsize, PARTITION_TYPE partition) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -775,6 +807,10 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_noext_rec_block(
   }
 }
 
+/*!\brief Returns the symbol to be transmitted through the bitstream for the
+ * middle block of ternary partition.
+ * \note "limited_partition" refers to the fact that the middle block of ternary
+ * partition cannot be split in the same direction as the ternary partition. */
 static INLINE PARTITION_TYPE get_symbol_from_limited_partition(
     PARTITION_TYPE part, PARTITION_TYPE parent_part) {
   assert(part != PARTITION_INVALID);
@@ -793,6 +829,10 @@ static INLINE PARTITION_TYPE get_symbol_from_limited_partition(
   return symbol;
 }
 
+/*!\brief Returns the symbol to be transmitted through the bitstream for the
+ * middle block of ternary partition when extended partition is disabled.
+ * \note "limited_partition" refers to the fact that the middle block of ternary
+ * partition cannot be split in the same direction as the ternary partition. */
 static INLINE PARTITION_TYPE get_symbol_from_limited_partition_noext(
     PARTITION_TYPE part, PARTITION_TYPE parent_part) {
   assert(part != PARTITION_INVALID);
@@ -813,6 +853,10 @@ static INLINE PARTITION_TYPE get_symbol_from_limited_partition_noext(
   return symbol;
 }
 
+/*!\brief Returns the partition type based on the symbol transmitted through the
+ * bitstream for the middle block of ternary partition. \note
+ * "limited_partition" refers to the fact that the middle block of ternary
+ * partition cannot be split in the same direction as the ternary partition. */
 static INLINE PARTITION_TYPE
 get_limited_partition_from_symbol(int symbol, PARTITION_TYPE parent_part) {
   assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
@@ -834,6 +878,11 @@ get_limited_partition_from_symbol(int symbol, PARTITION_TYPE parent_part) {
   }
 }
 
+/*!\brief Returns the partition type based on the symbol transmitted through the
+ * bitstream for the middle block of ternary partition when extended partition
+ * is disabled. \note "limited_partition" refers to the fact that the middle
+ * block of ternary partition cannot be split in the same direction as the
+ * ternary partition. */
 static INLINE PARTITION_TYPE get_limited_partition_noext_from_symbol(
     int symbol, PARTITION_TYPE parent_part) {
   assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
@@ -970,9 +1019,9 @@ static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
     return p == PARTITION_NONE;
 }
 
-static INLINE void initialize_chr_ref_info(int mi_row, int mi_col,
-                                           BLOCK_SIZE bsize,
-                                           CHROMA_REF_INFO *info) {
+static INLINE void initialize_chroma_ref_info(int mi_row, int mi_col,
+                                              BLOCK_SIZE bsize,
+                                              CHROMA_REF_INFO *info) {
   info->is_chroma_ref = 1;
   info->offset_started = 0;
   info->mi_row_chroma_base = mi_row;
@@ -1030,10 +1079,10 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
   (void)parent_bsize;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  const int pw = bw >> ss_x;
-  const int ph = bh >> ss_y;
-  const int pw_less_than_4 = pw < 4;
-  const int ph_less_than_4 = ph < 4;
+  const int plane_w = bw >> ss_x;
+  const int plane_h = bh >> ss_y;
+  const int plane_w_less_than_4 = plane_w < 4;
+  const int plane_h_less_than_4 = plane_h < 4;
   switch (partition) {
     case PARTITION_NONE: return 1;
     case PARTITION_HORZ:
@@ -1042,11 +1091,11 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
       if (is_offset_started) {
         return index == 3;
       } else {
-        if (pw_less_than_4 && ph_less_than_4)
+        if (plane_w_less_than_4 && plane_h_less_than_4)
           return index == 3;
-        else if (pw_less_than_4)
+        else if (plane_w_less_than_4)
           return index == 1 || index == 3;
-        else if (ph_less_than_4)
+        else if (plane_h_less_than_4)
           return index == 2 || index == 3;
         else
           return 1;
@@ -1093,8 +1142,8 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
       if (is_offset_started) {
         return index == 3;
       } else {
-        if ((partition == PARTITION_HORZ_4 && ph_less_than_4) ||
-            (partition == PARTITION_VERT_4 && pw_less_than_4)) {
+        if ((partition == PARTITION_HORZ_4 && plane_h_less_than_4) ||
+            (partition == PARTITION_VERT_4 && plane_w_less_than_4)) {
           return index == 1 || index == 3;
         } else {
           return 1;
@@ -1112,15 +1161,15 @@ static INLINE void set_chroma_ref_offset_size(
     int mi_row, int mi_col, PARTITION_TYPE partition, BLOCK_SIZE bsize,
     BLOCK_SIZE parent_bsize, int ss_x, int ss_y, CHROMA_REF_INFO *info,
     const CHROMA_REF_INFO *parent_info) {
-  const int pw = block_size_wide[bsize] >> ss_x;
-  const int ph = block_size_high[bsize] >> ss_y;
-  const int pw_less_than_4 = pw < 4;
-  const int ph_less_than_4 = ph < 4;
+  const int plane_w = block_size_wide[bsize] >> ss_x;
+  const int plane_h = block_size_high[bsize] >> ss_y;
+  const int plane_w_less_than_4 = plane_w < 4;
+  const int plane_h_less_than_4 = plane_h < 4;
 #if !CONFIG_EXT_RECUR_PARTITIONS
-  const int hppw = block_size_wide[parent_bsize] >> (ss_x + 1);
-  const int hpph = block_size_high[parent_bsize] >> (ss_y + 1);
-  const int hppw_less_than_4 = hppw < 4;
-  const int hpph_less_than_4 = hpph < 4;
+  const int hpplane_w = block_size_wide[parent_bsize] >> (ss_x + 1);
+  const int hpplane_h = block_size_high[parent_bsize] >> (ss_y + 1);
+  const int hpplane_w_less_than_4 = hpplane_w < 4;
+  const int hpplane_h_less_than_4 = hpplane_h < 4;
   const int mi_row_mid_point =
       parent_info->mi_row_chroma_base + (mi_size_high[parent_bsize] >> 1);
   const int mi_col_mid_point =
@@ -1140,11 +1189,11 @@ static INLINE void set_chroma_ref_offset_size(
       info->bsize_base = parent_bsize;
       break;
     case PARTITION_SPLIT:
-      if (pw_less_than_4 && ph_less_than_4) {
+      if (plane_w_less_than_4 && plane_h_less_than_4) {
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
         info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
         info->bsize_base = parent_bsize;
-      } else if (pw_less_than_4) {
+      } else if (plane_w_less_than_4) {
         info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
         info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
         if (mi_row == parent_info->mi_row_chroma_base) {
@@ -1154,7 +1203,7 @@ static INLINE void set_chroma_ref_offset_size(
               parent_info->mi_row_chroma_base + mi_size_high[bsize];
         }
       } else {
-        assert(ph_less_than_4);
+        assert(plane_h_less_than_4);
         info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
         if (mi_col == parent_info->mi_col_chroma_base) {
@@ -1170,15 +1219,15 @@ static INLINE void set_chroma_ref_offset_size(
     case PARTITION_HORZ_B:
     case PARTITION_VERT_A:
     case PARTITION_VERT_B:
-      if ((hppw_less_than_4 && hpph_less_than_4) ||
-          (hppw_less_than_4 &&
+      if ((hpplane_w_less_than_4 && hpplane_h_less_than_4) ||
+          (hpplane_w_less_than_4 &&
            (partition == PARTITION_VERT_A || partition == PARTITION_VERT_B)) ||
-          (hpph_less_than_4 &&
+          (hpplane_h_less_than_4 &&
            (partition == PARTITION_HORZ_A || partition == PARTITION_HORZ_B))) {
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
         info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
         info->bsize_base = parent_bsize;
-      } else if (hppw_less_than_4) {
+      } else if (hpplane_w_less_than_4) {
         info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
         info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
         if (mi_row == parent_info->mi_row_chroma_base) {
@@ -1188,7 +1237,7 @@ static INLINE void set_chroma_ref_offset_size(
                                      (mi_size_high[parent_bsize] >> 1);
         }
       } else {
-        assert(hpph_less_than_4);
+        assert(hpplane_h_less_than_4);
         info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
         info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
         if (mi_col == parent_info->mi_col_chroma_base) {
@@ -1229,7 +1278,7 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
                                        PARTITION_TYPE parent_partition,
                                        int ss_x, int ss_y) {
   assert(bsize < BLOCK_SIZES_ALL);
-  initialize_chr_ref_info(mi_row, mi_col, bsize, info);
+  initialize_chroma_ref_info(mi_row, mi_col, bsize, info);
   if (parent_info == NULL) return;
   if (parent_info->is_chroma_ref) {
     if (parent_info->offset_started) {
@@ -2386,6 +2435,10 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
   return ss_size_lookup[bsize][subsampling_x][subsampling_y];
 }
 
+/*!\brief Returns the index of luma/chroma based on the current partition tree
+ * type.
+ *
+ * If the tree_type includes luma, returns 0, else returns 1. */
 static INLINE int av1_get_sdp_idx(TREE_TYPE tree_type) {
   switch (tree_type) {
     case SHARED_PART:
@@ -2395,6 +2448,15 @@ static INLINE int av1_get_sdp_idx(TREE_TYPE tree_type) {
   }
 }
 
+/*!\brief Returns bsize at which the current block needs to be coded.
+ *
+ * If the current plane is AOM_PLANE_Y, returns the current block size.
+ * If the luma and chroma trees are shared, and the current plane is chroma,
+ * then the corresponding luma block size is stored in
+ * CHROMA_REF_INFO::bsize_base.
+ * If the luma and chroma trees are decoupled, then the bsize is stored in
+ * MB_BLOCK_INFO::sb_type with the appropriate index.
+ * */
 static INLINE BLOCK_SIZE get_bsize_base(const MACROBLOCKD *xd,
                                         const MB_MODE_INFO *mbmi, int plane) {
   BLOCK_SIZE bsize_base = BLOCK_INVALID;

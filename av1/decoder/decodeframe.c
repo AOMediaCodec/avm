@@ -499,22 +499,22 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     }
   }
 
-  CHROMA_REF_INFO *chr_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chr_ref_info,
+  CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
+  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
-  set_plane_n4(xd, bw, bh, num_planes, chr_ref_info);
-  set_entropy_context(xd, mi_row, mi_col, num_planes, chr_ref_info);
+  set_plane_n4(xd, bw, bh, num_planes, chroma_ref_info);
+  set_entropy_context(xd, mi_row, mi_col, num_planes, chroma_ref_info);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
   set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows,
-                 mi_params->mi_cols, chr_ref_info);
+                 mi_params->mi_cols, chroma_ref_info);
 
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes, chr_ref_info);
+                       num_planes, chroma_ref_info);
 }
 
 typedef struct PadBlock {
@@ -1919,21 +1919,21 @@ static AOM_INLINE void set_offsets_for_pred_and_recon(
 #endif  // CONFIG_CROSS_CHROMA_TX
   xd->tx_type_map_stride = mi_params->mi_stride;
 
-  CHROMA_REF_INFO *chr_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chr_ref_info,
+  CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
+  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
-  set_plane_n4(xd, bw, bh, num_planes, chr_ref_info);
+  set_plane_n4(xd, bw, bh, num_planes, chroma_ref_info);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
   set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows,
-                 mi_params->mi_cols, chr_ref_info);
+                 mi_params->mi_cols, chroma_ref_info);
 
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes, chr_ref_info);
+                       num_planes, chroma_ref_info);
 }
 
 static AOM_INLINE void decode_block(AV1Decoder *const pbi, ThreadData *const td,
@@ -1967,7 +1967,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   if (plane == 1 && bsize == BLOCK_8X8) {
     return PARTITION_NONE;
   }
-  if (should_chroma_track_luma_partition(xd->tree_type, ptree_luma, bsize)) {
+  if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
     const int ssx = cm->seq_params.subsampling_x;
     const int ssy = cm->seq_params.subsampling_y;
     return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy);

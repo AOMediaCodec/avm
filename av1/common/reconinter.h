@@ -601,11 +601,11 @@ static INLINE void setup_pred_plane(struct buf_2d *dst, uint16_t *src,
                                     int mi_row, int mi_col,
                                     const struct scale_factors *scale,
                                     int subsampling_x, int subsampling_y,
-                                    const CHROMA_REF_INFO *chr_ref_info) {
+                                    const CHROMA_REF_INFO *chroma_ref_info) {
   // Offset the buffer pointer
-  if (chr_ref_info && (subsampling_x || subsampling_y)) {
-    mi_row = chr_ref_info->mi_row_chroma_base;
-    mi_col = chr_ref_info->mi_col_chroma_base;
+  if (chroma_ref_info && (subsampling_x || subsampling_y)) {
+    mi_row = chroma_ref_info->mi_row_chroma_base;
+    mi_col = chroma_ref_info->mi_col_chroma_base;
   }
 
   const int x = (MI_SIZE * mi_col) >> subsampling_x;
@@ -620,12 +620,12 @@ static INLINE void setup_pred_plane(struct buf_2d *dst, uint16_t *src,
 void av1_setup_dst_planes(struct macroblockd_plane *planes,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
                           const int plane_start, const int plane_end,
-                          const CHROMA_REF_INFO *chr_ref_info);
+                          const CHROMA_REF_INFO *chroma_ref_info);
 
 void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
                           const struct scale_factors *sf, const int num_planes,
-                          const CHROMA_REF_INFO *chr_ref_info);
+                          const CHROMA_REF_INFO *chroma_ref_info);
 
 static INLINE void set_default_interp_filters(
     MB_MODE_INFO *const mbmi,

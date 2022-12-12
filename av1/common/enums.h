@@ -81,6 +81,10 @@ extern "C" {
 #define MI_SIZE_LOG2 2
 #define MI_SIZE (1 << MI_SIZE_LOG2)
 
+// 1/8 pels per Mode Info (MI) unit
+#define MI_SUBPEL_SIZE_LOG2 (MI_SIZE_LOG2 + 3)
+#define MI_SUBPEL_SIZE (1 << MI_SUBPEL_SIZE_LOG2)
+
 // MI-units per max superblock (MI Block - MIB)
 #define MAX_MIB_SIZE_LOG2 (MAX_SB_SIZE_LOG2 - MI_SIZE_LOG2)
 #define MAX_MIB_SIZE (1 << MAX_MIB_SIZE_LOG2)

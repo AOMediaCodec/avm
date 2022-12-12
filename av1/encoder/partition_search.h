@@ -23,10 +23,10 @@ void av1_set_offsets_without_segment_id(const AV1_COMP *const cpi,
                                         const TileInfo *const tile,
                                         MACROBLOCK *const x, int mi_row,
                                         int mi_col, BLOCK_SIZE bsize,
-                                        const CHROMA_REF_INFO *chr_ref_info);
+                                        const CHROMA_REF_INFO *chroma_ref_info);
 void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
                      MACROBLOCK *const x, int mi_row, int mi_col,
-                     BLOCK_SIZE bsize, const CHROMA_REF_INFO *chr_ref_info);
+                     BLOCK_SIZE bsize, const CHROMA_REF_INFO *chroma_ref_info);
 void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           MB_MODE_INFO **mib, TokenExtra **tp, int mi_row,
                           int mi_col, BLOCK_SIZE bsize, int *rate,

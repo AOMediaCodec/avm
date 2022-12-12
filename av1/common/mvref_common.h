@@ -712,10 +712,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
         if (xd->is_chroma_ref && av1_num_planes(cm) > 1) {
 #if CONFIG_EXT_RECUR_PARTITIONS
           if (xd->mi && xd->mi[0]) {
-            const CHROMA_REF_INFO *chr_ref_info = &xd->mi[0]->chroma_ref_info;
-            const BLOCK_SIZE bsize_base = chr_ref_info->bsize_base;
-            tmp_row = chr_ref_info->mi_row_chroma_base;
-            tmp_col = chr_ref_info->mi_col_chroma_base;
+            const CHROMA_REF_INFO *chroma_ref_info =
+                &xd->mi[0]->chroma_ref_info;
+            const BLOCK_SIZE bsize_base = chroma_ref_info->bsize_base;
+            tmp_row = chroma_ref_info->mi_row_chroma_base;
+            tmp_col = chroma_ref_info->mi_col_chroma_base;
             tmp_bh = block_size_high[bsize_base];
             tmp_bw = block_size_wide[bsize_base];
           }

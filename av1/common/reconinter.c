@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <limits.h>
 
+#include "av1/common/enums.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
@@ -1537,8 +1538,8 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, const MB_MODE_INFO *mi,
   // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
   // the top-left corner of the prediction source - the correct top-left corner
   // is at (pre_x, pre_y).
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   const int row_start =
       plane ? mi->chroma_ref_info.mi_row_chroma_base - mi_row : 0;
   const int col_start =
@@ -1657,8 +1658,8 @@ static void build_inter_predictors_8x8_and_bigger(
   int row_start = 0;
   int col_start = 0;
   if (!build_for_obmc) {
-    const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-    const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+    const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+    const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
     row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
     col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
   }
@@ -1840,7 +1841,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 void av1_setup_dst_planes(struct macroblockd_plane *planes,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
                           const int plane_start, const int plane_end,
-                          const CHROMA_REF_INFO *chr_ref_info) {
+                          const CHROMA_REF_INFO *chroma_ref_info) {
   // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet
   // the static analysis warnings.
   for (int i = plane_start; i < AOMMIN(plane_end, MAX_MB_PLANE); ++i) {
@@ -1849,14 +1850,14 @@ void av1_setup_dst_planes(struct macroblockd_plane *planes,
     setup_pred_plane(&pd->dst, src->buffers[i], src->crop_widths[is_uv],
                      src->crop_heights[is_uv], src->strides[is_uv], mi_row,
                      mi_col, NULL, pd->subsampling_x, pd->subsampling_y,
-                     chr_ref_info);
+                     chroma_ref_info);
   }
 }
 
 void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
                           const YV12_BUFFER_CONFIG *src, int mi_row, int mi_col,
                           const struct scale_factors *sf, const int num_planes,
-                          const CHROMA_REF_INFO *chr_ref_info) {
+                          const CHROMA_REF_INFO *chroma_ref_info) {
   if (src != NULL) {
     // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet
     // the static analysis warnings.
@@ -1866,7 +1867,7 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
       setup_pred_plane(&pd->pre[idx], src->buffers[i], src->crop_widths[is_uv],
                        src->crop_heights[is_uv], src->strides[is_uv], mi_row,
                        mi_col, sf, pd->subsampling_x, pd->subsampling_y,
-                       chr_ref_info);
+                       chroma_ref_info);
     }
   }
 }

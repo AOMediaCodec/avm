@@ -232,28 +232,9 @@ static INLINE void av1_init_sms_partition_stats(SMSPartitionStats *stats) {
   stats->part_rate = INT_MAX;
 }
 
-// Returns 1 if we think the old part is better and we should prune new
-// partition, 0 otherwise.
-int av1_prune_new_part(const SMSPartitionStats *old_part,
-                       const SMSPartitionStats *new_part, int rdmult,
-                       BLOCK_SIZE bsize, const SPEED_FEATURES *sf);
-
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
                               PARTITION_TYPE partition);
-
-void av1_copy_sms_part(const SimpleMotionData **part_dst, int *part_size_dst,
-                       int *part_rate_dst,
-                       const SimpleMotionData *const *part_src,
-                       int part_size_src, int part_rate_src);
-
-struct PartitionBlkParams;
-struct PartitionSearchState;
-bool av1_prune_part_hv_with_sms(
-    AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *x,
-    const struct PartitionSearchState *part_search_state,
-    const RD_STATS *best_rdc, const struct PartitionBlkParams *blk_params,
-    RECT_PART_TYPE rect_type, int part_rate);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 // A simplified version of set_offsets meant to be used for
@@ -328,6 +309,7 @@ static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
   memset(data_bufs, 0, sizeof(*data_bufs));
 }
 
+struct PartitionSearchState;
 void av1_gather_erp_rect_features(
     float *ml_features, AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *tile_info,
     const PC_TREE *pc_tree,

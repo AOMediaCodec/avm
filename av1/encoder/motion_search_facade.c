@@ -19,6 +19,7 @@
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/partition_strategy.h"
+#include "av1/encoder/partition_search.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tpl_model.h"
 
@@ -1562,9 +1563,8 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
-                     MACROBLOCK *const x, int mi_row, int mi_col,
-                     BLOCK_SIZE bsize, const CHROMA_REF_INFO *chr_ref_info);
+/*!\brief A simplified version for motion search used for speed features. Same
+ * as \ref av1_simple_motion_search, but it is used with ERP. */
 int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
                                     const TileInfo *const tile, MACROBLOCK *x,
                                     int mi_row, int mi_col, BLOCK_SIZE bsize,

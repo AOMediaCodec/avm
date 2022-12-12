@@ -2086,14 +2086,14 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd) {
 
 static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,
                                        const int num_planes,
-                                       const CHROMA_REF_INFO *chr_ref_info) {
+                                       const CHROMA_REF_INFO *chroma_ref_info) {
   for (int i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
     // Offset the buffer pointer
     const int row_offset =
-        i && chr_ref_info ? chr_ref_info->mi_row_chroma_base : mi_row;
+        i && chroma_ref_info ? chroma_ref_info->mi_row_chroma_base : mi_row;
     const int col_offset =
-        i && chr_ref_info ? chr_ref_info->mi_col_chroma_base : mi_col;
+        i && chroma_ref_info ? chroma_ref_info->mi_col_chroma_base : mi_col;
     assert(row_offset >= 0);
     assert(col_offset >= 0);
     const int above_idx = col_offset;
@@ -2112,11 +2112,11 @@ static INLINE int calc_mi_size(int len) {
 
 static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
                                 const int num_planes,
-                                const CHROMA_REF_INFO *chr_ref_info) {
+                                const CHROMA_REF_INFO *chroma_ref_info) {
   int i;
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; i++) {
-    if (chr_ref_info && i > 0) {
-      const BLOCK_SIZE plane_bsize = chr_ref_info->bsize_base;
+    if (chroma_ref_info && i > 0) {
+      const BLOCK_SIZE plane_bsize = chroma_ref_info->bsize_base;
       assert(plane_bsize < BLOCK_SIZES_ALL);
 
       xd->plane[i].width =
@@ -2166,7 +2166,7 @@ static INLINE void fetch_spatial_neighbors(MACROBLOCKD *xd) {
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
                                   int mi_row, int bh, int mi_col, int bw,
                                   int mi_rows, int mi_cols,
-                                  const CHROMA_REF_INFO *chr_ref_info) {
+                                  const CHROMA_REF_INFO *chroma_ref_info) {
   xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
   xd->mb_to_bottom_edge = GET_MV_SUBPEL((mi_rows - bh - mi_row) * MI_SIZE);
   xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col * MI_SIZE));
@@ -2216,12 +2216,12 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   fetch_spatial_neighbors(xd);
 
-  if (chr_ref_info) {
-    xd->is_chroma_ref = chr_ref_info->is_chroma_ref;
+  if (chroma_ref_info) {
+    xd->is_chroma_ref = chroma_ref_info->is_chroma_ref;
     xd->chroma_left_available =
-        chr_ref_info->mi_col_chroma_base > tile->mi_col_start;
+        chroma_ref_info->mi_col_chroma_base > tile->mi_col_start;
     xd->chroma_up_available =
-        chr_ref_info->mi_row_chroma_base > tile->mi_row_start;
+        chroma_ref_info->mi_row_chroma_base > tile->mi_row_start;
     if (xd->is_chroma_ref) {
       // To help calculate the "above" and "left" chroma blocks, note that the
       // current block may cover multiple luma blocks (eg, if partitioned into
@@ -2229,8 +2229,8 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
       // First, find the top-left-most luma block covered by this chroma block
       const int ss_x = xd->plane[1].subsampling_x;
       const int ss_y = xd->plane[1].subsampling_y;
-      const int mi_row_offset = mi_row - chr_ref_info->mi_row_chroma_base;
-      const int mi_col_offset = mi_col - chr_ref_info->mi_col_chroma_base;
+      const int mi_row_offset = mi_row - chroma_ref_info->mi_row_chroma_base;
+      const int mi_col_offset = mi_col - chroma_ref_info->mi_col_chroma_base;
       MB_MODE_INFO **base_mi =
           &xd->mi[-mi_row_offset * xd->mi_stride - mi_col_offset];
 
@@ -2516,6 +2516,8 @@ static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+// Return the number of elements in the partition CDF when
+// partitioning the square block in the middle of ternary partition.
 static INLINE int limited_partition_cdf_length(BLOCK_SIZE bsize) {
   assert(block_size_wide[bsize] == block_size_high[bsize]);
   assert(is_bsize_geq(bsize, BLOCK_8X8));
@@ -2523,6 +2525,8 @@ static INLINE int limited_partition_cdf_length(BLOCK_SIZE bsize) {
   return partition_cdf_length(bsize) - 1;
 }
 
+// Return the number of elements in the partition CDF when
+// partitioning a non-square block.
 static INLINE int partition_rec_cdf_length(BLOCK_SIZE bsize) {
   assert(block_size_wide[bsize] != block_size_high[bsize]);
 
@@ -2543,6 +2547,8 @@ static INLINE int partition_rec_cdf_length(BLOCK_SIZE bsize) {
   }
 }
 
+// Return the number of elements in the partition CDF when
+// partitioning a non-square block when extended partitions are disabled.
 static INLINE int partition_noext_rec_cdf_length(BLOCK_SIZE bsize) {
   assert(block_size_wide[bsize] != block_size_high[bsize]);
 
@@ -2563,26 +2569,31 @@ static INLINE int partition_noext_rec_cdf_length(BLOCK_SIZE bsize) {
   }
 }
 
-static INLINE int is_1_to_2_block(BLOCK_SIZE bsize) {
+// Return whether the current block has a 1:2 dimension ratio.
+static INLINE int is_width_height_ratio_equal_to_two(BLOCK_SIZE bsize) {
   return 2 * block_size_high[bsize] == block_size_wide[bsize] ||
          block_size_high[bsize] == 2 * block_size_wide[bsize];
 }
+
 // Return the number of partition types for the middle block of PARTITION_3.
+// This should only be used for sub-blocks of PARTITION_3.
 static INLINE int partition_middle_rec_cdf_length(BLOCK_SIZE bsize) {
   // For some bock sizes, HORZ|VERT is already unavailable, so we shouldn't call
   // this function.
   assert(is_bsize_geq(bsize, BLOCK_8X8));
   assert(is_bsize_geq(BLOCK_64X64, bsize));
-  assert(is_1_to_2_block(bsize));
+  assert(is_width_height_ratio_equal_to_two(bsize));
   return partition_rec_cdf_length(bsize) - 1;
 }
 
+// Return the number of partition types for non-square middle block of
+// PARTITION_3 when extended partitions is disabled.
 static INLINE int partition_middle_noext_rec_cdf_length(BLOCK_SIZE bsize) {
   // For some bock sizes, HORZ|VERT is already unavailable, so we shouldn't call
   // this function.
   assert(is_bsize_geq(bsize, BLOCK_8X8));
   assert(is_bsize_geq(BLOCK_64X64, bsize));
-  assert(is_1_to_2_block(bsize));
+  assert(is_width_height_ratio_equal_to_two(bsize));
   return partition_noext_rec_cdf_length(bsize) - 1;
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -2775,10 +2786,15 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+// The blocksize above which chroma and luma partitions will stayed coupled.
+// Currently this is set to BLOCK_128X128 (e.g. chroma always follows luma at
+// BLOCK_128X128, but can be de-coupled later).
 static AOM_INLINE bool is_bsize_above_decoupled_thresh(BLOCK_SIZE bsize) {
   return bsize == BLOCK_128X128;
 }
 
+// Whether the partition tree contains a block size that is strictly smaller
+// than width x height.
 static AOM_INLINE bool tree_has_bsize_smaller_than(const PARTITION_TREE *ptree,
                                                    int width, int height) {
   if (!ptree || ptree->partition == PARTITION_INVALID) {
@@ -2796,7 +2812,7 @@ static AOM_INLINE bool tree_has_bsize_smaller_than(const PARTITION_TREE *ptree,
   return false;
 }
 
-static AOM_INLINE bool should_chroma_track_luma_partition(
+static AOM_INLINE bool is_luma_chroma_share_same_partition(
     TREE_TYPE tree_type, const PARTITION_TREE *ptree_luma, BLOCK_SIZE bsize) {
   if (tree_type != CHROMA_PART || !ptree_luma ||
       !is_bsize_above_decoupled_thresh(bsize)) {

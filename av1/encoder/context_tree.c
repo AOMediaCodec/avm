@@ -514,9 +514,10 @@ void av1_free_sms_bufs(ThreadData *td) {
 }
 
 PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
-                                              PC_TREE *target);
+                                              const PC_TREE *target);
 
-static PC_TREE *look_for_counterpart_helper(PC_TREE *cur, PC_TREE *target) {
+static PC_TREE *look_for_counterpart_helper(PC_TREE *cur,
+                                            const PC_TREE *target) {
   if (cur == NULL || cur == target) return NULL;
 
   BLOCK_SIZE current_bsize = cur->block_size;
@@ -533,8 +534,10 @@ static PC_TREE *look_for_counterpart_helper(PC_TREE *cur, PC_TREE *target) {
   }
 }
 
+/*! \brief Searches for a partition tree node that does not change any context
+ * and has the same position and bsize as the current target. */
 PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
-                                              PC_TREE *target) {
+                                              const PC_TREE *target) {
   if (pc_tree == NULL || pc_tree == target) return NULL;
 
   PC_TREE *result;
@@ -552,6 +555,8 @@ PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
   return NULL;
 }
 
+/*! \brief Searches for a partition tree node with the same context, position,
+ * and bsize as the current node. */
 PC_TREE *av1_look_for_counterpart_block(PC_TREE *pc_tree) {
   if (!pc_tree) return 0;
 
@@ -561,7 +566,7 @@ PC_TREE *av1_look_for_counterpart_block(PC_TREE *pc_tree) {
     current = current->parent;
   }
 
-  // Search from the highest common ancester
+  // Search from the highest common ancestor
   return counterpart_from_different_partition(current, pc_tree);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

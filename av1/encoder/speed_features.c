@@ -757,7 +757,6 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_ab_partition_using_split_info = 0;
   part_sf->early_term_after_none_split = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  part_sf->enable_fast_erp = 0;
   part_sf->prune_rect_with_none_rd = 0;
   part_sf->prune_part_3_with_part_none = 0;
   part_sf->prune_part_3_with_part_rect = 0;

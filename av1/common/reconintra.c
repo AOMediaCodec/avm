@@ -1529,8 +1529,8 @@ void av1_predict_intra_block(
       row_off || (ss_y ? xd->chroma_up_available : xd->up_available);
   const int have_left =
       col_off || (ss_x ? xd->chroma_left_available : xd->left_available);
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   BLOCK_SIZE bsize = mbmi->sb_type[plane > 0];
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];

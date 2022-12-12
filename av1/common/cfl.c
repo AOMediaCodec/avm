@@ -14,6 +14,7 @@
 #include "av1/common/cfl.h"
 #include "av1/common/common_data.h"
 
+#include "av1/common/enums.h"
 #include "config/av1_rtcd.h"
 
 #if CONFIG_IMPROVED_CFL
@@ -709,8 +710,8 @@ void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
 
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
   const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
 
@@ -749,8 +750,8 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   const int width = max_intra_block_width(xd, bsize, AOM_PLANE_Y, tx_size);
   const int height = max_intra_block_height(xd, bsize, AOM_PLANE_Y, tx_size);
-  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
-  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
   const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
 

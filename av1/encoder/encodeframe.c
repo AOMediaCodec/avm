@@ -199,7 +199,7 @@ static BLOCK_SIZE get_rd_var_based_fixed_partition(AV1_COMP *cpi, MACROBLOCK *x,
 
 void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
                           int mi_row, int mi_col, const int num_planes,
-                          const CHROMA_REF_INFO *chr_ref_info) {
+                          const CHROMA_REF_INFO *chroma_ref_info) {
   // Set current frame pointer.
   x->e_mbd.cur_buf = src;
 
@@ -210,7 +210,7 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
     setup_pred_plane(&x->plane[i].src, src->buffers[i], src->crop_widths[is_uv],
                      src->crop_heights[is_uv], src->strides[is_uv], mi_row,
                      mi_col, NULL, x->e_mbd.plane[i].subsampling_x,
-                     x->e_mbd.plane[i].subsampling_y, chr_ref_info);
+                     x->e_mbd.plane[i].subsampling_y, chroma_ref_info);
   }
 }
 
