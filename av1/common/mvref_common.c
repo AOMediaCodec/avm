@@ -3018,6 +3018,47 @@ static int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c, int blk_row,
 }
 #endif  // !CONFIG_TIP
 
+#if CONFIG_MF_IMPROVEMENT
+// Get the temporal distance of start_frame to its closest ref frame
+// that has interpolation property relative to current frame. Interpolation
+// means start_frame and its ref frame are on two sides of current frame
+static INLINE int get_dist_to_closest_interp_ref(const AV1_COMMON *const cm,
+                                                 MV_REFERENCE_FRAME start_frame,
+                                                 const int find_forward_ref) {
+  if (start_frame == -1) return INT_MAX;
+  const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+
+  const RefCntBuffer *const start_frame_buf =
+      get_ref_frame_buf(cm, start_frame);
+
+  if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return INT_MAX;
+
+  const int start_frame_order_hint = start_frame_buf->order_hint;
+  const int cur_order_hint = cm->cur_frame->order_hint;
+  int abs_closest_ref_offset = INT_MAX;
+  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
+  for (MV_REFERENCE_FRAME ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
+    if (ref_order_hints[ref] != -1) {
+      const int start_to_ref_offset = get_relative_dist(
+          order_hint_info, start_frame_order_hint, ref_order_hints[ref]);
+      const int cur_to_ref_offset = get_relative_dist(
+          order_hint_info, cur_order_hint, ref_order_hints[ref]);
+      const int abs_start_to_ref_offset = abs(start_to_ref_offset);
+      const int is_two_sides =
+          (start_to_ref_offset > 0 && cur_to_ref_offset > 0 &&
+           find_forward_ref == 1) ||
+          (start_to_ref_offset < 0 && cur_to_ref_offset < 0 &&
+           find_forward_ref == 0);
+      if (is_two_sides && abs_start_to_ref_offset < abs_closest_ref_offset) {
+        abs_closest_ref_offset = abs_start_to_ref_offset;
+      }
+    }
+  }
+
+  return abs_closest_ref_offset;
+}
+#endif  // CONFIG_MF_IMPROVEMENT
+
 #if CONFIG_TIP
 // Note: motion_filed_projection finds motion vectors of current frame's
 // reference frame, and projects them to current frame. To make it clear,
@@ -3469,6 +3510,50 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     }
   }
 #if CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
+#if CONFIG_MF_IMPROVEMENT
+  // Do projection on group 0 (closest past (backward MV), closest future),
+  // group 1(second closest future, second closest past (backward MV)),
+  // closest past (forward MV), and then second closest past (forward MVs),
+  // without overwriting the MVs.
+  // The projection order of the ref frames in group 0 and group 1 depends
+  // on the ref frame to its own first ref frame that has interpolation
+  // property relative to current frame. Interpolation means two frames are on
+  // two sides of current frame
+  for (int group_idx = 0; group_idx < 2; ++group_idx) {
+    const int past_ref_to_its_ref_dist =
+        get_dist_to_closest_interp_ref(cm, closest_ref[0][group_idx], 0);
+    const int future_ref_to_its_ref_dist =
+        get_dist_to_closest_interp_ref(cm, closest_ref[1][group_idx], 1);
+    if (future_ref_to_its_ref_dist < past_ref_to_its_ref_dist) {
+      if (closest_ref[1][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
+        n_refs_used +=
+            motion_field_projection(cm, closest_ref[1][group_idx], 0, 0);
+      }
+
+      if (closest_ref[0][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
+        n_refs_used +=
+            motion_field_projection_bwd(cm, closest_ref[0][group_idx], 2, 0);
+      }
+    } else {
+      if (closest_ref[0][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
+        n_refs_used +=
+            motion_field_projection_bwd(cm, closest_ref[0][group_idx], 2, 0);
+      }
+      if (closest_ref[1][group_idx] != -1 && n_refs_used < MFMV_STACK_SIZE) {
+        n_refs_used +=
+            motion_field_projection(cm, closest_ref[1][group_idx], 0, 0);
+      }
+    }
+  }
+
+  if (closest_ref[0][0] != -1 && n_refs_used < MFMV_STACK_SIZE) {
+    n_refs_used += motion_field_projection(cm, closest_ref[0][0], 2, 0);
+  }
+
+  if (closest_ref[0][1] != -1 && n_refs_used < MFMV_STACK_SIZE) {
+    motion_field_projection(cm, closest_ref[0][1], 2, 0);
+  }
+#else
   // Do projection on closest past (backward MV), closest future, second
   // closest future, second closest past (backward MV), closest path (forward
   // MV), and then second closest past (forward MVs), without overwriting
@@ -3496,6 +3581,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   if (closest_ref[0][1] != -1 && n_refs_used < MFMV_STACK_SIZE) {
     motion_field_projection(cm, closest_ref[0][1], 2, 0);
   }
+#endif  // CONFIG_MF_IMPROVEMENT
 #else
   // Do projection on closest past and future refs if they exist
   if (closest_ref[0][0] != -1) {

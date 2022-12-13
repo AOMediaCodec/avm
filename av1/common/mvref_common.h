@@ -48,14 +48,26 @@ typedef struct position {
 static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
                                          int blk_row, int blk_col, MV mv,
                                          int sign_bias) {
+#if CONFIG_MF_IMPROVEMENT
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int sb_size = block_size_high[seq_params->sb_size];
+  const int mf_sb_size_log2 = (sb_size <= 64 ? mi_size_high_log2[BLOCK_64X64]
+                                             : seq_params->mib_size_log2) +
+                              MI_SIZE_LOG2;
+  const int mf_sb_size = (1 << mf_sb_size_log2);
+  const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
+  const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
+  const int base_blk_row = (blk_row >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
+  const int base_blk_col = (blk_col >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
+#else
   const int base_blk_row = (blk_row >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
   const int base_blk_col = (blk_col >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
+#endif  // CONFIG_MF_IMPROVEMENT
 
   // The motion vector in units of 1/8-pel
   const int shift = (3 + TMVP_MI_SZ_LOG2);
   const int row_offset =
       (mv.row >= 0) ? (mv.row >> shift) : -((-mv.row) >> shift);
-
   const int col_offset =
       (mv.col >= 0) ? (mv.col >> shift) : -((-mv.col) >> shift);
 
@@ -68,10 +80,17 @@ static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
       col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
     return 0;
 
+#if CONFIG_MF_IMPROVEMENT
+  if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+      row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
+      col < base_blk_col - sb_tmvp_size ||
+      col >= base_blk_col + (sb_tmvp_size << 1))
+#else
   if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
       row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
       col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
       col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
+#endif  // CONFIG_MF_IMPROVEMENT
     return 0;
 
   *mi_r = row;

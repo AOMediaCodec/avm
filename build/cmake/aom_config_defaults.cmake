@@ -263,6 +263,10 @@ set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
 set_aom_config_var(CONFIG_CROSS_CHROMA_TX 1
                    "AV2 cross chroma component transform experiment flag.")
 set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
+
+set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
+                   "Enable to improve temporal motion projection")
+
 #
 # Variables in this section control optional features of the build system.
 #
