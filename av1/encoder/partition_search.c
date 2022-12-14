@@ -3087,18 +3087,18 @@ static AOM_INLINE void init_allowed_partitions(
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-  // TODO(chiyotsai,yuec@google.com): Fix the rect_allowed condition when
-  // ERP is on.
+  // TODO(chiyotsai,yuec@google.com): When SDP is set to below 128X128, we will
+  // need special handling when tree_type == LUMA_PART
   const int is_horz_size_valid =
       is_partition_valid(bsize, PARTITION_HORZ) &&
-      IMPLIES(tree_type == SHARED_PART,
+      IMPLIES(tree_type != LUMA_PART,
               check_is_chroma_size_valid(PARTITION_HORZ, bsize, mi_row, mi_col,
                                          part_search_state->ss_x,
                                          part_search_state->ss_y, pc_tree));
 
   const int is_vert_size_valid =
       is_partition_valid(bsize, PARTITION_VERT) &&
-      IMPLIES(tree_type == SHARED_PART,
+      IMPLIES(tree_type != LUMA_PART,
               check_is_chroma_size_valid(PARTITION_VERT, bsize, mi_row, mi_col,
                                          part_search_state->ss_x,
                                          part_search_state->ss_y, pc_tree));
