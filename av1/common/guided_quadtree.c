@@ -163,6 +163,7 @@ int CalculateIndex_tflite(int width, int block_size_h, int block_size_w,
   return index;
 }
 
+//TODO(urvang@google.com): replace quantSet with struct.
 // guided conv unet with attention intra
 int qp255_quadtree_model_quantSet_intra[] = {460, 356, -5, 1};
 int qp205_quadtree_model_quantSet_intra[] = {26206, 22062, -17, -12};
