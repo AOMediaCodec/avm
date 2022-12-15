@@ -519,8 +519,36 @@ static AOM_INLINE void write_motion_mode(
         aom_write_symbol(w, mbmi->use_wedge_interintra,
                          xd->tile_ctx->wedge_interintra_cdf[bsize], 2);
         if (mbmi->use_wedge_interintra) {
+#if WEDGE_EXT
+          int wedge_angle = wedge_index_2_angle[mbmi->interintra_wedge_index];
+          int wedge_dist = wedge_index_2_dist[mbmi->interintra_wedge_index];
+          int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+          aom_write_symbol(w, wedge_angle_dir,
+                           xd->tile_ctx->wedge_angle_dir_cdf[bsize], 2);
+          if (wedge_angle_dir == 0) {
+            aom_write_symbol(w, wedge_angle,
+                             xd->tile_ctx->wedge_angle_0_cdf[bsize],
+                             H_WEDGE_ANGLES);
+          } else {
+            assert(wedge_angle >= H_WEDGE_ANGLES);
+            aom_write_symbol(w, (wedge_angle - H_WEDGE_ANGLES),
+                             xd->tile_ctx->wedge_angle_1_cdf[bsize],
+                             H_WEDGE_ANGLES);
+          }
+          if ((wedge_angle >= H_WEDGE_ANGLES) ||
+              (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+            assert(wedge_dist != 0);
+            aom_write_symbol(w, wedge_dist - 1,
+                             xd->tile_ctx->wedge_dist_cdf2[bsize],
+                             NUM_WEDGE_DIST - 1);
+          } else {
+            aom_write_symbol(w, wedge_dist, xd->tile_ctx->wedge_dist_cdf[bsize],
+                             NUM_WEDGE_DIST);
+          }
+#else
           aom_write_symbol(w, mbmi->interintra_wedge_index,
                            xd->tile_ctx->wedge_idx_cdf[bsize], MAX_WEDGE_TYPES);
+#endif
         }
       }
       return;
@@ -2270,8 +2298,35 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
         if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
           assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
+#if WEDGE_EXT
+          int wedge_angle =
+              wedge_index_2_angle[mbmi->interinter_comp.wedge_index];
+          int wedge_dist =
+              wedge_index_2_dist[mbmi->interinter_comp.wedge_index];
+          int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+          aom_write_symbol(w, wedge_angle_dir,
+                           ec_ctx->wedge_angle_dir_cdf[bsize], 2);
+          if (wedge_angle_dir == 0) {
+            aom_write_symbol(w, wedge_angle, ec_ctx->wedge_angle_0_cdf[bsize],
+                             H_WEDGE_ANGLES);
+          } else {
+            assert(wedge_angle >= H_WEDGE_ANGLES);
+            aom_write_symbol(w, (wedge_angle - H_WEDGE_ANGLES),
+                             ec_ctx->wedge_angle_1_cdf[bsize], H_WEDGE_ANGLES);
+          }
+          if ((wedge_angle >= H_WEDGE_ANGLES) ||
+              (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+            assert(wedge_dist != 0);
+            aom_write_symbol(w, wedge_dist - 1, ec_ctx->wedge_dist_cdf2[bsize],
+                             NUM_WEDGE_DIST - 1);
+          } else {
+            aom_write_symbol(w, wedge_dist, ec_ctx->wedge_dist_cdf[bsize],
+                             NUM_WEDGE_DIST);
+          }
+#else
           aom_write_symbol(w, mbmi->interinter_comp.wedge_index,
                            ec_ctx->wedge_idx_cdf[bsize], MAX_WEDGE_TYPES);
+#endif
           aom_write_bit(w, mbmi->interinter_comp.wedge_sign);
         } else {
           assert(mbmi->interinter_comp.type == COMPOUND_DIFFWTD);

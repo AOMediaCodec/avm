@@ -268,6 +268,8 @@ set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
                    "Enable to improve the context modeling")
 set_aom_config_var(CONFIG_CROSS_CHROMA_TX 0
                    "AV2 cross chroma component transform experiment flag.")
+set_aom_config_var(CONFIG_WEDGE_MOD_EXT 0
+                   "AV2 wedge modes extensions.")
 #
 # Variables in this section control optional features of the build system.
 #

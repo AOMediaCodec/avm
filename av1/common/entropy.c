@@ -172,7 +172,15 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
 #endif  // CONFIG_IMPROVED_JMVD
   RESET_CDF_COUNTER(fc->compound_type_cdf, MASKED_COMPOUND_TYPES);
+#if WEDGE_EXT
+  RESET_CDF_COUNTER(fc->wedge_angle_dir_cdf, 2);
+  RESET_CDF_COUNTER(fc->wedge_angle_0_cdf, H_WEDGE_ANGLES);
+  RESET_CDF_COUNTER(fc->wedge_angle_1_cdf, H_WEDGE_ANGLES);
+  RESET_CDF_COUNTER(fc->wedge_dist_cdf, NUM_WEDGE_DIST);
+  RESET_CDF_COUNTER(fc->wedge_dist_cdf2, NUM_WEDGE_DIST - 1);
+#else
   RESET_CDF_COUNTER(fc->wedge_idx_cdf, 16);
+#endif
   RESET_CDF_COUNTER(fc->interintra_cdf, 2);
   RESET_CDF_COUNTER(fc->wedge_interintra_cdf, 2);
   RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);

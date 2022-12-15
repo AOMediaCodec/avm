@@ -1463,11 +1463,51 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
             update_cdf(fc->wedge_interintra_cdf[bsize],
                        mbmi->use_wedge_interintra, 2);
             if (mbmi->use_wedge_interintra) {
+#if WEDGE_EXT
+              int wedge_angle =
+                  wedge_index_2_angle[mbmi->interintra_wedge_index];
+              int wedge_dist = wedge_index_2_dist[mbmi->interintra_wedge_index];
+              int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+#if CONFIG_ENTROPY_STATS
+              counts->wedge_angle_dir_cnt[bsize][wedge_angle_dir]++;
+#endif
+              update_cdf(fc->wedge_angle_dir_cdf[bsize], wedge_angle_dir, 2);
+              if (wedge_angle_dir == 0) {
+#if CONFIG_ENTROPY_STATS
+                counts->wedge_angle_0_cnt[bsize][wedge_angle]++;
+#endif
+                update_cdf(fc->wedge_angle_0_cdf[bsize], wedge_angle,
+                           H_WEDGE_ANGLES);
+              } else {
+#if CONFIG_ENTROPY_STATS
+                counts
+                    ->wedge_angle_1_cnt[bsize][wedge_angle - H_WEDGE_ANGLES]++;
+#endif
+                update_cdf(fc->wedge_angle_1_cdf[bsize],
+                           wedge_angle - H_WEDGE_ANGLES, H_WEDGE_ANGLES);
+              }
+              if ((wedge_angle >= H_WEDGE_ANGLES) ||
+                  (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+                assert(wedge_dist != 0);
+#if CONFIG_ENTROPY_STATS
+                counts->wedge_dist_3_cnt[bsize][wedge_dist - 1]++;
+#endif
+                update_cdf(fc->wedge_dist_cdf2[bsize], wedge_dist - 1,
+                           NUM_WEDGE_DIST - 1);
+              } else {
+#if CONFIG_ENTROPY_STATS
+                counts->wedge_dist_cnt[bsize][wedge_dist]++;
+#endif
+                update_cdf(fc->wedge_dist_cdf[bsize], wedge_dist,
+                           NUM_WEDGE_DIST);
+              }
+#else
 #if CONFIG_ENTROPY_STATS
               counts->wedge_idx[bsize][mbmi->interintra_wedge_index]++;
 #endif
               update_cdf(fc->wedge_idx_cdf[bsize], mbmi->interintra_wedge_index,
                          16);
+#endif
             }
           }
           continue_motion_mode_signaling = false;
@@ -1629,11 +1669,50 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
       if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
         if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
+#if WEDGE_EXT
+          int wedge_angle =
+              wedge_index_2_angle[mbmi->interinter_comp.wedge_index];
+          int wedge_dist =
+              wedge_index_2_dist[mbmi->interinter_comp.wedge_index];
+          int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+#if CONFIG_ENTROPY_STATS
+          counts->wedge_angle_dir_cnt[bsize][wedge_angle_dir]++;
+#endif
+          update_cdf(fc->wedge_angle_dir_cdf[bsize], wedge_angle_dir, 2);
+          if (wedge_angle_dir == 0) {
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_angle_0_cnt[bsize][wedge_angle]++;
+#endif
+            update_cdf(fc->wedge_angle_0_cdf[bsize], wedge_angle,
+                       H_WEDGE_ANGLES);
+          } else {
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_angle_1_cnt[bsize][wedge_angle - H_WEDGE_ANGLES]++;
+#endif
+            update_cdf(fc->wedge_angle_1_cdf[bsize],
+                       wedge_angle - H_WEDGE_ANGLES, H_WEDGE_ANGLES);
+          }
+          if ((wedge_angle >= H_WEDGE_ANGLES) ||
+              (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+            assert(wedge_dist != 0);
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_dist_3_cnt[bsize][wedge_dist - 1]++;
+#endif
+            update_cdf(fc->wedge_dist_cdf2[bsize], wedge_dist - 1,
+                       NUM_WEDGE_DIST - 1);
+          } else {
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_dist_cnt[bsize][wedge_dist]++;
+#endif
+            update_cdf(fc->wedge_dist_cdf[bsize], wedge_dist, NUM_WEDGE_DIST);
+          }
+#else
 #if CONFIG_ENTROPY_STATS
           counts->wedge_idx[bsize][mbmi->interinter_comp.wedge_index]++;
 #endif
           update_cdf(fc->wedge_idx_cdf[bsize],
                      mbmi->interinter_comp.wedge_index, 16);
+#endif
         }
       }
     }

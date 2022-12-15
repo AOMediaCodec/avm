@@ -977,7 +977,15 @@ typedef struct {
   //! compound_type_cost
   int compound_type_cost[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
   //! wedge_idx_cost
+#if WEDGE_EXT
+  int wedge_angle_dir_cost[BLOCK_SIZES_ALL][2];
+  int wedge_angle_0_cost[BLOCK_SIZES_ALL][H_WEDGE_ANGLES];
+  int wedge_angle_1_cost[BLOCK_SIZES_ALL][H_WEDGE_ANGLES];
+  int wedge_dist_cost[BLOCK_SIZES_ALL][NUM_WEDGE_DIST];
+  int wedge_dist_cost2[BLOCK_SIZES_ALL][NUM_WEDGE_DIST - 1];
+#else
   int wedge_idx_cost[BLOCK_SIZES_ALL][16];
+#endif
   //! interintra_cost
   int interintra_cost[BLOCK_SIZE_GROUPS][2];
   //! wedge_interintra_cost

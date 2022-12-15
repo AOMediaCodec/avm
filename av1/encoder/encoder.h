@@ -1324,7 +1324,15 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
                                   [INTER_COMPOUND_MODES];
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if WEDGE_EXT
+  unsigned int wedge_angle_dir_cnt[BLOCK_SIZES_ALL][2];
+  unsigned int wedge_angle_0_cnt[BLOCK_SIZES_ALL][H_WEDGE_ANGLES];
+  unsigned int wedge_angle_1_cnt[BLOCK_SIZES_ALL][H_WEDGE_ANGLES];
+  unsigned int wedge_dist_cnt[BLOCK_SIZES_ALL][NUM_WEDGE_DIST];
+  unsigned int wedge_dist_3_cnt[BLOCK_SIZES_ALL][NUM_WEDGE_DIST - 1];
+#else
   unsigned int wedge_idx[BLOCK_SIZES_ALL][16];
+#endif
   unsigned int interintra[BLOCK_SIZE_GROUPS][2];
   unsigned int interintra_mode[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
   unsigned int wedge_interintra[BLOCK_SIZES_ALL][2];

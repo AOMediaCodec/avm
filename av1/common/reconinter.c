@@ -158,6 +158,7 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
   }
 }
 
+#if !WEDGE_EXT
 static const uint8_t wedge_master_oblique_odd[MASK_MASTER_SIZE] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  6,  18,
@@ -176,7 +177,32 @@ static const uint8_t wedge_master_vertical[MASK_MASTER_SIZE] = {
   43, 57, 62, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
   64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
 };
+#else
+/* clang-format off */
+static const int8_t wedge_cos_lut[WEDGE_ANGLES] = {
+  //  0,  1,  2,  4,  6,
+      8,  8,  8,  4,  4,
+  //  8, 10, 12, 14, 15,
+      0, -4, -4, -8, -8,
+  // 16, 17, 18, 20, 22,
+     -8, -8, -8, -4, -4,
+  // 24, 26, 28, 30, 31
+      0,  4,  4,  8,  8
+};
+static const int8_t wedge_sin_lut[WEDGE_ANGLES] = {
+  //  0,  1,  2,  4,  6,
+      0, -2, -4, -4, -8,
+  //  8, 10, 12, 14, 15,
+     -8, -8, -4, -4, -2,
+  // 16, 17, 18, 20, 22,
+      0,  2,  4,  4,  8,
+  // 24, 26, 28, 30, 31
+      8,  8,  4,  4,  2
+};
+/* clang-format on */
+#endif
 
+#if !WEDGE_EXT
 static AOM_INLINE void shift_copy(const uint8_t *src, uint8_t *dst, int shift,
                                   int width) {
   if (shift >= 0) {
@@ -216,16 +242,29 @@ DECLARE_ALIGNED(16, static uint8_t,
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
 };
 /* clang-format on */
+#endif
 
 // [negative][direction]
+#if WEDGE_EXT
+DECLARE_ALIGNED(
+    16, static uint8_t,
+    wedge_master_mask[2][WEDGE_ANGLES][MASK_MASTER_SIZE * MASK_MASTER_SIZE]);
+#else
 DECLARE_ALIGNED(
     16, static uint8_t,
     wedge_mask_obl[2][WEDGE_DIRECTIONS][MASK_MASTER_SIZE * MASK_MASTER_SIZE]);
+#endif
 
 // 4 * MAX_WEDGE_SQUARE is an easy to compute and fairly tight upper bound
 // on the sum of all mask sizes up to an including MAX_WEDGE_SQUARE.
+#if WEDGE_EXT
+DECLARE_ALIGNED(
+    16, static uint8_t,
+    wedge_mask_buf[2 * MAX_WEDGE_TYPES * H_WEDGE_ANGLES * MAX_WEDGE_SQUARE]);
+#else
 DECLARE_ALIGNED(16, static uint8_t,
                 wedge_mask_buf[2 * MAX_WEDGE_TYPES * 4 * MAX_WEDGE_SQUARE]);
+#endif
 
 DECLARE_ALIGNED(16, static uint8_t,
                 smooth_interintra_mask_buf[INTERINTRA_MODES][BLOCK_SIZES_ALL]
@@ -233,6 +272,33 @@ DECLARE_ALIGNED(16, static uint8_t,
 
 static wedge_masks_type wedge_masks[BLOCK_SIZES_ALL][2];
 
+#if WEDGE_EXT
+static const wedge_code_type wedge_codebook_16[MAX_WEDGE_TYPES] = {
+  { WEDGE_0, 5, 4 },   { WEDGE_0, 6, 4 },   { WEDGE_0, 7, 4 },
+  { WEDGE_14, 4, 4 },  { WEDGE_14, 5, 4 },  { WEDGE_14, 6, 4 },
+  { WEDGE_14, 7, 4 },  { WEDGE_27, 4, 4 },  { WEDGE_27, 5, 4 },
+  { WEDGE_27, 6, 4 },  { WEDGE_27, 7, 4 },  { WEDGE_45, 4, 4 },
+  { WEDGE_45, 5, 4 },  { WEDGE_45, 6, 4 },  { WEDGE_45, 7, 4 },
+  { WEDGE_63, 4, 4 },  { WEDGE_63, 4, 3 },  { WEDGE_63, 4, 2 },
+  { WEDGE_63, 4, 1 },  { WEDGE_90, 4, 3 },  { WEDGE_90, 4, 2 },
+  { WEDGE_90, 4, 1 },  { WEDGE_117, 4, 4 }, { WEDGE_117, 4, 3 },
+  { WEDGE_117, 4, 2 }, { WEDGE_117, 4, 1 }, { WEDGE_135, 4, 4 },
+  { WEDGE_135, 3, 4 }, { WEDGE_135, 2, 4 }, { WEDGE_135, 1, 4 },
+  { WEDGE_153, 4, 4 }, { WEDGE_153, 3, 4 }, { WEDGE_153, 2, 4 },
+  { WEDGE_153, 1, 4 }, { WEDGE_166, 4, 4 }, { WEDGE_166, 3, 4 },
+  { WEDGE_166, 2, 4 }, { WEDGE_166, 1, 4 }, { WEDGE_180, 3, 4 },
+  { WEDGE_180, 2, 4 }, { WEDGE_180, 1, 4 }, { WEDGE_194, 3, 4 },
+  { WEDGE_194, 2, 4 }, { WEDGE_194, 1, 4 }, { WEDGE_207, 3, 4 },
+  { WEDGE_207, 2, 4 }, { WEDGE_207, 1, 4 }, { WEDGE_225, 3, 4 },
+  { WEDGE_225, 2, 4 }, { WEDGE_225, 1, 4 }, { WEDGE_243, 4, 5 },
+  { WEDGE_243, 4, 6 }, { WEDGE_243, 4, 7 }, { WEDGE_270, 4, 5 },
+  { WEDGE_270, 4, 6 }, { WEDGE_270, 4, 7 }, { WEDGE_297, 4, 5 },
+  { WEDGE_297, 4, 6 }, { WEDGE_297, 4, 7 }, { WEDGE_315, 5, 4 },
+  { WEDGE_315, 6, 4 }, { WEDGE_315, 7, 4 }, { WEDGE_333, 5, 4 },
+  { WEDGE_333, 6, 4 }, { WEDGE_333, 7, 4 }, { WEDGE_346, 5, 4 },
+  { WEDGE_346, 6, 4 }, { WEDGE_346, 7, 4 },
+};
+#else
 static const wedge_code_type wedge_codebook_16_hgtw[16] = {
   { WEDGE_OBLIQUE27, 4, 4 },  { WEDGE_OBLIQUE63, 4, 4 },
   { WEDGE_OBLIQUE117, 4, 4 }, { WEDGE_OBLIQUE153, 4, 4 },
@@ -265,7 +331,34 @@ static const wedge_code_type wedge_codebook_16_heqw[16] = {
   { WEDGE_OBLIQUE63, 2, 4 },  { WEDGE_OBLIQUE63, 6, 4 },
   { WEDGE_OBLIQUE117, 2, 4 }, { WEDGE_OBLIQUE117, 6, 4 },
 };
+#endif
 
+#if WEDGE_EXT
+const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X16] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X64] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X64] },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X8] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X64] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X16] },
+};
+#else
 const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
@@ -299,6 +392,7 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
 };
+#endif
 
 static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
                                              BLOCK_SIZE sb_type) {
@@ -308,15 +402,23 @@ static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
   const wedge_code_type *a =
       av1_wedge_params_lookup[sb_type].codebook + wedge_index;
   int woff, hoff;
+#if !WEDGE_EXT
   const uint8_t wsignflip =
       av1_wedge_params_lookup[sb_type].signflip[wedge_index];
+#endif
 
   assert(wedge_index >= 0 && wedge_index < get_wedge_types_lookup(sb_type));
   woff = (a->x_offset * bw) >> 3;
   hoff = (a->y_offset * bh) >> 3;
+#if WEDGE_EXT
+  master = wedge_master_mask[neg][a->direction] +
+           MASK_MASTER_STRIDE * (MASK_MASTER_SIZE / 2 - hoff) +
+           MASK_MASTER_SIZE / 2 - woff;
+#else
   master = wedge_mask_obl[neg ^ wsignflip][a->direction] +
            MASK_MASTER_STRIDE * (MASK_MASTER_SIZE / 2 - hoff) +
            MASK_MASTER_SIZE / 2 - woff;
+#endif
   return master;
 }
 
@@ -448,10 +550,28 @@ void av1_build_compound_diffwtd_mask_highbd_c(
 }
 
 static AOM_INLINE void init_wedge_master_masks() {
+#if WEDGE_EXT
+  const int w = MASK_MASTER_SIZE;
+  const int h = MASK_MASTER_SIZE;
+  for (int angle = 0; angle < WEDGE_ANGLES; angle++) {
+    int idx = 0;
+    // printf("angle: %d\n", angle);
+    for (int n = 0; n < h; n++) {
+      int y = ((n << 1) - h + 1) * wedge_sin_lut[angle];
+      for (int m = 0; m < w; m++, idx++) {
+        int d = ((m << 1) - w + 1) * wedge_cos_lut[angle] + y;
+        wedge_master_mask[0][angle][idx] = clamp((d + 32), 0, 64);
+        wedge_master_mask[1][angle][idx] =
+            64 - wedge_master_mask[0][angle][idx];
+      }
+    }
+  }
+#else
   int i, j;
   const int w = MASK_MASTER_SIZE;
   const int h = MASK_MASTER_SIZE;
   const int stride = MASK_MASTER_STRIDE;
+
   // Note: index [0] stores the masters, and [1] its complement.
   // Generate prototype by shifting the masters
   int shift = h / 4;
@@ -490,6 +610,7 @@ static AOM_INLINE void init_wedge_master_masks() {
               (1 << WEDGE_WEIGHT_BITS) - mskx;
     }
   }
+#endif
 }
 
 static AOM_INLINE void init_wedge_masks() {

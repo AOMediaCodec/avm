@@ -632,11 +632,42 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_compound_type_cdf"
                      "[BLOCK_SIZES_ALL][CDF_SIZE(COMPOUND_TYPES - 1)]");
 
+#if WEDGE_EXT
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.wedge_angle_dir_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_angle_dir_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = H_WEDGE_ANGLES;
+  optimize_cdf_table(
+      &fc.wedge_angle_0_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_angle_0_cdf[BLOCK_SIZES_ALL][CDF_SIZE(H_WEDGE_ANGLES)]");
+
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = H_WEDGE_ANGLES;
+  optimize_cdf_table(
+      &fc.wedge_angle_1_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_angle_1_cdf[BLOCK_SIZES_ALL][CDF_SIZE(H_WEDGE_ANGLES)]");
+
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = NUM_WEDGE_DIST;
+  optimize_cdf_table(
+      &fc.wedge_dist_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_dist_cdf[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST)]");
+
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 16;
   optimize_cdf_table(&fc.wedge_idx[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(16)]");
+#endif
 
   /* motion_var and warped_motion experiments */
 #if CONFIG_EXTENDED_WARP_PREDICTION

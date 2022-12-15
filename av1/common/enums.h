@@ -28,6 +28,38 @@ extern "C" {
 /*!\cond */
 
 #undef MAX_SB_SIZE
+
+#define WEDGE_EXT 1  // wedge mode extensions
+#if WEDGE_EXT
+enum {
+  WEDGE_0,
+  WEDGE_14,
+  WEDGE_27,
+  WEDGE_45,
+  WEDGE_63,
+  WEDGE_90,
+  WEDGE_117,
+  WEDGE_135,
+  WEDGE_153,
+  WEDGE_166,
+  WEDGE_180,
+  WEDGE_194,
+  WEDGE_207,
+  WEDGE_225,
+  WEDGE_243,
+  WEDGE_270,
+  WEDGE_297,
+  WEDGE_315,
+  WEDGE_333,
+  WEDGE_346,
+  WEDGE_ANGLES
+} UENUM1BYTE(WedgeDirectionType);
+
+#define H_WEDGE_ANGLES (WEDGE_ANGLES / 2)
+#define NUM_WEDGE_DIST 4
+#define MAX_WEDGE_TYPES \
+  (H_WEDGE_ANGLES * NUM_WEDGE_DIST + H_WEDGE_ANGLES * (NUM_WEDGE_DIST - 1) - 2)
+#endif
 #if CONFIG_ADAPTIVE_DS_FILTER
 #define DS_FRAME_LEVEL 1  // Signal at key frame
 #endif

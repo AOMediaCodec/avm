@@ -539,8 +539,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->compound_type_cdf[i], NULL);
     for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
       if (av1_is_wedge_used(i)) {
+#if WEDGE_EXT
+        av1_cost_tokens_from_cdf(mode_costs->wedge_angle_dir_cost[i],
+                                 fc->wedge_angle_dir_cdf[i], NULL);
+        av1_cost_tokens_from_cdf(mode_costs->wedge_angle_0_cost[i],
+                                 fc->wedge_angle_0_cdf[i], NULL);
+        av1_cost_tokens_from_cdf(mode_costs->wedge_angle_1_cost[i],
+                                 fc->wedge_angle_1_cdf[i], NULL);
+        av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost[i],
+                                 fc->wedge_dist_cdf[i], NULL);
+        av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost2[i],
+                                 fc->wedge_dist_cdf2[i], NULL);
+#else
         av1_cost_tokens_from_cdf(mode_costs->wedge_idx_cost[i],
                                  fc->wedge_idx_cdf[i], NULL);
+#endif
       }
     }
     for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
