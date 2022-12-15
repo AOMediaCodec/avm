@@ -2101,6 +2101,13 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
 
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  xd->tile.mi_col_start = tile->mi_col_start;
+  xd->tile.mi_col_end = tile->mi_col_end;
+  xd->tile.mi_row_start = tile->mi_row_start;
+  xd->tile.mi_row_end = tile->mi_row_end;
+#endif
+
   // Are edges available for intra prediction?
   xd->up_available = (mi_row > tile->mi_row_start);
 
@@ -3135,10 +3142,17 @@ static INLINE bool is_warp_mode(MOTION_MODE motion_mode) {
  *     [...]
  *   }
  */
+
+// Returns true WARP_EXTEND is allowed by checking the top and left neighboring
+// blocks.
+int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                    const MB_MODE_INFO *mbmi);
+
 static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd,
                                       const CANDIDATE_MV *ref_mv_stack,
                                       const MB_MODE_INFO *mbmi) {
+  (void)ref_mv_stack;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
 
   if (mbmi->skip_mode || mbmi->ref_frame[0] == INTRA_FRAME) {
@@ -3208,24 +3222,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   PREDICTION_MODE mode = mbmi->mode;
 
   if (allow_warped_motion && (mode == NEARMV || mode == NEWMV)) {
-    const CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
-
-    bool neighbor_is_above = xd->up_available && (neighbor->row_offset == -1 &&
-                                                  neighbor->col_offset >= 0);
-    bool neighbor_is_left = xd->left_available && (neighbor->col_offset == -1 &&
-                                                   neighbor->row_offset >= 0);
-    bool neighbor_is_adjacent = neighbor_is_above || neighbor_is_left;
-
-    if (neighbor_is_adjacent) {
-      const MB_MODE_INFO *neighbor_mi =
-          xd->mi[neighbor->row_offset * xd->mi_stride + neighbor->col_offset];
-
-      bool neighbor_is_warped = is_warp_mode(neighbor_mi->motion_mode);
-
-      if ((mode == NEARMV && neighbor_is_warped) || mode == NEWMV) {
-        warp_extend_allowed = true;
-      }
-    }
+    warp_extend_allowed = allow_extend_nb(cm, xd, mbmi);
   }
 
   if (warp_extend_allowed) {
@@ -3238,44 +3235,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
           MIN_BSIZE_WARP_DELTA;
 
   if (warp_delta_allowed && mode == NEARMV) {
-#if CONFIG_WARP_REF_LIST
-    const CANDIDATE_MV *ref = &ref_mv_stack[mbmi->ref_mv_idx];
-    bool ref_is_spatial = false;
-    if (xd->up_available && xd->left_available) {
-      ref_is_spatial = (ref->row_offset != OFFSET_NONSPATIAL) &&
-                       (ref->col_offset != OFFSET_NONSPATIAL);
-    } else if (xd->up_available) {
-      ref_is_spatial = (ref->row_offset != OFFSET_NONSPATIAL);
-    } else if (xd->left_available) {
-      ref_is_spatial = (ref->col_offset != OFFSET_NONSPATIAL);
-    }
-    if (ref_is_spatial) {
-      const MB_MODE_INFO *ref_mi =
-          xd->mi[ref->row_offset * xd->mi_stride + ref->col_offset];
-      bool ref_is_warped = is_warp_mode(ref_mi->motion_mode);
-      warp_delta_allowed = ref_is_warped;
-    } else {
-      warp_delta_allowed = false;
-    }
-#else
-#if WARP_DELTA_REQUIRES_NEIGHBOR
-    // Only allow WARP_DELTA on a NEARMV block when there is a neighboring
-    // warp block to extend from
-    warp_delta_allowed = warp_extend_allowed;
-#else
-    const CANDIDATE_MV *ref = &ref_mv_stack[mbmi->ref_mv_idx];
-    bool ref_is_spatial = (ref->row_offset != OFFSET_NONSPATIAL) &&
-                          (ref->col_offset != OFFSET_NONSPATIAL);
-    if (ref_is_spatial) {
-      const MB_MODE_INFO *ref_mi =
-          xd->mi[ref->row_offset * xd->mi_stride + ref->col_offset];
-      bool ref_is_warped = is_warp_mode(ref_mi->motion_mode);
-      warp_delta_allowed = ref_is_warped;
-    } else {
-      warp_delta_allowed = false;
-    }
-#endif
-#endif  // CONFIG_WARP_REF_LIST
+    warp_delta_allowed = false;
   }
 
   if (warp_delta_allowed) {

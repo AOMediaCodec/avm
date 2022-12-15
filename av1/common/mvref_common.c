@@ -2548,7 +2548,11 @@ static AOM_INLINE void setup_ref_mv_list(
   if (warp_param_stack && valid_num_warp_candidates &&
       *valid_num_warp_candidates < max_num_of_warp_candidates) {
     // Insert warp parameters from the bank
+#if WARP_CU_BANK
+    const WARP_PARAM_BANK *warp_param_bank = &xd->warp_param_bank;
+#else
     const WARP_PARAM_BANK *warp_param_bank = xd->warp_param_bank_pt;
+#endif  // WARP_CU_BANK
     const WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
     const int count = warp_param_bank->wpb_count[ref_frame];
     const int start_idx = warp_param_bank->wpb_start_idx[ref_frame];
@@ -4434,3 +4438,251 @@ void av1_find_warp_delta_base_candidates(
 }
 
 #endif  // CONFIG_WARP_REF_LIST
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                    const MB_MODE_INFO *mbmi) {
+  const TileInfo *const tile = &xd->tile;
+  const int bs = AOMMAX(xd->width, xd->height);
+  const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
+  const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
+  POSITION mi_pos;
+
+  int allow_new_ext = 0;
+  int allow_near_ext = 0;
+
+  // left
+  mi_pos.row = xd->height - 1;
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  // up
+  mi_pos.row = -1;
+  mi_pos.col = xd->width - 1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  // left
+  mi_pos.row = 0;
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  // up
+  mi_pos.row = -1;
+  mi_pos.col = 0;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  mi_pos.row = xd->height;
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_bl) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  mi_pos.row = -1;
+  mi_pos.col = xd->width;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_tr) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  mi_pos.row = -1;
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available &&
+      xd->left_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  mi_pos.row = (xd->height >> 1);
+  mi_pos.col = -1;
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  mi_pos.row = -1;
+  mi_pos.col = (xd->width >> 1);
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+        neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) {
+      allow_new_ext |= 1;
+      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
+    }
+  }
+
+  if (mbmi->mode == NEWMV) {
+    return allow_new_ext;
+  } else if (mbmi->mode == NEARMV) {
+    return allow_near_ext;
+  } else {
+    return 0;
+  }
+}
+
+static AOM_INLINE POSITION get_pos_from_pos_idx(const MACROBLOCKD *xd,
+                                                int pos_idx) {
+  POSITION ret_pos = { 0, 0 };
+  if (pos_idx == 5) {
+    ret_pos.row = xd->height;
+    ret_pos.col = -1;
+  } else if (pos_idx == 1) {
+    ret_pos.row = (xd->height - 1);
+    ret_pos.col = -1;
+  } else if (pos_idx == 8) {
+    ret_pos.row = (xd->height >> 1);
+    ret_pos.col = -1;
+  } else if (pos_idx == 3) {
+    ret_pos.row = 0;
+    ret_pos.col = -1;
+  } else if (pos_idx == 7) {
+    ret_pos.row = -1;
+    ret_pos.col = -1;
+  } else if (pos_idx == 4) {
+    ret_pos.row = -1;
+    ret_pos.col = 0;
+  } else if (pos_idx == 9) {
+    ret_pos.row = -1;
+    ret_pos.col = (xd->width >> 1);
+  } else if (pos_idx == 2) {
+    ret_pos.row = -1;
+    ret_pos.col = (xd->width - 1);
+  } else if (pos_idx == 6) {
+    ret_pos.row = -1;
+    ret_pos.col = xd->width;
+  } else {
+    assert(0);
+  }
+  return ret_pos;
+}
+
+static AOM_INLINE int get_cand_from_pos_idx(const AV1_COMMON *cm,
+                                            const MACROBLOCKD *xd,
+                                            int pos_idx) {
+  const int bs = AOMMAX(xd->width, xd->height);
+  const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
+  const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
+
+  int ret_cand = 0;
+
+  if (pos_idx == 1 || pos_idx == 3 || pos_idx == 8) {
+    ret_cand = xd->left_available;
+  } else if (pos_idx == 2 || pos_idx == 4 || pos_idx == 9) {
+    ret_cand = xd->up_available;
+  } else if (pos_idx == 5) {
+    ret_cand = has_bl;
+  } else if (pos_idx == 6) {
+    ret_cand = has_tr;
+  } else if (pos_idx == 7) {
+    ret_cand = (xd->up_available && xd->left_available);
+  } else {
+    assert(0);
+  }
+  return ret_cand;
+}
+
+static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
+                                                 const MACROBLOCKD *xd,
+                                                 const MB_MODE_INFO *mbmi,
+                                                 POSITION *base_pos,
+                                                 int pos_idx) {
+  const TileInfo *const tile = &xd->tile;
+  POSITION mi_pos = get_pos_from_pos_idx(xd, pos_idx);
+  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+      get_cand_from_pos_idx(cm, xd, pos_idx)) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if ((is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+         neighbor_mi->ref_frame[0] == mbmi->ref_frame[0]) ||
+        (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
+         neighbor_mi->ref_frame[1] == mbmi->ref_frame[0])) {
+      if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
+          mbmi->mode == NEWMV) {
+        base_pos->row = mi_pos.row;
+        base_pos->col = mi_pos.col;
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                        const MB_MODE_INFO *mbmi, int mvp_row_offset,
+                        int mvp_col_offset, POSITION *base_pos) {
+  const TileInfo *const tile = &xd->tile;
+  const int bs = AOMMAX(xd->width, xd->height);
+  const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
+  const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
+  POSITION mi_pos = { 0, 0 };
+
+  if (mvp_col_offset == -1 || mvp_row_offset == -1) {
+    const MB_MODE_INFO *neighbor_mi =
+        xd->mi[mvp_row_offset * xd->mi_stride + mvp_col_offset];
+    if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
+        mbmi->mode == NEWMV) {
+      base_pos->row = mvp_row_offset;
+      base_pos->col = mvp_col_offset;
+      return 1;
+    }
+  }
+
+  for (int pos_idx = 1; pos_idx <= 8; pos_idx++) {
+    if (check_pos_and_get_base_pos(cm, xd, mbmi, base_pos, pos_idx)) return 1;
+  }
+  return 0;
+}
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION

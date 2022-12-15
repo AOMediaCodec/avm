@@ -31,6 +31,11 @@ extern "C" {
 #if CONFIG_ADAPTIVE_DS_FILTER
 #define DS_FRAME_LEVEL 1  // Signal at key frame
 #endif
+
+#if CONFIG_WARP_REF_LIST
+#define WARP_CU_BANK 1
+#endif
+
 // Cross-Component Sample Offset (CCSO)
 #if CONFIG_CCSO
 #define CCSO_BLK_SIZE 7

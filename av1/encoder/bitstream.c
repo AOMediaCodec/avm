@@ -491,8 +491,8 @@ static AOM_INLINE void write_motion_mode(
   }
 
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
-    int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi_ext_frame->ref_mv_stack, mbmi);
-    int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi_ext_frame->ref_mv_stack, mbmi);
+    const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
+    const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
     aom_write_symbol(w, motion_mode == WARP_EXTEND,
                      xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2);
     if (motion_mode == WARP_EXTEND) {

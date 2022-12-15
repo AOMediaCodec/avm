@@ -980,7 +980,9 @@ typedef struct macroblockd {
    */
   /**@{*/
   WARP_PARAM_BANK warp_param_bank; /*!< Ref warp parameters bank to update */
+#if !WARP_CU_BANK
   WARP_PARAM_BANK *warp_param_bank_pt; /*!< Pointer to bank to refer to */
+#endif                                 //! WARP_CU_BANK
   /**@}*/
 #endif  // CONFIG_WARP_REF_LIST
 

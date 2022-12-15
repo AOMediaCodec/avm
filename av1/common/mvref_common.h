@@ -921,115 +921,104 @@ static INLINE void av1_get_warp_base_params(
 // warp_extend even if this function returns false. In that case, the decoder
 // should fall back to translational motion, generally by setting
 // mbmi->wm_params[0].invalid = 1;
-static INLINE bool av1_get_neighbor_warp_model(const AV1_COMMON *cm,
+static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
-                                               CANDIDATE_MV *ref_mv_stack,
+                                               const MB_MODE_INFO *neighbor_mi,
                                                WarpedMotionParams *wm_params) {
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  const CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
+  const WarpedMotionParams *gm_params =
+      &cm->global_motion[neighbor_mi->ref_frame[0]];
 
-  bool neighbor_is_above = xd->up_available && (neighbor->row_offset == -1 &&
-                                                neighbor->col_offset >= 0);
-  bool neighbor_is_left = xd->left_available && (neighbor->col_offset == -1 &&
-                                                 neighbor->row_offset >= 0);
-  bool neighbor_is_adjacent = neighbor_is_above || neighbor_is_left;
+  if (is_warp_mode(neighbor_mi->motion_mode)) {
+    *wm_params = neighbor_mi->wm_params[0];
+  } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
+    *wm_params = *gm_params;
+  } else {
+    // Neighbor block is translation-only, so doesn't have
+    // a warp model. So we need to synthesize one.
+    // Note that, in this case, the neighbor might be compound, but the
+    // current block will always be single ref. So we have to figure out
+    // which of the neighbor's ref frames matches ours, and take that MV.
+    *wm_params = default_warp_params;
+    wm_params->wmtype = TRANSLATION;
 
-  if (neighbor_is_adjacent) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[neighbor->row_offset * xd->mi_stride + neighbor->col_offset];
-
-    const WarpedMotionParams *gm_params =
-        &cm->global_motion[mbmi->ref_frame[0]];
-
-    if (is_warp_mode(neighbor_mi->motion_mode)) {
-      *wm_params = neighbor_mi->wm_params[0];
-      return true;
-    } else if (mbmi->mode == NEARMV) {
-      // For NEARMV, we're trying to copy a neighboring warp model without
-      // modification. So warp_extend only makes sense for this mode if the
-      // neighbor is warped
-      return false;
-    } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
-      *wm_params = *gm_params;
-      return true;
+    int ref_frame = xd->mi[0]->ref_frame[0];
+    if (neighbor_mi->ref_frame[0] == ref_frame) {
+      wm_params->wmmat[0] =
+          neighbor_mi->mv[0].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
+      wm_params->wmmat[1] =
+          neighbor_mi->mv[0].as_mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3));
     } else {
-      // Neighbor block is translation-only, so doesn't have
-      // a warp model. So we need to synthesize one.
-      // Note that, in this case, the neighbor might be compound, but the
-      // current block will always be single ref. So we have to figure out
-      // which of the neighbor's ref frames matches ours, and take that MV.
-      *wm_params = default_warp_params;
-      wm_params->wmtype = TRANSLATION;
-
-      int ref_frame = mbmi->ref_frame[0];
-      if (neighbor_mi->ref_frame[0] == ref_frame) {
-        wm_params->wmmat[0] =
-            neighbor_mi->mv[0].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
-        wm_params->wmmat[1] =
-            neighbor_mi->mv[0].as_mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3));
-      } else {
-        assert(neighbor_mi->ref_frame[1] == ref_frame);
-        wm_params->wmmat[0] =
-            neighbor_mi->mv[1].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
-        wm_params->wmmat[1] =
-            neighbor_mi->mv[1].as_mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3));
-      }
-      return true;
+      assert(neighbor_mi->ref_frame[1] == ref_frame);
+      wm_params->wmmat[0] =
+          neighbor_mi->mv[1].as_mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3));
+      wm_params->wmmat[1] =
+          neighbor_mi->mv[1].as_mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3));
     }
   }
-
-  return false;
 }
 
 // The use_warp_extend symbol has two components to its context:
 // First context is the extension type (copy, extend from warp model, etc.)
 // Second context is log2(number of MI units along common edge)
 static INLINE int av1_get_warp_extend_ctx1(const MACROBLOCKD *xd,
-                                           const CANDIDATE_MV *ref_mv_stack,
                                            const MB_MODE_INFO *mbmi) {
-  const CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
-  const MB_MODE_INFO *neighbor_mi =
-      xd->mi[neighbor->row_offset * xd->mi_stride + neighbor->col_offset];
-  const WarpedMotionParams *gm_params =
-      &xd->global_motion[neighbor_mi->ref_frame[0]];
-
   if (mbmi->mode == NEARMV) {
     return 0;
   } else {
     assert(mbmi->mode == NEWMV);
-    if (is_warp_mode(neighbor_mi->motion_mode)) {
+    const TileInfo *const tile = &xd->tile;
+    const POSITION mi_pos = { xd->height - 1, -1 };
+    if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
+          xd->left_available))
       return 1;
-    } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
+    const MB_MODE_INFO *left_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (!is_inter_ref_frame(left_mi->ref_frame[0])) return 1;
+    if (left_mi->ref_frame[0] != mbmi->ref_frame[0]) return 1;
+    const WarpedMotionParams *gm_params =
+        &xd->global_motion[left_mi->ref_frame[0]];
+    if (is_warp_mode(left_mi->motion_mode)) {
       return 2;
+    } else if (is_global_mv_block(left_mi, gm_params->wmtype)) {
+      return 3;
     } else {
       // Neighbor block is translation-only
-      return 3;
+      return 4;
     }
   }
 }
 
 static INLINE int av1_get_warp_extend_ctx2(const MACROBLOCKD *xd,
-                                           const CANDIDATE_MV *ref_mv_stack,
                                            const MB_MODE_INFO *mbmi) {
-  (void)xd;
-
-  const CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
-  bool neighbor_is_above = xd->up_available && (neighbor->row_offset == -1 &&
-                                                neighbor->col_offset >= 0);
-
-  const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
-  int common_length_log2;
-  if (neighbor_is_above) {
-    common_length_log2 = mi_size_wide_log2[bsize];
+  if (mbmi->mode == NEARMV) {
+    return 0;
   } else {
-    common_length_log2 = mi_size_high_log2[bsize];
+    assert(mbmi->mode == NEWMV);
+    const TileInfo *const tile = &xd->tile;
+    const POSITION mi_pos = { -1, xd->width - 1 };
+    if (!(is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available))
+      return 1;
+    const MB_MODE_INFO *above_mi =
+        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+    if (!is_inter_ref_frame(above_mi->ref_frame[0])) return 1;
+    if (above_mi->ref_frame[0] != mbmi->ref_frame[0]) return 1;
+    const WarpedMotionParams *gm_params =
+        &xd->global_motion[above_mi->ref_frame[0]];
+    if (is_warp_mode(above_mi->motion_mode)) {
+      return 2;
+    } else if (is_global_mv_block(above_mi, gm_params->wmtype)) {
+      return 3;
+    } else {
+      // Neighbor block is translation-only
+      return 4;
+    }
   }
-
-  // There are currently 6 contexts, corresponding to edge lengths
-  // 4, 8, 16, 32, 64, 128
-  assert(common_length_log2 < WARP_EXTEND_CTXS2);
-  return common_length_log2;
 }
+
+// Get the position of back-up WARP_EXTED mode base.
+int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                        const MB_MODE_INFO *mbmi, int mvp_row_offset,
+                        int mvp_col_offset, POSITION *base_pos);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_WARP_REF_LIST

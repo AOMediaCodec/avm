@@ -106,8 +106,8 @@ extern "C" {
 // The use_warp_extend symbol has two components to its context:
 // First context is the extension type (copy, extend from warp model, etc.)
 // Second context is log2(number of MI units along common edge)
-#define WARP_EXTEND_CTXS1 4
-#define WARP_EXTEND_CTXS2 (MAX_SB_SIZE_LOG2 - MI_SIZE_LOG2 + 1)
+#define WARP_EXTEND_CTXS1 5
+#define WARP_EXTEND_CTXS2 5
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 struct AV1Common;

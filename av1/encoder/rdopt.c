@@ -2608,25 +2608,31 @@ static int64_t motion_mode_rd(
         }
 #endif
 
-        CANDIDATE_MV *ref_mv_stack = mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]];
-        WarpedMotionParams neighbor_params;
-        bool valid_neighbor =
-            av1_get_neighbor_warp_model(cm, xd, ref_mv_stack, &neighbor_params);
-
-        if (!valid_neighbor) {
-          // Skip
+        CANDIDATE_MV *neighbor =
+            &mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]][mbmi->ref_mv_idx];
+        POSITION base_pos = { 0, 0 };
+        if (!get_extend_base_pos(cm, xd, mbmi, neighbor->row_offset,
+                                 neighbor->col_offset, &base_pos)) {
           continue;
         }
+        const MB_MODE_INFO *neighbor_mi =
+            xd->mi[base_pos.row * xd->mi_stride + base_pos.col];
 
         if (mbmi->mode == NEARMV) {
-          mbmi->wm_params[0] = neighbor_params;
+          assert(is_warp_mode(neighbor_mi->motion_mode));
+          if (neighbor_mi->wm_params[0].invalid) {
+            // Skip invalid models
+            continue;
+          }
+          mbmi->wm_params[0] = neighbor_mi->wm_params[0];
         } else {
           assert(mbmi->mode == NEWMV);
 
-          CANDIDATE_MV *neighbor = &ref_mv_stack[mbmi->ref_mv_idx];
           bool neighbor_is_above =
-              xd->up_available &&
-              (neighbor->row_offset == -1 && neighbor->col_offset >= 0);
+              xd->up_available && (base_pos.row == -1 && base_pos.col >= 0);
+
+          WarpedMotionParams neighbor_params;
+          av1_get_neighbor_warp_model(cm, xd, neighbor_mi, &neighbor_params);
 
           const int_mv ref_mv = av1_get_ref_mv(x, 0);
           SUBPEL_MOTION_SEARCH_PARAMS ms_params;
@@ -2789,10 +2795,8 @@ static int64_t motion_mode_rd(
 
       if (continue_motion_mode_signaling &&
           allowed_motion_modes & (1 << WARP_EXTEND)) {
-        int ctx1 = av1_get_warp_extend_ctx1(
-            xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
-        int ctx2 = av1_get_warp_extend_ctx2(
-            xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
+        const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
+        const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
         rd_stats->rate +=
             mode_costs
                 ->warp_extend_cost[ctx1][ctx2][motion_mode == WARP_EXTEND];

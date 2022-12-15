@@ -482,9 +482,9 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       av1_update_ref_mv_bank(cm, xd, mbmi);
 #endif  // CONFIG_REF_MV_BANK && !CONFIG_C043_MVP_IMPROVEMENTS
 
-#if CONFIG_WARP_REF_LIST
+#if CONFIG_WARP_REF_LIST && !WARP_CU_BANK
     if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
-#endif  // CONFIG_WARP_REF_LIST
+#endif  // CONFIG_WARP_REF_LIST && !WARP_CU_BANK
   }
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
       block_signals_txsize(mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
@@ -728,6 +728,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
       av1_update_ref_mv_bank(cm, xd, &ctx->mic);
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    if (is_inter) av1_update_warp_param_bank(cm, xd, &ctx->mic);
+#endif  // WARP_CU_BANK
     return;
   }
 
@@ -828,6 +831,10 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
     av1_update_ref_mv_bank(cm, xd, mbmi);
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+
+#if WARP_CU_BANK
+  if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
+#endif  // WARP_CU_BANK
 
   // Examine the resulting rate and for AQ mode 2 make a segment choice.
   if (rd_cost->rate != INT_MAX && aq_mode == COMPLEXITY_AQ &&
@@ -1427,10 +1434,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
       if (continue_motion_mode_signaling &&
           allowed_motion_modes & (1 << WARP_EXTEND)) {
-        int ctx1 = av1_get_warp_extend_ctx1(
-            xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
-        int ctx2 = av1_get_warp_extend_ctx2(
-            xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
+        const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
+        const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
 #if CONFIG_ENTROPY_STATS
         counts->warp_extend[ctx1][ctx2][mbmi->motion_mode == WARP_EXTEND]++;
 #endif
@@ -2423,6 +2428,10 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
                                ,
                                REF_MV_BANK *best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                               ,
+                               WARP_PARAM_BANK *best_level_warp_bank
+#endif  // WARP_CU_BANK
 
 ) {
   const MACROBLOCK *const x = &td->mb;
@@ -2451,6 +2460,9 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_C043_MVP_IMPROVEMENTS
   *best_level_bank = x->e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  *best_level_warp_bank = x->e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
   pc_tree->partitioning = partition;
   return true;
 }
@@ -2682,6 +2694,10 @@ static void rectangular_partition_search(
     ,
     REF_MV_BANK *best_level_bank, REF_MV_BANK *curr_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    ,
+    WARP_PARAM_BANK *best_level_warp_bank, WARP_PARAM_BANK *curr_level_warp_bank
+#endif  // WARP_CU_BANK
 ) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
@@ -2799,6 +2815,9 @@ static void rectangular_partition_search(
 #if CONFIG_C043_MVP_IMPROVEMENTS
         *best_level_bank = x->e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+        *best_level_warp_bank = x->e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
         part_search_state->found_best_partition = true;
         pc_tree->partitioning = partition_type;
       }
@@ -2810,6 +2829,9 @@ static void rectangular_partition_search(
 #if CONFIG_C043_MVP_IMPROVEMENTS
     x->e_mbd.ref_mv_bank = *curr_level_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    x->e_mbd.warp_param_bank = *curr_level_warp_bank;
+#endif  // WARP_CU_BANK
     av1_restore_context(x, x_ctx, blk_params.mi_row, blk_params.mi_col,
                         blk_params.bsize, av1_num_planes(cm));
   }
@@ -2827,6 +2849,10 @@ static void rd_pick_ab_part(
     ,
     REF_MV_BANK *best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    ,
+    WARP_PARAM_BANK *best_level_warp_bank
+#endif  // WARP_CU_BANK
 ) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
@@ -2857,6 +2883,10 @@ static void rd_pick_ab_part(
                          ,
                          best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                         ,
+                         best_level_warp_bank
+#endif  // WARP_CU_BANK
       );
 
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -2910,6 +2940,10 @@ static void ab_partitions_search(
     ,
     REF_MV_BANK *best_level_bank, REF_MV_BANK *curr_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    ,
+    WARP_PARAM_BANK *best_level_warp_bank, WARP_PARAM_BANK *curr_level_warp_bank
+#endif  // WARP_CU_BANK
 ) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
@@ -3019,10 +3053,17 @@ static void ab_partitions_search(
                     ,
                     best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                    ,
+                    best_level_warp_bank
+#endif  // WARP_CU_BANK
     );
 #if CONFIG_C043_MVP_IMPROVEMENTS
     x->e_mbd.ref_mv_bank = *curr_level_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    x->e_mbd.warp_param_bank = *curr_level_warp_bank;
+#endif  // WARP_CU_BANK
   }
 }
 
@@ -3066,6 +3107,10 @@ static void rd_pick_4partition(
     ,
     REF_MV_BANK *best_level_bank, REF_MV_BANK *curr_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    ,
+    WARP_PARAM_BANK *best_level_warp_bank, WARP_PARAM_BANK *curr_level_warp_bank
+#endif  // WARP_CU_BANK
 ) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
@@ -3110,6 +3155,9 @@ static void rd_pick_4partition(
 #if CONFIG_C043_MVP_IMPROVEMENTS
     *best_level_bank = x->e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    *best_level_warp_bank = x->e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
     part_search_state->found_best_partition = true;
     pc_tree->partitioning = partition_type;
   }
@@ -3124,6 +3172,9 @@ static void rd_pick_4partition(
 #if CONFIG_C043_MVP_IMPROVEMENTS
   x->e_mbd.ref_mv_bank = *curr_level_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  x->e_mbd.warp_param_bank = *curr_level_warp_bank;
+#endif  // WARP_CU_BANK
   av1_restore_context(x, x_ctx, blk_params.mi_row, blk_params.mi_col,
                       blk_params.bsize, av1_num_planes(cm));
 }
@@ -3390,6 +3441,10 @@ static void none_partition_search(
     ,
     REF_MV_BANK *best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    ,
+    WARP_PARAM_BANK *best_level_warp_bank
+#endif  // WARP_CU_BANK
 ) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
@@ -3454,6 +3509,9 @@ static void none_partition_search(
 #if CONFIG_C043_MVP_IMPROVEMENTS
       *best_level_bank = x->e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+      *best_level_warp_bank = x->e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
       part_search_state->found_best_partition = true;
       if (blk_params.bsize_at_least_8x8) {
         pc_tree->partitioning = PARTITION_NONE;
@@ -3480,6 +3538,10 @@ static void split_partition_search(
     ,
     REF_MV_BANK *best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    ,
+    WARP_PARAM_BANK *best_level_warp_bank
+#endif  // WARP_CU_BANK
 ) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
@@ -3587,6 +3649,9 @@ static void split_partition_search(
 #if CONFIG_C043_MVP_IMPROVEMENTS
       *best_level_bank = x->e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+      *best_level_warp_bank = x->e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
       part_search_state->found_best_partition = true;
       pc_tree->partitioning = PARTITION_SPLIT;
     }
@@ -3781,6 +3846,10 @@ BEGIN_PARTITION_SEARCH:
   REF_MV_BANK curr_level_bank = x->e_mbd.ref_mv_bank;
   REF_MV_BANK best_level_bank = x->e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  WARP_PARAM_BANK curr_level_warp_bank = x->e_mbd.warp_param_bank;
+  WARP_PARAM_BANK best_level_warp_bank = x->e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
   none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                         &part_search_state, &best_rdc, &pb_source_variance,
                         none_rd, &part_none_rd
@@ -3788,10 +3857,17 @@ BEGIN_PARTITION_SEARCH:
                         ,
                         &best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                        ,
+                        &best_level_warp_bank
+#endif  // WARP_CU_BANK
   );
 #if CONFIG_C043_MVP_IMPROVEMENTS
   x->e_mbd.ref_mv_bank = curr_level_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  x->e_mbd.warp_param_bank = curr_level_warp_bank;
+#endif  // WARP_CU_BANK
 
   // PARTITION_SPLIT search stage.
   int64_t part_split_rd = INT64_MAX;
@@ -3802,10 +3878,17 @@ BEGIN_PARTITION_SEARCH:
                          ,
                          &best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                         ,
+                         &best_level_warp_bank
+#endif  // WARP_CU_BANK
   );
 #if CONFIG_C043_MVP_IMPROVEMENTS
   x->e_mbd.ref_mv_bank = curr_level_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  x->e_mbd.warp_param_bank = curr_level_warp_bank;
+#endif  // WARP_CU_BANK
 
   // Terminate partition search for child partition,
   // when NONE and SPLIT partition rd_costs are INT64_MAX.
@@ -3826,6 +3909,10 @@ BEGIN_PARTITION_SEARCH:
                                ,
                                &best_level_bank, &curr_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                               ,
+                               &best_level_warp_bank, &curr_level_warp_bank
+#endif  // WARP_CU_BANK
   );
 
   if (pb_source_variance == UINT_MAX) {
@@ -3850,6 +3937,10 @@ BEGIN_PARTITION_SEARCH:
                        ,
                        &best_level_bank, &curr_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                       ,
+                       &best_level_warp_bank, &curr_level_warp_bank
+#endif  // WARP_CU_BANK
   );
 
   // 4-way partitions search stage.
@@ -3886,6 +3977,10 @@ BEGIN_PARTITION_SEARCH:
                        ,
                        &best_level_bank, &curr_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                       ,
+                       &best_level_warp_bank, &curr_level_warp_bank
+#endif  // WARP_CU_BANK
     );
   }
 
@@ -3906,6 +4001,10 @@ BEGIN_PARTITION_SEARCH:
                        ,
                        &best_level_bank, &curr_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+                       ,
+                       &best_level_warp_bank, &curr_level_warp_bank
+#endif  // WARP_CU_BANK
     );
   }
 
@@ -3925,6 +4024,9 @@ BEGIN_PARTITION_SEARCH:
 #if CONFIG_C043_MVP_IMPROVEMENTS
   x->e_mbd.ref_mv_bank = best_level_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  x->e_mbd.warp_param_bank = best_level_warp_bank;
+#endif  // WARP_CU_BANK
 
   // Also record the best partition in simple motion data tree because it is
   // necessary for the related speed features.

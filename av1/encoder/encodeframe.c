@@ -637,6 +637,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_C043_MVP_IMPROVEMENTS
       REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+      WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
       for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
         xd->tree_type =
             (total_loop_num == 1 ? SHARED_PART
@@ -660,6 +663,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_C043_MVP_IMPROVEMENTS
       td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+      td->mb.e_mbd.warp_param_bank = stored_warp_bank;
+#endif  // WARP_CU_BANK
       for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
         xd->tree_type =
             (total_loop_num == 1 ? SHARED_PART
@@ -945,7 +951,9 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
 
 #if CONFIG_WARP_REF_LIST
     av1_zero(td->mb.e_mbd.warp_param_bank);
+#if !WARP_CU_BANK
     td->mb.e_mbd.warp_param_bank_pt = &td->mb.e_mbd.warp_param_bank;
+#endif  //! WARP_CU_BANK
 #endif  // CONFIG_WARP_REF_LIST
 
     av1_encode_sb_row(cpi, td, tile_row, tile_col, mi_row);
