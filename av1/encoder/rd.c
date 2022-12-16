@@ -266,7 +266,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     int s;
     for (s = 1; s < EXT_TX_SETS_INTER; ++s) {
+#if CONFIG_ATC_REDUCED_TXSET
+      if (cm->features.reduced_tx_set_used || use_inter_ext_tx_for_txsize[s][i]) {
+#else
       if (use_inter_ext_tx_for_txsize[s][i]) {
+#endif
         av1_cost_tokens_from_cdf(
             mode_costs->inter_tx_type_costs[s][i], fc->inter_ext_tx_cdf[s][i],
             av1_ext_tx_inv[av1_ext_tx_set_idx_to_type[1][s]]);
@@ -275,13 +279,20 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     for (s = 1; s < EXT_TX_SETS_INTRA; ++s) {
 #if CONFIG_ATC_NEWTXSETS
       int tx_set_type = av1_ext_tx_set_idx_to_type[0][s];
+#if CONFIG_ATC_REDUCED_TXSET
+      int cdf_offset = cm->features.reduced_tx_set_used ? 1 : 0;
+#endif
 #endif  // CONFIG_ATC_NEWTXSETS
       if (use_intra_ext_tx_for_txsize[s][i]) {
         for (j = 0; j < INTRA_MODES; ++j) {
           av1_cost_tokens_from_cdf(
 #if CONFIG_ATC_NEWTXSETS
               mode_costs->intra_tx_type_costs[s][i][j],
+#if CONFIG_ATC_REDUCED_TXSET
+              fc->intra_ext_tx_cdf[s+cdf_offset][i][j],
+#else
               fc->intra_ext_tx_cdf[s][i][j],
+#endif
               tx_set_type == EXT_NEW_TX_SET
                   ? av1_md_idx2type[av1_size_class[i]][av1_md_class[j]]
                   : av1_ext_tx_inv[tx_set_type]);

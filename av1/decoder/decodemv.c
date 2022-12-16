@@ -1066,13 +1066,24 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                                        .filter_intra_mode]
               : mbmi->mode;
 #if CONFIG_FORWARDSKIP
+#if CONFIG_ATC_REDUCED_TXSET
+      int is_reduced = cm->features.reduced_tx_set_used ? 1 : 0;
+#endif
 #if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC_REDUCED_TXSET
+      const int size_info  = av1_size_class[tx_size];
+      *tx_type = av1_tx_idx_to_type(
+          aom_read_symbol(
+              r, ec_ctx->intra_ext_tx_cdf[eset+is_reduced][square_tx_size][intra_mode], is_reduced ? 2: av1_num_ext_tx_set_intra[tx_set_type],
+              ACCT_STR), tx_set_type, intra_mode, size_info);
+#else
       const int size_info = av1_size_class[tx_size];
       *tx_type = av1_tx_idx_to_type(
           aom_read_symbol(
               r, ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_mode],
               av1_num_ext_tx_set_intra[tx_set_type], ACCT_STR),
           tx_set_type, intra_mode, size_info);
+#endif
 #else
       *tx_type = av1_ext_tx_inv_intra[tx_set_type][aom_read_symbol(
           r, ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_mode],

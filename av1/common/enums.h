@@ -456,7 +456,7 @@ enum {
 
 #define EXT_TX_SIZES 4       // number of sizes that use extended transforms
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET
 #define EXT_TX_SETS_INTRA 2  // Sets of transform selections for INTRA
 #else
 #define EXT_TX_SETS_INTRA 3  // Sets of transform selections for INTRA
@@ -465,6 +465,9 @@ enum {
 #if CONFIG_FORWARDSKIP
 #if CONFIG_ATC_NEWTXSETS
 #define INTRA_TX_SET1 7
+#if CONFIG_ATC_REDUCED_TXSET
+#define INTRA_TX_SET2 2
+#endif
 #else
 #define INTRA_TX_SET1 6
 #define INTRA_TX_SET2 4

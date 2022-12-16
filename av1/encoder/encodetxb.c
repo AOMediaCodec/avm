@@ -3503,6 +3503,9 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && allow_update_cdf) {
           return;
         }
+#if CONFIG_ATC_REDUCED_TXSET
+        int is_reduced = cm->features.reduced_tx_set_used ? 1 : 0;
+#endif
 #endif  // CONFIG_FORWARDSKIP
         PREDICTION_MODE intra_dir;
         if (mbmi->filter_intra_mode_info.use_filter_intra)
@@ -3534,7 +3537,11 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
 #endif  // CONFIG_ENTROPY_STATS
         if (allow_update_cdf) {
           update_cdf(
+#if CONFIG_ATC_REDUCED_TXSET
+              fc->intra_ext_tx_cdf[eset + is_reduced][txsize_sqr_map[tx_size]][intra_dir],
+#else
               fc->intra_ext_tx_cdf[eset][txsize_sqr_map[tx_size]][intra_dir],
+#endif
 #if CONFIG_IST
 #if CONFIG_FORWARDSKIP
 #if CONFIG_ATC_NEWTXSETS
@@ -3554,7 +3561,11 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
 #endif  // CONFIG_FORWARDSKIP
 #endif
 #if CONFIG_FORWARDSKIP
+#if CONFIG_ATC_REDUCED_TXSET
+              is_reduced ? 2 : av1_num_ext_tx_set_intra[tx_set_type]);
+#else
               av1_num_ext_tx_set_intra[tx_set_type]);
+#endif
 #else
               av1_num_ext_tx_set[tx_set_type]);
 #endif  // CONFIG_FORWARDSKIP
