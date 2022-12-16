@@ -143,7 +143,7 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_ATC_NEWTXSETS 1
                    "AV2 enable adaptive transform coding and new TX sets.")
 set_aom_config_var(CONFIG_ATC_REDUCED_TXSET 1
-                   "AV2 enable reduced transform set derivation on net TX sets.")
+                   "AV2 enable reduced transform set.")
 set_aom_config_var(CONFIG_C043_MVP_IMPROVEMENTS 1
                    "AV2 enable MVP list improvements.")
 set_aom_config_var(CONFIG_C063_TMVP_IMPROVEMENT 1

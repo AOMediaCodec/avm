@@ -267,7 +267,8 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     int s;
     for (s = 1; s < EXT_TX_SETS_INTER; ++s) {
 #if CONFIG_ATC_REDUCED_TXSET
-      if (cm->features.reduced_tx_set_used || use_inter_ext_tx_for_txsize[s][i]) {
+      if (cm->features.reduced_tx_set_used ||
+          use_inter_ext_tx_for_txsize[s][i]) {
 #else
       if (use_inter_ext_tx_for_txsize[s][i]) {
 #endif
@@ -289,7 +290,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #if CONFIG_ATC_NEWTXSETS
               mode_costs->intra_tx_type_costs[s][i][j],
 #if CONFIG_ATC_REDUCED_TXSET
-              fc->intra_ext_tx_cdf[s+cdf_offset][i][j],
+              fc->intra_ext_tx_cdf[s + cdf_offset][i][j],
 #else
               fc->intra_ext_tx_cdf[s][i][j],
 #endif

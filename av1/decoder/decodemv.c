@@ -1071,11 +1071,14 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
 #endif
 #if CONFIG_ATC_NEWTXSETS
 #if CONFIG_ATC_REDUCED_TXSET
-      const int size_info  = av1_size_class[tx_size];
+      const int size_info = av1_size_class[tx_size];
       *tx_type = av1_tx_idx_to_type(
           aom_read_symbol(
-              r, ec_ctx->intra_ext_tx_cdf[eset+is_reduced][square_tx_size][intra_mode], is_reduced ? 2: av1_num_ext_tx_set_intra[tx_set_type],
-              ACCT_STR), tx_set_type, intra_mode, size_info);
+              r,
+              ec_ctx->intra_ext_tx_cdf[eset + is_reduced][square_tx_size]
+                                      [intra_mode],
+              is_reduced ? 2 : av1_num_ext_tx_set_intra[tx_set_type], ACCT_STR),
+          tx_set_type, intra_mode, size_info);
 #else
       const int size_info = av1_size_class[tx_size];
       *tx_type = av1_tx_idx_to_type(
