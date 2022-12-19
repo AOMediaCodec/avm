@@ -3273,9 +3273,19 @@ static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 MV_REFERENCE_FRAME ref1) {
 #if CONFIG_NEW_REF_SIGNALING
   xd->block_ref_scale_factors[0] =
-      get_ref_scale_factors_const(cm, ref0 < INTER_REFS_PER_FRAME ? ref0 : 0);
+      get_ref_scale_factors_const(cm, ref0 < INTER_REFS_PER_FRAME
+#if CONFIG_TIP
+                                              || is_tip_ref_frame(ref0)
+#endif  // CONFIG_TIP
+                                          ? ref0
+                                          : 0);
   xd->block_ref_scale_factors[1] =
-      get_ref_scale_factors_const(cm, ref1 < INTER_REFS_PER_FRAME ? ref1 : 0);
+      get_ref_scale_factors_const(cm, ref1 < INTER_REFS_PER_FRAME
+#if CONFIG_TIP
+                                              || is_tip_ref_frame(ref1)
+#endif  // CONFIG_TIP
+                                          ? ref1
+                                          : 0);
 #else
   xd->block_ref_scale_factors[0] =
       get_ref_scale_factors_const(cm, ref0 >= LAST_FRAME ? ref0 : 1);
