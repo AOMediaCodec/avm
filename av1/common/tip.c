@@ -1067,8 +1067,8 @@ static void tip_extend_plane_border(AV1_COMMON *cm, int blk_row_start,
     const int extend_border = tip_buf->border;
     const int y_width = tip_buf->y_crop_width;
     const int y_height = tip_buf->y_crop_height;
-    const int uv_width = y_width >> subsampling_x;
-    const int uv_heigh = y_height >> subsampling_y;
+    const int uv_width = tip_buf->uv_crop_width;
+    const int uv_height = tip_buf->uv_crop_height;
     uint16_t *y_dst = tip_buf->y_buffer;
     uint16_t *u_dst = tip_buf->u_buffer;
     uint16_t *v_dst = tip_buf->v_buffer;
@@ -1093,11 +1093,11 @@ static void tip_extend_plane_border(AV1_COMMON *cm, int blk_row_start,
     blk_width >>= subsampling_x;
     blk_height >>= subsampling_y;
     tip_extend_plane_block_based_highbd(
-        u_dst, uv_stride, uv_width, uv_heigh, uv_extend_top, uv_extend_left,
+        u_dst, uv_stride, uv_width, uv_height, uv_extend_top, uv_extend_left,
         uv_extend_bottom, uv_extend_right, blk_col_start, blk_row_start,
         blk_width, blk_height);
     tip_extend_plane_block_based_highbd(
-        v_dst, uv_stride, uv_width, uv_heigh, uv_extend_top, uv_extend_left,
+        v_dst, uv_stride, uv_width, uv_height, uv_extend_top, uv_extend_left,
         uv_extend_bottom, uv_extend_right, blk_col_start, blk_row_start,
         blk_width, blk_height);
   }
