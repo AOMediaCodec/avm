@@ -314,10 +314,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[1], INTRA_TX_SET1,
                            CDF_SIZE(TX_TYPES));
-#if !CONFIG_ATC_NEWTXSETS || CONFIG_ATC_REDUCED_TXSET
+#if !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[2], INTRA_TX_SET2,
                            CDF_SIZE(TX_TYPES));
-#endif  // !CONFIG_ATC_NEWTXSETS
+#endif  // !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[1], 16, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[2], 12, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], 2, CDF_SIZE(TX_TYPES));

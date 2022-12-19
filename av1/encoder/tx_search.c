@@ -2190,17 +2190,17 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     ext_tx_used_flag &= mdtx_mask;
 #if CONFIG_ATC_REDUCED_TXSET
     if (cm->features.reduced_tx_set_used) {
-      ext_tx_used_flag &= 0x0009;
+      ext_tx_used_flag &= 0x0009;  // DCT_DCT, ADST_ADST
     }
-#endif
+#endif  // CONFIG_ATC_REDUCED_TXSET
   }
 #if CONFIG_ATC_REDUCED_TXSET
   else {
     if (cm->features.reduced_tx_set_used) {
-      ext_tx_used_flag &= 0x0201;
+      ext_tx_used_flag &= 0x0201;  // DCT_DCT, IDTX
     }
   }
-#endif
+#endif  // CONFIG_ATC_REDUCED_TXSET
 #endif  // CONFIG_ATC_NEWTXSETS
   if (cpi->oxcf.txfm_cfg.enable_flip_idtx == 0)
     ext_tx_used_flag &= DCT_ADST_TX_MASK;

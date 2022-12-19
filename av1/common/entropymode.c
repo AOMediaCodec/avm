@@ -520,7 +520,7 @@ static const aom_cdf_prob default_intra_ext_tx_cdf
               { AOM_CDF2(16384) },
           },
       },
-#endif
+#endif  // CONFIG_ATC_REDUCED_TXSET
 #else
 #if CONFIG_FORWARDSKIP
       {

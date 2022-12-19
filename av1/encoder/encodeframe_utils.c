@@ -1411,10 +1411,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
   AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[1], ctx_tr->intra_ext_tx_cdf[1],
                  INTRA_TX_SET1, CDF_SIZE(TX_TYPES));
-#if !CONFIG_ATC_NEWTXSETS || CONFIG_ATC_REDUCED_TXSET
+#if !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
   AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[2], ctx_tr->intra_ext_tx_cdf[2],
                  INTRA_TX_SET2, CDF_SIZE(TX_TYPES));
-#endif  // !CONFIG_ATC_NEWTXSETS
+#endif  // !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
   AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[1], ctx_tr->inter_ext_tx_cdf[1], 16,
                  CDF_SIZE(TX_TYPES));
   AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[2], ctx_tr->inter_ext_tx_cdf[2], 12,

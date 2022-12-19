@@ -1504,6 +1504,11 @@ static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1, 1,  4,
                                                                 7
 #endif  // CONFIG_ATC_NEWTXSETS
 };
+
+#if CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
+static const int av1_num_reduced_tx_set = 2;
+#endif  // CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
+
 #endif  // CONFIG_FORWARDSKIP
 
 // Number of transform types in each set type
@@ -1697,7 +1702,7 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
 #else
   if (use_reduced_set)
     return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DTT4_IDTX;
-#endif
+#endif  // CONFIG_ATC_REDUCED_TXSET
 #if CONFIG_ATC_NEWTXSETS
   if (is_inter) {
     const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
