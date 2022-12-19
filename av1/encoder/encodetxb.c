@@ -3566,7 +3566,7 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                   : av1_num_ext_tx_set_intra[tx_set_type]);
 #else
               av1_num_ext_tx_set_intra[tx_set_type]);
-#endif
+#endif  // CONFIG_ATC_REDUCED_TXSET
 #else
               av1_num_ext_tx_set[tx_set_type]);
 #endif  // CONFIG_FORWARDSKIP
