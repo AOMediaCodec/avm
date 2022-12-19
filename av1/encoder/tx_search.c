@@ -2190,14 +2190,15 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     ext_tx_used_flag &= mdtx_mask;
 #if CONFIG_ATC_REDUCED_TXSET
     if (cm->features.reduced_tx_set_used) {
-      ext_tx_used_flag &= 0x0009;  // DCT_DCT, ADST_ADST
+      ext_tx_used_flag &=
+          (1 << DCT_DCT) | (1 << ADST_ADST);  // DCT_DCT, ADST_ADST
     }
 #endif  // CONFIG_ATC_REDUCED_TXSET
   }
 #if CONFIG_ATC_REDUCED_TXSET
   else {
     if (cm->features.reduced_tx_set_used) {
-      ext_tx_used_flag &= 0x0201;  // DCT_DCT, IDTX
+      ext_tx_used_flag &= (1 << DCT_DCT) | (1 << IDTX);  // DCT_DCT, IDTX
     }
   }
 #endif  // CONFIG_ATC_REDUCED_TXSET
@@ -2210,7 +2211,8 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     allowed_tx_mask = 1 << txk_allowed;
     allowed_tx_mask &= ext_tx_used_flag;
   } else if (fast_tx_search) {
-    allowed_tx_mask = 0x0c01;  // V_DCT, H_DCT, DCT_DCT
+    allowed_tx_mask =
+        (1 << V_DCT) | (1 << H_DCT) | (1 << DCT_DCT);  // V_DCT, H_DCT, DCT_DCT
     allowed_tx_mask &= ext_tx_used_flag;
   } else {
     assert(plane == 0);
