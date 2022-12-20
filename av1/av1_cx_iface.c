@@ -446,7 +446,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,  // use ml model for erp pruning
   0,  // enable ternary partitions
 #else
-  0,  // disable ML based partition speed up features
+  0,                        // disable ML based partition speed up features
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions

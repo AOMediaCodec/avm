@@ -1761,6 +1761,8 @@ typedef struct macroblockd {
 
   /*!
    * An array for recording whether an mi(4x4) is coded. Reset at sb level.
+   * For the first dimension, index == 0 corresponds to LUMA_PART and
+   * SHARED_PART. Index == 1 corresponds to SHARED_PART.
    */
   // TODO(any): Convert to bit field instead.
   uint8_t is_mi_coded[2][MAX_MIB_SQUARE];

@@ -3631,10 +3631,10 @@ static void rectangular_partition_search(
     REF_MV_BANK *best_level_bank, REF_MV_BANK *curr_level_bank,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
 #if WARP_CU_BANK
-    WARP_PARAM_BANK *best_level_warp_bank, WARP_PARAM_BANK *curr_level_warp_bank,
+    WARP_PARAM_BANK *best_level_warp_bank,
+    WARP_PARAM_BANK *curr_level_warp_bank,
 #endif  // WARP_CU_BANK
-    int64_t part_none_rd
-) {
+    int64_t part_none_rd) {
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   RD_STATS *sum_rdc = &part_search_state->sum_rdc;
@@ -5458,8 +5458,8 @@ BEGIN_PARTITION_SEARCH:
                           &best_level_bank
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
 #if WARP_CU_BANK
-                        ,
-                        &best_level_warp_bank
+                          ,
+                          &best_level_warp_bank
 #endif  // WARP_CU_BANK
     );
 #if CONFIG_C043_MVP_IMPROVEMENTS

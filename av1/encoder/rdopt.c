@@ -7164,21 +7164,6 @@ static AOM_INLINE int is_ref_frame_used_by_compound_ref(
   return 0;
 }
 
-/*
-static AOM_INLINE int is_ref_frame_used_by_compound_ref(
-    int ref_frame, int skip_ref_frame_mask) {
-  for (int r = ALTREF_FRAME + 1; r < MODE_CTX_REF_FRAMES; ++r) {
-    if (!(skip_ref_frame_mask & (1 << r))) {
-      const MV_REFERENCE_FRAME *rf = ref_frame_map[r - REF_FRAMES];
-      if (rf[0] == ref_frame || rf[1] == ref_frame) {
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-*/
-
 #if CONFIG_EXT_RECUR_PARTITIONS
 static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
                                                  const MB_MODE_INFO *mi_cache) {
@@ -9527,13 +9512,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-#if 0  // CONFIG_ORIP
-        int signal_intra_filter = av1_signal_orip_for_horver_modes(
-            &cpi->common, mbmi, PLANE_TYPE_Y, bsize);
-        if (!signal_intra_filter &&
-            mbmi->angle_delta[PLANE_TYPE_Y] == ANGLE_DELTA_VALUE_ORIP)
-          continue;
-#endif
         const PREDICTION_MODE this_mode = mbmi->mode;
 
 #if CONFIG_NEW_REF_SIGNALING
