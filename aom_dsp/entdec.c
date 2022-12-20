@@ -239,7 +239,8 @@ int od_ec_decode_literal_bypass(od_ec_dec *dec, int n_bits) {
 /*Decode unary-coded symbol.
   max_bits: Max number of decoded bits.
   Return: The value decoded (0..2^n_bits-1).*/
-OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits)
+OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
+                                                    int max_bits)
     OD_ARG_NONNULL(1);
 int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
   if (dec->cnt < max_bits - 1) od_ec_dec_refill(dec);
@@ -270,7 +271,8 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
 
 static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
   return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
-           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1)) << 1) +
+           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
+          << 1) +
          EC_MIN_PROB * n;
 }
 #endif  // CONFIG_BYPASS_IMPROVEMENT

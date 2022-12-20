@@ -130,7 +130,6 @@ static void write_golomb(aom_writer *w, int level) {
 
   for (i = length - 1; i >= 0; --i) aom_write_bit(w, (x >> i) & 0x01);
 #endif
-
 }
 
 static INLINE int64_t get_coeff_dist(tran_low_t tcoeff, tran_low_t dqcoeff,

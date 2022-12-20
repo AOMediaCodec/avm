@@ -145,7 +145,6 @@ TEST(EC_TEST, random_ec_test) {
       int dec_method;
       unsigned int sym = data[j] + 1;  // Initialize sym to an invalid value.
 
-
 #if CONFIG_BYPASS_IMPROVEMENT
       dec_method = enc_method[j];
       switch (dec_method) {
@@ -158,7 +157,7 @@ TEST(EC_TEST, random_ec_test) {
           int bits = (mode[j] & 7) + 1;
           int chunk = ((mode[j] >> 4) & 7) + 1;
           sym = 0;
-          while (bits > 0)  {
+          while (bits > 0) {
             int n = bits > chunk ? chunk : bits;
             sym <<= n;
             sym += od_ec_decode_literal_bypass(&dec, n);
@@ -215,6 +214,9 @@ TEST(EC_TEST, random_ec_test) {
     }
     free(enc_method);
     free(tell);
+#if CONFIG_BYPASS_IMPROVEMENT
+    free(mode);
+#endif  // CONFIG_BYPASS_IMPROVEMENT
     free(data);
     free(fts);
     free(fz);

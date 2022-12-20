@@ -58,8 +58,7 @@ void od_ec_enc_reset(od_ec_enc *enc) OD_ARG_NONNULL(1);
 void od_ec_enc_clear(od_ec_enc *enc) OD_ARG_NONNULL(1);
 
 #if CONFIG_BYPASS_IMPROVEMENT
-void od_ec_encode_bool_bypass(od_ec_enc *enc, int val)
-    OD_ARG_NONNULL(1);
+void od_ec_encode_bool_bypass(od_ec_enc *enc, int val) OD_ARG_NONNULL(1);
 void od_ec_encode_literal_bypass(od_ec_enc *enc, int val, int n_bits)
     OD_ARG_NONNULL(1);
 #endif

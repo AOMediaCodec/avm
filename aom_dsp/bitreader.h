@@ -107,8 +107,8 @@ static INLINE void aom_process_accounting(const aom_reader *r ACCT_STR_PARAM) {
 static INLINE void aom_update_symb_counts(const aom_reader *r, int is_binary,
                                           int is_context_coded, int n_bits) {
 #else
-  static INLINE void aom_update_symb_counts(const aom_reader *r, int is_binary,
-                                            int n_bits) {
+static INLINE void aom_update_symb_counts(const aom_reader *r, int is_binary,
+                                          int n_bits) {
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
   if (r->accounting != NULL) {
     r->accounting->syms.num_multi_syms += is_binary ? 0 : n_bits;
@@ -206,7 +206,7 @@ static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_STR_PARAM) {
   int literal = 0;
   int n_bits = bits;
   int n;
-  while (n_bits > 0)  {
+  while (n_bits > 0) {
     n = n_bits >= 8 ? 8 : n_bits;
     literal <<= n;
     literal += od_ec_decode_literal_bypass(&r->ec, n);

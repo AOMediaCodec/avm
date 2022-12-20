@@ -166,7 +166,8 @@ void od_ec_enc_clear(od_ec_enc *enc) {
 #if CONFIG_BYPASS_IMPROVEMENT
 static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
   return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
-           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1)) << 1) +
+           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
+          << 1) +
          EC_MIN_PROB * n;
 }
 #endif  // CONFIG_BYPASS_IMPROVEMENT
@@ -187,7 +188,7 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
   l = enc->low;
   r = enc->rng;
 #if CONFIG_BYPASS_IMPROVEMENT
-  assert ((r & 1) == 0);
+  assert((r & 1) == 0);
 #endif  // CONFIG_BYPASS_IMPROVEMENT
   assert(32768U <= r);
   assert(fh <= fl);
