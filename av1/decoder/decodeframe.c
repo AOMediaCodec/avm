@@ -311,6 +311,9 @@ static AOM_INLINE void decode_reconstruct_tx(
                                     pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
+#if CONFIG_NEW_TX_PARTITION
+  (void)block;
+#endif  // CONFIG_NEW_TX_PARTITION
   // Scale to match transform block unit.
   const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
@@ -338,7 +341,6 @@ static AOM_INLINE void decode_reconstruct_tx(
         const TX_SIZE sub_tx = sub_txs[cur_partition];
         bsw = tx_size_wide_unit[sub_tx];
         bsh = tx_size_high_unit[sub_tx];
-        const int sub_step = bsw * bsh;
         const int offsetr = blk_row + row;
         const int offsetc = blk_col + col;
         if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
@@ -350,7 +352,6 @@ static AOM_INLINE void decode_reconstruct_tx(
         eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
         *eob_total += eob_data->eob;
         set_cb_buffer_offsets(dcb, sub_tx, plane);
-        block += sub_step;
         cur_partition++;
       }
     }

@@ -3006,6 +3006,21 @@ static AOM_INLINE void try_tx_block_split(
 #endif  // !CONFIG_NEW_TX_PARTITION
 
 #if CONFIG_NEW_TX_PARTITION
+static AOM_INLINE void set_inter_tx_size(MB_MODE_INFO *mbmi, int stride_log2,
+                                         int tx_w_log2, int tx_h_log2,
+                                         int min_txs, int split_size, int txs,
+                                         int blk_row, int blk_col) {
+  for (int idy = 0; idy < tx_size_high_unit[split_size];
+       idy += tx_size_high_unit[min_txs]) {
+    for (int idx = 0; idx < tx_size_wide_unit[split_size];
+         idx += tx_size_wide_unit[min_txs]) {
+      const int index = (((blk_row + idy) >> tx_h_log2) << stride_log2) +
+                        ((blk_col + idx) >> tx_w_log2);
+      mbmi->inter_tx_size[index] = txs;
+    }
+  }
+}
+
 // Search for the best tx partition type for a given luma block.
 static void select_tx_partition_type(
     const AV1_COMP *cpi, MACROBLOCK *x, int blk_row, int blk_col, int block,
@@ -3205,13 +3220,6 @@ static void select_tx_partition_type(
       av1_set_txb_context(x, 0, block, tx_size_selected, pta, ptl);
       txfm_partition_update(tx_above + offsetc, tx_left + offsetr, sub_tx,
                             sub_tx);
-      for (int idy = 0; idy < tx_size_high_unit[sub_tx]; ++idy) {
-        for (int idx = 0; idx < tx_size_wide_unit[sub_tx]; ++idx) {
-          index =
-              av1_get_txb_size_index(plane_bsize, offsetr + idy, offsetc + idx);
-          mbmi->inter_tx_size[index] = tx_size_selected;
-        }
-      }
       mbmi->tx_size = tx_size_selected;
       update_txk_array(xd, offsetr, offsetc, sub_tx,
                        best_partition_tx_types[cur_partition]);
@@ -3221,6 +3229,13 @@ static void select_tx_partition_type(
       cur_partition++;
     }
   }
+  const TX_SIZE txs = sub_tx_size_map[max_tx_size];
+  const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
+  const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
+  const int bw_log2 = mi_size_wide_log2[plane_bsize];
+  const int stride_log2 = bw_log2 - tx_w_log2;
+  set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs, max_tx_size,
+                    mbmi->tx_size, blk_row, blk_col);
 }
 #else
 // Search for the best transform partition(recursive)/type for a given
