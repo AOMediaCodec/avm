@@ -155,6 +155,13 @@ static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
   if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
   return ret;
 }
+
+static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
+  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
+           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
+          << 1) +
+         EC_MIN_PROB * n;
+}
 #endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*Initializes the decoder.
@@ -188,8 +195,12 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   r = dec->rng;
   assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
   assert(32768U <= r);
+#if CONFIG_BYPASS_IMPROVEMENT
+  v = od_ec_prob_scale(f, r, 1);
+#else
   v = ((r >> 8) * (uint32_t)(f >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT));
   v += EC_MIN_PROB;
+#endif
   vw = (od_ec_window)v << (OD_EC_WINDOW_SIZE - 16);
   ret = 1;
   r_new = v;
@@ -267,13 +278,6 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
     }
   }
   return od_ec_dec_bypass_normalize(dec, dif, bit + 1, ret);
-}
-
-static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
-  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
-           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
-          << 1) +
-         EC_MIN_PROB * n;
 }
 #endif  // CONFIG_BYPASS_IMPROVEMENT
 
