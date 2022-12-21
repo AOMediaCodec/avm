@@ -166,9 +166,18 @@ TEST(AV1, TestHasOverflowed) {
     // take around 178 calls to consume more than 8 bits. That is only an upper
     // bound. In practice we are not guaranteed to hit the worse case and can
     // get away with 174 calls.
+#if CONFIG_BYPASS_IMPROVEMENT
+    // With od_ec_window increased to 64 bits, there are up to ~48
+    // additional bits; therefore the number of reads should be increased;
+    // 174 * 8 will be enough to consume more than this number of bits.
+    for (int i = 0; i < 174 * 8; i++) {
+      aom_read(&br, p, NULL);
+    }
+#else
     for (int i = 0; i < 174; i++) {
       aom_read(&br, p, NULL);
     }
+#endif
     ASSERT_TRUE(aom_reader_has_overflowed(&br));
   }
 }
