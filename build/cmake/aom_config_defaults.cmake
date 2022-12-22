@@ -152,7 +152,7 @@ set_aom_config_var(CONFIG_FORWARDSKIP 1
                    "AV2 enable forward skip residual coding.")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
-set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
+set_aom_config_var(CONFIG_NEW_TX_PARTITION 0
                    "AV2 new transform partitions experiment flag.")
 set_aom_config_var(
   CONFIG_ORIP 1
@@ -253,7 +253,7 @@ set_aom_config_var(CONFIG_C076_INTER_MOD_CTX 1
 
 set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
                    "Enable to improve the context modeling")
-set_aom_config_var(CONFIG_CROSS_CHROMA_TX 1
+set_aom_config_var(CONFIG_CROSS_CHROMA_TX 0
                    "AV2 cross chroma component transform experiment flag.")
 #
 # Variables in this section control optional features of the build system.
