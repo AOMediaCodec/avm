@@ -253,7 +253,7 @@ set_aom_config_var(CONFIG_C076_INTER_MOD_CTX 1
 
 set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
                    "Enable to improve the context modeling")
-set_aom_config_var(CONFIG_CROSS_CHROMA_TX 0
+set_aom_config_var(CONFIG_CROSS_CHROMA_TX 1
                    "AV2 cross chroma component transform experiment flag.")
 #
 # Variables in this section control optional features of the build system.

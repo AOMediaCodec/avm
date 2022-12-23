@@ -34,7 +34,9 @@ extern "C" {
 
 #if CONFIG_WARP_REF_LIST
 #define WARP_CU_BANK 1
-#endif
+#else
+#define WARP_CU_BANK 0
+#endif  // CONFIG_WARP_REF_LIST
 
 // Cross-Component Sample Offset (CCSO)
 #if CONFIG_CCSO

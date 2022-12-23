@@ -4663,12 +4663,6 @@ static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
 int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                         const MB_MODE_INFO *mbmi, int mvp_row_offset,
                         int mvp_col_offset, POSITION *base_pos) {
-  const TileInfo *const tile = &xd->tile;
-  const int bs = AOMMAX(xd->width, xd->height);
-  const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
-  const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
-  POSITION mi_pos = { 0, 0 };
-
   if (mvp_col_offset == -1 || mvp_row_offset == -1) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mvp_row_offset * xd->mi_stride + mvp_col_offset];
