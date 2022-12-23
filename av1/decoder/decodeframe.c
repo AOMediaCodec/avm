@@ -2242,6 +2242,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #if CONFIG_LR_FLEX_SYNTAX
     uint8_t plane_lr_tools_disable_mask =
         cm->seq_params.lr_tools_disable_mask[p > 0];
+#if CONFIG_PC_WIENER
+    if (cm->superres_scale_denominator != SCALE_NUMERATOR)
+      plane_lr_tools_disable_mask |= (1 << RESTORE_PC_WIENER);
+#endif  // CONFIG_PC_WIENER
     av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
     const int ndx = rb_read_uniform(rb, cm->features.lr_frame_tools_count[p]);
     rsi->frame_restoration_type = index_to_frame_restoration_type(cm, p, ndx);

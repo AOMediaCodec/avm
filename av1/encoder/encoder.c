@@ -3216,6 +3216,23 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cm->cur_frame->buf.render_height = cm->render_height;
   cm->cur_frame->buf.bit_depth = (unsigned int)seq_params->bit_depth;
 
+#if CONFIG_LR_FLEX_SYNTAX
+  // If superres is used turn off PC_WIENER for since tx_skip values will
+  // not be aligned.
+  uint8_t master_lr_tools_disable_mask[2] = {
+    cm->seq_params.lr_tools_disable_mask[0],
+    cm->seq_params.lr_tools_disable_mask[1]
+  };
+#if CONFIG_PC_WIENER
+  if (cm->superres_scale_denominator != SCALE_NUMERATOR) {
+    master_lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
+    master_lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
+  }
+#endif  // CONFIG_PC_WIENER
+  av1_set_lr_tools(master_lr_tools_disable_mask[0], 0, &cm->features);
+  av1_set_lr_tools(master_lr_tools_disable_mask[1], 1, &cm->features);
+  av1_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
+#endif  // CONFIG_LR_FLEX_SYNTAX
   // Pick the loop filter level for the frame.
   if (!is_global_intrabc_allowed(cm)) {
     loopfilter_frame(cpi, cm);
