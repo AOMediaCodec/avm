@@ -2642,6 +2642,16 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
   (void)plane;
 }
 
+// This is meant to be called when the RUs in an entire coded tile are to
+// be processed. The tile_rect passed in is the RU-domain rectangle covering
+// all the RUs that are signaled as part of  coded tile. The first RU row is
+// expected to be offset. In AV1 syntax, the offsetting only happens for the
+// first row in the frame and all other tile boundaries are ignored for the
+// purpose of filtering. So whenever this is called make sure that the
+// tile_rect passed in is for the entire frame or at least a vertical tile in
+// the frame. However we still preserve the generic functionality here in this
+// function. In the future if we allow filtering to be conducted independently
+// within each tile, this function could be more useful.
 void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
                                    int hunits_per_tile, int vunits_per_tile,
                                    int unit_stride, int unit_size, int ss_y,
@@ -2666,6 +2676,51 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
     limits.v_start = AOMMAX(tile_rect->top, limits.v_start - voffset);
     if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
 
+    assert(i < vunits_per_tile);
+    av1_foreach_rest_unit_in_row(
+        &limits, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
+        hunits_per_tile, vunits_per_tile, unit_stride, plane, priv, tmpbuf,
+        rlbs, av1_lr_sync_read_dummy, av1_lr_sync_write_dummy, NULL, processed);
+
+    y0 += h;
+    ++i;
+  }
+}
+
+// This is meant to be called when the RUs in a single coded SB are to be
+// processed. The tile_rect passed in is the RU-domain rectangle covering
+// all the RUs that are signaled as part of  coded SB. The first RU row is
+// expected to be offset only if the tile_rect starts at row 0. Note that
+// this is a simple variation of the function above and could have been
+// combined, but they are kept distinct to avoid confusion in the future.
+void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect, int unit_idx0,
+                                 int hunits_per_tile, int vunits_per_tile,
+                                 int unit_stride, int unit_size, int ss_y,
+                                 int plane, rest_unit_visitor_t on_rest_unit,
+                                 void *priv, int32_t *tmpbuf,
+                                 RestorationLineBuffers *rlbs, int *processed) {
+  const int tile_h = tile_rect->bottom - tile_rect->top;
+  const int ext_size = unit_size * 3 / 2 + RESTORATION_UNIT_OFFSET;
+
+  int y0 = 0, i = 0;
+  while (y0 < tile_h) {
+    int remaining_h = tile_h - y0;
+    int h = (remaining_h < ext_size) ? remaining_h : unit_size;
+
+    RestorationTileLimits limits;
+    limits.v_start = tile_rect->top + y0;
+    limits.v_end = tile_rect->top + y0 + h;
+    assert(limits.v_end <= tile_rect->bottom);
+    // Offset the tile upwards to align with the restoration processing stripe
+    // if the SB that iuncludes the RUs in this group are the top row
+    if (tile_rect->top == 0) {
+      const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
+      limits.v_start = AOMMAX(tile_rect->top, limits.v_start - voffset);
+      if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
+      h = limits.v_end - limits.v_start;
+    }
+
+    assert(i < vunits_per_tile);
     av1_foreach_rest_unit_in_row(
         &limits, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
         hunits_per_tile, vunits_per_tile, unit_stride, plane, priv, tmpbuf,

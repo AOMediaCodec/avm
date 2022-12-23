@@ -4562,13 +4562,14 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
       if (av1_loop_restoration_corners_in_sb(
               rsc->cm, rsc->plane, mi_row, mi_col, rsc->cm->seq_params.sb_size,
               &rcol0, &rcol1, &rrow0, &rrow1)) {
+        // RU domain rectangle for the coded SB
         AV1PixelRect ru_sb_rect = av1_get_rutile_rect(
             rsc->cm, is_uv, rrow0, rrow1, rcol0, rcol1, ru_size, ru_size);
         const int unit_idx0 = rrow0 * rsi->horz_units_per_tile + rcol0;
-        av1_foreach_rest_unit_in_tile(&ru_sb_rect, unit_idx0, rcol1 - rcol0,
-                                      rrow1 - rrow0, rsi->horz_units_per_tile,
-                                      ru_size, ss_y, rsc->plane, fun, rsc,
-                                      rsc->cm->rst_tmpbuf, NULL, processed);
+        av1_foreach_rest_unit_in_sb(&ru_sb_rect, unit_idx0, rcol1 - rcol0,
+                                    rrow1 - rrow0, rsi->horz_units_per_tile,
+                                    ru_size, ss_y, rsc->plane, fun, rsc,
+                                    rsc->cm->rst_tmpbuf, NULL, processed);
       }
     }
   }

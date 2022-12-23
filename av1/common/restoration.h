@@ -697,7 +697,7 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
 void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
                                       struct AV1Common *cm, int num_planes);
 
-// Call on_rest_unit for each loop restoration unit in the plane.
+// Call on_rest_unit for each loop restoration unit in a tile.
 void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
                                    int hunits_per_tile, int vunits_per_tile,
                                    int unit_stride, int unit_size, int ss_y,
@@ -705,6 +705,14 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
                                    void *priv, int32_t *tmpbuf,
                                    RestorationLineBuffers *rlbs,
                                    int *processed);
+// Call on_rest_unit for each loop restoration unit in a coded SB.
+void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect, int unit_idx0,
+                                 int hunits_per_tile, int vunits_per_tile,
+                                 int unit_stride, int unit_size, int ss_y,
+                                 int plane, rest_unit_visitor_t on_rest_unit,
+                                 void *priv, int32_t *tmpbuf,
+                                 RestorationLineBuffers *rlbs, int *processed);
+// Call on_rest_unit for each loop restoration unit in the plane.
 void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
                                     rest_unit_visitor_t on_rest_unit,
                                     void *priv, AV1PixelRect *tile_rect,
