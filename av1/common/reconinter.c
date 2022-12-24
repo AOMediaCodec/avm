@@ -158,7 +158,7 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
   }
 }
 
-#if !WEDGE_EXT
+#if !CONFIG_WEDGE_MOD_EXT
 static const uint8_t wedge_master_oblique_odd[MASK_MASTER_SIZE] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  6,  18,
@@ -200,9 +200,9 @@ static const int8_t wedge_sin_lut[WEDGE_ANGLES] = {
       8,  8,  4,  4,  2
 };
 /* clang-format on */
-#endif
+#endif  // !CONFIG_WEDGE_MOD_EXT
 
-#if !WEDGE_EXT
+#if !CONFIG_WEDGE_MOD_EXT
 static AOM_INLINE void shift_copy(const uint8_t *src, uint8_t *dst, int shift,
                                   int width) {
   if (shift >= 0) {
@@ -242,10 +242,10 @@ DECLARE_ALIGNED(16, static uint8_t,
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
 };
 /* clang-format on */
-#endif
+#endif  // !CONFIG_WEDGE_MOD_EXT
 
 // [negative][direction]
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
 DECLARE_ALIGNED(
     16, static uint8_t,
     wedge_master_mask[2][WEDGE_ANGLES][MASK_MASTER_SIZE * MASK_MASTER_SIZE]);
@@ -253,18 +253,18 @@ DECLARE_ALIGNED(
 DECLARE_ALIGNED(
     16, static uint8_t,
     wedge_mask_obl[2][WEDGE_DIRECTIONS][MASK_MASTER_SIZE * MASK_MASTER_SIZE]);
-#endif
+#endif  // CONFIG_WEDGE_MOD_EXT
 
 // 4 * MAX_WEDGE_SQUARE is an easy to compute and fairly tight upper bound
 // on the sum of all mask sizes up to an including MAX_WEDGE_SQUARE.
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
 DECLARE_ALIGNED(
     16, static uint8_t,
     wedge_mask_buf[2 * MAX_WEDGE_TYPES * H_WEDGE_ANGLES * MAX_WEDGE_SQUARE]);
 #else
 DECLARE_ALIGNED(16, static uint8_t,
                 wedge_mask_buf[2 * MAX_WEDGE_TYPES * 4 * MAX_WEDGE_SQUARE]);
-#endif
+#endif  // CONFIG_WEDGE_MOD_EXT
 
 DECLARE_ALIGNED(16, static uint8_t,
                 smooth_interintra_mask_buf[INTERINTRA_MODES][BLOCK_SIZES_ALL]
@@ -272,7 +272,7 @@ DECLARE_ALIGNED(16, static uint8_t,
 
 static wedge_masks_type wedge_masks[BLOCK_SIZES_ALL][2];
 
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
 static const wedge_code_type wedge_codebook_16[MAX_WEDGE_TYPES] = {
   { WEDGE_0, 5, 4 },   { WEDGE_0, 6, 4 },   { WEDGE_0, 7, 4 },
   { WEDGE_14, 4, 4 },  { WEDGE_14, 5, 4 },  { WEDGE_14, 6, 4 },
@@ -331,9 +331,9 @@ static const wedge_code_type wedge_codebook_16_heqw[16] = {
   { WEDGE_OBLIQUE63, 2, 4 },  { WEDGE_OBLIQUE63, 6, 4 },
   { WEDGE_OBLIQUE117, 2, 4 }, { WEDGE_OBLIQUE117, 6, 4 },
 };
-#endif
+#endif  // CONFIG_WEDGE_MOD_EXT
 
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
 const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
@@ -402,7 +402,7 @@ static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
   const wedge_code_type *a =
       av1_wedge_params_lookup[sb_type].codebook + wedge_index;
   int woff, hoff;
-#if !WEDGE_EXT
+#if !CONFIG_WEDGE_MOD_EXT
   const uint8_t wsignflip =
       av1_wedge_params_lookup[sb_type].signflip[wedge_index];
 #endif
@@ -410,7 +410,7 @@ static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
   assert(wedge_index >= 0 && wedge_index < get_wedge_types_lookup(sb_type));
   woff = (a->x_offset * bw) >> 3;
   hoff = (a->y_offset * bh) >> 3;
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
   master = wedge_master_mask[neg][a->direction] +
            MASK_MASTER_STRIDE * (MASK_MASTER_SIZE / 2 - hoff) +
            MASK_MASTER_SIZE / 2 - woff;
@@ -418,7 +418,7 @@ static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
   master = wedge_mask_obl[neg ^ wsignflip][a->direction] +
            MASK_MASTER_STRIDE * (MASK_MASTER_SIZE / 2 - hoff) +
            MASK_MASTER_SIZE / 2 - woff;
-#endif
+#endif  // CONFIG_WEDGE_MOD_EXT
   return master;
 }
 
@@ -550,7 +550,7 @@ void av1_build_compound_diffwtd_mask_highbd_c(
 }
 
 static AOM_INLINE void init_wedge_master_masks() {
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
   const int w = MASK_MASTER_SIZE;
   const int h = MASK_MASTER_SIZE;
   for (int angle = 0; angle < WEDGE_ANGLES; angle++) {

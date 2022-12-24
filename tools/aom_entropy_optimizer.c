@@ -632,7 +632,7 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_compound_type_cdf"
                      "[BLOCK_SIZES_ALL][CDF_SIZE(COMPOUND_TYPES - 1)]");
 
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
@@ -667,7 +667,7 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.wedge_idx[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(16)]");
-#endif
+#endif  // CONFIG_WEDGE_MOD_EXT
 
   /* motion_var and warped_motion experiments */
 #if CONFIG_EXTENDED_WARP_PREDICTION

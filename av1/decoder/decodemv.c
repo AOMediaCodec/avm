@@ -469,6 +469,35 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 }
 
+#if CONFIG_WEDGE_MOD_EXT
+static int8_t read_wedge_mode(aom_reader *r, FRAME_CONTEXT *ec_ctx,
+                              const BLOCK_SIZE bsize) {
+  int wedge_angle_dir =
+      aom_read_symbol(r, ec_ctx->wedge_angle_dir_cdf[bsize], 2, ACCT_STR);
+  int wedge_angle = WEDGE_ANGLES;
+  if (wedge_angle_dir == 0) {
+    wedge_angle = aom_read_symbol(r, ec_ctx->wedge_angle_0_cdf[bsize],
+                                  H_WEDGE_ANGLES, ACCT_STR);
+  } else {
+    wedge_angle =
+        H_WEDGE_ANGLES + aom_read_symbol(r, ec_ctx->wedge_angle_1_cdf[bsize],
+                                         H_WEDGE_ANGLES, ACCT_STR);
+  }
+  int wedge_dist = 0;
+  if ((wedge_angle >= H_WEDGE_ANGLES) ||
+      (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+    wedge_dist = aom_read_symbol(r, ec_ctx->wedge_dist_cdf2[bsize],
+                                 NUM_WEDGE_DIST - 1, ACCT_STR) +
+                 1;
+  } else {
+    assert(wedge_angle < H_WEDGE_ANGLES);
+    wedge_dist = aom_read_symbol(r, ec_ctx->wedge_dist_cdf[bsize],
+                                 NUM_WEDGE_DIST, ACCT_STR);
+  }
+  return wedge_angle_dist_2_index[wedge_angle][wedge_dist];
+}
+#endif  // CONFIG_WEDGE_MOD_EXT
+
 static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     MB_MODE_INFO *mbmi, aom_reader *r) {
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
@@ -507,34 +536,9 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
         mbmi->use_wedge_interintra = aom_read_symbol(
             r, xd->tile_ctx->wedge_interintra_cdf[bsize], 2, ACCT_STR);
         if (mbmi->use_wedge_interintra) {
-#if WEDGE_EXT
-          int wedge_angle_dir = aom_read_symbol(
-              r, xd->tile_ctx->wedge_angle_dir_cdf[bsize], 2, ACCT_STR);
-          int wedge_angle = WEDGE_ANGLES;
-          if (wedge_angle_dir == 0) {
-            wedge_angle =
-                aom_read_symbol(r, xd->tile_ctx->wedge_angle_0_cdf[bsize],
-                                H_WEDGE_ANGLES, ACCT_STR);
-          } else {
-            wedge_angle =
-                H_WEDGE_ANGLES +
-                aom_read_symbol(r, xd->tile_ctx->wedge_angle_1_cdf[bsize],
-                                H_WEDGE_ANGLES, ACCT_STR);
-          }
-          int wedge_dist = 0;
-          if ((wedge_angle >= H_WEDGE_ANGLES) ||
-              (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
-            wedge_dist =
-                aom_read_symbol(r, xd->tile_ctx->wedge_dist_cdf2[bsize],
-                                NUM_WEDGE_DIST - 1, ACCT_STR) +
-                1;
-          } else {
-            assert(wedge_angle < H_WEDGE_ANGLES);
-            wedge_dist = aom_read_symbol(r, xd->tile_ctx->wedge_dist_cdf[bsize],
-                                         NUM_WEDGE_DIST, ACCT_STR);
-          }
+#if CONFIG_WEDGE_MOD_EXT
           mbmi->interintra_wedge_index =
-              wedge_angle_dist_2_index[wedge_angle][wedge_dist];
+              read_wedge_mode(r, xd->tile_ctx, bsize);
           assert(mbmi->interintra_wedge_index != -1);
 #else
           mbmi->interintra_wedge_index = (int8_t)aom_read_symbol(
@@ -3065,36 +3069,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
       if (mbmi->interinter_comp.type == COMPOUND_WEDGE) {
         assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
-#if WEDGE_EXT
-        int wedge_angle_dir =
-            aom_read_symbol(r, ec_ctx->wedge_angle_dir_cdf[bsize], 2, ACCT_STR);
-        int wedge_angle = WEDGE_ANGLES;
-        if (wedge_angle_dir == 0) {
-          wedge_angle = aom_read_symbol(r, ec_ctx->wedge_angle_0_cdf[bsize],
-                                        H_WEDGE_ANGLES, ACCT_STR);
-        } else {
-          wedge_angle = H_WEDGE_ANGLES +
-                        aom_read_symbol(r, ec_ctx->wedge_angle_1_cdf[bsize],
-                                        H_WEDGE_ANGLES, ACCT_STR);
-        }
-        int wedge_dist = 0;
-        if ((wedge_angle >= H_WEDGE_ANGLES) ||
-            (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
-          wedge_dist = aom_read_symbol(r, ec_ctx->wedge_dist_cdf2[bsize],
-                                       NUM_WEDGE_DIST - 1, ACCT_STR) +
-                       1;
-        } else {
-          assert(wedge_angle < H_WEDGE_ANGLES);
-          wedge_dist = aom_read_symbol(r, ec_ctx->wedge_dist_cdf[bsize],
-                                       NUM_WEDGE_DIST, ACCT_STR);
-        }
-        mbmi->interinter_comp.wedge_index =
-            wedge_angle_dist_2_index[wedge_angle][wedge_dist];
+#if CONFIG_WEDGE_MOD_EXT
+        mbmi->interinter_comp.wedge_index = read_wedge_mode(r, ec_ctx, bsize);
         assert(mbmi->interinter_comp.wedge_index != -1);
 #else
         mbmi->interinter_comp.wedge_index = (int8_t)aom_read_symbol(
             r, ec_ctx->wedge_idx_cdf[bsize], MAX_WEDGE_TYPES, ACCT_STR);
-#endif
+#endif  // CONFIG_WEDGE_MOD_EXT
         mbmi->interinter_comp.wedge_sign = (int8_t)aom_read_bit(r, ACCT_STR);
       } else {
         assert(mbmi->interinter_comp.type == COMPOUND_DIFFWTD);

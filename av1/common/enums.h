@@ -29,8 +29,9 @@ extern "C" {
 
 #undef MAX_SB_SIZE
 
-#define WEDGE_EXT 1  // wedge mode extensions
-#if WEDGE_EXT
+#if CONFIG_WEDGE_MOD_EXT
+/*WEDGE_0 is defined in the three o'clock direciton, the angles are defined in
+ * the anticlockwise.*/
 enum {
   WEDGE_0,
   WEDGE_14,
@@ -59,7 +60,7 @@ enum {
 #define NUM_WEDGE_DIST 4
 #define MAX_WEDGE_TYPES \
   (H_WEDGE_ANGLES * NUM_WEDGE_DIST + H_WEDGE_ANGLES * (NUM_WEDGE_DIST - 1) - 2)
-#endif
+#endif  // CONFIG_WEDGE_MOD_EXT
 #if CONFIG_ADAPTIVE_DS_FILTER
 #define DS_FRAME_LEVEL 1  // Signal at key frame
 #endif

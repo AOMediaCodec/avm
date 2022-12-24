@@ -119,9 +119,18 @@ void aom_highbd_comp_mask_pred_sse2(uint16_t *comp_pred, const uint16_t *pred,
       comp_pred += width;
       i += 1;
     } while (i < height);
+#if CONFIG_WEDGE_MOD_EXT
+  } else if (width >= 32) {
+#else
   } else if (width == 32) {
+#endif  // CONFIG_WEDGE_MOD_EXT
     do {
+#if CONFIG_WEDGE_MOD_EXT
+      const int num_16_subs = (width >> 4);
+      for (int j = 0; j < num_16_subs; j++) {
+#else
       for (int j = 0; j < 2; j++) {
+#endif  // CONFIG_WEDGE_MOD_EXT
         const __m128i s0 = _mm_loadu_si128((const __m128i *)(src0 + j * 16));
         const __m128i s2 =
             _mm_loadu_si128((const __m128i *)(src0 + 8 + j * 16));

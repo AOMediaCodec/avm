@@ -207,4 +207,36 @@ void aom_highbd_comp_mask_pred_avx2(uint16_t *comp_pred, const uint16_t *pred,
       i += 1;
     } while (i < height);
   }
+#if CONFIG_WEDGE_MOD_EXT
+  else if (width > 32) {
+    do {
+      const int num_32_subs = (width >> 5);
+      for (int j = 0; j < num_32_subs; j++) {
+        const __m256i s0 = _mm256_loadu_si256((const __m256i *)src0 + j * 32);
+        const __m256i s2 =
+            _mm256_loadu_si256((const __m256i *)(src0 + 16 + j * 32));
+        const __m256i s1 = _mm256_loadu_si256((const __m256i *)src1 + j * 32);
+        const __m256i s3 =
+            _mm256_loadu_si256((const __m256i *)(src1 + 16 + j * 32));
+
+        const __m256i m01_16 = _mm256_cvtepu8_epi16(
+            _mm_loadu_si128((const __m128i *)mask + j * 32));
+        const __m256i m23_16 = _mm256_cvtepu8_epi16(
+            _mm_loadu_si128((const __m128i *)(mask + 16 + j * 32)));
+
+        const __m256i comp = highbd_comp_mask_pred_line_avx2(s0, s1, m01_16);
+        const __m256i comp1 = highbd_comp_mask_pred_line_avx2(s2, s3, m23_16);
+
+        _mm256_storeu_si256((__m256i *)comp_pred + j * 32, comp);
+        _mm256_storeu_si256((__m256i *)(comp_pred + 16 + j * 32), comp1);
+      }
+
+      src0 += stride0;
+      src1 += stride1;
+      mask += mask_stride;
+      comp_pred += width;
+      i += 1;
+    } while (i < height);
+  }
+#endif  // CONFIG_WEDGE_MOD_EXT
 }

@@ -199,6 +199,50 @@ static AOM_INLINE void update_global_motion_used(PREDICTION_MODE mode,
   }
 }
 
+#if CONFIG_WEDGE_MOD_EXT
+static AOM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,
+                                             const BLOCK_SIZE bsize,
+                                             const int8_t wedge_index
+#if CONFIG_ENTROPY_STATS
+                                             ,
+                                             FRAME_COUNTS *const counts
+#endif
+) {
+  int wedge_angle = wedge_index_2_angle[wedge_index];
+  int wedge_dist = wedge_index_2_dist[wedge_index];
+  int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+#if CONFIG_ENTROPY_STATS
+  counts->wedge_angle_dir_cnt[bsize][wedge_angle_dir]++;
+#endif
+  update_cdf(fc->wedge_angle_dir_cdf[bsize], wedge_angle_dir, 2);
+  if (wedge_angle_dir == 0) {
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_angle_0_cnt[bsize][wedge_angle]++;
+#endif
+    update_cdf(fc->wedge_angle_0_cdf[bsize], wedge_angle, H_WEDGE_ANGLES);
+  } else {
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_angle_1_cnt[bsize][wedge_angle - H_WEDGE_ANGLES]++;
+#endif
+    update_cdf(fc->wedge_angle_1_cdf[bsize], wedge_angle - H_WEDGE_ANGLES,
+               H_WEDGE_ANGLES);
+  }
+  if ((wedge_angle >= H_WEDGE_ANGLES) ||
+      (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+    assert(wedge_dist != 0);
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_dist_3_cnt[bsize][wedge_dist - 1]++;
+#endif
+    update_cdf(fc->wedge_dist_cdf2[bsize], wedge_dist - 1, NUM_WEDGE_DIST - 1);
+  } else {
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_dist_cnt[bsize][wedge_dist]++;
+#endif
+    update_cdf(fc->wedge_dist_cdf[bsize], wedge_dist, NUM_WEDGE_DIST);
+  }
+}
+#endif  // CONFIG_WEDGE_MOD_EXT
+
 static AOM_INLINE void update_filter_type_cdf(const MACROBLOCKD *xd,
                                               const MB_MODE_INFO *mbmi) {
   const int ctx = av1_get_pred_context_switchable_interp(xd, 0);
