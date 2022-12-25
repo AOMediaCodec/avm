@@ -5345,6 +5345,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_CCSO
   seq_params->enable_ccso = aom_rb_read_bit(rb);
 #endif
+#if CONFIG_PEF
+  seq_params->enable_pef = aom_rb_read_bit(rb);
+#endif  // CONFIG_PEF
 #if CONFIG_ORIP
   seq_params->enable_orip = aom_rb_read_bit(rb);
 #endif
@@ -6217,6 +6220,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       else
         features->allow_ref_frame_mvs = 0;
 
+#if CONFIG_PEF
+      features->allow_pef = false;
+      if (cm->seq_params.enable_pef) {
+        features->allow_pef = aom_rb_read_bit(rb);
+        if (features->allow_pef) {
+          cm->pef_params.pef_delta = aom_rb_read_bit(rb) + 1;
+        }
+      }
+#endif  // CONFIG_PEF
+
 #if CONFIG_TIP
       if (cm->seq_params.enable_tip) {
         features->tip_frame_mode = aom_rb_read_literal(rb, 2);
@@ -6640,6 +6653,11 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
   if (cm->features.allow_ref_frame_mvs && cm->has_bwd_ref) {
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
       av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
+#if CONFIG_PEF
+      if (cm->seq_params.enable_pef && cm->features.allow_pef) {
+        enhance_tip_frame(cm, xd);
+      }
+#endif  // CONFIG_PEF
     } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
       av1_setup_tip_motion_field(cm, 0);
       const int mvs_rows =
@@ -6737,6 +6755,12 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   else
     av1_setup_ref_frame_sides(cm);
 #endif  // CONFIG_SMVP_IMPROVEMENT
+
+#if CONFIG_PEF
+  if (cm->seq_params.enable_pef && cm->features.allow_pef) {
+    init_pef_parameter(cm, 0, num_planes);
+  }
+#endif  // CONFIG_PEF
 
 #if CONFIG_TIP
   process_tip_mode(pbi);

@@ -1787,6 +1787,14 @@ static void build_inter_predictors_8x8_and_bigger(
                                   xd, mi_x, mi_y, ref, mc_buf,
                                   calc_subpel_params_func);
   }
+#if CONFIG_PEF
+  enhance_prediction(cm, xd, plane, dst, dst_buf->stride, bw, bh
+#if CONFIG_OPTFLOW_REFINEMENT
+                     ,
+                     mv_refined, use_optflow_refinement
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+  );
+#endif  // CONFIG_PEF
 }
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,

@@ -4048,6 +4048,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_CCSO
   aom_wb_write_bit(wb, seq_params->enable_ccso);
 #endif
+#if CONFIG_PEF
+  aom_wb_write_bit(wb, seq_params->enable_pef);
+#endif  // CONFIG_PEF
 #if CONFIG_ORIP
   aom_wb_write_bit(wb, seq_params->enable_orip);
 #endif
@@ -4552,6 +4555,14 @@ static AOM_INLINE void write_uncompressed_header_obu(
       } else {
         assert(features->allow_ref_frame_mvs == 0);
       }
+#if CONFIG_PEF
+      if (cm->seq_params.enable_pef) {
+        aom_wb_write_bit(wb, features->allow_pef);
+        if (features->allow_pef) {
+          aom_wb_write_bit(wb, cm->pef_params.pef_delta - 1);
+        }
+      }
+#endif  // CONFIG_PEF
 #if CONFIG_TIP
       if (cm->seq_params.enable_tip) {
         aom_wb_write_literal(wb, features->tip_frame_mode, 2);

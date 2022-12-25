@@ -217,6 +217,11 @@ uint8_t av1_get_filter_level(const struct AV1Common *cm,
                              const loop_filter_info_n *lfi_n, const int dir_idx,
                              int plane, const MB_MODE_INFO *mbmi);
 #endif
+#if CONFIG_NEW_DF || CONFIG_PEF
+int df_quant_from_qindex(int q_index, int bit_depth);
+
+int df_side_from_qindex(int q_index, int bit_depth);
+#endif  // CONFIG_NEW_DF || CONFIG_PEF
 #if CONFIG_LPF_MASK
 void av1_filter_block_plane_ver(struct AV1Common *const cm,
                                 struct macroblockd_plane *const plane_ptr,

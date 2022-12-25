@@ -240,6 +240,8 @@ set_aom_config_var(CONFIG_FIX_CDEF_SYNTAX 1
                    "AV2 experiment flag to fix CDEF syntax.")
 set_aom_config_var(CONFIG_IMPROVED_CFL 1
                    "Enable improved CfL mode from CWG-C044")
+set_aom_config_var(
+  CONFIG_PEF 1 "AV2 experiment flag to enable prediction enhancement filter")
 
 set_aom_config_var(
   CONFIG_ADAPTIVE_DS_FILTER

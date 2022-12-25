@@ -379,6 +379,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_ccso;
 #endif
+#if CONFIG_PEF
+  /*!\brief enable prediction enhancement filter
+   *
+   */
+  unsigned int enable_pef;
+#endif  // CONFIG_PEF
   /*!\brief enable OBMC
    *
    */

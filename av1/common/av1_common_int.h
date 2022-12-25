@@ -20,6 +20,9 @@
 #include "aom_util/aom_thread.h"
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_loopfilter.h"
+#if CONFIG_PEF
+#include "av1/common/pef.h"
+#endif  // CONFIG_PEF
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
@@ -128,7 +131,7 @@ extern "C" {
 #endif  // CONFIG_TIP
 #endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_TIP
+#if CONFIG_TIP || CONFIG_PEF
 // MI unit is 4x4, TMVP unit is 8x8, so there is 1 shift
 // between TMVP unit and MI unit
 #define TMVP_SHIFT_BITS 1
@@ -137,7 +140,7 @@ extern "C" {
 #define TMVP_MI_SIZE (1 << TMVP_MI_SZ_LOG2)
 // TIP MV search range constraint in TMVP unit
 #define TIP_MV_SEARCH_RANGE 4
-#endif  // CONFIG_TIP
+#endif  // CONFIG_TIP || CONFIG_PEF
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
 #define MIN_BSIZE_WARP_DELTA 8
@@ -520,6 +523,9 @@ typedef struct SequenceHeader {
 #if CONFIG_CCSO
   uint8_t enable_ccso;  // To turn on/off CCSO
 #endif
+#if CONFIG_PEF
+  uint8_t enable_pef;  // To turn on/off prediction enhancement filter
+#endif                 // CONFIG_PEF
 #if CONFIG_REF_MV_BANK
   uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
 #endif                       // CONFIG_REF_MV_BANK
@@ -717,6 +723,12 @@ typedef struct {
    */
   bool allow_tip_hole_fill;
 #endif  // CONFIG_TIP
+#if CONFIG_PEF
+  /*!
+   * Enables/disables prediction enhancement filter
+   */
+  bool allow_pef;
+#endif  // CONFIG_PEF
 #if CONFIG_PAR_HIDING
   /*!
    * Enables/disables parity hiding.
@@ -1506,6 +1518,16 @@ typedef struct AV1Common {
   loop_filter_info_n lf_info; /*!< Loop filter info */
   struct loopfilter lf;       /*!< Loop filter parameters */
   /**@}*/
+
+#if CONFIG_PEF
+  /**
+   * \name Prediction enhancement filter parameters.
+   */
+  /**@{*/
+  PefInfo pef_info;     /*!< Prediction enhancement filter info*/
+  PefParams pef_params; /*!< Prediction enhancement filter parameters*/
+  /**@}*/
+#endif  // CONFIG_PEF
 
   /**
    * \name Loop Restoration filter parameters.

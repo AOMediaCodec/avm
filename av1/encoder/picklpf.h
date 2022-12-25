@@ -19,11 +19,6 @@ extern "C" {
 
 #include "av1/encoder/encoder.h"
 
-#if CONFIG_NEW_DF
-int df_quant_from_qindex(int q_index, int bit_depth);
-int df_side_from_qindex(int q_index, int bit_depth);
-#endif
-
 struct yv12_buffer_config;
 struct AV1_COMP;
 int av1_get_max_filter_level(const AV1_COMP *cpi);

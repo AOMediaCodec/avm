@@ -23,7 +23,7 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/seg_common.h"
 
-#if CONFIG_NEW_DF
+#if CONFIG_NEW_DF || CONFIG_PEF
 #define DF_MVS 0
 #if DF_MVS
 #define DF_MV_THRESH 8
@@ -57,7 +57,7 @@ static const int16_t side_thresholds[MAX_SIDE_TABLE] = {
   1460, 1470, 1480, 1489, 1499, 1509, 1519, 1529, 1539, 1549, 1559, 1569, 1579,
   1589, 1599, 1608, 1618, 1628, 1638, 1648, 1658, 1668, 1678
 };
-#endif
+#endif  // CONFIG_NEW_DF || CONFIG_PEF
 
 static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
   { SEG_LVL_ALT_LF_Y_V, SEG_LVL_ALT_LF_Y_H },
@@ -97,7 +97,7 @@ static const int mode_lf_lut[] = {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 };
 
-#if CONFIG_NEW_DF
+#if CONFIG_NEW_DF || CONFIG_PEF
 // Function obtains q_threshold from the quantization index.
 int df_quant_from_qindex(int q_index, int bit_depth) {
   int qstep = ROUND_POWER_OF_TWO(av1_ac_quant_QTX(q_index, 0, bit_depth),
@@ -120,7 +120,7 @@ int df_side_from_qindex(int q_index, int bit_depth) {
 
   return side_threshold;
 }
-#endif  // CONFIG_NEW_DF
+#endif  // CONFIG_NEW_DF || CONFIG_PEF
 
 #if !CONFIG_NEW_DF
 static void update_sharpness(loop_filter_info_n *lfi, int sharpness_lvl) {
