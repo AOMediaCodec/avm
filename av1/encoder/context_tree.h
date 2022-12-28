@@ -105,6 +105,9 @@ typedef struct PC_TREE {
 #if CONFIG_C043_MVP_IMPROVEMENTS
   REF_MV_BANK ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  WARP_PARAM_BANK warp_param_bank;
+#endif  // WARP_CU_BANK
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PC_TREE;
 
