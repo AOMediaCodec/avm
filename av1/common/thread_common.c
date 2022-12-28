@@ -836,9 +836,10 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
           &limits, &(ctxt[plane].tile_rect), lr_ctxt->on_rest_unit, lr_unit_row,
           ctxt[plane].rsi->restoration_unit_size, unit_idx0,
           ctxt[plane].rsi->horz_units_per_tile,
-          ctxt[plane].rsi->vert_units_per_tile, plane, &ctxt[plane],
+          ctxt[plane].rsi->vert_units_per_tile,
+          ctxt[plane].rsi->horz_units_per_tile, plane, &ctxt[plane],
           lrworkerdata->rst_tmpbuf, lrworkerdata->rlbs, on_sync_read,
-          on_sync_write, lr_sync);
+          on_sync_write, lr_sync, NULL);
 
       copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, ctxt[plane].tile_rect.left,
                        ctxt[plane].tile_rect.right, cur_job_info->v_copy_start,
