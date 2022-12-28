@@ -5109,13 +5109,22 @@ static AOM_INLINE void prune_ext_partitions(
     }
   }
 #if CONFIG_UNEVEN_4WAY
-  // TODO(now): Rename 'prune_part_3_with_part_none'.
+  // TODO(now): Rename 'prune_part_3_with_part_none' and
+  // 'prune_part_3_with_part_rect'.
   // Prune HORZ 4A with speed features
   if (part_search_state->partition_4a_allowed[HORZ] && !frame_is_intra_only(cm) &&
       forced_partition != PARTITION_HORZ_4A) {
     if (part_sf->prune_part_3_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
+      part_search_state->prune_partition_4a[HORZ] = 1;
+    }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_HORZ &&
+        !node_uses_horz(pc_tree->horizontal[0]) &&
+        !node_uses_horz(pc_tree->horizontal[1])) {
+      // Prune if the best partition is horz but horz did not further split in
+      // horz
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
   }
@@ -5128,6 +5137,14 @@ static AOM_INLINE void prune_ext_partitions(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_HORZ &&
+        !node_uses_horz(pc_tree->horizontal[0]) &&
+        !node_uses_horz(pc_tree->horizontal[1])) {
+      // Prune if the best partition is horz but horz did not further split in
+      // horz
+      part_search_state->prune_partition_4b[HORZ] = 1;
+    }
   }
 
   // Prune VERT_4A with speed features
@@ -5138,6 +5155,14 @@ static AOM_INLINE void prune_ext_partitions(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4a[VERT] = 1;
     }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_VERT &&
+        !node_uses_vert(pc_tree->vertical[0]) &&
+        !node_uses_vert(pc_tree->vertical[1])) {
+      // Prune if the best partition is vert but vert did not further split in
+      // vert
+      part_search_state->prune_partition_4a[VERT] = 1;
+    }
   }
 
   // Prune VERT_4B with speed features
@@ -5146,6 +5171,14 @@ static AOM_INLINE void prune_ext_partitions(
     if (part_sf->prune_part_3_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
+      part_search_state->prune_partition_4b[VERT] = 1;
+    }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_VERT &&
+        !node_uses_vert(pc_tree->vertical[0]) &&
+        !node_uses_vert(pc_tree->vertical[1])) {
+      // Prune if the best partition is vert but vert did not further split in
+      // vert
       part_search_state->prune_partition_4b[VERT] = 1;
     }
   }
