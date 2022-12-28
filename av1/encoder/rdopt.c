@@ -4895,7 +4895,11 @@ static int64_t handle_inter_mode(
           mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx].drl_cost =
               drl_cost;
 
-          if (!mask_check_bit(idx_mask[bawp_flag][mbmi->pb_mv_precision],
+          if (
+#if CONFIG_WARPMV
+              mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+              !mask_check_bit(idx_mask[bawp_flag][mbmi->pb_mv_precision],
                               ref_mv_idx)) {
             // MV did not perform well in simple translation search. Skip it.
             continue;
@@ -5200,7 +5204,7 @@ static int64_t handle_inter_mode(
                          (rd_stats->rate == base_rate && rate_mv == 0)));
 #endif  // CONFIG_WARPMV
         // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
-        // OBMC_CAUSAL or WARPED_CAUSAL
+        // OBMC_CAUSAL or WARPED_CAUSAL or WARP_EXTEND or WARP_DELTA
           ret_val = motion_mode_rd(cpi, tile_data, x, bsize, rd_stats,
                                    rd_stats_y, rd_stats_uv, args, ref_best_rd,
                                    skip_rd, &rate_mv, &orig_dst, best_est_rd,
