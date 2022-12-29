@@ -121,7 +121,7 @@ extern "C" {
 #else
 #define AOM_DECLSPEC_DEPRECATED /**< \copydoc #AOM_DEPRECATED */
 #endif
-#endif                          /* AOM_DECLSPEC_DEPRECATED */
+#endif /* AOM_DECLSPEC_DEPRECATED */
 
 /*!\brief Decorator indicating a function is potentially unused */
 #ifdef AOM_UNUSED
