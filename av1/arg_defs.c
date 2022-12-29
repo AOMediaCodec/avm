@@ -360,7 +360,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "erp-pruning-level", 1,
               "Set the level of aggressiveness for erp pruning."
               "(0: off, 1: reuse partition decision for co-located block, "
-              "2 to 5 increasing level of aggressiveness. Default: 5."),
+              "2 to 6 increasing level of aggressiveness. Default: 5."),
   .use_ml_erp_pruning = ARG_DEF(NULL, "use-ml-erp-pruning", 1,
                                 "Use ML model to perform ERP Pruning."
                                 "(0: off (default), 1: on)."),
