@@ -1489,7 +1489,8 @@ static void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 
   RestorationStripeBoundaries *boundaries = &cm->rst_info[plane].boundaries;
 
-  const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
+  const int plane_height =
+      ROUND_POWER_OF_TWO(cm->superres_upscaled_height, ss_y);
 
   int tile_stripe;
   for (tile_stripe = 0;; ++tile_stripe) {
