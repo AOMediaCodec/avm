@@ -99,34 +99,34 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     GLOBALMV,       // GLOBALMV
     NEWMV,          // NEWMV
 #if IMPROVED_AMVD
-    NEWMV,          // AMVDNEWMV
-#endif              // IMPROVED_AMVD
+    NEWMV,  // AMVDNEWMV
+#endif      // IMPROVED_AMVD
 #if CONFIG_WARPMV
-    WARPMV,         // WARPMV
-#endif              // CONFIG_WARPMV
-    NEARMV,         // NEAR_NEARMV
-    NEARMV,         // NEAR_NEWMV
-    NEWMV,          // NEW_NEARMV
-    GLOBALMV,       // GLOBAL_GLOBALMV
-    NEWMV,          // NEW_NEWMV
+    WARPMV,    // WARPMV
+#endif         // CONFIG_WARPMV
+    NEARMV,    // NEAR_NEARMV
+    NEARMV,    // NEAR_NEWMV
+    NEWMV,     // NEW_NEARMV
+    GLOBALMV,  // GLOBAL_GLOBALMV
+    NEWMV,     // NEW_NEWMV
 #if CONFIG_JOINT_MVD
-    NEWMV,          // JOINT_NEWMV
-#endif              // CONFIG_JOINT_MVD
+    NEWMV,  // JOINT_NEWMV
+#endif      // CONFIG_JOINT_MVD
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
-    NEWMV,          // JOINT_AMVDNEWMV
-#endif              // IMPROVED_AMVD && CONFIG_JOINT_MVD
+    NEWMV,  // JOINT_AMVDNEWMV
+#endif      // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
-    NEARMV,         // NEAR_NEARMV_OPTFLOW
-    NEARMV,         // NEAR_NEWMV_OPTFLOW
-    NEWMV,          // NEW_NEARMV_OPTFLOW
-    NEWMV,          // NEW_NEWMV_OPTFLOW
+    NEARMV,  // NEAR_NEARMV_OPTFLOW
+    NEARMV,  // NEAR_NEWMV_OPTFLOW
+    NEWMV,   // NEW_NEARMV_OPTFLOW
+    NEWMV,   // NEW_NEWMV_OPTFLOW
 #if CONFIG_JOINT_MVD
-    NEWMV,          // JOINT_NEWMV_OPTFLOW
-#endif              // CONFIG_JOINT_MVD
+    NEWMV,  // JOINT_NEWMV_OPTFLOW
+#endif      // CONFIG_JOINT_MVD
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
-    NEWMV,          // JOINT_AMVDNEWMV_OPTFLOW
-#endif              // IMPROVED_AMVD && CONFIG_JOINT_MVD
-#endif              // CONFIG_OPTFLOW_REFINEMENT
+    NEWMV,  // JOINT_AMVDNEWMV_OPTFLOW
+#endif      // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif      // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode) || is_inter_singleref_mode(mode));
@@ -163,23 +163,23 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     GLOBALMV,       // GLOBAL_GLOBALMV
     NEWMV,          // NEW_NEWMV
 #if CONFIG_JOINT_MVD
-    NEARMV,         // JOINT_NEWMV
-#endif              // CONFIG_JOINT_MVD
+    NEARMV,  // JOINT_NEWMV
+#endif       // CONFIG_JOINT_MVD
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
-    NEARMV,         // JOINT_AMVDNEWMV
-#endif              // IMPROVED_AMVD && CONFIG_JOINT_MVD
+    NEARMV,  // JOINT_AMVDNEWMV
+#endif       // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
-    NEARMV,         // NEAR_NEARMV_OPTFLOW
-    NEWMV,          // NEAR_NEWMV_OPTFLOW
-    NEARMV,         // NEW_NEARMV_OPTFLOW
-    NEWMV,          // NEW_NEWMV_OPTFLOW
+    NEARMV,  // NEAR_NEARMV_OPTFLOW
+    NEWMV,   // NEAR_NEWMV_OPTFLOW
+    NEARMV,  // NEW_NEARMV_OPTFLOW
+    NEWMV,   // NEW_NEWMV_OPTFLOW
 #if CONFIG_JOINT_MVD
-    NEARMV,         // JOINT_NEWMV_OPTFLOW
-#endif              // CONFIG_JOINT_MVD
+    NEARMV,  // JOINT_NEWMV_OPTFLOW
+#endif       // CONFIG_JOINT_MVD
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
-    NEARMV,         // JOINT_AMVDNEWMV_OPTFLOW
-#endif              // IMPROVED_AMVD && CONFIG_JOINT_MVD
-#endif              // CONFIG_OPTFLOW_REFINEMENT
+    NEARMV,  // JOINT_AMVDNEWMV_OPTFLOW
+#endif       // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif       // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
@@ -975,7 +975,7 @@ typedef struct macroblockd {
 #if !CONFIG_C043_MVP_IMPROVEMENTS
   REF_MV_BANK *ref_mv_bank_pt; /*!< Pointer to bank to refer to */
 #endif
-  REF_MV_BANK ref_mv_bank;     /*!< Ref mv bank to update */
+  REF_MV_BANK ref_mv_bank; /*!< Ref mv bank to update */
   /**@}*/
 #endif  // CONFIG_REF_MV_BANK
 
@@ -1596,7 +1596,7 @@ static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
       { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
       { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-  },    // size_class: 3
+  },  // size_class: 3
 };
 #endif  // CONFIG_ATC_NEWTXSETS
 
@@ -1689,7 +1689,7 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
       0x0000,
       0x0000,
       0x0000,
-  },    // size_class: 3
+  },  // size_class: 3
 };
 #endif  // CONFIG_ATC_NEWTXSETS
 

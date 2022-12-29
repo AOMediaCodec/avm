@@ -4562,7 +4562,7 @@ static int64_t handle_inter_mode(
   assert(IMPLIES(this_mode == WARPMV, ref_set == 1));
 #endif  // CONFIG_WARPMV
 
-        // Save MV results from first 2 ref_mv_idx.
+  // Save MV results from first 2 ref_mv_idx.
 #if CONFIG_FLEX_MVRES
   int_mv save_mv[NUM_MV_PRECISIONS][MAX_REF_MV_SEARCH - 1][2];
 #else
@@ -4974,7 +4974,7 @@ static int64_t handle_inter_mode(
               }
             }
             if (mv_outlim) continue;
-#endif        // CONFIG_C071_SUBBLK_WARPMV
+#endif  // CONFIG_C071_SUBBLK_WARPMV
 
               // skip NEWMV mode in drl if the motion search result is the same
               // as a previous result
