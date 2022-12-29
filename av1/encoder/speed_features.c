@@ -1072,6 +1072,15 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
     default: assert(0 && "Invalid ERP pruning level.");
   }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (cpi->speed >= 1) {
+    // Emulate erp_pruning_level = 6.
+    sf->part_sf.ext_recur_depth = 1;
+    sf->part_sf.simple_motion_search_split = 1;
+    sf->part_sf.simple_motion_search_early_term_none = 1;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   if (cpi->oxcf.part_cfg.use_ml_erp_pruning) {
     sf->part_sf.prune_rect_with_ml = 1;
   }
