@@ -787,6 +787,8 @@ typedef struct macroblockd_plane {
 
 #define BLOCK_OFFSET(i) ((i) << 4)
 
+#define LR_BANK_SIZE 1
+
 /*!\endcond */
 
 /*!\brief Parameters related to Wiener Filter */
@@ -802,6 +804,22 @@ typedef struct {
   DECLARE_ALIGNED(16, InterpKernel, hfilter);
 } WienerInfo;
 
+/*!\brief Parameters related to Wiener Filter Bank */
+typedef struct {
+  /*!
+   * Bank of filter infos
+   */
+  WienerInfo filter[LR_BANK_SIZE];
+  /*!
+   * Size of the bank
+   */
+  int bank_size;
+  /*!
+   * Pointer to the most current filter
+   */
+  int bank_ptr;
+} WienerInfoBank;
+
 /*!\brief Parameters related to Sgrproj Filter */
 typedef struct {
   /*!
@@ -814,6 +832,22 @@ typedef struct {
    */
   int xqd[2];
 } SgrprojInfo;
+
+/*!\brief Parameters related to Sgrproj Filter Bank */
+typedef struct {
+  /*!
+   * Bank of filter infos
+   */
+  SgrprojInfo filter[LR_BANK_SIZE];
+  /*!
+   * Size of the bank
+   */
+  int bank_size;
+  /*!
+   * Pointer to the most current filter
+   */
+  int bank_ptr;
+} SgrprojInfoBank;
 
 /*!\cond */
 
@@ -1207,8 +1241,8 @@ typedef struct macroblockd {
    * cm->rst_info[plane].unit_info[unit_idx] and these reference values.
    */
   /**@{*/
-  WienerInfo wiener_info[MAX_MB_PLANE];   /*!< Defaults for Wiener filter*/
-  SgrprojInfo sgrproj_info[MAX_MB_PLANE]; /*!< Defaults for SGR filter */
+  WienerInfoBank wiener_info[MAX_MB_PLANE];   /*!< Refs for Wiener filter*/
+  SgrprojInfoBank sgrproj_info[MAX_MB_PLANE]; /*!< Refs for SGR filter */
   /**@}*/
 
   /**
@@ -2215,7 +2249,27 @@ void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
 
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
 
-void av1_reset_loop_restoration(MACROBLOCKD *xd, const int num_planes);
+void av1_reset_wiener_bank(WienerInfoBank *bank);
+void av1_add_to_wiener_bank(WienerInfoBank *bank, const WienerInfo *info);
+WienerInfo *av1_ref_from_wiener_bank(WienerInfoBank *bank, int ndx);
+const WienerInfo *av1_constref_from_wiener_bank(const WienerInfoBank *bank,
+                                                int ndx);
+void av1_upd_to_wiener_bank(WienerInfoBank *bank, int ndx,
+                            const WienerInfo *info);
+void av1_get_from_wiener_bank(WienerInfoBank *bank, int ndx, WienerInfo *info);
+
+void av1_reset_sgrproj_bank(SgrprojInfoBank *bank);
+void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info);
+SgrprojInfo *av1_ref_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx);
+const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
+                                                  int ndx);
+void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
+                             const SgrprojInfo *info);
+void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
+                               SgrprojInfo *info);
+
+void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start,
+                                int plane_end);
 
 typedef void (*foreach_transformed_block_visitor)(int plane, int block,
                                                   int blk_row, int blk_col,

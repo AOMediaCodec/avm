@@ -2945,8 +2945,10 @@ static AOM_INLINE void encode_restoration_mode(
 
 static AOM_INLINE void write_wiener_filter(int wiener_win,
                                            const WienerInfo *wiener_info,
-                                           WienerInfo *ref_wiener_info,
+                                           WienerInfoBank *bank,
                                            aom_writer *wb) {
+  const int ref = 0;
+  const WienerInfo *ref_wiener_info = av1_ref_from_wiener_bank(bank, ref);
   if (wiener_win == WIENER_WIN)
     aom_write_primitive_refsubexpfin(
         wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
@@ -2985,12 +2987,16 @@ static AOM_INLINE void write_wiener_filter(int wiener_win,
       WIENER_FILT_TAP2_SUBEXP_K,
       ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
       wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV);
-  memcpy(ref_wiener_info, wiener_info, sizeof(*wiener_info));
+  av1_add_to_wiener_bank(bank, wiener_info);
+  return;
 }
 
 static AOM_INLINE void write_sgrproj_filter(const SgrprojInfo *sgrproj_info,
-                                            SgrprojInfo *ref_sgrproj_info,
+                                            SgrprojInfoBank *bank,
                                             aom_writer *wb) {
+  const int ref = 0;
+  const SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
+
   aom_write_literal(wb, sgrproj_info->ep, SGRPROJ_PARAMS_BITS);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
@@ -3015,8 +3021,8 @@ static AOM_INLINE void write_sgrproj_filter(const SgrprojInfo *sgrproj_info,
         ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
         sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
   }
-
-  memcpy(ref_sgrproj_info, sgrproj_info, sizeof(*sgrproj_info));
+  av1_add_to_sgrproj_bank(bank, sgrproj_info);
+  return;
 }
 
 static AOM_INLINE void loop_restoration_write_sb_coeffs(
@@ -3030,8 +3036,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
-  WienerInfo *ref_wiener_info = &xd->wiener_info[plane];
-  SgrprojInfo *ref_sgrproj_info = &xd->sgrproj_info[plane];
   RestorationType unit_rtype = rui->restoration_type;
 
   if (frame_rtype == RESTORE_SWITCHABLE) {
@@ -3042,10 +3046,11 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #endif
     switch (unit_rtype) {
       case RESTORE_WIENER:
-        write_wiener_filter(wiener_win, &rui->wiener_info, ref_wiener_info, w);
+        write_wiener_filter(wiener_win, &rui->wiener_info,
+                            &xd->wiener_info[plane], w);
         break;
       case RESTORE_SGRPROJ:
-        write_sgrproj_filter(&rui->sgrproj_info, ref_sgrproj_info, w);
+        write_sgrproj_filter(&rui->sgrproj_info, &xd->sgrproj_info[plane], w);
         break;
       default: assert(unit_rtype == RESTORE_NONE); break;
     }
@@ -3056,7 +3061,8 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
-      write_wiener_filter(wiener_win, &rui->wiener_info, ref_wiener_info, w);
+      write_wiener_filter(wiener_win, &rui->wiener_info,
+                          &xd->wiener_info[plane], w);
     }
   } else if (frame_rtype == RESTORE_SGRPROJ) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
@@ -3065,7 +3071,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
-      write_sgrproj_filter(&rui->sgrproj_info, ref_sgrproj_info, w);
+      write_sgrproj_filter(&rui->sgrproj_info, &xd->sgrproj_info[plane], w);
     }
   }
 }
@@ -5266,7 +5272,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
       mode_bc.allow_update_cdf =
           mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
       const int num_planes = av1_num_planes(cm);
-      av1_reset_loop_restoration(&cpi->td.mb.e_mbd, num_planes);
+      av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes);
 
       aom_start_encode(&mode_bc, dst + total_size);
       write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);

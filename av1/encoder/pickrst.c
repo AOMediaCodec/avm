@@ -137,15 +137,19 @@ typedef struct {
 
   // sgrproj and wiener are initialised by rsc_on_tile when starting the first
   // tile in the frame.
-  SgrprojInfo sgrproj;
-  WienerInfo wiener;
+  WienerInfoBank wiener_bank;
+  SgrprojInfoBank sgrproj_bank;
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
+static AOM_INLINE void reset_all_banks(RestSearchCtxt *rsc) {
+  av1_reset_wiener_bank(&rsc->wiener_bank);
+  av1_reset_sgrproj_bank(&rsc->sgrproj_bank);
+}
+
 static AOM_INLINE void rsc_on_tile(void *priv, int idx_base) {
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
-  set_default_sgrproj(&rsc->sgrproj);
-  set_default_wiener(&rsc->wiener);
+  reset_all_banks(rsc);
   rsc->tile_stripe0 = 0;
   rsc->ru_idx_base = idx_base;
 }
@@ -632,9 +636,10 @@ static SgrprojInfo search_selfguided_restoration(
   return ret;
 }
 
-static int count_sgrproj_bits(SgrprojInfo *sgrproj_info,
-                              SgrprojInfo *ref_sgrproj_info) {
-  int bits = SGRPROJ_PARAMS_BITS;
+static int64_t count_sgrproj_bits(SgrprojInfo *sgrproj_info,
+                                  const SgrprojInfoBank *bank) {
+  const SgrprojInfo *ref_sgrproj_info = av1_constref_from_sgrproj_bank(bank, 0);
+  int64_t bits = SGRPROJ_PARAMS_BITS;
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
   if (params->r[0] > 0)
     bits += aom_count_primitive_refsubexpfin(
@@ -697,9 +702,10 @@ static AOM_INLINE void search_sgrproj_visitor(
   rusi->sse[RESTORE_SGRPROJ] =
       try_restoration_unit(rsc, limits, &rsc->tile_rect, &rui);
 
-  const int64_t bits_sgr = x->mode_costs.sgrproj_restore_cost[1] +
-                           (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj)
-                            << AV1_PROB_COST_SHIFT);
+  const int64_t bits_sgr =
+      x->mode_costs.sgrproj_restore_cost[1] +
+      (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj_bank)
+       << AV1_PROB_COST_SHIFT);
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
   double cost_sgr = RDCOST_DBL_WITH_NATIVE_BD_DIST(
@@ -714,7 +720,8 @@ static AOM_INLINE void search_sgrproj_visitor(
 
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_sgr < cost_none) ? bits_sgr : bits_none;
-  if (cost_sgr < cost_none) rsc->sgrproj = rusi->sgrproj;
+  if (cost_sgr < cost_none)
+    av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj);
 }
 
 void av1_compute_stats_highbd_c(int wiener_win, const uint16_t *dgd,
@@ -1046,9 +1053,10 @@ static AOM_INLINE void finalize_sym_filter(int wiener_win, int32_t *f,
   fi[3] = -2 * (fi[0] + fi[1] + fi[2]);
 }
 
-static int count_wiener_bits(int wiener_win, WienerInfo *wiener_info,
-                             WienerInfo *ref_wiener_info) {
-  int bits = 0;
+static int64_t count_wiener_bits(int wiener_win, WienerInfo *wiener_info,
+                                 const WienerInfoBank *bank) {
+  int64_t bits = 0;
+  const WienerInfo *ref_wiener_info = av1_constref_from_wiener_bank(bank, 0);
   if (wiener_win == WIENER_WIN)
     bits += aom_count_primitive_refsubexpfin(
         WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
@@ -1293,7 +1301,7 @@ static AOM_INLINE void search_wiener_visitor(
 
   const int64_t bits_wiener =
       x->mode_costs.wiener_restore_cost[1] +
-      (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
+      (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener_bank)
        << AV1_PROB_COST_SHIFT);
 
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
@@ -1317,7 +1325,8 @@ static AOM_INLINE void search_wiener_visitor(
 
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_wiener < cost_none) ? bits_wiener : bits_none;
-  if (cost_wiener < cost_none) rsc->wiener = rusi->wiener;
+  if (cost_wiener < cost_none)
+    av1_add_to_wiener_bank(&rsc->wiener_bank, &rusi->wiener);
 }
 
 static AOM_INLINE void search_norestore_visitor(
@@ -1338,6 +1347,41 @@ static AOM_INLINE void search_norestore_visitor(
   rsc->sse += rusi->sse[RESTORE_NONE];
 }
 
+static int get_switchable_restore_cost(const AV1_COMMON *const cm,
+                                       const MACROBLOCK *const x, int plane,
+                                       int rest_type) {
+  (void)cm;
+  (void)plane;
+  return x->mode_costs.switchable_restore_cost[rest_type];
+}
+
+static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
+                                     RestUnitSearchInfo *rusi) {
+  const MACROBLOCK *const x = rsc->x;
+  const int wiener_win =
+      (rsc->plane == AOM_PLANE_Y) ? WIENER_WIN : WIENER_WIN_CHROMA;
+  if (rest_type > RESTORE_NONE) {
+    if (rusi->best_rtype[rest_type - 1] == RESTORE_NONE)
+      rest_type = RESTORE_NONE;
+  }
+  int64_t coeff_bits = 0;
+  switch (rest_type) {
+    case RESTORE_NONE: coeff_bits = 0; break;
+    case RESTORE_WIENER:
+      coeff_bits =
+          count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener_bank);
+      break;
+    case RESTORE_SGRPROJ:
+      coeff_bits = count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj_bank);
+      break;
+    default: assert(0); break;
+  }
+  const int64_t bits =
+      get_switchable_restore_cost(rsc->cm, x, rsc->plane, rest_type) +
+      (coeff_bits << AV1_PROB_COST_SHIFT);
+  return bits;
+}
+
 static void search_switchable_visitor(const RestorationTileLimits *limits,
                                       const AV1PixelRect *tile_rect,
                                       int rest_unit_idx, int rest_unit_idx_seq,
@@ -1353,9 +1397,6 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
 
   const MACROBLOCK *const x = rsc->x;
 
-  const int wiener_win =
-      (rsc->plane == AOM_PLANE_Y) ? WIENER_WIN : WIENER_WIN_CHROMA;
-
   double best_cost = 0;
   int64_t best_bits = 0;
   RestorationType best_rtype = RESTORE_NONE;
@@ -1370,20 +1411,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     }
 
     const int64_t sse = rusi->sse[r];
-    int64_t coeff_pcost = 0;
-    switch (r) {
-      case RESTORE_NONE: coeff_pcost = 0; break;
-      case RESTORE_WIENER:
-        coeff_pcost =
-            count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener);
-        break;
-      case RESTORE_SGRPROJ:
-        coeff_pcost = count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj);
-        break;
-      default: assert(0); break;
-    }
-    const int64_t coeff_bits = coeff_pcost << AV1_PROB_COST_SHIFT;
-    const int64_t bits = x->mode_costs.switchable_restore_cost[r] + coeff_bits;
+    int64_t bits = count_switchable_bits(r, rsc, rusi);
     double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult, bits >> 4, sse,
                                                  rsc->cm->seq_params.bit_depth);
     if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
@@ -1396,11 +1424,14 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   }
 
   rusi->best_rtype[RESTORE_SWITCHABLE - 1] = best_rtype;
-
   rsc->sse += rusi->sse[best_rtype];
   rsc->bits += best_bits;
-  if (best_rtype == RESTORE_WIENER) rsc->wiener = rusi->wiener;
-  if (best_rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
+
+  if (best_rtype == RESTORE_WIENER) {
+    av1_add_to_wiener_bank(&rsc->wiener_bank, &rusi->wiener);
+  } else if (best_rtype == RESTORE_SGRPROJ) {
+    av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj);
+  }
 }
 
 static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,

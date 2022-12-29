@@ -118,13 +118,142 @@ void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes) {
   for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id) xd->delta_lf[lf_id] = 0;
 }
 
-void av1_reset_loop_restoration(MACROBLOCKD *xd, const int num_planes) {
-  for (int p = 0; p < num_planes; ++p) {
-    set_default_wiener(xd->wiener_info + p);
-    set_default_sgrproj(xd->sgrproj_info + p);
+// Resets the LR decoding state before decoding each coded tile and
+// associated LR coefficients
+void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start,
+                                int plane_end) {
+  for (int p = plane_start; p < plane_end; ++p) {
+    av1_reset_wiener_bank(&xd->wiener_info[p]);
+    av1_reset_sgrproj_bank(&xd->sgrproj_info[p]);
   }
 }
 
+// Initialize bank
+void av1_reset_wiener_bank(WienerInfoBank *bank) {
+  set_default_wiener(&bank->filter[0]);
+  bank->bank_size = 0;
+  bank->bank_ptr = 0;
+}
+
+// Add a new filter to bank
+void av1_add_to_wiener_bank(WienerInfoBank *bank, const WienerInfo *info) {
+  if (bank->bank_size < LR_BANK_SIZE) {
+    bank->bank_ptr = bank->bank_size;
+    memcpy(&bank->filter[bank->bank_ptr], info, sizeof(*info));
+    bank->bank_size++;
+  } else {
+    bank->bank_ptr = (bank->bank_ptr + 1) % LR_BANK_SIZE;
+    memcpy(&bank->filter[bank->bank_ptr], info, sizeof(*info));
+  }
+}
+
+// Get a reference to a filter given the index
+WienerInfo *av1_ref_from_wiener_bank(WienerInfoBank *bank, int ndx) {
+  if (bank->bank_size == 0) {
+    return &bank->filter[0];
+  } else {
+    assert(ndx < bank->bank_size);
+    const int ptr =
+        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
+    return &bank->filter[ptr];
+  }
+}
+
+// Get a const reference to a filter given the index
+const WienerInfo *av1_constref_from_wiener_bank(const WienerInfoBank *bank,
+                                                int ndx) {
+  if (bank->bank_size == 0) {
+    return &bank->filter[0];
+  } else {
+    assert(ndx < bank->bank_size);
+    const int ptr =
+        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
+    return &bank->filter[ptr];
+  }
+}
+
+// Directly replace a filter in the bank at given index
+void av1_upd_to_wiener_bank(WienerInfoBank *bank, int ndx,
+                            const WienerInfo *info) {
+  memcpy(av1_ref_from_wiener_bank(bank, ndx), info, sizeof(*info));
+}
+
+// Convenience function to fill the provided info structure with
+// filter at given index
+void av1_get_from_wiener_bank(WienerInfoBank *bank, int ndx, WienerInfo *info) {
+  if (bank->bank_size == 0) {
+    set_default_wiener(info);
+  } else {
+    assert(ndx < bank->bank_size);
+    const int ptr =
+        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
+    memcpy(info, &bank->filter[ptr], sizeof(*info));
+  }
+}
+
+// Initialize bank
+void av1_reset_sgrproj_bank(SgrprojInfoBank *bank) {
+  set_default_sgrproj(&bank->filter[0]);
+  bank->bank_size = 0;
+  bank->bank_ptr = 0;
+}
+
+// Add a new filter to bank
+void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info) {
+  if (bank->bank_size < LR_BANK_SIZE) {
+    bank->bank_ptr = bank->bank_size;
+    memcpy(&bank->filter[bank->bank_ptr], info, sizeof(*info));
+    bank->bank_size++;
+  } else {
+    bank->bank_ptr = (bank->bank_ptr + 1) % LR_BANK_SIZE;
+    memcpy(&bank->filter[bank->bank_ptr], info, sizeof(*info));
+  }
+}
+
+// Get a reference to a filter given the index
+SgrprojInfo *av1_ref_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx) {
+  if (bank->bank_size == 0) {
+    return &bank->filter[0];
+  } else {
+    assert(ndx < bank->bank_size);
+    const int ptr =
+        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
+    return &bank->filter[ptr];
+  }
+}
+
+// Get a const reference to a filter given the index
+const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
+                                                  int ndx) {
+  if (bank->bank_size == 0) {
+    return &bank->filter[0];
+  } else {
+    assert(ndx < bank->bank_size);
+    const int ptr =
+        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
+    return &bank->filter[ptr];
+  }
+}
+
+// Directly replace a filter in the bank at given index
+void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
+                             const SgrprojInfo *info) {
+  memcpy(av1_ref_from_sgrproj_bank(bank, ndx), info, sizeof(*info));
+}
+
+// Convenience function to fill the provided info structure with
+// filter at given index
+void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
+                               SgrprojInfo *info) {
+  if (bank->bank_size == 0) {
+    set_default_sgrproj(info);
+  } else {
+    assert(ndx < bank->bank_size);
+    const int ptr =
+        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
+    memcpy(info, &bank->filter[ptr], sizeof(*info));
+  }
+}
 void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
                             const int num_planes) {
   int i;

@@ -2253,8 +2253,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 
 static AOM_INLINE void read_wiener_filter(int wiener_win,
                                           WienerInfo *wiener_info,
-                                          WienerInfo *ref_wiener_info,
+                                          WienerInfoBank *bank,
                                           aom_reader *rb) {
+  const int ref = 0;
+  WienerInfo *ref_wiener_info = av1_ref_from_wiener_bank(bank, ref);
   memset(wiener_info->vfilter, 0, sizeof(wiener_info->vfilter));
   memset(wiener_info->hfilter, 0, sizeof(wiener_info->hfilter));
 
@@ -2309,12 +2311,15 @@ static AOM_INLINE void read_wiener_filter(int wiener_win,
   wiener_info->hfilter[WIENER_HALFWIN] =
       -2 * (wiener_info->hfilter[0] + wiener_info->hfilter[1] +
             wiener_info->hfilter[2]);
-  memcpy(ref_wiener_info, wiener_info, sizeof(*wiener_info));
+  av1_add_to_wiener_bank(bank, wiener_info);
 }
 
 static AOM_INLINE void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
-                                           SgrprojInfo *ref_sgrproj_info,
+                                           SgrprojInfoBank *bank,
                                            aom_reader *rb) {
+  const int ref = 0;
+  SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
+
   sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_STR);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
@@ -2346,7 +2351,7 @@ static AOM_INLINE void read_sgrproj_filter(SgrprojInfo *sgrproj_info,
         SGRPROJ_PRJ_MIN1;
   }
 
-  memcpy(ref_sgrproj_info, sgrproj_info, sizeof(*sgrproj_info));
+  av1_add_to_sgrproj_bank(bank, sgrproj_info);
 }
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
@@ -2359,8 +2364,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
-  WienerInfo *wiener_info = xd->wiener_info + plane;
-  SgrprojInfo *sgrproj_info = xd->sgrproj_info + plane;
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
     rui->restoration_type =
@@ -2368,24 +2371,26 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
                         RESTORE_SWITCHABLE_TYPES, ACCT_STR);
     switch (rui->restoration_type) {
       case RESTORE_WIENER:
-        read_wiener_filter(wiener_win, &rui->wiener_info, wiener_info, r);
+        read_wiener_filter(wiener_win, &rui->wiener_info,
+                           &xd->wiener_info[plane], r);
         break;
       case RESTORE_SGRPROJ:
-        read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
+        read_sgrproj_filter(&rui->sgrproj_info, &xd->sgrproj_info[plane], r);
         break;
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
     if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2, ACCT_STR)) {
       rui->restoration_type = RESTORE_WIENER;
-      read_wiener_filter(wiener_win, &rui->wiener_info, wiener_info, r);
+      read_wiener_filter(wiener_win, &rui->wiener_info, &xd->wiener_info[plane],
+                         r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
   } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
     if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2, ACCT_STR)) {
       rui->restoration_type = RESTORE_SGRPROJ;
-      read_sgrproj_filter(&rui->sgrproj_info, sgrproj_info, r);
+      read_sgrproj_filter(&rui->sgrproj_info, &xd->sgrproj_info[plane], r);
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
@@ -3635,7 +3640,7 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
   av1_reset_loop_filter_delta(xd, num_planes);
-  av1_reset_loop_restoration(xd, num_planes);
+  av1_reset_loop_restoration(xd, 0, num_planes);
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += cm->seq_params.mib_size) {
@@ -4150,7 +4155,7 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
   av1_reset_loop_filter_delta(xd, num_planes);
-  av1_reset_loop_restoration(xd, num_planes);
+  av1_reset_loop_restoration(xd, 0, num_planes);
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += cm->seq_params.mib_size) {
