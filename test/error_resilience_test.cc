@@ -518,6 +518,9 @@ class SFramePresenceTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
     }
   }

@@ -95,6 +95,9 @@ class UniformTileConfigTestLarge
       encoder->Control(AV1E_SET_TILE_COLUMNS, tile_config_param_.tile_cols);
       encoder->Control(AV1E_SET_TILE_ROWS, tile_config_param_.tile_rows);
       encoder->Control(AOME_SET_CPUUSED, 5);
+      if (end_usage_check_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AV1E_SET_SUPERBLOCK_SIZE,
                        tile_config_param_.sb_size == 64
@@ -169,6 +172,9 @@ class NonUniformTileConfigTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AV1E_SET_SUPERBLOCK_SIZE,
                        tile_config_param_.sb_size == 64

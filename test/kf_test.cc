@@ -66,6 +66,9 @@ class KeyFrameIntervalTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      if (end_usage_check_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
     }
   }
@@ -140,6 +143,9 @@ class ForcedKeyTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, auto_alt_ref_);
 #if CONFIG_AV1_ENCODER
       // override test default for tile columns if necessary.

@@ -231,7 +231,7 @@ class SubGopTestLarge
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, subgop_test_params_.cpu_used);
       if (rc_end_usage_ == AOM_Q) {
-        encoder->Control(AOME_SET_QP, 128);
+        encoder->Control(AOME_SET_QP, 210);
       }
       encoder->Control(AV1E_ENABLE_SUBGOP_STATS, enable_subgop_stats_);
       GetSubGOPConfigStr();
@@ -904,6 +904,9 @@ class SubGopSwitchingTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, test_params_.cpu_used);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       // Set min gf interval
       encoder->Control(AV1E_SET_MIN_GF_INTERVAL, 6);
       set_subgop_config(encoder);

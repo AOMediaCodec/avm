@@ -73,6 +73,9 @@ class AltRefFramePresenceTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AV1E_SET_MIN_GF_INTERVAL,
                        altref_test_params_.min_gf_interval);
@@ -161,6 +164,9 @@ class GoldenFrameIntervalTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AV1E_SET_MIN_GF_INTERVAL,
                        gf_interval_param_.min_gf_interval);
