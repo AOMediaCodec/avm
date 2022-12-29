@@ -335,6 +335,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_restoration = ARG_DEF(NULL, "enable-restoration", 1,
                                 "Enable the loop restoration filter (0: false, "
                                 "1: true (default))"),
+  .enable_wiener = ARG_DEF(NULL, "enable-wiener", 1,
+                           "Enable wiener lr filter (0: false, "
+                           "1: true (default))"),
+  .enable_sgrproj = ARG_DEF(NULL, "enable-sgrproj", 1,
+                            "Enable sgrproj lr filter (0: false, "
+                            "1: true (default))"),
 #if CONFIG_CCSO
   .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
                          "Enable cross component sample offset (0: false "

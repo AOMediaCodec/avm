@@ -1403,6 +1403,30 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   if (best_rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
 }
 
+static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,
+                               RestSearchCtxt *rsc, const ToolCfg *tool_cfg) {
+  (void)rsc;
+  (void)tool_cfg;
+  if (rsi->frame_restoration_type == RESTORE_NONE) return;
+  int tool_count[RESTORE_SWITCHABLE_TYPES] = { 0 };
+  for (int u = 0; u < plane_ntiles; ++u) {
+    RestorationType rt = rsi->unit_info[u].restoration_type;
+    tool_count[rt]++;
+  }
+  int ntools = 0;
+  RestorationType rused = RESTORE_NONE;
+  for (int j = 1; j < RESTORE_SWITCHABLE_TYPES; ++j) {
+    if (tool_count[j] > 0) {
+      ntools++;
+      rused = j;
+      assert(IMPLIES(j == RESTORE_WIENER, tool_cfg->enable_wiener));
+      assert(IMPLIES(j == RESTORE_SGRPROJ, tool_cfg->enable_sgrproj));
+    }
+  }
+  rsi->frame_restoration_type = ntools < 2 ? rused : RESTORE_SWITCHABLE;
+  return;
+}
+
 static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
                                       const RestUnitSearchInfo *rusi,
                                       RestorationUnitInfo *rui,
@@ -1503,8 +1527,6 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
     search_switchable_visitor
   };
 
-  reset_rsc(rsc);
-
   if (funs[rtype])
     return process_rd_by_rutile(rsc, funs[rtype]);
   else
@@ -1586,6 +1608,17 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
                        rsc.dgd_stride, RESTORATION_BORDER, RESTORATION_BORDER);
 
       for (RestorationType r = 0; r < num_rtypes; ++r) {
+        const ToolCfg *const tool_cfg = &cpi->oxcf.tool_cfg;
+        switch (r) {
+          case RESTORE_WIENER:
+            if (!tool_cfg->enable_wiener) continue;
+            break;
+          case RESTORE_SGRPROJ:
+            if (!tool_cfg->enable_sgrproj) continue;
+            break;
+          default: break;
+        };
+
         gather_stats_rest_type(&rsc, r);
 
         double cost = search_rest_type(&rsc, r);
@@ -1598,6 +1631,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     }
 
     finalize_frame_and_unit_info(best_rtype, &cm->rst_info[plane], &rsc);
+    adjust_frame_rtype(&cm->rst_info[plane], plane_ntiles, &rsc,
+                       &cpi->oxcf.tool_cfg);
   }
 
   aom_free(rusi);

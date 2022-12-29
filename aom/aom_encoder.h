@@ -365,6 +365,14 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_restoration;
+  /*!\brief enable Wiener Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_wiener;
+  /*!\brief enable Self-Guided Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_sgrproj;
 #if CONFIG_CCSO
   /*!\brief enable cross-component sample offset
    *

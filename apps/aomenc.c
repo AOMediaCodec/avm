@@ -424,6 +424,8 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.disable_ml_partition_speed_features,
   &g_av1_codec_arg_defs.enable_sdp,
   &g_av1_codec_arg_defs.enable_mrls,
+  &g_av1_codec_arg_defs.enable_wiener,
+  &g_av1_codec_arg_defs.enable_sgrproj,
 #if CONFIG_TIP
   &g_av1_codec_arg_defs.enable_tip,
 #endif  // CONFIG_TIP
@@ -651,6 +653,8 @@ static void init_config(cfg_options_t *config) {
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
   config->enable_restoration = 1;
+  config->enable_wiener = 1;
+  config->enable_sgrproj = 1;
 #if CONFIG_CCSO
   config->enable_ccso = 1;
 #endif
@@ -1592,12 +1596,13 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_CCSO
           "CCSO (%d), "
 #endif
-          "LoopRestortion (%d)\n",
+          "LoopRestoration (%d: [%d/%d])\n",
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
 #if CONFIG_CCSO
           encoder_cfg->enable_ccso,
 #endif
-          encoder_cfg->enable_restoration);
+          encoder_cfg->enable_restoration, encoder_cfg->enable_wiener,
+          encoder_cfg->enable_sgrproj);
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "

@@ -131,6 +131,8 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_deblocking;
   arg_def_t enable_cdef;
   arg_def_t enable_restoration;
+  arg_def_t enable_wiener;
+  arg_def_t enable_sgrproj;
 #if CONFIG_CCSO
   arg_def_t enable_ccso;
 #endif
