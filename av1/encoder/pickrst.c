@@ -94,8 +94,8 @@ static uint64_t var_restoration_unit(const RestorationTileLimits *limits,
 
 typedef struct {
   // The best coefficients for Wiener or Sgrproj restoration
-  WienerInfo wiener;
-  SgrprojInfo sgrproj;
+  WienerInfo wiener_info;
+  SgrprojInfo sgrproj_info;
 
   // The sum of squared errors for this rtype.
   int64_t sse[RESTORE_SWITCHABLE_TYPES];
@@ -139,6 +139,7 @@ typedef struct {
   // tile in the frame.
   WienerInfoBank wiener_bank;
   SgrprojInfoBank sgrproj_bank;
+
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
@@ -544,12 +545,11 @@ static AOM_INLINE void apply_sgr(int sgr_params_idx, const uint16_t *dat,
   }
 }
 
-static AOM_INLINE void compute_sgrproj_err(
+static AOM_INLINE int64_t compute_sgrproj_err(
     const uint16_t *dat, const int width, const int height,
     const int dat_stride, const uint16_t *src, const int src_stride,
     const int bit_depth, const int pu_width, const int pu_height, const int ep,
-    int32_t *flt0, int32_t *flt1, const int flt_stride, int *exqd,
-    int64_t *err) {
+    int32_t *flt0, int32_t *flt1, const int flt_stride, int *exqd) {
   int exq[2];
   apply_sgr(ep, dat, width, height, dat_stride, bit_depth, pu_width, pu_height,
             flt0, flt1, flt_stride);
@@ -559,9 +559,10 @@ static AOM_INLINE void compute_sgrproj_err(
                     flt_stride, flt1, flt_stride, exq, params);
   aom_clear_system_state();
   encode_xq(exq, exqd, params);
-  *err = finer_search_pixel_proj_error(src, width, height, src_stride, dat,
-                                       dat_stride, flt0, flt_stride, flt1,
-                                       flt_stride, 2, exqd, params);
+  int64_t err = finer_search_pixel_proj_error(
+      src, width, height, src_stride, dat, dat_stride, flt0, flt_stride, flt1,
+      flt_stride, 2, exqd, params);
+  return err;
 }
 
 static AOM_INLINE void get_best_error(int64_t *besterr, const int64_t err,
@@ -575,36 +576,60 @@ static AOM_INLINE void get_best_error(int64_t *besterr, const int64_t err,
   }
 }
 
+// If limits != NULL, calculates error for current restoration unit.
+// Otherwise, calculates error for all units in the stack using stored limits.
+static int64_t calc_sgrproj_err(const RestSearchCtxt *rsc,
+                                const RestorationTileLimits *limits,
+                                const int bit_depth, const int pu_width,
+                                const int pu_height, const int ep,
+                                int32_t *flt0, int32_t *flt1, int *exqd) {
+  int64_t err = 0;
+
+  uint16_t *dat;
+  const uint16_t *src;
+  int width, height, dat_stride, src_stride, flt_stride;
+  dat_stride = rsc->dgd_stride;
+  src_stride = rsc->src_stride;
+  if (limits != NULL) {
+    dat = rsc->dgd_buffer + limits->v_start * rsc->dgd_stride + limits->h_start;
+    src = rsc->src_buffer + limits->v_start * rsc->src_stride + limits->h_start;
+    width = limits->h_end - limits->h_start;
+    height = limits->v_end - limits->v_start;
+    flt_stride = ((width + 7) & ~7) + 8;
+    err = compute_sgrproj_err(dat, width, height, dat_stride, src, src_stride,
+                              bit_depth, pu_width, pu_height, ep, flt0, flt1,
+                              flt_stride, exqd);
+  } else {
+    assert(0 && "Tile limits should not be NULL.");
+  }
+  return err;
+}
+
 static SgrprojInfo search_selfguided_restoration(
-    const uint16_t *dat, int width, int height, int dat_stride,
-    const uint16_t *src, int src_stride, int bit_depth, int pu_width,
-    int pu_height, int32_t *rstbuf, int enable_sgr_ep_pruning) {
+    const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
+    int bit_depth, int pu_width, int pu_height, int32_t *rstbuf,
+    int enable_sgr_ep_pruning) {
   int32_t *flt0 = rstbuf;
   int32_t *flt1 = flt0 + RESTORATION_UNITPELS_MAX;
   int ep, idx, bestep = 0;
   int64_t besterr = -1;
   int exqd[2], bestxqd[2] = { 0, 0 };
-  int flt_stride = ((width + 7) & ~7) + 8;
   assert(pu_width == (RESTORATION_PROC_UNIT_SIZE >> 1) ||
          pu_width == RESTORATION_PROC_UNIT_SIZE);
   assert(pu_height == (RESTORATION_PROC_UNIT_SIZE >> 1) ||
          pu_height == RESTORATION_PROC_UNIT_SIZE);
   if (!enable_sgr_ep_pruning) {
     for (ep = 0; ep < SGRPROJ_PARAMS; ep++) {
-      int64_t err;
-      compute_sgrproj_err(dat, width, height, dat_stride, src, src_stride,
-                          bit_depth, pu_width, pu_height, ep, flt0, flt1,
-                          flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
+                                     pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
   } else {
     // evaluate first four seed ep in first group
     for (idx = 0; idx < SGRPROJ_EP_GRP1_SEARCH_COUNT; idx++) {
       ep = sgproj_ep_grp1_seed[idx];
-      int64_t err;
-      compute_sgrproj_err(dat, width, height, dat_stride, src, src_stride,
-                          bit_depth, pu_width, pu_height, ep, flt0, flt1,
-                          flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
+                                     pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
     // evaluate left and right ep of winner in seed ep
@@ -612,19 +637,15 @@ static SgrprojInfo search_selfguided_restoration(
     for (ep = bestep_ref - 1; ep < bestep_ref + 2; ep += 2) {
       if (ep < SGRPROJ_EP_GRP1_START_IDX || ep > SGRPROJ_EP_GRP1_END_IDX)
         continue;
-      int64_t err;
-      compute_sgrproj_err(dat, width, height, dat_stride, src, src_stride,
-                          bit_depth, pu_width, pu_height, ep, flt0, flt1,
-                          flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
+                                     pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
     // evaluate last two group
     for (idx = 0; idx < SGRPROJ_EP_GRP2_3_SEARCH_COUNT; idx++) {
       ep = sgproj_ep_grp2_3[idx][bestep];
-      int64_t err;
-      compute_sgrproj_err(dat, width, height, dat_stride, src, src_stride,
-                          bit_depth, pu_width, pu_height, ep, flt0, flt1,
-                          flt_stride, exqd, &err);
+      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
+                                     pu_height, ep, flt0, flt1, exqd);
       get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
     }
   }
@@ -636,21 +657,28 @@ static SgrprojInfo search_selfguided_restoration(
   return ret;
 }
 
-static int64_t count_sgrproj_bits(SgrprojInfo *sgrproj_info,
+static int64_t count_sgrproj_bits(const ModeCosts *mode_costs,
+                                  SgrprojInfo *sgrproj_info,
                                   const SgrprojInfoBank *bank) {
+  (void)mode_costs;
+  int64_t bits = 0;
   const SgrprojInfo *ref_sgrproj_info = av1_constref_from_sgrproj_bank(bank, 0);
-  int64_t bits = SGRPROJ_PARAMS_BITS;
+  bits += (SGRPROJ_PARAMS_BITS << AV1_PROB_COST_SHIFT);
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
-  if (params->r[0] > 0)
+  if (params->r[0] > 0) {
     bits += aom_count_primitive_refsubexpfin(
-        SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-        ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
-        sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0);
-  if (params->r[1] > 0)
+                SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
+                ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
+                sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0)
+            << AV1_PROB_COST_SHIFT;
+  }
+  if (params->r[1] > 0) {
     bits += aom_count_primitive_refsubexpfin(
-        SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-        ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
-        sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
+                SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
+                ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
+                sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1)
+            << AV1_PROB_COST_SHIFT;
+  }
   return bits;
 }
 
@@ -678,39 +706,33 @@ static AOM_INLINE void search_sgrproj_visitor(
     return;
   }
 
-  uint16_t *dgd_start =
-      rsc->dgd_buffer + limits->v_start * rsc->dgd_stride + limits->h_start;
-  const uint16_t *src_start =
-      rsc->src_buffer + limits->v_start * rsc->src_stride + limits->h_start;
-
   const int is_uv = rsc->plane > 0;
   const int ss_x = is_uv && cm->seq_params.subsampling_x;
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
   const int procunit_width = RESTORATION_PROC_UNIT_SIZE >> ss_x;
   const int procunit_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
 
-  rusi->sgrproj = search_selfguided_restoration(
-      dgd_start, limits->h_end - limits->h_start,
-      limits->v_end - limits->v_start, rsc->dgd_stride, src_start,
-      rsc->src_stride, bit_depth, procunit_width, procunit_height, tmpbuf,
+  rusi->sgrproj_info = search_selfguided_restoration(
+      rsc, limits, bit_depth, procunit_width, procunit_height, tmpbuf,
       rsc->lpf_sf->enable_sgr_ep_pruning);
 
   RestorationUnitInfo rui;
   rui.restoration_type = RESTORE_SGRPROJ;
-  rui.sgrproj_info = rusi->sgrproj;
+  rui.sgrproj_info = rusi->sgrproj_info;
 
   rusi->sse[RESTORE_SGRPROJ] =
       try_restoration_unit(rsc, limits, &rsc->tile_rect, &rui);
 
-  const int64_t bits_sgr =
-      x->mode_costs.sgrproj_restore_cost[1] +
-      (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj_bank)
-       << AV1_PROB_COST_SHIFT);
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
+
+  const int64_t bits_sgr =
+      x->mode_costs.sgrproj_restore_cost[1] +
+      count_sgrproj_bits(&x->mode_costs, &rusi->sgrproj_info,
+                         &rsc->sgrproj_bank);
   double cost_sgr = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_sgr >> 4, rusi->sse[RESTORE_SGRPROJ], bit_depth);
-  if (rusi->sgrproj.ep < 10)
+  if (rusi->sgrproj_info.ep < 10)
     cost_sgr *=
         (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
 
@@ -721,7 +743,7 @@ static AOM_INLINE void search_sgrproj_visitor(
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_sgr < cost_none) ? bits_sgr : bits_none;
   if (cost_sgr < cost_none)
-    av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj);
+    av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj_info);
 }
 
 void av1_compute_stats_highbd_c(int wiener_win, const uint16_t *dgd,
@@ -1053,43 +1075,61 @@ static AOM_INLINE void finalize_sym_filter(int wiener_win, int32_t *f,
   fi[3] = -2 * (fi[0] + fi[1] + fi[2]);
 }
 
-static int64_t count_wiener_bits(int wiener_win, WienerInfo *wiener_info,
+static int64_t count_wiener_bits(int wiener_win, const ModeCosts *mode_costs,
+                                 WienerInfo *wiener_info,
                                  const WienerInfoBank *bank) {
+  (void)mode_costs;
   int64_t bits = 0;
   const WienerInfo *ref_wiener_info = av1_constref_from_wiener_bank(bank, 0);
   if (wiener_win == WIENER_WIN)
     bits += aom_count_primitive_refsubexpfin(
-        WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-        WIENER_FILT_TAP0_SUBEXP_K,
-        ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
-        wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV);
+                WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
+                WIENER_FILT_TAP0_SUBEXP_K,
+                ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
+                wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV)
+            << AV1_PROB_COST_SHIFT;
   bits += aom_count_primitive_refsubexpfin(
-      WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-      WIENER_FILT_TAP1_SUBEXP_K,
-      ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
-      wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV);
+              WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
+              WIENER_FILT_TAP1_SUBEXP_K,
+              ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
+              wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV)
+          << AV1_PROB_COST_SHIFT;
   bits += aom_count_primitive_refsubexpfin(
-      WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-      WIENER_FILT_TAP2_SUBEXP_K,
-      ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
-      wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV);
+              WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
+              WIENER_FILT_TAP2_SUBEXP_K,
+              ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
+              wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV)
+          << AV1_PROB_COST_SHIFT;
   if (wiener_win == WIENER_WIN)
     bits += aom_count_primitive_refsubexpfin(
-        WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-        WIENER_FILT_TAP0_SUBEXP_K,
-        ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
-        wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV);
+                WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
+                WIENER_FILT_TAP0_SUBEXP_K,
+                ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
+                wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV)
+            << AV1_PROB_COST_SHIFT;
   bits += aom_count_primitive_refsubexpfin(
-      WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-      WIENER_FILT_TAP1_SUBEXP_K,
-      ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
-      wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV);
+              WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
+              WIENER_FILT_TAP1_SUBEXP_K,
+              ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
+              wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV)
+          << AV1_PROB_COST_SHIFT;
   bits += aom_count_primitive_refsubexpfin(
-      WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-      WIENER_FILT_TAP2_SUBEXP_K,
-      ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
-      wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV);
+              WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
+              WIENER_FILT_TAP2_SUBEXP_K,
+              ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
+              wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV)
+          << AV1_PROB_COST_SHIFT;
   return bits;
+}
+
+// If limits != NULL, calculates error for current restoration unit.
+// Otherwise, calculates error for all units in the stack using stored limits.
+static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
+                                            const RestorationTileLimits *limits,
+                                            const AV1PixelRect *tile,
+                                            RestorationUnitInfo *rui) {
+  int64_t err = try_restoration_unit(rsc, limits, tile, rui);
+  return err;
 }
 
 #define USE_WIENER_REFINEMENT_SEARCH 1
@@ -1099,7 +1139,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
                                         RestorationUnitInfo *rui,
                                         int wiener_win) {
   const int plane_off = (WIENER_WIN - wiener_win) >> 1;
-  int64_t err = try_restoration_unit(rsc, limits, tile, rui);
+  int64_t err = calc_finer_tile_search_error(rsc, limits, tile, rui);
 #if USE_WIENER_REFINEMENT_SEARCH
   int64_t err2;
   int tap_min[] = { WIENER_FILT_TAP0_MINV, WIENER_FILT_TAP1_MINV,
@@ -1119,7 +1159,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] -= s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->hfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->hfilter[p] += s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
@@ -1139,7 +1179,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] += s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->hfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->hfilter[p] -= s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
@@ -1160,7 +1200,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] -= s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->vfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->vfilter[p] += s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
@@ -1180,7 +1220,7 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] += s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->vfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = try_restoration_unit(rsc, limits, tile, rui);
+          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
           if (err2 > err) {
             plane_wiener->vfilter[p] -= s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
@@ -1290,7 +1330,7 @@ static AOM_INLINE void search_wiener_visitor(
 
   rusi->sse[RESTORE_WIENER] = finer_tile_search_wiener(
       rsc, limits, &rsc->tile_rect, &rui, reduced_wiener_win);
-  rusi->wiener = rui.wiener_info;
+  rusi->wiener_info = rui.wiener_info;
 
   if (reduced_wiener_win != WIENER_WIN) {
     assert(rui.wiener_info.vfilter[0] == 0 &&
@@ -1299,14 +1339,15 @@ static AOM_INLINE void search_wiener_visitor(
            rui.wiener_info.hfilter[WIENER_WIN - 1] == 0);
   }
 
-  const int64_t bits_wiener =
-      x->mode_costs.wiener_restore_cost[1] +
-      (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener_bank)
-       << AV1_PROB_COST_SHIFT);
-
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE],
       rsc->cm->seq_params.bit_depth);
+
+  const int64_t bits_wiener =
+      x->mode_costs.wiener_restore_cost[1] +
+      count_wiener_bits(wiener_win, &x->mode_costs, &rusi->wiener_info,
+                        &rsc->wiener_bank);
+
   double cost_wiener = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_wiener >> 4, rusi->sse[RESTORE_WIENER],
       rsc->cm->seq_params.bit_depth);
@@ -1326,7 +1367,7 @@ static AOM_INLINE void search_wiener_visitor(
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_wiener < cost_none) ? bits_wiener : bits_none;
   if (cost_wiener < cost_none)
-    av1_add_to_wiener_bank(&rsc->wiener_bank, &rusi->wiener);
+    av1_add_to_wiener_bank(&rsc->wiener_bank, &rusi->wiener_info);
 }
 
 static AOM_INLINE void search_norestore_visitor(
@@ -1368,17 +1409,18 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
   switch (rest_type) {
     case RESTORE_NONE: coeff_bits = 0; break;
     case RESTORE_WIENER:
-      coeff_bits =
-          count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener_bank);
+      coeff_bits = count_wiener_bits(wiener_win, &x->mode_costs,
+                                     &rusi->wiener_info, &rsc->wiener_bank);
       break;
     case RESTORE_SGRPROJ:
-      coeff_bits = count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj_bank);
+      coeff_bits = count_sgrproj_bits(&x->mode_costs, &rusi->sgrproj_info,
+                                      &rsc->sgrproj_bank);
       break;
     default: assert(0); break;
   }
   const int64_t bits =
       get_switchable_restore_cost(rsc->cm, x, rsc->plane, rest_type) +
-      (coeff_bits << AV1_PROB_COST_SHIFT);
+      coeff_bits;
   return bits;
 }
 
@@ -1414,7 +1456,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     int64_t bits = count_switchable_bits(r, rsc, rusi);
     double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult, bits >> 4, sse,
                                                  rsc->cm->seq_params.bit_depth);
-    if (r == RESTORE_SGRPROJ && rusi->sgrproj.ep < 10)
+    if (r == RESTORE_SGRPROJ && rusi->sgrproj_info.ep < 10)
       cost *= (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
     if (r == 0 || cost < best_cost) {
       best_cost = cost;
@@ -1428,9 +1470,9 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   rsc->bits += best_bits;
 
   if (best_rtype == RESTORE_WIENER) {
-    av1_add_to_wiener_bank(&rsc->wiener_bank, &rusi->wiener);
+    av1_add_to_wiener_bank(&rsc->wiener_bank, &rusi->wiener_info);
   } else if (best_rtype == RESTORE_SGRPROJ) {
-    av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj);
+    av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj_info);
   }
 }
 
@@ -1468,9 +1510,9 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
                               ? RESTORE_NONE
                               : rusi->best_rtype[frame_rtype - 1];
   if (rui->restoration_type == RESTORE_WIENER) {
-    rui->wiener_info = rusi->wiener;
+    rui->wiener_info = rusi->wiener_info;
   } else if (rui->restoration_type == RESTORE_SGRPROJ) {
-    rui->sgrproj_info = rusi->sgrproj;
+    rui->sgrproj_info = rusi->sgrproj_info;
   }
 }
 
