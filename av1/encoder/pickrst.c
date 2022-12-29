@@ -34,10 +34,6 @@
 #include "av1/encoder/picklpf.h"
 #include "av1/encoder/pickrst.h"
 
-// When set to RESTORE_WIENER or RESTORE_SGRPROJ only those are allowed.
-// When set to RESTORE_TYPES we allow switchable.
-static const RestorationType force_restore_type = RESTORE_TYPES;
-
 // Number of Wiener iterations
 #define NUM_WIENER_ITERS 5
 
@@ -1473,9 +1469,6 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
                        rsc.dgd_stride, RESTORATION_BORDER, RESTORATION_BORDER);
 
       for (RestorationType r = 0; r < num_rtypes; ++r) {
-        if ((force_restore_type != RESTORE_TYPES) && (r != RESTORE_NONE) &&
-            (r != force_restore_type))
-          continue;
 
         double cost = search_rest_type(&rsc, r);
 
@@ -1487,8 +1480,6 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     }
 
     cm->rst_info[plane].frame_restoration_type = best_rtype;
-    if (force_restore_type != RESTORE_TYPES)
-      assert(best_rtype == force_restore_type || best_rtype == RESTORE_NONE);
 
     if (best_rtype != RESTORE_NONE) {
       for (int u = 0; u < plane_ntiles; ++u) {
