@@ -132,6 +132,8 @@ typedef struct {
   int64_t sse;
   int64_t bits;
   int tile_y0, tile_stripe0;
+  // Helps convert tile-localized RU indices to frame RU indices.
+  int ru_idx_base;
 
   // sgrproj and wiener are initialised by rsc_on_tile when starting the first
   // tile in the frame.
@@ -140,11 +142,12 @@ typedef struct {
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
-static AOM_INLINE void rsc_on_tile(void *priv) {
+static AOM_INLINE void rsc_on_tile(void *priv, int idx_base) {
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   set_default_sgrproj(&rsc->sgrproj);
   set_default_wiener(&rsc->wiener);
   rsc->tile_stripe0 = 0;
+  rsc->ru_idx_base = idx_base;
 }
 
 static AOM_INLINE void reset_rsc(RestSearchCtxt *rsc) {
@@ -1402,13 +1405,18 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
 
 static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
                                       const RestUnitSearchInfo *rusi,
-                                      RestorationUnitInfo *rui) {
+                                      RestorationUnitInfo *rui,
+                                      RestSearchCtxt *rsc) {
+  (void)rsc;
   assert(frame_rtype > 0);
-  rui->restoration_type = rusi->best_rtype[frame_rtype - 1];
-  if (rui->restoration_type == RESTORE_WIENER)
+  rui->restoration_type = frame_rtype == RESTORE_NONE
+                              ? RESTORE_NONE
+                              : rusi->best_rtype[frame_rtype - 1];
+  if (rui->restoration_type == RESTORE_WIENER) {
     rui->wiener_info = rusi->wiener;
-  else
+  } else if (rui->restoration_type == RESTORE_SGRPROJ) {
     rui->sgrproj_info = rusi->sgrproj;
+  }
 }
 
 // Calls visitor function fun() for one specific RU in frame
@@ -1431,7 +1439,7 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   assert(tile_info.mi_col_start < tile_info.mi_col_end);
 
   reset_rsc(rsc);
-  rsc_on_tile(rsc);
+  rsc_on_tile(rsc, *processed);
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += rsc->cm->seq_params.mib_size) {
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
@@ -1496,12 +1504,38 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   };
 
   reset_rsc(rsc);
-  rsc_on_tile(rsc);
 
   if (funs[rtype])
     return process_rd_by_rutile(rsc, funs[rtype]);
   else
     return DBL_MAX;
+}
+
+static void copy_unit_info_visitor(const RestorationTileLimits *limits,
+                                   const AV1PixelRect *tile_rect,
+                                   int rest_unit_idx, int rest_unit_idx_seq,
+                                   void *priv, int32_t *tmpbuf,
+                                   RestorationLineBuffers *rlbs) {
+  (void)limits;
+  (void)tile_rect;
+  (void)rest_unit_idx_seq;
+  (void)tmpbuf;
+  (void)rlbs;
+
+  RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
+  const RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
+  const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
+  copy_unit_info(rsi->frame_restoration_type, rusi,
+                 &rsi->unit_info[rest_unit_idx], rsc);
+}
+
+static void finalize_frame_and_unit_info(RestorationType frame_rtype,
+                                         RestorationInfo *rsi,
+                                         RestSearchCtxt *rsc) {
+  rsi->frame_restoration_type = frame_rtype;
+  if (frame_rtype != RESTORE_NONE) {
+    process_by_rutile(rsc, copy_unit_info_visitor);
+  }
 }
 
 static int rest_tiles_in_plane(const AV1_COMMON *cm, int plane) {
@@ -1552,7 +1586,6 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
                        rsc.dgd_stride, RESTORATION_BORDER, RESTORATION_BORDER);
 
       for (RestorationType r = 0; r < num_rtypes; ++r) {
-
         gather_stats_rest_type(&rsc, r);
 
         double cost = search_rest_type(&rsc, r);
@@ -1564,13 +1597,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       }
     }
 
-    cm->rst_info[plane].frame_restoration_type = best_rtype;
-
-    if (best_rtype != RESTORE_NONE) {
-      for (int u = 0; u < plane_ntiles; ++u) {
-        copy_unit_info(best_rtype, &rusi[u], &cm->rst_info[plane].unit_info[u]);
-      }
-    }
+    finalize_frame_and_unit_info(best_rtype, &cm->rst_info[plane], &rsc);
   }
 
   aom_free(rusi);
