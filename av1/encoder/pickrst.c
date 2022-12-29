@@ -1133,21 +1133,33 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
 }
 
 #define USE_WIENER_REFINEMENT_SEARCH 1
-static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
+#define RD_WIENER_REFINEMENT_SEARCH 0
+static int64_t finer_tile_search_wiener(RestSearchCtxt *rsc,
                                         const RestorationTileLimits *limits,
                                         const AV1PixelRect *tile,
                                         RestorationUnitInfo *rui,
-                                        int wiener_win) {
-  const int plane_off = (WIENER_WIN - wiener_win) >> 1;
+                                        int wiener_win, int reduced_wiener_win,
+                                        const WienerInfoBank *ref_wiener_bank) {
+  (void)wiener_win;
+  (void)ref_wiener_bank;
+  const int plane_off = (WIENER_WIN - reduced_wiener_win) >> 1;
   int64_t err = calc_finer_tile_search_error(rsc, limits, tile, rui);
 #if USE_WIENER_REFINEMENT_SEARCH
-  int64_t err2;
+  WienerInfo *plane_wiener = &rui->wiener_info;
+
+  const MACROBLOCK *const x = rsc->x;
+#if RD_WIENER_REFINEMENT_SEARCH
+  int64_t bits = count_wiener_bits(wiener_win, &x->mode_costs, plane_wiener,
+                                   ref_wiener_bank);
+#else
+  int64_t bits = 0;
+#endif  // RD_WIENER_REFINEMENT_SEARCH
+  double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult, bits >> 4, err,
+                                               rsc->cm->seq_params.bit_depth);
   int tap_min[] = { WIENER_FILT_TAP0_MINV, WIENER_FILT_TAP1_MINV,
                     WIENER_FILT_TAP2_MINV };
   int tap_max[] = { WIENER_FILT_TAP0_MAXV, WIENER_FILT_TAP1_MAXV,
                     WIENER_FILT_TAP2_MAXV };
-
-  WienerInfo *plane_wiener = &rui->wiener_info;
 
   // printf("err  pre = %"PRId64"\n", err);
   const int start_step = 4;
@@ -1159,12 +1171,21 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] -= s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->hfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
-          if (err2 > err) {
+          int64_t err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
+#if RD_WIENER_REFINEMENT_SEARCH
+          int64_t bits2 = count_wiener_bits(wiener_win, &x->mode_costs,
+                                            plane_wiener, ref_wiener_bank);
+#else
+          int64_t bits2 = 0;
+#endif  // RD_WIENER_REFINEMENT_SEARCH
+          double cost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              x->rdmult, bits2 >> 4, err2, rsc->cm->seq_params.bit_depth);
+          if (cost2 > cost) {
             plane_wiener->hfilter[p] += s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
             plane_wiener->hfilter[WIENER_HALFWIN] -= 2 * s;
           } else {
+            cost = cost2;
             err = err2;
             skip = 1;
             // At the highest step size continue moving in the same direction
@@ -1179,12 +1200,21 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] += s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->hfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
-          if (err2 > err) {
+          int64_t err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
+#if RD_WIENER_REFINEMENT_SEARCH
+          int64_t bits2 = count_wiener_bits(wiener_win, &x->mode_costs,
+                                            plane_wiener, ref_wiener_bank);
+#else
+          int64_t bits2 = 0;
+#endif  // RD_WIENER_REFINEMENT_SEARCH
+          double cost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              x->rdmult, bits2 >> 4, err2, rsc->cm->seq_params.bit_depth);
+          if (cost2 > cost) {
             plane_wiener->hfilter[p] -= s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
             plane_wiener->hfilter[WIENER_HALFWIN] += 2 * s;
           } else {
+            cost = cost2;
             err = err2;
             // At the highest step size continue moving in the same direction
             if (s == start_step) continue;
@@ -1200,12 +1230,21 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] -= s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->vfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
-          if (err2 > err) {
+          int64_t err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
+#if RD_WIENER_REFINEMENT_SEARCH
+          int64_t bits2 = count_wiener_bits(wiener_win, &x->mode_costs,
+                                            plane_wiener, ref_wiener_bank);
+#else
+          int64_t bits2 = 0;
+#endif  // RD_WIENER_REFINEMENT_SEARCH
+          double cost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              x->rdmult, bits2 >> 4, err2, rsc->cm->seq_params.bit_depth);
+          if (cost2 > cost) {
             plane_wiener->vfilter[p] += s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
             plane_wiener->vfilter[WIENER_HALFWIN] -= 2 * s;
           } else {
+            cost = cost2;
             err = err2;
             skip = 1;
             // At the highest step size continue moving in the same direction
@@ -1220,12 +1259,21 @@ static int64_t finer_tile_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] += s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->vfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
-          if (err2 > err) {
+          int64_t err2 = calc_finer_tile_search_error(rsc, limits, tile, rui);
+#if RD_WIENER_REFINEMENT_SEARCH
+          int64_t bits2 = count_wiener_bits(wiener_win, &x->mode_costs,
+                                            plane_wiener, ref_wiener_bank);
+#else
+          int64_t bits2 = 0;
+#endif  // RD_WIENER_REFINEMENT_SEARCH
+          double cost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              x->rdmult, bits2 >> 4, err2, rsc->cm->seq_params.bit_depth);
+          if (cost2 > cost) {
             plane_wiener->vfilter[p] -= s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
             plane_wiener->vfilter[WIENER_HALFWIN] += 2 * s;
           } else {
+            cost = cost2;
             err = err2;
             // At the highest step size continue moving in the same direction
             if (s == start_step) continue;
@@ -1328,8 +1376,9 @@ static AOM_INLINE void search_wiener_visitor(
 
   aom_clear_system_state();
 
-  rusi->sse[RESTORE_WIENER] = finer_tile_search_wiener(
-      rsc, limits, &rsc->tile_rect, &rui, reduced_wiener_win);
+  rusi->sse[RESTORE_WIENER] =
+      finer_tile_search_wiener(rsc, limits, &rsc->tile_rect, &rui, wiener_win,
+                               reduced_wiener_win, &rsc->wiener_bank);
   rusi->wiener_info = rui.wiener_info;
 
   if (reduced_wiener_win != WIENER_WIN) {
