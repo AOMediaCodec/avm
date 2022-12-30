@@ -1256,7 +1256,6 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
       calc_subpel_params_func(&(mv_refined[n_blocks * 2 + ref].as_mv),
                               inter_pred_params, xd, mi_x + i, mi_y + j, ref, 1,
                               mc_buf, &pre, subpel_params, &src_stride);
-
       av1_make_inter_predictor(pre, src_stride, dst, dst_stride,
                                inter_pred_params, subpel_params);
       n_blocks++;

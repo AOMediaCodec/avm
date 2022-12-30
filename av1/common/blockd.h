@@ -324,6 +324,7 @@ typedef struct {
 static const PREDICTION_MODE fimode_to_intradir[FILTER_INTRA_MODES] = {
   DC_PRED, V_PRED, H_PRED, D157_PRED, DC_PRED
 };
+
 #if CONFIG_RD_DEBUG
 #define TXB_COEFF_COST_MAP_SIZE (MAX_MIB_SIZE)
 #endif
@@ -2330,7 +2331,7 @@ static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
 static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi) {
 #if CONFIG_WARPMV
   if (mbmi->mode == WARPMV) return 0;
-#endif
+#endif  // CONFIG_WARPMV
 #if CONFIG_TIP
   if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
 #endif  // CONFIG_TIP

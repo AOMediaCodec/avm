@@ -135,7 +135,7 @@ static INLINE int_mv get_mv_from_wrl(const WarpedMotionParams *ref_warp_model,
   mv.as_mv.col = (int16_t)clamp(mv.as_mv.col, clamp_min, clamp_max);
   return mv;
 }
-#endif
+#endif  // CONFIG_WARPMV
 
 #ifdef __cplusplus
 }  // extern "C"

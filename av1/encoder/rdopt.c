@@ -2300,7 +2300,6 @@ static int64_t motion_mode_rd(
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
-
 #if CONFIG_EXTENDED_WARP_PREDICTION
   int allowed_motion_modes = motion_mode_allowed(
       cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
@@ -2309,14 +2308,12 @@ static int64_t motion_mode_rd(
     // the warped motion parameters if WARPED_CAUSAL is going to be searched.
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
   }
-
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
     // Do not search WARPED_CAUSAL if there are no samples to use to determine
     // warped parameters.
     allowed_motion_modes &= ~(1 << WARPED_CAUSAL);
   }
-
 #else
   MOTION_MODE last_motion_mode_allowed = motion_mode_allowed(cm, xd, mbmi);
   if (last_motion_mode_allowed == WARPED_CAUSAL) {
