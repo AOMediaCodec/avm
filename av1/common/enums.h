@@ -56,11 +56,11 @@ enum {
   WEDGE_ANGLES
 } UENUM1BYTE(WedgeDirectionType);
 
-#define H_WEDGE_ANGLES (WEDGE_ANGLES / 2)
+#define H_WEDGE_ANGLES 10
 #define NUM_WEDGE_DIST 4
-#define MAX_WEDGE_TYPES \
-  (H_WEDGE_ANGLES * NUM_WEDGE_DIST + H_WEDGE_ANGLES * (NUM_WEDGE_DIST - 1) - 2)
+#define MAX_WEDGE_TYPES 68
 #endif  // CONFIG_WEDGE_MOD_EXT
+
 #if CONFIG_ADAPTIVE_DS_FILTER
 #define DS_FRAME_LEVEL 1  // Signal at key frame
 #endif

@@ -787,31 +787,6 @@ static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
   return av1_wedge_params_lookup[sb_type].masks[wedge_sign][wedge_index];
 }
 
-#if CONFIG_WEDGE_MOD_EXT
-static INLINE int get_wedge_cost(const BLOCK_SIZE bsize,
-                                 const int8_t wedge_index,
-                                 const MACROBLOCK *const x) {
-  const int wedge_angle = wedge_index_2_angle[wedge_index];
-  const int wedge_dist = wedge_index_2_dist[wedge_index];
-  const int wedge_angle_dir = wedge_angle >= H_WEDGE_ANGLES;
-  int wedge_cost = x->mode_costs.wedge_angle_dir_cost[bsize][wedge_angle_dir];
-  if (wedge_angle_dir == 0) {
-    wedge_cost += x->mode_costs.wedge_angle_0_cost[bsize][wedge_angle];
-  } else {
-    wedge_cost +=
-        x->mode_costs.wedge_angle_1_cost[bsize][wedge_angle - H_WEDGE_ANGLES];
-  }
-  if ((wedge_angle >= H_WEDGE_ANGLES) ||
-      (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
-    assert(wedge_dist != 0);
-    wedge_cost += x->mode_costs.wedge_dist_cost2[bsize][wedge_dist - 1];
-  } else {
-    wedge_cost += x->mode_costs.wedge_dist_cost[bsize][wedge_dist];
-  }
-  return wedge_cost;
-}
-#endif
-
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);
 

@@ -427,9 +427,9 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
 #if CONFIG_WEDGE_MOD_EXT
 static void write_wedge_mode(aom_writer *w, FRAME_CONTEXT *ec_ctx,
                              const BLOCK_SIZE bsize, const int8_t wedge_index) {
-  int wedge_angle = wedge_index_2_angle[wedge_index];
-  int wedge_dist = wedge_index_2_dist[wedge_index];
-  int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+  const int wedge_angle = wedge_index_2_angle[wedge_index];
+  const int wedge_dist = wedge_index_2_dist[wedge_index];
+  const int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
   aom_write_symbol(w, wedge_angle_dir, ec_ctx->wedge_angle_dir_cdf[bsize], 2);
   if (wedge_angle_dir == 0) {
     aom_write_symbol(w, wedge_angle, ec_ctx->wedge_angle_0_cdf[bsize],

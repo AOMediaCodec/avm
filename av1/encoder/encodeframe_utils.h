@@ -208,9 +208,9 @@ static AOM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,
                                              FRAME_COUNTS *const counts
 #endif
 ) {
-  int wedge_angle = wedge_index_2_angle[wedge_index];
-  int wedge_dist = wedge_index_2_dist[wedge_index];
-  int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+  const int wedge_angle = wedge_index_2_angle[wedge_index];
+  const int wedge_dist = wedge_index_2_dist[wedge_index];
+  const int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
 #if CONFIG_ENTROPY_STATS
   counts->wedge_angle_dir_cnt[bsize][wedge_angle_dir]++;
 #endif

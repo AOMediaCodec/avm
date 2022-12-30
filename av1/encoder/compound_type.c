@@ -176,6 +176,31 @@ static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
   return (tl + br > 0);
 }
 
+#if CONFIG_WEDGE_MOD_EXT
+static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
+                          const MACROBLOCK *const x) {
+  assert(wedge_index >= 0 && wedge_index < MAX_WEDGE_TYPES);
+  const int wedge_angle = wedge_index_2_angle[wedge_index];
+  const int wedge_dist = wedge_index_2_dist[wedge_index];
+  const int wedge_angle_dir = wedge_angle >= H_WEDGE_ANGLES;
+  int wedge_cost = x->mode_costs.wedge_angle_dir_cost[bsize][wedge_angle_dir];
+  if (wedge_angle_dir == 0) {
+    wedge_cost += x->mode_costs.wedge_angle_0_cost[bsize][wedge_angle];
+  } else {
+    wedge_cost +=
+        x->mode_costs.wedge_angle_1_cost[bsize][wedge_angle - H_WEDGE_ANGLES];
+  }
+  if ((wedge_angle >= H_WEDGE_ANGLES) ||
+      (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+    assert(wedge_dist != 0);
+    wedge_cost += x->mode_costs.wedge_dist_cost2[bsize][wedge_dist - 1];
+  } else {
+    wedge_cost += x->mode_costs.wedge_dist_cost[bsize][wedge_dist];
+  }
+  return wedge_cost;
+}
+#endif
+
 // Choose the best wedge index and sign
 static int64_t pick_wedge(const AV1_COMP *const cpi, const MACROBLOCK *const x,
                           const BLOCK_SIZE bsize, const uint16_t *const p0,
