@@ -72,7 +72,8 @@ struct scale_factors {
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 };
 
-MV32 av1_scale_mv(const MV *mv, int x, int y, const struct scale_factors *sf);
+MV32 av1_scale_mv(const MV *mv, int x, int y, const struct scale_factors *sf,
+                  int ssx, int ssy);
 
 void av1_setup_scale_factors_for_frame(struct scale_factors *sf, int other_w,
                                        int other_h, int this_w, int this_h);

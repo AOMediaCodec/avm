@@ -105,14 +105,27 @@ static int fixed_point_scale_to_coarse_point_scale(int scale_fp,
 }
 
 // Note: x and y are integer precision, mvq4 is q4 precision.
-MV32 av1_scale_mv(const MV *mvq4, int x, int y,
-                  const struct scale_factors *sf) {
-  const int x_off_q4 = sf->scale_value_x(x << SUBPEL_BITS, sf);
+MV32 av1_scale_mv(const MV *mvq4, int x, int y, const struct scale_factors *sf,
+                  int ssx, int ssy) {
+#if CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
+  const int y_off_q4 = sf->scale_value_y_invariant(y << SUBPEL_BITS, sf, ssy);
+  const int x_off_q4 = sf->scale_value_x_invariant(x << SUBPEL_BITS, sf, ssx);
+  const MV32 res = {
+    sf->scale_value_y_invariant((y << SUBPEL_BITS) + mvq4->row, sf, ssy) -
+        y_off_q4,
+    sf->scale_value_x_invariant((x << SUBPEL_BITS) + mvq4->col, sf, ssx) -
+        x_off_q4
+  };
+#else
+  (void)ssx;
+  (void)ssy;
   const int y_off_q4 = sf->scale_value_y(y << SUBPEL_BITS, sf);
+  const int x_off_q4 = sf->scale_value_x(x << SUBPEL_BITS, sf);
   const MV32 res = {
     sf->scale_value_y((y << SUBPEL_BITS) + mvq4->row, sf) - y_off_q4,
     sf->scale_value_x((x << SUBPEL_BITS) + mvq4->col, sf) - x_off_q4
   };
+#endif  // CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
   return res;
 }
 

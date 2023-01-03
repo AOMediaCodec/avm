@@ -582,8 +582,13 @@ static void dec_calc_subpel_params(
     orig_pos_y += src_mv->row * (1 << (1 - ssy));
     orig_pos_x += src_mv->col * (1 << (1 - ssx));
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+    int pos_y = sf->scale_value_y_invariant(orig_pos_y, sf, ssy);
+    int pos_x = sf->scale_value_x_invariant(orig_pos_x, sf, ssx);
+#else
     int pos_y = sf->scale_value_y(orig_pos_y, sf);
     int pos_x = sf->scale_value_x(orig_pos_x, sf);
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
     pos_x += SCALE_EXTRA_OFF;
     pos_y += SCALE_EXTRA_OFF;
 
@@ -621,7 +626,7 @@ static void dec_calc_subpel_params(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                         inter_pred_params->subsampling_x,
                                         inter_pred_params->subsampling_y);
-    *scaled_mv = av1_scale_mv(&temp_mv, mi_x, mi_y, sf);
+    *scaled_mv = av1_scale_mv(&temp_mv, mi_x, mi_y, sf, ssx, ssy);
     scaled_mv->row += SCALE_EXTRA_OFF;
     scaled_mv->col += SCALE_EXTRA_OFF;
 
@@ -741,7 +746,7 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     temp_mv = tip_clamp_mv_to_umv_border_sb(inter_pred_params, src_mv, bw, bh,
                                             inter_pred_params->subsampling_x,
                                             inter_pred_params->subsampling_y);
-    *scaled_mv = av1_scale_mv(&temp_mv, mi_x, mi_y, sf);
+    *scaled_mv = av1_scale_mv(&temp_mv, mi_x, mi_y, sf, ssx, ssy);
     scaled_mv->row += SCALE_EXTRA_OFF;
     scaled_mv->col += SCALE_EXTRA_OFF;
 

@@ -717,7 +717,8 @@ static INLINE void tip_setup_pred_plane(struct buf_2d *dst, uint8_t *src,
                                         int subsampling_x, int subsampling_y) {
   const int x = tpl_col >> subsampling_x;
   const int y = tpl_row >> subsampling_y;
-  dst->buf = src + scaled_buffer_offset(x, y, stride, scale);
+  dst->buf = src + scaled_buffer_offset(x, y, stride, scale, subsampling_x,
+                                        subsampling_y);
   dst->buf0 = src;
   dst->width = width;
   dst->height = height;
