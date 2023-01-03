@@ -2793,7 +2793,7 @@ static int check_and_write_merge_info(
 #endif  // CONFIG_RST_MERGECOEFFS
 
 static AOM_INLINE void write_wienerns_filter(
-    MACROBLOCKD *xd, int plane, int ql, const WienerNonsepInfo *wienerns_info,
+    MACROBLOCKD *xd, int plane, const WienerNonsepInfo *wienerns_info,
     WienerNonsepInfoBank *bank, aom_writer *wb) {
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(xd->base_qindex, plane != AOM_PLANE_Y);
@@ -2859,27 +2859,27 @@ static AOM_INLINE void write_wienerns_filter(
       //        ref_wienerns_info->nsfilter[i]);
       if (rodd && i == end_feat - 5 && i != beg_feat) {
         aom_write_symbol(wb, reduce_step[0],
-                         xd->tile_ctx->wienerns_reduce_cdf[ql][0], 2);
+                         xd->tile_ctx->wienerns_reduce_cdf[0], 2);
         if (reduce_step[0]) break;
       }
       if (!rodd && i == end_feat - 4 && i != beg_feat) {
         aom_write_symbol(wb, reduce_step[1],
-                         xd->tile_ctx->wienerns_reduce_cdf[ql][1], 2);
+                         xd->tile_ctx->wienerns_reduce_cdf[1], 2);
         if (reduce_step[1]) break;
       }
       if (rodd && i == end_feat - 3 && i != beg_feat) {
         aom_write_symbol(wb, reduce_step[2],
-                         xd->tile_ctx->wienerns_reduce_cdf[ql][2], 2);
+                         xd->tile_ctx->wienerns_reduce_cdf[2], 2);
         if (reduce_step[2]) break;
       }
       if (!rodd && i == end_feat - 2 && i != beg_feat) {
         aom_write_symbol(wb, reduce_step[3],
-                         xd->tile_ctx->wienerns_reduce_cdf[ql][3], 2);
+                         xd->tile_ctx->wienerns_reduce_cdf[3], 2);
         if (reduce_step[3]) break;
       }
       if (rodd && i == end_feat - 1 && i != beg_feat) {
         aom_write_symbol(wb, reduce_step[4],
-                         xd->tile_ctx->wienerns_reduce_cdf[ql][4], 2);
+                         xd->tile_ctx->wienerns_reduce_cdf[4], 2);
         if (reduce_step[4]) break;
       }
 #if CONFIG_LR_4PART_CODE
@@ -2927,11 +2927,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
 #endif  // CONFIG_LR_FLEX_SYNTAX
-#if CONFIG_MULTIQ_LR_SIGNALING
-  const int ql = get_multiq_lr_level(cm->quant_params.base_qindex);
-#else
-  const int ql = 0;
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
 
   if (frame_rtype == RESTORE_SWITCHABLE) {
 #if CONFIG_LR_FLEX_SYNTAX
@@ -2940,15 +2935,14 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
       if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
       found = (re == (int)unit_rtype);
       aom_write_symbol(w, found,
-                       xd->tile_ctx->switchable_flex_restore_cdf[ql][re][plane],
-                       2);
+                       xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2);
       if (found) break;
     }
     assert(IMPLIES(
         !found,
         (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
 #else
-    aom_write_symbol(w, unit_rtype, xd->tile_ctx->switchable_restore_cdf[ql],
+    aom_write_symbol(w, unit_rtype, xd->tile_ctx->switchable_restore_cdf,
                      RESTORE_SWITCHABLE_TYPES);
 #if CONFIG_ENTROPY_STATS
     ++counts->switchable_restore[unit_rtype];
@@ -2966,7 +2960,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         break;
 #if CONFIG_WIENER_NONSEP
       case RESTORE_WIENER_NONSEP:
-        write_wienerns_filter(xd, plane, ql, &rui->wienerns_info,
+        write_wienerns_filter(xd, plane, &rui->wienerns_info,
                               &xd->wienerns_info[plane], w);
         break;
 #endif  // CONFIG_WIENER_NONSEP
@@ -2979,7 +2973,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     }
   } else if (frame_rtype == RESTORE_WIENER) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                     xd->tile_ctx->wiener_restore_cdf[ql], 2);
+                     xd->tile_ctx->wiener_restore_cdf, 2);
 #if CONFIG_ENTROPY_STATS
     ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
 #endif
@@ -2989,7 +2983,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     }
   } else if (frame_rtype == RESTORE_SGRPROJ) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                     xd->tile_ctx->sgrproj_restore_cdf[ql], 2);
+                     xd->tile_ctx->sgrproj_restore_cdf, 2);
 #if CONFIG_ENTROPY_STATS
     ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
 #endif
@@ -2999,19 +2993,19 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #if CONFIG_WIENER_NONSEP
   } else if (frame_rtype == RESTORE_WIENER_NONSEP) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                     xd->tile_ctx->wienerns_restore_cdf[ql], 2);
+                     xd->tile_ctx->wienerns_restore_cdf, 2);
 #if CONFIG_ENTROPY_STATS
     ++counts->wienerns_restore[unit_rtype != RESTORE_NONE];
 #endif  // CONFIG_ENTROPY_STATS
     if (unit_rtype != RESTORE_NONE) {
-      write_wienerns_filter(xd, plane, ql, &rui->wienerns_info,
+      write_wienerns_filter(xd, plane, &rui->wienerns_info,
                             &xd->wienerns_info[plane], w);
     }
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_PC_WIENER
   } else if (frame_rtype == RESTORE_PC_WIENER) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                     xd->tile_ctx->pc_wiener_restore_cdf[ql], 2);
+                     xd->tile_ctx->pc_wiener_restore_cdf, 2);
 #if CONFIG_ENTROPY_STATS
     ++counts->pc_wiener_restore[unit_rtype != RESTORE_NONE];
 #endif  // CONFIG_ENTROPY_STATS

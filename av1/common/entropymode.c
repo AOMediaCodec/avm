@@ -1468,132 +1468,70 @@ static const aom_cdf_prob default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(
 
 #if CONFIG_LR_FLEX_SYNTAX
 static const aom_cdf_prob
-    default_switchable_flex_restore_cdf[MULTIQ_LR_LEVELS]
-                                       [MAX_LR_FLEX_SWITCHABLE_BITS]
+    default_switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
                                        [MAX_MB_PLANE][CDF_SIZE(2)] = {
                                          {
-                                             {
-                                                 { AOM_CDF2(20384) },
-                                                 { AOM_CDF2(20384) },
-                                                 { AOM_CDF2(20384) },
-                                             },
-                                             {
-                                                 { AOM_CDF2(20384) },
-                                                 { AOM_CDF2(20384) },
-                                                 { AOM_CDF2(20384) },
-                                             },
-                                             {
-                                                 { AOM_CDF2(24384) },
-                                                 { AOM_CDF2(24384) },
-                                                 { AOM_CDF2(24384) },
-                                             },
-                                             {
-                                                 { AOM_CDF2(20384) },
-                                                 { AOM_CDF2(20384) },
-                                                 { AOM_CDF2(20384) },
-                                             },
+                                             { AOM_CDF2(20384) },
+                                             { AOM_CDF2(20384) },
+                                             { AOM_CDF2(20384) },
                                          },
-#if CONFIG_MULTIQ_LR_SIGNALING
                                          {
-                                             {
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                             },
-                                             {
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                             },
-                                             {
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                             },
-                                             {
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                                 { AOM_CDF2(16384) },
-                                             },
+                                             { AOM_CDF2(20384) },
+                                             { AOM_CDF2(20384) },
+                                             { AOM_CDF2(20384) },
                                          },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
+                                         {
+                                             { AOM_CDF2(24384) },
+                                             { AOM_CDF2(24384) },
+                                             { AOM_CDF2(24384) },
+                                         },
+                                         {
+                                             { AOM_CDF2(20384) },
+                                             { AOM_CDF2(20384) },
+                                             { AOM_CDF2(20384) },
+                                         },
                                        };
 #else
 #if CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
 static const aom_cdf_prob
-    default_switchable_restore_cdf[MULTIQ_LR_LEVELS]
-                                  [CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
-                                    { AOM_CDF5(6000, 12000, 18000, 24000) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                    { AOM_CDF5(6000, 12000, 18000, 30000) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                  };
+    default_switchable_restore_cdf[CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
+      AOM_CDF5(6000, 12000, 18000, 24000),
+    };
 #elif !CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
 static const aom_cdf_prob
-    default_switchable_restore_cdf[MULTIQ_LR_LEVELS]
-                                  [CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
-                                    { AOM_CDF4(6000, 12000, 18000) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                    { AOM_CDF4(5000, 10000, 15000) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                  };
+    default_switchable_restore_cdf[CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
+      AOM_CDF4(6000, 12000, 18000),
+    };
 #elif CONFIG_WIENER_NONSEP && !CONFIG_PC_WIENER
 static const aom_cdf_prob
-    default_switchable_restore_cdf[MULTIQ_LR_LEVELS]
-                                  [CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
-                                    { AOM_CDF4(6000, 12000, 18000) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                    { AOM_CDF4(10000, 20000, 28000) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                  };
+    default_switchable_restore_cdf[CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
+      AOM_CDF4(6000, 12000, 18000),
+    };
 #else
 static const aom_cdf_prob
-    default_switchable_restore_cdf[MULTIQ_LR_LEVELS]
-                                  [CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
-                                    { AOM_CDF3(9413, 22581) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                    { AOM_CDF3(9413, 22581) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                  };
+    default_switchable_restore_cdf[CDF_SIZE(RESTORE_SWITCHABLE_TYPES)] = {
+      AOM_CDF3(9413, 22581),
+    };
 #endif  // CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
 #endif  // CONFIG_LR_FLEX_SYNTAX
 
-static const aom_cdf_prob default_wiener_restore_cdf[MULTIQ_LR_LEVELS]
-                                                    [CDF_SIZE(2)] = {
-                                                      { AOM_CDF2(11570) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                                      { AOM_CDF2(11570) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                                    };
+static const aom_cdf_prob default_wiener_restore_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(11570),
+};
 
 #if CONFIG_CCSO_EXT
 static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
 #endif
 
-static const aom_cdf_prob default_sgrproj_restore_cdf[MULTIQ_LR_LEVELS]
-                                                     [CDF_SIZE(2)] = {
-                                                       { AOM_CDF2(16855) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                                       { AOM_CDF2(16855) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                                     };
+static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16855),
+};
 #if CONFIG_WIENER_NONSEP
-static const aom_cdf_prob default_wienerns_reduce_cdf[MULTIQ_LR_LEVELS]
-                                                     [WIENERNS_REDUCE_STEPS]
-                                                     [CDF_SIZE(2)] = {
-                                                       { { AOM_CDF2(25000) },
-                                                         { AOM_CDF2(22500) },
-                                                         { AOM_CDF2(20000) },
-                                                         { AOM_CDF2(17500) },
-                                                         { AOM_CDF2(15000) } },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                                       { { AOM_CDF2(20000) },
-                                                         { AOM_CDF2(17500) },
-                                                         { AOM_CDF2(15000) },
-                                                         { AOM_CDF2(12500) },
-                                                         { AOM_CDF2(10000) } },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                                     };
+static const aom_cdf_prob
+    default_wienerns_reduce_cdf[WIENERNS_REDUCE_STEPS][CDF_SIZE(2)] = {
+      { AOM_CDF2(25000) }, { AOM_CDF2(22500) }, { AOM_CDF2(20000) },
+      { AOM_CDF2(17500) }, { AOM_CDF2(15000) },
+    };
 #if CONFIG_LR_4PART_CODE
 static const aom_cdf_prob
     default_wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)] = {
@@ -1603,22 +1541,14 @@ static const aom_cdf_prob
       { AOM_CDF4(8192, 16384, 24576) },
     };
 #endif  // CONFIG_LR_4PART_CODE
-static const aom_cdf_prob default_wienerns_restore_cdf[MULTIQ_LR_LEVELS]
-                                                      [CDF_SIZE(2)] = {
-                                                        { AOM_CDF2(12000) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                                        { AOM_CDF2(12000) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                                      };
+static const aom_cdf_prob default_wienerns_restore_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(12000),
+};
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_PC_WIENER
-static const aom_cdf_prob default_pc_wiener_restore_cdf[MULTIQ_LR_LEVELS]
-                                                       [CDF_SIZE(2)] = {
-                                                         { AOM_CDF2(10000) },
-#if CONFIG_MULTIQ_LR_SIGNALING
-                                                         { AOM_CDF2(10000) },
-#endif  // CONFIG_MULTIQ_LR_SIGNALING
-                                                       };
+static const aom_cdf_prob default_pc_wiener_restore_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(10000),
+};
 #endif  // CONFIG_PC_WIENER
 
 #if CONFIG_RST_MERGECOEFFS
