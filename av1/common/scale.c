@@ -18,26 +18,47 @@
 #include "aom_dsp/aom_filter.h"
 
 // Note: Expect val to be in q4 precision
-static INLINE int scaled_x(int val, const struct scale_factors *sf) {
+static INLINE int scaled_x(int val, const struct scale_factors *sf, int ssx) {
+  (void)ssx;
   const int off =
       (sf->x_scale_fp - (1 << REF_SCALE_SHIFT)) * (1 << (SUBPEL_BITS - 1));
+#if CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
+  const int val128 = val & ~((1 << (SUBPEL_BITS + MAX_SB_SIZE_LOG2 - ssx)) - 1);
+  const int val128off = val - val128;
+  const int64_t tval128 = (int64_t)val128 * sf->x_scale_fp + off;
+  const int start128 = (int)ROUND_POWER_OF_TWO_SIGNED_64(
+      tval128, REF_SCALE_SHIFT - SCALE_EXTRA_BITS);
+  return start128 + (sf->x_step_q4 >> SUBPEL_BITS) * val128off;
+#else
   const int64_t tval = (int64_t)val * sf->x_scale_fp + off;
   return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval,
                                            REF_SCALE_SHIFT - SCALE_EXTRA_BITS);
+#endif  // CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
 }
 
 // Note: Expect val to be in q4 precision
-static INLINE int scaled_y(int val, const struct scale_factors *sf) {
+static INLINE int scaled_y(int val, const struct scale_factors *sf, int ssy) {
+  (void)ssy;
   const int off =
       (sf->y_scale_fp - (1 << REF_SCALE_SHIFT)) * (1 << (SUBPEL_BITS - 1));
+#if CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
+  const int val128 = val & ~((1 << (SUBPEL_BITS + MAX_SB_SIZE_LOG2 - ssy)) - 1);
+  const int val128off = val - val128;
+  const int64_t tval128 = (int64_t)val128 * sf->y_scale_fp + off;
+  const int start128 = (int)ROUND_POWER_OF_TWO_SIGNED_64(
+      tval128, REF_SCALE_SHIFT - SCALE_EXTRA_BITS);
+  return start128 + (sf->y_step_q4 >> SUBPEL_BITS) * val128off;
+#else
   const int64_t tval = (int64_t)val * sf->y_scale_fp + off;
   return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval,
                                            REF_SCALE_SHIFT - SCALE_EXTRA_BITS);
+#endif  // CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
 }
 
 // Note: Expect val to be in q4 precision
-static int unscaled_value(int val, const struct scale_factors *sf) {
+static int unscaled_value(int val, const struct scale_factors *sf, int sub) {
   (void)sf;
+  (void)sub;
   return val * (1 << SCALE_EXTRA_BITS);
 }
 
@@ -56,34 +77,6 @@ static int unscaled_value_gen(int val, const struct scale_factors *sf) {
   (void)sf;
   return val;
 }
-
-#if CONFIG_TIP
-// Note: Expect val to be in q4 precision
-static INLINE int scaled_x_invariant(int val, const struct scale_factors *sf,
-                                     int ss_x) {
-  assert((sf->x_step_q4 & ((1 << SUBPEL_BITS) - 1)) == 0);
-  const int val128 =
-      val & ~((1 << (SUBPEL_BITS + MAX_SB_SIZE_LOG2 - ss_x)) - 1);
-  return scaled_x(val128, sf) + (sf->x_step_q4 >> SUBPEL_BITS) * (val - val128);
-}
-
-// Note: Expect val to be in q4 precision
-static INLINE int scaled_y_invariant(int val, const struct scale_factors *sf,
-                                     int ss_y) {
-  assert((sf->y_step_q4 & ((1 << SUBPEL_BITS) - 1)) == 0);
-  const int val128 =
-      val & ~((1 << (SUBPEL_BITS + MAX_SB_SIZE_LOG2 - ss_y)) - 1);
-  return scaled_y(val128, sf) + (sf->y_step_q4 >> SUBPEL_BITS) * (val - val128);
-}
-
-// Note: Expect val to be in q4 precision
-static int unscaled_value_invariant(int val, const struct scale_factors *sf,
-                                    int ss) {
-  (void)sf;
-  (void)ss;
-  return val * (1 << SCALE_EXTRA_BITS);
-}
-#endif  // CONFIG_TIP
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
 static int get_fixed_point_scale_factor(int other_size, int this_size,
@@ -107,25 +100,12 @@ static int fixed_point_scale_to_coarse_point_scale(int scale_fp,
 // Note: x and y are integer precision, mvq4 is q4 precision.
 MV32 av1_scale_mv(const MV *mvq4, int x, int y, const struct scale_factors *sf,
                   int ssx, int ssy) {
-#if CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
-  const int y_off_q4 = sf->scale_value_y_invariant(y << SUBPEL_BITS, sf, ssy);
-  const int x_off_q4 = sf->scale_value_x_invariant(x << SUBPEL_BITS, sf, ssx);
+  const int y_off_q4 = sf->scale_value_y(y << SUBPEL_BITS, sf, ssy);
+  const int x_off_q4 = sf->scale_value_x(x << SUBPEL_BITS, sf, ssx);
   const MV32 res = {
-    sf->scale_value_y_invariant((y << SUBPEL_BITS) + mvq4->row, sf, ssy) -
-        y_off_q4,
-    sf->scale_value_x_invariant((x << SUBPEL_BITS) + mvq4->col, sf, ssx) -
-        x_off_q4
+    sf->scale_value_y((y << SUBPEL_BITS) + mvq4->row, sf, ssy) - y_off_q4,
+    sf->scale_value_x((x << SUBPEL_BITS) + mvq4->col, sf, ssx) - x_off_q4
   };
-#else
-  (void)ssx;
-  (void)ssy;
-  const int y_off_q4 = sf->scale_value_y(y << SUBPEL_BITS, sf);
-  const int x_off_q4 = sf->scale_value_x(x << SUBPEL_BITS, sf);
-  const MV32 res = {
-    sf->scale_value_y((y << SUBPEL_BITS) + mvq4->row, sf) - y_off_q4,
-    sf->scale_value_x((x << SUBPEL_BITS) + mvq4->col, sf) - x_off_q4
-  };
-#endif  // CONFIG_TIP && CONFIG_ACROSS_SCALE_TPL_MVS
   return res;
 }
 
@@ -164,10 +144,6 @@ void av1_setup_scale_factors_for_frame(struct scale_factors *sf, int other_w,
 #if CONFIG_ACROSS_SCALE_TPL_MVS
     sf->scale_value_x_gen = scaled_x_gen;
     sf->scale_value_y_gen = scaled_y_gen;
-#if CONFIG_TIP
-    sf->scale_value_x_invariant = scaled_x_invariant;
-    sf->scale_value_y_invariant = scaled_y_invariant;
-#endif  // CONFIG_TIP
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
   } else {
     sf->scale_value_x = unscaled_value;
@@ -175,10 +151,6 @@ void av1_setup_scale_factors_for_frame(struct scale_factors *sf, int other_w,
 #if CONFIG_ACROSS_SCALE_TPL_MVS
     sf->scale_value_x_gen = unscaled_value_gen;
     sf->scale_value_y_gen = unscaled_value_gen;
-#if CONFIG_TIP
-    sf->scale_value_x_invariant = unscaled_value_invariant;
-    sf->scale_value_y_invariant = unscaled_value_invariant;
-#endif  // CONFIG_TIP
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
   }
 }

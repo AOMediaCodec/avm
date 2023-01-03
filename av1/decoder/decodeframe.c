@@ -582,13 +582,8 @@ static void dec_calc_subpel_params(
     orig_pos_y += src_mv->row * (1 << (1 - ssy));
     orig_pos_x += src_mv->col * (1 << (1 - ssx));
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-    int pos_y = sf->scale_value_y_invariant(orig_pos_y, sf, ssy);
-    int pos_x = sf->scale_value_x_invariant(orig_pos_x, sf, ssx);
-#else
-    int pos_y = sf->scale_value_y(orig_pos_y, sf);
-    int pos_x = sf->scale_value_x(orig_pos_x, sf);
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
+    int pos_y = sf->scale_value_y(orig_pos_y, sf, ssy);
+    int pos_x = sf->scale_value_x(orig_pos_x, sf, ssx);
     pos_x += SCALE_EXTRA_OFF;
     pos_y += SCALE_EXTRA_OFF;
 
@@ -709,13 +704,8 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     orig_pos_y += src_mv->row * (1 << (1 - ssy));
     int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     orig_pos_x += src_mv->col * (1 << (1 - ssx));
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-    int pos_y = sf->scale_value_y_invariant(orig_pos_y, sf, ssy);
-    int pos_x = sf->scale_value_x_invariant(orig_pos_x, sf, ssx);
-#else
-    int pos_y = sf->scale_value_y(orig_pos_y, sf);
-    int pos_x = sf->scale_value_x(orig_pos_x, sf);
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
+    int pos_y = sf->scale_value_y(orig_pos_y, sf, ssy);
+    int pos_x = sf->scale_value_x(orig_pos_x, sf, ssx);
     pos_x += SCALE_EXTRA_OFF;
     pos_y += SCALE_EXTRA_OFF;
 

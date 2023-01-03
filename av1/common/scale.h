@@ -49,26 +49,12 @@ struct scale_factors {
   int x_step_q4;
   int y_step_q4;
 
-  int (*scale_value_x)(int val, const struct scale_factors *sf);
-  int (*scale_value_y)(int val, const struct scale_factors *sf);
+  int (*scale_value_x)(int val, const struct scale_factors *sf, int ssx);
+  int (*scale_value_y)(int val, const struct scale_factors *sf, int ssy);
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
   int (*scale_value_x_gen)(int val, const struct scale_factors *sf);
   int (*scale_value_y_gen)(int val, const struct scale_factors *sf);
-#if CONFIG_TIP
-  // Boundary invariant versions for use in TIP.
-  // Note this is only needed because the TIP implementation is such that
-  // the blocks used during generation of the tip ref buffer on the encoder
-  // side may not be the same as the blocks used on the decoder side for
-  // on-the-fly generation. If the implementation changes in the future
-  // to make the encoder and decoder consistent, then these versions would
-  // not be needed and we can go back to using scale_value_x() and
-  // scale_value_y().
-  int (*scale_value_x_invariant)(int val, const struct scale_factors *sf,
-                                 int sx);
-  int (*scale_value_y_invariant)(int val, const struct scale_factors *sf,
-                                 int sy);
-#endif  // CONFIG_TIP
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 };
 
