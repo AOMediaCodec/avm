@@ -539,7 +539,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
   SimpleMotionDataBufs *data_bufs = x->sms_bufs;
   av1_init_sms_data_bufs(data_bufs);
-  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, BLOCK_128X128,
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->seq_params.sb_size,
                cm->seq_params.sb_size);
 
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
