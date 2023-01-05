@@ -149,6 +149,15 @@ static INLINE void interp_model_rd_eval(
                                   plane_from, plane_to);
   }
 
+  // The chroma can have different bsize than luma, so they need to taken care
+  // of separately.
+  assert(IMPLIES(plane_from == AOM_PLANE_Y, plane_to == AOM_PLANE_Y));
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (plane_from > AOM_PLANE_Y) {
+    bsize = get_bsize_base(xd, xd->mi[0], AOM_PLANE_U);
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   model_rd_sb_fn[MODELRD_TYPE_INTERP_FILTER](
       cpi, bsize, x, xd, plane_from, plane_to, &tmp_rd_stats.rate,
       &tmp_rd_stats.dist, &tmp_rd_stats.skip_txfm, &tmp_rd_stats.sse, NULL,

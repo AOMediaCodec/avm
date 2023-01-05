@@ -1033,7 +1033,8 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
   if (xd->tree_type != LUMA_PART) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     const struct macroblockd_plane *const pd_u = &xd->plane[1];
-    const BLOCK_SIZE chroma_bsize_base = xd->mi[0]->chroma_ref_info.bsize_base;
+    const BLOCK_SIZE chroma_bsize_base =
+        get_bsize_base(xd, xd->mi[0], AOM_PLANE_U);
     assert(chroma_bsize_base < BLOCK_SIZES_ALL);
     if (get_plane_block_size(chroma_bsize_base, pd_u->subsampling_x,
                              pd_u->subsampling_y) == BLOCK_INVALID) {
@@ -2222,10 +2223,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   } else {
     partition = ptree->partition;
   }
-#if CONFIG_EXT_RECUR_PARTITIONS
-  const int track_ptree_luma =
-      ptree_luma ? (partition == ptree_luma->partition) : 0;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   if (subsize == BLOCK_INVALID) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
@@ -2235,12 +2233,40 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   // Check the bitstream is conformant: if there is subsampling on the
   // chroma planes, subsize must subsample to a valid block size.
   const struct macroblockd_plane *const pd_u = &xd->plane[1];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  BLOCK_SIZE test_subsize = subsize;
+  if (xd->tree_type == SHARED_PART) {
+    const PARTITION_TREE *parent = ptree;
+    CHROMA_REF_INFO chroma_ref_info;
+    const int index =
+        (partition == PARTITION_HORZ || partition == PARTITION_VERT) +
+        (partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
+    set_chroma_ref_info(mi_row, mi_col, index, bsize, &chroma_ref_info,
+                        parent ? &parent->chroma_ref_info : NULL,
+                        parent ? parent->bsize : BLOCK_INVALID,
+                        parent ? parent->partition : PARTITION_NONE,
+                        xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
+    test_subsize = chroma_ref_info.bsize_base;
+  }
+  if (xd->tree_type != LUMA_PART &&
+      get_plane_block_size(test_subsize, pd_u->subsampling_x,
+                           pd_u->subsampling_y) == BLOCK_INVALID) {
+    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                       "Block size %dx%d invalid with this subsampling mode",
+                       block_size_wide[test_subsize],
+                       block_size_high[test_subsize]);
+  }
+
+  const int track_ptree_luma =
+      ptree_luma ? (partition == ptree_luma->partition) : 0;
+#else
   if (get_plane_block_size(subsize, pd_u->subsampling_x, pd_u->subsampling_y) ==
       BLOCK_INVALID) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                        "Block size %dx%d invalid with this subsampling mode",
                        block_size_wide[subsize], block_size_high[subsize]);
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #define DEC_BLOCK_STX_ARG
 #define DEC_BLOCK_EPT_ARG partition,

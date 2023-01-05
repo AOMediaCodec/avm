@@ -3126,9 +3126,11 @@ static AOM_INLINE void init_allowed_partitions(
     part_search_state->partition_none_allowed = false;
     if (implied_partition == PARTITION_HORZ) {
       part_search_state->partition_rect_allowed[VERT] = false;
+      assert(part_search_state->partition_rect_allowed[HORZ]);
     } else {
       assert(implied_partition == PARTITION_VERT);
       part_search_state->partition_rect_allowed[HORZ] = false;
+      assert(part_search_state->partition_rect_allowed[VERT]);
     }
   }
 
