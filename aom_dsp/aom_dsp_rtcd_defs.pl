@@ -1034,9 +1034,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/uint32_t aom_highbd_8_sub_pixel_avg_variance4x4/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred";
 
   add_proto qw/void aom_highbd_comp_mask_pred/, "uint16_t *comp_pred, const uint16_t *pred8, int width, int height, const uint16_t *ref8, int ref_stride, const uint8_t *mask, int mask_stride, int invert_mask";
-  if (aom_config("CONFIG_WEDGE_MOD_EXT") ne "yes") {
-    specialize qw/aom_highbd_comp_mask_pred sse2 avx2/;
-  }
+  specialize qw/aom_highbd_comp_mask_pred sse2 avx2/;
 }  # CONFIG_AV1_ENCODER
 
 1;

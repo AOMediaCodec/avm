@@ -31,14 +31,14 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace AV1CompMaskVariance {
-#if (HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2) && !CONFIG_WEDGE_MOD_EXT
+#if (HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2)
 const BLOCK_SIZE kValidBlockSize[] = {
   BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,   BLOCK_16X16,
   BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,  BLOCK_32X64,
   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
   BLOCK_16X64, BLOCK_64X16
 };
-#endif  // (HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2) && !CONFIG_WEDGE_MOD_EXT
+#endif
 
 typedef void (*highbd_comp_mask_pred_func)(uint16_t *comp_pred8,
                                            const uint16_t *pred8, int width,
@@ -183,21 +183,21 @@ TEST_P(AV1HighbdCompMaskVarianceTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
-#if HAVE_AVX2 && !CONFIG_WEDGE_MOD_EXT
+#if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdCompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
-#endif  // HAVE_AVX2 && !CONFIG_WEDGE_MOD_EXT
+#endif
 
-#if HAVE_SSE2 && !CONFIG_WEDGE_MOD_EXT
+#if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1HighbdCompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
-#endif  // HAVE_AVX2 && !CONFIG_WEDGE_MOD_EXT
+#endif
 
 #ifndef aom_highbd_comp_mask_pred
 // can't run this test if aom_highbd_comp_mask_pred is defined to
