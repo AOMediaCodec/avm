@@ -4696,10 +4696,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 
 #if CONFIG_PAR_HIDING
-  if (features->coded_lossless)
+  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding) {
     assert(features->allow_parity_hiding == false);
-  else
+  } else {
     aom_wb_write_bit(wb, features->allow_parity_hiding);
+  }
 #endif  // CONFIG_PAR_HIDING
 
   // Write TX mode
