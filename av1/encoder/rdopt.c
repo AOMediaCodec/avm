@@ -4964,7 +4964,7 @@ static int64_t handle_inter_mode(
               }
             }
             if (mv_outlim) continue;
-#endif        // CONFIG_C071_SUBBLK_WARPMV
+#endif  // CONFIG_C071_SUBBLK_WARPMV
 
               // skip NEWMV mode in drl if the motion search result is the same
               // as a previous result
