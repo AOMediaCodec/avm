@@ -1027,14 +1027,22 @@ static const aom_cdf_prob default_skip_drl_cdf[3][CDF_SIZE(2)] = {
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 
 #if CONFIG_C076_INTER_MOD_CTX
+#if CONFIG_OPTFLOW_REFINEMENT
 static const aom_cdf_prob
     default_use_optflow_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)] = {
       { AOM_CDF2(20258) }, { AOM_CDF2(16384) }, { AOM_CDF2(15212) },
       { AOM_CDF2(17153) }, { AOM_CDF2(13469) }, { AOM_CDF2(15388) }
     };
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT
 static const aom_cdf_prob
     default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
         INTER_COMPOUND_REF_TYPES)] = {
+#else
+static const aom_cdf_prob
+    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
+        INTER_COMPOUND_MODES)] = {
+#endif
       { AOM_CDF7(5669, 13946, 20791, 22484, 30450, 31644) },
       { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087) },
       { AOM_CDF7(16180, 21006, 25627, 26678, 28477, 30443) },
