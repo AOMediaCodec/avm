@@ -1559,7 +1559,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
 #else
   const int compare_cost = cost_mv_ref(&x->mode_costs, compare_mode, mode_ctx);
   const int this_cost = cost_mv_ref(&x->mode_costs, this_mode, mode_ctx);
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_WARPMV
 
   // Only skip if the mode cost is larger than compare mode cost
   if (this_cost > compare_cost) {
@@ -4964,7 +4964,7 @@ static int64_t handle_inter_mode(
               }
             }
             if (mv_outlim) continue;
-#endif  // CONFIG_C071_SUBBLK_WARPMV
+#endif        // CONFIG_C071_SUBBLK_WARPMV
 
               // skip NEWMV mode in drl if the motion search result is the same
               // as a previous result
