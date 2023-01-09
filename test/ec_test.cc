@@ -17,7 +17,7 @@
 #include "aom_dsp/entenc.h"
 #include "aom_dsp/entdec.h"
 
-TEST(EC_TEST, random_ec_test) {
+TEST(EC_TEST, random_ec_test_Large) {
   od_ec_enc enc;
   od_ec_dec dec;
   int sz;

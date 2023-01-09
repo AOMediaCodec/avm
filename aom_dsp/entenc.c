@@ -164,6 +164,7 @@ void od_ec_enc_clear(od_ec_enc *enc) {
 }
 
 #if CONFIG_BYPASS_IMPROVEMENT
+// Scale the CDF to match the range value stored in the entropy decoder.
 static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
   return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
            (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))

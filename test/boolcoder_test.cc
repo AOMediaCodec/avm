@@ -136,7 +136,7 @@ TEST(AV1, TestTell) {
   }
 }
 
-TEST(AV1, TestHasOverflowed) {
+TEST(AV1, TestHasOverflowedLarge) {
   const int kBufferSize = 10000;
   aom_writer bw;
   uint8_t bw_buffer[kBufferSize];

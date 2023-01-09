@@ -43,7 +43,7 @@
 #if CONFIG_BYPASS_IMPROVEMENT
 #define aom_read_bypass(r, ACCT_STR_NAME) \
   aom_read_bypass_(r ACCT_STR_ARG(ACCT_STR_NAME))
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 #define aom_read_bit(r, ACCT_STR_NAME) \
   aom_read_bit_(r ACCT_STR_ARG(ACCT_STR_NAME))
 #define aom_read_tree(r, tree, probs, ACCT_STR_NAME) \
@@ -58,7 +58,7 @@
 #if CONFIG_BYPASS_IMPROVEMENT
 #define aom_read_unary(r, bits, ACCT_STR_NAME) \
   aom_read_unary_(r, bits ACCT_STR_ARG(ACCT_STR_NAME))
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 #ifdef __cplusplus
 extern "C" {
@@ -243,7 +243,7 @@ static INLINE int aom_read_unary_(aom_reader *r, int max_bits ACCT_STR_PARAM) {
 #endif
   return ret;
 }
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 static INLINE int aom_read_cdf_(aom_reader *r, const aom_cdf_prob *cdf,
                                 int nsymbs ACCT_STR_PARAM) {

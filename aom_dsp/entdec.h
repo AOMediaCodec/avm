@@ -70,7 +70,7 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_literal_bypass(od_ec_dec *dec,
 OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
                                                     int max_bits)
     OD_ARG_NONNULL(1);
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *dec,

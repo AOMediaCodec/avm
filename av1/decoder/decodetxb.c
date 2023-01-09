@@ -51,7 +51,7 @@ static int read_golomb(MACROBLOCKD *xd, aom_reader *r) {
     x <<= 1;
     x += aom_read_bit(r, ACCT_STR);
   }
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
   return x - 1;
 }
@@ -605,7 +605,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         eob_extra += (1 << (eob_offset_bits - 1 - i));
       }
     }
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
   }
   *eob = rec_eob_pos(eob_pt, eob_extra);
 

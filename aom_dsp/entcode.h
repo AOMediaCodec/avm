@@ -27,7 +27,7 @@
 typedef uint64_t od_ec_window;
 #else
 typedef uint32_t od_ec_window;
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*The size in bits of od_ec_window.*/
 #define OD_EC_WINDOW_SIZE ((int)sizeof(od_ec_window) * CHAR_BIT)

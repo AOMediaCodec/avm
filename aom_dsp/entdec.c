@@ -79,7 +79,7 @@
 #define OD_EC_MIN_BITS 8
 #else
 #define OD_EC_MIN_BITS 0
-#endif
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*The return value of od_ec_dec_tell does not change across an od_ec_dec_refill
    call.*/
@@ -146,6 +146,10 @@ static int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif, unsigned rng,
 }
 
 #if CONFIG_BYPASS_IMPROVEMENT
+/* This function performs renormalization after decoding bypass symbols.
+   This is a simplified version of od_ec_dec_normalize(), as bypass
+   symbol decoding only requires shifting in new bits, and the range
+   value remains unchanged. */
 static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
                                       int n_bypass, int ret) {
   /*n_bypass bits in dec->dif are consumed.*/
@@ -156,6 +160,7 @@ static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
   return ret;
 }
 
+// Scale the CDF to match the range value stored in the entropy decoder.
 static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
   return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
            (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
@@ -264,7 +269,7 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
   assert((r & 1) == 0);
   assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
   assert(32768U <= r);
-  assert(0 < max_bits && max_bits <= 32);
+  assert((0 < max_bits) && (max_bits <= 32));
   vw = (od_ec_window)r << (OD_EC_WINDOW_SIZE - 16);
   ret = 0;
   int bit;
