@@ -13,8 +13,9 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/cfl.h"
 #include "av1/common/common_data.h"
-
 #include "av1/common/enums.h"
+#include "av1/common/reconintra.h"
+
 #include "config/av1_rtcd.h"
 
 #if CONFIG_IMPROVED_CFL
@@ -196,10 +197,15 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int have_top = 0, have_left = 0;
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
+#else
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
   const int have_left =
       col || (sub_x ? xd->chroma_left_available : xd->left_available);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   memset(cfl->recon_yuv_buf_above[0], 0, sizeof(cfl->recon_yuv_buf_above[0]));
   memset(cfl->recon_yuv_buf_left[0], 0, sizeof(cfl->recon_yuv_buf_left[0]));
@@ -319,13 +325,18 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
   CFL_CTX *const cfl = &xd->cfl;
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int have_top = 0, have_left = 0;
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
+#else
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
-
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
   const int have_left =
       col || (sub_x ? xd->chroma_left_available : xd->left_available);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int count = 0;
   int sum_x = 0;
@@ -370,10 +381,15 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
   int pic_width_c = cm->width >> sub_x;
   int pic_height_c = cm->height >> sub_y;
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int have_top = 0, have_left = 0;
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, plane);
+#else
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
   const int have_left =
       col || (sub_x ? xd->chroma_left_available : xd->left_available);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   memset(cfl->recon_yuv_buf_above[plane], 0,
          sizeof(cfl->recon_yuv_buf_above[plane]));
@@ -456,13 +472,18 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
   MB_MODE_INFO *mbmi = xd->mi[0];
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int have_top = 0, have_left = 0;
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, plane);
+#else
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
-
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
   const int have_left =
       col || (sub_x ? xd->chroma_left_available : xd->left_available);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int count = 0;
   int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;

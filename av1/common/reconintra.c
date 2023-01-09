@@ -1525,10 +1525,15 @@ void av1_predict_intra_block(
   const int txh = tx_size_high_unit[tx_size];
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int have_top = 0, have_left = 0;
+  set_have_top_and_left(&have_top, &have_left, xd, row_off, col_off, plane);
+#else
   const int have_top =
       row_off || (ss_y ? xd->chroma_up_available : xd->up_available);
   const int have_left =
       col_off || (ss_x ? xd->chroma_left_available : xd->left_available);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
   const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   BLOCK_SIZE bsize = mbmi->sb_type[plane > 0];

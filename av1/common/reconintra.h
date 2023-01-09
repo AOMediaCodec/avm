@@ -299,6 +299,16 @@ static const int32_t transpose_tx_size[TX_SIZES_ALL] = {
 };
 #endif
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE void set_have_top_and_left(int *have_top, int *have_left,
+                                             const MACROBLOCKD *xd, int row_off,
+                                             int col_off, int plane) {
+  *have_top = row_off || (plane ? xd->chroma_up_available : xd->up_available);
+  *have_left =
+      col_off || (plane ? xd->chroma_left_available : xd->left_available);
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
