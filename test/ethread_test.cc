@@ -279,9 +279,13 @@ class AVxEncoderThreadTest
     }
   }
 
+#define TEST_FRAME_START 6
+#define TEST_FRAME_END 13
+
   void DoTest() {
-    ::libaom_test::YUVVideoSource video(
-        "niklas_640_480_30.yuv", AOM_IMG_FMT_I420, 640, 480, 30, 1, 15, 21);
+    ::libaom_test::YUVVideoSource video("niklas_640_480_30.yuv",
+                                        AOM_IMG_FMT_I420, 640, 480, 30, 1,
+                                        TEST_FRAME_START, TEST_FRAME_END);
     cfg_.rc_target_bitrate = 1000;
 
     if (row_mt_ == 0) {
