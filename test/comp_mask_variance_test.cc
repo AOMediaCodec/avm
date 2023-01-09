@@ -252,8 +252,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
                                   subx, suby, ref_, MAX_SB_SIZE, bd_,
                                   subpel_search);
 
-        test_impl(comp_pred2_, pred_, w, h, comp_pred2_, w,
-                                  mask, w, inv);
+        test_impl(comp_pred2_, pred_, w, h, comp_pred2_, w, mask, w, inv);
 
         ASSERT_EQ(CheckResult(w, h), true)
             << " wedge " << wedge_index << " inv " << inv << "sub (" << subx
