@@ -217,7 +217,6 @@ AV1HighbdCompMaskUpVarianceTest::~AV1HighbdCompMaskUpVarianceTest() { ; }
 
 void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv) {
-  (void)test_impl;
   int bd_ = GET_PARAM(2);
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
@@ -253,7 +252,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
                                   subx, suby, ref_, MAX_SB_SIZE, bd_,
                                   subpel_search);
 
-        aom_highbd_comp_mask_pred(comp_pred2_, pred_, w, h, comp_pred2_, w,
+        test_impl(comp_pred2_, pred_, w, h, comp_pred2_, w,
                                   mask, w, inv);
 
         ASSERT_EQ(CheckResult(w, h), true)
