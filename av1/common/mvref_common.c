@@ -251,6 +251,10 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
       clamp_tip_fullmv(cm, &cand_mv.as_mv, cand_tpl_row, cand_tpl_col);
   const int ref_blk_row = (fullmv.row >> TMVP_MI_SZ_LOG2) + cand_tpl_row;
   const int ref_blk_col = (fullmv.col >> TMVP_MI_SZ_LOG2) + cand_tpl_col;
+  assert(ref_blk_row <
+         ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS));
+  assert(ref_blk_col <
+         ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS));
 
   const int offset = ref_blk_row * frame_mvs_stride + ref_blk_col;
   const TPL_MV_REF *tpl_mvs = cm->tpl_mvs + offset;
@@ -839,6 +843,8 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   const int tpl_col = ((mi_col + mi_pos.col) >> TMVP_SHIFT_BITS);
   const int tpl_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  assert(tpl_row < ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS));
+  assert(tpl_col < ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS));
   const TPL_MV_REF *prev_frame_mvs =
       cm->tpl_mvs + tpl_row * tpl_stride + tpl_col;
 #else
@@ -1848,6 +1854,10 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
                                              scaled_blk_col, this_mv.as_mv, 0);
             }
             if (pos_valid) {
+              assert(mi_r < ROUND_POWER_OF_TWO(cm->mi_params.mi_rows,
+                                               TMVP_SHIFT_BITS));
+              assert(mi_c < ROUND_POWER_OF_TWO(cm->mi_params.mi_cols,
+                                               TMVP_SHIFT_BITS));
               ref_mv.row = -ref_mv.row;
               ref_mv.col = -ref_mv.col;
 
@@ -2007,6 +2017,10 @@ static int motion_field_projection(AV1_COMMON *cm,
                                      scaled_blk_col, this_mv.as_mv, dir >> 1);
             }
             if (pos_valid) {
+              assert(mi_r < ROUND_POWER_OF_TWO(cm->mi_params.mi_rows,
+                                               TMVP_SHIFT_BITS));
+              assert(mi_c < ROUND_POWER_OF_TWO(cm->mi_params.mi_cols,
+                                               TMVP_SHIFT_BITS));
               const int mi_offset = mi_r * mvs_stride + mi_c;
               if (overwrite_mv ||
                   tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {
@@ -2149,6 +2163,8 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
         }
 
         if (pos_valid) {
+          assert(mi_r < ((cm->mi_params.mi_rows + 1) >> 1));
+          assert(mi_c < ((cm->mi_params.mi_cols + 1) >> 1));
           fwd_mv.row = -fwd_mv.row;
           fwd_mv.col = -fwd_mv.col;
 
@@ -2286,6 +2302,8 @@ static int motion_field_projection(AV1_COMMON *cm,
         }
 
         if (pos_valid) {
+          assert(mi_r < ((cm->mi_params.mi_rows + 1) >> 1));
+          assert(mi_c < ((cm->mi_params.mi_cols + 1) >> 1));
           const int mi_offset = mi_r * (cm->mi_params.mi_stride >> 1) + mi_c;
           if (overwrite_mv ||
               tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {

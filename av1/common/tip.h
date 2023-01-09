@@ -71,7 +71,6 @@ static AOM_INLINE FULLPEL_MV clamp_tip_fullmv(const AV1_COMMON *const cm,
                                               const int blk_col) {
   const int y_width = cm->tip_ref.ref_frame_buffer[0]->buf.y_width;
   const int y_height = cm->tip_ref.ref_frame_buffer[0]->buf.y_height;
-
   FULLPEL_MV fullmv;
   fullmv = get_fullmv_from_mv(mv);
   if (fullmv.row + ((blk_row + 1) << TMVP_MI_SZ_LOG2) > y_height) {
@@ -85,6 +84,19 @@ static AOM_INLINE FULLPEL_MV clamp_tip_fullmv(const AV1_COMMON *const cm,
   } else if (fullmv.col + (blk_col << TMVP_MI_SZ_LOG2) < 0) {
     fullmv.col = -(blk_col << TMVP_MI_SZ_LOG2);
   }
+
+#if CONFIG_ACROSS_SCALE_TPL_MVS
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  if ((fullmv.row >> TMVP_MI_SZ_LOG2) + blk_row >= mvs_rows) {
+    fullmv.row = ((mvs_rows - blk_row) << TMVP_MI_SZ_LOG2) - 1;
+  }
+  if ((fullmv.col >> TMVP_MI_SZ_LOG2) + blk_col >= mvs_cols) {
+    fullmv.col = ((mvs_cols - blk_col) << TMVP_MI_SZ_LOG2) - 1;
+  }
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
   return fullmv;
 }
