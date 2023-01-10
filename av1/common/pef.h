@@ -29,6 +29,7 @@ extern "C" {
 #define PEF_THR_SHIFT 3
 #define PEF_DELTA_SCALE 8
 #define PEF_BD_FACTOR 24
+#define PEF_MCU_SZ 8
 
 // Structure for PEF parameters
 typedef struct {

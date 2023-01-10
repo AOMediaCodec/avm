@@ -215,13 +215,13 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const int bw = pef_input->bw;
   const int bh = pef_input->bh;
   const int pef_mode = pef_input->pef_mode;
-  if (pef_mode == 1 && (bw < 8 || bh < 8)) return;
+  if (pef_mode == 1 && (bw < PEF_MCU_SZ || bh < PEF_MCU_SZ)) return;
   const int plane = pef_input->plane;
   const int n =
 #if CONFIG_OPTFLOW_REFINEMENT
       pef_mode == 0 ? opfl_get_subblock_size(bw, bh, plane) :
-#endif                  // CONFIG_OPTFLOW_REFINEMENT
-                    8;  // n is motion compensation unit size
+#endif                           // CONFIG_OPTFLOW_REFINEMENT
+                    PEF_MCU_SZ;  // n is motion compensation unit size
 
   const int bit_depth = pef_input->bit_depth;
   const int dst_stride = pef_input->dst_stride;
@@ -238,7 +238,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const bool filter_horz = q_horz && side_horz;
   const bool filter_vert = q_vert && side_vert;
   if (!filter_horz && !filter_vert) return;
-  const int filt_len = n == 8 ? 3 : 1;
+  const int filt_len = n == PEF_MCU_SZ ? 3 : 1;
   const int q_mult = pef_q_mult[filt_len - 1];
   const int w_mult = pef_w_mult[filt_len - 1];
 
@@ -319,8 +319,6 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
       else  // j == 0
         y_step = first_row_y_step;
     }
-    filt_func filt_vert_func =
-        y_step == 8 ? highbd_filt_vert_pred : highbd_filt_vert_pred_c;
 
     int mv_cols = 0;
     for (int i = 0; i <= w; i += x_step) {
@@ -334,8 +332,6 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
         else  // i == 0
           x_step = first_col_x_step;
       }
-      filt_func filt_horz_func =
-          x_step == 8 ? highbd_filt_horz_pred : highbd_filt_horz_pred_c;
 
       bool within_tpl_boundary = 1;
       if (pef_mode == 1) {
@@ -350,6 +346,10 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
         check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs, 1,
                  n_blocks, pef_input->mv_refined, 2);
         if (diff_mv) {
+          filt_func filt_vert_func =
+              (y_step == PEF_MCU_SZ && x_step == PEF_MCU_SZ)
+                  ? highbd_filt_vert_pred
+                  : highbd_filt_vert_pred_c;
           filt_vert_func(dst, dst_stride, bit_depth, q_vert, side_vert, q_mult,
                          w_mult, y_step, filt_len);
         }
@@ -361,6 +361,9 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
         check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs,
                  mvs_stride, n_blocks, pef_input->mv_refined, wn);
         if (diff_mv) {
+          filt_func filt_horz_func = x_step == PEF_MCU_SZ
+                                         ? highbd_filt_horz_pred
+                                         : highbd_filt_horz_pred_c;
           filt_horz_func(dst, dst_stride, bit_depth, q_horz, side_horz, q_mult,
                          w_mult, x_step, filt_len);
         }
