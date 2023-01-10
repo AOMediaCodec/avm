@@ -2080,7 +2080,8 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         );
 
 #if CONFIG_WARPMV
-      if (cm->features.enable_bawp && av1_allow_bawp(mbmi)) {
+      if (cm->features.enable_bawp &&
+          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
         aom_write_symbol(w, mbmi->bawp_flag == 1, xd->tile_ctx->bawp_cdf, 2);
       }
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);

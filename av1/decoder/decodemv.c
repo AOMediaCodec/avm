@@ -2781,7 +2781,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         );
 
 #if CONFIG_WARPMV
-      if (cm->features.enable_bawp && av1_allow_bawp(mbmi)) {
+      if (cm->features.enable_bawp &&
+          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
         mbmi->bawp_flag =
             aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2, ACCT_STR);
       }
@@ -2791,7 +2792,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         xd->block_ref_scale_factors[ref] =
             get_ref_scale_factors_const(cm, frame);
       }
-      if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+      if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y],
+                                            xd->mi_row, xd->mi_col) &&
 #if CONFIG_TIP
           !is_tip_ref_frame(mbmi->ref_frame[0]) &&
 #endif  // CONFIG_TIP
