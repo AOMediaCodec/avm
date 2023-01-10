@@ -21,11 +21,6 @@
 #include "av1/common/reconinter.h"
 #include "av1/encoder/cost.h"
 
-#if CONFIG_CNN_GUIDED_QUADTREE
-
-#include "av1/tflite_models/intra_frame_model/qp235_quadtree.cc"
-#endif
-
 // utils
 
 int computeSSE_buf_tflite_hbd(uint16_t *buf_all, uint16_t *src, int startx,
@@ -163,17 +158,18 @@ int CalculateIndex_tflite(int width, int block_size_h, int block_size_w,
   return index;
 }
 
-int qp235_quadtree_model_quantSet[] = { 64, 0, -16 };     // unet
-int qp210_quadtree_model_quantSet[] = { 64, 0, -16 };     // unet
-int qp185_quadtree_model_quantSet[] = { 64, 0, -30 };     // unet
-int qp160_quadtree_model_quantSet[] = { 128, 14, -32 };   // unet
-int qp135_quadtree_model_quantSet[] = { 256, 32, -48 };   // unet
-int qp110_quadtree_model_quantSet[] = { 2048, 20, -36 };  // unet
-int qp85_quadtree_model_quantSet[] = { 2048, 7, -22 };    // unet
+int qp235_quadtree_model_quantSet[] = { 15, 512, -16, -12 };      // unet
+int qp210_quadtree_model_quantSet[] = { 20, 500, -20, 3 };        // unet
+int qp185_quadtree_model_quantSet[] = { 1024, 16, -4, -14 };      // unet
+int qp160_quadtree_model_quantSet[] = { 2048, 256, 0, -25 };      // unet
+int qp135_quadtree_model_quantSet[] = { 1024, 832, -33, 17 };     // unet
+int qp110_quadtree_model_quantSet[] = { 40960, 20480, 7, -16 };   // unet
+int qp85_quadtree_model_quantSet[] = { 12800, 12800, -16, -12 };  // unet
 
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_luma,
                               int cnn_index) {
-  if (superres_denom == SCALE_NUMERATOR) {  // quadtree
+  if (superres_denom == SCALE_NUMERATOR || superres_denom == 10 ||
+         superres_denom == 12 || superres_denom == 14 || superres_denom == 16) {  // quadtree
     if (is_luma) {
       if (qindex <= 85) {
         return (cnn_index == 0)   ? qp85_quadtree_model_quantSet
