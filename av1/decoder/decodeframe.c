@@ -2247,6 +2247,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                         parent ? parent->partition : PARTITION_NONE,
                         xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
     test_subsize = chroma_ref_info.bsize_base;
+    assert(test_subsize != BLOCK_INVALID);
   }
   if (xd->tree_type != LUMA_PART &&
       get_plane_block_size(test_subsize, pd_u->subsampling_x,
