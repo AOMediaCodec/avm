@@ -449,13 +449,8 @@ void av1_alloc_quadtree_struct(struct AV1Common *cm, QUADInfo *quad_info) {
   int split_size;
   int A_size;
   const int quadtree_unit_size = 512 >> cm->use_quad_level;
-  // cm->cur_quad_info->unit_size = quadtree_unit_size;
-  // cm->postcnn_quad_info->unit_size = quadtree_unit_size;
-
-  // int quadtree_unit_size = cm->cur_quad_info->unit_size;
-  YV12_BUFFER_CONFIG *pcPicYuvRec = &cm->cur_frame->buf;
-  int height = pcPicYuvRec->y_height;
-  int width = pcPicYuvRec->y_width;
+  int height = cm->superres_upscaled_height;
+  int width = cm->superres_upscaled_width;
   int regular_height_num = (int)floor(((float)height) / quadtree_unit_size);
   int regular_width_num = (int)floor(((float)width) / quadtree_unit_size);
   int all_num = (int)ceil(((float)width) / quadtree_unit_size) *

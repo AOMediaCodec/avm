@@ -1812,8 +1812,8 @@ static AOM_INLINE void read_filter_quadtree(int QP, int cnn_index,
   int A0_min, A1_min;
   int *quadtset;
   quadtset = get_quadparm_from_qindex(QP, superres_denom, 1, cnn_index);
-  A0_min = quadtset[1];
-  A1_min = quadtset[2];
+  A0_min = quadtset[2];
+  A1_min = quadtset[3];
 
   int ref_0 = 8;
   int ref_1 = 8;
