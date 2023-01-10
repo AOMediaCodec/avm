@@ -17,7 +17,10 @@ void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver) {
                        ::tflite::ops::builtin::Register_PAD(), 1, 2);
   resolver->AddBuiltin(::tflite::BuiltinOperator_QUANTIZE,
                        ::tflite::ops::builtin::Register_QUANTIZE());
-
+  resolver->AddBuiltin(::tflite::BuiltinOperator_SPACE_TO_DEPTH,
+                       ::tflite::ops::builtin::Register_SPACE_TO_DEPTH());
+  resolver->AddBuiltin(::tflite::BuiltinOperator_SPLIT,
+                       ::tflite::ops::builtin::Register_SPLIT());
   resolver->AddBuiltin(::tflite::BuiltinOperator_CONCATENATION,
                        ::tflite::ops::builtin::Register_CONCATENATION());
   resolver->AddBuiltin(::tflite::BuiltinOperator_DEPTH_TO_SPACE,
@@ -47,5 +50,5 @@ void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver) {
   resolver->AddBuiltin(::tflite::BuiltinOperator_SUB,
                        ::tflite::ops::builtin::Register_SUB());
   resolver->AddBuiltin(::tflite::BuiltinOperator_TRANSPOSE,
-                       ::tflite::ops::builtin::Register_TRANSPOSE());
+                       ::tflite::ops::builtin::Register_TRANSPOSE(), 1, 4);
 }
