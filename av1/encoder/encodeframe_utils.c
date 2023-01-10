@@ -1545,6 +1545,10 @@ void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
            sb_size_mi * sizeof(*mi_params->mi_grid_base));
     memset(&mi_params->tx_type_map[mi_grid_idx], 0,
            sb_size_mi * sizeof(*mi_params->tx_type_map));
+#if CONFIG_C071_SUBBLK_WARPMV
+    memset(&mi_params->submi_grid_base[mi_grid_idx], 0,
+           sb_size_mi * sizeof(*mi_params->submi_grid_base));
+#endif  // CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_CROSS_CHROMA_TX
     memset(&mi_params->cctx_type_map[mi_grid_idx], 0,
            sb_size_mi * sizeof(*mi_params->cctx_type_map));
@@ -1552,6 +1556,10 @@ void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
     if (cur_mi_row % mi_alloc_size_1d == 0) {
       memset(&mi_params->mi_alloc[alloc_mi_idx], 0,
              sb_size_alloc_mi * sizeof(*mi_params->mi_alloc));
+#if CONFIG_C071_SUBBLK_WARPMV
+      memset(&mi_params->mi_alloc_sub[alloc_mi_idx], 0,
+             sb_size_alloc_mi * sizeof(*mi_params->mi_alloc_sub));
+#endif  // CONFIG_C071_SUBBLK_WARPMV
     }
   }
 }
@@ -1590,6 +1598,9 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
 #if CONFIG_C043_MVP_IMPROVEMENTS
   sb_fp_stats->ref_mv_bank = td->mb.e_mbd.ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  sb_fp_stats->warp_param_bank = td->mb.e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
 #if CONFIG_EXT_RECUR_PARTITIONS
   sb_fp_stats->min_partition_size = x->sb_enc.min_partition_size;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1628,6 +1639,9 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 #if CONFIG_C043_MVP_IMPROVEMENTS
   x->e_mbd.ref_mv_bank = sb_fp_stats->ref_mv_bank;
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  x->e_mbd.warp_param_bank = sb_fp_stats->warp_param_bank;
+#endif  // WARP_CU_BANK
 #if CONFIG_EXT_RECUR_PARTITIONS
   x->sb_enc.min_partition_size = sb_fp_stats->min_partition_size;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
