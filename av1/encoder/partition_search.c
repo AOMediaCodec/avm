@@ -5112,6 +5112,8 @@ static AOM_INLINE void prune_ext_partitions(
   // TODO(now): Rename 'prune_part_3_with_part_none' and
   // 'prune_part_3_with_part_rect'.
   // Prune HORZ 4A with speed features
+  // TODO(now): speed feature.
+  const int prune_part4_horz_or_vert = 1;
   if (part_search_state->partition_4a_allowed[HORZ] && !frame_is_intra_only(cm) &&
       forced_partition != PARTITION_HORZ_4A) {
     if (part_sf->prune_part_3_with_part_none &&
@@ -5125,6 +5127,10 @@ static AOM_INLINE void prune_ext_partitions(
         !node_uses_horz(pc_tree->horizontal[1])) {
       // Prune if the best partition is horz but horz did not further split in
       // horz
+      part_search_state->prune_partition_4a[HORZ] = 1;
+    }
+    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_VERT &&
+        part_search_state->partition_rect_allowed[HORZ]) {
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
   }
@@ -5145,6 +5151,10 @@ static AOM_INLINE void prune_ext_partitions(
       // horz
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
+    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_VERT &&
+        part_search_state->partition_rect_allowed[HORZ]) {
+      part_search_state->prune_partition_4b[HORZ] = 1;
+    }
   }
 
   // Prune VERT_4A with speed features
@@ -5163,6 +5173,10 @@ static AOM_INLINE void prune_ext_partitions(
       // vert
       part_search_state->prune_partition_4a[VERT] = 1;
     }
+    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_HORZ &&
+        part_search_state->partition_rect_allowed[VERT]) {
+      part_search_state->prune_partition_4a[VERT] = 1;
+    }
   }
 
   // Prune VERT_4B with speed features
@@ -5179,6 +5193,10 @@ static AOM_INLINE void prune_ext_partitions(
         !node_uses_vert(pc_tree->vertical[1])) {
       // Prune if the best partition is vert but vert did not further split in
       // vert
+      part_search_state->prune_partition_4b[VERT] = 1;
+    }
+    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_HORZ &&
+        part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4b[VERT] = 1;
     }
   }
