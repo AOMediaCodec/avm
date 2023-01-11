@@ -8,7 +8,7 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
+__author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import os
 import math
@@ -39,7 +39,7 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
               clip.bit_depth, clip.bit_depth, clip.width, clip.height)
 
-    if CTC_VERSION == '2.0' or CTC_VERSION == '3.0':
+    if CTC_VERSION in ['2.0', '3.0', '4.0']:
         args += " --qp=%d" % QP
     else:
         args += " --use-16bit-internal --cq-level=%d" % QP

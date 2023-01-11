@@ -8,13 +8,13 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
+__author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 """
 Python file for definition of AV2 CTC testing clips/sets
 """
 
-CTC_VERSION = '3.0'
+CTC_VERSION = '4.0'
 
 CTC_TEST_SET = {
     "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "G1", "G2", "E"],
@@ -26,6 +26,15 @@ CTC_TEST_SET = {
 
 Y4M_CLIPs = {
 "A1"            : ["BoxingPractice_3840x2160_5994fps_10bit_420.y4m",
+                   "Crosswalk_3840x2160_5994fps_10bit_420.y4m",
+                   "FoodMarket2_3840x2160_5994fps_10bit_420.y4m",
+                   "Neon1224_3840x2160_2997fps.y4m",
+                   "NocturneDance_3840x2160p_10bit_60fps.y4m",
+                   "PierSeaSide_3840x2160_2997fps_10bit_420_v2.y4m",
+                   "Tango_3840x2160_5994fps_10bit_420.y4m",
+                   "TimeLapse_3840x2160_5994fps_10bit_420.y4m"]
+                   if CTC_VERSION == "4.0" else
+                  ["BoxingPractice_3840x2160_5994fps_10bit_420.y4m",
                    "Crosswalk_3840x2160_5994fps_10bit_420.y4m",
                    "FoodMarket2_3840x2160_5994fps_10bit_420.y4m",
                    "Neon1224_3840x2160_2997fps.y4m",
@@ -63,7 +72,14 @@ Y4M_CLIPs = {
                    "Vidyo3_1280x720p_60fps.y4m",
                    "Vidyo4_1280x720p_60fps.y4m",
                    "WestWindEasy_1280x720p30_420.y4m"],
-"A4"            : ["BlueSky_360p25.y4m",
+"A4"            : ["BlueSky_360p25_v2.y4m",
+                   "RedKayak_360_2997.y4m",
+                   "SnowMountain_640x360_2997.y4m",
+                   "SpeedBag_640x360_2997.y4m",
+                   "Stockholm_640x360_5994.y4m",
+                   "TouchdownPass_640x360_2997.y4m"]
+                   if CTC_VERSION == "4.0" else
+                  ["BlueSky_360p25.y4m",
                    "RedKayak_360_2997.y4m",
                    "SnowMountain_640x360_2997.y4m",
                    "SpeedBag_640x360_2997.y4m",
@@ -74,6 +90,17 @@ Y4M_CLIPs = {
                    "SparksElevator_480x270p_5994_10bit.y4m",
                    "Vertical_Bayshore_270x480_2997.y4m"],
 "B1"            : ["CosmosTreeTrunk_sdr_2048x858_25_8bit.y4m",
+                   "EuroTruckSimulator2_1920x1080p60_v2.y4m",
+                   "GlassHalf_1920x1080p_24p_8bit_420.y4m",
+                   "Life_1080p30_v2.y4m",
+                   "MINECRAFT_1080p_60_8bit.y4m",
+                   "Sniper_1920x1080P_30fps_8bit.y4m",
+                   "SolLevanteDragons_sdr_1920x1080_24_10bit.y4m",
+                   "SolLevanteFace_sdr_1920x1080_24_10bit.y4m",
+                   "STARCRAFT_1080p60.y4m",
+                   "WITCHER3_1920x1080_60_8bit_420.y4m"]
+                   if CTC_VERSION == "4.0" else
+                  ["CosmosTreeTrunk_sdr_2048x858_25_8bit.y4m",
                    "DOTA2_1920x1080_60_8bit_420.y4m",
                    "EuroTruckSimulator2_1920x1080p60.y4m",
                    "GlassHalf_1920x1080p_24p_8bit_420.y4m",
@@ -228,7 +255,13 @@ AS_Downscaled_Clips = {
                                                           "/A1_4k_720p/NocturneDance_1280x720p_10bit_60fps.y4m",
                                                           "/A1_4k_540p/NocturneDance_960x540p_10bit_60fps.y4m",
                                                           "/A1_4k_360p/NocturneDance_640x360p_10bit_60fps.y4m"],
-"PierSeaSide_3840x2160_2997fps_10bit_420"               :["/A1_4k_1440p/PierSeaSide_2560x1440_2997fps_10bit_420.y4m",
+"PierSeaSide_3840x2160_2997fps_10bit_420"               :["/A1_4k_1440p/PierSeaSide_2560x1440_2997fps_10bit_420_v2.y4m",
+                                                          "/A1_4k_1080p/PierSeaSide_1920x1080_2997fps_10bit_420_v2.y4m",
+                                                          "/A1_4k_720p/PierSeaSide_1280x720_2997fps_10bit_420_v2.y4m",
+                                                          "/A1_4k_540p/PierSeaSide_960x540_2997fps_10bit_420_v2.y4m",
+                                                          "/A1_4k_360p/PierSeaSide_640x360_2997fps_10bit_420_v2.y4m"]
+                                                          if CTC_VERSION == "4.0" else
+                                                         ["/A1_4k_1440p/PierSeaSide_2560x1440_2997fps_10bit_420.y4m",
                                                           "/A1_4k_1080p/PierSeaSide_1920x1080_2997fps_10bit_420.y4m",
                                                           "/A1_4k_720p/PierSeaSide_1280x720_2997fps_10bit_420.y4m",
                                                           "/A1_4k_540p/PierSeaSide_960x540_2997fps_10bit_420.y4m",

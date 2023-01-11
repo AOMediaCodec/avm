@@ -8,7 +8,7 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
+__author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import os
 from VideoEncoder import VideoEncode

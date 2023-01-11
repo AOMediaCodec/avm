@@ -8,7 +8,7 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
+__author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import os
 import re
@@ -127,7 +127,7 @@ def VMAF_CalQualityMetrics(origfile, recfile, logfilePath, LogCmdOnly=False):
     args = " -r %s -d %s -q --threads 4 -o %s" \
            % (origfile, recfile, vmaf_log)
 
-    if CTC_VERSION == '3.0':
+    if CTC_VERSION in ['3.0', '4.0']:
         args += " --aom_ctc v2.0 --feature cambi"
     else:
         args += " --aom_ctc v1.0"

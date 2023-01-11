@@ -2,7 +2,7 @@ This testing framework is initially developed by Intel for convex hull study.
 It is contributed to Alliance for Open Media for convex hull study and future AV2
 Common Test Condition (CTC) testing.
 
-For questions and technical support, please contact ryanlei@fb.com or
+For questions and technical support, please contact ryanlei@meta.com or
 maggie.sun@intel.com
 
 This readme file provides a simple introduction of the framework and steps to
