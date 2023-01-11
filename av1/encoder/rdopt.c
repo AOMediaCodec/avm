@@ -3455,11 +3455,11 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   int has_drl = have_drl_index(mode);
   if (!has_drl) {
-    assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV
 #if CONFIG_WARPMV
-           || mode == WARPMV
+    assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV || mode == WARPMV);
+#else
+    assert(mode == GLOBALMV || mode == GLOBAL_GLOBALMV);
 #endif  // CONFIG_WARPMV
-    );
     return 1;
   }
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
@@ -3616,12 +3616,14 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   rd_stats->rate += ref_mv_cost;
 
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
-  if (is_joint_mvd_coding_mode(mbmi->mode) &&
-      cm->seq_params.enable_adaptive_mvd) {
+  if (is_joint_mvd_coding_mode(mbmi->mode)) {
     int jmvd_scale_mode_cost =
+#if CONFIG_ADAPTIVE_MVD
         is_joint_amvd_coding_mode(mbmi->mode)
             ? mode_costs->jmvd_amvd_scale_mode_cost[mbmi->jmvd_scale_mode]
-            : mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
+            :
+#endif  // CONFIG_ADAPTIVE_MVD
+            mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
     rd_stats->rate += jmvd_scale_mode_cost;
   }
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -4689,9 +4691,11 @@ static int64_t handle_inter_mode(
   for (int scale_index = 0; scale_index < jmvd_scaling_factor_num;
        ++scale_index) {
     mbmi->jmvd_scale_mode = scale_index;
+#if CONFIG_ADAPTIVE_MVD
     if (is_joint_amvd_coding_mode(mbmi->mode)) {
       if (scale_index > JOINT_AMVD_SCALE_FACTOR_CNT - 1) continue;
     }
+#endif  // CONFIG_ADAPTIVE_JMVD
     if (cpi->sf.inter_sf.early_terminate_jmvd_scale_factor) {
       if (scale_index > 0 && best_rd > 1.5 * ref_best_rd &&
           (!is_inter_compound_mode(best_ref_mode)))
@@ -5032,10 +5036,13 @@ static int64_t handle_inter_mode(
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
           if (is_joint_mvd_coding_mode(mbmi->mode)) {
             int jmvd_scale_mode_cost =
+#if CONFIG_ADAPTIVE_MVD
                 is_joint_amvd_coding_mode(mbmi->mode)
                     ? mode_costs
                           ->jmvd_amvd_scale_mode_cost[mbmi->jmvd_scale_mode]
-                    : mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
+                    :
+#endif  // CONFIG_ADAPTIVE_MVD
+                    mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
             rd_stats->rate += jmvd_scale_mode_cost;
           }
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD

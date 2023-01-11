@@ -189,6 +189,7 @@ static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
 static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
                                              const MB_MODE_INFO *const mbmi) {
   if (!is_joint_mvd_coding_mode(mbmi->mode)) return;
+#if CONFIG_ADAPTIVE_MVD
   const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
   aom_cdf_prob *jmvd_scale_mode_cdf =
       is_joint_amvd_mode ? xd->tile_ctx->jmvd_amvd_scale_mode_cdf
@@ -198,6 +199,10 @@ static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
 
   aom_write_symbol(w, mbmi->jmvd_scale_mode, jmvd_scale_mode_cdf,
                    jmvd_scale_cnt);
+#else
+  aom_write_symbol(w, mbmi->jmvd_scale_mode, xd->tile_ctx->jmvd_scale_mode_cdf,
+                   JOINT_NEWMV_SCALE_FACTOR_CNT);
+#endif  // CONFIG_ADAPTIVE_MVD
 }
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 

@@ -1674,6 +1674,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       if (is_joint_mvd_coding_mode(mbmi->mode)) {
+#if CONFIG_ADAPTIVE_MVD
         const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
         aom_cdf_prob *jmvd_scale_mode_cdf = is_joint_amvd_mode
                                                 ? fc->jmvd_amvd_scale_mode_cdf
@@ -1682,6 +1683,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                                        ? JOINT_AMVD_SCALE_FACTOR_CNT
                                        : JOINT_NEWMV_SCALE_FACTOR_CNT;
         update_cdf(jmvd_scale_mode_cdf, mbmi->jmvd_scale_mode, jmvd_scale_cnt);
+#else
+        update_cdf(fc->jmvd_scale_mode_cdf, mbmi->jmvd_scale_mode,
+                   JOINT_NEWMV_SCALE_FACTOR_CNT);
+#endif  // CONFIG_ADAPTIVE_MVD
       }
 
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD

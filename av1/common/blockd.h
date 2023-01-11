@@ -259,6 +259,7 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
                                    PREDICTION_MODE mode) {
   // This scaling factor is only applied to joint mvd coding mode
   if (!is_joint_mvd_coding_mode(mode)) return;
+#if IMPROVED_AMVD
   if (is_joint_amvd_coding_mode(mode)) {
     if (jmvd_scaled_mode == 1) {
       other_mvd->row = other_mvd->row * 2;
@@ -268,7 +269,10 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
       other_mvd->col = other_mvd->col / 2;
     }
     assert(jmvd_scaled_mode < JOINT_AMVD_SCALE_FACTOR_CNT);
-  } else {
+    return;
+  }
+#endif  // IMPROVED_AMVD
+  if (is_joint_mvd_coding_mode(mode)) {
     if (jmvd_scaled_mode == 1) {
       other_mvd->row = other_mvd->row * 2;
     } else if (jmvd_scaled_mode == 2) {
