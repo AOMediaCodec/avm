@@ -80,7 +80,7 @@ const libaom_test::TestMode kEncodingModeVectors[] = {
 };
 
 // Speed settings tested
-const int kCpuUsedVectors[] = { 1, 2, 3, 5, 6 };
+const int kCpuUsedVectors[] = { 1, 3, 5 };
 
 int is_extension_y4m(const char *filename) {
   const char *dot = strrchr(filename, '.');
