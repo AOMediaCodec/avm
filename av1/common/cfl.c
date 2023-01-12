@@ -194,6 +194,8 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   const int height = tx_size_high[tx_size];
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
+  const int frame_width = ROUND_POWER_OF_TWO(cm->width, 3);
+  const int frame_height = ROUND_POWER_OF_TWO(cm->height, 3);
 
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
@@ -247,9 +249,9 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       for (int i = 0; i < width; ++i) output_q3[i] = input[i] << 3;
     }
 
-    if ((((xd->mi_col + col) << MI_SIZE_LOG2) + width) > cm->width) {
-      int temp =
-          width - ((((xd->mi_col + col) << MI_SIZE_LOG2) + width) - cm->width);
+    if ((((xd->mi_col + col) << MI_SIZE_LOG2) + width) > frame_width) {
+      int temp = width -
+                 ((((xd->mi_col + col) << MI_SIZE_LOG2) + width) - frame_width);
       assert(temp > 0 && temp < width);
       for (int i = temp >> sub_x; i < width >> sub_x; ++i) {
         output_q3[i] = output_q3[i - 1];
@@ -302,9 +304,9 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         output_q3[j] = input[j * input_stride] << 3;
     }
 
-    if ((((xd->mi_row + row) << MI_SIZE_LOG2) + height) > cm->height) {
-      int temp = height -
-                 ((((xd->mi_row + row) << MI_SIZE_LOG2) + height) - cm->height);
+    if ((((xd->mi_row + row) << MI_SIZE_LOG2) + height) > frame_height) {
+      int temp = height - ((((xd->mi_row + row) << MI_SIZE_LOG2) + height) -
+                           frame_height);
       assert(temp > 0 && temp < height);
       for (int j = temp >> sub_y; j < height >> sub_y; ++j) {
         output_q3[j] = output_q3[j - 1];
@@ -366,8 +368,8 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
 
-  int pic_width_c = cm->width >> sub_x;
-  int pic_height_c = cm->height >> sub_y;
+  const int pic_width_c = ALIGN_POWER_OF_TWO(cm->width, 3) >> sub_x;
+  const int pic_height_c = ALIGN_POWER_OF_TWO(cm->height, 3) >> sub_y;
 
   const int have_top =
       row || (sub_y ? xd->chroma_up_available : xd->up_available);
