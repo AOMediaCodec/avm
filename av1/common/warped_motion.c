@@ -987,9 +987,39 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_TEMPORAL_GLOBAL_MV
-static int32_t get_mult_shift_dx(int64_t Px, int16_t iDet, int shift,
-                                 const int32_t *u, int32_t *w) {
-  int64_t v = Px * (int64_t)iDet;
+static int32_t get_mult_shift_ndiag_u(int64_t v, int shift) {
+  return (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(v, shift),
+                          -WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1,
+                          WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
+}
+
+static int32_t get_mult_shift_diag_u(int64_t v, int shift) {
+  return (int32_t)clamp64(
+      ROUND_POWER_OF_TWO_SIGNED_64(v, shift),
+      (1 << WARPEDMODEL_PREC_BITS) - WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1,
+      (1 << WARPEDMODEL_PREC_BITS) + WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
+}
+
+/*
+static int32_t get_mult_shift_dx_uhp(int64_t *v, int shift, const int32_t *u) {
+  int64_t off = ((int64_t)u[0] << (WARPEDMODEL_PREC_BITS + shift)) -
+                 (int64_t)u[0] * v[0] - (int64_t)u[1] * v[1];
+  return (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(v[2] + off, 3 + shift),
+                          -WARPEDMODEL_TRANS_CLAMP + 1,
+                          WARPEDMODEL_TRANS_CLAMP - 1);
+}
+
+static int32_t get_mult_shift_dy_uhp(int64_t *v, int shift, const int32_t *u) {
+  int64_t off = ((int64_t)u[1] << (WARPEDMODEL_PREC_BITS + shift)) -
+                 (int64_t)u[0] * v[0] - (int64_t)u[1] * v[1];
+  return (int32_t)clamp64(ROUND_POWER_OF_TWO_SIGNED_64(v[2] + off, 3 + shift),
+                          -WARPEDMODEL_TRANS_CLAMP + 1,
+                          WARPEDMODEL_TRANS_CLAMP - 1);
+}
+*/
+
+static int32_t get_mult_shift_dx_u(int64_t v, int shift, const int32_t *u,
+                                   int32_t *w) {
   int32_t vs = (int32_t)(ROUND_POWER_OF_TWO_SIGNED_64(v, shift));
   int32_t off = (u[0] << WARPEDMODEL_PREC_BITS) - u[0] * w[0] - u[1] * w[1];
 
@@ -998,9 +1028,8 @@ static int32_t get_mult_shift_dx(int64_t Px, int16_t iDet, int shift,
                           WARPEDMODEL_TRANS_CLAMP - 1);
 }
 
-static int32_t get_mult_shift_dy(int64_t Py, int16_t iDet, int shift,
-                                 const int32_t *u, int32_t *w) {
-  int64_t v = Py * (int64_t)iDet;
+static int32_t get_mult_shift_dy_u(int64_t v, int shift, const int32_t *u,
+                                   int32_t *w) {
   int32_t vs = (int32_t)(ROUND_POWER_OF_TWO_SIGNED_64(v, shift));
   int32_t off = (u[1] << WARPEDMODEL_PREC_BITS) - u[0] * w[0] - u[1] * w[1];
 
@@ -1008,7 +1037,18 @@ static int32_t get_mult_shift_dy(int64_t Py, int16_t iDet, int shift,
                           -WARPEDMODEL_TRANS_CLAMP + 1,
                           WARPEDMODEL_TRANS_CLAMP - 1);
 }
-#define LS_SUM(a) (((a)*4 + LS_STEP * 2) >> LS_MAT_DOWN_BITS)
+
+#define LS_MAT_DOWN_BITS_U 0
+#define LS_SQUARE_U(a)                                        \
+  (((a) * (a)*4 + (a)*4 * LS_STEP + LS_STEP * LS_STEP * 2) >> \
+   (2 + LS_MAT_DOWN_BITS_U))
+#define LS_PRODUCT1_U(a, b)                                         \
+  (((a) * (b)*4 + ((a) + (b)) * 2 * LS_STEP + LS_STEP * LS_STEP) >> \
+   (2 + LS_MAT_DOWN_BITS_U))
+#define LS_PRODUCT2_U(a, b)                                             \
+  (((a) * (b)*4 + ((a) + (b)) * 2 * LS_STEP + LS_STEP * LS_STEP * 2) >> \
+   (2 + LS_MAT_DOWN_BITS_U))
+#define LS_SUM_U(a) (((a)*4 + LS_STEP * 2) >> (2 + LS_MAT_DOWN_BITS_U))
 
 static int find_affine_unconstrained_int(int np, const int *pts1,
                                          const int *pts2,
@@ -1054,18 +1094,18 @@ static int find_affine_unconstrained_int(int np, const int *pts1,
     sx = pts1[i * 2] - u[0];
     sy = pts1[i * 2 + 1] - u[1];
     if (abs(sx - dx) < LS_MV_MAX && abs(sy - dy) < LS_MV_MAX) {
-      A[0][0] += LS_SQUARE(sx);
-      A[0][1] += LS_PRODUCT1(sx, sy);
-      A[0][2] += LS_SUM(sx);
-      A[1][1] += LS_SQUARE(sy);
-      A[1][2] += LS_SUM(sy);
-      A[2][2] += 4;
-      Bx[0] += LS_PRODUCT2(sx, dx);
-      Bx[1] += LS_PRODUCT1(sy, dx);
-      Bx[2] += LS_SUM(dx);
-      By[0] += LS_PRODUCT1(sx, dy);
-      By[1] += LS_PRODUCT2(sy, dy);
-      By[2] += LS_SUM(dy);
+      A[0][0] += LS_SQUARE_U(sx);
+      A[0][1] += LS_PRODUCT1_U(sx, sy);
+      A[0][2] += LS_SUM_U(sx);
+      A[1][1] += LS_SQUARE_U(sy);
+      A[1][2] += LS_SUM_U(sy);
+      A[2][2] += 1;
+      Bx[0] += LS_PRODUCT2_U(sx, dx);
+      Bx[1] += LS_PRODUCT1_U(sy, dx);
+      Bx[2] += LS_SUM_U(dx);
+      By[0] += LS_PRODUCT1_U(sx, dy);
+      By[1] += LS_PRODUCT2_U(sy, dy);
+      By[2] += LS_SUM_U(dy);
       n++;
     }
   }
@@ -1105,15 +1145,22 @@ static int find_affine_unconstrained_int(int np, const int *pts1,
     shift = 0;
   }
 
-  wm->wmmat[2] = get_mult_shift_diag(Px[0], iDet, shift);
-  wm->wmmat[3] = get_mult_shift_ndiag(Px[1], iDet, shift);
-  wm->wmmat[4] = get_mult_shift_ndiag(Py[0], iDet, shift);
-  wm->wmmat[5] = get_mult_shift_diag(Py[1], iDet, shift);
+  Px[0] *= iDet;
+  Px[1] *= iDet;
+  Px[2] *= iDet;
+  Py[0] *= iDet;
+  Py[1] *= iDet;
+  Py[2] *= iDet;
+
+  wm->wmmat[2] = get_mult_shift_diag_u(Px[0], shift);
+  wm->wmmat[3] = get_mult_shift_ndiag_u(Px[1], shift);
+  wm->wmmat[4] = get_mult_shift_ndiag_u(Py[0], shift);
+  wm->wmmat[5] = get_mult_shift_diag_u(Py[1], shift);
 
   // Adjust x displacement for the offset
-  wm->wmmat[0] = get_mult_shift_dx(Px[2], iDet, shift, u, &wm->wmmat[2]);
+  wm->wmmat[0] = get_mult_shift_dx_u(Px[2], shift, u, &wm->wmmat[2]);
   // Adjust y displacement for the offset
-  wm->wmmat[1] = get_mult_shift_dy(Py[2], iDet, shift, u, &wm->wmmat[4]);
+  wm->wmmat[1] = get_mult_shift_dy_u(Py[2], shift, u, &wm->wmmat[4]);
 
   wm->wmmat[6] = wm->wmmat[7] = 0;
   wm->wmtype = AFFINE;

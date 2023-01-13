@@ -151,8 +151,8 @@ static INLINE void fill_pyramid(YV12_BUFFER_CONFIG *frm, int bit_depth,
                      next_buffer, next_height, next_width, next_stride);
     fill_border(next_buffer, next_width, next_height, next_stride);
 
-    cur_width = next_width;
-    cur_height = next_height;
+    // cur_width = next_width;
+    // cur_height = next_height;
     cur_stride = next_stride;
     cur_buffer = next_buffer;
   }
