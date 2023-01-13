@@ -4912,6 +4912,10 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   } else {
     av1_pick_uniform_tx_size_type_yrd(cpi, x, rd_stats_y, bsize, rd_thresh);
     memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
+#if CONFIG_NEW_TX_PARTITION
+    memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
+           sizeof(mbmi->tx_partition_type));
+#endif  // CONFIG_NEW_TX_PARTITION
     for (int i = 0; i < xd->height * xd->width; ++i)
       set_blk_skip(x->txfm_search_info.blk_skip, 0, i, rd_stats_y->skip_txfm);
   }

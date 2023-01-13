@@ -165,6 +165,10 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
   }
   if (is_inter_block(mbmi, xd->tree_type)) {
     memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
+#if CONFIG_NEW_TX_PARTITION
+    memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
+           sizeof(mbmi->tx_partition_type));
+#endif  // CONFIG_NEW_TX_PARTITION
   }
   const int stride = xd->tx_type_map_stride;
   const int bw = mi_size_wide[mbmi->sb_type[plane_index]];
