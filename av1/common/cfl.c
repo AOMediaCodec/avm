@@ -196,7 +196,8 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   const int height = tx_size_high[tx_size];
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
-
+  const int row_start = ((xd->mi_row + row) << MI_SIZE_LOG2);
+  const int col_start = ((xd->mi_col + col) << MI_SIZE_LOG2);
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_Y);
@@ -253,10 +254,14 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       uint16_t *input = dst - input_stride;
       for (int i = 0; i < width; ++i) output_q3[i] = input[i] << 3;
     }
-
-    if ((((xd->mi_col + col) << MI_SIZE_LOG2) + width) > cm->width) {
-      int temp =
-          width - ((((xd->mi_col + col) << MI_SIZE_LOG2) + width) - cm->width);
+    if (col_start >= cm->width) {
+      assert(width <= MI_SIZE);
+      uint16_t mid = (1 << xd->bd) >> 1;
+      for (int j = 0; j < width >> sub_x; ++j) {
+        output_q3[j] = mid;
+      }
+    } else if ((col_start + width) > cm->width) {
+      int temp = width - ((col_start + width) - cm->width);
       assert(temp > 0 && temp < width);
       for (int i = temp >> sub_x; i < width >> sub_x; ++i) {
         output_q3[i] = output_q3[i - 1];
@@ -308,10 +313,14 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
       for (int j = 0; j < height; ++j)
         output_q3[j] = input[j * input_stride] << 3;
     }
-
-    if ((((xd->mi_row + row) << MI_SIZE_LOG2) + height) > cm->height) {
-      int temp = height -
-                 ((((xd->mi_row + row) << MI_SIZE_LOG2) + height) - cm->height);
+    if (row_start >= cm->height) {
+      assert(height <= MI_SIZE);
+      uint16_t mid = (1 << xd->bd) >> 1;
+      for (int j = 0; j < height >> sub_y; ++j) {
+        output_q3[j] = mid;
+      }
+    } else if ((row_start + height) > cm->height) {
+      int temp = height - ((row_start + height) - cm->height);
       assert(temp > 0 && temp < height);
       for (int j = temp >> sub_y; j < height >> sub_y; ++j) {
         output_q3[j] = output_q3[j - 1];
@@ -381,6 +390,8 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
   int pic_width_c = cm->width >> sub_x;
   int pic_height_c = cm->height >> sub_y;
 
+  const int row_start = (((xd->mi_row >> sub_y) + row) << MI_SIZE_LOG2);
+  const int col_start = (((xd->mi_col >> sub_x) + col) << MI_SIZE_LOG2);
 #if CONFIG_EXT_RECUR_PARTITIONS
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row, col, plane);
@@ -403,11 +414,13 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
     for (int i = 0; i < width; ++i) {
       output_q3[i] = input[i];
     }
-    if (((((xd->mi_col >> sub_x) + col) << MI_SIZE_LOG2) + width) >
-        pic_width_c) {
-      int temp =
-          width - (((((xd->mi_col >> sub_x) + col) << MI_SIZE_LOG2) + width) -
-                   pic_width_c);
+    if (col_start > pic_width_c) {
+      uint16_t mid = (1 << xd->bd) >> 1;
+      for (int i = 0; i < width; ++i) {
+        output_q3[i] = mid;
+      }
+    } else if ((col_start + width) > pic_width_c) {
+      int temp = width - ((col_start + width) - pic_width_c);
       assert(temp > 0 && temp < width);
       for (int i = temp; i < width; ++i) {
         output_q3[i] = output_q3[i - 1];
@@ -424,11 +437,13 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
       input += input_stride;
     }
 
-    if (((((xd->mi_row >> sub_y) + row) << MI_SIZE_LOG2) + height) >
-        pic_height_c) {
-      int temp =
-          height - (((((xd->mi_row >> sub_y) + row) << MI_SIZE_LOG2) + height) -
-                    pic_height_c);
+    if (row_start >= cm->height) {
+      uint16_t mid = (1 << xd->bd) >> 1;
+      for (int i = 0; i < height; ++i) {
+        output_q3[i] = mid;
+      }
+    } else if ((row_start + height) > pic_height_c) {
+      int temp = height - ((row_start + height) - pic_height_c);
       assert(temp > 0 && temp < height);
       for (int j = temp; j < height; ++j) {
         output_q3[j] = output_q3[j - 1];
