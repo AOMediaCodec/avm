@@ -256,7 +256,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     }
     if (col_start >= cm->width) {
       assert(width <= MI_SIZE);
-      uint16_t mid = (1 << xd->bd) >> 1;
+      const uint16_t mid = (1 << xd->bd) >> 1;
       for (int j = 0; j < width >> sub_x; ++j) {
         output_q3[j] = mid;
       }
@@ -315,7 +315,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     }
     if (row_start >= cm->height) {
       assert(height <= MI_SIZE);
-      uint16_t mid = (1 << xd->bd) >> 1;
+      const uint16_t mid = (1 << xd->bd) >> 1;
       for (int j = 0; j < height >> sub_y; ++j) {
         output_q3[j] = mid;
       }
@@ -415,7 +415,7 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
       output_q3[i] = input[i];
     }
     if (col_start > pic_width_c) {
-      uint16_t mid = (1 << xd->bd) >> 1;
+      const uint16_t mid = (1 << xd->bd) >> 1;
       for (int i = 0; i < width; ++i) {
         output_q3[i] = mid;
       }
@@ -438,7 +438,7 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
     }
 
     if (row_start >= cm->height) {
-      uint16_t mid = (1 << xd->bd) >> 1;
+      const uint16_t mid = (1 << xd->bd) >> 1;
       for (int i = 0; i < height; ++i) {
         output_q3[i] = mid;
       }
