@@ -2528,10 +2528,17 @@ static int64_t motion_mode_rd(
                   ->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)]
                                     [mbmi->warp_ref_idx]
                   .wm_params;
-          mbmi->mv[0] = get_mv_from_wrl(&ref_model, MV_PRECISION_ONE_EIGHTH_PEL,
+          mbmi->mv[0] = get_mv_from_wrl(&ref_model,
+#if CONFIG_FLEX_MVRES
+                                        MV_PRECISION_ONE_EIGHTH_PEL,
+#else
+                                        1, 0,
+#endif
                                         bsize, xd->mi_col, xd->mi_row);
           if (!is_warp_candidate_inside_of_frame(cm, xd, mbmi->mv[0])) continue;
+#if CONFIG_FLEX_MVRES
           assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+#endif
         }
 #endif  // CONFIG_WARPMV
 
@@ -2636,9 +2643,16 @@ static int64_t motion_mode_rd(
                   ->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)]
                                     [mbmi->warp_ref_idx]
                   .wm_params;
-          mbmi->mv[0] = get_mv_from_wrl(&ref_model, MV_PRECISION_ONE_EIGHTH_PEL,
+          mbmi->mv[0] = get_mv_from_wrl(&ref_model,
+#if CONFIG_FLEX_MVRES
+                                        MV_PRECISION_ONE_EIGHTH_PEL,
+#else
+                                        1, 0,
+#endif
                                         bsize, xd->mi_col, xd->mi_row);
+#if CONFIG_FLEX_MVRES
           assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
+#endif
           if (!is_warp_candidate_inside_of_frame(cm, xd, mbmi->mv[0])) continue;
         }
 #endif  // CONFIG_WARPMV

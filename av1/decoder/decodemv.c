@@ -2379,7 +2379,13 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_WARPMV
     case WARPMV: {
       assert(ref_warp_model);
-      mbmi->mv[0] = get_mv_from_wrl(ref_warp_model, MV_PRECISION_ONE_EIGHTH_PEL,
+      mbmi->mv[0] = get_mv_from_wrl(ref_warp_model,
+
+#if CONFIG_FLEX_MVRES
+                                    MV_PRECISION_ONE_EIGHTH_PEL,
+#else
+                                    1, 0,
+#endif
                                     bsize, xd->mi_col, xd->mi_row);
       break;
     }
@@ -2822,11 +2828,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         );
 
 #if CONFIG_WARPMV
+#if CONFIG_BAWP
       if (cm->features.enable_bawp &&
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
         mbmi->bawp_flag =
             aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2, ACCT_STR);
       }
+#endif
 
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
         const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];

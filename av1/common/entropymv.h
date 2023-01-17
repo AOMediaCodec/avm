@@ -123,12 +123,27 @@ enum {
 // return derive MV from the ref_warp_model
 // ref_warp_model is extracted from the WRL listb before calling this function
 static INLINE int_mv get_mv_from_wrl(const WarpedMotionParams *ref_warp_model,
+#if CONFIG_FLEX_MVRES
                                      MvSubpelPrecision pb_mv_precision,
+#else
+                                     int allow_high_precision_mv,
+                                     int cur_frame_force_integer_mv,
+#endif
                                      BLOCK_SIZE bsize, int mi_col, int mi_row) {
   int_mv mv;
   assert(ref_warp_model);
-  mv = get_warp_motion_vector(ref_warp_model, pb_mv_precision, bsize, mi_col,
-                              mi_row);
+  mv = get_warp_motion_vector(ref_warp_model,
+#if CONFIG_FLEX_MVRES
+                              pb_mv_precision,
+#else
+                              allow_high_precision_mv,
+#endif
+                              bsize, mi_col, mi_row
+#if !CONFIG_FLEX_MVRES
+                              ,
+                              cur_frame_force_integer_mv
+#endif
+  );
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
   mv.as_mv.row = (int16_t)clamp(mv.as_mv.row, clamp_min, clamp_max);

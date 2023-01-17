@@ -856,9 +856,7 @@ static INLINE void av1_get_warp_base_params(
     const WARP_CANDIDATE *warp_param_stack
 #endif  // CONFIG_WARP_REF_LIST
 ) {
-#if CONFIG_FLEX_MVRES
   (void)cm;
-#endif
 
 #if !CONFIG_WARP_REF_LIST
   if (mbmi->mode != GLOBALMV) {
