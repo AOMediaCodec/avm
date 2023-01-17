@@ -2002,7 +2002,9 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                      MACROBLOCKD *xd, int mi_row, int mi_col,
                                      aom_reader *r, int has_rows, int has_cols,
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_H_PARTITION
                                      const PARTITION_TREE *ptree,
+#endif  // !CONFIG_H_PARTITION
                                      const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      BLOCK_SIZE bsize) {
@@ -2032,6 +2034,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       &ptree->chroma_ref_info, &implied_partition);
   if (is_part_implied) return implied_partition;
 
+#if !CONFIG_H_PARTITION
   const PARTITION_TYPE parent_partition =
       ptree->parent ? ptree->parent->partition : PARTITION_INVALID;
   const bool is_middle_block = (parent_partition == PARTITION_HORZ_3 ||
@@ -2040,6 +2043,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   const bool limit_rect_split = is_middle_block &&
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
+#endif  // !CONFIG_H_PARTITION
   const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
 
   if (is_square_block(bsize)) {
@@ -2047,6 +2051,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
     if (disable_ext_part) {
       aom_cdf_prob *partition_cdf = ec_ctx->partition_noext_cdf[plane][ctx];
 
+#if !CONFIG_H_PARTITION
       if (limit_rect_split) {
         const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
         partition_cdf =
@@ -2056,12 +2061,16 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
         return get_limited_partition_noext_from_symbol(symbol,
                                                        parent_partition);
       } else {
+#endif  // !CONFIG_H_PARTITION
         return (PARTITION_TYPE)aom_read_symbol(r, partition_cdf,
                                                PARTITION_TYPES, ACCT_STR);
+#if !CONFIG_H_PARTITION
       }
+#endif  // !CONFIG_H_PARTITION
     } else {
       aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
 
+#if !CONFIG_H_PARTITION
       if (limit_rect_split) {
         const int dir_index = parent_partition == PARTITION_HORZ_3 ? 0 : 1;
         partition_cdf = ec_ctx->limited_partition_cdf[plane][dir_index][ctx];
@@ -2069,12 +2078,16 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
             r, partition_cdf, limited_partition_cdf_length(bsize), ACCT_STR);
         return get_limited_partition_from_symbol(symbol, parent_partition);
       } else {
+#endif  // !CONFIG_H_PARTITION
         return (PARTITION_TYPE)aom_read_symbol(
             r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
+#if !CONFIG_H_PARTITION
       }
+#endif  // !CONFIG_H_PARTITION
     }
   } else {
     if (disable_ext_part) {
+#if !CONFIG_H_PARTITION
       if (limit_rect_split) {
         aom_cdf_prob *partition_cdf =
             ec_ctx->partition_middle_noext_rec_cdf[ctx];
@@ -2085,14 +2098,18 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
         return get_limited_partition_noext_from_symbol(symbol,
                                                        parent_partition);
       } else {
+#endif  // !CONFIG_H_PARTITION
         aom_cdf_prob *partition_cdf = ec_ctx->partition_noext_rec_cdf[ctx];
         const int cdf_length = partition_noext_rec_cdf_length(bsize);
         const int symbol =
             aom_read_symbol(r, partition_cdf, cdf_length, ACCT_STR);
 
         return get_partition_noext_from_symbol_rec_block(bsize, symbol);
+#if !CONFIG_H_PARTITION
       }
+#endif  // !CONFIG_H_PARTITION
     } else {
+#if !CONFIG_H_PARTITION
       if (limit_rect_split) {
         // If we are the middle block of a 3-way partitioning, disable HORZ/VERT
         // of the middle partition because it is redundant.
@@ -2115,6 +2132,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 
         return partition;
       }
+#endif  // !CONFIG_H_PARTITION
       aom_cdf_prob *partition_rec_cdf = ec_ctx->partition_rec_cdf[ctx];
       const PARTITION_TYPE_REC symbol = (PARTITION_TYPE_REC)aom_read_symbol(
           r, partition_rec_cdf, partition_rec_cdf_length(bsize), ACCT_STR);
@@ -2187,8 +2205,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   const int ss_y = xd->plane[1].subsampling_y;
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
+#if !CONFIG_H_PARTITION
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
+#endif  // !CONFIG_H_PARTITION
   PARTITION_TYPE partition;
   const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
@@ -2247,7 +2267,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
             ? PARTITION_NONE
             : read_partition(cm, xd, mi_row, mi_col, reader, has_rows, has_cols,
 #if CONFIG_EXT_RECUR_PARTITIONS
-                             ptree, ptree_luma,
+#if !CONFIG_H_PARTITION
+                             ptree,
+#endif  // !CONFIG_H_PARTITION
+                             ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                              bsize);
 
@@ -2271,6 +2294,9 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
+#if CONFIG_H_PARTITION
+        ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+#endif  // CONFIG_H_PARTITION
         break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
@@ -2380,6 +2406,30 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_H_PARTITION
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3: {
+      for (int i = 0; i < 4; ++i) {
+        BLOCK_SIZE this_bsize = get_h_partition_subsize(bsize, i, partition);
+        const int offset_r = get_h_partition_offset_mi_row(bsize, i, partition);
+        const int offset_c = get_h_partition_offset_mi_col(bsize, i, partition);
+
+        assert(this_bsize != BLOCK_INVALID);
+        assert(offset_r >= 0 && offset_c >= 0);
+
+        const int this_mi_row = mi_row + offset_r;
+        const int this_mi_col = mi_col + offset_c;
+        if (partition == PARTITION_HORZ_3) {
+          if (this_mi_row >= cm->mi_params.mi_rows) break;
+        } else {
+          if (this_mi_col >= cm->mi_params.mi_cols) break;
+        }
+
+        DEC_PARTITION(this_mi_row, this_mi_col, this_bsize, i);
+      }
+      break;
+    }
+#else
     case PARTITION_HORZ_3: {
       const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
       int this_mi_row = mi_row;
@@ -2404,6 +2454,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       DEC_PARTITION(mi_row, this_mi_col, subsize, 2);
       break;
     }
+#endif  // CONFIG_H_PARTITION
 #else
     case PARTITION_SPLIT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);

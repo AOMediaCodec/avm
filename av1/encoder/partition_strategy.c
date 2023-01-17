@@ -1838,32 +1838,49 @@ static INLINE void add_start_mv_to_partition(
     1,  // PARTITION_NONE
     2,  // PARTITION_HORZ
     2,  // PARTITION_VERT
-    3,  // PARTITION_HORZ_3
-    3,  // PARTITION_VERT_3
+#if CONFIG_H_PARTITION
+    4,  // PARTITION_HORZ_3
+    4,  // PARTITION_VERT_3
+#else
+    3,                                           // PARTITION_HORZ_3
+    3,                                           // PARTITION_VERT_3
+#endif  // CONFIG_H_PARTITION
   };
   // PARTITION x NUM_SUBBLOCKS x (ROW and COL)
-  static const int step_multiplier[EXT_PARTITION_TYPES][3][2] = {
-    { { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
-    { { 0, 0 }, { 2, 0 }, { 0, 0 } },  // PARTITION_HORZ
-    { { 0, 0 }, { 0, 2 }, { 0, 0 } },  // PARTITION_VERT
-    { { 0, 0 }, { 1, 0 }, { 3, 0 } },  // PARTITION_HORZ_3
-    { { 0, 0 }, { 0, 1 }, { 0, 3 } },  // PARTITION_VERT_3
+  static const int step_multiplier[EXT_PARTITION_TYPES][4][2] = {
+    { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
+    { { 0, 0 }, { 2, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
+    { { 0, 0 }, { 0, 2 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
+#if CONFIG_H_PARTITION
+    { { 0, 0 }, { 1, 0 }, { 1, 2 }, { 3, 0 } },  // PARTITION_HORZ_3
+    { { 0, 0 }, { 0, 1 }, { 2, 1 }, { 0, 3 } },  // PARTITION_VERT_3
+#else
+    { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 0, 0 } },  // PARTITION_HORZ_3
+    { { 0, 0 }, { 0, 1 }, { 0, 3 }, { 0, 0 } },  // PARTITION_VERT_3
+#endif  // CONFIG_H_PARTITION
   };
+
+  const BLOCK_SIZE part_subsize = get_partition_subsize(bsize, partition);
+  if (part_subsize == BLOCK_INVALID) return;
+
+  BLOCK_SIZE subsizes[4] = { part_subsize, part_subsize, part_subsize,
+                             part_subsize };
+#if CONFIG_H_PARTITION
+  if (partition == PARTITION_HORZ_3) {
+    subsizes[1] = get_h_partition_subsize(sb_size, 1, PARTITION_HORZ_3);
+    subsizes[2] = get_h_partition_subsize(sb_size, 2, PARTITION_HORZ_3);
+  } else if (partition == PARTITION_VERT_3) {
+    subsizes[1] = get_h_partition_subsize(sb_size, 1, PARTITION_VERT_3);
+    subsizes[2] = get_h_partition_subsize(sb_size, 2, PARTITION_VERT_3);
+  }
+#endif  // CONFIG_H_PARTITION
   for (int idx = 0; idx < subblock_count[partition]; idx++) {
-    BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
-    if (subsize == BLOCK_INVALID) {
-      return;
-    } else if (partition == PARTITION_HORZ_3 && idx == 1) {
-      subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-    } else if (partition == PARTITION_VERT_3 && idx == 1) {
-      subsize = get_partition_subsize(bsize, PARTITION_VERT);
-    }
     const int sub_row =
         mi_row + step_multiplier[partition][idx][0] * quarter_step_h / 4;
     const int sub_col =
         mi_col + step_multiplier[partition][idx][1] * quarter_step_w / 4;
-    SimpleMotionData *subblock =
-        av1_get_sms_data_entry(sms_bufs, sub_row, sub_col, subsize, sb_size);
+    SimpleMotionData *subblock = av1_get_sms_data_entry(
+        sms_bufs, sub_row, sub_col, subsizes[idx], sb_size);
     add_start_mv_to_block(subblock, start_mv);
   }
 }
@@ -1985,8 +2002,15 @@ void av1_gather_erp_rect_features(
 
   // Whether we are in the middle of a PARTITION_3 subblock
   const PC_TREE *parent = pc_tree->parent;
+#if CONFIG_H_PARTITION
+  ml_features[num_features++] = parent && (parent->horizontal3[1] == pc_tree ||
+                                           parent->horizontal3[2] == pc_tree);
+  ml_features[num_features++] = parent && (parent->vertical3[1] == pc_tree ||
+                                           parent->vertical3[2] == pc_tree);
+#else
   ml_features[num_features++] = parent && parent->horizontal3[1] == pc_tree;
   ml_features[num_features++] = parent && parent->vertical3[1] == pc_tree;
+#endif  // CONFIG_H_PARTITION
   assert(num_features == 19);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

@@ -2449,9 +2449,13 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                                 BLOCK_SIZE bsize,
                                                 PARTITION_TYPE partition) {
   if (is_partition_point(bsize)) {
+#if !CONFIG_EXT_RECUR_PARTITIONS || !CONFIG_H_PARTITION
     const int hbs = mi_size_wide[bsize] / 2;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS || !CONFIG_H_PARTITION
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_H_PARTITION
     const int quarter_step = hbs / 2;
+#endif  // !CONFIG_H_PARTITION
 #else
     const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -2465,6 +2469,33 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
         update_partition_context(xd, mi_row, mi_col, subsize, bsize);
         break;
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_H_PARTITION
+      case PARTITION_HORZ_3:
+      case PARTITION_VERT_3: {
+        for (int i = 0; i < 4; ++i) {
+          if (i == 2) continue;
+
+          const BLOCK_SIZE this_bsize =
+              get_h_partition_subsize(bsize, i, partition);
+          const int offset_mr =
+              get_h_partition_offset_mi_row(bsize, i, partition);
+          const int offset_mc =
+              get_h_partition_offset_mi_col(bsize, i, partition);
+
+          BLOCK_SIZE update_bsize = this_bsize;
+          if (i == 1) {
+            const PARTITION_TYPE half_part_mode =
+                (partition == PARTITION_HORZ_3) ? PARTITION_HORZ
+                                                : PARTITION_VERT;
+            update_bsize = get_partition_subsize(bsize, half_part_mode);
+          }
+
+          update_partition_context(xd, mi_row + offset_mr, mi_col + offset_mc,
+                                   this_bsize, update_bsize);
+        }
+        break;
+      }
+#else
       case PARTITION_HORZ_3: {
         const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
         update_partition_context(xd, mi_row, mi_col, subsize, subsize);
@@ -2483,6 +2514,7 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                  subsize);
         break;
       }
+#endif  // CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
       case PARTITION_HORZ_A:
         update_partition_context(xd, mi_row, mi_col, bsize2, subsize);
@@ -2923,6 +2955,7 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
     const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, bool ss_x,
     bool ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
     const CHROMA_REF_INFO *chroma_ref_info, PARTITION_TYPE *implied_partition) {
+  if (bsize >= BLOCK_SIZES_ALL) return false;
   bool is_implied = false;
   PARTITION_TYPE tmp_implied_partition = PARTITION_INVALID;
   if (implied_partition) *implied_partition = PARTITION_INVALID;

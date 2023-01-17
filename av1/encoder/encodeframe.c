@@ -692,8 +692,13 @@ static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
     case PARTITION_NONE: num_subtrees = 0; break;
     case PARTITION_HORZ:
     case PARTITION_VERT: num_subtrees = 2; break;
+#if CONFIG_H_PARTITION
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3: num_subtrees = 4; break;
+#else
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: num_subtrees = 3; break;
+#endif  // CONFIG_H_PARTITION
     default:
       assert(0 && "Invalid partition type in set_min_none_to_invalid!");
       return;

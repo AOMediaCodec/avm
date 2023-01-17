@@ -456,7 +456,11 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // disable ML based partition speed up features
   5,  // aggressiveness for erp pruning
   0,  // use ml model for erp pruning
+#if CONFIG_H_PARTITION
+  1,  // enable ternary partitions
+#else
   0,  // enable ternary partitions
+#endif
 #else
   0,                        // disable ML based partition speed up features
 #endif

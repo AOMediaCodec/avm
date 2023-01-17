@@ -195,10 +195,17 @@ PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
     pc_tree->vertical[i] = NULL;
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_H_PARTITION
+  for (int i = 0; i < 4; ++i) {
+    pc_tree->horizontal3[i] = NULL;
+    pc_tree->vertical3[i] = NULL;
+  }
+#else
   for (int i = 0; i < 3; ++i) {
     pc_tree->horizontal3[i] = NULL;
     pc_tree->vertical3[i] = NULL;
   }
+#endif  // CONFIG_H_PARTITION
 #else
   for (int i = 0; i < 3; ++i) {
     pc_tree->horizontala[i] = NULL;
@@ -253,7 +260,11 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_H_PARTITION
+  for (int i = 0; i < 4; ++i) {
+#else
   for (int i = 0; i < 3; ++i) {
+#endif  // CONFIG_H_PARTITION
     if ((!keep_best || (partition != PARTITION_HORZ_3)) &&
         pc_tree->horizontal3[i] != NULL) {
       av1_free_pc_tree_recursive(pc_tree->horizontal3[i], num_planes, 0, 0);
@@ -382,6 +393,59 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
         }
       }
       break;
+#if CONFIG_H_PARTITION
+    // PARTITION_HORZ_3
+    case PARTITION_HORZ_3:
+      if (is_partition_valid(bsize, PARTITION_HORZ_3)) {
+        for (int i = 0; i < 4; ++i) {
+          const BLOCK_SIZE this_subsize =
+              get_h_partition_subsize(bsize, i, PARTITION_HORZ_3);
+          const int offset_mr =
+              get_h_partition_offset_mi_row(bsize, i, PARTITION_HORZ_3);
+          const int offset_mc =
+              get_h_partition_offset_mi_col(bsize, i, PARTITION_HORZ_3);
+
+          if (dst->horizontal3[i]) {
+            av1_free_pc_tree_recursive(dst->horizontal3[i], num_planes, 0, 0);
+            dst->horizontal3[i] = NULL;
+          }
+          if (src->horizontal3[i]) {
+            dst->horizontal3[i] = av1_alloc_pc_tree_node(
+                mi_row + offset_mr, mi_col + offset_mc, this_subsize, dst,
+                PARTITION_HORZ_3, i, i == 3, ss_x, ss_y);
+            av1_copy_pc_tree_recursive(cm, dst->horizontal3[i],
+                                       src->horizontal3[i], ss_x, ss_y,
+                                       shared_bufs, num_planes);
+          }
+        }
+      }
+      break;
+    // PARTITION_VERT_3
+    case PARTITION_VERT_3:
+      if (is_partition_valid(bsize, PARTITION_VERT_3)) {
+        for (int i = 0; i < 4; ++i) {
+          const BLOCK_SIZE this_subsize =
+              get_h_partition_subsize(bsize, i, PARTITION_VERT_3);
+          const int offset_mr =
+              get_h_partition_offset_mi_row(bsize, i, PARTITION_VERT_3);
+          const int offset_mc =
+              get_h_partition_offset_mi_col(bsize, i, PARTITION_VERT_3);
+
+          if (dst->vertical3[i]) {
+            av1_free_pc_tree_recursive(dst->vertical3[i], num_planes, 0, 0);
+            dst->vertical3[i] = NULL;
+          }
+          if (src->vertical3[i]) {
+            dst->vertical3[i] = av1_alloc_pc_tree_node(
+                mi_row + offset_mr, mi_col + offset_mc, this_subsize, dst,
+                PARTITION_VERT_3, i, i == 3, ss_x, ss_y);
+            av1_copy_pc_tree_recursive(cm, dst->vertical3[i], src->vertical3[i],
+                                       ss_x, ss_y, shared_bufs, num_planes);
+          }
+        }
+      }
+      break;
+#else
     // PARTITION_HORZ_3
     case PARTITION_HORZ_3:
       if (is_partition_valid(bsize, PARTITION_HORZ_3)) {
@@ -431,6 +495,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
         }
       }
       break;
+#endif  // CONFIG_H_PARTITION
     default: assert(0 && "Not a valid partition."); break;
   }
 }

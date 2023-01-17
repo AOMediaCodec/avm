@@ -79,8 +79,13 @@ typedef struct PC_TREE {
 #if CONFIG_EXT_RECUR_PARTITIONS
   struct PC_TREE *horizontal[2];
   struct PC_TREE *vertical[2];
+#if CONFIG_H_PARTITION
+  struct PC_TREE *horizontal3[4];
+  struct PC_TREE *vertical3[4];
+#else
   struct PC_TREE *horizontal3[3];
   struct PC_TREE *vertical3[3];
+#endif  // CONFIG_H_PARTITION
 #else
   PICK_MODE_CONTEXT *horizontal[2];
   PICK_MODE_CONTEXT *vertical[2];
