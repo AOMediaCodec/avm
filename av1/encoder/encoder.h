@@ -1353,6 +1353,9 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];
 #endif
+#if CONFIG_BAWP
+  unsigned int bawp[2];
+#endif  // CONFIG_BAWP
 #if CONFIG_TIP
   unsigned int tip_ref[TIP_CONTEXTS][2];
 #endif  // CONFIG_TIP
