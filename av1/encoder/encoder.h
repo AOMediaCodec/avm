@@ -843,6 +843,14 @@ typedef struct {
   bool enable_wiener;
   // Indicates if sgrproj in loop restoration filter should be enabled.
   bool enable_sgrproj;
+#if CONFIG_PC_WIENER
+  // Indicates if pc_wiener in loop restoration filter should be enabled.
+  bool enable_pc_wiener;
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  // Indicates if nonsep wiener in loop restoration filter should be enabled.
+  bool enable_wienerns;
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   // Indicates if ccso should be enabled.
   bool enable_ccso;
@@ -1408,6 +1416,12 @@ typedef struct FRAME_COUNTS {
   unsigned int switchable_restore[RESTORE_SWITCHABLE_TYPES];
   unsigned int wiener_restore[2];
   unsigned int sgrproj_restore[2];
+#if CONFIG_PC_WIENER
+  unsigned int pc_wiener_restore[2];
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  unsigned int wienerns_restore[2];
+#endif  // CONFIG_WIENER_NONSEP
 #endif  // CONFIG_ENTROPY_STATS
 
   unsigned int switchable_interp[SWITCHABLE_FILTER_CONTEXTS]

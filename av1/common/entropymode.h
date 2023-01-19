@@ -83,6 +83,13 @@ extern "C" {
 #define MAX_REFS_ARF 4
 #endif  // CONFIG_NEW_REF_SIGNALING
 
+#if CONFIG_WIENER_NONSEP
+#define WIENERNS_REDUCE_STEPS 5
+#if ENABLE_LR_4PART_CODE
+#define WIENERNS_4PART_CTX_MAX 4
+#endif  // ENABLE_LR_4PART_CODE
+#endif  // CONFIG_WIENER_NONSEP
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
 // Parameters which determine the warp delta coding
 // The raw values which can be signaled are
@@ -296,6 +303,7 @@ typedef struct frame_contexts {
   aom_cdf_prob filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)];
 #if CONFIG_LR_FLEX_SYNTAX
+#define MAX_LR_FLEX_MB_PLANE 3
   // The code for switchable resroration mode is to signal a bit for
   // every allowed restoration type in order from 0 (RESTORE_NONE).
   // If the bit transmitted is 1, that particular restoration type
@@ -303,7 +311,7 @@ typedef struct frame_contexts {
   // restoration types after the current index.
   // For disallowed tools, the corresponding bit is skipped.
   aom_cdf_prob switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
-                                          [MAX_MB_PLANE][CDF_SIZE(2)];
+                                          [MAX_LR_FLEX_MB_PLANE][CDF_SIZE(2)];
 #else
   aom_cdf_prob switchable_restore_cdf[CDF_SIZE(RESTORE_SWITCHABLE_TYPES)];
 #endif  // CONFIG_LR_FLEX_SYNTAX
@@ -312,6 +320,16 @@ typedef struct frame_contexts {
   aom_cdf_prob ccso_cdf[3][CDF_SIZE(2)];
 #endif
   aom_cdf_prob sgrproj_restore_cdf[CDF_SIZE(2)];
+#if CONFIG_WIENER_NONSEP
+  aom_cdf_prob wienerns_restore_cdf[CDF_SIZE(2)];
+  aom_cdf_prob wienerns_reduce_cdf[WIENERNS_REDUCE_STEPS][CDF_SIZE(2)];
+#if ENABLE_LR_4PART_CODE
+  aom_cdf_prob wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)];
+#endif  // ENABLE_LR_4PART_CODE
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+  aom_cdf_prob pc_wiener_restore_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_PC_WIENER
 #if CONFIG_LR_MERGE_COEFFS
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_LR_MERGE_COEFFS

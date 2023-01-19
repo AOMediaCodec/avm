@@ -19,6 +19,10 @@
 
 #include "aom_dsp/entenc.h"
 #include "aom_dsp/prob.h"
+#include "aom_dsp_common.h"
+#if ENABLE_LR_4PART_CODE
+#include "aom_dsp/recenter.h"
+#endif  // ENABLE_LR_4PART_CODE
 
 #if CONFIG_RD_DEBUG
 #include "av1/common/blockd.h"
@@ -113,6 +117,84 @@ static INLINE void aom_write_symbol(aom_writer *w, int symb, aom_cdf_prob *cdf,
   aom_write_cdf(w, symb, cdf, nsymbs);
   if (w->allow_update_cdf) update_cdf(cdf, symb, nsymbs);
 }
+
+#if ENABLE_LR_4PART_CODE
+// Implements a code where a symbol with an alphabet size a power of 2 with
+// nsymb_bits bits (with nsymb_bits >= 3), is coded by decomposing the symbol
+// into 4 parts covering 1/8, 1/8, 1/4, 1/2 of the total number of symbols.
+// The part is arithmetically coded using the provided cdf of size 4. The
+// offset within each part is coded using fixed length binary codes with
+// (nsymb_bits - 3), (nsymb_bits - 3), (nsymb_bits - 2) or (nsymb_bits - 1)
+// bits, depending on the part.
+//
+static INLINE int symb_to_part(int symb, int nsymb_bits) {
+  assert(nsymb_bits >= 3);
+  int part_offs[4] = { 0, 1 << (nsymb_bits - 3), 1 << (nsymb_bits - 2),
+                       1 << (nsymb_bits - 1) };
+  if (symb < part_offs[1])
+    return 0;
+  else if (symb < part_offs[2])
+    return 1;
+  else if (symb < part_offs[3])
+    return 2;
+  else
+    return 3;
+}
+
+static INLINE void aom_write_4part(aom_writer *w, int symb, aom_cdf_prob *cdf,
+                                   int nsymb_bits) {
+  assert(nsymb_bits >= 3);
+  int part;
+  int part_bits[4] = { (nsymb_bits - 3), (nsymb_bits - 3), (nsymb_bits - 2),
+                       (nsymb_bits - 1) };
+  int part_offs[4] = { 0, 1 << (nsymb_bits - 3), 1 << (nsymb_bits - 2),
+                       1 << (nsymb_bits - 1) };
+  if (symb < part_offs[1])
+    part = 0;
+  else if (symb < part_offs[2])
+    part = 1;
+  else if (symb < part_offs[3])
+    part = 2;
+  else
+    part = 3;
+  aom_write_symbol(w, part, cdf, 4);
+  aom_write_literal(w, symb - part_offs[part], part_bits[part]);
+}
+
+// Implements a nsymb_bits bit 4-part code that codes a symbol symb given a
+// reference ref_symb after recentering symb around ref_symb.
+static INLINE void aom_write_4part_wref(aom_writer *w, int ref_symb, int symb,
+                                        aom_cdf_prob *cdf, int nsymb_bits) {
+  const int recentered_symb =
+      recenter_finite_nonneg(1 << nsymb_bits, ref_symb, symb);
+  aom_write_4part(w, recentered_symb, cdf, nsymb_bits);
+}
+
+static INLINE int64_t aom_count_4part(int symb, const int *part_cost,
+                                      int nsymb_bits, int scale_shift) {
+  assert(nsymb_bits >= 3);
+  int part_bits[4] = { (nsymb_bits - 3), (nsymb_bits - 3), (nsymb_bits - 2),
+                       (nsymb_bits - 1) };
+  int part_offs[4] = { 0, 1 << (nsymb_bits - 3), 1 << (nsymb_bits - 2),
+                       1 << (nsymb_bits - 1) };
+  if (symb < part_offs[1])
+    return part_cost[0] + (part_bits[0] << scale_shift);
+  else if (symb < part_offs[2])
+    return part_cost[1] + (part_bits[1] << scale_shift);
+  else if (symb < part_offs[3])
+    return part_cost[2] + (part_bits[2] << scale_shift);
+  else
+    return part_cost[3] + (part_bits[3] << scale_shift);
+}
+
+static INLINE int64_t aom_count_4part_wref(int ref_symb, int symb,
+                                           const int *part_cost, int nsymb_bits,
+                                           int scale_shift) {
+  const int recentered_symb =
+      recenter_finite_nonneg(1 << nsymb_bits, ref_symb, symb);
+  return aom_count_4part(recentered_symb, part_cost, nsymb_bits, scale_shift);
+}
+#endif  // ENABLE_LR_4PART_CODE
 
 #ifdef __cplusplus
 }  // extern "C"

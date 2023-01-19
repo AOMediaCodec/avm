@@ -1103,6 +1103,28 @@ typedef struct {
    */
   int merged_param_cost[2];
 #endif  // CONFIG_LR_MERGE_COEFFS
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * wienerns_restore_cost
+   */
+  int wienerns_restore_cost[2];
+  /*!
+   * wienerns_reduce_cost
+   */
+  int wienerns_reduce_cost[WIENERNS_REDUCE_STEPS][2];
+#if ENABLE_LR_4PART_CODE
+  /*!
+   * wienerns_4part_cost
+   */
+  int wienerns_4part_cost[WIENERNS_4PART_CTX_MAX][4];
+#endif  // ENABLE_LR_4PART_CODE
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+  /*!
+   * pc_wiener_restore_cost
+   */
+  int pc_wiener_restore_cost[2];
+#endif  // CONFIG_PC_WIENER
   /**@}*/
 } ModeCosts;
 

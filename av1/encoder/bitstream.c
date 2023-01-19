@@ -2780,6 +2780,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
     write_tokens_b(cpi, w, tok, tok_end);
   }
+#if CONFIG_PC_WIENER
+  else {
+    assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
+  }
+#endif  // CONFIG_PC_WIENER
 
   av1_mark_block_as_coded(xd, bsize, cm->seq_params.sb_size);
 }
@@ -3250,9 +3255,10 @@ static AOM_INLINE void encode_restoration_mode(
     }
 #else
     switch (rsi->frame_restoration_type) {
-      case RESTORE_NONE:
+      case RESTORE_NONE: aom_wb_write_bit(wb, 0); aom_wb_write_bit(wb, 0);
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
         aom_wb_write_bit(wb, 0);
-        aom_wb_write_bit(wb, 0);
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
         break;
       case RESTORE_WIENER:
         aom_wb_write_bit(wb, 1);
@@ -3262,207 +3268,371 @@ static AOM_INLINE void encode_restoration_mode(
         aom_wb_write_bit(wb, 1);
         aom_wb_write_bit(wb, 1);
         break;
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        aom_wb_write_bit(wb, 0);
+        aom_wb_write_bit(wb, 0);
+        aom_wb_write_bit(wb, 1);
+#if CONFIG_PC_WIENER
+        aom_wb_write_bit(wb, 0);
+#endif  // CONFIG_PC_WIENER
+        break;
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+      case RESTORE_PC_WIENER:
+        aom_wb_write_bit(wb, 0);
+        aom_wb_write_bit(wb, 0);
+        aom_wb_write_bit(wb, 1);
+#if CONFIG_WIENER_NONSEP
+        aom_wb_write_bit(wb, 1);
+#endif  // CONFIG_WIENER_NONSEP
+        break;
+#endif  // CONFIG_PC_WIENER
       case RESTORE_SWITCHABLE:
         aom_wb_write_bit(wb, 0);
         aom_wb_write_bit(wb, 1);
         break;
       default: assert(0);
     }
-  }
 #endif  // CONFIG_LR_FLEX_SYNTAX
-    if (!all_none) {
-      assert(cm->seq_params.sb_size == BLOCK_64X64 ||
-             cm->seq_params.sb_size == BLOCK_128X128);
-      const int sb_size = cm->seq_params.sb_size == BLOCK_128X128 ? 128 : 64;
+#if CONFIG_WIENER_NONSEP
+    if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP)
+      assert(rsi->num_filter_classes == (p == AOM_PLANE_Y
+                                             ? NUM_WIENERNS_CLASS_INIT_LUMA
+                                             : NUM_WIENERNS_CLASS_INIT_CHROMA));
+#endif
+  }
+  if (!all_none) {
+    assert(cm->seq_params.sb_size == BLOCK_64X64 ||
+           cm->seq_params.sb_size == BLOCK_128X128);
+    const int sb_size = cm->seq_params.sb_size == BLOCK_128X128 ? 128 : 64;
 
-      RestorationInfo *rsi = &cm->rst_info[0];
+    RestorationInfo *rsi = &cm->rst_info[0];
 
-      assert(rsi->restoration_unit_size >= sb_size);
-      assert(RESTORATION_UNITSIZE_MAX == 256);
+    assert(rsi->restoration_unit_size >= sb_size);
+    assert(RESTORATION_UNITSIZE_MAX == 256);
 
-      if (sb_size == 64) {
-        aom_wb_write_bit(wb, rsi->restoration_unit_size > 64);
-      }
-      if (rsi->restoration_unit_size > 64) {
-        aom_wb_write_bit(wb, rsi->restoration_unit_size > 128);
-      }
+    if (sb_size == 64) {
+      aom_wb_write_bit(wb, rsi->restoration_unit_size > 64);
     }
-
-    if (num_planes > 1) {
-      int s =
-          AOMMIN(cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
-      if (s && !chroma_none) {
-        aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size !=
-                                 cm->rst_info[0].restoration_unit_size);
-        assert(cm->rst_info[1].restoration_unit_size ==
-                   cm->rst_info[0].restoration_unit_size ||
-               cm->rst_info[1].restoration_unit_size ==
-                   (cm->rst_info[0].restoration_unit_size >> s));
-        assert(cm->rst_info[2].restoration_unit_size ==
-               cm->rst_info[1].restoration_unit_size);
-      } else if (!s) {
-        assert(cm->rst_info[1].restoration_unit_size ==
-               cm->rst_info[0].restoration_unit_size);
-        assert(cm->rst_info[2].restoration_unit_size ==
-               cm->rst_info[1].restoration_unit_size);
-      }
+    if (rsi->restoration_unit_size > 64) {
+      aom_wb_write_bit(wb, rsi->restoration_unit_size > 128);
     }
   }
 
-  static AOM_INLINE void write_wiener_filter(
-      MACROBLOCKD * xd, int wiener_win, const WienerInfo *wiener_info,
-      WienerInfoBank *bank, aom_writer *wb) {
+  if (num_planes > 1) {
+    int s = AOMMIN(cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+    if (s && !chroma_none) {
+      aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size !=
+                               cm->rst_info[0].restoration_unit_size);
+      assert(cm->rst_info[1].restoration_unit_size ==
+                 cm->rst_info[0].restoration_unit_size ||
+             cm->rst_info[1].restoration_unit_size ==
+                 (cm->rst_info[0].restoration_unit_size >> s));
+      assert(cm->rst_info[2].restoration_unit_size ==
+             cm->rst_info[1].restoration_unit_size);
+    } else if (!s) {
+      assert(cm->rst_info[1].restoration_unit_size ==
+             cm->rst_info[0].restoration_unit_size);
+      assert(cm->rst_info[2].restoration_unit_size ==
+             cm->rst_info[1].restoration_unit_size);
+    }
+  }
+}
+
+static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
+                                           const WienerInfo *wiener_info,
+                                           WienerInfoBank *bank,
+                                           aom_writer *wb) {
 #if CONFIG_LR_MERGE_COEFFS
-    const int equal_ref = check_wiener_bank_eq(bank, wiener_info);
-    const int exact_match = (equal_ref >= 0);
-    aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-    const int ref = wiener_info->bank_ref;
-    assert(IMPLIES(exact_match, ref == equal_ref));
-    assert(ref < AOMMAX(1, bank->bank_size));
-    int match = 0;
-    for (int k = 0; k < AOMMAX(0, bank->bank_size - 1); ++k) {
-      match = (k == ref);
-      aom_write_literal(wb, match, 1);
-      if (match) break;
-    }
-    assert(IMPLIES(!match, ref == AOMMAX(0, bank->bank_size - 1)));
-    if (exact_match) {
-      if (bank->bank_size == 0) av1_add_to_wiener_bank(bank, wiener_info);
-      return;
-    }
+  const int equal_ref = check_wiener_bank_eq(bank, wiener_info);
+  const int exact_match = (equal_ref >= 0);
+  aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+  const int ref = wiener_info->bank_ref;
+  assert(IMPLIES(exact_match, ref == equal_ref));
+  assert(ref < AOMMAX(1, bank->bank_size));
+  int match = 0;
+  for (int k = 0; k < AOMMAX(0, bank->bank_size - 1); ++k) {
+    match = (k == ref);
+    aom_write_literal(wb, match, 1);
+    if (match) break;
+  }
+  assert(IMPLIES(!match, ref == AOMMAX(0, bank->bank_size - 1)));
+  if (exact_match) {
+    if (bank->bank_size == 0) av1_add_to_wiener_bank(bank, wiener_info);
+    return;
+  }
 #else
   const int ref = 0;
   (void)xd;
 #endif  // CONFIG_LR_MERGE_COEFFS
-    const WienerInfo *ref_wiener_info = av1_ref_from_wiener_bank(bank, ref);
-    if (wiener_win == WIENER_WIN)
-      aom_write_primitive_refsubexpfin(
-          wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-          WIENER_FILT_TAP0_SUBEXP_K,
-          ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
-          wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV);
-    else
-      assert(wiener_info->vfilter[0] == 0 &&
-             wiener_info->vfilter[WIENER_WIN - 1] == 0);
+  const WienerInfo *ref_wiener_info = av1_ref_from_wiener_bank(bank, ref);
+  if (wiener_win == WIENER_WIN)
     aom_write_primitive_refsubexpfin(
-        wb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-        WIENER_FILT_TAP1_SUBEXP_K,
-        ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
-        wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV);
+        wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
+        WIENER_FILT_TAP0_SUBEXP_K,
+        ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
+        wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV);
+  else
+    assert(wiener_info->vfilter[0] == 0 &&
+           wiener_info->vfilter[WIENER_WIN - 1] == 0);
+  aom_write_primitive_refsubexpfin(
+      wb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
+      WIENER_FILT_TAP1_SUBEXP_K,
+      ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
+      wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV);
+  aom_write_primitive_refsubexpfin(
+      wb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
+      WIENER_FILT_TAP2_SUBEXP_K,
+      ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
+      wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV);
+  if (wiener_win == WIENER_WIN)
     aom_write_primitive_refsubexpfin(
-        wb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-        WIENER_FILT_TAP2_SUBEXP_K,
-        ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
-        wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV);
-    if (wiener_win == WIENER_WIN)
-      aom_write_primitive_refsubexpfin(
-          wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
-          WIENER_FILT_TAP0_SUBEXP_K,
-          ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
-          wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV);
-    else
-      assert(wiener_info->hfilter[0] == 0 &&
-             wiener_info->hfilter[WIENER_WIN - 1] == 0);
-    aom_write_primitive_refsubexpfin(
-        wb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
-        WIENER_FILT_TAP1_SUBEXP_K,
-        ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
-        wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV);
-    aom_write_primitive_refsubexpfin(
-        wb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
-        WIENER_FILT_TAP2_SUBEXP_K,
-        ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
-        wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV);
-    av1_add_to_wiener_bank(bank, wiener_info);
+        wb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
+        WIENER_FILT_TAP0_SUBEXP_K,
+        ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
+        wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV);
+  else
+    assert(wiener_info->hfilter[0] == 0 &&
+           wiener_info->hfilter[WIENER_WIN - 1] == 0);
+  aom_write_primitive_refsubexpfin(
+      wb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
+      WIENER_FILT_TAP1_SUBEXP_K,
+      ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
+      wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV);
+  aom_write_primitive_refsubexpfin(
+      wb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
+      WIENER_FILT_TAP2_SUBEXP_K,
+      ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
+      wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV);
+  av1_add_to_wiener_bank(bank, wiener_info);
+  return;
+}
+
+static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
+                                            const SgrprojInfo *sgrproj_info,
+                                            SgrprojInfoBank *bank,
+                                            aom_writer *wb) {
+#if CONFIG_LR_MERGE_COEFFS
+  const int equal_ref = check_sgrproj_bank_eq(bank, sgrproj_info);
+  const int exact_match = (equal_ref >= 0);
+  aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+  const int ref = sgrproj_info->bank_ref;
+  assert(IMPLIES(exact_match, ref == equal_ref));
+  assert(ref < AOMMAX(1, bank->bank_size));
+  int match = 0;
+  for (int k = 0; k < AOMMAX(0, bank->bank_size - 1); ++k) {
+    match = (k == ref);
+    aom_write_literal(wb, match, 1);
+    if (match) break;
+  }
+  assert(IMPLIES(!match, ref == AOMMAX(0, bank->bank_size - 1)));
+  if (exact_match) {
+    if (bank->bank_size == 0) av1_add_to_sgrproj_bank(bank, sgrproj_info);
     return;
   }
-
-  static AOM_INLINE void write_sgrproj_filter(
-      MACROBLOCKD * xd, const SgrprojInfo *sgrproj_info, SgrprojInfoBank *bank,
-      aom_writer *wb) {
-#if CONFIG_LR_MERGE_COEFFS
-    const int equal_ref = check_sgrproj_bank_eq(bank, sgrproj_info);
-    const int exact_match = (equal_ref >= 0);
-    aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-    const int ref = sgrproj_info->bank_ref;
-    assert(IMPLIES(exact_match, ref == equal_ref));
-    assert(ref < AOMMAX(1, bank->bank_size));
-    int match = 0;
-    for (int k = 0; k < AOMMAX(0, bank->bank_size - 1); ++k) {
-      match = (k == ref);
-      aom_write_literal(wb, match, 1);
-      if (match) break;
-    }
-    assert(IMPLIES(!match, ref == AOMMAX(0, bank->bank_size - 1)));
-    if (exact_match) {
-      if (bank->bank_size == 0) av1_add_to_sgrproj_bank(bank, sgrproj_info);
-      return;
-    }
 #else
   const int ref = 0;
   (void)xd;
 #endif  // CONFIG_LR_MERGE_COEFFS
-    const SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
+  const SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
 
-    aom_write_literal(wb, sgrproj_info->ep, SGRPROJ_PARAMS_BITS);
-    const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
+  aom_write_literal(wb, sgrproj_info->ep, SGRPROJ_PARAMS_BITS);
+  const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
-    if (params->r[0] == 0) {
-      assert(sgrproj_info->xqd[0] == 0);
-      aom_write_primitive_refsubexpfin(
-          wb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-          ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
-          sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
-    } else if (params->r[1] == 0) {
-      aom_write_primitive_refsubexpfin(
-          wb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-          ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
-          sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0);
-    } else {
-      aom_write_primitive_refsubexpfin(
-          wb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-          ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
-          sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0);
-      aom_write_primitive_refsubexpfin(
-          wb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-          ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
-          sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
-    }
-    av1_add_to_sgrproj_bank(bank, sgrproj_info);
-    return;
+  if (params->r[0] == 0) {
+    assert(sgrproj_info->xqd[0] == 0);
+    aom_write_primitive_refsubexpfin(
+        wb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
+        ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
+        sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
+  } else if (params->r[1] == 0) {
+    aom_write_primitive_refsubexpfin(
+        wb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
+        ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
+        sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0);
+  } else {
+    aom_write_primitive_refsubexpfin(
+        wb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
+        ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
+        sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0);
+    aom_write_primitive_refsubexpfin(
+        wb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
+        ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
+        sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
   }
+  av1_add_to_sgrproj_bank(bank, sgrproj_info);
+  return;
+}
+#if CONFIG_WIENER_NONSEP
 
-  static AOM_INLINE void loop_restoration_write_sb_coeffs(
-      const AV1_COMMON *const cm, MACROBLOCKD *xd,
-      const RestorationUnitInfo *rui, aom_writer *const w, int plane,
-      FRAME_COUNTS *counts) {
-    const RestorationInfo *rsi = cm->rst_info + plane;
-    RestorationType frame_rtype = rsi->frame_restoration_type;
-    assert(frame_rtype != RESTORE_NONE);
+#if CONFIG_LR_MERGE_COEFFS
+static int check_and_write_merge_info(
+    const WienerNonsepInfo *wienerns_info, const WienerNonsepInfoBank *bank,
+    const WienernsFilterParameters *nsfilter_params, int class_id,
+    int *ref_for_class, MACROBLOCKD *xd, aom_writer *wb) {
+  const int is_equal = check_wienerns_bank_eq(
+      bank, wienerns_info, nsfilter_params->ncoeffs, class_id, ref_for_class);
+  const int exact_match = (is_equal >= 0);
+  aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
 
-    (void)counts;
-    assert(!cm->features.all_lossless);
+  if (!exact_match) {
+    ref_for_class[class_id] = wienerns_info->bank_ref_for_class[class_id];
+  }
+  const int ref = ref_for_class[class_id];
 
-    const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
-    RestorationType unit_rtype = rui->restoration_type;
-#if CONFIG_LR_FLEX_SYNTAX
-    assert(
-        ((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
-         1) == 0);
-#endif  // CONFIG_LR_FLEX_SYNTAX
-    if (frame_rtype == RESTORE_SWITCHABLE) {
-#if CONFIG_LR_FLEX_SYNTAX
-      int found = 0;
-      for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
-        if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
-        found = (re == (int)unit_rtype);
-        aom_write_symbol(
-            w, found, xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2);
-        if (found) break;
+  assert(ref < AOMMAX(1, bank->bank_size_for_class[class_id]));
+  int match = 0;
+  for (int k = 0; k < bank->bank_size_for_class[class_id] - 1; ++k) {
+    match = (k == ref);
+    aom_write_literal(wb, match, 1);
+    if (match) break;
+  }
+  assert(IMPLIES(!match, ref == bank->bank_size_for_class[class_id] - 1));
+  return exact_match;
+}
+#endif  // CONFIG_LR_MERGE_COEFFS
+
+static AOM_INLINE void write_wienerns_filter(
+    MACROBLOCKD *xd, int plane, const WienerNonsepInfo *wienerns_info,
+    WienerNonsepInfoBank *bank, aom_writer *wb) {
+  const WienernsFilterParameters *nsfilter_params =
+      get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y);
+  int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };
+  int ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
+#if CONFIG_LR_MERGE_COEFFS
+  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+    skip_filter_write_for_class[c_id] = check_and_write_merge_info(
+        wienerns_info, bank, nsfilter_params, c_id, ref_for_class, xd, wb);
+  }
+#else
+  (void)xd;
+#endif  // CONFIG_LR_MERGE_COEFFS
+  const int beg_feat = 0;
+  const int end_feat = nsfilter_params->ncoeffs;
+  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+
+  int reduce_step[WIENERNS_REDUCE_STEPS];
+  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+    if (skip_filter_write_for_class[c_id]) continue;
+    const int ref = ref_for_class[c_id];
+
+    const WienerNonsepInfo *ref_wienerns_info =
+        av1_constref_from_wienerns_bank(bank, ref, c_id);
+    const int16_t *wienerns_info_nsfilter =
+        const_nsfilter_taps(wienerns_info, c_id);
+    const int16_t *ref_wienerns_info_nsfilter =
+        const_nsfilter_taps(ref_wienerns_info, c_id);
+    memset(reduce_step, 0, sizeof(reduce_step));
+    if (end_feat - beg_feat > 1 && wienerns_info_nsfilter[end_feat - 1] == 0) {
+      reduce_step[WIENERNS_REDUCE_STEPS - 1] = 1;
+      if (end_feat - beg_feat > 2 &&
+          wienerns_info_nsfilter[end_feat - 2] == 0) {
+        reduce_step[WIENERNS_REDUCE_STEPS - 2] = 1;
+        if (end_feat - beg_feat > 3 &&
+            wienerns_info_nsfilter[end_feat - 3] == 0) {
+          reduce_step[WIENERNS_REDUCE_STEPS - 3] = 1;
+          if (end_feat - beg_feat > 4 &&
+              wienerns_info_nsfilter[end_feat - 4] == 0) {
+            reduce_step[WIENERNS_REDUCE_STEPS - 4] = 1;
+            if (end_feat - beg_feat > 5 &&
+                wienerns_info_nsfilter[end_feat - 5] == 0) {
+              reduce_step[WIENERNS_REDUCE_STEPS - 5] = 1;
+            }
+          }
+        }
       }
-      assert(IMPLIES(!found,
-                     (int)unit_rtype ==
-                         cm->features.lr_last_switchable_ndx_0_type[plane]));
+    }
+    // Whether the number of taps is odd or even. For luma
+    // the #taps can be either odd or even. If odd, the last
+    // tap corresponds to dc offset. For chroma, the #taps is
+    // assumed to be always even.
+    // if #taps is odd, the exit points for signaling are:
+    // #total_taps - 1, #total_taps - 3, #total_taps - 5.
+    // If #taps is even, the exit points for signaling are:
+    // #total_taps - 2, #total_taps - 4, #total_taps - 6.
+    const int rodd = plane ? 0 : (end_feat & 1);
+    for (int i = beg_feat; i < end_feat; ++i) {
+      if (rodd && i == end_feat - 5 && i != beg_feat) {
+        aom_write_symbol(wb, reduce_step[0],
+                         xd->tile_ctx->wienerns_reduce_cdf[0], 2);
+        if (reduce_step[0]) break;
+      }
+      if (!rodd && i == end_feat - 4 && i != beg_feat) {
+        aom_write_symbol(wb, reduce_step[1],
+                         xd->tile_ctx->wienerns_reduce_cdf[1], 2);
+        if (reduce_step[1]) break;
+      }
+      if (rodd && i == end_feat - 3 && i != beg_feat) {
+        aom_write_symbol(wb, reduce_step[2],
+                         xd->tile_ctx->wienerns_reduce_cdf[2], 2);
+        if (reduce_step[2]) break;
+      }
+      if (!rodd && i == end_feat - 2 && i != beg_feat) {
+        aom_write_symbol(wb, reduce_step[3],
+                         xd->tile_ctx->wienerns_reduce_cdf[3], 2);
+        if (reduce_step[3]) break;
+      }
+      if (rodd && i == end_feat - 1 && i != beg_feat) {
+        aom_write_symbol(wb, reduce_step[4],
+                         xd->tile_ctx->wienerns_reduce_cdf[4], 2);
+        if (reduce_step[4]) break;
+      }
+#if ENABLE_LR_4PART_CODE
+      aom_write_4part_wref(
+          wb,
+          ref_wienerns_info_nsfilter[i] -
+              wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
+          wienerns_info_nsfilter[i] -
+              wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
+          xd->tile_ctx->wienerns_4part_cdf[wienerns_coeffs[i - beg_feat]
+                                                          [WIENERNS_PAR_ID]],
+          wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]);
+#else
+      aom_write_primitive_refsubexpfin(
+          wb, (1 << wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID]),
+          wienerns_coeffs[i - beg_feat][WIENERNS_PAR_ID],
+          ref_wienerns_info_nsfilter[i] -
+              wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
+          wienerns_info_nsfilter[i] -
+              wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID]);
+#endif  // ENABLE_LR_4PART_CODE
+    }
+    av1_add_to_wienerns_bank(bank, wienerns_info, c_id);
+  }
+  return;
+}
+#endif  // CONFIG_WIENER_NONSEP
+
+static AOM_INLINE void loop_restoration_write_sb_coeffs(
+    const AV1_COMMON *const cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
+    aom_writer *const w, int plane, FRAME_COUNTS *counts) {
+  const RestorationInfo *rsi = cm->rst_info + plane;
+  RestorationType frame_rtype = rsi->frame_restoration_type;
+  assert(frame_rtype != RESTORE_NONE);
+
+  (void)counts;
+  assert(!cm->features.all_lossless);
+
+  const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
+  RestorationType unit_rtype = rui->restoration_type;
+#if CONFIG_LR_FLEX_SYNTAX
+  assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
+          1) == 0);
+#endif  // CONFIG_LR_FLEX_SYNTAX
+  if (frame_rtype == RESTORE_SWITCHABLE) {
+#if CONFIG_LR_FLEX_SYNTAX
+    int found = 0;
+    for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
+      if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
+      found = (re == (int)unit_rtype);
+      aom_write_symbol(w, found,
+                       xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2);
+      if (found) break;
+    }
+    assert(IMPLIES(
+        !found,
+        (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
 #else
     aom_write_symbol(w, unit_rtype, xd->tile_ctx->switchable_restore_cdf,
                      RESTORE_SWITCHABLE_TYPES);
@@ -3470,186 +3640,218 @@ static AOM_INLINE void encode_restoration_mode(
     ++counts->switchable_restore[unit_rtype];
 #endif
 #endif  // CONFIG_LR_FLEX_SYNTAX
-      switch (unit_rtype) {
-        case RESTORE_WIENER:
-          write_wiener_filter(xd, wiener_win, &rui->wiener_info,
-                              &xd->wiener_info[plane], w);
-          break;
-        case RESTORE_SGRPROJ:
-          write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
-                               w);
-          break;
-        default: assert(unit_rtype == RESTORE_NONE); break;
-      }
-    } else if (frame_rtype == RESTORE_WIENER) {
-      aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                       xd->tile_ctx->wiener_restore_cdf, 2);
-#if CONFIG_ENTROPY_STATS
-      ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
-#endif
-      if (unit_rtype != RESTORE_NONE) {
+    switch (unit_rtype) {
+      case RESTORE_WIENER:
         write_wiener_filter(xd, wiener_win, &rui->wiener_info,
                             &xd->wiener_info[plane], w);
-      }
-    } else if (frame_rtype == RESTORE_SGRPROJ) {
-      aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                       xd->tile_ctx->sgrproj_restore_cdf, 2);
-#if CONFIG_ENTROPY_STATS
-      ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
-#endif
-      if (unit_rtype != RESTORE_NONE) {
+        break;
+      case RESTORE_SGRPROJ:
         write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
                              w);
-      }
+        break;
+#if CONFIG_WIENER_NONSEP
+      case RESTORE_WIENER_NONSEP:
+        write_wienerns_filter(xd, plane, &rui->wienerns_info,
+                              &xd->wienerns_info[plane], w);
+        break;
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+      case RESTORE_PC_WIENER:
+        // No side-information for now.
+        break;
+#endif  // CONFIG_PC_WIENER
+      default: assert(unit_rtype == RESTORE_NONE); break;
     }
+  } else if (frame_rtype == RESTORE_WIENER) {
+    aom_write_symbol(w, unit_rtype != RESTORE_NONE,
+                     xd->tile_ctx->wiener_restore_cdf, 2);
+#if CONFIG_ENTROPY_STATS
+    ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
+#endif
+    if (unit_rtype != RESTORE_NONE) {
+      write_wiener_filter(xd, wiener_win, &rui->wiener_info,
+                          &xd->wiener_info[plane], w);
+    }
+  } else if (frame_rtype == RESTORE_SGRPROJ) {
+    aom_write_symbol(w, unit_rtype != RESTORE_NONE,
+                     xd->tile_ctx->sgrproj_restore_cdf, 2);
+#if CONFIG_ENTROPY_STATS
+    ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
+#endif
+    if (unit_rtype != RESTORE_NONE) {
+      write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
+    }
+#if CONFIG_WIENER_NONSEP
+  } else if (frame_rtype == RESTORE_WIENER_NONSEP) {
+    aom_write_symbol(w, unit_rtype != RESTORE_NONE,
+                     xd->tile_ctx->wienerns_restore_cdf, 2);
+#if CONFIG_ENTROPY_STATS
+    ++counts->wienerns_restore[unit_rtype != RESTORE_NONE];
+#endif  // CONFIG_ENTROPY_STATS
+    if (unit_rtype != RESTORE_NONE) {
+      write_wienerns_filter(xd, plane, &rui->wienerns_info,
+                            &xd->wienerns_info[plane], w);
+    }
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+  } else if (frame_rtype == RESTORE_PC_WIENER) {
+    aom_write_symbol(w, unit_rtype != RESTORE_NONE,
+                     xd->tile_ctx->pc_wiener_restore_cdf, 2);
+#if CONFIG_ENTROPY_STATS
+    ++counts->pc_wiener_restore[unit_rtype != RESTORE_NONE];
+#endif  // CONFIG_ENTROPY_STATS
+    if (unit_rtype != RESTORE_NONE) {
+      // No side-information for now.
+    }
+#endif  // CONFIG_PC_WIENER
   }
+}
 #if !CONFIG_NEW_DF
-  // Only write out the ref delta section if any of the elements
-  // will signal a delta.
-  static bool is_mode_ref_delta_meaningful(AV1_COMMON * cm) {
-    struct loopfilter *lf = &cm->lf;
-    if (!lf->mode_ref_delta_update) {
-      return 0;
-    }
-    const RefCntBuffer *buf = get_primary_ref_frame_buf(cm);
-    int8_t last_ref_deltas[SINGLE_REF_FRAMES];
-    int8_t last_mode_deltas[MAX_MODE_LF_DELTAS];
-    if (buf == NULL) {
-      av1_set_default_ref_deltas(last_ref_deltas);
-      av1_set_default_mode_deltas(last_mode_deltas);
-    } else {
-      memcpy(last_ref_deltas, buf->ref_deltas, SINGLE_REF_FRAMES);
-      memcpy(last_mode_deltas, buf->mode_deltas, MAX_MODE_LF_DELTAS);
-    }
-    for (int i = 0; i < SINGLE_REF_FRAMES; i++) {
-      if (lf->ref_deltas[i] != last_ref_deltas[i]) {
-        return true;
-      }
-    }
-    for (int i = 0; i < MAX_MODE_LF_DELTAS; i++) {
-      if (lf->mode_deltas[i] != last_mode_deltas[i]) {
-        return true;
-      }
-    }
-    return false;
+// Only write out the ref delta section if any of the elements
+// will signal a delta.
+static bool is_mode_ref_delta_meaningful(AV1_COMMON *cm) {
+  struct loopfilter *lf = &cm->lf;
+  if (!lf->mode_ref_delta_update) {
+    return 0;
   }
+  const RefCntBuffer *buf = get_primary_ref_frame_buf(cm);
+  int8_t last_ref_deltas[SINGLE_REF_FRAMES];
+  int8_t last_mode_deltas[MAX_MODE_LF_DELTAS];
+  if (buf == NULL) {
+    av1_set_default_ref_deltas(last_ref_deltas);
+    av1_set_default_mode_deltas(last_mode_deltas);
+  } else {
+    memcpy(last_ref_deltas, buf->ref_deltas, SINGLE_REF_FRAMES);
+    memcpy(last_mode_deltas, buf->mode_deltas, MAX_MODE_LF_DELTAS);
+  }
+  for (int i = 0; i < SINGLE_REF_FRAMES; i++) {
+    if (lf->ref_deltas[i] != last_ref_deltas[i]) {
+      return true;
+    }
+  }
+  for (int i = 0; i < MAX_MODE_LF_DELTAS; i++) {
+    if (lf->mode_deltas[i] != last_mode_deltas[i]) {
+      return true;
+    }
+  }
+  return false;
+}
 #endif  // !CONFIG_NEW_DF
 #if CONFIG_NEW_DF
-  static AOM_INLINE void encode_loopfilter(AV1_COMMON * cm,
-                                           struct aom_write_bit_buffer * wb) {
-    assert(!cm->features.coded_lossless);
-    if (is_global_intrabc_allowed(cm)) return;
-    const int num_planes = av1_num_planes(cm);
-    struct loopfilter *lf = &cm->lf;
+static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
+                                         struct aom_write_bit_buffer *wb) {
+  assert(!cm->features.coded_lossless);
+  if (is_global_intrabc_allowed(cm)) return;
+  const int num_planes = av1_num_planes(cm);
+  struct loopfilter *lf = &cm->lf;
 
-    // Encode the loop filter level and type
-    aom_wb_write_bit(wb, lf->filter_level[0]);
+  // Encode the loop filter level and type
+  aom_wb_write_bit(wb, lf->filter_level[0]);
 #if DF_DUAL
-    aom_wb_write_bit(wb, lf->filter_level[1]);
+  aom_wb_write_bit(wb, lf->filter_level[1]);
 #endif
-    if (num_planes > 1) {
-      if (lf->filter_level[0] || lf->filter_level[1]) {
-        aom_wb_write_bit(wb, lf->filter_level_u);
-        aom_wb_write_bit(wb, lf->filter_level_v);
-      }
-    }
-#if DF_DUAL
-    if (lf->filter_level[0]) {
-      int luma_delta_q_flag = lf->delta_q_luma[0] != 0;
-
-      aom_wb_write_bit(wb, luma_delta_q_flag);
-      if (luma_delta_q_flag) {
-        aom_wb_write_literal(wb, lf->delta_q_luma[0] + DF_PAR_OFFSET,
-                             DF_PAR_BITS);
-      }
-#if DF_TWO_PARAM
-      int luma_delta_side_flag = lf->delta_side_luma[0] != 0;
-      aom_wb_write_bit(wb, luma_delta_side_flag);
-      if (luma_delta_side_flag) {
-        aom_wb_write_literal(wb, lf->delta_side_luma[0] + DF_PAR_OFFSET,
-                             DF_PAR_BITS);
-      }
-#else
-      assert(lf->delta_q_luma[0] == lf->delta_side_luma[0]);
-#endif  // DF_TWO_PARAM
-    }
-
-    if (lf->filter_level[1]) {
-      int luma_delta_q_flag = lf->delta_q_luma[1] != lf->delta_q_luma[0];
-
-      aom_wb_write_bit(wb, luma_delta_q_flag);
-      if (luma_delta_q_flag) {
-        aom_wb_write_literal(wb, lf->delta_q_luma[1] + DF_PAR_OFFSET,
-                             DF_PAR_BITS);
-      }
-#if DF_TWO_PARAM
-      int luma_delta_side_flag =
-          lf->delta_side_luma[1] != lf->delta_side_luma[0];
-      aom_wb_write_bit(wb, luma_delta_side_flag);
-      if (luma_delta_side_flag) {
-        aom_wb_write_literal(wb, lf->delta_side_luma[1] + DF_PAR_OFFSET,
-                             DF_PAR_BITS);
-      }
-#else
-      assert(lf->delta_q_luma[1] == lf->delta_side_luma[1]);
-#endif  // DF_TWO_PARAM
-    }
-#else
+  if (num_planes > 1) {
     if (lf->filter_level[0] || lf->filter_level[1]) {
-      int luma_delta_q_flag = lf->delta_q_luma != 0;
-
-      aom_wb_write_bit(wb, luma_delta_q_flag);
-      if (luma_delta_q_flag) {
-        aom_wb_write_literal(wb, lf->delta_q_luma + DF_PAR_OFFSET, DF_PAR_BITS);
-      }
-#if DF_TWO_PARAM
-      int luma_delta_side_flag = lf->delta_side_luma != 0;
-      aom_wb_write_bit(wb, luma_delta_side_flag);
-      if (luma_delta_side_flag) {
-        aom_wb_write_literal(wb, lf->delta_side_luma + DF_PAR_OFFSET,
-                             DF_PAR_BITS);
-      }
-#else
-      assert(lf->delta_q_luma == lf->delta_side_luma);
-#endif  // DF_TWO_PARAM
-    }
-#endif  // DF_DUAL
-    if (lf->filter_level_u) {
-      int u_delta_q_flag = lf->delta_q_u != 0;
-
-      aom_wb_write_bit(wb, u_delta_q_flag);
-      if (u_delta_q_flag) {
-        aom_wb_write_literal(wb, lf->delta_q_u + DF_PAR_OFFSET, DF_PAR_BITS);
-      }
-#if DF_TWO_PARAM
-      int u_delta_side_flag = lf->delta_side_u != 0;
-      aom_wb_write_bit(wb, u_delta_side_flag);
-      if (u_delta_side_flag) {
-        aom_wb_write_literal(wb, lf->delta_side_u + DF_PAR_OFFSET, DF_PAR_BITS);
-      }
-#else
-      assert(lf->delta_q_u == lf->delta_side_u);
-#endif  // DF_TWO_PARAM
-    }
-
-    if (lf->filter_level_v) {
-      int v_delta_q_flag = lf->delta_q_v != 0;
-
-      aom_wb_write_bit(wb, v_delta_q_flag);
-      if (v_delta_q_flag) {
-        aom_wb_write_literal(wb, lf->delta_q_v + DF_PAR_OFFSET, DF_PAR_BITS);
-      }
-#if DF_TWO_PARAM
-      int v_delta_side_flag = lf->delta_side_v != 0;
-      aom_wb_write_bit(wb, v_delta_side_flag);
-      if (v_delta_side_flag) {
-        aom_wb_write_literal(wb, lf->delta_side_v + DF_PAR_OFFSET, DF_PAR_BITS);
-      }
-#else
-      assert(lf->delta_q_v == lf->delta_side_v);
-#endif  // DF_TWO_PARAM
+      aom_wb_write_bit(wb, lf->filter_level_u);
+      aom_wb_write_bit(wb, lf->filter_level_v);
     }
   }
+#if DF_DUAL
+  if (lf->filter_level[0]) {
+    int luma_delta_q_flag = lf->delta_q_luma[0] != 0;
+
+    aom_wb_write_bit(wb, luma_delta_q_flag);
+    if (luma_delta_q_flag) {
+      aom_wb_write_literal(wb, lf->delta_q_luma[0] + DF_PAR_OFFSET,
+                           DF_PAR_BITS);
+    }
+#if DF_TWO_PARAM
+    int luma_delta_side_flag = lf->delta_side_luma[0] != 0;
+    aom_wb_write_bit(wb, luma_delta_side_flag);
+    if (luma_delta_side_flag) {
+      aom_wb_write_literal(wb, lf->delta_side_luma[0] + DF_PAR_OFFSET,
+                           DF_PAR_BITS);
+    }
+#else
+    assert(lf->delta_q_luma[0] == lf->delta_side_luma[0]);
+#endif  // DF_TWO_PARAM
+  }
+
+  if (lf->filter_level[1]) {
+    int luma_delta_q_flag = lf->delta_q_luma[1] != lf->delta_q_luma[0];
+
+    aom_wb_write_bit(wb, luma_delta_q_flag);
+    if (luma_delta_q_flag) {
+      aom_wb_write_literal(wb, lf->delta_q_luma[1] + DF_PAR_OFFSET,
+                           DF_PAR_BITS);
+    }
+#if DF_TWO_PARAM
+    int luma_delta_side_flag = lf->delta_side_luma[1] != lf->delta_side_luma[0];
+    aom_wb_write_bit(wb, luma_delta_side_flag);
+    if (luma_delta_side_flag) {
+      aom_wb_write_literal(wb, lf->delta_side_luma[1] + DF_PAR_OFFSET,
+                           DF_PAR_BITS);
+    }
+#else
+    assert(lf->delta_q_luma[1] == lf->delta_side_luma[1]);
+#endif  // DF_TWO_PARAM
+  }
+#else
+  if (lf->filter_level[0] || lf->filter_level[1]) {
+    int luma_delta_q_flag = lf->delta_q_luma != 0;
+
+    aom_wb_write_bit(wb, luma_delta_q_flag);
+    if (luma_delta_q_flag) {
+      aom_wb_write_literal(wb, lf->delta_q_luma + DF_PAR_OFFSET, DF_PAR_BITS);
+    }
+#if DF_TWO_PARAM
+    int luma_delta_side_flag = lf->delta_side_luma != 0;
+    aom_wb_write_bit(wb, luma_delta_side_flag);
+    if (luma_delta_side_flag) {
+      aom_wb_write_literal(wb, lf->delta_side_luma + DF_PAR_OFFSET,
+                           DF_PAR_BITS);
+    }
+#else
+    assert(lf->delta_q_luma == lf->delta_side_luma);
+#endif  // DF_TWO_PARAM
+  }
+#endif  // DF_DUAL
+  if (lf->filter_level_u) {
+    int u_delta_q_flag = lf->delta_q_u != 0;
+
+    aom_wb_write_bit(wb, u_delta_q_flag);
+    if (u_delta_q_flag) {
+      aom_wb_write_literal(wb, lf->delta_q_u + DF_PAR_OFFSET, DF_PAR_BITS);
+    }
+#if DF_TWO_PARAM
+    int u_delta_side_flag = lf->delta_side_u != 0;
+    aom_wb_write_bit(wb, u_delta_side_flag);
+    if (u_delta_side_flag) {
+      aom_wb_write_literal(wb, lf->delta_side_u + DF_PAR_OFFSET, DF_PAR_BITS);
+    }
+#else
+    assert(lf->delta_q_u == lf->delta_side_u);
+#endif  // DF_TWO_PARAM
+  }
+
+  if (lf->filter_level_v) {
+    int v_delta_q_flag = lf->delta_q_v != 0;
+
+    aom_wb_write_bit(wb, v_delta_q_flag);
+    if (v_delta_q_flag) {
+      aom_wb_write_literal(wb, lf->delta_q_v + DF_PAR_OFFSET, DF_PAR_BITS);
+    }
+#if DF_TWO_PARAM
+    int v_delta_side_flag = lf->delta_side_v != 0;
+    aom_wb_write_bit(wb, v_delta_side_flag);
+    if (v_delta_side_flag) {
+      aom_wb_write_literal(wb, lf->delta_side_v + DF_PAR_OFFSET, DF_PAR_BITS);
+    }
+#else
+    assert(lf->delta_q_v == lf->delta_side_v);
+#endif  // DF_TWO_PARAM
+  }
+}
 #else
 static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
                                          struct aom_write_bit_buffer *wb) {
@@ -3705,69 +3907,69 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 }
 #endif  // CONFIG_NEW_DF
 
-  static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
-                                     struct aom_write_bit_buffer *wb) {
-    assert(!cm->features.coded_lossless);
-    if (!cm->seq_params.enable_cdef) return;
-    if (is_global_intrabc_allowed(cm)) return;
+static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
+                                   struct aom_write_bit_buffer *wb) {
+  assert(!cm->features.coded_lossless);
+  if (!cm->seq_params.enable_cdef) return;
+  if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_FIX_CDEF_SYNTAX
-    aom_wb_write_bit(wb, cm->cdef_info.cdef_frame_enable);
-    if (!cm->cdef_info.cdef_frame_enable) return;
+  aom_wb_write_bit(wb, cm->cdef_info.cdef_frame_enable);
+  if (!cm->cdef_info.cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
-    const int num_planes = av1_num_planes(cm);
-    int i;
-    aom_wb_write_literal(wb, cm->cdef_info.cdef_damping - 3, 2);
-    aom_wb_write_literal(wb, cm->cdef_info.cdef_bits, 2);
-    for (i = 0; i < cm->cdef_info.nb_cdef_strengths; i++) {
-      aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
+  const int num_planes = av1_num_planes(cm);
+  int i;
+  aom_wb_write_literal(wb, cm->cdef_info.cdef_damping - 3, 2);
+  aom_wb_write_literal(wb, cm->cdef_info.cdef_bits, 2);
+  for (i = 0; i < cm->cdef_info.nb_cdef_strengths; i++) {
+    aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
+                         CDEF_STRENGTH_BITS);
+    if (num_planes > 1)
+      aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
                            CDEF_STRENGTH_BITS);
-      if (num_planes > 1)
-        aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
-                             CDEF_STRENGTH_BITS);
-    }
   }
+}
 
 #if CONFIG_CCSO
-  static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
-                                     struct aom_write_bit_buffer *wb) {
-    if (is_global_intrabc_allowed(cm)) return;
+static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
+                                   struct aom_write_bit_buffer *wb) {
+  if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_CCSO_EXT
-    const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
-    for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+  const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
+  for (int plane = 0; plane < av1_num_planes(cm); plane++) {
 #else
-    const int ccso_offset[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
-    for (int plane = 0; plane < 2; plane++) {
+  const int ccso_offset[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
+  for (int plane = 0; plane < 2; plane++) {
 #endif
-      aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
-      if (cm->ccso_info.ccso_enable[plane]) {
-        aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
-        aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
+    aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
+    if (cm->ccso_info.ccso_enable[plane]) {
+      aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
+      aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
 #if CONFIG_CCSO_EXT
-        aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
-        const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
+      aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
+      const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
 #endif
-        for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
-          for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+      for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
+        for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
 #if !CONFIG_CCSO_EXT
-            const int lut_idx_ext = (d0 << 2) + d1;
+          const int lut_idx_ext = (d0 << 2) + d1;
 #else
-            for (int band_num = 0; band_num < max_band; band_num++) {
-              const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
+          for (int band_num = 0; band_num < max_band; band_num++) {
+            const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
 #endif
-            for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
-              if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
-                  ccso_offset[offset_idx]) {
-                aom_wb_write_literal(wb, offset_idx, 3);
-                break;
-              }
+          for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
+            if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
+                ccso_offset[offset_idx]) {
+              aom_wb_write_literal(wb, offset_idx, 3);
+              break;
             }
-#if CONFIG_CCSO_EXT
           }
-#endif
+#if CONFIG_CCSO_EXT
         }
+#endif
       }
     }
   }
+}
 }
 #endif
 
@@ -5719,7 +5921,17 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
       mode_bc.allow_update_cdf =
           mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
       const int num_planes = av1_num_planes(cm);
-      av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes);
+#if CONFIG_WIENER_NONSEP
+      int num_filter_classes[MAX_MB_PLANE];
+      for (int p = 0; p < num_planes; ++p)
+        num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
+#endif  // CONFIG_WIENER_NONSEP
+      av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes
+#if CONFIG_WIENER_NONSEP
+                                 ,
+                                 num_filter_classes
+#endif  // CONFIG_WIENER_NONSEP
+      );
 
       aom_start_encode(&mode_bc, dst + total_size);
       write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);

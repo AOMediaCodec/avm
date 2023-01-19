@@ -524,6 +524,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     if (plane == 0) {
       xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col] = DCT_DCT;
     }
+#if CONFIG_PC_WIENER
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, plane, blk_row,
+                              blk_col, tx_size);
+#endif  // CONFIG_PC_WIENER
     return 0;
   }
 
@@ -1015,6 +1019,12 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
           av1_read_coeffs_txb(cm, dcb, r, row, col, plane, &txb_ctx, tx_size);
     }
   }
+#if CONFIG_PC_WIENER
+  else {
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, plane, row, col,
+                              tx_size);
+  }
+#endif  // CONFIG_PC_WIENER
 #else
   get_txb_ctx(plane_bsize, tx_size, plane, pd->above_entropy_context + col,
               pd->left_entropy_context + row, &txb_ctx);

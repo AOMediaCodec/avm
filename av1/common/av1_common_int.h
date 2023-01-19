@@ -962,6 +962,29 @@ struct CommonModeInfoParams {
    * primary tx_type
    */
   TX_TYPE *tx_type_map;
+#if CONFIG_PC_WIENER
+  /*!
+   * indicate if a transform block has any non-zero coefficients or not.
+   * the buffer is allocated for each 4x4 block
+   */
+  uint8_t *tx_skip[MAX_MB_PLANE];
+  /*!
+   * tx_skip buffer allocated for each 4x4 block
+   */
+  uint32_t tx_skip_buf_size[MAX_MB_PLANE];
+  /*!
+   * tx_skip stride
+   */
+  uint32_t tx_skip_stride[MAX_MB_PLANE];
+  /*!
+   * Buffer that stores pc-wiener classification information.
+   */
+  uint8_t *class_id[MAX_MB_PLANE];
+  /*!
+   * class_id stride
+   */
+  uint32_t class_id_stride[MAX_MB_PLANE];
+#endif  // CONFIG_PC_WIENER
 #if CONFIG_CROSS_CHROMA_TX
   /*!
    * An array of cctx types for each 4x4 block in the frame.
@@ -1779,6 +1802,24 @@ typedef struct AV1Common {
 } AV1_COMMON;
 
 /*!\cond */
+
+#if CONFIG_PC_WIENER
+void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_dealloc_txk_skip_array(CommonModeInfoParams *mi_params);
+void av1_reset_txk_skip_array(AV1_COMMON *cm);
+void av1_reset_txk_skip_array_using_mi_params(CommonModeInfoParams *mi_params);
+void av1_init_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
+                             BLOCK_SIZE bsize, uint8_t value,
+                             bool is_chroma_ref, int plane_start,
+                             int plane_end);
+void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
+                               int plane, int blk_row, int blk_col,
+                               TX_SIZE tx_size);
+uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
+                         int plane, int blk_row, int blk_col);
+void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
+#endif  // CONFIG_PC_WIENER
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.

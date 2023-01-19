@@ -431,6 +431,12 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_mrls,
   &g_av1_codec_arg_defs.enable_wiener,
   &g_av1_codec_arg_defs.enable_sgrproj,
+#if CONFIG_PC_WIENER
+  &g_av1_codec_arg_defs.enable_pc_wiener,
+#endif  //  CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  &g_av1_codec_arg_defs.enable_wienerns,
+#endif  //  CONFIG_WIENER_NONSEP
 #if CONFIG_TIP
   &g_av1_codec_arg_defs.enable_tip,
 #endif  // CONFIG_TIP
@@ -672,6 +678,12 @@ static void init_config(cfg_options_t *config) {
   config->enable_restoration = 1;
   config->enable_wiener = 1;
   config->enable_sgrproj = 1;
+#if CONFIG_PC_WIENER
+  config->enable_pc_wiener = 1;
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  config->enable_wienerns = 1;
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   config->enable_ccso = 1;
 #endif
@@ -1621,13 +1633,30 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_CCSO
           "CCSO (%d), "
 #endif
+#if CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+          "LoopRestoration (%d: [%d/%d/%d/%d])\n",
+#elif CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+          "LoopRestoration (%d: [%d/%d/%d])\n",
+#else
           "LoopRestoration (%d: [%d/%d])\n",
+#endif  // CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
 #if CONFIG_CCSO
           encoder_cfg->enable_ccso,
 #endif
           encoder_cfg->enable_restoration, encoder_cfg->enable_wiener,
-          encoder_cfg->enable_sgrproj);
+          encoder_cfg->enable_sgrproj
+#if CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+          ,
+          encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wienerns
+#elif CONFIG_PC_WIENER && !CONFIG_WIENER_NONSEP
+          ,
+          encoder_cfg->enable_pc_wiener
+#elif !CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+          ,
+          encoder_cfg->enable_wienerns
+#endif  // CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+  );
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "

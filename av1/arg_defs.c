@@ -341,6 +341,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_sgrproj = ARG_DEF(NULL, "enable-sgrproj", 1,
                             "Enable sgrproj lr filter (0: false, "
                             "1: true (default))"),
+#if CONFIG_PC_WIENER
+  .enable_pc_wiener = ARG_DEF(NULL, "enable-pc-wiener", 1,
+                              "Enable pc-wiener lr filter (0: false, "
+                              "1: true (default))"),
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  .enable_wienerns = ARG_DEF(NULL, "enable-wienerns", 1,
+                             "Enable nonsep-wiener lr filter (0: false, "
+                             "1: true (default))"),
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
                          "Enable cross component sample offset (0: false "

@@ -1451,6 +1451,65 @@ typedef struct {
   int bank_ptr;
 } SgrprojInfoBank;
 
+#if CONFIG_WIENER_NONSEP
+#define WIENERNS_MAX_CLASSES 1
+#define NUM_WIENERNS_CLASS_INIT_LUMA 1
+#define NUM_WIENERNS_CLASS_INIT_CHROMA 1
+
+// Need two of the WIENERNS_YUV_MAX to store potential center taps. Adjust
+// accordingly.
+#define WIENERNS_YUV_MAX 32
+// Special symbol to indicate the set of all classes.
+#define ALL_WIENERNS_CLASSES -17
+/*!
+ * Nonseparable Wiener filter parameters.
+ */
+typedef struct {
+  /*!
+   * Filter data - number of classes
+   */
+  int num_classes;
+  /*!
+   * Filter data - taps
+   */
+  DECLARE_ALIGNED(16, int16_t,
+                  allfiltertaps[WIENERNS_MAX_CLASSES * WIENERNS_YUV_MAX]);
+
+#if CONFIG_LR_MERGE_COEFFS
+  /*!
+   * Best Reference from dynamic bank for each class.
+   */
+
+  int bank_ref_for_class[WIENERNS_MAX_CLASSES];
+#endif  // CONFIG_LR_MERGE_COEFFS
+} WienerNonsepInfo;
+
+/*!\brief Parameters related to Nonseparable Wiener Filter Bank */
+typedef struct {
+  /*!
+   * Bank of filter infos
+   */
+  WienerNonsepInfo filter[LR_BANK_SIZE];
+  /*!
+   * Size of the bank for each class.
+   */
+  int bank_size_for_class[WIENERNS_MAX_CLASSES];
+  /*!
+   * Pointer to the most current filter for each class.
+   */
+  int bank_ptr_for_class[WIENERNS_MAX_CLASSES];
+} WienerNonsepInfoBank;
+
+int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int class_id);
+
+const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
+                                   int class_id);
+void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
+                                  const WienerNonsepInfo *from_info,
+                                  int class_id);
+void copy_nsfilter_taps(WienerNonsepInfo *to_info,
+                        const WienerNonsepInfo *from_info);
+#endif  // CONFIG_WIENER_NONSEP
 /*!\cond */
 
 #if CONFIG_DEBUG
@@ -1851,6 +1910,12 @@ typedef struct macroblockd {
   /**@{*/
   WienerInfoBank wiener_info[MAX_MB_PLANE];   /*!< Refs for Wiener filter*/
   SgrprojInfoBank sgrproj_info[MAX_MB_PLANE]; /*!< Refs for SGR filter */
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * Nonseparable Wiener filter information for all planes.
+   */
+  WienerNonsepInfoBank wienerns_info[MAX_MB_PLANE];
+#endif  // CONFIG_WIENER_NONSEP
   /**@}*/
 
   /**
@@ -2941,8 +3006,25 @@ void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
 void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
                                SgrprojInfo *info);
 
-void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start,
-                                int plane_end);
+#if CONFIG_WIENER_NONSEP
+void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
+                             int num_classes, int chroma);
+void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
+                              const WienerNonsepInfo *info, int class_id);
+WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
+                                             int ndx, int class_id);
+const WienerNonsepInfo *av1_constref_from_wienerns_bank(
+    const WienerNonsepInfoBank *bank, int ndx, int class_id);
+void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
+                              const WienerNonsepInfo *info, int class_id);
+#endif  // CONFIG_WIENER_NONSEP
+
+void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
+#if CONFIG_WIENER_NONSEP
+                                ,
+                                const int *num_filter_classes
+#endif  // CONFIG_WIENER_NONSEP
+);
 
 typedef void (*foreach_transformed_block_visitor)(int plane, int block,
                                                   int blk_row, int blk_col,

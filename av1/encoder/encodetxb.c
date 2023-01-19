@@ -746,7 +746,10 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   }
 #endif  // CONFIG_CROSS_CHROMA_TX
 #endif  // CONFIG_FORWARDSKIP
-
+#if CONFIG_PC_WIENER
+  assert((eob == 0) ==
+         av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, plane, blk_row, blk_col));
+#endif  // CONFIG_PC_WIENER
   if (eob == 0) return;
 
   const PLANE_TYPE plane_type = get_plane_type(plane);
