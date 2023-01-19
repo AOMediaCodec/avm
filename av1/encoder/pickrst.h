@@ -89,6 +89,72 @@ static INLINE int check_sgrproj_bank_eq(const SgrprojInfoBank *bank,
   }
   return -1;
 }
+#if CONFIG_WIENER_NONSEP
+
+static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
+                                    const WienerNonsepInfo *ref, int num_coeffs,
+                                    int class_id) {
+  assert(info->num_classes == ref->num_classes);
+  int c_id_begin = 0;
+  int c_id_end = info->num_classes;
+  if (class_id != ALL_WIENERNS_CLASSES) {
+    c_id_begin = class_id;
+    c_id_end = class_id + 1;
+  }
+  for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
+    const int16_t *info_nsfilter = const_nsfilter_taps(info, c_id);
+    const int16_t *ref_nsfilter = const_nsfilter_taps(ref, c_id);
+    if (memcmp(info_nsfilter, ref_nsfilter,
+               num_coeffs * sizeof(*info_nsfilter)))
+      return 0;
+  }
+  return 1;
+}
+
+static INLINE int check_wienerns_bank_eq(const WienerNonsepInfoBank *bank,
+                                         const WienerNonsepInfo *info,
+                                         int num_coeffs, int class_id,
+                                         int *refs) {
+  int c_id_begin = 0;
+  int c_id_end = info->num_classes;
+  if (class_id != ALL_WIENERNS_CLASSES) {
+    c_id_begin = class_id;
+    c_id_end = class_id + 1;
+  }
+  int num_equal = 0;
+  for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
+    refs[c_id] = -1;
+    for (int k = 0; k < AOMMAX(1, bank->bank_size_for_class[c_id]); ++k) {
+      if (check_wienerns_eq(info,
+                            av1_constref_from_wienerns_bank(bank, k, c_id),
+                            num_coeffs, c_id)) {
+        refs[c_id] = k;
+        num_equal++;
+        break;
+      }
+    }
+  }
+
+  return num_equal == (c_id_end - c_id_begin) ? 0 : -1;
+}
+
+static INLINE int wienerns_info_diff(
+    const WienerNonsepInfo *info1, const WienerNonsepInfo *info2,
+    const WienernsFilterParameters *nsfilter_params) {
+  int diff = 0;
+  const int beg_feat = 0;
+  const int end_feat = nsfilter_params->ncoeffs;
+  assert(info1->num_classes == info2->num_classes);
+  for (int c_id = 0; c_id < info1->num_classes; ++c_id) {
+    const int16_t *info1_nsfilter = const_nsfilter_taps(info1, c_id);
+    const int16_t *info2_nsfilter = const_nsfilter_taps(info2, c_id);
+
+    for (int k = beg_feat; k < end_feat; ++k)
+      diff += abs(info1_nsfilter[k] - info2_nsfilter[k]);
+  }
+  return diff;
+}
+#endif  // CONFIG_WIENER_NONSEP
 #endif  // CONFIG_LR_MERGE_COEFFS
 
 /*!\brief Algorithm for AV1 loop restoration search and estimation.

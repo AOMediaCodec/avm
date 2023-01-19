@@ -111,6 +111,9 @@ static void dec_setup_mi(CommonModeInfoParams *mi_params) {
   memset(mi_params->cctx_type_map, 0,
          mi_grid_size * sizeof(*mi_params->cctx_type_map));
 #endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  av1_reset_txk_skip_array_using_mi_params(mi_params);
+#endif  // CONFIG_PC_WIENER
 }
 
 static void dec_free_mi(CommonModeInfoParams *mi_params) {
@@ -131,6 +134,10 @@ static void dec_free_mi(CommonModeInfoParams *mi_params) {
   aom_free(mi_params->cctx_type_map);
   mi_params->cctx_type_map = NULL;
 #endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  av1_dealloc_class_id_array(mi_params);
+  av1_dealloc_txk_skip_array(mi_params);
+#endif  // CONFIG_PC_WIENER
 }
 
 #if CONFIG_TIP

@@ -26,6 +26,306 @@
 
 #include "aom_ports/mem.h"
 
+#if CONFIG_PC_WIENER
+#include "av1/common/pc_wiener_filters.h"
+#endif  // CONFIG_PC_WIENER
+
+#if CONFIG_WIENER_NONSEP
+#define AOM_WIENERNS_COEFF(p, b, m, k) \
+  { (b) + (p)-6, (m) * (1 << ((p)-6)), k }
+
+#define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff)                        \
+  {                                                                          \
+    { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 1 }, \
+        sizeof(coeff) / sizeof(coeff[0]), (coeff)                            \
+  }
+
+#define AOM_MAKE_WIENERNS_CONFIG2(prec, config, config2, coeff) \
+  {                                                             \
+    { (prec),                                                   \
+      sizeof(config) / sizeof(config[0]),                       \
+      sizeof(config2) / sizeof(config2[0]),                     \
+      (config),                                                 \
+      (config2),                                                \
+      0,                                                        \
+      1 },                                                      \
+        sizeof(coeff) / sizeof(coeff[0]), (coeff)               \
+  }
+
+///////////////////////////////////////////////////////////////////////////
+// First filter configuration
+///////////////////////////////////////////////////////////////////////////
+const int wienerns_config_y[][3] = {
+  { 1, 0, 0 },  { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 }, { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
+  { -2, 1, 7 }, { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
+  { 3, 0, 10 }, { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 },
+#if USE_CENTER_WIENER_NONSEP
+  { 0, 0, 12 },
+#endif  // USE_CENTER_WIENER_NONSEP
+};
+
+const int wienerns_config_uv_from_uv[][3] = {
+  { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
+  { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
+  { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
+};
+
+const int wienerns_config_uv_from_y[][3] = {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
+  { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
+  { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+};
+
+const int wienerns_prec_bits_y = 7;
+const int wienerns_coeff_y[][WIENERNS_COEFCFG_LEN] = {
+#if ENABLE_LR_4PART_CODE
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+#if USE_CENTER_WIENER_NONSEP
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -16, 0),
+#endif  // USE_CENTER_WIENER_NONSEP
+#else
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+#if USE_CENTER_WIENER_NONSEP
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -16, 3),
+#endif  // USE_CENTER_WIENER_NONSEP
+#endif  // ENABLE_LR_4PART_CODE
+};
+
+const int wienerns_prec_bits_uv = 7;
+const int wienerns_coeff_uv[][WIENERNS_COEFCFG_LEN] = {
+#if ENABLE_LR_4PART_CODE
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#else
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // ENABLE_LR_4PART_CODE
+};
+
+const WienernsFilterParameters wienerns_filter_y = AOM_MAKE_WIENERNS_CONFIG(
+    wienerns_prec_bits_y, wienerns_config_y, wienerns_coeff_y);
+const WienernsFilterParameters wienerns_filter_uv =
+    AOM_MAKE_WIENERNS_CONFIG2(wienerns_prec_bits_uv, wienerns_config_uv_from_uv,
+                              wienerns_config_uv_from_y, wienerns_coeff_uv);
+
+const WienernsFilterPairParameters wienerns_filters_midqp = {
+  &wienerns_filter_y, &wienerns_filter_uv
+};
+
+// Configs for the first set of filters for the case without subtract center.
+// Add a tap at (0, 0).
+const int wienerns_wout_subtract_center_config_uv_from_uv[][3] = {
+  { 1, 0, 0 },   { -1, 0, 0 }, { 0, 1, 1 },  { 0, -1, 1 }, { 1, 1, 2 },
+  { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 }, { 2, 0, 4 },  { -2, 0, 4 },
+  { 0, 2, 5 },   { 0, -2, 5 }, { 0, 0, 6 },
+};
+
+// Adjust the beginning tap to account for the above change and add a tap at
+// (0, 0).
+const int wienerns_wout_subtract_center_config_uv_from_y[][3] = {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  { 1, 0, 7 },   { -1, 0, 7 },  { 0, 1, 8 },   { 0, -1, 8 }, { 1, 1, 9 },
+  { -1, -1, 9 }, { -1, 1, 10 }, { 1, -1, 10 }, { 2, 0, 11 }, { -2, 0, 11 },
+  { 0, 2, 12 },  { 0, -2, 12 }, { 0, 0, 13 },
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+};
+
+///////////////////////////////////////////////////////////////////////////
+// Second filter configuration
+///////////////////////////////////////////////////////////////////////////
+const int wienerns_config_y2[][3] = {
+  { 1, 0, 0 },  { -1, 0, 0 }, { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 }, { 0, 2, 3 },  { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 }, { 1, -1, 5 }, { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
+  { -2, 1, 7 }, { 1, 2, 8 },  { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
+#if USE_CENTER_WIENER_NONSEP
+  { 0, 0, 10 },
+#endif  // USE_CENTER_WIENER_NONSEP
+};
+
+const int wienerns_config_uv_from_uv2[][3] = {
+  { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
+  { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
+  { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
+};
+
+const int wienerns_config_uv_from_y2[][3] = {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
+  { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
+  { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+};
+
+const int wienerns_prec_bits_y2 = 7;
+const int wienerns_coeff_y2[][WIENERNS_COEFCFG_LEN] = {
+#if ENABLE_LR_4PART_CODE
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+#if USE_CENTER_WIENER_NONSEP
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -16, 0),
+#endif  // USE_CENTER_WIENER_NONSEP
+#else
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+#if USE_CENTER_WIENER_NONSEP
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -16, 3),
+#endif  // USE_CENTER_WIENER_NONSEP
+#endif  // ENABLE_LR_4PART_CODE
+};
+
+const WienernsFilterParameters wienerns_filter_y2 = AOM_MAKE_WIENERNS_CONFIG(
+    wienerns_prec_bits_y2, wienerns_config_y2, wienerns_coeff_y2);
+
+const WienernsFilterPairParameters wienerns_filters_highqp = {
+  &wienerns_filter_y2, &wienerns_filter_uv
+};
+
+///////////////////////////////////////////////////////////////////////////
+// Third filter configuration
+///////////////////////////////////////////////////////////////////////////
+const int wienerns_config_y3[][3] = {
+  { 1, 0, 0 },    { -1, 0, 0 },  { 0, 1, 1 },   { 0, -1, 1 },  { 2, 0, 2 },
+  { -2, 0, 2 },   { 0, 2, 3 },   { 0, -2, 3 },  { 1, 1, 4 },   { -1, -1, 4 },
+  { -1, 1, 5 },   { 1, -1, 5 },  { 2, 1, 6 },   { -2, -1, 6 }, { 2, -1, 7 },
+  { -2, 1, 7 },   { 1, 2, 8 },   { -1, -2, 8 }, { 1, -2, 9 },  { -1, 2, 9 },
+  { 3, 0, 10 },   { -3, 0, 10 }, { 0, 3, 11 },  { 0, -3, 11 }, { 2, 2, 12 },
+  { -2, -2, 12 }, { -2, 2, 13 }, { 2, -2, 13 },
+#if USE_CENTER_WIENER_NONSEP
+  { 0, 0, 14 },
+#endif  // USE_CENTER_WIENER_NONSEP
+};
+
+const int wienerns_config_uv_from_uv3[][3] = {
+  { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
+  { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
+  { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
+};
+
+const int wienerns_config_uv_from_y3[][3] = {
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
+  { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
+  { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+};
+
+const int wienerns_prec_bits_y3 = 7;
+const int wienerns_coeff_y3[][WIENERNS_COEFCFG_LEN] = {
+#if ENABLE_LR_4PART_CODE
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 0),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 1),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+#if USE_CENTER_WIENER_NONSEP
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -16, 0),
+#endif  // USE_CENTER_WIENER_NONSEP
+#else
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 3),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+#if USE_CENTER_WIENER_NONSEP
+  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -16, 3),
+#endif  // USE_CENTER_WIENER_NONSEP
+#endif  // ENABLE_LR_4PART_CODE
+};
+
+const WienernsFilterParameters wienerns_filter_y3 = AOM_MAKE_WIENERNS_CONFIG(
+    wienerns_prec_bits_y3, wienerns_config_y3, wienerns_coeff_y3);
+
+const WienernsFilterPairParameters wienerns_filters_lowqp = {
+  &wienerns_filter_y3, &wienerns_filter_uv
+};
+
+#endif  // CONFIG_WIENER_NONSEP
+
 // The 's' values are calculated based on original 'r' and 'e' values in the
 // spec using GenSgrprojVtable().
 // Note: Setting r = 0 skips the filter; with corresponding s = -1 (invalid).
@@ -905,6 +1205,761 @@ void av1_apply_selfguided_restoration_c(const uint16_t *dat, int width,
   }
 }
 
+#if CONFIG_PC_WIENER
+
+// This routine should remain in sync with av1_convert_qindex_to_q.
+static int get_qstep(int base_qindex, int bit_depth, int *shift) {
+  int base_shift = QUANT_TABLE_BITS;
+  switch (bit_depth) {
+    case AOM_BITS_8:
+      *shift = 2 + base_shift;
+      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
+    case AOM_BITS_10:
+      *shift = 4 + base_shift;
+      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
+    case AOM_BITS_12:
+      *shift = 6 + base_shift;
+      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
+    default:
+      assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
+      return -1;
+  }
+}
+
+// TODO(oguleryuz): These need to move into allocated line buffers accessible
+//  by enc/dec so that alloc/free cycles are reduced.
+static int buffer_width = 0;
+static int16_t *feature_line_buffers[NUM_FEATURE_LINE_BUFFERS] = { 0 };
+static int *feature_sum_buffers[NUM_PC_WIENER_FEATURES] = { 0 };
+static int8_t *tskip_sum_buffer = 0;
+
+static int directional_feature_accumulator[NUM_PC_WIENER_FEATURES]
+                                          [PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
+static int16_t tskip_feature_accumulator[PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
+
+static int feature_normalizers[NUM_PC_WIENER_FEATURES + 1] = { 0 };
+
+static void rotate_feature_line_buffers(int feature_len) {
+  assert(feature_len <= MAX_FEATURE_LENGTH);
+  for (int feature = 0; feature < NUM_PC_WIENER_FEATURES; ++feature) {
+    const int row_begin = feature * feature_len;
+    int16_t *buffer_0 = feature_line_buffers[row_begin];
+    for (int row = row_begin; row < row_begin + feature_len - 1; ++row) {
+      feature_line_buffers[row] = feature_line_buffers[row + 1];
+    }
+    feature_line_buffers[row_begin + feature_len - 1] = buffer_0;
+  }
+}
+
+static void allocate_pcwiener_line_buffers(int procunit_width) {
+  buffer_width = procunit_width + MAX_FEATURE_LENGTH - 1;
+  for (int j = 0; j < NUM_FEATURE_LINE_BUFFERS; ++j) {
+    // This should be done only once.
+    feature_line_buffers[j] = (int16_t *)(aom_malloc(
+        buffer_width * sizeof(*feature_line_buffers[j])));
+  }
+  for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
+    // This should be done only once.
+    feature_sum_buffers[j] =
+        (int *)(aom_malloc(buffer_width * sizeof(*feature_sum_buffers[j])));
+  }
+  tskip_sum_buffer =
+      (int8_t *)(aom_malloc(buffer_width * sizeof(*tskip_sum_buffer)));
+}
+
+static void free_pcwiener_line_buffers() {
+  for (int j = 0; j < NUM_FEATURE_LINE_BUFFERS; ++j) {
+    aom_free(feature_line_buffers[j]);
+    feature_line_buffers[j] = NULL;
+  }
+  for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
+    aom_free(feature_sum_buffers[j]);
+    feature_sum_buffers[j] = NULL;
+  }
+  aom_free(tskip_sum_buffer);
+  tskip_sum_buffer = NULL;
+  buffer_width = 0;
+}
+
+static void clear_line_buffers() {
+  for (int k = 0; k < NUM_FEATURE_LINE_BUFFERS; ++k)
+    memset(feature_line_buffers[k], 0,
+           sizeof(*feature_line_buffers[k]) * buffer_width);
+  for (int k = 0; k < NUM_PC_WIENER_FEATURES; ++k)
+    memset(feature_sum_buffers[k], 0,
+           sizeof(*feature_sum_buffers[k]) * buffer_width);
+  memset(tskip_sum_buffer, 0, sizeof(*tskip_sum_buffer) * buffer_width);
+}
+
+// Does the initialization of feature accumulator for column 0.
+static void init_directional_feature_accumulator(int col, int feature_lead,
+                                                 int feature_lag) {
+  assert(col == 0);
+  for (int col_offset = -feature_lead; col_offset < feature_lag; ++col_offset) {
+    const int col_base = col + col_offset + feature_lead;
+    for (int k = 0; k < NUM_PC_WIENER_FEATURES; k++) {
+      assert(col_base >= 0);
+      directional_feature_accumulator[k][0] += feature_sum_buffers[k][col_base];
+    }
+  }
+}
+
+static void init_tskip_feature_accumulator(int col, int tskip_lead,
+                                           int tskip_lag) {
+  assert(col == 0);
+  for (int col_offset = -tskip_lead; col_offset < tskip_lag; ++col_offset) {
+    // Add tskip_lead to ensure buffer access is from >=0.
+    const int col_base = col + col_offset + tskip_lead;
+    tskip_feature_accumulator[0] += tskip_sum_buffer[col_base];
+  }
+}
+
+// Initializes the accumulators.
+static void initialize_feature_accumulators(int feature_lead, int feature_lag,
+                                            int tskip_lead, int tskip_lag) {
+  av1_zero(directional_feature_accumulator);
+  av1_zero(tskip_feature_accumulator);
+  // Initialize accumulators on the leftmost portion of the line.
+  init_directional_feature_accumulator(0, feature_lead, feature_lag);
+  init_tskip_feature_accumulator(0, tskip_lead, tskip_lag);
+}
+
+// Updates the accumulators.
+static void update_accumulators(int feature_lead, int feature_lag,
+                                int tskip_lead, int tskip_lag, int width) {
+  av1_fill_directional_feature_accumulators(
+      directional_feature_accumulator, feature_sum_buffers, width, feature_lag,
+      feature_lead, feature_lag);
+  av1_fill_tskip_feature_accumulator(tskip_feature_accumulator,
+                                     tskip_sum_buffer, width, tskip_lag,
+                                     tskip_lead, tskip_lag);
+}
+
+// Calculates the features needed for get_pcwiener_index.
+static void calculate_features(int32_t *feature_vector, int bit_depth,
+                               int col) {
+  // Index derivation to retrieve the stored accumulated value.
+  const int accum_index = col / PC_WIENER_BLOCK_SIZE;
+  for (int f = 0; f < NUM_PC_WIENER_FEATURES; ++f) {
+    feature_vector[f] = directional_feature_accumulator[f][accum_index] *
+                        feature_normalizers[f];
+  }
+  const int bit_depth_shift = bit_depth - 8;
+  if (bit_depth_shift) {
+    for (int f = 0; f < NUM_PC_WIENER_FEATURES; ++f)
+      feature_vector[f] =
+          ROUND_POWER_OF_TWO_SIGNED(feature_vector[f], bit_depth_shift);
+  }
+  const int tskip_index = NUM_PC_WIENER_FEATURES;
+  feature_vector[tskip_index] =
+      tskip_feature_accumulator[accum_index] * feature_normalizers[tskip_index];
+}
+
+// Lookup table useful in calculating the filter indices within
+// get_pcwiener_index().
+static int qval_given_tskip_lut[256][NUM_PC_WIENER_FEATURES] = { 0 };
+
+static void fill_qval_given_tskip_lut(int base_qindex, int bit_depth) {
+  int qstep_shift = 0;
+  int qstep = get_qstep(base_qindex, bit_depth, &qstep_shift);
+  qstep_shift += 8;  // normalization in tf
+  const int bit_depth_shift = bit_depth - 8;
+  if (bit_depth_shift) {
+    qstep = ROUND_POWER_OF_TWO_SIGNED(qstep, bit_depth_shift);
+    qstep_shift -= bit_depth_shift;
+  }
+
+  // actual * 256
+  const int tskip_shift = 8;
+  const int diff_shift = qstep_shift - tskip_shift;
+  assert(diff_shift >= 0);
+  for (int tskip = 0; tskip < 255; ++tskip) {
+    const int tskip_shifted = tskip * (1 << diff_shift);
+    const int tskip_qstep_prod =
+        ROUND_POWER_OF_TWO_SIGNED(tskip * qstep, tskip_shift);
+    const int total_shift = qstep_shift;
+
+    // Arithmetic ideas: tskip can be divided by 2, qstep can be scaled down.
+    for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i) {
+      int32_t qval = (mode_weights[i][0] * tskip_shifted) +
+                     (mode_weights[i][1] * qstep) +
+                     (mode_weights[i][2] * tskip_qstep_prod);
+
+      qval = ROUND_POWER_OF_TWO_SIGNED(qval, total_shift);
+      qval += mode_offsets[i];  // actual * (1 << PC_WIENER_PREC_FEATURE)
+
+      qval_given_tskip_lut[tskip][i] = 255 * qval;
+    }
+  }
+}
+
+static void set_feature_normalizers(void) {
+  for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i)
+    feature_normalizers[i] = feature_normalizers_luma[i];
+  feature_normalizers[NUM_PC_WIENER_FEATURES] = tskip_normalizer;
+}
+
+static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col) {
+  int32_t feature_vector[NUM_PC_WIENER_FEATURES + 1];  // 255 x actual
+
+  // Fill the feature vector.
+  calculate_features(feature_vector, bit_depth, col);
+
+  // actual * 256
+  const int tskip_index = NUM_PC_WIENER_FEATURES;
+  const int tskip = feature_vector[tskip_index];
+  assert(tskip < 256);
+  for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i)
+    assert(feature_vector[i] >= 0);
+
+  for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i) {
+    int32_t qval = ROUND_POWER_OF_TWO_SIGNED(
+        feature_vector[i] + qval_given_tskip_lut[tskip][i],
+        PC_WIENER_PREC_FEATURE);
+
+    // qval range is [0, 1] -> [0, 255]
+    feature_vector[i] = clip_pixel(qval) >> pc_wiener_threshold_shift;
+  }
+
+  int lut_input = 0;
+  for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i) {
+    lut_input += pc_wiener_thresholds[i] * feature_vector[i];
+  }
+
+  *multiplier = 1 << PC_WIENER_PREC_FEATURE;
+  assert(lut_input == AOMMAX(AOMMIN(lut_input, PC_WIENER_LUT_SIZE - 1), 0));
+
+  const uint8_t class_index = pc_wiener_lut_to_class_index[lut_input];
+  assert(class_index ==
+         AOMMAX(AOMMIN(class_index, NUM_PC_WIENER_LUT_CLASSES - 1), 0));
+  return class_index;
+}
+
+void apply_pc_wiener_highbd(
+    const uint16_t *dgd, int width, int height, int stride, uint16_t *dst,
+    int dst_stride, const uint8_t *tskip, int tskip_stride, uint8_t *class_id,
+    int class_id_stride, bool is_uv, int bit_depth, bool classify_only,
+    const int16_t (*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA],
+    const uint8_t *filter_selector) {
+  const bool skip_filtering = classify_only;
+  assert(!is_uv);
+  const int pc_filter_num_taps =
+      sizeof(pcwiener_tap_config_luma) / sizeof(pcwiener_tap_config_luma[0]);
+  const NonsepFilterConfig pcfilter_config = { PC_WIENER_PREC_FILTER,
+                                               pc_filter_num_taps,
+                                               0,
+                                               pcwiener_tap_config_luma,
+                                               NULL,
+                                               0,
+                                               0 };
+
+  const NonsepFilterConfig *filter_config = &pcfilter_config;
+#if !USE_CONVOLVE_SYM
+  const int singleton_tap_index =
+      filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+  const int num_sym_taps = (2 * NUM_PC_WIENER_TAPS_LUMA - 1) / 2;
+  assert(num_sym_taps == (filter_config->num_pixels - 1) / 2);
+  assert(num_sym_taps <= 24);
+  int16_t compute_buffer[24];
+  int pixel_offset_diffs[24];
+  int filter_pos[24];
+  for (int k = 0; k < num_sym_taps; ++k) {
+    const int r = filter_config->config[2 * k][NONSEP_ROW_ID];
+    const int c = filter_config->config[2 * k][NONSEP_COL_ID];
+    const int diff = r * stride + c;
+    pixel_offset_diffs[k] = diff;
+    filter_pos[k] = filter_config->config[2 * k][NONSEP_BUF_POS];
+  }
+  int16_t max_pixel_value = 255;
+  switch (bit_depth) {
+    case 10: max_pixel_value = 1023; break;
+    case 12: max_pixel_value = 4095; break;
+  }
+#endif  // !USE_CONVOLVE_SYM
+
+  assert(filter_config->strict_bounds == false);
+  const bool dir_strict = filter_config->strict_bounds;
+  const bool tskip_strict = true;
+  const int feature_lead = PC_WIENER_FEATURE_LEAD_LUMA;
+  const int feature_lag = PC_WIENER_FEATURE_LAG_LUMA;
+  const int feature_length = feature_lead + feature_lag + 1;
+  const int tskip_lead = PC_WIENER_TSKIP_LEAD_LUMA;
+  const int tskip_lag = PC_WIENER_TSKIP_LAG_LUMA;
+  const int tskip_length = tskip_lead + tskip_lag + 1;
+
+  // Class-id is allocated over blocks of size (1 << MI_SIZE_LOG2).
+  assert((1 << MI_SIZE_LOG2) == PC_WIENER_BLOCK_SIZE);
+  set_feature_normalizers();
+  clear_line_buffers();
+
+  // Currently, code support when 'strict_bounds' (i.e. dir_strict) is true is
+  // yet to be added in 'fill_directional_feature_buffers_highbd()' function.
+  // Hence, not prefered to pass this variable as an argument to this function
+  // to avoid build failure.
+  assert(dir_strict == false);
+  for (int row = 0; row < feature_length - 1; ++row) {
+    fill_directional_feature_buffers_highbd(
+        feature_sum_buffers, feature_line_buffers, row - feature_lead, row, dgd,
+        stride, width, feature_lead, feature_lag);
+  }
+  for (int row = 0; row < tskip_length - 1; ++row) {
+    av1_fill_tskip_sum_buffer(row - tskip_lead, tskip, tskip_stride,
+                              tskip_sum_buffer, width, height, tskip_lead,
+                              tskip_lag, tskip_strict);
+  }
+  for (int i = 0; i < height; ++i) {
+    // Ensure window is three pixels or a potential issue with odd-sized frames.
+    const int row_to_process = AOMMIN(i + feature_lag, height + 3 - 2);
+    fill_directional_feature_buffers_highbd(
+        feature_sum_buffers, feature_line_buffers, row_to_process,
+        feature_length - 1, dgd, stride, width, feature_lead, feature_lag);
+
+    av1_fill_tskip_sum_buffer(i + tskip_lag, tskip, tskip_stride,
+                              tskip_sum_buffer, width, height, tskip_lead,
+                              tskip_lag, tskip_strict);
+#if PC_WIENER_BLOCK_SIZE > 1
+    bool skip_row_compute =
+        i % PC_WIENER_BLOCK_SIZE != PC_WIENER_BLOCK_ROW_OFFSET;
+#else
+    bool skip_row_compute = false;
+#endif  // PC_WIENER_BLOCK_SIZE > 1
+    if (!skip_row_compute) {
+      // Initialize accumulators on the leftmost portion of the line.
+      initialize_feature_accumulators(feature_lead, feature_lag, tskip_lead,
+                                      tskip_lag);
+      // Fill accumulators for processing width.
+      update_accumulators(feature_lead, feature_lag, tskip_lead, tskip_lag,
+                          width);
+    }
+    for (int j = 0; j < width; ++j) {
+#if PC_WIENER_BLOCK_SIZE > 1
+      if (skip_row_compute ||
+          j % PC_WIENER_BLOCK_SIZE != PC_WIENER_BLOCK_COL_OFFSET)
+        continue;
+#endif  // PC_WIENER_BLOCK_SIZE > 1
+
+      int32_t multiplier = 0;
+      const uint8_t class_index = get_pcwiener_index(bit_depth, &multiplier, j);
+
+      // Store classification.
+      class_id[(i >> MI_SIZE_LOG2) * class_id_stride + (j >> MI_SIZE_LOG2)] =
+          class_index;
+      if (skip_filtering) {
+        continue;
+      }
+      const uint8_t filter_index = filter_selector[class_index];
+
+      const int16_t *filter = pcwiener_filters_luma[filter_index];
+
+#if PC_WIENER_BLOCK_SIZE > 1
+      const int block_row_begin = i - PC_WIENER_BLOCK_ROW_OFFSET;
+      int block_row_end =
+          AOMMIN(block_row_begin + PC_WIENER_BLOCK_SIZE, height);
+      if (i + PC_WIENER_BLOCK_SIZE >= height) block_row_end = height;
+      const int block_col_begin = j - PC_WIENER_BLOCK_COL_OFFSET;
+      int block_col_end = AOMMIN(block_col_begin + PC_WIENER_BLOCK_SIZE, width);
+
+      // Extend block if the next time we will calculate classification will be
+      // out of bounds.
+      if (j + PC_WIENER_BLOCK_SIZE >= width) block_col_end = width;
+#else
+      const int block_row_begin = i;
+      const int block_row_end = i + 1;
+      const int block_col_begin = j;
+      const int block_col_end = j + 1;
+#endif  // PC_WIENER_BLOCK_SIZE > 1
+
+#if USE_CONVOLVE_SYM
+      av1_convolve_symmetric_highbd(
+          dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
+          block_row_begin, block_row_end, block_col_begin, block_col_end);
+#else
+      const int16_t singleton_tap =
+          filter[singleton_tap_index] + (1 << filter_config->prec_bits);
+      for (int r = block_row_begin; r < block_row_end; ++r) {
+        for (int c = block_col_begin; c < block_col_end; ++c) {
+          int dgd_id = r * stride + c;
+
+          // Two loops for a potential data cache miss.
+          for (int k = 0; k < num_sym_taps; ++k) {
+            const int diff = pixel_offset_diffs[k];
+            const int16_t tmp_sum = dgd[dgd_id - diff];
+            compute_buffer[k] = tmp_sum;
+          }
+          for (int k = 0; k < num_sym_taps; ++k) {
+            const int diff = pixel_offset_diffs[k];
+            const int16_t tmp_sum = dgd[dgd_id + diff];
+            compute_buffer[k] += tmp_sum;
+          }
+
+          // Handle singleton tap.
+          int32_t tmp = singleton_tap * dgd[dgd_id];
+          for (int k = 0; k < num_sym_taps; ++k) {
+            const int pos = filter_pos[k];
+            tmp += filter[pos] * compute_buffer[k];
+          }
+
+          tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, filter_config->prec_bits);
+          int dst_id = r * dst_stride + c;
+          dst[dst_id] = (tmp > max_pixel_value) ? max_pixel_value
+                        : (tmp < 0)             ? 0
+                                                : tmp;
+        }
+      }
+#endif  // USE_CONVOLVE_SYM
+    }
+
+    rotate_feature_line_buffers(feature_length);
+  }
+}
+
+static void setup_qval_tskip_lut(int qindex, int bit_depth) {
+  static int prev_qindex = -1;
+  static int prev_bit_depth = -1;
+  if (qindex == prev_qindex && bit_depth == prev_bit_depth) {
+    return;
+  }
+  fill_qval_given_tskip_lut(qindex, bit_depth);
+  prev_qindex = qindex;
+  prev_bit_depth = bit_depth;
+}
+
+static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
+                                    int stripe_width, int stripe_height,
+                                    int procunit_width, const uint16_t *src,
+                                    int src_stride, uint16_t *dst,
+                                    int dst_stride, int32_t *tmpbuf,
+                                    int bit_depth) {
+  if (rui->plane != AOM_PLANE_Y) {
+    assert(0);
+    return;
+  }
+  (void)tmpbuf;
+  (void)bit_depth;
+  const int set_index =
+      get_filter_set_index(rui->base_qindex + rui->qindex_offset);
+  const int16_t(*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA] =
+      get_filter_set(set_index);
+  const uint8_t *filter_selector = get_filter_selector(set_index);
+
+  setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth);
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    // The function update_accumulator() is used to compute the accumulated
+    // result of tx_skip and feature direction filtering output at
+    // PC_WIENER_BLOCk_SIZE samples. The SIMD for the same is implemented with
+    // an assumption of PC_WIENER_BLOCK_SIZE as 4x4 and procunit_width as 32
+    // or 64.
+    apply_pc_wiener_highbd(
+        src + j, w, stripe_height, src_stride, dst + j, dst_stride,
+        rui->tskip + (j >> MI_SIZE_LOG2), rui->tskip_stride,
+        rui->class_id + (j >> MI_SIZE_LOG2), rui->class_id_stride,
+        rui->plane != AOM_PLANE_Y, bit_depth, false, pcwiener_filters_luma,
+        filter_selector);
+  }
+}
+#endif  // CONFIG_PC_WIENER
+
+#if CONFIG_WIENER_NONSEP
+
+// Enables running of wienerns filters without the subtract-center option.
+#define ADD_CENTER_TAP_TO_WIENERNS 1
+#define ADD_CENTER_TAP_TO_WIENERNS_CHROMA 1
+#define ADD_CENTER_TAP_TO_WIENERNS_CROSS 1
+
+#if ADD_CENTER_TAP_TO_WIENERNS
+// Adjust wienerns config and filters to use the non-subtract-center path.
+static void adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
+                                     const WienerNonsepInfo *wienerns_info,
+                                     int is_uv,
+                                     NonsepFilterConfig *adjusted_config,
+                                     WienerNonsepInfo *adjusted_info) {
+  *adjusted_config = *nsfilter_config;
+  *adjusted_info = *wienerns_info;
+
+  // Add the center tap.
+  adjusted_config->num_pixels += 1;
+  if (adjusted_config->num_pixels2) {
+    adjusted_config->num_pixels2 += 1;
+  }
+
+  adjusted_config->subtract_center = 0;
+  // Non-subtract-center SIMD has hard-coded pcwiener_tap_config_luma for luma.
+  adjusted_config->config =
+      is_uv ? wienerns_wout_subtract_center_config_uv_from_uv
+            : pcwiener_tap_config_luma;
+  adjusted_config->config2 = NULL;
+
+  // Handle luma -> luma or chroma -> chroma case.
+  // Add a center tap at the end of the filter that is the minus the sum of the
+  // taps.
+  const int num_sym_taps = nsfilter_config->num_pixels / 2;
+  const int center_tap_index = num_sym_taps;
+  const int num_classes = wienerns_info->num_classes;
+  for (int class_id = 0; class_id < num_classes; ++class_id) {
+    int16_t *adjusted_filter = nsfilter_taps(adjusted_info, class_id);
+    const int16_t *orig_filter = const_nsfilter_taps(wienerns_info, class_id);
+    int sum = 0;
+    for (int i = 0; i < num_sym_taps; ++i) {
+      sum += orig_filter[i];
+      if (!is_uv) {
+        // Non-subtract center SIMD code has hard-coded a config. Map filters to
+        // that config.
+        const int filter_pos_row = nsfilter_config->config[2 * i][0];
+        const int filter_pos_col = nsfilter_config->config[2 * i][1];
+        int found_index = -1;
+        for (int j = 0; j < 2 * num_sym_taps; ++j) {
+          if (adjusted_config->config[j][0] == filter_pos_row &&
+              adjusted_config->config[j][1] == filter_pos_col) {
+            found_index = j;
+            break;
+          }
+        }
+        assert(found_index != -1);
+        adjusted_filter[adjusted_config->config[found_index][2]] =
+            orig_filter[i];
+      }
+    }
+    adjusted_filter[center_tap_index] = -2 * sum;
+  }
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  if (is_uv) {
+    adjusted_config->config2 = wienerns_wout_subtract_center_config_uv_from_y;
+    const int num_sym_taps_dual = nsfilter_config->num_pixels2 / 2;
+    const int begin_idx = num_sym_taps;
+    const int end_idx = begin_idx + num_sym_taps_dual;
+    const int center_tap_index_dual = end_idx + 1;
+
+    // luma -> chroma part of the dual filter. This case needs a shift of the
+    // filter since we added a tap to the chroma -> chroma part above.
+    for (int class_id = 0; class_id < num_classes; ++class_id) {
+      const int16_t *dual_filter = const_nsfilter_taps(wienerns_info, class_id);
+      int16_t *adjusted_filter = nsfilter_taps(adjusted_info, class_id);
+      int sum = 0;
+      for (int i = begin_idx; i < end_idx; ++i) {
+        sum += dual_filter[i];
+        // Shift the filter by one to account for the center tap above.
+        adjusted_filter[i + 1] = dual_filter[i];
+      }
+      // Add the center tap at the end.
+      adjusted_filter[center_tap_index_dual] = -2 * sum;
+    }
+  }
+#endif
+}
+#endif  // ADD_CENTER_TAP_TO_WIENERNS
+
+void apply_wienerns_class_id_highbd(const uint16_t *dgd, int width, int height,
+                                    int stride,
+                                    const WienerNonsepInfo *wienerns_info,
+                                    const NonsepFilterConfig *nsfilter_config,
+                                    uint16_t *dst, int dst_stride, int plane,
+                                    const uint16_t *luma, int luma_stride,
+                                    int bit_depth) {
+  (void)luma;
+  (void)luma_stride;
+  int is_uv = (plane != AOM_PLANE_Y);
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  if (is_uv && nsfilter_config->num_pixels2 != 0) {
+    assert(wienerns_info->num_classes == 1);
+    const int16_t *filter = const_nsfilter_taps(wienerns_info, 0);
+
+    const int block_size = 4;
+    for (int r = 0; r < height; r += block_size) {
+      const int h = AOMMIN(block_size, height - r);
+      const uint16_t *dgd_row = dgd + r * stride;
+      const uint16_t *luma_row = luma + r * luma_stride;
+      uint16_t *dst_row = dst + r * dst_stride;
+
+      for (int c = 0; c < width; c += block_size) {
+        const int w = AOMMIN(block_size, width - c);
+        av1_convolve_nonsep_dual_highbd(dgd_row + c, w, h, stride, luma_row + c,
+                                        luma_stride, nsfilter_config, filter,
+                                        dst_row + c, dst_stride, bit_depth);
+      }
+    }
+    return;
+  }
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
+  const int block_size = 4;
+  for (int r = 0; r < height; r += block_size) {
+    const int h = AOMMIN(block_size, height - r);
+    const uint16_t *dgd_row = dgd + r * stride;
+    uint16_t *dst_row = dst + r * dst_stride;
+    for (int c = 0; c < width; c += block_size) {
+      const int w = AOMMIN(block_size, width - c);
+
+      int sub_class_id = 0;
+      const int16_t *block_filter =
+          const_nsfilter_taps(wienerns_info, sub_class_id);
+      av1_convolve_nonsep_highbd(dgd_row + c, w, h, stride, nsfilter_config,
+                                 block_filter, dst_row + c, dst_stride,
+                                 bit_depth);
+    }
+  }
+  return;
+}
+
+static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
+                                          int stripe_width, int stripe_height,
+                                          int procunit_width,
+                                          const uint16_t *src, int src_stride,
+                                          uint16_t *dst, int dst_stride,
+                                          int32_t *tmpbuf, int bit_depth) {
+  (void)tmpbuf;
+  (void)bit_depth;
+  assert(rui->wienerns_info.num_classes == 1);
+
+  int is_uv = rui->plane != AOM_PLANE_Y;
+  const NonsepFilterConfig *orig_config =
+      get_wienerns_config(rui->base_qindex, is_uv);
+#if ADD_CENTER_TAP_TO_WIENERNS
+  NonsepFilterConfig adjusted_config;
+  WienerNonsepInfo adjusted_info;
+  adjust_filter_and_config(orig_config, &rui->wienerns_info, is_uv,
+                           &adjusted_config, &adjusted_info);
+  const NonsepFilterConfig *nsfilter_config = &adjusted_config;
+  const WienerNonsepInfo *nsfilter_info = &adjusted_info;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  if (is_uv && !ADD_CENTER_TAP_TO_WIENERNS_CROSS) {
+    nsfilter_config = orig_config;
+    nsfilter_info = &rui->wienerns_info;
+  }
+#else
+  if (is_uv && !ADD_CENTER_TAP_TO_WIENERNS_CHROMA) {
+    nsfilter_config = orig_config;
+    nsfilter_info = &rui->wienerns_info;
+  }
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#else
+  const NonsepFilterConfig *nsfilter_config = orig_config;
+  const WienerNonsepInfo *nsfilter_info = &rui->wienerns_info;
+#endif  // ADD_CENTER_TAP_TO_WIENERNS
+
+  for (int j = 0; j < stripe_width; j += procunit_width) {
+    int w = AOMMIN(procunit_width, stripe_width - j);
+    apply_wienerns_class_id_highbd(src + j, w, stripe_height, src_stride,
+                                   nsfilter_info, nsfilter_config, dst + j,
+                                   dst_stride, rui->plane,
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+                                   rui->luma + j, rui->luma_stride,
+#else
+                                   NULL, -1,
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+                                   bit_depth);
+  }
+}
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
+                                    int width_y, int in_stride,
+                                    uint16_t **luma_hbd, int height_uv,
+                                    int width_uv, int border, int out_stride,
+                                    int bd) {
+  (void)bd;
+  uint16_t *aug_luma = (uint16_t *)malloc(
+      sizeof(uint16_t) * (width_uv + 2 * border) * (height_uv + 2 * border));
+  memset(
+      aug_luma, 0,
+      sizeof(*aug_luma) * (width_uv + 2 * border) * (height_uv + 2 * border));
+  uint16_t *luma[1];
+  *luma = aug_luma + border * out_stride + border;
+  *luma_hbd = *luma;
+#if WIENERNS_CROSS_FILT_LUMA_TYPE == 0
+  const int ss_x = (((width_y + 1) >> 1) == width_uv);
+  const int ss_y = (((height_y + 1) >> 1) == height_uv);
+  for (int r = 0; r < height_uv; ++r) {
+    for (int c = 0; c < width_uv; ++c) {
+      (*luma)[r * out_stride + c] =
+          dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+    }
+  }
+#elif WIENERNS_CROSS_FILT_LUMA_TYPE == 1
+  const int ss_x = (((width_y + 1) >> 1) == width_uv);
+  const int ss_y = (((height_y + 1) >> 1) == height_uv);
+  if (ss_x && ss_y) {  // 420
+    int r;
+    for (r = 0; r < height_y / 2; ++r) {
+      int c;
+      for (c = 0; c < width_y / 2; ++c) {
+        (*luma)[r * out_stride + c] =
+            (dgd[2 * r * in_stride + 2 * c] +
+             dgd[2 * r * in_stride + 2 * c + 1] +
+             dgd[(2 * r + 1) * in_stride + 2 * c] +
+             dgd[(2 * r + 1) * in_stride + 2 * c + 1] + 2) >>
+            2;
+      }
+      // handle odd width_y
+      for (; c < width_uv; ++c) {
+        (*luma)[r * out_stride + c] =
+            (dgd[2 * r * in_stride + 2 * c] +
+             dgd[(2 * r + 1) * in_stride + 2 * c] + 1) >>
+            1;
+      }
+    }
+    // handle odd height_y
+    for (; r < height_uv; ++r) {
+      int c;
+      for (c = 0; c < width_y / 2; ++c) {
+        (*luma)[r * out_stride + c] =
+            (dgd[2 * r * in_stride + 2 * c] +
+             dgd[2 * r * in_stride + 2 * c + 1] + 1) >>
+            1;
+      }
+      // handle odd height_y and width_y
+      for (; c < width_uv; ++c) {
+        (*luma)[r * out_stride + c] = dgd[2 * r * in_stride + 2 * c];
+      }
+    }
+  } else if (ss_x && !ss_y) {  // 422
+    for (int r = 0; r < height_uv; ++r) {
+      int c;
+      for (c = 0; c < width_y / 2; ++c) {
+        (*luma)[r * out_stride + c] =
+            (dgd[r * in_stride + 2 * c] + dgd[r * in_stride + 2 * c + 1] + 1) >>
+            1;
+      }
+      // handle odd width_y
+      for (; c < width_uv; ++c) {
+        (*luma)[r * out_stride + c] = dgd[r * in_stride + 2 * c];
+      }
+    }
+  } else if (!ss_x && !ss_y) {  // 444
+    for (int r = 0; r < height_uv; ++r) {
+      for (int c = 0; c < width_uv; ++c) {
+        (*luma)[r * out_stride + c] = dgd[r * in_stride + c];
+      }
+    }
+  } else {
+    assert(0 && "Invalid dimensions");
+  }
+#else
+  av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma, height_uv,
+                          width_uv, out_stride, bd);
+#endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
+  // extend border by replication
+  for (int r = 0; r < height_uv; ++r) {
+    for (int c = -border; c < 0; ++c)
+      (*luma)[r * out_stride + c] = (*luma)[r * out_stride];
+    for (int c = 0; c < border; ++c)
+      (*luma)[r * out_stride + width_uv + c] =
+          (*luma)[r * out_stride + width_uv - 1];
+  }
+  for (int r = -border; r < 0; ++r) {
+    memcpy(&(*luma)[r * out_stride - border], &(*luma)[-border],
+           (width_uv + 2 * border) * sizeof((*luma)[0]));
+  }
+  for (int r = 0; r < border; ++r)
+    memcpy(&(*luma)[(height_uv + r) * out_stride - border],
+           &(*luma)[(height_uv - 1) * out_stride - border],
+           (width_uv + 2 * border) * sizeof((*luma)[0]));
+  return aug_luma;
+}
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP
+
 static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                         int stripe_width, int stripe_height,
                                         int procunit_width, const uint16_t *src,
@@ -944,11 +1999,34 @@ typedef void (*stripe_filter_fun)(const RestorationUnitInfo *rui,
                                   int procunit_width, const uint16_t *src,
                                   int src_stride, uint16_t *dst, int dst_stride,
                                   int32_t *tmpbuf, int bit_depth);
+#if CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
+#define NUM_STRIPE_FILTERS 4
 
+static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
+  wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd,
+  pc_wiener_stripe_highbd, wiener_nsfilter_stripe_highbd
+};
+#elif CONFIG_WIENER_NONSEP
+#define NUM_STRIPE_FILTERS 3
+
+static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
+  wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd,
+  wiener_nsfilter_stripe_highbd
+};
+#elif CONFIG_PC_WIENER
+#define NUM_STRIPE_FILTERS 3
+
+static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
+  wiener_filter_stripe_highbd,
+  sgrproj_filter_stripe_highbd,
+  pc_wiener_stripe_highbd,
+};
+#else
 #define NUM_STRIPE_FILTERS 2
 static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
   wiener_filter_stripe_highbd, sgrproj_filter_stripe_highbd
 };
+#endif  // CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
 
 // Filter one restoration unit
 void av1_loop_restoration_filter_unit(
@@ -969,11 +2047,40 @@ void av1_loop_restoration_filter_unit(
     return;
   }
 
-  const int filter_idx = (unit_rtype == RESTORE_SGRPROJ);
+  const int filter_idx = (int)unit_rtype - 1;
   assert(filter_idx < NUM_STRIPE_FILTERS);
   const stripe_filter_fun stripe_filter = stripe_filters[filter_idx];
 
   const int procunit_width = RESTORATION_PROC_UNIT_SIZE >> ss_x;
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT || CONFIG_PC_WIENER
+  // rui is a pointer to a const but we modify its contents when calling
+  // stripe_filter(). Use a temporary.
+  RestorationUnitInfo rui_contents = *rui;
+  RestorationUnitInfo *tmp_rui = &rui_contents;
+#else
+  const RestorationUnitInfo *tmp_rui = rui;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT || CONFIG_PC_WIENER
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const uint16_t *luma_in_plane = rui->luma;
+  const uint16_t *luma_in_ru =
+      luma_in_plane + limits->v_start * rui->luma_stride + limits->h_start;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
+#if CONFIG_PC_WIENER
+  const uint8_t *tskip_in_ru =
+      rui->tskip + (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
+      (limits->h_start >> MI_SIZE_LOG2);
+  uint8_t *class_id_in_ru =
+      rui->class_id + (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
+      (limits->h_start >> MI_SIZE_LOG2);
+  const int allocate_buffers = unit_rtype == RESTORE_PC_WIENER;
+#if CONFIG_WIENER_NONSEP
+  allocate_buffers = allocate_buffers || unit_rtype == RESTORE_WIENER_NONSEP;
+#endif  // CONFIG_WIENER_NONSEP
+  if (allocate_buffers) allocate_pcwiener_line_buffers(procunit_width);
+#endif  // CONFIG_PC_WIENER
 
   // Convolve the whole tile one stripe at a time
   RestorationTileLimits remaining_stripes = *limits;
@@ -1008,8 +2115,18 @@ void av1_loop_restoration_filter_unit(
                                      stride, rlbs, copy_above, copy_below,
                                      optimized_lr);
 
-    stripe_filter(rui, unit_w, h, procunit_width, data_tl + i * stride, stride,
-                  dst_tl + i * dst_stride, dst_stride, tmpbuf, bit_depth);
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    tmp_rui->luma = luma_in_ru + i * rui->luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_PC_WIENER
+    tmp_rui->tskip = tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride;
+    tmp_rui->class_id =
+        class_id_in_ru + (i >> MI_SIZE_LOG2) * rui->class_id_stride;
+#endif  // CONFIG_PC_WIENER
+
+    stripe_filter(tmp_rui, unit_w, h, procunit_width, data_tl + i * stride,
+                  stride, dst_tl + i * dst_stride, dst_stride, tmpbuf,
+                  bit_depth);
 
     restore_processing_stripe_boundary(&remaining_stripes, rlbs, h, data,
                                        stride, copy_above, copy_below,
@@ -1017,6 +2134,9 @@ void av1_loop_restoration_filter_unit(
 
     i += h;
   }
+#if CONFIG_PC_WIENER
+  if (allocate_buffers) free_pcwiener_line_buffers();
+#endif  // CONFIG_PC_WIENER
 }
 
 static void filter_frame_on_unit(const RestorationTileLimits *limits,
@@ -1027,6 +2147,23 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
   (void)rest_unit_idx_seq;
   FilterFrameCtxt *ctxt = (FilterFrameCtxt *)priv;
   const RestorationInfo *rsi = ctxt->rsi;
+
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+  rsi->unit_info[rest_unit_idx].plane = ctxt->plane;
+  rsi->unit_info[rest_unit_idx].base_qindex = ctxt->base_qindex;
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  rsi->unit_info[rest_unit_idx].luma = ctxt->luma;
+  rsi->unit_info[rest_unit_idx].luma_stride = ctxt->luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_PC_WIENER
+  rsi->unit_info[rest_unit_idx].tskip = ctxt->tskip;
+  rsi->unit_info[rest_unit_idx].tskip_stride = ctxt->tskip_stride;
+  rsi->unit_info[rest_unit_idx].class_id = ctxt->class_id;
+  rsi->unit_info[rest_unit_idx].class_id_stride = ctxt->class_id_stride;
+  rsi->unit_info[rest_unit_idx].qindex_offset = ctxt->qindex_offset;
+  rsi->unit_info[rest_unit_idx].class_id_restrict = -1;
+#endif  // CONFIG_PC_WIENER
 
   av1_loop_restoration_filter_unit(
       limits, &rsi->unit_info[rest_unit_idx], &rsi->boundaries, rlbs, tile_rect,
@@ -1105,16 +2242,53 @@ void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
 static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
                                         int num_planes) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  uint16_t *luma = NULL;
+  uint16_t *luma_buf;
+  const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
+  int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+  luma_buf = wienerns_copy_luma_highbd(
+      (dgd->buffers[AOM_PLANE_Y]), dgd->crop_heights[AOM_PLANE_Y],
+      dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
+      cm->seq_params.bit_depth);
+  assert(luma_buf != NULL);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
   for (int plane = 0; plane < num_planes; ++plane) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) {
       continue;
     }
 
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+    ctxt[plane].plane = plane;
+    ctxt[plane].base_qindex = cm->quant_params.base_qindex;
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    const int is_uv = (plane != AOM_PLANE_Y);
+    ctxt[plane].luma = is_uv ? luma : NULL;
+    ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_PC_WIENER
+    ctxt[plane].tskip = cm->mi_params.tx_skip[plane];
+    ctxt[plane].tskip_stride = cm->mi_params.tx_skip_stride[plane];
+    if (plane != AOM_PLANE_Y)
+      ctxt[plane].qindex_offset = plane == AOM_PLANE_U
+                                      ? cm->quant_params.u_dc_delta_q
+                                      : cm->quant_params.v_dc_delta_q;
+    else
+      ctxt[plane].qindex_offset = cm->quant_params.y_dc_delta_q;
+    ctxt[plane].class_id = cm->mi_params.class_id[plane];
+    ctxt[plane].class_id_stride = cm->mi_params.class_id_stride[plane];
+#endif  // CONFIG_PC_WIENER
+
     av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,
                                    &ctxt[plane], &ctxt[plane].tile_rect,
                                    cm->rst_tmpbuf, cm->rlbs);
   }
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  free(luma_buf);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 }
 
 void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,

@@ -387,6 +387,18 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_sgrproj;
+#if CONFIG_PC_WIENER
+  /*!\brief enable Pixel-Classified Wiener Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_pc_wiener;
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  /*!\brief enable Noseparable Wiener Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_wienerns;
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   /*!\brief enable cross-component sample offset
    *

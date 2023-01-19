@@ -638,6 +638,22 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
                            fc->wiener_restore_cdf, NULL);
   av1_cost_tokens_from_cdf(mode_costs->sgrproj_restore_cost,
                            fc->sgrproj_restore_cdf, NULL);
+#if CONFIG_WIENER_NONSEP
+  av1_cost_tokens_from_cdf(mode_costs->wienerns_restore_cost,
+                           fc->wienerns_restore_cdf, NULL);
+  for (int c = 0; c < WIENERNS_REDUCE_STEPS; ++c)
+    av1_cost_tokens_from_cdf(mode_costs->wienerns_reduce_cost[c],
+                             fc->wienerns_reduce_cdf[c], NULL);
+#if ENABLE_LR_4PART_CODE
+  for (int c = 0; c < WIENERNS_4PART_CTX_MAX; ++c)
+    av1_cost_tokens_from_cdf(mode_costs->wienerns_4part_cost[c],
+                             fc->wienerns_4part_cdf[c], NULL);
+#endif  // ENABLE_LR_4PART_CODE
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+  av1_cost_tokens_from_cdf(mode_costs->pc_wiener_restore_cost,
+                           fc->pc_wiener_restore_cdf, NULL);
+#endif  // CONFIG_PC_WIENER
 #if CONFIG_LR_MERGE_COEFFS
   // Bit cost for parameter to designate whether unit coeffs are merged.
   av1_cost_tokens_from_cdf(mode_costs->merged_param_cost, fc->merged_param_cdf,

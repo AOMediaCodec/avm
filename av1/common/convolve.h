@@ -31,6 +31,47 @@ typedef struct ConvolveParams {
   int bck_offset;
 } ConvolveParams;
 
+#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+#define NONSEP_PIXELS_MAX 32
+#define NONSEP_COEFFS_MAX 32
+#define NONSEP_ROW_ID 0
+#define NONSEP_COL_ID 1
+#define NONSEP_BUF_POS 2
+
+static INLINE int16_t clip_base(int16_t x, int bit_depth) {
+  (void)bit_depth;
+  return x;
+}
+
+typedef struct NonsepFilterConfig {
+  int prec_bits;
+  int num_pixels;
+  int num_pixels2;
+  const int (*config)[3];
+  const int (*config2)[3];
+  int strict_bounds;
+  int subtract_center;
+} NonsepFilterConfig;
+
+// Nonseparable convolution.
+void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
+                                int stride, const NonsepFilterConfig *config,
+                                const int16_t *filter, uint16_t *dst,
+                                int dst_stride, int bit_depth);
+#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+// Nonseparable convolution with dual input planes - used for cross component
+// filtering.
+void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
+                                     int stride, const uint16_t *dgd2,
+                                     int stride2,
+                                     const NonsepFilterConfig *config,
+                                     const int16_t *filter, uint16_t *dst,
+                                     int dst_stride, int bit_depth);
+
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
 #define ROUND0_BITS 3
 #define COMPOUND_ROUND1_BITS 7
 #define WIENER_ROUND0_BITS 3
@@ -137,5 +178,23 @@ void av1_convolve_2d_sobel_y_c(const uint8_t *src, int src_stride, double *dst,
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#if CONFIG_PC_WIENER
+
+void prepare_feature_sum_bufs_c(int *feature_sum_buffers[],
+                                int16_t *feature_line_buffers[],
+                                int feature_length, int buffer_row,
+                                int col_begin, int col_end, int buffer_col);
+void update_feature_sum_bufs_c(int *feature_sum_buffers[],
+                               int16_t *feature_line_buffers[],
+                               int feature_length, int buffer_row,
+                               int col_begin, int col_end, int buffer_col);
+void calc_gradient_in_various_directions_c(int16_t *feature_line_buffers[],
+                                           int row, int buffer_row,
+                                           const uint16_t *dgd, int dgd_stride,
+                                           int width, int col_begin,
+                                           int col_end, int feature_length,
+                                           int buffer_col);
+#endif  // CONFIG_PC_WIENER
 
 #endif  // AOM_AV1_COMMON_CONVOLVE_H_

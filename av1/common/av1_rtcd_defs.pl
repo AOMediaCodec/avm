@@ -24,6 +24,7 @@ print <<EOF
 #include "av1/common/av1_txfm.h"
 #include "av1/common/odintrin.h"
 #include "av1/common/restoration.h"
+#include "av1/common/pc_wiener_filters.h"
 
 struct macroblockd;
 
@@ -84,6 +85,33 @@ specialize qw/av1_highbd_convolve_horiz_rs sse4_1/;
 
 add_proto qw/void av1_highbd_wiener_convolve_add_src/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, const ConvolveParams *conv_params, int bd";
 specialize qw/av1_highbd_wiener_convolve_add_src ssse3 avx2/;
+
+if (aom_config("CONFIG_PC_WIENER") eq "yes") {
+add_proto qw/void av1_fill_tskip_sum_buffer/, "int row, const uint8_t *tskip, int tskip_stride, int8_t *tskip_sum_buffer, int width, int height, int tskip_lead, int tskip_lag, bool use_strict_bounds";
+specialize qw/av1_fill_tskip_sum_buffer avx2/;
+add_proto qw/void fill_directional_feature_buffers_highbd/, "int *feature_sum_buffers[], int16_t *feature_line_buffers[], int row, int buffer_row, const uint16_t *dgd, int dgd_stride, int width, int feature_lead, int feature_lag";
+specialize qw/fill_directional_feature_buffers_highbd avx2/;
+add_proto qw/void av1_fill_directional_feature_accumulators/, "int dir_feature_accum[NUM_PC_WIENER_FEATURES][PC_WIENER_FEATURE_ACC_SIZE], int *feature_sum_buff[NUM_PC_WIENER_FEATURES], int width, int col_offset, int feature_lead, int feature_lag";
+specialize qw/av1_fill_directional_feature_accumulators avx2/;
+add_proto qw/void av1_fill_tskip_feature_accumulator/, "int16_t tskip_feature_accum[PC_WIENER_FEATURE_ACC_SIZE], int8_t* tskip_sum_buff, int width, int col_offset,int tskip_lead, int tskip_lag";
+specialize qw/av1_fill_tskip_feature_accumulator avx2/;
+}
+
+# Non-separable Wiener filter
+if (aom_config("CONFIG_PC_WIENER") eq "yes" or aom_config("CONFIG_WIENER_NONSEP") eq "yes") {
+add_proto qw/void av1_convolve_symmetric_highbd/, "const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config, const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin, int block_row_end, int block_col_begin, int block_col_end";
+specialize qw/av1_convolve_symmetric_highbd avx2/;
+add_proto qw/void av1_convolve_symmetric_subtract_center_highbd/, "const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config, const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin, int block_row_end, int block_col_begin, int block_col_end";
+specialize qw/av1_convolve_symmetric_subtract_center_highbd avx2/;
+}
+
+if (aom_config("CONFIG_WIENER_NONSEP_CROSS_FILT") eq "yes") {
+add_proto qw/void av1_convolve_symmetric_dual_highbd/, "const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual, int dgd_dual_stride, const NonsepFilterConfig *filter_config, const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin, int block_row_end, int block_col_begin, int block_col_end";
+specialize qw/av1_convolve_symmetric_dual_highbd avx2/;
+add_proto qw/void av1_convolve_symmetric_dual_subtract_center_highbd/, "const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual, int dgd_dual_stride, const NonsepFilterConfig *filter_config, const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin, int block_row_end, int block_col_begin, int block_col_end";
+specialize qw/av1_convolve_symmetric_dual_subtract_center_highbd avx2/;
+}
+
 
 # FILTER_INTRA predictor functions
 add_proto qw/void av1_filter_intra_predictor/, "uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size, const uint8_t *above, const uint8_t *left, int mode";

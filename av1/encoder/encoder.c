@@ -681,6 +681,39 @@ static void set_max_drl_bits(struct AV1_COMP *cpi) {
          cm->features.max_drl_bits <= MAX_MAX_DRL_BITS);
 }
 
+#if CONFIG_LR_FLEX_SYNTAX
+static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
+                                  const AV1EncoderConfig *oxcf) {
+  const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
+  seq_params->lr_tools_disable_mask[0] = 0;  // default - no tools disabled
+  seq_params->lr_tools_disable_mask[1] = 0;  // default - no tools disabled
+
+  // Parse oxcf here to disable tools as requested through cmd lines
+  // Disable SGRPROJ if needed
+  if (!tool_cfg->enable_sgrproj) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_SGRPROJ);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_SGRPROJ);
+  }
+  if (!tool_cfg->enable_wiener) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER);
+  }
+#if CONFIG_PC_WIENER
+  if (!tool_cfg->enable_pc_wiener) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
+  }
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  if (!tool_cfg->enable_wienerns) {
+    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_WIENER_NONSEP);
+    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_WIENER_NONSEP);
+  }
+#endif  // CONFIG_WIENER_NONSEP
+  seq_params->lr_tools_disable_mask[1] |= DEF_UV_LR_TOOLS_DISABLE_MASK;
+}
+#endif  // CONFIG_LR_FLEX_SYNTAX
+
 void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
@@ -762,6 +795,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 
 #endif  // CONFIG_TIP
+#if CONFIG_LR_FLEX_SYNTAX
+  if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
+#endif  // CONFIG_LR_FLEX_SYNTAX
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
 

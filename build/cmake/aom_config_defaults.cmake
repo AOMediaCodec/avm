@@ -199,6 +199,14 @@ set_aom_config_var(CONFIG_LR_MERGE_COEFFS 0
                    "AV2 experiment flag to enable LR coefficient merging")
 set_aom_config_var(CONFIG_LR_FLEX_SYNTAX 0
                    "AV2 experiment flag to enable LR flexible syntax")
+# Begin: CWG-C016
+set_aom_config_var(CONFIG_WIENER_NONSEP 0 NUMBER
+                   "AV2 nonsep Wiener filter experiment flag")
+set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
+                   "AV2 nonsep Wiener cross filter experiment flag")
+set_aom_config_var(CONFIG_PC_WIENER 0 NUMBER
+                   "AV2 pixel-classified Wiener filter experiment flag")
+# End: CWG-C016
 
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0

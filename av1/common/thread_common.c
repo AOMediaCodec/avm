@@ -855,6 +855,19 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
                                            AV1LrSync *lr_sync, AV1_COMMON *cm) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  uint16_t *luma = NULL;
+  uint16_t *luma_buf;
+  const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
+  int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+  luma_buf = wienerns_copy_luma_highbd(
+      dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+      dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
+      cm->seq_params.bit_depth);
+  assert(luma_buf != NULL);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
   const int num_planes = av1_num_planes(cm);
 
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
@@ -862,6 +875,28 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
 
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+    ctxt[plane].plane = plane;
+    ctxt[plane].base_qindex = cm->quant_params.base_qindex;
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    const int is_uv = (plane != AOM_PLANE_Y);
+    ctxt[plane].luma = is_uv ? luma : NULL;
+    ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_PC_WIENER
+    ctxt[plane].tskip = cm->mi_params.tx_skip[plane];
+    ctxt[plane].tskip_stride = cm->mi_params.tx_skip_stride[plane];
+    if (plane != AOM_PLANE_Y)
+      ctxt[plane].qindex_offset = plane == AOM_PLANE_U
+                                      ? cm->quant_params.u_dc_delta_q
+                                      : cm->quant_params.v_dc_delta_q;
+    else
+      ctxt[plane].qindex_offset = cm->quant_params.y_dc_delta_q;
+    ctxt[plane].class_id = cm->mi_params.class_id[plane];
+    ctxt[plane].class_id_stride = cm->mi_params.class_id_stride[plane];
+#endif  // CONFIG_PC_WIENER
 
     const AV1PixelRect tile_rect = ctxt[plane].tile_rect;
     const int max_tile_h = tile_rect.bottom - tile_rect.top;
@@ -911,6 +946,10 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   for (i = 0; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  free(luma_buf);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 }
 
 void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,

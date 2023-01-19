@@ -1116,12 +1116,18 @@ typedef int8_t MV_REFERENCE_FRAME;
  * \brief This enumeration defines various restoration types supported
  */
 typedef enum {
-  RESTORE_NONE,       /**< No restoration */
-  RESTORE_WIENER,     /**< Separable Wiener restoration */
-  RESTORE_SGRPROJ,    /**< Selfguided restoration */
-  RESTORE_SWITCHABLE, /**< Switchable restoration */
+  RESTORE_NONE,    /**< No restoration */
+  RESTORE_WIENER,  /**< Separable Wiener restoration */
+  RESTORE_SGRPROJ, /**< Selfguided restoration */
+#if CONFIG_PC_WIENER
+  RESTORE_PC_WIENER, /**< Pixel-classified Wiener restoration */
+#endif               // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  RESTORE_WIENER_NONSEP, /**< Nonseparable Wiener restoration */
+#endif                   // CONFIG_WIENER_NONSEP
+  RESTORE_SWITCHABLE,    /**< Switchable restoration */
   RESTORE_SWITCHABLE_TYPES = RESTORE_SWITCHABLE, /**< Num Switchable types */
-  RESTORE_TYPES = 4,                             /**< Num Restore types */
+  RESTORE_TYPES = RESTORE_SWITCHABLE + 1,        /**< Num Restore types */
 } RestorationType;
 
 #if CONFIG_LR_FLEX_SYNTAX

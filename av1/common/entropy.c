@@ -284,6 +284,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
 #endif
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
+#if CONFIG_WIENER_NONSEP
+  RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);
+  RESET_CDF_COUNTER(fc->wienerns_reduce_cdf, 2);
+#if ENABLE_LR_4PART_CODE
+  RESET_CDF_COUNTER(fc->wienerns_4part_cdf, 4);
+#endif  // ENABLE_LR_4PART_CODE
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+  RESET_CDF_COUNTER(fc->pc_wiener_restore_cdf, 2);
+#endif  // CONFIG_PC_WIENER
 #if CONFIG_LR_MERGE_COEFFS
   RESET_CDF_COUNTER(fc->merged_param_cdf, 2);
 #endif  // CONFIG_LR_MERGE_COEFFS

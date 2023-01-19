@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
 
@@ -706,3 +707,716 @@ void av1_highbd_wiener_convolve_add_src_c(
       temp + MAX_SB_SIZE * (SUBPEL_TAPS / 2 - 1), MAX_SB_SIZE, dst, dst_stride,
       filters_y, y0_q4, y_step_q4, w, h, conv_params->round_1, bd);
 }
+
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#define USE_CONV_SYM_VERSIONS 1
+
+// Convolves a block of pixels with origin-symmetric, non-separable filters.
+// This routine is intended as a starting point for SIMD and other acceleration
+// work. The filters are assumed to have num_sym_taps unique taps if they sum to
+// zero. Otherwise num_sym_taps + 1 unique taps where the extra tap is the
+// unconstrained center tap.
+//
+// Usage:
+// - For CONFIG_WIENER_NONSEP filters sum to zero. This constrains the
+// center-tap:
+//   singleton_tap = (1 << filter_config->prec_bits) and
+//   num_sym_taps = filter_config->num_pixels / 2
+// - For CONFIG_PC_WIENER center tap is unconstrained:
+//   const int singleton_tap_index =
+//        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+//   singleton_tap = (1 << filter_config->prec_bits)
+//                     + filter[singleton_tap_index] and
+//   num_sym_taps = (filter_config->num_pixels - 1) / 2.
+//
+// Implementation Notes:
+// - The filter taps have precision < 16 bits but the filter multiply
+// filter[pos] * compute_buffer[k] has to be 32-bit, i.e., the result will not
+// fit into a 16-bit register. Any acceleration code needs to ensure the
+// multiply is carried out in 32-bits. The filter tap precisions should
+// guarantee that the result of the convolution, i.e., the result of the entire
+// multiply-add, fits into 32-bits prior to the down-shit and round.
+// - Calling av1_convolve_symmetric_subtract_center_highbd_c allows passing the
+// difference wrto the center pixel through a nonlinearity if one wishes to do
+// so.
+// - Current NonsepFilterConfig supports arbitrary filters and hence the loop
+// over every other tap, e.g., filter_config->config[2 * k].
+void av1_convolve_symmetric_highbd_c(const uint16_t *dgd, int stride,
+                                     const NonsepFilterConfig *filter_config,
+                                     const int16_t *filter, uint16_t *dst,
+                                     int dst_stride, int bit_depth,
+                                     int block_row_begin, int block_row_end,
+                                     int block_col_begin, int block_col_end) {
+  assert(!filter_config->subtract_center);
+  const int num_sym_taps = filter_config->num_pixels / 2;
+  int32_t singleton_tap = 1 << filter_config->prec_bits;
+
+  if (filter_config->num_pixels % 2) {
+    // Center-tap is unconstrained.
+    const int singleton_tap_index =
+        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+    singleton_tap += filter[singleton_tap_index];
+  }
+
+  // Begin compute conveniences.
+  // Based on filter_config allocate/compute once. Relocate elsewhere as needed.
+  // filter_config will change rarely and the core-functionality block will be
+  // called many times with the same filter_config. If any compute conveniences
+  // are utilzied it is advisable to put them elsewhere to be called when
+  // filter_config changes.
+  assert(num_sym_taps <= 24);
+  int16_t compute_buffer[24];
+  int pixel_offset_diffs[24];
+  for (int k = 0; k < num_sym_taps; ++k) {
+    const int r = filter_config->config[2 * k][NONSEP_ROW_ID];
+    const int c = filter_config->config[2 * k][NONSEP_COL_ID];
+    const int diff = r * stride + c;
+    pixel_offset_diffs[k] = diff;
+  }
+  // End compute conveniences.
+
+  // Begin core-functionality that will be called many times.
+  for (int r = block_row_begin; r < block_row_end; ++r) {
+    for (int c = block_col_begin; c < block_col_end; ++c) {
+      int dgd_id = r * stride + c;
+
+      // Two loops for a potential data cache miss.
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int diff = pixel_offset_diffs[k];
+        const int16_t tmp_sum = dgd[dgd_id - diff];
+        compute_buffer[k] = tmp_sum;  // 16-bit
+      }
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int diff = pixel_offset_diffs[k];
+        const int16_t tmp_sum = dgd[dgd_id + diff];
+        compute_buffer[k] += tmp_sum;  // 16-bit arithmetic.
+      }
+
+      // Handle singleton tap.
+      int32_t tmp = singleton_tap * dgd[dgd_id];
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int pos = filter_config->config[2 * k][NONSEP_BUF_POS];
+        tmp += (int32_t)filter[pos] * compute_buffer[k];  // 32-bit arithmetic.
+      }
+
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, filter_config->prec_bits);
+
+      int dst_id = r * dst_stride + c;
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+  // End core-functionality.
+}
+
+// Same as av1_convolve_symmetric_highbd_c except for the subtraction of the
+// center-pixel and the addition of an offset.
+void av1_convolve_symmetric_subtract_center_highbd_c(
+    const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_row_end, int block_col_begin,
+    int block_col_end) {
+  assert(filter_config->subtract_center);
+  const int num_sym_taps = filter_config->num_pixels / 2;
+  int32_t singleton_tap = 1 << filter_config->prec_bits;
+  int32_t dc_offset = 0;
+  if (filter_config->num_pixels % 2) {
+    const int dc_offset_tap_index =
+        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+    dc_offset = filter[dc_offset_tap_index];
+  }
+
+  assert(num_sym_taps <= 24);
+  int16_t compute_buffer[24];
+  int pixel_offset_diffs[24];
+  for (int k = 0; k < num_sym_taps; ++k) {
+    const int r = filter_config->config[2 * k][NONSEP_ROW_ID];
+    const int c = filter_config->config[2 * k][NONSEP_COL_ID];
+    const int diff = r * stride + c;
+    pixel_offset_diffs[k] = diff;
+  }
+
+  for (int r = block_row_begin; r < block_row_end; ++r) {
+    for (int c = block_col_begin; c < block_col_end; ++c) {
+      int dgd_id = r * stride + c;
+
+      // Two loops for a potential data cache miss.
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int diff = pixel_offset_diffs[k];
+        // Subtract center pixel and pass through a fn.
+        const int16_t tmp_sum =
+            clip_base(dgd[dgd_id - diff] - dgd[dgd_id], bit_depth);
+        compute_buffer[k] = tmp_sum;  // 16-bit
+      }
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int diff = pixel_offset_diffs[k];
+        // Subtract center pixel and pass through a fn.
+        const int16_t tmp_sum =
+            clip_base(dgd[dgd_id + diff] - dgd[dgd_id], bit_depth);
+        compute_buffer[k] += tmp_sum;  // 16-bit arithmetic.
+      }
+
+      // Handle singleton tap.
+      int32_t tmp = singleton_tap * dgd[dgd_id] + dc_offset;
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int pos = filter_config->config[2 * k][NONSEP_BUF_POS];
+        tmp += (int32_t)filter[pos] * compute_buffer[k];  // 32-bit arithmetic.
+      }
+
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, filter_config->prec_bits);
+
+      int dst_id = r * dst_stride + c;
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+}
+
+void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
+                                int stride, const NonsepFilterConfig *nsfilter,
+                                const int16_t *filter, uint16_t *dst,
+                                int dst_stride, int bit_depth) {
+#if USE_CONV_SYM_VERSIONS
+  assert(nsfilter->strict_bounds == false);
+  if (nsfilter->subtract_center)
+    av1_convolve_symmetric_subtract_center_highbd(dgd, stride, nsfilter, filter,
+                                                  dst, dst_stride, bit_depth, 0,
+                                                  height, 0, width);
+  else
+    av1_convolve_symmetric_highbd(dgd, stride, nsfilter, filter, dst,
+                                  dst_stride, bit_depth, 0, height, 0, width);
+#else
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      int dgd_id = i * stride + j;
+      int dst_id = i * dst_stride + j;
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
+      for (int k = 0; k < nsfilter->num_pixels; ++k) {
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        if (r == 0 && c == 0) {
+          tmp += filter[pos];
+          continue;
+        }
+        const int ir = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(i + r, height - 1), 0)
+                           : i + r;
+        const int jc = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(j + c, width - 1), 0)
+                           : j + c;
+        int16_t diff = clip_base(
+            (int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id], bit_depth);
+        tmp += filter[pos] * diff;
+      }
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+#endif  // USE_CONV_SYM_VERSIONS
+}
+
+void prepare_feature_sum_bufs_c(int *feature_sum_buffers[],
+                                int16_t *feature_line_buffers[],
+                                int feature_length, int buffer_row,
+                                int col_begin, int col_end, int buffer_col) {
+  const int buffer_row_0 = buffer_row;
+  const int buffer_row_1 = buffer_row_0 + feature_length;
+  const int buffer_row_2 = buffer_row_1 + feature_length;
+  const int buffer_row_3 = buffer_row_2 + feature_length;
+#if defined(__GCC__)
+#pragma GCC ivdep
+#endif
+  for (int col = col_begin; col < col_end; ++col, ++buffer_col) {
+    feature_sum_buffers[0][buffer_col] -=
+        feature_line_buffers[buffer_row_0][buffer_col];
+    feature_sum_buffers[1][buffer_col] -=
+        feature_line_buffers[buffer_row_1][buffer_col];
+    feature_sum_buffers[2][buffer_col] -=
+        feature_line_buffers[buffer_row_2][buffer_col];
+    feature_sum_buffers[3][buffer_col] -=
+        feature_line_buffers[buffer_row_3][buffer_col];
+  }
+}
+
+void calc_gradient_in_various_directions_c(int16_t *feature_line_buffers[],
+                                           int row, int buffer_row,
+                                           const uint16_t *dgd, int dgd_stride,
+                                           int width, int col_begin,
+                                           int col_end, int feature_length,
+                                           int buffer_col) {
+  const int buffer_row_0 = buffer_row;
+  const int buffer_row_1 = buffer_row_0 + feature_length;
+  const int buffer_row_2 = buffer_row_1 + feature_length;
+  const int buffer_row_3 = buffer_row_2 + feature_length;
+
+#if defined(__GCC__)
+#pragma GCC ivdep
+#endif
+  for (int col = col_begin; col < col_end; ++col, ++buffer_col) {
+    // Fix an issue with odd-sized rows/columns. (If the right/lower extension
+    // of the frame is extended by 4 pixels instead of the current 3 AOMMIN can
+    // be discarded.
+    const int dgd_col = AOMMIN(col, width + 3 - 2);
+    const int dgd_id = row * dgd_stride + dgd_col;
+    const int prev_row = dgd_id - dgd_stride;
+    const int next_row = dgd_id + dgd_stride;
+
+    // D V A
+    // H O H
+    // A V D
+    const int16_t base_value = 2 * dgd[dgd_id];  // O.
+    const int16_t horizontal_diff =
+        dgd[dgd_id + 1] + dgd[dgd_id - 1] - base_value;           // H.
+    int16_t vertical_diff = dgd[prev_row] - base_value;           // V.
+    int16_t anti_diagonal_diff = dgd[prev_row + 1] - base_value;  // A.
+    int16_t diagonal_diff = dgd[prev_row - 1] - base_value;       // D.
+
+    vertical_diff += dgd[next_row];
+    anti_diagonal_diff += dgd[next_row - 1];
+    diagonal_diff += dgd[next_row + 1];
+
+    feature_line_buffers[buffer_row_0][buffer_col] =
+        abs(horizontal_diff);                                             // fo
+    feature_line_buffers[buffer_row_1][buffer_col] = abs(vertical_diff);  // f1
+    feature_line_buffers[buffer_row_2][buffer_col] =
+        abs(anti_diagonal_diff);                                          // f2
+    feature_line_buffers[buffer_row_3][buffer_col] = abs(diagonal_diff);  // f3
+  }
+}
+
+void update_feature_sum_bufs_c(int *feature_sum_buffers[],
+                               int16_t *feature_line_buffers[],
+                               int feature_length, int buffer_row,
+                               int col_begin, int col_end, int buffer_col) {
+  const int buffer_row_0 = buffer_row;
+  const int buffer_row_1 = buffer_row_0 + feature_length;
+  const int buffer_row_2 = buffer_row_1 + feature_length;
+  const int buffer_row_3 = buffer_row_2 + feature_length;
+#if defined(__GCC__)
+#pragma GCC ivdep
+#endif
+  for (int col = col_begin; col < col_end; ++col, ++buffer_col) {
+    feature_sum_buffers[0][buffer_col] +=
+        feature_line_buffers[buffer_row_0][buffer_col];
+    feature_sum_buffers[1][buffer_col] +=
+        feature_line_buffers[buffer_row_1][buffer_col];
+    feature_sum_buffers[2][buffer_col] +=
+        feature_line_buffers[buffer_row_2][buffer_col];
+    feature_sum_buffers[3][buffer_col] +=
+        feature_line_buffers[buffer_row_3][buffer_col];
+  }
+}
+
+// Calculates and accumulates the gradients over a window around row. If
+// use_strict_bounds is false dgd must have valid data on this column extending
+// for rows from [row_begin, row_end) where,
+//    row_begin = row - PC_WIENER_FEATURE_LENGTH / 2
+//    row_end = row + PC_WIENER_FEATURE_LENGTH / 2 + 1.
+// This version of the routine assumes use_strict_bounds is false.
+void fill_directional_feature_buffers_highbd_c(
+    int *feature_sum_bufs[], int16_t *feature_line_bufs[], int row,
+    int buffer_row, const uint16_t *dgd, int dgd_stride, int width,
+    int feature_lead, int feature_lag) {
+  const int feature_length = feature_lead + feature_lag + 1;
+  const int col_begin = -feature_lead;
+  const int col_end = width + feature_lag;
+  int buffer_col = 0;
+
+  // Preparation of feature sum buffers by subtracting the feature line buffers.
+  prepare_feature_sum_bufs_c(feature_sum_bufs, feature_line_bufs,
+                             feature_length, buffer_row, col_begin, col_end,
+                             buffer_col);
+
+  // Compute the gradient across different directions.
+  calc_gradient_in_various_directions_c(feature_line_bufs, row, buffer_row, dgd,
+                                        dgd_stride, width, col_begin, col_end,
+                                        feature_length, buffer_col);
+
+  // Update the feature sum buffers with updated feature line buffers.
+  update_feature_sum_bufs_c(feature_sum_bufs, feature_line_bufs, feature_length,
+                            buffer_row, col_begin, col_end, buffer_col);
+}
+
+void av1_fill_directional_feature_accumulators_c(
+    int dir_feature_accum[NUM_PC_WIENER_FEATURES][PC_WIENER_FEATURE_ACC_SIZE],
+    int *feature_sum_bufs[NUM_PC_WIENER_FEATURES], int width, int col_offset,
+    int feature_lead, int feature_lag) {
+  int col = 0;
+  const int feature_length = feature_lead + feature_lag + 1;
+  int col_base = col + col_offset + feature_lead;
+
+  // For width equals to zero case.
+  for (int k = 0; k < NUM_PC_WIENER_FEATURES; k++) {
+    dir_feature_accum[k][0] += feature_sum_bufs[k][col_base];
+  }
+
+  // For the remaining width.
+  col_base++;
+  for (col = 1; col < width; ++col, ++col_base) {
+    // Use cur_idx and prev_idx to update accumulate buffer appropriately.
+    const int cl = col_base - feature_length;
+    // Currently, the buffer 'directional_feature_accumulator' is used to hold
+    // the accumulated (from the 0th to start of the block position) gradient
+    // values corresponds to each direction. These accumulated values are used
+    // to derive a different filter index for each PC_WIENER_BLOCK_SIZE. Hence,
+    // the accumulated result is kept once for each PC_WIENER_BLOCK_SIZE
+    // samples. Here, cur_idx and prev_idx are used to update this accumulate
+    // buffer appropriately.
+    const int cur_idx = (col + PC_WIENER_BLOCK_SIZE - 1) / PC_WIENER_BLOCK_SIZE;
+    const int prev_idx =
+        (col + PC_WIENER_BLOCK_SIZE - 2) / PC_WIENER_BLOCK_SIZE;
+    for (int k = 0; k < NUM_PC_WIENER_FEATURES; ++k) {
+      const int cur_diff =
+          feature_sum_bufs[k][col_base] - feature_sum_bufs[k][cl];
+      dir_feature_accum[k][cur_idx] = dir_feature_accum[k][prev_idx] + cur_diff;
+    }
+  }
+}
+
+void av1_fill_tskip_feature_accumulator_c(
+    int16_t tskip_feature_accum[PC_WIENER_FEATURE_ACC_SIZE],
+    int8_t *tskip_sum_buf, int width, int col_offset, int tskip_lead,
+    int tskip_lag) {
+  const int tskip_length = tskip_lead + tskip_lag + 1;
+  int col = 0;
+  // Add tskip_lead to ensure buffer access is from >=0.
+  int col_base = col + col_offset + tskip_lead;
+  assert(col_base >= 0);
+  // For width equals to zero case.
+  tskip_feature_accum[0] += tskip_sum_buf[col_base];
+
+  // For the remaining width.
+  col_base++;
+  for (col = 1; col < width; ++col, ++col_base) {
+    // Use cur_idx and prev_idx to update accumulate buffer appropriately.
+    const int cl = col_base - tskip_length;
+    // Currently, the buffer 'directional_feature_accumulator' is used to hold
+    // the accumulated (from the 0th to start of the block position) gradient
+    // values corresponds to each direction. These accumulated values are used
+    // to derive a different filter index for each PC_WIENER_BLOCK_SIZE. Hence,
+    // the accumulated result is kept once for each PC_WIENER_BLOCK_SIZE
+    // samples. Here, cur_idx and prev_idx are used to update this accumulate
+    // buffer appropriately.
+    const int cur_idx = (col + PC_WIENER_BLOCK_SIZE - 1) / PC_WIENER_BLOCK_SIZE;
+    const int prev_idx =
+        (col + PC_WIENER_BLOCK_SIZE - 2) / PC_WIENER_BLOCK_SIZE;
+    const int cur_diff = tskip_sum_buf[col_base] - tskip_sum_buf[cl];
+    tskip_feature_accum[cur_idx] = tskip_feature_accum[prev_idx] + cur_diff;
+  }
+}
+
+// Accumulates tskip over a window of rows centered at row. If use_strict_bounds
+// is false tskip must have valid data extending for rows from
+// [row_begin, row_end) where,
+//    row_begin = row - PC_WIENER_TSKIP_LENGTH / 2
+//    row_end = row + PC_WIENER_TSKIP_LENGTH / 2 + 1.
+// This version of the routine assumes use_strict_bounds is true.
+void av1_fill_tskip_sum_buffer_c(int row, const uint8_t *tskip,
+                                 int tskip_stride, int8_t *tx_skip_sum_buffer,
+                                 int width, int height, int tskip_lead,
+                                 int tskip_lag, bool use_strict_bounds) {
+  // TODO(oguleryuz): tskip needs boundary extension.
+  assert(use_strict_bounds == true);
+  (void)use_strict_bounds;
+  const int tskip_length = tskip_lead + tskip_lag + 1;
+  // The buffer 'tskip' holds binary values (0, 1) and 'tskip_sum_buffer'
+  // accumulates the values in 'tskip' buffer for 'height + tskip_length - 1'
+  // times. Thus, the highest positive value possible in 'tskip_sum_buffer' is
+  // 'height + tskip_length - 1'. As 'tskip_sum_buffer' is 8-bit signed integer
+  // type 'height + tskip_length - 1' should be less than 127.
+  assert((tskip_length + height) <= 127);
+  const int col_begin = -tskip_lead;
+  const int col_end = width + tskip_lag;
+  const int clamped_row = AOMMAX(AOMMIN(row, height - 1), 0);
+
+  int buffer_col = 0;
+  int tskip_id_base = (clamped_row >> MI_SIZE_LOG2) * tskip_stride;
+  int left_tskip_id = tskip_id_base + (0 >> MI_SIZE_LOG2);
+  for (int col = col_begin; col < 0; ++col) {
+    tx_skip_sum_buffer[buffer_col] += tskip[left_tskip_id];
+    ++buffer_col;
+  }
+#if defined(__GCC__)
+#pragma GCC ivdep
+#endif
+  for (int col = 0; col < (width >> MI_SIZE_LOG2); ++col) {
+    const uint8_t tskip_val = tskip[tskip_id_base + col];
+
+    for (int i = 0; i < (1 << MI_SIZE_LOG2); ++i) {
+      tx_skip_sum_buffer[buffer_col] += tskip_val;
+      ++buffer_col;
+    }
+  }
+
+  for (int col = (width >> MI_SIZE_LOG2) << MI_SIZE_LOG2; col < width; ++col) {
+    int tskip_id = tskip_id_base + (col >> MI_SIZE_LOG2);
+    tx_skip_sum_buffer[buffer_col] += tskip[tskip_id];
+    ++buffer_col;
+  }
+  int right_tskip_id = tskip_id_base + ((width - 1) >> MI_SIZE_LOG2);
+  for (int col = width; col < col_end; ++col) {
+    tx_skip_sum_buffer[buffer_col] += tskip[right_tskip_id];
+    ++buffer_col;
+  }
+
+  int subtract_row = row - tskip_length;
+  if (subtract_row >= -tskip_lead) {
+    assert(subtract_row <= height - 1);
+    subtract_row = subtract_row >= 0 ? subtract_row : 0;
+    buffer_col = 0;
+    tskip_id_base = (subtract_row >> MI_SIZE_LOG2) * tskip_stride;
+    left_tskip_id = tskip_id_base + (0 >> MI_SIZE_LOG2);
+    for (int col = col_begin; col < 0; ++col) {
+      tx_skip_sum_buffer[buffer_col] -= tskip[left_tskip_id];
+      ++buffer_col;
+    }
+#if defined(__GCC__)
+#pragma GCC ivdep
+#endif
+    for (int col = 0; col < (width >> MI_SIZE_LOG2); ++col) {
+      const uint8_t tskip_val = tskip[tskip_id_base + col];
+
+      for (int i = 0; i < (1 << MI_SIZE_LOG2); ++i) {
+        tx_skip_sum_buffer[buffer_col] -= tskip_val;
+        ++buffer_col;
+      }
+    }
+    for (int col = (width >> MI_SIZE_LOG2) << MI_SIZE_LOG2; col < width;
+         ++col) {
+      int tskip_id = tskip_id_base + (col >> MI_SIZE_LOG2);
+      tx_skip_sum_buffer[buffer_col] -= tskip[tskip_id];
+      ++buffer_col;
+    }
+    right_tskip_id = tskip_id_base + ((width - 1) >> MI_SIZE_LOG2);
+    for (int col = width; col < col_end; ++col) {
+      tx_skip_sum_buffer[buffer_col] -= tskip[right_tskip_id];
+      ++buffer_col;
+    }
+  }
+}
+#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+
+void av1_convolve_symmetric_dual_highbd_c(
+    const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
+    int dgd_dual_stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_row_end, int block_col_begin,
+    int block_col_end) {
+  assert(!filter_config->subtract_center);
+  const int num_sym_taps = filter_config->num_pixels / 2;
+  const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
+  int32_t singleton_tap = 1 << filter_config->prec_bits;
+  if (filter_config->num_pixels % 2) {
+    // Center-tap is unconstrained.
+    const int singleton_tap_index =
+        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+    singleton_tap += filter[singleton_tap_index];
+  }
+
+  // Begin compute conveniences.
+  // Based on filter_config allocate/compute once. Relocate elsewhere as needed.
+  // filter_config will change rarely and the core-functionality block will be
+  // called many times with the same filter_config. If any compute conveniences
+  // are utilzied it is advisable to put them elsewhere to be called when
+  // filter_config changes.
+  assert(num_sym_taps <= 24);
+  int16_t compute_buffer[24];
+  int pixel_offset_diffs[24];
+  for (int k = 0; k < num_sym_taps; ++k) {
+    const int r = filter_config->config[2 * k][NONSEP_ROW_ID];
+    const int c = filter_config->config[2 * k][NONSEP_COL_ID];
+    const int diff = r * dgd_stride + c;
+    pixel_offset_diffs[k] = diff;
+  }
+  assert(num_sym_taps_dual <= 24);
+  int16_t compute_buffer_dual[24];
+  int pixel_offset_diffs_dual[24];
+  for (int k = 0; k < num_sym_taps_dual; ++k) {
+    const int r = filter_config->config2[2 * k][NONSEP_ROW_ID];
+    const int c = filter_config->config2[2 * k][NONSEP_COL_ID];
+    const int diff = r * dgd_dual_stride + c;
+    pixel_offset_diffs_dual[k] = diff;
+  }
+  // The dual channel may have a (0, 0) offset, in which case it must be the
+  // last one.
+  int32_t singleton_tap_dual = 0;
+  if (filter_config->num_pixels2 % 2) {
+    const int last_config = filter_config->num_pixels2 - 1;
+    assert(filter_config->config2[last_config][NONSEP_ROW_ID] == 0 &&
+           filter_config->config2[last_config][NONSEP_COL_ID] == 0);
+    const int singleton_tap_index =
+        filter_config->config2[last_config][NONSEP_BUF_POS];
+    singleton_tap_dual += filter[singleton_tap_index];
+  }
+  // End compute conveniences.
+
+  // Begin core-functionality that will be called many times.
+  for (int r = block_row_begin; r < block_row_end; ++r) {
+    for (int c = block_col_begin; c < block_col_end; ++c) {
+      int dgd_id = r * dgd_stride + c;
+      int dgd_dual_id = r * dgd_dual_stride + c;
+
+      // Two loops for a potential data cache miss.
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int diff = pixel_offset_diffs[k];
+        const int16_t tmp_sum = dgd[dgd_id - diff];
+        compute_buffer[k] = tmp_sum;  // 16-bit
+      }
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int diff = pixel_offset_diffs[k];
+        const int16_t tmp_sum = dgd[dgd_id + diff];
+        compute_buffer[k] += tmp_sum;  // 16-bit arithmetic.
+      }
+      // Two loops for a potential data cache miss.
+      for (int k = 0; k < num_sym_taps_dual; ++k) {
+        const int diff = pixel_offset_diffs_dual[k];
+        const int16_t tmp_sum = dgd_dual[dgd_dual_id - diff];
+        compute_buffer_dual[k] = tmp_sum;  // 16-bit
+      }
+      for (int k = 0; k < num_sym_taps_dual; ++k) {
+        const int diff = pixel_offset_diffs_dual[k];
+        const int16_t tmp_sum = dgd_dual[dgd_dual_id + diff];
+        compute_buffer_dual[k] += tmp_sum;  // 16-bit arithmetic.
+      }
+
+      // Handle singleton tap.
+      int32_t tmp = singleton_tap * dgd[dgd_id];
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int pos = filter_config->config[2 * k][NONSEP_BUF_POS];
+        tmp += (int32_t)filter[pos] * compute_buffer[k];  // 32-bit arithmetic.
+      }
+
+      tmp += singleton_tap_dual * dgd_dual[dgd_dual_id];
+      for (int k = 0; k < num_sym_taps_dual; ++k) {
+        const int pos = filter_config->config2[2 * k][NONSEP_BUF_POS];
+        tmp += (int32_t)filter[pos] *
+               compute_buffer_dual[k];  // 32-bit arithmetic.
+      }
+
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, filter_config->prec_bits);
+
+      int dst_id = r * dst_stride + c;
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+}
+
+void av1_convolve_symmetric_dual_subtract_center_highbd_c(
+    const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
+    int dgd_dual_stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_row_end, int block_col_begin,
+    int block_col_end) {
+  assert(filter_config->subtract_center);
+  const int num_sym_taps = filter_config->num_pixels / 2;
+  const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
+  int32_t singleton_tap = 1 << filter_config->prec_bits;
+  int32_t dc_offset = 0;
+  if (filter_config->num_pixels % 2) {
+    const int dc_offset_tap_index =
+        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+    dc_offset = filter[dc_offset_tap_index];
+  }
+
+  for (int i = block_row_begin; i < block_row_end; ++i) {
+    for (int j = block_col_begin; j < block_col_end; ++j) {
+      int dgd_id = i * dgd_stride + j;
+      int dgd_dual_id = i * dgd_dual_stride + j;
+      int dst_id = i * dst_stride + j;
+      int32_t tmp = (int32_t)dgd[dgd_id] * singleton_tap + dc_offset;
+      for (int k = 0; k < num_sym_taps; ++k) {
+        const int pos = filter_config->config[2 * k][NONSEP_BUF_POS];
+        const int r = filter_config->config[2 * k][NONSEP_ROW_ID];
+        const int c = filter_config->config[2 * k][NONSEP_COL_ID];
+        const int diff = r * dgd_stride + c;
+        int16_t tmp_sum =
+            clip_base(dgd[i * dgd_stride + j + diff] - dgd[dgd_id], bit_depth);
+        tmp_sum +=
+            clip_base(dgd[i * dgd_stride + j - diff] - dgd[dgd_id], bit_depth);
+        tmp += filter[pos] * tmp_sum;
+      }
+      for (int k = 0; k < num_sym_taps_dual; ++k) {
+        const int pos = filter_config->config2[2 * k][NONSEP_BUF_POS];
+        const int r = filter_config->config2[2 * k][NONSEP_ROW_ID];
+        const int c = filter_config->config2[2 * k][NONSEP_COL_ID];
+        const int diff = r * dgd_dual_stride + c;
+        int16_t tmp_sum = clip_base(
+            dgd_dual[i * dgd_dual_stride + j + diff] - dgd_dual[dgd_dual_id],
+            bit_depth);
+        tmp_sum += clip_base(
+            dgd_dual[i * dgd_dual_stride + j - diff] - dgd_dual[dgd_dual_id],
+            bit_depth);
+
+        tmp += filter[pos] * tmp_sum;
+      }
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, filter_config->prec_bits);
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+}
+
+void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
+                                     int stride, const uint16_t *dgd2,
+                                     int stride2,
+                                     const NonsepFilterConfig *nsfilter,
+                                     const int16_t *filter, uint16_t *dst,
+                                     int dst_stride, int bit_depth) {
+#if USE_CONV_SYM_VERSIONS
+  assert(nsfilter->strict_bounds == false);
+  if (nsfilter->subtract_center)
+    av1_convolve_symmetric_dual_subtract_center_highbd(
+        dgd, stride, dgd2, stride2, nsfilter, filter, dst, dst_stride,
+        bit_depth, 0, height, 0, width);
+  else
+    av1_convolve_symmetric_dual_highbd(dgd, stride, dgd2, stride2, nsfilter,
+                                       filter, dst, dst_stride, bit_depth, 0,
+                                       height, 0, width);
+#else
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      int dgd_id = i * stride + j;
+      int dgd2_id = i * stride2 + j;
+      int dst_id = i * dst_stride + j;
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
+      for (int k = 0; k < nsfilter->num_pixels; ++k) {
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        if (r == 0 && c == 0) {
+          tmp += filter[pos];
+          continue;
+        }
+        const int ir = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(i + r, height - 1), 0)
+                           : i + r;
+        const int jc = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(j + c, width - 1), 0)
+                           : j + c;
+        int16_t diff = clip_base(
+            (int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id], bit_depth);
+        tmp += filter[pos] * diff;
+      }
+      for (int k = 0; k < nsfilter->num_pixels2; ++k) {
+        const int pos = nsfilter->config2[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config2[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config2[k][NONSEP_COL_ID];
+        const int ir = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(i + r, height - 1), 0)
+                           : i + r;
+        const int jc = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(j + c, width - 1), 0)
+                           : j + c;
+        int16_t diff = clip_base(
+            (int16_t)dgd2[(ir)*stride2 + (jc)] - (int16_t)dgd2[dgd2_id],
+            bit_depth);
+        tmp += filter[pos] * diff;
+      }
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+#endif  // USE_CONV_SYM_VERSIONS
+}
+
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT

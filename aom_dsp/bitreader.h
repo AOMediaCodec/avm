@@ -23,6 +23,9 @@
 #include "aom_dsp/entdec.h"
 #include "aom_dsp/prob.h"
 #include "av1/common/odintrin.h"
+#if ENABLE_LR_4PART_CODE
+#include "aom_dsp/recenter.h"
+#endif  // ENABLE_LR_4PART_CODE
 
 #if CONFIG_BITSTREAM_DEBUG
 #include "aom_util/debug_util.h"
@@ -59,6 +62,13 @@
 #define aom_read_unary(r, bits, ACCT_STR_NAME) \
   aom_read_unary_(r, bits ACCT_STR_ARG(ACCT_STR_NAME))
 #endif  // CONFIG_BYPASS_IMPROVEMENT
+
+#if ENABLE_LR_4PART_CODE
+#define aom_read_4part(r, cdf, nsymb_bits, ACCT_STR_NAME) \
+  aom_read_4part_(r, cdf, nsymb_bits ACCT_STR_ARG(ACCT_STR_NAME))
+#define aom_read_4part_wref(r, ref_symb, cdf, nsymb_bits, ACCT_STR_NAME) \
+  aom_read_4part_wref_(r, ref_symb, cdf, nsymb_bits ACCT_STR_ARG(ACCT_STR_NAME))
+#endif  // ENABLE_LR_4PART_CODE
 
 #ifdef __cplusplus
 extern "C" {
@@ -308,6 +318,35 @@ static INLINE int aom_read_symbol_(aom_reader *r, aom_cdf_prob *cdf,
   if (r->allow_update_cdf) update_cdf(cdf, ret, nsymbs);
   return ret;
 }
+
+#if ENABLE_LR_4PART_CODE
+// Implements a code where a symbol with an alphabet size a power of 2 with
+// nsymb_bits bits (with nsymb_bits >= 3), is coded by decomposing the symbol
+// into 4 parts convering 1/8, 1/8, 1/4, 1/2 of the total number of symbols.
+// The part is arithmetically coded using the provided cdf of size 4. The
+// offset within each part is coded using fixed length binary codes with
+// (nsymb_bits - 3), (nsymb_bits - 3), (nsymb_bits - 2) or (nsymb_bits - 1)
+// bits, depending on the part.
+static INLINE int aom_read_4part_(aom_reader *r, aom_cdf_prob *cdf,
+                                  int nsymb_bits ACCT_STR_PARAM) {
+  assert(nsymb_bits >= 3);
+  int part_bits[4] = { (nsymb_bits - 3), (nsymb_bits - 3), (nsymb_bits - 2),
+                       (nsymb_bits - 1) };
+  int part_offs[4] = { 0, 1 << (nsymb_bits - 3), 1 << (nsymb_bits - 2),
+                       1 << (nsymb_bits - 1) };
+  const int part = aom_read_symbol(r, cdf, 4, ACCT_STR_NAME);
+  return aom_read_literal(r, part_bits[part], ACCT_STR_NAME) + part_offs[part];
+}
+
+// Implements a nsymb_bits bit 4-part code that codes a symbol symb given a
+// reference ref_symb after recentering symb around ref_symb.
+static INLINE int aom_read_4part_wref_(aom_reader *r, int ref_symb,
+                                       aom_cdf_prob *cdf,
+                                       int nsymb_bits ACCT_STR_PARAM) {
+  const int symb = aom_read_4part(r, cdf, nsymb_bits, ACCT_STR_PARAM);
+  return inv_recenter_finite_nonneg(1 << nsymb_bits, ref_symb, symb);
+}
+#endif  // ENABLE_LR_4PART_CODE
 
 #ifdef __cplusplus
 }  // extern "C"
