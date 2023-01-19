@@ -4570,6 +4570,20 @@ static int64_t handle_inter_mode(
   }
 #endif
 #else
+#if CONFIG_BAWP
+  inter_mode_info mode_info[2][MAX_REF_MV_SEARCH];
+  // initialize mode_info
+  for (int bawp = 0; bawp < 2; bawp++) {
+    for (int idx = 0; idx < MAX_REF_MV_SEARCH; idx++) {
+      mode_info[bawp][idx].full_search_mv.as_int = INVALID_MV;
+      mode_info[bawp][idx].mv.as_int = INVALID_MV;
+      mode_info[bawp][idx].rd = INT64_MAX;
+      mode_info[bawp][idx].drl_cost = 0;
+      mode_info[bawp][idx].rate_mv = 0;
+      mode_info[bawp][idx].full_mv_rate = 0;
+    }
+  }
+#else
   inter_mode_info mode_info[MAX_REF_MV_SEARCH];
   for (int idx = 0; idx < MAX_REF_MV_SEARCH; idx++) {
     mode_info[idx].full_search_mv.as_int = INVALID_MV;
@@ -4579,6 +4593,7 @@ static int64_t handle_inter_mode(
     mode_info[idx].rate_mv = 0;
     mode_info[idx].full_mv_rate = 0;
   }
+#endif
 #endif
 
 #if CONFIG_BAWP
@@ -4615,8 +4630,22 @@ static int64_t handle_inter_mode(
   const int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
 #if !CONFIG_FLEX_MVRES
+#if CONFIG_BAWP
+  int idx_mask[2] = { 0, 0 };
+  mbmi->bawp_flag = 0;
+  idx_mask[0] = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
+                                     mode_info[0], bsize, ref_set);
+  if (cm->features.enable_bawp &&
+      av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+    mbmi->bawp_flag = 1;
+    idx_mask[1] = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
+                                       mode_info[1], bsize, ref_set);
+  }
+  mbmi->bawp_flag = 0;
+#else
   const int idx_mask = ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
                                             mode_info, bsize, ref_set);
+#endif
 #endif
 
   const ModeCosts *mode_costs = &x->mode_costs;
@@ -4828,7 +4857,7 @@ static int64_t handle_inter_mode(
 #endif
 #endif
 
-#if !CONFIG_FLEX_MVRES
+#if !CONFIG_FLEX_MVRES && !CONFIG_BAWP
         mode_info[ref_mv_idx].full_search_mv.as_int = INVALID_MV;
         mode_info[ref_mv_idx].mv.as_int = INVALID_MV;
         mode_info[ref_mv_idx].rd = INT64_MAX;
@@ -4841,6 +4870,8 @@ static int64_t handle_inter_mode(
           // MV did not perform well in simple translation search. Skip it.
           continue;
         }
+#endif  // !CONFIG_FLEX_MVRES && !CONFIG_BAWP
+#if !CONFIG_FLEX_MVRES
         if (prune_modes_based_on_tpl && !ref_match_found_in_above_nb &&
             !ref_match_found_in_left_nb && (ref_best_rd != INT64_MAX)) {
           // Skip mode if TPL model indicates it will not be beneficial.
@@ -4864,8 +4895,13 @@ static int64_t handle_inter_mode(
             get_drl_cost(cm->features.max_drl_bits, mbmi, mbmi_ext, x);
 
         rd_stats->rate += drl_cost;
-        mode_info[ref_mv_idx].drl_cost = drl_cost;
+#if CONFIG_BAWP
+        mode_info[0][ref_mv_idx].drl_cost = drl_cost;
+        mode_info[1][ref_mv_idx].drl_cost = drl_cost;
+#else
+      mode_info[ref_mv_idx].drl_cost = drl_cost;
 #endif
+#endif  //! CONFIG_FLEX_MVRES
 
         int rs = 0;
         int compmode_interinter_cost = 0;
@@ -4934,6 +4970,7 @@ static int64_t handle_inter_mode(
         for (int bawp_flag = 0; bawp_flag <= bawp_eanbled; bawp_flag++) {
           mbmi->bawp_flag = bawp_flag;
 
+#if CONFIG_FLEX_MVRES
           mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx]
               .full_search_mv.as_int = INVALID_MV;
           mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx].mv.as_int =
@@ -4952,19 +4989,40 @@ static int64_t handle_inter_mode(
             // MV did not perform well in simple translation search. Skip it.
             continue;
           }
+#else
+        mode_info[bawp_flag][ref_mv_idx].full_search_mv.as_int = INVALID_MV;
+        mode_info[bawp_flag][ref_mv_idx].mv.as_int = INVALID_MV;
+        mode_info[bawp_flag][ref_mv_idx].rd = INT64_MAX;
+        mode_info[bawp_flag][ref_mv_idx].drl_cost = drl_cost;
+
+        if (
+#if CONFIG_WARPMV
+            mbmi->mode != WARPMV &&
+#endif  // CONFIG_WARPMV
+            !mask_check_bit(idx_mask[bawp_flag], ref_mv_idx)) {
+          // MV did not perform well in simple translation search. Skip it.
+          continue;
+        }
+#endif  // CONFIG_FLEX_MVRES
           if (mbmi->bawp_flag == 1) {
             for (i = 0; i < is_comp_pred + 1; ++i) {
               mbmi->mv[i].as_int = bawp_off_mv[i].as_int;
               cur_mv[i].as_int = bawp_off_mv[i].as_int;
             }
 
+#if CONFIG_FLEX_MVRES
             mode_info[1][mbmi->pb_mv_precision][ref_mv_idx]
                 .full_search_mv.as_int =
                 mode_info[0][mbmi->pb_mv_precision][ref_mv_idx]
                     .full_search_mv.as_int;
             mode_info[1][mbmi->pb_mv_precision][ref_mv_idx].full_mv_rate =
                 mode_info[0][mbmi->pb_mv_precision][ref_mv_idx].full_mv_rate;
-
+#else
+          mode_info[1][ref_mv_idx].full_search_mv.as_int =
+              mode_info[0][ref_mv_idx].full_search_mv.as_int;
+          mode_info[1][ref_mv_idx].full_mv_rate =
+              mode_info[0][ref_mv_idx].full_mv_rate;
+#endif  // CONFIG_FLEX_MVRES
             if (bawp_off_newmv_ret_val != 0) continue;
           } else {
 #endif
@@ -4983,7 +5041,11 @@ static int64_t handle_inter_mode(
                              mode_info[mbmi->pb_mv_precision]);
 #endif
 #else
+#if CONFIG_BAWP
+                       mode_info[bawp_flag]);
+#else
                        mode_info);
+#endif
 #endif
 #if CONFIG_COLLECT_COMPONENT_TIMING
               end_timing(cpi, handle_newmv_time);
@@ -5049,11 +5111,19 @@ static int64_t handle_inter_mode(
                     drl_cost, refs, cur_mv, &best_rd, orig_dst, ref_mv_idx))
 #else
       if (cpi->sf.inter_sf.skip_repeated_newmv &&
-          skip_repeated_newmv(cpi, x, bsize, do_tx_search, this_mode,
-                              &best_mbmi, motion_mode_cand, &ref_best_rd,
-                              &best_rd_stats, &best_rd_stats_y,
-                              &best_rd_stats_uv, mode_info, args, drl_cost,
-                              refs, cur_mv, &best_rd, orig_dst, ref_mv_idx))
+          skip_repeated_newmv(
+              cpi, x, bsize, do_tx_search, this_mode,
+#if CONFIG_BAWP
+              mbmi->bawp_flag,
+#endif
+              &best_mbmi, motion_mode_cand, &ref_best_rd, &best_rd_stats,
+              &best_rd_stats_y, &best_rd_stats_uv,
+#if CONFIG_BAWP
+              mode_info[bawp_flag],
+#else
+              mode_info,
+#endif
+              args, drl_cost, refs, cur_mv, &best_rd, orig_dst, ref_mv_idx))
 #endif
               continue;
           }
@@ -5306,13 +5376,22 @@ static int64_t handle_inter_mode(
           }
 #endif
 #else
+#if CONFIG_BAWP
+      if (tmp_rd < mode_info[bawp_flag][ref_mv_idx].rd) {
+        // Only update mode_info if the new result is actually better.
+        mode_info[bawp_flag][ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
+        mode_info[bawp_flag][ref_mv_idx].rate_mv = rate_mv;
+        mode_info[bawp_flag][ref_mv_idx].rd = tmp_rd;
+      }
+#else
       if (tmp_rd < mode_info[ref_mv_idx].rd) {
         // Only update mode_info if the new result is actually better.
         mode_info[ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
         mode_info[ref_mv_idx].rate_mv = rate_mv;
         mode_info[ref_mv_idx].rd = tmp_rd;
       }
-#endif
+#endif  // CONFIG_BAWP
+#endif  // CONFIG_FLEX_MVRES
 
             // Collect mode stats for multiwinner mode processing
             store_winner_mode_stats(
