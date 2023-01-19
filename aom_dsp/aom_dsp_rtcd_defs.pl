@@ -550,13 +550,15 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   #
   #
   add_proto qw/void aom_highbd_upsampled_pred/, "MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,
-                                                   const MV *const mv, uint8_t *comp_pred8, int width, int height, int subpel_x_q3,
-                                                   int subpel_y_q3, const uint8_t *ref8, int ref_stride, int bd, int subpel_search";
+                                                 const MV *const mv, uint8_t *comp_pred8, int width, int height, int subpel_x_q3,
+                                                 int subpel_y_q3, const uint8_t *ref8, int ref_stride, int bd, int subpel_search,
+						 int is_scaled_ref";
   specialize qw/aom_highbd_upsampled_pred sse2/;
 
   add_proto qw/void aom_highbd_comp_avg_upsampled_pred/, "MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,
                                                           const MV *const mv, uint8_t *comp_pred8, const uint8_t *pred8, int width,
-                                                          int height, int subpel_x_q3, int subpel_y_q3, const uint8_t *ref8, int ref_stride, int bd, int subpel_search";
+                                                          int height, int subpel_x_q3, int subpel_y_q3, const uint8_t *ref8, int ref_stride,
+							  int bd, int subpel_search";
   specialize qw/aom_highbd_comp_avg_upsampled_pred sse2/;
 
   add_proto qw/void aom_highbd_dist_wtd_comp_avg_upsampled_pred/, "MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,

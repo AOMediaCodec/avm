@@ -246,7 +246,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
         // ref
         aom_highbd_upsampled_pred_c(
             NULL, NULL, 0, 0, NULL, CONVERT_TO_BYTEPTR(comp_pred1_), w, h, subx,
-            suby, CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, bd_, subpel_search);
+            suby, CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, bd_, subpel_search, 0);
 
         aom_highbd_comp_mask_pred_c(
             CONVERT_TO_BYTEPTR(comp_pred1_), CONVERT_TO_BYTEPTR(pred_), w, h,
@@ -255,7 +255,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
         // test
         aom_highbd_upsampled_pred(
             NULL, NULL, 0, 0, NULL, CONVERT_TO_BYTEPTR(comp_pred2_), w, h, subx,
-            suby, CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, bd_, subpel_search);
+            suby, CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, bd_, subpel_search, 0);
 
         aom_highbd_comp_mask_pred(
             CONVERT_TO_BYTEPTR(comp_pred2_), CONVERT_TO_BYTEPTR(pred_), w, h,

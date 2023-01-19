@@ -1222,6 +1222,7 @@ void av1_resize_and_extend_frame_c(const YV12_BUFFER_CONFIG *src,
       }
     }
   }
+  aom_extend_frame_borders(dst, num_planes);
 }
 
 void av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,

@@ -2765,6 +2765,9 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
 
   unsigned int besterr;
 
+  const int is_scaled_ref = ms_buffers->src->width == ms_buffers->ref->width &&
+                            ms_buffers->src->height == ms_buffers->ref->height;
+
   DECLARE_ALIGNED(16, uint16_t, pred16[MAX_SB_SQUARE]);
   uint8_t *pred8 = CONVERT_TO_BYTEPTR(pred16);
   if (second_pred != NULL) {
@@ -2782,7 +2785,7 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
   } else {
     aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, this_mv, pred8, w, h,
                               subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd,
-                              subpel_search_type);
+                              subpel_search_type, is_scaled_ref);
   }
   besterr = vfp->vf(pred8, w, src, src_stride, sse);
 
@@ -4145,7 +4148,7 @@ static int upsampled_obmc_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
   uint8_t *pred8 = CONVERT_TO_BYTEPTR(pred);
   aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, this_mv, pred8, w, h,
                             subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd,
-                            subpel_search_type);
+                            subpel_search_type, 0);
   besterr = vfp->ovf(pred8, w, wsrc, mask, sse);
 
   return besterr;
