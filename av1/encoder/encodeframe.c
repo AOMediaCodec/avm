@@ -1309,6 +1309,19 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    tip_common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif  // CONFIG_REFINEMV
+
   // These are part of the function signature to use this function through a
   // function pointer. See typedef of 'CalcSubpelParamsFunc'.
   (void)xd;
@@ -1361,6 +1374,12 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
   } else {
     int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+
+#if CONFIG_REFINEMV
+    const int bw = inter_pred_params->original_pu_width;
+    const int bh = inter_pred_params->original_pu_height;
+
+#else
 #if CONFIG_OPTFLOW_REFINEMENT
     // Use original block size to clamp MV and to extend block boundary
     const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
@@ -1371,6 +1390,8 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
     const int bw = inter_pred_params->block_width;
     const int bh = inter_pred_params->block_height;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#endif  // CONFIG_REFINEMV
     const MV mv_q4 = tip_clamp_mv_to_umv_border_sb(
         inter_pred_params, src_mv, bw, bh,
 #if CONFIG_OPTFLOW_REFINEMENT

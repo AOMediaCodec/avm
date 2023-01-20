@@ -602,10 +602,15 @@ static AOM_INLINE void tip_highbd_inter_predictor(
   }
 }
 
-static AOM_INLINE void tip_build_one_inter_predictor(
-    uint16_t *dst, int dst_stride, const MV *const src_mv,
-    InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
-    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func) {
+#if !CONFIG_REFINEMV
+static AOM_INLINE
+#endif  //! CONFIG_REFINEMV
+    void
+    tip_build_one_inter_predictor(
+        uint16_t *dst, int dst_stride, const MV *const src_mv,
+        InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
+        int ref, uint16_t **mc_buf,
+        CalcSubpelParamsFunc calc_subpel_params_func) {
   SubpelParams subpel_params;
   uint16_t *src;
   int src_stride;
@@ -622,8 +627,8 @@ static AOM_INLINE void tip_build_one_inter_predictor(
       inter_pred_params->bit_depth);
 }
 
-#if CONFIG_OPTFLOW_ON_TIP
-#define MAKE_BFP_SAD_WRAPPER_COMMON(fnname)                                   \
+#if CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
+#define MAKE_BFP_SAD_WRAPPER_COMMON8x8(fnname)                                \
   static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
                                  const uint16_t *ref_ptr, int ref_stride) {   \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
@@ -637,31 +642,119 @@ static AOM_INLINE void tip_build_one_inter_predictor(
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
   }
 
-MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad8x8)
+MAKE_BFP_SAD_WRAPPER_COMMON8x8(aom_highbd_sad8x8)
+#define MAKE_BFP_SAD_WRAPPER_COMMON16x8(fnname)                               \
+  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
+                                 const uint16_t *ref_ptr, int ref_stride) {   \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
+  }                                                                           \
+  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
+  }                                                                           \
+  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
+  }
 
-// Get the proper sad calculation function for an 8x8 block
-static unsigned int get_highbd_sad_8X8(const uint16_t *src_ptr,
-                                       int source_stride,
-                                       const uint16_t *ref_ptr, int ref_stride,
-                                       int bd) {
+    MAKE_BFP_SAD_WRAPPER_COMMON16x8(aom_highbd_sad16x8)
+
+#define MAKE_BFP_SAD_WRAPPER_COMMON8x16(fnname)                               \
+  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
+                                 const uint16_t *ref_ptr, int ref_stride) {   \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
+  }                                                                           \
+  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
+  }                                                                           \
+  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
+  }
+
+        MAKE_BFP_SAD_WRAPPER_COMMON8x16(aom_highbd_sad8x16)
+
+#define MAKE_BFP_SAD_WRAPPER_COMMON16x16(fnname)                              \
+  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
+                                 const uint16_t *ref_ptr, int ref_stride) {   \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
+  }                                                                           \
+  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
+  }                                                                           \
+  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
+  }
+
+            MAKE_BFP_SAD_WRAPPER_COMMON16x16(aom_highbd_sad16x16)
+
+                unsigned int get_highbd_sad(const uint16_t *src_ptr,
+                                            int source_stride,
+                                            const uint16_t *ref_ptr,
+                                            int ref_stride, int bd, int bw,
+                                            int bh) {
   if (bd == 8) {
-    return aom_highbd_sad8x8_8(src_ptr, source_stride, ref_ptr, ref_stride);
+    if (bw == 8 && bh == 8)
+      return aom_highbd_sad8x8_8(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 16 && bh == 8)
+      return aom_highbd_sad16x8_8(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 8 && bh == 16)
+      return aom_highbd_sad8x16_8(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 16 && bh == 16)
+      return aom_highbd_sad16x16_8(src_ptr, source_stride, ref_ptr, ref_stride);
+    else {
+      assert(0);
+      return 0;
+    }
   } else if (bd == 10) {
-    return aom_highbd_sad8x8_10(src_ptr, source_stride, ref_ptr, ref_stride);
+    if (bw == 8 && bh == 8)
+      return aom_highbd_sad8x8_10(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 16 && bh == 8)
+      return aom_highbd_sad16x8_10(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 8 && bh == 16)
+      return aom_highbd_sad8x16_10(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 16 && bh == 16)
+      return aom_highbd_sad16x16_10(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
+    else {
+      assert(0);
+      return 0;
+    }
   } else if (bd == 12) {
-    return aom_highbd_sad8x8_12(src_ptr, source_stride, ref_ptr, ref_stride);
+    if (bw == 8 && bh == 8)
+      return aom_highbd_sad8x8_12(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 16 && bh == 8)
+      return aom_highbd_sad16x8_12(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 8 && bh == 16)
+      return aom_highbd_sad8x16_12(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 16 && bh == 16)
+      return aom_highbd_sad16x16_12(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
+    else {
+      assert(0);
+      return 0;
+    }
   } else {
     assert(0);
     return 0;
   }
 }
-
 // Build an 8x8 block in the TIP frame
 static AOM_INLINE void tip_build_inter_predictors_8x8(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, TIP_PLANE *tip_plane,
     const MV mv[2], int mi_x, int mi_y, uint16_t **mc_buf,
     CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func,
-    uint16_t *dst, int dst_stride) {
+    uint16_t *dst, int dst_stride
+#if CONFIG_REFINEMV
+    ,
+    uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv,
+    ReferenceArea ref_area[2]
+#endif  // CONFIG_REFINEMV
+
+) {
   // TODO(any): currently this only works for y plane
   assert(plane == 0);
 
@@ -696,6 +789,29 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
+#if CONFIG_FLEX_MVRES
+  mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+  mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+#endif
+
+#if CONFIG_REFINEMV
+  MV best_mv_ref[2] = { { mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col },
+                        { mbmi->mv[1].as_mv.row, mbmi->mv[1].as_mv.col } };
+
+  int apply_refinemv = (is_refinemv_allowed_tip_blocks(cm, mbmi) && plane == 0);
+
+  if (apply_refinemv) {
+    uint16_t *dst_ref0 = NULL, *dst_ref1 = NULL;
+    dst_ref0 = &dst0_16_refinemv[0];
+    dst_ref1 = &dst1_16_refinemv[0];
+    mbmi->refinemv_flag = 1;
+
+    apply_mv_refinement(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, mc_buf,
+                        calc_subpel_params_func, comp_pixel_x, comp_pixel_y,
+                        dst_ref0, dst_ref1, best_mv_ref, bw, bh);
+  }
+
+#endif  // CONFIG_REFINEMV
 
   // Arrays to hold optical flow offsets.
   int vx0[4] = { 0 };
@@ -720,12 +836,22 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     InterPredParams params0, params1;
     av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
                                    mc_buf, &params0, calc_subpel_params_func, 0,
-                                   dst0);
+                                   dst0
+#if CONFIG_REFINEMV
+                                   ,
+                                   &best_mv_ref[0], bw, bh
+#endif  // CONFIG_REFINEMV
+    );
     av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
                                    mc_buf, &params1, calc_subpel_params_func, 1,
-                                   dst1);
-    const unsigned int sad = get_highbd_sad_8X8(dst0, bw, dst1, bw, bd);
+                                   dst1
+#if CONFIG_REFINEMV
+                                   ,
+                                   &best_mv_ref[1], bw, bh
+#endif  // CONFIG_REFINEMV
 
+    );
+    const unsigned int sad = get_highbd_sad(dst0, bw, dst1, bw, bd, 8, 8);
     if (sad < sad_thres) {
       do_opfl = 0;
     }
@@ -733,8 +859,13 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
   if (do_opfl) {
     // Initialize refined mv
+#if CONFIG_REFINEMV
+    const MV mv0 = best_mv_ref[0];
+    const MV mv1 = best_mv_ref[1];
+#else
     const MV mv0 = mv[0];
     const MV mv1 = mv[1];
+#endif  // CONFIG_REFINEMV
     for (int mvi = 0; mvi < 4; mvi++) {
       mv_refined[mvi * 2].as_mv = mv0;
       mv_refined[mvi * 2 + 1].as_mv = mv1;
@@ -744,7 +875,13 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     av1_get_optflow_based_mv_highbd(cm, xd, plane, mbmi, mv_refined, bw, bh,
                                     mi_x, mi_y, mc_buf, calc_subpel_params_func,
                                     gx0, gy0, gx1, gy1, vx0, vy0, vx1, vy1,
-                                    dst0, dst1, 0, use_4x4);
+                                    dst0, dst1, 0, use_4x4
+
+#if CONFIG_REFINEMV
+                                    ,
+                                    best_mv_ref, bw, bh
+#endif  // CONFIG_REFINEMV
+    );
   }
 
   for (int ref = 0; ref < 2; ++ref) {
@@ -755,6 +892,13 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, comp_pixel_y,
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
                           MULTITAP_SHARP);
+
+#if CONFIG_REFINEMV
+    if (apply_refinemv) {
+      inter_pred_params.use_ref_padding = 1;
+      inter_pred_params.ref_area = &ref_area[ref];
+    }
+#endif  // CONFIG_REFINEMV
 
     inter_pred_params.comp_mode = UNIFORM_COMP;
 
@@ -773,7 +917,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
           dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
           mi_y, ref, mc_buf, calc_subpel_params_func, use_4x4);
     } else {
-      tip_build_one_inter_predictor(dst, dst_stride, &mv[ref],
+      tip_build_one_inter_predictor(dst, dst_stride,
+#if CONFIG_REFINEMV
+                                    &best_mv_ref[ref],
+#else
+                                    &mv[ref],
+#endif  // CONFIG_REFINEMV
                                     &inter_pred_params, xd, mi_x, mi_y, ref,
                                     mc_buf, calc_subpel_params_func);
     }
@@ -782,7 +931,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   xd->tmp_conv_dst = org_buf;
   aom_free(mbmi);
 }
-#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
 
 static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, TIP_PLANE *tip_plane,
@@ -792,9 +941,44 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   struct buf_2d *const dst_buf = &tip->dst;
   uint16_t *const dst = dst_buf->buf;
 
-#if CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_REFINEMV
+  uint16_t dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+  uint16_t dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+  int apply_refinemv = (plane == 0);
+  ReferenceArea ref_area[2];
+  if (apply_refinemv) {
+    MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));
+    mbmi->mv[0].as_mv = mv[0];
+    mbmi->mv[1].as_mv = mv[1];
+    mbmi->ref_frame[0] = TIP_FRAME;
+    mbmi->ref_frame[1] = NONE_FRAME;
+    mbmi->interp_fltr = EIGHTTAP_REGULAR;
+    mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
+    mbmi->use_intrabc[0] = 0;
+    mbmi->motion_mode = SIMPLE_TRANSLATION;
+    mbmi->sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
+    mbmi->interinter_comp.type = COMPOUND_AVERAGE;
+#if CONFIG_FLEX_MVRES
+    mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+    mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+#endif
+    const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
+    const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
+    const int comp_pixel_x = (mi_x >> ss_x);
+    const int comp_pixel_y = (mi_y >> ss_y);
+    av1_get_reference_area_with_padding(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
+                                        ref_area, comp_pixel_x, comp_pixel_y);
+    aom_free(mbmi);
+  }
+#endif  // CONFIG_REFINEMV
+
   int dst_stride = dst_buf->stride;
-  if (plane == 0 && cm->features.use_optflow_tip) {
+  if (plane == 0 && (cm->features.use_optflow_tip
+#if CONFIG_REFINEMV
+                     || apply_refinemv
+#endif  // CONFIG_REFINEMV
+                     )) {
     if (bw != 8 || bh != 8) {
       for (int h = 0; h < bh; h += 8) {
         for (int w = 0; w < bw; w += 8) {
@@ -809,10 +993,15 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     }
     tip_build_inter_predictors_8x8(cm, xd, plane, tip_plane, mv, mi_x, mi_y,
                                    mc_buf, tmp_conv_dst,
-                                   calc_subpel_params_func, dst, dst_stride);
+                                   calc_subpel_params_func, dst, dst_stride
+#if CONFIG_REFINEMV
+                                   ,
+                                   dst0_16_refinemv, dst1_16_refinemv, ref_area
+#endif  // CONFIG_REFINEMV
+    );
     return;
   }
-#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
 
   const int bd = cm->seq_params.bit_depth;
 

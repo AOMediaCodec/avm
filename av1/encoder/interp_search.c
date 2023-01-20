@@ -125,6 +125,9 @@ static INLINE int get_switchable_rate(MACROBLOCK *const x,
   // to MULTITAP_SHARP, and thus is not switchable.
   assert(x->e_mbd.mi[0]->mode < NEAR_NEARMV_OPTFLOW);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+  assert(!x->e_mbd.mi[0]->refinemv_flag);
+#endif  // CONFIG_REFINEMV
   const int inter_filter_cost =
       x->mode_costs.switchable_interp_costs[ctx[0]][interp_fltr];
   return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
@@ -188,7 +191,11 @@ static INLINE int64_t interpolation_filter_rd(
   mbmi->interp_fltr = filter_idx;
 #if CONFIG_OPTFLOW_REFINEMENT
   const int tmp_rs =
-      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+#if CONFIG_REFINEMV
+       || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+       )
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
 #else
@@ -439,7 +446,11 @@ int64_t av1_interpolation_filter_search(
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
 #if CONFIG_OPTFLOW_REFINEMENT
   *switchable_rate =
-      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+#if CONFIG_REFINEMV
+       || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+       )
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
 #else
@@ -476,7 +487,11 @@ int64_t av1_interpolation_filter_search(
   if (!need_search) {
 #if CONFIG_OPTFLOW_REFINEMENT
     assert(mbmi->interp_fltr ==
-           ((mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+           ((mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+#if CONFIG_REFINEMV
+             || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+             )
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
 #else
@@ -485,12 +500,22 @@ int64_t av1_interpolation_filter_search(
     return 0;
   }
   if (args->modelled_rd != NULL) {
+#if CONFIG_REFINEMV
+    int use_default_filter = mbmi->refinemv_flag
+#if CONFIG_OPTFLOW_REFINEMENT
+                             || mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+                             use_opfl_refine_all(cm, mbmi)
+#endif
+        ;
+    if (has_second_ref(mbmi) && !use_default_filter) {
+#else
 #if CONFIG_OPTFLOW_REFINEMENT
     if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
         !use_opfl_refine_all(cm, mbmi)) {
 #else
     if (has_second_ref(mbmi)) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_REFINEMV
       const int ref_mv_idx = mbmi->ref_mv_idx;
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
       const int mode0 = compound_ref0_mode(mbmi->mode);

@@ -870,6 +870,10 @@ typedef struct {
   // Indicates if joint mvd coding should be enabled.
   bool enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  // Indicates if refineMV mode should be enabled.
+  bool enable_refinemv;
+#endif  // CONFIG_REFINEMV
 #if CONFIG_TIP
   // enable temporal interpolated prediction
   int enable_tip;

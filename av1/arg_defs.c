@@ -462,6 +462,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                               "Enable joint MVD coding"
                               "(0: false, 1: true (default))"),
 #endif  // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  .enable_refinemv = ARG_DEF(NULL, "enable-refinemv", 1,
+                             "Enable RefineMV mode"
+                             "(0: false, 1: true (default))"),
+#endif  // CONFIG_REFINEMV
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
               "Set min partition size "

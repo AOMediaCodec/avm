@@ -190,6 +190,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_JOINT_MVD
   arg_def_t enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  arg_def_t enable_refinemv;
+#endif  // CONFIG_REFINEMV
   arg_def_t min_partition_size;
   arg_def_t max_partition_size;
   arg_def_t enable_chroma_deltaq;

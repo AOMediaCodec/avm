@@ -38,6 +38,19 @@ static void enc_calc_subpel_params(const MV *const src_mv,
                                    uint16_t **mc_buf, uint16_t **pre,
                                    SubpelParams *subpel_params,
                                    int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif  // CONFIG_REFINEMV
+
   // These are part of the function signature to use this function through a
   // function pointer. See typedef of 'CalcSubpelParamsFunc'.
   (void)xd;
@@ -93,6 +106,23 @@ static void enc_calc_subpel_params(const MV *const src_mv,
   } else {
     int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+
+#if CONFIG_REFINEMV
+#if CONFIG_OPTFLOW_REFINEMENT
+    const int bw = inter_pred_params->original_pu_width;
+    const int bh = inter_pred_params->original_pu_height;
+    const MV mv_q4 = clamp_mv_to_umv_border_sb(
+        xd, src_mv, bw, bh, use_optflow_refinement,
+        inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
+#else
+    const int bw = inter_pred_params->original_pu_width;
+    const int bh = inter_pred_params->original_pu_height;
+    const MV mv_q4 = clamp_mv_to_umv_border_sb(
+        xd, src_mv, bw, bh, inter_pred_params->subsampling_x,
+        inter_pred_params->subsampling_y);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#else
 #if CONFIG_OPTFLOW_REFINEMENT
     const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
                                           : inter_pred_params->block_width;
@@ -108,6 +138,8 @@ static void enc_calc_subpel_params(const MV *const src_mv,
         xd, src_mv, bw, bh, inter_pred_params->subsampling_x,
         inter_pred_params->subsampling_y);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_REFINEMV
+
     subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
     subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
     subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
@@ -128,18 +160,26 @@ void av1_enc_build_one_inter_predictor(uint16_t *dst, int dst_stride,
       0 /* mi_y */, 0 /* ref */, NULL /* mc_buf */, enc_calc_subpel_params);
 }
 
-static void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                       int plane, MB_MODE_INFO *mi,
+void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                int plane, MB_MODE_INFO *mi,
 #if CONFIG_BAWP
-                                       const BUFFER_SET *ctx,
+                                const BUFFER_SET *ctx,
 #endif
-                                       int bw, int bh, int mi_x, int mi_y) {
+#if CONFIG_REFINEMV
+                                int build_for_refine_mv_only,
+#endif  // CONFIG_REFINEMV
+                                int bw, int bh, int mi_x, int mi_y) {
   av1_build_inter_predictors(cm, xd, plane, mi,
 #if CONFIG_BAWP
                              ctx,
 #endif
+#if CONFIG_REFINEMV
+                             build_for_refine_mv_only,
+#endif  // CONFIG_REFINEMV
                              0 /* build_for_obmc */, bw, bh, mi_x, mi_y,
-                             NULL /* mc_buf */, enc_calc_subpel_params);
+                             NULL /* mc_buf */,
+
+                             enc_calc_subpel_params);
 }
 
 void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
@@ -168,17 +208,60 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
                                    int plane_from, int plane_to) {
+#if CONFIG_REFINEMV
+  MB_MODE_INFO *mbmi = xd->mi[0];
+
+  int is_refinemv_supported =
+      mbmi->refinemv_flag && !is_intrabc_block(mbmi, xd->tree_type);
+
+  int need_chroma_dmvr = xd->is_chroma_ref &&
+                         (plane_from != 0 || plane_to != 0) &&
+                         is_refinemv_supported;
+  assert(IMPLIES(need_chroma_dmvr, !is_interintra_pred(mbmi)));
+
+  if (need_chroma_dmvr && default_refinemv_modes(mbmi))
+    need_chroma_dmvr &= (mbmi->comp_group_idx == 0 &&
+                         mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+
+  if (need_chroma_dmvr) {
+    fill_subblock_refine_mv(xd->refinemv_subinfo, xd->plane[0].width,
+                            xd->plane[0].height, mbmi->mv[0].as_mv,
+                            mbmi->mv[1].as_mv);
+
+    // if luma build is not available, we need to get refinemv based on luma
+    // need to search DMVR here based on luma plane
+    if (plane_from != 0) {
+#if CONFIG_BAWP
+      enc_build_inter_predictors(cm, xd, 0, xd->mi[0], ctx, 1,
+                                 xd->plane[0].width, xd->plane[0].height,
+                                 mi_col * MI_SIZE, mi_row * MI_SIZE);
+#else
+      enc_build_inter_predictors(cm, xd, 0, xd->mi[0], 1, xd->plane[0].width,
+                                 xd->plane[0].height, mi_col * MI_SIZE,
+                                 mi_row * MI_SIZE);
+#endif
+    }
+  }
+#endif  // CONFIG_REFINEMV
+
   for (int plane = plane_from; plane <= plane_to; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
     const int mi_y = mi_row * MI_SIZE;
 #if CONFIG_BAWP
     enc_build_inter_predictors(cm, xd, plane, xd->mi[0], ctx,
+#if CONFIG_REFINEMV
+                               0,
+#endif  // CONFIG_REFINEMV
                                xd->plane[plane].width, xd->plane[plane].height,
                                mi_x, mi_y);
 #else
-    enc_build_inter_predictors(cm, xd, plane, xd->mi[0], xd->plane[plane].width,
-                               xd->plane[plane].height, mi_x, mi_y);
+    enc_build_inter_predictors(cm, xd, plane, xd->mi[0],
+#if CONFIG_REFINEMV
+                               0,
+#endif  // CONFIG_REFINEMV
+                               xd->plane[plane].width, xd->plane[plane].height,
+                               mi_x, mi_y);
 #endif
 
     if (is_interintra_pred(xd->mi[0])) {

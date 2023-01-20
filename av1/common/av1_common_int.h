@@ -475,6 +475,10 @@ typedef struct SequenceHeader {
   uint8_t enable_joint_mvd;  // enables/disables joint MVD coding
 #endif                       // CONFIG_JOINT_MVD
 
+#if CONFIG_REFINEMV
+  uint8_t enable_refinemv;  // enables/disables refineMV mode
+#endif                      // CONFIG_REFINEMV
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
   int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
                                  // sequence

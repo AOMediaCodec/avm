@@ -507,6 +507,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_JOINT_MVD
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  seq->enable_refinemv = tool_cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
   set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate);
 

@@ -791,6 +791,10 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   set_mv_precision(mbmi, mbmi->max_mv_precision);
 #endif
 
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #endif
@@ -957,6 +961,9 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   set_mv_precision(mbmi, mbmi->max_mv_precision);
 #endif
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 
   RD_STATS rd_stats_y_fi;

@@ -165,8 +165,11 @@ struct av1_extracfg {
 #endif                       // CONFIG_ADAPTIVE_DS_FILTER
 
 #if CONFIG_JOINT_MVD
-  int enable_joint_mvd;          // enable joint MVD coding
-#endif                           // CONFIG_ADAPTIVE_MVD
+  int enable_joint_mvd;  // enable joint MVD coding
+#endif                   // CONFIG_ADAPTIVE_MVD
+#if CONFIG_REFINEMV
+  int enable_refinemv;           // enable refineMV mode
+#endif                           // CONFIG_REFINEMV
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
@@ -501,6 +504,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_JOINT_MVD
   1,    // enable joint mvd coding
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  1,    // enable refineMV mode
+#endif  // CONFIG_REFINEMV
   4,    // min_partition_size
   128,  // max_partition_size
   1,    // enable intra edge filter
@@ -1001,6 +1007,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_JOINT_MVD
   cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  cfg->enable_refinemv = extra_cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
   cfg->max_partition_size = extra_cfg->max_partition_size;
   cfg->min_partition_size = extra_cfg->min_partition_size;
   cfg->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
@@ -1121,6 +1130,10 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_JOINT_MVD
   extra_cfg->enable_joint_mvd = cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  extra_cfg->enable_refinemv = cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
   extra_cfg->max_partition_size = cfg->max_partition_size;
   extra_cfg->min_partition_size = cfg->min_partition_size;
   extra_cfg->enable_intra_edge_filter = cfg->enable_intra_edge_filter;
@@ -1400,6 +1413,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_JOINT_MVD
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  tool_cfg->enable_refinemv = extra_cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
 #if CONFIG_TIP
   tool_cfg->enable_tip = extra_cfg->enable_tip;
   if (tool_cfg->enable_tip) {
@@ -3883,6 +3899,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_joint_mvd = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refinemv, argv,
+                              err_string)) {
+    extra_cfg.enable_refinemv = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_REFINEMV
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.min_partition_size,
                               argv, err_string)) {
     extra_cfg.min_partition_size = arg_parse_int_helper(&arg, err_string);
@@ -4356,6 +4378,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_JOINT_MVD
         1,
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+        1,
+#endif  // CONFIG_REFINEMV
         1, 1,   1,   1, 1, 1,
 #if CONFIG_PC_WIENER
         1,

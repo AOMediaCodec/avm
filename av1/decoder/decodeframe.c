@@ -619,12 +619,14 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                        num_planes, chroma_ref_info);
 }
 
+#if !CONFIG_REFINEMV
 typedef struct PadBlock {
   int x0;
   int x1;
   int y0;
   int y1;
 } PadBlock;
+#endif  //! CONFIG_REFINEMV
 
 static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
                                               int src_stride, uint16_t *dst,
@@ -663,10 +665,12 @@ static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
   } while (--b_h);
 }
 
-static INLINE int update_extend_mc_border_params(
-    const struct scale_factors *const sf, struct buf_2d *const pre_buf,
-    MV32 scaled_mv, PadBlock *block, int subpel_x_mv, int subpel_y_mv,
-    int do_warp, int is_intrabc, int *x_pad, int *y_pad) {
+#if !CONFIG_REFINEMV
+int update_extend_mc_border_params(const struct scale_factors *const sf,
+                                   struct buf_2d *const pre_buf, MV32 scaled_mv,
+                                   PadBlock *block, int subpel_x_mv,
+                                   int subpel_y_mv, int do_warp, int is_intrabc,
+                                   int *x_pad, int *y_pad) {
   // Get reference width and height.
   int frame_width = pre_buf->width;
   int frame_height = pre_buf->height;
@@ -703,6 +707,7 @@ static INLINE int update_extend_mc_border_params(
   }
   return 0;
 }
+#endif  //! CONFIG_REFINEMV
 
 static INLINE void extend_mc_border(const struct scale_factors *const sf,
                                     struct buf_2d *const pre_buf,
@@ -714,7 +719,13 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
   int x_pad = 0, y_pad = 0;
   if (update_extend_mc_border_params(sf, pre_buf, scaled_mv, &block,
                                      subpel_x_mv, subpel_y_mv, do_warp,
-                                     is_intrabc, &x_pad, &y_pad)) {
+                                     is_intrabc, &x_pad, &y_pad
+#if CONFIG_REFINEMV
+                                     ,
+                                     NULL
+#endif  // CONFIG_REFINEMV
+
+                                     )) {
     // Get reference block pointer.
     const uint16_t *const buf_ptr =
         pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
@@ -731,7 +742,7 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
            x_pad * (AOM_INTERP_EXTEND - 1);
   }
 }
-
+#if !CONFIG_REFINEMV
 static void dec_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     const MACROBLOCKD *const xd, int mi_x, int mi_y, uint16_t **pre,
@@ -852,7 +863,7 @@ static void dec_calc_subpel_params(
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
 }
-
+#endif  //! CONFIG_REFINEMV
 static void dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
@@ -861,6 +872,19 @@ static void dec_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif
+
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -878,6 +902,7 @@ static void dec_calc_subpel_params_and_extend(
 }
 
 #if CONFIG_TIP
+#if !CONFIG_REFINEMV
 static AOM_INLINE void tip_dec_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params, int mi_x,
     int mi_y, uint16_t **pre, SubpelParams *subpel_params, int *src_stride,
@@ -888,6 +913,11 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
+
+#if CONFIG_REFINEMV
+  const int bw = inter_pred_params->original_pu_width;
+  const int bh = inter_pred_params->original_pu_height;
+#else
 #if CONFIG_OPTFLOW_REFINEMENT
   // Use original block size to clamp MV and to extend block boundary
   const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
@@ -898,6 +928,8 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
   const int bw = inter_pred_params->block_width;
   const int bh = inter_pred_params->block_height;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_REFINEMV
+
   const int is_scaled = av1_is_scaled(sf);
   if (is_scaled) {
     const int ssx = inter_pred_params->subsampling_x;
@@ -994,7 +1026,7 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
 }
-
+#endif
 static void tip_dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
@@ -1003,7 +1035,22 @@ static void tip_dec_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    // printf(" used pading in the decoder \n");
+    tip_common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#else
+
   (void)xd;
+#endif  // CONFIG_REFINEMV
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -1199,11 +1246,19 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
                                        DecoderCodingBlock *dcb, int plane,
                                        MB_MODE_INFO *mi, int build_for_obmc,
-                                       int bw, int bh, int mi_x, int mi_y) {
+                                       int bw, int bh, int mi_x, int mi_y
+#if CONFIG_REFINEMV
+                                       ,
+                                       int build_for_refine_mv_only
+#endif  // CONFIG_REFINEMV
+) {
   av1_build_inter_predictors(cm, &dcb->xd, plane, mi,
 #if CONFIG_BAWP
                              NULL,
 #endif
+#if CONFIG_REFINEMV
+                             build_for_refine_mv_only,
+#endif  // CONFIG_REFINEMV
                              build_for_obmc, bw, bh, mi_x, mi_y, dcb->mc_buf,
                              dec_calc_subpel_params_and_extend);
 }
@@ -1214,13 +1269,35 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
                                                  BLOCK_SIZE bsize) {
   MACROBLOCKD *const xd = &dcb->xd;
   const int num_planes = av1_num_planes(cm);
+
+#if CONFIG_REFINEMV
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  int need_subblock_mvs = xd->is_chroma_ref && mbmi->refinemv_flag &&
+                          !is_intrabc_block(mbmi, xd->tree_type);
+  assert(IMPLIES(need_subblock_mvs, !is_interintra_pred(mbmi)));
+  if (need_subblock_mvs && default_refinemv_modes(mbmi))
+    need_subblock_mvs &= (mbmi->comp_group_idx == 0 &&
+                          mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+  if (need_subblock_mvs) {
+    fill_subblock_refine_mv(xd->refinemv_subinfo, xd->plane[0].width,
+                            xd->plane[0].height, mbmi->mv[0].as_mv,
+                            mbmi->mv[1].as_mv);
+  }
+#endif  // CONFIG_REFINEMV
+
   for (int plane = 0; plane < num_planes; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
     const int mi_y = mi_row * MI_SIZE;
     dec_build_inter_predictors(cm, dcb, plane, xd->mi[0], 0,
                                xd->plane[plane].width, xd->plane[plane].height,
-                               mi_x, mi_y);
+                               mi_x, mi_y
+#if CONFIG_REFINEMV
+                               ,
+                               0
+#endif  // CONFIG_REFINEMV
+    );
+
     if (is_interintra_pred(xd->mi[0])) {
       BUFFER_SET ctx = { { xd->plane[0].dst.buf, xd->plane[1].dst.buf,
                            xd->plane[2].dst.buf },
@@ -1258,7 +1335,12 @@ static INLINE void dec_build_prediction_by_above_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 0)) continue;
     dec_build_inter_predictors(ctxt->cm, (DecoderCodingBlock *)ctxt->dcb, j,
-                               &backup_mbmi, 1, bw, bh, mi_x, mi_y);
+                               &backup_mbmi, 1, bw, bh, mi_x, mi_y
+#if CONFIG_REFINEMV
+                               ,
+                               0
+#endif  // CONFIG_REFINEMV
+    );
   }
 }
 
@@ -1313,7 +1395,12 @@ static INLINE void dec_build_prediction_by_left_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 1)) continue;
     dec_build_inter_predictors(ctxt->cm, (DecoderCodingBlock *)ctxt->dcb, j,
-                               &backup_mbmi, 1, bw, bh, mi_x, mi_y);
+                               &backup_mbmi, 1, bw, bh, mi_x, mi_y
+#if CONFIG_REFINEMV
+                               ,
+                               0
+#endif  // CONFIG_REFINEMV
+    );
   }
 }
 
@@ -6405,6 +6492,10 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_ADAPTIVE_MVD
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 #endif  // CONFIG_ADAPTIVE_MVD
+
+#if CONFIG_REFINEMV
+  seq_params->enable_refinemv = aom_rb_read_bit(rb);
+#endif  // CONFIG_REFINEMV
 #if CONFIG_FLEX_MVRES
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
 #endif  // CONFIG_FLEX_MVRES

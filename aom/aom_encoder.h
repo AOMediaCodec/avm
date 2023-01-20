@@ -369,6 +369,13 @@ typedef struct cfg_options {
    */
   unsigned int enable_joint_mvd;
 #endif
+#if CONFIG_REFINEMV
+  /*!\brief enable refine MV mode
+   *
+   */
+  unsigned int enable_refinemv;
+#endif  // CONFIG_REFINEMV
+
   /*!\brief enable flip and identity transform type
    *
    */

@@ -487,6 +487,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_JOINT_MVD
   &g_av1_codec_arg_defs.enable_joint_mvd,
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  &g_av1_codec_arg_defs.enable_refinemv,
+#endif  // CONFIG_REFINEMV
 #if CONFIG_PAR_HIDING
   &g_av1_codec_arg_defs.enable_parity_hiding,
 #endif  // CONFIG_PAR_HIDING
@@ -674,6 +677,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_JOINT_MVD
   config->enable_joint_mvd = 1;
 #endif
+#if CONFIG_REFINEMV
+  config->enable_refinemv = 1;
+#endif  // CONFIG_REFINEMV
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
@@ -1598,6 +1604,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : Joint MVD coding: (%d)\n",
           encoder_cfg->enable_joint_mvd);
 #endif
+#if CONFIG_REFINEMV
+  fprintf(stdout, "                               : RefineMV mode: (%d)\n",
+          encoder_cfg->enable_refinemv);
+#endif  // CONFIG_REFINEMV
   fprintf(stdout,
           "                               : InterInterWedge (%d), "
           "InterIntraWedge (%d), RefFrameMv (%d)\n",

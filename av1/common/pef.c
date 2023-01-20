@@ -169,6 +169,9 @@ void highbd_filt_horz_pred_c(uint16_t *s, int stride, int bd, uint16_t q_thresh,
 // setup PEF input structure
 void setup_pef_input(MACROBLOCKD *xd, int pef_mode, int plane, uint16_t *dst,
                      int dst_stride, int bw, int bh, int_mv *mv_refined,
+#if CONFIG_REFINEMV
+                     REFINEMV_SUBMB_INFO *refinemv_subinfo,
+#endif  // CONFIG_REFINEMV
                      PefFuncInput *pef_input) {
   pef_input->pef_mode = pef_mode;
   pef_input->plane = plane;
@@ -180,6 +183,9 @@ void setup_pef_input(MACROBLOCKD *xd, int pef_mode, int plane, uint16_t *dst,
   pef_input->dst = dst;
   pef_input->dst_stride = dst_stride;
   pef_input->mv_refined = mv_refined;
+#if CONFIG_REFINEMV
+  pef_input->refinemv_subinfo = refinemv_subinfo;
+#endif  // CONFIG_REFINEMV
 }
 
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -191,8 +197,17 @@ static INLINE int opfl_get_subblock_size(int bw, int bh, int plane) {
 // check if the neighboring mvs are the same
 void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
               int mvs_stride, const TPL_MV_REF *tpl_mvs, int tip_step,
-              int n_blocks, int_mv *mv_refined, int opfl_step) {
+              int n_blocks, int_mv *mv_refined, int opfl_step
+#if CONFIG_REFINEMV
+              ,
+              REFINEMV_SUBMB_INFO *refinemv_subinfo, int refinemv_step
+#endif  // CONFIG_REFINEMV
+) {
+#if CONFIG_REFINEMV
+  if (pef_mode < 0 || pef_mode > 3) return;
+#else
   if (pef_mode < 0 || pef_mode > 2) return;
+#endif                  // CONFIG_REFINEMV
   if (pef_mode == 0) {  // opfl mv
     const int_mv *cur_mv_refined_ref0 = &mv_refined[n_blocks * 2 + 0];
     const int_mv *cur_mv_refined_ref1 = &mv_refined[n_blocks * 2 + 1];
@@ -200,6 +215,17 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
         cur_mv_refined_ref0[0].as_int != cur_mv_refined_ref0[-opfl_step].as_int;
     *diff_mv |=
         cur_mv_refined_ref1[0].as_int != cur_mv_refined_ref1[-opfl_step].as_int;
+#if CONFIG_REFINEMV
+  } else if (pef_mode == 3) {  // refinemv mv
+    const int_mv *cur_mv_refined_ref0 = &refinemv_subinfo->refinemv[0];
+    const int_mv *cur_mv_refined_ref1 = &refinemv_subinfo->refinemv[1];
+    const int_mv *prev_mv_refined_ref0 =
+        &refinemv_subinfo[-refinemv_step].refinemv[0];
+    const int_mv *prev_mv_refined_ref1 =
+        &refinemv_subinfo[-refinemv_step].refinemv[1];
+    *diff_mv = cur_mv_refined_ref0[0].as_int != prev_mv_refined_ref0[0].as_int;
+    *diff_mv |= cur_mv_refined_ref1[0].as_int != prev_mv_refined_ref1[0].as_int;
+#endif      // CONFIG_REFINEMV
   } else {  // tip mv
     const TPL_MV_REF *cur_tpl_mv = tpl_mvs + mv_rows * mvs_stride + mv_cols;
     const TPL_MV_REF *prev_tpl_mv = cur_tpl_mv - tip_step;
@@ -344,7 +370,16 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
           AOMMIN(prev_x_step, x_step) >= filt_len) {
         bool diff_mv = 0;
         check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs, 1,
-                 n_blocks, pef_input->mv_refined, 2);
+                 n_blocks, pef_input->mv_refined, 2
+#if CONFIG_REFINEMV
+                 ,
+                 (pef_mode == 3) ? (pef_input->refinemv_subinfo +
+                                    (j >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
+                                    (i >> MI_SIZE_LOG2))
+                                 : NULL,
+                 1
+#endif  // CONFIG_REFINEMV
+        );
         if (diff_mv) {
           filt_func filt_vert_func =
               (y_step == PEF_MCU_SZ && x_step == PEF_MCU_SZ)
@@ -359,7 +394,16 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
           AOMMIN(prev_y_step, y_step) >= filt_len) {
         bool diff_mv = 0;
         check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs,
-                 mvs_stride, n_blocks, pef_input->mv_refined, wn);
+                 mvs_stride, n_blocks, pef_input->mv_refined, wn
+#if CONFIG_REFINEMV
+                 ,
+                 (pef_mode == 3) ? (pef_input->refinemv_subinfo +
+                                    (j >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
+                                    (i >> MI_SIZE_LOG2))
+                                 : NULL,
+                 MAX_MIB_SIZE
+#endif  // CONFIG_REFINEMV
+        );
         if (diff_mv) {
           filt_func filt_horz_func = x_step == PEF_MCU_SZ
                                          ? highbd_filt_horz_pred
@@ -425,7 +469,12 @@ void enhance_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd) {
     const int dst_stride = dst_buf->stride;
     PefFuncInput pef_input;
     setup_pef_input(xd, 2, plane, dst, dst_stride, dst_buf->width,
-                    dst_buf->height, NULL, &pef_input);
+                    dst_buf->height, NULL,
+#if CONFIG_REFINEMV
+
+                    NULL,
+#endif  // CONFIG_REFINEMV
+                    &pef_input);
     enhance_sub_prediction_blocks(cm, xd, &pef_input);
   }
 }
@@ -437,6 +486,10 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                         ,
                         int_mv *const mv_refined, int use_opfl
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+                        ,
+                        int use_refinemv, REFINEMV_SUBMB_INFO *refinemv_subinfo
+#endif  // CONFIG_REFINEMV
 ) {
   if (!cm->seq_params.enable_pef) return;
   if (!cm->features.allow_pef) return;
@@ -445,7 +498,11 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int use_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (use_tip) {
     PefFuncInput pef_input;
-    setup_pef_input(xd, 1, plane, dst, dst_stride, bw, bh, NULL, &pef_input);
+    setup_pef_input(xd, 1, plane, dst, dst_stride, bw, bh, NULL,
+#if CONFIG_REFINEMV
+                    NULL,
+#endif  // CONFIG_REFINEMV
+                    &pef_input);
     enhance_sub_prediction_blocks(cm, xd, &pef_input);
     return;
   }
@@ -455,10 +512,22 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   if (use_opfl) {
     PefFuncInput pef_input;
     setup_pef_input(xd, 0, plane, dst, dst_stride, bw, bh, mv_refined,
+#if CONFIG_REFINEMV
+                    NULL,
+#endif  // CONFIG_REFINEMV
                     &pef_input);
     enhance_sub_prediction_blocks(cm, xd, &pef_input);
     return;
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+  if (use_refinemv) {
+    PefFuncInput pef_input;
+    setup_pef_input(xd, 3, plane, dst, dst_stride, bw, bh, mv_refined,
+                    refinemv_subinfo, &pef_input);
+    enhance_sub_prediction_blocks(cm, xd, &pef_input);
+    return;
+  }
+#endif  // CONFIG_REFINEMV
   return;
 }

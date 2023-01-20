@@ -1047,7 +1047,12 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_OPTFLOW_REFINEMENT
     // Sharp filter is always used whenever optical flow refinement is applied.
     int mb_interp_filter =
-        (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+        (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+
+#if CONFIG_REFINEMV
+         || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+         )
             ? MULTITAP_SHARP
             : cm->features.interp_filter;
 #else
@@ -1060,10 +1065,18 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   }
   if (cm->features.interp_filter == SWITCHABLE) {
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)) {
-      assert(IMPLIES(
-          mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi),
-          mbmi->interp_fltr == MULTITAP_SHARP));
+    if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+#if CONFIG_REFINEMV
+        || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+    ) {
+      assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+                         use_opfl_refine_all(cm, mbmi)
+#if CONFIG_REFINEMV
+                         || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+                     ,
+                     mbmi->interp_fltr == MULTITAP_SHARP));
       return;
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -1804,6 +1817,26 @@ static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
                                x->mbmi_ext_frame);
 }
 
+#if CONFIG_REFINEMV
+static void write_refinemv_flag(const AV1_COMMON *const cm,
+                                MACROBLOCKD *const xd, aom_writer *w,
+                                BLOCK_SIZE bsize) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  int signal_refinemv = switchable_refinemv_flag(cm, mbmi);
+
+  if (signal_refinemv) {
+    const int refinemv_ctx = av1_get_refinemv_context(cm, xd, bsize);
+    assert(mbmi->refinemv_flag < REFINEMV_NUM_MODES);
+    aom_write_symbol(w, mbmi->refinemv_flag,
+                     xd->tile_ctx->refinemv_flag_cdf[refinemv_ctx],
+                     REFINEMV_NUM_MODES);
+
+  } else {
+    assert(mbmi->refinemv_flag == get_default_refinemv_flag(cm, mbmi));
+  }
+}
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_FLEX_MVRES
 static void write_pb_mv_precision(const AV1_COMMON *const cm,
                                   MACROBLOCKD *const xd, aom_writer *w) {
@@ -1936,6 +1969,20 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   write_delta_q_params(cpi, skip, w);
 
+#if CONFIG_REFINEMV
+  assert(IMPLIES(mbmi->refinemv_flag,
+                 mbmi->skip_mode ? is_refinemv_allowed_skip_mode(cm, mbmi)
+                                 : is_refinemv_allowed(cm, mbmi, bsize)));
+  if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi)) {
+    assert(mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+    assert(mbmi->comp_group_idx == 0);
+    assert(mbmi->bawp_flag == 0);
+  }
+#if CONFIG_CWP
+  assert(IMPLIES(mbmi->refinemv_flag, mbmi->cwp_idx == CWP_EQUAL));
+#endif
+  assert(IMPLIES(mbmi->skip_mode, mbmi->refinemv_flag));
+#endif  // CONFIG_REFINEMV
 #if CONFIG_WARPMV
   // Just for debugging purpose
   if (mbmi->mode == WARPMV) {
@@ -2224,6 +2271,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     if (mbmi->ref_frame[1] != INTRA_FRAME) write_motion_mode(cm, xd, mbmi, w);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if CONFIG_REFINEMV
+    if (!mbmi->skip_mode) {
+      write_refinemv_flag(cm, xd, w, bsize);
+    }
+#endif  // CONFIG_REFINEMV
+
     // First write idx to indicate current compound inter prediction mode
     // group Group A (0): dist_wtd_comp, compound_average Group B (1):
     // interintra, compound_diffwtd, wedge
@@ -2232,6 +2285,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_OPTFLOW_REFINEMENT
         && mbmi->mode < NEAR_NEARMV_OPTFLOW
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+        && (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))
+#endif  // CONFIG_REFINEMV
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
         && !is_joint_amvd_coding_mode(mbmi->mode)
 #endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
@@ -4748,6 +4804,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_ADAPTIVE_MVD
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
 #endif  // CONFIG_ADAPTIVE_MVD
+
+#if CONFIG_REFINEMV
+  aom_wb_write_bit(wb, seq_params->enable_refinemv);
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_FLEX_MVRES
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);

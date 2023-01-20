@@ -2008,6 +2008,20 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_WARPMV
 
+#if CONFIG_REFINEMV
+static const aom_cdf_prob default_refinemv_flag_cdf[NUM_REFINEMV_CTX][CDF_SIZE(
+    REFINEMV_NUM_MODES)] = {
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
+};
+#endif  // CONFIG_REFINEMV
+
 static const aom_cdf_prob default_warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
     2)] = { { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
             { AOM_CDF2(4015) },  { AOM_CDF2(5407) },  { AOM_CDF2(4988) },
@@ -3268,6 +3282,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->drl_cdf[1], default_drl1_cdf);
   av1_copy(fc->drl_cdf[2], default_drl2_cdf);
 #endif  // CONFIG_REF_MV_BANK
+#if CONFIG_REFINEMV
+  av1_copy(fc->refinemv_flag_cdf, default_refinemv_flag_cdf);
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
   av1_copy(fc->obmc_cdf, default_obmc_cdf);
   av1_copy(fc->warped_causal_cdf, default_warped_causal_cdf);

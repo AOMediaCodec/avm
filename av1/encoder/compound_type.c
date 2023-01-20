@@ -910,19 +910,23 @@ static INLINE int compute_valid_comp_types(
     COMPOUND_TYPE *valid_comp_types) {
   int valid_type_count = 0;
   int comp_type, valid_check;
-#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_REFINEMV
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
   // For implementation simplicity, set compound type to COMPOUND_AVERAGE for
   // now to avoid compound type RD search. In practice, dist_wtd will always
   // be applied instead.
-  if (this_mode >= NEAR_NEARMV_OPTFLOW) {
+  if (this_mode >= NEAR_NEARMV_OPTFLOW
+#if CONFIG_REFINEMV
+      || (mbmi->refinemv_flag && switchable_refinemv_flag(&cpi->common, mbmi))
+#endif  // CONFIG_REFINEMV
+  ) {
     *try_average_and_distwtd_comp = 0;
     valid_comp_types[0] = COMPOUND_AVERAGE;
     return 1;
   }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_REFINEMV
   int8_t enable_masked_type[MASKED_COMPOUND_TYPES] = { 0, 0 };
 
   const int try_average_comp = (mode_search_mask & (1 << COMPOUND_AVERAGE));
@@ -1391,6 +1395,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     av1_zero_array(masked_type_cost, COMPOUND_TYPES);
   else
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+      if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi))
+    av1_zero_array(masked_type_cost, COMPOUND_TYPES);
+  else
+#endif  // CONFIG_REFINEMV
     // Populates masked_type_cost local array for the 4 compound types
     calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
                           masked_compound_used, masked_type_cost);
@@ -1406,6 +1415,9 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_OPTFLOW_REFINEMENT
       this_mode < NEAR_NEARMV_OPTFLOW &&
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+      (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
+#endif  // CONFIG_REFINEMV
       cpi->sf.inter_sf.reuse_compound_type_decision) {
     return populate_reuse_comp_type_data(x, mbmi, &best_type_stats, cur_mv,
                                          comp_rate, comp_dist, comp_rs2,

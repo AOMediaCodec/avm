@@ -121,6 +121,11 @@ extern "C" {
 #define WARP_EXTEND_CTXS2 5
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if CONFIG_REFINEMV
+#define NUM_REFINEMV_CTX 24
+#define REFINEMV_NUM_MODES 2
+#endif  // CONFIG_REFINEMV
+
 struct AV1Common;
 
 typedef struct {
@@ -195,6 +200,11 @@ typedef struct frame_contexts {
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   aom_cdf_prob skip_drl_cdf[3][CDF_SIZE(2)];
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+
+#if CONFIG_REFINEMV
+  aom_cdf_prob refinemv_flag_cdf[NUM_REFINEMV_CTX]
+                                [CDF_SIZE(REFINEMV_NUM_MODES)];
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_OPTFLOW_REFINEMENT
   aom_cdf_prob use_optflow_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)];

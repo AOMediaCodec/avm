@@ -609,6 +609,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->wedge_interintra_cost[i],
                                fc->wedge_interintra_cdf[i], NULL);
     }
+
+#if CONFIG_REFINEMV
+    for (i = 0; i < NUM_REFINEMV_CTX; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->refinemv_flag_cost[i],
+                               fc->refinemv_flag_cdf[i], NULL);
+    }
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->obmc_cost[i], fc->obmc_cdf[i], NULL);

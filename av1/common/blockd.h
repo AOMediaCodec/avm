@@ -366,6 +366,26 @@ typedef struct {
   COMPOUND_TYPE type;
 } INTERINTER_COMPOUND_DATA;
 
+#if CONFIG_REFINEMV
+#define REF_BUFFER_WIDTH \
+  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_HEIGHT \
+  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+typedef struct PadBlock {
+  int x0;
+  int x1;
+  int y0;
+  int y1;
+} PadBlock;
+
+typedef struct PadArea {
+  PadBlock pad_block;
+  uint16_t paded_ref_buf[(REF_BUFFER_WIDTH) * (REF_BUFFER_HEIGHT)];
+  int paded_ref_buf_stride;
+} ReferenceArea;
+
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_OPTFLOW_REFINEMENT
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
@@ -460,6 +480,11 @@ typedef struct MB_MODE_INFO {
    */
   uint8_t mb_precision_set;
 #endif
+#if CONFIG_REFINEMV
+  /*! \brief The flag to signal if DMVR is used for the inter prediction. */
+  uint8_t refinemv_flag;
+#endif  // CONFIG_REFINEMV
+
   /*! \brief The motion mode used by the inter prediction. */
   MOTION_MODE motion_mode;
   /*! \brief Number of samples used by spatial warp prediction */
@@ -638,6 +663,15 @@ typedef struct SUBMB_INFO {
   int_mv mv[2];
 } SUBMB_INFO;
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+
+#if CONFIG_REFINEMV
+/*! \brief Stores the subblock refinemv motion info of the current coding block
+ */
+typedef struct REFINEMV_SUBMB_INFO {
+  /*! \brief Stored subblock mv for reference. */
+  int_mv refinemv[2];
+} REFINEMV_SUBMB_INFO;
+#endif  // CONFIG_REFINEMV
 
 /*!\cond */
 // Get the start plane for semi-decoupled partitioning
@@ -2208,6 +2242,11 @@ typedef struct macroblockd {
   /** variable to store eob_u flag */
   uint8_t eob_u_flag;
 #endif  // CONFIG_CONTEXT_DERIVATION
+
+#if CONFIG_REFINEMV
+  /** block level storage to store luma refined MVs for chroma use */
+  REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#endif  // CONFIG_REFINEMV
 } MACROBLOCKD;
 
 /*!\cond */
@@ -3431,6 +3470,10 @@ static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
 #if CONFIG_CWP
 // check whether compound weighted prediction can be allowed
 static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
+#if CONFIG_REFINEMV
+  if (mbmi->refinemv_flag) return 0;
+#endif
+
   if (mbmi->skip_mode) return 1;
   int use_cwp = has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
                 mbmi->interinter_comp.type == COMPOUND_AVERAGE &&
