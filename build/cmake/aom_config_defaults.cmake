@@ -195,16 +195,16 @@ set_aom_config_var(CONFIG_EXTENDED_WARP_PREDICTION 1
                    "AV2 experiment flag to add new local warp modes")
 set_aom_config_var(CONFIG_WARP_REF_LIST 1
                    "AV2 experiment flag to improve warp-delta mode")
-set_aom_config_var(CONFIG_LR_MERGE_COEFFS 0
-                   "AV2 experiment flag to enable LR coefficient merging")
-set_aom_config_var(CONFIG_LR_FLEX_SYNTAX 0
-                   "AV2 experiment flag to enable LR flexible syntax")
 # Begin: CWG-C016
-set_aom_config_var(CONFIG_WIENER_NONSEP 0 NUMBER
+set_aom_config_var(CONFIG_LR_MERGE_COEFFS 1
+                   "AV2 experiment flag to enable LR coefficient merging")
+set_aom_config_var(CONFIG_LR_FLEX_SYNTAX 1
+                   "AV2 experiment flag to enable LR flexible syntax")
+set_aom_config_var(CONFIG_WIENER_NONSEP 1 NUMBER
                    "AV2 nonsep Wiener filter experiment flag")
-set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
+set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 1 NUMBER
                    "AV2 nonsep Wiener cross filter experiment flag")
-set_aom_config_var(CONFIG_PC_WIENER 0 NUMBER
+set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
                    "AV2 pixel-classified Wiener filter experiment flag")
 # End: CWG-C016
 
