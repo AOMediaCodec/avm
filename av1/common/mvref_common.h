@@ -521,7 +521,12 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
 
 void av1_copy_frame_mvs(const AV1_COMMON *const cm,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,
-                        int x_inside_boundary, int y_inside_boundary);
+                        int x_inside_boundary, int y_inside_boundary
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+                        ,
+                        SUBMB_INFO **submi
+#endif
+);
 
 #if CONFIG_C076_INTER_MOD_CTX
 // Scans neighboring blocks for inter mode contexts
@@ -857,7 +862,15 @@ void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 // assign subblock mv from warp into submi
 void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
                    WarpedMotionParams *wm_params, int mi_row, int mi_col);
+#endif
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+void assign_refinemv_sub_mvs(const AV1_COMMON *cm, SUBMB_INFO **submi,
+                             BLOCK_SIZE bsize,
+                             REFINEMV_SUBMB_INFO *refinemv_subinfo, int mi_row,
+                             int mi_col);
+#endif
 
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP || CONFIG_C071_SUBBLK_WARPMV
 // span the first subblock info into all the rest subblocks in the same block
 void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
                 int mi_col, BLOCK_SIZE bsize);

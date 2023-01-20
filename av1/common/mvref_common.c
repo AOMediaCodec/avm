@@ -33,7 +33,12 @@ typedef struct single_mv_candidate {
 void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
                             const MB_MODE_INFO *const mi, int mi_row,
                             int mi_col, int x_inside_boundary,
-                            int y_inside_boundary) {
+                            int y_inside_boundary
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+                            ,
+                            SUBMB_INFO **submi
+#endif
+) {
   const int frame_mvs_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int cur_tpl_row = (mi_row >> TMVP_SHIFT_BITS);
@@ -59,7 +64,22 @@ void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
               (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
             continue;
           mv->ref_frame[idx] = ref_frame;
-          mv->mv[idx].as_int = mi->mv[idx].as_int;
+
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+          if (submi) {
+            int mi_y = (h << 1);
+            int mi_x = (w << 1);
+            mv->mv[idx].as_int =
+                submi[mi_y * cm->mi_params.mi_stride + mi_x]->mv[idx].as_int;
+            // printf(" added : [%d %d] [%d %d ]\n", mi->mv[idx].as_mv.row,
+            // mi->mv[idx].as_mv.col, mv->mv[idx].as_mv.row,
+            // mv->mv[idx].as_mv.col);
+          } else {
+#endif
+            mv->mv[idx].as_int = mi->mv[idx].as_int;
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+          }
+#endif
         } else if (is_tip_ref_frame(ref_frame)) {
           if ((abs(mi->mv[idx].as_mv.row) > REFMVS_LIMIT) ||
               (abs(mi->mv[idx].as_mv.col) > REFMVS_LIMIT))
@@ -116,11 +136,22 @@ void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
 
 void av1_copy_frame_mvs(const AV1_COMMON *const cm,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,
-                        int x_inside_boundary, int y_inside_boundary) {
+                        int x_inside_boundary, int y_inside_boundary
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+                        ,
+                        SUBMB_INFO **submi
+#endif
+) {
 #if CONFIG_TIP
   if (cm->seq_params.enable_tip && cm->features.tip_frame_mode) {
     av1_copy_frame_all_mvs(cm, mi, mi_row, mi_col, x_inside_boundary,
-                           y_inside_boundary);
+                           y_inside_boundary
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+                           ,
+                           submi
+#endif
+
+    );
     return;
   }
 #endif  // CONFIG_TIP
@@ -170,7 +201,25 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
               continue;
 #if CONFIG_TIP
             mv->ref_frame[0] = ref_frame;
-            mv->mv[0].as_int = mi->mv[idx].as_int;
+
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+            if (submi) {
+              int mi_y = (h << 1);
+              int mi_x = (w << 1);
+              mv->mv[idx].as_int =
+                  submi[mi_y * cm->mi_params.mi_stride + mi_x]->mv[idx].as_int;
+#if 0
+        printf(" added : [%d %d] [%d %d ]\n", mi->mv[idx].as_mv.row,
+               mi->mv[idx].as_mv.col, mv->mv[idx].as_mv.row,
+               mv->mv[idx].as_mv.col);
+#endif
+            } else {
+#endif
+
+              mv->mv[0].as_int = mi->mv[idx].as_int;
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+            }
+#endif
 #else
           mv->ref_frame = ref_frame;
           mv->mv.as_int = mi->mv[idx].as_int;
@@ -4016,7 +4065,35 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
     }
   }
 }
+#endif
 
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+void assign_refinemv_sub_mvs(const AV1_COMMON *cm, SUBMB_INFO **submi,
+                             BLOCK_SIZE bsize,
+                             REFINEMV_SUBMB_INFO *refinemv_subinfo, int mi_row,
+                             int mi_col) {
+  const int bw = mi_size_wide[bsize];
+  const int bh = mi_size_high[bsize];
+  const int p_x_mis = AOMMIN(bw, cm->mi_params.mi_cols - mi_col) * MI_SIZE;
+  const int p_y_mis = AOMMIN(bh, cm->mi_params.mi_rows - mi_row) * MI_SIZE;
+  const int p_row = mi_row * MI_SIZE;
+  const int p_col = mi_col * MI_SIZE;
+  const int mi_stride = cm->mi_params.mi_stride;
+  const int src_stride = MAX_MIB_SIZE;
+  for (int i = p_row; i < p_row + p_y_mis; i += 4) {
+    for (int j = p_col; j < p_col + p_x_mis; j += 4) {
+      int mi_y = (i - p_row) >> MI_SIZE_LOG2;
+      int mi_x = (j - p_col) >> MI_SIZE_LOG2;
+      submi[mi_y * mi_stride + mi_x]->mv[0].as_mv =
+          refinemv_subinfo[mi_y * src_stride + mi_x].refinemv[0].as_mv;
+      submi[mi_y * mi_stride + mi_x]->mv[1].as_mv =
+          refinemv_subinfo[mi_y * src_stride + mi_x].refinemv[1].as_mv;
+    }
+  }
+}
+#endif
+
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP || CONFIG_C071_SUBBLK_WARPMV
 void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
                 int mi_col, BLOCK_SIZE bsize) {
   const int bw = mi_size_wide[bsize];

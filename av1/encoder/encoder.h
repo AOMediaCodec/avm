@@ -1461,7 +1461,7 @@ typedef struct inter_modes_info {
    * Mode info struct for each of the candidate modes.
    */
   MB_MODE_INFO mbmi_arr[MAX_INTER_MODES];
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   /*!
    * Subblock motion info struct for each of the candidate modes.
    */
@@ -3308,17 +3308,17 @@ static INLINE void set_mode_info_offsets(
     const CommonModeInfoParams *const mi_params,
     const MBMIExtFrameBufferInfo *const mbmi_ext_info, MACROBLOCK *const x,
     MACROBLOCKD *const xd, int mi_row, int mi_col
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
     ,
     const int mi_width, const int mi_height
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 ) {
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   const int x_inside_boundary = AOMMIN(mi_width, mi_params->mi_cols - mi_col);
   const int y_inside_boundary = AOMMIN(mi_height, mi_params->mi_rows - mi_row);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   set_mi_offsets(mi_params, xd, mi_row, mi_col
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                  ,
                  x_inside_boundary, y_inside_boundary
 #endif  // CONFIG_C071_SUBBLK_WARPMV

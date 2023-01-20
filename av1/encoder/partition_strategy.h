@@ -252,7 +252,7 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
 
   set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
                         mi_row, mi_col
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                         ,
                         mi_width, mi_height
 #endif  // CONFIG_C071_SUBBLK_WARPMV

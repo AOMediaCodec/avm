@@ -2435,6 +2435,7 @@ int main(int argc, const char **argv_) {
         const double peak = (1 << stream->config.cfg.g_input_bit_depth) - 1;
         const double ovpsnr = sse_to_psnr((double)stream->psnr_samples_total,
                                           peak, (double)stream->psnr_sse_total);
+
         double psnr[4] = { 0.0 };
         if (global.show_psnr) {
           for (int i = 0; i < 4; i++) {

@@ -335,7 +335,7 @@ static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
 #endif  // CONFIG_WARP_REF_LIST
 }
 
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
 // store submi info into dst_submi
 void store_submi(const MACROBLOCKD *const xd, const AV1_COMMON *cm,
                  SUBMB_INFO *dst_submi, BLOCK_SIZE bsize);
@@ -343,7 +343,9 @@ void store_submi(const MACROBLOCKD *const xd, const AV1_COMMON *cm,
 // update submi from src_submi
 void update_submi(MACROBLOCKD *const xd, const AV1_COMMON *cm,
                   const SUBMB_INFO *src_submi, BLOCK_SIZE bsize);
+#endif
 
+#if CONFIG_C071_SUBBLK_WARPMV
 // update curmv precision
 static INLINE void update_mv_precision(const MV ref_mv,
 #if CONFIG_FLEX_MVRES

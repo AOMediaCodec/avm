@@ -867,7 +867,7 @@ struct CommonModeInfoParams {
    * accessed directly, in most cases. Please use 'mi_grid_base' array instead.
    */
   MB_MODE_INFO *mi_alloc;
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   /*!
    * An array of SUBMB_INFO structs for every 'mi_alloc_bsize' sized block
    * in the frame.
@@ -898,7 +898,7 @@ struct CommonModeInfoParams {
    * - Some pointers can be NULL (for example, for blocks outside visible area).
    */
   MB_MODE_INFO **mi_grid_base;
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   /*!
    * Grid of pointers to 4x4 SUBMB_INFO structs allocated in 'mi_alloc_sub'.
    */
@@ -2620,7 +2620,7 @@ static INLINE int get_alloc_mi_idx(const CommonModeInfoParams *const mi_params,
 // For this partition block, set pointers in mi_params->mi_grid_base and xd->mi.
 static INLINE void set_mi_offsets(const CommonModeInfoParams *const mi_params,
                                   MACROBLOCKD *const xd, int mi_row, int mi_col
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                                   ,
                                   int x_inside_boundary, int y_inside_boundary
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -2631,7 +2631,7 @@ static INLINE void set_mi_offsets(const CommonModeInfoParams *const mi_params,
   mi_params->mi_grid_base[mi_grid_idx] = &mi_params->mi_alloc[mi_alloc_idx];
   // 'xd->mi' should point to an offset in 'mi_grid_base';
   xd->mi = mi_params->mi_grid_base + mi_grid_idx;
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   mi_params->submi_grid_base[mi_grid_idx] =
       &mi_params->mi_alloc_sub[mi_alloc_idx];
   xd->submi = mi_params->submi_grid_base + mi_grid_idx;

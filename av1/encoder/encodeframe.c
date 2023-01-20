@@ -1345,6 +1345,12 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
   } else {
     int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+
+#if CONFIG_REFINEMV
+    const int bw = inter_pred_params->original_pu_width;
+    const int bh = inter_pred_params->original_pu_height;
+
+#else
 #if CONFIG_OPTFLOW_REFINEMENT
     // Use original block size to clamp MV and to extend block boundary
     const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
@@ -1355,6 +1361,8 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
     const int bw = inter_pred_params->block_width;
     const int bh = inter_pred_params->block_height;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#endif  // CONFIG_REFINEMV
     const MV mv_q4 = tip_clamp_mv_to_umv_border_sb(
         inter_pred_params, src_mv, bw, bh,
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1436,7 +1444,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   mi_params->setup_mi(mi_params);
 
   set_mi_offsets(mi_params, xd, 0, 0
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                  ,
                  0, 0
 #endif  // CONFIG_C071_SUBBLK_WARPMV

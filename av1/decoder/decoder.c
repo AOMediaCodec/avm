@@ -103,7 +103,7 @@ static void dec_setup_mi(CommonModeInfoParams *mi_params) {
       mi_params->mi_stride * calc_mi_size(mi_params->mi_rows);
   memset(mi_params->mi_grid_base, 0,
          mi_grid_size * sizeof(*mi_params->mi_grid_base));
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   memset(mi_params->submi_grid_base, 0,
          mi_grid_size * sizeof(*mi_params->submi_grid_base));
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -121,7 +121,7 @@ static void dec_free_mi(CommonModeInfoParams *mi_params) {
   mi_params->mi_alloc = NULL;
   aom_free(mi_params->mi_grid_base);
   mi_params->mi_grid_base = NULL;
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   aom_free(mi_params->mi_alloc_sub);
   mi_params->mi_alloc_sub = NULL;
   aom_free(mi_params->submi_grid_base);

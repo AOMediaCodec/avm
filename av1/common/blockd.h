@@ -374,7 +374,12 @@ typedef struct {
 // Block size to use to divide up the prediction unit
 #define OF_MIN_BSIZE (1 << OF_MIN_BSIZE_LOG2)
 #define OF_BSIZE (1 << OF_BSIZE_LOG2)
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+#define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_MIN_BSIZE_LOG2))
+#else
 #define N_OF_OFFSETS_1D (1 << (MAX_SB_SIZE_LOG2 - OF_BSIZE_LOG2))
+#endif
+
 // Maximum number of offsets to be computed
 #define N_OF_OFFSETS (N_OF_OFFSETS_1D * N_OF_OFFSETS_1D)
 #else
@@ -460,6 +465,11 @@ typedef struct MB_MODE_INFO {
    */
   uint8_t mb_precision_set;
 #endif
+#if CONFIG_REFINEMV
+  /*! \brief The flag to signal if DMVR is used for the inter prediction. */
+  uint8_t refinemv_flag;
+#endif  // CONFIG_REFINEMV
+
   /*! \brief The motion mode used by the inter prediction. */
   MOTION_MODE motion_mode;
   /*! \brief Number of samples used by spatial warp prediction */
@@ -617,7 +627,7 @@ typedef struct MB_MODE_INFO {
 #endif
 } MB_MODE_INFO;
 
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
 /*! \brief Stores the subblock motion info of the current coding block
  */
 // Note that this can not be stored in MB_MODE_INFO, because The MB_MODE_INFO is
@@ -629,6 +639,15 @@ typedef struct SUBMB_INFO {
   int_mv mv[2];
 } SUBMB_INFO;
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+
+#if CONFIG_REFINEMV
+/*! \brief Stores the subblock DMVR motion info of the current coding block
+ */
+typedef struct REFINEMV_SUBMB_INFO {
+  /*! \brief Stored subblock mv for reference. */
+  int_mv refinemv[2];
+} REFINEMV_SUBMB_INFO;
+#endif  // CONFIG_REFINEMV
 
 /*!\cond */
 // Get the start plane for semi-decoupled partitioning
@@ -1771,7 +1790,7 @@ typedef struct macroblockd {
    */
   MB_MODE_INFO **mi;
 
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   /*!
    * Appropriate offset inside cm->mi_params.submi_grid_base based on current
    * mi_row and mi_col.
@@ -2205,6 +2224,11 @@ typedef struct macroblockd {
   /** variable to store eob_u flag */
   uint8_t eob_u_flag;
 #endif  // CONFIG_CONTEXT_DERIVATION
+
+#if CONFIG_REFINEMV
+  /** block level storage to store luma refined MVs for chroma use */
+  REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#endif  // CONFIG_REFINEMV
 } MACROBLOCKD;
 
 /*!\cond */

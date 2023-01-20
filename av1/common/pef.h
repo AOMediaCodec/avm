@@ -84,6 +84,10 @@ void enhance_prediction(const struct AV1Common *cm, MACROBLOCKD *xd, int plane,
                         ,
                         int_mv *const mv_refined, int use_opfl
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                        ,
+                        int is_refinemv
+#endif
 );
 
 #ifdef __cplusplus

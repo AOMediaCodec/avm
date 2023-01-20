@@ -768,7 +768,7 @@ void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
                          cm->seq_params.subsampling_y, num_planes);
 
   set_mi_offsets(&cm->mi_params, xd, 0, 0
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                  ,
                  0, 0
 #endif  // CONFIG_C071_SUBBLK_WARPMV

@@ -235,6 +235,10 @@ set_aom_config_var(CONFIG_PAR_HIDING 1
                    "Enable parity hiding for coefficients coding. (PH)")
 set_aom_config_var(CONFIG_BAWP 1 "Enable block adaptive weighted prediction")
 set_aom_config_var(CONFIG_WARPMV 1 "Enable warpmv modes")
+set_aom_config_var(CONFIG_REFINEMV 1
+                   "Enable refinemv modes as an additional flag")
+set_aom_config_var(CONFIG_USE_OPTFLOW_MVS_FOR_MVP 0
+                   "Enable using optical flow mvs for TMVP")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1

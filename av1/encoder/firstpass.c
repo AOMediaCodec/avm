@@ -355,7 +355,7 @@ static int firstpass_intra_prediction(
   const int use_dc_pred = (mb_col || mb_row) && (!mb_col || !mb_row);
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE bsize = get_bsize(mi_params, mb_row, mb_col);
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
   const int x_inside_boundary =
@@ -366,7 +366,7 @@ static int firstpass_intra_prediction(
 
   aom_clear_system_state();
   set_mi_offsets(mi_params, xd, mb_row * mb_scale, mb_col * mb_scale
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                  ,
                  x_inside_boundary, y_inside_boundary
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -1130,7 +1130,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   aom_clear_system_state();
 
   set_mi_offsets(mi_params, xd, 0, 0
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                  ,
                  0, 0
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -1156,7 +1156,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   }
 
   set_mi_offsets(mi_params, xd, 0, 0
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                  ,
                  0, 0
 #endif  // CONFIG_C071_SUBBLK_WARPMV

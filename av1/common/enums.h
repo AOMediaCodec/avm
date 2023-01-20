@@ -28,6 +28,21 @@ extern "C" {
 /*!\cond */
 
 #undef MAX_SB_SIZE
+#define BAWP_BUGFIX 1
+
+#if CONFIG_REFINEMV
+
+#define USE_DEFAULT_SHARP_INTERPOLATION_FILTER 1
+
+#define USE_8TAP_FILTER_FOR_4x4OPTFLOW 0
+#define USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS 0
+#define OPFL_EXTEND_BOUNDARY 0
+
+#else
+#define USE_8TAP_FILTER_FOR_4x4OPTFLOW 0
+#define USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS 0
+#define OPFL_EXTEND_BOUNDARY 0
+#endif
 
 #if CONFIG_WEDGE_MOD_EXT
 /*WEDGE_0 is defined in the three o'clock direciton, the angles are defined in
@@ -70,6 +85,11 @@ enum {
 #else
 #define WARP_CU_BANK 0
 #endif  // CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
+
+#if CONFIG_REFINEMV
+#define REFINEMV_SUBBLOCK_WIDTH 16
+#define REFINEMV_SUBBLOCK_HEIGHT 16
+#endif  // CONFIG_REFINEMV
 
 // Cross-Component Sample Offset (CCSO)
 #if CONFIG_CCSO

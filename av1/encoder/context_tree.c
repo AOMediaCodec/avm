@@ -21,8 +21,10 @@ static const BLOCK_SIZE square[MAX_SB_SIZE_LOG2 - 1] = {
 void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
                            PICK_MODE_CONTEXT *src_ctx) {
   dst_ctx->mic = src_ctx->mic;
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+#if CONFIG_C071_SUBBLK_WARPMV && !CONFIG_USE_OPTFLOW_MVS_FOR_MVP
   if (is_warp_mode(src_ctx->mic.motion_mode))
+#endif
     memcpy(dst_ctx->submic, src_ctx->submic,
            MAX_MIB_SIZE * MAX_MIB_SIZE * sizeof(*src_ctx->submic));
 #endif  // CONFIG_C071_SUBBLK_WARPMV

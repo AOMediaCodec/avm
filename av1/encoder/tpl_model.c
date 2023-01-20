@@ -284,7 +284,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   const int mi_height = mi_size_high[bsize];
   set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
                         mi_row, mi_col
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
                         ,
                         mi_width, mi_height
 #endif  // CONFIG_C071_SUBBLK_WARPMV

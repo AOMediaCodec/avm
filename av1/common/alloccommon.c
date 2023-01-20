@@ -256,7 +256,7 @@ static int alloc_mi(CommonModeInfoParams *mi_params
     av1_alloc_txk_skip_array(mi_params, cm);
     av1_alloc_class_id_array(mi_params, cm);
 #endif  // CONFIG_PC_WIENER
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
     mi_params->mi_alloc_sub =
         aom_calloc(alloc_mi_size, sizeof(*mi_params->mi_alloc_sub));
     if (!mi_params->mi_alloc_sub) return 1;

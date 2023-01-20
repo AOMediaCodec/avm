@@ -240,8 +240,11 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   assert(mi->sb_type[xd->tree_type == CHROMA_PART] == bsize);
 
   *mi_addr = *mi;
-#if CONFIG_C071_SUBBLK_WARPMV
-  if (is_warp_mode(mi->motion_mode)) update_submi(xd, cm, ctx->submic, bsize);
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+#if CONFIG_C071_SUBBLK_WARPMV && !CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+  if (is_warp_mode(mi->motion_mode))
+#endif
+    update_submi(xd, cm, ctx->submic, bsize);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   if (xd->tree_type != CHROMA_PART)
     copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
@@ -407,7 +410,12 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   const int y_inside_boundary = AOMMIN(bh, mi_params->mi_rows - mi_row);
   if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
     av1_copy_frame_mvs(cm, mi, mi_row, mi_col, x_inside_boundary,
-                       y_inside_boundary);
+                       y_inside_boundary
+#if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
+                       ,
+                       use_refine_mvs_for_mvp(cm, xd, mi) ? xd->submi : NULL
+#endif
+    );
 }
 
 void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
@@ -1224,6 +1232,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
 #endif  // CONFIG_WARPMV
 
+#if CONFIG_REFINEMV
+  AVERAGE_CDF(ctx_left->refinemv_flag_cdf, ctx_tr->refinemv_flag_cdf,
+              REFINEMV_NUM_MODES);
+#endif  // CONFIG_REFINEMV
+
   AVERAGE_CDF(ctx_left->drl_cdf[0], ctx_tr->drl_cdf[0], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[1], ctx_tr->drl_cdf[1], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[2], ctx_tr->drl_cdf[2], 2);
@@ -1546,7 +1559,7 @@ void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
            sb_size_mi * sizeof(*mi_params->mi_grid_base));
     memset(&mi_params->tx_type_map[mi_grid_idx], 0,
            sb_size_mi * sizeof(*mi_params->tx_type_map));
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
     memset(&mi_params->submi_grid_base[mi_grid_idx], 0,
            sb_size_mi * sizeof(*mi_params->submi_grid_base));
 #endif  // CONFIG_C071_SUBBLK_WARPMV
@@ -1557,7 +1570,7 @@ void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
     if (cur_mi_row % mi_alloc_size_1d == 0) {
       memset(&mi_params->mi_alloc[alloc_mi_idx], 0,
              sb_size_alloc_mi * sizeof(*mi_params->mi_alloc));
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_USE_OPTFLOW_MVS_FOR_MVP
       memset(&mi_params->mi_alloc_sub[alloc_mi_idx], 0,
              sb_size_alloc_mi * sizeof(*mi_params->mi_alloc_sub));
 #endif  // CONFIG_C071_SUBBLK_WARPMV

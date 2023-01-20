@@ -183,7 +183,18 @@ void setup_pef_input(MACROBLOCKD *xd, int pef_mode, int plane, uint16_t *dst,
 }
 
 #if CONFIG_OPTFLOW_REFINEMENT
-static INLINE int opfl_get_subblock_size(int bw, int bh, int plane) {
+static INLINE int opfl_get_subblock_size(int bw, int bh, int plane
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                                         ,
+                                         int is_refinemv
+#endif
+
+) {
+
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+  if (is_refinemv) return OF_MIN_BSIZE;
+#endif
+
   return (plane || (bh <= 8 && bw <= 8)) ? OF_MIN_BSIZE : OF_BSIZE;
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -211,7 +222,13 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
 // main function for enhancing prediction block boundaries
 static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
                                                  MACROBLOCKD *xd,
-                                                 PefFuncInput *pef_input) {
+                                                 PefFuncInput *pef_input
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                                                 ,
+                                                 int is_refinemv
+#endif
+
+) {
   const int bw = pef_input->bw;
   const int bh = pef_input->bh;
   const int pef_mode = pef_input->pef_mode;
@@ -219,7 +236,14 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const int plane = pef_input->plane;
   const int n =
 #if CONFIG_OPTFLOW_REFINEMENT
-      pef_mode == 0 ? opfl_get_subblock_size(bw, bh, plane) :
+      pef_mode == 0 ? opfl_get_subblock_size(bw, bh, plane
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                                             ,
+                                             is_refinemv
+#endif
+
+                                             )
+                    :
 #endif                           // CONFIG_OPTFLOW_REFINEMENT
                     PEF_MCU_SZ;  // n is motion compensation unit size
 
@@ -426,7 +450,13 @@ void enhance_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd) {
     PefFuncInput pef_input;
     setup_pef_input(xd, 2, plane, dst, dst_stride, dst_buf->width,
                     dst_buf->height, NULL, &pef_input);
-    enhance_sub_prediction_blocks(cm, xd, &pef_input);
+    enhance_sub_prediction_blocks(cm, xd, &pef_input
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                                  ,
+                                  0
+#endif
+
+    );
   }
 }
 #endif  // CONFIG_TIP
@@ -437,16 +467,29 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                         ,
                         int_mv *const mv_refined, int use_opfl
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                        ,
+                        int is_refinemv
+#endif
 ) {
   if (!cm->seq_params.enable_pef) return;
   if (!cm->features.allow_pef) return;
+
+#if 0  // CONFIG_REFINEMV
+  if (xd->mi[0]->refinemv_flag) return;
+#endif
 #if CONFIG_TIP
   MB_MODE_INFO *mbmi = xd->mi[0];
   const int use_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (use_tip) {
     PefFuncInput pef_input;
     setup_pef_input(xd, 1, plane, dst, dst_stride, bw, bh, NULL, &pef_input);
-    enhance_sub_prediction_blocks(cm, xd, &pef_input);
+    enhance_sub_prediction_blocks(cm, xd, &pef_input
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                                  ,
+                                  0
+#endif
+    );
     return;
   }
 #endif  // CONFIG_TIP
@@ -456,7 +499,12 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     PefFuncInput pef_input;
     setup_pef_input(xd, 0, plane, dst, dst_stride, bw, bh, mv_refined,
                     &pef_input);
-    enhance_sub_prediction_blocks(cm, xd, &pef_input);
+    enhance_sub_prediction_blocks(cm, xd, &pef_input
+#if USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS
+                                  ,
+                                  is_refinemv
+#endif
+    );
     return;
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
