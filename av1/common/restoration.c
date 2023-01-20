@@ -1758,9 +1758,10 @@ void apply_wienerns_class_id_highbd(const uint16_t *dgd, int width, int height,
                                     int bit_depth) {
   (void)luma;
   (void)luma_stride;
-  int is_uv = (plane != AOM_PLANE_Y);
+  (void)plane;
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
+  int is_uv = (plane != AOM_PLANE_Y);
   if (is_uv && nsfilter_config->num_pixels2 != 0) {
     assert(wienerns_info->num_classes == 1);
     const int16_t *filter = const_nsfilter_taps(wienerns_info, 0);
@@ -2075,7 +2076,7 @@ void av1_loop_restoration_filter_unit(
   uint8_t *class_id_in_ru =
       rui->class_id + (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
       (limits->h_start >> MI_SIZE_LOG2);
-  const int allocate_buffers = unit_rtype == RESTORE_PC_WIENER;
+  int allocate_buffers = unit_rtype == RESTORE_PC_WIENER;
 #if CONFIG_WIENER_NONSEP
   allocate_buffers = allocate_buffers || unit_rtype == RESTORE_WIENER_NONSEP;
 #endif  // CONFIG_WIENER_NONSEP
