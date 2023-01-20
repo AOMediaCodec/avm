@@ -1400,6 +1400,10 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     set_most_probable_mv_precision(cm, mbmi, bsize);
 #endif
 
+#if CONFIG_REFINEMV
+    mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_BAWP
     mbmi->bawp_flag = 0;
 #endif
@@ -2124,6 +2128,10 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   mbmi->bawp_flag = 0;
 #endif
 
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
+
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_AIMC
@@ -2577,6 +2585,21 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
 }
 #endif  // DEC_MISMATCH_DEBUG
 
+#if CONFIG_REFINEMV
+static void read_refinemv_flag(AV1_COMMON *const cm, MACROBLOCKD *xd,
+                               aom_reader *r, BLOCK_SIZE bsize) {
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
+  int signal_refinemv = switchable_refinemv_flag(cm, mbmi);
+  if (signal_refinemv) {
+    const int refinemv_ctx = av1_get_refinemv_context(cm, xd, bsize);
+    mbmi->refinemv_flag =
+        aom_read_symbol(r, xd->tile_ctx->refinemv_flag_cdf[refinemv_ctx],
+                        REFINEMV_NUM_MODES, ACCT_STR);
+  }
+}
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_FLEX_MVRES
 MvSubpelPrecision av1_read_pb_mv_precision(AV1_COMMON *const cm,
                                            MACROBLOCKD *const xd,
@@ -2649,6 +2672,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->bawp_flag = 0;
 #endif
 
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
+
   av1_collect_neighbors_ref_counts(xd);
 
   read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
@@ -2702,16 +2729,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_WARPMV
   if (mbmi->skip_mode) {
     assert(is_compound);
-#if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
-    mbmi->mode = (cm->features.opfl_refine_type
-#if CONFIG_CWP
-                          && !cm->features.enable_cwp
-#endif  // CONFIG_CWP
-                      ? NEAR_NEARMV_OPTFLOW
-                      : NEAR_NEARMV);
-#else
-    mbmi->mode = NEAR_NEARMV;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     read_drl_idx(cm->features.max_drl_bits,
@@ -2725,6 +2742,21 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     mbmi->ref_frame[1] =
         xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx];
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+
+#if CONFIG_REFINEMV
+    mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
+#endif  // CONFIG_REFINEMV
+#if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+    mbmi->mode = (cm->features.opfl_refine_type
+#if CONFIG_CWP
+                          && !cm->features.enable_cwp
+#endif  // CONFIG_CWP
+                      ? NEAR_NEARMV_OPTFLOW
+                      : NEAR_NEARMV);
+#else
+    mbmi->mode = NEAR_NEARMV;
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {
@@ -2966,6 +2998,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if CONFIG_REFINEMV
+  if (!mbmi->skip_mode) {
+    read_refinemv_flag(cm, xd, r, bsize);
+  }
+#endif  // CONFIG_REFINEMV
+
   // init
   mbmi->comp_group_idx = 0;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -2974,6 +3012,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_OPTFLOW_REFINEMENT
       mbmi->mode < NEAR_NEARMV_OPTFLOW &&
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+      (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
+#endif  // CONFIG_REFINEMV
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
       !is_joint_amvd_coding_mode(mbmi->mode) &&
 #endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
@@ -3161,6 +3202,10 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_BAWP
   mbmi->bawp_flag = 0;
 #endif
+
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
 
   mbmi->segment_id = read_inter_segment_id(cm, xd, 1, r);
 
