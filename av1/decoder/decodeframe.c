@@ -2663,7 +2663,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       chroma_none &= p == 0;
     }
 #if CONFIG_WIENER_NONSEP
-    if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP)
+    const int is_wiener_nonsep_possible =
+        rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
+        rsi->frame_restoration_type == RESTORE_SWITCHABLE;
+    if (is_wiener_nonsep_possible)
       rsi->num_filter_classes = p == AOM_PLANE_Y
                                     ? NUM_WIENERNS_CLASS_INIT_LUMA
                                     : NUM_WIENERNS_CLASS_INIT_CHROMA;
