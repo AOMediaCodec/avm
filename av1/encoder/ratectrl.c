@@ -174,6 +174,7 @@ void av1_rc_init_minq_luts(void) {
 // tables if and when things settle down in the experimental bitstream
 
 double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth) {
+  // Please ensure restoration.c:get_qstep() is in sync with changes here.
   // Convert the index to a real Q value normalized for unitary transforms.
   switch (bit_depth) {
     case AOM_BITS_8:

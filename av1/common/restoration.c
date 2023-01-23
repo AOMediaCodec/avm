@@ -28,6 +28,7 @@
 
 #if CONFIG_PC_WIENER
 #include "av1/common/pc_wiener_filters.h"
+double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth);
 #endif  // CONFIG_PC_WIENER
 
 #if CONFIG_WIENER_NONSEP
@@ -1209,21 +1210,19 @@ void av1_apply_selfguided_restoration_c(const uint16_t *dat, int width,
 
 // This routine should remain in sync with av1_convert_qindex_to_q.
 static int get_qstep(int base_qindex, int bit_depth, int *shift) {
-  int base_shift = QUANT_TABLE_BITS;
-  switch (bit_depth) {
-    case AOM_BITS_8:
-      *shift = 2 + base_shift;
-      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
-    case AOM_BITS_10:
-      *shift = 4 + base_shift;
-      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
-    case AOM_BITS_12:
-      *shift = 6 + base_shift;
-      return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
-    default:
-      assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
-      return -1;
+  int shifted_qstep = av1_ac_quant_QTX(base_qindex, 0, bit_depth);
+  double qstep = av1_convert_qindex_to_q(base_qindex, bit_depth);
+  const int max_shift = QUANT_TABLE_BITS + 10;
+
+  assert(qstep >= 0);
+  int qstep_shift = QUANT_TABLE_BITS;
+  while (qstep_shift < max_shift) {
+    if ((int)(qstep * (1 << qstep_shift) + .5) >= shifted_qstep) break;
+    ++qstep_shift;
   }
+  assert(fabs(shifted_qstep * 1.0 / (1 << qstep_shift) - qstep) < 1e-10);
+  *shift = qstep_shift;
+  return shifted_qstep;
 }
 
 // TODO(oguleryuz): These need to move into allocated line buffers accessible
