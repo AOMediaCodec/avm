@@ -343,7 +343,7 @@ static INLINE int aom_read_4part_(aom_reader *r, aom_cdf_prob *cdf,
 static INLINE int aom_read_4part_wref_(aom_reader *r, int ref_symb,
                                        aom_cdf_prob *cdf,
                                        int nsymb_bits ACCT_STR_PARAM) {
-  const int symb = aom_read_4part(r, cdf, nsymb_bits, ACCT_STR_PARAM);
+  const int symb = aom_read_4part(r, cdf, nsymb_bits, ACCT_STR_NAME);
   return inv_recenter_finite_nonneg(1 << nsymb_bits, ref_symb, symb);
 }
 #endif  // ENABLE_LR_4PART_CODE
