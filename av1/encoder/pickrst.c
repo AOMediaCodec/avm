@@ -2564,7 +2564,7 @@ static int16_t quantize_wienerns_tap(double x, int16_t minv, int16_t n,
 // complexity and quality improvements.
 //
 // ~20 q_wrapper iterations are ~ 1 finer_tile iteration for a 256 x 256 RU.
-// When effective RU size increases with RST_MERGE the 10x simplifcation will
+// When effective RU size increases with LR_MERGE the 10x simplifcation will
 // increase.
 #define Q_WRAPPER_MAX_ITER (USE_Q_WRAPPER ? 20 : 0)
 #define MAX_INCREMENT 2  // Controls the extent of each greedy update.
