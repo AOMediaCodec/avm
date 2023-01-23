@@ -1203,13 +1203,17 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
         const int stepc = tx_size_wide_unit[tx_size];
         const int step = stepr * stepc;
         const struct macroblockd_plane *const pd = &xd->plane[plane];
-        const int unit_height = ROUND_POWER_OF_TWO(
-            AOMMIN(mu_blocks_high + row, max_blocks_high), pd->subsampling_y);
-        const int unit_width = ROUND_POWER_OF_TWO(
-            AOMMIN(mu_blocks_wide + col, max_blocks_wide), pd->subsampling_x);
-        for (int blk_row = row >> pd->subsampling_y; blk_row < unit_height;
+        const int ss_x = pd->subsampling_x;
+        const int ss_y = pd->subsampling_y;
+        const BLOCK_SIZE plane_bsize =
+            get_mb_plane_block_size(xd, mbmi, plane, ss_x, ss_y);
+        const int plane_unit_height =
+            get_plane_tx_unit_height(xd, plane_bsize, plane, row, ss_y);
+        const int plane_unit_width =
+            get_plane_tx_unit_width(xd, plane_bsize, plane, col, ss_x);
+        for (int blk_row = row >> ss_y; blk_row < plane_unit_height;
              blk_row += stepr) {
-          for (int blk_col = col >> pd->subsampling_x; blk_col < unit_width;
+          for (int blk_col = col >> ss_x; blk_col < plane_unit_width;
                blk_col += stepc) {
 #if CONFIG_CROSS_CHROMA_TX
             // Loop order for the two chroma planes is changed for CCTX

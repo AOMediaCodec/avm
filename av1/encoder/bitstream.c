@@ -2576,6 +2576,7 @@ static AOM_INLINE void write_inter_txb_coeff(
   const int mu_blocks_high = mi_size_high[max_unit_bsize];
   const int unit_height = AOMMIN(mu_blocks_high + (row >> ss_y), num_4x4_h);
   const int unit_width = AOMMIN(mu_blocks_wide + (col >> ss_x), num_4x4_w);
+
   for (int blk_row = row >> ss_y; blk_row < unit_height; blk_row += bkh) {
     for (int blk_col = col >> ss_x; blk_col < unit_width; blk_col += bkw) {
 #if CONFIG_CROSS_CHROMA_TX

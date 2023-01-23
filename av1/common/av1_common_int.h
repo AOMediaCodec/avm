@@ -2672,33 +2672,6 @@ static INLINE int partition_middle_noext_rec_cdf_length(BLOCK_SIZE bsize) {
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                                 int plane) {
-  assert(bsize < BLOCK_SIZES_ALL);
-  int max_blocks_wide = block_size_wide[bsize];
-
-  if (xd->mb_to_right_edge < 0) {
-    const struct macroblockd_plane *const pd = &xd->plane[plane];
-    max_blocks_wide += xd->mb_to_right_edge >> (3 + pd->subsampling_x);
-  }
-
-  // Scale the width in the transform block unit.
-  return max_blocks_wide >> MI_SIZE_LOG2;
-}
-
-static INLINE int max_block_high(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                                 int plane) {
-  int max_blocks_high = block_size_high[bsize];
-
-  if (xd->mb_to_bottom_edge < 0) {
-    const struct macroblockd_plane *const pd = &xd->plane[plane];
-    max_blocks_high += xd->mb_to_bottom_edge >> (3 + pd->subsampling_y);
-  }
-
-  // Scale the height in the transform block unit.
-  return max_blocks_high >> MI_SIZE_LOG2;
-}
-
 static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
                                           const MACROBLOCKD *xd,
                                           int mi_col_start, int mi_col_end,

@@ -2602,6 +2602,54 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
   return ss_size_lookup[bsize][subsampling_x][subsampling_y];
 }
 
+
+static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                 int plane) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  int max_blocks_wide = block_size_wide[bsize];
+
+  if (xd->mb_to_right_edge < 0) {
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    max_blocks_wide += xd->mb_to_right_edge >> (3 + pd->subsampling_x);
+  }
+
+  // Scale the width in the transform block unit.
+  return max_blocks_wide >> MI_SIZE_LOG2;
+}
+
+static INLINE int max_block_high(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                 int plane) {
+  int max_blocks_high = block_size_high[bsize];
+
+  if (xd->mb_to_bottom_edge < 0) {
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    max_blocks_high += xd->mb_to_bottom_edge >> (3 + pd->subsampling_y);
+  }
+
+  // Scale the height in the transform block unit.
+  return max_blocks_high >> MI_SIZE_LOG2;
+}
+
+static INLINE int get_plane_tx_unit_height(const MACROBLOCKD *xd,
+  BLOCK_SIZE plane_bsize, int plane, int row, int ss_y) {
+    const int max_plane_blocks_high =
+        max_block_high(xd, plane_bsize, plane);
+    const int mu_plane_blocks_high =
+        AOMMIN(mi_size_high[BLOCK_64X64] >> ss_y, max_plane_blocks_high);
+    return AOMMIN(
+        mu_plane_blocks_high + (row >> ss_y), max_plane_blocks_high);
+}
+
+static INLINE int get_plane_tx_unit_width(const MACROBLOCKD *xd,
+  BLOCK_SIZE plane_bsize, int plane, int col, int ss_x) {
+    const int max_plane_blocks_wide =
+        max_block_wide(xd, plane_bsize, plane);
+    const int mu_plane_blocks_wide =
+        AOMMIN(mi_size_wide[BLOCK_64X64] >> ss_x, max_plane_blocks_wide);
+    return AOMMIN(
+        mu_plane_blocks_wide + (col >> ss_x), max_plane_blocks_wide);
+}
+
 /*!\brief Returns the index of luma/chroma based on the current partition tree
  * type.
  *
