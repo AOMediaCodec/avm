@@ -3394,6 +3394,7 @@ double set_cand_merge_sse_and_bits(
       const int is_equal = check_wienerns_bank_eq(
           &old_unit->ref_wienerns_bank, token_wienerns_info_cand,
           nsfilter_params->ncoeffs, class_id, equal_ref_for_class);
+      (void)is_equal;
       assert(is_equal >= 0);  // Must exist in bank
       const int merge_bits = (int)count_wienerns_bits(
           is_uv, &x->mode_costs, &old_rusi->wienerns_info,
@@ -3441,6 +3442,7 @@ double accumulate_merge_stats(const RestSearchCtxt *rsc,
                               double *solver_A_AVG, double *solver_b_AVG,
                               int dim_A, int dim_b, int offset_A, int offset_b,
                               int class_id) {
+  (void)current_unit_indices;
   const int last_idx =
       ((RstUnitSnapshot *)aom_vector_back(current_unit_stack))->rest_unit_idx;
   const MACROBLOCK *const x = rsc->x;
@@ -3504,9 +3506,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
   rui.restoration_type = RESTORE_WIENER_NONSEP;
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
-
-  const int num_classes = rsc->num_filter_classes;
-  assert(num_classes == rsc->wienerns_bank.filter[0].num_classes);
+  assert(rsc->num_filter_classes == rsc->wienerns_bank.filter[0].num_classes);
 
   // Calculate and save this RU's stats.
   RstUnitStats unit_stats;
@@ -3814,6 +3814,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
 
     RstUnitSnapshot *last_unit = aom_vector_back(current_unit_stack);
     RestUnitSearchInfo *last_rusi = &rsc->rusi[last_unit->rest_unit_idx];
+    (void)last_rusi;
     if (cost_merge < cost_nomerge && begin_idx[c_id] != -1) {
       ++merged_class_count;
       const WienerNonsepInfo *token_wienerns_info =
@@ -3837,6 +3838,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
           const int is_equal = check_wienerns_bank_eq(
               &old_unit->ref_wienerns_bank, token_wienerns_info,
               nsfilter_params->ncoeffs, c_id, equal_ref_for_class);
+          (void)is_equal;
           assert(is_equal >= 0);  // Must exist in bank
           // Update bank.
           av1_upd_to_wienerns_bank(&old_unit->ref_wienerns_bank,
@@ -3870,6 +3872,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       const int is_equal = check_wienerns_bank_eq(
           &last_unit->ref_wienerns_bank, &rui_merge_best.wienerns_info,
           nsfilter_params->ncoeffs, c_id, equal_ref_for_class);
+      (void)is_equal;
       assert(is_equal >= 0);  // Must exist in bank
       assert(rui_merge_best.wienerns_info.bank_ref_for_class[c_id] ==
              equal_ref_for_class[c_id]);
