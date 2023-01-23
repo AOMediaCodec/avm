@@ -3412,6 +3412,7 @@ double set_cand_merge_sse_and_bits(
       const int is_equal = check_wienerns_bank_eq(
           &old_unit->ref_wienerns_bank, token_wienerns_info_cand,
           nsfilter_params->ncoeffs, class_id, equal_ref_for_class);
+      (void)is_equal;
       assert(is_equal >= 0);  // Must exist in bank
 
       // token_wienerns_info_cand has the best filters for classes < class_id
