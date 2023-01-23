@@ -1441,6 +1441,7 @@ void apply_pc_wiener_highbd(
     int class_id_stride, bool is_uv, int bit_depth, bool classify_only,
     const int16_t (*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA],
     const uint8_t *filter_selector) {
+  void is_uv;
   const bool skip_filtering = classify_only;
   assert(!is_uv);
   const int pc_filter_num_taps =
@@ -1478,7 +1479,6 @@ void apply_pc_wiener_highbd(
 #endif  // !USE_CONVOLVE_SYM
 
   assert(filter_config->strict_bounds == false);
-  const bool dir_strict = filter_config->strict_bounds;
   const bool tskip_strict = true;
   const int feature_lead = PC_WIENER_FEATURE_LEAD_LUMA;
   const int feature_lag = PC_WIENER_FEATURE_LAG_LUMA;
@@ -1496,7 +1496,6 @@ void apply_pc_wiener_highbd(
   // yet to be added in 'fill_directional_feature_buffers_highbd()' function.
   // Hence, not prefered to pass this variable as an argument to this function
   // to avoid build failure.
-  assert(dir_strict == false);
   for (int row = 0; row < feature_length - 1; ++row) {
     fill_directional_feature_buffers_highbd(
         feature_sum_buffers, feature_line_buffers, row - feature_lead, row, dgd,
