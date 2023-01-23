@@ -1441,7 +1441,7 @@ void apply_pc_wiener_highbd(
     int class_id_stride, bool is_uv, int bit_depth, bool classify_only,
     const int16_t (*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA],
     const uint8_t *filter_selector) {
-  (void) is_uv;
+  (void)is_uv;
   const bool skip_filtering = classify_only;
   assert(!is_uv);
   const int pc_filter_num_taps =
