@@ -90,11 +90,11 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_WARPMV 0 !CONFIG_WARP_REF_LIST)
   endif()
 
-  #Begin: CWG-C016
+  # Begin: CWG-C016
   if (CONFIG_WIENER_NONSEP_CROSS_FILT)
       change_config_and_warn(
           CONFIG_WIENER_NONSEP 1 CONFIG_WIENER_NONSEP_CROSS_FILT)
   endif()
-  #End: CWG-C016
+  # End: CWG-C016
 
 endmacro()
