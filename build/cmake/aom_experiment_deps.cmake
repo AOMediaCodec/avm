@@ -91,8 +91,8 @@ macro(fix_experiment_configs)
   endif()
 
   # Begin: CWG-C016.
-  if (CONFIG_WIENER_NONSEP_CROSS_FILT)
-    change_config_and_warn(CONFIG_WIENER_NONSEP 1 
+  if(CONFIG_WIENER_NONSEP_CROSS_FILT)
+    change_config_and_warn(CONFIG_WIENER_NONSEP 1
                            CONFIG_WIENER_NONSEP_CROSS_FILT)
   endif()
   # End: CWG-C016.
