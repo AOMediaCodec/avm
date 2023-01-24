@@ -1208,17 +1208,19 @@ void av1_apply_selfguided_restoration_c(const uint16_t *dat, int width,
 #if CONFIG_PC_WIENER
 
 // This routine should remain in sync with av1_convert_qindex_to_q.
+// The actual qstep used to quantize coefficients should be:
+//  get_qstep() / (1 << shift)
 static int get_qstep(int base_qindex, int bit_depth, int *shift) {
   int base_shift = QUANT_TABLE_BITS;
   switch (bit_depth) {
     case AOM_BITS_8:
-      *shift = 3 + base_shift;
+      *shift = 2 + base_shift;
       return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
     case AOM_BITS_10:
-      *shift = 5 + base_shift;
+      *shift = 4 + base_shift;
       return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
     case AOM_BITS_12:
-      *shift = 7 + base_shift;
+      *shift = 6 + base_shift;
       return av1_ac_quant_QTX(base_qindex, 0, bit_depth);
     default:
       assert(0 && "bit_depth should be AOM_BITS_8, AOM_BITS_10 or AOM_BITS_12");
