@@ -1050,7 +1050,7 @@ class AV1ConvolveNonSep2DHighbdTest
 
     // Calculate time taken for C function
     const NonsepFilterConfig *filter_config[2] = { NULL, NULL };
-    highbd_convolve_nonsep_2d_func ref_func;
+    highbd_convolve_nonsep_2d_func ref_func = av1_convolve_symmetric_highbd_c;
 #if CONFIG_PC_WIENER
     if (rtype == RESTORE_PC_WIENER) {
       ref_func = av1_convolve_symmetric_highbd_c;

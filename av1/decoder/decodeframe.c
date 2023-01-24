@@ -2854,9 +2854,10 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
                                  WienerNonsepInfoBank *bank, aom_reader *rb) {
   int skip_filter_read_for_class[WIENERNS_MAX_CLASSES] = { 0 };
   int ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
-  assert(wienerns_info->num_classes <= WIENERNS_MAX_CLASSES);
+  const int num_classes = wienerns_info->num_classes;
+  assert(num_classes <= WIENERNS_MAX_CLASSES);
 #if CONFIG_LR_MERGE_COEFFS
-  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+  for (int c_id = 0; c_id < num_classes; ++c_id) {
     const int exact_match =
         aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
     int ref;
@@ -2881,14 +2882,13 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   const int end_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   int reduce_step[WIENERNS_REDUCE_STEPS];
-  assert(wienerns_info->num_classes <= WIENERNS_MAX_CLASSES);
-  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+  for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_read_for_class[c_id]) continue;
     const int ref = ref_for_class[c_id];
 
     const WienerNonsepInfo *ref_wienerns_info =
         av1_ref_from_wienerns_bank(bank, ref, c_id);
-    assert(wienerns_info->num_classes == ref_wienerns_info->num_classes);
+    assert(ref_wienerns_info->num_classes == num_classes);
     int16_t *wienerns_info_nsfilter = nsfilter_taps(wienerns_info, c_id);
     const int16_t *ref_wienerns_info_nsfilter =
         const_nsfilter_taps(ref_wienerns_info, c_id);
