@@ -741,7 +741,8 @@ static SgrprojInfo search_selfguided_restoration(
   int32_t *flt1 = flt0 + RESTORATION_UNITPELS_MAX;
   int ep, idx, bestep = 0;
   int64_t besterr = -1;
-  int exqd[2], bestxqd[2] = { 0, 0 };
+  int exqd[2] = { 0 };
+  int bestxqd[2] = { 0, 0 };
   assert(pu_width == (RESTORATION_PROC_UNIT_SIZE >> 1) ||
          pu_width == RESTORATION_PROC_UNIT_SIZE);
   assert(pu_height == (RESTORATION_PROC_UNIT_SIZE >> 1) ||

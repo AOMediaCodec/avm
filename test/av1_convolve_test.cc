@@ -1049,7 +1049,7 @@ class AV1ConvolveNonSep2DHighbdTest
         input + kMaxTapOffset * width + kMaxTapOffset;
 
     // Calculate time taken for C function
-    const NonsepFilterConfig *filter_config[2];
+    const NonsepFilterConfig *filter_config[2] = { NULL, NULL };
     highbd_convolve_nonsep_2d_func ref_func;
 #if CONFIG_PC_WIENER
     if (rtype == RESTORE_PC_WIENER) {
