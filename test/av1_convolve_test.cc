@@ -937,8 +937,6 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_2d_avx2));
 #endif
 
-}  // namespace
-
 //////////////////////////////////////////////////////////
 // Nonseparable convolve-2d functions (high bit-depth)
 //////////////////////////////////////////////////////////
@@ -2223,3 +2221,5 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(av1_fill_tskip_feature_accumulator_avx2));
 #endif  // HAVE_AVX2
 #endif  // CONFIG_PC_WIENER
+
+}  // namespace
