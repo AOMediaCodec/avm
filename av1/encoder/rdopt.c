@@ -6582,9 +6582,9 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
                                  cm,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                  cm->features.interp_filter);
-#if !CONFIG_NEW_REF_SIGNALING
-      search_state->best_mode_index = mode_index;
-#endif
+#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
+      ctx->best_mode_index = mode_index;
+#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 
       // Update rd_cost
       best_rd_cost->rate = skip_mode_rd_stats.rate;

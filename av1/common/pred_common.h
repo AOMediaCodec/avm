@@ -279,6 +279,8 @@ static INLINE int derive_comp_one_ref_context(const AV1_COMMON *cm,
                                               const MB_MODE_INFO *const mi) {
 #if CONFIG_NEW_REF_SIGNALING
   MV_REFERENCE_FRAME furthest_future_ref = get_furthest_future_ref_index(cm);
+#else
+  (void)cm;
 #endif  // CONFIG_NEW_REF_SIGNALING
   int ctx = 0;
   if (mi) {
