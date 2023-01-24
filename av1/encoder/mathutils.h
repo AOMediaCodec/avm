@@ -60,6 +60,8 @@ static INLINE int linsolve(int n, double *A, int stride, double *b, double *x) {
 
 static INLINE int linsolve_const(int n, const double *A, int stride,
                                  const double *b, double *x) {
+  assert(n>0);
+  assert(stride>0);
   double *A_ = (double *)malloc(sizeof(*A_) * n * n);
   double *b_ = (double *)malloc(sizeof(*b_) * n);
   for (int i = 0; i < n; ++i) {

@@ -2854,6 +2854,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
                                  WienerNonsepInfoBank *bank, aom_reader *rb) {
   int skip_filter_read_for_class[WIENERNS_MAX_CLASSES] = { 0 };
   int ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
+  assert(wienerns_info->num_classes <= WIENERNS_MAX_CLASSES);
 #if CONFIG_LR_MERGE_COEFFS
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     const int exact_match =

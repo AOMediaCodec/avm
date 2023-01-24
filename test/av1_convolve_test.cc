@@ -970,7 +970,7 @@ class AV1ConvolveNonSep2DHighbdTest
                     uint16_t *test, int dst_stride, int bit_depth,
                     int block_row_begin, int block_row_end, int block_col_begin,
                     int block_col_end, RestorationType rtype) {
-    const NonsepFilterConfig *filter_config[2];
+    const NonsepFilterConfig *filter_config[2] = {NULL, NULL};
     highbd_convolve_nonsep_2d_func ref_func = av1_convolve_symmetric_highbd_c;
     const int num_planes = 2;
 
@@ -992,6 +992,7 @@ class AV1ConvolveNonSep2DHighbdTest
       filter_config[1] = &UnitSumFilterConfigChroma_;
     }
 #endif  // CONFIG_WIENER_NONSEP
+    assert(filter_config[0]!= NULL && filter_config[1]!=NULL);
 
     for (int plane = 0; plane < num_planes; plane++) {
       ref_func(input, input_stride, filter_config[plane], filter, reference,

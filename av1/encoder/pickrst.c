@@ -703,6 +703,8 @@ static int64_t calc_sgrproj_err(const RestSearchCtxt *rsc,
 #if CONFIG_LR_MERGE_COEFFS
     Vector *current_unit_stack = rsc->unit_stack;
     Vector *current_unit_indices = rsc->unit_indices;
+    assert(current_unit_stack->size > 0);
+    assert(current_unit_indices->size > 0);
     int n = 0;
     int idx = *(int *)aom_vector_const_get(current_unit_indices, n);
     VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
