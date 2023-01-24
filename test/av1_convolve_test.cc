@@ -16,7 +16,10 @@
 #include "aom_ports/aom_timer.h"
 #include "config/av1_rtcd.h"
 #include "config/aom_dsp_rtcd.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
 #include "test/acm_random.h"
+#pragma GCC diagnostic pop
 #include "test/clear_system_state.h"
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
@@ -941,8 +944,6 @@ INSTANTIATE_TEST_SUITE_P(
 // Nonseparable convolve-2d functions (high bit-depth)
 //////////////////////////////////////////////////////////
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wuninitialized"
 #if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
 typedef void (*highbd_convolve_nonsep_2d_func)(
     const uint16_t *src, int src_stride,
@@ -2223,5 +2224,4 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(av1_fill_tskip_feature_accumulator_avx2));
 #endif  // HAVE_AVX2
 #endif  // CONFIG_PC_WIENER
-#pragma GCC diagnostic pop
 }  // namespace
