@@ -2067,16 +2067,23 @@ void av1_loop_restoration_filter_unit(
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
   const uint16_t *luma_in_plane = rui->luma;
   const uint16_t *luma_in_ru =
-      luma_in_plane + limits->v_start * rui->luma_stride + limits->h_start;
+      unit_rtype == RESTORE_WIENER_NONSEP
+          ? luma_in_plane + limits->v_start * rui->luma_stride + limits->h_start
+          : NULL;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
 #if CONFIG_PC_WIENER
   const uint8_t *tskip_in_ru =
-      rui->tskip + (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
-      (limits->h_start >> MI_SIZE_LOG2);
+      unit_rtype == RESTORE_PC_WIENER
+          ? rui->tskip + (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
+                (limits->h_start >> MI_SIZE_LOG2)
+          : NULL;
   uint8_t *class_id_in_ru =
-      rui->class_id + (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
-      (limits->h_start >> MI_SIZE_LOG2);
+      unit_rtype == RESTORE_PC_WIENER
+          ? rui->class_id +
+                (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
+                (limits->h_start >> MI_SIZE_LOG2)
+          : NULL;
   int allocate_buffers = unit_rtype == RESTORE_PC_WIENER;
 #if CONFIG_WIENER_NONSEP
   allocate_buffers = allocate_buffers || unit_rtype == RESTORE_WIENER_NONSEP;
@@ -2118,12 +2125,18 @@ void av1_loop_restoration_filter_unit(
                                      optimized_lr);
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-    tmp_rui->luma = luma_in_ru + i * rui->luma_stride;
+    tmp_rui->luma = unit_rtype == RESTORE_WIENER_NONSEP
+                        ? luma_in_ru + i * rui->luma_stride
+                        : NULL;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #if CONFIG_PC_WIENER
-    tmp_rui->tskip = tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride;
+    tmp_rui->tskip = unit_rtype == RESTORE_PC_WIENER
+                         ? tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride
+                         : NULL;
     tmp_rui->class_id =
-        class_id_in_ru + (i >> MI_SIZE_LOG2) * rui->class_id_stride;
+        unit_rtype == RESTORE_PC_WIENER
+            ? class_id_in_ru + (i >> MI_SIZE_LOG2) * rui->class_id_stride
+            : NULL;
 #endif  // CONFIG_PC_WIENER
 
     stripe_filter(tmp_rui, unit_w, h, procunit_width, data_tl + i * stride,
