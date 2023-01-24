@@ -190,8 +190,9 @@ typedef struct RstUnitStats {
   double b[WIENERNS_MAX_CLASSES * WIENERNS_MAX];
   int64_t real_sse;
   int num_stats_classes;
-  int ru_idx;  // debug.
-  int plane;   // debug.
+  int ru_idx;          // debug.
+  int ru_idx_in_tile;  // debug.
+  int plane;           // debug.
 } RstUnitStats;
 #endif  // CONFIG_WIENER_NONSEP
 
@@ -3510,6 +3511,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
       rsc->src_stride, &rui, rsc->cm->seq_params.bit_depth, unit_stats.A,
       unit_stats.b, nsfilter_params, rsc->num_stat_classes);
   unit_stats.ru_idx = rest_unit_idx;
+  unit_stats.ru_idx_in_tile = rest_unit_idx_in_rutile - rsc->ru_idx_base;
   unit_stats.plane = rsc->plane;
   unit_stats.num_stats_classes = rsc->num_stat_classes;
   aom_vector_push_back(rsc->wienerns_stats, &unit_stats);
@@ -3545,8 +3547,10 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(num_classes == rsc->wienerns_bank.filter[0].num_classes);
 
   const RstUnitStats *unit_stats = (const RstUnitStats *)aom_vector_const_get(
-      rsc->wienerns_stats, rsc->ru_idx_base + rest_unit_idx_in_rutile);
+      rsc->wienerns_stats, rest_unit_idx_in_rutile);
   assert(unit_stats->ru_idx == rest_unit_idx);
+  assert(unit_stats->ru_idx_in_tile + rsc->ru_idx_base ==
+         rest_unit_idx_in_rutile);
   assert(unit_stats->plane == rsc->plane);
 
   if (!compute_quantized_wienerns_filter(
