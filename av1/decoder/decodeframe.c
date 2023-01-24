@@ -2881,6 +2881,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   const int end_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   int reduce_step[WIENERNS_REDUCE_STEPS];
+  assert(wienerns_info->num_classes <= WIENERNS_MAX_CLASSES);
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     if (skip_filter_read_for_class[c_id]) continue;
     const int ref = ref_for_class[c_id];
