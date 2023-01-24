@@ -1970,9 +1970,9 @@ class AV1FeatureDirAccumHighbdTest
 
   int *feature_sum_buf[NUM_PC_WIENER_FEATURES];
   int dir_feature_accum_buf_c[NUM_PC_WIENER_FEATURES]
-                             [PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
+                             [PC_WIENER_FEATURE_ACC_SIZE] = { { 0 } };
   int dir_feature_accum_buf_simd[NUM_PC_WIENER_FEATURES]
-                                [PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
+                                [PC_WIENER_FEATURE_ACC_SIZE] = { { 0 } };
   int RandBool() {
     const uint32_t value = rnd_.Rand8();
     // There's a bit more entropy in the upper bits of this implementation.
