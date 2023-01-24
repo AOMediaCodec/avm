@@ -40,7 +40,7 @@ typedef void (*highbd_convolve_nonsep_2d_func)(
     const NonsepFilterConfig *filter_config, const int16_t *filter,
     uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin,
     int block_row_end, int block_col_begin, int block_col_end);
-#endif // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 typedef void (*highbd_convolve_nonsep_dual_2d_func)(
@@ -49,7 +49,7 @@ typedef void (*highbd_convolve_nonsep_dual_2d_func)(
     const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
     int block_row_begin, int block_row_end, int block_col_begin,
     int block_col_end);
-#endif // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
 namespace {
 
@@ -1310,13 +1310,6 @@ INSTANTIATE_TEST_SUITE_P(
 //////////////////////////////////////////////////////////
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-typedef void (*highbd_convolve_nonsep_dual_2d_func)(
-    const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
-    int dgd_dual_stride, const NonsepFilterConfig *filter_config,
-    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
-    int block_row_begin, int block_row_end, int block_col_begin,
-    int block_col_end);
-
 class AV1ConvolveNon_Sep_dual2DHighbdTest
     : public AV1ConvolveTest<highbd_convolve_nonsep_dual_2d_func> {
  public:
