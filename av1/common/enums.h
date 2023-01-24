@@ -1110,6 +1110,10 @@ enum {
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.
 typedef int8_t MV_REFERENCE_FRAME;
 
+#if CONFIG_LR_FLEX_SYNTAX
+#define MAX_LR_FLEX_SWITCHABLE_BITS 4
+#endif  // CONFIG_LR_FLEX_SYNTAX
+
 /*!\endcond */
 
 /*!\enum RestorationType
@@ -1129,10 +1133,6 @@ typedef enum {
   RESTORE_SWITCHABLE_TYPES = RESTORE_SWITCHABLE, /**< Num Switchable types */
   RESTORE_TYPES = RESTORE_SWITCHABLE + 1,        /**< Num Restore types */
 } RestorationType;
-
-#if CONFIG_LR_FLEX_SYNTAX
-#define MAX_LR_FLEX_SWITCHABLE_BITS 4
-#endif  // CONFIG_LR_FLEX_SYNTAX
 
 /*!\cond */
 // Picture prediction structures (0-12 are predefined) in scalability metadata.
