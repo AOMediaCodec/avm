@@ -971,7 +971,7 @@ class AV1ConvolveNonSep2DHighbdTest
                     int block_row_begin, int block_row_end, int block_col_begin,
                     int block_col_end, RestorationType rtype) {
     const NonsepFilterConfig *filter_config[2];
-    highbd_convolve_nonsep_2d_func ref_func;
+    highbd_convolve_nonsep_2d_func ref_func = av1_convolve_symmetric_highbd_c;
     const int num_planes = 2;
 
 #if CONFIG_PC_WIENER

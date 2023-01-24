@@ -2654,7 +2654,6 @@ static int64_t finer_tile_search_wienerns(
             no_improv = 0;
             best_err = err;
             best_cost = cost;
-            best_bits = bits;
             copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
           }
         }
@@ -2703,7 +2702,6 @@ static int64_t finer_tile_search_wienerns(
         if (cost < best_cost) {
           best_err = err;
           best_cost = cost;
-          best_bits = bits;
           copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
@@ -2732,7 +2730,6 @@ static int64_t finer_tile_search_wienerns(
         if (cost < best_cost) {
           best_err = err;
           best_cost = cost;
-          best_bits = bits;
           copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
@@ -2765,7 +2762,6 @@ static int64_t finer_tile_search_wienerns(
         if (cost < best_cost) {
           best_err = err;
           best_cost = cost;
-          best_bits = bits;
           copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
@@ -2802,7 +2798,6 @@ static int64_t finer_tile_search_wienerns(
         if (cost < best_cost) {
           best_err = err;
           best_cost = cost;
-          best_bits = bits;
           copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
@@ -2830,7 +2825,6 @@ static int64_t finer_tile_search_wienerns(
         if (cost < best_cost) {
           best_err = err;
           best_cost = cost;
-          best_bits = bits;
           copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
@@ -2861,7 +2855,6 @@ static int64_t finer_tile_search_wienerns(
         if (cost < best_cost) {
           best_err = err;
           best_cost = cost;
-          best_bits = bits;
           copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
@@ -2896,7 +2889,6 @@ static int64_t finer_tile_search_wienerns(
         if (cost < best_cost) {
           best_err = err;
           best_cost = cost;
-          best_bits = bits;
           copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
         } else {
           copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
@@ -2962,7 +2954,6 @@ static int64_t finer_tile_search_wienerns(
             no_improv = 0;
             best_err = err;
             best_cost = cost;
-            best_bits = bits;
             copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
           }
         }
