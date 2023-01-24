@@ -14,6 +14,59 @@
 #include "av1/encoder/superres_scale.h"
 #include "av1/encoder/random.h"
 
+#if CONFIG_EXT_SUPERRES
+// Compute the down-up mse for each denominator
+static void analyze_downup_mse(const AV1_COMP *cpi, double *mse) {
+  const YV12_BUFFER_CONFIG *buf = cpi->unscaled_source;
+  const int bd = cpi->td.mb.e_mbd.bd;
+  const int size = buf->y_crop_width * buf->y_crop_height;
+  for (int this_index = 0; this_index < SUPERRES_SCALES; ++this_index) {
+    const int denom = superres_scales[this_index].scale_denom;
+    const int64_t sse = av1_downup_lanczos_sse(buf, bd, denom, SCALE_NUMERATOR);
+    mse[this_index] = (double)sse / size;
+  }
+  const int64_t sse =
+      av1_downup_lanczos_sse(buf, bd, SCALE_NUMERATOR * 4, SCALE_NUMERATOR);
+  mse[SUPERRES_SCALES] = (double)sse / size;
+}
+
+#define SUPERRES_DOWNUPMSE_BY_Q2_THRESH_KEYFRAME_SOLO 0.012
+#define SUPERRES_DOWNUPMSE_BY_Q2_THRESH_KEYFRAME 0.008
+#define SUPERRES_DOWNUPMSE_BY_Q2_THRESH_ARFFRAME 0.008
+#define SUPERRES_DOWNUPMSE_BY_AC_THRESH 0.2
+
+double get_downupmse_by_q2_thresh(const GF_GROUP *gf_group,
+                                  const RATE_CONTROL *rc) {
+  // TODO(now): Return keyframe thresh * factor based on frame type / pyramid
+  // level.
+  if (gf_group->update_type[gf_group->index] == ARF_UPDATE ||
+      gf_group->update_type[gf_group->index] == KFFLT_UPDATE) {
+    return SUPERRES_DOWNUPMSE_BY_Q2_THRESH_ARFFRAME;
+  } else if (gf_group->update_type[gf_group->index] == KF_UPDATE) {
+    if (rc->frames_to_key <= 1)
+      return SUPERRES_DOWNUPMSE_BY_Q2_THRESH_KEYFRAME_SOLO;
+    else
+      return SUPERRES_DOWNUPMSE_BY_Q2_THRESH_KEYFRAME;
+  } else {
+    assert(0);
+  }
+  return 0;
+}
+
+static uint8_t get_superres_denom_from_downupmse(int qindex, double *downupmse,
+                                                 double threshq,
+                                                 double threshp) {
+  const double q = av1_convert_qindex_to_q(qindex, AOM_BITS_8);
+  const double tq = threshq * q * q;
+  const double tp = threshp * downupmse[SUPERRES_SCALES];
+  const double thresh = AOMMIN(tq, tp);
+  int k;
+  for (k = 0; k < SUPERRES_SCALES; ++k) {
+    if (downupmse[k] > thresh) break;
+  }
+  return SCALE_NUMERATOR + 2 * k;
+}
+#else
 // Compute the horizontal frequency components' energy in a frame
 // by calculuating the 16x4 Horizontal DCT. This is to be used to
 // decide the superresolution parameters.
@@ -49,6 +102,44 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
     for (int k = 1; k < 16; ++k) energy[k] = 1e+20;
   }
 }
+
+#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME_SOLO 0.012
+#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME 0.008
+#define SUPERRES_ENERGY_BY_Q2_THRESH_ARFFRAME 0.008
+#define SUPERRES_ENERGY_BY_AC_THRESH 0.2
+
+static double get_energy_by_q2_thresh(const GF_GROUP *gf_group,
+                                      const RATE_CONTROL *rc) {
+  // TODO(now): Return keyframe thresh * factor based on frame type / pyramid
+  // level.
+  if (gf_group->update_type[gf_group->index] == ARF_UPDATE ||
+      gf_group->update_type[gf_group->index] == KFFLT_UPDATE) {
+    return SUPERRES_ENERGY_BY_Q2_THRESH_ARFFRAME;
+  } else if (gf_group->update_type[gf_group->index] == KF_UPDATE) {
+    if (rc->frames_to_key <= 1)
+      return SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME_SOLO;
+    else
+      return SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME;
+  } else {
+    assert(0);
+  }
+  return 0;
+}
+
+static uint8_t get_superres_denom_from_qindex_energy(int qindex, double *energy,
+                                                     double threshq,
+                                                     double threshp) {
+  const double q = av1_convert_qindex_to_q(qindex, AOM_BITS_8);
+  const double tq = threshq * q * q;
+  const double tp = threshp * energy[1];
+  const double thresh = AOMMIN(tq, tp);
+  int k;
+  for (k = SCALE_NUMERATOR * 2; k > SCALE_NUMERATOR; --k) {
+    if (energy[k - 1] > thresh) break;
+  }
+  return 3 * SCALE_NUMERATOR - k;
+}
+#endif  // CONFIG_EXT_SUPERRES
 
 static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   // Choose an arbitrary random number
@@ -96,43 +187,6 @@ int av1_superres_in_recode_allowed(const AV1_COMP *const cpi) {
          cpi->sf.hl_sf.superres_auto_search_type != SUPERRES_AUTO_SOLO;
 }
 
-#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME_SOLO 0.012
-#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME 0.008
-#define SUPERRES_ENERGY_BY_Q2_THRESH_ARFFRAME 0.008
-#define SUPERRES_ENERGY_BY_AC_THRESH 0.2
-
-static double get_energy_by_q2_thresh(const GF_GROUP *gf_group,
-                                      const RATE_CONTROL *rc) {
-  // TODO(now): Return keyframe thresh * factor based on frame type / pyramid
-  // level.
-  if (gf_group->update_type[gf_group->index] == ARF_UPDATE ||
-      gf_group->update_type[gf_group->index] == KFFLT_UPDATE) {
-    return SUPERRES_ENERGY_BY_Q2_THRESH_ARFFRAME;
-  } else if (gf_group->update_type[gf_group->index] == KF_UPDATE) {
-    if (rc->frames_to_key <= 1)
-      return SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME_SOLO;
-    else
-      return SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME;
-  } else {
-    assert(0);
-  }
-  return 0;
-}
-
-static uint8_t get_superres_denom_from_qindex_energy(int qindex, double *energy,
-                                                     double threshq,
-                                                     double threshp) {
-  const double q = av1_convert_qindex_to_q(qindex, AOM_BITS_8);
-  const double tq = threshq * q * q;
-  const double tp = threshp * energy[1];
-  const double thresh = AOMMIN(tq, tp);
-  int k;
-  for (k = SCALE_NUMERATOR * 2; k > SCALE_NUMERATOR; --k) {
-    if (energy[k - 1] > thresh) break;
-  }
-  return 3 * SCALE_NUMERATOR - k;
-}
-
 static uint8_t get_superres_denom_for_qindex(const AV1_COMP *cpi, int qindex,
                                              int sr_kf, int sr_arf) {
   // Use superres for Key-frames and Alt-ref frames only.
@@ -150,13 +204,36 @@ static uint8_t get_superres_denom_for_qindex(const AV1_COMP *cpi, int qindex,
       !sr_arf) {
     return SCALE_NUMERATOR;
   }
+  int denom = SCALE_NUMERATOR;
 
+#if CONFIG_EXT_SUPERRES
+  (void)qindex;
+  double downupmse[SUPERRES_SCALES + 1];
+  analyze_downup_mse(cpi, downupmse);
+  const double downupmse_by_q2_thresh =
+      get_downupmse_by_q2_thresh(gf_group, &cpi->rc);
+  denom = get_superres_denom_from_downupmse(qindex, downupmse,
+                                            downupmse_by_q2_thresh,
+                                            SUPERRES_DOWNUPMSE_BY_AC_THRESH);
+  /*
+  const double q = av1_convert_qindex_to_q(qindex, cpi->td.mb.e_mbd.bd);
+  const double iq2 = 1.0 / (q * q);
+
+  printf("\nDownup mse = [");
+  for (int k = 0; k <= SUPERRES_SCALES; ++k) printf("%f, ", downup_mse[k]);
+  printf("]\n");
+  printf("\nDownup mse/q^2 = [");
+  for (int k = 0; k <= SUPERRES_SCALES; ++k)
+    printf("%f, ", iq2 * downup_mse[k]);
+  printf("]\n");
+  */
+#else
   double energy[16];
   analyze_hor_freq(cpi, energy);
 
   const double energy_by_q2_thresh =
       get_energy_by_q2_thresh(gf_group, &cpi->rc);
-  int denom = get_superres_denom_from_qindex_energy(
+  denom = get_superres_denom_from_qindex_energy(
       qindex, energy, energy_by_q2_thresh, SUPERRES_ENERGY_BY_AC_THRESH);
   /*
   printf("\nenergy = [");
@@ -174,6 +251,7 @@ static uint8_t get_superres_denom_for_qindex(const AV1_COMP *cpi, int qindex,
     // to be tried anyway.
     denom = AOMMAX(denom, SCALE_NUMERATOR + 1);
   }
+#endif  // CONFIG_EXT_SUPERRES
   return denom;
 }
 
@@ -223,7 +301,14 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
       else
         new_denom = superres_cfg->superres_scale_denominator;
       break;
-    case AOM_SUPERRES_RANDOM: new_denom = lcg_rand16(&seed) % 9 + 8; break;
+    case AOM_SUPERRES_RANDOM:
+#if CONFIG_EXT_SUPERRES
+      new_denom = 2 * (lcg_rand16(&seed) % 5) + 8;
+      break;
+#else
+      new_denom = lcg_rand16(&seed) % 9 + 8;
+      break;
+#endif  // CONFIG_EXT_SUPERRES
     case AOM_SUPERRES_QTHRESH: {
       // Do not use superres when screen content tools are used.
       if (cpi->common.features.allow_screen_content_tools) break;

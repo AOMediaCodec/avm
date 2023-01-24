@@ -20,6 +20,7 @@
 #include "config/aom_config.h"
 
 #include "aom_dsp/aom_dsp_common.h"
+#include "aom_dsp/psnr.h"
 #include "aom_ports/mem.h"
 #include "aom_scale/aom_scale.h"
 #include "av1/common/common.h"
@@ -990,18 +991,30 @@ Error:
 }
 
 #if CONFIG_EXT_SUPERRES
+#define LANCZOS_A_NORMATIVE_HOR_Y 6  // Normative hor Lanczos a Luma
+#define LANCZOS_A_NORMATIVE_HOR_C 4  // Normative hor Lanczos a Chroma
+#define LANCZOS_A_NORMATIVE_VER_Y 4  // Normative ver Lanczos a Luma
+#define LANCZOS_A_NORMATIVE_VER_C 4  // Normative ver Lanczos a Chroma
+
+#define LANCZOS_A_NONNORMATIVE_HOR_Y 6  // Non-normative hor Lanczos a Luma
+#define LANCZOS_A_NONNORMATIVE_HOR_C 4  // Non-normative hor Lanczos a Chroma
+#define LANCZOS_A_NONNORMATIVE_VER_Y 6  // Non-normative ver Lanczos a Luma
+#define LANCZOS_A_NONNORMATIVE_VER_C \
+  4  // Non-normative ver Lanczos a Chroma
+     // Chroma
 void av1_resample_plane_2d_lanczos(const uint8_t *const input, int height,
                                    int width, int in_stride, uint8_t *output,
                                    int height2, int width2, int out_stride,
                                    int subx, int suby, int bd, int denom,
-                                   int num) {
+                                   int num, int lanczos_a_hor,
+                                   int lanczos_a_ver) {
   int coeff_prec_bits = 14;
   int extra_prec_bits = 2;
   WIN_TYPE win = WIN_LANCZOS;
   EXT_TYPE ext = EXT_REPEAT;
   ClipProfile clip = { bd, 0 };
-  int horz_a = 5;
-  int vert_a = 5;
+  int horz_a = lanczos_a_hor;
+  int vert_a = lanczos_a_ver;
   double horz_x0 = subx ? (double)('d') : (double)('c');
   double vert_x0 = suby ? (double)('d') : (double)('c');
 
@@ -1033,13 +1046,46 @@ void av1_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
                                          const int num) {
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
     const int is_uv = i > 0;
+    const lanczos_a_hor =
+        is_uv ? LANCZOS_A_NONNORMATIVE_HOR_C : LANCZOS_A_NONNORMATIVE_HOR_Y;
+    const lanczos_a_ver =
+        is_uv ? LANCZOS_A_NONNORMATIVE_VER_C : LANCZOS_A_NONNORMATIVE_VER_Y;
     av1_resample_plane_2d_lanczos(
         src->buffers[i], src->crop_heights[is_uv], src->crop_widths[is_uv],
         src->strides[is_uv], dst->buffers[i], dst->crop_heights[is_uv],
         dst->crop_widths[is_uv], dst->strides[is_uv], is_uv ? subx : 0,
-        is_uv ? suby : 0, bd, denom, num);
+        is_uv ? suby : 0, bd, denom, num, lanczos_a_hor, lanczos_a_ver);
   }
   aom_extend_frame_borders(dst, num_planes);
+}
+
+int64_t av1_downup_lanczos_sse(const YV12_BUFFER_CONFIG *src, int bd, int denom,
+                               int num) {
+  const int width = src->crop_widths[0];
+  const int height = src->crop_heights[0];
+
+  int width2 = width, height2 = height;
+  av1_calculate_scaled_superres_size(&width2, &height2, denom, num);
+  uint16_t *down = (uint16_t *)aom_malloc(sizeof(*down) * width2 * height2);
+  uint8_t *down8 = (uint8_t *)CONVERT_TO_BYTEPTR(down);
+  int down_stride = width2;
+
+  YV12_BUFFER_CONFIG outbuf;
+  memset(&outbuf, 0, sizeof(outbuf));
+  aom_alloc_frame_buffer(&outbuf, width, height, src->subsampling_x,
+                         src->subsampling_y, 0, 32);
+  av1_resample_plane_2d_lanczos(
+      src->y_buffer, height, width, src->y_stride, down8, height2, width2,
+      down_stride, src->subsampling_x, src->subsampling_y, bd, denom, num,
+      LANCZOS_A_NONNORMATIVE_HOR_Y, LANCZOS_A_NONNORMATIVE_VER_Y);
+  av1_resample_plane_2d_lanczos(
+      down8, height2, width2, down_stride, outbuf.y_buffer, height, width,
+      outbuf.y_stride, src->subsampling_x, src->subsampling_y, bd, num, denom,
+      LANCZOS_A_NORMATIVE_HOR_Y, LANCZOS_A_NORMATIVE_VER_Y);
+  int64_t sse = aom_highbd_get_y_sse(src, &outbuf);
+  aom_free(down);
+  aom_free_frame_buffer(&outbuf);
+  return sse;
 }
 #endif  // CONFIG_EXT_SUPERRES
 
@@ -1309,13 +1355,17 @@ void av1_upscale_2d_normative_and_extend_frame(const AV1_COMMON *cm,
   const int sr_num = cm->superres_scale_numerator;
   for (int i = 0; i < num_planes; ++i) {
     const int is_uv = (i > 0);
+    const lanczos_a_hor =
+        is_uv ? LANCZOS_A_NORMATIVE_HOR_C : LANCZOS_A_NORMATIVE_HOR_Y;
+    const lanczos_a_ver =
+        is_uv ? LANCZOS_A_NORMATIVE_VER_C : LANCZOS_A_NORMATIVE_VER_Y;
     // The resampler takes sr_num as the scaling denominator and sr_demon as the
     // numerator because here an upscaler is operated.
     av1_resample_plane_2d_lanczos(
         src->buffers[i], src->crop_heights[is_uv], src->crop_widths[is_uv],
         src->strides[is_uv], dst->buffers[i], dst->crop_heights[is_uv],
         dst->crop_widths[is_uv], dst->strides[is_uv], is_uv ? subx : 0,
-        is_uv ? suby : 0, bd, sr_num, sr_denom);
+        is_uv ? suby : 0, bd, sr_num, sr_denom, lanczos_a_hor, lanczos_a_ver);
   }
 
   aom_extend_frame_borders(dst, num_planes);

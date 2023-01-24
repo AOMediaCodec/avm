@@ -334,6 +334,11 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * Superres-auto mode search type:
    */
   SUPERRES_AUTO_SEARCH_TYPE superres_auto_search_type;
+
+  /*!
+   * disallow references at different scale
+   */
+  bool disable_unequal_scale_refs;
   /*!\endcond */
 } HIGH_LEVEL_SPEED_FEATURES;
 
