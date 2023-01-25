@@ -1742,8 +1742,10 @@ class AV1FillDirFeatureBufHighbdTest
 
   // Fills the array p with signed integers of 31 bit range.
   void RandomizeSigned31(int *p, int size, int max_bit_range) {
+    assert(max_bit_range >= 0 && max_bit_range <= 31);
+    uint32_t mask = (1 << max_bit_range) - 1;
     for (int i = 0; i < size; ++i) {
-      p[i] = (int)(rnd_.Rand31() & ((1 << max_bit_range) - 1));
+      p[i] = (int)(rnd_.Rand31() & mask);
     }
   }
 
