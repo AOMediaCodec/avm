@@ -3543,9 +3543,6 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
 
-  const int num_classes = rsc->num_filter_classes;
-  assert(num_classes == rsc->wienerns_bank.filter[0].num_classes);
-
   const RstUnitStats *unit_stats = (const RstUnitStats *)aom_vector_const_get(
       rsc->wienerns_stats, rest_unit_idx_in_rutile);
   assert(unit_stats->ru_idx == rest_unit_idx);
@@ -3571,7 +3568,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(rusi->sse[RESTORE_WIENER_NONSEP] != INT64_MAX);
 
 #if CONFIG_LR_MERGE_COEFFS
-
+  const int num_classes = rsc->num_filter_classes;
+  assert(num_classes == rsc->wienerns_bank.filter[0].num_classes);
   if (num_classes > 1) {
     rui.class_id_restrict = -1;
     calc_finer_tile_search_error(rsc, limits, tile_rect, &rui);
