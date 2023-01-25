@@ -25,7 +25,6 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #if CONFIG_PC_WIENER
-#include "av1/common/pc_wiener_filters.h"
 #include "av1/common/restoration.h"
 #endif  // CONFIG_PC_WIENER
 

@@ -24,7 +24,6 @@ print <<EOF
 #include "av1/common/av1_txfm.h"
 #include "av1/common/odintrin.h"
 #include "av1/common/restoration.h"
-#include "av1/common/pc_wiener_filters.h"
 
 struct macroblockd;
 
