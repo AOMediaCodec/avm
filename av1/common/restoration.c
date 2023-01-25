@@ -2064,33 +2064,32 @@ void av1_loop_restoration_filter_unit(
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT || CONFIG_PC_WIENER
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-  const uint16_t *luma_in_plane = rui->luma;
-  const uint16_t *luma_in_ru =
-      unit_rtype == RESTORE_WIENER_NONSEP
-          ? luma_in_plane + limits->v_start * rui->luma_stride + limits->h_start
-          : NULL;
+  const uint16_t *luma_in_ru = NULL;
+  const int enable_cross_buffers = unit_rtype == RESTORE_WIENER_NONSEP;
+  if (enable_cross_buffers)
+    luma_in_ru =
+        rui->luma + limits->v_start * rui->luma_stride + limits->h_start;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
 #if CONFIG_PC_WIENER
-  int allocate_buffers = unit_rtype == RESTORE_PC_WIENER;
+  const int enable_pcwiener_buffers = unit_rtype == RESTORE_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+                                      || unit_rtype == RESTORE_WIENER_NONSEP
+#endif  // CONFIG_WIENER_NONSEP
+      ;
   PcwienerBuffers pc_wiener_buffers = { 0 };
   tmp_rui->pcwiener_buffers = &pc_wiener_buffers;
-#if CONFIG_WIENER_NONSEP
-  allocate_buffers = allocate_buffers || unit_rtype == RESTORE_WIENER_NONSEP;
-#endif  // CONFIG_WIENER_NONSEP
-  const uint8_t *tskip_in_ru =
-      allocate_buffers
-          ? rui->tskip + (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
-                (limits->h_start >> MI_SIZE_LOG2)
-          : NULL;
-  uint8_t *class_id_in_ru =
-      allocate_buffers
-          ? rui->class_id +
-                (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
-                (limits->h_start >> MI_SIZE_LOG2)
-          : NULL;
-  if (allocate_buffers)
+  const uint8_t *tskip_in_ru = NULL;
+  uint8_t *class_id_in_ru = NULL;
+  if (enable_pcwiener_buffers) {
+    tskip_in_ru = rui->tskip +
+                  (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
+                  (limits->h_start >> MI_SIZE_LOG2);
+    class_id_in_ru = rui->class_id +
+                     (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
+                     (limits->h_start >> MI_SIZE_LOG2);
     allocate_pcwiener_line_buffers(procunit_width, tmp_rui->pcwiener_buffers);
+  }
 #endif  // CONFIG_PC_WIENER
 
   // Convolve the whole tile one stripe at a time
@@ -2127,16 +2126,15 @@ void av1_loop_restoration_filter_unit(
                                      optimized_lr);
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-    tmp_rui->luma = unit_rtype == RESTORE_WIENER_NONSEP
-                        ? luma_in_ru + i * rui->luma_stride
-                        : NULL;
+    tmp_rui->luma =
+        enable_cross_buffers ? luma_in_ru + i * rui->luma_stride : NULL;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #if CONFIG_PC_WIENER
-    tmp_rui->tskip = allocate_buffers
+    tmp_rui->tskip = enable_pcwiener_buffers
                          ? tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride
                          : NULL;
     tmp_rui->class_id =
-        allocate_buffers
+        enable_pcwiener_buffers
             ? class_id_in_ru + (i >> MI_SIZE_LOG2) * rui->class_id_stride
             : NULL;
 #endif  // CONFIG_PC_WIENER
@@ -2152,7 +2150,8 @@ void av1_loop_restoration_filter_unit(
     i += h;
   }
 #if CONFIG_PC_WIENER
-  if (allocate_buffers) free_pcwiener_line_buffers(tmp_rui->pcwiener_buffers);
+  if (enable_pcwiener_buffers)
+    free_pcwiener_line_buffers(tmp_rui->pcwiener_buffers);
 #endif  // CONFIG_PC_WIENER
 }
 
