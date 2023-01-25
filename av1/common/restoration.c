@@ -2073,21 +2073,21 @@ void av1_loop_restoration_filter_unit(
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
 #if CONFIG_PC_WIENER
-  const uint8_t *tskip_in_ru =
-      unit_rtype == RESTORE_PC_WIENER
-          ? rui->tskip + (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
-                (limits->h_start >> MI_SIZE_LOG2)
-          : NULL;
-  uint8_t *class_id_in_ru =
-      unit_rtype == RESTORE_PC_WIENER
-          ? rui->class_id +
-                (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
-                (limits->h_start >> MI_SIZE_LOG2)
-          : NULL;
   int allocate_buffers = unit_rtype == RESTORE_PC_WIENER;
 #if CONFIG_WIENER_NONSEP
   allocate_buffers = allocate_buffers || unit_rtype == RESTORE_WIENER_NONSEP;
 #endif  // CONFIG_WIENER_NONSEP
+  const uint8_t *tskip_in_ru =
+      allocate_buffers
+          ? rui->tskip + (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
+                (limits->h_start >> MI_SIZE_LOG2)
+          : NULL;
+  uint8_t *class_id_in_ru =
+      allocate_buffers
+          ? rui->class_id +
+                (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
+                (limits->h_start >> MI_SIZE_LOG2)
+          : NULL;
   if (allocate_buffers) allocate_pcwiener_line_buffers(procunit_width);
 #endif  // CONFIG_PC_WIENER
 
@@ -2130,11 +2130,11 @@ void av1_loop_restoration_filter_unit(
                         : NULL;
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #if CONFIG_PC_WIENER
-    tmp_rui->tskip = unit_rtype == RESTORE_PC_WIENER
+    tmp_rui->tskip = allocate_buffers
                          ? tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride
                          : NULL;
     tmp_rui->class_id =
-        unit_rtype == RESTORE_PC_WIENER
+        allocate_buffers
             ? class_id_in_ru + (i >> MI_SIZE_LOG2) * rui->class_id_stride
             : NULL;
 #endif  // CONFIG_PC_WIENER
