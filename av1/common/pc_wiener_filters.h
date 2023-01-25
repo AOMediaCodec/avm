@@ -65,6 +65,19 @@ static const int32_t mode_weights[NUM_PC_WIENER_FEATURES][3] = {
 static const int32_t mode_offsets[NUM_PC_WIENER_FEATURES] = { -547, -21565,
                                                               -573, -680 };
 
+typedef struct PcwienerBuffers {
+  int buffer_width;
+  int16_t *feature_line_buffers[NUM_FEATURE_LINE_BUFFERS];
+  int *feature_sum_buffers[NUM_PC_WIENER_FEATURES];
+  int8_t *tskip_sum_buffer;
+
+  int directional_feature_accumulator[NUM_PC_WIENER_FEATURES]
+                                     [PC_WIENER_FEATURE_ACC_SIZE];
+  int16_t tskip_feature_accumulator[PC_WIENER_FEATURE_ACC_SIZE];
+
+  int feature_normalizers[NUM_PC_WIENER_FEATURES + 1];
+} PcwienerBuffers;
+
 // Origin-symmetric taps first then the last singleton tap.
 static const int
     pcwiener_tap_config_luma[2 * NUM_PC_WIENER_TAPS_LUMA - 1][3] = {

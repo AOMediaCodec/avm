@@ -91,6 +91,10 @@ extern "C" {
 #define RESTORATION_UNITPELS_MAX \
   (RESTORATION_UNITPELS_HORZ_MAX * RESTORATION_UNITPELS_VERT_MAX)
 
+#if CONFIG_PC_WIENER
+#include "av1/common/pc_wiener_filters.h"
+#endif  // CONFIG_PC_WIENER
+
 // Two 32-bit buffers needed for the restored versions from two filters
 // TODO(debargha, rupert): Refactor to not need the large tilesize to be stored
 // on the decoder side.
@@ -323,6 +327,10 @@ typedef struct {
    * Stride for class_id frame.
    */
   int class_id_stride;
+  /*!
+   * Pointer to buffers for pcwiener computations.
+   */
+  PcwienerBuffers *pcwiener_buffers;
 #endif  // CONFIG_PC_WIENER
 } RestorationUnitInfo;
 

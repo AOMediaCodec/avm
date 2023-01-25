@@ -26,10 +26,6 @@
 
 #include "aom_ports/mem.h"
 
-#if CONFIG_PC_WIENER
-#include "av1/common/pc_wiener_filters.h"
-#endif  // CONFIG_PC_WIENER
-
 #if CONFIG_WIENER_NONSEP
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
   { (b) + (p)-6, (m) * (1 << ((p)-6)), k }
@@ -1228,123 +1224,121 @@ static int get_qstep(int base_qindex, int bit_depth, int *shift) {
   }
 }
 
-// TODO(oguleryuz): These need to move into allocated line buffers accessible
-//  by enc/dec so that alloc/free cycles are reduced.
-static int buffer_width = 0;
-static int16_t *feature_line_buffers[NUM_FEATURE_LINE_BUFFERS] = { 0 };
-static int *feature_sum_buffers[NUM_PC_WIENER_FEATURES] = { 0 };
-static int8_t *tskip_sum_buffer = 0;
-
-static int directional_feature_accumulator[NUM_PC_WIENER_FEATURES]
-                                          [PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
-static int16_t tskip_feature_accumulator[PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
-
-static int feature_normalizers[NUM_PC_WIENER_FEATURES + 1] = { 0 };
-
-static void rotate_feature_line_buffers(int feature_len) {
+static void rotate_feature_line_buffers(int feature_len,
+                                        PcwienerBuffers *buffers) {
   assert(feature_len <= MAX_FEATURE_LENGTH);
   for (int feature = 0; feature < NUM_PC_WIENER_FEATURES; ++feature) {
     const int row_begin = feature * feature_len;
-    int16_t *buffer_0 = feature_line_buffers[row_begin];
+    int16_t *buffer_0 = buffers->feature_line_buffers[row_begin];
     for (int row = row_begin; row < row_begin + feature_len - 1; ++row) {
-      feature_line_buffers[row] = feature_line_buffers[row + 1];
+      buffers->feature_line_buffers[row] =
+          buffers->feature_line_buffers[row + 1];
     }
-    feature_line_buffers[row_begin + feature_len - 1] = buffer_0;
+    buffers->feature_line_buffers[row_begin + feature_len - 1] = buffer_0;
   }
 }
 
-static void allocate_pcwiener_line_buffers(int procunit_width) {
-  buffer_width = procunit_width + MAX_FEATURE_LENGTH - 1;
+static void allocate_pcwiener_line_buffers(int procunit_width,
+                                           PcwienerBuffers *buffers) {
+  buffers->buffer_width = procunit_width + MAX_FEATURE_LENGTH - 1;
   for (int j = 0; j < NUM_FEATURE_LINE_BUFFERS; ++j) {
     // This should be done only once.
-    feature_line_buffers[j] = (int16_t *)(aom_malloc(
-        buffer_width * sizeof(*feature_line_buffers[j])));
+    buffers->feature_line_buffers[j] = (int16_t *)(aom_malloc(
+        buffers->buffer_width * sizeof(*buffers->feature_line_buffers[j])));
   }
   for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
     // This should be done only once.
-    feature_sum_buffers[j] =
-        (int *)(aom_malloc(buffer_width * sizeof(*feature_sum_buffers[j])));
+    buffers->feature_sum_buffers[j] = (int *)(aom_malloc(
+        buffers->buffer_width * sizeof(*buffers->feature_sum_buffers[j])));
   }
-  tskip_sum_buffer =
-      (int8_t *)(aom_malloc(buffer_width * sizeof(*tskip_sum_buffer)));
+  buffers->tskip_sum_buffer = (int8_t *)(aom_malloc(
+      buffers->buffer_width * sizeof(*buffers->tskip_sum_buffer)));
 }
 
-static void free_pcwiener_line_buffers() {
+static void free_pcwiener_line_buffers(PcwienerBuffers *buffers) {
   for (int j = 0; j < NUM_FEATURE_LINE_BUFFERS; ++j) {
-    aom_free(feature_line_buffers[j]);
-    feature_line_buffers[j] = NULL;
+    aom_free(buffers->feature_line_buffers[j]);
+    buffers->feature_line_buffers[j] = NULL;
   }
   for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
-    aom_free(feature_sum_buffers[j]);
-    feature_sum_buffers[j] = NULL;
+    aom_free(buffers->feature_sum_buffers[j]);
+    buffers->feature_sum_buffers[j] = NULL;
   }
-  aom_free(tskip_sum_buffer);
-  tskip_sum_buffer = NULL;
-  buffer_width = 0;
+  aom_free(buffers->tskip_sum_buffer);
+  buffers->tskip_sum_buffer = NULL;
+  buffers->buffer_width = 0;
 }
 
-static void clear_line_buffers() {
+static void clear_line_buffers(PcwienerBuffers *buffers) {
   for (int k = 0; k < NUM_FEATURE_LINE_BUFFERS; ++k)
-    memset(feature_line_buffers[k], 0,
-           sizeof(*feature_line_buffers[k]) * buffer_width);
+    memset(buffers->feature_line_buffers[k], 0,
+           sizeof(*buffers->feature_line_buffers[k]) * buffers->buffer_width);
   for (int k = 0; k < NUM_PC_WIENER_FEATURES; ++k)
-    memset(feature_sum_buffers[k], 0,
-           sizeof(*feature_sum_buffers[k]) * buffer_width);
-  memset(tskip_sum_buffer, 0, sizeof(*tskip_sum_buffer) * buffer_width);
+    memset(buffers->feature_sum_buffers[k], 0,
+           sizeof(*buffers->feature_sum_buffers[k]) * buffers->buffer_width);
+  memset(buffers->tskip_sum_buffer, 0,
+         sizeof(*buffers->tskip_sum_buffer) * buffers->buffer_width);
 }
 
 // Does the initialization of feature accumulator for column 0.
 static void init_directional_feature_accumulator(int col, int feature_lead,
-                                                 int feature_lag) {
+                                                 int feature_lag,
+                                                 PcwienerBuffers *buffers) {
   assert(col == 0);
   for (int col_offset = -feature_lead; col_offset < feature_lag; ++col_offset) {
     const int col_base = col + col_offset + feature_lead;
     for (int k = 0; k < NUM_PC_WIENER_FEATURES; k++) {
       assert(col_base >= 0);
-      directional_feature_accumulator[k][0] += feature_sum_buffers[k][col_base];
+      buffers->directional_feature_accumulator[k][0] +=
+          buffers->feature_sum_buffers[k][col_base];
     }
   }
 }
 
 static void init_tskip_feature_accumulator(int col, int tskip_lead,
-                                           int tskip_lag) {
+                                           int tskip_lag,
+                                           PcwienerBuffers *buffers) {
   assert(col == 0);
   for (int col_offset = -tskip_lead; col_offset < tskip_lag; ++col_offset) {
     // Add tskip_lead to ensure buffer access is from >=0.
     const int col_base = col + col_offset + tskip_lead;
-    tskip_feature_accumulator[0] += tskip_sum_buffer[col_base];
+    buffers->tskip_feature_accumulator[0] +=
+        buffers->tskip_sum_buffer[col_base];
   }
 }
 
 // Initializes the accumulators.
 static void initialize_feature_accumulators(int feature_lead, int feature_lag,
-                                            int tskip_lead, int tskip_lag) {
-  av1_zero(directional_feature_accumulator);
-  av1_zero(tskip_feature_accumulator);
+                                            int tskip_lead, int tskip_lag,
+                                            PcwienerBuffers *buffers) {
+  av1_zero(buffers->directional_feature_accumulator);
+  av1_zero(buffers->tskip_feature_accumulator);
   // Initialize accumulators on the leftmost portion of the line.
-  init_directional_feature_accumulator(0, feature_lead, feature_lag);
-  init_tskip_feature_accumulator(0, tskip_lead, tskip_lag);
+  init_directional_feature_accumulator(0, feature_lead, feature_lag, buffers);
+  init_tskip_feature_accumulator(0, tskip_lead, tskip_lag, buffers);
 }
 
 // Updates the accumulators.
 static void update_accumulators(int feature_lead, int feature_lag,
-                                int tskip_lead, int tskip_lag, int width) {
+                                int tskip_lead, int tskip_lag, int width,
+                                PcwienerBuffers *buffers) {
   av1_fill_directional_feature_accumulators(
-      directional_feature_accumulator, feature_sum_buffers, width, feature_lag,
-      feature_lead, feature_lag);
-  av1_fill_tskip_feature_accumulator(tskip_feature_accumulator,
-                                     tskip_sum_buffer, width, tskip_lag,
-                                     tskip_lead, tskip_lag);
+      buffers->directional_feature_accumulator, buffers->feature_sum_buffers,
+      width, feature_lag, feature_lead, feature_lag);
+  av1_fill_tskip_feature_accumulator(buffers->tskip_feature_accumulator,
+                                     buffers->tskip_sum_buffer, width,
+                                     tskip_lag, tskip_lead, tskip_lag);
 }
 
 // Calculates the features needed for get_pcwiener_index.
-static void calculate_features(int32_t *feature_vector, int bit_depth,
-                               int col) {
+static void calculate_features(int32_t *feature_vector, int bit_depth, int col,
+                               PcwienerBuffers *buffers) {
   // Index derivation to retrieve the stored accumulated value.
   const int accum_index = col / PC_WIENER_BLOCK_SIZE;
   for (int f = 0; f < NUM_PC_WIENER_FEATURES; ++f) {
-    feature_vector[f] = directional_feature_accumulator[f][accum_index] *
-                        feature_normalizers[f];
+    feature_vector[f] =
+        buffers->directional_feature_accumulator[f][accum_index] *
+        buffers->feature_normalizers[f];
   }
   const int bit_depth_shift = bit_depth - 8;
   if (bit_depth_shift) {
@@ -1354,7 +1348,8 @@ static void calculate_features(int32_t *feature_vector, int bit_depth,
   }
   const int tskip_index = NUM_PC_WIENER_FEATURES;
   feature_vector[tskip_index] =
-      tskip_feature_accumulator[accum_index] * feature_normalizers[tskip_index];
+      buffers->tskip_feature_accumulator[accum_index] *
+      buffers->feature_normalizers[tskip_index];
 }
 
 // Lookup table useful in calculating the filter indices within
@@ -1395,17 +1390,18 @@ static void fill_qval_given_tskip_lut(int base_qindex, int bit_depth) {
   }
 }
 
-static void set_feature_normalizers(void) {
+static void set_feature_normalizers(PcwienerBuffers *buffers) {
   for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i)
-    feature_normalizers[i] = feature_normalizers_luma[i];
-  feature_normalizers[NUM_PC_WIENER_FEATURES] = tskip_normalizer;
+    buffers->feature_normalizers[i] = feature_normalizers_luma[i];
+  buffers->feature_normalizers[NUM_PC_WIENER_FEATURES] = tskip_normalizer;
 }
 
-static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col) {
+static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col,
+                                  PcwienerBuffers *buffers) {
   int32_t feature_vector[NUM_PC_WIENER_FEATURES + 1];  // 255 x actual
 
   // Fill the feature vector.
-  calculate_features(feature_vector, bit_depth, col);
+  calculate_features(feature_vector, bit_depth, col, buffers);
 
   // actual * 256
   const int tskip_index = NUM_PC_WIENER_FEATURES;
@@ -1442,7 +1438,7 @@ void apply_pc_wiener_highbd(
     int dst_stride, const uint8_t *tskip, int tskip_stride, uint8_t *class_id,
     int class_id_stride, bool is_uv, int bit_depth, bool classify_only,
     const int16_t (*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA],
-    const uint8_t *filter_selector) {
+    const uint8_t *filter_selector, PcwienerBuffers *buffers) {
   (void)is_uv;
   const bool skip_filtering = classify_only;
   assert(!is_uv);
@@ -1491,8 +1487,8 @@ void apply_pc_wiener_highbd(
 
   // Class-id is allocated over blocks of size (1 << MI_SIZE_LOG2).
   assert((1 << MI_SIZE_LOG2) == PC_WIENER_BLOCK_SIZE);
-  set_feature_normalizers();
-  clear_line_buffers();
+  set_feature_normalizers(buffers);
+  clear_line_buffers(buffers);
 
   // Currently, code support when 'strict_bounds' (i.e. dir_strict) is true is
   // yet to be added in 'fill_directional_feature_buffers_highbd()' function.
@@ -1500,24 +1496,25 @@ void apply_pc_wiener_highbd(
   // to avoid build failure.
   for (int row = 0; row < feature_length - 1; ++row) {
     fill_directional_feature_buffers_highbd(
-        feature_sum_buffers, feature_line_buffers, row - feature_lead, row, dgd,
-        stride, width, feature_lead, feature_lag);
+        buffers->feature_sum_buffers, buffers->feature_line_buffers,
+        row - feature_lead, row, dgd, stride, width, feature_lead, feature_lag);
   }
   for (int row = 0; row < tskip_length - 1; ++row) {
     av1_fill_tskip_sum_buffer(row - tskip_lead, tskip, tskip_stride,
-                              tskip_sum_buffer, width, height, tskip_lead,
-                              tskip_lag, tskip_strict);
+                              buffers->tskip_sum_buffer, width, height,
+                              tskip_lead, tskip_lag, tskip_strict);
   }
   for (int i = 0; i < height; ++i) {
     // Ensure window is three pixels or a potential issue with odd-sized frames.
     const int row_to_process = AOMMIN(i + feature_lag, height + 3 - 2);
     fill_directional_feature_buffers_highbd(
-        feature_sum_buffers, feature_line_buffers, row_to_process,
-        feature_length - 1, dgd, stride, width, feature_lead, feature_lag);
+        buffers->feature_sum_buffers, buffers->feature_line_buffers,
+        row_to_process, feature_length - 1, dgd, stride, width, feature_lead,
+        feature_lag);
 
     av1_fill_tskip_sum_buffer(i + tskip_lag, tskip, tskip_stride,
-                              tskip_sum_buffer, width, height, tskip_lead,
-                              tskip_lag, tskip_strict);
+                              buffers->tskip_sum_buffer, width, height,
+                              tskip_lead, tskip_lag, tskip_strict);
 #if PC_WIENER_BLOCK_SIZE > 1
     bool skip_row_compute =
         i % PC_WIENER_BLOCK_SIZE != PC_WIENER_BLOCK_ROW_OFFSET;
@@ -1527,10 +1524,10 @@ void apply_pc_wiener_highbd(
     if (!skip_row_compute) {
       // Initialize accumulators on the leftmost portion of the line.
       initialize_feature_accumulators(feature_lead, feature_lag, tskip_lead,
-                                      tskip_lag);
+                                      tskip_lag, buffers);
       // Fill accumulators for processing width.
       update_accumulators(feature_lead, feature_lag, tskip_lead, tskip_lag,
-                          width);
+                          width, buffers);
     }
     for (int j = 0; j < width; ++j) {
 #if PC_WIENER_BLOCK_SIZE > 1
@@ -1540,7 +1537,8 @@ void apply_pc_wiener_highbd(
 #endif  // PC_WIENER_BLOCK_SIZE > 1
 
       int32_t multiplier = 0;
-      const uint8_t class_index = get_pcwiener_index(bit_depth, &multiplier, j);
+      const uint8_t class_index =
+          get_pcwiener_index(bit_depth, &multiplier, j, buffers);
 
       // Store classification.
       class_id[(i >> MI_SIZE_LOG2) * class_id_stride + (j >> MI_SIZE_LOG2)] =
@@ -1610,7 +1608,7 @@ void apply_pc_wiener_highbd(
 #endif  // USE_CONVOLVE_SYM
     }
 
-    rotate_feature_line_buffers(feature_length);
+    rotate_feature_line_buffers(feature_length, buffers);
   }
 }
 
@@ -1642,6 +1640,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   const int16_t(*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA] =
       get_filter_set(set_index);
   const uint8_t *filter_selector = get_filter_selector(set_index);
+  assert(rui->pcwiener_buffers->buffer_width > 0);
 
   setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth);
   for (int j = 0; j < stripe_width; j += procunit_width) {
@@ -1656,7 +1655,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
         rui->tskip + (j >> MI_SIZE_LOG2), rui->tskip_stride,
         rui->class_id + (j >> MI_SIZE_LOG2), rui->class_id_stride,
         rui->plane != AOM_PLANE_Y, bit_depth, false, pcwiener_filters_luma,
-        filter_selector);
+        filter_selector, rui->pcwiener_buffers);
   }
 }
 #endif  // CONFIG_PC_WIENER
@@ -2074,6 +2073,8 @@ void av1_loop_restoration_filter_unit(
 
 #if CONFIG_PC_WIENER
   int allocate_buffers = unit_rtype == RESTORE_PC_WIENER;
+  PcwienerBuffers pc_wiener_buffers = { 0 };
+  tmp_rui->pcwiener_buffers = &pc_wiener_buffers;
 #if CONFIG_WIENER_NONSEP
   allocate_buffers = allocate_buffers || unit_rtype == RESTORE_WIENER_NONSEP;
 #endif  // CONFIG_WIENER_NONSEP
@@ -2088,7 +2089,8 @@ void av1_loop_restoration_filter_unit(
                 (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
                 (limits->h_start >> MI_SIZE_LOG2)
           : NULL;
-  if (allocate_buffers) allocate_pcwiener_line_buffers(procunit_width);
+  if (allocate_buffers)
+    allocate_pcwiener_line_buffers(procunit_width, tmp_rui->pcwiener_buffers);
 #endif  // CONFIG_PC_WIENER
 
   // Convolve the whole tile one stripe at a time
@@ -2150,7 +2152,7 @@ void av1_loop_restoration_filter_unit(
     i += h;
   }
 #if CONFIG_PC_WIENER
-  if (allocate_buffers) free_pcwiener_line_buffers();
+  if (allocate_buffers) free_pcwiener_line_buffers(tmp_rui->pcwiener_buffers);
 #endif  // CONFIG_PC_WIENER
 }
 
