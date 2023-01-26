@@ -594,6 +594,13 @@ typedef struct MV_SPEED_FEATURES {
   // Whether to downsample the rows in sad calculation during motion search.
   // This is only active when there are at least 16 rows.
   int use_downsampled_sad;
+
+  // Method to use for refining WARPED_CAUSAL motion vectors
+  // TODO(rachelbarker): Can this be unified with OBMC in some way?
+  WARP_SEARCH_METHOD warp_search_method;
+
+  // Maximum number of iterations in WARPED_CAUSAL refinement search
+  int warp_search_iters;
 } MV_SPEED_FEATURES;
 
 typedef struct INTER_MODE_SPEED_FEATURES {

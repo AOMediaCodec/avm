@@ -5060,17 +5060,110 @@ static INLINE unsigned int compute_motion_cost(
   return mse;
 }
 
+// Macros to build bitmasks which help us avoid redundant computations
+// during warp refinement (av1_refine_warped_mv and
+// av1_refine_mv_for_warp_extend)
+//
+// To explain the idea here, imagine that on the first iteration of the
+// loop below, we step rightwards. Then, on the second iteration, the neighbors
+// to consider are:
+//     . . .
+//     0 1 .
+//     . . .
+// Where 0 is the initial search point, 1 is the best candidate found in the
+// first iteration, and the dots are the other neighbors of point 1.
+//
+// Naively, we would now need to scan all 8 neighbors of point 1 (point 0 and
+// the seven points marked with dots), and compare them to see where to move
+// next. However, we already evaluated 5 of those 8 neighbors in the last
+// iteration, and decided that they are worse than point 1. So we don't need
+// to re-consider these points. We only really need to consider the three
+// points which are adjacent to point 1 but *not* to point 0.
+//
+// As the algorithm goes on, there are other ways that redundant evaluations
+// can happen, if the search path curls back around on itself.
+//
+// To avoid all possible redundancies, we'd have to build a set containing
+// every point we have already checked, and this be quite expensive.
+//
+// So instead, we apply a 95%-effective solution with a much lower overhead:
+// we prune out the points which were considered during the previous
+// iteration, but we don't worry about any prior iteration. This can be done
+// as follows:
+//
+// We build a static table, called neighbor_mask, which answers the question
+// "if we moved in direction X last time, which neighbors are new, and which
+//  were scanned last iteration?"
+// Then we can query this table to quickly determine which points we need to
+// evaluate, and which we can skip.
+//
+// To query the table, the logic is simply:
+// neighbor_mask[i] & (1 << j) == "if we moved in direction i last iteration,
+//                             do we need to scan neighbor j this iteration?"
+#define NEIGHBOR_MASK4(a, b, c, d) (a | (b << 1) | (c << 2) | (d << 3))
+
+#define NEIGHBOR_MASK8(a, b, c, d, e, f, g, h)                           \
+  (a | (b << 1) | (c << 2) | (d << 3) | (e << 4) | (f << 5) | (g << 6) | \
+   (h << 7))
+
+static const warp_search_config warp_search_info[WARP_SEARCH_METHODS] = {
+  // WARP_SEARCH_DIAMOND
+  {
+    .num_neighbors = 4,
+    .neighbors = { { 0, -1 }, { 1, 0 }, { 0, 1 },   { -1, 0 } },
+    .neighbor_mask = {
+      // If we stepped left last time, consider all points except right
+      NEIGHBOR_MASK4(1, 1, 0, 1),
+      // If we stepped down last time, consider all points except up
+      NEIGHBOR_MASK4(1, 1, 1, 0),
+      // Stepped right last time
+      NEIGHBOR_MASK4(0, 1, 1, 1),
+      // Stepped up last time
+      NEIGHBOR_MASK4(1, 0, 1, 1),
+    },
+  },
+  // WARP_SEARCH_SQUARE
+  {
+    .num_neighbors = 8,
+    .neighbors = { { 0, -1 }, { 1, 0 }, { 0, 1 },   { -1, 0 },
+               { 1, -1 }, { 1, 1 }, { -1, -1 }, { -1, 1 } },
+    .neighbor_mask = {
+      // If we stepped left last time, then we only need to consider 3 points:
+      // left, up+left, down+left
+      NEIGHBOR_MASK8(1, 0, 0, 0, 1, 0, 1, 0),
+      // If we stepped down last time, then we only need to consider 3 points:
+      // down, down+left, down+right
+      NEIGHBOR_MASK8(0, 1, 0, 0, 1, 1, 0, 0),
+      // Stepped right last time
+      NEIGHBOR_MASK8(0, 0, 1, 0, 0, 1, 0, 1),
+      // Stepped up last time
+      NEIGHBOR_MASK8(0, 0, 0, 1, 0, 0, 1, 1),
+
+      // If we stepped down+left last time, then we need to consider 5 points:
+      // down+left, left, up+left, down, down+right
+      NEIGHBOR_MASK8(1, 1, 0, 0, 1, 1, 1, 0),
+      // Stepped down+right last time
+      NEIGHBOR_MASK8(0, 1, 1, 0, 1, 1, 0, 1),
+      // Stepped up+left last time
+      NEIGHBOR_MASK8(1, 0, 0, 1, 1, 0, 1, 1),
+      // Stepped up+right last time
+      NEIGHBOR_MASK8(0, 0, 1, 1, 0, 1, 1, 1),
+    },
+  },
+};
+
 // Refines MV in a small range
 unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                   BLOCK_SIZE bsize, const int *pts0,
-                                  const int *pts_inref0, int total_samples) {
+                                  const int *pts_inref0, int total_samples,
+                                  WARP_SEARCH_METHOD search_method,
+                                  int num_iterations) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
-  static const MV neighbors[8] = { { 0, -1 }, { 1, 0 }, { 0, 1 },   { -1, 0 },
-                                   { 1, -1 }, { 1, 1 }, { -1, -1 }, { -1, 1 } };
-  static const int num_iterations = 8;
-  static const int num_neighbors = 8;
+  const MV *neighbors = warp_search_info[search_method].neighbors;
+  const int num_neighbors = warp_search_info[search_method].num_neighbors;
+  const uint8_t *neighbor_mask = warp_search_info[search_method].neighbor_mask;
 
   MV *best_mv = &mbmi->mv[0].as_mv;
 
@@ -5099,10 +5192,17 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
+  // First iteration always scans all neighbors
+  uint8_t valid_neighbors = UINT8_MAX;
+
   for (int ite = 0; ite < num_iterations; ++ite) {
     int best_idx = -1;
 
     for (int idx = 0; idx < num_neighbors; ++idx) {
+      if ((valid_neighbors & (1 << idx)) == 0) {
+        continue;
+      }
+
       unsigned int thismse;
 
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
@@ -5143,6 +5243,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
     if (best_idx >= 0) {
       best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
       best_mv->col += neighbors[best_idx].col * (1 << mv_shift);
+      valid_neighbors = neighbor_mask[best_idx];
     }
   }
 
@@ -5189,6 +5290,11 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 #endif  // CONFIG_WARP_REF_LIST
 
 // Returns 1 if able to select a good model, 0 if not
+// TODO(rachelbarker):
+// This function cannot use the same neighbor pruning used in the other warp
+// search functions, due to the way that it alternates MV and warp parameter
+// refinement. Need to revisit this function in phase 2 and revisit whether
+// there is a good way to do something similar.
 int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT *mbmi_ext,
                         const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -5567,13 +5673,14 @@ int av1_refine_mv_for_base_param_warp_model(
 void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                    bool neighbor_is_above, BLOCK_SIZE bsize,
-                                   const WarpedMotionParams *neighbor_params) {
+                                   const WarpedMotionParams *neighbor_params,
+                                   WARP_SEARCH_METHOD search_method,
+                                   int num_iterations) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
-  static const MV neighbors[8] = { { 0, -1 }, { 1, 0 }, { 0, 1 },   { -1, 0 },
-                                   { 1, -1 }, { 1, 1 }, { -1, -1 }, { -1, 1 } };
-  static const int num_iterations = 8;
-  static const int num_neighbors = 8;
+  const MV *neighbors = warp_search_info[search_method].neighbors;
+  const int num_neighbors = warp_search_info[search_method].num_neighbors;
+  const uint8_t *neighbor_mask = warp_search_info[search_method].neighbor_mask;
 
 #if CONFIG_FLEX_MVRES
   const int mv_shift =
@@ -5596,10 +5703,18 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
+
+  // First iteration always scans all neighbors
+  uint8_t valid_neighbors = UINT8_MAX;
+
   for (int ite = 0; ite < num_iterations; ++ite) {
     int best_idx = -1;
 
     for (int idx = 0; idx < num_neighbors; ++idx) {
+      if ((valid_neighbors & (1 << idx)) == 0) {
+        continue;
+      }
+
       unsigned int thismse;
 
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
@@ -5624,6 +5739,7 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
     if (best_idx >= 0) {
       best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
       best_mv->col += neighbors[best_idx].col * (1 << mv_shift);
+      valid_neighbors = neighbor_mask[best_idx];
     }
   }
 
