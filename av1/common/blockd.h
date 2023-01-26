@@ -1016,6 +1016,8 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
 }
 
 #if CONFIG_H_PARTITION
+// Get the block size of the ith sub-block in a block partitioned via an
+// h-partition mode.
 static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
                                                  PARTITION_TYPE partition) {
   assert(partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
@@ -1051,6 +1053,8 @@ static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
   }
 }
 
+// Get the mi_row offset of the ith sub-block in a block partitioned via an
+// h-partition mode.
 static INLINE int get_h_partition_offset_mi_row(BLOCK_SIZE bsize, int index,
                                                 PARTITION_TYPE partition) {
   assert(get_h_partition_subsize(bsize, index, partition) != BLOCK_INVALID);
@@ -1073,6 +1077,8 @@ static INLINE int get_h_partition_offset_mi_row(BLOCK_SIZE bsize, int index,
   }
 }
 
+// Get the mi_col offset of the ith sub-block in a block partitioned via an
+// h-partition mode.
 static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
                                                 PARTITION_TYPE partition) {
   assert(get_h_partition_subsize(bsize, index, partition) != BLOCK_INVALID);
