@@ -2222,9 +2222,8 @@ void av1_fill_tskip_sum_buffer_avx2(int row, const uint8_t *tskip,
     const int8_t left_tskip = _mm256_extract_epi8(tskip_sum_low, 0);
     if (col_begin == -1 && (col_end == (width + 4))) {
       *((int8_t *)tskip_sum_buffer) = left_tskip;
-      // Avoid sanitizer errors with a temp buffer.
-      int32_t *tmp_buffer = (int32_t *)(tskip_sum_buffer - col_begin + width);
-      *tmp_buffer = _mm256_extract_epi32(tskip_sum_high, 7);
+      *((int32_t *)(tskip_sum_buffer - col_begin + width)) =
+          _mm256_extract_epi32(tskip_sum_high, 7);
     } else {
       const int8_t right_tskip = _mm256_extract_epi8(tskip_sum_high, 31);
       set_left_and_right_tskip_sum(tskip_sum_buffer, col_begin, width, col_end,
