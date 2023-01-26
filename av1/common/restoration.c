@@ -1611,14 +1611,12 @@ void apply_pc_wiener_highbd(
 
 static void setup_qval_tskip_lut(int qindex, int bit_depth,
                                  PcwienerBuffers *buffers) {
-  static int prev_qindex = -1;
-  static int prev_bit_depth = -1;
-  if (qindex == prev_qindex && bit_depth == prev_bit_depth) {
+  if (qindex == buffers->prev_qindex && bit_depth == buffers->prev_bit_depth) {
     return;
   }
   fill_qval_given_tskip_lut(qindex, bit_depth, buffers);
-  prev_qindex = qindex;
-  prev_bit_depth = bit_depth;
+  buffers->prev_qindex = qindex;
+  buffers->prev_bit_depth = bit_depth;
 }
 
 static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,

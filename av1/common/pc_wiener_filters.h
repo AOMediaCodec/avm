@@ -80,6 +80,11 @@ typedef struct PcwienerBuffers {
   // Lookup table useful in calculating the filter indices within
   // get_pcwiener_index().
   int qval_given_tskip_lut[256][NUM_PC_WIENER_FEATURES];
+
+  // Prevent repeated calculation of qval_given_tskip_lut when qindex and
+  // bit_depth do not change.
+  int prev_qindex;
+  int prev_bit_depth;
 } PcwienerBuffers;
 
 // Origin-symmetric taps first then the last singleton tap.
