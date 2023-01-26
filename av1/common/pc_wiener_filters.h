@@ -76,6 +76,10 @@ typedef struct PcwienerBuffers {
   int16_t tskip_feature_accumulator[PC_WIENER_FEATURE_ACC_SIZE];
 
   int feature_normalizers[NUM_PC_WIENER_FEATURES + 1];
+
+  // Lookup table useful in calculating the filter indices within
+  // get_pcwiener_index().
+  int qval_given_tskip_lut[256][NUM_PC_WIENER_FEATURES];
 } PcwienerBuffers;
 
 // Origin-symmetric taps first then the last singleton tap.

@@ -1352,11 +1352,8 @@ static void calculate_features(int32_t *feature_vector, int bit_depth, int col,
       buffers->feature_normalizers[tskip_index];
 }
 
-// Lookup table useful in calculating the filter indices within
-// get_pcwiener_index().
-static int qval_given_tskip_lut[256][NUM_PC_WIENER_FEATURES] = { 0 };
-
-static void fill_qval_given_tskip_lut(int base_qindex, int bit_depth) {
+static void fill_qval_given_tskip_lut(int base_qindex, int bit_depth,
+                                      PcwienerBuffers *buffers) {
   int qstep_shift = 0;
   int qstep = get_qstep(base_qindex, bit_depth, &qstep_shift);
   qstep_shift += 8;  // normalization in tf
@@ -1385,7 +1382,7 @@ static void fill_qval_given_tskip_lut(int base_qindex, int bit_depth) {
       qval = ROUND_POWER_OF_TWO_SIGNED(qval, total_shift);
       qval += mode_offsets[i];  // actual * (1 << PC_WIENER_PREC_FEATURE)
 
-      qval_given_tskip_lut[tskip][i] = 255 * qval;
+      buffers->qval_given_tskip_lut[tskip][i] = 255 * qval;
     }
   }
 }
@@ -1412,7 +1409,7 @@ static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col,
 
   for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i) {
     int32_t qval = ROUND_POWER_OF_TWO_SIGNED(
-        feature_vector[i] + qval_given_tskip_lut[tskip][i],
+        feature_vector[i] + buffers->qval_given_tskip_lut[tskip][i],
         PC_WIENER_PREC_FEATURE);
 
     // qval range is [0, 1] -> [0, 255]
@@ -1612,13 +1609,14 @@ void apply_pc_wiener_highbd(
   }
 }
 
-static void setup_qval_tskip_lut(int qindex, int bit_depth) {
+static void setup_qval_tskip_lut(int qindex, int bit_depth,
+                                 PcwienerBuffers *buffers) {
   static int prev_qindex = -1;
   static int prev_bit_depth = -1;
   if (qindex == prev_qindex && bit_depth == prev_bit_depth) {
     return;
   }
-  fill_qval_given_tskip_lut(qindex, bit_depth);
+  fill_qval_given_tskip_lut(qindex, bit_depth, buffers);
   prev_qindex = qindex;
   prev_bit_depth = bit_depth;
 }
@@ -1642,7 +1640,8 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   const uint8_t *filter_selector = get_filter_selector(set_index);
   assert(rui->pcwiener_buffers->buffer_width > 0);
 
-  setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth);
+  setup_qval_tskip_lut(rui->base_qindex + rui->qindex_offset, bit_depth,
+                       rui->pcwiener_buffers);
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
     // The function update_accumulator() is used to compute the accumulated
