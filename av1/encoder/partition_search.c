@@ -2356,7 +2356,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const PARTITION_TYPE partition = pc_tree->partitioning;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
+  const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
 #else
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -3323,7 +3323,7 @@ static void init_partition_search_state_params(
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
 #endif  // !CONFIG_H_PARTITION
-  const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
+  const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
   const int pl = part_search_state->pl_ctx_idx;
   const int plane_index = xd->tree_type == CHROMA_PART;
   if (is_square_block(bsize)) {
@@ -5874,7 +5874,7 @@ BEGIN_PARTITION_SEARCH:
       NULL);
   const int partition_3_allowed =
       ext_partition_allowed && bsize != BLOCK_128X128 &&
-      max_recursion_depth > 0 && cpi->oxcf.part_cfg.enable_ternary_partitions;
+      max_recursion_depth > 0 && cpi->oxcf.part_cfg.enable_ext_partitions;
   const int is_wide_block = block_size_wide[bsize] > block_size_high[bsize];
   const int is_tall_block = block_size_wide[bsize] < block_size_high[bsize];
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;

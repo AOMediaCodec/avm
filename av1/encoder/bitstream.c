@@ -2844,7 +2844,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
 #endif  // !CONFIG_H_PARTITION
-  const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
+  const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
   if (is_square_block(bsize)) {
     if (disable_ext_part) {
       aom_cdf_prob *partition_cdf;
@@ -4771,7 +4771,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
 #if CONFIG_EXT_RECUR_PARTITIONS
-  aom_wb_write_bit(wb, seq_params->enable_ternary_partitions);
+  aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 

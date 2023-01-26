@@ -542,8 +542,8 @@ typedef struct SequenceHeader {
   uint8_t enable_parity_hiding;  // To turn on/off PAR_HIDING
 #endif                           // CONFIG_PAR_HIDING
 #if CONFIG_EXT_RECUR_PARTITIONS
-  uint8_t enable_ternary_partitions;  // enable ternary partitions
-#endif                                // CONFIG_EXT_RECUR_PARTITIONS
+  uint8_t enable_ext_partitions;  // enable extended partitions
+#endif                            // CONFIG_EXT_RECUR_PARTITIONS
   BITSTREAM_PROFILE profile;
 
   // Color config.
@@ -2591,7 +2591,7 @@ static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 // Return the number of elements in the partition CDF when
-// partitioning the square block in the middle of ternary partition.
+// partitioning the square block in the middle of extended partition.
 static INLINE int limited_partition_cdf_length(BLOCK_SIZE bsize) {
   assert(block_size_wide[bsize] == block_size_high[bsize]);
   assert(is_bsize_geq(bsize, BLOCK_8X8));

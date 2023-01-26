@@ -812,9 +812,10 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_noext_rec_block(
 }
 
 /*!\brief Returns the symbol to be transmitted through the bitstream for the
- * middle block of ternary partition.
- * \note "limited_partition" refers to the fact that the middle block of ternary
- * partition cannot be split in the same direction as the ternary partition. */
+ * middle block of extended partition.
+ * \note "limited_partition" refers to the fact that the middle block of
+ * extended partition cannot be split in the same direction as the extended
+ * partition. */
 static INLINE PARTITION_TYPE get_symbol_from_limited_partition(
     PARTITION_TYPE part, PARTITION_TYPE parent_part) {
   assert(part != PARTITION_INVALID);
@@ -834,9 +835,10 @@ static INLINE PARTITION_TYPE get_symbol_from_limited_partition(
 }
 
 /*!\brief Returns the symbol to be transmitted through the bitstream for the
- * middle block of ternary partition when extended partition is disabled.
- * \note "limited_partition" refers to the fact that the middle block of ternary
- * partition cannot be split in the same direction as the ternary partition. */
+ * middle block of extended partition when extended partition is disabled.
+ * \note "limited_partition" refers to the fact that the middle block of
+ * extended partition cannot be split in the same direction as the extended
+ * partition. */
 static INLINE PARTITION_TYPE get_symbol_from_limited_partition_noext(
     PARTITION_TYPE part, PARTITION_TYPE parent_part) {
   assert(part != PARTITION_INVALID);
@@ -858,9 +860,9 @@ static INLINE PARTITION_TYPE get_symbol_from_limited_partition_noext(
 }
 
 /*!\brief Returns the partition type based on the symbol transmitted through the
- * bitstream for the middle block of ternary partition. \note
- * "limited_partition" refers to the fact that the middle block of ternary
- * partition cannot be split in the same direction as the ternary partition. */
+ * bitstream for the middle block of extended partition. \note
+ * "limited_partition" refers to the fact that the middle block of extended
+ * partition cannot be split in the same direction as the extended partition. */
 static INLINE PARTITION_TYPE
 get_limited_partition_from_symbol(int symbol, PARTITION_TYPE parent_part) {
   assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
@@ -883,10 +885,10 @@ get_limited_partition_from_symbol(int symbol, PARTITION_TYPE parent_part) {
 }
 
 /*!\brief Returns the partition type based on the symbol transmitted through the
- * bitstream for the middle block of ternary partition when extended partition
+ * bitstream for the middle block of extended partition when extended partition
  * is disabled. \note "limited_partition" refers to the fact that the middle
- * block of ternary partition cannot be split in the same direction as the
- * ternary partition. */
+ * block of extended partition cannot be split in the same direction as the
+ * extended partition. */
 static INLINE PARTITION_TYPE get_limited_partition_noext_from_symbol(
     int symbol, PARTITION_TYPE parent_part) {
   assert(parent_part == PARTITION_HORZ_3 || parent_part == PARTITION_VERT_3);
@@ -2602,7 +2604,6 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
   return ss_size_lookup[bsize][subsampling_x][subsampling_y];
 }
 
-
 static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                  int plane) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -2631,23 +2632,21 @@ static INLINE int max_block_high(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
 }
 
 static INLINE int get_plane_tx_unit_height(const MACROBLOCKD *xd,
-  BLOCK_SIZE plane_bsize, int plane, int row, int ss_y) {
-    const int max_plane_blocks_high =
-        max_block_high(xd, plane_bsize, plane);
-    const int mu_plane_blocks_high =
-        AOMMIN(mi_size_high[BLOCK_64X64] >> ss_y, max_plane_blocks_high);
-    return AOMMIN(
-        mu_plane_blocks_high + (row >> ss_y), max_plane_blocks_high);
+                                           BLOCK_SIZE plane_bsize, int plane,
+                                           int row, int ss_y) {
+  const int max_plane_blocks_high = max_block_high(xd, plane_bsize, plane);
+  const int mu_plane_blocks_high =
+      AOMMIN(mi_size_high[BLOCK_64X64] >> ss_y, max_plane_blocks_high);
+  return AOMMIN(mu_plane_blocks_high + (row >> ss_y), max_plane_blocks_high);
 }
 
 static INLINE int get_plane_tx_unit_width(const MACROBLOCKD *xd,
-  BLOCK_SIZE plane_bsize, int plane, int col, int ss_x) {
-    const int max_plane_blocks_wide =
-        max_block_wide(xd, plane_bsize, plane);
-    const int mu_plane_blocks_wide =
-        AOMMIN(mi_size_wide[BLOCK_64X64] >> ss_x, max_plane_blocks_wide);
-    return AOMMIN(
-        mu_plane_blocks_wide + (col >> ss_x), max_plane_blocks_wide);
+                                          BLOCK_SIZE plane_bsize, int plane,
+                                          int col, int ss_x) {
+  const int max_plane_blocks_wide = max_block_wide(xd, plane_bsize, plane);
+  const int mu_plane_blocks_wide =
+      AOMMIN(mi_size_wide[BLOCK_64X64] >> ss_x, max_plane_blocks_wide);
+  return AOMMIN(mu_plane_blocks_wide + (col >> ss_x), max_plane_blocks_wide);
 }
 
 /*!\brief Returns the index of luma/chroma based on the current partition tree

@@ -475,7 +475,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_interintra_compound = tool_cfg->enable_interintra_comp;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_EXT_RECUR_PARTITIONS
-  seq->enable_ternary_partitions = oxcf->part_cfg.enable_ternary_partitions;
+  seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   seq->enable_masked_compound = oxcf->comp_type_cfg.enable_masked_comp;
   seq->enable_intra_edge_filter = oxcf->intra_mode_cfg.enable_intra_edge_filter;

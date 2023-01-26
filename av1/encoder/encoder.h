@@ -217,9 +217,9 @@ typedef struct {
    * */
   int use_ml_erp_pruning;
   /*!
-   * Flag to indicate if ternary partitions are enabled.
+   * Flag to indicate if extended partitions are enabled.
    * */
-  unsigned int enable_ternary_partitions;
+  unsigned int enable_ext_partitions;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!
    * Flag to indicate if rectanguar partitions should be enabled.

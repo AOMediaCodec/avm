@@ -2045,7 +2045,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                 is_bsize_geq(bsize, BLOCK_8X8) &&
                                 is_bsize_geq(BLOCK_64X64, bsize);
 #endif  // !CONFIG_H_PARTITION
-  const bool disable_ext_part = !cm->seq_params.enable_ternary_partitions;
+  const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
 
   if (is_square_block(bsize)) {
     assert(ctx >= 0);
@@ -6114,7 +6114,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
 #endif  // CONFIG_PAR_HIDING
 #if CONFIG_EXT_RECUR_PARTITIONS
-  seq_params->enable_ternary_partitions = aom_rb_read_bit(rb);
+  seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 

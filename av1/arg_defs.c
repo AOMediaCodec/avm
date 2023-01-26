@@ -374,9 +374,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .use_ml_erp_pruning = ARG_DEF(NULL, "use-ml-erp-pruning", 1,
                                 "Use ML model to perform ERP Pruning."
                                 "(0: off (default), 1: on)."),
-  .enable_ternary_partitions = ARG_DEF(NULL, "enable-ternary-partitions", 1,
-                                       "Enable ternary partitions"
-                                       "(0: off (default), 1: on)."),
+  .enable_ext_partitions = ARG_DEF(NULL, "enable-ext-partitions", 1,
+                                   "Enable extended partitions"
+                                   "(0: off (default), 1: on)."),
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   .enable_rect_partitions = ARG_DEF(NULL, "enable-rect-partitions", 1,
                                     "Enable rectangular partitions "
