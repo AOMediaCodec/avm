@@ -269,14 +269,14 @@ static int64_t pick_wedge(const AV1_COMP *const cpi, const MACROBLOCK *const x,
     }
   }
 
-  return best_rd - RDCOST(x->rdmult,
 #if CONFIG_WEDGE_MOD_EXT
-                          get_wedge_cost(bsize, *best_wedge_index, x),
+  return best_rd -
+         RDCOST(x->rdmult, get_wedge_cost(bsize, *best_wedge_index, x), 0);
 #else
-                          x->mode_costs
-                              .wedge_idx_cost[bsize][*best_wedge_index],
+  return best_rd -
+         RDCOST(x->rdmult,
+                x->mode_costs.wedge_idx_cost[bsize][*best_wedge_index], 0);
 #endif  // CONFIG_WEDGE_MOD_EXT
-                          0);
 }
 
 // Choose the best wedge index the specified sign
@@ -319,14 +319,14 @@ static int64_t pick_wedge_fixed_sign(
       *best_sse = sse;
     }
   }
-  return best_rd - RDCOST(x->rdmult,
 #if CONFIG_WEDGE_MOD_EXT
-                          get_wedge_cost(bsize, *best_wedge_index, x),
+  return best_rd -
+         RDCOST(x->rdmult, get_wedge_cost(bsize, *best_wedge_index, x), 0);
 #else
-                          x->mode_costs
-                              .wedge_idx_cost[bsize][*best_wedge_index],
+  return best_rd -
+         RDCOST(x->rdmult,
+                x->mode_costs.wedge_idx_cost[bsize][*best_wedge_index], 0);
 #endif  // CONFIG_WEDGE_MOD_EXT
-                          0);
 }
 
 static int64_t pick_interinter_wedge(
