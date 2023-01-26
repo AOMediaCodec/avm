@@ -2442,6 +2442,8 @@ static int64_t count_wienerns_bits(
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   int reduce_step[WIENERNS_REDUCE_STEPS];
+  assert(c_id_begin >= 0);
+  assert(c_id_end <= WIENERNS_MAX_CLASSES);
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     if (skip_filter_write_for_class[c_id]) continue;
     const WienerNonsepInfo *ref_wienerns_info =

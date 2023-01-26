@@ -3511,12 +3511,14 @@ static AOM_INLINE void write_wienerns_filter(
 #else
   (void)xd;
 #endif  // CONFIG_LR_MERGE_COEFFS
+  const int num_classes = wienerns_info->num_classes;
+  assert(num_classes <= WIENERNS_MAX_CLASSES);
   const int beg_feat = 0;
   const int end_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
   int reduce_step[WIENERNS_REDUCE_STEPS];
-  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+  for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) continue;
     const int ref = ref_for_class[c_id];
 
