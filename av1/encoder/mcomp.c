@@ -5563,7 +5563,8 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 int av1_refine_mv_for_base_param_warp_model(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT *mbmi_ext,
-    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params) {
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+    WARP_SEARCH_METHOD search_method, int num_iterations) {
   WarpedMotionParams *params = &mbmi->wm_params[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int mi_row = xd->mi_row;
@@ -5609,10 +5610,9 @@ int av1_refine_mv_for_base_param_warp_model(
   uint64_t best_rd;
   MV *best_mv = &mbmi->mv[0].as_mv;
 
-  static const MV neighbors[4] = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } };
-
-  static const int num_iterations = 8;
-  static const int num_neighbors = 4;
+  const MV *neighbors = warp_search_info[search_method].neighbors;
+  const int num_neighbors = warp_search_info[search_method].num_neighbors;
+  const uint8_t *neighbor_mask = warp_search_info[search_method].neighbor_mask;
 
 #if CONFIG_FLEX_MVRES
   const int mv_shift =
@@ -5627,11 +5627,18 @@ int av1_refine_mv_for_base_param_warp_model(
   sse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
   best_rd = sse;
 
+  // First iteration always scans all neighbors
+  uint8_t valid_neighbors = UINT8_MAX;
+
   for (int ite = 0; ite < num_iterations; ++ite) {
     int best_idx = -1;
     *params = base_params;  // best_wm_params;
 
     for (int idx = 0; idx < num_neighbors; ++idx) {
+      if ((valid_neighbors & (1 << idx)) == 0) {
+        continue;
+      }
+
       MV this_mv = { best_mv->row + neighbors[idx].row * (1 << mv_shift),
                      best_mv->col + neighbors[idx].col * (1 << mv_shift) };
       if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
@@ -5657,6 +5664,7 @@ int av1_refine_mv_for_base_param_warp_model(
       best_mv->row += neighbors[best_idx].row * (1 << mv_shift);
       best_mv->col += neighbors[best_idx].col * (1 << mv_shift);
       center_mv.as_mv = *best_mv;
+      valid_neighbors = neighbor_mask[best_idx];
     }
   }
 
