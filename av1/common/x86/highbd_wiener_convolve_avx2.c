@@ -2157,7 +2157,9 @@ void av1_fill_tskip_sum_buffer_avx2(int row, const uint8_t *tskip,
                                     int tskip_stride, int8_t *tskip_sum_buffer,
                                     int width, int height, int tskip_lead,
                                     int tskip_lag, bool use_strict_bounds) {
-  if ((width != 64) && (width != 32)) {
+  // TODO(oguleryuz): Revert once sanitizer issue is fixed.
+  // if ((width != 64) && (width != 32)) {
+  if (width != -1) {
     av1_fill_tskip_sum_buffer_c(row, tskip, tskip_stride, tskip_sum_buffer,
                                 width, height, tskip_lead, tskip_lag,
                                 use_strict_bounds);
