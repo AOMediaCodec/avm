@@ -204,7 +204,7 @@ set_aom_config_var(CONFIG_WIENER_NONSEP 0 NUMBER
                    "AV2 nonsep Wiener filter experiment flag")
 set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
                    "AV2 nonsep Wiener cross filter experiment flag")
-set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
+set_aom_config_var(CONFIG_PC_WIENER 0 NUMBER
                    "AV2 pixel-classified Wiener filter experiment flag")
 # End: CWG-C016
 

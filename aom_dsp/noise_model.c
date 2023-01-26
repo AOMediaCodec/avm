@@ -1609,3 +1609,4 @@ int aom_denoise_and_model_run(struct aom_denoise_and_model_t *ctx,
   }
   return 1;
 }
+
