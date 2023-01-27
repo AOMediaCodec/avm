@@ -900,8 +900,10 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
   // SIMD is mainly implemented for diamond shape filter with 13 taps (12
   // symmetric + 1) or 7 taps (6 symmetric + 1) for a block size of 4x4. For any
   // other cases invoke the C function.
-  if (num_rows != 4 || num_cols != 4 ||
-      (num_sym_taps != 12 && num_sym_taps != 6)) {
+  //  if (num_rows != 4 || num_cols != 4 ||
+  //      (num_sym_taps != 12 && num_sym_taps != 6)) {
+  // TODO(oguleryuz): Revert once sanitizer issue is fixed.
+  if (num_sym_taps != -1) {
     av1_convolve_symmetric_highbd_c(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_row_end, block_col_begin, block_col_end);
@@ -1615,8 +1617,10 @@ void av1_convolve_symmetric_subtract_center_highbd_avx2(
   // SIMD is mainly implemented for diamond shape filter with 13 taps (12
   // symmetric + 1) or 6 taps for a block size of 4x4. For any other cases
   // invoke the C function.
-  if (num_rows != 4 || num_cols != 4 ||
-      (num_sym_taps != 12 && num_sym_taps != 6)) {
+  //  if (num_rows != 4 || num_cols != 4 ||
+  //      (num_sym_taps != 12 && num_sym_taps != 6)) {
+  // TODO(oguleryuz): Revert once sanitizer issue is fixed.
+  if (num_sym_taps != -1) {
     av1_convolve_symmetric_subtract_center_highbd_c(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_row_end, block_col_begin, block_col_end);
@@ -1717,8 +1721,10 @@ void av1_convolve_symmetric_dual_highbd_avx2(
   // SIMD is mainly implemented for diamond shape filter using 7-tap filtering
   // for each of first(dgd) and second(dgd_dual) buffer for 4x4 block size. For
   // any other cases invoke the C function.
-  if (num_rows != 4 || num_cols != 4 || num_sym_taps != 6 ||
-      num_sym_taps_dual != 6) {
+  //  if (num_rows != 4 || num_cols != 4 || num_sym_taps != 6 ||
+  //      num_sym_taps_dual != 6) {
+  // TODO(oguleryuz): Revert once sanitizer issue is fixed.
+  if (num_sym_taps_dual != -1) {
     av1_convolve_symmetric_dual_highbd_c(
         dgd, dgd_stride, dgd_dual, dgd_dual_stride, filter_config, filter, dst,
         dst_stride, bit_depth, block_row_begin, block_row_end, block_col_begin,
@@ -1835,8 +1841,10 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_avx2(
 
   // SIMD is mainly implemented for diamond shape filter with 6 taps for a block
   // size of 4x4. For any other cases invoke the C function.
-  if (num_rows != 4 || num_cols != 4 || num_sym_taps != 6 ||
-      num_sym_taps_dual != 6) {
+  //  if (num_rows != 4 || num_cols != 4 || num_sym_taps != 6 ||
+  //      num_sym_taps_dual != 6) {
+  // TODO(oguleryuz): Revert once sanitizer issue is fixed.
+  if (num_sym_taps_dual != -1) {
     av1_convolve_symmetric_dual_subtract_center_highbd_c(
         dgd, dgd_stride, dgd_dual, dgd_dual_stride, filter_config, filter, dst,
         dst_stride, bit_depth, block_row_begin, block_row_end, block_col_begin,
@@ -2431,10 +2439,12 @@ void av1_fill_directional_feature_accumulators_avx2(
     int feature_lead, int feature_lag) {
   // SIMD is specifically implemented for pc_wiener block size equal to 4x4 and
   // restoration unit size must be 64x64 for luma or 32x32 for chroma plane.
-  if ((PC_WIENER_BLOCK_SIZE != 4) || ((width != 64) && (width != 32))) {
-    assert(0 &&
-           "Intrinsic support is not available for PC_WIENER_BLOCK_SIZE != 4 "
-           "or width != 32 or 64");
+  // if ((PC_WIENER_BLOCK_SIZE != 4) || ((width != 64) && (width != 32))) {
+  //  assert(0 &&
+  //         "Intrinsic support is not available for PC_WIENER_BLOCK_SIZE != 4 "
+  //         "or width != 32 or 64");
+  // TODO(oguleryuz): Revert once sanitizer issue is fixed.
+  if (width != -1) {
     av1_fill_directional_feature_accumulators_c(
         dir_feature_accum, feature_sum_buf, width, col_offset, feature_lead,
         feature_lag);
@@ -2542,10 +2552,12 @@ void av1_fill_tskip_feature_accumulator_avx2(
     int tskip_lag) {
   // SIMD is specifically implemented for pc_wiener block size equal to 4x4 and
   // restoration unit size must be 64x64 for luma or 32x32 for chroma plane.
-  if ((PC_WIENER_BLOCK_SIZE != 4) || ((width != 64) && (width != 32))) {
-    assert(0 &&
-           "Intrinsic support is not available for PC_WIENER_BLOCK_SIZE != 4 "
-           "or width != 32 or 64");
+  // if ((PC_WIENER_BLOCK_SIZE != 4) || ((width != 64) && (width != 32))) {
+  //  assert(0 &&
+  //         "Intrinsic support is not available for PC_WIENER_BLOCK_SIZE != 4 "
+  //         "or width != 32 or 64");
+  // TODO(oguleryuz): Revert once sanitizer issue is fixed.
+  if (width != -1) {
     av1_fill_tskip_feature_accumulator_c(tskip_feature_accum, tskip_sum_buf,
                                          width, col_offset, tskip_lead,
                                          tskip_lag);
@@ -2603,7 +2615,7 @@ void av1_fill_tskip_feature_accumulator_avx2(
   } else {
     // For any other case, C support is added. So this assert should not be
     // invoked.
-    assert(0);
+    assert(0 && "C support is added this assert should not be invoked");
   }
 }
 
