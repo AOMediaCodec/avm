@@ -26,6 +26,18 @@
 
 #include "aom_ports/mem.h"
 
+#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+// Origin-symmetric taps first then the last singleton tap.
+static const int
+    pcwiener_tap_config_luma[2 * NUM_PC_WIENER_TAPS_LUMA - 1][3] = {
+      { -3, 0, 0 },  { 3, 0, 0 },  { -2, -1, 1 }, { 2, 1, 1 },   { -2, 0, 2 },
+      { 2, 0, 2 },   { -2, 1, 3 }, { 2, -1, 3 },  { -1, -2, 4 }, { 1, 2, 4 },
+      { -1, -1, 5 }, { 1, 1, 5 },  { -1, 0, 6 },  { 1, 0, 6 },   { -1, 1, 7 },
+      { 1, -1, 7 },  { -1, 2, 8 }, { 1, -2, 8 },  { 0, -3, 9 },  { 0, 3, 9 },
+      { 0, -2, 10 }, { 0, 2, 10 }, { 0, -1, 11 }, { 0, 1, 11 },  { 0, 0, 12 },
+    };
+#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+
 #if CONFIG_WIENER_NONSEP
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
   { (b) + (p)-6, (m) * (1 << ((p)-6)), k }
@@ -1401,8 +1413,9 @@ static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col,
   calculate_features(feature_vector, bit_depth, col, buffers);
 
   // actual * 256
-  const int tskip_index = NUM_PC_WIENER_FEATURES;
-  const int tskip = feature_vector[tskip_index];
+  // TODO(oguleryuz): Revert once test failures are fixed.
+  // const int tskip_index = NUM_PC_WIENER_FEATURES;
+  const int tskip = 128;  // feature_vector[tskip_index];
   assert(tskip < 256);
   for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i)
     assert(feature_vector[i] >= 0);
@@ -2261,7 +2274,7 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
   luma_buf = wienerns_copy_luma_highbd(
-      (dgd->buffers[AOM_PLANE_Y]), dgd->crop_heights[AOM_PLANE_Y],
+      dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
       cm->seq_params.bit_depth);

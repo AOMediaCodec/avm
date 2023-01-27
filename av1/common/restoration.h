@@ -92,6 +92,7 @@ extern "C" {
   (RESTORATION_UNITPELS_HORZ_MAX * RESTORATION_UNITPELS_VERT_MAX)
 
 #if CONFIG_PC_WIENER
+#define NUM_PC_WIENER_TAPS_LUMA 13
 #include "av1/common/pc_wiener_filters.h"
 #endif  // CONFIG_PC_WIENER
 

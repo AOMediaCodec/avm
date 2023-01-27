@@ -30,7 +30,6 @@
 
 #define NUM_PC_WIENER_TSKIP_TAPS_LUMA \
   (PC_WIENER_TSKIP_LENGTH_LUMA * PC_WIENER_TSKIP_LENGTH_LUMA)
-#define NUM_PC_WIENER_TAPS_LUMA 13
 #define NUM_PC_WIENER_FEATURES 4
 #define PC_WIENER_PREC_FILTER 12
 #define PC_WIENER_PREC_FEATURE 14
@@ -86,16 +85,6 @@ typedef struct PcwienerBuffers {
   int prev_qindex;
   int prev_bit_depth;
 } PcwienerBuffers;
-
-// Origin-symmetric taps first then the last singleton tap.
-static const int
-    pcwiener_tap_config_luma[2 * NUM_PC_WIENER_TAPS_LUMA - 1][3] = {
-      { -3, 0, 0 },  { 3, 0, 0 },  { -2, -1, 1 }, { 2, 1, 1 },   { -2, 0, 2 },
-      { 2, 0, 2 },   { -2, 1, 3 }, { 2, -1, 3 },  { -1, -2, 4 }, { 1, 2, 4 },
-      { -1, -1, 5 }, { 1, 1, 5 },  { -1, 0, 6 },  { 1, 0, 6 },   { -1, 1, 7 },
-      { 1, -1, 7 },  { -1, 2, 8 }, { 1, -2, 8 },  { 0, -3, 9 },  { 0, 3, 9 },
-      { 0, -2, 10 }, { 0, 2, 10 }, { 0, -1, 11 }, { 0, 1, 11 },  { 0, 0, 12 },
-    };
 
 static const int16_t pcwiener_filters_luma_0[NUM_PC_WIENER_FILTERS][NUM_PC_WIENER_TAPS_LUMA] = {
   //    0 ----------------------------------------------------------------------

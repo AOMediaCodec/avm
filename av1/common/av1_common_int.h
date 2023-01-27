@@ -1804,6 +1804,7 @@ typedef struct AV1Common {
 /*!\cond */
 
 #if CONFIG_PC_WIENER
+#define ILLEGAL_TXK_SKIP_VALUE 255
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
 void av1_dealloc_txk_skip_array(CommonModeInfoParams *mi_params);
 void av1_reset_txk_skip_array(AV1_COMMON *cm);

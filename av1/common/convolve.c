@@ -1036,6 +1036,7 @@ void fill_directional_feature_buffers_highbd_c(
                             buffer_row, col_begin, col_end, buffer_col);
 }
 
+#if CONFIG_PC_WIENER
 void av1_fill_directional_feature_accumulators_c(
     int dir_feature_accum[NUM_PC_WIENER_FEATURES][PC_WIENER_FEATURE_ACC_SIZE],
     int *feature_sum_bufs[NUM_PC_WIENER_FEATURES], int width, int col_offset,
@@ -1193,6 +1194,7 @@ void av1_fill_tskip_sum_buffer_c(int row, const uint8_t *tskip,
     }
   }
 }
+#endif  // CONFIG_PC_WIENER
 #endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT

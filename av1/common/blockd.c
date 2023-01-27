@@ -468,6 +468,9 @@ void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
     mi_params->tx_skip_buf_size[plane] = rows * stride;
     mi_params->tx_skip_stride[plane] = stride;
   }
+#ifndef NDEBUG
+  av1_reset_txk_skip_array(cm);
+#endif  // NDEBUG
 }
 
 void av1_dealloc_txk_skip_array(CommonModeInfoParams *mi_params) {
@@ -488,13 +491,14 @@ void av1_reset_txk_skip_array(AV1_COMMON *cm) {
     h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-    memset(cm->mi_params.tx_skip[plane], 0, rows * stride);
+    memset(cm->mi_params.tx_skip[plane], ILLEGAL_TXK_SKIP_VALUE, rows * stride);
   }
 }
 
 void av1_reset_txk_skip_array_using_mi_params(CommonModeInfoParams *mi_params) {
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-    memset(mi_params->tx_skip[plane], 0, mi_params->tx_skip_buf_size[plane]);
+    memset(mi_params->tx_skip[plane], ILLEGAL_TXK_SKIP_VALUE,
+           mi_params->tx_skip_buf_size[plane]);
   }
 }
 
@@ -579,6 +583,7 @@ uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
   y = (y + blk_row) >> MIN_TX_SIZE_LOG2;
   uint32_t idx = y * stride + x;
   assert(idx < cm->mi_params.tx_skip_buf_size[plane]);
+  assert(cm->mi_params.tx_skip[plane][idx] != ILLEGAL_TXK_SKIP_VALUE);
   return cm->mi_params.tx_skip[plane][idx];
 }
 
