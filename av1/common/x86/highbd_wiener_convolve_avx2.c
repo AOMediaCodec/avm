@@ -893,8 +893,8 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
                                         int block_col_end) {
   assert(!filter_config->subtract_center);
 
-  const int num_rows = block_row_end - block_row_begin;
-  const int num_cols = block_col_end - block_col_begin;
+  //  const int num_rows = block_row_end - block_row_begin;
+  //  const int num_cols = block_col_end - block_col_begin;
   const int num_sym_taps = filter_config->num_pixels / 2;
 
   // SIMD is mainly implemented for diamond shape filter with 13 taps (12
@@ -1610,8 +1610,8 @@ void av1_convolve_symmetric_subtract_center_highbd_avx2(
     int block_col_end) {
   assert(filter_config->subtract_center);
 
-  const int num_rows = block_row_end - block_row_begin;
-  const int num_cols = block_col_end - block_col_begin;
+  //  const int num_rows = block_row_end - block_row_begin;
+  //  const int num_cols = block_col_end - block_col_begin;
   const int num_sym_taps = filter_config->num_pixels / 2;
 
   // SIMD is mainly implemented for diamond shape filter with 13 taps (12
@@ -1712,9 +1712,9 @@ void av1_convolve_symmetric_dual_highbd_avx2(
     int block_col_end) {
   assert(!filter_config->subtract_center);
 
-  const int num_rows = block_row_end - block_row_begin;
-  const int num_cols = block_col_end - block_col_begin;
-  assert(num_rows >= 0 && num_cols >= 0);
+  //  const int num_rows = block_row_end - block_row_begin;
+  //  const int num_cols = block_col_end - block_col_begin;
+  //  assert(num_rows >= 0 && num_cols >= 0);
 
   const int num_sym_taps = filter_config->num_pixels / 2;
   const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
@@ -1834,9 +1834,9 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_avx2(
     int block_col_end) {
   assert(filter_config->subtract_center);
 
-  const int num_rows = block_row_end - block_row_begin;
-  const int num_cols = block_col_end - block_col_begin;
-  const int num_sym_taps = filter_config->num_pixels / 2;
+  //  const int num_rows = block_row_end - block_row_begin;
+  //  const int num_cols = block_col_end - block_col_begin;
+  //  const int num_sym_taps = filter_config->num_pixels / 2;
   const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
 
   // SIMD is mainly implemented for diamond shape filter with 6 taps for a block
