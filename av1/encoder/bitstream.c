@@ -2569,10 +2569,24 @@ static AOM_INLINE void write_inter_txb_coeff(
   const int unit_width = AOMMIN(mu_blocks_wide + (col >> ss_x), num_4x4_w);
   for (int blk_row = row >> ss_y; blk_row < unit_height; blk_row += bkh) {
     for (int blk_col = col >> ss_x; blk_col < unit_width; blk_col += bkw) {
+#if CONFIG_CROSS_CHROMA_TX
+      if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd)) {
+        pack_txb_tokens(w, cm, x, tok, tok_end, xd, mbmi, AOM_PLANE_U,
+                        plane_bsize, cm->seq_params.bit_depth,
+                        block[AOM_PLANE_U], blk_row, blk_col, max_tx_size,
+                        token_stats);
+        block[AOM_PLANE_U] += step;
+      }
+      pack_txb_tokens(w, cm, x, tok, tok_end, xd, mbmi, plane, plane_bsize,
+                      cm->seq_params.bit_depth, block[plane], blk_row, blk_col,
+                      max_tx_size, token_stats);
+      block[plane] += step;
+#else
       pack_txb_tokens(w, cm, x, tok, tok_end, xd, mbmi, plane, plane_bsize,
                       cm->seq_params.bit_depth, *block, blk_row, blk_col,
                       max_tx_size, token_stats);
       *block += step;
+#endif  // CONFIG_CROSS_CHROMA_TX
     }
   }
 }
@@ -2619,8 +2633,14 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
             get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
         for (int plane = plane_start; plane < plane_end; ++plane) {
           if (plane && !xd->is_chroma_ref) break;
+#if CONFIG_CROSS_CHROMA_TX
+          if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) continue;
+          write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats, row,
+                                col, block, plane);
+#else
           write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats, row,
                                 col, &block[plane], plane);
+#endif  // CONFIG_CROSS_CHROMA_TX
         }
       }
     }
