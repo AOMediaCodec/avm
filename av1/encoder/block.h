@@ -1088,7 +1088,7 @@ typedef struct {
   /**@{*/
 #if CONFIG_LR_FLEX_SYNTAX
   //! switchable_flex_restore_cost
-  int switchable_flex_restore_cost[MAX_LR_FLEX_SWITCHABLE_BITS][2][2];
+  int switchable_flex_restore_cost[MAX_LR_FLEX_SWITCHABLE_BITS][MAX_MB_PLANE][2];
 #else
   //! switchable_restore_cost
   int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
