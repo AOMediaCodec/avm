@@ -196,7 +196,7 @@ set_aom_config_var(CONFIG_EXTENDED_WARP_PREDICTION 1
 set_aom_config_var(CONFIG_WARP_REF_LIST 1
                    "AV2 experiment flag to improve warp-delta mode")
 # Begin: CWG-C016
-set_aom_config_var(CONFIG_LR_MERGE_COEFFS 1
+set_aom_config_var(CONFIG_LR_MERGE_COEFFS 0
                    "AV2 experiment flag to enable LR coefficient merging")
 set_aom_config_var(CONFIG_LR_FLEX_SYNTAX 1
                    "AV2 experiment flag to enable LR flexible syntax")
