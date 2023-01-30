@@ -1221,6 +1221,7 @@ static AOM_INLINE void search_pc_wiener_visitor(
     const RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
     int rest_unit_idx, int rest_unit_idx_seq, void *priv, int32_t *tmpbuf,
     RestorationLineBuffers *rlbs) {
+  (void)tile_rect;
   (void)tmpbuf;
   (void)rlbs;
   (void)rest_unit_idx_seq;
@@ -1246,7 +1247,7 @@ static AOM_INLINE void search_pc_wiener_visitor(
 
   rui.restoration_type = RESTORE_PC_WIENER;
   rusi->sse[RESTORE_PC_WIENER] =
-      try_restoration_unit(rsc, limits, tile_rect, &rui);
+      try_restoration_unit(rsc, limits, &rsc->tile_rect, &rui);
 
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
@@ -3526,6 +3527,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
                                     int rest_unit_idx_in_rutile, void *priv,
                                     int32_t *tmpbuf,
                                     RestorationLineBuffers *rlbs) {
+  (void)tile_rect;
   (void)tmpbuf;
   (void)rlbs;
   (void)rest_unit_idx_in_rutile;
@@ -3553,7 +3555,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(unit_stats->plane == rsc->plane);
 
   if (!compute_quantized_wienerns_filter(
-          rsc, limits, tile_rect, &rui, unit_stats->A, unit_stats->b,
+          rsc, limits, &rsc->tile_rect, &rui, unit_stats->A, unit_stats->b,
           unit_stats->real_sse, nsfilter_params)) {
     rsc->bits += bits_none;
     rsc->sse += rusi->sse[RESTORE_NONE];
@@ -3562,9 +3564,9 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
     return;
   }
   aom_clear_system_state();
-  rusi->sse[RESTORE_WIENER_NONSEP] =
-      finer_tile_search_wienerns(rsc, limits, tile_rect, &rui, nsfilter_params,
-                                 1, &rsc->wienerns_bank, ALL_WIENERNS_CLASSES);
+  rusi->sse[RESTORE_WIENER_NONSEP] = finer_tile_search_wienerns(
+      rsc, limits, &rsc->tile_rect, &rui, nsfilter_params, 1,
+      &rsc->wienerns_bank, ALL_WIENERNS_CLASSES);
 
   rusi->wienerns_info = rui.wienerns_info;
   assert(rusi->sse[RESTORE_WIENER_NONSEP] != INT64_MAX);
@@ -3574,7 +3576,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(num_classes == rsc->wienerns_bank.filter[0].num_classes);
   if (num_classes > 1) {
     rui.class_id_restrict = -1;
-    calc_finer_tile_search_error(rsc, limits, tile_rect, &rui);
+    calc_finer_tile_search_error(rsc, limits, &rsc->tile_rect, &rui);
   }
   double solver_A_AVG[WIENERNS_MAX * WIENERNS_MAX];
   const int class_dim_A = WIENERNS_MAX * WIENERNS_MAX;
@@ -3756,14 +3758,14 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
 
       // After this call rsc will have updated buffers. We will reset below if
       // not merging.
-      finer_tile_search_wienerns(rsc, NULL, tile_rect, &rui_merge_cand,
+      finer_tile_search_wienerns(rsc, NULL, &rsc->tile_rect, &rui_merge_cand,
                                  nsfilter_params, 1, begin_wienerns_bank, c_id);
 
       // Iterate through vector to set candidate merge sse and bits on
       // current_unit_stack.
       const double cost_merge_cand = set_cand_merge_sse_and_bits(
-          rsc, nsfilter_params, tile_rect, begin_idx_cand, current_unit_stack,
-          &token_wienerns_info_cand, &rui_merge_cand, c_id);
+          rsc, nsfilter_params, &rsc->tile_rect, begin_idx_cand,
+          current_unit_stack, &token_wienerns_info_cand, &rui_merge_cand, c_id);
 
       // Find the candidate that brings the largest improvement over touched
       // RUs. The best such candidate can still be worse than nomerge.
@@ -3805,7 +3807,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
         // We will not be merging this trial even if it is the best cand. Reset
         // rsc buffers to the best solution so far. Re-establish dst.
         rui_merge_best.class_id_restrict = c_id;
-        reset_unit_stack_dst_buffers(rsc, NULL, tile_rect, &rui_merge_best);
+        reset_unit_stack_dst_buffers(rsc, NULL, &rsc->tile_rect,
+                                     &rui_merge_best);
       }
       aom_vector_clear(current_unit_indices);
     }
