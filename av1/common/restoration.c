@@ -2075,7 +2075,8 @@ void av1_loop_restoration_filter_unit(
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
   const uint16_t *luma_in_ru = NULL;
-  const int enable_cross_buffers = unit_rtype == RESTORE_WIENER_NONSEP;
+  const int enable_cross_buffers =
+      unit_rtype == RESTORE_WIENER_NONSEP && rui->plane != AOM_PLANE_Y;
   if (enable_cross_buffers)
     luma_in_ru =
         rui->luma + limits->v_start * rui->luma_stride + limits->h_start;
