@@ -2367,9 +2367,13 @@ static AOM_INLINE void search_wiener_visitor(
     }
 
     int64_t M_AVG[WIENER_WIN2];
-    memcpy(M_AVG, M, WIENER_WIN2 * sizeof(*M));
     int64_t H_AVG[WIENER_WIN2 * WIENER_WIN2];
-    memcpy(H_AVG, H, WIENER_WIN2 * WIENER_WIN2 * sizeof(*H));
+    for (int index = 0; index < WIENER_WIN2; ++index) {
+      M_AVG[index] = M[index] / current_unit_indices->size;
+    }
+    for (int index = 0; index < WIENER_WIN2 * WIENER_WIN2; ++index) {
+      H_AVG[index] = H[index] / current_unit_indices->size;
+    }
     // Iterate through vector to get current cost and the sum of M and H so far.
     int num_units = 0;
     has_begun = false;
@@ -2388,21 +2392,14 @@ static AOM_INLINE void search_wiener_visitor(
           x->rdmult, old_unit->current_bits >> 4, old_unit->current_sse,
           rsc->cm->seq_params.bit_depth);
       for (int index = 0; index < WIENER_WIN2; ++index) {
-        M_AVG[index] += old_unit->M[index];
+        M_AVG[index] += old_unit->M[index] / current_unit_indices->size;
       }
       for (int index = 0; index < WIENER_WIN2 * WIENER_WIN2; ++index) {
-        H_AVG[index] += old_unit->H[index];
+        H_AVG[index] += old_unit->H[index] / current_unit_indices->size;
       }
       num_units++;
     }
     assert(num_units + 1 == (int)current_unit_indices->size);
-    // Divide M and H by vector size + 1 to get average.
-    for (int index = 0; index < WIENER_WIN2; ++index) {
-      M_AVG[index] = DIVIDE_AND_ROUND(M_AVG[index], num_units + 1);
-    }
-    for (int index = 0; index < WIENER_WIN2 * WIENER_WIN2; ++index) {
-      H_AVG[index] = DIVIDE_AND_ROUND(H_AVG[index], num_units + 1);
-    }
 
     // Generate new filter.
     RestorationUnitInfo rui_temp_cand;

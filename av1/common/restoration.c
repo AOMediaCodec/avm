@@ -2076,7 +2076,7 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
         src + j, w, stripe_height, src_stride, nsfilter_info, nsfilter_config,
         dst + j, dst_stride, rui->plane,
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-        rui->luma + j, rui->luma_stride,
+        rui->luma ? rui->luma + j : NULL, rui->luma_stride,
 #else
         NULL, -1,
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
