@@ -99,4 +99,9 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_H_PARTITION 0 !CONFIG_EXT_RECUR_PARTITIONS)
   endif()
 
+  # CONFIG_IMPROVED_GLOBAL_MOTION depends on CONFIG_FLEX_MVRES
+  if(NOT CONFIG_FLEX_MVRES AND CONFIG_IMPROVED_GLOBAL_MOTION)
+    change_config_and_warn(CONFIG_IMPROVED_GLOBAL_MOTION 0 !CONFIG_FLEX_MVRES)
+  endif()
+
 endmacro()
