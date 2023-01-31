@@ -272,6 +272,13 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     const int ss_y = pd[AOM_PLANE_U].subsampling_y;
     const int mi_row_offset = (mi_row & 0x01) && (bh & 0x01) && ss_y;
     const int mi_col_offset = (mi_col & 0x01) && (bw & 0x01) && ss_x;
+    // int mi_row_offset = 0, mi_col_offset = 0;
+    // get_offsets_to_8x8(xd, max_txsize_rect_lookup[bsize], &mi_row_offset,
+    //                   &mi_col_offset);
+    // TODO(kslu) Something's wrong when source is 422 format. If the current
+    // txb is the only chroma ref, we need to check whether there is an area
+    // in the block not covered by the txb area. This happens at the bottom
+    // right txb of a 8x8 block in 422 format with vert B partition
     const int grid_idx = get_mi_grid_idx(mi_params, mi_row - mi_row_offset,
                                          mi_col - mi_col_offset);
     CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;

@@ -2695,8 +2695,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       xd->tree_type != LUMA_PART && xd->is_chroma_ref) {
     struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
-    const BLOCK_SIZE uv_bsize =
-        get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+    const BLOCK_SIZE uv_bsize = get_mb_plane_block_size(
+        xd, mbmi, AOM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
     const TX_SIZE uv_txsize = max_txsize_rect_lookup[uv_bsize];
     int row_offset, col_offset;
     get_offsets_to_8x8(xd, uv_txsize, &row_offset, &col_offset);

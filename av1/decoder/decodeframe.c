@@ -1497,9 +1497,10 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
       const int ss_x = pd->subsampling_x;
       const int ss_y = pd->subsampling_y;
-      const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+      const BLOCK_SIZE uv_plane_bsize =
+          get_mb_plane_block_size(xd, mbmi, AOM_PLANE_U, ss_x, ss_y);
       const TX_SIZE max_tx_size =
-          get_vartx_max_txsize(xd, plane_bsize, AOM_PLANE_U);
+          get_vartx_max_txsize(xd, uv_plane_bsize, AOM_PLANE_U);
       const int max_blocks_wide = max_block_wide(xd, bsize, 0);
       const int max_blocks_high = max_block_high(xd, bsize, 0);
       const BLOCK_SIZE max_unit_bsize = BLOCK_64X64;
