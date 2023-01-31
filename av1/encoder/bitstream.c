@@ -2699,7 +2699,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
         xd, mbmi, AOM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
     const TX_SIZE uv_txsize = max_txsize_rect_lookup[uv_bsize];
     int row_offset, col_offset;
-    get_offsets_to_8x8(xd, uv_txsize, &row_offset, &col_offset);
+    get_chroma_mi_offsets(xd, uv_txsize, &row_offset, &col_offset);
     update_cctx_array(xd, 0, 0, row_offset, col_offset, uv_txsize, CCTX_NONE);
   }
 #endif  // CONFIG_CROSS_CHROMA_TX

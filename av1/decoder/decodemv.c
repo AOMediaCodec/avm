@@ -1234,7 +1234,7 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   // parent block area. Then apply cctx type update to this area w.r.t the
   // offsets derived
   int row_offset, col_offset;
-  get_offsets_to_8x8(xd, tx_size, &row_offset, &col_offset);
+  get_chroma_mi_offsets(xd, tx_size, &row_offset, &col_offset);
   update_cctx_array(xd, blk_row, blk_col, row_offset, col_offset, tx_size,
                     CCTX_NONE);
 

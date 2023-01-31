@@ -285,7 +285,7 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       av1_read_cctx_type(cm, xd, blk_row, blk_col, tx_size, r);
     } else {
       int row_offset, col_offset;
-      get_offsets_to_8x8(xd, tx_size, &row_offset, &col_offset);
+      get_chroma_mi_offsets(xd, tx_size, &row_offset, &col_offset);
       update_cctx_array(xd, blk_row, blk_col, row_offset, col_offset, tx_size,
                         CCTX_NONE);
     }
@@ -474,7 +474,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       av1_read_cctx_type(cm, xd, blk_row, blk_col, tx_size, r);
     } else {
       int row_offset, col_offset;
-      get_offsets_to_8x8(xd, tx_size, &row_offset, &col_offset);
+      get_chroma_mi_offsets(xd, tx_size, &row_offset, &col_offset);
       update_cctx_array(xd, blk_row, blk_col, row_offset, col_offset, tx_size,
                         CCTX_NONE);
     }

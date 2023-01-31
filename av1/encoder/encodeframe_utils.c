@@ -264,23 +264,29 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_CROSS_CHROMA_TX
   if (xd->tree_type != LUMA_PART && xd->is_chroma_ref) {
     xd->cctx_type_map = ctx->cctx_type_map;
-    xd->tx_type_map_stride = mi_size_wide[bsize];
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mi, AOM_PLANE_U);
+    xd->tx_type_map_stride = mi_size_wide[chroma_bsize];
+    const int chroma_bw = mi_size_wide[chroma_bsize];
+    const int chroma_bh = mi_size_high[chroma_bsize];
+    const int mi_row_offset = chroma_bw - bw;
+    const int mi_col_offset = chroma_bh - bh;
+    const int grid_idx =
+        get_mi_grid_idx(mi_params, mi->chroma_ref_info.mi_row_chroma_base,
+                        mi->chroma_ref_info.mi_col_chroma_base);
+#else
     // If this block is sub 8x8 in luma, derive the parent >= 8x8 block area,
     // then update its corresponding chroma area in cctx_type_map to the
     // current cctx type
+    xd->tx_type_map_stride = mi_size_wide[bsize];
     const int ss_x = pd[AOM_PLANE_U].subsampling_x;
     const int ss_y = pd[AOM_PLANE_U].subsampling_y;
     const int mi_row_offset = (mi_row & 0x01) && (bh & 0x01) && ss_y;
     const int mi_col_offset = (mi_col & 0x01) && (bw & 0x01) && ss_x;
-    // int mi_row_offset = 0, mi_col_offset = 0;
-    // get_offsets_to_8x8(xd, max_txsize_rect_lookup[bsize], &mi_row_offset,
-    //                   &mi_col_offset);
-    // TODO(kslu) Something's wrong when source is 422 format. If the current
-    // txb is the only chroma ref, we need to check whether there is an area
-    // in the block not covered by the txb area. This happens at the bottom
-    // right txb of a 8x8 block in 422 format with vert B partition
     const int grid_idx = get_mi_grid_idx(mi_params, mi_row - mi_row_offset,
                                          mi_col - mi_col_offset);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
     CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;
     const int mi_stride = mi_params->mi_stride;
     const int allow_cctx = is_cctx_allowed(cm, xd);
@@ -288,10 +294,17 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     CctxType cur_cctx_type = (txfm_info->skip_txfm || !allow_cctx)
                                  ? CCTX_NONE
                                  : xd->cctx_type_map[0];
+#if CONFIG_EXT_RECUR_PARTITIONS
+    for (int blk_row = 0; blk_row < chroma_bh; ++blk_row) {
+      memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
+             chroma_bw * sizeof(cctx_type_map[0]));
+    }
+#else
     for (int blk_row = 0; blk_row < (mi_row_offset ? 2 : bh); ++blk_row) {
       memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
              (mi_col_offset ? 2 : bw) * sizeof(cctx_type_map[0]));
     }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     if (!dry_run) {
       xd->cctx_type_map = cctx_type_map;
       xd->tx_type_map_stride = mi_stride;

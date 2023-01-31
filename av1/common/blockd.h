@@ -2625,10 +2625,15 @@ static INLINE int keep_chroma_c2(CctxType cctx_type) {
 }
 #endif
 
-// When the current block is sub 8x8, obtain amounts of offset to its parent
-// 8x8 block. Otherwise set the offsets to 0.
-static INLINE void get_offsets_to_8x8(MACROBLOCKD *const xd, TX_SIZE tx_size,
-                                      int *row_offset, int *col_offset) {
+// When the current block is chroma reference, obtain amounts of mi offsets to
+// its corresponding luma region. Otherwise set the offsets to 0.
+static INLINE void get_chroma_mi_offsets(MACROBLOCKD *const xd, TX_SIZE tx_size,
+                                         int *row_offset, int *col_offset) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  (void)tx_size;
+  *row_offset = xd->mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
+  *col_offset = xd->mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
+#else
   const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
@@ -2636,6 +2641,7 @@ static INLINE void get_offsets_to_8x8(MACROBLOCKD *const xd, TX_SIZE tx_size,
       (xd->mi_row & 0x01) && (tx_size_high_unit[tx_size] & 0x01) && ss_y;
   *col_offset =
       (xd->mi_col & 0x01) && (tx_size_wide_unit[tx_size] & 0x01) && ss_x;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 static INLINE void update_cctx_array(MACROBLOCKD *const xd, int blk_row,
