@@ -5128,7 +5128,7 @@ static int64_t handle_inter_mode(
               continue;
           }
 
-#if CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES || CONFIG_BAWP
           av1_init_rd_stats(rd_stats);
           // Initialize compound mode data
           mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -5142,7 +5142,9 @@ static int64_t handle_inter_mode(
 
           // Compute cost for signalling this DRL index
           rd_stats->rate = base_rate;
+#if CONFIG_FLEX_MVRES
           rd_stats->rate += flex_mv_cost[mbmi->pb_mv_precision];
+#endif
           rd_stats->rate += drl_cost;
 #endif
 
