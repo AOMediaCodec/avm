@@ -2425,9 +2425,7 @@ void av1_fill_directional_feature_accumulators_avx2(
   // SIMD is specifically implemented for pc_wiener block size equal to 4x4 and
   // restoration unit size must be 64x64 for luma or 32x32 for chroma plane.
   if ((PC_WIENER_BLOCK_SIZE != 4) || ((width != 64) && (width != 32))) {
-    assert(0 &&
-           "Intrinsic support is not available for PC_WIENER_BLOCK_SIZE != 4 "
-           "or width != 32 or 64");
+    // TODO(oguleryuz): Reduce the cases where we punt to c-code.
     av1_fill_directional_feature_accumulators_c(
         dir_feature_accum, feature_sum_buf, width, col_offset, feature_lead,
         feature_lag);
@@ -2536,9 +2534,7 @@ void av1_fill_tskip_feature_accumulator_avx2(
   // SIMD is specifically implemented for pc_wiener block size equal to 4x4 and
   // restoration unit size must be 64x64 for luma or 32x32 for chroma plane.
   if ((PC_WIENER_BLOCK_SIZE != 4) || ((width != 64) && (width != 32))) {
-    assert(0 &&
-           "Intrinsic support is not available for PC_WIENER_BLOCK_SIZE != 4 "
-           "or width != 32 or 64");
+    // TODO(oguleryuz): Reduce the cases where we punt to c-code.
     av1_fill_tskip_feature_accumulator_c(tskip_feature_accum, tskip_sum_buf,
                                          width, col_offset, tskip_lead,
                                          tskip_lag);
