@@ -403,7 +403,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                                         // enable_deblocking
   1,                                         // enable_cdef
   1,                                         // enable_restoration
-  1,                                         // enable_wiener
+  !CONFIG_WIENER_NONSEP,                     // enable_wiener
   1,                                         // enable_sgrproj
 #if CONFIG_PC_WIENER
   1,    // enable_pc_wiener

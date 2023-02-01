@@ -676,7 +676,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
   config->enable_restoration = 1;
-  config->enable_wiener = 1;
+  config->enable_wiener = !CONFIG_WIENER_NONSEP;
   config->enable_sgrproj = 1;
 #if CONFIG_PC_WIENER
   config->enable_pc_wiener = 1;

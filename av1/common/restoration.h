@@ -91,10 +91,10 @@ extern "C" {
 #define RESTORATION_UNITPELS_MAX \
   (RESTORATION_UNITPELS_HORZ_MAX * RESTORATION_UNITPELS_VERT_MAX)
 
-#if CONFIG_PC_WIENER
+#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
 #define NUM_PC_WIENER_TAPS_LUMA 13
 #include "av1/common/pc_wiener_filters.h"
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
 
 // Two 32-bit buffers needed for the restored versions from two filters
 // TODO(debargha, rupert): Refactor to not need the large tilesize to be stored
