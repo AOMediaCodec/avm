@@ -1266,7 +1266,11 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
       is_cctx_allowed(cm, xd)) {
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     int above_cctx, left_cctx;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
+#else
     get_above_and_left_cctx_type(cm, xd, tx_size, &above_cctx, &left_cctx);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);
     return x->mode_costs.cctx_type_cost[square_tx_size][cctx_ctx][cctx_type];
   } else {
@@ -3433,7 +3437,11 @@ static void update_cctx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     const CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
     int above_cctx, left_cctx;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
+#else
     get_above_and_left_cctx_type(cm, xd, tx_size, &above_cctx, &left_cctx);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);
     if (allow_update_cdf)
       update_cdf(fc->cctx_type_cdf[txsize_sqr_map[tx_size]][cctx_ctx],

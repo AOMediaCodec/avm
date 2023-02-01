@@ -1234,7 +1234,11 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   // parent block area. Then apply cctx type update to this area w.r.t the
   // offsets derived
   int row_offset, col_offset;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  get_chroma_mi_offsets(xd, &row_offset, &col_offset);
+#else
   get_chroma_mi_offsets(xd, tx_size, &row_offset, &col_offset);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   update_cctx_array(xd, blk_row, blk_col, row_offset, col_offset, tx_size,
                     CCTX_NONE);
 
@@ -1251,7 +1255,11 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
   int above_cctx, left_cctx;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
+#else
   get_above_and_left_cctx_type(cm, xd, tx_size, &above_cctx, &left_cctx);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);
   cctx_type = aom_read_symbol(
       r, ec_ctx->cctx_type_cdf[square_tx_size][cctx_ctx], CCTX_TYPES, ACCT_STR);

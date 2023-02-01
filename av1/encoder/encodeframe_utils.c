@@ -269,8 +269,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     xd->tx_type_map_stride = mi_size_wide[chroma_bsize];
     const int chroma_bw = mi_size_wide[chroma_bsize];
     const int chroma_bh = mi_size_high[chroma_bsize];
-    const int mi_row_offset = chroma_bw - bw;
-    const int mi_col_offset = chroma_bh - bh;
     const int grid_idx =
         get_mi_grid_idx(mi_params, mi->chroma_ref_info.mi_row_chroma_base,
                         mi->chroma_ref_info.mi_col_chroma_base);

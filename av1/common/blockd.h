@@ -2627,10 +2627,12 @@ static INLINE int keep_chroma_c2(CctxType cctx_type) {
 
 // When the current block is chroma reference, obtain amounts of mi offsets to
 // its corresponding luma region. Otherwise set the offsets to 0.
-static INLINE void get_chroma_mi_offsets(MACROBLOCKD *const xd, TX_SIZE tx_size,
+static INLINE void get_chroma_mi_offsets(MACROBLOCKD *const xd,
+#if !CONFIG_EXT_RECUR_PARTITIONS
+                                         TX_SIZE tx_size,
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                                          int *row_offset, int *col_offset) {
 #if CONFIG_EXT_RECUR_PARTITIONS
-  (void)tx_size;
   *row_offset = xd->mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
   *col_offset = xd->mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
 #else

@@ -1429,7 +1429,11 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     int above_cctx, left_cctx;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
+#else
     get_above_and_left_cctx_type(cm, xd, tx_size, &above_cctx, &left_cctx);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);
     aom_write_symbol(w, cctx_type,
                      ec_ctx->cctx_type_cdf[square_tx_size][cctx_ctx],
@@ -2699,7 +2703,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
         xd, mbmi, AOM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
     const TX_SIZE uv_txsize = max_txsize_rect_lookup[uv_bsize];
     int row_offset, col_offset;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    get_chroma_mi_offsets(xd, &row_offset, &col_offset);
+#else
     get_chroma_mi_offsets(xd, uv_txsize, &row_offset, &col_offset);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     update_cctx_array(xd, 0, 0, row_offset, col_offset, uv_txsize, CCTX_NONE);
   }
 #endif  // CONFIG_CROSS_CHROMA_TX

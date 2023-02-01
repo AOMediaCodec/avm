@@ -377,14 +377,15 @@ static INLINE int is_cctx_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
 
 static INLINE void get_above_and_left_cctx_type(const AV1_COMMON *cm,
                                                 const MACROBLOCKD *xd,
+#if !CONFIG_EXT_RECUR_PARTITIONS
                                                 TX_SIZE tx_size,
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
                                                 int *above_cctx,
                                                 int *left_cctx) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int stride = mi_params->mi_stride;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  (void)tx_size;
   const int mi_grid_idx =
       get_mi_grid_idx(mi_params, xd->mi[0]->chroma_ref_info.mi_row_chroma_base,
                       xd->mi[0]->chroma_ref_info.mi_col_chroma_base);
