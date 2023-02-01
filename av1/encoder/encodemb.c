@@ -863,10 +863,15 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                       blk_row, pd->subsampling_x, pd->subsampling_y);
     }
 #if CONFIG_CROSS_CHROMA_TX
-    if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd))
+    if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd)) {
+      struct macroblockd_plane *const pd_c1 = &xd->plane[AOM_PLANE_U];
+      uint16_t *dst_c1 =
+          &pd_c1->dst
+               .buf[(blk_row * pd_c1->dst.stride + blk_col) << MI_SIZE_LOG2];
       mismatch_record_block_tx(dst_c1, pd_c1->dst.stride,
                                cm->current_frame.order_hint, AOM_PLANE_U,
                                pixel_c, pixel_r, blk_w, blk_h);
+    }
 #endif  // CONFIG_CROSS_CHROMA_TX
     mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
                              plane, pixel_c, pixel_r, blk_w, blk_h);
