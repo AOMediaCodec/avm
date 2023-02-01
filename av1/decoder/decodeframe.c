@@ -1183,13 +1183,18 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
   const int plane_start = get_partition_plane_start(xd->tree_type);
   const int plane_end =
       get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
-#if CONFIG_PC_WIENER || CONFIG_SAVE_IN_LOOP_DATA
-  av1_init_txk_skip_array(cm, mbmi, xd->mi_row, xd->mi_col, bsize, 0,
-                          xd->is_chroma_ref, plane_start, plane_end,
-                          cm->mi_params.fDecTxSkipLog);
-#endif  // CONFIG_PC_WIENER || CONFIG_SAVE_IN_LOOP_DATA
-
   if (!is_inter_block(mbmi, xd->tree_type)) {
+#if CONFIG_PC_WIENER || CONFIG_SAVE_IN_LOOP_DATA
+    // When row_mt is used, this function can be called with
+    // td->read_coeffs_tx_intra_block_visit == decode_block_void.
+    // In that case do not reset since it will erase previously set
+    // values.
+    if (td->read_coeffs_tx_intra_block_visit != decode_block_void)
+      av1_init_txk_skip_array(cm, mbmi, xd->mi_row, xd->mi_col, bsize, 0,
+                              xd->is_chroma_ref, plane_start, plane_end,
+                              cm->mi_params.fDecTxSkipLog);
+
+#endif  // CONFIG_PC_WIENER || CONFIG_SAVE_IN_LOOP_DATA
     int row, col;
     assert(bsize == get_plane_block_size(bsize, xd->plane[0].subsampling_x,
                                          xd->plane[0].subsampling_y));
@@ -1230,6 +1235,16 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       }
     }
   } else {
+#if CONFIG_PC_WIENER || CONFIG_SAVE_IN_LOOP_DATA
+    // When row_mt is used, this function can be called with
+    // td->read_coeffs_tx_inter_block_visit == decode_block_void.
+    // In that case do not reset since it will erase previously set
+    // values.
+    if (td->read_coeffs_tx_inter_block_visit != decode_block_void)
+      av1_init_txk_skip_array(cm, mbmi, xd->mi_row, xd->mi_col, bsize, 0,
+                              xd->is_chroma_ref, plane_start, plane_end,
+                              cm->mi_params.fDecTxSkipLog);
+#endif  // CONFIG_PC_WIENER || CONFIG_SAVE_IN_LOOP_DATA
     td->predict_inter_block_visit(cm, dcb, bsize);
     // Reconstruction
     if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
