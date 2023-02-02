@@ -93,13 +93,13 @@ static INLINE int check_sgrproj_bank_eq(const SgrprojInfoBank *bank,
 
 static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
                                     const WienerNonsepInfo *ref, int num_coeffs,
-                                    int class_id) {
+                                    int wiener_class_id) {
   assert(info->num_classes == ref->num_classes);
   int c_id_begin = 0;
   int c_id_end = info->num_classes;
-  if (class_id != ALL_WIENERNS_CLASSES) {
-    c_id_begin = class_id;
-    c_id_end = class_id + 1;
+  if (wiener_class_id != ALL_WIENERNS_CLASSES) {
+    c_id_begin = wiener_class_id;
+    c_id_end = wiener_class_id + 1;
   }
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     const int16_t *info_nsfilter = const_nsfilter_taps(info, c_id);
@@ -113,13 +113,13 @@ static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
 
 static INLINE int check_wienerns_bank_eq(const WienerNonsepInfoBank *bank,
                                          const WienerNonsepInfo *info,
-                                         int num_coeffs, int class_id,
+                                         int num_coeffs, int wiener_class_id,
                                          int *refs) {
   int c_id_begin = 0;
   int c_id_end = info->num_classes;
-  if (class_id != ALL_WIENERNS_CLASSES) {
-    c_id_begin = class_id;
-    c_id_end = class_id + 1;
+  if (wiener_class_id != ALL_WIENERNS_CLASSES) {
+    c_id_begin = wiener_class_id;
+    c_id_end = wiener_class_id + 1;
   }
   int num_equal = 0;
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {

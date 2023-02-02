@@ -1037,6 +1037,10 @@ void fill_directional_feature_buffers_highbd_c(
 }
 
 #if CONFIG_PC_WIENER
+// Implements box filtering of directional features using feature_sum_bufs. Each
+// feature is obtained by taking the previous box-filtered value, subtracting
+// the contribution of the out-of-scop column on the left and adding the
+// contribution of the newly in-scope column on the right.
 void av1_fill_directional_feature_accumulators_c(
     int dir_feature_accum[NUM_PC_WIENER_FEATURES][PC_WIENER_FEATURE_ACC_SIZE],
     int *feature_sum_bufs[NUM_PC_WIENER_FEATURES], int width, int col_offset,
@@ -1073,6 +1077,10 @@ void av1_fill_directional_feature_accumulators_c(
   }
 }
 
+// Implements box filtering of tskip features using tskip_sum_buf. Each
+// feature is obtained by taking the previous box-filtered value, subtracting
+// the contribution of the out-of-scop column on the left and adding the
+// contribution of the newly in-scope column on the right.
 void av1_fill_tskip_feature_accumulator_c(
     int16_t tskip_feature_accum[PC_WIENER_FEATURE_ACC_SIZE],
     int8_t *tskip_sum_buf, int width, int col_offset, int tskip_lead,
@@ -1304,6 +1312,18 @@ void av1_convolve_symmetric_dual_highbd_c(
   }
 }
 
+// Nonseparable convolution with dual input planes - used for cross component
+// filtering.
+//
+// Implements origin-symmetric linear filtering of dgd and dgd_dual using two
+// filters and composes a final filtered value as the sum of the two. Each
+// filter is constrained to have taps that sum to zero. This is established by
+// calculating the contribution of a tap-at-zero that establishes the zero-sum
+// constraint. Suppose the tap at zero is f_0 = 0 - \sum_{i=1}^{N} f_i, and
+// the filtered pixel at zero is x_0. Then f_0 * x_0 can be implemented by
+// subtracting the center pixel during filtering with non-zero taps only.
+// Subtracting the center-pixel also allows for the use of nonlinearities that
+// can regulate differences from the center-pixel during filtering.
 void av1_convolve_symmetric_dual_subtract_center_highbd_c(
     const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
     int dgd_dual_stride, const NonsepFilterConfig *filter_config,
@@ -1358,6 +1378,17 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_c(
   }
 }
 
+// Nonseparable convolution with dual input planes - used for cross component
+// filtering.
+//
+// Depending on the filter configuration:
+// (i) Calls av1_convolve_symmetric_dual_subtract_center_highbd(), i.e.,
+// filtering with zero-sum filters implemented by subtracting the center-pixel
+// value.
+// (ii) Calls av1_convolve_symmetric_dual_highbd(), i.e.,
+// filtering with potentially unconstrained filters implemented by using a
+// center-tap.
+// (iii) Implements general non-symmetric filtering.
 void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
                                      int stride, const uint16_t *dgd2,
                                      int stride2,

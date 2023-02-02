@@ -435,7 +435,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_pc_wiener,
 #endif  //  CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  &g_av1_codec_arg_defs.enable_wienerns,
+  &g_av1_codec_arg_defs.enable_wiener_nonsep,
 #endif  //  CONFIG_WIENER_NONSEP
 #if CONFIG_TIP
   &g_av1_codec_arg_defs.enable_tip,
@@ -682,7 +682,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_pc_wiener = 1;
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  config->enable_wienerns = 1;
+  config->enable_wiener_nonsep = 1;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   config->enable_ccso = 1;
@@ -1648,13 +1648,13 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_sgrproj
 #if CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
           ,
-          encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wienerns
+          encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep
 #elif CONFIG_PC_WIENER && !CONFIG_WIENER_NONSEP
           ,
           encoder_cfg->enable_pc_wiener
 #elif !CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
           ,
-          encoder_cfg->enable_wienerns
+          encoder_cfg->enable_wiener_nonsep
 #endif  // CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
   );
 

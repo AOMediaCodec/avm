@@ -979,11 +979,11 @@ struct CommonModeInfoParams {
   /*!
    * Buffer that stores pc-wiener classification information.
    */
-  uint8_t *class_id[MAX_MB_PLANE];
+  uint8_t *wiener_class_id[MAX_MB_PLANE];
   /*!
-   * class_id stride
+   * wiener_class_id stride
    */
-  uint32_t class_id_stride[MAX_MB_PLANE];
+  uint32_t wiener_class_id_stride[MAX_MB_PLANE];
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_CROSS_CHROMA_TX
   /*!

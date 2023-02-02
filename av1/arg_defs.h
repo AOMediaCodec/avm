@@ -137,7 +137,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_pc_wiener;
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  arg_def_t enable_wienerns;
+  arg_def_t enable_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   arg_def_t enable_ccso;

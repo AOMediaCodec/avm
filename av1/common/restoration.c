@@ -1364,6 +1364,12 @@ static void calculate_features(int32_t *feature_vector, int bit_depth, int col,
       buffers->feature_normalizers[tskip_index];
 }
 
+// Calculates the look-up-table of thresholds used in Wiener classification. The
+// classification uses an adjustment threshold value based on qindex and the
+// tskip feature. Since the tskip feature takes on a fixed set of values (0-255)
+// the thresholds can be precomputed rather than performing an online
+// calculation over each classified block. See CWG-C016 contribution for
+// details.
 static void fill_qval_given_tskip_lut(int base_qindex, int bit_depth,
                                       PcwienerBuffers *buffers) {
   int qstep_shift = 0;
@@ -1445,8 +1451,9 @@ static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col,
 
 void apply_pc_wiener_highbd(
     const uint16_t *dgd, int width, int height, int stride, uint16_t *dst,
-    int dst_stride, const uint8_t *tskip, int tskip_stride, uint8_t *class_id,
-    int class_id_stride, bool is_uv, int bit_depth, bool classify_only,
+    int dst_stride, const uint8_t *tskip, int tskip_stride,
+    uint8_t *wiener_class_id, int wiener_class_id_stride, bool is_uv,
+    int bit_depth, bool classify_only,
     const int16_t (*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA],
     const uint8_t *filter_selector, PcwienerBuffers *buffers) {
   (void)is_uv;
@@ -1551,8 +1558,8 @@ void apply_pc_wiener_highbd(
           get_pcwiener_index(bit_depth, &multiplier, j, buffers);
 
       // Store classification.
-      class_id[(i >> MI_SIZE_LOG2) * class_id_stride + (j >> MI_SIZE_LOG2)] =
-          class_index;
+      wiener_class_id[(i >> MI_SIZE_LOG2) * wiener_class_id_stride +
+                      (j >> MI_SIZE_LOG2)] = class_index;
       if (skip_filtering) {
         continue;
       }
@@ -1632,6 +1639,9 @@ static void setup_qval_tskip_lut(int qindex, int bit_depth,
   buffers->prev_bit_depth = bit_depth;
 }
 
+// Imeplements the LR stripe function akin to wiener_filter_stripe_highbd,
+// sgrproj_filter_stripe_highbd, etc., that accomplishes processing of RUs
+// labeled RESTORE_PC_WIENER.
 static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
                                     int stripe_width, int stripe_height,
                                     int procunit_width, const uint16_t *src,
@@ -1663,7 +1673,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
     apply_pc_wiener_highbd(
         src + j, w, stripe_height, src_stride, dst + j, dst_stride,
         rui->tskip + (j >> MI_SIZE_LOG2), rui->tskip_stride,
-        rui->class_id + (j >> MI_SIZE_LOG2), rui->class_id_stride,
+        rui->wiener_class_id + (j >> MI_SIZE_LOG2), rui->wiener_class_id_stride,
         rui->plane != AOM_PLANE_Y, bit_depth, false, pcwiener_filters_luma,
         filter_selector, rui->pcwiener_buffers);
   }
@@ -1706,9 +1716,11 @@ static void adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
   const int num_sym_taps = nsfilter_config->num_pixels / 2;
   const int center_tap_index = num_sym_taps;
   const int num_classes = wienerns_info->num_classes;
-  for (int class_id = 0; class_id < num_classes; ++class_id) {
-    int16_t *adjusted_filter = nsfilter_taps(adjusted_info, class_id);
-    const int16_t *orig_filter = const_nsfilter_taps(wienerns_info, class_id);
+  for (int wiener_class_id = 0; wiener_class_id < num_classes;
+       ++wiener_class_id) {
+    int16_t *adjusted_filter = nsfilter_taps(adjusted_info, wiener_class_id);
+    const int16_t *orig_filter =
+        const_nsfilter_taps(wienerns_info, wiener_class_id);
     int sum = 0;
     for (int i = 0; i < num_sym_taps; ++i) {
       sum += orig_filter[i];
@@ -1742,9 +1754,11 @@ static void adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
 
     // luma -> chroma part of the dual filter. This case needs a shift of the
     // filter since we added a tap to the chroma -> chroma part above.
-    for (int class_id = 0; class_id < num_classes; ++class_id) {
-      const int16_t *dual_filter = const_nsfilter_taps(wienerns_info, class_id);
-      int16_t *adjusted_filter = nsfilter_taps(adjusted_info, class_id);
+    for (int wiener_class_id = 0; wiener_class_id < num_classes;
+         ++wiener_class_id) {
+      const int16_t *dual_filter =
+          const_nsfilter_taps(wienerns_info, wiener_class_id);
+      int16_t *adjusted_filter = nsfilter_taps(adjusted_info, wiener_class_id);
       int sum = 0;
       for (int i = begin_idx; i < end_idx; ++i) {
         sum += dual_filter[i];
@@ -2091,14 +2105,15 @@ void av1_loop_restoration_filter_unit(
   PcwienerBuffers pc_wiener_buffers = { 0 };
   tmp_rui->pcwiener_buffers = &pc_wiener_buffers;
   const uint8_t *tskip_in_ru = NULL;
-  uint8_t *class_id_in_ru = NULL;
+  uint8_t *wiener_class_id_in_ru = NULL;
   if (enable_pcwiener_buffers) {
     tskip_in_ru = rui->tskip +
                   (limits->v_start >> MI_SIZE_LOG2) * rui->tskip_stride +
                   (limits->h_start >> MI_SIZE_LOG2);
-    class_id_in_ru = rui->class_id +
-                     (limits->v_start >> MI_SIZE_LOG2) * rui->class_id_stride +
-                     (limits->h_start >> MI_SIZE_LOG2);
+    wiener_class_id_in_ru =
+        rui->wiener_class_id +
+        (limits->v_start >> MI_SIZE_LOG2) * rui->wiener_class_id_stride +
+        (limits->h_start >> MI_SIZE_LOG2);
     allocate_pcwiener_line_buffers(procunit_width, tmp_rui->pcwiener_buffers);
   }
 #endif  // CONFIG_PC_WIENER
@@ -2144,9 +2159,10 @@ void av1_loop_restoration_filter_unit(
     tmp_rui->tskip = enable_pcwiener_buffers
                          ? tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride
                          : NULL;
-    tmp_rui->class_id =
+    tmp_rui->wiener_class_id =
         enable_pcwiener_buffers
-            ? class_id_in_ru + (i >> MI_SIZE_LOG2) * rui->class_id_stride
+            ? wiener_class_id_in_ru +
+                  (i >> MI_SIZE_LOG2) * rui->wiener_class_id_stride
             : NULL;
 #endif  // CONFIG_PC_WIENER
 
@@ -2186,10 +2202,11 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
 #if CONFIG_PC_WIENER
   rsi->unit_info[rest_unit_idx].tskip = ctxt->tskip;
   rsi->unit_info[rest_unit_idx].tskip_stride = ctxt->tskip_stride;
-  rsi->unit_info[rest_unit_idx].class_id = ctxt->class_id;
-  rsi->unit_info[rest_unit_idx].class_id_stride = ctxt->class_id_stride;
+  rsi->unit_info[rest_unit_idx].wiener_class_id = ctxt->wiener_class_id;
+  rsi->unit_info[rest_unit_idx].wiener_class_id_stride =
+      ctxt->wiener_class_id_stride;
   rsi->unit_info[rest_unit_idx].qindex_offset = ctxt->qindex_offset;
-  rsi->unit_info[rest_unit_idx].class_id_restrict = -1;
+  rsi->unit_info[rest_unit_idx].wiener_class_id_restrict = -1;
 #endif  // CONFIG_PC_WIENER
 
   av1_loop_restoration_filter_unit(
@@ -2305,8 +2322,9 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
                                       : cm->quant_params.v_dc_delta_q;
     else
       ctxt[plane].qindex_offset = cm->quant_params.y_dc_delta_q;
-    ctxt[plane].class_id = cm->mi_params.class_id[plane];
-    ctxt[plane].class_id_stride = cm->mi_params.class_id_stride[plane];
+    ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
+    ctxt[plane].wiener_class_id_stride =
+        cm->mi_params.wiener_class_id_stride[plane];
 #endif  // CONFIG_PC_WIENER
 
     av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,

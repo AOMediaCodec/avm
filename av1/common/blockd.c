@@ -354,10 +354,11 @@ void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
 
 // Add a new filter to bank
 void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
-                              const WienerNonsepInfo *info, int class_id) {
-  int c_id_begin = class_id;
-  int c_id_end = class_id + 1;
-  if (class_id == ALL_WIENERNS_CLASSES) {
+                              const WienerNonsepInfo *info,
+                              int wiener_class_id) {
+  int c_id_begin = wiener_class_id;
+  int c_id_end = wiener_class_id + 1;
+  if (wiener_class_id == ALL_WIENERNS_CLASSES) {
     c_id_begin = 0;
     c_id_end = info->num_classes;
   }
@@ -376,57 +377,61 @@ void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
 
 // Get a reference to a filter given the index
 WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
-                                             int ndx, int class_id) {
-  assert(class_id != ALL_WIENERNS_CLASSES);
-  assert(bank->bank_size_for_class[class_id] > 0);
+                                             int ndx, int wiener_class_id) {
+  assert(wiener_class_id != ALL_WIENERNS_CLASSES);
+  assert(bank->bank_size_for_class[wiener_class_id] > 0);
 
-  assert(ndx < bank->bank_size_for_class[class_id]);
-  const int ptr = bank->bank_ptr_for_class[class_id] - ndx +
-                  (bank->bank_ptr_for_class[class_id] < ndx ? LR_BANK_SIZE : 0);
+  assert(ndx < bank->bank_size_for_class[wiener_class_id]);
+  const int ptr =
+      bank->bank_ptr_for_class[wiener_class_id] - ndx +
+      (bank->bank_ptr_for_class[wiener_class_id] < ndx ? LR_BANK_SIZE : 0);
   return &bank->filter[ptr];
 }
 
 // Get a const reference to a filter given the index
 const WienerNonsepInfo *av1_constref_from_wienerns_bank(
-    const WienerNonsepInfoBank *bank, int ndx, int class_id) {
-  assert(class_id != ALL_WIENERNS_CLASSES);
-  assert(bank->bank_size_for_class[class_id] > 0);
+    const WienerNonsepInfoBank *bank, int ndx, int wiener_class_id) {
+  assert(wiener_class_id != ALL_WIENERNS_CLASSES);
+  assert(bank->bank_size_for_class[wiener_class_id] > 0);
 
-  assert(ndx < bank->bank_size_for_class[class_id]);
-  const int ptr = bank->bank_ptr_for_class[class_id] - ndx +
-                  (bank->bank_ptr_for_class[class_id] < ndx ? LR_BANK_SIZE : 0);
+  assert(ndx < bank->bank_size_for_class[wiener_class_id]);
+  const int ptr =
+      bank->bank_ptr_for_class[wiener_class_id] - ndx +
+      (bank->bank_ptr_for_class[wiener_class_id] < ndx ? LR_BANK_SIZE : 0);
   return &bank->filter[ptr];
 }
 
 // Directly replace a filter in the bank at given index
 void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
-                              const WienerNonsepInfo *info, int class_id) {
-  copy_nsfilter_taps_for_class(av1_ref_from_wienerns_bank(bank, ndx, class_id),
-                               info, class_id);
+                              const WienerNonsepInfo *info,
+                              int wiener_class_id) {
+  copy_nsfilter_taps_for_class(
+      av1_ref_from_wienerns_bank(bank, ndx, wiener_class_id), info,
+      wiener_class_id);
 }
 
-int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int class_id) {
-  assert(class_id >= 0 && class_id < nsinfo->num_classes);
-  return nsinfo->allfiltertaps + class_id * WIENERNS_YUV_MAX;
+int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int wiener_class_id) {
+  assert(wiener_class_id >= 0 && wiener_class_id < nsinfo->num_classes);
+  return nsinfo->allfiltertaps + wiener_class_id * WIENERNS_YUV_MAX;
 }
 
 const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
-                                   int class_id) {
-  assert(class_id >= 0 && class_id < nsinfo->num_classes);
-  return nsinfo->allfiltertaps + class_id * WIENERNS_YUV_MAX;
+                                   int wiener_class_id) {
+  assert(wiener_class_id >= 0 && wiener_class_id < nsinfo->num_classes);
+  return nsinfo->allfiltertaps + wiener_class_id * WIENERNS_YUV_MAX;
 }
 
 void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
                                   const WienerNonsepInfo *from_info,
-                                  int class_id) {
-  assert(class_id >= 0 && class_id < to_info->num_classes);
-  assert(class_id >= 0 && class_id < from_info->num_classes);
-  const int offset = class_id * WIENERNS_YUV_MAX;
+                                  int wiener_class_id) {
+  assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
+  assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
+  const int offset = wiener_class_id * WIENERNS_YUV_MAX;
   memcpy(to_info->allfiltertaps + offset, from_info->allfiltertaps + offset,
          WIENERNS_YUV_MAX * sizeof(*to_info->allfiltertaps));
 #if CONFIG_LR_MERGE_COEFFS
-  to_info->bank_ref_for_class[class_id] =
-      from_info->bank_ref_for_class[class_id];
+  to_info->bank_ref_for_class[wiener_class_id] =
+      from_info->bank_ref_for_class[wiener_class_id];
 #endif  // CONFIG_LR_MERGE_COEFFS
 }
 
@@ -602,15 +607,16 @@ void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
     h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-    mi_params->class_id[plane] = aom_calloc(rows * stride, sizeof(uint8_t));
-    mi_params->class_id_stride[plane] = stride;
+    mi_params->wiener_class_id[plane] =
+        aom_calloc(rows * stride, sizeof(uint8_t));
+    mi_params->wiener_class_id_stride[plane] = stride;
   }
 }
 
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params) {
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-    aom_free(mi_params->class_id[plane]);
-    mi_params->class_id[plane] = NULL;
+    aom_free(mi_params->wiener_class_id[plane]);
+    mi_params->wiener_class_id[plane] = NULL;
   }
 }
 

@@ -894,8 +894,9 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
                                       : cm->quant_params.v_dc_delta_q;
     else
       ctxt[plane].qindex_offset = cm->quant_params.y_dc_delta_q;
-    ctxt[plane].class_id = cm->mi_params.class_id[plane];
-    ctxt[plane].class_id_stride = cm->mi_params.class_id_stride[plane];
+    ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
+    ctxt[plane].wiener_class_id_stride =
+        cm->mi_params.wiener_class_id_stride[plane];
 #endif  // CONFIG_PC_WIENER
 
     const AV1PixelRect tile_rect = ctxt[plane].tile_rect;

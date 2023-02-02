@@ -1500,13 +1500,13 @@ typedef struct {
   int bank_ptr_for_class[WIENERNS_MAX_CLASSES];
 } WienerNonsepInfoBank;
 
-int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int class_id);
+int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int wiener_class_id);
 
 const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
-                                   int class_id);
+                                   int wiener_class_id);
 void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
                                   const WienerNonsepInfo *from_info,
-                                  int class_id);
+                                  int wiener_class_id);
 void copy_nsfilter_taps(WienerNonsepInfo *to_info,
                         const WienerNonsepInfo *from_info);
 #endif  // CONFIG_WIENER_NONSEP
@@ -3007,16 +3007,31 @@ void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
                                SgrprojInfo *info);
 
 #if CONFIG_WIENER_NONSEP
+// Resets the bank data structure holding LR_BANK_SIZE nonseparable Wiener
+// filters. The bank holds a rootating buffer of filters.
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
                              int num_classes, int chroma);
+
+// Adds the nonseparable Wiener filter in info into the bank of rotating
+// filters. The add is so that once the bank has LR_BANK_SIZE filters the first
+// filter in the bank is discarded, filters in slots two  through LR_BANK_SIZE
+// are moved to slots one through LR_BANK_SIZE - 1 numbered slots, and the
+// filter in info is added to the last slot.
 void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
-                              const WienerNonsepInfo *info, int class_id);
+                              const WienerNonsepInfo *info,
+                              int wiener_class_id);
+
+// Returns the filter that is at slot ndx from last. When ndx is zero the last
+// filter added is returned. When ndx is one the filter added before the last
+// and so on.
 WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
-                                             int ndx, int class_id);
+                                             int ndx, int wiener_class_id);
+
 const WienerNonsepInfo *av1_constref_from_wienerns_bank(
-    const WienerNonsepInfoBank *bank, int ndx, int class_id);
+    const WienerNonsepInfoBank *bank, int ndx, int wiener_class_id);
 void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
-                              const WienerNonsepInfo *info, int class_id);
+                              const WienerNonsepInfo *info,
+                              int wiener_class_id);
 #endif  // CONFIG_WIENER_NONSEP
 
 void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end

@@ -74,7 +74,7 @@ struct av1_extracfg {
   unsigned int enable_pc_wiener;
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  unsigned int enable_wienerns;
+  unsigned int enable_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   unsigned int enable_ccso;
@@ -409,7 +409,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable_pc_wiener
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  1,    // enable_wienerns
+  1,    // enable_wiener_nonsep
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   1,  // enable_ccso
@@ -937,7 +937,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_pc_wiener = extra_cfg->enable_pc_wiener;
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  cfg->enable_wienerns = extra_cfg->enable_wienerns;
+  cfg->enable_wiener_nonsep = extra_cfg->enable_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   cfg->enable_ccso = extra_cfg->enable_ccso;
@@ -1059,7 +1059,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_pc_wiener = cfg->enable_pc_wiener;
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  extra_cfg->enable_wienerns = cfg->enable_wienerns;
+  extra_cfg->enable_wiener_nonsep = cfg->enable_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   extra_cfg->enable_ccso = cfg->enable_ccso;
@@ -1359,13 +1359,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       tool_cfg->enable_restoration & extra_cfg->enable_pc_wiener;
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  tool_cfg->enable_wienerns =
-      tool_cfg->enable_restoration & extra_cfg->enable_wienerns;
+  tool_cfg->enable_wiener_nonsep =
+      tool_cfg->enable_restoration & extra_cfg->enable_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
   tool_cfg->enable_restoration &=
       (tool_cfg->enable_wiener | tool_cfg->enable_sgrproj |
-       tool_cfg->enable_pc_wiener | tool_cfg->enable_wienerns);
+       tool_cfg->enable_pc_wiener | tool_cfg->enable_wiener_nonsep);
 #elif CONFIG_PC_WIENER && !CONFIG_WIENER_NONSEP
   tool_cfg->enable_restoration &=
       (tool_cfg->enable_wiener | tool_cfg->enable_sgrproj |
@@ -1373,7 +1373,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #elif !CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
   tool_cfg->enable_restoration &=
       (tool_cfg->enable_wiener | tool_cfg->enable_sgrproj |
-       tool_cfg->enable_wienerns);
+       tool_cfg->enable_wiener_nonsep);
 #else
   tool_cfg->enable_restoration &=
       (tool_cfg->enable_wiener | tool_cfg->enable_sgrproj);
@@ -3702,9 +3702,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.enable_pc_wiener = arg_parse_uint_helper(&arg, err_string);
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_wienerns, argv,
-                              err_string)) {
-    extra_cfg.enable_wienerns = arg_parse_uint_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_wiener_nonsep,
+                              argv, err_string)) {
+    extra_cfg.enable_wiener_nonsep = arg_parse_uint_helper(&arg, err_string);
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ccso, argv,

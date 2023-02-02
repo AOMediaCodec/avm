@@ -849,7 +849,7 @@ typedef struct {
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
   // Indicates if nonsep wiener in loop restoration filter should be enabled.
-  bool enable_wienerns;
+  bool enable_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   // Indicates if ccso should be enabled.

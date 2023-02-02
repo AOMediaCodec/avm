@@ -181,14 +181,25 @@ void av1_convolve_2d_sobel_y_c(const uint8_t *src, int src_stride, double *dst,
 
 #if CONFIG_PC_WIENER
 
+// Updates the line buffers holding sums of features that in turn enable
+// box-filtering of features. Accomplishes the first step of the update by
+// subtracting the contribution of the out-of-scope line.
 void prepare_feature_sum_bufs_c(int *feature_sum_buffers[],
                                 int16_t *feature_line_buffers[],
                                 int feature_length, int buffer_row,
                                 int col_begin, int col_end, int buffer_col);
+
+// Updates the line buffers holding sums of features that in turn enable
+// box-filtering of features. Accomplishes the second step of the update by
+// adding the contribution of the newly in-scope line.
 void update_feature_sum_bufs_c(int *feature_sum_buffers[],
                                int16_t *feature_line_buffers[],
                                int feature_length, int buffer_row,
                                int col_begin, int col_end, int buffer_col);
+
+// Calculates horizontal/vertical/diagonal/anti-diagonal gradients over a line
+// and stores the results in associated line buffers. See CWG-C016 contribution
+// for details.
 void calc_gradient_in_various_directions_c(int16_t *feature_line_buffers[],
                                            int row, int buffer_row,
                                            const uint16_t *dgd, int dgd_stride,

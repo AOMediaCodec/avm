@@ -397,7 +397,7 @@ typedef struct cfg_options {
   /*!\brief enable Noseparable Wiener Filter in Loop Restoration
    *
    */
-  unsigned int enable_wienerns;
+  unsigned int enable_wiener_nonsep;
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   /*!\brief enable cross-component sample offset

@@ -295,7 +295,7 @@ typedef struct {
   /*!
    * The class-id that classifcation related processing should be restricted to.
    */
-  int class_id_restrict;
+  int wiener_class_id_restrict;
 #endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
 #if CONFIG_PC_WIENER
   /*!
@@ -311,13 +311,13 @@ typedef struct {
    */
   int qindex_offset;
   /*!
-   * Pointer to class_id frame.
+   * Pointer to wiener_class_id frame.
    */
-  uint8_t *class_id;
+  uint8_t *wiener_class_id;
   /*!
-   * Stride for class_id frame.
+   * Stride for wiener_class_id frame.
    */
-  int class_id_stride;
+  int wiener_class_id_stride;
   /*!
    * Pointer to buffers for pcwiener computations.
    */
@@ -521,8 +521,8 @@ typedef struct FilterFrameCtxt {
   const uint8_t *tskip;
   int tskip_stride;
   int qindex_offset;
-  uint8_t *class_id;
-  int class_id_stride;
+  uint8_t *wiener_class_id;
+  int wiener_class_id_stride;
 #endif  // CONFIG_PC_WIENER
 } FilterFrameCtxt;
 
