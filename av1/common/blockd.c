@@ -340,6 +340,7 @@ void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
 }
 
 #if CONFIG_WIENER_NONSEP
+// Initialize bank
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
                              int num_classes, int chroma) {
   for (int i = 0; i < LR_BANK_SIZE; ++i) {
@@ -351,6 +352,7 @@ void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
   }
 }
 
+// Add a new filter to bank
 void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
                               const WienerNonsepInfo *info, int class_id) {
   int c_id_begin = class_id;
@@ -372,6 +374,7 @@ void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
   }
 }
 
+// Get a reference to a filter given the index
 WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
                                              int ndx, int class_id) {
   assert(class_id != ALL_WIENERNS_CLASSES);
@@ -383,6 +386,7 @@ WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
   return &bank->filter[ptr];
 }
 
+// Get a const reference to a filter given the index
 const WienerNonsepInfo *av1_constref_from_wienerns_bank(
     const WienerNonsepInfoBank *bank, int ndx, int class_id) {
   assert(class_id != ALL_WIENERNS_CLASSES);
@@ -394,6 +398,7 @@ const WienerNonsepInfo *av1_constref_from_wienerns_bank(
   return &bank->filter[ptr];
 }
 
+// Directly replace a filter in the bank at given index
 void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
                               const WienerNonsepInfo *info, int class_id) {
   copy_nsfilter_taps_for_class(av1_ref_from_wienerns_bank(bank, ndx, class_id),

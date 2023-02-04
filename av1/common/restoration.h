@@ -208,23 +208,13 @@ extern const WienernsFilterPairParameters wienerns_filters_lowqp;
 extern const WienernsFilterPairParameters wienerns_filters_midqp;
 extern const WienernsFilterPairParameters wienerns_filters_highqp;
 
-#define USE_QBASED_WIENER_NONSEP 0
 #define USE_CENTER_WIENER_NONSEP 0
 
 static INLINE const WienernsFilterParameters *get_wienerns_parameters(
     int qindex, int is_uv) {
   const WienernsFilterPairParameters *pair_nsfilter_params = NULL;
-#if USE_QBASED_WIENER_NONSEP
-  if (qindex <= 96)
-    pair_nsfilter_params = &wienerns_filters_midqp;
-  else if (qindex <= 200)
-    pair_nsfilter_params = &wienerns_filters_midqp;
-  else
-    pair_nsfilter_params = &wienerns_filters_highqp;
-#else
   (void)qindex;
   pair_nsfilter_params = &wienerns_filters_midqp;
-#endif  // USE_QBASED_WIENER_NONSEP
   return is_uv ? pair_nsfilter_params->uv : pair_nsfilter_params->y;
 }
 
@@ -444,7 +434,7 @@ typedef struct {
    * Number of classes in the Wienerns filtering calculation.
    */
   int num_filter_classes;
-#endif
+#endif  // CONFIG_WIENER_NONSEP
 } RestorationInfo;
 
 /*!\cond */

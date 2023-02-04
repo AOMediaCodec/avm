@@ -58,6 +58,8 @@ static INLINE int linsolve(int n, double *A, int stride, double *b, double *x) {
   return 1;
 }
 
+// Solves Ax = b, where x and b are column vectors of size nx1 and A is nxn,
+// without destroying the contents of matrix A and vector b.
 static INLINE int linsolve_const(int n, const double *A, int stride,
                                  const double *b, double *x) {
   assert(n > 0);
