@@ -1419,8 +1419,10 @@ static uint8_t get_pcwiener_index(int bit_depth, int32_t *multiplier, int col,
   calculate_features(feature_vector, bit_depth, col, buffers);
 
   // actual * 256
-  const int tskip_index = NUM_PC_WIENER_FEATURES;
-  const int tskip = feature_vector[tskip_index];
+  // TODO(oguleryuz): Revert once conflict with CROSS_CHROMA_TX is fixed.
+  // const int tskip_index = NUM_PC_WIENER_FEATURES;
+  // const int tskip = feature_vector[tskip_index];
+  const int tskip = 128;
 
   assert(tskip < 256);
   for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i)
