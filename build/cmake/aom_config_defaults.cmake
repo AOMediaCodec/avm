@@ -202,9 +202,9 @@ set_aom_config_var(CONFIG_LR_FLEX_SYNTAX 1
                    "AV2 experiment flag to enable LR flexible syntax")
 set_aom_config_var(CONFIG_WIENER_NONSEP 1 NUMBER
                    "AV2 nonsep Wiener filter experiment flag")
-set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 1 NUMBER
+set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
                    "AV2 nonsep Wiener cross filter experiment flag")
-set_aom_config_var(CONFIG_PC_WIENER 0 NUMBER
+set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
                    "AV2 pixel-classified Wiener filter experiment flag")
 # End: CWG-C016
 
@@ -274,7 +274,7 @@ set_aom_config_var(CONFIG_C076_INTER_MOD_CTX 1
 
 set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
                    "Enable to improve the context modeling")
-set_aom_config_var(CONFIG_CROSS_CHROMA_TX 1
+set_aom_config_var(CONFIG_CROSS_CHROMA_TX 0
                    "AV2 cross chroma component transform experiment flag.")
 set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
 #
