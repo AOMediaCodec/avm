@@ -847,6 +847,12 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
   }
 #if CONFIG_PC_WIENER
+#if CONFIG_CROSS_CHROMA_TX
+  if (dry_run == OUTPUT_ENABLED && plane == AOM_PLANE_V &&
+      is_cctx_allowed(cm, xd) && x->plane[AOM_PLANE_U].eobs[block] == 0)
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, AOM_PLANE_U, blk_row,
+                              blk_col, tx_size);
+#endif  // CONFIG_CROSS_CHROMA_TX
   if (p->eobs[block] == 0 && dry_run == OUTPUT_ENABLED) {
     av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, plane, blk_row,
                               blk_col, tx_size);
@@ -1535,6 +1541,17 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                                 dst_c2, dst_stride, AOMMAX(*eob_c1, *eob_c2),
                                 cm->features.reduced_tx_set_used);
   }
+
+#if CONFIG_PC_WIENER
+  if (args->dry_run == OUTPUT_ENABLED) {
+    if (*eob_c1 == 0)
+      av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, AOM_PLANE_U,
+                                blk_row, blk_col, tx_size);
+    if (*eob_c2 == 0)
+      av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, AOM_PLANE_V,
+                                blk_row, blk_col, tx_size);
+  }
+#endif  // CONFIG_PC_WIENER
 
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.

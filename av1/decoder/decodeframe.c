@@ -1528,6 +1528,10 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
 #if CONFIG_CROSS_CHROMA_TX
     } else if (xd->is_chroma_ref && xd->tree_type != LUMA_PART &&
                is_cctx_allowed(cm, xd)) {
+#if CONFIG_PC_WIENER
+      av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
+                              xd->is_chroma_ref, plane_start, plane_end);
+#endif  // CONFIG_PC_WIENER
       // fill cctx_type_map with CCTX_NONE for skip blocks so their
       // neighbors can derive cctx contexts
       const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
