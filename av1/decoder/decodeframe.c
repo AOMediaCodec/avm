@@ -2016,18 +2016,19 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   (void)has_rows;
   (void)has_cols;
   const int plane = xd->tree_type == CHROMA_PART;
+  const int ssx = cm->seq_params.subsampling_x;
+  const int ssy = cm->seq_params.subsampling_y;
   if (plane == 1 && bsize == BLOCK_8X8) {
     return PARTITION_NONE;
   }
   if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
-    const int ssx = cm->seq_params.subsampling_x;
-    const int ssy = cm->seq_params.subsampling_y;
     return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy);
   }
 
   PARTITION_TYPE implied_partition;
   const bool is_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, mi_row, mi_col, bsize, &implied_partition);
+      &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
+      &ptree->chroma_ref_info, &implied_partition);
   if (is_part_implied) return implied_partition;
 
   const PARTITION_TYPE parent_partition =
@@ -2228,16 +2229,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         }
       }
     }
-    partition =
-        !is_partition_point(bsize)
-            ? PARTITION_NONE
-            : read_partition(cm, xd, mi_row, mi_col, reader, has_rows, has_cols,
-#if CONFIG_EXT_RECUR_PARTITIONS
-                             ptree, ptree_luma,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-                             bsize);
 
-    ptree->partition = partition;
     ptree->bsize = bsize;
     ptree->mi_row = mi_row;
     ptree->mi_col = mi_col;
@@ -2248,6 +2240,17 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         parent ? &parent->chroma_ref_info : NULL,
         parent ? parent->bsize : BLOCK_INVALID,
         parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
+
+    partition =
+        !is_partition_point(bsize)
+            ? PARTITION_NONE
+            : read_partition(cm, xd, mi_row, mi_col, reader, has_rows, has_cols,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                             ptree, ptree_luma,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                             bsize);
+
+    ptree->partition = partition;
 
     switch (partition) {
       case PARTITION_SPLIT:

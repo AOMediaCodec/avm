@@ -2881,14 +2881,44 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
   return true;
 }
 
+static INLINE int check_is_chroma_size_valid(
+    TREE_TYPE tree_type, PARTITION_TYPE partition, BLOCK_SIZE bsize, int mi_row,
+    int mi_col, int ss_x, int ss_y,
+    const CHROMA_REF_INFO *parent_chroma_ref_info) {
+  if (tree_type == LUMA_PART) {
+    // If we handling luma tree and the current luma tree is decoupled from
+    // chroma tree, we don't need to concern with chroma bsize. But if they are
+    // still coupled, then we need to make sure the corresponding chroma bsize
+    // is valid.
+    if (is_bsize_above_decoupled_thresh(bsize)) {
+      return get_plane_block_size(bsize, ss_x, ss_y) != BLOCK_INVALID;
+    }
+
+    return true;
+  }
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+  int is_valid = 0;
+  if (subsize < BLOCK_SIZES_ALL) {
+    CHROMA_REF_INFO tmp_chroma_ref_info = { 1,      0,       mi_row,
+                                            mi_col, subsize, subsize };
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize, &tmp_chroma_ref_info,
+                        parent_chroma_ref_info, bsize, partition, ss_x, ss_y);
+    is_valid = get_plane_block_size(tmp_chroma_ref_info.bsize_base, ss_x,
+                                    ss_y) != BLOCK_INVALID;
+  }
+  return is_valid;
+}
+
 // Returns true if partition is implied for blocks near bottom/right
 // border, and not signaled in the bistream. And when it returns true, it also
 // sets `implied_partition` appropriately.
 // Note: `implied_partition` can be passed NULL.
 static AOM_INLINE bool is_partition_implied_at_boundary(
-    const CommonModeInfoParams *const mi_params, int mi_row, int mi_col,
-    BLOCK_SIZE bsize, PARTITION_TYPE *implied_partition) {
+    const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, bool ss_x,
+    bool ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
+    const CHROMA_REF_INFO *chroma_ref_info, PARTITION_TYPE *implied_partition) {
   bool is_implied = false;
+  PARTITION_TYPE tmp_implied_partition = PARTITION_INVALID;
   if (implied_partition) *implied_partition = PARTITION_INVALID;
 
   const int hbs_w = mi_size_wide[bsize] / 2;
@@ -2901,12 +2931,10 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
 
   if (is_square_block(bsize)) {
     is_implied = true;
-    if (implied_partition) {
-      if (has_rows && !has_cols) {
-        *implied_partition = PARTITION_VERT;
-      } else {
-        *implied_partition = PARTITION_HORZ;
-      }
+    if (has_rows && !has_cols) {
+      tmp_implied_partition = PARTITION_VERT;
+    } else {
+      tmp_implied_partition = PARTITION_HORZ;
     }
   } else if (is_tall_block(bsize)) {
     // Force PARTITION_HORZ if
@@ -2915,14 +2943,14 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
     //    still missing cols.
     if (!has_rows) {
       is_implied = true;
-      if (implied_partition) *implied_partition = PARTITION_HORZ;
+      tmp_implied_partition = PARTITION_HORZ;
     } else {
       assert(!has_cols);
       const bool sub_has_cols =
           (mi_col + mi_size_wide[bsize] / 4) < mi_params->mi_cols;
       if (mi_size_wide[bsize] >= 4 && !sub_has_cols) {
         is_implied = true;
-        if (implied_partition) *implied_partition = PARTITION_HORZ;
+        tmp_implied_partition = PARTITION_HORZ;
       }
     }
   } else {
@@ -2933,20 +2961,33 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
     //    still missing rows.
     if (!has_cols) {
       is_implied = true;
-      if (implied_partition) *implied_partition = PARTITION_VERT;
+      tmp_implied_partition = PARTITION_VERT;
     } else {
       assert(!has_rows);
       const bool sub_has_rows =
           (mi_row + mi_size_high[bsize] / 4) < mi_params->mi_rows;
       if (mi_size_high[bsize] >= 4 && !sub_has_rows) {
         is_implied = true;
-        if (implied_partition) *implied_partition = PARTITION_VERT;
+        tmp_implied_partition = PARTITION_VERT;
       }
     }
   }
+  if (is_implied) {
+    assert(tmp_implied_partition == PARTITION_HORZ ||
+           tmp_implied_partition == PARTITION_VERT);
+    if (!check_is_chroma_size_valid(tree_type, tmp_implied_partition, bsize,
+                                    mi_row, mi_col, ss_x, ss_y,
+                                    chroma_ref_info)) {
+      is_implied = false;
+      tmp_implied_partition = PARTITION_INVALID;
+    }
+  }
   assert(IMPLIES(is_implied && implied_partition,
-                 *implied_partition == PARTITION_HORZ ||
-                     *implied_partition == PARTITION_VERT));
+                 tmp_implied_partition == PARTITION_HORZ ||
+                     tmp_implied_partition == PARTITION_VERT));
+  if (implied_partition) {
+    *implied_partition = tmp_implied_partition;
+  }
   return is_implied;
 }
 

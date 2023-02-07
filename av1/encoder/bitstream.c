@@ -2811,11 +2811,9 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   if (bsize == BLOCK_8X8 && plane > 0) return;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+  const int ssx = cm->seq_params.subsampling_x;
+  const int ssy = cm->seq_params.subsampling_y;
   if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
-    const int ssx = cm->seq_params.subsampling_x;
-    const int ssy = cm->seq_params.subsampling_y;
-    (void)ssx;
-    (void)ssy;
     assert(p ==
            sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy));
     return;
@@ -2823,7 +2821,8 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 
   PARTITION_TYPE implied_partition;
   const bool is_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, mi_row, mi_col, bsize, &implied_partition);
+      &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
+      &ptree->chroma_ref_info, &implied_partition);
   if (is_part_implied) {
     assert(p == implied_partition);
     return;
