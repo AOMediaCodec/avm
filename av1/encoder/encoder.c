@@ -551,6 +551,13 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_PAR_HIDING
   seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
+  // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
+  // if possible
+  seq->enable_global_motion =
+      tool_cfg->enable_global_motion && !seq->reduced_still_picture_hdr;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {

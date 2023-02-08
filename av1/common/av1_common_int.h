@@ -516,6 +516,9 @@ typedef struct SequenceHeader {
 #if CONFIG_EXT_RECUR_PARTITIONS
   uint8_t enable_ext_partitions;  // enable extended partitions
 #endif                            // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  bool enable_global_motion;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   BITSTREAM_PROFILE profile;
 
   // Color config.

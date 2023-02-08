@@ -4705,6 +4705,13 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_EXT_RECUR_PARTITIONS
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (seq_params->reduced_still_picture_hdr) {
+    assert(seq_params->enable_global_motion == 0);
+  } else {
+    aom_wb_write_bit(wb, seq_params->enable_global_motion);
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 static AOM_INLINE void write_global_motion_params(
@@ -4779,6 +4786,26 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
                                            struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   int frame;
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (!cm->seq_params.enable_global_motion) {
+    return;
+  }
+
+  bool use_global_motion = false;
+  for (frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
+    if (cm->global_motion[frame].wmtype != IDENTITY) {
+      use_global_motion = true;
+      break;
+    }
+  }
+
+  aom_wb_write_bit(wb, use_global_motion);
+  if (!use_global_motion) {
+    return;
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   for (frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
     const WarpedMotionParams *ref_params =
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]

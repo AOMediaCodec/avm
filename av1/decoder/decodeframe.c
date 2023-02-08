@@ -6421,6 +6421,13 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (seq_params->reduced_still_picture_hdr) {
+    seq_params->enable_global_motion = 0;
+  } else {
+    seq_params->enable_global_motion = aom_rb_read_bit(rb);
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,
@@ -6519,6 +6526,20 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  bool use_global_motion = false;
+  if (cm->seq_params.enable_global_motion) {
+    use_global_motion = aom_rb_read_bit(rb);
+  }
+  if (!use_global_motion) {
+    for (int frame = 0; frame < INTER_REFS_PER_FRAME; ++frame) {
+      cm->global_motion[frame] = default_warp_params;
+      cm->cur_frame->global_motion[frame] = default_warp_params;
+    }
+    return;
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   for (int frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
     const WarpedMotionParams *ref_params =
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]

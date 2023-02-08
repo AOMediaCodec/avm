@@ -9,6 +9,7 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -234,7 +235,10 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
 }
 
 // Parse Sequence Header OBU for coding tools beyond AV1
-int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
+int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
+                                     bool reduced_still_picture_header) {
+  (void)reduced_still_picture_header;
+
   int result = 0;
 #if CONFIG_REF_MV_BANK
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_refmvbank);
@@ -288,6 +292,11 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
 #if CONFIG_PAR_HIDING
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (!reduced_still_picture_header) {
+    AV1C_READ_BIT_OR_RETURN_ERROR(enable_global_motion);
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   return 0;
 }
@@ -453,7 +462,7 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV1C_READ_BIT_OR_RETURN_ERROR(film_grain_params_present);
 
   // Sequence header for coding tools beyond AV1
-  parse_sequence_header_beyond_av1(reader);
+  parse_sequence_header_beyond_av1(reader, reduced_still_picture_header);
 
   return 0;
 }
