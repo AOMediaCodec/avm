@@ -302,4 +302,53 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
                           WarpedMotionParams *wm_params);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
+                                        int in_distance,
+                                        WarpedMotionParams *out_params,
+                                        int out_distance) {
+  static int param_shift[MAX_PARAMDIM - 1] = {
+    GM_TRANS_PREC_DIFF,    GM_TRANS_PREC_DIFF,   GM_ALPHA_PREC_DIFF,
+    GM_ALPHA_PREC_DIFF,    GM_ALPHA_PREC_DIFF,   GM_ALPHA_PREC_DIFF,
+    GM_ROW3HOMO_PREC_DIFF, GM_ROW3HOMO_PREC_DIFF
+  };
+
+  static int param_min[MAX_PARAMDIM - 1] = { GM_TRANS_MIN,    GM_TRANS_MIN,
+                                             GM_ALPHA_MIN,    GM_ALPHA_MIN,
+                                             GM_ALPHA_MIN,    GM_ALPHA_MIN,
+                                             GM_ROW3HOMO_MIN, GM_ROW3HOMO_MIN };
+
+  static int param_max[MAX_PARAMDIM - 1] = { GM_TRANS_MAX,    GM_TRANS_MAX,
+                                             GM_ALPHA_MAX,    GM_ALPHA_MAX,
+                                             GM_ALPHA_MAX,    GM_ALPHA_MAX,
+                                             GM_ROW3HOMO_MAX, GM_ROW3HOMO_MAX };
+
+  assert(in_distance != 0);
+  assert(out_distance != 0);
+
+  // Flip signs so that in_distance is positive.
+  // We do this because
+  //   scaled_value = (... + divisor/2) / divisor
+  // is the simplest way to implement division with round-to-nearest in C,
+  // but it only works correctly if the divisor is positive
+  if (in_distance < 0) {
+    in_distance = -in_distance;
+    out_distance = -out_distance;
+  }
+
+  out_params->wmtype = in_params->wmtype;
+  for (int param = 0; param < MAX_PARAMDIM - 1; param++) {
+    int center = default_warp_params.wmmat[param];
+
+    int input = in_params->wmmat[param] - center;
+    int divisor = in_distance << param_shift[param];
+    int output = (int)(((int64_t)input * out_distance + divisor / 2) / divisor);
+    output = clamp(output, param_min[param], param_max[param])
+             << param_shift[param];
+
+    out_params->wmmat[param] = center + output;
+  }
+}
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
 #endif  // AOM_AV1_COMMON_WARPED_MOTION_H_

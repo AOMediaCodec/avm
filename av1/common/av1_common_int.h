@@ -257,6 +257,12 @@ typedef struct RefCntBuffer {
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  // How many ref frames did this frame use?
+  // This is set to 0 for intra frames
+  int num_ref_frames;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   MV_REF *mvs;
   uint8_t *seg_map;
   struct segmentation seg;
@@ -1581,6 +1587,18 @@ typedef struct AV1Common {
    * Parameters for delta quantization and delta loop filter level.
    */
   DeltaQInfo delta_q_info;
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  /*!
+   * Base model used for delta-coding global motion parameters
+   */
+  WarpedMotionParams base_global_motion_model;
+
+  /*!
+   * Temporal length of `base_global_motion_model`
+   */
+  int base_global_motion_distance;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   /*!
    * Global motion parameters for each reference frame.

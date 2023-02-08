@@ -101,16 +101,28 @@ static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
 
 // For the given reference frame, computes the global motion parameters for
 // different motion models and finds the best.
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+static AOM_INLINE void compute_global_motion_for_ref_frame(
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME], int frame,
+    int num_src_corners, int *src_corners, unsigned char *src_buffer,
+    MotionModel *params_by_motion, uint8_t *segment_map,
+    const int segment_map_w, const int segment_map_h) {
+#else
 static AOM_INLINE void compute_global_motion_for_ref_frame(
     AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME], int frame,
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
     const int segment_map_w, const int segment_map_h,
     const WarpedMotionParams *ref_params) {
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   ThreadData *const td = &cpi->td;
   MACROBLOCK *const x = &td->mb;
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  GlobalMotionInfo *const gm_info = &cpi->gm_info;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   int i;
   int src_width = cpi->source->y_width;
   int src_height = cpi->source->y_height;
@@ -213,6 +225,12 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       if (tmp_wm_params.wmtype == IDENTITY) continue;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      // Apply initial quality filter, which depends only on the error metrics
+      // and not the model cost
+      if (warp_error >= ref_frame_error * erroradv_tr) continue;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
       if (warp_error < best_warp_error) {
         best_ref_frame_error = ref_frame_error;
         best_warp_error = warp_error;
@@ -255,6 +273,12 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
     // ref_frame_error == 0
     assert(best_ref_frame_error > 0);
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    gm_info->erroradvantage[frame] =
+        (double)best_warp_error / best_ref_frame_error;
+
+    break;
+#else
     // If the best error advantage found doesn't meet the threshold for
     // this motion type, revert to IDENTITY.
     if (!av1_is_enough_erroradvantage(
@@ -269,6 +293,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
     }
 
     if (cm->global_motion[frame].wmtype != IDENTITY) break;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   }
 
   aom_clear_system_state();
@@ -280,6 +305,11 @@ void av1_compute_gm_for_valid_ref_frames(
     int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  compute_global_motion_for_ref_frame(
+      cpi, ref_buf, frame, num_src_corners, src_corners, src_buffer,
+      params_by_motion, segment_map, segment_map_w, segment_map_h);
+#else
   AV1_COMMON *const cm = &cpi->common;
   const WarpedMotionParams *ref_params =
       cm->prev_frame ? &cm->prev_frame->global_motion[frame]
@@ -288,6 +318,7 @@ void av1_compute_gm_for_valid_ref_frames(
   compute_global_motion_for_ref_frame(
       cpi, ref_buf, frame, num_src_corners, src_corners, src_buffer,
       params_by_motion, segment_map, segment_map_w, segment_map_h, ref_params);
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 // Loops over valid reference frames and computes global motion estimation.
@@ -446,6 +477,150 @@ static AOM_INLINE void dealloc_global_motion_data(MotionModel *params_by_motion,
   }
 }
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+// Select which global motion model to use as a base
+static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  GlobalMotionInfo *const gm_info = &cpi->gm_info;
+  int num_total_refs = cm->ref_frames_info.num_total_refs;
+
+  int best_our_ref;
+  int best_their_ref;
+  const WarpedMotionParams *best_base_model;
+  int best_temporal_distance;
+  int best_num_models;
+  int best_cost;
+
+  // Bitmask of which models we will actually use if we accept the current
+  // best base model
+  uint8_t best_enable_models;
+
+  // First, evaluate the identity model as a base
+  {
+    int this_num_models = 0;
+    int this_cost =
+        aom_count_primitive_quniform(num_total_refs + 1, num_total_refs)
+        << AV1_PROB_COST_SHIFT;
+    uint8_t this_enable_models = 0;
+
+    for (int frame = 0; frame < num_total_refs; frame++) {
+      const WarpedMotionParams *model = &cm->global_motion[frame];
+      if (model->wmtype == IDENTITY) continue;
+
+      int model_cost = gm_get_params_cost(model, &default_warp_params,
+                                          cm->features.fr_mv_precision);
+      bool use_model = av1_is_enough_erroradvantage(
+          gm_info->erroradvantage[frame], model_cost);
+
+      if (use_model) {
+        this_num_models += 1;
+        this_cost += model_cost;
+        this_enable_models |= (1 << frame);
+      }
+    }
+
+    // Set initial values
+    best_our_ref = cm->ref_frames_info.num_total_refs;
+    best_their_ref = -1;
+    best_base_model = &default_warp_params;
+    best_temporal_distance = 1;
+    best_num_models = this_num_models;
+    best_cost = this_cost;
+    best_enable_models = this_enable_models;
+  }
+
+  // Then try each available reference model in turn
+  for (int our_ref = 0; our_ref < num_total_refs; ++our_ref) {
+    const int ref_disabled = !(cm->ref_frame_flags & (1 << our_ref));
+    RefCntBuffer *buf = get_ref_frame_buf(cm, our_ref);
+    // Skip looking at invalid ref frames
+    if (buf == NULL ||
+        (ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
+      continue;
+    }
+
+    int their_num_refs = buf->num_ref_frames;
+    for (int their_ref = 0; their_ref < their_num_refs; ++their_ref) {
+      const WarpedMotionParams *base_model = &buf->global_motion[their_ref];
+      if (base_model->wmtype == IDENTITY) {
+        continue;
+      }
+
+      int base_temporal_distance =
+          get_relative_dist(&seq_params->order_hint_info, buf->order_hint,
+                            buf->ref_order_hints[their_ref]);
+
+      int this_num_models = 0;
+      int this_cost =
+          (aom_count_primitive_quniform(num_total_refs + 1, our_ref) +
+           aom_count_primitive_quniform(their_num_refs, their_ref))
+          << AV1_PROB_COST_SHIFT;
+      uint8_t this_enable_models = 0;
+
+      for (int frame = 0; frame < num_total_refs; frame++) {
+        const WarpedMotionParams *model = &cm->global_motion[frame];
+        if (model->wmtype == IDENTITY) continue;
+
+        int temporal_distance;
+        if (seq_params->order_hint_info.enable_order_hint) {
+          const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+          temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+                                                (int)cm->cur_frame->order_hint,
+                                                (int)ref_buf->order_hint);
+        } else {
+          temporal_distance = 1;
+        }
+
+        if (temporal_distance == 0) {
+          // Don't code global motion for frames at the same temporal instant
+          assert(model->wmtype == IDENTITY);
+          continue;
+        }
+
+        WarpedMotionParams ref_params;
+        av1_scale_warp_model(base_model, base_temporal_distance, &ref_params,
+                             temporal_distance);
+
+        int model_cost = gm_get_params_cost(model, &ref_params,
+                                            cm->features.fr_mv_precision);
+        bool use_model = av1_is_enough_erroradvantage(
+            gm_info->erroradvantage[frame], model_cost);
+
+        if (use_model) {
+          this_num_models += 1;
+          this_cost += model_cost;
+          this_enable_models |= (1 << frame);
+        }
+      }
+
+      if (this_num_models > best_num_models ||
+          (this_num_models == best_num_models && this_cost < best_cost)) {
+        best_our_ref = our_ref;
+        best_their_ref = their_ref;
+        best_base_model = base_model;
+        best_temporal_distance = base_temporal_distance;
+        best_num_models = this_num_models;
+        best_cost = this_cost;
+        best_enable_models = this_enable_models;
+      }
+    }
+  }
+
+  gm_info->base_model_our_ref = best_our_ref;
+  gm_info->base_model_their_ref = best_their_ref;
+  cm->base_global_motion_model = *best_base_model;
+  cm->base_global_motion_distance = best_temporal_distance;
+
+  for (int frame = 0; frame < num_total_refs; frame++) {
+    if ((best_enable_models & (1 << frame)) == 0) {
+      // Disable this model
+      cm->global_motion[frame] = default_warp_params;
+    }
+  }
+}
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
 // Initializes parameters used for computing global motion.
 static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
@@ -559,6 +734,12 @@ void av1_compute_global_motion_facade(AV1_COMP *cpi) {
       av1_global_motion_estimation_mt(cpi);
     else
       global_motion_estimation(cpi);
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    // Once we have determined the best motion model for each ref frame,
+    // choose the base parameters to minimize the total encoding cost
+    pick_base_gm_params(cpi);
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     // Check if the current frame has any valid global motion model across its
     // reference frames

@@ -92,6 +92,7 @@ void aom_wb_write_uvlc(struct aom_write_bit_buffer *wb, uint32_t v) {
 void aom_wb_write_primitive_quniform(struct aom_write_bit_buffer *wb,
                                      uint16_t n, uint16_t v) {
   if (n <= 1) return;
+  assert(v < n);
   const int l = get_msb(n) + 1;
   const int m = (1 << l) - n;
   if (v < m) {

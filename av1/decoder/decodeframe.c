@@ -6541,8 +6541,10 @@ static int read_global_motion_params(WarpedMotionParams *params,
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  int num_total_refs = cm->ref_frames_info.num_total_refs;
   bool use_global_motion = false;
-  if (cm->seq_params.enable_global_motion) {
+  if (seq_params->enable_global_motion) {
     use_global_motion = aom_rb_read_bit(rb);
   }
   if (!use_global_motion) {
@@ -6552,12 +6554,59 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
     }
     return;
   }
+
+  int our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
+  if (our_ref == num_total_refs) {
+    // Special case: Use IDENTITY model
+    cm->base_global_motion_model = default_warp_params;
+    cm->base_global_motion_distance = 1;
+  } else {
+    RefCntBuffer *buf = get_ref_frame_buf(cm, our_ref);
+    assert(buf);
+    int their_num_refs = buf->num_ref_frames;
+    if (their_num_refs == 0) {
+      // Special case: if an intra/key frame is used as a ref, use an
+      // IDENTITY model
+      cm->base_global_motion_model = default_warp_params;
+      cm->base_global_motion_distance = 1;
+    } else {
+      int their_ref = aom_rb_read_primitive_quniform(rb, their_num_refs);
+      cm->base_global_motion_model = buf->global_motion[their_ref];
+      cm->base_global_motion_distance =
+          get_relative_dist(&seq_params->order_hint_info, buf->order_hint,
+                            buf->ref_order_hints[their_ref]);
+    }
+  }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   for (int frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    int temporal_distance;
+    if (seq_params->order_hint_info.enable_order_hint) {
+      const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+      temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+                                            (int)cm->cur_frame->order_hint,
+                                            (int)ref_buf->order_hint);
+    } else {
+      temporal_distance = 1;
+    }
+
+    if (temporal_distance == 0) {
+      // Don't code global motion for frames at the same temporal instant
+      cm->global_motion[frame] = default_warp_params;
+      continue;
+    }
+
+    WarpedMotionParams ref_params_;
+    av1_scale_warp_model(&cm->base_global_motion_model,
+                         cm->base_global_motion_distance, &ref_params_,
+                         temporal_distance);
+    WarpedMotionParams *ref_params = &ref_params_;
+#else
     const WarpedMotionParams *ref_params =
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                        : &default_warp_params;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
     int good_params =
 #if !CONFIG_FLEX_MVRES
         read_global_motion_params(&cm->global_motion[frame], ref_params, rb,
@@ -7155,6 +7204,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     features->allow_ref_frame_mvs = 0;
     cm->prev_frame = NULL;
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    cm->cur_frame->num_ref_frames = 0;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   } else {
     features->allow_ref_frame_mvs = 0;
 #if CONFIG_TIP
@@ -7179,6 +7232,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_BVP_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      cm->cur_frame->num_ref_frames = 0;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       // Implicitly derive the reference mapping
@@ -7260,6 +7317,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
         av1_get_past_future_cur_ref_lists(cm, scores);
       }
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
       if (!features->error_resilient_mode && frame_size_override_flag) {
         setup_frame_size_with_refs(cm, rb);
