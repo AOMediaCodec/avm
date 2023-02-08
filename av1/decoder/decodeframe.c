@@ -6438,13 +6438,21 @@ static int read_global_motion_params(WarpedMotionParams *params,
 #else
                                      MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
-#endif
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)precision_loss;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#endif  // !CONFIG_FLEX_MVRES
   TransformationType type = aom_rb_read_bit(rb);
   if (type != IDENTITY) {
-    if (aom_rb_read_bit(rb))
+    if (aom_rb_read_bit(rb)) {
       type = ROTZOOM;
-    else
+    } else {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      type = AFFINE;
+#else
       type = aom_rb_read_bit(rb) ? TRANSLATION : AFFINE;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+    }
   }
 
   *params = default_warp_params;
@@ -6480,6 +6488,11 @@ static int read_global_motion_params(WarpedMotionParams *params,
   }
 
   if (type >= TRANSLATION) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    const int trans_bits = GM_ABS_TRANS_BITS;
+    const int trans_dec_factor = GM_TRANS_DECODE_FACTOR;
+    const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+#else
     const int trans_bits = (type == TRANSLATION)
 #if CONFIG_FLEX_MVRES
                                ? GM_ABS_TRANS_ONLY_BITS - precision_loss
@@ -6502,6 +6515,7 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                     ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
 #endif
                                     : GM_TRANS_PREC_DIFF;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     params->wmmat[0] = aom_rb_read_signed_primitive_refsubexpfin(
                            rb, (1 << trans_bits) + 1, SUBEXPFIN_K,

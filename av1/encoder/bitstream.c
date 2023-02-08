@@ -4721,13 +4721,22 @@ static AOM_INLINE void write_global_motion_params(
 #else
     struct aom_write_bit_buffer *wb, MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
-#endif
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)precision_loss;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#endif  // !CONFIG_FLEX_MVRES
   const TransformationType type = params->wmtype;
 
   aom_wb_write_bit(wb, type != IDENTITY);
   if (type != IDENTITY) {
     aom_wb_write_bit(wb, type == ROTZOOM);
-    if (type != ROTZOOM) aom_wb_write_bit(wb, type == TRANSLATION);
+    if (type != ROTZOOM) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      assert(type == AFFINE);
+#else
+      aom_wb_write_bit(wb, type == TRANSLATION);
+#endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
+    }
   }
 
   if (type >= ROTZOOM) {
@@ -4755,6 +4764,10 @@ static AOM_INLINE void write_global_motion_params(
   }
 
   if (type >= TRANSLATION) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    const int trans_bits = GM_ABS_TRANS_BITS;
+    const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+#else
 #if CONFIG_FLEX_MVRES
     const int trans_bits = (type == TRANSLATION)
                                ? GM_ABS_TRANS_ONLY_BITS - precision_loss
@@ -4769,7 +4782,8 @@ static AOM_INLINE void write_global_motion_params(
     const int trans_prec_diff = (type == TRANSLATION)
                                     ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
                                     : GM_TRANS_PREC_DIFF;
-#endif
+#endif  // CONFIG_FLEX_MVRES
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     aom_wb_write_signed_primitive_refsubexpfin(
         wb, (1 << trans_bits) + 1, SUBEXPFIN_K,

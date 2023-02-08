@@ -30,11 +30,33 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
                               const WarpedMotionParams *ref_gm,
                               MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)precision_loss;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #else
                               const WarpedMotionParams *ref_gm, int allow_hp) {
-#endif
+#endif  // CONFIG_FLEX_MVRES
   int params_cost = 0;
-  int trans_bits, trans_prec_diff;
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  const int trans_bits = GM_ABS_TRANS_BITS;
+  const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+#else
+  const int trans_bits = (gm->wmtype == TRANSLATION)
+#if CONFIG_FLEX_MVRES
+                             ? GM_ABS_TRANS_ONLY_BITS - precision_loss
+#else
+                             ? GM_ABS_TRANS_ONLY_BITS - !allow_hp
+#endif
+                             : GM_ABS_TRANS_BITS;
+  const int trans_prec_diff = (gm->wmtype == TRANSLATION)
+#if CONFIG_FLEX_MVRES
+                                  ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
+#else
+                                  ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
+#endif
+                                  : GM_TRANS_PREC_DIFF;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   switch (gm->wmtype) {
     case AFFINE:
     case ROTZOOM:
@@ -57,22 +79,6 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
                 (1 << GM_ALPHA_PREC_BITS),
             (gm->wmmat[5] >> GM_ALPHA_PREC_DIFF) - (1 << GM_ALPHA_PREC_BITS));
       }
-      AOM_FALLTHROUGH_INTENDED;
-    case TRANSLATION:
-      trans_bits = (gm->wmtype == TRANSLATION)
-#if CONFIG_FLEX_MVRES
-                       ? GM_ABS_TRANS_ONLY_BITS - precision_loss
-#else
-                       ? GM_ABS_TRANS_ONLY_BITS - !allow_hp
-#endif
-                       : GM_ABS_TRANS_BITS;
-      trans_prec_diff = (gm->wmtype == TRANSLATION)
-#if CONFIG_FLEX_MVRES
-                            ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
-#else
-                            ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
-#endif
-                            : GM_TRANS_PREC_DIFF;
       params_cost += aom_count_signed_primitive_refsubexpfin(
           (1 << trans_bits) + 1, SUBEXPFIN_K,
           (ref_gm->wmmat[0] >> trans_prec_diff),
@@ -161,10 +167,18 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       params_this_motion = params_by_motion[i].params;
       av1_convert_model_to_params(params_this_motion, &tmp_wm_params);
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      // If the found model can be represented as a simple translation,
+      // then reject it. This is because translational motion is cheaper
+      // to signal through the standard MV coding tools, rather than through
+      // global motion
+      if (tmp_wm_params.wmtype <= TRANSLATION) continue;
+#else
       // For IDENTITY type models, we don't need to evaluate anything because
       // all the following logic is effectively comparing the estimated model
       // to an identity model.
       if (tmp_wm_params.wmtype == IDENTITY) continue;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
       av1_compute_feature_segmentation_map(
           segment_map, segment_map_w, segment_map_h,
@@ -188,9 +202,16 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
           GM_REFINEMENT_COUNT, best_warp_error, segment_map, segment_map_w,
           erroradv_threshold);
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      // av1_refine_integerized_param() can change the wmtype to a simpler
+      // model type than its input. So we need to check again to see if
+      // we have a translational model
+      if (tmp_wm_params.wmtype <= TRANSLATION) continue;
+#else
       // av1_refine_integerized_param() can return a simpler model type than
       // its input, so re-check model type here
       if (tmp_wm_params.wmtype == IDENTITY) continue;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
       if (warp_error < best_warp_error) {
         best_ref_frame_error = ref_frame_error;
@@ -206,6 +227,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       if (!av1_get_shear_params(&cm->global_motion[frame]))
         cm->global_motion[frame] = default_warp_params;
 
+#if !CONFIG_IMPROVED_GLOBAL_MOTION
     if (cm->global_motion[frame].wmtype == TRANSLATION) {
       cm->global_motion[frame].wmmat[0] =
 #if CONFIG_FLEX_MVRES
@@ -224,6 +246,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
                                 cm->global_motion[frame].wmmat[1]) *
           GM_TRANS_ONLY_DECODE_FACTOR;
     }
+#endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
 
     if (cm->global_motion[frame].wmtype == IDENTITY) continue;
 
