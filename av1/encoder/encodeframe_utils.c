@@ -276,40 +276,42 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
     const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mi, AOM_PLANE_U);
     xd->cctx_type_map_stride = mi_size_wide[chroma_bsize];
-    const int chroma_bw = mi_size_wide[chroma_bsize];
-    const int chroma_bh = mi_size_high[chroma_bsize];
-    const int grid_idx =
-        get_mi_grid_idx(mi_params, mi->chroma_ref_info.mi_row_chroma_base,
-                        mi->chroma_ref_info.mi_col_chroma_base);
 #else
     xd->cctx_type_map_stride = mi_size_wide[bsize];
-    // If this block is sub 8x8 in luma, derive the parent >= 8x8 block area,
-    // then update its corresponding chroma area in cctx_type_map to the
-    // current cctx type
-    const int ss_x = pd[AOM_PLANE_U].subsampling_x;
-    const int ss_y = pd[AOM_PLANE_U].subsampling_y;
-    const int mi_row_offset = (mi_row & 0x01) && (bh & 0x01) && ss_y;
-    const int mi_col_offset = (mi_col & 0x01) && (bw & 0x01) && ss_x;
-    const int grid_idx = get_mi_grid_idx(mi_params, mi_row - mi_row_offset,
-                                         mi_col - mi_col_offset);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-    CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;
-    const int mi_stride = mi_params->mi_stride;
-    CctxType cur_cctx_type =
-        txfm_info->skip_txfm ? CCTX_NONE : xd->cctx_type_map[0];
-#if CONFIG_EXT_RECUR_PARTITIONS
-    for (int blk_row = 0; blk_row < chroma_bh; ++blk_row) {
-      memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
-             chroma_bw * sizeof(cctx_type_map[0]));
-    }
-#else
-    for (int blk_row = 0; blk_row < (mi_row_offset ? 2 : bh); ++blk_row) {
-      memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
-             (mi_col_offset ? 2 : bw) * sizeof(cctx_type_map[0]));
-    }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    // If not dry_run, copy the cctx type data into the frame level buffer.
+    // Encoder will fetch cctx types when writing bitstream.
     if (!dry_run) {
+      const int mi_stride = mi_params->mi_stride;
+      CctxType cur_cctx_type =
+          txfm_info->skip_txfm ? CCTX_NONE : xd->cctx_type_map[0];
+#if CONFIG_EXT_RECUR_PARTITIONS
+      const int chroma_bw = mi_size_wide[chroma_bsize];
+      const int chroma_bh = mi_size_high[chroma_bsize];
+      const int grid_idx =
+          get_mi_grid_idx(mi_params, mi->chroma_ref_info.mi_row_chroma_base,
+                          mi->chroma_ref_info.mi_col_chroma_base);
+      CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;
+      for (int blk_row = 0; blk_row < chroma_bh; ++blk_row) {
+        memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
+               chroma_bw * sizeof(cctx_type_map[0]));
+      }
+#else
+      // If this block is sub 8x8 in luma, derive the parent >= 8x8 block area,
+      // then update its corresponding chroma area in cctx_type_map to the
+      // current cctx type
+      const int ss_x = pd[AOM_PLANE_U].subsampling_x;
+      const int ss_y = pd[AOM_PLANE_U].subsampling_y;
+      const int mi_row_offset = (mi_row & 0x01) && (bh & 0x01) && ss_y;
+      const int mi_col_offset = (mi_col & 0x01) && (bw & 0x01) && ss_x;
+      const int grid_idx = get_mi_grid_idx(mi_params, mi_row - mi_row_offset,
+                                           mi_col - mi_col_offset);
+      CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;
+      for (int blk_row = 0; blk_row < (mi_row_offset ? 2 : bh); ++blk_row) {
+        memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
+               (mi_col_offset ? 2 : bw) * sizeof(cctx_type_map[0]));
+      }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       xd->cctx_type_map = cctx_type_map;
       xd->cctx_type_map_stride = mi_stride;
     }
