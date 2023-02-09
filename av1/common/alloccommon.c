@@ -166,10 +166,8 @@ static void free_sbi(CommonSBInfoParams *sbi_params) {
   }
 
   aom_free(sbi_params->sbi_grid_base);
-#if CONFIG_FLEX_MVRES
   sbi_params->sbi_grid_base = NULL;
   sbi_params->sbi_alloc_size = 0;
-#endif  // CONFIG_FLEX_MVRES
 }
 
 void av1_free_context_buffers(AV1_COMMON *cm) {

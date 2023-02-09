@@ -4366,7 +4366,7 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  uint16_t *second_pred,
                                  InterPredParams *inter_pred_params) {
   const int allow_hp_mvd = 0;
-#if !CONFIG_FLEX_MVRES
+#if !CONFIG_FLEX_MVRES && !CONFIG_C071_SUBBLK_WARPMV
   const int allow_hp = ms_params->allow_hp;
 #endif
   const int forced_stop = ms_params->forced_stop;

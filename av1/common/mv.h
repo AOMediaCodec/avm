@@ -529,7 +529,9 @@ static INLINE int_mv get_warp_motion_vector(const WarpedMotionParams *model,
     // from the neighbor. Neighbor may have different MV precision than current
     // block. Therefore, this assertion is not valid when
     // CONFIG_EXTENDED_WARP_PREDICTION is enabled
-#if !CONFIG_EXTENDED_WARP_PREDICTION
+    // When subblock warp mv is enabled. The precision is kept as higherst
+    // regardless the frame level mv during search
+#if !CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_C071_SUBBLK_WARPMV
     assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col),
                    precision == MV_PRECISION_ONE_EIGHTH_PEL));
 #endif
@@ -543,7 +545,9 @@ static INLINE int_mv get_warp_motion_vector(const WarpedMotionParams *model,
     // call to convert_to_trans_prec here)
     res.as_mv.col = model->wmmat[0] >> WARPEDMODEL_TO_MV_SHIFT;
     res.as_mv.row = model->wmmat[1] >> WARPEDMODEL_TO_MV_SHIFT;
+#if !CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_C071_SUBBLK_WARPMV
     assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));
+#endif
     if (is_integer) {
       integer_mv_precision(&res.as_mv);
     }

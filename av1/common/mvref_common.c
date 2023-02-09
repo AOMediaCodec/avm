@@ -564,7 +564,7 @@ static AOM_INLINE void add_ref_mv_candidate(
                                                                submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
                                                                ref);
-#if !CONFIG_FLEX_MVRES
+#if !CONFIG_FLEX_MVRES && !CONFIG_C071_SUBBLK_WARPMV
           const int allow_hp_mv = cm->features.allow_high_precision_mv;
           const int force_integer_mv = cm->features.cur_frame_force_integer_mv;
 #endif
