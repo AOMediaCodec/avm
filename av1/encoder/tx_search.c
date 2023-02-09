@@ -3102,7 +3102,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
     RD_STATS this_rd_stats;
     av1_invalid_rd_stats(&this_rd_stats);
 
-    update_cctx_array(xd, blk_row, blk_col, 0, 0, tx_size, cctx_type);
+    update_cctx_array(xd, blk_row, blk_col, 0, 0, TX_4X4, cctx_type);
     forward_cross_chroma_transform(x, block, tx_size, cctx_type);
 
     for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
@@ -3195,7 +3195,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
   assert(best_rd != INT64_MAX);
 
   best_rd_stats->skip_txfm = (best_eob_c1 == 0 && best_eob_c2 == 0);
-  update_cctx_array(xd, blk_row, blk_col, 0, 0, tx_size, best_cctx_type);
+  update_cctx_array(xd, blk_row, blk_col, 0, 0, TX_4X4, best_cctx_type);
   p_c1->txb_entropy_ctx[block] = best_txb_ctx_c1;
   p_c2->txb_entropy_ctx[block] = best_txb_ctx_c2;
   p_c1->eobs[block] = best_eob_c1;
@@ -4335,7 +4335,7 @@ static AOM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
   const AV1_COMMON *cm = &cpi->common;
   RD_STATS rd_stats_joint_uv;
   av1_init_rd_stats(&rd_stats_joint_uv);
-  update_cctx_array(xd, blk_row, blk_col, 0, 0, tx_size, CCTX_NONE);
+  update_cctx_array(xd, blk_row, blk_col, 0, 0, TX_4X4, CCTX_NONE);
 
   // Obtain RD cost for CCTX_NONE
   RD_STATS rd_stats_uv[2];

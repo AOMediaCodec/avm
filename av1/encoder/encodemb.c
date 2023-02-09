@@ -763,8 +763,15 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #if CONFIG_CROSS_CHROMA_TX
     // Since eob can be updated here, make sure cctx_type is always CCTX_NONE
     // when eob of U is 0.
-    if (is_cctx_allowed(cm, xd) && plane == AOM_PLANE_U && p->eobs[block] == 0)
-      update_cctx_array(xd, blk_row, blk_col, 0, 0, tx_size, CCTX_NONE);
+    if (is_cctx_allowed(cm, xd) && plane == AOM_PLANE_U &&
+        p->eobs[block] == 0) {
+      // In dry run, cctx type will not be referenced by neighboring blocks, so
+      // there is no need to fill in the whole chroma region. In addition,
+      // ctx->cctx_type_map size in dry run may not be aligned with actual
+      // chroma coding region for some partition types.
+      update_cctx_array(xd, blk_row, blk_col, 0, 0, dry_run ? TX_4X4 : tx_size,
+                        CCTX_NONE);
+    }
 #endif  // CONFIG_CROSS_CHROMA_TX
   } else {
 #if CONFIG_CROSS_CHROMA_TX && CCTX_C2_DROPPED
@@ -1487,12 +1494,17 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                           (!frame_is_intra_only(cm) &&
                            (INTRA_BLOCK_OPT_TYPE == DROPOUT_OPT ||
                             INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
-
   for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
     // Since eob can be updated here, make sure cctx_type is always CCTX_NONE
     // when eob of U is 0.
-    if (plane == AOM_PLANE_V && *eob_c1 == 0)
-      update_cctx_array(xd, blk_row, blk_col, 0, 0, tx_size, CCTX_NONE);
+    if (plane == AOM_PLANE_V && *eob_c1 == 0) {
+      // In dry run, cctx type will not be referenced by neighboring blocks, so
+      // there is no need to fill in the whole chroma region. In addition,
+      // ctx->cctx_type_map size in dry run may not be aligned with actual
+      // chroma coding region for some partition types.
+      update_cctx_array(xd, blk_row, blk_col, 0, 0,
+                        args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
+    }
 #if CCTX_C2_DROPPED
     if (plane == AOM_PLANE_V && (!keep_chroma_c2(cctx_type) ||
                                  (*eob_c1 == 0 && cctx_type > CCTX_NONE))) {
