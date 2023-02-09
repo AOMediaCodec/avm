@@ -85,85 +85,88 @@ const int wienerns_config_uv_from_y[][3] = {
   { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
   { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
   { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+#else
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
 
-const int wienerns_prec_bits_y = 7;
+#define WIENERNS_PREC_BITS_Y 7
 const int wienerns_coeff_y[][WIENERNS_COEFCFG_LEN] = {
 #if ENABLE_LR_4PART_CODE
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
 #if USE_CENTER_WIENER_NONSEP
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -16, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -16, 0),
 #endif  // USE_CENTER_WIENER_NONSEP
 #else
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 3, -4, 2),
 #if USE_CENTER_WIENER_NONSEP
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y, 5, -16, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -16, 3),
 #endif  // USE_CENTER_WIENER_NONSEP
 #endif  // ENABLE_LR_4PART_CODE
 };
 
-const int wienerns_prec_bits_uv = 7;
+#define WIENERNS_PREC_BITS_UV 7
 const int wienerns_coeff_uv[][WIENERNS_COEFCFG_LEN] = {
 #if ENABLE_LR_4PART_CODE
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #else
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_uv, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 #endif  // ENABLE_LR_4PART_CODE
 };
 
 const WienernsFilterParameters wienerns_filter_y = AOM_MAKE_WIENERNS_CONFIG(
-    wienerns_prec_bits_y, wienerns_config_y, wienerns_coeff_y);
+    WIENERNS_PREC_BITS_Y, wienerns_config_y, wienerns_coeff_y);
 const WienernsFilterParameters wienerns_filter_uv =
-    AOM_MAKE_WIENERNS_CONFIG2(wienerns_prec_bits_uv, wienerns_config_uv_from_uv,
+    AOM_MAKE_WIENERNS_CONFIG2(WIENERNS_PREC_BITS_UV, wienerns_config_uv_from_uv,
                               wienerns_config_uv_from_y, wienerns_coeff_uv);
 
 const WienernsFilterPairParameters wienerns_filters_midqp = {
@@ -185,6 +188,10 @@ const int wienerns_wout_subtract_center_config_uv_from_y[][3] = {
   { 1, 0, 7 },   { -1, 0, 7 },  { 0, 1, 8 },   { 0, -1, 8 }, { 1, 1, 9 },
   { -1, -1, 9 }, { -1, 1, 10 }, { 1, -1, 10 }, { 2, 0, 11 }, { -2, 0, 11 },
   { 0, 2, 12 },  { 0, -2, 12 }, { 0, 0, 13 },
+#else
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
 
@@ -212,44 +219,47 @@ const int wienerns_config_uv_from_y2[][3] = {
   { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
   { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
   { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+#else
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
 
-const int wienerns_prec_bits_y2 = 7;
+#define WIENERNS_PREC_BITS_Y2 7
 const int wienerns_coeff_y2[][WIENERNS_COEFCFG_LEN] = {
 #if ENABLE_LR_4PART_CODE
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
 #if USE_CENTER_WIENER_NONSEP
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -16, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 5, -16, 0),
 #endif  // USE_CENTER_WIENER_NONSEP
 #else
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 3, -4, 2),
 #if USE_CENTER_WIENER_NONSEP
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y2, 5, -16, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y2, 5, -16, 3),
 #endif  // USE_CENTER_WIENER_NONSEP
 #endif  // ENABLE_LR_4PART_CODE
 };
 
 const WienernsFilterParameters wienerns_filter_y2 = AOM_MAKE_WIENERNS_CONFIG(
-    wienerns_prec_bits_y2, wienerns_config_y2, wienerns_coeff_y2);
+    WIENERNS_PREC_BITS_Y2, wienerns_config_y2, wienerns_coeff_y2);
 
 const WienernsFilterPairParameters wienerns_filters_highqp = {
   &wienerns_filter_y2, &wienerns_filter_uv
@@ -281,52 +291,55 @@ const int wienerns_config_uv_from_y3[][3] = {
   { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
   { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
   { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+#else
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
+  { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 },
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
 
-const int wienerns_prec_bits_y3 = 7;
+#define WIENERNS_PREC_BITS_Y3 7
 const int wienerns_coeff_y3[][WIENERNS_COEFCFG_LEN] = {
 #if ENABLE_LR_4PART_CODE
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 0),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 1),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 5, -12, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -7, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
 #if USE_CENTER_WIENER_NONSEP
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -16, 0),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 5, -16, 0),
 #endif  // USE_CENTER_WIENER_NONSEP
 #else
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -12, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -7, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 4, -8, 3),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 5, -12, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -7, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 3, -4, 2),
 #if USE_CENTER_WIENER_NONSEP
-  AOM_WIENERNS_COEFF(wienerns_prec_bits_y3, 5, -16, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y3, 5, -16, 3),
 #endif  // USE_CENTER_WIENER_NONSEP
 #endif  // ENABLE_LR_4PART_CODE
 };
 
 const WienernsFilterParameters wienerns_filter_y3 = AOM_MAKE_WIENERNS_CONFIG(
-    wienerns_prec_bits_y3, wienerns_config_y3, wienerns_coeff_y3);
+    WIENERNS_PREC_BITS_Y3, wienerns_config_y3, wienerns_coeff_y3);
 
 const WienernsFilterPairParameters wienerns_filters_lowqp = {
   &wienerns_filter_y3, &wienerns_filter_uv
