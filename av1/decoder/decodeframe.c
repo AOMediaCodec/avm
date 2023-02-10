@@ -2003,9 +2003,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                      MACROBLOCKD *xd, int mi_row, int mi_col,
                                      aom_reader *r, int has_rows, int has_cols,
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_H_PARTITION
                                      const PARTITION_TREE *ptree,
-#endif  // !CONFIG_H_PARTITION
                                      const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      BLOCK_SIZE bsize) {
@@ -2268,10 +2266,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
             ? PARTITION_NONE
             : read_partition(cm, xd, mi_row, mi_col, reader, has_rows, has_cols,
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_H_PARTITION
-                             ptree,
-#endif  // !CONFIG_H_PARTITION
-                             ptree_luma,
+                             ptree, ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                              bsize);
 

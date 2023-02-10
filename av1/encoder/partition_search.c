@@ -2080,12 +2080,12 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   x->rdmult = origin_mult;
 }
 
-static void update_partition_stats(
-    MACROBLOCKD *const xd,
+static void update_partition_stats(MACROBLOCKD *const xd,
 #if CONFIG_ENTROPY_STATS
-    FRAME_COUNTS *counts,
+                                   FRAME_COUNTS *counts,
 #endif  // CONFIG_ENTROPY_STATS
-    int allow_update_cdf, const CommonModeInfoParams *const mi_params,
+                                   int allow_update_cdf,
+                                   const CommonModeInfoParams *const mi_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
                                    int disable_ext_part,
 #if !CONFIG_H_PARTITION
@@ -2094,8 +2094,9 @@ static void update_partition_stats(
                                    PARTITION_TREE const *ptree_luma,
                                    const CHROMA_REF_INFO *chroma_ref_info,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    PARTITION_TYPE partition, const int mi_row, const int mi_col,
-    BLOCK_SIZE bsize, const int ctx) {
+                                   PARTITION_TYPE partition, const int mi_row,
+                                   const int mi_col, BLOCK_SIZE bsize,
+                                   const int ctx) {
   const int plane_index = xd->tree_type == CHROMA_PART;
 
 #if CONFIG_EXT_RECUR_PARTITIONS

@@ -2801,9 +2801,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
                                        int mi_col, PARTITION_TYPE p,
                                        BLOCK_SIZE bsize,
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if !CONFIG_H_PARTITION
                                        const PARTITION_TREE *ptree,
-#endif  // !CONFIG_H_PARTITION
                                        const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                        aom_writer *w) {
@@ -3020,11 +3018,8 @@ static AOM_INLINE void write_modes_sb(
   }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  write_partition(cm, xd, mi_row, mi_col, partition, bsize,
-#if !CONFIG_H_PARTITION
-                  ptree,
-#endif  // !CONFIG_H_PARTITION
-                  ptree_luma, w);
+  write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree, ptree_luma,
+                  w);
   const int track_ptree_luma =
       ptree_luma ? (partition == ptree_luma->partition) : 0;
 #else
