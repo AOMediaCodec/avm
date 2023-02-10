@@ -175,11 +175,19 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
   for (int row = 0; row < mi_size_high[mbmi->sb_type[plane_index]]; ++row) {
     memset(xd->tx_type_map + row * stride, DCT_DCT,
            bw * sizeof(xd->tx_type_map[0]));
-#if CONFIG_CROSS_CHROMA_TX
-    memset(xd->cctx_type_map + row * stride, CCTX_NONE,
-           bw * sizeof(xd->cctx_type_map[0]));
-#endif  // CONFIG_CROSS_CHROMA_TX
   }
+#if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
+  for (int row = 0; row < mi_size_high[chroma_bsize]; ++row)
+    memset(xd->cctx_type_map + row * xd->cctx_type_map_stride, CCTX_NONE,
+           mi_size_wide[chroma_bsize] * sizeof(xd->cctx_type_map[0]));
+#else
+  for (int row = 0; row < mi_size_high[mbmi->sb_type[plane_index]]; ++row)
+    memset(xd->cctx_type_map + row * xd->cctx_type_map_stride, CCTX_NONE,
+           bw * sizeof(xd->cctx_type_map[0]));
+#endif  // CONFIG_EXT_RECUR_PARTITION
+#endif  // CONFIG_CROSS_CHROMA_TX
   av1_zero(txfm_info->blk_skip);
   txfm_info->skip_txfm = 0;
 }
@@ -266,17 +274,17 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     xd->cctx_type_map = ctx->cctx_type_map;
 #if CONFIG_EXT_RECUR_PARTITIONS
     const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mi, AOM_PLANE_U);
-    xd->tx_type_map_stride = mi_size_wide[chroma_bsize];
+    xd->cctx_type_map_stride = mi_size_wide[chroma_bsize];
     const int chroma_bw = mi_size_wide[chroma_bsize];
     const int chroma_bh = mi_size_high[chroma_bsize];
     const int grid_idx =
         get_mi_grid_idx(mi_params, mi->chroma_ref_info.mi_row_chroma_base,
                         mi->chroma_ref_info.mi_col_chroma_base);
 #else
+    xd->cctx_type_map_stride = mi_size_wide[bsize];
     // If this block is sub 8x8 in luma, derive the parent >= 8x8 block area,
     // then update its corresponding chroma area in cctx_type_map to the
     // current cctx type
-    xd->tx_type_map_stride = mi_size_wide[bsize];
     const int ss_x = pd[AOM_PLANE_U].subsampling_x;
     const int ss_y = pd[AOM_PLANE_U].subsampling_y;
     const int mi_row_offset = (mi_row & 0x01) && (bh & 0x01) && ss_y;
@@ -305,7 +313,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     if (!dry_run) {
       xd->cctx_type_map = cctx_type_map;
-      xd->tx_type_map_stride = mi_stride;
+      xd->cctx_type_map_stride = mi_stride;
     }
   }
 #endif

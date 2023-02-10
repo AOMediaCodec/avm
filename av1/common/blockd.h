@@ -1794,17 +1794,22 @@ typedef struct macroblockd {
    * 'MACROBLOCK' structs.
    */
   TX_TYPE *tx_type_map;
-#if CONFIG_CROSS_CHROMA_TX
-  /*!
-   * Array of CCTX types.
-   */
-  CctxType *cctx_type_map;
-#endif  // CONFIG_CROSS_CHROMA_TX
   /*!
    * Stride for 'tx_type_map'. Note that this may / may not be same as
    * 'mi_stride', depending on which actual array 'tx_type_map' points to.
    */
   int tx_type_map_stride;
+#if CONFIG_CROSS_CHROMA_TX
+  /*!
+   * Array of CCTX types.
+   */
+  CctxType *cctx_type_map;
+  /*!
+   * Stride for 'cctx_type_map'. Note that this may / may not be same as
+   * 'mi_stride', depending on which actual array 'cctx_type_map' points to.
+   */
+  int cctx_type_map_stride;
+#endif  // CONFIG_CROSS_CHROMA_TX
 
   /**
    * \name Distance of this macroblock from frame edges in 1/8th pixel units.
@@ -2715,7 +2720,7 @@ static INLINE void update_cctx_array(MACROBLOCKD *const xd, int blk_row,
                                      int blk_col, int blk_row_offset,
                                      int blk_col_offset, TX_SIZE tx_size,
                                      CctxType cctx_type) {
-  const int stride = xd->tx_type_map_stride;
+  const int stride = xd->cctx_type_map_stride;
   const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
@@ -2742,7 +2747,7 @@ static INLINE CctxType av1_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
   const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
   const int br = blk_row << pd->subsampling_y;
   const int bc = blk_col << pd->subsampling_x;
-  return xd->cctx_type_map[br * xd->tx_type_map_stride + bc];
+  return xd->cctx_type_map[br * xd->cctx_type_map_stride + bc];
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 

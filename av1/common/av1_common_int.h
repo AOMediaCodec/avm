@@ -2799,12 +2799,13 @@ static INLINE void set_mi_offsets(const CommonModeInfoParams *const mi_params,
   if (xd->tree_type != CHROMA_PART) {
     xd->tx_type_map = mi_params->tx_type_map + mi_grid_idx;
   }
+  xd->tx_type_map_stride = mi_params->mi_stride;
 #if CONFIG_CROSS_CHROMA_TX
   if (xd->tree_type != LUMA_PART) {
     xd->cctx_type_map = mi_params->cctx_type_map + mi_grid_idx;
   }
+  xd->cctx_type_map_stride = mi_params->mi_stride;
 #endif  // CONFIG_CROSS_CHROMA_TX
-  xd->tx_type_map_stride = mi_params->mi_stride;
 }
 
 // For this partition block, set pointers in mi_params->mi_grid_base and xd->mi.
@@ -2821,10 +2822,11 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
   xd->mi[mi_params->mi_stride * blk_row + blk_col] =
       mi_params->mi_grid_base[mi_grid_idx];
   xd->tx_type_map = mi_params->tx_type_map + mi_grid_idx;
+  xd->tx_type_map_stride = mi_params->mi_stride;
 #if CONFIG_CROSS_CHROMA_TX
   xd->cctx_type_map = mi_params->cctx_type_map + mi_grid_idx;
+  xd->cctx_type_map_stride = mi_params->mi_stride;
 #endif  // CONFIG_CROSS_CHROMA_TX
-  xd->tx_type_map_stride = mi_params->mi_stride;
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS

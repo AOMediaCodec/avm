@@ -785,10 +785,11 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
   // Sets up the tx_type_map buffer in MACROBLOCKD.
   xd->tx_type_map = txfm_info->tx_type_map_;
+  xd->tx_type_map_stride = mi_size_wide[bsize];
 #if CONFIG_CROSS_CHROMA_TX
   xd->cctx_type_map = txfm_info->cctx_type_map_;
+  xd->cctx_type_map_stride = mi_size_wide[bsize];
 #endif  // CONFIG_CROSS_CHROMA_TX
-  xd->tx_type_map_stride = mi_size_wide[bsize];
 
   for (i = 0; i < num_planes; ++i) {
     p[i].coeff = ctx->coeff[i];

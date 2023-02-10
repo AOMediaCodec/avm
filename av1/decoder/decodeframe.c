@@ -1965,11 +1965,12 @@ static AOM_INLINE void set_offsets_for_pred_and_recon(
   xd->mi = mi_params->mi_grid_base + offset;
   xd->tx_type_map =
       &mi_params->tx_type_map[mi_row * mi_params->mi_stride + mi_col];
+  xd->tx_type_map_stride = mi_params->mi_stride;
 #if CONFIG_CROSS_CHROMA_TX
   xd->cctx_type_map =
       &mi_params->cctx_type_map[mi_row * mi_params->mi_stride + mi_col];
+  xd->cctx_type_map_stride = mi_params->mi_stride;
 #endif  // CONFIG_CROSS_CHROMA_TX
-  xd->tx_type_map_stride = mi_params->mi_stride;
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
   set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,

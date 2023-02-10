@@ -2679,10 +2679,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       get_mi_ext_idx(mi_row, mi_col, cm->mi_params.mi_alloc_bsize,
                      cpi->mbmi_ext_info.stride);
   xd->tx_type_map = mi_params->tx_type_map + grid_idx;
+  xd->tx_type_map_stride = mi_params->mi_stride;
 #if CONFIG_CROSS_CHROMA_TX
   xd->cctx_type_map = mi_params->cctx_type_map + grid_idx;
+  xd->cctx_type_map_stride = mi_params->mi_stride;
 #endif  // CONFIG_CROSS_CHROMA_TX
-  xd->tx_type_map_stride = mi_params->mi_stride;
 
   MB_MODE_INFO *mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
