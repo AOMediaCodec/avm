@@ -270,7 +270,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   }
 
 #if CONFIG_CROSS_CHROMA_TX
-  if (xd->tree_type != LUMA_PART && xd->is_chroma_ref) {
+  if (xd->tree_type != LUMA_PART && xd->is_chroma_ref &&
+      is_cctx_allowed(cm, xd)) {
     xd->cctx_type_map = ctx->cctx_type_map;
 #if CONFIG_EXT_RECUR_PARTITIONS
     const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mi, AOM_PLANE_U);
@@ -295,11 +296,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 
     CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;
     const int mi_stride = mi_params->mi_stride;
-    const int allow_cctx = is_cctx_allowed(cm, xd);
-    // Set cctx_type to CCTX_NONE when not allowed or for skip blocks
-    CctxType cur_cctx_type = (txfm_info->skip_txfm || !allow_cctx)
-                                 ? CCTX_NONE
-                                 : xd->cctx_type_map[0];
+    CctxType cur_cctx_type =
+        txfm_info->skip_txfm ? CCTX_NONE : xd->cctx_type_map[0];
 #if CONFIG_EXT_RECUR_PARTITIONS
     for (int blk_row = 0; blk_row < chroma_bh; ++blk_row) {
       memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
