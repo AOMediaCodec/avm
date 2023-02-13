@@ -1527,8 +1527,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
         }
       }
 #if CONFIG_CROSS_CHROMA_TX
-    } else if (xd->is_chroma_ref && xd->tree_type != LUMA_PART &&
-               is_cctx_allowed(cm, xd)) {
+    } else if (is_cctx_enabled(cm, xd) && xd->is_chroma_ref &&
+               xd->tree_type != LUMA_PART) {
 #if CONFIG_PC_WIENER
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
                               xd->is_chroma_ref, plane_start, plane_end);

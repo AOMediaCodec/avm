@@ -2703,7 +2703,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   // CCTX_NONE, which will be used as contexts for later blocks. No need to use
   // av1_get_adjusted_tx_size because uv_txsize is intended to cover the entire
   // prediction block area
-  if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
+  if (is_cctx_enabled(cm, xd) &&
+      mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       xd->tree_type != LUMA_PART && xd->is_chroma_ref) {
     struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
     const BLOCK_SIZE uv_bsize = get_mb_plane_block_size(
