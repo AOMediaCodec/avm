@@ -133,89 +133,44 @@ static INLINE int combine_entropy_contexts(ENTROPY_CONTEXT a,
   return (a != 0) + (b != 0);
 }
 
+static INLINE ENTROPY_CONTEXT get_entropy_context_1d(const ENTROPY_CONTEXT *ctx,
+                                                     int size) {
+  switch (size) {
+    case 4: return ctx[0] != 0;
+    case 8:
+#if CONFIG_H_PARTITION
+      return ctx[0] != 0 || ctx[1] != 0;
+#else
+      return !!*(const uint16_t *)ctx;
+#endif  // CONFIG_H_PARTITION
+    case 16:
+#if CONFIG_H_PARTITION
+      return !!(*(const uint16_t *)ctx | *(const uint16_t *)(ctx + 2));
+#else
+      return !!*(const uint32_t *)ctx;
+#endif  // CONFIG_H_PARTITION
+    case 32:
+#if CONFIG_H_PARTITION
+      return !!(*(const uint32_t *)ctx | *(const uint32_t *)(ctx + 4));
+#else
+      return !*(const uint64_t *)ctx;
+#endif  // CONFIG_H_PARTITION
+    case 64: return !!(*(const uint64_t *)ctx | *(const uint64_t *)(ctx + 8));
+    default: assert(0 && "Invalid transform 1d size."); break;
+  }
+
+  return 0;
+}
+
 static INLINE int get_entropy_context(TX_SIZE tx_size, const ENTROPY_CONTEXT *a,
                                       const ENTROPY_CONTEXT *l) {
+  assert(tx_size < TX_SIZES_ALL);
+  const int txw = tx_size_wide[tx_size];
+  const int txh = tx_size_high[tx_size];
   ENTROPY_CONTEXT above_ec = 0, left_ec = 0;
 
-  switch (tx_size) {
-    case TX_4X4:
-      above_ec = a[0] != 0;
-      left_ec = l[0] != 0;
-      break;
-    case TX_4X8:
-      above_ec = a[0] != 0;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_8X4:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = l[0] != 0;
-      break;
-    case TX_8X16:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_16X8:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_16X32:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_32X16:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_8X8:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_16X16:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_32X32:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_64X64:
-      above_ec = !!(*(const uint64_t *)a | *(const uint64_t *)(a + 8));
-      left_ec = !!(*(const uint64_t *)l | *(const uint64_t *)(l + 8));
-      break;
-    case TX_32X64:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!(*(const uint64_t *)l | *(const uint64_t *)(l + 8));
-      break;
-    case TX_64X32:
-      above_ec = !!(*(const uint64_t *)a | *(const uint64_t *)(a + 8));
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_4X16:
-      above_ec = a[0] != 0;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_16X4:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = l[0] != 0;
-      break;
-    case TX_8X32:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_32X8:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_16X64:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!(*(const uint64_t *)l | *(const uint64_t *)(l + 8));
-      break;
-    case TX_64X16:
-      above_ec = !!(*(const uint64_t *)a | *(const uint64_t *)(a + 8));
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    default: assert(0 && "Invalid transform size."); break;
-  }
+  above_ec = get_entropy_context_1d(a, txw);
+  left_ec = get_entropy_context_1d(l, txh);
   return combine_entropy_contexts(above_ec, left_ec);
 }
 
