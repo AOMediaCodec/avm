@@ -153,6 +153,17 @@ typedef struct {
    * Index of the last set of saved stats in the interp_filter_stats array.
    */
   int interp_filter_stats_idx;
+#if CONFIG_SKIP_ME_FOR_OPFL_MODES
+  /*!
+   * Saved MV information for opfl off case.
+   */
+  int_mv (*comp_newmv)[4][NUM_MV_PRECISIONS][2];
+  /*!
+   * Valid status of saved MV information for opfl off case.
+   */
+  int (*comp_newmv_valid)[4][NUM_MV_PRECISIONS];
+#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
+
 } HandleInterModeArgs;
 
 /*!\cond */

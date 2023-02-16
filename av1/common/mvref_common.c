@@ -2462,6 +2462,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (cm->seq_params.enable_refmvbank) {
     const int ref_mv_limit =
         AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
+
     // If open slots are available, fetch reference MVs from the ref mv banks.
     if (*refmv_count < ref_mv_limit
 #if !CONFIG_BVP_IMPROVEMENT
@@ -2969,6 +2970,10 @@ void av1_find_mv_refs(
   bool derive_wrl = (warp_param_stack && valid_num_warp_candidates &&
                      max_num_of_warp_candidates);
   derive_wrl &= (ref_frame < INTER_REFS_PER_FRAME);
+#if CONFIG_SEP_COMP_DRL
+  if (has_second_drl(mi)) derive_wrl = 0;
+#endif  // CONFIG_SEP_COMP_DRL
+
   derive_wrl &= is_motion_variation_allowed_bsize(mi->sb_type[PLANE_TYPE_Y],
                                                   mi_row, mi_col);
   if (derive_wrl && valid_num_warp_candidates) {
@@ -2995,6 +3000,73 @@ void av1_find_mv_refs(
 #endif  // CONFIG_WARP_REF_LIST
     );
   } else {
+#if CONFIG_SEP_COMP_DRL
+    MV_REFERENCE_FRAME rf[2];
+    av1_set_ref_frame(rf, ref_frame);
+    if (!has_second_drl(mi))
+      rf[0] = ref_frame;
+    else {
+      const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
+#if CONFIG_FLEX_MVRES
+      const int fr_mv_precision = cm->features.fr_mv_precision;
+      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[0]],
+                                        fr_mv_precision, bsize, mi_col, mi_row);
+#else
+      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
+                                        allow_high_precision_mv, bsize, mi_col,
+                                        mi_row, force_integer_mv);
+#endif
+      gm_mv[1].as_int = 0;
+    }
+    setup_ref_mv_list(cm, xd, rf[0], &ref_mv_count[rf[0]], ref_mv_stack[rf[0]],
+                      ref_mv_weight[rf[0]], NULL, NULL,
+                      mv_ref_list ? mv_ref_list[rf[0]] : NULL, gm_mv, mi_row,
+                      mi_col
+#if !CONFIG_C076_INTER_MOD_CTX
+                      ,
+                      mode_context
+#endif  //! CONFIG_C076_INTER_MOD_CTX
+#if CONFIG_WARP_REF_LIST
+                      ,
+                      derive_wrl ? warp_param_stack[rf[0]] : NULL,
+                      derive_wrl ? max_num_of_warp_candidates : 0,
+                      derive_wrl ? &valid_num_warp_candidates[rf[0]] : NULL
+#endif  // CONFIG_WARP_REF_LIST
+    );
+
+    if (has_second_drl(mi)) {
+      assert(rf[0] == mi->ref_frame[0]);
+      assert(rf[1] == mi->ref_frame[1]);
+      const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
+#if CONFIG_FLEX_MVRES
+      const int fr_mv_precision = cm->features.fr_mv_precision;
+      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[1]],
+                                        fr_mv_precision, bsize, mi_col, mi_row);
+#else
+      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
+                                        allow_high_precision_mv, bsize, mi_col,
+                                        mi_row, force_integer_mv);
+#endif
+      gm_mv[1].as_int = 0;
+
+      setup_ref_mv_list(cm, xd, rf[1], &ref_mv_count[rf[1]],
+                        ref_mv_stack[rf[1]], ref_mv_weight[rf[1]], NULL, NULL,
+                        mv_ref_list ? mv_ref_list[rf[1]] : NULL, gm_mv, mi_row,
+                        mi_col
+#if !CONFIG_C076_INTER_MOD_CTX
+                        ,
+                        mode_context
+#endif  //! CONFIG_C076_INTER_MOD_CTX
+#if CONFIG_WARP_REF_LIST
+                        ,
+                        derive_wrl ? warp_param_stack[rf[1]] : NULL,
+                        derive_wrl ? max_num_of_warp_candidates : 0,
+                        derive_wrl ? &valid_num_warp_candidates[rf[1]] : NULL
+#endif  // CONFIG_WARP_REF_LIST
+      );
+    }
+    if (derive_wrl) assert(rf[0] == ref_frame);
+#else
     setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],
                       ref_mv_stack[ref_frame], ref_mv_weight[ref_frame], NULL,
                       NULL, mv_ref_list ? mv_ref_list[ref_frame] : NULL, gm_mv,
@@ -3011,6 +3083,7 @@ void av1_find_mv_refs(
 #endif  // CONFIG_WARP_REF_LIST
 
     );
+#endif  // CONFIG_SEP_COMP_DRL
   }
 #else
   setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],

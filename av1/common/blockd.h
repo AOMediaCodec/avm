@@ -587,7 +587,11 @@ typedef struct MB_MODE_INFO {
   /*! \brief Only valid when temporal update if off. */
   uint8_t seg_id_predicted : 1;
   /*! \brief Which ref_mv to use */
+#if CONFIG_SEP_COMP_DRL
+  int ref_mv_idx[2];
+#else
   uint8_t ref_mv_idx : 3;
+#endif  // CONFIG_SEP_COMP_DRL
   /*! \brief Inter skip mode */
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   uint8_t skip_mode : 2;
@@ -886,6 +890,20 @@ static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return is_inter_ref_frame(mbmi->ref_frame[1]);
 }
+
+#if CONFIG_SEP_COMP_DRL
+/*!\brief Return whether the current coding block has two separate DRLs */
+static INLINE int has_second_drl(const MB_MODE_INFO *mbmi) {
+  int ret = (mbmi->mode == NEAR_NEARMV || mbmi->mode == NEAR_NEWMV) &&
+            !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode;
+  return ret;
+}
+
+/*!\brief Return the mv_ref_idx of the current coding block based on ref_idx */
+static INLINE int get_ref_mv_idx(const MB_MODE_INFO *mbmi, int ref_idx) {
+  return has_second_drl(mbmi) ? mbmi->ref_mv_idx[ref_idx] : mbmi->ref_mv_idx[0];
+}
+#endif  // CONFIG_SEP_COMP_DRL
 
 #if CONFIG_AIMC
 PREDICTION_MODE av1_get_joint_mode(const MB_MODE_INFO *mi);

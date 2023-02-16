@@ -427,6 +427,31 @@ static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
   }
 }
 
+#if CONFIG_SEP_COMP_DRL
+/*!\brief Return ref_mv_idx_type of the current coding block
+ * conversion of two ref_mv_idx(s) into one value when there are two DRLs */
+static INLINE int av1_ref_mv_idx_type(const MB_MODE_INFO *mbmi,
+                                      const int *ref_mv_idx) {
+  assert(ref_mv_idx[0] < MAX_REF_MV_STACK_SIZE);
+  assert(ref_mv_idx[1] < MAX_REF_MV_STACK_SIZE);
+  if (has_second_drl(mbmi)) {
+    return ref_mv_idx[1] * MAX_REF_MV_STACK_SIZE + ref_mv_idx[0];
+  } else {
+    assert(0 == ref_mv_idx[1]);
+    return ref_mv_idx[0];
+  }
+}
+
+/*!\brief Reset ref_mv_idx(s) based on the ref_mv_idx_type value */
+static INLINE void av1_set_ref_mv_idx(int *ref_mv_idx, int ref_mv_idx_type) {
+  assert(ref_mv_idx_type >= 0 &&
+         ref_mv_idx_type < MAX_REF_MV_STACK_SIZE * MAX_REF_MV_STACK_SIZE);
+  ref_mv_idx[1] = ref_mv_idx_type / MAX_REF_MV_STACK_SIZE;
+  ref_mv_idx[0] = ref_mv_idx_type - ref_mv_idx[1] * MAX_REF_MV_STACK_SIZE;
+  return;
+}
+#endif  // CONFIG_SEP_COMP_DRL
+
 static INLINE void av1_set_ref_frame(MV_REFERENCE_FRAME *rf,
                                      MV_REFERENCE_FRAME ref_frame_type) {
   if (ref_frame_type == INTRA_FRAME ||

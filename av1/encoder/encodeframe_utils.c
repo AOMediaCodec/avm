@@ -196,13 +196,42 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
 // MB_MODE_INFO_EXT_FRAME to MB_MODE_INFO_EXT.
 static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
     MB_MODE_INFO_EXT *mbmi_ext,
-    const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_best, uint8_t ref_frame_type) {
+    const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_best, uint8_t ref_frame_type
+#if CONFIG_SEP_COMP_DRL
+    ,
+    PREDICTION_MODE this_mode
+#endif  // CONFIG_SEP_COMP_DRL
+) {
+#if CONFIG_SEP_COMP_DRL
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame_type);
+  if (has_second_drl_by_mode(this_mode, rf)) {
+    memcpy(mbmi_ext->ref_mv_stack[rf[0]], mbmi_ext_best->ref_mv_stack[0],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext->weight[rf[0]], mbmi_ext_best->weight[0],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext->ref_mv_count[rf[0]] = mbmi_ext_best->ref_mv_count[0];
+    memcpy(mbmi_ext->ref_mv_stack[rf[1]], mbmi_ext_best->ref_mv_stack[1],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext->weight[rf[1]], mbmi_ext_best->weight[1],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext->ref_mv_count[rf[1]] = mbmi_ext_best->ref_mv_count[1];
+  } else {
+    memcpy(mbmi_ext->ref_mv_stack[ref_frame_type],
+           mbmi_ext_best->ref_mv_stack[0],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext->weight[ref_frame_type], mbmi_ext_best->weight[0],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext->ref_mv_count[ref_frame_type] = mbmi_ext_best->ref_mv_count[0];
+  }
+#else
   memcpy(mbmi_ext->ref_mv_stack[ref_frame_type], mbmi_ext_best->ref_mv_stack,
          sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
   memcpy(mbmi_ext->weight[ref_frame_type], mbmi_ext_best->weight,
          sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
-  mbmi_ext->mode_context[ref_frame_type] = mbmi_ext_best->mode_context;
   mbmi_ext->ref_mv_count[ref_frame_type] = mbmi_ext_best->ref_mv_count;
+#endif  // CONFIG_SEP_COMP_DRL
+  mbmi_ext->mode_context[ref_frame_type] = mbmi_ext_best->mode_context;
   memcpy(mbmi_ext->global_mvs, mbmi_ext_best->global_mvs,
          sizeof(mbmi_ext->global_mvs));
 
@@ -246,7 +275,12 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   if (xd->tree_type != CHROMA_PART)
     copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
-                                    av1_ref_frame_type(ctx->mic.ref_frame));
+                                    av1_ref_frame_type(ctx->mic.ref_frame)
+#if CONFIG_SEP_COMP_DRL
+                                        ,
+                                    ctx->mic.mode
+#endif  // CONFIG_SEP_COMP_DRL
+    );
 
   memcpy(txfm_info->blk_skip, ctx->blk_skip,
          sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);

@@ -3276,7 +3276,12 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
   // just for debugging purpose
   // Can be removed later on
   if (mi->mode == WARPMV) {
+#if CONFIG_SEP_COMP_DRL
+    assert(mi->ref_mv_idx[0] == 0);
+    assert(mi->ref_mv_idx[1] == 0);
+#else
     assert(mi->ref_mv_idx == 0);
+#endif  // CONFIG_SEP_COMP_DRL
     assert(mi->motion_mode == WARP_DELTA || mi->motion_mode == WARPED_CAUSAL);
   }
 #endif  // CONFIG_WARPMV
@@ -3827,7 +3832,11 @@ void set_most_probable_mv_precision(const AV1_COMMON *const cm,
 }
 void set_precision_set(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                        MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize,
+#if CONFIG_SEP_COMP_DRL
+                       int *ref_mv_idx) {
+#else
                        uint8_t ref_mv_idx) {
+#endif  // CONFIG_SEP_COMP_DRL
   (void)bsize;
   (void)cm;
   (void)xd;
@@ -3874,7 +3883,6 @@ int is_pb_mv_precision_active(const AV1_COMMON *const cm,
          cm->features.use_pb_mv_precision &&
          have_newmv_in_inter_mode(mbmi->mode);
 }
-
 #endif
 
 #if CONFIG_REFINEMV

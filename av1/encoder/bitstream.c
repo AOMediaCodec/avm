@@ -144,6 +144,40 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
   // Also use the number of reference MVs for a frame type to reduce the
   // number of bits written if there are less than 4 valid DRL indices.
+#if CONFIG_SEP_COMP_DRL
+  if (has_second_drl(mbmi)) {
+    if (mbmi->mode == NEAR_NEWMV)
+      max_drl_bits = AOMMIN(max_drl_bits, SEP_COMP_DRL_SIZE);
+    else
+      assert(mbmi->mode == NEAR_NEARMV);
+  }
+
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  if (mbmi->skip_mode)
+    assert(mbmi->ref_mv_idx[0] <
+           mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
+  else
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+    assert(mbmi->ref_mv_idx[0] < mbmi_ext_frame->ref_mv_count[0]);
+  if (has_second_drl(mbmi))
+    assert(mbmi->ref_mv_idx[1] < mbmi_ext_frame->ref_mv_count[1]);
+  assert(mbmi->ref_mv_idx[0] < max_drl_bits + 1);
+  if (has_second_drl(mbmi)) assert(mbmi->ref_mv_idx[1] < max_drl_bits + 1);
+  for (int ref = 0; ref < 1 + has_second_drl(mbmi); ref++) {
+    for (int idx = 0; idx < max_drl_bits; ++idx) {
+      aom_cdf_prob *drl_cdf =
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+          mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
+                          : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref],
+                                            mode_ctx, idx);
+#else
+          av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref], mode_ctx, idx);
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+      aom_write_symbol(w, mbmi->ref_mv_idx[ref] != idx, drl_cdf, 2);
+      if (mbmi->ref_mv_idx[ref] == idx) break;
+    }
+  }
+#else
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   if (mbmi->skip_mode)
     assert(mbmi->ref_mv_idx <
@@ -151,7 +185,6 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   else
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
     assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
-
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
@@ -165,6 +198,7 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
     aom_write_symbol(w, mbmi->ref_mv_idx != idx, drl_cdf, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
+#endif  // CONFIG_SEP_COMP_DRL
 }
 #if CONFIG_WARP_REF_LIST
 static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
@@ -532,7 +566,11 @@ static AOM_INLINE void write_motion_mode(
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w) {
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   const int allowed_motion_modes =
+#if CONFIG_SEP_COMP_DRL
+      motion_mode_allowed(cm, xd, mbmi_ext_frame->ref_mv_stack[0], mbmi);
+#else
       motion_mode_allowed(cm, xd, mbmi_ext_frame->ref_mv_stack, mbmi);
+#endif  // CONFIG_SEP_COMP_DRL
   assert((allowed_motion_modes & (1 << mbmi->motion_mode)) != 0);
   assert((cm->features.enabled_motion_modes & (1 << mbmi->motion_mode)) != 0);
 
@@ -1779,19 +1817,39 @@ static INLINE int16_t mode_context_analyzer(
 
 static INLINE int_mv get_ref_mv_from_stack(
     int ref_idx, const MV_REFERENCE_FRAME *ref_frame, int ref_mv_idx,
-    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
+    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame
+#if CONFIG_SEP_COMP_DRL
+    ,
+    const MB_MODE_INFO *mbmi
+#endif  // CONFIG_SEP_COMP_DRL
+) {
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+#if CONFIG_SEP_COMP_DRL
+  const CANDIDATE_MV *curr_ref_mv_stack =
+      has_second_drl(mbmi) ? mbmi_ext_frame->ref_mv_stack[ref_idx]
+                           : mbmi_ext_frame->ref_mv_stack[0];
+#else
   const CANDIDATE_MV *curr_ref_mv_stack = mbmi_ext_frame->ref_mv_stack;
+#endif  // CONFIG_SEP_COMP_DRL
 
   if (is_inter_ref_frame(ref_frame[1])) {
     assert(ref_idx == 0 || ref_idx == 1);
+#if CONFIG_SEP_COMP_DRL
+    return ref_idx && !has_second_drl(mbmi)
+               ? curr_ref_mv_stack[ref_mv_idx].comp_mv
+#else
     return ref_idx ? curr_ref_mv_stack[ref_mv_idx].comp_mv
-                   : curr_ref_mv_stack[ref_mv_idx].this_mv;
+#endif  // CONFIG_SEP_COMP_DRL
+               : curr_ref_mv_stack[ref_mv_idx].this_mv;
   }
 
   assert(ref_idx == 0);
 #if CONFIG_TIP
+#if CONFIG_SEP_COMP_DRL
+  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count[0]) {
+#else
   if (ref_mv_idx < mbmi_ext_frame->ref_mv_count) {
+#endif  // CONFIG_SEP_COMP_DRL
     return curr_ref_mv_stack[ref_mv_idx].this_mv;
   } else if (is_tip_ref_frame(ref_frame_type)) {
     int_mv zero_mv;
@@ -1810,11 +1868,19 @@ static INLINE int_mv get_ref_mv_from_stack(
 static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SEP_COMP_DRL
+  const int ref_mv_idx = get_ref_mv_idx(mbmi, ref_idx);
+#else
   const int ref_mv_idx = mbmi->ref_mv_idx;
+#endif  // CONFIG_SEP_COMP_DRL
   assert(IMPLIES(have_nearmv_newmv_in_inter_mode(mbmi->mode),
                  has_second_ref(mbmi)));
   return get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
+#if CONFIG_SEP_COMP_DRL
+                               x->mbmi_ext_frame, mbmi);
+#else
                                x->mbmi_ext_frame);
+#endif  // CONFIG_SEP_COMP_DRL
 }
 
 #if CONFIG_REFINEMV
@@ -1989,7 +2055,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     assert(mbmi->skip_mode == 0);
     assert(mbmi->motion_mode == WARP_DELTA ||
            mbmi->motion_mode == WARPED_CAUSAL);
+#if CONFIG_SEP_COMP_DRL
+    assert(get_ref_mv_idx(mbmi, 0) == 0);
+    assert(get_ref_mv_idx(mbmi, 1) == 0);
+#else
     assert(mbmi->ref_mv_idx == 0);
+#endif  // CONFIG_SEP_COMP_DRL
     assert(!is_tip_ref_frame(mbmi->ref_frame[0]));
     assert(is_inter);
     assert(!have_drl_index(mode));
@@ -2122,7 +2193,14 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // IMPROVED_AMVD
             mbmi_ext_frame->mode_context, ec_ctx, mbmi, mbmi_ext_frame, w);
       else
+#if CONFIG_SEP_COMP_DRL
+      {
+        assert(get_ref_mv_idx(mbmi, 0) == 0);
+        assert(get_ref_mv_idx(mbmi, 1) == 0);
+      }
+#else
         assert(mbmi->ref_mv_idx == 0);
+#endif  // CONFIG_SEP_COMP_DRL
 #if CONFIG_FLEX_MVRES
       if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
         write_pb_mv_precision(cm, xd, w);
@@ -2350,7 +2428,11 @@ static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
                                   const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                                   aom_writer *w) {
   assert(!mbmi->skip_mode);
+#if CONFIG_SEP_COMP_DRL
+  assert(mbmi->intrabc_drl_idx < mbmi_ext_frame->ref_mv_count[0]);
+#else
   assert(mbmi->intrabc_drl_idx < mbmi_ext_frame->ref_mv_count);
+#endif
   assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
   (void)mbmi_ext_frame;
 
@@ -2388,7 +2470,11 @@ static AOM_INLINE void write_intrabc_info(
     assert(mbmi->pb_mv_precision == MV_PRECISION_ONE_PEL);
 #endif
 
+#if CONFIG_SEP_COMP_DRL
+    int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0][0].this_mv;
+#else
     int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0].this_mv;
+#endif
 
 #if CONFIG_BVP_IMPROVEMENT
     aom_write_symbol(w, mbmi->intrabc_mode, ec_ctx->intrabc_mode_cdf, 2);

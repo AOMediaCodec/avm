@@ -266,6 +266,10 @@ set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
 
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
+set_aom_config_var(CONFIG_SEP_COMP_DRL 1
+                   "Use separate drl list for compound modes")
+set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
+                   "Reuse the mvs of compound mode from non-opfl path")
 
 set_aom_config_var(CONFIG_CWG_D067_IMPROVED_WARP 1
                    "Improvement of warp motions")
