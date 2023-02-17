@@ -100,44 +100,72 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
 void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                          ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
   int i, j;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  for (int plane_index = (xd->tree_type == CHROMA_PART);
+       plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
+    for (i = 0; i < PARTITION_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->do_split_cost[plane_index][i],
+                               fc->do_split_cdf[plane_index][i], NULL);
+    }
+  }
+  for (int plane_index = (xd->tree_type == CHROMA_PART);
+       plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
+    for (i = 0; i < PARTITION_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->rect_type_cost[plane_index][i],
+                               fc->rect_type_cdf[plane_index][i], NULL);
+    }
+  }
+  for (int plane_index = (xd->tree_type == CHROMA_PART);
+       plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
+    for (RECT_PART_TYPE rect_type = 0; rect_type < NUM_RECT_PARTS;
+         rect_type++) {
+      for (i = 0; i < PARTITION_CONTEXTS; ++i) {
+        av1_cost_tokens_from_cdf(
+            mode_costs->do_ext_partition_cost[plane_index][rect_type][i],
+            fc->do_ext_partition_cdf[plane_index][rect_type][i], NULL);
+      }
+    }
+  }
+  av1_zero(mode_costs->partition_cost);
+  for (int plane_index = (xd->tree_type == CHROMA_PART);
+       plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
+    const TREE_TYPE tree_type = plane_index ? CHROMA_PART : LUMA_PART;
+    for (BLOCK_SIZE bsize = 0; bsize < BLOCK_SIZES; bsize++) {
+      for (PARTITION_TYPE part = 0; part < EXT_PARTITION_TYPES; part++) {
+        for (int context = 0; context < PARTITION_PLOFFSET; context++) {
+          const int ctx = PARTITION_PLOFFSET * bsize + context;
+          const bool do_split = part != PARTITION_NONE;
+          mode_costs->partition_cost[plane_index][ctx][part] +=
+              mode_costs->do_split_cost[plane_index][ctx][do_split];
+          if (!do_split) {
+            continue;
+          }
+          RECT_PART_TYPE rect_type = get_rect_part_type(part);
+          if (rect_type_implied_by_bsize(bsize, tree_type) == RECT_INVALID) {
+            mode_costs->partition_cost[plane_index][ctx][part] +=
+                mode_costs->rect_type_cost[plane_index][ctx][rect_type];
+          }
+          const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
+          const bool ext_partition_allowed =
+              !disable_ext_part &&
+              is_ext_partition_allowed(bsize, rect_type, tree_type);
+          if (ext_partition_allowed) {
+            const bool do_ext_partition = (part >= PARTITION_HORZ_3);
+            mode_costs->partition_cost[plane_index][ctx][part] +=
+                mode_costs->do_ext_partition_cost[plane_index][rect_type][ctx]
+                                                 [do_ext_partition];
+          }
+        }
+      }
+    }
+  }
+#else
   for (int plane_index = (xd->tree_type == CHROMA_PART);
        plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
     for (i = 0; i < PARTITION_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->partition_cost[plane_index][i],
                                fc->partition_cdf[plane_index][i], NULL);
     }
-#if CONFIG_EXT_RECUR_PARTITIONS
-    for (i = 0; i < PARTITION_CONTEXTS; ++i) {
-      av1_cost_tokens_from_cdf(mode_costs->partition_noext_cost[plane_index][i],
-                               fc->partition_noext_cdf[plane_index][i], NULL);
-    }
-    for (i = 0; i < PARTITION_CONTEXTS; ++i) {
-      for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
-        av1_cost_tokens_from_cdf(
-            mode_costs->limited_partition_cost[plane_index][dir][i],
-            fc->limited_partition_cdf[plane_index][dir][i], NULL);
-      }
-    }
-    for (i = 0; i < PARTITION_CONTEXTS; ++i) {
-      for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
-        av1_cost_tokens_from_cdf(
-            mode_costs->limited_partition_noext_cost[plane_index][dir][i],
-            fc->limited_partition_noext_cdf[plane_index][dir][i], NULL);
-      }
-    }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-  }
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-  for (i = 0; i < PARTITION_CONTEXTS_REC; ++i) {
-    av1_cost_tokens_from_cdf(mode_costs->partition_rec_cost[i],
-                             fc->partition_rec_cdf[i], NULL);
-    av1_cost_tokens_from_cdf(mode_costs->partition_middle_rec_cost[i],
-                             fc->partition_middle_rec_cdf[i], NULL);
-    av1_cost_tokens_from_cdf(mode_costs->partition_noext_rec_cost[i],
-                             fc->partition_noext_rec_cdf[i], NULL);
-    av1_cost_tokens_from_cdf(mode_costs->partition_middle_noext_rec_cost[i],
-                             fc->partition_middle_noext_rec_cdf[i], NULL);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 

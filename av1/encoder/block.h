@@ -743,29 +743,13 @@ typedef struct {
   int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                     [EXT_PARTITION_TYPES];
 #if CONFIG_EXT_RECUR_PARTITIONS
-  //! Cost for coding the partition when ext partitions are disabled
-  int partition_noext_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
-                          [PARTITION_TYPES];
-  //! Cost for coding the limited partition.
-  int limited_partition_cost[PARTITION_STRUCTURE_NUM]
-                            [NUM_LIMITED_PARTITION_PARENTS][PARTITION_CONTEXTS]
-                            [EXT_PARTITION_TYPES];
-  //! Cost for coding the limited partition when ext partitions are disabled
-  int limited_partition_noext_cost[PARTITION_STRUCTURE_NUM]
-                                  [NUM_LIMITED_PARTITION_PARENTS]
-                                  [PARTITION_CONTEXTS][LIMITED_PARTITION_TYPES];
-  /*! Cost for coding the partition for rectangular blocks. */
-  int partition_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
-  /*! Cost for coding the partition for rectangular blocks in the middle of
-   * 3-way partitions. */
-  int partition_middle_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
-  /*! Cost for coding the partition for rectangular blocks when ext partitions
-   * are disabled. */
-  int partition_noext_rec_cost[PARTITION_CONTEXTS_REC][PARTITION_TYPES];
-  /*! Cost for coding the partition for rectangular blocks in the middle of
-   * 3-way partitions when ext partitions are disabled. */
-  int partition_middle_noext_rec_cost[PARTITION_CONTEXTS_REC]
-                                     [LIMITED_PARTITION_TYPES];
+  /*! Cost for sending split token. */
+  int do_split_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+  /*! Cost for sending rectangular type token. */
+  int rect_type_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+  /*! Cost for sending do_ext_partition token. */
+  int do_ext_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                           [PARTITION_CONTEXTS][2];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 

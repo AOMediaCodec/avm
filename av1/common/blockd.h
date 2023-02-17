@@ -738,6 +738,80 @@ static INLINE bool is_wide_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] < block_size_wide[bsize];
 }
 
+/*!\brief Checks whether extended partition is allowed for current bsize. */
+static AOM_INLINE bool is_ext_partition_allowed_at_bsize(BLOCK_SIZE bsize,
+                                                         TREE_TYPE tree_type) {
+  // Extended partition is disabled above BLOCK_64X64 to avoid crossing the
+  // 64X64 boundary.
+  if (bsize > BLOCK_64X64) {
+    return false;
+  }
+  // At bsize \leq 8X8, extended partitions will lead to dimension < 2.
+  if (bsize <= BLOCK_8X8) {
+    return false;
+  }
+  // For chroma part, we do not allow dimension 4. So anything smaller than
+  // 16X16 is not allowed.
+  if (tree_type == CHROMA_PART && bsize <= BLOCK_16X16) {
+    return false;
+  }
+  return true;
+}
+
+/*!\brief Checks whether extended partition is allowed for current bsize and
+ * rect_type. */
+static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
+                                                RECT_PART_TYPE rect_type,
+                                                TREE_TYPE tree_type) {
+  if (!is_ext_partition_allowed_at_bsize(bsize, tree_type)) {
+    return false;
+  }
+  // A splittable wide block has ratio 2:1. If it performs HORZ_3 split, then
+  // we'll get a block ratio of 2:0.5 == 4:1, which is illegal. So extended
+  // partition is disabled. The same goes for tall block.
+  if ((is_wide_block(bsize) && rect_type == HORZ) ||
+      (is_tall_block(bsize) && rect_type == VERT)) {
+    return false;
+  }
+  return true;
+}
+
+/*!\brief Returns the rect_type that's implied by the bsize. If the rect_type
+ * cannot be derived from bsize, returns RECT_INVALID. */
+static AOM_INLINE RECT_PART_TYPE
+rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
+  // Handle luma part first
+  if (bsize == BLOCK_4X8 || bsize == BLOCK_64X128) {
+    return HORZ;
+  }
+  if (bsize == BLOCK_8X4 || bsize == BLOCK_128X64) {
+    return VERT;
+  }
+  // For chroma, we do not allow dimension of 4. If If we have BLOCK_8X16, we
+  // can only do HORZ.
+  if (tree_type == CHROMA_PART) {
+    if (bsize == BLOCK_8X16) {
+      return HORZ;
+    }
+    if (bsize == BLOCK_16X8) {
+      return VERT;
+    }
+  }
+  return RECT_INVALID;
+}
+
+/*!\brief Returns whether the current partition is horizontal type for vertical
+ * type. */
+static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
+  if (partition == PARTITION_HORZ || partition == PARTITION_HORZ_3) {
+    return HORZ;
+  } else if (partition == PARTITION_VERT || partition == PARTITION_VERT_3) {
+    return VERT;
+  }
+  assert(0 && "Rectangular partition expected!");
+  return NUM_RECT_PARTS;
+}
+
 /*!\brief Returns the partition type for a non-square block based on the symbol
  * transmitted through the bitstream. */
 static INLINE PARTITION_TYPE get_partition_from_symbol_rec_block(
@@ -3404,7 +3478,6 @@ static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
   }
   return partition_tree->sub_tree[idx];
 }
-
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 /*!\endcond */

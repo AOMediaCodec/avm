@@ -2395,27 +2395,23 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
   const PARTITION_CONTEXT *left_ctx =
       xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (is_square_block(bsize)) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-    // Minimum partition point is 8x8. Offset the bsl accordingly.
-    const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
-    int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
-
-    assert(mi_size_wide_log2[bsize] == mi_size_high_log2[bsize]);
-    assert(bsl >= 0);
-
-    return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
-#if CONFIG_EXT_RECUR_PARTITIONS
-  }
+  assert(bsize < BLOCK_SIZES);
   const int bsl_w = mi_size_wide_log2[bsize];
   const int bsl_h = mi_size_high_log2[bsize];
 
   const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
 
-  const int context =
-      is_wide_block(bsize) ? (left * 2 + above) : (above * 2 + left);
-  return context + AOMMIN(bsl_w, bsl_h) * PARTITION_PLOFFSET;
+  return (left * 2 + above) + bsize * PARTITION_PLOFFSET;
+#else
+  // Minimum partition point is 8x8. Offset the bsl accordingly.
+  const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
+  int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
+
+  assert(mi_size_wide_log2[bsize] == mi_size_high_log2[bsize]);
+  assert(bsl >= 0);
+
+  return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 

@@ -1239,12 +1239,10 @@ typedef struct FRAME_COUNTS {
   unsigned int partition[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                         [EXT_PARTITION_TYPES];
 #if CONFIG_EXT_RECUR_PARTITIONS
-  unsigned int
-      limited_partition[PARTITION_STRUCTURE_NUM][NUM_LIMITED_PARTITION_PARENTS]
-                       [PARTITION_CONTEXTS][LIMITED_EXT_PARTITION_TYPES];
-  unsigned int partition_rec[PARTITION_CONTEXTS_REC][PARTITION_TYPES_REC];
-  unsigned int partition_middle_rec[PARTITION_CONTEXTS_REC]
-                                   [PARTITION_TYPES_MIDDLE_REC];
+  unsigned int do_split[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+  unsigned int rect_type[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+  unsigned int do_ext_partition[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                               [PARTITION_CONTEXTS][2];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   unsigned int txb_skip[TOKEN_CDF_Q_CTXS][TX_SIZES][TXB_SKIP_CONTEXTS][2];
 #if CONFIG_CONTEXT_DERIVATION

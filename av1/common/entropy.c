@@ -307,32 +307,29 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                                  CDF_SIZE(10));
       }
     }
-#if CONFIG_EXT_RECUR_PARTITIONS
-    for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
-      for (int i = 0; i < PARTITION_CONTEXTS; i++) {
-        if (i < 4) {
-          RESET_CDF_COUNTER_STRIDE(
-              fc->limited_partition_cdf[plane_index][dir][i], 2,
-              CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
-        } else if (i < 16) {
-          RESET_CDF_COUNTER(fc->limited_partition_cdf[plane_index][dir][i],
-                            LIMITED_EXT_PARTITION_TYPES);
-        } else {
-          RESET_CDF_COUNTER_STRIDE(
-              fc->limited_partition_cdf[plane_index][dir][i], 2,
-              CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
-        }
-      }
-    }
-    for (int dir = 0; dir < NUM_LIMITED_PARTITION_PARENTS; dir++) {
-      for (int i = 0; i < PARTITION_CONTEXTS; i++) {
-        RESET_CDF_COUNTER_STRIDE(
-            fc->limited_partition_noext_cdf[plane_index][dir][i], 2,
-            CDF_SIZE(LIMITED_EXT_PARTITION_TYPES));
-      }
-    }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+      RESET_CDF_COUNTER(fc->do_split_cdf[plane_index][i], 2);
+    }
+  }
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+      RESET_CDF_COUNTER(fc->rect_type_cdf[plane_index][i], 2);
+    }
+  }
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_PARTS; rect++) {
+      for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+        RESET_CDF_COUNTER(fc->do_ext_partition_cdf[plane_index][rect][i], 2);
+      }
+    }
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   RESET_CDF_COUNTER(fc->switchable_interp_cdf, SWITCHABLE_FILTERS);
 #if !CONFIG_AIMC
   RESET_CDF_COUNTER(fc->kf_y_cdf, INTRA_MODES);

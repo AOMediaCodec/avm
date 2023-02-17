@@ -341,24 +341,12 @@ typedef struct frame_contexts {
   aom_cdf_prob partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                             [CDF_SIZE(EXT_PARTITION_TYPES)];
 #if CONFIG_EXT_RECUR_PARTITIONS
-  aom_cdf_prob limited_partition_cdf[PARTITION_STRUCTURE_NUM]
-                                    [NUM_LIMITED_PARTITION_PARENTS]
-                                    [PARTITION_CONTEXTS]
-                                    [CDF_SIZE(LIMITED_EXT_PARTITION_TYPES)];
-  aom_cdf_prob partition_noext_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
-                                  [CDF_SIZE(PARTITION_TYPES)];
-  aom_cdf_prob limited_partition_noext_cdf[PARTITION_STRUCTURE_NUM]
-                                          [NUM_LIMITED_PARTITION_PARENTS]
-                                          [PARTITION_CONTEXTS]
-                                          [CDF_SIZE(LIMITED_PARTITION_TYPES)];
-  aom_cdf_prob partition_rec_cdf[PARTITION_CONTEXTS_REC]
-                                [CDF_SIZE(PARTITION_TYPES_REC)];
-  aom_cdf_prob partition_middle_rec_cdf[PARTITION_CONTEXTS_REC]
-                                       [CDF_SIZE(PARTITION_TYPES_MIDDLE_REC)];
-  aom_cdf_prob partition_noext_rec_cdf[PARTITION_CONTEXTS_REC]
-                                      [CDF_SIZE(PARTITION_TYPES)];
-  aom_cdf_prob partition_middle_noext_rec_cdf[PARTITION_CONTEXTS_REC][CDF_SIZE(
-      LIMITED_PARTITION_TYPES)];
+  aom_cdf_prob do_split_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
+                           [CDF_SIZE(2)];
+  aom_cdf_prob rect_type_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
+                            [CDF_SIZE(2)];
+  aom_cdf_prob do_ext_partition_cdf[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                                   [PARTITION_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   aom_cdf_prob switchable_interp_cdf[SWITCHABLE_FILTER_CONTEXTS]
                                     [CDF_SIZE(SWITCHABLE_FILTERS)];
