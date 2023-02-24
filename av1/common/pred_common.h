@@ -378,6 +378,10 @@ static INLINE int is_cctx_enabled(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
 static INLINE int is_cctx_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
   if (!is_cctx_enabled(cm, xd)) return 0;
 
+  if (xd->tree_type == LUMA_PART) {
+    return 0;
+  }
+
   // Disable cctx for 32x32 or larger blocks in 422/444 formats, in which case
   // the speed and quality tradeoff is worse.
   const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
@@ -385,6 +389,7 @@ static INLINE int is_cctx_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
   const int ss_y = pd->subsampling_y;
   const BLOCK_SIZE chroma_plane_bsize =
       get_mb_plane_block_size(xd, xd->mi[0], AOM_PLANE_U, ss_x, ss_y);
+  assert(chroma_plane_bsize <= BLOCK_SIZES_ALL);
   if (ss_x == 0 || ss_y == 0)
     return block_size_wide[chroma_plane_bsize] < 32 ||
            block_size_high[chroma_plane_bsize] < 32;
