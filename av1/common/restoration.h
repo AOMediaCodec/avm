@@ -104,6 +104,7 @@ extern "C" {
 #define SGRPROJ_EXTBUF_SIZE (0)
 #define SGRPROJ_PARAMS_BITS 4
 #define SGRPROJ_PARAMS (1 << SGRPROJ_PARAMS_BITS)
+#define SGRPROJ_PARAMS_DEFAULT 9
 
 // Precision bits for projection
 #define SGRPROJ_PRJ_BITS 7
@@ -440,6 +441,7 @@ typedef struct {
 /*!\cond */
 
 static INLINE void set_default_sgrproj(SgrprojInfo *sgrproj_info) {
+  sgrproj_info->ep = SGRPROJ_PARAMS_DEFAULT;
   sgrproj_info->xqd[0] = (SGRPROJ_PRJ_MIN0 + SGRPROJ_PRJ_MAX0) / 2;
   sgrproj_info->xqd[1] = (SGRPROJ_PRJ_MIN1 + SGRPROJ_PRJ_MAX1) / 2;
 }
