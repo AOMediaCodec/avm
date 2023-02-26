@@ -1046,9 +1046,9 @@ void av1_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
                                          const int num) {
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
     const int is_uv = i > 0;
-    const lanczos_a_hor =
+    const int lanczos_a_hor =
         is_uv ? LANCZOS_A_NONNORMATIVE_HOR_C : LANCZOS_A_NONNORMATIVE_HOR_Y;
-    const lanczos_a_ver =
+    const int lanczos_a_ver =
         is_uv ? LANCZOS_A_NONNORMATIVE_VER_C : LANCZOS_A_NONNORMATIVE_VER_Y;
     av1_resample_plane_2d_lanczos(
         src->buffers[i], src->crop_heights[is_uv], src->crop_widths[is_uv],
@@ -1355,9 +1355,9 @@ void av1_upscale_2d_normative_and_extend_frame(const AV1_COMMON *cm,
   const int sr_num = cm->superres_scale_numerator;
   for (int i = 0; i < num_planes; ++i) {
     const int is_uv = (i > 0);
-    const lanczos_a_hor =
+    const int lanczos_a_hor =
         is_uv ? LANCZOS_A_NORMATIVE_HOR_C : LANCZOS_A_NORMATIVE_HOR_Y;
-    const lanczos_a_ver =
+    const int lanczos_a_ver =
         is_uv ? LANCZOS_A_NORMATIVE_VER_C : LANCZOS_A_NORMATIVE_VER_Y;
     // The resampler takes sr_num as the scaling denominator and sr_demon as the
     // numerator because here an upscaler is operated.

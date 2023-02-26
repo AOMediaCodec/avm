@@ -1698,23 +1698,6 @@ static int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c, int blk_row,
 }
 #endif  // !CONFIG_TIP
 
-static INLINE int is_ref_motion_field_eligible(
-    const AV1_COMMON *const cm, const RefCntBuffer *const start_frame_buf) {
-  if (start_frame_buf == NULL) return 0;
-
-  if (start_frame_buf->frame_type == KEY_FRAME ||
-      start_frame_buf->frame_type == INTRA_ONLY_FRAME)
-    return 0;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-  (void)cm;
-#else
-  if (start_frame_buf->mi_rows != cm->mi_params.mi_rows ||
-      start_frame_buf->mi_cols != cm->mi_params.mi_cols)
-    return 0;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-  return 1;
-}
-
 #if CONFIG_TIP
 // Note: motion_filed_projection finds motion vectors of current frame's
 // reference frame, and projects them to current frame. To make it clear,
@@ -1759,6 +1742,9 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
                                     start_frame_buf->width,
                                     start_frame_buf->height);
   const struct scale_factors *sf = &sf_;
+#else
+  assert(start_frame_buf->width == cm->width &&
+         start_frame_buf->height == cm->height);
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 #if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
@@ -1922,6 +1908,9 @@ static int motion_field_projection(AV1_COMMON *cm,
                                     start_frame_buf->width,
                                     start_frame_buf->height);
   const struct scale_factors *sf = &sf_;
+#else
+  assert(start_frame_buf->width == cm->width &&
+         start_frame_buf->height == cm->height);
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 #if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
@@ -2118,6 +2107,9 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
     scaled_blk_row_hr_step = (uint32_t)sf->y_scale_fp * 8;  // step
     scaled_blk_row_hr = scaled_blk_row_hr_0;
   }
+#else
+  assert(start_frame_buf->width == cm->width &&
+         start_frame_buf->height == cm->height);
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
   for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {
@@ -2258,6 +2250,9 @@ static int motion_field_projection(AV1_COMMON *cm,
     scaled_blk_row_hr_step = (uint32_t)sf->y_scale_fp * 8;  // step
     scaled_blk_row_hr = scaled_blk_row_hr_0;
   }
+#else
+  assert(start_frame_buf->width == cm->width &&
+         start_frame_buf->height == cm->height);
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
   for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {

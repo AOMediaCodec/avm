@@ -14,17 +14,14 @@
 
 #include "config/aom_scale_rtcd.h"
 
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-// CHROMA_MI_SIZE is the block size in luma unit for Chroma TIP interpolation
-#define CHROMA_MI_SIZE (TMVP_MI_SIZE)
-// Encoder and decoder must use 8x8 units to prevent scaled pred mismatches
-#define MAX_BLOCK_SIZE_WITH_SAME_MV 8
-#else
 // CHROMA_MI_SIZE is the block size in luma unit for Chroma TIP interpolation
 #define CHROMA_MI_SIZE (TMVP_MI_SIZE << 1)
-// Maximum block size is allowed to combine the blocks with same MV
-#define MAX_BLOCK_SIZE_WITH_SAME_MV 128
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
+
+// Maximum block size  allowed to combine the blocks with same MV.
+// Encoder and decoder must use 8x8 units to prevent scaled pred mismatches
+#define MAX_BLOCK_SIZE_WITH_SAME_MV 8
+// If superres/resize are not used MAX_BLOCK_SIZE_WITH_SAME_MV could be set 128
+
 // Percentage threshold of number of blocks with available motion
 // projection in a frame to allow TIP mode
 #define TIP_ENABLE_COUNT_THRESHOLD 60
@@ -123,7 +120,7 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
-  if (start_frame_buf == NULL) return 0;
+  if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
 
 #if CONFIG_ACROSS_SCALE_TPL_MVS
   const int is_scaled = (start_frame_buf->width != cm->width ||
@@ -134,6 +131,9 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
                                     start_frame_buf->width,
                                     start_frame_buf->height);
   const struct scale_factors *sf = &sf_;
+#else
+  assert(start_frame_buf->width == cm->width &&
+         start_frame_buf->height == cm->height);
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
   const int start_frame_order_hint = start_frame_buf->order_hint;
@@ -157,13 +157,17 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
 
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   const MV_REF *mv_ref_base = start_frame_buf->mvs;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
   const int mvs_rows =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_rows, TMVP_SHIFT_BITS);
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
   const int mvs_cols =
-      ROUND_POWER_OF_TWO(start_frame_buf->mi_cols, TMVP_SHIFT_BITS);
-  const int mvs_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  const int mvs_stride = mvs_cols;
+  const int start_mvs_rows =
+      ROUND_POWER_OF_TWO(start_frame_buf->mi_rows, TMVP_SHIFT_BITS);
+  const int start_mvs_cols =
+      ROUND_POWER_OF_TWO(start_frame_buf->mi_cols, TMVP_SHIFT_BITS);
+  (void)mvs_rows;
+#if CONFIG_ACROSS_SCALE_TPL_MVS
   uint32_t scaled_blk_col_hr_0 = 0;
   uint32_t scaled_blk_col_hr_step = 0;
   uint32_t scaled_blk_col_hr = 0;
@@ -179,24 +183,19 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
     scaled_blk_row_hr_step = (uint32_t)sf->y_scale_fp * 8;  // step
     scaled_blk_row_hr = scaled_blk_row_hr_0;
   }
-#else
-  const int mvs_rows =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
-  const int mvs_cols =
-      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-  const int mvs_stride = mvs_cols;
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-  for (int blk_row = 0; blk_row < mvs_rows; ++blk_row) {
+  for (int blk_row = 0; blk_row < start_mvs_rows; ++blk_row) {
     int scaled_blk_row = blk_row;
 #if CONFIG_ACROSS_SCALE_TPL_MVS
     if (is_scaled) {
       scaled_blk_col_hr = scaled_blk_col_hr_0;
       scaled_blk_row =
           ROUND_POWER_OF_TWO(scaled_blk_row_hr, REF_SCALE_SHIFT + 3);
+      scaled_blk_row = AOMMIN(scaled_blk_row, mvs_rows - 1);
     }
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-    for (int blk_col = 0; blk_col < mvs_cols; ++blk_col) {
-      const MV_REF *mv_ref = &mv_ref_base[blk_row * mvs_cols + blk_col];
+    for (int blk_col = 0; blk_col < start_mvs_cols; ++blk_col) {
+      const MV_REF *mv_ref = &mv_ref_base[blk_row * start_mvs_cols + blk_col];
       MV_REFERENCE_FRAME ref_frame[2] = { mv_ref->ref_frame[0],
                                           mv_ref->ref_frame[1] };
       for (int idx = 0; idx < 2; ++idx) {
@@ -214,6 +213,7 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
             if (is_scaled) {
               scaled_blk_col =
                   ROUND_POWER_OF_TWO(scaled_blk_col_hr, REF_SCALE_SHIFT + 3);
+              scaled_blk_col = AOMMIN(scaled_blk_col, mvs_cols - 1);
               ref_mv.row = sf->scale_value_y_gen(ref_mv.row, sf);
               ref_mv.col = sf->scale_value_x_gen(ref_mv.col, sf);
             }
@@ -227,6 +227,8 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
                 get_block_position(cm, &mi_r, &mi_c, scaled_blk_row,
                                    scaled_blk_col, this_mv.as_mv, 0);
             if (pos_valid) {
+              assert(mi_r < mvs_rows);
+              assert(mi_c < mvs_cols);
               if (is_backward) {
                 ref_mv.row = -ref_mv.row;
                 ref_mv.col = -ref_mv.col;
@@ -543,7 +545,10 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
   MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
                                        tip_ref->ref_frame[1] };
 
-  if (nearest_rf[0] != NONE_FRAME && nearest_rf[1] != NONE_FRAME) {
+  if (nearest_rf[0] != NONE_FRAME && nearest_rf[1] != NONE_FRAME &&
+      (is_ref_motion_field_eligible(cm, get_ref_frame_buf(cm, nearest_rf[0])) ||
+       is_ref_motion_field_eligible(cm,
+                                    get_ref_frame_buf(cm, nearest_rf[1])))) {
     if (check_tip_threshold) {
       tip_check_enable_tip_mode(cm);
     }
