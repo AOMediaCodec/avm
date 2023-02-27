@@ -514,22 +514,34 @@ void av1_reset_txk_skip_array_using_mi_params(CommonModeInfoParams *mi_params) {
 
 void av1_init_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
                              BLOCK_SIZE bsize, uint8_t value,
-                             bool is_chroma_ref, int plane_start,
-                             int plane_end) {
+                             TREE_TYPE tree_type,
+                             const CHROMA_REF_INFO *chroma_ref_info,
+                             int plane_start, int plane_end) {
+  const bool is_chroma_ref = chroma_ref_info->is_chroma_ref;
   for (int plane = plane_start; plane < plane_end; plane++) {
+    if (plane && !is_chroma_ref) {
+      break;
+    }
+    const int plane_mi_row =
+        plane ? chroma_ref_info->mi_row_chroma_base : mi_row;
+    const int plane_mi_col =
+        plane ? chroma_ref_info->mi_col_chroma_base : mi_col;
+    const BLOCK_SIZE bsize_base = (tree_type == SHARED_PART && plane)
+                                      ? chroma_ref_info->bsize_base
+                                      : bsize;
     int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
             << MAX_SB_SIZE_LOG2;
     w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
-    int x = (mi_col << MI_SIZE_LOG2) >>
+    int x = (plane_mi_col << MI_SIZE_LOG2) >>
             ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-    int y = (mi_row << MI_SIZE_LOG2) >>
+    int y = (plane_mi_row << MI_SIZE_LOG2) >>
             ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     int row = y >> MIN_TX_SIZE_LOG2;
     int col = x >> MIN_TX_SIZE_LOG2;
-    int blk_w = block_size_wide[bsize] >>
+    int blk_w = block_size_wide[bsize_base] >>
                 ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
-    int blk_h = block_size_high[bsize] >>
+    int blk_h = block_size_high[bsize_base] >>
                 ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
     blk_w >>= MIN_TX_SIZE_LOG2;
     blk_h >>= MIN_TX_SIZE_LOG2;
@@ -550,10 +562,18 @@ void av1_init_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
 }
 
 void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
+                               TREE_TYPE tree_type,
+                               const CHROMA_REF_INFO *chroma_ref_info,
                                int plane, int blk_row, int blk_col,
                                TX_SIZE tx_size) {
   blk_row *= 4;
   blk_col *= 4;
+  mi_row = (tree_type == SHARED_PART && plane)
+               ? chroma_ref_info->mi_row_chroma_base
+               : mi_row;
+  mi_col = (tree_type == SHARED_PART && plane)
+               ? chroma_ref_info->mi_col_chroma_base
+               : mi_col;
   int w = ((cm->width + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2)
           << MAX_SB_SIZE_LOG2;
   w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);

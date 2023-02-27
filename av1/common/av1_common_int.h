@@ -1811,9 +1811,12 @@ void av1_reset_txk_skip_array(AV1_COMMON *cm);
 void av1_reset_txk_skip_array_using_mi_params(CommonModeInfoParams *mi_params);
 void av1_init_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
                              BLOCK_SIZE bsize, uint8_t value,
-                             bool is_chroma_ref, int plane_start,
-                             int plane_end);
+                             TREE_TYPE tree_type,
+                             const CHROMA_REF_INFO *chroma_ref_info,
+                             int plane_start, int plane_end);
 void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
+                               TREE_TYPE tree_type,
+                               const CHROMA_REF_INFO *chroma_ref_info,
                                int plane, int blk_row, int blk_col,
                                TX_SIZE tx_size);
 uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,

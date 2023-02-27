@@ -856,13 +856,16 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #if CONFIG_PC_WIENER
 #if CONFIG_CROSS_CHROMA_TX
   if (dry_run == OUTPUT_ENABLED && plane == AOM_PLANE_V &&
-      is_cctx_allowed(cm, xd) && x->plane[AOM_PLANE_U].eobs[block] == 0)
-    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, AOM_PLANE_U, blk_row,
+      is_cctx_allowed(cm, xd) && x->plane[AOM_PLANE_U].eobs[block] == 0) {
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
+                              &mbmi->chroma_ref_info, AOM_PLANE_U, blk_row,
                               blk_col, tx_size);
+  }
 #endif  // CONFIG_CROSS_CHROMA_TX
   if (p->eobs[block] == 0 && dry_run == OUTPUT_ENABLED) {
-    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, plane, blk_row,
-                              blk_col, tx_size);
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
+                              &mbmi->chroma_ref_info, plane, blk_row, blk_col,
+                              tx_size);
   }
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_MISMATCH_DEBUG
@@ -1100,7 +1103,8 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     const AV1_COMMON *const cm = &cpi->common;
     const int sb_type = mbmi->sb_type[xd->tree_type == CHROMA_PART];
     av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, sb_type, 1,
-                            xd->is_chroma_ref, plane_start, plane_end);
+                            xd->tree_type, &mbmi->chroma_ref_info, plane_start,
+                            plane_end);
   }
 #endif  // CONFIG_PC_WIENER
   if (x->txfm_search_info.skip_txfm) return;
@@ -1374,8 +1378,9 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
 #if CONFIG_PC_WIENER
   if (*eob == 0 && args->dry_run == OUTPUT_ENABLED) {
-    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, plane, blk_row,
-                              blk_col, tx_size);
+    av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
+                              &mbmi->chroma_ref_info, plane, blk_row, blk_col,
+                              tx_size);
   }
 #endif  // CONFIG_PC_WIENER
 
@@ -1557,10 +1562,12 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
 #if CONFIG_PC_WIENER
   if (args->dry_run == OUTPUT_ENABLED) {
     if (*eob_c1 == 0)
-      av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, AOM_PLANE_U,
+      av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
+                                &xd->mi[0]->chroma_ref_info, AOM_PLANE_U,
                                 blk_row, blk_col, tx_size);
     if (*eob_c2 == 0)
-      av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, AOM_PLANE_V,
+      av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
+                                &xd->mi[0]->chroma_ref_info, AOM_PLANE_V,
                                 blk_row, blk_col, tx_size);
   }
 #endif  // CONFIG_PC_WIENER

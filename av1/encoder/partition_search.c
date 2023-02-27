@@ -1891,7 +1891,8 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
 #if CONFIG_PC_WIENER
     av1_init_txk_skip_array(&cpi->common, mi_row, mi_col, bsize, 0,
-                            xd->is_chroma_ref, plane_start, plane_end);
+                            xd->tree_type, &mbmi->chroma_ref_info, plane_start,
+                            plane_end);
 #endif  // CONFIG_PC_WIENER
   }
 

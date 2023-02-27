@@ -209,8 +209,9 @@ static AOM_INLINE void read_coeffs_tx_intra_block(
 #if CONFIG_PC_WIENER
   else {
     // all tx blocks are skipped.
-    av1_update_txk_skip_array(cm, dcb->xd.mi_row, dcb->xd.mi_col, plane, row,
-                              col, tx_size);
+    av1_update_txk_skip_array(cm, dcb->xd.mi_row, dcb->xd.mi_col,
+                              dcb->xd.tree_type, &mbmi->chroma_ref_info, plane,
+                              row, col, tx_size);
   }
 #endif  // CONFIG_PC_WIENER
 }
@@ -1394,7 +1395,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     // values.
     if (td->read_coeffs_tx_intra_block_visit != decode_block_void)
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 0,
-                              xd->is_chroma_ref, plane_start, plane_end);
+                              xd->tree_type, &mbmi->chroma_ref_info,
+                              plane_start, plane_end);
 #endif  // CONFIG_PC_WIENER
     int row, col;
     assert(bsize == get_plane_block_size(bsize, xd->plane[0].subsampling_x,
@@ -1468,7 +1470,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     // values.
     if (td->read_coeffs_tx_inter_block_visit != decode_block_void)
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 0,
-                              xd->is_chroma_ref, plane_start, plane_end);
+                              xd->tree_type, &mbmi->chroma_ref_info,
+                              plane_start, plane_end);
 #endif  // CONFIG_PC_WIENER
     td->predict_inter_block_visit(cm, dcb, bsize);
     // Reconstruction
@@ -1531,7 +1534,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                xd->tree_type != LUMA_PART) {
 #if CONFIG_PC_WIENER
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
-                              xd->is_chroma_ref, plane_start, plane_end);
+                              xd->tree_type, &mbmi->chroma_ref_info,
+                              plane_start, plane_end);
 #endif  // CONFIG_PC_WIENER
       // fill cctx_type_map with CCTX_NONE for skip blocks so their
       // neighbors can derive cctx contexts
@@ -1564,7 +1568,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
 #if CONFIG_PC_WIENER
     else {
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
-                              xd->is_chroma_ref, plane_start, plane_end);
+                              xd->tree_type, &mbmi->chroma_ref_info,
+                              plane_start, plane_end);
     }
 #endif  // CONFIG_PC_WIENER
     td->cfl_store_inter_block_visit(cm, xd);
