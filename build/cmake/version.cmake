@@ -26,7 +26,7 @@ include("${AOM_ROOT}/build/cmake/util.cmake")
 unset(aom_version)
 if(EXISTS "${GIT_EXECUTABLE}")
   execute_process(
-    COMMAND ${GIT_EXECUTABLE} --git-dir=${AOM_ROOT}/.git describe --match
+    COMMAND ${GIT_EXECUTABLE} --git-dir=${AOM_ROOT}/.git describe --tags --match
             "*-v[0-9]*" --match "v[0-9]*"
     OUTPUT_VARIABLE aom_version
     ERROR_QUIET
