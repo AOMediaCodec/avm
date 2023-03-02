@@ -235,6 +235,8 @@ set_aom_config_var(CONFIG_PAR_HIDING 1
                    "Enable parity hiding for coefficients coding. (PH)")
 set_aom_config_var(CONFIG_BAWP 1 "Enable block adaptive weighted prediction")
 set_aom_config_var(CONFIG_WARPMV 1 "Enable warpmv modes")
+set_aom_config_var(CONFIG_IMPROVED_ANGULAR_INTRA 1
+                   "Improved angular intra prediction mode")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1

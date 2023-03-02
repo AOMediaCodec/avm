@@ -1380,7 +1380,11 @@ static void build_intra_predictors_high(
                         mrl_index);
 
     if (seq_ibp_flag) {
-      if (mrl_index == 0) {
+      if (mrl_index == 0
+#if CONFIG_IMPROVED_ANGULAR_INTRA
+          && (angle_delta % 2 == 0)
+#endif  // CONFIG_IMPROVED_ANGULAR_INTRA
+      ) {
         if (p_angle > 0 && p_angle < 90) {
           int mode_index = angle_to_mode_index[p_angle];
           uint8_t *weights = ibp_weights[tx_size][mode_index];
