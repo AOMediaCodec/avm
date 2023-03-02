@@ -59,6 +59,8 @@ enum {
 #define H_WEDGE_ANGLES 10
 #define NUM_WEDGE_DIST 4
 #define MAX_WEDGE_TYPES 68
+#define WEDGE_BLD_SIG 1  // 0 for linear blending, 1 for sigmoid blending
+#define WEDGE_BLD_LUT_SIZE 128
 #endif  // CONFIG_WEDGE_MOD_EXT
 
 #if CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
