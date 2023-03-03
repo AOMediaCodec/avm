@@ -199,6 +199,9 @@ set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
                    "AV2 pixel-classified Wiener filter experiment flag")
 # End: CWG-C016
 
+set_aom_config_var(CONFIG_EXT_SUPERRES 0 NUMBER
+                   "AV2 2D super resolution experiment flag")
+
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")

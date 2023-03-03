@@ -2860,24 +2860,26 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     }
     if (cpi->b_calculate_psnr) {
       fprintf(stdout,
-              "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
+              "POC:%6d [%s][Level:%d][Q:%3d/SR:%d]: %10" PRIu64
               " Bytes, "
               "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
               "%2.4f dB(V), "
               "%2.4f dB(Avg)",
               cm->cur_frame->absolute_poc,
               frameType[cm->current_frame.frame_type],
-              cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+              cm->cur_frame->pyramid_level, base_qindex,
+              cm->superres_scale_denominator, (uint64_t)frame_size,
               cx_time / 1000.0, psnr.psnr[1], psnr.psnr[2], psnr.psnr[3],
               psnr.psnr[0]);
     } else {
       fprintf(stdout,
-              "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
+              "POC:%6d [%s][Level:%d][Q:%3d/SR:%d]: %10" PRIu64
               " Bytes, "
               "%6.1fms",
               cm->cur_frame->absolute_poc,
               frameType[cm->current_frame.frame_type],
-              cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+              cm->cur_frame->pyramid_level, base_qindex,
+              cm->superres_scale_denominator, (uint64_t)frame_size,
               cx_time / 1000.0);
     }
 
