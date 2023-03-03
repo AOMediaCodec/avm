@@ -204,7 +204,7 @@ set_aom_config_var(CONFIG_LR_FLEX_SYNTAX 1
                    "AV2 experiment flag to enable LR flexible syntax")
 set_aom_config_var(CONFIG_WIENER_NONSEP 1 NUMBER
                    "AV2 nonsep Wiener filter experiment flag")
-set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 0 NUMBER
+set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 1 NUMBER
                    "AV2 nonsep Wiener cross filter experiment flag")
 set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
                    "AV2 pixel-classified Wiener filter experiment flag")
