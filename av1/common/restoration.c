@@ -2587,9 +2587,20 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
   const int mi_to_num_x = av1_superres_scaled(cm)
                               ? mi_size_x * cm->superres_scale_denominator
                               : mi_size_x;
+#if CONFIG_EXT_SUPERRES
+  const int mi_to_num_y = av1_superres_scaled(cm)
+                              ? mi_size_y * cm->superres_scale_denominator
+                              : mi_size_y;
+#else   // CONFIG_EXT_SUPERRES
   const int mi_to_num_y = mi_size_y;
+#endif  // CONFIG_EXT_SUPERRES
+
   const int denom_x = av1_superres_scaled(cm) ? size * SCALE_NUMERATOR : size;
+#if CONFIG_EXT_SUPERRES
+  const int denom_y = av1_superres_scaled(cm) ? size * SCALE_NUMERATOR : size;
+#else   // CONFIG_EXT_SUPERRES
   const int denom_y = size;
+#endif  // CONFIG_EXT_SUPERRES
 
   const int rnd_x = denom_x - 1;
   const int rnd_y = denom_y - 1;
@@ -2627,7 +2638,19 @@ static void save_deblock_boundary_lines(
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
-  const uint16_t *src_rows = src_buf + row * src_stride;
+  int row_ = row;
+#if CONFIG_EXT_SUPERRES
+  // NOTE: For now just scale the row value down to the downscaled domain.
+  // This may not be the best way, but it works for now. Needs revist in the
+  // future.
+  if (av1_superres_scaled(cm)) {
+    row_ = (row * cm->superres_scale_numerator +
+            cm->superres_scale_denominator / 2) /
+           cm->superres_scale_denominator;
+  }
+#endif  // CONFIG_EXT_SUPERRES
+
+  const uint16_t *src_rows = src_buf + row_ * src_stride;
 
   uint16_t *bdry_buf = is_above ? boundaries->stripe_boundary_above
                                 : boundaries->stripe_boundary_below;
@@ -2642,7 +2665,7 @@ static void save_deblock_boundary_lines(
   // fetching 2 "below" rows we need to fetch one and duplicate it.
   // This is equivalent to clamping the sample locations against the crop border
   const int lines_to_save =
-      AOMMIN(RESTORATION_CTX_VERT, frame->crop_heights[is_uv] - row);
+      AOMMIN(RESTORATION_CTX_VERT, frame->crop_heights[is_uv] - row_);
   assert(lines_to_save == 1 || lines_to_save == 2);
 
   int upscaled_width;
@@ -2677,7 +2700,18 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
-  const uint16_t *src_rows = src_buf + row * src_stride;
+  int row_ = row;
+#if CONFIG_EXT_SUPERRES
+  // NOTE: For now just scale the row value down to the downscaled domain.
+  // This may not be the best way, but it works for now. Needs revist in the
+  // future.
+  if (av1_superres_scaled(cm)) {
+    row_ = (row * cm->superres_scale_numerator +
+            cm->superres_scale_denominator / 2) /
+           cm->superres_scale_denominator;
+  }
+#endif  // CONFIG_EXT_SUPERRES
+  const uint16_t *src_rows = src_buf + row_ * src_stride;
 
   uint16_t *bdry_buf = is_above ? boundaries->stripe_boundary_above
                                 : boundaries->stripe_boundary_below;

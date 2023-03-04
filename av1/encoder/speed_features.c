@@ -404,7 +404,11 @@ static void set_good_speed_features_framesize_independent(
   }
 
   sf->rd_sf.perform_coeff_opt = 1;
+#if CONFIG_EXT_SUPERRES
+  sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_ALL;
+#else   // CONFIG_EXT_SUPERRES
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
+#endif  // CONFIG_EXT_SUPERRES
 
   if (speed >= 1) {
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;

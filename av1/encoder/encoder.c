@@ -2477,7 +2477,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // (zero_mode is forced), and since the scaled references are only
   // use for newmv search, we can avoid scaling here.
   if (!frame_is_intra_only(cm))
-    av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
+    av1_scale_references(cpi, filter_scaler, phase_scaler,
+                         !CONFIG_EXT_SUPERRES);
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
@@ -3092,22 +3093,35 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   int64_t rate2 = INT64_MAX;
   int largest_tile_id2;
   double proj_rdcost1 = DBL_MAX;
+  int best_denom = -1;
+
+  // Get base_qindex and rdmult first
+  int top_index = 0, bottom_index = 0, q = 0;
+  q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
+                               cpi->gf_group.index, &bottom_index, &top_index);
+  const int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, q);
 
   // Encode with superres.
   if (cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_ALL) {
     SuperResCfg *const superres_cfg = &cpi->oxcf.superres_cfg;
     int64_t superres_sses[SCALE_NUMERATOR];
     int64_t superres_rates[SCALE_NUMERATOR];
+    double superres_rds[SCALE_NUMERATOR];
     int superres_largest_tile_ids[SCALE_NUMERATOR];
     // Use superres for Key-frames and Alt-ref frames only.
     const GF_GROUP *const gf_group = &cpi->gf_group;
     if (gf_group->update_type[gf_group->index] != OVERLAY_UPDATE &&
         gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
+#if CONFIG_EXT_SUPERRES
+      for (int this_index = 0; this_index < SUPERRES_SCALES; ++this_index) {
+        const int denom = superres_scales[this_index].scale_denom;
+#else   // CONFIG_EXT_SUPERRES
       for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
            ++denom) {
+        const int this_index = denom - (SCALE_NUMERATOR + 1);
+#endif  // CONFIG_EXT_SUPERRES
         superres_cfg->superres_scale_denominator = denom;
         superres_cfg->superres_kf_scale_denominator = denom;
-        const int this_index = denom - (SCALE_NUMERATOR + 1);
 
         cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this loop.
         err = encode_with_recode_loop_and_filter(
@@ -3116,15 +3130,31 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
             &superres_largest_tile_ids[this_index]);
         cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
         if (err != AOM_CODEC_OK) return err;
+        superres_rds[this_index] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+            rdmult, superres_rates[this_index], superres_sses[this_index],
+            cm->seq_params.bit_depth);
         restore_all_coding_context(cpi);
+        if (superres_rds[this_index] <= proj_rdcost1) {
+          sse1 = superres_sses[this_index];
+          rate1 = superres_rates[this_index];
+          largest_tile_id1 = superres_largest_tile_ids[this_index];
+          proj_rdcost1 = superres_rds[this_index];
+          best_denom = denom;
+        } else {
+          break;  // if the cost starts going up, terminate the search
+        }
       }
       // Reset.
       superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
       superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
     } else {
+#if CONFIG_EXT_SUPERRES
+      for (int this_index = 0; this_index < SUPERRES_SCALES; ++this_index) {
+#else   // CONFIG_EXT_SUPERRES
       for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
            ++denom) {
         const int this_index = denom - (SCALE_NUMERATOR + 1);
+#endif  // CONFIG_EXT_SUPERRES
         superres_sses[this_index] = INT64_MAX;
         superres_rates[this_index] = INT64_MAX;
       }
@@ -3135,28 +3165,6 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
                                              &largest_tile_id2);
     if (err != AOM_CODEC_OK) return err;
 
-    // Note: Both use common rdmult based on base qindex of fullres.
-    const int64_t rdmult =
-        av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
-
-    // Find the best rdcost among all superres denoms.
-    int best_denom = -1;
-    for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
-         ++denom) {
-      const int this_index = denom - (SCALE_NUMERATOR + 1);
-      const int64_t this_sse = superres_sses[this_index];
-      const int64_t this_rate = superres_rates[this_index];
-      const int this_largest_tile_id = superres_largest_tile_ids[this_index];
-      const double this_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          rdmult, this_rate, this_sse, cm->seq_params.bit_depth);
-      if (this_rdcost < proj_rdcost1) {
-        sse1 = this_sse;
-        rate1 = this_rate;
-        largest_tile_id1 = this_largest_tile_id;
-        proj_rdcost1 = this_rdcost;
-        best_denom = denom;
-      }
-    }
     const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         rdmult, rate2, sse2, cm->seq_params.bit_depth);
     // Re-encode with superres if it's better.
@@ -3200,8 +3208,10 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     if (err != AOM_CODEC_OK) return err;
 
     // Note: Both use common rdmult based on base qindex of fullres.
+    /*
     const int64_t rdmult =
         av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
+        */
     proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1,
                                                   cm->seq_params.bit_depth);
     const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(

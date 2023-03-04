@@ -1365,11 +1365,24 @@ typedef struct AV1Common {
   int superres_upscaled_height; /*!< Super-resolved frame height */
   /**@}*/
 
+#if CONFIG_EXT_SUPERRES
+  /**
+   * \name Super-resolution scaling factor information.
+   * The index, numerator, and denominator of the superres scale used by this
+   * frame.
+   */
+  /**@{*/
+  uint8_t superres_scale_index;       /*!< Superres scaling index */
+  uint8_t superres_scale_numerator;   /*!< Superres scaling numerator */
+  uint8_t superres_scale_denominator; /*!< Superres scaling denominator */
+  /**@}*/
+#else   // CONFIG_EXT_SUPERRES
   /*!
    * The denominator of the superres scale used by this frame.
    * Note: The numerator is fixed to be SCALE_NUMERATOR.
    */
   uint8_t superres_scale_denominator;
+#endif  // CONFIG_EXT_SUPERRES
 
   /*!
    * If true, buffer removal times are present.

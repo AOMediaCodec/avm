@@ -992,6 +992,10 @@ static int get_active_qp(const RATE_CONTROL *rc,
     if ((superres_mode == AOM_SUPERRES_QTHRESH ||
          superres_mode == AOM_SUPERRES_AUTO) &&
         superres_denom != SCALE_NUMERATOR) {
+#if CONFIG_EXT_SUPERRES
+      active_qp =
+          AOMMAX(active_qp - ((superres_denom - SCALE_NUMERATOR) * 3), 0);
+#else   // CONFIG_EXT_SUPERRES
       int mult = SUPERRES_QADJ_PER_DENOM_KEYFRAME_SOLO;
       if (intra_only && rc->frames_to_key <= 1) {
         mult = 0;
@@ -1002,6 +1006,7 @@ static int get_active_qp(const RATE_CONTROL *rc,
       }
       active_qp =
           AOMMAX(active_qp - ((superres_denom - SCALE_NUMERATOR) * mult), 0);
+#endif  // CONFIG_EXT_SUPERRES
     }
   }
   if (rc_cfg->mode == AOM_CQ && rc->total_target_bits > 0) {

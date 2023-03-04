@@ -4040,21 +4040,42 @@ static AOM_INLINE void write_superres_scale(const AV1_COMMON *const cm,
                                             struct aom_write_bit_buffer *wb) {
   const SequenceHeader *const seq_params = &cm->seq_params;
   if (!seq_params->enable_superres) {
+#if CONFIG_EXT_SUPERRES
+    assert(cm->superres_scale_denominator == cm->superres_scale_numerator);
+#else   // CONFIG_EXT_SUPERRES
     assert(cm->superres_scale_denominator == SCALE_NUMERATOR);
+#endif  // CONFIG_EXT_SUPERRES
     return;
   }
 
   // First bit is whether to to scale or not
+#if CONFIG_EXT_SUPERRES
+  if (cm->superres_scale_denominator == cm->superres_scale_numerator) {
+#else                         // CONFIG_EXT_SUPERRES
   if (cm->superres_scale_denominator == SCALE_NUMERATOR) {
+#endif                        // CONFIG_EXT_SUPERRES
     aom_wb_write_bit(wb, 0);  // no scaling
   } else {
     aom_wb_write_bit(wb, 1);  // scaling, write scale factor
+#if CONFIG_EXT_SUPERRES
+    assert(cm->superres_scale_denominator > cm->superres_scale_numerator);
+    // Current across-scale prediction can handle downsampling factor <= 2
+    assert(cm->superres_scale_denominator <= 2 * cm->superres_scale_numerator);
+    assert(cm->superres_scale_index >= 0);
+    assert(cm->superres_scale_index < SUPERRES_SCALES);
+    assert(cm->superres_scale_denominator ==
+           superres_scales[cm->superres_scale_index].scale_denom);
+    assert(cm->superres_scale_numerator ==
+           superres_scales[cm->superres_scale_index].scale_num);
+    aom_wb_write_literal(wb, cm->superres_scale_index, SUPERRES_SCALE_BITS);
+#else   // CONFIG_EXT_SUPERRES
     assert(cm->superres_scale_denominator >= SUPERRES_SCALE_DENOMINATOR_MIN);
     assert(cm->superres_scale_denominator <
            SUPERRES_SCALE_DENOMINATOR_MIN + (1 << SUPERRES_SCALE_BITS));
     aom_wb_write_literal(
         wb, cm->superres_scale_denominator - SUPERRES_SCALE_DENOMINATOR_MIN,
         SUPERRES_SCALE_BITS);
+#endif  // CONFIG_EXT_SUPERRES
   }
 }
 

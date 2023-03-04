@@ -550,12 +550,25 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                                "Failed to allocate frame buffer");
           }
-          if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8)
-            av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
-                                        num_planes);
-          else
-            av1_resize_and_extend_frame_nonnormative(
-                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+
+#if CONFIG_EXT_SUPERRES
+          if (cm->superres_scale_denominator > cm->superres_scale_numerator) {
+            av1_resize_lanczos_and_extend_frame(
+                ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes,
+                cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+                cm->superres_scale_denominator, cm->superres_scale_numerator);
+          } else {
+#endif  // CONFIG_EXT_SUPERRES
+            if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8)
+              av1_resize_and_extend_frame(ref, &new_fb->buf, filter, phase,
+                                          num_planes);
+            else
+              av1_resize_and_extend_frame_nonnormative(
+                  ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
+#if CONFIG_EXT_SUPERRES
+          }
+#endif  // CONFIG_EXT_SUPERRES
+
           cpi->scaled_ref_buf[ref_frame] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }

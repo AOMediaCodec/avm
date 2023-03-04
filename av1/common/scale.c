@@ -41,17 +41,22 @@ static int unscaled_value(int val, const struct scale_factors *sf) {
   return val * (1 << SCALE_EXTRA_BITS);
 }
 
-static int get_fixed_point_scale_factor(int other_size, int this_size) {
+static int get_fixed_point_scale_factor(int other_size, int this_size,
+                                        int prec_bits) {
   // Calculate scaling factor once for each reference frame
   // and use fixed point scaling factors in decoding and encoding routines.
   // Hardware implementations can calculate scale factor in device driver
   // and use multiplication and shifting on hardware instead of division.
-  return ((other_size << REF_SCALE_SHIFT) + this_size / 2) / this_size;
+  return ((other_size << prec_bits) + this_size / 2) / this_size;
 }
 
 // Given the fixed point scale, calculate coarse point scale.
-static int fixed_point_scale_to_coarse_point_scale(int scale_fp) {
-  return ROUND_POWER_OF_TWO(scale_fp, REF_SCALE_SHIFT - SCALE_SUBPEL_BITS);
+static int fixed_point_scale_to_coarse_point_scale(int scale_fp,
+                                                   int lower_prec_by) {
+  if (lower_prec_by >= 0)
+    return ROUND_POWER_OF_TWO(scale_fp, lower_prec_by);
+  else
+    return scale_fp << (-lower_prec_by);
 }
 
 // Note: x and y are integer precision, mvq4 is q4 precision.
@@ -72,11 +77,15 @@ void av1_setup_scale_factors_for_frame(struct scale_factors *sf, int other_w,
     return;
   }
 
-  sf->x_scale_fp = get_fixed_point_scale_factor(other_w, this_w);
-  sf->y_scale_fp = get_fixed_point_scale_factor(other_h, this_h);
+  sf->x_scale_fp =
+      get_fixed_point_scale_factor(other_w, this_w, REF_SCALE_SHIFT);
+  sf->y_scale_fp =
+      get_fixed_point_scale_factor(other_h, this_h, REF_SCALE_SHIFT);
 
-  sf->x_step_q4 = fixed_point_scale_to_coarse_point_scale(sf->x_scale_fp);
-  sf->y_step_q4 = fixed_point_scale_to_coarse_point_scale(sf->y_scale_fp);
+  sf->x_step_q4 = fixed_point_scale_to_coarse_point_scale(
+      sf->x_scale_fp, REF_SCALE_SHIFT - SCALE_SUBPEL_BITS);
+  sf->y_step_q4 = fixed_point_scale_to_coarse_point_scale(
+      sf->y_scale_fp, REF_SCALE_SHIFT - SCALE_SUBPEL_BITS);
 
   if (av1_is_scaled(sf)) {
     sf->scale_value_x = scaled_x;

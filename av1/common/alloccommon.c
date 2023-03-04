@@ -79,9 +79,21 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
     av1_tile_set_row(&tile_info, cm, i);
     const int mi_h = tile_info.mi_row_end - tile_info.mi_row_start;
     const int ext_h = RESTORATION_UNIT_OFFSET + (mi_h << MI_SIZE_LOG2);
-    const int tile_stripes = (ext_h + 63) / 64;
+    const int tile_stripes =
+        (ext_h + RESTORATION_PROC_UNIT_SIZE - 1) / RESTORATION_PROC_UNIT_SIZE;
     num_stripes += tile_stripes;
   }
+#if CONFIG_EXT_SUPERRES
+  // TODO(yuec, debargha): This is a temporary fix to handle mismatch between
+  // stripes in the coded domain vs. stripes in the upscaled domain. In AV1
+  // they were the same and there was no issue. However in
+  // CONFIG_EXT_SUPERRES, the actual number of stripes in the upscaled domain
+  // can be twice as many as stripes in the coded domain. Hence this change.
+  // Going forward, wee need to rethink striped loop-restoration in the
+  // context of 2D superres, and implement a different strategy or remove
+  // striping altogether, based on consultation with hardware teams.
+  num_stripes <<= 1;
+#endif  // CONFIG_EXT_SUPERRES
 
   // Now we need to allocate enough space to store the line buffers for the
   // stripes
