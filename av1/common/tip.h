@@ -88,6 +88,18 @@ static AOM_INLINE FULLPEL_MV clamp_tip_fullmv(const AV1_COMMON *const cm,
   } else if (fullmv.col + (blk_col << TMVP_MI_SZ_LOG2) < 0) {
     fullmv.col = -(blk_col << TMVP_MI_SZ_LOG2);
   }
+#if 1  // CONFIG_ACROSS_SCALE_TPL_MVS
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  if ((fullmv.row >> TMVP_MI_SZ_LOG2) + blk_row >= mvs_rows) {
+    fullmv.row = ((mvs_rows - blk_row) << TMVP_MI_SZ_LOG2) - 1;
+  }
+  if ((fullmv.col >> TMVP_MI_SZ_LOG2) + blk_col >= mvs_cols) {
+    fullmv.col = ((mvs_cols - blk_col) << TMVP_MI_SZ_LOG2) - 1;
+  }
+#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
   return fullmv;
 }

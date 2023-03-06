@@ -201,6 +201,9 @@ set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
 
 set_aom_config_var(CONFIG_EXT_SUPERRES 0 NUMBER
                    "AV2 2D super resolution experiment flag")
+set_aom_config_var(
+  CONFIG_ACROSS_SCALE_TPL_MVS 0 NUMBER
+  "AV2 experiment flag to enable across scale temporal mv projection")
 
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
