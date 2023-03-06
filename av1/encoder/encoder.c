@@ -996,11 +996,18 @@ static INLINE void init_frame_info(FRAME_INFO *frame_info,
 #if CONFIG_TIP
 static INLINE void init_tip_ref_frame(AV1_COMMON *const cm) {
   cm->tip_ref.tip_frame = aom_calloc(1, sizeof(*cm->tip_ref.tip_frame));
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+  memset(&cm->tip_ref.upscaled_tip_frame_buf, 0,
+         sizeof(cm->tip_ref.upscaled_tip_frame_buf));
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
 }
 
 static INLINE void free_tip_ref_frame(AV1_COMMON *const cm) {
   aom_free_frame_buffer(&cm->tip_ref.tip_frame->buf);
   aom_free(cm->tip_ref.tip_frame);
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+  aom_free_frame_buffer(&cm->tip_ref.upscaled_tip_frame_buf);
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
 }
 
 #if CONFIG_OPTFLOW_ON_TIP
@@ -2062,6 +2069,21 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
   }
 
   tip_frame->frame_type = INTER_FRAME;
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+  if (cm->tip_ref.upscaled_tip_frame_buf.y_crop_width !=
+          cm->superres_upscaled_width ||
+      cm->tip_ref.upscaled_tip_frame_buf.y_crop_height !=
+          cm->superres_upscaled_height) {
+    if (aom_realloc_frame_buffer(
+            &cm->tip_ref.upscaled_tip_frame_buf, cm->superres_upscaled_width,
+            cm->superres_upscaled_height, cm->seq_params.subsampling_x,
+            cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
+            cm->features.byte_alignment, NULL, NULL, NULL)) {
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate frame buffer");
+    }
+  }
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
 }
 #endif  // CONFIG_TIP
 
@@ -2812,8 +2834,10 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_TIP
 static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
   if (!frame_is_intra_only(cm) && !encode_show_existing_frame(cm) &&
-      cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode &&
-      !av1_superres_scaled(cm)) {
+#if !CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+      !av1_superres_scaled(cm) &&
+#endif  // !CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+      cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode) {
     return true;
   }
 
@@ -2843,8 +2867,13 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 #endif  // CONFIG_PEF
 
     // Compute sse and rate.
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+    YV12_BUFFER_CONFIG *tip_frame_buf =
+        !av1_superres_scaled(cm) ? &cm->tip_ref.tip_frame->buf
+                                 : &cm->tip_ref.upscaled_tip_frame_buf;
+#else
     YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
     *sse = aom_highbd_get_y_sse(cpi->source, tip_frame_buf);
 
     const int64_t bits = (*size << 3);
@@ -2884,8 +2913,14 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
     const int num_planes = av1_num_planes(cm);
     av1_copy_tip_frame_tmvp_mvs(cm);
-    aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
-                        num_planes);
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+    YV12_BUFFER_CONFIG *tip_frame_buf =
+        !av1_superres_scaled(cm) ? &cm->tip_ref.tip_frame->buf
+                                 : &cm->tip_ref.upscaled_tip_frame_buf;
+#else
+    YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+    aom_yv12_copy_frame(tip_frame_buf, &cm->cur_frame->buf, num_planes);
 
     cm->lf.filter_level[0] = 0;
     cm->lf.filter_level[1] = 0;

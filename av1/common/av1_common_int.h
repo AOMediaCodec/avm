@@ -1287,6 +1287,14 @@ typedef struct TIP_Buffer {
    * than the coded dimensions of the current frame.
    */
   RefCntBuffer *scaled_tip_frame;
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+  /*!
+   * Buffer into which the upscaled interpolated tip frame will be stored and
+   * other related info. This is required for generating and upscaled version
+   * of the tip_ref frame for use in the case when super-res is used.
+   */
+  YV12_BUFFER_CONFIG upscaled_tip_frame_buf;
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
   /*!
    * Check a block is already interpolated
    */

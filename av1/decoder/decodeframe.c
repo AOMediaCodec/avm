@@ -3598,6 +3598,16 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
     tip_frame_buf->render_width = cm->render_width;
     tip_frame_buf->render_height = cm->render_height;
   }
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+  if (aom_realloc_frame_buffer(
+          &cm->tip_ref.upscaled_tip_frame_buf, cm->superres_upscaled_width,
+          cm->superres_upscaled_height, seq_params->subsampling_x,
+          seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
+          cm->features.byte_alignment, NULL, NULL, NULL)) {
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate frame buffer");
+  }
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
 }
 #endif  // CONFIG_TIP
 
@@ -6917,11 +6927,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Invalid TIP mode.");
         }
+#if !CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             av1_superres_scaled(cm)) {
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Invalid TIP Direct mode with superres.");
         }
+#endif  // !CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
 
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           features->allow_tip_hole_fill = aom_rb_read_bit(rb);
@@ -7345,8 +7357,20 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     av1_copy_tip_frame_tmvp_mvs(cm);
-    aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
-                        num_planes);
+
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+    YV12_BUFFER_CONFIG *tip_frame_buf =
+        !av1_superres_scaled(cm) ? &cm->tip_ref.tip_frame->buf
+                                 : &cm->tip_ref.upscaled_tip_frame_buf;
+    tip_frame_buf = &cm->tip_ref.tip_frame->buf;
+#else
+      YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+    aom_yv12_copy_frame(tip_frame_buf, &cm->cur_frame->buf, num_planes);
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+    superres_post_decode(pbi);
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->global_motion[i] = default_warp_params;
       cm->cur_frame->global_motion[i] = default_warp_params;

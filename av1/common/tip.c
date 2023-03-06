@@ -1026,6 +1026,18 @@ void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   tip_setup_tip_frame_planes(cm, xd, 0, 0, mvs_rows, mvs_cols, mvs_cols, mc_buf,
                              tmp_conv_dst, calc_subpel_params_func);
+#if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
+  if (av1_superres_scaled(cm)) {
+    // Upscale tip_frame and store in upsampled_tip_frame_buf
+#if CONFIG_EXT_SUPERRES
+    av1_upscale_2d_normative_and_extend_frame(
+        cm, &cm->tip_ref.tip_frame->buf, &cm->tip_ref.upscaled_tip_frame_buf);
+#else
+    av1_upscale_normative_and_extend_frame(cm, &cm->tip_ref.tip_frame->buf,
+                                           &cm->tip_ref.upscaled_tip_frame_buf);
+#endif  // CONFIG_EXT_SUPERRES
+  }
+#endif  // CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
 }
 
 static void tip_extend_plane_block_based_highbd(

@@ -4912,8 +4912,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_PEF
 #if CONFIG_TIP
       if (cm->seq_params.enable_tip) {
+#if !CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
         assert(IMPLIES(av1_superres_scaled(cm),
                        features->tip_frame_mode != TIP_FRAME_AS_OUTPUT));
+#endif  // !CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
         aom_wb_write_literal(wb, features->tip_frame_mode, 2);
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           aom_wb_write_bit(wb, features->allow_tip_hole_fill);
