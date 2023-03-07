@@ -2817,13 +2817,35 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
 }
 
 static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
+  AV1_COMMON *const cm = &cpi->common;
   int i;
   PSNR_STATS stats;
 
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-  aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
-                       &stats, bit_depth, in_bit_depth);
+  const YV12_BUFFER_CONFIG *src = cpi->unfiltered_source;
+  const YV12_BUFFER_CONFIG *rec = &cm->cur_frame->buf;
+
+  if ((src->y_crop_width != rec->y_crop_width) ||
+      (src->y_crop_height != rec->y_crop_height)) {
+    YV12_BUFFER_CONFIG upscaled_rec;
+    memset(&upscaled_rec, 0, sizeof(upscaled_rec));
+
+    if (aom_alloc_frame_buffer(&upscaled_rec, src->y_width, src->y_height,
+                               src->subsampling_x, src->subsampling_y,
+                               cpi->oxcf.border_in_pixels,
+                               cm->features.byte_alignment))
+      aom_internal_error(
+          &cm->error, AOM_CODEC_MEM_ERROR,
+          "Failed to allocate frame buffer for upscaling resized recon");
+    av1_resize_and_extend_frame_nonnormative(rec, &upscaled_rec, rec->bit_depth,
+                                             rec->monochrome ? 1 : 3);
+
+    aom_calc_highbd_psnr(src, &upscaled_rec, &stats, bit_depth, in_bit_depth);
+    aom_free_frame_buffer(&upscaled_rec);
+  } else {
+    aom_calc_highbd_psnr(src, rec, &stats, bit_depth, in_bit_depth);
+  }
 
   for (i = 0; i < 4; ++i) {
     psnr->psnr[i] = stats.psnr[i];
