@@ -2344,24 +2344,15 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         break;
+      case PARTITION_HORZ_3:
+      case PARTITION_VERT_3:
+        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
 #if CONFIG_H_PARTITION
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-        break;
 #endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
         break;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
     }

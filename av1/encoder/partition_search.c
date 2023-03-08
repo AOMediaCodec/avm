@@ -2276,7 +2276,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #if !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
                            ptree,
 #endif  // !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
-                           ptree_luma,
+                           ptree_luma, &pc_tree->chroma_ref_info,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                            partition, mi_row, mi_col, bsize, ctx);
 
@@ -5008,51 +5008,20 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   av1_rd_stats_subtraction(x->rdmult, &best_rdcost, sum_rdc, &rdcost_remaining);
   RD_STATS this_rdc;
 
-  // TODO(now): condition `if (rdo_data->is_splittable)` no longer available.
-  if (true) {  // Splittable.
-    assert(rdo_data->pc_tree != NULL);
-    if (!av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
-                               &this_rdc, rdcost_remaining, rdo_data->pc_tree,
-                               rdo_data->ptree_luma, rdo_data->template_tree,
-                               max_recursion_depth, NULL, NULL, multi_pass_mode,
-                               NULL)) {
-      av1_invalid_rd_stats(sum_rdc);
-      return 0;
-    }
-  } else {
-    // TODO(now): rdo_data->ctx no longer available.
-    assert(rdo_data->ctx != NULL);
-
-#if CONFIG_UNEVEN_4WAY
-    assert(rdo_data->partition == PARTITION_HORZ_4A ||
-           rdo_data->partition == PARTITION_HORZ_4B ||
-           rdo_data->partition == PARTITION_VERT_4A ||
-           rdo_data->partition == PARTITION_VERT_4B);
-#endif  // CONFIG_UNEVEN_4WAY
-    const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
-    SimpleMotionData *sms_data =
-        av1_get_sms_data_entry(x->sms_bufs, mi_row, mi_col, bsize, sb_size);
-    av1_set_best_mode_cache(x, sms_data->mode_cache);
-
-    pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &this_rdc,
-                  rdo_data->partition, bsize, rdo_data->ctx, rdcost_remaining);
-
-    x->inter_mode_cache = NULL;
-    if (this_rdc.rate != INT_MAX) {
-      av1_add_mode_search_context_to_cache(sms_data, rdo_data->ctx);
-    }
+  if (!av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
+                             &this_rdc, rdcost_remaining, rdo_data->pc_tree,
+                             rdo_data->ptree_luma, rdo_data->template_tree,
+                             max_recursion_depth, NULL, NULL, multi_pass_mode,
+                             NULL)) {
+    av1_invalid_rd_stats(sum_rdc);
+    return 0;
   }
 
   if (this_rdc.rate == INT_MAX) {
     *skippable = false;
     sum_rdc->rdcost = INT64_MAX;
   } else {
-    // TODO(now): same as above.
-    if (true) {
-      *skippable &= rdo_data->pc_tree->skippable;
-    } else {
-      *skippable &= rdo_data->ctx->skippable;
-    }
+    *skippable &= rdo_data->pc_tree->skippable;
     sum_rdc->rate += this_rdc.rate;
     sum_rdc->dist += this_rdc.dist;
     av1_rd_cost_update(x->rdmult, sum_rdc);
