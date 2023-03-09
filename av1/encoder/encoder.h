@@ -290,12 +290,10 @@ typedef struct {
    */
   bool enable_orip;
 #endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   /*!
    * Flag to indicate if IBP should be enabled
    */
   bool enable_ibp;
-#endif
 } IntraModeCfg;
 
 /*!

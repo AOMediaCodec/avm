@@ -455,9 +455,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_CROSS_CHROMA_TX
   &g_av1_codec_arg_defs.enable_cctx,
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   &g_av1_codec_arg_defs.enable_ibp,
-#endif
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
   &g_av1_codec_arg_defs.max_drl_refmvs,
 #if CONFIG_REF_MV_BANK
@@ -659,9 +657,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_CROSS_CHROMA_TX
   config->enable_cctx = 1;
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   config->enable_ibp = 1;
-#endif
 #if CONFIG_ADAPTIVE_MVD
   config->enable_adaptive_mvd = 1;
 #endif  // CONFIG_ADAPTIVE_MVD
@@ -1524,9 +1520,7 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_ORIP
           ", ORIP(%d)"
 #endif  // CONFIG_CONFIG_ORIP
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
           ", IBP(%d)"
-#endif  // CONFIG_IBP_DC || CONFIG_IBP_DIR
           "\n",
           encoder_cfg->enable_intra_edge_filter,
           encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls
@@ -1538,10 +1532,8 @@ static void show_stream_config(struct stream_state *stream,
           ,
           encoder_cfg->enable_orip
 #endif  //  CONFIG_ORIP
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
           ,
           encoder_cfg->enable_ibp
-#endif  //  CONFIG_IBP_DC || CONFIG_IBP_DIR
   );
 
   fprintf(stdout,

@@ -333,12 +333,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_cctx;
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   /*!\brief enable Intra Bi-Prediction (IBP)
    *
    */
   unsigned int enable_ibp;
-#endif  // CONFIG_IBP_DC || CONFIG_IBP_DIR
 #if CONFIG_ADAPTIVE_MVD
   /*!\brief enable Adaptive MVD resolution
    *

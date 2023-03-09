@@ -107,9 +107,7 @@ static aom_codec_err_t decoder_init(aom_codec_ctx_t *ctx) {
     priv->tile_mode = 0;
     priv->decode_tile_row = -1;
     priv->decode_tile_col = -1;
-#if CONFIG_IBP_DIR
     init_ibp_info(ctx->priv->ibp_directional_weights);
-#endif
   }
 
   return AOM_CODEC_OK;
@@ -148,9 +146,7 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
     av1_free_internal_frame_buffers(&ctx->buffer_pool->int_frame_buffers);
   }
 
-#if CONFIG_IBP_DIR
   free_ibp_info(ctx->base.ibp_directional_weights);
-#endif
   aom_free(ctx->frame_worker);
   aom_free(ctx->buffer_pool);
   aom_img_free(&ctx->img);
@@ -485,11 +481,9 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->is_fwd_kf_present = 0;
   frame_worker_data->pbi->enable_subgop_stats = ctx->enable_subgop_stats;
   frame_worker_data->pbi->is_arf_frame_present = 0;
-#if CONFIG_IBP_DIR
   memcpy(frame_worker_data->pbi->common.ibp_directional_weights,
          ctx->base.ibp_directional_weights,
          sizeof(ctx->base.ibp_directional_weights));
-#endif
   worker->hook = frame_worker_hook;
 
   init_buffer_callbacks(ctx);

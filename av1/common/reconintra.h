@@ -291,13 +291,11 @@ static INLINE int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
   return type ? (blk_wh <= 8) : (blk_wh <= 16);
 }
 
-#if CONFIG_IBP_DIR
 static const int32_t transpose_tx_size[TX_SIZES_ALL] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_8X4,   TX_4X8,
   TX_16X8, TX_8X16, TX_32X16, TX_16X32, TX_64X32, TX_32X64, TX_16X4,
   TX_4X16, TX_32X8, TX_8X32,  TX_64X16, TX_16X64,
 };
-#endif
 
 #if CONFIG_EXT_RECUR_PARTITIONS
 static AOM_INLINE void set_have_top_and_left(int *have_top, int *have_left,

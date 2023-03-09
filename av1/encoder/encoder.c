@@ -489,9 +489,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_CROSS_CHROMA_TX
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
-#endif
 #if CONFIG_ADAPTIVE_MVD
   seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;
 #endif  // CONFIG_ADAPTIVE_MVD
@@ -1479,9 +1477,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 
   dealloc_compressor_data(cpi);
-#if CONFIG_IBP_DIR
   free_ibp_info(cm->ibp_directional_weights);
-#endif
 
 #if CONFIG_INTERNAL_STATS
   aom_free(cpi->ssim_vars);

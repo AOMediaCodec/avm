@@ -231,12 +231,10 @@ specialize qw/av1_highbd_dr_prediction_z2 avx2/;
 add_proto qw/void av1_highbd_dr_prediction_z3/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int upsample_left, int dx, int dy, int bd, int mrl_index";
 specialize qw/av1_highbd_dr_prediction_z3 avx2/;
 
-#if CONFIG_IBP_DIR
 add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
     "uint8_t* weights, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
 add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
     "uint8_t* weights, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
-#endif
 
 # build compound seg mask functions
 add_proto qw/void av1_build_compound_diffwtd_mask_highbd/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const uint16_t *src0, int src0_stride, const uint16_t *src1, int src1_stride, int h, int w, int bd";

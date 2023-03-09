@@ -149,9 +149,7 @@ struct av1_extracfg {
 #if CONFIG_CROSS_CHROMA_TX
   int enable_cctx;  // enable cross-chroma component transform
 #endif              // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   int enable_ibp;  // enable intra bi-prediction
-#endif             // CONFIG_IBP_DC or CONFIG_IBP_DIR
 
 #if CONFIG_ADAPTIVE_MVD
   int enable_adaptive_mvd;  // enable adaptive MVD resolution
@@ -486,10 +484,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_CROSS_CHROMA_TX
   1,    // enable cross-chroma component transform
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   1,    // enable intra bi-prediction
-#endif  // CONFIG_IBP_DC or CONFIG_IBP_DIR
-
 #if CONFIG_ADAPTIVE_MVD
   1,    // enable adaptive mvd resolution
 #endif  // CONFIG_ADAPTIVE_MVD
@@ -985,9 +980,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_CROSS_CHROMA_TX
   cfg->enable_cctx = extra_cfg->enable_cctx;
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   cfg->enable_ibp = extra_cfg->enable_ibp;
-#endif
 #if CONFIG_ADAPTIVE_MVD
   cfg->enable_adaptive_mvd = extra_cfg->enable_adaptive_mvd;
 #endif  // CONFIG_ADAPTIVE_MVD
@@ -1105,9 +1098,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_CROSS_CHROMA_TX
   extra_cfg->enable_cctx = cfg->enable_cctx;
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   extra_cfg->enable_ibp = cfg->enable_ibp;
-#endif
 #if CONFIG_ADAPTIVE_MVD
   extra_cfg->enable_adaptive_mvd = cfg->enable_adaptive_mvd;
 #endif  // CONFIG_ADAPTIVE_MVD
@@ -1675,9 +1666,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_ORIP
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
 #endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
-#endif
 
   // Set transform size/type configuration.
   txfm_cfg->enable_tx64 = extra_cfg->enable_tx64;
@@ -2793,9 +2782,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
             clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS),
             &priv->stats_buf_context);
       }
-#if CONFIG_IBP_DIR
       init_ibp_info(priv->cpi->common.ibp_directional_weights);
-#endif
     }
   }
 
@@ -3857,11 +3844,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_cctx = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ibp, argv,
                               err_string)) {
     extra_cfg.enable_ibp = arg_parse_int_helper(&arg, err_string);
-#endif
 #if CONFIG_ADAPTIVE_MVD
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_adaptive_mvd,
                               argv, err_string)) {
@@ -4340,9 +4325,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_CROSS_CHROMA_TX
         1,
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
         1,
-#endif  // CONFIG_IBP_DC or CONFIG_IBP_DIR
 #if CONFIG_ADAPTIVE_MVD
         1,
 #endif  // CONFIG_ADAPTIVE_MVD

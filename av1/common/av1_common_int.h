@@ -35,9 +35,7 @@
 #include "av1/common/tile_common.h"
 #include "av1/common/timing.h"
 #include "av1/common/odintrin.h"
-#if CONFIG_IBP_DIR
 #include "av1/common/warped_motion.h"
-#endif
 #include "av1/encoder/hash_motion.h"
 #include "aom_dsp/grain_synthesis.h"
 #include "aom_dsp/grain_table.h"
@@ -452,9 +450,7 @@ typedef struct SequenceHeader {
 #if CONFIG_CROSS_CHROMA_TX
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
 #endif                  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   uint8_t enable_ibp;  // enables/disables intra bi-prediction(IBP)
-#endif
 #if CONFIG_ADAPTIVE_MVD
   uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
 #endif                          // CONFIG_ADAPTIVE_MVD
@@ -1666,12 +1662,10 @@ typedef struct AV1Common {
    */
   int spatial_layer_id;
 
-#if CONFIG_IBP_DIR
   /*!
    * Weights for IBP of directional modes.
    */
   uint8_t *ibp_directional_weights[TX_SIZES_ALL][DIR_MODES_0_90];
-#endif
 
 #if TXCOEFF_TIMER
   int64_t cum_txcoeff_timer;
@@ -3324,7 +3318,7 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
           seq_level_idx != SEQ_LEVEL_7_0 && seq_level_idx != SEQ_LEVEL_7_1 &&
           seq_level_idx != SEQ_LEVEL_7_2 && seq_level_idx != SEQ_LEVEL_7_3);
 }
-#if CONFIG_IBP_DIR
+
 // Intra derivative for second directional predictor of IBP
 // second_dr_intra_derivative[x] = 64*64/dr_intra_derivative[x]
 static const int16_t second_dr_intra_derivative[90] = {
@@ -3425,6 +3419,7 @@ static void av1_dr_prediction_z1_info(uint8_t *weights, int bw, int bh,
     weights += bw;
   }
 }
+
 static const uint8_t angle_to_mode_index[90] = {
   0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0,
   0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 16, 0, 0, 15, 0, 0, 14, 0, 0, 13,
@@ -3471,6 +3466,7 @@ static INLINE void init_ibp_info(
     }
   }
 }
+
 static INLINE void free_ibp_info(
     uint8_t *weights[TX_SIZES_ALL][DIR_MODES_0_90]) {
   for (int i = 0; i < TX_SIZES_ALL; i++) {
@@ -3479,7 +3475,6 @@ static INLINE void free_ibp_info(
     }
   }
 }
-#endif
 
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT

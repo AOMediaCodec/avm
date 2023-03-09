@@ -178,9 +178,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_OPTFLOW_REFINEMENT 1
                    "AV2 experiment flag for optical flow MV refinement")
 set_aom_config_var(
-  CONFIG_IBP_DIR 1
-  "AV2 experiment flag to enable intra bi-prediction for directional modes.")
-set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")

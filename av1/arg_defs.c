@@ -431,11 +431,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                          "Enable cross-chroma component transform "
                          "(0: false, 1: true(default))"),
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   .enable_ibp = ARG_DEF(NULL, "enable-ibp", 1,
                         "Enable intra bi-prediction"
                         "(0: false, 1: true (default))"),
-#endif
 #if CONFIG_ADAPTIVE_MVD
   .enable_adaptive_mvd = ARG_DEF(NULL, "enable-adaptive-mvd", 1,
                                  "Enable adaptive MVD resolution"

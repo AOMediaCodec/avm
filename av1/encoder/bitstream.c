@@ -4634,9 +4634,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   if (seq_params->order_hint_info.enable_order_hint)
     aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
   aom_wb_write_bit(wb, seq_params->enable_ibp);
-#endif
 #if CONFIG_ADAPTIVE_MVD
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
 #endif  // CONFIG_ADAPTIVE_MVD
