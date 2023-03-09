@@ -19,7 +19,6 @@
 #include "av1/common/txb_common.h"
 #include "aom_dsp/x86/synonyms.h"
 
-#if CONFIG_FORWARDSKIP
 static INLINE void _xx_fill_buffer(__m128i *buff, __m128i *end, __m128i zeros) {
   do {
     _mm_storeu_si128(buff, zeros);
@@ -211,7 +210,6 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
     } while (i < height);
   }
 }
-#endif  // CONFIG_FORWARDSKIP
 
 void av1_txb_init_levels_sse4_1(const tran_low_t *const coeff, const int width,
                                 const int height, uint8_t *const levels) {

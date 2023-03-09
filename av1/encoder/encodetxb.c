@@ -1170,6 +1170,7 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
               const int code_rest =
                   av1_write_sig_txtype(cm, x, w, blk_row, blk_col, AOM_PLANE_U,
                                        block[AOM_PLANE_U], tx_size);
+              if (code_rest)
                 av1_write_coeffs_txb(cm, x, w, blk_row, blk_col, AOM_PLANE_U,
                                      block[AOM_PLANE_U], tx_size);
               block[AOM_PLANE_U] += step;

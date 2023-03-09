@@ -22,7 +22,6 @@
 #include "aom_dsp/x86/synonyms.h"
 #include "aom_dsp/x86/synonyms_avx2.h"
 
-#if CONFIG_FORWARDSKIP
 static INLINE void _yy256_fill_buffer(__m256i *buff, __m256i *end,
                                       __m256i zeros) {
   do {
@@ -289,7 +288,6 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
     } while (i < height);
   }
 }
-#endif  // CONFIG_FORWARDSKIP
 
 void av1_txb_init_levels_avx2(const tran_low_t *const coeff, const int width,
                               const int height, uint8_t *const levels) {

@@ -431,7 +431,6 @@ static INLINE void get_16n_coeff_contexts_ver(const uint8_t *levels,
   } while (--row);
 }
 
-#if CONFIG_FORWARDSKIP
 static INLINE void load_levels_4x4x5_skip_sse2(const uint8_t *const src,
                                                const int stride,
                                                __m128i *const level) {
@@ -562,7 +561,6 @@ void av1_get_nz_map_contexts_skip_sse2(const uint8_t *const levels,
     get_16n_coeff_contexts_2d_skip_sse2(levels, width, height, coeff_contexts);
   }
 }
-#endif  // CONFIG_FORWARDSKIP
 
 // Note: levels[] must be in the range [0, 127], inclusive.
 void av1_get_nz_map_contexts_sse2(const uint8_t *const levels,
