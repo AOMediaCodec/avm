@@ -54,13 +54,11 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
 #endif  // CONFIG_ATC_COEFCODING
   av1_copy(cm->fc->coeff_br_cdf, av1_default_coeff_lps_multi_cdfs[index]);
   av1_copy(cm->fc->coeff_base_cdf, av1_default_coeff_base_multi_cdfs[index]);
-#if CONFIG_FORWARDSKIP
   av1_copy(cm->fc->idtx_sign_cdf, av1_default_idtx_sign_cdfs[index]);
   av1_copy(cm->fc->coeff_base_cdf_idtx,
            av1_default_coeff_base_multi_cdfs_idtx[index]);
   av1_copy(cm->fc->coeff_br_cdf_idtx,
            av1_default_coeff_lps_multi_cdfs_idtx[index]);
-#endif  // CONFIG_FORWARDSKIP
   av1_copy(cm->fc->coeff_base_eob_cdf,
            av1_default_coeff_base_eob_multi_cdfs[index]);
   av1_copy(cm->fc->eob_flag_cdf16, av1_default_eob_multi16_cdfs[index]);
@@ -145,11 +143,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->coeff_br_lf_cdf, BR_CDF_SIZE);
 #endif  // CONFIG_ATC_COEFCODING
   RESET_CDF_COUNTER(fc->coeff_base_cdf, 4);
-#if CONFIG_FORWARDSKIP
   RESET_CDF_COUNTER(fc->idtx_sign_cdf, 2);
   RESET_CDF_COUNTER(fc->coeff_base_cdf_idtx, 4);
   RESET_CDF_COUNTER(fc->coeff_br_cdf_idtx, BR_CDF_SIZE);
-#endif  // CONFIG_FORWARDSKIP
   RESET_CDF_COUNTER(fc->coeff_br_cdf, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->inter_single_mode_cdf, INTER_SINGLE_MODES);
 #if CONFIG_WARPMV
@@ -256,9 +252,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->seg.pred_cdf, 2);
   RESET_CDF_COUNTER(fc->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
   RESET_CDF_COUNTER(fc->mrl_index_cdf, MRL_LINE_NUMBER);
-#if CONFIG_FORWARDSKIP
   RESET_CDF_COUNTER(fc->fsc_mode_cdf, FSC_MODES);
-#endif  // CONFIG_FORWARDSKIP
 
 #if CONFIG_IMPROVED_CFL
   RESET_CDF_COUNTER(fc->cfl_index_cdf, CFL_TYPE_COUNT);

@@ -261,11 +261,7 @@ void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
     printf("(%3.2f)\n", t1 / t2);
   }
   const int stride = width + TX_PAD_HOR;
-#if CONFIG_FORWARDSKIP
   for (int r = TX_PAD_TOP; r < height + TX_PAD_VER; ++r) {
-#else
-  for (int r = 0; r < height + TX_PAD_VER; ++r) {
-#endif  // CONFIG_FORWARDSKIP
     for (int c = 0; c < stride; ++c) {
       ASSERT_EQ(levels_buf[0][c + r * stride], levels_buf[1][c + r * stride])
           << "[" << r << "," << c << "] " << run_times << width << "x"

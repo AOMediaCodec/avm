@@ -5326,10 +5326,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 #endif
 
-#if CONFIG_FORWARDSKIP
     mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
     mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-#endif  // CONFIG_FORWARDSKIP
     mbmi->mode = DC_PRED;
     mbmi->uv_mode = UV_DC_PRED;
     mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -5633,9 +5631,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
     return;
   }
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
-#if CONFIG_FORWARDSKIP
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-#endif
 #if CONFIG_BAWP
   mbmi->bawp_flag = 0;
 #endif
@@ -5821,9 +5817,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
       search_state->best_mbmode.skip_txfm[xd->tree_type == CHROMA_PART] =
           mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
 
-#if CONFIG_FORWARDSKIP
       search_state->best_mbmode.fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-#endif
 
 #if CONFIG_OPTFLOW_REFINEMENT
       search_state->best_mbmode.mode =
@@ -6638,9 +6632,7 @@ static AOM_INLINE void init_intra_mode_search_state(
   intra_search_state->skip_intra_modes = 0;
   intra_search_state->best_intra_mode = DC_PRED;
   intra_search_state->best_mrl_index = 0;
-#if CONFIG_FORWARDSKIP
   intra_search_state->best_fsc = 0;
-#endif  // CONFIG_FORWARDSKIP
   intra_search_state->dir_mode_skip_mask_ready = 0;
   av1_zero(intra_search_state->directional_mode_skip_mask);
   intra_search_state->rate_uv_intra = INT_MAX;
@@ -8301,10 +8293,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                 yv12_mb[COMPACT_INDEX0_NRS(second_ref_frame)][i];
         }
 
-#if CONFIG_FORWARDSKIP
         mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
         mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_NEW_CONTEXT_MODELING
         mbmi->use_intrabc[0] = 0;
         mbmi->use_intrabc[1] = 0;
@@ -8489,21 +8479,11 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   get_y_intra_mode_set(mbmi, xd);
 #endif  // CONFIG_AIMC
 
-#if CONFIG_FORWARDSKIP
-  for (int fsc_mode = 0;
-       fsc_mode < (allow_fsc_intra(cm, xd, bsize, mbmi) ? FSC_MODES : 1);
-       fsc_mode++) {
-#endif  // CONFIG_FORWARDSKIP
-    uint8_t enable_mrls_flag = cm->seq_params.enable_mrls
-#if CONFIG_FORWARDSKIP
-                               && !fsc_mode
-#endif  // CONFIG_FORWARDSKIP
-        ;
+  for (int fsc_mode = 0; fsc_mode < (allow_fsc_intra(cm, xd, bsize, mbmi) ? FSC_MODES : 1); fsc_mode++) {
+    uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
     for (int mrl_index = 0;
          mrl_index < (enable_mrls_flag ? MRL_LINE_NUMBER : 1); mrl_index++) {
-#if CONFIG_FORWARDSKIP
       mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = fsc_mode;
-#endif  // CONFIG_FORWARDSKIP
       mbmi->mrl_index = mrl_index;
       for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
            ++mode_idx) {
@@ -8534,7 +8514,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         if (mbmi->mrl_index > 0 && av1_is_directional_mode(mbmi->mode) == 0) {
           continue;
         }
-#if CONFIG_FORWARDSKIP
         if (!allow_fsc_intra(cm, xd, bsize, mbmi) &&
             mbmi->fsc_mode[PLANE_TYPE_Y] > 0) {
           continue;
@@ -8551,7 +8530,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           continue;
         }
 #endif  // CONFIG_AIMC
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_EXT_RECUR_PARTITIONS
         const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
         if (cached_mi) {
@@ -8617,9 +8595,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       set_mv_precision(mbmi, mbmi->max_mv_precision);
 #endif
     }
-#if CONFIG_FORWARDSKIP
   }
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, handle_intra_mode_time);
 #endif

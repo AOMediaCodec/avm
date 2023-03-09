@@ -50,10 +50,8 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->mode = DC_PRED;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->mrl_index = 0;
-#if CONFIG_FORWARDSKIP
   mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
   mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_NEW_CONTEXT_MODELING
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
@@ -124,10 +122,8 @@ static int rd_pick_filter_intra_sby(const AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 #endif
-#if CONFIG_FORWARDSKIP
     mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
     mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
@@ -1236,9 +1232,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   if (this_rd < *best_intra_rd) {
     *best_intra_rd = this_rd;
     intra_search_state->best_intra_mode = mode;
-#if CONFIG_FORWARDSKIP
     intra_search_state->best_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
-#endif  // CONFIG_FORWARDSKIP
     intra_search_state->best_mrl_index = mbmi->mrl_index;
   }
 
@@ -1255,7 +1249,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   return this_rd;
 }
 
-#if CONFIG_FORWARDSKIP
 void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
                      int *rate_tokenonly, int64_t *distortion, int *skippable,
                      BLOCK_SIZE bsize,
@@ -1440,7 +1433,6 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
     *mbmi = *best_mbmi;
   }
 }
-#endif  // CONFIG_FORWARDSKIP
 
 // Finds the best non-intrabc mode on an intra frame.
 int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
@@ -1453,9 +1445,7 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   assert(!is_inter_block(mbmi, xd->tree_type));
   int64_t best_model_rd = INT64_MAX;
   int is_directional_mode;
-#if CONFIG_FORWARDSKIP
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-#endif  // CONFIG_FORWARDSKIP
   uint8_t directional_mode_skip_mask[INTRA_MODES] = { 0 };
   // Flag to check rd of any intra mode is better than best_rd passed to this
   // function
@@ -1627,7 +1617,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
   }
 
-#if CONFIG_FORWARDSKIP
   // Searches forward skip coding
   if (beat_best_rd && allow_fsc_intra(&cpi->common, xd, bsize, mbmi)) {
     search_fsc_mode(cpi, x, rate, rate_tokenonly, distortion, skippable, bsize,
@@ -1639,7 +1628,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                     directional_mode_skip_mask, &best_rd, &best_model_rd, ctx,
                     &best_mbmi);
   }
-#endif  // CONFIG_FORWARDSKIP
 
   // Searches palette
 #if CONFIG_AIMC

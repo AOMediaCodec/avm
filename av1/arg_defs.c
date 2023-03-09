@@ -411,11 +411,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                          "Enable block adaptive weighted prediction (BAWP)"
                          "(0: false, 1: true (default))"),
 #endif  // CONFIG_BAWP
-#if CONFIG_FORWARDSKIP
   .enable_fsc = ARG_DEF(NULL, "enable-fsc", 1,
                         "Enable forward skip coding"
                         "(0: false, 1: true (default))"),
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_ORIP
   .enable_orip = ARG_DEF(NULL, "enable-orip", 1,
                          "Enable Offset Based refinement of intra prediction"

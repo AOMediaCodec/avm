@@ -435,9 +435,7 @@ typedef struct SequenceHeader {
 #if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
 #endif                  // CONFIG_BAWP
-#if CONFIG_FORWARDSKIP
   uint8_t enable_fsc;                // enables/disables forward skip coding
-#endif                               // CONFIG_FORWARDSKIP
   uint8_t enable_filter_intra;       // enables/disables filterintra
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
 
@@ -2241,7 +2239,6 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
 }
 
-#if CONFIG_FORWARDSKIP
 static INLINE int get_fsc_mode_ctx(const MACROBLOCKD *xd, const int is_key) {
   int ctx = 0;
   if (is_key) {
@@ -2267,7 +2264,6 @@ static INLINE aom_cdf_prob *get_fsc_mode_cdf(const MACROBLOCKD *xd,
   const int ctx = get_fsc_mode_ctx(xd, is_key);
   return tile_ctx->fsc_mode_cdf[ctx][fsc_size_group];
 }
-#endif  // CONFIG_FORWARDSKIP
 
 #if !CONFIG_AIMC
 static INLINE int get_y_mode_ctx(const MB_MODE_INFO *neighbor) {

@@ -155,14 +155,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 
   av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);
 
-#if CONFIG_FORWARDSKIP
   for (i = 0; i < FSC_MODE_CONTEXTS; ++i) {
     for (j = 0; j < FSC_BSIZE_CONTEXTS; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->fsc_cost[i][j],
                                fc->fsc_mode_cdf[i][j], NULL);
     }
   }
-#endif  // CONFIG_FORWARDSKIP
 
 #if CONFIG_IMPROVED_CFL
   av1_cost_tokens_from_cdf(mode_costs->cfl_index_cost, fc->cfl_index_cdf, NULL);
@@ -334,11 +332,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #else
               mode_costs->intra_tx_type_costs[s][i][j],
               fc->intra_ext_tx_cdf[s][i][j],
-#if CONFIG_FORWARDSKIP
               av1_ext_tx_inv_intra[av1_ext_tx_set_idx_to_type[0][s]]);
-#else
-              av1_ext_tx_inv[av1_ext_tx_set_idx_to_type[0][s]]);
-#endif  // CONFIG_FORWARDSKIP
 #endif  // CONFIG_ATC_NEWTXSETS
         }
       }
@@ -971,7 +965,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       }
     }
   }
-#if CONFIG_FORWARDSKIP
+
   for (int tx_size = 0; tx_size < TX_SIZES; ++tx_size) {
     int plane = PLANE_TYPE_Y;
     LV_MAP_COEFF_COST *pcost = &coeff_costs->coeff_costs[tx_size][plane];
@@ -1013,7 +1007,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       }
     }
   }
-#endif  // CONFIG_FORWARDSKIP
+
 #if CONFIG_PAR_HIDING
   const int tx_size = TX_4X4;
   const int plane_type = 0;

@@ -197,7 +197,6 @@ typedef struct {
 #endif  // CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding an increment to the coefficient
   int lps_cost[LEVEL_CONTEXTS][COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#if CONFIG_FORWARDSKIP
   //! Cost for encoding the base level of a coefficient for IDTX blocks
   int idtx_base_cost[IDTX_SIG_COEF_CONTEXTS][8];
   //! Cost for encoding the sign of a coefficient for IDTX blocks
@@ -205,7 +204,6 @@ typedef struct {
   //! Cost for encoding an increment to the coefficient for IDTX blocks
   int lps_cost_skip[IDTX_LEVEL_CONTEXTS]
                    [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#endif  // CONFIG_FORWARDSKIP
 } LV_MAP_COEFF_COST;
 
 /*! \brief Costs for encoding the eob.
@@ -794,10 +792,8 @@ typedef struct {
 
   //! mrl_index_cost
   int mrl_index_cost[MRL_LINE_NUMBER];
-#if CONFIG_FORWARDSKIP
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_IMPROVED_CFL
   //! Cost of signaling the cfl mode
   int cfl_index_cost[CFL_TYPE_COUNT];

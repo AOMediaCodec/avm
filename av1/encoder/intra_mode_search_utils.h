@@ -242,14 +242,12 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       total_rate += palette_mode_cost;
     }
   }
-#if CONFIG_FORWARDSKIP
   if (allow_fsc_intra(&cpi->common, xd, bsize, mbmi)) {
     const int use_fsc = mbmi->fsc_mode[PLANE_TYPE_Y];
     const int fsc_ctx = get_fsc_mode_ctx(xd, frame_is_intra_only(&cpi->common));
     total_rate +=
         mode_costs->fsc_cost[fsc_ctx][fsc_bsize_groups[bsize]][use_fsc];
   }
-#endif  // CONFIG_FORWARDSKIP
   if (av1_filter_intra_allowed(&cpi->common, mbmi)) {
     total_rate +=
         mode_costs

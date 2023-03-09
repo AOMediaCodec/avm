@@ -55,12 +55,10 @@ typedef struct IntraModeSearchState {
    */
   int best_mrl_index;
 
-#if CONFIG_FORWARDSKIP
   /*!
    * \brief The best forward skip mode found.
    */
   int best_fsc;
-#endif  // CONFIG_FORWARDSKIP
 
   /** \name Speed feature variables
    * Variables to help with pruning some luma intra-modes during inter frame
@@ -167,7 +165,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               int64_t *best_model_rd,
                               int64_t top_intra_model_rd[]);
 
-#if CONFIG_FORWARDSKIP
 /*!\brief Search for the best forward skip coding mode for intra blocks.
  *
  * \ingroup intra_mode_search
@@ -209,7 +206,6 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
                      uint8_t *dir_skip_mask, int64_t *best_rd,
                      int64_t *best_model_rd, PICK_MODE_CONTEXT *ctx,
                      MB_MODE_INFO *best_mbmi);
-#endif  // CONFIG_FORWARDSKIP
 
 /*!\brief Evaluate luma palette mode for inter frames.
  *

@@ -67,7 +67,6 @@ static INLINE int get_padded_idx(const int idx, const int bwl) {
   return idx + ((idx >> bwl) << TX_PAD_HOR_LOG2);
 }
 
-#if CONFIG_FORWARDSKIP
 // This function sets the signs buffer for coefficient coding.
 static INLINE int8_t *set_signs(int8_t *const signs_buf, const int width) {
   return signs_buf + TX_PAD_TOP * (width + TX_PAD_HOR);
@@ -97,7 +96,6 @@ static AOM_FORCE_INLINE int get_br_ctx_skip(const uint8_t *const levels,
   if ((row < 2) && (col < (2 + TX_PAD_LEFT))) return mag;
   return mag + 7;
 }
-#endif  // CONFIG_FORWARDSKIP
 
 static INLINE int get_br_ctx_2d(const uint8_t *const levels,
                                 const int c,  // raster order
@@ -283,7 +281,6 @@ static const uint8_t clip_max3[256] = {
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3
 };
 
-#if CONFIG_FORWARDSKIP
 // This function returns the neighboring left + above levels with clipping.
 static AOM_FORCE_INLINE int get_nz_mag_skip(const uint8_t *const levels,
                                             const int bwl) {
@@ -323,7 +320,6 @@ static INLINE int get_sign_ctx_skip(const int8_t *const signs,
   if (level_pt[0] > COEFF_BASE_RANGE && sign_ctx != 0) sign_ctx += 2;
   return sign_ctx;
 }
-#endif  // CONFIG_FORWARDSKIP
 
 #if CONFIG_ATC_COEFCODING
 // This function returns the template sum of absolute values
@@ -393,7 +389,6 @@ static const int nz_map_ctx_offset_1d[32] = {
   NZ_MAP_CTX_10, NZ_MAP_CTX_10,
 };
 
-#if CONFIG_FORWARDSKIP
 static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats_skip(const int stats,
                                                            const int coeff_idx,
                                                            const int bwl) {
@@ -403,7 +398,6 @@ static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats_skip(const int stats,
   if ((row < 2) && (col < (2 + TX_PAD_LEFT))) return ctx;
   return ctx + 7;
 }
-#endif  // CONFIG_FORWARDSKIP
 
 #if CONFIG_ATC_COEFCODING
 // This function returns the base range context index/increment for the
@@ -569,7 +563,6 @@ static INLINE int get_lower_levels_ctx_eob(int bwl, int height, int scan_idx) {
   return 3;
 }
 
-#if CONFIG_FORWARDSKIP
 static INLINE int get_upper_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
                                           int bwl) {
   int mag;
@@ -582,7 +575,6 @@ static INLINE int get_upper_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
   if ((row < 2) && (col < (2 + TX_PAD_LEFT))) return ctx;
   return ctx + 7;
 }
-#endif  // CONFIG_FORWARDSKIP
 
 #if CONFIG_ATC_COEFCODING
 // This function returns the base range context index/increment for the
@@ -726,7 +718,6 @@ static INLINE void set_dc_sign(int *cul_level, int dc_val) {
     *cul_level += 2 << COEFF_CONTEXT_BITS;
 }
 
-#if CONFIG_FORWARDSKIP
 static INLINE void get_txb_ctx_skip(const BLOCK_SIZE plane_bsize,
                                     const TX_SIZE tx_size,
                                     const ENTROPY_CONTEXT *const a,
@@ -761,24 +752,17 @@ static INLINE void get_txb_ctx_skip(const BLOCK_SIZE plane_bsize,
     txb_ctx->txb_skip_ctx = skip_contexts[top][left] + skip_offset;
   }
 }
-#endif  // CONFIG_FORWARDSKIP
 
 static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
                                const TX_SIZE tx_size, const int plane,
                                const ENTROPY_CONTEXT *const a,
                                const ENTROPY_CONTEXT *const l,
-#if CONFIG_FORWARDSKIP
                                TXB_CTX *const txb_ctx, uint8_t fsc_mode) {
-#else
-                               TXB_CTX *const txb_ctx) {
-#endif
 #define MAX_TX_SIZE_UNIT 16
-#if CONFIG_FORWARDSKIP
   if (fsc_mode && plane == PLANE_TYPE_Y) {
     get_txb_ctx_skip(plane_bsize, tx_size, a, l, txb_ctx);
     return;
   }
-#endif
   static const int8_t signs[3] = { 0, -1, 1 };
   static const int8_t dc_sign_contexts[4 * MAX_TX_SIZE_UNIT + 1] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,

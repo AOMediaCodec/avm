@@ -309,12 +309,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_bawp;
 #endif  // CONFIG_BAWP
-#if CONFIG_FORWARDSKIP
   /*!\brief enable Forward skip coding
    *
    */
   unsigned int enable_fsc;
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_ORIP
   /*!\brief enable Offset based refinement of Intra prediction
    *

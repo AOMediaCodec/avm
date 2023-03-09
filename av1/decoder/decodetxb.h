@@ -33,7 +33,6 @@ void av1_read_coeffs_txb_facade(const struct AV1Common *const cm,
                                 const int row, const int col,
                                 const TX_SIZE tx_size);
 
-#if CONFIG_FORWARDSKIP
 uint8_t av1_read_sig_txtype(const struct AV1Common *const cm,
                             struct DecoderCodingBlock *dcb,
                             struct aom_reader *const r, const int blk_row,
@@ -46,5 +45,4 @@ uint8_t av1_read_coeffs_txb_skip(const struct AV1Common *const cm,
                                  struct aom_reader *const r, const int blk_row,
                                  const int blk_col, const int plane,
                                  const TX_SIZE tx_size);
-#endif  // CONFIG_FORWARDSKIP
 #endif  // AOM_AV1_DECODER_DECODETXB_H_

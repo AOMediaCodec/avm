@@ -278,12 +278,10 @@ typedef struct {
    * should be enabled.
    */
   bool enable_mrls;
-#if CONFIG_FORWARDSKIP
   /*!
    * Flag to indicate if forward skip coding is enabled
    */
   bool enable_fsc;
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_ORIP
   /*!
    * Flag to indicate if ORIP should be enabled
@@ -1223,9 +1221,7 @@ typedef struct FRAME_COUNTS {
   unsigned int y_mode[BLOCK_SIZE_GROUPS][INTRA_MODES];
   unsigned int uv_mode[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
 #endif
-#if CONFIG_FORWARDSKIP
   unsigned int fsc_mode[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
-#endif  // CONFIG_FORWARDSKIP
   unsigned int mrl_index[MRL_LINE_NUMBER];
 #if CONFIG_IMPROVED_CFL
   unsigned int cfl_index[CFL_TYPE_COUNT];
@@ -1264,14 +1260,12 @@ typedef struct FRAME_COUNTS {
                         [DC_SIGN_CONTEXTS][2];
   unsigned int v_ac_sign[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_FORWARDSKIP
   unsigned int idtx_sign[TOKEN_CDF_Q_CTXS][IDTX_SIGN_CONTEXTS][2];
   unsigned int coeff_lps_skip[BR_CDF_SIZE - 1][IDTX_LEVEL_CONTEXTS][2];
   unsigned int coeff_lps_multi_skip[TOKEN_CDF_Q_CTXS][IDTX_LEVEL_CONTEXTS]
                                    [BR_CDF_SIZE];
   unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]
                                     [NUM_BASE_LEVELS + 2];
-#endif  // CONFIG_FORWARDSKIP
   unsigned int coeff_lps[TX_SIZES][PLANE_TYPES][BR_CDF_SIZE - 1][LEVEL_CONTEXTS]
                         [2];
   unsigned int eob_flag[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS][2];

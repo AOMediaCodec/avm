@@ -420,9 +420,7 @@ void av1_rd_pick_palette_intra_sby(
 
   mbmi->mrl_index = 0;
 
-#if CONFIG_FORWARDSKIP
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
-#endif  // CONFIG_FORWARDSKIP
   assert(!is_inter_block(mbmi, xd->tree_type));
   assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                            bsize));
@@ -638,9 +636,7 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
                            mbmi->sb_type[PLANE_TYPE_UV]));
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_UV];
-#if CONFIG_FORWARDSKIP
   mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-#endif  // CONFIG_FORWARDSKIP
   const SequenceHeader *const seq_params = &cpi->common.seq_params;
   int this_rate;
   int64_t this_rd;

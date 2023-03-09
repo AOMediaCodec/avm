@@ -155,8 +155,6 @@ set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
 set_aom_config_var(CONFIG_H_PARTITION 1 NUMBER
                    "AV2 H partition mode experiment flag")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
-set_aom_config_var(CONFIG_FORWARDSKIP 1
-                   "AV2 enable forward skip residual coding.")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1

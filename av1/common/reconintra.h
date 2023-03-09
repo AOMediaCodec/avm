@@ -107,7 +107,6 @@ static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm) {
 #endif  // CONFIG_IBC_SR_EXT
 }
 
-#if CONFIG_FORWARDSKIP
 static INLINE int allow_fsc_intra(const AV1_COMMON *const cm,
                                   const MACROBLOCKD *const xd, BLOCK_SIZE bs,
                                   const MB_MODE_INFO *const mbmi) {
@@ -129,7 +128,6 @@ static INLINE int use_inter_fsc(const AV1_COMMON *const cm,
                    plane_type == PLANE_TYPE_Y && is_inter && tx_type == IDTX;
   return allow_fsc;
 }
-#endif  // CONFIG_FORWARDSKIP
 
 static INLINE int av1_filter_intra_allowed_bsize(const AV1_COMMON *const cm,
                                                  BLOCK_SIZE bs) {

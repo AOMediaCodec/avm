@@ -443,9 +443,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_BAWP
   &g_av1_codec_arg_defs.enable_bawp,
 #endif  // CONFIG_BAWP
-#if CONFIG_FORWARDSKIP
   &g_av1_codec_arg_defs.enable_fsc,
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_ORIP
   &g_av1_codec_arg_defs.enable_orip,
 #endif
@@ -645,9 +643,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_BAWP
   config->enable_bawp = 1;
 #endif  // CONFIG_BAWP
-#if CONFIG_FORWARDSKIP
   config->enable_fsc = 1;
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_ORIP
   config->enable_orip = 1;
 #endif
@@ -1514,9 +1510,7 @@ static void show_stream_config(struct stream_state *stream,
           "                               : "
           "EdgeFilter (%d), PaethPredictor (%d)"
           ", MRLS(%d)"
-#if CONFIG_FORWARDSKIP
           ", FSC(%d)"
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_ORIP
           ", ORIP(%d)"
 #endif  // CONFIG_CONFIG_ORIP
@@ -1524,10 +1518,8 @@ static void show_stream_config(struct stream_state *stream,
           "\n",
           encoder_cfg->enable_intra_edge_filter,
           encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls
-#if CONFIG_FORWARDSKIP
           ,
           encoder_cfg->enable_fsc
-#endif  //  CONFIG_FORWARDSKIP
 #if CONFIG_ORIP
           ,
           encoder_cfg->enable_orip

@@ -425,10 +425,8 @@ typedef struct MB_MODE_INFO {
    *  modes for JOINT_AMVDNEWMV mode is 0, 1, and 2.*/
   int jmvd_scale_mode;
 #endif  // CONFIG_IMPROVED_JMVD
-#if CONFIG_FORWARDSKIP
   /*! \brief The forward skip mode for the current coding block. */
   uint8_t fsc_mode[2];
-#endif  // CONFIG_FORWARDSKIP
   /*! \brief The UV mode when intra is used */
   UV_PREDICTION_MODE uv_mode;
   /*! \brief The q index for the current coding block. */
@@ -2249,7 +2247,6 @@ static INLINE int block_signals_txsize(BLOCK_SIZE bsize) {
   return bsize > BLOCK_4X4;
 }
 
-#if CONFIG_FORWARDSKIP
 // Number of transform types in each set type for intra blocks
 static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1, 1,  4,
                                                                 6, 11, 15,
@@ -2261,8 +2258,6 @@ static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1, 1,  4,
 #if CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
 static const int av1_num_reduced_tx_set = 2;
 #endif  // CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
-
-#endif  // CONFIG_FORWARDSKIP
 
 // Number of transform types in each set type
 static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
@@ -2492,12 +2487,8 @@ static INLINE int get_ext_tx_types(TX_SIZE tx_size, int is_inter,
                                    int use_reduced_set) {
   const int set_type =
       av1_get_ext_tx_set_type(tx_size, is_inter, use_reduced_set);
-#if CONFIG_FORWARDSKIP
   return is_inter ? av1_num_ext_tx_set[set_type]
                   : av1_num_ext_tx_set_intra[set_type];
-#else
-  return av1_num_ext_tx_set[set_type];
-#endif  // CONFIG_FORWARDSKIP
 }
 
 #define TXSIZEMAX(t1, t2) (tx_size_2d[(t1)] >= tx_size_2d[(t2)] ? (t1) : (t2))
@@ -2954,12 +2945,10 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
 #endif  // CONFIG_IST
     return DCT_DCT;
   }
-#if CONFIG_FORWARDSKIP
   if (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
       !is_inter_block(mbmi, xd->tree_type) && plane_type == PLANE_TYPE_Y) {
     return IDTX;
   }
-#endif  // CONFIG_FORWARDSKIP
   TX_TYPE tx_type;
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];

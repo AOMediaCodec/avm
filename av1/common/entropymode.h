@@ -67,10 +67,8 @@ extern "C" {
 
 #define KF_MODE_CONTEXTS 5
 
-#if CONFIG_FORWARDSKIP
 #define FSC_MODE_CONTEXTS 4
 #define FSC_BSIZE_CONTEXTS 5
-#endif  // CONFIG_FORWARDSKIP
 
 #define COMPREF_BIT_TYPES 2
 #define RANKED_REF0_TO_PRUNE 3
@@ -146,11 +144,9 @@ typedef struct frame_contexts {
                                  [CDF_SIZE(3)];
   aom_cdf_prob coeff_base_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]
                              [CDF_SIZE(4)];
-#if CONFIG_FORWARDSKIP
   aom_cdf_prob idtx_sign_cdf[IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob coeff_base_cdf_idtx[IDTX_SIG_COEF_CONTEXTS][CDF_SIZE(4)];
   aom_cdf_prob coeff_br_cdf_idtx[IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_ATC_COEFCODING
   aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
                                 [CDF_SIZE(LF_BASE_SYMBOLS)];
@@ -328,10 +324,8 @@ typedef struct frame_contexts {
                           [CDF_SIZE(UV_INTRA_MODES)];
 #endif  // !CONFIG_AIMC
   aom_cdf_prob mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)];
-#if CONFIG_FORWARDSKIP
   aom_cdf_prob fsc_mode_cdf[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS]
                            [CDF_SIZE(FSC_MODES)];
-#endif  // CONFIG_FORWARDSKIP
 #if CONFIG_IMPROVED_CFL
   aom_cdf_prob cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)];
 #endif
@@ -412,7 +406,6 @@ typedef struct frame_contexts {
   int initialized;
 } FRAME_CONTEXT;
 
-#if CONFIG_FORWARDSKIP
 static const int av1_ext_tx_ind_intra[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -430,7 +423,6 @@ static const int av1_ext_tx_inv_intra[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 10, 11, 0, 1, 2, 4, 5, 3, 6, 7, 8, 0, 0, 0, 0, 0 },
   { 10, 11, 12, 13, 14, 15, 0, 1, 2, 4, 5, 3, 6, 7, 8, 0 },
 };
-#endif  // CONFIG_FORWARDSKIP
 
 static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
