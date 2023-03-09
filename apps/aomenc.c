@@ -1533,8 +1533,7 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_orip
 #endif  //  CONFIG_ORIP
           ,
-          encoder_cfg->enable_ibp
-  );
+          encoder_cfg->enable_ibp);
 
   fprintf(stdout,
           "Tool setting (Inter)           : InterIntra (%d), OBMC (%d), "

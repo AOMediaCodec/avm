@@ -1159,8 +1159,7 @@ static void build_intra_predictors_high(
 #endif
     ,
     const int seq_ibp_flag,
-    uint8_t *const ibp_weights[TX_SIZES_ALL][DIR_MODES_0_90]
-) {
+    uint8_t *const ibp_weights[TX_SIZES_ALL][DIR_MODES_0_90]) {
   int i;
   DECLARE_ALIGNED(16, uint16_t, left_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint16_t, above_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
@@ -1557,9 +1556,7 @@ void av1_predict_intra_block(
       cm->seq_params.enable_orip
 #endif
       ,
-      cm->seq_params.enable_ibp,
-      cm->ibp_directional_weights
-  );
+      cm->seq_params.enable_ibp, cm->ibp_directional_weights);
   return;
 }
 

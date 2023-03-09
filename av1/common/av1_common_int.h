@@ -450,7 +450,7 @@ typedef struct SequenceHeader {
 #if CONFIG_CROSS_CHROMA_TX
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
 #endif                  // CONFIG_CROSS_CHROMA_TX
-  uint8_t enable_ibp;  // enables/disables intra bi-prediction(IBP)
+  uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
 #if CONFIG_ADAPTIVE_MVD
   uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
 #endif                          // CONFIG_ADAPTIVE_MVD

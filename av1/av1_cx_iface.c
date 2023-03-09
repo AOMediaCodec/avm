@@ -149,7 +149,7 @@ struct av1_extracfg {
 #if CONFIG_CROSS_CHROMA_TX
   int enable_cctx;  // enable cross-chroma component transform
 #endif              // CONFIG_CROSS_CHROMA_TX
-  int enable_ibp;  // enable intra bi-prediction
+  int enable_ibp;   // enable intra bi-prediction
 
 #if CONFIG_ADAPTIVE_MVD
   int enable_adaptive_mvd;  // enable adaptive MVD resolution
