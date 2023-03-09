@@ -319,12 +319,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_orip;
 #endif  // CONFIG_ORIP
-#if CONFIG_IST
   /*!\brief enable Intra secondary transform
    *
    */
   unsigned int enable_ist;
-#endif  // CONFIG_IST
 #if CONFIG_CROSS_CHROMA_TX
   /*!\brief enable cross-chroma component transform
    *

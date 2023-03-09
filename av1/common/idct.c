@@ -21,9 +21,7 @@
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 #include "av1/common/idct.h"
-#if CONFIG_IST
 #include "av1/common/scan.h"
-#endif
 
 int av1_get_tx_scale(const TX_SIZE tx_size) {
   const int pels = tx_size_2d[tx_size];
@@ -200,7 +198,6 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             TX_TYPE tx_type, int eob, int reduced_tx_set,
                             TxfmParam *txfm_param) {
   (void)plane;
-#if CONFIG_IST
   MB_MODE_INFO *const mbmi = xd->mi[0];
   txfm_param->tx_type = get_primary_tx_type(tx_type);
   txfm_param->sec_tx_type = 0;
@@ -209,27 +206,11 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   if ((txfm_param->intra_mode < PAETH_PRED) &&
       !xd->lossless[mbmi->segment_id] &&
       !(mbmi->filter_intra_mode_info.use_filter_intra)) {
-#if CONFIG_IST_FIX_B076
     // updated EOB condition
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
-#else
-    const int width = tx_size_wide[tx_size];
-    const int height = tx_size_high[tx_size];
-    const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
-    bool ist_eob = 1;
-    if ((sb_size == 4) && (eob > (IST_4x4_HEIGHT - 1)))
-      ist_eob = 0;
-    else if ((sb_size == 8) && (eob > (IST_8x8_HEIGHT - 1)))
-      ist_eob = 0;
-    if (ist_eob) txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
-#endif  // CONFIG_IST_FIX_B076
   }
-#else
-  txfm_param->tx_type = tx_type;
-#endif
   txfm_param->tx_size = tx_size;
   // EOB needs to adjusted after inverse IST
-#if CONFIG_IST_FIX_B098
   if (txfm_param->sec_tx_type) {
     // txfm_param->eob = av1_get_max_eob(tx_size);
     const int sb_size =
@@ -238,9 +219,6 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   } else {
     txfm_param->eob = eob;
   }
-#else
-  txfm_param->eob = eob;
-#endif  // CONFIG_IST_FIX_B098
   txfm_param->lossless = xd->lossless[xd->mi[0]->segment_id];
   txfm_param->bd = xd->bd;
   txfm_param->tx_set_type = av1_get_ext_tx_set_type(
@@ -340,12 +318,7 @@ void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-void av1_inverse_transform_block(const MACROBLOCKD *xd,
-#if CONFIG_IST
-                                 tran_low_t *dqcoeff,
-#else
-                                 const tran_low_t *dqcoeff,
-#endif
+void av1_inverse_transform_block(const MACROBLOCKD *xd, tran_low_t *dqcoeff,
                                  int plane, TX_TYPE tx_type, TX_SIZE tx_size,
                                  uint16_t *dst, int stride, int eob,
                                  int reduced_tx_set) {
@@ -358,7 +331,6 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
                   &txfm_param);
   assert(av1_ext_tx_used[txfm_param.tx_set_type][txfm_param.tx_type]);
 
-#if CONFIG_IST
   MB_MODE_INFO *const mbmi = xd->mi[0];
   PREDICTION_MODE intra_mode =
       (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
@@ -367,13 +339,11 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
   (void)intra_mode;
   (void)filter;
   av1_inv_stxfm(dqcoeff, &txfm_param);
-#endif
 
   av1_highbd_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
 }
 
 // Inverse secondary transform
-#if CONFIG_IST
 void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size) {
   const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
@@ -421,27 +391,17 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
 
     const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
     const int16_t *scan_order_out;
-#if CONFIG_IST_FIX_B076
     // Align scan order of IST with primary transform scan order
     const SCAN_ORDER *scan_order_in =
         get_scan(txfm_param->tx_size, txfm_param->tx_type);
     const int16_t *const scan = scan_order_in->scan;
-#else
-    const int16_t *scan_order_in = (sb_size == 4)
-                                       ? stx_scan_orders_4x4[log2width - 2]
-                                       : stx_scan_orders_8x8[log2width - 2];
-#endif  // CONFIG_IST_FIX_B076
     tran_low_t buf0[64] = { 0 }, buf1[64] = { 0 };
     tran_low_t *tmp = buf0;
     tran_low_t *src = coeff;
 
     for (int r = 0; r < sb_size * sb_size; r++) {
-#if CONFIG_IST_FIX_B076
       // Align scan order of IST with primary transform scan order
       *tmp = src[scan[r]];
-#else
-      *tmp = src[scan_order_in[r]];
-#endif  // CONFIG_IST_FIX_B076
       tmp++;
     }
     int8_t transpose = 0;
@@ -469,4 +429,3 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     }
   }
 }
-#endif

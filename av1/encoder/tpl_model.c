@@ -65,9 +65,7 @@ static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
                                     int bit_depth) {
   TxfmParam txfm_param;
   txfm_param.tx_type = DCT_DCT;
-#if CONFIG_IST
   txfm_param.sec_tx_type = 0;
-#endif
   txfm_param.tx_size = tx_size;
   txfm_param.lossless = 0;
   txfm_param.tx_set_type = EXT_TX_SET_ALL16;

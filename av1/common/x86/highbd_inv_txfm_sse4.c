@@ -5817,7 +5817,6 @@ void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
 }
 
 // Inverse secondary transform
-#if CONFIG_IST
 void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
                       const PREDICTION_MODE mode, const uint8_t stx_idx,
                       const int size) {
@@ -5859,4 +5858,3 @@ void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
     _mm_storeu_si128(tmpBlock, tmp);
   }
 }
-#endif

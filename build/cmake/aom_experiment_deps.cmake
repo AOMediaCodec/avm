@@ -25,22 +25,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_DIST_8X8 0 CONFIG_MULTITHREAD)
   endif()
 
-  # CONFIG_IST_FIX_B076 requires CONFIG_IST. If CONFIG_IST is off, we also turn
-  # off CONFIG_IST_FIX_B076.
-  if(NOT CONFIG_IST AND CONFIG_IST_FIX_B076)
-    change_config_and_warn(CONFIG_IST_FIX_B076 0 !CONFIG_IST)
-  endif()
-
   # CONFIG_THROUGHPUT_ANALYSIS requires CONFIG_ACCOUNTING. If CONFIG_ACCOUNTING
   # is off, we also turn off CONFIG_THROUGHPUT_ANALYSIS.
   if(NOT CONFIG_ACCOUNTING AND CONFIG_THROUGHPUT_ANALYSIS)
     change_config_and_warn(CONFIG_THROUGHPUT_ANALYSIS 0 !CONFIG_ACCOUNTING)
-  endif()
-
-  # CONFIG_IST_FIX_B098 requires CONFIG_IST. If CONFIG_IST is off, we also turn
-  # off CONFIG_IST_FIX_B098.
-  if(NOT CONFIG_IST AND CONFIG_IST_FIX_B098)
-    change_config_and_warn(CONFIG_IST_FIX_B098 0 !CONFIG_IST)
   endif()
 
   # CONFIG_CCSO_EXT is dependent on CONFIG_CCSO. If CONFIG_CCSO is off,

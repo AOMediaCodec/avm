@@ -364,12 +364,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
   }
 #endif  // CONFIG_BVP_IMPROVEMENT
 
-#if CONFIG_IST
   for (i = 0; i < TX_SIZES; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->stx_flag_cost[i], fc->stx_cdf[i],
                              NULL);
   }
-#endif  // CONFIG_IST
 
 #if CONFIG_CROSS_CHROMA_TX
   for (i = 0; i < EXT_TX_SIZES; ++i) {

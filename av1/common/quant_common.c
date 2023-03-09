@@ -244,13 +244,9 @@ const qm_val_t *av1_qmatrix(const CommonQuantParams *quant_params, int qmlevel,
 
 // Returns true if the tx_type corresponds to non-identity transform in both
 // horizontal and vertical directions.
-#if CONFIG_IST
 static INLINE bool is_2d_transform(TX_TYPE tx_type) {
   return (get_primary_tx_type(tx_type) < IDTX);
 }
-#else
-static INLINE bool is_2d_transform(TX_TYPE tx_type) { return (tx_type < IDTX); }
-#endif
 
 const qm_val_t *av1_get_iqmatrix(const CommonQuantParams *quant_params,
                                  const MACROBLOCKD *xd, int plane,

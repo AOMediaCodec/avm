@@ -2651,14 +2651,12 @@ static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 #endif  // CONFIG_NEW_TX_PARTITION
 
-#if CONFIG_IST
 // Updated CDF initialization values
 static const aom_cdf_prob default_stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)] = {
   { AOM_CDF4(1542, 11565, 24287) },  { AOM_CDF4(4776, 13664, 21624) },
   { AOM_CDF4(7447, 17278, 24725) },  { AOM_CDF4(5783, 17348, 21203) },
   { AOM_CDF4(17873, 20852, 23831) },
 };
-#endif
 
 #if CONFIG_FLEX_MVRES
 static const aom_cdf_prob
@@ -3078,9 +3076,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->intrabc_mode_cdf, default_intrabc_mode_cdf);
   av1_copy(fc->intrabc_drl_idx_cdf, default_intrabc_drl_idx_cdf);
 #endif  // CONFIG_BVP_IMPROVEMENT
-#if CONFIG_IST
   av1_copy(fc->stx_cdf, default_stx_cdf);
-#endif
 #if CONFIG_FLEX_MVRES
   av1_copy(fc->pb_mv_precision_cdf, default_pb_mv_precision_cdf);
   av1_copy(fc->pb_mv_mpp_flag_cdf, default_pb_mv_most_probable_precision_cdf);

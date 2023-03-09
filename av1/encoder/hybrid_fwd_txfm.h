@@ -30,9 +30,7 @@ void av1_fwd_cross_chroma_tx_block(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
                                    TX_SIZE tx_size, CctxType cctx_type);
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-#if CONFIG_IST
 void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param);
-#endif
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -170,14 +170,12 @@ enum {
 #endif  // CONFIG_AIMC
 
 // Intra Secondary Transform
-#if CONFIG_IST
 #define IST_SET_SIZE 14  // IST kernel set size
 #define STX_TYPES 4      // 4 sec_tx_types including no IST
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
-#endif  // CONFIG_IST
 
 #if CONFIG_ATC_NEWTXSETS
 // TX sizes used for mode dependent TX sets

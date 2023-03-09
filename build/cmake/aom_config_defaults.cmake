@@ -166,8 +166,6 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for non-DC modes.")
-set_aom_config_var(CONFIG_IST 1 NUMBER
-                   "AV2 experiment flag to enable intra secondary transform.")
 set_aom_config_var(CONFIG_SMVP_IMPROVEMENT 1 "Enable SMVP improvement")
 set_aom_config_var(CONFIG_TMVP_IMPROVEMENT 1 "Enable TMVP improvement")
 set_aom_config_var(CONFIG_REF_MV_BANK 1 "AV2 ref mv bank experiment flag")
@@ -181,8 +179,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
 set_aom_config_var(CONFIG_COMPLEXITY_SCALABLE_MVP 1
                    "Enable complexity scalable mvp")
-set_aom_config_var(CONFIG_IST_FIX_B076 1
-                   "AV2 experiment flag to enable IST scan alignment.")
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
@@ -206,9 +202,6 @@ set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
-set_aom_config_var(
-  CONFIG_IST_FIX_B098 1
-  "AV2 experiment flag to enable IST SIMD fix and further encoder updates.")
 set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
 set_aom_config_var(CONFIG_BVP_IMPROVEMENT 1 "Enables BVP improvements")
 set_aom_config_var(CONFIG_BVCOST_UPDATE 1 "Enables sb-level update for bv cost")

@@ -2174,12 +2174,10 @@ typedef struct macroblockd {
    * 'cpi->tile_thr_data[t].td->mb.tmp_pred_bufs'.
    */
   uint16_t *tmp_obmc_bufs[2];
-#if CONFIG_IST
   /*!
    * Enable IST for current coding block.
    */
   uint8_t enable_ist;
-#endif
 #if CONFIG_CCSO
 #if CONFIG_CCSO_EXT
   /** ccso blk y */
@@ -2839,7 +2837,6 @@ static INLINE CctxType av1_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-#if CONFIG_IST
 static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
   return ctx_size == tx_size;
@@ -2858,7 +2855,7 @@ static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
 #endif
 
 /*
- * If secondary transform is enabled (CONFIG_IST) :
+ * If secondary transform is enabled (IST) :
  * Bits 4~5 of tx_type stores secondary tx_type
  * Bits 0~3 of tx_type stores primary tx_type
  *
@@ -2907,14 +2904,9 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   const int height = tx_size_high[tx_size];
   const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
   bool ist_eob = 1;
-#if CONFIG_IST_FIX_B076
   // Updated EOB condition
   if (((sb_size == 4) && (eob > IST_4x4_HEIGHT)) ||
       ((sb_size == 8) && (eob > IST_8x8_HEIGHT))) {
-#else
-  if (((sb_size == 4) && (eob > IST_4x4_HEIGHT - 1)) ||
-      ((sb_size == 8) && (eob > IST_8x8_HEIGHT - 1))) {
-#endif  // CONFIG_IST_FIX_B076
     ist_eob = 0;
   }
   const int is_depth0 = tx_size_is_depth0(tx_size, bs);
@@ -2924,12 +2916,11 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
       !(mbmi->filter_intra_mode_info.use_filter_intra) && is_depth0 && ist_eob;
   return code_stx;
 }
-#endif
 
 /*
  * This function returns the tx_type used by the transform block
  *
- * If secondary transform is enabled (CONFIG_IST) :
+ * If secondary transform is enabled (IST) :
  * Bits 4~5 of tx_type stores secondary tx_type
  * Bits 0~3 of tx_type stores primary tx_type
  */
@@ -2938,11 +2929,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
                                       int blk_col, TX_SIZE tx_size,
                                       int reduced_tx_set) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_IST
   if (xd->lossless[mbmi->segment_id]) {
-#else
-  if (xd->lossless[mbmi->segment_id] || txsize_sqr_up_map[tx_size] > TX_32X32) {
-#endif  // CONFIG_IST
     return DCT_DCT;
   }
   if (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
@@ -2959,10 +2946,8 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
       blk_row <<= pd->subsampling_y;
       blk_col <<= pd->subsampling_x;
       tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-#if CONFIG_IST
       // Secondary transforms are disabled for chroma
       disable_secondary_tx_type(&tx_type);
-#endif  // CONFIG_IST
     } else {
       // In intra mode, uv planes don't share the same prediction mode as y
       // plane, so the tx_type should not be shared
@@ -2972,7 +2957,6 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
         tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
     if (!av1_ext_tx_used[tx_set_type][tx_type]) tx_type = DCT_DCT;
   }
-#if CONFIG_IST
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
       tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]
                         [get_primary_tx_type(tx_type)]);
@@ -2981,11 +2965,6 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
     // TX_32X32 while tx_type is by default DCT_DCT.
     disable_primary_tx_type(&tx_type);
   }
-#else
-  assert(tx_type < TX_TYPES);
-  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
-      tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)][tx_type]);
-#endif  // CONFIG_IST
   return tx_type;
 }
 

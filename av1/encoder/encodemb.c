@@ -383,30 +383,17 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
     // transform, in order to obtain the quantized coefficients of the second
     // channel.
     if (plane != AOM_PLANE_V) {
-#if CONFIG_IST
       av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0);
-#else
-      av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param);
-#endif
     }
     if (plane == AOM_PLANE_U) {
-#if CONFIG_IST
       av1_xform(x, AOM_PLANE_V, block, blk_row, blk_col, plane_bsize,
                 txfm_param, 0);
-#else
-      av1_xform(x, AOM_PLANE_V, block, blk_row, blk_col, plane_bsize,
-                txfm_param);
-#endif
       forward_cross_chroma_transform(x, block, txfm_param->tx_size,
                                      txfm_param->cctx_type);
     }
   } else {
 #endif  // CONFIG_CROSS_CHROMA_TX
-#if CONFIG_IST
     av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param, 0);
-#else
-  av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, txfm_param);
-#endif
 #if CONFIG_CROSS_CHROMA_TX
   }
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -416,11 +403,7 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
   if (fsc_mode) qparam->use_optimize_b = false;
   av1_quant(x, plane, block, txfm_param, qparam);
   if (fsc_mode) {
-#if CONFIG_IST
     if (get_primary_tx_type(txfm_param->tx_type) == IDTX) {
-#else
-    if (txfm_param->tx_type == IDTX) {
-#endif  // CONFIG_IST
       uint16_t *const eob = &p->eobs[block];
       if (*eob != 0) *eob = av1_get_max_eob(txfm_param->tx_size);
     }
@@ -428,17 +411,8 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
 }
 
 void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param
-#if CONFIG_IST
-               ,
-               const int reuse
-#endif
-) {
-#if CONFIG_IST
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse) {
   struct macroblock_plane *const p = &x->plane[plane];
-#else
-  const struct macroblock_plane *const p = &x->plane[plane];
-#endif
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *const coeff = p->coeff + block_offset;
   const int diff_stride = block_size_wide[plane_bsize];
@@ -446,7 +420,6 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   const int src_offset = (blk_row * diff_stride + blk_col);
   const int16_t *src_diff = &p->src_diff[src_offset << MI_SIZE_LOG2];
 
-#if CONFIG_IST
   if (reuse == 0) {
     av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
   } else {
@@ -478,9 +451,6 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   (void)filter;
   (void)is_depth0;
   av1_fwd_stxfm(coeff, txfm_param);
-#else
-  av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-#endif
 }
 
 #if CONFIG_CROSS_CHROMA_TX
@@ -544,10 +514,7 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
   }
 }
 
-void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x,
-#if CONFIG_IST
-                     int plane,
-#endif
+void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
                      TX_SIZE tx_size, TX_TYPE tx_type,
 #if CONFIG_CROSS_CHROMA_TX
                      CctxType cctx_type,
@@ -556,7 +523,6 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
-#if CONFIG_IST
   txfm_param->tx_type = get_primary_tx_type(tx_type);
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode =
@@ -568,9 +534,6 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x,
       cm->seq_params.enable_ist) {
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
   }
-#else
-  txfm_param->tx_type = tx_type;
-#endif
 #if CONFIG_CROSS_CHROMA_TX
   txfm_param->cctx_type = cctx_type;
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -627,11 +590,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
   MB_MODE_INFO *mbmi = xd->mi[0];
   struct macroblock_plane *const p = &x->plane[plane];
   struct macroblockd_plane *const pd = &xd->plane[plane];
-#if CONFIG_IST || CONFIG_CROSS_CHROMA_TX
   tran_low_t *dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
-#else
-  tran_low_t *const dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
-#endif
   uint16_t *dst;
   ENTROPY_CONTEXT *a, *l;
   int dummy_rate_cost = 0;
@@ -685,11 +644,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     else
       quant_idx =
           USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP;
-    av1_setup_xform(cm, x,
-#if CONFIG_IST
-                    plane,
-#endif
-                    tx_size, tx_type,
+    av1_setup_xform(cm, x, plane, tx_size, tx_type,
 #if CONFIG_CROSS_CHROMA_TX
                     cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1019,11 +974,7 @@ static void encode_block_pass1(int plane, int block, int blk_row, int blk_col,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
 
-  av1_setup_xform(cm, x,
-#if CONFIG_IST
-                  plane,
-#endif
-                  tx_size, DCT_DCT,
+  av1_setup_xform(cm, x, plane, tx_size, DCT_DCT,
 #if CONFIG_CROSS_CHROMA_TX
                   CCTX_NONE,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1238,11 +1189,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       quant_idx =
           USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP;
 
-    av1_setup_xform(cm, x,
-#if CONFIG_IST
-                    plane,
-#endif
-                    tx_size, tx_type,
+    av1_setup_xform(cm, x, plane, tx_size, tx_type,
 #if CONFIG_CROSS_CHROMA_TX
                     CCTX_NONE,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1426,11 +1373,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   else
     quant_idx = USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B : AV1_XFORM_QUANT_FP;
 
-  av1_setup_xform(cm, x,
-#if CONFIG_IST
-                  AOM_PLANE_U,
-#endif
-                  tx_size, tx_type, cctx_type, &txfm_param);
+  av1_setup_xform(cm, x, AOM_PLANE_U, tx_size, tx_type, cctx_type, &txfm_param);
   av1_setup_quant(tx_size, use_trellis, quant_idx,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
   // Whether trellis or dropout optimization is required for key frames and

@@ -391,9 +391,7 @@ static void set_good_speed_features_framesize_independent(
   sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
-#if CONFIG_IST
   sf->tx_sf.tx_type_search.skip_stx_search = 0;
-#endif
 
   if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
       cpi->is_screen_content_type) {
@@ -491,9 +489,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.selective_ref_frame = 3;
 
     // TODO(Sachin): Enable/Enhance this speed feature for speed 2 & 3
-#if CONFIG_IST
     sf->tx_sf.tx_type_search.skip_stx_search = 1;
-#endif
     sf->intra_sf.disable_smooth_intra =
         !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
 

@@ -641,7 +641,6 @@ static AOM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
          block_size_high[bsize1] > block_size_high[bsize2];
 }
 
-#if CONFIG_IST
 // Mapping of intra modes to IST kernel set
 // Secondary transforms are enabled only intra modes < PAETH_PRED.
 // Thus, the array size is kept as INTRA_MODES - 1
@@ -10280,7 +10279,6 @@ static const int16_t
                     },
                   };
 
-#endif
 #if CONFIG_FLEX_MVRES
 static const int min_class_with_offset[7] = { 4, 3, 2, 0, 0, 0, 0 };
 #endif

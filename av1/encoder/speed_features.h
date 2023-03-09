@@ -233,10 +233,8 @@ typedef struct {
   // mode evaluation and disables tx type mode pruning for winner mode
   // processing.
   int winner_mode_tx_type_pruning;
-#if CONFIG_IST
   // Speed feature to disable intra secondary transform
   int skip_stx_search;
-#endif
 } TX_TYPE_SEARCH;
 
 enum {

@@ -100,9 +100,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_ORIP
     GET_PARAMS(enable_orip);
 #endif
-#if CONFIG_IST
     GET_PARAMS(enable_ist);
-#endif
 #if CONFIG_CROSS_CHROMA_TX
     GET_PARAMS(enable_cctx);
 #endif  // CONFIG_CROSS_CHROMA_TX

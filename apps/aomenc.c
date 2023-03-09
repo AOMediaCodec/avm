@@ -447,9 +447,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_ORIP
   &g_av1_codec_arg_defs.enable_orip,
 #endif
-#if CONFIG_IST
   &g_av1_codec_arg_defs.enable_ist,
-#endif
 #if CONFIG_CROSS_CHROMA_TX
   &g_av1_codec_arg_defs.enable_cctx,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -647,9 +645,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_ORIP
   config->enable_orip = 1;
 #endif
-#if CONFIG_IST
   config->enable_ist = 1;
-#endif
 #if CONFIG_CROSS_CHROMA_TX
   config->enable_cctx = 1;
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1494,10 +1490,8 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->disable_ml_transform_speed_features);
   fprintf(stdout, "                               : SDP (%d)\n",
           encoder_cfg->enable_sdp);
-#if CONFIG_IST
   fprintf(stdout, "                               : IST (%d)\n",
           encoder_cfg->enable_ist);
-#endif
   fprintf(stdout,
           "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), "
           "FilterIntra (%d)\n",

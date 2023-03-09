@@ -27,12 +27,10 @@ typedef struct txfm_param {
   // for both forward and inverse transforms
   TX_TYPE tx_type;
   // for both forward and inverse secondary transforms
-#if CONFIG_IST
   // Secondary transform type used for the current tx block.
   TX_TYPE sec_tx_type;
   // intra prediction mode used for the current tx block
   PREDICTION_MODE intra_mode;
-#endif
 #if CONFIG_CROSS_CHROMA_TX
   CctxType cctx_type;
 #endif  // CONFIG_CROSS_CHROMA_TX

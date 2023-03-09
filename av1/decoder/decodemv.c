@@ -1253,7 +1253,6 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-#if CONFIG_IST
 void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           int blk_row, int blk_col, TX_SIZE tx_size,
                           uint16_t *eob, aom_reader *r) {
@@ -1291,7 +1290,6 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
     }
   }
 }
-#endif
 
 #if CONFIG_FLEX_MVRES
 static INLINE void read_mv(aom_reader *r, MV *mv, MV ref,

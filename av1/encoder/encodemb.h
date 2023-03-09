@@ -74,10 +74,7 @@ void av1_foreach_transformed_block_in_plane(
 void av1_encode_sby_pass1(struct AV1_COMP *cpi, MACROBLOCK *x,
                           BLOCK_SIZE bsize);
 
-void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x,
-#if CONFIG_IST
-                     int plane,
-#endif
+void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
                      TX_SIZE tx_size, TX_TYPE tx_type,
 #if CONFIG_CROSS_CHROMA_TX
                      CctxType cctx_Type,
@@ -101,12 +98,7 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
                      TxfmParam *txfm_param, QUANT_PARAM *qparam);
 
 void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param
-#if CONFIG_IST
-               ,
-               const int reuse
-#endif
-);
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse);
 
 #if CONFIG_CROSS_CHROMA_TX
 void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,

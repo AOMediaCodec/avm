@@ -706,11 +706,7 @@ static AOM_INLINE void av1_write_coeffs_txb_facade(
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (code_rest) {
     if ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-#if CONFIG_IST
          get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
-#else
-         tx_type == IDTX && plane == PLANE_TYPE_Y) ||
-#endif  // CONFIG_IST
         use_inter_fsc(cm, plane, tx_type, is_inter)) {
       av1_write_coeffs_txb_skip(cm, x, w, blk_row, blk_col, plane, block,
                                 tx_size);
@@ -1230,7 +1226,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     // eset == 0 should correspond to a set with only DCT_DCT and there
     // is no need to send the tx_type
     assert(eset > 0);
-#if CONFIG_IST
 #if CONFIG_ATC_NEWTXSETS
     const int size_info = av1_size_class[tx_size];
     if (!is_inter) {
@@ -1244,9 +1239,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #else
     assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
 #endif  // CONFIG_ATC_NEWTXSETS
-#else
-    assert(av1_ext_tx_used[tx_set_type][tx_type]);
-#endif
     if (is_inter) {
       aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],
                        ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
@@ -1263,8 +1255,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       else
         intra_dir = mbmi->mode;
 #endif  // !CONFIG_ATC_NEWTXSETS
-
-#if CONFIG_IST
       aom_write_symbol(
 #if CONFIG_ATC_NEWTXSETS
           w,
@@ -1285,12 +1275,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
           ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
           av1_num_ext_tx_set_intra[tx_set_type]);
 #endif  // CONFIG_ATC_NEWTXSETS
-#else
-      aom_write_symbol(
-          w, av1_ext_tx_ind_intra[tx_set_type][tx_type],
-          ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
-          av1_num_ext_tx_set_intra[tx_set_type]);
-#endif
     }
   }
 }
@@ -1320,7 +1304,6 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-#if CONFIG_IST
 void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                            TX_TYPE tx_type, TX_SIZE tx_size, uint16_t eob,
                            aom_writer *w) {
@@ -1352,7 +1335,7 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
   }
 }
-#endif
+
 #if !CONFIG_AIMC
 static AOM_INLINE void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx,
                                                 BLOCK_SIZE bsize,
@@ -4482,9 +4465,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
   aom_wb_write_bit(wb, seq_params->enable_sdp);
-#if CONFIG_IST
   aom_wb_write_bit(wb, seq_params->enable_ist);
-#endif
 #if CONFIG_CROSS_CHROMA_TX
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
 #endif  // CONFIG_CROSS_CHROMA_TX

@@ -1117,11 +1117,7 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     if (do_quant) {
       TxfmParam txfm_param_intra;
       QUANT_PARAM quant_param_intra;
-      av1_setup_xform(cm, x,
-#if CONFIG_IST
-                      plane,
-#endif
-                      tx_size, best_tx_type,
+      av1_setup_xform(cm, x, plane, tx_size, best_tx_type,
 #if CONFIG_CROSS_CHROMA_TX
                       cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1254,11 +1250,7 @@ static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
   const int dst_idx = (blk_row * dst_stride + blk_col) << MI_SIZE_LOG2;
   const uint16_t *src = &x->plane[plane].src.buf[src_idx];
   const uint16_t *dst = &xd->plane[plane].dst.buf[dst_idx];
-#if CONFIG_IST
   tran_low_t *dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
-#else
-  const tran_low_t *dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
-#endif
 
   assert(cpi != NULL);
   assert(tx_size_wide_log2[0] == tx_size_high_log2[0]);
@@ -1524,11 +1516,7 @@ uint16_t prune_txk_type_separ(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   QUANT_PARAM quant_param;
   TxfmParam txfm_param;
-  av1_setup_xform(cm, x,
-#if CONFIG_IST
-                  plane,
-#endif
-                  tx_size, DCT_DCT,
+  av1_setup_xform(cm, x, plane, tx_size, DCT_DCT,
 #if CONFIG_CROSS_CHROMA_TX
                   CCTX_NONE,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1654,11 +1642,7 @@ uint16_t prune_txk_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
-  av1_setup_xform(cm, x,
-#if CONFIG_IST
-                  plane,
-#endif
-                  tx_size, DCT_DCT,
+  av1_setup_xform(cm, x, plane, tx_size, DCT_DCT,
 #if CONFIG_CROSS_CHROMA_TX
                   CCTX_NONE,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -2576,11 +2560,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       // Therefore transform domain distortion is not valid for these
       // transform sizes.
       (txsize_sqr_up_map[tx_size] != TX_64X64) &&
-#if CONFIG_IST
       // Use pixel domain distortion for IST
       // TODO(any): Make IST compatible with tx domain distortion
       !cm->seq_params.enable_ist &&
-#endif
       // Use pixel domain distortion for DC only blocks
       !dc_only_blk;
   // Flag to indicate if an extra calculation of distortion in the pixel domain
@@ -2598,11 +2580,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
   int skip_trellis_based_on_satd[TX_TYPES] = { 0 };
-  av1_setup_xform(cm, x,
-#if CONFIG_IST
-                  plane,
-#endif
-                  tx_size, DCT_DCT,
+  av1_setup_xform(cm, x, plane, tx_size, DCT_DCT,
 #if CONFIG_CROSS_CHROMA_TX
                   CCTX_NONE,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -2635,7 +2613,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         plane == PLANE_TYPE_Y) {
       continue;
     }
-#if CONFIG_IST
     bool skip_idx = false;
     xd->enable_ist = cm->seq_params.enable_ist &&
                      !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
@@ -2658,11 +2635,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       tx_type += (stx << 4);
       txfm_param.tx_type = get_primary_tx_type(tx_type);
       txfm_param.sec_tx_type = stx;
-#else
-    const TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
-    if (!(allowed_tx_mask & (1 << tx_type))) continue;
-    txfm_param.tx_type = tx_type;
-#endif
       if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
         av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                           &quant_param);
@@ -2672,28 +2644,19 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       av1_invalid_rd_stats(&this_rd_stats);
 
       if (!dc_only_blk)
-#if CONFIG_IST
         av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
                   1);
-#else
-      av1_xform(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param);
-#endif
       else
         av1_xform_dc_only(x, plane, block, &txfm_param, per_px_mean);
 #if CONFIG_CROSS_CHROMA_TX
       *coeffs_available = 1;
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-#if CONFIG_IST
       skip_trellis_based_on_satd[txfm_param.tx_type] =
-          skip_trellis_opt_based_on_satd(
-#else
-    skip_trellis_based_on_satd[tx_type] = skip_trellis_opt_based_on_satd(
-#endif
-              x, &quant_param, plane, block, tx_size,
-              cpi->oxcf.q_cfg.quant_b_adapt, qstep,
-              txfm_params->coeff_opt_satd_threshold, skip_trellis_in,
-              dc_only_blk);
+          skip_trellis_opt_based_on_satd(x, &quant_param, plane, block, tx_size,
+                                         cpi->oxcf.q_cfg.quant_b_adapt, qstep,
+                                         txfm_params->coeff_opt_satd_threshold,
+                                         skip_trellis_in, dc_only_blk);
 
       uint8_t fsc_mode_in = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                              plane == PLANE_TYPE_Y) ||
@@ -2701,11 +2664,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       if (fsc_mode_in) quant_param.use_optimize_b = false;
       av1_quant(x, plane, block, &txfm_param, &quant_param);
       if (fsc_mode_in) {
-#if CONFIG_IST
         if (get_primary_tx_type(tx_type) == IDTX) {
-#else
-      if (tx_type == IDTX) {
-#endif  // CONFIG_IST
           uint16_t *const eob = &p->eobs[block];
           if (*eob != 0) *eob = av1_get_max_eob(txfm_param.tx_size);
         }
@@ -2851,9 +2810,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       if (cpi->sf.tx_sf.adaptive_txb_search_level) {
         if ((best_rd - (best_rd >> cpi->sf.tx_sf.adaptive_txb_search_level)) >
             ref_best_rd) {
-#if CONFIG_IST
           skip_idx = true;
-#endif
           break;
         }
       }
@@ -2861,26 +2818,18 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       // Terminate transform type search if the block has been quantized to
       // all zero.
       if (cpi->sf.tx_sf.tx_type_search.skip_tx_search && !best_eob) {
-#if CONFIG_IST
         skip_idx = true;
-#endif
         break;
       }
-#if CONFIG_IST
     }
     if (skip_idx) break;
-#endif
   }
 
   best_rd_stats->skip_txfm = best_eob == 0;
   if (plane == 0) update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
   x->plane[plane].txb_entropy_ctx[block] = best_txb_ctx;
   x->plane[plane].eobs[block] = best_eob;
-#if CONFIG_IST
   skip_trellis = skip_trellis_based_on_satd[get_primary_tx_type(best_tx_type)];
-#else
-  skip_trellis = skip_trellis_based_on_satd[best_tx_type];
-#endif
   skip_trellis &=
       (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && plane == PLANE_TYPE_Y) ||
       use_inter_fsc(cm, plane, best_tx_type, is_inter);
@@ -2948,11 +2897,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
       av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col, tx_size,
                       cpi->common.features.reduced_tx_set_used);
   TxfmParam txfm_param;
-  av1_setup_xform(cm, x,
-#if CONFIG_IST
-                  AOM_PLANE_U,
-#endif
-                  tx_size, tx_type, CCTX_NONE, &txfm_param);
+  av1_setup_xform(cm, x, AOM_PLANE_U, tx_size, tx_type, CCTX_NONE, &txfm_param);
   QUANT_PARAM quant_param;
   int xform_quant_idx =
       skip_trellis
@@ -2962,17 +2907,10 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
   if (!uv_coeffs_available) {
-#if CONFIG_IST
     av1_xform(x, AOM_PLANE_U, block, blk_row, blk_col, plane_bsize, &txfm_param,
               0);
     av1_xform(x, AOM_PLANE_V, block, blk_row, blk_col, plane_bsize, &txfm_param,
               0);
-#else
-    av1_xform(x, AOM_PLANE_U, block, blk_row, blk_col, plane_bsize,
-              &txfm_param);
-    av1_xform(x, AOM_PLANE_V, block, blk_row, blk_col, plane_bsize,
-              &txfm_param);
-#endif  // CONFIG_IST
     if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id))
       av1_setup_qmatrix(&cm->quant_params, xd, AOM_PLANE_U, tx_size, tx_type,
                         &quant_param);

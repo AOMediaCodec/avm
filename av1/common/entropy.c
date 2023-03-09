@@ -366,9 +366,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], 2, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER(fc->cfl_sign_cdf, CFL_JOINT_SIGNS);
   RESET_CDF_COUNTER(fc->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
-#if CONFIG_IST
   RESET_CDF_COUNTER_STRIDE(fc->stx_cdf, STX_TYPES, CDF_SIZE(STX_TYPES));
-#endif
 #if CONFIG_FLEX_MVRES
   for (int p = 0; p < NUM_MV_PREC_MPP_CONTEXT; ++p) {
     RESET_CDF_COUNTER(fc->pb_mv_mpp_flag_cdf[p], 2);
