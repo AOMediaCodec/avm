@@ -369,10 +369,9 @@ void av1_xform_dc_only(MACROBLOCK *x, int plane, int block,
       (tran_low_t)((per_px_mean * dc_coeff_scale[txfm_param->tx_size]) >> 12);
 }
 
-void av1_xform_quant(
-    const AV1_COMMON *cm,
-    MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-    BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, QUANT_PARAM *qparam) {
+void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
+                     int blk_row, int blk_col, BLOCK_SIZE plane_bsize,
+                     TxfmParam *txfm_param, QUANT_PARAM *qparam) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const struct macroblock_plane *const p = &x->plane[plane];
@@ -673,8 +672,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     const int fsc_mode = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                           plane == PLANE_TYPE_Y) ||
                          use_inter_fsc(cm, plane, tx_type, is_inter);
-    const int use_trellis = is_trellis_used(args->enable_optimize_b, dry_run)
-                            && !fsc_mode;
+    const int use_trellis =
+        is_trellis_used(args->enable_optimize_b, dry_run) && !fsc_mode;
 #if CONFIG_PAR_HIDING
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
@@ -699,9 +698,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                     cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
     av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                       &quant_param);
-    av1_xform_quant(
-        cm, x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
-        &quant_param);
+    av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
+                    &txfm_param, &quant_param);
 
     // Whether trellis or dropout optimization is required for inter frames.
     const bool do_trellis = INTER_BLOCK_OPT_TYPE == TRELLIS_OPT ||
@@ -1034,8 +1032,8 @@ static void encode_block_pass1(int plane, int block, int blk_row, int blk_col,
                   &quant_param);
   av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, DCT_DCT,
                     &quant_param);
-  av1_xform_quant(cm, x, plane, block, blk_row, blk_col,
-                  plane_bsize, &txfm_param, &quant_param);
+  av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
+                  &txfm_param, &quant_param);
 
   if (p->eobs[block] > 0) {
     txfm_param.eob = p->eobs[block];
@@ -1227,7 +1225,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                               plane == PLANE_TYPE_Y) ||
                              use_inter_fsc(cm, plane, tx_type, is_inter);
     const int use_trellis =
-        is_trellis_used(args->enable_optimize_b, args->dry_run) && !fsc_mode ;
+        is_trellis_used(args->enable_optimize_b, args->dry_run) && !fsc_mode;
 #if CONFIG_PAR_HIDING
     bool enable_parity_hiding =
         cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
@@ -1253,9 +1251,8 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
                     cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
     av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                       &quant_param);
-    av1_xform_quant(
-        cm, x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
-        &quant_param);
+    av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
+                    &txfm_param, &quant_param);
 #if DEBUG_EXTQUANT
     if (args->dry_run == OUTPUT_ENABLED) {
       fprintf(cm->fEncCoeffLog, "tx_type = %d, eob = %d\n", tx_type, *eob);
@@ -1473,9 +1470,8 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
     }
     av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                       &quant_param);
-    av1_xform_quant(
-        cm, x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
-        &quant_param);
+    av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
+                    &txfm_param, &quant_param);
     if (quant_param.use_optimize_b && do_trellis) {
       const ENTROPY_CONTEXT *a =
           &args->ta[blk_col + (plane - AOM_PLANE_U) * MAX_MIB_SIZE];

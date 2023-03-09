@@ -1800,8 +1800,8 @@ int av1_cost_coeffs_txb_skip_estimate(const MACROBLOCK *x, const int plane,
 }
 
 int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
-                        const int plane, const int block,
-                        const TX_SIZE tx_size, const TX_TYPE tx_type,
+                        const int plane, const int block, const TX_SIZE tx_size,
+                        const TX_TYPE tx_type,
 #if CONFIG_CROSS_CHROMA_TX
                         const CctxType cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1887,14 +1887,15 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
   }
 }
 
-int av1_cost_coeffs_txb_laplacian(
-    const AV1_COMMON *cm, const MACROBLOCK *x, const int plane, const int block,
-    const TX_SIZE tx_size, const TX_TYPE tx_type,
+int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
+                                  const int plane, const int block,
+                                  const TX_SIZE tx_size, const TX_TYPE tx_type,
 #if CONFIG_CROSS_CHROMA_TX
-    const CctxType cctx_type,
+                                  const CctxType cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
-    const TXB_CTX *const txb_ctx, const int reduced_tx_set_used,
-    const int adjust_eob) {
+                                  const TXB_CTX *const txb_ctx,
+                                  const int reduced_tx_set_used,
+                                  const int adjust_eob) {
   const struct macroblock_plane *p = &x->plane[plane];
   int eob = p->eobs[block];
 
@@ -1941,13 +1942,13 @@ int av1_cost_coeffs_txb_laplacian(
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
 #endif
 
-  return warehouse_efficients_txb_laplacian(
-      cm, x, plane, block, tx_size, txb_ctx, eob, plane_type, coeff_costs, xd,
-      tx_type,
+  return warehouse_efficients_txb_laplacian(cm, x, plane, block, tx_size,
+                                            txb_ctx, eob, plane_type,
+                                            coeff_costs, xd, tx_type,
 #if CONFIG_CROSS_CHROMA_TX
-      cctx_type,
+                                            cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
-      tx_class, reduced_tx_set_used);
+                                            tx_class, reduced_tx_set_used);
 }
 
 static AOM_FORCE_INLINE int get_two_coeff_cost_simple(

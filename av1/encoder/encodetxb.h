@@ -122,14 +122,13 @@ void av1_free_txb_buf(AV1_COMP *cpi);
  */
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-int av1_cost_coeffs_txb(
-    const AV1_COMMON *cm,
-    const MACROBLOCK *x, const int plane, const int block,
-    const TX_SIZE tx_size, const TX_TYPE tx_type,
+int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
+                        const int plane, const int block, const TX_SIZE tx_size,
+                        const TX_TYPE tx_type,
 #if CONFIG_CROSS_CHROMA_TX
-    const CctxType cctx_type,
+                        const CctxType cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
-    const TXB_CTX *const txb_ctx, int reduced_tx_set_used);
+                        const TXB_CTX *const txb_ctx, int reduced_tx_set_used);
 
 #if CONFIG_CROSS_CHROMA_TX
 /*!\brief Estimate the entropy cost of coding a transform block using Laplacian
@@ -209,15 +208,15 @@ int av1_cost_coeffs_txb(
  block.
  */
 #endif  // CONFIG_CROSS_CHROMA_TX
-int av1_cost_coeffs_txb_laplacian(
-    const AV1_COMMON *cm,
-    const MACROBLOCK *x, const int plane, const int block,
-    const TX_SIZE tx_size, const TX_TYPE tx_type,
+int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
+                                  const int plane, const int block,
+                                  const TX_SIZE tx_size, const TX_TYPE tx_type,
 #if CONFIG_CROSS_CHROMA_TX
-    const CctxType cctx_type,
+                                  const CctxType cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
-    const TXB_CTX *const txb_ctx, const int reduced_tx_set_used,
-    const int adjust_eob);
+                                  const TXB_CTX *const txb_ctx,
+                                  const int reduced_tx_set_used,
+                                  const int adjust_eob);
 
 /*!\brief Estimate the entropy cost of transform coefficients using Laplacian
  * distribution.

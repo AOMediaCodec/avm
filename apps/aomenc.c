@@ -1517,8 +1517,7 @@ static void show_stream_config(struct stream_state *stream,
           ", IBP(%d)"
           "\n",
           encoder_cfg->enable_intra_edge_filter,
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls
-          ,
+          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
           encoder_cfg->enable_fsc
 #if CONFIG_ORIP
           ,

@@ -137,7 +137,7 @@ struct av1_extracfg {
 #if CONFIG_BAWP
   int enable_bawp;  // enable block adaptive weighted prediction
 #endif              // CONFIG_BAWP
-  int enable_fsc;  // enable forward skip coding
+  int enable_fsc;   // enable forward skip coding
 #if CONFIG_ORIP
   int enable_orip;  // enable ORIP
 #endif              // CONFIG_ORIP

@@ -435,7 +435,7 @@ typedef struct SequenceHeader {
 #if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
 #endif                  // CONFIG_BAWP
-  uint8_t enable_fsc;                // enables/disables forward skip coding
+  uint8_t enable_fsc;   // enables/disables forward skip coding
   uint8_t enable_filter_intra;       // enables/disables filterintra
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
 

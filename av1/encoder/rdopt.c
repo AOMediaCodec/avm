@@ -8479,7 +8479,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   get_y_intra_mode_set(mbmi, xd);
 #endif  // CONFIG_AIMC
 
-  for (int fsc_mode = 0; fsc_mode < (allow_fsc_intra(cm, xd, bsize, mbmi) ? FSC_MODES : 1); fsc_mode++) {
+  for (int fsc_mode = 0;
+       fsc_mode < (allow_fsc_intra(cm, xd, bsize, mbmi) ? FSC_MODES : 1);
+       fsc_mode++) {
     uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
     for (int mrl_index = 0;
          mrl_index < (enable_mrls_flag ? MRL_LINE_NUMBER : 1); mrl_index++) {
@@ -8495,7 +8497,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
         set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
 #else
-      set_y_mode_and_delta_angle(mode_idx, mbmi);
+        set_y_mode_and_delta_angle(mode_idx, mbmi);
 #endif  // CONFIG_AIMC
         if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
              cpi->sf.intra_sf.disable_smooth_intra) &&
@@ -8557,12 +8559,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif
         );
 #else
-      init_mbmi(mbmi, this_mode, refs, cm
+        init_mbmi(mbmi, this_mode, refs, cm
 #if CONFIG_FLEX_MVRES
-                ,
-                xd->sbi
+                  ,
+                  xd->sbi
 #endif
-      );
+        );
 #endif  // CONFIG_IBC_SR_EXT
         txfm_info->skip_txfm = 0;
 
