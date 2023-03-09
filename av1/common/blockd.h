@@ -708,12 +708,8 @@ static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
 }
 
 static INLINE int is_inter_ref_frame(MV_REFERENCE_FRAME ref_frame) {
-#if CONFIG_NEW_REF_SIGNALING
   return ref_frame != INTRA_FRAME && ref_frame != INTRA_FRAME_INDEX &&
          ref_frame != NONE_FRAME;
-#else
-  return ref_frame > INTRA_FRAME;
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 #if CONFIG_TIP
@@ -913,45 +909,6 @@ static INLINE PARTITION_TYPE get_limited_partition_noext_from_symbol(
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return is_inter_ref_frame(mbmi->ref_frame[1]);
 }
-
-#if !CONFIG_NEW_REF_SIGNALING
-static INLINE int has_uni_comp_refs(const MB_MODE_INFO *mbmi) {
-  return has_second_ref(mbmi) && (!((mbmi->ref_frame[0] >= BWDREF_FRAME) ^
-                                    (mbmi->ref_frame[1] >= BWDREF_FRAME)));
-}
-
-static INLINE MV_REFERENCE_FRAME comp_ref0(int ref_idx) {
-  static const MV_REFERENCE_FRAME lut[] = {
-    LAST_FRAME,     // LAST_LAST2_FRAMES,
-    LAST_FRAME,     // LAST_LAST3_FRAMES,
-    LAST_FRAME,     // LAST_GOLDEN_FRAMES,
-    BWDREF_FRAME,   // BWDREF_ALTREF_FRAMES,
-    LAST2_FRAME,    // LAST2_LAST3_FRAMES
-    LAST2_FRAME,    // LAST2_GOLDEN_FRAMES,
-    LAST3_FRAME,    // LAST3_GOLDEN_FRAMES,
-    BWDREF_FRAME,   // BWDREF_ALTREF2_FRAMES,
-    ALTREF2_FRAME,  // ALTREF2_ALTREF_FRAMES,
-  };
-  assert(NELEMENTS(lut) == TOTAL_UNIDIR_COMP_REFS);
-  return lut[ref_idx];
-}
-
-static INLINE MV_REFERENCE_FRAME comp_ref1(int ref_idx) {
-  static const MV_REFERENCE_FRAME lut[] = {
-    LAST2_FRAME,    // LAST_LAST2_FRAMES,
-    LAST3_FRAME,    // LAST_LAST3_FRAMES,
-    GOLDEN_FRAME,   // LAST_GOLDEN_FRAMES,
-    ALTREF_FRAME,   // BWDREF_ALTREF_FRAMES,
-    LAST3_FRAME,    // LAST2_LAST3_FRAMES
-    GOLDEN_FRAME,   // LAST2_GOLDEN_FRAMES,
-    GOLDEN_FRAME,   // LAST3_GOLDEN_FRAMES,
-    ALTREF2_FRAME,  // BWDREF_ALTREF2_FRAMES,
-    ALTREF_FRAME,   // ALTREF2_ALTREF_FRAMES,
-  };
-  assert(NELEMENTS(lut) == TOTAL_UNIDIR_COMP_REFS);
-  return lut[ref_idx];
-}
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_AIMC
 PREDICTION_MODE av1_get_joint_mode(const MB_MODE_INFO *mi);
@@ -2089,11 +2046,7 @@ typedef struct macroblockd {
    * Counts of each reference frame in the above and left neighboring blocks.
    * NOTE: Take into account both single and comp references.
    */
-#if CONFIG_NEW_REF_SIGNALING
   uint8_t neighbors_ref_counts[INTER_REFS_PER_FRAME];
-#else
-  uint8_t neighbors_ref_counts[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Current CDFs of all the symbols for the current tile.

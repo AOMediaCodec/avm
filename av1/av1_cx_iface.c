@@ -175,9 +175,7 @@ struct av1_extracfg {
   int enable_flip_idtx;          // enable flip and identity transform types
   int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
-#if CONFIG_NEW_REF_SIGNALING
   int explicit_ref_frame_map;    // explicitly signal reference frame mapping
-#endif                           // CONFIG_NEW_REF_SIGNALING
   int enable_ref_frame_mvs;      // sequence level
   int allow_ref_frame_mvs;       // frame level
   int enable_masked_comp;        // enable masked compound for sequence
@@ -513,9 +511,7 @@ static struct av1_extracfg default_extra_cfg = {
 
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
-#if CONFIG_NEW_REF_SIGNALING
   0,    // explicit_ref_frame_map
-#endif  // CONFIG_NEW_REF_SIGNALING
   1,    // enable_ref_frame_mvs sequence level
   1,    // allow ref_frame_mvs frame level
   1,    // enable masked compound at sequence level
@@ -843,9 +839,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 
   RANGE_CHECK(extra_cfg, max_reference_frames, 3, 7);
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
-#if CONFIG_NEW_REF_SIGNALING
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
-#endif  // CONFIG_NEW_REF_SIGNALING
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
@@ -1039,9 +1033,7 @@ static void update_encoder_config(cfg_options_t *cfg,
       (extra_cfg->allow_ref_frame_mvs || extra_cfg->enable_ref_frame_mvs);
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
-#if CONFIG_NEW_REF_SIGNALING
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
-#endif  // CONFIG_NEW_REF_SIGNALING
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
 #if CONFIG_REF_MV_BANK
@@ -1160,9 +1152,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_ref_frame_mvs = cfg->enable_ref_frame_mvs;
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
-#if CONFIG_NEW_REF_SIGNALING
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
-#endif  // CONFIG_NEW_REF_SIGNALING
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
 #if CONFIG_REF_MV_BANK
@@ -1621,9 +1611,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->ref_frm_cfg.enable_reduced_reference_set =
       extra_cfg->enable_reduced_reference_set;
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
-#if CONFIG_NEW_REF_SIGNALING
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   oxcf->row_mt = extra_cfg->row_mt;
 
@@ -2895,13 +2883,8 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
   if (!cm->show_existing_frame) {
     // Get reference frame information
     int ref_poc[INTER_REFS_PER_FRAME];
-#if CONFIG_NEW_REF_SIGNALING
     for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
       const int ref_idx = ref_frame;
-#else
-    for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-      const int ref_idx = ref_frame - LAST_FRAME;
-#endif  // CONFIG_NEW_REF_SIGNALING
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
       ref_poc[ref_idx] = (ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc)
@@ -3926,12 +3909,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_reduced_reference_set =
         arg_parse_int_helper(&arg, err_string);
-#if CONFIG_NEW_REF_SIGNALING
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.explicit_ref_frame_map,
                               argv, err_string)) {
     extra_cfg.explicit_ref_frame_map = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_NEW_REF_SIGNALING
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
@@ -4400,9 +4381,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
         1, 1,   1,   1, 1, 1, 3, 1, 1,
-#if CONFIG_NEW_REF_SIGNALING
         0,
-#endif  // CONFIG_NEW_REF_SIGNALING
         0, 0,
 #if CONFIG_REF_MV_BANK
         1,

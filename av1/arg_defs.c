@@ -675,12 +675,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "reduced-reference-set", 1,
               "Use reduced set of single and compound references (0: off "
               "(default), 1: on)"),
-#if CONFIG_NEW_REF_SIGNALING
   .explicit_ref_frame_map =
       ARG_DEF(NULL, "explicit-ref-frame-map", 1,
               "Explicitly signal the reference frame mapping (0: off "
               "(default), 1: on)"),
-#endif  // CONFIG_NEW_REF_SIGNALING
   .target_seq_level_idx = ARG_DEF(
       NULL, "target-seq-level-idx", 1,
       "Target sequence level index. "

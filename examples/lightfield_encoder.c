@@ -205,12 +205,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
                    AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
                        AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF |
                        AOM_EFLAG_NO_REF_BWD | AOM_EFLAG_NO_REF_ARF2 |
-#if CONFIG_NEW_REF_SIGNALING
                        AOM_EFLAG_NO_UPD_ALL |
-#else
-                       AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF |
-                       AOM_EFLAG_NO_UPD_ARF |
-#endif  // CONFIG_NEW_REF_SIGNALING
                        AOM_EFLAG_NO_UPD_ENTROPY,
                    writer);
 
@@ -270,12 +265,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
                        AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
                            AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF |
                            AOM_EFLAG_NO_REF_BWD | AOM_EFLAG_NO_REF_ARF2 |
-#if CONFIG_NEW_REF_SIGNALING
                            AOM_EFLAG_NO_UPD_ALL |
-#else
-                           AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF |
-                           AOM_EFLAG_NO_UPD_ARF |
-#endif  // CONFIG_NEW_REF_SIGNALING
                            AOM_EFLAG_NO_UPD_ENTROPY,
                        writer);
         }

@@ -458,9 +458,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_IBP_DC || CONFIG_IBP_DIR
   &g_av1_codec_arg_defs.enable_ibp,
 #endif
-#if CONFIG_NEW_REF_SIGNALING
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
-#endif  // CONFIG_NEW_REF_SIGNALING
   &g_av1_codec_arg_defs.max_drl_refmvs,
 #if CONFIG_REF_MV_BANK
   &g_av1_codec_arg_defs.enable_refmvbank,
@@ -718,9 +716,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_OPTFLOW_REFINEMENT
   config->enable_opfl_refine = 1;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_NEW_REF_SIGNALING
   config->explicit_ref_frame_map = 0;
-#endif  // CONFIG_NEW_REF_SIGNALING
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
   config->enable_smooth_interintra = 1;

@@ -163,17 +163,9 @@ typedef struct map_entry {
   int value;
 } map_entry;
 
-#if CONFIG_NEW_REF_SIGNALING
 const map_entry refs_map[] = { ENUM(INTRA_FRAME), ENUM(0), ENUM(1),
                                ENUM(2),           ENUM(3), ENUM(4),
                                ENUM(5),           ENUM(6), LAST_ENUM };
-#else
-const map_entry refs_map[] = {
-  ENUM(INTRA_FRAME),   ENUM(LAST_FRAME),   ENUM(LAST2_FRAME),
-  ENUM(LAST3_FRAME),   ENUM(GOLDEN_FRAME), ENUM(BWDREF_FRAME),
-  ENUM(ALTREF2_FRAME), ENUM(ALTREF_FRAME), LAST_ENUM
-};
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 const map_entry block_size_map[] = {
   ENUM(BLOCK_4X4),     ENUM(BLOCK_4X8),    ENUM(BLOCK_8X4),

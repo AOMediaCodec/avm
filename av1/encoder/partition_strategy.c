@@ -341,12 +341,8 @@ static int simple_motion_search_get_best_ref(
   for (int ref_idx = 0; ref_idx < num_refs; ref_idx++) {
     const int ref = refs[ref_idx];
 
-#if CONFIG_NEW_REF_SIGNALING
     if (ref == INVALID_IDX) continue;
     if (cm->ref_frame_flags & (1 << ref)) {
-#else
-    if (cm->ref_frame_flags & av1_ref_frame_flag_list[ref]) {
-#endif  // CONFIG_NEW_REF_SIGNALING
       const FULLPEL_MV *start_mvs = sms_tree->start_mvs;
       unsigned int curr_sse = 0, curr_var = 0;
       int_mv best_mv =
@@ -402,23 +398,7 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
   // Setting up motion search
   int ref_list[1];
-#if CONFIG_NEW_REF_SIGNALING
   ref_list[0] = get_closest_pastcur_ref_index(&cpi->common);
-#else
-  ref_list[0] = LAST_FRAME;
-  if (!(cpi->common.ref_frame_flags & av1_ref_frame_flag_list[LAST_FRAME]) &&
-      !(cpi->common.ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME])) {
-    for (int i = LAST_FRAME; i <= ALTREF_FRAME; i++) {
-      if (cpi->common.ref_frame_flags & av1_ref_frame_flag_list[i]) {
-        ref_list[0] = i;
-        break;
-      }
-    }
-  } else {
-    // Setting up motion search
-    ref_list[0] = cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   const int num_refs = 1;
   const int use_subpixel = 1;
@@ -1750,12 +1730,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
                              MACROBLOCK *x, SimpleMotionData *sms_data,
                              int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
-#if CONFIG_NEW_REF_SIGNALING
   const int ref_frame = get_closest_pastcur_ref_index(cm);
-#else
-  const int ref_frame =
-      cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
-#endif  // CONFIG_NEW_REF_SIGNALING
   assert(ref_frame >= 0);
   if (mi_col >= cm->mi_params.mi_cols || mi_row >= cm->mi_params.mi_rows) {
     // If the whole block is outside of the image, set the var and sse to 0.
@@ -1776,11 +1751,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);
-#if CONFIG_NEW_REF_SIGNALING
   if (cm->ref_frame_flags & (1 << ref_frame)) {
-#else
-  if (cm->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     const MACROBLOCKD *xd = &x->e_mbd;
     const uint16_t *src_buf = x->plane[0].src.buf;
     const uint16_t *dst_buf = xd->plane[0].dst.buf;

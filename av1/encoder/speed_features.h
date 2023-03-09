@@ -34,13 +34,8 @@ typedef struct MESH_PATTERN {
 
 enum {
   GM_FULL_SEARCH,
-#if CONFIG_NEW_REF_SIGNALING
   GM_REDUCED_REF_SEARCH_SKIP_LEV2,
   GM_REDUCED_REF_SEARCH_SKIP_LEV3,
-#else
-  GM_REDUCED_REF_SEARCH_SKIP_L2_L3,
-  GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2,
-#endif  // CONFIG_NEW_REF_SIGNALING
   GM_DISABLE_SEARCH
 } UENUM1BYTE(GM_SEARCH_TYPE);
 
@@ -83,20 +78,6 @@ enum {
                       (1 << NEW_NEARMV) | (1 << NEAR_NEWMV) |
                       (1 << NEAR_NEARMV),
 };
-
-#if !CONFIG_NEW_REF_SIGNALING
-enum {
-  DISABLE_ALL_INTER_SPLIT = (1 << THR_COMP_GA) | (1 << THR_COMP_LA) |
-                            (1 << THR_ALTR) | (1 << THR_GOLD) | (1 << THR_LAST),
-
-  DISABLE_ALL_SPLIT = (1 << THR_INTRA) | DISABLE_ALL_INTER_SPLIT,
-
-  DISABLE_COMPOUND_SPLIT = (1 << THR_COMP_GA) | (1 << THR_COMP_LA),
-
-  LAST_AND_INTRA_SPLIT_ONLY = (1 << THR_COMP_GA) | (1 << THR_COMP_LA) |
-                              (1 << THR_ALTR) | (1 << THR_GOLD)
-};
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 enum {
   TXFM_CODING_SF = 1,

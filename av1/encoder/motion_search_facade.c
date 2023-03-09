@@ -88,16 +88,10 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     // Take the weighted average of the step_params based on the last frame's
     // max mv magnitude and that based on the best ref mvs of the current
     // block for the given reference.
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
     const int ref_frame_idx = COMPACT_INDEX0_NRS(ref);
     step_param = (av1_init_search_range(x->max_mv_context[ref_frame_idx]) +
                   mv_search_params->mv_step_param) /
                  2;
-#else
-    step_param = (av1_init_search_range(x->max_mv_context[ref]) +
-                  mv_search_params->mv_step_param) /
-                 2;
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   } else {
     step_param = mv_search_params->mv_step_param;
   }
@@ -164,13 +158,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
         for (int k = 0; k < nh; k++) {
           for (int l = 0; l < nw; l++) {
-#if CONFIG_NEW_REF_SIGNALING
             const int_mv mv =
                 sb_enc->tpl_mv[start + k * sb_enc->tpl_stride + l][ref];
-#else
-            const int_mv mv = sb_enc->tpl_mv[start + k * sb_enc->tpl_stride + l]
-                                            [ref - LAST_FRAME];
-#endif  // CONFIG_NEW_REF_SIGNALING
             if (mv.as_int == INVALID_MV) {
               valid = 0;
               break;
@@ -397,11 +386,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     int_mv fractional_ms_list[3];
     av1_set_fractional_mv(fractional_ms_list);
     int dis; /* TODO: use dis in distortion calculation later. */
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
     const int ref_pred = COMPACT_INDEX0_NRS(ref);
-#else
-    const int ref_pred = ref;
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
@@ -1585,11 +1570,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
         &x->pred_sse[COMPACT_INDEX0_NRS(ref)],
-#else
-        &x->pred_sse[ref],
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
         NULL);
   } else {
     // Manually convert from units of pixel to 1/8-pixels if we are not doing
@@ -1617,12 +1598,7 @@ int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
                                  const FULLPEL_MV start_mv, int use_subpixel,
                                  unsigned int *sse, unsigned int *var) {
   MACROBLOCKD *xd = &x->e_mbd;
-#if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME ref = get_closest_pastcur_ref_index(&cpi->common);
-#else
-  const MV_REFERENCE_FRAME ref =
-      cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   int_mv best_mv = av1_simple_motion_search(cpi, x, mi_row, mi_col, bsize, ref,
                                             start_mv, 1, use_subpixel);

@@ -389,12 +389,6 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
     cr->percent_refresh = 10;
     cr->rate_ratio_qdelta = 1.5;
     cr->rate_boost_fac = 10;
-#if !CONFIG_NEW_REF_SIGNALING
-    if (cpi->refresh_frame.golden_frame) {
-      cr->percent_refresh = 0;
-      cr->rate_ratio_qdelta = 1.0;
-    }
-#endif  // !CONFIG_NEW_REF_SIGNALING
   }
   // Weight for segment prior to encoding: take the average of the target
   // number for the frame to be encoded and the actual from the previous frame.
@@ -511,8 +505,5 @@ void av1_cyclic_refresh_reset_resize(AV1_COMP *const cpi) {
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   memset(cr->map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
   cr->sb_index = 0;
-#if !CONFIG_NEW_REF_SIGNALING
-  cpi->refresh_frame.golden_frame = true;
-#endif  // !CONFIG_NEW_REF_SIGNALING
   cr->apply_cyclic_refresh = 0;
 }

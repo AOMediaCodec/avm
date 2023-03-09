@@ -243,11 +243,7 @@ typedef struct {
   //! Number of ref mvs in the drl.
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
   //! Global mvs
-#if CONFIG_NEW_REF_SIGNALING
   int_mv global_mvs[INTER_REFS_PER_FRAME];
-#else
-  int_mv global_mvs[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   //! skip_mvp_candidate_list is the MVP list for skip mode.
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
@@ -284,11 +280,7 @@ typedef struct {
 #endif
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
   //! \copydoc MB_MODE_INFO_EXT::global_mvs
-#if CONFIG_NEW_REF_SIGNALING
   int_mv global_mvs[INTER_REFS_PER_FRAME];
-#else
-  int_mv global_mvs[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   //! \copydoc MB_MODE_INFO_EXT::mode_context
   int16_t mode_context;
   //! Offset of current coding block's coeff buffer relative to the sb.
@@ -903,7 +895,6 @@ typedef struct {
    * \name Inter Costs: Ref Frame Types
    ****************************************************************************/
   /**@{*/
-#if CONFIG_NEW_REF_SIGNALING
   //! single_ref_cost
   int single_ref_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
@@ -918,26 +909,6 @@ typedef struct {
   int comp_ref1_cost[REF_CONTEXTS][COMPREF_BIT_TYPES][INTER_REFS_PER_FRAME - 2]
                     [2];
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
-#else
-  //! single_ref_cost
-  int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];
-  //! comp_ref_type_cost
-  int comp_ref_type_cost[COMP_REF_TYPE_CONTEXTS]
-                        [CDF_SIZE(COMP_REFERENCE_TYPES)];
-  //! uni_comp_ref_cost
-  int uni_comp_ref_cost[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1]
-                       [CDF_SIZE(2)];
-  /*! \brief Cost for signaling ref_frame[0] in bidir-comp mode
-   *
-   * Includes LAST_FRAME, LAST2_FRAME, LAST3_FRAME, and GOLDEN_FRAME.
-   */
-  int comp_ref_cost[REF_CONTEXTS][FWD_REFS - 1][2];
-  /*! \brief Cost for signaling ref_frame[1] in bidir-comp mode
-   *
-   * Includes ALTREF_FRAME, ALTREF2_FRAME, and BWDREF_FRAME.
-   */
-  int comp_bwdref_cost[REF_CONTEXTS][BWD_REFS - 1][2];
-#endif  // CONFIG_NEW_REF_SIGNALING
   //! comp_inter_cost
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
 #if CONFIG_TIP
@@ -1521,11 +1492,7 @@ typedef struct macroblock {
    * current mode. If the current best rd is already <= threshold, then we skip
    * the current mode.
    */
-#if CONFIG_NEW_REF_SIGNALING
   int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
-#else
-  int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*! \brief Tracks the winner modes in the current coding block.
    *

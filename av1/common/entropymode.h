@@ -72,7 +72,6 @@ extern "C" {
 #define FSC_BSIZE_CONTEXTS 5
 #endif  // CONFIG_FORWARDSKIP
 
-#if CONFIG_NEW_REF_SIGNALING
 #define COMPREF_BIT_TYPES 2
 #define RANKED_REF0_TO_PRUNE 3
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
@@ -81,7 +80,6 @@ extern "C" {
         // coumpound prediction
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #define MAX_REFS_ARF 4
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_WIENER_NONSEP
 #define WIENERNS_REDUCE_STEPS 5
@@ -250,7 +248,6 @@ typedef struct frame_contexts {
                                  [CDF_SIZE(2)];
   aom_cdf_prob palette_uv_mode_cdf[PALETTE_UV_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob comp_inter_cdf[COMP_INTER_CONTEXTS][CDF_SIZE(2)];
-#if CONFIG_NEW_REF_SIGNALING
   aom_cdf_prob single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1]
                              [CDF_SIZE(2)];
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
@@ -264,14 +261,6 @@ typedef struct frame_contexts {
   aom_cdf_prob comp_ref1_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]
                             [INTER_REFS_PER_FRAME - 2][CDF_SIZE(2)];
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
-#else
-  aom_cdf_prob single_ref_cdf[REF_CONTEXTS][SINGLE_REFS - 1][CDF_SIZE(2)];
-  aom_cdf_prob comp_ref_type_cdf[COMP_REF_TYPE_CONTEXTS][CDF_SIZE(2)];
-  aom_cdf_prob uni_comp_ref_cdf[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1]
-                               [CDF_SIZE(2)];
-  aom_cdf_prob comp_ref_cdf[REF_CONTEXTS][FWD_REFS - 1][CDF_SIZE(2)];
-  aom_cdf_prob comp_bwdref_cdf[REF_CONTEXTS][BWD_REFS - 1][CDF_SIZE(2)];
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_TX_PARTITION
   aom_cdf_prob inter_4way_txfm_partition_cdf[2][TXFM_PARTITION_INTER_CONTEXTS]
                                             [CDF_SIZE(4)];

@@ -62,18 +62,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 // Set individual buffer update flags based on frame reference type.
 // force_refresh_all is used when we have a KEY_FRAME or S_FRAME.  It forces all
 // refresh_*_frame flags to be set, because we refresh all buffers in this case.
-#if CONFIG_NEW_REF_SIGNALING
 void av1_configure_buffer_updates(AV1_COMP *const cpi,
                                   const FRAME_UPDATE_TYPE type);
 // Encoder-only version for the reference mapping
 void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs);
-#else
-void av1_configure_buffer_updates(
-    AV1_COMP *const cpi, RefreshFrameFlagsInfo *const refresh_frame_flags,
-    const FRAME_UPDATE_TYPE type, const FRAME_TYPE frame_type,
-    int force_refresh_all);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,

@@ -164,11 +164,7 @@ static AOM_INLINE void model_rd_for_sb(
   // Hence quantizer step is also 8 times. To get effective quantizer
   // we need to divide by 8 before sending to modeling function.
   int plane;
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   const int ref = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame[0]);
-#else
-  const int ref = xd->mi[0]->ref_frame[0];
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
 
   int64_t rate_sum = 0;
   int64_t dist_sum = 0;
@@ -219,11 +215,7 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
   // Note our transform coeffs are 8 times an orthogonal transform.
   // Hence quantizer step is also 8 times. To get effective quantizer
   // we need to divide by 8 before sending to modeling function.
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   const int ref = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame[0]);
-#else
-  const int ref = xd->mi[0]->ref_frame[0];
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
 
   int64_t rate_sum = 0;
   int64_t dist_sum = 0;

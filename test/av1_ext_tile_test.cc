@@ -94,12 +94,7 @@ class AV1ExtTileTest
     }
 
     if (video->frame() == 1) {
-#if CONFIG_NEW_REF_SIGNALING
       frame_flags_ = AOM_EFLAG_NO_UPD_ALL;
-#else
-      frame_flags_ =
-          AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF | AOM_EFLAG_NO_UPD_ARF;
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
 

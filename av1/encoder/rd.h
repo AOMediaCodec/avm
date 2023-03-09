@@ -73,13 +73,8 @@ typedef struct RD_OPT {
   // means that we will accept the best mode so far more often. This number
   // is used in combination with the current block size, and thresh_freq_fact
   // to pick a threshold.
-#if CONFIG_NEW_REF_SIGNALING
   int thresh_mult[MB_MODE_COUNT];
   int threshes[MAX_SEGMENTS][BLOCK_SIZES_ALL][MB_MODE_COUNT];
-#else
-  int thresh_mult[MAX_MODES];
-  int threshes[MAX_SEGMENTS][BLOCK_SIZES_ALL][MAX_MODES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   int RDMULT;
 
@@ -271,24 +266,13 @@ void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
 void av1_set_rd_speed_thresholds(struct AV1_COMP *cpi);
 
 void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
-#if CONFIG_NEW_REF_SIGNALING
                                int (*fact)[MB_MODE_COUNT],
-#else
-                               int (*fact)[MAX_MODES],
-#endif  // CONFIG_NEW_REF_SIGNALING
                                int rd_thresh, BLOCK_SIZE bsize,
-#if !CONFIG_NEW_REF_SIGNALING
-                               MV_REFERENCE_FRAME *ref_frames,
-#endif  // !CONFIG_NEW_REF_SIGNALING
                                PREDICTION_MODE best_mode);
 
 static INLINE void reset_thresh_freq_fact(MACROBLOCK *const x) {
   for (int i = 0; i < BLOCK_SIZES_ALL; ++i) {
-#if CONFIG_NEW_REF_SIGNALING
     for (int j = 0; j < MB_MODE_COUNT; ++j) {
-#else
-    for (int j = 0; j < MAX_MODES; ++j) {
-#endif  // CONFIG_NEW_REF_SIGNALING
       x->thresh_freq_fact[i][j] = RD_THRESH_FAC_FRAC_VAL;
     }
   }

@@ -351,11 +351,7 @@ static void set_good_speed_features_framesize_independent(
 
   // Speed 0 for all speed features that give neutral coding performance change.
   sf->gm_sf.gm_disable_recode = 1;
-#if CONFIG_NEW_REF_SIGNALING
   sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV2;
-#else
-  sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   sf->part_sf.less_rectangular_check_level = 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -410,11 +406,7 @@ static void set_good_speed_features_framesize_independent(
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
 
   if (speed >= 1) {
-#if CONFIG_NEW_REF_SIGNALING
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;
-#else
-    sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
-#endif  // CONFIG_NEW_REF_SIGNALING
     sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
 
 #if CONFIG_EXT_RECUR_PARTITIONS

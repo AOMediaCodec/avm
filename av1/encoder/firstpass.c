@@ -686,11 +686,7 @@ static int firstpass_inter_prediction(
     xd->mi[0]->mode = NEWMV;
     xd->mi[0]->mv[0].as_mv = best_mv;
     xd->mi[0]->tx_size = TX_4X4;
-#if CONFIG_NEW_REF_SIGNALING
     xd->mi[0]->ref_frame[0] = get_closest_pastcur_ref_index(cm);
-#else
-    xd->mi[0]->ref_frame[0] = LAST_FRAME;
-#endif  // CONFIG_NEW_REF_SIGNALING
     xd->mi[0]->ref_frame[1] = NONE_FRAME;
     av1_enc_build_inter_predictor(cm, xd, mb_row * mb_scale, mb_col * mb_scale,
                                   NULL, bsize, AOM_PLANE_Y, AOM_PLANE_Y);
@@ -929,13 +925,11 @@ static void first_pass_tiles(AV1_COMP *cpi) {
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING
 // First pass inter prediction relies on last and golden frames as reference
 // frames. In new reference framework, references with rank 0 and 2 are used
 // as their proxies.
 #define LAST_FRAME_PROXY 0
 #define GOLDEN_FRAME_PROXY 2  // Any proxy index will do
-#endif                        // CONFIG_NEW_REF_SIGNALING
 
 void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                         int mb_row) {
@@ -961,17 +955,10 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
 
   xd->tile = *tile;
-#if CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME_PROXY);
   const YV12_BUFFER_CONFIG *golden_frame =
       get_ref_frame_yv12_buf(cm, GOLDEN_FRAME_PROXY);
-#else
-  const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME);
-  const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *alt_ref_frame = NULL;
   const int alt_ref_offset =
       FIRST_PASS_ALT_REF_DISTANCE -
@@ -1130,17 +1117,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   av1_init_tile_data(cpi);
 
-#if CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *const last_frame =
       get_ref_frame_yv12_buf(cm, LAST_FRAME_PROXY);
   const YV12_BUFFER_CONFIG *golden_frame =
       get_ref_frame_yv12_buf(cm, GOLDEN_FRAME_PROXY);
-#else
-  const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME);
-  const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
   YV12_BUFFER_CONFIG *const this_frame = &cm->cur_frame->buf;
   // First pass code requires valid last and new frame buffers.
   assert(this_frame != NULL);
@@ -1239,15 +1219,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
        ((this_frame_stats->intra_error /
          DOUBLE_DIVIDE_CHECK(this_frame_stats->coded_error)) > 2.0))) {
     if (golden_frame != NULL) {
-#if CONFIG_NEW_REF_SIGNALING
       assign_frame_buffer_p(
           &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY)],
           cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)]);
-#else
-      assign_frame_buffer_p(
-          &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
-          cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)]);
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
     twopass->sr_update_lag = 1;
   } else {
@@ -1257,32 +1231,18 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   aom_extend_frame_borders(this_frame, num_planes);
 
   // The frame we just compressed now becomes the last frame.
-#if CONFIG_NEW_REF_SIGNALING
   assign_frame_buffer_p(
       &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)],
       cm->cur_frame);
-#else
-  assign_frame_buffer_p(
-      &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)], cm->cur_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Special case for the first frame. Copy into the GF buffer as a second
   // reference.
-#if CONFIG_NEW_REF_SIGNALING
   if (current_frame->frame_number == 0 &&
       get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY) != INVALID_IDX) {
     assign_frame_buffer_p(
         &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY)],
         cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)]);
   }
-#else
-  if (current_frame->frame_number == 0 &&
-      get_ref_frame_map_idx(cm, GOLDEN_FRAME) != INVALID_IDX) {
-    assign_frame_buffer_p(
-        &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
-        cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)]);
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   print_reconstruction_frame(last_frame, current_frame->frame_number,
                              /*do_print=*/0);

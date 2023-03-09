@@ -18,9 +18,6 @@
 #include "av1/common/quant_common.h"
 
 static const int seg_feature_data_signed[SEG_LVL_MAX] = { 1, 1, 1, 1, 1,
-#if !CONFIG_NEW_REF_SIGNALING
-                                                          0,
-#endif  // !CONFIG_NEW_REF_SIGNALING
                                                           0, 0 };
 
 static const int seg_feature_data_max[SEG_LVL_MAX] = { MAXQ,
@@ -28,9 +25,6 @@ static const int seg_feature_data_max[SEG_LVL_MAX] = { MAXQ,
                                                        MAX_LOOP_FILTER,
                                                        MAX_LOOP_FILTER,
                                                        MAX_LOOP_FILTER,
-#if !CONFIG_NEW_REF_SIGNALING
-                                                       7,
-#endif  // !CONFIG_NEW_REF_SIGNALING
                                                        0,
                                                        0 };
 
@@ -50,11 +44,7 @@ void av1_calculate_segdata(struct segmentation *seg) {
   for (int i = 0; i < MAX_SEGMENTS; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
       if (seg->feature_mask[i] & (1 << j)) {
-#if CONFIG_NEW_REF_SIGNALING
         seg->segid_preskip |= (j >= SEG_LVL_ALT_LF_V);
-#else
-        seg->segid_preskip |= (j >= SEG_LVL_REF_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
         seg->last_active_segid = i;
       }
     }

@@ -526,12 +526,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_reduced_reference_set;
-#if CONFIG_NEW_REF_SIGNALING
   /*!\brief explicitly signal reference frame mapping
    *
    */
   unsigned int explicit_ref_frame_map;
-#endif  // CONFIG_NEW_REF_SIGNALING
   /*!\brief use reduced transform type set
    *
    */

@@ -1049,12 +1049,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   const CurrentFrame *const current_frame = &cm->current_frame;
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   FRAME_CONTEXT *fc = xd->tile_ctx;
-#if CONFIG_NEW_REF_SIGNALING
   const int seg_ref_active = 0;
-#else
-  const int seg_ref_active =
-      segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (current_frame->skip_mode_info.skip_mode_flag && !seg_ref_active &&
       is_comp_ref_allowed(bsize)) {
@@ -1244,7 +1239,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
       if (has_second_ref(mbmi)) {
-#if CONFIG_NEW_REF_SIGNALING
         const int n_refs = cm->ref_frames_info.num_total_refs;
         int n_bits = 0;
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
@@ -1279,83 +1273,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           if (i < cm->ref_frames_info.num_same_ref_compound) i -= bit;
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
         }
-#else
-        const COMP_REFERENCE_TYPE comp_ref_type = has_uni_comp_refs(mbmi)
-                                                      ? UNIDIR_COMP_REFERENCE
-                                                      : BIDIR_COMP_REFERENCE;
-        update_cdf(av1_get_comp_reference_type_cdf(xd), comp_ref_type,
-                   COMP_REFERENCE_TYPES);
-#if CONFIG_ENTROPY_STATS
-        counts->comp_ref_type[av1_get_comp_reference_type_context(xd)]
-                             [comp_ref_type]++;
-#endif  // CONFIG_ENTROPY_STATS
-
-        if (comp_ref_type == UNIDIR_COMP_REFERENCE) {
-          const int bit = (ref0 == BWDREF_FRAME);
-          update_cdf(av1_get_pred_cdf_uni_comp_ref_p(xd), bit, 2);
-#if CONFIG_ENTROPY_STATS
-          counts
-              ->uni_comp_ref[av1_get_pred_context_uni_comp_ref_p(xd)][0][bit]++;
-#endif  // CONFIG_ENTROPY_STATS
-          if (!bit) {
-            const int bit1 = (ref1 == LAST3_FRAME || ref1 == GOLDEN_FRAME);
-            update_cdf(av1_get_pred_cdf_uni_comp_ref_p1(xd), bit1, 2);
-#if CONFIG_ENTROPY_STATS
-            counts->uni_comp_ref[av1_get_pred_context_uni_comp_ref_p1(xd)][1]
-                                [bit1]++;
-#endif  // CONFIG_ENTROPY_STATS
-            if (bit1) {
-              update_cdf(av1_get_pred_cdf_uni_comp_ref_p2(xd),
-                         ref1 == GOLDEN_FRAME, 2);
-#if CONFIG_ENTROPY_STATS
-              counts->uni_comp_ref[av1_get_pred_context_uni_comp_ref_p2(xd)][2]
-                                  [ref1 == GOLDEN_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-            }
-          }
-        } else {
-          const int bit = (ref0 == GOLDEN_FRAME || ref0 == LAST3_FRAME);
-          update_cdf(av1_get_pred_cdf_comp_ref_p(xd), bit, 2);
-#if CONFIG_ENTROPY_STATS
-          counts->comp_ref[av1_get_pred_context_comp_ref_p(xd)][0][bit]++;
-#endif  // CONFIG_ENTROPY_STATS
-          if (!bit) {
-            update_cdf(av1_get_pred_cdf_comp_ref_p1(xd), ref0 == LAST2_FRAME,
-                       2);
-#if CONFIG_ENTROPY_STATS
-            counts->comp_ref[av1_get_pred_context_comp_ref_p1(xd)][1]
-                            [ref0 == LAST2_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          } else {
-            update_cdf(av1_get_pred_cdf_comp_ref_p2(xd), ref0 == GOLDEN_FRAME,
-                       2);
-#if CONFIG_ENTROPY_STATS
-            counts->comp_ref[av1_get_pred_context_comp_ref_p2(xd)][2]
-                            [ref0 == GOLDEN_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          }
-          update_cdf(av1_get_pred_cdf_comp_bwdref_p(xd), ref1 == ALTREF_FRAME,
-                     2);
-#if CONFIG_ENTROPY_STATS
-          counts->comp_bwdref[av1_get_pred_context_comp_bwdref_p(xd)][0]
-                             [ref1 == ALTREF_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          if (ref1 != ALTREF_FRAME) {
-            update_cdf(av1_get_pred_cdf_comp_bwdref_p1(xd),
-                       ref1 == ALTREF2_FRAME, 2);
-#if CONFIG_ENTROPY_STATS
-            counts->comp_bwdref[av1_get_pred_context_comp_bwdref_p1(xd)][1]
-                               [ref1 == ALTREF2_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          }
-        }
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_TIP
       } else if (!is_tip_ref_frame(ref0)) {
 #else
       } else {
 #endif  // CONFIG_TIP
-#if CONFIG_NEW_REF_SIGNALING
         const int n_refs = cm->ref_frames_info.num_total_refs;
         const MV_REFERENCE_FRAME ref0_nrs = mbmi->ref_frame[0];
         for (int i = 0; i < n_refs - 1; i++) {
@@ -1366,51 +1288,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ENTROPY_STATS
           if (bit) break;
         }
-#else
-        const int bit = (ref0 >= BWDREF_FRAME);
-        update_cdf(av1_get_pred_cdf_single_ref_p1(xd), bit, 2);
-#if CONFIG_ENTROPY_STATS
-        counts->single_ref[av1_get_pred_context_single_ref_p1(xd)][0][bit]++;
-#endif  // CONFIG_ENTROPY_STATS
-        if (bit) {
-          assert(ref0 <= ALTREF_FRAME);
-          update_cdf(av1_get_pred_cdf_single_ref_p2(xd), ref0 == ALTREF_FRAME,
-                     2);
-#if CONFIG_ENTROPY_STATS
-          counts->single_ref[av1_get_pred_context_single_ref_p2(xd)][1]
-                            [ref0 == ALTREF_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          if (ref0 != ALTREF_FRAME) {
-            update_cdf(av1_get_pred_cdf_single_ref_p6(xd),
-                       ref0 == ALTREF2_FRAME, 2);
-#if CONFIG_ENTROPY_STATS
-            counts->single_ref[av1_get_pred_context_single_ref_p6(xd)][5]
-                              [ref0 == ALTREF2_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          }
-        } else {
-          const int bit1 = !(ref0 == LAST2_FRAME || ref0 == LAST_FRAME);
-          update_cdf(av1_get_pred_cdf_single_ref_p3(xd), bit1, 2);
-#if CONFIG_ENTROPY_STATS
-          counts->single_ref[av1_get_pred_context_single_ref_p3(xd)][2][bit1]++;
-#endif  // CONFIG_ENTROPY_STATS
-          if (!bit1) {
-            update_cdf(av1_get_pred_cdf_single_ref_p4(xd), ref0 != LAST_FRAME,
-                       2);
-#if CONFIG_ENTROPY_STATS
-            counts->single_ref[av1_get_pred_context_single_ref_p4(xd)][3]
-                              [ref0 != LAST_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          } else {
-            update_cdf(av1_get_pred_cdf_single_ref_p5(xd), ref0 != LAST3_FRAME,
-                       2);
-#if CONFIG_ENTROPY_STATS
-            counts->single_ref[av1_get_pred_context_single_ref_p5(xd)][4]
-                              [ref0 != LAST3_FRAME]++;
-#endif  // CONFIG_ENTROPY_STATS
-          }
-        }
-#endif  // CONFIG_NEW_REF_SIGNALING
       }
 
 #if CONFIG_BAWP
@@ -1960,12 +1837,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       }
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     } else {
-#if CONFIG_NEW_REF_SIGNALING
       const int seg_ref_active = 0;
-#else
-      const int seg_ref_active =
-          segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
       if (!seg_ref_active) {
         // If the segment reference feature is enabled we have only a single
         // reference frame allowed for the segment so exclude it from
@@ -1995,12 +1867,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
          cpi->sf.inter_sf.prune_warped_prob_thresh > 0)) {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
       const int inter_block = is_inter_block(mbmi, xd->tree_type);
-#if CONFIG_NEW_REF_SIGNALING
       const int seg_ref_active = 0;
-#else
-      const int seg_ref_active =
-          segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_REF_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
       if (!seg_ref_active && inter_block) {
 #if CONFIG_EXTENDED_WARP_PREDICTION
         const int allowed_motion_modes = motion_mode_allowed(
@@ -2043,13 +1910,8 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           &cpi->common.current_frame.skip_mode_info;
 
       MV_REFERENCE_FRAME rf[2];
-#if CONFIG_NEW_REF_SIGNALING
       rf[0] = skip_mode_info->ref_frame_idx_0;
       rf[1] = skip_mode_info->ref_frame_idx_1;
-#else
-      rf[0] = LAST_FRAME + skip_mode_info->ref_frame_idx_0;
-      rf[1] = LAST_FRAME + skip_mode_info->ref_frame_idx_1;
-#endif  // CONFIG_NEW_REF_SIGNALING
       MV_REFERENCE_FRAME ref_frame_type = av1_ref_frame_type(rf);
 
       av1_find_mv_refs(&cpi->common, xd, mbmi, ref_frame_type,

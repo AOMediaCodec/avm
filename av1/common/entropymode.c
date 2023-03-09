@@ -1964,7 +1964,6 @@ static const aom_cdf_prob default_comp_inter_cdf[COMP_INTER_CONTEXTS][CDF_SIZE(
             { AOM_CDF2(2901) } };
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 
-#if CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_CONTEXT_MODELING
 static const aom_cdf_prob
     default_single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1]
@@ -2183,60 +2182,6 @@ static const aom_cdf_prob default_comp_ref1_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]
                                                      { AOM_CDF2(1696) } } }
                                                };
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#else
-static const aom_cdf_prob default_comp_ref_type_cdf[COMP_REF_TYPE_CONTEXTS]
-                                                   [CDF_SIZE(2)] = {
-                                                     { AOM_CDF2(1198) },
-                                                     { AOM_CDF2(2070) },
-                                                     { AOM_CDF2(9166) },
-                                                     { AOM_CDF2(7499) },
-                                                     { AOM_CDF2(22475) }
-                                                   };
-
-static const aom_cdf_prob
-    default_uni_comp_ref_cdf[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS -
-                                                    1][CDF_SIZE(2)] = {
-      { { AOM_CDF2(5284) }, { AOM_CDF2(3865) }, { AOM_CDF2(3128) } },
-      { { AOM_CDF2(23152) }, { AOM_CDF2(14173) }, { AOM_CDF2(15270) } },
-      { { AOM_CDF2(31774) }, { AOM_CDF2(25120) }, { AOM_CDF2(26710) } }
-    };
-
-static const aom_cdf_prob default_single_ref_cdf[REF_CONTEXTS][SINGLE_REFS - 1]
-                                                [CDF_SIZE(2)] = {
-                                                  { { AOM_CDF2(4897) },
-                                                    { AOM_CDF2(1555) },
-                                                    { AOM_CDF2(4236) },
-                                                    { AOM_CDF2(8650) },
-                                                    { AOM_CDF2(904) },
-                                                    { AOM_CDF2(1444) } },
-                                                  { { AOM_CDF2(16973) },
-                                                    { AOM_CDF2(16751) },
-                                                    { AOM_CDF2(19647) },
-                                                    { AOM_CDF2(24773) },
-                                                    { AOM_CDF2(11014) },
-                                                    { AOM_CDF2(15087) } },
-                                                  { { AOM_CDF2(29744) },
-                                                    { AOM_CDF2(30279) },
-                                                    { AOM_CDF2(31194) },
-                                                    { AOM_CDF2(31895) },
-                                                    { AOM_CDF2(26875) },
-                                                    { AOM_CDF2(30304) } }
-                                                };
-
-static const aom_cdf_prob
-    default_comp_ref_cdf[REF_CONTEXTS][FWD_REFS - 1][CDF_SIZE(2)] = {
-      { { AOM_CDF2(4946) }, { AOM_CDF2(9468) }, { AOM_CDF2(1503) } },
-      { { AOM_CDF2(19891) }, { AOM_CDF2(22441) }, { AOM_CDF2(15160) } },
-      { { AOM_CDF2(30731) }, { AOM_CDF2(31059) }, { AOM_CDF2(27544) } }
-    };
-
-static const aom_cdf_prob
-    default_comp_bwdref_cdf[REF_CONTEXTS][BWD_REFS - 1][CDF_SIZE(2)] = {
-      { { AOM_CDF2(2235) }, { AOM_CDF2(1423) } },
-      { { AOM_CDF2(17182) }, { AOM_CDF2(15175) } },
-      { { AOM_CDF2(30606) }, { AOM_CDF2(30489) } }
-    };
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 static const aom_cdf_prob
     default_palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)] = {
@@ -3098,15 +3043,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->palette_y_mode_cdf, default_palette_y_mode_cdf);
   av1_copy(fc->palette_uv_mode_cdf, default_palette_uv_mode_cdf);
   av1_copy(fc->single_ref_cdf, default_single_ref_cdf);
-#if CONFIG_NEW_REF_SIGNALING
   av1_copy(fc->comp_ref0_cdf, default_comp_ref0_cdf);
   av1_copy(fc->comp_ref1_cdf, default_comp_ref1_cdf);
-#else
-  av1_copy(fc->comp_ref_cdf, default_comp_ref_cdf);
-  av1_copy(fc->comp_ref_type_cdf, default_comp_ref_type_cdf);
-  av1_copy(fc->uni_comp_ref_cdf, default_uni_comp_ref_cdf);
-  av1_copy(fc->comp_bwdref_cdf, default_comp_bwdref_cdf);
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_TX_PARTITION
   av1_copy(fc->inter_4way_txfm_partition_cdf,
            default_inter_4way_txfm_partition_cdf);
@@ -3286,7 +3224,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 void av1_set_default_ref_deltas(int8_t *ref_deltas) {
   assert(ref_deltas != NULL);
 
-#if CONFIG_NEW_REF_SIGNALING
   ref_deltas[0] = -1;
   ref_deltas[1] = -1;
   ref_deltas[2] = -1;
@@ -3295,16 +3232,6 @@ void av1_set_default_ref_deltas(int8_t *ref_deltas) {
   ref_deltas[5] = 0;
   ref_deltas[6] = 0;
   ref_deltas[INTRA_FRAME_INDEX] = 1;
-#else
-  ref_deltas[INTRA_FRAME] = 1;
-  ref_deltas[LAST_FRAME] = 0;
-  ref_deltas[LAST2_FRAME] = ref_deltas[LAST_FRAME];
-  ref_deltas[LAST3_FRAME] = ref_deltas[LAST_FRAME];
-  ref_deltas[BWDREF_FRAME] = ref_deltas[LAST_FRAME];
-  ref_deltas[GOLDEN_FRAME] = -1;
-  ref_deltas[ALTREF2_FRAME] = -1;
-  ref_deltas[ALTREF_FRAME] = -1;
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_TIP
   ref_deltas[TIP_FRAME_INDEX] = 0;
 #endif  // CONFIG_TIP
@@ -3340,11 +3267,7 @@ void av1_setup_frame_contexts(AV1_COMMON *cm) {
   // TODO(jack.haughton@argondesign.com): don't think this should be necessary,
   // but could do with fuller testing
   if (cm->tiles.large_scale) {
-#if CONFIG_NEW_REF_SIGNALING
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-#else
-    for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
-#endif  // CONFIG_NEW_REF_SIGNALING
       RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
       if (buf != NULL) buf->frame_context = *cm->fc;
     }

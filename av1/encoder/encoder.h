@@ -98,12 +98,6 @@ enum {
 
 enum {
   FRAMEFLAGS_KEY = 1 << 0,
-#if !CONFIG_NEW_REF_SIGNALING
-  FRAMEFLAGS_GOLDEN = 1 << 1,
-  FRAMEFLAGS_BWDREF = 1 << 2,
-  // TODO(zoeliu): To determine whether a frame flag is needed for ALTREF2_FRAME
-  FRAMEFLAGS_ALTREF = 1 << 3,
-#endif  // !CONFIG_NEW_REF_SIGNALING
   FRAMEFLAGS_INTRAONLY = 1 << 4,
   FRAMEFLAGS_SWITCH = 1 << 5,
   FRAMEFLAGS_ERROR_RESILIENT = 1 << 6,
@@ -689,9 +683,7 @@ typedef struct {
   bool enable_reduced_reference_set;
   // Indicates if one-sided compound should be enabled.
   bool enable_onesided_comp;
-#if CONFIG_NEW_REF_SIGNALING
   bool explicit_ref_frame_map;
-#endif  // CONFIG_NEW_REF_SIGNALING
 } RefFrameCfg;
 
 typedef struct {
@@ -1368,18 +1360,10 @@ typedef struct FRAME_COUNTS {
   unsigned int tip_ref[TIP_CONTEXTS][2];
 #endif  // CONFIG_TIP
   unsigned int comp_inter[COMP_INTER_CONTEXTS][2];
-#if CONFIG_NEW_REF_SIGNALING
   unsigned int single_ref[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
   unsigned int comp_ref0[REF_CONTEXTS][INTER_REFS_PER_FRAME - 2][2];
   unsigned int comp_ref1[REF_CONTEXTS][COMPREF_BIT_TYPES]
                         [INTER_REFS_PER_FRAME - 2][2];
-#else
-  unsigned int comp_ref_type[COMP_REF_TYPE_CONTEXTS][2];
-  unsigned int uni_comp_ref[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1][2];
-  unsigned int single_ref[REF_CONTEXTS][SINGLE_REFS - 1][2];
-  unsigned int comp_ref[REF_CONTEXTS][FWD_REFS - 1][2];
-  unsigned int comp_bwdref[REF_CONTEXTS][BWD_REFS - 1][2];
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_CONTEXT_MODELING
   unsigned int intrabc[INTRABC_CONTEXTS][2];
 #else
@@ -1651,11 +1635,7 @@ typedef struct TileDataEnc {
 typedef struct RD_COUNTS {
   int64_t comp_pred_diff[REFERENCE_MODES];
   // Stores number of 4x4 blocks using global motion per reference frame.
-#if CONFIG_NEW_REF_SIGNALING
   int global_motion_used[INTER_REFS_PER_FRAME];
-#else
-  int global_motion_used[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   int compound_ref_used_flag;
   int skip_mode_used_flag;
   int tx_type_used[TX_SIZES_ALL][TX_TYPES];
@@ -1982,11 +1962,7 @@ typedef struct {
    * each reference frame. gmparams_cost[i] stores the cost of signalling global
    * motion for the ith reference frame.
    */
-#if CONFIG_NEW_REF_SIGNALING
   int params_cost[INTER_REFS_PER_FRAME];
-#else
-  int params_cost[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Flag to indicate if global motion search needs to be rerun.
@@ -1998,11 +1974,7 @@ typedef struct {
    * ref_buf[i] stores the pointer to the reference frame of the ith
    * reference frame type.
    */
-#if CONFIG_NEW_REF_SIGNALING
   YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME];
-#else
-  YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Pointer to the source frame buffer.
@@ -2022,11 +1994,7 @@ typedef struct {
    * reference_frames[i][j] holds the jth valid reference frame type in the
    * direction 'i' and its temporal distance from the source frame .
    */
-#if CONFIG_NEW_REF_SIGNALING
   FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME];
-#else
-  FrameDistPair reference_frames[MAX_DIRECTIONS][REF_FRAMES - 1];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /**
    * \name Dimensions for which segment map is allocated.
@@ -2111,22 +2079,6 @@ typedef struct {
    */
   search_site_config search_site_cfg[SS_CFG_TOTAL][NUM_DISTINCT_SEARCH_METHODS];
 } MotionVectorSearchParams;
-
-#if !CONFIG_NEW_REF_SIGNALING
-/*!
- * \brief Refresh frame flags for different type of frames.
- *
- * If the refresh flag is true for a particular reference frame, after the
- * current frame is encoded, the reference frame gets refreshed (updated) to
- * be the current frame. Note: Usually at most one flag will be set to true at
- * a time. But, for key-frames, all flags are set to true at once.
- */
-typedef struct {
-  bool golden_frame;  /*!< Refresh flag for golden frame */
-  bool bwd_ref_frame; /*!< Refresh flag for bwd-ref frame */
-  bool alt_ref_frame; /*!< Refresh flag for alt-ref frame */
-} RefreshFrameFlagsInfo;
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 /*!
  * \brief Desired dimensions for an externally triggered resize.
@@ -2232,15 +2184,7 @@ typedef struct {
  * reference frame buffer with the contents of the current frame.
  */
 typedef struct {
-#if CONFIG_NEW_REF_SIGNALING
   bool all_ref_frames; /*!< Refresh all refs */
-#else
-  bool last_frame;     /*!< Refresh flag for last frame */
-  bool golden_frame;   /*!< Refresh flag for golden frame */
-  bool bwd_ref_frame;  /*!< Refresh flag for bwd-ref frame */
-  bool alt2_ref_frame; /*!< Refresh flag for alt2-ref frame */
-  bool alt_ref_frame;  /*!< Refresh flag for alt-ref frame */
-#endif  // CONFIG_NEW_REF_SIGNALING
   /*!
    * Flag indicating if the update of refresh frame flags is pending.
    */
@@ -2511,13 +2455,6 @@ typedef struct AV1_COMP {
    */
   RefCntBuffer *last_show_frame_buf;
 
-#if !CONFIG_NEW_REF_SIGNALING
-  /*!
-   * Refresh frame flags for golden, bwd-ref and alt-ref frames.
-   */
-  RefreshFrameFlagsInfo refresh_frame;
-#endif  // !CONFIG_NEW_REF_SIGNALING
-
   /*!
    * For each type of reference frame, this contains the index of a reference
    * frame buffer for a reference frame of the same type.  We use this to
@@ -2678,9 +2615,6 @@ typedef struct AV1_COMP {
   /*!\cond */
   uint64_t time_receive_data;
   uint64_t time_compress_data;
-#if !CONFIG_NEW_REF_SIGNALING
-  unsigned int mode_chosen_counts[MAX_MODES];
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
   int count;
   uint64_t total_sq_error;
@@ -3024,14 +2958,6 @@ typedef struct EncodeFrameParams {
    */
   int remapped_ref_idx[REF_FRAMES];
 
-#if !CONFIG_NEW_REF_SIGNALING
-  /*!
-   *  Flags which determine which reference buffers are refreshed by this
-   *  frame.
-   */
-  RefreshFrameFlagsInfo refresh_frame;
-#endif  // !CONFIG_NEW_REF_SIGNALING
-
   /*!
    *  Speed level to use for this frame: Bigger number means faster.
    */
@@ -3228,20 +3154,12 @@ static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
 static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
                                        const RefCntBuffer *const frame_buf) {
   MV_REFERENCE_FRAME ref_frame;
-#if CONFIG_NEW_REF_SIGNALING
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
-#else
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf == NULL) continue;
     if (frame_buf == buf) break;
   }
-#if CONFIG_NEW_REF_SIGNALING
   return (ref_frame < INTER_REFS_PER_FRAME);
-#else
-  return (ref_frame <= ALTREF_FRAME);
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 static INLINE void alloc_frame_mvs(AV1_COMMON *const cm, RefCntBuffer *buf) {
@@ -3322,7 +3240,6 @@ static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {
 static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 MV_REFERENCE_FRAME ref0,
                                 MV_REFERENCE_FRAME ref1) {
-#if CONFIG_NEW_REF_SIGNALING
   xd->block_ref_scale_factors[0] =
       get_ref_scale_factors_const(cm, ref0 < INTER_REFS_PER_FRAME
 #if CONFIG_TIP
@@ -3337,12 +3254,6 @@ static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_TIP
                                           ? ref1
                                           : 0);
-#else
-  xd->block_ref_scale_factors[0] =
-      get_ref_scale_factors_const(cm, ref0 >= LAST_FRAME ? ref0 : 1);
-  xd->block_ref_scale_factors[1] =
-      get_ref_scale_factors_const(cm, ref1 >= LAST_FRAME ? ref1 : 1);
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 static INLINE int get_chessboard_index(int frame_index) {
@@ -3447,54 +3358,6 @@ static INLINE BLOCK_SIZE find_partition_size(BLOCK_SIZE bsize, int rows_left,
   return (BLOCK_SIZE)int_size;
 }
 
-#if !CONFIG_NEW_REF_SIGNALING
-static const uint8_t av1_ref_frame_flag_list[REF_FRAMES] = { 0,
-                                                             AOM_LAST_FLAG,
-                                                             AOM_LAST2_FLAG,
-                                                             AOM_LAST3_FLAG,
-                                                             AOM_GOLD_FLAG,
-                                                             AOM_BWD_FLAG,
-                                                             AOM_ALT2_FLAG,
-                                                             AOM_ALT_FLAG };
-
-// When more than 'max_allowed_refs' are available, we reduce the number of
-// reference frames one at a time based on this order.
-static const MV_REFERENCE_FRAME disable_order[] = {
-  LAST3_FRAME,
-  LAST2_FRAME,
-  ALTREF2_FRAME,
-  GOLDEN_FRAME,
-};
-
-static const MV_REFERENCE_FRAME
-    ref_frame_priority_order[INTER_REFS_PER_FRAME] = {
-      LAST_FRAME,    ALTREF_FRAME, BWDREF_FRAME, GOLDEN_FRAME,
-      ALTREF2_FRAME, LAST2_FRAME,  LAST3_FRAME,
-    };
-
-static INLINE int get_ref_frame_flags(const YV12_BUFFER_CONFIG **ref_frames,
-                                      const int ext_ref_frame_flags) {
-  // cpi->ext_flags.ref_frame_flags allows certain reference types to be
-  // disabled by the external interface.  These are set by
-  // av1_apply_encoding_flags(). Start with what the external interface allows,
-  // then suppress any reference types which we have found to be duplicates.
-  int flags = ext_ref_frame_flags;
-
-  for (int i = 1; i < INTER_REFS_PER_FRAME; ++i) {
-    const YV12_BUFFER_CONFIG *const this_ref = ref_frames[i];
-    // If this_ref has appeared before, mark the corresponding ref frame as
-    // invalid.
-    for (int j = 0; j < i; ++j) {
-      if (this_ref == ref_frames[j]) {
-        flags &= ~(1 << (ref_frame_priority_order[i] - 1));
-        break;
-      }
-    }
-  }
-  return flags;
-}
-#endif  // !CONFIG_NEW_REF_SIGNALING
-
 static INLINE int get_max_allowed_ref_frames(
     int selective_ref_frame, unsigned int max_reference_frames) {
   const unsigned int max_allowed_refs_for_given_speed =
@@ -3510,19 +3373,11 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
   MV_REFERENCE_FRAME ref_frame;
   int total_valid_refs = 0;
 
-#if CONFIG_NEW_REF_SIGNALING
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     if (*ref_frame_flags & (1 << ref_frame)) {
       total_valid_refs++;
     }
   }
-#else
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-    if (*ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
-      total_valid_refs++;
-    }
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   const int max_allowed_refs =
       get_max_allowed_ref_frames(cpi->sf.inter_sf.selective_ref_frame,
@@ -3535,17 +3390,7 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
     if (!(*ref_frame_flags & (1 << ref_frame_to_disable))) {
       continue;
     }
-#if CONFIG_NEW_REF_SIGNALING
     *ref_frame_flags &= ~(1 << ref_frame_to_disable);
-#else
-    switch (ref_frame_to_disable) {
-      case LAST3_FRAME: *ref_frame_flags &= ~AOM_LAST3_FLAG; break;
-      case LAST2_FRAME: *ref_frame_flags &= ~AOM_LAST2_FLAG; break;
-      case ALTREF2_FRAME: *ref_frame_flags &= ~AOM_ALT2_FLAG; break;
-      case GOLDEN_FRAME: *ref_frame_flags &= ~AOM_GOLD_FLAG; break;
-      default: assert(0);
-    }
-#endif  // CONFIG_NEW_REF_SIGNALING
     --total_valid_refs;
   }
 }

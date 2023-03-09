@@ -605,19 +605,6 @@ enum {
 #define INTRA_TX_SET2 5
 #endif  // CONFIG_FORWARDSKIP
 
-#if !CONFIG_NEW_REF_SIGNALING
-enum {
-  AOM_LAST_FLAG = 1 << 0,
-  AOM_LAST2_FLAG = 1 << 1,
-  AOM_LAST3_FLAG = 1 << 2,
-  AOM_GOLD_FLAG = 1 << 3,
-  AOM_BWD_FLAG = 1 << 4,
-  AOM_ALT2_FLAG = 1 << 5,
-  AOM_ALT_FLAG = 1 << 6,
-  AOM_REFFRAME_ALL = (1 << 7) - 1
-} UENUM1BYTE(AOM_REFFRAME);
-#endif  // !CONFIG_NEW_REF_SIGNALING
-
 enum {
   UNIDIR_COMP_REFERENCE,
   BIDIR_COMP_REFERENCE,
@@ -981,7 +968,6 @@ typedef uint8_t TXFM_CONTEXT;
 #define TIP_CONTEXTS 3
 #endif  // CONFIG_TIP
 
-#if CONFIG_NEW_REF_SIGNALING
 #define INTER_REFS_PER_FRAME 7
 #define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
@@ -1021,46 +1007,6 @@ typedef uint8_t TXFM_CONTEXT;
 #define INTRA_FRAME_INDEX INTER_REFS_PER_FRAME
 #define NONE_FRAME INVALID_IDX
 #define AOM_REFFRAME_ALL ((1 << INTER_REFS_PER_FRAME) - 1)
-#else
-// An enum for single reference types (and some derived values).
-enum {
-  NONE_FRAME = -1,
-  INTRA_FRAME,
-  LAST_FRAME,
-  LAST2_FRAME,
-  LAST3_FRAME,
-  GOLDEN_FRAME,
-  BWDREF_FRAME,
-  ALTREF2_FRAME,
-  ALTREF_FRAME,
-  REF_FRAMES,
-
-  // Extra/scratch reference frame. It may be:
-  // - used to update the ALTREF2_FRAME ref (see lshift_bwd_ref_frames()), or
-  // - updated from ALTREF2_FRAME ref (see rshift_bwd_ref_frames()).
-  EXTREF_FRAME = REF_FRAMES,
-
-  // Number of inter (non-intra) reference types.
-  INTER_REFS_PER_FRAME = ALTREF_FRAME - LAST_FRAME + 1,
-
-  // Number of forward (aka past) reference types.
-  FWD_REFS = GOLDEN_FRAME - LAST_FRAME + 1,
-
-  // Number of backward (aka future) reference types.
-  BWD_REFS = ALTREF_FRAME - BWDREF_FRAME + 1,
-
-  SINGLE_REFS = FWD_REFS + BWD_REFS,
-};
-
-// NOTE: A limited number of unidirectional reference pairs can be signalled for
-//       compound prediction. The use of skip mode, on the other hand, makes it
-//       possible to have a reference pair not listed for explicit signaling.
-#if CONFIG_TIP
-#define MODE_CTX_REF_FRAMES (REF_FRAMES + TOTAL_COMP_REFS + 1)
-#else
-#define MODE_CTX_REF_FRAMES (REF_FRAMES + TOTAL_COMP_REFS)
-#endif  // CONFIG_TIP
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #define REF_FRAMES_LOG2 3
 
@@ -1071,24 +1017,6 @@ enum {
 
 #define FWD_RF_OFFSET(ref) (ref - LAST_FRAME)
 #define BWD_RF_OFFSET(ref) (ref - BWDREF_FRAME)
-
-#if !CONFIG_NEW_REF_SIGNALING
-enum {
-  LAST_LAST2_FRAMES,      // { LAST_FRAME, LAST2_FRAME }
-  LAST_LAST3_FRAMES,      // { LAST_FRAME, LAST3_FRAME }
-  LAST_GOLDEN_FRAMES,     // { LAST_FRAME, GOLDEN_FRAME }
-  BWDREF_ALTREF_FRAMES,   // { BWDREF_FRAME, ALTREF_FRAME }
-  LAST2_LAST3_FRAMES,     // { LAST2_FRAME, LAST3_FRAME }
-  LAST2_GOLDEN_FRAMES,    // { LAST2_FRAME, GOLDEN_FRAME }
-  LAST3_GOLDEN_FRAMES,    // { LAST3_FRAME, GOLDEN_FRAME }
-  BWDREF_ALTREF2_FRAMES,  // { BWDREF_FRAME, ALTREF2_FRAME }
-  ALTREF2_ALTREF_FRAMES,  // { ALTREF2_FRAME, ALTREF_FRAME }
-  TOTAL_UNIDIR_COMP_REFS,
-  // NOTE: UNIDIR_COMP_REFS is the number of uni-directional reference pairs
-  //       that are explicitly signaled.
-  UNIDIR_COMP_REFS = BWDREF_ALTREF_FRAMES + 1,
-} UENUM1BYTE(UNIDIR_COMP_REF);
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #define TOTAL_COMP_REFS (FWD_REFS * BWD_REFS + TOTAL_UNIDIR_COMP_REFS)
 

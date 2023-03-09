@@ -409,11 +409,7 @@ int64_t av1_interpolation_filter_search(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int need_search = av1_is_interp_needed(cm, xd);
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   const int ref_frame = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame[0]);
-#else
-  const int ref_frame = xd->mi[0]->ref_frame[0];
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   RD_STATS rd_stats_luma, rd_stats;
 
 #if CONFIG_WARPMV

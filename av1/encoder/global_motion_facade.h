@@ -21,11 +21,7 @@ struct AV1_COMP;
 
 void av1_compute_gm_for_valid_ref_frames(
     struct AV1_COMP *cpi,
-#if CONFIG_NEW_REF_SIGNALING
     YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
-#else
-    YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
-#endif  // CONFIG_NEW_REF_SIGNALING
     int frame, int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
     int segment_map_h);

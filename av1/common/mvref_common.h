@@ -156,7 +156,6 @@ static INLINE void lower_mv_precision(MV *mv, int allow_hp, int is_integer) {
 }
 #endif
 
-#if CONFIG_NEW_REF_SIGNALING
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
 // Converts a pair of distinct indices (rf) each in [0, n-1],
 // to a combined index in [0, n*(n+1)/2].
@@ -269,79 +268,6 @@ static INLINE void av1_set_ref_frame(MV_REFERENCE_FRAME *rf,
   }
   return;
 }
-#else
-static INLINE int8_t get_uni_comp_ref_idx(const MV_REFERENCE_FRAME *const rf) {
-  // Single ref pred
-  if (!is_inter_ref_frame(rf[1])) return -1;
-
-  // Bi-directional comp ref pred
-  if ((rf[0] < BWDREF_FRAME) && (rf[1] >= BWDREF_FRAME)) return -1;
-
-  for (int8_t ref_idx = 0; ref_idx < TOTAL_UNIDIR_COMP_REFS; ++ref_idx) {
-    if (rf[0] == comp_ref0(ref_idx) && rf[1] == comp_ref1(ref_idx))
-      return ref_idx;
-  }
-  return -1;
-}
-
-static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
-  if (is_inter_ref_frame(rf[1])) {
-    const int8_t uni_comp_ref_idx = get_uni_comp_ref_idx(rf);
-    if (uni_comp_ref_idx >= 0) {
-      assert((REF_FRAMES + FWD_REFS * BWD_REFS + uni_comp_ref_idx) <
-             MODE_CTX_REF_FRAMES);
-      return REF_FRAMES + FWD_REFS * BWD_REFS + uni_comp_ref_idx;
-    } else {
-      return REF_FRAMES + FWD_RF_OFFSET(rf[0]) +
-             BWD_RF_OFFSET(rf[1]) * FWD_REFS;
-    }
-  }
-
-  return rf[0];
-}
-
-// clang-format off
-static MV_REFERENCE_FRAME ref_frame_map[TOTAL_COMP_REFS][2] = {
-  { LAST_FRAME, BWDREF_FRAME },  { LAST2_FRAME, BWDREF_FRAME },
-  { LAST3_FRAME, BWDREF_FRAME }, { GOLDEN_FRAME, BWDREF_FRAME },
-
-  { LAST_FRAME, ALTREF2_FRAME },  { LAST2_FRAME, ALTREF2_FRAME },
-  { LAST3_FRAME, ALTREF2_FRAME }, { GOLDEN_FRAME, ALTREF2_FRAME },
-
-  { LAST_FRAME, ALTREF_FRAME },  { LAST2_FRAME, ALTREF_FRAME },
-  { LAST3_FRAME, ALTREF_FRAME }, { GOLDEN_FRAME, ALTREF_FRAME },
-
-  { LAST_FRAME, LAST2_FRAME }, { LAST_FRAME, LAST3_FRAME },
-  { LAST_FRAME, GOLDEN_FRAME }, { BWDREF_FRAME, ALTREF_FRAME },
-
-  // NOTE: Following reference frame pairs are not supported to be explicitly
-  //       signalled, but they are possibly chosen by the use of skip_mode,
-  //       which may use the most recent one-sided reference frame pair.
-  { LAST2_FRAME, LAST3_FRAME }, { LAST2_FRAME, GOLDEN_FRAME },
-  { LAST3_FRAME, GOLDEN_FRAME }, {BWDREF_FRAME, ALTREF2_FRAME},
-  { ALTREF2_FRAME, ALTREF_FRAME }
-};
-// clang-format on
-
-static INLINE void av1_set_ref_frame(MV_REFERENCE_FRAME *rf,
-                                     MV_REFERENCE_FRAME ref_frame_type) {
-#if CONFIG_TIP
-  if (is_tip_ref_frame(ref_frame_type)) {
-    rf[0] = ref_frame_type;
-    rf[1] = NONE_FRAME;
-    return;
-  }
-#endif  // CONFIG_TIP
-  if (ref_frame_type >= REF_FRAMES) {
-    rf[0] = ref_frame_map[ref_frame_type - REF_FRAMES][0];
-    rf[1] = ref_frame_map[ref_frame_type - REF_FRAMES][1];
-  } else {
-    assert(ref_frame_type > NONE_FRAME);
-    rf[0] = ref_frame_type;
-    rf[1] = NONE_FRAME;
-  }
-}
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if !CONFIG_C076_INTER_MOD_CTX
 static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
@@ -424,10 +350,6 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm);
 void av1_setup_frame_sign_bias(AV1_COMMON *cm);
 void av1_setup_skip_mode_allowed(AV1_COMMON *cm);
 void av1_setup_motion_field(AV1_COMMON *cm);
-#if !CONFIG_NEW_REF_SIGNALING
-void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
-                        int lst_map_idx, int gld_map_idx);
-#endif  // !CONFIG_NEW_REF_SIGNALING
 #if CONFIG_SMVP_IMPROVEMENT
 void av1_setup_ref_frame_sides(AV1_COMMON *cm);
 #endif  // CONFIG_SMVP_IMPROVEMENT

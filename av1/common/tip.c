@@ -40,11 +40,7 @@ static void tip_find_closest_bi_dir_ref_frames(AV1_COMMON *cm,
   const int cur_order_hint = cm->current_frame.order_hint;
 
   // Identify the nearest forward and backward references.
-#if CONFIG_NEW_REF_SIGNALING
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-#else
-  for (int i = LAST_FRAME; i < REF_FRAMES; ++i) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
     if (buf == NULL) continue;
 
@@ -76,23 +72,12 @@ static AOM_INLINE int tip_find_reference_frame(AV1_COMMON *cm, int start_frame,
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
 
-#if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] == target_frame_order) {
       return 1;
     }
   }
-#else
-  const unsigned int *const ref_order_hints =
-      &start_frame_buf->ref_order_hints[0];
-  for (MV_REFERENCE_FRAME rf = LAST_FRAME; rf <= INTER_REFS_PER_FRAME; ++rf) {
-    const int ref_order = ref_order_hints[rf - LAST_FRAME];
-    if (ref_order == target_frame_order) {
-      return 1;
-    }
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   return 0;
 }
@@ -131,11 +116,7 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
 
-#if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = start_frame_buf->ref_order_hints;
-#else
-  const unsigned int *const ref_order_hints = start_frame_buf->ref_order_hints;
-#endif  // CONFIG_NEW_REF_SIGNALING
   const int cur_order_hint = cm->cur_frame->order_hint;
   int start_to_current_frame_offset = get_relative_dist(
       order_hint_info, start_frame_order_hint, cur_order_hint);
@@ -163,12 +144,7 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
                                           mv_ref->ref_frame[1] };
       for (int idx = 0; idx < 2; ++idx) {
         if (is_inter_ref_frame(ref_frame[idx])) {
-#if CONFIG_NEW_REF_SIGNALING
           const int ref_frame_order_hint = ref_order_hints[ref_frame[idx]];
-#else
-          const int ref_frame_order_hint =
-              ref_order_hints[ref_frame[idx] - LAST_FRAME];
-#endif  // #if CONFIG_NEW_REF_SIGNALING
           if (ref_frame_order_hint == target_order_hint) {
             MV ref_mv = mv_ref->mv[idx].as_mv;
             int_mv this_mv;

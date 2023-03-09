@@ -427,7 +427,6 @@ static AOM_INLINE void add_ref_mv_candidate(
 
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   if (mbmi->skip_mode) {
-#if CONFIG_NEW_REF_SIGNALING
 #if CONFIG_TIP
     if (!is_tip_ref_frame(candidate->ref_frame[0]) &&
         !is_tip_ref_frame(candidate->ref_frame[1]) &&
@@ -437,10 +436,6 @@ static AOM_INLINE void add_ref_mv_candidate(
     if (is_inter_ref_frame(candidate->ref_frame[0]) &&
         is_inter_ref_frame(candidate->ref_frame[1])) {
 #endif
-#else
-    if (candidate->ref_frame[0] >= LAST_FRAME ||
-        candidate->ref_frame[1] >= LAST_FRAME) {
-#endif  // CONFIG_NEW_REF_SIGNALING
       int_mv this_refmv[2];
       for (ref = 0; ref < 2; ++ref) {
         if (is_global_mv_block(candidate, gm_params[rf[ref]].wmtype))
@@ -2833,11 +2828,7 @@ void av1_find_mv_refs(
     const int allow_high_precision_mv = cm->features.allow_high_precision_mv;
     const int force_integer_mv = cm->features.cur_frame_force_integer_mv;
 #endif
-#if CONFIG_NEW_REF_SIGNALING
     if (ref_frame < INTER_REFS_PER_FRAME) {
-#else
-    if (ref_frame < REF_FRAMES) {
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_FLEX_MVRES
       gm_mv[0] = get_warp_motion_vector(&cm->global_motion[ref_frame],
                                         fr_mv_precision, bsize, mi_col, mi_row);
@@ -2961,7 +2952,6 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
 
   MV_REFERENCE_FRAME ref_frame;
-#if CONFIG_NEW_REF_SIGNALING
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf != NULL && ref_frame < cm->ref_frames_info.num_total_refs) {
@@ -2973,42 +2963,15 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
       cm->cur_frame->ref_display_order_hint[ref_frame] = -1;
     }
   }
-#else
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    if (buf != NULL) {
-      cm->cur_frame->ref_order_hints[ref_frame - LAST_FRAME] = buf->order_hint;
-      cm->cur_frame->ref_display_order_hint[ref_frame - LAST_FRAME] =
-          buf->display_order_hint;
-    }
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 void av1_setup_frame_sign_bias(AV1_COMMON *cm) {
-#if CONFIG_NEW_REF_SIGNALING
   memset(&cm->ref_frame_sign_bias, 0, sizeof(cm->ref_frame_sign_bias));
   for (int ref_frame = 0; ref_frame < cm->ref_frames_info.num_future_refs;
        ++ref_frame) {
     const int index = cm->ref_frames_info.future_refs[ref_frame];
     cm->ref_frame_sign_bias[index] = 1;
   }
-#else
-  MV_REFERENCE_FRAME ref_frame;
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    if (cm->seq_params.order_hint_info.enable_order_hint && buf != NULL) {
-      const int ref_order_hint = buf->order_hint;
-      cm->ref_frame_sign_bias[ref_frame] =
-          (get_relative_dist(&cm->seq_params.order_hint_info, ref_order_hint,
-                             (int)cm->current_frame.order_hint) <= 0)
-              ? 0
-              : 1;
-    } else {
-      cm->ref_frame_sign_bias[ref_frame] = 0;
-    }
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 #if !CONFIG_TIP
@@ -3059,11 +3022,7 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
                                        MV_REFERENCE_FRAME start_frame, int dir,
                                        int overwrite_mv) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-#if CONFIG_NEW_REF_SIGNALING
   int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
-#else
-  int ref_offset[REF_FRAMES] = { 0 };
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -3087,7 +3046,6 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
 
-#if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] != -1) {
@@ -3100,19 +3058,6 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
           start_to_current_frame_offset, ref_abs_offset[rf]);
     }
   }
-#else
-  const unsigned int *const ref_order_hints =
-      &start_frame_buf->ref_order_hints[0];
-  for (MV_REFERENCE_FRAME rf = LAST_FRAME; rf <= INTER_REFS_PER_FRAME; ++rf) {
-    ref_offset[rf] = get_relative_dist(&cm->seq_params.order_hint_info,
-                                       start_frame_order_hint,
-                                       ref_order_hints[rf - LAST_FRAME]);
-    has_bwd_ref |= (ref_offset[rf] < 0);
-    ref_abs_offset[rf] = abs(ref_offset[rf]);
-    temporal_scale_factor[rf] = tip_derive_scale_factor(
-        start_to_current_frame_offset, ref_abs_offset[rf]);
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
   if (has_bwd_ref == 0) return 0;
 
   MV_REF *mv_ref_base = start_frame_buf->mvs;
@@ -3168,11 +3113,7 @@ static int motion_field_projection(AV1_COMMON *cm,
                                    MV_REFERENCE_FRAME start_frame, int dir,
                                    int overwrite_mv) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-#if CONFIG_NEW_REF_SIGNALING
   int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
-#else
-  int ref_offset[REF_FRAMES] = { 0 };
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -3195,7 +3136,6 @@ static int motion_field_projection(AV1_COMMON *cm,
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
 
-#if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] != -1) {
@@ -3207,18 +3147,6 @@ static int motion_field_projection(AV1_COMMON *cm,
           start_to_current_frame_offset, ref_abs_offset[rf]);
     }
   }
-#else
-  const unsigned int *const ref_order_hints =
-      &start_frame_buf->ref_order_hints[0];
-  for (MV_REFERENCE_FRAME rf = LAST_FRAME; rf <= INTER_REFS_PER_FRAME; ++rf) {
-    ref_offset[rf] = get_relative_dist(&cm->seq_params.order_hint_info,
-                                       start_frame_order_hint,
-                                       ref_order_hints[rf - LAST_FRAME]);
-    ref_abs_offset[rf] = abs(ref_offset[rf]);
-    temporal_scale_factor[rf] = tip_derive_scale_factor(
-        start_to_current_frame_offset, ref_abs_offset[rf]);
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   MV_REF *mv_ref_base = start_frame_buf->mvs;
   const int mvs_rows =
@@ -3276,11 +3204,7 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
                                        MV_REFERENCE_FRAME start_frame, int dir,
                                        int overwrite_mv) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-#if CONFIG_NEW_REF_SIGNALING
   int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
-#else
-  int ref_offset[REF_FRAMES] = { 0 };
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -3294,7 +3218,6 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
 
-#if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] != -1)
@@ -3302,15 +3225,6 @@ static int motion_field_projection_bwd(AV1_COMMON *cm,
           get_relative_dist(&cm->seq_params.order_hint_info,
                             start_frame_order_hint, ref_order_hints[rf]);
   }
-#else
-  const unsigned int *const ref_order_hints =
-      &start_frame_buf->ref_order_hints[0];
-  for (MV_REFERENCE_FRAME rf = LAST_FRAME; rf <= INTER_REFS_PER_FRAME; ++rf) {
-    ref_offset[rf] = get_relative_dist(&cm->seq_params.order_hint_info,
-                                       start_frame_order_hint,
-                                       ref_order_hints[rf - LAST_FRAME]);
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (dir == 2) start_to_current_frame_offset = -start_to_current_frame_offset;
 
@@ -3365,11 +3279,7 @@ static int motion_field_projection(AV1_COMMON *cm,
                                    MV_REFERENCE_FRAME start_frame, int dir,
                                    int overwrite_mv) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-#if CONFIG_NEW_REF_SIGNALING
   int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
-#else
-  int ref_offset[REF_FRAMES] = { 0 };
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
@@ -3383,7 +3293,6 @@ static int motion_field_projection(AV1_COMMON *cm,
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
 
-#if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] != -1)
@@ -3391,15 +3300,6 @@ static int motion_field_projection(AV1_COMMON *cm,
           get_relative_dist(&cm->seq_params.order_hint_info,
                             start_frame_order_hint, ref_order_hints[rf]);
   }
-#else
-  const unsigned int *const ref_order_hints =
-      &start_frame_buf->ref_order_hints[0];
-  for (MV_REFERENCE_FRAME rf = LAST_FRAME; rf <= INTER_REFS_PER_FRAME; ++rf) {
-    ref_offset[rf] = get_relative_dist(&cm->seq_params.order_hint_info,
-                                       start_frame_order_hint,
-                                       ref_order_hints[rf - LAST_FRAME]);
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (dir == 2) start_to_current_frame_offset = -start_to_current_frame_offset;
 
@@ -3446,7 +3346,6 @@ static int motion_field_projection(AV1_COMMON *cm,
 }
 #endif  // CONFIG_TIP
 
-#if CONFIG_NEW_REF_SIGNALING
 // Check if a reference frame is an overlay frame (i.e., has the same
 // order_hint as the current frame).
 static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
@@ -3464,7 +3363,6 @@ static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
   }
   return 0;
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 void av1_setup_motion_field(AV1_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
@@ -3490,7 +3388,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 
   const RefCntBuffer *ref_buf[INTER_REFS_PER_FRAME];
 
-#if CONFIG_NEW_REF_SIGNALING
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     ref_buf[i] = NULL;
     cm->ref_frame_side[i] = 0;
@@ -3529,56 +3426,15 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
 #endif  // CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
   }
-#else
-  int ref_order_hint[INTER_REFS_PER_FRAME];
-  const int cur_order_hint = cm->cur_frame->order_hint;
-
-#if CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-  int has_bwd_ref = 0;
-#endif  // CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-  for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
-    const int ref_idx = ref_frame - LAST_FRAME;
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    int order_hint = 0;
-
-    if (buf != NULL) order_hint = buf->order_hint;
-
-    ref_buf[ref_idx] = buf;
-    ref_order_hint[ref_idx] = order_hint;
-#if CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
-    const int relative_dist =
-        get_relative_dist(order_hint_info, order_hint, cur_order_hint);
-    if (relative_dist > 0) {
-#else
-    if (get_relative_dist(order_hint_info, order_hint, cur_order_hint) > 0) {
-#endif  // CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
-      cm->ref_frame_side[ref_frame] = 1;
-#if CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-      has_bwd_ref = 1;
-#endif  // CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-    } else if (order_hint == cur_order_hint) {
-      cm->ref_frame_side[ref_frame] = -1;
-    }
-
-#if CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
-    cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
-#endif  // CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
-  }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_TIP
-#if CONFIG_NEW_REF_SIGNALING
   cm->has_bwd_ref = cm->ref_frames_info.num_future_refs ? 1 : 0;
-#else
-  cm->has_bwd_ref = has_bwd_ref;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (cm->seq_params.enable_tip) {
     av1_derive_tip_nearest_ref_frames_motion_projection(cm);
   }
 #endif  // CONFIG_TIP
 
-#if CONFIG_NEW_REF_SIGNALING
   int n_refs_used = 0;
 
   // Implements a strategy where the closest references in the past
@@ -3654,78 +3510,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     n_refs_used += ret;
   }
 #endif  // CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-#else
-  int ref_stamp = MFMV_STACK_SIZE - 1;
-
-#if CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-  int overwrite_mv = 0;
-  if (has_bwd_ref) {
-    if (ref_buf[LAST_FRAME - LAST_FRAME] != NULL) {
-      const int alt_of_lst_order_hint =
-          ref_buf[LAST_FRAME - LAST_FRAME]
-              ->ref_order_hints[ALTREF_FRAME - LAST_FRAME];
-
-      const int is_lst_overlay =
-          (alt_of_lst_order_hint == ref_order_hint[GOLDEN_FRAME - LAST_FRAME]);
-      if (!is_lst_overlay)
-        motion_field_projection_bwd(cm, LAST_FRAME, 2, overwrite_mv);
-    }
-  }
-#else
-  int overwrite_mv = 1;
-  if (ref_buf[LAST_FRAME - LAST_FRAME] != NULL) {
-    const int alt_of_lst_order_hint =
-        ref_buf[LAST_FRAME - LAST_FRAME]
-            ->ref_order_hints[ALTREF_FRAME - LAST_FRAME];
-
-    const int is_lst_overlay =
-        (alt_of_lst_order_hint == ref_order_hint[GOLDEN_FRAME - LAST_FRAME]);
-    if (!is_lst_overlay)
-      motion_field_projection(cm, LAST_FRAME, 2, overwrite_mv);
-    --ref_stamp;
-  }
-#endif  // CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-
-  if (get_relative_dist(order_hint_info,
-                        ref_order_hint[BWDREF_FRAME - LAST_FRAME],
-                        cur_order_hint) > 0) {
-    if (motion_field_projection(cm, BWDREF_FRAME, 0, overwrite_mv)) --ref_stamp;
-  }
-
-  if (get_relative_dist(order_hint_info,
-                        ref_order_hint[ALTREF2_FRAME - LAST_FRAME],
-                        cur_order_hint) > 0) {
-    if (motion_field_projection(cm, ALTREF2_FRAME, 0, overwrite_mv))
-      --ref_stamp;
-  }
-
-#if CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-  if (ref_buf[LAST_FRAME - LAST_FRAME] != NULL) {
-    const int alt_of_lst_order_hint =
-        ref_buf[LAST_FRAME - LAST_FRAME]
-            ->ref_order_hints[ALTREF_FRAME - LAST_FRAME];
-
-    const int is_lst_overlay =
-        (alt_of_lst_order_hint == ref_order_hint[GOLDEN_FRAME - LAST_FRAME]);
-    if (!is_lst_overlay)
-      motion_field_projection(cm, LAST_FRAME, 2, overwrite_mv);
-    --ref_stamp;
-  }
-#endif  // CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-
-  if (get_relative_dist(order_hint_info,
-                        ref_order_hint[ALTREF_FRAME - LAST_FRAME],
-                        cur_order_hint) > 0 &&
-      ref_stamp >= 0)
-    if (motion_field_projection(cm, ALTREF_FRAME, 0, overwrite_mv)) --ref_stamp;
-
-#if CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-  if (has_bwd_ref && ref_stamp >= 0) {
-    motion_field_projection_bwd(cm, LAST2_FRAME, 2, overwrite_mv);
-  }
-#endif  // CONFIG_TMVP_IMPROVEMENT || CONFIG_TIP
-  if (ref_stamp >= 0) motion_field_projection(cm, LAST2_FRAME, 2, overwrite_mv);
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 #if CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
@@ -3737,12 +3521,8 @@ void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
 
   const int cur_order_hint = cm->cur_frame->order_hint;
 
-#if CONFIG_NEW_REF_SIGNALING
   for (int ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
        ref_frame++) {
-#else
-  for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ref_frame++) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     int order_hint = 0;
 
@@ -4064,15 +3844,9 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   int ref_order_hints[2] = { -1, INT_MAX };
   int ref_idx[2] = { INVALID_IDX, INVALID_IDX };
 
-#if CONFIG_NEW_REF_SIGNALING
   // Identify the top ranked forward and backward references.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
-#else
-  // Identify the nearest forward and backward references.
-  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, LAST_FRAME + i);
-#endif  // CONFIG_NEW_REF_SIGNALING
     if (buf == NULL) continue;
 
     const int ref_order_hint = buf->order_hint;
@@ -4100,23 +3874,19 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   if (ref_idx[0] != INVALID_IDX && ref_idx[1] != INVALID_IDX) {
     // == Bi-directional prediction ==
     skip_mode_info->skip_mode_allowed = 1;
-#if CONFIG_NEW_REF_SIGNALING && CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT
     skip_mode_info->ref_frame_idx_0 = ref_idx[0];
     skip_mode_info->ref_frame_idx_1 = ref_idx[1];
 #else
     skip_mode_info->ref_frame_idx_0 = AOMMIN(ref_idx[0], ref_idx[1]);
     skip_mode_info->ref_frame_idx_1 = AOMMAX(ref_idx[0], ref_idx[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING && CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   } else if (ref_idx[0] != INVALID_IDX && ref_idx[1] == INVALID_IDX) {
     // == Forward prediction only ==
     // Identify the second nearest forward reference.
     ref_order_hints[1] = -1;
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-#if CONFIG_NEW_REF_SIGNALING
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
-#else
-      const RefCntBuffer *const buf = get_ref_frame_buf(cm, LAST_FRAME + i);
-#endif  // CONFIG_NEW_REF_SIGNALING
       if (buf == NULL) continue;
 
       const int ref_order_hint = buf->order_hint;
@@ -4133,209 +3903,17 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
     }
     if (ref_order_hints[1] != -1) {
       skip_mode_info->skip_mode_allowed = 1;
-#if CONFIG_NEW_REF_SIGNALING && CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT
       skip_mode_info->ref_frame_idx_0 = ref_idx[0];
       skip_mode_info->ref_frame_idx_1 = ref_idx[1];
 #else
       skip_mode_info->ref_frame_idx_0 = AOMMIN(ref_idx[0], ref_idx[1]);
       skip_mode_info->ref_frame_idx_1 = AOMMAX(ref_idx[0], ref_idx[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING && CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     }
   }
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 }
-
-#if !CONFIG_NEW_REF_SIGNALING
-typedef struct {
-  int map_idx;        // frame map index
-  RefCntBuffer *buf;  // frame buffer
-  int sort_idx;       // index based on the offset to be used for sorting
-} REF_FRAME_INFO;
-
-// Compares the sort_idx fields. If they are equal, then compares the map_idx
-// fields to break the tie. This ensures a stable sort.
-static int compare_ref_frame_info(const void *arg_a, const void *arg_b) {
-  const REF_FRAME_INFO *info_a = (REF_FRAME_INFO *)arg_a;
-  const REF_FRAME_INFO *info_b = (REF_FRAME_INFO *)arg_b;
-
-  const int sort_idx_diff = info_a->sort_idx - info_b->sort_idx;
-  if (sort_idx_diff != 0) return sort_idx_diff;
-  return info_a->map_idx - info_b->map_idx;
-}
-
-static AOM_INLINE void set_ref_frame_info(int *remapped_ref_idx, int frame_idx,
-                                          REF_FRAME_INFO *ref_info) {
-  assert(frame_idx >= 0 && frame_idx < INTER_REFS_PER_FRAME);
-
-  remapped_ref_idx[frame_idx] = ref_info->map_idx;
-}
-
-void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
-                        int lst_map_idx, int gld_map_idx) {
-  int lst_frame_sort_idx = -1;
-  int gld_frame_sort_idx = -1;
-
-  assert(cm->seq_params.order_hint_info.enable_order_hint);
-  assert(cm->seq_params.order_hint_info.order_hint_bits_minus_1 >= 0);
-  const int cur_order_hint = (int)cm->current_frame.order_hint;
-  const int cur_frame_sort_idx =
-      1 << cm->seq_params.order_hint_info.order_hint_bits_minus_1;
-
-  REF_FRAME_INFO ref_frame_info[REF_FRAMES];
-  int ref_flag_list[INTER_REFS_PER_FRAME] = { 0, 0, 0, 0, 0, 0, 0 };
-
-  for (int i = 0; i < REF_FRAMES; ++i) {
-    const int map_idx = i;
-
-    ref_frame_info[i].map_idx = map_idx;
-    ref_frame_info[i].sort_idx = -1;
-
-    RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
-    ref_frame_info[i].buf = buf;
-
-    if (buf == NULL) continue;
-    // If this assertion fails, there is a reference leak.
-    assert(buf->ref_count > 0);
-
-    const int offset = (int)buf->order_hint;
-    ref_frame_info[i].sort_idx =
-        (offset == -1) ? -1
-                       : cur_frame_sort_idx +
-                             get_relative_dist(&cm->seq_params.order_hint_info,
-                                               offset, cur_order_hint);
-    assert(ref_frame_info[i].sort_idx >= -1);
-
-    if (map_idx == lst_map_idx) lst_frame_sort_idx = ref_frame_info[i].sort_idx;
-    if (map_idx == gld_map_idx) gld_frame_sort_idx = ref_frame_info[i].sort_idx;
-  }
-
-  // Confirm both LAST_FRAME and GOLDEN_FRAME are valid forward reference
-  // frames.
-  if (lst_frame_sort_idx == -1 || lst_frame_sort_idx >= cur_frame_sort_idx) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "Inter frame requests a look-ahead frame as LAST");
-  }
-  if (gld_frame_sort_idx == -1 || gld_frame_sort_idx >= cur_frame_sort_idx) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "Inter frame requests a look-ahead frame as GOLDEN");
-  }
-
-  // Sort ref frames based on their frame_offset values.
-  qsort(ref_frame_info, REF_FRAMES, sizeof(REF_FRAME_INFO),
-        compare_ref_frame_info);
-
-  // Identify forward and backward reference frames.
-  // Forward  reference: offset < order_hint
-  // Backward reference: offset >= order_hint
-  int fwd_start_idx = 0, fwd_end_idx = REF_FRAMES - 1;
-
-  for (int i = 0; i < REF_FRAMES; i++) {
-    if (ref_frame_info[i].sort_idx == -1) {
-      fwd_start_idx++;
-      continue;
-    }
-
-    if (ref_frame_info[i].sort_idx >= cur_frame_sort_idx) {
-      fwd_end_idx = i - 1;
-      break;
-    }
-  }
-
-  int bwd_start_idx = fwd_end_idx + 1;
-  int bwd_end_idx = REF_FRAMES - 1;
-
-  // === Backward Reference Frames ===
-
-  // == ALTREF_FRAME ==
-  if (bwd_start_idx <= bwd_end_idx) {
-    set_ref_frame_info(remapped_ref_idx, ALTREF_FRAME - LAST_FRAME,
-                       &ref_frame_info[bwd_end_idx]);
-    ref_flag_list[ALTREF_FRAME - LAST_FRAME] = 1;
-    bwd_end_idx--;
-  }
-
-  // == BWDREF_FRAME ==
-  if (bwd_start_idx <= bwd_end_idx) {
-    set_ref_frame_info(remapped_ref_idx, BWDREF_FRAME - LAST_FRAME,
-                       &ref_frame_info[bwd_start_idx]);
-    ref_flag_list[BWDREF_FRAME - LAST_FRAME] = 1;
-    bwd_start_idx++;
-  }
-
-  // == ALTREF2_FRAME ==
-  if (bwd_start_idx <= bwd_end_idx) {
-    set_ref_frame_info(remapped_ref_idx, ALTREF2_FRAME - LAST_FRAME,
-                       &ref_frame_info[bwd_start_idx]);
-    ref_flag_list[ALTREF2_FRAME - LAST_FRAME] = 1;
-  }
-
-  // === Forward Reference Frames ===
-
-  for (int i = fwd_start_idx; i <= fwd_end_idx; ++i) {
-    // == LAST_FRAME ==
-    if (ref_frame_info[i].map_idx == lst_map_idx) {
-      set_ref_frame_info(remapped_ref_idx, LAST_FRAME - LAST_FRAME,
-                         &ref_frame_info[i]);
-      ref_flag_list[LAST_FRAME - LAST_FRAME] = 1;
-    }
-
-    // == GOLDEN_FRAME ==
-    if (ref_frame_info[i].map_idx == gld_map_idx) {
-      set_ref_frame_info(remapped_ref_idx, GOLDEN_FRAME - LAST_FRAME,
-                         &ref_frame_info[i]);
-      ref_flag_list[GOLDEN_FRAME - LAST_FRAME] = 1;
-    }
-  }
-
-  assert(ref_flag_list[LAST_FRAME - LAST_FRAME] == 1 &&
-         ref_flag_list[GOLDEN_FRAME - LAST_FRAME] == 1);
-
-  // == LAST2_FRAME ==
-  // == LAST3_FRAME ==
-  // == BWDREF_FRAME ==
-  // == ALTREF2_FRAME ==
-  // == ALTREF_FRAME ==
-
-  // Set up the reference frames in the anti-chronological order.
-  static const MV_REFERENCE_FRAME ref_frame_list[INTER_REFS_PER_FRAME - 2] = {
-    LAST2_FRAME, LAST3_FRAME, BWDREF_FRAME, ALTREF2_FRAME, ALTREF_FRAME
-  };
-
-  int ref_idx;
-  for (ref_idx = 0; ref_idx < (INTER_REFS_PER_FRAME - 2); ref_idx++) {
-    const MV_REFERENCE_FRAME ref_frame = ref_frame_list[ref_idx];
-
-    if (ref_flag_list[ref_frame - LAST_FRAME] == 1) continue;
-
-    while (fwd_start_idx <= fwd_end_idx &&
-           (ref_frame_info[fwd_end_idx].map_idx == lst_map_idx ||
-            ref_frame_info[fwd_end_idx].map_idx == gld_map_idx)) {
-      fwd_end_idx--;
-    }
-    if (fwd_start_idx > fwd_end_idx) break;
-
-    set_ref_frame_info(remapped_ref_idx, ref_frame - LAST_FRAME,
-                       &ref_frame_info[fwd_end_idx]);
-    ref_flag_list[ref_frame - LAST_FRAME] = 1;
-
-    fwd_end_idx--;
-  }
-
-  // Assign all the remaining frame(s), if any, to the earliest reference
-  // frame.
-  for (; ref_idx < (INTER_REFS_PER_FRAME - 2); ref_idx++) {
-    const MV_REFERENCE_FRAME ref_frame = ref_frame_list[ref_idx];
-    if (ref_flag_list[ref_frame - LAST_FRAME] == 1) continue;
-    set_ref_frame_info(remapped_ref_idx, ref_frame - LAST_FRAME,
-                       &ref_frame_info[fwd_start_idx]);
-    ref_flag_list[ref_frame - LAST_FRAME] = 1;
-  }
-
-  for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    assert(ref_flag_list[i] == 1);
-  }
-}
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_REF_MV_BANK
 static INLINE void update_ref_mv_bank(const MB_MODE_INFO *const mbmi,

@@ -151,25 +151,15 @@ uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
   const int segment_id = mbmi->segment_id;
 
 // TODO(Andrey): non-CTC conditions
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   return lfi_n->q_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
-#else
-  return lfi_n->q_thr[plane][segment_id][dir_idx][mbmi->ref_frame[0]]
-                     [mode_lf_lut[mbmi->mode]];
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
 }
 uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
                              int plane, const MB_MODE_INFO *mbmi) {
   const int segment_id = mbmi->segment_id;
 // TODO(Andrey): non-CTC conditions
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   return lfi_n->side_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
-#else
-  return lfi_n->side_thr[plane][segment_id][dir_idx][mbmi->ref_frame[0]]
-                        [mode_lf_lut[mbmi->mode]];
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
 }
 
 #else
@@ -202,27 +192,16 @@ uint8_t av1_get_filter_level(const AV1_COMMON *cm,
 
     if (cm->lf.mode_ref_delta_enabled) {
       const int scale = 1 << (lvl_seg >> 5);
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
       lvl_seg +=
           cm->lf.ref_deltas[COMPACT_INDEX0_NRS(mbmi->ref_frame[0])] * scale;
       if (is_inter_ref_frame(mbmi->ref_frame[0]))
         lvl_seg += cm->lf.mode_deltas[mode_lf_lut[mbmi->mode]] * scale;
-#else
-      lvl_seg += cm->lf.ref_deltas[mbmi->ref_frame[0]] * scale;
-      if (is_inter_ref_frame(mbmi->ref_frame[0]))
-        lvl_seg += cm->lf.mode_deltas[mode_lf_lut[mbmi->mode]] * scale;
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
       lvl_seg = clamp(lvl_seg, 0, MAX_LOOP_FILTER);
     }
     return lvl_seg;
   } else {
-#if CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
     return lfi_n->lvl[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
         mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
-#else
-    return lfi_n->lvl[plane][segment_id][dir_idx][mbmi->ref_frame[0]]
-                     [mode_lf_lut[mbmi->mode]];
-#endif  // CONFIG_NEW_REF_SIGNALING || CONFIG_TIP
   }
 }
 #endif  // CONFIG_NEW_DF
@@ -373,18 +352,11 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
           // zero when not in use; encoder always uses deltas
 #if CONFIG_NEW_DF
           int ref, mode;
-#if CONFIG_NEW_REF_SIGNALING
           lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] = q_thr_seg;
           lfi->side_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               side_thr_seg;
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
-#else
-          lfi->q_thr[plane][seg_id][dir][INTRA_FRAME][0] = q_thr_seg;
-          lfi->side_thr[plane][seg_id][dir][INTRA_FRAME][0] = side_thr_seg;
-
-          for (ref = LAST_FRAME; ref < REF_FRAMES; ++ref) {
-#endif  // CONFIG_NEW_REF_SIGNALING
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
               lfi->q_thr[plane][seg_id][dir][ref][mode] = q_thr_seg;
               lfi->side_thr[plane][seg_id][dir][ref][mode] = side_thr_seg;
@@ -407,7 +379,6 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
           // zero when not in use; encoder always uses deltas
           const int scale = 4;
           int ref, mode;
-#if CONFIG_NEW_REF_SIGNALING
           lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               df_quant_from_qindex(
                   q_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
@@ -418,17 +389,6 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
                   cm->seq_params.bit_depth);  // TODO: use a different delta?
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
-#else
-          lfi->q_thr[plane][seg_id][dir][INTRA_FRAME][0] = df_quant_from_qindex(
-              q_ind_seg + lf->ref_deltas[INTRA_FRAME] * scale,
-              cm->seq_params.bit_depth);
-          lfi->side_thr[plane][seg_id][dir][INTRA_FRAME][0] =
-              df_side_from_qindex(
-                  side_ind_seg + lf->ref_deltas[INTRA_FRAME] * scale,
-                  cm->seq_params.bit_depth);  // TODO: use a different delta?
-
-          for (ref = LAST_FRAME; ref < REF_FRAMES; ++ref) {
-#endif  // CONFIG_NEW_REF_SIGNALING
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
               lfi->q_thr[plane][seg_id][dir][ref][mode] =
                   df_quant_from_qindex(q_ind_seg + lf->ref_deltas[ref] * scale +
@@ -458,18 +418,11 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #else
           int ref, mode;
           const int scale = 1 << (lvl_seg >> 5);
-#if CONFIG_NEW_REF_SIGNALING
           const int intra_lvl =
               lvl_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
           lfi->lvl[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               clamp(intra_lvl, 0, MAX_LOOP_FILTER);
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
-#else
-          const int intra_lvl = lvl_seg + lf->ref_deltas[INTRA_FRAME] * scale;
-          lfi->lvl[plane][seg_id][dir][INTRA_FRAME][0] =
-              clamp(intra_lvl, 0, MAX_LOOP_FILTER);
-          for (ref = LAST_FRAME; ref < REF_FRAMES; ++ref) {
-#endif  // CONFIG_NEW_REF_SIGNALING
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
               const int inter_lvl = lvl_seg + lf->ref_deltas[ref] * scale +
                                     lf->mode_deltas[mode] * scale;
@@ -547,18 +500,11 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
         } else {
           int ref, mode;
           const int scale = 1 << (lvl_seg >> 5);
-#if CONFIG_NEW_REF_SIGNALING
           const int intra_lvl =
               lvl_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
           lfi->lvl[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               clamp(intra_lvl, 0, MAX_LOOP_FILTER);
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
-#else
-          const int intra_lvl = lvl_seg + lf->ref_deltas[INTRA_FRAME] * scale;
-          lfi->lvl[plane][seg_id][dir][INTRA_FRAME][0] =
-              clamp(intra_lvl, 0, MAX_LOOP_FILTER);
-          for (ref = LAST_FRAME; ref < REF_FRAMES; ++ref) {
-#endif  // CONFIG_NEW_REF_SIGNALING
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
               const int inter_lvl = lvl_seg + lf->ref_deltas[ref] * scale +
                                     lf->mode_deltas[mode] * scale;

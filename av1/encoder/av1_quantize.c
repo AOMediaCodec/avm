@@ -553,9 +553,7 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
   quant_params->base_qindex = AOMMAX(cm->delta_q_info.delta_q_present_flag, q);
-#if CONFIG_NEW_REF_SIGNALING
   cm->cur_frame->base_qindex = quant_params->base_qindex;
-#endif  // CONFIG_NEW_REF_SIGNALING
   set_frame_dc_delta_q(cm, &quant_params->y_dc_delta_q, enable_chroma_deltaq,
                        &quant_params->u_dc_delta_q, &quant_params->v_dc_delta_q,
                        &quant_params->u_ac_delta_q,

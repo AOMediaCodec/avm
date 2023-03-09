@@ -52,11 +52,7 @@ typedef struct SB_FIRST_PASS_STATS {
   int split_count;
   FRAME_COUNTS fc;
   InterModeRdModel inter_mode_rd_models[BLOCK_SIZES_ALL];
-#if CONFIG_NEW_REF_SIGNALING
   int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
-#else
-  int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   int current_qindex;
 #if CONFIG_C043_MVP_IMPROVEMENTS
   REF_MV_BANK ref_mv_bank;
@@ -67,10 +63,6 @@ typedef struct SB_FIRST_PASS_STATS {
 #if CONFIG_EXT_RECUR_PARTITIONS
   BLOCK_SIZE min_partition_size;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-#if CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
-  unsigned int mode_chosen_counts[MAX_MODES];
-#endif  // CONFIG_INTERNAL_STATS && !CONFIG_NEW_REF_SIGNALING
 } SB_FIRST_PASS_STATS;
 
 // This structure contains block size related

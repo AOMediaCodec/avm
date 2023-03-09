@@ -97,11 +97,7 @@ static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
 // different motion models and finds the best.
 static AOM_INLINE void compute_global_motion_for_ref_frame(
     AV1_COMP *cpi,
-#if CONFIG_NEW_REF_SIGNALING
     YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
-#else
-    YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
-#endif  // CONFIG_NEW_REF_SIGNALING
     int frame, int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
     const int segment_map_w, const int segment_map_h,
@@ -130,15 +126,9 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   // TODO(sarahparker, debargha): Explore do_adaptive_gm_estimation = 1
   const int do_adaptive_gm_estimation = 0;
 
-#if CONFIG_NEW_REF_SIGNALING
   const int ref_frame_dist = get_relative_dist(
       &cm->seq_params.order_hint_info, cm->current_frame.order_hint,
       cm->cur_frame->ref_order_hints[frame]);
-#else
-  const int ref_frame_dist = get_relative_dist(
-      &cm->seq_params.order_hint_info, cm->current_frame.order_hint,
-      cm->cur_frame->ref_order_hints[frame - LAST_FRAME]);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const GlobalMotionEstimationType gm_estimation_type =
       cm->seq_params.order_hint_info.enable_order_hint &&
               abs(ref_frame_dist) <= 2 && do_adaptive_gm_estimation
@@ -245,11 +235,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 // Computes global motion for the given reference frame.
 void av1_compute_gm_for_valid_ref_frames(
     AV1_COMP *cpi,
-#if CONFIG_NEW_REF_SIGNALING
     YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
-#else
-    YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
-#endif  // CONFIG_NEW_REF_SIGNALING
     int frame, int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
@@ -277,13 +263,8 @@ void av1_compute_gm_for_valid_ref_frames(
 // Loops over valid reference frames and computes global motion estimation.
 static AOM_INLINE void compute_global_motion_for_references(
     AV1_COMP *cpi,
-#if CONFIG_NEW_REF_SIGNALING
     YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
     FrameDistPair reference_frame[INTER_REFS_PER_FRAME],
-#else
-    YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
-    FrameDistPair reference_frame[REF_FRAMES - 1],
-#endif  // CONFIG_NEW_REF_SIGNALING
     int num_ref_frames, int num_src_corners, int *src_corners,
     unsigned char *src_buffer, MotionModel *params_by_motion,
     uint8_t *segment_map, const int segment_map_w, const int segment_map_h) {
@@ -323,7 +304,6 @@ static int compare_distance(const void *a, const void *b) {
 
 // Function to decide if we can skip the global motion parameter computation
 // for a particular ref frame.
-#if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE int skip_gm_frame(AV1_COMMON *const cm, int refrank) {
   const RefCntBuffer *const refbuf = get_ref_frame_buf(cm, refrank);
   if (refbuf == NULL) return 1;
@@ -354,47 +334,13 @@ static int do_gm_search_logic(SPEED_FEATURES *const sf, int refrank) {
   }
   return 1;
 }
-#else
-static AOM_INLINE int skip_gm_frame(AV1_COMMON *const cm, int ref_frame) {
-  if ((ref_frame == LAST3_FRAME || ref_frame == LAST2_FRAME) &&
-      cm->global_motion[GOLDEN_FRAME].wmtype != IDENTITY) {
-    return get_relative_dist(
-               &cm->seq_params.order_hint_info,
-               cm->cur_frame->ref_order_hints[ref_frame - LAST_FRAME],
-               cm->cur_frame->ref_order_hints[GOLDEN_FRAME - LAST_FRAME]) <= 0;
-  }
-  return 0;
-}
-
-// Prunes reference frames for global motion estimation based on the speed
-// feature 'gm_search_type'.
-static int do_gm_search_logic(SPEED_FEATURES *const sf, int frame) {
-  (void)frame;
-  switch (sf->gm_sf.gm_search_type) {
-    case GM_FULL_SEARCH: return 1;
-    case GM_REDUCED_REF_SEARCH_SKIP_L2_L3:
-      return !(frame == LAST2_FRAME || frame == LAST3_FRAME);
-    case GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2:
-      return !(frame == LAST2_FRAME || frame == LAST3_FRAME ||
-               (frame == ALTREF2_FRAME));
-    case GM_DISABLE_SEARCH: return 0;
-    default: assert(0);
-  }
-  return 1;
-}
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 // Populates valid reference frames in past/future directions in
 // 'reference_frames' and their count in 'num_ref_frames'.
 static AOM_INLINE void update_valid_ref_frames_for_gm(
     AV1_COMP *cpi,
-#if CONFIG_NEW_REF_SIGNALING
     YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
     FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME],
-#else
-    YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
-    FrameDistPair reference_frames[MAX_DIRECTIONS][REF_FRAMES - 1],
-#endif  // CONFIG_NEW_REF_SIGNALING
     int *num_ref_frames) {
   AV1_COMMON *const cm = &cpi->common;
   int *num_past_ref_frames = &num_ref_frames[0];
@@ -403,7 +349,6 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
   int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
       gf_group, cpi->sf.inter_sf.selective_ref_frame, 1, gf_group->index);
 
-#if CONFIG_NEW_REF_SIGNALING
   for (int frame = cm->ref_frames_info.num_total_refs - 1; frame >= 0;
        --frame) {
     const MV_REFERENCE_FRAME ref_frame[2] = { frame, NONE_FRAME };
@@ -411,12 +356,6 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
     assert(frame <= INTER_REFS_PER_FRAME);
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
     const int ref_disabled = !(cm->ref_frame_flags & (1 << frame));
-#else
-  for (int frame = ALTREF_FRAME; frame >= LAST_FRAME; --frame) {
-    const MV_REFERENCE_FRAME ref_frame[2] = { frame, NONE_FRAME };
-    const int ref_disabled =
-        !(cm->ref_frame_flags & av1_ref_frame_flag_list[frame]);
-#endif  // CONFIG_NEW_REF_SIGNALING
     ref_buf[frame] = NULL;
     cm->global_motion[frame] = default_warp_params;
     RefCntBuffer *buf = get_ref_frame_buf(cm, frame);
@@ -429,26 +368,14 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
       ref_buf[frame] = &buf->buf;
     }
 
-#if CONFIG_NEW_REF_SIGNALING
     int prune_ref_frames =
         ref_pruning_enabled &&
         prune_ref_by_selective_ref_frame(cpi, NULL, ref_frame);
-#else
-    int prune_ref_frames =
-        ref_pruning_enabled &&
-        prune_ref_by_selective_ref_frame(cpi, NULL, ref_frame,
-                                         cm->cur_frame->ref_display_order_hint);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (ref_buf[frame]->y_crop_width == cpi->source->y_crop_width &&
         ref_buf[frame]->y_crop_height == cpi->source->y_crop_height &&
-#if CONFIG_NEW_REF_SIGNALING
         do_gm_search_logic(&cpi->sf, ref_frame[0]) &&
         !(cpi->sf.gm_sf.selective_ref_gm && skip_gm_frame(cm, ref_frame[0])) &&
-#else
-        do_gm_search_logic(&cpi->sf, frame) &&
-        !(cpi->sf.gm_sf.selective_ref_gm && skip_gm_frame(cm, frame)) &&
-#endif  // CONFIG_NEW_REF_SIGNALING
         !prune_ref_frames) {
       assert(ref_buf[frame] != NULL);
       const int relative_frame_dist = av1_encoder_get_relative_dist(
@@ -512,15 +439,9 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
   gm_info->segment_map_h =
       (source->y_height + WARP_ERROR_BLOCK) >> WARP_ERROR_BLOCK_LOG;
 
-#if CONFIG_NEW_REF_SIGNALING
   memset(gm_info->reference_frames, -1,
          sizeof(gm_info->reference_frames[0][0]) * MAX_DIRECTIONS *
              (INTER_REFS_PER_FRAME));
-#else
-  memset(gm_info->reference_frames, -1,
-         sizeof(gm_info->reference_frames[0][0]) * MAX_DIRECTIONS *
-             (REF_FRAMES - 1));
-#endif  // CONFIG_NEW_REF_SIGNALING
   av1_zero(gm_info->num_ref_frames);
 
   // Populate ref_buf for valid ref frames in global motion

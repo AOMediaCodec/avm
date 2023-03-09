@@ -139,11 +139,7 @@ static AOM_INLINE void enc_setup_mi(CommonModeInfoParams *mi_params) {
 static AOM_INLINE void init_buffer_indices(
     ForceIntegerMVInfo *const force_intpel_info, int *const remapped_ref_idx) {
   int fb_idx;
-#if CONFIG_NEW_REF_SIGNALING
   for (fb_idx = 0; fb_idx < INTER_REFS_PER_FRAME; ++fb_idx)
-#else
-  for (fb_idx = 0; fb_idx < REF_FRAMES; ++fb_idx)
-#endif  // CONFIG_NEW_REF_SIGNALING
     remapped_ref_idx[fb_idx] = fb_idx;
   force_intpel_info->rate_index = 0;
   force_intpel_info->rate_size = 0;
@@ -884,11 +880,7 @@ static AOM_INLINE int combine_prior_with_tpl_boost(double min_factor,
 static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   int i;
   AV1_COMMON *const cm = &cpi->common;
-#if CONFIG_NEW_REF_SIGNALING
   for (i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-#else
-  for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     cm->global_motion[i] = default_warp_params;
   }
   cpi->gm_info.search_done = 0;
