@@ -1867,10 +1867,14 @@ static INLINE void add_start_mv_to_partition(
     { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
     { { 0, 0 }, { 4, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
     { { 0, 0 }, { 0, 4 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#if CONFIG_H_PARTITION
+    { { 0, 0 }, { 2, 0 }, { 2, 4 }, { 6, 0 } },  // PARTITION_HORZ_3
+    { { 0, 0 }, { 0, 2 }, { 4, 2 }, { 0, 6 } },  // PARTITION_VERT_3
+#endif                                           // CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
     { { 0, 0 }, { 2, 0 }, { 6, 0 }, { 0, 0 } },  // PARTITION_HORZ_3
     { { 0, 0 }, { 0, 2 }, { 0, 6 }, { 0, 0 } },  // PARTITION_VERT_3
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
     { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 7, 0 } },  // PARTITION_HORZ_4A
     { { 0, 0 }, { 1, 0 }, { 5, 0 }, { 7, 0 } },  // PARTITION_HORZ_4B
@@ -1971,9 +1975,8 @@ static AOM_INLINE int64_t clip_rate(const int rate) {
 
 void av1_gather_erp_rect_features(
     float *ml_features, AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *tile_info,
-    const PC_TREE *pc_tree,
-    const PartitionSearchState *part_search_state, int64_t part_none_rd,
-    const int (*mi_pos_rect)[SUB_PARTITIONS_RECT][2]) {
+    const PC_TREE *pc_tree, const PartitionSearchState *part_search_state,
+    int64_t part_none_rd, const int (*mi_pos_rect)[SUB_PARTITIONS_RECT][2]) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
   int num_features = 0;
