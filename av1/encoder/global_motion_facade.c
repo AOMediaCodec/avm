@@ -96,9 +96,8 @@ static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
 // For the given reference frame, computes the global motion parameters for
 // different motion models and finds the best.
 static AOM_INLINE void compute_global_motion_for_ref_frame(
-    AV1_COMP *cpi,
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
-    int frame, int num_src_corners, int *src_corners, unsigned char *src_buffer,
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME], int frame,
+    int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map,
     const int segment_map_w, const int segment_map_h,
     const WarpedMotionParams *ref_params) {
@@ -234,9 +233,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
 // Computes global motion for the given reference frame.
 void av1_compute_gm_for_valid_ref_frames(
-    AV1_COMP *cpi,
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
-    int frame, int num_src_corners, int *src_corners, unsigned char *src_buffer,
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME], int frame,
+    int num_src_corners, int *src_corners, unsigned char *src_buffer,
     MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
   AV1_COMMON *const cm = &cpi->common;
@@ -262,12 +260,11 @@ void av1_compute_gm_for_valid_ref_frames(
 
 // Loops over valid reference frames and computes global motion estimation.
 static AOM_INLINE void compute_global_motion_for_references(
-    AV1_COMP *cpi,
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
-    FrameDistPair reference_frame[INTER_REFS_PER_FRAME],
-    int num_ref_frames, int num_src_corners, int *src_corners,
-    unsigned char *src_buffer, MotionModel *params_by_motion,
-    uint8_t *segment_map, const int segment_map_w, const int segment_map_h) {
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
+    FrameDistPair reference_frame[INTER_REFS_PER_FRAME], int num_ref_frames,
+    int num_src_corners, int *src_corners, unsigned char *src_buffer,
+    MotionModel *params_by_motion, uint8_t *segment_map,
+    const int segment_map_w, const int segment_map_h) {
   // Computation of frame corners for the source frame will be done already.
   assert(num_src_corners != -1);
   AV1_COMMON *const cm = &cpi->common;
@@ -338,8 +335,7 @@ static int do_gm_search_logic(SPEED_FEATURES *const sf, int refrank) {
 // Populates valid reference frames in past/future directions in
 // 'reference_frames' and their count in 'num_ref_frames'.
 static AOM_INLINE void update_valid_ref_frames_for_gm(
-    AV1_COMP *cpi,
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
+    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
     FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME],
     int *num_ref_frames) {
   AV1_COMMON *const cm = &cpi->common;

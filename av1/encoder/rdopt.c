@@ -683,7 +683,7 @@ static AOM_INLINE void estimate_ref_frame_costs(
         int prev_cost = base_cost;
         for (int j = 0; j < n_refs; j++) {
           if (j <= i) {
-           if (n_refs == 2) continue;  // No bits need to be sent in this case
+            if (n_refs == 2) continue;  // No bits need to be sent in this case
             // Keep track of the cost to encode the first reference
             aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
             const int bit = i == j;
@@ -6344,8 +6344,8 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
        ++ref_frame) {
     if (!(cm->ref_frame_flags & (1 << ref_frame))) {
-        // Skip checking missing reference in both single and compound reference
-        // modes.
+      // Skip checking missing reference in both single and compound reference
+      // modes.
       disable_reference(ref_frame, mask->ref_combo);
     } else {
       // Skip fixed mv modes for poor references
@@ -6759,8 +6759,7 @@ static int inter_mode_compatible_skip(const AV1_COMP *cpi, const MACROBLOCK *x,
   const int comp_pred = is_inter_ref_frame(ref_frames[1]);
   if (comp_pred) {
     if (!is_comp_ref_allowed(bsize)) return 1;
-    if (!(cpi->common.ref_frame_flags & (1 << ref_frames[1])))
-      return 1;
+    if (!(cpi->common.ref_frame_flags & (1 << ref_frames[1]))) return 1;
 
     const AV1_COMMON *const cm = &cpi->common;
     if (frame_is_intra_only(cm)) return 1;
@@ -7568,8 +7567,7 @@ typedef struct {
 /*!\endcond */
 
 static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
-                           int64_t *ref_frame_rd,
-                           PREDICTION_MODE this_mode,
+                           int64_t *ref_frame_rd, PREDICTION_MODE this_mode,
                            const MV_REFERENCE_FRAME *ref_frames,
                            InterModeSFArgs *args) {
   const SPEED_FEATURES *const sf = &cpi->sf;
@@ -8230,12 +8228,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
         );
 #else
-    init_mbmi(mbmi, this_mode, ref_frames, cm
+        init_mbmi(mbmi, this_mode, ref_frames, cm
 #if CONFIG_FLEX_MVRES
-              ,
-              xd->sbi
+                  ,
+                  xd->sbi
 #endif
-    );
+        );
 #endif  // CONFIG_IBC_SR_EXT
 
 #if CONFIG_WARPMV
@@ -8272,8 +8270,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
 
         // Apply speed features to decide if this inter mode can be skipped
-        if (skip_inter_mode(cpi, x, bsize, ref_frame_rd,
-                            this_mode, ref_frames,
+        if (skip_inter_mode(cpi, x, bsize, ref_frame_rd, this_mode, ref_frames,
                             &sf_args))
           continue;
 
@@ -8987,8 +8984,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT)
     rate2 += comp_inter_cost[comp_pred];
 
-    // Estimate the reference frame signaling cost and add it
-    // to the rolling cost variable.
+  // Estimate the reference frame signaling cost and add it
+  // to the rolling cost variable.
 
   rate2 += ref_costs_single[last_frame];
   this_rd = RDCOST(x->rdmult, rate2, distortion2);

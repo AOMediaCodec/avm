@@ -3716,8 +3716,8 @@ static AOM_INLINE void setup_frame_size_with_refs(
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Invalid frame size");
 
-    // Check to make sure at least one of frames that this frame references has
-    // valid dimensions.
+  // Check to make sure at least one of frames that this frame references has
+  // valid dimensions.
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     has_valid_ref_frame |=

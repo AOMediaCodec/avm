@@ -1570,8 +1570,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
-        &x->pred_sse[COMPACT_INDEX0_NRS(ref)],
-        NULL);
+        &x->pred_sse[COMPACT_INDEX0_NRS(ref)], NULL);
   } else {
     // Manually convert from units of pixel to 1/8-pixels if we are not doing
     // subpel search

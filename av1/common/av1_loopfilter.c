@@ -150,14 +150,14 @@ uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
                           int plane, const MB_MODE_INFO *mbmi) {
   const int segment_id = mbmi->segment_id;
 
-// TODO(Andrey): non-CTC conditions
+  // TODO(Andrey): non-CTC conditions
   return lfi_n->q_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
 }
 uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
                              int plane, const MB_MODE_INFO *mbmi) {
   const int segment_id = mbmi->segment_id;
-// TODO(Andrey): non-CTC conditions
+  // TODO(Andrey): non-CTC conditions
   return lfi_n->side_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
 }

@@ -408,9 +408,9 @@ typedef struct SequenceHeader {
   uint8_t frame_id_numbers_present_flag;
   int frame_id_length;
   int delta_frame_id_length;
-  BLOCK_SIZE sb_size;  // Size of the superblock used for this frame
-  int mib_size;        // Size of the superblock in units of MI blocks
-  int mib_size_log2;   // Log 2 of above.
+  BLOCK_SIZE sb_size;          // Size of the superblock used for this frame
+  int mib_size;                // Size of the superblock in units of MI blocks
+  int mib_size_log2;           // Log 2 of above.
   int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
   int max_reference_frames;    // Number of reference frames allowed
 #if CONFIG_ALLOW_SAME_REF_COMPOUND

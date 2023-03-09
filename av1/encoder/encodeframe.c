@@ -168,9 +168,8 @@ static unsigned int get_sby_perpixel_diff_variance(const AV1_COMP *const cpi,
                                                    BLOCK_SIZE bs) {
   unsigned int sse, var;
   uint16_t *last_y;
-  const YV12_BUFFER_CONFIG *last =
-      get_ref_frame_yv12_buf(&cpi->common,
-                             get_closest_pastcur_ref_index(&cpi->common));
+  const YV12_BUFFER_CONFIG *last = get_ref_frame_yv12_buf(
+      &cpi->common, get_closest_pastcur_ref_index(&cpi->common));
 
   assert(last != NULL);
   last_y =

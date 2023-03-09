@@ -400,14 +400,14 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
                                       const int skip_txfm
 #endif  // CONFIG_CONTEXT_DERIVATION
 ) {
-    if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-      assert(is_inter);
-      return;
-    }
-    const int ctx = av1_get_intra_inter_context(xd);
-    FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
+    assert(is_inter);
+    return;
+  }
+  const int ctx = av1_get_intra_inter_context(xd);
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 #if CONFIG_CONTEXT_DERIVATION
-    aom_write_symbol(w, is_inter, ec_ctx->intra_inter_cdf[skip_txfm][ctx], 2);
+  aom_write_symbol(w, is_inter, ec_ctx->intra_inter_cdf[skip_txfm][ctx], 2);
 #else
   aom_write_symbol(w, is_inter, ec_ctx->intra_inter_cdf[ctx], 2);
 #endif  // CONFIG_CONTEXT_DERIVATION

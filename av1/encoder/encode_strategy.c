@@ -530,9 +530,8 @@ static int allow_show_existing(const AV1_COMP *const cpi,
 
 // Update frame_flags to tell the encoder's caller what sort of frame was
 // encoded.
-static void update_frame_flags(
-    const AV1_COMMON *const cm,
-    unsigned int *frame_flags) {
+static void update_frame_flags(const AV1_COMMON *const cm,
+                               unsigned int *frame_flags) {
   if (encode_show_existing_frame(cm)) {
     *frame_flags &= ~FRAMEFLAGS_KEY;
     return;
@@ -1107,7 +1106,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                cm->ref_frames_info.num_total_refs);
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 
-    // ref_frame_flags is defined based on the external flag max-reference-frames.
+    // ref_frame_flags is defined based on the external flag
+    // max-reference-frames.
     frame_params.ref_frame_flags =
         (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
 
@@ -1168,8 +1168,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     // First pass doesn't modify reference buffer assignment or produce frame
     // flags
-    update_frame_flags(&cpi->common,
-                       frame_flags);
+    update_frame_flags(&cpi->common, frame_flags);
   }
 
   if (!is_stat_generation_stage(cpi)) {

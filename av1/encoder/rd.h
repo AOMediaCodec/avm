@@ -266,9 +266,8 @@ void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
 void av1_set_rd_speed_thresholds(struct AV1_COMP *cpi);
 
 void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
-                               int (*fact)[MB_MODE_COUNT],
-                               int rd_thresh, BLOCK_SIZE bsize,
-                               PREDICTION_MODE best_mode);
+                               int (*fact)[MB_MODE_COUNT], int rd_thresh,
+                               BLOCK_SIZE bsize, PREDICTION_MODE best_mode);
 
 static INLINE void reset_thresh_freq_fact(MACROBLOCK *const x) {
   for (int i = 0; i < BLOCK_SIZES_ALL; ++i) {

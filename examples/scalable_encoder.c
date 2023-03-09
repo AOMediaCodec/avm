@@ -251,8 +251,7 @@ int main(int argc, char **argv) {
     //  use LAST (base layer) as sole reference
     flags = AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
             AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF | AOM_EFLAG_NO_REF_BWD |
-            AOM_EFLAG_NO_REF_ARF2 |
-            AOM_EFLAG_NO_UPD_ALL |
+            AOM_EFLAG_NO_REF_ARF2 | AOM_EFLAG_NO_UPD_ALL |
             AOM_EFLAG_NO_UPD_ENTROPY;
     cfg.g_w = info.frame_width;
     cfg.g_h = info.frame_height;

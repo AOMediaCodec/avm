@@ -511,18 +511,18 @@ static struct av1_extracfg default_extra_cfg = {
 
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
-  0,    // explicit_ref_frame_map
-  1,    // enable_ref_frame_mvs sequence level
-  1,    // allow ref_frame_mvs frame level
-  1,    // enable masked compound at sequence level
-  1,    // enable one sided compound at sequence level
-  1,    // enable interintra compound at sequence level
-  1,    // enable smooth interintra mode
-  1,    // enable difference-weighted compound
-  1,    // enable interinter wedge compound
-  1,    // enable interintra wedge compound
-  1,    // enable_global_motion usage
-  1,    // enable_warped_motion at sequence level
+  0,  // explicit_ref_frame_map
+  1,  // enable_ref_frame_mvs sequence level
+  1,  // allow ref_frame_mvs frame level
+  1,  // enable masked compound at sequence level
+  1,  // enable one sided compound at sequence level
+  1,  // enable interintra compound at sequence level
+  1,  // enable smooth interintra mode
+  1,  // enable difference-weighted compound
+  1,  // enable interinter wedge compound
+  1,  // enable interintra wedge compound
+  1,  // enable_global_motion usage
+  1,  // enable_warped_motion at sequence level
 #if CONFIG_EXTENDED_WARP_PREDICTION
   1,  // enable_warped_causal at sequence level
   1,  // enable_warp_delta at sequence level
@@ -4380,9 +4380,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_OPTFLOW_REFINEMENT
         1,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-        1, 1,   1,   1, 1, 1, 3, 1, 1,
-        0,
-        0, 0,
+        1, 1,   1,   1, 1, 1, 3, 1, 1, 0, 0, 0,
 #if CONFIG_REF_MV_BANK
         1,
 #endif  // CONFIG_REF_MV_BANK

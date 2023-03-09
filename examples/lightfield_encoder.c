@@ -205,8 +205,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
                    AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
                        AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF |
                        AOM_EFLAG_NO_REF_BWD | AOM_EFLAG_NO_REF_ARF2 |
-                       AOM_EFLAG_NO_UPD_ALL |
-                       AOM_EFLAG_NO_UPD_ENTROPY,
+                       AOM_EFLAG_NO_UPD_ALL | AOM_EFLAG_NO_UPD_ENTROPY,
                    writer);
 
       if (aom_codec_control(&codec, AV1_COPY_NEW_FRAME_IMAGE,
@@ -265,8 +264,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
                        AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
                            AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF |
                            AOM_EFLAG_NO_REF_BWD | AOM_EFLAG_NO_REF_ARF2 |
-                           AOM_EFLAG_NO_UPD_ALL |
-                           AOM_EFLAG_NO_UPD_ENTROPY,
+                           AOM_EFLAG_NO_UPD_ALL | AOM_EFLAG_NO_UPD_ENTROPY,
                        writer);
         }
       }

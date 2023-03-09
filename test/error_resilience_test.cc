@@ -84,8 +84,8 @@ class ErrorResilienceTestLarge
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
     }
     frame_flags_ &= ~(AOM_EFLAG_NO_REF_FRAME_MVS | AOM_EFLAG_ERROR_RESILIENT |
-                      AOM_EFLAG_NO_UPD_ALL |
-                      AOM_EFLAG_SET_S_FRAME | AOM_EFLAG_SET_PRIMARY_REF_NONE);
+                      AOM_EFLAG_NO_UPD_ALL | AOM_EFLAG_SET_S_FRAME |
+                      AOM_EFLAG_SET_PRIMARY_REF_NONE);
     if (droppable_nframes_ > 0 &&
         (cfg_.g_pass == AOM_RC_LAST_PASS || cfg_.g_pass == AOM_RC_ONE_PASS)) {
       for (unsigned int i = 0; i < droppable_nframes_; ++i) {
