@@ -69,6 +69,15 @@ void aom_start_encode(aom_writer *w, uint8_t *buffer);
 
 int aom_stop_encode(aom_writer *w);
 
+#if CONFIG_BITSTREAM_DEBUG
+static INLINE void bitstream_queue_literal(int data, int bits) {
+  aom_cdf_prob cdf[2] = { 128, 32767 };
+  for (int bit = bits - 1; bit >= 0; bit--) {
+    bitstream_queue_push(1 & (data >> bit), cdf, 2);
+  }
+}
+#endif
+
 static INLINE void aom_write(aom_writer *w, int bit, int probability) {
   int p = (0x7FFFFF - (probability << 15) + probability) >> 8;
 #if CONFIG_BITSTREAM_DEBUG
@@ -81,6 +90,9 @@ static INLINE void aom_write(aom_writer *w, int bit, int probability) {
 
 static INLINE void aom_write_bit(aom_writer *w, int bit) {
 #if CONFIG_BYPASS_IMPROVEMENT
+#if CONFIG_BITSTREAM_DEBUG
+  bitstream_queue_literal(bit, 1);
+#endif
   od_ec_encode_literal_bypass(&w->ec, bit, 1);
 #else
   aom_write(w, bit, 128);  // aom_prob_half
@@ -89,6 +101,9 @@ static INLINE void aom_write_bit(aom_writer *w, int bit) {
 
 static INLINE void aom_write_literal(aom_writer *w, int data, int bits) {
 #if CONFIG_BYPASS_IMPROVEMENT
+#if CONFIG_BITSTREAM_DEBUG
+  bitstream_queue_literal(data, bits);
+#endif
   int n;
   while (bits > 0) {
     n = bits >= 8 ? 8 : bits;

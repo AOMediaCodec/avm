@@ -183,9 +183,50 @@ static INLINE int aom_read_(aom_reader *r, int prob ACCT_STR_PARAM) {
   return bit;
 }
 
+#if CONFIG_BITSTREAM_DEBUG
+static INLINE void bitstream_debug_literal(int data, int bits) {
+  for (int b = bits - 1; b >= 0; b--) {
+    int bit = 1 & (data >> b);
+    int i;
+    int ref_bit, ref_nsymbs;
+    aom_cdf_prob ref_cdf[16];
+    const int queue_r = bitstream_queue_get_read();
+    const int frame_idx = aom_bitstream_queue_get_frame_read();
+    bitstream_queue_pop(&ref_bit, ref_cdf, &ref_nsymbs);
+    if (ref_nsymbs != 2) {
+      fprintf(stderr,
+              "\n *** [bit] nsymbs error, frame_idx_r %d nsymbs %d ref_nsymbs "
+              "%d queue_r %d\n",
+              frame_idx, 2, ref_nsymbs, queue_r);
+      assert(0);
+    }
+    if ((ref_nsymbs != 2) || (ref_cdf[0] != 128) ||
+        (ref_cdf[1] != 32767)) {
+      fprintf(stderr,
+              "\n *** [bit] cdf error, frame_idx_r %d cdf {%d, %d} ref_cdf {%d",
+              frame_idx, 128, 32767, ref_cdf[0]);
+      for (i = 1; i < ref_nsymbs; ++i) fprintf(stderr, ", %d", ref_cdf[i]);
+      fprintf(stderr, "} queue_r %d literal %d size %d bit %d\n", queue_r,
+              data, bits, b);
+      assert(0);
+    }
+    if (bit != ref_bit) {
+      fprintf(stderr,
+              "\n *** [bit] symb error, frame_idx_r %d symb %d ref_symb %d "
+              "queue_r %d literal %d size %d bit %d\n",
+              frame_idx, bit, ref_bit, queue_r, data, bits, b);
+      assert(0);
+    }
+  }
+}
+#endif
+
 #if CONFIG_BYPASS_IMPROVEMENT
 static INLINE int aom_read_bypass_(aom_reader *r ACCT_STR_PARAM) {
   int ret = od_ec_decode_literal_bypass(&r->ec, 1);
+#if CONFIG_BITSTREAM_DEBUG
+  bitstream_debug_literal(ret, 1);
+#endif
 #if CONFIG_ACCOUNTING
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
@@ -222,6 +263,9 @@ static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_STR_PARAM) {
     literal += od_ec_decode_literal_bypass(&r->ec, n);
     n_bits -= n;
   }
+#if CONFIG_BITSTREAM_DEBUG
+  bitstream_debug_literal(literal, bits);
+#endif
 #if CONFIG_ACCOUNTING
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
@@ -239,11 +283,16 @@ static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_STR_PARAM) {
 }
 
 #if CONFIG_BYPASS_IMPROVEMENT
-// Deocode unary coded symbol with truncation at max_bits.
-static INLINE int aom_read_unary_(aom_reader *r, int max_bits ACCT_STR_PARAM) {
-  int ret = od_ec_decode_unary_bypass(&r->ec, max_bits);
+// Deocode unary coded symbol with truncation at max_nbits.
+static INLINE int aom_read_unary_(aom_reader *r, int max_nbits ACCT_STR_PARAM) {
+  int ret = od_ec_decode_unary_bypass(&r->ec, max_nbits);
+#if CONFIG_BITSTREAM_DEBUG
+  int nbits = ret < max_nbits ? ret + 1 : max_nbits;
+  int data = ret == max_nbits ? 0 : 1;
+  bitstream_debug_literal(data, nbits);
+#endif
 #if CONFIG_ACCOUNTING
-  int n_bits = ret < max_bits ? ret + 1 : max_bits;
+  int n_bits = ret < max_nbits ? ret + 1 : max_nbits;
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
   aom_update_symb_counts(r, 1, 0, n_bits);
