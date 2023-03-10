@@ -120,6 +120,22 @@ void av1_reset_ptree_in_sbi(SB_INFO *sbi, TREE_TYPE tree_type) {
   sbi->ptree_root[idx] = av1_alloc_ptree_node(NULL, 0);
 }
 
+PARTITION_TREE *av1_duplicate_ptree_recursive(const PARTITION_TREE *from,
+                                              PARTITION_TREE *parent) {
+  if (from == NULL) return NULL;
+  PARTITION_TREE *ptree = av1_alloc_ptree_node(parent, from->index);
+  ptree->partition = from->partition;
+  ptree->is_settled = from->is_settled;
+  ptree->bsize = from->bsize;
+  ptree->mi_row = from->mi_row;
+  ptree->mi_col = from->mi_row;
+  ptree->chroma_ref_info = from->chroma_ref_info;
+  for (int i = 0; i < 4; ++i)
+    ptree->sub_tree[i] =
+        av1_duplicate_ptree_recursive(from->sub_tree[i], ptree);
+  return ptree;
+}
+
 void av1_set_entropy_contexts(const MACROBLOCKD *xd,
                               struct macroblockd_plane *pd, int plane,
                               BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
@@ -629,6 +645,7 @@ void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
     int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
     mi_params->wiener_class_id[plane] =
         aom_calloc(rows * stride, sizeof(uint8_t));
+    mi_params->wiener_class_id_buf_size[plane] = rows * stride;
     mi_params->wiener_class_id_stride[plane] = stride;
   }
 }

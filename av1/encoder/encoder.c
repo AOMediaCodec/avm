@@ -3109,10 +3109,26 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   return AOM_CODEC_OK;
 }
 
+static int duplicate_frd(AV1_COMP *cpi, FrameDecisions *frd) {
+  AV1_COMMON *const cm = &cpi->common;
+  int ret = 0;
+  ret |= av1_duplicate_sbi(&frd->sbi_params, &cm->sbi_params);
+  ret |= av1_duplicate_mi(cm, &frd->mi_params);
+  ret |= av1_duplicate_mi_ext(cm, &frd->mi_ext_params, &cpi->mbmi_ext_info);
+  return ret;
+}
+
+static void free_frd(FrameDecisions *frd) {
+  av1_free_sbi(&frd->sbi_params);
+  if (frd->mi_params.free_mi) frd->mi_params.free_mi(&frd->mi_params);
+  dealloc_context_buffers_ext(&frd->mi_ext_params);
+  memset(frd, 0, sizeof(*frd));
+}
+
 static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
                                             uint8_t *dest,
                                             int *largest_tile_id) {
-  const AV1_COMMON *const cm = &cpi->common;
+  AV1_COMMON *const cm = &cpi->common;
   assert(cm->seq_params.enable_superres);
   assert(av1_superres_in_recode_allowed(cpi));
   aom_codec_err_t err = AOM_CODEC_OK;
@@ -3135,6 +3151,8 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 
   // Encode with superres.
   if (cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_ALL) {
+    FrameDecisions frd;
+    memset(&frd, 0, sizeof(frd));
     SuperResCfg *const superres_cfg = &cpi->oxcf.superres_cfg;
     int64_t superres_sses[SCALE_NUMERATOR];
     int64_t superres_rates[SCALE_NUMERATOR];
@@ -3161,7 +3179,12 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
             &superres_rates[this_index],
             &superres_largest_tile_ids[this_index]);
         cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-        if (err != AOM_CODEC_OK) return err;
+        if (err != AOM_CODEC_OK) {
+          if (cpi->sf.hl_sf.superres_reuse_frd) {
+            free_frd(&frd);
+          }
+          return err;
+        }
         superres_rds[this_index] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
             rdmult, superres_rates[this_index], superres_sses[this_index],
             cm->seq_params.bit_depth);
@@ -3172,6 +3195,14 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
           largest_tile_id1 = superres_largest_tile_ids[this_index];
           proj_rdcost1 = superres_rds[this_index];
           best_denom = denom;
+          /*
+          printf("trial[%d]/SR%d: sse1 = %" PRId64 "\n",
+                 cm->cur_frame->display_order_hint,
+                 cm->superres_scale_denominator, sse1);
+                 */
+          if (cpi->sf.hl_sf.superres_reuse_frd) {
+            duplicate_frd(cpi, &frd);
+          }
         } else {
           break;  // if the cost starts going up, terminate the search
         }
@@ -3195,7 +3226,12 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     assert(cpi->superres_mode == AOM_SUPERRES_NONE);
     err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
                                              &largest_tile_id2);
-    if (err != AOM_CODEC_OK) return err;
+    if (err != AOM_CODEC_OK) {
+      if (cpi->sf.hl_sf.superres_reuse_frd) {
+        free_frd(&frd);
+      }
+      return err;
+    }
 
     const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         rdmult, rate2, sse2, cm->seq_params.bit_depth);
@@ -3212,18 +3248,33 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       int64_t rate3 = INT64_MAX;
       cpi->superres_mode =
           AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
+      if (cpi->sf.hl_sf.superres_reuse_frd) cpi->frd = &frd;
       err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
                                                largest_tile_id);
+      cpi->frd = NULL;
+      if (err != AOM_CODEC_OK) {
+        if (cpi->sf.hl_sf.superres_reuse_frd) {
+          free_frd(&frd);
+        }
+        return err;
+      }
       cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-      assert(sse1 == sse3);
-      assert(rate1 == rate3);
-      assert(largest_tile_id1 == *largest_tile_id);
+      /*
+      if (sse1 != sse3)
+        printf("WARN: sse1 = %" PRId64 ", sse3 = %" PRId64 "\n", sse1, sse3);
+        */
+      if (!cpi->sf.hl_sf.superres_reuse_frd) {
+        assert(sse1 == sse3);
+        assert(rate1 == rate3);
+        assert(largest_tile_id1 == *largest_tile_id);
+      }
       // Reset.
       superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
       superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
     } else {
       *largest_tile_id = largest_tile_id2;
     }
+    free_frd(&frd);
   } else {
     assert(cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_DUAL);
     cpi->superres_mode =

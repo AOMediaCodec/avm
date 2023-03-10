@@ -328,6 +328,14 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   SUPERRES_AUTO_SEARCH_TYPE superres_auto_search_type;
 
   /*!
+   * Reuse frame decisions in superres auto search.
+   * 0 - do not reuse
+   * 1 - reuse partitions only
+   * 2 - resuse partitions and mode info
+   */
+  int superres_reuse_frd;
+
+  /*!
    * disallow references at different scale
    */
   bool disable_unequal_scale_refs;

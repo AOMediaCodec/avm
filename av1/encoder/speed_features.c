@@ -406,9 +406,10 @@ static void set_good_speed_features_framesize_independent(
   sf->rd_sf.perform_coeff_opt = 1;
 #if CONFIG_EXT_SUPERRES
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_ALL;
-#else   // CONFIG_EXT_SUPERRES
+#else                                // CONFIG_EXT_SUPERRES
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
-#endif  // CONFIG_EXT_SUPERRES
+#endif                               // CONFIG_EXT_SUPERRES
+  sf->hl_sf.superres_reuse_frd = 1;  // Reuse parttions
 
   if (speed >= 1) {
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;
@@ -701,6 +702,7 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->recode_tolerance = 25;
   hl_sf->high_precision_mv_usage = CURRENT_Q;
   hl_sf->superres_auto_search_type = SUPERRES_AUTO_ALL;
+  hl_sf->superres_reuse_frd = 0;
 }
 
 static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {

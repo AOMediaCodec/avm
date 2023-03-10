@@ -25,6 +25,7 @@ struct AV1Common;
 struct BufferPool;
 struct CommonContexts;
 struct CommonModeInfoParams;
+struct CommonSBInfoParams;
 
 void av1_remove_common(struct AV1Common *cm);
 
@@ -44,6 +45,15 @@ int av1_alloc_state_buffers(struct AV1Common *cm, int width, int height);
 void av1_free_state_buffers(struct AV1Common *cm);
 
 int av1_get_MBs(int width, int height);
+
+int av1_duplicate_sbi(struct CommonSBInfoParams *to,
+                      const struct CommonSBInfoParams *from);
+int av1_duplicate_mi(struct AV1Common *cm, struct CommonModeInfoParams *to);
+int av1_copy_mi_neq(const struct AV1Common *cm, struct CommonModeInfoParams *to,
+                    const struct CommonModeInfoParams *from);
+int av1_copy_mi(struct CommonModeInfoParams *to,
+                const struct CommonModeInfoParams *from);
+void av1_free_sbi(struct CommonSBInfoParams *sbi);
 
 #if CONFIG_LPF_MASK
 int av1_alloc_loop_filter_mask(struct AV1Common *cm);
