@@ -200,14 +200,13 @@ static INLINE void bitstream_debug_literal(int data, int bits) {
               frame_idx, 2, ref_nsymbs, queue_r);
       assert(0);
     }
-    if ((ref_nsymbs != 2) || (ref_cdf[0] != 128) ||
-        (ref_cdf[1] != 32767)) {
+    if ((ref_nsymbs != 2) || (ref_cdf[0] != 128) || (ref_cdf[1] != 32767)) {
       fprintf(stderr,
               "\n *** [bit] cdf error, frame_idx_r %d cdf {%d, %d} ref_cdf {%d",
               frame_idx, 128, 32767, ref_cdf[0]);
       for (i = 1; i < ref_nsymbs; ++i) fprintf(stderr, ", %d", ref_cdf[i]);
-      fprintf(stderr, "} queue_r %d literal %d size %d bit %d\n", queue_r,
-              data, bits, b);
+      fprintf(stderr, "} queue_r %d literal %d size %d bit %d\n", queue_r, data,
+              bits, b);
       assert(0);
     }
     if (bit != ref_bit) {
