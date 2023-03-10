@@ -668,6 +668,8 @@ typedef struct PARTITION_TREE {
 
 PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index);
 void av1_free_ptree_recursive(PARTITION_TREE *ptree);
+PARTITION_TREE *av1_duplicate_ptree_recursive(PARTITION_TREE *from,
+                                              PARTITION_TREE *parent);
 
 typedef struct SB_INFO {
   int mi_row;

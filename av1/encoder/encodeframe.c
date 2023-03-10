@@ -802,8 +802,44 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
 
+  const int reuse_frd = (cpi->frd != NULL);
   // Encode the superblock
-  if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
+  if (reuse_frd) {
+    printf("Reusing... %d\n", cm->superres_scale_denominator);
+    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
+    const BLOCK_SIZE bsize =
+        seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
+    av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
+    for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+      const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
+      xd->tree_type =
+          (total_loop_num == 1 ? SHARED_PART
+                               : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
+      init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
+                        mi_col, 1);
+#if CONFIG_EXT_RECUR_PARTITIONS
+      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      const int tree_idx = av1_get_sdp_idx(xd->tree_type);
+      SB_INFO *sbi =
+          av1_get_sb_info_common(cm, &cpi->frd->sbi_params, mi_row, mi_col);
+      xd->sbi->ptree_root[tree_idx] =
+          av1_duplicate_ptree_recursive(sbi->ptree_root[tree_idx], NULL);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
+                           &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#else
+                           NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                           pc_root);
+      av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
+      x->sb_enc.min_partition_size = min_partition_size;
+    }
+    xd->tree_type = SHARED_PART;
+  } else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
     const BLOCK_SIZE bsize =

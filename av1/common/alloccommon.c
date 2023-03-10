@@ -171,7 +171,7 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
   above_contexts->num_planes = 0;
 }
 
-static void free_sbi(CommonSBInfoParams *sbi_params) {
+void av1_free_sbi(CommonSBInfoParams *sbi_params) {
   for (int i = 0; i < sbi_params->sbi_alloc_size; ++i) {
     av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[0]);
     av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[1]);
@@ -184,7 +184,7 @@ static void free_sbi(CommonSBInfoParams *sbi_params) {
 
 void av1_free_context_buffers(AV1_COMMON *cm) {
   cm->mi_params.free_mi(&cm->mi_params);
-  free_sbi(&cm->sbi_params);
+  av1_free_sbi(&cm->sbi_params);
 
   av1_free_above_context_buffers(&cm->above_contexts);
 
@@ -305,7 +305,7 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
       sbi_params->sbi_stride * calc_mi_size(sbi_params->sb_rows);
 
   if (sbi_params->sbi_alloc_size < sbi_size) {
-    free_sbi(sbi_params);
+    av1_free_sbi(sbi_params);
     sbi_params->sbi_grid_base = aom_calloc(sbi_size, sizeof(SB_INFO));
 
     if (!sbi_params->sbi_grid_base) return 1;
@@ -317,6 +317,28 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
     }
   }
 
+  return 0;
+}
+
+int av1_duplicate_sbi(CommonSBInfoParams *to, const CommonSBInfoParams *from) {
+  av1_free_sbi(to);
+  memcpy(to, from, sizeof(*to));
+  const int sbi_size = to->sbi_alloc_size;
+
+  to->sbi_grid_base = aom_calloc(sbi_size, sizeof(SB_INFO));
+
+  if (!to->sbi_grid_base) return 1;
+
+  for (int i = 0; i < sbi_size; ++i) {
+    to->sbi_grid_base[i].ptree_root[0] = NULL;
+    to->sbi_grid_base[i].ptree_root[1] = NULL;
+  }
+  for (int i = 0; i < sbi_size; ++i) {
+    to->sbi_grid_base[i].ptree_root[0] = av1_duplicate_ptree_recursive(
+        from->sbi_grid_base[i].ptree_root[0], NULL);
+    to->sbi_grid_base[i].ptree_root[1] = av1_duplicate_ptree_recursive(
+        from->sbi_grid_base[i].ptree_root[1], NULL);
+  }
   return 0;
 }
 

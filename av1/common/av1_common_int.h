@@ -3380,6 +3380,14 @@ static INLINE void av1_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,
 }
 #endif  // CONFIG_LR_FLEX_SYNTAX
 
+static INLINE SB_INFO *av1_get_sb_info_common(
+    const AV1_COMMON *cm, const CommonSBInfoParams *sbi_params, int mi_row,
+    int mi_col) {
+  const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
+  const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
+  return sbi_params->sbi_grid_base + sb_row * sbi_params->sbi_stride + sb_col;
+}
+
 static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,
                                        int mi_col) {
   const int sb_row = mi_row >> cm->seq_params.mib_size_log2;

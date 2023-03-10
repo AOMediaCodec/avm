@@ -1573,6 +1573,10 @@ typedef struct {
   VP64x64 *split;
 } VP128x128;
 
+typedef struct {
+  CommonSBInfoParams sbi_params;
+} FrameDecisions;
+
 /*!\endcond */
 
 /*!
@@ -2970,6 +2974,12 @@ typedef struct AV1_COMP {
    * Number of frames left to be encoded, is 0 if limit is not set.
    */
   int frames_left;
+
+  /*!
+   * Frame decisions from a previous pass. If the pointer is non-NULL, re-use
+   * the decisions there as much as possible in the encoding process.
+   */
+  FrameDecisions *frd;
 } AV1_COMP;
 
 /*!

@@ -120,6 +120,18 @@ void av1_reset_ptree_in_sbi(SB_INFO *sbi, TREE_TYPE tree_type) {
   sbi->ptree_root[idx] = av1_alloc_ptree_node(NULL, 0);
 }
 
+PARTITION_TREE *av1_duplicate_ptree_recursive(PARTITION_TREE *from,
+                                              PARTITION_TREE *parent) {
+  if (from == NULL) return NULL;
+  PARTITION_TREE *ptree = av1_alloc_ptree_node(parent, from->index);
+  ptree->partition = from->partition;
+  ptree->is_settled = from->is_settled;
+  for (int i = 0; i < 4; ++i)
+    ptree->sub_tree[i] =
+        av1_duplicate_ptree_recursive(from->sub_tree[i], ptree);
+  return ptree;
+}
+
 void av1_set_entropy_contexts(const MACROBLOCKD *xd,
                               struct macroblockd_plane *pd, int plane,
                               BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
