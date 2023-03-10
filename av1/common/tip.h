@@ -33,6 +33,9 @@ void av1_setup_tip_motion_field(AV1_COMMON *cm, int check_tip_threshold);
 // Generate the whole TIP frame with the temporal motion field
 void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
                          CONV_BUF_TYPE *tmp_conv_dst,
+#if CONFIG_PEF
+                         int enhance,
+#endif  // CONFIG_PEF
                          CalcSubpelParamsFunc calc_subpel_params_func);
 
 // Generate TIP reference block if current block is coded as TIP mode
