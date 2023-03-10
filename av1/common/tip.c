@@ -1043,6 +1043,9 @@ static AOM_INLINE void tip_setup_tip_frame_planes(
 
 void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
                          CONV_BUF_TYPE *tmp_conv_dst,
+#if CONFIG_PEF
+                         int enhance,
+#endif  // CONFIG_PEF
                          CalcSubpelParamsFunc calc_subpel_params_func) {
   const int mvs_rows =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
@@ -1050,6 +1053,11 @@ void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   tip_setup_tip_frame_planes(cm, xd, 0, 0, mvs_rows, mvs_cols, mvs_cols, mc_buf,
                              tmp_conv_dst, calc_subpel_params_func);
+#if CONFIG_PEF
+  if (enhance && cm->seq_params.enable_pef && cm->features.allow_pef) {
+    enhance_tip_frame(cm, xd);
+  }
+#endif  // CONFIG_PEF
 #if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
   if (av1_superres_scaled(cm)) {
     // Upscale tip_frame and store in upsampled_tip_frame_buf

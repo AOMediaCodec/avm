@@ -1532,6 +1532,9 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
         cm->features.use_optflow_tip = 1;
 #endif  // CONFIG_OPTFLOW_ON_TIP
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
+#if CONFIG_PEF
+                            0,
+#endif  // CONFIG_PEF
                             av1_tip_enc_calc_subpel_params);
       }
 #if CONFIG_COLLECT_COMPONENT_TIMING

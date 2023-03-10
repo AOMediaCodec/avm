@@ -943,6 +943,9 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
   av1_setup_tip_motion_field(cm, 0);
 
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
+#if CONFIG_PEF
+                      1,
+#endif  // CONFIG_PEF
                       tip_dec_calc_subpel_params_and_extend);
 }
 
@@ -7444,11 +7447,6 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
   if (cm->features.allow_ref_frame_mvs && cm->has_bwd_ref) {
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
       av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
-#if CONFIG_PEF
-      if (cm->seq_params.enable_pef && cm->features.allow_pef) {
-        enhance_tip_frame(cm, xd);
-      }
-#endif  // CONFIG_PEF
     } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
       av1_setup_tip_motion_field(cm, 0);
       const int mvs_rows =

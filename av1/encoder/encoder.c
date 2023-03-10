@@ -2901,19 +2901,16 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 #if CONFIG_OPTFLOW_ON_TIP
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
+#if CONFIG_PEF
+                        1,
+#endif  // CONFIG_PEF
                         av1_tip_enc_calc_subpel_params);
 #endif  // CONFIG_OPTFLOW_ON_TIP
     av1_finalize_encoded_frame(cpi);
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
       return AOM_CODEC_ERROR;
 
-#if CONFIG_PEF
-    if (cm->seq_params.enable_pef && cm->features.allow_pef) {
-      enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
-    }
-#endif  // CONFIG_PEF
-
-    // Compute sse and rate.
+      // Compute sse and rate.
 #if CONFIG_ALLOW_TIP_DIRECT_WITH_SUPERRES
     YV12_BUFFER_CONFIG *tip_frame_buf =
         !av1_superres_scaled(cm) ? &cm->tip_ref.tip_frame->buf
