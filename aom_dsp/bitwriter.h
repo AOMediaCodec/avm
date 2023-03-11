@@ -70,20 +70,23 @@ void aom_start_encode(aom_writer *w, uint8_t *buffer);
 int aom_stop_encode(aom_writer *w);
 
 #if CONFIG_BITSTREAM_DEBUG
-static INLINE void bitstream_queue_literal(int data, int bits) {
+// Push a literal (one or more equi-probably symbols) into
+// the bitstream debug queue, in the same order it is
+// encoded into the stream (msb to lsb).
+static INLINE void bitstream_queue_push_literal(int data, int bits) {
   aom_cdf_prob cdf[2] = { 128, 32767 };
   for (int bit = bits - 1; bit >= 0; bit--) {
     bitstream_queue_push(1 & (data >> bit), cdf, 2);
   }
 }
-#endif
+#endif  // CONFIG_BITSTREAM_DEBUG
 
 static INLINE void aom_write(aom_writer *w, int bit, int probability) {
   int p = (0x7FFFFF - (probability << 15) + probability) >> 8;
 #if CONFIG_BITSTREAM_DEBUG
   aom_cdf_prob cdf[2] = { (aom_cdf_prob)p, 32767 };
   bitstream_queue_push(bit, cdf, 2);
-#endif
+#endif  // CONFIG_BITSTREAM_DEBUG
 
   od_ec_encode_bool_q15(&w->ec, bit, p);
 }
@@ -91,8 +94,8 @@ static INLINE void aom_write(aom_writer *w, int bit, int probability) {
 static INLINE void aom_write_bit(aom_writer *w, int bit) {
 #if CONFIG_BYPASS_IMPROVEMENT
 #if CONFIG_BITSTREAM_DEBUG
-  bitstream_queue_literal(bit, 1);
-#endif
+  bitstream_queue_push_literal(bit, 1);
+#endif  // CONFIG_BITSTREAM_DEBUG
   od_ec_encode_literal_bypass(&w->ec, bit, 1);
 #else
   aom_write(w, bit, 128);  // aom_prob_half
@@ -102,8 +105,8 @@ static INLINE void aom_write_bit(aom_writer *w, int bit) {
 static INLINE void aom_write_literal(aom_writer *w, int data, int bits) {
 #if CONFIG_BYPASS_IMPROVEMENT
 #if CONFIG_BITSTREAM_DEBUG
-  bitstream_queue_literal(data, bits);
-#endif
+  bitstream_queue_push_literal(data, bits);
+#endif  // CONFIG_BITSTREAM_DEBUG
   int n;
   while (bits > 0) {
     n = bits >= 8 ? 8 : bits;
@@ -122,7 +125,7 @@ static INLINE void aom_write_cdf(aom_writer *w, int symb,
                                  const aom_cdf_prob *cdf, int nsymbs) {
 #if CONFIG_BITSTREAM_DEBUG
   bitstream_queue_push(symb, cdf, nsymbs);
-#endif
+#endif  // CONFIG_BITSTREAM_DEBUG
 
   od_ec_encode_cdf_q15(&w->ec, symb, cdf, nsymbs);
 }

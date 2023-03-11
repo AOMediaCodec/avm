@@ -170,7 +170,7 @@ static INLINE int aom_read_(aom_reader *r, int prob ACCT_STR_PARAM) {
       assert(0);
     }
   }
-#endif
+#endif  // CONFIG_BITSTREAM_DEBUG
 
 #if CONFIG_ACCOUNTING
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
@@ -184,7 +184,9 @@ static INLINE int aom_read_(aom_reader *r, int prob ACCT_STR_PARAM) {
 }
 
 #if CONFIG_BITSTREAM_DEBUG
-static INLINE void bitstream_debug_literal(int data, int bits) {
+// Pop a literal (one or more equi-probably symbols) and check
+// with decoded literal value.
+static INLINE void bitstream_debug_pop_literal(int data, int bits) {
   for (int b = bits - 1; b >= 0; b--) {
     int bit = 1 & (data >> b);
     int i;
@@ -218,14 +220,14 @@ static INLINE void bitstream_debug_literal(int data, int bits) {
     }
   }
 }
-#endif
+#endif  // CONFIG_BITSTREAM_DEBUG
 
 #if CONFIG_BYPASS_IMPROVEMENT
 static INLINE int aom_read_bypass_(aom_reader *r ACCT_STR_PARAM) {
   int ret = od_ec_decode_literal_bypass(&r->ec, 1);
 #if CONFIG_BITSTREAM_DEBUG
-  bitstream_debug_literal(ret, 1);
-#endif
+  bitstream_debug_pop_literal(ret, 1);
+#endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_ACCOUNTING
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
@@ -263,8 +265,8 @@ static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_STR_PARAM) {
     n_bits -= n;
   }
 #if CONFIG_BITSTREAM_DEBUG
-  bitstream_debug_literal(literal, bits);
-#endif
+  bitstream_debug_pop_literal(literal, bits);
+#endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_ACCOUNTING
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
@@ -288,8 +290,8 @@ static INLINE int aom_read_unary_(aom_reader *r, int max_nbits ACCT_STR_PARAM) {
 #if CONFIG_BITSTREAM_DEBUG
   int nbits = ret < max_nbits ? ret + 1 : max_nbits;
   int data = ret == max_nbits ? 0 : 1;
-  bitstream_debug_literal(data, nbits);
-#endif
+  bitstream_debug_pop_literal(data, nbits);
+#endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_ACCOUNTING
   int n_bits = ret < max_nbits ? ret + 1 : max_nbits;
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
@@ -346,7 +348,7 @@ static INLINE int aom_read_cdf_(aom_reader *r, const aom_cdf_prob *cdf,
       assert(0);
     }
   }
-#endif
+#endif  // CONFIG_BITSTREAM_DEBUG
 
 #if CONFIG_ACCOUNTING
   if (ACCT_STR_NAME) aom_process_accounting(r, ACCT_STR_NAME);
