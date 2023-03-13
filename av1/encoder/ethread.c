@@ -1427,7 +1427,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     // source_alt_ref_frame w.r.t. ARF frames.
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
         gm_info->reference_frames[cur_dir][ref_frame_idx].distance != 0 &&
-        cpi->common.global_motion[ref_buf_idx].wmtype != ROTZOOM)
+        cpi->common.global_motion[ref_buf_idx].wmtype <= TRANSLATION)
       job_info->early_exit[cur_dir] = 1;
 
 #if CONFIG_MULTITHREAD
