@@ -6489,9 +6489,9 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
   if (type >= TRANSLATION) {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
-    const int trans_bits = GM_ABS_TRANS_BITS;
     const int trans_dec_factor = GM_TRANS_DECODE_FACTOR;
     const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+    const int trans_max = GM_TRANS_MAX;
 #else
     const int trans_bits = (type == TRANSLATION)
 #if CONFIG_FLEX_MVRES
@@ -6515,14 +6515,15 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                     ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
 #endif
                                     : GM_TRANS_PREC_DIFF;
+    const int trans_max = (1 << trans_bits);
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     params->wmmat[0] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+                           rb, trans_max + 1, SUBEXPFIN_K,
                            (ref_params->wmmat[0] >> trans_prec_diff)) *
                        trans_dec_factor;
     params->wmmat[1] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+                           rb, trans_max + 1, SUBEXPFIN_K,
                            (ref_params->wmmat[1] >> trans_prec_diff)) *
                        trans_dec_factor;
   }

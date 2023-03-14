@@ -4765,8 +4765,8 @@ static AOM_INLINE void write_global_motion_params(
 
   if (type >= TRANSLATION) {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
-    const int trans_bits = GM_ABS_TRANS_BITS;
     const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+    const int trans_max = GM_TRANS_MAX;
 #else
 #if CONFIG_FLEX_MVRES
     const int trans_bits = (type == TRANSLATION)
@@ -4783,14 +4783,15 @@ static AOM_INLINE void write_global_motion_params(
                                     ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
                                     : GM_TRANS_PREC_DIFF;
 #endif  // CONFIG_FLEX_MVRES
+    const int trans_max = (1 << trans_bits);
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     aom_wb_write_signed_primitive_refsubexpfin(
-        wb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+        wb, trans_max + 1, SUBEXPFIN_K,
         (ref_params->wmmat[0] >> trans_prec_diff),
         (params->wmmat[0] >> trans_prec_diff));
     aom_wb_write_signed_primitive_refsubexpfin(
-        wb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+        wb, trans_max + 1, SUBEXPFIN_K,
         (ref_params->wmmat[1] >> trans_prec_diff),
         (params->wmmat[1] >> trans_prec_diff));
   }

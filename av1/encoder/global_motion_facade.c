@@ -40,6 +40,7 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   const int trans_bits = GM_ABS_TRANS_BITS;
   const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+  const int trans_max = (1 << trans_bits) - 1;
 #else
   const int trans_bits = (gm->wmtype == TRANSLATION)
 #if CONFIG_FLEX_MVRES
@@ -55,6 +56,7 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
                                   ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
 #endif
                                   : GM_TRANS_PREC_DIFF;
+  const int trans_max = (1 << trans_bits);
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   switch (gm->wmtype) {
@@ -80,12 +82,10 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
             (gm->wmmat[5] >> GM_ALPHA_PREC_DIFF) - (1 << GM_ALPHA_PREC_BITS));
       }
       params_cost += aom_count_signed_primitive_refsubexpfin(
-          (1 << trans_bits) + 1, SUBEXPFIN_K,
-          (ref_gm->wmmat[0] >> trans_prec_diff),
+          trans_max + 1, SUBEXPFIN_K, (ref_gm->wmmat[0] >> trans_prec_diff),
           (gm->wmmat[0] >> trans_prec_diff));
       params_cost += aom_count_signed_primitive_refsubexpfin(
-          (1 << trans_bits) + 1, SUBEXPFIN_K,
-          (ref_gm->wmmat[1] >> trans_prec_diff),
+          trans_max + 1, SUBEXPFIN_K, (ref_gm->wmmat[1] >> trans_prec_diff),
           (gm->wmmat[1] >> trans_prec_diff));
       AOM_FALLTHROUGH_INTENDED;
     case IDENTITY: break;
