@@ -5036,7 +5036,8 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   return 1;
 }
 
-static AOM_INLINE void prune_ext_partitions(
+// Pruning logic for PARTITION_HORZ_3 and PARTITION_VERT_3.
+static AOM_INLINE void prune_ext_partitions_3way(
     AV1_COMP *const cpi, PC_TREE *pc_tree,
     PartitionSearchState *part_search_state) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -5077,12 +5078,24 @@ static AOM_INLINE void prune_ext_partitions(
       part_search_state->prune_partition_3[VERT] = 1;
     }
   }
+}
+
 #if CONFIG_UNEVEN_4WAY
+// Pruning logic for PARTITION_HORZ_4A/B and PARTITION_VERT_4A/B.
+static AOM_INLINE void prune_ext_partitions_4way(
+    AV1_COMP *const cpi, PC_TREE *pc_tree,
+    PartitionSearchState *part_search_state) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
+  const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
   // TODO(now): Rename 'prune_part_3_with_part_none' and
   // 'prune_part_3_with_part_rect'.
   // Prune HORZ 4A with speed features
   // TODO(now): speed feature.
   const int prune_part4_horz_or_vert = 1;
+#if CONFIG_H_PARTITION
+  const int prune_part4_from_part_h = 1;
+#endif  // CONFIG_H_PARTITION
   if (part_search_state->partition_4a_allowed[HORZ] && !frame_is_intra_only(cm) &&
       forced_partition != PARTITION_HORZ_4A) {
     if (part_sf->prune_part_3_with_part_none &&
@@ -5102,6 +5115,15 @@ static AOM_INLINE void prune_ext_partitions(
         part_search_state->partition_rect_allowed[HORZ]) {
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
+#if CONFIG_H_PARTITION
+    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_HORZ_3 &&
+        !node_uses_horz(pc_tree->horizontal3[0]) &&
+        !node_uses_horz(pc_tree->horizontal3[3])) {
+      // Prune is best partition is horizontal H, but first and last
+      // subpartitions did not further split in horizontal direction.
+      part_search_state->prune_partition_4a[HORZ] = 1;
+    }
+#endif  // CONFIG_H_PARTITION
   }
 
   // Prune HORZ 4B with speed features
@@ -5124,6 +5146,15 @@ static AOM_INLINE void prune_ext_partitions(
         part_search_state->partition_rect_allowed[HORZ]) {
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
+#if CONFIG_H_PARTITION
+    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_HORZ_3 &&
+        !node_uses_horz(pc_tree->horizontal3[0]) &&
+        !node_uses_horz(pc_tree->horizontal3[3])) {
+      // Prune is best partition is horizontal H, but first and last
+      // subpartitions did not further split in horizontal direction.
+      part_search_state->prune_partition_4b[HORZ] = 1;
+    }
+#endif  // CONFIG_H_PARTITION
   }
 
   // Prune VERT_4A with speed features
@@ -5146,6 +5177,15 @@ static AOM_INLINE void prune_ext_partitions(
         part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4a[VERT] = 1;
     }
+#if CONFIG_H_PARTITION
+    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_VERT_3 &&
+        !node_uses_vert(pc_tree->vertical3[0]) &&
+        !node_uses_vert(pc_tree->vertical3[3])) {
+      // Prune is best partition is vertical H, but first and last
+      // subpartitions did not further split in vertical direction.
+      part_search_state->prune_partition_4a[VERT] = 1;
+    }
+#endif  // CONFIG_H_PARTITION
   }
 
   // Prune VERT_4B with speed features
@@ -5168,11 +5208,17 @@ static AOM_INLINE void prune_ext_partitions(
         part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4b[VERT] = 1;
     }
+#if CONFIG_H_PARTITION
+    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_VERT_3 &&
+        !node_uses_vert(pc_tree->vertical3[0]) &&
+        !node_uses_vert(pc_tree->vertical3[3])) {
+      // Prune is best partition is vertical H, but first and last
+      // subpartitions did not further split in vertical direction.
+      part_search_state->prune_partition_4b[VERT] = 1;
+    }
+#endif  // CONFIG_H_PARTITION
   }
-#endif  // CONFIG_UNEVEN_4WAY
 }
-
-#if CONFIG_UNEVEN_4WAY
 
 static INLINE void search_partition_horz_4a(
     PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
@@ -6376,15 +6422,36 @@ BEGIN_PARTITION_SEARCH:
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  prune_ext_partitions(cpi, pc_tree, &part_search_state);
+  prune_ext_partitions_3way(cpi, pc_tree, &part_search_state);
 
   const int ext_recur_depth =
       AOMMIN(max_recursion_depth - 1, cpi->sf.part_sf.ext_recur_depth);
   const bool track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
 
+  // PARTITION_HORZ_3
+  search_partition_horz_3(&part_search_state, cpi, td, tile_data, tp, &best_rdc,
+                          pc_tree, track_ptree_luma ? ptree_luma : NULL,
+                          template_tree, &x_ctx, &part_search_state,
+#if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
+                          &level_banks,
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
+                          multi_pass_mode, ext_recur_depth);
+
+  // PARTITION_VERT_3
+  search_partition_vert_3(&part_search_state, cpi, td, tile_data, tp, &best_rdc,
+                          pc_tree, track_ptree_luma ? ptree_luma : NULL,
+                          template_tree, &x_ctx, &part_search_state,
+#if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
+                          &level_banks,
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
+                          multi_pass_mode, ext_recur_depth);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 #if CONFIG_UNEVEN_4WAY
-  // PARTITION_HORZ_4A
+    prune_ext_partitions_4way(cpi, pc_tree, &part_search_state);
+
+    // PARTITION_HORZ_4A
     search_partition_horz_4a(
         &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
         track_ptree_luma ? ptree_luma : NULL,
@@ -6424,25 +6491,6 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
       multi_pass_mode, ext_recur_depth);
 #endif  // CONFIG_UNEVEN_4WAY
-
-  // PARTITION_HORZ_3
-  search_partition_horz_3(&part_search_state, cpi, td, tile_data, tp, &best_rdc,
-                          pc_tree, track_ptree_luma ? ptree_luma : NULL,
-                          template_tree, &x_ctx, &part_search_state,
-#if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          &level_banks,
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          multi_pass_mode, ext_recur_depth);
-
-  // PARTITION_VERT_3
-  search_partition_vert_3(&part_search_state, cpi, td, tile_data, tp, &best_rdc,
-                          pc_tree, track_ptree_luma ? ptree_luma : NULL,
-                          template_tree, &x_ctx, &part_search_state,
-#if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          &level_banks,
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          multi_pass_mode, ext_recur_depth);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (bsize == cm->seq_params.sb_size &&
       !part_search_state.found_best_partition) {
