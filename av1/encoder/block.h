@@ -1669,19 +1669,6 @@ static INLINE int is_rect_tx_allowed(const MACROBLOCKD *xd,
          !xd->lossless[mbmi->segment_id];
 }
 
-#if !CONFIG_NEW_TX_PARTITION
-static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
-  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
-  int depth = 0;
-  while (tx_size != ctx_size) {
-    depth++;
-    ctx_size = sub_tx_size_map[ctx_size];
-    assert(depth <= MAX_TX_DEPTH);
-  }
-  return depth;
-}
-#endif
-
 static INLINE void set_blk_skip(uint8_t txb_skip[], int plane, int blk_idx,
                                 int skip) {
   if (skip)

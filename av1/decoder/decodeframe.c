@@ -363,7 +363,11 @@ static AOM_INLINE void set_cb_buffer_offsets(DecoderCodingBlock *dcb,
 static AOM_INLINE void decode_reconstruct_tx(
     AV1_COMMON *cm, ThreadData *const td, aom_reader *r,
     MB_MODE_INFO *const mbmi, int plane, BLOCK_SIZE plane_bsize, int blk_row,
-    int blk_col, int block, TX_SIZE tx_size, int *eob_total) {
+    int blk_col,
+#if !CONFIG_NEW_TX_PARTITION
+    int block,
+#endif  // !CONFIG_NEW_TX_PARTITION
+    TX_SIZE tx_size, int *eob_total) {
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
 #if CONFIG_CROSS_CHROMA_TX
@@ -437,7 +441,6 @@ static AOM_INLINE void decode_reconstruct_tx(
         const TX_SIZE sub_tx = sub_txs[cur_partition];
         bsw = tx_size_wide_unit[sub_tx];
         bsh = tx_size_high_unit[sub_tx];
-        const int sub_step = bsw * bsh;
         const int offsetr = blk_row + row;
         const int offsetc = blk_col + col;
         if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
@@ -449,7 +452,6 @@ static AOM_INLINE void decode_reconstruct_tx(
         eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
         *eob_total += eob_data->eob;
         set_cb_buffer_offsets(dcb, sub_tx, plane);
-        block += sub_step;
         cur_partition++;
       }
     }
@@ -1495,9 +1497,11 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                 get_vartx_max_txsize(xd, plane_bsize, plane);
             const int bh_var_tx = tx_size_high_unit[max_tx_size];
             const int bw_var_tx = tx_size_wide_unit[max_tx_size];
+#if !CONFIG_NEW_TX_PARTITION
             int block = 0;
             int step =
                 tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
+#endif  // !CONFIG_NEW_TX_PARTITION
             const int plane_unit_height =
                 get_plane_tx_unit_height(xd, plane_bsize, plane, row, ss_y);
             const int plane_unit_width =
@@ -1508,9 +1512,15 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
               for (int blk_col = col >> ss_x; blk_col < plane_unit_width;
                    blk_col += bw_var_tx) {
                 decode_reconstruct_tx(cm, td, r, mbmi, plane, plane_bsize,
-                                      blk_row, blk_col, block, max_tx_size,
+                                      blk_row, blk_col,
+#if !CONFIG_NEW_TX_PARTITION
+                                      block,
+#endif  // !CONFIG_NEW_TX_PARTITION
+                                      max_tx_size,
                                       &eobtotal);
+#if !CONFIG_NEW_TX_PARTITION
                 block += step;
+#endif  // !CONFIG_NEW_TX_PARTITION
               }
             }
           }

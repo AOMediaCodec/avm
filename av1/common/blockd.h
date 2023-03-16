@@ -2849,6 +2849,7 @@ static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   while (tx_size != ctx_size) {
     depth++;
     ctx_size = sub_tx_size_map[ctx_size];
+    assert(depth <= MAX_TX_DEPTH);
   }
   return depth;
 }
