@@ -92,7 +92,9 @@ list(
   "${AOM_ROOT}/av1/common/txb_common.c"
   "${AOM_ROOT}/av1/common/txb_common.h"
   "${AOM_ROOT}/av1/common/warped_motion.c"
-  "${AOM_ROOT}/av1/common/warped_motion.h")
+  "${AOM_ROOT}/av1/common/warped_motion.h"
+  "${AOM_ROOT}/av1/common/lanczos_resample.c"
+  "${AOM_ROOT}/av1/common/lanczos_resample.h")
 if(CONFIG_PEF)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.h")
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.c")
@@ -125,12 +127,6 @@ endif()
 if(CONFIG_TIP)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/tip.c"
        "${AOM_ROOT}/av1/common/tip.h")
-endif()
-
-if(CONFIG_EXT_SUPERRES)
-  list(APPEND AOM_AV1_COMMON_SOURCES
-       "${AOM_ROOT}/av1/common/lanczos_resample.c"
-       "${AOM_ROOT}/av1/common/lanczos_resample.h")
 endif()
 
 list(

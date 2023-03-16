@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "aom_ports/system_state.h"
+
 #include "config/aom_config.h"
 
 #include "aom_dsp/aom_dsp_common.h"
@@ -25,9 +27,7 @@
 #include "aom_scale/aom_scale.h"
 #include "av1/common/common.h"
 #include "av1/common/resize.h"
-#if CONFIG_EXT_SUPERRES
 #include "av1/common/lanczos_resample.h"
-#endif  // CONFIG_EXT_SUPERRES
 
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
@@ -989,7 +989,6 @@ Error:
   aom_free(arrbuf2);
 }
 
-#if CONFIG_EXT_SUPERRES
 #define LANCZOS_A_NORMATIVE_HOR_Y 6  // Normative hor Lanczos a Luma
 #define LANCZOS_A_NORMATIVE_HOR_C 4  // Normative hor Lanczos a Chroma
 #define LANCZOS_A_NORMATIVE_VER_Y 4  // Normative ver Lanczos a Luma
@@ -1056,6 +1055,42 @@ void av1_resize_lanczos_and_extend_frame(const YV12_BUFFER_CONFIG *src,
   aom_extend_frame_borders(dst, num_planes);
 }
 
+static void derive_scale_factor(int width, int width_scaled, int *p, int *q) {
+  assert(width > 0);
+  assert(width_scaled > 0);
+
+  *p = -1;
+  *q = -1;
+
+  // Lanczos library supports a scaling factor p/q with both p and q <= 16.
+  if ((width > (width_scaled << 4)) || (width_scaled > (width << 4))) return;
+
+  aom_clear_system_state();
+
+  const float scale_factor = (float)width_scaled / (float)width;
+  const float error_thresh = 0.05f;
+  float error_min = 1.0f;
+
+  for (int denom = 1; denom <= 16; ++denom) {
+    for (int num = 1; num <= 16; ++num) {
+      float error = fabsf((float)num / (float)denom - scale_factor);
+
+      if (error < error_min) {
+        *p = num;
+        *q = denom;
+        error_min = error;
+      }
+    }
+  }
+
+  if (error_min > error_thresh) {
+    *p = -1;
+    *q = -1;
+  }
+  return;
+}
+
+#if CONFIG_EXT_SUPERRES
 int64_t av1_downup_lanczos_sse(const YV12_BUFFER_CONFIG *src, int bd, int denom,
                                int num) {
   const int width = src->crop_widths[0];
@@ -1406,12 +1441,28 @@ YV12_BUFFER_CONFIG *av1_scale_if_required(
           cm->superres_scale_denominator, cm->superres_scale_numerator);
     } else {
 #endif  // CONFIG_EXT_SUPERRES
-      if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8) {
-        av1_resize_and_extend_frame(unscaled, scaled, filter, phase,
-                                    num_planes);
+      int scale_denom = -1;
+      int scale_num = -1;
+#if !CONFIG_EXT_SUPERRES
+      // TODO(yuec): implement 1D superres based on lanczos resampling
+      if (cm->superres_scale_denominator == SCALE_NUMERATOR)
+#endif
+        derive_scale_factor(unscaled->y_crop_width, scaled->y_crop_width,
+                            &scale_num, &scale_denom);
+
+      if (scale_denom > 0 && scale_num > 0) {
+        av1_resize_lanczos_and_extend_frame(
+            unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes,
+            unscaled->subsampling_x, unscaled->subsampling_y, scale_denom,
+            scale_num);
       } else {
-        av1_resize_and_extend_frame_nonnormative(
-            unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
+        if (use_optimized_scaler && cm->seq_params.bit_depth == AOM_BITS_8) {
+          av1_resize_and_extend_frame(unscaled, scaled, filter, phase,
+                                      num_planes);
+        } else {
+          av1_resize_and_extend_frame_nonnormative(
+              unscaled, scaled, (int)cm->seq_params.bit_depth, num_planes);
+        }
       }
 #if CONFIG_EXT_SUPERRES
     }
