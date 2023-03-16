@@ -25,6 +25,9 @@ typedef struct {
   INTERINTER_COMPOUND_DATA best_compound_data;
   int64_t comp_best_model_rd;
   int best_compmode_interinter_cost;
+#if CONFIG_CWP
+  int cwp_idx;
+#endif
 } BEST_COMP_TYPE_STATS;
 
 #define IGNORE_MODE -1

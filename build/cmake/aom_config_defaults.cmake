@@ -243,6 +243,7 @@ set_aom_config_var(CONFIG_IMPROVED_ANGULAR_INTRA 1
 
 set_aom_config_var(CONFIG_SKIP_TXFM_OPT 1
                    "Enable to optimize the signaling of skip_txfm")
+set_aom_config_var(CONFIG_CWP 1 "Enables compound weighted prediction.")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1

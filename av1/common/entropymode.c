@@ -1336,6 +1336,21 @@ static const aom_cdf_prob default_drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(16618) }, { AOM_CDF2(14980) }, { AOM_CDF2(15963) }
 };
 #endif  // CONFIG_C076_INTER_MOD_CTX
+
+#if CONFIG_CWP
+static const aom_cdf_prob default_cwp_idx_cdf[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1]
+                                             [CDF_SIZE(2)] = {
+                                               { { AOM_CDF2(16384) },
+                                                 { AOM_CDF2(16384) },
+                                                 { AOM_CDF2(16384) },
+                                                 { AOM_CDF2(16384) } },
+                                               { { AOM_CDF2(16384) },
+                                                 { AOM_CDF2(16384) },
+                                                 { AOM_CDF2(16384) },
+                                                 { AOM_CDF2(16384) } },
+                                             };
+#endif  // CONFIG_CWP
+
 #if CONFIG_IMPROVED_JMVD
 static const aom_cdf_prob
     default_jmvd_scale_mode_cdf[CDF_SIZE(JOINT_NEWMV_SCALE_FACTOR_CNT)] = {
@@ -2941,6 +2956,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_OPTFLOW_REFINEMENT
   av1_copy(fc->use_optflow_cdf, default_use_optflow_cdf);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#if CONFIG_CWP
+  av1_copy(fc->cwp_idx_cdf, default_cwp_idx_cdf);
+#endif
 #if CONFIG_IMPROVED_JMVD
   av1_copy(fc->jmvd_scale_mode_cdf, default_jmvd_scale_mode_cdf);
   av1_copy(fc->jmvd_amvd_scale_mode_cdf, default_jmvd_amvd_scale_mode_cdf);

@@ -1485,6 +1485,9 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->use_intrabc[1] = 0;
 #endif  // CONFIG_IBC_SR_EXT
 
+#if CONFIG_CWP
+  mbmi->cwp_idx = CWP_EQUAL;
+#endif
 #if CONFIG_FLEX_MVRES
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);

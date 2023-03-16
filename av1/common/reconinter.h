@@ -309,6 +309,37 @@ static INLINE int allow_warp_parameter_signaling(const MB_MODE_INFO *mbmi) {
 }
 #endif  // CONFIG_WARP_REF_LIST
 
+#if CONFIG_CWP
+static INLINE int get_cwp_coding_idx(int val, int encode,
+                                     const AV1_COMMON *const cm,
+                                     const MB_MODE_INFO *const mbmi) {
+  int is_same_side = 0;
+  int cur_ref_side = 0;
+  int other_ref_side = 0;
+  if (has_second_ref(mbmi)) {
+    cur_ref_side = cm->ref_frame_side[mbmi->ref_frame[0]];
+    other_ref_side = cm->ref_frame_side[mbmi->ref_frame[1]];
+
+    is_same_side = (cur_ref_side > 0 && other_ref_side > 0) ||
+                   (cur_ref_side == 0 && other_ref_side == 0);
+  }
+
+  const int cwp_list[2][MAX_CWP_NUM] = {
+    { 8, 12, 4, 10, 6 },
+    { 8, 12, 4, 20, -4 },
+  };
+
+  if (encode) {
+    for (int i = 0; i < MAX_CWP_NUM; i++) {
+      if (cwp_list[is_same_side][i] == val) return i;
+    }
+    return 0;
+  } else {
+    return cwp_list[is_same_side][val];
+  }
+}
+#endif  // CONFIG_CWP
+
 #if CONFIG_ADAPTIVE_MVD
 static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
@@ -789,6 +820,11 @@ static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);
+
+#if CONFIG_CWP
+void init_cwp_masks();
+const int8_t *av1_get_cwp_mask(int list_idx, int idx);
+#endif  // CONFIG_CWP
 
 // build interintra_predictors for one plane
 void av1_build_interintra_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,

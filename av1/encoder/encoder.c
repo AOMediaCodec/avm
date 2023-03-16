@@ -203,6 +203,9 @@ void av1_initialize_enc(void) {
   av1_init_me_luts();
   av1_rc_init_minq_luts();
   av1_init_wedge_masks();
+#if CONFIG_CWP
+  init_cwp_masks();
+#endif  // CONFIG_CWP
 }
 
 static void update_reference_segmentation_map(AV1_COMP *cpi) {

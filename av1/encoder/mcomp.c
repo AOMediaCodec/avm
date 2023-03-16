@@ -136,6 +136,11 @@ void av1_make_default_fullpel_ms_params(
       enable_adaptive_mvd_resolution(&cpi->common, mbmi);
 #endif  // CONFIG_ADAPTIVE_MVD
 
+#if CONFIG_CWP
+  ms_params->xd = xd;
+  ms_params->cm = &cpi->common;
+#endif
+
   // High level params
   ms_params->bsize = bsize;
   ms_params->vfp = &cpi->fn_ptr[bsize];
@@ -1187,6 +1192,20 @@ static INLINE int get_mvpred_compound_sad(
     return vfp->msdf(src_buf, src_stride, ref_address, ref_stride, second_pred,
                      mask, mask_stride, invert_mask);
   } else if (second_pred) {
+#if CONFIG_CWP
+    const MB_MODE_INFO *mi = ms_params->xd->mi[0];
+    if (get_cwp(mi) != CWP_EQUAL) {
+      int weight = get_cwp(mi);
+
+      weight = invert_mask ? 16 - weight : weight;
+      DIST_WTD_COMP_PARAMS jcp_param;
+      jcp_param.fwd_offset = weight;
+      jcp_param.bck_offset = 16 - weight;
+
+      return vfp->jsdaf(src_buf, src_stride, ref_address, ref_stride,
+                        second_pred, &jcp_param);
+    }
+#endif
     return vfp->sdaf(src_buf, src_stride, ref_address, ref_stride, second_pred);
   } else {
     return ms_params->sdf(src_buf, src_stride, ref_address, ref_stride);
@@ -2799,6 +2818,26 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
   return var;
 }
 
+#if CONFIG_CWP
+int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
+                         const MACROBLOCK *x) {
+  assert(cwp_idx > CWP_MIN && cwp_idx < CWP_MAX);
+  const MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mi = xd->mi[0];
+  int cost = 0;
+  int bit_cnt = 0;
+  int ctx = av1_get_cwp_context();
+
+  int final_idx = get_cwp_coding_idx(cwp_idx, 1, cm, mi);
+  for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {
+    cost += x->mode_costs.cwp_idx_cost[ctx][bit_cnt][final_idx != idx];
+    if (final_idx == idx) return cost;
+    ++bit_cnt;
+  }
+  return cost;
+}
+#endif
+
 #if CONFIG_BVP_IMPROVEMENT
 int av1_get_ref_mvpred_var_cost(const AV1_COMP *cpi, const MACROBLOCKD *xd,
                                 const FULLPEL_MOTION_SEARCH_PARAMS *ms_params) {
@@ -3424,9 +3463,25 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
           subpel_y_q3, ref, ref_stride, mask, mask_stride, invert_mask, xd->bd,
           subpel_search_type);
     } else {
-      aom_highbd_comp_avg_upsampled_pred(
-          xd, cm, mi_row, mi_col, this_mv, pred, second_pred, w, h, subpel_x_q3,
-          subpel_y_q3, ref, ref_stride, xd->bd, subpel_search_type);
+#if CONFIG_CWP
+      if (get_cwp(xd->mi[0]) != CWP_EQUAL) {
+        int weight = get_cwp(xd->mi[0]);
+        weight = invert_mask ? 16 - weight : weight;
+        DIST_WTD_COMP_PARAMS jcp_param;
+        jcp_param.fwd_offset = weight;
+        jcp_param.bck_offset = 16 - weight;
+
+        aom_highbd_dist_wtd_comp_avg_upsampled_pred(
+            xd, cm, mi_row, mi_col, this_mv, pred, second_pred, w, h,
+            subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd, &jcp_param,
+            subpel_search_type);
+      } else
+#endif
+
+        aom_highbd_comp_avg_upsampled_pred(xd, cm, mi_row, mi_col, this_mv,
+                                           pred, second_pred, w, h, subpel_x_q3,
+                                           subpel_y_q3, ref, ref_stride, xd->bd,
+                                           subpel_search_type);
     }
   } else {
     aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, this_mv, pred, w, h,

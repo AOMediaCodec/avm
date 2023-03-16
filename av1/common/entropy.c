@@ -170,6 +170,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #else
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_MODES);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#if CONFIG_CWP
+  RESET_CDF_COUNTER(fc->cwp_idx_cdf, 2);
+#endif
 #if CONFIG_IMPROVED_JMVD
   RESET_CDF_COUNTER(fc->jmvd_scale_mode_cdf, JOINT_NEWMV_SCALE_FACTOR_CNT);
   RESET_CDF_COUNTER(fc->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);

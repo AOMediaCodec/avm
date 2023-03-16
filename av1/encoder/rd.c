@@ -625,6 +625,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->comp_group_idx_cost[i],
                                fc->comp_group_idx_cdf[i], NULL);
     }
+#if CONFIG_CWP
+    for (j = 0; j < MAX_CWP_CONTEXTS; j++) {
+      for (i = 0; i < MAX_CWP_NUM - 1; ++i) {
+        av1_cost_tokens_from_cdf(mode_costs->cwp_idx_cost[j][i],
+                                 fc->cwp_idx_cdf[j][i], NULL);
+      }
+    }
+#endif
   }
 }
 

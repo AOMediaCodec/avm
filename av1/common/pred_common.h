@@ -319,6 +319,10 @@ static INLINE int av1_get_skip_mode_context(const MACROBLOCKD *xd) {
   return ctx;
 }
 
+#if CONFIG_CWP
+static INLINE int av1_get_cwp_context() { return 0; }
+#endif
+
 static INLINE int av1_get_skip_txfm_context(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {

@@ -418,6 +418,10 @@ typedef struct {
   int is_global[2];
   //! Current parameters for interinter mode.
   INTERINTER_COMPOUND_DATA interinter_comp;
+#if CONFIG_CWP
+  //! Index for compound weighted prediction parameters.
+  int cwp_idx;
+#endif
 } COMP_RD_STATS;
 
 /*! \brief Contains buffers used to speed up rdopt for obmc.
@@ -939,6 +943,10 @@ typedef struct {
   int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
                               [INTER_COMPOUND_MODES];
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_CWP
+  //! cwp_idx_cost for compound weighted prediction
+  int cwp_idx_cost[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];
+#endif
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   //! jmvd_scale_mode_cost for JOINT_NEWMV
   int jmvd_scale_mode_cost[JOINT_NEWMV_SCALE_FACTOR_CNT];

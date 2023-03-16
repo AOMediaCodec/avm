@@ -270,6 +270,10 @@ DECLARE_ALIGNED(16, static uint8_t,
                 smooth_interintra_mask_buf[INTERINTRA_MODES][BLOCK_SIZES_ALL]
                                           [MAX_WEDGE_SQUARE]);
 
+#if CONFIG_CWP
+DECLARE_ALIGNED(16, static int8_t, cwp_mask[2][MAX_CWP_NUM][MAX_SB_SQUARE]);
+#endif
+
 static wedge_masks_type wedge_masks[BLOCK_SIZES_ALL][2];
 
 #if CONFIG_WEDGE_MOD_EXT
@@ -392,6 +396,31 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
 };
+#endif
+
+#if CONFIG_CWP
+static AOM_INLINE void build_cwp_mask(int8_t *mask, int stride,
+                                      BLOCK_SIZE plane_bsize, int8_t w) {
+  const int bw = block_size_wide[plane_bsize];
+  const int bh = block_size_high[plane_bsize];
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) mask[j] = w;
+    mask += stride;
+  }
+}
+void init_cwp_masks() {
+  int bs = BLOCK_128X128;
+  const int bw = block_size_wide[bs];
+  for (int list_idx = 0; list_idx < 2; ++list_idx) {
+    for (int idx = 0; idx < MAX_CWP_NUM; ++idx) {
+      int weight = get_cwp_search_order(list_idx, idx) * 4;
+      build_cwp_mask(cwp_mask[list_idx][idx], bw, bs, (int8_t)weight);
+    }
+  }
+}
+const int8_t *av1_get_cwp_mask(int list_idx, int idx) {
+  return cwp_mask[list_idx][idx];
+}
 #endif
 
 static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
@@ -1880,6 +1909,17 @@ static void build_inter_predictors_8x8_and_bigger(
       // Assign physical buffer.
       inter_pred_params.mask_comp.seg_mask = xd->seg_mask;
     }
+
+#if CONFIG_CWP
+    if (ref == 1 && inter_pred_params.conv_params.do_average == 1) {
+      if (get_cwp(mi) != CWP_EQUAL) {
+        int weight = get_cwp(mi);
+        assert(mi->cwp_idx > CWP_MIN && mi->cwp_idx < CWP_MAX);
+        inter_pred_params.conv_params.fwd_offset = weight;
+        inter_pred_params.conv_params.bck_offset = 16 - weight;
+      }
+    }
+#endif
 
 #if CONFIG_OPTFLOW_REFINEMENT
     if (use_optflow_refinement && plane == 0) {
