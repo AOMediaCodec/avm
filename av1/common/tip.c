@@ -15,7 +15,7 @@
 #include "config/aom_scale_rtcd.h"
 
 // CHROMA_MI_SIZE is the block size in luma unit for Chroma TIP interpolation
-#define CHROMA_MI_SIZE (TMVP_MI_SIZE << 1)
+#define CHROMA_MI_SIZE (TMVP_MI_SIZE)
 
 // Maximum block size  allowed to combine the blocks with same MV.
 // Encoder and decoder must use 8x8 units to prevent scaled pred mismatches
