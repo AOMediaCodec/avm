@@ -360,14 +360,16 @@ static AOM_INLINE void set_cb_buffer_offsets(DecoderCodingBlock *dcb,
       dcb->cb_offset[plane] / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
 }
 
-static AOM_INLINE void decode_reconstruct_tx(
-    AV1_COMMON *cm, ThreadData *const td, aom_reader *r,
-    MB_MODE_INFO *const mbmi, int plane, BLOCK_SIZE plane_bsize, int blk_row,
-    int blk_col,
+static AOM_INLINE void decode_reconstruct_tx(AV1_COMMON *cm,
+                                             ThreadData *const td,
+                                             aom_reader *r,
+                                             MB_MODE_INFO *const mbmi,
+                                             int plane, BLOCK_SIZE plane_bsize,
+                                             int blk_row, int blk_col,
 #if !CONFIG_NEW_TX_PARTITION
-    int block,
+                                             int block,
 #endif  // !CONFIG_NEW_TX_PARTITION
-    TX_SIZE tx_size, int *eob_total) {
+                                             TX_SIZE tx_size, int *eob_total) {
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
 #if CONFIG_CROSS_CHROMA_TX
@@ -1516,8 +1518,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
 #if !CONFIG_NEW_TX_PARTITION
                                       block,
 #endif  // !CONFIG_NEW_TX_PARTITION
-                                      max_tx_size,
-                                      &eobtotal);
+                                      max_tx_size, &eobtotal);
 #if !CONFIG_NEW_TX_PARTITION
                 block += step;
 #endif  // !CONFIG_NEW_TX_PARTITION
