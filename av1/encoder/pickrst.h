@@ -191,7 +191,10 @@ static INLINE int wienerns_info_diff(
  *
  */
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi);
-
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+void av1_pick_cross_filter_restoration(const YV12_BUFFER_CONFIG *sd,
+                                       AV1_COMP *cpi);
+#endif
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -127,7 +127,11 @@ static AOM_INLINE void set_planes_to_neutral_grey(
 }
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+    AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#else
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#endif
     int runit_idx);
 
 static int read_is_valid(const uint8_t *start, size_t len, const uint8_t *end) {
@@ -2211,7 +2215,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
     for (int plane = plane_start; plane < plane_end; ++plane) {
       int rcol0, rcol1, rrow0, rrow1;
-      if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
+      if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+           || cm->rst_info[plane].frame_cross_restoration_type != RESTORE_NONE
+#endif
+           ) &&
           av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                              &rcol0, &rcol1, &rrow0, &rrow1)) {
         const int rstride = cm->rst_info[plane].horz_units_per_tile;
@@ -2650,8 +2658,21 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
   assert(!cm->features.all_lossless);
   const int num_planes = av1_num_planes(cm);
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+  for (int p = 0; p < num_planes; ++p) {
+    RestorationInfo *rsi = &cm->rst_info[p];
+    rsi->frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+    rsi->frame_cross_restoration_type = RESTORE_NONE;
+#endif
+  }
+#endif
   if (is_global_intrabc_allowed(cm)) return;
+#if CONFIG_FLEXIBLE_RU_SIZE
+  int luma_none = 1, chroma_none = 1;
+#else
   int all_none = 1, chroma_none = 1;
+#endif
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_LR_FLEX_SYNTAX
@@ -2707,8 +2728,23 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       }
     }
 #endif  // CONFIG_LR_FLEX_SYNTAX
+
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+    if (p > 0) {
+      if (aom_rb_read_bit(rb)) {
+        rsi->frame_cross_restoration_type = RESTORE_WIENER_NONSEP;
+      }
+    }
+    if (rsi->frame_restoration_type != RESTORE_NONE ||
+        rsi->frame_cross_restoration_type != RESTORE_NONE) {
+#else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
+#endif  // CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_FLEXIBLE_RU_SIZE
+      luma_none &= p > 0;
+#else
       all_none = 0;
+#endif
       chroma_none &= p == 0;
     }
 #if CONFIG_WIENER_NONSEP
@@ -2721,6 +2757,42 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                     : NUM_WIENERNS_CLASS_INIT_CHROMA;
 #endif  // CONFIG_WIENER_NONSEP
   }
+#if CONFIG_FLEXIBLE_RU_SIZE
+  const int frame_width = cm->superres_upscaled_width;
+  const int frame_height = cm->superres_upscaled_height;
+  set_restoration_unit_size(frame_width, frame_height,
+                            cm->seq_params.subsampling_x,
+                            cm->seq_params.subsampling_y, cm->rst_info);
+  int size = cm->rst_info[0].max_restoration_unit_size;
+
+  cm->rst_info[0].restoration_unit_size = size;
+  if (!luma_none) {
+    if (aom_rb_read_bit(rb))
+      cm->rst_info[0].restoration_unit_size = size >> 1;
+    else {
+      if (aom_rb_read_bit(rb))
+        cm->rst_info[0].restoration_unit_size = size;
+      else
+        cm->rst_info[0].restoration_unit_size = size >> 2;
+    }
+  }
+  if (num_planes > 1) {
+    cm->rst_info[1].restoration_unit_size = size;
+    if (!chroma_none) {
+      size = cm->rst_info[1].max_restoration_unit_size;
+      if (aom_rb_read_bit(rb))
+        cm->rst_info[1].restoration_unit_size = size >> 1;
+      else {
+        if (aom_rb_read_bit(rb))
+          cm->rst_info[1].restoration_unit_size = size;
+        else
+          cm->rst_info[1].restoration_unit_size = size >> 2;
+      }
+    }
+    cm->rst_info[2].restoration_unit_size =
+        cm->rst_info[1].restoration_unit_size;
+  }
+#else
   if (!all_none) {
     assert(cm->seq_params.sb_size == BLOCK_64X64 ||
            cm->seq_params.sb_size == BLOCK_128X128);
@@ -2755,6 +2827,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     cm->rst_info[2].restoration_unit_size =
         cm->rst_info[1].restoration_unit_size;
   }
+#endif
 }
 
 static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
@@ -2926,7 +2999,12 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   (void)xd;
 #endif  // CONFIG_LR_MERGE_COEFFS
   const WienernsFilterParameters *nsfilter_params =
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+      get_wienerns_parameters(xd->current_base_qindex, is_uv,
+                              wienerns_info->is_cross_filter);
+#else
       get_wienerns_parameters(xd->current_base_qindex, is_uv);
+#endif
   const int beg_feat = 0;
   const int end_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
@@ -3007,17 +3085,39 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 #endif  // CONFIG_WIENER_NONSEP
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+    AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#else
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#endif
     int runit_idx) {
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+  RestorationInfo *rsi = &cm->rst_info[plane];
+#else
   const RestorationInfo *rsi = &cm->rst_info[plane];
+#endif
   RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+  assert(rsi->frame_restoration_type != RESTORE_NONE ||
+         rsi->frame_cross_restoration_type != RESTORE_NONE);
+  rui->restoration_type = RESTORE_NONE;
+  rui->cross_restoration_type = RESTORE_NONE;
+#else
   assert(rsi->frame_restoration_type != RESTORE_NONE);
+#endif
 
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
 #if CONFIG_WIENER_NONSEP
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+  rui->wienerns_cross_info.num_classes =
+      xd->wienerns_cross_info[plane].filter[0].num_classes;
+
+  rui->wienerns_info.is_cross_filter = 0;
+  rui->wienerns_cross_info.is_cross_filter = 1;
+#endif
 #endif  // CONFIG_WIENER_NONSEP
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
@@ -3094,6 +3194,17 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     }
 #endif  // CONFIG_PC_WIENER
   }
+
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+  if (rsi->frame_cross_restoration_type == RESTORE_WIENER_NONSEP) {
+    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2, ACCT_STR)) {
+      rui->cross_restoration_type = RESTORE_WIENER_NONSEP;
+      read_wienerns_filter(xd, plane != AOM_PLANE_Y, &rui->wienerns_cross_info,
+                           &xd->wienerns_cross_info[plane], r);
+    }
+  }
+#endif  // CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+
 #if CONFIG_LR_FLEX_SYNTAX
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
@@ -3735,6 +3846,11 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
                         cdef_info->cdef_strengths[0] == 0 &&
                         cdef_info->cdef_uv_strengths[0] == 0;
     const int no_restoration =
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+        rst_info[0].frame_cross_restoration_type == RESTORE_NONE &&
+        rst_info[1].frame_cross_restoration_type == RESTORE_NONE &&
+        rst_info[2].frame_cross_restoration_type == RESTORE_NONE &&
+#endif
         rst_info[0].frame_restoration_type == RESTORE_NONE &&
         rst_info[1].frame_restoration_type == RESTORE_NONE &&
         rst_info[2].frame_restoration_type == RESTORE_NONE;
@@ -7017,6 +7133,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
+#endif
   }
 
 #if CONFIG_TIP
@@ -7133,6 +7254,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
+#endif
   }
   setup_loopfilter(cm, rb);
 
@@ -7381,7 +7507,13 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
 
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-      cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
+      cm->rst_info[2].frame_restoration_type != RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+      || cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
+      cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
+      cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE
+#endif
+  ) {
     av1_alloc_restoration_buffers(cm);
   }
   const int buf_size = MC_TEMP_BUF_PELS << 1;
@@ -7494,6 +7626,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif
 
     const int do_loop_restoration =
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+        cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
+        cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
+        cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE ||
+#endif
         cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE;

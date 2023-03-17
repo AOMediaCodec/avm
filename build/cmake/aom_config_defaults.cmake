@@ -201,6 +201,11 @@ set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 1 NUMBER
 set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
                    "AV2 pixel-classified Wiener filter experiment flag")
 # End: CWG-C016
+set_aom_config_var(CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER 1
+                   "AV2 high pass cross non-sep wiener filter experiment flag")
+set_aom_config_var(
+  CONFIG_FLEXIBLE_RU_SIZE 1
+  "AV2 experiment flag to choose RU size between 128x128 and 256x256")
 
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0

@@ -707,7 +707,13 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   lr_sync->jobs_dequeued = 0;
 
   for (int plane = 0; plane < num_planes; plane++) {
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE &&
+        cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE)
+      continue;
+#else
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+#endif
     num_even_lr_jobs =
         num_even_lr_jobs + ((ctxt[plane].rsi->vert_units_per_tile + 1) >> 1);
   }
@@ -715,7 +721,12 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   lr_job_counter[1] = num_even_lr_jobs;
 
   for (int plane = 0; plane < num_planes; plane++) {
-    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+        && cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE
+#endif
+    )
+      continue;
     const int is_uv = plane > 0;
     const int ss_y = is_uv && cm->seq_params.subsampling_y;
 
@@ -864,7 +875,12 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
       dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
       dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
       dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
-      cm->seq_params.bit_depth);
+      cm->seq_params.bit_depth
+#if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
+      ,
+      cm->features.ds_filter_type == 1
+#endif
+  );
   assert(luma_buf != NULL);
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 
@@ -874,7 +890,12 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   int num_rows_lr = 0;
 
   for (int plane = 0; plane < num_planes; plane++) {
-    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+        && cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE
+#endif
+    )
+      continue;
 
 #if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
     ctxt[plane].plane = plane;
