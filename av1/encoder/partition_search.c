@@ -2858,6 +2858,73 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 #if CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3:
+      last_part_rdc.rate = 0;
+      last_part_rdc.dist = 0;
+      last_part_rdc.rdcost = 0;
+#if CONFIG_H_PARTITION
+      const int num_parts = 4;
+#else
+      const int num_parts = 3;
+      const PARTITION_TYPE partition_2way =
+          partition == PARTITION_HORZ_3 ? PARTITION_HORZ : PARTITION_VERT;
+      const BLOCK_SIZE subsize_middle =
+          get_partition_subsize(bsize, partition_2way);
+      const int qbh = mi_size_high[bsize] >> 2;
+      const int qbw = mi_size_wide[bsize] >> 2;
+#endif  // CONFIG_H_PARTITION
+
+      for (int i = 0; i < num_parts; ++i) {
+#if CONFIG_H_PARTITION
+        const BLOCK_SIZE sub_bsize =
+            get_h_partition_subsize(bsize, i, partition);
+        const int offset_mr =
+            get_h_partition_offset_mi_row(bsize, i, partition);
+        const int offset_mc =
+            get_h_partition_offset_mi_col(bsize, i, partition);
+#else
+        const BLOCK_SIZE sub_bsize = i == 1 ? subsize_middle : subsize;
+        const int offset_step = i == 2 ? 3 : i;
+        const int offset_mr =
+            partition == PARTITION_VERT_3 ? 0 : offset_step * qbh;
+        const int offset_mc =
+            partition == PARTITION_HORZ_3 ? 0 : offset_step * qbw;
+#endif  // CONFIG_H_PARTITION
+        PC_TREE *sub_pc_tree;
+        RD_STATS tmp_rdc;
+
+        if ((mi_row + offset_mr >= mi_params->mi_rows) ||
+            (mi_col + offset_mc >= mi_params->mi_cols))
+#if CONFIG_H_PARTITION
+          if (i != 2)
+#endif  // CONFIG_H_PARTITION
+            continue;
+
+        if (partition == PARTITION_HORZ_3) {
+          pc_tree->horizontal3[i] = av1_alloc_pc_tree_node(
+              mi_row + offset_mr, mi_col + offset_mc, sub_bsize, pc_tree,
+              partition, i, i == (num_parts - 1), ss_x, ss_y);
+          sub_pc_tree = pc_tree->horizontal3[i];
+        } else {
+          pc_tree->vertical3[i] = av1_alloc_pc_tree_node(
+              mi_row + offset_mr, mi_col + offset_mc, sub_bsize, pc_tree,
+              partition, i, i == (num_parts - 1), ss_x, ss_y);
+          sub_pc_tree = pc_tree->vertical3[i];
+        }
+
+        av1_init_rd_stats(&tmp_rdc);
+        av1_rd_use_partition(cpi, td, tile_data, mib, tp, mi_row + offset_mr,
+                             mi_col + offset_mc, sub_bsize, &tmp_rdc.rate,
+                             &tmp_rdc.dist, i != (num_parts - 1),
+                             ptree ? ptree->sub_tree[i] : NULL, sub_pc_tree);
+
+        if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
+          av1_invalid_rd_stats(&last_part_rdc);
+          break;
+        }
+        last_part_rdc.rate += tmp_rdc.rate;
+        last_part_rdc.dist += tmp_rdc.dist;
+      }
+      break;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       last_part_rdc.rate = 0;
