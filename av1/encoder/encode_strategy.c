@@ -1063,7 +1063,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   } else if (is_stat_consumption_stage(cpi)) {
 #if CONFIG_MISMATCH_DEBUG
     mismatch_move_frame_idx_w();
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 #if TXCOEFF_COST_TIMER
     cm->txcoeff_cost_timer = 0;
     cm->txcoeff_cost_count = 0;

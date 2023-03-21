@@ -423,7 +423,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
 #else
     (void)num_planes;
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
     av1_encode_sb(cpi, x, bsize, dry_run, plane_start, plane_end);
     av1_tokenize_sb_vartx(cpi, td, dry_run, bsize, rate,

@@ -1376,7 +1376,7 @@ static INLINE void mi_to_pixel_loc(int *pixel_c, int *pixel_r, int mi_col,
   *pixel_r = ((mi_row >> subsampling_y) << MI_SIZE_LOG2) +
              (tx_blk_row << MI_SIZE_LOG2);
 }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
 enum { MV_PRECISION_Q3, MV_PRECISION_Q4 } UENUM1BYTE(mv_precision);
 

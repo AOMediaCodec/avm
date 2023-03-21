@@ -1815,7 +1815,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
   mismatch_reset_frame(num_planes);
 #else
   (void)num_planes;
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   if (cpi->sf.hl_sf.frame_parameter_update) {
     RD_COUNTS *const rdc = &cpi->td.rd_counts;

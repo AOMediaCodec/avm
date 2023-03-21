@@ -268,7 +268,7 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
                              cm->current_frame.order_hint, plane, pixel_c,
                              pixel_r, blk_w, blk_h);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
     eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
@@ -318,7 +318,7 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
     mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
                             plane, pixel_c, pixel_r, blk_w, blk_h);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   if (plane == AOM_PLANE_Y && store_cfl_required(cm, xd) &&
       xd->tree_type == SHARED_PART) {
@@ -394,7 +394,7 @@ static AOM_INLINE void inverse_transform_inter_block(
   }
   mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
                           plane, pixel_c, pixel_r, blk_w, blk_h);
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 }
 
 static AOM_INLINE void set_cb_buffer_offsets(DecoderCodingBlock *dcb,
@@ -1395,7 +1395,7 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
                              cm->current_frame.order_hint, plane, pixel_c,
                              pixel_r, pd->width, pd->height);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 }
 
 static AOM_INLINE void set_color_index_map_offset(MACROBLOCKD *const xd,
@@ -7359,7 +7359,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #endif
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r();
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;

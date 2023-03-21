@@ -823,7 +823,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
                              plane, pixel_c, pixel_r, blk_w, blk_h);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 }
 
 static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
@@ -1159,7 +1159,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         pd->dst.buf, pd->dst.stride, cm->current_frame.order_hint, plane,
         pixel_c, pixel_r, tx_size_wide[tx_size], tx_size_high[tx_size]);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   TX_TYPE tx_type = DCT_DCT;
   const int bw = mi_size_wide[plane_bsize];
@@ -1315,7 +1315,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
                              plane, pixel_c, pixel_r, blk_w, blk_h);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.
@@ -1410,7 +1410,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                               pixel_c, pixel_r, tx_size_wide[tx_size],
                               tx_size_high[tx_size]);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   TX_TYPE tx_type = av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col,
                                     tx_size, cm->features.reduced_tx_set_used);
@@ -1528,7 +1528,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                              cm->current_frame.order_hint, AOM_PLANE_V, pixel_c,
                              pixel_r, blk_w, blk_h);
   }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.
