@@ -48,6 +48,8 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     # --tile-columns value is in log2.
     if (clip.width >= 3840 and clip.height >= 2160):
         args += " --tile-columns=1 --threads=2 --row-mt=0 "
+    elif ((CTC_VERSION in ['4.0']) and (clip.file_class in ['A2', 'B1']) and (test_cfg == "LD")):
+        args += " --tile-rows=1 --threads=2 "
     else:
         args += " --tile-columns=0 --threads=1 "
 

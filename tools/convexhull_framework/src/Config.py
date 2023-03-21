@@ -73,21 +73,21 @@ if SMOKE_TEST:
     DnScalingAlgos = ['bicubic', 'lanczos', 'sinc']
     UpScalingAlgos = ['bicubic', 'lanczos', 'sinc']
 HDRToolsConfigFileTemplate = os.path.join(BinPath, 'HDRConvScalerY4MFile.cfg')
-HDRConvert = os.path.join(BinPath, 'HDRConvert.exe')
-AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m.exe')
+HDRConvert = os.path.join(BinPath, 'HDRConvert')
+AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m')
 
 ##################### Encode Config ########################################
 EncodeMethods = ["aom", "svt", "hm"]
 CodecNames = ["av1", "av2", "hevc"]
 SUFFIX = {"av1": ".obu", "av2": ".obu", "hevc":".265"}
-FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
-AOMENC = os.path.join(BinPath, 'aomenc.exe')
-SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
-AOMDEC = os.path.join(BinPath, 'aomdec.exe')
-AV1ENC = os.path.join(BinPath, 'av1enc.exe')
-AV1DEC = os.path.join(BinPath, 'av1dec.exe')
-HMENC = os.path.join(BinPath, "TAppEncoderStatic.exe")
-VMAF = os.path.join(BinPath, 'vmaf.exe')
+FFMPEG = os.path.join(BinPath, 'ffmpeg')
+AOMENC = os.path.join(BinPath, 'aomenc')
+SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp')
+AOMDEC = os.path.join(BinPath, 'aomdec')
+AV1ENC = os.path.join(BinPath, 'av1enc')
+AV1DEC = os.path.join(BinPath, 'av1dec')
+HMENC = os.path.join(BinPath, "TAppEncoderStatic")
+VMAF = os.path.join(BinPath, 'vmaf')
 HEVCCfgFile = os.path.join(BinPath, "s2-hm-01.cfg")
 
 if CTC_VERSION in ["2.0", "3.0", "4.0"]:
