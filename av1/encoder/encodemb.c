@@ -1143,6 +1143,24 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
   av1_predict_intra_block_facade(cm, xd, plane, blk_col, blk_row, tx_size);
 
+#if CONFIG_MISMATCH_DEBUG
+  if (args->dry_run == OUTPUT_ENABLED) {
+    int pixel_c, pixel_r;
+    if (plane) {
+      mi_to_pixel_loc(&pixel_c, &pixel_r,
+                      mbmi->chroma_ref_info.mi_col_chroma_base,
+                      mbmi->chroma_ref_info.mi_row_chroma_base, blk_col,
+                      blk_row, pd->subsampling_x, pd->subsampling_y);
+    } else {
+      mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
+                      blk_row, pd->subsampling_x, pd->subsampling_y);
+    }
+    mismatch_record_block_pre(
+        pd->dst.buf, pd->dst.stride, cm->current_frame.order_hint, plane,
+        pixel_c, pixel_r, tx_size_wide[tx_size], tx_size_high[tx_size]);
+  }
+#endif
+
   TX_TYPE tx_type = DCT_DCT;
   const int bw = mi_size_wide[plane_bsize];
 #if DEBUG_EXTQUANT
@@ -1279,6 +1297,26 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   }
 #endif  // CONFIG_PC_WIENER
 
+#if CONFIG_MISMATCH_DEBUG
+  if (args->dry_run == OUTPUT_ENABLED) {
+    int pixel_c, pixel_r;
+    BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
+    int blk_w = block_size_wide[bsize];
+    int blk_h = block_size_high[bsize];
+    if (plane) {
+      mi_to_pixel_loc(&pixel_c, &pixel_r,
+                      mbmi->chroma_ref_info.mi_col_chroma_base,
+                      mbmi->chroma_ref_info.mi_row_chroma_base, blk_col,
+                      blk_row, pd->subsampling_x, pd->subsampling_y);
+    } else {
+      mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
+                      blk_row, pd->subsampling_x, pd->subsampling_y);
+    }
+    mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+                             plane, pixel_c, pixel_r, blk_w, blk_h);
+  }
+#endif
+
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.
   *(args->skip) = 0;
@@ -1355,6 +1393,24 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                                  tx_size);
   av1_predict_intra_block_facade(cm, xd, AOM_PLANE_V, blk_col, blk_row,
                                  tx_size);
+
+#if CONFIG_MISMATCH_DEBUG
+  if (args->dry_run == OUTPUT_ENABLED) {
+    int pixel_c, pixel_r;
+    mi_to_pixel_loc(&pixel_c, &pixel_r,
+                    xd->mi[0]->chroma_ref_info.mi_col_chroma_base,
+                    xd->mi[0]->chroma_ref_info.mi_row_chroma_base, blk_col,
+                    blk_row, pd_c1->subsampling_x, pd_c1->subsampling_y);
+    mismatch_record_block_pre(pd_c1->dst.buf, pd_c1->dst.stride,
+                              cm->current_frame.order_hint, AOM_PLANE_U,
+                              pixel_c, pixel_r, tx_size_wide[tx_size],
+                              tx_size_high[tx_size]);
+    mismatch_record_block_pre(pd_c2->dst.buf, pd_c2->dst.stride,
+                              cm->current_frame.order_hint, AOM_PLANE_V,
+                              pixel_c, pixel_r, tx_size_wide[tx_size],
+                              tx_size_high[tx_size]);
+  }
+#endif
 
   TX_TYPE tx_type = av1_get_tx_type(xd, PLANE_TYPE_UV, blk_row, blk_col,
                                     tx_size, cm->features.reduced_tx_set_used);
@@ -1454,6 +1510,25 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                                 blk_row, blk_col, tx_size);
   }
 #endif  // CONFIG_PC_WIENER
+
+#if CONFIG_MISMATCH_DEBUG
+  if (args->dry_run == OUTPUT_ENABLED) {
+    int pixel_c, pixel_r;
+    BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
+    int blk_w = block_size_wide[bsize];
+    int blk_h = block_size_high[bsize];
+    mi_to_pixel_loc(&pixel_c, &pixel_r,
+                    xd->mi[0]->chroma_ref_info.mi_col_chroma_base,
+                    xd->mi[0]->chroma_ref_info.mi_row_chroma_base, blk_col,
+                    blk_row, pd_c1->subsampling_x, pd_c1->subsampling_y);
+    mismatch_record_block_tx(dst_c1, pd_c1->dst.stride,
+                             cm->current_frame.order_hint, AOM_PLANE_U, pixel_c,
+                             pixel_r, blk_w, blk_h);
+    mismatch_record_block_tx(dst_c2, pd_c2->dst.stride,
+                             cm->current_frame.order_hint, AOM_PLANE_V, pixel_c,
+                             pixel_r, blk_w, blk_h);
+  }
+#endif
 
   // For intra mode, skipped blocks are so rare that transmitting skip=1 is
   // very expensive.

@@ -245,6 +245,31 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
   PLANE_TYPE plane_type = get_plane_type(plane);
 
   av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
+
+#if CONFIG_MISMATCH_DEBUG
+  const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
+  const int mi_col = -xd->mb_to_left_edge >> (3 + MI_SIZE_LOG2);
+  int pixel_c, pixel_r;
+  BLOCK_SIZE bsize = txsize_to_bsize[tx_size];
+  int blk_w = block_size_wide[bsize];
+  int blk_h = block_size_high[bsize];
+  if (plane == 0 || xd->is_chroma_ref) {
+    struct macroblockd_plane *const pd = &xd->plane[plane];
+    if (plane) {
+      mi_to_pixel_loc(&pixel_c, &pixel_r,
+                      mbmi->chroma_ref_info.mi_col_chroma_base,
+                      mbmi->chroma_ref_info.mi_row_chroma_base, col, row,
+                      pd->subsampling_x, pd->subsampling_y);
+    } else {
+      mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, col, row,
+                      pd->subsampling_x, pd->subsampling_y);
+    }
+    mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
+                             cm->current_frame.order_hint, plane, pixel_c,
+                             pixel_r, blk_w, blk_h);
+  }
+#endif
+
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
     eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
 #if CONFIG_CROSS_CHROMA_TX
@@ -276,6 +301,25 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
                               reduced_tx_set_used);
     }
   }
+
+#if CONFIG_MISMATCH_DEBUG
+  {
+    struct macroblockd_plane *const pd = &xd->plane[plane];
+    uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
+    if (plane) {
+      mi_to_pixel_loc(&pixel_c, &pixel_r,
+                      mbmi->chroma_ref_info.mi_col_chroma_base,
+                      mbmi->chroma_ref_info.mi_row_chroma_base, col, row,
+                      pd->subsampling_x, pd->subsampling_y);
+    } else {
+      mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, col, row,
+                      pd->subsampling_x, pd->subsampling_y);
+    }
+    mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+                            plane, pixel_c, pixel_r, blk_w, blk_h);
+  }
+#endif
+
   if (plane == AOM_PLANE_Y && store_cfl_required(cm, xd) &&
       xd->tree_type == SHARED_PART) {
 #if CONFIG_ADAPTIVE_DS_FILTER
