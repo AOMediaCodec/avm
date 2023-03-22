@@ -2837,7 +2837,8 @@ void av1_find_mv_refs(
                                         allow_high_precision_mv, bsize, mi_col,
                                         mi_row, force_integer_mv);
 #endif
-
+      clamp_mv_ref(&gm_mv[0].as_mv, xd->width << MI_SIZE_LOG2,
+                   xd->height << MI_SIZE_LOG2, xd);
       gm_mv[1].as_int = 0;
       if (global_mvs != NULL) global_mvs[ref_frame] = gm_mv[0];
     } else {
@@ -2856,6 +2857,10 @@ void av1_find_mv_refs(
                                         allow_high_precision_mv, bsize, mi_col,
                                         mi_row, force_integer_mv);
 #endif
+      clamp_mv_ref(&gm_mv[0].as_mv, xd->width << MI_SIZE_LOG2,
+                   xd->height << MI_SIZE_LOG2, xd);
+      clamp_mv_ref(&gm_mv[1].as_mv, xd->width << MI_SIZE_LOG2,
+                   xd->height << MI_SIZE_LOG2, xd);
     }
   }
 
