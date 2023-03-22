@@ -2301,6 +2301,7 @@ static INLINE aom_cdf_prob cdf_element_prob(const aom_cdf_prob *cdf,
   return (element > 0 ? cdf[element - 1] : CDF_PROB_TOP) - cdf[element];
 }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
                                                const aom_cdf_prob *const in,
                                                BLOCK_SIZE bsize) {
@@ -2308,14 +2309,10 @@ static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
   out[0] = CDF_PROB_TOP;
   out[0] -= cdf_element_prob(in, PARTITION_HORZ);
   out[0] -= cdf_element_prob(in, PARTITION_SPLIT);
-#if CONFIG_EXT_RECUR_PARTITIONS
-  if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_3);
-#else   // CONFIG_EXT_RECUR_PARTITIONS
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_B);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_4);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -2327,17 +2324,14 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[0] = CDF_PROB_TOP;
   out[0] -= cdf_element_prob(in, PARTITION_VERT);
   out[0] -= cdf_element_prob(in, PARTITION_SPLIT);
-#if CONFIG_EXT_RECUR_PARTITIONS
-  if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_3);
-#else   // CONFIG_EXT_RECUR_PARTITIONS
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_B);
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_4);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                                 int mi_col, BLOCK_SIZE subsize,
@@ -2415,103 +2409,18 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 // Return the number of elements in the partition CDF when
 // partitioning the (square) block with luma block size of bsize.
 static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
-#if CONFIG_EXT_RECUR_PARTITIONS
-  if (bsize <= BLOCK_8X8 || bsize == BLOCK_128X128) return PARTITION_TYPES;
-#else   // CONFIG_EXT_RECUR_PARTITIONS
   if (bsize <= BLOCK_8X8)
     return PARTITION_TYPES;
   else if (bsize == BLOCK_128X128)
     return EXT_PARTITION_TYPES - 2;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
   else
     return EXT_PARTITION_TYPES;
 }
-
-#if CONFIG_EXT_RECUR_PARTITIONS
-// Return the number of elements in the partition CDF when
-// partitioning the square block in the middle of extended partition.
-static INLINE int limited_partition_cdf_length(BLOCK_SIZE bsize) {
-  assert(block_size_wide[bsize] == block_size_high[bsize]);
-  assert(is_bsize_geq(bsize, BLOCK_8X8));
-  assert(is_bsize_geq(BLOCK_64X64, bsize));
-  return partition_cdf_length(bsize) - 1;
-}
-
-// Return the number of elements in the partition CDF when
-// partitioning a non-square block.
-static INLINE int partition_rec_cdf_length(BLOCK_SIZE bsize) {
-  assert(block_size_wide[bsize] != block_size_high[bsize]);
-
-  switch (bsize) {
-    case BLOCK_4X8:
-    case BLOCK_8X4: return (PARTITION_LONG_SIDE_2_REC + 1);
-    case BLOCK_64X128:
-    case BLOCK_128X64: return (PARTITION_LONG_SIDE_2_REC + 1);
-    case BLOCK_8X16:
-    case BLOCK_16X8:
-    case BLOCK_16X32:
-    case BLOCK_32X16:
-    case BLOCK_32X64:
-    case BLOCK_64X32: return PARTITION_TYPES_REC;
-    default:
-      assert(0 && "Invalid splittable rectangular bsize");
-      return PARTITION_INVALID_REC;
-  }
-}
-
-// Return the number of elements in the partition CDF when
-// partitioning a non-square block when extended partitions are disabled.
-static INLINE int partition_noext_rec_cdf_length(BLOCK_SIZE bsize) {
-  assert(block_size_wide[bsize] != block_size_high[bsize]);
-
-  switch (bsize) {
-    case BLOCK_4X8:
-    case BLOCK_8X4:
-    case BLOCK_64X128:
-    case BLOCK_128X64: return 2;
-    case BLOCK_8X16:
-    case BLOCK_16X8:
-    case BLOCK_16X32:
-    case BLOCK_32X16:
-    case BLOCK_32X64:
-    case BLOCK_64X32: return PARTITION_TYPES;
-    default:
-      assert(0 && "Invalid splittable rectangular bsize");
-      return PARTITION_INVALID_REC;
-  }
-}
-
-// Return whether the current block has a 1:2 dimension ratio.
-static INLINE int is_width_height_ratio_equal_to_two(BLOCK_SIZE bsize) {
-  return 2 * block_size_high[bsize] == block_size_wide[bsize] ||
-         block_size_high[bsize] == 2 * block_size_wide[bsize];
-}
-
-// Return the number of partition types for the middle block of PARTITION_3.
-// This should only be used for sub-blocks of PARTITION_3.
-static INLINE int partition_middle_rec_cdf_length(BLOCK_SIZE bsize) {
-  // For some bock sizes, HORZ|VERT is already unavailable, so we shouldn't call
-  // this function.
-  assert(is_bsize_geq(bsize, BLOCK_8X8));
-  assert(is_bsize_geq(BLOCK_64X64, bsize));
-  assert(is_width_height_ratio_equal_to_two(bsize));
-  return partition_rec_cdf_length(bsize) - 1;
-}
-
-// Return the number of partition types for non-square middle block of
-// PARTITION_3 when extended partitions is disabled.
-static INLINE int partition_middle_noext_rec_cdf_length(BLOCK_SIZE bsize) {
-  // For some bock sizes, HORZ|VERT is already unavailable, so we shouldn't call
-  // this function.
-  assert(is_bsize_geq(bsize, BLOCK_8X8));
-  assert(is_bsize_geq(BLOCK_64X64, bsize));
-  assert(is_width_height_ratio_equal_to_two(bsize));
-  return partition_noext_rec_cdf_length(bsize) - 1;
-}
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
                                           const MACROBLOCKD *xd,
