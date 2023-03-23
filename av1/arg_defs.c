@@ -301,8 +301,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .max_intra_rate_pct =
       ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)"),
 #if CONFIG_AV1_ENCODER
-  .cpu_used_av1 =
-      ARG_DEF(NULL, "cpu-used", 1, "Speed setting (0..9)"),
+  .cpu_used_av1 = ARG_DEF(NULL, "cpu-used", 1, "Speed setting (0..9)"),
   .rowmtarg =
       ARG_DEF(NULL, "row-mt", 1,
               "Enable row based multi-threading (0: off, 1: on (default))"),
