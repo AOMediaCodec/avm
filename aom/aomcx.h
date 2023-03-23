@@ -181,7 +181,7 @@ enum aome_enc_control_id {
    * encoding process, values greater than 0 will increase encoder speed at
    * the expense of quality.
    *
-   * Valid range: 0..9. 0 runs the slowest, and 8 runs the fastest;
+   * Valid range: 0..9. 0 runs the slowest, and 9 runs the fastest;
    * quality improves as speed decreases (since more compression
    * possibilities are explored).
    *
