@@ -369,13 +369,13 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "erp-pruning-level", 1,
               "Set the level of aggressiveness for erp pruning."
               "(0: off, 1: reuse partition decision for co-located block, "
-              "2 to 6 increasing level of aggressiveness. Default: 5."),
+              "2 to 6 increasing level of aggressiveness. Default: 1."),
   .use_ml_erp_pruning = ARG_DEF(NULL, "use-ml-erp-pruning", 1,
                                 "Use ML model to perform ERP Pruning."
-                                "(0: off (default), 1: on)."),
+                                "(0: off, 1: on (default))."),
   .enable_ext_partitions = ARG_DEF(NULL, "enable-ext-partitions", 1,
                                    "Enable extended partitions"
-                                   "(0: off (default), 1: on)."),
+                                   "(0: off, 1: on (default))."),
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   .enable_rect_partitions = ARG_DEF(NULL, "enable-rect-partitions", 1,
                                     "Enable rectangular partitions "
@@ -389,7 +389,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .disable_ml_transform_speed_features =
       ARG_DEF(NULL, "disable-ml-transform-speed-features", 1,
               "Disable ML transform speed features "
-              "(0: false (default), 1: true)"),
+              "(0: false, 1: true (default))"),
   .enable_sdp = ARG_DEF(NULL, "enable-sdp", 1,
                         "Enable semi decoupled partitioning for key frame"
                         "(0: false, 1: true (default))"),
