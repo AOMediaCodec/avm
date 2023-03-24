@@ -2176,9 +2176,8 @@ static AOM_INLINE void setup_ref_mv_list(
       const int blk_col = tpl_sample_pos[i][1];
 
       if (!check_sb_border(mi_row, mi_col, blk_row, blk_col)) continue;
-      add_tpl_ref_mv(cm, xd, mi_row, mi_col, ref_frame, blk_row, blk_col
+      add_tpl_ref_mv(cm, xd, mi_row, mi_col, ref_frame, blk_row, blk_col,
 #if !CONFIG_C076_INTER_MOD_CTX
-                     ,
                      gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
                      refmv_count, ref_mv_stack, ref_mv_weight,
