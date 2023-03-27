@@ -2010,8 +2010,9 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
                                      int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
 #if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
-    , int plane
-#endif // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                                     ,
+                                     int plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
 ) {
   int cost = 0;
 #if CONFIG_ATC_COEFCODING
