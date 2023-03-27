@@ -20,6 +20,7 @@
 #include "aom_scale/yv12config.h"
 
 #include "av1/common/alloccommon.h"
+#include "av1/common/cdef_block.h"
 #include "av1/common/common_data.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/entropy.h"
@@ -2133,7 +2134,7 @@ typedef struct macroblockd {
    * stored in the MB_MODE_INFO of the 1st block in this CDEF unit (inside
    * cm->mi_params.mi_grid_base).
    */
-  bool cdef_transmitted[4];
+  bool cdef_transmitted[CDEF_IN_SB];
 
   /*!
    * Mask for this block used for compound prediction.

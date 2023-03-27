@@ -1399,38 +1399,14 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
   const int mi_row_in_sb = (xd->mi_row & sb_mask);
   const int mi_col_in_sb = (xd->mi_col & sb_mask);
   if (mi_row_in_sb == 0 && mi_col_in_sb == 0) {
-    xd->cdef_transmitted[0] = xd->cdef_transmitted[1] =
-        xd->cdef_transmitted[2] = xd->cdef_transmitted[3] = false;
+    av1_zero(xd->cdef_transmitted);
   }
 
   // CDEF unit size is 64x64 irrespective of the superblock size.
   const int cdef_size = 1 << (6 - MI_SIZE_LOG2);
 
   // Find index of this CDEF unit in this superblock.
-  const int index_mask = cdef_size;
-  const int cdef_unit_row_in_sb = ((xd->mi_row & index_mask) != 0);
-  const int cdef_unit_col_in_sb = ((xd->mi_col & index_mask) != 0);
-  const int index = (cm->seq_params.sb_size == BLOCK_128X128)
-                        ? cdef_unit_col_in_sb + 2 * cdef_unit_row_in_sb
-                        : 0;
-#if CONFIG_EXT_RECUR_PARTITIONS
-  int second_index = index;
-  const int current_grid_idx =
-      get_mi_grid_idx(&cm->mi_params, xd->mi_row, xd->mi_col);
-  const MB_MODE_INFO *const current_mbmi =
-      cm->mi_params.mi_grid_base[current_grid_idx];
-  assert(xd->tree_type != CHROMA_PART);
-  const BLOCK_SIZE current_bsize = current_mbmi->sb_type[0];
-  const int mi_row_end = xd->mi_row + mi_size_high[current_bsize] - 1;
-  const int mi_col_end = xd->mi_col + mi_size_wide[current_bsize] - 1;
-  if (cm->seq_params.sb_size == BLOCK_128X128 &&
-      block_size_wide[current_bsize] != 128 &&
-      block_size_high[current_bsize] != 128) {
-    const int second_cdef_unit_row_in_sb = ((mi_row_end & index_mask) != 0);
-    const int second_cdef_unit_col_in_sb = ((mi_col_end & index_mask) != 0);
-    second_index = second_cdef_unit_col_in_sb + 2 * second_cdef_unit_row_in_sb;
-  }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  const int index = av1_get_cdef_transmitted_index(xd->mi_row, xd->mi_col);
 
   // Write CDEF strength to the first non-skip coding block in this CDEF unit.
   if (!xd->cdef_transmitted[index] && !skip) {
@@ -1445,20 +1421,6 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
     aom_write_literal(w, mbmi->cdef_strength, cm->cdef_info.cdef_bits);
     xd->cdef_transmitted[index] = true;
   }
-#if CONFIG_EXT_RECUR_PARTITIONS
-  if (!xd->cdef_transmitted[second_index] && !skip) {
-    // CDEF strength for this CDEF unit needs to be stored in the MB_MODE_INFO
-    // of the 1st block in this CDEF unit.
-    const int first_block_mask = ~(cdef_size - 1);
-    const CommonModeInfoParams *const mi_params = &cm->mi_params;
-    const int grid_idx =
-        get_mi_grid_idx(mi_params, mi_row_end & first_block_mask,
-                        mi_col_end & first_block_mask);
-    const MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
-    aom_write_literal(w, mbmi->cdef_strength, cm->cdef_info.cdef_bits);
-    xd->cdef_transmitted[second_index] = true;
-  }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 #if CONFIG_CCSO
