@@ -65,11 +65,11 @@ enum {
 #define DS_FRAME_LEVEL 1  // Signal at key frame
 #endif
 
-#if CONFIG_WARP_REF_LIST
+#if CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
 #define WARP_CU_BANK 1
 #else
 #define WARP_CU_BANK 0
-#endif  // CONFIG_WARP_REF_LIST
+#endif  // CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
 
 // Cross-Component Sample Offset (CCSO)
 #if CONFIG_CCSO

@@ -1254,7 +1254,7 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   return has_tr;
 }
 
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_C043_MVP_IMPROVEMENTS || CONFIG_EXTENDED_WARP_PREDICTION
 static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                            int mi_row, int mi_col, int n4_h) {
   const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
@@ -1284,7 +1284,7 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     return xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][bl_offset];
   }
 }
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS || CONFIG_EXTENDED_WARP_PREDICTION
 #else
 static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                          int mi_row, int mi_col, int bs) {
