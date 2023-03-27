@@ -959,16 +959,6 @@ static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   const MACROBLOCKD *const xd = &x->e_mbd;
   *out_mv = in_mv;
-#if !CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_FLEX_MVRES
-  // This function is called only for non-NEW MV modes.
-  // Therefore, PB based MV resolution  is not necessary.
-  lower_mv_precision(&out_mv->as_mv, cm->features.fr_mv_precision);
-#else
-  lower_mv_precision(&out_mv->as_mv, cm->features.allow_high_precision_mv,
-                     cm->features.cur_frame_force_integer_mv);
-#endif
-#endif  // !CONFIG_C071_SUBBLK_WARPMV
   clamp_mv2(&out_mv->as_mv, xd);
   return av1_is_fullmv_in_range(&x->mv_limits,
                                 get_fullmv_from_mv(&out_mv->as_mv)
