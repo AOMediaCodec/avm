@@ -1775,6 +1775,7 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
       &x->coeff_costs.coeff_costs[txs_ctx][plane_type];
   const MACROBLOCKD *const xd = &x->e_mbd;
   if (eob == 0) {
+    int skip_cost = 0;
 #if CONFIG_CROSS_CHROMA_TX && CCTX_C2_DROPPED
     if (plane == AOM_PLANE_V && !keep_chroma_c2(cctx_type) &&
         is_cctx_allowed(cm, xd))
@@ -1782,7 +1783,6 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
 #endif  // CONFIG_CROSS_CHROMA_TX && CCTX_C2_DROPPED
 #if CONFIG_CONTEXT_DERIVATION
     int txb_skip_ctx = txb_ctx->txb_skip_ctx;
-    int skip_cost = 0;
     if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
       skip_cost += coeff_costs->txb_skip_cost[txb_skip_ctx][1];
     } else {
@@ -1869,9 +1869,9 @@ int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
       &x->coeff_costs.coeff_costs[txs_ctx][plane_type];
   const MACROBLOCKD *const xd = &x->e_mbd;
   if (eob == 0) {
+    int skip_cost = 0;
 #if CONFIG_CONTEXT_DERIVATION
     int txb_skip_ctx = txb_ctx->txb_skip_ctx;
-    int skip_cost = 0;
     if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
       skip_cost += coeff_costs->txb_skip_cost[txb_skip_ctx][1];
     } else {
@@ -2007,8 +2007,11 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
                                      int bwl, TX_CLASS tx_class
 #if CONFIG_CONTEXT_DERIVATION
                                      ,
-                                     int32_t *tmp_sign, int plane
+                                     int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+    , int plane
+#endif // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
 ) {
   int cost = 0;
 #if CONFIG_ATC_COEFCODING
@@ -2077,8 +2080,12 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
                                          const uint8_t *levels
 #if CONFIG_CONTEXT_DERIVATION
                                          ,
-                                         int32_t *tmp_sign, int plane
+                                         int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                                         ,
+                                         int plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
 ) {
   int cost = 0;
   if (is_last) {
@@ -2197,8 +2204,12 @@ static INLINE void update_coeff_general(
     const qm_val_t *iqmatrix
 #if CONFIG_CONTEXT_DERIVATION
     ,
-    int32_t *tmp_sign, int plane
+    int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+    ,
+    int plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
 #if CONFIG_PAR_HIDING
     ,
     coeff_info *coef_info, bool enable_parity_hiding
@@ -2244,8 +2255,12 @@ static INLINE void update_coeff_general(
                                dc_sign_ctx, txb_costs, bwl, tx_class, levels
 #if CONFIG_CONTEXT_DERIVATION
                                ,
-                               tmp_sign, plane
+                               tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                               ,
+                               plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
         );
     const int64_t rd = RDCOST(rdmult, rate, dist);
 
@@ -2277,8 +2292,12 @@ static INLINE void update_coeff_general(
                                  dc_sign_ctx, txb_costs, bwl, tx_class, levels
 #if CONFIG_CONTEXT_DERIVATION
                                  ,
-                                 tmp_sign, plane
+                                 tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                                 ,
+                                 plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
           );
     }
 
@@ -2427,8 +2446,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     uint8_t *levels, int sharpness, const qm_val_t *iqmatrix
 #if CONFIG_CONTEXT_DERIVATION
     ,
-    int32_t *tmp_sign, int plane
+    int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+    ,
+    int plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
 #if CONFIG_PAR_HIDING
     ,
     coeff_info *coef_info, bool enable_parity_hiding
@@ -2479,8 +2502,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
                                txb_costs, bwl, tx_class, levels
 #if CONFIG_CONTEXT_DERIVATION
                                ,
-                               tmp_sign, plane
+                               tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                               ,
+                               plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
         );
     int64_t rd = RDCOST(rdmult, *accu_rate + rate, *accu_dist + dist);
 
@@ -2511,8 +2538,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
                                  dc_sign_ctx, txb_costs, bwl, tx_class, levels
 #if CONFIG_CONTEXT_DERIVATION
                                  ,
-                                 tmp_sign, plane
+                                 tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                                 ,
+                                 plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
           );
       rd_low = RDCOST(rdmult, *accu_rate + rate_low, *accu_dist + dist_low);
     }
@@ -2530,8 +2561,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
                                           dc_sign_ctx, txb_costs, bwl, tx_class
 #if CONFIG_CONTEXT_DERIVATION
                                           ,
-                                          tmp_sign, plane
+                                          tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                                          ,
+                                          plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
                        );
     int64_t dist_new_eob = dist;
     int64_t rd_new_eob = RDCOST(rdmult, rate_coeff_eob, dist_new_eob);
@@ -2546,8 +2581,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
                                             txb_costs, bwl, tx_class
 #if CONFIG_CONTEXT_DERIVATION
                                             ,
-                                            tmp_sign, plane
+                                            tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                                            ,
+                                            plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
                          );
       const int64_t dist_new_eob_low = dist_low;
       const int64_t rd_new_eob_low =
@@ -2664,8 +2703,12 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
                                  dc_sign_ctx, txb_costs, bwl, tx_class, levels
 #if CONFIG_CONTEXT_DERIVATION
                                  ,
-                                 0, 0
+                                 0
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                                 ,
+                                 0
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
   );
 
   const int base_ctx_ph = get_base_ctx_ph(levels, pos, bwl, tx_class);
@@ -3042,8 +3085,12 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          qcoeff, dqcoeff, levels, iqmatrix
 #if CONFIG_CONTEXT_DERIVATION
                          ,
-                         xd->tmp_sign, plane
+                         xd->tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                         ,
+                         plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
 #if CONFIG_PAR_HIDING
                          ,
                          coef_info, enable_parity_hiding
@@ -3058,8 +3105,12 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                            txb_costs, bwl, tx_class
 #if CONFIG_CONTEXT_DERIVATION
                            ,
-                           xd->tmp_sign, plane
+                           xd->tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                           ,
+                           plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
         );
     const tran_low_t tqc = tcoeff[ci];
     const tran_low_t dqc = dqcoeff[ci];
@@ -3079,8 +3130,12 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                      dqcoeff, levels, sharpness, iqmatrix
 #if CONFIG_CONTEXT_DERIVATION
                      ,
-                     xd->tmp_sign, plane
+                     xd->tmp_sign
 #endif
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                     ,
+                     plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
                      ,
                      coef_info, enable_parity_hiding);
   }
@@ -3199,8 +3254,12 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          qcoeff, dqcoeff, levels, iqmatrix
 #if CONFIG_CONTEXT_DERIVATION
                          ,
-                         xd->tmp_sign, plane
+                         xd->tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
+                         ,
+                         plane
+#endif  // CONFIG_CONTEXT_DERIVATION || CONFIG_ATC_COEFCODING
 #if CONFIG_PAR_HIDING
                          ,
                          coef_info, enable_parity_hiding
