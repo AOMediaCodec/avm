@@ -3994,10 +3994,14 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
       int32_t submv_y_hp = dst_y - (src_y << WARPEDMODEL_PREC_BITS);
       int mi_y = (i - p_row) / MI_SIZE;
       int mi_x = (j - p_col) / MI_SIZE;
-      submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.row =
+      const int mv_row =
           ROUND_POWER_OF_TWO_SIGNED(submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
-      submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.col =
+      const int mv_col =
           ROUND_POWER_OF_TWO_SIGNED(submv_x_hp, WARPEDMODEL_PREC_BITS - 3);
+      submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.row =
+          clamp(mv_row, MV_LOW + 1, MV_UPP - 1);
+      submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.col =
+          clamp(mv_col, MV_LOW + 1, MV_UPP - 1);
       span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row, mi_col,
                  BLOCK_8X8);
     }

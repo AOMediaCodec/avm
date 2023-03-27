@@ -25,6 +25,10 @@ extern "C" {
 #define GET_MV_RAWPEL(x) (((x) + 3 + ((x) >= 0)) >> 3)
 #define GET_MV_SUBPEL(x) ((x)*8)
 
+#define MV_IN_USE_BITS 14
+#define MV_UPP (1 << MV_IN_USE_BITS)
+#define MV_LOW (-(1 << MV_IN_USE_BITS))
+
 #define MARK_MV_INVALID(mv)                \
   do {                                     \
     ((int_mv *)(mv))->as_int = INVALID_MV; \
@@ -182,6 +186,7 @@ static INLINE void lower_mv_precision(MV *mv, MvSubpelPrecision precision) {
         mv->row -= radix;
       }
     }
+    mv->row = clamp(mv->row, MV_LOW + radix, MV_UPP - radix);
   }
 
   mod = (mv->col % radix);
@@ -194,6 +199,7 @@ static INLINE void lower_mv_precision(MV *mv, MvSubpelPrecision precision) {
         mv->col -= radix;
       }
     }
+    mv->col = clamp(mv->col, MV_LOW + radix, MV_UPP - radix);
   }
 }
 
@@ -213,6 +219,8 @@ static INLINE void full_pel_lower_mv_precision(FULLPEL_MV *full_pel_mv,
         full_pel_mv->row -= radix;
       }
     }
+    full_pel_mv->row = clamp(full_pel_mv->row, GET_MV_RAWPEL(MV_LOW) + radix,
+                             GET_MV_RAWPEL(MV_UPP) - radix);
   }
 
   mod = (full_pel_mv->col % radix);
@@ -225,6 +233,8 @@ static INLINE void full_pel_lower_mv_precision(FULLPEL_MV *full_pel_mv,
         full_pel_mv->col -= radix;
       }
     }
+    full_pel_mv->col = clamp(full_pel_mv->col, GET_MV_RAWPEL(MV_LOW) + radix,
+                             GET_MV_RAWPEL(MV_UPP) - radix);
   }
 }
 
@@ -243,7 +253,8 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
     if (is_max) {
       value -= radix;
     }
-    *comp_value = value;
+    *comp_value = clamp(value, GET_MV_RAWPEL(MV_LOW) + radix,
+                        GET_MV_RAWPEL(MV_UPP) - radix);
   }
 }
 #endif  // CONFIG_FLEX_MVRES
@@ -468,6 +479,7 @@ static INLINE void integer_mv_precision(MV *mv) {
         mv->row -= 8;
       }
     }
+    mv->row = clamp(mv->row, MV_LOW + 8, MV_UPP - 8);
   }
 
   mod = (mv->col % 8);
@@ -480,6 +492,7 @@ static INLINE void integer_mv_precision(MV *mv) {
         mv->col -= 8;
       }
     }
+    mv->col = clamp(mv->col, MV_LOW + 8, MV_UPP - 8);
   }
 }
 #endif

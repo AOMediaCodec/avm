@@ -75,10 +75,6 @@ enum {
 #define MV_MAX ((1 << MV_MAX_BITS) - 1)
 #define MV_VALS ((MV_MAX << 1) + 1)
 
-#define MV_IN_USE_BITS 14
-#define MV_UPP (1 << MV_IN_USE_BITS)
-#define MV_LOW (-(1 << MV_IN_USE_BITS))
-
 typedef struct {
 #if CONFIG_FLEX_MVRES
   aom_cdf_prob classes_cdf[NUM_MV_PRECISIONS][CDF_SIZE(MV_CLASSES)];

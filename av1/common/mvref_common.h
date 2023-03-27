@@ -207,8 +207,8 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
   ty = convert_to_trans_prec(allow_hp, yc);
 #endif
 
-  res.as_mv.row = ty;
-  res.as_mv.col = tx;
+  res.as_mv.row = clamp(ty, MV_LOW + 1, MV_UPP - 1);
+  res.as_mv.col = clamp(tx, MV_LOW + 1, MV_UPP - 1);
 
   clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
                xd->height << MI_SIZE_LOG2, xd);
@@ -264,10 +264,6 @@ static INLINE int_mv get_mv_from_wrl(const MACROBLOCKD *xd,
                               cur_frame_force_integer_mv
 #endif
   );
-  const int clamp_max = MV_UPP - 1;
-  const int clamp_min = MV_LOW + 1;
-  mv.as_mv.row = (int16_t)clamp(mv.as_mv.row, clamp_min, clamp_max);
-  mv.as_mv.col = (int16_t)clamp(mv.as_mv.col, clamp_min, clamp_max);
   return mv;
 }
 #endif  // CONFIG_WARPMV
