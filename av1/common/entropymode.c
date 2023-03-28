@@ -2414,7 +2414,7 @@ static const aom_cdf_prob default_skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)] = {
 };
 
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+
 #if CONFIG_NEW_CONTEXT_MODELING
 static const aom_cdf_prob default_skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(
     2)] = { { AOM_CDF2(32298) }, { AOM_CDF2(23079) }, { AOM_CDF2(7376) } };
@@ -2422,7 +2422,6 @@ static const aom_cdf_prob default_skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(
 static const aom_cdf_prob default_skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(
     2)] = { { AOM_CDF2(32621) }, { AOM_CDF2(20708) }, { AOM_CDF2(8127) } };
 #endif
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_NEW_CONTEXT_MODELING
 static const aom_cdf_prob

@@ -1427,13 +1427,15 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                           int *added_tmvp_cnt,
 #endif  // CONFIG_C063_TMVP_IMPROVEMENT
                           CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
-                          uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
+                          uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+                          ,
                           MV_REFERENCE_FRAME *ref_frame_idx0,
                           MV_REFERENCE_FRAME *ref_frame_idx1
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if !CONFIG_C076_INTER_MOD_CTX
-                              int16_t *mode_context
+                          ,
+                          int16_t *mode_context
 #endif  // !CONFIG_C076_INTER_MOD_CTX
 ) {
   POSITION mi_pos;
@@ -2148,8 +2150,9 @@ static AOM_INLINE void setup_ref_mv_list(
 #if CONFIG_C063_TMVP_IMPROVEMENT
                            &added_tmvp_cnt,
 #endif  // CONFIG_C063_TMVP_IMPROVEMENT
-                           ref_mv_stack, ref_mv_weight,
+                           ref_mv_stack, ref_mv_weight
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+                           ,
                            ref_frame_idx0, ref_frame_idx1
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if !CONFIG_C076_INTER_MOD_CTX
