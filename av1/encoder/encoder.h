@@ -2741,7 +2741,7 @@ typedef struct AV1_COMP {
   /*!
    * Tables to calculate IntraBC MV cost.
    */
-#if !CONFIG_FLEX_MVRES || !CONFIG_BVCOST_UPDATE
+#if !CONFIG_FLEX_MVRES && !CONFIG_BVCOST_UPDATE
   IntraBCMVCosts dv_costs;
 #endif
 
