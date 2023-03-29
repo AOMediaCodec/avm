@@ -2254,6 +2254,9 @@ static AOM_INLINE void setup_ref_mv_list(
                     mi_col, rf, row_offset, ref_mv_stack, ref_mv_weight,
                     refmv_count, &row_match_count, &dummy_newmv_count,
                     gm_mv_candidates, max_row_offset,
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+                    ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_WARP_REF_LIST
                     warp_param_stack, max_num_of_warp_candidates,
                     valid_num_warp_candidates, ref_frame,
@@ -2270,6 +2273,9 @@ static AOM_INLINE void setup_ref_mv_list(
                     rf, col_offset, ref_mv_stack, ref_mv_weight, refmv_count,
                     &col_match_count, &dummy_newmv_count, gm_mv_candidates,
                     max_col_offset,
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+                    ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_WARP_REF_LIST
                     warp_param_stack, max_num_of_warp_candidates,
                     valid_num_warp_candidates, ref_frame,
