@@ -42,8 +42,6 @@ static AOM_INLINE int av1_get_cdef_transmitted_index(int mi_row, int mi_col) {
   return cdef_unit_col_in_sb + CDEF_IN_SB_STRIDE * cdef_unit_row_in_sb;
 }
 
-#undef AOM_NO_UNSIGNED_OVERFLOW_CHECK
-
 #ifdef __cplusplus
 extern "C" {
 #endif
