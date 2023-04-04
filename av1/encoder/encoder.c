@@ -3263,7 +3263,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       if (sse1 != sse3)
         printf("WARN: sse1 = %" PRId64 ", sse3 = %" PRId64 "\n", sse1, sse3);
         */
-      if (!cpi->sf.hl_sf.superres_reuse_frd) {
+      if (cpi->sf.hl_sf.superres_reuse_frd != 1) {
         assert(sse1 == sse3);
         assert(rate1 == rate3);
         assert(largest_tile_id1 == *largest_tile_id);

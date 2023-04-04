@@ -990,6 +990,7 @@ static void use_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
                      cpi->frd->mi_ext_params.stride);
   ctx->mbmi_ext_best = cpi->frd->mi_ext_params.frame_base[mi_ext_idx];
   *mbmi = ctx->mic;
+  ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
 
 #if CONFIG_C043_MVP_IMPROVEMENTS
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
