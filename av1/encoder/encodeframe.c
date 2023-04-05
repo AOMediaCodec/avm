@@ -58,6 +58,7 @@
 #include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encodemv.h"
+#include "av1/encoder/encoder_alloc.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/extend.h"
@@ -777,8 +778,54 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
 
+  const int reuse_frd = (cpi->sf.hl_sf.superres_reuse_frd && cpi->frd != NULL);
   // Encode the superblock
-  if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
+  if (reuse_frd) {
+    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
+    const BLOCK_SIZE bsize =
+        seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
+    av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
+    for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+      const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
+      xd->tree_type =
+          (total_loop_num == 1 ? SHARED_PART
+                               : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
+      init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
+                        mi_col, 1);
+#if CONFIG_EXT_RECUR_PARTITIONS
+      const int tree_idx = av1_get_sdp_idx(xd->tree_type);
+      SB_INFO *sbi =
+          av1_get_sb_info_common(cm, &cpi->frd->sbi_params, mi_row, mi_col);
+      xd->sbi->ptree_root[tree_idx] =
+          av1_duplicate_ptree_recursive(sbi->ptree_root[tree_idx], NULL);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      if (cpi->sf.hl_sf.superres_reuse_frd == 2)
+        av1_use_partition_mi(
+            cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size, &dummy_rate,
+            &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+            xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#else
+            NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+            pc_root);
+      else
+        av1_rd_use_partition(
+            cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size, &dummy_rate,
+            &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+            xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#else
+            NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+            pc_root);
+      av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
+      x->sb_enc.min_partition_size = min_partition_size;
+    }
+    xd->tree_type = SHARED_PART;
+  } else if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
     const BLOCK_SIZE bsize =
@@ -814,6 +861,11 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   } else if (cpi->partition_search_skippable_frame) {
     // partition search by adjusting a fixed-size partition for which the size
     // is determined by the source variance
+#if CONFIG_FLEX_MVRES
+    // Sets the sb_mv_precision
+    x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
+
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
     const BLOCK_SIZE bsize =
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);

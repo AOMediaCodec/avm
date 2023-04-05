@@ -52,6 +52,29 @@ static AOM_INLINE void alloc_context_buffers_ext(
   mbmi_ext_info->stride = mi_alloc_cols;
 }
 
+static AOM_INLINE void av1_copy_mi_ext(AV1_COMMON *cm,
+                                       MBMIExtFrameBufferInfo *to,
+                                       MBMIExtFrameBufferInfo *from) {
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int mi_alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];
+  const int mi_alloc_rows =
+      (mi_params->mi_rows + mi_alloc_size_1d - 1) / mi_alloc_size_1d;
+  const int mi_alloc_cols =
+      (mi_params->mi_cols + mi_alloc_size_1d - 1) / mi_alloc_size_1d;
+  for (int i = 0; i < mi_alloc_rows; ++i) {
+    memcpy(&to->frame_base[i * to->stride], &from->frame_base[i * from->stride],
+           mi_alloc_cols * sizeof(*to->frame_base));
+  }
+}
+
+static AOM_INLINE int av1_duplicate_mi_ext(AV1_COMMON *cm,
+                                           MBMIExtFrameBufferInfo *to,
+                                           MBMIExtFrameBufferInfo *from) {
+  alloc_context_buffers_ext(cm, to);
+  av1_copy_mi_ext(cm, to, from);
+  return 0;
+}
+
 static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   TokenInfo *token_info = &cpi->token_info;

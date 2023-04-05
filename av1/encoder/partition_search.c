@@ -883,6 +883,150 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 }
 
+static void use_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
+                         MACROBLOCK *const x, int mi_row, int mi_col,
+                         RD_STATS *rd_cost, PARTITION_TYPE partition,
+                         BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx,
+                         RD_STATS best_rd) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int num_planes = av1_num_planes(cm);
+  MACROBLOCKD *const xd = &x->e_mbd;
+  int plane_type = (xd->tree_type == CHROMA_PART);
+  assert(is_bsize_geq(bsize, cpi->common.mi_params.mi_alloc_bsize));
+
+  av1_set_offsets(cpi, &tile_data->tile_info, x, mi_row, mi_col, bsize,
+                  &ctx->chroma_ref_info);
+
+  if (ctx->rd_mode_is_ready) {
+    assert(ctx->mic.sb_type[plane_type] == bsize);
+    assert(ctx->mic.partition == partition);
+    rd_cost->rate = ctx->rd_stats.rate;
+    rd_cost->dist = ctx->rd_stats.dist;
+    rd_cost->rdcost = ctx->rd_stats.rdcost;
+#if CONFIG_C043_MVP_IMPROVEMENTS
+    const int is_inter = is_inter_block(&ctx->mic, xd->tree_type);
+#if CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+    if (cm->seq_params.enable_refmvbank && is_inter &&
+        !is_intrabc_block(&ctx->mic, xd->tree_type))
+#else
+    if (cm->seq_params.enable_refmvbank && is_inter)
+#endif  // CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+      av1_update_ref_mv_bank(cm, xd, &ctx->mic);
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+    if (is_inter) av1_update_warp_param_bank(cm, xd, &ctx->mic);
+#endif  // WARP_CU_BANK
+    return;
+  }
+
+  MB_MODE_INFO *mbmi;
+  struct macroblock_plane *const p = x->plane;
+  struct macroblockd_plane *const pd = xd->plane;
+  const AQ_MODE aq_mode = cpi->oxcf.q_cfg.aq_mode;
+  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+
+  int i;
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(cpi, rd_pick_sb_modes_time);
+#endif
+
+  aom_clear_system_state();
+
+  mbmi = xd->mi[0];
+  mbmi->sb_type[plane_type] = bsize;
+  if (xd->tree_type == SHARED_PART) mbmi->sb_type[PLANE_TYPE_UV] = bsize;
+  mbmi->partition = partition;
+  mbmi->chroma_ref_info = ctx->chroma_ref_info;
+
+#if CONFIG_RD_DEBUG
+  mbmi->mi_row = mi_row;
+  mbmi->mi_col = mi_col;
+#endif
+
+  // Sets up the tx_type_map buffer in MACROBLOCKD.
+  xd->tx_type_map = txfm_info->tx_type_map_;
+  xd->tx_type_map_stride = mi_size_wide[bsize];
+#if CONFIG_CROSS_CHROMA_TX
+  xd->cctx_type_map = txfm_info->cctx_type_map_;
+  xd->cctx_type_map_stride = mi_size_wide[bsize];
+#endif  // CONFIG_CROSS_CHROMA_TX
+
+  for (i = 0; i < num_planes; ++i) {
+    p[i].coeff = ctx->coeff[i];
+    p[i].qcoeff = ctx->qcoeff[i];
+    p[i].dqcoeff = ctx->dqcoeff[i];
+    p[i].eobs = ctx->eobs[i];
+    p[i].txb_entropy_ctx = ctx->txb_entropy_ctx[i];
+  }
+
+  for (i = 0; i < 2; ++i) pd[i].color_index_map = ctx->color_index_map[i];
+
+  ctx->skippable = 0;
+  // Set to zero to make sure we do not use the previous encoded frame stats
+  mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
+  // Reset skip mode flag.
+  mbmi->skip_mode = 0;
+
+  x->source_variance =
+      av1_high_get_sby_perpixel_variance(cpi, &x->plane[0].src, bsize, xd->bd);
+
+  // Initialize default mode evaluation params
+  set_mode_eval_params(cpi, x, DEFAULT_EVAL);
+
+  // Save rdmult before it might be changed, so it can be restored later.
+  const int orig_rdmult = x->rdmult;
+  setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
+
+  // Set error per bit for current rdmult
+  av1_set_error_per_bit(&x->mv_costs, x->rdmult);
+  av1_rd_cost_update(x->rdmult, &best_rd);
+
+  ctx->mic =
+      cpi->frd->mi_params
+          .mi_grid_base[mi_row * cpi->frd->mi_params.mi_stride + mi_col][0];
+  const int mi_ext_idx =
+      get_mi_ext_idx(mi_row, mi_col, cpi->frd->mi_params.mi_alloc_bsize,
+                     cpi->frd->mi_ext_params.stride);
+  ctx->mbmi_ext_best = cpi->frd->mi_ext_params.frame_base[mi_ext_idx];
+  *mbmi = ctx->mic;
+
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#if CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+  if (cm->seq_params.enable_refmvbank && is_inter &&
+      !is_intrabc_block(mbmi, xd->tree_type))
+#else
+  if (cm->seq_params.enable_refmvbank && is_inter)
+#endif  // CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+    av1_update_ref_mv_bank(cm, xd, mbmi);
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+
+#if WARP_CU_BANK
+  if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
+#endif  // WARP_CU_BANK
+
+  // Examine the resulting rate and for AQ mode 2 make a segment choice.
+  if (rd_cost->rate != INT_MAX && aq_mode == COMPLEXITY_AQ &&
+      bsize >= BLOCK_16X16) {
+    av1_caq_select_segment(cpi, x, bsize, mi_row, mi_col, rd_cost->rate);
+  }
+
+  x->rdmult = orig_rdmult;
+
+  // TODO(jingning) The rate-distortion optimization flow needs to be
+  // refactored to provide proper exit/return handle.
+  if (rd_cost->rate == INT_MAX) rd_cost->rdcost = INT64_MAX;
+
+  ctx->rd_stats.rate = rd_cost->rate;
+  ctx->rd_stats.dist = rd_cost->dist;
+  ctx->rd_stats.rdcost = rd_cost->rdcost;
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(cpi, rd_pick_sb_modes_time);
+#endif
+}
+
 static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
                                    FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                    const MB_MODE_INFO *mbmi,
@@ -2982,6 +3126,348 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   // No other opportunities for success.
   if (bsize == cm->seq_params.sb_size)
     assert(last_part_rdc.rate < INT_MAX && last_part_rdc.dist < INT64_MAX);
+
+  if (do_recon) {
+    if (bsize == cm->seq_params.sb_size) {
+      // NOTE: To get estimate for rate due to the tokens, use:
+      // int rate_coeffs = 0;
+      // encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_COSTCOEFFS,
+      //           bsize, pc_tree, &rate_coeffs);
+      for (int plane = plane_start; plane < plane_end; plane++) {
+        x->cb_offset[plane] = 0;
+      }
+      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
+                pc_tree, xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#if CONFIG_EXT_RECUR_PARTITIONS
+                NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                NULL);
+    } else {
+      encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, DRY_RUN_NORMAL, bsize,
+                pc_tree, NULL,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                NULL);
+    }
+  }
+
+  *rate = last_part_rdc.rate;
+  *dist = last_part_rdc.dist;
+  x->rdmult = orig_rdmult;
+}
+
+void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
+                          MB_MODE_INFO **mib, TokenExtra **tp, int mi_row,
+                          int mi_col, BLOCK_SIZE bsize, int *rate,
+                          int64_t *dist, int do_recon, PARTITION_TREE *ptree,
+                          PC_TREE *pc_tree) {
+  assert(cpi->sf.hl_sf.superres_reuse_frd == 2 && cpi->frd != NULL);
+  AV1_COMMON *const cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int num_planes = av1_num_planes(cm);
+  TileInfo *const tile_info = &tile_data->tile_info;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  const int ss_x = xd->plane[1].subsampling_x;
+  const int ss_y = xd->plane[1].subsampling_y;
+  const ModeCosts *mode_costs = &x->mode_costs;
+  assert(bsize < BLOCK_SIZES_ALL);
+  const int bs = mi_size_wide[bsize];
+  const int hbs = bs / 2;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int hbh = mi_size_high[bsize] / 2;
+  const int hbw = mi_size_wide[bsize] / 2;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  const int pl = (bsize >= BLOCK_8X8)
+                     ? partition_plane_context(xd, mi_row, mi_col, bsize)
+                     : 0;
+  const int plane_type = (xd->tree_type == CHROMA_PART);
+  const int plane_start = get_partition_plane_start(xd->tree_type);
+  const int plane_end = get_partition_plane_end(xd->tree_type, num_planes);
+  const PARTITION_TYPE partition =
+      get_preset_partition(cm, plane_type, mi_row, mi_col, bsize, ptree);
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+  RD_SEARCH_MACROBLOCK_CONTEXT x_ctx;
+  RD_STATS last_part_rdc, invalid_rdc;
+
+  if (pc_tree->none == NULL) {
+    pc_tree->none =
+        av1_alloc_pmc(cm, mi_row, mi_col, bsize, pc_tree, PARTITION_NONE, 0,
+                      ss_x, ss_y, &td->shared_coeff_buf);
+  }
+  PICK_MODE_CONTEXT *ctx_none = pc_tree->none;
+
+  if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
+
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  assert(mi_size_wide[bsize] == mi_size_high[bsize]);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+
+  av1_invalid_rd_stats(&last_part_rdc);
+  av1_invalid_rd_stats(&invalid_rdc);
+
+  pc_tree->partitioning = partition;
+
+  xd->above_txfm_context =
+      cm->above_contexts.txfm[tile_info->tile_row] + mi_col;
+  xd->left_txfm_context =
+      xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
+  av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
+
+  if (bsize == BLOCK_16X16 && cpi->vaq_refresh) {
+    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+                    &pc_tree->chroma_ref_info);
+    x->mb_energy = av1_log_block_var(cpi, x, bsize);
+  }
+
+  // Save rdmult before it might be changed, so it can be restored later.
+  const int orig_rdmult = x->rdmult;
+  setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, NO_AQ, NULL);
+
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE split_subsize =
+      get_partition_subsize(bsize, PARTITION_SPLIT);
+  for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
+    int x_idx = (i & 1) * hbs;
+    int y_idx = (i >> 1) * hbs;
+    pc_tree->split[i] =
+        av1_alloc_pc_tree_node(mi_row + y_idx, mi_col + x_idx, split_subsize,
+                               pc_tree, PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
+  }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+  switch (partition) {
+    case PARTITION_NONE:
+      use_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
+                   PARTITION_NONE, bsize, ctx_none, invalid_rdc);
+      av1_init_rd_stats(&last_part_rdc);
+      break;
+    case PARTITION_HORZ:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
+          mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
+      pc_tree->horizontal[1] =
+          av1_alloc_pc_tree_node(mi_row + hbh, mi_col, subsize, pc_tree,
+                                 PARTITION_HORZ, 1, 1, ss_x, ss_y);
+      av1_use_partition_mi(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
+                           &last_part_rdc.rate, &last_part_rdc.dist, 1,
+                           ptree ? ptree->sub_tree[0] : NULL,
+                           pc_tree->horizontal[0]);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+      for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
+        if (pc_tree->horizontal[i] == NULL) {
+          pc_tree->horizontal[i] = av1_alloc_pmc(
+              cm, mi_row + hbs * i, mi_col, subsize, pc_tree, PARTITION_HORZ, i,
+              ss_x, ss_y, &td->shared_coeff_buf);
+        }
+      }
+      pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
+                    PARTITION_HORZ, subsize, pc_tree->horizontal[0],
+                    invalid_rdc);
+      av1_init_rd_stats(&last_part_rdc);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
+          mi_row + hbs < mi_params->mi_rows) {
+        RD_STATS tmp_rdc;
+        av1_init_rd_stats(&tmp_rdc);
+#if CONFIG_EXT_RECUR_PARTITIONS
+        av1_use_partition_mi(
+            cpi, td, tile_data, mib + hbh * mi_params->mi_stride, tp,
+            mi_row + hbh, mi_col, subsize, &tmp_rdc.rate, &tmp_rdc.dist, 0,
+            ptree ? ptree->sub_tree[1] : NULL, pc_tree->horizontal[1]);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        const PICK_MODE_CONTEXT *const ctx_h = pc_tree->horizontal[0];
+        av1_update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
+        encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
+                          plane_start, plane_end, NULL);
+        pick_sb_modes(cpi, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
+                      PARTITION_HORZ, subsize, pc_tree->horizontal[1],
+                      invalid_rdc);
+        av1_init_rd_stats(&tmp_rdc);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
+          av1_invalid_rd_stats(&last_part_rdc);
+          break;
+        }
+        last_part_rdc.rate += tmp_rdc.rate;
+        last_part_rdc.dist += tmp_rdc.dist;
+        last_part_rdc.rdcost += tmp_rdc.rdcost;
+      }
+      break;
+    case PARTITION_VERT:
+#if CONFIG_EXT_RECUR_PARTITIONS
+      pc_tree->vertical[0] = av1_alloc_pc_tree_node(
+          mi_row, mi_col, subsize, pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
+      pc_tree->vertical[1] =
+          av1_alloc_pc_tree_node(mi_row, mi_col + hbw, subsize, pc_tree,
+                                 PARTITION_VERT, 1, 1, ss_x, ss_y);
+      av1_use_partition_mi(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
+                           &last_part_rdc.rate, &last_part_rdc.dist, 1,
+                           ptree ? ptree->sub_tree[0] : NULL,
+                           pc_tree->vertical[0]);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+      for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
+        if (pc_tree->vertical[i] == NULL) {
+          pc_tree->vertical[i] = av1_alloc_pmc(
+              cm, mi_row, mi_col + hbs * i, subsize, pc_tree, PARTITION_VERT, i,
+              ss_x, ss_y, &td->shared_coeff_buf);
+        }
+      }
+      pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
+                    PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rdc);
+      av1_init_rd_stats(&last_part_rdc);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
+          mi_col + hbs < mi_params->mi_cols) {
+        RD_STATS tmp_rdc;
+        av1_init_rd_stats(&tmp_rdc);
+#if CONFIG_EXT_RECUR_PARTITIONS
+        av1_use_partition_mi(
+            cpi, td, tile_data, mib + hbw, tp, mi_row, mi_col + hbw, subsize,
+            &tmp_rdc.rate, &tmp_rdc.dist, 0, ptree ? ptree->sub_tree[1] : NULL,
+            pc_tree->vertical[1]);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        const PICK_MODE_CONTEXT *const ctx_v = pc_tree->vertical[0];
+        av1_update_state(cpi, td, ctx_v, mi_row, mi_col, subsize, 1);
+        encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
+                          plane_start, plane_end, NULL);
+        pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
+                      PARTITION_VERT, subsize,
+                      pc_tree->vertical[bsize > BLOCK_8X8], invalid_rdc);
+        av1_init_rd_stats(&tmp_rdc);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
+          av1_invalid_rd_stats(&last_part_rdc);
+          break;
+        }
+        last_part_rdc.rate += tmp_rdc.rate;
+        last_part_rdc.dist += tmp_rdc.dist;
+        last_part_rdc.rdcost += tmp_rdc.rdcost;
+      }
+      break;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3:
+      last_part_rdc.rate = 0;
+      last_part_rdc.dist = 0;
+      last_part_rdc.rdcost = 0;
+#if CONFIG_H_PARTITION
+      const int num_parts = 4;
+#else
+      const int num_parts = 3;
+      const PARTITION_TYPE partition_2way =
+          partition == PARTITION_HORZ_3 ? PARTITION_HORZ : PARTITION_VERT;
+      const BLOCK_SIZE subsize_middle =
+          get_partition_subsize(bsize, partition_2way);
+      const int qbh = mi_size_high[bsize] >> 2;
+      const int qbw = mi_size_wide[bsize] >> 2;
+#endif  // CONFIG_H_PARTITION
+
+      for (int i = 0; i < num_parts; ++i) {
+#if CONFIG_H_PARTITION
+        const BLOCK_SIZE sub_bsize =
+            get_h_partition_subsize(bsize, i, partition);
+        const int offset_mr =
+            get_h_partition_offset_mi_row(bsize, i, partition);
+        const int offset_mc =
+            get_h_partition_offset_mi_col(bsize, i, partition);
+#else
+        const BLOCK_SIZE sub_bsize = i == 1 ? subsize_middle : subsize;
+        const int offset_step = i == 2 ? 3 : i;
+        const int offset_mr =
+            partition == PARTITION_VERT_3 ? 0 : offset_step * qbh;
+        const int offset_mc =
+            partition == PARTITION_HORZ_3 ? 0 : offset_step * qbw;
+#endif  // CONFIG_H_PARTITION
+        PC_TREE *sub_pc_tree;
+        RD_STATS tmp_rdc;
+
+        if ((mi_row + offset_mr >= mi_params->mi_rows) ||
+            (mi_col + offset_mc >= mi_params->mi_cols))
+#if CONFIG_H_PARTITION
+          if (i != 2)
+#endif  // CONFIG_H_PARTITION
+            continue;
+
+        if (partition == PARTITION_HORZ_3) {
+          pc_tree->horizontal3[i] = av1_alloc_pc_tree_node(
+              mi_row + offset_mr, mi_col + offset_mc, sub_bsize, pc_tree,
+              partition, i, i == (num_parts - 1), ss_x, ss_y);
+          sub_pc_tree = pc_tree->horizontal3[i];
+        } else {
+          pc_tree->vertical3[i] = av1_alloc_pc_tree_node(
+              mi_row + offset_mr, mi_col + offset_mc, sub_bsize, pc_tree,
+              partition, i, i == (num_parts - 1), ss_x, ss_y);
+          sub_pc_tree = pc_tree->vertical3[i];
+        }
+
+        av1_init_rd_stats(&tmp_rdc);
+        av1_use_partition_mi(cpi, td, tile_data, mib, tp, mi_row + offset_mr,
+                             mi_col + offset_mc, sub_bsize, &tmp_rdc.rate,
+                             &tmp_rdc.dist, i != (num_parts - 1),
+                             ptree ? ptree->sub_tree[i] : NULL, sub_pc_tree);
+
+        if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
+          av1_invalid_rd_stats(&last_part_rdc);
+          break;
+        }
+        last_part_rdc.rate += tmp_rdc.rate;
+        last_part_rdc.dist += tmp_rdc.dist;
+      }
+      break;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_SPLIT:
+      last_part_rdc.rate = 0;
+      last_part_rdc.dist = 0;
+      last_part_rdc.rdcost = 0;
+      for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
+        int x_idx = (i & 1) * hbs;
+        int y_idx = (i >> 1) * hbs;
+        int jj = i >> 1, ii = i & 0x01;
+        RD_STATS tmp_rdc;
+        if ((mi_row + y_idx >= mi_params->mi_rows) ||
+            (mi_col + x_idx >= mi_params->mi_cols))
+          continue;
+
+        av1_init_rd_stats(&tmp_rdc);
+        av1_use_partition_mi(cpi, td, tile_data,
+                             mib + jj * hbs * mi_params->mi_stride + ii * hbs,
+                             tp, mi_row + y_idx, mi_col + x_idx, subsize,
+                             &tmp_rdc.rate, &tmp_rdc.dist,
+                             i != (SUB_PARTITIONS_SPLIT - 1), NULL,
+                             pc_tree->split[i]);
+        if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
+          av1_invalid_rd_stats(&last_part_rdc);
+          break;
+        }
+        last_part_rdc.rate += tmp_rdc.rate;
+        last_part_rdc.dist += tmp_rdc.dist;
+      }
+      break;
+    case PARTITION_VERT_A:
+    case PARTITION_VERT_B:
+    case PARTITION_HORZ_A:
+    case PARTITION_HORZ_B:
+    case PARTITION_HORZ_4:
+    case PARTITION_VERT_4:
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      assert(0 && "Cannot handle extended partition types");
+    default: assert(0); break;
+  }
+
+  if (last_part_rdc.rate < INT_MAX) {
+    last_part_rdc.rate +=
+        mode_costs->partition_cost[xd->tree_type == CHROMA_PART][pl][partition];
+    last_part_rdc.rdcost =
+        RDCOST(x->rdmult, last_part_rdc.rate, last_part_rdc.dist);
+  }
+
+  // If last_part is better set the partitioning to that.
+  mib[0]->sb_type[plane_type] = bsize;
+  if (bsize >= BLOCK_8X8) pc_tree->partitioning = partition;
+
+  av1_restore_context(cm, x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
   if (do_recon) {
     if (bsize == cm->seq_params.sb_size) {

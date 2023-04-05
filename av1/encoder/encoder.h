@@ -1856,6 +1856,12 @@ typedef struct {
 
 /*!\cond */
 
+typedef struct {
+  CommonSBInfoParams sbi_params;
+  CommonModeInfoParams mi_params;
+  MBMIExtFrameBufferInfo mi_ext_params;
+} FrameDecisions;
+
 #if CONFIG_COLLECT_PARTITION_STATS == 2
 typedef struct PartitionStats {
   int partition_decisions[6][EXT_PARTITION_TYPES];
@@ -2894,6 +2900,12 @@ typedef struct AV1_COMP {
    * Number of frames left to be encoded, is 0 if limit is not set.
    */
   int frames_left;
+
+  /*!
+   * Frame decisions from a previous pass. If the pointer is non-NULL, re-use
+   * the decisions there as much as possible in the encoding process.
+   */
+  FrameDecisions *frd;
 } AV1_COMP;
 
 /*!

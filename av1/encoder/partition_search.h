@@ -32,6 +32,11 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                           int mi_col, BLOCK_SIZE bsize, int *rate,
                           int64_t *dist, int do_recon, PARTITION_TREE *ptree,
                           PC_TREE *pc_tree);
+void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
+                          MB_MODE_INFO **mib, TokenExtra **tp, int mi_row,
+                          int mi_col, BLOCK_SIZE bsize, int *rate,
+                          int64_t *dist, int do_recon, PARTITION_TREE *ptree,
+                          PC_TREE *pc_tree);
 bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            TileDataEnc *tile_data, TokenExtra **tp, int mi_row,
                            int mi_col, BLOCK_SIZE bsize, RD_STATS *rd_cost,

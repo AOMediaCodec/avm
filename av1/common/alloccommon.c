@@ -171,7 +171,7 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
   above_contexts->num_planes = 0;
 }
 
-static void free_sbi(CommonSBInfoParams *sbi_params) {
+void av1_free_sbi(CommonSBInfoParams *sbi_params) {
   for (int i = 0; i < sbi_params->sbi_alloc_size; ++i) {
     av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[0]);
     av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[1]);
@@ -184,7 +184,7 @@ static void free_sbi(CommonSBInfoParams *sbi_params) {
 
 void av1_free_context_buffers(AV1_COMMON *cm) {
   cm->mi_params.free_mi(&cm->mi_params);
-  free_sbi(&cm->sbi_params);
+  av1_free_sbi(&cm->sbi_params);
 
   av1_free_above_context_buffers(&cm->above_contexts);
 
@@ -305,7 +305,7 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
       sbi_params->sbi_stride * calc_mi_size(sbi_params->sb_rows);
 
   if (sbi_params->sbi_alloc_size < sbi_size) {
-    free_sbi(sbi_params);
+    av1_free_sbi(sbi_params);
     sbi_params->sbi_grid_base = aom_calloc(sbi_size, sizeof(SB_INFO));
 
     if (!sbi_params->sbi_grid_base) return 1;
@@ -317,6 +317,28 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
     }
   }
 
+  return 0;
+}
+
+int av1_duplicate_sbi(CommonSBInfoParams *to, const CommonSBInfoParams *from) {
+  av1_free_sbi(to);
+  memcpy(to, from, sizeof(*to));
+  const int sbi_size = to->sbi_alloc_size;
+
+  to->sbi_grid_base = aom_calloc(sbi_size, sizeof(SB_INFO));
+
+  if (!to->sbi_grid_base) return 1;
+
+  for (int i = 0; i < sbi_size; ++i) {
+    to->sbi_grid_base[i].ptree_root[0] = NULL;
+    to->sbi_grid_base[i].ptree_root[1] = NULL;
+  }
+  for (int i = 0; i < sbi_size; ++i) {
+    to->sbi_grid_base[i].ptree_root[0] = av1_duplicate_ptree_recursive(
+        from->sbi_grid_base[i].ptree_root[0], NULL);
+    to->sbi_grid_base[i].ptree_root[1] = av1_duplicate_ptree_recursive(
+        from->sbi_grid_base[i].ptree_root[1], NULL);
+  }
   return 0;
 }
 
@@ -387,3 +409,156 @@ void av1_free_loop_filter_mask(AV1_COMMON *cm) {
   cm->lf.lfm_stride = 0;
 }
 #endif
+
+int av1_copy_mi_neq(const AV1_COMMON *cm, CommonModeInfoParams *to,
+                    const CommonModeInfoParams *from) {
+  assert(from->mi_rows == to->mi_rows);
+  assert(from->mi_cols == to->mi_cols);
+  assert(from->mi_alloc_bsize == to->mi_alloc_bsize);
+  const int aligned_mi_rows = calc_mi_size(from->mi_rows);
+  const int aligned_mi_cols = calc_mi_size(from->mi_cols);
+  const int mi_alloc_size_1d = mi_size_wide[from->mi_alloc_bsize];
+  const int mi_alloc_stride =
+      (aligned_mi_cols + mi_alloc_size_1d - 1) / mi_alloc_size_1d;
+  for (int i = 0; i < aligned_mi_rows; ++i) {
+    memcpy(&to->mi_alloc[to->mi_alloc_stride * i],
+           &from->mi_alloc[from->mi_alloc_stride * i],
+           mi_alloc_stride * sizeof(*to->mi_alloc));
+  }
+  for (int i = 0; i < aligned_mi_rows; ++i) {
+    for (int j = 0; j < aligned_mi_cols; ++j) {
+      if (from->mi_grid_base[i * from->mi_stride + j] == NULL) {
+        to->mi_grid_base[i * to->mi_stride + j] = NULL;
+      } else {
+        to->mi_grid_base[i * to->mi_stride + j] =
+            to->mi_alloc +
+            (int)(from->mi_grid_base[i * from->mi_stride + j] - from->mi_alloc);
+      }
+    }
+  }
+#if CONFIG_C071_SUBBLK_WARPMV
+  for (int i = 0; i < aligned_mi_rows; ++i) {
+    memcpy(&to->mi_alloc_sub[to->mi_alloc_stride * i],
+           &from->mi_alloc_sub[from->mi_alloc_stride * i],
+           mi_alloc_stride * sizeof(*to->mi_alloc_sub));
+  }
+  for (int i = 0; i < aligned_mi_rows; ++i) {
+    for (int j = 0; j < aligned_mi_cols; ++j) {
+      if (from->submi_grid_base[i * from->mi_stride + j] == NULL) {
+        to->submi_grid_base[i * to->mi_stride + j] = NULL;
+      } else {
+        to->submi_grid_base[i * to->mi_stride + j] =
+            to->mi_alloc_sub +
+            (int)(from->submi_grid_base[i * from->mi_stride + j] -
+                  from->mi_alloc_sub);
+      }
+    }
+  }
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+  for (int i = 0; i < aligned_mi_rows; ++i) {
+    memcpy(&to->tx_type_map[i * to->mi_stride],
+           &from->tx_type_map[i * from->mi_stride],
+           aligned_mi_cols * sizeof(*to->tx_type_map));
+  }
+#if CONFIG_CROSS_CHROMA_TX
+  for (int i = 0; i < aligned_mi_rows; ++i) {
+    memcpy(&to->cctx_type_map[i * to->mi_stride],
+           &from->cctx_type_map[i * from->mi_stride],
+           aligned_mi_cols * sizeof(*to->cctx_type_map));
+  }
+#endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    int w = from->mi_cols << MI_SIZE_LOG2;
+    int h = from->mi_rows << MI_SIZE_LOG2;
+    w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
+    w >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_x);
+    h >>= ((plane == 0) ? 0 : cm->seq_params.subsampling_y);
+    int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    int rows = (h + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
+    for (int i = 0; i < rows; ++i) {
+      memcpy(&to->tx_skip[plane][i * to->tx_skip_stride[plane]],
+             &from->tx_skip[plane][i * from->tx_skip_stride[plane]],
+             stride * sizeof(to->tx_skip[plane][0]));
+      memcpy(&to->wiener_class_id[plane][i * to->wiener_class_id_stride[plane]],
+             &from->wiener_class_id[plane]
+                                   [i * from->wiener_class_id_stride[plane]],
+             stride * sizeof(to->wiener_class_id[plane][0]));
+    }
+  }
+#endif  // CONFIG_PC_WIENER
+  return 0;
+}
+
+int av1_copy_mi(CommonModeInfoParams *to, const CommonModeInfoParams *from) {
+  assert(to->mi_alloc_size == from->mi_alloc_size);
+  assert(to->mi_grid_size == from->mi_grid_size);
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    assert(to->tx_skip_buf_size[plane] == from->tx_skip_buf_size[plane]);
+    assert(to->wiener_class_id_buf_size[plane] ==
+           from->wiener_class_id_buf_size[plane]);
+  }
+
+  memcpy(to->mi_alloc, from->mi_alloc,
+         to->mi_alloc_size * sizeof(*to->mi_alloc));
+  for (int i = 0; i < to->mi_grid_size; ++i) {
+    if (from->mi_grid_base[i] == NULL) {
+      to->mi_grid_base[i] = NULL;
+    } else {
+      to->mi_grid_base[i] =
+          to->mi_alloc + (int)(from->mi_grid_base[i] - from->mi_alloc);
+    }
+  }
+#if CONFIG_C071_SUBBLK_WARPMV
+  memcpy(to->mi_alloc_sub, from->mi_alloc_sub,
+         to->mi_alloc_size * sizeof(*to->mi_alloc_sub));
+  for (int i = 0; i < to->mi_grid_size; ++i) {
+    if (from->submi_grid_base[i] == NULL) {
+      to->submi_grid_base[i] = NULL;
+    } else {
+      to->submi_grid_base[i] =
+          to->mi_alloc_sub +
+          (int)(from->submi_grid_base[i] - from->mi_alloc_sub);
+    }
+  }
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+  memcpy(to->tx_type_map, from->tx_type_map,
+         to->mi_grid_size * sizeof(*to->tx_type_map));
+#if CONFIG_CROSS_CHROMA_TX
+  memcpy(to->cctx_type_map, from->cctx_type_map,
+         to->mi_grid_size * sizeof(*to->cctx_type_map));
+#endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    memcpy(to->tx_skip[plane], from->tx_skip[plane],
+           to->tx_skip_buf_size[plane] * sizeof(*to->tx_skip[plane]));
+    memcpy(to->wiener_class_id[plane], from->wiener_class_id[plane],
+           to->wiener_class_id_buf_size[plane] *
+               sizeof(*to->wiener_class_id[plane]));
+  }
+#endif  // CONFIG_PC_WIENER
+  return 0;
+}
+
+int av1_duplicate_mi(AV1_COMMON *cm, CommonModeInfoParams *to) {
+  const CommonModeInfoParams *const from = &cm->mi_params;
+  if (to->mi_alloc_size > 0) {
+    assert(to->free_mi);
+    to->free_mi(to);
+  }
+  to->set_mb_mi = from->set_mb_mi;
+  to->free_mi = from->free_mi;
+  to->setup_mi = from->setup_mi;
+  to->set_mb_mi(to, cm->width, cm->height);
+
+  int ret = alloc_mi(to
+#if CONFIG_PC_WIENER
+                     ,
+                     cm
+#endif  // CONFIG_PC_WIENER
+  );
+  if (ret) return 1;
+
+  return av1_copy_mi_neq(cm, to, from);
+}
