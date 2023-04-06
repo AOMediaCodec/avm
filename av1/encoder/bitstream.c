@@ -85,7 +85,8 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #if CONFIG_CNN_GUIDED_QUADTREE
 // Write crlc coeffs for one frame
 static void write_filter_quadtree(int qp, int cnn_index, int superres_denom,
-                                  const QUADInfo *ci, aom_writer *wb);
+                                  int is_intra_only, const QUADInfo *ci,
+                                  aom_writer *wb);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
 #if CONFIG_IBC_SR_EXT
@@ -2334,8 +2335,9 @@ static AOM_INLINE void write_modes_sb(
   if (cm->use_quadtree && !cm->postcnn_quad_info.is_write) {
     QUADInfo *qi = (QUADInfo *)&cm->postcnn_quad_info;
     int superres_denom = cm->superres_scale_denominator;
+    const int is_intra_only = frame_is_intra_only(cm);
     write_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_index,
-                          superres_denom, qi, w);
+                          superres_denom, is_intra_only, qi, w);
     qi->is_write = 1;
   }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
@@ -3049,10 +3051,12 @@ static bool is_mode_ref_delta_meaningful(AV1_COMMON *cm) {
 
 #if CONFIG_CNN_GUIDED_QUADTREE
 static void write_filter_quadtree(int QP, int cnn_index, int superres_denom,
-                                  const QUADInfo *ci, aom_writer *wb) {
+                                  int is_intra_only, const QUADInfo *ci,
+                                  aom_writer *wb) {
   int A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, 1, cnn_index);
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1,
+                                      cnn_index);
   A0_min = quadtset[2];
   A1_min = quadtset[3];
   int a0;

@@ -66,13 +66,18 @@
 #endif  // CONFIG_EXT_SUPERRES
 
 #if CONFIG_CNN_GUIDED_QUADTREE
-#include "av1/tflite_models/intra_frame_model/qp85_quadtree.h"
-#include "av1/tflite_models/intra_frame_model/qp110_quadtree.h"
-#include "av1/tflite_models/intra_frame_model/qp135_quadtree.h"
-#include "av1/tflite_models/intra_frame_model/qp160_quadtree.h"
-#include "av1/tflite_models/intra_frame_model/qp185_quadtree.h"
-#include "av1/tflite_models/intra_frame_model/qp210_quadtree.h"
-#include "av1/tflite_models/intra_frame_model/qp235_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp0_90_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp91_120_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp121_145_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp146_175_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp176_205_quadtree.h"
+#include "av1/tflite_models/inter_frame_model/qp206_255_quadtree.h"
+#include "av1/tflite_models/intra_frame_model/qp0_90_quadtree.h"
+#include "av1/tflite_models/intra_frame_model/qp91_120_quadtree.h"
+#include "av1/tflite_models/intra_frame_model/qp121_145_quadtree.h"
+#include "av1/tflite_models/intra_frame_model/qp146_175_quadtree.h"
+#include "av1/tflite_models/intra_frame_model/qp176_205_quadtree.h"
+#include "av1/tflite_models/intra_frame_model/qp206_255_quadtree.h"
 #endif
 
 #include "common/tf_lite_includes.h"
@@ -100,34 +105,30 @@ static const unsigned char *get_intra_model_from_qindex(int qindex,
   if (superres_denom == SCALE_NUMERATOR || superres_denom == 10 ||
          superres_denom == 12 || superres_denom == 14 || superres_denom == 16) {  // quadtree
     if (is_luma) {
-      if (qindex <= 85) {
-        return (cnn_index == 0)   ? qp85_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp110_quadtree_model_tflite_data
-                                  : qp135_quadtree_model_tflite_data;
-      } else if (qindex <= 110) {
-        return (cnn_index == 0)   ? qp110_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp85_quadtree_model_tflite_data
-                                  : qp135_quadtree_model_tflite_data;
-      } else if (qindex <= 135) {
-        return (cnn_index == 0)   ? qp135_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp110_quadtree_model_tflite_data
-                                  : qp160_quadtree_model_tflite_data;
-      } else if (qindex <= 160) {
-        return (cnn_index == 0)   ? qp160_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp135_quadtree_model_tflite_data
-                                  : qp185_quadtree_model_tflite_data;
-      } else if (qindex <= 185) {
-        return (cnn_index == 0)   ? qp185_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp160_quadtree_model_tflite_data
-                                  : qp210_quadtree_model_tflite_data;
-      } else if (qindex <= 210) {
-        return (cnn_index == 0)   ? qp210_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp185_quadtree_model_tflite_data
-                                  : qp235_quadtree_model_tflite_data;
+      if (qindex <= 90) {
+        return (cnn_index == 0)   ? qp0_90_quadtree_model_tflite_data
+               : (cnn_index == 1) ? qp91_120_quadtree_model_tflite_data
+                                  : qp121_145_quadtree_model_tflite_data;
+      } else if (qindex <= 120) {
+        return (cnn_index == 0)   ? qp91_120_quadtree_model_tflite_data
+               : (cnn_index == 1) ? qp0_90_quadtree_model_tflite_data
+                                  : qp121_145_quadtree_model_tflite_data;
+      } else if (qindex <= 145) {
+        return (cnn_index == 0)   ? qp121_145_quadtree_model_tflite_data
+               : (cnn_index == 1) ? qp91_120_quadtree_model_tflite_data
+                                  : qp146_175_quadtree_model_tflite_data;
+      } else if (qindex <= 175) {
+        return (cnn_index == 0)   ? qp146_175_quadtree_model_tflite_data
+               : (cnn_index == 1) ? qp121_145_quadtree_model_tflite_data
+                                  : qp176_205_quadtree_model_tflite_data;
+      } else if (qindex <= 205) {
+        return (cnn_index == 0)   ? qp176_205_quadtree_model_tflite_data
+               : (cnn_index == 1) ? qp146_175_quadtree_model_tflite_data
+                                  : qp206_255_quadtree_model_tflite_data;
       } else {
-        return (cnn_index == 0)   ? qp235_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp210_quadtree_model_tflite_data
-                                  : qp185_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp206_255_quadtree_model_tflite_data
+               : (cnn_index == 1) ? qp176_205_quadtree_model_tflite_data
+                                  : qp146_175_quadtree_model_tflite_data;
       }
     }
   }
@@ -254,34 +255,30 @@ static const unsigned char *get_inter_model_from_qindex(int qindex,
 #if CONFIG_CNN_GUIDED_QUADTREE
   if (superres_denom == SCALE_NUMERATOR) {  // quadtree
     if (is_luma) {
-      if (qindex <= 85) {
-        return (cnn_index == 0)   ? qp85_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp110_quadtree_model_tflite_data
-                                  : qp135_quadtree_model_tflite_data;
-      } else if (qindex <= 110) {
-        return (cnn_index == 0)   ? qp110_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp85_quadtree_model_tflite_data
-                                  : qp135_quadtree_model_tflite_data;
-      } else if (qindex <= 135) {
-        return (cnn_index == 0)   ? qp135_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp110_quadtree_model_tflite_data
-                                  : qp160_quadtree_model_tflite_data;
-      } else if (qindex <= 160) {
-        return (cnn_index == 0)   ? qp160_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp135_quadtree_model_tflite_data
-                                  : qp185_quadtree_model_tflite_data;
-      } else if (qindex <= 185) {
-        return (cnn_index == 0)   ? qp185_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp160_quadtree_model_tflite_data
-                                  : qp210_quadtree_model_tflite_data;
-      } else if (qindex <= 210) {
-        return (cnn_index == 0)   ? qp210_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp185_quadtree_model_tflite_data
-                                  : qp235_quadtree_model_tflite_data;
+      if (qindex <= 90) {
+        return (cnn_index == 0)   ? qp0_90_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp91_120_quadtree_inter_model_tflite_data
+                                  : qp121_145_quadtree_inter_model_tflite_data;
+      } else if (qindex <= 120) {
+        return (cnn_index == 0)   ? qp91_120_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp0_90_quadtree_inter_model_tflite_data
+                                  : qp121_145_quadtree_inter_model_tflite_data;
+      } else if (qindex <= 145) {
+        return (cnn_index == 0)   ? qp121_145_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp91_120_quadtree_inter_model_tflite_data
+                                  : qp146_175_quadtree_inter_model_tflite_data;
+      } else if (qindex <= 175) {
+        return (cnn_index == 0)   ? qp146_175_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp121_145_quadtree_inter_model_tflite_data
+                                  : qp176_205_quadtree_inter_model_tflite_data;
+      } else if (qindex <= 205) {
+        return (cnn_index == 0)   ? qp176_205_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp146_175_quadtree_inter_model_tflite_data
+                                  : qp206_255_quadtree_inter_model_tflite_data;
       } else {
-        return (cnn_index == 0)   ? qp235_quadtree_model_tflite_data
-               : (cnn_index == 1) ? qp210_quadtree_model_tflite_data
-                                  : qp185_quadtree_model_tflite_data;
+        return (cnn_index == 0)   ? qp206_255_quadtree_inter_model_tflite_data
+               : (cnn_index == 1) ? qp176_205_quadtree_inter_model_tflite_data
+                                  : qp146_175_quadtree_inter_model_tflite_data;
       }
     }
   }
@@ -434,11 +431,14 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(
     int qindex, int superres_denom, const uint16_t *dgd, int width, int height,
     int dgd_stride, uint16_t *rst, int rst_stride, int num_threads,
     int bit_depth, int is_intra_only, int is_luma, int cnn_index) {
+  // Ensure image can be downscaled by factor of 8 on each axis
+  int padding_width = int(ceil(float(width)/8.0)*8);
+  int padding_height = int(ceil(float(height)/8.0)*8);
 #if USE_XNNPACK
   TfLiteDelegate *xnnpack_delegate = get_tflite_xnnpack_delegate(num_threads);
 #endif  // USE_XNNPACK
   std::unique_ptr<tflite::Interpreter> interpreter =
-      get_tflite_interpreter(qindex, superres_denom, width, height, num_threads,
+      get_tflite_interpreter(qindex, superres_denom, padding_width, padding_height, num_threads,
                              is_intra_only, is_luma, cnn_index
 #if USE_XNNPACK
                              ,
@@ -448,14 +448,28 @@ extern "C" int av1_restore_cnn_img_tflite_highbd(
 
   // Prepare input.
   const auto max_val = static_cast<float>((1 << bit_depth) - 1);
-  const int in_stride = width;
+  const int in_stride = padding_width;
   auto input = interpreter->typed_input_tensor<float>(0);
-  for (int r = 0; r < height; ++r) {
-    for (int c = 0; c < width; ++c) {
-      input[r * in_stride + c] =
-          static_cast<float>(dgd[r * dgd_stride + c]) / max_val;
-      assert(input[r * in_stride + c] >= 0.0f);
-      assert(input[r * in_stride + c] <= 1.0f);
+  for (int r = 0; r < padding_height; ++r) {
+    for (int c = 0; c < padding_width; ++c) {
+      if(r < height && c < width){
+        input[r * in_stride + c] =
+            static_cast<float>(dgd[r * dgd_stride + c]) / max_val;
+        assert(input[r * in_stride + c] >= 0.0f);
+        assert(input[r * in_stride + c] <= 1.0f);
+      } else {
+        // Padding with either zeros or by copies
+        //input[r * in_stride + c] = 0;  // Pad with zeros
+        int w_copy_idx = c;
+        if(c >= width) {
+          w_copy_idx = width + (width - c) - 1;
+        }
+        int h_copy_idx = r;
+        if(r >= height) {
+          h_copy_idx = height + (height - r) - 1;
+        }
+        input[r * in_stride + c] = input[h_copy_idx * in_stride + w_copy_idx];
+      }
     }
   }
 
@@ -709,11 +723,12 @@ extern "C" int TFlite_Predict_quadtree_hbd(
     }
   }
 
-  int scaleA0,scaleA1, A0_min, A1_min;
+
+  int scale0, scale1, A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
-  scaleA0 = quadtset[0];
-  scaleA1 = quadtset[1];
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, is_luma, cnn_index);
+  scale0 = quadtset[0];
+  scale1 = quadtset[1];
   A0_min = quadtset[2];
   A1_min = quadtset[3];
 
@@ -876,8 +891,10 @@ extern "C" int TFlite_Predict_quadtree_hbd(
         A0 += mid[0][i] * sub_r_flatten[i];
         A1 += mid[1][i] * sub_r_flatten[i];
       }
-      A0 = A0 * scaleA0;
-      A1 = A1 * scaleA1;
+
+      A0 = A0 * scale0;
+      A1 = A1 * scale1;
+
       A0 = int(round(A0));
       A1 = int(round(A1));
       if (A0 < A0_min) {
@@ -895,12 +912,15 @@ extern "C" int TFlite_Predict_quadtree_hbd(
         A1 = A1_min + 15;
       }
       A[index_A] = int(A1);
+      //fprintf(stderr, "ENCODER A VALUES ARE %d, %d\n", int(A0), int(A1));
       index_A = index_A + 1;
       // printf("A0:%lf  A1:%lf\n", A0, A1);
       for (int i = start_clow; i < end_clow; i++) {
         for (int j = start_row; j < end_row; j++) {
-          repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scaleA0 +
-                                  A1 * r1[i][j] / scaleA1));
+
+          repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
+                                  A1 * r1[i][j] / scale1));
+
           // repic[i][j] = int(round(sub_dgr[i][j]));
           repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
         }
@@ -1074,11 +1094,12 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
       r1[r][c] = output[r * 2 * out_stride + c * 2 + 1] * max_val;
     }
   }
-  int scaleA0, scaleA1, A0_min, A1_min;
+
+  int scale0, scale1, A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
-  scaleA0 = quadtset[0];
-  scaleA1 = quadtset[1];
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, is_luma, cnn_index);
+  scale0 = quadtset[0];
+  scale1 = quadtset[1];
   A0_min = quadtset[2];
   A1_min = quadtset[3];
 
@@ -1118,8 +1139,10 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
           for (int i = start_row; i < end_row; i++) {
             for (int j = start_clow; j < end_clow; j++) {
-              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scaleA0 +
-                                      a1 * r1[i][j] / scaleA1));
+
+              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                      a1 * r1[i][j] / scale1));
+
               repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
             }
           }
@@ -1173,8 +1196,10 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
             for (int i = start_row; i < end_row; i++) {
               for (int j = start_clow; j < end_clow; j++) {
-                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scaleA0 +
-                                        a1 * r1[i][j] / scaleA1));
+
+                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                        a1 * r1[i][j] / scale1));
+
                 repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
               }
             }
@@ -1219,8 +1244,10 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
             for (int i = start_row; i < end_row; i++) {
               for (int j = start_clow; j < end_clow; j++) {
-                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scaleA0 +
-                                        a1 * r1[i][j] / scaleA1));
+
+                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                        a1 * r1[i][j] / scale1));
+
                 repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
               }
             }
@@ -1264,8 +1291,10 @@ extern "C" int TFlite_recon_quadtree_regular_hbd(
 
             for (int i = start_row; i < end_row; i++) {
               for (int j = start_clow; j < end_clow; j++) {
-                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scaleA0 +
-                                        a1 * r1[i][j] / scaleA1));
+
+                repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                        a1 * r1[i][j] / scale1));
+
                 repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
               }
             }
@@ -1393,11 +1422,13 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
       r1[r][c] = output[r * 2 * out_stride + c * 2 + 1] * max_val;
     }
   }
-  int scaleA0, scaleA1, A0_min, A1_min;
+
+  int scale0, scale1, A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_luma, cnn_index);
-  scaleA0 = quadtset[0];
-  scaleA1 = quadtset[1];
+  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, is_luma, cnn_index);
+  scale0 = quadtset[0];
+  scale1 = quadtset[1];
+
   A0_min = quadtset[2];
   A1_min = quadtset[3];
 
@@ -1429,8 +1460,10 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
 
         for (int i = start_row; i < end_row; i++) {
           for (int j = start_clow; j < end_clow; j++) {
-            repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scaleA0 +
-                                    a1 * r1[i][j] / scaleA1));
+
+            repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                    a1 * r1[i][j] / scale1));
+
             repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
           }
         }
@@ -1464,8 +1497,10 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
 
           for (int i = start_row; i < end_row; i++) {
             for (int j = start_clow; j < end_clow; j++) {
-              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scaleA0 +
-                                      a1 * r1[i][j] / scaleA1));
+
+              repic[i][j] = int(round(sub_dgr[i][j] + a0 * r0[i][j] / scale0 +
+                                      a1 * r1[i][j] / scale1));
+
               repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
             }
           }
