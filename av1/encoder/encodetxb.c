@@ -702,8 +702,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 #if CONFIG_PC_WIENER
-  assert((eob == 0) ==
-         av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, plane, blk_row, blk_col));
+  if (!is_global_intrabc_allowed(cm) && !cm->features.coded_lossless) {
+    // Assert only when LR is enabled.
+    assert((eob == 0) == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, plane,
+                                          blk_row, blk_col));
+  }
 #endif  // CONFIG_PC_WIENER
   if (eob == 0) return;
 

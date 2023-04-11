@@ -2596,7 +2596,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
     write_tokens_b(cpi, w, tok, tok_end);
   }
 #if CONFIG_PC_WIENER
-  else {
+  else if (!is_global_intrabc_allowed(cm) && !cm->features.coded_lossless) {
+    // Assert only when LR is enabled.
     assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
   }
 #endif  // CONFIG_PC_WIENER
