@@ -128,4 +128,9 @@ macro(fix_experiment_configs)
   if(NOT CONFIG_IST_SET_FLAG AND CONFIG_IST_ANY_SET)
     change_config_and_warn(CONFIG_IST_ANY_SET 0 !CONFIG_IST_SET_FLAG)
   endif()
+
+  # CONFIG_UV_CFL depends on CONFIG_AIMC
+  if(NOT CONFIG_AIMC AND CONFIG_UV_CFL)
+    change_config_and_warn(CONFIG_UV_CFL 0 !CONFIG_AIMC)
+  endif()
 endmacro()

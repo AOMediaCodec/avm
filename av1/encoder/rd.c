@@ -281,6 +281,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              NULL);
 #endif  // CONFIG_AIMC
 
+#if CONFIG_UV_CFL
+  for (j = 0; j < UV_MODE_CONTEXTS; ++j)
+    av1_cost_tokens_from_cdf(mode_costs->intra_uv_mode_cost[j],
+                             fc->uv_mode_cdf[j], NULL);
+  for (i = 0; i < CFL_CONTEXTS; ++i)
+    av1_cost_tokens_from_cdf(mode_costs->cfl_mode_cost[i], fc->cfl_cdf[i],
+                             NULL);
+#else
   for (i = 0; i < CFL_ALLOWED_TYPES; ++i)
 #if CONFIG_AIMC
     for (j = 0; j < UV_MODE_CONTEXTS; ++j)
@@ -289,6 +297,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif
       av1_cost_tokens_from_cdf(mode_costs->intra_uv_mode_cost[i][j],
                                fc->uv_mode_cdf[i][j], NULL);
+#endif  // CONFIG_UV_CFL
 
   av1_cost_tokens_from_cdf(mode_costs->filter_intra_mode_cost,
                            fc->filter_intra_mode_cdf, NULL);

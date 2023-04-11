@@ -907,7 +907,12 @@ typedef struct {
   //! y second mode cost
   int y_second_mode_costs[Y_MODE_CONTEXTS][SECOND_MODE_COUNT];
   //! uv mode cost
+#if CONFIG_UV_CFL
+  int intra_uv_mode_cost[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
+  int cfl_mode_cost[CFL_CONTEXTS][2];
+#else
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][UV_MODE_CONTEXTS][UV_INTRA_MODES];
+#endif  // CONFIG_UV_CFL
 #endif  // CONFIG_AIMC
 
   //! Cost of signaling secondary transform index
