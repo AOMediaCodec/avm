@@ -315,6 +315,13 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
   dst->rd_cost = src->rd_cost;
   dst->none_rd = src->none_rd;
   dst->skippable = src->skippable;
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  dst->ref_mv_bank = src->ref_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  dst->warp_param_bank = src->warp_param_bank;
+#endif  // WARP_CU_BANK
+
   const BLOCK_SIZE bsize = dst->block_size;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, src->partitioning);
   const int mi_row = src->mi_row;
