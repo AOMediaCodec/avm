@@ -1340,7 +1340,8 @@ bool find_fundamental_matrix(int np, const double *cpts1, const double *cpts2,
   int min_idx2 = find_min_idx(S2, 3);
   for (int r = 0; r < 3; ++r) {
     for (int c = 0; c < 3; ++c) {
-      F[r * 3 + c] -= U2[r * 3 + min_idx2] * V2[min_idx2 * 3 + c] * S2[min_idx2];
+      F[r * 3 + c] -=
+          U2[r * 3 + min_idx2] * V2[min_idx2 * 3 + c] * S2[min_idx2];
     }
   }
   aom_free(a);
