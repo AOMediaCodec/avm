@@ -1485,6 +1485,35 @@ static void read_intra_luma_mode(MACROBLOCKD *const xd, aom_reader *r) {
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
 }
 
+static void read_intra_uv_mode(MACROBLOCKD *const xd,
+                               CFL_ALLOWED_TYPE cfl_allowed, aom_reader *r) {
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  int is_cfl_mode = 0;
+  if (cfl_allowed) {
+    const int cfl_ctx = get_cfl_ctx(xd);
+    is_cfl_mode = aom_read_symbol(r, ec_ctx->cfl_cdf[cfl_ctx], 2, ACCT_STR);
+  }
+  if (is_cfl_mode) {
+    mbmi->uv_mode = UV_CFL_PRED;
+    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+    return;
+  }
+
+  const int context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
+  const int uv_mode_idx =
+      aom_read_symbol(r, ec_ctx->uv_mode_cdf[context],
+                      UV_INTRA_MODES - !cfl_allowed, ACCT_STR);
+  assert(uv_mode_idx >= 0 && uv_mode_idx < UV_INTRA_MODES);
+  get_uv_intra_mode_set(mbmi);
+  mbmi->uv_mode = mbmi->uv_intra_mode_list[uv_mode_idx];
+  if (mbmi->uv_mode == mbmi->mode)
+    mbmi->angle_delta[PLANE_TYPE_UV] = mbmi->angle_delta[PLANE_TYPE_Y];
+  else
+    mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+}
+
+/*
 // read mode index for uv component and map it to uv mode and delta angle
 static void read_intra_uv_mode(MACROBLOCKD *const xd,
                                CFL_ALLOWED_TYPE cfl_allowed, aom_reader *r) {
@@ -1502,6 +1531,7 @@ static void read_intra_uv_mode(MACROBLOCKD *const xd,
   else
     mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 }
+*/
 #endif  // CONFIG_AIMC
 
 static void read_intra_frame_mode_info(AV1_COMMON *const cm,
