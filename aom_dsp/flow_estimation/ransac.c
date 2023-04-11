@@ -1286,11 +1286,11 @@ static bool find_homography(int np, const double *cpts1, const double *cpts2,
 #error "Invalid value of HOMOGRAPHY_ALGORITHM"
 #endif
 
-static INLINE int find_min_idx(const double* arr, int size) {
+static INLINE int find_min_idx(const double *arr, int size) {
   double min_value = arr[0];
   int min_idx = 0;
-  for(int i = 0; i < size; ++i) {
-    if(arr[i] < min_value) {
+  for (int i = 0; i < size; ++i) {
+    if (arr[i] < min_value) {
       min_value = arr[i];
       min_idx = i;
     }
