@@ -1286,6 +1286,68 @@ static bool find_homography(int np, const double *cpts1, const double *cpts2,
 #error "Invalid value of HOMOGRAPHY_ALGORITHM"
 #endif
 
+static INLINE int find_min_idx(const double* arr, int size) {
+  double min_value = arr[0];
+  int min_idx = 0;
+  for(int i = 0; i < size; ++i) {
+    if(arr[i] < min_value) {
+      min_value = arr[i];
+      min_idx = i;
+    }
+  }
+  return min_idx;
+}
+
+bool find_fundamental_matrix(int np, const double *cpts1, const double *cpts2,
+                             double *F) {
+  double *a = (double *)aom_malloc(sizeof(*a) * np * 9);
+  double *U = (double *)aom_malloc(sizeof(*U) * np * 9);
+  double S[9], V[9 * 9];
+  for (int i = 0; i < np; ++i) {
+    double dx = cpts2[i * 2 + 0];
+    double dy = cpts2[i * 2 + 1];
+    double sx = cpts1[i * 2 + 0];
+    double sy = cpts1[i * 2 + 1];
+    a[i * 9 + 0] = sx * dx;
+    a[i * 9 + 1] = sy * dx;
+    a[i * 9 + 2] = dx;
+    a[i * 9 + 3] = sx * dy;
+    a[i * 9 + 4] = sy * dy;
+    a[i * 9 + 5] = dy;
+    a[i * 9 + 6] = sx;
+    a[i * 9 + 7] = sy;
+    a[i * 9 + 8] = 1;
+  }
+
+  if (SVD(U, S, V, a, np, 9)) {
+    aom_free(a);
+    aom_free(U);
+    return false;
+  }
+
+  int min_idx = find_min_idx(S, 9);
+  for (int i = 0; i < 9; i++) {
+    F[i] = V[i * 9 + min_idx];
+  }
+
+  double U2[3 * 3], S2[3], V2[3 * 3];
+  if (SVD(U2, S2, V2, F, 3, 3)) {
+    aom_free(a);
+    aom_free(U);
+    return false;
+  }
+
+  int min_idx2 = find_min_idx(S2, 3);
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      F[r * 3 + c] -= U2[r * 3 + min_idx2] * V2[min_idx2 * 3 + c] * S2[min_idx2];
+    }
+  }
+  aom_free(a);
+  aom_free(U);
+  return true;
+}
+
 typedef struct {
   int num_inliers;
   double sse;  // Sum of squared errors of inliers

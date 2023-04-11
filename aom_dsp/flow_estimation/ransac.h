@@ -31,6 +31,12 @@ bool ransac(const Correspondence *matched_points, int npoints,
 bool aom_fit_motion_model(TransformationType type, int np, double *pts1,
                           double *pts2, double *mat);
 
+// Using 8-point algorithm to find the fundamental matrix F such that
+// [x1 y1 1] F [x2 y2 1]T = 0, where [x1 y1] and [x2 y2] are the corresponding
+// points between two images
+bool find_fundamental_matrix(int np, const double *cpts1, const double *cpts2,
+                             double *F);
+
 #ifdef __cplusplus
 }
 #endif

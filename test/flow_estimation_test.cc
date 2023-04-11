@@ -44,6 +44,8 @@ const int max_height = 4096;
 
 const double kRelativeThresh = 1.25;
 
+constexpr double kErrorEpsilon = 0.000001;
+
 static const char *model_type_names[] = {
   "IDENTITY",     "TRANSLATION",  "ROTATION",  "ZOOM",     "VERTSHEAR",
   "HORZSHEAR",    "UZOOM",        "ROTZOOM",   "ROTUZOOM", "AFFINE",
@@ -366,5 +368,62 @@ INSTANTIATE_TEST_SUITE_P(C, AomFlowEstimationTest,
                                            VERTSHEAR, HORZSHEAR, UZOOM, ROTZOOM,
                                            ROTUZOOM, AFFINE, VERTRAPEZOID,
                                            HORTRAPEZOID, HOMOGRAPHY));
+
+static void CameraProjection(double M[3][4], double P[4], double *p2d) {
+  for (int r = 0; r < 3; ++r) {
+    p2d[r] = 0;
+    for (int c = 0; c < 4; ++c) {
+      p2d[r] += M[r][c] * P[c];
+    }
+  }
+  for (int r = 0; r < 2; ++r) {
+    p2d[r] /= p2d[2];
+  }
+  p2d[2] = 1;
+}
+
+TEST_F(AomFlowEstimationTest, FindFundamentalMatrix) {
+  int np = 8;
+  double P[8][4] = { { 1, 1, 1, 1 }, { 1, 2, 1, 1 }, { 2, 1, 1, 1 },
+                     { 2, 2, 1, 1 }, { 1, 1, 2, 1 }, { 1, 2, 2, 1 },
+                     { 2, 1, 2, 1 }, { 2, 2, 2, 1 } };
+  double cpts1[8 * 2];
+  double cpts2[8 * 2];
+  double M1[3][4] = { { 1, 0, 0, 0 }, { 0, 1, 0, 0 }, { 0, 0, 1, 0 } };
+  double M2[3][4] = { { 1, 0, 0, 0 }, { 0, 1, 0, -1 }, { 0, 0, 1, 0 } };
+  for (int i = 0; i < np; ++i) {
+    double p2d[3];
+    CameraProjection(M1, P[i], p2d);
+    cpts1[i * 2 + 0] = p2d[0];
+    cpts1[i * 2 + 1] = p2d[1];
+  }
+
+  for (int i = 0; i < np; ++i) {
+    double p2d[3];
+    CameraProjection(M2, P[i], p2d);
+    cpts2[i * 2 + 0] = p2d[0];
+    cpts2[i * 2 + 1] = p2d[1];
+  }
+
+  double F[9];
+  find_fundamental_matrix(np, cpts1, cpts2, F);
+
+  for (int i = 0; i < np; ++i) {
+    // Check [x1 y1 1] F [x2 y2 1]T = 0, where p1 = [x1 y1 1] and p2 = [x2 y2 1]
+    double p1[3] = { cpts1[i * 2 + 0], cpts1[i * 2 + 1], 1 };
+    double p2[3] = { cpts2[i * 2 + 0], cpts2[i * 2 + 1], 1 };
+    double Fp2[3] = { 0 };
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) {
+        Fp2[r] += F[r * 3 + c] * p2[c];
+      }
+    }
+    double v = 0;
+    for (int r = 0; r < 3; ++r) {
+      v += Fp2[r] * p1[r];
+    }
+    EXPECT_NEAR(v, 0, kErrorEpsilon);
+  }
+}
 
 }  // namespace
