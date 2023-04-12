@@ -165,9 +165,12 @@ enum {
 #define SECOND_MODE_COUNT 16
 #define Y_MODE_CONTEXTS 3
 #define UV_MODE_CONTEXTS 2
-#define CFL_CONTEXTS 3
 #define INTRA_MODE_SETS 4
 #define NON_DIRECTIONAL_MODES_COUNT 5
+
+#if CONFIG_UV_CFL
+#define CFL_CONTEXTS 3
+#endif  // CONFIG_UV_CFL
 #endif  // CONFIG_AIMC
 
 // Intra Secondary Transform

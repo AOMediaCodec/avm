@@ -1589,6 +1589,7 @@ static AOM_INLINE void write_intra_luma_mode(MACROBLOCKD *const xd,
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
 }
 
+#if CONFIG_UV_CFL
 static AOM_INLINE void write_intra_uv_mode(MACROBLOCKD *const xd,
                                            CFL_ALLOWED_TYPE cfl_allowed,
                                            aom_writer *w) {
@@ -1606,8 +1607,7 @@ static AOM_INLINE void write_intra_uv_mode(MACROBLOCKD *const xd,
   aom_write_symbol(w, uv_mode_idx, ec_ctx->uv_mode_cdf[context],
                    UV_INTRA_MODES - !cfl_allowed);
 }
-
-/*
+#else
 // write mode mode index for uv component
 static AOM_INLINE void write_intra_uv_mode(MACROBLOCKD *const xd,
                                            CFL_ALLOWED_TYPE cfl_allowed,
@@ -1620,7 +1620,7 @@ static AOM_INLINE void write_intra_uv_mode(MACROBLOCKD *const xd,
   aom_write_symbol(w, uv_mode_idx, ec_ctx->uv_mode_cdf[cfl_allowed][context],
                    UV_INTRA_MODES - !cfl_allowed);
 }
-*/
+#endif  // CONFIG_UV_CFL
 #endif  // CONFIG_AIMC
 
 static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,

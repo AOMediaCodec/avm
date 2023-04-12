@@ -407,19 +407,7 @@ int main(int argc, const char **argv) {
       "default_if_y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)]");
 #endif
   /* Intra mode (chroma) */
-  /*
-  cts_each_dim[0] = CFL_ALLOWED_TYPES;
-#if CONFIG_AIMC
-  cts_each_dim[1] = UV_MODE_CONTEXTS;
-#else
-  cts_each_dim[1] = INTRA_MODES;
-#endif
-  cts_each_dim[2] = UV_INTRA_MODES;
-  optimize_uv_mode(&fc.uv_mode[0][0][0], probsfile, 3, cts_each_dim,
-                   "static const aom_cdf_prob\n"
-                   "default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]"
-                   "[CDF_SIZE(UV_INTRA_MODES)]");
-  */
+#if CONFIG_UV_CFL
   cts_each_dim[0] = UV_MODE_CONTEXTS;
   cts_each_dim[1] = UV_INTRA_MODES - 1;
   optimize_cdf_table(&fc.uv_mode[0][0], probsfile, 2, cts_each_dim,
@@ -432,6 +420,19 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.cfl_mode[0][0], probsfile, 2, cts_each_dim,
                    "static const aom_cdf_prob\n"
                    "default_cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)]");
+#else
+  cts_each_dim[0] = CFL_ALLOWED_TYPES;
+#if CONFIG_AIMC
+  cts_each_dim[1] = UV_MODE_CONTEXTS;
+#else
+  cts_each_dim[1] = INTRA_MODES;
+#endif
+  cts_each_dim[2] = UV_INTRA_MODES;
+  optimize_uv_mode(&fc.uv_mode[0][0][0], probsfile, 3, cts_each_dim,
+                   "static const aom_cdf_prob\n"
+                   "default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]"
+                   "[CDF_SIZE(UV_INTRA_MODES)]");
+#endif  // CONFIG_UV_CFL
 
 #if CONFIG_CROSS_CHROMA_TX
   /* cctx type */
