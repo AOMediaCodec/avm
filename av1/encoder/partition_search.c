@@ -733,6 +733,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   int plane_type = (xd->tree_type == CHROMA_PART);
   assert(is_bsize_geq(bsize, cpi->common.mi_params.mi_alloc_bsize));
 
+  assert(ctx != NULL);
   av1_set_offsets(cpi, &tile_data->tile_info, x, mi_row, mi_col, bsize,
                   &ctx->chroma_ref_info);
 
@@ -2833,12 +2834,8 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const int ss_y = xd->plane[1].subsampling_y;
   const ModeCosts *mode_costs = &x->mode_costs;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int bs = mi_size_wide[bsize];
-  const int hbs = bs / 2;
-#if CONFIG_EXT_RECUR_PARTITIONS
-  const int hbh = mi_size_high[bsize] / 2;
-  const int hbw = mi_size_wide[bsize] / 2;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
   const int pl = (bsize >= BLOCK_8X8)
                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
                      : 0;
@@ -2864,6 +2861,10 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
+  // Set buffers and offsets.
+  av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+                  &pc_tree->chroma_ref_info);
+
   av1_invalid_rd_stats(&last_part_rdc);
   av1_invalid_rd_stats(&invalid_rdc);
 
@@ -2875,11 +2876,8 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
-  if (bsize == BLOCK_16X16 && cpi->vaq_refresh) {
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
-                    &pc_tree->chroma_ref_info);
+  if (bsize == BLOCK_16X16 && cpi->vaq_refresh)
     x->mb_energy = av1_log_block_var(cpi, x, bsize);
-  }
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
@@ -2889,8 +2887,8 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const BLOCK_SIZE split_subsize =
       get_partition_subsize(bsize, PARTITION_SPLIT);
   for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
-    int x_idx = (i & 1) * hbs;
-    int y_idx = (i >> 1) * hbs;
+    int x_idx = (i & 1) * hbs_w;
+    int y_idx = (i >> 1) * hbs_h;
     pc_tree->split[i] =
         av1_alloc_pc_tree_node(mi_row + y_idx, mi_col + x_idx, split_subsize,
                                pc_tree, PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
@@ -2906,7 +2904,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
           mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
       pc_tree->horizontal[1] =
-          av1_alloc_pc_tree_node(mi_row + hbh, mi_col, subsize, pc_tree,
+          av1_alloc_pc_tree_node(mi_row + hbs_h, mi_col, subsize, pc_tree,
                                  PARTITION_HORZ, 1, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                            &last_part_rdc.rate, &last_part_rdc.dist, 1,
@@ -2916,8 +2914,8 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
         if (pc_tree->horizontal[i] == NULL) {
           pc_tree->horizontal[i] = av1_alloc_pmc(
-              cm, mi_row + hbs * i, mi_col, subsize, pc_tree, PARTITION_HORZ, i,
-              ss_x, ss_y, &td->shared_coeff_buf);
+              cm, mi_row + hbs_h * i, mi_col, subsize, pc_tree, PARTITION_HORZ,
+              i, ss_x, ss_y, &td->shared_coeff_buf);
         }
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
@@ -2925,20 +2923,20 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                     invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
-          mi_row + hbs < mi_params->mi_rows) {
+          mi_row + hbs_h < mi_params->mi_rows) {
         RD_STATS tmp_rdc;
         av1_init_rd_stats(&tmp_rdc);
 #if CONFIG_EXT_RECUR_PARTITIONS
         av1_rd_use_partition(
-            cpi, td, tile_data, mib + hbh * mi_params->mi_stride, tp,
-            mi_row + hbh, mi_col, subsize, &tmp_rdc.rate, &tmp_rdc.dist, 0,
+            cpi, td, tile_data, mib + hbs_h * mi_params->mi_stride, tp,
+            mi_row + hbs_h, mi_col, subsize, &tmp_rdc.rate, &tmp_rdc.dist, 0,
             ptree ? ptree->sub_tree[1] : NULL, pc_tree->horizontal[1]);
 #else   // CONFIG_EXT_RECUR_PARTITIONS
         const PICK_MODE_CONTEXT *const ctx_h = pc_tree->horizontal[0];
         av1_update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
                           plane_start, plane_end, NULL);
-        pick_sb_modes(cpi, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
+        pick_sb_modes(cpi, tile_data, x, mi_row + hbs_h, mi_col, &tmp_rdc,
                       PARTITION_HORZ, subsize, pc_tree->horizontal[1],
                       invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -2956,7 +2954,7 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       pc_tree->vertical[0] = av1_alloc_pc_tree_node(
           mi_row, mi_col, subsize, pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
       pc_tree->vertical[1] =
-          av1_alloc_pc_tree_node(mi_row, mi_col + hbw, subsize, pc_tree,
+          av1_alloc_pc_tree_node(mi_row, mi_col + hbs_w, subsize, pc_tree,
                                  PARTITION_VERT, 1, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                            &last_part_rdc.rate, &last_part_rdc.dist, 1,
@@ -2966,28 +2964,28 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
         if (pc_tree->vertical[i] == NULL) {
           pc_tree->vertical[i] = av1_alloc_pmc(
-              cm, mi_row, mi_col + hbs * i, subsize, pc_tree, PARTITION_VERT, i,
-              ss_x, ss_y, &td->shared_coeff_buf);
+              cm, mi_row, mi_col + hbs_w * i, subsize, pc_tree, PARTITION_VERT,
+              i, ss_x, ss_y, &td->shared_coeff_buf);
         }
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
                     PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
-          mi_col + hbs < mi_params->mi_cols) {
+          mi_col + hbs_w < mi_params->mi_cols) {
         RD_STATS tmp_rdc;
         av1_init_rd_stats(&tmp_rdc);
 #if CONFIG_EXT_RECUR_PARTITIONS
         av1_rd_use_partition(
-            cpi, td, tile_data, mib + hbw, tp, mi_row, mi_col + hbw, subsize,
-            &tmp_rdc.rate, &tmp_rdc.dist, 0, ptree ? ptree->sub_tree[1] : NULL,
-            pc_tree->vertical[1]);
+            cpi, td, tile_data, mib + hbs_w, tp, mi_row, mi_col + hbs_w,
+            subsize, &tmp_rdc.rate, &tmp_rdc.dist, 0,
+            ptree ? ptree->sub_tree[1] : NULL, pc_tree->vertical[1]);
 #else   // CONFIG_EXT_RECUR_PARTITIONS
         const PICK_MODE_CONTEXT *const ctx_v = pc_tree->vertical[0];
         av1_update_state(cpi, td, ctx_v, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
                           plane_start, plane_end, NULL);
-        pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
+        pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs_w, &tmp_rdc,
                       PARTITION_VERT, subsize,
                       pc_tree->vertical[bsize > BLOCK_8X8], invalid_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -3076,8 +3074,8 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       last_part_rdc.dist = 0;
       last_part_rdc.rdcost = 0;
       for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
-        int x_idx = (i & 1) * hbs;
-        int y_idx = (i >> 1) * hbs;
+        int x_idx = (i & 1) * hbs_w;
+        int y_idx = (i >> 1) * hbs_h;
         int jj = i >> 1, ii = i & 0x01;
         RD_STATS tmp_rdc;
         if ((mi_row + y_idx >= mi_params->mi_rows) ||
@@ -3085,12 +3083,12 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
           continue;
 
         av1_init_rd_stats(&tmp_rdc);
-        av1_rd_use_partition(cpi, td, tile_data,
-                             mib + jj * hbs * mi_params->mi_stride + ii * hbs,
-                             tp, mi_row + y_idx, mi_col + x_idx, subsize,
-                             &tmp_rdc.rate, &tmp_rdc.dist,
-                             i != (SUB_PARTITIONS_SPLIT - 1), NULL,
-                             pc_tree->split[i]);
+        av1_rd_use_partition(
+            cpi, td, tile_data,
+            mib + jj * hbs_h * mi_params->mi_stride + ii * hbs_w, tp,
+            mi_row + y_idx, mi_col + x_idx, subsize, &tmp_rdc.rate,
+            &tmp_rdc.dist, i != (SUB_PARTITIONS_SPLIT - 1), NULL,
+            pc_tree->split[i]);
         if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
           av1_invalid_rd_stats(&last_part_rdc);
           break;
@@ -3175,11 +3173,9 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const int ss_y = xd->plane[1].subsampling_y;
   const ModeCosts *mode_costs = &x->mode_costs;
   assert(bsize < BLOCK_SIZES_ALL);
-  const int bs = mi_size_wide[bsize];
-  const int hbs = bs / 2;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int hbh = mi_size_high[bsize] / 2;
-  const int hbw = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int hbs_w = mi_size_wide[bsize] / 2;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   const int pl = (bsize >= BLOCK_8X8)
                      ? partition_plane_context(xd, mi_row, mi_col, bsize)
@@ -3206,6 +3202,10 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
+  // Set buffers and offsets.
+  av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
+                  &pc_tree->chroma_ref_info);
+
   av1_invalid_rd_stats(&last_part_rdc);
   av1_invalid_rd_stats(&invalid_rdc);
 
@@ -3217,11 +3217,8 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
-  if (bsize == BLOCK_16X16 && cpi->vaq_refresh) {
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
-                    &pc_tree->chroma_ref_info);
+  if (bsize == BLOCK_16X16 && cpi->vaq_refresh)
     x->mb_energy = av1_log_block_var(cpi, x, bsize);
-  }
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
@@ -3231,8 +3228,8 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   const BLOCK_SIZE split_subsize =
       get_partition_subsize(bsize, PARTITION_SPLIT);
   for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
-    int x_idx = (i & 1) * hbs;
-    int y_idx = (i >> 1) * hbs;
+    int x_idx = (i & 1) * hbs_w;
+    int y_idx = (i >> 1) * hbs_h;
     pc_tree->split[i] =
         av1_alloc_pc_tree_node(mi_row + y_idx, mi_col + x_idx, split_subsize,
                                pc_tree, PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
@@ -3249,7 +3246,7 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       pc_tree->horizontal[0] = av1_alloc_pc_tree_node(
           mi_row, mi_col, subsize, pc_tree, PARTITION_HORZ, 0, 0, ss_x, ss_y);
       pc_tree->horizontal[1] =
-          av1_alloc_pc_tree_node(mi_row + hbh, mi_col, subsize, pc_tree,
+          av1_alloc_pc_tree_node(mi_row + hbs_h, mi_col, subsize, pc_tree,
                                  PARTITION_HORZ, 1, 1, ss_x, ss_y);
       av1_use_partition_mi(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                            &last_part_rdc.rate, &last_part_rdc.dist, 1,
@@ -3259,8 +3256,8 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
         if (pc_tree->horizontal[i] == NULL) {
           pc_tree->horizontal[i] = av1_alloc_pmc(
-              cm, mi_row + hbs * i, mi_col, subsize, pc_tree, PARTITION_HORZ, i,
-              ss_x, ss_y, &td->shared_coeff_buf);
+              cm, mi_row + hbs_h * i, mi_col, subsize, pc_tree, PARTITION_HORZ,
+              i, ss_x, ss_y, &td->shared_coeff_buf);
         }
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
@@ -3269,20 +3266,20 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       av1_init_rd_stats(&last_part_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
-          mi_row + hbs < mi_params->mi_rows) {
+          mi_row + hbs_h < mi_params->mi_rows) {
         RD_STATS tmp_rdc;
         av1_init_rd_stats(&tmp_rdc);
 #if CONFIG_EXT_RECUR_PARTITIONS
         av1_use_partition_mi(
-            cpi, td, tile_data, mib + hbh * mi_params->mi_stride, tp,
-            mi_row + hbh, mi_col, subsize, &tmp_rdc.rate, &tmp_rdc.dist, 0,
+            cpi, td, tile_data, mib + hbs_h * mi_params->mi_stride, tp,
+            mi_row + hbs_h, mi_col, subsize, &tmp_rdc.rate, &tmp_rdc.dist, 0,
             ptree ? ptree->sub_tree[1] : NULL, pc_tree->horizontal[1]);
 #else   // CONFIG_EXT_RECUR_PARTITIONS
         const PICK_MODE_CONTEXT *const ctx_h = pc_tree->horizontal[0];
         av1_update_state(cpi, td, ctx_h, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
                           plane_start, plane_end, NULL);
-        pick_sb_modes(cpi, tile_data, x, mi_row + hbs, mi_col, &tmp_rdc,
+        pick_sb_modes(cpi, tile_data, x, mi_row + hbs_h, mi_col, &tmp_rdc,
                       PARTITION_HORZ, subsize, pc_tree->horizontal[1],
                       invalid_rdc);
         av1_init_rd_stats(&tmp_rdc);
@@ -3301,7 +3298,7 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       pc_tree->vertical[0] = av1_alloc_pc_tree_node(
           mi_row, mi_col, subsize, pc_tree, PARTITION_VERT, 0, 0, ss_x, ss_y);
       pc_tree->vertical[1] =
-          av1_alloc_pc_tree_node(mi_row, mi_col + hbw, subsize, pc_tree,
+          av1_alloc_pc_tree_node(mi_row, mi_col + hbs_w, subsize, pc_tree,
                                  PARTITION_VERT, 1, 1, ss_x, ss_y);
       av1_use_partition_mi(cpi, td, tile_data, mib, tp, mi_row, mi_col, subsize,
                            &last_part_rdc.rate, &last_part_rdc.dist, 1,
@@ -3311,8 +3308,8 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       for (int i = 0; i < SUB_PARTITIONS_RECT; ++i) {
         if (pc_tree->vertical[i] == NULL) {
           pc_tree->vertical[i] = av1_alloc_pmc(
-              cm, mi_row, mi_col + hbs * i, subsize, pc_tree, PARTITION_VERT, i,
-              ss_x, ss_y, &td->shared_coeff_buf);
+              cm, mi_row, mi_col + hbs_w * i, subsize, pc_tree, PARTITION_VERT,
+              i, ss_x, ss_y, &td->shared_coeff_buf);
         }
       }
       pick_sb_modes(cpi, tile_data, x, mi_row, mi_col, &last_part_rdc,
@@ -3320,20 +3317,20 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       av1_init_rd_stats(&last_part_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
-          mi_col + hbs < mi_params->mi_cols) {
+          mi_col + hbs_w < mi_params->mi_cols) {
         RD_STATS tmp_rdc;
         av1_init_rd_stats(&tmp_rdc);
 #if CONFIG_EXT_RECUR_PARTITIONS
         av1_use_partition_mi(
-            cpi, td, tile_data, mib + hbw, tp, mi_row, mi_col + hbw, subsize,
-            &tmp_rdc.rate, &tmp_rdc.dist, 0, ptree ? ptree->sub_tree[1] : NULL,
-            pc_tree->vertical[1]);
+            cpi, td, tile_data, mib + hbs_w, tp, mi_row, mi_col + hbs_w,
+            subsize, &tmp_rdc.rate, &tmp_rdc.dist, 0,
+            ptree ? ptree->sub_tree[1] : NULL, pc_tree->vertical[1]);
 #else   // CONFIG_EXT_RECUR_PARTITIONS
         const PICK_MODE_CONTEXT *const ctx_v = pc_tree->vertical[0];
         av1_update_state(cpi, td, ctx_v, mi_row, mi_col, subsize, 1);
         encode_superblock(cpi, tile_data, td, tp, DRY_RUN_NORMAL, subsize,
                           plane_start, plane_end, NULL);
-        pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs, &tmp_rdc,
+        pick_sb_modes(cpi, tile_data, x, mi_row, mi_col + hbs_w, &tmp_rdc,
                       PARTITION_VERT, subsize,
                       pc_tree->vertical[bsize > BLOCK_8X8], invalid_rdc);
         av1_init_rd_stats(&tmp_rdc);
@@ -3423,8 +3420,8 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
       last_part_rdc.dist = 0;
       last_part_rdc.rdcost = 0;
       for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
-        int x_idx = (i & 1) * hbs;
-        int y_idx = (i >> 1) * hbs;
+        int x_idx = (i & 1) * hbs_w;
+        int y_idx = (i >> 1) * hbs_h;
         int jj = i >> 1, ii = i & 0x01;
         RD_STATS tmp_rdc;
         if ((mi_row + y_idx >= mi_params->mi_rows) ||
@@ -3432,12 +3429,12 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
           continue;
 
         av1_init_rd_stats(&tmp_rdc);
-        av1_use_partition_mi(cpi, td, tile_data,
-                             mib + jj * hbs * mi_params->mi_stride + ii * hbs,
-                             tp, mi_row + y_idx, mi_col + x_idx, subsize,
-                             &tmp_rdc.rate, &tmp_rdc.dist,
-                             i != (SUB_PARTITIONS_SPLIT - 1), NULL,
-                             pc_tree->split[i]);
+        av1_use_partition_mi(
+            cpi, td, tile_data,
+            mib + jj * hbs_h * mi_params->mi_stride + ii * hbs_w, tp,
+            mi_row + y_idx, mi_col + x_idx, subsize, &tmp_rdc.rate,
+            &tmp_rdc.dist, i != (SUB_PARTITIONS_SPLIT - 1), NULL,
+            pc_tree->split[i]);
         if (tmp_rdc.rate == INT_MAX || tmp_rdc.dist == INT64_MAX) {
           av1_invalid_rd_stats(&last_part_rdc);
           break;
