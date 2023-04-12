@@ -164,13 +164,13 @@ int CalculateIndex_tflite(int width, int block_size_h, int block_size_w,
 }
 
 // TODO(urvang@google.com): replace quantSet with struct.
-// guided conv unet with attention intra
-int qp255_quadtree_model_quantSet_intra[] = { 460, 356, -5, 1 };
-int qp205_quadtree_model_quantSet_intra[] = { 26206, 22062, -17, -12 };
-int qp175_quadtree_model_quantSet_intra[] = { 326, 626, 5, -8 };
-int qp145_quadtree_model_quantSet_intra[] = { 11729, 21508, 2, -12 };
-int qp120_quadtree_model_quantSet_intra[] = { 10913, 9068, -33, -7 };
-int qp90_quadtree_model_quantSet_intra[] = { 211238, 307325, -3, 9 };
+// guided conv unet intra
+int qp255_quadtree_model_quantSet_intra[] = { 135615, 210812, -13, -6 };
+int qp205_quadtree_model_quantSet_intra[] = { 1317, 1438, -9, 1 };
+int qp175_quadtree_model_quantSet_intra[] = { 5105146, 7694779, -11, -2 };
+int qp145_quadtree_model_quantSet_intra[] = { 493456, 118186, -13, -6 };
+int qp120_quadtree_model_quantSet_intra[] = { 32812, 16342, -13, -3 };
+int qp90_quadtree_model_quantSet_intra[] = { 74993, 95282, -2, 0 };
 
 // guided conv unet with attention inter
 int qp255_quadtree_model_quantSet_inter[] = { 821, 645, -18, -6 };
