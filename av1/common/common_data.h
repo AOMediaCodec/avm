@@ -74,44 +74,6 @@ static const uint8_t num_pels_log2_lookup[BLOCK_SIZES_ALL] = {
 };
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-/*! \brief Maps the symbol transmitted through the bitstream to the partition
- * type for a wide block. */
-static const PARTITION_TYPE
-    partition_map_from_symbol_block_wgth[PARTITION_TYPES_REC] = {
-      PARTITION_NONE,
-      PARTITION_VERT,
-      PARTITION_VERT_3,
-      PARTITION_HORZ,
-    };
-
-/*! \brief Maps the partition type to the symbol to be transmitted through the
- * bitstream for a wide block. */
-static const PARTITION_TYPE_REC
-    symbol_map_from_partition_block_wgth[EXT_PARTITION_TYPES] = {
-      PARTITION_NONE_REC,        PARTITION_SHORT_SIDE_2_REC,
-      PARTITION_LONG_SIDE_2_REC, PARTITION_INVALID_REC,
-      PARTITION_LONG_SIDE_3_REC,
-    };
-
-/*! \brief Maps the symbol transmitted through the bitstream to the partition
- * type for a tall block. */
-static const PARTITION_TYPE
-    partition_map_from_symbol_block_hgtw[PARTITION_TYPES_REC] = {
-      PARTITION_NONE,
-      PARTITION_HORZ,
-      PARTITION_HORZ_3,
-      PARTITION_VERT,
-    };
-
-/*! \brief Maps the partition type to the symbol to be transmitted through the
- * bitstream for a tall block. */
-static const PARTITION_TYPE_REC
-    symbol_map_from_partition_block_hgtw[EXT_PARTITION_TYPES] = {
-      PARTITION_NONE_REC,         PARTITION_LONG_SIDE_2_REC,
-      PARTITION_SHORT_SIDE_2_REC, PARTITION_LONG_SIDE_3_REC,
-      PARTITION_INVALID_REC,
-    };
-
 /* clang-format off */
 // This table covers all square blocks and 1:2/2:1 rectangular blocks
 static const BLOCK_SIZE
