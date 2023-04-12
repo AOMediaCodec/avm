@@ -134,8 +134,7 @@ static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
 #endif
 #if CONFIG_AIMC
 static const aom_cdf_prob default_y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)] = {
-  //AOM_CDF4(18000, 24000, 29000)
-  AOM_CDF4(28000, 30600, 31400)
+  AOM_CDF4(28402, 30931, 31512)
 };
 static const aom_cdf_prob
     default_y_first_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE(FIRST_MODE_COUNT)] = {
@@ -156,17 +155,14 @@ static const aom_cdf_prob
                   20480, 22528, 24576, 26624, 28672, 30720) }
     };
 static const aom_cdf_prob
-    default_uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(
-        UV_INTRA_MODES - 1)] = {
-      //{ AOM_CDF13(22631, 24152, 25378, 25661, 25986, 26520, 27055, 27923, 28244, 30059, 30941, 31961) },
-      //{ AOM_CDF13(9513, 15881, 22973, 23546, 24118, 25664, 26739, 27824, 28359, 29505, 29800, 31796) }
-      { AOM_CDF13(20545, 22597, 24087, 24753, 24995, 25621, 26273, 27089, 28510, 29888, 31389, 32041) },
-      { AOM_CDF13(5917, 11538, 16087, 17200, 18154, 19802, 21631, 23074, 24491, 29013, 29694, 30641) }
+    default_uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(UV_INTRA_MODES - 1)] = {
+      { AOM_CDF13(12363, 14888, 17351, 18275, 19401, 20202, 21148, 22129, 23298, 28055, 29947, 31496) },
+      { AOM_CDF13(3733, 8152, 12271, 13785, 16042, 17829, 21067, 23195, 25119, 28680, 29684, 30815) }
     };
 static const aom_cdf_prob default_cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384) },
-  { AOM_CDF2(12384) },
-  { AOM_CDF2(6384) },
+  { AOM_CDF2(24045) },
+  { AOM_CDF2(14554) },
+  { AOM_CDF2(7114) }
 };
 /*
 static const aom_cdf_prob
