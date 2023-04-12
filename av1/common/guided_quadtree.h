@@ -46,8 +46,8 @@ double computePSNR_tflite_hbd(uint16_t *dgd, uint16_t *src, int height,
 int CalculateIndex_tflite(int width, int block_size_h, int block_size_w,
                           int starty, int startx, int quadtree_max_size);
 
-int *get_quadparm_from_qindex(int qindex, int superres_denom,
-                              int is_intra_only, int is_luma, int cnn_index);
+int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
+                              int is_luma, int cnn_index);
 
 int64_t count_guided_quad_bits(struct AV1Common *cm);
 #if CONFIG_CNN_GUIDED_QUADTREE

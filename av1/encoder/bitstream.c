@@ -3055,8 +3055,8 @@ static void write_filter_quadtree(int QP, int cnn_index, int superres_denom,
                                   aom_writer *wb) {
   int A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1,
-                                      cnn_index);
+  quadtset =
+      get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1, cnn_index);
   A0_min = quadtset[2];
   A1_min = quadtset[3];
   int a0;

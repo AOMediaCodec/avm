@@ -1824,13 +1824,12 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 #if CONFIG_CNN_GUIDED_QUADTREE
 static AOM_INLINE void read_filter_quadtree(int QP, int cnn_index,
                                             int superres_denom,
-                                            int is_intra_only,
-                                            QUADInfo *qi,
+                                            int is_intra_only, QUADInfo *qi,
                                             aom_reader *rb) {
   int A0_min, A1_min;
   int *quadtset;
-  quadtset = get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1,
-                                      cnn_index);
+  quadtset =
+      get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1, cnn_index);
   A0_min = quadtset[2];
   A1_min = quadtset[3];
 
