@@ -2979,6 +2979,19 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
         mbmi->bawp_flag = aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2,
                                           ACCT_INFO("bawp_flag"));
+#if EXPLICIT_BAWP
+        if (mbmi->bawp_flag && av1_allow_explicit_bawp(mbmi)) {
+          const int ctx_index =
+              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+          mbmi->bawp_flag += aom_read_symbol(
+              r, xd->tile_ctx->explicit_bawp_cdf[ctx_index], 2, ACCT_STR);
+        }
+        if (mbmi->bawp_flag > 1) {
+          mbmi->bawp_flag +=
+              aom_read_symbol(r, xd->tile_ctx->explicit_bawp_scale_cdf,
+                              EXPLICIT_BAWP_SCALE_CNT, ACCT_STR);
+        }
+#endif
       }
 #endif
 

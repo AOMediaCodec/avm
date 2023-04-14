@@ -48,6 +48,11 @@
 #include "examples/encoder_util.h"
 #include "stats/rate_hist.h"
 
+#if CONFIG_EXPLICIT_BAWP
+#include "av1/common/enums.h"
+#include "av1/common/blockd.h"
+#endif
+
 #if CONFIG_LIBYUV
 #include "third_party/libyuv/include/libyuv/scale.h"
 #endif
@@ -2598,6 +2603,26 @@ int main(int argc, const char **argv_) {
       fclose(f);
     }
   }
+#endif
+
+#if EXPLICIT_BAWP_STATS
+  int bawp_scales_sum = 0;
+  for (int idx = 0; idx < BAWP_SCALE_CNT; ++idx) {
+    bawp_scales_sum += bawp_scales[idx];
+  }
+  fprintf(stdout, "\n BAWP scales stats:\n  total count = %d   \n",
+          bawp_scales_sum);
+  for (int idx = 0; idx < BAWP_SCALE_CNT; ++idx) {
+    fprintf(stdout, "%7d", idx);
+  }
+  fprintf(stdout, "\n");
+  if (bawp_scales_sum > 0) {
+    for (int idx = 0; idx < BAWP_SCALE_CNT; ++idx) {
+      bawp_scales_percentage[idx] = bawp_scales[idx] * 1.0 / bawp_scales_sum;
+      fprintf(stdout, "%7.2f", bawp_scales_percentage[idx]);
+    }
+  }
+  fprintf(stdout, "\n");
 #endif
 
   if (recon_file != NULL) fclose(recon_file);
