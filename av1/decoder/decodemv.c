@@ -206,9 +206,22 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
   return reduced_delta_lflevel;
 }
 
-static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
+static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r
+#if CONFIG_EXT_DIR
+                              ,
+                              const MB_MODE_INFO *neighbor0,
+                              const MB_MODE_INFO *neighbor1
+#endif  // CONFIG_EXT_DIR
+) {
+#if CONFIG_EXT_DIR
+  int ctx = get_mrl_index_ctx(neighbor0, neighbor1);
+  aom_cdf_prob *mrl_cdf = ec_ctx->mrl_index_cdf[ctx];
+  const uint8_t mrl_index =
+      aom_read_symbol(r, mrl_cdf, MRL_LINE_NUMBER, ACCT_STR);
+#else
   const uint8_t mrl_index =
       aom_read_symbol(r, ec_ctx->mrl_index_cdf, MRL_LINE_NUMBER, ACCT_STR);
+#endif  // CONFIG_EXT_DIR
   return mrl_index;
 }
 
@@ -1657,7 +1670,11 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
     mbmi->mrl_index =
         (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+#if CONFIG_EXT_DIR
+            ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
+#else
             ? read_mrl_index(ec_ctx, r)
+#endif  // CONFIG_EXT_DIR
             : 0;
   }
 
@@ -2141,7 +2158,11 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
     // Parsing reference line index
     mbmi->mrl_index =
         (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+#if CONFIG_EXT_DIR
+            ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
+#else
             ? read_mrl_index(ec_ctx, r)
+#endif  // CONFIG_EXT_DIR
             : 0;
 
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {

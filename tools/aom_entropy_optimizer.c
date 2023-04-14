@@ -419,6 +419,15 @@ int main(int argc, const char **argv) {
                    "default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]"
                    "[CDF_SIZE(UV_INTRA_MODES)]");
 
+#if CONFIG_EXT_DIR
+  /* MRL index */
+  cts_each_dim[0] = MRL_INDEX_CONTEXTS;
+  cts_each_dim[1] = MRL_LINE_NUMBER;
+  optimize_cdf_table(&fc.mrl_index[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob default_mrl_index_cdf"
+                     "[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)]");
+#endif  // CONFIG_EXT_DIR
+
 #if CONFIG_CROSS_CHROMA_TX
   /* cctx type */
   cts_each_dim[0] = EXT_TX_SIZES;

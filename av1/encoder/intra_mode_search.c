@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include "av1/common/av1_common_int.h"
 #include "av1/common/reconintra.h"
 
 #include "av1/encoder/intra_mode_search.h"
@@ -1031,10 +1032,20 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   assert(mbmi->ref_frame[0] == INTRA_FRAME);
   const PREDICTION_MODE mode = mbmi->mode;
   const ModeCosts *mode_costs = &x->mode_costs;
+
+#if CONFIG_EXT_DIR
+  int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+  int mrl_idx_cost =
+      (av1_is_directional_mode(mbmi->mode) &&
+       cpi->common.seq_params.enable_mrls)
+          ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+          : 0;
+#else
   int mrl_idx_cost = (av1_is_directional_mode(mbmi->mode) &&
                       cpi->common.seq_params.enable_mrls)
                          ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
                          : 0;
+#endif  // CONFIG_EXT_DIR
 #if CONFIG_AIMC
   int mode_cost = 0;
   const int context = get_y_mode_idx_ctx(xd);
@@ -1364,13 +1375,23 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
         continue;
 
       if (!is_directional_mode && mrl_idx) continue;
+#if !CONFIG_EXT_DIR
       if (best_mbmi->mrl_index == 0 && mbmi->mrl_index > 1 &&
           av1_is_directional_mode(best_mbmi->mode) == 0) {
         continue;
       }
+#endif  // CONFIG_EXT_DIR
+#if CONFIG_EXT_DIR
+      int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+      int mrl_idx_cost =
+          (is_directional_mode && enable_mrls_flag)
+              ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+              : 0;
+#else
       int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
                              ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
                              : 0;
+#endif  // CONFIG_EXT_DIR
 #if CONFIG_AIMC
       mode_costs += mrl_idx_cost;
 #endif  // CONFIG_AIMC
@@ -1563,13 +1584,23 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         continue;
 
       if (!is_directional_mode && mrl_idx) continue;
+#if !CONFIG_EXT_DIR
       if (best_mbmi.mrl_index == 0 && mbmi->mrl_index > 1 &&
           av1_is_directional_mode(best_mbmi.mode) == 0) {
         continue;
       }
+#endif  // CONFIG_EXT_DIR
+#if CONFIG_EXT_DIR
+      int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+      int mrl_idx_cost =
+          (is_directional_mode && enable_mrls_flag)
+              ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+              : 0;
+#else
       int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
                              ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
                              : 0;
+#endif  // CONFIG_EXT_DIR
 #if CONFIG_AIMC
       mode_costs += mrl_idx_cost;
 #endif  // CONFIG_AIMC

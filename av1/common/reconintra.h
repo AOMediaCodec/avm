@@ -14,6 +14,7 @@
 #define AOM_AV1_COMMON_RECONINTRA_H_
 
 #include <stdlib.h>
+#include <math.h>
 
 #include "aom/aom_integer.h"
 #include "av1/common/av1_common_int.h"
@@ -214,7 +215,10 @@ static INLINE int av1_allow_orip_dir(int p_angle) {
 #endif
 
 extern const int8_t av1_filter_intra_taps[FILTER_INTRA_MODES][8][8];
-#if CONFIG_IMPROVED_ANGULAR_INTRA
+
+#if CONFIG_EXT_DIR
+// moved to av1_common_int.h
+#elif CONFIG_IMPROVED_ANGULAR_INTRA
 static const int16_t dr_intra_derivative[90] = {
   // Angles are dense around vertical and horizontal directions, and coarse
   // close to
@@ -283,7 +287,8 @@ static const int16_t dr_intra_derivative[90] = {
   7,    0, 0,        // 84, ...
   3,    0, 0,        // 87, ...
 };
-#endif  // CONFIG_IMPROVED_ANGULAR_INTRA
+#endif  // CONFIG_EXT_DIR
+
 // Get the shift (up-scaled by 256) in X w.r.t a unit change in Y.
 // If angle > 0 && angle < 90, dx = -((int)(256 / t));
 // If angle > 90 && angle < 180, dx = (int)(256 / t);

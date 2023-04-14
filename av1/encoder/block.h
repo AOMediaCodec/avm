@@ -801,7 +801,11 @@ typedef struct {
                       [2 * MAX_ANGLE_DELTA + 1];
 
   //! mrl_index_cost
+#if CONFIG_EXT_DIR
+  int mrl_index_cost[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
+#else
   int mrl_index_cost[MRL_LINE_NUMBER];
+#endif  // CONFIG_EXT_DIR
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
 #if CONFIG_IMPROVED_CFL

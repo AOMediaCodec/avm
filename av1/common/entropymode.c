@@ -75,9 +75,18 @@ static const aom_cdf_prob
     };
 #endif
 
+#if CONFIG_EXT_DIR
+static const aom_cdf_prob
+    default_mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)] = {
+      { AOM_CDF4(27852, 29491, 31129) },
+      { AOM_CDF4(23920, 27852, 30474) },
+      { AOM_CDF4(20316, 26542, 29818) },
+    };
+#else
 static const aom_cdf_prob default_mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)] = {
   AOM_CDF4(24756, 29049, 31092)
 };
+#endif  // CONFIG_EXT_DIR
 
 #if CONFIG_NEW_CONTEXT_MODELING
 #if CONFIG_ATC_DCTX_ALIGNED

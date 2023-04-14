@@ -815,12 +815,20 @@ static void highbd_second_dr_predictor(uint16_t *dst, ptrdiff_t stride,
   const int bh = tx_size_high[tx_size];
 
   if (angle > 0 && angle < 90) {
+#if CONFIG_EXT_DIR
+    int dy = dr_intra_derivative[90 - angle];
+#else
     int dy = second_dr_intra_derivative[angle];
+#endif  // CONFIG_EXT_DIR
     int dx = 1;
     av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, upsample_left,
                                 dx, dy, bd, 0);
   } else if (angle > 180 && angle < 270) {
+#if CONFIG_EXT_DIR
+    int dx = dr_intra_derivative[angle - 180];
+#else
     int dx = second_dr_intra_derivative[270 - angle];
+#endif  // CONFIG_EXT_DIR
     int dy = 1;
     av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left,
                                 upsample_above, dx, dy, bd, 0);
@@ -1204,6 +1212,10 @@ static void build_intra_predictors_high(
 
   if (is_dr_mode) {
     p_angle = mode_to_angle_map[mode] + angle_delta;
+#if CONFIG_EXT_DIR
+    const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };
+    p_angle += mrl_index_to_delta[mrl_index];
+#endif  // CONFIG_EXT_DIR
     if (p_angle <= 90)
       need_above = 1, need_left = 0, need_above_left = 1;
     else if (p_angle < 180)
