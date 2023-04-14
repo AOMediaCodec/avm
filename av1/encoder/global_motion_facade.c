@@ -258,7 +258,6 @@ void av1_compute_gm_for_valid_ref_frames(
     MotionModel *params_by_motion, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
   AV1_COMMON *const cm = &cpi->common;
-  GlobalMotionInfo *const gm_info = &cpi->gm_info;
   const WarpedMotionParams *ref_params =
       cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                      : &default_warp_params;
@@ -266,16 +265,6 @@ void av1_compute_gm_for_valid_ref_frames(
   compute_global_motion_for_ref_frame(
       cpi, ref_buf, frame, num_src_corners, src_corners, src_buffer,
       params_by_motion, segment_map, segment_map_w, segment_map_h, ref_params);
-
-  gm_info->params_cost[frame] =
-      gm_get_params_cost(&cm->global_motion[frame], ref_params,
-#if !CONFIG_FLEX_MVRES
-                         cm->features.allow_high_precision_mv) +
-#else
-                         cm->features.fr_mv_precision) +
-#endif
-      gm_info->type_cost[cm->global_motion[frame].wmtype] -
-      gm_info->type_cost[IDENTITY];
 }
 
 // Loops over valid reference frames and computes global motion estimation.
@@ -378,7 +367,6 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
     // Skip global motion estimation for invalid ref frames
     if (buf == NULL ||
         (ref_disabled && cpi->sf.hl_sf.recode_loop != DISALLOW_RECODE)) {
-      cpi->gm_info.params_cost[frame] = 0;
       continue;
     } else {
       ref_buf[frame] = &buf->buf;
@@ -512,9 +500,6 @@ static AOM_INLINE void global_motion_estimation(AV1_COMP *cpi) {
 void av1_compute_global_motion_facade(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
-
-  av1_zero(cpi->td.rd_counts.global_motion_used);
-  av1_zero(gm_info->params_cost);
 
   if (cpi->common.current_frame.frame_type == INTER_FRAME && cpi->source &&
       cpi->oxcf.tool_cfg.enable_global_motion && !gm_info->search_done) {

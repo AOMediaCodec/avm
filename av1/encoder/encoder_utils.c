@@ -794,28 +794,6 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   cpi->sf.part_sf.fixed_partition_size = fixed_partition_block_size_orig;
 }
 
-#define GM_RECODE_LOOP_NUM4X4_FACTOR 192
-int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
-                                       const int *const global_motion_used,
-                                       int *const gm_params_cost) {
-  int i;
-  int recode = 0;
-  for (i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-    if (global_motion[i].wmtype != IDENTITY &&
-        global_motion_used[i] * GM_RECODE_LOOP_NUM4X4_FACTOR <
-            gm_params_cost[i]) {
-      global_motion[i] = default_warp_params;
-      assert(global_motion[i].wmtype == IDENTITY);
-      gm_params_cost[i] = 0;
-      recode = 1;
-      // TODO(sarahparker): The earlier condition for recoding here was:
-      // "recode |= (rdc->global_motion_used[i] > 0);". Can we bring something
-      // similar to that back to speed up global motion?
-    }
-  }
-  return recode;
-}
-
 static void fix_interp_filter(InterpFilter *const interp_filter,
                               const FRAME_COUNTS *const counts) {
   if (*interp_filter == SWITCHABLE) {

@@ -979,10 +979,6 @@ uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi);
 
 void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig);
 
-int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
-                                       const int *const global_motion_used,
-                                       int *const gm_params_cost);
-
 void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
                                  int *top_index);
 

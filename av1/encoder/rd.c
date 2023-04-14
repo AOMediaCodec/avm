@@ -1311,16 +1311,6 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
                              dvcost, &cm->fc->ndvc, MV_SUBPEL_NONE);
 #endif
   }
-
-  if (!is_stat_generation_stage(cpi)) {
-    for (int i = 0; i < TRANS_TYPES; ++i)
-      // IDENTITY: 1 bit
-      // TRANSLATION: 3 bits
-      // ROTZOOM: 2 bits
-      // AFFINE: 3 bits
-      cpi->gm_info.type_cost[i] = (1 + (i > 0 ? (i == ROTZOOM ? 1 : 2) : 0))
-                                  << AV1_PROB_COST_SHIFT;
-  }
 }
 
 static void model_rd_norm(int xsq_q10, int *r_q10, int *d_q10) {

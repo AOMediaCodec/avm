@@ -390,12 +390,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   if (dry_run) return;
 
   if (mi_addr->ref_frame[0] != INTRA_FRAME) {
-    if (is_inter_block(mi_addr, xd->tree_type)) {
-      // TODO(sarahparker): global motion stats need to be handled per-tile
-      // to be compatible with tile-based threading.
-      update_global_motion_used(mi_addr->mode, bsize, mi_addr, rdc);
-    }
-
     if (cm->features.interp_filter == SWITCHABLE &&
         !is_warp_mode(mi_addr->motion_mode) &&
         !is_nontrans_global_motion(xd, xd->mi[0])) {

@@ -376,9 +376,6 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
 
   GM_SEARCH_TYPE gm_search_type;
 
-  // whether to disable the global motion recode loop
-  int gm_disable_recode;
-
   // During global motion estimation, prune remaining reference frames in a
   // given direction(past/future), if the evaluated ref_frame in that direction
   // yields gm_type as INVALID/TRANSLATION/IDENTITY
