@@ -407,7 +407,8 @@ void MainTestClass<VarianceFunctionType>::SpeedTest() {
   aom_usec_timer_mark(&timer);
   const double elapsed_time =
       static_cast<double>(aom_usec_timer_elapsed(&timer));
-  printf("Variance %dx%d : %7.2fns\n", width(), height(), elapsed_time);
+  printf("Bitdepth: %d, Variance %dx%d : %7.2fns\n", params_.bit_depth, width(),
+         height(), elapsed_time);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1357,6 +1358,25 @@ INSTANTIATE_TEST_SUITE_P(
                                       10)));
 
 const VarianceParams kArrayHBDVariance_avx2[] = {
+  VarianceParams(7, 7, &aom_highbd_8_variance128x128_avx2, 8),
+  VarianceParams(7, 6, &aom_highbd_8_variance128x64_avx2, 8),
+  VarianceParams(6, 7, &aom_highbd_8_variance64x128_avx2, 8),
+  VarianceParams(6, 6, &aom_highbd_8_variance64x64_avx2, 8),
+  VarianceParams(6, 5, &aom_highbd_8_variance64x32_avx2, 8),
+  VarianceParams(5, 6, &aom_highbd_8_variance32x64_avx2, 8),
+  VarianceParams(5, 5, &aom_highbd_8_variance32x32_avx2, 8),
+  VarianceParams(5, 4, &aom_highbd_8_variance32x16_avx2, 8),
+  VarianceParams(4, 5, &aom_highbd_8_variance16x32_avx2, 8),
+  VarianceParams(4, 4, &aom_highbd_8_variance16x16_avx2, 8),
+  VarianceParams(4, 3, &aom_highbd_8_variance16x8_avx2, 8),
+  VarianceParams(3, 4, &aom_highbd_8_variance8x16_avx2, 8),
+  VarianceParams(3, 3, &aom_highbd_8_variance8x8_avx2, 8),
+
+  VarianceParams(3, 5, &aom_highbd_8_variance8x32_avx2, 8),
+  VarianceParams(5, 3, &aom_highbd_8_variance32x8_avx2, 8),
+  VarianceParams(4, 6, &aom_highbd_8_variance16x64_avx2, 8),
+  VarianceParams(6, 4, &aom_highbd_8_variance64x16_avx2, 8),
+
   VarianceParams(7, 7, &aom_highbd_10_variance128x128_avx2, 10),
   VarianceParams(7, 6, &aom_highbd_10_variance128x64_avx2, 10),
   VarianceParams(6, 7, &aom_highbd_10_variance64x128_avx2, 10),
@@ -1370,6 +1390,30 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(4, 3, &aom_highbd_10_variance16x8_avx2, 10),
   VarianceParams(3, 4, &aom_highbd_10_variance8x16_avx2, 10),
   VarianceParams(3, 3, &aom_highbd_10_variance8x8_avx2, 10),
+
+  VarianceParams(3, 5, &aom_highbd_10_variance8x32_avx2, 10),
+  VarianceParams(5, 3, &aom_highbd_10_variance32x8_avx2, 10),
+  VarianceParams(4, 6, &aom_highbd_10_variance16x64_avx2, 10),
+  VarianceParams(6, 4, &aom_highbd_10_variance64x16_avx2, 10),
+
+  VarianceParams(7, 7, &aom_highbd_12_variance128x128_avx2, 12),
+  VarianceParams(7, 6, &aom_highbd_12_variance128x64_avx2, 12),
+  VarianceParams(6, 7, &aom_highbd_12_variance64x128_avx2, 12),
+  VarianceParams(6, 6, &aom_highbd_12_variance64x64_avx2, 12),
+  VarianceParams(6, 5, &aom_highbd_12_variance64x32_avx2, 12),
+  VarianceParams(5, 6, &aom_highbd_12_variance32x64_avx2, 12),
+  VarianceParams(5, 5, &aom_highbd_12_variance32x32_avx2, 12),
+  VarianceParams(5, 4, &aom_highbd_12_variance32x16_avx2, 12),
+  VarianceParams(4, 5, &aom_highbd_12_variance16x32_avx2, 12),
+  VarianceParams(4, 4, &aom_highbd_12_variance16x16_avx2, 12),
+  VarianceParams(4, 3, &aom_highbd_12_variance16x8_avx2, 12),
+  VarianceParams(3, 4, &aom_highbd_12_variance8x16_avx2, 12),
+  VarianceParams(3, 3, &aom_highbd_12_variance8x8_avx2, 12),
+
+  VarianceParams(3, 5, &aom_highbd_12_variance8x32_avx2, 12),
+  VarianceParams(5, 3, &aom_highbd_12_variance32x8_avx2, 12),
+  VarianceParams(4, 6, &aom_highbd_12_variance16x64_avx2, 12),
+  VarianceParams(6, 4, &aom_highbd_12_variance64x16_avx2, 12),
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDVarianceTest,
