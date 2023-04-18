@@ -251,6 +251,24 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
          sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
 
   txfm_info->skip_txfm = ctx->rd_stats.skip_txfm;
+
+  if (xd->tree_type != CHROMA_PART) {
+    xd->blk_skip = ctx->blk_skip;
+    xd->blk_skip_stride = mi_size_wide[bsize];
+    // If not dry_run, copy the transform type data into the frame level buffer.
+    // Encoder will fetch tx types when writing bitstream.
+    if (!dry_run) {
+      const int grid_idx = get_mi_grid_idx(mi_params, mi_row, mi_col);
+      TX_TYPE *const blk_skip = mi_params->blk_skip + grid_idx;
+      const int mi_stride = mi_params->mi_stride;
+      for (int blk_row = 0; blk_row < bh; ++blk_row) {
+        av1_copy_array(blk_skip + blk_row * mi_stride,
+                       xd->blk_skip + blk_row * xd->blk_skip_stride, bw);
+      }
+      xd->blk_skip = blk_skip;
+      xd->blk_skip_stride = mi_stride;
+    }
+  }
   if (xd->tree_type != CHROMA_PART) {
     xd->tx_type_map = ctx->tx_type_map;
     xd->tx_type_map_stride = mi_size_wide[bsize];

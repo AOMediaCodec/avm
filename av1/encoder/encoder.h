@@ -1857,6 +1857,7 @@ typedef struct {
 /*!\cond */
 
 typedef struct {
+  FeatureFlags features;
   CommonSBInfoParams sbi_params;
   CommonModeInfoParams mi_params;
   MBMIExtFrameBufferInfo mi_ext_params;

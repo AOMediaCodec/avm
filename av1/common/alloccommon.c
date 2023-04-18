@@ -277,6 +277,9 @@ static int alloc_mi(CommonModeInfoParams *mi_params
     if (!mi_params->submi_grid_base) return 1;
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
+    mi_params->blk_skip =
+        aom_calloc(mi_grid_size, sizeof(*mi_params->blk_skip));
+    if (!mi_params->blk_skip) return 1;
     mi_params->tx_type_map =
         aom_calloc(mi_grid_size, sizeof(*mi_params->tx_type_map));
     if (!mi_params->tx_type_map) return 1;
@@ -456,6 +459,11 @@ int av1_copy_mi_neq(const AV1_COMMON *cm, CommonModeInfoParams *to,
   }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   for (int i = 0; i < aligned_mi_rows; ++i) {
+    memcpy(&to->blk_skip[i * to->mi_stride],
+           &from->blk_skip[i * from->mi_stride],
+           aligned_mi_cols * sizeof(*to->blk_skip));
+  }
+  for (int i = 0; i < aligned_mi_rows; ++i) {
     memcpy(&to->tx_type_map[i * to->mi_stride],
            &from->tx_type_map[i * from->mi_stride],
            aligned_mi_cols * sizeof(*to->tx_type_map));
@@ -523,6 +531,8 @@ int av1_copy_mi(CommonModeInfoParams *to, const CommonModeInfoParams *from) {
     }
   }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+  memcpy(to->blk_skip, from->blk_skip,
+         to->mi_grid_size * sizeof(*to->blk_skip));
   memcpy(to->tx_type_map, from->tx_type_map,
          to->mi_grid_size * sizeof(*to->tx_type_map));
 #if CONFIG_CROSS_CHROMA_TX

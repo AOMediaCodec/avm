@@ -916,7 +916,7 @@ struct CommonModeInfoParams {
   /*!
    * An array of tx types for each 4x4 block in the frame.
    * Number of allocated elements is same as 'mi_grid_size', and stride is
-   * same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
+   * same as 'mi_stride'. So, indexing into 'tx_type_map' is same as that of
    * 'mi_grid_base'.
    * If secondary transform in enabled (IST) each element of the array
    * stores both primary and secondary transform types as shown below: Bits 4~5
@@ -924,6 +924,13 @@ struct CommonModeInfoParams {
    * primary tx_type
    */
   TX_TYPE *tx_type_map;
+
+  /*!
+   * An array of blk_skip values for each 4x4 block in the frame.
+   * Number of allocated elements is same as 'mi_grid_size', and stride is
+   * same as 'mi_stride'.
+   */
+  uint8_t *blk_skip;
 #if CONFIG_PC_WIENER
   /*!
    * indicate if a transform block has any non-zero coefficients or not.
@@ -2682,8 +2689,10 @@ static INLINE void set_mi_offsets(const CommonModeInfoParams *const mi_params,
   // 'xd->tx_type_map' should point to an offset in 'mi_params->tx_type_map'.
   if (xd->tree_type != CHROMA_PART) {
     xd->tx_type_map = mi_params->tx_type_map + mi_grid_idx;
+    xd->blk_skip = mi_params->blk_skip + mi_grid_idx;
   }
   xd->tx_type_map_stride = mi_params->mi_stride;
+  xd->blk_skip_stride = mi_params->mi_stride;
 #if CONFIG_CROSS_CHROMA_TX
   if (xd->tree_type != LUMA_PART) {
     xd->cctx_type_map = mi_params->cctx_type_map + mi_grid_idx;
@@ -2706,7 +2715,9 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
   xd->mi[mi_params->mi_stride * blk_row + blk_col] =
       mi_params->mi_grid_base[mi_grid_idx];
   xd->tx_type_map = mi_params->tx_type_map + mi_grid_idx;
+  xd->blk_skip = mi_params->blk_skip + mi_grid_idx;
   xd->tx_type_map_stride = mi_params->mi_stride;
+  xd->blk_skip_stride = mi_params->mi_stride;
 #if CONFIG_CROSS_CHROMA_TX
   xd->cctx_type_map = mi_params->cctx_type_map + mi_grid_idx;
   xd->cctx_type_map_stride = mi_params->mi_stride;

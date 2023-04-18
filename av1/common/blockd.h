@@ -1855,6 +1855,17 @@ typedef struct macroblockd {
    * 'mi_stride', depending on which actual array 'tx_type_map' points to.
    */
   int tx_type_map_stride;
+  /*!
+   * Appropriate offset based on current 'mi_row' and 'mi_col', inside
+   * 'blk_skip' in one of 'CommonModeInfoParams', 'PICK_MODE_CONTEXT' or
+   * 'MACROBLOCK' structs.
+   */
+  TX_TYPE *blk_skip;
+  /*!
+   * Stride for 'blk_skip'. Note that this may / may not be same as
+   * 'mi_stride', depending on which actual array 'blk_skip' points to.
+   */
+  int blk_skip_stride;
 #if CONFIG_CROSS_CHROMA_TX
   /*!
    * Array of CCTX types.

@@ -785,6 +785,8 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 
   // Sets up the tx_type_map buffer in MACROBLOCKD.
+  xd->blk_skip = txfm_info->blk_skip;
+  xd->blk_skip_stride = mi_size_wide[bsize];
   xd->tx_type_map = txfm_info->tx_type_map_;
   xd->tx_type_map_stride = mi_size_wide[bsize];
 #if CONFIG_CROSS_CHROMA_TX
@@ -946,6 +948,8 @@ static void use_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 
   // Sets up the tx_type_map buffer in MACROBLOCKD.
+  xd->blk_skip = txfm_info->blk_skip;
+  xd->blk_skip_stride = mi_size_wide[bsize];
   xd->tx_type_map = txfm_info->tx_type_map_;
   xd->tx_type_map_stride = mi_size_wide[bsize];
 #if CONFIG_CROSS_CHROMA_TX
@@ -992,6 +996,80 @@ static void use_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
   ctx->mbmi_ext_best = cpi->frd->mi_ext_params.frame_base[mi_ext_idx];
   *mbmi = ctx->mic;
   ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
+
+#if CONFIG_C071_SUBBLK_WARPMV
+  const int x_inside_boundary =
+      AOMMIN(mi_size_wide[bsize], cpi->frd->mi_params.mi_cols - mi_col);
+  const int y_inside_boundary =
+      AOMMIN(mi_size_high[bsize], cpi->frd->mi_params.mi_rows - mi_row);
+  for (int iy = 0; iy < y_inside_boundary; iy++) {
+    for (int ix = 0; ix < x_inside_boundary; ix++) {
+      ctx->submic[iy * MAX_MIB_SIZE + ix] =
+          cpi->frd->mi_params
+              .submi_grid_base[(mi_row + iy) * cpi->frd->mi_params.mi_stride +
+                               mi_col + ix][0];
+    }
+  }
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+
+  if (xd->tree_type != CHROMA_PART) {
+    // If not dry_run, copy the transform type data into the frame level buffer.
+    // Encoder will fetch tx types when writing bitstream.
+    xd->blk_skip = ctx->blk_skip;
+    const int bw = mi_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]];
+    const int bh = mi_size_high[mbmi->sb_type[xd->tree_type == CHROMA_PART]];
+    const int grid_idx = get_mi_grid_idx(&cpi->frd->mi_params, mi_row, mi_col);
+    TX_TYPE *const blk_skip = cpi->frd->mi_params.blk_skip + grid_idx;
+    const int mi_stride = cpi->frd->mi_params.mi_stride;
+    for (int blk_row = 0; blk_row < bh; ++blk_row) {
+      av1_copy_array(xd->blk_skip + blk_row * xd->blk_skip_stride,
+                     blk_skip + blk_row * mi_stride, bw);
+    }
+  }
+  if (xd->tree_type != CHROMA_PART) {
+    // If not dry_run, copy the transform type data into the frame level buffer.
+    // Encoder will fetch tx types when writing bitstream.
+    xd->tx_type_map = ctx->tx_type_map;
+    const int bw = mi_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]];
+    const int bh = mi_size_high[mbmi->sb_type[xd->tree_type == CHROMA_PART]];
+    const int grid_idx = get_mi_grid_idx(&cpi->frd->mi_params, mi_row, mi_col);
+    TX_TYPE *const tx_type_map = cpi->frd->mi_params.tx_type_map + grid_idx;
+    const int mi_stride = cpi->frd->mi_params.mi_stride;
+    for (int blk_row = 0; blk_row < bh; ++blk_row) {
+      av1_copy_array(xd->tx_type_map + blk_row * xd->tx_type_map_stride,
+                     tx_type_map + blk_row * mi_stride, bw);
+    }
+  }
+
+#if CONFIG_CROSS_CHROMA_TX
+  if (xd->tree_type != LUMA_PART && xd->is_chroma_ref &&
+      is_cctx_allowed(cm, xd)) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
+    xd->cctx_type_map = ctx->cctx_type_map;
+    xd->cctx_type_map_stride = mi_size_wide[chroma_bsize];
+#else
+    assert(0);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        // If not dry_run, copy the cctx type data into the frame level buffer.
+        // Encoder will fetch cctx types when writing bitstream.
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const int chroma_bw = mi_size_wide[chroma_bsize];
+    const int chroma_bh = mi_size_high[chroma_bsize];
+    const int grid_idx = get_mi_grid_idx(
+        &cpi->frd->mi_params, mbmi->chroma_ref_info.mi_row_chroma_base,
+        mbmi->chroma_ref_info.mi_col_chroma_base);
+    CctxType *const cctx_type_map =
+        cpi->frd->mi_params.cctx_type_map + grid_idx;
+    for (int blk_row = 0; blk_row < chroma_bh; ++blk_row) {
+      memset(&xd->cctx_type_map[blk_row * xd->cctx_type_map_stride],
+             cctx_type_map[0], chroma_bw * sizeof(cctx_type_map[0]));
+    }
+#else
+    assert(0);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  }
+#endif  // CONFIG_CROSS_CHROMA_TX
 
 #if CONFIG_C043_MVP_IMPROVEMENTS
   const int is_inter = is_inter_block(mbmi, xd->tree_type);

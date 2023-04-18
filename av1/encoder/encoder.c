@@ -2998,7 +2998,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
       // special case as described in encode_with_recode_loop().
       // Encoding was skipped.
       err = AOM_CODEC_OK;
-      if (sse != NULL) *sse = INT64_MAX;
+      if (sse != NULL) {
+        sse[0] = INT64_MAX;
+        sse[1] = INT64_MAX;
+        sse[2] = INT64_MAX;
+      }
       if (rate != NULL) *rate = INT64_MAX;
       *largest_tile_id = 0;
     }
@@ -3092,7 +3096,14 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
   // Compute sse and rate.
   if (sse != NULL) {
-    *sse = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
+    sse[0] = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
+    const int num_planes = av1_num_planes(cm);
+    sse[1] = num_planes > 1
+                 ? aom_highbd_get_u_sse(cpi->source, &cm->cur_frame->buf)
+                 : 0;
+    sse[2] = num_planes > 2
+                 ? aom_highbd_get_v_sse(cpi->source, &cm->cur_frame->buf)
+                 : 0;
   }
   if (rate != NULL) {
     const int64_t bits = (*size << 3);
@@ -3115,6 +3126,7 @@ static int duplicate_frd(AV1_COMP *cpi, FrameDecisions *frd) {
   ret |= av1_duplicate_sbi(&frd->sbi_params, &cm->sbi_params);
   ret |= av1_duplicate_mi(cm, &frd->mi_params);
   ret |= av1_duplicate_mi_ext(cm, &frd->mi_ext_params, &cpi->mbmi_ext_info);
+  memcpy(&frd->features, &cm->features, sizeof(frd->features));
   return ret;
 }
 
@@ -3134,10 +3146,10 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
   aom_codec_err_t err = AOM_CODEC_OK;
   av1_save_all_coding_context(cpi);
 
-  int64_t sse1 = INT64_MAX;
+  int64_t sse1[MAX_MB_PLANE] = { INT64_MAX, INT64_MAX, INT64_MAX };
   int64_t rate1 = INT64_MAX;
   int largest_tile_id1 = 0;
-  int64_t sse2 = INT64_MAX;
+  int64_t sse2[MAX_MB_PLANE] = { INT64_MAX, INT64_MAX, INT64_MAX };
   int64_t rate2 = INT64_MAX;
   int largest_tile_id2;
   double proj_rdcost1 = DBL_MAX;
@@ -3154,7 +3166,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     FrameDecisions frd;
     memset(&frd, 0, sizeof(frd));
     SuperResCfg *const superres_cfg = &cpi->oxcf.superres_cfg;
-    int64_t superres_sses[SCALE_NUMERATOR];
+    int64_t superres_sses[SCALE_NUMERATOR][MAX_MB_PLANE];
     int64_t superres_rates[SCALE_NUMERATOR];
     double superres_rds[SCALE_NUMERATOR];
     int superres_largest_tile_ids[SCALE_NUMERATOR];
@@ -3175,7 +3187,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 
         cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this loop.
         err = encode_with_recode_loop_and_filter(
-            cpi, size, dest, &superres_sses[this_index],
+            cpi, size, dest, &superres_sses[this_index][0],
             &superres_rates[this_index],
             &superres_largest_tile_ids[this_index]);
         cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
@@ -3186,11 +3198,13 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
           return err;
         }
         superres_rds[this_index] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            rdmult, superres_rates[this_index], superres_sses[this_index],
+            rdmult, superres_rates[this_index], superres_sses[this_index][0],
             cm->seq_params.bit_depth);
         restore_all_coding_context(cpi);
         if (superres_rds[this_index] <= proj_rdcost1) {
-          sse1 = superres_sses[this_index];
+          sse1[0] = superres_sses[this_index][0];
+          sse1[1] = superres_sses[this_index][1];
+          sse1[2] = superres_sses[this_index][2];
           rate1 = superres_rates[this_index];
           largest_tile_id1 = superres_largest_tile_ids[this_index];
           proj_rdcost1 = superres_rds[this_index];
@@ -3198,7 +3212,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
           /*
           printf("trial[%d]/SR%d: sse1 = %" PRId64 "\n",
                  cm->cur_frame->display_order_hint,
-                 cm->superres_scale_denominator, sse1);
+                 cm->superres_scale_denominator, sse1[0]);
                  */
           if (cpi->sf.hl_sf.superres_reuse_frd) {
             duplicate_frd(cpi, &frd);
@@ -3218,13 +3232,15 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
            ++denom) {
         const int this_index = denom - (SCALE_NUMERATOR + 1);
 #endif  // CONFIG_EXT_SUPERRES
-        superres_sses[this_index] = INT64_MAX;
+        superres_sses[this_index][0] = INT64_MAX;
+        superres_sses[this_index][1] = INT64_MAX;
+        superres_sses[this_index][2] = INT64_MAX;
         superres_rates[this_index] = INT64_MAX;
       }
     }
     // Encode without superres.
     assert(cpi->superres_mode == AOM_SUPERRES_NONE);
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
+    err = encode_with_recode_loop_and_filter(cpi, size, dest, sse2, &rate2,
                                              &largest_tile_id2);
     if (err != AOM_CODEC_OK) {
       if (cpi->sf.hl_sf.superres_reuse_frd) {
@@ -3234,7 +3250,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     }
 
     const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, rate2, sse2, cm->seq_params.bit_depth);
+        rdmult, rate2, sse2[0], cm->seq_params.bit_depth);
     // Re-encode with superres if it's better.
     if (proj_rdcost1 < proj_rdcost2) {
       restore_all_coding_context(cpi);
@@ -3244,12 +3260,12 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
       // Again, temporarily force the best denom.
       superres_cfg->superres_scale_denominator = best_denom;
       superres_cfg->superres_kf_scale_denominator = best_denom;
-      int64_t sse3 = INT64_MAX;
+      int64_t sse3[MAX_MB_PLANE] = { INT64_MAX, INT64_MAX, INT64_MAX };
       int64_t rate3 = INT64_MAX;
       cpi->superres_mode =
           AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
       if (cpi->sf.hl_sf.superres_reuse_frd) cpi->frd = &frd;
-      err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
+      err = encode_with_recode_loop_and_filter(cpi, size, dest, sse3, &rate3,
                                                largest_tile_id);
       cpi->frd = NULL;
       if (err != AOM_CODEC_OK) {
@@ -3259,16 +3275,19 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
         return err;
       }
       cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-      /*
-      if (sse1 != sse3 || rate1 != rate3)
-        printf("WARN: sse1=%"PRId64"/rate1=%"PRId64"; "
-               "sse3=%"PRId64"/rate3=%"PRId64"\n",
-               sse1, rate1, sse3, rate3);
-      */
+      if (sse1[0] != sse3[0] || sse1[1] != sse3[1] || sse1[2] != sse3[2] ||
+          rate1 != rate3)
+        printf("WARN: sse1=%" PRId64 ",%" PRId64 ",%" PRId64 "/rate1=%" PRId64
+               "; "
+               "sse3=%" PRId64 ",%" PRId64 ",%" PRId64 "/rate3=%" PRId64 "\n",
+               sse1[0], sse1[1], sse1[2], rate1, sse3[0], sse3[1], sse3[2],
+               rate3);
       if (cpi->sf.hl_sf.superres_reuse_frd == 0) {
         // TODO(Debargha): check why the assert fails in the case
         // of superres_reuse_frd == 2
-        assert(sse1 == sse3);
+        assert(sse1[0] == sse3[0]);
+        assert(sse1[1] == sse3[1]);
+        assert(sse1[2] == sse3[2]);
         assert(rate1 == rate3);
         assert(largest_tile_id1 == *largest_tile_id);
       }
@@ -3283,14 +3302,14 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     assert(cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_DUAL);
     cpi->superres_mode =
         AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse1, &rate1,
+    err = encode_with_recode_loop_and_filter(cpi, size, dest, sse1, &rate1,
                                              &largest_tile_id1);
     cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
     if (err != AOM_CODEC_OK) return err;
     restore_all_coding_context(cpi);
     // Encode without superres.
     assert(cpi->superres_mode == AOM_SUPERRES_NONE);
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
+    err = encode_with_recode_loop_and_filter(cpi, size, dest, sse2, &rate2,
                                              &largest_tile_id2);
     if (err != AOM_CODEC_OK) return err;
 
@@ -3299,24 +3318,26 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
     const int64_t rdmult =
         av1_compute_rd_mult_based_on_qindex(cpi, cm->quant_params.base_qindex);
         */
-    proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1,
+    proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1[0],
                                                   cm->seq_params.bit_depth);
     const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, rate2, sse2, cm->seq_params.bit_depth);
+        rdmult, rate2, sse2[0], cm->seq_params.bit_depth);
     // Re-encode with superres if it's better.
     if (proj_rdcost1 < proj_rdcost2) {
       restore_all_coding_context(cpi);
       // TODO(urvang): We should avoid rerunning the recode loop by saving
       // previous output+state, or running encode only for the selected 'q' in
       // previous step.
-      int64_t sse3 = INT64_MAX;
+      int64_t sse3[MAX_MB_PLANE] = { INT64_MAX, INT64_MAX, INT64_MAX };
       int64_t rate3 = INT64_MAX;
       cpi->superres_mode =
           AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
-      err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
+      err = encode_with_recode_loop_and_filter(cpi, size, dest, sse3, &rate3,
                                                largest_tile_id);
       cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-      assert(sse1 == sse3);
+      assert(sse1[0] == sse3[0]);
+      assert(sse1[1] == sse3[1]);
+      assert(sse1[2] == sse3[2]);
       assert(rate1 == rate3);
       assert(largest_tile_id1 == *largest_tile_id);
     } else {

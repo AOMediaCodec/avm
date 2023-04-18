@@ -406,10 +406,13 @@ static void set_good_speed_features_framesize_independent(
   sf->rd_sf.perform_coeff_opt = 1;
 #if CONFIG_EXT_SUPERRES
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_ALL;
-#else                                // CONFIG_EXT_SUPERRES
+#else   // CONFIG_EXT_SUPERRES
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
-#endif                               // CONFIG_EXT_SUPERRES
-  sf->hl_sf.superres_reuse_frd = 1;  // Reuse parttions/mbmi
+#endif  // CONFIG_EXT_SUPERRES
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // Ths speed feature can only be enabled with ERP
+  sf->hl_sf.superres_reuse_frd = 2;  // Reuse parttions/mbmi
+#endif                               // CONFIG_EXT_RECUR_PARTITIONS
 
   if (speed >= 1) {
     sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;

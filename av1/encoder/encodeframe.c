@@ -1732,6 +1732,14 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   cm->current_frame.skip_mode_info.skip_mode_flag =
       check_skip_mode_enabled(cpi);
 
+  const int reuse_frd = (cpi->sf.hl_sf.superres_reuse_frd && cpi->frd != NULL);
+  if (reuse_frd) {
+    memcpy(&cm->features, &cpi->frd->features, sizeof(cpi->frd->features));
+    if (cpi->sf.hl_sf.superres_reuse_frd == 2) {
+      av1_copy_mi_neq(cm, &cm->mi_params, &cpi->frd->mi_params);
+    }
+  }
+
   enc_row_mt->sync_read_ptr = av1_row_mt_sync_read_dummy;
   enc_row_mt->sync_write_ptr = av1_row_mt_sync_write_dummy;
   mt_info->row_mt_enabled = 0;
