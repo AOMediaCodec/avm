@@ -21,11 +21,12 @@ typedef void (*high_variance_fn_t)(const uint16_t *src, int src_stride,
                                    const uint16_t *ref, int ref_stride,
                                    uint32_t *sse, int *sum);
 
-static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
+// TODO(any): need to support 12-bit
+static AOM_FORCE_INLINE void aom_highbd_var_filter_block2d_bil_avx2(
     const uint16_t *src_ptr, unsigned int src_pixels_per_line, int pixel_step,
     unsigned int output_height, unsigned int output_width,
     const uint32_t xoffset, const uint32_t yoffset, const uint16_t *dst_ptr,
-    int dst_stride, uint32_t *sse) {
+    int dst_stride, uint64_t *sse, int64_t *sum) {
   const __m256i filter1 =
       _mm256_set1_epi32((uint32_t)(bilinear_filters_2t[xoffset][1] << 16) |
                         bilinear_filters_2t[xoffset][0]);
@@ -40,7 +41,7 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
   uint16_t *dst_ptr_ref = (uint16_t *)dst_ptr;
   int64_t sum_long = 0;
   uint64_t sse_long = 0;
-  unsigned int rshift = 0, inc = 1;
+  unsigned int inc = 1;
   __m256i rbias = _mm256_set1_epi32(bitshift);
   __m256i opointer[8];
   unsigned int range;
@@ -82,9 +83,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
         sum_long += _mm_extract_epi32(v_d, 0);
         sse_long += _mm_extract_epi32(v_d, 1);
       }
-
-      rshift = get_msb(output_height) + get_msb(output_width);
-
     } else if (yoffset == 4) {  // xoffset==0 && yoffset==4
       range = output_width / 16;
       if (output_height == 8) inc = 2;
@@ -131,9 +129,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
         sum_long += _mm_extract_epi32(v_d, 0);
         sse_long += _mm_extract_epi32(v_d, 1);
       }
-
-      rshift = get_msb(output_height) + get_msb(output_width);
-
     } else {  // xoffset==0 && yoffset==1,2,3,5,6,7
       range = output_width / 16;
       if (output_height == 8) inc = 2;
@@ -195,8 +190,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
         sum_long += _mm_extract_epi32(v_d, 0);
         sse_long += _mm_extract_epi32(v_d, 1);
       }
-
-      rshift = get_msb(output_height) + get_msb(output_width);
     }
   } else if (xoffset == 4) {
     if (yoffset == 0) {  // xoffset==4 && yoffset==0
@@ -266,9 +259,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
         sum_long += _mm_extract_epi32(v_d, 0);
         sse_long += _mm_extract_epi32(v_d, 1);
       }
-
-      rshift = get_msb(output_height) + get_msb(output_width);
-
     } else if (yoffset == 4) {  // xoffset==4 && yoffset==4
       range = output_width / 16;
       if (output_height == 8) inc = 2;
@@ -318,9 +308,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
         sum_long += _mm_extract_epi32(v_d, 0);
         sse_long += _mm_extract_epi32(v_d, 1);
       }
-
-      rshift = get_msb(output_height) + get_msb(output_width);
-
     } else {  // xoffset==4 && yoffset==1,2,3,5,6,7
       range = output_width / 16;
       if (output_height == 8) inc = 2;
@@ -386,8 +373,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
         sum_long += _mm_extract_epi32(v_d, 0);
         sse_long += _mm_extract_epi32(v_d, 1);
       }
-
-      rshift = get_msb(output_height) + get_msb(output_width);
     }
   } else if (yoffset == 0) {  // xoffset==1,2,3,5,6,7 && yoffset==0
     range = output_width / 16;
@@ -440,9 +425,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
       sum_long += _mm_extract_epi32(v_d, 0);
       sse_long += _mm_extract_epi32(v_d, 1);
     }
-
-    rshift = get_msb(output_height) + get_msb(output_width);
-
   } else if (yoffset == 4) {  // xoffset==1,2,3,5,6,7 && yoffset==4
 
     range = output_width / 16;
@@ -517,9 +499,6 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
       sum_long += _mm_extract_epi32(v_d, 0);
       sse_long += _mm_extract_epi32(v_d, 1);
     }
-
-    rshift = get_msb(output_height) + get_msb(output_width);
-
   } else {  // xoffset==1,2,3,5,6,7 && yoffset==1,2,3,5,6,7
     range = output_width / 16;
     if (output_height == 8) inc = 2;
@@ -605,16 +584,10 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
       sum_long += _mm_extract_epi32(v_d, 0);
       sse_long += _mm_extract_epi32(v_d, 1);
     }
-
-    rshift = get_msb(output_height) + get_msb(output_width);
   }
 
-  *sse = (uint32_t)ROUND_POWER_OF_TWO(sse_long, 4);
-  int sum = (int)ROUND_POWER_OF_TWO(sum_long, 2);
-
-  int32_t var = *sse - (uint32_t)(((int64_t)sum * sum) >> rshift);
-
-  return (var > 0) ? var : 0;
+  *sse = sse_long;
+  *sum = sum_long;
 }
 
 void aom_highbd_calc8x8var_avx2(const uint16_t *src, int src_stride,
@@ -822,47 +795,99 @@ VAR_FN_BD12(32, 8, 8, 8);
 VAR_FN_BD12(16, 64, 8, 10);
 VAR_FN_BD12(64, 16, 8, 10);
 VAR_FN_BD12(8, 16, 8, 7);
-
 #undef VAR_FN
+#undef VAR_FN_BD12
 
-#define SSE2_Height(H)                                                 \
-  uint32_t aom_highbd_10_sub_pixel_variance8x##H##_sse2(               \
-      const uint16_t *src, int src_stride, int x_offset, int y_offset, \
-      const uint16_t *dst, int dst_stride, uint32_t *sse_ptr);
-
-SSE2_Height(8);
-SSE2_Height(16);
-#undef SSE2_Height
-
-#define HIGHBD_SUBPIX_VAR(W, H)                                              \
-  uint32_t aom_highbd_10_sub_pixel_variance##W##x##H##_avx2(                 \
-      const uint16_t *src, int src_stride, int xoffset, int yoffset,         \
-      const uint16_t *dst, int dst_stride, uint32_t *sse) {                  \
-    if (W == 8 && H == 16)                                                   \
-      return aom_highbd_10_sub_pixel_variance8x16_sse2(                      \
-          src, src_stride, xoffset, yoffset, dst, dst_stride, sse);          \
-    else if (W == 8 && H == 8)                                               \
-      return aom_highbd_10_sub_pixel_variance8x8_sse2(                       \
-          src, src_stride, xoffset, yoffset, dst, dst_stride, sse);          \
-    else                                                                     \
-      return aom_highbd_var_filter_block2d_bil_avx2(                         \
-          src, src_stride, 1, H, W, xoffset, yoffset, dst, dst_stride, sse); \
+// The 12-bit function is separated out because
+// aom_highbd_var_filter_block2d_bil_avx2 overflows when bsize \geq 16X16
+#define HIGHBD_SUBPIX_VAR_BD12(W, H, rshift)                                  \
+  uint32_t aom_highbd_12_sub_pixel_variance##W##x##H##_avx2(                  \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,          \
+      const uint16_t *dst, int dst_stride, uint32_t *sse) {                   \
+    uint64_t sse_long = 0;                                                    \
+    int64_t sum = 0;                                                          \
+                                                                              \
+    aom_highbd_var_filter_block2d_bil_avx2(src, src_stride, 1, H, W, xoffset, \
+                                           yoffset, dst, dst_stride,          \
+                                           &sse_long, &sum);                  \
+                                                                              \
+    *sse = (uint32_t)ROUND_POWER_OF_TWO(sse_long, 8);                         \
+    sum = ROUND_POWER_OF_TWO(sum, 4);                                         \
+                                                                              \
+    int32_t var = *sse - (uint32_t)((sum * sum) >> rshift);                   \
+                                                                              \
+    return (var > 0) ? var : 0;                                               \
   }
 
-HIGHBD_SUBPIX_VAR(128, 128);
-HIGHBD_SUBPIX_VAR(128, 64);
-HIGHBD_SUBPIX_VAR(64, 128);
-HIGHBD_SUBPIX_VAR(64, 64);
-HIGHBD_SUBPIX_VAR(64, 32);
-HIGHBD_SUBPIX_VAR(32, 64);
-HIGHBD_SUBPIX_VAR(32, 32);
-HIGHBD_SUBPIX_VAR(32, 16);
-HIGHBD_SUBPIX_VAR(16, 32);
-HIGHBD_SUBPIX_VAR(16, 16);
-HIGHBD_SUBPIX_VAR(16, 8);
-HIGHBD_SUBPIX_VAR(8, 16);
-HIGHBD_SUBPIX_VAR(8, 8);
+#define HIGHBD_SUBPIX_VAR(W, H, rshift)                                       \
+  uint32_t aom_highbd_10_sub_pixel_variance##W##x##H##_avx2(                  \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,          \
+      const uint16_t *dst, int dst_stride, uint32_t *sse) {                   \
+    uint64_t sse_long = 0;                                                    \
+    int64_t sum = 0;                                                          \
+                                                                              \
+    aom_highbd_var_filter_block2d_bil_avx2(src, src_stride, 1, H, W, xoffset, \
+                                           yoffset, dst, dst_stride,          \
+                                           &sse_long, &sum);                  \
+                                                                              \
+    *sse = (uint32_t)ROUND_POWER_OF_TWO(sse_long, 4);                         \
+    sum = ROUND_POWER_OF_TWO(sum, 2);                                         \
+                                                                              \
+    int32_t var = *sse - (uint32_t)((sum * sum) >> rshift);                   \
+                                                                              \
+    return (var > 0) ? var : 0;                                               \
+  }                                                                           \
+  uint32_t aom_highbd_8_sub_pixel_variance##W##x##H##_avx2(                   \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,          \
+      const uint16_t *dst, int dst_stride, uint32_t *sse) {                   \
+    uint64_t sse_long = 0;                                                    \
+    int64_t sum = 0;                                                          \
+                                                                              \
+    aom_highbd_var_filter_block2d_bil_avx2(src, src_stride, 1, H, W, xoffset, \
+                                           yoffset, dst, dst_stride,          \
+                                           &sse_long, &sum);                  \
+                                                                              \
+    *sse = (uint32_t)sse_long;                                                \
+    int32_t var = *sse - (uint32_t)((sum * sum) >> rshift);                   \
+                                                                              \
+    return (var > 0) ? var : 0;                                               \
+  }
+
+HIGHBD_SUBPIX_VAR(128, 128, 14);
+HIGHBD_SUBPIX_VAR(128, 64, 13);
+HIGHBD_SUBPIX_VAR(64, 128, 13);
+HIGHBD_SUBPIX_VAR(64, 64, 12);
+HIGHBD_SUBPIX_VAR(64, 32, 11);
+HIGHBD_SUBPIX_VAR(32, 64, 11);
+HIGHBD_SUBPIX_VAR(32, 32, 10);
+HIGHBD_SUBPIX_VAR(32, 16, 9);
+HIGHBD_SUBPIX_VAR(16, 32, 9);
+HIGHBD_SUBPIX_VAR(16, 16, 8);
+HIGHBD_SUBPIX_VAR(16, 8, 7);
+
+HIGHBD_SUBPIX_VAR(64, 16, 10);
+HIGHBD_SUBPIX_VAR(16, 64, 10);
+HIGHBD_SUBPIX_VAR(32, 8, 8);
+HIGHBD_SUBPIX_VAR(16, 4, 6);
+
+// HIGHBD_SUBPIX_VAR_BD12(128, 128, 14);
+// HIGHBD_SUBPIX_VAR_BD12(128, 64, 13);
+// HIGHBD_SUBPIX_VAR_BD12(64, 128, 13);
+// HIGHBD_SUBPIX_VAR_BD12(64, 64, 12);
+// HIGHBD_SUBPIX_VAR_BD12(64, 32, 11);
+// HIGHBD_SUBPIX_VAR_BD12(32, 64, 11);
+// HIGHBD_SUBPIX_VAR_BD12(32, 32, 10);
+// HIGHBD_SUBPIX_VAR_BD12(32, 16, 9);
+// HIGHBD_SUBPIX_VAR_BD12(16, 32, 9);
+// HIGHBD_SUBPIX_VAR_BD12(16, 16, 8);
+HIGHBD_SUBPIX_VAR_BD12(16, 8, 7);
+
+// HIGHBD_SUBPIX_VAR_BD12(64, 16, 10);
+// HIGHBD_SUBPIX_VAR_BD12(16, 64, 10);
+// HIGHBD_SUBPIX_VAR_BD12(32, 8, 8);
+HIGHBD_SUBPIX_VAR_BD12(16, 4, 6);
 #undef HIGHBD_SUBPIX_VAR
+#undef HIGHBD_SUBPIX_VAR_BD12
 
 uint64_t aom_mse_4xh_16bit_highbd_avx2(uint16_t *dst, int dstride,
                                        uint16_t *src, int sstride, int h) {
