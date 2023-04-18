@@ -23,7 +23,7 @@ endif()
 
 set(CMAKE_C_COMPILER ${CROSS}gcc)
 set(CMAKE_CXX_COMPILER ${CROSS}g++)
-set(AS_EXECUTABLE ${CROSS}as)
+set(CMAKE_ASM_COMPILER ${CROSS}as)
 set(CMAKE_C_FLAGS_INIT "-march=armv8-a")
 set(CMAKE_CXX_FLAGS_INIT "-march=armv8-a")
 set(AOM_AS_FLAGS "-march=armv8-a")

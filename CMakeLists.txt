@@ -11,7 +11,7 @@
 if(CONFIG_TENSORFLOW_LITE)
   cmake_minimum_required(VERSION 3.16)
 else()
-  cmake_minimum_required(VERSION 3.7)
+  cmake_minimum_required(VERSION 3.9)
 endif()
 
 set(AOM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")

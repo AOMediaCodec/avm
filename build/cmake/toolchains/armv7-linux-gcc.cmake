@@ -27,7 +27,7 @@ endif()
 
 set(CMAKE_C_COMPILER ${CROSS}gcc)
 set(CMAKE_CXX_COMPILER ${CROSS}g++)
-set(AS_EXECUTABLE ${CROSS}as)
+set(CMAKE_ASM_COMPILER ${CROSS}as)
 set(CMAKE_C_FLAGS_INIT "-march=armv7-a -mfpu=vfpv3 \
                           ${AOM_EXTRA_TOOLCHAIN_FLAGS}")
 set(CMAKE_CXX_FLAGS_INIT "-march=armv7-a -mfpu=vfpv3 \

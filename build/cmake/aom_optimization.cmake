@@ -140,7 +140,7 @@ endfunction()
 # to ensure that all cmake generators can determine the linker language, and
 # that build tools don't complain that an object exposes no symbols.
 #
-# In shared library configs every step described above happens twice, and
+# In Xcode-based builds every step described above happens twice, and
 # directory/target/object names are updated to include _shared and _static
 # suffixes.
 function(add_asm_library lib_name asm_sources)
@@ -148,49 +148,66 @@ function(add_asm_library lib_name asm_sources)
     return()
   endif()
 
-  list(APPEND asm_configs "static")
-  if(BUILD_SHARED_LIBS)
-    list(APPEND asm_configs "shared")
-  endif()
-
-  foreach(asm_config ${asm_configs})
-    set(asm_lib_name ${lib_name}_${asm_config})
-    set(asm_lib_obj_dir "${AOM_CONFIG_DIR}/asm_objects/${asm_lib_name}")
-    if(NOT EXISTS "${asm_lib_obj_dir}")
-      file(MAKE_DIRECTORY "${asm_lib_obj_dir}")
+  if(XCODE)
+    # CMake's generator does not output a build rule for Nasm files. Moreover,
+    # it makes Xcode believe Nasm files are of type "sourcecode" instead of
+    # "sourcecode.nasm", which prevents even the default rule from applying.
+    # This default rule is broken, though, because it doesn't apply any of the
+    # flags specified for ASM_NASM. See https://discourse.cmake.org/t/building-
+    # nasm-files-with-xcode/7934
+    list(APPEND asm_configs "static")
+    if(BUILD_SHARED_LIBS)
+      list(APPEND asm_configs "shared")
     endif()
 
-    add_library(${asm_lib_name} STATIC ${${asm_sources}})
-    set_property(TARGET ${asm_lib_name} PROPERTY FOLDER ${AOM_TARGET_CPU})
+    set(as_executable "${CMAKE_ASM_NASM_COMPILER}")
+    if(NOT as_executable)
+      set(as_executable "${CMAKE_ASM_COMPILER}")
+    endif()
 
-    foreach(asm_source ${${asm_sources}})
-      get_filename_component(asm_source_name "${asm_source}" NAME)
-      set(asm_object "${asm_lib_obj_dir}/${asm_source_name}.o")
-      add_custom_command(
-        OUTPUT "${asm_object}"
-        COMMAND ${AS_EXECUTABLE} ARGS ${AOM_AS_FLAGS} -I${AOM_ROOT}/
-                -I${AOM_CONFIG_DIR}/ -o "${asm_object}" "${asm_source}"
-        DEPENDS "${asm_source}"
-        COMMENT "Building ASM object ${asm_object}"
-        WORKING_DIRECTORY "${AOM_CONFIG_DIR}"
-        VERBATIM)
-      if(BUILD_SHARED_LIBS AND "${asm_config}" STREQUAL "static")
-        target_sources(aom_static PRIVATE "${asm_object}")
-      else()
-        target_sources(aom PRIVATE "${asm_object}")
+    foreach(asm_config ${asm_configs})
+      set(asm_lib_name ${lib_name}_${asm_config})
+      set(asm_lib_obj_dir "${AOM_CONFIG_DIR}/asm_objects/${asm_lib_name}")
+      if(NOT EXISTS "${asm_lib_obj_dir}")
+        file(MAKE_DIRECTORY "${asm_lib_obj_dir}")
       endif()
-    endforeach()
 
-    # The above created a target containing only ASM sources. CMake needs help
-    # here to determine the linker language. Add a dummy C file to force the
-    # linker language to C. We don't bother with setting the LINKER_LANGUAGE
-    # property on the library target because not all generators obey it (looking
-    # at you, Xcode generator).
-    add_dummy_source_file_to_target("${asm_lib_name}" "c")
+      foreach(asm_source ${${asm_sources}})
+        get_filename_component(asm_source_name "${asm_source}" NAME)
+        set(asm_object "${asm_lib_obj_dir}/${asm_source_name}.o")
+        add_custom_command(
+          OUTPUT "${asm_object}"
+          COMMAND ${as_executable} ARGS ${AOM_AS_FLAGS} -I${AOM_ROOT}/
+                  -I${AOM_CONFIG_DIR}/ -o "${asm_object}" "${asm_source}"
+          DEPENDS "${asm_source}"
+          COMMENT "Building ASM object ${asm_object}"
+          WORKING_DIRECTORY "${AOM_CONFIG_DIR}"
+          VERBATIM)
+        if(BUILD_SHARED_LIBS AND "${asm_config}" STREQUAL "static")
+          target_sources(aom_static PRIVATE "${asm_object}")
+        else()
+          target_sources(aom PRIVATE "${asm_object}")
+        endif()
+      endforeach()
+    endforeach()
+  else()
+    # For non-Xcode generators, CMake does not need extra help. The language
+    # support takes care of it.
+    set(asm_lib_name ${lib_name})
+
+    add_library(${asm_lib_name} OBJECT ${${asm_sources}})
+    target_include_directories(${asm_lib_name} PRIVATE ${AOM_ROOT}
+                                                       ${AOM_CONFIG_DIR})
+    target_compile_options(${asm_lib_name} PRIVATE ${AOM_AS_FLAGS})
+    set_property(TARGET ${asm_lib_name} PROPERTY FOLDER ${AOM_TARGET_CPU})
+    if(BUILD_SHARED_LIBS)
+      target_sources(aom_static PRIVATE "$<TARGET_OBJECTS:${asm_lib_name}>")
+    endif()
+    target_sources(aom PRIVATE "$<TARGET_OBJECTS:${asm_lib_name}>")
 
     # Add the new lib target to the global list of aom library targets.
     list(APPEND AOM_LIB_TARGETS ${asm_lib_name})
-  endforeach()
+  endif()
 
   set(AOM_LIB_TARGETS
       ${AOM_LIB_TARGETS}
@@ -201,7 +218,8 @@ endfunction()
 # Currently checks only for presence of required object formats and support for
 # the -Ox argument (multipass optimization).
 function(test_nasm)
-  execute_process(COMMAND ${AS_EXECUTABLE} -hf OUTPUT_VARIABLE nasm_helptext)
+  execute_process(COMMAND ${CMAKE_ASM_NASM_COMPILER} -hf
+                  OUTPUT_VARIABLE nasm_helptext)
 
   if(NOT "${nasm_helptext}" MATCHES "-Ox")
     message(
