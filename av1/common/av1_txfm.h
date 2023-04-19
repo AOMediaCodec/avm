@@ -34,6 +34,12 @@ extern "C" {
 
 extern const int32_t av1_cospi_arr_data[7][64];
 extern const int32_t av1_sinpi_arr_data[7][5];
+#if CONFIG_ADST8_TUNED
+extern const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
+#endif
+#if CONFIG_ADST16_TUNED
+extern const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
+#endif
 
 #if CONFIG_CROSS_CHROMA_TX
 #define CCTX_PREC_BITS 8
@@ -44,6 +50,11 @@ extern const int32_t cctx_mtx[CCTX_TYPES - 1][2];
 
 static const int cos_bit_min = 10;
 static const int cos_bit_max = 16;
+
+#if CONFIG_ADST8_TUNED || CONFIG_ADST16_TUNED
+#define FWD_ADST_BIT 12
+#define INV_ADST_BIT 7
+#endif
 
 #define NewSqrt2Bits ((int32_t)12)
 // 2^12 * sqrt(2)
@@ -221,6 +232,11 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
+#if CONFIG_ADST8_TUNED || CONFIG_ADST16_TUNED
+void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
+                          const int32_t *kernel, int kernel_size,
+                          int8_t bit, int8_t clamp);
+#endif
 extern const TXFM_TYPE av1_txfm_type_ls[5][TX_TYPES_1D];
 extern const int8_t av1_txfm_stage_num_list[TXFM_TYPES];
 static INLINE int get_txw_idx(TX_SIZE tx_size) {

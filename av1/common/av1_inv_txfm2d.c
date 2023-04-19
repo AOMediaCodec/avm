@@ -117,9 +117,21 @@ static INLINE TxfmFunc inv_txfm_type_to_func(TXFM_TYPE txfm_type) {
     case TXFM_TYPE_DCT16: return av1_idct16;
     case TXFM_TYPE_DCT32: return av1_idct32;
     case TXFM_TYPE_DCT64: return av1_idct64;
+#if CONFIG_ADST4_TUNED
+    case TXFM_TYPE_ADST4: return av2_iadst4;
+#else
     case TXFM_TYPE_ADST4: return av1_iadst4;
+#endif
+#if CONFIG_ADST8_TUNED
+    case TXFM_TYPE_ADST8: return av2_iadst8;
+#else
     case TXFM_TYPE_ADST8: return av1_iadst8;
+#endif
+#if CONFIG_ADST16_TUNED
+    case TXFM_TYPE_ADST16: return av2_iadst16;
+#else
     case TXFM_TYPE_ADST16: return av1_iadst16;
+#endif
     case TXFM_TYPE_IDENTITY4: return av1_iidentity4_c;
     case TXFM_TYPE_IDENTITY8: return av1_iidentity8_c;
     case TXFM_TYPE_IDENTITY16: return av1_iidentity16_c;
