@@ -252,6 +252,12 @@ set_aom_config_var(CONFIG_IMPROVED_ANGULAR_INTRA 1
 set_aom_config_var(CONFIG_SKIP_TXFM_OPT 1
                    "Enable to optimize the signaling of skip_txfm")
 set_aom_config_var(CONFIG_CWP 1 "Enables compound weighted prediction.")
+set_aom_config_var(CONFIG_ADST4_TUNED 1
+                   "AV2 experiment to replace the ADST4 basis.")
+set_aom_config_var(CONFIG_ADST8_TUNED 1
+                   "AV2 experiment to replace the ADST8 basis with matrix mults.")
+set_aom_config_var(CONFIG_ADST16_TUNED 1
+                   "AV2 experiment to replace the ADST16 basis with matrix mults.")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
