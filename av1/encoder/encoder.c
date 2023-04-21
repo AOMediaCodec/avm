@@ -2189,7 +2189,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_CCSO
   uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
   uint16_t *org_uv[CCSO_NUM_COMPONENTS];
-  uint16_t *ext_rec_y;
+  uint16_t *ext_rec_y = NULL;
   uint16_t *ref_buffer;
   const YV12_BUFFER_CONFIG *ref = cpi->source;
   int ref_stride;
@@ -3197,10 +3197,18 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
           }
           return err;
         }
-        superres_rds[this_index] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            rdmult, superres_rates[this_index], superres_sses[this_index][0],
-            cm->seq_params.bit_depth);
         restore_all_coding_context(cpi);
+        // Sometimes when screen content tools are enabled, the superres denom
+        // request may fail in the encode above. In such cases, the encode is
+        // invalid, and must be discarded. The following check ensures if the
+        // requested denom was actually used or not.
+        if (cm->superres_scale_denominator != denom) continue;
+        if (superres_rates[this_index] != INT64_MAX)
+          superres_rds[this_index] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              rdmult, superres_rates[this_index], superres_sses[this_index][0],
+              cm->seq_params.bit_depth);
+        else
+          superres_rds[this_index] = DBL_MAX;
         if (superres_rds[this_index] <= proj_rdcost1) {
           sse1[0] = superres_sses[this_index][0];
           sse1[1] = superres_sses[this_index][1];
