@@ -15,6 +15,7 @@
 
 #include <memory.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -30,6 +31,142 @@ static INLINE double norm(double *x, int len) {
 }
 
 static const double TINY_NEAR_ZERO = 1.0E-16;
+
+typedef struct Matrix {
+  double *arr;
+  int rows;
+  int cols;
+} Matrix;
+
+static INLINE Matrix matrix_create(double* a, int rows, int cols) {
+  Matrix m = {a, rows, cols};
+  return m;
+}
+
+static INLINE void matrix_set(Matrix *a, int r, int c, double v) {
+  a->arr[r * a->cols + c] = v;
+}
+
+static INLINE double matrix_get(const Matrix *a, int r, int c) {
+  return a->arr[r * a->cols + c];
+}
+
+static INLINE void matrix_show(const Matrix *a) {
+  for (int r = 0; r < a->rows; ++r) {
+    for (int c = 0; c < a->cols; ++c) {
+      printf("%f ", matrix_get(a, r, c));
+    }
+    printf("\n");
+  }
+}
+
+static INLINE void matrix_diagnal(const Matrix *diag_vec, Matrix *diag_mat) {
+  assert(diag_vec->cols == 1);
+  assert(diag_vec->rows == diag_mat->rows || diag_vec->rows == diag_mat->cols);
+  for(int r = 0; r < diag_mat->rows; ++r) {
+    for(int c = 0; c < diag_mat->cols; ++c) {
+      matrix_set(diag_mat, r, c, 0);
+    }
+  }
+  for(int r = 0; r < diag_vec->rows; ++r) {
+    matrix_set(diag_mat, r, r, matrix_get(diag_vec, r, 0));
+  }
+}
+
+static INLINE Matrix matrix_get_rows(const Matrix *a, int r, int row_count) {
+  Matrix mrows = {a->arr + r * a->cols, row_count, a->cols};
+  return mrows;
+}
+
+static INLINE void matrix_copy_row(const Matrix *a, int r, Matrix* mrow) {
+  assert(mrow->rows == 1);
+  assert(mrow->cols == a->cols);
+  memcpy(mrow->arr, a->arr + r * a->cols, a->cols * sizeof(*a->arr));
+}
+
+// a == b?
+static INLINE bool matrix_match(const Matrix* a, const Matrix* b) {
+  if (a->rows != b->rows || a->cols != b->cols) {
+    return false;
+  }
+  for (int r = 0; r < a->rows; ++r) {
+    for (int c = 0; c < a->cols; ++c) {
+      if(fabs(matrix_get(a, r, c) - matrix_get(b, r, c)) > 1e-7) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// b = a
+static INLINE void matrix_copy(const Matrix* a, Matrix* b) {
+  assert(a->rows == b->rows);
+  assert(a->cols == b->cols);
+  memcpy(b->arr, a->arr, a->rows * a->cols * sizeof(*a->arr));
+}
+
+// b = a^T
+static INLINE void matrix_transpose(const Matrix* a, Matrix* b) {
+  assert(a->rows == b->cols);
+  assert(a->cols == b->rows);
+  for(int r = 0; r < a->rows; r++) {
+    for(int c = 0; c < a->cols; c++) {
+      matrix_set(b, c, r, matrix_get(a, r, c));
+    }
+  }
+}
+
+// x = a * b
+static INLINE void matrix_mult(const Matrix *a, const Matrix *b, Matrix *x) {
+  assert(a->cols == b->rows);
+  assert(a->rows == x->rows);
+  assert(b->cols == x->cols);
+  for (int r = 0; r < a->rows; ++r) {
+    for (int c = 0; c < b->cols; ++c) {
+      double v = 0;
+      for(int k = 0; k < a->cols; ++k) {
+        v += matrix_get(a, r, k) * matrix_get(b, k, c);
+      }
+      matrix_set(x, r, c, v);
+    }
+  }
+}
+
+// a *= s
+static INLINE void matrix_mult_scalar_eq(Matrix *a, double s) {
+  for (int r = 0; r < a->rows; ++r) {
+    for (int c = 0; c < a->cols; ++c) {
+      a->arr[r * a->cols + c] *= s;
+    }
+  }
+}
+
+// a -= b
+static INLINE void matrix_minus_eq(Matrix *a, const Matrix *b) {
+  for (int r = 0; r < a->rows; ++r) {
+    for (int c = 0; c < a->cols; ++c) {
+      a->arr[r * a->cols + c] -= b->arr[r * b->cols + c];
+    }
+  }
+}
+
+static INLINE void get_cross_product_matrix(const Matrix* vec, Matrix* cross_matrix) {
+  assert(vec->rows == 1 || vec->cols == 1);
+  assert(vec->rows == 3 || vec->cols == 3);
+
+  matrix_set(cross_matrix, 0, 0, 0);
+  matrix_set(cross_matrix, 0, 1, -vec->arr[2]);
+  matrix_set(cross_matrix, 0, 2, vec->arr[1]);
+
+  matrix_set(cross_matrix, 1, 0, vec->arr[2]);
+  matrix_set(cross_matrix, 1, 1, 0);
+  matrix_set(cross_matrix, 1, 2, -vec->arr[0]);
+
+  matrix_set(cross_matrix, 2, 0, -vec->arr[1]);
+  matrix_set(cross_matrix, 2, 1, vec->arr[0]);
+  matrix_set(cross_matrix, 2, 2, 0);
+}
 
 // Solves Ax = b, where x and b are column vectors of size nx1 and A is nxn
 static INLINE int linsolve(int n, double *A, int stride, double *b, double *x) {
@@ -381,6 +518,7 @@ static INLINE int svdcmp(double **u, int m, int n, double w[], double **v) {
   aom_free(rv1);
   return 0;
 }
+
 
 static INLINE int SVD(double *U, double *W, double *V, double *matx, int M,
                       int N) {
