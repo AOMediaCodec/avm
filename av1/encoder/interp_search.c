@@ -501,10 +501,20 @@ int64_t av1_interpolation_filter_search(
   }
   if (args->modelled_rd != NULL) {
 #if CONFIG_REFINEMV && USE_DEFAULT_SHARP_INTERPOLATION_FILTER
-    int use_default_filter = mbmi->refinemv_flag ||
-                             mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                             use_opfl_refine_all(cm, mbmi);
+    int use_default_filter = mbmi->refinemv_flag
+#if CONFIG_OPTFLOW_REFINEMENT
+                             || mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+                             use_opfl_refine_all(cm, mbmi)
+#endif
+        ;
     if (has_second_ref(mbmi) && !use_default_filter) {
+#else
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
+        !use_opfl_refine_all(cm, mbmi)) {
+#else
+    if (has_second_ref(mbmi)) {
+#endif  // CONFIG_OPTFLOW_REFINEMENT
 #endif  // CONFIG_REFINEMV && USE_DEFAULT_SHARP_INTERPOLATION_FILTER
       const int ref_mv_idx = mbmi->ref_mv_idx;
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
