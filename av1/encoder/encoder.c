@@ -3343,6 +3343,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
             rdmult, superres_rates[this_index], superres_sses[this_index],
             cm->seq_params.bit_depth);
         restore_all_coding_context(cpi);
+        if (cm->superres_scale_denominator != denom) continue;
         if (superres_rds[this_index] <= proj_rdcost1) {
           sse1 = superres_sses[this_index];
           rate1 = superres_rates[this_index];
