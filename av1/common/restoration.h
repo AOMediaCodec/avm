@@ -371,11 +371,20 @@ typedef struct {
 } RestorationStripeBoundaries;
 
 /*!\brief Parameters related to Restoration Info */
-typedef struct {
+typedef struct RestorationInfo {
   /*!
    * Restoration type for frame
    */
   RestorationType frame_restoration_type;
+
+  /*!
+   * Restoration frame width
+   */
+  int width;
+  /*!
+   * Restoration frame height
+   */
+  int height;
 
   /*!
    * Restoration unit size
@@ -670,6 +679,25 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
                                             int optimized_lr, int num_planes);
 void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
                                       struct AV1Common *cm, int num_planes);
+
+typedef struct RusPerTileHelper {
+  int tile_rows;
+  int tile_cols;
+  int begin_ru_row_in_tile[MAX_TILE_ROWS];
+  int end_ru_row_in_tile[MAX_TILE_ROWS];
+  int begin_ru_col_in_tile[MAX_TILE_COLS];
+  int end_ru_col_in_tile[MAX_TILE_COLS];
+  int ru_base_idx[MAX_TILE_ROWS][MAX_TILE_COLS];
+  int ru_size;
+} RusPerTileHelper;
+
+void av1_get_ru_limits_in_tile(const struct AV1Common *cm, int plane,
+                               int tile_row, int tile_col, int *ru_row_start,
+                               int *ru_row_end, int *ru_col_start,
+                               int *ru_col_end);
+RusPerTileHelper av1_get_rus_per_tile_helper(const struct AV1Common *cm,
+                                             int plane);
+
 void av1_foreach_rest_unit_in_row(
     RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
     rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,

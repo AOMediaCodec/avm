@@ -217,22 +217,56 @@ void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
                                 ,
                                 const int *num_filter_classes
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_TEMP_LR
+                                ,
+                                RestorationInfo *prev
+#endif  // CONFIG_TEMP_LR
 ) {
   for (int p = plane_start; p < plane_end; ++p) {
-    av1_reset_wiener_bank(&xd->wiener_info[p]);
-    av1_reset_sgrproj_bank(&xd->sgrproj_info[p]);
+    av1_reset_wiener_bank(&xd->wiener_info[p],
+#if CONFIG_TEMP_LR
+                          prev ? prev + p : NULL,
+#endif  // CONFIG_TEMP_LR
+                          p);
+    av1_reset_sgrproj_bank(&xd->sgrproj_info[p],
+#if CONFIG_TEMP_LR
+                           prev ? prev + p : NULL,
+#endif  // CONFIG_TEMP_LR
+                           p);
 #if CONFIG_WIENER_NONSEP
     av1_reset_wienerns_bank(&xd->wienerns_info[p], xd->current_base_qindex,
-                            num_filter_classes[p], p != AOM_PLANE_Y);
+                            num_filter_classes[p],
+#if CONFIG_TEMP_LR
+                            prev ? prev + p : NULL,
+#endif  // CONFIG_TEMP_LR
+                            p);
 #endif  // CONFIG_WIENER_NONSEP
   }
 }
 
 // Initialize bank
-void av1_reset_wiener_bank(WienerInfoBank *bank) {
+void av1_reset_wiener_bank(WienerInfoBank *bank,
+#if CONFIG_TEMP_LR
+                           RestorationInfo *prev,
+#endif  // CONFIG_TEMP_LR
+                           int plane) {
+  (void)plane;
   set_default_wiener(&bank->filter[0]);
-  bank->bank_size = 0;
+  bank->bank_size = CONFIG_TEMP_LR;
   bank->bank_ptr = 0;
+#if CONFIG_TEMP_LR
+  if (prev && prev->frame_restoration_type != RESTORE_NONE) {
+    bank->bank_size = 0;
+    for (int u = 0; u < prev->units_per_tile; ++u) {
+      if (prev->unit_info[u].restoration_type == RESTORE_WIENER) {
+        if (bank->bank_size < LR_BANK_SIZE)
+          av1_add_to_wiener_bank(bank, &prev->unit_info[u].wiener_info);
+        if (bank->bank_size == LR_BANK_SIZE) break;
+      }
+    }
+    if (bank->bank_size == 0) bank->bank_size = 1;
+  }
+#endif  // CONFIG_TEMP_LR
 }
 
 // Add a new filter to bank
@@ -292,10 +326,28 @@ void av1_get_from_wiener_bank(WienerInfoBank *bank, int ndx, WienerInfo *info) {
 }
 
 // Initialize bank
-void av1_reset_sgrproj_bank(SgrprojInfoBank *bank) {
+void av1_reset_sgrproj_bank(SgrprojInfoBank *bank,
+#if CONFIG_TEMP_LR
+                            RestorationInfo *prev,
+#endif  // CONFIG_TEMP_LR
+                            int plane) {
+  (void)plane;
   set_default_sgrproj(&bank->filter[0]);
-  bank->bank_size = 0;
+  bank->bank_size = CONFIG_TEMP_LR;
   bank->bank_ptr = 0;
+#if CONFIG_TEMP_LR
+  if (prev && prev->frame_restoration_type != RESTORE_NONE) {
+    bank->bank_size = 0;
+    for (int u = 0; u < prev->units_per_tile; ++u) {
+      if (prev->unit_info[u].restoration_type == RESTORE_SGRPROJ) {
+        if (bank->bank_size < LR_BANK_SIZE)
+          av1_add_to_sgrproj_bank(bank, &prev->unit_info[u].sgrproj_info);
+        if (bank->bank_size == LR_BANK_SIZE) break;
+      }
+    }
+    if (bank->bank_size == 0) bank->bank_size = 1;
+  }
+#endif  // CONFIG_TEMP_LR
 }
 
 // Add a new filter to bank
@@ -358,14 +410,43 @@ void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
 #if CONFIG_WIENER_NONSEP
 // Initialize bank
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
-                             int num_classes, int chroma) {
+                             int num_classes,
+#if CONFIG_TEMP_LR
+                             RestorationInfo *prev,
+#endif  // CONFIG_TEMP_LR
+                             int plane) {
   for (int i = 0; i < LR_BANK_SIZE; ++i) {
-    set_default_wienerns(&bank->filter[i], qindex, num_classes, chroma);
+    set_default_wienerns(&bank->filter[i], qindex, num_classes,
+                         plane != AOM_PLANE_Y);
   }
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     bank->bank_size_for_class[c_id] = 1;
     bank->bank_ptr_for_class[c_id] = 0;
   }
+#if CONFIG_TEMP_LR
+  if (prev && prev->frame_restoration_type != RESTORE_NONE) {
+    for (int c_id = 0; c_id < num_classes; ++c_id)
+      bank->bank_size_for_class[c_id] = 0;
+    for (int u = 0; u < prev->units_per_tile; ++u) {
+      if (prev->unit_info[u].restoration_type == RESTORE_WIENER_NONSEP) {
+        int full_classes = 0;
+        for (int c_id = 0; c_id < num_classes; ++c_id) {
+          if (bank->bank_size_for_class[c_id] < LR_BANK_SIZE) {
+            av1_add_to_wienerns_bank(bank, &prev->unit_info[u].wienerns_info,
+                                     c_id);
+          }
+          full_classes += bank->bank_size_for_class[c_id] == LR_BANK_SIZE;
+        }
+        // if all classes are full exit the u loop over RUs.
+        if (full_classes == num_classes) break;
+      }
+    }
+    for (int c_id = 0; c_id < num_classes; ++c_id) {
+      if (bank->bank_size_for_class[c_id] == 0)
+        bank->bank_size_for_class[c_id] = 1;
+    }
+  }
+#endif  // CONFIG_TEMP_LR
 }
 
 // Add a new filter to bank

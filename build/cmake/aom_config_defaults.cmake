@@ -261,6 +261,8 @@ set_aom_config_var(
   "Enable adaptive downsampling filter: 0: AV1 filter, 1: 121 filter, 2: 1511 filter"
 )
 
+set_aom_config_var(CONFIG_TEMP_LR 0 "AV2 experiment flag to use temporal LR")
+
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
 

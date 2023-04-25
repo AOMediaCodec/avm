@@ -4383,6 +4383,10 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
                              ,
                              num_filter_classes
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_TEMP_LR
+                             ,
+                             cm->prev_frame ? cm->prev_frame->rst_info : NULL
+#endif  // CONFIG_TEMP_LR
   );
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
@@ -4904,6 +4908,10 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
                              ,
                              num_filter_classes
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_TEMP_LR
+                             ,
+                             cm->prev_frame ? cm->prev_frame->rst_info : NULL
+#endif  // CONFIG_TEMP_LR
   );
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
@@ -7669,6 +7677,12 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
     }
   }
+#if CONFIG_TEMP_LR
+  av1_copy_rst_info(&cm->cur_frame->rst_info[0], &cm->rst_info[0]);
+  av1_copy_rst_info(&cm->cur_frame->rst_info[1], &cm->rst_info[1]);
+  av1_copy_rst_info(&cm->cur_frame->rst_info[2], &cm->rst_info[2]);
+#endif  // CONFIG_TEMP_LR
+
 #if CONFIG_LPF_MASK
   av1_zero_array(cm->lf.lfm, cm->lf.lfm_num);
 #endif

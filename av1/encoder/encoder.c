@@ -3067,6 +3067,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
+#if CONFIG_TEMP_LR
+  av1_copy_rst_info(&cm->cur_frame->rst_info[0], &cm->rst_info[0]);
+  av1_copy_rst_info(&cm->cur_frame->rst_info[1], &cm->rst_info[1]);
+  av1_copy_rst_info(&cm->cur_frame->rst_info[2], &cm->rst_info[2]);
+#endif  // CONFIG_TEMP_LR
 
 #if CONFIG_TIP
   int64_t tip_as_output_sse = INT64_MAX;

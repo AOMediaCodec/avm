@@ -224,12 +224,26 @@ typedef struct RstUnitSnapshot {
 #endif  // CONFIG_LR_MERGE_COEFFS
 
 static AOM_INLINE void reset_all_banks(RestSearchCtxt *rsc) {
-  av1_reset_wiener_bank(&rsc->wiener_bank);
-  av1_reset_sgrproj_bank(&rsc->sgrproj_bank);
+  av1_reset_wiener_bank(
+      &rsc->wiener_bank,
+#if CONFIG_TEMP_LR
+      rsc->cm->prev_frame ? rsc->cm->prev_frame->rst_info + rsc->plane : NULL,
+#endif  // CONFIG_TEMP_LR
+      rsc->plane);
+  av1_reset_sgrproj_bank(
+      &rsc->sgrproj_bank,
+#if CONFIG_TEMP_LR
+      rsc->cm->prev_frame ? rsc->cm->prev_frame->rst_info + rsc->plane : NULL,
+#endif  // CONFIG_TEMP_LR
+      rsc->plane);
 #if CONFIG_WIENER_NONSEP
-  av1_reset_wienerns_bank(&rsc->wienerns_bank,
-                          rsc->cm->quant_params.base_qindex,
-                          rsc->num_filter_classes, rsc->plane != AOM_PLANE_Y);
+  av1_reset_wienerns_bank(
+      &rsc->wienerns_bank, rsc->cm->quant_params.base_qindex,
+      rsc->num_filter_classes,
+#if CONFIG_TEMP_LR
+      rsc->cm->prev_frame ? rsc->cm->prev_frame->rst_info + rsc->plane : NULL,
+#endif  // CONFIG_TEMP_LR
+      rsc->plane);
 #endif  // CONFIG_WIENER_NONSEP
 }
 
@@ -4110,6 +4124,9 @@ static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,
   rsi->sw_lr_tools_disable_mask = 0;
   uint8_t sw_lr_tools_disable_mask = 0;
 #endif  // CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_WIENER_NONSEP
+  rsi->num_filter_classes = rsc->num_filter_classes;
+#endif
   if (rsi->frame_restoration_type == RESTORE_NONE) return;
   int tool_count[RESTORE_SWITCHABLE_TYPES] = { 0 };
   for (int u = 0; u < plane_ntiles; ++u) {
@@ -4141,9 +4158,6 @@ static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,
     }
   }
   rsi->frame_restoration_type = ntools < 2 ? rused : RESTORE_SWITCHABLE;
-#if CONFIG_WIENER_NONSEP
-  rsi->num_filter_classes = rsc->num_filter_classes;
-#endif
 #if CONFIG_LR_FLEX_SYNTAX
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
       rsc->cm->features.lr_tools_count[rsc->plane] > 2) {

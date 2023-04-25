@@ -26,6 +26,7 @@ struct BufferPool;
 struct CommonContexts;
 struct CommonModeInfoParams;
 struct CommonSBInfoParams;
+struct RestorationInfo;
 
 void av1_remove_common(struct AV1Common *cm);
 
@@ -54,6 +55,9 @@ int av1_copy_mi_neq(const struct AV1Common *cm, struct CommonModeInfoParams *to,
 int av1_copy_mi(struct CommonModeInfoParams *to,
                 const struct CommonModeInfoParams *from);
 void av1_free_sbi(struct CommonSBInfoParams *sbi);
+#if CONFIG_TEMP_LR
+int av1_copy_rst_info(struct RestorationInfo *to, struct RestorationInfo *from);
+#endif  // CONFIG_TEMP_LR
 
 #if CONFIG_LPF_MASK
 int av1_alloc_loop_filter_mask(struct AV1Common *cm);

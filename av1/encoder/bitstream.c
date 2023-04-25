@@ -3342,6 +3342,9 @@ static int check_and_write_merge_info(
   }
   const int ref = ref_for_class[wiener_class_id];
 
+  if (ref >= AOMMAX(1, bank->bank_size_for_class[wiener_class_id]))
+    printf("TROUBLE: ref %d class %d bank_size %d\n", ref, wiener_class_id,
+           bank->bank_size_for_class[wiener_class_id]);
   assert(ref < AOMMAX(1, bank->bank_size_for_class[wiener_class_id]));
   int match = 0;
   for (int k = 0; k < bank->bank_size_for_class[wiener_class_id] - 1; ++k) {
@@ -5604,11 +5607,16 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
       for (int p = 0; p < num_planes; ++p)
         num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
 #endif  // CONFIG_WIENER_NONSEP
-      av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes
+      av1_reset_loop_restoration(
+          &cpi->td.mb.e_mbd, 0, num_planes
 #if CONFIG_WIENER_NONSEP
-                                 ,
-                                 num_filter_classes
+          ,
+          num_filter_classes
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_TEMP_LR
+          ,
+          cm->prev_frame ? cm->prev_frame->rst_info : NULL
+#endif  // CONFIG_TEMP_LR
       );
 
       aom_start_encode(&mode_bc, dst + total_size);

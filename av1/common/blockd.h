@@ -3076,7 +3076,13 @@ void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
 
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
 
-void av1_reset_wiener_bank(WienerInfoBank *bank);
+struct RestorationInfo;
+
+void av1_reset_wiener_bank(WienerInfoBank *bank,
+#if CONFIG_TEMP_LR
+                           struct RestorationInfo *prev,
+#endif  // CONFIG_TEMP_LR
+                           int plane);
 void av1_add_to_wiener_bank(WienerInfoBank *bank, const WienerInfo *info);
 WienerInfo *av1_ref_from_wiener_bank(WienerInfoBank *bank, int ndx);
 const WienerInfo *av1_constref_from_wiener_bank(const WienerInfoBank *bank,
@@ -3085,7 +3091,11 @@ void av1_upd_to_wiener_bank(WienerInfoBank *bank, int ndx,
                             const WienerInfo *info);
 void av1_get_from_wiener_bank(WienerInfoBank *bank, int ndx, WienerInfo *info);
 
-void av1_reset_sgrproj_bank(SgrprojInfoBank *bank);
+void av1_reset_sgrproj_bank(SgrprojInfoBank *bank,
+#if CONFIG_TEMP_LR
+                            struct RestorationInfo *prev,
+#endif  // CONFIG_TEMP_LR
+                            int plane);
 void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info);
 SgrprojInfo *av1_ref_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx);
 const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
@@ -3099,7 +3109,11 @@ void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
 // Resets the bank data structure holding LR_BANK_SIZE nonseparable Wiener
 // filters. The bank holds a rootating buffer of filters.
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
-                             int num_classes, int chroma);
+                             int num_classes,
+#if CONFIG_TEMP_LR
+                             struct RestorationInfo *prev,
+#endif  // CONFIG_TEMP_LR
+                             int plane);
 
 // Adds the nonseparable Wiener filter in info into the bank of rotating
 // filters. The add is so that once the bank has LR_BANK_SIZE filters the first
@@ -3123,11 +3137,16 @@ void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
                               int wiener_class_id);
 #endif  // CONFIG_WIENER_NONSEP
 
+struct RestorationInfo;
 void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
 #if CONFIG_WIENER_NONSEP
                                 ,
                                 const int *num_filter_classes
 #endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_TEMP_LR
+                                ,
+                                struct RestorationInfo *prev
+#endif  // CONFIG_TEMP_LR
 );
 
 typedef void (*foreach_transformed_block_visitor)(int plane, int block,
