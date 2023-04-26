@@ -177,11 +177,6 @@ enum {
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
 
-#if CONFIG_ATC_NEWTXSETS
-// TX sizes used for mode dependent TX sets
-#define MODE_DEPTX_TXSIZES 19
-#endif  // CONFIG_ATC_NEWTXSETS
-
 #define FSC_MODES 2
 #define FSC_MAXWIDTH 16
 #define FSC_MAXHEIGHT 16

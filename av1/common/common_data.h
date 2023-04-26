@@ -620,8 +620,8 @@ static const int av1_md_class[INTRA_MODES] = {
 };
 
 // Mapping between mode dependent TX size groups based on allowed TX sizes.
-static const int av1_size_class[MODE_DEPTX_TXSIZES] = {
-  0, 1, 2, 3, 3, 0, 0, 1, 1, 2, 2, 3, 3, 0, 0, 1, 1, 2, 2,
+static const int av1_size_class[TX_SIZES_ALL] = {
+  0, 1, 2, 3, 3, 0, 0, 1, 1, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3,
 };
 #endif  // CONFIG_ATC_NEWTXSETS
 
