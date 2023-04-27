@@ -106,9 +106,13 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
 
 // look-up table for sqrt of number of pixels in a transform block
 // rounded up to the nearest integer.
-static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = { 4,  8,  16, 32, 32, 6,  6,
-                                                     12, 12, 23, 23, 32, 32, 8,
-                                                     8,  16, 16, 23, 23 };
+// Note that width or height of 64 is considered 32 instead.
+static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = {
+  4,  8,  16, 32, 32, 6,  6, 12, 12, 23, 23, 32, 32, 8, 8, 16, 16, 23, 23,
+#if CONFIG_FLEX_PARTITION
+  11, 11, 16, 16, 11, 11,
+#endif  // CONFIG_FLEX_PARTITION
+};
 
 static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
                                 const uint32_t hash) {
@@ -3822,6 +3826,14 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
       TX_32X8,   // 32x8 transform
       TX_16X32,  // 16x64 transform
       TX_32X16,  // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+      TX_4X32,  // 4x32 transform
+      TX_32X4,  // 32x4 transform
+      TX_8X32,  // 8x64 transform
+      TX_32X8,  // 64x8 transform
+      TX_4X32,  // 4x64 transform
+      TX_32X4,  // 64x4 transform
+#endif          // CONFIG_FLEX_PARTITION
     };
 
     mbmi->tx_size = tx_size_max_32[mbmi->tx_size];

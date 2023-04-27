@@ -593,9 +593,10 @@ static const TX_TYPE_1D htx_tab[TX_TYPES] = {
 
 /* clang-format on */
 
-#if CONFIG_NEW_TX_PARTITION
+#if CONFIG_NEW_TX_PARTITION && CONFIG_INSPECTION
 // Smallest sub_tx size units. Used to compute the index in the
 // tx type map.
+// TODO(urvang): Is this even required?
 static const TX_SIZE smallest_sub_tx_size_map[TX_SIZES_ALL] = {
   TX_4X4,    // TX_4X4
   TX_4X4,    // TX_8X8
@@ -617,7 +618,7 @@ static const TX_SIZE smallest_sub_tx_size_map[TX_SIZES_ALL] = {
   TX_4X16,   // TX_16X64
   TX_16X4,   // TX_64X16
 };
-#endif  // CONFIG_NEW_TX_PARTITION
+#endif  // CONFIG_NEW_TX_PARTITION && CONFIG_INSPECTION
 
 static const TX_SIZE sub_tx_size_map[TX_SIZES_ALL] = {
   TX_4X4,    // TX_4X4

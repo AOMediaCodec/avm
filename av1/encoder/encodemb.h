@@ -198,10 +198,12 @@ static INLINE int is_trellis_used(TRELLIS_OPT_TYPE optimize_b,
 // For transform blocks of 1:4 and 4:1       - factor of 2 is used
 // For transform blocks TX_8x8 and below     - an additional factor of 2 is used
 // For transform blocks max(width,height)=64 - currently not supported
-
 static const uint16_t dc_coeff_scale[TX_SIZES_ALL] = {
   1024, 2048, 4096, 4096, 0,    1448, 1448, 2896, 2896, 2896,
-  2896, 0,    0,    2048, 2048, 4096, 4096, 0,    0
+  2896, 0,    0,    2048, 2048, 4096, 4096, 0,    0,
+#if CONFIG_FLEX_PARTITION
+  2896, 2896, 0,    0,    0,    0,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 #ifdef __cplusplus
