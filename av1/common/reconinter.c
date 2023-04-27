@@ -464,12 +464,14 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X8] },
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X64] },
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X16] },
-  { 0, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL },
+#if CONFIG_FLEX_PARTITION
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_4X32] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X4] },
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X64] },
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X8] },
-  { 0, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_4X64] },
+  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X4] },
+#endif  // CONFIG_FLEX_PARTITION
 };
 #else
 const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
@@ -826,7 +828,7 @@ static uint8_t ii_size_scales[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_BLOCK_256
     8,  8,  4,  4,  2, 2,
 #if CONFIG_FLEX_PARTITION
-    8,  8,  4,  4,  8, 8,
+    4,  4,  2,  2,  2, 2,
 #endif  // CONFIG_FLEX_PARTITION
 };
 /* clang-format on */
