@@ -3080,7 +3080,9 @@ struct RestorationInfo;
 
 void av1_reset_wiener_bank(WienerInfoBank *bank,
 #if CONFIG_TEMP_LR
-                           struct RestorationInfo *prev,
+                           const struct RestorationInfo *prev,
+                           const struct RestorationInfo *curr, int tile_row,
+                           int tile_col,
 #endif  // CONFIG_TEMP_LR
                            int plane);
 void av1_add_to_wiener_bank(WienerInfoBank *bank, const WienerInfo *info);
@@ -3093,7 +3095,9 @@ void av1_get_from_wiener_bank(WienerInfoBank *bank, int ndx, WienerInfo *info);
 
 void av1_reset_sgrproj_bank(SgrprojInfoBank *bank,
 #if CONFIG_TEMP_LR
-                            struct RestorationInfo *prev,
+                            const struct RestorationInfo *prev,
+                            const struct RestorationInfo *curr, int tile_row,
+                            int tile_col,
 #endif  // CONFIG_TEMP_LR
                             int plane);
 void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info);
@@ -3111,7 +3115,9 @@ void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
                              int num_classes,
 #if CONFIG_TEMP_LR
-                             struct RestorationInfo *prev,
+                             const struct RestorationInfo *prev,
+                             const struct RestorationInfo *curr, int tile_row,
+                             int tile_col,
 #endif  // CONFIG_TEMP_LR
                              int plane);
 
@@ -3145,7 +3151,9 @@ void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_TEMP_LR
                                 ,
-                                struct RestorationInfo *prev
+                                const struct RestorationInfo *prev,
+                                const struct RestorationInfo *curr,
+                                int tile_row, int tile_col
 #endif  // CONFIG_TEMP_LR
 );
 

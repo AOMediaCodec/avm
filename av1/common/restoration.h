@@ -345,6 +345,18 @@ typedef struct {
   uint16_t tmp_save_above[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
   uint16_t tmp_save_below[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
 } RestorationLineBuffers;
+
+typedef struct RusPerTileHelper {
+  int tile_rows;
+  int tile_cols;
+  int begin_ru_row_in_tile[MAX_TILE_ROWS];
+  int end_ru_row_in_tile[MAX_TILE_ROWS];
+  int begin_ru_col_in_tile[MAX_TILE_COLS];
+  int end_ru_col_in_tile[MAX_TILE_COLS];
+  int ru_base_idx[MAX_TILE_ROWS][MAX_TILE_COLS];
+  int ru_size;
+} RusPerTileHelper;
+
 /*!\endcond */
 
 /*!\brief Parameters related to Restoration Stripe boundaries */
@@ -385,11 +397,24 @@ typedef struct RestorationInfo {
    * Restoration frame height
    */
   int height;
+  /*!
+   * Coded frame width
+   */
+  int coded_width;
+  /*!
+   * Coded frame height
+   */
+  int coded_height;
 
   /*!
    * Restoration unit size
    */
   int restoration_unit_size;
+
+  /*!
+   * Restoration tile helper information
+   */
+  RusPerTileHelper tile_helper;
 
   /**
    * \name Fields allocated and initialised by av1_alloc_restoration_struct.
@@ -550,7 +575,7 @@ extern const int32_t av1_x_by_xplus1[256];
 extern const int32_t av1_one_by_x[MAX_NELEM];
 
 void av1_alloc_restoration_struct(struct AV1Common *cm, RestorationInfo *rsi,
-                                  int is_uv);
+                                  int plane);
 void av1_free_restoration_struct(RestorationInfo *rst_info);
 
 void av1_extend_frame(uint16_t *data, int width, int height, int stride,
@@ -679,17 +704,6 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
                                             int optimized_lr, int num_planes);
 void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
                                       struct AV1Common *cm, int num_planes);
-
-typedef struct RusPerTileHelper {
-  int tile_rows;
-  int tile_cols;
-  int begin_ru_row_in_tile[MAX_TILE_ROWS];
-  int end_ru_row_in_tile[MAX_TILE_ROWS];
-  int begin_ru_col_in_tile[MAX_TILE_COLS];
-  int end_ru_col_in_tile[MAX_TILE_COLS];
-  int ru_base_idx[MAX_TILE_ROWS][MAX_TILE_COLS];
-  int ru_size;
-} RusPerTileHelper;
 
 void av1_get_ru_limits_in_tile(const struct AV1Common *cm, int plane,
                                int tile_row, int tile_col, int *ru_row_start,

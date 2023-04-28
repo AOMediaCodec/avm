@@ -5615,7 +5615,8 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_TEMP_LR
           ,
-          cm->prev_frame ? cm->prev_frame->rst_info : NULL
+          cm->prev_frame ? cm->prev_frame->rst_info : NULL, cm->rst_info,
+          tile_row, tile_col
 #endif  // CONFIG_TEMP_LR
       );
 

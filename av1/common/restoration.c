@@ -374,6 +374,19 @@ AV1PixelRect av1_whole_frame_rect(const AV1_COMMON *cm, int is_uv) {
   return rect;
 }
 
+AV1PixelRect av1_coded_frame_rect(const AV1_COMMON *cm, int is_uv) {
+  AV1PixelRect rect;
+
+  int ss_x = is_uv && cm->seq_params.subsampling_x;
+  int ss_y = is_uv && cm->seq_params.subsampling_y;
+
+  rect.top = 0;
+  rect.bottom = ROUND_POWER_OF_TWO(cm->height, ss_y);
+  rect.left = 0;
+  rect.right = ROUND_POWER_OF_TWO(cm->width, ss_x);
+  return rect;
+}
+
 // Count horizontal or vertical units per tile (use a width or height for
 // tile_size, respectively). We basically want to divide the tile size by the
 // size of a restoration unit. Rather than rounding up unconditionally as you
@@ -426,7 +439,8 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
 }
 
 void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
-                                  int is_uv) {
+                                  int plane) {
+  const int is_uv = plane > 0;
   // We need to allocate enough space for restoration units to cover the
   // largest tile. Without CONFIG_MAX_TILE, this is always the tile at the
   // top-left and we can use av1_get_tile_rect(). With CONFIG_MAX_TILE, we have
@@ -435,6 +449,8 @@ void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
   const AV1PixelRect tile_rect = av1_whole_frame_rect(cm, is_uv);
   const int max_tile_w = tile_rect.right - tile_rect.left;
   const int max_tile_h = tile_rect.bottom - tile_rect.top;
+
+  const AV1PixelRect coded_rect = av1_coded_frame_rect(cm, is_uv);
 
   // To calculate hpertile and vpertile (horizontal and vertical units per
   // tile), we basically want to divide the largest tile width or height by the
@@ -449,6 +465,8 @@ void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
 
   rsi->width = max_tile_w;
   rsi->height = max_tile_h;
+  rsi->coded_width = coded_rect.right - coded_rect.left;
+  rsi->coded_height = coded_rect.bottom - coded_rect.top;
   rsi->units_per_tile = hpertile * vpertile;
   rsi->horz_units_per_tile = hpertile;
   rsi->vert_units_per_tile = vpertile;
@@ -464,6 +482,7 @@ void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
   rsi->num_filter_classes =
       is_uv ? NUM_WIENERNS_CLASS_INIT_CHROMA : NUM_WIENERNS_CLASS_INIT_LUMA;
 #endif  // CONFIG_WIENER_NONSEP
+  rsi->tile_helper = av1_get_rus_per_tile_helper(cm, plane);
 }
 
 void av1_free_restoration_struct(RestorationInfo *rst_info) {

@@ -4385,7 +4385,8 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_TEMP_LR
                              ,
-                             cm->prev_frame ? cm->prev_frame->rst_info : NULL
+                             cm->prev_frame ? cm->prev_frame->rst_info : NULL,
+                             cm->rst_info, tile_row, tile_col
 #endif  // CONFIG_TEMP_LR
   );
 
@@ -4910,7 +4911,8 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_TEMP_LR
                              ,
-                             cm->prev_frame ? cm->prev_frame->rst_info : NULL
+                             cm->prev_frame ? cm->prev_frame->rst_info : NULL,
+                             cm->rst_info, tile_row, tile_info.tile_col
 #endif  // CONFIG_TEMP_LR
   );
 

@@ -60,7 +60,7 @@ void av1_free_ref_frame_buffers(BufferPool *pool) {
 void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
   const int num_planes = av1_num_planes(cm);
   for (int p = 0; p < num_planes; ++p)
-    av1_alloc_restoration_struct(cm, &cm->rst_info[p], p > 0);
+    av1_alloc_restoration_struct(cm, &cm->rst_info[p], p);
 
   if (cm->rst_tmpbuf == NULL) {
     CHECK_MEM_ERROR(cm, cm->rst_tmpbuf,
