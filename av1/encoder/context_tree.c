@@ -114,7 +114,11 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
   const int num_pix = block_size_wide[bsize] * block_size_high[bsize];
   const int num_blk = num_pix / 16;
 
-#if CONFIG_UNEVEN_4WAY
+#if CONFIG_FLEX_PARTITION
+  // Biggest chroma block covering multiple luma blocks is of size 16X32 /
+  // 32x16, when a 32x64 / 64x32 block uses a HORZ / VERTICAL 4A/4B partition.
+  const int num_pix_chroma = AOMMAX(num_pix, 16 * 32);
+#elif CONFIG_UNEVEN_4WAY
   // Biggest chroma block covering multiple luma blocks is of size 8X16 / 16X8,
   // when a 16X32 / 32X16 block uses a HORZ / VERTICAL 4A/4B partition.
   const int num_pix_chroma = AOMMAX(num_pix, 16 * 8);
@@ -125,7 +129,7 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
   // is only allowed for bsize >= BLOCK_8X8, and all these block sizes have at
   // least 64 pixels.
   const int num_pix_chroma = num_pix;
-#endif  // CONFIG_UNEVEN_4WAY
+#endif  // CONFIG_FLEX_PARTITION
 
   AOM_CHECK_MEM_ERROR(&error, ctx->blk_skip,
                       aom_calloc(num_blk, sizeof(*ctx->blk_skip)));
