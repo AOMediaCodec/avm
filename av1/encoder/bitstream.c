@@ -4517,6 +4517,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
 #endif  // CONFIG_ADAPTIVE_MVD
 
+#if CONFIG_REFINEMV
+  aom_wb_write_bit(wb, seq_params->enable_refinemv);
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_FLEX_MVRES
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 #endif  // CONFIG_FLEX_MVRES

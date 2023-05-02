@@ -35,8 +35,24 @@ extern "C" {
 #define USE_DEFAULT_SHARP_INTERPOLATION_FILTER 1
 
 #define USE_8TAP_FILTER_FOR_4x4OPTFLOW 0
+
 #define USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS 0
 #define OPFL_EXTEND_BOUNDARY 0
+#define USE_6TAP_FILTER_FOR_4x4OPTFLOW 0
+
+#define ENABLE_3x3_SEARCH 0
+#define NEIGHBORS_BASED_ON_ITERATION \
+  0  // 1 both diamonds, 2: square-diamond 3: diamond-square
+#define SINGLE_STEP_SEARCH 0
+#define SEARCH_INTEGER_MV 0
+#define NEAREST_NEIGHBOR_FILTER 0
+#define RELUX_ET_THRESHOLD 2
+#define REMOVE_RESOLUTION_DEPENDENCY \
+  1  // 1 is fixed to 3, //2 is block size dependent
+
+#define HIGHER_THRESHOLD_IN_SECOND_ITERATION 0
+
+#define PRE_COMPUTE_ALL_SADS 0
 
 #else
 #define USE_8TAP_FILTER_FOR_4x4OPTFLOW 0

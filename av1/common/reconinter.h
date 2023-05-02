@@ -529,6 +529,7 @@ static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
 }
 static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
                                                 const MB_MODE_INFO *mbmi) {
+  if (!cm->seq_params.enable_refinemv) return 0;
   const unsigned int cur_index = cm->cur_frame->order_hint;
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
@@ -564,6 +565,7 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
 static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
                                       const MB_MODE_INFO *mbmi,
                                       BLOCK_SIZE bsize) {
+  if (!cm->seq_params.enable_refinemv) return 0;
   int is_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip) return 0;
   assert(!mbmi->skip_mode);
@@ -578,7 +580,8 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
 static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
-  return is_refinemv_allowed_reference(cm, mbmi);
+  return cm->seq_params.enable_refinemv &&
+         is_refinemv_allowed_reference(cm, mbmi);
 }
 
 // check if the refinemv mode is allowed for a given block
@@ -587,11 +590,13 @@ static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
   // For skip mode, we signal DMVR based on the reference frames only
 
   assert(mbmi->skip_mode);
-  return is_refinemv_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+  return cm->seq_params.enable_refinemv &&
+         is_refinemv_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_refinemv_allowed_reference(cm, mbmi);
 }
 static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
                                             const MB_MODE_INFO *mbmi) {
+  if (!cm->seq_params.enable_refinemv) return 0;
   int is_refinemv =
       (mbmi->skip_mode
            ? is_refinemv_allowed_skip_mode(cm, mbmi)
@@ -605,6 +610,7 @@ static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
 // check if the refinemv mode is switchable for a given block
 static INLINE int switchable_refinemv_flag(const AV1_COMMON *const cm,
                                            const MB_MODE_INFO *mbmi) {
+  if (!cm->seq_params.enable_refinemv) return 0;
   int is_refinemv =
       (mbmi->skip_mode
            ? is_refinemv_allowed_skip_mode(cm, mbmi)

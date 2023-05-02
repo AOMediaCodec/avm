@@ -33,6 +33,12 @@ typedef enum ATTRIBUTE_PACKED {
   EIGHTTAP_SMOOTH,
   MULTITAP_SHARP,
   BILINEAR,
+#if CONFIG_REFINEMV && NEAREST_NEIGHBOR_FILTER
+  NEAREST_NEIGHBOR,
+#endif
+#if CONFIG_REFINEMV && USE_6TAP_FILTER_FOR_4x4OPTFLOW
+  SIXTAP_SHARP,
+#endif
   // Encoder side only filters
   MULTITAP_SHARP2,
 
@@ -78,6 +84,58 @@ typedef struct InterpFilterParams {
   uint16_t taps;
   InterpFilter interp_filter;
 } InterpFilterParams;
+
+#if CONFIG_REFINEMV && NEAREST_NEIGHBOR_FILTER
+DECLARE_ALIGNED(256, static const InterpKernel,
+                av1_nearest_n_filters[SUBPEL_SHIFTS]) = {
+  { 0, 0, 0, 128, 0, 0, 0, 0 }, { 0, 0, 0, 128, 0, 0, 0, 0 },
+  { 0, 0, 0, 128, 0, 0, 0, 0 }, { 0, 0, 0, 128, 0, 0, 0, 0 },
+  { 0, 0, 0, 128, 0, 0, 0, 0 }, { 0, 0, 0, 128, 0, 0, 0, 0 },
+  { 0, 0, 0, 128, 0, 0, 0, 0 }, { 0, 0, 0, 128, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 128, 0, 0, 0 }, { 0, 0, 0, 0, 128, 0, 0, 0 },
+  { 0, 0, 0, 0, 128, 0, 0, 0 }, { 0, 0, 0, 0, 128, 0, 0, 0 },
+  { 0, 0, 0, 0, 128, 0, 0, 0 }, { 0, 0, 0, 0, 128, 0, 0, 0 },
+  { 0, 0, 0, 0, 128, 0, 0, 0 }, { 0, 0, 0, 0, 128, 0, 0, 0 }
+};
+#endif
+#if CONFIG_REFINEMV && USE_6TAP_FILTER_FOR_4x4OPTFLOW
+#define FILTER_TEST_ID 0
+DECLARE_ALIGNED(256, static const InterpKernel,
+                av1_six_tap_sharp[SUBPEL_SHIFTS]) = {
+#if FILTER_TEST_ID == 1
+  // alpha = 0.625  [interp_filt(64, 3, 0.625);]
+  { 0, 0, 0, 128, 0, 0, 0, 0 },      { 0, 1, -5, 126, 8, -3, 1, 0 },
+  { 0, 2, -9, 122, 18, -6, 1, 0 },   { 0, 3, -13, 117, 27, -8, 2, 0 },
+  { 0, 3, -15, 111, 37, -11, 3, 0 }, { 0, 4, -17, 104, 48, -14, 3, 0 },
+  { 0, 4, -18, 96, 58, -16, 4, 0 },  { 0, 5, -19, 87, 68, -17, 4, 0 },
+  { 0, 4, -18, 78, 78, -18, 4, 0 },  { 0, 4, -17, 68, 87, -19, 5, 0 },
+  { 0, 4, -16, 58, 96, -18, 4, 0 },  { 0, 3, -14, 48, 104, -17, 4, 0 },
+  { 0, 3, -11, 37, 111, -15, 3, 0 }, { 0, 2, -8, 27, 117, -13, 3, 0 },
+  { 0, 1, -6, 18, 122, -9, 2, 0 },   { 0, 1, -3, 8, 126, -5, 1, 0 }
+#elif FILTER_TEST_ID == 2
+  // alpha = 0.5  [interp_filt(64, 3, 0.5);]
+  { 0, 0, 0, 128, 0, 0, 0, 0 },      { 0, 1, -5, 125, 8, -2, 1, 0 },
+  { 0, 1, -8, 122, 17, -5, 1, 0 },   { 0, 2, -11, 116, 27, -8, 2, 0 },
+  { 0, 3, -14, 110, 37, -10, 2, 0 }, { 0, 3, -15, 103, 47, -12, 2, 0 },
+  { 0, 3, -16, 95, 57, -14, 3, 0 },  { 0, 3, -16, 86, 67, -15, 3, 0 },
+  { 0, 3, -16, 77, 77, -16, 3, 0 },  { 0, 3, -15, 67, 86, -16, 3, 0 },
+  { 0, 3, -14, 57, 95, -16, 3, 0 },  { 0, 2, -12, 47, 103, -15, 3, 0 },
+  { 0, 2, -10, 37, 110, -14, 3, 0 }, { 0, 2, -8, 27, 116, -11, 2, 0 },
+  { 0, 1, -5, 17, 122, -8, 1, 0 },   { 0, 1, -2, 8, 125, -5, 1, 0 },
+#else
+  // extracted from 8 tap sharp
+  { 0, 0, 0, 128, 0, 0, 0, 0 },      { 0, 0, -6, 126, 8, -2, 2, 0 },
+  { 0, 4, -12, 124, 16, -6, 2, 0 },  { 0, 6, -18, 120, 26, -10, 4, 0 },
+  { 0, 6, -22, 116, 38, -14, 4, 0 }, { 0, 6, -22, 108, 48, -18, 6, 0 },
+  { 0, 6, -24, 100, 60, -20, 6, 0 }, { 0, 6, -24, 90, 70, -22, 8, 0 },
+  { 0, 8, -24, 80, 80, -24, 8, 0 },  { 0, 8, -22, 70, 90, -24, 6, 0 },
+  { 0, 6, -20, 60, 100, -24, 6, 0 }, { 0, 6, -18, 48, 108, -22, 6, 0 },
+  { 0, 4, -14, 38, 116, -22, 6, 0 }, { 0, 4, -10, 26, 120, -18, 6, 0 },
+  { 0, 2, -6, 16, 124, -12, 4, 0 },  { 0, 2, -2, 8, 126, -6, 0, 0 }
+#endif
+
+};
+#endif
 
 DECLARE_ALIGNED(256, static const InterpKernel,
                 av1_bilinear_filters[SUBPEL_SHIFTS]) = {
@@ -155,7 +213,12 @@ static const InterpFilterParams
       { (const int16_t *)av1_sub_pel_filters_8sharp, SUBPEL_TAPS,
         MULTITAP_SHARP },
       { (const int16_t *)av1_bilinear_filters, SUBPEL_TAPS, BILINEAR },
-
+#if CONFIG_REFINEMV && NEAREST_NEIGHBOR_FILTER
+      { (const int16_t *)av1_nearest_n_filters, SUBPEL_TAPS, NEAREST_NEIGHBOR },
+#endif
+#if CONFIG_REFINEMV && USE_6TAP_FILTER_FOR_4x4OPTFLOW
+      { (const int16_t *)av1_six_tap_sharp, SUBPEL_TAPS, SIXTAP_SHARP },
+#endif
       // The following filters are for encoder only, and now they are used in
       // temporal filtering. The predictor block size >= 16 in temporal filter.
       { (const int16_t *)av1_sub_pel_filters_12sharp, 12, MULTITAP_SHARP2 },
@@ -197,12 +260,25 @@ DECLARE_ALIGNED(256, static const InterpKernel,
 };
 
 // For w<=4, MULTITAP_SHARP is the same as EIGHTTAP_REGULAR
-static const InterpFilterParams av1_interp_4tap[SWITCHABLE_FILTERS + 1] = {
+static const InterpFilterParams av1_interp_4tap[SWITCHABLE_FILTERS + 1
+#if CONFIG_REFINEMV && NEAREST_NEIGHBOR_FILTER
+                                                + 1
+#endif
+#if CONFIG_REFINEMV && USE_6TAP_FILTER_FOR_4x4OPTFLOW
+                                                + 1
+#endif
+] = {
   { (const int16_t *)av1_sub_pel_filters_4, SUBPEL_TAPS, EIGHTTAP_REGULAR },
   { (const int16_t *)av1_sub_pel_filters_4smooth, SUBPEL_TAPS,
     EIGHTTAP_SMOOTH },
   { (const int16_t *)av1_sub_pel_filters_4, SUBPEL_TAPS, EIGHTTAP_REGULAR },
   { (const int16_t *)av1_bilinear_filters, SUBPEL_TAPS, BILINEAR },
+#if CONFIG_REFINEMV && NEAREST_NEIGHBOR_FILTER
+  { (const int16_t *)av1_nearest_n_filters, SUBPEL_TAPS, NEAREST_NEIGHBOR },
+#endif
+#if CONFIG_REFINEMV && USE_6TAP_FILTER_FOR_4x4OPTFLOW
+  { (const int16_t *)av1_six_tap_sharp, SUBPEL_TAPS, SIXTAP_SHARP },
+#endif
 };
 
 static INLINE const InterpFilterParams *
