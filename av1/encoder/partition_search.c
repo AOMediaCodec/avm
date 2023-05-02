@@ -5096,7 +5096,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
 #if CONFIG_H_PARTITION
   const int prune_part4_from_part_h = 1;
 #endif  // CONFIG_H_PARTITION
-  if (part_search_state->partition_4a_allowed[HORZ] && !frame_is_intra_only(cm) &&
+  if (part_search_state->partition_4a_allowed[HORZ] &&
       forced_partition != PARTITION_HORZ_4A) {
     if (part_sf->prune_part_3_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
@@ -5127,7 +5127,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
   }
 
   // Prune HORZ 4B with speed features
-  if (part_search_state->partition_4b_allowed[HORZ] && !frame_is_intra_only(cm) &&
+  if (part_search_state->partition_4b_allowed[HORZ] &&
       forced_partition != PARTITION_HORZ_4B) {
     if (part_sf->prune_part_3_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
@@ -5158,7 +5158,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
   }
 
   // Prune VERT_4A with speed features
-  if (part_search_state->partition_4a_allowed[VERT] && !frame_is_intra_only(cm) &&
+  if (part_search_state->partition_4a_allowed[VERT] &&
       forced_partition != PARTITION_VERT_4A) {
     if (part_sf->prune_part_3_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
@@ -5189,7 +5189,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
   }
 
   // Prune VERT_4B with speed features
-  if (part_search_state->partition_4b_allowed[VERT] && !frame_is_intra_only(cm) &&
+  if (part_search_state->partition_4b_allowed[VERT] &&
       forced_partition != PARTITION_VERT_4B) {
     if (part_sf->prune_part_3_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
