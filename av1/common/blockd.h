@@ -3220,6 +3220,7 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
     return 0;
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_UNEVEN_4WAY
   // TODO(urvang): Enable this special case, if we make OBMC work.
   // TODO(yuec): Enable this case when the alignment issue is fixed. There
   // will be memory leak in global above_pred_buff and left_pred_buff if
@@ -3227,11 +3228,13 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
   if ((mi_row & 0x01) || (mi_col & 0x01)) {
     return 0;
   }
+#endif  // !CONFIG_UNEVEN_4WAY
 #else
   assert(!(mi_row & 0x01) && !(mi_col & 0x01));
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   (void)mi_row;
   (void)mi_col;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   return 1;
 }
 
