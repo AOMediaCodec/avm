@@ -4173,10 +4173,12 @@ static AOM_INLINE void set_part_none_allowed_flag(
     part_search_state->partition_none_allowed = 1;
   assert(part_search_state->terminate_partition_search == 0);
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   if (part_search_state->partition_none_allowed == BLOCK_INVALID) {
     part_search_state->partition_none_allowed = 0;
     return;
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Set PARTITION_NONE for screen content.
   if (cpi->is_screen_content_type)
