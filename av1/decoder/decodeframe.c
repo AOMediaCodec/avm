@@ -2310,7 +2310,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   }
 
   const int track_ptree_luma =
-      ptree_luma ? (partition == ptree_luma->partition) : 0;
+      is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
 #else
   if (get_plane_block_size(subsize, pd_u->subsampling_x, pd_u->subsampling_y) ==
       BLOCK_INVALID) {
