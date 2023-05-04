@@ -606,6 +606,15 @@ typedef struct cfg_options {
   unsigned int enable_mrsse;
 #endif  // CONFIG_MRSSE
 
+#if CONFIG_REFRESH_FLAG
+  /*!\brief enable signaling refresh frame flags with 3 bits.
+   * If 0, signal refresh frame flags with 8 bits, which allows to refresh
+   * any number of frame buffers (up to 8).
+   * If 1, signal refresh frame flags with 3 bits, which allows to refresh
+   * exactly 1 frame buffer.
+   */
+  unsigned int enable_short_refresh_frame_flags;
+#endif  // CONFIG_REFRESH_FLAG
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

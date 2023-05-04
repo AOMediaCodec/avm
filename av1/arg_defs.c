@@ -827,4 +827,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Write hash values for each plane instead of the entire frame. "
               "(0: false (default), 1: true)"),
 #endif  // CONFIG_AV1_ENCODER
+#if CONFIG_REFRESH_FLAG
+  .enable_short_refresh_frame_flags =
+      ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
+              "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
+#endif  // CONFIG_REFRESH_FLAG
 };

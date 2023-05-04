@@ -307,6 +307,9 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_AV1_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;
+#if CONFIG_REFRESH_FLAG
+  arg_def_t enable_short_refresh_frame_flags;
+#endif  // CONFIG_REFRESH_FLAG
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

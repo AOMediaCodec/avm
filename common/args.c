@@ -186,6 +186,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_MRSSE
     GET_PARAMS(enable_mrsse);
 #endif  // CONFIG_MRSSE
+#if CONFIG_REFRESH_FLAG
+    GET_PARAMS(enable_short_refresh_frame_flags);
+#endif  // CONFIG_REFRESH_FLAG
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);

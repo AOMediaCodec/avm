@@ -6638,6 +6638,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
     seq_params->enable_global_motion = aom_rb_read_bit(rb);
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#if CONFIG_REFRESH_FLAG
+  seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
+#endif  // CONFIG_REFRESH_FLAG
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,
@@ -6892,12 +6895,38 @@ static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
 static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+#if CONFIG_REFRESH_FLAG
+  if (cm->seq_params.enable_short_refresh_frame_flags &&
+      !cm->features.error_resilient_mode) {
+    if (refresh_frame_flags == REFRESH_FRAME_ALL) {
+      for (int i = 0; i < REF_FRAMES; i++) {
+        cm->ref_frame_id[i] = cm->current_frame_id;
+        pbi->valid_for_referencing[i] = 1;
+      }
+    } else {
+      for (int i = 0; i < REF_FRAMES; i++) {
+        if (refresh_frame_flags == i) {
+          cm->ref_frame_id[i] = cm->current_frame_id;
+          pbi->valid_for_referencing[i] = 1;
+        }
+      }
+    }
+  } else {
+    for (int i = 0; i < REF_FRAMES; i++) {
+      if ((refresh_frame_flags >> i) & 1) {
+        cm->ref_frame_id[i] = cm->current_frame_id;
+        pbi->valid_for_referencing[i] = 1;
+      }
+    }
+  }
+#else
   for (int i = 0; i < REF_FRAMES; i++) {
     if ((refresh_frame_flags >> i) & 1) {
       cm->ref_frame_id[i] = cm->current_frame_id;
       pbi->valid_for_referencing[i] = 1;
     }
   }
+#endif  // CONFIG_REFRESH_FLAG
 }
 
 static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
@@ -6907,7 +6936,7 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
   assert(cm->show_existing_frame);
 
   cm->current_frame.frame_type = KEY_FRAME;
-  cm->current_frame.refresh_frame_flags = (1 << REF_FRAMES) - 1;
+  cm->current_frame.refresh_frame_flags = REFRESH_FRAME_ALL;
 
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     cm->remapped_ref_idx[i] = INVALID_IDX;
@@ -7131,7 +7160,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (pbi->reset_decoder_state) {
         show_existing_frame_reset(pbi, existing_frame_idx);
       } else {
+#if CONFIG_REFRESH_FLAG
+        const int short_refresh_frame_flags =
+            cm->seq_params.enable_short_refresh_frame_flags &&
+            !cm->features.error_resilient_mode;
+        current_frame->refresh_frame_flags = short_refresh_frame_flags ? -1 : 0;
+#else
         current_frame->refresh_frame_flags = 0;
+#endif  // CONFIG_REFRESH_FLAG
       }
 
       return 0;
@@ -7305,11 +7341,32 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
   }
+#if CONFIG_REFRESH_FLAG
+  const int short_refresh_frame_flags =
+      cm->seq_params.enable_short_refresh_frame_flags &&
+      !cm->features.error_resilient_mode;
+  const int refresh_frame_flags_bits =
+      short_refresh_frame_flags ? 3 : REF_FRAMES;
+#endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
+#if CONFIG_REFRESH_FLAG
+      if (short_refresh_frame_flags) {
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+        if (current_frame->refresh_frame_flags == 0) {
+          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+          current_frame->refresh_frame_flags = has_refresh_frame_flags ? 0 : -1;
+        }
+      } else {
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+      }
+#else
       current_frame->refresh_frame_flags = aom_rb_read_literal(rb, REF_FRAMES);
+#endif        // CONFIG_REFRESH_FLAG
     } else {  // shown keyframe
-      current_frame->refresh_frame_flags = (1 << REF_FRAMES) - 1;
+      current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -7321,8 +7378,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   } else {
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
+#if CONFIG_REFRESH_FLAG
+      if (short_refresh_frame_flags) {
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+        if (current_frame->refresh_frame_flags == 0) {
+          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+          current_frame->refresh_frame_flags = has_refresh_frame_flags ? 0 : -1;
+        }
+      } else {
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+      }
+#else
       current_frame->refresh_frame_flags = aom_rb_read_literal(rb, REF_FRAMES);
-      if (current_frame->refresh_frame_flags == 0xFF) {
+#endif  // CONFIG_REFRESH_FLAG
+      if (current_frame->refresh_frame_flags == REFRESH_FRAME_ALL) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Intra only frames cannot have refresh flags 0xFF");
       }
@@ -7331,12 +7402,30 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         pbi->need_resync = 0;
       }
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
+#if CONFIG_REFRESH_FLAG
+      if (frame_is_sframe(cm)) {
+        current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
+      } else {
+        if (short_refresh_frame_flags) {
+          current_frame->refresh_frame_flags =
+              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+          if (current_frame->refresh_frame_flags == 0) {
+            const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+            current_frame->refresh_frame_flags =
+                has_refresh_frame_flags ? 0 : -1;
+          }
+        }
+      }
+#else
       current_frame->refresh_frame_flags =
-          frame_is_sframe(cm) ? 0xFF : aom_rb_read_literal(rb, REF_FRAMES);
+          frame_is_sframe(cm) ? REFRESH_FRAME_ALL
+                              : aom_rb_read_literal(rb, REF_FRAMES);
+#endif  // CONFIG_REFRESH_FLAG
     }
   }
 
-  if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags != 0xFF) {
+  if (!frame_is_intra_only(cm) ||
+      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
     // Read all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {

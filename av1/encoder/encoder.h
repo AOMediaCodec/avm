@@ -935,6 +935,9 @@ typedef struct {
   // Indicates if parity hiding should be enabled
   bool enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_REFRESH_FLAG
+  bool enable_short_refresh_frame_flags;
+#endif  // CONFIG_REFRESH_FLAG
   // Indicates what frame hash metadata to write
   unsigned int frame_hash_metadata;
 

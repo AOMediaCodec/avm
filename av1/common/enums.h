@@ -1151,6 +1151,7 @@ typedef uint16_t TXFM_CONTEXT;
 #define AOM_REFFRAME_ALL ((1 << INTER_REFS_PER_FRAME) - 1)
 
 #define REF_FRAMES_LOG2 3
+#define REFRESH_FRAME_ALL ((1 << REF_FRAMES) - 1)
 
 // REF_FRAMES for the cm->ref_frame_map array, 1 scratch frame for the new
 // frame in cm->cur_frame, INTER_REFS_PER_FRAME for scaled references on the

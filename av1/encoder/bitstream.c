@@ -2448,7 +2448,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
           aom_write_symbol(w, mbmi->use_wedge_interintra,
                            ec_ctx->wedge_interintra_cdf[bsize], 2);
           if (mbmi->use_wedge_interintra) {
-
 #if CONFIG_WEDGE_MOD_EXT
             write_wedge_mode(w, ec_ctx, bsize, mbmi->interintra_wedge_index);
 #else
@@ -5094,6 +5093,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->enable_global_motion);
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#if CONFIG_REFRESH_FLAG
+  aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
+#endif  // CONFIG_REFRESH_FLAG
 }
 
 static AOM_INLINE void write_global_motion_params(
@@ -5447,10 +5449,31 @@ static AOM_INLINE void write_uncompressed_header_obu(
   // frames.  For all other frame types, we need to write refresh_frame_flags.
   if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
       current_frame->frame_type == INTER_FRAME ||
-      current_frame->frame_type == INTRA_ONLY_FRAME)
+      current_frame->frame_type == INTRA_ONLY_FRAME) {
+#if CONFIG_REFRESH_FLAG
+    if (cm->seq_params.enable_short_refresh_frame_flags &&
+        !cm->features.error_resilient_mode) {
+      const bool has_refresh_frame_flags =
+          current_frame->refresh_frame_flags != -1;
+      if (has_refresh_frame_flags) {
+        aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
+        if (current_frame->refresh_frame_flags == 0) {
+          aom_wb_write_literal(wb, 1, 1);
+        }
+      } else {
+        aom_wb_write_literal(wb, 0, 3);
+        aom_wb_write_literal(wb, 0, 1);
+      }
+    } else {
+      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+    }
+#else
     aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+#endif  // CONFIG_REFRESH_FLAG
+  }
 
-  if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags != 0xff) {
+  if (!frame_is_intra_only(cm) ||
+      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {

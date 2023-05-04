@@ -307,6 +307,9 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
     AV1C_READ_BIT_OR_RETURN_ERROR(enable_global_motion);
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#if CONFIG_REFRESH_FLAG
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_short_refresh_frame_flags);
+#endif  // CONFIG_REFRESH_FLAG
 
   return 0;
 }

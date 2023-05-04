@@ -73,7 +73,7 @@ int av1_get_refresh_frame_flags(
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_frame_disp,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
 
-int av1_get_refresh_ref_frame_map(int refresh_frame_flags);
+int av1_get_refresh_ref_frame_map(AV1_COMMON *cm, int refresh_frame_flags);
 
 int get_forced_keyframe_position(struct lookahead_ctx *lookahead,
                                  const int up_to_index,

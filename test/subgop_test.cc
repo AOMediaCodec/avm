@@ -281,7 +281,11 @@ class SubGopTestLarge
       subgop_data_.step[idx].is_filtered = -1;
       subgop_data_.step[idx].pyramid_level = 0;
       subgop_data_.step[idx].qindex = 0;
+#if CONFIG_REFRESH_FLAG
+      subgop_data_.step[idx].refresh_frame_flags = -1;
+#else
       subgop_data_.step[idx].refresh_frame_flags = 0;
+#endif  // CONFIG_REFRESH_FLAG
       subgop_data_.step[idx].num_references = -1;
       memset(subgop_data_.step[idx].ref_frame_pyr_level, 0,
              sizeof(subgop_data_.step[idx].ref_frame_pyr_level));
@@ -514,12 +518,39 @@ class SubGopTestLarge
             << "Error: refresh flag mismatch";
       }
       // Validates reference picture management w.r.t refresh_flags
+#if CONFIG_REFRESH_FLAG
+      if (refresh_frame_flags != -1 && !curr_step_data->show_existing_frame) {
+        if (refresh_frame_flags == REFRESH_FRAME_ALL) {
+          for (int i = 0; i < REF_FRAMES; ++i) {
+            EXPECT_EQ(curr_step_data->disp_frame_idx,
+                      (int)curr_step_data->ref_frame_map[ref_count])
+                << "Error: reference buffer refresh failed";
+            assert(ref_count < REF_FRAMES);
+            ref_count++;
+          }
+        } else {
+          for (int i = 0; i < REF_FRAMES; ++i) {
+            if (refresh_frame_flags == i)
+              EXPECT_EQ(curr_step_data->disp_frame_idx,
+                        (int)curr_step_data->ref_frame_map[ref_count])
+                  << "Error: reference buffer refresh failed";
+            else
+              EXPECT_EQ(prev_step_data->ref_frame_map[ref_count],
+                        curr_step_data->ref_frame_map[ref_count])
+                  << "Error: reference buffer refresh failed";
+            assert(ref_count < REF_FRAMES);
+            ref_count++;
+          }
+        }
+      }
+#else
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (refresh_frame_flags &&
-          subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+          subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING)
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      if (refresh_frame_flags && !curr_step_data->show_existing_frame) {
+      if (refresh_frame_flags && !curr_step_data->show_existing_frame)
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      {
         for (int mask = refresh_frame_flags; mask; mask >>= 1) {
           if (mask & 1)
             EXPECT_EQ(curr_step_data->disp_frame_idx,
@@ -533,6 +564,7 @@ class SubGopTestLarge
           ref_count++;
         }
       }
+#endif  // CONFIG_REFRESH_FLAG
 
       for (int ref_idx = ref_count; ref_idx < REF_FRAMES; ref_idx++)
         EXPECT_EQ(prev_step_data->ref_frame_map[ref_idx],

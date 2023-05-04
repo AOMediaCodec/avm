@@ -289,6 +289,8 @@ set_aom_config_var(CONFIG_TX_PARTITION_CTX 1
 
 set_aom_config_var(CONFIG_INTERINTRA_IMPROVEMENT 1
                    "Enable additional inter-intra block sizes")
+set_aom_config_var(CONFIG_REFRESH_FLAG 0
+                   "Experiment flag to Signal refresh frame flag with 3 bits")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
