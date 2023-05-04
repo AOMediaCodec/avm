@@ -40,6 +40,19 @@ typedef struct {
   TXFM_CONTEXT *p_tl;
   TXFM_CONTEXT ta[MAX_MIB_SIZE];
   TXFM_CONTEXT tl[MAX_MIB_SIZE];
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  //! The current level bank, used to restore the level bank in MACROBLOCKD.
+  REF_MV_BANK curr_level_bank;
+  //! The best level bank from the rdopt process.
+  REF_MV_BANK best_level_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  //! The current warp, level bank, used to restore the warp level bank in
+  //! MACROBLOCKD.
+  WARP_PARAM_BANK curr_level_warp_bank;
+  //! The best warp level bank from the rdopt process.
+  WARP_PARAM_BANK best_level_warp_bank;
+#endif  // WARP_CU_BANK
 } RD_SEARCH_MACROBLOCK_CONTEXT;
 
 // This struct is used to store the statistics used by sb-level multi-pass
