@@ -2978,8 +2978,7 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
 static AOM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
-    const CHROMA_REF_INFO *chroma_ref_info,
-    const CommonModeInfoParams *mi_params, TREE_TYPE tree_type) {
+    const CHROMA_REF_INFO *chroma_ref_info, TREE_TYPE tree_type) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row;
   const int mi_col = blk_params->mi_col;
@@ -3125,8 +3124,7 @@ static void init_partition_search_state_params(
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg,
-                          &pc_tree->chroma_ref_info, &cm->mi_params,
-                          xd->tree_type);
+                          &pc_tree->chroma_ref_info, xd->tree_type);
 #else
   part_search_state->do_square_split =
       blk_params->bsize_at_least_8x8 &&
@@ -5305,8 +5303,7 @@ BEGIN_PARTITION_SEARCH:
   if (x->must_find_valid_partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     init_allowed_partitions(&part_search_state, &cpi->oxcf.part_cfg,
-                            &pc_tree->chroma_ref_info, &cm->mi_params,
-                            xd->tree_type);
+                            &pc_tree->chroma_ref_info, xd->tree_type);
 #else
     reset_part_limitations(cpi, &part_search_state);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
