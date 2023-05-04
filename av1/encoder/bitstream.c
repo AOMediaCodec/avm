@@ -4724,9 +4724,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
       current_frame->frame_type == INTER_FRAME ||
       current_frame->frame_type == INTRA_ONLY_FRAME)
-    aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+    aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
 
-  if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags != 0xff) {
+  if (!frame_is_intra_only(cm) ||
+      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode &&
         seq_params->order_hint_info.enable_order_hint) {

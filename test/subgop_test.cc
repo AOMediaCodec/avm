@@ -281,7 +281,7 @@ class SubGopTestLarge
       subgop_data_.step[idx].is_filtered = -1;
       subgop_data_.step[idx].pyramid_level = 0;
       subgop_data_.step[idx].qindex = 0;
-      subgop_data_.step[idx].refresh_frame_flags = 0;
+      subgop_data_.step[idx].refresh_frame_flags = -1;
       subgop_data_.step[idx].num_references = -1;
       memset(subgop_data_.step[idx].ref_frame_pyr_level, 0,
              sizeof(subgop_data_.step[idx].ref_frame_pyr_level));
@@ -492,18 +492,28 @@ class SubGopTestLarge
             << "Error: refresh flag mismatch";
       }
       // Validates reference picture management w.r.t refresh_flags
-      if (refresh_frame_flags && !curr_step_data->show_existing_frame) {
-        for (int mask = refresh_frame_flags; mask; mask >>= 1) {
-          if (mask & 1)
+      if (refresh_frame_flags != -1 && !curr_step_data->show_existing_frame) {
+        if (refresh_frame_flags == REFRESH_FRAME_ALL) {
+          for (int i = 0; i < REF_FRAMES; ++i) {
             EXPECT_EQ(curr_step_data->disp_frame_idx,
                       (int)curr_step_data->ref_frame_map[ref_count])
                 << "Error: reference buffer refresh failed";
-          else
-            EXPECT_EQ(prev_step_data->ref_frame_map[ref_count],
-                      curr_step_data->ref_frame_map[ref_count])
-                << "Error: reference buffer refresh failed";
-          assert(ref_count < REF_FRAMES);
-          ref_count++;
+            assert(ref_count < REF_FRAMES);
+            ref_count++;
+          }
+        } else {
+          for (int i = 0; i < REF_FRAMES; ++i) {
+            if (refresh_frame_flags == i)
+              EXPECT_EQ(curr_step_data->disp_frame_idx,
+                        (int)curr_step_data->ref_frame_map[ref_count])
+                  << "Error: reference buffer refresh failed";
+            else
+              EXPECT_EQ(prev_step_data->ref_frame_map[ref_count],
+                        curr_step_data->ref_frame_map[ref_count])
+                  << "Error: reference buffer refresh failed";
+            assert(ref_count < REF_FRAMES);
+            ref_count++;
+          }
         }
       }
 

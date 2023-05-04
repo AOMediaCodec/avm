@@ -371,7 +371,7 @@ static void update_fb_of_context_type(
       // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
 
       for (int i = 0; i < REF_FRAMES; i++) {
-        if (cm->current_frame.refresh_frame_flags & (1 << i)) {
+        if (cm->current_frame.refresh_frame_flags == i) {
           fb_of_context_type[current_frame_ref_type] = i;
           break;
         }
@@ -600,7 +600,7 @@ int av1_get_refresh_ref_frame_map(int refresh_frame_flags) {
   int ref_map_index = INVALID_IDX;
 
   for (ref_map_index = 0; ref_map_index < REF_FRAMES; ++ref_map_index)
-    if ((refresh_frame_flags >> ref_map_index) & 1) break;
+    if (refresh_frame_flags == ref_map_index) break;
 
   return ref_map_index;
 }
@@ -702,6 +702,19 @@ static int get_refresh_frame_flags_subgop_cfg(
   return 1 << refresh_idx;
 }
 
+static int refresh_mask_to_idx(const int mask) {
+  if (mask == REFRESH_FRAME_ALL) return REFRESH_FRAME_ALL;
+
+  int refresh_idx = -1;
+  for (int i = 0; i < REF_FRAMES; ++i) {
+    if ((mask >> i) & 1) {
+      refresh_idx = i;
+      break;
+    }
+  }
+  return refresh_idx;
+}
+
 int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
@@ -709,51 +722,52 @@ int av1_get_refresh_frame_flags(
   // Switch frames and shown key-frames overwrite all reference slots
   if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
       frame_params->frame_type == S_FRAME)
-    return 0xFF;
+    return REFRESH_FRAME_ALL;
 
   // show_existing_frames don't actually send refresh_frame_flags so set the
-  // flags to 0 to keep things consistent.
+  // flags to -1 to keep things consistent.
   if (frame_params->show_existing_frame &&
       (!frame_params->error_resilient_mode ||
        frame_params->frame_type == KEY_FRAME)) {
-    return 0;
+    return -1;
   }
 
-  int refresh_mask = 0;
+  int refresh_mask = -1;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &cpi->ext_flags.refresh_frame;
 
-  if (is_frame_droppable(ext_refresh_frame_flags)) return 0;
+  if (is_frame_droppable(ext_refresh_frame_flags)) return -1;
 
   if (ext_refresh_frame_flags->update_pending) {
-    return refresh_mask;
+    return refresh_mask_to_idx(refresh_mask);
   }
 
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs);
 
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
-    return get_refresh_frame_flags_subgop_cfg(cpi, gf_index, cur_disp_order,
-                                              ref_frame_map_pairs, refresh_mask,
-                                              free_fb_index);
+    const int mask =
+        get_refresh_frame_flags_subgop_cfg(cpi, gf_index, cur_disp_order,
+                                           ref_frame_map_pairs, refresh_mask,
+                                           free_fb_index);
+    return refresh_mask_to_idx(mask);
   }
 
   // No refresh necessary for these frame types
   if (frame_update_type == OVERLAY_UPDATE ||
       frame_update_type == KFFLT_OVERLAY_UPDATE ||
       frame_update_type == INTNL_OVERLAY_UPDATE)
-    return refresh_mask;
+    return refresh_mask_to_idx(refresh_mask);
 
   // If there is an open slot, refresh that one instead of replacing a reference
   if (free_fb_index != INVALID_IDX) {
-    refresh_mask = 1 << free_fb_index;
-    return refresh_mask;
+    return free_fb_index;
   }
 
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx =
       get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs);
-  return 1 << refresh_idx;
+  return refresh_idx;
 }
 
 void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {

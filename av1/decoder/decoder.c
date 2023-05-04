@@ -462,7 +462,6 @@ static void release_current_frame(AV1Decoder *pbi) {
 // This functions returns void. It reports failure by setting
 // cm->error.error_code.
 static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
-  int ref_index = 0, mask;
   AV1_COMMON *const cm = &pbi->common;
   BufferPool *const pool = cm->buffer_pool;
 
@@ -472,16 +471,23 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     // In ext-tile decoding, the camera frame header is only decoded once. So,
     // we don't update the references here.
     if (!pbi->camera_frame_header_ready) {
-      // The following for loop needs to release the reference stored in
-      // cm->ref_frame_map[ref_index] before storing a reference to
-      // cm->cur_frame in cm->ref_frame_map[ref_index].
-      for (mask = cm->current_frame.refresh_frame_flags; mask; mask >>= 1) {
-        if (mask & 1) {
-          decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-          cm->ref_frame_map[ref_index] = cm->cur_frame;
+      if (cm->current_frame.refresh_frame_flags == REFRESH_FRAME_ALL) {
+        for (int i = 0; i < REF_FRAMES; ++i) {
+          decrease_ref_count(cm->ref_frame_map[i], pool);
+          cm->ref_frame_map[i] = cm->cur_frame;
           ++cm->cur_frame->ref_count;
         }
-        ++ref_index;
+      } else {
+        // The following for loop needs to release the reference stored in
+        // cm->ref_frame_map[i] before storing a reference to
+        // cm->cur_frame in cm->ref_frame_map[i].
+        for (int i = 0; i < REF_FRAMES; ++i) {
+          if (cm->current_frame.refresh_frame_flags == i) {
+            decrease_ref_count(cm->ref_frame_map[i], pool);
+            cm->ref_frame_map[i] = cm->cur_frame;
+            ++cm->cur_frame->ref_count;
+          }
+        }
       }
       update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                           pbi->enable_subgop_stats);
@@ -524,7 +530,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 
   if (!pbi->camera_frame_header_ready) {
     // Invalidate these references until the next frame starts.
-    for (ref_index = 0; ref_index < INTER_REFS_PER_FRAME; ref_index++) {
+    for (int ref_index = 0; ref_index < INTER_REFS_PER_FRAME; ref_index++) {
       cm->remapped_ref_idx[ref_index] = INVALID_IDX;
     }
   }

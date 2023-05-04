@@ -3503,9 +3503,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   // Update reference frame ids for reference frames this frame will overwrite
   if (seq_params->frame_id_numbers_present_flag) {
-    for (int i = 0; i < REF_FRAMES; i++) {
-      if ((current_frame->refresh_frame_flags >> i) & 1) {
+    if (current_frame->refresh_frame_flags == REFRESH_FRAME_ALL) {
+      for (int i = 0; i < REF_FRAMES; i++) {
         cm->ref_frame_id[i] = cm->current_frame_id;
+      }
+    } else {
+      for (int i = 0; i < REF_FRAMES; i++) {
+        if (current_frame->refresh_frame_flags == i) {
+          cm->ref_frame_id[i] = cm->current_frame_id;
+        }
       }
     }
   }

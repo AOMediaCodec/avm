@@ -328,14 +328,25 @@ static int get_free_buffer(DECODER_MODEL *const decoder_model) {
 static void update_ref_buffers(DECODER_MODEL *const decoder_model, int idx,
                                int refresh_frame_flags) {
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
-  for (int i = 0; i < REF_FRAMES; ++i) {
-    if (refresh_frame_flags & (1 << i)) {
+  if (refresh_frame_flags == REFRESH_FRAME_ALL) {
+    for (int i = 0; i < REF_FRAMES; ++i) {
       const int pre_idx = decoder_model->vbi[i];
       if (pre_idx != -1) {
         --decoder_model->frame_buffer_pool[pre_idx].decoder_ref_count;
       }
       decoder_model->vbi[i] = idx;
       ++this_buffer->decoder_ref_count;
+    }
+  } else {
+    for (int i = 0; i < REF_FRAMES; ++i) {
+      if (refresh_frame_flags == i) {
+        const int pre_idx = decoder_model->vbi[i];
+        if (pre_idx != -1) {
+          --decoder_model->frame_buffer_pool[pre_idx].decoder_ref_count;
+        }
+        decoder_model->vbi[i] = idx;
+        ++this_buffer->decoder_ref_count;
+      }
     }
   }
 }
