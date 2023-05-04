@@ -121,6 +121,8 @@ static AOM_INLINE PARTITION_TYPE sdp_chroma_part_from_luma(BLOCK_SIZE bsize,
                                          int ssy) {
   const int bh_chr = block_size_high[bsize] >> ssy;
   const int bw_chr = block_size_wide[bsize] >> ssx;
+  assert(bh_chr >= 16 && bw_chr >= 16 &&
+         "Current implementation cannot handle SDP for sub 16x16 blocks!");
 
   switch (luma_part) {
     case PARTITION_NONE: return PARTITION_NONE;
