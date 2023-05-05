@@ -43,6 +43,10 @@ static INLINE Matrix matrix_create(double* a, int rows, int cols) {
   return m;
 }
 
+#define MATRIX_CREATE(matrix, array, rows, cols, ...) \
+  double array[rows][cols] = __VA_ARGS__;     \
+  Matrix matrix = matrix_create(&array[0][0], rows, cols);
+
 static INLINE void matrix_set(Matrix *a, int r, int c, double v) {
   a->arr[r * a->cols + c] = v;
 }
