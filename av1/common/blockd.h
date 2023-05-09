@@ -746,7 +746,7 @@ static AOM_INLINE bool is_ext_partition_allowed_at_bsize(BLOCK_SIZE bsize,
   if (bsize > BLOCK_64X64) {
     return false;
   }
-  // At bsize \leq 8X8, extended partitions will lead to dimension < 2.
+  // At bsize <= 8X8, extended partitions will lead to dimension < 2.
   if (bsize <= BLOCK_8X8) {
     return false;
   }
@@ -767,7 +767,7 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
     return false;
   }
   // A splittable wide block has ratio 2:1. If it performs HORZ_3 split, then
-  // we'll get a block ratio of 2:0.5 == 4:1, which is illegal. So extended
+  // we'll get a block ratio of 2:0.25 == 8:1, which is illegal. So extended
   // partition is disabled. The same goes for tall block.
   if ((is_wide_block(bsize) && rect_type == HORZ) ||
       (is_tall_block(bsize) && rect_type == VERT)) {
@@ -800,7 +800,7 @@ rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
   return RECT_INVALID;
 }
 
-/*!\brief Returns whether the current partition is horizontal type for vertical
+/*!\brief Returns whether the current partition is horizontal type or vertical
  * type. */
 static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
   if (partition == PARTITION_HORZ || partition == PARTITION_HORZ_3) {
