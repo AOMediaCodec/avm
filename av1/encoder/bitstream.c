@@ -2624,6 +2624,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const int ssx = cm->seq_params.subsampling_x;
   const int ssy = cm->seq_params.subsampling_y;
   if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
+    assert(ptree_luma);
     assert(p ==
            sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy));
     return;
@@ -2751,6 +2752,7 @@ static AOM_INLINE void write_modes_sb(
                   w);
   const int track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
+  assert(IMPLIES(track_ptree_luma, ptree_luma));
 #else
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
