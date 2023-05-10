@@ -330,10 +330,17 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/unsigned int/, "aom_highbd_sad${w}x${h}_avg", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride, const uint16_t *second_pred";
     if ($w != 128 && $h != 128 && $w != 4 && $w != 256 && $h != 256) {
       if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
-        if (!($w == 16 && $h == 16) && !($w == 16 && $h == 8) && !($w == 16 && $h == 4)) {
-          specialize "aom_highbd_sad${w}x${h}", qw/sse2/;
-          specialize "aom_highbd_sad${w}x${h}_avg", qw/sse2/;
-        }
+        if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+          if (!($w == 16 && $h == 32) && !($w == 16 && $h == 16) && !($w == 16 && $h == 8) && !($w == 16 && $h == 4)) {
+            specialize "aom_highbd_sad${w}x${h}", qw/sse2/;
+            specialize "aom_highbd_sad${w}x${h}_avg", qw/sse2/;
+          }
+        } else {
+          if (!($w == 16 && $h == 16) && !($w == 16 && $h == 8) && !($w == 16 && $h == 4)) {
+            specialize "aom_highbd_sad${w}x${h}", qw/sse2/;
+            specialize "aom_highbd_sad${w}x${h}_avg", qw/sse2/;
+          }
+        }  # CONFIG_FLEX_PARTITION
       } else {
         specialize "aom_highbd_sad${w}x${h}", qw/sse2/;
         specialize "aom_highbd_sad${w}x${h}_avg", qw/sse2/;
@@ -352,7 +359,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad32x64   avx2 sse2/;
   specialize qw/aom_highbd_sad32x32   avx2 sse2/;
   specialize qw/aom_highbd_sad32x16   avx2 sse2/;
-  specialize qw/aom_highbd_sad16x32   avx2 sse2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    specialize qw/aom_highbd_sad16x32   avx2/;
+  } else {
+    specialize qw/aom_highbd_sad16x32   avx2 sse2/;
+  }
   if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
     specialize qw/aom_highbd_sad16x16   avx2/;
     specialize qw/aom_highbd_sad16x8    avx2/;
@@ -414,7 +425,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad32x64_avg   avx2 sse2/;
   specialize qw/aom_highbd_sad32x32_avg   avx2 sse2/;
   specialize qw/aom_highbd_sad32x16_avg   avx2 sse2/;
-  specialize qw/aom_highbd_sad16x32_avg   avx2 sse2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    specialize qw/aom_highbd_sad16x32_avg   avx2/;
+  } else {
+    specialize qw/aom_highbd_sad16x32_avg   avx2 sse2/;
+  }
   if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
     specialize qw/aom_highbd_sad16x16_avg   avx2/;
     specialize qw/aom_highbd_sad16x8_avg    avx2/;
