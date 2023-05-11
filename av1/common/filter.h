@@ -99,7 +99,7 @@ DECLARE_ALIGNED(256, static const InterpKernel,
 };
 #endif
 #if CONFIG_REFINEMV && USE_6TAP_FILTER_FOR_4x4OPTFLOW
-#define FILTER_TEST_ID 0
+#define FILTER_TEST_ID 1
 DECLARE_ALIGNED(256, static const InterpKernel,
                 av1_six_tap_sharp[SUBPEL_SHIFTS]) = {
 #if FILTER_TEST_ID == 1
