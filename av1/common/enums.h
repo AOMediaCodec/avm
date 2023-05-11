@@ -37,10 +37,10 @@ extern "C" {
 #define USE_8TAP_FILTER_FOR_4x4OPTFLOW 0
 
 #define USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS 0
-#define OPFL_EXTEND_BOUNDARY 1
-#define USE_6TAP_FILTER_FOR_4x4OPTFLOW 1
+#define OPFL_EXTEND_BOUNDARY 0
+#define USE_6TAP_FILTER_FOR_4x4OPTFLOW 0
 
-#define ENABLE_3x3_SEARCH 0
+#define ENABLE_3x3_SEARCH 1
 #define NEIGHBORS_BASED_ON_ITERATION \
   0  // 1 both diamonds, 2: square-diamond 3: diamond-square
 #define SINGLE_STEP_SEARCH 0
