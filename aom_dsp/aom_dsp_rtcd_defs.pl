@@ -342,8 +342,13 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad_skip_32x32   avx2 sse2/;
   specialize qw/aom_highbd_sad_skip_32x16   avx2 sse2/;
   specialize qw/aom_highbd_sad_skip_16x32   avx2 sse2/;
-  specialize qw/aom_highbd_sad_skip_16x16   avx2 sse2/;
-  specialize qw/aom_highbd_sad_skip_16x8    avx2 sse2/;
+  if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
+    specialize qw/aom_highbd_sad_skip_16x16   avx2/;
+    specialize qw/aom_highbd_sad_skip_16x8    avx2/;
+  } else {
+    specialize qw/aom_highbd_sad_skip_16x16   avx2 sse2/;
+    specialize qw/aom_highbd_sad_skip_16x8    avx2 sse2/;
+  }
   specialize qw/aom_highbd_sad_skip_8x16         sse2/;
   specialize qw/aom_highbd_sad_skip_8x8          sse2/;
   specialize qw/aom_highbd_sad_skip_4x8          sse2/;
