@@ -2024,16 +2024,27 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     assert(mi->interinter_comp.type == COMPOUND_AVERAGE);
   }
 
+#if !SINGLE_STEP_SEARCH
+  // Search integer-delta values
+#if ENABLE_3x3_SEARCH
+  int search_range = 1;
+#else
+  int search_range = 2;
+#endif
+#endif
+
 #if PRE_COMPUTE_ALL_SADS
   int pre_computed_sads[5][5];
-  for (int offset_row = -2; offset_row <= 2; offset_row++) {
-    for (int offset_col = -2; offset_col <= 2; offset_col++) {
+  for (int offset_row = -search_range; offset_row <= search_range;
+       offset_row++) {
+    for (int offset_col = -search_range; offset_col <= search_range;
+         offset_col++) {
       MV this_mv0, this_mv1;
       this_mv0.row = center_mvs[0].row + 8 * offset_row;
       this_mv0.col = center_mvs[0].col + 8 * offset_col;
       this_mv1.row = center_mvs[1].row - 8 * offset_row;
       this_mv1.col = center_mvs[1].col - 8 * offset_col;
-      pre_computed_sads[offset_row + 2][offset_col + 2] =
+      pre_computed_sads[offset_row + search_range][offset_col + search_range] =
           av1_refinemv_build_predictors_and_get_sad(
               xd, bw, bh, mi_x, mi_y, mc_buf, calc_subpel_params_func, dst_ref0,
               dst_ref1, this_mv0, this_mv1, inter_pred_params);
@@ -2047,15 +2058,15 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
 
   // If we signal the refinemv_flags we do not select sad0
   // Set sad0 a large value so that it does not be selected
-  int sad0 = switchable_refinemv_flags ? (INT32_MAX >> 1)
+  int sad0 = switchable_refinemv_flags
+                 ? (INT32_MAX >> 1)
 #if PRE_COMPUTE_ALL_SADS
-                                       : pre_computed_sads[0 + 2][0 + 2];
+                 : pre_computed_sads[0 + search_range][0 + search_range];
 #else
-                                       : av1_refinemv_build_predictors_and_get_sad(
-                                             xd, bw, bh, mi_x, mi_y, mc_buf,
-                                             calc_subpel_params_func, dst_ref0,
-                                             dst_ref1, center_mvs[0],
-                                             center_mvs[1], inter_pred_params);
+                 : av1_refinemv_build_predictors_and_get_sad(
+                       xd, bw, bh, mi_x, mi_y, mc_buf, calc_subpel_params_func,
+                       dst_ref0, dst_ref1, center_mvs[0], center_mvs[1],
+                       inter_pred_params);
 #endif
 
   assert(IMPLIES(mi->ref_frame[0] == TIP_FRAME, bw == 8 && bh == 8));
@@ -2112,15 +2123,6 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     if (sad0 < th) return;
 #endif
   }
-
-#if !SINGLE_STEP_SEARCH
-  // Search integer-delta values
-#if ENABLE_3x3_SEARCH
-  int search_range = 1;
-#else
-  int search_range = 2;
-#endif
-#endif
 
   int min_sad = sad0;
   MV refined_mv0, refined_mv1;
@@ -2200,7 +2202,8 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
       refined_mv1.col = center_mvs[1].col - 8 * offset.col;
 
 #if PRE_COMPUTE_ALL_SADS
-      int this_sad = pre_computed_sads[offset.row + 2][offset.col + 2];
+      int this_sad = pre_computed_sads[offset.row + search_range]
+                                      [offset.col + search_range];
 #else
     int this_sad = av1_refinemv_build_predictors_and_get_sad(
         xd, bw, bh, mi_x, mi_y, mc_buf, calc_subpel_params_func, dst_ref0,

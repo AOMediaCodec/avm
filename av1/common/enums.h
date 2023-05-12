@@ -40,7 +40,7 @@ extern "C" {
 #define OPFL_EXTEND_BOUNDARY 0
 #define USE_6TAP_FILTER_FOR_4x4OPTFLOW 0
 
-#define ENABLE_3x3_SEARCH 1
+#define ENABLE_3x3_SEARCH 0
 #define NEIGHBORS_BASED_ON_ITERATION \
   0  // 1 both diamonds, 2: square-diamond 3: diamond-square
 #define SINGLE_STEP_SEARCH 0
@@ -52,7 +52,7 @@ extern "C" {
 
 #define HIGHER_THRESHOLD_IN_SECOND_ITERATION 0
 
-#define PRE_COMPUTE_ALL_SADS 0
+#define PRE_COMPUTE_ALL_SADS 1
 
 #else
 #define USE_8TAP_FILTER_FOR_4x4OPTFLOW 0
