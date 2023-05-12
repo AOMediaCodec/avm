@@ -455,18 +455,18 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_H_PARTITION
   1,  // enable extended partitions
 #else
-  0,  // enable extended partitions
+  0,        // enable extended partitions
 #endif  // CONFIG_H_PARTITION
 #endif  // !CONFIG_UNEVEN_4WAY
 #else
   0,                        // disable ML based partition speed up features
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  1,  // enable rectangular partitions
-  1,  // enable ab shape partitions
-  1,  // enable 1:4 and 4:1 partitions
-  0,  // disable ml based transform speed features
-  1,  // enable semi-decoupled partitioning
-  1,  // enable multiple reference line selection
+  1,    // enable rectangular partitions
+  1,    // enable ab shape partitions
+  1,    // enable 1:4 and 4:1 partitions
+  0,    // disable ml based transform speed features
+  1,    // enable semi-decoupled partitioning
+  1,    // enable multiple reference line selection
 #if CONFIG_TIP
   1,    // enable temporal interpolated prediction (TIP)
 #endif  // CONFIG_TIP
@@ -4302,7 +4302,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #else
         0,  // enable extended partitions
 #endif  // CONFIG_H_PARTITION
-#endif      // !CONFIG_UNEVEN_4WAY
+#endif  // !CONFIG_UNEVEN_4WAY
 #else   // CONFIG_EXT_RECUR_PARTITIONS
         0,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
