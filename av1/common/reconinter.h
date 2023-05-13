@@ -523,9 +523,13 @@ static INLINE int is_refinemv_allowed_mode_precision(
   return (mode >= NEAR_NEARMV && mode <= JOINT_AMVDNEWMV_OPTFLOW);
 }
 static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
+#if SIGNAL_DMVR_ALWAYS
+  return (mbmi->skip_mode);
+#else
   return (mbmi->skip_mode || mbmi->mode == NEAR_NEARMV ||
           mbmi->mode == NEAR_NEARMV_OPTFLOW ||
           mbmi->mode == JOINT_NEWMV_OPTFLOW);
+#endif
 }
 static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
                                                 const MB_MODE_INFO *mbmi) {
