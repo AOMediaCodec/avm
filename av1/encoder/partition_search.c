@@ -5111,12 +5111,9 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // horz
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
-    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_VERT &&
-        part_search_state->partition_rect_allowed[HORZ]) {
-      part_search_state->prune_partition_4a[HORZ] = 1;
-    }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_HORZ_3 &&
+    if (prune_part4_from_part_h &&  !frame_is_intra_only(cm) &&
+        pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
         !node_uses_horz(pc_tree->horizontal3[3])) {
       // Prune is best partition is horizontal H, but first and last
@@ -5124,6 +5121,11 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
 #endif  // CONFIG_H_PARTITION
+    if (prune_part4_horz_or_vert &&  !frame_is_intra_only(cm) &&
+        pc_tree->partitioning == PARTITION_VERT &&
+        part_search_state->partition_rect_allowed[HORZ]) {
+      part_search_state->prune_partition_4a[HORZ] = 1;
+    }
   }
 
   // Prune HORZ 4B with speed features
@@ -5142,12 +5144,9 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // horz
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
-    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_VERT &&
-        part_search_state->partition_rect_allowed[HORZ]) {
-      part_search_state->prune_partition_4b[HORZ] = 1;
-    }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_HORZ_3 &&
+    if (prune_part4_from_part_h && !frame_is_intra_only(cm) &&
+pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
         !node_uses_horz(pc_tree->horizontal3[3])) {
       // Prune is best partition is horizontal H, but first and last
@@ -5155,6 +5154,11 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
 #endif  // CONFIG_H_PARTITION
+    if (prune_part4_horz_or_vert && !frame_is_intra_only(cm) &&
+pc_tree->partitioning == PARTITION_VERT &&
+        part_search_state->partition_rect_allowed[HORZ]) {
+      part_search_state->prune_partition_4b[HORZ] = 1;
+    }
   }
 
   // Prune VERT_4A with speed features
@@ -5173,12 +5177,9 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // vert
       part_search_state->prune_partition_4a[VERT] = 1;
     }
-    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_HORZ &&
-        part_search_state->partition_rect_allowed[VERT]) {
-      part_search_state->prune_partition_4a[VERT] = 1;
-    }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_VERT_3 &&
+    if (prune_part4_from_part_h && !frame_is_intra_only(cm) &&
+pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
         !node_uses_vert(pc_tree->vertical3[3])) {
       // Prune is best partition is vertical H, but first and last
@@ -5186,6 +5187,11 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4a[VERT] = 1;
     }
 #endif  // CONFIG_H_PARTITION
+    if (prune_part4_horz_or_vert && !frame_is_intra_only(cm) &&
+pc_tree->partitioning == PARTITION_HORZ &&
+        part_search_state->partition_rect_allowed[VERT]) {
+      part_search_state->prune_partition_4a[VERT] = 1;
+    }
   }
 
   // Prune VERT_4B with speed features
@@ -5204,12 +5210,9 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // vert
       part_search_state->prune_partition_4b[VERT] = 1;
     }
-    if (prune_part4_horz_or_vert && pc_tree->partitioning == PARTITION_HORZ &&
-        part_search_state->partition_rect_allowed[VERT]) {
-      part_search_state->prune_partition_4b[VERT] = 1;
-    }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h && pc_tree->partitioning == PARTITION_VERT_3 &&
+    if (prune_part4_from_part_h && !frame_is_intra_only(cm) &&
+pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
         !node_uses_vert(pc_tree->vertical3[3])) {
       // Prune is best partition is vertical H, but first and last
@@ -5217,6 +5220,11 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4b[VERT] = 1;
     }
 #endif  // CONFIG_H_PARTITION
+    if (prune_part4_horz_or_vert && !frame_is_intra_only(cm) &&
+pc_tree->partitioning == PARTITION_HORZ &&
+        part_search_state->partition_rect_allowed[VERT]) {
+      part_search_state->prune_partition_4b[VERT] = 1;
+    }
   }
 }
 
