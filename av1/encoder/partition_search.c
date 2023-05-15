@@ -3017,6 +3017,26 @@ static AOM_INLINE void init_allowed_partitions(
       is_bsize_geq(vert_subsize, blk_params->min_partition_size) &&
       is_vert_size_valid;
 
+  const int ext_partition_allowed = part_search_state->ext_partition_allowed =
+      part_cfg->enable_ext_partitions &&
+      is_ext_partition_allowed_at_bsize(bsize, tree_type);
+
+  part_search_state->partition_3_allowed[HORZ] =
+      ext_partition_allowed &&
+      get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_3, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_3),
+                   blk_params->min_partition_size);
+
+  part_search_state->partition_3_allowed[VERT] =
+      ext_partition_allowed &&
+      get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_VERT_3, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
+      is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_3),
+                   blk_params->min_partition_size);
+
   // Reset the flag indicating whether a partition leading to a rdcost lower
   // than the bound best_rdc has been found.
   part_search_state->found_best_partition = false;
@@ -3027,7 +3047,7 @@ static AOM_INLINE void init_allowed_partitions(
 static void init_partition_search_state_params(
     MACROBLOCK *x, AV1_COMP *const cpi, PartitionSearchState *part_search_state,
 #if CONFIG_EXT_RECUR_PARTITIONS
-    PC_TREE *pc_tree,
+    PC_TREE *pc_tree, int max_recursion_depth,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     int mi_row, int mi_col, BLOCK_SIZE bsize) {
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -3123,8 +3143,17 @@ static void init_partition_search_state_params(
   av1_zero(part_search_state->prune_rect_part);
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+  av1_zero(part_search_state->prune_partition_3);
+
   init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg,
                           &pc_tree->chroma_ref_info, xd->tree_type);
+
+  if (max_recursion_depth == 0) {
+    part_search_state->prune_rect_part[HORZ] =
+        part_search_state->prune_rect_part[VERT] = true;
+    part_search_state->prune_partition_3[HORZ] =
+        part_search_state->prune_partition_3[VERT] = true;
+  }
 #else
   part_search_state->do_square_split =
       blk_params->bsize_at_least_8x8 &&
@@ -4715,6 +4744,48 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   return 1;
 }
 
+static AOM_INLINE void prune_ext_partitions(
+    AV1_COMP *const cpi, PC_TREE *pc_tree,
+    PartitionSearchState *part_search_state, PARTITION_TYPE forced_partition) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
+
+  // Prune horz 3 with speed features
+  if (part_search_state->partition_3_allowed[HORZ] &&
+      !frame_is_intra_only(cm) && forced_partition != PARTITION_HORZ_3) {
+    if (part_sf->prune_part_3_with_part_none &&
+        pc_tree->partitioning == PARTITION_NONE) {
+      // Prune if the best partition does not split
+      part_search_state->prune_partition_3[HORZ] = 1;
+    }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_HORZ &&
+        !node_uses_horz(pc_tree->horizontal[0]) &&
+        !node_uses_horz(pc_tree->horizontal[1])) {
+      // Prune if the best partition is horz but horz did not further split in
+      // horz
+      part_search_state->prune_partition_3[HORZ] = 1;
+    }
+  }
+
+  if (part_search_state->partition_3_allowed[VERT] &&
+      !frame_is_intra_only(cm) && forced_partition != PARTITION_VERT_3) {
+    if (part_sf->prune_part_3_with_part_none &&
+        pc_tree->partitioning == PARTITION_NONE) {
+      // Prune if the best partition does not split
+      part_search_state->prune_partition_3[VERT] = 1;
+    }
+    if (part_sf->prune_part_3_with_part_rect &&
+        pc_tree->partitioning == PARTITION_VERT &&
+        !node_uses_vert(pc_tree->vertical[0]) &&
+        !node_uses_vert(pc_tree->vertical[1])) {
+      // Prune if the best partition is vert but vert did not further split in
+      // vert
+      part_search_state->prune_partition_3[VERT] = 1;
+    }
+  }
+}
+
 /*!\brief Performs rdopt on PARTITION_HORZ_3. */
 static INLINE void search_partition_horz_3(
     PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
@@ -5116,7 +5187,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // Initialization of state variables used in partition search.
   init_partition_search_state_params(x, cpi, &part_search_state,
 #if CONFIG_EXT_RECUR_PARTITIONS
-                                     pc_tree,
+                                     pc_tree, max_recursion_depth,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      mi_row, mi_col, bsize);
   PartitionBlkParams blk_params = part_search_state.part_blk_params;
@@ -5397,26 +5468,20 @@ BEGIN_PARTITION_SEARCH:
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   // Rectangular partitions search stage.
+  rectangular_partition_search(
+      cpi, td, tile_data, tp, x, pc_tree, &x_ctx, &part_search_state, &best_rdc,
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (max_recursion_depth > 0) {
+      multi_pass_mode, ptree_luma, template_tree, max_recursion_depth - 1,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    rectangular_partition_search(cpi, td, tile_data, tp, x, pc_tree, &x_ctx,
-                                 &part_search_state, &best_rdc,
-#if CONFIG_EXT_RECUR_PARTITIONS
-                                 multi_pass_mode, ptree_luma, template_tree,
-                                 max_recursion_depth - 1,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-                                 rect_part_win_info,
+      rect_part_win_info,
 #if CONFIG_C043_MVP_IMPROVEMENTS
-                                 &best_level_bank, &curr_level_bank,
+      &best_level_bank, &curr_level_bank,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
 #if WARP_CU_BANK
-                                 &best_level_warp_bank, &curr_level_warp_bank,
+      &best_level_warp_bank, &curr_level_warp_bank,
 #endif  // WARP_CU_BANK
-                                 part_none_rd);
-#if CONFIG_EXT_RECUR_PARTITIONS
-  }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      part_none_rd);
+
   if (pb_source_variance == UINT_MAX) {
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
     pb_source_variance = av1_high_get_sby_perpixel_variance(
@@ -5513,76 +5578,20 @@ BEGIN_PARTITION_SEARCH:
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int partition_3_allowed = BLOCK_8X8 < bsize && bsize <= BLOCK_64X64 &&
-                                  max_recursion_depth > 0 &&
-                                  cpi->oxcf.part_cfg.enable_ext_partitions;
-  const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
-
-  int horz_3_allowed =
-      partition_3_allowed &&
-      get_partition_subsize(bsize, PARTITION_HORZ_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(xd->tree_type, PARTITION_HORZ_3, bsize, mi_row,
-                                 mi_col, part_search_state.ss_x,
-                                 part_search_state.ss_y,
-                                 &pc_tree->chroma_ref_info) &&
-      is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_3),
-                   blk_params.min_partition_size);
-  // Prune horz 3 with speed features
-  if (horz_3_allowed && !frame_is_intra_only(cm) &&
-      forced_partition != PARTITION_HORZ_3) {
-    if (part_sf->prune_part_3_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      horz_3_allowed = 0;
-    }
-    if (part_sf->prune_part_3_with_part_rect &&
-        pc_tree->partitioning == PARTITION_HORZ &&
-        !node_uses_horz(pc_tree->horizontal[0]) &&
-        !node_uses_horz(pc_tree->horizontal[1])) {
-      // Prune if the best partition is horz but horz did not further split in
-      // horz
-      horz_3_allowed = 0;
-    }
-  }
-
-  int vert_3_allowed =
-      partition_3_allowed &&
-      get_partition_subsize(bsize, PARTITION_VERT_3) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(xd->tree_type, PARTITION_VERT_3, bsize, mi_row,
-                                 mi_col, part_search_state.ss_x,
-                                 part_search_state.ss_y,
-                                 &pc_tree->chroma_ref_info) &&
-      is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_3),
-                   blk_params.min_partition_size);
-
-  if (vert_3_allowed && !frame_is_intra_only(cm) &&
-      forced_partition != PARTITION_VERT_3) {
-    if (part_sf->prune_part_3_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      vert_3_allowed = 0;
-    }
-    if (part_sf->prune_part_3_with_part_rect &&
-        pc_tree->partitioning == PARTITION_VERT &&
-        !node_uses_vert(pc_tree->vertical[0]) &&
-        !node_uses_vert(pc_tree->vertical[1])) {
-      // Prune if the best partition is vert but vert did not further split in
-      // vert
-      vert_3_allowed = 0;
-    }
-  }
+  prune_ext_partitions(cpi, pc_tree, &part_search_state, forced_partition);
 
   const int ext_recur_depth =
       AOMMIN(max_recursion_depth - 1, cpi->sf.part_sf.ext_recur_depth);
+  const bool track_ptree_luma =
+      is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
 
   // PARTITION_HORZ_3
-  if (IS_FORCED_PARTITION_TYPE(PARTITION_HORZ_3) && horz_3_allowed) {
+  if (IS_FORCED_PARTITION_TYPE(PARTITION_HORZ_3) &&
+      part_search_state.partition_3_allowed[HORZ] &&
+      !part_search_state.prune_partition_3[HORZ]) {
     search_partition_horz_3(
         &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        (ptree_luma && ptree_luma->partition == PARTITION_HORZ_3) ? ptree_luma
-                                                                  : NULL,
-
-        template_tree, &x_ctx,
+        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
 #if CONFIG_C043_MVP_IMPROVEMENTS
         &best_level_bank,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
@@ -5599,13 +5608,12 @@ BEGIN_PARTITION_SEARCH:
   }
 
   // PARTITION_VERT_3
-  if (IS_FORCED_PARTITION_TYPE(PARTITION_VERT_3) && vert_3_allowed) {
+  if (IS_FORCED_PARTITION_TYPE(PARTITION_VERT_3) &&
+      part_search_state.partition_3_allowed[VERT] &&
+      !part_search_state.prune_partition_3[VERT]) {
     search_partition_vert_3(
         &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        (ptree_luma && ptree_luma->partition == PARTITION_VERT_3) ? ptree_luma
-                                                                  : NULL,
-
-        template_tree, &x_ctx,
+        track_ptree_luma ? ptree_luma : NULL, template_tree, &x_ctx,
 #if CONFIG_C043_MVP_IMPROVEMENTS
         &best_level_bank,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS

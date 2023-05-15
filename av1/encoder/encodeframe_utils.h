@@ -164,6 +164,11 @@ typedef struct PartitionSearchState {
 #if !CONFIG_EXT_RECUR_PARTITIONS
   int do_square_split;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  bool ext_partition_allowed;
+  bool partition_3_allowed[NUM_RECT_PARTS];
+  bool prune_partition_3[NUM_RECT_PARTS];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   int prune_rect_part[NUM_RECT_PARTS];
   int is_block_splittable;
 
