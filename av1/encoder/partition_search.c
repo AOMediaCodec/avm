@@ -3721,6 +3721,7 @@ static void rectangular_partition_search(
     }
 
     PC_TREE **sub_tree = (i == HORZ) ? pc_tree->horizontal : pc_tree->vertical;
+    assert(sub_tree);
 
     const int num_planes = av1_num_planes(cm);
     for (int idx = 0; idx < SUB_PARTITIONS_RECT; idx++) {
