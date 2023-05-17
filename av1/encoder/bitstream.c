@@ -5926,7 +5926,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   } else {
     // Since length_field is determined adaptively after frame header
     // encoding, saved_wb must be adjusted accordingly.
-    saved_wb.bit_buffer += length_field;
+    if (saved_wb.bit_buffer) saved_wb.bit_buffer += length_field;
 
     //  Each tile group obu will be preceded by 4-byte size of the tile group
     //  obu
