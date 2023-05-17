@@ -183,7 +183,7 @@ typedef struct PartitionSearchState {
   bool prune_partition_3[NUM_RECT_PARTS];
   PARTITION_TYPE forced_partition;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  int prune_rect_part[NUM_RECT_PARTS];
+  bool prune_rect_part[NUM_RECT_PARTS];
   int is_block_splittable;
 
   // Chroma subsampling in x and y directions.

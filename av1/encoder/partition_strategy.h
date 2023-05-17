@@ -87,7 +87,7 @@ void av1_simple_motion_search_based_split(
 void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
-    int partition_vert_allowed, int *prune_horz, int *prune_vert);
+    int partition_vert_allowed, bool *prune_horz, bool *prune_vert);
 
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
@@ -165,7 +165,7 @@ void av1_prune_partitions_before_search(
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
     int *partition_none_allowed, int *partition_horz_allowed,
     int *partition_vert_allowed, int *do_rectangular_split,
-    int *do_square_split, int *prune_horz, int *prune_vert,
+    int *do_square_split, bool *prune_horz, bool *prune_vert,
     const PC_TREE *pc_tree);
 
 // Prune out partitions that lead to coding block sizes outside the min and max

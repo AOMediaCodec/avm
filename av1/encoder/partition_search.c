@@ -3479,6 +3479,34 @@ static AOM_INLINE int is_rect_part_allowed(
   return is_part_allowed;
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE void prune_rect_with_none_rd(
+    PartitionSearchState *part_search_state, BLOCK_SIZE bsize, int q_index,
+    int rdmult, int64_t part_none_rd, const int *is_not_edge_block) {
+  for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_PARTS; rect++) {
+    // Disable pruning on the boundary
+    if (!is_not_edge_block[rect]) {
+      continue;
+    }
+    const PARTITION_TYPE partition_type = rect_partition_type[rect];
+    float discount_factor = 1.1f;
+    const int q_thresh = 180;
+    if (q_index < q_thresh) {
+      discount_factor -= 0.025f;
+    }
+    if (AOMMAX(block_size_wide[bsize], block_size_high[bsize]) < 16) {
+      discount_factor -= 0.02f;
+    }
+    const int part_rate = part_search_state->partition_cost[partition_type];
+    const int64_t est_rd = (int64_t)(part_none_rd / discount_factor) +
+                           RDCOST(rdmult, part_rate, 0);
+    if (est_rd > part_none_rd) {
+      part_search_state->prune_rect_part[rect] = true;
+    }
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // Rectangular partition types search function.
 static void rectangular_partition_search(
     AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
@@ -3553,7 +3581,6 @@ static void rectangular_partition_search(
        is_rect_part_allowed(cpi, part_search_state, active_edge_type, VERT,
                             mi_pos_rect[VERT][0][VERT]));
 
-  bool prune_horz = false, prune_vert = false;
   if (try_prune_with_ml && bsize != BLOCK_4X8 && bsize != BLOCK_8X4 &&
       is_partition_point(bsize)) {
     float ml_features[19];
@@ -3562,7 +3589,15 @@ static void rectangular_partition_search(
                                  mi_pos_rect);
     const bool is_hd = AOMMIN(cm->width, cm->height) >= 1080;
 
-    av1_erp_prune_rect(bsize, is_hd, ml_features, &prune_horz, &prune_vert);
+    av1_erp_prune_rect(bsize, is_hd, ml_features,
+                       &part_search_state->prune_rect_part[HORZ],
+                       &part_search_state->prune_rect_part[VERT]);
+  }
+  if (cpi->sf.part_sf.prune_rect_with_none_rd &&
+      part_search_state->forced_partition == PARTITION_INVALID &&
+      !frame_is_intra_only(cm) && part_none_rd < INT64_MAX) {
+    prune_rect_with_none_rd(part_search_state, bsize, x->qindex, x->rdmult,
+                            part_none_rd, is_not_edge_block);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -3602,33 +3637,6 @@ static void rectangular_partition_search(
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (is_part_pruned_by_forced_partition(part_search_state, partition_type)) {
       continue;
-    }
-
-    if (partition_type == PARTITION_HORZ && prune_horz) {
-      continue;
-    } else if (partition_type == PARTITION_VERT && prune_vert) {
-      continue;
-    }
-
-    if (cpi->sf.part_sf.prune_rect_with_none_rd &&
-        part_search_state->forced_partition == PARTITION_INVALID &&
-        !frame_is_intra_only(cm) && part_none_rd < INT64_MAX &&
-        sum_rdc->rate < INT_MAX && is_not_edge_block[i]) {
-      float discount_factor = 1.1f;
-      const int q_thresh = 180;
-      const int q = x->qindex;
-      if (q < q_thresh) {
-        discount_factor -= 0.025f;
-      }
-      if (AOMMAX(block_size_wide[blk_params.bsize],
-                 block_size_high[blk_params.bsize]) < 16) {
-        discount_factor -= 0.02f;
-      }
-      const int64_t est_rd = (int64_t)(part_none_rd / discount_factor) +
-                             RDCOST(x->rdmult, part_hv_rate, 0);
-      if (est_rd > part_none_rd) {
-        continue;
-      }
     }
 
     PC_TREE **sub_tree = (i == HORZ) ? pc_tree->horizontal : pc_tree->vertical;
@@ -5329,8 +5337,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       is_bsize_gt(bsize, x->sb_enc.min_partition_size)) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-    int *prune_horz = &part_search_state.prune_rect_part[HORZ];
-    int *prune_vert = &part_search_state.prune_rect_part[VERT];
+    bool *prune_horz = &part_search_state.prune_rect_part[HORZ];
+    bool *prune_vert = &part_search_state.prune_rect_part[VERT];
 #if CONFIG_EXT_RECUR_PARTITIONS
     int do_square_split = true;
     int *sqr_split_ptr = &do_square_split;
