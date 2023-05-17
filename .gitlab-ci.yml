@@ -248,7 +248,8 @@ Test Data Check:
       echo "Configuration:     $AOM_BUILD_CONFIG"
     - cmake -B aom_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS $EXTRA_CMAKE_FLAGS
     - cmake --build aom_build -j 2 || exit_code=$?
-    - if [ ${exit_code} -ne 0 ]; then
+    - |
+      if [ ${exit_code} -ne 0 ]; then
         echo "You may reproduce the compile failure by following instructions here:"
         echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations"
         echo "Using following values:"
