@@ -516,6 +516,10 @@ void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
     int partition_vert_allowed, bool *prune_horz, bool *prune_vert) {
+  // TODO(now): Need to change for CONFIG_UNEVEN_4WAY.
+#if CONFIG_UNEVEN_4WAY
+  assert(0 && "Not implemented");
+#endif  // CONFIG_UNEVEN_4WAY
   aom_clear_system_state();
   const AV1_COMMON *const cm = &cpi->common;
   const int bsize_idx = convert_bsize_to_idx(bsize);
@@ -551,10 +555,6 @@ void av1_simple_motion_search_prune_rect(
   // Get probabilities
   float scores[EXT_PARTITION_TYPES] = { 0.0f },
         probs[EXT_PARTITION_TYPES] = { 0.0f };
-  // TODO(now): Need to change for CONFIG_UNEVEN_4WAY.
-#if CONFIG_UNEVEN_4WAY
-  assert(0 && "Not implemented");
-#endif  // CONFIG_UNEVEN_4WAY
   const int num_classes = (bsize == BLOCK_128X128 || bsize == BLOCK_8X8)
                               ? PARTITION_TYPES
                               : EXT_PARTITION_TYPES;
