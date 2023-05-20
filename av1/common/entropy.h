@@ -143,11 +143,13 @@ static INLINE ENTROPY_CONTEXT get_entropy_context_1d(const ENTROPY_CONTEXT *ctx,
       return !!*(const uint16_t *)ctx;
 #endif  // CONFIG_H_PARTITION
     case 16:
-#if CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+      return ctx[0] != 0 || ctx[1] != 0 || ctx[2] != 0 || ctx[3] != 0;
+#elif CONFIG_H_PARTITION
       return !!(*(const uint16_t *)ctx | *(const uint16_t *)(ctx + 2));
 #else
       return !!*(const uint32_t *)ctx;
-#endif  // CONFIG_H_PARTITION
+#endif  // CONFIG_UNEVEN_4WAY
     case 32:
 #if CONFIG_H_PARTITION
       return !!(*(const uint32_t *)ctx | *(const uint32_t *)(ctx + 4));
