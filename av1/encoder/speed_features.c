@@ -711,7 +711,6 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
-  gm_sf->selective_ref_gm = 1;
   gm_sf->gm_search_type = GM_FULL_SEARCH;
   gm_sf->prune_ref_frame_for_gm_search = 0;
 }

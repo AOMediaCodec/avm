@@ -369,11 +369,6 @@ typedef struct TPL_SPEED_FEATURES {
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
-  // Do not compute the global motion parameters for a LAST2_FRAME or
-  // LAST3_FRAME if the GOLDEN_FRAME is closer and it has a non identity
-  // global model.
-  int selective_ref_gm;
-
   GM_SEARCH_TYPE gm_search_type;
 
   // During global motion estimation, prune remaining reference frames in a

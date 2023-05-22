@@ -308,24 +308,6 @@ static int compare_distance(const void *a, const void *b) {
   return 0;
 }
 
-// Function to decide if we can skip the global motion parameter computation
-// for a particular ref frame.
-static AOM_INLINE int skip_gm_frame(AV1_COMMON *const cm, int refrank) {
-  const RefCntBuffer *const refbuf = get_ref_frame_buf(cm, refrank);
-  if (refbuf == NULL) return 1;
-  const int d0 = get_dir_rank(cm, refrank, NULL);
-  for (int i = 0; i < refrank; ++i) {
-    const int di = get_dir_rank(cm, i, NULL);
-    if (di == d0 && cm->global_motion[i].wmtype != IDENTITY) {
-      // Same direction higher ranked ref has a non-identity gm.
-      // Allow search if distance is smaller in this case.
-      return (abs(cm->ref_frames_info.ref_frame_distance[i]) >
-              abs(cm->ref_frames_info.ref_frame_distance[refrank]));
-    }
-  }
-  return 0;
-}
-
 // Prunes reference frames for global motion estimation based on the speed
 // feature 'gm_search_type'.
 static int do_gm_search_logic(SPEED_FEATURES *const sf, int refrank) {
@@ -378,9 +360,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
 
     if (ref_buf[frame]->y_crop_width == cpi->source->y_crop_width &&
         ref_buf[frame]->y_crop_height == cpi->source->y_crop_height &&
-        do_gm_search_logic(&cpi->sf, ref_frame[0]) &&
-        !(cpi->sf.gm_sf.selective_ref_gm && skip_gm_frame(cm, ref_frame[0])) &&
-        !prune_ref_frames) {
+        do_gm_search_logic(&cpi->sf, ref_frame[0]) && !prune_ref_frames) {
       assert(ref_buf[frame] != NULL);
       const int relative_frame_dist = av1_encoder_get_relative_dist(
           buf->display_order_hint, cm->cur_frame->display_order_hint);
