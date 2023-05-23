@@ -55,11 +55,23 @@ extern "C" {
 #define PRE_COMPUTE_ALL_SADS 0
 #define SIGNAL_DMVR_ALWAYS 0
 
+#define PADING_AT_LARGE_TIP_BLOCK 1
+
 #else
 #define USE_8TAP_FILTER_FOR_4x4OPTFLOW 0
 #define USE_4x4_OPT_FLOW_FOR_DMVR_BLOCKS 0
 #define OPFL_EXTEND_BOUNDARY 0
 #endif
+
+#define DEBUG_TIP_PADDING 0
+#if DEBUG_TIP_PADDING
+#define CHECK_PADDING(c, err)                                            \
+  if (c) {                                                               \
+    printf("The assertion failed on line %d, in file %s %s\n", __LINE__, \
+           __FILE__, err);                                               \
+    exit(1);                                                             \
+  }
+#endif  // DEBUG_TIP_PADDING
 
 #if CONFIG_WEDGE_MOD_EXT
 /*WEDGE_0 is defined in the three o'clock direciton, the angles are defined in

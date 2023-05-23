@@ -366,6 +366,26 @@ typedef struct {
   COMPOUND_TYPE type;
 } INTERINTER_COMPOUND_DATA;
 
+#if CONFIG_REFINEMV
+#define REF_BUFFER_WIDTH \
+  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_HEIGHT \
+  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+typedef struct PadBlock {
+  int x0;
+  int x1;
+  int y0;
+  int y1;
+} PadBlock;
+
+typedef struct PadArea {
+  PadBlock pad_block;
+  uint16_t paded_ref_buf[(REF_BUFFER_WIDTH) * (REF_BUFFER_HEIGHT)];
+  int paded_ref_buf_stride;
+} ReferenceArea;
+
+#endif
+
 #if CONFIG_OPTFLOW_REFINEMENT
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.

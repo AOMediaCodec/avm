@@ -718,6 +718,10 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #if CONFIG_REFINEMV
     ,
     uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv
+#if PADING_AT_LARGE_TIP_BLOCK
+    ,
+    ReferenceArea ref_area[2]
+#endif
 #endif
 
 ) {
@@ -765,11 +769,20 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                         { mbmi->mv[1].as_mv.row, mbmi->mv[1].as_mv.col } };
 
   int apply_refinemv = (is_refinemv_allowed_tip_blocks(cm, mbmi) && plane == 0);
+
+#if !PADING_AT_LARGE_TIP_BLOCK
+  ReferenceArea ref_area[2];
+#endif
   if (apply_refinemv) {
     uint16_t *dst_ref0 = NULL, *dst_ref1 = NULL;
     dst_ref0 = &dst0_16_refinemv[0];
     dst_ref1 = &dst1_16_refinemv[0];
     mbmi->refinemv_flag = 1;
+
+#if !PADING_AT_LARGE_TIP_BLOCK
+    av1_get_reference_area_with_padding(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
+                                        ref_area, comp_pixel_x, comp_pixel_y);
+#endif
 
     apply_mv_refinement(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, mc_buf,
                         calc_subpel_params_func, comp_pixel_x, comp_pixel_y,
@@ -864,6 +877,20 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
                           MULTITAP_SHARP);
 
+#if CONFIG_REFINEMV
+    if (apply_refinemv) {
+      inter_pred_params.use_ref_padding = 1;
+      inter_pred_params.ref_area = &ref_area[ref];
+#if 0
+      //printf(" [%d %d] [%d %d] \n", inter_pred_params.ref_area->pad_block.x0, inter_pred_params.ref_area->pad_block.y0, inter_pred_params.ref_area->pad_block.x1, inter_pred_params.ref_area->pad_block.y1);
+      if ((inter_pred_params.ref_area->pad_block.x1 - inter_pred_params.ref_area->pad_block.x0) == 21
+      && (inter_pred_params.ref_area->pad_block.y1 - inter_pred_params.ref_area->pad_block.y0) == 21) {
+        inter_pred_params.use_ref_padding = 1;
+      }
+#endif
+    }
+#endif
+
     inter_pred_params.comp_mode = UNIFORM_COMP;
 
     const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
@@ -918,6 +945,34 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   int apply_refinemv = (plane == 0);
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_REFINEMV && PADING_AT_LARGE_TIP_BLOCK
+  ReferenceArea ref_area[2];
+  if (apply_refinemv) {
+    MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));
+    mbmi->mv[0].as_mv = mv[0];
+    mbmi->mv[1].as_mv = mv[1];
+    mbmi->ref_frame[0] = TIP_FRAME;
+    mbmi->ref_frame[1] = NONE_FRAME;
+    mbmi->interp_fltr = EIGHTTAP_REGULAR;
+    mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
+    mbmi->use_intrabc[0] = 0;
+    mbmi->motion_mode = SIMPLE_TRANSLATION;
+    mbmi->sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
+    mbmi->interinter_comp.type = COMPOUND_AVERAGE;
+#if CONFIG_FLEX_MVRES
+    mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+    mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
+#endif
+    const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
+    const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
+    const int comp_pixel_x = (mi_x >> ss_x);
+    const int comp_pixel_y = (mi_y >> ss_y);
+    av1_get_reference_area_with_padding(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
+                                        ref_area, comp_pixel_x, comp_pixel_y);
+    aom_free(mbmi);
+  }
+#endif
+
   int dst_stride = dst_buf->stride;
   if (plane == 0 && (cm->features.use_optflow_tip
 #if CONFIG_REFINEMV
@@ -942,6 +997,10 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #if CONFIG_REFINEMV
                                    ,
                                    dst0_16_refinemv, dst1_16_refinemv
+#if PADING_AT_LARGE_TIP_BLOCK
+                                   ,
+                                   ref_area
+#endif
 #endif  // CONFIG_REFINEMV
     );
     return;

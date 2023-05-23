@@ -1293,6 +1293,19 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    tip_common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif
+
   // These are part of the function signature to use this function through a
   // function pointer. See typedef of 'CalcSubpelParamsFunc'.
   (void)xd;

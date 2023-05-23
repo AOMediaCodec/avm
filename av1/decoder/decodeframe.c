@@ -576,12 +576,14 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                        num_planes, chroma_ref_info);
 }
 
+#if !CONFIG_REFINEMV
 typedef struct PadBlock {
   int x0;
   int x1;
   int y0;
   int y1;
 } PadBlock;
+#endif
 
 static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
                                               int src_stride, uint16_t *dst,
@@ -620,10 +622,12 @@ static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
   } while (--b_h);
 }
 
-static INLINE int update_extend_mc_border_params(
-    const struct scale_factors *const sf, struct buf_2d *const pre_buf,
-    MV32 scaled_mv, PadBlock *block, int subpel_x_mv, int subpel_y_mv,
-    int do_warp, int is_intrabc, int *x_pad, int *y_pad) {
+#if !CONFIG_REFINEMV
+int update_extend_mc_border_params(const struct scale_factors *const sf,
+                                   struct buf_2d *const pre_buf, MV32 scaled_mv,
+                                   PadBlock *block, int subpel_x_mv,
+                                   int subpel_y_mv, int do_warp, int is_intrabc,
+                                   int *x_pad, int *y_pad) {
   // Get reference width and height.
   int frame_width = pre_buf->width;
   int frame_height = pre_buf->height;
@@ -660,6 +664,7 @@ static INLINE int update_extend_mc_border_params(
   }
   return 0;
 }
+#endif
 
 static INLINE void extend_mc_border(const struct scale_factors *const sf,
                                     struct buf_2d *const pre_buf,
@@ -671,7 +676,13 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
   int x_pad = 0, y_pad = 0;
   if (update_extend_mc_border_params(sf, pre_buf, scaled_mv, &block,
                                      subpel_x_mv, subpel_y_mv, do_warp,
-                                     is_intrabc, &x_pad, &y_pad)) {
+                                     is_intrabc, &x_pad, &y_pad
+#if CONFIG_REFINEMV
+                                     ,
+                                     NULL
+#endif
+
+                                     )) {
     // Get reference block pointer.
     const uint16_t *const buf_ptr =
         pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
@@ -688,7 +699,7 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
            x_pad * (AOM_INTERP_EXTEND - 1);
   }
 }
-
+#if !CONFIG_REFINEMV
 static void dec_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     const MACROBLOCKD *const xd, int mi_x, int mi_y, uint16_t **pre,
@@ -816,8 +827,28 @@ static void dec_calc_subpel_params(
   }
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
-}
 
+#if 0  // CONFIG_REFINEMV
+  if (inter_pred_params->ref_pad_data.use_paded_ref) {
+    uint16_t *src_org = *pre - 3 * pre_buf->stride - 3;
+    int offset = (MAX_FILTER_TAP / 2) - 1;
+    uint16_t *dst_org =
+        inter_pred_params->ref_pad_data.paded_ref -
+        offset * inter_pred_params->ref_pad_data.paded_ref_stride - offset;
+    for (int j = 0; j < (inter_pred_params->block_height + MAX_FILTER_TAP - 1);
+         j++) {
+      memcpy(dst_org, src_org,
+             sizeof(uint16_t) *
+                 (inter_pred_params->block_width + MAX_FILTER_TAP - 1));
+      dst_org += inter_pred_params->ref_pad_data.paded_ref_stride;
+      src_org += pre_buf->stride;
+    }
+    *pre = inter_pred_params->ref_pad_data.paded_ref;
+    *src_stride = inter_pred_params->ref_pad_data.paded_ref_stride;
+  }
+#endif
+}
+#endif
 static void dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
@@ -826,6 +857,19 @@ static void dec_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif
+
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -835,6 +879,7 @@ static void dec_calc_subpel_params_and_extend(
                          use_optflow_refinement,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                          &scaled_mv, &subpel_x_mv, &subpel_y_mv);
+
   extend_mc_border(inter_pred_params->scale_factors,
                    &inter_pred_params->ref_frame_buf, scaled_mv, block,
                    subpel_x_mv, subpel_y_mv,
@@ -843,6 +888,7 @@ static void dec_calc_subpel_params_and_extend(
 }
 
 #if CONFIG_TIP
+#if !CONFIG_REFINEMV
 static AOM_INLINE void tip_dec_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params, int mi_x,
     int mi_y, uint16_t **pre, SubpelParams *subpel_params, int *src_stride,
@@ -966,7 +1012,7 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
 }
-
+#endif
 static void tip_dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
@@ -975,7 +1021,22 @@ static void tip_dec_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    // printf(" used pading in the decoder \n");
+    tip_common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#else
+
   (void)xd;
+#endif
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;

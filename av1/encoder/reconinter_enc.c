@@ -38,6 +38,19 @@ static void enc_calc_subpel_params(const MV *const src_mv,
                                    uint16_t **mc_buf, uint16_t **pre,
                                    SubpelParams *subpel_params,
                                    int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif
+
   // These are part of the function signature to use this function through a
   // function pointer. See typedef of 'CalcSubpelParamsFunc'.
   (void)xd;
@@ -136,7 +149,34 @@ static void enc_calc_subpel_params(const MV *const src_mv,
            (pos_x >> SUBPEL_BITS);
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_EXT_RECUR_PARTITIONS
+
+#if 0  // CONFIG_REFINEMV
+  if (inter_pred_params->ref_pad_data.use_paded_ref) {
+    uint16_t *src_org = *pre - 3 * pre_buf->stride - 3;
+    int offset = (MAX_FILTER_TAP / 2) - 1;
+    uint16_t *dst_org =
+        inter_pred_params->ref_pad_data.paded_ref -
+        offset * inter_pred_params->ref_pad_data.paded_ref_stride - offset;
+    for (int j = 0; j < (inter_pred_params->block_height + MAX_FILTER_TAP - 1);
+         j++) {
+      memcpy(dst_org, src_org,
+             sizeof(uint16_t) *
+                 (inter_pred_params->block_width + MAX_FILTER_TAP - 1));
+      dst_org += inter_pred_params->ref_pad_data.paded_ref_stride;
+      src_org += pre_buf->stride;
+    }
+    *pre = inter_pred_params->ref_pad_data.paded_ref;
+    *src_stride = inter_pred_params->ref_pad_data.paded_ref_stride;
+    // printf("execute paded ref \n");
+
+  } else {
+#endif
+
   *src_stride = pre_buf->stride;
+
+#if 0  // CONFIG_REFINEMV
+  }
+#endif
 }
 
 void av1_enc_build_one_inter_predictor(uint16_t *dst, int dst_stride,
@@ -164,7 +204,9 @@ void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
                              0 /* build_for_obmc */, bw, bh, mi_x, mi_y,
-                             NULL /* mc_buf */, enc_calc_subpel_params);
+                             NULL /* mc_buf */,
+
+                             enc_calc_subpel_params);
 }
 
 void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {

@@ -179,6 +179,14 @@ struct build_prediction_ctxt {
   void *dcb;  // Decoder-only coding block.
 };
 
+#if CONFIG_REFINEMV
+#define REFINE_MV_MAX_OFFSET 1
+#define REF_TOP_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
+#define REF_LEFT_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
+#define REF_RIGHT_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
+#define REF_BOTTOM_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
+#endif
+
 typedef enum InterPredMode {
   TRANSLATION_PRED,
   WARP_PRED,
@@ -232,6 +240,11 @@ typedef struct InterPredParams {
   int dist_to_top_edge;    /*!< Distance from top edge */
   int dist_to_bottom_edge; /*!< Distance from bottom edge */
 #endif                     // CONFIG_TIP
+
+#if CONFIG_REFINEMV
+  int use_ref_padding;
+  ReferenceArea *ref_area;
+#endif
 } InterPredParams;
 
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -504,6 +517,32 @@ int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
                              int bh, MV mv0, MV mv1);
+void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                         int plane, MB_MODE_INFO *mi, int bw,
+                                         int bh, int mi_x, int mi_y,
+                                         ReferenceArea ref_area[2],
+                                         const int comp_pixel_x,
+                                         const int comp_pixel_y);
+void tip_dec_calc_subpel_params(const MV *const src_mv,
+                                InterPredParams *const inter_pred_params,
+                                int mi_x, int mi_y, uint16_t **pre,
+                                SubpelParams *subpel_params, int *src_stride,
+                                PadBlock *block,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                                MV32 *scaled_mv, int *subpel_x_mv,
+                                int *subpel_y_mv);
+void dec_calc_subpel_params(const MV *const src_mv,
+                            InterPredParams *const inter_pred_params,
+                            const MACROBLOCKD *const xd, int mi_x, int mi_y,
+                            uint16_t **pre, SubpelParams *subpel_params,
+                            int *src_stride, PadBlock *block,
+#if CONFIG_OPTFLOW_REFINEMENT
+                            int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                            MV32 *scaled_mv, int *subpel_x_mv,
+                            int *subpel_y_mv);
 
 // check if the DMVR mode is allwed for a given blocksize
 static INLINE int is_refinemv_allowed_bsize(BLOCK_SIZE bsize) {
@@ -627,6 +666,65 @@ static INLINE int switchable_refinemv_flag(const AV1_COMMON *const cm,
   return 0;
 }
 
+// Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
+// 1/16-pel can be used.
+#define MV_REFINE_PREC_BITS 4  // (1/16-pel)
+
+// Clamp MV to UMV border based on its distance to left/right/top/bottom edge
+static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
+    InterPredParams *const inter_pred_params, const MV *src_mv, int bw, int bh,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    int ss_x, int ss_y) {
+  // If the MV points so far into the UMV border that no visible pixels
+  // are used for reconstruction, the subpel part of the MV can be
+  // discarded and the MV limited to 16 pixels with equivalent results.
+  const int spel_left = (AOM_INTERP_EXTEND + bw) << SUBPEL_BITS;
+  const int spel_right = spel_left - SUBPEL_SHIFTS;
+  const int spel_top = (AOM_INTERP_EXTEND + bh) << SUBPEL_BITS;
+  const int spel_bottom = spel_top - SUBPEL_SHIFTS;
+#if CONFIG_OPTFLOW_REFINEMENT
+  MV clamped_mv;
+  if (use_optflow_refinement) {
+    // optflow refinement always returns MVs with 1/16 precision so it is not
+    // necessary to shift the MV before clamping
+    // Here it should be:
+    // clamped_mv.row = (int16_t)ROUND_POWER_OF_TWO_SIGNED(
+    //     src_mv->row * (1 << SUBPEL_BITS), MV_REFINE_PREC_BITS + ss_y);
+    // But currently SUBPEL_BITS == MV_REFINE_PREC_BITS
+    assert(SUBPEL_BITS == MV_REFINE_PREC_BITS);
+
+    if (ss_y || ss_x) {
+      clamped_mv.row = (int16_t)ROUND_POWER_OF_TWO_SIGNED(
+          src_mv->row * (1 << SUBPEL_BITS), MV_REFINE_PREC_BITS + ss_y);
+      clamped_mv.col = (int16_t)ROUND_POWER_OF_TWO_SIGNED(
+          src_mv->col * (1 << SUBPEL_BITS), MV_REFINE_PREC_BITS + ss_x);
+    } else {
+      clamped_mv = *src_mv;
+    }
+  } else {
+    clamped_mv.row = (int16_t)(src_mv->row * (1 << (1 - ss_y)));
+    clamped_mv.col = (int16_t)(src_mv->col * (1 << (1 - ss_x)));
+  }
+#else
+  MV clamped_mv = { (int16_t)(src_mv->row * (1 << (1 - ss_y))),
+                    (int16_t)(src_mv->col * (1 << (1 - ss_x))) };
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+  assert(ss_x <= 1);
+  assert(ss_y <= 1);
+  const SubpelMvLimits mv_limits = {
+    inter_pred_params->dist_to_left_edge * (1 << (1 - ss_x)) - spel_left,
+    inter_pred_params->dist_to_right_edge * (1 << (1 - ss_x)) + spel_right,
+    inter_pred_params->dist_to_top_edge * (1 << (1 - ss_y)) - spel_top,
+    inter_pred_params->dist_to_bottom_edge * (1 << (1 - ss_y)) + spel_bottom
+  };
+
+  clamp_mv(&clamped_mv, &mv_limits);
+
+  return clamped_mv;
+}
+
 #if CONFIG_USE_OPTFLOW_MVS_FOR_MVP
 static INLINE int use_refine_mvs_for_mvp(const AV1_COMMON *const cm,
                                          MACROBLOCKD *xd,
@@ -654,6 +752,29 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
                          int pu_height);
+int update_extend_mc_border_params(const struct scale_factors *const sf,
+                                   struct buf_2d *const pre_buf, MV32 scaled_mv,
+                                   PadBlock *block, int subpel_x_mv,
+                                   int subpel_y_mv, int do_warp, int is_intrabc,
+                                   int *x_pad, int *y_pad,
+                                   const ReferenceArea *ref_area);
+
+void common_calc_subpel_params_and_extend(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
+    int *src_stride);
+void tip_common_calc_subpel_params_and_extend(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
+    int *src_stride);
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
@@ -682,9 +803,11 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
 #define OPFL_COV_CLAMP_BITS 28
 #define OPFL_COV_CLAMP_VAL (1 << OPFL_COV_CLAMP_BITS)
 
+#if !CONFIG_REFINEMV
 // Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
 // 1/16-pel can be used.
 #define MV_REFINE_PREC_BITS 4  // (1/16-pel)
+#endif
 void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
                                    const uint16_t *p1, int pstride1,
                                    const int16_t *gx0, const int16_t *gy0,
