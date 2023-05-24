@@ -375,6 +375,10 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
   // given direction(past/future), if the evaluated ref_frame in that direction
   // yields gm_type as INVALID/TRANSLATION/IDENTITY
   int prune_ref_frame_for_gm_search;
+
+  // Disable global motion estimation based on stats of previous frames in the
+  // GF group
+  int disable_gm_search_based_on_stats;
 } GLOBAL_MOTION_SPEED_FEATURES;
 
 typedef struct PARTITION_SPEED_FEATURES {

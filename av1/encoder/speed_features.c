@@ -352,6 +352,7 @@ static void set_good_speed_features_framesize_independent(
   // Speed 0 for all speed features that give neutral coding performance change.
   sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;
   sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
+  sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
   sf->part_sf.less_rectangular_check_level = 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -711,6 +712,7 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->gm_search_type = GM_FULL_SEARCH;
   gm_sf->prune_ref_frame_for_gm_search = 0;
+  gm_sf->disable_gm_search_based_on_stats = 0;
 }
 
 static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {

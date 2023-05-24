@@ -2916,6 +2916,14 @@ typedef struct AV1_COMP {
    * Number of frames left to be encoded, is 0 if limit is not set.
    */
   int frames_left;
+
+  /*!
+   * Indicates if a valid global motion model has been found in the different
+   * frame update types of a GF group.
+   * valid_gm_model_found[i] indicates if valid global motion model has been
+   * found in the frame update type with enum value equal to i
+   */
+  int valid_gm_model_found[FRAME_UPDATE_TYPES];
 } AV1_COMP;
 
 /*!
