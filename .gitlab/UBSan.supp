@@ -39,7 +39,6 @@ implicit-signed-integer-truncation:av1_fdct8x64_new_sse2
 
 # nullptr-with-offset warnings.
 pointer-overflow:file_read
-pointer-overflow:av1_pack_bitstream
 pointer-overflow:vfilter8
 pointer-overflow:highbd_vfilter8
 
