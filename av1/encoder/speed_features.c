@@ -350,7 +350,8 @@ static void set_good_speed_features_framesize_independent(
 #endif
 
   // Speed 0 for all speed features that give neutral coding performance change.
-  sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV2;
+  sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;
+  sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
 
   sf->part_sf.less_rectangular_check_level = 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -406,9 +407,6 @@ static void set_good_speed_features_framesize_independent(
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
 
   if (speed >= 1) {
-    sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;
-    sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
-
 #if CONFIG_EXT_RECUR_PARTITIONS
     sf->part_sf.intra_cnn_split = 0;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
