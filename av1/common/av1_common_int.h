@@ -3575,7 +3575,8 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 #if CONFIG_INTERINTRA_WARP
     int frame_warp_causal_interintra_allowed =
         cm->features.enabled_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA);
-    if (frame_warp_causal_interintra_allowed) {
+    if (frame_warp_causal_interintra_allowed && xd->up_available &&
+        xd->left_available > 0) {
       allowed_motion_mode_warpmv |= (1 << WARPED_CAUSAL_INTERINTRA);
     }
 #endif  // CONFIG_INTERINTRA_WARP
@@ -3648,7 +3649,8 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     allowed_motion_modes |= (1 << WARPED_CAUSAL);
   }
 #if CONFIG_INTERINTRA_WARP
-  if (obmc_allowed && allow_warped_motion
+  if (obmc_allowed && allow_warped_motion && xd->up_available > 0 &&
+      xd->left_available > 0
 #if CONFIG_WARPMV
       && mbmi->mode != NEARMV
 #endif  // CONFIG_WARPMV

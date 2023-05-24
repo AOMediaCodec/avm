@@ -454,13 +454,19 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 
 #if CONFIG_WARPMV
   if (mbmi->mode == WARPMV) {
-    if (allowed_motion_modes & WARPED_CAUSAL_MASK) {
-      int use_warped_causal =
-          aom_read_symbol(r, xd->tile_ctx->warped_causal_warpmv_cdf[bsize],
-                          WARPED_CAUSAL_MODES + 1, ACCT_STR);
-      return use_warped_causal ? use_warped_causal + WARPED_CAUSAL - 1
-                               : WARP_DELTA;
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+      int use_warped_causal = aom_read_symbol(
+          r, xd->tile_ctx->warped_causal_warpmv_cdf[bsize], 2, ACCT_STR);
+      if (use_warped_causal) return WARPED_CAUSAL;
     }
+#if CONFIG_INTERINTRA_WARP
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA)) {
+      int use_warped_causal_interintra = aom_read_symbol(
+          r, xd->tile_ctx->warped_causal_interintra_warpmv_cdf[bsize], 2,
+          ACCT_STR);
+      if (use_warped_causal_interintra) return WARPED_CAUSAL_INTERINTRA;
+    }
+#endif  // CONFIG_INTERINTRA_WARP
     return WARP_DELTA;
   }
 #endif  // CONFIG_WARPMV
@@ -515,14 +521,18 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
   }
 
-  if (allowed_motion_modes & WARPED_CAUSAL_MASK) {
+  if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
     int use_warped_causal =
-        aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf[bsize],
-                        WARPED_CAUSAL_MODES + 1, ACCT_STR);
-    if (use_warped_causal) {
-      return use_warped_causal + WARPED_CAUSAL - 1;
-    }
+        aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf[bsize], 2, ACCT_STR);
+    if (use_warped_causal) return WARPED_CAUSAL;
   }
+#if CONFIG_INTERINTRA_WARP
+  if (allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA)) {
+    int use_warped_causal_interintra = aom_read_symbol(
+        r, xd->tile_ctx->warped_causal_interintra_cdf[bsize], 2, ACCT_STR);
+    if (use_warped_causal_interintra) return WARPED_CAUSAL_INTERINTRA;
+  }
+#endif  // CONFIG_INTERINTRA_WARP
 
   if (allowed_motion_modes & (1 << WARP_DELTA)) {
     int use_warp_delta =
@@ -3214,7 +3224,14 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
 
 #if CONFIG_WARP_REF_LIST
     MB_MODE_INFO *const mbmi_tmp = xd->mi[0];
-    if (is_inter_block(mbmi_tmp, xd->tree_type))
+    if (is_inter_block(mbmi_tmp, xd->tree_type)
+#if CONFIG_INTERINTRA_WARP
+        // WARPED_CAUSAL_INTERINTRA has not produced the estimated
+        // warp parameters yet. So wait unitil it is done later to
+        // update the bank.
+        && mbmi_tmp->motion_mode != WARPED_CAUSAL_INTERINTRA
+#endif  // CONFIG_INTERINTRA_WARP
+    )
       av1_update_warp_param_bank(cm, xd, mbmi_tmp);
 #endif  // CONFIG_WARP_REF_LIST
 

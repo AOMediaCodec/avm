@@ -515,11 +515,18 @@ static AOM_INLINE void write_motion_mode(
     assert(mbmi->motion_mode == WARP_DELTA ||
            warped_causal_idx_map(mbmi->motion_mode));
     // Signal if the motion mode is WARP_CAUSAL or WARP_DELTA
-    if (allowed_motion_modes & WARPED_CAUSAL_MASK) {
-      aom_write_symbol(w, warped_causal_idx_map(motion_mode),
-                       xd->tile_ctx->warped_causal_warpmv_cdf[bsize],
-                       WARPED_CAUSAL_MODES + 1);
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
+                       xd->tile_ctx->warped_causal_warpmv_cdf[bsize], 2);
+      if (motion_mode == WARPED_CAUSAL) return;
     }
+#if CONFIG_INTERINTRA_WARP
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA)) {
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL_INTERINTRA,
+                       xd->tile_ctx->warped_causal_interintra_warpmv_cdf[bsize],
+                       2);
+    }
+#endif  // CONFIG_INTERINTRA_WARP
     return;
   }
 #endif  // CONFIG_WARPMV
@@ -569,13 +576,18 @@ static AOM_INLINE void write_motion_mode(
   }
 
   if (allowed_motion_modes & WARPED_CAUSAL_MASK) {
-    aom_write_symbol(w, warped_causal_idx_map(motion_mode),
-                     xd->tile_ctx->warped_causal_cdf[bsize],
-                     WARPED_CAUSAL_MODES + 1);
-
-    if (warped_causal_idx_map(motion_mode)) {
-      return;
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
+                       xd->tile_ctx->warped_causal_cdf[bsize], 2);
+      if (motion_mode == WARPED_CAUSAL) return;
     }
+#if CONFIG_INTERINTRA_WARP
+    if (allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA)) {
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL_INTERINTRA,
+                       xd->tile_ctx->warped_causal_interintra_cdf[bsize], 2);
+      if (motion_mode == WARPED_CAUSAL_INTERINTRA) return;
+    }
+#endif  // CONFIG_INTERINTRA_WARP
   }
 
   if (allowed_motion_modes & (1 << WARP_DELTA)) {

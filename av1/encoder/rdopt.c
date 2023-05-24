@@ -2429,14 +2429,25 @@ static int64_t motion_mode_rd(
       }
 
       if (continue_motion_mode_signaling &&
-          allowed_motion_modes & WARPED_CAUSAL_MASK) {
+          allowed_motion_modes & (1 << WARPED_CAUSAL)) {
         rd_stats->rate +=
-            mode_costs
-                ->warped_causal_cost[bsize][warped_causal_idx_map(motion_mode)];
-        if (warped_causal_idx_map(motion_mode)) {
+            mode_costs->warped_causal_cost[bsize][motion_mode == WARPED_CAUSAL];
+        if (motion_mode == WARPED_CAUSAL) {
           continue_motion_mode_signaling = false;
         }
       }
+#if CONFIG_INTERINTRA_WARP
+      if (continue_motion_mode_signaling &&
+          allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA)) {
+        rd_stats->rate +=
+            mode_costs->warped_causal_interintra_cost[bsize]
+                                                     [motion_mode ==
+                                                      WARPED_CAUSAL_INTERINTRA];
+        if (motion_mode == WARPED_CAUSAL_INTERINTRA) {
+          continue_motion_mode_signaling = false;
+        }
+      }
+#endif  // CONFIG_INTERINTRA_WARP
 
       if (continue_motion_mode_signaling &&
           allowed_motion_modes & (1 << WARP_DELTA)) {
@@ -2446,14 +2457,21 @@ static int64_t motion_mode_rd(
 
 #if CONFIG_WARPMV
       if (mbmi->mode == WARPMV) {
-        if (allowed_motion_modes & WARPED_CAUSAL_MASK) {
+        if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
           rd_stats->rate +=
-              mode_costs
-                  ->warped_causal_warpmv_cost[bsize][warped_causal_idx_map(
-                      motion_mode)];
-        } else {
-          assert(motion_mode == WARP_DELTA);
+              mode_costs->warped_causal_warpmv_cost[bsize][motion_mode ==
+                                                           WARPED_CAUSAL];
         }
+#if CONFIG_INTERINTRA_WARP
+        if (motion_mode != WARPED_CAUSAL &&
+            (allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA))) {
+          rd_stats->rate +=
+              mode_costs->warped_causal_interintra_warpmv_cost
+                  [bsize][motion_mode == WARPED_CAUSAL_INTERINTRA];
+        }
+#endif  // CONFIG_INTERINTRA_WARP
+        assert(IMPLIES(!warped_causal_idx_map(motion_mode),
+                       motion_mode == WARP_DELTA));
       }
 #endif  // CONFIG_WARPMV
 

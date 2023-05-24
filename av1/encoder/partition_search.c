@@ -1306,11 +1306,17 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
 #if CONFIG_WARPMV
       if (mbmi->mode == WARPMV) {
-        if (allowed_motion_modes & WARPED_CAUSAL_MASK) {
+        if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
           update_cdf(fc->warped_causal_warpmv_cdf[bsize],
-                     warped_causal_idx_map(motion_mode),
-                     WARPED_CAUSAL_MODES + 1);
+                     motion_mode == WARPED_CAUSAL, 2);
         }
+#if CONFIG_INTERINTRA_WARP
+        if (motion_mode != WARPED_CAUSAL &&
+            (allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA))) {
+          update_cdf(fc->warped_causal_interintra_warpmv_cdf[bsize],
+                     motion_mode == WARPED_CAUSAL_INTERINTRA, 2);
+        }
+#endif  // CONFIG_INTERINTRA_WARP
       }
 #endif  // CONFIG_WARPMV
 
@@ -1394,16 +1400,30 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
       if (continue_motion_mode_signaling &&
-          (allowed_motion_modes & WARPED_CAUSAL_MASK)) {
+          (allowed_motion_modes & (1 << WARPED_CAUSAL))) {
 #if CONFIG_ENTROPY_STATS
-        counts->warped_causal[bsize][warped_causal_idx_map(motion_mode)]++;
+        counts->warped_causal[bsize][motion_mode == WARPED_CAUSAL]++;
 #endif
-        update_cdf(fc->warped_causal_cdf[bsize],
-                   warped_causal_idx_map(motion_mode), WARPED_CAUSAL_MODES + 1);
-        if (warped_causal_idx_map(motion_mode)) {
+        update_cdf(fc->warped_causal_cdf[bsize], motion_mode == WARPED_CAUSAL,
+                   2);
+        if (motion_mode == WARPED_CAUSAL) {
           continue_motion_mode_signaling = false;
         }
       }
+#if CONFIG_INTERINTRA_WARP
+      if (continue_motion_mode_signaling &&
+          (allowed_motion_modes & (1 << WARPED_CAUSAL_INTERINTRA))) {
+#if CONFIG_ENTROPY_STATS
+        counts->warped_causal_interintra[bsize][motion_mode ==
+                                                WARPED_CAUSAL_INTERINTRA]++;
+#endif
+        update_cdf(fc->warped_causal_interintra_cdf[bsize],
+                   motion_mode == WARPED_CAUSAL_INTERINTRA, 2);
+        if (motion_mode == WARPED_CAUSAL_INTERINTRA) {
+          continue_motion_mode_signaling = false;
+        }
+      }
+#endif  // CONFIG_INTERINTRA_WARP
 
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << WARP_DELTA))) {

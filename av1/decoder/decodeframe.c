@@ -583,43 +583,6 @@ typedef struct PadBlock {
   int y1;
 } PadBlock;
 
-static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
-                                              int src_stride, uint16_t *dst,
-                                              int dst_stride, int x, int y,
-                                              int b_w, int b_h, int w, int h) {
-  // Get a pointer to the start of the real data for this row.
-  const uint16_t *ref_row = src - x - y * src_stride;
-
-  if (y >= h)
-    ref_row += (h - 1) * src_stride;
-  else if (y > 0)
-    ref_row += y * src_stride;
-
-  do {
-    int right = 0, copy;
-    int left = x < 0 ? -x : 0;
-
-    if (left > b_w) left = b_w;
-
-    if (x + b_w > w) right = x + b_w - w;
-
-    if (right > b_w) right = b_w;
-
-    copy = b_w - left - right;
-
-    if (left) aom_memset16(dst, ref_row[0], left);
-
-    if (copy) memcpy(dst + left, ref_row + x + left, copy * sizeof(uint16_t));
-
-    if (right) aom_memset16(dst + left + copy, ref_row[w - 1], right);
-
-    dst += dst_stride;
-    ++y;
-
-    if (y > 0 && y < h) ref_row += src_stride;
-  } while (--b_h);
-}
-
 static INLINE int update_extend_mc_border_params(
     const struct scale_factors *const sf, struct buf_2d *const pre_buf,
     MV32 scaled_mv, PadBlock *block, int subpel_x_mv, int subpel_y_mv,
@@ -1374,9 +1337,9 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
     mbmi->wm_params[0].wmtype = ROTZOOM;
     mbmi->wm_params[0].invalid = 0;
     MV mv = mbmi->mv[0].as_mv;
-
-    if (av1_find_projection_interintra(xd, bsize, mv, &mbmi->wm_params[0],
-                                       mi_row, mi_col)) {
+    if (av1_find_projection_interintra_ext(xd, bsize, mv, &mbmi->wm_params[0],
+                                           mi_row, mi_col, cm->width,
+                                           cm->height, dcb->mc_buf[0])) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected warped model from aomenc\n");
 #endif
@@ -1385,6 +1348,7 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
 #if CONFIG_C071_SUBBLK_WARPMV
     assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+    av1_update_warp_param_bank(cm, xd, mbmi);
   }
 #endif  // CONFIG_INTERINTRA_WARP
 

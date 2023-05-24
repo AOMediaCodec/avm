@@ -479,6 +479,43 @@ typedef void (*CalcSubpelParamsFunc)(const MV *const src_mv,
                                      SubpelParams *subpel_params,
                                      int *src_stride);
 
+static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
+                                              int src_stride, uint16_t *dst,
+                                              int dst_stride, int x, int y,
+                                              int b_w, int b_h, int w, int h) {
+  // Get a pointer to the start of the real data for this row.
+  const uint16_t *ref_row = src - x - y * src_stride;
+
+  if (y >= h)
+    ref_row += (h - 1) * src_stride;
+  else if (y > 0)
+    ref_row += y * src_stride;
+
+  do {
+    int right = 0, copy;
+    int left = x < 0 ? -x : 0;
+
+    if (left > b_w) left = b_w;
+
+    if (x + b_w > w) right = x + b_w - w;
+
+    if (right > b_w) right = b_w;
+
+    copy = b_w - left - right;
+
+    if (left) aom_memset16(dst, ref_row[0], left);
+
+    if (copy) memcpy(dst + left, ref_row + x + left, copy * sizeof(uint16_t));
+
+    if (right) aom_memset16(dst + left + copy, ref_row[w - 1], right);
+
+    dst += dst_stride;
+    ++y;
+
+    if (y > 0 && y < h) ref_row += src_stride;
+  } while (--b_h);
+}
+
 void av1_build_one_inter_predictor(
     uint16_t *dst, int dst_stride, const MV *const src_mv,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,

@@ -979,13 +979,21 @@ typedef struct {
   //! obmc_cost
   int obmc_cost[BLOCK_SIZES_ALL][2];
   //! warped_causal_cost
-  int warped_causal_cost[BLOCK_SIZES_ALL][WARPED_CAUSAL_MODES + 1];
+  int warped_causal_cost[BLOCK_SIZES_ALL][2];
+#if CONFIG_INTERINTRA_WARP
+  //! warped_causal_interintra_cost
+  int warped_causal_interintra_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_INTERINTRA_WARP
   //! warp_delta_cost
   int warp_delta_cost[BLOCK_SIZES_ALL][2];
 
 #if CONFIG_WARPMV
   //! warped_causal_warpmv_cost
-  int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][WARPED_CAUSAL_MODES + 1];
+  int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
+#if CONFIG_INTERINTRA_WARP
+  //! warped_causal_interintra_warpmv_cost
+  int warped_causal_interintra_warpmv_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_INTERINTRA_WARP
 #endif  // CONFIG_WARPMV
 
   //! warp_delta_param_cost

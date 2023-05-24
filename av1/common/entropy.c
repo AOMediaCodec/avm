@@ -182,10 +182,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);
 #if CONFIG_EXTENDED_WARP_PREDICTION
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
-  RESET_CDF_COUNTER(fc->warped_causal_cdf, WARPED_CAUSAL_MODES + 1);
+  RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
+#if CONFIG_INTERINTRA_WARP
+  RESET_CDF_COUNTER(fc->warped_causal_interintra_cdf, 2);
+#endif  // CONFIG_INTERINTRA_WARP
   RESET_CDF_COUNTER(fc->warp_delta_cdf, 2);
 #if CONFIG_WARPMV
-  RESET_CDF_COUNTER(fc->warped_causal_warpmv_cdf, WARPED_CAUSAL_MODES + 1);
+  RESET_CDF_COUNTER(fc->warped_causal_warpmv_cdf, 2);
+#if CONFIG_INTERINTRA_WARP
+  RESET_CDF_COUNTER(fc->warped_causal_interintra_warpmv_cdf, 2);
+#endif  // CONFIG_INTERINTRA_WARP
 #endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[0], 2);

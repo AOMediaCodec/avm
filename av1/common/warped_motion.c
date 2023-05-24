@@ -1407,7 +1407,7 @@ static int find_interintra_rotzoom_int(const uint16_t *src, int src_stride,
   uint16_t top[MAX_INTERINTRA_TOPLEFT_SIZE];
   uint16_t left[MAX_INTERINTRA_TOPLEFT_SIZE];
   const int top_stride = bw;
-  const int left_stride = border + inner_border + 2;
+  const int left_stride = border + inner_border;
   av1_prepare_inter_topleft(ref, ref_stride, bsize, border, inner_border, mv,
                             top, top_stride, left, left_stride, bd);
   int32_t A[2][2] = { { 0, 0 }, { 0, 0 } };
@@ -1500,6 +1500,44 @@ int av1_find_projection_interintra(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                         (mv.row >> (SUBPEL_BITS - 1)) * ref_stride +
                         (mv.col >> (SUBPEL_BITS - 1));
   if (find_interintra_rotzoom_int(dst, dst_stride, ref, ref_stride, bsize, mv,
+                                  wm_params, mi_row, mi_col, xd->bd))
+    return 1;
+
+  // check compatibility with the fast warp filter
+  if (!av1_get_shear_params(wm_params)) return 1;
+
+  return 0;
+}
+
+int av1_find_projection_interintra_ext(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                       MV mv, WarpedMotionParams *wm_params,
+                                       int mi_row, int mi_col, int width,
+                                       int height, uint16_t *tmpbuf) {
+  const struct macroblockd_plane *pd = &xd->plane[0];
+  const int dst_stride = pd->dst.stride;
+  uint16_t *const dst = pd->dst.buf;
+
+  const int border = MAX_INTERINTRA_BORDER;
+  int x0 = mi_col * MI_SIZE + (mv.col >> (SUBPEL_BITS - 1));
+  int x1 = x0 + block_size_wide[bsize];
+  int y0 = mi_row * MI_SIZE + (mv.row >> (SUBPEL_BITS - 1));
+  int y1 = y0 + block_size_high[bsize];
+  x0 -= border;
+  y0 -= border;
+  x1 += border;
+  y1 += border;
+  const int b_w = x1 - x0;
+  const int b_h = y1 - y0;
+  const int buf_stride = b_w;
+
+  const int ref_stride = pd->pre[0].stride;
+  uint16_t *const ref0 = pd->pre[0].buf0 + y0 * ref_stride + x0;
+  highbd_build_mc_border(ref0, ref_stride, tmpbuf, buf_stride, x0, y0, b_w, b_h,
+                         width, height);
+
+  uint16_t *const buf = tmpbuf + border * buf_stride + border;
+
+  if (find_interintra_rotzoom_int(dst, dst_stride, buf, buf_stride, bsize, mv,
                                   wm_params, mi_row, mi_col, xd->bd))
     return 1;
 

@@ -206,12 +206,17 @@ typedef struct frame_contexts {
                                   [CDF_SIZE(INTERINTRA_MODES)];
 #if CONFIG_EXTENDED_WARP_PREDICTION
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
-  aom_cdf_prob warped_causal_cdf[BLOCK_SIZES_ALL]
-                                [CDF_SIZE(WARPED_CAUSAL_MODES + 1)];
+  aom_cdf_prob warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#if CONFIG_INTERINTRA_WARP
+  aom_cdf_prob warped_causal_interintra_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_INTERINTRA_WARP
   aom_cdf_prob warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #if CONFIG_WARPMV
-  aom_cdf_prob warped_causal_warpmv_cdf[BLOCK_SIZES_ALL]
-                                       [CDF_SIZE(WARPED_CAUSAL_MODES + 1)];
+  aom_cdf_prob warped_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#if CONFIG_INTERINTRA_WARP
+  aom_cdf_prob warped_causal_interintra_warpmv_cdf[BLOCK_SIZES_ALL]
+                                                  [CDF_SIZE(2)];
+#endif  // CONFIG_INTERINTRA_WARP
 #endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   aom_cdf_prob warp_ref_idx_cdf[3][WARP_REF_CONTEXTS][CDF_SIZE(2)];

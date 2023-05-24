@@ -1263,15 +1263,22 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               INTERINTRA_MODES);
 #if CONFIG_EXTENDED_WARP_PREDICTION
   AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
-  AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf,
-              WARPED_CAUSAL_MODES + 1);
+  AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf, 2);
+#if CONFIG_INTERINTRA_WARP
+  AVERAGE_CDF(ctx_left->warped_causal_interintra_cdf,
+              ctx_tr->warped_causal_interintra_cdf, 2);
+#endif  // CONFIG_INTERINTRA_WARP
   AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
   AVERAGE_CDF(ctx_left->warp_delta_param_cdf, ctx_tr->warp_delta_param_cdf,
               WARP_DELTA_NUM_SYMBOLS);
 
 #if CONFIG_WARPMV
   AVERAGE_CDF(ctx_left->warped_causal_warpmv_cdf,
-              ctx_tr->warped_causal_warpmv_cdf, WARPED_CAUSAL_MODES + 1);
+              ctx_tr->warped_causal_warpmv_cdf, 2);
+#if CONFIG_INTERINTRA_WARP
+  AVERAGE_CDF(ctx_left->warped_causal_interintra_warpmv_cdf,
+              ctx_tr->warped_causal_interintra_warpmv_cdf, 2);
+#endif  // CONFIG_INTERINTRA_WARP
 #endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[0], ctx_tr->warp_ref_idx_cdf[0], 2);
