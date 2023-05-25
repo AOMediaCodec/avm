@@ -358,6 +358,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
   int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
       gf_group, cpi->sf.inter_sf.selective_ref_frame, 1, gf_group->index);
   int cur_frame_gm_disabled = 0;
+  int pyr_lvl = cm->cur_frame->pyramid_level;
 
   if (cpi->sf.gm_sf.disable_gm_search_based_on_stats) {
     cur_frame_gm_disabled = disable_gm_search_based_on_stats(cpi);
@@ -384,11 +385,12 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
     int prune_ref_frames =
         ref_pruning_enabled &&
         prune_ref_by_selective_ref_frame(cpi, NULL, ref_frame);
+    int ref_pyr_lvl = buf->pyramid_level;
 
     if (ref_buf[frame]->y_crop_width == cpi->source->y_crop_width &&
         ref_buf[frame]->y_crop_height == cpi->source->y_crop_height &&
         do_gm_search_logic(&cpi->sf, ref_frame[0]) && !prune_ref_frames &&
-        !cur_frame_gm_disabled) {
+        ref_pyr_lvl <= pyr_lvl && !cur_frame_gm_disabled) {
       assert(ref_buf[frame] != NULL);
       const int relative_frame_dist = av1_encoder_get_relative_dist(
           buf->display_order_hint, cm->cur_frame->display_order_hint);
