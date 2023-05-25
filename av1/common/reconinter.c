@@ -2627,8 +2627,9 @@ static void cubic_phase_shift1(const uint16_t *x, int x_stride, int len,
   const int16_t *filter = sub_pel_filters_ps[phase_q4];
   if (ext) {
     for (int i = 0; i < len; ++i) {
-      int v = x[i - 1 * x_stride] * filter[0] + x[i] * filter[1] +
-              x[i + 1 * x_stride] * filter[2] + x[i + 2 * x_stride] * filter[3];
+      int v = x[(i - 1) * x_stride] * filter[0] + x[i * x_stride] * filter[1] +
+              x[(i + 1) * x_stride] * filter[2] +
+              x[(i + 2) * x_stride] * filter[3];
       v = ROUND_POWER_OF_TWO_SIGNED(v, 4);
       out[i * out_stride] = v < 0 ? 0 : v >= (1 << 16) ? (1 << 16) - 1 : v;
     }
@@ -2638,8 +2639,8 @@ static void cubic_phase_shift1(const uint16_t *x, int x_stride, int len,
     v = ROUND_POWER_OF_TWO_SIGNED(v, 4);
     out[0] = v < 0 ? 0 : v >= (1 << 16) ? (1 << 16) - 1 : v;
     for (int i = 1; i < len; ++i) {
-      v = x[i - 1 * x_stride] * filter[0] + x[i] * filter[1] +
-          x[i + 1 * x_stride] * filter[2] + x[i + 2 * x_stride] * filter[3];
+      v = x[(i - 1) * x_stride] * filter[0] + x[i * x_stride] * filter[1] +
+          x[(i + 1) * x_stride] * filter[2] + x[(i + 2) * x_stride] * filter[3];
       v = ROUND_POWER_OF_TWO_SIGNED(v, 4);
       out[i * out_stride] = v < 0 ? 0 : v >= (1 << 16) ? (1 << 16) - 1 : v;
     }
@@ -2651,8 +2652,9 @@ static void cubic_phase_shift2(uint16_t *x, int x_stride, int len, int phase_q4,
   const int16_t *filter = sub_pel_filters_ps[phase_q4];
   if (ext) {
     for (int i = 0; i < len; ++i) {
-      int v = x[i - 1 * x_stride] * filter[0] + x[i] * filter[1] +
-              x[i + 1 * x_stride] * filter[2] + x[i + 2 * x_stride] * filter[3];
+      int v = x[(i - 1) * x_stride] * filter[0] + x[i * x_stride] * filter[1] +
+              x[(i + 1) * x_stride] * filter[2] +
+              x[(i + 2) * x_stride] * filter[3];
       v = ROUND_POWER_OF_TWO_SIGNED(v, 2 * FILTER_BITS - 4);
       out[i * out_stride] = (uint16_t)clip_pixel_highbd(v, bd);
     }
@@ -2662,8 +2664,8 @@ static void cubic_phase_shift2(uint16_t *x, int x_stride, int len, int phase_q4,
     v = ROUND_POWER_OF_TWO_SIGNED(v, 2 * FILTER_BITS - 4);
     out[0] = (uint16_t)clip_pixel_highbd(v, bd);
     for (int i = 1; i < len; ++i) {
-      v = x[i - 1 * x_stride] * filter[0] + x[i] * filter[1] +
-          x[i + 1 * x_stride] * filter[2] + x[i + 2 * x_stride] * filter[3];
+      v = x[(i - 1) * x_stride] * filter[0] + x[i * x_stride] * filter[1] +
+          x[(i + 1) * x_stride] * filter[2] + x[(i + 2) * x_stride] * filter[3];
       v = ROUND_POWER_OF_TWO_SIGNED(v, 2 * FILTER_BITS - 4);
       out[i * out_stride] = (uint16_t)clip_pixel_highbd(v, bd);
     }
