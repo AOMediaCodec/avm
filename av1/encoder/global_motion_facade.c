@@ -330,21 +330,6 @@ static int disable_gm_search_based_on_stats(const AV1_COMP *const cpi) {
   return !is_gm_present;
 }
 
-// Prunes reference frames for global motion estimation based on the speed
-// feature 'gm_search_type'.
-static int do_gm_search_logic(SPEED_FEATURES *const sf, int refrank) {
-  switch (sf->gm_sf.gm_search_type) {
-    case GM_FULL_SEARCH: return 1;
-    case GM_REDUCED_REF_SEARCH_SKIP_LEV2:
-      return refrank < INTER_REFS_PER_FRAME - 2;
-    case GM_REDUCED_REF_SEARCH_SKIP_LEV3:
-      return refrank < INTER_REFS_PER_FRAME - 4;
-    case GM_DISABLE_SEARCH: return 0;
-    default: assert(0);
-  }
-  return 1;
-}
-
 // Populates valid reference frames in past/future directions in
 // 'reference_frames' and their count in 'num_ref_frames'.
 static AOM_INLINE void update_valid_ref_frames_for_gm(
@@ -389,7 +374,7 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
 
     if (ref_buf[frame]->y_crop_width == cpi->source->y_crop_width &&
         ref_buf[frame]->y_crop_height == cpi->source->y_crop_height &&
-        do_gm_search_logic(&cpi->sf, ref_frame[0]) && !prune_ref_frames &&
+        frame < cpi->sf.gm_sf.max_ref_frames && !prune_ref_frames &&
         ref_pyr_lvl <= pyr_lvl && !cur_frame_gm_disabled) {
       assert(ref_buf[frame] != NULL);
       const int relative_frame_dist = av1_encoder_get_relative_dist(

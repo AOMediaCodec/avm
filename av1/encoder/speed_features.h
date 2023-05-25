@@ -33,13 +33,6 @@ typedef struct MESH_PATTERN {
 } MESH_PATTERN;
 
 enum {
-  GM_FULL_SEARCH,
-  GM_REDUCED_REF_SEARCH_SKIP_LEV2,
-  GM_REDUCED_REF_SEARCH_SKIP_LEV3,
-  GM_DISABLE_SEARCH
-} UENUM1BYTE(GM_SEARCH_TYPE);
-
-enum {
   INTRA_ALL = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED) | (1 << D45_PRED) |
               (1 << D135_PRED) | (1 << D113_PRED) | (1 << D157_PRED) |
               (1 << D203_PRED) | (1 << D67_PRED) | (1 << SMOOTH_PRED) |
@@ -369,7 +362,7 @@ typedef struct TPL_SPEED_FEATURES {
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
-  GM_SEARCH_TYPE gm_search_type;
+  int max_ref_frames;
 
   // During global motion estimation, prune remaining reference frames in a
   // given direction(past/future), if the evaluated ref_frame in that direction
