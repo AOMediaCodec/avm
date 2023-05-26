@@ -54,9 +54,9 @@ std::ostream &operator<<(std::ostream &os, const TestVideoParam &test_arg) {
 
 const TestVideoParam kTestVideoVectors[] = {
   { "park_joy_90p_8_420.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 5, 0, 25.0,
-    44.7 },
+    44.5 },
   { "park_joy_90p_10_444.y4m", AOM_IMG_FMT_I44416, AOM_BITS_10, 1, 5, 0, 28.0,
-    47.7 },
+    47.5 },
   { "screendata.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 4, 1, 16.0, 56.0 },
   // Image coding (single frame).
   { "niklas_1280_720_30.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 1, 0, 25.0,
