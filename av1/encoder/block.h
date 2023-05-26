@@ -114,6 +114,7 @@ typedef struct macroblock_plane {
   //! Location of the end of qcoeff (end of block).
   uint16_t *eobs;
 #if CONFIG_ATC_DCTX_ALIGNED
+  //! Location of the beginning of qcoeff (beginning of block).
   uint16_t *bobs;
 #endif  // CONFIG_ATC_DCTX_ALIGNED
   //! Contexts used to code the transform coefficients.
@@ -206,6 +207,10 @@ typedef struct {
   int lps_cost_skip[IDTX_LEVEL_CONTEXTS]
                    [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
 #if CONFIG_ATC_DCTX_ALIGNED
+  /*! \brief Cost for encoding the base_bob of a level for IDTX blocks.
+   *
+   * Decoder uses base_bob to derive the base_level as base_bob := base_bob+1.
+   */
   int base_bob_cost[SIG_COEF_CONTEXTS_BOB][3];
 #endif  // CONFIG_ATC_DCTX_ALIGNED
 } LV_MAP_COEFF_COST;

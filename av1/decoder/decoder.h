@@ -73,6 +73,10 @@ typedef struct DecoderCodingBlock {
    */
   eob_info *eob_data[MAX_MB_PLANE];
 #if CONFIG_ATC_DCTX_ALIGNED
+  /*!
+   * Pointer to 'bob_data' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
+   * with appropriate offset for the current superblock, for each plane.
+   */
   eob_info *bob_data[MAX_MB_PLANE];
 #endif  // CONFIG_ATC_DCTX_ALIGNED
   /*!
