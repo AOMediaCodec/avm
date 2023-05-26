@@ -285,7 +285,7 @@ void av1_build_prediction_by_above_preds(const AV1_COMMON *cm, MACROBLOCKD *xd,
   BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
   foreach_overlappable_nb_above(cm, xd,
                                 max_neighbor_obmc[mi_size_wide_log2[bsize]],
-                                build_obmc_prediction, &ctxt);
+                                build_obmc_prediction, &ctxt, false);
 }
 
 void av1_build_prediction_by_left_preds(const AV1_COMMON *cm, MACROBLOCKD *xd,

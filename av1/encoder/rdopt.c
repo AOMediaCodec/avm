@@ -9362,9 +9362,9 @@ static AOM_INLINE void calc_target_weighted_pred(
         AOMMIN(block_size_high[bsize], block_size_high[BLOCK_64X64]) >> 1;
     struct calc_target_weighted_pred_ctxt ctxt = { obmc_buffer, above,
                                                    above_stride, overlap };
-    foreach_overlappable_nb_above(cm, (MACROBLOCKD *)xd,
-                                  max_neighbor_obmc[mi_size_wide_log2[bsize]],
-                                  calc_target_weighted_pred_above, &ctxt);
+    foreach_overlappable_nb_above(
+        cm, (MACROBLOCKD *)xd, max_neighbor_obmc[mi_size_wide_log2[bsize]],
+        calc_target_weighted_pred_above, &ctxt, false);
   }
 
   for (int i = 0; i < bw * bh; ++i) {

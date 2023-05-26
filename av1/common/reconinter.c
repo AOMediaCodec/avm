@@ -2100,7 +2100,7 @@ void av1_count_overlappable_neighbors(const AV1_COMMON *cm, MACROBLOCKD *xd) {
     return;
 
   foreach_overlappable_nb_above(cm, xd, INT_MAX, increment_uint8_t_ptr,
-                                &mbmi->overlappable_neighbors[0]);
+                                &mbmi->overlappable_neighbors[0], true);
   if (mbmi->overlappable_neighbors[0]) return;
   foreach_overlappable_nb_left(cm, xd, INT_MAX, increment_uint8_t_ptr,
                                &mbmi->overlappable_neighbors[1]);
@@ -2213,9 +2213,9 @@ void av1_build_obmc_inter_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   // handle above row
   struct obmc_inter_pred_ctxt ctxt_above = { above, above_stride };
-  foreach_overlappable_nb_above(cm, xd,
-                                max_neighbor_obmc[mi_size_wide_log2[bsize]],
-                                build_obmc_inter_pred_above, &ctxt_above);
+  foreach_overlappable_nb_above(
+      cm, xd, max_neighbor_obmc[mi_size_wide_log2[bsize]],
+      build_obmc_inter_pred_above, &ctxt_above, false);
 
   // handle left column
   struct obmc_inter_pred_ctxt ctxt_left = { left, left_stride };

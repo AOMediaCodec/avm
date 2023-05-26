@@ -1241,9 +1241,9 @@ static AOM_INLINE void dec_build_prediction_by_above_preds(
     cm, tmp_buf, tmp_width, tmp_height, tmp_stride, xd->mb_to_right_edge, dcb
   };
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-  foreach_overlappable_nb_above(cm, xd,
-                                max_neighbor_obmc[mi_size_wide_log2[bsize]],
-                                dec_build_prediction_by_above_pred, &ctxt);
+  foreach_overlappable_nb_above(
+      cm, xd, max_neighbor_obmc[mi_size_wide_log2[bsize]],
+      dec_build_prediction_by_above_pred, &ctxt, false);
 
   xd->mb_to_left_edge = -GET_MV_SUBPEL(xd->mi_col * MI_SIZE);
   xd->mb_to_right_edge = ctxt.mb_to_far_edge;

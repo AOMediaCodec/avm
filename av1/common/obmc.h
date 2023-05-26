@@ -21,7 +21,8 @@ typedef void (*overlappable_nb_visitor_t)(MACROBLOCKD *xd, int rel_mi_row,
 static INLINE void foreach_overlappable_nb_above(const AV1_COMMON *cm,
                                                  MACROBLOCKD *xd, int nb_max,
                                                  overlappable_nb_visitor_t fun,
-                                                 void *fun_ctxt) {
+                                                 void *fun_ctxt,
+                                                 bool count_only) {
   if (!xd->up_available) return;
 
   const int num_planes = av1_num_planes(cm);
@@ -38,27 +39,39 @@ static INLINE void foreach_overlappable_nb_above(const AV1_COMMON *cm,
     MB_MODE_INFO **above_mi = prev_row_mi + above_mi_col;
     mi_step = mi_size_wide[above_mi[0]->sb_type[PLANE_TYPE_Y]];
 #if CONFIG_UNEVEN_4WAY
-    // If we're considering a block that is NOT a chroma ref:
-    // - Move above_mi_col back to the base mi col,
-    // - Set above_mbmi to point at the block with chroma information, and
-    // - Set mi_step to step over all blocks that the chroma block covers.
-    const CHROMA_REF_INFO *chroma_ref_info = &above_mi[0]->chroma_ref_info;
-    if (!chroma_ref_info->is_chroma_ref) {
-      above_mi_col = chroma_ref_info->mi_col_chroma_base;
-      mi_step = mi_size_wide[chroma_ref_info->bsize_base];
-      if (above_mi_col < mi_col) continue;
-      above_mi = prev_row_mi + above_mi_col;
-      assert(above_mi[0]->chroma_ref_info.bsize_base ==
-             chroma_ref_info->bsize_base);
-    }
-    // If above block's left boundary is to the left of current block's left
-    // boundary, we need to find the common overlap.
-    if (above_mi[0]->mi_col_start < above_mi_col) {
-      const int extra_cols = above_mi_col - above_mi[0]->mi_col_start;
-      mi_step -= extra_cols;
-      assert(mi_step > 0);
+    if (count_only) {
+      // In this case, we may only be parsing without decoding (e.g. in case of
+      // row-baed multi-threading). Hence, we do not have access to variables
+      // `above_mi[0]->chroma_ref_info` and `above_mi[0]->mi_col_start`.
+      // Also, if mi_step = 1, it must be a non-chroma ref block. So, we use
+      // mi_step = 2.
+      if (mi_step == 1) {
+        mi_step = 2;
+      }
+    } else {
+      // If we're considering a block that is NOT a chroma ref:
+      // - Move above_mi_col back to the base mi col,
+      // - Set above_mbmi to point at the block with chroma information, and
+      // - Set mi_step to step over all blocks that the chroma block covers.
+      const CHROMA_REF_INFO *chroma_ref_info = &above_mi[0]->chroma_ref_info;
+      if (!chroma_ref_info->is_chroma_ref) {
+        above_mi_col = chroma_ref_info->mi_col_chroma_base;
+        mi_step = mi_size_wide[chroma_ref_info->bsize_base];
+        if (above_mi_col < mi_col) continue;
+        above_mi = prev_row_mi + above_mi_col;
+        assert(above_mi[0]->chroma_ref_info.bsize_base ==
+               chroma_ref_info->bsize_base);
+      }
+      // If above block's left boundary is to the left of current block's left
+      // boundary, we need to find the common overlap.
+      if (above_mi[0]->mi_col_start < above_mi_col) {
+        const int extra_cols = above_mi_col - above_mi[0]->mi_col_start;
+        mi_step -= extra_cols;
+        assert(mi_step > 0);
+      }
     }
 #else
+    (void)count_only;
     // If we're considering a block with width 4, it should be treated as
     // half of a pair of blocks with chroma information in the second. Move
     // above_mi_col back to the start of the pair if needed, set above_mbmi
