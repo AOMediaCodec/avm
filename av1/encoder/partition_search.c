@@ -796,6 +796,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
     p[i].qcoeff = ctx->qcoeff[i];
     p[i].dqcoeff = ctx->dqcoeff[i];
     p[i].eobs = ctx->eobs[i];
+#if CONFIG_ATC_DCTX_ALIGNED
+    p[i].bobs = ctx->bobs[i];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     p[i].txb_entropy_ctx = ctx->txb_entropy_ctx[i];
   }
 

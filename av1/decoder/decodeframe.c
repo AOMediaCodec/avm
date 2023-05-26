@@ -4011,6 +4011,9 @@ static AOM_INLINE void set_cb_buffer(AV1Decoder *pbi, DecoderCodingBlock *dcb,
   for (int plane = 0; plane < num_planes; ++plane) {
     dcb->dqcoeff_block[plane] = cb_buffer->dqcoeff[plane];
     dcb->eob_data[plane] = cb_buffer->eob_data[plane];
+#if CONFIG_ATC_DCTX_ALIGNED
+    dcb->bob_data[plane] = cb_buffer->bob_data[plane];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     dcb->cb_offset[plane] = 0;
     dcb->txb_offset[plane] = 0;
   }

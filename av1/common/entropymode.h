@@ -68,7 +68,11 @@ extern "C" {
 #define KF_MODE_CONTEXTS 5
 
 #define FSC_MODE_CONTEXTS 4
+#if CONFIG_ATC_DCTX_ALIGNED
+#define FSC_BSIZE_CONTEXTS 6
+#else
 #define FSC_BSIZE_CONTEXTS 5
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 #define COMPREF_BIT_TYPES 2
 #define RANKED_REF0_TO_PRUNE 3
@@ -133,6 +137,16 @@ typedef struct frame_contexts {
                             [CDF_SIZE(2)];
   aom_cdf_prob v_ac_sign_cdf[CROSS_COMPONENT_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_ATC_DCTX_ALIGNED
+  aom_cdf_prob coeff_base_bob_cdf[SIG_COEF_CONTEXTS_BOB][CDF_SIZE(3)];
+  aom_cdf_prob eob_flag_cdf16[PLANE_TYPES][CDF_SIZE(5)];
+  aom_cdf_prob eob_flag_cdf32[PLANE_TYPES][CDF_SIZE(6)];
+  aom_cdf_prob eob_flag_cdf64[PLANE_TYPES][CDF_SIZE(7)];
+  aom_cdf_prob eob_flag_cdf128[PLANE_TYPES][CDF_SIZE(8)];
+  aom_cdf_prob eob_flag_cdf256[PLANE_TYPES][CDF_SIZE(9)];
+  aom_cdf_prob eob_flag_cdf512[PLANE_TYPES][CDF_SIZE(10)];
+  aom_cdf_prob eob_flag_cdf1024[PLANE_TYPES][CDF_SIZE(11)];
+#else
   aom_cdf_prob eob_flag_cdf16[PLANE_TYPES][2][CDF_SIZE(5)];
   aom_cdf_prob eob_flag_cdf32[PLANE_TYPES][2][CDF_SIZE(6)];
   aom_cdf_prob eob_flag_cdf64[PLANE_TYPES][2][CDF_SIZE(7)];
@@ -140,6 +154,7 @@ typedef struct frame_contexts {
   aom_cdf_prob eob_flag_cdf256[PLANE_TYPES][2][CDF_SIZE(9)];
   aom_cdf_prob eob_flag_cdf512[PLANE_TYPES][2][CDF_SIZE(10)];
   aom_cdf_prob eob_flag_cdf1024[PLANE_TYPES][2][CDF_SIZE(11)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   aom_cdf_prob coeff_base_eob_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]
                                  [CDF_SIZE(3)];
   aom_cdf_prob coeff_base_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]
@@ -374,8 +389,13 @@ typedef struct frame_contexts {
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                                [CDF_SIZE(TX_TYPES)];
+#if CONFIG_ATC_DCTX_ALIGNED
+  aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
+                               [CDF_SIZE(TX_TYPES)];
+#else
   aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EXT_TX_SIZES]
                                [CDF_SIZE(TX_TYPES)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
   aom_cdf_prob stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)];

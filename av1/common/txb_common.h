@@ -563,6 +563,15 @@ static INLINE int get_lower_levels_ctx_eob(int bwl, int height, int scan_idx) {
   return 3;
 }
 
+#if CONFIG_ATC_DCTX_ALIGNED
+// Return context index for first position.
+static INLINE int get_lower_levels_ctx_bob(int bwl, int height, int scan_idx) {
+  if (scan_idx <= (height << bwl) / 8) return 0;
+  if (scan_idx <= (height << bwl) / 4) return 1;
+  return 2;
+}
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
 static INLINE int get_upper_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
                                           int bwl) {
   int mag;

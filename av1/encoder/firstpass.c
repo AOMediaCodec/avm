@@ -984,6 +984,9 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     x->plane[i].coeff = ctx->coeff[i];
     x->plane[i].qcoeff = ctx->qcoeff[i];
     x->plane[i].eobs = ctx->eobs[i];
+#if CONFIG_ATC_DCTX_ALIGNED
+    x->plane[i].bobs = ctx->bobs[i];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     x->plane[i].txb_entropy_ctx = ctx->txb_entropy_ctx[i];
     x->plane[i].dqcoeff = ctx->dqcoeff[i];
   }

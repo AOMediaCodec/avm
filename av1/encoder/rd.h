@@ -154,6 +154,9 @@ static INLINE void av1_invalid_rd_stats(RD_STATS *rd_stats) {
 static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
                                       const RD_STATS *rd_stats_src) {
   assert(rd_stats_dst->rate != INT_MAX && rd_stats_src->rate != INT_MAX);
+#if CONFIG_ATC_DCTX_ALIGNED
+  if (rd_stats_src->dist == INT64_MAX || rd_stats_src->rate == INT_MAX) return;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   rd_stats_dst->rate = (int)AOMMIN(
       ((int64_t)rd_stats_dst->rate + (int64_t)rd_stats_src->rate), INT_MAX);
   if (!rd_stats_dst->zero_rate)
@@ -202,6 +205,13 @@ static INLINE int64_t av1_calculate_rd_cost(int mult, int rate, int64_t dist) {
 }
 
 static INLINE void av1_rd_cost_update(int mult, RD_STATS *rd_cost) {
+  /* CONFIG_ATC_DCTX_ALIGNED check for integer overflow
+  if (rd_cost->rate == INT_MAX ||
+      rd_cost->dist == INT64_MAX ||
+      rd_cost->rdcost == INT64_MAX) {
+    av1_invalid_rd_stats(rd_cost);
+  }
+  */
   if (rd_cost->rate < INT_MAX && rd_cost->dist < INT64_MAX &&
       rd_cost->rdcost < INT64_MAX) {
     rd_cost->rdcost = av1_calculate_rd_cost(mult, rd_cost->rate, rd_cost->dist);

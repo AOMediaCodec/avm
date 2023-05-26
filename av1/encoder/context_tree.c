@@ -116,6 +116,10 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
     ctx->dqcoeff[i] = shared_bufs->dqcoeff_buf[i];
     AOM_CHECK_MEM_ERROR(&error, ctx->eobs[i],
                         aom_memalign(32, num_blk * sizeof(*ctx->eobs[i])));
+#if CONFIG_ATC_DCTX_ALIGNED
+    AOM_CHECK_MEM_ERROR(&error, ctx->bobs[i],
+                        aom_memalign(32, num_blk * sizeof(*ctx->bobs[i])));
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     AOM_CHECK_MEM_ERROR(
         &error, ctx->txb_entropy_ctx[i],
         aom_memalign(32, num_blk * sizeof(*ctx->txb_entropy_ctx[i])));
@@ -147,6 +151,10 @@ void av1_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
     ctx->dqcoeff[i] = NULL;
     aom_free(ctx->eobs[i]);
     ctx->eobs[i] = NULL;
+#if CONFIG_ATC_DCTX_ALIGNED
+    aom_free(ctx->bobs[i]);
+    ctx->bobs[i] = NULL;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     aom_free(ctx->txb_entropy_ctx[i]);
     ctx->txb_entropy_ctx[i] = NULL;
   }

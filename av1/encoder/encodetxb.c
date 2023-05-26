@@ -171,11 +171,16 @@ static INLINE int get_eob_pos_token(const int eob, int *const extra) {
 
 #if CONFIG_ENTROPY_STATS
 void av1_update_eob_context(int cdf_idx, int eob, TX_SIZE tx_size,
-                            TX_CLASS tx_class, PLANE_TYPE plane,
-                            FRAME_CONTEXT *ec_ctx, FRAME_COUNTS *counts,
-                            uint8_t allow_update_cdf) {
+#if !CONFIG_ATC_DCTX_ALIGNED
+                            TX_CLASS tx_class,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+                            PLANE_TYPE plane, FRAME_CONTEXT *ec_ctx,
+                            FRAME_COUNTS *counts, uint8_t allow_update_cdf) {
 #else
-void av1_update_eob_context(int eob, TX_SIZE tx_size, TX_CLASS tx_class,
+void av1_update_eob_context(int eob, TX_SIZE tx_size,
+#if !CONFIG_ATC_DCTX_ALIGNED
+                            TX_CLASS tx_class,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
                             PLANE_TYPE plane, FRAME_CONTEXT *ec_ctx,
                             uint8_t allow_update_cdf) {
 #endif
@@ -184,6 +189,64 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size, TX_CLASS tx_class,
   TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
 
   const int eob_multi_size = txsize_log2_minus4[tx_size];
+#if CONFIG_ATC_DCTX_ALIGNED
+  switch (eob_multi_size) {
+    case 0:
+#if CONFIG_ENTROPY_STATS
+      ++counts->eob_multi16[cdf_idx][plane][eob_pt - 1];
+#endif
+      if (allow_update_cdf)
+        update_cdf(ec_ctx->eob_flag_cdf16[plane], eob_pt - 1, 5);
+      break;
+    case 1:
+#if CONFIG_ENTROPY_STATS
+      ++counts->eob_multi32[cdf_idx][plane][eob_pt - 1];
+#endif
+      if (allow_update_cdf)
+        update_cdf(ec_ctx->eob_flag_cdf32[plane], eob_pt - 1, 6);
+      break;
+    case 2:
+#if CONFIG_ENTROPY_STATS
+      ++counts->eob_multi64[cdf_idx][plane][eob_pt - 1];
+#endif
+      if (allow_update_cdf)
+        update_cdf(ec_ctx->eob_flag_cdf64[plane], eob_pt - 1, 7);
+      break;
+    case 3:
+#if CONFIG_ENTROPY_STATS
+      ++counts->eob_multi128[cdf_idx][plane][eob_pt - 1];
+#endif
+      if (allow_update_cdf) {
+        update_cdf(ec_ctx->eob_flag_cdf128[plane], eob_pt - 1, 8);
+      }
+      break;
+    case 4:
+#if CONFIG_ENTROPY_STATS
+      ++counts->eob_multi256[cdf_idx][plane][eob_pt - 1];
+#endif
+      if (allow_update_cdf) {
+        update_cdf(ec_ctx->eob_flag_cdf256[plane], eob_pt - 1, 9);
+      }
+      break;
+    case 5:
+#if CONFIG_ENTROPY_STATS
+      ++counts->eob_multi512[cdf_idx][plane][eob_pt - 1];
+#endif
+      if (allow_update_cdf) {
+        update_cdf(ec_ctx->eob_flag_cdf512[plane], eob_pt - 1, 10);
+      }
+      break;
+    case 6:
+    default:
+#if CONFIG_ENTROPY_STATS
+      ++counts->eob_multi1024[cdf_idx][plane][eob_pt - 1];
+#endif
+      if (allow_update_cdf) {
+        update_cdf(ec_ctx->eob_flag_cdf1024[plane], eob_pt - 1, 11);
+      }
+      break;
+  }
+#else
   const int eob_multi_ctx = (tx_class == TX_CLASS_2D) ? 0 : 1;
 
   switch (eob_multi_size) {
@@ -246,6 +309,7 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size, TX_CLASS tx_class,
       }
       break;
   }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
   if (av1_eob_offset_bits[eob_pt] > 0) {
     int eob_ctx = eob_pt - 3;
@@ -260,13 +324,21 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size, TX_CLASS tx_class,
 }
 
 static int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
-                        const LV_MAP_COEFF_COST *txb_costs, TX_CLASS tx_class) {
+                        const LV_MAP_COEFF_COST *txb_costs
+#if !CONFIG_ATC_DCTX_ALIGNED
+                        ,
+                        TX_CLASS tx_class
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+) {
   int eob_extra;
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
   int eob_cost = 0;
+#if CONFIG_ATC_DCTX_ALIGNED
+  eob_cost = txb_eob_costs->eob_cost[eob_pt - 1];
+#else
   const int eob_multi_ctx = (tx_class == TX_CLASS_2D) ? 0 : 1;
   eob_cost = txb_eob_costs->eob_cost[eob_multi_ctx][eob_pt - 1];
-
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   if (av1_eob_offset_bits[eob_pt] > 0) {
     const int eob_ctx = eob_pt - 3;
     const int eob_shift = av1_eob_offset_bits[eob_pt] - 1;
@@ -408,7 +480,16 @@ static INLINE int get_nz_map_ctx(const uint8_t *const levels,
 }
 
 static INLINE int get_nz_map_ctx_skip(const uint8_t *const levels,
+#if CONFIG_ATC_DCTX_ALIGNED
+                                      const int height, const int scan_idx,
+                                      const int is_bob, const int coeff_idx,
+                                      const int bwl) {
+  if (is_bob) {
+    return get_lower_levels_ctx_bob(bwl, height, scan_idx);
+  }
+#else
                                       const int coeff_idx, const int bwl) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const int stats =
       get_nz_mag_skip(levels + get_padded_idx_left(coeff_idx, bwl), bwl);
   return get_nz_map_ctx_from_stats_skip(stats, coeff_idx, bwl);
@@ -514,14 +595,82 @@ void av1_get_nz_map_contexts_c(const uint8_t *const levels,
   }
 }
 
+#if CONFIG_ATC_DCTX_ALIGNED
+// Encodes the EOB syntax in the bitstream.
+static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
+                            TX_SIZE tx_size, const int eob) {
+  MACROBLOCKD *xd = &x->e_mbd;
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  const PLANE_TYPE plane_type = get_plane_type(plane);
+  const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+
+  int eob_extra;
+  const int eob_pt = get_eob_pos_token(eob, &eob_extra);
+  const int eob_multi_size = txsize_log2_minus4[tx_size];
+  switch (eob_multi_size) {
+    case 0:
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf16[plane_type], 5);
+      break;
+    case 1:
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf32[plane_type], 6);
+      break;
+    case 2:
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf64[plane_type], 7);
+      break;
+    case 3:
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf128[plane_type], 8);
+      break;
+    case 4:
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf256[plane_type], 9);
+      break;
+    case 5:
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf512[plane_type], 10);
+      break;
+    default:
+      aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf1024[plane_type], 11);
+      break;
+  }
+  const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
+  if (eob_offset_bits > 0) {
+    const int eob_ctx = eob_pt - 3;
+    int eob_shift = eob_offset_bits - 1;
+    int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
+    aom_write_symbol(w, bit,
+                     ec_ctx->eob_extra_cdf[txs_ctx][plane_type][eob_ctx], 2);
+#if CONFIG_BYPASS_IMPROVEMENT
+    // Zero out top bit; write (eob_offset_bits - 1) lsb bits.
+    eob_extra &= (1 << (eob_offset_bits - 1)) - 1;
+    aom_write_literal(w, eob_extra, eob_offset_bits - 1);
+#else
+    for (int i = 1; i < eob_offset_bits; i++) {
+      eob_shift = eob_offset_bits - 1 - i;
+      bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
+      aom_write_bit(w, bit);
+    }
+#endif
+  }
+}
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
 void av1_get_nz_map_contexts_skip_c(const uint8_t *const levels,
                                     const int16_t *const scan,
+#if CONFIG_ATC_DCTX_ALIGNED
+                                    const uint16_t bob,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
                                     const uint16_t eob, const TX_SIZE tx_size,
                                     int8_t *const coeff_contexts) {
   const int bwl = get_txb_bwl(tx_size);
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int height = get_txb_high(tx_size);
+  for (int i = bob; i < eob; ++i) {
+    const int pos = scan[i];
+    coeff_contexts[pos] =
+        get_nz_map_ctx_skip(levels, height, i, bob == i, pos, bwl);
+#else
   for (int i = 0; i < eob; ++i) {
     const int pos = scan[i];
     coeff_contexts[pos] = get_nz_map_ctx_skip(levels, pos, bwl);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   }
 }
 
@@ -542,6 +691,10 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
 
   const uint16_t *eob_txb = cb_coef_buff->eobs[plane] + txb_offset;
   const uint16_t eob = eob_txb[block];
+#if CONFIG_ATC_DCTX_ALIGNED
+  const uint16_t *bob_txb = cb_coef_buff->bobs[plane] + txb_offset;
+  const uint16_t bob_code = bob_txb[block];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const uint8_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
 
 #if CONFIG_CONTEXT_DERIVATION
@@ -560,6 +713,12 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       cm->features.reduced_tx_set_used);
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+  const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                      plane == PLANE_TYPE_Y) ||
+                     use_inter_fsc(cm, plane, tx_type, is_inter);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 #if CONFIG_CROSS_CHROMA_TX && CCTX_C2_DROPPED
   if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd)) {
@@ -582,7 +741,7 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   aom_write_symbol(w, eob == 0, ec_ctx->txb_skip_cdf[txs_ctx][txb_skip_ctx], 2);
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-#if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_CROSS_CHROMA_TX && !CONFIG_ATC_DCTX_ALIGNED
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
     CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
     if (eob > 0) av1_write_cctx_type(cm, xd, cctx_type, tx_size, w);
@@ -590,9 +749,24 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif  // CONFIG_CROSS_CHROMA_TX
 
   if (eob == 0) return 0;
+#if CONFIG_ATC_DCTX_ALIGNED
+  int esc_eob = is_fsc ? bob_code : eob;
+  const int dc_skip = (eob == 1) && !is_inter;
+  code_eob(x, w, plane, tx_size, esc_eob);
+  av1_write_tx_type(cm, xd, tx_type, tx_size, w, plane, esc_eob, dc_skip);
+#if CONFIG_CROSS_CHROMA_TX
+  if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
+    int skip_cctx = is_inter ? 0 : (eob == 1);
+    CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
+    if (eob > 0 && !skip_cctx)
+      av1_write_cctx_type(cm, xd, cctx_type, tx_size, w);
+  }
+#endif  // CONFIG_CROSS_CHROMA_TX
+#else
   if (plane == 0) {  // Only y plane's tx_type is transmitted
     av1_write_tx_type(cm, xd, tx_type, tx_size, w);
   }
+#endif
   return 1;
 }
 
@@ -622,15 +796,39 @@ void av1_write_coeffs_txb_skip(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const int bwl = get_txb_bwl(tx_size);
 
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int txb_offset =
+      x->mbmi_ext_frame->cb_offset[plane] / (TX_SIZE_W_MIN * TX_SIZE_H_MIN);
+  const uint16_t *bob_txb = cb_coef_buff->bobs[plane] + txb_offset;
+  const int bob_code = bob_txb[block];
+  int bob = av1_get_max_eob(tx_size) - bob_code;
+  av1_get_nz_map_contexts_skip_c(levels, scan, bob, eob, tx_size,
+                                 coeff_contexts);
+#else
   av1_get_nz_map_contexts_skip(levels, scan, eob, tx_size, coeff_contexts);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
+#if CONFIG_ATC_DCTX_ALIGNED
+  for (int c = bob; c < eob; ++c) {
+#else
   for (int c = 0; c < eob; ++c) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
+#if CONFIG_ATC_DCTX_ALIGNED
+    if (c == bob) {
+      aom_write_symbol(w, AOMMIN(level, 3) - 1,
+                       ec_ctx->coeff_base_bob_cdf[coeff_ctx], 3);
+    } else {
+      aom_write_symbol(w, AOMMIN(level, 3),
+                       ec_ctx->coeff_base_cdf_idtx[coeff_ctx], 4);
+    }
+#else
     aom_write_symbol(w, AOMMIN(level, 3),
                      ec_ctx->coeff_base_cdf_idtx[coeff_ctx], 4);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     if (level > NUM_BASE_LEVELS) {
       // level is above 1.
       const int base_range = level - 1 - NUM_BASE_LEVELS;
@@ -719,7 +917,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   fprintf(cm->fEncCoeffLog, "\nblk_row=%d,blk_col=%d,plane=%d,tx_size=%d",
           blk_row, blk_col, plane, tx_size);
 #endif
-
+#if !CONFIG_ATC_DCTX_ALIGNED
   int eob_extra;
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
   const int eob_multi_size = txsize_log2_minus4[tx_size];
@@ -775,10 +973,17 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     }
 #endif
   }
+#else
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
   // write sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
+#if CONFIG_ATC_DCTX_ALIGNED
+  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist) && eob != 1) {
+#else
   if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist)) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
   }
 
@@ -1202,8 +1407,17 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
 int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
                        const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                        int block, CctxType cctx_type) {
+#if CONFIG_ATC_DCTX_ALIGNED
+  int skip_cctx = is_inter_block(xd->mi[0], xd->tree_type)
+                      ? 0
+                      : (x->plane[plane].eobs[block] == 1);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   if (plane == AOM_PLANE_U && x->plane[plane].eobs[block] &&
-      is_cctx_allowed(cm, xd)) {
+      is_cctx_allowed(cm, xd)
+#if CONFIG_ATC_DCTX_ALIGNED
+      && !skip_cctx
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+  ) {
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     int above_cctx, left_cctx;
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -1222,7 +1436,12 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 // TODO(angiebird): use this function whenever it's possible
 static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                             int plane, TX_SIZE tx_size, TX_TYPE tx_type,
-                            int reduced_tx_set_used, int eob) {
+                            int reduced_tx_set_used, int eob
+#if CONFIG_ATC_DCTX_ALIGNED
+                            ,
+                            int bob_code, int is_fsc
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+) {
   if (plane > 0) return 0;
 
   const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
@@ -1239,8 +1458,18 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         get_ext_tx_set(tx_size, is_inter, reduced_tx_set_used);
     if (is_inter) {
       if (ext_tx_set > 0)
+#if CONFIG_ATC_DCTX_ALIGNED
+      {
+        const int bwl = get_txb_bwl(tx_size);
+        int esc_eob = is_fsc ? bob_code : eob;
+        int eob_sl_ctx = get_lp2eob_ctx(tx_size, bwl, esc_eob);
+        return x->mode_costs.inter_tx_type_costs[ext_tx_set][eob_sl_ctx]
+                                                [square_tx_size][tx_type];
+      }
+#else
         return x->mode_costs
             .inter_tx_type_costs[ext_tx_set][square_tx_size][tx_type];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     } else {
       if (ext_tx_set > 0) {
         PREDICTION_MODE intra_dir;
@@ -1250,6 +1479,20 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         else
           intra_dir = mbmi->mode;
         TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
+#if CONFIG_ATC_DCTX_ALIGNED
+        int tx_type_cost = 0;
+        if (eob != 1) {
+          tx_type_cost =
+              x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
+                                               [intra_dir][primary_tx_type];
+        }
+        if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob) &&
+            xd->enable_ist) {
+          tx_type_cost +=
+              x->mode_costs.stx_flag_cost[square_tx_size]
+                                         [get_secondary_tx_type(tx_type)];
+        }
+#else
         int tx_type_cost =
             x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
                                              [intra_dir][primary_tx_type];
@@ -1259,6 +1502,7 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
               x->mode_costs.stx_flag_cost[square_tx_size]
                                          [get_secondary_tx_type(tx_type)];
         }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
         return tx_type_cost;
       }
     }
@@ -1304,9 +1548,9 @@ static INLINE void update_coeff_eob_fast(int *eob, int shift,
 }
 
 static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
-#if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
     const AV1_COMMON *cm,
-#endif  // CONFIG_CROSS_CHROMA_TX
+#endif  // CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
     const MACROBLOCK *x, const int plane, const int block,
     const TX_SIZE tx_size, const TXB_CTX *const txb_ctx,
     const struct macroblock_plane *p, const int eob,
@@ -1329,22 +1573,61 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
   int8_t signs_buf[TX_PAD_2D];
   int8_t *const signs = set_signs(signs_buf, width);
   av1_txb_init_levels_signs(qcoeff, width, height, levels_buf, signs_buf);
-  cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used,
-                           eob);
+#if CONFIG_ATC_DCTX_ALIGNED
+  int bob_code = p->bobs[block];
+  int bob = av1_get_max_eob(tx_size) - bob_code;
+  int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+  const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                      plane == PLANE_TYPE_Y) ||
+                     use_inter_fsc(cm, plane, tx_type, is_inter);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+  cost +=
+      get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used, eob
+#if CONFIG_ATC_DCTX_ALIGNED
+                       ,
+                       bob_code, is_fsc
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+      );
+
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int eob_multi_size = txsize_log2_minus4[tx_size];
+  const LV_MAP_EOB_COST *const eob_costs =
+      &x->coeff_costs.eob_costs[eob_multi_size][PLANE_TYPE_Y];
+  cost += get_eob_cost(bob_code, eob_costs, coeff_costs);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
 #if CONFIG_CROSS_CHROMA_TX
   cost += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
 #endif  // CONFIG_CROSS_CHROMA_TX
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
+#if CONFIG_ATC_DCTX_ALIGNED
+  av1_get_nz_map_contexts_skip_c(levels, scan, bob, eob, tx_size,
+                                 coeff_contexts);
+#else
   av1_get_nz_map_contexts_skip(levels, scan, eob, tx_size, coeff_contexts);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const int(*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_cost_skip;
   const int(*base_cost)[8] = coeff_costs->idtx_base_cost;
+
+#if CONFIG_ATC_DCTX_ALIGNED
+  for (int c = bob; c < eob; c++) {
+#else
   for (int c = 0; c < eob; c++) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = qcoeff[pos];
     const int level = abs(v);
+#if CONFIG_ATC_DCTX_ALIGNED
+    if (c == bob) {
+      cost += coeff_costs->base_bob_cost[coeff_ctx][AOMMIN(level, 3) - 1];
+    } else {
+      cost += base_cost[coeff_ctx][AOMMIN(level, 3)];
+    }
+#else
     cost += base_cost[coeff_ctx][AOMMIN(level, 3)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     if (v) {
       if (level > NUM_BASE_LEVELS) {
         const int ctx = get_br_ctx_skip(levels, pos, bwl);
@@ -1352,7 +1635,11 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
       }
     }
   }
+#if CONFIG_ATC_DCTX_ALIGNED
+  for (int c = eob - 1; c >= bob; --c) {
+#else
   for (int c = eob - 1; c >= 0; --c) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     const int pos = scan[c];
     const tran_low_t v = qcoeff[pos];
     const tran_low_t level = abs(v);
@@ -1366,9 +1653,9 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
 }
 
 static AOM_FORCE_INLINE int warehouse_efficients_txb(
-#if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
     const AV1_COMMON *cm,
-#endif  // CONFIG_CROSS_CHROMA_TX
+#endif  // CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
     const MACROBLOCK *x, const int plane, const int block,
     const TX_SIZE tx_size, const TXB_CTX *const txb_ctx,
     const struct macroblock_plane *p, const int eob,
@@ -1417,13 +1704,29 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 
   av1_txb_init_levels(qcoeff, width, height, levels);
 
-  cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used,
-                           eob);
+#if CONFIG_ATC_DCTX_ALIGNED
+  int bob_code = p->bobs[block];
+  int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+  const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                      plane == PLANE_TYPE_Y) ||
+                     use_inter_fsc(cm, plane, tx_type, is_inter);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
+  cost +=
+      get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used, eob
+#if CONFIG_ATC_DCTX_ALIGNED
+                       ,
+                       bob_code, is_fsc
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+      );
 #if CONFIG_CROSS_CHROMA_TX
   cost += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
 #endif  // CONFIG_CROSS_CHROMA_TX
-
+#if CONFIG_ATC_DCTX_ALIGNED
+  cost += get_eob_cost(eob, eob_costs, coeff_costs);
+#else
   cost += get_eob_cost(eob, eob_costs, coeff_costs, tx_class);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
   av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts
 #if CONFIG_ATC_COEFCODING
@@ -1653,7 +1956,10 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
 #if CONFIG_CROSS_CHROMA_TX
     const CctxType cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
-    const TX_CLASS tx_class, int reduced_tx_set_used) {
+#if !CONFIG_ATC_DCTX_ALIGNED
+    const TX_CLASS tx_class,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+    int reduced_tx_set_used) {
 #if CONFIG_CONTEXT_DERIVATION
   int txb_skip_ctx = txb_ctx->txb_skip_ctx;
   if (plane == AOM_PLANE_V) {
@@ -1678,8 +1984,21 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
   int cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-  cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used,
-                           eob);
+#if CONFIG_ATC_DCTX_ALIGNED
+  int bob_code = x->plane[plane].bobs[block];  // check
+  int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+  const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                      plane == PLANE_TYPE_Y) ||
+                     use_inter_fsc(cm, plane, tx_type, is_inter);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
+  cost +=
+      get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used, eob
+#if CONFIG_ATC_DCTX_ALIGNED
+                       ,
+                       bob_code, is_fsc
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+      );
 #if CONFIG_CROSS_CHROMA_TX
   cost += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -1691,7 +2010,11 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
     cost +=
         av1_cost_coeffs_txb_skip_estimate(x, plane, block, tx_size, tx_type);
   } else {
+#if CONFIG_ATC_DCTX_ALIGNED
+    cost += get_eob_cost(eob, eob_costs, coeff_costs);
+#else
     cost += get_eob_cost(eob, eob_costs, coeff_costs, tx_class);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     cost += av1_cost_coeffs_txb_estimate(x, plane, block, tx_size, tx_type);
   }
   return cost;
@@ -1816,9 +2139,9 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
        get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
       use_inter_fsc(cm, plane, tx_type, is_inter_block(mbmi, xd->tree_type))) {
     return warehouse_efficients_txb_skip(
-#if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
         cm,
-#endif  // CONFIG_CROSS_CHROMA_TX
+#endif  // CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
         x, plane, block, tx_size, txb_ctx, p, eob, coeff_costs, xd, tx_type,
 #if CONFIG_CROSS_CHROMA_TX
         cctx_type,
@@ -1826,9 +2149,9 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
         reduced_tx_set_used);
   } else {
     return warehouse_efficients_txb(
-#if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
         cm,
-#endif  // CONFIG_CROSS_CHROMA_TX
+#endif  // CONFIG_CROSS_CHROMA_TX || CONFIG_ATC_DCTX_ALIGNED
         x, plane, block, tx_size, txb_ctx, p, eob, plane_type, coeff_costs, xd,
         tx_type,
 #if CONFIG_CROSS_CHROMA_TX
@@ -1892,7 +2215,9 @@ int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
     return skip_cost;
   }
 
+#if !CONFIG_ATC_DCTX_ALIGNED
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
   return warehouse_efficients_txb_laplacian(cm, x, plane, block, tx_size,
                                             txb_ctx, eob, plane_type,
@@ -1900,7 +2225,10 @@ int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
 #if CONFIG_CROSS_CHROMA_TX
                                             cctx_type,
 #endif  // CONFIG_CROSS_CHROMA_TX
-                                            tx_class, reduced_tx_set_used);
+#if !CONFIG_ATC_DCTX_ALIGNED
+                                            tx_class,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+                                            reduced_tx_set_used);
 }
 
 static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
@@ -2559,7 +2887,11 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     const int new_eob = si + 1;
     const int coeff_ctx_new_eob = get_lower_levels_ctx_eob(bwl, height, si);
     const int new_eob_cost =
+#if CONFIG_ATC_DCTX_ALIGNED
+        get_eob_cost(new_eob, txb_eob_costs, txb_costs);
+#else
         get_eob_cost(new_eob, txb_eob_costs, txb_costs, tx_class);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     int rate_coeff_eob =
         new_eob_cost + get_coeff_cost_eob(ci, abs_qc, sign, coeff_ctx_new_eob,
                                           dc_sign_ctx, txb_costs, bwl, tx_class
@@ -3009,6 +3341,12 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int height = get_txb_high(tx_size);
   assert(width == (1 << bwl));
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#if CONFIG_ATC_DCTX_ALIGNED
+  int bob_code = p->bobs[block];
+  const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                      plane == PLANE_TYPE_Y) ||
+                     use_inter_fsc(&cpi->common, plane, tx_type, is_inter);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const LV_MAP_COEFF_COST *txb_costs =
       &coeff_costs->coeff_costs[txs_ctx][plane_type];
   const int eob_multi_size = txsize_log2_minus4[tx_size];
@@ -3068,7 +3406,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int non_skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][0];
   const int skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int eob_cost = get_eob_cost(eob, txb_eob_costs, txb_costs);
+#else
   const int eob_cost = get_eob_cost(eob, txb_eob_costs, txb_costs, tx_class);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   int accu_rate = eob_cost;
   int64_t accu_dist = 0;
   int si = eob - 1;
@@ -3286,6 +3628,20 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   aom_free(coef_info);
 #endif  // CONFIG_PAR_HIDING
 
+#if CONFIG_ATC_DCTX_ALIGNED
+  set_bob(x, plane, block, tx_size, tx_type);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
+#if CONFIG_ATC_DCTX_ALIGNED
+  if (eob == 0) {
+    accu_rate += skip_cost;
+  } else {
+    const int tx_type_cost = get_tx_type_cost(x, xd, plane, tx_size, tx_type,
+                                              cm->features.reduced_tx_set_used,
+                                              eob, bob_code, is_fsc);
+    accu_rate += non_skip_cost + tx_type_cost;
+  }
+#else
   const int tx_type_cost = get_tx_type_cost(
       x, xd, plane, tx_size, tx_type, cm->features.reduced_tx_set_used, eob);
 
@@ -3293,6 +3649,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     accu_rate += skip_cost;
   else
     accu_rate += non_skip_cost + tx_type_cost;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
   p->eobs[block] = eob;
   p->txb_entropy_ctx[block] =
@@ -3360,7 +3717,12 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                                  MACROBLOCKD *xd, int blk_row, int blk_col,
                                  int plane, TX_SIZE tx_size,
                                  FRAME_COUNTS *counts, uint8_t allow_update_cdf,
-                                 int eob) {
+                                 int eob
+#if CONFIG_ATC_DCTX_ALIGNED
+                                 ,
+                                 int bob_code, int is_fsc
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int reduced_tx_set_used = cm->features.reduced_tx_set_used;
@@ -3397,19 +3759,39 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
       const TxSetType tx_set_type =
           av1_get_ext_tx_set_type(tx_size, is_inter, reduced_tx_set_used);
       if (is_inter) {
+#if CONFIG_ATC_DCTX_ALIGNED
+        int esc_eob = is_fsc ? bob_code : eob;
+        const int bwl = get_txb_bwl(tx_size);
+        int eob_sl_ctx = get_lp2eob_ctx(tx_size, bwl, esc_eob);
+        if (allow_update_cdf) {
+          update_cdf(
+              fc->inter_ext_tx_cdf[eset][eob_sl_ctx][txsize_sqr_map[tx_size]],
+              av1_ext_tx_ind[tx_set_type][tx_type],
+              av1_num_ext_tx_set[tx_set_type]);
+        }
+#else
         if (allow_update_cdf) {
           update_cdf(fc->inter_ext_tx_cdf[eset][txsize_sqr_map[tx_size]],
                      av1_ext_tx_ind[tx_set_type][tx_type],
                      av1_num_ext_tx_set[tx_set_type]);
         }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #if CONFIG_ENTROPY_STATS
+#if CONFIG_ATC_DCTX_ALIGNED
+        ++counts->inter_ext_tx[eset][eob_sl_ctx][txsize_sqr_map[tx_size]]
+                              [av1_ext_tx_ind[tx_set_type][tx_type]];
+#else
         ++counts->inter_ext_tx[eset][txsize_sqr_map[tx_size]]
                               [av1_ext_tx_ind[tx_set_type][tx_type]];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #endif  // CONFIG_ENTROPY_STATS
       } else {
         if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && allow_update_cdf) {
           return;
         }
+#if CONFIG_ATC_DCTX_ALIGNED
+        if (eob == 1 && allow_update_cdf) return;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
         PREDICTION_MODE intra_dir;
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
@@ -3465,6 +3847,9 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
            !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) &&
            cm->seq_params.enable_ist &&
            block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
+#if CONFIG_ATC_DCTX_ALIGNED
+    if (eob == 1 && allow_update_cdf) return;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     if (allow_update_cdf)
       update_cdf(fc->stx_cdf[txsize_sqr_map[tx_size]],
                  (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
@@ -3483,6 +3868,9 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
   struct macroblock_plane *p = &x->plane[plane];
   struct macroblockd_plane *pd = &xd->plane[plane];
   const int eob = p->eobs[block];
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int bob_code = p->bobs[block];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *qcoeff = p->qcoeff + block_offset;
   const PLANE_TYPE plane_type = pd->plane_type;
@@ -3520,6 +3908,11 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
     uint8_t *const entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
     entropy_ctx[block] = txb_ctx.txb_skip_ctx;
     eob_txb[block] = eob;
+#if CONFIG_ATC_DCTX_ALIGNED
+    uint16_t *bob_txb = cb_coef_buff->bobs[plane] + txb_offset;
+    bob_txb[block] = bob_code;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
     if (eob == 0) {
       av1_set_entropy_contexts(xd, pd, plane, plane_bsize, tx_size, 0, blk_col,
                                blk_row);
@@ -3539,23 +3932,67 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
     int8_t *const signs = set_signs(signs_buf, width);
     av1_txb_init_levels_signs(tcoeff, width, height, levels_buf, signs_buf);
     update_tx_type_count(cpi, cm, xd, blk_row, blk_col, plane, tx_size,
-                         td->counts, allow_update_cdf, eob);
+                         td->counts, allow_update_cdf, eob
+#if CONFIG_ATC_DCTX_ALIGNED
+                         ,
+                         bob_code, 1 /* is_fsc */
+#endif                               // CONFIG_ATC_DCTX_ALIGNED
+    );
     const int16_t *const scan = scan_order->scan;
     // record tx type usage
     td->rd_counts.tx_type_used[tx_size][get_primary_tx_type(tx_type)]++;
+#if CONFIG_ATC_DCTX_ALIGNED
+    int bob = av1_get_max_eob(tx_size) - bob_code;
+#if CONFIG_ENTROPY_STATS
+    av1_update_eob_context(cdf_idx, bob_code, tx_size, plane_type, ec_ctx,
+                           td->counts, allow_update_cdf);
+#else
+    av1_update_eob_context(bob_code, tx_size, plane_type, ec_ctx,
+                           allow_update_cdf);
+#endif
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
+#if CONFIG_ATC_DCTX_ALIGNED
+    av1_get_nz_map_contexts_skip_c(levels, scan, bob, eob, tx_size,
+                                   coeff_contexts);
+#else
     av1_get_nz_map_contexts_skip(levels, scan, eob, tx_size, coeff_contexts);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+#if CONFIG_ATC_DCTX_ALIGNED
+    for (int c = bob; c < eob; ++c) {
+#else
     for (int c = 0; c < eob; c++) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       const int pos = scan[c];
       const int coeff_ctx = coeff_contexts[pos];
       const tran_low_t v = qcoeff[pos];
       const tran_low_t level = abs(v);
       if (allow_update_cdf) {
+#if CONFIG_ATC_DCTX_ALIGNED
+        if (c == bob) {
+          update_cdf(ec_ctx->coeff_base_bob_cdf[coeff_ctx],
+                     AOMMIN(level, 3) - 1, 3);
+        } else {
+          update_cdf(ec_ctx->coeff_base_cdf_idtx[coeff_ctx], AOMMIN(level, 3),
+                     4);
+        }
+#else
         update_cdf(ec_ctx->coeff_base_cdf_idtx[coeff_ctx], AOMMIN(level, 3), 4);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       }
 #if CONFIG_ENTROPY_STATS
+#if CONFIG_ATC_DCTX_ALIGNED
+      if (c == bob) {
+        ++td->counts
+              ->coeff_base_bob_multi[cdf_idx][coeff_ctx][AOMMIN(level, 3) - 1];
+      } else {
+        ++td->counts
+              ->coeff_base_multi_skip[cdf_idx][coeff_ctx][AOMMIN(level, 3)];
+      }
+#else
       ++td->counts->coeff_base_multi_skip[cdf_idx][coeff_ctx][AOMMIN(level, 3)];
-#endif  // CONFIG_ENTROPY_STATS
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+#endif
       if (level > NUM_BASE_LEVELS) {
         const int base_range = level - 1 - NUM_BASE_LEVELS;
         const int br_ctx = get_br_ctx_skip(levels, pos, bwl);
@@ -3650,9 +4087,19 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
   struct macroblock_plane *p = &x->plane[plane];
   struct macroblockd_plane *pd = &xd->plane[plane];
   const int eob = p->eobs[block];
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int bob_code = p->bobs[block];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *qcoeff = p->qcoeff + block_offset;
   const PLANE_TYPE plane_type = pd->plane_type;
+#if CONFIG_ATC_DCTX_ALIGNED
+  const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+  if (eob == 1 && plane_type == 0 &&
+      !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] && !is_inter) {
+    update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
+  }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       cm->features.reduced_tx_set_used);
@@ -3737,9 +4184,22 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     uint8_t *const entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
     entropy_ctx[block] = txb_ctx.txb_skip_ctx;
     eob_txb[block] = eob;
+#if CONFIG_ATC_DCTX_ALIGNED
+    uint16_t *bob_txb = cb_coef_buff->bobs[plane] + txb_offset;
+    bob_txb[block] = bob_code;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 #if CONFIG_CROSS_CHROMA_TX
-    if (is_cctx_allowed(cm, xd) && plane == AOM_PLANE_U && eob > 0)
+#if CONFIG_ATC_DCTX_ALIGNED
+    int skip_cctx = is_inter ? 0 : (eob == 1);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+    if (is_cctx_allowed(cm, xd) && plane == AOM_PLANE_U &&
+#if CONFIG_ATC_DCTX_ALIGNED
+        !skip_cctx && eob > 0
+#else
+        eob > 0
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+    )
       update_cctx_type_count(cm, xd, blk_row, blk_col, tx_size, td->counts,
                              allow_update_cdf);
 #endif  // CONFIG_CROSS_CHROMA_TX
@@ -3759,7 +4219,12 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     uint8_t *const levels = set_levels(levels_buf, width);
     av1_txb_init_levels(tcoeff, width, height, levels);
     update_tx_type_count(cpi, cm, xd, blk_row, blk_col, plane, tx_size,
-                         td->counts, allow_update_cdf, eob);
+                         td->counts, allow_update_cdf, eob
+#if CONFIG_ATC_DCTX_ALIGNED
+                         ,
+                         bob_code, 0 /* is_fsc */
+#endif                               // CONFIG_ATC_DCTX_ALIGNED
+    );
 
     const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
     const int16_t *const scan = scan_order->scan;
@@ -3768,11 +4233,17 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
     td->rd_counts.tx_type_used[tx_size][get_primary_tx_type(tx_type)]++;
 
 #if CONFIG_ENTROPY_STATS
-    av1_update_eob_context(cdf_idx, eob, tx_size, tx_class, plane_type, ec_ctx,
-                           td->counts, allow_update_cdf);
+    av1_update_eob_context(cdf_idx, eob, tx_size,
+#if !CONFIG_ATC_DCTX_ALIGNED
+                           tx_class,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+                           plane_type, ec_ctx, td->counts, allow_update_cdf);
 #else
-    av1_update_eob_context(eob, tx_size, tx_class, plane_type, ec_ctx,
-                           allow_update_cdf);
+    av1_update_eob_context(eob, tx_size,
+#if !CONFIG_ATC_DCTX_ALIGNED
+                           tx_class,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+                           plane_type, ec_ctx, allow_update_cdf);
 #endif
 
     DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);

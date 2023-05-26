@@ -49,7 +49,12 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                            aom_writer *w);
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
-                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w);
+                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w
+#if CONFIG_ATC_DCTX_ALIGNED
+                       ,
+                       const int plane, const int eob, const int dc_skip
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+);
 
 #if CONFIG_CROSS_CHROMA_TX
 void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,

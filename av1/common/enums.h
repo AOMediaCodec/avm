@@ -178,8 +178,13 @@ enum {
 #define IST_8x8_HEIGHT 32
 
 #define FSC_MODES 2
+#if CONFIG_ATC_DCTX_ALIGNED
+#define FSC_MAXWIDTH 32
+#define FSC_MAXHEIGHT 32
+#else
 #define FSC_MAXWIDTH 16
 #define FSC_MAXHEIGHT 16
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #define FSC_MINWIDTH 4
 #define FSC_MINHEIGHT 4
 
@@ -563,6 +568,9 @@ enum {
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
 
+#if CONFIG_ATC_DCTX_ALIGNED
+#define EOB_TX_CTXS 3
+#endif                       // CONFIG_ATC_DCTX_ALIGNED
 #define EXT_TX_SIZES 4       // number of sizes that use extended transforms
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER
 #if CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET

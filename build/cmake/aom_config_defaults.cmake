@@ -144,6 +144,9 @@ set_aom_config_var(CONFIG_ATC_NEWTXSETS 1
                    "AV2 enable adaptive transform coding and new TX sets.")
 set_aom_config_var(CONFIG_ATC_REDUCED_TXSET 1
                    "AV2 enable reduced transform set.")
+set_aom_config_var(
+  CONFIG_ATC_DCTX_ALIGNED 1
+  "AV2 TX signaling restriction for DC blocks with EOB alignment.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
 set_aom_config_var(CONFIG_C043_MVP_IMPROVEMENTS 1

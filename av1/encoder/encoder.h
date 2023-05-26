@@ -1265,6 +1265,17 @@ typedef struct FRAME_COUNTS {
   unsigned int coeff_lps[TX_SIZES][PLANE_TYPES][BR_CDF_SIZE - 1][LEVEL_CONTEXTS]
                         [2];
   unsigned int eob_flag[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS][2];
+#if CONFIG_ATC_DCTX_ALIGNED
+  unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB]
+                                   [NUM_BASE_LEVELS + 1];
+  unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][PLANE_TYPES][5];
+  unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][PLANE_TYPES][6];
+  unsigned int eob_multi64[TOKEN_CDF_Q_CTXS][PLANE_TYPES][7];
+  unsigned int eob_multi128[TOKEN_CDF_Q_CTXS][PLANE_TYPES][8];
+  unsigned int eob_multi256[TOKEN_CDF_Q_CTXS][PLANE_TYPES][9];
+  unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][10];
+  unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][11];
+#else
   unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][5];
   unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][6];
   unsigned int eob_multi64[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][7];
@@ -1272,6 +1283,7 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_multi256[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][9];
   unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][10];
   unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][11];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #if CONFIG_ATC_COEFCODING
   unsigned int coeff_lps_lf[PLANE_TYPES][BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
@@ -1377,7 +1389,12 @@ typedef struct FRAME_COUNTS {
   unsigned int delta_lf_multi[FRAME_LF_COUNT][DELTA_LF_PROBS][2];
   unsigned int delta_lf[DELTA_LF_PROBS][2];
 
+#if CONFIG_ATC_DCTX_ALIGNED
+  unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
+                           [TX_TYPES];
+#else
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                            [TX_TYPES];
 #if CONFIG_CROSS_CHROMA_TX

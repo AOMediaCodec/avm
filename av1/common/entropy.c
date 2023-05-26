@@ -72,6 +72,10 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   av1_copy(cm->fc->coeff_base_ph_cdf, av1_default_coeff_base_ph_cdfs[index]);
   av1_copy(cm->fc->coeff_br_ph_cdf, av1_default_coeff_br_ph_cdfs[index]);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_ATC_DCTX_ALIGNED
+  av1_copy(cm->fc->coeff_base_bob_cdf,
+           av1_default_coeff_base_bob_multi_cdfs[index]);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 }
 
 static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
@@ -137,6 +141,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->eob_flag_cdf512, 10);
   RESET_CDF_COUNTER(fc->eob_flag_cdf1024, 11);
   RESET_CDF_COUNTER(fc->coeff_base_eob_cdf, 3);
+#if CONFIG_ATC_DCTX_ALIGNED
+  RESET_CDF_COUNTER(fc->coeff_base_bob_cdf, 3);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #if CONFIG_ATC_COEFCODING
   RESET_CDF_COUNTER(fc->coeff_base_lf_cdf, LF_BASE_SYMBOLS);
   RESET_CDF_COUNTER(fc->coeff_base_lf_eob_cdf, LF_BASE_SYMBOLS - 1);

@@ -1201,7 +1201,14 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
 }
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
-                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w) {
+                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w
+#if CONFIG_ATC_DCTX_ALIGNED
+                       ,
+                       const int plane, const int eob, const int dc_skip) {
+  if (plane != PLANE_TYPE_Y || dc_skip) return;
+#else
+) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_ATC_NEWTXSETS
   PREDICTION_MODE intra_dir;
@@ -1241,9 +1248,17 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
 #endif  // CONFIG_ATC_NEWTXSETS
     if (is_inter) {
+#if CONFIG_ATC_DCTX_ALIGNED
+      int eob_sl_ctx = get_lp2eob_ctx(tx_size, get_txb_bwl(tx_size), eob);
+      aom_write_symbol(
+          w, av1_ext_tx_ind[tx_set_type][tx_type],
+          ec_ctx->inter_ext_tx_cdf[eset][eob_sl_ctx][square_tx_size],
+          av1_num_ext_tx_set[tx_set_type]);
+#else
       aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],
                        ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
                        av1_num_ext_tx_set[tx_set_type]);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     } else {
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         return;

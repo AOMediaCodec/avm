@@ -6190,6 +6190,11 @@ static AOM_INLINE void refine_winner_mode_tx(
         av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,
                                           INT64_MAX);
       }
+#if CONFIG_ATC_DCTX_ALIGNED
+      // Occasionally TX search will be unable to find a best mode decision.
+      // This case needs to be skipped to avoid integer overflows.
+      if (rd_stats_y.rate == INT_MAX) continue;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
       if (num_planes > 1) {
         av1_txfm_uvrd(cpi, x, &rd_stats_uv, INT64_MAX);

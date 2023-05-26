@@ -1306,6 +1306,10 @@ typedef struct {
   DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
   eob_info eob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#if CONFIG_ATC_DCTX_ALIGNED
+  eob_info bob_data[MAX_MB_PLANE]
+                   [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   DECLARE_ALIGNED(16, uint8_t, color_index_map[2][MAX_SB_SQUARE]);
 } CB_BUFFER;
 
@@ -2355,9 +2359,17 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
   if (tx_size_sqr_up > TX_32X32) return EXT_TX_SET_DCTONLY;
   if (tx_size_sqr_up == TX_32X32)
+#if CONFIG_ATC_DCTX_ALIGNED
+    return EXT_TX_SET_DCT_IDTX;
+#else
     return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DCTONLY;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #if CONFIG_ATC_REDUCED_TXSET
+#if CONFIG_ATC_DCTX_ALIGNED
+  if (use_reduced_set) return EXT_TX_SET_DCT_IDTX;
+#else
   if (use_reduced_set) return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_NEW_TX_SET;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #else
   if (use_reduced_set)
     return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DTT4_IDTX;
@@ -2447,7 +2459,11 @@ static INLINE TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
                                           int is_screen_content_type) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   if (is_inter_block(mbmi, xd->tree_type) || plane_type != PLANE_TYPE_Y ||
+#if CONFIG_ATC_DCTX_ALIGNED
+      xd->lossless[mbmi->segment_id] || tx_size > TX_32X32 ||
+#else
       xd->lossless[mbmi->segment_id] || tx_size >= TX_32X32 ||
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       is_screen_content_type)
     return DCT_DCT;
 
@@ -2827,6 +2843,9 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   const int code_stx =
       (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
       (intra_dir < PAETH_PRED) &&
+#if CONFIG_ATC_DCTX_ALIGNED
+      (eob != 1) &&
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       !(mbmi->filter_intra_mode_info.use_filter_intra) && is_depth0 && ist_eob;
   return code_stx;
 }
