@@ -55,6 +55,10 @@ extern "C" {
 #define PRE_COMPUTE_ALL_SADS 0
 #define SIGNAL_DMVR_ALWAYS 0
 
+#if SINGLE_STEP_SEARCH
+#define RASTER_SCAN 1
+#endif
+
 #define PADING_AT_LARGE_TIP_BLOCK 1
 
 #else

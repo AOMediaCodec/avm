@@ -2723,11 +2723,20 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   MV best_offset = { 0, 0 };
 
 #if SINGLE_STEP_SEARCH
+#if RASTER_SCAN
+  static const MV neighbors[16] = {
+    { -2, -2 }, { -2, 0 }, { -2, 2 }, { -1, -1 }, { -1, 0 }, { -1, 1 },
+    { 0, -2 },  { 0, -1 }, { 0, 1 },  { 0, 2 },   { 1, -1 }, { 1, 0 },
+    { 1, 1 },   { 2, -2 }, { 2, 0 },  { 2, 2 }
+
+  };
+#else
   static const MV neighbors[16] = {
     { 0, -1 },  { 1, 0 },  { 0, 1 },   { -1, 0 }, { 1, -1 }, { 1, 1 },
     { -1, -1 }, { -1, 1 }, { 0, -2 },  { 2, 0 },  { 0, 2 },  { -2, 0 },
     { 2, -2 },  { 2, 2 },  { -2, -2 }, { -2, 2 }
   };
+#endif
 #else
 
 #if NEIGHBORS_BASED_ON_ITERATION == 1
