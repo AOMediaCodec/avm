@@ -43,7 +43,7 @@ extern "C" {
 #define ENABLE_3x3_SEARCH 0
 #define NEIGHBORS_BASED_ON_ITERATION \
   0  // 1 both diamonds, 2: square-diamond 3: diamond-square
-#define SINGLE_STEP_SEARCH 1
+#define SINGLE_STEP_SEARCH 0
 #define SEARCH_INTEGER_MV 0
 #define NEAREST_NEIGHBOR_FILTER 0
 #define RELUX_ET_THRESHOLD 2
@@ -56,7 +56,7 @@ extern "C" {
 #define SIGNAL_DMVR_ALWAYS 0
 
 #if SINGLE_STEP_SEARCH
-#define RASTER_SCAN 1
+#define RASTER_SCAN 0
 #endif
 
 #define PADING_AT_LARGE_TIP_BLOCK 1
