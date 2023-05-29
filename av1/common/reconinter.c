@@ -2724,10 +2724,23 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
 
 #if SINGLE_STEP_SEARCH
 #if RASTER_SCAN
+#if ALL_SEARCH_POINTS
+  Not supported
+#else
   static const MV neighbors[16] = {
     { -2, -2 }, { -2, 0 }, { -2, 2 }, { -1, -1 }, { -1, 0 }, { -1, 1 },
     { 0, -2 },  { 0, -1 }, { 0, 1 },  { 0, 2 },   { 1, -1 }, { 1, 0 },
     { 1, 1 },   { 2, -2 }, { 2, 0 },  { 2, 2 }
+
+  };
+#endif
+#else
+#if ALL_SEARCH_POINTS
+  static const MV neighbors[24] = {
+    { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, 1 },   { 1, 1 },   { 1, 0 },
+    { 1, -1 },  { 0, -1 }, { 0, -2 }, { -1, -2 }, { -2, -2 }, { -2, -1 },
+    { -2, 0 },  { -2, 1 }, { -2, 2 }, { -1, 2 },  { 0, 2 },   { 1, 2 },
+    { 2, 2 },   { 2, 1 },  { 2, 0 },  { 2, -1 },  { 2, -2 },  { 1, -2 }
 
   };
 #else
@@ -2736,6 +2749,7 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     { -1, -1 }, { -1, 1 }, { 0, -2 },  { 2, 0 },  { 0, 2 },  { -2, 0 },
     { 2, -2 },  { 2, 2 },  { -2, -2 }, { -2, 2 }
   };
+#endif
 #endif
 #else
 
@@ -2750,13 +2764,17 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
 #endif
 
 #if !SINGLE_STEP_SEARCH
-  const int num_iterations = search_range;
+      const int num_iterations = search_range;
   already_searched[0 + search_range][0 + search_range] =
       1;  // center point is already searched before
   for (int ite = 0; ite < num_iterations; ++ite) {
 #endif
 #if SINGLE_STEP_SEARCH
+#if ALL_SEARCH_POINTS
+    const int num_neighbors = 24;
+#else
     const int num_neighbors = 16;
+#endif
 #else
 #if NEIGHBORS_BASED_ON_ITERATION == 1
   const int num_neighbors = 4;
