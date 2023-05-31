@@ -125,9 +125,15 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   // TODO(sarahparker, debargha): Explore do_adaptive_gm_estimation = 1
   const int do_adaptive_gm_estimation = 0;
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int ref_frame_dist = get_relative_dist(
+      &cm->seq_params.order_hint_info, cm->current_frame.display_order_hint,
+      cm->cur_frame->ref_display_order_hint[frame]);
+#else
   const int ref_frame_dist = get_relative_dist(
       &cm->seq_params.order_hint_info, cm->current_frame.order_hint,
       cm->cur_frame->ref_order_hints[frame]);
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const GlobalMotionEstimationType gm_estimation_type =
       cm->seq_params.order_hint_info.enable_order_hint &&
               abs(ref_frame_dist) <= 2 && do_adaptive_gm_estimation

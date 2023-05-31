@@ -299,8 +299,12 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
                       pd->subsampling_x, pd->subsampling_y);
     }
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
-                             cm->current_frame.order_hint, plane, pixel_c,
-                             pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -349,7 +353,12 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
       mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, col, row,
                       pd->subsampling_x, pd->subsampling_y);
     }
-    mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+    mismatch_check_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                            cm->current_frame.display_order_hint,
+#else
+                            cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                             plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -426,7 +435,12 @@ static AOM_INLINE void inverse_transform_inter_block(
     mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, blk_col, blk_row,
                     pd->subsampling_x, pd->subsampling_y);
   }
-  mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+  mismatch_check_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                          cm->current_frame.display_order_hint,
+#else
+                          cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                           plane, pixel_c, pixel_r, blk_w, blk_h);
 #endif  // CONFIG_MISMATCH_DEBUG
 }
@@ -1426,8 +1440,12 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
                       pd->subsampling_x, pd->subsampling_y);
     }
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
-                             cm->current_frame.order_hint, plane, pixel_c,
-                             pixel_r, pd->width, pd->height);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             plane, pixel_c, pixel_r, pd->width, pd->height);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -6613,6 +6631,10 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
       continue;
     }
     frame_bufs[i].order_hint = 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    frame_bufs[i].display_order_hint = 0;
+    av1_zero(frame_bufs[i].ref_display_order_hint);
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     av1_zero(frame_bufs[i].ref_order_hints);
   }
   av1_zero_unused_internal_frame_buffers(&cm->buffer_pool->int_frame_buffers);
@@ -6657,6 +6679,33 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
   }
   return cur_disp_order_hint;
 }
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
+                                                const RefCntBuffer *const buf) {
+  // Find the reference frame with the largest order_hint
+  int max_disp_order_hint = 0;
+  for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
+    if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
+      max_disp_order_hint = buf->ref_display_order_hint[map_idx];
+  }
+
+  // If the order_hint is above the threshold distance of 35 frames (largest
+  // possible lag_in_frames) from the found reference frame, we assume it was
+  // modified using:
+  //     order_hint = display_order_hint % display_order_hint_factor
+  // Here, the actual display_order_hint is recovered.
+  const int display_order_hint_factor =
+      1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
+  int disp_order_hint = buf->order_hint;
+  while (abs(max_disp_order_hint - disp_order_hint) > 35) {
+    if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
+
+    disp_order_hint += display_order_hint_factor;
+  }
+  return disp_order_hint;
+}
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
@@ -7027,7 +7076,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           buf->order_hint = order_hint;
           // TODO(kslu) This is a workaround for error resilient mode. Make
           // it more consistent with get_disp_order_hint().
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+          buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
+#else
           buf->display_order_hint = order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         }
       }
     }

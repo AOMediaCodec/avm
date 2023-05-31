@@ -868,11 +868,20 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
           &pd_c1->dst
                .buf[(blk_row * pd_c1->dst.stride + blk_col) << MI_SIZE_LOG2];
       mismatch_record_block_tx(dst_c1, pd_c1->dst.stride,
-                               cm->current_frame.order_hint, AOM_PLANE_U,
-                               pixel_c, pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                               cm->current_frame.display_order_hint,
+#else
+                               cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                               AOM_PLANE_U, pixel_c, pixel_r, blk_w, blk_h);
     }
 #endif  // CONFIG_CROSS_CHROMA_TX
-    mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+    mismatch_record_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                              plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -1210,9 +1219,14 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
                       blk_row, pd->subsampling_x, pd->subsampling_y);
     }
-    mismatch_record_block_pre(
-        pd->dst.buf, pd->dst.stride, cm->current_frame.order_hint, plane,
-        pixel_c, pixel_r, tx_size_wide[tx_size], tx_size_high[tx_size]);
+    mismatch_record_block_pre(pd->dst.buf, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              cm->current_frame.display_order_hint,
+#else
+                              cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              pixel_c, pixel_r, tx_size_wide[tx_size],
+                              tx_size_high[tx_size]);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -1407,7 +1421,12 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
                       blk_row, pd->subsampling_x, pd->subsampling_y);
     }
-    mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+    mismatch_record_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                              plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -1497,13 +1516,21 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                     xd->mi[0]->chroma_ref_info.mi_row_chroma_base, blk_col,
                     blk_row, pd_c1->subsampling_x, pd_c1->subsampling_y);
     mismatch_record_block_pre(pd_c1->dst.buf, pd_c1->dst.stride,
-                              cm->current_frame.order_hint, AOM_PLANE_U,
-                              pixel_c, pixel_r, tx_size_wide[tx_size],
-                              tx_size_high[tx_size]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              cm->current_frame.display_order_hint,
+#else
+                              cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              AOM_PLANE_U, pixel_c, pixel_r,
+                              tx_size_wide[tx_size], tx_size_high[tx_size]);
     mismatch_record_block_pre(pd_c2->dst.buf, pd_c2->dst.stride,
-                              cm->current_frame.order_hint, AOM_PLANE_V,
-                              pixel_c, pixel_r, tx_size_wide[tx_size],
-                              tx_size_high[tx_size]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              cm->current_frame.display_order_hint,
+#else
+                              cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              AOM_PLANE_V, pixel_c, pixel_r,
+                              tx_size_wide[tx_size], tx_size_high[tx_size]);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -1652,11 +1679,19 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                     xd->mi[0]->chroma_ref_info.mi_row_chroma_base, blk_col,
                     blk_row, pd_c1->subsampling_x, pd_c1->subsampling_y);
     mismatch_record_block_tx(dst_c1, pd_c1->dst.stride,
-                             cm->current_frame.order_hint, AOM_PLANE_U, pixel_c,
-                             pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             AOM_PLANE_U, pixel_c, pixel_r, blk_w, blk_h);
     mismatch_record_block_tx(dst_c2, pd_c2->dst.stride,
-                             cm->current_frame.order_hint, AOM_PLANE_V, pixel_c,
-                             pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             AOM_PLANE_V, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 

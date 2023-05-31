@@ -546,7 +546,11 @@ static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
   if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const unsigned int cur_index = cm->cur_frame->display_order_hint;
+#else
   const unsigned int cur_index = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int d0, d1;
 #if CONFIG_OPTFLOW_ON_TIP
   if (mbmi->ref_frame[0] == TIP_FRAME) {
@@ -557,8 +561,15 @@ static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
     if (!mbmi->ref_frame[1]) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-    d0 = (int)cur_index - (int)ref0->order_hint;
-    d1 = (int)cur_index - (int)ref1->order_hint;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref0->display_order_hint);
+    d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref1->display_order_hint);
+#else
+  d0 = (int)cur_index - (int)ref0->order_hint;
+  d1 = (int)cur_index - (int)ref1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 #if CONFIG_OPTFLOW_ON_TIP
   }
 #endif  // CONFIG_OPTFLOW_ON_TIP

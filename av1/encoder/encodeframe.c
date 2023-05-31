@@ -1246,8 +1246,13 @@ static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
       get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1);
   assert(buf_0 != NULL && buf_1 != NULL);
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  ref_order_hint[0] = buf_0->display_order_hint;
+  ref_order_hint[1] = buf_1->display_order_hint;
+#else
   ref_order_hint[0] = buf_0->order_hint;
   ref_order_hint[1] = buf_1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 }
 
 static int check_skip_mode_enabled(AV1_COMP *const cpi) {
@@ -1256,9 +1261,13 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   av1_setup_skip_mode_allowed(cm);
   if (!cm->current_frame.skip_mode_info.skip_mode_allowed) return 0;
 
-  // Turn off skip mode if the temporal distances of the reference pair to the
-  // current frame are different by more than 1 frame.
+    // Turn off skip mode if the temporal distances of the reference pair to the
+    // current frame are different by more than 1 frame.
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_offset = (int)cm->current_frame.display_order_hint;
+#else
   const int cur_offset = (int)cm->current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int ref_offset[2];
   get_skip_mode_ref_offsets(cm, ref_offset);
   const int cur_to_ref0 = get_relative_dist(&cm->seq_params.order_hint_info,

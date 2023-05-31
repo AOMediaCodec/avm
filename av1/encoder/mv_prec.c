@@ -854,14 +854,22 @@ void av1_collect_mv_stats(AV1_COMP *cpi, int current_q) {
   }
 
   mv_stats->q = current_q;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  mv_stats->order = cpi->common.current_frame.display_order_hint;
+#else
   mv_stats->order = cpi->common.current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   mv_stats->valid = 1;
 }
 
 static AOM_INLINE int get_smart_mv_prec(AV1_COMP *cpi, const MV_STATS *mv_stats,
                                         int current_q) {
   const AV1_COMMON *cm = &cpi->common;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int order_hint = cpi->common.current_frame.display_order_hint;
+#else
   const int order_hint = cpi->common.current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int order_diff = order_hint - mv_stats->order;
   aom_clear_system_state();
   const float area = (float)(cm->width * cm->height);

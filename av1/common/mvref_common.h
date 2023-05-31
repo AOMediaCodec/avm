@@ -103,15 +103,24 @@ static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
 // clamp_mv_ref
 #define MV_BORDER (16 << 3)  // Allow 16 pels in 1/8th pel units
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+#define DISPLAY_ORDER_HINT_BITS 31
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (!oh->enable_order_hint) return 0;
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  assert(a >= 0);
+  assert(b >= 0);
+  const int bits = DISPLAY_ORDER_HINT_BITS;
+#else
   const int bits = oh->order_hint_bits_minus_1 + 1;
 
   assert(bits >= 1);
   assert(a >= 0 && a < (1 << bits));
   assert(b >= 0 && b < (1 << bits));
-
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int diff = a - b;
   const int m = 1 << (bits - 1);
   diff = (diff & (m - 1)) - (diff & m);

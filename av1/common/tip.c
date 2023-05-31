@@ -37,14 +37,22 @@ static void tip_find_closest_bi_dir_ref_frames(AV1_COMMON *cm,
 
   if (!order_hint_info->enable_order_hint || frame_is_intra_only(cm)) return;
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_order_hint = cm->current_frame.display_order_hint;
+#else
   const int cur_order_hint = cm->current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   // Identify the nearest forward and backward references.
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
     if (buf == NULL) continue;
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int ref_order_hint = buf->display_order_hint;
+#else
     const int ref_order_hint = buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int ref_to_cur_dist =
         get_relative_dist(order_hint_info, ref_order_hint, cur_order_hint);
     if (ref_to_cur_dist < 0) {
@@ -72,7 +80,12 @@ static AOM_INLINE int tip_find_reference_frame(AV1_COMMON *cm, int start_frame,
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int *const ref_order_hints =
+      &start_frame_buf->ref_display_order_hint[0];
+#else
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] == target_frame_order) {
       return 1;
@@ -111,13 +124,21 @@ static int tip_motion_field_projection(AV1_COMMON *cm,
       get_ref_frame_buf(cm, start_frame);
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int start_frame_order_hint = start_frame_buf->display_order_hint;
+#else
   const int start_frame_order_hint = start_frame_buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
-
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int *const ref_order_hints = start_frame_buf->ref_display_order_hint;
+  const int cur_order_hint = cm->cur_frame->display_order_hint;
+#else
   const int *const ref_order_hints = start_frame_buf->ref_order_hints;
   const int cur_order_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int start_to_current_frame_offset = get_relative_dist(
       order_hint_info, start_frame_order_hint, cur_order_hint);
 
@@ -461,7 +482,11 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
   }
 
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_order_hint = cm->cur_frame->display_order_hint;
+#else
   const int cur_order_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
                                        tip_ref->ref_frame[1] };
@@ -477,12 +502,20 @@ static void tip_config_tip_parameter(AV1_COMMON *cm, int check_tip_threshold) {
     if (cm->features.tip_frame_mode) {
       cm->features.allow_tip_hole_fill = cm->seq_params.enable_tip_hole_fill;
       RefCntBuffer *ref0_frame_buf = get_ref_frame_buf(cm, nearest_rf[0]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int ref0_frame_order_hint = ref0_frame_buf->display_order_hint;
+#else
       const int ref0_frame_order_hint = ref0_frame_buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int cur_to_ref0_offset = get_relative_dist(
           order_hint_info, cur_order_hint, ref0_frame_order_hint);
 
       RefCntBuffer *ref1_frame_buf = get_ref_frame_buf(cm, nearest_rf[1]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int ref1_frame_order_hint = ref1_frame_buf->display_order_hint;
+#else
       const int ref1_frame_order_hint = ref1_frame_buf->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int cur_to_ref1_offset = get_relative_dist(
           order_hint_info, cur_order_hint, ref1_frame_order_hint);
 

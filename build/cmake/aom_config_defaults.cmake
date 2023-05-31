@@ -256,6 +256,9 @@ set_aom_config_var(CONFIG_SKIP_TXFM_OPT 1
                    "Enable to optimize the signaling of skip_txfm")
 set_aom_config_var(CONFIG_CWP 1 "Enables compound weighted prediction.")
 
+set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
+                   "Enable to explicit temporal distance calculation")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

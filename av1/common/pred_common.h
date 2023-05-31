@@ -283,11 +283,17 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
   int bck_frame_index = 0, fwd_frame_index = 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  int cur_frame_index = cm->cur_frame->display_order_hint;
+
+  if (bck_buf != NULL) bck_frame_index = bck_buf->display_order_hint;
+  if (fwd_buf != NULL) fwd_frame_index = fwd_buf->display_order_hint;
+#else
   int cur_frame_index = cm->cur_frame->order_hint;
 
   if (bck_buf != NULL) bck_frame_index = bck_buf->order_hint;
   if (fwd_buf != NULL) fwd_frame_index = fwd_buf->order_hint;
-
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int fwd = abs(get_relative_dist(&cm->seq_params.order_hint_info,
                                   fwd_frame_index, cur_frame_index));
   int bck = abs(get_relative_dist(&cm->seq_params.order_hint_info,
