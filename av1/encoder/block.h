@@ -220,7 +220,7 @@ typedef struct {
 typedef struct {
   //! eob_cost.
 #if CONFIG_ATC_DCTX_ALIGNED
-  int eob_cost[11];
+  int eob_cost[EOB_MAX_SYMS];
 #else
   int eob_cost[2][11];
 #endif  // CONFIG_ATC_DCTX_ALIGNED

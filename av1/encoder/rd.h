@@ -205,13 +205,6 @@ static INLINE int64_t av1_calculate_rd_cost(int mult, int rate, int64_t dist) {
 }
 
 static INLINE void av1_rd_cost_update(int mult, RD_STATS *rd_cost) {
-  /* CONFIG_ATC_DCTX_ALIGNED check for integer overflow
-  if (rd_cost->rate == INT_MAX ||
-      rd_cost->dist == INT64_MAX ||
-      rd_cost->rdcost == INT64_MAX) {
-    av1_invalid_rd_stats(rd_cost);
-  }
-  */
   if (rd_cost->rate < INT_MAX && rd_cost->dist < INT64_MAX &&
       rd_cost->rdcost < INT64_MAX) {
     rd_cost->rdcost = av1_calculate_rd_cost(mult, rd_cost->rate, rd_cost->dist);

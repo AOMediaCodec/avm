@@ -1249,10 +1249,10 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_ATC_NEWTXSETS
     if (is_inter) {
 #if CONFIG_ATC_DCTX_ALIGNED
-      int eob_sl_ctx = get_lp2eob_ctx(tx_size, get_txb_bwl(tx_size), eob);
+      const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
       aom_write_symbol(
           w, av1_ext_tx_ind[tx_set_type][tx_type],
-          ec_ctx->inter_ext_tx_cdf[eset][eob_sl_ctx][square_tx_size],
+          ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
           av1_num_ext_tx_set[tx_set_type]);
 #else
       aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],

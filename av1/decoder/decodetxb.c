@@ -238,39 +238,39 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   switch (eob_multi_size) {
     case 0:
-      eob_pt =
-          aom_read_symbol(r, ec_ctx->eob_flag_cdf16[plane_type], 5, ACCT_STR) +
-          1;
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf16[plane_type],
+                               EOB_MAX_SYMS - 6, ACCT_STR) +
+               1;
       break;
     case 1:
-      eob_pt =
-          aom_read_symbol(r, ec_ctx->eob_flag_cdf32[plane_type], 6, ACCT_STR) +
-          1;
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf32[plane_type],
+                               EOB_MAX_SYMS - 5, ACCT_STR) +
+               1;
       break;
     case 2:
-      eob_pt =
-          aom_read_symbol(r, ec_ctx->eob_flag_cdf64[plane_type], 7, ACCT_STR) +
-          1;
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf64[plane_type],
+                               EOB_MAX_SYMS - 4, ACCT_STR) +
+               1;
       break;
     case 3:
-      eob_pt =
-          aom_read_symbol(r, ec_ctx->eob_flag_cdf128[plane_type], 8, ACCT_STR) +
-          1;
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf128[plane_type],
+                               EOB_MAX_SYMS - 3, ACCT_STR) +
+               1;
       break;
     case 4:
-      eob_pt =
-          aom_read_symbol(r, ec_ctx->eob_flag_cdf256[plane_type], 9, ACCT_STR) +
-          1;
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf256[plane_type],
+                               EOB_MAX_SYMS - 2, ACCT_STR) +
+               1;
       break;
     case 5:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf512[plane_type], 10,
-                               ACCT_STR) +
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf512[plane_type],
+                               EOB_MAX_SYMS - 1, ACCT_STR) +
                1;
       break;
     case 6:
     default:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf1024[plane_type], 11,
-                               ACCT_STR) +
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf1024[plane_type],
+                               EOB_MAX_SYMS, ACCT_STR) +
                1;
       break;
   }
@@ -378,7 +378,7 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                         CCTX_NONE);
     }
   }
-#endif  // CONFIG_CROSS_CHROMA_TX
+#endif  // CONFIG_CROSS_CHROMA_TX && !CONFIG_ATC_DCTX_ALIGNED
 
   if (all_zero) {
     *max_scan_line = 0;
@@ -394,7 +394,7 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 
 #if CONFIG_CROSS_CHROMA_TX
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
-    int skip_cctx = is_inter ? 0 : (*eob == 1);
+    const int skip_cctx = is_inter ? 0 : (*eob == 1);
     if (!all_zero && !skip_cctx) {
       av1_read_cctx_type(cm, xd, blk_row, blk_col, tx_size, r);
     } else {
@@ -464,11 +464,10 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
     base_cdf_arr base_cdf = ec_ctx->coeff_base_cdf_idtx;
     br_cdf_arr br_cdf = ec_ctx->coeff_br_cdf_idtx;
 #if CONFIG_ATC_DCTX_ALIGNED
-    int bob = av1_get_max_eob(tx_size) - bob_data->eob;
-    int c = bob;
+    const int bob = av1_get_max_eob(tx_size) - bob_data->eob;
     {
-      const int pos = scan[c];
-      const int coeff_ctx_bob = get_lower_levels_ctx_bob(bwl, height, c);
+      const int pos = scan[bob];
+      const int coeff_ctx_bob = get_lower_levels_ctx_bob(bwl, height, bob);
       const int nsymbs_bob = 3;
       aom_cdf_prob *cdf_bob = ec_ctx->coeff_base_bob_cdf[coeff_ctx_bob];
       int level = aom_read_symbol(r, cdf_bob, nsymbs_bob, ACCT_STR) + 1;
@@ -483,7 +482,7 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
       }
       levels[get_padded_idx_left(pos, bwl)] = level;
     }
-    read_coeffs_forward_2d(r, c + 1, eob_data->eob - 1, scan, bwl, levels,
+    read_coeffs_forward_2d(r, bob + 1, eob_data->eob - 1, scan, bwl, levels,
                            base_cdf, br_cdf);
 #else
     read_coeffs_forward_2d(r, 0, eob_data->eob - 1, scan, bwl, levels, base_cdf,
@@ -590,7 +589,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
   uint16_t *const eob = &(eob_data->eob);
   uint16_t *const max_scan_line = &(eob_data->max_scan_line);
-#endif  // CONFIG_ATC_DCTX_ALIGNED
+#endif  // !CONFIG_ATC_DCTX_ALIGNED
 
 #if DEBUG_EXTQUANT
   fprintf(cm->fDecCoeffLog,
@@ -686,7 +685,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     xd->eob_u = *eob;
   }
 #endif  // CONFIG_CONTEXT_DERIVATION
-#endif  // CONFIG_ATC_DCTX_ALIGNED
+#endif  // !CONFIG_ATC_DCTX_ALIGNED
 
   // read  sec_tx_type here
   // Only y plane's sec_tx_type is transmitted

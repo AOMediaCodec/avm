@@ -2964,7 +2964,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
   struct macroblock_plane *const p_c1 = &x->plane[AOM_PLANE_U];
   struct macroblock_plane *const p_c2 = &x->plane[AOM_PLANE_V];
 #if CONFIG_ATC_DCTX_ALIGNED
-  int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
 #endif  // CONFIG_ATC_DCTX_ALIGNED
 
   const int max_eob = av1_get_max_eob(tx_size);

@@ -126,7 +126,7 @@ static INLINE int use_inter_fsc(const AV1_COMMON *const cm,
   bool allow_fsc = cm->seq_params.enable_fsc &&
 #if !CONFIG_ATC_DCTX_ALIGNED
                    cm->features.allow_screen_content_tools &&
-#endif  // CONFIG_ATC_DCTX_ALIGNED
+#endif  // !CONFIG_ATC_DCTX_ALIGNED
                    plane_type == PLANE_TYPE_Y && is_inter && tx_type == IDTX;
   return allow_fsc;
 }

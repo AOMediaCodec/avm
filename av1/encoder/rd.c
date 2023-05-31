@@ -877,8 +877,8 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         case 3: pcdf = fc->eob_flag_cdf128[plane]; break;
         case 4: pcdf = fc->eob_flag_cdf256[plane]; break;
         case 5: pcdf = fc->eob_flag_cdf512[plane]; break;
-        case 6:
-        default: pcdf = fc->eob_flag_cdf1024[plane]; break;
+        case 6: pcdf = fc->eob_flag_cdf1024[plane]; break;
+        default: assert(0 && "Invalid eob_multi_size");
       }
       av1_cost_tokens_from_cdf(pcost->eob_cost, pcdf, NULL);
 #else

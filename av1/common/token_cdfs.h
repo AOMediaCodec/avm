@@ -863,19 +863,19 @@ static const aom_cdf_prob
 
 #if CONFIG_ATC_DCTX_ALIGNED
 static const aom_cdf_prob
-    av1_default_eob_multi16_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(5)] = {
-      { { AOM_CDF5(6554, 13107, 19661, 26214) },
-        { AOM_CDF5(6554, 13107, 19661, 26214) } },
-      { { AOM_CDF5(222, 339, 759, 2493) },
-        { AOM_CDF5(4613, 6877, 12106, 18380) } },
-      { { AOM_CDF5(1418, 2074, 4194, 10380) },
-        { AOM_CDF5(14420, 18173, 23582, 28265) } },
-      { { AOM_CDF5(2817, 4572, 9636, 19946) },
-        { AOM_CDF5(18618, 21512, 26133, 29765) } }
-    };
+    av1_default_eob_multi16_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 6)] = { { { AOM_CDF5(6554, 13107, 19661, 26214) },
+                                 { AOM_CDF5(6554, 13107, 19661, 26214) } },
+                               { { AOM_CDF5(222, 339, 759, 2493) },
+                                 { AOM_CDF5(4613, 6877, 12106, 18380) } },
+                               { { AOM_CDF5(1418, 2074, 4194, 10380) },
+                                 { AOM_CDF5(14420, 18173, 23582, 28265) } },
+                               { { AOM_CDF5(2817, 4572, 9636, 19946) },
+                                 { AOM_CDF5(18618, 21512, 26133, 29765) } } };
 
 static const aom_cdf_prob
-    av1_default_eob_multi32_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(6)] = {
+    av1_default_eob_multi32_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 5)] = {
       { { AOM_CDF6(5461, 10923, 16384, 21845, 27307) },
         { AOM_CDF6(5461, 10923, 16384, 21845, 27307) } },
       { { AOM_CDF6(169, 487, 1046, 1986, 4403) },
@@ -887,7 +887,8 @@ static const aom_cdf_prob
     };
 
 static const aom_cdf_prob
-    av1_default_eob_multi64_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(7)] = {
+    av1_default_eob_multi64_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 4)] = {
       { { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087) },
         { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087) } },
       { { AOM_CDF7(100, 388, 969, 2002, 4280, 9308) },
@@ -900,7 +901,7 @@ static const aom_cdf_prob
 
 static const aom_cdf_prob
     av1_default_eob_multi128_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
-        8)] = {
+        EOB_MAX_SYMS - 3)] = {
       { { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672) },
         { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672) } },
       { { AOM_CDF8(34, 889, 2098, 3797, 6595, 10857, 15412) },
@@ -913,7 +914,7 @@ static const aom_cdf_prob
 
 static const aom_cdf_prob
     av1_default_eob_multi256_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
-        9)] = {
+        EOB_MAX_SYMS - 2)] = {
       { { AOM_CDF9(3641, 7282, 10923, 14564, 18204, 21845, 25486, 29127) },
         { AOM_CDF9(3641, 7282, 10923, 14564, 18204, 21845, 25486, 29127) } },
       { { AOM_CDF9(33, 670, 2335, 4307, 7421, 13364, 18212, 24272) },
@@ -926,7 +927,7 @@ static const aom_cdf_prob
 
 static const aom_cdf_prob
     av1_default_eob_multi512_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
-        10)] = {
+        EOB_MAX_SYMS - 1)] = {
       { { AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214,
                     29491) },
         { AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214,
@@ -946,22 +947,23 @@ static const aom_cdf_prob
 
 static const aom_cdf_prob
     av1_default_eob_multi1024_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
-        11)] = { { { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873, 20852,
-                               23831, 26810, 29789) },
-                   { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873, 20852,
-                               23831, 26810, 29789) } },
-                 { { AOM_CDF11(401, 535, 3344, 6821, 8426, 13375, 14043, 17788,
-                               19527, 21667) },
-                   { AOM_CDF11(4161, 8108, 14066, 17761, 20706, 21700, 22771,
-                               26741, 31827, 32653) } },
-                 { { AOM_CDF11(4252, 6240, 9718, 13784, 19105, 24225, 26454,
-                               28321, 29757, 30648) },
-                   { AOM_CDF11(11539, 14807, 19777, 22884, 26491, 28818, 30433,
-                               31677, 32422, 32654) } },
-                 { { AOM_CDF11(8416, 10839, 15261, 20667, 26077, 30169, 31223,
-                               31886, 32276, 32527) },
-                   { AOM_CDF11(21740, 24160, 28114, 30490, 31733, 32248, 32571,
-                               32700, 32704, 32708) } } };
+        EOB_MAX_SYMS)] = { { { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873,
+                                         20852, 23831, 26810, 29789) },
+                             { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873,
+                                         20852, 23831, 26810, 29789) } },
+                           { { AOM_CDF11(401, 535, 3344, 6821, 8426, 13375,
+                                         14043, 17788, 19527, 21667) },
+                             { AOM_CDF11(4161, 8108, 14066, 17761, 20706, 21700,
+                                         22771, 26741, 31827, 32653) } },
+                           { { AOM_CDF11(4252, 6240, 9718, 13784, 19105, 24225,
+                                         26454, 28321, 29757, 30648) },
+                             { AOM_CDF11(11539, 14807, 19777, 22884, 26491,
+                                         28818, 30433, 31677, 32422, 32654) } },
+                           { { AOM_CDF11(8416, 10839, 15261, 20667, 26077,
+                                         30169, 31223, 31886, 32276, 32527) },
+                             { AOM_CDF11(21740, 24160, 28114, 30490, 31733,
+                                         32248, 32571, 32700, 32704,
+                                         32708) } } };
 #else
 static const aom_cdf_prob
     av1_default_eob_multi16_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][CDF_SIZE(

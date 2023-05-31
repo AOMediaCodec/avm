@@ -718,7 +718,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #endif
 #if CONFIG_CROSS_CHROMA_TX
 #if CONFIG_ATC_DCTX_ALIGNED
-    int skip_cctx = is_inter ? 0 : (p->eobs[block] == 1);
+    const int skip_cctx = is_inter ? 0 : (p->eobs[block] == 1);
 #endif  // CONFIG_ATC_DCTX_ALIGNED
     // Since eob can be updated here, make sure cctx_type is always CCTX_NONE
     // when eob of U is 0.
@@ -775,7 +775,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     int eob_c2 = x->plane[AOM_PLANE_V].eobs[block];
 #if CONFIG_ATC_DCTX_ALIGNED
     const int is_inter = is_inter_block(mbmi, xd->tree_type);
-    int skip_cctx = is_inter ? 0 : (p->eobs[block] == 1);
+    const int skip_cctx = is_inter ? 0 : (p->eobs[block] == 1);
     recon_with_cctx = (eob_c1 || eob_c2) && !skip_cctx;
 #else
     recon_with_cctx = eob_c1 || eob_c2;

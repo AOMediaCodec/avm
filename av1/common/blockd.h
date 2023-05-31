@@ -1304,9 +1304,11 @@ typedef struct eob_info {
 
 typedef struct {
   DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  // keeps the index that corresponds to end-of-block (eob)
   eob_info eob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
 #if CONFIG_ATC_DCTX_ALIGNED
+  // keeps the index that corresponds to beginning-of-block (bob)
   eob_info bob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
 #endif  // CONFIG_ATC_DCTX_ALIGNED

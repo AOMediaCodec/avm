@@ -133,13 +133,13 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->v_dc_sign_cdf, 2);
   RESET_CDF_COUNTER(fc->v_ac_sign_cdf, 2);
 #endif  // CONFIG_CONTEXT_DERIVATION
-  RESET_CDF_COUNTER(fc->eob_flag_cdf16, 5);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf32, 6);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf64, 7);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf128, 8);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf256, 9);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf512, 10);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf1024, 11);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf16, EOB_MAX_SYMS - 6);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf32, EOB_MAX_SYMS - 5);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf64, EOB_MAX_SYMS - 4);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf128, EOB_MAX_SYMS - 3);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf256, EOB_MAX_SYMS - 2);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf512, EOB_MAX_SYMS - 1);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf1024, EOB_MAX_SYMS);
   RESET_CDF_COUNTER(fc->coeff_base_eob_cdf, 3);
 #if CONFIG_ATC_DCTX_ALIGNED
   RESET_CDF_COUNTER(fc->coeff_base_bob_cdf, 3);

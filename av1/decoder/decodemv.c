@@ -1128,9 +1128,9 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     if (inter_block) {
 #if CONFIG_ATC_DCTX_ALIGNED
-      int eob_sl_ctx = get_lp2eob_ctx(tx_size, get_txb_bwl(tx_size), eob);
+      const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
       *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
-          r, ec_ctx->inter_ext_tx_cdf[eset][eob_sl_ctx][square_tx_size],
+          r, ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
           av1_num_ext_tx_set[tx_set_type], ACCT_STR)];
 #else
       *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
