@@ -85,8 +85,17 @@ static void highbd_fwd_txfm_4x4(const int16_t *src_diff, tran_low_t *coeff,
   const TX_TYPE tx_type = txfm_param->tx_type;
   const int bd = txfm_param->bd;
   if (txfm_param->lossless) {
+#if CONFIG_LOSSLESS_DPCM
+    assert(tx_type == DCT_DCT || tx_type == IDTX);
+    if (tx_type == IDTX) {
+      av1_fwd_txfm2d_4x4(src_diff, dst_coeff, diff_stride, tx_type, bd);
+    } else {
+      av1_highbd_fwht4x4(src_diff, coeff, diff_stride);
+    }
+#else   // CONFIG_LOSSLESS_DPCM
     assert(tx_type == DCT_DCT);
     av1_highbd_fwht4x4(src_diff, coeff, diff_stride);
+#endif  // CONFIG_LOSSLESS_DPCM
     return;
   }
   av1_fwd_txfm2d_4x4(src_diff, dst_coeff, diff_stride, tx_type, bd);

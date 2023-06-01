@@ -544,6 +544,20 @@ typedef struct MB_MODE_INFO {
   /*! \brief The mapped luma/chroma prediction mode */
   PREDICTION_MODE mapped_intra_mode[2];
 #endif  // CONFIG_WAIP
+
+#if CONFIG_LOSSLESS_DPCM
+  // use_dpcm_y: 0 dpcm mode is not selected for luma blk, 1 dpcm mode is
+  // selected
+  uint8_t use_dpcm_y;
+  // dpcm_mode_y: 0 horizontal, 1 vertical
+  uint8_t dpcm_mode_y;
+  // use_dpcm_uv: 0 dpcm mode is not selected for chroma blk, 1 dpcm mode is
+  // selected
+  uint8_t use_dpcm_uv;
+  // dpcm_mode_uv: 0 horizontal, 1 vertical
+  uint8_t dpcm_mode_uv;
+#endif
+
 #if CONFIG_AIMC
   /*! \brief mode index of y mode and y delta angle after re-ordering. */
   uint8_t y_mode_idx;
@@ -3492,13 +3506,24 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
                                       int blk_col, TX_SIZE tx_size,
                                       int reduced_tx_set) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const bool is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                      !is_inter_block(mbmi, xd->tree_type) &&
+                      plane_type == PLANE_TYPE_Y;
+#if CONFIG_LOSSLESS_DPCM
+  if (is_fsc) {
+    return IDTX;
+  }
   if (xd->lossless[mbmi->segment_id]) {
     return DCT_DCT;
   }
-  if (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-      !is_inter_block(mbmi, xd->tree_type) && plane_type == PLANE_TYPE_Y) {
+#else   // CONFIG_LOSSLESS_DPCM
+  if (xd->lossless[mbmi->segment_id]) {
+    return DCT_DCT;
+  }
+  if (is_fsc) {
     return IDTX;
   }
+#endif  // CONFIG_LOSSLESS_DPCM
   TX_TYPE tx_type;
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];

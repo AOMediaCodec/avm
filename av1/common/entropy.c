@@ -321,6 +321,14 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->mrl_index_cdf, MRL_LINE_NUMBER);
   RESET_CDF_COUNTER(fc->fsc_mode_cdf, FSC_MODES);
 
+#if CONFIG_LOSSLESS_DPCM
+  // CDF for dpcm related symbols
+  RESET_CDF_COUNTER(fc->dpcm_cdf, 2);
+  RESET_CDF_COUNTER(fc->dpcm_vert_horz_cdf, 2);
+  RESET_CDF_COUNTER(fc->dpcm_uv_cdf, 2);
+  RESET_CDF_COUNTER(fc->dpcm_uv_vert_horz_cdf, 2);
+#endif  // CONFIG_LOSSLESS_DPCM
+
 #if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
   RESET_CDF_COUNTER(fc->cfl_index_cdf, CFL_TYPE_COUNT - 1);

@@ -482,6 +482,12 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)];
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#if CONFIG_LOSSLESS_DPCM
+  aom_cdf_prob dpcm_cdf[CDF_SIZE(2)];
+  aom_cdf_prob dpcm_vert_horz_cdf[CDF_SIZE(2)];
+  aom_cdf_prob dpcm_uv_cdf[CDF_SIZE(2)];
+  aom_cdf_prob dpcm_uv_vert_horz_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_LOSSLESS_DPCM
   aom_cdf_prob fsc_mode_cdf[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS]
                            [CDF_SIZE(FSC_MODES)];
 #if CONFIG_IMPROVED_CFL

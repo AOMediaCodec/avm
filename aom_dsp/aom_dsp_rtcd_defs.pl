@@ -278,6 +278,11 @@ specialize "aom_highbd_blend_a64_d16_mask", qw/sse4_1 avx2/;
 add_proto qw/void aom_highbd_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint16_t *src_ptr, ptrdiff_t src_stride, const uint16_t *pred_ptr, ptrdiff_t pred_stride, int bd";
 specialize qw/aom_highbd_subtract_block sse2/;
 
+if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
+    add_proto qw/void aom_highbd_subtract_block_vert/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint16_t *src_ptr, ptrdiff_t src_stride, const uint16_t *pred_ptr, ptrdiff_t pred_stride, int bd";
+    add_proto qw/void aom_highbd_subtract_block_horz/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint16_t *src_ptr, ptrdiff_t src_stride, const uint16_t *pred_ptr, ptrdiff_t pred_stride, int bd";
+}
+
 add_proto qw/unsigned int/, "aom_highbd_sad8x8", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
 specialize "aom_highbd_sad8x8", qw/sse2/;
 specialize qw/aom_highbd_sad8x8 sse2/;

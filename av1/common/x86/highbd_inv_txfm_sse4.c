@@ -5307,8 +5307,17 @@ void av1_highbd_inv_txfm_add_4x4_sse4_1(const tran_low_t *input, uint16_t *dest,
   const int32_t *src = cast_to_int32(input);
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (lossless) {
+#if CONFIG_LOSSLESS_DPCM
+    assert(tx_type == DCT_DCT || tx_type == IDTX);
+    if (tx_type == IDTX) {
+      av1_inv_txfm2d_add_4x4_sse4_1(src, dest, stride, tx_type, bd);
+    } else {
+      av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
+    }
+#else   // CONFIG_LOSSLESS_DPCM
     assert(tx_type == DCT_DCT);
     av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
+#endif  // CONFIG_LOSSLESS_DPCM
     return;
   }
   av1_inv_txfm2d_add_4x4_sse4_1(src, dest, stride, tx_type, bd);

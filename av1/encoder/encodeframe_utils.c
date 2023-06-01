@@ -521,7 +521,11 @@ static INLINE void update_fsc_cdf(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                   const int intraonly) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-  if (allow_fsc_intra(cm, xd, bsize, mbmi)) {
+  if (allow_fsc_intra(cm,
+#if !CONFIG_LOSSLESS_DPCM
+                      xd,
+#endif  // CONFIG_LOSSLESS_DPCM
+                      bsize, mbmi)) {
 #if CONFIG_ENTROPY_STATS
     const int ctx = get_fsc_mode_ctx(xd, intraonly);
     ++counts->fsc_mode[ctx][fsc_bsize_groups[bsize]]
@@ -544,6 +548,60 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
   if (xd->tree_type != CHROMA_PART) {
     const int intraonly = frame_is_intra_only(cm);
 #if CONFIG_AIMC
+#if CONFIG_LOSSLESS_DPCM
+    if (xd->lossless[mbmi->segment_id]) {
+      update_cdf(fc->dpcm_cdf, mbmi->use_dpcm_y, 2);
+      if (mbmi->use_dpcm_y == 0) {
+        const int context = get_y_mode_idx_ctx(xd);
+        const int mode_idx = mbmi->y_mode_idx;
+        int mode_set_index = mode_idx < FIRST_MODE_COUNT ? 0 : 1;
+        mode_set_index += ((mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
+#if CONFIG_ENTROPY_STATS
+        ++counts->y_mode_set_idx[mode_set_index];
+#endif
+        update_cdf(fc->y_mode_set_cdf, mode_set_index, INTRA_MODE_SETS);
+        if (mode_set_index == 0) {
+#if CONFIG_ENTROPY_STATS
+          ++counts->y_mode_idx_0[context][mode_idx];
+#endif
+          update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
+        } else {
+          const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
+                                      SECOND_MODE_COUNT * (mode_set_index - 1);
+#if CONFIG_ENTROPY_STATS
+          ++counts->y_mode_idx_1[context][mode_idx_in_set];
+#endif
+          update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
+                     SECOND_MODE_COUNT);
+        }
+      } else {
+        update_cdf(fc->dpcm_vert_horz_cdf, mbmi->dpcm_mode_y, 2);
+      }
+    } else {
+      const int context = get_y_mode_idx_ctx(xd);
+      const int mode_idx = mbmi->y_mode_idx;
+      int mode_set_index = mode_idx < FIRST_MODE_COUNT ? 0 : 1;
+      mode_set_index += ((mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
+#if CONFIG_ENTROPY_STATS
+      ++counts->y_mode_set_idx[mode_set_index];
+#endif
+      update_cdf(fc->y_mode_set_cdf, mode_set_index, INTRA_MODE_SETS);
+      if (mode_set_index == 0) {
+#if CONFIG_ENTROPY_STATS
+        ++counts->y_mode_idx_0[context][mode_idx];
+#endif
+        update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
+      } else {
+        const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
+                                    SECOND_MODE_COUNT * (mode_set_index - 1);
+#if CONFIG_ENTROPY_STATS
+        ++counts->y_mode_idx_1[context][mode_idx_in_set];
+#endif
+        update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
+                   SECOND_MODE_COUNT);
+      }
+    }
+#else  // CONFIG_LOSSLESS_DPCM
     const int context = get_y_mode_idx_ctx(xd);
     const int mode_idx = mbmi->y_mode_idx;
     int mode_set_index = mode_idx < FIRST_MODE_COUNT ? 0 : 1;
@@ -566,6 +624,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                  SECOND_MODE_COUNT);
     }
+#endif  // CONFIG_LOSSLESS_DPCM
     update_fsc_cdf(cm, xd,
 #if CONFIG_ENTROPY_STATS
                    counts,
@@ -593,6 +652,39 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                    intraonly);
 #endif  // CONFIG_AIMC
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode)) {
+#if CONFIG_LOSSLESS_DPCM
+      if (xd->lossless[mbmi->segment_id]) {
+        if (mbmi->use_dpcm_y == 0) {
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+          int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+          update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index,
+                     MRL_LINE_NUMBER);
+#if CONFIG_ENTROPY_STATS
+          ++counts->mrl_index[mrl_ctx][mbmi->mrl_index];
+#endif  // CONFIG_ENTROPY_STATS
+#else
+          update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
+#if CONFIG_ENTROPY_STATS
+          ++counts->mrl_index[mbmi->mrl_index];
+#endif  // CONFIG_ENTROPY_STATS
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+        }
+      } else {
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+        int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+        update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index,
+                   MRL_LINE_NUMBER);
+#if CONFIG_ENTROPY_STATS
+        ++counts->mrl_index[mrl_ctx][mbmi->mrl_index];
+#endif  // CONFIG_ENTROPY_STATS
+#else
+        update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
+#if CONFIG_ENTROPY_STATS
+        ++counts->mrl_index[mbmi->mrl_index];
+#endif  // CONFIG_ENTROPY_STATS
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+      }
+#else  // CONFIG_LOSSLESS_DPCM
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
       int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
       update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index, MRL_LINE_NUMBER);
@@ -605,8 +697,14 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       ++counts->mrl_index[mbmi->mrl_index];
 #endif  // CONFIG_ENTROPY_STATS
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#endif  // CONFIG_LOSSLESS_DPCM
     }
-    if (av1_filter_intra_allowed(cm, mbmi)) {
+    if (av1_filter_intra_allowed(cm, mbmi
+#if CONFIG_LOSSLESS_DPCM
+                                 ,
+                                 xd
+#endif
+                                 )) {
       const int use_filter_intra_mode =
           mbmi->filter_intra_mode_info.use_filter_intra;
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -680,16 +778,61 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       const int cfl_ctx = get_cfl_ctx(xd);
       update_cdf(fc->cfl_cdf[cfl_ctx], mbmi->uv_mode == UV_CFL_PRED, 2);
       if (mbmi->uv_mode != UV_CFL_PRED) {
+#if CONFIG_LOSSLESS_DPCM
+        if (xd->lossless[mbmi->segment_id]) {
+          update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
+          if (mbmi->use_dpcm_uv == 0) {
+            update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
+                       UV_INTRA_MODES - 1);
+          } else {
+            update_cdf(fc->dpcm_uv_vert_horz_cdf, mbmi->dpcm_mode_uv, 2);
+          }
+        } else {
+          update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
+                     UV_INTRA_MODES - 1);
+        }
+#else   // CONFIG_LOSSLESS_DPCM
+        update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
+                   UV_INTRA_MODES - 1);
+#endif  // CONFIG_LOSSLESS_DPCM
+      }
+    } else {
+#if CONFIG_LOSSLESS_DPCM
+      if (xd->lossless[mbmi->segment_id]) {
+        update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
+        if (mbmi->use_dpcm_uv == 0) {
+          update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
+                     UV_INTRA_MODES - 1);
+        } else {
+          update_cdf(fc->dpcm_uv_vert_horz_cdf, mbmi->dpcm_mode_uv, 2);
+        }
+      } else {
         update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                    UV_INTRA_MODES - 1);
       }
-    } else {
+#else   // CONFIG_LOSSLESS_DPCM
       update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                  UV_INTRA_MODES - 1);
+#endif  // CONFIG_LOSSLESS_DPCM
+    }
+#else
+#if CONFIG_LOSSLESS_DPCM
+    if (xd->lossless[mbmi->segment_id]) {
+      update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
+      if (mbmi->use_dpcm_uv == 0) {
+        update_cdf(fc->uv_mode_cdf[cfl_allowed][uv_context], mbmi->uv_mode_idx,
+                   UV_INTRA_MODES - !cfl_allowed);
+      } else {
+        update_cdf(fc->dpcm_uv_vert_horz_cdf, mbmi->dpcm_mode_uv, 2);
+      }
+    } else {
+      update_cdf(fc->uv_mode_cdf[cfl_allowed][uv_context], mbmi->uv_mode_idx,
+                 UV_INTRA_MODES - !cfl_allowed);
     }
 #else
     update_cdf(fc->uv_mode_cdf[cfl_allowed][uv_context], mbmi->uv_mode_idx,
                UV_INTRA_MODES - !cfl_allowed);
+#endif  // CONFIG_LOSSLESS_DPCM
 #endif  // CONFIG_UV_CFL
 #if CONFIG_IMPROVED_CFL
     if (mbmi->uv_mode == UV_CFL_PRED) {
@@ -1522,6 +1665,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_LR_MERGE_COEFFS
   AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
+
+#if CONFIG_LOSSLESS_DPCM
+  AVERAGE_CDF(ctx_left->dpcm_cdf, ctx_tr->dpcm_cdf, 2);
+  AVERAGE_CDF(ctx_left->dpcm_vert_horz_cdf, ctx_tr->dpcm_vert_horz_cdf, 2);
+  AVERAGE_CDF(ctx_left->dpcm_uv_cdf, ctx_tr->dpcm_uv_cdf, 2);
+  AVERAGE_CDF(ctx_left->dpcm_uv_vert_horz_cdf, ctx_tr->dpcm_uv_vert_horz_cdf,
+              2);
+#endif  // CONFIG_LOSSLESS_DPCM
 
 #if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP

@@ -55,6 +55,12 @@ typedef struct IntraModeSearchState {
    */
   int best_mrl_index;
 
+#if CONFIG_LOSSLESS_DPCM
+  int best_dpcm_index;
+  int best_dpcm_dir;
+  int best_dpcm_uv_index;
+  int best_dpcm_uv_dir;
+#endif
   /*!
    * \brief The best forward skip mode found.
    */

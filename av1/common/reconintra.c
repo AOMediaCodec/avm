@@ -24,6 +24,7 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/cfl.h"
 #include "av1/common/reconintra.h"
+#include <av1/encoder/block.h>
 
 enum {
   NEED_LEFT = 1 << 1,

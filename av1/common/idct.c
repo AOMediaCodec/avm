@@ -41,6 +41,26 @@ void av1_highbd_iwht4x4_add(const tran_low_t *input, uint16_t *dest, int stride,
     av1_highbd_iwht4x4_1_add(input, dest, stride, bd);
 }
 
+#if CONFIG_LOSSLESS_DPCM
+// inverse hadamard transform for DPCM lossless vertical mode
+void av1_highbd_iwht4x4_vert_add(const tran_low_t *input, uint16_t *dest,
+                                 int stride, int eob, int bd) {
+  if (eob > 1)
+    av1_highbd_iwht4x4_16_vert_add(input, dest, stride, bd);
+  else
+    av1_highbd_iwht4x4_1_vert_add(input, dest, stride, bd);
+}
+
+// inverse hadamard transform for DPCM lossless horizontal mode
+void av1_highbd_iwht4x4_horz_add(const tran_low_t *input, uint16_t *dest,
+                                 int stride, int eob, int bd) {
+  if (eob > 1)
+    av1_highbd_iwht4x4_16_horz_add(input, dest, stride, bd);
+  else
+    av1_highbd_iwht4x4_1_horz_add(input, dest, stride, bd);
+}
+#endif  // CONFIG_LOSSLESS_DPCM
+
 void av1_highbd_inv_txfm_add_4x4_c(const tran_low_t *input, uint16_t *dest,
                                    int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
@@ -50,13 +70,70 @@ void av1_highbd_inv_txfm_add_4x4_c(const tran_low_t *input, uint16_t *dest,
   const int32_t *src = cast_to_int32(input);
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (lossless) {
+#if CONFIG_LOSSLESS_DPCM
+    assert(tx_type == DCT_DCT || tx_type == IDTX);
+    if (tx_type == IDTX) {
+      av1_inv_txfm2d_add_4x4_c(src, dest, stride, tx_type, bd);
+    } else {
+      av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
+    }
+#else   // CONFIG_LOSSLESS_DPCM
     assert(tx_type == DCT_DCT);
     av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
+#endif  // CONFIG_LOSSLESS_DPCM
     return;
   }
 
   av1_inv_txfm2d_add_4x4_c(src, dest, stride, tx_type, bd);
 }
+
+#if CONFIG_LOSSLESS_DPCM
+// inverse transform for 4x4 dpcm lossless vertical mode
+void av1_highbd_inv_txfm_add_4x4_vert_c(const tran_low_t *input, uint16_t *dest,
+                                        int stride,
+                                        const TxfmParam *txfm_param) {
+  assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+  int eob = txfm_param->eob;
+  int bd = txfm_param->bd;
+  int lossless = txfm_param->lossless;
+  const int32_t *src = cast_to_int32(input);
+  const TX_TYPE tx_type = txfm_param->tx_type;
+  if (lossless) {
+    assert(tx_type == DCT_DCT || tx_type == IDTX);
+    if (tx_type == IDTX) {
+      av1_inv_idfm2d_add_4x4_vert_c(src, dest, stride, tx_type, bd);
+    } else {
+      av1_highbd_iwht4x4_vert_add(input, dest, stride, eob, bd);
+    }
+    return;
+  }
+
+  av1_inv_txfm2d_add_4x4_c(src, dest, stride, tx_type, bd);
+}
+
+// inverse transform for 4x4 dpcm lossless horizontal mode
+void av1_highbd_inv_txfm_add_4x4_horz_c(const tran_low_t *input, uint16_t *dest,
+                                        int stride,
+                                        const TxfmParam *txfm_param) {
+  assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+  int eob = txfm_param->eob;
+  int bd = txfm_param->bd;
+  int lossless = txfm_param->lossless;
+  const int32_t *src = cast_to_int32(input);
+  const TX_TYPE tx_type = txfm_param->tx_type;
+  if (lossless) {
+    assert(tx_type == DCT_DCT || tx_type == IDTX);
+    if (tx_type == IDTX) {
+      av1_inv_idfm2d_add_4x4_horz_c(src, dest, stride, tx_type, bd);
+    } else {
+      av1_highbd_iwht4x4_horz_add(input, dest, stride, eob, bd);
+    }
+    return;
+  }
+
+  av1_inv_txfm2d_add_4x4_c(src, dest, stride, tx_type, bd);
+}
+#endif  // CONFIG_LOSSLESS_DPCM
 
 void av1_highbd_inv_txfm_add_4x8_c(const tran_low_t *input, uint16_t *dest,
                                    int stride, const TxfmParam *txfm_param) {
@@ -364,6 +441,34 @@ void av1_highbd_inv_txfm_add_c(const tran_low_t *input, uint16_t *dest,
   }
 }
 
+#if CONFIG_LOSSLESS_DPCM
+// inverse transform for dpcm lossless horizontal mode
+void av1_highbd_inv_txfm_add_horz_c(const tran_low_t *input, uint16_t *dest,
+                                    int stride, const TxfmParam *txfm_param) {
+  assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+  const TX_SIZE tx_size = txfm_param->tx_size;
+  switch (tx_size) {
+    case TX_4X4:
+      av1_highbd_inv_txfm_add_4x4_horz_c(input, dest, stride, txfm_param);
+      break;
+    default: assert(0 && "Invalid transform size for lossless coding"); break;
+  }
+}
+
+// inverse transform for dpcm lossless vertical mode
+void av1_highbd_inv_txfm_add_vert_c(const tran_low_t *input, uint16_t *dest,
+                                    int stride, const TxfmParam *txfm_param) {
+  assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
+  const TX_SIZE tx_size = txfm_param->tx_size;
+  switch (tx_size) {
+    case TX_4X4:
+      av1_highbd_inv_txfm_add_4x4_vert_c(input, dest, stride, txfm_param);
+      break;
+    default: assert(0 && "Invalid transform size for lossless coding"); break;
+  }
+}
+#endif  // CONFIG_LOSSLESS_DPCM
+
 // Apply inverse cross chroma component transform
 void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
                                    tran_low_t *dqcoeff_c2, TX_SIZE tx_size,
@@ -412,7 +517,27 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 
   av1_inv_stxfm(temp_dqcoeff, &txfm_param);
 
+#if CONFIG_LOSSLESS_DPCM
+  if (xd->lossless[mbmi->segment_id]) {
+    PREDICTION_MODE cur_pred_mode =
+        (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+    int cur_dpcm_flag =
+        (plane == AOM_PLANE_Y) ? mbmi->use_dpcm_y : mbmi->use_dpcm_uv;
+    int cur_angle_delta = (plane == AOM_PLANE_Y) ? mbmi->angle_delta[0] : 0;
+    if (cur_pred_mode == V_PRED && cur_angle_delta == 0 && cur_dpcm_flag > 0) {
+      av1_highbd_inv_txfm_add_vert(temp_dqcoeff, dst, stride, &txfm_param);
+    } else if (cur_pred_mode == H_PRED && cur_angle_delta == 0 &&
+               cur_dpcm_flag > 0) {
+      av1_highbd_inv_txfm_add_horz(temp_dqcoeff, dst, stride, &txfm_param);
+    } else {
+      av1_highbd_inv_txfm_add_c(temp_dqcoeff, dst, stride, &txfm_param);
+    }
+  } else {
+    av1_highbd_inv_txfm_add(temp_dqcoeff, dst, stride, &txfm_param);
+  }
+#else   // CONFIG_LOSSLESS_DPCM
   av1_highbd_inv_txfm_add(temp_dqcoeff, dst, stride, &txfm_param);
+#endif  // CONFIG_LOSSLESS_DPCM
 }
 
 // Inverse secondary transform

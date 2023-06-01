@@ -236,6 +236,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #else
   av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#if CONFIG_LOSSLESS_DPCM
+  av1_cost_tokens_from_cdf(mode_costs->dpcm_cost, fc->dpcm_cdf, NULL);
+
+  av1_cost_tokens_from_cdf(mode_costs->dpcm_vert_horz_cost,
+                           fc->dpcm_vert_horz_cdf, NULL);
+
+  av1_cost_tokens_from_cdf(mode_costs->dpcm_uv_cost, fc->dpcm_uv_cdf, NULL);
+
+  av1_cost_tokens_from_cdf(mode_costs->dpcm_uv_vert_horz_cost,
+                           fc->dpcm_uv_vert_horz_cdf, NULL);
+#endif  // CONFIG_LOSSLESS_DPCM
 
   for (i = 0; i < FSC_MODE_CONTEXTS; ++i) {
     for (j = 0; j < FSC_BSIZE_CONTEXTS; ++j) {

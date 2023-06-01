@@ -45,6 +45,59 @@ void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                             pred, pred_stride, xd->bd);
 }
 
+#if CONFIG_LOSSLESS_DPCM
+// subtraction for residue calculation of DPCM mode
+void av1_subtract_block_dpcm(const MACROBLOCKD *xd, int rows, int cols,
+                             int16_t *diff, ptrdiff_t diff_stride,
+                             const uint16_t *src, ptrdiff_t src_stride,
+                             const uint16_t *pred, ptrdiff_t pred_stride,
+                             int plane) {
+  assert(rows >= 4 && cols >= 4);
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  if (xd->lossless[mbmi->segment_id]) {
+    PREDICTION_MODE cur_pred_mode =
+        (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+    int cur_dpcm_flag =
+        (plane == AOM_PLANE_Y) ? mbmi->use_dpcm_y : mbmi->use_dpcm_uv;
+    int cur_angle_delta = (plane == AOM_PLANE_Y) ? mbmi->angle_delta[0] : 0;
+    if (cur_pred_mode == V_PRED && cur_angle_delta == 0 && cur_dpcm_flag > 0) {
+      av1_subtract_block_vert(xd, cols, rows, diff, diff_stride, src,
+                              src_stride, pred, pred_stride);
+    } else if (cur_pred_mode == H_PRED && cur_angle_delta == 0 &&
+               cur_dpcm_flag > 0) {
+      av1_subtract_block_horz(xd, cols, rows, diff, diff_stride, src,
+                              src_stride, pred, pred_stride);
+    } else {
+      aom_highbd_subtract_block(rows, cols, diff, diff_stride, src, src_stride,
+                                pred, pred_stride, xd->bd);
+    }
+  } else {
+    aom_highbd_subtract_block(rows, cols, diff, diff_stride, src, src_stride,
+                              pred, pred_stride, xd->bd);
+  }
+}
+
+// subtraction for DPCM lossless mode vertical direction
+void av1_subtract_block_vert(const MACROBLOCKD *xd, int rows, int cols,
+                             int16_t *diff, ptrdiff_t diff_stride,
+                             const uint16_t *src, ptrdiff_t src_stride,
+                             const uint16_t *pred, ptrdiff_t pred_stride) {
+  assert(rows >= 4 && cols >= 4);
+  aom_highbd_subtract_block_vert(rows, cols, diff, diff_stride, src, src_stride,
+                                 pred, pred_stride, xd->bd);
+}
+
+// subtraction for DPCM lossless mode horizontal direction
+void av1_subtract_block_horz(const MACROBLOCKD *xd, int rows, int cols,
+                             int16_t *diff, ptrdiff_t diff_stride,
+                             const uint16_t *src, ptrdiff_t src_stride,
+                             const uint16_t *pred, ptrdiff_t pred_stride) {
+  assert(rows >= 4 && cols >= 4);
+  aom_highbd_subtract_block_horz(rows, cols, diff, diff_stride, src, src_stride,
+                                 pred, pred_stride, xd->bd);
+}
+#endif  // CONFIG_LOSSLESS_DPCM
+
 void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
                       int blk_col, int blk_row, TX_SIZE tx_size) {
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -60,8 +113,18 @@ void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
   uint16_t *src = &p->src.buf[(blk_row * src_stride + blk_col) << MI_SIZE_LOG2];
   int16_t *src_diff =
       &p->src_diff[(blk_row * diff_stride + blk_col) << MI_SIZE_LOG2];
+#if CONFIG_LOSSLESS_DPCM
+  if (xd->lossless[xd->mi[0]->segment_id]) {
+    av1_subtract_block_dpcm(xd, tx1d_height, tx1d_width, src_diff, diff_stride,
+                            src, src_stride, dst, dst_stride, plane);
+  } else {
+    av1_subtract_block(xd, tx1d_height, tx1d_width, src_diff, diff_stride, src,
+                       src_stride, dst, dst_stride);
+  }
+#else
   av1_subtract_block(xd, tx1d_height, tx1d_width, src_diff, diff_stride, src,
                      src_stride, dst, dst_stride);
+#endif
 }
 
 void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane) {
@@ -71,9 +134,18 @@ void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane) {
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
-
+#if CONFIG_LOSSLESS_DPCM
+  if (xd->lossless[xd->mi[0]->segment_id]) {
+    av1_subtract_block_dpcm(xd, bh, bw, p->src_diff, bw, p->src.buf,
+                            p->src.stride, pd->dst.buf, pd->dst.stride, plane);
+  } else {
+    av1_subtract_block(xd, bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
+                       pd->dst.buf, pd->dst.stride);
+  }
+#else
   av1_subtract_block(xd, bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
                      pd->dst.buf, pd->dst.stride);
+#endif
 }
 
 #if CONFIG_IMPROVEIDTX_RDPH

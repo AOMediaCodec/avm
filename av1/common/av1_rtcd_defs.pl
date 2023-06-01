@@ -139,6 +139,11 @@ if (aom_config("CONFIG_ADST_TUNED") eq "yes") {
     specialize qw/av1_highbd_inv_txfm_add sse4_1 avx2 neon/;
 }
 
+if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
+    add_proto qw/void av1_highbd_inv_txfm_add_vert/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+    add_proto qw/void av1_highbd_inv_txfm_add_horz/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+}
+
 add_proto qw/void av1_highbd_inv_txfm_add_4x4/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 specialize qw/av1_highbd_inv_txfm_add_4x4 sse4_1 neon/;
 add_proto qw/void av1_highbd_inv_txfm_add_8x8/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
@@ -189,6 +194,12 @@ if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
 add_proto qw/void av1_highbd_iwht4x4_1_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
 add_proto qw/void av1_highbd_iwht4x4_16_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
 
+if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
+    add_proto qw/void av1_highbd_iwht4x4_1_vert_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
+    add_proto qw/void av1_highbd_iwht4x4_16_vert_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
+    add_proto qw/void av1_highbd_iwht4x4_1_horz_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
+    add_proto qw/void av1_highbd_iwht4x4_16_horz_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
+}
 add_proto qw/void av1_inv_txfm2d_add_4x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
 specialize qw/av1_inv_txfm2d_add_4x8 neon/;
 add_proto qw/void av1_inv_txfm2d_add_8x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
@@ -209,6 +220,11 @@ add_proto qw/void av1_inv_txfm2d_add_16x16/, "const int32_t *input, uint16_t *ou
 specialize qw/av1_inv_txfm2d_add_16x16 neon/;
 add_proto qw/void av1_inv_txfm2d_add_32x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
 specialize qw/av1_inv_txfm2d_add_32x32 neon/;
+
+if (aom_config("CONFIG_LOSSLESS_DPCM") eq "yes"){
+    add_proto qw/void av1_inv_idfm2d_add_4x4_vert/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_inv_idfm2d_add_4x4_horz/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+}
 
 add_proto qw/void av1_inv_txfm2d_add_64x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
 specialize qw/av1_inv_txfm2d_add_64x64 neon/;

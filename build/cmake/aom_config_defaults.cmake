@@ -213,6 +213,10 @@ set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
   "AV2 improved luma downsampling for high pass cross non-sep wiener filter")
 
+# CWG-D178
+set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
+                   "AV2 enable DPCM and FSC for lossless coding mode")
+
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")

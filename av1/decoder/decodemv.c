@@ -224,6 +224,34 @@ static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r
   return mrl_index;
 }
 
+#if CONFIG_LOSSLESS_DPCM
+// read if dpcm lossless mode is used for luma
+static uint8_t read_dpcm_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
+  const uint8_t dpcm_mode =
+      aom_read_symbol(r, ec_ctx->dpcm_cdf, 2, ACCT_INFO());
+  return dpcm_mode;
+}
+// read dpcm lossless direction for luma
+static uint8_t read_dpcm_vert_horz_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
+  const uint8_t dpcm_vert_horz_mode =
+      aom_read_symbol(r, ec_ctx->dpcm_vert_horz_cdf, 2, ACCT_INFO());
+  return dpcm_vert_horz_mode;
+}
+// read if dpcm lossless mode is used for chroma
+static uint8_t read_dpcm_uv_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
+  const uint8_t dpcm_uv_mode =
+      aom_read_symbol(r, ec_ctx->dpcm_uv_cdf, 2, ACCT_INFO());
+  return dpcm_uv_mode;
+}
+// read dpcm lossless direction for chroma
+static uint8_t read_dpcm_uv_vert_horz_mode(FRAME_CONTEXT *ec_ctx,
+                                           aom_reader *r) {
+  const uint8_t dpcm_uv_vert_horz_mode =
+      aom_read_symbol(r, ec_ctx->dpcm_uv_vert_horz_cdf, 2, ACCT_INFO());
+  return dpcm_uv_vert_horz_mode;
+}
+#endif  // CONFIG_LOSSLESS_DPCM
+
 static uint8_t read_fsc_mode(aom_reader *r, aom_cdf_prob *fsc_cdf) {
   const uint8_t fsc_mode = aom_read_symbol(r, fsc_cdf, FSC_MODES, ACCT_INFO());
   return fsc_mode;
@@ -586,6 +614,12 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+#if CONFIG_LOSSLESS_DPCM
+      mbmi->use_dpcm_y = 0;
+      mbmi->dpcm_mode_y = 0;
+      mbmi->use_dpcm_uv = 0;
+      mbmi->dpcm_mode_uv = 0;
+#endif  // CONFIG_LOSSLESS_DPCM
       mbmi->filter_intra_mode_info.use_filter_intra = 0;
       if (av1_is_wedge_used(bsize)) {
         mbmi->use_wedge_interintra =
@@ -1228,7 +1262,13 @@ static void read_filter_intra_mode_info(const AV1_COMMON *const cm,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   FILTER_INTRA_MODE_INFO *filter_intra_mode_info =
       &mbmi->filter_intra_mode_info;
-  if (av1_filter_intra_allowed(cm, mbmi) && xd->tree_type != CHROMA_PART) {
+  if (av1_filter_intra_allowed(cm, mbmi
+#if CONFIG_LOSSLESS_DPCM
+                               ,
+                               xd
+#endif
+                               ) &&
+      xd->tree_type != CHROMA_PART) {
     filter_intra_mode_info->use_filter_intra =
 #if CONFIG_D149_CTX_MODELING_OPT
         aom_read_symbol(r, xd->tile_ctx->filter_intra_cdfs, 2,
@@ -1845,15 +1885,49 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #endif  // !CONFIG_TX_PARTITION_CTX
   if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
     read_intrabc_info(cm, dcb, r);
-    if (is_intrabc_block(mbmi, xd->tree_type)) return;
+    if (is_intrabc_block(mbmi, xd->tree_type)) {
+#if CONFIG_LOSSLESS_DPCM
+      mbmi->use_dpcm_y = 0;
+      mbmi->dpcm_mode_y = 0;
+#endif  // CONFIG_LOSSLESS_DPCM
+      return;
+    }
   }
 #if !CONFIG_AIMC
   const int use_angle_delta = av1_use_angle_delta(bsize);
 #endif  // !CONFIG_AIMC
   if (xd->tree_type != CHROMA_PART) {
 #if CONFIG_AIMC
+#if CONFIG_LOSSLESS_DPCM
+    if (xd->lossless[mbmi->segment_id]) {
+      mbmi->use_dpcm_y = read_dpcm_mode(ec_ctx, r);
+      if (mbmi->use_dpcm_y == 0) {
+        read_intra_luma_mode(xd, r);
+      } else {
+        mbmi->dpcm_mode_y = read_dpcm_vert_horz_mode(ec_ctx, r);
+        if (mbmi->dpcm_mode_y == 0) {
+          mbmi->joint_y_mode_delta_angle = 22;
+          mbmi->mode = V_PRED;
+          mbmi->angle_delta[0] = 0;
+        } else {
+          mbmi->joint_y_mode_delta_angle = 50;
+          mbmi->mode = H_PRED;
+          mbmi->angle_delta[0] = 0;
+        }
+      }
+    } else {
+      mbmi->use_dpcm_y = 0;
+      mbmi->dpcm_mode_y = 0;
+      read_intra_luma_mode(xd, r);
+    }
+#else   // CONFIG_LOSSLESS_DPCM
     read_intra_luma_mode(xd, r);
-    if (allow_fsc_intra(cm, xd, bsize, mbmi)) {
+#endif  // CONFIG_LOSSLESS_DPCM
+    if (allow_fsc_intra(cm,
+#if !CONFIG_LOSSLESS_DPCM
+                        xd,
+#endif  // CONFIG_LOSSLESS_DPCM
+                        bsize, mbmi)) {
       aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, 1);
       mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = read_fsc_mode(r, fsc_cdf);
     } else {
@@ -1862,7 +1936,11 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #else
     mbmi->mode = read_intra_mode(
         r, get_y_mode_cdf(ec_ctx, xd->neighbors[0], xd->neighbors[1]));
-    if (allow_fsc_intra(cm, xd, bsize, mbmi)) {
+    if (allow_fsc_intra(cm,
+#if !CONFIG_LOSSLESS_DPCM
+                        xd,
+#endif  // CONFIG_LOSSLESS_DPCM
+                        bsize, mbmi)) {
       aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, 1);
       mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = read_fsc_mode(r, fsc_cdf);
     } else {
@@ -1874,7 +1952,31 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
                   r, ec_ctx->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED])
             : 0;
 #endif  // CONFIG_AIMC
-
+#if CONFIG_LOSSLESS_DPCM
+    if (xd->lossless[mbmi->segment_id]) {
+      if (mbmi->use_dpcm_y == 0) {
+        mbmi->mrl_index =
+            (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+                ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
+#else
+                ? read_mrl_index(ec_ctx, r)
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+                : 0;
+      } else {
+        mbmi->mrl_index = 0;
+      }
+    } else {
+      mbmi->mrl_index =
+          (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+              ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
+#else
+              ? read_mrl_index(ec_ctx, r)
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+              : 0;
+    }
+#else  // CONFIG_LOSSLESS_DPCM
     mbmi->mrl_index =
         (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
@@ -1883,12 +1985,35 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
             ? read_mrl_index(ec_ctx, r)
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
             : 0;
+#endif  // CONFIG_LOSSLESS_DPCM
   }
 
   if (xd->tree_type != LUMA_PART) {
     if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
 #if CONFIG_AIMC
+#if CONFIG_LOSSLESS_DPCM
+      if (xd->lossless[mbmi->segment_id]) {
+        mbmi->use_dpcm_uv = read_dpcm_uv_mode(ec_ctx, r);
+        if (mbmi->use_dpcm_uv == 0) {
+          read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+          mbmi->dpcm_mode_uv = 0;
+        } else {
+          get_uv_intra_mode_set(mbmi);
+          mbmi->dpcm_mode_uv = read_dpcm_uv_vert_horz_mode(ec_ctx, r);
+          mbmi->uv_mode = mbmi->dpcm_mode_uv + 1;
+          if (mbmi->uv_mode == mbmi->mode)
+            mbmi->angle_delta[PLANE_TYPE_UV] = mbmi->angle_delta[PLANE_TYPE_Y];
+          else
+            mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+        }
+      } else {
+        read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+        mbmi->use_dpcm_uv = 0;
+        mbmi->dpcm_mode_uv = 0;
+      }
+#else   // CONFIG_LOSSLESS_DPCM
       read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+#endif  // CONFIG_LOSSLESS_DPCM
 #else
       mbmi->uv_mode =
           read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
@@ -2561,8 +2686,37 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_AIMC
+#if CONFIG_LOSSLESS_DPCM
+  if (xd->lossless[mbmi->segment_id]) {
+    mbmi->use_dpcm_y = read_dpcm_mode(ec_ctx, r);
+    if (mbmi->use_dpcm_y == 0) {
+      read_intra_luma_mode(xd, r);
+    } else {
+      mbmi->dpcm_mode_y = read_dpcm_vert_horz_mode(ec_ctx, r);
+      if (mbmi->dpcm_mode_y == 0) {
+        mbmi->joint_y_mode_delta_angle = 22;
+        mbmi->mode = V_PRED;
+        mbmi->angle_delta[0] = 0;
+      } else {
+        mbmi->joint_y_mode_delta_angle = 50;
+        mbmi->mode = H_PRED;
+        mbmi->angle_delta[0] = 0;
+      }
+    }
+  } else {
+    mbmi->use_dpcm_y = 0;
+    mbmi->dpcm_mode_y = 0;
+    read_intra_luma_mode(xd, r);
+  }
+#else   // CONFIG_LOSSLESS_DPCM
   read_intra_luma_mode(xd, r);
-  if (allow_fsc_intra(cm, xd, bsize, mbmi) && xd->tree_type != CHROMA_PART) {
+#endif  // CONFIG_LOSSLESS_DPCM
+  if (allow_fsc_intra(cm,
+#if !CONFIG_LOSSLESS_DPCM
+                      xd,
+#endif  // CONFIG_LOSSLESS_DPCM
+                      bsize, mbmi) &&
+      xd->tree_type != CHROMA_PART) {
     aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, 0);
     mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = read_fsc_mode(r, fsc_cdf);
   } else {
@@ -2572,7 +2726,12 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   const int use_angle_delta = av1_use_angle_delta(bsize);
   mbmi->mode = read_intra_mode(r, ec_ctx->y_mode_cdf[size_group_lookup[bsize]]);
 
-  if (allow_fsc_intra(cm, xd, bsize, mbmi) && xd->tree_type != CHROMA_PART) {
+  if (allow_fsc_intra(cm,
+#if !CONFIG_LOSSLESS_DPCM
+                      xd,
+#endif  // CONFIG_LOSSLESS_DPCM
+                      bsize, mbmi) &&
+      xd->tree_type != CHROMA_PART) {
     aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, 0);
     mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = read_fsc_mode(r, fsc_cdf);
     if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
@@ -2588,8 +2747,37 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
           : 0;
 #endif  // CONFIG_AIMC
 
+#if CONFIG_LOSSLESS_DPCM
   if (xd->tree_type != CHROMA_PART)
-    // Parsing reference line index
+  // Parsing reference line index
+  {
+    if (xd->lossless[mbmi->segment_id]) {
+      if (mbmi->use_dpcm_y == 0) {
+        mbmi->mrl_index =
+            (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+                ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
+#else
+                ? read_mrl_index(ec_ctx, r)
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+                : 0;
+      } else {
+        mbmi->mrl_index = 0;
+      }
+    } else {
+      mbmi->mrl_index =
+          (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+              ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
+#else
+              ? read_mrl_index(ec_ctx, r)
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+              : 0;
+    }
+  }
+#else  // CONFIG_LOSSLESS_DPCM
+  // Parsing reference line index
+  if (xd->tree_type != CHROMA_PART) {
     mbmi->mrl_index =
         (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
@@ -2598,10 +2786,33 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
             ? read_mrl_index(ec_ctx, r)
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
             : 0;
-
+  }
+#endif  // CONFIG_LOSSLESS_DPCM
   if (!cm->seq_params.monochrome && xd->is_chroma_ref) {
 #if CONFIG_AIMC
+#if CONFIG_LOSSLESS_DPCM
+    if (xd->lossless[mbmi->segment_id]) {
+      mbmi->use_dpcm_uv = read_dpcm_uv_mode(ec_ctx, r);
+      if (mbmi->use_dpcm_uv == 0) {
+        read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+        mbmi->dpcm_mode_uv = 0;
+      } else {
+        get_uv_intra_mode_set(mbmi);
+        mbmi->dpcm_mode_uv = read_dpcm_uv_vert_horz_mode(ec_ctx, r);
+        mbmi->uv_mode = mbmi->dpcm_mode_uv + 1;
+        if (mbmi->uv_mode == mbmi->mode)
+          mbmi->angle_delta[PLANE_TYPE_UV] = mbmi->angle_delta[PLANE_TYPE_Y];
+        else
+          mbmi->angle_delta[PLANE_TYPE_UV] = 0;
+      }
+    } else {
+      mbmi->use_dpcm_uv = 0;
+      mbmi->dpcm_mode_uv = 0;
+      read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+    }
+#else   // CONFIG_LOSSLESS_DPCM
     read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+#endif  // CONFIG_LOSSLESS_DPCM
 #else
     mbmi->uv_mode =
         read_intra_mode_uv(ec_ctx, r, is_cfl_allowed(xd), mbmi->mode);
@@ -4128,7 +4339,13 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
     mbmi->palette_mode_info.palette_size[0] = 0;
     mbmi->palette_mode_info.palette_size[1] = 0;
     read_intrabc_info(cm, dcb, r);
-    if (is_intrabc_block(mbmi, xd->tree_type)) return;
+    if (is_intrabc_block(mbmi, xd->tree_type)) {
+#if CONFIG_LOSSLESS_DPCM
+      mbmi->use_dpcm_y = 0;
+      mbmi->dpcm_mode_y = 0;
+#endif  // CONFIG_LOSSLESS_DPCM
+      return;
+    }
   }
 #endif  // CONFIG_IBC_SR_EXT
   if (inter_block)

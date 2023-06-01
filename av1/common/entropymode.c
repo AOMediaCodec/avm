@@ -99,6 +99,17 @@ static const aom_cdf_prob default_mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)] = {
 };
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
+#if CONFIG_LOSSLESS_DPCM
+static const aom_cdf_prob default_dpcm_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384) };
+static const aom_cdf_prob default_dpcm_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(
+    16384) };
+static const aom_cdf_prob default_dpcm_uv_cdf[CDF_SIZE(2)] = { AOM_CDF2(
+    16384) };
+static const aom_cdf_prob default_dpcm_uv_vert_horz_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384)
+};
+#endif  // CONFIG_LOSSLESS_DPCM
+
 #if CONFIG_NEW_CONTEXT_MODELING
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_fsc_mode_cdf[FSC_MODE_CONTEXTS]
@@ -7074,6 +7085,12 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_UV_CFL
   av1_copy(fc->mrl_index_cdf, default_mrl_index_cdf);
   av1_copy(fc->fsc_mode_cdf, default_fsc_mode_cdf);
+#if CONFIG_LOSSLESS_DPCM
+  av1_copy(fc->dpcm_cdf, default_dpcm_cdf);
+  av1_copy(fc->dpcm_vert_horz_cdf, default_dpcm_vert_horz_cdf);
+  av1_copy(fc->dpcm_uv_cdf, default_dpcm_uv_cdf);
+  av1_copy(fc->dpcm_uv_vert_horz_cdf, default_dpcm_uv_vert_horz_cdf);
+#endif  // CONFIG_LOSSLESS_DPCM
 #if CONFIG_IMPROVED_CFL
   av1_copy(fc->cfl_index_cdf, default_cfl_index_cdf);
 #endif
