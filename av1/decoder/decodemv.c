@@ -449,8 +449,9 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_WARP_REF_LIST
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
-  const int allowed_motion_modes =
-      motion_mode_allowed(cm, xd, xd->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
+  const int allowed_motion_modes = motion_mode_allowed(
+      cm, xd, xd->ref_mv_stack[mbmi->ref_frame[0]], mbmi,
+      get_ref_frame_buf(cm, mbmi->ref_frame[0])->base_qindex);
 
 #if CONFIG_WARPMV
   if (mbmi->mode == WARPMV) {
@@ -2680,6 +2681,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_TIP
           !mbmi->skip_mode && !has_second_ref(mbmi)) {
         mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+        mbmi->num_proj_ref_pruned = mbmi->num_proj_ref;
       }
       av1_count_overlappable_neighbors(cm, xd);
       mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
@@ -2803,6 +2805,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_TIP
       !mbmi->skip_mode && !has_second_ref(mbmi)) {
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+    mbmi->num_proj_ref_pruned = mbmi->num_proj_ref;
   }
 
   av1_count_overlappable_neighbors(cm, xd);
@@ -2865,6 +2868,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_TIP
       !mbmi->skip_mode && !has_second_ref(mbmi)) {
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+    mbmi->num_proj_ref_pruned = mbmi->num_proj_ref;
   }
   av1_count_overlappable_neighbors(cm, xd);
 
@@ -2942,12 +2946,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     MV mv = mbmi->mv[0].as_mv;
 
     if (mbmi->num_proj_ref > 1) {
-      mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
-                                             mbmi->num_proj_ref, bsize);
+      mbmi->num_proj_ref_pruned = av1_selectSamples(
+          &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
     }
 
-    if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv,
-                            &mbmi->wm_params[0], mi_row, mi_col)) {
+    if (av1_find_projection(mbmi->num_proj_ref_pruned, pts, pts_inref, bsize,
+                            mv, &mbmi->wm_params[0], mi_row, mi_col)) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected warped model from aomenc\n");
 #endif
@@ -3006,11 +3010,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     mbmi->wm_params.invalid = 0;
 
     if (mbmi->num_proj_ref > 1) {
-      mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
-                                             mbmi->num_proj_ref, bsize);
+      mbmi->num_proj_ref_pruned = av1_selectSamples(
+          &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
     }
 
-    if (av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
+    if (av1_find_projection(mbmi->num_proj_ref_pruned, pts, pts_inref, bsize,
                             mbmi->mv[0].as_mv, &mbmi->wm_params, mi_row,
                             mi_col)) {
 #if WARPED_MOTION_DEBUG

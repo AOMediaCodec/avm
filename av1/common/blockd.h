@@ -470,6 +470,8 @@ typedef struct MB_MODE_INFO {
   MOTION_MODE motion_mode;
   /*! \brief Number of samples used by spatial warp prediction */
   uint8_t num_proj_ref;
+  /*! \brief Number of samples used by spatial warp prediction post pruning */
+  uint8_t num_proj_ref_pruned;
   /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
    * mode. */
   uint8_t overlappable_neighbors[2];

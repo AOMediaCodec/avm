@@ -1666,19 +1666,16 @@ static int64_t motion_mode_rd(
   (void)tile_data;
   av1_invalid_rd_stats(&best_rd_stats);
   aom_clear_system_state();
-  mbmi->num_proj_ref = 1;  // assume num_proj_ref >=1
+  mbmi->num_proj_ref = 1;
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
 #if CONFIG_EXTENDED_WARP_PREDICTION
+  mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
   int allowed_motion_modes = motion_mode_allowed(
-      cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi);
-  if ((allowed_motion_modes & (1 << WARPED_CAUSAL))) {
-    // Collect projection samples used in least squares approximation of
-    // the warped motion parameters if WARPED_CAUSAL is going to be searched.
-    mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
-  }
+      cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi,
+      get_ref_frame_buf(cm, mbmi->ref_frame[0])->base_qindex);
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
     // Do not search WARPED_CAUSAL if there are no samples to use to determine
@@ -1699,6 +1696,7 @@ static int64_t motion_mode_rd(
     last_motion_mode_allowed = OBMC_CAUSAL;
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  mbmi->num_proj_ref_pruned = mbmi->num_proj_ref;
 
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
@@ -1917,18 +1915,18 @@ static int64_t motion_mode_rd(
         memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
         // Select the samples according to motion vector difference
         if (mbmi->num_proj_ref > 1) {
-          mbmi->num_proj_ref = av1_selectSamples(
+          mbmi->num_proj_ref_pruned = av1_selectSamples(
               &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
         }
 
         // Compute the warped motion parameters with a least squares fit
         //  using the collected samples
 #if CONFIG_EXTENDED_WARP_PREDICTION
-        if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                                 mbmi->mv[0].as_mv, &mbmi->wm_params[0], mi_row,
-                                 mi_col))
+        if (!av1_find_projection(mbmi->num_proj_ref_pruned, pts, pts_inref,
+                                 bsize, mbmi->mv[0].as_mv, &mbmi->wm_params[0],
+                                 mi_row, mi_col))
 #else
-      if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
+      if (!av1_find_projection(mbmi->num_proj_ref_pruned, pts, pts_inref, bsize,
                                mbmi->mv[0].as_mv, &mbmi->wm_params, mi_row,
                                mi_col))
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
@@ -3109,6 +3107,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
 
   mbmi->num_proj_ref = 0;
+  mbmi->num_proj_ref_pruned = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->ref_mv_idx = ref_mv_idx;
   rd_stats->rate += args->ref_frame_cost + args->single_comp_cost;
@@ -3161,6 +3160,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->num_proj_ref = 0;
+  mbmi->num_proj_ref_pruned = 0;
   if (is_comp_pred) {
     // Only compound_average
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -4255,6 +4255,7 @@ static int64_t handle_inter_mode(
       if (mbmi->ref_frame[1] == INTRA_FRAME) mbmi->ref_frame[1] = NONE_FRAME;
 
       mbmi->num_proj_ref = 0;
+      mbmi->num_proj_ref_pruned = 0;
       mbmi->motion_mode = SIMPLE_TRANSLATION;
       mbmi->ref_mv_idx = ref_mv_idx;
       set_mv_precision(mbmi, mbmi->max_mv_precision);
@@ -4350,6 +4351,7 @@ static int64_t handle_inter_mode(
         if (mbmi->ref_frame[1] == INTRA_FRAME) mbmi->ref_frame[1] = NONE_FRAME;
 
         mbmi->num_proj_ref = 0;
+        mbmi->num_proj_ref_pruned = 0;
         mbmi->motion_mode = SIMPLE_TRANSLATION;
         mbmi->ref_mv_idx = ref_mv_idx;
         // Compute cost for signalling this DRL index
@@ -4600,6 +4602,7 @@ static int64_t handle_inter_mode(
             mbmi->ref_frame[1] = NONE_FRAME;
 
           mbmi->num_proj_ref = 0;
+          mbmi->num_proj_ref_pruned = 0;
           mbmi->motion_mode = SIMPLE_TRANSLATION;
           mbmi->ref_mv_idx = ref_mv_idx;
 
@@ -9049,8 +9052,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
     // Select the samples according to motion vector difference
     if (mbmi->num_proj_ref > 1)
-      mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
-                                             mbmi->num_proj_ref, bsize);
+      mbmi->num_proj_ref_pruned = av1_selectSamples(
+          &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
   }
 
 #if CONFIG_C071_SUBBLK_WARPMV
