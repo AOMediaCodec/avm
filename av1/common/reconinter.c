@@ -2706,14 +2706,11 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   MV refined_mv0, refined_mv1;
   refined_mv0 = center_mvs[0];
   refined_mv1 = center_mvs[1];
-#if !REMOVE_EARLY_TERMINATION
 #if RELUX_ET_THRESHOLD == 2
   int et_sad_th = (bw * bh) << 1;
 #else
   int et_sad_th = bw * bh;
 #endif
-#endif
-
 #if !SINGLE_STEP_SEARCH
   uint8_t already_searched[5][5];
   for (int i = 0; i < 5; i++) {
@@ -2826,8 +2823,6 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
       if (this_sad < min_sad) {
         min_sad = this_sad;
         best_idx = idx;
-
-#if !REMOVE_EARLY_TERMINATION
         // if the SAD is less than predefined threshold consider this candidate
         // as good enough to skip rest of the search.
         if (min_sad < et_sad_th) {
@@ -2841,7 +2836,6 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
 #endif
           return;
         }
-#endif
       }
     }
 

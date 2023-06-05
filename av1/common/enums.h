@@ -58,7 +58,6 @@ extern "C" {
 #if SINGLE_STEP_SEARCH
 #define RASTER_SCAN 0
 #define ALL_SEARCH_POINTS 1
-#define REMOVE_EARLY_TERMINATION 1
 #endif
 
 #define PADING_AT_LARGE_TIP_BLOCK 1
