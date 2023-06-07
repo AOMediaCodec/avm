@@ -516,7 +516,7 @@ void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
     int partition_vert_allowed, bool *prune_horz, bool *prune_vert) {
-  // TODO(now): Need to change for CONFIG_UNEVEN_4WAY.
+  // TODO(urvang): Need to change for CONFIG_UNEVEN_4WAY.
 #if CONFIG_UNEVEN_4WAY
   assert(0 && "Not implemented");
 #endif  // CONFIG_UNEVEN_4WAY
