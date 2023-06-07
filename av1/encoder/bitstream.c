@@ -4727,7 +4727,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
       current_frame->frame_type == INTER_FRAME ||
       current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
-    if (cm->seq_params.enable_short_refresh_frame_flags) {
+    if (cm->seq_params.enable_short_refresh_frame_flags &&
+        !cm->features.error_resilient_mode) {
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
     } else {
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);

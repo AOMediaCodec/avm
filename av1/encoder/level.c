@@ -331,7 +331,8 @@ static void update_ref_buffers(const AV1_COMMON *const cm,
   (void)cm;
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
 #if CONFIG_REFRESH_FLAG
-  if (cm->seq_params.enable_short_refresh_frame_flags) {
+  if (cm->seq_params.enable_short_refresh_frame_flags &&
+      !cm->features.error_resilient_mode) {
     if (refresh_frame_flags == REFRESH_FRAME_ALL) {
       for (int i = 0; i < REF_FRAMES; ++i) {
         const int pre_idx = decoder_model->vbi[i];

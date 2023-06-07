@@ -6265,7 +6265,8 @@ static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
 #if CONFIG_REFRESH_FLAG
-  if (cm->seq_params.enable_short_refresh_frame_flags) {
+  if (cm->seq_params.enable_short_refresh_frame_flags &&
+      !cm->features.error_resilient_mode) {
     if (refresh_frame_flags == REFRESH_FRAME_ALL) {
       for (int i = 0; i < REF_FRAMES; i++) {
         cm->ref_frame_id[i] = cm->current_frame_id;
@@ -6498,8 +6499,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         show_existing_frame_reset(pbi, existing_frame_idx);
       } else {
 #if CONFIG_REFRESH_FLAG
-        current_frame->refresh_frame_flags =
-            cm->seq_params.enable_short_refresh_frame_flags ? -1 : 0;
+        const int short_refresh_frame_flags =
+            cm->seq_params.enable_short_refresh_frame_flags &&
+            !cm->features.error_resilient_mode;
+        current_frame->refresh_frame_flags = short_refresh_frame_flags ? -1 : 0;
 #else
         current_frame->refresh_frame_flags = 0;
 #endif  // CONFIG_REFRESH_FLAG
@@ -6669,8 +6672,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 #if CONFIG_REFRESH_FLAG
+  const int short_refresh_frame_flags =
+      cm->seq_params.enable_short_refresh_frame_flags &&
+      !cm->features.error_resilient_mode;
   const int refresh_frame_flags_bits =
-      cm->seq_params.enable_short_refresh_frame_flags ? 3 : REF_FRAMES;
+      short_refresh_frame_flags ? 3 : REF_FRAMES;
 #endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)

@@ -473,7 +473,8 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     // we don't update the references here.
     if (!pbi->camera_frame_header_ready) {
 #if CONFIG_REFRESH_FLAG
-      if (cm->seq_params.enable_short_refresh_frame_flags) {
+      if (cm->seq_params.enable_short_refresh_frame_flags &&
+          !cm->features.error_resilient_mode) {
         if (cm->current_frame.refresh_frame_flags == REFRESH_FRAME_ALL) {
           for (int i = 0; i < REF_FRAMES; ++i) {
             decrease_ref_count(cm->ref_frame_map[i], pool);

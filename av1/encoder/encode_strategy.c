@@ -372,7 +372,8 @@ static void update_fb_of_context_type(
 
       for (int i = 0; i < REF_FRAMES; i++) {
 #if CONFIG_REFRESH_FLAG
-        if (cm->seq_params.enable_short_refresh_frame_flags) {
+        if (cm->seq_params.enable_short_refresh_frame_flags &&
+            !cm->features.error_resilient_mode) {
           if (cm->current_frame.refresh_frame_flags == i) {
             fb_of_context_type[current_frame_ref_type] = i;
             break;
@@ -616,7 +617,8 @@ int av1_get_refresh_ref_frame_map(AV1_COMMON *cm, int refresh_frame_flags) {
 
   for (ref_map_index = 0; ref_map_index < REF_FRAMES; ++ref_map_index)
 #if CONFIG_REFRESH_FLAG
-    if (cm->seq_params.enable_short_refresh_frame_flags) {
+    if (cm->seq_params.enable_short_refresh_frame_flags &&
+        !cm->features.error_resilient_mode) {
       if (refresh_frame_flags == ref_map_index) break;
     } else {
       if ((refresh_frame_flags >> ref_map_index) & 1) break;
@@ -751,7 +753,8 @@ int av1_get_refresh_frame_flags(
 
 #if CONFIG_REFRESH_FLAG
   const int short_refresh_frame_flags =
-      cpi->common.seq_params.enable_short_refresh_frame_flags;
+      cpi->common.seq_params.enable_short_refresh_frame_flags &&
+      !cpi->common.features.error_resilient_mode;
   const int default_refresh_idx = short_refresh_frame_flags ? -1 : 0;
 #endif  // CONFIG_REFRESH_FLAG
 
