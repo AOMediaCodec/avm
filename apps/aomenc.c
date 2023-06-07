@@ -489,6 +489,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_warp_delta,
   &g_av1_codec_arg_defs.enable_warp_extend,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_REFRESH_FLAG
+  &g_av1_codec_arg_defs.enable_short_refresh_frame_flags,
+#endif  // CONFIG_REFRESH_FLAG
   NULL,
 };
 
@@ -721,6 +724,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_PAR_HIDING
   config->enable_parity_hiding = 1;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_REFRESH_FLAG
+  config->enable_short_refresh_frame_flags = 1;
+#endif  // CONFIG_REFRESH_FLAG
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that

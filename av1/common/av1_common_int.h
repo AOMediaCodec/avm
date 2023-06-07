@@ -509,6 +509,9 @@ typedef struct SequenceHeader {
 #if CONFIG_EXT_RECUR_PARTITIONS
   uint8_t enable_ext_partitions;  // enable extended partitions
 #endif                            // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_REFRESH_FLAG
+  uint8_t enable_short_refresh_frame_flags;
+#endif  // CONFIG_REFRESH_FLAG
   BITSTREAM_PROFILE profile;
 
   // Color config.

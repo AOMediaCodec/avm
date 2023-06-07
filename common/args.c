@@ -168,6 +168,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_PAR_HIDING
     GET_PARAMS(enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_REFRESH_FLAG
+    GET_PARAMS(enable_short_refresh_frame_flags);
+#endif  // CONFIG_REFRESH_FLAG
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);

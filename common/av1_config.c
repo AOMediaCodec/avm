@@ -282,6 +282,9 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
 #if CONFIG_PAR_HIDING
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_REFRESH_FLAG
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_short_refresh_frame_flags);
+#endif  // CONFIG_REFRESH_FLAG
 
   return 0;
 }

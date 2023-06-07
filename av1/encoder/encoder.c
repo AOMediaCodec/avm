@@ -542,6 +542,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_PAR_HIDING
   seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_REFRESH_FLAG
+  seq->enable_short_refresh_frame_flags =
+      tool_cfg->enable_short_refresh_frame_flags;
+#endif  // CONFIG_REFRESH_FLAG
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {

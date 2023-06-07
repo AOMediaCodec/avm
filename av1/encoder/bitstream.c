@@ -4474,6 +4474,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_EXT_RECUR_PARTITIONS
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_REFRESH_FLAG
+  aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
+#endif  // CONFIG_REFRESH_FLAG
 }
 
 static AOM_INLINE void write_global_motion_params(
