@@ -6265,14 +6265,23 @@ static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
 #if CONFIG_REFRESH_FLAG
-  if (refresh_frame_flags == REFRESH_FRAME_ALL) {
-    for (int i = 0; i < REF_FRAMES; i++) {
-      cm->ref_frame_id[i] = cm->current_frame_id;
-      pbi->valid_for_referencing[i] = 1;
+  if (cm->seq_params.enable_short_refresh_frame_flags) {
+    if (refresh_frame_flags == REFRESH_FRAME_ALL) {
+      for (int i = 0; i < REF_FRAMES; i++) {
+        cm->ref_frame_id[i] = cm->current_frame_id;
+        pbi->valid_for_referencing[i] = 1;
+      }
+    } else {
+      for (int i = 0; i < REF_FRAMES; i++) {
+        if (refresh_frame_flags == i) {
+          cm->ref_frame_id[i] = cm->current_frame_id;
+          pbi->valid_for_referencing[i] = 1;
+        }
+      }
     }
   } else {
     for (int i = 0; i < REF_FRAMES; i++) {
-      if (refresh_frame_flags == i) {
+      if ((refresh_frame_flags >> i) & 1) {
         cm->ref_frame_id[i] = cm->current_frame_id;
         pbi->valid_for_referencing[i] = 1;
       }
@@ -6489,7 +6498,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         show_existing_frame_reset(pbi, existing_frame_idx);
       } else {
 #if CONFIG_REFRESH_FLAG
-        current_frame->refresh_frame_flags = -1;
+        current_frame->refresh_frame_flags =
+            cm->seq_params.enable_short_refresh_frame_flags ? -1 : 0;
 #else
         current_frame->refresh_frame_flags = 0;
 #endif  // CONFIG_REFRESH_FLAG
@@ -6658,13 +6668,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
   }
+#if CONFIG_REFRESH_FLAG
+  const int refresh_frame_flags_bits =
+      cm->seq_params.enable_short_refresh_frame_flags ? 3 : REF_FRAMES;
+#endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
 #if CONFIG_REFRESH_FLAG
-      current_frame->refresh_frame_flags = aom_rb_read_literal(rb, 3);
+      current_frame->refresh_frame_flags =
+          aom_rb_read_literal(rb, refresh_frame_flags_bits);
 #else
       current_frame->refresh_frame_flags = aom_rb_read_literal(rb, REF_FRAMES);
-#endif  // CONFIG_REFRESH_FLAG
+#endif        // CONFIG_REFRESH_FLAG
     } else {  // shown keyframe
       current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
     }
@@ -6679,7 +6694,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else {
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
-      current_frame->refresh_frame_flags = aom_rb_read_literal(rb, 3);
+      current_frame->refresh_frame_flags =
+          aom_rb_read_literal(rb, refresh_frame_flags_bits);
 #else
       current_frame->refresh_frame_flags = aom_rb_read_literal(rb, REF_FRAMES);
 #endif  // CONFIG_REFRESH_FLAG
@@ -6694,10 +6710,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
 #if CONFIG_REFRESH_FLAG
       current_frame->refresh_frame_flags =
-          frame_is_sframe(cm) ? REFRESH_FRAME_ALL : aom_rb_read_literal(rb, 3);
+          frame_is_sframe(cm)
+              ? REFRESH_FRAME_ALL
+              : aom_rb_read_literal(rb, refresh_frame_flags_bits);
 #else
       current_frame->refresh_frame_flags =
-          frame_is_sframe(cm) ? REFRESH_FRAME_ALL : aom_rb_read_literal(rb, REF_FRAMES);
+          frame_is_sframe(cm) ? REFRESH_FRAME_ALL
+                              : aom_rb_read_literal(rb, REF_FRAMES);
 #endif  // CONFIG_REFRESH_FLAG
     }
   }

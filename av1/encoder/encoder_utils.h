@@ -925,13 +925,21 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
 
   // All buffers are refreshed for shown keyframes and S-frames.
 #if CONFIG_REFRESH_FLAG
-  if (cm->current_frame.refresh_frame_flags == REFRESH_FRAME_ALL) {
-    for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
-      assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+  if (cm->seq_params.enable_short_refresh_frame_flags) {
+    if (cm->current_frame.refresh_frame_flags == REFRESH_FRAME_ALL) {
+      for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
+        assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+      }
+    } else {
+      for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
+        if (cm->current_frame.refresh_frame_flags == ref_frame) {
+          assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+        }
+      }
     }
   } else {
     for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
-      if (cm->current_frame.refresh_frame_flags == ref_frame) {
+      if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
         assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
       }
     }

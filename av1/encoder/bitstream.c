@@ -2067,7 +2067,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
           aom_write_symbol(w, mbmi->use_wedge_interintra,
                            ec_ctx->wedge_interintra_cdf[bsize], 2);
           if (mbmi->use_wedge_interintra) {
-
 #if CONFIG_WEDGE_MOD_EXT
             write_wedge_mode(w, ec_ctx, bsize, mbmi->interintra_wedge_index);
 #else
@@ -4728,7 +4727,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
       current_frame->frame_type == INTER_FRAME ||
       current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
-    aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
+    if (cm->seq_params.enable_short_refresh_frame_flags) {
+      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
+    } else {
+      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
+    }
 #else
     aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
 #endif  // CONFIG_REFRESH_FLAG

@@ -473,22 +473,34 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     // we don't update the references here.
     if (!pbi->camera_frame_header_ready) {
 #if CONFIG_REFRESH_FLAG
-      if (cm->current_frame.refresh_frame_flags == REFRESH_FRAME_ALL) {
-        for (int i = 0; i < REF_FRAMES; ++i) {
-          decrease_ref_count(cm->ref_frame_map[i], pool);
-          cm->ref_frame_map[i] = cm->cur_frame;
-          ++cm->cur_frame->ref_count;
-        }
-      } else {
-        // The following for loop needs to release the reference stored in
-        // cm->ref_frame_map[i] before storing a reference to
-        // cm->cur_frame in cm->ref_frame_map[i].
-        for (int i = 0; i < REF_FRAMES; ++i) {
-          if (cm->current_frame.refresh_frame_flags == i) {
+      if (cm->seq_params.enable_short_refresh_frame_flags) {
+        if (cm->current_frame.refresh_frame_flags == REFRESH_FRAME_ALL) {
+          for (int i = 0; i < REF_FRAMES; ++i) {
             decrease_ref_count(cm->ref_frame_map[i], pool);
             cm->ref_frame_map[i] = cm->cur_frame;
             ++cm->cur_frame->ref_count;
           }
+        } else {
+          // The following for loop needs to release the reference stored in
+          // cm->ref_frame_map[i] before storing a reference to
+          // cm->cur_frame in cm->ref_frame_map[i].
+          for (int i = 0; i < REF_FRAMES; ++i) {
+            if (cm->current_frame.refresh_frame_flags == i) {
+              decrease_ref_count(cm->ref_frame_map[i], pool);
+              cm->ref_frame_map[i] = cm->cur_frame;
+              ++cm->cur_frame->ref_count;
+            }
+          }
+        }
+      } else {
+        for (int mask = cm->current_frame.refresh_frame_flags; mask;
+             mask >>= 1) {
+          if (mask & 1) {
+            decrease_ref_count(cm->ref_frame_map[ref_index], pool);
+            cm->ref_frame_map[ref_index] = cm->cur_frame;
+            ++cm->cur_frame->ref_count;
+          }
+          ++ref_index;
         }
       }
 #else
