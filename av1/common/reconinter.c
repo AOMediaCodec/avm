@@ -1822,6 +1822,9 @@ static void build_inter_predictors_8x8_and_bigger(
       (mi->mode >= NEAR_NEARMV_OPTFLOW ||
        (cm->features.opfl_refine_type == REFINE_ALL &&
         mi->mode != GLOBAL_GLOBALMV &&
+#if CONFIG_CWP
+        mi->cwp_idx == CWP_EQUAL &&
+#endif
         mi->interinter_comp.type == COMPOUND_AVERAGE)) &&
       is_compound && is_opfl_refine_allowed(cm, mi);
   assert(IMPLIES(use_optflow_refinement,

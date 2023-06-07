@@ -651,9 +651,6 @@ static INLINE int use_opfl_refine_all(const AV1_COMMON *cm,
          mbmi->mode >= COMP_INTER_MODE_START &&
          mbmi->mode < COMP_OPTFLOW_MODE_START &&
          mbmi->mode != GLOBAL_GLOBALMV &&
-#if CONFIG_CWP
-         mbmi->cwp_idx == CWP_EQUAL &&
-#endif
          mbmi->interinter_comp.type == COMPOUND_AVERAGE;
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
