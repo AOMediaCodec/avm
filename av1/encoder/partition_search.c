@@ -5088,14 +5088,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
   const AV1_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
-  // TODO(now): Rename 'prune_part_3_with_part_none' and
-  // 'prune_part_3_with_part_rect'.
-  // Prune HORZ 4A with speed features
-  // TODO(now): speed feature.
-  const int prune_part4_horz_or_vert = 1;
-#if CONFIG_H_PARTITION
-  const int prune_part4_from_part_h = 1;
-#endif  // CONFIG_H_PARTITION
   if (part_search_state->partition_4a_allowed[HORZ] &&
       forced_partition != PARTITION_HORZ_4A) {
     if (part_sf->prune_part_3_with_part_none &&
@@ -5112,7 +5104,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h &&  !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_with_part_3 &&  !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
         !node_uses_horz(pc_tree->horizontal3[3])) {
@@ -5121,7 +5113,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
 #endif  // CONFIG_H_PARTITION
-    if (prune_part4_horz_or_vert &&  !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_horz_or_vert &&  !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
       part_search_state->prune_partition_4a[HORZ] = 1;
@@ -5145,7 +5137,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h && !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
 pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
         !node_uses_horz(pc_tree->horizontal3[3])) {
@@ -5154,7 +5146,7 @@ pc_tree->partitioning == PARTITION_HORZ_3 &&
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
 #endif  // CONFIG_H_PARTITION
-    if (prune_part4_horz_or_vert && !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
 pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
       part_search_state->prune_partition_4b[HORZ] = 1;
@@ -5178,7 +5170,7 @@ pc_tree->partitioning == PARTITION_VERT &&
       part_search_state->prune_partition_4a[VERT] = 1;
     }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h && !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
 pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
         !node_uses_vert(pc_tree->vertical3[3])) {
@@ -5187,7 +5179,7 @@ pc_tree->partitioning == PARTITION_VERT_3 &&
       part_search_state->prune_partition_4a[VERT] = 1;
     }
 #endif  // CONFIG_H_PARTITION
-    if (prune_part4_horz_or_vert && !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
 pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4a[VERT] = 1;
@@ -5211,7 +5203,7 @@ pc_tree->partitioning == PARTITION_HORZ &&
       part_search_state->prune_partition_4b[VERT] = 1;
     }
 #if CONFIG_H_PARTITION
-    if (prune_part4_from_part_h && !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
 pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
         !node_uses_vert(pc_tree->vertical3[3])) {
@@ -5220,7 +5212,7 @@ pc_tree->partitioning == PARTITION_VERT_3 &&
       part_search_state->prune_partition_4b[VERT] = 1;
     }
 #endif  // CONFIG_H_PARTITION
-    if (prune_part4_horz_or_vert && !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
 pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4b[VERT] = 1;
