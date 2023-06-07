@@ -5047,12 +5047,12 @@ static AOM_INLINE void prune_ext_partitions_3way(
   // Prune horz 3 with speed features
   if (part_search_state->partition_3_allowed[HORZ] &&
       !frame_is_intra_only(cm) && forced_partition != PARTITION_HORZ_3) {
-    if (part_sf->prune_part_3_with_part_none &&
+    if (part_sf->prune_ext_part_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition_3[HORZ] = 1;
     }
-    if (part_sf->prune_part_3_with_part_rect &&
+    if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_HORZ &&
         !node_uses_horz(pc_tree->horizontal[0]) &&
         !node_uses_horz(pc_tree->horizontal[1])) {
@@ -5064,12 +5064,12 @@ static AOM_INLINE void prune_ext_partitions_3way(
 
   if (part_search_state->partition_3_allowed[VERT] &&
       !frame_is_intra_only(cm) && forced_partition != PARTITION_VERT_3) {
-    if (part_sf->prune_part_3_with_part_none &&
+    if (part_sf->prune_ext_part_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition_3[VERT] = 1;
     }
-    if (part_sf->prune_part_3_with_part_rect &&
+    if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_VERT &&
         !node_uses_vert(pc_tree->vertical[0]) &&
         !node_uses_vert(pc_tree->vertical[1])) {
@@ -5090,12 +5090,12 @@ static AOM_INLINE void prune_ext_partitions_4way(
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
   if (part_search_state->partition_4a_allowed[HORZ] &&
       forced_partition != PARTITION_HORZ_4A) {
-    if (part_sf->prune_part_3_with_part_none &&
+    if (part_sf->prune_ext_part_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
-    if (part_sf->prune_part_3_with_part_rect &&
+    if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_HORZ &&
         !node_uses_horz(pc_tree->horizontal[0]) &&
         !node_uses_horz(pc_tree->horizontal[1])) {
@@ -5123,12 +5123,12 @@ static AOM_INLINE void prune_ext_partitions_4way(
   // Prune HORZ 4B with speed features
   if (part_search_state->partition_4b_allowed[HORZ] &&
       forced_partition != PARTITION_HORZ_4B) {
-    if (part_sf->prune_part_3_with_part_none &&
+    if (part_sf->prune_ext_part_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
-    if (part_sf->prune_part_3_with_part_rect &&
+    if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_HORZ &&
         !node_uses_horz(pc_tree->horizontal[0]) &&
         !node_uses_horz(pc_tree->horizontal[1])) {
@@ -5156,12 +5156,12 @@ pc_tree->partitioning == PARTITION_VERT &&
   // Prune VERT_4A with speed features
   if (part_search_state->partition_4a_allowed[VERT] &&
       forced_partition != PARTITION_VERT_4A) {
-    if (part_sf->prune_part_3_with_part_none &&
+    if (part_sf->prune_ext_part_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition_4a[VERT] = 1;
     }
-    if (part_sf->prune_part_3_with_part_rect &&
+    if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_VERT &&
         !node_uses_vert(pc_tree->vertical[0]) &&
         !node_uses_vert(pc_tree->vertical[1])) {
@@ -5189,12 +5189,12 @@ pc_tree->partitioning == PARTITION_HORZ &&
   // Prune VERT_4B with speed features
   if (part_search_state->partition_4b_allowed[VERT] &&
       forced_partition != PARTITION_VERT_4B) {
-    if (part_sf->prune_part_3_with_part_none &&
+    if (part_sf->prune_ext_part_with_part_none &&
         pc_tree->partitioning == PARTITION_NONE) {
       // Prune if the best partition does not split
       part_search_state->prune_partition_4b[VERT] = 1;
     }
-    if (part_sf->prune_part_3_with_part_rect &&
+    if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_VERT &&
         !node_uses_vert(pc_tree->vertical[0]) &&
         !node_uses_vert(pc_tree->vertical[1])) {

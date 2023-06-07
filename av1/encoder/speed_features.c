@@ -756,8 +756,8 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->early_term_after_none_split = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
   part_sf->prune_rect_with_none_rd = 0;
-  part_sf->prune_part_3_with_part_none = 0;
-  part_sf->prune_part_3_with_part_rect = 0;
+  part_sf->prune_ext_part_with_part_none = 0;
+  part_sf->prune_ext_part_with_part_rect = 0;
   part_sf->prune_part_4_horz_or_vert = 0;
   part_sf->prune_part_4_with_part_3 = 0;
   part_sf->two_pass_partition_search = 0;
@@ -1054,12 +1054,12 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       // sf->part_sf.end_part_search_after_consec_failures = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 4:
-      sf->part_sf.prune_part_3_with_part_rect = 1;
+      sf->part_sf.prune_ext_part_with_part_rect = 1;
       sf->part_sf.prune_part_4_horz_or_vert = 1;
       sf->part_sf.prune_part_4_with_part_3 = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 3:
-      sf->part_sf.prune_part_3_with_part_none = 1;
+      sf->part_sf.prune_ext_part_with_part_none = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 2:
       sf->inter_sf.prune_ref_frame_for_rect_partitions =
