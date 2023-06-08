@@ -321,7 +321,7 @@ static INLINE int av1_get_skip_mode_context(const MACROBLOCKD *xd) {
 
 #if CONFIG_CWP
 static INLINE int av1_get_cwp_context() { return 0; }
-#endif
+#endif  // CONFIG_CWP
 
 static INLINE int av1_get_skip_txfm_context(const MACROBLOCKD *xd) {
   int ctx = 0;

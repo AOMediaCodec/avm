@@ -272,7 +272,7 @@ DECLARE_ALIGNED(16, static uint8_t,
 
 #if CONFIG_CWP
 DECLARE_ALIGNED(16, static int8_t, cwp_mask[2][MAX_CWP_NUM][MAX_SB_SQUARE]);
-#endif
+#endif  // CONFIG_CWP
 
 static wedge_masks_type wedge_masks[BLOCK_SIZES_ALL][2];
 
@@ -421,7 +421,7 @@ void init_cwp_masks() {
 const int8_t *av1_get_cwp_mask(int list_idx, int idx) {
   return cwp_mask[list_idx][idx];
 }
-#endif
+#endif  // CONFIG_CWP
 
 static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
                                              BLOCK_SIZE sb_type) {
@@ -1824,7 +1824,7 @@ static void build_inter_predictors_8x8_and_bigger(
         mi->mode != GLOBAL_GLOBALMV &&
 #if CONFIG_CWP
         mi->cwp_idx == CWP_EQUAL &&
-#endif
+#endif  // CONFIG_CWP
         mi->interinter_comp.type == COMPOUND_AVERAGE)) &&
       is_compound && is_opfl_refine_allowed(cm, mi);
   assert(IMPLIES(use_optflow_refinement,
@@ -1922,7 +1922,7 @@ static void build_inter_predictors_8x8_and_bigger(
         inter_pred_params.conv_params.bck_offset = 16 - weight;
       }
     }
-#endif
+#endif  // CONFIG_CWP
 
 #if CONFIG_OPTFLOW_REFINEMENT
     if (use_optflow_refinement && plane == 0) {

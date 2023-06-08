@@ -3020,7 +3020,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
   mbmi->num_proj_ref = 0;
   if (is_comp_pred) {
     // Only compound_average
@@ -3656,7 +3656,7 @@ static int process_compound_inter_mode(
   if (get_cwp(mbmi) != CWP_EQUAL) {
     mode_search_mask = (1 << COMPOUND_AVERAGE);
   }
-#endif
+#endif  // CONFIG_CWP
 
   const int num_planes = av1_num_planes(cm);
   const int mi_row = xd->mi_row;
@@ -3844,7 +3844,7 @@ static void set_cwp_search_mask(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
   return;
 }
-#endif
+#endif  // CONFIG_CWP
 
 /*!\brief AV1 inter mode RD computation
  *
@@ -4215,7 +4215,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_CWP
     int best_cwp_idx = CWP_EQUAL;
     int64_t best_cwp_cost = INT64_MAX;
-#endif
+#endif  // CONFIG_CWP
     for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
 #if CONFIG_IMPROVED_JMVD
       // apply early termination method to jmvd scaling factors
@@ -4228,7 +4228,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_CWP
       mbmi->cwp_idx = CWP_EQUAL;
       const int same_side = is_ref_frame_same_side(cm, mbmi);
-      int cwp_loop_num = MAX_CWP_NUM;
+      int cwp_loop_num = cm->features.enable_cwp ? MAX_CWP_NUM : 1;
       if (best_cwp_idx == CWP_EQUAL && ref_mv_idx > 0) cwp_loop_num = 1;
 
       int cwp_search_mask[MAX_CWP_NUM] = { 0 };
@@ -4693,7 +4693,7 @@ static int64_t handle_inter_mode(
                                   rd_buffers->diff10, block_size_wide[bsize],
                                   cwp_search_mask);
             }
-#endif
+#endif  // CONFIG_CWP
 
             // Handle a compound predictor, continue if it is determined this
             // cannot be the best compound mode
@@ -4710,13 +4710,14 @@ static int64_t handle_inter_mode(
             }
 
 #if CONFIG_CWP
-            if (is_comp_pred && is_joint_amvd_coding_mode(mbmi->mode)) {
+            if (cm->features.enable_cwp && is_comp_pred &&
+                is_joint_amvd_coding_mode(mbmi->mode)) {
               if (is_cwp_coding_mode(mbmi)) {
                 compmode_interinter_cost =
                     av1_get_cwp_idx_cost(mbmi->cwp_idx, cm, x);
               }
             }
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
             assert(check_mv_precision(cm, mbmi, x));
@@ -4931,7 +4932,7 @@ static int64_t handle_inter_mode(
                   best_cwp_idx = mbmi->cwp_idx;
                 }
               }
-#endif
+#endif  // CONFIG_CWP
               if (tmp_rd < ref_best_rd) {
                 ref_best_rd = tmp_rd;
                 best_ref_mv_idx = ref_mv_idx;
@@ -4946,7 +4947,7 @@ static int64_t handle_inter_mode(
 #endif
 #if CONFIG_CWP
       }
-#endif
+#endif  // CONFIG_CWP
     }
 #if CONFIG_IMPROVED_JMVD
   }
@@ -5507,7 +5508,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
 #if CONFIG_CWP
     mbmi->cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 
 #if CONFIG_WARP_REF_LIST
     mbmi->warp_ref_idx = 0;
@@ -5741,12 +5742,12 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
 
 #if CONFIG_OPTFLOW_REFINEMENT
+  const PREDICTION_MODE this_mode = cm->features.opfl_refine_type
 #if CONFIG_CWP
-  const PREDICTION_MODE this_mode = NEAR_NEARMV;
-#else
-  const PREDICTION_MODE this_mode =
-      cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV;
-#endif
+                                            && !cm->features.enable_cwp
+#endif  // CONFIG_CWP
+                                        ? NEAR_NEARMV_OPTFLOW
+                                        : NEAR_NEARMV;
 #else
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -5764,7 +5765,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   mbmi->ref_frame[1] = second_ref_frame;
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #endif  // CONFIG_IBC_SR_EXT
@@ -5801,14 +5802,19 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
 #if CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_CWP
-  assert(this_mode == NEAR_NEARMV);
-  assert(mbmi->mode == NEAR_NEARMV);
-#else
+  assert(this_mode == (cm->features.opfl_refine_type && !cm->features.enable_cwp
+                           ? NEAR_NEARMV_OPTFLOW
+                           : NEAR_NEARMV));
+  assert(mbmi->mode ==
+         (cm->features.opfl_refine_type && !cm->features.enable_cwp
+              ? NEAR_NEARMV_OPTFLOW
+              : NEAR_NEARMV));
+#else   // CONFIG_CWP
   assert(this_mode ==
          (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV));
   assert(mbmi->mode ==
          (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV));
-#endif
+#endif  // CONFIG_CWP
 #else
   assert(this_mode == NEAR_NEARMV);
   assert(mbmi->mode == NEAR_NEARMV);
@@ -5901,7 +5907,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #if CONFIG_CWP
     mbmi->cwp_idx =
         xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
-#endif
+#endif  // CONFIG_CWP
 
     if (!build_cur_mv(mbmi->mv, this_mode, cm, x, 0)) {
       assert(av1_check_newmv_joint_nonzero(cm, x));
@@ -6011,12 +6017,12 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
       search_state->best_mbmode.fsc_mode[xd->tree_type == CHROMA_PART] = 0;
 
+      search_state->best_mbmode.mode = (cm->features.opfl_refine_type
 #if CONFIG_CWP
-      search_state->best_mbmode.mode = NEAR_NEARMV;
-#else
-      search_state->best_mbmode.mode =
-          (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV);
-#endif
+                                                && !cm->features.enable_cwp
+#endif  // CONFIG_CWP
+                                            ? NEAR_NEARMV_OPTFLOW
+                                            : NEAR_NEARMV);
       search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
       search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
       search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;
@@ -7222,7 +7228,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   set_default_interp_filters(mbmi,
@@ -9121,7 +9127,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->ref_mv_idx = 0;
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_FLEX_MVRES

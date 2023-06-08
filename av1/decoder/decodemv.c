@@ -626,7 +626,7 @@ static int read_cwp_idx(MACROBLOCKD *xd, aom_reader *r, const AV1_COMMON *cm,
   int weight = get_cwp_coding_idx(cwp_idx, 0, cm, mbmi);
   return weight;
 }
-#endif
+#endif  // CONFIG_CWP
 
 static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1407,7 +1407,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
       xd->ref_mv_stack[INTRA_FRAME][i].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
     }
 #endif  // CONFIG_BVP_IMPROVEMENT
 
@@ -2664,7 +2664,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   mbmi->jmvd_scale_mode = 0;
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -2682,12 +2682,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   if (mbmi->skip_mode) {
     assert(is_compound);
 #if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+    mbmi->mode = (cm->features.opfl_refine_type
 #if CONFIG_CWP
-    mbmi->mode = NEAR_NEARMV;
-#else
-    mbmi->mode =
-        (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV);
-#endif
+                          && !cm->features.enable_cwp
+#endif  // CONFIG_CWP
+                      ? NEAR_NEARMV_OPTFLOW
+                      : NEAR_NEARMV);
 #else
     mbmi->mode = NEAR_NEARMV;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
@@ -2824,7 +2824,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   if (mbmi->skip_mode) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_CWP
-    assert(mbmi->mode == NEAR_NEARMV);
+    assert(mbmi->mode ==
+           (cm->features.opfl_refine_type && !cm->features.enable_cwp
+                ? NEAR_NEARMV_OPTFLOW
+                : NEAR_NEARMV));
 #else
     assert(mbmi->mode ==
            (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV));
@@ -3001,12 +3004,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
-  if (is_cwp_coding_mode(mbmi) && !mbmi->skip_mode)
-    mbmi->cwp_idx = read_cwp_idx(xd, r, cm, mbmi);
-  if (is_cwp_coding_mode(mbmi) && mbmi->skip_mode)
-    mbmi->cwp_idx =
-        xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
-#endif
+  if (cm->features.enable_cwp) {
+    if (is_cwp_coding_mode(mbmi) && !mbmi->skip_mode)
+      mbmi->cwp_idx = read_cwp_idx(xd, r, cm, mbmi);
+    if (is_cwp_coding_mode(mbmi) && mbmi->skip_mode)
+      mbmi->cwp_idx =
+          xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
+  }
+#endif  // CONFIG_CWP
 
   read_mb_interp_filter(xd, features->interp_filter, cm, mbmi, r);
 
@@ -3145,7 +3150,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;

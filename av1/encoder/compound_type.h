@@ -27,7 +27,7 @@ typedef struct {
   int best_compmode_interinter_cost;
 #if CONFIG_CWP
   int cwp_idx;
-#endif
+#endif  // CONFIG_CWP
 } BEST_COMP_TYPE_STATS;
 
 #define IGNORE_MODE -1

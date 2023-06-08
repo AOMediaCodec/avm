@@ -2959,7 +2959,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 
 #if CONFIG_CWP
   av1_copy(fc->cwp_idx_cdf, default_cwp_idx_cdf);
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_IMPROVED_JMVD
   av1_copy(fc->jmvd_scale_mode_cdf, default_jmvd_scale_mode_cdf);
   av1_copy(fc->jmvd_amvd_scale_mode_cdf, default_jmvd_amvd_scale_mode_cdf);

@@ -40,7 +40,7 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
 
 #if CONFIG_CWP
   if (st->cwp_idx != mi->cwp_idx) return 0;
-#endif
+#endif  // CONFIG_CWP
 
   const MACROBLOCKD *const xd = &x->e_mbd;
   // Match MV and reference indices
@@ -93,7 +93,7 @@ static INLINE int find_comp_rd_in_stats(const AV1_COMP *const cpi,
                                         int *match_index) {
 #if CONFIG_CWP
   if (mbmi->cwp_idx != CWP_EQUAL) return 0;
-#endif
+#endif  // CONFIG_CWP
 
   for (int j = 0; j < x->comp_rd_stats_idx; ++j) {
     if (is_comp_rd_match(cpi, x, &x->comp_rd_stats[j], mbmi, comp_rate,
@@ -984,7 +984,7 @@ static INLINE void update_mbmi_for_compound_type(MB_MODE_INFO *mbmi,
   mbmi->comp_group_idx = (cur_type >= COMPOUND_WEDGE);
 #if CONFIG_CWP
   mbmi->cwp_idx = (cur_type == COMPOUND_AVERAGE) ? mbmi->cwp_idx : CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 }
 
 // When match is found, populate the compound type data
@@ -1021,7 +1021,7 @@ static INLINE void update_best_info(const MB_MODE_INFO *const mbmi, int64_t *rd,
   best_type_stats->best_compmode_interinter_cost = rs2;
 #if CONFIG_CWP
   best_type_stats->cwp_idx = mbmi->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
 }
 
 // Updates best_mv for masked compound types
@@ -1048,7 +1048,7 @@ static INLINE void save_comp_rd_search_stat(
     const int64_t *comp_model_dist, const int_mv *cur_mv, const int *comp_rs2) {
 #if CONFIG_CWP
   if (mbmi->cwp_idx != CWP_EQUAL) return;
-#endif
+#endif  // CONFIG_CWP
   const int offset = x->comp_rd_stats_idx;
   if (offset < MAX_COMP_RD_STATS) {
     COMP_RD_STATS *const rd_stats = x->comp_rd_stats + offset;
@@ -1064,7 +1064,7 @@ static INLINE void save_comp_rd_search_stat(
     rd_stats->ref_mv_idx = mbmi->ref_mv_idx;
 #if CONFIG_CWP
     rd_stats->cwp_idx = mbmi->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
     const MACROBLOCKD *const xd = &x->e_mbd;
     for (int i = 0; i < 2; ++i) {
       const WarpedMotionParams *const wm =
@@ -1344,7 +1344,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
 #if CONFIG_CWP
   best_type_stats.cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 
   int tmp_rate_mv;
   const int num_pix = 1 << num_pels_log2_lookup[bsize];
@@ -1429,10 +1429,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       rs2 = masked_type_cost[cur_type];
 
 #if CONFIG_CWP
-      if (is_cwp_coding_mode(mbmi) && !mbmi->skip_mode) {
+      if (cm->features.enable_cwp && is_cwp_coding_mode(mbmi) &&
+          !mbmi->skip_mode) {
         rs2 += av1_get_cwp_idx_cost(mbmi->cwp_idx, cm, x);
       }
-#endif
+#endif  // CONFIG_CWP
 
       const int64_t mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
       if (mode_rd < ref_best_rd) {
@@ -1539,7 +1540,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_CWP
   // update best cwp_idx
   mbmi->cwp_idx = best_type_stats.cwp_idx;
-#endif
+#endif  // CONFIG_CWP
 
   if (have_newmv_in_inter_mode(this_mode)) {
     mbmi->mv[0].as_int = best_mv[0].as_int;

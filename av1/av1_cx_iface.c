@@ -137,7 +137,10 @@ struct av1_extracfg {
 #if CONFIG_BAWP
   int enable_bawp;  // enable block adaptive weighted prediction
 #endif              // CONFIG_BAWP
-  int enable_fsc;   // enable forward skip coding
+#if CONFIG_CWP
+  int enable_cwp;  // enable compound weighted prediction
+#endif             // CONFIG_CWP
+  int enable_fsc;  // enable forward skip coding
 #if CONFIG_ORIP
   int enable_orip;  // enable ORIP
 #endif              // CONFIG_ORIP
@@ -468,6 +471,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_BAWP
   1,    // enable block adaptive weighted prediction (BAWP)
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  1,    // enable compound weighted prediction (CWP)
+#endif  // CONFIG_CWP
   1,    // enable forward skip coding
 #if CONFIG_ORIP
   1,    // enable ORIP
@@ -960,6 +966,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_BAWP
   cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  cfg->enable_cwp = extra_cfg->enable_cwp;
+#endif  // CONFIG_CWP
   cfg->enable_fsc = extra_cfg->enable_fsc;
 #if CONFIG_ORIP
   cfg->enable_orip = extra_cfg->enable_orip;
@@ -1074,6 +1083,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_BAWP
   extra_cfg->enable_bawp = cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  extra_cfg->enable_cwp = cfg->enable_cwp;
+#endif  // CONFIG_CWP
   extra_cfg->enable_fsc = cfg->enable_fsc;
 #if CONFIG_ORIP
   extra_cfg->enable_orip = cfg->enable_orip;
@@ -1391,6 +1403,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_BAWP
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  tool_cfg->enable_cwp = extra_cfg->enable_cwp;
+#endif  // CONFIG_CWP
   tool_cfg->force_video_mode = extra_cfg->force_video_mode;
   tool_cfg->enable_palette = extra_cfg->enable_palette;
   // FIXME(debargha): Should this be:
@@ -3804,6 +3819,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_bawp = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cwp, argv,
+                              err_string)) {
+    extra_cfg.enable_cwp = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_CWP
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_fsc, argv,
                               err_string)) {
     extra_cfg.enable_fsc = arg_parse_int_helper(&arg, err_string);
@@ -4289,6 +4309,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_BAWP
         1,
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+        1,
+#endif  // CONFIG_CWP
         1,
 #if CONFIG_ORIP
         1,

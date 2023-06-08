@@ -224,7 +224,7 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
         ref_mv_stack[index].cwp_idx = derived_mv_stack[derived_idx].cwp_idx;
-#endif
+#endif  // CONFIG_CWP
         ref_mv_weight[index] = REF_CAT_LEVEL;
         ++(*refmv_count);
       }
@@ -254,7 +254,7 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
         ref_mv_stack[index].cwp_idx = derived_mv_stack[derived_idx].cwp_idx;
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
         if (mbmi->skip_mode) {
           ref_frame_idx0[index] = rf[0];
@@ -331,7 +331,7 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
     ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
     ++(*refmv_count);
   }
   if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
@@ -475,7 +475,7 @@ static AOM_INLINE void add_ref_mv_candidate(
         ref_frame_idx1[index] = candidate->ref_frame[1];
 #if CONFIG_CWP
         ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
         ref_mv_weight[index] = weight;
         ++(*refmv_count);
       }
@@ -537,7 +537,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
           ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
           ref_mv_weight[index] = weight;
           ++(*refmv_count);
         }
@@ -603,7 +603,7 @@ static AOM_INLINE void add_ref_mv_candidate(
             derived_mv_weight[index] = weight;
 #if CONFIG_CWP
             derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
             ++(*derived_mv_count);
           }
         }
@@ -660,7 +660,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
           ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
           ++(*refmv_count);
         }
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
@@ -723,7 +723,7 @@ static AOM_INLINE void add_ref_mv_candidate(
               derived_mv_weight[index] = weight;
 #if CONFIG_CWP
               derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
               ++(*derived_mv_count);
             }
           }
@@ -1546,7 +1546,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
       ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
       ref_mv_weight[idx] = 2 * weight_unit;
       ++(*refmv_count);
 #if CONFIG_C063_TMVP_IMPROVEMENT
@@ -1597,7 +1597,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         ref_mv_stack[idx].comp_mv.as_int = comp_refmv.as_int;
 #if CONFIG_CWP
         ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
         ref_frame_idx0[idx] = rf[0];
         ref_frame_idx1[idx] = rf[1];
         ref_mv_weight[idx] = 2 * weight_unit;
@@ -1626,7 +1626,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
         ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
         ref_mv_weight[idx] = 2 * weight_unit;
         ++(*refmv_count);
 #if CONFIG_C063_TMVP_IMPROVEMENT
@@ -1726,7 +1726,7 @@ static AOM_INLINE void process_single_ref_mv_candidate(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
         ref_mv_stack[stack_idx].cwp_idx = candidate->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
 
         // TODO(jingning): Set an arbitrary small number here. The weight
         // doesn't matter as long as it is properly initialized.
@@ -1774,7 +1774,7 @@ static AOM_INLINE bool check_rmb_cand(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
   ref_mv_stack[*refmv_count].cwp_idx = cand_mv.cwp_idx;
-#endif
+#endif  // CONFIG_CWP
   ++*refmv_count;
 
   return true;
@@ -1791,7 +1791,7 @@ static AOM_INLINE bool add_to_ref_bv_list(CANDIDATE_MV cand_mv,
   ref_mv_weight[*refmv_count] = REF_CAT_LEVEL;
 #if CONFIG_CWP
   ref_mv_stack[*refmv_count].cwp_idx = cand_mv.cwp_idx;
-#endif
+#endif  // CONFIG_CWP
   ++*refmv_count;
 
   return true;
@@ -1856,7 +1856,7 @@ static AOM_INLINE void setup_ref_mv_list(
     ref_mv_stack[k].col_offset = OFFSET_NONSPATIAL;
 #if CONFIG_CWP
     ref_mv_stack[k].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
   }
 #endif
 
@@ -2542,7 +2542,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
           ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
         } else {
           ref_mv_stack[*refmv_count].this_mv = comp_list[0][0];
           ref_mv_stack[*refmv_count].comp_mv = comp_list[0][1];
@@ -2552,7 +2552,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
           ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
         }
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
         if (xd->mi[0]->skip_mode) {
@@ -2572,7 +2572,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
           ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
           if (xd->mi[0]->skip_mode) {
             ref_frame_idx0[*refmv_count] = rf[0];
@@ -2669,7 +2669,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
         ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
-#endif
+#endif  // CONFIG_CWP
         ref_mv_weight[*refmv_count] = REF_CAT_LEVEL;
         (*refmv_count)++;
       }
@@ -4111,7 +4111,7 @@ static INLINE void update_ref_mv_bank(const MB_MODE_INFO *const mbmi,
   if (is_comp) queue[idx].comp_mv = mbmi->mv[1];
 #if CONFIG_CWP
   queue[idx].cwp_idx = mbmi->cwp_idx;
-#endif
+#endif  // CONFIG_CWP
   if (count < REF_MV_BANK_SIZE) {
     ++ref_mv_bank->rmb_count[ref_frame];
   } else {

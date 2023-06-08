@@ -628,7 +628,7 @@ static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
 #if CONFIG_CWP
 int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
                          const MACROBLOCK *x);
-#endif
+#endif  // CONFIG_CWP
 
 #if CONFIG_BVP_IMPROVEMENT
 // Returns the cost of using the current mv during the motion search

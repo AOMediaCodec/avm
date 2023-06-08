@@ -421,7 +421,7 @@ typedef struct {
 #if CONFIG_CWP
   //! Index for compound weighted prediction parameters.
   int cwp_idx;
-#endif
+#endif  // CONFIG_CWP
 } COMP_RD_STATS;
 
 /*! \brief Contains buffers used to speed up rdopt for obmc.
@@ -946,7 +946,7 @@ typedef struct {
 #if CONFIG_CWP
   //! cwp_idx_cost for compound weighted prediction
   int cwp_idx_cost[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   //! jmvd_scale_mode_cost for JOINT_NEWMV
   int jmvd_scale_mode_cost[JOINT_NEWMV_SCALE_FACTOR_CNT];

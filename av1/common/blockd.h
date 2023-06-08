@@ -491,7 +491,7 @@ typedef struct MB_MODE_INFO {
 #if CONFIG_CWP
   //! Index for compound weighted prediction parameters.
   int cwp_idx;
-#endif
+#endif  // CONFIG_CWP
   /**@}*/
 
   /*****************************************************************************

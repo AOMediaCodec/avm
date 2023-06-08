@@ -1252,7 +1252,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_CWP
   AVERAGE_CDF(ctx_left->cwp_idx_cdf, ctx_tr->cwp_idx_cdf, 2);
-#endif
+#endif  // CONFIG_CWP
 #if CONFIG_IMPROVED_JMVD
   AVERAGE_CDF(ctx_left->jmvd_scale_mode_cdf, ctx_tr->jmvd_scale_mode_cdf,
               JOINT_NEWMV_SCALE_FACTOR_CNT);

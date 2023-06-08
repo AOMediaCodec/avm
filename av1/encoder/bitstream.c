@@ -222,7 +222,7 @@ static AOM_INLINE void write_cwp_idx(MACROBLOCKD *xd, aom_writer *w,
     ++bit_cnt;
   }
 }
-#endif
+#endif  // CONFIG_CWP
 
 static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  PREDICTION_MODE mode,
@@ -2215,9 +2215,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       }
     }
 #if CONFIG_CWP
-    if (is_cwp_coding_mode(mbmi) && !mbmi->skip_mode)
+    if (cm->features.enable_cwp && is_cwp_coding_mode(mbmi) && !mbmi->skip_mode)
       write_cwp_idx(xd, w, cm, mbmi);
-#endif
+#endif  // CONFIG_CWP
     write_mb_interp_filter(cm, xd, w);
   }
 }
@@ -4462,6 +4462,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_BAWP
   aom_wb_write_bit(wb, seq_params->enable_bawp);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  aom_wb_write_bit(wb, seq_params->enable_cwp);
+#endif  // CONFIG_CWP
   aom_wb_write_bit(wb, seq_params->enable_fsc);
 #if CONFIG_CCSO
   aom_wb_write_bit(wb, seq_params->enable_ccso);

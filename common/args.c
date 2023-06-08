@@ -96,6 +96,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_BAWP
     GET_PARAMS(enable_bawp);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+    GET_PARAMS(enable_cwp);
+#endif  // CONFIG_CWP
     GET_PARAMS(enable_fsc);
 #if CONFIG_ORIP
     GET_PARAMS(enable_orip);

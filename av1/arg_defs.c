@@ -410,6 +410,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                          "Enable block adaptive weighted prediction (BAWP)"
                          "(0: false, 1: true (default))"),
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  .enable_cwp = ARG_DEF(NULL, "enable-cwp", 1,
+                        "Enable compound weighted prediction (CWP)"
+                        "(0: false, 1: true (default))"),
+#endif  // CONFIG_CWP
   .enable_fsc = ARG_DEF(NULL, "enable-fsc", 1,
                         "Enable forward skip coding"
                         "(0: false, 1: true (default))"),

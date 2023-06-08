@@ -632,7 +632,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                  fc->cwp_idx_cdf[j][i], NULL);
       }
     }
-#endif
+#endif  // CONFIG_CWP
   }
 }
 

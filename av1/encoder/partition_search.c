@@ -960,7 +960,7 @@ static void update_cwp_idx_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
     ++bit_cnt;
   }
 }
-#endif
+#endif  // CONFIG_CWP
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
 static void update_warp_delta_param_stats(int index, int value,
@@ -1624,10 +1624,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
 #if CONFIG_CWP
-      if (is_cwp_coding_mode(mbmi) && !mbmi->skip_mode) {
+      if (cm->features.enable_cwp && is_cwp_coding_mode(mbmi) &&
+          !mbmi->skip_mode) {
         update_cwp_idx_stats(fc, td->counts, cm, xd);
       }
-#endif
+#endif  // CONFIG_CWP
     }
   }
 

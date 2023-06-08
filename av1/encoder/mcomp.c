@@ -139,7 +139,7 @@ void av1_make_default_fullpel_ms_params(
 #if CONFIG_CWP
   ms_params->xd = xd;
   ms_params->cm = &cpi->common;
-#endif
+#endif  // CONFIG_CWP
 
   // High level params
   ms_params->bsize = bsize;
@@ -1205,7 +1205,7 @@ static INLINE int get_mvpred_compound_sad(
       return vfp->jsdaf(src_buf, src_stride, ref_address, ref_stride,
                         second_pred, &jcp_param);
     }
-#endif
+#endif  // CONFIG_CWP
     return vfp->sdaf(src_buf, src_stride, ref_address, ref_stride, second_pred);
   } else {
     return ms_params->sdf(src_buf, src_stride, ref_address, ref_stride);
@@ -2836,7 +2836,7 @@ int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
   }
   return cost;
 }
-#endif
+#endif  // CONFIG_CWP
 
 #if CONFIG_BVP_IMPROVEMENT
 int av1_get_ref_mvpred_var_cost(const AV1_COMP *cpi, const MACROBLOCKD *xd,
@@ -3476,7 +3476,7 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
             subpel_x_q3, subpel_y_q3, ref, ref_stride, xd->bd, &jcp_param,
             subpel_search_type);
       } else
-#endif
+#endif  // CONFIG_CWP
 
         aom_highbd_comp_avg_upsampled_pred(xd, cm, mi_row, mi_col, this_mv,
                                            pred, second_pred, w, h, subpel_x_q3,

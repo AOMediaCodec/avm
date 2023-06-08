@@ -5998,6 +5998,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_BAWP
   seq_params->enable_bawp = aom_rb_read_bit(rb);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  seq_params->enable_cwp = aom_rb_read_bit(rb);
+#endif  // CONFIG_CWP
   seq_params->enable_fsc = aom_rb_read_bit(rb);
 #if CONFIG_CCSO
   seq_params->enable_ccso = aom_rb_read_bit(rb);

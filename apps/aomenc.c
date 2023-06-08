@@ -443,6 +443,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_BAWP
   &g_av1_codec_arg_defs.enable_bawp,
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  &g_av1_codec_arg_defs.enable_cwp,
+#endif  // CONFIG_CWP
   &g_av1_codec_arg_defs.enable_fsc,
 #if CONFIG_ORIP
   &g_av1_codec_arg_defs.enable_orip,
@@ -640,6 +643,9 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_TIP
 #if CONFIG_BAWP
   config->enable_bawp = 1;
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  config->enable_cwp = 1;
 #endif  // CONFIG_BAWP
   config->enable_fsc = 1;
 #if CONFIG_ORIP
@@ -1544,6 +1550,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : BAWP (%d)\n",
           encoder_cfg->enable_bawp);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  fprintf(stdout, "                               : CWP (%d)\n",
+          encoder_cfg->enable_cwp);
+#endif  // CONFIG_CWP
 
   fprintf(stdout,
           "                               : GlobalMotion (%d), "

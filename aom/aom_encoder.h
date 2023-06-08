@@ -309,6 +309,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  /*!\brief enable compound weighted prediction
+   *
+   */
+  unsigned int enable_cwp;
+#endif  // CONFIG_BAWP
   /*!\brief enable Forward skip coding
    *
    */
