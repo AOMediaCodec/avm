@@ -29,6 +29,7 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
   dst_ctx->mbmi_ext_best = src_ctx->mbmi_ext_best;
 
   dst_ctx->num_4x4_blk = src_ctx->num_4x4_blk;
+  dst_ctx->num_4x4_blk_chroma = src_ctx->num_4x4_blk_chroma;
   dst_ctx->skippable = src_ctx->skippable;
 
   memcpy(dst_ctx->blk_skip, src_ctx->blk_skip,
@@ -48,10 +49,9 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
   dst_ctx->rd_mode_is_ready = src_ctx->rd_mode_is_ready;
 #if CONFIG_EXT_RECUR_PARTITIONS
   for (int i = 0; i < 2; ++i) {
-    int color_map_size = src_ctx->num_4x4_blk * 16;
-#if CONFIG_UNEVEN_4WAY
-    if (i == 1) color_map_size = AOMMAX(color_map_size, 16 * 8);
-#endif  // CONFIG_UNEVEN_4WAY
+    const int num_blk =
+        (i == 0) ? src_ctx->num_4x4_blk : src_ctx->num_4x4_blk_chroma;
+    const int color_map_size = num_blk * 16;
     memcpy(dst_ctx->color_index_map[i], src_ctx->color_index_map[i],
            sizeof(src_ctx->color_index_map[i][0]) * color_map_size);
   }
@@ -104,6 +104,19 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
   const int num_pix = block_size_wide[bsize] * block_size_high[bsize];
   const int num_blk = num_pix / 16;
 
+#if CONFIG_UNEVEN_4WAY
+  // Biggest chroma block covering multiple luma blocks is of size 8X16 / 16X8,
+  // when a 16X32 / 32X16 block uses a HORZ / VERTICAL 4A/4B partition.
+  const int num_pix_chroma = AOMMAX(num_pix, 16 * 8);
+#else
+  // Biggest chroma block covering multiple luma blocks is of size 8X8,
+  // when a 16X16 block uses a HORZ_3 / VERTICAL_3 partition.
+  // However, we don't explicitly need to allocate that minimum, because palette
+  // is only allowed for bsize >= BLOCK_8X8, and all these block sizes have at
+  // least 64 pixels.
+  const int num_pix_chroma = num_pix;
+#endif  // CONFIG_UNEVEN_4WAY
+
   AOM_CHECK_MEM_ERROR(&error, ctx->blk_skip,
                       aom_calloc(num_blk, sizeof(*ctx->blk_skip)));
   AOM_CHECK_MEM_ERROR(&error, ctx->tx_type_map,
@@ -113,6 +126,7 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
                       aom_calloc(num_blk, sizeof(*ctx->cctx_type_map)));
 #endif  // CONFIG_CROSS_CHROMA_TX
   ctx->num_4x4_blk = num_blk;
+  ctx->num_4x4_blk_chroma = num_pix_chroma / 16;
 
   for (int i = 0; i < num_planes; ++i) {
     ctx->coeff[i] = shared_bufs->coeff_buf[i];
@@ -131,12 +145,7 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
 
   if (num_pix <= MAX_PALETTE_SQUARE) {
     for (int i = 0; i < 2; ++i) {
-      int color_map_size = num_pix;
-#if CONFIG_UNEVEN_4WAY
-      // TODO(now): This is a hack, find a better way.
-      // See also, similar hack in av1_copy_tree_context().
-      if (i == 1) color_map_size = AOMMAX(color_map_size, 16 * 8);
-#endif  // CONFIG_UNEVEN_4WAY
+      const int color_map_size = (i == 0) ? num_pix : num_pix_chroma;
       AOM_CHECK_MEM_ERROR(
           &error, ctx->color_index_map[i],
           aom_memalign(32, color_map_size * sizeof(*ctx->color_index_map[i])));

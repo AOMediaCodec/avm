@@ -56,6 +56,7 @@ typedef struct PICK_MODE_CONTEXT {
 #endif  // CONFIG_CROSS_CHROMA_TX
 
   int num_4x4_blk;
+  int num_4x4_blk_chroma;
   // For current partition, only if all Y, U, and V transform blocks'
   // coefficients are quantized to 0, skippable is set to 1.
   int skippable;
