@@ -3341,6 +3341,7 @@ static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_CWP
+// check whether compound weighted prediction can be allowed
 static INLINE int is_cwp_coding_mode(const MB_MODE_INFO *mbmi) {
   int use_cwp = has_second_ref(mbmi) && mbmi->mode >= NEAR_NEARMV &&
                 mbmi->mode < NEAR_NEARMV_OPTFLOW &&
