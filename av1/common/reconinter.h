@@ -310,6 +310,7 @@ static INLINE int allow_warp_parameter_signaling(const MB_MODE_INFO *mbmi) {
 #endif  // CONFIG_WARP_REF_LIST
 
 #if CONFIG_CWP
+// Map the index to weighting factor for compound weighted prediction
 static INLINE int get_cwp_coding_idx(int val, int encode,
                                      const AV1_COMMON *const cm,
                                      const MB_MODE_INFO *const mbmi) {
@@ -822,7 +823,9 @@ const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);
 
 #if CONFIG_CWP
+// Init the masks for compound weighted prediction
 void init_cwp_masks();
+// Get the mask for compound weighted prediction
 const int8_t *av1_get_cwp_mask(int list_idx, int idx);
 #endif  // CONFIG_CWP
 

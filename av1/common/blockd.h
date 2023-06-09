@@ -3363,7 +3363,7 @@ static INLINE int get_cwp_search_order(int list_idx, int idx) {
 }
 
 static INLINE int get_cwp(const MB_MODE_INFO *mbmi) {
-  assert(mbmi->cwp_idx < CWP_MAX && mbmi->cwp_idx > CWP_MIN);
+  assert(mbmi->cwp_idx <= CWP_MAX && mbmi->cwp_idx >= CWP_MIN);
   return mbmi->cwp_idx;
 }
 #endif

@@ -913,9 +913,13 @@ enum {
 #endif  // CONFIG_C076_INTER_MOD_CTX
 
 #if CONFIG_CWP
+// Number of supported factors for compound weighted prediction
 #define MAX_CWP_NUM 5
-#define CWP_MAX 24
-#define CWP_MIN -8
+// maximum value for the supported factors
+#define CWP_MAX 20
+// minimum value for the supported factors
+#define CWP_MIN -4
+// Weighting factor for simple averge prediction
 #define CWP_EQUAL 8
 #define MAX_CWP_CONTEXTS 2
 #endif

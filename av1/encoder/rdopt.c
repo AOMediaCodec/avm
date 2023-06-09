@@ -3741,7 +3741,7 @@ static int prune_ref_mv_idx_search(const FeatureFlags *const features,
 }
 
 #if CONFIG_CWP
-
+// Calculate SSE when using compound weighted prediction
 uint64_t av1_cwp_sse_from_residuals_c(const int16_t *r1, const int16_t *d,
                                       const int8_t *m, int N) {
   uint64_t csse = 0;
@@ -3755,7 +3755,7 @@ uint64_t av1_cwp_sse_from_residuals_c(const int16_t *r1, const int16_t *d,
   return ROUND_POWER_OF_TWO(csse, 2 * WEDGE_WEIGHT_BITS);
 }
 
-// Choose some cwp candidates
+// Select a subset of cwp weighting factors
 static void set_cwp_search_mask(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                 const BLOCK_SIZE bsize, uint16_t *const p0,
                                 uint16_t *const p1, int16_t *residual1,
@@ -3810,8 +3810,6 @@ static void set_cwp_search_mask(const AV1_COMP *const cpi, MACROBLOCK *const x,
     rate_cwp_idx = av1_get_cwp_idx_cost(cur_cwp, cm, x);
     const int64_t rd0 = RDCOST(x->rdmult, rate + rate_cwp_idx, dist);
     if (rd0 < best_rd) {
-      // best_cwp_index = cwp_index;
-      // best_cwp = cur_cwp;
       best_rd = rd0;
     }
 
@@ -4233,7 +4231,7 @@ static int64_t handle_inter_mode(
 
       int cwp_search_mask[MAX_CWP_NUM] = { 0 };
       av1_zero(cwp_search_mask);
-
+      // Loop all supported weighting factors for CWP
       for (int cwp_search_idx = 0; cwp_search_idx < cwp_loop_num;
            cwp_search_idx++) {
         mbmi->ref_mv_idx = ref_mv_idx;
@@ -5905,6 +5903,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
         xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx];
 
 #if CONFIG_CWP
+    // Infer the index of compound weighted prediction from DRL list
     mbmi->cwp_idx =
         xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
 #endif  // CONFIG_CWP

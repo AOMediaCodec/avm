@@ -208,13 +208,14 @@ static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 
 #if CONFIG_CWP
+// Write the index for the weighting factor of compound weighted prediction
 static AOM_INLINE void write_cwp_idx(MACROBLOCKD *xd, aom_writer *w,
                                      const AV1_COMMON *const cm,
                                      const MB_MODE_INFO *const mbmi) {
   int final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
 
   int bit_cnt = 0;
-  const int ctx = av1_get_cwp_context();
+  const int ctx = 0;
   for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {
     aom_write_symbol(w, final_idx != idx,
                      xd->tile_ctx->cwp_idx_cdf[ctx][bit_cnt], 2);

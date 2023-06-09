@@ -2819,14 +2819,15 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
 }
 
 #if CONFIG_CWP
+// Get the cost for compound weighted prediction
 int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
                          const MACROBLOCK *x) {
-  assert(cwp_idx > CWP_MIN && cwp_idx < CWP_MAX);
+  assert(cwp_idx >= CWP_MIN &&cwp_idx = < CWP_MAX);
   const MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mi = xd->mi[0];
   int cost = 0;
   int bit_cnt = 0;
-  int ctx = av1_get_cwp_context();
+  const int ctx = 0;
 
   int final_idx = get_cwp_coding_idx(cwp_idx, 1, cm, mi);
   for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {

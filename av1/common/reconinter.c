@@ -1917,7 +1917,7 @@ static void build_inter_predictors_8x8_and_bigger(
     if (ref == 1 && inter_pred_params.conv_params.do_average == 1) {
       if (get_cwp(mi) != CWP_EQUAL) {
         int weight = get_cwp(mi);
-        assert(mi->cwp_idx > CWP_MIN && mi->cwp_idx < CWP_MAX);
+        assert(mi->cwp_idx >= CWP_MIN && mi->cwp_idx <= CWP_MAX);
         inter_pred_params.conv_params.fwd_offset = weight;
         inter_pred_params.conv_params.bck_offset = 16 - weight;
       }

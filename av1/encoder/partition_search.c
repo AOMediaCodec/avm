@@ -939,6 +939,7 @@ static void update_intrabc_drl_idx_stats(int max_ref_bv_num, FRAME_CONTEXT *fc,
 #endif  // CONFIG_BVP_IMPROVEMENT
 
 #if CONFIG_CWP
+// Update the stats for compound weighted prediction
 static void update_cwp_idx_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
                                  const AV1_COMMON *const cm, MACROBLOCKD *xd) {
 #if !CONFIG_ENTROPY_STATS
@@ -946,9 +947,9 @@ static void update_cwp_idx_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #endif  // !CONFIG_ENTROPY_STATS
   const MB_MODE_INFO *mbmi = xd->mi[0];
 
-  assert(mbmi->cwp_idx > CWP_MIN && mbmi->cwp_idx < CWP_MAX);
+  assert(mbmi->cwp_idx >= CWP_MIN &&mbmi->cwp_idx = < CWP_MAX);
   int bit_cnt = 0;
-  const int ctx = av1_get_cwp_context();
+  const int ctx = 0;
 
   int final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
   for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {
