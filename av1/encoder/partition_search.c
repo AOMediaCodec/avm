@@ -947,7 +947,7 @@ static void update_cwp_idx_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 #endif  // !CONFIG_ENTROPY_STATS
   const MB_MODE_INFO *mbmi = xd->mi[0];
 
-  assert(mbmi->cwp_idx >= CWP_MIN &&mbmi->cwp_idx = < CWP_MAX);
+  assert(mbmi->cwp_idx >= CWP_MIN && mbmi->cwp_idx <= CWP_MAX);
   int bit_cnt = 0;
   const int ctx = 0;
 
