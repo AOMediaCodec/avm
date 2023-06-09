@@ -2151,7 +2151,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     }
 #endif  // CONFIG_ATC_REDUCED_TXSET
 #if CONFIG_ATC_DCTX_ALIGNED
-    if (tx_size == TX_32X32) ext_tx_used_flag |= (1 << IDTX);
+    if (txsize_sqr_up_map[tx_size] == TX_32X32) ext_tx_used_flag |= (1 << IDTX);
 #endif  // CONFIG_ATC_DCTX_ALIGNED
   }
 #if CONFIG_ATC_REDUCED_TXSET
