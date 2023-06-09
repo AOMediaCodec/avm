@@ -2953,6 +2953,19 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                                               uint8_t *dest, int64_t *sse,
                                               int64_t *rate,
                                               int *largest_tile_id) {
+  /*
+  {
+    printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("disp order %d, index %d, layer_depth %d, pyramid_level %d\n",
+           cm->current_frame.display_order_hint,
+           cpi->gf_group.index, cpi->gf_group.layer_depth[cpi->gf_group.index],
+           cm->current_frame.pyramid_level);
+    if (cm->ref_frame_map[0])
+    printf("map 0 disp order %d, pyramid_level %d\n",
+           cm->ref_frame_map[0]->display_order_hint,
+           cm->ref_frame_map[0]->pyramid_level);
+  }
+  */
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_with_recode_loop_time);
 #endif
@@ -3076,6 +3089,18 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
                       tip_as_output_rate, largest_tile_id);
   }
 #endif  // CONFIG_TIP
+  /*
+  {
+    printf("disp order %d, index %d, layer_depth %d, pyramid_level %d\n",
+           cm->current_frame.display_order_hint,
+           cpi->gf_group.index, cpi->gf_group.layer_depth[cpi->gf_group.index],
+           cm->current_frame.pyramid_level);
+    if (cm->ref_frame_map[0])
+    printf("map 0 disp order %d, pyramid_level %d\n",
+           cm->ref_frame_map[0]->display_order_hint,
+           cm->ref_frame_map[0]->pyramid_level);
+  }
+  */
 
   return AOM_CODEC_OK;
 }
@@ -3555,6 +3580,13 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   //       for the purpose to verify no mismatch between encoder and decoder.
   if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
 
+  /*
+  {
+    printf("show_existing_frame %d refresh_frame_flags %d\n",
+           cm->show_existing_frame, cm->current_frame.refresh_frame_flags);
+    printf("------------------------------------------------------\n");
+  }
+  */
   refresh_reference_frames(cpi);
 
 #if CONFIG_ENTROPY_STATS
@@ -3660,6 +3692,14 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
       current_frame->display_order_hint, cpi->gf_group.max_layer_depth);
+  /*
+  {
+    printf("-- disp order %d, layer_depth %d, pyramid_level %d\n",
+           current_frame->display_order_hint,
+           cpi->gf_group.layer_depth[cpi->gf_group.index],
+           current_frame->pyramid_level);
+  }
+  */
 
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;

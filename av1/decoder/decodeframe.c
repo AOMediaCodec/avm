@@ -7147,6 +7147,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
+  /*
+  {
+    FILE *pfile = fopen("refresh.flags", "a");
+    fprintf(pfile, "order_hint %d, frame_type %d, refresh_frame_flags %d, %b\n",
+            cm->current_frame.order_hint, cm->current_frame.frame_type,
+            cm->current_frame.refresh_frame_flags,
+            cm->current_frame.refresh_frame_flags);
+    fclose(pfile);
+  }
+  */
 
 #if CONFIG_TIP
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {

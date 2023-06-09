@@ -729,6 +729,9 @@ static int get_refresh_frame_flags_subgop_cfg(
 
 #if CONFIG_REFRESH_FLAG
 static int refresh_mask_to_idx(const int mask) {
+  // -1 means do not refresh any frame buffer.
+  if (mask == -1) return -1;
+
   if (mask == REFRESH_FRAME_ALL) return REFRESH_FRAME_ALL;
 
   int refresh_idx = -1;
@@ -832,6 +835,15 @@ int av1_get_refresh_frame_flags(
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx =
       get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs);
+  /*
+  {
+    printf("order_hint %d\n", cpi->common.current_frame.order_hint);
+    printf("idx 0 frame_order %d, pyr_level %d\n",
+           ref_frame_map_pairs[0].disp_order,
+           ref_frame_map_pairs[0].pyr_level);
+    printf("refresh_idx = %d\n", refresh_idx);
+  }
+  */
 #if CONFIG_REFRESH_FLAG
   return short_refresh_frame_flags ? refresh_idx : 1 << refresh_idx;
 #else
@@ -1175,6 +1187,19 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(&cpi->common, ref_frame_map_pairs,
                     gf_group->update_type[gf_group->index] == KF_UPDATE);
+  /*
+  {
+    printf("order_hint %d, ref map 0 disp_order %d, pyr_level %d\n",
+           cpi->common.current_frame.order_hint,
+           ref_frame_map_pairs[0].disp_order,
+           ref_frame_map_pairs[0].pyr_level);
+    if (cm->ref_frame_map[0]) {
+      printf("buf 0 order %d, pyr_level %d\n",
+             cm->ref_frame_map[0]->display_order_hint,
+             cm->ref_frame_map[0]->pyramid_level);
+    }
+  }
+  */
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
@@ -1208,6 +1233,22 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
         cur_frame_disp, ref_frame_map_pairs);
+    /*
+    {
+      printf("~~~~~~\n");
+      printf("disp order_hint %d, show_existing_frame %d, refresh_frame_flags %d\n",
+             cm->current_frame.display_order_hint, frame_params.show_existing_frame,
+             frame_params.refresh_frame_flags);
+      printf("~~~~~~\n");
+
+      FILE *pfile = fopen("refresh.flags", "a");
+      fprintf(pfile, "enc order_hint %d, frame_type %d, refresh_frame_flags %d, %b\n",
+              cm->current_frame.order_hint, cm->current_frame.frame_type,
+              cm->current_frame.refresh_frame_flags,
+              cm->current_frame.refresh_frame_flags);
+      fclose(pfile);
+    }
+    */
 
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
