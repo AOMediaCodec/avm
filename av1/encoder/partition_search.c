@@ -1625,8 +1625,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
 #if CONFIG_CWP
-      if (cm->features.enable_cwp && is_cwp_coding_mode(mbmi) &&
-          !mbmi->skip_mode) {
+      if (cm->features.enable_cwp && is_cwp_allowed(mbmi) && !mbmi->skip_mode) {
         update_cwp_idx_stats(fc, td->counts, cm, xd);
       }
 #endif  // CONFIG_CWP

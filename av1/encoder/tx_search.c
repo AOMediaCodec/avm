@@ -2204,7 +2204,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     for (i = 0; i < TX_TYPES; i++) {
       if (allowed_tx_mask & (1 << i)) num_allowed++;
     }
-    // assert(num_allowed > 0);
+    assert(num_allowed > 0);
 
 #if CONFIG_DEBUG && CONFIG_CROSS_CHROMA_TX
     if (plane) {
@@ -2232,7 +2232,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
         allowed_tx_mask &= (~prune);
       }
     } else {
-      // assert(num_allowed > 0);
+      assert(num_allowed > 0);
       int allowed_tx_count =
           (txfm_params->prune_2d_txfm_mode >= TX_TYPE_PRUNE_4) ? 1 : 5;
       // !fast_tx_search && txk_end != txk_start && plane == 0

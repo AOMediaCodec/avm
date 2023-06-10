@@ -399,6 +399,7 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
 #endif
 
 #if CONFIG_CWP
+// Init the cwp masks, called by init_cwp_masks
 static AOM_INLINE void build_cwp_mask(int8_t *mask, int stride,
                                       BLOCK_SIZE plane_bsize, int8_t w) {
   const int bw = block_size_wide[plane_bsize];
@@ -408,16 +409,18 @@ static AOM_INLINE void build_cwp_mask(int8_t *mask, int stride,
     mask += stride;
   }
 }
+// Init the cwp masks
 void init_cwp_masks() {
-  int bs = BLOCK_128X128;
+  const int bs = BLOCK_128X128;
   const int bw = block_size_wide[bs];
   for (int list_idx = 0; list_idx < 2; ++list_idx) {
     for (int idx = 0; idx < MAX_CWP_NUM; ++idx) {
-      int weight = get_cwp_search_order(list_idx, idx) * 4;
+      int weight = cwp_weighting_factor[list_idx][idx] * 4;
       build_cwp_mask(cwp_mask[list_idx][idx], bw, bs, (int8_t)weight);
     }
   }
 }
+// Return the associated cwp mask
 const int8_t *av1_get_cwp_mask(int list_idx, int idx) {
   return cwp_mask[list_idx][idx];
 }
@@ -1915,8 +1918,8 @@ static void build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_CWP
     if (ref == 1 && inter_pred_params.conv_params.do_average == 1) {
-      if (get_cwp(mi) != CWP_EQUAL) {
-        int weight = get_cwp(mi);
+      if (get_cwp_idx(mi) != CWP_EQUAL) {
+        const int weight = get_cwp_idx(mi);
         assert(mi->cwp_idx >= CWP_MIN && mi->cwp_idx <= CWP_MAX);
         inter_pred_params.conv_params.fwd_offset = weight;
         inter_pred_params.conv_params.bck_offset = 16 - weight;

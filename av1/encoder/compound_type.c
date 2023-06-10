@@ -1429,8 +1429,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       rs2 = masked_type_cost[cur_type];
 
 #if CONFIG_CWP
-      if (cm->features.enable_cwp && is_cwp_coding_mode(mbmi) &&
-          !mbmi->skip_mode) {
+      if (cm->features.enable_cwp && is_cwp_allowed(mbmi) && !mbmi->skip_mode) {
         rs2 += av1_get_cwp_idx_cost(mbmi->cwp_idx, cm, x);
       }
 #endif  // CONFIG_CWP

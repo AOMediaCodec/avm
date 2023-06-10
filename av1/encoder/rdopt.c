@@ -3653,7 +3653,7 @@ static int process_compound_inter_mode(
       (1 << COMPOUND_AVERAGE) | (1 << COMPOUND_WEDGE) | (1 << COMPOUND_DIFFWTD);
 
 #if CONFIG_CWP
-  if (get_cwp(mbmi) != CWP_EQUAL) {
+  if (get_cwp_idx(mbmi) != CWP_EQUAL) {
     mode_search_mask = (1 << COMPOUND_AVERAGE);
   }
 #endif  // CONFIG_CWP
@@ -3806,7 +3806,7 @@ static void set_cwp_search_mask(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
     model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, sse, N,
                                                   &rate, &dist);
-    int cur_cwp = get_cwp_search_order(same_side, cwp_index);
+    int cur_cwp = cwp_weighting_factor[same_side][cwp_index];
     rate_cwp_idx = av1_get_cwp_idx_cost(cur_cwp, cm, x);
     const int64_t rd0 = RDCOST(x->rdmult, rate + rate_cwp_idx, dist);
     if (rd0 < best_rd) {
@@ -4239,10 +4239,10 @@ static int64_t handle_inter_mode(
         mbmi->comp_group_idx = 0;
         mbmi->motion_mode = SIMPLE_TRANSLATION;
 
-        mbmi->cwp_idx = get_cwp_search_order(same_side, cwp_search_idx);
+        mbmi->cwp_idx = cwp_weighting_factor[same_side][cwp_search_idx];
 
         if (mbmi->cwp_idx != CWP_EQUAL) {
-          if (!is_cwp_coding_mode(mbmi)) break;
+          if (!is_cwp_allowed(mbmi)) break;
           if (cwp_search_mask[cwp_search_idx] == 0) {
             continue;
           }
@@ -4685,7 +4685,7 @@ static int64_t handle_inter_mode(
 
 #if CONFIG_CWP
             // set cwp_search_mask
-            if (is_cwp_coding_mode(mbmi) && mbmi->cwp_idx == CWP_EQUAL) {
+            if (is_cwp_allowed(mbmi) && mbmi->cwp_idx == CWP_EQUAL) {
               set_cwp_search_mask(cpi, x, bsize, rd_buffers->pred0,
                                   rd_buffers->pred1, rd_buffers->residual1,
                                   rd_buffers->diff10, block_size_wide[bsize],
@@ -4710,7 +4710,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_CWP
             if (cm->features.enable_cwp && is_comp_pred &&
                 is_joint_amvd_coding_mode(mbmi->mode)) {
-              if (is_cwp_coding_mode(mbmi)) {
+              if (is_cwp_allowed(mbmi)) {
                 compmode_interinter_cost =
                     av1_get_cwp_idx_cost(mbmi->cwp_idx, cm, x);
               }
@@ -4924,7 +4924,7 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
 #if CONFIG_CWP
-              if (is_cwp_coding_mode(mbmi)) {
+              if (is_cwp_allowed(mbmi)) {
                 if (tmp_rd < best_cwp_cost) {
                   best_cwp_cost = tmp_rd;
                   best_cwp_idx = mbmi->cwp_idx;

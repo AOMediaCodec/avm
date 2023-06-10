@@ -3342,27 +3342,18 @@ static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
 
 #if CONFIG_CWP
 // check whether compound weighted prediction can be allowed
-static INLINE int is_cwp_coding_mode(const MB_MODE_INFO *mbmi) {
-  int use_cwp = has_second_ref(mbmi) && mbmi->mode >= NEAR_NEARMV &&
-                mbmi->mode < NEAR_NEARMV_OPTFLOW &&
+static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
+  if (mbmi->skip_mode) return 1;
+  int use_cwp = has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
                 mbmi->interinter_comp.type == COMPOUND_AVERAGE &&
                 mbmi->motion_mode == SIMPLE_TRANSLATION;
   use_cwp &=
       (mbmi->mode == NEAR_NEARMV || is_joint_mvd_coding_mode(mbmi->mode));
-  use_cwp |= mbmi->skip_mode;
   use_cwp &= (mbmi->jmvd_scale_mode == 0);
   return use_cwp;
 }
-
-static INLINE int get_cwp_search_order(int list_idx, int idx) {
-  const int cwp_search_order[2][MAX_CWP_NUM] = {
-    { 8, 12, 4, 10, 6 },
-    { 8, 12, 4, 20, -4 },
-  };
-  return cwp_search_order[list_idx][idx];
-}
-
-static INLINE int get_cwp(const MB_MODE_INFO *mbmi) {
+// Return the index for compound weighted prediction
+static INLINE int get_cwp_idx(const MB_MODE_INFO *mbmi) {
   assert(mbmi->cwp_idx <= CWP_MAX && mbmi->cwp_idx >= CWP_MIN);
   return mbmi->cwp_idx;
 }

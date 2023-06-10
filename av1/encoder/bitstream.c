@@ -212,7 +212,7 @@ static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
 static AOM_INLINE void write_cwp_idx(MACROBLOCKD *xd, aom_writer *w,
                                      const AV1_COMMON *const cm,
                                      const MB_MODE_INFO *const mbmi) {
-  int final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
+  const int final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
 
   int bit_cnt = 0;
   const int ctx = 0;
@@ -2216,7 +2216,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       }
     }
 #if CONFIG_CWP
-    if (cm->features.enable_cwp && is_cwp_coding_mode(mbmi) && !mbmi->skip_mode)
+    if (cm->features.enable_cwp && is_cwp_allowed(mbmi) && !mbmi->skip_mode)
       write_cwp_idx(xd, w, cm, mbmi);
 #endif  // CONFIG_CWP
     write_mb_interp_filter(cm, xd, w);

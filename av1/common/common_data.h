@@ -77,6 +77,14 @@ static const uint8_t num_pels_log2_lookup[BLOCK_SIZES_ALL] = {
   4, 5, 5, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13, 13, 14, 6, 6, 8, 8, 10, 10
 };
 
+#if CONFIG_CWP
+// Supported weighting factor for compound weighted prediction
+static const int cwp_weighting_factor[2][MAX_CWP_NUM] = {
+  { 8, 12, 4, 10, 6 },
+  { 8, 12, 4, 20, -4 },
+};
+#endif  // CONFIG_CWP
+
 #if CONFIG_EXT_RECUR_PARTITIONS
 /* clang-format off */
 // This table covers all square blocks and 1:2/2:1 rectangular blocks

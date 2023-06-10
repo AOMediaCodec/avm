@@ -325,18 +325,13 @@ static INLINE int get_cwp_coding_idx(int val, int encode,
                    (cur_ref_side == 0 && other_ref_side == 0);
   }
 
-  const int cwp_list[2][MAX_CWP_NUM] = {
-    { 8, 12, 4, 10, 6 },
-    { 8, 12, 4, 20, -4 },
-  };
-
   if (encode) {
     for (int i = 0; i < MAX_CWP_NUM; i++) {
-      if (cwp_list[is_same_side][i] == val) return i;
+      if (cwp_weighting_factor[is_same_side][i] == val) return i;
     }
     return 0;
   } else {
-    return cwp_list[is_same_side][val];
+    return cwp_weighting_factor[is_same_side][val];
   }
 }
 #endif  // CONFIG_CWP

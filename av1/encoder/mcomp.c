@@ -1175,6 +1175,17 @@ static INLINE int get_mvpred_compound_var_cost(
   return bestsme;
 }
 
+#if CONFIG_CWP
+// Set weighting factor for two reference frames
+static INLINE void set_cmp_weight(const MB_MODE_INFO *mi, int invert_mask,
+                                  DIST_WTD_COMP_PARAMS *jcp_param) {
+  int weight = get_cwp_idx(mi);
+  weight = invert_mask ? 16 - weight : weight;
+  jcp_param->fwd_offset = weight;
+  jcp_param->bck_offset = 16 - weight;
+}
+#endif  // CONFIG_CWP
+
 static INLINE int get_mvpred_compound_sad(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const struct buf_2d *const src, const uint16_t *const ref_address,
@@ -1194,13 +1205,9 @@ static INLINE int get_mvpred_compound_sad(
   } else if (second_pred) {
 #if CONFIG_CWP
     const MB_MODE_INFO *mi = ms_params->xd->mi[0];
-    if (get_cwp(mi) != CWP_EQUAL) {
-      int weight = get_cwp(mi);
-
-      weight = invert_mask ? 16 - weight : weight;
+    if (get_cwp_idx(mi) != CWP_EQUAL) {
       DIST_WTD_COMP_PARAMS jcp_param;
-      jcp_param.fwd_offset = weight;
-      jcp_param.bck_offset = 16 - weight;
+      set_cmp_weight(mi, invert_mask, &jcp_param);
 
       return vfp->jsdaf(src_buf, src_stride, ref_address, ref_stride,
                         second_pred, &jcp_param);
@@ -2829,7 +2836,7 @@ int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
   int bit_cnt = 0;
   const int ctx = 0;
 
-  int final_idx = get_cwp_coding_idx(cwp_idx, 1, cm, mi);
+  const int final_idx = get_cwp_coding_idx(cwp_idx, 1, cm, mi);
   for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {
     cost += x->mode_costs.cwp_idx_cost[ctx][bit_cnt][final_idx != idx];
     if (final_idx == idx) return cost;
@@ -3465,12 +3472,9 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
           subpel_search_type);
     } else {
 #if CONFIG_CWP
-      if (get_cwp(xd->mi[0]) != CWP_EQUAL) {
-        int weight = get_cwp(xd->mi[0]);
-        weight = invert_mask ? 16 - weight : weight;
+      if (get_cwp_idx(xd->mi[0]) != CWP_EQUAL) {
         DIST_WTD_COMP_PARAMS jcp_param;
-        jcp_param.fwd_offset = weight;
-        jcp_param.bck_offset = 16 - weight;
+        set_cmp_weight(xd->mi[0], invert_mask, &jcp_param);
 
         aom_highbd_dist_wtd_comp_avg_upsampled_pred(
             xd, cm, mi_row, mi_col, this_mv, pred, second_pred, w, h,

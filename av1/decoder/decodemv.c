@@ -624,8 +624,7 @@ static int read_cwp_idx(MACROBLOCKD *xd, aom_reader *r, const AV1_COMMON *cm,
   assert(cwp_idx <= CWP_MAX);
 
   // convert index to weight
-  int weight = get_cwp_coding_idx(cwp_idx, 0, cm, mbmi);
-  return weight;
+  return get_cwp_coding_idx(cwp_idx, 0, cm, mbmi);
 }
 #endif  // CONFIG_CWP
 
@@ -2829,10 +2828,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
            (cm->features.opfl_refine_type && !cm->features.enable_cwp
                 ? NEAR_NEARMV_OPTFLOW
                 : NEAR_NEARMV));
-#else
+#else   // CONFIG_CWP
     assert(mbmi->mode ==
            (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV));
-#endif
+#endif  // CONFIG_CWP
 #else
     assert(mbmi->mode == NEAR_NEARMV);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
@@ -3006,9 +3005,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
   if (cm->features.enable_cwp) {
-    if (is_cwp_coding_mode(mbmi) && !mbmi->skip_mode)
+    if (is_cwp_allowed(mbmi) && !mbmi->skip_mode)
       mbmi->cwp_idx = read_cwp_idx(xd, r, cm, mbmi);
-    if (is_cwp_coding_mode(mbmi) && mbmi->skip_mode)
+    if (is_cwp_allowed(mbmi) && mbmi->skip_mode)
       mbmi->cwp_idx =
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
   }
