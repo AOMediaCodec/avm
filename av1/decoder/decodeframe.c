@@ -6681,8 +6681,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
 #if CONFIG_REFRESH_FLAG
-      current_frame->refresh_frame_flags =
-          aom_rb_read_literal(rb, refresh_frame_flags_bits);
+      if (short_refresh_frame_flags) {
+        const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+        if (has_refresh_frame_flags) {
+          current_frame->refresh_frame_flags =
+              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+        } else {
+          current_frame->refresh_frame_flags = -1;
+        }
+      } else {
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+      }
 #else
       current_frame->refresh_frame_flags = aom_rb_read_literal(rb, REF_FRAMES);
 #endif        // CONFIG_REFRESH_FLAG
@@ -6700,8 +6710,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else {
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
-      current_frame->refresh_frame_flags =
-          aom_rb_read_literal(rb, refresh_frame_flags_bits);
+      if (short_refresh_frame_flags) {
+        const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+        if (has_refresh_frame_flags) {
+          current_frame->refresh_frame_flags =
+              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+        } else {
+          current_frame->refresh_frame_flags = -1;
+        }
+      } else {
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+      }
 #else
       current_frame->refresh_frame_flags = aom_rb_read_literal(rb, REF_FRAMES);
 #endif  // CONFIG_REFRESH_FLAG
@@ -6715,10 +6735,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
 #if CONFIG_REFRESH_FLAG
-      current_frame->refresh_frame_flags =
-          frame_is_sframe(cm)
-              ? REFRESH_FRAME_ALL
-              : aom_rb_read_literal(rb, refresh_frame_flags_bits);
+      if (frame_is_sframe(cm)) {
+        current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
+      } else {
+        if (short_refresh_frame_flags) {
+          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+          if (has_refresh_frame_flags) {
+            current_frame->refresh_frame_flags =
+                aom_rb_read_literal(rb, refresh_frame_flags_bits);
+          } else {
+            current_frame->refresh_frame_flags = -1;
+          }
+        }
+      }
 #else
       current_frame->refresh_frame_flags =
           frame_is_sframe(cm) ? REFRESH_FRAME_ALL
@@ -7147,16 +7176,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
-  /*
-  {
-    FILE *pfile = fopen("refresh.flags", "a");
-    fprintf(pfile, "order_hint %d, frame_type %d, refresh_frame_flags %d, %b\n",
-            cm->current_frame.order_hint, cm->current_frame.frame_type,
-            cm->current_frame.refresh_frame_flags,
-            cm->current_frame.refresh_frame_flags);
-    fclose(pfile);
-  }
-  */
 
 #if CONFIG_TIP
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {

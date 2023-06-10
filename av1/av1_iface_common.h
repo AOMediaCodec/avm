@@ -27,6 +27,7 @@ typedef struct {
   int show_existing_frame;
   int pyramid_level;
   int qindex;
+
   int refresh_frame_flags;
   int num_references;
   int ref_frame_pyr_level[INTER_REFS_PER_FRAME];

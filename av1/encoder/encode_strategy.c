@@ -379,6 +379,7 @@ static void update_fb_of_context_type(
             break;
           }
         } else {
+          assert(cm->current_frame.refresh_frame_flags != -1);
           if (cm->current_frame.refresh_frame_flags & (1 << i)) {
             fb_of_context_type[current_frame_ref_type] = i;
             break;

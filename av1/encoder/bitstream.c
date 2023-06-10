@@ -4729,7 +4729,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_REFRESH_FLAG
     if (cm->seq_params.enable_short_refresh_frame_flags &&
         !cm->features.error_resilient_mode) {
-      aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
+      const bool has_refresh_frame_flags =
+          current_frame->refresh_frame_flags != -1;
+      aom_wb_write_literal(wb, has_refresh_frame_flags, 1);
+      if (has_refresh_frame_flags) {
+        aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
+      }
     } else {
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags, REF_FRAMES);
     }
