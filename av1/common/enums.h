@@ -921,6 +921,7 @@ enum {
 #define CWP_MIN -4
 // Weighting factor for simple averge prediction
 #define CWP_EQUAL 8
+#define CWP_WEIGHT_BITS 4
 #define MAX_CWP_CONTEXTS 2
 #endif
 

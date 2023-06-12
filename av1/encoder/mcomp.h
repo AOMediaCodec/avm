@@ -627,7 +627,7 @@ static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
 
 #if CONFIG_CWP
 // Returns the cost for signaling the index of compound weighted prediction
-int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
+int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,
                          const MACROBLOCK *x);
 #endif  // CONFIG_CWP
 

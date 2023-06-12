@@ -490,7 +490,7 @@ typedef struct MB_MODE_INFO {
 
 #if CONFIG_CWP
   //! Index for compound weighted prediction parameters.
-  int cwp_idx;
+  int8_t cwp_idx;
 #endif  // CONFIG_CWP
   /**@}*/
 
@@ -3353,7 +3353,7 @@ static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
   return use_cwp;
 }
 // Return the index for compound weighted prediction
-static INLINE int get_cwp_idx(const MB_MODE_INFO *mbmi) {
+static INLINE int8_t get_cwp_idx(const MB_MODE_INFO *mbmi) {
   assert(mbmi->cwp_idx <= CWP_MAX && mbmi->cwp_idx >= CWP_MIN);
   return mbmi->cwp_idx;
 }

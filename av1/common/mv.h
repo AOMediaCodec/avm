@@ -535,7 +535,7 @@ typedef struct candidate_mv {
   int col_offset;
 #if CONFIG_CWP
   // Record the cwp index of the neighboring blocks
-  int cwp_idx;
+  int8_t cwp_idx;
 #endif  // CONFIG_CWP
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 } CANDIDATE_MV;

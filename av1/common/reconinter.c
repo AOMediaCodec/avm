@@ -415,8 +415,8 @@ void init_cwp_masks() {
   const int bw = block_size_wide[bs];
   for (int list_idx = 0; list_idx < 2; ++list_idx) {
     for (int idx = 0; idx < MAX_CWP_NUM; ++idx) {
-      int weight = cwp_weighting_factor[list_idx][idx] * 4;
-      build_cwp_mask(cwp_mask[list_idx][idx], bw, bs, (int8_t)weight);
+      int8_t weight = cwp_weighting_factor[list_idx][idx] * 4;
+      build_cwp_mask(cwp_mask[list_idx][idx], bw, bs, weight);
     }
   }
 }
@@ -1919,10 +1919,11 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_CWP
     if (ref == 1 && inter_pred_params.conv_params.do_average == 1) {
       if (get_cwp_idx(mi) != CWP_EQUAL) {
-        const int weight = get_cwp_idx(mi);
+        int8_t weight = get_cwp_idx(mi);
         assert(mi->cwp_idx >= CWP_MIN && mi->cwp_idx <= CWP_MAX);
         inter_pred_params.conv_params.fwd_offset = weight;
-        inter_pred_params.conv_params.bck_offset = 16 - weight;
+        inter_pred_params.conv_params.bck_offset =
+            (1 << CWP_WEIGHT_BITS) - weight;
       }
     }
 #endif  // CONFIG_CWP

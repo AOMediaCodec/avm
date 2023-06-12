@@ -3806,7 +3806,7 @@ static void set_cwp_search_mask(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
     model_rd_sse_fn[MODELRD_TYPE_MASKED_COMPOUND](cpi, x, bsize, 0, sse, N,
                                                   &rate, &dist);
-    int cur_cwp = cwp_weighting_factor[same_side][cwp_index];
+    int8_t cur_cwp = cwp_weighting_factor[same_side][cwp_index];
     rate_cwp_idx = av1_get_cwp_idx_cost(cur_cwp, cm, x);
     const int64_t rd0 = RDCOST(x->rdmult, rate + rate_cwp_idx, dist);
     if (rd0 < best_rd) {

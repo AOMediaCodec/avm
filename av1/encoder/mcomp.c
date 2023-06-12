@@ -1180,9 +1180,9 @@ static INLINE int get_mvpred_compound_var_cost(
 static INLINE void set_cmp_weight(const MB_MODE_INFO *mi, int invert_mask,
                                   DIST_WTD_COMP_PARAMS *jcp_param) {
   int weight = get_cwp_idx(mi);
-  weight = invert_mask ? 16 - weight : weight;
+  weight = invert_mask ? (1 << CWP_WEIGHT_BITS) - weight : weight;
   jcp_param->fwd_offset = weight;
-  jcp_param->bck_offset = 16 - weight;
+  jcp_param->bck_offset = (1 << CWP_WEIGHT_BITS) - weight;
 }
 #endif  // CONFIG_CWP
 
@@ -2827,7 +2827,7 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
 
 #if CONFIG_CWP
 // Get the cost for compound weighted prediction
-int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
+int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,
                          const MACROBLOCK *x) {
   assert(cwp_idx >= CWP_MIN && cwp_idx <= CWP_MAX);
   const MACROBLOCKD *xd = &x->e_mbd;
@@ -2836,7 +2836,7 @@ int av1_get_cwp_idx_cost(int cwp_idx, const AV1_COMMON *const cm,
   int bit_cnt = 0;
   const int ctx = 0;
 
-  const int final_idx = get_cwp_coding_idx(cwp_idx, 1, cm, mi);
+  const int8_t final_idx = get_cwp_coding_idx(cwp_idx, 1, cm, mi);
   for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {
     cost += x->mode_costs.cwp_idx_cost[ctx][bit_cnt][final_idx != idx];
     if (final_idx == idx) return cost;

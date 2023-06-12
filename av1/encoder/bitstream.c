@@ -212,7 +212,7 @@ static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
 static AOM_INLINE void write_cwp_idx(MACROBLOCKD *xd, aom_writer *w,
                                      const AV1_COMMON *const cm,
                                      const MB_MODE_INFO *const mbmi) {
-  const int final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
+  const int8_t final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
 
   int bit_cnt = 0;
   const int ctx = 0;

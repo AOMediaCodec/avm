@@ -611,7 +611,7 @@ static PREDICTION_MODE read_jmvd_scale_mode(MACROBLOCKD *xd, aom_reader *r,
 // Read index for the weighting factor of compound weighted prediction
 static int read_cwp_idx(MACROBLOCKD *xd, aom_reader *r, const AV1_COMMON *cm,
                         MB_MODE_INFO *const mbmi) {
-  int cwp_idx = 0;
+  int8_t cwp_idx = 0;
   int bit_cnt = 0;
   const int ctx = 0;
   for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {

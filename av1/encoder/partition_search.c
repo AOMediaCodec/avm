@@ -951,7 +951,7 @@ static void update_cwp_idx_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
   int bit_cnt = 0;
   const int ctx = 0;
 
-  int final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
+  int8_t final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
   for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {
 #if CONFIG_ENTROPY_STATS
     counts->cwp_idx[bit_cnt][final_idx != idx]++;
