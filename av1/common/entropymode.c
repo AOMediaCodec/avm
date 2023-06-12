@@ -899,7 +899,7 @@ static aom_cdf_prob default_uneven_4way_partition_type_cdf
 #else
 static const aom_cdf_prob
     default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(
-        PARTITION_TYPES_SQUARE)] = {
+        EXT_PARTITION_TYPES)] = {
       {
           { AOM_CDF4(19132, 25510, 30392) },
           { AOM_CDF4(13928, 19855, 28540) },
@@ -3337,8 +3337,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->do_split_cdf, default_do_split_cdf);
   av1_copy(fc->rect_type_cdf, default_rect_type_cdf);
   av1_copy(fc->do_ext_partition_cdf, default_do_ext_partition_cdf);
-  av1_copy(fc->do_uneven_4way_partition_cdf, default_do_uneven_4way_partition_cdf);
-  av1_copy(fc->uneven_4way_partition_type_cdf, default_uneven_4way_partition_type_cdf);
+  av1_copy(fc->do_uneven_4way_partition_cdf,
+           default_do_uneven_4way_partition_cdf);
+  av1_copy(fc->uneven_4way_partition_type_cdf,
+           default_uneven_4way_partition_type_cdf);
 #else
   av1_copy(fc->partition_cdf, default_partition_cdf);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

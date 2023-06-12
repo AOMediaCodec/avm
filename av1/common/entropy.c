@@ -306,20 +306,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                            CDF_SIZE(UV_INTRA_MODES));
   RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
 
-  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
-       plane_index++) {
-    for (int i = 0; i < PARTITION_CONTEXTS; i++) {
-      if (i < 4) {
-        RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[plane_index][i], 4,
-                                 CDF_SIZE(10));
-      } else if (i < 16) {
-        RESET_CDF_COUNTER(fc->partition_cdf[plane_index][i], 10);
-      } else {
-        RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[plane_index][i], 8,
-                                 CDF_SIZE(10));
-      }
-    }
-  }
 #if CONFIG_EXT_RECUR_PARTITIONS
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
@@ -339,9 +325,27 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
       for (int i = 0; i < PARTITION_CONTEXTS; i++) {
         RESET_CDF_COUNTER(fc->do_ext_partition_cdf[plane_index][rect][i], 2);
 #if CONFIG_UNEVEN_4WAY
-        RESET_CDF_COUNTER(fc->do_uneven_4way_partition_cdf[plane_index][rect][i], 2);
-        RESET_CDF_COUNTER(fc->uneven_4way_partition_type_cdf[plane_index][rect][i], NUM_UNEVEN_4WAY_PARTS);
+        RESET_CDF_COUNTER(
+            fc->do_uneven_4way_partition_cdf[plane_index][rect][i], 2);
+        RESET_CDF_COUNTER(
+            fc->uneven_4way_partition_type_cdf[plane_index][rect][i],
+            NUM_UNEVEN_4WAY_PARTS);
 #endif  // CONFIG_UNEVEN_4WAY
+      }
+    }
+  }
+#else
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+      if (i < 4) {
+        RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[plane_index][i], 4,
+                                 CDF_SIZE(10));
+      } else if (i < 16) {
+        RESET_CDF_COUNTER(fc->partition_cdf[plane_index][i], 10);
+      } else {
+        RESET_CDF_COUNTER_STRIDE(fc->partition_cdf[plane_index][i], 8,
+                                 CDF_SIZE(10));
       }
     }
   }
