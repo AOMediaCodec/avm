@@ -827,9 +827,17 @@ rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
 /*!\brief Returns whether the current partition is horizontal type or vertical
  * type. */
 static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
-  if (partition == PARTITION_HORZ || partition == PARTITION_HORZ_3) {
+  if (partition == PARTITION_HORZ || partition == PARTITION_HORZ_3
+#if CONFIG_UNEVEN_4WAY
+      || partition == PARTITION_HORZ_4A || partition == PARTITION_HORZ_4B
+#endif  // CONFIG_UNEVEN_4WAY
+  ) {
     return HORZ;
-  } else if (partition == PARTITION_VERT || partition == PARTITION_VERT_3) {
+  } else if (partition == PARTITION_VERT || partition == PARTITION_VERT_3
+#if CONFIG_UNEVEN_4WAY
+             || partition == PARTITION_VERT_4A || partition == PARTITION_VERT_4B
+#endif  // CONFIG_UNEVEN_4WAY
+  ) {
     return VERT;
   }
   assert(0 && "Rectangular partition expected!");
