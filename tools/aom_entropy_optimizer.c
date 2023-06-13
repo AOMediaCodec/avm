@@ -459,6 +459,7 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_do_ext_partition_cdf"
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]");
+#if CONFIG_UNEVEN_4WAY
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
@@ -472,11 +473,12 @@ int main(int argc, const char **argv) {
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
   cts_each_dim[3] = NUM_UNEVEN_4WAY_PARTS;
-  optimize_cdf_table(&fc.uneven_4way_partition_type[0][0][0][0], probsfile, 4,
-                     cts_each_dim,
-                     "static aom_cdf_prob default_uneven_4way_partition_type_cdf"
-                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
-                     "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]");
+  optimize_cdf_table(
+      &fc.uneven_4way_partition_type[0][0][0][0], probsfile, 4, cts_each_dim,
+      "static aom_cdf_prob default_uneven_4way_partition_type_cdf"
+      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
+      "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]");
+#endif  // CONFIG_UNEVEN_4WAY
 #else
   /* block partition */
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;

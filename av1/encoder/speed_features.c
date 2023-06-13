@@ -758,8 +758,12 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_none_rd = 0;
   part_sf->prune_ext_part_with_part_none = 0;
   part_sf->prune_ext_part_with_part_rect = 0;
+#if CONFIG_UNEVEN_4WAY
   part_sf->prune_part_4_horz_or_vert = 0;
+#if CONFIG_H_PARTITION
   part_sf->prune_part_4_with_part_3 = 0;
+#endif  // CONFIG_H_PARTITION
+#endif  // CONFIG_UNEVEN_4WAY
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
@@ -1053,10 +1057,13 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       // the loss.
       // sf->part_sf.end_part_search_after_consec_failures = 1;
       AOM_FALLTHROUGH_INTENDED;
-    case 4:
-      sf->part_sf.prune_ext_part_with_part_rect = 1;
+    case 4: sf->part_sf.prune_ext_part_with_part_rect = 1;
+#if CONFIG_UNEVEN_4WAY
       sf->part_sf.prune_part_4_horz_or_vert = 1;
+#if CONFIG_H_PARTITION
       sf->part_sf.prune_part_4_with_part_3 = 1;
+#endif  // CONFIG_H_PARTITION
+#endif  // CONFIG_UNEVEN_4WAY
       AOM_FALLTHROUGH_INTENDED;
     case 3:
       sf->part_sf.prune_ext_part_with_part_none = 1;
