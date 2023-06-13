@@ -2764,7 +2764,8 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   }
   RECT_PART_TYPE rect_type = get_rect_part_type(p);
   if (rect_type_implied_by_bsize(bsize, xd->tree_type) == RECT_INVALID) {
-    aom_write_symbol(w, rect_type, ec_ctx->rect_type_cdf[plane][ctx], NUM_RECT_PARTS);
+    aom_write_symbol(w, rect_type, ec_ctx->rect_type_cdf[plane][ctx],
+                     NUM_RECT_PARTS);
   }
   const bool ext_partition_allowed =
       cm->seq_params.enable_ext_partitions &&

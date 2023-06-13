@@ -511,7 +511,7 @@ typedef struct SequenceHeader {
 #endif                           // CONFIG_PAR_HIDING
 #if CONFIG_EXT_RECUR_PARTITIONS
   uint8_t enable_ext_partitions;  // enable extended partitions
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif                            // CONFIG_EXT_RECUR_PARTITIONS
   BITSTREAM_PROFILE profile;
 
   // Color config.

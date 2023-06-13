@@ -2054,44 +2054,43 @@ static AOM_INLINE void decode_block(AV1Decoder *const pbi, ThreadData *const td,
 #if CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_UNEVEN_4WAY
 /*!\brief Maps (ext_part, 4way, 4way_type, rect_type) to partition_type. */
-static PARTITION_TYPE rect_part_table[2][2][NUM_UNEVEN_4WAY_PARTS][NUM_RECT_PARTS] = {
-  {  // !do_ext_partition
-      {  // !do_4way
-        {  // UNEVEN_4A
-          PARTITION_HORZ, PARTITION_VERT
-        },
-        {  // UNEVEN_4B
-          PARTITION_HORZ, PARTITION_VERT
-        },
+static PARTITION_TYPE
+    rect_part_table[2][2][NUM_UNEVEN_4WAY_PARTS][NUM_RECT_PARTS] = {
+      {
+          // !do_ext_partition
+          {
+              // !do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ, PARTITION_VERT },
+              { // UNEVEN_4B
+                PARTITION_HORZ, PARTITION_VERT },
+          },
+          {
+              // do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ, PARTITION_VERT },
+              { // UNEVEN_4B
+                PARTITION_HORZ, PARTITION_VERT },
+          },
       },
-      {  // do_4way
-        {  // UNEVEN_4A
-          PARTITION_HORZ, PARTITION_VERT
-        },
-        {  // UNEVEN_4B
-          PARTITION_HORZ, PARTITION_VERT
-        },
+      {
+          // do_ext_partition
+          {
+              // !do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ_3, PARTITION_VERT_3 },
+              { // UNEVEN_4B
+                PARTITION_HORZ_3, PARTITION_VERT_3 },
+          },
+          {
+              // do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ_4A, PARTITION_VERT_4A },
+              { // UNEVEN_4B
+                PARTITION_HORZ_4B, PARTITION_VERT_4B },
+          },
       },
-  },
-  {  // do_ext_partition
-      {  // !do_4way
-        {  // UNEVEN_4A
-          PARTITION_HORZ_3, PARTITION_VERT_3
-        },
-        {  // UNEVEN_4B
-          PARTITION_HORZ_3, PARTITION_VERT_3
-        },
-      },
-      {  // do_4way
-        {  // UNEVEN_4A
-          PARTITION_HORZ_4A, PARTITION_VERT_4A
-        },
-        {  // UNEVEN_4B
-          PARTITION_HORZ_4B, PARTITION_VERT_4B
-        },
-      },
-  },
-};
+    };
 #else
 /*!\brief Maps (ext_part, rect_type) to partition_type. */
 static PARTITION_TYPE rect_part_table[2][NUM_RECT_PARTS] = {
@@ -2146,8 +2145,8 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
   if (rect_type == RECT_INVALID) {
-    rect_type =
-        aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][ctx], NUM_RECT_PARTS, ACCT_STR);
+    rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][ctx],
+                                NUM_RECT_PARTS, ACCT_STR);
   }
 
   bool do_ext_partition = false;
@@ -2180,7 +2179,8 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 #endif  // CONFIG_UNEVEN_4WAY
   }
 #if CONFIG_UNEVEN_4WAY
-  return rect_part_table[do_ext_partition][do_uneven_4way_partition][uneven_4way_partition_type][rect_type];
+  return rect_part_table[do_ext_partition][do_uneven_4way_partition]
+                        [uneven_4way_partition_type][rect_type];
 #else
   return rect_part_table[do_ext_partition][rect_type];
 #endif  // CONFIG_UNEVEN_4WAY

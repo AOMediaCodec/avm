@@ -789,10 +789,11 @@ typedef struct {
 #if CONFIG_UNEVEN_4WAY
   /*! Cost for sending do_uneven_4way_partition token. */
   int do_uneven_4way_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
-                           [PARTITION_CONTEXTS][2];
+                                   [PARTITION_CONTEXTS][2];
   /*! Cost for sending uneven_4way_partition_type token. */
   int uneven_4way_partition_type_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
-                           [PARTITION_CONTEXTS][NUM_UNEVEN_4WAY_PARTS];
+                                     [PARTITION_CONTEXTS]
+                                     [NUM_UNEVEN_4WAY_PARTS];
 #endif  // CONFIG_UNEVEN_4WAY
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/

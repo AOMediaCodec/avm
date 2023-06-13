@@ -784,9 +784,8 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
 #if CONFIG_UNEVEN_4WAY
 /*!\brief Checks whether uneven 4-way partition is allowed for current bsize and
  * rect_type. */
-static AOM_INLINE bool is_uneven_4way_partition_allowed(BLOCK_SIZE bsize,
-                                                RECT_PART_TYPE rect_type,
-                                                TREE_TYPE tree_type) {
+static AOM_INLINE bool is_uneven_4way_partition_allowed(
+    BLOCK_SIZE bsize, RECT_PART_TYPE rect_type, TREE_TYPE tree_type) {
   assert(is_ext_partition_allowed(bsize, rect_type, tree_type));
 
   if (rect_type == HORZ) {

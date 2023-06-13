@@ -2108,25 +2108,30 @@ static void update_partition_stats(MACROBLOCKD *const xd,
       if (uneven_4way_partition_allowed) {
         const bool do_uneven_4way_partition = (partition >= PARTITION_HORZ_4A);
 #if CONFIG_ENTROPY_STATS
-        counts->do_uneven_4way_partition[plane_index][rect_type][ctx][do_uneven_4way_partition]++;
+        counts->do_uneven_4way_partition[plane_index][rect_type][ctx]
+                                        [do_uneven_4way_partition]++;
 #endif  // CONFIG_ENTROPY_STATS
-        update_cdf(fc->do_uneven_4way_partition_cdf[plane_index][rect_type][ctx],
-                   do_uneven_4way_partition, 2);
+        update_cdf(
+            fc->do_uneven_4way_partition_cdf[plane_index][rect_type][ctx],
+            do_uneven_4way_partition, 2);
         if (do_uneven_4way_partition) {
           const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
-              (partition == PARTITION_HORZ_4A || partition == PARTITION_VERT_4A) ? UNEVEN_4A
-                                                                 : UNEVEN_4B;
+              (partition == PARTITION_HORZ_4A || partition == PARTITION_VERT_4A)
+                  ? UNEVEN_4A
+                  : UNEVEN_4B;
 #if CONFIG_ENTROPY_STATS
-          counts->uneven_4way_partition_type[plane_index][rect_type][ctx][uneven_4way_type]++;
+          counts->uneven_4way_partition_type[plane_index][rect_type][ctx]
+                                            [uneven_4way_type]++;
 #endif  // CONFIG_ENTROPY_STATS
-          update_cdf(fc->uneven_4way_partition_type_cdf[plane_index][rect_type][ctx],
-                     uneven_4way_type, NUM_UNEVEN_4WAY_PARTS);
+          update_cdf(
+              fc->uneven_4way_partition_type_cdf[plane_index][rect_type][ctx],
+              uneven_4way_type, NUM_UNEVEN_4WAY_PARTS);
         }
       }
     }
 #endif  // CONFIG_UNEVEN_4WAY
   }
-#else   // CONFIG_EXT_RECUR_PARTITIONS
+#else  // CONFIG_EXT_RECUR_PARTITIONS
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
   const int has_rows = (mi_row + hbs_h) < mi_params->mi_rows;
