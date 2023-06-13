@@ -2025,11 +2025,13 @@ static int64_t motion_mode_rd(
         // Compute the warped motion parameters with a least squares fit
         //  using the collected samples
 #if CONFIG_EXTENDED_WARP_PREDICTION
-        if (!av1_find_projection_interintra(xd, bsize, mbmi->mv[0].as_mv,
-                                            &mbmi->wm_params[0]))
+        if (!av1_find_projection_interintra(
+                xd, bsize, orig_dst->plane[0], orig_dst->stride[0],
+                mbmi->mv[0].as_mv, &mbmi->wm_params[0]))
 #else
-        if (!av1_find_projection_interintra(xd, bsize, mbmi->mv[0].as_mv,
-                                            &mbmi->wm_params))
+        if (!av1_find_projection_interintra(
+                xd, bsize, orig_dst->plane[0], orig_dst->stride[0],
+                mbmi->mv[0].as_mv, &mbmi->wm_params))
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
         {
           assert(!is_comp_pred);
@@ -2054,9 +2056,10 @@ static int64_t motion_mode_rd(
                                               NULL);
 
             // Refine MV in a small range.
-            av1_refine_warped_interintra_mv(xd, cm, &ms_params, bsize,
-                                            cpi->sf.mv_sf.warp_search_method,
-                                            cpi->sf.mv_sf.warp_search_iters);
+            av1_refine_warped_interintra_mv(
+                xd, cm, orig_dst->plane[0], orig_dst->stride[0], &ms_params,
+                bsize, cpi->sf.mv_sf.warp_search_method,
+                cpi->sf.mv_sf.warp_search_iters);
 
             if (mv0.as_int != mbmi->mv[0].as_int) {
               // Keep the refined MV and WM parameters.
@@ -4910,7 +4913,6 @@ static int64_t handle_inter_mode(
 #if CONFIG_IMPROVED_JMVD
   }
 #endif  // CONFIG_IMPROVED_JMVD
-
   if (best_rd == INT64_MAX) return INT64_MAX;
 
   // re-instate status of the best choice

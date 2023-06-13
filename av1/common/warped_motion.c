@@ -1506,10 +1506,9 @@ static int find_interintra_rotzoom_int(const uint16_t *src, int src_stride,
 }
 
 int av1_find_projection_interintra(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                                   MV mv, WarpedMotionParams *wm_params) {
+                                   const uint16_t *dst, int dst_stride, MV mv,
+                                   WarpedMotionParams *wm_params) {
   const struct macroblockd_plane *pd = &xd->plane[0];
-  const int dst_stride = pd->dst.stride;
-  uint16_t *const dst = pd->dst.buf;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
@@ -1528,12 +1527,11 @@ int av1_find_projection_interintra(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
 }
 
 int av1_find_projection_interintra_ext(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                       const uint16_t *dst, int dst_stride,
                                        MV mv, WarpedMotionParams *wm_params,
                                        int width, int height,
                                        uint16_t *tmpbuf) {
   const struct macroblockd_plane *pd = &xd->plane[0];
-  const int dst_stride = pd->dst.stride;
-  uint16_t *const dst = pd->dst.buf;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 

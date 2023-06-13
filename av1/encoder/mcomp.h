@@ -502,9 +502,9 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
 #if CONFIG_INTERINTRA_WARP
 unsigned int av1_refine_warped_interintra_mv(
-    MACROBLOCKD *xd, const AV1_COMMON *const cm,
-    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, BLOCK_SIZE bsize,
-    WARP_SEARCH_METHOD search_method, int num_iterations);
+    MACROBLOCKD *xd, const AV1_COMMON *const cm, const uint16_t *dst,
+    int dst_stride, const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+    BLOCK_SIZE bsize, WARP_SEARCH_METHOD search_method, int num_iterations);
 #endif  // CONFIG_INTERINTRA_WARP
 
 #if CONFIG_EXTENDED_WARP_PREDICTION

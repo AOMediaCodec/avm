@@ -326,8 +326,10 @@ int av1_find_projection_unconstrained(int np, const int *pts1, const int *pts2,
 #endif  // CONFIG_TEMPORAL_GLOBAL_MV
 #if CONFIG_INTERINTRA_WARP
 int av1_find_projection_interintra(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                                   MV mv, WarpedMotionParams *wm_params);
+                                   const uint16_t *dst, int dst_stride, MV mv,
+                                   WarpedMotionParams *wm_params);
 int av1_find_projection_interintra_ext(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                       const uint16_t *dst, int dst_stride,
                                        MV mv, WarpedMotionParams *wm_params,
                                        int width, int height, uint16_t *tmpbuf);
 #endif  // CONFIG_INTERINTRA_WARP

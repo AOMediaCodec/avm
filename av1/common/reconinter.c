@@ -2690,6 +2690,17 @@ void av1_prepare_inter_topleft(const uint16_t *ref, int ref_stride,
   const int bh = block_size_high[bsize];
   uint16_t scratch[MAX_INTERINTRA_TOPLEFT_SIZE];
 
+  if (phase_x == 0 && phase_y == 0) {
+    for (int i = 0; i < border + inner_border; ++i) {
+      memcpy(top + i * top_stride, ref + (i - border) * ref_stride,
+             bw * sizeof(*top));
+    }
+    for (int i = 0; i < bh; ++i) {
+      memcpy(left + i * left_stride, ref + i * ref_stride - border,
+             (border + inner_border) * sizeof(*left));
+    }
+    return;
+  }
   int scratch_stride = bw;
   for (int i = -border; i < 2 + inner_border; ++i) {
     cubic_phase_shift1(ref + i * ref_stride, 1, bw, phase_x, 1,
