@@ -154,7 +154,7 @@ set_aom_config_var(CONFIG_C043_MVP_IMPROVEMENTS 1
 set_aom_config_var(CONFIG_C063_TMVP_IMPROVEMENT 1
                    "AV2 experiment flag for improved TMVP derivation.")
 set_aom_config_var(CONFIG_EXT_DIR 1
-                   "AV2 Experiment")
+                   "AV2 extended intra prediction angles.")
 set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
                    "AV2 Fully recursive partitions experiment flag")
 set_aom_config_var(CONFIG_H_PARTITION 1 NUMBER
