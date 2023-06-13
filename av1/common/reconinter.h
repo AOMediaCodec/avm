@@ -608,7 +608,9 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
 static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
                                       const MB_MODE_INFO *mbmi,
                                       BLOCK_SIZE bsize) {
-  if (!cm->seq_params.enable_refinemv) return 0;
+  if (!cm->seq_params.enable_refinemv ||
+      cm->superres_scale_denominator != SCALE_NUMERATOR)
+    return 0;
   int is_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip) return 0;
   assert(!mbmi->skip_mode);
@@ -624,6 +626,7 @@ static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
   return cm->seq_params.enable_refinemv &&
+         cm->superres_scale_denominator == SCALE_NUMERATOR &&
          is_refinemv_allowed_reference(cm, mbmi);
 }
 
@@ -634,12 +637,15 @@ static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
 
   assert(mbmi->skip_mode);
   return cm->seq_params.enable_refinemv &&
+         cm->superres_scale_denominator == SCALE_NUMERATOR &&
          is_refinemv_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_refinemv_allowed_reference(cm, mbmi);
 }
 static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
                                             const MB_MODE_INFO *mbmi) {
-  if (!cm->seq_params.enable_refinemv) return 0;
+  if (!cm->seq_params.enable_refinemv ||
+      cm->superres_scale_denominator != SCALE_NUMERATOR)
+    return 0;
   int is_refinemv =
       (mbmi->skip_mode
            ? is_refinemv_allowed_skip_mode(cm, mbmi)

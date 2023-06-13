@@ -3022,6 +3022,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
+#if CONFIG_REFINEMV && DISABLE_PADDING_FOR_DEBUG
+  (void)ref_area;
+#endif
+
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf = xd->block_ref_scale_factors[ref];
     struct buf_2d *const pre_buf = &pd->pre[ref];
@@ -3038,7 +3042,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
                           mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
 
-#if CONFIG_REFINEMV
+#if CONFIG_REFINEMV && !DISABLE_PADDING_FOR_DEBUG
     inter_pred_params.use_ref_padding = 1;
     inter_pred_params.ref_area = &ref_area[ref];
 #endif

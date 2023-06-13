@@ -877,7 +877,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
                           MULTITAP_SHARP);
 
-#if CONFIG_REFINEMV
+#if CONFIG_REFINEMV && DISABLE_PADDING_FOR_DEBUG
+    (void)ref_area;
+#endif
+
+#if CONFIG_REFINEMV && !DISABLE_PADDING_FOR_DEBUG
     if (apply_refinemv) {
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];

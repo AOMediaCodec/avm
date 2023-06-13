@@ -259,6 +259,18 @@ add_proto qw/unsigned int/, "aom_highbd_sad8x8", "const uint16_t *src_ptr, int s
 specialize "aom_highbd_sad8x8", qw/sse2/;
 specialize qw/aom_highbd_sad8x8 sse2/;
 
+add_proto qw/unsigned int/, "aom_highbd_sad8x16", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
+specialize "aom_highbd_sad8x16", qw/sse2/;
+specialize qw/aom_highbd_sad8x16 sse2/;
+
+add_proto qw/unsigned int/, "aom_highbd_sad16x8", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
+specialize "aom_highbd_sad16x8", qw/sse2/;
+specialize qw/aom_highbd_sad16x8 sse2/;
+
+add_proto qw/unsigned int/, "aom_highbd_sad16x16", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
+specialize "aom_highbd_sad16x16", qw/sse2/;
+specialize qw/aom_highbd_sad16x16 sse2/;
+
 if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void/, "aom_get_blk_sse_sum", "const int16_t *data, int stride, int bw, int bh, int *x_sum, int64_t *x2_sum";
   specialize qw/aom_get_blk_sse_sum sse2 avx2/;
