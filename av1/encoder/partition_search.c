@@ -3326,49 +3326,41 @@ static AOM_INLINE void init_allowed_partitions(
   part_search_state->partition_4a_allowed[HORZ] =
       ext_partition_allowed &&
       get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4A, bsize, mi_row, mi_col,
-                                 ss_x, ss_y, chroma_ref_info) &&
+      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4A, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4A),
                    blk_params->min_partition_size) &&
-      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_HORZ_4A,
-                                        ss_x,
-                                        ss_y),
+      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_HORZ_4A, ss_x, ss_y),
               mi_row + 7 * ebh < cm->mi_params.mi_rows);
 
   part_search_state->partition_4b_allowed[HORZ] =
-      ext_partition_allowed && get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4B, bsize, mi_row, mi_col,
-                                 ss_x, ss_y,
-                                 chroma_ref_info) &&
+      ext_partition_allowed &&
+      get_partition_subsize(bsize, PARTITION_HORZ_4B) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_HORZ_4B, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4B),
                    blk_params->min_partition_size) &&
-      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_HORZ_4B,
-                                        ss_x,
-                                        ss_y),
+      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_HORZ_4B, ss_x, ss_y),
               mi_row + 7 * ebh < cm->mi_params.mi_rows);
 
   part_search_state->partition_4a_allowed[VERT] =
-      ext_partition_allowed && get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4A, bsize, mi_row, mi_col,
-                                 ss_x, ss_y,
-                                 chroma_ref_info) &&
+      ext_partition_allowed &&
+      get_partition_subsize(bsize, PARTITION_VERT_4A) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4A, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4A),
                    blk_params->min_partition_size) &&
-      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_VERT_4A,
-                                        ss_x,
-                                        ss_y),
+      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_VERT_4A, ss_x, ss_y),
               mi_col + 7 * ebw < cm->mi_params.mi_cols);
 
   part_search_state->partition_4b_allowed[VERT] =
-      ext_partition_allowed && get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
-      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4B, bsize, mi_row, mi_col,
-                                 ss_x, ss_y,
-                                 chroma_ref_info) &&
+      ext_partition_allowed &&
+      get_partition_subsize(bsize, PARTITION_VERT_4B) != BLOCK_INVALID &&
+      check_is_chroma_size_valid(tree_type, PARTITION_VERT_4B, bsize, mi_row,
+                                 mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4B),
                    blk_params->min_partition_size) &&
-      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_VERT_4B,
-                                        ss_x,
-                                        ss_y),
+      IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_VERT_4B, ss_x, ss_y),
               mi_col + 7 * ebw < cm->mi_params.mi_cols);
 #endif  // CONFIG_UNEVEN_4WAY
 
@@ -4965,8 +4957,8 @@ static AOM_INLINE bool node_uses_horz(const PC_TREE *pc_tree) {
   assert(pc_tree);
   return pc_tree->partitioning == PARTITION_HORZ
 #if CONFIG_UNEVEN_4WAY
-         || pc_tree->partitioning == PARTITION_HORZ_4A
-         || pc_tree->partitioning == PARTITION_HORZ_4B
+         || pc_tree->partitioning == PARTITION_HORZ_4A ||
+         pc_tree->partitioning == PARTITION_HORZ_4B
 #endif  // CONFIG_UNEVEN_4WAY
 #if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
          || pc_tree->partitioning == PARTITION_HORZ_3
@@ -4979,8 +4971,8 @@ static AOM_INLINE bool node_uses_vert(const PC_TREE *pc_tree) {
   assert(pc_tree);
   return pc_tree->partitioning == PARTITION_VERT
 #if CONFIG_UNEVEN_4WAY
-         || pc_tree->partitioning == PARTITION_VERT_4A
-         || pc_tree->partitioning == PARTITION_VERT_4B
+         || pc_tree->partitioning == PARTITION_VERT_4A ||
+         pc_tree->partitioning == PARTITION_VERT_4B
 #endif  // CONFIG_UNEVEN_4WAY
 #if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
          || pc_tree->partitioning == PARTITION_VERT_3
@@ -5109,7 +5101,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
 #if CONFIG_H_PARTITION
-    if (part_sf->prune_part_4_with_part_3 &&  !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
         !node_uses_horz(pc_tree->horizontal3[3])) {
@@ -5118,7 +5110,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
 #endif  // CONFIG_H_PARTITION
-    if (part_sf->prune_part_4_horz_or_vert &&  !frame_is_intra_only(cm) &&
+    if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
       part_search_state->prune_partition_4a[HORZ] = 1;
@@ -5143,7 +5135,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
     }
 #if CONFIG_H_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
-pc_tree->partitioning == PARTITION_HORZ_3 &&
+        pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
         !node_uses_horz(pc_tree->horizontal3[3])) {
       // Prune is best partition is horizontal H, but first and last
@@ -5152,7 +5144,7 @@ pc_tree->partitioning == PARTITION_HORZ_3 &&
     }
 #endif  // CONFIG_H_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
-pc_tree->partitioning == PARTITION_VERT &&
+        pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
@@ -5176,7 +5168,7 @@ pc_tree->partitioning == PARTITION_VERT &&
     }
 #if CONFIG_H_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
-pc_tree->partitioning == PARTITION_VERT_3 &&
+        pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
         !node_uses_vert(pc_tree->vertical3[3])) {
       // Prune is best partition is vertical H, but first and last
@@ -5185,7 +5177,7 @@ pc_tree->partitioning == PARTITION_VERT_3 &&
     }
 #endif  // CONFIG_H_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
-pc_tree->partitioning == PARTITION_HORZ &&
+        pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4a[VERT] = 1;
     }
@@ -5209,7 +5201,7 @@ pc_tree->partitioning == PARTITION_HORZ &&
     }
 #if CONFIG_H_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
-pc_tree->partitioning == PARTITION_VERT_3 &&
+        pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
         !node_uses_vert(pc_tree->vertical3[3])) {
       // Prune is best partition is vertical H, but first and last
@@ -5218,7 +5210,7 @@ pc_tree->partitioning == PARTITION_VERT_3 &&
     }
 #endif  // CONFIG_H_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
-pc_tree->partitioning == PARTITION_HORZ &&
+        pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4b[VERT] = 1;
     }
@@ -5248,7 +5240,8 @@ static INLINE void search_partition_horz_4a(
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
 
-  if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_HORZ_4A) ||
+  if (is_part_pruned_by_forced_partition(part_search_state,
+                                         PARTITION_HORZ_4A) ||
       !part_search_state->partition_4a_allowed[HORZ] ||
       part_search_state->prune_partition_4a[HORZ]) {
     return;
@@ -5357,7 +5350,8 @@ static INLINE void search_partition_horz_4b(
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
 
-  if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_HORZ_4B) ||
+  if (is_part_pruned_by_forced_partition(part_search_state,
+                                         PARTITION_HORZ_4B) ||
       !part_search_state->partition_4b_allowed[HORZ] ||
       part_search_state->prune_partition_4b[HORZ]) {
     return;
@@ -5466,7 +5460,8 @@ static INLINE void search_partition_vert_4a(
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
 
-  if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_VERT_4A) ||
+  if (is_part_pruned_by_forced_partition(part_search_state,
+                                         PARTITION_VERT_4A) ||
       !part_search_state->partition_4a_allowed[VERT] ||
       part_search_state->prune_partition_4a[VERT]) {
     return;
@@ -5575,7 +5570,8 @@ static INLINE void search_partition_vert_4b(
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
   const BLOCK_SIZE bsize = blk_params->bsize;
 
-  if (is_part_pruned_by_forced_partition(part_search_state, PARTITION_VERT_4B) ||
+  if (is_part_pruned_by_forced_partition(part_search_state,
+                                         PARTITION_VERT_4B) ||
       !part_search_state->partition_4b_allowed[VERT] ||
       part_search_state->prune_partition_4b[VERT]) {
     return;
@@ -6454,47 +6450,47 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_UNEVEN_4WAY
-    prune_ext_partitions_4way(cpi, pc_tree, &part_search_state);
+  prune_ext_partitions_4way(cpi, pc_tree, &part_search_state);
 
-    // PARTITION_HORZ_4A
-    search_partition_horz_4a(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL,
-        template_tree, &x_ctx, &part_search_state,
+  // PARTITION_HORZ_4A
+  search_partition_horz_4a(&part_search_state, cpi, td, tile_data, tp,
+                           &best_rdc, pc_tree,
+                           track_ptree_luma ? ptree_luma : NULL, template_tree,
+                           &x_ctx, &part_search_state,
 #if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          &level_banks,
+                           &level_banks,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-      multi_pass_mode, ext_recur_depth);
+                           multi_pass_mode, ext_recur_depth);
 
   // PARTITION_HORZ_4B
-    search_partition_horz_4b(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL,
-        template_tree, &x_ctx, &part_search_state,
+  search_partition_horz_4b(&part_search_state, cpi, td, tile_data, tp,
+                           &best_rdc, pc_tree,
+                           track_ptree_luma ? ptree_luma : NULL, template_tree,
+                           &x_ctx, &part_search_state,
 #if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          &level_banks,
+                           &level_banks,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-      multi_pass_mode, ext_recur_depth);
+                           multi_pass_mode, ext_recur_depth);
 
   // PARTITION_VERT_4A
-    search_partition_vert_4a(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL,
-        template_tree, &x_ctx, &part_search_state,
+  search_partition_vert_4a(&part_search_state, cpi, td, tile_data, tp,
+                           &best_rdc, pc_tree,
+                           track_ptree_luma ? ptree_luma : NULL, template_tree,
+                           &x_ctx, &part_search_state,
 #if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          &level_banks,
+                           &level_banks,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-      multi_pass_mode, ext_recur_depth);
+                           multi_pass_mode, ext_recur_depth);
 
   // PARTITION_VERT_4B
-    search_partition_vert_4b(
-        &part_search_state, cpi, td, tile_data, tp, &best_rdc, pc_tree,
-        track_ptree_luma ? ptree_luma : NULL,
-        template_tree, &x_ctx, &part_search_state,
+  search_partition_vert_4b(&part_search_state, cpi, td, tile_data, tp,
+                           &best_rdc, pc_tree,
+                           track_ptree_luma ? ptree_luma : NULL, template_tree,
+                           &x_ctx, &part_search_state,
 #if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-                          &level_banks,
+                           &level_banks,
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
-      multi_pass_mode, ext_recur_depth);
+                           multi_pass_mode, ext_recur_depth);
 #endif  // CONFIG_UNEVEN_4WAY
 
   if (bsize == cm->seq_params.sb_size &&
