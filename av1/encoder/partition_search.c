@@ -3322,7 +3322,6 @@ static AOM_INLINE void init_allowed_partitions(
                    blk_params->min_partition_size);
 
 #if CONFIG_UNEVEN_4WAY
-  // TODO(now): get 'ebh' and 'mi_rows'.
   part_search_state->partition_4a_allowed[HORZ] =
       ext_partition_allowed &&
       get_partition_subsize(bsize, PARTITION_HORZ_4A) != BLOCK_INVALID &&
@@ -3331,7 +3330,7 @@ static AOM_INLINE void init_allowed_partitions(
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4A),
                    blk_params->min_partition_size) &&
       IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_HORZ_4A, ss_x, ss_y),
-              mi_row + 7 * ebh < cm->mi_params.mi_rows);
+              blk_params->has_7_8th_rows);
 
   part_search_state->partition_4b_allowed[HORZ] =
       ext_partition_allowed &&
@@ -3341,7 +3340,7 @@ static AOM_INLINE void init_allowed_partitions(
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_HORZ_4B),
                    blk_params->min_partition_size) &&
       IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_HORZ_4B, ss_x, ss_y),
-              mi_row + 7 * ebh < cm->mi_params.mi_rows);
+              blk_params->has_7_8th_rows);
 
   part_search_state->partition_4a_allowed[VERT] =
       ext_partition_allowed &&
@@ -3351,7 +3350,7 @@ static AOM_INLINE void init_allowed_partitions(
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4A),
                    blk_params->min_partition_size) &&
       IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_VERT_4A, ss_x, ss_y),
-              mi_col + 7 * ebw < cm->mi_params.mi_cols);
+              blk_params->has_7_8th_cols);
 
   part_search_state->partition_4b_allowed[VERT] =
       ext_partition_allowed &&
@@ -3361,7 +3360,7 @@ static AOM_INLINE void init_allowed_partitions(
       is_bsize_geq(get_partition_subsize(bsize, PARTITION_VERT_4B),
                    blk_params->min_partition_size) &&
       IMPLIES(have_nz_chroma_ref_offset(bsize, PARTITION_VERT_4B, ss_x, ss_y),
-              mi_col + 7 * ebw < cm->mi_params.mi_cols);
+              blk_params->has_7_8th_cols);
 #endif  // CONFIG_UNEVEN_4WAY
 
   // Reset the flag indicating whether a partition leading to a rdcost lower
@@ -3417,6 +3416,11 @@ static void init_partition_search_state_params(
   // Check if the partition corresponds to edge block.
   blk_params->has_rows = (blk_params->mi_row_edge < mi_params->mi_rows);
   blk_params->has_cols = (blk_params->mi_col_edge < mi_params->mi_cols);
+
+  const int ebw = mi_size_wide[bsize] / 8;
+  const int ebh = mi_size_high[bsize] / 8;
+  blk_params->has_7_8th_rows = (mi_row + 7 * ebh < mi_params->mi_rows);
+  blk_params->has_7_8th_cols = (mi_col + 7 * ebw < mi_params->mi_cols);
 
   // Update intra partitioning related info.
   part_search_state->intra_part_info = &x->part_search_info;

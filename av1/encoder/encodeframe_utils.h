@@ -112,9 +112,15 @@ typedef struct PartitionBlkParams {
   int bsize_at_least_8x8;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
-  // Indicates edge blocks in frame.
+  // Indicates if at least half of the rows / cols of this block are within the
+  // frame.
   int has_rows;
   int has_cols;
+
+  // Indicates if at least 7/8th of the rows / cols of this block are within the
+  // frame. Used by HORZ/VERT_4A/4B partitions.
+  int has_7_8th_rows;
+  int has_7_8th_cols;
 
   // Block size of current partition.
   BLOCK_SIZE bsize;
