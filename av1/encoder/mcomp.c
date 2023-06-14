@@ -136,6 +136,10 @@ void av1_make_default_fullpel_ms_params(
       enable_adaptive_mvd_resolution(&cpi->common, mbmi);
 #endif  // CONFIG_ADAPTIVE_MVD
 
+#if CONFIG_CWP
+  ms_params->xd = xd;
+#endif  // CONFIG_CWP
+
   // High level params
   ms_params->bsize = bsize;
   ms_params->vfp = &cpi->fn_ptr[bsize];
