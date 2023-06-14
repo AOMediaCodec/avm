@@ -4609,7 +4609,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     int max_unit_size = rsi->max_restoration_unit_size;
     int min_unit_size = rsi->min_restoration_unit_size;
 
-    int best_unit_size = 0;
+    int best_unit_size = min_unit_size;
 
     for (int unit_size = min_unit_size; unit_size <= max_unit_size;
          unit_size <<= 1) {
