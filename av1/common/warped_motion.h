@@ -36,6 +36,18 @@
 #define WARP_ERROR_BLOCK_LOG 5
 #define WARP_ERROR_BLOCK (1 << WARP_ERROR_BLOCK_LOG)
 
+#if CONFIG_EXT_WARP_FILTER
+#define EXT_WARP_TAPS 6
+#define EXT_WARP_TAPS_HALF (EXT_WARP_TAPS / 2)
+#define EXT_WARP_PHASES_LOG2 6
+#define EXT_WARP_PHASES (1 << EXT_WARP_PHASES_LOG2)
+#define EXT_WARP_ROUND_BITS (WARPEDMODEL_PREC_BITS - EXT_WARP_PHASES_LOG2)
+
+// The extended warp filter is a 6-tap filter, but we store each kernel with
+// two extra zeros at the end so that each kernel is 16-byte aligned
+#define EXT_WARP_STORAGE_TAPS 8
+#endif  // CONFIG_EXT_WARP_FILTER
+
 #define DIV_LUT_PREC_BITS 14
 #define DIV_LUT_BITS 8
 #define DIV_LUT_NUM (1 << DIV_LUT_BITS)
@@ -134,6 +146,11 @@ extern const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8];
 
 DECLARE_ALIGNED(8, extern const int8_t,
                 av1_filter_8bit[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8]);
+
+#if CONFIG_EXT_WARP_FILTER
+extern const int16_t av1_ext_warped_filter[EXT_WARP_PHASES + 1]
+                                          [EXT_WARP_STORAGE_TAPS];
+#endif  // CONFIG_EXT_WARP_FILTER
 
 /* clang-format off */
 static const int error_measure_lut[512] = {

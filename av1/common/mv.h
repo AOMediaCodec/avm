@@ -389,7 +389,11 @@ static const WarpedMotionParams default_warp_params = {
 #define GM_TRANS_ONLY_DECODE_FACTOR (1 << GM_TRANS_ONLY_PREC_DIFF)
 
 #define GM_ALPHA_PREC_BITS 10
+#if CONFIG_EXT_WARP_FILTER
 #define GM_ABS_ALPHA_BITS 9
+#else
+#define GM_ABS_ALPHA_BITS 7
+#endif  // CONFIG_EXT_WARP_FILTER
 #define GM_ALPHA_PREC_DIFF (WARPEDMODEL_PREC_BITS - GM_ALPHA_PREC_BITS)
 #define GM_ALPHA_DECODE_FACTOR (1 << GM_ALPHA_PREC_DIFF)
 #else
@@ -414,7 +418,11 @@ static const WarpedMotionParams default_warp_params = {
 #define GM_ROW3HOMO_DECODE_FACTOR (1 << GM_ROW3HOMO_PREC_DIFF)
 
 #define GM_TRANS_MAX (1 << GM_ABS_TRANS_BITS)
+#if CONFIG_EXT_WARP_FILTER
+#define GM_ALPHA_MAX ((1 << GM_ABS_ALPHA_BITS) - 1)
+#else
 #define GM_ALPHA_MAX (1 << GM_ABS_ALPHA_BITS)
+#endif  // CONFIG_EXT_WARP_FILTER
 #define GM_ROW3HOMO_MAX (1 << GM_ABS_ROW3HOMO_BITS)
 
 #define GM_TRANS_MIN -GM_TRANS_MAX

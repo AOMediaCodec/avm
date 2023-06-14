@@ -193,76 +193,78 @@ const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8] = {
 #endif  // WARPEDPIXEL_PREC_BITS == 6
 };
 
-#if CONFIG_EXT_WARP
-const int16_t av1_ext_warped_filter[WARPEDPIXEL_PREC_SHIFTS + 1][8] = {
-  { 0, 0, 0, 128, 0, 0, 0, 0 },
-  { 0, 1, -2, 128, 2, -1, 0, 0 },
-  { 0, 1, -3, 127, 4, -2, 1, 0 },
-  { 0, 1, -5, 127, 6, -2, 1, 0 },
-  { 0, 2, -6, 126, 8, -3, 1, 0 },
-  { -1, 2, -7, 126, 11, -4, 2, -1 },
-  { -1, 3, -8, 125, 13, -5, 2, -1 },
-  { -1, 3, -10, 124, 16, -6, 3, -1 },
-  { -1, 4, -11, 123, 18, -7, 3, -1 },
-  { -1, 4, -12, 122, 20, -7, 3, -1 },
-  { -1, 4, -13, 121, 23, -8, 3, -1 },
-  { -2, 5, -14, 120, 25, -9, 4, -1 },
-  { -1, 5, -15, 119, 27, -10, 4, -1 },
-  { -1, 5, -16, 118, 30, -11, 4, -1 },
-  { -2, 6, -17, 116, 33, -12, 5, -1 },
-  { -2, 6, -17, 114, 35, -12, 5, -1 },
-  { -2, 6, -18, 113, 38, -13, 5, -1 },
-  { -2, 7, -19, 111, 41, -14, 6, -2 },
-  { -2, 7, -19, 110, 43, -15, 6, -2 },
-  { -2, 7, -20, 108, 46, -15, 6, -2 },
-  { -2, 7, -20, 106, 49, -16, 6, -2 },
-  { -2, 7, -21, 104, 51, -16, 7, -2 },
-  { -2, 7, -21, 102, 54, -17, 7, -2 },
-  { -2, 8, -21, 100, 56, -18, 7, -2 },
-  { -2, 8, -22, 98, 59, -18, 7, -2 },
-  { -2, 8, -22, 96, 62, -19, 7, -2 },
-  { -2, 8, -22, 94, 64, -19, 7, -2 },
-  { -2, 8, -22, 91, 67, -20, 8, -2 },
-  { -2, 8, -22, 89, 69, -20, 8, -2 },
-  { -2, 8, -22, 87, 72, -21, 8, -2 },
-  { -2, 8, -21, 84, 74, -21, 8, -2 },
-  { -2, 8, -22, 82, 77, -21, 8, -2 },
-  { -2, 8, -21, 79, 79, -21, 8, -2 },
-  { -2, 8, -21, 77, 82, -22, 8, -2 },
-  { -2, 8, -21, 74, 84, -21, 8, -2 },
-  { -2, 8, -21, 72, 87, -22, 8, -2 },
-  { -2, 8, -20, 69, 89, -22, 8, -2 },
-  { -2, 8, -20, 67, 91, -22, 8, -2 },
-  { -2, 7, -19, 64, 94, -22, 8, -2 },
-  { -2, 7, -19, 62, 96, -22, 8, -2 },
-  { -2, 7, -18, 59, 98, -22, 8, -2 },
-  { -2, 7, -18, 56, 100, -21, 8, -2 },
-  { -2, 7, -17, 54, 102, -21, 7, -2 },
-  { -2, 7, -16, 51, 104, -21, 7, -2 },
-  { -2, 6, -16, 49, 106, -20, 7, -2 },
-  { -2, 6, -15, 46, 108, -20, 7, -2 },
-  { -2, 6, -15, 43, 110, -19, 7, -2 },
-  { -2, 6, -14, 41, 111, -19, 7, -2 },
-  { -1, 5, -13, 38, 113, -18, 6, -2 },
-  { -1, 5, -12, 35, 114, -17, 6, -2 },
-  { -1, 5, -12, 33, 116, -17, 6, -2 },
-  { -1, 4, -11, 30, 118, -16, 5, -1 },
-  { -1, 4, -10, 27, 119, -15, 5, -1 },
-  { -1, 4, -9, 25, 120, -14, 5, -2 },
-  { -1, 3, -8, 23, 121, -13, 4, -1 },
-  { -1, 3, -7, 20, 122, -12, 4, -1 },
-  { -1, 3, -7, 18, 123, -11, 4, -1 },
-  { -1, 3, -6, 16, 124, -10, 3, -1 },
-  { -1, 2, -5, 13, 125, -8, 3, -1 },
-  { -1, 2, -4, 11, 126, -7, 2, -1 },
-  { 0, 1, -3, 8, 126, -6, 2, 0 },
-  { 0, 1, -2, 6, 127, -5, 1, 0 },
-  { 0, 1, -2, 4, 127, -3, 1, 0 },
-  { 0, 0, -1, 2, 128, -2, 1, 0 },
-  // dummy row
-  { 0, 0, -1, 2, 128, -2, 1, 0 },
+#if CONFIG_EXT_WARP_FILTER
+DECLARE_ALIGNED(16, const int16_t,
+                av1_ext_warped_filter[EXT_WARP_PHASES + 1][EXT_WARP_STORAGE_TAPS]) = {
+// The extended warp filter is a 6-tap filter, but we store each kernel with
+// two extra zeros at the end so that each kernel is 16-byte aligned
+{ 0,   0, 128,   0,   0, 0, 0, 0 },
+{ 0,  -1, 127,   2,   0, 0, 0, 0 },
+{ 0,  -2, 127,   4,  -1, 0, 0, 0 },
+{ 0,  -3, 126,   6,  -1, 0, 0, 0 },
+{ 1,  -4, 125,   8,  -2, 0, 0, 0 },
+{ 1,  -5, 124,  11,  -3, 0, 0, 0 },
+{ 1,  -6, 123,  13,  -3, 0, 0, 0 },
+{ 1,  -6, 122,  15,  -4, 0, 0, 0 },
+{ 1,  -7, 120,  17,  -4, 1, 0, 0 },
+{ 1,  -8, 119,  20,  -5, 1, 0, 0 },
+{ 1,  -9, 118,  22,  -5, 1, 0, 0 },
+{ 1,  -9, 117,  24,  -6, 1, 0, 0 },
+{ 1, -10, 115,  27,  -6, 1, 0, 0 },
+{ 1, -10, 114,  29,  -7, 1, 0, 0 },
+{ 1, -11, 112,  32,  -7, 1, 0, 0 },
+{ 1, -11, 111,  34,  -8, 1, 0, 0 },
+{ 1, -11, 109,  36,  -8, 1, 0, 0 },
+{ 2, -12, 107,  39,  -9, 1, 0, 0 },
+{ 2, -12, 105,  41,  -9, 1, 0, 0 },
+{ 2, -12, 103,  44, -10, 1, 0, 0 },
+{ 2, -13, 102,  46, -10, 1, 0, 0 },
+{ 2, -13,  99,  49, -10, 1, 0, 0 },
+{ 2, -13,  98,  51, -11, 1, 0, 0 },
+{ 2, -13,  95,  54, -11, 1, 0, 0 },
+{ 2, -14,  93,  56, -11, 2, 0, 0 },
+{ 2, -14,  91,  59, -12, 2, 0, 0 },
+{ 2, -14,  89,  61, -12, 2, 0, 0 },
+{ 2, -14,  87,  63, -12, 2, 0, 0 },
+{ 2, -14,  85,  66, -13, 2, 0, 0 },
+{ 2, -14,  83,  68, -13, 2, 0, 0 },
+{ 2, -14,  80,  71, -13, 2, 0, 0 },
+{ 2, -14,  78,  73, -13, 2, 0, 0 },
+{ 2, -13,  75,  75, -13, 2, 0, 0 },
+{ 2, -13,  73,  78, -14, 2, 0, 0 },
+{ 2, -13,  71,  80, -14, 2, 0, 0 },
+{ 2, -13,  68,  83, -14, 2, 0, 0 },
+{ 2, -13,  66,  85, -14, 2, 0, 0 },
+{ 2, -12,  63,  87, -14, 2, 0, 0 },
+{ 2, -12,  61,  89, -14, 2, 0, 0 },
+{ 2, -12,  59,  91, -14, 2, 0, 0 },
+{ 2, -11,  56,  93, -14, 2, 0, 0 },
+{ 1, -11,  54,  95, -13, 2, 0, 0 },
+{ 1, -11,  51,  98, -13, 2, 0, 0 },
+{ 1, -10,  49,  99, -13, 2, 0, 0 },
+{ 1, -10,  46, 102, -13, 2, 0, 0 },
+{ 1, -10,  44, 103, -12, 2, 0, 0 },
+{ 1,  -9,  41, 105, -12, 2, 0, 0 },
+{ 1,  -9,  39, 107, -12, 2, 0, 0 },
+{ 1,  -8,  36, 109, -11, 1, 0, 0 },
+{ 1,  -8,  34, 111, -11, 1, 0, 0 },
+{ 1,  -7,  32, 112, -11, 1, 0, 0 },
+{ 1,  -7,  29, 114, -10, 1, 0, 0 },
+{ 1,  -6,  27, 115, -10, 1, 0, 0 },
+{ 1,  -6,  24, 117,  -9, 1, 0, 0 },
+{ 1,  -5,  22, 118,  -9, 1, 0, 0 },
+{ 1,  -5,  20, 119,  -8, 1, 0, 0 },
+{ 1,  -4,  17, 120,  -7, 1, 0, 0 },
+{ 0,  -4,  15, 122,  -6, 1, 0, 0 },
+{ 0,  -3,  13, 123,  -6, 1, 0, 0 },
+{ 0,  -3,  11, 124,  -5, 1, 0, 0 },
+{ 0,  -2,   8, 125,  -4, 1, 0, 0 },
+{ 0,  -1,   6, 126,  -3, 0, 0, 0 },
+{ 0,  -1,   4, 127,  -2, 0, 0, 0 },
+{ 0,   0,   2, 127,  -1, 0, 0, 0 },
+{ 0,   0,   0, 128,  0, 0, 0, 0 },
 };
-#endif  // CONFIG_EXT_WARP
+#endif  // CONFIG_EXT_WARP_FILTER
 
 /* clang-format on */
 
@@ -376,10 +378,10 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
       (int16_t)(ROUND_POWER_OF_TWO_SIGNED(wm->delta, WARP_PARAM_REDUCE_BITS) *
                 (1 << WARP_PARAM_REDUCE_BITS));
 
-#if !CONFIG_EXT_WARP
+#if !CONFIG_EXT_WARP_FILTER
   if (!is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta))
     return 0;
-#endif  // CONFIG_EXT_WARP
+#endif  // CONFIG_EXT_WARP_FILTER
 
   return 1;
 }
@@ -395,12 +397,26 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
 // ensures that hardware can store each value in a signed integer with
 // (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS) total bits
 void av1_reduce_warp_model(WarpedMotionParams *wm) {
+#if CONFIG_EXT_WARP_FILTER
+  // Constrain parameters so that they lie within the range of +/- 1/2
+  // relative to the identity model.
+  //
+  // In order to avoid needing one extra bit, we limit the maximum to one
+  // unit less than 1/2, similarly to how an int<n> can only go up to
+  // 2^(n-1) - 1. However, unlike an int<n>, the allowable range must
+  // remain symmetric, so that ROTZOOM models can maintain the constraint
+  // that wmmat[4] == -wmmat[3].
+  const int max_value =
+      (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
+  const int min_value = -max_value;
+#else
   // Think of this range as an int<N>, multiplied by (1 <<
   // WARP_PARAM_REDUCE_BITS). In other words, the max is -2^(N-1) and max is
   // (2^(N-1) - 1), but with an extra multiplier applied to both terms
   const int min_value = -(1 << (WARPEDMODEL_PREC_BITS - 1));
   const int max_value =
       (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
+#endif  // CONFIG_EXT_WARP_FILTER
 
   for (int i = 2; i < 6; i++) {
     int offset = (i == 2 || i == 5) ? (1 << WARPEDMODEL_PREC_BITS) : 0;
@@ -636,14 +652,14 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
   }
 }
 
-#if CONFIG_EXT_WARP
+#if CONFIG_EXT_WARP_FILTER
 void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
                                   int width, int height, int stride,
                                   uint16_t *pred, int p_col, int p_row,
                                   int p_width, int p_height, int p_stride,
                                   int subsampling_x, int subsampling_y, int bd,
                                   ConvolveParams *conv_params) {
-  int32_t im_block[11 * 4];
+  int32_t im_block[(4 + EXT_WARP_TAPS - 1) * 4];
   const int reduce_bits_horiz =
       conv_params->round_0 +
       AOMMAX(bd + FILTER_BITS - conv_params->round_0 - 14, 0);
@@ -679,24 +695,24 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
       int32_t sy4 = y4 & ((1 << WARPEDMODEL_PREC_BITS) - 1);
 
       // Horizontal Filter
-      const int offs_x = ROUND_POWER_OF_TWO(sx4, WARPEDDIFF_PREC_BITS);
-      assert(offs_x >= 0 && offs_x <= WARPEDPIXEL_PREC_SHIFTS);
+      const int offs_x = ROUND_POWER_OF_TWO(sx4, EXT_WARP_ROUND_BITS);
+      assert(offs_x >= 0 && offs_x <= EXT_WARP_PHASES);
       const int16_t *coeffs_x = av1_ext_warped_filter[offs_x];
 
-      for (int k = -5; k < 6; ++k) {
+      for (int k = -(EXT_WARP_TAPS_HALF + 1); k < EXT_WARP_TAPS_HALF + 2; ++k) {
         const int iy = clamp(iy4 + k, 0, height - 1);
 
         for (int l = -2; l < 2; ++l) {
-          int ix = ix4 + l - 3;
+          int ix = ix4 + l - (EXT_WARP_TAPS_HALF - 1);
 
           int32_t sum = 1 << offset_bits_horiz;
-          for (int m = 0; m < 8; ++m) {
+          for (int m = 0; m < EXT_WARP_TAPS; ++m) {
             const int sample_x = clamp(ix + m, 0, width - 1);
             sum += ref[iy * stride + sample_x] * coeffs_x[m];
           }
           sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);
           assert(0 <= sum && sum < (1 << max_bits_horiz));
-          im_block[(k + 5) * 4 + (l + 2)] = sum;
+          im_block[(k + (EXT_WARP_TAPS_HALF + 1)) * 4 + (l + 2)] = sum;
         }
       }
 
@@ -708,7 +724,7 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
       for (int k = -2; k < AOMMIN(2, p_row + p_height - i - 2); ++k) {
         for (int l = -2; l < AOMMIN(2, p_col + p_width - j - 2); ++l) {
           int32_t sum = 1 << offset_bits_vert;
-          for (int m = 0; m < 8; ++m) {
+          for (int m = 0; m < EXT_WARP_TAPS; ++m) {
             sum += im_block[(k + m + 2) * 4 + (l + 2)] * coeffs_y[m];
           }
 
@@ -749,7 +765,7 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
     }
   }
 }
-#endif  // CONFIG_EXT_WARP
+#endif  // CONFIG_EXT_WARP_FILTER
 
 void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        int width, int height, int stride, uint16_t *const pred,
@@ -767,13 +783,13 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
   const int16_t gamma = wm->gamma;
   const int16_t delta = wm->delta;
 
-#if CONFIG_EXT_WARP
+#if CONFIG_EXT_WARP_FILTER
   if (!is_affine_shear_allowed(alpha, beta, gamma, delta))
     av1_ext_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col,
                                p_row, p_width, p_height, p_stride,
                                subsampling_x, subsampling_y, bd, conv_params);
   else
-#endif  // CONFIG_EXT_WARP
+#endif  // CONFIG_EXT_WARP_FILTER
     av1_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col, p_row,
                            p_width, p_height, p_stride, subsampling_x,
                            subsampling_y, bd, conv_params, alpha, beta, gamma,

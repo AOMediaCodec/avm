@@ -633,9 +633,7 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
   }
 }
 
-#if CONFIG_EXT_WARP
-extern const int16_t av1_ext_warped_filter[WARPEDPIXEL_PREC_SHIFTS + 1][8];
-
+#if CONFIG_EXT_WARP_FILTER
 static INLINE void av1_ext_highbd_horizontal_filter_coeff(int offset_x,
                                                           __m128i *coeff) {
   // Filter coeff
@@ -657,6 +655,11 @@ static INLINE void av1_ext_highbd_horizontal_filter_coeff(int offset_x,
   coeff[7] = coeff[6];
 }
 
+// TODO(rachelbarker):
+// This currently does a full 8-tap filter, just with the last two coefficients
+// always set to 0. This is in contrast to the vertical filter, which directly
+// implements a 6-tap filter. Is it possible to simplify this to only compute
+// a 6-tap filter?
 static INLINE void ext_highbd_filter_src_pixels(
     const __m128i *src, const __m128i *src2, __m128i *tmp, __m128i *coeff,
     const int offset_bits_horiz, const int reduce_bits_horiz, int k) {
@@ -696,7 +699,7 @@ static INLINE void ext_highbd_filter_src_pixels(
   // Combine results into one register.
   // We store the columns in the order 0, 2, 4, 6, 1, 3, 5, 7
   // as this order helps with the vertical filter.
-  tmp[k + 5] = _mm_packs_epi32(res_even, res_odd);
+  tmp[k + 4] = _mm_packs_epi32(res_even, res_odd);
 }
 
 static INLINE void ext_highbd_warp_horizontal_filter(
@@ -708,7 +711,7 @@ static INLINE void ext_highbd_warp_horizontal_filter(
   __m128i coeff[8];
   av1_ext_highbd_horizontal_filter_coeff(offset_x, coeff);
 
-  for (k = -5; k < 6; ++k) {
+  for (k = -4; k < 5; ++k) {
     int iy = iy4 + k;
     if (iy < 0)
       iy = 0;
@@ -717,9 +720,9 @@ static INLINE void ext_highbd_warp_horizontal_filter(
 
     // Load source pixels
     const __m128i src =
-        _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 - 5));
+        _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 - 4));
     const __m128i src2 =
-        _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 + 3));
+        _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 + 4));
     ext_highbd_filter_src_pixels(&src, &src2, tmp, coeff, offset_bits_horiz,
                                  reduce_bits_horiz, k);
   }
@@ -731,7 +734,7 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
                                        int p_width, int p_height, int p_stride,
                                        int subsampling_x, int subsampling_y,
                                        int bd, ConvolveParams *conv_params) {
-  __m128i tmp[11];
+  __m128i tmp[9];
   int i, j, k;
   const int reduce_bits_horiz =
       conv_params->round_0 +
@@ -804,37 +807,37 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
       // If the block is aligned such that, after clamping, every sample
       // would be taken from the leftmost/rightmost column, then we can
       // skip the expensive horizontal filter.
-      if (ix4 <= -5) {
-        for (k = -5; k < 6; ++k) {
+      if (ix4 <= -4) {
+        for (k = -4; k < 5; ++k) {
           int iy = iy4 + k;
           if (iy < 0)
             iy = 0;
           else if (iy > height - 1)
             iy = height - 1;
-          tmp[k + 5] = _mm_set1_epi16(
+          tmp[k + 4] = _mm_set1_epi16(
               (1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
               ref[iy * stride] * (1 << (FILTER_BITS - reduce_bits_horiz)));
         }
-      } else if (ix4 >= width + 4) {
-        for (k = -5; k < 6; ++k) {
+      } else if (ix4 >= width + 3) {
+        for (k = -4; k < 5; ++k) {
           int iy = iy4 + k;
           if (iy < 0)
             iy = 0;
           else if (iy > height - 1)
             iy = height - 1;
-          tmp[k + 5] =
+          tmp[k + 4] =
               _mm_set1_epi16((1 << (bd + FILTER_BITS - reduce_bits_horiz - 1)) +
                              ref[iy * stride + (width - 1)] *
                                  (1 << (FILTER_BITS - reduce_bits_horiz)));
         }
-      } else if (((ix4 - 5) < 0) || ((ix4 + 11) > width)) {
-        const int out_of_boundary_left = -(ix4 - 4);
-        const int out_of_boundary_right = (ix4 + 10) - width;
+      } else if (((ix4 - 4) < 0) || ((ix4 + 10) > width)) {
+        const int out_of_boundary_left = -(ix4 - 3);
+        const int out_of_boundary_right = (ix4 + 9) - width;
 
         __m128i coeff[8];
         av1_ext_highbd_horizontal_filter_coeff(offs_x, coeff);
 
-        for (k = -5; k < 6; ++k) {
+        for (k = -4; k < 5; ++k) {
           int iy = iy4 + k;
           if (iy < 0)
             iy = 0;
@@ -843,9 +846,9 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
 
           // Load source pixels
           const __m128i src =
-              _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 - 5));
+              _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 - 4));
           const __m128i src2 =
-              _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 + 3));
+              _mm_loadu_si128((__m128i *)(ref + iy * stride + ix4 + 4));
 
           const __m128i src_01 = _mm_shuffle_epi8(
               src, _mm_loadu_si128((__m128i *)warp_highbd_arrange_bytes));
@@ -892,7 +895,6 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
       const __m128i coeff_0 = _mm_unpacklo_epi64(tmp_1, tmp_1);
       const __m128i coeff_1 = _mm_unpackhi_epi64(tmp_1, tmp_1);
       const __m128i coeff_2 = _mm_unpacklo_epi64(tmp_2, tmp_2);
-      const __m128i coeff_3 = _mm_unpackhi_epi64(tmp_2, tmp_2);
 
       for (k = -2; k < AOMMIN(2, p_height - i - 2); ++k) {
         // Filter even-index pixels
@@ -902,29 +904,25 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
         const __m128i src_0 = _mm_unpacklo_epi16(src[0], src[1]);
         const __m128i src_2 = _mm_unpacklo_epi16(src[2], src[3]);
         const __m128i src_4 = _mm_unpacklo_epi16(src[4], src[5]);
-        const __m128i src_6 = _mm_unpacklo_epi16(src[6], src[7]);
 
         const __m128i res_0 = _mm_madd_epi16(src_0, coeff_0);
         const __m128i res_2 = _mm_madd_epi16(src_2, coeff_1);
         const __m128i res_4 = _mm_madd_epi16(src_4, coeff_2);
-        const __m128i res_6 = _mm_madd_epi16(src_6, coeff_3);
 
-        const __m128i res_even = _mm_add_epi32(_mm_add_epi32(res_0, res_2),
-                                               _mm_add_epi32(res_4, res_6));
+        const __m128i res_even =
+            _mm_add_epi32(_mm_add_epi32(res_0, res_2), res_4);
 
         // Filter odd-index pixels
         const __m128i src_1 = _mm_unpackhi_epi16(src[0], src[1]);
         const __m128i src_3 = _mm_unpackhi_epi16(src[2], src[3]);
         const __m128i src_5 = _mm_unpackhi_epi16(src[4], src[5]);
-        const __m128i src_7 = _mm_unpackhi_epi16(src[6], src[7]);
 
         const __m128i res_1 = _mm_madd_epi16(src_1, coeff_0);
         const __m128i res_3 = _mm_madd_epi16(src_3, coeff_1);
         const __m128i res_5 = _mm_madd_epi16(src_5, coeff_2);
-        const __m128i res_7 = _mm_madd_epi16(src_7, coeff_3);
 
-        const __m128i res_odd = _mm_add_epi32(_mm_add_epi32(res_1, res_3),
-                                              _mm_add_epi32(res_5, res_7));
+        const __m128i res_odd =
+            _mm_add_epi32(_mm_add_epi32(res_1, res_3), res_5);
 
         // Rearrange pixels back into the order 0 ... 7
         __m128i res_lo = _mm_unpacklo_epi32(res_even, res_odd);
@@ -987,4 +985,4 @@ void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
     }
   }
 }
-#endif  // CONFIG_EXT_WARP
+#endif  // CONFIG_EXT_WARP_FILTER

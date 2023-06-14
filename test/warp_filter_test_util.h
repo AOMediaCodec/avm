@@ -101,7 +101,7 @@ class AV1HighbdWarpFilterTest
 
 }  // namespace AV1HighbdWarpFilter
 
-#if CONFIG_EXT_WARP
+#if CONFIG_EXT_WARP_FILTER
 namespace AV1ExtHighbdWarpFilter {
 typedef void (*ext_highbd_warp_affine_func)(
     const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
@@ -133,7 +133,7 @@ class AV1ExtHighbdWarpFilterTest
 };
 
 }  // namespace AV1ExtHighbdWarpFilter
-#endif  // CONFIG_EXT_WARP
+#endif  // CONFIG_EXT_WARP_FILTER
 }  // namespace libaom_test
 
 #endif  // AOM_TEST_WARP_FILTER_TEST_UTIL_H_

@@ -71,6 +71,12 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_WARPMV 0 !CONFIG_WARP_REF_LIST)
   endif()
 
+  # CONFIG_EXT_WARP_FILTER depends on CONFIG_EXTENDED_WARP_PREDICTION
+  if(NOT CONFIG_EXTENDED_WARP_PREDICTION AND CONFIG_EXT_WARP_FILTER)
+    change_config_and_warn(CONFIG_EXT_WARP_FILTER 0
+                           !CONFIG_EXTENDED_WARP_PREDICTION)
+  endif()
+
   # Begin: CWG-C016.
   if(CONFIG_WIENER_NONSEP_CROSS_FILT)
     change_config_and_warn(CONFIG_WIENER_NONSEP 1

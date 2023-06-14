@@ -291,7 +291,7 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
 }
 }  // namespace AV1HighbdWarpFilter
 
-#if CONFIG_EXT_WARP
+#if CONFIG_EXT_WARP_FILTER
 namespace AV1ExtHighbdWarpFilter {
 ::testing::internal::ParamGenerator<ExtHighbdWarpTestParams> BuildParams(
     ext_highbd_warp_affine_func filter) {
@@ -477,5 +477,5 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
   delete[] dstb;
 }
 }  // namespace AV1ExtHighbdWarpFilter
-#endif  // CONFIG_EXT_WARP
+#endif  // CONFIG_EXT_WARP_FILTER
 }  // namespace libaom_test
