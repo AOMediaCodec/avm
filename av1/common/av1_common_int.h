@@ -1735,6 +1735,11 @@ typedef struct AV1Common {
   int16_t *gy1;
 #endif  // CONFIG_OPTFLOW_ON_TIP
 #endif  // CONFIG_TIP
+
+#if CONFIG_INSPECTION
+  YV12_BUFFER_CONFIG predicted_pixels;
+  YV12_BUFFER_CONFIG prefiltered_pixels;
+#endif  // CONFIG_INSPECTION
 } AV1_COMMON;
 
 /*!\cond */

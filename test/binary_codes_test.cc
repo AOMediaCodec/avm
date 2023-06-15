@@ -25,8 +25,6 @@
 #include "aom_dsp/binary_codes_reader.h"
 #include "aom_dsp/binary_codes_writer.h"
 
-#define ACCT_STR __func__
-
 using libaom_test::ACMRandom;
 
 namespace {
@@ -73,7 +71,7 @@ TEST(AV1, TestPrimitiveRefsubexpfin) {
           assert(k == enc_values[n][k][r][v][1]);
           const uint16_t ref = enc_values[n][k][r][v][2];
           const uint16_t value =
-              aom_read_primitive_refsubexpfin(&br, range, k, ref, ACCT_STR);
+              aom_read_primitive_refsubexpfin(&br, range, k, ref, ACCT_INFO());
           GTEST_ASSERT_EQ(value, enc_values[n][k][r][v][3]);
         }
       }

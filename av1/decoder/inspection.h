@@ -16,6 +16,7 @@
 extern "C" {
 #endif  // __cplusplus
 
+#include "av1/common/blockd.h"
 #include "av1/common/seg_common.h"
 #if CONFIG_ACCOUNTING
 #include "av1/decoder/accounting.h"
@@ -32,6 +33,12 @@ struct insp_mv {
   int16_t col;
 };
 
+typedef struct insp_pixel_data insp_pixel_data;
+
+struct insp_pixel_data {
+  int16_t samples[MAX_SB_SIZE][MAX_SB_SIZE];
+};
+
 typedef struct insp_mi_data insp_mi_data;
 
 struct insp_mi_data {
@@ -40,6 +47,7 @@ struct insp_mi_data {
   int16_t mode;
   int16_t uv_mode;
   int16_t sb_type;
+  int16_t sb_type_chroma;
   int16_t skip;
   int16_t segment_id;
   int16_t dual_filter_type;
@@ -58,6 +66,19 @@ struct insp_mi_data {
   int16_t uv_palette;
 };
 
+typedef struct insp_sb_data insp_sb_data;
+
+struct insp_sb_data {
+  PARTITION_TREE *partition_tree_luma;
+  PARTITION_TREE *partition_tree_chroma;
+  bool has_separate_chroma_partition_tree;
+  int16_t prediction_samples[MAX_SB_SIZE][MAX_SB_SIZE];
+  int16_t recon_samples[MAX_SB_SIZE][MAX_SB_SIZE];
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, dequant_values[MAX_MB_PLANE][MAX_SB_SQUARE]);
+};
+
 typedef struct insp_frame_data insp_frame_data;
 
 struct insp_frame_data {
@@ -65,6 +86,9 @@ struct insp_frame_data {
   Accounting *accounting;
 #endif
   insp_mi_data *mi_grid;
+  insp_sb_data *sb_grid;
+  int max_sb_rows;
+  int max_sb_cols;
   int16_t frame_number;
   int show_frame;
   int frame_type;
@@ -82,10 +106,21 @@ struct insp_frame_data {
   int delta_q_present_flag;
   int delta_q_res;
   int show_existing_frame;
+  int superblock_size;
+  // Points to the same underlying allocations as the decoder
+  YV12_BUFFER_CONFIG recon_frame_buffer;
+  YV12_BUFFER_CONFIG predicted_frame_buffer;
+  YV12_BUFFER_CONFIG prefiltered_frame_buffer;
+  int bit_depth;
+  int render_width;
+  int render_height;
+  int width;
+  int height;
 };
 
 void ifd_init(insp_frame_data *fd, int frame_width, int frame_height);
 void ifd_clear(insp_frame_data *fd);
+int ifd_inspect_superblock(insp_frame_data *fd, void *decoder);
 int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform);
 
 #ifdef __cplusplus

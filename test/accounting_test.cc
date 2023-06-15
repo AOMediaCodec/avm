@@ -42,11 +42,9 @@ TEST(AV1, TestAccounting) {
   aom_accounting_init(&accounting);
   br.accounting = &accounting;
   for (int i = 0; i < kSymbols; i++) {
-    aom_read(&br, 32, "A");
+    aom_read(&br, 32, ACCT_INFO("A"));
   }
-  // Consecutive symbols that are the same are coalesced.
-  GTEST_ASSERT_EQ(accounting.syms.num_syms, 1);
-  GTEST_ASSERT_EQ(accounting.syms.syms[0].samples, (unsigned int)kSymbols);
+  GTEST_ASSERT_EQ(accounting.syms.num_syms, kSymbols);
 
   aom_accounting_reset(&accounting);
   GTEST_ASSERT_EQ(accounting.syms.num_syms, 0);
@@ -55,9 +53,9 @@ TEST(AV1, TestAccounting) {
   aom_reader_init(&br, bw_buffer, bw.pos);
   br.accounting = &accounting;
   for (int i = 0; i < kSymbols; i++) {
-    aom_read(&br, 32, "A");
-    aom_read(&br, 32, "B");
-    aom_read(&br, 32, "B");
+    aom_read(&br, 32, ACCT_INFO("A"));
+    aom_read(&br, 32, ACCT_INFO("B"));
+    aom_read(&br, 32, ACCT_INFO("B"));
   }
   GTEST_ASSERT_EQ(accounting.syms.num_syms, kSymbols * 2);
   uint32_t tell_frac = aom_reader_tell_frac(&br);
@@ -66,11 +64,15 @@ TEST(AV1, TestAccounting) {
   }
   GTEST_ASSERT_EQ(tell_frac, 0U);
 
-  GTEST_ASSERT_EQ(aom_accounting_dictionary_lookup(&accounting, "A"),
-                  aom_accounting_dictionary_lookup(&accounting, "A"));
+  AccountingSymbolInfo a1 = ACCT_INFO("A");
+  AccountingSymbolInfo a2 = ACCT_INFO("A");
+  GTEST_ASSERT_EQ(aom_accounting_dictionary_lookup(&accounting, &a1),
+                  aom_accounting_dictionary_lookup(&accounting, &a2));
 
   // Check for collisions. The current aom_accounting_hash function returns
   // the same hash code for AB and BA.
-  GTEST_ASSERT_NE(aom_accounting_dictionary_lookup(&accounting, "AB"),
-                  aom_accounting_dictionary_lookup(&accounting, "BA"));
+  AccountingSymbolInfo ab = ACCT_INFO("AB");
+  AccountingSymbolInfo ba = ACCT_INFO("BA");
+  GTEST_ASSERT_NE(aom_accounting_dictionary_lookup(&accounting, &ab),
+                  aom_accounting_dictionary_lookup(&accounting, &ba));
 }

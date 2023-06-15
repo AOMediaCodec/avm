@@ -11,6 +11,7 @@
  */
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/inspection.h"
+#include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 #include "av1/common/cdef.h"
 
@@ -19,6 +20,12 @@ static void ifd_init_mi_rc(insp_frame_data *fd, int mi_cols, int mi_rows) {
   fd->mi_rows = mi_rows;
   fd->mi_grid = (insp_mi_data *)aom_malloc(sizeof(insp_mi_data) * fd->mi_rows *
                                            fd->mi_cols);
+  fd->max_sb_rows =
+      (mi_rows + (1 << MIN_MIB_SIZE_LOG2) - 1) / (1 << MIN_MIB_SIZE_LOG2);
+  fd->max_sb_cols =
+      (mi_cols + (1 << MIN_MIB_SIZE_LOG2) - 1) / (1 << MIN_MIB_SIZE_LOG2);
+  fd->sb_grid = (insp_sb_data *)aom_calloc(sizeof(insp_sb_data),
+                                           fd->max_sb_rows * fd->max_sb_cols);
 }
 
 void ifd_init(insp_frame_data *fd, int frame_width, int frame_height) {
@@ -30,6 +37,63 @@ void ifd_init(insp_frame_data *fd, int frame_width, int frame_height) {
 void ifd_clear(insp_frame_data *fd) {
   aom_free(fd->mi_grid);
   fd->mi_grid = NULL;
+  for (int i = 0; i < fd->max_sb_rows; i++) {
+    for (int j = 0; j < fd->max_sb_cols; j++) {
+      insp_sb_data *sb = &fd->sb_grid[i * fd->max_sb_cols + j];
+      // Note: NULL checking happens within av1_free_ptree_recursive
+      av1_free_ptree_recursive(sb->partition_tree_luma);
+      av1_free_ptree_recursive(sb->partition_tree_chroma);
+    }
+  }
+  aom_free(fd->sb_grid);
+  fd->sb_grid = NULL;
+}
+
+PARTITION_TREE *copy_partition_tree(PARTITION_TREE *orig,
+                                    PARTITION_TREE *parent) {
+  PARTITION_TREE *copy = av1_alloc_ptree_node(NULL, 0);
+  memcpy(copy, orig, sizeof(PARTITION_TREE));
+  copy->parent = parent;
+  for (size_t i = 0; i < sizeof(copy->sub_tree) / sizeof(copy->sub_tree[0]);
+       i++) {
+    if (copy->sub_tree[i] != NULL) {
+      copy->sub_tree[i] = copy_partition_tree(orig->sub_tree[i], copy);
+    }
+  }
+  return copy;
+}
+
+int ifd_inspect_superblock(insp_frame_data *fd, void *decoder) {
+  struct AV1Decoder *pbi = (struct AV1Decoder *)decoder;
+  AV1_COMMON *const cm = &pbi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  if (fd->mi_rows != mi_params->mi_rows || fd->mi_cols != mi_params->mi_cols) {
+    ifd_clear(fd);
+    ifd_init_mi_rc(fd, mi_params->mi_rows, mi_params->mi_cols);
+  }
+
+  int sb_size = cm->seq_params.sb_size;
+  int sb_width = mi_size_wide[sb_size];
+  int sb_height = mi_size_high[sb_size];
+
+  int sb_row = pbi->td.dcb.xd.sbi->mi_row / sb_height;
+  int sb_col = pbi->td.dcb.xd.sbi->mi_col / sb_width;
+
+  PARTITION_TREE *luma_tree = pbi->td.dcb.xd.sbi->ptree_root[0];
+  PARTITION_TREE *chroma_tree = pbi->td.dcb.xd.sbi->ptree_root[1];
+  insp_sb_data *sb = &fd->sb_grid[sb_row * fd->max_sb_cols + sb_col];
+  sb->partition_tree_luma = copy_partition_tree(luma_tree, NULL);
+  if (chroma_tree != NULL) {
+    sb->partition_tree_chroma = copy_partition_tree(chroma_tree, NULL);
+    sb->has_separate_chroma_partition_tree = true;
+  }
+
+  for (int i = 0; i < MAX_MB_PLANE; i++) {
+    memcpy(sb->dqcoeff[i], pbi->td.dcb.dqcoeff_block_copy[i], MAX_SB_SQUARE);
+    memcpy(sb->qcoeff[i], pbi->td.dcb.qcoeff_block[i], MAX_SB_SQUARE);
+    memcpy(sb->dequant_values[i], pbi->td.dcb.dequant_values[i], MAX_SB_SQUARE);
+  }
+  return 1;
 }
 
 /* TODO(negge) This function may be called by more than one thread when using
@@ -39,7 +103,9 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
   AV1_COMMON *const cm = &pbi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const CommonQuantParams *quant_params = &cm->quant_params;
-
+  fd->recon_frame_buffer = cm->cur_frame->buf;
+  fd->predicted_frame_buffer = cm->predicted_pixels;
+  fd->prefiltered_frame_buffer = cm->prefiltered_pixels;
   if (fd->mi_rows != mi_params->mi_rows || fd->mi_cols != mi_params->mi_cols) {
     ifd_clear(fd);
     ifd_init_mi_rc(fd, mi_params->mi_rows, mi_params->mi_cols);
@@ -49,6 +115,7 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
   fd->show_frame = cm->show_frame;
   fd->frame_type = cm->current_frame.frame_type;
   fd->base_qindex = quant_params->base_qindex;
+  fd->superblock_size = cm->seq_params.sb_size;
   // Set width and height of the first tile until generic support can be added
   TileInfo tile_info;
   av1_tile_set_row(&tile_info, cm, 0);
@@ -57,6 +124,11 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
   fd->tile_mi_rows = tile_info.mi_row_end - tile_info.mi_row_start;
   fd->delta_q_present_flag = cm->delta_q_info.delta_q_present_flag;
   fd->delta_q_res = cm->delta_q_info.delta_q_res;
+  fd->bit_depth = cm->seq_params.bit_depth;
+  fd->width = cm->width;
+  fd->height = cm->height;
+  fd->render_width = cm->render_width;
+  fd->render_height = cm->render_height;
 #if CONFIG_ACCOUNTING
   fd->accounting = &pbi->accounting;
 #endif
@@ -101,7 +173,9 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
 
       // Block Size
       mi->sb_type = mbmi->sb_type[0];
+      mi->sb_type_chroma = mbmi->sb_type[1];
       // Skip Flag
+      // TODO(comc): Check handling of skip_txfm vs tx_skip.
       mi->skip = mbmi->skip_txfm[0];
       mi->filter[0] = mbmi->interp_fltr;
       mi->filter[1] = mbmi->interp_fltr;
@@ -130,9 +204,13 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
         mi->tx_type = 0;
       }
 
+      bool skip = mbmi->tx_skip[av1_get_txk_type_index(bsize, r, c)];
+      mi->skip |= skip;
+
       if (skip_not_transform &&
-          (mi->skip || mbmi->tx_skip[av1_get_txk_type_index(bsize, r, c)]))
+          (mi->skip || mbmi->tx_skip[av1_get_txk_type_index(bsize, r, c)])) {
         mi->tx_type = -1;
+      }
 
       mi->cdef_level = cm->cdef_info.cdef_strengths[mbmi->cdef_strength] /
                        CDEF_SEC_STRENGTHS;

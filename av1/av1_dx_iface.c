@@ -76,6 +76,7 @@ struct aom_codec_alg_priv {
   unsigned int enable_subgop_stats;
 #if CONFIG_INSPECTION
   aom_inspect_cb inspect_cb;
+  aom_inspect_cb inspect_sb_cb;
   void *inspect_ctx;
 #endif
 };
@@ -566,6 +567,7 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
   AV1Decoder *const pbi = frame_worker_data->pbi;
   AV1_COMMON *const cm = &pbi->common;
   frame_worker_data->pbi->inspect_cb = ctx->inspect_cb;
+  frame_worker_data->pbi->inspect_sb_cb = ctx->inspect_sb_cb;
   frame_worker_data->pbi->inspect_ctx = ctx->inspect_ctx;
   res = av1_receive_compressed_data(frame_worker_data->pbi, data_sz, &data);
   check_resync(ctx, frame_worker_data->pbi);
@@ -1590,6 +1592,7 @@ static aom_codec_err_t ctrl_set_inspection_callback(aom_codec_alg_priv_t *ctx,
 #else
   aom_inspect_init *init = va_arg(args, aom_inspect_init *);
   ctx->inspect_cb = init->inspect_cb;
+  ctx->inspect_sb_cb = init->inspect_sb_cb;
   ctx->inspect_ctx = init->inspect_ctx;
   return AOM_CODEC_OK;
 #endif

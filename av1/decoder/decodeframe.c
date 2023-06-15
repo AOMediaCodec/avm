@@ -71,8 +71,6 @@
 #include "av1/decoder/decodetxb.h"
 #include "av1/decoder/detokenize.h"
 
-#define ACCT_STR __func__
-
 #define AOM_MIN_THREADS_PER_TILE 1
 #define AOM_MAX_THREADS_PER_TILE 2
 
@@ -250,6 +248,37 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
   PLANE_TYPE plane_type = get_plane_type(plane);
 
   av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
+#if CONFIG_INSPECTION
+  {
+    const int txwpx = tx_size_wide[tx_size];
+    const int txhpx = tx_size_high[tx_size];
+
+    struct macroblockd_plane *const pd = &xd->plane[plane];
+    const int dst_stride = pd->dst.stride;
+    uint16_t *dst = &pd->dst.buf[(row * dst_stride + col) << MI_SIZE_LOG2];
+    for (int i = 0; i < txhpx; i++) {
+      for (int j = 0; j < txwpx; j++) {
+        uint16_t pixel = dst[i * dst_stride + j];
+        int stride = cm->predicted_pixels.strides[plane > 0];
+        int pixel_c, pixel_r;
+
+        if (plane) {
+          mi_to_pixel_loc(&pixel_c, &pixel_r,
+                          mbmi->chroma_ref_info.mi_col_chroma_base,
+                          mbmi->chroma_ref_info.mi_row_chroma_base, col, row,
+                          pd->subsampling_x, pd->subsampling_y);
+        } else {
+          mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, col, row,
+                          pd->subsampling_x, pd->subsampling_y);
+        }
+
+        pixel_c += j;
+        pixel_r += i;
+        cm->predicted_pixels.buffers[plane][pixel_r * stride + pixel_c] = pixel;
+      }
+    }
+  }
+#endif  // CONFIG_INSPECTION
 
 #if CONFIG_MISMATCH_DEBUG
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
@@ -1086,7 +1115,7 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
   MACROBLOCKD *const xd = &dcb->xd;
 
 #if CONFIG_ACCOUNTING
-  aom_accounting_set_context(&pbi->accounting, mi_col, mi_row);
+  aom_accounting_set_context(&pbi->accounting, mi_col, mi_row, xd->tree_type);
 #endif
   set_offsets(cm, xd, bsize, mi_row, mi_col, bw, bh, x_mis, y_mis, parent,
               index);
@@ -1401,6 +1430,36 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
                              pixel_r, pd->width, pd->height);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
+
+#if CONFIG_INSPECTION
+  for (int plane = 0; plane < num_planes; plane++) {
+    struct macroblockd_plane *const pd = &xd->plane[plane];
+    const int dst_stride = pd->dst.stride;
+    const int plane_block_size =
+        get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+    const int plane_width = mi_size_wide[plane_block_size];
+    const int plane_height = mi_size_high[plane_block_size];
+    for (int i = 0; i < plane_height * MI_SIZE; i++) {
+      for (int j = 0; j < plane_width * MI_SIZE; j++) {
+        uint16_t pixel = pd->dst.buf[i * dst_stride + j];
+        int stride = cm->predicted_pixels.strides[plane > 0];
+        int pixel_c, pixel_r;
+        if (plane) {
+          mi_to_pixel_loc(&pixel_c, &pixel_r,
+                          mbmi->chroma_ref_info.mi_col_chroma_base,
+                          mbmi->chroma_ref_info.mi_row_chroma_base, 0, 0,
+                          pd->subsampling_x, pd->subsampling_y);
+        } else {
+          mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, 0, 0,
+                          pd->subsampling_x, pd->subsampling_y);
+        }
+        pixel_c += j;
+        pixel_r += i;
+        cm->predicted_pixels.buffers[plane][pixel_r * stride + pixel_c] = pixel;
+      }
+    }
+  }
+#endif  // CONFIG_INSPECTION
 }
 
 static AOM_INLINE void set_color_index_map_offset(MACROBLOCKD *const xd,
@@ -1675,7 +1734,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
         is_inter ? ec_ctx->inter_4way_txfm_partition_cdf[is_rect][split4_ctx]
                  : ec_ctx->intra_4way_txfm_partition_cdf[is_rect][split4_ctx];
     const TX_PARTITION_TYPE split4_partition =
-        aom_read_symbol(r, split4_cdf, 4, ACCT_STR);
+        aom_read_symbol(r, split4_cdf, 4, ACCT_INFO("split4_partition"));
     partition = split4_partition;
     /*
     If only one split type (horizontal or vertical) is allowed for this block,
@@ -1687,7 +1746,8 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     // Read bit to indicate if there is any split at all
     aom_cdf_prob *split2_cdf = is_inter ? ec_ctx->inter_2way_txfm_partition_cdf
                                         : ec_ctx->intra_2way_txfm_partition_cdf;
-    const int has_first_split = aom_read_symbol(r, split2_cdf, 2, ACCT_STR);
+    const int has_first_split =
+        aom_read_symbol(r, split2_cdf, 2, ACCT_INFO("has_first_split"));
     partition = has_first_split
                     ? (allow_horz ? TX_PARTITION_HORZ : TX_PARTITION_VERT)
                     : TX_PARTITION_NONE;
@@ -1754,7 +1814,8 @@ static AOM_INLINE void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   const int ctx = txfm_partition_context(xd->above_txfm_context + blk_col,
                                          xd->left_txfm_context + blk_row,
                                          mbmi->sb_type[plane_type], tx_size);
-  is_split = aom_read_symbol(r, ec_ctx->txfm_partition_cdf[ctx], 2, ACCT_STR);
+  is_split = aom_read_symbol(r, ec_ctx->txfm_partition_cdf[ctx], 2,
+                             ACCT_INFO("is_split"));
 
   if (is_split) {
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
@@ -1820,7 +1881,7 @@ static TX_SIZE read_selected_tx_size(const MACROBLOCKD *const xd,
   const int ctx = get_tx_size_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const int depth = aom_read_symbol(r, ec_ctx->tx_size_cdf[tx_size_cat][ctx],
-                                    max_depths + 1, ACCT_STR);
+                                    max_depths + 1, ACCT_INFO("depth"));
   assert(depth >= 0 && depth <= max_depths);
   const TX_SIZE tx_size = depth_to_tx_size(depth, bsize);
   return tx_size;
@@ -2137,8 +2198,8 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       &ptree->chroma_ref_info, &implied_partition);
   if (is_part_implied) return implied_partition;
 
-  const bool do_split =
-      aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2, ACCT_STR);
+  const bool do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
+                                        ACCT_INFO("do_split"));
   if (!do_split) {
     return PARTITION_NONE;
   }
@@ -2146,7 +2207,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
   if (rect_type == RECT_INVALID) {
     rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][ctx],
-                                NUM_RECT_PARTS, ACCT_STR);
+                                NUM_RECT_PARTS, ACCT_INFO("rect_type"));
   }
 
   bool do_ext_partition = false;
@@ -2159,8 +2220,9 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       cm->seq_params.enable_ext_partitions &&
       is_ext_partition_allowed(bsize, rect_type, xd->tree_type);
   if (ext_partition_allowed) {
-    do_ext_partition = aom_read_symbol(
-        r, ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx], 2, ACCT_STR);
+    do_ext_partition =
+        aom_read_symbol(r, ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx],
+                        2, ACCT_INFO("do_ext_partition"));
 #if CONFIG_UNEVEN_4WAY
     if (do_ext_partition) {
       const bool uneven_4way_partition_allowed =
@@ -2168,11 +2230,11 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       if (uneven_4way_partition_allowed) {
         do_uneven_4way_partition = aom_read_symbol(
             r, ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2,
-            ACCT_STR);
+            ACCT_INFO("do_uneven_4way_partition"));
         if (do_uneven_4way_partition) {
           uneven_4way_partition_type = aom_read_symbol(
               r, ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
-              NUM_UNEVEN_4WAY_PARTS, ACCT_STR);
+              NUM_UNEVEN_4WAY_PARTS, ACCT_INFO("uneven_4way_partition_type"));
         }
       }
     }
@@ -2203,20 +2265,22 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
   if (has_rows && has_cols) {
     return (PARTITION_TYPE)aom_read_symbol(
-        r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
+        r, partition_cdf, partition_cdf_length(bsize), ACCT_INFO());
   } else if (!has_rows && has_cols) {
     assert(bsize > BLOCK_8X8);
     aom_cdf_prob cdf[2];
     partition_gather_vert_alike(cdf, partition_cdf, bsize);
     assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_HORZ;
+    return aom_read_cdf(r, cdf, 2, ACCT_INFO()) ? PARTITION_SPLIT
+                                                : PARTITION_HORZ;
   } else {
     assert(has_rows && !has_cols);
     assert(bsize > BLOCK_8X8);
     aom_cdf_prob cdf[2];
     partition_gather_horz_alike(cdf, partition_cdf, bsize);
     assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_VERT;
+    return aom_read_cdf(r, cdf, 2, ACCT_INFO()) ? PARTITION_SPLIT
+                                                : PARTITION_VERT;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
@@ -2706,6 +2770,11 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
                      parse_decode_flag);
     xd->tree_type = SHARED_PART;
   }
+#if CONFIG_INSPECTION
+  if (pbi->inspect_sb_cb != NULL) {
+    (*pbi->inspect_sb_cb)(pbi, pbi->inspect_ctx);
+  }
+#endif  // CONFIG_INSPECTION
 }
 
 static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
@@ -2993,11 +3062,11 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                           WienerInfoBank *bank,
                                           aom_reader *rb) {
 #if CONFIG_LR_MERGE_COEFFS
-  const int exact_match =
-      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+  const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
+                                          ACCT_INFO("exact_match"));
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
-    if (aom_read_literal(rb, 1, ACCT_STR)) break;
+    if (aom_read_literal(rb, 1, ACCT_INFO("bank_size"))) break;
   }
   const int ref = k;
   if (exact_match) {
@@ -3020,7 +3089,8 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
         aom_read_primitive_refsubexpfin(
             rb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
             WIENER_FILT_TAP0_SUBEXP_K,
-            ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV, ACCT_STR) +
+            ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
+            ACCT_INFO("vfilter[0]")) +
         WIENER_FILT_TAP0_MINV;
   else
     wiener_info->vfilter[0] = wiener_info->vfilter[WIENER_WIN - 1] = 0;
@@ -3028,13 +3098,15 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
           WIENER_FILT_TAP1_SUBEXP_K,
-          ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV, ACCT_STR) +
+          ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
+          ACCT_INFO("vfilter[1]")) +
       WIENER_FILT_TAP1_MINV;
   wiener_info->vfilter[2] = wiener_info->vfilter[WIENER_WIN - 3] =
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
           WIENER_FILT_TAP2_SUBEXP_K,
-          ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV, ACCT_STR) +
+          ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
+          ACCT_INFO("vfilter[2]")) +
       WIENER_FILT_TAP2_MINV;
   // The central element has an implicit +WIENER_FILT_STEP
   wiener_info->vfilter[WIENER_HALFWIN] =
@@ -3046,7 +3118,8 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
         aom_read_primitive_refsubexpfin(
             rb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
             WIENER_FILT_TAP0_SUBEXP_K,
-            ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV, ACCT_STR) +
+            ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
+            ACCT_INFO("hfilter[0]")) +
         WIENER_FILT_TAP0_MINV;
   else
     wiener_info->hfilter[0] = wiener_info->hfilter[WIENER_WIN - 1] = 0;
@@ -3054,13 +3127,15 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
           WIENER_FILT_TAP1_SUBEXP_K,
-          ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV, ACCT_STR) +
+          ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
+          ACCT_INFO("hfilter[1]")) +
       WIENER_FILT_TAP1_MINV;
   wiener_info->hfilter[2] = wiener_info->hfilter[WIENER_WIN - 3] =
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
           WIENER_FILT_TAP2_SUBEXP_K,
-          ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV, ACCT_STR) +
+          ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
+          ACCT_INFO("hfilter[2]")) +
       WIENER_FILT_TAP2_MINV;
   // The central element has an implicit +WIENER_FILT_STEP
   wiener_info->hfilter[WIENER_HALFWIN] =
@@ -3074,11 +3149,11 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
                                            SgrprojInfoBank *bank,
                                            aom_reader *rb) {
 #if CONFIG_LR_MERGE_COEFFS
-  const int exact_match =
-      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+  const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
+                                          ACCT_INFO("exact_match"));
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
-    if (aom_read_literal(rb, 1, ACCT_STR)) break;
+    if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
   }
   const int ref = k;
   if (exact_match) {
@@ -3094,7 +3169,7 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
 #endif  // CONFIG_LR_MERGE_COEFFS
   SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
 
-  sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_STR);
+  sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_INFO("ep"));
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
   if (params->r[0] == 0) {
@@ -3102,13 +3177,13 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
     sgrproj_info->xqd[1] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_STR) +
+            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN1;
   } else if (params->r[1] == 0) {
     sgrproj_info->xqd[0] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_STR) +
+            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN0;
     sgrproj_info->xqd[1] = clamp((1 << SGRPROJ_PRJ_BITS) - sgrproj_info->xqd[0],
                                  SGRPROJ_PRJ_MIN1, SGRPROJ_PRJ_MAX1);
@@ -3116,12 +3191,12 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
     sgrproj_info->xqd[0] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_STR) +
+            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN0;
     sgrproj_info->xqd[1] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_STR) +
+            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN1;
   }
 
@@ -3138,11 +3213,11 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   assert(num_classes <= WIENERNS_MAX_CLASSES);
 #if CONFIG_LR_MERGE_COEFFS
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-    const int exact_match =
-        aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+    const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
+                                            2, ACCT_INFO("exact_match"));
     int ref;
     for (ref = 0; ref < bank->bank_size_for_class[c_id] - 1; ++ref) {
-      if (aom_read_literal(rb, 1, ACCT_STR)) break;
+      if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
     }
     if (exact_match) {
       copy_nsfilter_taps_for_class(
@@ -3192,28 +3267,33 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
     const int rodd = is_uv ? 0 : (end_feat & 1);
     for (int i = beg_feat; i < end_feat; ++i) {
       if (rodd && i == end_feat - 5 && i != beg_feat) {
-        reduce_step[0] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[0], 2, ACCT_STR);
+        reduce_step[0] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[0], 2,
+                            ACCT_INFO("wienerns_reduce_cdf0"));
         if (reduce_step[0]) break;
       }
       if (!rodd && i == end_feat - 4 && i != beg_feat) {
-        reduce_step[1] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[1], 2, ACCT_STR);
+        reduce_step[1] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[1], 2,
+                            ACCT_INFO("wienerns_reduce_cdf1"));
         if (reduce_step[1]) break;
       }
       if (rodd && i == end_feat - 3 && i != beg_feat) {
-        reduce_step[2] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[2], 2, ACCT_STR);
+        reduce_step[2] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[2], 2,
+                            ACCT_INFO("wienerns_reduce_cdf2"));
         if (reduce_step[2]) break;
       }
       if (!rodd && i == end_feat - 2 && i != beg_feat) {
-        reduce_step[3] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[3], 2, ACCT_STR);
+        reduce_step[3] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[3], 2,
+                            ACCT_INFO("wienerns_reduce_cdf3"));
         if (reduce_step[3]) break;
       }
       if (rodd && i == end_feat - 1 && i != beg_feat) {
-        reduce_step[4] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[4], 2, ACCT_STR);
+        reduce_step[4] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[4], 2,
+                            ACCT_INFO("wienerns_reduce_cdf4"));
         if (reduce_step[4]) break;
       }
 #if ENABLE_LR_4PART_CODE
@@ -3224,7 +3304,8 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
                   wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
               xd->tile_ctx->wienerns_4part_cdf
                   [wienerns_coeffs[i - beg_feat][WIENERNS_PAR_ID]],
-              wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID], ACCT_STR) +
+              wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID],
+              ACCT_INFO("wienerns_info_nsfilter")) +
           wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID];
 #else
       wienerns_info_nsfilter[i] =
@@ -3233,7 +3314,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
               wienerns_coeffs[i - beg_feat][WIENERNS_PAR_ID],
               ref_wienerns_info_nsfilter[i] -
                   wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
-              ACCT_STR) +
+              ACCT_INFO("wienerns_info_nsfilter")) +
           wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID];
 #endif  // ENABLE_LR_4PART_CODE
     }
@@ -3284,16 +3365,17 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
       if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
       const int found = aom_read_symbol(
-          r, xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2, ACCT_STR);
+          r, xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2,
+          ACCT_INFO("found"));
       if (found) {
         rui->restoration_type = re;
         break;
       }
     }
 #else
-    rui->restoration_type =
-        aom_read_symbol(r, xd->tile_ctx->switchable_restore_cdf,
-                        RESTORE_SWITCHABLE_TYPES, ACCT_STR);
+    rui->restoration_type = aom_read_symbol(
+        r, xd->tile_ctx->switchable_restore_cdf, RESTORE_SWITCHABLE_TYPES,
+        ACCT_INFO("restoration_type"));
 #endif  // CONFIG_LR_FLEX_SYNTAX
     switch (rui->restoration_type) {
       case RESTORE_WIENER:
@@ -3318,7 +3400,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
-    if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2,
+                        ACCT_INFO("wiener_restore_cdf"))) {
       rui->restoration_type = RESTORE_WIENER;
       read_wiener_filter(xd, wiener_win, &rui->wiener_info,
                          &xd->wiener_info[plane], r);
@@ -3326,7 +3409,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       rui->restoration_type = RESTORE_NONE;
     }
   } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
-    if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2,
+                        ACCT_INFO("sgrproj_restore_cdf"))) {
       rui->restoration_type = RESTORE_SGRPROJ;
       read_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], r);
     } else {
@@ -3334,7 +3418,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     }
 #if CONFIG_WIENER_NONSEP
   } else if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP) {
-    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2,
+                        ACCT_INFO("wienerns_restore_cdf"))) {
       rui->restoration_type = RESTORE_WIENER_NONSEP;
       read_wienerns_filter(xd, plane != AOM_PLANE_Y, &rui->wienerns_info,
                            &xd->wienerns_info[plane], r);
@@ -3344,7 +3429,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_PC_WIENER
   } else if (rsi->frame_restoration_type == RESTORE_PC_WIENER) {
-    if (aom_read_symbol(r, xd->tile_ctx->pc_wiener_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->pc_wiener_restore_cdf, 2,
+                        ACCT_INFO("pc_wiener_restore_cdf"))) {
       rui->restoration_type = RESTORE_PC_WIENER;
       // No side-information for now.
     } else {
@@ -3355,7 +3441,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   if (rsi->frame_cross_restoration_type == RESTORE_WIENER_NONSEP) {
-    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2,
+                        ACCT_INFO())) {
       rui->cross_restoration_type = RESTORE_WIENER_NONSEP;
       read_wienerns_filter(xd, plane != AOM_PLANE_Y, &rui->wienerns_cross_info,
                            &xd->wienerns_cross_info[plane], r);
@@ -4284,6 +4371,11 @@ static AOM_INLINE void set_cb_buffer(AV1Decoder *pbi, DecoderCodingBlock *dcb,
 
   for (int plane = 0; plane < num_planes; ++plane) {
     dcb->dqcoeff_block[plane] = cb_buffer->dqcoeff[plane];
+#if CONFIG_INSPECTION
+    dcb->dqcoeff_block_copy[plane] = cb_buffer->dqcoeff_copy[plane];
+    dcb->qcoeff_block[plane] = cb_buffer->qcoeff[plane];
+    dcb->dequant_values[plane] = cb_buffer->dequant_values[plane];
+#endif  // CONFIG_INSPECTION
     dcb->eob_data[plane] = cb_buffer->eob_data[plane];
 #if CONFIG_ATC_DCTX_ALIGNED
     dcb->bob_data[plane] = cb_buffer->bob_data[plane];
@@ -7695,7 +7787,16 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_LPF_MASK
   av1_loop_filter_frame_init(cm, 0, num_planes);
 #endif
-
+#if CONFIG_INSPECTION
+  aom_realloc_frame_buffer(
+      &cm->predicted_pixels, cm->width, cm->height,
+      cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+      AOM_DEC_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL, NULL);
+  aom_realloc_frame_buffer(
+      &cm->prefiltered_pixels, cm->width, cm->height,
+      cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+      AOM_DEC_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL, NULL);
+#endif  // CONFIG_INSPECTION
   if (pbi->max_threads > 1 && !(tiles->large_scale && !pbi->ext_tile_debug) &&
       pbi->row_mt)
     *p_data_end =
@@ -7710,6 +7811,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (num_planes < 3) {
     set_planes_to_neutral_grey(&cm->seq_params, xd->cur_buf, 1);
   }
+
+#if CONFIG_INSPECTION
+  memcpy(cm->prefiltered_pixels.buffer_alloc, cm->cur_frame->buf.buffer_alloc,
+         cm->prefiltered_pixels.frame_size);
+#endif  // CONFIG_INSPECTION
 
   if (end_tile != tiles->rows * tiles->cols - 1) {
     return;
@@ -7883,7 +7989,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (pbi->inspect_cb != NULL) {
     (*pbi->inspect_cb)(pbi, pbi->inspect_ctx);
   }
-#endif
+#endif  // CONFIG_INSPECTION
 
   // Non frame parallel update frame context here.
   if (!tiles->large_scale) {

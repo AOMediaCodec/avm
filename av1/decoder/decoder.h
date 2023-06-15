@@ -62,6 +62,13 @@ typedef struct DecoderCodingBlock {
    * with appropriate offset for the current superblock, for each plane.
    */
   tran_low_t *dqcoeff_block[MAX_MB_PLANE];
+#if CONFIG_INSPECTION
+  // dqcoeff_block gets clobbered before the inspect callback happens, so keep a
+  // copy here.
+  tran_low_t *dqcoeff_block_copy[MAX_MB_PLANE];
+  tran_low_t *qcoeff_block[MAX_MB_PLANE];
+  tran_low_t *dequant_values[MAX_MB_PLANE];
+#endif
   /*!
    * cb_offset[p] is the offset into the dqcoeff_block[p] for the current coding
    * block, for each plane 'p'.
@@ -299,7 +306,10 @@ typedef struct AV1Decoder {
   int sequence_header_ready;
   int sequence_header_changed;
 #if CONFIG_INSPECTION
+  // Inspection callback at the end of each frame.
   aom_inspect_cb inspect_cb;
+  // Inspection callback at the end of each superblock.
+  aom_inspect_cb inspect_sb_cb;
   void *inspect_ctx;
 #endif
   int operating_point;
@@ -411,16 +421,15 @@ static INLINE void decrease_ref_count(RefCntBuffer *const buf,
   }
 }
 
-#define ACCT_STR __func__
 static INLINE int av1_read_uniform(aom_reader *r, int n) {
   const int l = get_unsigned_bits(n);
   const int m = (1 << l) - n;
-  const int v = aom_read_literal(r, l - 1, ACCT_STR);
+  const int v = aom_read_literal(r, l - 1, ACCT_INFO("v"));
   assert(l != 0);
   if (v < m)
     return v;
   else
-    return (v << 1) - m + aom_read_literal(r, 1, ACCT_STR);
+    return (v << 1) - m + aom_read_literal(r, 1, ACCT_INFO());
 }
 
 typedef void (*palette_visitor_fn_t)(MACROBLOCKD *const xd, int plane,

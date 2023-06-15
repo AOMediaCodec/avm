@@ -1340,7 +1340,7 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
   }
 }
 
-#if CONFIG_MISMATCH_DEBUG
+#if CONFIG_MISMATCH_DEBUG || CONFIG_INSPECTION
 static INLINE void mi_to_pixel_loc(int *pixel_c, int *pixel_r, int mi_col,
                                    int mi_row, int tx_blk_col, int tx_blk_row,
                                    int subsampling_x, int subsampling_y) {
@@ -1368,6 +1368,13 @@ typedef struct eob_info {
 
 typedef struct {
   DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+#if CONFIG_INSPECTION
+  // dqcoeff gets clobbered before the inspect callback happens, so keep a
+  // copy here.
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff_copy[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, dequant_values[MAX_MB_PLANE][MAX_SB_SQUARE]);
+#endif
   // keeps the index that corresponds to end-of-block (eob)
   eob_info eob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
@@ -1402,6 +1409,9 @@ typedef struct macroblockd_plane {
 
   qm_val_t *seg_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
   qm_val_t *seg_qmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
+#if CONFIG_INSPECTION
+  DECLARE_ALIGNED(32, int16_t, predicted_pixels[MAX_SB_SQUARE]);
+#endif
 } MACROBLOCKD_PLANE;
 
 #define BLOCK_OFFSET(i) ((i) << 4)

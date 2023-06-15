@@ -44,7 +44,7 @@ TEST(EC_TEST, random_ec_test_Large) {
 #if CONFIG_BYPASS_IMPROVEMENT
     unsigned *mode;
 #endif  // CONFIG_BYPASS_IMPROVEMENT
-    unsigned *tell;
+    unsigned long *tell;
     unsigned *enc_method;
     int j;
     sz = rand() / ((RAND_MAX >> (rand() % 9U)) + 1U);
@@ -54,7 +54,7 @@ TEST(EC_TEST, random_ec_test_Large) {
 #if CONFIG_BYPASS_IMPROVEMENT
     mode = (unsigned *)malloc(sz * sizeof(*mode));
 #endif  // CONFIG_BYPASS_IMPROVEMENT
-    tell = (unsigned *)malloc((sz + 1) * sizeof(*tell));
+    tell = (unsigned long *)malloc((sz + 1) * sizeof(*tell));
     enc_method = (unsigned *)malloc(sz * sizeof(*enc_method));
     od_ec_enc_reset(&enc);
     tell[0] = od_ec_enc_tell_frac(&enc);
@@ -139,7 +139,7 @@ TEST(EC_TEST, random_ec_test_Large) {
     EXPECT_EQ(od_ec_dec_tell_frac(&dec), tell[0])
         << "od_ec_dec_tell() mismatch between encoder and decoder "
            "at symbol 0: "
-        << (unsigned)od_ec_dec_tell_frac(&dec) << " instead of " << tell[0]
+        << (unsigned long)od_ec_dec_tell_frac(&dec) << " instead of " << tell[0]
         << " (Random seed: " << seed << ").\n";
     for (j = 0; j < sz; j++) {
       int dec_method;
@@ -208,7 +208,7 @@ TEST(EC_TEST, random_ec_test_Large) {
       EXPECT_EQ(od_ec_dec_tell_frac(&dec), tell[j + 1])
           << "od_ec_dec_tell() mismatch between encoder and "
              "decoder at symbol "
-          << j + 1 << ": " << (unsigned)od_ec_dec_tell_frac(&dec)
+          << j + 1 << ": " << (unsigned long)od_ec_dec_tell_frac(&dec)
           << " instead of " << tell[j + 1] << " (Random seed: " << seed
           << ").\n";
     }

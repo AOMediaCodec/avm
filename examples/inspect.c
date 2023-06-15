@@ -598,13 +598,39 @@ int put_accounting(char *buffer) {
   }
   const int num_syms = accounting->syms.num_syms;
   const int num_strs = accounting->syms.dictionary.num_strs;
-  buf += put_str(buf, "  \"symbolsMap\": [");
+  buf += put_str(buf, "  \"symbolsFileMap\": [");
   for (i = 0; i < num_strs; i++) {
-    buf += snprintf(buf, MAX_BUFFER, "\"%s\"",
-                    accounting->syms.dictionary.strs[i]);
+    buf += snprintf(buf, MAX_BUFFER, "\"%s:%d\"",
+                    accounting->syms.dictionary.acct_infos[i].c_file,
+                    accounting->syms.dictionary.acct_infos[i].c_line);
     if (i < num_strs - 1) *(buf++) = ',';
   }
   buf += put_str(buf, "],\n");
+
+  buf += put_str(buf, "  \"symbolsMap\": [");
+  for (i = 0; i < num_strs; i++) {
+    buf += snprintf(buf, MAX_BUFFER, "\"%s\"",
+                    accounting->syms.dictionary.acct_infos[i].c_func);
+    if (i < num_strs - 1) *(buf++) = ',';
+  }
+  buf += put_str(buf, "],\n");
+
+  buf += put_str(buf, "  \"symbolsTagsMap\": [");
+  for (i = 0; i < num_strs; i++) {
+    buf += put_str(buf, "[");
+    for (int j = 0; j < AOM_ACCOUNTING_MAX_TAGS; j++) {
+      if (accounting->syms.dictionary.acct_infos[i].tags[j] == NULL) break;
+      if (j > 0) {
+        *(buf++) = ',';
+      }
+      buf += snprintf(buf, MAX_BUFFER, "\"%s\"",
+                      accounting->syms.dictionary.acct_infos[i].tags[j]);
+    }
+    buf += put_str(buf, "]");
+    if (i < num_strs - 1) *(buf++) = ',';
+  }
+  buf += put_str(buf, "],\n");
+
   buf += put_str(buf, "  \"symbols\": [\n    ");
   AccountingSymbolContext context;
   context.x = -2;
@@ -615,11 +641,12 @@ int put_accounting(char *buffer) {
     if (memcmp(&context, &sym->context, sizeof(AccountingSymbolContext)) != 0) {
       buf += put_num(buf, '[', sym->context.x, 0);
       buf += put_num(buf, ',', sym->context.y, ']');
-    } else {
-      buf += put_num(buf, '[', sym->id, 0);
-      buf += put_num(buf, ',', sym->bits, 0);
-      buf += put_num(buf, ',', sym->samples, ']');
+      *(buf++) = ',';
     }
+    buf += put_num(buf, '[', sym->id, 0);
+    buf += put_num(buf, ',', sym->bits, 0);
+    buf += put_num(buf, ',', sym->value, 0);
+    buf += put_num(buf, ',', sym->coding_mode, ']');
     context = sym->context;
     if (i < num_syms - 1) *(buf++) = ',';
   }
@@ -745,6 +772,8 @@ void inspect(void *pbi, void *data) {
                   frame_data.delta_q_present_flag);
   buf += snprintf(buf, MAX_BUFFER, "  \"deltaQRes\": %d,\n",
                   frame_data.delta_q_res);
+  buf += snprintf(buf, MAX_BUFFER, "  \"superblockSize\": %d,\n",
+                  frame_data.superblock_size);
   buf += put_str(buf, "  \"config\": {");
   buf += put_map(buf, config_map);
   buf += put_str(buf, "},\n");
