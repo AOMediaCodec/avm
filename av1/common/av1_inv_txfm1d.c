@@ -654,7 +654,7 @@ void av1_idct32(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[31] = clamp_value(bf0[0] - bf0[31], stage_range[stage]);
 }
 
-#if CONFIG_ADST4_TUNED
+#if CONFIG_ADST_TUNED
 void av2_iadst4(const int32_t *input, int32_t *output,
                 int8_t cos_bit, const int8_t *stage_range) {
     const int32_t size = 4;
@@ -711,7 +711,7 @@ void av2_iadst4(const int32_t *input, int32_t *output,
     bf1[3] = bf0[0];
     av1_range_check_buf(5, input, bf1, size, stage_range[5]);
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
@@ -770,7 +770,7 @@ void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
   output[3] = round_shift(x3, bit);
 }
 
-#if CONFIG_ADST8_TUNED
+#if CONFIG_ADST_TUNED
 void av2_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
     (void)stage_range;
@@ -778,7 +778,7 @@ void av2_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
     av2_txfm_matrix_mult(input, output, av2_adst_kernel8[INV_TXFM],
                          TXFM_SIZE8, INV_ADST_BIT, stage_range[0]);
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
@@ -888,7 +888,7 @@ void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[7] = -bf0[1];
 }
 
-#if CONFIG_ADST16_TUNED
+#if CONFIG_ADST_TUNED
 void av2_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
     (void)stage_range;
@@ -896,7 +896,7 @@ void av2_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
     av2_txfm_matrix_mult(input, output, av2_adst_kernel16[INV_TXFM],
                          TXFM_SIZE16, INV_ADST_BIT, stage_range[0]);
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {

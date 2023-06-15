@@ -14,9 +14,9 @@
 #include "config/av1_rtcd.h"
 
 #include "av1/common/av1_txfm.h"
-#if CONFIG_ADST8_TUNED || CONFIG_ADST16_TUNED
+#if CONFIG_ADST_TUNED
 #include "av1/common/av1_inv_txfm1d.h"
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 // av1_cospi_arr[i][j] = (int)round(cos(PI*j/128) * (1<<(cos_bit_min+i)));
 const int32_t av1_cospi_arr_data[7][64] = {
@@ -86,7 +86,7 @@ const int32_t av1_sinpi_arr_data[7][5] = {
   { 0, 21133, 39716, 53510, 60849 }
 };
 
-#if CONFIG_ADST8_TUNED
+#if CONFIG_ADST_TUNED
 const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8] =
 {
   {
@@ -110,8 +110,7 @@ const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8] =
     126, -121, 112, -99, 82, -62, 41, -20,
   }
 };
-#endif
-#if CONFIG_ADST16_TUNED
+
 const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] =
 {
   {
@@ -151,9 +150,7 @@ const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] =
     126, -125, 122, -119, 115, -109, 103, -95, 87, -78, 68, -58, 47, -36, 24, -12,
   }
 };
-#endif
 
-#if CONFIG_ADST8_TUNED || CONFIG_ADST16_TUNED
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
                           const int32_t *kernel, int kernel_size,
                           int8_t bit, int8_t clamp) {
@@ -176,7 +173,7 @@ void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
         output[i] = clamp_value(output[i], clamp);
     }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 void av1_round_shift_array_c(int32_t *arr, int size, int bit) {
   int i;

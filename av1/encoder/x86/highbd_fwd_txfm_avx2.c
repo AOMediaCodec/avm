@@ -354,7 +354,7 @@ static void fdct8_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[6 * outstride + col] = u[3];  // buf0[3]
   }
 }
-#if CONFIG_ADST8_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
                         const int col_num, const int outstride) {
     (void)bit;
@@ -555,7 +555,7 @@ static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[7 * outstirde + col] = v0;
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 static void idtx8_avx2(__m256i *in, __m256i *out, const int8_t bit, int col_num,
                        int outstride) {
   (void)bit;
@@ -1042,7 +1042,7 @@ static void fdct16_avx2(__m256i *in, __m256i *out, const int8_t bit,
   }
 }
 
-#if CONFIG_ADST16_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
                          const int num_cols, const int outstride) {
     (void)bit;
@@ -1322,7 +1322,8 @@ static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[15 * outstride + col] = v[0];
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
+
 static void idtx16_avx2(__m256i *in, __m256i *out, const int8_t bit,
                         int col_num, const int outstride) {
   (void)bit;

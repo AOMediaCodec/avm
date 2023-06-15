@@ -257,7 +257,7 @@ static INLINE void flip_buf_sse2(__m128i *in, __m128i *out, int size) {
   }
 }
 
-#if CONFIG_ADST8_TUNED || CONFIG_ADST16_TUNED
+#if CONFIG_ADST_TUNED
 static INLINE void matrix_coef_mult_sse2(const __m128i w0, const __m128i w1,
                                          const __m128i in0, const __m128i in1,
                                          __m128i *out0, __m128i *out1) {
@@ -270,7 +270,7 @@ static INLINE void matrix_coef_mult_sse2(const __m128i w0, const __m128i w1,
     *out0 = _mm_madd_epi16(t0, v0);
     *out1 = _mm_madd_epi16(t1, v1);
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
                                    int stride, TX_TYPE tx_type, int bd);
