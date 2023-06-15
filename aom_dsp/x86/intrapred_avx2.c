@@ -13,7 +13,6 @@
 #include <immintrin.h>
 
 #include "config/aom_dsp_rtcd.h"
-#include "config/av1_rtcd.h"
 #include "aom_dsp/x86/intrapred_x86.h"
 #include "aom_dsp/x86/lpf_common_sse2.h"
 #if CONFIG_IDIF
@@ -2706,7 +2705,6 @@ static void highbd_dr_prediction_z3_64x8_avx2(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
-// TODO(now): fix this function (shouldn't use 16x16 helper?).
 static void highbd_dr_prediction_z3_4x64_avx2(uint16_t *dst, ptrdiff_t stride,
                                               const uint16_t *left,
                                               int upsample_left, int dy, int bd,
@@ -2722,7 +2720,6 @@ static void highbd_dr_prediction_z3_4x64_avx2(uint16_t *dst, ptrdiff_t stride,
   highbd_transpose(dstT, 64, dst, stride, 4, 64);
 }
 
-// TODO(now): fix this function (shouldn't use 16x16 helper?).
 static void highbd_dr_prediction_z3_8x64_avx2(uint16_t *dst, ptrdiff_t stride,
                                               const uint16_t *left,
                                               int upsample_left, int dy, int bd,
@@ -2801,9 +2798,8 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
               highbd_dr_prediction_z3_4x32_avx2(
                   dst, stride, left, upsample_left, dy, bd, mrl_index);
             else if (bh == 64)
-              av1_highbd_dr_prediction_z3_c(dst, stride, bw, bh, above, left,
-                                            upsample_left, dx, dy, bd,
-                                            mrl_index);
+              highbd_dr_prediction_z3_4x64_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
             else
 #endif  // CONFIG_FLEX_PARTITION
               highbd_dr_prediction_z3_4x16_avx2(
@@ -2812,9 +2808,8 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
           case 8:
 #if CONFIG_FLEX_PARTITION
             if (bh == 64)
-              av1_highbd_dr_prediction_z3_c(dst, stride, bw, bh, above, left,
-                                            upsample_left, dx, dy, bd,
-                                            mrl_index);
+              highbd_dr_prediction_z3_8x64_avx2(
+                  dst, stride, left, upsample_left, dy, bd, mrl_index);
             else
 #endif  // CONFIG_FLEX_PARTITION
               highbd_dr_prediction_z3_8x32_avx2(
