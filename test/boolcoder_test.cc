@@ -105,7 +105,7 @@ TEST(AV1, TestTell) {
     aom_reader br;
     aom_reader_init(&br, bw_buffer, bw.pos);
     uint32_t last_tell = aom_reader_tell(&br);
-    uint32_t last_tell_frac = aom_reader_tell_frac(&br);
+    uint64_t last_tell_frac = aom_reader_tell_frac(&br);
     double frac_diff_total = 0;
     GTEST_ASSERT_GE(aom_reader_tell(&br), 0u);
     GTEST_ASSERT_LE(aom_reader_tell(&br), 1u);
@@ -113,17 +113,18 @@ TEST(AV1, TestTell) {
     for (int i = 0; i < kSymbols; i++) {
       aom_read(&br, p, NULL);
       uint32_t tell = aom_reader_tell(&br);
-      uint32_t tell_frac = aom_reader_tell_frac(&br);
+      uint64_t tell_frac = aom_reader_tell_frac(&br);
       GTEST_ASSERT_GE(tell, last_tell)
           << "tell: " << tell << ", last_tell: " << last_tell;
       GTEST_ASSERT_GE(tell_frac, last_tell_frac)
           << "tell_frac: " << tell_frac
           << ", last_tell_frac: " << last_tell_frac;
       // Frac tell should round up to tell.
-      GTEST_ASSERT_EQ(tell, (tell_frac + 7) >> 3);
+      GTEST_ASSERT_EQ(tell, (tell_frac + (1 << OD_BITRES) - 1) >> OD_BITRES);
       last_tell = tell;
       frac_diff_total +=
-          fabs(((tell_frac - last_tell_frac) / 8.0) + log2(probability));
+          fabs(((tell_frac - last_tell_frac) / (double)(1 << OD_BITRES)) +
+               log2(probability));
       last_tell_frac = tell_frac;
     }
     const uint32_t expected = (uint32_t)(-kSymbols * log2(probability));

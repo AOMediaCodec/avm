@@ -25,8 +25,8 @@ extern "C" {
 #define MAX_SYMBOL_TYPES (256)
 
 /*The resolution of fractional-precision bit usage measurements, i.e.,
-   3 => 1/8th bits.*/
-#define AOM_ACCT_BITRES (3)
+   16 => 1/65536th bits.*/
+#define AOM_ACCT_BITRES (16)
 
 typedef struct {
   int16_t x;
@@ -36,8 +36,8 @@ typedef struct {
 typedef struct {
   AccountingSymbolContext context;
   uint32_t id;
-  /** Number of bits in units of 1/8 bit. */
-  uint32_t bits;
+  /** Number of bits in units of 1/65536 bit. */
+  uint64_t bits;
   uint32_t samples;
 } AccountingSymbol;
 
@@ -70,7 +70,7 @@ struct Accounting {
   int num_syms_allocated;
   int16_t hash_dictionary[AOM_ACCOUNTING_HASH_SIZE];
   AccountingSymbolContext context;
-  uint32_t last_tell_frac;
+  uint64_t last_tell_frac;
 };
 
 void aom_accounting_init(Accounting *accounting);
@@ -79,7 +79,7 @@ void aom_accounting_clear(Accounting *accounting);
 void aom_accounting_set_context(Accounting *accounting, int16_t x, int16_t y);
 int aom_accounting_dictionary_lookup(Accounting *accounting, const char *str);
 void aom_accounting_record(Accounting *accounting, const char *str,
-                           uint32_t bits);
+                           uint64_t bits);
 void aom_accounting_dump(Accounting *accounting);
 #ifdef __cplusplus
 }  // extern "C"

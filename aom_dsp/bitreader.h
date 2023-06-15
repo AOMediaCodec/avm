@@ -99,13 +99,13 @@ int aom_reader_has_overflowed(const aom_reader *r);
 // Returns the position in the bit reader in bits.
 uint32_t aom_reader_tell(const aom_reader *r);
 
-// Returns the position in the bit reader in 1/8th bits.
-uint32_t aom_reader_tell_frac(const aom_reader *r);
+// Returns the position in the bit reader in 1/65536th bits.
+uint64_t aom_reader_tell_frac(const aom_reader *r);
 
 #if CONFIG_ACCOUNTING
 static INLINE void aom_process_accounting(const aom_reader *r ACCT_STR_PARAM) {
   if (r->accounting != NULL) {
-    uint32_t tell_frac;
+    uint64_t tell_frac;
     tell_frac = aom_reader_tell_frac(r);
     aom_accounting_record(r->accounting, ACCT_STR_NAME,
                           tell_frac - r->accounting->last_tell_frac);

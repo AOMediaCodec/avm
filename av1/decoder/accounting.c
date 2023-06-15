@@ -92,7 +92,7 @@ void aom_accounting_set_context(Accounting *accounting, int16_t x, int16_t y) {
 }
 
 void aom_accounting_record(Accounting *accounting, const char *str,
-                           uint32_t bits) {
+                           uint64_t bits) {
   AccountingSymbol sym;
   // Reuse previous symbol if it has the same context and symbol id.
   if (accounting->syms.num_syms) {
@@ -136,6 +136,7 @@ void aom_accounting_dump(Accounting *accounting) {
     sym = &accounting->syms.syms[i];
     printf("%s x: %d, y: %d bits: %f samples: %d\n",
            accounting->syms.dictionary.strs[sym->id], sym->context.x,
-           sym->context.y, (float)sym->bits / 8.0, sym->samples);
+           sym->context.y, (double)sym->bits / (double)(1 << AOM_ACCT_BITRES),
+           sym->samples);
   }
 }

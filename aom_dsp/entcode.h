@@ -33,14 +33,14 @@ typedef uint32_t od_ec_window;
 #define OD_EC_WINDOW_SIZE ((int)sizeof(od_ec_window) * CHAR_BIT)
 
 /*The resolution of fractional-precision bit usage measurements, i.e.,
-   3 => 1/8th bits.*/
-#define OD_BITRES (3)
+   16 => 1/65536th bits.*/
+#define OD_BITRES (16)
 
 #define OD_ICDF AOM_ICDF
 
 /*See entcode.c for further documentation.*/
 
-OD_WARN_UNUSED_RESULT uint32_t od_ec_tell_frac(uint32_t nbits_total,
+OD_WARN_UNUSED_RESULT uint64_t od_ec_tell_frac(uint32_t nbits_total,
                                                uint32_t rng);
 
 #endif  // AOM_AOM_DSP_ENTCODE_H_
