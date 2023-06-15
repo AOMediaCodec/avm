@@ -341,10 +341,10 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     int center = default_warp_params.wmmat[param];
 
     int input = in_params->wmmat[param] - center;
-    int divisor = in_distance << param_shift[param];
+    int divisor = in_distance * (1 << param_shift[param]);
     int output = (int)(((int64_t)input * out_distance + divisor / 2) / divisor);
-    output = clamp(output, param_min[param], param_max[param])
-             << param_shift[param];
+    output = clamp(output, param_min[param], param_max[param]) *
+             (1 << param_shift[param]);
 
     out_params->wmmat[param] = center + output;
   }
