@@ -550,8 +550,6 @@ void av1_loop_restoration_precal() {
 // The setting here is also for encoder search.
 void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst) {
-  (void)sx;
-  (void)sy;
   int s = AOMMIN(sx, sy);
 
   if (width * height > 1920 * 1080 * 2) {
