@@ -126,7 +126,7 @@ static INLINE void write_buffer_4x4(__m128i *res, int32_t *output) {
   _mm_store_si128((__m128i *)(output + 3 * 4), res[3]);
 }
 
-#if CONFIG_ADST4_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst4x4_sse4_1(__m128i *in, __m128i *out, int bit,
                             const int num_col) {
     const int32_t *cospi = cospi_arr(bit);
@@ -252,7 +252,8 @@ static void fadst4x4_sse4_1(__m128i *in, __m128i *out, int bit,
   out[2] = _mm_unpacklo_epi64(v1, v3);
   out[3] = _mm_unpackhi_epi64(v1, v3);
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
+
 static void idtx4x4_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
   (void)bit;
   __m128i fact = _mm_set1_epi32(NewSqrt2);
@@ -697,7 +698,7 @@ static void fdct8x8_sse4_1(__m128i *in, __m128i *out, int bit,
   fdct4x8_sse4_1(in + 1, out + 1, bit, col_num);
 }
 
-#if CONFIG_ADST8_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst8x8_sse4_1(__m128i *in, __m128i *out, int bit,
                             const int col_num) {
     (void)bit;
@@ -906,7 +907,8 @@ static void fadst8x8_sse4_1(__m128i *in, __m128i *out, int bit,
     out[col_num * 7 + col] = v0;
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
+
 static void idtx8x8_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
   (void)bit;
 
@@ -1556,7 +1558,7 @@ static void fdct16x16_sse4_1(__m128i *in, __m128i *out, int bit,
   }
 }
 
-#if CONFIG_ADST16_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst16x16_sse4_1(__m128i *in, __m128i *out, int bit,
                               const int num_cols) {
     (void)bit;
@@ -1831,7 +1833,7 @@ static void fadst16x16_sse4_1(__m128i *in, __m128i *out, int bit,
     out[15 * num_cols + col] = v[0];
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 static void col_txfm_16x16_rounding(__m128i *in, int shift) {
   // Note:

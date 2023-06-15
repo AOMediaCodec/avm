@@ -1418,7 +1418,7 @@ void av1_fdct8x64_new_sse2(const __m128i *input, __m128i *output,
   output[63] = x10[63];
 }
 
-#if CONFIG_ADST4_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
     const int32_t *cospi = cospi_arr(cos_bit);
@@ -1532,9 +1532,9 @@ static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
   output[2] = _mm_srli_si128(output[0], 8);
   output[3] = _mm_srli_si128(output[1], 8);
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
-#if CONFIG_ADST8_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit);
 
@@ -1639,9 +1639,9 @@ static void fadst4x8_new_sse2(const __m128i *input, __m128i *output,
   output[6] = x6[7];
   output[7] = x6[0];
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
-#if CONFIG_ADST4_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
     const int32_t *cospi = cospi_arr(cos_bit);
@@ -1756,9 +1756,9 @@ static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
   output[2] = _mm_packs_epi32(u_lo[2], u_hi[2]);
   output[3] = _mm_packs_epi32(u_lo[3], u_hi[3]);
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
-#if CONFIG_ADST8_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
     (void)cos_bit;
@@ -1879,9 +1879,9 @@ static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
   output[6] = x6[7];
   output[7] = x6[0];
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
-#if CONFIG_ADST16_TUNED
+#if CONFIG_ADST_TUNED
 static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,
                                int8_t cos_bit) {
     const int32_t* kernel = av2_adst_kernel16[FWD_TXFM];
@@ -2099,7 +2099,7 @@ static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,
   output[14] = x8[15];
   output[15] = x8[0];
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 static const transform_1d_sse2 col_txfm4x4_arr[TX_TYPES] = {
   fdct4x4_new_sse2,       // DCT_DCT
