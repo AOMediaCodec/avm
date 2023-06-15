@@ -1673,9 +1673,10 @@ static int64_t motion_mode_rd(
 #endif  // CONFIG_WARP_REF_LIST
 #if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
-  int allowed_motion_modes = motion_mode_allowed(
-      cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi,
-      get_ref_frame_buf(cm, mbmi->ref_frame[0])->base_qindex);
+  const RefCntBuffer *const refbuf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
+  int allowed_motion_modes =
+      motion_mode_allowed(cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]],
+                          mbmi, refbuf ? refbuf->base_qindex : -1);
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
     // Do not search WARPED_CAUSAL if there are no samples to use to determine

@@ -498,9 +498,10 @@ static AOM_INLINE void write_motion_mode(
     const AV1_COMMON *cm, MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w) {
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
-  const int allowed_motion_modes = motion_mode_allowed(
-      cm, xd, mbmi_ext_frame->ref_mv_stack, mbmi,
-      get_ref_frame_buf(cm, mbmi->ref_frame[0])->base_qindex);
+  const RefCntBuffer *const refbuf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
+  const int allowed_motion_modes =
+      motion_mode_allowed(cm, xd, mbmi_ext_frame->ref_mv_stack, mbmi,
+                          refbuf ? refbuf->base_qindex : -1);
   assert((allowed_motion_modes & (1 << mbmi->motion_mode)) != 0);
   assert((cm->features.enabled_motion_modes & (1 << mbmi->motion_mode)) != 0);
 

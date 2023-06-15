@@ -449,9 +449,10 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_WARP_REF_LIST
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
-  const int allowed_motion_modes = motion_mode_allowed(
-      cm, xd, xd->ref_mv_stack[mbmi->ref_frame[0]], mbmi,
-      get_ref_frame_buf(cm, mbmi->ref_frame[0])->base_qindex);
+  const RefCntBuffer *const refbuf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
+  const int allowed_motion_modes =
+      motion_mode_allowed(cm, xd, xd->ref_mv_stack[mbmi->ref_frame[0]], mbmi,
+                          refbuf ? refbuf->base_qindex : -1);
 
 #if CONFIG_WARPMV
   if (mbmi->mode == WARPMV) {

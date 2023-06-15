@@ -3539,9 +3539,6 @@ static inline int is_this_mv_precision_compliant(
 #if CONFIG_INTERINTRA_WARP
 #define WARPED_CAUSAL_MASK \
   ((1 << WARPED_CAUSAL) | (1 << WARPED_CAUSAL_INTERINTRA))
-#define EXCLUSIVE_WARPED_CAUSAL \
-  0  // Allow WARPED_CAUSAL_INTERINTRA only if
-     // WARPED_CAUSAL is disallowed
 #else
 #define WARPED_CAUSAL_MASK (1 << WARPED_CAUSAL)
 #endif  // CONFIG_INTERINTRA_WARP
@@ -3604,14 +3601,6 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     if (frame_warp_causal_interintra_allowed && xd->up_available &&
         xd->left_available > 0) {
       allowed_motion_mode_warpmv |= (1 << WARPED_CAUSAL_INTERINTRA);
-#if EXCLUSIVE_WARPED_CAUSAL
-      if (allowed_motion_mode_warpmv | (1 << WARPED_CAUSAL)) {
-        if (mbmi->num_proj_ref >= 3)
-          allowed_motion_mode_warpmv &= (~(1 << WARPED_CAUSAL_INTERINTRA));
-        else
-          allowed_motion_mode_warpmv &= (~(1 << WARPED_CAUSAL));
-      }
-#endif  // EXCLUSIVE_WARPED_CAISAL
     }
 #endif  // CONFIG_INTERINTRA_WARP
     return (allowed_motion_mode_warpmv & enabled_motion_modes);
@@ -3690,14 +3679,6 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 #endif  // CONFIG_WARPMV
   ) {
     allowed_motion_modes |= (1 << WARPED_CAUSAL_INTERINTRA);
-#if EXCLUSIVE_WARPED_CAUSAL
-    if (allowed_motion_modes | (1 << WARPED_CAUSAL)) {
-      if (mbmi->num_proj_ref >= 3)
-        allowed_motion_modes &= (~(1 << WARPED_CAUSAL_INTERINTRA));
-      else
-        allowed_motion_modes &= (~(1 << WARPED_CAUSAL));
-    }
-#endif  // EXCLUSIVE_WARPED_CAISAL
   }
 #endif  // CONFIG_INTERINTRA_WARP
 

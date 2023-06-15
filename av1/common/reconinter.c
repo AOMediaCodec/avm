@@ -2677,13 +2677,16 @@ static void cubic_phase_shift2(uint16_t *x, int x_stride, int len, int phase_q4,
 // motion vector mv so that the pixels are correctly aligned.
 // ref is an integer shifted buffer based on floor of the motion vector mv.
 // Note top is assumed to have alllocaton of at least (border +
-// inner_border) * bw, with top_stride being at least bw.
+// inner_border) * (bw + 2 * overhang), with top_stride being at least
+// bw + 2 * overhang.
 // Likewise left is assumed to have alllocaton of at least (border +
-// inner_border) * bh, with left_stride being at least border + inner_border.
+// inner_border) * (bh + 2 * overhang), with left_stride being at least
+// border + inner_border.
 void av1_prepare_inter_topleft(const uint16_t *ref, int ref_stride,
                                BLOCK_SIZE bsize, int border, int inner_border,
-                               MV mv, uint16_t *top, int top_stride,
-                               uint16_t *left, int left_stride, int bd) {
+                               int overhang, MV mv, uint16_t *top,
+                               int top_stride, uint16_t *left, int left_stride,
+                               int bd) {
   const int phase_x = (mv.col << 1) & 15;
   const int phase_y = (mv.row << 1) & 15;
   const int bw = block_size_wide[bsize];
@@ -2692,29 +2695,30 @@ void av1_prepare_inter_topleft(const uint16_t *ref, int ref_stride,
 
   if (phase_x == 0 && phase_y == 0) {
     for (int i = 0; i < border + inner_border; ++i) {
-      memcpy(top + i * top_stride, ref + (i - border) * ref_stride,
-             bw * sizeof(*top));
+      memcpy(top + i * top_stride, ref + (i - border) * ref_stride - overhang,
+             (bw + 2 * overhang) * sizeof(*top));
     }
-    for (int i = 0; i < bh; ++i) {
-      memcpy(left + i * left_stride, ref + i * ref_stride - border,
+    for (int i = 0; i < bh + 2 * overhang; ++i) {
+      memcpy(left + i * left_stride, ref + (i - overhang) * ref_stride - border,
              (border + inner_border) * sizeof(*left));
     }
     return;
   }
-  int scratch_stride = bw;
+  int scratch_stride = bw + 2 * overhang;
   for (int i = -border; i < 2 + inner_border; ++i) {
-    cubic_phase_shift1(ref + i * ref_stride, 1, bw, phase_x, 1,
-                       scratch + (i + border) * scratch_stride, 1);
+    cubic_phase_shift1(ref + i * ref_stride - overhang, 1, bw + 2 * overhang,
+                       phase_x, 1, scratch + (i + border) * scratch_stride, 1);
   }
-  for (int i = 0; i < bw; ++i) {
+  for (int i = 0; i < bw + 2 * overhang; ++i) {
     cubic_phase_shift2(scratch + i, scratch_stride, border + inner_border,
                        phase_y, 0, top + i, top_stride, bd);
   }
   scratch_stride = border + inner_border + 2;
   for (int i = -border; i < 2 + inner_border; ++i)
-    cubic_phase_shift1(ref + i, ref_stride, bh, phase_y, 1,
-                       scratch + i + border, scratch_stride);
-  for (int i = 0; i < bh; ++i) {
+    cubic_phase_shift1(ref + i - overhang * ref_stride, ref_stride,
+                       bh + 2 * overhang, phase_y, 1, scratch + i + border,
+                       scratch_stride);
+  for (int i = 0; i < bh + 2 * overhang; ++i) {
     cubic_phase_shift2(scratch + i * scratch_stride, 1, border + inner_border,
                        phase_x, 0, left + i * left_stride, 1, bd);
   }

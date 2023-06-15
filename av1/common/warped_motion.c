@@ -1430,7 +1430,7 @@ static int get_gradient(const uint16_t *x, int stride, int ext1, int ext2) {
  * use around this reference block.
  * mv - motion vector
  */
-#define GRAD_THRESH 2
+#define GRAD_THRESH 1
 static int find_interintra_rotzoom_int(const uint16_t *src, int src_stride,
                                        const uint16_t *ref, int ref_stride,
                                        BLOCK_SIZE bsize, MV mv,
@@ -1438,28 +1438,33 @@ static int find_interintra_rotzoom_int(const uint16_t *src, int src_stride,
                                        int mi_col, int bd) {
   const int border = MAX_INTERINTRA_BORDER;
   const int inner_border = MAX_INTERINTRA_INNER_BORDER;
+  const int overhang = MAX_INTERINTRA_OVERHANG;
 
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   uint16_t top[MAX_INTERINTRA_TOPLEFT_SIZE];
   uint16_t left[MAX_INTERINTRA_TOPLEFT_SIZE];
-  const int top_stride = bw;
+  const int top_stride = bw + 2 * overhang;
   const int left_stride = border + inner_border;
-  av1_prepare_inter_topleft(ref, ref_stride, bsize, border, inner_border, mv,
-                            top, top_stride, left, left_stride, bd);
+  av1_prepare_inter_topleft(ref, ref_stride, bsize, border, inner_border,
+                            overhang, mv, top, top_stride, left, left_stride,
+                            bd);
+  const int off = 1;
   int32_t A[2][2] = { { 0, 0 }, { 0, 0 } };
   int32_t B[2] = { 0, 0 };
   for (int i = 1; i < border; ++i) {
-    for (int j = 1; j < bw - 1; ++j) {
-      const int d = (*(top + i * top_stride + j) -
+    for (int j = off; j < bw - off; ++j) {
+      const int d = (*(top + i * top_stride + j + overhang) -
                      *(src + (i - border) * src_stride + j));
       const int y = (i - border) - (bh / 2 - 1);
       const int x = j - (bw / 2 - 1);
-      const int gx =
-          get_gradient(top + i * top_stride + j, 1, j > 1, j < bw - 2);
-      const int gy =
-          get_gradient(top + i * top_stride + j, top_stride, i > 1, 1);
-      // if (abs(gx) < GRAD_THRESH && abs(gy) < GRAD_THRESH) continue;
+      const int gx = get_gradient(top + i * top_stride + j + overhang, 1,
+                                  j > 1 - overhang, j < bw - 2 + overhang);
+      const int gy = get_gradient(top + i * top_stride + j + overhang,
+                                  top_stride, i > 1, 1);
+#if GRAD_THRESH
+      if (abs(gx) < GRAD_THRESH && abs(gy) < GRAD_THRESH) continue;
+#endif  // GRAD_THRESH
       const int p1 = x * gx + y * gy;
       const int p2 = y * gx - x * gy;
       A[0][0] += p1 * p1;
@@ -1469,16 +1474,20 @@ static int find_interintra_rotzoom_int(const uint16_t *src, int src_stride,
       B[1] += p2 * d;
     }
   }
-  for (int i = 1; i < bh - 1; ++i) {
+  for (int i = off; i < bh - off; ++i) {
     for (int j = 1; j < border; ++j) {
-      const int d = (*(left + i * left_stride + j) -
+      const int d = (*(left + (i + overhang) * left_stride + j) -
                      *(src + i * src_stride + j - border));
       const int y = i - (bh / 2 - 1);
       const int x = (j - border) - (bw / 2 - 1);
-      const int gx = get_gradient(left + i * left_stride + j, 1, j > 1, 1);
-      const int gy = get_gradient(left + i * left_stride + j, left_stride,
-                                  i > 1, i < bh - 2);
-      // if (abs(gx) < GRAD_THRESH && abs(gy) < GRAD_THRESH) continue;
+      const int gx =
+          get_gradient(left + (i + overhang) * left_stride + j, 1, j > 1, 1);
+      const int gy =
+          get_gradient(left + (i + overhang) * left_stride + j, left_stride,
+                       i > 1 - overhang, i < bh - 2 + overhang);
+#if GRAD_THRESH
+      if (abs(gx) < GRAD_THRESH && abs(gy) < GRAD_THRESH) continue;
+#endif  // GRAD_THRESH
       const int p1 = x * gx + y * gy;
       const int p2 = y * gx - x * gy;
       A[0][0] += p1 * p1;

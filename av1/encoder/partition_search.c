@@ -1300,9 +1300,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 #endif  // CONFIG_BAWP
 #if CONFIG_EXTENDED_WARP_PREDICTION
+      const RefCntBuffer *const refbuf =
+          get_ref_frame_buf(cm, mbmi->ref_frame[0]);
       const int allowed_motion_modes = motion_mode_allowed(
           cm, xd, mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi,
-          get_ref_frame_buf(cm, mbmi->ref_frame[0])->base_qindex);
+          refbuf ? refbuf->base_qindex : -1);
       MOTION_MODE motion_mode = mbmi->motion_mode;
 
 #if CONFIG_WARPMV
@@ -1892,9 +1894,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       const int seg_ref_active = 0;
       if (!seg_ref_active && inter_block) {
 #if CONFIG_EXTENDED_WARP_PREDICTION
+        const RefCntBuffer *const refbuf =
+            get_ref_frame_buf(cm, mbmi->ref_frame[0]);
         const int allowed_motion_modes = motion_mode_allowed(
             cm, xd, x->mbmi_ext->ref_mv_stack[mbmi->ref_frame[0]], mbmi,
-            get_ref_frame_buf(cm, mbmi->ref_frame[0])->base_qindex);
+            refbuf ? refbuf->base_qindex : -1);
         if (mbmi->motion_mode != INTERINTRA) {
           if (allowed_motion_modes & (1 << OBMC_CAUSAL)) {
             td->rd_counts.obmc_used[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
