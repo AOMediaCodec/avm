@@ -3897,7 +3897,8 @@ static void rectangular_partition_search(
         continue;
       }
     }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_H_PARTITION &&
+        // !CONFIG_UNEVEN_4WAY
 
     // Sub-partition idx.
     const PARTITION_TYPE partition_type = rect_partition_type[i];
