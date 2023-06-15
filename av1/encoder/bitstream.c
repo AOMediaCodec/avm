@@ -2830,12 +2830,12 @@ static AOM_INLINE void write_modes_sb(
       get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
   for (int plane = plane_start; plane < plane_end; ++plane) {
     int rcol0, rcol1, rrow0, rrow1;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE ||
          cm->rst_info[plane].frame_cross_restoration_type != RESTORE_NONE) &&
 #else
     if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
       const int rstride = cm->rst_info[plane].horz_units_per_tile;
@@ -3107,21 +3107,21 @@ static AOM_INLINE void encode_restoration_mode(
   int luma_none = 1, chroma_none = 1;
 #else
   int all_none = 1, chroma_none = 1;
-#endif
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if (rsi->frame_restoration_type != RESTORE_NONE ||
         rsi->frame_cross_restoration_type != RESTORE_NONE) {
       if (p == 0) assert(rsi->frame_cross_restoration_type == RESTORE_NONE);
 #else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_FLEXIBLE_RU_SIZE
       luma_none &= p > 0;
 #else
       all_none = 0;
-#endif
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
       chroma_none &= p == 0;
     }
 #if CONFIG_LR_FLEX_SYNTAX
@@ -3201,11 +3201,11 @@ static AOM_INLINE void encode_restoration_mode(
                                              : NUM_WIENERNS_CLASS_INIT_CHROMA));
 #endif  // CONFIG_WIENER_NONSEP
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if (p > 0) {
       aom_wb_write_bit(wb, rsi->frame_cross_restoration_type != RESTORE_NONE);
     }
-#endif  // CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
 #if CONFIG_FLEXIBLE_RU_SIZE
   int size = cm->rst_info[0].max_restoration_unit_size;
@@ -3258,7 +3258,7 @@ static AOM_INLINE void encode_restoration_mode(
              cm->rst_info[1].restoration_unit_size);
     }
   }
-#endif
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
 }
 
 static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
@@ -3421,12 +3421,12 @@ static AOM_INLINE void write_wienerns_filter(
     MACROBLOCKD *xd, int plane, const WienerNonsepInfo *wienerns_info,
     WienerNonsepInfoBank *bank, aom_writer *wb) {
   const WienernsFilterParameters *nsfilter_params =
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
       get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y,
                               wienerns_info->is_cross_filter);
 #else
       get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };
   int ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
 #if CONFIG_LR_MERGE_COEFFS
@@ -3539,25 +3539,25 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     aom_writer *const w, int plane, FRAME_COUNTS *counts) {
   const RestorationInfo *rsi = cm->rst_info + plane;
   RestorationType frame_rtype = rsi->frame_restoration_type;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   RestorationType frame_cross_rtype = rsi->frame_cross_restoration_type;
   RestorationType unit_cross_rtype = rui->cross_restoration_type;
   assert(frame_rtype != RESTORE_NONE || frame_cross_rtype != RESTORE_NONE);
 #else
   assert(frame_rtype != RESTORE_NONE);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   (void)counts;
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
   RestorationType unit_rtype = rui->restoration_type;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   WienerNonsepInfo *info = (WienerNonsepInfo *)&rui->wienerns_info;
   info->is_cross_filter = 0;
   info = (WienerNonsepInfo *)&rui->wienerns_cross_info;
   info->is_cross_filter = 1;
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_LR_FLEX_SYNTAX
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
@@ -3647,7 +3647,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     }
 #endif  // CONFIG_PC_WIENER
   }
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   if (frame_cross_rtype == RESTORE_WIENER_NONSEP) {
     aom_write_symbol(w, unit_cross_rtype != RESTORE_NONE,
                      xd->tile_ctx->wienerns_restore_cdf, 2);
@@ -3659,7 +3659,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
                             &xd->wienerns_cross_info[plane], w);
     }
   }
-#endif  // CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 }
 
 static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,

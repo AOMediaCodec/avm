@@ -1980,7 +1980,7 @@ static void set_restoration_unit_size(int width, int height, int sx, int sy,
   rst[1].restoration_unit_size = rst[0].restoration_unit_size >> s;
   rst[2].restoration_unit_size = rst[1].restoration_unit_size;
 }
-#endif
+#endif  // !CONFIG_FLEXIBLE_RU_SIZE
 
 static void init_ref_frame_bufs(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
@@ -2125,10 +2125,10 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
                             seq_params->subsampling_y, cm->rst_info);
   for (int i = 0; i < num_planes; ++i)
     cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   for (int i = 0; i < num_planes; ++i)
     cm->rst_info[i].frame_cross_restoration_type = RESTORE_NONE;
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   av1_alloc_restoration_buffers(cm);
   if (!is_stat_generation_stage(cpi)) alloc_util_frame_buffers(cpi);
@@ -2169,7 +2169,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   set_ref_ptrs(cm, xd, 0, 0);
 }
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 static void save_pre_filter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   (void)cpi;
   YV12_BUFFER_CONFIG *frame = &cm->cur_frame->buf;
@@ -2191,7 +2191,7 @@ static void save_pre_filter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int num_planes = av1_num_planes(cm);
   aom_yv12_copy_frame(frame, pre_filter_frame, num_planes);
 }
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
@@ -2333,7 +2333,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
     av1_pick_filter_restoration(cpi->source, cpi);
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     save_pre_filter_frame(cpi, cm);
     if (num_workers > 1)
       av1_loop_restoration_filter_frame_mt(
@@ -2349,15 +2349,15 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     // restore chroma components of the frame
     aom_yv12_copy_u(&cm->pre_rst_frame, &cm->cur_frame->buf);
     aom_yv12_copy_v(&cm->pre_rst_frame, &cm->cur_frame->buf);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         || cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     ) {
       if (num_workers > 1)
         av1_loop_restoration_filter_frame_mt(
@@ -2371,11 +2371,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);
@@ -2963,11 +2963,11 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->global_motion[i] = default_warp_params;
@@ -3098,11 +3098,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
 
 #if CONFIG_TIP

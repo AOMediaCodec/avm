@@ -91,13 +91,14 @@ const int wienerns_config_uv_from_y[][3] = {
 #endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 };
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+// Filter configuration of cross component weiner filter
 const int wienerns_config_uv_from_y_cross[][3] = {
   { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
   { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
   { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
 };
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 #define WIENERNS_PREC_BITS_Y 7
 const int wienerns_coeff_y[][WIENERNS_COEFCFG_LEN] = {
@@ -171,7 +172,7 @@ const int wienerns_coeff_uv[][WIENERNS_COEFCFG_LEN] = {
 #endif  // ENABLE_LR_4PART_CODE
 };
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 const int wienerns_coeff_uv_from_y[][WIENERNS_COEFCFG_LEN] = {
 #if ENABLE_LR_4PART_CODE
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 5, -12, 0),
@@ -189,25 +190,25 @@ const int wienerns_coeff_uv_from_y[][WIENERNS_COEFCFG_LEN] = {
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
 #endif  // ENABLE_LR_4PART_CODE
 };
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 const WienernsFilterParameters wienerns_filter_y = AOM_MAKE_WIENERNS_CONFIG(
     WIENERNS_PREC_BITS_Y, wienerns_config_y, wienerns_coeff_y);
 const WienernsFilterParameters wienerns_filter_uv =
     AOM_MAKE_WIENERNS_CONFIG2(WIENERNS_PREC_BITS_UV, wienerns_config_uv_from_uv,
                               wienerns_config_uv_from_y, wienerns_coeff_uv);
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 const WienernsFilterParameters wienerns_cross_filter_uv =
     AOM_MAKE_WIENERNS_CONFIG(WIENERNS_PREC_BITS_UV,
                              wienerns_config_uv_from_y_cross,
                              wienerns_coeff_uv_from_y);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 const WienernsFilterPairParameters wienerns_filters_midqp = {
   &wienerns_filter_y, &wienerns_filter_uv
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   ,
   &wienerns_cross_filter_uv
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 };
 
 // Configs for the first set of filters for the case without subtract center.
@@ -300,10 +301,10 @@ const WienernsFilterParameters wienerns_filter_y2 = AOM_MAKE_WIENERNS_CONFIG(
 
 const WienernsFilterPairParameters wienerns_filters_highqp = {
   &wienerns_filter_y2, &wienerns_filter_uv
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   ,
   &wienerns_cross_filter_uv
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -384,10 +385,10 @@ const WienernsFilterParameters wienerns_filter_y3 = AOM_MAKE_WIENERNS_CONFIG(
 
 const WienernsFilterPairParameters wienerns_filters_lowqp = {
   &wienerns_filter_y3, &wienerns_filter_uv
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   ,
   &wienerns_cross_filter_uv
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 };
 
 #endif  // CONFIG_WIENER_NONSEP
@@ -541,16 +542,18 @@ void av1_loop_restoration_precal() {
 #endif
 }
 
-#if CONFIG_FLEXIBLE_RU_SIZE  //?????? to be updated
+#if CONFIG_FLEXIBLE_RU_SIZE
+// set up the Minimum and maximum RU size for enacoder search
+// As normative regulation:
+// minimum RU size is equal to RESTORATION_UNITSIZE_MAX >> 2,
+// maximum RU size is equal to RESTORATION_UNITSIZE_MAX
+// The setting here is also for encoder search.
 void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst) {
   (void)sx;
   (void)sy;
   int s = AOMMIN(sx, sy);
 
-  // As normative regulation, rst[0].min_restoration_unit_size should be
-  // set equal to RESTORATION_UNITSIZE_MAX >> 2
-  // The setting here is also for encoder searching.
   if (width * height > 1920 * 1080 * 2) {
     rst[0].max_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 0;
     rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
@@ -569,7 +572,7 @@ void set_restoration_unit_size(int width, int height, int sx, int sy,
   rst[1].restoration_unit_size = rst[1].min_restoration_unit_size;
   rst[2].restoration_unit_size = rst[2].min_restoration_unit_size;
 }
-#endif
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
 
 static void extend_frame_highbd(uint16_t *data, int width, int height,
                                 int stride, int border_horz, int border_vert) {
@@ -602,11 +605,11 @@ void av1_extend_frame(uint16_t *data, int width, int height, int stride,
   extend_frame_highbd(data, width, height, stride, border_horz, border_vert);
 }
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 void copy_tile(int width, int height, const uint16_t *src,
 #else
 static void copy_tile(int width, int height, const uint16_t *src,
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
                int src_stride, uint16_t *dst, int dst_stride) {
   copy_tile_highbd(width, height, src, src_stride, dst, dst_stride);
 }
@@ -1932,11 +1935,11 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
 
   int is_uv = rui->plane != AOM_PLANE_Y;
   const NonsepFilterConfig *orig_config =
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
       get_wienerns_config(rui->base_qindex, is_uv, 0);
 #else
       get_wienerns_config(rui->base_qindex, is_uv);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if ADD_CENTER_TAP_TO_WIENERNS
   NonsepFilterConfig adjusted_config;
   WienerNonsepInfo adjusted_info;
@@ -1974,7 +1977,8 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
   }
 }
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+// Convolving process of cross-component wiener filter for a 4x4 unit
 void av1_convolve_nonsep_cross_highbd_c(const uint16_t *dgd, int width,
                                         int height, int stride,
                                         const uint16_t *dgd2, int stride2,
@@ -1985,9 +1989,8 @@ void av1_convolve_nonsep_cross_highbd_c(const uint16_t *dgd, int width,
   (void)stride;
   for (int i = 0; i < height; ++i) {
     for (int j = 0; j < width; ++j) {
-      //      int dgd_id = i * stride + j;
-      int dgd2_id = i * stride2 + j;
-      int dst_id = i * dst_stride + j;
+      const int dgd2_id = i * stride2 + j;
+      const int dst_id = i * dst_stride + j;
       int32_t tmp = (int32_t)dst[dst_id] * (1 << config->prec_bits);
 
       for (int k = 0; k < config->num_pixels; ++k) {
@@ -1999,18 +2002,18 @@ void av1_convolve_nonsep_cross_highbd_c(const uint16_t *dgd, int width,
                            : i + r;
         const int jc =
             config->strict_bounds ? AOMMAX(AOMMIN(j + c, width - 1), 0) : j + c;
-        int16_t diff = clip_base(
-            (int16_t)dgd2[(ir)*stride2 + (jc)] - (int16_t)dgd2[dgd2_id],
-            bit_depth);
+        int16_t diff =
+            clip_base(dgd2[(ir)*stride2 + (jc)] - dgd2[dgd2_id], bit_depth);
         diff = k % 2 ? -diff : diff;
         tmp += filter[pos] * diff;
       }
       tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, config->prec_bits);
-      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+      dst[dst_id] = clip_pixel_highbd(tmp, bit_depth);
     }
   }
 }
 
+// Cross-component wiener filtering for a process unit
 void apply_cross_wienerns_class_id_highbd(
     const uint16_t *dgd, int width, int height, int stride,
     const WienerNonsepInfo *wienerns_info,
@@ -2037,9 +2040,9 @@ void apply_cross_wienerns_class_id_highbd(
           filter, dst_row + c, dst_stride, bit_depth);
     }
   }
-  return;
 }
 
+// Cross-component wiener filtering for  a stripe of process units
 static void wiener_ns_cross_filter_stripe_highbd(
     const RestorationUnitInfo *rui, int stripe_width, int stripe_height,
     int procunit_width, const uint16_t *src, int src_stride, uint16_t *dst,
@@ -2066,7 +2069,7 @@ static void wiener_ns_cross_filter_stripe_highbd(
         bit_depth);
   }
 }
-#endif  // CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 #if CONFIG_WIENER_NONSEP_CROSS_FILT
 uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
@@ -2400,7 +2403,8 @@ void av1_loop_restoration_filter_unit(
 #endif  // CONFIG_PC_WIENER
 }
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+// Cross-component fFiltering for one restoration unit
 void av1_wiener_ns_cross_filter_unit(
     const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
     const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
@@ -2415,8 +2419,8 @@ void av1_wiener_ns_cross_filter_unit(
 
   RestorationType unit_cross_rtype = rui->cross_restoration_type;
 
-  int unit_h = limits->v_end - limits->v_start;
-  int unit_w = limits->h_end - limits->h_start;
+  const int unit_h = limits->v_end - limits->v_start;
+  const int unit_w = limits->h_end - limits->h_start;
   uint16_t *data_tl = data + limits->v_start * stride + limits->h_start;
   uint16_t *dst_tl = dst + limits->v_start * dst_stride + limits->h_start;
 
@@ -2469,23 +2473,16 @@ void av1_wiener_ns_cross_filter_unit(
     const int h = AOMMIN(nominal_stripe_height,
                          remaining_stripes.v_end - remaining_stripes.v_start);
 
-    /* setup_processing_stripe_boundary(&remaining_stripes, rsb, rsb_row, h,
-       data, stride, rlbs, copy_above, copy_below, optimized_lr);*/ //not needed
-
     tmp_rui->luma = luma_in_ru + i * rui->luma_stride;
 
     stripe_filter(tmp_rui, unit_w, h, procunit_width, data_tl + i * stride,
                   stride, dst_tl + i * dst_stride, dst_stride, tmpbuf,
                   bit_depth);
 
-    /* restore_processing_stripe_boundary(&remaining_stripes, rlbs, h, data,
-                                       stride, copy_above, copy_below,
-                                       optimized_lr);*/
-
     i += h;
   }
 }
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 static void filter_frame_on_unit(const RestorationTileLimits *limits,
                                  const AV1PixelRect *tile_rect,
@@ -2519,7 +2516,7 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
       ctxt->tile_stripe0, ctxt->ss_x, ctxt->ss_y, ctxt->bit_depth, ctxt->data8,
       ctxt->data_stride, ctxt->dst8, ctxt->dst_stride, tmpbuf,
       rsi->optimized_lr);
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   const int is_uv = (ctxt->plane != AOM_PLANE_Y);
   if (is_uv)
     av1_wiener_ns_cross_filter_unit(
@@ -2527,7 +2524,7 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
         tile_rect, ctxt->tile_stripe0, ctxt->ss_x, ctxt->ss_y, ctxt->bit_depth,
         ctxt->data8, ctxt->data_stride, ctxt->dst8, ctxt->dst_stride, tmpbuf,
         rsi->optimized_lr);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 }
 
 void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
@@ -2552,16 +2549,16 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
   for (int plane = 0; plane < num_planes; ++plane) {
     RestorationInfo *rsi = &cm->rst_info[plane];
     RestorationType rtype = rsi->frame_restoration_type;
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     RestorationType cross_rtype = rsi->frame_cross_restoration_type;
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     rsi->optimized_lr = optimized_lr;
 
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if (rtype == RESTORE_NONE && cross_rtype == RESTORE_NONE) {
 #else
     if (rtype == RESTORE_NONE) {
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
       continue;
     }
 
@@ -2598,9 +2595,9 @@ void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
   assert(num_planes <= 3);
   for (int plane = 0; plane < num_planes; ++plane) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         && cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     )
       continue;
 
@@ -2633,9 +2630,9 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
 
   for (int plane = 0; plane < num_planes; ++plane) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         && cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     )
       continue;
 

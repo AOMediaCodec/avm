@@ -208,15 +208,15 @@ void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
 #if CONFIG_WIENER_NONSEP
     av1_reset_wienerns_bank(&xd->wienerns_info[p], xd->current_base_qindex,
                             num_filter_classes[p], p != AOM_PLANE_Y
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
                             ,
                             0
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     );
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     av1_reset_wienerns_bank(&xd->wienerns_cross_info[p],
                             xd->current_base_qindex, 1, p != AOM_PLANE_Y, 1);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #endif  // CONFIG_WIENER_NONSEP
   }
 }
@@ -352,18 +352,18 @@ void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
 // Initialize bank
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
                              int num_classes, int chroma
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
                              ,
                              int is_cross
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 ) {
   for (int i = 0; i < LR_BANK_SIZE; ++i) {
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     set_default_wienerns(&bank->filter[i], qindex, num_classes, chroma,
                          is_cross);
 #else
     set_default_wienerns(&bank->filter[i], qindex, num_classes, chroma);
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     bank->bank_size_for_class[c_id] = 1;

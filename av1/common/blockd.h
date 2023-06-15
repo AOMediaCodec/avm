@@ -1447,12 +1447,12 @@ typedef struct {
    */
   DECLARE_ALIGNED(16, int16_t,
                   allfiltertaps[WIENERNS_MAX_CLASSES * WIENERNS_YUV_MAX]);
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   /*!
    * Whether this is a cross-filter, temporaly used
    */
   int is_cross_filter;
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_LR_MERGE_COEFFS
   /*!
    * Best Reference from dynamic bank for each class.
@@ -1898,13 +1898,13 @@ typedef struct macroblockd {
    * Nonseparable Wiener filter information for all planes.
    */
   WienerNonsepInfoBank wienerns_info[MAX_MB_PLANE];
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   /*!
    * Nonseparable Wiener cross filter information for all planes, only Cb and Cr
    * are applied
    */
   WienerNonsepInfoBank wienerns_cross_info[MAX_MB_PLANE];
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #endif  // CONFIG_WIENER_NONSEP
   /**@}*/
 
@@ -3032,10 +3032,10 @@ void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
 // filters. The bank holds a rootating buffer of filters.
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
                              int num_classes, int chroma
-#if CONFIG_HIGH_PASS_CROSS_AS_ADD_FILTER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
                              ,
                              int is_cross
-#endif
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 );
 
 // Adds the nonseparable Wiener filter in info into the bank of rotating
