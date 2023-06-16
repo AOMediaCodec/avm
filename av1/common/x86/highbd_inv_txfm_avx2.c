@@ -139,6 +139,8 @@ static INLINE void highbd_write_buffer_8xn_avx2(__m256i *in, uint16_t *output,
     _mm_storeu_si128((__m128i *)(output + i * stride), u1);
   }
 }
+
+#if !CONFIG_ADST_TUNED
 static void neg_shift_avx2(const __m256i in0, const __m256i in1, __m256i *out0,
                            __m256i *out1, const __m256i *clamp_lo,
                            const __m256i *clamp_hi, int shift) {
@@ -157,6 +159,7 @@ static void neg_shift_avx2(const __m256i in0, const __m256i in1, __m256i *out0,
   *out0 = a0;
   *out1 = a1;
 }
+#endif
 
 static void transpose_8x8_avx2(const __m256i *in, __m256i *out) {
   __m256i u0, u1, u2, u3, u4, u5, u6, u7;

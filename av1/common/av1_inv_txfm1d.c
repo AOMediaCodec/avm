@@ -711,8 +711,7 @@ void av2_iadst4(const int32_t *input, int32_t *output,
     bf1[3] = bf0[0];
     av1_range_check_buf(5, input, bf1, size, stage_range[5]);
 }
-#endif  // CONFIG_ADST_TUNED
-
+#else 
 void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   int bit = cos_bit;
@@ -769,6 +768,7 @@ void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
   output[2] = round_shift(x2, bit);
   output[3] = round_shift(x3, bit);
 }
+#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_ADST_TUNED
 void av2_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -778,8 +778,7 @@ void av2_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
     av2_txfm_matrix_mult(input, output, av2_adst_kernel8[INV_TXFM],
                          TXFM_SIZE8, INV_ADST_BIT, stage_range[0]);
 }
-#endif  // CONFIG_ADST_TUNED
-
+#else
 void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   assert(output != input);
@@ -887,6 +886,7 @@ void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[6] = bf0[5];
   bf1[7] = -bf0[1];
 }
+#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_ADST_TUNED
 void av2_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -896,8 +896,7 @@ void av2_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
     av2_txfm_matrix_mult(input, output, av2_adst_kernel16[INV_TXFM],
                          TXFM_SIZE16, INV_ADST_BIT, stage_range[0]);
 }
-#endif  // CONFIG_ADST_TUNED
-
+#else
 void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
   assert(output != input);
@@ -1105,6 +1104,7 @@ void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[14] = bf0[9];
   bf1[15] = -bf0[1];
 }
+#endif  // CONFIG_ADST_TUNED
 
 void av1_iidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                       const int8_t *stage_range) {

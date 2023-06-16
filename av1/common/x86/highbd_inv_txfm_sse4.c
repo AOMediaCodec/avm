@@ -364,6 +364,7 @@ static INLINE void idct32_stage9_sse4_1(__m128i *bf1, __m128i *out,
   }
 }
 
+#if !CONFIG_ADST_TUNED
 static void neg_shift_sse4_1(const __m128i in0, const __m128i in1,
                              __m128i *out0, __m128i *out1,
                              const __m128i *clamp_lo, const __m128i *clamp_hi,
@@ -383,6 +384,7 @@ static void neg_shift_sse4_1(const __m128i in0, const __m128i in1,
   *out0 = a0;
   *out1 = a1;
 }
+#endif
 
 static void idct4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                            int bd, int out_shift) {
