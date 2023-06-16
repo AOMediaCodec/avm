@@ -552,13 +552,13 @@ void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst) {
   int s = AOMMIN(sx, sy);
 
-  if (width * height > 1920 * 1080 * 2) {
-    rst[0].max_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 0;
+  rst[0].max_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 0;
+  rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 2;
+
+  // For large resolution, the minimum RU size is set to
+  // RESTORATION_UNITSIZE_MAX >> 1 to reduce the encode complexity.
+  if (width * height > 1920 * 1080 * 2)
     rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
-  } else {
-    rst[0].max_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 0;
-    rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 2;
-  }
 
   rst[1].max_restoration_unit_size = rst[0].max_restoration_unit_size >> s;
   rst[1].min_restoration_unit_size = rst[0].min_restoration_unit_size >> s;
@@ -2409,7 +2409,6 @@ void av1_wiener_ns_cross_filter_unit(
     const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
     int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
     int32_t *tmpbuf, int optimized_lr) {
-  assert(CONFIG_WIENER_NONSEP_CROSS_FILT);
   (void)rsb;
   (void)rlbs;
   (void)optimized_lr;
