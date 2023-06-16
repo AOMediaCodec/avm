@@ -731,8 +731,7 @@ void av2_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[3] = -bf0[1];
   av1_range_check_buf(5, input, bf1, size, stage_range[5]);
 }
-#endif  // CONFIG_ADST_TUNED
-
+#else
 void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   int bit = cos_bit;
@@ -791,6 +790,7 @@ void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
   output[3] = round_shift(s3, bit);
   av1_range_check_buf(6, input, output, 4, stage_range[6]);
 }
+#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_ADST_TUNED
 void av2_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -800,8 +800,7 @@ void av2_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
   av2_txfm_matrix_mult(input, output, av2_adst_kernel8[FWD_TXFM], TXFM_SIZE8,
                        FWD_ADST_BIT, 0);
 }
-#endif  // CONFIG_ADST_TUNED
-
+#else
 void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   const int32_t size = 8;
@@ -915,6 +914,7 @@ void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[7] = bf0[0];
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
 }
+#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_ADST_TUNED
 void av2_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -924,8 +924,7 @@ void av2_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
   av2_txfm_matrix_mult(input, output, av2_adst_kernel16[FWD_TXFM], TXFM_SIZE16,
                        FWD_ADST_BIT, 0);
 }
-#endif  // CONFIG_ADST_TUNED
-
+#else
 void av1_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
   const int32_t size = 16;
@@ -1140,6 +1139,7 @@ void av1_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[15] = bf0[0];
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
 }
+#endif  // CONFIG_ADST_TUNED
 
 void av1_fidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                       const int8_t *stage_range) {

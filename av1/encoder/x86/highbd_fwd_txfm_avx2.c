@@ -210,6 +210,7 @@ static INLINE void fwd_txfm_transpose_16x16_avx2(const __m256i *in,
   fwd_txfm_transpose_8x8_avx2(&in[17], &out[17], 2, 2);
 }
 
+#if !CONFIG_ADST_TUNED
 static INLINE __m256i av1_half_btf_avx2(const __m256i *w0, const __m256i *n0,
                                         const __m256i *w1, const __m256i *n1,
                                         const __m256i *rounding, int bit) {
@@ -222,6 +223,8 @@ static INLINE __m256i av1_half_btf_avx2(const __m256i *w0, const __m256i *n0,
   x = _mm256_srai_epi32(x, bit);
   return x;
 }
+#endif  // !CONFIG_ADST_TUNED
+
 #define btf_32_avx2_type0(w0, w1, in0, in1, out0, out1, bit) \
   do {                                                       \
     const __m256i ww0 = _mm256_set1_epi32(w0);               \
