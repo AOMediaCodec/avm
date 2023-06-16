@@ -2602,8 +2602,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->horizontal4a[0], sub_tree[0],
@@ -2624,8 +2623,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     }
     case PARTITION_HORZ_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->horizontal4b[0], sub_tree[0],
@@ -2646,8 +2644,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     }
     case PARTITION_VERT_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->vertical4a[0], sub_tree[0],
@@ -2668,8 +2665,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     }
     case PARTITION_VERT_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->vertical4b[0], sub_tree[0],
@@ -5945,8 +5941,7 @@ static INLINE void search_partition_horz_4a(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_HORZ_4A);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_HORZ);
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_HORZ][big_subsize];
   assert(sml_subsize == subsize_lookup[PARTITION_HORZ][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 3, 7 };
@@ -6053,8 +6048,7 @@ static INLINE void search_partition_horz_4b(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_HORZ_4B);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_HORZ);
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_HORZ][big_subsize];
   assert(sml_subsize == subsize_lookup[PARTITION_HORZ][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 5, 7 };
@@ -6161,8 +6155,7 @@ static INLINE void search_partition_vert_4a(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_VERT_4A);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_VERT);
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_VERT][big_subsize];
   assert(sml_subsize == subsize_lookup[PARTITION_VERT][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 3, 7 };
@@ -6269,8 +6262,7 @@ static INLINE void search_partition_vert_4b(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_VERT_4B);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_VERT);
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_VERT][big_subsize];
   assert(sml_subsize == subsize_lookup[PARTITION_VERT][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 5, 7 };

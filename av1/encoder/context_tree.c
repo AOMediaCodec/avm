@@ -495,8 +495,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_row + ebh * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_HORZ);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_HORZ);
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
         assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_med, bsize_big,
                                          subsize };
@@ -524,8 +523,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_row + ebh * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_HORZ);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_HORZ);
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
         assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_big, bsize_med,
                                          subsize };
@@ -553,8 +551,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_col + ebw * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_VERT);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_VERT);
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
         assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_med, bsize_big,
                                          subsize };
@@ -582,8 +579,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_col + ebw * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_VERT);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_VERT);
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
         assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_big, bsize_med,
                                          subsize };
