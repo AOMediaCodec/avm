@@ -1421,65 +1421,65 @@ void av1_fdct8x64_new_sse2(const __m128i *input, __m128i *output,
 #if CONFIG_ADST_TUNED
 static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
-    const int32_t *cospi = cospi_arr(cos_bit);
-    const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
-    const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
-    const __m128i cospi_p8_p56 = pair_set_epi16(cospi[8], cospi[56]);
-    const __m128i cospi_p56_m8 = pair_set_epi16(cospi[56], -cospi[8]);
-    const __m128i cospi_p40_p24 = pair_set_epi16(cospi[40], cospi[24]);
-    const __m128i cospi_p24_m40 = pair_set_epi16(cospi[24], -cospi[40]);
-    const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
-    __m128i u[4], v[4];
+  const int32_t *cospi = cospi_arr(cos_bit);
+  const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
+  const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
+  const __m128i cospi_p8_p56 = pair_set_epi16(cospi[8], cospi[56]);
+  const __m128i cospi_p56_m8 = pair_set_epi16(cospi[56], -cospi[8]);
+  const __m128i cospi_p40_p24 = pair_set_epi16(cospi[40], cospi[24]);
+  const __m128i cospi_p24_m40 = pair_set_epi16(cospi[24], -cospi[40]);
+  const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
+  __m128i u[4], v[4];
 
-    // stage 1
-    u[0] = _mm_unpacklo_epi16(input[3], input[0]);
-    u[1] = _mm_unpacklo_epi16(input[1], input[2]);
+  // stage 1
+  u[0] = _mm_unpacklo_epi16(input[3], input[0]);
+  u[1] = _mm_unpacklo_epi16(input[1], input[2]);
 
-    // stage 2
-    v[0] = _mm_madd_epi16(u[0], cospi_p8_p56);
-    v[1] = _mm_madd_epi16(u[0], cospi_p56_m8);
-    v[2] = _mm_madd_epi16(u[1], cospi_p40_p24);
-    v[3] = _mm_madd_epi16(u[1], cospi_p24_m40);
+  // stage 2
+  v[0] = _mm_madd_epi16(u[0], cospi_p8_p56);
+  v[1] = _mm_madd_epi16(u[0], cospi_p56_m8);
+  v[2] = _mm_madd_epi16(u[1], cospi_p40_p24);
+  v[3] = _mm_madd_epi16(u[1], cospi_p24_m40);
 
-    u[0] = _mm_add_epi32(v[0], __rounding);
-    u[1] = _mm_add_epi32(v[1], __rounding);
-    u[2] = _mm_add_epi32(v[2], __rounding);
-    u[3] = _mm_add_epi32(v[3], __rounding);
+  u[0] = _mm_add_epi32(v[0], __rounding);
+  u[1] = _mm_add_epi32(v[1], __rounding);
+  u[2] = _mm_add_epi32(v[2], __rounding);
+  u[3] = _mm_add_epi32(v[3], __rounding);
 
-    v[0] = _mm_srai_epi32(u[0], cos_bit);
-    v[1] = _mm_srai_epi32(u[1], cos_bit);
-    v[2] = _mm_srai_epi32(u[2], cos_bit);
-    v[3] = _mm_srai_epi32(u[3], cos_bit);
+  v[0] = _mm_srai_epi32(u[0], cos_bit);
+  v[1] = _mm_srai_epi32(u[1], cos_bit);
+  v[2] = _mm_srai_epi32(u[2], cos_bit);
+  v[3] = _mm_srai_epi32(u[3], cos_bit);
 
-    u[0] = _mm_packs_epi32(v[0], v[1]);
-    u[1] = _mm_packs_epi32(v[2], v[3]);
+  u[0] = _mm_packs_epi32(v[0], v[1]);
+  u[1] = _mm_packs_epi32(v[2], v[3]);
 
-    // stage 3
-    v[0] = _mm_adds_epi16(u[0], u[1]);
-    v[1] = _mm_subs_epi16(u[0], u[1]);
+  // stage 3
+  v[0] = _mm_adds_epi16(u[0], u[1]);
+  v[1] = _mm_subs_epi16(u[0], u[1]);
 
-    // stage 4
-    u[0] = v[0];
+  // stage 4
+  u[0] = v[0];
 
-    __m128i t1, t2;
-    t1 = _mm_srli_si128(v[1], 8);
-    t2 = _mm_unpacklo_epi16(v[1], t1);
-    u[2] = _mm_madd_epi16(t2, cospi_p32_p32);
-    u[3] = _mm_madd_epi16(t2, cospi_p32_m32);
-    v[2] = _mm_add_epi32(u[2], __rounding);
-    v[3] = _mm_add_epi32(u[3], __rounding);
-    u[2] = _mm_srai_epi32(v[2], cos_bit);
-    u[3] = _mm_srai_epi32(v[3], cos_bit);
-    u[1] =  _mm_packs_epi32(u[2], u[3]);
+  __m128i t1, t2;
+  t1 = _mm_srli_si128(v[1], 8);
+  t2 = _mm_unpacklo_epi16(v[1], t1);
+  u[2] = _mm_madd_epi16(t2, cospi_p32_p32);
+  u[3] = _mm_madd_epi16(t2, cospi_p32_m32);
+  v[2] = _mm_add_epi32(u[2], __rounding);
+  v[3] = _mm_add_epi32(u[3], __rounding);
+  u[2] = _mm_srai_epi32(v[2], cos_bit);
+  u[3] = _mm_srai_epi32(v[3], cos_bit);
+  u[1] = _mm_packs_epi32(u[2], u[3]);
 
-    // stage 5
-    u[2] = _mm_subs_epi16(_mm_setzero_si128(), u[0]);
-    u[3] = _mm_subs_epi16(_mm_setzero_si128(), u[1]);
+  // stage 5
+  u[2] = _mm_subs_epi16(_mm_setzero_si128(), u[0]);
+  u[3] = _mm_subs_epi16(_mm_setzero_si128(), u[1]);
 
-    output[0] = u[0];
-    output[1] = u[3];
-    output[2] = _mm_srli_si128(u[1], 8);
-    output[3] = _mm_srli_si128(u[2], 8);
+  output[0] = u[0];
+  output[1] = u[3];
+  output[2] = _mm_srli_si128(u[1], 8);
+  output[3] = _mm_srli_si128(u[2], 8);
 }
 #else
 static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
@@ -1540,7 +1540,7 @@ static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
 
 static void fadst4x8_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
-    fadst8x8_new_sse2(input, output, cos_bit);
+  fadst8x8_new_sse2(input, output, cos_bit);
 }
 #else
 static void fadst4x8_new_sse2(const __m128i *input, __m128i *output,
@@ -1644,39 +1644,39 @@ static void fadst4x8_new_sse2(const __m128i *input, __m128i *output,
 #if CONFIG_ADST_TUNED
 static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
-    const int32_t *cospi = cospi_arr(cos_bit);
-    const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
+  const int32_t *cospi = cospi_arr(cos_bit);
+  const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
 
-    const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
-    const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
-    const __m128i cospi_p8_p56 = pair_set_epi16(cospi[8], cospi[56]);
-    const __m128i cospi_p56_m8 = pair_set_epi16(cospi[56], -cospi[8]);
-    const __m128i cospi_p40_p24 = pair_set_epi16(cospi[40], cospi[24]);
-    const __m128i cospi_p24_m40 = pair_set_epi16(cospi[24], -cospi[40]);
+  const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
+  const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
+  const __m128i cospi_p8_p56 = pair_set_epi16(cospi[8], cospi[56]);
+  const __m128i cospi_p56_m8 = pair_set_epi16(cospi[56], -cospi[8]);
+  const __m128i cospi_p40_p24 = pair_set_epi16(cospi[40], cospi[24]);
+  const __m128i cospi_p24_m40 = pair_set_epi16(cospi[24], -cospi[40]);
 
-    // stage 2
-    __m128i x1[4];
-    btf_16_sse2(cospi_p8_p56, cospi_p56_m8, input[3], input[0], x1[0], x1[1]);
-    btf_16_sse2(cospi_p40_p24, cospi_p24_m40, input[1], input[2], x1[2], x1[3]);
+  // stage 2
+  __m128i x1[4];
+  btf_16_sse2(cospi_p8_p56, cospi_p56_m8, input[3], input[0], x1[0], x1[1]);
+  btf_16_sse2(cospi_p40_p24, cospi_p24_m40, input[1], input[2], x1[2], x1[3]);
 
-    // stage 3
-    __m128i x2[4];
-    x2[0] = _mm_adds_epi16(x1[0], x1[2]);
-    x2[2] = _mm_subs_epi16(x1[0], x1[2]);
-    x2[1] = _mm_adds_epi16(x1[1], x1[3]);
-    x2[3] = _mm_subs_epi16(x1[1], x1[3]);
+  // stage 3
+  __m128i x2[4];
+  x2[0] = _mm_adds_epi16(x1[0], x1[2]);
+  x2[2] = _mm_subs_epi16(x1[0], x1[2]);
+  x2[1] = _mm_adds_epi16(x1[1], x1[3]);
+  x2[3] = _mm_subs_epi16(x1[1], x1[3]);
 
-    // stage 4
-    __m128i x3[4];
-    x3[0] = x2[0];
-    x3[1] = x2[1];
-    btf_16_sse2(cospi_p32_p32, cospi_p32_m32, x2[2], x2[3], x3[2], x3[3]);
+  // stage 4
+  __m128i x3[4];
+  x3[0] = x2[0];
+  x3[1] = x2[1];
+  btf_16_sse2(cospi_p32_p32, cospi_p32_m32, x2[2], x2[3], x3[2], x3[3]);
 
-    //stage 5
-    output[0] = x3[0];
-    output[1] = _mm_subs_epi16(_mm_setzero_si128(), x3[2]);
-    output[2] = x3[3];
-    output[3] = _mm_subs_epi16(_mm_setzero_si128(), x3[1]);
+  // stage 5
+  output[0] = x3[0];
+  output[1] = _mm_subs_epi16(_mm_setzero_si128(), x3[2]);
+  output[2] = x3[3];
+  output[3] = _mm_subs_epi16(_mm_setzero_si128(), x3[1]);
 }
 #else
 static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
@@ -1761,34 +1761,34 @@ static void fadst8x4_new_sse2(const __m128i *input, __m128i *output,
 #if CONFIG_ADST_TUNED
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
                               int8_t cos_bit) {
-    (void)cos_bit;
+  (void)cos_bit;
 
-    const int32_t* kernel = av2_adst_kernel8[FWD_TXFM];
-    const int size = TXFM_SIZE8;
+  const int32_t *kernel = av2_adst_kernel8[FWD_TXFM];
+  const int size = TXFM_SIZE8;
 
-    const __m128i zero = _mm_setzero_si128();
-    const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));
-    __m128i x[8];
-    for (int i = 0; i < 8; ++i) {
-        int row_idx = i*size;
-        __m128i sum1 = zero;
-        __m128i sum2 = zero;
-        __m128i t1, t2;
-        for (int j = 0; j < 8; j+=2) {
-            const __m128i coef1 = _mm_set1_epi16(kernel[row_idx + j]);
-            const __m128i coef2 = _mm_set1_epi16(kernel[row_idx + j + 1]);
-            matrix_coef_mult_sse2(coef1, coef2, input[j], input[j+1], &t1, &t2);
-            sum1 = _mm_add_epi32(sum1, t1);
-            sum2 = _mm_add_epi32(sum2, t2);
-        }
-        __m128i a0 = _mm_add_epi32(sum1, rnding);
-        __m128i a1 = _mm_add_epi32(sum2, rnding);
-        __m128i c0 = _mm_srai_epi32(a0, FWD_ADST_BIT);
-        __m128i c1 = _mm_srai_epi32(a1, FWD_ADST_BIT);
-
-        x[i] = _mm_packs_epi32(c0, c1);
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m128i x[8];
+  for (int i = 0; i < 8; ++i) {
+    int row_idx = i * size;
+    __m128i sum1 = zero;
+    __m128i sum2 = zero;
+    __m128i t1, t2;
+    for (int j = 0; j < 8; j += 2) {
+      const __m128i coef1 = _mm_set1_epi16(kernel[row_idx + j]);
+      const __m128i coef2 = _mm_set1_epi16(kernel[row_idx + j + 1]);
+      matrix_coef_mult_sse2(coef1, coef2, input[j], input[j + 1], &t1, &t2);
+      sum1 = _mm_add_epi32(sum1, t1);
+      sum2 = _mm_add_epi32(sum2, t2);
     }
-    for (int i = 0; i < 8; ++i) output[i] = x[i];
+    __m128i a0 = _mm_add_epi32(sum1, rnding);
+    __m128i a1 = _mm_add_epi32(sum2, rnding);
+    __m128i c0 = _mm_srai_epi32(a0, FWD_ADST_BIT);
+    __m128i c1 = _mm_srai_epi32(a1, FWD_ADST_BIT);
+
+    x[i] = _mm_packs_epi32(c0, c1);
+  }
+  for (int i = 0; i < 8; ++i) output[i] = x[i];
 }
 #else
 static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
@@ -1884,35 +1884,35 @@ static void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
 #if CONFIG_ADST_TUNED
 static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,
                                int8_t cos_bit) {
-    const int32_t* kernel = av2_adst_kernel16[FWD_TXFM];
-    const int size = TXFM_SIZE16;
+  const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
+  const int size = TXFM_SIZE16;
 
-    (void)cos_bit;
+  (void)cos_bit;
 
-    const __m128i zero = _mm_setzero_si128();
-    const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));
-    __m128i x[16];
-    for (int i = 0; i < 16; ++i) {
-        int row_idx = i*size;
-        __m128i sum1 = zero;
-        __m128i sum2 = zero;
-        __m128i t1, t2;
-        for (int j = 0; j < 16; j+=2) {
-            const __m128i coef1 = _mm_set1_epi16(kernel[row_idx + j]);
-            const __m128i coef2 = _mm_set1_epi16(kernel[row_idx + j + 1]);
-            matrix_coef_mult_sse2(coef1, coef2, input[j], input[j+1], &t1, &t2);
-            sum1 = _mm_add_epi32(sum1, t1);
-            sum2 = _mm_add_epi32(sum2, t2);
-        }
-        __m128i a0 = _mm_add_epi32(sum1, rnding);
-        __m128i a1 = _mm_add_epi32(sum2, rnding);
-
-        __m128i c0 = _mm_srai_epi32(a0, FWD_ADST_BIT);
-        __m128i c1 = _mm_srai_epi32(a1, FWD_ADST_BIT);
-
-        x[i] = _mm_packs_epi32(c0, c1);
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m128i x[16];
+  for (int i = 0; i < 16; ++i) {
+    int row_idx = i * size;
+    __m128i sum1 = zero;
+    __m128i sum2 = zero;
+    __m128i t1, t2;
+    for (int j = 0; j < 16; j += 2) {
+      const __m128i coef1 = _mm_set1_epi16(kernel[row_idx + j]);
+      const __m128i coef2 = _mm_set1_epi16(kernel[row_idx + j + 1]);
+      matrix_coef_mult_sse2(coef1, coef2, input[j], input[j + 1], &t1, &t2);
+      sum1 = _mm_add_epi32(sum1, t1);
+      sum2 = _mm_add_epi32(sum2, t2);
     }
-    for (int i = 0; i < 16; ++i) output[i] = x[i];
+    __m128i a0 = _mm_add_epi32(sum1, rnding);
+    __m128i a1 = _mm_add_epi32(sum2, rnding);
+
+    __m128i c0 = _mm_srai_epi32(a0, FWD_ADST_BIT);
+    __m128i c1 = _mm_srai_epi32(a1, FWD_ADST_BIT);
+
+    x[i] = _mm_packs_epi32(c0, c1);
+  }
+  for (int i = 0; i < 16; ++i) output[i] = x[i];
 }
 #else
 static void fadst8x16_new_sse2(const __m128i *input, __m128i *output,

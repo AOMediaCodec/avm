@@ -452,74 +452,74 @@ static void idct4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 #if CONFIG_ADST_TUNED
 static void iadst4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                             int bd, int out_shift) {
-    const int32_t *cospi = cospi_arr(bit);
-    const __m128i rnding = _mm_set1_epi32(1 << (bit - 1));
-    const __m128i cospi8 =  _mm_set1_epi32((int)cospi[8]);
-    const __m128i cospi24 = _mm_set1_epi32((int)cospi[24]);
-    const __m128i cospi32 = _mm_set1_epi32((int)cospi[32]);
-    const __m128i cospi40 = _mm_set1_epi32((int)cospi[40]);
-    const __m128i cospi56 = _mm_set1_epi32((int)cospi[56]);
-    int log_range = AOMMAX(16, bd + (do_cols ? 6 : 8));
-    __m128i clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
-    __m128i clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
+  const int32_t *cospi = cospi_arr(bit);
+  const __m128i rnding = _mm_set1_epi32(1 << (bit - 1));
+  const __m128i cospi8 = _mm_set1_epi32((int)cospi[8]);
+  const __m128i cospi24 = _mm_set1_epi32((int)cospi[24]);
+  const __m128i cospi32 = _mm_set1_epi32((int)cospi[32]);
+  const __m128i cospi40 = _mm_set1_epi32((int)cospi[40]);
+  const __m128i cospi56 = _mm_set1_epi32((int)cospi[56]);
+  int log_range = AOMMAX(16, bd + (do_cols ? 6 : 8));
+  __m128i clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
+  __m128i clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
 
-    __m128i s0, s1, s2, s3;
-    __m128i x0, x1, x2, x3;
-    __m128i u0, u1, u2, u3;
-    __m128i v0, v1, v2, v3;
+  __m128i s0, s1, s2, s3;
+  __m128i x0, x1, x2, x3;
+  __m128i u0, u1, u2, u3;
+  __m128i v0, v1, v2, v3;
 
-    // stage 0 transpose
-    v0 = _mm_unpacklo_epi32(in[0], in[1]);
-    v1 = _mm_unpackhi_epi32(in[0], in[1]);
-    v2 = _mm_unpacklo_epi32(in[2], in[3]);
-    v3 = _mm_unpackhi_epi32(in[2], in[3]);
+  // stage 0 transpose
+  v0 = _mm_unpacklo_epi32(in[0], in[1]);
+  v1 = _mm_unpackhi_epi32(in[0], in[1]);
+  v2 = _mm_unpacklo_epi32(in[2], in[3]);
+  v3 = _mm_unpackhi_epi32(in[2], in[3]);
 
-    u0 = _mm_unpacklo_epi64(v0, v2);
-    u1 = _mm_unpackhi_epi64(v0, v2);
-    u2 = _mm_unpacklo_epi64(v1, v3);
-    u3 = _mm_unpackhi_epi64(v1, v3);
+  u0 = _mm_unpacklo_epi64(v0, v2);
+  u1 = _mm_unpackhi_epi64(v0, v2);
+  u2 = _mm_unpacklo_epi64(v1, v3);
+  u3 = _mm_unpackhi_epi64(v1, v3);
 
-    // stage 1
-    x0 = u0;
-    x2 = _mm_sub_epi32(_mm_setzero_si128(), u1);
-    x3 = u2;
-    x1 = _mm_sub_epi32(_mm_setzero_si128(), u3);
+  // stage 1
+  x0 = u0;
+  x2 = _mm_sub_epi32(_mm_setzero_si128(), u1);
+  x3 = u2;
+  x1 = _mm_sub_epi32(_mm_setzero_si128(), u3);
 
-    // stage 2
-    s0 = x0;
-    s1 = x1;
-    s2 = half_btf_sse4_1(&cospi32, &x2, &cospi32, &x3, &rnding, bit);
-    s3 = half_btf_neg_sse4_1(&cospi32, &x2, &cospi32, &x3, &rnding, bit);
+  // stage 2
+  s0 = x0;
+  s1 = x1;
+  s2 = half_btf_sse4_1(&cospi32, &x2, &cospi32, &x3, &rnding, bit);
+  s3 = half_btf_neg_sse4_1(&cospi32, &x2, &cospi32, &x3, &rnding, bit);
 
-    // stage 3
-    // Stage 3
-    addsub_sse4_1(s0, s2, &x0, &x2, &clamp_lo, &clamp_hi);
-    addsub_sse4_1(s1, v2, out + 1, out + 2, &clamp_lo, &clamp_hi);
+  // stage 3
+  // Stage 3
+  addsub_sse4_1(s0, s2, &x0, &x2, &clamp_lo, &clamp_hi);
+  addsub_sse4_1(s1, v2, out + 1, out + 2, &clamp_lo, &clamp_hi);
 
-    x0 = _mm_add_epi32(s0, s2);
-    x1 = _mm_add_epi32(s1, s3);
-    x2 = _mm_sub_epi32(s0, s2);
-    x3 = _mm_sub_epi32(s1, s3);
+  x0 = _mm_add_epi32(s0, s2);
+  x1 = _mm_add_epi32(s1, s3);
+  x2 = _mm_sub_epi32(s0, s2);
+  x3 = _mm_sub_epi32(s1, s3);
 
-    // stage 4
-    s0 = half_btf_sse4_1(&cospi8, &x0, &cospi56, &x1, &rnding, bit);
-    s1 = half_btf_neg_sse4_1(&cospi56, &x0, &cospi8, &x1, &rnding, bit);
-    s2 = half_btf_sse4_1(&cospi40, &x2, &cospi24, &x3, &rnding, bit);
-    s3 = half_btf_neg_sse4_1(&cospi24, &x2, &cospi40, &x3, &rnding, bit);
+  // stage 4
+  s0 = half_btf_sse4_1(&cospi8, &x0, &cospi56, &x1, &rnding, bit);
+  s1 = half_btf_neg_sse4_1(&cospi56, &x0, &cospi8, &x1, &rnding, bit);
+  s2 = half_btf_sse4_1(&cospi40, &x2, &cospi24, &x3, &rnding, bit);
+  s3 = half_btf_neg_sse4_1(&cospi24, &x2, &cospi40, &x3, &rnding, bit);
 
-    //stage 5
-    out[0] = s1;
-    out[1] = s2;
-    out[2] = s3;
-    out[3] = s0;
+  // stage 5
+  out[0] = s1;
+  out[1] = s2;
+  out[2] = s3;
+  out[3] = s0;
 
-    if (!do_cols) {
-        log_range = AOMMAX(16, bd + 6);
-        clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
-        clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
-        round_shift_4x4(out, out_shift);
-        highbd_clamp_epi32_sse4_1(out, out, &clamp_lo, &clamp_hi, 4);
-    }
+  if (!do_cols) {
+    log_range = AOMMAX(16, bd + 6);
+    clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
+    clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
+    round_shift_4x4(out, out_shift);
+    highbd_clamp_epi32_sse4_1(out, out, &clamp_lo, &clamp_hi, 4);
+  }
 }
 #else
 static void iadst4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
@@ -1678,9 +1678,9 @@ static void idct8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 #if CONFIG_ADST_TUNED
 static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                                  int do_cols, int bd, int out_shift) {
-    (void)bit;
-    iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                           av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, 1);
+  (void)bit;
+  iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, 1);
 }
 #else
 static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -1775,9 +1775,9 @@ static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
 #if CONFIG_ADST_TUNED
 static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                                 int bd, int out_shift) {
-    (void)bit;
-    iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                           av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8);
+  (void)bit;
+  iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8);
 }
 #else
 static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
@@ -2147,56 +2147,56 @@ static void idct16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
 
 #if CONFIG_ADST_TUNED || CONFIG_ADST_TUNED
 void iadst_matrix_mult_sse4(__m128i *in, __m128i *out, int bit, int do_cols,
-                            int bd, int out_shift, const int32_t* kernel,
+                            int bd, int out_shift, const int32_t *kernel,
                             int kernel_size, int num_cols) {
-    const __m128i zero = _mm_setzero_si128();
-    const __m128i rnding = _mm_set1_epi32(1 << (bit - 1));
-    int log_range = AOMMAX(16, bd + (do_cols ? 6 : 8));
-    __m128i clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
-    __m128i clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
-    __m128i x[16];
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i rnding = _mm_set1_epi32(1 << (bit - 1));
+  int log_range = AOMMAX(16, bd + (do_cols ? 6 : 8));
+  __m128i clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
+  __m128i clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
+  __m128i x[16];
 
-    for (int i = 0; i < kernel_size; ++i) {
-        int row_idx = i*kernel_size;
-        __m128i sum = zero;
-        __m128i t;
-        for (int j = 0; j < num_cols; ++j) {
-            const __m128i coef = _mm_set1_epi32(kernel[row_idx + j]);
-            t = _mm_mullo_epi32(in[j], coef);
-            sum = _mm_add_epi32(sum, t);
-        }
-        sum = _mm_add_epi32(sum, rnding);
-        sum = _mm_srai_epi32(sum, bit);
-        sum = _mm_max_epi32(sum, clamp_lo);
-        x[i] = _mm_min_epi32(sum, clamp_hi);
+  for (int i = 0; i < kernel_size; ++i) {
+    int row_idx = i * kernel_size;
+    __m128i sum = zero;
+    __m128i t;
+    for (int j = 0; j < num_cols; ++j) {
+      const __m128i coef = _mm_set1_epi32(kernel[row_idx + j]);
+      t = _mm_mullo_epi32(in[j], coef);
+      sum = _mm_add_epi32(sum, t);
     }
+    sum = _mm_add_epi32(sum, rnding);
+    sum = _mm_srai_epi32(sum, bit);
+    sum = _mm_max_epi32(sum, clamp_lo);
+    x[i] = _mm_min_epi32(sum, clamp_hi);
+  }
 
-    if (!do_cols) {
-        log_range = AOMMAX(16, bd + 6);
-        clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
-        clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
-        if (out_shift != 0) {
-            __m128i offset = _mm_set1_epi32((1 << out_shift) >> 1);
-            for(int i = 0; i < kernel_size; ++i) {
-                x[i] = _mm_add_epi32(x[i], offset);
-                x[i] = _mm_sra_epi32(x[i], _mm_cvtsi32_si128(out_shift));
-            }
-        }
+  if (!do_cols) {
+    log_range = AOMMAX(16, bd + 6);
+    clamp_lo = _mm_set1_epi32(-(1 << (log_range - 1)));
+    clamp_hi = _mm_set1_epi32((1 << (log_range - 1)) - 1);
+    if (out_shift != 0) {
+      __m128i offset = _mm_set1_epi32((1 << out_shift) >> 1);
+      for (int i = 0; i < kernel_size; ++i) {
+        x[i] = _mm_add_epi32(x[i], offset);
+        x[i] = _mm_sra_epi32(x[i], _mm_cvtsi32_si128(out_shift));
+      }
     }
+  }
 
-    for(int i = 0; i < kernel_size; ++i) {
-        x[i] = _mm_max_epi32(x[i], clamp_lo);
-        out[i] = _mm_min_epi32(x[i], clamp_hi);
-    }
+  for (int i = 0; i < kernel_size; ++i) {
+    x[i] = _mm_max_epi32(x[i], clamp_lo);
+    out[i] = _mm_min_epi32(x[i], clamp_hi);
+  }
 }
 #endif
 
 #if CONFIG_ADST_TUNED
 static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                                    int do_cols, int bd, int out_shift) {
-    (void)bit;
-    iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                           av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 1);
+  (void)bit;
+  iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 1);
 }
 #else
 static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -2375,9 +2375,9 @@ static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
 #if CONFIG_ADST_TUNED
 static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
                                    int do_cols, int bd, int out_shift) {
-    (void)bit;
-    iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                           av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 8);
+  (void)bit;
+  iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 8);
 }
 #else
 static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -2883,9 +2883,9 @@ static void idct16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 #if CONFIG_ADST_TUNED
 static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                               int bd, int out_shift) {
-    (void)bit;
-    iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                           av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, TXFM_SIZE16);
+  (void)bit;
+  iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, TXFM_SIZE16);
 }
 #else
 static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,

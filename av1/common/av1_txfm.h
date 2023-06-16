@@ -232,8 +232,8 @@ void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
 #if CONFIG_ADST_TUNED
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
-                          const int32_t *kernel, int kernel_size,
-                          int8_t bit, int8_t clamp);
+                          const int32_t *kernel, int kernel_size, int8_t bit,
+                          int8_t clamp);
 #endif  // CONFIG_ADST_TUNED
 extern const TXFM_TYPE av1_txfm_type_ls[5][TX_TYPES_1D];
 extern const int8_t av1_txfm_stage_num_list[TXFM_TYPES];

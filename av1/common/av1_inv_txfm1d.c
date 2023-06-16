@@ -655,63 +655,63 @@ void av1_idct32(const int32_t *input, int32_t *output, int8_t cos_bit,
 }
 
 #if CONFIG_ADST_TUNED
-void av2_iadst4(const int32_t *input, int32_t *output,
-                int8_t cos_bit, const int8_t *stage_range) {
-    const int32_t size = 4;
-    const int32_t *cospi;
+void av2_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
+                const int8_t *stage_range) {
+  const int32_t size = 4;
+  const int32_t *cospi;
 
-    int32_t *bf0, *bf1;
-    int32_t step[4];
+  int32_t *bf0, *bf1;
+  int32_t step[4];
 
-    // stage 0;
-    av1_range_check_buf(0, input, input, size, stage_range[0]);
+  // stage 0;
+  av1_range_check_buf(0, input, input, size, stage_range[0]);
 
-    // stage 1;
-    bf1 = output;
-    bf1[0] = input[0];
-    bf1[1] = -input[3];
-    bf1[2] = -input[1];
-    bf1[3] = input[2];
-    av1_range_check_buf(1, input, bf1, size, stage_range[1]);
+  // stage 1;
+  bf1 = output;
+  bf1[0] = input[0];
+  bf1[1] = -input[3];
+  bf1[2] = -input[1];
+  bf1[3] = input[2];
+  av1_range_check_buf(1, input, bf1, size, stage_range[1]);
 
-    // stage 2
-    cospi = cospi_arr(cos_bit);
-    bf0 = output;
-    bf1 = step;
-    bf1[0] = bf0[0];
-    bf1[1] = bf0[1];
-    bf1[2] = half_btf(cospi[32], bf0[2], cospi[32], bf0[3], cos_bit);
-    bf1[3] = half_btf(cospi[32], bf0[2], -cospi[32], bf0[3], cos_bit);
-    av1_range_check_buf(2, input, bf1, size, stage_range[2]);
+  // stage 2
+  cospi = cospi_arr(cos_bit);
+  bf0 = output;
+  bf1 = step;
+  bf1[0] = bf0[0];
+  bf1[1] = bf0[1];
+  bf1[2] = half_btf(cospi[32], bf0[2], cospi[32], bf0[3], cos_bit);
+  bf1[3] = half_btf(cospi[32], bf0[2], -cospi[32], bf0[3], cos_bit);
+  av1_range_check_buf(2, input, bf1, size, stage_range[2]);
 
-    // stage 3
-    bf0 = step;
-    bf1 = output;
-    bf1[0] = clamp_value(bf0[0] + bf0[2], stage_range[3]);
-    bf1[1] = clamp_value(bf0[1] + bf0[3], stage_range[3]);
-    bf1[2] = clamp_value(bf0[0] - bf0[2], stage_range[3]);
-    bf1[3] = clamp_value(bf0[1] - bf0[3], stage_range[3]);
-    av1_range_check_buf(3, input, bf1, size, stage_range[3]);
+  // stage 3
+  bf0 = step;
+  bf1 = output;
+  bf1[0] = clamp_value(bf0[0] + bf0[2], stage_range[3]);
+  bf1[1] = clamp_value(bf0[1] + bf0[3], stage_range[3]);
+  bf1[2] = clamp_value(bf0[0] - bf0[2], stage_range[3]);
+  bf1[3] = clamp_value(bf0[1] - bf0[3], stage_range[3]);
+  av1_range_check_buf(3, input, bf1, size, stage_range[3]);
 
-    // stage 4
-    bf0 = output;
-    bf1 = step;
-    bf1[0] = half_btf(cospi[8], bf0[0], cospi[56], bf0[1], cos_bit);
-    bf1[1] = half_btf(cospi[56], bf0[0], -cospi[8], bf0[1], cos_bit);
-    bf1[2] = half_btf(cospi[40], bf0[2], cospi[24], bf0[3], cos_bit);
-    bf1[3] = half_btf(cospi[24], bf0[2], -cospi[40], bf0[3], cos_bit);
-    av1_range_check_buf(4, input, bf1, size, stage_range[4]);
+  // stage 4
+  bf0 = output;
+  bf1 = step;
+  bf1[0] = half_btf(cospi[8], bf0[0], cospi[56], bf0[1], cos_bit);
+  bf1[1] = half_btf(cospi[56], bf0[0], -cospi[8], bf0[1], cos_bit);
+  bf1[2] = half_btf(cospi[40], bf0[2], cospi[24], bf0[3], cos_bit);
+  bf1[3] = half_btf(cospi[24], bf0[2], -cospi[40], bf0[3], cos_bit);
+  av1_range_check_buf(4, input, bf1, size, stage_range[4]);
 
-    // stage 5
-    bf0 = step;
-    bf1 = output;
-    bf1[0] = bf0[1];
-    bf1[1] = bf0[2];
-    bf1[2] = bf0[3];
-    bf1[3] = bf0[0];
-    av1_range_check_buf(5, input, bf1, size, stage_range[5]);
+  // stage 5
+  bf0 = step;
+  bf1 = output;
+  bf1[0] = bf0[1];
+  bf1[1] = bf0[2];
+  bf1[2] = bf0[3];
+  bf1[3] = bf0[0];
+  av1_range_check_buf(5, input, bf1, size, stage_range[5]);
 }
-#else 
+#else
 void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   int bit = cos_bit;
@@ -773,10 +773,10 @@ void av1_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
 #if CONFIG_ADST_TUNED
 void av2_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
-    (void)stage_range;
-    (void)cos_bit;
-    av2_txfm_matrix_mult(input, output, av2_adst_kernel8[INV_TXFM],
-                         TXFM_SIZE8, INV_ADST_BIT, stage_range[0]);
+  (void)stage_range;
+  (void)cos_bit;
+  av2_txfm_matrix_mult(input, output, av2_adst_kernel8[INV_TXFM], TXFM_SIZE8,
+                       INV_ADST_BIT, stage_range[0]);
 }
 #else
 void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -891,10 +891,10 @@ void av1_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
 #if CONFIG_ADST_TUNED
 void av2_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
-    (void)stage_range;
-    (void)cos_bit;
-    av2_txfm_matrix_mult(input, output, av2_adst_kernel16[INV_TXFM],
-                         TXFM_SIZE16, INV_ADST_BIT, stage_range[0]);
+  (void)stage_range;
+  (void)cos_bit;
+  av2_txfm_matrix_mult(input, output, av2_adst_kernel16[INV_TXFM], TXFM_SIZE16,
+                       INV_ADST_BIT, stage_range[0]);
 }
 #else
 void av1_iadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
