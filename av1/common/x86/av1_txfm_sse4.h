@@ -21,7 +21,7 @@ extern "C" {
 
 #if CONFIG_ADST_TUNED
 void iadst_matrix_mult_sse4(__m128i *in, __m128i *out, int bit, int do_cols,
-                            int bd, int out_shift, const int32_t* kernel,
+                            int bd, int out_shift, const int32_t *kernel,
                             int kernel_size, int num_cols);
 #endif  // CONFIG_ADST_TUNED
 
