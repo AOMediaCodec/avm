@@ -25,11 +25,6 @@ static INLINE uint16x8_t vldaddq_u16(const uint16_t *buf, size_t offset) {
   return vaddq_u16(vld1q_u16(buf), vld1q_u16(buf + offset));
 }
 
-// Load half of a vector and duplicated in other half
-static INLINE uint8x8_t vldh_dup_u8(const uint8_t *ptr) {
-  return vreinterpret_u8_u32(vld1_dup_u32((const uint32_t *)ptr));
-}
-
 // Store half of a vector.
 static INLINE void vsth_u16(uint16_t *ptr, uint16x4_t val) {
   *((uint32_t *)ptr) = vreinterpret_u32_u16(val)[0];
