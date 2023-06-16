@@ -1285,60 +1285,6 @@ static INLINE void restoration_internal(uint16_t *dgd16, int width, int height,
                         dst_stride, width, height);
 }
 
-static INLINE void src_convert_u8_to_u16(const uint8_t *src,
-                                         const int src_stride, uint16_t *dst,
-                                         const int dst_stride, const int width,
-                                         const int height) {
-  const uint8_t *src_ptr;
-  uint16_t *dst_ptr;
-  int h, w, count = 0;
-
-  uint8x8_t t1, t2, t3, t4;
-  uint16x8_t s1, s2, s3, s4;
-  h = height;
-  do {
-    src_ptr = src + (count << 2) * src_stride;
-    dst_ptr = dst + (count << 2) * dst_stride;
-    w = width;
-    if (w >= 7) {
-      do {
-        load_u8_8x4(src_ptr, src_stride, &t1, &t2, &t3, &t4);
-        s1 = vmovl_u8(t1);
-        s2 = vmovl_u8(t2);
-        s3 = vmovl_u8(t3);
-        s4 = vmovl_u8(t4);
-        store_u16_8x4(dst_ptr, dst_stride, s1, s2, s3, s4);
-
-        src_ptr += 8;
-        dst_ptr += 8;
-        w -= 8;
-      } while (w > 7);
-    }
-
-    for (int y = 0; y < w; y++) {
-      dst_ptr[y] = src_ptr[y];
-      dst_ptr[y + 1 * dst_stride] = src_ptr[y + 1 * src_stride];
-      dst_ptr[y + 2 * dst_stride] = src_ptr[y + 2 * src_stride];
-      dst_ptr[y + 3 * dst_stride] = src_ptr[y + 3 * src_stride];
-    }
-    count++;
-    h -= 4;
-  } while (h > 3);
-
-  src_ptr = src + (count << 2) * src_stride;
-  dst_ptr = dst + (count << 2) * dst_stride;
-  for (int x = 0; x < h; x++) {
-    for (int y = 0; y < width; y++) {
-      dst_ptr[y + x * dst_stride] = src_ptr[y + x * src_stride];
-    }
-  }
-
-  // memset uninitialized rows of src buffer as they are needed for the
-  // boxsum filter calculation.
-  for (int x = height; x < height + 5; x++)
-    memset(dst + x * dst_stride, 0, (width + 2) * sizeof(*dst));
-}
-
 static INLINE void src_convert_hbd_copy(const uint16_t *src, int src_stride,
                                         uint16_t *dst, const int dst_stride,
                                         int width, int height) {
