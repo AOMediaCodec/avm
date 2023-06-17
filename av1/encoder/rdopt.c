@@ -2574,20 +2574,17 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
 
   int64_t total_sse = 0;
   for (int plane = 0; plane < num_planes; ++plane) {
-    const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const BLOCK_SIZE plane_bsize =
         get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
-    const int bw = block_size_wide[plane_bsize];
-    const int bh = block_size_high[plane_bsize];
 
     av1_subtract_plane(x, plane_bsize, plane);
-    int64_t sse = aom_sum_squares_2d_i16(p->src_diff, bw, bw, bh) << 4;
-
+    int64_t sse =
+        av1_pixel_diff_dist(x, plane, 0, 0, plane_bsize, plane_bsize, NULL)
+        << 4;
 #if CONFIG_SKIP_MODE_SSE_BUG_FIX
     sse >>= (cpi->frame_info.bit_depth - 8) << 1;
 #endif  // CONFIG_SKIP_MODE_SSE_BUG_FIX
-
     total_sse += sse;
   }
 

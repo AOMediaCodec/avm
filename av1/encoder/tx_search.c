@@ -383,11 +383,10 @@ static AOM_INLINE void fetch_tx_rd_info(int n4,
 
 // Compute the pixel domain distortion from diff on all visible 4x4s in the
 // transform block.
-static INLINE int64_t pixel_diff_dist(const MACROBLOCK *x, int plane,
-                                      int blk_row, int blk_col,
-                                      const BLOCK_SIZE plane_bsize,
-                                      const BLOCK_SIZE tx_bsize,
-                                      unsigned int *block_mse_q8) {
+int64_t av1_pixel_diff_dist(const MACROBLOCK *x, int plane, int blk_row,
+                            int blk_col, const BLOCK_SIZE plane_bsize,
+                            const BLOCK_SIZE tx_bsize,
+                            unsigned int *block_mse_q8) {
   int visible_rows, visible_cols;
   const MACROBLOCKD *xd = &x->e_mbd;
   get_txb_dimensions(xd, plane, plane_bsize, blk_row, blk_col, tx_bsize, NULL,
@@ -455,7 +454,7 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
   const int32_t dc_q =
       av1_dc_quant_QTX(x->qindex, 0, cm->seq_params.base_y_dc_delta_q, xd->bd);
 
-  *dist = pixel_diff_dist(x, 0, 0, 0, bsize, bsize, NULL);
+  *dist = av1_pixel_diff_dist(x, 0, 0, 0, bsize, bsize, NULL);
 
   const int64_t mse = *dist / bw / bh;
   // Normalized quantizer takes the transform upscaling factor (8 for tx size
@@ -2519,8 +2518,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                           &per_px_mean, &dc_only_blk);
     if (best_rd_stats->skip_txfm == 1) return;
   } else {
-    block_sse = pixel_diff_dist(x, plane, blk_row, blk_col, plane_bsize,
-                                txsize_to_bsize[tx_size], &block_mse_q8);
+    block_sse = av1_pixel_diff_dist(x, plane, blk_row, blk_col, plane_bsize,
+                                    txsize_to_bsize[tx_size], &block_mse_q8);
     assert(block_mse_q8 != UINT_MAX);
   }
 
