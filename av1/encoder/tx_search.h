@@ -119,7 +119,7 @@ static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
  * \param[in]    blk_row        Block row index
  * \param[in]    blk_col        Block col index
  * \param[in]    plane_bsize    Current plane block size
- * \param[in]    tx_size        The given transform size
+ * \param[in]    tx_bsize       Transform size
  * \param[in]    block_mse_q8   Block mse
  * \return       An int64_t value that is the block sse.
  */
