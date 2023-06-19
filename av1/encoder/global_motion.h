@@ -95,6 +95,29 @@ void av1_compute_feature_segmentation_map(uint8_t *segment_map, int width,
                                           int height, int *inliers,
                                           int num_inliers);
 
+extern const int error_measure_lut[512];
+
+static INLINE int highbd_error_measure(int err, int bd) {
+  const int b = bd - 8;
+  const int bmask = (1 << b) - 1;
+  const int v = (1 << b);
+  err = abs(err);
+  const int e1 = err >> b;
+  const int e2 = err & bmask;
+  return error_measure_lut[255 + e1] * (v - e2) +
+         error_measure_lut[256 + e1] * e2;
+}
+
+// Returns the error between the frame described by 'ref' and the frame
+// described by 'dst'.
+int64_t av1_frame_error(int bd, const uint16_t *ref, int stride, uint16_t *dst,
+                        int p_width, int p_height, int p_stride);
+
+int64_t av1_segmented_frame_error(int bd, const uint16_t *ref, int stride,
+                                  uint16_t *dst, int p_width, int p_height,
+                                  int p_stride, uint8_t *segment_map,
+                                  int segment_map_stride);
+
 // Returns the error between the result of applying motion 'wm' to the frame
 // described by 'ref' and the frame described by 'dst'.
 int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,

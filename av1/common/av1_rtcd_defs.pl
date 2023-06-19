@@ -452,6 +452,8 @@ if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
   specialize qw/av1_ext_highbd_warp_affine sse4_1/;
 }
 
+add_proto qw/int64_t av1_calc_highbd_frame_error/, "const uint16_t *const ref, int stride, const uint16_t *const dst, int p_width, int p_height, int p_stride, int bd";
+
 # LOOP_RESTORATION functions
 
 add_proto qw/void av1_apply_selfguided_restoration/, "const uint16_t *dat, int width, int height, int stride, int eps, const int *xqd, uint16_t *dst, int dst_stride, int32_t *tmpbuf, int bit_depth";
