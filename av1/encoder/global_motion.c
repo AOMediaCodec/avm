@@ -173,7 +173,6 @@ int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                        int p_stride, int subsampling_x, int subsampling_y,
                        int64_t best_error, uint8_t *segment_map,
                        int segment_map_stride) {
-  force_wmtype(wm, wm->wmtype);
   if (wm->wmtype <= AFFINE) {
 #if CONFIG_EXTENDED_WARP_PREDICTION
     av1_reduce_warp_model(wm);
@@ -233,12 +232,14 @@ int64_t av1_refine_integerized_param(
         calc_approx_erroradv_threshold(thresh_factors[i], erroradv_threshold);
     for (p = 0; p < n_params; ++p) {
       int step_dir = 0;
-      // Skip searches for parameters that are forced to be 0
       param = param_mat + p;
       curr_param = *param;
       best_param = curr_param;
       // look to the left
+      // Note: We have to use force_wmtype() to keep the proper symmetry for
+      // ROTZOOM type models
       *param = add_param_offset(p, curr_param, -step);
+      force_wmtype(wm, wmtype);
       step_error =
           av1_warp_error(wm, bd, ref, r_width, r_height, r_stride,
                          dst + border * d_stride + border, border, border,
@@ -253,6 +254,7 @@ int64_t av1_refine_integerized_param(
 
       // look to the right
       *param = add_param_offset(p, curr_param, step);
+      force_wmtype(wm, wmtype);
       step_error =
           av1_warp_error(wm, bd, ref, r_width, r_height, r_stride,
                          dst + border * d_stride + border, border, border,
@@ -264,12 +266,12 @@ int64_t av1_refine_integerized_param(
         best_param = *param;
         step_dir = 1;
       }
-      *param = best_param;
 
       // look to the direction chosen above repeatedly until error increases
       // for the biggest step size
       while (step_dir) {
         *param = add_param_offset(p, best_param, step * step_dir);
+        force_wmtype(wm, wmtype);
         step_error =
             av1_warp_error(wm, bd, ref, r_width, r_height, r_stride,
                            dst + border * d_stride + border, border, border,
@@ -280,13 +282,16 @@ int64_t av1_refine_integerized_param(
           best_error = step_error;
           best_param = *param;
         } else {
-          *param = best_param;
           step_dir = 0;
         }
       }
+
+      // Restore best parameter value so far
+      *param = best_param;
+      force_wmtype(wm, wmtype);
     }
   }
-  force_wmtype(wm, wmtype);
+
   wm->wmtype = get_wmtype(wm);
   return best_error;
 }

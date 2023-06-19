@@ -423,6 +423,11 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     params->wmmat[5] = params->wmmat[2];
 #if CONFIG_WARP_REF_LIST
   } else {
+    if (base_params.wmtype == IDENTITY) {
+      // Promote to a TRANSLATION model, as we will set a potentially-nonzero
+      // translational part later using av1_set_warp_translation()
+      base_params.wmtype = TRANSLATION;
+    }
     *params = base_params;
   }
 #endif  // CONFIG_WARP_REF_LIST

@@ -5714,6 +5714,12 @@ int av1_refine_mv_for_base_param_warp_model(
 #endif  // CONFIG_WARP_REF_LIST
   );
 
+  if (base_params.wmtype == IDENTITY) {
+    // Promote to a TRANSLATION model, as we will set a potentially-nonzero
+    // translational part later using av1_set_warp_translation()
+    base_params.wmtype = TRANSLATION;
+  }
+
   *params = base_params;
 
   av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
