@@ -280,12 +280,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int use_ml_erp_pruning;
-
   /*!\brief enable extended partitions
    *
    */
   unsigned int enable_ext_partitions;
-
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief disable ml-based speed-up for transform search
    *

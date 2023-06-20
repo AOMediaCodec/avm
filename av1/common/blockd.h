@@ -1027,15 +1027,19 @@ static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
                                             int subsampling_y) {
   const int bw = block_size_wide[bsize] >> subsampling_x;
   const int bh = block_size_high[bsize] >> subsampling_y;
+  // Check if block width/height is less than 4.
   const int bw_less_than_4 = bw < 4;
   const int bh_less_than_4 = bh < 4;
+  // Check if half block width/height is less than 8.
   const int hbw_less_than_4 = bw < 8;
   const int hbh_less_than_4 = bh < 8;
 #if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+  // Check if quarter block width/height is less than 16.
   const int qbw_less_than_4 = bw < 16;
   const int qbh_less_than_4 = bh < 16;
 #endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
+  // Check if one-eighth block width/height is less than 32.
   const int ebw_less_than_4 = bw < 32;
   const int ebh_less_than_4 = bh < 32;
 #endif  // CONFIG_UNEVEN_4WAY

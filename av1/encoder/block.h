@@ -521,21 +521,18 @@ typedef struct SimpleMotionData {
 } SimpleMotionData;
 
 /*!\cond */
-#if CONFIG_UNEVEN_4WAY
 #define BLOCK_128_COUNT 1
 #define BLOCK_64_COUNT 3
+#if CONFIG_UNEVEN_4WAY
 #define BLOCK_32_COUNT 15
 #define BLOCK_16_COUNT 31
 #define BLOCK_8_COUNT 32
-#define BLOCK_4_COUNT 32
 #else
-#define BLOCK_128_COUNT 1
-#define BLOCK_64_COUNT 3
 #define BLOCK_32_COUNT 7
 #define BLOCK_16_COUNT 15
 #define BLOCK_8_COUNT 31
-#define BLOCK_4_COUNT 32
 #endif  // CONFIG_UNEVEN_4WAY
+#define BLOCK_4_COUNT 32
 
 #define MAKE_SM_DATA_BUF(width, height) \
   SimpleMotionData                      \

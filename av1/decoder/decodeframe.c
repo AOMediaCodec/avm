@@ -2247,13 +2247,16 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   MACROBLOCKD *const xd = &dcb->xd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
+  // Half block width/height.
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
 #if CONFIG_UNEVEN_4WAY
+  // One-eighth block width/height.
   const int ebs_w = mi_size_wide[bsize] / 8;
   const int ebs_h = mi_size_high[bsize] / 8;
 #endif  // CONFIG_UNEVEN_4WAY
 #if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+  // Quarter block width/height.
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
 #endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
