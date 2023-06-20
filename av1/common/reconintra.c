@@ -1215,6 +1215,7 @@ static void build_intra_predictors_high(
 #if CONFIG_EXT_DIR
     const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };
     p_angle += mrl_index_to_delta[mrl_index];
+    assert(p_angle > 0 && p_angle < 270);
 #endif  // CONFIG_EXT_DIR
     if (p_angle <= 90)
       need_above = 1, need_left = 0, need_above_left = 1;
