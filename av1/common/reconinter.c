@@ -2840,6 +2840,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                        mv_refined, use_optflow_refinement
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
+#if CONFIG_REFINEMV
+                       ,
+                       0, NULL
+#endif  // CONFIG_REFINEMV
     );
   }
 #endif  // CONFIG_PEF
@@ -2960,6 +2964,15 @@ static void build_inter_predictors_8x8_and_bigger(
       }
     }
 
+#if CONFIG_PEF
+    enhance_prediction(cm, xd, plane, dst, dst_stride, bw, bh
+#if CONFIG_OPTFLOW_REFINEMENT
+                       ,
+                       NULL, 0
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                       ,
+                       apply_sub_block_refinemv, &xd->refinemv_subinfo[0]);
+#endif  // CONFIG_PEF
     dst_buf->buf = dst;
     xd->tmp_conv_dst = tmp_conv_dst;
     return;
@@ -3152,6 +3165,10 @@ static void build_inter_predictors_8x8_and_bigger(
                      ,
                      mv_refined, use_optflow_refinement
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+                     ,
+                     0, NULL
+#endif  // CONFIG_REFINEMV
   );
 #endif  // CONFIG_PEF
 }
