@@ -8841,23 +8841,24 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   set_mode_eval_params(cpi, x, DEFAULT_EVAL);
 
   // Only try palette mode when the best mode so far is an intra mode.
-  int try_palette = cpi->oxcf.tool_cfg.enable_palette &&
-                    av1_allow_palette(features->allow_screen_content_tools,
-                                      mbmi->sb_type[PLANE_TYPE_Y]) &&
-                    !is_inter_mode(search_state.best_mbmode.mode) &&
-                    rd_cost->rate < INT_MAX;
+  const int try_palette =
+      cpi->oxcf.tool_cfg.enable_palette &&
+      av1_allow_palette(features->allow_screen_content_tools,
+                        mbmi->sb_type[PLANE_TYPE_Y]) &&
+      !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
+  int search_palette_mode = try_palette;
 #if CONFIG_EXT_RECUR_PARTITIONS
   const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
   if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
       cached_mode &&
       !(cached_mode->mode == DC_PRED &&
         cached_mode->palette_mode_info.palette_size[0] > 0)) {
-    try_palette = 0;
+    search_palette_mode = 0;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS this_rd_cost;
   int this_skippable = 0;
-  if (try_palette) {
+  if (search_palette_mode) {
     this_skippable = av1_search_palette_mode(
         &search_state.intra_search_state, cpi, x, bsize, intra_ref_frame_cost,
         ctx, &this_rd_cost, search_state.best_rd);
