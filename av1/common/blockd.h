@@ -450,6 +450,12 @@ typedef struct MB_MODE_INFO {
   int mi_row_start;
   /*! \brief Starting mi_col of current coding block */
   int mi_col_start;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*! \brief Starting chroma mi_row of current coding block */
+  int chroma_mi_row_start;
+  /*! \brief Starting chroma mi_col of current coding block */
+  int chroma_mi_col_start;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*! \brief The partition type of the current coding block. */
   PARTITION_TYPE partition;
   /*! \brief The prediction mode used */

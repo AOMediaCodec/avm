@@ -405,6 +405,10 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
           xd->mi[x_idx + y * mis]->cfl_alpha_signs = mi_addr->cfl_alpha_signs;
           xd->mi[x_idx + y * mis]->cfl_alpha_idx = mi_addr->cfl_alpha_idx;
           xd->mi[x_idx + y * mis]->partition = mi_addr->partition;
+          xd->mi[x_idx + y * mis]->chroma_mi_row_start =
+              mi_addr->chroma_mi_row_start;
+          xd->mi[x_idx + y * mis]->chroma_mi_col_start =
+              mi_addr->chroma_mi_col_start;
           xd->mi[x_idx + y * mis]
               ->palette_mode_info.palette_size[PLANE_TYPE_UV] =
               mi_addr->palette_mode_info.palette_size[PLANE_TYPE_UV];

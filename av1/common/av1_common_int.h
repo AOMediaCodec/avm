@@ -2183,6 +2183,10 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->mi_col = mi_col;
   xd->mi[0]->mi_row_start = mi_row;
   xd->mi[0]->mi_col_start = mi_col;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  xd->mi[0]->chroma_mi_row_start = mi_row;
+  xd->mi[0]->chroma_mi_col_start = mi_col;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   xd->tile.mi_col_start = tile->mi_col_start;

@@ -517,6 +517,15 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // The recursion depth allowed for ext partitions
   int ext_recur_depth;
+
+  // Search horizontal and vertical split before PARTITION_NONE if the neighbor
+  // blocks are much smaller than the current block size.
+  int adaptive_partition_search_order;
+
+  // Prune extended partition types if their resulting boundary does not agree
+  // with the current best partition's boundary after searching NONE, HORZ, and
+  // VERT.
+  int prune_ext_part_with_partition_boundary;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 

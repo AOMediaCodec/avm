@@ -1042,6 +1042,8 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       sf->part_sf.simple_motion_search_early_term_none = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 5:
+      sf->part_sf.prune_ext_part_with_partition_boundary = true;
+      sf->part_sf.adaptive_partition_search_order = true;
       sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
       // TODO(chiyotsai@google.com): This speed feature causes large regression
       // on b2 testset. Disable this for now until we figure out how to avoid
