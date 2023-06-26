@@ -283,7 +283,11 @@ list(
   "${AOM_ROOT}/third_party/vector/vector.c"
   "${AOM_ROOT}/third_party/vector/vector.h"
   "${AOM_ROOT}/av1/encoder/dwt.c"
-  "${AOM_ROOT}/av1/encoder/dwt.h")
+  "${AOM_ROOT}/av1/encoder/dwt.h"
+  "${AOM_ROOT}/common/md5_utils.c"
+  "${AOM_ROOT}/common/md5_utils.h"
+  "${AOM_ROOT}/common/rawenc.c"
+  "${AOM_ROOT}/common/rawenc.h")
 
 if(CONFIG_TUNE_VMAF)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/tune_vmaf.c"
