@@ -131,63 +131,70 @@ static INLINE void highbd_transpose16x4_8x8_sse2(__m128i *x, __m128i *d) {
   d[7] = _mm_unpackhi_epi64(r5, r7);
 }
 
-static INLINE void highbd_transpose4x16_avx2(__m256i *x, __m256i *d) {
+static INLINE void highbd_transpose4x16_avx2(__m256i *x0, __m256i *x1,
+                                             __m256i *x2, __m256i *x3,
+                                             __m256i *d0, __m256i *d1,
+                                             __m256i *d2, __m256i *d3) {
   __m256i w0, w1, w2, w3, ww0, ww1;
 
-  w0 = _mm256_unpacklo_epi16(x[0], x[1]);  // 00 10 01 11 02 12 03 13
-  w1 = _mm256_unpacklo_epi16(x[2], x[3]);  // 20 30 21 31 22 32 23 33
-  w2 = _mm256_unpackhi_epi16(x[0], x[1]);  // 40 50 41 51 42 52 43 53
-  w3 = _mm256_unpackhi_epi16(x[2], x[3]);  // 60 70 61 71 62 72 63 73
+  w0 = _mm256_unpacklo_epi16(*x0, *x1);  // 00 10 01 11 02 12 03 13
+  w1 = _mm256_unpacklo_epi16(*x2, *x3);  // 20 30 21 31 22 32 23 33
+  w2 = _mm256_unpackhi_epi16(*x0, *x1);  // 40 50 41 51 42 52 43 53
+  w3 = _mm256_unpackhi_epi16(*x2, *x3);  // 60 70 61 71 62 72 63 73
 
   ww0 = _mm256_unpacklo_epi32(w0, w1);  // 00 10 20 30 01 11 21 31
   ww1 = _mm256_unpacklo_epi32(w2, w3);  // 40 50 60 70 41 51 61 71
 
-  d[0] = _mm256_unpacklo_epi64(ww0, ww1);  // 00 10 20 30 40 50 60 70
-  d[1] = _mm256_unpackhi_epi64(ww0, ww1);  // 01 11 21 31 41 51 61 71
+  *d0 = _mm256_unpacklo_epi64(ww0, ww1);  // 00 10 20 30 40 50 60 70
+  *d1 = _mm256_unpackhi_epi64(ww0, ww1);  // 01 11 21 31 41 51 61 71
 
   ww0 = _mm256_unpackhi_epi32(w0, w1);  // 02 12 22 32 03 13 23 33
   ww1 = _mm256_unpackhi_epi32(w2, w3);  // 42 52 62 72 43 53 63 73
 
-  d[2] = _mm256_unpacklo_epi64(ww0, ww1);  // 02 12 22 32 42 52 62 72
-  d[3] = _mm256_unpackhi_epi64(ww0, ww1);  // 03 13 23 33 43 53 63 73
+  *d2 = _mm256_unpacklo_epi64(ww0, ww1);  // 02 12 22 32 42 52 62 72
+  *d3 = _mm256_unpackhi_epi64(ww0, ww1);  // 03 13 23 33 43 53 63 73
 }
 
-static INLINE void highbd_transpose8x16_16x8_avx2(__m256i *x, __m256i *d) {
+static INLINE void highbd_transpose8x16_16x8_avx2(
+    __m256i *x0, __m256i *x1, __m256i *x2, __m256i *x3, __m256i *x4,
+    __m256i *x5, __m256i *x6, __m256i *x7, __m256i *d0, __m256i *d1,
+    __m256i *d2, __m256i *d3, __m256i *d4, __m256i *d5, __m256i *d6,
+    __m256i *d7) {
   __m256i w0, w1, w2, w3, ww0, ww1;
 
-  w0 = _mm256_unpacklo_epi16(x[0], x[1]);  // 00 10 01 11 02 12 03 13
-  w1 = _mm256_unpacklo_epi16(x[2], x[3]);  // 20 30 21 31 22 32 23 33
-  w2 = _mm256_unpacklo_epi16(x[4], x[5]);  // 40 50 41 51 42 52 43 53
-  w3 = _mm256_unpacklo_epi16(x[6], x[7]);  // 60 70 61 71 62 72 63 73
+  w0 = _mm256_unpacklo_epi16(*x0, *x1);  // 00 10 01 11 02 12 03 13
+  w1 = _mm256_unpacklo_epi16(*x2, *x3);  // 20 30 21 31 22 32 23 33
+  w2 = _mm256_unpacklo_epi16(*x4, *x5);  // 40 50 41 51 42 52 43 53
+  w3 = _mm256_unpacklo_epi16(*x6, *x7);  // 60 70 61 71 62 72 63 73
 
   ww0 = _mm256_unpacklo_epi32(w0, w1);  // 00 10 20 30 01 11 21 31
   ww1 = _mm256_unpacklo_epi32(w2, w3);  // 40 50 60 70 41 51 61 71
 
-  d[0] = _mm256_unpacklo_epi64(ww0, ww1);  // 00 10 20 30 40 50 60 70
-  d[1] = _mm256_unpackhi_epi64(ww0, ww1);  // 01 11 21 31 41 51 61 71
+  *d0 = _mm256_unpacklo_epi64(ww0, ww1);  // 00 10 20 30 40 50 60 70
+  *d1 = _mm256_unpackhi_epi64(ww0, ww1);  // 01 11 21 31 41 51 61 71
 
   ww0 = _mm256_unpackhi_epi32(w0, w1);  // 02 12 22 32 03 13 23 33
   ww1 = _mm256_unpackhi_epi32(w2, w3);  // 42 52 62 72 43 53 63 73
 
-  d[2] = _mm256_unpacklo_epi64(ww0, ww1);  // 02 12 22 32 42 52 62 72
-  d[3] = _mm256_unpackhi_epi64(ww0, ww1);  // 03 13 23 33 43 53 63 73
+  *d2 = _mm256_unpacklo_epi64(ww0, ww1);  // 02 12 22 32 42 52 62 72
+  *d3 = _mm256_unpackhi_epi64(ww0, ww1);  // 03 13 23 33 43 53 63 73
 
-  w0 = _mm256_unpackhi_epi16(x[0], x[1]);  // 04 14 05 15 06 16 07 17
-  w1 = _mm256_unpackhi_epi16(x[2], x[3]);  // 24 34 25 35 26 36 27 37
-  w2 = _mm256_unpackhi_epi16(x[4], x[5]);  // 44 54 45 55 46 56 47 57
-  w3 = _mm256_unpackhi_epi16(x[6], x[7]);  // 64 74 65 75 66 76 67 77
+  w0 = _mm256_unpackhi_epi16(*x0, *x1);  // 04 14 05 15 06 16 07 17
+  w1 = _mm256_unpackhi_epi16(*x2, *x3);  // 24 34 25 35 26 36 27 37
+  w2 = _mm256_unpackhi_epi16(*x4, *x5);  // 44 54 45 55 46 56 47 57
+  w3 = _mm256_unpackhi_epi16(*x6, *x7);  // 64 74 65 75 66 76 67 77
 
   ww0 = _mm256_unpacklo_epi32(w0, w1);  // 04 14 24 34 05 15 25 35
   ww1 = _mm256_unpacklo_epi32(w2, w3);  // 44 54 64 74 45 55 65 75
 
-  d[4] = _mm256_unpacklo_epi64(ww0, ww1);  // 04 14 24 34 44 54 64 74
-  d[5] = _mm256_unpackhi_epi64(ww0, ww1);  // 05 15 25 35 45 55 65 75
+  *d4 = _mm256_unpacklo_epi64(ww0, ww1);  // 04 14 24 34 44 54 64 74
+  *d5 = _mm256_unpackhi_epi64(ww0, ww1);  // 05 15 25 35 45 55 65 75
 
   ww0 = _mm256_unpackhi_epi32(w0, w1);  // 06 16 26 36 07 17 27 37
   ww1 = _mm256_unpackhi_epi32(w2, w3);  // 46 56 66 76 47 57 67 77
 
-  d[6] = _mm256_unpacklo_epi64(ww0, ww1);  // 06 16 26 36 46 56 66 76
-  d[7] = _mm256_unpackhi_epi64(ww0, ww1);  // 07 17 27 37 47 57 67 77
+  *d6 = _mm256_unpacklo_epi64(ww0, ww1);  // 06 16 26 36 46 56 66 76
+  *d7 = _mm256_unpackhi_epi64(ww0, ww1);  // 07 17 27 37 47 57 67 77
 }
 
 static INLINE void highbd_transpose16x16_avx2(__m256i *x, __m256i *d) {
@@ -2264,7 +2271,10 @@ static void highbd_dr_prediction_z3_8x16_avx2(uint16_t *dst, ptrdiff_t stride,
     highbd_dr_prediction_32bit_z1_16xN_internal_avx2(
         8, dstvec, left, upsample_left, dy, mrl_index);
   }
-  highbd_transpose8x16_16x8_avx2(dstvec, d);
+  highbd_transpose8x16_16x8_avx2(&dstvec[0], &dstvec[1], &dstvec[2], &dstvec[3],
+                                 &dstvec[4], &dstvec[5], &dstvec[6], &dstvec[7],
+                                 &d[0], &d[1], &d[2], &d[3], &d[4], &d[5],
+                                 &d[6], &d[7]);
   for (int i = 0; i < 8; i++) {
     _mm_storeu_si128((__m128i *)(dst + i * stride),
                      _mm256_castsi256_si128(d[i]));
@@ -2312,7 +2322,8 @@ static void highbd_dr_prediction_z3_4x16_avx2(uint16_t *dst, ptrdiff_t stride,
     highbd_dr_prediction_32bit_z1_16xN_internal_avx2(
         4, dstvec, left, upsample_left, dy, mrl_index);
   }
-  highbd_transpose4x16_avx2(dstvec, d);
+  highbd_transpose4x16_avx2(&dstvec[0], &dstvec[1], &dstvec[2], &dstvec[3],
+                            &d[0], &d[1], &d[2], &d[3]);
   for (int i = 0; i < 4; i++) {
     _mm_storel_epi64((__m128i *)(dst + i * stride),
                      _mm256_castsi256_si128(d[i]));
@@ -2355,6 +2366,7 @@ static void highbd_dr_prediction_z3_8x32_avx2(uint16_t *dst, ptrdiff_t stride,
                                               int upsample_left, int dy, int bd,
                                               int mrl_index) {
   __m256i dstvec[16], d[16];
+
   if (bd < 12) {
     highbd_dr_prediction_z1_32xN_internal_avx2(8, dstvec, left, upsample_left,
                                                dy, mrl_index);
@@ -2364,7 +2376,11 @@ static void highbd_dr_prediction_z3_8x32_avx2(uint16_t *dst, ptrdiff_t stride,
   }
 
   for (int i = 0; i < 16; i += 8) {
-    highbd_transpose8x16_16x8_avx2(dstvec + i, d + i);
+    highbd_transpose8x16_16x8_avx2(
+        &dstvec[i], &dstvec[i + 1], &dstvec[i + 2], &dstvec[i + 3],
+        &dstvec[i + 4], &dstvec[i + 5], &dstvec[i + 6], &dstvec[i + 7], &d[i],
+        &d[i + 1], &d[i + 2], &d[i + 3], &d[i + 4], &d[i + 5], &d[i + 6],
+        &d[i + 7]);
   }
 
   for (int i = 0; i < 8; i++) {
@@ -2491,7 +2507,11 @@ static void highbd_dr_prediction_z3_16x32_avx2(uint16_t *dst, ptrdiff_t stride,
         16, dstvec, left, upsample_left, dy, mrl_index);
   }
   for (int i = 0; i < 32; i += 8) {
-    highbd_transpose8x16_16x8_avx2(dstvec + i, d + i);
+    highbd_transpose8x16_16x8_avx2(
+        &dstvec[i], &dstvec[i + 1], &dstvec[i + 2], &dstvec[i + 3],
+        &dstvec[i + 4], &dstvec[i + 5], &dstvec[i + 6], &dstvec[i + 7], &d[i],
+        &d[i + 1], &d[i + 2], &d[i + 3], &d[i + 4], &d[i + 5], &d[i + 6],
+        &d[i + 7]);
   }
   // store
   for (int j = 0; j < 32; j += 16) {
@@ -2659,7 +2679,10 @@ static void highbd_dr_prediction_z3_4x32_avx2(uint16_t *dst, ptrdiff_t stride,
         4, dstvec, left, upsample_left, dy, mrl_index);
   }
 
-  highbd_transpose8x16_16x8_avx2(dstvec, d);
+  highbd_transpose8x16_16x8_avx2(&dstvec[0], &dstvec[1], &dstvec[2], &dstvec[3],
+                                 &dstvec[4], &dstvec[5], &dstvec[6], &dstvec[7],
+                                 &d[0], &d[1], &d[2], &d[3], &d[4], &d[5],
+                                 &d[6], &d[7]);
 
   for (int i = 0; i < 8; i++) {
     __m128i temp_lo = _mm256_castsi256_si128(d[i]);
@@ -2709,30 +2732,75 @@ static void highbd_dr_prediction_z3_4x64_avx2(uint16_t *dst, ptrdiff_t stride,
                                               const uint16_t *left,
                                               int upsample_left, int dy, int bd,
                                               int mrl_index) {
-  DECLARE_ALIGNED(16, uint16_t, dstT[64 * 4]);
+  __m256i dstvec[16], d[16];
   if (bd < 12) {
-    highbd_dr_prediction_z1_64xN_avx2(4, dstT, 64, left, upsample_left, dy,
-                                      mrl_index);
+    highbd_dr_prediction_z1_64xN_avx2(4, (uint16_t *)dstvec, 64, left,
+                                      upsample_left, dy, mrl_index);
   } else {
-    highbd_dr_prediction_32bit_z1_64xN_avx2(4, dstT, 64, left, upsample_left,
-                                            dy, mrl_index);
+    highbd_dr_prediction_32bit_z1_64xN_avx2(4, (uint16_t *)dstvec, 64, left,
+                                            upsample_left, dy, mrl_index);
   }
-  highbd_transpose(dstT, 64, dst, stride, 4, 64);
+
+  // At this point, each 4 entries of dstvec[] forms one full 64-pixel
+  // row (pre transposition) / col (post transposition)
+  for (int i = 0; i < 4; i++) {
+    highbd_transpose4x16_avx2(&dstvec[i], &dstvec[i + 4], &dstvec[i + 8],
+                              &dstvec[i + 12], &d[4 * i], &d[4 * i + 1],
+                              &d[4 * i + 2], &d[4 * i + 3]);
+  }
+
+  // Now each 4 elements of d contains 16 rows of 4 output pixels,
+  // ordered like:
+  // {0, 4, 8, 12}, {1, 5, 9, 13}, ...
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      int64_t temp_0 = _mm256_extract_epi64(d[4 * i + j], 0);
+      int64_t temp_1 = _mm256_extract_epi64(d[4 * i + j], 1);
+      int64_t temp_2 = _mm256_extract_epi64(d[4 * i + j], 2);
+      int64_t temp_3 = _mm256_extract_epi64(d[4 * i + j], 3);
+
+      *(int64_t *)(dst + (16 * i + j) * stride) = temp_0;
+      *(int64_t *)(dst + (16 * i + j + 4) * stride) = temp_1;
+      *(int64_t *)(dst + (16 * i + j + 8) * stride) = temp_2;
+      *(int64_t *)(dst + (16 * i + j + 12) * stride) = temp_3;
+    }
+  }
 }
 
 static void highbd_dr_prediction_z3_8x64_avx2(uint16_t *dst, ptrdiff_t stride,
                                               const uint16_t *left,
                                               int upsample_left, int dy, int bd,
                                               int mrl_index) {
-  DECLARE_ALIGNED(16, uint16_t, dstT[64 * 8]);
+  __m256i dstvec[32], d[32];
   if (bd < 12) {
-    highbd_dr_prediction_z1_64xN_avx2(8, dstT, 64, left, upsample_left, dy,
-                                      mrl_index);
+    highbd_dr_prediction_z1_64xN_avx2(8, (uint16_t *)dstvec, 64, left,
+                                      upsample_left, dy, mrl_index);
   } else {
-    highbd_dr_prediction_32bit_z1_64xN_avx2(8, dstT, 64, left, upsample_left,
-                                            dy, mrl_index);
+    highbd_dr_prediction_32bit_z1_64xN_avx2(8, (uint16_t *)dstvec, 64, left,
+                                            upsample_left, dy, mrl_index);
   }
-  highbd_transpose(dstT, 64, dst, stride, 8, 64);
+
+  // At this point, each 4 entries of dstvec[] forms one full 64-pixel
+  // row (pre transposition) / col (post transposition)
+  for (int i = 0; i < 4; i++) {
+    highbd_transpose8x16_16x8_avx2(
+        &dstvec[i], &dstvec[i + 4], &dstvec[i + 8], &dstvec[i + 12],
+        &dstvec[i + 16], &dstvec[i + 20], &dstvec[i + 24], &dstvec[i + 28],
+        &d[8 * i], &d[8 * i + 1], &d[8 * i + 2], &d[8 * i + 3], &d[8 * i + 4],
+        &d[8 * i + 5], &d[8 * i + 6], &d[8 * i + 7]);
+  }
+
+  // Now each 8 elements of d contains 16 rows of 8 output pixels,
+  // ordered like:
+  // {0, 8}, {1, 9}, {2, 10}, ...
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 8; j++) {
+      __m128i temp_lo = _mm256_castsi256_si128(d[8 * i + j]);
+      __m128i temp_hi = _mm256_extracti128_si256(d[8 * i + j], 1);
+      _mm_storeu_si128((__m128i *)(dst + (16 * i + j) * stride), temp_lo);
+      _mm_storeu_si128((__m128i *)(dst + (16 * i + j + 8) * stride), temp_hi);
+    }
+  }
 }
 #endif  // CONFIG_FLEX_PARTITION
 
