@@ -3601,6 +3601,7 @@ static void init_partition_search_state_params(
   av1_zero(part_search_state->prune_rect_part);
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+  part_search_state->partition_boundaries = NULL;
   part_search_state->prune_partition_none = false;
   av1_zero(part_search_state->prune_partition_3);
 #if CONFIG_UNEVEN_4WAY
@@ -5170,13 +5171,295 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   return 1;
 }
 
+static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
+                                                const PC_TREE *pc_tree,
+                                                int mi_row, int mi_col,
+                                                BLOCK_SIZE bsize) {
+  mi_row &= MAX_MIB_MASK;
+  mi_col &= MAX_MIB_MASK;
+  const PARTITION_TYPE partition = pc_tree->partitioning;
+  const int mi_width = mi_size_wide[bsize];
+  const int mi_height = mi_size_high[bsize];
+#if CONFIG_UNEVEN_4WAY
+  const int ebs_w = mi_size_wide[bsize] / 8;
+  const int ebs_h = mi_size_high[bsize] / 8;
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+#endif  // CONFIG_UNEVEN_4WAY
+  switch (partition) {
+    case PARTITION_NONE:
+      memset(partition_boundaries + (mi_row + mi_height - 1) * MAX_MIB_SIZE +
+                 mi_col,
+             1, mi_width);
+      for (int row = 0; row < mi_height; row++) {
+        partition_boundaries[(mi_row + row) * MAX_MIB_SIZE + mi_col + mi_width -
+                             1] = 1;
+      }
+      break;
+    case PARTITION_HORZ:
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal[0],
+                               mi_row, mi_col,
+                               get_partition_subsize(bsize, PARTITION_HORZ));
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal[1],
+                               mi_row + mi_height / 2, mi_col,
+                               get_partition_subsize(bsize, PARTITION_HORZ));
+      break;
+    case PARTITION_VERT:
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical[0],
+                               mi_row, mi_col,
+                               get_partition_subsize(bsize, PARTITION_VERT));
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical[1],
+                               mi_row, mi_col + mi_width / 2,
+                               get_partition_subsize(bsize, PARTITION_VERT));
+      break;
+    case PARTITION_HORZ_3:
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->horizontal3[0], mi_row, mi_col,
+          get_h_partition_subsize(bsize, 0, PARTITION_HORZ_3));
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->horizontal3[1], mi_row + mi_height / 4,
+          mi_col, get_h_partition_subsize(bsize, 1, PARTITION_HORZ_3));
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->horizontal3[2], mi_row + mi_height / 4,
+          mi_col + mi_width / 2,
+          get_h_partition_subsize(bsize, 1, PARTITION_HORZ_3));
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->horizontal3[3],
+          mi_row + 3 * mi_height / 4, mi_col,
+          get_h_partition_subsize(bsize, 0, PARTITION_HORZ_3));
+      break;
+    case PARTITION_VERT_3:
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->vertical3[0], mi_row, mi_col,
+          get_h_partition_subsize(bsize, 0, PARTITION_VERT_3));
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->vertical3[1], mi_row,
+          mi_col + mi_width / 4,
+          get_h_partition_subsize(bsize, 1, PARTITION_VERT_3));
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->vertical3[2], mi_row + mi_height / 2,
+          mi_col + mi_width / 4,
+          get_h_partition_subsize(bsize, 1, PARTITION_VERT_3));
+      trace_partition_boundary(
+          partition_boundaries, pc_tree->vertical3[3], mi_row,
+          mi_col + 3 * mi_width / 4,
+          get_h_partition_subsize(bsize, 0, PARTITION_VERT_3));
+      break;
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4a[0],
+                               mi_row, mi_col, subsize);
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4a[1],
+                               mi_row + ebs_h, mi_col, bsize_med);
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4a[2],
+                               mi_row + 3 * ebs_h, mi_col, bsize_big);
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4a[3],
+                               mi_row + 7 * ebs_h, mi_col, subsize);
+      break;
+    }
+    case PARTITION_HORZ_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4b[0],
+                               mi_row, mi_col, subsize);
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4b[1],
+                               mi_row + ebs_h, mi_col, bsize_big);
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4b[2],
+                               mi_row + 5 * ebs_h, mi_col, bsize_med);
+      trace_partition_boundary(partition_boundaries, pc_tree->horizontal4b[3],
+                               mi_row + 7 * ebs_h, mi_col, subsize);
+      break;
+    }
+    case PARTITION_VERT_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4a[0],
+                               mi_row, mi_col, subsize);
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4a[1],
+                               mi_row, mi_col + ebs_w, bsize_med);
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4a[2],
+                               mi_row, mi_col + 3 * ebs_w, bsize_big);
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4a[3],
+                               mi_row, mi_col + 7 * ebs_w, subsize);
+      break;
+    }
+    case PARTITION_VERT_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4b[0],
+                               mi_row, mi_col, subsize);
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4b[1],
+                               mi_row, mi_col + ebs_w, bsize_big);
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4b[2],
+                               mi_row, mi_col + 5 * ebs_w, bsize_med);
+      trace_partition_boundary(partition_boundaries, pc_tree->vertical4b[3],
+                               mi_row, mi_col + 7 * ebs_w, subsize);
+      break;
+    }
+#endif  // CONFIG_UNEVEN_4WAY
+    default: assert(0 && "Invalid partition type in trace_partition_boundary!");
+  }
+}
+
+static AOM_INLINE void prune_part_3_with_partition_boundary(
+    PartitionSearchState *part_search_state, BLOCK_SIZE bsize, int mi_row,
+    int mi_col, bool can_search_horz, bool can_search_vert) {
+  const int mi_width = mi_size_wide[bsize];
+  const int mi_height = mi_size_high[bsize];
+  const int masked_mi_row = mi_row & MAX_MIB_MASK;
+  const int masked_mi_col = mi_col & MAX_MIB_MASK;
+  const bool *partition_boundaries = part_search_state->partition_boundaries;
+  if (can_search_horz) {
+    bool keep_horz_3 = false;
+    for (int col = 0; col < mi_width; col++) {
+      if (partition_boundaries[(masked_mi_row + mi_height / 4 - 1) *
+                                   MAX_MIB_SIZE +
+                               masked_mi_col + col]) {
+        keep_horz_3 = true;
+        break;
+      }
+    }
+    if (!keep_horz_3) {
+      for (int col = 0; col < mi_width; col++) {
+        if (partition_boundaries[(masked_mi_row + 3 * mi_height / 4 - 1) *
+                                     MAX_MIB_SIZE +
+                                 masked_mi_col + col]) {
+          keep_horz_3 = true;
+          break;
+        }
+      }
+    }
+    part_search_state->prune_partition_3[HORZ] |= !keep_horz_3;
+  }
+  if (can_search_vert) {
+    bool keep_vert_3 = false;
+    for (int row = 0; row < mi_height; row++) {
+      if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
+                               masked_mi_col + mi_width / 4 - 1]) {
+        keep_vert_3 = true;
+        break;
+      }
+    }
+    if (!keep_vert_3) {
+      for (int row = 0; row < mi_height; row++) {
+        if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
+                                 masked_mi_col + 3 * mi_width / 4 - 1]) {
+          keep_vert_3 = true;
+          break;
+        }
+      }
+    }
+    part_search_state->prune_partition_3[VERT] |= !keep_vert_3;
+  }
+}
+
+static AOM_INLINE void prune_part_4_with_partition_boundary(
+    PartitionSearchState *part_search_state, const bool *partition_boundaries,
+    BLOCK_SIZE bsize, int mi_row, int mi_col, bool can_search_horz_4a,
+    bool can_search_horz_4b, bool can_search_vert_4a, bool can_search_vert_4b) {
+  const int mi_width = mi_size_wide[bsize];
+  const int mi_height = mi_size_high[bsize];
+  const int masked_mi_row = mi_row & MAX_MIB_MASK;
+  const int masked_mi_col = mi_col & MAX_MIB_MASK;
+  bool keep_horz_4a = false, keep_horz_4b = false;
+  bool keep_vert_4a = false, keep_vert_4b = false;
+  if (can_search_horz_4a || can_search_horz_4b) {
+    for (int col = 0; col < mi_width; col++) {
+      if (partition_boundaries[(masked_mi_row + mi_height / 8 - 1) *
+                                   MAX_MIB_SIZE +
+                               masked_mi_col + col]) {
+        keep_horz_4a = true;
+        keep_horz_4b = true;
+        break;
+      }
+      if (partition_boundaries[(masked_mi_row + 7 * mi_height / 8 - 1) *
+                                   MAX_MIB_SIZE +
+                               masked_mi_col + col]) {
+        keep_horz_4a = true;
+        keep_horz_4b = true;
+        break;
+      }
+    }
+    if (can_search_horz_4a && !keep_horz_4a) {
+      for (int col = 0; col < mi_width; col++) {
+        if (partition_boundaries[(masked_mi_row + 3 * mi_height / 8 - 1) *
+                                     MAX_MIB_SIZE +
+                                 masked_mi_col + col]) {
+          keep_horz_4a = true;
+          break;
+        }
+      }
+    }
+    if (can_search_horz_4b && !keep_horz_4b) {
+      for (int col = 0; col < mi_width; col++) {
+        if (partition_boundaries[(masked_mi_row + 5 * mi_height / 8 - 1) *
+                                     MAX_MIB_SIZE +
+                                 masked_mi_col + col]) {
+          keep_horz_4b = true;
+          break;
+        }
+      }
+    }
+    part_search_state->prune_partition_4a[HORZ] |= !keep_horz_4a;
+    part_search_state->prune_partition_4b[HORZ] |= !keep_horz_4b;
+  }
+  if (can_search_vert_4a || can_search_vert_4b) {
+    for (int row = 0; row < mi_height; row++) {
+      if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
+                               masked_mi_col + mi_width / 8 - 1]) {
+        keep_vert_4a = true;
+        keep_vert_4b = true;
+        break;
+      }
+      if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
+                               masked_mi_col + 7 * mi_width / 8 - 1]) {
+        keep_vert_4a = true;
+        keep_vert_4b = true;
+        break;
+      }
+    }
+    if (can_search_vert_4a && !keep_vert_4a) {
+      for (int row = 0; row < mi_height; row++) {
+        if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
+                                 masked_mi_col + 3 * mi_width / 8 - 1]) {
+          keep_vert_4a = true;
+          break;
+        }
+      }
+    }
+    if (can_search_vert_4b && !keep_vert_4b) {
+      for (int row = 0; row < mi_height; row++) {
+        if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
+                                 masked_mi_col + 5 * mi_width / 8 - 1]) {
+          keep_vert_4b = true;
+          break;
+        }
+      }
+    }
+    part_search_state->prune_partition_4a[VERT] |= !keep_vert_4a;
+    part_search_state->prune_partition_4b[VERT] |= !keep_vert_4b;
+  }
+}
+
 // Pruning logic for PARTITION_HORZ_3 and PARTITION_VERT_3.
 static AOM_INLINE void prune_ext_partitions_3way(
     AV1_COMP *const cpi, PC_TREE *pc_tree,
-    PartitionSearchState *part_search_state) {
+    PartitionSearchState *part_search_state, bool *partition_boundaries) {
   const AV1_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
+  if (part_search_state->forced_partition != PARTITION_INVALID) {
+    return;
+  }
 
   // Prune horz 3 with speed features
   if (part_search_state->partition_3_allowed[HORZ] &&
@@ -5186,13 +5469,19 @@ static AOM_INLINE void prune_ext_partitions_3way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_3[HORZ] = 1;
     }
-    if (part_sf->prune_ext_part_with_part_rect &&
-        pc_tree->partitioning == PARTITION_HORZ &&
-        !node_uses_horz(pc_tree->horizontal[0]) &&
-        !node_uses_horz(pc_tree->horizontal[1])) {
-      // Prune if the best partition is horz but horz did not further split in
-      // horz
-      part_search_state->prune_partition_3[HORZ] = 1;
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but the subtrees did not further
+      // split in horz
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_horz(pc_tree->horizontal[0]) &&
+          !node_uses_horz(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_3[HORZ] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_horz(pc_tree->vertical[0]) &&
+          !node_uses_horz(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_3[HORZ] = 1;
+      }
     }
   }
 
@@ -5203,14 +5492,40 @@ static AOM_INLINE void prune_ext_partitions_3way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_3[VERT] = 1;
     }
-    if (part_sf->prune_ext_part_with_part_rect &&
-        pc_tree->partitioning == PARTITION_VERT &&
-        !node_uses_vert(pc_tree->vertical[0]) &&
-        !node_uses_vert(pc_tree->vertical[1])) {
-      // Prune if the best partition is vert but vert did not further split in
-      // vert
-      part_search_state->prune_partition_3[VERT] = 1;
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but the subtrees did not further
+      // split in vert
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_vert(pc_tree->vertical[0]) &&
+          !node_uses_vert(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_3[VERT] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_vert(pc_tree->horizontal[0]) &&
+          !node_uses_vert(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_3[VERT] = 1;
+      }
     }
+  }
+
+  const bool can_search_horz = part_search_state->partition_3_allowed[HORZ] &&
+                               !part_search_state->prune_partition_3[HORZ];
+  const bool can_search_vert = part_search_state->partition_3_allowed[VERT] &&
+                               !part_search_state->prune_partition_3[VERT];
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col,
+            bsize = blk_params->bsize;
+  if (part_sf->prune_ext_part_with_partition_boundary &&
+      (can_search_horz || can_search_vert) &&
+      part_search_state->found_best_partition) {
+    if (!part_search_state->partition_boundaries) {
+      part_search_state->partition_boundaries = partition_boundaries;
+      trace_partition_boundary(partition_boundaries, pc_tree, mi_row, mi_col,
+                               bsize);
+    }
+    prune_part_3_with_partition_boundary(part_search_state, bsize, mi_row,
+                                         mi_col, can_search_horz,
+                                         can_search_vert);
   }
 }
 
@@ -5218,7 +5533,7 @@ static AOM_INLINE void prune_ext_partitions_3way(
 // Pruning logic for PARTITION_HORZ_4A/B and PARTITION_VERT_4A/B.
 static AOM_INLINE void prune_ext_partitions_4way(
     AV1_COMP *const cpi, PC_TREE *pc_tree,
-    PartitionSearchState *part_search_state) {
+    PartitionSearchState *part_search_state, bool *partition_boundaries) {
   const AV1_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
@@ -5351,6 +5666,36 @@ static AOM_INLINE void prune_ext_partitions_4way(
         part_search_state->partition_rect_allowed[VERT]) {
       part_search_state->prune_partition_4b[VERT] = 1;
     }
+  }
+
+  const bool can_search_horz_4a =
+      part_search_state->partition_4a_allowed[HORZ] &&
+      !part_search_state->prune_partition_4a[HORZ];
+  const bool can_search_horz_4b =
+      part_search_state->partition_4b_allowed[HORZ] &&
+      !part_search_state->prune_partition_4b[HORZ];
+  const bool can_search_vert_4a =
+      part_search_state->partition_4a_allowed[VERT] &&
+      !part_search_state->prune_partition_4a[VERT];
+  const bool can_search_vert_4b =
+      part_search_state->partition_4b_allowed[VERT] &&
+      !part_search_state->prune_partition_4b[VERT];
+  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
+  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col,
+            bsize = blk_params->bsize;
+  if (part_sf->prune_ext_part_with_partition_boundary &&
+      (can_search_horz_4a || can_search_vert_4a || can_search_horz_4b ||
+       can_search_vert_4b) &&
+      part_search_state->found_best_partition) {
+    if (!part_search_state->partition_boundaries) {
+      part_search_state->partition_boundaries = partition_boundaries;
+      trace_partition_boundary(partition_boundaries, pc_tree, mi_row, mi_col,
+                               bsize);
+    }
+    prune_part_4_with_partition_boundary(
+        part_search_state, partition_boundaries, bsize, mi_row, mi_col,
+        can_search_horz_4a, can_search_horz_4b, can_search_vert_4a,
+        can_search_vert_4b);
   }
 }
 
@@ -6098,206 +6443,6 @@ static INLINE void search_partition_vert_3(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
-                                                const PC_TREE *pc_tree,
-                                                int mi_row, int mi_col,
-                                                BLOCK_SIZE bsize) {
-  mi_row &= MAX_MIB_MASK;
-  mi_col &= MAX_MIB_MASK;
-  const PARTITION_TYPE partition = pc_tree->partitioning;
-  const int mi_width = mi_size_wide[bsize];
-  const int mi_height = mi_size_high[bsize];
-  switch (partition) {
-    case PARTITION_NONE:
-      memset(partition_boundaries + (mi_row + mi_height - 1) * MAX_MIB_SIZE +
-                 mi_col,
-             1, mi_width);
-      for (int row = 0; row < mi_height; row++) {
-        partition_boundaries[(mi_row + row) * MAX_MIB_SIZE + mi_col + mi_width -
-                             1] = 1;
-      }
-      break;
-    case PARTITION_HORZ:
-      trace_partition_boundary(partition_boundaries, pc_tree->horizontal[0],
-                               mi_row, mi_col,
-                               get_partition_subsize(bsize, PARTITION_HORZ));
-      trace_partition_boundary(partition_boundaries, pc_tree->horizontal[1],
-                               mi_row + mi_height / 2, mi_col,
-                               get_partition_subsize(bsize, PARTITION_HORZ));
-      break;
-    case PARTITION_VERT:
-      trace_partition_boundary(partition_boundaries, pc_tree->vertical[0],
-                               mi_row, mi_col,
-                               get_partition_subsize(bsize, PARTITION_VERT));
-      trace_partition_boundary(partition_boundaries, pc_tree->vertical[1],
-                               mi_row, mi_col + mi_width / 2,
-                               get_partition_subsize(bsize, PARTITION_VERT));
-      break;
-    case PARTITION_HORZ_3:
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->horizontal3[0], mi_row, mi_col,
-          get_h_partition_subsize(bsize, 0, PARTITION_HORZ_3));
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->horizontal3[1], mi_row + mi_height / 4,
-          mi_col, get_h_partition_subsize(bsize, 1, PARTITION_HORZ_3));
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->horizontal3[2], mi_row + mi_height / 4,
-          mi_col + mi_width / 2,
-          get_h_partition_subsize(bsize, 1, PARTITION_HORZ_3));
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->horizontal3[3],
-          mi_row + 3 * mi_height / 4, mi_col,
-          get_h_partition_subsize(bsize, 0, PARTITION_HORZ_3));
-      break;
-    case PARTITION_VERT_3:
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->vertical3[0], mi_row, mi_col,
-          get_h_partition_subsize(bsize, 0, PARTITION_VERT_3));
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->vertical3[1], mi_row,
-          mi_col + mi_width / 4,
-          get_h_partition_subsize(bsize, 1, PARTITION_VERT_3));
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->vertical3[2], mi_row + mi_height / 2,
-          mi_col + mi_width / 4,
-          get_h_partition_subsize(bsize, 1, PARTITION_VERT_3));
-      trace_partition_boundary(
-          partition_boundaries, pc_tree->vertical3[3], mi_row,
-          mi_col + 3 * mi_width / 4,
-          get_h_partition_subsize(bsize, 0, PARTITION_VERT_3));
-      break;
-    default: assert(0 && "Invalid partition type in trace_partition_boundary!");
-  }
-}
-
-static AOM_INLINE void prune_ext_part_with_partition_boundary(
-    PartitionSearchState *part_search_state, const bool *partition_boundaries,
-    BLOCK_SIZE bsize, int mi_row, int mi_col, bool can_search_horz,
-    bool can_search_vert) {
-  const int mi_width = mi_size_wide[bsize];
-  const int mi_height = mi_size_high[bsize];
-  const int masked_mi_row = mi_row & MAX_MIB_MASK;
-  const int masked_mi_col = mi_col & MAX_MIB_MASK;
-  if (can_search_horz) {
-    bool keep_horz_3 = false;
-    for (int col = 0; col < mi_width; col++) {
-      if (partition_boundaries[(masked_mi_row + mi_height / 4 - 1) *
-                                   MAX_MIB_SIZE +
-                               masked_mi_col]) {
-        keep_horz_3 = true;
-        break;
-      }
-    }
-    if (!keep_horz_3) {
-      for (int col = 0; col < mi_width; col++) {
-        if (partition_boundaries[(masked_mi_row + 3 * mi_height / 4 - 1) *
-                                     MAX_MIB_SIZE +
-                                 masked_mi_col]) {
-          keep_horz_3 = true;
-          break;
-        }
-      }
-    }
-    part_search_state->prune_partition_3[HORZ] |= !keep_horz_3;
-  }
-  if (can_search_vert) {
-    bool keep_vert_3 = false;
-    for (int row = 0; row < mi_height; row++) {
-      if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                               masked_mi_col + mi_width / 4 - 1]) {
-        keep_vert_3 = true;
-        break;
-      }
-    }
-    if (!keep_vert_3) {
-      for (int row = 0; row < mi_height; row++) {
-        if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                                 masked_mi_col + 3 * mi_width / 4 - 1]) {
-          keep_vert_3 = true;
-          break;
-        }
-      }
-    }
-    part_search_state->prune_partition_3[VERT] |= !keep_vert_3;
-  }
-}
-
-static AOM_INLINE void prune_ext_partitions(
-    AV1_COMP *const cpi, PC_TREE *pc_tree,
-    PartitionSearchState *part_search_state) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
-  const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
-  if (part_search_state->forced_partition != PARTITION_INVALID) {
-    return;
-  }
-
-  // Prune horz 3 with speed features
-  if (part_search_state->partition_3_allowed[HORZ] &&
-      !frame_is_intra_only(cm) && forced_partition != PARTITION_HORZ_3) {
-    if (part_sf->prune_part_3_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      part_search_state->prune_partition_3[HORZ] = 1;
-    }
-    if (part_sf->prune_part_3_with_part_rect) {
-      // Prune if the best partition is rect but the subtrees did not further
-      // split in horz
-      if (pc_tree->partitioning == PARTITION_HORZ &&
-          !node_uses_horz(pc_tree->horizontal[0]) &&
-          !node_uses_horz(pc_tree->horizontal[1])) {
-        part_search_state->prune_partition_3[HORZ] = 1;
-      }
-      if (pc_tree->partitioning == PARTITION_VERT &&
-          !node_uses_horz(pc_tree->vertical[0]) &&
-          !node_uses_horz(pc_tree->vertical[1])) {
-        part_search_state->prune_partition_3[HORZ] = 1;
-      }
-    }
-  }
-
-  if (part_search_state->partition_3_allowed[VERT] &&
-      !frame_is_intra_only(cm) && forced_partition != PARTITION_VERT_3) {
-    if (part_sf->prune_part_3_with_part_none &&
-        pc_tree->partitioning == PARTITION_NONE) {
-      // Prune if the best partition does not split
-      part_search_state->prune_partition_3[VERT] = 1;
-    }
-    if (part_sf->prune_part_3_with_part_rect) {
-      // Prune if the best partition is rect but the subtrees did not further
-      // split in vert
-      if (pc_tree->partitioning == PARTITION_VERT &&
-          !node_uses_vert(pc_tree->vertical[0]) &&
-          !node_uses_vert(pc_tree->vertical[1])) {
-        part_search_state->prune_partition_3[VERT] = 1;
-      }
-      if (pc_tree->partitioning == PARTITION_HORZ &&
-          !node_uses_vert(pc_tree->horizontal[0]) &&
-          !node_uses_vert(pc_tree->horizontal[1])) {
-        part_search_state->prune_partition_3[VERT] = 1;
-      }
-    }
-  }
-
-  const bool can_search_horz = part_search_state->partition_3_allowed[HORZ] &&
-                               !part_search_state->prune_partition_3[HORZ];
-  const bool can_search_vert = part_search_state->partition_3_allowed[VERT] &&
-                               !part_search_state->prune_partition_3[VERT];
-  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col,
-            bsize = blk_params->bsize;
-  if (part_sf->prune_ext_part_with_partition_boundary &&
-      (can_search_horz || can_search_vert) &&
-      part_search_state->found_best_partition) {
-    bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
-    trace_partition_boundary(partition_boundaries, pc_tree, mi_row, mi_col,
-                             bsize);
-    prune_ext_part_with_partition_boundary(
-        part_search_state, partition_boundaries, bsize, mi_row, mi_col,
-        can_search_horz, can_search_vert);
-  }
-}
-
 static AOM_INLINE bool should_try_none_after_rect(
     const MACROBLOCKD *xd, const CommonModeInfoParams *mi_params,
     BLOCK_SIZE bsize, int mi_row, int mi_col) {
@@ -6870,7 +7015,9 @@ BEGIN_PARTITION_SEARCH:
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  prune_ext_partitions_3way(cpi, pc_tree, &part_search_state);
+  bool partition_boundaries[MAX_MIB_SQUARE] = { 0 };
+  prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
+                            partition_boundaries);
 
   const int ext_recur_depth =
       AOMMIN(max_recursion_depth - 1, cpi->sf.part_sf.ext_recur_depth);
@@ -6897,7 +7044,8 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_UNEVEN_4WAY
-  prune_ext_partitions_4way(cpi, pc_tree, &part_search_state);
+  prune_ext_partitions_4way(cpi, pc_tree, &part_search_state,
+                            partition_boundaries);
 
   // PARTITION_HORZ_4A
   search_partition_horz_4a(&part_search_state, cpi, td, tile_data, tp,
