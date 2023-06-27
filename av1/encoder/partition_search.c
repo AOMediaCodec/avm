@@ -5718,11 +5718,13 @@ static AOM_INLINE void prune_ext_partitions_4way(
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col,
             bsize = blk_params->bsize;
-  if (part_sf->prune_ext_part_with_partition_boundary &&
+  if (false && part_sf->prune_ext_part_with_partition_boundary &&
       (can_search_horz_4a || can_search_vert_4a || can_search_horz_4b ||
        can_search_vert_4b) &&
-      part_search_state->found_best_partition && 0) {
-    if (!part_search_state->partition_boundaries) {
+      part_search_state->found_best_partition) {
+    if (!part_search_state->partition_boundaries ||
+        pc_tree->partitioning == PARTITION_HORZ_3 ||
+        pc_tree->partitioning == PARTITION_VERT_3) {
       part_search_state->partition_boundaries = partition_boundaries;
       trace_partition_boundary(partition_boundaries, pc_tree, mi_row, mi_col,
                                bsize);
