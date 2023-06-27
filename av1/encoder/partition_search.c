@@ -5341,6 +5341,17 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
         }
       }
     }
+    if (!keep_horz_3) {
+      for (int row = 0; row < mi_height / 2; row++) {
+        if (partition_boundaries[(masked_mi_row + mi_height / 4 + row - 1) *
+                                     MAX_MIB_SIZE +
+                                 masked_mi_col + mi_width / 2 - 1] &
+            (1 << VERT)) {
+          keep_horz_3 = true;
+          break;
+        }
+      }
+    }
     part_search_state->prune_partition_3[HORZ] |= !keep_horz_3;
   }
   if (can_search_vert) {
@@ -5358,6 +5369,17 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
         if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
                                  masked_mi_col + 3 * mi_width / 4 - 1] &
             (1 << VERT)) {
+          keep_vert_3 = true;
+          break;
+        }
+      }
+    }
+    if (!keep_vert_3) {
+      for (int col = 0; col < mi_width / 2; col++) {
+        if (partition_boundaries[(masked_mi_row + mi_height / 2 - 1) *
+                                     MAX_MIB_SIZE +
+                                 masked_mi_col + mi_width / 4 + col - 1] &
+            (1 << HORZ)) {
           keep_vert_3 = true;
           break;
         }
