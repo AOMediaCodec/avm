@@ -5187,12 +5187,13 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
 #endif  // CONFIG_UNEVEN_4WAY
   switch (partition) {
     case PARTITION_NONE:
-      memset(partition_boundaries + (mi_row + mi_height - 1) * MAX_MIB_SIZE +
-                 mi_col,
-             1, mi_width);
+      for (int col = 0; col < mi_width; col++) {
+        partition_boundaries[(mi_row + mi_height - 1) * MAX_MIB_SIZE +
+                             (mi_col + col)] |= (1 << HORZ);
+      }
       for (int row = 0; row < mi_height; row++) {
         partition_boundaries[(mi_row + row) * MAX_MIB_SIZE + mi_col + mi_width -
-                             1] = 1;
+                             1] |= (1 << VERT);
       }
       break;
     case PARTITION_HORZ:
@@ -5323,7 +5324,8 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
     for (int col = 0; col < mi_width; col++) {
       if (partition_boundaries[(masked_mi_row + mi_height / 4 - 1) *
                                    MAX_MIB_SIZE +
-                               masked_mi_col + col]) {
+                               masked_mi_col + col] &
+          (1 << HORZ)) {
         keep_horz_3 = true;
         break;
       }
@@ -5332,7 +5334,8 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
       for (int col = 0; col < mi_width; col++) {
         if (partition_boundaries[(masked_mi_row + 3 * mi_height / 4 - 1) *
                                      MAX_MIB_SIZE +
-                                 masked_mi_col + col]) {
+                                 masked_mi_col + col] &
+            (1 << HORZ)) {
           keep_horz_3 = true;
           break;
         }
@@ -5344,7 +5347,8 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
     bool keep_vert_3 = false;
     for (int row = 0; row < mi_height; row++) {
       if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                               masked_mi_col + mi_width / 4 - 1]) {
+                               masked_mi_col + mi_width / 4 - 1] &
+          (1 << VERT)) {
         keep_vert_3 = true;
         break;
       }
@@ -5352,7 +5356,8 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
     if (!keep_vert_3) {
       for (int row = 0; row < mi_height; row++) {
         if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                                 masked_mi_col + 3 * mi_width / 4 - 1]) {
+                                 masked_mi_col + 3 * mi_width / 4 - 1] &
+            (1 << VERT)) {
           keep_vert_3 = true;
           break;
         }
@@ -5376,14 +5381,16 @@ static AOM_INLINE void prune_part_4_with_partition_boundary(
     for (int col = 0; col < mi_width; col++) {
       if (partition_boundaries[(masked_mi_row + mi_height / 8 - 1) *
                                    MAX_MIB_SIZE +
-                               masked_mi_col + col]) {
+                               masked_mi_col + col] &
+          (1 << HORZ)) {
         keep_horz_4a = true;
         keep_horz_4b = true;
         break;
       }
       if (partition_boundaries[(masked_mi_row + 7 * mi_height / 8 - 1) *
                                    MAX_MIB_SIZE +
-                               masked_mi_col + col]) {
+                               masked_mi_col + col] &
+          (1 << HORZ)) {
         keep_horz_4a = true;
         keep_horz_4b = true;
         break;
@@ -5393,7 +5400,8 @@ static AOM_INLINE void prune_part_4_with_partition_boundary(
       for (int col = 0; col < mi_width; col++) {
         if (partition_boundaries[(masked_mi_row + 3 * mi_height / 8 - 1) *
                                      MAX_MIB_SIZE +
-                                 masked_mi_col + col]) {
+                                 masked_mi_col + col] &
+            (1 << HORZ)) {
           keep_horz_4a = true;
           break;
         }
@@ -5403,7 +5411,8 @@ static AOM_INLINE void prune_part_4_with_partition_boundary(
       for (int col = 0; col < mi_width; col++) {
         if (partition_boundaries[(masked_mi_row + 5 * mi_height / 8 - 1) *
                                      MAX_MIB_SIZE +
-                                 masked_mi_col + col]) {
+                                 masked_mi_col + col] &
+            (1 << HORZ)) {
           keep_horz_4b = true;
           break;
         }
@@ -5415,13 +5424,15 @@ static AOM_INLINE void prune_part_4_with_partition_boundary(
   if (can_search_vert_4a || can_search_vert_4b) {
     for (int row = 0; row < mi_height; row++) {
       if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                               masked_mi_col + mi_width / 8 - 1]) {
+                               masked_mi_col + mi_width / 8 - 1] &
+          (1 << VERT)) {
         keep_vert_4a = true;
         keep_vert_4b = true;
         break;
       }
       if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                               masked_mi_col + 7 * mi_width / 8 - 1]) {
+                               masked_mi_col + 7 * mi_width / 8 - 1] &
+          (1 << VERT)) {
         keep_vert_4a = true;
         keep_vert_4b = true;
         break;
@@ -5430,7 +5441,8 @@ static AOM_INLINE void prune_part_4_with_partition_boundary(
     if (can_search_vert_4a && !keep_vert_4a) {
       for (int row = 0; row < mi_height; row++) {
         if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                                 masked_mi_col + 3 * mi_width / 8 - 1]) {
+                                 masked_mi_col + 3 * mi_width / 8 - 1] &
+            (1 << VERT)) {
           keep_vert_4a = true;
           break;
         }
@@ -5439,7 +5451,8 @@ static AOM_INLINE void prune_part_4_with_partition_boundary(
     if (can_search_vert_4b && !keep_vert_4b) {
       for (int row = 0; row < mi_height; row++) {
         if (partition_boundaries[(masked_mi_row + row) * MAX_MIB_SIZE +
-                                 masked_mi_col + 5 * mi_width / 8 - 1]) {
+                                 masked_mi_col + 5 * mi_width / 8 - 1] &
+            (1 << VERT)) {
           keep_vert_4b = true;
           break;
         }
