@@ -74,9 +74,9 @@ struct insp_sb_data {
   bool has_separate_chroma_partition_tree;
   int16_t prediction_samples[MAX_SB_SIZE][MAX_SB_SIZE];
   int16_t recon_samples[MAX_SB_SIZE][MAX_SB_SIZE];
-  DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
-  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
-  DECLARE_ALIGNED(32, tran_low_t, dequant_values[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  tran_low_t dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE];
+  tran_low_t qcoeff[MAX_MB_PLANE][MAX_SB_SQUARE];
+  tran_low_t dequant_values[MAX_MB_PLANE][MAX_SB_SQUARE];
 };
 
 typedef struct insp_frame_data insp_frame_data;
