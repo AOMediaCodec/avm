@@ -17,6 +17,7 @@
 #include "config/aom_scale_rtcd.h"
 
 #include "aom/aom_integer.h"
+#include "av1/common/cnn_tflite.h"
 #include "av1/common/guided_quadtree.h"
 #include "av1/common/reconinter.h"
 #include "av1/encoder/cost.h"
@@ -180,8 +181,51 @@ int qp145_quadtree_model_quantSet_inter[] = { 3152061, 1563598, -8, -3 };
 int qp120_quadtree_model_quantSet_inter[] = { 274513, 115603, -7, 1 };
 int qp90_quadtree_model_quantSet_inter[] = { 116948, 143520, -1, 2 };
 
+#if CONFIG_EXT_SUPERRES
+// Superres guided conv unet intra.
+int sr2by1ai_1_quantset[] = { 982633, 1534950, -6, -8 };
+int sr2by1ai_2_quantset[] = { 14303, 3648, -9, -6 };
+int sr2by1ai_3_quantset[] = { 415158, 458378, -7, -5 };
+
+int sr3by2ai_1_quantset[] = { 117, 133, -5, -3 };
+int sr3by2ai_2_quantset[] = { 1157, 750, -11, -7 };
+int sr3by2ai_3_quantset[] = { 20383, 45842, -6, -9 };
+
+int sr5by4ai_1_quantset[] = { 10532, 7396, -8, -18 };
+int sr5by4ai_2_quantset[] = { 166, 503, -12, -1 };
+int sr5by4ai_3_quantset[] = { 11, 4, -11, -9 };
+
+int sr7by4ai_1_quantset[] = { 2631408, 4529404, -8, -8 };
+int sr7by4ai_2_quantset[] = { 28290, 12216, 1, -3 };
+int sr7by4ai_3_quantset[] = { 11, 9, -7, -8 };
+
+// TODO(now).
+// Superres guided conv unet inter.
+int sr2by1ra_1_quantset[] = { 982633, 1534950, -6, -8 };
+int sr2by1ra_2_quantset[] = { 14303, 3648, -9, -6 };
+int sr2by1ra_3_quantset[] = { 415158, 458378, -7, -5 };
+
+int sr3by2ra_1_quantset[] = { 117, 133, -5, -3 };
+int sr3by2ra_2_quantset[] = { 1157, 750, -11, -7 };
+int sr3by2ra_3_quantset[] = { 20383, 45842, -6, -9 };
+
+int sr5by4ra_1_quantset[] = { 10532, 7396, -8, -18 };
+int sr5by4ra_2_quantset[] = { 166, 503, -12, -1 };
+int sr5by4ra_3_quantset[] = { 11, 4, -11, -9 };
+
+int sr7by4ra_1_quantset[] = { 2631408, 4529404, -8, -8 };
+int sr7by4ra_2_quantset[] = { 28290, 12216, 1, -3 };
+int sr7by4ra_3_quantset[] = { 11, 9, -7, -8 };
+#endif  // CONFIG_EXT_SUPERRES
+
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
                               int is_luma, int cnn_index) {
+#if CONFIG_EXT_SUPERRES
+  assert(superres_denom == SCALE_NUMERATOR || superres_denom == 10 ||
+         superres_denom == 12 || superres_denom == 14 || superres_denom == 16);
+#else
+  assert(superres_denom == SCALE_NUMERATOR);
+#endif                                      // CONFIG_EXT_SUPERRES
   if (superres_denom == SCALE_NUMERATOR) {  // quadtree
     if (is_luma) {
       if (is_intra_only) {
@@ -241,7 +285,121 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
       }
     }
   }
-  return 0;
+#if CONFIG_EXT_SUPERRES
+  assert(is_luma);
+  if (is_intra_only) {
+#if SELECT_CNN_FOR_SUPERRES
+    switch (superres_denom) {
+      case 10:
+        return (cnn_index == 0)   ? sr5by4ai_1_quantset
+               : (cnn_index == 1) ? sr5by4ai_2_quantset
+                                  : sr5by4ai_3_quantset;
+      case 12:
+        return (cnn_index == 0)   ? sr3by2ai_1_quantset
+               : (cnn_index == 1) ? sr3by2ai_2_quantset
+                                  : sr3by2ai_3_quantset;
+      case 14:
+        return (cnn_index == 0)   ? sr7by4ai_1_quantset
+               : (cnn_index == 1) ? sr7by4ai_2_quantset
+                                  : sr7by4ai_3_quantset;
+      case 16:
+        return (cnn_index == 0)   ? sr2by1ai_1_quantset
+               : (cnn_index == 1) ? sr2by1ai_2_quantset
+                                  : sr2by1ai_3_quantset;
+      default: assert(0); return NULL;
+    }
+#else   // SELECT_CNN_FOR_SUPERRES
+    switch (superres_denom) {
+      case 10:
+        if (qindex < 120)
+          return sr5by4ai_1_quantset;
+        else if (qindex < 180)
+          return sr5by4ai_2_quantset;
+        else
+          return sr5by4ai_3_quantset;
+      case 12:
+        if (qindex < 120)
+          return sr3by2ai_1_quantset;
+        else if (qindex < 180)
+          return sr3by2ai_2_quantset;
+        else
+          return sr3by2ai_3_quantset;
+      case 14:
+        if (qindex < 120)
+          return sr7by4ai_1_quantset;
+        else if (qindex < 180)
+          return sr7by4ai_2_quantset;
+        else
+          return sr7by4ai_3_quantset;
+      case 16:
+        if (qindex < 120)
+          return sr2by1ai_1_quantset;
+        else if (qindex < 180)
+          return sr2by1ai_2_quantset;
+        else
+          return sr2by1ai_3_quantset;
+      default: assert(0); return NULL;
+    }
+#endif  // SELECT_CNN_FOR_SUPERRES
+  } else {
+    // TODO(now): Remove assert.
+    assert(0);
+#if SELECT_CNN_FOR_SUPERRES
+    switch (superres_denom) {
+      case 10:
+        return (cnn_index == 0)   ? sr5by4ra_1_quantset
+               : (cnn_index == 1) ? sr5by4ra_2_quantset
+                                  : sr5by4ra_3_quantset;
+      case 12:
+        return (cnn_index == 0)   ? sr3by2ra_1_quantset
+               : (cnn_index == 1) ? sr3by2ra_2_quantset
+                                  : sr3by2ra_3_quantset;
+      case 14:
+        return (cnn_index == 0)   ? sr7by4ra_1_quantset
+               : (cnn_index == 1) ? sr7by4ra_2_quantset
+                                  : sr7by4ra_3_quantset;
+      case 16:
+        return (cnn_index == 0)   ? sr2by1ra_1_quantset
+               : (cnn_index == 1) ? sr2by1ra_2_quantset
+                                  : sr2by1ra_3_quantset;
+      default: assert(0); return NULL;
+    }
+#else   // SELECT_CNN_FOR_SUPERRES
+    switch (superres_denom) {
+      case 10:
+        if (qindex < 120)
+          return sr5by4ra_1_quantset;
+        else if (qindex < 180)
+          return sr5by4ra_2_quantset;
+        else
+          return sr5by4ra_3_quantset;
+      case 12:
+        if (qindex < 120)
+          return sr3by2ra_1_quantset;
+        else if (qindex < 180)
+          return sr3by2ra_2_quantset;
+        else
+          return sr3by2ra_3_quantset;
+      case 14:
+        if (qindex < 120)
+          return sr7by4ra_1_quantset;
+        else if (qindex < 180)
+          return sr7by4ra_2_quantset;
+        else
+          return sr7by4ra_3_quantset;
+      case 16:
+        if (qindex < 120)
+          return sr2by1ra_1_quantset;
+        else if (qindex < 180)
+          return sr2by1ra_2_quantset;
+        else
+          return sr2by1ra_3_quantset;
+      default: assert(0); return NULL;
+    }
+#endif  // SELECT_CNN_FOR_SUPERRES
+  }
+#endif  // CONFIG_EXT_SUPERRES
+  return NULL;
 }
 #if CONFIG_CNN_GUIDED_QUADTREE
 int64_t count_guided_quad_bits(struct AV1Common *cm) {
