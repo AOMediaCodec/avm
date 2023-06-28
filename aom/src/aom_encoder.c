@@ -113,7 +113,7 @@ aom_codec_err_t aom_codec_enc_config_default(aom_codec_iface_t *iface,
 #define FLOATING_POINT_RESTORE_PRECISION
 #endif  // ARCH_X86 || ARCH_X86_64
 
-#if HAVE_FEXCEPT && CONFIG_DEBUG
+#if HAVE_FEXCEPT && CONFIG_DEBUG && !CONFIG_CNN_RESTORATION
 #define FLOATING_POINT_SET_EXCEPTIONS \
   const int float_excepts =           \
       feenableexcept(FE_DIVBYZERO | FE_UNDERFLOW | FE_OVERFLOW);
@@ -123,7 +123,7 @@ aom_codec_err_t aom_codec_enc_config_default(aom_codec_iface_t *iface,
 #else
 #define FLOATING_POINT_SET_EXCEPTIONS
 #define FLOATING_POINT_RESTORE_EXCEPTIONS
-#endif  // HAVE_FEXCEPT && CONFIG_DEBUG
+#endif  // HAVE_FEXCEPT && CONFIG_DEBUG && !CONFIG_CNN_RESTORATION
 
 /* clang-format off */
 #define FLOATING_POINT_INIT    \
