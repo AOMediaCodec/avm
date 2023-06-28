@@ -3106,10 +3106,20 @@ static INLINE int get_dist_to_closest_interp_ref(const AV1_COMMON *const cm,
 
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return INT_MAX;
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int start_frame_order_hint = start_frame_buf->display_order_hint;
+  const int cur_order_hint = cm->cur_frame->display_order_hint;
+#else
   const int start_frame_order_hint = start_frame_buf->order_hint;
   const int cur_order_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int abs_closest_ref_offset = INT_MAX;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int *const ref_order_hints =
+      &start_frame_buf->ref_display_order_hint[0];
+#else
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (MV_REFERENCE_FRAME ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
     if (ref_order_hints[ref] != -1) {
       const int start_to_ref_offset = get_relative_dist(
