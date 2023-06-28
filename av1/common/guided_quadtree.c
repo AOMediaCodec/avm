@@ -199,23 +199,22 @@ int sr7by4ai_1_quantset[] = { 2631408, 4529404, -8, -8 };
 int sr7by4ai_2_quantset[] = { 28290, 12216, 1, -3 };
 int sr7by4ai_3_quantset[] = { 11, 9, -7, -8 };
 
-// TODO(now).
 // Superres guided conv unet inter.
-int sr2by1ra_1_quantset[] = { 982633, 1534950, -6, -8 };
-int sr2by1ra_2_quantset[] = { 14303, 3648, -9, -6 };
-int sr2by1ra_3_quantset[] = { 415158, 458378, -7, -5 };
+int sr2by1ra_1_quantset[] = { 1149534, 1617706, -6, -7 };
+int sr2by1ra_2_quantset[] = { 23807, 4335, -8, -6 };
+int sr2by1ra_3_quantset[] = { 242788, 346460, -7, -6 };
 
-int sr3by2ra_1_quantset[] = { 117, 133, -5, -3 };
-int sr3by2ra_2_quantset[] = { 1157, 750, -11, -7 };
-int sr3by2ra_3_quantset[] = { 20383, 45842, -6, -9 };
+int sr3by2ra_1_quantset[] = { 124, 143, -6, -2 };
+int sr3by2ra_2_quantset[] = { 10622, 14766, -7, -9 };
+int sr3by2ra_3_quantset[] = { 10871, 23315, -5, -5 };
 
-int sr5by4ra_1_quantset[] = { 10532, 7396, -8, -18 };
-int sr5by4ra_2_quantset[] = { 166, 503, -12, -1 };
-int sr5by4ra_3_quantset[] = { 11, 4, -11, -9 };
+int sr5by4ra_1_quantset[] = { 8492, 7778, -8, -18 };
+int sr5by4ra_2_quantset[] = { 221, 819, -13, 1 };
+int sr5by4ra_3_quantset[] = { 11, 7, -11, -10 };
 
-int sr7by4ra_1_quantset[] = { 2631408, 4529404, -8, -8 };
-int sr7by4ra_2_quantset[] = { 28290, 12216, 1, -3 };
-int sr7by4ra_3_quantset[] = { 11, 9, -7, -8 };
+int sr7by4ra_1_quantset[] = { 2461636, 2223173, -9, -8 };
+int sr7by4ra_2_quantset[] = { 37154, 12358, -1, -3 };
+int sr7by4ra_3_quantset[] = { 179, 72, -7, -3 };
 #endif  // CONFIG_EXT_SUPERRES
 
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
@@ -342,8 +341,6 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
     }
 #endif  // SELECT_CNN_FOR_SUPERRES
   } else {
-    // TODO(now): Remove assert.
-    assert(0);
 #if SELECT_CNN_FOR_SUPERRES
     switch (superres_denom) {
       case 10:
@@ -401,6 +398,7 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
 #endif  // CONFIG_EXT_SUPERRES
   return NULL;
 }
+
 #if CONFIG_CNN_GUIDED_QUADTREE
 int64_t count_guided_quad_bits(struct AV1Common *cm) {
   int64_t bits = 0;
