@@ -302,7 +302,7 @@ static const TX_SIZE smallest_sub_tx_size_map[TX_SIZES_ALL] = {
   TX_4X16,   // TX_16X64
   TX_16X4,   // TX_64X16
 };
-#endif  // CONFIG_NEW_TX_PARTITION
+#endif       // CONFIG_NEW_TX_PARTITION
 
 static const TX_SIZE sub_tx_size_map[TX_SIZES_ALL] = {
   TX_4X4,    // TX_4X4

@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
- * This source code is subject to the terms of the BSD 3-Clause Clear License and the
- * Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear License was
- * not distributed with this source code in the LICENSE file, you can obtain it
- * at aomedia.org/license/software-license/bsd-3-c-c/.  If the Alliance for Open Media Patent
- * License 1.0 was not distributed with this source code in the PATENTS file, you
- * can obtain it at aomedia.org/license/patent-license/.
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
  */
 
 #ifndef INCLUDE_LIBYUV_ROTATE_ROW_H_  // NOLINT
@@ -25,8 +26,8 @@ extern "C" {
 #endif
 
 // Visual C 2012 required for AVX2.
-#if defined(_M_IX86) && !defined(__clang__) && \
-    defined(_MSC_VER) && _MSC_VER >= 1700
+#if defined(_M_IX86) && !defined(__clang__) && defined(_MSC_VER) && \
+    _MSC_VER >= 1700
 #define VISUALC_HAS_AVX2 1
 #endif  // VisualStudio >= 2012
 
@@ -34,39 +35,41 @@ extern "C" {
 #if !defined(LIBYUV_DISABLE_X86) && \
     (defined(_M_IX86) || defined(__x86_64__) || defined(__i386__))
 #if defined(__APPLE__) && defined(__i386__)
-#define DECLARE_FUNCTION(name)                                                 \
-    ".text                                     \n"                             \
-    ".private_extern _" #name "                \n"                             \
-    ".align 4,0x90                             \n"                             \
-"_" #name ":                                   \n"
+#define DECLARE_FUNCTION(name)                   \
+  ".text                                     \n" \
+  ".private_extern _" #name                      \
+  "                \n"                           \
+  ".align 4,0x90                             \n" \
+  "_" #name ":                                   \n"
 #elif defined(__MINGW32__) || defined(__CYGWIN__) && defined(__i386__)
-#define DECLARE_FUNCTION(name)                                                 \
-    ".text                                     \n"                             \
-    ".align 4,0x90                             \n"                             \
-"_" #name ":                                   \n"
+#define DECLARE_FUNCTION(name)                   \
+  ".text                                     \n" \
+  ".align 4,0x90                             \n" \
+  "_" #name ":                                   \n"
 #else
-#define DECLARE_FUNCTION(name)                                                 \
-    ".text                                     \n"                             \
-    ".align 4,0x90                             \n"                             \
-#name ":                                       \n"
+#define DECLARE_FUNCTION(name)                         \
+  ".text                                     \n"       \
+  ".align 4,0x90                             \n" #name \
+  ":                                       \n"
 #endif
 #endif
 
 // The following are available for Visual C:
-#if !defined(LIBYUV_DISABLE_X86) && defined(_M_IX86) && \
-    defined(_MSC_VER) && !defined(__clang__)
+#if !defined(LIBYUV_DISABLE_X86) && defined(_M_IX86) && defined(_MSC_VER) && \
+    !defined(__clang__)
 #define HAS_TRANSPOSEWX8_SSSE3
 #define HAS_TRANSPOSEUVWX8_SSE2
 #endif
 
 // The following are available for GCC but not NaCL:
 #if !defined(LIBYUV_DISABLE_X86) && \
-    (defined(__i386__) || (defined(__x86_64__) && !defined(__native_client__)))
+    (defined(__i386__) ||           \
+     (defined(__x86_64__) && !defined(__native_client__)))
 #define HAS_TRANSPOSEWX8_SSSE3
 #endif
 
 // The following are available for 32 bit GCC:
-#if !defined(LIBYUV_DISABLE_X86) && defined(__i386__)  && !defined(__clang__)
+#if !defined(LIBYUV_DISABLE_X86) && defined(__i386__) && !defined(__clang__)
 #define HAS_TRANSPOSEUVWX8_SSE2
 #endif
 
@@ -84,52 +87,50 @@ extern "C" {
 #endif
 
 #if !defined(LIBYUV_DISABLE_MIPS) && !defined(__native_client__) && \
-    defined(__mips__) && \
-    defined(__mips_dsp) && (__mips_dsp_rev >= 2)
+    defined(__mips__) && defined(__mips_dsp) && (__mips_dsp_rev >= 2)
 #define HAS_TRANSPOSEWX8_MIPS_DSPR2
 #define HAS_TRANSPOSEUVWx8_MIPS_DSPR2
 #endif  // defined(__mips__)
 
-void TransposeWxH_C(const uint8* src, int src_stride,
-                    uint8* dst, int dst_stride, int width, int height);
+void TransposeWxH_C(const uint8 *src, int src_stride, uint8 *dst,
+                    int dst_stride, int width, int height);
 
-void TransposeWx8_C(const uint8* src, int src_stride,
-                    uint8* dst, int dst_stride, int width);
-void TransposeWx8_NEON(const uint8* src, int src_stride,
-                       uint8* dst, int dst_stride, int width);
-void TransposeWx8_SSSE3(const uint8* src, int src_stride,
-                        uint8* dst, int dst_stride, int width);
-void TransposeWx8_Fast_SSSE3(const uint8* src, int src_stride,
-                             uint8* dst, int dst_stride, int width);
-void TransposeWx8_MIPS_DSPR2(const uint8* src, int src_stride,
-                             uint8* dst, int dst_stride, int width);
+void TransposeWx8_C(const uint8 *src, int src_stride, uint8 *dst,
+                    int dst_stride, int width);
+void TransposeWx8_NEON(const uint8 *src, int src_stride, uint8 *dst,
+                       int dst_stride, int width);
+void TransposeWx8_SSSE3(const uint8 *src, int src_stride, uint8 *dst,
+                        int dst_stride, int width);
+void TransposeWx8_Fast_SSSE3(const uint8 *src, int src_stride, uint8 *dst,
+                             int dst_stride, int width);
+void TransposeWx8_MIPS_DSPR2(const uint8 *src, int src_stride, uint8 *dst,
+                             int dst_stride, int width);
 
-void TransposeWx8_Any_NEON(const uint8* src, int src_stride,
-                           uint8* dst, int dst_stride, int width);
-void TransposeWx8_Any_SSSE3(const uint8* src, int src_stride,
-                            uint8* dst, int dst_stride, int width);
-void TransposeWx8_Fast_Any_SSSE3(const uint8* src, int src_stride,
-                                 uint8* dst, int dst_stride, int width);
-void TransposeWx8_Any_MIPS_DSPR2(const uint8* src, int src_stride,
-                                 uint8* dst, int dst_stride, int width);
+void TransposeWx8_Any_NEON(const uint8 *src, int src_stride, uint8 *dst,
+                           int dst_stride, int width);
+void TransposeWx8_Any_SSSE3(const uint8 *src, int src_stride, uint8 *dst,
+                            int dst_stride, int width);
+void TransposeWx8_Fast_Any_SSSE3(const uint8 *src, int src_stride, uint8 *dst,
+                                 int dst_stride, int width);
+void TransposeWx8_Any_MIPS_DSPR2(const uint8 *src, int src_stride, uint8 *dst,
+                                 int dst_stride, int width);
 
-void TransposeUVWxH_C(const uint8* src, int src_stride,
-                      uint8* dst_a, int dst_stride_a,
-                      uint8* dst_b, int dst_stride_b,
+void TransposeUVWxH_C(const uint8 *src, int src_stride, uint8 *dst_a,
+                      int dst_stride_a, uint8 *dst_b, int dst_stride_b,
                       int width, int height);
 
-void TransposeUVWx8_C(const uint8* src, int src_stride,
-                      uint8* dst_a, int dst_stride_a,
-                      uint8* dst_b, int dst_stride_b, int width);
-void TransposeUVWx8_SSE2(const uint8* src, int src_stride,
-                         uint8* dst_a, int dst_stride_a,
-                         uint8* dst_b, int dst_stride_b, int width);
-void TransposeUVWx8_NEON(const uint8* src, int src_stride,
-                         uint8* dst_a, int dst_stride_a,
-                         uint8* dst_b, int dst_stride_b, int width);
-void TransposeUVWx8_MIPS_DSPR2(const uint8* src, int src_stride,
-                               uint8* dst_a, int dst_stride_a,
-                               uint8* dst_b, int dst_stride_b, int width);
+void TransposeUVWx8_C(const uint8 *src, int src_stride, uint8 *dst_a,
+                      int dst_stride_a, uint8 *dst_b, int dst_stride_b,
+                      int width);
+void TransposeUVWx8_SSE2(const uint8 *src, int src_stride, uint8 *dst_a,
+                         int dst_stride_a, uint8 *dst_b, int dst_stride_b,
+                         int width);
+void TransposeUVWx8_NEON(const uint8 *src, int src_stride, uint8 *dst_a,
+                         int dst_stride_a, uint8 *dst_b, int dst_stride_b,
+                         int width);
+void TransposeUVWx8_MIPS_DSPR2(const uint8 *src, int src_stride, uint8 *dst_a,
+                               int dst_stride_a, uint8 *dst_b, int dst_stride_b,
+                               int width);
 
 #ifdef __cplusplus
 }  // extern "C"

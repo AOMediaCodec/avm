@@ -365,7 +365,7 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
       // one of two neighbors uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(neighbor1->ref_frame[0]) ||
                  !is_inter_block(neighbor1, xd->tree_type));
-    else  // both neighbors use comp pred (4)
+    else                                // both neighbors use comp pred (4)
       ctx = 4;
   } else if (neighbor0 || neighbor1) {  // one neighbor available
     const MB_MODE_INFO *neighbor = neighbor0 ? neighbor0 : neighbor1;

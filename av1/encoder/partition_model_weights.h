@@ -335,7 +335,7 @@ static const NN_CONFIG av1_ab_partition_nnconfig_128 = {
   LABEL_SIZE,    // num_outputs
   1,             // num_hidden_layers
   {
-      64,  // num_hidden_nodes
+      64,        // num_hidden_nodes
   },
   {
       av1_ab_partition_nn_weights_128_layer0,
@@ -657,7 +657,7 @@ static const NN_CONFIG av1_ab_partition_nnconfig_64 = {
   LABEL_SIZE,    // num_outputs
   1,             // num_hidden_layers
   {
-      64,  // num_hidden_nodes
+      64,        // num_hidden_nodes
   },
   {
       av1_ab_partition_nn_weights_64_layer0,
@@ -979,7 +979,7 @@ static const NN_CONFIG av1_ab_partition_nnconfig_32 = {
   LABEL_SIZE,    // num_outputs
   1,             // num_hidden_layers
   {
-      64,  // num_hidden_nodes
+      64,        // num_hidden_nodes
   },
   {
       av1_ab_partition_nn_weights_32_layer0,
@@ -1301,7 +1301,7 @@ static const NN_CONFIG av1_ab_partition_nnconfig_16 = {
   LABEL_SIZE,    // num_outputs
   1,             // num_hidden_layers
   {
-      64,  // num_hidden_nodes
+      64,        // num_hidden_nodes
   },
   {
       av1_ab_partition_nn_weights_16_layer0,
@@ -1432,7 +1432,7 @@ static const NN_CONFIG av1_4_partition_nnconfig_16 = {
   LABEL_SIZE,    // num_outputs
   1,             // num_hidden_layers
   {
-      24,  // num_hidden_nodes
+      24,        // num_hidden_nodes
   },
   {
       av1_4_partition_nn_weights_16_layer0,
@@ -1589,7 +1589,7 @@ static const NN_CONFIG av1_4_partition_nnconfig_32 = {
   LABEL_SIZE,    // num_outputs
   1,             // num_hidden_layers
   {
-      32,  // num_hidden_nodes
+      32,        // num_hidden_nodes
   },
   {
       av1_4_partition_nn_weights_32_layer0,
@@ -1714,7 +1714,7 @@ static const NN_CONFIG av1_4_partition_nnconfig_64 = {
   LABEL_SIZE,    // num_outputs
   1,             // num_hidden_layers
   {
-      24,  // num_hidden_nodes
+      24,        // num_hidden_nodes
   },
   {
       av1_4_partition_nn_weights_64_layer0,
@@ -1783,7 +1783,7 @@ static const NN_CONFIG av1_partition_breakout_nnconfig_128 = {
   1,             // num_outputs
   1,             // num_hidden_layers
   {
-      32,  // num_hidden_nodes
+      32,        // num_hidden_nodes
   },
   {
       av1_partition_breakout_nn_weights_128_layer0,
@@ -1831,7 +1831,7 @@ static const NN_CONFIG av1_partition_breakout_nnconfig_64 = {
   1,             // num_outputs
   1,             // num_hidden_layers
   {
-      16,  // num_hidden_nodes
+      16,        // num_hidden_nodes
   },
   {
       av1_partition_breakout_nn_weights_64_layer0,
@@ -1879,7 +1879,7 @@ static const NN_CONFIG av1_partition_breakout_nnconfig_32 = {
   1,             // num_outputs
   1,             // num_hidden_layers
   {
-      16,  // num_hidden_nodes
+      16,        // num_hidden_nodes
   },
   {
       av1_partition_breakout_nn_weights_32_layer0,
@@ -1927,7 +1927,7 @@ static const NN_CONFIG av1_partition_breakout_nnconfig_16 = {
   1,             // num_outputs
   1,             // num_hidden_layers
   {
-      16,  // num_hidden_nodes
+      16,        // num_hidden_nodes
   },
   {
       av1_partition_breakout_nn_weights_16_layer0,
@@ -1975,7 +1975,7 @@ static const NN_CONFIG av1_partition_breakout_nnconfig_8 = {
   1,             // num_outputs
   1,             // num_hidden_layers
   {
-      16,  // num_hidden_nodes
+      16,        // num_hidden_nodes
   },
   {
       av1_partition_breakout_nn_weights_8_layer0,

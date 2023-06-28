@@ -132,8 +132,8 @@ struct av1_extracfg {
   int enable_sdp;   // enable semi-decoupled partitioning
   int enable_mrls;  // enable multiple reference line selection
 #if CONFIG_TIP
-  int enable_tip;  // enable temporal interpolated prediction
-#endif             // CONFIG_TIP
+  int enable_tip;   // enable temporal interpolated prediction
+#endif              // CONFIG_TIP
 #if CONFIG_BAWP
   int enable_bawp;  // enable block adaptive weighted prediction
 #endif              // CONFIG_BAWP
@@ -151,8 +151,8 @@ struct av1_extracfg {
   int enable_adaptive_mvd;  // enable adaptive MVD resolution
 #endif                      // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
-  int enable_flex_mvres;  // enable flexible MV resolution
-#endif                    // CONFIG_FLEX_MVRES
+  int enable_flex_mvres;    // enable flexible MV resolution
+#endif                      // CONFIG_FLEX_MVRES
 
 #if CONFIG_ADAPTIVE_DS_FILTER
   int enable_cfl_ds_filter;  // enable adaptive downsample filter
@@ -182,18 +182,18 @@ struct av1_extracfg {
   int enable_global_motion;      // enable global motion usage for sequence
   int enable_warped_motion;      // enable local warped motion for sequence
 #if CONFIG_EXTENDED_WARP_PREDICTION
-  int enable_warped_causal;  // enable spatial warp prediction for sequence
-  int enable_warp_delta;     // enable explicit warp models for sequence
-  int enable_warp_extend;    // enable warp extension for sequence
+  int enable_warped_causal;      // enable spatial warp prediction for sequence
+  int enable_warp_delta;         // enable explicit warp models for sequence
+  int enable_warp_extend;        // enable warp extension for sequence
 #else
   int allow_warped_motion;  // enable local warped motion for frame
-#endif                      // CONFIG_EXTENDED_WARP_PREDICTION
-  int enable_filter_intra;  // enable filter intra for sequence
-  int enable_smooth_intra;  // enable smooth intra modes for sequence
-  int enable_paeth_intra;   // enable Paeth intra mode for sequence
-  int enable_cfl_intra;     // enable CFL uv intra mode for sequence
+#endif                           // CONFIG_EXTENDED_WARP_PREDICTION
+  int enable_filter_intra;       // enable filter intra for sequence
+  int enable_smooth_intra;       // enable smooth intra modes for sequence
+  int enable_paeth_intra;        // enable Paeth intra mode for sequence
+  int enable_cfl_intra;          // enable CFL uv intra mode for sequence
   int enable_superres;
-  int enable_overlay;  // enable overlay for filtered arf frames
+  int enable_overlay;            // enable overlay for filtered arf frames
   int enable_palette;
   int enable_intrabc;
 #if CONFIG_IBC_SR_EXT
@@ -398,13 +398,13 @@ static struct av1_extracfg default_extra_cfg = {
   !CONFIG_WIENER_NONSEP,                     // enable_wiener
   1,                                         // enable_sgrproj
 #if CONFIG_PC_WIENER
-  1,    // enable_pc_wiener
-#endif  // CONFIG_PC_WIENER
+  1,                                         // enable_pc_wiener
+#endif                                       // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
-  1,    // enable_wiener_nonsep
-#endif  // CONFIG_WIENER_NONSEP
+  1,                                         // enable_wiener_nonsep
+#endif                                       // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
-  1,  // enable_ccso
+  1,                                         // enable_ccso
 #endif
 #if CONFIG_PEF
   1,                            // enable_pef
@@ -445,75 +445,75 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
 #if CONFIG_EXT_RECUR_PARTITIONS
-  1,  // disable ML based partition speed up features
-  5,  // aggressiveness for erp pruning
-  0,  // use ml model for erp pruning
+  1,                            // disable ML based partition speed up features
+  5,                            // aggressiveness for erp pruning
+  0,                            // use ml model for erp pruning
 #if CONFIG_H_PARTITION
-  1,  // enable extended partitions
+  1,                            // enable extended partitions
 #else
   0,        // enable extended partitions
 #endif
 #else
   0,                        // disable ML based partition speed up features
 #endif
-  1,  // enable rectangular partitions
-  1,  // enable ab shape partitions
-  1,  // enable 1:4 and 4:1 partitions
-  0,  // disable ml based transform speed features
-  1,  // enable semi-decoupled partitioning
-  1,  // enable multiple reference line selection
+  1,                       // enable rectangular partitions
+  1,                       // enable ab shape partitions
+  1,                       // enable 1:4 and 4:1 partitions
+  0,                       // disable ml based transform speed features
+  1,                       // enable semi-decoupled partitioning
+  1,                       // enable multiple reference line selection
 #if CONFIG_TIP
-  1,    // enable temporal interpolated prediction (TIP)
-#endif  // CONFIG_TIP
+  1,                       // enable temporal interpolated prediction (TIP)
+#endif                     // CONFIG_TIP
 #if CONFIG_BAWP
-  1,    // enable block adaptive weighted prediction (BAWP)
-#endif  // CONFIG_BAWP
-  1,    // enable forward skip coding
+  1,                       // enable block adaptive weighted prediction (BAWP)
+#endif                     // CONFIG_BAWP
+  1,                       // enable forward skip coding
 #if CONFIG_ORIP
-  1,    // enable ORIP
-#endif  // CONFIG_ORIP
-  1,    // enable intra secondary transform
+  1,                       // enable ORIP
+#endif                     // CONFIG_ORIP
+  1,                       // enable intra secondary transform
 #if CONFIG_CROSS_CHROMA_TX
-  1,    // enable cross-chroma component transform
-#endif  // CONFIG_CROSS_CHROMA_TX
-  1,    // enable intra bi-prediction
+  1,                       // enable cross-chroma component transform
+#endif                     // CONFIG_CROSS_CHROMA_TX
+  1,                       // enable intra bi-prediction
 #if CONFIG_ADAPTIVE_MVD
-  1,    // enable adaptive mvd resolution
-#endif  // CONFIG_ADAPTIVE_MVD
+  1,                       // enable adaptive mvd resolution
+#endif                     // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
-  1,    // enable flexible MV precision
-#endif  // CONFIG_FLEX_MVRES
+  1,                       // enable flexible MV precision
+#endif                     // CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_DS_FILTER
-  1,    // enable adaptive downsample filter
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+  1,                       // enable adaptive downsample filter
+#endif                     // CONFIG_ADAPTIVE_DS_FILTER
 #if CONFIG_JOINT_MVD
-  1,    // enable joint mvd coding
-#endif  // CONFIG_JOINT_MVD
-  4,    // min_partition_size
-  128,  // max_partition_size
-  1,    // enable intra edge filter
-  1,    // frame order hint
-  1,    // enable 64-pt transform usage
-  1,    // enable flip and identity transform
+  1,                       // enable joint mvd coding
+#endif                     // CONFIG_JOINT_MVD
+  4,                       // min_partition_size
+  128,                     // max_partition_size
+  1,                       // enable intra edge filter
+  1,                       // frame order hint
+  1,                       // enable 64-pt transform usage
+  1,                       // enable flip and identity transform
 
-  7,  // max_reference_frames
-  0,  // enable_reduced_reference_set
-  0,  // explicit_ref_frame_map
-  1,  // enable_ref_frame_mvs sequence level
-  1,  // allow ref_frame_mvs frame level
-  1,  // enable masked compound at sequence level
-  1,  // enable one sided compound at sequence level
-  1,  // enable interintra compound at sequence level
-  1,  // enable smooth interintra mode
-  1,  // enable difference-weighted compound
-  1,  // enable interinter wedge compound
-  1,  // enable interintra wedge compound
-  1,  // enable_global_motion usage
-  1,  // enable_warped_motion at sequence level
+  7,                       // max_reference_frames
+  0,                       // enable_reduced_reference_set
+  0,                       // explicit_ref_frame_map
+  1,                       // enable_ref_frame_mvs sequence level
+  1,                       // allow ref_frame_mvs frame level
+  1,                       // enable masked compound at sequence level
+  1,                       // enable one sided compound at sequence level
+  1,                       // enable interintra compound at sequence level
+  1,                       // enable smooth interintra mode
+  1,                       // enable difference-weighted compound
+  1,                       // enable interinter wedge compound
+  1,                       // enable interintra wedge compound
+  1,                       // enable_global_motion usage
+  1,                       // enable_warped_motion at sequence level
 #if CONFIG_EXTENDED_WARP_PREDICTION
-  1,  // enable_warped_causal at sequence level
-  1,  // enable_warp_delta at sequence level
-  1,  // enable_warp_extend at sequence level
+  1,                       // enable_warped_causal at sequence level
+  1,                       // enable_warp_delta at sequence level
+  1,                       // enable_warp_extend at sequence level
 #else
   1,                        // allow_warped_motion at frame level
 #endif                     // CONFIG_EXTENDED_WARP_PREDICTION
@@ -526,24 +526,24 @@ static struct av1_extracfg default_extra_cfg = {
   1,                       // enable palette
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
 #if CONFIG_IBC_SR_EXT
-  1,    // enable search range extension for intrabc
-#endif  // CONFIG_IBC_SR_EXT
-  1,    // enable angle delta
+  1,                       // enable search range extension for intrabc
+#endif                     // CONFIG_IBC_SR_EXT
+  1,                       // enable angle delta
 #if CONFIG_OPTFLOW_REFINEMENT
   1,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_DENOISE
-  0,   // noise_level
-  32,  // noise_block_size
+  0,    // noise_level
+  32,   // noise_block_size
 #endif
-  0,  // chroma_subsampling_x
-  0,  // chroma_subsampling_y
-  0,  // reduced_tx_type_set
-  0,  // use_intra_dct_only
-  0,  // use_inter_dct_only
-  0,  // use_intra_default_tx_only
-  0,  // quant_b_adapt
-  0,  // vbr_corpus_complexity_lap
+  0,    // chroma_subsampling_x
+  0,    // chroma_subsampling_y
+  0,    // reduced_tx_type_set
+  0,    // use_intra_dct_only
+  0,    // use_inter_dct_only
+  0,    // use_intra_default_tx_only
+  0,    // quant_b_adapt
+  0,    // vbr_corpus_complexity_lap
   {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
@@ -563,11 +563,11 @@ static struct av1_extracfg default_extra_cfg = {
   0,            // enable_subgop_stats
   0,            // max_drl_refmvs
 #if CONFIG_REF_MV_BANK
-  1,    // enable_refmvbank
-#endif  // CONFIG_REF_MV_BANK
+  1,            // enable_refmvbank
+#endif          // CONFIG_REF_MV_BANK
 #if CONFIG_PAR_HIDING
-  1,    // enable_parity_hiding
-#endif  // CONFIG_PAR_HIDING
+  1,            // enable_parity_hiding
+#endif          // CONFIG_PAR_HIDING
 };
 
 struct aom_codec_alg_priv {
@@ -4207,47 +4207,47 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                       // g_threads
     0,                       // g_profile
 
-    320,         // g_w
-    240,         // g_h
-    0,           // g_limit
-    0,           // g_forced_max_frame_width
-    0,           // g_forced_max_frame_height
-    AOM_BITS_8,  // g_bit_depth
-    8,           // g_input_bit_depth
+    320,                     // g_w
+    240,                     // g_h
+    0,                       // g_limit
+    0,                       // g_forced_max_frame_width
+    0,                       // g_forced_max_frame_height
+    AOM_BITS_8,              // g_bit_depth
+    8,                       // g_input_bit_depth
 
-    { 1, 30 },  // g_timebase
+    { 1, 30 },               // g_timebase
 
-    0,  // g_error_resilient
+    0,                       // g_error_resilient
 
-    AOM_RC_ONE_PASS,  // g_pass
+    AOM_RC_ONE_PASS,         // g_pass
 
-    19,  // g_lag_in_frames
+    19,                      // g_lag_in_frames
 
-    0,                // rc_dropframe_thresh
-    RESIZE_NONE,      // rc_resize_mode
-    SCALE_NUMERATOR,  // rc_resize_denominator
-    SCALE_NUMERATOR,  // rc_resize_kf_denominator
+    0,                       // rc_dropframe_thresh
+    RESIZE_NONE,             // rc_resize_mode
+    SCALE_NUMERATOR,         // rc_resize_denominator
+    SCALE_NUMERATOR,         // rc_resize_kf_denominator
 
-    AOM_SUPERRES_NONE,  // rc_superres_mode
-    SCALE_NUMERATOR,    // rc_superres_denominator
-    SCALE_NUMERATOR,    // rc_superres_kf_denominator
-    255,                // rc_superres_qthresh
-    128,                // rc_superres_kf_qthresh
+    AOM_SUPERRES_NONE,       // rc_superres_mode
+    SCALE_NUMERATOR,         // rc_superres_denominator
+    SCALE_NUMERATOR,         // rc_superres_kf_denominator
+    255,                     // rc_superres_qthresh
+    128,                     // rc_superres_kf_qthresh
 
-    AOM_VBR,      // rc_end_usage
-    { NULL, 0 },  // rc_firstpass_mb_stats_in
-    256,          // rc_target_bandwidth
-    0,            // rc_min_quantizer
-    255,          // rc_max_quantizer
-    25,           // rc_undershoot_pct
-    25,           // rc_overshoot_pct
+    AOM_VBR,                 // rc_end_usage
+    { NULL, 0 },             // rc_firstpass_mb_stats_in
+    256,                     // rc_target_bandwidth
+    0,                       // rc_min_quantizer
+    255,                     // rc_max_quantizer
+    25,                      // rc_undershoot_pct
+    25,                      // rc_overshoot_pct
 
-    6000,  // rc_max_buffer_size
-    4000,  // rc_buffer_initial_size
-    5000,  // rc_buffer_optimal_size
+    6000,                    // rc_max_buffer_size
+    4000,                    // rc_buffer_initial_size
+    5000,                    // rc_buffer_optimal_size
 
-    0,     // rc_two_pass_vbrmin_section
-    2000,  // rc_two_pass_vbrmax_section
+    0,                       // rc_two_pass_vbrmin_section
+    2000,                    // rc_two_pass_vbrmax_section
 
     // keyframing settings (kf)
     0,                           // fwd_kf_enabled
@@ -4374,7 +4374,7 @@ aom_codec_iface_t aom_codec_av1_cx_algo = {
       encoder_get_global_headers,  // aom_codec_get_global_headers_fn_t
       encoder_get_preview          // aom_codec_get_preview_frame_fn_t
   },
-  encoder_set_option  // aom_codec_set_option_fn_t
+  encoder_set_option               // aom_codec_set_option_fn_t
 };
 
 aom_codec_iface_t *aom_codec_av1_cx(void) { return &aom_codec_av1_cx_algo; }

@@ -16,8 +16,8 @@
 static const nmv_context default_nmv_context = {
   { AOM_CDF4(1126, 6354, 9638) },  // joints_cdf
 #if CONFIG_ADAPTIVE_MVD
-  { AOM_CDF4(4, 18825, 32748) },  // amvd_joints_cdf
-#endif                            // CONFIG_ADAPTIVE_MVD
+  { AOM_CDF4(4, 18825, 32748) },   // amvd_joints_cdf
+#endif                             // CONFIG_ADAPTIVE_MVD
   { {
         // Vertical component
         { { AOM_CDF9(21158, 25976, 29130, 31210, 32237, 32636, 32712, 32716) },
@@ -65,7 +65,7 @@ static const nmv_context default_nmv_context = {
     {
         // Horizontal component
         { { AOM_CDF9(19297, 23907, 27450, 30145, 31606, 32456, 32712,
-                     32716) },  // class_cdf
+                     32716) },   // class_cdf
           { AOM_CDF10(18861, 23816, 27819, 30238, 31643, 32355, 32697, 32704,
                       32708) },  // class_cdf
           { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873, 20852, 23831,
@@ -89,7 +89,7 @@ static const nmv_context default_nmv_context = {
             { AOM_CDF2(14031) } } },  // class0_fp_cdf
         { { AOM_CDF2(16600) },
           { AOM_CDF2(12569) },
-          { AOM_CDF2(8367) } },  // fp_cdf
+          { AOM_CDF2(8367) } },   // fp_cdf
 
         { AOM_CDF2(128 * 128) },  // sign_cdf
         { AOM_CDF2(3238) },       // class0_hp_cdf
@@ -131,11 +131,11 @@ static const nmv_context default_nmv_context = {
                       32762, 32767) } },  // class_cdf // fp
 #else
         { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
-                    32762, 32767) },  // class_cdf // fp
+                    32762, 32767) },            // class_cdf // fp
 #endif
 #if CONFIG_ADAPTIVE_MVD
         { AOM_CDF11(24672, 27976, 29858, 31320, 32758, 32759, 32760, 32762,
-                    32764, 32767) },  // class_cdf // fp
+                    32764, 32767) },      // class_cdf // fp
 #endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
         { { { AOM_CDF2(24576) }, { AOM_CDF2(21845) }, { AOM_CDF2(8192) } },
@@ -170,9 +170,9 @@ static const nmv_context default_nmv_context = {
         // Horizontal component
         {
             { AOM_CDF9(28672, 30976, 31858, 32320, 32551, 32656, 32740,
-                       32757) },  // class_cdf
+                       32757) },          // class_cdf
             { AOM_CDF10(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
-                        32762) },  // class_cdf
+                        32762) },         // class_cdf
             { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
                         32762, 32767) },  // class_cdf
             { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
@@ -187,7 +187,7 @@ static const nmv_context default_nmv_context = {
 #else
         // Horizontal component
         { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
-                    32762, 32767) },  // class_cdf // fp
+                    32762, 32767) },            // class_cdf // fp
 #endif
 #if CONFIG_ADAPTIVE_MVD
         { AOM_CDF11(24672, 27976, 29858, 31320, 32758, 32759, 32760, 32762,

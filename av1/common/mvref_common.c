@@ -1466,7 +1466,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (is_tip_ref_frame(rf[0])) {
     return 0;
   }
-#endif  // CONFIG_TIP
+#endif                             // CONFIG_TIP
 
   const uint16_t weight_unit = 1;  // mi_size_wide[BLOCK_8X8];
   const int cur_frame_index = cm->cur_frame->order_hint;
@@ -2876,7 +2876,7 @@ void av1_find_mv_refs(
     valid_num_warp_candidates[ref_frame] =
         0;  // initialize the number of valid candidates to 0 at the beginning
   }
-#endif  // CONFIG_WARP_REF_LIST
+#endif      // CONFIG_WARP_REF_LIST
 
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   if (mi->skip_mode) {

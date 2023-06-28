@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
- * This source code is subject to the terms of the BSD 3-Clause Clear License and the
- * Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear License was
- * not distributed with this source code in the LICENSE file, you can obtain it
- * at aomedia.org/license/software-license/bsd-3-c-c/.  If the Alliance for Open Media Patent
- * License 1.0 was not distributed with this source code in the PATENTS file, you
- * can obtain it at aomedia.org/license/patent-license/.
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
  */
 
 #ifndef INCLUDE_LIBYUV_CPU_ID_H_  // NOLINT
@@ -51,7 +52,7 @@ int InitCpuFlags(void);
 
 // Internal function for parsing /proc/cpuinfo.
 LIBYUV_API
-int ArmCpuCaps(const char* cpuinfo_name);
+int ArmCpuCaps(const char *cpuinfo_name);
 
 // Detect CPU has SSE2 etc.
 // Test_flag parameter should be one of kCpuHas constants above.
@@ -72,7 +73,7 @@ void MaskCpuFlags(int enable_flags);
 // eax is the info type that you want.
 // ecx is typically the cpu number, and should normally be zero.
 LIBYUV_API
-void CpuId(uint32 eax, uint32 ecx, uint32* cpu_info);
+void CpuId(uint32 eax, uint32 ecx, uint32 *cpu_info);
 
 #ifdef __cplusplus
 }  // extern "C"

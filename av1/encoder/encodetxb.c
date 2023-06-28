@@ -2913,7 +2913,7 @@ static AOM_FORCE_INLINE bool parity_hide_tb(
   if (nzsbb < PHTHRESH - 1 ||
       (!needtune && nzsbb == PHTHRESH - 1))  // disable coef_info for this sbb
   {
-    return false;  // not hide
+    return false;                            // not hide
   }
 
   const int ratesaving =

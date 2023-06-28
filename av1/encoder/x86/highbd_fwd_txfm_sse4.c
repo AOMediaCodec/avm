@@ -621,10 +621,10 @@ static void fdct4x8_sse4_1(__m128i *in, __m128i *out, int bit,
   v[0] = _mm_add_epi32(v[0], rnding);
   out[3 * col_num] = _mm_srai_epi32(v[0], bit);  // buf0[6]
 
-  out[0 * col_num] = u[0];  // buf0[0]
-  out[4 * col_num] = u[1];  // buf0[1]
-  out[2 * col_num] = u[2];  // buf0[2]
-  out[6 * col_num] = u[3];  // buf0[3]
+  out[0 * col_num] = u[0];                       // buf0[0]
+  out[4 * col_num] = u[1];                       // buf0[1]
+  out[2 * col_num] = u[2];                       // buf0[2]
+  out[6 * col_num] = u[3];                       // buf0[3]
 }
 
 static void fdct8x8_sse4_1(__m128i *in, __m128i *out, int bit,

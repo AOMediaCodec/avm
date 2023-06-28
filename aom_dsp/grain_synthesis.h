@@ -52,7 +52,7 @@ typedef struct {
 
   int scaling_shift;  // values : 8..11
 
-  int ar_coeff_lag;  // values:  0..3
+  int ar_coeff_lag;   // values:  0..3
 
   // 8 bit values
   int ar_coeffs_y[24];
@@ -66,13 +66,13 @@ typedef struct {
   // 9: [-0.25, 0.25)
   int ar_coeff_shift;  // values : 6..9
 
-  int cb_mult;       // 8 bits
-  int cb_luma_mult;  // 8 bits
-  int cb_offset;     // 9 bits
+  int cb_mult;         // 8 bits
+  int cb_luma_mult;    // 8 bits
+  int cb_offset;       // 9 bits
 
-  int cr_mult;       // 8 bits
-  int cr_luma_mult;  // 8 bits
-  int cr_offset;     // 9 bits
+  int cr_mult;         // 8 bits
+  int cr_luma_mult;    // 8 bits
+  int cr_offset;       // 9 bits
 
   int overlap_flag;
 

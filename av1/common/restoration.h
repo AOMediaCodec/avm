@@ -41,10 +41,10 @@ extern "C" {
 // Filter tile grid offset upwards compared to the superblock grid
 #define RESTORATION_UNIT_OFFSET 8
 
-#define SGRPROJ_BORDER_VERT 3  // Vertical border used for Sgr
-#define SGRPROJ_BORDER_HORZ 3  // Horizontal border used for Sgr
+#define SGRPROJ_BORDER_VERT 3                // Vertical border used for Sgr
+#define SGRPROJ_BORDER_HORZ 3                // Horizontal border used for Sgr
 
-#define WIENER_BORDER_VERT 2  // Vertical border used for Wiener
+#define WIENER_BORDER_VERT 2                 // Vertical border used for Wiener
 #define WIENER_HALFWIN 3
 #define WIENER_BORDER_HORZ (WIENER_HALFWIN)  // Horizontal border for Wiener
 

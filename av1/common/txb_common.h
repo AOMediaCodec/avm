@@ -298,9 +298,9 @@ static AOM_FORCE_INLINE int get_sign_skip(const int8_t *const signs,
                                           const uint8_t *const levels,
                                           const int bwl) {
   int signc = 0;
-  if (levels[1]) signc += signs[1];  // { 0, +1 }
+  if (levels[1]) signc += signs[1];                // { 0, +1 }
   if (levels[(1 << bwl) + TX_PAD_LEFT])
-    signc += signs[(1 << bwl) + TX_PAD_LEFT];  // { +1, 0 }
+    signc += signs[(1 << bwl) + TX_PAD_LEFT];      // { +1, 0 }
   if (levels[(1 << bwl) + TX_PAD_LEFT + 1])
     signc += signs[(1 << bwl) + TX_PAD_LEFT + 1];  // { +1, +1 }
   if (signc > 2) return 5;
@@ -329,8 +329,8 @@ static AOM_FORCE_INLINE int get_nz_mag_lf(const uint8_t *const levels,
                                           const TX_CLASS tx_class) {
   int mag;
   // Note: AOMMIN(level, 5) is useless for decoder since level < 5.
-  mag = clip_max5[levels[1]];                         // { 0, 1 }
-  mag += clip_max5[levels[(1 << bwl) + TX_PAD_HOR]];  // { 1, 0 }
+  mag = clip_max5[levels[1]];                                       // { 0, 1 }
+  mag += clip_max5[levels[(1 << bwl) + TX_PAD_HOR]];                // { 1, 0 }
   if (tx_class == TX_CLASS_2D) {
     mag += clip_max5[levels[(1 << bwl) + TX_PAD_HOR + 1]];          // { 1, 1 }
     mag += clip_max5[levels[2]];                                    // { 0, 2 }
@@ -340,9 +340,9 @@ static AOM_FORCE_INLINE int get_nz_mag_lf(const uint8_t *const levels,
     mag += clip_max3[levels[(3 << bwl) + (3 << TX_PAD_HOR_LOG2)]];  // { 3, 0 }
     mag += clip_max3[levels[(4 << bwl) + (4 << TX_PAD_HOR_LOG2)]];  // { 4, 0 }
   } else {
-    mag += clip_max3[levels[2]];  // { 0, 2 }
-    mag += clip_max3[levels[3]];  // { 0, 3 }
-    mag += clip_max3[levels[4]];  // { 0, 4 }
+    mag += clip_max3[levels[2]];                                    // { 0, 2 }
+    mag += clip_max3[levels[3]];                                    // { 0, 3 }
+    mag += clip_max3[levels[4]];                                    // { 0, 4 }
   }
   return mag;
 }
@@ -367,9 +367,9 @@ static AOM_FORCE_INLINE int get_nz_mag(const uint8_t *const levels,
     mag += clip_max3[levels[(3 << bwl) + (3 << TX_PAD_HOR_LOG2)]];  // { 3, 0 }
     mag += clip_max3[levels[(4 << bwl) + (4 << TX_PAD_HOR_LOG2)]];  // { 4, 0 }
   } else {
-    mag += clip_max3[levels[2]];  // { 0, 2 }
-    mag += clip_max3[levels[3]];  // { 0, 3 }
-    mag += clip_max3[levels[4]];  // { 0, 4 }
+    mag += clip_max3[levels[2]];                                    // { 0, 2 }
+    mag += clip_max3[levels[3]];                                    // { 0, 3 }
+    mag += clip_max3[levels[4]];                                    // { 0, 4 }
   }
 
   return mag;

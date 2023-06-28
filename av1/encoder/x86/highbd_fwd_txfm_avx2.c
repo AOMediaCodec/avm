@@ -348,10 +348,10 @@ static void fdct8_avx2(__m256i *in, __m256i *out, const int8_t bit,
     v[0] = _mm256_add_epi32(v[0], rnding);
     out[3 * outstride + col] = _mm256_srai_epi32(v[0], bit);  // buf0[6]
 
-    out[0 * outstride + col] = u[0];  // buf0[0]
-    out[4 * outstride + col] = u[1];  // buf0[1]
-    out[2 * outstride + col] = u[2];  // buf0[2]
-    out[6 * outstride + col] = u[3];  // buf0[3]
+    out[0 * outstride + col] = u[0];                          // buf0[0]
+    out[4 * outstride + col] = u[1];                          // buf0[1]
+    out[2 * outstride + col] = u[2];                          // buf0[2]
+    out[6 * outstride + col] = u[3];                          // buf0[3]
   }
 }
 static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,

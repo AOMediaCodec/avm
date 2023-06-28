@@ -38,17 +38,17 @@ struct NN_CONFIG {
 #if CONFIG_NN_V2
 // Fully-connectedly layer configuration
 struct FC_LAYER {
-  const int num_inputs;   // Number of input nodes, i.e. features.
-  const int num_outputs;  // Number of output nodes.
+  const int num_inputs;         // Number of input nodes, i.e. features.
+  const int num_outputs;        // Number of output nodes.
 
   float *weights;               // Weight parameters.
   float *bias;                  // Bias parameters.
   const ACTIVATION activation;  // Activation function.
 
-  float *output;  // The output array.
-  float *dY;      // Gradient of outputs
-  float *dW;      // Gradient of weights.
-  float *db;      // Gradient of bias
+  float *output;                // The output array.
+  float *dY;                    // Gradient of outputs
+  float *dW;                    // Gradient of weights.
+  float *db;                    // Gradient of bias
 };
 
 // NN configure structure V2

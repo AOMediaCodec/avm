@@ -355,7 +355,7 @@ int main(int argc, char **argv) {
   cfg.g_error_resilient = 0;  // This is required.
   cfg.g_lag_in_frames = 0;    // need to set this since default is 19.
   cfg.kf_mode = AOM_KF_DISABLED;
-  cfg.large_scale_tile = 0;  // Only set it to 1 for camera frame encoding.
+  cfg.large_scale_tile = 0;   // Only set it to 1 for camera frame encoding.
   cfg.g_bit_depth = AOM_BITS_8;
 
   if (!(infile = fopen(infile_arg, "rb")))

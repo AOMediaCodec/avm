@@ -194,7 +194,7 @@ typedef struct RstUnitStats {
   int ru_idx_in_tile;  // debug.
   int plane;           // debug.
 } RstUnitStats;
-#endif  // CONFIG_WIENER_NONSEP
+#endif                 // CONFIG_WIENER_NONSEP
 
 #if CONFIG_LR_MERGE_COEFFS
 typedef struct RstUnitSnapshot {

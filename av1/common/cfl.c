@@ -230,7 +230,8 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         } else if (filter_type == 2) {
 #if CONFIG_CFL_IMPROVEMENTS
           const int bot_pre = i - input_stride;
-          output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] + input[i + 1] + input[bot_pre] + input[bot];
+          output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] +
+                              input[i + 1] + input[bot_pre] + input[bot];
 #else
           output_q3[i >> 1] = input[i] * 8;
 #endif  // CONFIG_CFL_IMPROVEMENTS
@@ -293,7 +294,8 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         } else if (filter_type == 2) {
 #if CONFIG_CFL_IMPROVEMENTS
           const int bot_pre = (j == 0) ? 0 : (0 - input_stride);
-          output_q3[j >> 1] = input[-1] + 4 * input[0] + input[1] + input[bot_pre] + input[bot];
+          output_q3[j >> 1] =
+              input[-1] + 4 * input[0] + input[1] + input[bot_pre] + input[bot];
 #else
           output_q3[j >> 1] = input[0] * 8;
 #endif  // CONFIG_CFL_IMPROVEMENTS
@@ -622,7 +624,8 @@ void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
 #if CONFIG_CFL_IMPROVEMENTS
       const int bot = i + input_stride;
       const int bot_pre = (j == 0) ? i : (i - input_stride);
-      output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] + input[i + 1] + input[bot] + input[bot_pre];
+      output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] +
+                          input[i + 1] + input[bot] + input[bot_pre];
 #else
       output_q3[i >> 1] = input[i] * 8;
 #endif  // CONFIG_CFL_IMPROVEMENTS

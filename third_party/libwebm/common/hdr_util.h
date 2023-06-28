@@ -35,10 +35,8 @@ struct Vp9CodecFeatures {
   static const int kValueNotPresent;
 
   Vp9CodecFeatures()
-      : profile(kValueNotPresent),
-        level(kValueNotPresent),
-        bit_depth(kValueNotPresent),
-        chroma_subsampling(kValueNotPresent) {}
+      : profile(kValueNotPresent), level(kValueNotPresent),
+        bit_depth(kValueNotPresent), chroma_subsampling(kValueNotPresent) {}
   ~Vp9CodecFeatures() {}
 
   int profile;
@@ -49,22 +47,22 @@ struct Vp9CodecFeatures {
 
 typedef std::unique_ptr<mkvmuxer::PrimaryChromaticity> PrimaryChromaticityPtr;
 
-bool CopyPrimaryChromaticity(const mkvparser::PrimaryChromaticity& parser_pc,
-                             PrimaryChromaticityPtr* muxer_pc);
+bool CopyPrimaryChromaticity(const mkvparser::PrimaryChromaticity &parser_pc,
+                             PrimaryChromaticityPtr *muxer_pc);
 
 bool MasteringMetadataValuePresent(double value);
 
-bool CopyMasteringMetadata(const mkvparser::MasteringMetadata& parser_mm,
-                           mkvmuxer::MasteringMetadata* muxer_mm);
+bool CopyMasteringMetadata(const mkvparser::MasteringMetadata &parser_mm,
+                           mkvmuxer::MasteringMetadata *muxer_mm);
 
 bool ColourValuePresent(long long value);
 
-bool CopyColour(const mkvparser::Colour& parser_colour,
-                mkvmuxer::Colour* muxer_colour);
+bool CopyColour(const mkvparser::Colour &parser_colour,
+                mkvmuxer::Colour *muxer_colour);
 
 // Returns true if |features| is set to one or more valid values.
-bool ParseVpxCodecPrivate(const uint8_t* private_data, int32_t length,
-                          Vp9CodecFeatures* features);
+bool ParseVpxCodecPrivate(const uint8_t *private_data, int32_t length,
+                          Vp9CodecFeatures *features);
 
 }  // namespace libwebm
 

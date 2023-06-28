@@ -144,11 +144,11 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
                                     WARPEDDIFF_PREC_BITS]);  // A7A6A5A4A3A2A1A0
           __m256i v_c01 = _mm256_broadcastd_epi32(v_01);     // A1A0A1A0A1A0A1A0
           __m256i v_c23 = _mm256_broadcastd_epi32(
-              _mm_shuffle_epi32(v_01, 1));  // A3A2A3A2A3A2A3A2
+              _mm_shuffle_epi32(v_01, 1));                   // A3A2A3A2A3A2A3A2
           __m256i v_c45 = _mm256_broadcastd_epi32(
-              _mm_shuffle_epi32(v_01, 2));  // A5A4A5A4A5A4A5A4
+              _mm_shuffle_epi32(v_01, 2));                   // A5A4A5A4A5A4A5A4
           __m256i v_c67 = _mm256_broadcastd_epi32(
-              _mm_shuffle_epi32(v_01, 3));  // A7A6A7A6A7A6A7A6
+              _mm_shuffle_epi32(v_01, 3));                   // A7A6A7A6A7A6A7A6
           for (int k = -7; k < AOMMIN(8, p_height - i); ++k) {
             int iy = iy4 + k;
             if (iy < 0)
@@ -211,11 +211,11 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
                     [sx >> WARPEDDIFF_PREC_BITS]);          // A7A6A5A4A3A2A1A0
             __m256i v_c01 = _mm256_broadcastd_epi32(v_01);  // A1A0A1A0A1A0A1A0
             __m256i v_c23 = _mm256_broadcastd_epi32(
-                _mm_shuffle_epi32(v_01, 1));  // A3A2A3A2A3A2A3A2
+                _mm_shuffle_epi32(v_01, 1));                // A3A2A3A2A3A2A3A2
             __m256i v_c45 = _mm256_broadcastd_epi32(
-                _mm_shuffle_epi32(v_01, 2));  // A5A4A5A4A5A4A5A4
+                _mm_shuffle_epi32(v_01, 2));                // A5A4A5A4A5A4A5A4
             __m256i v_c67 = _mm256_broadcastd_epi32(
-                _mm_shuffle_epi32(v_01, 3));  // A7A6A7A6A7A6A7A6
+                _mm_shuffle_epi32(v_01, 3));                // A7A6A7A6A7A6A7A6
 
             __m256i v_refl = _mm256_inserti128_si256(
                 _mm256_set1_epi16(0),
@@ -318,7 +318,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
           __m256i v_c01 = _mm256_unpacklo_epi64(
               v_c0123, v_c4567);  // H1H0F1F0D1D0B1B0G1G0E1E0C1C0A1A0
           __m256i v_c23 =
-              _mm256_unpackhi_epi64(v_c0123, v_c4567);  // H3H2 ... A3A2
+              _mm256_unpackhi_epi64(v_c0123, v_c4567);    // H3H2 ... A3A2
           __m256i v_c45 =
               _mm256_unpacklo_epi64(v_c0123u, v_c4567u);  // H5H4 ... A5A4
           __m256i v_c67 =
@@ -447,7 +447,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
             __m256i v_c01 = _mm256_unpacklo_epi64(
                 v_c0123, v_c4567);  // H1H0F1F0D1D0B1B0G1G0E1E0C1C0A1A0
             __m256i v_c23 =
-                _mm256_unpackhi_epi64(v_c0123, v_c4567);  // H3H2 ... A3A2
+                _mm256_unpackhi_epi64(v_c0123, v_c4567);    // H3H2 ... A3A2
             __m256i v_c45 =
                 _mm256_unpacklo_epi64(v_c0123u, v_c4567u);  // H5H4 ... A5A4
             __m256i v_c67 =
@@ -554,7 +554,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         __m256i v_c01 = _mm256_unpacklo_epi64(
             v_c0123, v_c4567);  // H1H0F1F0D1D0B1B0G1G0E1E0C1C0A1A0
         __m256i v_c23 =
-            _mm256_unpackhi_epi64(v_c0123, v_c4567);  // H3H2 ... A3A2
+            _mm256_unpackhi_epi64(v_c0123, v_c4567);    // H3H2 ... A3A2
         __m256i v_c45 =
             _mm256_unpacklo_epi64(v_c0123u, v_c4567u);  // H5H4 ... A5A4
         __m256i v_c67 =
@@ -589,7 +589,7 @@ void av1_highbd_warp_affine_avx2(const int32_t *mat, const uint16_t *ref,
         // unpack S7S5S3S1S6S4S2S0 to S7S6S5S4S3S2S1S0
 
         __m256i v_suml =
-            _mm256_permute4x64_epi64(v_sum, 0xD8);  // S7S5S6S4S3S1S2S0
+            _mm256_permute4x64_epi64(v_sum, 0xD8);      // S7S5S6S4S3S1S2S0
         __m256i v_sumh =
             _mm256_permute4x64_epi64(v_sum, 0x32);      // S2S0S7S5S2S0S3S1
         v_sum = _mm256_unpacklo_epi32(v_suml, v_sumh);  // S7S6S5S4S3S2S1S0

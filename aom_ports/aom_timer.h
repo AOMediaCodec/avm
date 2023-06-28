@@ -107,6 +107,6 @@ static INLINE int aom_usec_timer_elapsed(struct aom_usec_timer *t) {
   return 0;
 }
 
-#endif /* CONFIG_OS_SUPPORT */
+#endif  /* CONFIG_OS_SUPPORT */
 
 #endif  // AOM_AOM_PORTS_AOM_TIMER_H_

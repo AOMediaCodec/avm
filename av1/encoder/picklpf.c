@@ -282,7 +282,7 @@ static int search_filter_offsets(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     start_bits = 0;  // To not bias the first dual search, assumed that dir == 1
                      // will be run later.
     best_bits = 0;
-  } else {               // dir == 1
+  } else {           // dir == 1
     int vert_q_ind = 0;  // offset for the vert dir
     int vert_offset = last_frame_offsets[vert_q_ind + off_ind];
     int vert_bits = vert_offset ? DF_PAR_BITS : 0;
@@ -367,7 +367,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     int last_frame_offsets[6] = { 0, 0, 0, 0, 0, 0 };
 #endif  // DF_DUAL
 
-    //    double best_cost[3] = { DBL_MAX, DBL_MAX, DBL_MAX };
+        //    double best_cost[3] = { DBL_MAX, DBL_MAX, DBL_MAX };
 
 #if DF_DUAL
     int dir = 0;

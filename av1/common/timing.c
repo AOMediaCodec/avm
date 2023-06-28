@@ -19,7 +19,7 @@
 #define UNDEFINED_RATE \
   (1 << 21)  // Placeholder rate for levels with undefined rate
 #define INVALID_RATE \
-  (0)  // For invalid profile-level configuration, set rate to 0
+  (0)        // For invalid profile-level configuration, set rate to 0
 
 /* Max Bitrates for levels of Main Tier in kbps. Bitrate in main_kbps [31] */
 /* is a dummy value. The decoder model is not applicable for level 31. */
@@ -84,10 +84,10 @@ void av1_set_resource_availability_parameters(
     aom_dec_model_op_parameters_t *op_params) {
   op_params->decoder_model_param_present_flag = 0;
   op_params->decoder_buffer_delay =
-      70000;  // Resource availability mode default
+      70000;                             // Resource availability mode default
   op_params->encoder_buffer_delay =
-      20000;                           // Resource availability mode default
-  op_params->low_delay_mode_flag = 0;  // Resource availability mode default
+      20000;                             // Resource availability mode default
+  op_params->low_delay_mode_flag = 0;    // Resource availability mode default
   op_params->display_model_param_present_flag = 1;
   op_params->initial_display_delay = 8;  // 8 frames delay
 }

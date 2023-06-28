@@ -292,9 +292,9 @@ struct aom_codec_iface {
   aom_codec_destroy_fn_t destroy;     /**< \copydoc ::aom_codec_destroy_fn_t */
   aom_codec_ctrl_fn_map_t *ctrl_maps; /**< \copydoc ::aom_codec_ctrl_fn_map_t */
   struct aom_codec_dec_iface {
-    aom_codec_peek_si_fn_t peek_si; /**< \copydoc ::aom_codec_peek_si_fn_t */
-    aom_codec_get_si_fn_t get_si;   /**< \copydoc ::aom_codec_get_si_fn_t */
-    aom_codec_decode_fn_t decode;   /**< \copydoc ::aom_codec_decode_fn_t */
+    aom_codec_peek_si_fn_t peek_si;   /**< \copydoc ::aom_codec_peek_si_fn_t */
+    aom_codec_get_si_fn_t get_si;     /**< \copydoc ::aom_codec_get_si_fn_t */
+    aom_codec_decode_fn_t decode;     /**< \copydoc ::aom_codec_decode_fn_t */
     aom_codec_get_frame_fn_t
         get_frame;                   /**< \copydoc ::aom_codec_get_frame_fn_t */
     aom_codec_set_fb_fn_t set_fb_fn; /**< \copydoc ::aom_codec_set_fb_fn_t */
@@ -304,13 +304,13 @@ struct aom_codec_iface {
     const aom_codec_enc_cfg_t *cfgs; /**< \copydoc ::aom_codec_enc_cfg_t */
     aom_codec_encode_fn_t encode;    /**< \copydoc ::aom_codec_encode_fn_t */
     aom_codec_get_cx_data_fn_t
-        get_cx_data; /**< \copydoc ::aom_codec_get_cx_data_fn_t */
+        get_cx_data;   /**< \copydoc ::aom_codec_get_cx_data_fn_t */
     aom_codec_enc_config_set_fn_t
-        cfg_set; /**< \copydoc ::aom_codec_enc_config_set_fn_t */
+        cfg_set;       /**< \copydoc ::aom_codec_enc_config_set_fn_t */
     aom_codec_get_global_headers_fn_t
         get_glob_hdrs; /**< \copydoc ::aom_codec_get_global_headers_fn_t */
     aom_codec_get_preview_frame_fn_t
-        get_preview; /**< \copydoc ::aom_codec_get_preview_frame_fn_t */
+        get_preview;   /**< \copydoc ::aom_codec_get_preview_frame_fn_t */
   } enc;
   aom_codec_set_option_fn_t set_option;
 };

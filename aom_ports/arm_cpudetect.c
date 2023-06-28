@@ -84,7 +84,7 @@ int aom_arm_cpu_caps(void) {
       /*Ignore exception.*/
     }
   }
-#endif /* HAVE_NEON */
+#endif                     /* HAVE_NEON */
   return flags & mask;
 }
 
@@ -103,7 +103,7 @@ int aom_arm_cpu_caps(void) {
 
 #if HAVE_NEON
   if (features & ANDROID_CPU_ARM_FEATURE_NEON) flags |= HAS_NEON;
-#endif /* HAVE_NEON */
+#endif                   /* HAVE_NEON */
   return flags & mask;
 }
 

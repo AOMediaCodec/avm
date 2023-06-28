@@ -800,7 +800,7 @@ static const aom_cdf_prob
       { AOM_CDF2(9068) },   // Not used
       { AOM_CDF2(10923) },  // Not used
     };
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif                      // CONFIG_EXT_RECUR_PARTITIONS
 
 static const aom_cdf_prob default_intra_ext_tx_cdf
     [EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES][CDF_SIZE(TX_TYPES)] = {
@@ -1182,13 +1182,13 @@ static const aom_cdf_prob default_cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)] = {
 #if CONFIG_CFL_IMPROVEMENTS
 static const aom_cdf_prob
     default_cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)] = {
-      { AOM_CDF8(7650,	20740,	31430,	32520,	32700,	32730,	32740) },
-      { AOM_CDF8(14400,	23680,	28230,	31270,	32290,	32530,	32640) },
-      { AOM_CDF8(11560,	22430,	28510,	31430,	32430,	32610,	32680) },
-      { AOM_CDF8(27000,	31430,	32310,	32610,	32730,	32740,	32750) },
-      { AOM_CDF8(17320,	26210,	29100,	30820,	31550,	32150, 32430) },  
-      { AOM_CDF8(14990,	22180,	26430,	28600,	29820,	31200,	31980) }  
-  };
+      { AOM_CDF8(7650, 20740, 31430, 32520, 32700, 32730, 32740) },
+      { AOM_CDF8(14400, 23680, 28230, 31270, 32290, 32530, 32640) },
+      { AOM_CDF8(11560, 22430, 28510, 31430, 32430, 32610, 32680) },
+      { AOM_CDF8(27000, 31430, 32310, 32610, 32730, 32740, 32750) },
+      { AOM_CDF8(17320, 26210, 29100, 30820, 31550, 32150, 32430) },
+      { AOM_CDF8(14990, 22180, 26430, 28600, 29820, 31200, 31980) }
+    };
 #else
 static const aom_cdf_prob
     default_cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)] = {

@@ -943,9 +943,9 @@ typedef struct {
   int8_t pyr_level;
   int8_t num_references;  // value of -1 indicates unspecified references
   int8_t references[INTER_REFS_PER_FRAME];
-  int8_t refresh;  // value of -1 indicates unspecified refresh
-                   // value of 0 indicates force no refresh
-                   // positive value indicates refresh level
+  int8_t refresh;         // value of -1 indicates unspecified refresh
+                          // value of 0 indicates force no refresh
+                          // positive value indicates refresh level
 } SubGOPStepCfg;
 
 typedef struct {

@@ -1112,7 +1112,7 @@ int determine_high_err_gf(double *errs, int *is_high, double *si, int len,
 #if GROUP_ADAPTIVE_MAXQ
 #define RC_FACTOR_MIN 0.75
 #define RC_FACTOR_MAX 1.25
-#endif  // GROUP_ADAPTIVE_MAXQ
+#endif                        // GROUP_ADAPTIVE_MAXQ
 #define MIN_FWD_KF_INTERVAL 8
 #define MIN_SHRINK_LEN 6      // the minimum length of gf if we are shrinking
 #define SI_HIGH AVG_SI_THRES  // high quality classification
@@ -2109,7 +2109,7 @@ static int test_candidate_kf(TWO_PASS *twopass,
 #define FRAMES_TO_CHECK_DECAY 8
 #define KF_MIN_FRAME_BOOST 80.0
 #define KF_MAX_FRAME_BOOST 128.0
-#define MIN_KF_BOOST 600  // Minimum boost for non-static KF interval
+#define MIN_KF_BOOST 600          // Minimum boost for non-static KF interval
 #define MAX_KF_BOOST 3200
 #define MIN_STATIC_KF_BOOST 5400  // Minimum boost for static KF interval
 

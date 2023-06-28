@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
- * This source code is subject to the terms of the BSD 3-Clause Clear License and the
- * Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear License was
- * not distributed with this source code in the LICENSE file, you can obtain it
- * at aomedia.org/license/software-license/bsd-3-c-c/.  If the Alliance for Open Media Patent
- * License 1.0 was not distributed with this source code in the PATENTS file, you
- * can obtain it at aomedia.org/license/patent-license/.
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
  */
 
 // Common definitions for video, including fourcc and VideoFormat.
@@ -29,13 +30,13 @@ extern "C" {
 // Needs to be a macro otherwise the OS X compiler complains when the kFormat*
 // constants are used in a switch.
 #ifdef __cplusplus
-#define FOURCC(a, b, c, d) ( \
-    (static_cast<uint32>(a)) | (static_cast<uint32>(b) << 8) | \
-    (static_cast<uint32>(c) << 16) | (static_cast<uint32>(d) << 24))
+#define FOURCC(a, b, c, d)                                    \
+  ((static_cast<uint32>(a)) | (static_cast<uint32>(b) << 8) | \
+   (static_cast<uint32>(c) << 16) | (static_cast<uint32>(d) << 24))
 #else
-#define FOURCC(a, b, c, d) ( \
-    ((uint32)(a)) | ((uint32)(b) << 8) | /* NOLINT */ \
-    ((uint32)(c) << 16) | ((uint32)(d) << 24))  /* NOLINT */
+#define FOURCC(a, b, c, d)                                 \
+  (((uint32)(a)) | ((uint32)(b) << 8) |       /* NOLINT */ \
+   ((uint32)(c) << 16) | ((uint32)(d) << 24)) /* NOLINT */
 #endif
 
 // Some pages discussing FourCC codes:
@@ -63,14 +64,14 @@ enum FourCC {
 
   // 2 Secondary YUV formats: row biplanar.
   FOURCC_M420 = FOURCC('M', '4', '2', '0'),
-  FOURCC_Q420 = FOURCC('Q', '4', '2', '0'), // deprecated.
+  FOURCC_Q420 = FOURCC('Q', '4', '2', '0'),  // deprecated.
 
   // 9 Primary RGB formats: 4 32 bpp, 2 24 bpp, 3 16 bpp.
   FOURCC_ARGB = FOURCC('A', 'R', 'G', 'B'),
   FOURCC_BGRA = FOURCC('B', 'G', 'R', 'A'),
   FOURCC_ABGR = FOURCC('A', 'B', 'G', 'R'),
   FOURCC_24BG = FOURCC('2', '4', 'B', 'G'),
-  FOURCC_RAW  = FOURCC('r', 'a', 'w', ' '),
+  FOURCC_RAW = FOURCC('r', 'a', 'w', ' '),
   FOURCC_RGBA = FOURCC('R', 'G', 'B', 'A'),
   FOURCC_RGBP = FOURCC('R', 'G', 'B', 'P'),  // rgb565 LE.
   FOURCC_RGBO = FOURCC('R', 'G', 'B', 'O'),  // argb1555 LE.
@@ -137,7 +138,7 @@ enum FourCCBpp {
   FOURCC_BPP_ABGR = 32,
   FOURCC_BPP_RGBA = 32,
   FOURCC_BPP_24BG = 24,
-  FOURCC_BPP_RAW  = 24,
+  FOURCC_BPP_RAW = 24,
   FOURCC_BPP_RGBP = 16,
   FOURCC_BPP_RGBO = 16,
   FOURCC_BPP_R444 = 16,
@@ -169,7 +170,7 @@ enum FourCCBpp {
   FOURCC_BPP_CM24 = 24,
 
   // Match any fourcc.
-  FOURCC_BPP_ANY  = 0,  // 0 means unknown.
+  FOURCC_BPP_ANY = 0,  // 0 means unknown.
 };
 
 // Converts fourcc aliases into canonical ones.

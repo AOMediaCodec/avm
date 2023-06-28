@@ -117,10 +117,10 @@ typedef struct {
   DECODER_MODEL_MODE mode;
   bool is_low_delay_mode;
   AV1_LEVEL level;
-  int encoder_buffer_delay;  // In units of 1/90000 seconds.
-  int decoder_buffer_delay;  // In units of 1/90000 seconds.
+  int encoder_buffer_delay;           // In units of 1/90000 seconds.
+  int decoder_buffer_delay;           // In units of 1/90000 seconds.
   int num_ticks_per_picture;
-  int initial_display_delay;  // In units of frames.
+  int initial_display_delay;          // In units of frames.
   int64_t decode_rate;
   double display_clock_tick;          // In units of seconds.
   double current_time;                // In units of seconds.

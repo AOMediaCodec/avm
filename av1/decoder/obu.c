@@ -711,18 +711,18 @@ static void read_metadata_scalability(struct aom_read_bit_buffer *rb) {
 }
 
 static void read_metadata_timecode(struct aom_read_bit_buffer *rb) {
-  aom_rb_read_literal(rb, 5);  // counting_type f(5)
+  aom_rb_read_literal(rb, 5);                        // counting_type f(5)
   const int full_timestamp_flag =
-      aom_rb_read_bit(rb);     // full_timestamp_flag f(1)
-  aom_rb_read_bit(rb);         // discontinuity_flag (f1)
-  aom_rb_read_bit(rb);         // cnt_dropped_flag f(1)
-  aom_rb_read_literal(rb, 9);  // n_frames f(9)
+      aom_rb_read_bit(rb);                           // full_timestamp_flag f(1)
+  aom_rb_read_bit(rb);                               // discontinuity_flag (f1)
+  aom_rb_read_bit(rb);                               // cnt_dropped_flag f(1)
+  aom_rb_read_literal(rb, 9);                        // n_frames f(9)
   if (full_timestamp_flag) {
-    aom_rb_read_literal(rb, 6);  // seconds_value f(6)
-    aom_rb_read_literal(rb, 6);  // minutes_value f(6)
-    aom_rb_read_literal(rb, 5);  // hours_value f(5)
+    aom_rb_read_literal(rb, 6);                      // seconds_value f(6)
+    aom_rb_read_literal(rb, 6);                      // minutes_value f(6)
+    aom_rb_read_literal(rb, 5);                      // hours_value f(5)
   } else {
-    const int seconds_flag = aom_rb_read_bit(rb);  // seconds_flag f(1)
+    const int seconds_flag = aom_rb_read_bit(rb);    // seconds_flag f(1)
     if (seconds_flag) {
       aom_rb_read_literal(rb, 6);                    // seconds_value f(6)
       const int minutes_flag = aom_rb_read_bit(rb);  // minutes_flag f(1)
@@ -730,7 +730,7 @@ static void read_metadata_timecode(struct aom_read_bit_buffer *rb) {
         aom_rb_read_literal(rb, 6);                  // minutes_value f(6)
         const int hours_flag = aom_rb_read_bit(rb);  // hours_flag f(1)
         if (hours_flag) {
-          aom_rb_read_literal(rb, 5);  // hours_value f(5)
+          aom_rb_read_literal(rb, 5);                // hours_value f(5)
         }
       }
     }

@@ -1666,7 +1666,7 @@ static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
 }
 #if CONFIG_CFL_IMPROVEMENTS
 static int64_t compute_sad(const uint16_t *src, uint16_t *src2, int width,
-                       int height, int round_offset, int src2_stride) {
+                           int height, int round_offset, int src2_stride) {
 #else
 static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
                        int height, int round_offset, int src2_stride) {
@@ -1681,7 +1681,7 @@ static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
   }
 #if CONFIG_CFL_IMPROVEMENTS
   return (sad);
-#else 
+#else
   return (sad / (height * width));
 #endif  // CONFIG_CFL_IMPROVEMENTS
 }
@@ -1769,7 +1769,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
 #if CONFIG_CFL_IMPROVEMENTS
   int64_t cost[3] = { 0, 0, 0 };
-#else  
+#else
   int cost[3] = { 0, 0, 0 };
 #endif  // CONFIG_CFL_IMPROVEMENTS
   for (int filter_type = 0; filter_type < 3; ++filter_type) {
@@ -1807,8 +1807,9 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
                                        alpha, bd, blk_w >> 1, blk_h >> 1);
 #if CONFIG_CFL_IMPROVEMENTS
-          int64_t filter_cost = compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1,
-                                        blk_h >> 1, 2, chroma_stride);
+          int64_t filter_cost =
+              compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
+                          chroma_stride);
 #else
           int filter_cost = compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1,
                                         blk_h >> 1, 2, chroma_stride);
@@ -1819,7 +1820,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
     }
   }
 #if CONFIG_CFL_IMPROVEMENTS
-  int64_t min_cost =  9223372036854775807;
+  int64_t min_cost = 9223372036854775807;
 #else
   int min_cost = INT_MAX;
 #endif  // CONFIG_CFL_IMPROVEMENTS

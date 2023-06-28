@@ -452,7 +452,9 @@ int aom_vector_shrink_to_fit(Vector *vector) {
 }
 
 /* Iterators */
-Iterator aom_vector_begin(Vector *vector) { return aom_vector_iterator(vector, 0); }
+Iterator aom_vector_begin(Vector *vector) {
+  return aom_vector_iterator(vector, 0);
+}
 
 Iterator aom_vector_end(Vector *vector) {
   return aom_vector_iterator(vector, vector->size);

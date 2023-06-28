@@ -2143,7 +2143,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
       ext_tx_used_flag &=
           (1 << DCT_DCT) | (1 << ADST_ADST);  // DCT_DCT, ADST_ADST
     }
-#endif  // CONFIG_ATC_REDUCED_TXSET
+#endif                                        // CONFIG_ATC_REDUCED_TXSET
   }
 #if CONFIG_ATC_REDUCED_TXSET
   else {

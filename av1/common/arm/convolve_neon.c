@@ -427,14 +427,14 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
     const int16x4_t shift_round_0_low = vget_low_s16(shift_round_0);
     const int16x4_t shift_by_bits_low = vget_low_s16(shift_by_bits);
     do {
-      t0 = vld1_u8(src);  // a0 a1 a2 a3 a4 a5 a6 a7
+      t0 = vld1_u8(src);         // a0 a1 a2 a3 a4 a5 a6 a7
       tt0 = vreinterpretq_s16_u16(vmovl_u8(t0));
-      x0 = vget_low_s16(tt0);   // a0 a1 a2 a3
-      x4 = vget_high_s16(tt0);  // a4 a5 a6 a7
+      x0 = vget_low_s16(tt0);    // a0 a1 a2 a3
+      x4 = vget_high_s16(tt0);   // a4 a5 a6 a7
 
-      t0 = vld1_u8(src + 8);  // a8 a9 a10 a11 a12 a13 a14 a15
+      t0 = vld1_u8(src + 8);     // a8 a9 a10 a11 a12 a13 a14 a15
       tt0 = vreinterpretq_s16_u16(vmovl_u8(t0));
-      x7 = vget_low_s16(tt0);  // a8 a9 a10 a11
+      x7 = vget_low_s16(tt0);    // a8 a9 a10 a11
 
       x1 = vext_s16(x0, x4, 1);  // a1 a2 a3 a4
       x2 = vext_s16(x0, x4, 2);  // a2 a3 a4 a5

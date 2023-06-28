@@ -89,10 +89,10 @@ typedef enum aom_transfer_characteristics {
   AOM_CICP_TC_LINEAR = 8,      /**< Linear */
   AOM_CICP_TC_LOG_100 = 9,     /**< Logarithmic (100 : 1 range) */
   AOM_CICP_TC_LOG_100_SQRT10 =
-      10,                     /**< Logarithmic (100 * Sqrt(10) : 1 range) */
-  AOM_CICP_TC_IEC_61966 = 11, /**< IEC 61966-2-4 */
-  AOM_CICP_TC_BT_1361 = 12,   /**< BT.1361 */
-  AOM_CICP_TC_SRGB = 13,      /**< sRGB or sYCC*/
+      10,                      /**< Logarithmic (100 * Sqrt(10) : 1 range) */
+  AOM_CICP_TC_IEC_61966 = 11,  /**< IEC 61966-2-4 */
+  AOM_CICP_TC_BT_1361 = 12,    /**< BT.1361 */
+  AOM_CICP_TC_SRGB = 13,       /**< sRGB or sYCC*/
   AOM_CICP_TC_BT_2020_10_BIT = 14, /**< BT.2020 10-bit systems */
   AOM_CICP_TC_BT_2020_12_BIT = 15, /**< BT.2020 12-bit systems */
   AOM_CICP_TC_SMPTE_2084 = 16,     /**< SMPTE ST 2084, ITU BT.2100 PQ */
@@ -204,10 +204,10 @@ typedef struct aom_image {
   int stride[3];            /**< stride between rows for each plane */
   size_t sz;                /**< data size */
 
-  int bps; /**< bits per sample (for packed formats) */
+  int bps;                  /**< bits per sample (for packed formats) */
 
-  int temporal_id; /**< Temporal layer Id of image */
-  int spatial_id;  /**< Spatial layer Id of image */
+  int temporal_id;          /**< Temporal layer Id of image */
+  int spatial_id;           /**< Spatial layer Id of image */
 
   /*!\brief The following member may be set by the application to associate
    * data with this image.

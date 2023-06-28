@@ -1711,7 +1711,7 @@ void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
   uint8_t heightThreshold = (mode == V_PRED) ? 0 : AOMMIN((bh >> 2), 4);
 
   memcpy(&ref_samples_sb_row[0], &above[-1],
-         num_top_ref * sizeof(uint16_t));  // copy top reference
+         num_top_ref * sizeof(uint16_t));   // copy top reference
   memcpy(&ref_samples_sb_row[num_top_ref], &left[0],
          num_left_ref * sizeof(uint16_t));  // copy left reference
 
@@ -1721,7 +1721,7 @@ void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
     memcpy(&ref_samples_sb_col[1], &dst[3 * stride],
            (num_top_ref - 1) * sizeof(uint16_t));  // copy top reference
     memcpy(&ref_samples_sb_col[5], &left[4],
-           num_left_ref * sizeof(uint16_t));  // copy left reference
+           num_left_ref * sizeof(uint16_t));       // copy left reference
   }
 
   // loop to process first row of sub-blocks
@@ -1765,7 +1765,7 @@ void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
       memcpy(&ref_samples_sb_col[5], &left[r_sb],
              (num_top_ref - 1) * sizeof(uint16_t));  // copy left reference
       memcpy(&top_ref_tmp_for_next_sb[0], &dst[(r_sb + 3) * stride],
-             num_left_ref * sizeof(uint16_t));  // copy top reference
+             num_left_ref * sizeof(uint16_t));       // copy top reference
 
       for (int k = 0; k < 16; ++k) {
         int r_pos = r_sb + (k >> 2);

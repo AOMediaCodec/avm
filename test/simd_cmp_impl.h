@@ -471,7 +471,7 @@ typedef struct {
 } mapping;
 
 #define MAP(name) \
-  { #name, reinterpret_cast < fptr>(c_##name), reinterpret_cast < fptr>(name) }
+  { #name, reinterpret_cast<fptr>(c_##name), reinterpret_cast<fptr>(name) }
 
 const mapping m[] = { MAP(v64_sad_u8),
                       MAP(v64_ssd_u8),

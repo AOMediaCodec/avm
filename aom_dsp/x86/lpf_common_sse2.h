@@ -32,27 +32,27 @@ static INLINE void highbd_transpose6x6_sse2(__m128i *x0, __m128i *x1,
   // 40 41 42 43 44 45 xx xx
   // 50 51 52 53 54 55 xx xx
 
-  w0 = _mm_unpacklo_epi16(*x0, *x1);  // 00 10 01 11 02 12 03 13
-  w1 = _mm_unpacklo_epi16(*x2, *x3);  // 20 30 21 31 22 32 23 33
-  w2 = _mm_unpacklo_epi16(*x4, *x5);  // 40 50 41 51 42 52 43 53
+  w0 = _mm_unpacklo_epi16(*x0, *x1);                // 00 10 01 11 02 12 03 13
+  w1 = _mm_unpacklo_epi16(*x2, *x3);                // 20 30 21 31 22 32 23 33
+  w2 = _mm_unpacklo_epi16(*x4, *x5);                // 40 50 41 51 42 52 43 53
 
-  ww0 = _mm_unpacklo_epi32(w0, w1);   // 00 10 20 30 01 11 21 31
-  *d0 = _mm_unpacklo_epi64(ww0, w2);  // 00 10 20 30 40 50 41 51
+  ww0 = _mm_unpacklo_epi32(w0, w1);                 // 00 10 20 30 01 11 21 31
+  *d0 = _mm_unpacklo_epi64(ww0, w2);                // 00 10 20 30 40 50 41 51
   *d1 = _mm_unpackhi_epi64(ww0,
                            _mm_srli_si128(w2, 4));  // 01 11 21 31 41 51 xx xx
 
-  ww0 = _mm_unpackhi_epi32(w0, w1);  // 02 12 22 32 03 13 23 33
+  ww0 = _mm_unpackhi_epi32(w0, w1);                 // 02 12 22 32 03 13 23 33
   *d2 = _mm_unpacklo_epi64(ww0,
                            _mm_srli_si128(w2, 8));  // 02 12 22 32 42 52 xx xx
 
-  w3 = _mm_unpackhi_epi16(*x0, *x1);  // 04 14 05 15 xx xx xx xx
-  w4 = _mm_unpackhi_epi16(*x2, *x3);  // 24 34 25 35 xx xx xx xx
-  w5 = _mm_unpackhi_epi16(*x4, *x5);  // 44 54 45 55 xx xx xx xx
+  w3 = _mm_unpackhi_epi16(*x0, *x1);                // 04 14 05 15 xx xx xx xx
+  w4 = _mm_unpackhi_epi16(*x2, *x3);                // 24 34 25 35 xx xx xx xx
+  w5 = _mm_unpackhi_epi16(*x4, *x5);                // 44 54 45 55 xx xx xx xx
 
   *d3 = _mm_unpackhi_epi64(ww0, _mm_srli_si128(w2, 4));  // 03 13 23 33 43 53
 
-  ww0 = _mm_unpacklo_epi32(w3, w4);   //  04 14 24 34 05 15 25 35
-  *d4 = _mm_unpacklo_epi64(ww0, w5);  //  04 14 24 34 44 54 45 55
+  ww0 = _mm_unpacklo_epi32(w3, w4);                 //  04 14 24 34 05 15 25 35
+  *d4 = _mm_unpacklo_epi64(ww0, w5);                //  04 14 24 34 44 54 45 55
   *d5 = _mm_unpackhi_epi64(ww0,
                            _mm_slli_si128(w5, 4));  // 05 15 25 35 45 55 xx xx
 }
@@ -64,11 +64,11 @@ static INLINE void highbd_transpose4x8_8x4_low_sse2(__m128i *x0, __m128i *x1,
   __m128i zero = _mm_setzero_si128();
   __m128i w0, w1, ww0, ww1;
 
-  w0 = _mm_unpacklo_epi16(*x0, *x1);  // 00 10 01 11 02 12 03 13
-  w1 = _mm_unpacklo_epi16(*x2, *x3);  // 20 30 21 31 22 32 23 33
+  w0 = _mm_unpacklo_epi16(*x0, *x1);    // 00 10 01 11 02 12 03 13
+  w1 = _mm_unpacklo_epi16(*x2, *x3);    // 20 30 21 31 22 32 23 33
 
-  ww0 = _mm_unpacklo_epi32(w0, w1);  // 00 10 20 30 01 11 21 31
-  ww1 = _mm_unpackhi_epi32(w0, w1);  // 02 12 22 32 03 13 23 33
+  ww0 = _mm_unpacklo_epi32(w0, w1);     // 00 10 20 30 01 11 21 31
+  ww1 = _mm_unpackhi_epi32(w0, w1);     // 02 12 22 32 03 13 23 33
 
   *d0 = _mm_unpacklo_epi64(ww0, zero);  // 00 10 20 30 xx xx xx xx
   *d1 = _mm_unpackhi_epi64(ww0, zero);  // 01 11 21 31 xx xx xx xx
@@ -83,11 +83,11 @@ static INLINE void highbd_transpose4x8_8x4_high_sse2(__m128i *x0, __m128i *x1,
   __m128i w0, w1, ww2, ww3;
   __m128i zero = _mm_setzero_si128();
 
-  w0 = _mm_unpackhi_epi16(*x0, *x1);  // 04 14 05 15 06 16 07 17
-  w1 = _mm_unpackhi_epi16(*x2, *x3);  // 24 34 25 35 26 36 27 37
+  w0 = _mm_unpackhi_epi16(*x0, *x1);    // 04 14 05 15 06 16 07 17
+  w1 = _mm_unpackhi_epi16(*x2, *x3);    // 24 34 25 35 26 36 27 37
 
-  ww2 = _mm_unpacklo_epi32(w0, w1);  //  04 14 24 34 05 15 25 35
-  ww3 = _mm_unpackhi_epi32(w0, w1);  //  06 16 26 36 07 17 27 37
+  ww2 = _mm_unpacklo_epi32(w0, w1);     //  04 14 24 34 05 15 25 35
+  ww3 = _mm_unpackhi_epi32(w0, w1);     //  06 16 26 36 07 17 27 37
 
   *d4 = _mm_unpacklo_epi64(ww2, zero);  // 04 14 24 34 xx xx xx xx
   *d5 = _mm_unpackhi_epi64(ww2, zero);  // 05 15 25 35 xx xx xx xx
@@ -137,19 +137,19 @@ static INLINE void highbd_transpose8x8_low_sse2(__m128i *x0, __m128i *x1,
   // x6 60 61 62 63 64 65 66 67
   // x7 70 71 72 73 74 75 76 77
 
-  w0 = _mm_unpacklo_epi16(*x0, *x1);  // 00 10 01 11 02 12 03 13
-  w1 = _mm_unpacklo_epi16(*x2, *x3);  // 20 30 21 31 22 32 23 33
-  w2 = _mm_unpacklo_epi16(*x4, *x5);  // 40 50 41 51 42 52 43 53
-  w3 = _mm_unpacklo_epi16(*x6, *x7);  // 60 70 61 71 62 72 63 73
+  w0 = _mm_unpacklo_epi16(*x0, *x1);   // 00 10 01 11 02 12 03 13
+  w1 = _mm_unpacklo_epi16(*x2, *x3);   // 20 30 21 31 22 32 23 33
+  w2 = _mm_unpacklo_epi16(*x4, *x5);   // 40 50 41 51 42 52 43 53
+  w3 = _mm_unpacklo_epi16(*x6, *x7);   // 60 70 61 71 62 72 63 73
 
-  ww0 = _mm_unpacklo_epi32(w0, w1);  // 00 10 20 30 01 11 21 31
-  ww1 = _mm_unpacklo_epi32(w2, w3);  // 40 50 60 70 41 51 61 71
+  ww0 = _mm_unpacklo_epi32(w0, w1);    // 00 10 20 30 01 11 21 31
+  ww1 = _mm_unpacklo_epi32(w2, w3);    // 40 50 60 70 41 51 61 71
 
   *d0 = _mm_unpacklo_epi64(ww0, ww1);  // 00 10 20 30 40 50 60 70
   *d1 = _mm_unpackhi_epi64(ww0, ww1);  // 01 11 21 31 41 51 61 71
 
-  ww0 = _mm_unpackhi_epi32(w0, w1);  // 02 12 22 32 03 13 23 33
-  ww1 = _mm_unpackhi_epi32(w2, w3);  // 42 52 62 72 43 53 63 73
+  ww0 = _mm_unpackhi_epi32(w0, w1);    // 02 12 22 32 03 13 23 33
+  ww1 = _mm_unpackhi_epi32(w2, w3);    // 42 52 62 72 43 53 63 73
 
   *d2 = _mm_unpacklo_epi64(ww0, ww1);  // 02 12 22 32 42 52 62 72
   *d3 = _mm_unpackhi_epi64(ww0, ww1);  // 03 13 23 33 43 53 63 73
@@ -170,19 +170,19 @@ static INLINE void highbd_transpose8x8_high_sse2(__m128i *x0, __m128i *x1,
   // x5 50 51 52 53 54 55 56 57
   // x6 60 61 62 63 64 65 66 67
   // x7 70 71 72 73 74 75 76 77
-  w0 = _mm_unpackhi_epi16(*x0, *x1);  // 04 14 05 15 06 16 07 17
-  w1 = _mm_unpackhi_epi16(*x2, *x3);  // 24 34 25 35 26 36 27 37
-  w2 = _mm_unpackhi_epi16(*x4, *x5);  // 44 54 45 55 46 56 47 57
-  w3 = _mm_unpackhi_epi16(*x6, *x7);  // 64 74 65 75 66 76 67 77
+  w0 = _mm_unpackhi_epi16(*x0, *x1);   // 04 14 05 15 06 16 07 17
+  w1 = _mm_unpackhi_epi16(*x2, *x3);   // 24 34 25 35 26 36 27 37
+  w2 = _mm_unpackhi_epi16(*x4, *x5);   // 44 54 45 55 46 56 47 57
+  w3 = _mm_unpackhi_epi16(*x6, *x7);   // 64 74 65 75 66 76 67 77
 
-  ww0 = _mm_unpacklo_epi32(w0, w1);  // 04 14 24 34 05 15 25 35
-  ww1 = _mm_unpacklo_epi32(w2, w3);  // 44 54 64 74 45 55 65 75
+  ww0 = _mm_unpacklo_epi32(w0, w1);    // 04 14 24 34 05 15 25 35
+  ww1 = _mm_unpacklo_epi32(w2, w3);    // 44 54 64 74 45 55 65 75
 
   *d4 = _mm_unpacklo_epi64(ww0, ww1);  // 04 14 24 34 44 54 64 74
   *d5 = _mm_unpackhi_epi64(ww0, ww1);  // 05 15 25 35 45 55 65 75
 
-  ww0 = _mm_unpackhi_epi32(w0, w1);  // 06 16 26 36 07 17 27 37
-  ww1 = _mm_unpackhi_epi32(w2, w3);  // 46 56 66 76 47 57 67 77
+  ww0 = _mm_unpackhi_epi32(w0, w1);    // 06 16 26 36 07 17 27 37
+  ww1 = _mm_unpackhi_epi32(w2, w3);    // 46 56 66 76 47 57 67 77
 
   *d6 = _mm_unpacklo_epi64(ww0, ww1);  // 06 16 26 36 46 56 66 76
   *d7 = _mm_unpackhi_epi64(ww0, ww1);  // 07 17 27 37 47 57 67 77
@@ -240,9 +240,9 @@ static INLINE void transpose4x8_8x4_low_sse2(__m128i *x0, __m128i *x1,
       w0, w1);  // 00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33
 
   *d1 = _mm_srli_si128(*d0,
-                       4);  // 01 11 21 31 xx xx xx xx xx xx xx xx xx xx xx xx
+                       4);   // 01 11 21 31 xx xx xx xx xx xx xx xx xx xx xx xx
   *d2 = _mm_srli_si128(*d0,
-                       8);  // 02 12 22 32 xx xx xx xx xx xx xx xx xx xx xx xx
+                       8);   // 02 12 22 32 xx xx xx xx xx xx xx xx xx xx xx xx
   *d3 = _mm_srli_si128(*d0,
                        12);  // 03 13 23 33 xx xx xx xx xx xx xx xx xx xx xx xx
 }
@@ -275,23 +275,23 @@ static INLINE void transpose4x8_8x4_sse2(__m128i *x0, __m128i *x1, __m128i *x2,
       *x2, *x3);  // 20 30 21 31 22 32 23 33 24 34 25 35 26 36 27 37
 
   ww0 = _mm_unpacklo_epi16(
-      w0, w1);  // 00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33
+      w0, w1);               // 00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33
   ww1 = _mm_unpackhi_epi16(
-      w0, w1);  // 04 14 24 34 05 15 25 35 06 16 26 36 07 17 27 37
+      w0, w1);               // 04 14 24 34 05 15 25 35 06 16 26 36 07 17 27 37
 
-  *d0 = ww0;  // 00 10 20 30 xx xx xx xx xx xx xx xx xx xx xx xx
+  *d0 = ww0;                 // 00 10 20 30 xx xx xx xx xx xx xx xx xx xx xx xx
   *d1 = _mm_srli_si128(ww0,
-                       4);  // 01 11 21 31 xx xx xx xx xx xx xx xx xx xx xx xx
+                       4);   // 01 11 21 31 xx xx xx xx xx xx xx xx xx xx xx xx
   *d2 = _mm_srli_si128(ww0,
-                       8);  // 02 12 22 32 xx xx xx xx xx xx xx xx xx xx xx xx
+                       8);   // 02 12 22 32 xx xx xx xx xx xx xx xx xx xx xx xx
   *d3 = _mm_srli_si128(ww0,
                        12);  // 03 13 23 33 xx xx xx xx xx xx xx xx xx xx xx xx
 
-  *d4 = ww1;  // 04 14 24 34 xx xx xx xx xx xx xx xx xx xx xx xx
+  *d4 = ww1;                 // 04 14 24 34 xx xx xx xx xx xx xx xx xx xx xx xx
   *d5 = _mm_srli_si128(ww1,
-                       4);  // 05 15 25 35 xx xx xx xx xx xx xx xx xx xx xx xx
+                       4);   // 05 15 25 35 xx xx xx xx xx xx xx xx xx xx xx xx
   *d6 = _mm_srli_si128(ww1,
-                       8);  // 06 16 26 36 xx xx xx xx xx xx xx xx xx xx xx xx
+                       8);   // 06 16 26 36 xx xx xx xx xx xx xx xx xx xx xx xx
   *d7 = _mm_srli_si128(ww1,
                        12);  // 07 17 27 37 xx xx xx xx xx xx xx xx xx xx xx xx
 }

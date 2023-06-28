@@ -797,7 +797,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
-    // Small-range full-pixel motion search.
+        // Small-range full-pixel motion search.
 #if CONFIG_FLEX_MVRES
     if (pb_mv_precision < MV_PRECISION_ONE_PEL)
       bestsme = av1_refining_search_8p_c_low_precision(
@@ -1087,7 +1087,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   if (is_adaptive_mvd
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
       && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif       // IMPROVED_AMVD && CONFIG_JOINT_MVD
   ) {
     int dis; /* TODO: use dis in distortion calculation later. */
     unsigned int sse;
@@ -1206,7 +1206,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
-    // Small-range full-pixel motion search.
+        // Small-range full-pixel motion search.
 #if CONFIG_FLEX_MVRES
     if (pb_mv_precision < MV_PRECISION_ONE_PEL) {
       bestsme = av1_refining_search_8p_c_low_precision(

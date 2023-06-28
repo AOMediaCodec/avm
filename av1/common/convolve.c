@@ -963,7 +963,7 @@ void calc_gradient_in_various_directions_c(int16_t *feature_line_buffers[],
     // D V A
     // H O H
     // A V D
-    const int16_t base_value = 2 * dgd[dgd_id];  // O.
+    const int16_t base_value = 2 * dgd[dgd_id];                   // O.
     const int16_t horizontal_diff =
         dgd[dgd_id + 1] + dgd[dgd_id - 1] - base_value;           // H.
     int16_t vertical_diff = dgd[prev_row] - base_value;           // V.

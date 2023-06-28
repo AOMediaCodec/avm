@@ -4405,7 +4405,7 @@ static int64_t handle_inter_mode(
               }
             }
             if (mv_outlim) continue;
-#endif  // CONFIG_C071_SUBBLK_WARPMV && CONFIG_FLEX_MVRES
+#endif        // CONFIG_C071_SUBBLK_WARPMV && CONFIG_FLEX_MVRES
 
               // skip NEWMV mode in drl if the motion search result is the same
               // as a previous result
@@ -5887,7 +5887,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   }
   assert(av1_check_newmv_joint_nonzero(cm, x));
 }
-#else  // CONFIG_SKIP_MODE_ENHANCEMENT
+#else   // CONFIG_SKIP_MODE_ENHANCEMENT
 static AOM_INLINE void rd_pick_skip_mode(
     RD_STATS *rd_cost, InterModeSearchState *search_state,
     const AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,

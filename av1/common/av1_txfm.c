@@ -72,7 +72,7 @@ const int32_t cctx_mtx[CCTX_TYPES - 1][2] = {
   { 222, -128 },  // t = -30 degrees
   { 128, -222 },  // t = -60 degrees
 };
-#endif  // CONFIG_CROSS_CHROMA_TX
+#endif            // CONFIG_CROSS_CHROMA_TX
 
 // av1_sinpi_arr_data[i][j] = (int)round((sqrt(2) * sin(j*Pi/9) * 2 / 3) * (1
 // << (cos_bit_min + i))) modified so that elements j=1,2 sum to element j=4.

@@ -75,7 +75,7 @@ static void scale1d_2t1_i(const unsigned char *source, int source_step,
   (void)source_scale;
   (void)dest_scale;
 
-  source_step *= 2;  // Every other row.
+  source_step *= 2;     // Every other row.
 
   dest[0] = source[0];  // Special case: 1st pixel.
   source += source_step;

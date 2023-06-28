@@ -2044,7 +2044,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
         }
 #if !CONFIG_H_PARTITION
       }
-#endif  // !CONFIG_H_PARTITION
+#endif      // !CONFIG_H_PARTITION
     }
   } else {  // Rectangular blocks
     if (disable_ext_part) {
@@ -2096,7 +2096,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
 #endif  // !CONFIG_H_PARTITION
     }
   }
-#else  // CONFIG_EXT_RECUR_PARTITIONS
+#else   // CONFIG_EXT_RECUR_PARTITIONS
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
   const int has_rows = (mi_row + hbs_h) < mi_params->mi_rows;

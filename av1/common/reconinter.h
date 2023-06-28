@@ -125,7 +125,7 @@ static const int wedge_index_2_dist[MAX_WEDGE_TYPES] = {
   1, 2, 3,     // WEDGE_333
   1, 2, 3,     // WEDGE_346
 };
-#endif  // CONFIG_WEDGE_MOD_EXT
+#endif         // CONFIG_WEDGE_MOD_EXT
 
 #if CONFIG_BAWP
 #define BAWP_REF_LINES 1

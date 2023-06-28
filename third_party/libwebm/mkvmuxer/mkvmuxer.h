@@ -37,7 +37,7 @@ const uint64_t kMaxTrackNumber = 126;
 class IMkvWriter {
  public:
   // Writes out |len| bytes of |buf|. Returns 0 on success.
-  virtual int32 Write(const void* buf, uint32 len) = 0;
+  virtual int32 Write(const void *buf, uint32 len) = 0;
 
   // Returns the offset of the output position from the beginning of the
   // output.
@@ -67,19 +67,19 @@ class IMkvWriter {
 // Writes out the EBML header for a WebM file, but allows caller to specify
 // DocType. This function must be called before any other libwebm writing
 // functions are called.
-bool WriteEbmlHeader(IMkvWriter* writer, uint64_t doc_type_version,
-                     const char* const doc_type);
+bool WriteEbmlHeader(IMkvWriter *writer, uint64_t doc_type_version,
+                     const char *const doc_type);
 
 // Writes out the EBML header for a WebM file. This function must be called
 // before any other libwebm writing functions are called.
-bool WriteEbmlHeader(IMkvWriter* writer, uint64_t doc_type_version);
+bool WriteEbmlHeader(IMkvWriter *writer, uint64_t doc_type_version);
 
 // Deprecated. Writes out EBML header with doc_type_version as
 // kDefaultDocTypeVersion. Exists for backward compatibility.
-bool WriteEbmlHeader(IMkvWriter* writer);
+bool WriteEbmlHeader(IMkvWriter *writer);
 
 // Copies in Chunk from source to destination between the given byte positions
-bool ChunkedCopy(mkvparser::IMkvReader* source, IMkvWriter* dst, int64_t start,
+bool ChunkedCopy(mkvparser::IMkvReader *source, IMkvWriter *dst, int64_t start,
                  int64_t size);
 
 ///////////////////////////////////////////////////////////////
@@ -91,13 +91,13 @@ class Frame {
 
   // Sets this frame's contents based on |frame|. Returns true on success. On
   // failure, this frame's existing contents may be lost.
-  bool CopyFrom(const Frame& frame);
+  bool CopyFrom(const Frame &frame);
 
   // Copies |frame| data into |frame_|. Returns true on success.
-  bool Init(const uint8_t* frame, uint64_t length);
+  bool Init(const uint8_t *frame, uint64_t length);
 
   // Copies |additional| data into |additional_|. Returns true on success.
-  bool AddAdditionalData(const uint8_t* additional, uint64_t length,
+  bool AddAdditionalData(const uint8_t *additional, uint64_t length,
                          uint64_t add_id);
 
   // Returns true if the frame has valid parameters.
@@ -108,12 +108,12 @@ class Frame {
   bool CanBeSimpleBlock() const;
 
   uint64_t add_id() const { return add_id_; }
-  const uint8_t* additional() const { return additional_; }
+  const uint8_t *additional() const { return additional_; }
   uint64_t additional_length() const { return additional_length_; }
   void set_duration(uint64_t duration);
   uint64_t duration() const { return duration_; }
   bool duration_set() const { return duration_set_; }
-  const uint8_t* frame() const { return frame_; }
+  const uint8_t *frame() const { return frame_; }
   void set_is_key(bool key) { is_key_ = key; }
   bool is_key() const { return is_key_; }
   uint64_t length() const { return length_; }
@@ -138,7 +138,7 @@ class Frame {
   uint64_t add_id_;
 
   // Pointer to additional data. Owned by this class.
-  uint8_t* additional_;
+  uint8_t *additional_;
 
   // Length of the additional data.
   uint64_t additional_length_;
@@ -152,7 +152,7 @@ class Frame {
   bool duration_set_;
 
   // Pointer to the data. Owned by this class.
-  uint8_t* frame_;
+  uint8_t *frame_;
 
   // Flag telling if the data should set the key flag of a block.
   bool is_key_;
@@ -189,7 +189,7 @@ class CuePoint {
   uint64_t Size() const;
 
   // Output the CuePoint element to the writer. Returns true on success.
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
   void set_time(uint64_t time) { time_ = time; }
   uint64_t time() const { return time_; }
@@ -235,17 +235,17 @@ class Cues {
   ~Cues();
 
   // Adds a cue point to the Cues element. Returns true on success.
-  bool AddCue(CuePoint* cue);
+  bool AddCue(CuePoint *cue);
 
   // Returns the cue point by index. Returns NULL if there is no cue point
   // match.
-  CuePoint* GetCueByIndex(int32_t index) const;
+  CuePoint *GetCueByIndex(int32_t index) const;
 
   // Returns the total size of the Cues element
   uint64_t Size();
 
   // Output the Cues element to the writer. Returns true on success.
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
   int32_t cue_entries_size() const { return cue_entries_size_; }
   void set_output_block_number(bool output_block_number) {
@@ -261,7 +261,7 @@ class Cues {
   int32_t cue_entries_size_;
 
   // CuePoint list.
-  CuePoint** cue_entries_;
+  CuePoint **cue_entries_;
 
   // If true the muxer will write out the block number for the cue if the
   // block number is different than the default of 1. Default is set to true.
@@ -284,7 +284,7 @@ class ContentEncAESSettings {
 
   // Writes out the ContentEncAESSettings element to |writer|. Returns true on
   // success.
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
   uint64_t cipher_mode() const { return cipher_mode_; }
 
@@ -313,20 +313,20 @@ class ContentEncoding {
 
   // Sets the content encryption id. Copies |length| bytes from |id| to
   // |enc_key_id_|. Returns true on success.
-  bool SetEncryptionID(const uint8_t* id, uint64_t length);
+  bool SetEncryptionID(const uint8_t *id, uint64_t length);
 
   // Returns the size in bytes for the ContentEncoding element.
   uint64_t Size() const;
 
   // Writes out the ContentEncoding element to |writer|. Returns true on
   // success.
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
   uint64_t enc_algo() const { return enc_algo_; }
   uint64_t encoding_order() const { return encoding_order_; }
   uint64_t encoding_scope() const { return encoding_scope_; }
   uint64_t encoding_type() const { return encoding_type_; }
-  ContentEncAESSettings* enc_aes_settings() { return &enc_aes_settings_; }
+  ContentEncAESSettings *enc_aes_settings() { return &enc_aes_settings_; }
 
  private:
   // Returns the size in bytes for the encoding elements.
@@ -338,7 +338,7 @@ class ContentEncoding {
 
   // Track element names
   uint64_t enc_algo_;
-  uint8_t* enc_key_id_;
+  uint8_t *enc_key_id_;
   uint64_t encoding_order_;
   uint64_t encoding_scope_;
   uint64_t encoding_type_;
@@ -367,7 +367,7 @@ class PrimaryChromaticity {
   uint64_t PrimaryChromaticitySize(libwebm::MkvId x_id,
                                    libwebm::MkvId y_id) const;
   bool Valid() const;
-  bool Write(IMkvWriter* writer, libwebm::MkvId x_id,
+  bool Write(IMkvWriter *writer, libwebm::MkvId x_id,
              libwebm::MkvId y_id) const;
 
   float x() const { return x_; }
@@ -388,12 +388,8 @@ class MasteringMetadata {
   static const float kMaxLuminanceMax;
 
   MasteringMetadata()
-      : luminance_max_(kValueNotPresent),
-        luminance_min_(kValueNotPresent),
-        r_(NULL),
-        g_(NULL),
-        b_(NULL),
-        white_point_(NULL) {}
+      : luminance_max_(kValueNotPresent), luminance_min_(kValueNotPresent),
+        r_(NULL), g_(NULL), b_(NULL), white_point_(NULL) {}
   ~MasteringMetadata() {
     delete r_;
     delete g_;
@@ -404,17 +400,17 @@ class MasteringMetadata {
   // Returns total size of the MasteringMetadata element.
   uint64_t MasteringMetadataSize() const;
   bool Valid() const;
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
   // Copies non-null chromaticity.
-  bool SetChromaticity(const PrimaryChromaticity* r,
-                       const PrimaryChromaticity* g,
-                       const PrimaryChromaticity* b,
-                       const PrimaryChromaticity* white_point);
-  const PrimaryChromaticity* r() const { return r_; }
-  const PrimaryChromaticity* g() const { return g_; }
-  const PrimaryChromaticity* b() const { return b_; }
-  const PrimaryChromaticity* white_point() const { return white_point_; }
+  bool SetChromaticity(const PrimaryChromaticity *r,
+                       const PrimaryChromaticity *g,
+                       const PrimaryChromaticity *b,
+                       const PrimaryChromaticity *white_point);
+  const PrimaryChromaticity *r() const { return r_; }
+  const PrimaryChromaticity *g() const { return g_; }
+  const PrimaryChromaticity *b() const { return b_; }
+  const PrimaryChromaticity *white_point() const { return white_point_; }
 
   float luminance_max() const { return luminance_max_; }
   void set_luminance_max(float luminance_max) {
@@ -431,10 +427,10 @@ class MasteringMetadata {
 
   float luminance_max_;
   float luminance_min_;
-  PrimaryChromaticity* r_;
-  PrimaryChromaticity* g_;
-  PrimaryChromaticity* b_;
-  PrimaryChromaticity* white_point_;
+  PrimaryChromaticity *r_;
+  PrimaryChromaticity *g_;
+  PrimaryChromaticity *b_;
+  PrimaryChromaticity *white_point_;
 };
 
 class Colour {
@@ -511,24 +507,21 @@ class Colour {
         cb_subsampling_horz_(kValueNotPresent),
         cb_subsampling_vert_(kValueNotPresent),
         chroma_siting_horz_(kValueNotPresent),
-        chroma_siting_vert_(kValueNotPresent),
-        range_(kValueNotPresent),
+        chroma_siting_vert_(kValueNotPresent), range_(kValueNotPresent),
         transfer_characteristics_(kValueNotPresent),
-        primaries_(kValueNotPresent),
-        max_cll_(kValueNotPresent),
-        max_fall_(kValueNotPresent),
-        mastering_metadata_(NULL) {}
+        primaries_(kValueNotPresent), max_cll_(kValueNotPresent),
+        max_fall_(kValueNotPresent), mastering_metadata_(NULL) {}
   ~Colour() { delete mastering_metadata_; }
 
   // Returns total size of the Colour element.
   uint64_t ColourSize() const;
   bool Valid() const;
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
   // Deep copies |mastering_metadata|.
-  bool SetMasteringMetadata(const MasteringMetadata& mastering_metadata);
+  bool SetMasteringMetadata(const MasteringMetadata &mastering_metadata);
 
-  const MasteringMetadata* mastering_metadata() const {
+  const MasteringMetadata *mastering_metadata() const {
     return mastering_metadata_;
   }
 
@@ -597,7 +590,7 @@ class Colour {
   uint64_t max_cll_;
   uint64_t max_fall_;
 
-  MasteringMetadata* mastering_metadata_;
+  MasteringMetadata *mastering_metadata_;
 };
 
 ///////////////////////////////////////////////////////////////
@@ -613,18 +606,14 @@ class Projection {
   };
   static const uint64_t kValueNotPresent;
   Projection()
-      : type_(kRectangular),
-        pose_yaw_(0.0),
-        pose_pitch_(0.0),
-        pose_roll_(0.0),
-        private_data_(NULL),
-        private_data_length_(0) {}
+      : type_(kRectangular), pose_yaw_(0.0), pose_pitch_(0.0), pose_roll_(0.0),
+        private_data_(NULL), private_data_length_(0) {}
   ~Projection() { delete[] private_data_; }
 
   uint64_t ProjectionSize() const;
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
-  bool SetProjectionPrivate(const uint8_t* private_data,
+  bool SetProjectionPrivate(const uint8_t *private_data,
                             uint64_t private_data_length);
 
   ProjectionType type() const { return type_; }
@@ -635,7 +624,7 @@ class Projection {
   void set_pose_pitch(float pose_pitch) { pose_pitch_ = pose_pitch; }
   float pose_roll() const { return pose_roll_; }
   void set_pose_roll(float pose_roll) { pose_roll_ = pose_roll; }
-  uint8_t* private_data() const { return private_data_; }
+  uint8_t *private_data() const { return private_data_; }
   uint64_t private_data_length() const { return private_data_length_; }
 
  private:
@@ -646,7 +635,7 @@ class Projection {
   float pose_yaw_;
   float pose_pitch_;
   float pose_roll_;
-  uint8_t* private_data_;
+  uint8_t *private_data_;
   uint64_t private_data_length_;
 };
 
@@ -655,7 +644,7 @@ class Projection {
 class Track {
  public:
   // The |seed| parameter is used to synthesize a UID for the track.
-  explicit Track(unsigned int* seed);
+  explicit Track(unsigned int *seed);
   virtual ~Track();
 
   // Adds a ContentEncoding element to the Track. Returns true on success.
@@ -663,7 +652,7 @@ class Track {
 
   // Returns the ContentEncoding by index. Returns NULL if there is no
   // ContentEncoding match.
-  ContentEncoding* GetContentEncodingByIndex(uint32_t index) const;
+  ContentEncoding *GetContentEncodingByIndex(uint32_t index) const;
 
   // Returns the size in bytes for the payload of the Track element.
   virtual uint64_t PayloadSize() const;
@@ -672,23 +661,23 @@ class Track {
   virtual uint64_t Size() const;
 
   // Output the Track element to the writer. Returns true on success.
-  virtual bool Write(IMkvWriter* writer) const;
+  virtual bool Write(IMkvWriter *writer) const;
 
   // Sets the CodecPrivate element of the Track element. Copies |length|
   // bytes from |codec_private| to |codec_private_|. Returns true on success.
-  bool SetCodecPrivate(const uint8_t* codec_private, uint64_t length);
+  bool SetCodecPrivate(const uint8_t *codec_private, uint64_t length);
 
-  void set_codec_id(const char* codec_id);
-  const char* codec_id() const { return codec_id_; }
-  const uint8_t* codec_private() const { return codec_private_; }
-  void set_language(const char* language);
-  const char* language() const { return language_; }
+  void set_codec_id(const char *codec_id);
+  const char *codec_id() const { return codec_id_; }
+  const uint8_t *codec_private() const { return codec_private_; }
+  void set_language(const char *language);
+  const char *language() const { return language_; }
   void set_max_block_additional_id(uint64_t max_block_additional_id) {
     max_block_additional_id_ = max_block_additional_id;
   }
   uint64_t max_block_additional_id() const { return max_block_additional_id_; }
-  void set_name(const char* name);
-  const char* name() const { return name_; }
+  void set_name(const char *name);
+  const char *name() const { return name_; }
   void set_number(uint64_t number) { number_ = number; }
   uint64_t number() const { return number_; }
   void set_type(uint64_t type) { type_ = type; }
@@ -713,11 +702,11 @@ class Track {
 
  private:
   // Track element names.
-  char* codec_id_;
-  uint8_t* codec_private_;
-  char* language_;
+  char *codec_id_;
+  uint8_t *codec_private_;
+  char *language_;
   uint64_t max_block_additional_id_;
-  char* name_;
+  char *name_;
   uint64_t number_;
   uint64_t type_;
   uint64_t uid_;
@@ -729,7 +718,7 @@ class Track {
   uint64_t codec_private_length_;
 
   // ContentEncoding element list.
-  ContentEncoding** content_encoding_entries_;
+  ContentEncoding **content_encoding_entries_;
 
   // Number of ContentEncoding elements added.
   uint32_t content_encoding_entries_size_;
@@ -753,7 +742,7 @@ class VideoTrack : public Track {
   enum AlphaMode { kNoAlpha = 0, kAlpha = 1 };
 
   // The |seed| parameter is used to synthesize a UID for the track.
-  explicit VideoTrack(unsigned int* seed);
+  explicit VideoTrack(unsigned int *seed);
   virtual ~VideoTrack();
 
   // Returns the size in bytes for the payload of the Track element plus the
@@ -761,7 +750,7 @@ class VideoTrack : public Track {
   virtual uint64_t PayloadSize() const;
 
   // Output the VideoTrack element to the writer. Returns true on success.
-  virtual bool Write(IMkvWriter* writer) const;
+  virtual bool Write(IMkvWriter *writer) const;
 
   // Sets the video's stereo mode. Returns true on success.
   bool SetStereoMode(uint64_t stereo_mode);
@@ -795,18 +784,18 @@ class VideoTrack : public Track {
   uint64_t alpha_mode() { return alpha_mode_; }
   void set_width(uint64_t width) { width_ = width; }
   uint64_t width() const { return width_; }
-  void set_colour_space(const char* colour_space);
-  const char* colour_space() const { return colour_space_; }
+  void set_colour_space(const char *colour_space);
+  const char *colour_space() const { return colour_space_; }
 
-  Colour* colour() { return colour_; }
+  Colour *colour() { return colour_; }
 
   // Deep copies |colour|.
-  bool SetColour(const Colour& colour);
+  bool SetColour(const Colour &colour);
 
-  Projection* projection() { return projection_; }
+  Projection *projection() { return projection_; }
 
   // Deep copies |projection|.
-  bool SetProjection(const Projection& projection);
+  bool SetProjection(const Projection &projection);
 
  private:
   // Returns the size in bytes of the Video element.
@@ -826,10 +815,10 @@ class VideoTrack : public Track {
   uint64_t stereo_mode_;
   uint64_t alpha_mode_;
   uint64_t width_;
-  char* colour_space_;
+  char *colour_space_;
 
-  Colour* colour_;
-  Projection* projection_;
+  Colour *colour_;
+  Projection *projection_;
 
   LIBWEBM_DISALLOW_COPY_AND_ASSIGN(VideoTrack);
 };
@@ -839,7 +828,7 @@ class VideoTrack : public Track {
 class AudioTrack : public Track {
  public:
   // The |seed| parameter is used to synthesize a UID for the track.
-  explicit AudioTrack(unsigned int* seed);
+  explicit AudioTrack(unsigned int *seed);
   virtual ~AudioTrack();
 
   // Returns the size in bytes for the payload of the Track element plus the
@@ -847,7 +836,7 @@ class AudioTrack : public Track {
   virtual uint64_t PayloadSize() const;
 
   // Output the AudioTrack element to the writer. Returns true on success.
-  virtual bool Write(IMkvWriter* writer) const;
+  virtual bool Write(IMkvWriter *writer) const;
 
   void set_bit_depth(uint64_t bit_depth) { bit_depth_ = bit_depth; }
   uint64_t bit_depth() const { return bit_depth_; }
@@ -889,14 +878,14 @@ class Tracks {
   // deleted by the Tracks object. Returns true on success. |number| is the
   // number to use for the track. |number| must be >= 0. If |number| == 0
   // then the muxer will decide on the track number.
-  bool AddTrack(Track* track, int32_t number);
+  bool AddTrack(Track *track, int32_t number);
 
   // Returns the track by index. Returns NULL if there is no track match.
-  const Track* GetTrackByIndex(uint32_t idx) const;
+  const Track *GetTrackByIndex(uint32_t idx) const;
 
   // Search the Tracks and return the track that matches |tn|. Returns NULL
   // if there is no track match.
-  Track* GetTrackByNumber(uint64_t track_number) const;
+  Track *GetTrackByNumber(uint64_t track_number) const;
 
   // Returns true if the track number is an audio track.
   bool TrackIsAudio(uint64_t track_number) const;
@@ -905,13 +894,13 @@ class Tracks {
   bool TrackIsVideo(uint64_t track_number) const;
 
   // Output the Tracks element to the writer. Returns true on success.
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
   uint32_t track_entries_size() const { return track_entries_size_; }
 
  private:
   // Track element list.
-  Track** track_entries_;
+  Track **track_entries_;
 
   // Number of Track elements added.
   uint32_t track_entries_size_;
@@ -931,11 +920,11 @@ class Chapter {
   // Cue Identifier line in WebVTT.)
   // TODO(matthewjheaney): the actual serialization of this item in
   // MKV is pending.
-  bool set_id(const char* id);
+  bool set_id(const char *id);
 
   // Converts the nanosecond start and stop times of this chapter to
   // their corresponding timecode values, and stores them that way.
-  void set_time(const Segment& segment, uint64_t start_time_ns,
+  void set_time(const Segment &segment, uint64_t start_time_ns,
                 uint64_t end_time_ns);
 
   // Sets the uid for this chapter. Primarily used to enable
@@ -958,7 +947,7 @@ class Chapter {
   //  http://www.iana.org/domains/root/db/
   //
   // The function returns false if the string could not be allocated.
-  bool add_string(const char* title, const char* language, const char* country);
+  bool add_string(const char *title, const char *language, const char *country);
 
  private:
   friend class Chapters;
@@ -974,25 +963,25 @@ class Chapter {
 
     // Copies the title to the |title_| member.  Returns false on
     // error.
-    bool set_title(const char* title);
+    bool set_title(const char *title);
 
     // Copies the language to the |language_| member.  Returns false
     // on error.
-    bool set_language(const char* language);
+    bool set_language(const char *language);
 
     // Copies the country to the |country_| member.  Returns false on
     // error.
-    bool set_country(const char* country);
+    bool set_country(const char *country);
 
     // If |writer| is non-NULL, serialize the Display sub-element of
     // the Atom into the stream.  Returns the Display element size on
     // success, 0 if error.
-    uint64_t WriteDisplay(IMkvWriter* writer) const;
+    uint64_t WriteDisplay(IMkvWriter *writer) const;
 
    private:
-    char* title_;
-    char* language_;
-    char* country_;
+    char *title_;
+    char *language_;
+    char *country_;
   };
 
   Chapter();
@@ -1001,11 +990,11 @@ class Chapter {
   // Establish the representation invariant for a newly-created
   // Chapter object.  The |seed| parameter is used to create the UID
   // for this chapter atom.
-  void Init(unsigned int* seed);
+  void Init(unsigned int *seed);
 
   // Copies this Chapter object to a different one.  This is used when
   // expanding a plain array of Chapter objects (see Chapters).
-  void ShallowCopy(Chapter* dst) const;
+  void ShallowCopy(Chapter *dst) const;
 
   // Reclaim resources used by this Chapter object, pending its
   // destruction.
@@ -1020,11 +1009,11 @@ class Chapter {
   // If |writer| is non-NULL, serialize the Atom sub-element into the
   // stream.  Returns the total size of the element on success, 0 if
   // error.
-  uint64_t WriteAtom(IMkvWriter* writer) const;
+  uint64_t WriteAtom(IMkvWriter *writer) const;
 
   // The string identifier for this chapter (corresponds to WebVTT cue
   // identifier).
-  char* id_;
+  char *id_;
 
   // Start timecode of the chapter.
   uint64_t start_timecode_;
@@ -1037,7 +1026,7 @@ class Chapter {
 
   // The Atom element can contain multiple Display sub-elements, as
   // the same logical title can be rendered in different languages.
-  Display* displays_;
+  Display *displays_;
 
   // The physical length (total size) of the |displays_| array.
   int displays_size_;
@@ -1057,13 +1046,13 @@ class Chapters {
   Chapters();
   ~Chapters();
 
-  Chapter* AddChapter(unsigned int* seed);
+  Chapter *AddChapter(unsigned int *seed);
 
   // Returns the number of chapters that have been added.
   int Count() const;
 
   // Output the Chapters element to the writer. Returns true on success.
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
  private:
   // Expands the chapters_ array if there is not enough space to contain
@@ -1073,7 +1062,7 @@ class Chapters {
   // If |writer| is non-NULL, serialize the Edition sub-element of the
   // Chapters element into the stream.  Returns the Edition element
   // size on success, 0 if error.
-  uint64_t WriteEdition(IMkvWriter* writer) const;
+  uint64_t WriteEdition(IMkvWriter *writer) const;
 
   // Total length of the chapters_ array.
   int chapters_size_;
@@ -1082,7 +1071,7 @@ class Chapters {
   int chapters_count_;
 
   // Array for storage of chapter objects.
-  Chapter* chapters_;
+  Chapter *chapters_;
 
   LIBWEBM_DISALLOW_COPY_AND_ASSIGN(Chapters);
 };
@@ -1092,7 +1081,7 @@ class Chapters {
 //
 class Tag {
  public:
-  bool add_simple_tag(const char* tag_name, const char* tag_string);
+  bool add_simple_tag(const char *tag_name, const char *tag_string);
 
  private:
   // Tags calls Clear and the destructor of Tag
@@ -1109,20 +1098,20 @@ class Tag {
 
     // Copies the title to the |tag_name_| member.  Returns false on
     // error.
-    bool set_tag_name(const char* tag_name);
+    bool set_tag_name(const char *tag_name);
 
     // Copies the language to the |tag_string_| member.  Returns false
     // on error.
-    bool set_tag_string(const char* tag_string);
+    bool set_tag_string(const char *tag_string);
 
     // If |writer| is non-NULL, serialize the SimpleTag sub-element of
     // the Atom into the stream.  Returns the SimpleTag element size on
     // success, 0 if error.
-    uint64_t Write(IMkvWriter* writer) const;
+    uint64_t Write(IMkvWriter *writer) const;
 
    private:
-    char* tag_name_;
-    char* tag_string_;
+    char *tag_name_;
+    char *tag_string_;
   };
 
   Tag();
@@ -1130,7 +1119,7 @@ class Tag {
 
   // Copies this Tag object to a different one.  This is used when
   // expanding a plain array of Tag objects (see Tags).
-  void ShallowCopy(Tag* dst) const;
+  void ShallowCopy(Tag *dst) const;
 
   // Reclaim resources used by this Tag object, pending its
   // destruction.
@@ -1145,10 +1134,10 @@ class Tag {
   // If |writer| is non-NULL, serialize the Tag sub-element into the
   // stream.  Returns the total size of the element on success, 0 if
   // error.
-  uint64_t Write(IMkvWriter* writer) const;
+  uint64_t Write(IMkvWriter *writer) const;
 
   // The Atom element can contain multiple SimpleTag sub-elements
-  SimpleTag* simple_tags_;
+  SimpleTag *simple_tags_;
 
   // The physical length (total size) of the |simple_tags_| array.
   int simple_tags_size_;
@@ -1168,13 +1157,13 @@ class Tags {
   Tags();
   ~Tags();
 
-  Tag* AddTag();
+  Tag *AddTag();
 
   // Returns the number of tags that have been added.
   int Count() const;
 
   // Output the Tags element to the writer. Returns true on success.
-  bool Write(IMkvWriter* writer) const;
+  bool Write(IMkvWriter *writer) const;
 
  private:
   // Expands the tags_ array if there is not enough space to contain
@@ -1188,7 +1177,7 @@ class Tags {
   int tags_count_;
 
   // Array for storage of tag objects.
-  Tag* tags_;
+  Tag *tags_;
 
   LIBWEBM_DISALLOW_COPY_AND_ASSIGN(Tags);
 };
@@ -1208,11 +1197,11 @@ class Cluster {
           bool fixed_size_timecode = false);
   ~Cluster();
 
-  bool Init(IMkvWriter* ptr_writer);
+  bool Init(IMkvWriter *ptr_writer);
 
   // Adds a frame to be output in the file. The frame is written out through
   // |writer_| if successful. Returns true on success.
-  bool AddFrame(const Frame* frame);
+  bool AddFrame(const Frame *frame);
 
   // Adds a frame to be output in the file. The frame is written out through
   // |writer_| if successful. Returns true on success.
@@ -1224,7 +1213,7 @@ class Cluster {
   //   timecode:     Absolute (not relative to cluster) timestamp of the
   //                 frame, expressed in timecode units.
   //   is_key:       Flag telling whether or not this frame is a key frame.
-  bool AddFrame(const uint8_t* data, uint64_t length, uint64_t track_number,
+  bool AddFrame(const uint8_t *data, uint64_t length, uint64_t track_number,
                 uint64_t timecode,  // timecode units (absolute)
                 bool is_key);
 
@@ -1241,8 +1230,8 @@ class Cluster {
   //   abs_timecode: Absolute (not relative to cluster) timestamp of the
   //                 frame, expressed in timecode units.
   //   is_key:       Flag telling whether or not this frame is a key frame.
-  bool AddFrameWithAdditional(const uint8_t* data, uint64_t length,
-                              const uint8_t* additional,
+  bool AddFrameWithAdditional(const uint8_t *data, uint64_t length,
+                              const uint8_t *additional,
                               uint64_t additional_length, uint64_t add_id,
                               uint64_t track_number, uint64_t abs_timecode,
                               bool is_key);
@@ -1258,7 +1247,7 @@ class Cluster {
   //   abs_timecode: Absolute (not relative to cluster) timestamp of the
   //                 frame, expressed in timecode units.
   //   is_key:       Flag telling whether or not this frame is a key frame.
-  bool AddFrameWithDiscardPadding(const uint8_t* data, uint64_t length,
+  bool AddFrameWithDiscardPadding(const uint8_t *data, uint64_t length,
                                   int64_t discard_padding,
                                   uint64_t track_number, uint64_t abs_timecode,
                                   bool is_key);
@@ -1277,7 +1266,7 @@ class Cluster {
   // The metadata frame is written as a block group, with a duration
   // sub-element but no reference time sub-elements (indicating that
   // it is considered a keyframe, per Matroska semantics).
-  bool AddMetadata(const uint8_t* data, uint64_t length, uint64_t track_number,
+  bool AddMetadata(const uint8_t *data, uint64_t length, uint64_t track_number,
                    uint64_t timecode, uint64_t duration);
 
   // Increments the size of the cluster's data in bytes.
@@ -1322,7 +1311,7 @@ class Cluster {
 
  private:
   // Iterator type for the |stored_frames_| map.
-  typedef std::map<uint64_t, std::list<Frame*> >::iterator FrameMapIterator;
+  typedef std::map<uint64_t, std::list<Frame *> >::iterator FrameMapIterator;
 
   // Utility method that confirms that blocks can still be added, and that the
   // cluster header has been written. Used by |DoWriteFrame*|. Returns true
@@ -1334,11 +1323,11 @@ class Cluster {
   void PostWriteBlock(uint64_t element_size);
 
   // Does some verification and calls WriteFrame.
-  bool DoWriteFrame(const Frame* const frame);
+  bool DoWriteFrame(const Frame *const frame);
 
   // Either holds back the given frame, or writes it out depending on whether or
   // not |write_last_frame_with_duration_| is set.
-  bool QueueOrWriteFrame(const Frame* const frame);
+  bool QueueOrWriteFrame(const Frame *const frame);
 
   // Outputs the Cluster header to |writer_|. Returns true on success.
   bool WriteClusterHeader();
@@ -1378,14 +1367,14 @@ class Cluster {
   bool write_last_frame_with_duration_;
 
   // Map used to hold back frames, if required. Track number is the key.
-  std::map<uint64_t, std::list<Frame*> > stored_frames_;
+  std::map<uint64_t, std::list<Frame *> > stored_frames_;
 
   // Map from track number to the timestamp of the last block written for that
   // track.
   std::map<uint64_t, uint64_t> last_block_timestamp_;
 
   // Pointer to the writer object. Not owned by this class.
-  IMkvWriter* writer_;
+  IMkvWriter *writer_;
 
   LIBWEBM_DISALLOW_COPY_AND_ASSIGN(Cluster);
 };
@@ -1406,7 +1395,7 @@ class SeekHead {
   bool AddSeekEntry(uint32_t id, uint64_t pos);
 
   // Writes out SeekHead and SeekEntry elements. Returns true on success.
-  bool Finalize(IMkvWriter* writer) const;
+  bool Finalize(IMkvWriter *writer) const;
 
   // Returns the id of the Seek Entry at the given index. Returns -1 if index is
   // out of range.
@@ -1422,7 +1411,7 @@ class SeekHead {
 
   // Reserves space by writing out a Void element which will be updated with
   // a SeekHead element later. Returns true on success.
-  bool Write(IMkvWriter* writer);
+  bool Write(IMkvWriter *writer);
 
   // We are going to put a cap on the number of Seek Entries.
   const static int32_t kSeekEntryCount = 5;
@@ -1451,23 +1440,23 @@ class SegmentInfo {
   ~SegmentInfo();
 
   // Will update the duration if |duration_| is > 0.0. Returns true on success.
-  bool Finalize(IMkvWriter* writer) const;
+  bool Finalize(IMkvWriter *writer) const;
 
   // Sets |muxing_app_| and |writing_app_|.
   bool Init();
 
   // Output the Segment Information element to the writer. Returns true on
   // success.
-  bool Write(IMkvWriter* writer);
+  bool Write(IMkvWriter *writer);
 
   void set_duration(double duration) { duration_ = duration; }
   double duration() const { return duration_; }
-  void set_muxing_app(const char* app);
-  const char* muxing_app() const { return muxing_app_; }
+  void set_muxing_app(const char *app);
+  const char *muxing_app() const { return muxing_app_; }
   void set_timecode_scale(uint64_t scale) { timecode_scale_ = scale; }
   uint64_t timecode_scale() const { return timecode_scale_; }
-  void set_writing_app(const char* app);
-  const char* writing_app() const { return writing_app_; }
+  void set_writing_app(const char *app);
+  const char *writing_app() const { return writing_app_; }
   void set_date_utc(int64_t date_utc) { date_utc_ = date_utc; }
   int64_t date_utc() const { return date_utc_; }
 
@@ -1477,10 +1466,10 @@ class SegmentInfo {
   // not be written out.
   double duration_;
   // Set to libwebm-%d.%d.%d.%d, major, minor, build, revision.
-  char* muxing_app_;
+  char *muxing_app_;
   uint64_t timecode_scale_;
   // Initially set to libwebm-%d.%d.%d.%d, major, minor, build, revision.
-  char* writing_app_;
+  char *writing_app_;
   // LLONG_MIN when DateUTC is not set.
   int64_t date_utc_;
 
@@ -1513,14 +1502,14 @@ class Segment {
 
   // Initializes |SegmentInfo| and returns result. Always returns false when
   // |ptr_writer| is NULL.
-  bool Init(IMkvWriter* ptr_writer);
+  bool Init(IMkvWriter *ptr_writer);
 
   // Adds a generic track to the segment.  Returns the newly-allocated
   // track object (which is owned by the segment) on success, NULL on
   // error. |number| is the number to use for the track.  |number|
   // must be >= 0. If |number| == 0 then the muxer will decide on the
   // track number.
-  Track* AddTrack(int32_t number);
+  Track *AddTrack(int32_t number);
 
   // Adds a Vorbis audio track to the segment. Returns the number of the track
   // on success, 0 on error. |number| is the number to use for the audio track.
@@ -1531,12 +1520,12 @@ class Segment {
   // Adds an empty chapter to the chapters of this segment.  Returns
   // non-NULL on success.  After adding the chapter, the caller should
   // populate its fields via the Chapter member functions.
-  Chapter* AddChapter();
+  Chapter *AddChapter();
 
   // Adds an empty tag to the tags of this segment.  Returns
   // non-NULL on success.  After adding the tag, the caller should
   // populate its fields via the Tag member functions.
-  Tag* AddTag();
+  Tag *AddTag();
 
   // Adds a cue point to the Cues element. |timestamp| is the time in
   // nanoseconds of the cue's time. |track| is the Track of the Cue. This
@@ -1552,7 +1541,7 @@ class Segment {
   //                 functions.
   //   timestamp:    Timestamp of the frame in nanoseconds from 0.
   //   is_key:       Flag telling whether or not this frame is a key frame.
-  bool AddFrame(const uint8_t* data, uint64_t length, uint64_t track_number,
+  bool AddFrame(const uint8_t *data, uint64_t length, uint64_t track_number,
                 uint64_t timestamp_ns, bool is_key);
 
   // Writes a frame of metadata to the output medium; returns true on
@@ -1569,7 +1558,7 @@ class Segment {
   // The metadata frame is written as a block group, with a duration
   // sub-element but no reference time sub-elements (indicating that
   // it is considered a keyframe, per Matroska semantics).
-  bool AddMetadata(const uint8_t* data, uint64_t length, uint64_t track_number,
+  bool AddMetadata(const uint8_t *data, uint64_t length, uint64_t track_number,
                    uint64_t timestamp_ns, uint64_t duration_ns);
 
   // Writes a frame with additional data to the output medium; returns true on
@@ -1585,8 +1574,8 @@ class Segment {
   //   timestamp:    Absolute timestamp of the frame, expressed in nanosecond
   //                 units.
   //   is_key:       Flag telling whether or not this frame is a key frame.
-  bool AddFrameWithAdditional(const uint8_t* data, uint64_t length,
-                              const uint8_t* additional,
+  bool AddFrameWithAdditional(const uint8_t *data, uint64_t length,
+                              const uint8_t *additional,
                               uint64_t additional_length, uint64_t add_id,
                               uint64_t track_number, uint64_t timestamp,
                               bool is_key);
@@ -1602,7 +1591,7 @@ class Segment {
   //   timestamp:    Absolute timestamp of the frame, expressed in nanosecond
   //                 units.
   //   is_key:       Flag telling whether or not this frame is a key frame.
-  bool AddFrameWithDiscardPadding(const uint8_t* data, uint64_t length,
+  bool AddFrameWithDiscardPadding(const uint8_t *data, uint64_t length,
                                   int64_t discard_padding,
                                   uint64_t track_number, uint64_t timestamp,
                                   bool is_key);
@@ -1611,7 +1600,7 @@ class Segment {
   // the frame (Block vs SimpleBlock) based on the parameters passed.
   // Inputs:
   //   frame: frame object
-  bool AddGenericFrame(const Frame* frame);
+  bool AddGenericFrame(const Frame *frame);
 
   // Adds a VP8 video track to the segment. Returns the number of the track on
   // success, 0 on error. |number| is the number to use for the video track.
@@ -1630,8 +1619,8 @@ class Segment {
   // writer - an IMkvWriter object pointing to a *different* file than the one
   //          pointed by the current writer object. This file will contain the
   //          Cues element before the Clusters.
-  bool CopyAndMoveCuesBeforeClusters(mkvparser::IMkvReader* reader,
-                                     IMkvWriter* writer);
+  bool CopyAndMoveCuesBeforeClusters(mkvparser::IMkvReader *reader,
+                                     IMkvWriter *writer);
 
   // Sets which track to use for the Cues element. Must have added the track
   // before calling this function. Returns true on success. |track_number| is
@@ -1648,15 +1637,15 @@ class Segment {
   bool Finalize();
 
   // Returns the Cues object.
-  Cues* GetCues() { return &cues_; }
+  Cues *GetCues() { return &cues_; }
 
   // Returns the Segment Information object.
-  const SegmentInfo* GetSegmentInfo() const { return &segment_info_; }
-  SegmentInfo* GetSegmentInfo() { return &segment_info_; }
+  const SegmentInfo *GetSegmentInfo() const { return &segment_info_; }
+  SegmentInfo *GetSegmentInfo() { return &segment_info_; }
 
   // Search the Tracks and return the track that matches |track_number|.
   // Returns NULL if there is no track match.
-  Track* GetTrackByNumber(uint64_t track_number) const;
+  Track *GetTrackByNumber(uint64_t track_number) const;
 
   // Toggles whether to output a cues element.
   void OutputCues(bool output_cues);
@@ -1676,7 +1665,7 @@ class Segment {
   // what data is written to what files. Returns true on success.
   // TODO: Should we change the IMkvWriter Interface to add Open and Close?
   // That will force the interface to be dependent on files.
-  bool SetChunking(bool chunking, const char* filename);
+  bool SetChunking(bool chunking, const char *filename);
 
   bool chunking() const { return chunking_; }
   uint64_t cues_track() const { return cues_track_; }
@@ -1696,7 +1685,7 @@ class Segment {
     estimate_file_duration_ = estimate_duration;
   }
   bool estimate_file_duration() const { return estimate_file_duration_; }
-  const SegmentInfo* segment_info() const { return &segment_info_; }
+  const SegmentInfo *segment_info() const { return &segment_info_; }
   void set_duration(double duration) { duration_ = duration; }
   double duration() const { return duration_; }
 
@@ -1715,7 +1704,7 @@ class Segment {
   // Sets |name| according to how many chunks have been written. |ext| is the
   // file extension. |name| must be deleted by the calling app. Returns true
   // on success.
-  bool UpdateChunkName(const char* ext, char** name) const;
+  bool UpdateChunkName(const char *ext, char **name) const;
 
   // Returns the maximum offset within the segment's payload. When chunking
   // this function is needed to determine offsets of elements within the
@@ -1723,7 +1712,7 @@ class Segment {
   int64_t MaxOffset();
 
   // Adds the frame to our frame array.
-  bool QueueFrame(Frame* frame);
+  bool QueueFrame(Frame *frame);
 
   // Output all frames that are queued. Returns -1 on error, otherwise
   // it returns the number of frames written.
@@ -1771,7 +1760,7 @@ class Segment {
   // index - index in the list of Cues which is currently being adjusted.
   // cue_size - sum of size of all the CuePoint elements.
   void MoveCuesBeforeClustersHelper(uint64_t diff, int index,
-                                    uint64_t* cue_size);
+                                    uint64_t *cue_size);
 
   // Seeds the random number generator used to make UIDs.
   unsigned int seed_;
@@ -1788,32 +1777,32 @@ class Segment {
   int chunk_count_;
 
   // Current chunk filename.
-  char* chunk_name_;
+  char *chunk_name_;
 
   // Default MkvWriter object created by this class used for writing clusters
   // out in separate files.
-  MkvWriter* chunk_writer_cluster_;
+  MkvWriter *chunk_writer_cluster_;
 
   // Default MkvWriter object created by this class used for writing Cues
   // element out to a file.
-  MkvWriter* chunk_writer_cues_;
+  MkvWriter *chunk_writer_cues_;
 
   // Default MkvWriter object created by this class used for writing the
   // Matroska header out to a file.
-  MkvWriter* chunk_writer_header_;
+  MkvWriter *chunk_writer_header_;
 
   // Flag telling whether or not the muxer is chunking output to multiple
   // files.
   bool chunking_;
 
   // Base filename for the chunked files.
-  char* chunking_base_name_;
+  char *chunking_base_name_;
 
   // File position offset where the Clusters end.
   int64_t cluster_end_offset_;
 
   // List of clusters.
-  Cluster** cluster_list_;
+  Cluster **cluster_list_;
 
   // Number of cluster pointers allocated in the cluster list.
   int32_t cluster_list_capacity_;
@@ -1834,7 +1823,7 @@ class Segment {
   // the muxer can follow the guideline "Audio blocks that contain the video
   // key frame's timecode should be in the same cluster as the video key frame
   // block."
-  Frame** frames_;
+  Frame **frames_;
 
   // Number of frame pointers allocated in the frame list.
   int32_t frames_capacity_;
@@ -1912,9 +1901,9 @@ class Segment {
   double duration_;
 
   // Pointer to the writer objects. Not owned by this class.
-  IMkvWriter* writer_cluster_;
-  IMkvWriter* writer_cues_;
-  IMkvWriter* writer_header_;
+  IMkvWriter *writer_cluster_;
+  IMkvWriter *writer_cues_;
+  IMkvWriter *writer_header_;
 
   LIBWEBM_DISALLOW_COPY_AND_ASSIGN(Segment);
 };

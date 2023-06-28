@@ -136,14 +136,14 @@ static INLINE void highbd_transpose4x16_avx2(__m256i *x, __m256i *d) {
   w2 = _mm256_unpackhi_epi16(x[0], x[1]);  // 40 50 41 51 42 52 43 53
   w3 = _mm256_unpackhi_epi16(x[2], x[3]);  // 60 70 61 71 62 72 63 73
 
-  ww0 = _mm256_unpacklo_epi32(w0, w1);  // 00 10 20 30 01 11 21 31
-  ww1 = _mm256_unpacklo_epi32(w2, w3);  // 40 50 60 70 41 51 61 71
+  ww0 = _mm256_unpacklo_epi32(w0, w1);     // 00 10 20 30 01 11 21 31
+  ww1 = _mm256_unpacklo_epi32(w2, w3);     // 40 50 60 70 41 51 61 71
 
   d[0] = _mm256_unpacklo_epi64(ww0, ww1);  // 00 10 20 30 40 50 60 70
   d[1] = _mm256_unpackhi_epi64(ww0, ww1);  // 01 11 21 31 41 51 61 71
 
-  ww0 = _mm256_unpackhi_epi32(w0, w1);  // 02 12 22 32 03 13 23 33
-  ww1 = _mm256_unpackhi_epi32(w2, w3);  // 42 52 62 72 43 53 63 73
+  ww0 = _mm256_unpackhi_epi32(w0, w1);     // 02 12 22 32 03 13 23 33
+  ww1 = _mm256_unpackhi_epi32(w2, w3);     // 42 52 62 72 43 53 63 73
 
   d[2] = _mm256_unpacklo_epi64(ww0, ww1);  // 02 12 22 32 42 52 62 72
   d[3] = _mm256_unpackhi_epi64(ww0, ww1);  // 03 13 23 33 43 53 63 73
@@ -157,14 +157,14 @@ static INLINE void highbd_transpose8x16_16x8_avx2(__m256i *x, __m256i *d) {
   w2 = _mm256_unpacklo_epi16(x[4], x[5]);  // 40 50 41 51 42 52 43 53
   w3 = _mm256_unpacklo_epi16(x[6], x[7]);  // 60 70 61 71 62 72 63 73
 
-  ww0 = _mm256_unpacklo_epi32(w0, w1);  // 00 10 20 30 01 11 21 31
-  ww1 = _mm256_unpacklo_epi32(w2, w3);  // 40 50 60 70 41 51 61 71
+  ww0 = _mm256_unpacklo_epi32(w0, w1);     // 00 10 20 30 01 11 21 31
+  ww1 = _mm256_unpacklo_epi32(w2, w3);     // 40 50 60 70 41 51 61 71
 
   d[0] = _mm256_unpacklo_epi64(ww0, ww1);  // 00 10 20 30 40 50 60 70
   d[1] = _mm256_unpackhi_epi64(ww0, ww1);  // 01 11 21 31 41 51 61 71
 
-  ww0 = _mm256_unpackhi_epi32(w0, w1);  // 02 12 22 32 03 13 23 33
-  ww1 = _mm256_unpackhi_epi32(w2, w3);  // 42 52 62 72 43 53 63 73
+  ww0 = _mm256_unpackhi_epi32(w0, w1);     // 02 12 22 32 03 13 23 33
+  ww1 = _mm256_unpackhi_epi32(w2, w3);     // 42 52 62 72 43 53 63 73
 
   d[2] = _mm256_unpacklo_epi64(ww0, ww1);  // 02 12 22 32 42 52 62 72
   d[3] = _mm256_unpackhi_epi64(ww0, ww1);  // 03 13 23 33 43 53 63 73
@@ -174,14 +174,14 @@ static INLINE void highbd_transpose8x16_16x8_avx2(__m256i *x, __m256i *d) {
   w2 = _mm256_unpackhi_epi16(x[4], x[5]);  // 44 54 45 55 46 56 47 57
   w3 = _mm256_unpackhi_epi16(x[6], x[7]);  // 64 74 65 75 66 76 67 77
 
-  ww0 = _mm256_unpacklo_epi32(w0, w1);  // 04 14 24 34 05 15 25 35
-  ww1 = _mm256_unpacklo_epi32(w2, w3);  // 44 54 64 74 45 55 65 75
+  ww0 = _mm256_unpacklo_epi32(w0, w1);     // 04 14 24 34 05 15 25 35
+  ww1 = _mm256_unpacklo_epi32(w2, w3);     // 44 54 64 74 45 55 65 75
 
   d[4] = _mm256_unpacklo_epi64(ww0, ww1);  // 04 14 24 34 44 54 64 74
   d[5] = _mm256_unpackhi_epi64(ww0, ww1);  // 05 15 25 35 45 55 65 75
 
-  ww0 = _mm256_unpackhi_epi32(w0, w1);  // 06 16 26 36 07 17 27 37
-  ww1 = _mm256_unpackhi_epi32(w2, w3);  // 46 56 66 76 47 57 67 77
+  ww0 = _mm256_unpackhi_epi32(w0, w1);     // 06 16 26 36 07 17 27 37
+  ww1 = _mm256_unpackhi_epi32(w2, w3);     // 46 56 66 76 47 57 67 77
 
   d[6] = _mm256_unpacklo_epi64(ww0, ww1);  // 06 16 26 36 46 56 66 76
   d[7] = _mm256_unpackhi_epi64(ww0, ww1);  // 07 17 27 37 47 57 67 77

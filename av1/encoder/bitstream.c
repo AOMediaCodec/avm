@@ -2686,7 +2686,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
         aom_write_symbol(w, p, partition_cdf, partition_cdf_length(bsize));
 #if !CONFIG_H_PARTITION
       }
-#endif  // !CONFIG_H_PARTITION
+#endif      // !CONFIG_H_PARTITION
     }
   } else {  // 1:2 or 2:1 rectangular blocks
     if (disable_ext_part) {

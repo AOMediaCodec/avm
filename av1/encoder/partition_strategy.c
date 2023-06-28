@@ -1828,7 +1828,7 @@ static INLINE void add_start_mv_to_partition(
 #else
     { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 0, 0 } },  // PARTITION_HORZ_3
     { { 0, 0 }, { 0, 1 }, { 0, 3 }, { 0, 0 } },  // PARTITION_VERT_3
-#endif  // CONFIG_H_PARTITION
+#endif                                           // CONFIG_H_PARTITION
   };
 
   const BLOCK_SIZE part_subsize = get_partition_subsize(bsize, partition);
