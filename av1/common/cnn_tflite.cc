@@ -1885,8 +1885,8 @@ extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
   uint16_t *src = CONVERT_TO_SHORTPTR(source_frame->y_buffer);
 
   int quadtree_max_size = cm->cur_quad_info.unit_size;
-  int height = pcPicYuvRec->y_crop_height;
-  int width = pcPicYuvRec->y_crop_width;
+  int height = cm->superres_upscaled_height;
+  int width = cm->superres_upscaled_width;
   int dgr_stride = pcPicYuvRec->y_stride;
   int src_stride = source_frame->y_stride;
   int qp = cm->quant_params.base_qindex;
@@ -2089,8 +2089,8 @@ extern "C" int av1_restore_cnn_quadtree_decode_img_tflite_highbd(
     int is_intra_only, int is_luma, int cnn_index) {
   YV12_BUFFER_CONFIG *pcPicYuvRec = &cm->cur_frame->buf;
   uint16_t *dgr = CONVERT_TO_SHORTPTR(pcPicYuvRec->y_buffer);
-  int height = pcPicYuvRec->y_crop_height;
-  int width = pcPicYuvRec->y_crop_width;
+  int height = cm->superres_upscaled_height;
+  int width = cm->superres_upscaled_width;
   int dgr_stride = pcPicYuvRec->y_stride;
   int qp = cm->quant_params.base_qindex;
 

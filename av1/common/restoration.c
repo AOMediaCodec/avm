@@ -446,6 +446,14 @@ void av1_free_restoration_struct(RestorationInfo *rst_info) {
 
 #if CONFIG_CNN_GUIDED_QUADTREE
 void av1_alloc_quadtree_struct(struct AV1Common *cm, QUADInfo *quad_info) {
+  if (quad_info->unit_info != NULL) {
+    aom_free(quad_info->unit_info);
+    quad_info->unit_info = NULL;
+  }
+  if (quad_info->split_info != NULL) {
+    aom_free(quad_info->split_info);
+    quad_info->split_info = NULL;
+  }
   int split_size;
   int A_size;
   const int quadtree_unit_size = 512 >> cm->use_quad_level;
@@ -453,9 +461,8 @@ void av1_alloc_quadtree_struct(struct AV1Common *cm, QUADInfo *quad_info) {
   // cm->postcnn_quad_info->unit_size = quadtree_unit_size;
 
   // int quadtree_unit_size = cm->cur_quad_info->unit_size;
-  YV12_BUFFER_CONFIG *pcPicYuvRec = &cm->cur_frame->buf;
-  int height = pcPicYuvRec->y_height;
-  int width = pcPicYuvRec->y_width;
+  int height = cm->superres_upscaled_height;
+  int width = cm->superres_upscaled_width;
   int regular_height_num = (int)floor(((float)height) / quadtree_unit_size);
   int regular_width_num = (int)floor(((float)width) / quadtree_unit_size);
   int all_num = (int)ceil(((float)width) / quadtree_unit_size) *
@@ -464,12 +471,14 @@ void av1_alloc_quadtree_struct(struct AV1Common *cm, QUADInfo *quad_info) {
   int un_regularblock_num = all_num - regularblock_num;
 
   split_size = regularblock_num * 2;  // every split way need two bits
+  assert(split_size > 0);
 
   CHECK_MEM_ERROR(cm, quad_info->split_info,
                   (QUADSplitInfo *)aom_memalign(
                       16, sizeof(*quad_info->split_info) * split_size));
 
   A_size = regularblock_num * 4 + un_regularblock_num;
+  assert(A_size > 0);
 
   CHECK_MEM_ERROR(
       cm, quad_info->unit_info,

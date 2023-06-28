@@ -292,6 +292,10 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free_frame_buffer(&cpi->postcnn_buffer);
 #endif  // CONFIG_CNN_RESTORATION
 
+#if CONFIG_CNN_GUIDED_QUADTREE
+  av1_free_quadtree_buffers(cm);
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
+
   av1_free_restoration_buffers(cm);
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);
