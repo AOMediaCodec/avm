@@ -762,7 +762,8 @@ class SubGopPSNRCheckTestLarge
   unsigned int frame_num_;
 };
 
-TEST_P(SubGopPSNRCheckTestLarge, SubGopPSNRCheck) {
+// TODO(urvang): Temporarily disabled to measure total test time impact.
+TEST_P(SubGopPSNRCheckTestLarge, DISABLED_SubGopPSNRCheck) {
   std::unique_ptr<libaom_test::VideoSource> video;
   const unsigned int kFrames = 100;
   const double psnr_diff_thresh = 0.3;
