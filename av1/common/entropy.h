@@ -157,7 +157,7 @@ static INLINE ENTROPY_CONTEXT get_entropy_context_1d(const ENTROPY_CONTEXT *ctx,
 #elif CONFIG_H_PARTITION
       return !!(*(const uint32_t *)ctx | *(const uint32_t *)(ctx + 4));
 #else
-      return !*(const uint64_t *)ctx;
+      return !!*(const uint64_t *)ctx;
 #endif  // CONFIG_UNEVEN_4WAY
     case 64: return !!(*(const uint64_t *)ctx | *(const uint64_t *)(ctx + 8));
     default: assert(0 && "Invalid transform 1d size."); break;
