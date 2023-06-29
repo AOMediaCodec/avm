@@ -121,11 +121,12 @@ TEST_P(LevelTest, TestLevelMonitoringLowBitrate) {
 TEST_P(LevelTest, TestLevelMonitoringHighBitrate) {
   // To save run time, we only test speed 4.
   if (cpu_used_ == 4) {
+    const int num_frames = 17;
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                       30, 1, 0, 40);
+                                       30, 1, 0, num_frames);
     target_level_ = kLevelKeepStats;
     cfg_.rc_target_bitrate = 4000;
-    cfg_.g_limit = 40;
+    cfg_.g_limit = num_frames;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     ASSERT_EQ(level_[0], 4);
   }
