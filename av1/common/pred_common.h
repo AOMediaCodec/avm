@@ -523,31 +523,34 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_compound_ref(
 // The prediction flags in these dummy entries are initialized to 0.
 static INLINE int get_tx_size_context(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
+  const MB_MODE_INFO *const above_mbmi = xd->above_mbmi;
+  const MB_MODE_INFO *const left_mbmi = xd->left_mbmi;
   const TX_SIZE max_tx_size =
       max_txsize_rect_lookup[mbmi->sb_type[PLANE_TYPE_Y]];
   const int max_tx_wide = tx_size_wide[max_tx_size];
   const int max_tx_high = tx_size_high[max_tx_size];
-  const int default_ctx[MAX_NUM_NEIGHBORS] = {
-    xd->above_txfm_context[0] >= max_tx_wide,
-    xd->left_txfm_context[0] >= max_tx_high
-  };
+  const int has_above = xd->up_available;
+  const int has_left = xd->left_available;
 
-  const int max_tx_threshold[MAX_NUM_NEIGHBORS] = { max_tx_wide, max_tx_high };
+  int above = xd->above_txfm_context[0] >= max_tx_wide;
+  int left = xd->left_txfm_context[0] >= max_tx_high;
 
-  int ctx = 0;
-  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-    if (neighbor != NULL) {
-      if (is_inter_block(neighbor, xd->tree_type)) {
-        const int block_size = neighbor->sb_type[PLANE_TYPE_Y];
-        ctx += (block_size_wide[block_size] >= max_tx_threshold[i]);
-      } else {
-        ctx += default_ctx[i];
-      }
-    }
-  }
+  if (has_above)
+    if (is_inter_block(above_mbmi, xd->tree_type))
+      above = block_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]] >= max_tx_wide;
 
-  return ctx;
+  if (has_left)
+    if (is_inter_block(left_mbmi, xd->tree_type))
+      left = block_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]] >= max_tx_high;
+
+  if (has_above && has_left)
+    return (above + left);
+  else if (has_above)
+    return above;
+  else if (has_left)
+    return left;
+  else
+    return 0;
 }
 
 #ifdef __cplusplus
