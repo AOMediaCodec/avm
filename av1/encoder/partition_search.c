@@ -4834,10 +4834,8 @@ static void none_partition_search(
                              x->e_mbd.tree_type,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                              part_search_state);
-  if (!part_search_state->partition_none_allowed) {
-    return;
-  }
-  if (part_search_state->prune_partition_none) {
+  if (!part_search_state->partition_none_allowed ||
+      part_search_state->prune_partition_none) {
     return;
   }
 
