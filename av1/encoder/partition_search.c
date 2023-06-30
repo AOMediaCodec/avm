@@ -5176,6 +5176,7 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
   mi_row &= MAX_MIB_MASK;
   mi_col &= MAX_MIB_MASK;
   const PARTITION_TYPE partition = pc_tree->partitioning;
+  assert(bsize < BLOCK_SIZES_ALL);
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
 #if CONFIG_UNEVEN_4WAY
