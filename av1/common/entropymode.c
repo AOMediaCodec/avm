@@ -297,6 +297,9 @@ static const aom_cdf_prob
 #endif  // CONFIG_AIMC
 #if CONFIG_EXT_RECUR_PARTITIONS
 // clang-format off
+// TODO(now): For all partition CDFs below:
+// Retrain 16x32, 32x16, 32x32, 32x64, 64x32, 64x64 for luma
+// and relevant ones for chroma.
 static aom_cdf_prob
     default_do_split_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)] = {
       // Luma
@@ -480,7 +483,6 @@ static aom_cdf_prob
 // Note: For the partition CDFs below, most entries are unused. An optimized
 // implementation could create smaller arrays with only used values + some
 // mapping tables.
-// TODO(now): Update.
 static aom_cdf_prob default_do_ext_partition_cdf
     [PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_CONTEXTS]
     [CDF_SIZE(2)] = {
@@ -685,7 +687,6 @@ static aom_cdf_prob
 #endif  // CONFIG_BLOCK_256
 
 #if CONFIG_UNEVEN_4WAY
-// TODO(now): Update.
 static aom_cdf_prob default_do_uneven_4way_partition_cdf
     [PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_CONTEXTS]
     [CDF_SIZE(2)] = {
@@ -869,7 +870,6 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
       },
     };
 
-// TODO(now): update.
 static aom_cdf_prob default_uneven_4way_partition_type_cdf
     [PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_CONTEXTS]
     [CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)] = {

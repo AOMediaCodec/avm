@@ -838,6 +838,22 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
   if (!is_ext_partition_allowed_at_bsize(bsize, tree_type)) {
     return false;
   }
+#if CONFIG_FLEX_PARTITION
+  // If 16x8 block performs HORZ_3 split, we'll get a block size 16x2, which is
+  // invalid. So, extended partitions are disabled. Same goes for tall blocks.
+  if ((bsize == BLOCK_16X8 && rect_type == HORZ) ||
+      (bsize == BLOCK_8X16 && rect_type == VERT)) {
+    return false;
+  }
+  // If a 32x16 luma block performs HORZ_3 split, we'll get luma block size of
+  // 32x4, which implies chroma block size of 16x2, which is invalid. So,
+  // extended partitions are disabled. Same goes for tall blocks.
+  if (tree_type == CHROMA_PART &&
+      ((bsize == BLOCK_32X16 && rect_type == HORZ) ||
+       (bsize == BLOCK_16X32 && rect_type == VERT))) {
+    return false;
+  }
+#else
   // A splittable wide block has ratio 2:1. If it performs HORZ_3 split, then
   // we'll get a block ratio of 2:0.25 == 8:1, which is illegal. So extended
   // partition is disabled. The same goes for tall block.
@@ -845,6 +861,11 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
       (is_tall_block(bsize) && rect_type == VERT)) {
     return false;
   }
+#endif  // CONFIG_FLEX_PARTITION
+  assert(IMPLIES(rect_type == HORZ,
+                 subsize_lookup[PARTITION_HORZ_3][bsize] != BLOCK_INVALID));
+  assert(IMPLIES(rect_type == VERT,
+                 subsize_lookup[PARTITION_VERT_3][bsize] != BLOCK_INVALID));
   return true;
 }
 
@@ -854,7 +875,18 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
 static AOM_INLINE bool is_uneven_4way_partition_allowed(
     BLOCK_SIZE bsize, RECT_PART_TYPE rect_type, TREE_TYPE tree_type) {
   assert(is_ext_partition_allowed(bsize, rect_type, tree_type));
-
+#if CONFIG_FLEX_PARTITION
+  (void)rect_type;
+  if (bsize >= BLOCK_32X64) {  // 32x64, 64x32, 64x64
+    assert(bsize <= BLOCK_64X64);
+    return true;
+  }
+  if (tree_type != CHROMA_PART &&
+      bsize >= BLOCK_16X32) {  // 16x32, 32x16, 32x32
+    assert(bsize <= BLOCK_32X32);
+    return true;
+  }
+#else
   if (rect_type == HORZ) {
     if (bsize == BLOCK_32X64) return true;
     if (bsize == BLOCK_16X32 && tree_type != CHROMA_PART) return true;
@@ -863,6 +895,7 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed(
     if (bsize == BLOCK_64X32) return true;
     if (bsize == BLOCK_32X16 && tree_type != CHROMA_PART) return true;
   }
+#endif  // CONFIG_FLEX_PARTITION
   return false;
 }
 #endif  // CONFIG_UNEVEN_4WAY
