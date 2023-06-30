@@ -163,6 +163,40 @@ static void fadst4_new(const tran_low_t *input, tran_low_t *output) {
   output[3] = (tran_low_t)fdct_round_shift(s3);
 }
 
+#if CONFIG_ADST_TUNED
+void reference_adst_1d(const double *in, double *out, int size) {
+  if (size == 4) {  // Special case.
+    tran_low_t int_input[4];
+    for (int i = 0; i < 4; ++i) {
+      int_input[i] = static_cast<tran_low_t>(round(in[i]));
+    }
+    tran_low_t int_output[4];
+    fadst4_new(int_input, int_output);
+    for (int i = 0; i < 4; ++i) {
+      out[i] = int_output[i];
+    }
+    return;
+  }
+
+  if (size == 16) {  // DST-7
+    for (int k = 0; k < size; ++k) {
+      out[k] = 0;
+      for (int n = 0; n < size; ++n) {
+        out[k] += in[n] * sin(PI * (2 * k + 1) * (n + 1) / (2 * size + 1));
+      }
+      out [k] /= (0.3535533905932738 / 0.3481553119113957); // Renormalize from DST-4 to DST-7
+    }
+    return;
+  }
+
+  for (int k = 0; k < size; ++k) {
+    out[k] = 0;
+    for (int n = 0; n < size; ++n) {
+      out[k] += in[n] * sin(PI * (2 * n + 1) * (2 * k + 1) / (4 * size));
+    }
+  }
+}
+#else
 void reference_adst_1d(const double *in, double *out, int size) {
   if (size == 4) {  // Special case.
     tran_low_t int_input[4];
@@ -184,6 +218,7 @@ void reference_adst_1d(const double *in, double *out, int size) {
     }
   }
 }
+#endif  // CONFIG_ADST_TUNED
 
 void reference_idtx_1d(const double *in, double *out, int size) {
   double scale = 0;
