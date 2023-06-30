@@ -372,7 +372,7 @@ enum {
 
 #define PARTITION_BLOCK_SIZES_REC 5  // 128x64, 64x32, 32x16, 16x8, 8x4
 #define PARTITION_CONTEXTS_REC (PARTITION_BLOCK_SIZES_REC * PARTITION_PLOFFSET)
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif                               // CONFIG_EXT_RECUR_PARTITIONS
 
 // block transform size
 enum {
@@ -398,7 +398,7 @@ enum {
   TX_SIZES_ALL,       // Includes rectangular transforms
   TX_SIZES = TX_4X8,  // Does NOT include rectangular transforms
   TX_SIZES_LARGEST = TX_64X64,
-  TX_INVALID = 255  // Invalid transform size
+  TX_INVALID = 255    // Invalid transform size
 } UENUM1BYTE(TX_SIZE);
 
 #if CONFIG_NEW_TX_PARTITION
@@ -499,22 +499,22 @@ enum {
 } UENUM1BYTE(TX_TYPE_1D);
 
 enum {
-  DCT_DCT,            // DCT in both horizontal and vertical
-  ADST_DCT,           // ADST in vertical, DCT in horizontal
-  DCT_ADST,           // DCT in vertical, ADST in horizontal
-  ADST_ADST,          // ADST in both directions
-  FLIPADST_DCT,       // FLIPADST in vertical, DCT in horizontal
-  DCT_FLIPADST,       // DCT in vertical, FLIPADST in horizontal
-  FLIPADST_FLIPADST,  // FLIPADST in both directions
-  ADST_FLIPADST,      // ADST in vertical, FLIPADST in horizontal
-  FLIPADST_ADST,      // FLIPADST in vertical, ADST in horizontal
-  IDTX,               // Identity in both directions
-  V_DCT,              // DCT in vertical, identity in horizontal
-  H_DCT,              // Identity in vertical, DCT in horizontal
-  V_ADST,             // ADST in vertical, identity in horizontal
-  H_ADST,             // Identity in vertical, ADST in horizontal
-  V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
-  H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
+  DCT_DCT,                    // DCT in both horizontal and vertical
+  ADST_DCT,                   // ADST in vertical, DCT in horizontal
+  DCT_ADST,                   // DCT in vertical, ADST in horizontal
+  ADST_ADST,                  // ADST in both directions
+  FLIPADST_DCT,               // FLIPADST in vertical, DCT in horizontal
+  DCT_FLIPADST,               // DCT in vertical, FLIPADST in horizontal
+  FLIPADST_FLIPADST,          // FLIPADST in both directions
+  ADST_FLIPADST,              // ADST in vertical, FLIPADST in horizontal
+  FLIPADST_ADST,              // FLIPADST in vertical, ADST in horizontal
+  IDTX,                       // Identity in both directions
+  V_DCT,                      // DCT in vertical, identity in horizontal
+  H_DCT,                      // Identity in vertical, DCT in horizontal
+  V_ADST,                     // ADST in vertical, identity in horizontal
+  H_ADST,                     // Identity in vertical, ADST in horizontal
+  V_FLIPADST,                 // FLIPADST in vertical, identity in horizontal
+  H_FLIPADST,                 // Identity in vertical, FLIPADST in horizontal
   TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM1BYTE(TX_TYPE);
@@ -600,7 +600,11 @@ enum {
 
 enum { PLANE_TYPE_Y, PLANE_TYPE_UV, PLANE_TYPES } UENUM1BYTE(PLANE_TYPE);
 
+#if CONFIG_CFL_IMPROVEMENTS
+#define CFL_ALPHABET_SIZE_LOG2 3
+#else
 #define CFL_ALPHABET_SIZE_LOG2 4
+#endif  // CONFIG_CFL_IMPROVEMENTS
 #define CFL_ALPHABET_SIZE (1 << CFL_ALPHABET_SIZE_LOG2)
 #define CFL_MAGS_SIZE ((2 << CFL_ALPHABET_SIZE_LOG2) + 1)
 #define CFL_IDX_U(idx) (idx >> CFL_ALPHABET_SIZE_LOG2)
@@ -755,7 +759,7 @@ enum {
   UV_PAETH_PRED,     // Predict from the direction of smallest gradient
   UV_CFL_PRED,       // Chroma-from-Luma
   UV_INTRA_MODES,
-  UV_MODE_INVALID,  // For uv_mode in inter blocks
+  UV_MODE_INVALID,   // For uv_mode in inter blocks
 } UENUM1BYTE(UV_PREDICTION_MODE);
 
 #if CONFIG_IMPROVED_CFL
@@ -780,8 +784,8 @@ enum {
   OBMC_CAUSAL,    // 2-sided OBMC
   WARPED_CAUSAL,  // Warp estimation from spatial MVs
 #if CONFIG_EXTENDED_WARP_PREDICTION
-  WARP_DELTA,   // Directly-signaled warp model
-  WARP_EXTEND,  // Extension of an existing warp model into another block
+  WARP_DELTA,     // Directly-signaled warp model
+  WARP_EXTEND,    // Extension of an existing warp model into another block
 #endif
   MOTION_MODES
 } UENUM1BYTE(MOTION_MODE);
@@ -1035,12 +1039,12 @@ typedef int8_t MV_REFERENCE_FRAME;
  * \brief This enumeration defines various restoration types supported
  */
 typedef enum {
-  RESTORE_NONE,    /**< No restoration */
-  RESTORE_WIENER,  /**< Separable Wiener restoration */
-  RESTORE_SGRPROJ, /**< Selfguided restoration */
+  RESTORE_NONE,          /**< No restoration */
+  RESTORE_WIENER,        /**< Separable Wiener restoration */
+  RESTORE_SGRPROJ,       /**< Selfguided restoration */
 #if CONFIG_PC_WIENER
-  RESTORE_PC_WIENER, /**< Pixel-classified Wiener restoration */
-#endif               // CONFIG_PC_WIENER
+  RESTORE_PC_WIENER,     /**< Pixel-classified Wiener restoration */
+#endif                   // CONFIG_PC_WIENER
 #if CONFIG_WIENER_NONSEP
   RESTORE_WIENER_NONSEP, /**< Nonseparable Wiener restoration */
 #endif                   // CONFIG_WIENER_NONSEP
@@ -1091,7 +1095,7 @@ typedef enum {
   PROJ_DEFAULT,        /**< Default values */
   WARP_PROJ_TYPES = 5, /**< Num projection types */
 } WarpProjectionType;
-#endif  // CONFIG_WARP_REF_LIST
+#endif                 // CONFIG_WARP_REF_LIST
 
 /*!\endcond */
 
