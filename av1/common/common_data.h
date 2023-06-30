@@ -1071,10 +1071,10 @@ static const int av1_md_class[INTRA_MODES] = {
 };
 
 // Mapping between mode dependent TX size groups based on allowed TX sizes.
-static const int av1_size_class[TX_SIZES_ALL] = {
-  0, 1, 2, 3, 3, 0, 0, 1, 1, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3,
+static const int av1_size_class[TX_SIZES_ALL] = { 0, 1, 2, 3, 3, 0, 0, 1, 1, 3,
+                                                  3, 3, 3, 0, 0, 3, 3, 3, 3,
 #if CONFIG_FLEX_PARTITION
-  3, 3, 3, 3, 3, 3
+                                                  3, 3, 3, 3, 3, 3
 #endif  // CONFIG_FLEX_PARTITION
 };
 #endif  // CONFIG_ATC
