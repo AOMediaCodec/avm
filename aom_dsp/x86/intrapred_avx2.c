@@ -3111,7 +3111,14 @@ static void highbd_dr_prediction_z1_4xN_idif_avx2(
   (void)bw;
   assert(bw == 4);
   int N = bh;
+
+#if CONFIG_FLEX_PARTITION
+  assert(bh <= 64);
+  __m128i dstvec[64];
+#else
+  assert(bh <= 16);
   __m128i dstvec[16];
+#endif  // CONFIG_FLEX_PARTITION
 
   if (bd < 10) {
     highbd_dr_prediction_z1_4xN_internal_idif_avx2(N, dstvec, above, dx,
@@ -3272,7 +3279,15 @@ void highbd_dr_prediction_z1_8xN_idif_avx2(uint16_t *dst, ptrdiff_t stride,
   (void)bw;
   assert(bw == 8);
   int N = bh;
+
+#if CONFIG_FLEX_PARTITION
+  assert(bh <= 64);
+  __m128i dstvec[64];
+#else
+  assert(bh <= 32);
   __m128i dstvec[32];
+#endif  // CONFIG_FLEX_PARTITION
+
   if (bd < 10) {
     highbd_dr_prediction_z1_8xN_internal_idif_avx2(N, dstvec, above, dx,
                                                    mrl_index, bd);
@@ -4619,7 +4634,11 @@ static void highbd_dr_prediction_z3_8x16_idif_avx2(uint16_t *dst,
     highbd_dr_prediction_32bit_z1_16xN_internal_idif_avx2(8, dstvec, left, dy,
                                                           mrl_index, bd);
   }
-  highbd_transpose8x16_16x8_avx2(dstvec, d);
+  highbd_transpose8x16_16x8_avx2(&dstvec[0], &dstvec[1], &dstvec[2], &dstvec[3],
+                                 &dstvec[4], &dstvec[5], &dstvec[6], &dstvec[7],
+                                 &d[0], &d[1], &d[2], &d[3], &d[4], &d[5],
+                                 &d[6], &d[7]);
+
   for (int i = 0; i < 8; i++) {
     _mm_storeu_si128((__m128i *)(dst + i * stride),
                      _mm256_castsi256_si128(d[i]));
@@ -4667,7 +4686,8 @@ static void highbd_dr_prediction_z3_4x16_idif_avx2(uint16_t *dst,
     highbd_dr_prediction_32bit_z1_16xN_internal_idif_avx2(4, dstvec, left, dy,
                                                           mrl_index, bd);
   }
-  highbd_transpose4x16_avx2(dstvec, d);
+  highbd_transpose4x16_avx2(&dstvec[0], &dstvec[1], &dstvec[2], &dstvec[3],
+                            &d[0], &d[1], &d[2], &d[3]);
   for (int i = 0; i < 4; i++) {
     _mm_storel_epi64((__m128i *)(dst + i * stride),
                      _mm256_castsi256_si128(d[i]));
@@ -4719,7 +4739,11 @@ static void highbd_dr_prediction_z3_8x32_idif_avx2(uint16_t *dst,
   }
 
   for (int i = 0; i < 16; i += 8) {
-    highbd_transpose8x16_16x8_avx2(dstvec + i, d + i);
+    highbd_transpose8x16_16x8_avx2(
+        &dstvec[i], &dstvec[i + 1], &dstvec[i + 2], &dstvec[i + 3],
+        &dstvec[i + 4], &dstvec[i + 5], &dstvec[i + 6], &dstvec[i + 7], &d[i],
+        &d[i + 1], &d[i + 2], &d[i + 3], &d[i + 4], &d[i + 5], &d[i + 6],
+        &d[i + 7]);
   }
 
   for (int i = 0; i < 8; i++) {
@@ -4782,7 +4806,11 @@ static void highbd_dr_prediction_z3_16x32_idif_avx2(uint16_t *dst,
                                                           mrl_index, bd);
   }
   for (int i = 0; i < 32; i += 8) {
-    highbd_transpose8x16_16x8_avx2(dstvec + i, d + i);
+    highbd_transpose8x16_16x8_avx2(
+        &dstvec[i], &dstvec[i + 1], &dstvec[i + 2], &dstvec[i + 3],
+        &dstvec[i + 4], &dstvec[i + 5], &dstvec[i + 6], &dstvec[i + 7], &d[i],
+        &d[i + 1], &d[i + 2], &d[i + 3], &d[i + 4], &d[i + 5], &d[i + 6],
+        &d[i + 7]);
   }
   // store
   for (int j = 0; j < 32; j += 16) {
@@ -4946,12 +4974,29 @@ void av1_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
       } else {
         switch (bw) {
           case 4:
-            highbd_dr_prediction_z3_4x16_idif_avx2(dst, stride, left, dy, bd,
-                                                   mrl_index);
+#if CONFIG_FLEX_PARTITION
+            // TODO(now): Implement avx2 functions.
+            if (bh == 32)
+              av1_highbd_dr_prediction_z3_idif_c(dst, stride, bw, bh, above,
+                                                 left, dx, dy, bd, mrl_index);
+            else if (bh == 64)
+              av1_highbd_dr_prediction_z3_idif_c(dst, stride, bw, bh, above,
+                                                 left, dx, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_4x16_idif_avx2(dst, stride, left, dy, bd,
+                                                     mrl_index);
             break;
           case 8:
-            highbd_dr_prediction_z3_8x32_idif_avx2(dst, stride, left, dy, bd,
-                                                   mrl_index);
+#if CONFIG_FLEX_PARTITION
+            // TODO(now): Implement avx2 function.
+            if (bh == 64)
+              av1_highbd_dr_prediction_z3_idif_c(dst, stride, bw, bh, above,
+                                                 left, dx, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_8x32_idif_avx2(dst, stride, left, dy, bd,
+                                                     mrl_index);
             break;
           case 16:
             highbd_dr_prediction_z3_16x64_idif_avx2(dst, stride, left, dy, bd,
@@ -4982,12 +5027,29 @@ void av1_highbd_dr_prediction_z3_idif_avx2(uint16_t *dst, ptrdiff_t stride,
       } else {
         switch (bh) {
           case 4:
-            highbd_dr_prediction_z3_16x4_idif_avx2(dst, stride, left, dy, bd,
-                                                   mrl_index);
+#if CONFIG_FLEX_PARTITION
+            // TODO(now): Implement avx2 functions.
+            if (bw == 32)
+              av1_highbd_dr_prediction_z3_idif_c(dst, stride, bw, bh, above,
+                                                 left, dx, dy, bd, mrl_index);
+            else if (bw == 64)
+              av1_highbd_dr_prediction_z3_idif_c(dst, stride, bw, bh, above,
+                                                 left, dx, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_16x4_idif_avx2(dst, stride, left, dy, bd,
+                                                     mrl_index);
             break;
           case 8:
-            highbd_dr_prediction_z3_32x8_idif_avx2(dst, stride, left, dy, bd,
-                                                   mrl_index);
+#if CONFIG_FLEX_PARTITION
+            // TODO(now): Implement avx2 function.
+            if (bw == 64)
+              av1_highbd_dr_prediction_z3_idif_c(dst, stride, bw, bh, above,
+                                                 left, dx, dy, bd, mrl_index);
+            else
+#endif  // CONFIG_FLEX_PARTITION
+              highbd_dr_prediction_z3_32x8_idif_avx2(dst, stride, left, dy, bd,
+                                                     mrl_index);
             break;
           case 16:
             highbd_dr_prediction_z3_64x16_idif_avx2(dst, stride, left, dy, bd,
