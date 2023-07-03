@@ -4718,6 +4718,9 @@ static AOM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
 #if !CONFIG_FLEX_MVRES
     struct aom_write_bit_buffer *wb, int allow_hp) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)allow_hp;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #else
     struct aom_write_bit_buffer *wb, MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);

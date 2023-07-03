@@ -6435,6 +6435,9 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                      struct aom_read_bit_buffer *rb,
 #if !CONFIG_FLEX_MVRES
                                      int allow_hp) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)allow_hp;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #else
                                      MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);

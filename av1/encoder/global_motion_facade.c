@@ -35,6 +35,9 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #else
                               const WarpedMotionParams *ref_gm, int allow_hp) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)allow_hp;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #endif  // CONFIG_FLEX_MVRES
   int params_cost = 0;
 #if CONFIG_IMPROVED_GLOBAL_MOTION
@@ -508,8 +511,13 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
       const WarpedMotionParams *model = &cm->global_motion[frame];
       if (model->wmtype == IDENTITY) continue;
 
+#if CONFIG_FLEX_MVRES
       int model_cost = gm_get_params_cost(model, &default_warp_params,
                                           cm->features.fr_mv_precision);
+#else
+      int model_cost = gm_get_params_cost(model, &default_warp_params,
+                                          cm->features.allow_high_precision_mv);
+#endif  // CONFIG_FLEX_MVRES
       bool use_model = av1_is_enough_erroradvantage(
           gm_info->erroradvantage[frame], model_cost);
 
@@ -582,8 +590,13 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
         av1_scale_warp_model(base_model, base_temporal_distance, &ref_params,
                              temporal_distance);
 
+#if CONFIG_FLEX_MVRES
         int model_cost = gm_get_params_cost(model, &ref_params,
                                             cm->features.fr_mv_precision);
+#else
+        int model_cost = gm_get_params_cost(
+            model, &ref_params, cm->features.allow_high_precision_mv);
+#endif  // CONFIG_FLEX_MVRES
         bool use_model = av1_is_enough_erroradvantage(
             gm_info->erroradvantage[frame], model_cost);
 
