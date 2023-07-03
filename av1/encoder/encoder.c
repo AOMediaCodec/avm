@@ -1680,9 +1680,13 @@ static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
     dst += CFL_BUF_LINE;
   }
 }
-
+#if CONFIG_CFL_IMPROVEMENTS
+static int64_t compute_sad(const uint16_t *src, uint16_t *src2, int width,
+                           int height, int round_offset, int src2_stride) {
+#else
 static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
                        int height, int round_offset, int src2_stride) {
+#endif  // CONFIG_CFL_IMPROVEMENTS
   int sad = round_offset;
   for (int j = 0; j < height; ++j) {
     for (int i = 0; i < width; ++i) {
@@ -1691,7 +1695,11 @@ static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
     src += CFL_BUF_LINE;
     src2 += src2_stride;
   }
+#if CONFIG_CFL_IMPROVEMENTS
+  return sad;
+#else
   return (sad / (height * width));
+#endif  // CONFIG_CFL_IMPROVEMENTS
 }
 
 static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
@@ -1761,14 +1769,23 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   const int subsampling_x = cpi->unfiltered_source->subsampling_x;
   const int subsampling_y = cpi->unfiltered_source->subsampling_y;
 
+#if CONFIG_CFL_IMPROVEMENTS
+  const int blk_w = 16;
+  const int blk_h = 16;
+#else
   const int blk_w = 32;
   const int blk_h = 32;
+#endif  // CONFIG_CFL_IMPROVEMENTS
 
   uint16_t recon_buf_q3[CFL_BUF_SQUARE];
   uint16_t dc_buf_q3[CFL_BUF_SQUARE];
   // Q3 AC contributions (reconstructed luma pixels - tx block avg)
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
+#if CONFIG_CFL_IMPROVEMENTS
+  int64_t cost[3] = { 0, 0, 0 };
+#else
   int cost[3] = { 0, 0, 0 };
+#endif  // CONFIG_CFL_IMPROVEMENTS
   for (int filter_type = 0; filter_type < 3; ++filter_type) {
     for (int comp = 0; comp < 2; comp++) {
       for (int r = 2; r + blk_h <= height - 2; r += blk_h) {
@@ -1803,15 +1820,24 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
                              chroma_stride, blk_w >> 1, blk_h >> 1);
           cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
                                        alpha, bd, blk_w >> 1, blk_h >> 1);
+#if CONFIG_CFL_IMPROVEMENTS
+          int64_t filter_cost =
+              compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
+                          chroma_stride);
+#else
           int filter_cost = compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1,
                                         blk_h >> 1, 2, chroma_stride);
+#endif  // CONFIG_CFL_IMPROVEMENTS
           cost[filter_type] = cost[filter_type] + filter_cost;
         }
       }
     }
   }
-
+#if CONFIG_CFL_IMPROVEMENTS
+  int64_t min_cost = INT64_MAX;
+#else
   int min_cost = INT_MAX;
+#endif  // CONFIG_CFL_IMPROVEMENTS
   for (int i = 0; i < 3; ++i) {
     if (cost[i] < min_cost) {
       min_cost = cost[i];

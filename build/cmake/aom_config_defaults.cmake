@@ -221,6 +221,8 @@ set_aom_config_var(CONFIG_BVP_IMPROVEMENT 1 "Enables BVP improvements")
 set_aom_config_var(CONFIG_BVCOST_UPDATE 1 "Enables sb-level update for bv cost")
 set_aom_config_var(CONFIG_CCSO_EXT 1
                    "AV2 experiment flag to enable extended CCSO.")
+set_aom_config_var(CONFIG_CFL_IMPROVEMENTS 1
+                   "AV2 Cfl improvements from CWG-D029.")
 set_aom_config_var(CONFIG_ADAPTIVE_MVD 1 "Enable adaptive MVD resolution")
 set_aom_config_var(CONFIG_JOINT_MVD 1 "Enable joint MVD coding")
 set_aom_config_var(CONFIG_IMPROVED_JMVD 1
