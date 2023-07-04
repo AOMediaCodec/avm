@@ -5681,6 +5681,10 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 }
 
 #if CONFIG_WARP_REF_LIST
+// Should we try refining the MV in av1_refine_mv_for_base_param_warp_model
+// even if the base model is an IDENTITY model?
+#define REFINE_MV_FOR_IDENTITY_BASE_PARAMS 0
+
 // Returns 1 if able to select a good model, 0 if not
 int av1_refine_mv_for_base_param_warp_model(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
@@ -5715,9 +5719,16 @@ int av1_refine_mv_for_base_param_warp_model(
   );
 
   if (base_params.wmtype == IDENTITY) {
+#if REFINE_MV_FOR_IDENTITY_BASE_PARAMS
     // Promote to a TRANSLATION model, as we will set a potentially-nonzero
     // translational part later using av1_set_warp_translation()
     base_params.wmtype = TRANSLATION;
+#else
+    // Skip refinement when the baseline parameters are an identity model.
+    // In this case, the prediction is no different to an ordinary translation,
+    // so there's no reason to use WARP_DELTA.
+    return 0;
+#endif  // REFINE_MV_FOR_IDENTITY_BASE_PARAMS
   }
 
   *params = base_params;
