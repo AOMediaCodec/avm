@@ -303,6 +303,32 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
+// Given a warp model which was initially used at a temporal distance of
+// `in_distance`, rescale it to a new temporal distance of `out_distance`.
+// Both distances are allowed to be negative, but they must be nonzero.
+//
+// The mathematically ideal way to rescale a warp model from one temporal
+// distance to another would be to use a matrix exponential: If we write the
+// input model as a 3x3 matrix M, then the output model should be
+//
+//  ideal output = M ^ (out_distance / in_distance)
+//
+// However, computing a matrix exponential is complicated, especially in
+// fixed point, and so would not be very hardware friendly. In addition,
+// this function is mainly used to predict global motion parameters, with
+// the true values being coded as a delta from this prediction. As the
+// global motion will not be perfectly consistent, there's a limit to how
+// accurate our prediction can be.
+//
+// For these reasons, we approximate the matrix exponential using its
+// first-order Taylor series:
+//
+//  output = I + (M - I) * (out_distance / in_distance)
+//
+// This is far easier to compute, and provides a "good enough" approximation
+// for the models we use in practice, which are all reasonably near to the
+// identity model (all parameters except for the translational part are
+// within +/- 1/2 of the identity).
 static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
                                         int in_distance,
                                         WarpedMotionParams *out_params,
