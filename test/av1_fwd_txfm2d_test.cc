@@ -138,7 +138,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
 };
 
 static double avg_error_ls[TX_SIZES_ALL] = {
-  0.5,   // 4x4 transform
+  0.66,   // 4x4 transform
   0.5,   // 8x8 transform
   1.2,   // 16x16 transform
   6.1,   // 32x32 transform
@@ -160,7 +160,7 @@ static double avg_error_ls[TX_SIZES_ALL] = {
 };
 
 static double max_error_ls[TX_SIZES_ALL] = {
-  3,    // 4x4 transform
+  3.5,    // 4x4 transform
   5,    // 8x8 transform
   11,   // 16x16 transform
   70,   // 32x32 transform

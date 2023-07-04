@@ -123,6 +123,50 @@ void reference_idct_1d(const double *in, double *out, int size) {
 // TODO(any): Copied from the old 'fadst4' (same as the new 'av1_fadst4'
 // function). Should be replaced by a proper reference function that takes
 // 'double' input & output.
+#if CONFIG_ADST_TUNED
+static void fadst4_new(const tran_low_t *input, tran_low_t *output) {
+  tran_low_t x0, x1, x2, x3;
+  tran_low_t s0, s1, s2, s3;
+  tran_low_t cospi8 = 8035;
+  tran_low_t cospi56 = 1598;
+  tran_low_t cospi24 = 6811;
+  tran_low_t cospi40 = 4551;
+  tran_low_t cospi32 = 5793;
+
+  int cos_bit = 13;
+  int offset = (1 << (cos_bit - 1));
+
+  // stage 1
+  x0 = input[3];
+  x1 = input[0];
+  x2 = input[1];
+  x3 = input[2];
+
+  // stage 2
+  s0 = (cospi8 * x0 + cospi56 * x1 + offset) >> cos_bit;
+  s1 = (-cospi8 * x1 + cospi56 * x0 + offset) >> cos_bit;
+  s2 = (cospi40 * x2 + cospi24 * x3 + offset) >> cos_bit;
+  s3 = (-cospi40 * x3 + cospi24 * x2 + offset) >> cos_bit;
+
+ // stage 3
+  x0 = s0 + s2;
+  x1 = s1 + s3;
+  x2 = -s2 + s0;
+  x3 = -s3 + s1;
+
+  // stage 4
+  s0 = x0;
+  s1 = x1;
+  s2 = (cospi32 * x2 + cospi32 * x3 + offset) >> cos_bit;
+  s3 = (-cospi32 * x3 + cospi32 * x2 + offset) >> cos_bit;
+
+  // stage 5
+  output[0] = (tran_low_t) s0;
+  output[1] = (tran_low_t) -s2;
+  output[2] = (tran_low_t) s3;
+  output[3] = (tran_low_t) -s1;
+}
+#else
 static void fadst4_new(const tran_low_t *input, tran_low_t *output) {
   tran_high_t x0, x1, x2, x3;
   tran_high_t s0, s1, s2, s3, s4, s5, s6, s7;
@@ -162,6 +206,7 @@ static void fadst4_new(const tran_low_t *input, tran_low_t *output) {
   output[2] = (tran_low_t)fdct_round_shift(s2);
   output[3] = (tran_low_t)fdct_round_shift(s3);
 }
+#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_ADST_TUNED
 void reference_adst_1d(const double *in, double *out, int size) {
