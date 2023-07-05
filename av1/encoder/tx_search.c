@@ -3470,7 +3470,7 @@ static void select_tx_partition_type(
     int blk_idx = 0;
     uint8_t this_blk_skip[MAX_TX_PARTITIONS] = { 0 };
     uint8_t partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
-    TX_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
+    TX_PARTITION_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
     int cur_block = block;
 
     // Compute cost of each tx size in this partition

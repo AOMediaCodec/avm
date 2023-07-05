@@ -565,7 +565,7 @@ enum {
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
   TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
-} UENUM1BYTE(TX_TYPE);
+} UENUM2BYTE(TX_TYPE);
 
 #if CONFIG_CROSS_CHROMA_TX
 #define CCTX_CONTEXTS 3
