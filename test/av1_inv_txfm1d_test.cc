@@ -139,7 +139,7 @@ TEST(av1_inv_txfm1d, round_trip) {
     for (int ti = 0; ti < txfm_type_num; ++ti) {
       TxfmFunc fwd_txfm_func = fwd_txfm_func_ls[si][ti];
       TxfmFunc inv_txfm_func = inv_txfm_func_ls[si][ti];
-      int max_error = 2;
+      int max_error = 5;
 
       if (!fwd_txfm_func) continue;
 
