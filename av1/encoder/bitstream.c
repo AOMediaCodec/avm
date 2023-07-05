@@ -3272,11 +3272,17 @@ static AOM_INLINE void encode_restoration_mode(
         aom_wb_write_bit(wb, 0);
       } else {
         aom_wb_write_bit(wb, 1);
+        int tools_count = cm->features.lr_tools_count[p];
         for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
           if (!(plane_lr_tools_disable_mask & (1 << i))) {
-            aom_wb_write_bit(wb, ((sw_lr_tools_disable_mask >> i) & 1));
+            const int disable_tool = (sw_lr_tools_disable_mask >> i) & 1;
+            aom_wb_write_bit(wb, disable_tool);
             plane_lr_tools_disable_mask |=
                 (sw_lr_tools_disable_mask & (1 << i));
+            tools_count -= disable_tool;
+            // if tools_count becomes 2 break from the loop since we
+            // do not allow any other tool to be disabled.
+            if (tools_count == 2) break;
           }
         }
         av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);

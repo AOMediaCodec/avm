@@ -2874,7 +2874,7 @@ static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n) {
 
 #if CONFIG_LR_FLEX_SYNTAX
 // Converts decoded index to frame restoration type depending on lr tools
-// thta are enabled for the frame for a given plane.
+// that are enabled for the frame for a given plane.
 static RestorationType index_to_frame_restoration_type(
     const AV1_COMMON *const cm, int plane, int ndx) {
   RestorationType r = RESTORE_NONE;
@@ -2923,9 +2923,16 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
         cm->features.lr_tools_count[p] > 2) {
       if (aom_rb_read_bit(rb)) {
+        int tools_count = cm->features.lr_tools_count[p];
         for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-          if (!(plane_lr_tools_disable_mask & (1 << i)))
-            plane_lr_tools_disable_mask |= (aom_rb_read_bit(rb) << i);
+          if (!(plane_lr_tools_disable_mask & (1 << i))) {
+            const int disable_tool = aom_rb_read_bit(rb);
+            plane_lr_tools_disable_mask |= (disable_tool << i);
+            tools_count -= disable_tool;
+            // if tools_count becomes 2 break from the loop since we
+            // do not allow any other tool to be disabled.
+            if (tools_count == 2) break;
+          }
         }
         av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
       }
