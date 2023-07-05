@@ -56,9 +56,20 @@ static const uint8_t extend_modes[INTRA_MODES] = {
 #if CONFIG_ORIP
       | NEED_ABOVELEFT
 #endif
-  ,                                         // SMOOTH
-  NEED_LEFT | NEED_ABOVE,                   // SMOOTH_V
-  NEED_LEFT | NEED_ABOVE,                   // SMOOTH_H
+#if CONFIG_BLEND_MODE
+      | NEED_ABOVERIGHT | NEED_BOTTOMLEFT
+#endif  // CONFIG_BLEND_MODE
+  ,     // SMOOTH
+  NEED_LEFT | NEED_ABOVE
+#if CONFIG_BLEND_MODE
+      | NEED_ABOVERIGHT | NEED_BOTTOMLEFT
+#endif  // CONFIG_BLEND_MODE
+  ,     // SMOOTH_V
+  NEED_LEFT | NEED_ABOVE
+#if CONFIG_BLEND_MODE
+      | NEED_ABOVERIGHT | NEED_BOTTOMLEFT
+#endif                                      // CONFIG_BLEND_MODE
+  ,                                         // SMOOTH_H
   NEED_LEFT | NEED_ABOVE | NEED_ABOVELEFT,  // PAETH
 };
 
