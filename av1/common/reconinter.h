@@ -911,12 +911,9 @@ static INLINE int is_warpmv_mode_allowed(const AV1_COMMON *const cm,
 }
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
+// check if warpmv with mvd is allowed or not
 static INLINE int allow_warpmv_with_mvd_coding(const AV1_COMMON *const cm,
-                                               const MACROBLOCKD *xd,
-                                               const MB_MODE_INFO *mbmi,
-                                               BLOCK_SIZE bsize) {
-  (void)xd;
-  (void)bsize;
+                                               const MB_MODE_INFO *mbmi) {
   if (!cm->features.allow_warpmv_mode) return 0;
   return (mbmi->mode == WARPMV && mbmi->warp_ref_idx < 2);
 }

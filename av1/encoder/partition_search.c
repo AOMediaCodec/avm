@@ -1498,7 +1498,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
-      if (allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize)) {
+      if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
         update_cdf(fc->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]],
                    mbmi->warpmv_with_mvd_flag, 2);
       } else {

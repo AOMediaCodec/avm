@@ -996,13 +996,7 @@ typedef struct {
 #if CONFIG_CWG_D067_IMPROVED_WARP
   //! warpmv_with_mvd_flag_cost
   int warpmv_with_mvd_flag_cost[BLOCK_SIZES_ALL][2];
-#endif
-
-#if CONFIG_CWG_D067_IMPROVED_WARP
-  //! warpmv_with_mvd_flag_cost
-  int warp_6param_model_flag_cost[BLOCK_SIZES_ALL][2];
-#endif
-
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   //! warp_extend_cost
   int warp_extend_cost[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];

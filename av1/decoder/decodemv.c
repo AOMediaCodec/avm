@@ -2739,7 +2739,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_WARPMV
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
-      if (allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize)) {
+      if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
         read_warpmv_with_mvd_flag(xd->tile_ctx, mbmi, r);
       } else {
         mbmi->warpmv_with_mvd_flag = 0;

@@ -1960,7 +1960,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_WARPMV
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
-      if (allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize)) {
+      if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
         write_warpmv_with_mvd_flag(xd->tile_ctx, mbmi, w);
       } else {
         assert(mbmi->warpmv_with_mvd_flag == 0);

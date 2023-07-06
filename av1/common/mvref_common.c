@@ -1816,6 +1816,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif
 
 #if CONFIG_WARP_REF_LIST && CONFIG_CWG_D067_IMPROVED_WARP
+  // derive a warp model from the 3 corner MVs
   if (warp_param_stack && valid_num_warp_candidates &&
       *valid_num_warp_candidates < max_num_of_warp_candidates) {
     int mvs_32[2 * 3];
@@ -1831,7 +1832,7 @@ static AOM_INLINE void setup_ref_mv_list(
         !is_this_param_already_in_list(*valid_num_warp_candidates,
                                        warp_param_stack, cand_warp_param)) {
       insert_neighbor_warp_candidate(warp_param_stack, &cand_warp_param,
-                                     *valid_num_warp_candidates, PROJ_DERIVED);
+                                     *valid_num_warp_candidates, PROJ_SPATIAL);
       (*valid_num_warp_candidates)++;
     }
   }
@@ -4505,11 +4506,11 @@ int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #if CONFIG_CWG_D067_IMPROVED_WARP
 // return 1 if valid point is found
 // return 0 if the point is not valid
-static int fill_warp_extend2_projected_points(const MB_MODE_INFO *neighbor_mi,
-                                              MV_REFERENCE_FRAME this_ref,
-                                              const int pos_col,
-                                              const int pos_row, int *pts,
-                                              int *mvs, int *n_points) {
+static int fill_warp_corner_projected_point(const MB_MODE_INFO *neighbor_mi,
+                                            MV_REFERENCE_FRAME this_ref,
+                                            const int pos_col,
+                                            const int pos_row, int *pts,
+                                            int *mvs, int *n_points) {
   // return if the source point is invalid
   if (pos_col < 0 || pos_row < 0) return 0;
 
@@ -4534,7 +4535,7 @@ static int fill_warp_extend2_projected_points(const MB_MODE_INFO *neighbor_mi,
   ++(*n_points);
   return 1;
 }
-
+// Check all 3 neighbors to generate projected points
 int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                  const MB_MODE_INFO *mbmi, int *pts, int *mvs,
                                  int *np, MV_REFERENCE_FRAME ref_frame) {
@@ -4560,8 +4561,8 @@ int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     int pos_row = xd->mi_row * MI_SIZE;
     int pos_col = xd->mi_col * MI_SIZE;
-    int valid = fill_warp_extend2_projected_points(
-        neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
+    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
+                                                 pos_row, pts, mvs, np);
     if (valid) {
       valid_points++;
     }
@@ -4575,8 +4576,8 @@ int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     int pos_row = xd->mi_row * MI_SIZE;
     int pos_col = xd->mi_col * MI_SIZE + bw;
-    int valid = fill_warp_extend2_projected_points(
-        neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
+    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
+                                                 pos_row, pts, mvs, np);
     if (valid) {
       valid_points++;
     }
@@ -4590,8 +4591,8 @@ int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     int pos_row = xd->mi_row * MI_SIZE + bh;
     int pos_col = xd->mi_col * MI_SIZE;
-    int valid = fill_warp_extend2_projected_points(
-        neighbor_mi, this_ref, pos_col, pos_row, pts, mvs, np);
+    int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
+                                                 pos_row, pts, mvs, np);
     if (valid) {
       valid_points++;
     }

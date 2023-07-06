@@ -1864,8 +1864,7 @@ static int64_t motion_mode_rd(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
-        if (warpmv_with_mvd_flag &&
-            !allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize))
+        if (warpmv_with_mvd_flag && !allow_warpmv_with_mvd_coding(cm, mbmi))
           continue;
         mbmi->warpmv_with_mvd_flag = warpmv_with_mvd_flag;
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
@@ -2491,7 +2490,7 @@ static int64_t motion_mode_rd(
             assert(motion_mode == WARP_DELTA);
           }
 #if CONFIG_CWG_D067_IMPROVED_WARP
-          if (allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize)) {
+          if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
             rd_stats->rate +=
                 mode_costs
                     ->warpmv_with_mvd_flag_cost[bsize]
