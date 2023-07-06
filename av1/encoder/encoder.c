@@ -1746,11 +1746,7 @@ static void cfl_luma_subsampling_420_hbd_c(const uint16_t *input,
   }
 }
 
-#if DS_FRAME_LEVEL
-void av1_set_downsample_filter_options(AV1_COMP *cpi, FeatureFlags *features) {
-#else
 void av1_set_downsample_filter_options(AV1_COMP *cpi) {
-#endif  // DS_FRAME_LEVE
   AV1_COMMON *cm = &cpi->common;
   const uint16_t *src = cpi->unfiltered_source->y_buffer;
   uint16_t *src_chroma_u = cpi->unfiltered_source->u_buffer;
@@ -1819,11 +1815,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   for (int i = 0; i < 3; ++i) {
     if (cost[i] < min_cost) {
       min_cost = cost[i];
-#if DS_FRAME_LEVEL
-      features->ds_filter_type = i;
-#else
       cm->seq_params.enable_cfl_ds_filter = i;
-#endif  // DS_FRAME_LEVEL
     }
   }
 }
@@ -3357,13 +3349,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_ADAPTIVE_DS_FILTER
-#if DS_FRAME_LEVEL
-  if (cm->current_frame.frame_type == KEY_FRAME) {
-    av1_set_downsample_filter_options(cpi, features);
-#else
-  if (cpi->common.current_frame.absolute_poc == 0) {
+  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     av1_set_downsample_filter_options(cpi);
-#endif  // DS_FRAME_LEVEL
   }
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
   // frame type has been decided outside of this function call

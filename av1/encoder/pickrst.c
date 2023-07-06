@@ -4572,7 +4572,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       rsc.luma_stride, cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
-      cm->features.ds_filter_type == 1
+      cm->seq_params.enable_cfl_ds_filter == 1
 #endif
   );
   assert(luma_buf != NULL);
@@ -4852,7 +4852,7 @@ void av1_pick_cross_filter_restoration(const YV12_BUFFER_CONFIG *src,
       rsc.luma_stride, cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
-      cm->features.ds_filter_type == 1
+      cm->seq_params.enable_cfl_ds_filter == 1
 #endif
   );
   assert(luma_buf != NULL);

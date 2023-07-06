@@ -620,12 +620,7 @@ typedef struct {
    */
   bool use_pb_mv_precision;
 #endif  // CONFIG_FLEX_MVRES
-#if DS_FRAME_LEVEL
-  /*!
-   * Dowsample filter type
-   */
-  int ds_filter_type;
-#endif  // DS_FRAME_LEVEl
+
   /*!
    * If true, palette tool and/or intra block copy tools may be used.
    */

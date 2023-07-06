@@ -1093,14 +1093,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     cpi->is_screen_content_type = features->allow_screen_content_tools;
   }
 #if CONFIG_ADAPTIVE_DS_FILTER
-#if DS_FRAME_LEVEL
-  if (cm->current_frame.frame_type == KEY_FRAME) {
-    FeatureFlags *const features = &cm->features;
-    av1_set_downsample_filter_options(cpi, features);
-#else
-  if (cpi->common.current_frame.absolute_poc == 0) {
+  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     av1_set_downsample_filter_options(cpi);
-#endif  // DS_FRAME_LEVEL
   }
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
   // First pass coding proceeds in raster scan order with unit size of 16x16.

@@ -3124,11 +3124,7 @@ int av1_get_quantizer(struct AV1_COMP *cpi);
 
 int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 
-#if DS_FRAME_LEVEL
-void av1_set_downsample_filter_options(AV1_COMP *cpi, FeatureFlags *features);
-#else
 void av1_set_downsample_filter_options(AV1_COMP *cpi);
-#endif  // DS_FRAME_LEVEl
 
 // Set screen content options.
 // This function estimates whether to use screen content tools, by counting

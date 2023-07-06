@@ -878,7 +878,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
       cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
-      cm->features.ds_filter_type == 1
+      cm->seq_params.enable_cfl_ds_filter == 1
 #endif
   );
   assert(luma_buf != NULL);

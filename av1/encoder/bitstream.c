@@ -4962,11 +4962,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     }
   }
   aom_wb_write_bit(wb, features->disable_cdf_update);
-#if DS_FRAME_LEVEL
-  if (current_frame->frame_type == KEY_FRAME) {
-    aom_wb_write_literal(wb, features->ds_filter_type, 2);
-  }
-#endif  // DS_FRAME_LEVEL
+
   if (seq_params->force_screen_content_tools == 2) {
     aom_wb_write_bit(wb, features->allow_screen_content_tools);
   } else {
