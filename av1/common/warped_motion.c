@@ -984,7 +984,7 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_DERIVEMODEL_IN_WRL
+#if CONFIG_CWG_D067_IMPROVED_WARP
 int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
                                      const int x, const int y,
                                      MvSubpelPrecision precision) {
@@ -1205,4 +1205,4 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
 
   return 1;
 }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP

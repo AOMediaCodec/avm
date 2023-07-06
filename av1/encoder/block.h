@@ -986,7 +986,6 @@ typedef struct {
 #if CONFIG_WARPMV
   //! warped_causal_warpmv_cost
   int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
-
 #endif  // CONFIG_WARPMV
 
   //! warp_delta_param_cost
@@ -994,12 +993,12 @@ typedef struct {
 #if CONFIG_WARP_REF_LIST
   //! warp_ref_idx_cost
   int warp_ref_idx_cost[3][WARP_REF_CONTEXTS][2];
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
   //! warpmv_with_mvd_flag_cost
   int warpmv_with_mvd_flag_cost[BLOCK_SIZES_ALL][2];
 #endif
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
   //! warpmv_with_mvd_flag_cost
   int warp_6param_model_flag_cost[BLOCK_SIZES_ALL][2];
 #endif

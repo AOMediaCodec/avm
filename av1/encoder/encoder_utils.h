@@ -830,9 +830,9 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
     av1_copy(frame_probs->obmc_probs, default_obmc_probs);
   }
   if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
       || cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   ) {
     av1_copy(frame_probs->warped_probs, default_warped_probs);
   }

@@ -171,10 +171,6 @@ static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
   assert(mbmi->warp_ref_idx < mbmi->max_num_warp_candidates);
   assert(mbmi->max_num_warp_candidates <= MAX_WARP_REF_CANDIDATES);
 
-  // if (mbmi->motion_mode == SIMPLE_TRANSLATION)
-  // printf(" mbmi->max_num_warp_candidates = %d mbmi->warp_ref_idx = %d \n ",
-  // mbmi->max_num_warp_candidates, mbmi->warp_ref_idx);
-
   if (mbmi->max_num_warp_candidates <= 1) {
     return;
   }
@@ -186,7 +182,7 @@ static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
     if (mbmi->warp_ref_idx == bit_idx) break;
   }
 }
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
 static void write_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx,
                                        const MB_MODE_INFO *mbmi,
                                        aom_writer *w) {
@@ -194,7 +190,7 @@ static void write_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx,
       w, mbmi->warpmv_with_mvd_flag,
       ec_ctx->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]], 2);
 }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #endif  // CONFIG_WARP_REF_LIST
 
@@ -477,9 +473,9 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   write_warp_ref_idx(xd->tile_ctx, mbmi, w);
 #endif  // !CONFIG_WARPMV
   if (!allow_warp_parameter_signaling(
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
           cm,
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
           mbmi)) {
     return;
   }
@@ -532,10 +528,9 @@ static AOM_INLINE void write_motion_mode(
   if (mbmi->mode == WARPMV) {
     assert(mbmi->motion_mode == WARP_DELTA ||
            mbmi->motion_mode == WARPED_CAUSAL);
-
     // Signal if the motion mode is WARP_CAUSAL or WARP_DELTA
     if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
-      aom_write_symbol(w, motion_mode != WARP_DELTA,
+      aom_write_symbol(w, motion_mode == WARPED_CAUSAL,
                        xd->tile_ctx->warped_causal_warpmv_cdf[bsize], 2);
     }
     return;
@@ -1964,13 +1959,13 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         write_warp_ref_idx(xd->tile_ctx, mbmi, w);
 #endif  // CONFIG_WARPMV
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
       if (allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize)) {
         write_warpmv_with_mvd_flag(xd->tile_ctx, mbmi, w);
       } else {
         assert(mbmi->warpmv_with_mvd_flag == 0);
       }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       write_jmvd_scale_mode(xd, w, mbmi);
@@ -1997,7 +1992,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_FLEX_MVRES
     }
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
     if (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       WarpedMotionParams ref_warp_model =
@@ -2020,7 +2015,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     }
 
     else {
-#endif  // CONFIG_WARPMV_WITH_MVD
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
       if (have_newmv_in_each_reference(mode)) {
         for (ref = 0; ref < 1 + is_compound; ++ref) {
@@ -2090,9 +2085,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif
       }
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
     }
-#endif  // CONFIG_WARPMV_WITH_MVD
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #if CONFIG_BAWP && !CONFIG_WARPMV
     if (cm->features.enable_bawp &&
         av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
@@ -5078,13 +5073,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
     aom_wb_write_bit(wb, features->enable_bawp);
 #endif  // CONFIG_BAWP
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
   if (!frame_is_intra_only(cm) && features->enabled_motion_modes) {
     aom_wb_write_bit(wb, features->allow_warpmv_mode);
   } else {
     assert(IMPLIES(!frame_is_intra_only(cm), !features->allow_warpmv_mode));
   }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   aom_wb_write_bit(wb, features->reduced_tx_set_used);
 

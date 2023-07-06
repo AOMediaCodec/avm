@@ -1466,9 +1466,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
     if (frame_probs->warped_probs[update_type] <
-        cpi->sf.inter_sf.prune_warped_prob_thresh) {
+        cpi->sf.inter_sf.prune_warped_prob_thresh)
       enabled_motion_modes &= ~(1 << WARPED_CAUSAL);
-    }
   }
 
   features->enabled_motion_modes = enabled_motion_modes;
@@ -1482,7 +1481,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
   features->allow_warpmv_mode = features->enabled_motion_modes ? 1 : 0;
   if (features->allow_warpmv_mode &&
       cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
@@ -1492,7 +1491,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       features->allow_warpmv_mode = 0;
     }
   }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   int hash_table_created = 0;
   if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) {
@@ -1782,7 +1781,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
   if (cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
     int sum = 0;
@@ -1791,7 +1790,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     frame_probs->warped_probs[update_type] =
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) ||
       hash_table_created) {

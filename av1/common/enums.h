@@ -1088,7 +1088,7 @@ typedef enum {
   PROJ_GLOBAL_MOTION, /**< block is from global motion */
   PROJ_SPATIAL,       /**< Project from spatial neighborhood */
   PROJ_PARAM_BANK,    /**< Project from circular buffer */
-#if CONFIG_DERIVEMODEL_IN_WRL
+#if CONFIG_CWG_D067_IMPROVED_WARP
   PROJ_DERIVED, /**< Project from derived model */
 #endif
   PROJ_DEFAULT,        /**< Default values */

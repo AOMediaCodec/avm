@@ -976,9 +976,9 @@ static void update_warp_delta_stats(const AV1_COMMON *cm,
     }
   }
   if (allow_warp_parameter_signaling(
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
           cm,
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
           mbmi)) {
 #endif  // CONFIG_WARP_REF_LIST
     const WarpedMotionParams *params = &mbmi->wm_params[0];
@@ -1312,7 +1312,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       if (mbmi->mode == WARPMV) {
         if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
           update_cdf(fc->warped_causal_warpmv_cdf[bsize],
-                     motion_mode != WARP_DELTA, 2);
+                     motion_mode == WARPED_CAUSAL, 2);
         }
       }
 #endif  // CONFIG_WARPMV
@@ -1418,7 +1418,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
       if (motion_mode == WARP_DELTA
 #if CONFIG_WARPMV
-          || ((motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV)
+          || (motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV)
 #endif  // CONFIG_WARPMV
       ) {
         update_warp_delta_stats(cm,
@@ -1497,14 +1497,14 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
       if (allow_warpmv_with_mvd_coding(cm, xd, mbmi, bsize)) {
         update_cdf(fc->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]],
                    mbmi->warpmv_with_mvd_flag, 2);
       } else {
         assert(mbmi->warpmv_with_mvd_flag == 0);
       }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
       if (has_second_ref(mbmi)
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1640,7 +1640,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                              counts, mbmi, mbmi_ext);
     }
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
     if (xd->tree_type != CHROMA_PART && mbmi->mode == WARPMV) {
       if (mbmi->warpmv_with_mvd_flag) {
         WarpedMotionParams ref_warp_model =
@@ -1669,7 +1669,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
     } else {
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
       if (have_newmv_in_inter_mode(mbmi->mode) &&
           xd->tree_type != CHROMA_PART) {
@@ -1754,9 +1754,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
     }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   }
 }
 
@@ -1913,9 +1913,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
          cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) ||
 #if CONFIG_EXTENDED_WARP_PREDICTION
         cpi->sf.inter_sf.prune_warped_prob_thresh > 0
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
         || cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
     ) {
 #else
         (cm->features.allow_warped_motion &&
@@ -1931,7 +1931,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           if (allowed_motion_modes & (1 << OBMC_CAUSAL)) {
             td->rd_counts.obmc_used[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
           }
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
           int is_warp_allowed = (allowed_motion_modes & (1 << WARPED_CAUSAL)) ||
                                 (allowed_motion_modes & (1 << WARP_DELTA)) ||
                                 (allowed_motion_modes & (1 << WARP_EXTEND));
@@ -1942,9 +1942,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
             td->rd_counts.warped_used[mbmi->motion_mode == WARPED_CAUSAL]++;
           }
-#endif
-          // TODO(rachelbarker): Add counts and pruning for WARP_DELTA and
-          // WARP_EXTEND
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+        // TODO(rachelbarker): Add counts and pruning for WARP_DELTA and
+        // WARP_EXTEND
         }
 #else
         const MOTION_MODE motion_allowed = motion_mode_allowed(cm, xd, mbmi);

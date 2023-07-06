@@ -1815,7 +1815,7 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif
 
-#if CONFIG_WARP_REF_LIST && CONFIG_DERIVEMODEL_IN_WRL
+#if CONFIG_WARP_REF_LIST && CONFIG_CWG_D067_IMPROVED_WARP
   if (warp_param_stack && valid_num_warp_candidates &&
       *valid_num_warp_candidates < max_num_of_warp_candidates) {
     int mvs_32[2 * 3];
@@ -1835,7 +1835,7 @@ static AOM_INLINE void setup_ref_mv_list(
       (*valid_num_warp_candidates)++;
     }
   }
-#endif
+#endif  // CONFIG_WARP_REF_LIST && CONFIG_CWG_D067_IMPROVED_WARP
 
   // Find valid maximum row/col offset.
   if (xd->up_available) {
@@ -2679,7 +2679,6 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_REF_MV_BANK && !CONFIG_C043_MVP_IMPROVEMENTS
 
 #if CONFIG_WARP_REF_LIST
-
   if (warp_param_stack && valid_num_warp_candidates &&
       *valid_num_warp_candidates < max_num_of_warp_candidates) {
     // Insert warp parameters from the bank
@@ -4080,7 +4079,6 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
   // Check if current warp parameters is already existing in the buffer.
   for (int i = 0; i < count; ++i) {
     const int idx = (start_idx + i) % WARP_PARAM_BANK_SIZE;
-
     int same_param = (mbmi->wm_params[0].wmmat[2] == queue[idx].wmmat[2]);
     same_param &= (mbmi->wm_params[0].wmmat[3] == queue[idx].wmmat[3]);
 
@@ -4161,9 +4159,9 @@ void av1_find_warp_delta_base_candidates(
   if (p_valid_num_candidates) {
     // for NEARMV mode, the maximum number of candidates is 1
     *p_valid_num_candidates = (mbmi->mode == NEARMV
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
                                || mbmi->mode == AMVDNEWMV
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
                                )
                                   ? 1
@@ -4504,7 +4502,7 @@ int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 }
 #endif  // CONFIG_WARPMV
 
-#if CONFIG_DERIVEMODEL_IN_WRL
+#if CONFIG_CWG_D067_IMPROVED_WARP
 // return 1 if valid point is found
 // return 0 if the point is not valid
 static int fill_warp_extend2_projected_points(const MB_MODE_INFO *neighbor_mi,
@@ -4545,9 +4543,6 @@ int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   POSITION mi_pos;
   int valid_points = 0;
-
-  // printf(" bw = %d , xd->width = %d bh = %d , xd->height = %d \n", bw,
-  // xd->width* MI_SIZE, bh, xd->height * MI_SIZE);
 
   (void)mbmi;
   MV_REFERENCE_FRAME rf[2];
@@ -4605,4 +4600,4 @@ int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   assert(valid_points <= 3);
   return valid_points;
 }
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP

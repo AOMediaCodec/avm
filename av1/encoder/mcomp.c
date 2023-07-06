@@ -63,6 +63,7 @@ static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
 #if CONFIG_BVCOST_UPDATE
   mv_cost_params->is_ibc_cost = is_ibc_cost;
 #endif
+
 #else
   mv_cost_params->error_per_bit = mv_costs->errorperbit;
   mv_cost_params->sad_per_bit = mv_costs->sadperbit;
@@ -212,6 +213,7 @@ void av1_make_default_fullpel_ms_params(
                       ,
                       is_ibc_cost
 #endif
+
   );
 #else
                       ref_mv);
@@ -5574,14 +5576,14 @@ int av1_refine_mv_for_base_param_warp_model(
   int mi_row = xd->mi_row;
   int mi_col = xd->mi_col;
 
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
   assert(IMPLIES(mbmi->warpmv_with_mvd_flag, mbmi->mode == WARPMV));
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   bool can_refine_mv = (mbmi->mode == NEWMV
-#if CONFIG_WARPMV_WITH_MVD
+#if CONFIG_CWG_D067_IMPROVED_WARP
                         || (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag)
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   );
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 

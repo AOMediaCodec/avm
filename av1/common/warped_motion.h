@@ -301,7 +301,7 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
                           const WarpedMotionParams *neighbor_wm,
                           WarpedMotionParams *wm_params);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_DERIVEMODEL_IN_WRL
+#if CONFIG_CWG_D067_IMPROVED_WARP
 int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
                                      const int x, const int y,
                                      MvSubpelPrecision precision);
@@ -312,5 +312,5 @@ void generate_cornermvs_from_warp_model(const WarpedMotionParams *wm_params,
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
                               int np, int *mvs, const BLOCK_SIZE bsize,
                               int is_6param_model);
-#endif
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // AOM_AV1_COMMON_WARPED_MOTION_H_

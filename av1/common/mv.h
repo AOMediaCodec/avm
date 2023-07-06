@@ -427,7 +427,6 @@ static const WarpedMotionParams default_warp_params = {
 
 #define GM_TRANS_MAX (1 << GM_ABS_TRANS_BITS)
 #define GM_ALPHA_MAX (1 << GM_ABS_ALPHA_BITS)
-
 #define GM_ROW3HOMO_MAX (1 << GM_ABS_ROW3HOMO_BITS)
 
 #define GM_TRANS_MIN -GM_TRANS_MAX
