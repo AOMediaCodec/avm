@@ -1887,11 +1887,11 @@ static AOM_INLINE void setup_ref_mv_list(
     int pts[2 * 3];
     int np = 0;
     WarpedMotionParams cand_warp_param = default_warp_params;
-    int valid_points = generate_points_from_corners(cm, xd, xd->mi[0], pts,
-                                                    mvs_32, &np, ref_frame);
+    int valid_points =
+        generate_points_from_corners(xd, pts, mvs_32, &np, ref_frame);
     int valid_model =
         get_model_from_corner_mvs(&cand_warp_param, pts, valid_points, mvs_32,
-                                  xd->mi[0]->sb_type[PLANE_TYPE_Y], 1);
+                                  xd->mi[0]->sb_type[PLANE_TYPE_Y]);
     if (valid_model && !cand_warp_param.invalid &&
         !is_this_param_already_in_list(*valid_num_warp_candidates,
                                        warp_param_stack, cand_warp_param)) {
@@ -4800,16 +4800,11 @@ static int fill_warp_corner_projected_point(const MB_MODE_INFO *neighbor_mi,
   return 1;
 }
 // Check all 3 neighbors to generate projected points
-int generate_points_from_corners(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                                 const MB_MODE_INFO *mbmi, int *pts, int *mvs,
+int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
                                  int *np, MV_REFERENCE_FRAME ref_frame) {
   const TileInfo *const tile = &xd->tile;
-  (void)cm;
-
   POSITION mi_pos;
   int valid_points = 0;
-
-  (void)mbmi;
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
   MV_REFERENCE_FRAME this_ref = rf[0];

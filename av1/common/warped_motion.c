@@ -1081,18 +1081,15 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
 //  is the row value of mv pts_inref[2*n] is the col value of the projected
 //  position. pts_inref[2*n + 1] is the row value of the projected position
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
-                              int np, int *mvs, const BLOCK_SIZE bsize,
-                              int is_6param_model) {
-  if (np != (2 + is_6param_model)) {
+                              int np, int *mvs, const BLOCK_SIZE bsize) {
+  if (np != 3) {
     derive_model->invalid = 1;
     return 0;
   }
 
-  int x0, y0;  //, x1, x2, y1, y2;
+  int x0, y0;
   int ref_x0, ref_x1, ref_x2, ref_y0, ref_y1, ref_y2;
   int pts_inref[2 * 3];
-  // const int bw = block_size_wide[bsize];
-  // const int bh = block_size_high[bsize];
   const int width_log2 = mi_size_wide_log2[bsize] + MI_SIZE_LOG2;
   const int height_log2 = mi_size_high_log2[bsize] + MI_SIZE_LOG2;
 
@@ -1128,25 +1125,21 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   ref_y1 = pts_inref[2 * 1 + 1];
 
   // Bottom-left point
-  if (is_6param_model) {
-    ref_x2 = pts_inref[2 * 2];
-    ref_y2 = pts_inref[2 * 2 + 1];
-  }
+  ref_x2 = pts_inref[2 * 2];
+  ref_y2 = pts_inref[2 * 2 + 1];
 
   derive_model->wmmat[2] = (ref_x1 - ref_x0) >> width_log2;
   derive_model->wmmat[4] = (ref_y1 - ref_y0) >> width_log2;
 
-  derive_model->wmmat[3] = !is_6param_model ? (-1 * derive_model->wmmat[4])
-                                            : (ref_x2 - ref_x0) >> height_log2;
-  derive_model->wmmat[5] = !is_6param_model ? (derive_model->wmmat[2])
-                                            : (ref_y2 - ref_y0) >> height_log2;
+  derive_model->wmmat[3] = (ref_x2 - ref_x0) >> height_log2;
+  derive_model->wmmat[5] = (ref_y2 - ref_y0) >> height_log2;
 
   int64_t wmmat0 = (int64_t)ref_x0 - (int64_t)(derive_model->wmmat[2] * x0) -
                    (int64_t)(derive_model->wmmat[3] * y0);
   int64_t wmmat1 = (int64_t)ref_y0 - (int64_t)(derive_model->wmmat[4] * x0) -
                    (int64_t)(derive_model->wmmat[5] * y0);
 
-  derive_model->wmtype = is_6param_model ? AFFINE : ROTZOOM;
+  derive_model->wmtype = AFFINE;
   derive_model->invalid = 0;
 
   av1_reduce_warp_model(derive_model);
