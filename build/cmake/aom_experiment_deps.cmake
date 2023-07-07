@@ -73,7 +73,8 @@ macro(fix_experiment_configs)
 
   # CONFIG_CWG_D067_IMPROVED_WARP depends on CONFIG_WARP_REF_LIST
   if(NOT CONFIG_WARP_REF_LIST AND CONFIG_CWG_D067_IMPROVED_WARP)
-    change_config_and_warn(CONFIG_CWG_D067_IMPROVED_WARP 0 !CONFIG_WARP_REF_LIST)
+    change_config_and_warn(CONFIG_CWG_D067_IMPROVED_WARP 0
+                           !CONFIG_WARP_REF_LIST)
   endif()
 
   # CONFIG_CWG_D067_IMPROVED_WARP depends on CONFIG_WARPMV

@@ -381,10 +381,6 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
 int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
                                      const int x, const int y,
                                      MvSubpelPrecision precision);
-void generate_cornermvs_from_warp_model(const WarpedMotionParams *wm_params,
-                                        BLOCK_SIZE bsize, int mi_col,
-                                        int mi_row, int *points_count,
-                                        int_mv mvs[3], int is_6param_model);
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
                               int np, int *mvs, const BLOCK_SIZE bsize,
                               int is_6param_model);

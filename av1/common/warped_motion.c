@@ -1072,43 +1072,6 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
   return res;
 }
 
-// this function generates 3 MVs from the warp model
-void generate_cornermvs_from_warp_model(const WarpedMotionParams *wm_params,
-                                        BLOCK_SIZE bsize, int mi_col,
-                                        int mi_row, int *points_count,
-                                        int_mv mvs[3], int is_6param_model) {
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
-  int pos_col[3], pos_row[3];
-  MvSubpelPrecision precision = MV_PRECISION_ONE_EIGHTH_PEL;
-  // top-left
-  pos_row[0] = mi_row * MI_SIZE;
-  pos_col[0] = mi_col * MI_SIZE;
-  // top-right
-  pos_row[1] = mi_row * MI_SIZE;
-  pos_col[1] = mi_col * MI_SIZE + bw;
-
-  if (is_6param_model) {
-    // bottom-left
-    pos_row[2] = mi_row * MI_SIZE + bh;
-    pos_col[2] = mi_col * MI_SIZE;
-  }
-  if (!is_6param_model) {
-    assert(wm_params->wmtype == ROTZOOM);
-    assert(wm_params->wmmat[5] == wm_params->wmmat[2]);
-    assert(wm_params->wmmat[4] == -wm_params->wmmat[3]);
-  }
-
-  const int num_points = is_6param_model ? 3 : 2;
-  for (int k = 0; k < num_points; k++) {
-    mvs[k] = get_warp_motion_vector_xy_pos(wm_params, precision, pos_col[k],
-                                           pos_row[k]);
-    if (mvs[k].as_int != INVALID_MV) {
-      ++(*points_count);
-    }
-  }
-}
-
 // return 0 if the model is invalid
 // pts (col, row) is the array of source points in the unit of integer pixel
 // mvs are the array of the MVs corresponding to the source points
@@ -1178,10 +1141,10 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   derive_model->wmmat[5] = !is_6param_model ? (derive_model->wmmat[2])
                                             : (ref_y2 - ref_y0) >> height_log2;
 
-  derive_model->wmmat[0] =
-      ref_x0 - derive_model->wmmat[2] * x0 - derive_model->wmmat[3] * y0;
-  derive_model->wmmat[1] =
-      ref_y0 - derive_model->wmmat[4] * x0 - derive_model->wmmat[5] * y0;
+  int64_t wmmat0 = (int64_t)ref_x0 - (int64_t)(derive_model->wmmat[2] * x0) -
+                   (int64_t)(derive_model->wmmat[3] * y0);
+  int64_t wmmat1 = (int64_t)ref_y0 - (int64_t)(derive_model->wmmat[4] * x0) -
+                   (int64_t)(derive_model->wmmat[5] * y0);
 
   derive_model->wmtype = is_6param_model ? AFFINE : ROTZOOM;
   derive_model->invalid = 0;
@@ -1194,12 +1157,10 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
     return 0;
   }
 
-  derive_model->wmmat[0] =
-      clamp(derive_model->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
-            WARPEDMODEL_TRANS_CLAMP - 1);
-  derive_model->wmmat[1] =
-      clamp(derive_model->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
-            WARPEDMODEL_TRANS_CLAMP - 1);
+  derive_model->wmmat[0] = (int32_t)clamp64(wmmat0, -WARPEDMODEL_TRANS_CLAMP,
+                                            WARPEDMODEL_TRANS_CLAMP - 1);
+  derive_model->wmmat[1] = (int32_t)clamp64(wmmat1, -WARPEDMODEL_TRANS_CLAMP,
+                                            WARPEDMODEL_TRANS_CLAMP - 1);
 
   derive_model->wmmat[6] = derive_model->wmmat[7] = 0;
 
