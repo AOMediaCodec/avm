@@ -646,7 +646,7 @@ Linux Sanitizer (thread) Test:
   interruptible: true
   variables:
     AOMENC_LIMIT: 30
-    AOMENC_QP: 128
+    AOMENC_QP: 210
     AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
     AOMENC: installroot/usr/local/bin/aomenc
   before_script:
