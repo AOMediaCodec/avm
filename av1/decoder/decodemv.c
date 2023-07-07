@@ -390,7 +390,7 @@ static void read_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx, MB_MODE_INFO *mbmi,
                                       aom_reader *r) {
   mbmi->warpmv_with_mvd_flag = aom_read_symbol(
       r, ec_ctx->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]], 2,
-      ACCT_STR);
+      ACCT_INFO("warpmv_with_mvd_flag"));
 }
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
