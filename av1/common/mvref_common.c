@@ -672,23 +672,17 @@ static AOM_INLINE void add_ref_mv_candidate(
         // is the same as the reference frame of the neighboring block
         int candidate_ref_idx0 = -1;
         int candidate_ref_idx1 = -1;
-#if CONFIG_SMVP_FIX
         int which_cand_ref = -1;
-#endif
         if (candidate->ref_frame[0] == rf[0] ||
             candidate->ref_frame[1] == rf[0]) {
           candidate_ref_idx0 = 0;
           candidate_ref_idx1 = 1;
-#if CONFIG_SMVP_FIX
           which_cand_ref = (candidate->ref_frame[0] == rf[0]) ? 0 : 1;
-#endif
         } else if (candidate->ref_frame[0] == rf[1] ||
                    candidate->ref_frame[1] == rf[1]) {
           candidate_ref_idx0 = 1;
           candidate_ref_idx1 = 0;
-#if CONFIG_SMVP_FIX
           which_cand_ref = (candidate->ref_frame[0] == rf[1]) ? 0 : 1;
-#endif
         }
 
         if (candidate_ref_idx0 != -1 && candidate_ref_idx1 != -1) {
@@ -701,11 +695,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if CONFIG_C071_SUBBLK_WARPMV
                                          submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-#if !CONFIG_SMVP_FIX
-                                         candidate_ref_idx0);
-#else
                                          which_cand_ref);
-#endif
 
           int cand_idx = 0;
           for (cand_idx = 0; cand_idx < *single_mv_count; ++cand_idx) {
