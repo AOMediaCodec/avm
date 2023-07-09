@@ -1763,7 +1763,11 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
 
 #if CONFIG_ADPTIVE_DS_422
   if (subsampling_x == 0 && subsampling_y == 0) {
-    cm->seq_params.enable_cfl_ds_filter = 0;  // For 4:4:4 chroma format, downsampling filter is not used. There is a redundant that the filter index is still signalled for 4:4:4. Should we remove the index signalling for 4:4:4 with this MR?
+    cm->seq_params.enable_cfl_ds_filter =
+        0;  // For 4:4:4 chroma format, downsampling filter is not used. There
+            // is a redundant that the filter index is still signalled for
+            // 4:4:4. Should we remove the index signalling for 4:4:4 with this
+            // MR?
     return;
   }
 #endif  // CONFIG_ADPTIVE_DS_422
@@ -1811,7 +1815,8 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           cfl_derive_block_implicit_scaling_factor(
               recon_buf_q3, this_src_chroma, blk_w >> subsampling_x,
               blk_h >> subsampling_y, CFL_BUF_LINE, chroma_stride, &alpha);
-          subtract_average_c(recon_buf_q3, ac_buf_q3, blk_w >> subsampling_x,
+          subtract_average_c(
+              recon_buf_q3, ac_buf_q3, blk_w >> subsampling_x,
               blk_h >> subsampling_y, 4,
               (blk_w >> subsampling_x) * (blk_h >> subsampling_y));
           cfl_predict_hbd_dc(this_src_chroma - chroma_stride, dc_buf_q3,
