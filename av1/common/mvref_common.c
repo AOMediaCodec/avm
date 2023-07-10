@@ -1887,9 +1887,9 @@ static AOM_INLINE void setup_ref_mv_list(
     int pts[2 * 3];
     int np = 0;
     WarpedMotionParams cand_warp_param = default_warp_params;
-    int valid_points =
+    const int valid_points =
         generate_points_from_corners(xd, pts, mvs_32, &np, ref_frame);
-    int valid_model =
+    const int valid_model =
         get_model_from_corner_mvs(&cand_warp_param, pts, valid_points, mvs_32,
                                   xd->mi[0]->sb_type[PLANE_TYPE_Y]);
     if (valid_model && !cand_warp_param.invalid &&
