@@ -985,6 +985,9 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
+// From the warp model, derive the MV in (x,y) position.
+// (x,y) is the horizontal and vertical position of the frame
+//(0,0) is the top-left co-ordinate of the frame
 int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
                                      const int x, const int y,
                                      MvSubpelPrecision precision) {
@@ -1082,6 +1085,9 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
 //  position. pts_inref[2*n + 1] is the row value of the projected position
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
                               int np, int *mvs, const BLOCK_SIZE bsize) {
+  // In order to derive the warp model we need 3 projected points
+  // If the number of projected points (np) is not equal to 3, model is not
+  // valid.
   if (np != 3) {
     derive_model->invalid = 1;
     return 0;
