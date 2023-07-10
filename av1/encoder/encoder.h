@@ -1375,6 +1375,9 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
+#if CONFIG_CWP
+  int8_t cwp_idx[MAX_CWP_NUM - 1][2];
+#endif  // CONFIG_CWP
 #if CONFIG_BAWP
   unsigned int bawp[2];
 #endif  // CONFIG_BAWP
