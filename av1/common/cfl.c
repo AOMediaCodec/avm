@@ -673,11 +673,7 @@ static void cfl_luma_subsampling_422_hbd_c(const uint16_t *input,
   assert((height - 1) * CFL_BUF_LINE + width <= CFL_BUF_SQUARE);
   for (int j = 0; j < height; j++) {
     for (int i = 0; i < width; i += 2) {
-#if CONFIG_ADPTIVE_DS_422
-      output_q3[i >> 1] = (input[i]) << 3;
-#else
       output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
-#endif  // CONFIG_ADPTIVE_DS_422
     }
     input += input_stride;
     output_q3 += CFL_BUF_LINE;
