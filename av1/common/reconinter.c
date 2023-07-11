@@ -1965,6 +1965,9 @@ static void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
       ref_row += src_stride;
   } while (--b_h);
 }
+// check if padding is required during motion compensation
+// return 1 means reference pixel is outside of the reference range and padding
+// is required return 0 means no padding.
 int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    struct buf_2d *const pre_buf, MV32 scaled_mv,
                                    PadBlock *block, int subpel_x_mv,
@@ -2018,6 +2021,9 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
   return 0;
 };
 
+// perform padding of the motion compensated block if requires.
+// Padding is performed if the motion compensated block is partially out of the
+// reference area.
 static void refinemv_extend_mc_border(
     const struct scale_factors *const sf, struct buf_2d *const pre_buf,
     MV32 scaled_mv, PadBlock block, int subpel_x_mv, int subpel_y_mv,

@@ -3472,7 +3472,7 @@ static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
 static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
 #if CONFIG_REFINEMV
   if (mbmi->refinemv_flag) return 0;
-#endif
+#endif  // CONFIG_REFINEMV
 
   if (mbmi->skip_mode) return 1;
   int use_cwp = has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
