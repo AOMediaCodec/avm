@@ -2053,6 +2053,9 @@ static void refinemv_extend_mc_border(
 }
 
 #if CONFIG_TIP
+// Derive the sub-pixel related parameters of TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" and "block"
 void tip_dec_calc_subpel_params(const MV *const src_mv,
                                 InterPredParams *const inter_pred_params,
                                 int mi_x, int mi_y, uint16_t **pre,

@@ -538,28 +538,41 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
 
 #if CONFIG_REFINEMV
+// Generate one prediction signal for a TIP block
 void tip_build_one_inter_predictor(
     uint16_t *dst, int dst_stride, const MV *const src_mv,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func);
 
+// Compute the SAD between the two predictors when refinemv is ON
 int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
                      int bd);
+// Genrate two prediction signals and compute SAD of a given mv0 and mv1
 int av1_refinemv_build_predictors_and_get_sad(
     MACROBLOCKD *xd, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst_ref0,
     uint16_t *dst_ref1, MV mv0, MV mv1, InterPredParams *inter_pred_params);
+
+// Get the context index to code refinemv flag
 int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                              BLOCK_SIZE bsize);
 
+// Full blocks refine MVs are stored in 4x4 grid so that the MVs can be reused
+// for chroma
 void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
                              int bh, MV mv0, MV mv1);
+
+// Generate the reference area ( bounding box) based on the signaled MV
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          int plane, MB_MODE_INFO *mi, int bw,
                                          int bh, int mi_x, int mi_y,
                                          ReferenceArea ref_area[2],
                                          const int comp_pixel_x,
                                          const int comp_pixel_y);
+
+// Derive the sub-pixel related parameters of TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" and "block"
 void tip_dec_calc_subpel_params(const MV *const src_mv,
                                 InterPredParams *const inter_pred_params,
                                 int mi_x, int mi_y, uint16_t **pre,
@@ -570,6 +583,10 @@ void tip_dec_calc_subpel_params(const MV *const src_mv,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                 MV32 *scaled_mv, int *subpel_x_mv,
                                 int *subpel_y_mv);
+
+// Derive the sub-pixel related parameters of non-TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" and "block"
 void dec_calc_subpel_params(const MV *const src_mv,
                             InterPredParams *const inter_pred_params,
                             const MACROBLOCKD *const xd, int mi_x, int mi_y,
@@ -775,6 +792,8 @@ static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
   return clamped_mv;
 }
 
+// This function conduct the SAD search between two predictors and find the best
+// MVs
 void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
                          uint16_t **mc_buf,
@@ -782,6 +801,10 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
                          int pu_height);
+
+// check if padding is required during motion compensation
+// return 1 means reference pixel is outside of the reference range and padding
+// is required return 0 means no padding.
 int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    struct buf_2d *const pre_buf, MV32 scaled_mv,
                                    PadBlock *block, int subpel_x_mv,
@@ -789,6 +812,10 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    int *x_pad, int *y_pad,
                                    const ReferenceArea *ref_area);
 
+// Derive the sub-pixel related parameters of refinemv non-TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" Also do padding if required This function is used for both
+// encoder and decoder
 void common_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
@@ -797,6 +824,11 @@ void common_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride);
+
+// Derive the sub-pixel related parameters of refinemv TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" Also do padding if required This function is used for both
+// encoder and decoder
 void tip_common_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,

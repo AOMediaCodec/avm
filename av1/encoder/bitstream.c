@@ -1818,6 +1818,7 @@ static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
 }
 
 #if CONFIG_REFINEMV
+// This function write the refinemv_flag ( if require) to the bitstream
 static void write_refinemv_flag(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd, aom_writer *w,
                                 BLOCK_SIZE bsize) {

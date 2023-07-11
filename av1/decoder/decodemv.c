@@ -2673,6 +2673,7 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
 #endif  // DEC_MISMATCH_DEBUG
 
 #if CONFIG_REFINEMV
+// This function read the refinemv_flag ( if require) from the bitstream
 static void read_refinemv_flag(AV1_COMMON *const cm, MACROBLOCKD *xd,
                                aom_reader *r, BLOCK_SIZE bsize) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
