@@ -5549,7 +5549,7 @@ static AOM_INLINE void prune_ext_partitions_3way(
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col,
             bsize = blk_params->bsize;
-  if (part_sf->prune_ext_part_with_partition_boundary &&
+  if (part_sf->prune_part_h_with_partition_boundary &&
       (can_search_horz || can_search_vert) &&
       part_search_state->found_best_partition) {
     if (!part_search_state->partition_boundaries) {
@@ -5717,7 +5717,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col,
             bsize = blk_params->bsize;
-  if (false && part_sf->prune_ext_part_with_partition_boundary &&
+  if (part_sf->prune_part_4_with_partition_boundary &&
       (can_search_horz_4a || can_search_vert_4a || can_search_horz_4b ||
        can_search_vert_4b) &&
       part_search_state->found_best_partition) {

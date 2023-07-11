@@ -746,6 +746,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_ext_part_with_part_none = 0;
   part_sf->prune_ext_part_with_part_rect = 0;
 #if CONFIG_UNEVEN_4WAY
+  part_sf->prune_part_4_with_partition_boundary = 0;
   part_sf->prune_part_4_horz_or_vert = 0;
 #if CONFIG_H_PARTITION
   part_sf->prune_part_4_with_part_3 = 0;
@@ -755,6 +756,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
   part_sf->ext_recur_depth = INT_MAX;
+  part_sf->prune_part_h_with_partition_boundary = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
@@ -1042,7 +1044,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       sf->part_sf.simple_motion_search_early_term_none = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 5:
-      sf->part_sf.prune_ext_part_with_partition_boundary = true;
+      sf->part_sf.prune_part_h_with_partition_boundary = true;
       sf->part_sf.adaptive_partition_search_order = true;
       sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
       // TODO(chiyotsai@google.com): This speed feature causes large regression

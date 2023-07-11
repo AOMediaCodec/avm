@@ -522,10 +522,16 @@ typedef struct PARTITION_SPEED_FEATURES {
   // blocks are much smaller than the current block size.
   int adaptive_partition_search_order;
 
-  // Prune extended partition types if their resulting boundary does not agree
-  // with the current best partition's boundary after searching NONE, HORZ, and
-  // VERT.
-  int prune_ext_part_with_partition_boundary;
+  // Prune h partition types if their resulting boundary does not agree with
+  // the current best partition's boundary after searching NONE, HORZ, and VERT.
+  int prune_part_h_with_partition_boundary;
+
+#if CONFIG_UNEVEN_4WAY
+  // Prune r-way partition types if their resulting boundary does not agree with
+  // the current best partition's boundary after searching NONE, HORZ, VERT, and
+  // H-parts.
+  int prune_part_4_with_partition_boundary;
+#endif  // CONFIG_UNEVEN_4WAY
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 
