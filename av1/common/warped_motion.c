@@ -1140,10 +1140,12 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   derive_model->wmmat[3] = (ref_x2 - ref_x0) >> height_log2;
   derive_model->wmmat[5] = (ref_y2 - ref_y0) >> height_log2;
 
-  int64_t wmmat0 = (int64_t)ref_x0 - (int64_t)(derive_model->wmmat[2] * x0) -
-                   (int64_t)(derive_model->wmmat[3] * y0);
-  int64_t wmmat1 = (int64_t)ref_y0 - (int64_t)(derive_model->wmmat[4] * x0) -
-                   (int64_t)(derive_model->wmmat[5] * y0);
+  int64_t wmmat0 = (int64_t)ref_x0 -
+                   (int64_t)derive_model->wmmat[2] * (int64_t)x0 -
+                   (int64_t)derive_model->wmmat[3] * (int64_t)y0;
+  int64_t wmmat1 = (int64_t)ref_y0 -
+                   (int64_t)derive_model->wmmat[4] * (int64_t)x0 -
+                   (int64_t)derive_model->wmmat[5] * (int64_t)y0;
 
   derive_model->wmtype = AFFINE;
   derive_model->invalid = 0;
