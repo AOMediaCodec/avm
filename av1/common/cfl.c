@@ -808,6 +808,11 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
   if (sub_x && sub_y)
     cfl_luma_subsampling_420_hbd_121_c(input, input_stride, recon_buf_q3, width,
                                        height);
+#if CONFIG_ADPTIVE_DS_422
+  else if (sub_x == 1 && sub_y == 0)
+    cfl_adaptive_luma_subsampling_422_hbd_c(input, input_stride, recon_buf_q3,
+                                            width, height, 2);
+#endif  // CONFIG_ADPTIVE_DS_422
   else
 #endif
     cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
