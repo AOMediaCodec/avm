@@ -790,6 +790,7 @@ void inspect(void *pbi, void *data) {
 void ifd_init_cb() {
   aom_inspect_init ii;
   ii.inspect_cb = inspect;
+  ii.inspect_sb_cb = NULL;
   ii.inspect_ctx = NULL;
   aom_codec_control(&codec, AV1_SET_INSPECTION_CALLBACK, &ii);
 }
