@@ -1660,7 +1660,11 @@ static int64_t motion_mode_rd(
 #if CONFIG_CROSS_CHROMA_TX
   CctxType best_cctx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
 #endif  // CONFIG_CROSS_CHROMA_TX
-  const int rate_mv0 = *rate_mv;
+  const int rate_mv0 =
+#if CONFIG_WARPMV
+      this_mode == WARPMV ? 0 :
+#endif
+                          *rate_mv;
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   const int interintra_allowed =
       cm->seq_params.enable_interintra_compound && is_interintra_allowed(mbmi);
