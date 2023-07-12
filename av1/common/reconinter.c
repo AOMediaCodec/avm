@@ -3280,7 +3280,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
     assert(mi->ref_mv_idx[0] == 0);
     assert(mi->ref_mv_idx[1] == 0);
 #else
-    assert(mi->ref_mv_idx == 0);
+      assert(mi->ref_mv_idx == 0);
 #endif  // CONFIG_SEP_COMP_DRL
     assert(mi->motion_mode == WARP_DELTA || mi->motion_mode == WARPED_CAUSAL);
   }
@@ -3835,7 +3835,7 @@ void set_precision_set(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #if CONFIG_SEP_COMP_DRL
                        int *ref_mv_idx) {
 #else
-                       uint8_t ref_mv_idx) {
+                         uint8_t ref_mv_idx) {
 #endif  // CONFIG_SEP_COMP_DRL
   (void)bsize;
   (void)cm;
