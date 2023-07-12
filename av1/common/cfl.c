@@ -681,6 +681,7 @@ static void cfl_luma_subsampling_422_hbd_c(const uint16_t *input,
 }
 
 #if CONFIG_ADPTIVE_DS_422
+#if CONFIG_ADAPTIVE_DS_FILTER
 void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              int input_stride,
                                              uint16_t *output_q3, int width,
@@ -701,6 +702,21 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
     output_q3 += CFL_BUF_LINE;
   }
 }
+#else
+void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
+                                            int input_stride,
+                                            uint16_t *output_q3, int width,
+                                            int height) {
+  assert((height - 1) * CFL_BUF_LINE + width <= CFL_BUF_SQUARE);
+  for (int j = 0; j < height; j++) {
+    for (int i = 0; i < width; i += 2) {
+      output_q3[i >> 1] = (input[i]) << 3;
+    }
+    input += input_stride;
+    output_q3 += CFL_BUF_LINE;
+  }
+}
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 #endif  // CONFIG_ADPTIVE_DS_422
 
 static void cfl_luma_subsampling_444_hbd_c(const uint16_t *input,
@@ -810,8 +826,8 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
                                        height);
 #if CONFIG_ADPTIVE_DS_422
   else if (sub_x == 1 && sub_y == 0)
-    cfl_adaptive_luma_subsampling_422_hbd_c(input, input_stride, recon_buf_q3,
-                                            width, height, 2);
+    cfl_luma_subsampling_422_hbd_colocated(input, input_stride, recon_buf_q3,
+                                           width, height);
 #endif  // CONFIG_ADPTIVE_DS_422
   else
 #endif
