@@ -379,6 +379,10 @@ set_aom_config_var(
 set_aom_config_var(
   CONFIG_TIP_IMPLICIT_QUANT 1
   "Enable implicit quantization derivation for TIP direct mode")
+set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
+                   "Keep optical flow refined MVs in TMVP list.")
+set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
+                   "Decoder side affine motion refinement.")
 #
 # Variables in this section control optional features of the build system.
 #

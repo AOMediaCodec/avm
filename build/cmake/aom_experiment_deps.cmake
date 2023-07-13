@@ -156,4 +156,16 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_TIP_IMPLICIT_QUANT 0 !CONFIG_PEF)
   endif()
 
+  # CONFIG_REFINED_MVS_IN_TMVP depends on CONFIG_OPTFLOW_REFINEMENT
+  if(NOT CONFIG_OPTFLOW_REFINEMENT AND CONFIG_REFINED_MVS_IN_TMVP)
+    change_config_and_warn(CONFIG_REFINED_MVS_IN_TMVP 0
+                           !CONFIG_OPTFLOW_REFINEMENT)
+  endif()
+
+  # CONFIG_AFFINE_REFINEMENT depends on CONFIG_OPTFLOW_REFINEMENT
+  if(NOT CONFIG_OPTFLOW_REFINEMENT AND CONFIG_AFFINE_REFINEMENT)
+    change_config_and_warn(CONFIG_AFFINE_REFINEMENT 0
+                           !CONFIG_OPTFLOW_REFINEMENT)
+  endif()
+
 endmacro()

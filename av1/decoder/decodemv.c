@@ -808,29 +808,42 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
                                                 MB_MODE_INFO *const mbmi,
 #endif  // CONFIG_OPTFLOW_REFINEMNET
                                                 int16_t ctx) {
+#if CONFIG_AFFINE_REFINEMENT
+  mbmi->comp_refine_type = cm->features.opfl_refine_type == REFINE_ALL
+                               ? COMP_REFINE_TYPE_FOR_REFINE_ALL
+                               : COMP_REFINE_NONE;
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   int use_optical_flow = 0;
+  const int mode = aom_read_symbol(
+      r, xd->tile_ctx->inter_compound_mode_cdf[ctx], INTER_COMPOUND_REF_TYPES,
+      ACCT_INFO("inter_compound_mode_cdf"));
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
       opfl_allowed_for_cur_refs(cm, mbmi)) {
+#if CONFIG_AFFINE_REFINEMENT
+    const int allow_translational =
+        is_translational_refinement_allowed(cm, comp_idx_to_opfl_mode[mode]);
+    const int allow_affine =
+        is_affine_refinement_allowed(cm, xd, comp_idx_to_opfl_mode[mode]);
+    if (allow_affine || allow_translational)
+      use_optical_flow = aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[ctx],
+                                         2, ACCT_INFO("use_optical_flow"));
+    mbmi->comp_refine_type = use_optical_flow
+                                 ? COMP_REFINE_SUBBLK2P + allow_affine
+                                 : COMP_REFINE_NONE;
+#else
     use_optical_flow = aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[ctx], 2,
                                        ACCT_INFO("use_optical_flow"));
+#endif  // CONFIG_AFFINE_REFINEMENT
+    if (use_optical_flow) {
+      assert(is_inter_compound_mode(comp_idx_to_opfl_mode[mode]));
+      return comp_idx_to_opfl_mode[mode];
+    }
   }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-  const int mode =
-#if CONFIG_OPTFLOW_REFINEMENT
-      aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
-                      INTER_COMPOUND_REF_TYPES,
-                      ACCT_INFO("inter_compound_mode_cdf"));
 #else
-      aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
-                      INTER_COMPOUND_MODES,
-                      ACCT_INFO("inter_compound_mode_cdf"));
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_OPTFLOW_REFINEMENT
-  if (use_optical_flow) {
-    assert(is_inter_compound_mode(comp_idx_to_opfl_mode[mode]));
-    return comp_idx_to_opfl_mode[mode];
-  }
+  const int mode = aom_read_symbol(
+      r, xd->tile_ctx->inter_compound_mode_cdf[ctx], INTER_COMPOUND_MODES,
+      ACCT_INFO("inter_compound_mode_cdf"));
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   assert(is_inter_compound_mode(NEAR_NEARMV + mode));
   return NEAR_NEARMV + mode;
@@ -3119,6 +3132,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
 #endif  // CONFIG_WARP_REF_LIST
+#if CONFIG_AFFINE_REFINEMENT
+  mbmi->comp_refine_type = COMP_REFINE_NONE;
+#endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_WARPMV
 #if CONFIG_CWG_D067_IMPROVED_WARP
@@ -3201,14 +3217,16 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     mbmi->mode = NEAR_NEARMV;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
-
 #if CONFIG_REFINEMV && !CONFIG_CWP
     mbmi->refinemv_flag =
 #if CONFIG_D072_SKIP_MODE_IMPROVE
         !is_compound ? 0 :
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
                      get_default_refinemv_flag(cm, mbmi);
-#endif  // CONFIG_REFINEMV
+#endif  // CONFIG_REFINEMV && !CONFIG_CWP
+#if CONFIG_AFFINE_REFINEMENT
+    mbmi->comp_refine_type = COMP_REFINE_TYPE_FOR_SKIP;
+#endif  // CONFIG_AFFINE_REFINEMENT
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {

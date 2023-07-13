@@ -564,6 +564,13 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   }
 }
 
+#if CONFIG_REFINED_MVS_IN_TMVP
+void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
+                                const MACROBLOCKD *xd,
+                                const MB_MODE_INFO *const mi, int mi_row,
+                                int mi_col, int x_inside_boundary,
+                                int y_inside_boundary);
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
 void av1_copy_frame_mvs(const AV1_COMMON *const cm,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,
                         int x_inside_boundary, int y_inside_boundary);

@@ -524,7 +524,9 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   }
 #endif  // CONFIG_TIP
 #if CONFIG_OPTFLOW_REFINEMENT
+#if !CONFIG_AFFINE_REFINEMENT
   use_opfl &= (plane == 0);
+#endif  // !CONFIG_AFFINE_REFINEMENT
   if (use_opfl) {
     PefFuncInput pef_input;
     setup_pef_input(xd, 0, plane, dst, dst_stride, bw, bh, mv_refined,

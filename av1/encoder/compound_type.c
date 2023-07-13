@@ -900,11 +900,10 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   xd->plane[0].dst.stride = bw;
 #if CONFIG_BAWP
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
-                                AOM_PLANE_Y, AOM_PLANE_Y);
 #else
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AOM_PLANE_Y, AOM_PLANE_Y);
 #endif
+                                AOM_PLANE_Y, AOM_PLANE_Y);
   const int num_planes = av1_num_planes(cm);
 
   // Restore the buffers for intra prediction

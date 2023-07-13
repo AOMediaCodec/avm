@@ -233,6 +233,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_OPTFLOW_REFINEMENT
   arg_def_t enable_opfl_refine;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+  arg_def_t enable_affine_refine;
+#endif  // CONFIG_AFFINE_REFINEMENT
   arg_def_t enable_trellis_quant;
   arg_def_t enable_qm;
   arg_def_t qm_min;

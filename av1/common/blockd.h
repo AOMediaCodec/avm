@@ -521,11 +521,16 @@ typedef struct MB_MODE_INFO {
    * mode. */
   uint8_t overlappable_neighbors[2];
   /*! \brief The parameters used in warp motion mode. */
-#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL
+#if CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL || \
+    CONFIG_AFFINE_REFINEMENT
   WarpedMotionParams wm_params[2];
 #else
   WarpedMotionParams wm_params;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL ||
+        // CONFIG_AFFINE_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+  CompoundRefineType comp_refine_type;
+#endif  // CONFIG_AFFINE_REFINEMENT
   /*! \brief The type of intra mode used by inter-intra */
   INTERINTRA_MODE interintra_mode;
   /*! \brief The type of wedge used in interintra mode. */
@@ -698,7 +703,8 @@ typedef struct MB_MODE_INFO {
 #endif                                                // CONFIG_ENABLE_MHCCP
 } MB_MODE_INFO;
 
-#if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_C071_SUBBLK_WARPMV || CONFIG_AFFINE_REFINEMENT || \
+    CONFIG_REFINED_MVS_IN_TMVP
 /*! \brief Stores the subblock motion info of the current coding block
  */
 // Note that this can not be stored in MB_MODE_INFO, because The MB_MODE_INFO is
@@ -709,7 +715,8 @@ typedef struct SUBMB_INFO {
   /*! \brief Stored subblock mv for reference. */
   int_mv mv[2];
 } SUBMB_INFO;
-#endif  // CONFIG_C071_SUBBLK_WARPMV
+#endif  // CONFIG_C071_SUBBLK_WARPMV || CONFIG_AFFINE_REFINEMENT ||
+        // CONFIG_REFINED_MVS_IN_TMVP
 
 #if CONFIG_REFINEMV
 /*! \brief Stores the subblock refinemv motion info of the current coding block
@@ -2377,6 +2384,10 @@ typedef struct macroblockd {
   /** block level storage to store luma refined MVs for chroma use */
   REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
 #endif  // CONFIG_REFINEMV
+#if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
+  /** variable to stored optical flow refined MVs */
+  SUBMB_INFO mv_delta[N_OF_OFFSETS];
+#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
 } MACROBLOCKD;
 
 /*!\cond */

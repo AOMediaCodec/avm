@@ -1344,7 +1344,11 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
   int need_subblock_mvs = xd->is_chroma_ref && mbmi->refinemv_flag &&
                           !is_intrabc_block(mbmi, xd->tree_type);
   assert(IMPLIES(need_subblock_mvs, !is_interintra_pred(mbmi)));
+#if CONFIG_AFFINE_REFINEMENT
+  if (need_subblock_mvs && default_refinemv_modes(cm, mbmi))
+#else
   if (need_subblock_mvs && default_refinemv_modes(mbmi))
+#endif  // CONFIG_AFFINE_REFINEMENT
     need_subblock_mvs &= (mbmi->comp_group_idx == 0 &&
                           mbmi->interinter_comp.type == COMPOUND_AVERAGE);
   if (need_subblock_mvs) {
@@ -2225,6 +2229,21 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART])
     av1_reset_entropy_context(xd, bsize, num_planes);
   decode_token_recon_block(pbi, td, r, partition, bsize);
+
+#if CONFIG_REFINED_MVS_IN_TMVP
+  if (!frame_is_intra_only(cm) &&
+      cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
+    MB_MODE_INFO *const mi = xd->mi[0];
+    if (opfl_allowed_for_cur_block(cm, mi)) {
+      const int bw = mi_size_wide[bsize];
+      const int bh = mi_size_high[bsize];
+      const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
+      const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - mi_row);
+      av1_copy_frame_refined_mvs(cm, xd, mi, xd->mi_row, xd->mi_col,
+                                 x_inside_boundary, y_inside_boundary);
+    }
+  }
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
   if (xd->tree_type != SHARED_PART) {
     const int bh = mi_size_high[bsize];
@@ -6709,6 +6728,10 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
                                        ? aom_rb_read_literal(rb, 2)
                                        : AOM_OPFL_REFINE_NONE;
+#if CONFIG_AFFINE_REFINEMENT
+  seq_params->enable_affine_refine =
+      seq_params->enable_opfl_refine ? aom_rb_read_bit(rb) : 0;
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   seq_params->enable_ibp = aom_rb_read_bit(rb);
 #if CONFIG_ADAPTIVE_MVD

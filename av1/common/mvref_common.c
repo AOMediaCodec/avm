@@ -30,6 +30,114 @@ typedef struct single_mv_candidate {
 #define MFMV_STACK_SIZE 3
 
 #if CONFIG_TIP
+#if CONFIG_REFINED_MVS_IN_TMVP
+#define OPFL_MVS_CLAMPED 0
+// Overwrite the MVs in TMVP list as optical flow based refined MV if applicable
+void av1_copy_frame_all_refined_mvs(const AV1_COMMON *const cm,
+                                    const MACROBLOCKD *xd,
+                                    const MB_MODE_INFO *const mi, int mi_row,
+                                    int mi_col, int x_inside_boundary,
+                                    int y_inside_boundary) {
+  const int frame_mvs_stride =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  const int cur_tpl_row = (mi_row >> TMVP_SHIFT_BITS);
+  const int cur_tpl_col = (mi_col >> TMVP_SHIFT_BITS);
+  const int offset = cur_tpl_row * frame_mvs_stride + cur_tpl_col;
+  MV_REF *frame_mvs = cm->cur_frame->mvs + offset;
+  x_inside_boundary = ROUND_POWER_OF_TWO(x_inside_boundary, TMVP_SHIFT_BITS);
+  y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, TMVP_SHIFT_BITS);
+  int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
+  int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
+  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
+#if CONFIG_OPTFLOW_ON_TIP
+                                 ,
+                                 1
+#endif  // CONFIG_OPTFLOW_ON_TIP
+  );
+
+  for (int h = 0; h < y_inside_boundary; h++) {
+    MV_REF *mv = frame_mvs;
+    for (int w = 0; w < x_inside_boundary; w++) {
+      for (int idx = 0; idx < 2; ++idx) {
+        MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
+        if (!is_inter_ref_frame(ref_frame) || is_tip_ref_frame(ref_frame))
+          continue;
+
+        int_mv refined_mv;
+#if CONFIG_AFFINE_REFINEMENT
+        if (mi->comp_refine_type >= COMP_AFFINE_REFINE_START
+#if CONFIG_REFINEMV
+            && !mi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+        ) {
+          // Apply offsets based on the affine parameters
+          const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
+          const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
+          const int32_t dst_x = mi->wm_params[idx].wmmat[2] * src_x +
+                                mi->wm_params[idx].wmmat[3] * src_y +
+                                mi->wm_params[idx].wmmat[0];
+          const int32_t dst_y = mi->wm_params[idx].wmmat[4] * src_x +
+                                mi->wm_params[idx].wmmat[5] * src_y +
+                                mi->wm_params[idx].wmmat[1];
+          const int32_t submv_x_hp = dst_x - (src_x << WARPEDMODEL_PREC_BITS);
+          const int32_t submv_y_hp = dst_y - (src_y << WARPEDMODEL_PREC_BITS);
+          const int mv_offset_y =
+              ROUND_POWER_OF_TWO_SIGNED(submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
+          const int mv_offset_x =
+              ROUND_POWER_OF_TWO_SIGNED(submv_x_hp, WARPEDMODEL_PREC_BITS - 3);
+          refined_mv.as_mv.row = mv_offset_y;
+          refined_mv.as_mv.col = mv_offset_x;
+        } else {
+#endif  // CONFIG_AFFINE_REFINEMENT
+          refined_mv.as_mv.row = mi->mv[idx].as_mv.row;
+          refined_mv.as_mv.col = mi->mv[idx].as_mv.col;
+#if CONFIG_AFFINE_REFINEMENT
+        }
+#endif  // CONFIG_AFFINE_REFINEMENT
+        if (n == 4) {
+          // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
+          // subblock, take the average of 4 refined MVs
+          refined_mv.as_mv.row +=
+              ROUND_POWER_OF_TWO_SIGNED(xd->mv_delta[0].mv[idx].as_mv.row +
+                                            xd->mv_delta[1].mv[idx].as_mv.row +
+                                            xd->mv_delta[2].mv[idx].as_mv.row +
+                                            xd->mv_delta[3].mv[idx].as_mv.row,
+                                        2 + MV_REFINE_PREC_BITS - 3);
+          refined_mv.as_mv.col +=
+              ROUND_POWER_OF_TWO_SIGNED(xd->mv_delta[0].mv[idx].as_mv.col +
+                                            xd->mv_delta[1].mv[idx].as_mv.col +
+                                            xd->mv_delta[2].mv[idx].as_mv.col +
+                                            xd->mv_delta[3].mv[idx].as_mv.col,
+                                        2 + MV_REFINE_PREC_BITS - 3);
+        } else {
+          int sbmv_stride = bw >> 3;
+          refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
+              xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.row,
+              MV_REFINE_PREC_BITS - 3);
+          refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
+              xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.col,
+              MV_REFINE_PREC_BITS - 3);
+        }
+#if OPFL_MVS_CLAMPED
+        refined_mv.as_mv.row =
+            clamp(refined_mv.as_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
+        refined_mv.as_mv.col =
+            clamp(refined_mv.as_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
+#else
+        if ((abs(refined_mv.as_mv.row) > REFMVS_LIMIT) ||
+            (abs(refined_mv.as_mv.col) > REFMVS_LIMIT))
+          continue;
+#endif
+        mv->ref_frame[idx] = ref_frame;
+        mv->mv[idx].as_int = refined_mv.as_int;
+      }
+      mv++;
+    }
+    frame_mvs += frame_mvs_stride;
+  }
+}
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
+
 void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
                             const MB_MODE_INFO *const mi, int mi_row,
                             int mi_col, int x_inside_boundary,
@@ -113,6 +221,117 @@ void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
   }
 }
 #endif  // CONFIG_TIP
+
+#if CONFIG_REFINED_MVS_IN_TMVP
+void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
+                                const MACROBLOCKD *xd,
+                                const MB_MODE_INFO *const mi, int mi_row,
+                                int mi_col, int x_inside_boundary,
+                                int y_inside_boundary) {
+  if (cm->seq_params.enable_tip && cm->features.tip_frame_mode) {
+    av1_copy_frame_all_refined_mvs(cm, xd, mi, mi_row, mi_col,
+                                   x_inside_boundary, y_inside_boundary);
+    return;
+  }
+
+  const int frame_mvs_stride = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, 1);
+  MV_REF *frame_mvs =
+      cm->cur_frame->mvs + (mi_row >> 1) * frame_mvs_stride + (mi_col >> 1);
+  x_inside_boundary = ROUND_POWER_OF_TWO(x_inside_boundary, 1);
+  y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
+  int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
+  int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
+  int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
+#if CONFIG_OPTFLOW_ON_TIP
+                                 ,
+                                 1
+#endif  // CONFIG_OPTFLOW_ON_TIP
+  );
+  int w, h;
+
+  for (h = 0; h < y_inside_boundary; h++) {
+    MV_REF *mv = frame_mvs;
+    for (w = 0; w < x_inside_boundary; w++) {
+      for (int idx = 0; idx < 2; ++idx) {
+        MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
+        if (is_inter_ref_frame(ref_frame)) {
+          int8_t ref_idx = cm->ref_frame_side[ref_frame];
+          if (ref_idx) continue;
+          int_mv refined_mv;
+#if CONFIG_AFFINE_REFINEMENT
+          if (mi->comp_refine_type >= COMP_AFFINE_REFINE_START
+#if CONFIG_REFINEMV
+              && !mi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+          ) {
+            // Apply offsets based on the affine parameters
+            const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
+            const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
+            const int32_t dst_x = mi->wm_params[idx].wmmat[2] * src_x +
+                                  mi->wm_params[idx].wmmat[3] * src_y +
+                                  mi->wm_params[idx].wmmat[0];
+            const int32_t dst_y = mi->wm_params[idx].wmmat[4] * src_x +
+                                  mi->wm_params[idx].wmmat[5] * src_y +
+                                  mi->wm_params[idx].wmmat[1];
+            const int32_t submv_x_hp = dst_x - (src_x << WARPEDMODEL_PREC_BITS);
+            const int32_t submv_y_hp = dst_y - (src_y << WARPEDMODEL_PREC_BITS);
+            const int mv_offset_y = ROUND_POWER_OF_TWO_SIGNED(
+                submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
+            const int mv_offset_x = ROUND_POWER_OF_TWO_SIGNED(
+                submv_x_hp, WARPEDMODEL_PREC_BITS - 3);
+            refined_mv.as_mv.row = mv_offset_y;
+            refined_mv.as_mv.col = mv_offset_x;
+          } else {
+#endif  // CONFIG_AFFINE_REFINEMENT
+            refined_mv.as_mv.row = mi->mv[idx].as_mv.row;
+            refined_mv.as_mv.col = mi->mv[idx].as_mv.col;
+#if CONFIG_AFFINE_REFINEMENT
+          }
+#endif  // CONFIG_AFFINE_REFINEMENT
+          if (n == 4) {
+            // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
+            // subblock, take the average of 4 refined MVs
+            refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[0].mv[idx].as_mv.row +
+                    xd->mv_delta[1].mv[idx].as_mv.row +
+                    xd->mv_delta[2].mv[idx].as_mv.row +
+                    xd->mv_delta[3].mv[idx].as_mv.row,
+                2 + MV_REFINE_PREC_BITS - 3);
+            refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[0].mv[idx].as_mv.col +
+                    xd->mv_delta[1].mv[idx].as_mv.col +
+                    xd->mv_delta[2].mv[idx].as_mv.col +
+                    xd->mv_delta[3].mv[idx].as_mv.col,
+                2 + MV_REFINE_PREC_BITS - 3);
+          } else {
+            int sbmv_stride = bw >> 3;
+            refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.row,
+                MV_REFINE_PREC_BITS - 3);
+            refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.col,
+                MV_REFINE_PREC_BITS - 3);
+          }
+#if OPFL_MVS_CLAMPED
+          refined_mv.as_mv.row =
+              clamp(refined_mv.as_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
+          refined_mv.as_mv.col =
+              clamp(refined_mv.as_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
+#else
+          if ((abs(refined_mv.as_mv.row) > REFMVS_LIMIT) ||
+              (abs(refined_mv.as_mv.col) > REFMVS_LIMIT))
+            continue;
+#endif
+          mv->ref_frame[idx] = ref_frame;
+          mv->mv[idx].as_int = refined_mv.as_int;
+        }
+        mv++;
+      }
+    }
+    frame_mvs += frame_mvs_stride;
+  }
+}
+#endif  // CONFIG_REFINED_MVS_IN_TMVP
 
 void av1_copy_frame_mvs(const AV1_COMMON *const cm,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,

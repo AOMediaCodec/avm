@@ -530,7 +530,7 @@ static AOM_FORCE_INLINE void calculate_mv_8x4(
   int64_t su2, suv, sv2, suw, svw;
   // As processing block size is 4x4, here '(bw * bh >> 4)' can be replaced
   // by 1.
-  const int rls_alpha = 1 << OPFL_RLS_PARAM_BITS;
+  const int rls_alpha = OPFL_RLS_PARAM;
   int64_t su2_1, suv_1, sv2_1, suw_1, svw_1;
   u2_0 = _mm_add_epi64(u2_0, _mm_srli_si128(u2_0, 8));
   u2_1 = _mm_add_epi64(u2_1, _mm_srli_si128(u2_1, 8));
@@ -581,7 +581,7 @@ static AOM_FORCE_INLINE void calculate_mv_8x8(__m128i u2, __m128i v2,
   const int bits = mv_prec_bits + grad_prec_bits;
   // As processing block size is 8x8, here '(bw * bh >> 4)' can be replaced
   // by 4.
-  const int rls_alpha = 4 << OPFL_RLS_PARAM_BITS;
+  const int rls_alpha = 4 * OPFL_RLS_PARAM;
   _mm_storel_epi64((__m128i *)&su2, u2);
   _mm_storel_epi64((__m128i *)&suv, uv);
   _mm_storel_epi64((__m128i *)&sv2, v2);
@@ -839,7 +839,7 @@ static void opfl_mv_refinement_interp_grad_8x4_sse4_1(
   const int bits = mv_prec_bits + grad_prec_bits;
   // As processing block size is 4x4, here '(bw * bh >> 4)' can be replaced
   // by 1.
-  const int rls_alpha = 1 << OPFL_RLS_PARAM_BITS;
+  const int rls_alpha = OPFL_RLS_PARAM;
   calc_mv(u2, v2, uv, uw, vw, d0, d1, bits, 0, rls_alpha, vx0, vy0, vx1, vy1);
   calc_mv(u2, v2, uv, uw, vw, d0, d1, bits, 1, rls_alpha, vx0 + 1, vy0 + 1,
           vx1 + 1, vy1 + 1);
@@ -913,7 +913,7 @@ static void opfl_mv_refinement_interp_grad_8x8_sse4_1(
   const int bits = mv_prec_bits + grad_prec_bits;
   // As processing block size is 8x8, here '(bw * bh >> 4)' can be replaced
   // by 4.
-  const int rls_alpha = 4 << OPFL_RLS_PARAM_BITS;
+  const int rls_alpha = 4 * OPFL_RLS_PARAM;
   calc_mv(u2, v2, uv, uw, vw, d0, d1, bits, 0, rls_alpha, vx0, vy0, vx1, vy1);
 }
 
@@ -1001,7 +1001,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
     const uint16_t *inp1 = src1 + i * bw;
     const uint16_t *inp2 = src2 + i * bw;
     int16_t *out1 = dst1 + i * bw;
-    int16_t *out2 = dst2 + i * bw;
+    int16_t *out2 = dst2 ? (dst2 + i * bw) : NULL;
     for (int j = 0; j < bw; j = j + 8) {
       const __m128i src_buf1 = xx_load_128(inp1 + j);
       const __m128i src_buf2 = xx_load_128(inp2 + j);
@@ -1020,7 +1020,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
       temp2 = _mm_packs_epi32(reg1, reg2);
 
       xx_store_128(out1 + j, temp1);
-      xx_store_128(out2 + j, temp2);
+      if (dst2) xx_store_128(out2 + j, temp2);
     }
   }
 }

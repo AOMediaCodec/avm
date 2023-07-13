@@ -420,6 +420,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_OPTFLOW_REFINEMENT
   seq->enable_opfl_refine = tool_cfg->enable_opfl_refine;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+  seq->enable_affine_refine = tool_cfg->enable_affine_refine;
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_TIP
   seq->enable_tip = tool_cfg->enable_tip;
   seq->enable_tip_hole_fill = seq->enable_tip;

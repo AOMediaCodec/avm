@@ -440,6 +440,9 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 #if CONFIG_OPTFLOW_REFINEMENT
       AV1C_READ_BIT_OR_RETURN_ERROR(enable_opfl_refine);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+      AV1C_READ_BIT_OR_RETURN_ERROR(enable_affine_refine);
+#endif  // CONFIG_AFFINE_REFINEMENT
     }
 
     const int SELECT_SCREEN_CONTENT_TOOLS = 2;

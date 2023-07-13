@@ -934,6 +934,25 @@ enum {
   MOTION_MODES
 } UENUM1BYTE(MOTION_MODE);
 
+#if CONFIG_AFFINE_REFINEMENT
+enum {
+  COMP_REFINE_NONE,  // No refinement
+  // Refine types to be searched and signaled in *MV_OPTFLOW modes
+  COMP_REFINE_SUBBLK2P,            // subblock wise translation, 2-parameter
+  COMP_REFINE_ROTZOOM4P_SUBBLK2P,  // rotation/scale/trans & subblock wise trans
+  COMP_REFINE_TYPES,
+  // Other supported refine types
+  COMP_REFINE_ROTZOOM2P_SUBBLK2P,  // rotation/scale & subblock wise trans
+  // Other enums
+  COMP_REFINE_START = COMP_REFINE_NONE,
+  COMP_AFFINE_REFINE_START = COMP_REFINE_SUBBLK2P + 1,
+  COMP_AFFINE_REFINE_TYPES = COMP_REFINE_TYPES - 1,  // excluding subblock 2p
+  COMP_REFINE_TYPE_FOR_SKIP = COMP_REFINE_SUBBLK2P,
+  COMP_REFINE_TYPE_FOR_REFINE_ALL = COMP_REFINE_ROTZOOM4P_SUBBLK2P,
+  COMP_REFINE_TYPES_VALID = COMP_REFINE_TYPES - 1,
+} UENUM1BYTE(CompoundRefineType);
+#endif  // CONFIG_AFFINE_REFINEMENT
+
 enum {
   II_DC_PRED,
   II_V_PRED,

@@ -264,7 +264,6 @@ DECLARE_ALIGNED(16, const int16_t,
 { 0,   0,   0, 128,  0, 0, 0, 0 },
 };
 #endif  // CONFIG_EXT_WARP_FILTER
-
 /* clang-format on */
 
 // Recompute the translational part of a warp model, so that the center
@@ -584,6 +583,8 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
   // Check that, even with 12-bit input, the intermediate values will fit
   // into an unsigned 16-bit intermediate array.
   assert(bd + FILTER_BITS + 2 - conv_params->round_0 <= 16);
+  const int taps = 8;
+  const int taps_half = taps >> 1;
 
   for (int i = p_row; i < p_row + p_height; i += 8) {
     for (int j = p_col; j < p_col + p_width; j += 8) {
@@ -615,14 +616,13 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
 
         int sx = sx4 + beta * (k + 4);
         for (int l = -4; l < 4; ++l) {
-          int ix = ix4 + l - 3;
+          int ix = ix4 + l - (taps_half - 1);
           const int offs = ROUND_POWER_OF_TWO(sx, WARPEDDIFF_PREC_BITS) +
                            WARPEDPIXEL_PREC_SHIFTS;
           assert(offs >= 0 && offs <= WARPEDPIXEL_PREC_SHIFTS * 3);
           const int16_t *coeffs = av1_warped_filter[offs];
-
           int32_t sum = 1 << offset_bits_horiz;
-          for (int m = 0; m < 8; ++m) {
+          for (int m = 0; m < taps; ++m) {
             const int sample_x = clamp(ix + m, 0, width - 1);
             sum += ref[iy * stride + sample_x] * coeffs[m];
           }
@@ -643,7 +643,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
           const int16_t *coeffs = av1_warped_filter[offs];
 
           int32_t sum = 1 << offset_bits_vert;
-          for (int m = 0; m < 8; ++m) {
+          for (int m = 0; m < taps; ++m) {
             sum += tmp[(k + m + 4) * 8 + (l + 4)] * coeffs[m];
           }
 
@@ -731,6 +731,8 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
   // Check that, even with 12-bit input, the intermediate values will fit
   // into an unsigned 16-bit intermediate array.
   assert(bd + FILTER_BITS + 2 - conv_params->round_0 <= 16);
+  const int taps = EXT_WARP_TAPS;
+  const int taps_half = taps >> 1;
 
   for (int i = p_row; i < p_row + p_height; i += 4) {
     for (int j = p_col; j < p_col + p_width; j += 4) {
@@ -755,20 +757,20 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
       assert(offs_x >= 0 && offs_x <= EXT_WARP_PHASES);
       const int16_t *coeffs_x = av1_ext_warped_filter[offs_x];
 
-      for (int k = -(EXT_WARP_TAPS_HALF + 1); k < EXT_WARP_TAPS_HALF + 2; ++k) {
+      for (int k = -(taps_half + 1); k < taps_half + 2; ++k) {
         const int iy = clamp(iy4 + k, 0, height - 1);
 
         for (int l = -2; l < 2; ++l) {
-          int ix = ix4 + l - (EXT_WARP_TAPS_HALF - 1);
+          int ix = ix4 + l - (taps_half - 1);
 
           int32_t sum = 1 << offset_bits_horiz;
-          for (int m = 0; m < EXT_WARP_TAPS; ++m) {
+          for (int m = 0; m < taps; ++m) {
             const int sample_x = clamp(ix + m, 0, width - 1);
             sum += ref[iy * stride + sample_x] * coeffs_x[m];
           }
           sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);
           assert(0 <= sum && sum < (1 << max_bits_horiz));
-          im_block[(k + (EXT_WARP_TAPS_HALF + 1)) * 4 + (l + 2)] = sum;
+          im_block[(k + (taps_half + 1)) * 4 + (l + 2)] = sum;
         }
       }
 
@@ -780,7 +782,7 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
       for (int k = -2; k < AOMMIN(2, p_row + p_height - i - 2); ++k) {
         for (int l = -2; l < AOMMIN(2, p_col + p_width - j - 2); ++l) {
           int32_t sum = 1 << offset_bits_vert;
-          for (int m = 0; m < EXT_WARP_TAPS; ++m) {
+          for (int m = 0; m < taps; ++m) {
             sum += im_block[(k + m + 2) * 4 + (l + 2)] * coeffs_y[m];
           }
 
@@ -821,6 +823,25 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
     }
   }
 }
+
+#if CONFIG_AFFINE_REFINEMENT
+void av1_warp_plane_ext(WarpedMotionParams *wm, int bd, const uint16_t *ref,
+                        int width, int height, int stride, uint16_t *pred,
+                        int p_col, int p_row, int p_width, int p_height,
+                        int p_stride, int subsampling_x, int subsampling_y,
+                        ConvolveParams *conv_params) {
+  assert(wm->wmtype <= AFFINE);
+  if (wm->wmtype == ROTZOOM) {
+    wm->wmmat[5] = wm->wmmat[2];
+    wm->wmmat[4] = -wm->wmmat[3];
+  }
+  const int32_t *const mat = wm->wmmat;
+
+  av1_ext_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col,
+                             p_row, p_width, p_height, p_stride, subsampling_x,
+                             subsampling_y, bd, conv_params);
+}
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_EXT_WARP_FILTER
 
 void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
@@ -843,7 +864,11 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
   assert(wm->use_affine_filter ==
          is_affine_shear_allowed(alpha, beta, gamma, delta));
 
-  if (!wm->use_affine_filter)
+  if (!wm->use_affine_filter
+#if CONFIG_AFFINE_REFINEMENT
+      || p_width < 8 || p_height < 8
+#endif  // CONFIG_AFFINE_REFINEMENT
+  )
     av1_ext_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col,
                                p_row, p_width, p_height, p_stride,
                                subsampling_x, subsampling_y, bd, conv_params);

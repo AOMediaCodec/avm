@@ -478,6 +478,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_OPTFLOW_REFINEMENT
   &g_av1_codec_arg_defs.enable_opfl_refine,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+  &g_av1_codec_arg_defs.enable_affine_refine,
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_CCSO
   &g_av1_codec_arg_defs.enable_ccso,
 #endif
@@ -744,6 +747,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_OPTFLOW_REFINEMENT
   config->enable_opfl_refine = 1;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+  config->enable_affine_refine = 1;
+#endif  // CONFIG_AFFINE_REFINEMENT
   config->explicit_ref_frame_map = 0;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   config->enable_frame_output_order = 1;
@@ -1658,7 +1664,10 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : OptflowRefinement (%d)\n",
           encoder_cfg->enable_opfl_refine);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-
+#if CONFIG_AFFINE_REFINEMENT
+  fprintf(stdout, "                               : AffineRefinement (%d)\n",
+          encoder_cfg->enable_affine_refine);
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_PEF
   fprintf(stdout, "                               : PEF (%d)\n",
           encoder_cfg->enable_pef);

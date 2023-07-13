@@ -297,16 +297,29 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  const int16_t mode_ctx) {
   assert(is_inter_compound_mode(mode));
 #if CONFIG_OPTFLOW_REFINEMENT
-  if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      opfl_allowed_for_cur_refs(cm, mbmi)) {
-    const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
-    aom_write_symbol(w, use_optical_flow,
-                     xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
-  }
   int comp_mode_idx = opfl_get_comp_idx(mode);
   aom_write_symbol(w, comp_mode_idx,
                    xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
                    INTER_COMPOUND_REF_TYPES);
+  if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+      opfl_allowed_for_cur_refs(cm, mbmi)) {
+    const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
+#if CONFIG_AFFINE_REFINEMENT
+    const int allow_translational = is_translational_refinement_allowed(
+        cm, comp_idx_to_opfl_mode[comp_mode_idx]);
+    const int allow_affine = is_affine_refinement_allowed(
+        cm, xd, comp_idx_to_opfl_mode[comp_mode_idx]);
+    if (use_optical_flow) {
+      assert(IMPLIES(allow_translational,
+                     mbmi->comp_refine_type > COMP_REFINE_NONE));
+      assert(IMPLIES(allow_affine,
+                     mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START));
+    }
+    if (allow_affine || allow_translational)
+#endif  // CONFIG_AFFINE_REFINEMENT
+      aom_write_symbol(w, use_optical_flow,
+                       xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
+  }
 #else
   aom_write_symbol(w, INTER_COMPOUND_OFFSET(mode),
                    xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
@@ -5338,6 +5351,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_OPTFLOW_REFINEMENT
   if (seq_params->order_hint_info.enable_order_hint)
     aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
+#if CONFIG_AFFINE_REFINEMENT
+  if (seq_params->enable_opfl_refine)
+    aom_wb_write_bit(wb, seq_params->enable_affine_refine);
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   aom_wb_write_bit(wb, seq_params->enable_ibp);
 #if CONFIG_ADAPTIVE_MVD

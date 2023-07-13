@@ -931,6 +931,10 @@ typedef struct {
   // Indicates if optical flow refinement should be enabled
   aom_opfl_refine_type enable_opfl_refine;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+  // Indicates if affine motion refinement should be enabled
+  aom_opfl_refine_type enable_affine_refine;
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_PAR_HIDING
   // Indicates if parity hiding should be enabled
   bool enable_parity_hiding;

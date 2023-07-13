@@ -209,9 +209,7 @@ void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
                              0 /* build_for_obmc */, bw, bh, mi_x, mi_y,
-                             NULL /* mc_buf */,
-
-                             enc_calc_subpel_params);
+                             NULL /* mc_buf */, enc_calc_subpel_params);
 }
 
 void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {
@@ -251,7 +249,11 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                          is_refinemv_supported;
   assert(IMPLIES(need_chroma_dmvr, !is_interintra_pred(mbmi)));
 
+#if CONFIG_AFFINE_REFINEMENT
+  if (need_chroma_dmvr && default_refinemv_modes(cm, mbmi))
+#else
   if (need_chroma_dmvr && default_refinemv_modes(mbmi))
+#endif  // CONFIG_AFFINE_REFINEMENT
     need_chroma_dmvr &= (mbmi->comp_group_idx == 0 &&
                          mbmi->interinter_comp.type == COMPOUND_AVERAGE);
 

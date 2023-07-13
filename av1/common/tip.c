@@ -15,6 +15,9 @@
 #if CONFIG_OPTFLOW_ON_TIP
 #include "config/aom_dsp_rtcd.h"
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_AFFINE_REFINEMENT || CONFIG_OPTFLOW_ON_TIP
+#include "av1/common/reconinter.h"
+#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_OPTFLOW_ON_TIP
 
 // CHROMA_MI_SIZE is the block size in luma unit for Chroma TIP interpolation
 #define CHROMA_MI_SIZE (TMVP_MI_SIZE)
@@ -818,6 +821,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   MB_MODE_INFO *mbmi = &mbmi_buf;
 
   int_mv mv_refined[2 * 4];
+  memset(mv_refined, 0, 2 * 4 * sizeof(int_mv));
 
   CONV_BUF_TYPE *org_buf = xd->tmp_conv_dst;
   xd->tmp_conv_dst = tmp_conv_dst;
@@ -840,6 +844,15 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
   mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
 #endif
+#if CONFIG_AFFINE_REFINEMENT
+  mbmi->comp_refine_type = COMP_REFINE_SUBBLK2P;
+  int use_translational_opfl = 0;
+  WarpedMotionParams wms[8];
+  for (int mvi = 0; mvi < 4; mvi++) {
+    wms[2 * mvi] = default_warp_params;
+    wms[2 * mvi + 1] = default_warp_params;
+  }
+#endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_REFINEMV
   MV best_mv_ref[2] = { { mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col },
@@ -921,9 +934,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     // precision.
     av1_get_optflow_based_mv_highbd(cm, xd, plane, mbmi, mv_refined, bw, bh,
                                     mi_x, mi_y, mc_buf, calc_subpel_params_func,
-                                    gx0, gy0, gx1, gy1, vx0, vy0, vx1, vy1,
-                                    dst0, dst1, 0, use_4x4
-
+                                    gx0, gy0, gx1, gy1,
+#if CONFIG_AFFINE_REFINEMENT
+                                    wms, &use_translational_opfl,
+#endif  // CONFIG_AFFINE_REFINEMENT
+                                    vx0, vy0, vx1, vy1, dst0, dst1, 0, use_4x4
 #if CONFIG_REFINEMV
                                     ,
                                     best_mv_ref, bw, bh
@@ -980,7 +995,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     if (do_opfl) {
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
-          mi_y, ref, mc_buf, calc_subpel_params_func, use_4x4);
+          mi_y,
+#if CONFIG_AFFINE_REFINEMENT
+          mbmi->comp_refine_type, wms, &mbmi->mv[ref], use_translational_opfl,
+#endif  // CONFIG_AFFINE_REFINEMENT
+          ref, mc_buf, calc_subpel_params_func, use_4x4);
     } else {
       tip_build_one_inter_predictor(dst, dst_stride,
 #if CONFIG_REFINEMV

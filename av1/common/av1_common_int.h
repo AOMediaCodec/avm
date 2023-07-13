@@ -529,7 +529,10 @@ typedef struct SequenceHeader {
 #if CONFIG_OPTFLOW_REFINEMENT
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#endif  // 1 - enable vert/horz filter selection
+#endif                                      // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT
+  uint8_t enable_affine_refine;  // To turn on/off DAMR
+#endif                           // CONFIG_AFFINE_REFINEMENT
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_warped_motion;  // 0 - disable warp for the sequence
                                  // 1 - enable warp for the sequence
@@ -3872,7 +3875,6 @@ static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
   assert(0);
   return 0;
 }
-
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {

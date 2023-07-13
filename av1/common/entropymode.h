@@ -734,6 +734,20 @@ void av1_set_default_mode_deltas(int8_t *mode_deltas);
 void av1_setup_frame_contexts(struct AV1Common *cm);
 void av1_setup_past_independence(struct AV1Common *cm);
 
+#if CONFIG_AFFINE_REFINEMENT
+static INLINE int get_msb_signed(int32_t n) {
+  return n == 0 ? 0 : get_msb((unsigned int)abs(n));
+}
+
+static INLINE int get_msb_signed_64(int64_t n) {
+  uint64_t n_abs = (uint64_t)llabs(n);
+  unsigned int high32 = n_abs >> 32;
+  unsigned int low32 = n_abs & 0x00000000ffffffffULL;
+  if (high32 != 0) return 32 + get_msb(high32);
+  return low32 == 0 ? 0 : get_msb((unsigned int)low32);
+}
+#endif  // CONFIG_AFFINE_REFINEMENT
+
 // Returns (int)ceil(log2(n)).
 // NOTE: This implementation only works for n <= 2^30.
 static INLINE int av1_ceil_log2(int n) {
