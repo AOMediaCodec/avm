@@ -167,6 +167,13 @@ typedef struct SubpelParams {
   int ys;
   int subpel_x;
   int subpel_y;
+#if CONFIG_D071_IMP_MSK_BLD
+  int x0;  // top left sample horizontal cood.
+  int y0;  // top left sample vertical cood.
+  int x1;  // x0 + bw
+  int y1;  // y0 + bh
+#endif     // CONFIG_D071_IMP_MSK_BLD
+
 } SubpelParams;
 
 struct build_prediction_ctxt {
@@ -248,6 +255,10 @@ typedef struct InterPredParams {
   int use_ref_padding;
   ReferenceArea *ref_area;
 #endif  // CONFIG_REFINEMV
+
+#if CONFIG_D071_IMP_MSK_BLD
+  INTERINTER_COMPOUND_BORDER_DATA border_data;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 } InterPredParams;
 
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1051,6 +1062,30 @@ static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
 
   return clamped_mv;
 }
+
+#if CONFIG_D071_IMP_MSK_BLD
+void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
+                                 uint16_t *dst, int dst_stride,
+                                 InterPredParams *inter_pred_params,
+                                 const SubpelParams *subpel_params,
+                                 int use_bacp, int sub_block_id);
+
+static INLINE int use_border_aware_compound(const AV1_COMMON *cm,
+                                            const MB_MODE_INFO *mbmi) {
+  if (is_masked_compound_type(mbmi->interinter_comp.type) ||
+      mbmi->mode == GLOBAL_GLOBALMV)
+    return 0;
+
+  (void)cm;
+  return has_second_ref(mbmi) &&
+         (mbmi->mode >= COMP_INTER_MODE_START &&
+          mbmi->mode < COMP_INTER_MODE_END) &&
+         (mbmi->interinter_comp.type == COMPOUND_DIFFWTD ||
+          mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+}
+int is_out_of_frame_block(InterPredParams const *inter_pred_params,
+                          int frame_width, int frame_height, int sub_block_id);
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
 static INLINE int64_t scaled_buffer_offset(int x_offset, int y_offset,
                                            int stride,

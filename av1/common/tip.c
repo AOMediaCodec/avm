@@ -620,11 +620,51 @@ static AOM_INLINE
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                           mc_buf, &src, &subpel_params, &src_stride);
 
-  tip_highbd_inter_predictor(
-      src, src_stride, dst, dst_stride, &subpel_params,
-      inter_pred_params->block_width, inter_pred_params->block_height,
-      &inter_pred_params->conv_params, inter_pred_params->interp_filter_params,
-      inter_pred_params->bit_depth);
+#if CONFIG_D071_IMP_MSK_BLD
+  int use_bacp = 0;
+  int n_blocks = 0;
+  if (inter_pred_params->border_data.enable_bacp) {
+    const int sub_blk_idx = n_blocks * 2 + ref;
+    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].x0 =
+        subpel_params.x0;
+    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].x1 =
+        subpel_params.x1;
+    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].y0 =
+        subpel_params.y0;
+    inter_pred_params->border_data.bacp_block_data[sub_blk_idx].y1 =
+        subpel_params.y1;
+    if (ref == 1) {
+      use_bacp = is_out_of_frame_block(
+          inter_pred_params, inter_pred_params->ref_frame_buf.width,
+          inter_pred_params->ref_frame_buf.height, n_blocks);
+
+      if (use_bacp && inter_pred_params->mask_comp.type == COMPOUND_AVERAGE) {
+        inter_pred_params->conv_params.do_average = 0;
+        inter_pred_params->comp_mode = MASK_COMP;
+        inter_pred_params->mask_comp.seg_mask = xd->seg_mask;
+      }
+    }
+  }
+
+  assert(IMPLIES(ref == 0, !use_bacp));
+
+  if (use_bacp) {
+    assert(inter_pred_params->comp_mode == MASK_COMP);
+    make_masked_inter_predictor(src, src_stride, dst, dst_stride,
+                                inter_pred_params, &subpel_params, use_bacp,
+                                n_blocks);
+
+  } else {
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
+    tip_highbd_inter_predictor(
+        src, src_stride, dst, dst_stride, &subpel_params,
+        inter_pred_params->block_width, inter_pred_params->block_height,
+        &inter_pred_params->conv_params,
+        inter_pred_params->interp_filter_params, inter_pred_params->bit_depth);
+#if CONFIG_D071_IMP_MSK_BLD
+  }
+#endif  // CONFIG_D071_IMP_MSK_BLD
 }
 
 #if CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
@@ -884,6 +924,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     );
   }
 
+#if CONFIG_D071_IMP_MSK_BLD
+  BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
+  uint8_t use_bacp = cm->features.enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
   for (int ref = 0; ref < 2; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
     struct buf_2d *const pred_buf = &tip->pred[ref];
@@ -901,6 +946,14 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #endif  // CONFIG_REFINEMV
 
     inter_pred_params.comp_mode = UNIFORM_COMP;
+
+#if CONFIG_D071_IMP_MSK_BLD
+    inter_pred_params.border_data.enable_bacp = use_bacp;
+    inter_pred_params.border_data.bacp_block_data =
+        &bacp_block_data[0];  // Always point to the first ref
+    inter_pred_params.sb_type = mbmi->sb_type[PLANE_TYPE_Y];
+    inter_pred_params.mask_comp = mbmi->interinter_comp;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
     const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
     const int height = (cm->mi_params.mi_rows << MI_SIZE_LOG2);
@@ -1011,6 +1064,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   const int comp_pixel_y = (mi_y >> ss_y);
   const int comp_bw = bw >> ss_x;
   const int comp_bh = bh >> ss_y;
+
+#if CONFIG_D071_IMP_MSK_BLD
+  BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
+  uint8_t use_bacp = cm->features.enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
   for (int ref = 0; ref < 2; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
     struct buf_2d *const pred_buf = &tip->pred[ref];
@@ -1021,6 +1080,16 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                           MULTITAP_SHARP);
 
     inter_pred_params.comp_mode = UNIFORM_COMP;
+
+#if CONFIG_D071_IMP_MSK_BLD
+    inter_pred_params.border_data.enable_bacp = use_bacp;
+    inter_pred_params.border_data.bacp_block_data =
+        &bacp_block_data[0];  // Always point to the first ref
+    inter_pred_params.sb_type = BLOCK_8X8;
+    assert(bw == 8 &&
+           bh == 8);  // Currently BACP is supported only for 8x8 block
+    inter_pred_params.mask_comp.type = COMPOUND_AVERAGE;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
     const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
     const int height = (cm->mi_params.mi_rows << MI_SIZE_LOG2);

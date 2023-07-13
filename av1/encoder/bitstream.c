@@ -4873,6 +4873,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_CWP
   aom_wb_write_bit(wb, seq_params->enable_cwp);
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
   aom_wb_write_bit(wb, seq_params->enable_fsc);
 #if CONFIG_CCSO
   aom_wb_write_bit(wb, seq_params->enable_ccso);

@@ -34,6 +34,10 @@ extern "C" {
 #define SINGLE_STEP_SEARCH 0
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_D071_IMP_MSK_BLD
+#define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
+#endif                        // CONFIG_D071_IMP_MSK_BLD
+
 #if CONFIG_WEDGE_MOD_EXT
 /*WEDGE_0 is defined in the three o'clock direciton, the angles are defined in
  * the anticlockwise.*/

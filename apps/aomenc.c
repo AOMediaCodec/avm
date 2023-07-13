@@ -449,6 +449,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_CWP
   &g_av1_codec_arg_defs.enable_cwp,
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  &g_av1_codec_arg_defs.enable_imp_msk_bld,
+#endif  // CONFIG_D071_IMP_MSK_BLD
   &g_av1_codec_arg_defs.enable_fsc,
 #if CONFIG_ORIP
   &g_av1_codec_arg_defs.enable_orip,
@@ -659,6 +662,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_CWP
   config->enable_cwp = 1;
 #endif  // CONFIG_BAWP
+#if CONFIG_D071_IMP_MSK_BLD
+  config->enable_imp_msk_bld = 1;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   config->enable_fsc = 1;
 #if CONFIG_ORIP
   config->enable_orip = 1;
@@ -1588,6 +1594,11 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : CWP (%d)\n",
           encoder_cfg->enable_cwp);
 #endif  // CONFIG_CWP
+
+#if CONFIG_D071_IMP_MSK_BLD
+  fprintf(stdout, "                               : ImpMskBld (%d)\n",
+          encoder_cfg->enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
   fprintf(stdout,
           "                               : GlobalMotion (%d), "

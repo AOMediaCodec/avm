@@ -257,6 +257,8 @@ set_aom_config_var(CONFIG_BAWP 1 "Enable block adaptive weighted prediction")
 set_aom_config_var(CONFIG_WARPMV 1 "Enable warpmv modes")
 set_aom_config_var(CONFIG_IMPROVED_ANGULAR_INTRA 1
                    "Improved angular intra prediction mode")
+set_aom_config_var(CONFIG_D071_IMP_MSK_BLD 1
+                   "Enable single reference mode for frame boundary")
 
 set_aom_config_var(CONFIG_SKIP_TXFM_OPT 1
                    "Enable to optimize the signaling of skip_txfm")

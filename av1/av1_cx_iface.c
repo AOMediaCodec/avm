@@ -140,6 +140,9 @@ struct av1_extracfg {
 #if CONFIG_CWP
   int enable_cwp;  // enable compound weighted prediction
 #endif             // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  int enable_imp_msk_bld;
+#endif             // CONFIG_D071_IMP_MSK_BLD
   int enable_fsc;  // enable forward skip coding
 #if CONFIG_ORIP
   int enable_orip;  // enable ORIP
@@ -484,6 +487,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_CWP
   1,    // enable compound weighted prediction (CWP)
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  1,    // eanble implicit maksed blending
+#endif  // CONFIG_D071_IMP_MSK_BLD
   1,    // enable forward skip coding
 #if CONFIG_ORIP
   1,    // enable ORIP
@@ -991,6 +997,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_CWP
   cfg->enable_cwp = extra_cfg->enable_cwp;
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   cfg->enable_fsc = extra_cfg->enable_fsc;
 #if CONFIG_ORIP
   cfg->enable_orip = extra_cfg->enable_orip;
@@ -1117,6 +1126,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_CWP
   extra_cfg->enable_cwp = cfg->enable_cwp;
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  extra_cfg->enable_imp_msk_bld = cfg->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   extra_cfg->enable_fsc = cfg->enable_fsc;
 #if CONFIG_ORIP
   extra_cfg->enable_orip = cfg->enable_orip;
@@ -1450,6 +1462,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_CWP
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  tool_cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   tool_cfg->force_video_mode = extra_cfg->force_video_mode;
   tool_cfg->enable_palette = extra_cfg->enable_palette;
   // FIXME(debargha): Should this be:
@@ -3886,6 +3901,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_cwp = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_imp_msk_bld,
+                              argv, err_string)) {
+    extra_cfg.enable_imp_msk_bld = arg_parse_uint_helper(&arg, err_string);
+#endif  // CONFIG_D071_IMP_MSK_BLD
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_fsc, argv,
                               err_string)) {
     extra_cfg.enable_fsc = arg_parse_int_helper(&arg, err_string);
@@ -4395,6 +4415,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_CWP
         1,
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+        1,
+#endif  // CONFIG_D071_IMP_MSK_BLD
         1,
 #if CONFIG_ORIP
         1,

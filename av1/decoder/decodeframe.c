@@ -862,6 +862,15 @@ static void dec_calc_subpel_params(
   }
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
+
+#if CONFIG_D071_IMP_MSK_BLD
+  if (inter_pred_params->border_data.enable_bacp) {
+    subpel_params->x0 = block->x0;
+    subpel_params->x1 = block->x1;
+    subpel_params->y0 = block->y0;
+    subpel_params->y1 = block->y1;
+  }
+#endif  // CONFIG_D071_IMP_MSK_BLD
 }
 #endif  //! CONFIG_REFINEMV
 static void dec_calc_subpel_params_and_extend(
@@ -973,10 +982,21 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     block->y0 = pos_y >> SCALE_SUBPEL_BITS;
 
     // Get reference block bottom right coordinate.
+#if CONFIG_D071_IMP_MSK_BLD
+    block->x1 =
+        ((pos_x + (inter_pred_params->block_width - 1) * subpel_params->xs) >>
+         SCALE_SUBPEL_BITS) +
+        1;
+    block->y1 =
+        ((pos_y + (inter_pred_params->block_height - 1) * subpel_params->ys) >>
+         SCALE_SUBPEL_BITS) +
+        1;
+#else
     block->x1 =
         ((pos_x + (bw - 1) * subpel_params->xs) >> SCALE_SUBPEL_BITS) + 1;
     block->y1 =
         ((pos_y + (bh - 1) * subpel_params->ys) >> SCALE_SUBPEL_BITS) + 1;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
     MV temp_mv;
     temp_mv = tip_clamp_mv_to_umv_border_sb(inter_pred_params, src_mv, bw, bh,
@@ -1015,8 +1035,13 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     block->y0 = pos_y;
 
     // Get reference block bottom right coordinate.
+#if CONFIG_D071_IMP_MSK_BLD
+    block->x1 = pos_x + inter_pred_params->block_width;
+    block->y1 = pos_y + inter_pred_params->block_height;
+#else
     block->x1 = pos_x + bw;
     block->y1 = pos_y + bh;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
     scaled_mv->row = mv_q4.row;
     scaled_mv->col = mv_q4.col;
@@ -1025,6 +1050,15 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
   }
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
+
+#if CONFIG_D071_IMP_MSK_BLD
+  if (inter_pred_params->border_data.enable_bacp) {
+    subpel_params->x0 = block->x0;
+    subpel_params->x1 = block->x1;
+    subpel_params->y0 = block->y0;
+    subpel_params->y1 = block->y1;
+  }
+#endif  // CONFIG_D071_IMP_MSK_BLD
 }
 #endif
 static void tip_dec_calc_subpel_params_and_extend(
@@ -6474,6 +6508,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_CWP
   seq_params->enable_cwp = aom_rb_read_bit(rb);
 #endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
+#endif  // CONFIG_D071_IMP_MSK_BLD
   seq_params->enable_fsc = aom_rb_read_bit(rb);
 #if CONFIG_CCSO
   seq_params->enable_ccso = aom_rb_read_bit(rb);
@@ -7805,6 +7842,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->allow_warpmv_mode = aom_rb_read_bit(rb);
   }
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
+#if CONFIG_D071_IMP_MSK_BLD
+  features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
   features->reduced_tx_set_used = aom_rb_read_bit(rb);
 

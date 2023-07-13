@@ -315,6 +315,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_cwp;
 #endif  // CONFIG_BAWP
+#if CONFIG_D071_IMP_MSK_BLD
+  /*!\brief enable implicit maksed blending
+   *
+   */
+  unsigned int enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   /*!\brief enable Forward skip coding
    *
    */
