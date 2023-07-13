@@ -188,12 +188,6 @@ void setup_pef_input(MACROBLOCKD *xd, int pef_mode, int plane, uint16_t *dst,
 #endif  // CONFIG_REFINEMV
 }
 
-#if CONFIG_OPTFLOW_REFINEMENT
-static INLINE int opfl_get_subblock_size(int bw, int bh, int plane) {
-  return (plane || (bh <= 8 && bw <= 8)) ? OF_MIN_BSIZE : OF_BSIZE;
-}
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
 // check if the neighboring mvs are the same
 void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
               int mvs_stride, const TPL_MV_REF *tpl_mvs, int tip_step,
@@ -255,7 +249,13 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
 
   int n = PEF_MCU_SZ;  // n is motion compensation unit size
 #if CONFIG_OPTFLOW_REFINEMENT
-  if (pef_mode == 0) n = opfl_get_subblock_size(bw, bh, plane);
+  if (pef_mode == 0)
+    n = opfl_get_subblock_size(bw, bh, plane
+#if CONFIG_OPTFLOW_ON_TIP
+                               ,
+                               1
+#endif  // CONFIG_OPTFLOW_ON_TIP
+    );
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_EXT_WARP_FILTER
   if (pef_mode == 4) n = PEF_MCU_SZ / 2;

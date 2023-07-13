@@ -222,7 +222,8 @@ class AV1OptFlowTest : public ::testing::TestWithParam<TestParam<T>> {
   void Randomize(int16_t *p, int size, int max_bit_range) {
     assert(max_bit_range < 16);
     for (int i = 0; i < size; ++i) {
-      p[i] = rnd_.Rand15Signed() & ((1 << max_bit_range) - 1);
+      p[i] = (rnd_.Rand16() & ((1 << max_bit_range) - 1)) -
+             (1 << (max_bit_range - 1));
     }
   }
 

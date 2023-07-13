@@ -3718,6 +3718,78 @@ static INLINE void free_ibp_info(
   }
 }
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+#define DISPLAY_ORDER_HINT_BITS 31
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
+static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
+  if (!oh->enable_order_hint) return 0;
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  assert(a >= 0);
+  assert(b >= 0);
+  const int bits = DISPLAY_ORDER_HINT_BITS;
+#else
+  const int bits = oh->order_hint_bits_minus_1 + 1;
+
+  assert(bits >= 1);
+  assert(a >= 0 && a < (1 << bits));
+  assert(b >= 0 && b < (1 << bits));
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  int diff = a - b;
+  const int m = 1 << (bits - 1);
+  diff = (diff & (m - 1)) - (diff & m);
+  return diff;
+}
+
+#if CONFIG_OPTFLOW_REFINEMENT
+// This parameter k=OPFL_DIST_RATIO_THR is used to prune MV refinement for the
+// case where d0 and d1 are very different. Assuming a = max(|d0|, |d1|) and
+// b = min(|d0|, |d1|), MV refinement will only be allowed only if a/b <= k.
+// If k is set to 0, refinement will always be enabled.
+// If k is set to 1, refinement will only be enabled when |d0|=|d1|.
+#define OPFL_DIST_RATIO_THR 0
+
+static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
+                                         const MB_MODE_INFO *mbmi) {
+  if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
+      cm->features.opfl_refine_type == REFINE_NONE)
+    return 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const unsigned int cur_index = cm->cur_frame->display_order_hint;
+#else
+  const unsigned int cur_index = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  int d0, d1;
+#if CONFIG_OPTFLOW_ON_TIP
+  if (mbmi->ref_frame[0] == TIP_FRAME) {
+    d0 = cm->tip_ref.ref_offset[0];
+    d1 = cm->tip_ref.ref_offset[1];
+  } else {
+#endif  // CONFIG_OPTFLOW_ON_TIP
+    if (!mbmi->ref_frame[1]) return 0;
+    const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
+    const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref0->display_order_hint);
+    d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref1->display_order_hint);
+#else
+  d0 = (int)cur_index - (int)ref0->order_hint;
+  d1 = (int)cur_index - (int)ref1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+#if CONFIG_OPTFLOW_ON_TIP
+  }
+#endif  // CONFIG_OPTFLOW_ON_TIP
+  if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
+
+  return OPFL_DIST_RATIO_THR == 0 ||
+         (AOMMAX(abs(d0), abs(d1)) <=
+          OPFL_DIST_RATIO_THR * AOMMIN(abs(d0), abs(d1)));
+}
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT
   return frame_is_intra_only(cm) && cm->features.allow_intrabc &&

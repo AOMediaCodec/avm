@@ -272,12 +272,12 @@ typedef struct InterPredParams {
 #define OPFL_BICUBIC_GRAD 1
 
 // Use downsampled gradient arrays to compute MV offsets
-#define OPFL_DOWNSAMP_QUINCUNX 1
+#define OPFL_DOWNSAMP_QUINCUNX 0
 
 // Delta to use for computing gradients in bits, with 0 referring to
 // integer-pel. The actual delta value used from the 1/8-pel original MVs
 // is 2^(3 - SUBPEL_GRAD_DELTA_BITS). The max value of this macro is 3.
-#define SUBPEL_GRAD_DELTA_BITS 3
+#define SUBPEL_GRAD_DELTA_BITS 2
 
 // Combine computations of interpolated gradients and the least squares
 // solver. The basic idea is that, typically we would compute the following:
@@ -548,6 +548,12 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int mi_y, uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
 
+#if CONFIG_OPTFLOW_REFINEMENT
+// Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
+// 1/16-pel can be used.
+#define MV_REFINE_PREC_BITS 4  // (1/16-pel)
+#endif                         // CONFIG_OPTFLOW_REFINEMENT
+
 #if CONFIG_REFINEMV
 // Generate one prediction signal for a TIP block
 void tip_build_one_inter_predictor(
@@ -738,10 +744,6 @@ static INLINE int switchable_refinemv_flag(const AV1_COMMON *const cm,
   return 0;
 }
 
-// Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
-// 1/16-pel can be used.
-#define MV_REFINE_PREC_BITS 4  // (1/16-pel)
-
 // Clamp MV to UMV border based on its distance to left/right/top/bottom edge
 static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
     InterPredParams *const inter_pred_params, const MV *src_mv, int bw, int bh,
@@ -852,13 +854,6 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
 #endif  // CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 
 #if CONFIG_OPTFLOW_REFINEMENT
-// This parameter k=OPFL_DIST_RATIO_THR is used to prune MV refinement for the
-// case where d0 and d1 are very different. Assuming a = max(|d0|, |d1|) and
-// b = min(|d0|, |d1|), MV refinement will only be allowed only if a/b <= k.
-// If k is set to 0, refinement will always be enabled.
-// If k is set to 1, refinement will only be enabled when |d0|=|d1|.
-#define OPFL_DIST_RATIO_THR 0
-
 // Apply regularized least squares (RLS). The RLS parameter is bw * bh * 2^(b-4)
 // where b = OPFL_RLS_PARAM_BITS.
 #define OPFL_REGULARIZED_LS 1
@@ -870,11 +865,6 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
 #define OPFL_COV_CLAMP_BITS 28
 #define OPFL_COV_CLAMP_VAL (1 << OPFL_COV_CLAMP_BITS)
 
-#if !CONFIG_REFINEMV
-// Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
-// 1/16-pel can be used.
-#define MV_REFINE_PREC_BITS 4  // (1/16-pel)
-#endif                         //! CONFIG_REFINEMV
 void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
                                    const uint16_t *p1, int pstride1,
                                    const int16_t *gx0, const int16_t *gy0,
@@ -893,45 +883,6 @@ void av1_opfl_build_inter_predictor(
     const MV *const src_mv, int pu_width, int pu_height
 #endif  // CONFIG_REFINEMV
 );
-
-static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
-                                         const MB_MODE_INFO *mbmi) {
-  if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
-      cm->features.opfl_refine_type == REFINE_NONE)
-    return 0;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  const unsigned int cur_index = cm->cur_frame->display_order_hint;
-#else
-  const unsigned int cur_index = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  int d0, d1;
-#if CONFIG_OPTFLOW_ON_TIP
-  if (mbmi->ref_frame[0] == TIP_FRAME) {
-    d0 = cm->tip_ref.ref_offset[0];
-    d1 = cm->tip_ref.ref_offset[1];
-  } else {
-#endif  // CONFIG_OPTFLOW_ON_TIP
-    if (!mbmi->ref_frame[1]) return 0;
-    const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
-    const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-    d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
-                           ref0->display_order_hint);
-    d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
-                           ref1->display_order_hint);
-#else
-  d0 = (int)cur_index - (int)ref0->order_hint;
-  d1 = (int)cur_index - (int)ref1->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_OPTFLOW_ON_TIP
-  }
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
-
-  return OPFL_DIST_RATIO_THR == 0 ||
-         (AOMMAX(abs(d0), abs(d1)) <=
-          OPFL_DIST_RATIO_THR * AOMMIN(abs(d0), abs(d1)));
-}
 
 // Generate refined MVs using optflow refinement
 int av1_get_optflow_based_mv_highbd(

@@ -50,12 +50,15 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
   coeff_bi[0][1] = _mm_set1_epi32(coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][0]);
   coeff_bi[1][0] = _mm_set1_epi32(coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][0][1]);
   coeff_bi[1][1] = _mm_set1_epi32(coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][1]);
-  coeff_bi[2][0] = _mm_insert_epi32(coeff_bi[0][0], 42, 0);
-  coeff_bi[2][1] = _mm_insert_epi32(coeff_bi[0][1], -6, 0);
-  coeff_bi[3][0] = _mm_insert_epi32(coeff_bi[0][0], 42, 3);
-  coeff_bi[3][1] = _mm_insert_epi32(coeff_bi[0][1], -6, 3);
+  coeff_bi[2][0] = _mm_insert_epi32(
+      coeff_bi[0][0], coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][0][1], 0);
+  coeff_bi[2][1] = _mm_insert_epi32(
+      coeff_bi[0][1], coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][1], 0);
+  coeff_bi[3][0] = _mm_insert_epi32(
+      coeff_bi[0][0], coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][0][1], 3);
+  coeff_bi[3][1] = _mm_insert_epi32(
+      coeff_bi[0][1], coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][1], 3);
   const __m128i v_bias_d = _mm_set1_epi32((1 << bicubic_bits) >> 1);
-  __m128i zero = _mm_setzero_si128();
   const __m128i ones = _mm_set1_epi32(1);
 
 #if OPFL_DOWNSAMP_QUINCUNX
@@ -90,14 +93,16 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
             _mm_set_epi16(*(src + 7), *(src + 7), *(src + 7), *(src + 6),
                           *(src + 5), *(src + 4), *(src + 3), *(src + 2));
 
-        sub1 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next1, zero),
-                             _mm_unpacklo_epi16(vpred_prev1, zero));
-        sub2 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next1, zero),
-                             _mm_unpackhi_epi16(vpred_prev1, zero));
-        sub3 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next2, zero),
-                             _mm_unpacklo_epi16(vpred_prev2, zero));
-        sub4 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next2, zero),
-                             _mm_unpackhi_epi16(vpred_prev2, zero));
+        sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1),
+                             _mm_cvtepi16_epi32(vpred_prev1));
+        sub2 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next1, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev1, 8)));
+        sub3 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next2),
+                             _mm_cvtepi16_epi32(vpred_prev2));
+        sub4 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next2, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev2, 8)));
 
         temp1 = _mm_add_epi32(_mm_mullo_epi32(sub1, coeff_bi[2][0]),
                               _mm_mullo_epi32(sub3, coeff_bi[2][1]));
@@ -120,14 +125,16 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         vpred_next1 = xx_loadu_128(src + id_next1 * bw);
         vpred_next2 = xx_loadu_128(src + id_next2 * bw);
 
-        sub1 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next1, zero),
-                             _mm_unpacklo_epi16(vpred_prev1, zero));
-        sub2 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next1, zero),
-                             _mm_unpackhi_epi16(vpred_prev1, zero));
-        sub3 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next2, zero),
-                             _mm_unpacklo_epi16(vpred_prev2, zero));
-        sub4 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next2, zero),
-                             _mm_unpackhi_epi16(vpred_prev2, zero));
+        sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1),
+                             _mm_cvtepi16_epi32(vpred_prev1));
+        sub2 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next1, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev1, 8)));
+        sub3 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next2),
+                             _mm_cvtepi16_epi32(vpred_prev2));
+        sub4 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next2, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev2, 8)));
 
         temp1 =
             _mm_add_epi32(_mm_mullo_epi32(sub1, coeff_bi[is_y_boundary][0]),
@@ -190,14 +197,16 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         vpred_next1_1 = xx_loadu_128(src + 1);
         vpred_next2_1 = xx_loadu_128(src + 2);
 
-        sub1 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next1_1, zero),
-                             _mm_unpacklo_epi16(vpred_prev1_1, zero));
-        sub2 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next1_1, zero),
-                             _mm_unpackhi_epi16(vpred_prev1_1, zero));
-        sub3 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next2_1, zero),
-                             _mm_unpacklo_epi16(vpred_prev2_1, zero));
-        sub4 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next2_1, zero),
-                             _mm_unpackhi_epi16(vpred_prev2_1, zero));
+        sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_1),
+                             _mm_cvtepi16_epi32(vpred_prev1_1));
+        sub2 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next1_1, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev1_1, 8)));
+        sub3 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next2_1),
+                             _mm_cvtepi16_epi32(vpred_prev2_1));
+        sub4 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next2_1, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev2_1, 8)));
 
         const int is_left_boundary = row - 1 < 0 ? 2 : 0;
         const int is_right_boundary = row + 16 > bw - 1 ? 3 : 0;
@@ -217,14 +226,16 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         const int idx = col * bw + row;
         xx_storeu_128(x_grad + idx, temp1);
 
-        sub1 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next1_2, zero),
-                             _mm_unpacklo_epi16(vpred_prev1_2, zero));
-        sub2 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next1_2, zero),
-                             _mm_unpackhi_epi16(vpred_prev1_2, zero));
-        sub3 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next2_2, zero),
-                             _mm_unpacklo_epi16(vpred_prev2_2, zero));
-        sub4 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next2_2, zero),
-                             _mm_unpackhi_epi16(vpred_prev2_2, zero));
+        sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_2),
+                             _mm_cvtepi16_epi32(vpred_prev1_2));
+        sub2 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next1_2, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev1_2, 8)));
+        sub3 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next2_2),
+                             _mm_cvtepi16_epi32(vpred_prev2_2));
+        sub4 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next2_2, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev2_2, 8)));
 
         temp1 = _mm_add_epi32(_mm_mullo_epi32(sub1, coeff_bi[0][0]),
                               _mm_mullo_epi32(sub3, coeff_bi[0][1]));
@@ -251,14 +262,16 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         vpred_next1_2 = xx_loadu_128(src + id_next * bw + 8);
         vpred_next2_2 = xx_loadu_128(src + id_next2 * bw + 8);
 
-        sub1 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next1_1, zero),
-                             _mm_unpacklo_epi16(vpred_prev1_1, zero));
-        sub2 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next1_1, zero),
-                             _mm_unpackhi_epi16(vpred_prev1_1, zero));
-        sub3 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next2_1, zero),
-                             _mm_unpacklo_epi16(vpred_prev2_1, zero));
-        sub4 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next2_1, zero),
-                             _mm_unpackhi_epi16(vpred_prev2_1, zero));
+        sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_1),
+                             _mm_cvtepi16_epi32(vpred_prev1_1));
+        sub2 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next1_1, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev1_1, 8)));
+        sub3 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next2_1),
+                             _mm_cvtepi16_epi32(vpred_prev2_1));
+        sub4 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next2_1, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev2_1, 8)));
 
         temp1 =
             _mm_add_epi32(_mm_mullo_epi32(sub1, coeff_bi[is_y_boundary][0]),
@@ -275,14 +288,16 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
                                                 bicubic_bits);
         xx_storeu_128(y_grad + idx, temp1);
 
-        sub1 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next1_2, zero),
-                             _mm_unpacklo_epi16(vpred_prev1_2, zero));
-        sub2 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next1_2, zero),
-                             _mm_unpackhi_epi16(vpred_prev1_2, zero));
-        sub3 = _mm_sub_epi32(_mm_unpacklo_epi16(vpred_next2_2, zero),
-                             _mm_unpacklo_epi16(vpred_prev2_2, zero));
-        sub4 = _mm_sub_epi32(_mm_unpackhi_epi16(vpred_next2_2, zero),
-                             _mm_unpackhi_epi16(vpred_prev2_2, zero));
+        sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_2),
+                             _mm_cvtepi16_epi32(vpred_prev1_2));
+        sub2 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next1_2, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev1_2, 8)));
+        sub3 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next2_2),
+                             _mm_cvtepi16_epi32(vpred_prev2_2));
+        sub4 =
+            _mm_sub_epi32(_mm_cvtepi16_epi32(_mm_srli_si128(vpred_next2_2, 8)),
+                          _mm_cvtepi16_epi32(_mm_srli_si128(vpred_prev2_2, 8)));
         temp1 =
             _mm_add_epi32(_mm_mullo_epi32(sub1, coeff_bi[is_y_boundary][0]),
                           _mm_mullo_epi32(sub3, coeff_bi[is_y_boundary][1]));
@@ -316,6 +331,7 @@ static INLINE __m128i LoadUnaligned16(const void *a) {
   return _mm_loadu_si128((const __m128i *)a);
 }
 
+#if OPFL_DOWNSAMP_QUINCUNX
 static AOM_FORCE_INLINE void down_sample(
     __m128i *gradX0, __m128i *gradX1, __m128i *gradY0, __m128i *gradY1,
     __m128i *pred0, __m128i *pred1, const __m128i *pred0_odd,
@@ -344,16 +360,17 @@ static AOM_FORCE_INLINE void down_sample(
   pred1[0] = _mm_or_si128(_mm_and_si128(pred1[0], even),
                           _mm_and_si128(pred1_odd[0], odd));
 }
+#endif  // OPFL_DOWNSAMP_QUINCUNX
 
 static AOM_FORCE_INLINE void set_distance(__m128i *dist_d0, __m128i *dist_d0d1,
                                           int d0, int d1) {
   __m128i zero = _mm_setzero_si128();
-  dist_d0[0] = _mm_set1_epi16(d0);
+  dist_d0[0] = _mm_set1_epi16(1);
   dist_d0d1[0] = _mm_set1_epi16(d1);
   dist_d0d1[0] = _mm_sub_epi16(zero, dist_d0d1[0]);
   dist_d0d1[0] = _mm_unpacklo_epi16(_mm_set1_epi16(d0), dist_d0d1[0]);
   dist_d0[0] = _mm_sub_epi16(zero, dist_d0[0]);
-  dist_d0[0] = _mm_unpacklo_epi16(_mm_set1_epi16(d0), dist_d0[0]);
+  dist_d0[0] = _mm_unpacklo_epi16(_mm_set1_epi16(1), dist_d0[0]);
 }
 
 static AOM_FORCE_INLINE void leastsquare_8x8(__m128i *grad0, __m128i *grad1,
@@ -493,15 +510,15 @@ static AOM_FORCE_INLINE void calc_mv_process(int64_t su2, int64_t sv2,
   // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
   //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
   const int64_t det = su2 * sv2 - suv * suv;
-  if (det == 0) return;
+  if (det <= 0) return;
   const int64_t det_x = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t det_y = (suv * suw - su2 * svw) * (1 << bits);
   *vx0 = (int)divide_and_round_signed(det_x, det);
   *vy0 = (int)divide_and_round_signed(det_y, det);
-  const int tx1 = (*vx0) * d1;
-  const int ty1 = (*vy0) * d1;
-  *vx1 = (int)divide_and_round_signed(tx1, d0);
-  *vy1 = (int)divide_and_round_signed(ty1, d0);
+  *vx1 = (*vx0) * d1;
+  *vy1 = (*vy0) * d1;
+  *vx0 = (*vx0) * d0;
+  *vy0 = (*vy0) * d0;
 }
 
 static AOM_FORCE_INLINE void calculate_mv_8x4(
@@ -960,10 +977,12 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
     const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
     int bw, int bh, int d0, int d1) {
   const __m128i zero = _mm_setzero_si128();
+  const __m128i mul_one = _mm_set1_epi16(1);
   const __m128i mul1 = _mm_set1_epi16(d0);
   const __m128i mul2 = _mm_sub_epi16(zero, _mm_set1_epi16(d1));
   const __m128i mul_val1 = _mm_unpacklo_epi16(mul1, mul2);
-  const __m128i mul_val2 = _mm_unpacklo_epi16(mul1, _mm_sub_epi16(zero, mul1));
+  const __m128i mul_val2 =
+      _mm_unpacklo_epi16(mul_one, _mm_sub_epi16(zero, mul_one));
 
   for (int i = 0; i < bh; i++) {
     const uint16_t *inp1 = src1 + i * bw;

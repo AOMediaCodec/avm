@@ -103,30 +103,6 @@ static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
 // clamp_mv_ref
 #define MV_BORDER (16 << 3)  // Allow 16 pels in 1/8th pel units
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#define DISPLAY_ORDER_HINT_BITS 31
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-
-static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
-  if (!oh->enable_order_hint) return 0;
-
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  assert(a >= 0);
-  assert(b >= 0);
-  const int bits = DISPLAY_ORDER_HINT_BITS;
-#else
-  const int bits = oh->order_hint_bits_minus_1 + 1;
-
-  assert(bits >= 1);
-  assert(a >= 0 && a < (1 << bits));
-  assert(b >= 0 && b < (1 << bits));
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-  int diff = a - b;
-  const int m = 1 << (bits - 1);
-  diff = (diff & (m - 1)) - (diff & m);
-  return diff;
-}
-
 static INLINE void clamp_mv_ref(MV *mv, int bw, int bh, const MACROBLOCKD *xd) {
   const SubpelMvLimits mv_limits = {
     xd->mb_to_left_edge - GET_MV_SUBPEL(bw) - MV_BORDER,
@@ -136,6 +112,22 @@ static INLINE void clamp_mv_ref(MV *mv, int bw, int bh, const MACROBLOCKD *xd) {
   };
   clamp_mv(mv, &mv_limits);
 }
+
+#if CONFIG_OPTFLOW_REFINEMENT
+static INLINE int opfl_get_subblock_size(int bw, int bh, int plane
+#if CONFIG_OPTFLOW_ON_TIP
+                                         ,
+                                         int use_4x4
+#endif  // CONFIG_OPTFLOW_ON_TIP
+) {
+#if CONFIG_OPTFLOW_ON_TIP
+  return ((plane || (bh <= 8 && bw <= 8)) && use_4x4) ? OF_MIN_BSIZE : OF_BSIZE;
+#else
+  return (plane || (bh <= 8 && bw <= 8)) ? OF_MIN_BSIZE : OF_BSIZE;
+#endif  // CONFIG_OPTFLOW_ON_TIP
+}
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
 // Convert a global motion vector into a motion vector at the centre of the
 // given block.
 //

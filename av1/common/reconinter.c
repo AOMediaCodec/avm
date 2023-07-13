@@ -900,17 +900,26 @@ int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
 #define OPFL_CLAMP_MV_DELTA 1
 #define OPFL_MV_DELTA_LIMIT (1 << MV_REFINE_PREC_BITS)
 
-static INLINE int opfl_get_subblock_size(int bw, int bh, int plane
-#if CONFIG_OPTFLOW_ON_TIP
-                                         ,
-                                         int use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-) {
-#if CONFIG_OPTFLOW_ON_TIP
-  return ((plane || (bh <= 8 && bw <= 8)) && use_4x4) ? OF_MIN_BSIZE : OF_BSIZE;
-#else
-  return (plane || (bh <= 8 && bw <= 8)) ? OF_MIN_BSIZE : OF_BSIZE;
-#endif  // CONFIG_OPTFLOW_ON_TIP
+// Divide d0 and d1 by their common factors (no divisions)
+void reduce_temporal_dist(int *d0, int *d1) {
+  if (*d0 == 0 || *d1 == 0) return;
+  int sign0 = *d0 < 0;
+  int sign1 = *d1 < 0;
+  int mag0 = sign0 ? -(*d0) : (*d0);
+  int mag1 = sign1 ? -(*d1) : (*d1);
+  // Only do simple checks for the case |d0|=|d1| and for factor 2
+  if (mag0 == mag1) {
+    mag0 = mag1 = 1;
+  } else {
+    while (mag0 % 2 == 0 && mag1 % 2 == 0) {
+      assert(mag0 > 0 && mag1 > 0);
+      mag0 >>= 1;
+      mag1 >>= 1;
+    }
+  }
+  *d0 = sign0 ? -mag0 : mag0;
+  *d1 = sign1 ? -mag1 : mag1;
+  return;
 }
 
 void av1_opfl_build_inter_predictor(
@@ -1201,7 +1210,7 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
 #endif
       const int64_t u = d0 * gx0[i * gstride + j] - d1 * gx1[i * gstride + j];
       const int64_t v = d0 * gy0[i * gstride + j] - d1 * gy1[i * gstride + j];
-      const int64_t w = d0 * (p0[i * pstride0 + j] - p1[i * pstride1 + j]);
+      const int64_t w = p0[i * pstride0 + j] - p1[i * pstride1 + j];
       su2 += (u * u);
       suv += (u * v);
       sv2 += (v * v);
@@ -1227,16 +1236,16 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
   // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
   //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
   const int64_t det = su2 * sv2 - suv * suv;
-  if (det == 0) return;
+  if (det <= 0) return;
   const int64_t det_x = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t det_y = (suv * suw - su2 * svw) * (1 << bits);
 
   *vx0 = (int)divide_and_round_signed(det_x, det);
   *vy0 = (int)divide_and_round_signed(det_y, det);
-  const int tx1 = (*vx0) * d1;
-  const int ty1 = (*vy0) * d1;
-  *vx1 = (int)divide_and_round_signed(tx1, d0);
-  *vy1 = (int)divide_and_round_signed(ty1, d0);
+  *vx1 = (*vx0) * d1;
+  *vy1 = (*vy0) * d1;
+  *vx0 = (*vx0) * d0;
+  *vy0 = (*vy0) * d0;
 }
 
 #if OPFL_COMBINE_INTERP_GRAD_LS
@@ -1287,16 +1296,16 @@ void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
   // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
   //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
   const int64_t det = su2 * sv2 - suv * suv;
-  if (det == 0) return;
+  if (det <= 0) return;
   const int64_t det_x = (suv * svw - sv2 * suw) * (1 << bits);
   const int64_t det_y = (suv * suw - su2 * svw) * (1 << bits);
 
   *vx0 = (int)divide_and_round_signed(det_x, det);
   *vy0 = (int)divide_and_round_signed(det_y, det);
-  const int tx1 = (*vx0) * d1;
-  const int ty1 = (*vy0) * d1;
-  *vx1 = (int)divide_and_round_signed(tx1, d0);
-  *vy1 = (int)divide_and_round_signed(ty1, d0);
+  *vx1 = (*vx0) * d1;
+  *vy1 = (*vy0) * d1;
+  *vx0 = (*vx0) * d0;
+  *vy0 = (*vy0) * d0;
 }
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
 
@@ -1373,7 +1382,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd(
       int32_t tmp_dst =
           d0 * (int32_t)src1[i * bw + j] - d1 * (int32_t)src2[i * bw + j];
       dst1[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
-      tmp_dst = d0 * ((int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j]);
+      tmp_dst = (int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j];
       dst2[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
     }
   }
@@ -1428,15 +1437,9 @@ int av1_get_optflow_based_mv_highbd(
                                        use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
   );
-  int n_blocks = (bw / n) * (bh / n);
+  int n_blocks = 0;
   // Convert output MV to 1/16th pel
   assert(MV_REFINE_PREC_BITS >= 3);
-  for (int mvi = 0; mvi < n_blocks; mvi++) {
-    mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
-    mv_refined[mvi * 2 + 1].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
-  }
 
   // Obtain d0 and d1
   int d0, d1;
@@ -1467,6 +1470,7 @@ int av1_get_optflow_based_mv_highbd(
   }
 #endif  // CONFIG_OPTFLOW_ON_TIP
   if (d0 == 0 || d1 == 0) return target_prec;
+  reduce_temporal_dist(&d0, &d1);
 
 #if CONFIG_OPTFLOW_ON_TIP
   if (do_pred) {
@@ -1553,22 +1557,27 @@ int av1_get_optflow_based_mv_highbd(
 
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
+  const int mv_mult = 1 << (MV_REFINE_PREC_BITS - 3);
   for (int i = 0; i < n_blocks; i++) {
 #if OPFL_CLAMP_MV_DELTA
-    mv_refined[i * 2].as_mv.row +=
-        clamp(vy0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mv_refined[i * 2].as_mv.col +=
-        clamp(vx0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mv_refined[i * 2 + 1].as_mv.row +=
-        clamp(vy1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mv_refined[i * 2 + 1].as_mv.col +=
-        clamp(vx1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
+    int mvy0 = mv_refined[i * 2].as_mv.row * mv_mult +
+               clamp(vy0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
+    int mvx0 = mv_refined[i * 2].as_mv.col * mv_mult +
+               clamp(vx0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
+    int mvy1 = mv_refined[i * 2 + 1].as_mv.row * mv_mult +
+               clamp(vy1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
+    int mvx1 = mv_refined[i * 2 + 1].as_mv.col * mv_mult +
+               clamp(vx1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
 #else
-    mv_refined[i * 2].as_mv.row += vy0[i];
-    mv_refined[i * 2].as_mv.col += vx0[i];
-    mv_refined[i * 2 + 1].as_mv.row += vy1[i];
-    mv_refined[i * 2 + 1].as_mv.col += vx1[i];
+    int mvy0 = mv_refined[i * 2].as_mv.row * mv_mult + vy0[i];
+    int mvx0 = mv_refined[i * 2].as_mv.col * mv_mult + vx0[i];
+    int mvy1 = mv_refined[i * 2 + 1].as_mv.row * mv_mult + vy1[i];
+    int mvx1 = mv_refined[i * 2 + 1].as_mv.col * mv_mult + vx1[i];
 #endif
+    mv_refined[i * 2].as_mv.row = clamp(mvy0, MV_LOW + 1, MV_UPP - 1);
+    mv_refined[i * 2].as_mv.col = clamp(mvx0, MV_LOW + 1, MV_UPP - 1);
+    mv_refined[i * 2 + 1].as_mv.row = clamp(mvy1, MV_LOW + 1, MV_UPP - 1);
+    mv_refined[i * 2 + 1].as_mv.col = clamp(mvx1, MV_LOW + 1, MV_UPP - 1);
   }
 
   return target_prec;
