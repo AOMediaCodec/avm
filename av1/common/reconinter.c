@@ -1254,17 +1254,30 @@ void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
 void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
                                         const int16_t *gx, const int16_t *gy,
                                         int gstride, int bw, int bh, int d0,
-                                        int d1, int grad_prec_bits,
-                                        int mv_prec_bits, int *vx0, int *vy0,
-                                        int *vx1, int *vy1) {
+                                        int d1,
+#if OPFL_EXTEND_BOUNDARY
+                                        int i0, int j0, int bh0, int bw0,
+#endif
+                                        int grad_prec_bits, int mv_prec_bits,
+                                        int *vx0, int *vy0, int *vx1,
+                                        int *vy1) {
   assert(IMPLIES(OPFL_DIST_RATIO_THR == 1, d0 + d1 == 0));
   int64_t su2 = 0;
   int64_t suv = 0;
   int64_t sv2 = 0;
   int64_t suw = 0;
   int64_t svw = 0;
+#if OPFL_EXTEND_BOUNDARY
+  const int has_top = i0 > 0;
+  const int has_bottom = i0 + bh < bh0;
+  const int has_left = j0 > 0;
+  const int has_right = j0 + bw < bw0;
+  for (int i = -has_top; i < bh + has_bottom; ++i) {
+    for (int j = -has_left; j < bw + has_right; ++j) {
+#else
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
+#endif
 #if OPFL_DOWNSAMP_QUINCUNX
       if ((i + j) % 2 == 1) continue;
 #endif
@@ -1320,9 +1333,12 @@ int av1_opfl_mv_refinement_nxn_interp_grad_c(
     for (int j = 0; j < bw; j += n) {
       av1_opfl_mv_refinement_interp_grad(
           pdiff + (i * pstride + j), pstride, gx + (i * gstride + j),
-          gy + (i * gstride + j), gstride, n, n, d0, d1, grad_prec_bits,
-          mv_prec_bits, vx0 + n_blocks, vy0 + n_blocks, vx1 + n_blocks,
-          vy1 + n_blocks);
+          gy + (i * gstride + j), gstride, n, n, d0, d1,
+#if OPFL_EXTEND_BOUNDARY
+          i, j, bh, bw,
+#endif
+          grad_prec_bits, mv_prec_bits, vx0 + n_blocks, vy0 + n_blocks,
+          vx1 + n_blocks, vy1 + n_blocks);
       n_blocks++;
     }
   }
@@ -1531,11 +1547,15 @@ int av1_get_optflow_based_mv_highbd(
   av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
-
+#if OPFL_EXTEND_BOUNDARY
+  n_blocks = av1_opfl_mv_refinement_nxn_interp_grad_c(
+      tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1, grad_prec_bits, target_prec,
+      vx0, vy0, vx1, vy1);
+#else
   n_blocks = av1_opfl_mv_refinement_nxn_interp_grad(
       tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1, grad_prec_bits, target_prec,
       vx0, vy0, vx1, vy1);
-
+#endif
   aom_free(tmp0);
   aom_free(tmp1);
 #else
