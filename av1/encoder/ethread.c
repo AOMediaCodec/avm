@@ -675,7 +675,7 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
     if (i > 0) {
       // Set up firstpass PICK_MODE_CONTEXT.
       thread_data->td->firstpass_ctx = av1_alloc_pmc(
-          cm, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
+          cm, SHARED_PART, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
           cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
           &thread_data->td->shared_coeff_buf);
 

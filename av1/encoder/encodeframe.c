@@ -573,8 +573,9 @@ static AOM_INLINE void perform_one_partition_pass(
                              : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
     init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                       1);
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-        mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+    PC_TREE *const pc_root =
+        av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                               PARTITION_NONE, 0, 1, ss_x, ss_y);
 #if CONFIG_EXT_RECUR_PARTITIONS
     const PARTITION_TREE *template_tree =
         multi_pass_params ? multi_pass_params->template_tree : NULL;
@@ -804,8 +805,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
           cm, xd->tree_type, mi_row, mi_col, bsize,
           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      PC_TREE *const pc_root =
+          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                                 PARTITION_NONE, 0, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                            &dummy_rate, &dummy_dist, 1,
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -832,8 +834,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      PC_TREE *const pc_root =
+          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                                 PARTITION_NONE, 0, 1, ss_x, ss_y);
 #if CONFIG_EXT_RECUR_PARTITIONS
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av1_build_partition_tree_fixed_partitioning(

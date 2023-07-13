@@ -2757,8 +2757,9 @@ static INLINE int check_is_chroma_size_valid(
   if (subsize < BLOCK_SIZES_ALL) {
     CHROMA_REF_INFO tmp_chroma_ref_info = { 1,      0,       mi_row,
                                             mi_col, subsize, subsize };
-    set_chroma_ref_info(mi_row, mi_col, 0, subsize, &tmp_chroma_ref_info,
-                        parent_chroma_ref_info, bsize, partition, ss_x, ss_y);
+    set_chroma_ref_info(tree_type, mi_row, mi_col, 0, subsize,
+                        &tmp_chroma_ref_info, parent_chroma_ref_info, bsize,
+                        partition, ss_x, ss_y);
     is_valid = get_plane_block_size(tmp_chroma_ref_info.bsize_base, ss_x,
                                     ss_y) != BLOCK_INVALID;
   }

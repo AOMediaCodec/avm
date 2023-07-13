@@ -1378,14 +1378,23 @@ static INLINE void set_chroma_ref_offset_size(
   }
 }
 
-static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
-                                       BLOCK_SIZE bsize, CHROMA_REF_INFO *info,
+static INLINE void set_chroma_ref_info(TREE_TYPE tree_type, int mi_row,
+                                       int mi_col, int index, BLOCK_SIZE bsize,
+                                       CHROMA_REF_INFO *info,
                                        const CHROMA_REF_INFO *parent_info,
                                        BLOCK_SIZE parent_bsize,
                                        PARTITION_TYPE parent_partition,
                                        int ss_x, int ss_y) {
   assert(bsize < BLOCK_SIZES_ALL);
   initialize_chroma_ref_info(mi_row, mi_col, bsize, info);
+  if (tree_type == LUMA_PART) {
+    info->is_chroma_ref = 0;
+    return;
+  }
+  if (tree_type == CHROMA_PART) {
+    info->is_chroma_ref = 1;
+    return;
+  }
   if (parent_info == NULL) return;
   if (parent_info->is_chroma_ref) {
     if (parent_info->offset_started) {

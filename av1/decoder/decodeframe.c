@@ -602,8 +602,8 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
-                      parent ? &parent->chroma_ref_info : NULL,
+  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
@@ -2216,8 +2216,8 @@ static AOM_INLINE void set_offsets_for_pred_and_recon(
 #endif  // CONFIG_CROSS_CHROMA_TX
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
-                      parent ? &parent->chroma_ref_info : NULL,
+  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
@@ -2505,8 +2505,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     ptree->is_settled = 1;
     PARTITION_TREE *parent = ptree->parent;
     set_chroma_ref_info(
-        mi_row, mi_col, ptree->index, bsize, &ptree->chroma_ref_info,
-        parent ? &parent->chroma_ref_info : NULL,
+        xd->tree_type, mi_row, mi_col, ptree->index, bsize,
+        &ptree->chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
         parent ? parent->bsize : BLOCK_INVALID,
         parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
@@ -2573,7 +2573,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     const int index =
         (partition == PARTITION_HORZ || partition == PARTITION_VERT) +
         (partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
-    set_chroma_ref_info(mi_row, mi_col, index, bsize, &chroma_ref_info,
+    set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                        &chroma_ref_info,
                         parent ? &parent->chroma_ref_info : NULL,
                         parent ? parent->bsize : BLOCK_INVALID,
                         parent ? parent->partition : PARTITION_NONE,

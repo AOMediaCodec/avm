@@ -82,8 +82,9 @@ void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs) {
   }
 }
 
-PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
-                                 BLOCK_SIZE bsize, PC_TREE *parent,
+PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
+                                 int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                 PC_TREE *parent,
                                  PARTITION_TYPE parent_partition, int index,
                                  int subsampling_x, int subsampling_y,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs) {
@@ -94,7 +95,8 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
   ctx->rd_mode_is_ready = 0;
   ctx->parent = parent;
   ctx->index = index;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, &ctx->chroma_ref_info,
+  set_chroma_ref_info(tree_type, mi_row, mi_col, index, bsize,
+                      &ctx->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->block_size : BLOCK_INVALID,
                       parent_partition, subsampling_x, subsampling_y);
@@ -186,8 +188,8 @@ void av1_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
   aom_free(ctx);
 }
 
-PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                PC_TREE *parent,
+PC_TREE *av1_alloc_pc_tree_node(TREE_TYPE tree_type, int mi_row, int mi_col,
+                                BLOCK_SIZE bsize, PC_TREE *parent,
                                 PARTITION_TYPE parent_partition, int index,
                                 int is_last, int subsampling_x,
                                 int subsampling_y) {
@@ -208,7 +210,8 @@ PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
   av1_invalid_rd_stats(&pc_tree->none_rd);
   pc_tree->skippable = false;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, &pc_tree->chroma_ref_info,
+  set_chroma_ref_info(tree_type, mi_row, mi_col, index, bsize,
+                      &pc_tree->chroma_ref_info,
                       parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->block_size : BLOCK_INVALID,
                       parent_partition, subsampling_x, subsampling_y);
@@ -395,7 +398,7 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
 void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                 PC_TREE *src, int ss_x, int ss_y,
                                 PC_TREE_SHARED_BUFFERS *shared_bufs,
-                                int num_planes) {
+                                TREE_TYPE tree_type, int num_planes) {
   // Copy the best partition type. For basic information like bsize and index,
   // we assume they have been set properly when initializing the dst PC_TREE
   dst->partitioning = src->partitioning;
@@ -420,7 +423,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
       if (dst->none) av1_free_pmc(dst->none, num_planes);
       dst->none = NULL;
       if (src->none) {
-        dst->none = av1_alloc_pmc(cm, mi_row, mi_col, bsize, dst,
+        dst->none = av1_alloc_pmc(cm, tree_type, mi_row, mi_col, bsize, dst,
                                   PARTITION_NONE, 0, ss_x, ss_y, shared_bufs);
         av1_copy_tree_context(dst->none, src->none);
       }
@@ -437,10 +440,11 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             const int x_idx = (i & 1) * (mi_size_wide[bsize] >> 1);
             const int y_idx = (i >> 1) * (mi_size_high[bsize] >> 1);
             dst->split[i] = av1_alloc_pc_tree_node(
-                mi_row + y_idx, mi_col + x_idx, subsize, dst, PARTITION_SPLIT,
-                i, i == 3, ss_x, ss_y);
+                tree_type, mi_row + y_idx, mi_col + x_idx, subsize, dst,
+                PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->split[i], src->split[i], ss_x,
-                                       ss_y, shared_bufs, num_planes);
+                                       ss_y, shared_bufs, tree_type,
+                                       num_planes);
           }
         }
       }
@@ -455,12 +459,12 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->horizontal[i]) {
             const int this_mi_row = mi_row + i * (mi_size_high[bsize] >> 1);
-            dst->horizontal[i] =
-                av1_alloc_pc_tree_node(this_mi_row, mi_col, subsize, dst,
-                                       PARTITION_HORZ, i, i == 1, ss_x, ss_y);
+            dst->horizontal[i] = av1_alloc_pc_tree_node(
+                tree_type, this_mi_row, mi_col, subsize, dst, PARTITION_HORZ, i,
+                i == 1, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->horizontal[i],
                                        src->horizontal[i], ss_x, ss_y,
-                                       shared_bufs, num_planes);
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -475,11 +479,12 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->vertical[i]) {
             const int this_mi_col = mi_col + i * (mi_size_wide[bsize] >> 1);
-            dst->vertical[i] =
-                av1_alloc_pc_tree_node(mi_row, this_mi_col, subsize, dst,
-                                       PARTITION_VERT, i, i == 1, ss_x, ss_y);
+            dst->vertical[i] = av1_alloc_pc_tree_node(
+                tree_type, mi_row, this_mi_col, subsize, dst, PARTITION_VERT, i,
+                i == 1, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->vertical[i], src->vertical[i],
-                                       ss_x, ss_y, shared_bufs, num_planes);
+                                       ss_x, ss_y, shared_bufs, tree_type,
+                                       num_planes);
           }
         }
       }
@@ -505,11 +510,11 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->horizontal4a[i]) {
             dst->horizontal4a[i] = av1_alloc_pc_tree_node(
-                mi_rows[i], mi_col, subsizes[i], dst, PARTITION_HORZ_4A, i,
-                i == 3, ss_x, ss_y);
+                tree_type, mi_rows[i], mi_col, subsizes[i], dst,
+                PARTITION_HORZ_4A, i, i == 3, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->horizontal4a[i],
                                        src->horizontal4a[i], ss_x, ss_y,
-                                       shared_bufs, num_planes);
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -534,11 +539,11 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->horizontal4b[i]) {
             dst->horizontal4b[i] = av1_alloc_pc_tree_node(
-                mi_rows[i], mi_col, subsizes[i], dst, PARTITION_HORZ_4B, i,
-                i == 3, ss_x, ss_y);
+                tree_type, mi_rows[i], mi_col, subsizes[i], dst,
+                PARTITION_HORZ_4B, i, i == 3, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->horizontal4b[i],
                                        src->horizontal4b[i], ss_x, ss_y,
-                                       shared_bufs, num_planes);
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -563,11 +568,11 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->vertical4a[i]) {
             dst->vertical4a[i] = av1_alloc_pc_tree_node(
-                mi_row, mi_cols[i], subsizes[i], dst, PARTITION_VERT_4A, i,
-                i == 3, ss_x, ss_y);
+                tree_type, mi_row, mi_cols[i], subsizes[i], dst,
+                PARTITION_VERT_4A, i, i == 3, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->vertical4a[i],
                                        src->vertical4a[i], ss_x, ss_y,
-                                       shared_bufs, num_planes);
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -592,11 +597,11 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->vertical4b[i]) {
             dst->vertical4b[i] = av1_alloc_pc_tree_node(
-                mi_row, mi_cols[i], subsizes[i], dst, PARTITION_VERT_4B, i,
-                i == 3, ss_x, ss_y);
+                tree_type, mi_row, mi_cols[i], subsizes[i], dst,
+                PARTITION_VERT_4B, i, i == 3, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->vertical4b[i],
                                        src->vertical4b[i], ss_x, ss_y,
-                                       shared_bufs, num_planes);
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -621,11 +626,11 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->horizontal3[i]) {
             dst->horizontal3[i] = av1_alloc_pc_tree_node(
-                mi_row + offset_mr, mi_col + offset_mc, this_subsize, dst,
-                PARTITION_HORZ_3, i, i == 3, ss_x, ss_y);
+                tree_type, mi_row + offset_mr, mi_col + offset_mc, this_subsize,
+                dst, PARTITION_HORZ_3, i, i == 3, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->horizontal3[i],
                                        src->horizontal3[i], ss_x, ss_y,
-                                       shared_bufs, num_planes);
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -647,10 +652,11 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
           }
           if (src->vertical3[i]) {
             dst->vertical3[i] = av1_alloc_pc_tree_node(
-                mi_row + offset_mr, mi_col + offset_mc, this_subsize, dst,
-                PARTITION_VERT_3, i, i == 3, ss_x, ss_y);
+                tree_type, mi_row + offset_mr, mi_col + offset_mc, this_subsize,
+                dst, PARTITION_VERT_3, i, i == 3, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->vertical3[i], src->vertical3[i],
-                                       ss_x, ss_y, shared_bufs, num_planes);
+                                       ss_x, ss_y, shared_bufs, tree_type,
+                                       num_planes);
           }
         }
       }
@@ -673,12 +679,12 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->horizontal3[i] = NULL;
           }
           if (src->horizontal3[i]) {
-            dst->horizontal3[i] =
-                av1_alloc_pc_tree_node(mi_rows[i], mi_col, subsizes[i], dst,
-                                       PARTITION_HORZ_3, i, i == 2, ss_x, ss_y);
+            dst->horizontal3[i] = av1_alloc_pc_tree_node(
+                tree_type, mi_rows[i], mi_col, subsizes[i], dst,
+                PARTITION_HORZ_3, i, i == 2, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->horizontal3[i],
                                        src->horizontal3[i], ss_x, ss_y,
-                                       shared_bufs, num_planes);
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -698,11 +704,12 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->vertical3[i] = NULL;
           }
           if (src->vertical3[i]) {
-            dst->vertical3[i] =
-                av1_alloc_pc_tree_node(mi_row, mi_cols[i], subsizes[i], dst,
-                                       PARTITION_VERT_3, i, i == 2, ss_x, ss_y);
+            dst->vertical3[i] = av1_alloc_pc_tree_node(
+                tree_type, mi_row, mi_cols[i], subsizes[i], dst,
+                PARTITION_VERT_3, i, i == 2, ss_x, ss_y);
             av1_copy_pc_tree_recursive(cm, dst->vertical3[i], src->vertical3[i],
-                                       ss_x, ss_y, shared_bufs, num_planes);
+                                       ss_x, ss_y, shared_bufs, tree_type,
+                                       num_planes);
           }
         }
       }
