@@ -981,7 +981,7 @@ static INLINE void av1_get_warp_base_params(
       }
     }
   }
-  *params = xd->global_motion[mbmi->ref_frame[0]];
+  *params = effective_global_motion(xd, mbmi->ref_frame[0]);
 #else
   assert(mbmi->warp_ref_idx < mbmi->max_num_warp_candidates);
   *params = warp_param_stack[mbmi->warp_ref_idx].wm_params;
@@ -1121,7 +1121,7 @@ int av1_find_single_ref_projected_samples_sb(const AV1_COMMON *cm,
                                              const int mi_row, const int mi_col,
                                              int_mv *projected_mvs, int *pts,
                                              int *pts_inref);
-void av1_set_temporal_global_mvs_sb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+void av1_set_temporal_global_mvs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     const int mi_row, const int mi_col);
 #endif  // CONFIG_TEMPORAL_GLOBAL_MV
 

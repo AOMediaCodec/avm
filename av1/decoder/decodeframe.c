@@ -4360,6 +4360,9 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
          mi_col += cm->seq_params.mib_size) {
       av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
       av1_set_sb_info(cm, xd, mi_row, mi_col);
+#if CONFIG_TEMPORAL_GLOBAL_MV
+      av1_set_temporal_global_mvs_sb(cm, xd, mi_row, mi_col);
+#endif  // CONFIG_TEMPORAL_GLOBAL_MV
       set_cb_buffer(pbi, dcb, &td->cb_buffer_base, num_planes, 0, 0);
 #if CONFIG_REF_MV_BANK
       // td->ref_mv_bank is initialized as xd->ref_mv_bank, and used
@@ -4881,6 +4884,9 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
          mi_col += cm->seq_params.mib_size) {
       av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
       av1_set_sb_info(cm, xd, mi_row, mi_col);
+#if CONFIG_TEMPORAL_GLOBAL_MV
+      av1_set_temporal_global_mvs_sb(cm, xd, mi_row, mi_col);
+#endif  // CONFIG_TEMPORAL_GLOBAL_MV
       set_cb_buffer(pbi, dcb, pbi->cb_buffer_base, num_planes, mi_row, mi_col);
 
 #if CONFIG_REF_MV_BANK

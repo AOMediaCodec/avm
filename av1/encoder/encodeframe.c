@@ -945,6 +945,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
     av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
     av1_set_sb_info(cm, xd, mi_row, mi_col);
+#if CONFIG_TEMPORAL_GLOBAL_MV
+    av1_set_temporal_global_mvs_sb(cm, xd, mi_row, mi_col);
+#endif  // CONFIG_TEMPORAL_GLOBAL_MV
 
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_start != mi_row)) {

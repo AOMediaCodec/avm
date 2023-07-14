@@ -344,6 +344,28 @@ static INLINE int warped_causal_idx_map(int motion_mode) {
 #endif  // CONFIG_INTERINTRA_WARP
 }
 
+static INLINE void set_wmtype_from_params(WarpedMotionParams *wm_params) {
+  if (wm_params->wmmat[2] == (1 << WARPEDMODEL_PREC_BITS) &&
+      wm_params->wmmat[5] == (1 << WARPEDMODEL_PREC_BITS) &&
+      wm_params->wmmat[3] == 0 && wm_params->wmmat[4] == 0 &&
+      wm_params->wmmat[6] == 0 && wm_params->wmmat[7] == 0) {
+    if (wm_params->wmmat[0] == 0 && wm_params->wmmat[1] == 0)
+      wm_params->wmtype = IDENTITY;
+    else
+      wm_params->wmtype = TRANSLATION;
+    return;
+  }
+  if (wm_params->wmmat[6] == 0 && wm_params->wmmat[7] == 0) {
+    if (wm_params->wmmat[2] == wm_params->wmmat[5] &&
+        wm_params->wmmat[3] == -wm_params->wmmat[4])
+      wm_params->wmtype = ROTZOOM;
+    else
+      wm_params->wmtype = AFFINE;
+    return;
+  }
+  wm_params->wmtype = HOMOGRAPHY;
+}
+
 #if CONFIG_IMPROVED_GLOBAL_MOTION
 static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
                                         int in_distance,

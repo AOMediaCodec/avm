@@ -45,7 +45,8 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
         (st->mv[i].as_int != mi->mv[i].as_int)) {
       return 0;
     }
-    const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[i]];
+    const WarpedMotionParams *const wm =
+        effective_global_motion(xd, mi->ref_frame[i]);
     if (is_global_mv_block(mi, wm->wmtype) != st->is_global[i]) return 0;
   }
 
@@ -1048,7 +1049,7 @@ static INLINE void save_comp_rd_search_stat(
     const MACROBLOCKD *const xd = &x->e_mbd;
     for (int i = 0; i < 2; ++i) {
       const WarpedMotionParams *const wm =
-          &xd->global_motion[mbmi->ref_frame[i]];
+          effective_global_motion(xd, mbmi->ref_frame[i]);
       rd_stats->is_global[i] = is_global_mv_block(mbmi, wm->wmtype);
     }
     memcpy(&rd_stats->interinter_comp, &mbmi->interinter_comp,

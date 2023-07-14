@@ -121,12 +121,12 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
 
   if (xd->cur_frame_force_integer_mv) return;
 
-  if (av1_allow_warp(mi, warp_types, &xd->global_motion[mi->ref_frame[ref]],
+  if (av1_allow_warp(
+          mi, warp_types, effective_global_motion(xd, mi->ref_frame[ref]),
 #if CONFIG_EXTENDED_WARP_PREDICTION
-                     ref,
+          ref,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-                     0, inter_pred_params->scale_factors,
-                     &inter_pred_params->warp_params))
+          0, inter_pred_params->scale_factors, &inter_pred_params->warp_params))
     inter_pred_params->mode = WARP_PRED;
 }
 
@@ -747,7 +747,8 @@ void av1_opfl_build_inter_predictor(
   struct macroblockd_plane *const pd = &xd->plane[plane];
   struct buf_2d *const dst_buf = &pd->dst;
 
-  const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
+  const WarpedMotionParams *const wm =
+      effective_global_motion(xd, mi->ref_frame[ref]);
   const WarpTypesAllowed warp_types = { is_global_mv_block(mi, wm->wmtype),
                                         is_warp_mode(mi->motion_mode) };
 #if CONFIG_OPTFLOW_ON_TIP
@@ -1769,7 +1770,7 @@ static void build_inter_predictors_8x8_and_bigger(
     if (!is_tip_ref_frame(mi->ref_frame[ref])) {
 #endif  // CONFIG_TIP
       const WarpedMotionParams *const wm =
-          &xd->global_motion[mi->ref_frame[ref]];
+          effective_global_motion(xd, mi->ref_frame[ref]);
       is_global[ref] = is_global_mv_block(mi, wm->wmtype);
 #if CONFIG_TIP
     }

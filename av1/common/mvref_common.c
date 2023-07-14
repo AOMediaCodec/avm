@@ -373,10 +373,8 @@ static AOM_INLINE void add_ref_mv_candidate_ctx(
 #endif  // CONFIG_C076_INTER_MOD_CTX
 
 static AOM_INLINE void add_ref_mv_candidate(
-#if CONFIG_TIP
-#if !CONFIG_SMVP_IMPROVEMENT
     const AV1_COMMON *cm,
-#endif  // !CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_TIP
     int mi_row, int mi_col, int mi_row_cand, int mi_col_cand,
 #endif  // CONFIG_TIP
     const MB_MODE_INFO *const candidate,
@@ -386,16 +384,16 @@ static AOM_INLINE void add_ref_mv_candidate(
     const MV_REFERENCE_FRAME rf[2], uint8_t *refmv_count,
     uint8_t *ref_match_count, uint8_t *newmv_count, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, int_mv *gm_mv_candidates,
-    const WarpedMotionParams *gm_params,
+    const WarpedMotionParams *gm_params[INTER_REFS_PER_FRAME],
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
     const MB_MODE_INFO *mbmi,
     MV_REFERENCE_FRAME ref_frame_idx0[MAX_REF_MV_STACK_SIZE],
     MV_REFERENCE_FRAME ref_frame_idx1[MAX_REF_MV_STACK_SIZE],
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_SMVP_IMPROVEMENT
-    const AV1_COMMON *cm, int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv,
-    uint8_t *single_mv_count, CANDIDATE_MV *derived_mv_stack,
-    uint16_t *derived_mv_weight, uint8_t *derived_mv_count,
+    int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv, uint8_t *single_mv_count,
+    CANDIDATE_MV *derived_mv_stack, uint16_t *derived_mv_weight,
+    uint8_t *derived_mv_count,
 #endif  // CONFIG_SMVP_IMPROVEMENT
 #if CONFIG_IBC_SR_EXT
     uint8_t is_intrabc,
@@ -409,6 +407,7 @@ static AOM_INLINE void add_ref_mv_candidate(
     const MvSubpelPrecision precision
 #endif
 ) {
+  (void)cm;
 #if CONFIG_C071_SUBBLK_WARPMV && CONFIG_FLEX_MVRES
   (void)precision;
 #endif  // CONFIG_C071_SUBBLK_WARPMV && CONFIG_FLEX_MVRES
@@ -438,7 +437,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif
       int_mv this_refmv[2];
       for (ref = 0; ref < 2; ++ref) {
-        if (is_global_mv_block(candidate, gm_params[rf[ref]].wmtype))
+        if (is_global_mv_block(candidate, gm_params[rf[ref]]->wmtype))
           this_refmv[ref] = gm_mv_candidates[ref];
         else
           this_refmv[ref] = get_block_mv(candidate,
@@ -490,7 +489,9 @@ static AOM_INLINE void add_ref_mv_candidate(
                                     ref);
         } else {
           const int is_gm_block =
-              is_global_mv_block(candidate, gm_params[rf[0]].wmtype);
+              rf[0] == NONE_FRAME || rf[0] == INTRA_FRAME
+                  ? 0
+                  : is_global_mv_block(candidate, gm_params[rf[0]]->wmtype);
           this_refmv = is_gm_block ? gm_mv_candidates[0]
                                    : get_block_mv(candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -500,7 +501,9 @@ static AOM_INLINE void add_ref_mv_candidate(
         }
 #else
         const int is_gm_block =
-            is_global_mv_block(candidate, gm_params[rf[0]].wmtype);
+            rf[0] == NONE_FRAME || rf[0] == INTRA_FRAME
+                ? 0
+                : is_global_mv_block(candidate, gm_params[rf[0]]->wmtype);
         const int_mv this_refmv = is_gm_block ? gm_mv_candidates[0]
                                               : get_block_mv(candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -552,7 +555,7 @@ static AOM_INLINE void add_ref_mv_candidate(
               cm->ref_frame_relative_dist[candidate->ref_frame[ref]];
 
           const int is_gm_block = is_global_mv_block(
-              candidate, gm_params[candidate->ref_frame[ref]].wmtype);
+              candidate, gm_params[candidate->ref_frame[ref]]->wmtype);
           const int_mv cand_refmv = is_gm_block ? gm_mv_candidates[0]
                                                 : get_block_mv(candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -613,7 +616,7 @@ static AOM_INLINE void add_ref_mv_candidate(
         int_mv this_refmv[2];
 
         for (ref = 0; ref < 2; ++ref) {
-          if (is_global_mv_block(candidate, gm_params[rf[ref]].wmtype))
+          if (is_global_mv_block(candidate, gm_params[rf[ref]]->wmtype))
             this_refmv[ref] = gm_mv_candidates[ref];
           else
             this_refmv[ref] = get_block_mv(candidate,
@@ -664,7 +667,7 @@ static AOM_INLINE void add_ref_mv_candidate(
         if (candidate_ref_idx0 != -1 && candidate_ref_idx1 != -1) {
           int_mv this_refmv[2];
           const int is_gm_block = is_global_mv_block(
-              candidate, gm_params[rf[candidate_ref_idx0]].wmtype);
+              candidate, gm_params[rf[candidate_ref_idx0]]->wmtype);
           this_refmv[candidate_ref_idx0] =
               is_gm_block ? gm_mv_candidates[candidate_ref_idx0]
                           : get_block_mv(candidate,
@@ -816,6 +819,7 @@ static AOM_INLINE void scan_row_mbmi(
     int mi_col, const MV_REFERENCE_FRAME rf[2], int row_offset,
     CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight, uint8_t *refmv_count,
     uint8_t *ref_match_count, uint8_t *newmv_count, int_mv *gm_mv_candidates,
+    const WarpedMotionParams *gm_params[INTER_REFS_PER_FRAME],
     int max_row_offset,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
@@ -830,7 +834,6 @@ static AOM_INLINE void scan_row_mbmi(
     int max_num_of_warp_candidates, uint8_t *valid_num_warp_candidates,
     MV_REFERENCE_FRAME ref_frame,
 #endif  // CONFIG_WARP_REF_LIST
-
     int *processed_rows) {
   int end_mi = AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col);
   end_mi = AOMMIN(end_mi, mi_size_wide[BLOCK_64X64]);
@@ -909,36 +912,34 @@ static AOM_INLINE void scan_row_mbmi(
     }
 #endif  // CONFIG_WARP_REF_LIST
 
-    add_ref_mv_candidate(
+    add_ref_mv_candidate(cm,
 #if CONFIG_TIP
-#if !CONFIG_SMVP_IMPROVEMENT
-        cm,
-#endif  // !CONFIG_SMVP_IMPROVEMENT
-        mi_row, mi_col, cand_mi_row, cand_mi_col,
+                         mi_row, mi_col, cand_mi_row, cand_mi_col,
 #endif  // CONFIG_TIP
-        candidate,
+                         candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
-        submi,
+                         submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-        rf, refmv_count, ref_match_count, newmv_count, ref_mv_stack,
-        ref_mv_weight, gm_mv_candidates, cm->global_motion,
+                         rf, refmv_count, ref_match_count, newmv_count,
+                         ref_mv_stack, ref_mv_weight, gm_mv_candidates,
+                         gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
-        xd->mi[0], ref_frame_idx0, ref_frame_idx1,
+                         xd->mi[0], ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_SMVP_IMPROVEMENT
-        cm, add_more_mvs, single_mv, single_mv_count, derived_mv_stack,
-        derived_mv_weight, derived_mv_count,
+                         add_more_mvs, single_mv, single_mv_count,
+                         derived_mv_stack, derived_mv_weight, derived_mv_count,
 #endif  // CONFIG_SMVP_IMPROVEMENT
 #if CONFIG_IBC_SR_EXT
-        xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART],
+                         xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART],
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_EXTENDED_WARP_PREDICTION
-        row_offset, col_offset + i,
+                         row_offset, col_offset + i,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-        len * weight
+                         len * weight
 #if CONFIG_FLEX_MVRES
-        ,
-        precision
+                         ,
+                         precision
 #endif
     );
 
@@ -980,7 +981,9 @@ static AOM_INLINE void scan_col_mbmi(
 #endif  // CONFIG_TIP || CONFIG_EXT_RECUR_PARTITIONS
     const MV_REFERENCE_FRAME rf[2], int col_offset, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
-    uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_col_offset,
+    uint8_t *newmv_count, int_mv *gm_mv_candidates,
+    const WarpedMotionParams *gm_params[INTER_REFS_PER_FRAME],
+    int max_col_offset,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1070,36 +1073,34 @@ static AOM_INLINE void scan_col_mbmi(
     }
 #endif  // CONFIG_WARP_REF_LIST
 
-    add_ref_mv_candidate(
+    add_ref_mv_candidate(cm,
 #if CONFIG_TIP
-#if !CONFIG_SMVP_IMPROVEMENT
-        cm,
-#endif  // !CONFIG_SMVP_IMPROVEMENT
-        mi_row, mi_col, cand_mi_row, cand_mi_col,
+                         mi_row, mi_col, cand_mi_row, cand_mi_col,
 #endif  // CONFIG_TIP
-        candidate,
+                         candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
-        submi,
+                         submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-        rf, refmv_count, ref_match_count, newmv_count, ref_mv_stack,
-        ref_mv_weight, gm_mv_candidates, cm->global_motion,
+                         rf, refmv_count, ref_match_count, newmv_count,
+                         ref_mv_stack, ref_mv_weight, gm_mv_candidates,
+                         gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
-        xd->mi[0], ref_frame_idx0, ref_frame_idx1,
+                         xd->mi[0], ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_SMVP_IMPROVEMENT
-        cm, add_more_mvs, single_mv, single_mv_count, derived_mv_stack,
-        derived_mv_weight, derived_mv_count,
+                         add_more_mvs, single_mv, single_mv_count,
+                         derived_mv_stack, derived_mv_weight, derived_mv_count,
 #endif  // CONFIG_SMVP_IMPROVEMENT
 #if CONFIG_IBC_SR_EXT
-        xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART],
+                         xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART],
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_EXTENDED_WARP_PREDICTION
-        row_offset + i, col_offset,
+                         row_offset + i, col_offset,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-        len * weight
+                         len * weight
 #if CONFIG_FLEX_MVRES
-        ,
-        precision
+                         ,
+                         precision
 #endif
     );
     i += len;
@@ -1130,6 +1131,7 @@ static AOM_INLINE void scan_blk_mbmi(
     const int mi_col, const MV_REFERENCE_FRAME rf[2], int row_offset,
     int col_offset, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     uint8_t *ref_match_count, uint8_t *newmv_count, int_mv *gm_mv_candidates,
+    const WarpedMotionParams *gm_params[INTER_REFS_PER_FRAME],
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
     MV_REFERENCE_FRAME *ref_frame_idx0, MV_REFERENCE_FRAME *ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1181,40 +1183,38 @@ static AOM_INLINE void scan_blk_mbmi(
     }
 #endif  // CONFIG_WARP_REF_LIST
 
-    add_ref_mv_candidate(
+    add_ref_mv_candidate(cm,
 #if CONFIG_TIP
-#if !CONFIG_SMVP_IMPROVEMENT
-        cm,
-#endif  // !CONFIG_SMVP_IMPROVEMENT
-        mi_row, mi_col, cand_mi_row, cand_mi_col,
+                         mi_row, mi_col, cand_mi_row, cand_mi_col,
 #endif  // CONFIG_TIP
-        candidate,
+                         candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
-        submi,
+                         submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-        rf, refmv_count, ref_match_count, newmv_count, ref_mv_stack,
-        ref_mv_weight, gm_mv_candidates, cm->global_motion,
+                         rf, refmv_count, ref_match_count, newmv_count,
+                         ref_mv_stack, ref_mv_weight, gm_mv_candidates,
+                         gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
-        xd->mi[0], ref_frame_idx0, ref_frame_idx1,
+                         xd->mi[0], ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_SMVP_IMPROVEMENT
-        cm, add_more_mvs, single_mv, single_mv_count, derived_mv_stack,
-        derived_mv_weight, derived_mv_count,
+                         add_more_mvs, single_mv, single_mv_count,
+                         derived_mv_stack, derived_mv_weight, derived_mv_count,
 #endif  // CONFIG_SMVP_IMPROVEMENT
 #if CONFIG_IBC_SR_EXT
-        xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART],
+                         xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART],
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_EXTENDED_WARP_PREDICTION
-        row_offset, col_offset,
+                         row_offset, col_offset,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_COMPLEXITY_SCALABLE_MVP
-        weight * len
+                         weight * len
 #else
-        2 * len
+                         2 * len
 #endif
 #if CONFIG_FLEX_MVRES
-        ,
-        precision
+                         ,
+                         precision
 #endif
     );
   }  // Analyze a single 8x8 block motion information.
@@ -1789,8 +1789,12 @@ static AOM_INLINE void setup_ref_mv_list(
   const int has_bl = has_bottom_left(cm, xd, mi_row, mi_col, bs);
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  MV_REFERENCE_FRAME rf[2];
+  const WarpedMotionParams *gm_params[INTER_REFS_PER_FRAME];
+  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
+    gm_params[r] = effective_global_motion(xd, r);
+  }
 
+  MV_REFERENCE_FRAME rf[2];
   const TileInfo *const tile = &xd->tile;
   int max_row_offset = 0, max_col_offset = 0;
   const int row_adj = (xd->height < mi_size_high[BLOCK_8X8]) && (mi_row & 0x01);
@@ -1858,7 +1862,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (xd->left_available) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, (xd->height - 1), -1,
                   ref_mv_stack, ref_mv_weight, &col_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1877,7 +1881,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (xd->up_available) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, (xd->width - 1), ref_mv_stack,
                   ref_mv_weight, &row_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1894,7 +1898,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (xd->left_available) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, 0, -1, ref_mv_stack,
                   ref_mv_weight, &col_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1913,7 +1917,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (xd->up_available) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, 0, ref_mv_stack,
                   ref_mv_weight, &row_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1930,7 +1934,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (has_bl) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, xd->height, -1, ref_mv_stack,
                   ref_mv_weight, &col_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1947,7 +1951,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (has_tr) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, xd->width, ref_mv_stack,
                   ref_mv_weight, &row_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1966,7 +1970,7 @@ static AOM_INLINE void setup_ref_mv_list(
     uint8_t dummy_new_mv_count = 0;
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, -1, ref_mv_stack,
                   ref_mv_weight, &dummy_ref_match_count, &dummy_new_mv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -1983,7 +1987,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (xd->left_available) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, (xd->height >> 1), -1,
                   ref_mv_stack, ref_mv_weight, &col_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -2002,7 +2006,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (xd->up_available) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, (xd->width >> 1),
                   ref_mv_stack, ref_mv_weight, &row_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -2024,7 +2028,7 @@ static AOM_INLINE void setup_ref_mv_list(
                   mi_row,
 #endif  // CONFIG_TIP || CONFIG_EXT_RECUR_PARTITIONS
                   mi_col, rf, -1, ref_mv_stack, ref_mv_weight, refmv_count,
-                  &row_match_count, &newmv_count, gm_mv_candidates,
+                  &row_match_count, &newmv_count, gm_mv_candidates, gm_params,
                   max_row_offset,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
@@ -2046,7 +2050,7 @@ static AOM_INLINE void setup_ref_mv_list(
                   mi_col,
 #endif  // CONFIG_TIP || CONFIG_EXT_RECUR_PARTITIONS
                   rf, -1, ref_mv_stack, ref_mv_weight, refmv_count,
-                  &col_match_count, &newmv_count, gm_mv_candidates,
+                  &col_match_count, &newmv_count, gm_mv_candidates, gm_params,
                   max_col_offset,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
@@ -2065,7 +2069,7 @@ static AOM_INLINE void setup_ref_mv_list(
   if (has_tr)
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, xd->width, ref_mv_stack,
                   ref_mv_weight, &row_match_count, &newmv_count,
-                  gm_mv_candidates,
+                  gm_mv_candidates, gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                   ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -2202,6 +2206,7 @@ static AOM_INLINE void setup_ref_mv_list(
   // Scan the second outer area.
   scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, -1, -1, ref_mv_stack, ref_mv_weight,
                 &row_match_count, &dummy_newmv_count, gm_mv_candidates,
+                gm_params,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                 ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -2227,7 +2232,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_TIP || CONFIG_EXT_RECUR_PARTITIONS
                     rf, col_offset, ref_mv_stack, ref_mv_weight, refmv_count,
                     &col_match_count, &dummy_newmv_count, gm_mv_candidates,
-                    max_col_offset,
+                    gm_params, max_col_offset,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                     ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -2253,7 +2258,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_TIP || CONFIG_EXT_RECUR_PARTITIONS
                     mi_col, rf, row_offset, ref_mv_stack, ref_mv_weight,
                     refmv_count, &row_match_count, &dummy_newmv_count,
-                    gm_mv_candidates, max_row_offset,
+                    gm_mv_candidates, gm_params, max_row_offset,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                     ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -2272,7 +2277,7 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_TIP || CONFIG_EXT_RECUR_PARTITIONS
                     rf, col_offset, ref_mv_stack, ref_mv_weight, refmv_count,
                     &col_match_count, &dummy_newmv_count, gm_mv_candidates,
-                    max_col_offset,
+                    gm_params, max_col_offset,
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
                     ref_frame_idx0, ref_frame_idx1,
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
@@ -2543,6 +2548,7 @@ static AOM_INLINE void setup_ref_mv_list(
     // Handle single reference frame extension
 #if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
     assert(!xd->mi[0]->skip_mode);
+
 #endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_IBC_SR_EXT
     if (!xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
@@ -2687,13 +2693,14 @@ static AOM_INLINE void setup_ref_mv_list(
 
     // Insert Global motion of the current
     if (*valid_num_warp_candidates < max_num_of_warp_candidates) {
-      if (!xd->global_motion[ref_frame].invalid &&
+      const WarpedMotionParams *global_motion =
+          effective_global_motion(xd, ref_frame);
+      if (!global_motion->invalid &&
           !is_this_param_already_in_list(*valid_num_warp_candidates,
-                                         warp_param_stack,
-                                         xd->global_motion[ref_frame])) {
-        insert_neighbor_warp_candidate(
-            warp_param_stack, &xd->global_motion[ref_frame],
-            *valid_num_warp_candidates, PROJ_GLOBAL_MOTION);
+                                         warp_param_stack, *global_motion)) {
+        insert_neighbor_warp_candidate(warp_param_stack, global_motion,
+                                       *valid_num_warp_candidates,
+                                       PROJ_GLOBAL_MOTION);
         (*valid_num_warp_candidates)++;
       }
     }
@@ -2744,12 +2751,13 @@ static AOM_INLINE void setup_ref_mv_list(
 }
 
 #if CONFIG_TEMPORAL_GLOBAL_MV
-// This function compute the projected samples of a 8x8 block
+// This function computes the projected samples of a 8x8 block
 static void get_block_mv_from_single_reference_motion_projection(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, int mi_row, int mi_col,
     MV_REFERENCE_FRAME ref_frame, int blk_row, int blk_col,
     int *const points_count, int_mv *projected_mvs, int *pts, int *pts_inref) {
   POSITION mi_pos;
+
   mi_pos.row = (mi_row & 0x01) ? blk_row : blk_row + 1;
   mi_pos.col = (mi_col & 0x01) ? blk_col : blk_col + 1;
 
@@ -2793,13 +2801,13 @@ static void get_block_mv_from_single_reference_motion_projection(
   int_mv this_refmv;
   get_mv_projection(&this_refmv.as_mv, projected_frame_mvs->mfmv0.as_mv,
                     cur_offset_0, projected_frame_mvs->ref_frame_offset);
+
 #if CONFIG_FLEX_MVRES
   lower_mv_precision(&this_refmv.as_mv, fr_mv_precision);
 #else
   lower_mv_precision(&this_refmv.as_mv, allow_high_precision_mv,
                      force_integer_mv);
 #endif
-
   // TODO (Mohammed): double check this clamping
   clamp_mv_ref(&this_refmv.as_mv, xd->width << MI_SIZE_LOG2,
                xd->height << MI_SIZE_LOG2, xd);
@@ -2898,8 +2906,20 @@ int av1_find_single_ref_projected_samples_sb(const AV1_COMMON *cm,
   return points_count;
 }
 
-void av1_set_temporal_global_mvs_sb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+void av1_set_temporal_global_mvs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     const int mi_row, const int mi_col) {
+  // Setup xd size & location parameters for the SB to handle clipping
+  const int mi_rows_left = cm->mi_params.mi_rows - mi_row;
+  const int mi_cols_left = cm->mi_params.mi_cols - mi_col;
+  xd->height = AOMMIN(mi_size_high[cm->seq_params.sb_size], mi_rows_left);
+  xd->width = AOMMIN(mi_size_wide[cm->seq_params.sb_size], mi_cols_left);
+  xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
+  xd->mb_to_bottom_edge =
+      GET_MV_SUBPEL((cm->mi_params.mi_rows - xd->height - mi_row) * MI_SIZE);
+  xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col * MI_SIZE));
+  xd->mb_to_right_edge =
+      GET_MV_SUBPEL((cm->mi_params.mi_cols - xd->width - mi_col) * MI_SIZE);
+
   SB_INFO *sbi = xd->sbi;
   int srcpts[2 * MAX_NUM_OF_8x8_SB];
   int refpts[2 * MAX_NUM_OF_8x8_SB];
@@ -2909,9 +2929,10 @@ void av1_set_temporal_global_mvs_sb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     int npts = av1_find_single_ref_projected_samples_sb(
         cm, xd, ref_frame, mi_row, mi_col, NULL, srcpts, refpts);
     if (npts > 0) {
-      av1_find_projection_unconstrained(npts, srcpts, refpts,
-                                        &sbi->tpl_global_motion[ref_frame],
-                                        mi_row, mi_col);
+      if (av1_find_projection_unconstrained(npts, srcpts, refpts,
+                                            &sbi->tpl_global_motion[ref_frame],
+                                            mi_row, mi_col))
+        sbi->tpl_global_motion[ref_frame].invalid = 1;
     }
   }
 }
@@ -3012,12 +3033,13 @@ void av1_find_mv_refs(
 #endif
     if (ref_frame < INTER_REFS_PER_FRAME) {
 #if CONFIG_FLEX_MVRES
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
-                                        fr_mv_precision, bsize, mi_col, mi_row);
+      gm_mv[0] =
+          get_warp_motion_vector(xd, effective_global_motion(xd, ref_frame),
+                                 fr_mv_precision, bsize, mi_col, mi_row);
 #else
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
-                                        allow_high_precision_mv, bsize, mi_col,
-                                        mi_row, force_integer_mv);
+      gm_mv[0] = get_warp_motion_vector(
+          xd, effective_global_motion(xd, ref_frame), allow_high_precision_mv,
+          bsize, mi_col, mi_row, force_integer_mv);
 #endif
       gm_mv[1].as_int = 0;
       if (global_mvs != NULL) global_mvs[ref_frame] = gm_mv[0];
@@ -3025,15 +3047,15 @@ void av1_find_mv_refs(
       MV_REFERENCE_FRAME rf[2];
       av1_set_ref_frame(rf, ref_frame);
 #if CONFIG_FLEX_MVRES
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[0]],
+      gm_mv[0] = get_warp_motion_vector(xd, effective_global_motion(xd, rf[0]),
                                         fr_mv_precision, bsize, mi_col, mi_row);
-      gm_mv[1] = get_warp_motion_vector(xd, &cm->global_motion[rf[1]],
+      gm_mv[1] = get_warp_motion_vector(xd, effective_global_motion(xd, rf[1]),
                                         fr_mv_precision, bsize, mi_col, mi_row);
 #else
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[0]],
+      gm_mv[0] = get_warp_motion_vector(xd, effective_global_motion(xd, rf[0]),
                                         allow_high_precision_mv, bsize, mi_col,
                                         mi_row, force_integer_mv);
-      gm_mv[1] = get_warp_motion_vector(xd, &cm->global_motion[rf[1]],
+      gm_mv[1] = get_warp_motion_vector(xd, effective_global_motion(xd, rf[1]),
                                         allow_high_precision_mv, bsize, mi_col,
                                         mi_row, force_integer_mv);
 #endif
@@ -4380,7 +4402,8 @@ void av1_find_warp_delta_base_candidates(
     uint8_t *p_valid_num_candidates) {
   // Global MV mode insert the global motion
   if (mbmi->mode == GLOBALMV) {
-    warp_param_stack[0].wm_params = xd->global_motion[mbmi->ref_frame[0]];
+    warp_param_stack[0].wm_params =
+        *effective_global_motion(xd, mbmi->ref_frame[0]);
     warp_param_stack[0].proj_type = PROJ_GLOBAL_MOTION;
     if (p_valid_num_candidates) {
       *p_valid_num_candidates = 1;

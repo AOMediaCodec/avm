@@ -905,12 +905,13 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
     return 0;
   }
   PREDICTION_MODE compare_mode = MB_MODE_COUNT;
+  const MACROBLOCKD *const xd = &x->e_mbd;
   if (this_mode == NEARMV && ref_mv_count == 1 &&
-      cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
+      effective_global_motion(xd, ref_frames[0])->wmtype <= TRANSLATION) {
     compare_mode = GLOBALMV;
   }
   if (this_mode == GLOBALMV && ref_mv_count == 0 &&
-      cm->global_motion[ref_frames[0]].wmtype <= TRANSLATION) {
+      effective_global_motion(xd, ref_frames[0])->wmtype <= TRANSLATION) {
     compare_mode = NEARMV;
   }
   if (this_mode == GLOBALMV && ref_mv_count == 1) {
@@ -2837,11 +2838,14 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
              mi_size_high[mbmi->sb_type[PLANE_TYPE_Y]]) >= 2) {
     if (this_mode == GLOBALMV) {
       is_global_warp_block =
-          (xd->global_motion[mbmi->ref_frame[0]].wmtype > TRANSLATION);
+          (effective_global_motion(xd, mbmi->ref_frame[0])->wmtype >
+           TRANSLATION);
     } else if (this_mode == GLOBAL_GLOBALMV) {
       is_global_warp_block =
-          (xd->global_motion[mbmi->ref_frame[0]].wmtype > TRANSLATION) ||
-          (xd->global_motion[mbmi->ref_frame[1]].wmtype > TRANSLATION);
+          (effective_global_motion(xd, mbmi->ref_frame[0])->wmtype >
+           TRANSLATION) ||
+          (effective_global_motion(xd, mbmi->ref_frame[1])->wmtype >
+           TRANSLATION);
     }
   }
 
@@ -9018,10 +9022,12 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 #endif  // CONFIG_TIP
     mbmi->mv[0].as_int =
 #if CONFIG_FLEX_MVRES
-        get_warp_motion_vector(xd, &cm->global_motion[mbmi->ref_frame[0]],
+        get_warp_motion_vector(xd,
+                               effective_global_motion(xd, mbmi->ref_frame[0]),
                                features->fr_mv_precision, bsize, mi_col, mi_row)
 #else
-      get_warp_motion_vector(xd, &cm->global_motion[mbmi->ref_frame[0]],
+      get_warp_motion_vector(xd,
+                             effective_global_motion(xd, mbmi->ref_frame[0]),
                              features->allow_high_precision_mv, bsize, mi_col,
                              mi_row, features->cur_frame_force_integer_mv)
 #endif

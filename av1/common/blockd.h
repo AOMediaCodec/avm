@@ -3376,6 +3376,26 @@ typedef struct {
 #endif  // CONFIG_NEW_COLOR_MAP_CODING
 } Av1ColorMapParam;
 
+static INLINE const WarpedMotionParams *effective_global_motion(
+    const MACROBLOCKD *xd, int ref_frame) {
+  if (ref_frame == NONE_FRAME || ref_frame == INTRA_FRAME
+#if CONFIG_TIP
+      || ref_frame == TIP_FRAME
+#endif  // CONFIG_TIP
+  )
+    return &default_warp_params;
+  assert(ref_frame < INTER_REFS_PER_FRAME);
+  const WarpedMotionParams *gm = &xd->global_motion[ref_frame];
+#if CONFIG_TEMPORAL_GLOBAL_MV
+  const WarpedMotionParams *tgm = xd->sbi->tpl_global_motion[ref_frame].invalid
+                                      ? &default_warp_params
+                                      : &xd->sbi->tpl_global_motion[ref_frame];
+  return gm->wmtype > TRANSLATION ? gm : tgm;
+#else
+  return gm;
+#endif  // CONFIG_TEMPORAL_GLOBAL_MV
+}
+
 static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
                                             const MB_MODE_INFO *mbmi) {
   int ref;
@@ -3388,7 +3408,9 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
 
   // Now check if all global motion is non translational
   for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-    if (xd->global_motion[mbmi->ref_frame[ref]].wmtype == TRANSLATION) return 0;
+    const WarpedMotionParams *global_motion =
+        effective_global_motion(xd, mbmi->ref_frame[ref]);
+    if (global_motion->wmtype <= TRANSLATION) return 0;
   }
   return 1;
 }

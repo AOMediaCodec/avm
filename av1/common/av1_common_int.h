@@ -3323,9 +3323,6 @@ static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
 #if CONFIG_FLEX_MVRES
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
 #endif  // CONFIG_FLEX_MVRES
-#if CONFIG_TEMPORAL_GLOBAL_MV
-  av1_set_temporal_global_mvs_sb(cm, xd, mi_row, mi_col);
-#endif  // CONFIG_TEMPORAL_GLOBAL_MV
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.

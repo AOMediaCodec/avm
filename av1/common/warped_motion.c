@@ -1377,18 +1377,25 @@ static int find_affine_unconstrained_int(int np, const int *pts1,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   wm->wmmat[6] = wm->wmmat[7] = 0;
-  wm->wmtype = AFFINE;
+  set_wmtype_from_params(wm);
   return 0;
 }
 
 int av1_find_projection_unconstrained(int np, const int *pts1, const int *pts2,
                                       WarpedMotionParams *wm_params, int mi_row,
                                       int mi_col) {
-  if (find_affine_unconstrained_int(np, pts1, pts2, wm_params, mi_row, mi_col))
+  *wm_params = default_warp_params;
+  if (find_affine_unconstrained_int(np, pts1, pts2, wm_params, mi_row,
+                                    mi_col)) {
+    wm_params->invalid = 1;
     return 1;
+  }
 
   // check compatibility with the fast warp filter
-  if (!av1_get_shear_params(wm_params)) return 1;
+  if (!av1_get_shear_params(wm_params)) {
+    wm_params->invalid = 1;
+    return 1;
+  }
 
   return 0;
 }

@@ -370,7 +370,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   } else {
     int ref;
     const int is_compound = has_second_ref(mbmi);
-
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     for (ref = 0; ref < 1 + is_compound; ++ref) {
       const YV12_BUFFER_CONFIG *cfg =

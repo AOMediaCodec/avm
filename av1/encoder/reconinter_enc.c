@@ -337,7 +337,8 @@ void av1_build_inter_predictor_single_buf_y(MACROBLOCKD *xd, BLOCK_SIZE bsize,
   const int mi_x = mi_col * MI_SIZE;
   const int mi_y = mi_row * MI_SIZE;
   WarpTypesAllowed warp_types;
-  const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
+  const WarpedMotionParams *const wm =
+      effective_global_motion(xd, mi->ref_frame[ref]);
   warp_types.global_warp_allowed = is_global_mv_block(mi, wm->wmtype);
   warp_types.local_warp_allowed = is_warp_mode(mi->motion_mode);
 

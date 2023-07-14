@@ -91,11 +91,7 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_H_PARTITION 0 !CONFIG_EXT_RECUR_PARTITIONS)
   endif()
 
-  # CONFIG_TEMPORAL_GLOBAL_MV depends on CONFIG_NEW_REF_SIGNALING and CONFIG_TIP
-  if(NOT CONFIG_NEW_REF_SIGNALING AND CONFIG_TEMPORAL_GLOBAL_MV)
-    change_config_and_warn(CONFIG_TEMPORAL_GLOBAL_MV 0
-                           !CONFIG_NEW_REF_SIGNALING)
-  endif()
+  # CONFIG_TEMPORAL_GLOBAL_MV depends on CONFIG_TIP
   if(NOT CONFIG_TIP AND CONFIG_TEMPORAL_GLOBAL_MV)
     change_config_and_warn(CONFIG_TEMPORAL_GLOBAL_MV 0 !CONFIG_TIP)
   endif()
