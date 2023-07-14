@@ -62,12 +62,12 @@ static const uint8_t extend_modes[INTRA_MODES] = {
   ,     // SMOOTH
   NEED_LEFT | NEED_ABOVE
 #if CONFIG_BLEND_MODE
-      | NEED_ABOVERIGHT | NEED_BOTTOMLEFT
+      | NEED_BOTTOMLEFT
 #endif  // CONFIG_BLEND_MODE
   ,     // SMOOTH_V
   NEED_LEFT | NEED_ABOVE
 #if CONFIG_BLEND_MODE
-      | NEED_ABOVERIGHT | NEED_BOTTOMLEFT
+      | NEED_ABOVERIGHT
 #endif                                      // CONFIG_BLEND_MODE
   ,                                         // SMOOTH_H
   NEED_LEFT | NEED_ABOVE | NEED_ABOVELEFT,  // PAETH
