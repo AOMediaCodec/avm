@@ -5385,10 +5385,12 @@ static int64_t handle_inter_mode(
 #endif
                   for (i = 0; i < is_comp_pred + 1; ++i) {
                     bawp_off_mv[i].as_int = cur_mv[i].as_int;
-                    bawp_off_newmv_ret_val = newmv_ret_val;
-                    if (newmv_ret_val != 0) continue;
                   }
+                  bawp_off_newmv_ret_val = newmv_ret_val;
+                  if (newmv_ret_val != 0) continue;
                 }
+              }
+              if (have_newmv_in_inter_mode(this_mode)) {
 #else
       if (newmv_ret_val != 0) continue;
 #endif
