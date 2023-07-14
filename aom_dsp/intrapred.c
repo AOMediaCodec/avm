@@ -298,8 +298,6 @@ static INLINE void highbd_paeth_predictor(uint16_t *dst, ptrdiff_t stride,
 
 #if CONFIG_BLEND_MODE
 #define BLEND_WEIGHT_MAX 32
-// Width/height lookup tables in units of mode info (4x4).
-// The Num_4x4_Blocks_Wide table in the spec (Section 9.3. Conversion tables).
 static const uint8_t blk_size_log2[65] = {
   0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4,
   4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -317,7 +315,8 @@ static INLINE void highbd_smooth_predictor(uint16_t *dst, ptrdiff_t stride,
   const uint16_t tr = above[bw];  // estimated by top-right pixel
 
   uint16_t *pred = dst;
-  const int scale = ((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2 + 2) >> 2);
+  const int scale =
+      ROUND_POWER_OF_TWO((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2), 2);
   assert(scale >= 0 && scale <= BLEND_WEIGHT_MAX - 1);
   for (int r = 0; r < bh; r++) {
     const int s_top =
@@ -336,7 +335,7 @@ static INLINE void highbd_smooth_predictor(uint16_t *dst, ptrdiff_t stride,
       predh = (s_left * l * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_left) * predh);
       assert(predh < UINT_MAX);
 
-      int bits = 2 + 6 + blk_size_log2[bh] + blk_size_log2[bw];
+      const int bits = 1 + 6 + blk_size_log2[bh] + blk_size_log2[bw];
       pred[c] = divide_round((predv + predh), bits);
     }
     pred += stride;
@@ -380,7 +379,8 @@ static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
   const uint16_t bl = left[bh];  // estimated by bottom-left pixel
 
   uint16_t *pred = dst;
-  const int scale = ((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2 + 2) >> 2);
+  const int scale =
+      ROUND_POWER_OF_TWO((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2), 2);
   assert(scale >= 0 && scale <= BLEND_WEIGHT_MAX - 1);
   for (int r = 0; r < bh; ++r) {
     const int s_top =
@@ -390,7 +390,7 @@ static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
       const uint32_t top = above[c];
       uint32_t predv = (above[c] * (bh - 1 - r) + bl * (r + 1)) * bw;
       assert(predv < UINT_MAX);
-      int bits = 1 + 6 + blk_size_log2[bh] + blk_size_log2[bw];
+      const int bits = 6 + blk_size_log2[bh] + blk_size_log2[bw];
       pred[c] = divide_round(
           (s_top * top * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_top) * predv),
           bits);
@@ -434,7 +434,8 @@ static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
   const uint16_t tr = above[bw];  // estimated by top-right pixel
 
   uint16_t *pred = dst;
-  const int scale = ((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2 + 2) >> 2);
+  const int scale =
+      ROUND_POWER_OF_TWO((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2), 2);
   assert(scale >= 0 && scale <= BLEND_WEIGHT_MAX - 1);
   for (int r = 0; r < bh; r++) {
     const uint32_t l = left[r];
@@ -444,7 +445,7 @@ static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
           AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((c << 1) >> scale));
       uint32_t predh = (left[r] * (bw - 1 - c) + tr * (c + 1)) * bh;
       assert(predh < UINT_MAX);
-      int bits = 1 + 6 + blk_size_log2[bh] + blk_size_log2[bw];
+      const int bits = 6 + blk_size_log2[bh] + blk_size_log2[bw];
       pred[c] = divide_round(
           (s_left * l * (bw * bh) + (BLEND_WEIGHT_MAX * 2 - s_left) * predh),
           bits);
