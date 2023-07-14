@@ -1225,7 +1225,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 #else
                               cm->current_frame.order_hint,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-                              pixel_c, pixel_r, tx_size_wide[tx_size],
+                              plane, pixel_c, pixel_r, tx_size_wide[tx_size],
                               tx_size_high[tx_size]);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
