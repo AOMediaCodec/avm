@@ -6439,6 +6439,10 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
 #endif  // CONFIG_REF_MV_BANK
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // 0 : use show_existing_frame, 1: use implicit derivation
+  seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).

@@ -684,6 +684,10 @@ typedef struct {
   // Indicates if one-sided compound should be enabled.
   bool enable_onesided_comp;
   bool explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // Indicates if the implicit frame order derivation is enabled.
+  bool enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 } RefFrameCfg;
 
 typedef struct {

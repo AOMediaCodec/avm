@@ -221,6 +221,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                                        AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -459,6 +462,9 @@ const arg_def_t *av1_key_val_args[] = {
 #endif  // CONFIG_CROSS_CHROMA_TX
   &g_av1_codec_arg_defs.enable_ibp,
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  &g_av1_codec_arg_defs.enable_frame_output_order,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   &g_av1_codec_arg_defs.max_drl_refmvs,
 #if CONFIG_REF_MV_BANK
   &g_av1_codec_arg_defs.enable_refmvbank,
@@ -723,6 +729,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_opfl_refine = 1;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   config->explicit_ref_frame_map = 0;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  config->enable_frame_output_order = 1;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
   config->enable_smooth_interintra = 1;

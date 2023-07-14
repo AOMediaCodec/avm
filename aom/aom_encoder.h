@@ -543,6 +543,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  /*!\brief enable frame output order derivation based on order hint
+   *
+   */
+  unsigned int enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   /*!\brief use reduced transform type set
    *
    */

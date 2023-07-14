@@ -421,6 +421,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // Set 0 for multi-layer coding
+  seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;

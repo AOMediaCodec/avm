@@ -71,6 +71,7 @@ class AV1SBMultipassTest
   virtual void SetTileSize(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_SET_TILE_COLUMNS, 1);
     encoder->Control(AV1E_SET_TILE_ROWS, 1);
+    encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
   }
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {

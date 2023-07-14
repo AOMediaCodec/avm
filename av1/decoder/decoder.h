@@ -283,7 +283,11 @@ typedef struct AV1Decoder {
   // Note: The saved buffers are released at the start of the next time the
   // application calls aom_codec_decode().
   int output_all_layers;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  RefCntBuffer *output_frames[REF_FRAMES];  // Use only for single layer
+#else                        // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   RefCntBuffer *output_frames[MAX_NUM_SPATIAL_LAYERS];
+#endif                       // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   size_t num_output_frames;  // How many frames are queued up so far?
 
   // In order to properly support random-access decoding, we need

@@ -612,9 +612,20 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     struct AV1Decoder *pbi = frame_worker_data->pbi;
     if (ctx->enable_subgop_stats)
       memset(&pbi->subgop_stats, 0, sizeof(pbi->subgop_stats));
-    for (size_t j = 0; j < pbi->num_output_frames; j++) {
-      decrease_ref_count(pbi->output_frames[j], pool);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    // When multiple layers are enabled, use the mechanism of
+    // show_existing_frame
+    if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
+        pbi->common.seq_params.enable_frame_output_order) {
+      decrease_ref_count(pbi->output_frames[0], pool);
+    } else {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      for (size_t j = 0; j < pbi->num_output_frames; j++) {
+        decrease_ref_count(pbi->output_frames[j], pool);
+      }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     pbi->num_output_frames = 0;
     unlock_buffer_pool(pool);
     for (size_t j = 0; j < ctx->num_grain_image_frame_buffers; j++) {

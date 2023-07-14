@@ -248,6 +248,10 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
     AV1C_READ_BITS_OR_RETURN_ERROR(max_reference_frames, 2);
   }
   AV1C_READ_BIT_OR_RETURN_ERROR(explicit_ref_frame_map);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // 0: show_existing_frame, 1: implicit derivation
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_frame_output_order);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_sdp);
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_ist);
 #if CONFIG_CROSS_CHROMA_TX
