@@ -1742,7 +1742,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
   txfm_cfg->disable_ml_transform_speed_features =
       extra_cfg->disable_ml_transform_speed_features;
-  txfm_cfg->enable_ist = extra_cfg->enable_ist;
+  txfm_cfg->enable_ist = extra_cfg->enable_ist && !extra_cfg->lossless;
 #if CONFIG_CROSS_CHROMA_TX
   txfm_cfg->enable_cctx =
       tool_cfg->enable_monochrome ? 0 : extra_cfg->enable_cctx;

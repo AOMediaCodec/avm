@@ -2639,7 +2639,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     bool skip_idx = false;
     xd->enable_ist = cm->seq_params.enable_ist &&
                      !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
-                     !mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
+                     !mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                     !xd->lossless[mbmi->segment_id];
 #if CONFIG_ATC_DCTX_ALIGNED
     const int max_stx = xd->enable_ist && !(eob_found) ? 4 : 1;
 #else
