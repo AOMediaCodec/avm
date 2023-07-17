@@ -620,9 +620,10 @@ static INLINE int is_refinemv_allowed_mode_precision(
     PREDICTION_MODE mode, MvSubpelPrecision precision,
     const AV1_COMMON *const cm) {
   (void)precision;
+  if (mode == GLOBAL_GLOBALMV) return 0;
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
       (mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV || mode == NEAR_NEWMV ||
-       mode == NEW_NEARMV || mode == NEW_NEWMV || mode == GLOBAL_GLOBALMV))
+       mode == NEW_NEARMV || mode == NEW_NEWMV))
     return 0;
   return (mode >= NEAR_NEARMV && mode <= JOINT_AMVDNEWMV_OPTFLOW);
 }
