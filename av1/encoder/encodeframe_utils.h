@@ -195,6 +195,9 @@ typedef struct PartitionSearchState {
   bool prune_partition_4b[NUM_RECT_PARTS];
 #endif  // CONFIG_UNEVEN_4WAY
   PARTITION_TYPE forced_partition;
+  // Pointer to an array that traces out the current best partition boundary.
+  // Used by prune_part_h_with_partition_boundary and
+  // prune_part_4_with_partition_boundary.
   bool *partition_boundaries;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   bool prune_rect_part[NUM_RECT_PARTS];

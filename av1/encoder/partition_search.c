@@ -5169,6 +5169,13 @@ static int rd_try_subblock_new(AV1_COMP *const cpi, ThreadData *td,
   return 1;
 }
 
+/*!\brief Trace out the partition boundaries using the structure in pc_tree.
+ *
+ * The results are stored in partition_boundaries. The array
+ * partition_boundaries has a stride of MAX_MIB_SIZE, and the units are in mi.
+ * The actual values stored is a bitmask, with 1 << HORZ means that there is a
+ * horizontal boundary, and 1 << VERT means that there is a vertical boundary.
+ * */
 static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
                                                 const PC_TREE *pc_tree,
                                                 int mi_row, int mi_col,
@@ -5310,6 +5317,11 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
   }
 }
 
+/*!\brief Prunes h partitions using the current best partition boundaries.
+ *
+ * If the H-shaped partitions don't have any overlap with the current best
+ * partition boundaries, then they are pruned from the search.
+ * */
 static AOM_INLINE void prune_part_3_with_partition_boundary(
     PartitionSearchState *part_search_state, BLOCK_SIZE bsize, int mi_row,
     int mi_col, bool can_search_horz, bool can_search_vert) {
@@ -5388,6 +5400,11 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
   }
 }
 
+/*!\brief Prunes 4-way partitions using the current best partition boundaries.
+ *
+ * If the 4-way partitions don't have any overlap with the current best
+ * partition boundaries, then they are pruned from the search.
+ */
 static AOM_INLINE void prune_part_4_with_partition_boundary(
     PartitionSearchState *part_search_state, const bool *partition_boundaries,
     BLOCK_SIZE bsize, int mi_row, int mi_col, bool can_search_horz_4a,
@@ -6479,7 +6496,7 @@ static INLINE void search_partition_vert_3(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-static AOM_INLINE bool should_try_none_after_rect(
+static AOM_INLINE bool try_none_after_rect(
     const MACROBLOCKD *xd, const CommonModeInfoParams *mi_params,
     BLOCK_SIZE bsize, int mi_row, int mi_col) {
   if (!is_partition_point(bsize)) {
@@ -6546,6 +6563,8 @@ static AOM_INLINE bool should_try_none_after_rect(
   return false;
 }
 
+/*!\brief Prune PARTITION_NONE search if rect partitions split deeper.
+ */
 static AOM_INLINE void prune_none_with_rect_results(
     PartitionSearchState *part_search_state, const PC_TREE *pc_tree) {
   if (!part_search_state->found_best_partition) {
@@ -6779,11 +6798,11 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
                   &pc_tree->chroma_ref_info);
 
-  bool try_none_after_rect = false;
+  bool search_none_after_rect = false;
   if (cpi->sf.part_sf.adaptive_partition_search_order &&
       part_search_state.forced_partition == PARTITION_INVALID) {
-    try_none_after_rect =
-        should_try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);
+    search_none_after_rect =
+        try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);
   }
 
   // Save rdmult before it might be changed, so it can be restored later.
@@ -6893,7 +6912,7 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_NONE search stage.
   int64_t part_none_rd = INT64_MAX;
-  if (!try_none_after_rect) {
+  if (!search_none_after_rect) {
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd
@@ -6964,7 +6983,7 @@ BEGIN_PARTITION_SEARCH:
 
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
-  if (try_none_after_rect) {
+  if (search_none_after_rect) {
     prune_none_with_rect_results(&part_search_state, pc_tree);
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
