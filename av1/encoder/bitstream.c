@@ -5198,6 +5198,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
       aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
+      if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
+          features->primary_ref_frame != PRIMARY_REF_NONE)
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Invalid primary_ref_frame");
     }
   }
 
@@ -5314,9 +5318,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
           cm->features.error_resilient_mode || frame_is_sframe(cm) ||
           seq_params->explicit_ref_frame_map ||
           !seq_params->order_hint_info.enable_order_hint;
-      if (explicit_ref_frame_map)
+      if (explicit_ref_frame_map) {
+        if (cm->ref_frames_info.num_total_refs <= 0 ||
+            cm->ref_frames_info.num_total_refs >
+                seq_params->max_reference_frames)
+          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+                             "Invalid num_total_refs");
         aom_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
                              REF_FRAMES_LOG2);
+      }
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);

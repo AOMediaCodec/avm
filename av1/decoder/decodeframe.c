@@ -7355,8 +7355,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
       init_ref_map_pair(cm, ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME);
-      av1_get_ref_frames(cm, current_frame->display_order_hint,
-                         ref_frame_map_pairs);
+      int n_ranked = av1_get_ref_frames(cm, current_frame->display_order_hint,
+                                        ref_frame_map_pairs);
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
       cm->ref_frames_info.num_same_ref_compound =
           AOMMIN(cm->seq_params.num_same_ref_compound,
@@ -7374,6 +7374,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (explicit_ref_frame_map)
         cm->ref_frames_info.num_total_refs =
             aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+      // Check whether num_total_refs read is valid and not greater than
+      // n_ranked (using a reference frame more than once is not allowed).
+      if (cm->ref_frames_info.num_total_refs <= 0 ||
+          cm->ref_frames_info.num_total_refs > n_ranked ||
+          cm->ref_frames_info.num_total_refs > seq_params->max_reference_frames)
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Invalid num_total_refs");
+      if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
+          features->primary_ref_frame != PRIMARY_REF_NONE) {
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Invalid primary_ref_frame");
+      }
       for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
         int ref = 0;
         if (!explicit_ref_frame_map) {
