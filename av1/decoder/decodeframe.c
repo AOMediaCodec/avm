@@ -7573,7 +7573,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     if (!(current_frame->frame_type == INTRA_ONLY_FRAME) &&
         pbi->need_resync != 1) {
-      for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+      for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
         if (!ref_buf) continue;
         struct scale_factors *const ref_scale_factors =
