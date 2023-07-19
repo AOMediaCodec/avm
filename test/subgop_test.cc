@@ -62,6 +62,8 @@ extern "C" const char subgop_config_str_asym[];
 // low delay config without references
 extern "C" const char subgop_config_str_ld[];
 
+const int kCpuUsed = 5;
+
 typedef enum {
   DEFAULT,
   ENHANCE,
@@ -88,7 +90,6 @@ typedef struct {
   int max_gf_interval;
   int frame_w;
   int frame_h;
-  int cpu_used;
   int lag_in_frames;
   int use_fixed_qp_offsets;
 } SubgopTestParams;
@@ -104,69 +105,69 @@ int is_extension_y4m(const char *filename) {
 static const SubgopTestParams SubGopTestVectors[] = {
   // Default subgop config
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 35, 0 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
-    16, 320, 180, 5, 35, 0 },
+    16, 320, 180, 35, 0 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "pixel_capture_w320h240.yuv", 16, 16, 320, 240, 5, 35, 1 },
+    "pixel_capture_w320h240.yuv", 16, 16, 320, 240, 35, 1 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 32, 352, 288, 5, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 32, 352, 288, 35, 0 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "pixel_capture_w320h240.yuv", 32, 32, 320, 240, 5, 35, 1 },
+    "pixel_capture_w320h240.yuv", 32, 32, 320, 240, 35, 1 },
 
   // Enhanced subgop config
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
-    0, 15, 640, 480, 5, 35, 0 },
+    0, 15, 640, 480, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-    6, 352, 288, 5, 35, 0 },
+    6, 352, 288, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 12, 320, 240, 5, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 12, 320, 240, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_1280_720_30.y4m",
-    0, 11, 1280, 720, 5, 35, 0 },
+    0, 11, 1280, 720, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 0, 16,
-    640, 480, 5, 35, 0 },
+    640, 480, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 14, 320, 240, 5, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 14, 320, 240, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv", 0,
-    10, 320, 180, 5, 35, 0 },
+    10, 320, 180, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-    13, 352, 288, 5, 35, 0 },
+    13, 352, 288, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 8, 320, 240, 5, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 8, 320, 240, 35, 0 },
 
   // Asymmetric subgop config
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 35, 0 },
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag, "desktop1.320_180.yuv",
-    0, 16, 320, 180, 5, 35, 0 },
+    0, 16, 320, 180, 35, 0 },
 
   // Temporal scalable subgop config
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 5, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 35, 0 },
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 5, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 35, 0 },
 
   // Low delay subgop config
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "paris_352_288_30.y4m",
-    0, 16, 352, 288, 5, 0, 0 },
+    0, 16, 352, 288, 0, 0 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "desktop1.320_180.yuv",
-    16, 16, 320, 180, 5, 0, 1 },
+    16, 16, 320, 180, 0, 1 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "paris_352_288_30.y4m",
-    0, 32, 352, 288, 5, 0, 0 },
+    0, 32, 352, 288, 0, 0 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "desktop1.320_180.yuv",
-    32, 32, 320, 180, 5, 0, 1 },
+    32, 32, 320, 180, 0, 1 },
 
   // Non-default subgop config
   { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 4, 320, 240,
-    5, 35, 0 },
-  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 320, 180, 5, 35,
+    35, 0 },
+  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 320, 180, 35,
     0 },
   { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 7, 320, 240,
-    5, 35, 0 },
+    35, 0 },
   { subgop_config_str_nondef[0], "hantro_collage_w352h288.yuv", 0, 9, 352, 288,
-    5, 35, 0 },
+    35, 0 },
 };
 
 std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
@@ -175,8 +176,7 @@ std::ostream &operator<<(std::ostream &os, const SubgopTestParams &test_arg) {
             << " min_gf_interval:" << test_arg.min_gf_interval
             << " max_gf_interval:" << test_arg.max_gf_interval
             << " frame_width:" << test_arg.frame_w
-            << " frame_height:" << test_arg.frame_h
-            << " cpu_used:" << test_arg.cpu_used
+            << " frame_height:" << test_arg.frame_h << " cpu_used:" << kCpuUsed
             << " lag_in_frames:" << test_arg.lag_in_frames
             << " use_fixed_qp_offsets:" << test_arg.use_fixed_qp_offsets
             << " }";
@@ -229,7 +229,7 @@ class SubGopTestLarge
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, subgop_test_params_.cpu_used);
+      encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
       if (rc_end_usage_ == AOM_Q) {
         encoder->Control(AOME_SET_QP, 210);
       }
@@ -637,16 +637,17 @@ class SubGopTestLarge
   unsigned int enable_subgop_stats_;
 };
 
-// TODO(urvang): Re-enable after reducing number of frames encoded.
-TEST_P(SubGopTestLarge, DISABLED_SubGopTest) {
+TEST_P(SubGopTestLarge, SubGopTest) {
+  const unsigned int kFrames = 100;
   if (!is_extension_y4m(subgop_test_params_.input_file)) {
     libaom_test::I420VideoSource video(
         subgop_test_params_.input_file, subgop_test_params_.frame_w,
         subgop_test_params_.frame_h, cfg_.g_timebase.den, cfg_.g_timebase.num,
-        0, 200);
+        0, kFrames);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   } else {
-    ::libaom_test::Y4mVideoSource video(subgop_test_params_.input_file, 0, 200);
+    ::libaom_test::Y4mVideoSource video(subgop_test_params_.input_file, 0,
+                                        kFrames);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 }
@@ -660,42 +661,41 @@ typedef struct {
   const char *input_file;
   int frame_w;
   int frame_h;
-  int cpu_used;
   int lag_in_frames;
 } SubgopPsnrTestParams;
 
 static const SubgopPsnrTestParams SubGopPsnrTestVectors[] = {
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 3, 35 },
+    "hantro_collage_w352h288.yuv", 352, 288, 35 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv",
-    320, 180, 5, 35 },
+    320, 180, 35 },
 
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 3, 35 },
+    "hantro_collage_w352h288.yuv", 352, 288, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 5, 35 },
+    "pixel_capture_w320h240.yuv", 320, 240, 35 },
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m",
-     352, 288, 3, 35 },
+     352, 288, 35 },
      { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 640,
-     480, 5, 35 },
+     480, 35 },
      { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m",
-     352, 288, 5, 35 }, */
+     352, 288, 35 }, */
 
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 5, 35 },
+    "pixel_capture_w320h240.yuv", 320, 240, 35 },
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "desktop1.320_180.yuv", 320, 180, 3, 35 }, */
+    "desktop1.320_180.yuv", 320, 180, 35 }, */
 
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 5, 35 },
+    "hantro_collage_w352h288.yuv", 352, 288, 35 },
 
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-     "paris_352_288_30.y4m", 352, 288, 5, 0 },
+     "paris_352_288_30.y4m", 352, 288, 0 },
      { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-     "desktop1.320_180.yuv", 320, 180, 3, 0 }, */
+     "desktop1.320_180.yuv", 320, 180, 0 }, */
 };
 
 std::ostream &operator<<(std::ostream &os,
@@ -703,8 +703,7 @@ std::ostream &operator<<(std::ostream &os,
   return os << "SubgopPsnrTestParams { sub_gop_config:" << test_arg.subgop_str
             << " source_file:" << test_arg.input_file
             << " frame_width:" << test_arg.frame_w
-            << " frame_height:" << test_arg.frame_h
-            << " cpu_used:" << test_arg.cpu_used
+            << " frame_height:" << test_arg.frame_h << " cpu_used:" << kCpuUsed
             << " lag_in_frames:" << test_arg.lag_in_frames << " }";
 }
 
@@ -749,7 +748,10 @@ class SubGopPSNRCheckTestLarge
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, test_params_.cpu_used);
+      encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       if (enable_subgop_)
         encoder->Control(AV1E_SET_SUBGOP_CONFIG_STR, test_params_.subgop_str);
     }
@@ -763,10 +765,9 @@ class SubGopPSNRCheckTestLarge
   unsigned int frame_num_;
 };
 
-// TODO(urvang): Temporarily disabled to measure total test time impact.
-TEST_P(SubGopPSNRCheckTestLarge, DISABLED_SubGopPSNRCheck) {
+TEST_P(SubGopPSNRCheckTestLarge, SubGopPSNRCheck) {
   std::unique_ptr<libaom_test::VideoSource> video;
-  const unsigned int kFrames = 100;
+  const unsigned int kFrames = 70;
   const double psnr_diff_thresh = 0.3;
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
@@ -802,7 +803,6 @@ typedef struct {
   const char *input_file;
   int frame_w;
   int frame_h;
-  int cpu_used;
   int lag_in_frames;
   int max_gf_interval;
 } SubGopSwitchTestParams;
@@ -812,30 +812,29 @@ std::ostream &operator<<(std::ostream &os,
   return os << "SubGopSwitchTestParams { sub_gop_config:" << test_arg.subgop_str
             << " source_file:" << test_arg.input_file
             << " frame_width:" << test_arg.frame_w
-            << " frame_height:" << test_arg.frame_h
-            << " cpu_used:" << test_arg.cpu_used
+            << " frame_height:" << test_arg.frame_h << " cpu_used:" << kCpuUsed
             << " lag_in_frames:" << test_arg.lag_in_frames
             << " max_gf_interval:" << test_arg.max_gf_interval << " }";
 }
 
 static const SubGopSwitchTestParams SubgopSwitchTestVectors[] = {
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "niklas_640_480_30.yuv",
-    640, 480, 5, 35, 16 },
+    640, 480, 35, 16 },
   /* TODO(sarahparker/debargha): Enable after adding default 32 subgop config.
    { subgop_config_str_preset_map[DEFAULT].preset_tag, "niklas_640_480_30.yuv",
-    640, 480, 5, 35, 32 },*/
+    640, 480, 35, 32 },*/
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv",
-    320, 180, 3, 35, 16 },
+    320, 180, 35, 16 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 5, 35, 16 },
+    "hantro_collage_w352h288.yuv", 352, 288, 35, 16 },
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 3, 35, 16 },
+    "pixel_capture_w320h240.yuv", 320, 240, 35, 16 },
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "paris_352_288_30.y4m", 352, 288, 3, 35, 16 },
+    "paris_352_288_30.y4m", 352, 288, 35, 16 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "screendata.y4m", 640,
-    480, 5, 0, 16 },
+    480, 0, 16 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "screendata.y4m", 640,
-    480, 5, 0, 32 },
+    480, 0, 32 },
 };
 
 using libaom_test::ACMRandom;
@@ -905,7 +904,7 @@ class SubGopSwitchingTestLarge
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
-      encoder->Control(AOME_SET_CPUUSED, test_params_.cpu_used);
+      encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
       if (rc_end_usage_ == AOM_Q) {
         encoder->Control(AOME_SET_QP, 210);
       }
