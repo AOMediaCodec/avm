@@ -258,28 +258,27 @@ TEST(Y4MHeaderTest, FullRangeHeader) {
   y4m_input_close(&y4m);
 }
 
-// TEST(Y4MHeaderTest, WriteStudioColorRange) {
-//  char buf[128];
-//  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
-//  EXPECT_GE(y4m_write_file_header(
-//                buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
-//                /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
-//                /*bit_depth=*/8, AOM_CR_STUDIO_RANGE),
-//            0);
-//  EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg\n", buf), 0);
-//}
-//
-// TEST(Y4MHeaderTest, WriteFullColorRange) {
-//  char buf[128];
-//  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
-//  EXPECT_GE(y4m_write_file_header(
-//                buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
-//                /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
-//                /*bit_depth=*/8, AOM_CR_FULL_RANGE),
-//            0);
-//  EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg XCOLORRANGE=FULL\n",
-//  buf),
-//            0);
-//}
+TEST(Y4MHeaderTest, WriteStudioColorRange) {
+  char buf[128];
+  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
+  EXPECT_GE(y4m_write_file_header(
+                buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
+                /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
+                /*bit_depth=*/8, AOM_CR_STUDIO_RANGE),
+            0);
+  EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg\n", buf), 0);
+}
+
+TEST(Y4MHeaderTest, WriteFullColorRange) {
+  char buf[128];
+  struct AvxRational framerate = { .numerator = 30, .denominator = 1 };
+  EXPECT_GE(y4m_write_file_header(
+                buf, /*len=*/128, /*width=*/4, /*height=*/5, &framerate,
+                /*monochrome=*/0, AOM_CSP_UNKNOWN, AOM_IMG_FMT_I420,
+                /*bit_depth=*/8, AOM_CR_FULL_RANGE),
+            0);
+  EXPECT_EQ(strcmp("YUV4MPEG2 W4 H5 F30:1 Ip C420jpeg XCOLORRANGE=FULL\n", buf),
+            0);
+}
 
 }  // namespace
