@@ -63,6 +63,7 @@ extern "C" const char subgop_config_str_asym[];
 extern "C" const char subgop_config_str_ld[];
 
 const int kCpuUsed = 5;
+const unsigned int kFrames = 70;
 
 typedef enum {
   DEFAULT,
@@ -638,7 +639,6 @@ class SubGopTestLarge
 };
 
 TEST_P(SubGopTestLarge, SubGopTest) {
-  const unsigned int kFrames = 100;
   if (!is_extension_y4m(subgop_test_params_.input_file)) {
     libaom_test::I420VideoSource video(
         subgop_test_params_.input_file, subgop_test_params_.frame_w,
@@ -770,7 +770,6 @@ class SubGopPSNRCheckTestLarge
 
 TEST_P(SubGopPSNRCheckTestLarge, SubGopPSNRCheck) {
   std::unique_ptr<libaom_test::VideoSource> video;
-  const unsigned int kFrames = 70;
   const double psnr_diff_thresh = 0.3;
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
@@ -970,8 +969,6 @@ class SubGopSwitchingTestLarge
 
 TEST_P(SubGopSwitchingTestLarge, SubGopSwitching) {
   std::unique_ptr<libaom_test::VideoSource> video;
-  const unsigned int kFrames = 175;
-
   if (is_extension_y4m(test_params_.input_file)) {
     video.reset(
         new libaom_test::Y4mVideoSource(test_params_.input_file, 0, kFrames));
