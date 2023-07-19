@@ -1111,8 +1111,12 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
 
   // Set showable frame.
   if (filter_frame_lookahead_idx >= 0) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    cpi->common.showable_frame = is_second_arf ||
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     cpi->common.showable_frame = num_frames_for_filtering == 1 ||
                                  is_second_arf ||
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                                  (cpi->oxcf.algo_cfg.enable_overlay == 0);
   }
 

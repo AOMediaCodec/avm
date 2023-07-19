@@ -1663,7 +1663,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   oxcf->ref_frm_cfg.enable_frame_output_order =
-      (tile_cfg->tile_columns > 1 || tile_cfg->tile_rows > 1)
+      (kf_cfg->enable_sframe || tool_cfg->error_resilient_mode)
           ? 0
           : extra_cfg->enable_frame_output_order;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
