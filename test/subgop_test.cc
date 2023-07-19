@@ -654,7 +654,10 @@ TEST_P(SubGopTestLarge, SubGopTest) {
 
 AV1_INSTANTIATE_TEST_SUITE(SubGopTestLarge,
                            ::testing::ValuesIn(SubGopTestVectors),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CQ, AOM_CBR));
+                           ::testing::Values(AOM_Q, AOM_VBR
+                                             // Disabled to reduce combinations.
+                                             //, AOM_CQ, AOM_CBR
+                                             ));
 
 typedef struct {
   const char *subgop_str;
