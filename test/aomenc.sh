@@ -207,13 +207,11 @@ aomenc_av1_webm_lag5_frames10() {
      [ "$(webm_io_available)" = "yes" ]; then
     local lag_total_frames=10
     local lag_frames=5
-    local frame_output_order=0
     local output="${AOM_TEST_OUTPUT_DIR}/av1_lag5_frames10.webm"
     aomenc $(yuv_raw_input) \
       $(aomenc_encode_test_fast_params) \
       --limit=${lag_total_frames} \
       --lag-in-frames=${lag_frames} \
-      --enable-frame-output-order=${frame_output_order} \
       --output="${output}" || return 1
 
     if [ ! -e "${output}" ]; then
