@@ -79,7 +79,9 @@ class AVxFirstPassEncoderThreadTest
   virtual void SetTileSize(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_SET_TILE_COLUMNS, tile_cols_);
     encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   }
 
   virtual void StatsPktHook(const aom_codec_cx_pkt_t *pkt) {
@@ -255,7 +257,9 @@ class AVxEncoderThreadTest
   virtual void SetTileSize(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_SET_TILE_COLUMNS, tile_cols_);
     encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   }
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
@@ -441,7 +445,9 @@ class AVxEncoderThreadLSTest : public AVxEncoderThreadTest {
   virtual void SetTileSize(libaom_test::Encoder *encoder) {
     encoder->Control(AV1E_SET_TILE_COLUMNS, tile_cols_);
     encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   }
 
   virtual void DoTestMaxThreads(::libaom_test::YUVVideoSource *video,

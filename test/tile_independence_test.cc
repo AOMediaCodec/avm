@@ -62,7 +62,9 @@ class TileIndependenceTest
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_TILE_COLUMNS, n_tile_cols_);
       encoder->Control(AV1E_SET_TILE_ROWS, n_tile_rows_);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       SetCpuUsed(encoder);
     } else if (video->frame() == 3) {
       encoder->Control(AV1E_SET_NUM_TG, n_tile_groups_);

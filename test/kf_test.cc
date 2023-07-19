@@ -151,7 +151,9 @@ class ForcedKeyTestLarge
       // override test default for tile columns if necessary.
       if (GET_PARAM(0) == &libaom_test::kAV1) {
         encoder->Control(AV1E_SET_TILE_COLUMNS, 6);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       }
 #endif
     }

@@ -125,7 +125,9 @@ class EndToEndTest
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_DEFAULT);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
