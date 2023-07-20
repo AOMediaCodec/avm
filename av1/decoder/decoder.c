@@ -682,7 +682,7 @@ int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
           ? 0
           : pbi->num_output_frames - 1;
 #else
-  const int out_frame_idx = pbi->num_output_frames - 1;
+  const size_t out_frame_idx = pbi->num_output_frames - 1;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   *frame = pbi->output_frames[out_frame_idx]->buf;
   return 0;
