@@ -127,7 +127,6 @@ class AV1NewEncodeDecodePerfTest
       encoder->Control(AOME_SET_CPUUSED, speed_);
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, 2);
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
     }
   }
 

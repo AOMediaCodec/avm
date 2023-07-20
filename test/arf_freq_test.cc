@@ -139,9 +139,6 @@ class ArfFreqTestLarge
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AOME_SET_CPUUSED, test_encode_param_.cpu_used);
       encoder->Control(AV1E_SET_MIN_GF_INTERVAL, min_arf_requested_);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);

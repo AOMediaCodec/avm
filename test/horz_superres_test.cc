@@ -132,9 +132,6 @@ class HorzSuperresEndToEndTest
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       // Set cpu-used = 8 for speed
       encoder->Control(AOME_SET_CPUUSED, 8);
@@ -240,9 +237,6 @@ class HorzSuperresFixedEndToEndTest
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       // Set cpu-used = 8 for speed
       encoder->Control(AOME_SET_CPUUSED, 8);
@@ -353,9 +347,6 @@ class HorzSuperresQThreshEndToEndTest
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
       encoder->Control(AV1E_SET_TILE_COLUMNS, 0);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       // Set cpu-used = 8 for speed
       encoder->Control(AOME_SET_CPUUSED, 8);

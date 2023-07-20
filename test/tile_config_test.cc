@@ -94,9 +94,6 @@ class UniformTileConfigTestLarge
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_TILE_COLUMNS, tile_config_param_.tile_cols);
       encoder->Control(AV1E_SET_TILE_ROWS, tile_config_param_.tile_rows);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       encoder->Control(AOME_SET_CPUUSED, 5);
       if (end_usage_check_ == AOM_Q) {
         encoder->Control(AOME_SET_QP, 210);
@@ -327,9 +324,6 @@ class TileGroupTestLarge
                        tile_group_config_params_.num_tile_cols);
       encoder->Control(AV1E_SET_TILE_ROWS,
                        tile_group_config_params_.num_tile_rows);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
   }
 
