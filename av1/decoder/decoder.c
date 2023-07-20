@@ -676,14 +676,14 @@ int av1_get_raw_frame(AV1Decoder *pbi, size_t index, YV12_BUFFER_CONFIG **sd,
 int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
-      pbi->common.seq_params.enable_frame_output_order) {
-    *frame = pbi->output_frames[0]->buf;
-  } else {
-    *frame = pbi->output_frames[pbi->num_output_frames - 1]->buf;
-  }
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  *frame = pbi->output_frames[pbi->num_output_frames - 1]->buf;
+  const int out_frame_idx =
+      (pbi->common.seq_params.order_hint_info.enable_order_hint &&
+       pbi->common.seq_params.enable_frame_output_order)
+          ? 0
+          : pbi->num_output_frames - 1;
+#else
+  const int out_frame_idx = pbi->num_output_frames - 1;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  *frame = pbi->output_frames[out_frame_idx]->buf;
   return 0;
 }

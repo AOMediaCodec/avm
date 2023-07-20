@@ -1662,8 +1662,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // Disable the implicit derivation of frame output order
+  // when order_hint is not available, S-frame is used or error resilience mode
+  // is used.
   oxcf->ref_frm_cfg.enable_frame_output_order =
-      (kf_cfg->enable_sframe || tool_cfg->error_resilient_mode)
+      (!tool_cfg->enable_order_hint || kf_cfg->enable_sframe ||
+       tool_cfg->error_resilient_mode)
           ? 0
           : extra_cfg->enable_frame_output_order;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT

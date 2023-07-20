@@ -3347,18 +3347,18 @@ static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
 // frame. An exception can be made for a forward keyframe since it has no
 // previous dependencies.
 static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
+  if (!cm->show_existing_frame) return 0;
+
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  return (
-      (cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
-       cm->current_frame.frame_type == KEY_FRAME &&
-       !cm->features.error_resilient_mode) ||
-      (!cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
-       (!cm->features.error_resilient_mode ||
-        cm->current_frame.frame_type == KEY_FRAME)));
-#else
-  return cm->show_existing_frame && (!cm->features.error_resilient_mode ||
-                                     cm->current_frame.frame_type == KEY_FRAME);
+  // When enable_frame_output_order == 1, show_existing_frame can be equal to 1
+  // only for a forward key frame
+  if (cm->seq_params.enable_frame_output_order)
+    return (!cm->features.error_resilient_mode &&
+            cm->current_frame.frame_type == KEY_FRAME);
+  else
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    return (!cm->features.error_resilient_mode ||
+            cm->current_frame.frame_type == KEY_FRAME);
 }
 
 // Get index into the 'cpi->mbmi_ext_info.frame_base' array for the given
