@@ -3307,7 +3307,6 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
   if (has_second_drl(mbmi)) {
     return AOMMIN(max_drl_bits + 1, mbmi_ext->ref_mv_count[ref_frame[ref_idx]]);
   }
-  assert(ref_idx == 0);
 #endif
 
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
