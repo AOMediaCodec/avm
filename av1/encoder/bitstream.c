@@ -2332,11 +2332,11 @@ static AOM_INLINE void write_modes_sb(
     }
   }
 #if CONFIG_CNN_GUIDED_QUADTREE
-  if (cm->use_quadtree && !cm->postcnn_quad_info.is_write) {
+  if (cm->use_cnn[0] && !cm->postcnn_quad_info.is_write) {
     QUADInfo *qi = (QUADInfo *)&cm->postcnn_quad_info;
     int superres_denom = cm->superres_scale_denominator;
     const int is_intra_only = frame_is_intra_only(cm);
-    write_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_index,
+    write_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_indices[0],
                           superres_denom, is_intra_only, qi, w);
     qi->is_write = 1;
   }
@@ -3114,15 +3114,10 @@ static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   }
 #if CONFIG_CNN_GUIDED_QUADTREE
 
-  aom_wb_write_bit(wb, cm->use_quadtree);
-
-  // ��splitҲ������д��ȥ
-  if (cm->use_quadtree) {
+  if (cm->use_cnn[0]) {
     // printf("writing pamrater\n");
     aom_wb_write_bit(wb, cm->use_quad_level);
-    /*
-    ������lengthת��&λ���ȵĶ����� ����
-    */
+    // Length of unit_info and split_info.
     int flag;
     int unit_length = cm->postcnn_quad_info.unit_info_length;
     int split_length = cm->postcnn_quad_info.split_info_length;

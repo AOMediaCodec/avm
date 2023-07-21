@@ -2316,9 +2316,6 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   memset(cm->use_cnn, 0, sizeof(cm->use_cnn));
   memset(cm->cnn_indices, 0, sizeof(cm->cnn_indices));
 #endif  // CONFIG_CNN_RESTORATION
-#if CONFIG_CNN_GUIDED_QUADTREE
-  cm->use_quadtree = 0;
-#endif  // CONFIG_CNN_GUIDED_QUADTREE
 
   if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
@@ -2397,14 +2394,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
           cnn_errors[0] < res_errors[0] && cnn_errors[0] < dgd_errors[0] &&
           cnn_rdcosts < cm->lr_y_rdcost) {
         // Enable CNN for Y and copy CNN restored Y plane.
-        cm->use_quadtree = 1;
         cm->postcnn_quad_info.is_write = 0;
         cm->use_cnn[0] = 1;
         cm->cnn_indices[0] = cnn_indices[0];
-        cm->cnn_index = cnn_indices[0];
         aom_yv12_copy_y(&cpi->postcnn_buffer, &cm->cur_frame->buf);
       } else {
-        cm->use_quadtree = 0;
         aom_yv12_copy_y(&cpi->precnn_buffer, &cm->cur_frame->buf);
       }
       if (av1_allow_cnn_for_plane(cm, AOM_PLANE_U) && num_planes > 1 &&

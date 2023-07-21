@@ -1901,11 +1901,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     }
 
 #if CONFIG_CNN_GUIDED_QUADTREE
-    if (cm->use_quadtree && !cm->postcnn_quad_info.is_write) {
+    if (cm->use_cnn[0] && !cm->postcnn_quad_info.is_write) {
       cm->postcnn_quad_info.is_write = 1;
       int superres_denom = cm->superres_scale_denominator;
       const int is_intra_only = frame_is_intra_only(cm);
-      read_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_index,
+      read_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_indices[0],
                            superres_denom, is_intra_only,
                            &cm->postcnn_quad_info, reader);
     }
@@ -2148,10 +2148,7 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   // cm->current_frame.frame_number); if (cm->current_frame.frame_number ==
   // 2)//2
   //    printf("2 frame;\n");
-  cm->use_quadtree = aom_rb_read_bit(rb);
-
-  if (cm->use_quadtree) {
-    cm->cnn_index = cm->cnn_indices[0];
+  if (cm->use_cnn[0]) {
     cm->use_quad_level = aom_rb_read_bit(rb);
     cm->postcnn_quad_info.unit_size = 512 >> cm->use_quad_level;
     cm->postcnn_quad_info.is_write = false;
@@ -7118,7 +7115,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         !use_ccso &&
 #endif
 #if CONFIG_CNN_GUIDED_QUADTREE
-        !cm->use_quadtree &&
+        !cm->use_cnn[0] &&
 #endif
         !do_cdef && !do_superres;
 
@@ -7142,11 +7139,10 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_CNN_RESTORATION
 #if CONFIG_CNN_GUIDED_QUADTREE
-      if (cm->use_quadtree) {
+      if (cm->use_cnn[0]) {
         // printf("using quadtree\n");
-        av1_restore_cnn_quadtree_decode_tflite(cm, pbi->num_workers,
-                                               cm->use_quadtree, cm->use_cnn,
-                                               cm->cnn_indices);
+        av1_restore_cnn_quadtree_decode_tflite(
+            cm, pbi->num_workers, cm->use_cnn[0], cm->use_cnn, cm->cnn_indices);
       }
 #else  // CONFIG_CNN_GUIDED_QUADTREE
         av1_restore_cnn_tflite(cm, pbi->num_workers, cm->use_cnn,
@@ -7180,11 +7176,10 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       // loop_restoration_filter.
 #if CONFIG_CNN_RESTORATION
 #if CONFIG_CNN_GUIDED_QUADTREE
-      if (cm->use_quadtree) {
+      if (cm->use_cnn[0]) {
         printf("using quadtree\n");
-        av1_restore_cnn_quadtree_decode_tflite(cm, pbi->num_workers,
-                                               cm->use_quadtree, cm->use_cnn,
-                                               cm->cnn_indices);
+        av1_restore_cnn_quadtree_decode_tflite(
+            cm, pbi->num_workers, cm->use_cnn[0], cm->use_cnn, cm->cnn_indices);
       }
 #else  // CONFIG_CNN_GUIDED_QUADTREE
         av1_restore_cnn_tflite(cm, pbi->num_workers, cm->use_cnn,
