@@ -3126,11 +3126,12 @@ static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
     int flag;
     int unit_length = cm->postcnn_quad_info.unit_info_length;
     int split_length = cm->postcnn_quad_info.split_info_length;
-    // TODO(now): Find max unit info length and send only required number of
-    // bits. max_unit_info_len = ceil(width / (unit_length / 2)) * ceil(height /
-    // (unit_length / 2));
+    const int unit_info_len_bits = quad_tree_get_unit_info_bits(
+        cm->superres_upscaled_width, cm->superres_upscaled_height,
+        cm->postcnn_quad_info.unit_size);
+    assert(unit_length < (1 << unit_info_len_bits));
     flag = 1;
-    for (int i = 8; i >= 0; i--) {
+    for (int i = 0; i < unit_info_len_bits; ++i) {
       if (unit_length & flag) {
         aom_wb_write_bit(wb, 1);
       } else {
@@ -3139,11 +3140,12 @@ static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
       flag <<= 1;
     }
 
-    // TODO(now): Find max split info length and send only required number of
-    // bits. max_split_info_len = ceil(width / unit_length) * 2 * ceil(height /
-    // unit_length) * 2;
+    const int split_info_len_bits = quad_tree_get_split_info_bits(
+        cm->superres_upscaled_width, cm->superres_upscaled_height,
+        cm->postcnn_quad_info.unit_size);
+    assert(split_length < (1 << split_info_len_bits));
     flag = 1;
-    for (int i = 7; i >= 0; i--) {
+    for (int i = 0; i < split_info_len_bits; ++i) {
       if (split_length & flag) {
         aom_wb_write_bit(wb, 1);
       } else {

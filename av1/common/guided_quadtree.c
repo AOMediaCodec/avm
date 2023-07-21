@@ -446,4 +446,24 @@ void quad_copy(QUADInfo *cur_quad_info, QUADInfo *postcnn_quad_info) {
     postcnn_quad_info->unit_info[i].xqd[1] = cur_quad_info->unit_info[i].xqd[1];
   }
 }
+
+// Returns (int)ceil(x / y),
+#define DIVIDE_WITH_CEILING(x, y) (((x) + (y)-1) / (y))
+
+int quad_tree_get_unit_info_bits(int width, int height, int unit_length) {
+  const int smallest_unit_len = unit_length / 2;  // In case of split.
+  const int max_units_wide = DIVIDE_WITH_CEILING(width, smallest_unit_len);
+  const int max_units_high = DIVIDE_WITH_CEILING(height, smallest_unit_len);
+  const int max_units_total = max_units_wide * max_units_high;
+  return get_msb(max_units_total) + 1;
+}
+
+int quad_tree_get_split_info_bits(int width, int height, int unit_length) {
+  const int num_split_info_wide = DIVIDE_WITH_CEILING(width, unit_length);
+  const int num_split_info_high = DIVIDE_WITH_CEILING(height, unit_length);
+  // 2 bits signaled for each split info.
+  const int num_split_info_total =
+      num_split_info_wide * num_split_info_high * 2;
+  return get_msb(num_split_info_total) + 1;
+}
 #endif  // CONFIG_CNN_GUIDED_QUADTREE

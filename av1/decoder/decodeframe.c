@@ -2156,18 +2156,24 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
     cm->postcnn_quad_info.unit_size = 512 >> cm->use_quad_level;
     cm->postcnn_quad_info.is_write = false;
 
+    const int unit_info_len_bits = quad_tree_get_unit_info_bits(
+        cm->superres_upscaled_width, cm->superres_upscaled_height,
+        cm->postcnn_quad_info.unit_size);
     int flag = 1;
     int unit_info_length = 0;
-    for (int i = 8; i >= 0; i--) {
+    for (int i = 0; i < unit_info_len_bits; ++i) {
       if (aom_rb_read_bit(rb)) {
         unit_info_length += flag;
       }
       flag <<= 1;
     }
 
+    const int split_info_len_bits = quad_tree_get_split_info_bits(
+        cm->superres_upscaled_width, cm->superres_upscaled_height,
+        cm->postcnn_quad_info.unit_size);
     flag = 1;
     int split_info_length = 0;
-    for (int i = 7; i >= 0; i--) {
+    for (int i = 0; i < split_info_len_bits; ++i) {
       if (aom_rb_read_bit(rb)) {
         split_info_length += flag;
       }
