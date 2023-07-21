@@ -2158,7 +2158,7 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
 
     int flag = 1;
     int unit_info_length = 0;
-    for (int i = 7; i >= 0; i--) {
+    for (int i = 8; i >= 0; i--) {
       if (aom_rb_read_bit(rb)) {
         unit_info_length += flag;
       }
