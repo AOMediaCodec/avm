@@ -813,30 +813,32 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
 
   // Special case for sub 8x8 chroma cases, to prevent referring to chroma
   // pixels outside current tile.
-  if (xd->is_chroma_ref && av1_num_planes(cm) > 1) {
-    const struct macroblockd_plane *const pd = &xd->plane[1];
+  if (!cm->seq_params.enable_sdp || !frame_is_intra_only(cm)) {
+    if (xd->is_chroma_ref && av1_num_planes(cm) > 1) {
+      const struct macroblockd_plane *const pd = &xd->plane[1];
 #if CONFIG_EXT_RECUR_PARTITIONS
-    if (xd->mi && xd->mi[0]) {
-      const CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-      const int src_top_edge_chroma =
-          chroma_ref_info->mi_row_chroma_base * MI_SIZE * SCALE_PX_TO_MV +
-          dv.row;
-      const int src_left_edge_chroma =
-          chroma_ref_info->mi_col_chroma_base * MI_SIZE * SCALE_PX_TO_MV +
-          dv.col;
-      if (bw < 8 && pd->subsampling_x)
-        if (src_left_edge_chroma < tile_left_edge) return 0;
-      if (bh < 8 && pd->subsampling_y)
-        if (src_top_edge_chroma < tile_top_edge) return 0;
-    } else {
+      if (xd->mi && xd->mi[0]) {
+        const CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
+        const int src_left_edge_chroma =
+            chroma_ref_info->mi_col_chroma_base * MI_SIZE * SCALE_PX_TO_MV +
+            dv.col;
+        const int src_top_edge_chroma =
+            chroma_ref_info->mi_row_chroma_base * MI_SIZE * SCALE_PX_TO_MV +
+            dv.row;
+        if (bw < 8 && pd->subsampling_x)
+          if (src_left_edge_chroma < tile_left_edge) return 0;
+        if (bh < 8 && pd->subsampling_y)
+          if (src_top_edge_chroma < tile_top_edge) return 0;
+      } else {
 #endif
-      if (bw < 8 && pd->subsampling_x)
-        if (src_left_edge < tile_left_edge + 4 * SCALE_PX_TO_MV) return 0;
-      if (bh < 8 && pd->subsampling_y)
-        if (src_top_edge < tile_top_edge + 4 * SCALE_PX_TO_MV) return 0;
+        if (bw < 8 && pd->subsampling_x)
+          if (src_left_edge < tile_left_edge + 4 * SCALE_PX_TO_MV) return 0;
+        if (bh < 8 && pd->subsampling_y)
+          if (src_top_edge < tile_top_edge + 4 * SCALE_PX_TO_MV) return 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
+      }
+#endif
     }
-#endif
   }
 
 #if CONFIG_IBC_SR_EXT
