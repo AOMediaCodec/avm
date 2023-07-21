@@ -3854,6 +3854,13 @@ static void highbd_dr_32bit_z2_8x8_tiling_idif_avx2(
   __m128i x_pred[8];
   __m128i y_pred[8];
   __m128i _y_pred[8];
+
+  for (int i = 0; i < 8; i++) {
+    x_pred[i] = _mm_setzero_si128();
+    y_pred[i] = _mm_setzero_si128();
+    _y_pred[i] = _mm_setzero_si128();
+  }
+
   int min_h = (H == 4) ? 4 : 8;
   int min_w = (W == 4) ? 4 : 8;
 
