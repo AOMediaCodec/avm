@@ -259,90 +259,188 @@ struct av1_extracfg {
 // Default config
 const char subgop_config_str_def[] =
     "16:2:16F1P1/8F2P1^-1/4U3P-2^1^-1/2U4P1^-3^-2^-1/"
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "1V5P1^-2^-4^-3^-1/3V5P4^5^1^-3^-2^-1/6U4P3^5^5^1^-2^4^-1/"
+    "5V5P3^5^4^1^-4^-2^-1/7V5P4^5^5^1^-2^3^-1/8R2P5^4^3^1^2^5^-1/"
+    "12U3P2^5^3^1^5^4^-1/10U4P2^5^5^1^-3^4^-1/9V5P2^5^4^1^-4^-3^-1/"
+    "11V5P4^5^5^1^-3^2^-1/14U4P3^5^2^1^5^4^-1/13V5P3^5^5^1^-4^4^-1/"
+    "15V5P4^5^4^1^5^3^-1/16R1P5^4^5^1^3^5^1,"
+#else
     "1V5P1^-2^-4^-3^-1/2S/3V5P4^5^1^-3^-2^-1/4S/6U4P3^5^5^1^-2^4^-1/"
     "5V5P3^5^4^1^-4^-2^-1/6S/7V5P4^5^5^1^-2^3^-1/8R2P5^4^3^1^2^5^-1/"
     "12U3P2^5^3^1^5^4^-1/10U4P2^5^5^1^-3^4^-1/9V5P2^5^4^1^-4^-3^-1/10S/"
     "11V5P4^5^5^1^-3^2^-1/12S/14U4P3^5^2^1^5^4^-1/13V5P3^5^5^1^-4^4^-1/"
     "14S/15V5P4^5^4^1^5^3^-1/16R1P5^4^5^1^3^5^1,"
+#endif
 
     "16:0:16F1P5^4^3^1^1^1^5/8F2P5^4^3^1^1^5^-1/"
     "4U3P5^4^5^1^-2^1^-1/2U4P5^4^1^1^-3^-2^-1/"
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "1V5P5^4^1^1^-4^-3^-1/3V5P4^5^1^1^-3^-2^-1/6U4P3^5^4^1^-2^1^-1/"
+    "5V5P3^5^1^1^-4^-2^-1/7V5P4^5^3^1^-2^1^-1/8R2P5^4^5^1^2^1^-1/"
+    "12U3P2^5^5^1^1^4^-1/10U4P2^5^4^1^-3^1^-1/9V5P2^5^1^1^-4^-3^-1/"
+    "11V5P4^5^2^1^-3^1^-1/14U4P3^5^5^1^1^4^-1/13V5P3^5^4^1^-4^1^-1/"
+    "15V5P4^5^5^1^1^3^-1/16R1P5^4^5^1^3^5^1,";
+#else
     "1V5P5^4^1^1^-4^-3^-1/2S/3V5P4^5^1^1^-3^-2^-1/4S/6U4P3^5^4^1^-2^1^-1/"
     "5V5P3^5^1^1^-4^-2^-1/6S/7V5P4^5^3^1^-2^1^-1/8R2P5^4^5^1^2^1^-1/"
     "12U3P2^5^5^1^1^4^-1/10U4P2^5^4^1^-3^1^-1/9V5P2^5^1^1^-4^-3^-1/10S/"
     "11V5P4^5^2^1^-3^1^-1/12S/14U4P3^5^5^1^1^4^-1/13V5P3^5^4^1^-4^1^-1/"
     "14S/15V5P4^5^5^1^1^3^-1/16R1P5^4^5^1^3^5^1,";
+#endif
 
 // An enhanced config where the last subgop uses a shorter dist to arf
 const char subgop_config_str_enh[] =
-    // TODO(any): Uncomment when existing issues are fixed
+// TODO(any): Uncomment when existing issues are fixed
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "6:0:6U1/4U2/2U3/1V4/3V4/5V4,"
+    "6:1:5U1/3U2/1V3/2V3/4V3/6V3,"
+#else
     "6:0:6U1/4U2/2U3/1V4/2S/3V4/4S/5V4/6S,"
     "6:1:5U1/3U2/1V3/2V3/3S/4V3/5S/6V3,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "8:0:8F1/4U2/2U3/1V4/3V4/6U3/5V4/7V4/8R1,"
+    "8:1:7F1/3U2/1V4/2V4/5U3/4V4/6V4/7R1/8V4,"
+#else
     "8:0:8F1/4U2/2U3/1V4/2S/3V4/4S/6U3/5V4/6S/7V4/8R1,"
     "8:1:7F1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7R1/8V4,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "10:0:10F1/7U2/3U3/1V5/2V5/5U4/4V5/6V5/9U4/8V5/10R1,"
+    "10:1:8F1/4U2/2U3/1V4/3V4/6U3/5V4/7V4/8R1/10U4/9V5,"
+#else
     "10:0:10F1/7U2/3U3/1V5/2V5/3S/5U4/4V5/5S/6V5/7S/9U4/8V5/9S/10R1,"
     "10:1:8F1/4U2/2U3/1V4/2S/3V4/4S/6U3/5V4/6S/7V4/8R1/10U4/9V5/10S,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "11:0:11F1/7U2/3U3/1V5/2V5/5U4/4V5/6V5/9U4/8V5/10V5/11R1,"
+    "11:1:9F1/4U2/2U3/1V4/3V4/7U3/5V4/6V5/8V5/9R1/11U4/10V5,"
+#else
     "11:0:11F1/7U2/3U3/1V5/2V5/3S/5U4/4V5/5S/6V5/7S/9U4/8V5/9S/10V5/11R1,"
     "11:1:9F1/4U2/2U3/1V4/2S/3V4/4S/7U3/5V4/6V5/7S/8V5/9R1/11U4/10V5/11S,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "12:0:12F1/7U2/3U3/1V5/2V5/5U4/4V5/"
+    "6V5/9U3/8V5/11U4/10V5/12R1,"
+#else
     "12:0:12F1/7U2/3U3/1V5/2V5/3S/5U4/4V5/"
     "5S/6V5/7S/9U3/8V5/9S/11U4/10V5/11S/12R1,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "12:1:10F1/7U2/3U3/1V5/2V5/5U4/4V5/"
+    "6V5/9U4/8V5/10R1/12U4/11V5,"
+#else
     "12:1:10F1/7U2/3U3/1V5/2V5/3S/5U4/4V5/"
     "5S/6V5/7S/9U4/8V5/9S/10R1/12U4/11V5/12S,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "13:0:13F1/7F2/3U3/1V5/2V5/5U4/4V5/6V5/7R2/"
+    "10U3/8V5/9V5/12U4/11V5/13R1,"
+#else
     "13:0:13F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/5S/6V5/7R2/"
     "10U3/8V5/9V5/10S/12U4/11V5/12S/13R1,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "13:1:10F1/6F2/3U3/1V5/2V5/5U4/4V5/6R2/"
+    "8U4/7V5/9V5/10R1/12U4/11V5/13V5,"
+#else
     "13:1:10F1/6F2/3U3/1V5/2V5/3S/5U4/4V5/5S/6R2/"
     "8U4/7V5/8S/9V5/10R1/12U4/11V5/12S/13V5,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "14:0:14F1/7F2/3U3/1V5/2V5/5U4/4V5/6V5/7R2/"
+    "10U3/8V5/9V5/12U4/11V5/13V5/14R1,"
+#else
     "14:0:14F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/5S/6V5/7R2/"
     "10U3/8V5/9V5/10S/12U4/11V5/12S/13V5/14R1,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "14:1:11F1/7F2/3U3/1V5/2V5/5U4/4V5/6V5/7R2/"
+    "9U4/8V5/10V5/11R1/13U4/12V5/14V5,"
+#else
     "14:1:11F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/5S/6V5/7R2/"
     "9U4/8V5/9S/10V5/11R1/13U4/12V5/13S/14V5,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "15:0:15F1/7F2/3U3/1V5/2V5/5U4/4V5/6V5/7R2/"
+    "11U3/9U4/8V5/10V5/13U4/12V5/14V5/15R1,"
+#else
     "15:0:15F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/5S/6V5/7R2/"
     "11U3/9U4/8V5/9S/10V5/11S/13U4/12V5/13S/14V5/15R1,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "15:1:12F1/7F2/3U3/1V5/2V5/5U4/4V5/6V5/7R2/"
+    "10U3/8V5/9V5/11V5/12R1/15U4/13V5/14V5,"
+#else
     "15:1:12F1/7F2/3U3/1V5/2V5/3S/5U4/4V5/5S/6V5/7R2/"
     "10U3/8V5/9V5/10S/11V5/12R1/15U4/13V5/14V5/15S,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "16:0:16F1/8F2/4U3/2U4/1V5/3V5/6U4/5V5/7V5/8R2/"
+    "12U3/10U4/9V5/11V5/14U4/13V5/15V5/16R1,"
+#else
     "16:0:16F1/8F2/4U3/2U4/1V5/2S/3V5/4S/6U4/5V5/6S/7V5/8R2/"
     "12U3/10U4/9V5/10S/11V5/12S/14U4/13V5/14S/15V5/16R1,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "16:1:13F1/7F2/4U3/2U4/1V5/3V5/5V4/6V5/7R2/"
+    "10U3/8V4/9V5/11V4/12V5/13R1/16U4/14V4/15V5";
+#else
     "16:1:13F1/7F2/4U3/2U4/1V5/2S/3V5/4S/5V4/6V5/7R2/"
     "10U3/8V4/9V5/10S/11V4/12V5/13R1/16U4/14V4/15V5/16S";
+#endif
 
 // A config that honors temporally scalable prediction structure, i.e.
 // no frame is coded with references at higher pyramid depths.
 const char subgop_config_str_ts[] =
     "16:0:16F1P1^1/8F2P1^1^2^-1/4U3P1^1^2^-2^-1/2U4P1^1^-3^-2^-1/"
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "1V5P1^1^-4^-3^-2^-1/3V5P1^5^4^-3^-2^-1/6U4P1^3^4^-2^-1/"
+    "5V5P1^4^5^3^-4^-2^-1/7V5P1^3^5^4^-2^-1/8R2P1^2^-1/12U3P1^3^2^-1/"
+    "10U4P1^3^4^2^-3^-1/9V5P1^3^4^2^-4^-3^-1/11V5P1^2^4^5^-3^-1/"
+    "14U4P1^2^4^3^-1/13V5P1^2^4^5^3^-4^-1/15V5P1^2^3^4^5^-1/16R1P1^1,"
+#else
     "1V5P1^1^-4^-3^-2^-1/2S/3V5P1^5^4^-3^-2^-1/4S/6U4P1^3^4^-2^-1/"
     "5V5P1^4^5^3^-4^-2^-1/6S/7V5P1^3^5^4^-2^-1/8R2P1^2^-1/12U3P1^3^2^-1/"
     "10U4P1^3^4^2^-3^-1/9V5P1^3^4^2^-4^-3^-1/10S/11V5P1^2^4^5^-3^-1/12S/"
     "14U4P1^2^4^3^-1/13V5P1^2^4^5^3^-4^-1/14S/15V5P1^2^3^4^5^-1/16R1P1^1,"
+#endif
 
     "16:1:14F1P1^1/7F2P1^1^2^-1/4U3P1^1^2^-2^-1/2U4P1^1^-3^-2^-1/"
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "1V5P1^1^-4^-3^-2^-1/3V5P1^5^4^-3^-2^-1/6U4P1^3^4^-2^-1/"
+    "5V5P1^4^5^3^-4^-2^-1/7R2P1^2^-1/11U3P1^3^2^-1/9U4P1^3^4^2^-3^-1/"
+    "8V5P1^3^4^2^-4^-3^-1/10V5P1^2^4^5^-3^-1/13U4P1^2^4^3^-1/"
+    "12V5P1^2^4^5^3^-4^-1/14R1P1^1/16U4P1^1^2^3^4/15V5P1^1^2^3^4^-4^5";
+#else
     "1V5P1^1^-4^-3^-2^-1/2S/3V5P1^5^4^-3^-2^-1/4S/6U4P1^3^4^-2^-1/"
     "5V5P1^4^5^3^-4^-2^-1/6S/7R2P1^2^-1/11U3P1^3^2^-1/9U4P1^3^4^2^-3^-1/"
     "8V5P1^3^4^2^-4^-3^-1/9S/10V5P1^2^4^5^-3^-1/11S/13U4P1^2^4^3^-1/"
     "12V5P1^2^4^5^3^-4^-1/13S/14R1P1^1/16U4P1^1^2^3^4/15V5P1^1^2^3^4^-4^5/16S";
+#endif
 
 // An asymmetrical config where the hierarchical frames are not exactly
 // dyadic, but slightly skewed.
 const char subgop_config_str_asym[] =
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "16:0:16F1/10F2/5U3/3U4/1V5/2V5/"
+    "4V5/8U4/6V5/7V5/9V5/10R2/"
+    "13U3/11V5/12V5/14V5/15V5/16R1,"
+#else
     "16:0:16F1/10F2/5U3/3U4/1V5/2V5/3S/"
     "4V5/5S/8U4/6V5/7V5/8S/9V5/10R2/"
     "13U3/11V5/12V5/13S/14V5/15V5/16R1,"
-
+#endif
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    "16:1:13F1/7F2/4U3/2U4/1V5/3V5/"
+    "5V4/6V5/7R2/10U3/8V4/9V5/11V4/12V5/"
+    "13R1/16U4/14V4/15V5";
+#else
     "16:1:13F1/7F2/4U3/2U4/1V5/2S/3V5/4S/"
     "5V4/6V5/7R2/10U3/8V4/9V5/10S/11V4/12V5/"
     "13R1/16U4/14V4/15V5/16S";
+#endif
 
 // low delay config without references
 const char subgop_config_str_ld[] =
@@ -470,7 +568,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,        // enable extended partitions
 #endif
 #else
-  0,                        // disable ML based partition speed up features
+  0,  // disable ML based partition speed up features
 #endif
   1,  // enable rectangular partitions
   1,  // enable ab shape partitions
@@ -546,7 +644,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable_warp_delta at sequence level
   1,  // enable_warp_extend at sequence level
 #else
-  1,                        // allow_warped_motion at frame level
+  1,  // allow_warped_motion at frame level
 #endif                     // CONFIG_EXTENDED_WARP_PREDICTION
   1,                       // enable filter intra at sequence level
   1,                       // enable smooth intra modes usage for sequence

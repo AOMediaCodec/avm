@@ -34,18 +34,38 @@ static void image2yuvconfig_upshift(aom_image_t *hbd_img,
 #define MAX_SUBGOP_CODES 3
 
 static const char *subgop_config_str_nondef[] = {
-  // enh, subgop size = 4
+// enh, subgop size = 4
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  "4:0:4U1/2U2/1V3/3V3,"
+  "4:1:3U1/2U2/1V3/4V3,"
+#else
   "4:0:4U1/2U2/1V3/2S/3V3/4S,"
   "4:1:3U1/2U2/1V3/2S/3S/4V3,"
-  // enh, subgop size = 5
+#endif
+// enh, subgop size = 5
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  "5:0:5U1/3U2/1V3/2V3/4V3,"
+  "5:1:4U1/2U2/1V3/3V3/5V3,"
+#else
   "5:0:5U1/3U2/1V3/2V3/3S/4V3/5S,"
   "5:1:4U1/2U2/1V3/2S/3V3/4S/5V3,"
-  // enh, subgop size = 7
+#endif
+// enh, subgop size = 7
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  "7:0:7U1/3U2/1V4/2V4/5U3/4V4/6V4,"
+  "7:1:6U1/3U2/2U3/1V4/5U3/4V4/7V4,"
+#else
   "7:0:7U1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7S,"
   "7:1:6U1/3U2/2U3/1V4/2S/3S/5U3/4V4/5S/6S/7V4,"
-  // enh, subgop size = 9
+#endif
+// enh, subgop size = 9
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  "9:0:9F1/4U2/2U3/1V4/3V4/7U3/5V4/6V5/8V5/9R1,"
+  "9:1:7F1/3U2/1V4/2V4/5U3/4V4/6V4/7R1/9U3/8V4,",
+#else
   "9:0:9F1/4U2/2U3/1V4/2S/3V4/4S/7U3/5V4/6V5/7S/8V5/9R1,"
   "9:1:7F1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7R1/9U3/8V4/9S,",
+#endif
 };
 
 namespace {
