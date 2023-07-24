@@ -34,38 +34,18 @@ static void image2yuvconfig_upshift(aom_image_t *hbd_img,
 #define MAX_SUBGOP_CODES 3
 
 static const char *subgop_config_str_nondef[] = {
-// enh, subgop size = 4
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  "4:0:4U1/2U2/1V3/3V3,"
-  "4:1:3U1/2U2/1V3/4V3,"
-#else
+  // enh, subgop size = 4
   "4:0:4U1/2U2/1V3/2S/3V3/4S,"
   "4:1:3U1/2U2/1V3/2S/3S/4V3,"
-#endif
-// enh, subgop size = 5
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  "5:0:5U1/3U2/1V3/2V3/4V3,"
-  "5:1:4U1/2U2/1V3/3V3/5V3,"
-#else
+  // enh, subgop size = 5
   "5:0:5U1/3U2/1V3/2V3/3S/4V3/5S,"
   "5:1:4U1/2U2/1V3/2S/3V3/4S/5V3,"
-#endif
-// enh, subgop size = 7
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  "7:0:7U1/3U2/1V4/2V4/5U3/4V4/6V4,"
-  "7:1:6U1/3U2/2U3/1V4/5U3/4V4/7V4,"
-#else
+  // enh, subgop size = 7
   "7:0:7U1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7S,"
   "7:1:6U1/3U2/2U3/1V4/2S/3S/5U3/4V4/5S/6S/7V4,"
-#endif
-// enh, subgop size = 9
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  "9:0:9F1/4U2/2U3/1V4/3V4/7U3/5V4/6V5/8V5/9R1,"
-  "9:1:7F1/3U2/1V4/2V4/5U3/4V4/6V4/7R1/9U3/8V4,",
-#else
+  // enh, subgop size = 9
   "9:0:9F1/4U2/2U3/1V4/2S/3V4/4S/7U3/5V4/6V5/7S/8V5/9R1,"
   "9:1:7F1/3U2/1V4/2V4/3S/5U3/4V4/5S/6V4/7R1/9U3/8V4/9S,",
-#endif
 };
 
 namespace {
@@ -441,12 +421,18 @@ class SubGopTestLarge
   // Validates frametype(along with temporal filtering), frame coding order
   bool ValidateSubgopFrametype() {
     for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
-      EXPECT_EQ(subgop_cfg_ref_->step[idx].disp_frame_idx,
-                subgop_cfg_test_.step[idx].disp_frame_idx)
-          << "Error:display_index doesn't match";
-      EXPECT_EQ(subgop_cfg_ref_->step[idx].type_code,
-                subgop_cfg_test_.step[idx].type_code)
-          << "Error:frame type doesn't match";
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        EXPECT_EQ(subgop_cfg_ref_->step[idx].disp_frame_idx,
+                  subgop_cfg_test_.step[idx].disp_frame_idx)
+            << "Error:display_index doesn't match";
+        EXPECT_EQ(subgop_cfg_ref_->step[idx].type_code,
+                  subgop_cfg_test_.step[idx].type_code)
+            << "Error:frame type doesn't match";
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     return 1;
   }
@@ -459,12 +445,18 @@ class SubGopTestLarge
         max_pyramid_level = subgop_cfg_ref_->step[idx].pyr_level;
     }
     for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
-      int8_t ref_pyramid_level =
-          (subgop_cfg_ref_->step[idx].pyr_level == max_pyramid_level)
-              ? MAX_ARF_LAYERS
-              : subgop_cfg_ref_->step[idx].pyr_level;
-      EXPECT_EQ(subgop_cfg_test_.step[idx].pyr_level, ref_pyramid_level)
-          << "Error:pyramid level doesn't match";
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        int8_t ref_pyramid_level =
+            (subgop_cfg_ref_->step[idx].pyr_level == max_pyramid_level)
+                ? MAX_ARF_LAYERS
+                : subgop_cfg_ref_->step[idx].pyr_level;
+        EXPECT_EQ(subgop_cfg_test_.step[idx].pyr_level, ref_pyramid_level)
+            << "Error:pyramid level doesn't match";
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
   }
 
@@ -475,13 +467,19 @@ class SubGopTestLarge
     int pyramid_level;
     for (int idx = 0; idx < subgop_cfg_ref_->num_steps; idx++) {
       pyramid_level = subgop_cfg_test_.step[idx].pyr_level;
-      if (level_qindex[pyramid_level] < 0) {
-        level_qindex[pyramid_level] = subgop_data_.step[idx].qindex;
-      } else if (!subgop_data_.step[idx].show_existing_frame &&
-                 !subgop_data_.step[idx].is_filtered) {
-        EXPECT_EQ(level_qindex[pyramid_level], subgop_data_.step[idx].qindex)
-            << "Error:qindex in a pyramid level doesn't match";
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        if (level_qindex[pyramid_level] < 0) {
+          level_qindex[pyramid_level] = subgop_data_.step[idx].qindex;
+        } else if (!subgop_data_.step[idx].show_existing_frame &&
+                   !subgop_data_.step[idx].is_filtered) {
+          EXPECT_EQ(level_qindex[pyramid_level], subgop_data_.step[idx].qindex)
+              << "Error:qindex in a pyramid level doesn't match";
+        }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     for (pyramid_level = 1; pyramid_level <= MAX_ARF_LAYERS; pyramid_level++) {
       if (level_qindex[pyramid_level] >= 0) {
@@ -507,13 +505,22 @@ class SubGopTestLarge
       int refresh_frame_flags = curr_step_data->refresh_frame_flags;
       // Validates user-defined refresh_flag with decoder
       if (subgop_cfg_ref_->step[idx].refresh != -1 &&
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+          subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+#else
           !curr_step_data->show_existing_frame) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         EXPECT_EQ(subgop_cfg_ref_->step[idx].refresh,
                   (int8_t)refresh_frame_flags)
             << "Error: refresh flag mismatch";
       }
       // Validates reference picture management w.r.t refresh_flags
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (refresh_frame_flags &&
+          subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+#else
       if (refresh_frame_flags && !curr_step_data->show_existing_frame) {
+#endif
         for (int mask = refresh_frame_flags; mask; mask >>= 1) {
           if (mask & 1)
             EXPECT_EQ(curr_step_data->disp_frame_idx,
@@ -542,7 +549,11 @@ class SubGopTestLarge
       unsigned int *ref_frame_map =
           (idx > 0) ? subgop_data_.step[idx - 1].ref_frame_map
                     : subgop_last_step_.ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (!subgop_data_.step[idx].show_existing_frame) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         EXPECT_EQ(subgop_cfg_ref_->step[idx].num_references,
                   subgop_cfg_test_.step[idx].num_references)
             << "Error:Reference frames count doesn't match";
@@ -551,7 +562,13 @@ class SubGopTestLarge
       // config.
       for (int ref = 0; ref < subgop_cfg_test_.step[idx].num_references;
            ref++) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        if (subgop_cfg_ref_->step[idx].type_code !=
+                FRAME_TYPE_INO_SHOWEXISTING &&
+            subgop_data_.step[idx].is_valid_ref_frame[ref]) {
+#else
         if (subgop_data_.step[idx].is_valid_ref_frame[ref]) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           EXPECT_EQ(subgop_cfg_ref_->step[idx].references[ref],
                     subgop_cfg_test_.step[idx].references[ref])
               << "Error:Reference frame level doesn't match";
