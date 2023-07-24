@@ -486,14 +486,18 @@ int64_t av1_interpolation_filter_search(
   }
   if (!need_search) {
 #if CONFIG_OPTFLOW_REFINEMENT
-    assert(mbmi->interp_fltr ==
-           ((mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
 #if CONFIG_REFINEMV
-             || mbmi->refinemv_flag
-#endif  // CONFIG_REFINEMV
-             )
+    assert(mbmi->interp_fltr ==
+           ((mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+             use_opfl_refine_all(cm, mbmi) || mbmi->refinemv_flag)
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
+#else
+    assert(mbmi->interp_fltr ==
+           ((mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+                ? MULTITAP_SHARP
+                : EIGHTTAP_REGULAR));
+#endif  // CONFIG_REFINEMV
 #else
     assert(mbmi->interp_fltr == EIGHTTAP_REGULAR);
 #endif  // CONFIG_OPTFLOW_REFINEMENT

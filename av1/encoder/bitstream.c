@@ -1108,13 +1108,15 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
         || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
     ) {
-      assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                         use_opfl_refine_all(cm, mbmi)
 #if CONFIG_REFINEMV
-                         || mbmi->refinemv_flag
-#endif  // CONFIG_REFINEMV
-                     ,
+      assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+                         use_opfl_refine_all(cm, mbmi) || mbmi->refinemv_flag,
                      mbmi->interp_fltr == MULTITAP_SHARP));
+#else
+      assert(IMPLIES(
+          mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi),
+          mbmi->interp_fltr == MULTITAP_SHARP));
+#endif  // CONFIG_REFINEMV
       return;
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
