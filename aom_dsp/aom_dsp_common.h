@@ -56,12 +56,8 @@ extern "C" {
 typedef uint8_t qm_val_t;
 #define AOM_QM_BITS 5
 
-#if CONFIG_EXTQUANT
 #define QUANT_TABLE_BITS 3
 #define QUANT_FP_BITS 4
-#else
-#define QUANT_TABLE_BITS 0
-#endif  // CONFIG_EXTQUANT
 
 // Note:
 // tran_low_t  is the datatype used for final transform coefficients.
@@ -101,6 +97,12 @@ static INLINE uint16_t clip_pixel_highbd(int val, int bd) {
 static INLINE unsigned int negative_to_zero(int value) {
   return value & ~(value >> (sizeof(value) * 8 - 1));
 }
+
+#if CONFIG_WIENER_NONSEP
+#define ENABLE_LR_4PART_CODE 1
+#else
+#define ENABLE_LR_4PART_CODE 0
+#endif  // CONFIG_WIENER_NONSEP
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -43,30 +43,33 @@ void av1_resize_frame444(const uint8_t *const y, int y_stride,
                          int oy_stride, uint8_t *ou, uint8_t *ov,
                          int ouv_stride, int oheight, int owidth);
 
-void av1_highbd_resize_plane(const uint8_t *const input, int height, int width,
-                             int in_stride, uint8_t *output, int height2,
+void av1_highbd_resize_plane(const uint16_t *const input, int height, int width,
+                             int in_stride, uint16_t *output, int height2,
                              int width2, int out_stride, int bd);
-void av1_highbd_resize_frame420(const uint8_t *const y, int y_stride,
-                                const uint8_t *const u, const uint8_t *const v,
-                                int uv_stride, int height, int width,
-                                uint8_t *oy, int oy_stride, uint8_t *ou,
-                                uint8_t *ov, int ouv_stride, int oheight,
-                                int owidth, int bd);
-void av1_highbd_resize_frame422(const uint8_t *const y, int y_stride,
-                                const uint8_t *const u, const uint8_t *const v,
-                                int uv_stride, int height, int width,
-                                uint8_t *oy, int oy_stride, uint8_t *ou,
-                                uint8_t *ov, int ouv_stride, int oheight,
-                                int owidth, int bd);
-void av1_highbd_resize_frame444(const uint8_t *const y, int y_stride,
-                                const uint8_t *const u, const uint8_t *const v,
-                                int uv_stride, int height, int width,
-                                uint8_t *oy, int oy_stride, uint8_t *ou,
-                                uint8_t *ov, int ouv_stride, int oheight,
-                                int owidth, int bd);
+void av1_highbd_resize_frame420(const uint16_t *const y, int y_stride,
+                                const uint16_t *const u,
+                                const uint16_t *const v, int uv_stride,
+                                int height, int width, uint16_t *oy,
+                                int oy_stride, uint16_t *ou, uint16_t *ov,
+                                int ouv_stride, int oheight, int owidth,
+                                int bd);
+void av1_highbd_resize_frame422(const uint16_t *const y, int y_stride,
+                                const uint16_t *const u,
+                                const uint16_t *const v, int uv_stride,
+                                int height, int width, uint16_t *oy,
+                                int oy_stride, uint16_t *ou, uint16_t *ov,
+                                int ouv_stride, int oheight, int owidth,
+                                int bd);
+void av1_highbd_resize_frame444(const uint16_t *const y, int y_stride,
+                                const uint16_t *const u,
+                                const uint16_t *const v, int uv_stride,
+                                int height, int width, uint16_t *oy,
+                                int oy_stride, uint16_t *ou, uint16_t *ov,
+                                int ouv_stride, int oheight, int owidth,
+                                int bd);
 
-void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint8_t *src,
-                                int src_stride, uint8_t *dst, int dst_stride,
+void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
+                                int src_stride, uint16_t *dst, int dst_stride,
                                 int plane, int rows);
 void av1_upscale_normative_and_extend_frame(const AV1_COMMON *cm,
                                             const YV12_BUFFER_CONFIG *src,

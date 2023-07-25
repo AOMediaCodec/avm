@@ -13,6 +13,7 @@
 #ifndef AOM_AV1_ENCODER_PARTITION_STRATEGY_H_
 #define AOM_AV1_ENCODER_PARTITION_STRATEGY_H_
 
+#include "av1/encoder/block.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encoder.h"
@@ -58,9 +59,6 @@ enum {
   NUM_AB_PARTS
 } UENUM1BYTE(AB_PART_TYPE);
 
-// Rectangular parition types.
-enum { HORZ = 0, VERT, NUM_RECT_PARTS } UENUM1BYTE(RECT_PART_TYPE);
-
 // Structure to keep win flags for HORZ and VERT partition evaluations.
 typedef struct {
   int rect_part_win[NUM_RECT_PARTS];
@@ -89,7 +87,7 @@ void av1_simple_motion_search_based_split(
 void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
-    int partition_vert_allowed, int *prune_horz, int *prune_vert);
+    int partition_vert_allowed, bool *prune_horz, bool *prune_vert);
 
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
@@ -167,7 +165,8 @@ void av1_prune_partitions_before_search(
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
     int *partition_none_allowed, int *partition_horz_allowed,
     int *partition_vert_allowed, int *do_rectangular_split,
-    int *do_square_split, int *prune_horz, int *prune_vert);
+    int *do_square_split, bool *prune_horz, bool *prune_vert,
+    const PC_TREE *pc_tree);
 
 // Prune out partitions that lead to coding block sizes outside the min and max
 // bsizes set by the encoder. Max and min square partition levels are defined as
@@ -192,6 +191,49 @@ void av1_prune_ab_partitions(
     int *horza_partition_allowed, int *horzb_partition_allowed,
     int *verta_partition_allowed, int *vertb_partition_allowed);
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
+                                         int mi_row, int mi_col,
+                                         BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
+                                   const TileInfo *const tile, MACROBLOCK *x,
+                                   int mi_row, int mi_col, BLOCK_SIZE bsize);
+void av1_reset_prev_partition(SimpleMotionDataBufs *sms_bufs);
+
+static AOM_INLINE void av1_add_mode_search_context_to_cache(
+    SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {
+  if (!sms_data->mode_cache[0] ||
+      sms_data->mode_cache[0]->rd_stats.rdcost > ctx->rd_stats.rdcost) {
+    sms_data->mode_cache[0] = ctx;
+  }
+}
+
+static INLINE void av1_set_best_mode_cache(MACROBLOCK *x,
+                                           PICK_MODE_CONTEXT *mode_cache[1]) {
+  if (mode_cache[0] && mode_cache[0]->rd_stats.rate != INT_MAX) {
+    x->inter_mode_cache = &mode_cache[0]->mic;
+  } else {
+    x->inter_mode_cache = NULL;
+  }
+}
+
+typedef struct SMSPartitionStats {
+  const SimpleMotionData *sms_data[4];
+  int num_sub_parts;
+  int part_rate;
+} SMSPartitionStats;
+
+static INLINE void av1_init_sms_partition_stats(SMSPartitionStats *stats) {
+  memset(stats->sms_data, 0, sizeof(stats->sms_data));
+  stats->num_sub_parts = 0;
+  stats->part_rate = INT_MAX;
+}
+
+void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
+                              int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
+                              PARTITION_TYPE partition);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // A simplified version of set_offsets meant to be used for
 // simple_motion_search.
 static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
@@ -206,18 +248,23 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   const int mi_height = mi_size_high[bsize];
 
   set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
-                        mi_row, mi_col);
+                        mi_row, mi_col
+#if CONFIG_C071_SUBBLK_WARPMV
+                        ,
+                        mi_width, mi_height
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+  );
 
   // Set up destination pointers.
-  av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                       num_planes, NULL);
 
   // Set up limit values for MV components.
   // Mv beyond the range do not produce new/different prediction block.
   av1_set_mv_limits(mi_params, &x->mv_limits, mi_row, mi_col, mi_height,
                     mi_width, cpi->oxcf.border_in_pixels);
 
-  set_plane_n4(xd, mi_width, mi_height, num_planes);
+  set_plane_n4(xd, mi_width, mi_height, num_planes, NULL);
 
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
@@ -232,7 +279,7 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
       GET_MV_SUBPEL((mi_params->mi_cols - mi_width - mi_col) * MI_SIZE);
 
   // Set up source buffers.
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, bsize);
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
 }
 
 static INLINE void init_simple_motion_search_mvs(
@@ -250,6 +297,22 @@ static INLINE void init_simple_motion_search_mvs(
     init_simple_motion_search_mvs(sms_tree->split[3]);
   }
 }
+
+PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
+                                      BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE void av1_init_sms_data_bufs(SimpleMotionDataBufs *data_bufs) {
+  memset(data_bufs, 0, sizeof(*data_bufs));
+}
+
+struct PartitionSearchState;
+void av1_gather_erp_rect_features(
+    float *ml_features, AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *tile_info,
+    const PC_TREE *pc_tree,
+    const struct PartitionSearchState *part_search_state, int64_t part_none_rd,
+    const int (*mi_pos_rect)[SUB_PARTITIONS_RECT][2]);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_full_sb(const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, BLOCK_SIZE sb_size) {
@@ -279,5 +342,4 @@ static INLINE int use_auto_max_partition(const AV1_COMP *const cpi,
              KFFLT_OVERLAY_UPDATE &&
          cpi->gf_group.update_type[cpi->gf_group.index] != INTNL_OVERLAY_UPDATE;
 }
-
 #endif  // AOM_AV1_ENCODER_PARTITION_STRATEGY_H_

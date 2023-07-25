@@ -543,15 +543,12 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
 
 #define HIGHBD_MASK_SUBPIX_VAR_SSSE3(W, H)                                  \
   unsigned int aom_highbd_8_masked_sub_pixel_variance##W##x##H##_ssse3(     \
-      const uint8_t *src8, int src_stride, int xoffset, int yoffset,        \
-      const uint8_t *ref8, int ref_stride, const uint8_t *second_pred8,     \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
+      const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
     uint64_t sse64;                                                         \
     int sum;                                                                \
     uint16_t temp[(H + 1) * W];                                             \
-    const uint16_t *src = CONVERT_TO_SHORTPTR(src8);                        \
-    const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                        \
-    const uint16_t *second_pred = CONVERT_TO_SHORTPTR(second_pred8);        \
                                                                             \
     highbd_bilinear_filter(src, src_stride, xoffset, yoffset, temp, W, H);  \
                                                                             \
@@ -565,16 +562,13 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
     return *sse - (uint32_t)(((int64_t)sum * sum) / (W * H));               \
   }                                                                         \
   unsigned int aom_highbd_10_masked_sub_pixel_variance##W##x##H##_ssse3(    \
-      const uint8_t *src8, int src_stride, int xoffset, int yoffset,        \
-      const uint8_t *ref8, int ref_stride, const uint8_t *second_pred8,     \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
+      const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
     uint64_t sse64;                                                         \
     int sum;                                                                \
     int64_t var;                                                            \
     uint16_t temp[(H + 1) * W];                                             \
-    const uint16_t *src = CONVERT_TO_SHORTPTR(src8);                        \
-    const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                        \
-    const uint16_t *second_pred = CONVERT_TO_SHORTPTR(second_pred8);        \
                                                                             \
     highbd_bilinear_filter(src, src_stride, xoffset, yoffset, temp, W, H);  \
                                                                             \
@@ -590,16 +584,13 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
     return (var >= 0) ? (uint32_t)var : 0;                                  \
   }                                                                         \
   unsigned int aom_highbd_12_masked_sub_pixel_variance##W##x##H##_ssse3(    \
-      const uint8_t *src8, int src_stride, int xoffset, int yoffset,        \
-      const uint8_t *ref8, int ref_stride, const uint8_t *second_pred8,     \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
+      const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
     uint64_t sse64;                                                         \
     int sum;                                                                \
     int64_t var;                                                            \
     uint16_t temp[(H + 1) * W];                                             \
-    const uint16_t *src = CONVERT_TO_SHORTPTR(src8);                        \
-    const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                        \
-    const uint16_t *second_pred = CONVERT_TO_SHORTPTR(second_pred8);        \
                                                                             \
     highbd_bilinear_filter(src, src_stride, xoffset, yoffset, temp, W, H);  \
                                                                             \
@@ -617,15 +608,12 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
 
 #define HIGHBD_MASK_SUBPIX_VAR4XH_SSSE3(H)                                  \
   unsigned int aom_highbd_8_masked_sub_pixel_variance4x##H##_ssse3(         \
-      const uint8_t *src8, int src_stride, int xoffset, int yoffset,        \
-      const uint8_t *ref8, int ref_stride, const uint8_t *second_pred8,     \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
+      const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
     int sse_;                                                               \
     int sum;                                                                \
     uint16_t temp[(H + 1) * 4];                                             \
-    const uint16_t *src = CONVERT_TO_SHORTPTR(src8);                        \
-    const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                        \
-    const uint16_t *second_pred = CONVERT_TO_SHORTPTR(second_pred8);        \
                                                                             \
     highbd_bilinear_filter4xh(src, src_stride, xoffset, yoffset, temp, H);  \
                                                                             \
@@ -639,16 +627,13 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
     return *sse - (uint32_t)(((int64_t)sum * sum) / (4 * H));               \
   }                                                                         \
   unsigned int aom_highbd_10_masked_sub_pixel_variance4x##H##_ssse3(        \
-      const uint8_t *src8, int src_stride, int xoffset, int yoffset,        \
-      const uint8_t *ref8, int ref_stride, const uint8_t *second_pred8,     \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
+      const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
     int sse_;                                                               \
     int sum;                                                                \
     int64_t var;                                                            \
     uint16_t temp[(H + 1) * 4];                                             \
-    const uint16_t *src = CONVERT_TO_SHORTPTR(src8);                        \
-    const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                        \
-    const uint16_t *second_pred = CONVERT_TO_SHORTPTR(second_pred8);        \
                                                                             \
     highbd_bilinear_filter4xh(src, src_stride, xoffset, yoffset, temp, H);  \
                                                                             \
@@ -664,16 +649,13 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
     return (var >= 0) ? (uint32_t)var : 0;                                  \
   }                                                                         \
   unsigned int aom_highbd_12_masked_sub_pixel_variance4x##H##_ssse3(        \
-      const uint8_t *src8, int src_stride, int xoffset, int yoffset,        \
-      const uint8_t *ref8, int ref_stride, const uint8_t *second_pred8,     \
+      const uint16_t *src, int src_stride, int xoffset, int yoffset,        \
+      const uint16_t *ref, int ref_stride, const uint16_t *second_pred,     \
       const uint8_t *msk, int msk_stride, int invert_mask, uint32_t *sse) { \
     int sse_;                                                               \
     int sum;                                                                \
     int64_t var;                                                            \
     uint16_t temp[(H + 1) * 4];                                             \
-    const uint16_t *src = CONVERT_TO_SHORTPTR(src8);                        \
-    const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                        \
-    const uint16_t *second_pred = CONVERT_TO_SHORTPTR(second_pred8);        \
                                                                             \
     highbd_bilinear_filter4xh(src, src_stride, xoffset, yoffset, temp, H);  \
                                                                             \

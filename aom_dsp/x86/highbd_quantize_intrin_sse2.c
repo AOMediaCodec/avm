@@ -16,7 +16,6 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 
-#if CONFIG_EXTQUANT
 void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
                                 const int32_t *zbin_ptr,
                                 const int32_t *round_ptr,
@@ -25,16 +24,6 @@ void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
                                 tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
                                 const int32_t *dequant_ptr, uint16_t *eob_ptr,
                                 const int16_t *scan, const int16_t *iscan) {
-#else
-void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
-                                const int16_t *zbin_ptr,
-                                const int16_t *round_ptr,
-                                const int16_t *quant_ptr,
-                                const int16_t *quant_shift_ptr,
-                                tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                                const int16_t *dequant_ptr, uint16_t *eob_ptr,
-                                const int16_t *scan, const int16_t *iscan) {
-#endif
   int i, j, non_zero_regs = (int)count / 4, eob_i = -1;
   __m128i zbins[2];
   __m128i nzbins[2];
@@ -90,21 +79,13 @@ void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
         int k = 4 * i + j;
         const int64_t tmp3 = abs_coeff[j] + round_ptr[k != 0];
         const int64_t tmp4 = ((tmp3 * quant_ptr[k != 0]) >> 16) + tmp3;
-#if CONFIG_EXTQUANT
         const int32_t abs_qcoeff =
-#else
-        const uint32_t abs_qcoeff =
-#endif
             (uint32_t)((tmp4 * quant_shift_ptr[k != 0]) >> 16);
         qcoeff_ptr[k] = (int)(abs_qcoeff ^ coeff_sign[j]) - coeff_sign[j];
-#if CONFIG_EXTQUANT
         const tran_low_t abs_dqcoeff = (tran_low_t)ROUND_POWER_OF_TWO_64(
             abs_qcoeff * dequant_ptr[k != 0], QUANT_TABLE_BITS);
         dqcoeff_ptr[k] =
             (tran_low_t)((abs_dqcoeff ^ coeff_sign[j]) - coeff_sign[j]);
-#else
-        dqcoeff_ptr[k] = qcoeff_ptr[k] * dequant_ptr[k != 0];
-#endif
         if (abs_qcoeff) eob_i = iscan[k] > eob_i ? iscan[k] : eob_i;
       }
     }
@@ -112,21 +93,12 @@ void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
   *eob_ptr = eob_i + 1;
 }
 
-#if CONFIG_EXTQUANT
 void aom_highbd_quantize_b_32x32_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan) {
-#else
-void aom_highbd_quantize_b_32x32_sse2(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan) {
-#endif  // CONFIG_EXTQUANT
   __m128i zbins[2];
   __m128i nzbins[2];
   int idx = 0;
@@ -170,42 +142,26 @@ void aom_highbd_quantize_b_32x32_sse2(
     const int abs_coeff = (coeff ^ coeff_sign) - coeff_sign;
     const int64_t tmp1 = abs_coeff + ROUND_POWER_OF_TWO(round_ptr[rc != 0], 1);
     const int64_t tmp2 = ((tmp1 * quant_ptr[rc != 0]) >> 16) + tmp1;
-#if CONFIG_EXTQUANT
+
     const int32_t abs_qcoeff =
-#else
-    const uint32_t abs_qcoeff =
-#endif
         (uint32_t)((tmp2 * quant_shift_ptr[rc != 0]) >> 15);
     qcoeff_ptr[rc] = (int)(abs_qcoeff ^ coeff_sign) - coeff_sign;
-#if CONFIG_EXTQUANT
     const tran_low_t abs_dqcoeff =
         (tran_low_t)ROUND_POWER_OF_TWO_64(abs_qcoeff * dequant_ptr[rc != 0],
                                           QUANT_TABLE_BITS) >>
         1;
     dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
-#else
-    dqcoeff_ptr[rc] = qcoeff_ptr[rc] * dequant_ptr[rc != 0] / 2;
-#endif
     if (abs_qcoeff) eob = iscan[idx_arr[i]] > eob ? iscan[idx_arr[i]] : eob;
   }
   *eob_ptr = eob + 1;
 }
 
-#if CONFIG_EXTQUANT
 void aom_highbd_quantize_b_64x64_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan) {
-#else
-void aom_highbd_quantize_b_64x64_sse2(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan) {
-#endif  // CONFIG_EXTQUANT
   __m128i zbins[2];
   __m128i nzbins[2];
   int idx = 0;
@@ -249,22 +205,14 @@ void aom_highbd_quantize_b_64x64_sse2(
     const int abs_coeff = (coeff ^ coeff_sign) - coeff_sign;
     const int64_t tmp1 = abs_coeff + ROUND_POWER_OF_TWO(round_ptr[rc != 0], 2);
     const int64_t tmp2 = ((tmp1 * quant_ptr[rc != 0]) >> 16) + tmp1;
-#if CONFIG_EXTQUANT
     const int32_t abs_qcoeff =
-#else
-    const uint32_t abs_qcoeff =
-#endif
         (uint32_t)((tmp2 * quant_shift_ptr[rc != 0]) >> 14);
     qcoeff_ptr[rc] = (int)(abs_qcoeff ^ coeff_sign) - coeff_sign;
-#if CONFIG_EXTQUANT
     const tran_low_t abs_dqcoeff =
         (tran_low_t)ROUND_POWER_OF_TWO_64(abs_qcoeff * dequant_ptr[rc != 0],
                                           QUANT_TABLE_BITS) >>
         2;
     dqcoeff_ptr[rc] = (tran_low_t)((abs_dqcoeff ^ coeff_sign) - coeff_sign);
-#else
-    dqcoeff_ptr[rc] = qcoeff_ptr[rc] * dequant_ptr[rc != 0] / 4;
-#endif
     if (abs_qcoeff) eob = iscan[idx_arr[i]] > eob ? iscan[idx_arr[i]] : eob;
   }
   *eob_ptr = eob + 1;

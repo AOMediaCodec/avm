@@ -10,8 +10,12 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "config/aom_config.h"
 
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
@@ -385,4 +389,115 @@ const aom_metadata_t *aom_img_get_metadata(const aom_image_t *img,
 size_t aom_img_num_metadata(const aom_image_t *img) {
   if (!img || !img->metadata) return 0;
   return img->metadata->sz;
+}
+
+#define LOG_ERROR(label)               \
+  do {                                 \
+    const char *l = label;             \
+    va_list ap;                        \
+    va_start(ap, fmt);                 \
+    if (l) fprintf(stderr, "%s: ", l); \
+    vfprintf(stderr, fmt, ap);         \
+    fprintf(stderr, "\n");             \
+    va_end(ap);                        \
+  } while (0)
+
+#if defined(__GNUC__)
+#define AOM_NO_RETURN __attribute__((noreturn))
+#else
+#define AOM_NO_RETURN
+#endif
+
+AOM_NO_RETURN static void fatal(const char *fmt, ...) {
+  LOG_ERROR("Fatal");
+  exit(EXIT_FAILURE);
+}
+
+static void highbd_img_upshift(aom_image_t *dst, const aom_image_t *src,
+                               int input_shift) {
+#if CONFIG_ZERO_OFFSET_BITUPSHIFT
+  const int offset = 0;
+#else
+  // Note the offset is 1 less than half.
+  const int offset = input_shift > 0 ? (1 << (input_shift - 1)) - 1 : 0;
+#endif  // CONFIG_ZERO_OFFSET_BITUPSHIFT
+  int plane;
+  if (dst->d_w != src->d_w || dst->d_h != src->d_h ||
+      dst->x_chroma_shift != src->x_chroma_shift ||
+      dst->y_chroma_shift != src->y_chroma_shift || dst->fmt != src->fmt ||
+      input_shift < 0) {
+    fatal("Unsupported image conversion");
+  }
+  switch (src->fmt) {
+    case AOM_IMG_FMT_I42016:
+    case AOM_IMG_FMT_I42216:
+    case AOM_IMG_FMT_I44416: break;
+    default: fatal("Unsupported image conversion"); break;
+  }
+  for (plane = 0; plane < 3; plane++) {
+    int w = src->d_w;
+    int h = src->d_h;
+    int x, y;
+    if (plane) {
+      w = (w + src->x_chroma_shift) >> src->x_chroma_shift;
+      h = (h + src->y_chroma_shift) >> src->y_chroma_shift;
+    }
+    for (y = 0; y < h; y++) {
+      const uint16_t *p_src =
+          (const uint16_t *)(src->planes[plane] + y * src->stride[plane]);
+      uint16_t *p_dst =
+          (uint16_t *)(dst->planes[plane] + y * dst->stride[plane]);
+      for (x = 0; x < w; x++) *p_dst++ = (*p_src++ << input_shift) + offset;
+    }
+  }
+}
+
+static void lowbd_img_upshift(aom_image_t *dst, const aom_image_t *src,
+                              int input_shift) {
+#if CONFIG_ZERO_OFFSET_BITUPSHIFT
+  const int offset = 0;
+#else
+  // Note the offset is 1 less than half.
+  const int offset = input_shift > 0 ? (1 << (input_shift - 1)) - 1 : 0;
+#endif  // CONFIG_ZERO_OFFSET_BITUPSHIFT
+  int plane;
+  if (dst->d_w != src->d_w || dst->d_h != src->d_h ||
+      dst->x_chroma_shift != src->x_chroma_shift ||
+      dst->y_chroma_shift != src->y_chroma_shift ||
+      dst->fmt != src->fmt + AOM_IMG_FMT_HIGHBITDEPTH || input_shift < 0) {
+    fatal("Unsupported image conversion");
+  }
+  switch (src->fmt) {
+    case AOM_IMG_FMT_YV12:
+    case AOM_IMG_FMT_I420:
+    case AOM_IMG_FMT_I422:
+    case AOM_IMG_FMT_I444: break;
+    default: fatal("Unsupported image conversion"); break;
+  }
+  for (plane = 0; plane < 3; plane++) {
+    int w = src->d_w;
+    int h = src->d_h;
+    int x, y;
+    if (plane) {
+      w = (w + src->x_chroma_shift) >> src->x_chroma_shift;
+      h = (h + src->y_chroma_shift) >> src->y_chroma_shift;
+    }
+    for (y = 0; y < h; y++) {
+      const uint8_t *p_src = src->planes[plane] + y * src->stride[plane];
+      uint16_t *p_dst =
+          (uint16_t *)(dst->planes[plane] + y * dst->stride[plane]);
+      for (x = 0; x < w; x++) {
+        *p_dst++ = (*p_src++ << input_shift) + offset;
+      }
+    }
+  }
+}
+
+void aom_img_upshift(aom_image_t *dst, const aom_image_t *src,
+                     int input_shift) {
+  if (src->fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
+    highbd_img_upshift(dst, src, input_shift);
+  } else {
+    lowbd_img_upshift(dst, src, input_shift);
+  }
 }

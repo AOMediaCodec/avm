@@ -18,32 +18,10 @@
 using libaom_test::ACMRandom;
 using libaom_test::AV1HighbdHiprecConvolve::AV1HighbdHiprecConvolveTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdHiprecConvolveTest);
-using libaom_test::AV1HiprecConvolve::AV1HiprecConvolveTest;
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HiprecConvolveTest);
 using std::make_tuple;
 using std::tuple;
 
 namespace {
-
-TEST_P(AV1HiprecConvolveTest, CheckOutput) { RunCheckOutput(GET_PARAM(3)); }
-TEST_P(AV1HiprecConvolveTest, DISABLED_SpeedTest) {
-  RunSpeedTest(GET_PARAM(3));
-}
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1HiprecConvolveTest,
-                         libaom_test::AV1HiprecConvolve::BuildParams(
-                             av1_wiener_convolve_add_src_sse2));
-#endif
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1HiprecConvolveTest,
-                         libaom_test::AV1HiprecConvolve::BuildParams(
-                             av1_wiener_convolve_add_src_avx2));
-#endif
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1HiprecConvolveTest,
-                         libaom_test::AV1HiprecConvolve::BuildParams(
-                             av1_wiener_convolve_add_src_neon));
-#endif
 
 #if HAVE_SSSE3 || HAVE_AVX2
 TEST_P(AV1HighbdHiprecConvolveTest, CheckOutput) {

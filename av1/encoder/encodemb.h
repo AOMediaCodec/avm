@@ -65,7 +65,7 @@ struct encode_b_args {
 };
 
 void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-                   RUN_TYPE dry_run);
+                   RUN_TYPE dry_run, int plane_start, int plane_end);
 
 void av1_foreach_transformed_block_in_plane(
     const MACROBLOCKD *const xd, BLOCK_SIZE plane_bsize, int plane,
@@ -74,13 +74,18 @@ void av1_foreach_transformed_block_in_plane(
 void av1_encode_sby_pass1(struct AV1_COMP *cpi, MACROBLOCK *x,
                           BLOCK_SIZE bsize);
 
-void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x,
-#if CONFIG_IST
-                     int plane,
-#endif
-                     TX_SIZE tx_size, TX_TYPE tx_type, TxfmParam *txfm_param);
+void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
+                     TX_SIZE tx_size, TX_TYPE tx_type,
+#if CONFIG_CROSS_CHROMA_TX
+                     CctxType cctx_Type,
+#endif  // CONFIG_CROSS_CHROMA_TX
+                     TxfmParam *txfm_param);
 void av1_setup_quant(TX_SIZE tx_size, int use_optimize_b, int xform_quant_idx,
                      int use_quant_b_adapt, QUANT_PARAM *qparam);
+
+void av1_update_trellisq(int use_optimize_b, int xform_quant_idx,
+                         int use_quant_b_adapt, QUANT_PARAM *qparam);
+
 void av1_setup_qmatrix(const CommonQuantParams *quant_params,
                        const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                        TX_TYPE tx_type, QUANT_PARAM *qparam);
@@ -88,24 +93,39 @@ void av1_setup_qmatrix(const CommonQuantParams *quant_params,
 void av1_xform_dc_only(MACROBLOCK *x, int plane, int block,
                        TxfmParam *txfm_param, int64_t per_px_mean);
 
-void av1_xform_quant(MACROBLOCK *x, int plane, int block, int blk_row,
-                     int blk_col, BLOCK_SIZE plane_bsize, TxfmParam *txfm_param,
-                     QUANT_PARAM *qparam);
+void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
+                     int blk_row, int blk_col, BLOCK_SIZE plane_bsize,
+                     TxfmParam *txfm_param, QUANT_PARAM *qparam);
 
 void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
-               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param
-#if CONFIG_IST
-               ,
-               const int reuse
-#endif
-);
+               BLOCK_SIZE plane_bsize, TxfmParam *txfm_param, const int reuse);
+
+#if CONFIG_CROSS_CHROMA_TX
+void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
+                                    CctxType cctx_type);
+#endif  // CONFIG_CROSS_CHROMA_TX
+
+#if CONFIG_ATC_DCTX_ALIGNED
+// This function sets the first position index in a TU.
+void set_bob(MACROBLOCK *x, int plane, int block, TX_SIZE tx_size,
+             TX_TYPE tx_type);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
                QUANT_PARAM *qparam);
 
 int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *mb, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,
+#if CONFIG_CROSS_CHROMA_TX
+                   CctxType cctx_type,
+#endif  // CONFIG_CROSS_CHROMA_TX
                    const TXB_CTX *const txb_ctx, int *rate_cost);
+#if CONFIG_PAR_HIDING
+// This function tunes the coefficients when trellis quantization is off.
+void parity_hiding_trellis_off(const struct AV1_COMP *cpi, MACROBLOCK *mb,
+                               const int plane_type, int block, TX_SIZE tx_size,
+                               TX_TYPE tx_type);
+#endif  // CONFIG_PAR_HIDING
 
 // This function can be used as (i) a further optimization to reduce the
 // redundancy of quantized coefficients (a.k.a., `qcoeff`) after trellis
@@ -135,8 +155,8 @@ void av1_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
 
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         int16_t *diff, ptrdiff_t diff_stride,
-                        const uint8_t *src8, ptrdiff_t src_stride,
-                        const uint8_t *pred8, ptrdiff_t pred_stride);
+                        const uint16_t *src, ptrdiff_t src_stride,
+                        const uint16_t *pred, ptrdiff_t pred_stride);
 
 void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
                       int blk_col, int blk_row, TX_SIZE tx_size);
@@ -157,6 +177,12 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
                                   BLOCK_SIZE bsize, int plane, RUN_TYPE dry_run,
                                   TRELLIS_OPT_TYPE enable_optimize_b);
+
+#if CONFIG_CROSS_CHROMA_TX
+void av1_encode_intra_block_joint_uv(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                                     BLOCK_SIZE bsize, RUN_TYPE dry_run,
+                                     TRELLIS_OPT_TYPE enable_optimize_b);
+#endif  // CONFIG_CROSS_CHROMA_TX
 
 static INLINE int is_trellis_used(TRELLIS_OPT_TYPE optimize_b,
                                   RUN_TYPE dry_run) {

@@ -101,26 +101,13 @@ extern aom_codec_iface_t *aom_codec_av1_cx(void);
  */
 #define AOM_EFLAG_NO_REF_ARF2 (1 << 22)
 
-/*!\brief Don't update the last frame
+/*!\brief Don't update reference frames
  *
- * When this flag is set, the encoder will not update the last frame with
+ * When this flag is set, the encoder will not update all the ref frames with
  * the contents of the current frame.
  */
-#define AOM_EFLAG_NO_UPD_LAST (1 << 23)
+#define AOM_EFLAG_NO_UPD_ALL (1 << 23)
 
-/*!\brief Don't update the golden frame
- *
- * When this flag is set, the encoder will not update the golden frame with
- * the contents of the current frame.
- */
-#define AOM_EFLAG_NO_UPD_GF (1 << 24)
-
-/*!\brief Don't update the alternate reference frame
- *
- * When this flag is set, the encoder will not update the alt ref frame with
- * the contents of the current frame.
- */
-#define AOM_EFLAG_NO_UPD_ARF (1 << 25)
 /*!\brief Disable entropy update
  *
  * When this flag is set, the encoder will not update its internal entropy
@@ -194,9 +181,11 @@ enum aome_enc_control_id {
    * encoding process, values greater than 0 will increase encoder speed at
    * the expense of quality.
    *
-   * Valid range: 0..8. 0 runs the slowest, and 8 runs the fastest;
+   * Valid range: 0..9. 0 runs the slowest, and 9 runs the fastest;
    * quality improves as speed decreases (since more compression
    * possibilities are explored).
+   *
+   * Note: AOM_USAGE_GOOD_QUALITY treats 7..9 the same as 6.
    */
   AOME_SET_CPUUSED = 13,
 
@@ -948,7 +937,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_GLOBAL_MOTION = 95,
 
-  /*!\brief Codec control function to turn on / off warped motion usage
+  /*!\brief Codec control function to turn on / off local warped motion
    * at sequence level, int parameter
    *
    * - 0 = disable
@@ -956,6 +945,9 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_WARPED_MOTION = 96,
 
+#if CONFIG_EXTENDED_WARP_PREDICTION
+/* Note: enum value 97 unused */
+#else
   /*!\brief Codec control function to turn on / off warped motion usage
    * at frame level, int parameter
    *
@@ -966,6 +958,7 @@ enum aome_enc_control_id {
    * - 1 = enable (default)
    */
   AV1E_SET_ALLOW_WARPED_MOTION = 97,
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   /*!\brief Codec control function to turn on / off filter intra usage at
    * sequence level, int parameter
@@ -1191,25 +1184,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_MIN_CR = 144,
 
-/* NOTE: enums 145-149 unused */
-
-#if CONFIG_SVC_ENCODER
-  /*!\brief Codec control function to set the layer id, aom_svc_layer_id_t*
-   * parameter
-   */
-  AV1E_SET_SVC_LAYER_ID = 150,
-
-  /*!\brief Codec control function to set SVC paramaeters, aom_svc_params_t*
-   * parameter
-   */
-  AV1E_SET_SVC_PARAMS = 151,
-
-  /*!\brief Codec control function to set reference frame config:
-   * the ref_idx and the refresh flags for each buffer slot.
-   * aom_svc_ref_frame_config_t* parameter
-   */
-  AV1E_SET_SVC_REF_FRAME_CONFIG = 152,
-#endif  // CONFIG_SVC_ENCODER
+  /* NOTE: enums 145-152 unused */
 
   /*!\brief Codec control function to set the path to the VMAF model used when
    * tuning the encoder for VMAF, const char* parameter
@@ -1286,6 +1261,11 @@ enum aome_enc_control_id {
   /*!\brief Control to get frame info
    */
   AV1E_GET_FRAME_INFO = 165,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  /*!\brief Control to set frame output order derivation method
+   */
+  AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION = 166,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1380,42 +1360,6 @@ typedef enum {
   AOM_TUNE_VMAF_MAX_GAIN = 6,
   AOM_TUNE_VMAF_NEG_MAX_GAIN = 7,
 } aom_tune_metric;
-
-#if CONFIG_SVC_ENCODER
-#define AOM_MAX_LAYERS 32   /**< Max number of layers */
-#define AOM_MAX_SS_LAYERS 4 /**< Max number of spatial layers */
-#define AOM_MAX_TS_LAYERS 8 /**< Max number of temporal layers */
-
-/*!brief Struct for spatial and temporal layer ID */
-typedef struct aom_svc_layer_id {
-  int spatial_layer_id;  /**< Spatial layer ID */
-  int temporal_layer_id; /**< Temporal layer ID */
-} aom_svc_layer_id_t;
-
-/*!brief Parameter type for SVC */
-typedef struct aom_svc_params {
-  int number_spatial_layers;                 /**< Number of spatial layers */
-  int number_temporal_layers;                /**< Number of temporal layers */
-  int max_quantizers[AOM_MAX_LAYERS];        /**< Max Q for each layer */
-  int min_quantizers[AOM_MAX_LAYERS];        /**< Min Q for each layer */
-  int scaling_factor_num[AOM_MAX_SS_LAYERS]; /**< Scaling factor-numerator */
-  int scaling_factor_den[AOM_MAX_SS_LAYERS]; /**< Scaling factor-denominator */
-  /*! Target bitrate for each layer */
-  int layer_target_bitrate[AOM_MAX_LAYERS];
-  /*! Frame rate factor for each temporal layer */
-  int framerate_factor[AOM_MAX_TS_LAYERS];
-} aom_svc_params_t;
-
-/*!brief Parameters for setting ref frame config */
-typedef struct aom_svc_ref_frame_config {
-  // 7 references: LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2),
-  // GOLDEN_FRAME(3), BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
-  int reference[7]; /**< Reference flag for each of the 7 references. */
-  /*! Buffer slot index for each of 7 references. */
-  int ref_idx[7];
-  int refresh[8]; /**< Refresh flag for each of the 8 slots. */
-} aom_svc_ref_frame_config_t;
-#endif  // CONFIG_SVC_ENCODER
 
 /*!\cond */
 /*!\brief Encoder control function parameter type
@@ -1615,8 +1559,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_GLOBAL_MOTION, int)
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_WARPED_MOTION, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_WARPED_MOTION
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
 AOM_CTRL_USE_TYPE(AV1E_SET_ALLOW_WARPED_MOTION, int)
 #define AOM_CTRL_AV1E_SET_ALLOW_WARPED_MOTION
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_FILTER_INTRA, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_FILTER_INTRA
@@ -1798,17 +1744,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_TIER_MASK, unsigned int)
 AOM_CTRL_USE_TYPE(AV1E_SET_MIN_CR, unsigned int)
 #define AOM_CTRL_AV1E_SET_MIN_CR
 
-#if CONFIG_SVC_ENCODER
-AOM_CTRL_USE_TYPE(AV1E_SET_SVC_LAYER_ID, aom_svc_layer_id_t *)
-#define AOME_CTRL_AV1E_SET_SVC_LAYER_ID
-
-AOM_CTRL_USE_TYPE(AV1E_SET_SVC_PARAMS, aom_svc_params_t *)
-#define AOME_CTRL_AV1E_SET_SVC_PARAMS
-
-AOM_CTRL_USE_TYPE(AV1E_SET_SVC_REF_FRAME_CONFIG, aom_svc_ref_frame_config_t *)
-#define AOME_CTRL_AV1E_SET_SVC_REF_FRAME_CONFIG
-#endif  // CONFIG_SVC_ENCODER
-
 AOM_CTRL_USE_TYPE(AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, unsigned int)
 #define AOM_CTRL_AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST
 
@@ -1820,6 +1755,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_STR, const char *)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_PATH, const char *)
 #define AOM_CTRL_AV1E_SET_SUBGOP_CONFIG_PATH
+
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, int)
+#define AOM_CTRL_AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

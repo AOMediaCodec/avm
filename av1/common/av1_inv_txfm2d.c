@@ -18,7 +18,7 @@
 #include "av1/common/av1_inv_txfm1d.h"
 #include "av1/common/av1_inv_txfm1d_cfg.h"
 
-void av1_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
+void av1_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint16_t *dest,
                                  int stride, int bd) {
   /* 4-point reversible, orthonormal inverse Walsh-Hadamard in 3.5 adds,
      0.5 shifts per pixel. */
@@ -27,7 +27,6 @@ void av1_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
   tran_low_t a1, b1, c1, d1, e1;
   const tran_low_t *ip = input;
   tran_low_t *op = output;
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
 
   for (i = 0; i < 4; i++) {
     a1 = ip[0] >> UNIT_QUANT_SHIFT;
@@ -79,14 +78,13 @@ void av1_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest8,
   }
 }
 
-void av1_highbd_iwht4x4_1_add_c(const tran_low_t *in, uint8_t *dest8,
+void av1_highbd_iwht4x4_1_add_c(const tran_low_t *in, uint16_t *dest,
                                 int dest_stride, int bd) {
   int i;
   tran_low_t a1, e1;
   tran_low_t tmp[4];
   const tran_low_t *ip = in;
   tran_low_t *op = tmp;
-  uint16_t *dest = CONVERT_TO_SHORTPTR(dest8);
   (void)bd;
 
   a1 = ip[0] >> UNIT_QUANT_SHIFT;

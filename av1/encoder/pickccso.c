@@ -54,10 +54,37 @@ uint64_t *training_dist_block;
 const int ccso_offset[8] = { -10, -7, -3, -1, 0, 1, 3, 7 };
 #else
 const int ccso_offset[8] = { -7, -5, -3, -1, 0, 1, 3, 5 };
-#endif
+#endif  // CONFIG_CCSO_EXT
 const uint8_t quant_sz[4] = { 16, 8, 32, 64 };
 
 #if CONFIG_CCSO_EXT
+
+void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
+                             uint8_t *const src_cls1, const int src_y_stride,
+                             const int src_cls_stride, const int x, const int y,
+                             const int pic_width, const int pic_height,
+                             const int y_uv_hscale, const int y_uv_vscale,
+                             const int qstep, const int neg_qstep,
+                             const int *src_loc, const int blk_size) {
+  int src_cls[2];
+  const int y_end = AOMMIN(pic_height - y, blk_size);
+  const int x_end = AOMMIN(pic_width - x, blk_size);
+  for (int y_start = 0; y_start < y_end; y_start++) {
+    const int y_pos = y_start;
+    for (int x_start = 0; x_start < x_end; x_start++) {
+      const int x_pos = x + x_start;
+      cal_filter_support(src_cls,
+                         &src_y[(y_pos << y_uv_vscale) * src_y_stride +
+                                (x_pos << y_uv_hscale)],
+                         qstep, neg_qstep, src_loc);
+      src_cls0[(y_pos << y_uv_vscale) * src_cls_stride +
+               (x_pos << y_uv_hscale)] = src_cls[0];
+      src_cls1[(y_pos << y_uv_vscale) * src_cls_stride +
+               (x_pos << y_uv_hscale)] = src_cls[1];
+    }
+  }
+}
+
 /* Derive CCSO filter support information */
 void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
                           const uint16_t *src_y, const uint8_t qstep,
@@ -67,34 +94,18 @@ void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
-  int src_cls[2];
   const int neg_qstep = qstep * -1;
   int src_loc[2];
   derive_ccso_sample_pos(src_loc, ccso_stride_ext, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
-  const int scaled_stride_ext = (ccso_stride_ext << y_uv_vscale);
-  const int scaled_stride = (ccso_stride << y_uv_vscale);
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
-      const int y_end = AOMMIN(pic_height - y, blk_size);
-      const int x_end = AOMMIN(pic_width - x, blk_size);
-      for (int y_start = 0; y_start < y_end; y_start++) {
-        for (int x_start = 0; x_start < x_end; x_start++) {
-          const int x_pos = x + x_start;
-          cal_filter_support(src_cls, &src_y[x_pos << y_uv_hscale], qstep,
-                             neg_qstep, src_loc);
-          src_cls0[x_pos << y_uv_hscale] = src_cls[0];
-          src_cls1[x_pos << y_uv_hscale] = src_cls[1];
-        }
-        src_y += scaled_stride_ext;
-        src_cls0 += scaled_stride;
-        src_cls1 += scaled_stride;
-      }
-      src_y -= scaled_stride_ext * y_end;
-      src_cls0 -= scaled_stride * y_end;
-      src_cls1 -= scaled_stride * y_end;
+      ccso_derive_src_block(src_y, src_cls0, src_cls1, ccso_stride_ext,
+                            ccso_stride, x, y, pic_width, pic_height,
+                            y_uv_hscale, y_uv_vscale, qstep, neg_qstep, src_loc,
+                            blk_size);
     }
     src_y += (ccso_stride_ext << (blk_log2 + y_uv_vscale));
     src_cls0 += (ccso_stride << (blk_log2 + y_uv_vscale));
@@ -155,6 +166,36 @@ void ccso_pre_compute_class_err(MACROBLOCKD *xd, const int plane,
   }
 }
 
+void ccso_filter_block_hbd_with_buf_c(
+    const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0,
+    const uint8_t *src_cls1, const int src_y_stride, const int dst_stride,
+    const int src_cls_stride, const int x, const int y, const int pic_width,
+    const int pic_height, const int8_t *filter_offset, const int blk_size,
+    const int y_uv_hscale, const int y_uv_vscale, const int max_val,
+    const uint8_t shift_bits) {
+  int cur_src_cls0;
+  int cur_src_cls1;
+  const int y_end = AOMMIN(pic_height - y, blk_size);
+  const int x_end = AOMMIN(pic_width - x, blk_size);
+  for (int y_start = 0; y_start < y_end; y_start++) {
+    const int y_pos = y_start;
+    for (int x_start = 0; x_start < x_end; x_start++) {
+      const int x_pos = x + x_start;
+      cur_src_cls0 = src_cls0[(y_pos << y_uv_vscale) * src_cls_stride +
+                              (x_pos << y_uv_hscale)];
+      cur_src_cls1 = src_cls1[(y_pos << y_uv_vscale) * src_cls_stride +
+                              (x_pos << y_uv_hscale)];
+      const int band_num = src_y[(y_pos << y_uv_vscale) * src_y_stride +
+                                 (x_pos << y_uv_hscale)] >>
+                           shift_bits;
+      const int lut_idx_ext =
+          (band_num << 4) + (cur_src_cls0 << 2) + cur_src_cls1;
+      const int offset_val = filter_offset[lut_idx_ext];
+      dst_yuv[y_pos * dst_stride + x_pos] =
+          clamp(offset_val + dst_yuv[y_pos * dst_stride + x_pos], 0, max_val);
+    }
+  }
+}
 /* Apply CCSO on luma component at encoder (high bit-depth) */
 void ccso_try_luma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                           const uint16_t *src_y, uint16_t *dst_yuv,
@@ -164,35 +205,16 @@ void ccso_try_luma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
-  int cur_src_cls0;
-  int cur_src_cls1;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
-      const int y_end = AOMMIN(pic_height - y, blk_size);
-      const int x_end = AOMMIN(pic_width - x, blk_size);
-      for (int y_start = 0; y_start < y_end; y_start++) {
-        for (int x_start = 0; x_start < x_end; x_start++) {
-          const int x_pos = x + x_start;
-          cur_src_cls0 = src_cls0[x_pos];
-          cur_src_cls1 = src_cls1[x_pos];
-          const int band_num = src_y[x_pos] >> shift_bits;
-          const int lut_idx_ext =
-              (band_num << 4) + (cur_src_cls0 << 2) + cur_src_cls1;
-          const int offset_val = filter_offset[lut_idx_ext];
-          dst_yuv[x_pos] = clamp(offset_val + dst_yuv[x_pos], 0, max_val);
-        }
-        dst_yuv += dst_stride;
-        src_y += ccso_stride_ext;
-        src_cls0 += ccso_stride;
-        src_cls1 += ccso_stride;
-      }
-      dst_yuv -= dst_stride * y_end;
-      src_y -= ccso_stride_ext * y_end;
-      src_cls0 -= ccso_stride * y_end;
-      src_cls1 -= ccso_stride * y_end;
+      ccso_filter_block_hbd_with_buf(
+          src_y, dst_yuv, src_cls0, src_cls1, ccso_stride_ext, dst_stride,
+          ccso_stride, x, y, pic_width, pic_height, filter_offset, blk_size,
+          // y_uv_scale in h and v shall be zero
+          0, 0, max_val, shift_bits);
     }
     dst_yuv += (dst_stride << blk_log2);
     src_y += (ccso_stride_ext << blk_log2);
@@ -211,38 +233,16 @@ void ccso_try_chroma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
-  const int scaled_ext_stride = (ccso_stride_ext << y_uv_vscale);
-  const int scaled_stride = (ccso_stride << y_uv_vscale);
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
-  int cur_src_cls0;
-  int cur_src_cls1;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
-      const int y_end = AOMMIN(pic_height - y, blk_size);
-      const int x_end = AOMMIN(pic_width - x, blk_size);
-      for (int y_start = 0; y_start < y_end; y_start++) {
-        for (int x_start = 0; x_start < x_end; x_start++) {
-          const int x_pos = x + x_start;
-          cur_src_cls0 = src_cls0[x_pos << y_uv_hscale];
-          cur_src_cls1 = src_cls1[x_pos << y_uv_hscale];
-          const int band_num = src_y[x_pos << y_uv_hscale] >> shift_bits;
-          const int lut_idx_ext =
-              (band_num << 4) + (cur_src_cls0 << 2) + cur_src_cls1;
-          const int offset_val = filter_offset[lut_idx_ext];
-          dst_yuv[x_pos] = clamp(offset_val + dst_yuv[x_pos], 0, max_val);
-        }
-        dst_yuv += dst_stride;
-        src_y += scaled_ext_stride;
-        src_cls0 += scaled_stride;
-        src_cls1 += scaled_stride;
-      }
-      dst_yuv -= dst_stride * y_end;
-      src_y -= scaled_ext_stride * y_end;
-      src_cls0 -= scaled_stride * y_end;
-      src_cls1 -= scaled_stride * y_end;
+      ccso_filter_block_hbd_with_buf(
+          src_y, dst_yuv, src_cls0, src_cls1, ccso_stride_ext, dst_stride,
+          ccso_stride, x, y, pic_width, pic_height, filter_offset, blk_size,
+          y_uv_hscale, y_uv_vscale, max_val, shift_bits);
     }
     dst_yuv += (dst_stride << blk_log2);
     src_y += (ccso_stride_ext << (blk_log2 + y_uv_vscale));
@@ -250,44 +250,49 @@ void ccso_try_chroma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
     src_cls1 += (ccso_stride << (blk_log2 + y_uv_vscale));
   }
 }
-#endif
+#endif  // CONFIG_CCSO_EXT
 
-/* Compute SSE */
-void compute_distortion(const uint16_t *org, const int org_stride,
-                        const uint16_t *rec16, const int rec_stride,
-                        const int log2_filter_unit_size, const int height,
-                        const int width, uint64_t *distortion_buf,
-                        const int distortion_buf_stride,
-                        uint64_t *total_distortion) {
-  int org_stride_idx[1 << (CCSO_BLK_SIZE + 1)] = { 0 };
-  int rec_stride_idx[1 << (CCSO_BLK_SIZE + 1)] = { 0 };
-  for (int i = 0; i < (1 << log2_filter_unit_size); i++) {
-    org_stride_idx[i] = org_stride * i;
-    rec_stride_idx[i] = rec_stride * i;
+uint64_t compute_distortion_block_c(const uint16_t *org, const int org_stride,
+                                    const uint16_t *rec16, const int rec_stride,
+                                    const int x, const int y,
+                                    const int log2_filter_unit_size,
+                                    const int height, const int width) {
+  int err;
+  uint64_t ssd = 0;
+  int y_offset;
+  int x_offset;
+  if (y + (1 << log2_filter_unit_size) >= height)
+    y_offset = height - y;
+  else
+    y_offset = (1 << log2_filter_unit_size);
+
+  if (x + (1 << log2_filter_unit_size) >= width)
+    x_offset = width - x;
+  else
+    x_offset = (1 << log2_filter_unit_size);
+
+  for (int y_off = 0; y_off < y_offset; y_off++) {
+    for (int x_off = 0; x_off < x_offset; x_off++) {
+      err = org[org_stride * y_off + x + x_off] -
+            rec16[rec_stride * y_off + x + x_off];
+      ssd += err * err;
+    }
   }
+  return ssd;
+}
+/* Compute SSE */
+static void compute_distortion(const uint16_t *org, const int org_stride,
+                               const uint16_t *rec16, const int rec_stride,
+                               const int log2_filter_unit_size,
+                               const int height, const int width,
+                               uint64_t *distortion_buf,
+                               const int distortion_buf_stride,
+                               uint64_t *total_distortion) {
   for (int y = 0; y < height; y += (1 << log2_filter_unit_size)) {
     for (int x = 0; x < width; x += (1 << log2_filter_unit_size)) {
-      int err;
-      uint64_t ssd = 0;
-      int y_offset;
-      int x_offset;
-      if (y + (1 << log2_filter_unit_size) >= height)
-        y_offset = height - y;
-      else
-        y_offset = (1 << log2_filter_unit_size);
-
-      if (x + (1 << log2_filter_unit_size) >= width)
-        x_offset = width - x;
-      else
-        x_offset = (1 << log2_filter_unit_size);
-
-      for (int y_off = 0; y_off < y_offset; y_off++) {
-        for (int x_off = 0; x_off < x_offset; x_off++) {
-          err = org[org_stride_idx[y_off] + x + x_off] -
-                rec16[rec_stride_idx[y_off] + x + x_off];
-          ssd += err * err;
-        }
-      }
+      const uint64_t ssd =
+          compute_distortion_block(org, org_stride, rec16, rec_stride, x, y,
+                                   log2_filter_unit_size, height, width);
       distortion_buf[(y >> log2_filter_unit_size) * distortion_buf_stride +
                      (x >> log2_filter_unit_size)] = ssd;
       *total_distortion += ssd;
@@ -897,8 +902,8 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
     return;
 #endif
   const int num_planes = av1_num_planes(cm);
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, &cm->cur_frame->buf,
-                       0, 0, 0, num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
+                       NULL);
   ccso_stride = xd->plane[0].dst.width;
   ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
 #if CONFIG_CCSO_EXT

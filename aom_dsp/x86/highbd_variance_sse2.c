@@ -104,20 +104,16 @@ static void highbd_12_variance_sse2(const uint16_t *src, int src_stride,
 }
 
 #define HIGH_GET_VAR(S)                                                       \
-  void aom_highbd_get##S##x##S##var_sse2(const uint8_t *src8, int src_stride, \
-                                         const uint8_t *ref8, int ref_stride, \
+  void aom_highbd_get##S##x##S##var_sse2(const uint16_t *src, int src_stride, \
+                                         const uint16_t *ref, int ref_stride, \
                                          uint32_t *sse, int *sum) {           \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                \
-    uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                                \
     aom_highbd_calc##S##x##S##var_sse2(src, src_stride, ref, ref_stride, sse, \
                                        sum);                                  \
   }                                                                           \
                                                                               \
   void aom_highbd_10_get##S##x##S##var_sse2(                                  \
-      const uint8_t *src8, int src_stride, const uint8_t *ref8,               \
+      const uint16_t *src, int src_stride, const uint16_t *ref,               \
       int ref_stride, uint32_t *sse, int *sum) {                              \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                \
-    uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                                \
     aom_highbd_calc##S##x##S##var_sse2(src, src_stride, ref, ref_stride, sse, \
                                        sum);                                  \
     *sum = ROUND_POWER_OF_TWO(*sum, 2);                                       \
@@ -125,10 +121,8 @@ static void highbd_12_variance_sse2(const uint16_t *src, int src_stride,
   }                                                                           \
                                                                               \
   void aom_highbd_12_get##S##x##S##var_sse2(                                  \
-      const uint8_t *src8, int src_stride, const uint8_t *ref8,               \
+      const uint16_t *src, int src_stride, const uint16_t *ref,               \
       int ref_stride, uint32_t *sse, int *sum) {                              \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                \
-    uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                                \
     aom_highbd_calc##S##x##S##var_sse2(src, src_stride, ref, ref_stride, sse, \
                                        sum);                                  \
     *sum = ROUND_POWER_OF_TWO(*sum, 4);                                       \
@@ -142,11 +136,9 @@ HIGH_GET_VAR(8);
 
 #define VAR_FN(w, h, block_size, shift)                                    \
   uint32_t aom_highbd_8_variance##w##x##h##_sse2(                          \
-      const uint8_t *src8, int src_stride, const uint8_t *ref8,            \
+      const uint16_t *src, int src_stride, const uint16_t *ref,            \
       int ref_stride, uint32_t *sse) {                                     \
     int sum;                                                               \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                             \
-    uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                             \
     highbd_8_variance_sse2(                                                \
         src, src_stride, ref, ref_stride, w, h, sse, &sum,                 \
         aom_highbd_calc##block_size##x##block_size##var_sse2, block_size); \
@@ -154,12 +146,10 @@ HIGH_GET_VAR(8);
   }                                                                        \
                                                                            \
   uint32_t aom_highbd_10_variance##w##x##h##_sse2(                         \
-      const uint8_t *src8, int src_stride, const uint8_t *ref8,            \
+      const uint16_t *src, int src_stride, const uint16_t *ref,            \
       int ref_stride, uint32_t *sse) {                                     \
     int sum;                                                               \
     int64_t var;                                                           \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                             \
-    uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                             \
     highbd_10_variance_sse2(                                               \
         src, src_stride, ref, ref_stride, w, h, sse, &sum,                 \
         aom_highbd_calc##block_size##x##block_size##var_sse2, block_size); \
@@ -168,12 +158,10 @@ HIGH_GET_VAR(8);
   }                                                                        \
                                                                            \
   uint32_t aom_highbd_12_variance##w##x##h##_sse2(                         \
-      const uint8_t *src8, int src_stride, const uint8_t *ref8,            \
+      const uint16_t *src, int src_stride, const uint16_t *ref,            \
       int ref_stride, uint32_t *sse) {                                     \
     int sum;                                                               \
     int64_t var;                                                           \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                             \
-    uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);                             \
     highbd_12_variance_sse2(                                               \
         src, src_stride, ref, ref_stride, w, h, sse, &sum,                 \
         aom_highbd_calc##block_size##x##block_size##var_sse2, block_size); \
@@ -201,67 +189,55 @@ VAR_FN(64, 16, 16, 10);
 
 #undef VAR_FN
 
-unsigned int aom_highbd_8_mse16x16_sse2(const uint8_t *src8, int src_stride,
-                                        const uint8_t *ref8, int ref_stride,
+unsigned int aom_highbd_8_mse16x16_sse2(const uint16_t *src, int src_stride,
+                                        const uint16_t *ref, int ref_stride,
                                         unsigned int *sse) {
   int sum;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
   highbd_8_variance_sse2(src, src_stride, ref, ref_stride, 16, 16, sse, &sum,
                          aom_highbd_calc16x16var_sse2, 16);
   return *sse;
 }
 
-unsigned int aom_highbd_10_mse16x16_sse2(const uint8_t *src8, int src_stride,
-                                         const uint8_t *ref8, int ref_stride,
+unsigned int aom_highbd_10_mse16x16_sse2(const uint16_t *src, int src_stride,
+                                         const uint16_t *ref, int ref_stride,
                                          unsigned int *sse) {
   int sum;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
   highbd_10_variance_sse2(src, src_stride, ref, ref_stride, 16, 16, sse, &sum,
                           aom_highbd_calc16x16var_sse2, 16);
   return *sse;
 }
 
-unsigned int aom_highbd_12_mse16x16_sse2(const uint8_t *src8, int src_stride,
-                                         const uint8_t *ref8, int ref_stride,
+unsigned int aom_highbd_12_mse16x16_sse2(const uint16_t *src, int src_stride,
+                                         const uint16_t *ref, int ref_stride,
                                          unsigned int *sse) {
   int sum;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
   highbd_12_variance_sse2(src, src_stride, ref, ref_stride, 16, 16, sse, &sum,
                           aom_highbd_calc16x16var_sse2, 16);
   return *sse;
 }
 
-unsigned int aom_highbd_8_mse8x8_sse2(const uint8_t *src8, int src_stride,
-                                      const uint8_t *ref8, int ref_stride,
+unsigned int aom_highbd_8_mse8x8_sse2(const uint16_t *src, int src_stride,
+                                      const uint16_t *ref, int ref_stride,
                                       unsigned int *sse) {
   int sum;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
   highbd_8_variance_sse2(src, src_stride, ref, ref_stride, 8, 8, sse, &sum,
                          aom_highbd_calc8x8var_sse2, 8);
   return *sse;
 }
 
-unsigned int aom_highbd_10_mse8x8_sse2(const uint8_t *src8, int src_stride,
-                                       const uint8_t *ref8, int ref_stride,
+unsigned int aom_highbd_10_mse8x8_sse2(const uint16_t *src, int src_stride,
+                                       const uint16_t *ref, int ref_stride,
                                        unsigned int *sse) {
   int sum;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
   highbd_10_variance_sse2(src, src_stride, ref, ref_stride, 8, 8, sse, &sum,
                           aom_highbd_calc8x8var_sse2, 8);
   return *sse;
 }
 
-unsigned int aom_highbd_12_mse8x8_sse2(const uint8_t *src8, int src_stride,
-                                       const uint8_t *ref8, int ref_stride,
+unsigned int aom_highbd_12_mse8x8_sse2(const uint16_t *src, int src_stride,
+                                       const uint16_t *ref, int ref_stride,
                                        unsigned int *sse) {
   int sum;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
   highbd_12_variance_sse2(src, src_stride, ref, ref_stride, 8, 8, sse, &sum,
                           aom_highbd_calc8x8var_sse2, 8);
   return *sse;
@@ -275,6 +251,7 @@ unsigned int aom_highbd_12_mse8x8_sse2(const uint8_t *src8, int src_stride,
       const uint16_t *src, ptrdiff_t src_stride, int x_offset, int y_offset, \
       const uint16_t *dst, ptrdiff_t dst_stride, int height,                 \
       unsigned int *sse, void *unused0, void *unused);
+
 #define DECLS(opt) \
   DECL(8, opt);    \
   DECL(16, opt)
@@ -286,10 +263,8 @@ DECLS(sse2);
 
 #define FN(w, h, wf, wlog2, hlog2, opt, cast)                                  \
   uint32_t aom_highbd_8_sub_pixel_variance##w##x##h##_##opt(                   \
-      const uint8_t *src8, int src_stride, int x_offset, int y_offset,         \
-      const uint8_t *dst8, int dst_stride, uint32_t *sse_ptr) {                \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                 \
-    uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);                                 \
+      const uint16_t *src, int src_stride, int x_offset, int y_offset,         \
+      const uint16_t *dst, int dst_stride, uint32_t *sse_ptr) {                \
     int se = 0;                                                                \
     unsigned int sse = 0;                                                      \
     unsigned int sse2;                                                         \
@@ -327,13 +302,11 @@ DECLS(sse2);
   }                                                                            \
                                                                                \
   uint32_t aom_highbd_10_sub_pixel_variance##w##x##h##_##opt(                  \
-      const uint8_t *src8, int src_stride, int x_offset, int y_offset,         \
-      const uint8_t *dst8, int dst_stride, uint32_t *sse_ptr) {                \
+      const uint16_t *src, int src_stride, int x_offset, int y_offset,         \
+      const uint16_t *dst, int dst_stride, uint32_t *sse_ptr) {                \
     int64_t var;                                                               \
     uint32_t sse;                                                              \
     uint64_t long_sse = 0;                                                     \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                 \
-    uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);                                 \
     int se = 0;                                                                \
     int row_rep = (w > 64) ? 2 : 1;                                            \
     for (int wd_64 = 0; wd_64 < row_rep; wd_64++) {                            \
@@ -373,21 +346,19 @@ DECLS(sse2);
   }                                                                            \
                                                                                \
   uint32_t aom_highbd_12_sub_pixel_variance##w##x##h##_##opt(                  \
-      const uint8_t *src8, int src_stride, int x_offset, int y_offset,         \
-      const uint8_t *dst8, int dst_stride, uint32_t *sse_ptr) {                \
+      const uint16_t *src, int src_stride, int x_offset, int y_offset,         \
+      const uint16_t *dst, int dst_stride, uint32_t *sse_ptr) {                \
     int start_row;                                                             \
     uint32_t sse;                                                              \
     int se = 0;                                                                \
     int64_t var;                                                               \
     uint64_t long_sse = 0;                                                     \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                 \
-    uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);                                 \
     int row_rep = (w > 64) ? 2 : 1;                                            \
     for (start_row = 0; start_row < h; start_row += 16) {                      \
       uint32_t sse2;                                                           \
       int height = h - start_row < 16 ? h - start_row : 16;                    \
-      uint16_t *src_tmp = src + (start_row * src_stride);                      \
-      uint16_t *dst_tmp = dst + (start_row * dst_stride);                      \
+      uint16_t *src_tmp = (uint16_t *)src + (start_row * src_stride);          \
+      uint16_t *dst_tmp = (uint16_t *)dst + (start_row * dst_stride);          \
       for (int wd_64 = 0; wd_64 < row_rep; wd_64++) {                          \
         src_tmp += wd_64 * 64;                                                 \
         dst_tmp += wd_64 * 64;                                                 \
@@ -424,6 +395,26 @@ DECLS(sse2);
     return (var >= 0) ? (uint32_t)var : 0;                                     \
   }
 
+#if CONFIG_UNEVEN_4WAY
+// TODO(any): Add back 16X16, 16X8, 16X4 after fixing alignment issues.
+#define FNS(opt)                          \
+  FN(128, 128, 16, 7, 7, opt, (int64_t)); \
+  FN(128, 64, 16, 7, 6, opt, (int64_t));  \
+  FN(64, 128, 16, 6, 7, opt, (int64_t));  \
+  FN(64, 64, 16, 6, 6, opt, (int64_t));   \
+  FN(64, 32, 16, 6, 5, opt, (int64_t));   \
+  FN(32, 64, 16, 5, 6, opt, (int64_t));   \
+  FN(32, 32, 16, 5, 5, opt, (int64_t));   \
+  FN(32, 16, 16, 5, 4, opt, (int64_t));   \
+  FN(16, 32, 16, 4, 5, opt, (int64_t));   \
+  FN(8, 16, 8, 3, 4, opt, (int64_t));     \
+  FN(8, 8, 8, 3, 3, opt, (int64_t));      \
+  FN(8, 4, 8, 3, 2, opt, (int64_t));      \
+  FN(8, 32, 8, 3, 5, opt, (int64_t));     \
+  FN(32, 8, 16, 5, 3, opt, (int64_t));    \
+  FN(16, 64, 16, 4, 6, opt, (int64_t));   \
+  FN(64, 16, 16, 6, 4, opt, (int64_t))
+#else
 #define FNS(opt)                          \
   FN(128, 128, 16, 7, 7, opt, (int64_t)); \
   FN(128, 64, 16, 7, 6, opt, (int64_t));  \
@@ -444,6 +435,7 @@ DECLS(sse2);
   FN(32, 8, 16, 5, 3, opt, (int64_t));    \
   FN(16, 64, 16, 4, 6, opt, (int64_t));   \
   FN(64, 16, 16, 6, 4, opt, (int64_t))
+#endif  // CONFIG_UNEVEN_4WAY
 
 FNS(sse2);
 
@@ -467,13 +459,10 @@ DECLS(sse2);
 
 #define FN(w, h, wf, wlog2, hlog2, opt, cast)                                  \
   uint32_t aom_highbd_8_sub_pixel_avg_variance##w##x##h##_##opt(               \
-      const uint8_t *src8, int src_stride, int x_offset, int y_offset,         \
-      const uint8_t *dst8, int dst_stride, uint32_t *sse_ptr,                  \
-      const uint8_t *sec8) {                                                   \
+      const uint16_t *src, int src_stride, int x_offset, int y_offset,         \
+      const uint16_t *dst, int dst_stride, uint32_t *sse_ptr,                  \
+      const uint16_t *sec) {                                                   \
     uint32_t sse;                                                              \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                 \
-    uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);                                 \
-    uint16_t *sec = CONVERT_TO_SHORTPTR(sec8);                                 \
     int se = aom_highbd_sub_pixel_avg_variance##wf##xh_##opt(                  \
         src, src_stride, x_offset, y_offset, dst, dst_stride, sec, w, h, &sse, \
         NULL, NULL);                                                           \
@@ -502,14 +491,11 @@ DECLS(sse2);
   }                                                                            \
                                                                                \
   uint32_t aom_highbd_10_sub_pixel_avg_variance##w##x##h##_##opt(              \
-      const uint8_t *src8, int src_stride, int x_offset, int y_offset,         \
-      const uint8_t *dst8, int dst_stride, uint32_t *sse_ptr,                  \
-      const uint8_t *sec8) {                                                   \
+      const uint16_t *src, int src_stride, int x_offset, int y_offset,         \
+      const uint16_t *dst, int dst_stride, uint32_t *sse_ptr,                  \
+      const uint16_t *sec) {                                                   \
     int64_t var;                                                               \
     uint32_t sse;                                                              \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                 \
-    uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);                                 \
-    uint16_t *sec = CONVERT_TO_SHORTPTR(sec8);                                 \
     int se = aom_highbd_sub_pixel_avg_variance##wf##xh_##opt(                  \
         src, src_stride, x_offset, y_offset, dst, dst_stride, sec, w, h, &sse, \
         NULL, NULL);                                                           \
@@ -541,17 +527,14 @@ DECLS(sse2);
   }                                                                            \
                                                                                \
   uint32_t aom_highbd_12_sub_pixel_avg_variance##w##x##h##_##opt(              \
-      const uint8_t *src8, int src_stride, int x_offset, int y_offset,         \
-      const uint8_t *dst8, int dst_stride, uint32_t *sse_ptr,                  \
-      const uint8_t *sec8) {                                                   \
+      const uint16_t *src, int src_stride, int x_offset, int y_offset,         \
+      const uint16_t *dst, int dst_stride, uint32_t *sse_ptr,                  \
+      const uint16_t *sec) {                                                   \
     int start_row;                                                             \
     int64_t var;                                                               \
     uint32_t sse;                                                              \
     int se = 0;                                                                \
     uint64_t long_sse = 0;                                                     \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src8);                                 \
-    uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);                                 \
-    uint16_t *sec = CONVERT_TO_SHORTPTR(sec8);                                 \
     for (start_row = 0; start_row < h; start_row += 16) {                      \
       uint32_t sse2;                                                           \
       int height = h - start_row < 16 ? h - start_row : 16;                    \
@@ -591,6 +574,23 @@ DECLS(sse2);
     return (var >= 0) ? (uint32_t)var : 0;                                     \
   }
 
+#if CONFIG_UNEVEN_4WAY
+// TODO(any): Add back 16X16, 16X8, 16X4 after fixing alignment issues.
+#define FNS(opt)                        \
+  FN(64, 64, 16, 6, 6, opt, (int64_t)); \
+  FN(64, 32, 16, 6, 5, opt, (int64_t)); \
+  FN(32, 64, 16, 5, 6, opt, (int64_t)); \
+  FN(32, 32, 16, 5, 5, opt, (int64_t)); \
+  FN(32, 16, 16, 5, 4, opt, (int64_t)); \
+  FN(16, 32, 16, 4, 5, opt, (int64_t)); \
+  FN(8, 16, 8, 3, 4, opt, (int64_t));   \
+  FN(8, 8, 8, 3, 3, opt, (int64_t));    \
+  FN(8, 4, 8, 3, 2, opt, (int64_t));    \
+  FN(8, 32, 8, 3, 5, opt, (int64_t));   \
+  FN(32, 8, 16, 5, 3, opt, (int64_t));  \
+  FN(16, 64, 16, 4, 6, opt, (int64_t)); \
+  FN(64, 16, 16, 6, 4, opt, (int64_t));
+#else
 #define FNS(opt)                        \
   FN(64, 64, 16, 6, 6, opt, (int64_t)); \
   FN(64, 32, 16, 6, 5, opt, (int64_t)); \
@@ -608,6 +608,7 @@ DECLS(sse2);
   FN(32, 8, 16, 5, 3, opt, (int64_t));  \
   FN(16, 64, 16, 4, 6, opt, (int64_t)); \
   FN(64, 16, 16, 6, 4, opt, (int64_t));
+#endif  // CONFIG_UNEVEN_4WAY
 
 FNS(sse2);
 
@@ -617,21 +618,19 @@ FNS(sse2);
 void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
                                     const struct AV1Common *const cm,
                                     int mi_row, int mi_col, const MV *const mv,
-                                    uint8_t *comp_pred8, int width, int height,
+                                    uint16_t *comp_pred, int width, int height,
                                     int subpel_x_q3, int subpel_y_q3,
-                                    const uint8_t *ref8, int ref_stride, int bd,
-                                    int subpel_search) {
+                                    const uint16_t *ref, int ref_stride, int bd,
+                                    int subpel_search, int is_scaled_ref) {
   // expect xd == NULL only in tests
   if (xd != NULL) {
     const MB_MODE_INFO *mi = xd->mi[0];
     const int ref_num = 0;
-#if CONFIG_SDP
     const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
-#else
-    const int is_intrabc = is_intrabc_block(mi);
-#endif
     const struct scale_factors *const sf =
-        is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref_num];
+        (is_intrabc || is_scaled_ref) ? &cm->sf_identity
+                                      : xd->block_ref_scale_factors[ref_num];
+
     const int is_scaled = av1_is_scaled(sf);
 
     if (is_scaled) {
@@ -649,8 +648,8 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
       av1_init_inter_params(
           &inter_pred_params, width, height, mi_y >> pd->subsampling_y,
           mi_x >> pd->subsampling_x, pd->subsampling_x, pd->subsampling_y,
-          xd->bd, is_cur_buf_hbd(xd), is_intrabc, sf, pre_buf, filters);
-      av1_enc_build_one_inter_predictor(comp_pred8, width, mv,
+          xd->bd, is_intrabc, sf, pre_buf, filters);
+      av1_enc_build_one_inter_predictor(comp_pred, width, mv,
                                         &inter_pred_params);
       return;
     }
@@ -659,8 +658,6 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
   const InterpFilterParams *filter = av1_get_filter(subpel_search);
   int filter_taps = (subpel_search <= USE_4_TAPS) ? 4 : SUBPEL_TAPS;
   if (!subpel_x_q3 && !subpel_y_q3) {
-    uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
-    uint16_t *comp_pred = CONVERT_TO_SHORTPTR(comp_pred8);
     if (width >= 8) {
       int i;
       assert(!(width & 7));
@@ -691,12 +688,12 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
   } else if (!subpel_y_q3) {
     const int16_t *const kernel =
         av1_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
-    aom_highbd_convolve8_horiz(ref8, ref_stride, comp_pred8, width, kernel, 16,
+    aom_highbd_convolve8_horiz(ref, ref_stride, comp_pred, width, kernel, 16,
                                NULL, -1, width, height, bd);
   } else if (!subpel_x_q3) {
     const int16_t *const kernel =
         av1_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
-    aom_highbd_convolve8_vert(ref8, ref_stride, comp_pred8, width, NULL, -1,
+    aom_highbd_convolve8_vert(ref, ref_stride, comp_pred, width, NULL, -1,
                               kernel, 16, width, height, bd);
   } else {
     DECLARE_ALIGNED(16, uint16_t,
@@ -705,7 +702,7 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
         av1_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
     const int16_t *const kernel_y =
         av1_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
-    const uint8_t *ref_start = ref8 - ref_stride * ((filter_taps >> 1) - 1);
+    const uint16_t *ref_start = ref - ref_stride * ((filter_taps >> 1) - 1);
     uint16_t *temp_start_horiz = (subpel_search <= USE_4_TAPS)
                                      ? temp + (filter_taps >> 1) * MAX_SB_SIZE
                                      : temp;
@@ -713,25 +710,22 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
     const int intermediate_height =
         (((height - 1) * 8 + subpel_y_q3) >> 3) + filter_taps;
     assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
-    aom_highbd_convolve8_horiz(
-        ref_start, ref_stride, CONVERT_TO_BYTEPTR(temp_start_horiz),
-        MAX_SB_SIZE, kernel_x, 16, NULL, -1, width, intermediate_height, bd);
-    aom_highbd_convolve8_vert(CONVERT_TO_BYTEPTR(temp_start_vert), MAX_SB_SIZE,
-                              comp_pred8, width, NULL, -1, kernel_y, 16, width,
-                              height, bd);
+    aom_highbd_convolve8_horiz(ref_start, ref_stride, (temp_start_horiz),
+                               MAX_SB_SIZE, kernel_x, 16, NULL, -1, width,
+                               intermediate_height, bd);
+    aom_highbd_convolve8_vert((temp_start_vert), MAX_SB_SIZE, comp_pred, width,
+                              NULL, -1, kernel_y, 16, width, height, bd);
   }
 }
 
 void aom_highbd_comp_avg_upsampled_pred_sse2(
     MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,
-    const MV *const mv, uint8_t *comp_pred8, const uint8_t *pred8, int width,
-    int height, int subpel_x_q3, int subpel_y_q3, const uint8_t *ref8,
+    const MV *const mv, uint16_t *comp_pred16, const uint16_t *pred, int width,
+    int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref,
     int ref_stride, int bd, int subpel_search) {
-  aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred8, width,
-                            height, subpel_x_q3, subpel_y_q3, ref8, ref_stride,
-                            bd, subpel_search);
-  uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
-  uint16_t *comp_pred16 = CONVERT_TO_SHORTPTR(comp_pred8);
+  aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred16, width,
+                            height, subpel_x_q3, subpel_y_q3, ref, ref_stride,
+                            bd, subpel_search, 0);
   /*The total number of pixels must be a multiple of 8 (e.g., 4x4).*/
   assert(!(width * height & 7));
   int n = width * height >> 3;
@@ -760,8 +754,8 @@ static INLINE void highbd_compute_dist_wtd_comp_avg(__m128i *p0, __m128i *p1,
 }
 
 void aom_highbd_dist_wtd_comp_avg_pred_sse2(
-    uint8_t *comp_pred8, const uint8_t *pred8, int width, int height,
-    const uint8_t *ref8, int ref_stride,
+    uint16_t *comp_pred, const uint16_t *pred, int width, int height,
+    const uint16_t *ref, int ref_stride,
     const DIST_WTD_COMP_PARAMS *jcp_param) {
   int i;
   const uint16_t wt0 = (uint16_t)jcp_param->fwd_offset;
@@ -771,9 +765,6 @@ void aom_highbd_dist_wtd_comp_avg_pred_sse2(
   const uint16_t round = ((1 << DIST_PRECISION_BITS) >> 1);
   const __m128i r =
       _mm_set_epi16(round, round, round, round, round, round, round, round);
-  uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
-  uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
-  uint16_t *comp_pred = CONVERT_TO_SHORTPTR(comp_pred8);
 
   if (width >= 8) {
     // Read 8 pixels one row at a time
@@ -812,16 +803,15 @@ void aom_highbd_dist_wtd_comp_avg_pred_sse2(
 
 void aom_highbd_dist_wtd_comp_avg_upsampled_pred_sse2(
     MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,
-    const MV *const mv, uint8_t *comp_pred8, const uint8_t *pred8, int width,
-    int height, int subpel_x_q3, int subpel_y_q3, const uint8_t *ref8,
+    const MV *const mv, uint16_t *comp_pred16, const uint16_t *pred, int width,
+    int height, int subpel_x_q3, int subpel_y_q3, const uint16_t *ref,
     int ref_stride, int bd, const DIST_WTD_COMP_PARAMS *jcp_param,
     int subpel_search) {
-  uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
   int n;
   int i;
-  aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred8, width,
-                            height, subpel_x_q3, subpel_y_q3, ref8, ref_stride,
-                            bd, subpel_search);
+  aom_highbd_upsampled_pred(xd, cm, mi_row, mi_col, mv, comp_pred16, width,
+                            height, subpel_x_q3, subpel_y_q3, ref, ref_stride,
+                            bd, subpel_search, 0);
   assert(!(width * height & 7));
   n = width * height >> 3;
 
@@ -833,7 +823,6 @@ void aom_highbd_dist_wtd_comp_avg_upsampled_pred_sse2(
   const __m128i r =
       _mm_set_epi16(round, round, round, round, round, round, round, round);
 
-  uint16_t *comp_pred16 = CONVERT_TO_SHORTPTR(comp_pred8);
   for (i = 0; i < n; i++) {
     __m128i p0 = xx_loadu_128(comp_pred16);
     __m128i p1 = xx_loadu_128(pred);

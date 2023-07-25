@@ -22,8 +22,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#if CONFIG_EXTQUANT
+#if CONFIG_PAR_HIDING
+#define PHTHRESH 4
+#endif  // CONFIG_PAR_HIDING
 #define MINQ 0
 #define QINDEX_BITS 9
 #define QINDEX_BITS_UNEXT 8
@@ -34,12 +35,7 @@ extern "C" {
 #define QINDEX_RANGE (MAXQ - MINQ + 1)
 #define QINDEX_RANGE_8_BITS (MAXQ_8_BITS - MINQ + 1)
 #define QINDEX_RANGE_10_BITS (MAXQ_10_BITS - MINQ + 1)
-#else
-#define MINQ 0
-#define MAXQ 255
-#define QINDEX_BITS 8
-#define QINDEX_RANGE (MAXQ - MINQ + 1)
-#endif
+
 // Total number of QM sets stored
 #define QM_LEVEL_BITS 4
 #define NUM_QM_LEVELS (1 << QM_LEVEL_BITS)
@@ -55,22 +51,12 @@ struct AV1Common;
 struct CommonQuantParams;
 struct macroblockd;
 
-#if CONFIG_EXTQUANT
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth);
 int32_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
-#else
-int16_t av1_dc_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
-int16_t av1_ac_quant_QTX(int qindex, int delta, aom_bit_depth_t bit_depth);
-#endif
 
 int av1_get_qindex(const struct segmentation *seg, int segment_id,
-                   int base_qindex
-#if CONFIG_EXTQUANT
-                   ,
-                   aom_bit_depth_t bit_depth
-#endif
-);
+                   int base_qindex, aom_bit_depth_t bit_depth);
 
 // Returns true if we are using quantization matrix.
 bool av1_use_qmatrix(const struct CommonQuantParams *quant_params,
@@ -78,20 +64,12 @@ bool av1_use_qmatrix(const struct CommonQuantParams *quant_params,
 
 // Reduce the large number of quantizers to a smaller number of levels for which
 // different matrices may be defined
-static INLINE int aom_get_qmlevel(int qindex, int first, int last
-#if CONFIG_EXTQUANT
-                                  ,
-                                  aom_bit_depth_t bit_depth
-#endif
-) {
-#if CONFIG_EXTQUANT
+static INLINE int aom_get_qmlevel(int qindex, int first, int last,
+                                  aom_bit_depth_t bit_depth) {
   return first + (qindex * (last + 1 - first)) /
                      (bit_depth == AOM_BITS_8    ? QINDEX_RANGE_8_BITS
                       : bit_depth == AOM_BITS_10 ? QINDEX_RANGE_10_BITS
                                                  : QINDEX_RANGE);
-#else
-  return first + (qindex * (last + 1 - first)) / QINDEX_RANGE;
-#endif
 }
 
 // Initialize all global quant/dequant matrices.

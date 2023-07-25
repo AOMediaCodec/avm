@@ -321,11 +321,9 @@ int main(int argc, char *argv[]) {
   }
   fprintf(stderr, "Bit depth: %d  stride:%d\n", args.bit_depth, raw.stride[0]);
 
-  const int high_bd = args.bit_depth > 8;
   const int block_size = args.block_size;
   aom_flat_block_finder_t block_finder;
-  aom_flat_block_finder_init(&block_finder, block_size, args.bit_depth,
-                             high_bd);
+  aom_flat_block_finder_init(&block_finder, block_size, args.bit_depth);
 
   const int num_blocks_w = (info.frame_width + block_size - 1) / block_size;
   const int num_blocks_h = (info.frame_height + block_size - 1) / block_size;
@@ -333,8 +331,8 @@ int main(int argc, char *argv[]) {
   // Sets the random seed on the first entry in the output table
   int16_t random_seed = 7391;
   aom_noise_model_t noise_model;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 3, args.bit_depth,
-                                      high_bd };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 3,
+                                      args.bit_depth };
   aom_noise_model_init(&noise_model, params);
 
   FILE *denoised_file = 0;
@@ -374,8 +372,8 @@ int main(int argc, char *argv[]) {
                                    raw.planes[2] };
       uint8_t *denoised_planes[3] = { denoised.planes[0], denoised.planes[1],
                                       denoised.planes[2] };
-      int strides[3] = { raw.stride[0] >> high_bd, raw.stride[1] >> high_bd,
-                         raw.stride[2] >> high_bd };
+      int strides[3] = { raw.stride[0] >> 1, raw.stride[1] >> 1,
+                         raw.stride[2] >> 1 };
       int chroma_sub[3] = { raw.x_chroma_shift, raw.y_chroma_shift, 0 };
 
       fprintf(stdout, "Updating noise model...\n");

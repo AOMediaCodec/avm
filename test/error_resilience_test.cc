@@ -83,18 +83,16 @@ class ErrorResilienceTestLarge
       encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
     }
-    frame_flags_ &=
-        ~(AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF | AOM_EFLAG_NO_UPD_ARF |
-          AOM_EFLAG_NO_REF_FRAME_MVS | AOM_EFLAG_ERROR_RESILIENT |
-          AOM_EFLAG_SET_S_FRAME | AOM_EFLAG_SET_PRIMARY_REF_NONE);
+    frame_flags_ &= ~(AOM_EFLAG_NO_REF_FRAME_MVS | AOM_EFLAG_ERROR_RESILIENT |
+                      AOM_EFLAG_NO_UPD_ALL | AOM_EFLAG_SET_S_FRAME |
+                      AOM_EFLAG_SET_PRIMARY_REF_NONE);
     if (droppable_nframes_ > 0 &&
         (cfg_.g_pass == AOM_RC_LAST_PASS || cfg_.g_pass == AOM_RC_ONE_PASS)) {
       for (unsigned int i = 0; i < droppable_nframes_; ++i) {
         if (droppable_frames_[i] == video->frame()) {
           std::cout << "             Encoding droppable frame: "
                     << droppable_frames_[i] << "\n";
-          frame_flags_ |= (AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF |
-                           AOM_EFLAG_NO_UPD_ARF);
+          frame_flags_ |= AOM_EFLAG_NO_UPD_ALL;
           break;
         }
       }
@@ -154,9 +152,7 @@ class ErrorResilienceTestLarge
     // Check that the encode frame flags are correctly reflected
     // in the output frame flags.
     const int encode_flags = pkt->data.frame.flags >> 16;
-    if ((encode_flags & (AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF |
-                         AOM_EFLAG_NO_UPD_ARF)) ==
-        (AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF | AOM_EFLAG_NO_UPD_ARF)) {
+    if ((encode_flags & AOM_EFLAG_NO_UPD_ALL) == AOM_EFLAG_NO_UPD_ALL) {
       ASSERT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_DROPPABLE,
                 static_cast<aom_codec_frame_flags_t>(AOM_FRAME_IS_DROPPABLE));
     }
@@ -506,6 +502,9 @@ class SFramePresenceTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      if (rc_end_usage_ == AOM_Q) {
+        encoder->Control(AOME_SET_QP, 210);
+      }
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
     }
   }

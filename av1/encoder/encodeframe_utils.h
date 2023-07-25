@@ -13,6 +13,8 @@
 #ifndef AOM_AV1_ENCODER_ENCODEFRAME_UTILS_H_
 #define AOM_AV1_ENCODER_ENCODEFRAME_UTILS_H_
 
+#include "aom_ports/system_state.h"
+
 #include "av1/common/reconinter.h"
 
 #include "av1/encoder/encoder.h"
@@ -32,17 +34,25 @@ enum {
 typedef struct {
   ENTROPY_CONTEXT a[MAX_MIB_SIZE * MAX_MB_PLANE];
   ENTROPY_CONTEXT l[MAX_MIB_SIZE * MAX_MB_PLANE];
-#if CONFIG_SDP
   PARTITION_CONTEXT sa[MAX_MIB_SIZE * MAX_MB_PLANE];
   PARTITION_CONTEXT sl[MAX_MIB_SIZE * MAX_MB_PLANE];
-#else
-  PARTITION_CONTEXT sa[MAX_MIB_SIZE];
-  PARTITION_CONTEXT sl[MAX_MIB_SIZE];
-#endif
   TXFM_CONTEXT *p_ta;
   TXFM_CONTEXT *p_tl;
   TXFM_CONTEXT ta[MAX_MIB_SIZE];
   TXFM_CONTEXT tl[MAX_MIB_SIZE];
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  //! The current level bank, used to restore the level bank in MACROBLOCKD.
+  REF_MV_BANK curr_level_bank;
+  //! The best level bank from the rdopt process.
+  REF_MV_BANK best_level_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  //! The current warp, level bank, used to restore the warp level bank in
+  //! MACROBLOCKD.
+  WARP_PARAM_BANK curr_level_warp_bank;
+  //! The best warp level bank from the rdopt process.
+  WARP_PARAM_BANK best_level_warp_bank;
+#endif  // WARP_CU_BANK
 } RD_SEARCH_MACROBLOCK_CONTEXT;
 
 // This struct is used to store the statistics used by sb-level multi-pass
@@ -55,19 +65,28 @@ typedef struct SB_FIRST_PASS_STATS {
   int split_count;
   FRAME_COUNTS fc;
   InterModeRdModel inter_mode_rd_models[BLOCK_SIZES_ALL];
-  int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
+  int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
   int current_qindex;
-
-#if CONFIG_INTERNAL_STATS
-  unsigned int mode_chosen_counts[MAX_MODES];
-#endif  // CONFIG_INTERNAL_STATS
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  REF_MV_BANK ref_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  WARP_PARAM_BANK warp_param_bank;
+#endif  // WARP_CU_BANK
+#if CONFIG_EXT_RECUR_PARTITIONS
+  BLOCK_SIZE min_partition_size;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 } SB_FIRST_PASS_STATS;
 
 // This structure contains block size related
 // variables for use in rd_pick_partition().
-typedef struct {
+typedef struct PartitionBlkParams {
   // Half of block width to determine block edge.
   int mi_step;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int mi_step_h;
+  int mi_step_w;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Block row and column indices.
   int mi_row;
@@ -80,15 +99,28 @@ typedef struct {
   // Block width of current partition block.
   int width;
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // Minimum partition size allowed.
+  BLOCK_SIZE min_partition_size;
+#else
   // Block width of minimum partition size allowed.
   int min_partition_size_1d;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   // Flag to indicate if partition is 8x8 or higher size.
   int bsize_at_least_8x8;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
-  // Indicates edge blocks in frame.
+  // Indicates if at least half of the rows / cols of this block are within the
+  // frame.
   int has_rows;
   int has_cols;
+
+  // Indicates if at least 7/8th of the rows / cols of this block are within the
+  // frame. Used by HORZ/VERT_4A/4B partitions.
+  int has_7_8th_rows;
+  int has_7_8th_cols;
 
   // Block size of current partition.
   BLOCK_SIZE bsize;
@@ -101,7 +133,7 @@ typedef struct {
 } PartitionBlkParams;
 
 // Structure holding state variables for partition search.
-typedef struct {
+typedef struct PartitionSearchState {
   // Intra partitioning related info.
   PartitionSearchInfo *intra_part_info;
 
@@ -119,6 +151,9 @@ typedef struct {
 
   // Array holding partition type cost.
   int tmp_partition_cost[PARTITION_TYPES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int partition_cost_table[EXT_PARTITION_TYPES];
+#endif
 
   // Pointer to partition cost buffer
   int *partition_cost;
@@ -131,6 +166,10 @@ typedef struct {
   // rect_part_rd[1][i] is the RD cost of ith partition index of PARTITION_VERT.
   int64_t rect_part_rd[NUM_RECT_PARTS][SUB_PARTITIONS_RECT];
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  // New Simple Motion Result for PARTITION_NONE
+  SMSPartitionStats none_data;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   // Flags indicating if the corresponding partition was winner or not.
   // Used to bypass similar blocks during AB partition evaluation.
   int is_split_ctx_is_ready[2];
@@ -141,8 +180,28 @@ typedef struct {
   int partition_none_allowed;
   int partition_rect_allowed[NUM_RECT_PARTS];
   int do_rectangular_split;
+#if !CONFIG_EXT_RECUR_PARTITIONS
   int do_square_split;
-  int prune_rect_part[NUM_RECT_PARTS];
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  bool prune_partition_none;
+  bool ext_partition_allowed;
+  bool partition_3_allowed[NUM_RECT_PARTS];
+  bool prune_partition_3[NUM_RECT_PARTS];
+#if CONFIG_UNEVEN_4WAY
+  bool partition_4a_allowed[NUM_RECT_PARTS];
+  bool partition_4b_allowed[NUM_RECT_PARTS];
+  bool prune_partition_4a[NUM_RECT_PARTS];
+  bool prune_partition_4b[NUM_RECT_PARTS];
+#endif  // CONFIG_UNEVEN_4WAY
+  PARTITION_TYPE forced_partition;
+  // Pointer to an array that traces out the current best partition boundary.
+  // Used by prune_part_h_with_partition_boundary and
+  // prune_part_4_with_partition_boundary.
+  bool *partition_boundaries;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  bool prune_rect_part[NUM_RECT_PARTS];
+  int is_block_splittable;
 
   // Chroma subsampling in x and y directions.
   int ss_x;
@@ -155,18 +214,49 @@ typedef struct {
   bool found_best_partition;
 } PartitionSearchState;
 
-static AOM_INLINE void update_global_motion_used(PREDICTION_MODE mode,
-                                                 BLOCK_SIZE bsize,
-                                                 const MB_MODE_INFO *mbmi,
-                                                 RD_COUNTS *rdc) {
-  if (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) {
-    const int num_4x4s = mi_size_wide[bsize] * mi_size_high[bsize];
-    int ref;
-    for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-      rdc->global_motion_used[mbmi->ref_frame[ref]] += num_4x4s;
-    }
+#if CONFIG_WEDGE_MOD_EXT
+static AOM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,
+                                             const BLOCK_SIZE bsize,
+                                             const int8_t wedge_index
+#if CONFIG_ENTROPY_STATS
+                                             ,
+                                             FRAME_COUNTS *const counts
+#endif
+) {
+  const int wedge_angle = wedge_index_2_angle[wedge_index];
+  const int wedge_dist = wedge_index_2_dist[wedge_index];
+  const int wedge_angle_dir = (wedge_angle >= H_WEDGE_ANGLES);
+#if CONFIG_ENTROPY_STATS
+  counts->wedge_angle_dir_cnt[bsize][wedge_angle_dir]++;
+#endif
+  update_cdf(fc->wedge_angle_dir_cdf[bsize], wedge_angle_dir, 2);
+  if (wedge_angle_dir == 0) {
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_angle_0_cnt[bsize][wedge_angle]++;
+#endif
+    update_cdf(fc->wedge_angle_0_cdf[bsize], wedge_angle, H_WEDGE_ANGLES);
+  } else {
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_angle_1_cnt[bsize][wedge_angle - H_WEDGE_ANGLES]++;
+#endif
+    update_cdf(fc->wedge_angle_1_cdf[bsize], wedge_angle - H_WEDGE_ANGLES,
+               H_WEDGE_ANGLES);
+  }
+  if ((wedge_angle >= H_WEDGE_ANGLES) ||
+      (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+    assert(wedge_dist != 0);
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_dist_3_cnt[bsize][wedge_dist - 1]++;
+#endif
+    update_cdf(fc->wedge_dist_cdf2[bsize], wedge_dist - 1, NUM_WEDGE_DIST - 1);
+  } else {
+#if CONFIG_ENTROPY_STATS
+    counts->wedge_dist_cnt[bsize][wedge_dist]++;
+#endif
+    update_cdf(fc->wedge_dist_cdf[bsize], wedge_dist, NUM_WEDGE_DIST);
   }
 }
+#endif  // CONFIG_WEDGE_MOD_EXT
 
 static AOM_INLINE void update_filter_type_cdf(const MACROBLOCKD *xd,
                                               const MB_MODE_INFO *mbmi) {
@@ -181,14 +271,10 @@ static AOM_INLINE int set_segment_rdmult(const AV1_COMP *const cpi,
   const AV1_COMMON *const cm = &cpi->common;
   av1_init_plane_quantizers(cpi, x, segment_id);
   aom_clear_system_state();
-#if CONFIG_EXTQUANT
+
   int segment_qindex =
       av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex,
                      cm->seq_params.bit_depth);
-#else
-  const int segment_qindex =
-      av1_get_qindex(&cm->seg, segment_id, cm->quant_params.base_qindex);
-#endif
   return av1_compute_rd_mult(cpi,
                              segment_qindex + cm->quant_params.y_dc_delta_q);
 }
@@ -275,20 +361,21 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
                       int mi_col, BLOCK_SIZE bsize, RUN_TYPE dry_run);
 
 void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
-                                 PREDICTION_MODE mode, int16_t mode_context);
-
-void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
-                         MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi
-#if !CONFIG_AIMC
-                         ,
-                         const MB_MODE_INFO *above_mi,
-                         const MB_MODE_INFO *left_mi, const int intraonly
-#endif  // !CONFIG_AIMC
+                                 PREDICTION_MODE mode, int16_t mode_context
+#if CONFIG_WARPMV
+                                 ,
+                                 const AV1_COMMON *const cm,
+                                 const MACROBLOCKD *xd,
+                                 const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
+#endif  // CONFIG_WARPMV
 );
 
-void av1_restore_context(MACROBLOCK *x, const RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
-                         int mi_row, int mi_col, BLOCK_SIZE bsize,
-                         const int num_planes);
+void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
+                         MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi);
+
+void av1_restore_context(const AV1_COMMON *cm, MACROBLOCK *x,
+                         const RD_SEARCH_MACROBLOCK_CONTEXT *ctx, int mi_row,
+                         int mi_col, BLOCK_SIZE bsize, const int num_planes);
 
 void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
                       int mi_row, int mi_col, BLOCK_SIZE bsize,
@@ -297,13 +384,8 @@ void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
 void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                                 MB_MODE_INFO **mib, int mi_row, int mi_col,
                                 BLOCK_SIZE bsize);
-#if CONFIG_SDP
 int av1_is_leaf_split_partition(AV1_COMMON *cm, MACROBLOCKD *const xd,
-                                int mi_row, int mi_col,
-#else
-int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
-#endif
-                                BLOCK_SIZE bsize);
+                                int mi_row, int mi_col, BLOCK_SIZE bsize);
 
 void av1_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
                                             BLOCK_SIZE bsize);
@@ -314,9 +396,13 @@ void av1_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
 
 void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                          int wt_left, int wt_tr);
-
+#if CONFIG_FLEX_MVRES
+void av1_reset_mbmi(const CommonModeInfoParams *const mi_params,
+                    BLOCK_SIZE sb_size, int mi_row, int mi_col);
+#else
 void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
                     int mi_row, int mi_col);
+#endif
 
 void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
                          ThreadData *td, const TileDataEnc *tile_data,
@@ -329,6 +415,12 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
 void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
                            const TileInfo *const tile_info, const int mi_row,
                            const int mi_col);
+
+#ifndef NDEBUG
+static AOM_INLINE int is_bsize_square(BLOCK_SIZE bsize) {
+  return block_size_wide[bsize] == block_size_high[bsize];
+}
+#endif  // NDEBUG
 
 #ifdef __cplusplus
 }  // extern "C"

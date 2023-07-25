@@ -20,7 +20,7 @@
 #include "aom_dsp/aom_filter.h"
 
 void av1_highbd_wiener_convolve_add_src_ssse3(
-    const uint8_t *src8, ptrdiff_t src_stride, uint8_t *dst8,
+    const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst,
     ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
     const int16_t *filter_y, int y_step_q4, int w, int h,
     const ConvolveParams *conv_params, int bd) {
@@ -29,9 +29,6 @@ void av1_highbd_wiener_convolve_add_src_ssse3(
   assert(bd + FILTER_BITS - conv_params->round_0 + 2 <= 16);
   (void)x_step_q4;
   (void)y_step_q4;
-
-  const uint16_t *const src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *const dst = CONVERT_TO_SHORTPTR(dst8);
 
   DECLARE_ALIGNED(16, uint16_t,
                   temp[(MAX_SB_SIZE + SUBPEL_TAPS - 1) * MAX_SB_SIZE]);

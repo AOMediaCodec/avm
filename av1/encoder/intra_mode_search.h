@@ -50,12 +50,15 @@ typedef struct IntraModeSearchState {
    */
   PREDICTION_MODE best_intra_mode;
 
-#if CONFIG_MRLS
   /*!
    * \brief The best mrl index found so far
    */
   int best_mrl_index;
-#endif
+
+  /*!
+   * \brief The best forward skip mode found.
+   */
+  int best_fsc;
 
   /** \name Speed feature variables
    * Variables to help with pruning some luma intra-modes during inter frame
@@ -162,6 +165,48 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                               int64_t *best_model_rd,
                               int64_t top_intra_model_rd[]);
 
+/*!\brief Search for the best forward skip coding mode for intra blocks.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * \callgraph
+ * This function searches for the best forward skip coding mode when
+ * the current frame is an intra frame.
+ *
+ * \param[in]    cpi                Top-level encoder structure.
+ * \param[in]    x                  Pointer to structure holding all the data
+ *                                  for the current macroblock.
+ * \param[in]    rate               The total rate needed to predict the current
+ *                                  chroma block.
+ * \param[in]    rate_tokenonly     The rate without the cost of sending the
+ *                                  prediction modes.
+ *                                  chroma block.
+ *                                  after the reconstruction.
+ * \param[in]    distortion         The chroma distortion of the best prediction
+ *                                  after the reconstruction.
+ * \param[in]    skippable          Whether we can skip txfm process.
+ * \param[in]    bsize              Current partition block size.
+ * \param[in]    mode_costs         Costs associated with different intra modes.
+ * \param[in]    dir_skip_mask      Whether a directional mode is pruned.
+ * \param[in]    best_rd            Best RD seen for this block so far.
+ * \param[in]    best_model_rd      Best model RD seen for this block so far.
+ * \param[in]    ctx                Structure to hold the number of 4x4 blks to
+ *                                  copy the tx_type and txfm_skip arrays.
+ * \param[in]    best_mbmi          Pointer to structure holding
+ *                                  the mode info for the best macroblock.
+ */
+void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
+                     int *rate_tokenonly, int64_t *distortion, int *skippable,
+                     BLOCK_SIZE bsize,
+#if CONFIG_AIMC
+                     int mode_costs,
+#else
+                     const int *mode_costs,
+#endif  // CONFIG_AIMC
+                     uint8_t *dir_skip_mask, int64_t *best_rd,
+                     int64_t *best_model_rd, PICK_MODE_CONTEXT *ctx,
+                     MB_MODE_INFO *best_mbmi);
+
 /*!\brief Evaluate luma palette mode for inter frames.
  *
  * \ingroup intra_mode_search
@@ -232,6 +277,39 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                    BLOCK_SIZE bsize, int64_t best_rd,
                                    PICK_MODE_CONTEXT *ctx);
 
+#if CONFIG_CROSS_CHROMA_TX
+/*!\brief Perform intra-mode search on chroma channels.
+ *
+ * \ingroup intra_mode_search
+ * \callergraph
+ * \callgraph
+ * This function performs intra-mode search on the chroma channels. Just like
+ * \ref av1_rd_pick_intra_sby_mode(), this function searches over palette mode
+ * (filter_intra is not available on chroma planes). Unlike \ref
+ * av1_rd_pick_intra_sby_mode() this function is used by both inter and intra
+ * frames.
+ *
+ * \param[in]    cpi                Top-level encoder structure.
+ * \param[in]    x                  Pointer to structure holding all the data
+ *                                  for the current macroblock.
+ * \param[in]    rate               The total rate needed to predict the current
+ *                                  chroma block.
+ * \param[in]    rate_tokenonly     The rate without the cost of sending the
+ *                                  prediction modes.
+ *                                  chroma block.
+ *                                  after the reconstruction.
+ * \param[in]    distortion         The chroma distortion of the best prediction
+ *                                  after the reconstruction.
+ * \param[in]    skippable          Whether we can skip txfm process.
+ * \param[in]    ctx                Structure to hold the number of 4x4 blks to
+ *                                  copy the tx_type and txfm_skip arrays.
+ * \param[in]    bsize              Current partition block size.
+ * \param[in]    max_tx_size        The maximum tx_size available
+ *
+ * \return Returns the rd_cost of the best uv mode found. This also updates the
+ * mbmi, the rate and distortion, distortion.
+ */
+#else
 /*!\brief Perform intra-mode search on chroma channels.
  *
  * \ingroup intra_mode_search
@@ -261,19 +339,18 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
  * \return Returns the rd_cost of the best uv mode found. This also updates the
  * mbmi, the rate and distortion, distortion.
  */
+#endif  // CONFIG_CROSS_CHROMA_TX
 int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                                     int *rate, int *rate_tokenonly,
                                     int64_t *distortion, int *skippable,
+#if CONFIG_CROSS_CHROMA_TX
+                                    const PICK_MODE_CONTEXT *ctx,
+#endif  // CONFIG_CROSS_CHROMA_TX
                                     BLOCK_SIZE bsize, TX_SIZE max_tx_size);
 
 /*! \brief Return the number of colors in src. Used by palette mode.
  */
-void av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
-                      int *val_count, int *num_colors);
-
-/*! \brief See \ref av1_count_colors(), but for highbd.
- */
-void av1_count_colors_highbd(const uint8_t *src8, int stride, int rows,
+void av1_count_colors_highbd(const uint16_t *src, int stride, int rows,
                              int cols, int bit_depth, int *val_count,
                              int *val_count_8bit, int *num_color_bins,
                              int *num_colors);

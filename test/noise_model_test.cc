@@ -268,7 +268,7 @@ TEST(NoiseStrengthLut, LutEvalMultiPointInterp) {
 }
 
 TEST(NoiseModel, InitSuccessWithValidSquareShape) {
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 2, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 2, 8 };
   aom_noise_model_t model;
 
   EXPECT_TRUE(aom_noise_model_init(&model, params));
@@ -288,7 +288,7 @@ TEST(NoiseModel, InitSuccessWithValidSquareShape) {
 
 TEST(NoiseModel, InitSuccessWithValidDiamondShape) {
   aom_noise_model_t model;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_DIAMOND, 2, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_DIAMOND, 2, 8 };
   EXPECT_TRUE(aom_noise_model_init(&model, params));
   EXPECT_EQ(6, model.n);
   const int kNumCoords = 6;
@@ -305,21 +305,21 @@ TEST(NoiseModel, InitSuccessWithValidDiamondShape) {
 
 TEST(NoiseModel, InitFailsWithTooLargeLag) {
   aom_noise_model_t model;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 10, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 10, 8 };
   EXPECT_FALSE(aom_noise_model_init(&model, params));
   aom_noise_model_free(&model);
 }
 
 TEST(NoiseModel, InitFailsWithTooSmallLag) {
   aom_noise_model_t model;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 0, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 0, 8 };
   EXPECT_FALSE(aom_noise_model_init(&model, params));
   aom_noise_model_free(&model);
 }
 
 TEST(NoiseModel, InitFailsWithInvalidShape) {
   aom_noise_model_t model;
-  aom_noise_model_params_t params = { aom_noise_shape(100), 3, 8, 0 };
+  aom_noise_model_params_t params = { aom_noise_shape(100), 3, 8 };
   EXPECT_FALSE(aom_noise_model_init(&model, params));
   aom_noise_model_free(&model);
 }
@@ -328,11 +328,10 @@ TEST(NoiseModel, InitFailsWithInvalidShape) {
 // All of these args are bundled into one struct so that we can use
 // parameterized tests on combinations of supported data types
 // (uint8_t and uint16_t) and bit depths (8, 10, 12).
-template <typename T, int bit_depth, bool use_highbd>
+template <typename T, int bit_depth>
 struct BitDepthParams {
   typedef T data_type_t;
   static const int kBitDepth = bit_depth;
-  static const bool kUseHighBD = use_highbd;
 };
 
 template <typename T>
@@ -350,7 +349,7 @@ TYPED_TEST_P(FlatBlockEstimatorTest, ExtractBlock) {
   const int kBlockSize = 16;
   aom_flat_block_finder_t flat_block_finder;
   ASSERT_EQ(1, aom_flat_block_finder_init(&flat_block_finder, kBlockSize,
-                                          this->kBitDepth, this->kUseHighBD));
+                                          this->kBitDepth));
   const double normalization = flat_block_finder.normalization;
 
   // Test with an image of more than one block.
@@ -405,7 +404,7 @@ TYPED_TEST_P(FlatBlockEstimatorTest, FindFlatBlocks) {
   const int kBlockSize = 32;
   aom_flat_block_finder_t flat_block_finder;
   ASSERT_EQ(1, aom_flat_block_finder_init(&flat_block_finder, kBlockSize,
-                                          this->kBitDepth, this->kUseHighBD));
+                                          this->kBitDepth));
 
   const int num_blocks_w = 8;
   const int h = kBlockSize;
@@ -498,10 +497,9 @@ TYPED_TEST_P(FlatBlockEstimatorTest, FindFlatBlocks) {
 REGISTER_TYPED_TEST_SUITE_P(FlatBlockEstimatorTest, ExtractBlock,
                             FindFlatBlocks);
 
-typedef ::testing::Types<BitDepthParams<uint8_t, 8, false>,   // lowbd
-                         BitDepthParams<uint16_t, 8, true>,   // lowbd in 16-bit
-                         BitDepthParams<uint16_t, 10, true>,  // highbd data
-                         BitDepthParams<uint16_t, 12, true> >
+typedef ::testing::Types<BitDepthParams<uint16_t, 8>,   // lowbd in 16-bit
+                         BitDepthParams<uint16_t, 10>,  // highbd data
+                         BitDepthParams<uint16_t, 12> >
     AllBitDepthParams;
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatBlockInstatiation, FlatBlockEstimatorTest,
                                AllBitDepthParams);
@@ -517,7 +515,7 @@ class NoiseModelUpdateTest : public ::testing::Test, public T {
 
   virtual void SetUp() {
     const aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 3,
-                                              T::kBitDepth, T::kUseHighBD };
+                                              T::kBitDepth };
     ASSERT_TRUE(aom_noise_model_init(&model_, params));
 
     random_.Reset(100171);
@@ -945,7 +943,7 @@ INSTANTIATE_TYPED_TEST_SUITE_P(NoiseModelUpdateTestInstatiation,
 TEST(NoiseModelGetGrainParameters, TestLagSize) {
   aom_film_grain_t film_grain;
   for (int lag = 1; lag <= 3; ++lag) {
-    aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8, 0 };
+    aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
     aom_noise_model_t model;
     EXPECT_TRUE(aom_noise_model_init(&model, params));
     EXPECT_TRUE(aom_noise_model_get_grain_parameters(&model, &film_grain));
@@ -953,7 +951,7 @@ TEST(NoiseModelGetGrainParameters, TestLagSize) {
     aom_noise_model_free(&model);
   }
 
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 4, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 4, 8 };
   aom_noise_model_t model;
   EXPECT_TRUE(aom_noise_model_init(&model, params));
   EXPECT_FALSE(aom_noise_model_get_grain_parameters(&model, &film_grain));
@@ -993,7 +991,7 @@ TEST(NoiseModelGetGrainParameters, TestARCoeffShiftBounds) {
     { 4, 6, 127 },
     { -4, 6, -128 },
   };
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
   aom_noise_model_t model;
   EXPECT_TRUE(aom_noise_model_init(&model, params));
 
@@ -1023,7 +1021,7 @@ TEST(NoiseModelGetGrainParameters, TestNoiseStrengthShiftBounds) {
     { 31.99, 8, 255 }, { 64, 8, 255 },  // clipped
   };
   const int lag = 1;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
   aom_noise_model_t model;
   EXPECT_TRUE(aom_noise_model_init(&model, params));
 
@@ -1072,7 +1070,7 @@ TEST(NoiseModelGetGrainParameters, GetGrainParametersReal) {
   };
 
   const int lag = 3;
-  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8, 0 };
+  aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, lag, 8 };
   aom_noise_model_t model;
   EXPECT_TRUE(aom_noise_model_init(&model, params));
 
@@ -1243,18 +1241,18 @@ TYPED_TEST_P(WienerDenoiseTest, InvalidBlockSize) {
     reinterpret_cast<uint8_t *>(&this->denoised_[1][0]),
     reinterpret_cast<uint8_t *>(&this->denoised_[2][0]),
   };
-  EXPECT_EQ(0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
-                                     this->kHeight, this->stride_,
-                                     this->chroma_sub_, this->noise_psd_ptrs_,
-                                     18, this->kBitDepth, this->kUseHighBD));
-  EXPECT_EQ(0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
-                                     this->kHeight, this->stride_,
-                                     this->chroma_sub_, this->noise_psd_ptrs_,
-                                     48, this->kBitDepth, this->kUseHighBD));
-  EXPECT_EQ(0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
-                                     this->kHeight, this->stride_,
-                                     this->chroma_sub_, this->noise_psd_ptrs_,
-                                     64, this->kBitDepth, this->kUseHighBD));
+  EXPECT_EQ(
+      0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+                               this->kHeight, this->stride_, this->chroma_sub_,
+                               this->noise_psd_ptrs_, 18, this->kBitDepth));
+  EXPECT_EQ(
+      0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+                               this->kHeight, this->stride_, this->chroma_sub_,
+                               this->noise_psd_ptrs_, 48, this->kBitDepth));
+  EXPECT_EQ(
+      0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+                               this->kHeight, this->stride_, this->chroma_sub_,
+                               this->noise_psd_ptrs_, 64, this->kBitDepth));
 }
 
 TYPED_TEST_P(WienerDenoiseTest, InvalidChromaSubsampling) {
@@ -1269,17 +1267,17 @@ TYPED_TEST_P(WienerDenoiseTest, InvalidChromaSubsampling) {
     reinterpret_cast<uint8_t *>(&this->denoised_[2][0]),
   };
   int chroma_sub[2] = { 1, 0 };
-  EXPECT_EQ(0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
-                                     this->kHeight, this->stride_, chroma_sub,
-                                     this->noise_psd_ptrs_, 32, this->kBitDepth,
-                                     this->kUseHighBD));
+  EXPECT_EQ(0,
+            aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+                                  this->kHeight, this->stride_, chroma_sub,
+                                  this->noise_psd_ptrs_, 32, this->kBitDepth));
 
   chroma_sub[0] = 0;
   chroma_sub[1] = 1;
-  EXPECT_EQ(0, aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
-                                     this->kHeight, this->stride_, chroma_sub,
-                                     this->noise_psd_ptrs_, 32, this->kBitDepth,
-                                     this->kUseHighBD));
+  EXPECT_EQ(0,
+            aom_wiener_denoise_2d(data_ptrs, denoised_ptrs, this->kWidth,
+                                  this->kHeight, this->stride_, chroma_sub,
+                                  this->noise_psd_ptrs_, 32, this->kBitDepth));
 }
 
 TYPED_TEST_P(WienerDenoiseTest, GradientTest) {
@@ -1299,7 +1297,7 @@ TYPED_TEST_P(WienerDenoiseTest, GradientTest) {
   const int ret = aom_wiener_denoise_2d(
       data_ptrs, denoised_ptrs, kWidth, kHeight, this->stride_,
       this->chroma_sub_, this->noise_psd_ptrs_, this->kBlockSize,
-      this->kBitDepth, this->kUseHighBD);
+      this->kBitDepth);
   EXPECT_EQ(1, ret);
 
   // Check the noise on the denoised image (from the analytical gradient)

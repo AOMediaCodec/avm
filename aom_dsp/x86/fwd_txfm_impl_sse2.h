@@ -22,14 +22,8 @@
 // TODO(jingning) The high bit-depth functions need rework for performance.
 // After we properly fix the high bit-depth function implementations, this
 // file's dependency should be substantially simplified.
-#if DCT_HIGH_BIT_DEPTH
 #define ADD_EPI16 _mm_adds_epi16
 #define SUB_EPI16 _mm_subs_epi16
-
-#else
-#define ADD_EPI16 _mm_add_epi16
-#define SUB_EPI16 _mm_sub_epi16
-#endif
 
 static void FDCT4x4_2D_HELPER(const int16_t *input, int stride, __m128i *in0,
                               __m128i *in1) {
@@ -246,9 +240,7 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
   const __m128i k__cospi_p12_p20 = pair_set_epi16(cospi_12_64, cospi_20_64);
   const __m128i k__cospi_m20_p12 = pair_set_epi16(-cospi_20_64, cospi_12_64);
   const __m128i k__DCT_CONST_ROUNDING = _mm_set1_epi32(DCT_CONST_ROUNDING);
-#if DCT_HIGH_BIT_DEPTH
   int overflow;
-#endif
   // Load input
   __m128i in0 = _mm_load_si128((const __m128i *)(input + 0 * stride));
   __m128i in1 = _mm_load_si128((const __m128i *)(input + 1 * stride));
@@ -284,7 +276,6 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
     const __m128i q5 = SUB_EPI16(in2, in5);
     const __m128i q6 = SUB_EPI16(in1, in6);
     const __m128i q7 = SUB_EPI16(in0, in7);
-#if DCT_HIGH_BIT_DEPTH
     if (pass == 1) {
       overflow =
           check_epi16_overflow_x8(&q0, &q1, &q2, &q3, &q4, &q5, &q6, &q7);
@@ -293,7 +284,6 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
         return;
       }
     }
-#endif  // DCT_HIGH_BIT_DEPTH
     // Work on first four results
     {
       // Add/subtract
@@ -301,13 +291,11 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
       const __m128i r1 = ADD_EPI16(q1, q2);
       const __m128i r2 = SUB_EPI16(q1, q2);
       const __m128i r3 = SUB_EPI16(q0, q3);
-#if DCT_HIGH_BIT_DEPTH
       overflow = check_epi16_overflow_x4(&r0, &r1, &r2, &r3);
       if (overflow) {
         aom_highbd_fdct8x8_c(input, output, stride);
         return;
       }
-#endif  // DCT_HIGH_BIT_DEPTH
       // Interleave to do the multiply by constants which gets us into 32bits
       {
         const __m128i t0 = _mm_unpacklo_epi16(r0, r1);
@@ -344,13 +332,11 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
         res4 = _mm_packs_epi32(w2, w3);
         res2 = _mm_packs_epi32(w4, w5);
         res6 = _mm_packs_epi32(w6, w7);
-#if DCT_HIGH_BIT_DEPTH
         overflow = check_epi16_overflow_x4(&res0, &res4, &res2, &res6);
         if (overflow) {
           aom_highbd_fdct8x8_c(input, output, stride);
           return;
         }
-#endif  // DCT_HIGH_BIT_DEPTH
       }
     }
     // Work on next four results
@@ -374,26 +360,22 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
       // Combine
       const __m128i r0 = _mm_packs_epi32(s0, s1);
       const __m128i r1 = _mm_packs_epi32(s2, s3);
-#if DCT_HIGH_BIT_DEPTH
       overflow = check_epi16_overflow_x2(&r0, &r1);
       if (overflow) {
         aom_highbd_fdct8x8_c(input, output, stride);
         return;
       }
-#endif  // DCT_HIGH_BIT_DEPTH
       {
         // Add/subtract
         const __m128i x0 = ADD_EPI16(q4, r0);
         const __m128i x1 = SUB_EPI16(q4, r0);
         const __m128i x2 = SUB_EPI16(q7, r1);
         const __m128i x3 = ADD_EPI16(q7, r1);
-#if DCT_HIGH_BIT_DEPTH
         overflow = check_epi16_overflow_x4(&x0, &x1, &x2, &x3);
         if (overflow) {
           aom_highbd_fdct8x8_c(input, output, stride);
           return;
         }
-#endif  // DCT_HIGH_BIT_DEPTH
         // Interleave to do the multiply by constants which gets us into 32bits
         {
           const __m128i t0 = _mm_unpacklo_epi16(x0, x3);
@@ -430,13 +412,11 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
           res7 = _mm_packs_epi32(w2, w3);
           res5 = _mm_packs_epi32(w4, w5);
           res3 = _mm_packs_epi32(w6, w7);
-#if DCT_HIGH_BIT_DEPTH
           overflow = check_epi16_overflow_x4(&res1, &res7, &res5, &res3);
           if (overflow) {
             aom_highbd_fdct8x8_c(input, output, stride);
             return;
           }
-#endif  // DCT_HIGH_BIT_DEPTH
         }
       }
     }

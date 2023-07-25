@@ -25,9 +25,10 @@ unsigned int aom_masked_sad4xh_ssse3(const uint8_t *src_ptr, int src_stride,
                                      const uint8_t *m_ptr, int m_stride,
                                      int height);
 
-unsigned int aom_highbd_masked_sad4xh_ssse3(const uint8_t *src8, int src_stride,
-                                            const uint8_t *a8, int a_stride,
-                                            const uint8_t *b8, int b_stride,
+unsigned int aom_highbd_masked_sad4xh_ssse3(const uint16_t *src_ptr,
+                                            int src_stride,
+                                            const uint16_t *a_ptr, int a_stride,
+                                            const uint16_t *b_ptr, int b_stride,
                                             const uint8_t *m_ptr, int m_stride,
                                             int height);
 

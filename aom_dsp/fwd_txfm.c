@@ -138,7 +138,8 @@ void aom_fdct4x4_lp_c(const int16_t *input, int16_t *output, int stride) {
   }
 }
 
-void aom_fdct8x8_c(const int16_t *input, tran_low_t *final_output, int stride) {
+void aom_highbd_fdct8x8_c(const int16_t *input, tran_low_t *final_output,
+                          int stride) {
   int i, j;
   tran_low_t intermediate[64];
   int pass;
@@ -220,9 +221,4 @@ void aom_fdct8x8_c(const int16_t *input, tran_low_t *final_output, int stride) {
   for (i = 0; i < 8; ++i) {
     for (j = 0; j < 8; ++j) final_output[j + i * 8] /= 2;
   }
-}
-
-void aom_highbd_fdct8x8_c(const int16_t *input, tran_low_t *final_output,
-                          int stride) {
-  aom_fdct8x8_c(input, final_output, stride);
 }

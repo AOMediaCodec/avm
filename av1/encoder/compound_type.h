@@ -25,6 +25,10 @@ typedef struct {
   INTERINTER_COMPOUND_DATA best_compound_data;
   int64_t comp_best_model_rd;
   int best_compmode_interinter_cost;
+#if CONFIG_CWP
+  // Index for the weighting factor of compound weighted prediction
+  int8_t cwp_idx;
+#endif  // CONFIG_CWP
 } BEST_COMP_TYPE_STATS;
 
 #define IGNORE_MODE -1

@@ -163,11 +163,9 @@ typedef struct map_entry {
   int value;
 } map_entry;
 
-const map_entry refs_map[] = {
-  ENUM(INTRA_FRAME),   ENUM(LAST_FRAME),   ENUM(LAST2_FRAME),
-  ENUM(LAST3_FRAME),   ENUM(GOLDEN_FRAME), ENUM(BWDREF_FRAME),
-  ENUM(ALTREF2_FRAME), ENUM(ALTREF_FRAME), LAST_ENUM
-};
+const map_entry refs_map[] = { ENUM(INTRA_FRAME), ENUM(0), ENUM(1),
+                               ENUM(2),           ENUM(3), ENUM(4),
+                               ENUM(5),           ENUM(6), LAST_ENUM };
 
 const map_entry block_size_map[] = {
   ENUM(BLOCK_4X4),     ENUM(BLOCK_4X8),    ENUM(BLOCK_8X4),
@@ -212,7 +210,6 @@ const map_entry dual_filter_map[] = { ENUM(REG_REG),       ENUM(REG_SMOOTH),
                                       ENUM(SMOOTH_SMOOTH), ENUM(SMOOTH_SHARP),
                                       ENUM(SHARP_REG),     ENUM(SHARP_SMOOTH),
                                       ENUM(SHARP_SHARP),   LAST_ENUM };
-#if CONFIG_NEW_INTER_MODES
 const map_entry prediction_mode_map[] = { ENUM(DC_PRED),
                                           ENUM(V_PRED),
                                           ENUM(H_PRED),
@@ -236,24 +233,20 @@ const map_entry prediction_mode_map[] = { ENUM(DC_PRED),
                                           ENUM(NEW_NEWMV),
                                           ENUM(INTRA_INVALID),
                                           LAST_ENUM };
-#else
-const map_entry prediction_mode_map[] = {
-  ENUM(DC_PRED),     ENUM(V_PRED),        ENUM(H_PRED),
-  ENUM(D45_PRED),    ENUM(D135_PRED),     ENUM(D113_PRED),
-  ENUM(D157_PRED),   ENUM(D203_PRED),     ENUM(D67_PRED),
-  ENUM(SMOOTH_PRED), ENUM(SMOOTH_V_PRED), ENUM(SMOOTH_H_PRED),
-  ENUM(PAETH_PRED),  ENUM(NEARESTMV),     ENUM(NEARMV),
-  ENUM(GLOBALMV),    ENUM(NEWMV),         ENUM(NEAREST_NEARESTMV),
-  ENUM(NEAR_NEARMV), ENUM(NEAREST_NEWMV), ENUM(NEW_NEARESTMV),
-  ENUM(NEAR_NEWMV),  ENUM(NEW_NEARMV),    ENUM(GLOBAL_GLOBALMV),
-  ENUM(NEW_NEWMV),   ENUM(INTRA_INVALID), LAST_ENUM
-};
-#endif  // CONFIG_NEW_INTER_MODES
 
-const map_entry motion_mode_map[] = { ENUM(SIMPLE_TRANSLATION),
-                                      ENUM(OBMC_CAUSAL),    // 2-sided OBMC
-                                      ENUM(WARPED_CAUSAL),  // 2-sided WARPED
-                                      LAST_ENUM };
+const map_entry motion_mode_map[] = {
+  ENUM(SIMPLE_TRANSLATION),
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  ENUM(INTERINTRA),
+#endif                  // CONFIG_EXTENDED_WARP_PREDICTION
+  ENUM(OBMC_CAUSAL),    // 2-sided OBMC
+  ENUM(WARPED_CAUSAL),  // 2-sided WARPED
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  ENUM(WARP_DELTA),
+  ENUM(WARP_EXTEND),  // Extension of an existing warp model into another block
+#endif                // CONFIG_EXTENDED_WARP_PREDICTION
+  LAST_ENUM
+};
 
 const map_entry compound_type_map[] = { ENUM(COMPOUND_AVERAGE),
                                         ENUM(COMPOUND_WEDGE),
@@ -605,13 +598,39 @@ int put_accounting(char *buffer) {
   }
   const int num_syms = accounting->syms.num_syms;
   const int num_strs = accounting->syms.dictionary.num_strs;
-  buf += put_str(buf, "  \"symbolsMap\": [");
+  buf += put_str(buf, "  \"symbolsFileMap\": [");
   for (i = 0; i < num_strs; i++) {
-    buf += snprintf(buf, MAX_BUFFER, "\"%s\"",
-                    accounting->syms.dictionary.strs[i]);
+    buf += snprintf(buf, MAX_BUFFER, "\"%s:%d\"",
+                    accounting->syms.dictionary.acct_infos[i].c_file,
+                    accounting->syms.dictionary.acct_infos[i].c_line);
     if (i < num_strs - 1) *(buf++) = ',';
   }
   buf += put_str(buf, "],\n");
+
+  buf += put_str(buf, "  \"symbolsMap\": [");
+  for (i = 0; i < num_strs; i++) {
+    buf += snprintf(buf, MAX_BUFFER, "\"%s\"",
+                    accounting->syms.dictionary.acct_infos[i].c_func);
+    if (i < num_strs - 1) *(buf++) = ',';
+  }
+  buf += put_str(buf, "],\n");
+
+  buf += put_str(buf, "  \"symbolsTagsMap\": [");
+  for (i = 0; i < num_strs; i++) {
+    buf += put_str(buf, "[");
+    for (int j = 0; j < AOM_ACCOUNTING_MAX_TAGS; j++) {
+      if (accounting->syms.dictionary.acct_infos[i].tags[j] == NULL) break;
+      if (j > 0) {
+        *(buf++) = ',';
+      }
+      buf += snprintf(buf, MAX_BUFFER, "\"%s\"",
+                      accounting->syms.dictionary.acct_infos[i].tags[j]);
+    }
+    buf += put_str(buf, "]");
+    if (i < num_strs - 1) *(buf++) = ',';
+  }
+  buf += put_str(buf, "],\n");
+
   buf += put_str(buf, "  \"symbols\": [\n    ");
   AccountingSymbolContext context;
   context.x = -2;
@@ -622,11 +641,12 @@ int put_accounting(char *buffer) {
     if (memcmp(&context, &sym->context, sizeof(AccountingSymbolContext)) != 0) {
       buf += put_num(buf, '[', sym->context.x, 0);
       buf += put_num(buf, ',', sym->context.y, ']');
-    } else {
-      buf += put_num(buf, '[', sym->id, 0);
-      buf += put_num(buf, ',', sym->bits, 0);
-      buf += put_num(buf, ',', sym->samples, ']');
+      *(buf++) = ',';
     }
+    buf += put_num(buf, '[', sym->id, 0);
+    buf += put_num(buf, ',', sym->bits, 0);
+    buf += put_num(buf, ',', sym->value, 0);
+    buf += put_num(buf, ',', sym->coding_mode, ']');
     context = sym->context;
     if (i < num_syms - 1) *(buf++) = ',';
   }
@@ -752,6 +772,8 @@ void inspect(void *pbi, void *data) {
                   frame_data.delta_q_present_flag);
   buf += snprintf(buf, MAX_BUFFER, "  \"deltaQRes\": %d,\n",
                   frame_data.delta_q_res);
+  buf += snprintf(buf, MAX_BUFFER, "  \"superblockSize\": %d,\n",
+                  frame_data.superblock_size);
   buf += put_str(buf, "  \"config\": {");
   buf += put_map(buf, config_map);
   buf += put_str(buf, "},\n");
@@ -768,6 +790,7 @@ void inspect(void *pbi, void *data) {
 void ifd_init_cb() {
   aom_inspect_init ii;
   ii.inspect_cb = inspect;
+  ii.inspect_sb_cb = NULL;
   ii.inspect_ctx = NULL;
   aom_codec_control(&codec, AV1_SET_INSPECTION_CALLBACK, &ii);
 }

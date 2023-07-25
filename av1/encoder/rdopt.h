@@ -55,7 +55,7 @@ struct RD_STATS;
                                 during the mode picking process.
  * \param[in]    best_rd Best   RD seen for this block so far.
  *
- * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * Nothing is returned. Instead, the MB_MODE_INFO struct inside x
  * is modified to store information about the best mode computed
  * in this function. The rd_cost struct is also updated with the RD stats
  * corresponding to the best mode found.
@@ -86,7 +86,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
                                 during the mode picking process
  * \param[in]    best_rd_so_far Best RD seen for this block so far
  *
- * \return Nothing is returned. Instead, the MB_MODE_INFO struct inside x
+ * Nothing is returned. Instead, the MB_MODE_INFO struct inside x
  * is modified to store information about the best mode computed
  * in this function. The rd_cost struct is also updated with the RD stats
  * corresponding to the best mode found.
@@ -101,6 +101,15 @@ void av1_rd_pick_inter_mode_sb_seg_skip(
     const struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     struct macroblock *x, int mi_row, int mi_col, struct RD_STATS *rd_cost,
     BLOCK_SIZE bsize, PICK_MODE_CONTEXT *ctx, int64_t best_rd_so_far);
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+// Internal function, shared by rdopt.c and mcomp.c
+// Calculate the rate cost of directly signaling a warp model
+int av1_cost_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                        const MB_MODE_INFO *mbmi,
+                        const MB_MODE_INFO_EXT *mbmi_ext,
+                        const ModeCosts *mode_costs);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 // TODO(any): The defs below could potentially be moved to rdopt_utils.h instead
 // because they are not the main rdopt functions.
@@ -120,14 +129,14 @@ typedef struct {
  * corner). high_bd is a bool indicating the source should be treated
  * as a 16-bit array. bd is the bit depth.
  */
-EdgeInfo av1_edge_exists(const uint8_t *src, int src_stride, int w, int h,
-                         bool high_bd, int bd);
+EdgeInfo av1_edge_exists(const uint16_t *src, int src_stride, int w, int h,
+                         int bd);
 
 /** Applies a Gaussian blur with sigma = 1.3. Used by av1_edge_exists and
  * tests.
  */
-void av1_gaussian_blur(const uint8_t *src, int src_stride, int w, int h,
-                       uint8_t *dst, bool high_bd, int bd);
+void av1_gaussian_blur(const uint16_t *src, int src_stride, int w, int h,
+                       uint16_t *dst, int bd);
 
 /*!\cond */
 /* Applies standard 3x3 Sobel matrix. */
@@ -137,8 +146,7 @@ typedef struct {
 } sobel_xy;
 /*!\endcond */
 
-sobel_xy av1_sobel(const uint8_t *input, int stride, int i, int j,
-                   bool high_bd);
+sobel_xy av1_sobel(const uint16_t *input, int stride, int i, int j);
 
 void av1_inter_mode_data_init(struct TileDataEnc *tile_data);
 void av1_inter_mode_data_fit(TileDataEnc *tile_data, int rdmult);
@@ -171,70 +179,143 @@ static INLINE int av1_get_sb_mi_size(const AV1_COMMON *const cm) {
 static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     const MACROBLOCKD *xd, MB_MODE_INFO_EXT *const mbmi_ext,
     MV_REFERENCE_FRAME ref_frame) {
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  if (xd->mi[0]->skip_mode) {
+    memcpy(&(mbmi_ext->skip_mvp_candidate_list), &(xd->skip_mvp_candidate_list),
+           sizeof(xd->skip_mvp_candidate_list));
+    return;
+  }
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SEP_COMP_DRL
+  if (has_second_drl(xd->mi[0])) {
+    MV_REFERENCE_FRAME rf[2];
+    av1_set_ref_frame(rf, ref_frame);
+    if (rf[1] < 0) rf[1] = 0;
+    memcpy(mbmi_ext->weight[rf[0]], xd->weight[rf[0]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
+    memcpy(mbmi_ext->ref_mv_stack[rf[0]], xd->ref_mv_stack[rf[0]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+    memcpy(mbmi_ext->weight[rf[1]], xd->weight[rf[1]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
+    memcpy(mbmi_ext->ref_mv_stack[rf[1]], xd->ref_mv_stack[rf[1]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+  } else {
+    memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
+    memcpy(mbmi_ext->ref_mv_stack[ref_frame], xd->ref_mv_stack[ref_frame],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+  }
+#else
   memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
          USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
   memcpy(mbmi_ext->ref_mv_stack[ref_frame], xd->ref_mv_stack[ref_frame],
          USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+#endif  // CONFIG_SEP_COMP_DRL
 }
 
-// This function prunes the mode if either of the reference frame falls in the
-// pruning list
-static INLINE int prune_ref(const MV_REFERENCE_FRAME *const ref_frame,
-                            const unsigned int *const ref_display_order_hint,
-                            const unsigned int frame_display_order_hint,
-                            const int *ref_frame_list) {
-  for (int i = 0; i < 2; i++) {
-    if (ref_frame_list[i] == NONE_FRAME) continue;
-
-    if (ref_frame[0] == ref_frame_list[i] ||
-        ref_frame[1] == ref_frame_list[i]) {
-      if (av1_encoder_get_relative_dist(
-              ref_display_order_hint[ref_frame_list[i] - LAST_FRAME],
-              frame_display_order_hint) < 0)
-        return 1;
-    }
-  }
-  return 0;
-}
-
+#define PRUNE_SINGLE_REFS 0
 static INLINE int prune_ref_by_selective_ref_frame(
     const AV1_COMP *const cpi, const MACROBLOCK *const x,
-    const MV_REFERENCE_FRAME *const ref_frame,
-    const unsigned int *const ref_display_order_hint) {
+    const MV_REFERENCE_FRAME *const ref_frame) {
+  (void)x;
+  const AV1_COMMON *const cm = &cpi->common;
   const SPEED_FEATURES *const sf = &cpi->sf;
+
   if (!sf->inter_sf.selective_ref_frame) return 0;
+  assert(ref_frame[0] != NONE_FRAME);
+  if (ref_frame[0] == INTRA_FRAME) return 0;
 
-  const int comp_pred = ref_frame[1] > INTRA_FRAME;
+  const int comp_pred = is_inter_ref_frame(ref_frame[1]);
 
-  if (sf->inter_sf.selective_ref_frame >= 2 ||
-      (sf->inter_sf.selective_ref_frame == 1 && comp_pred)) {
-    int ref_frame_list[2] = { LAST3_FRAME, LAST2_FRAME };
+  if (comp_pred && ref_frame[0] >= RANKED_REF0_TO_PRUNE) return 1;
 
-    if (x != NULL) {
-      if (x->tpl_keep_ref_frame[LAST3_FRAME]) ref_frame_list[0] = NONE_FRAME;
-      if (x->tpl_keep_ref_frame[LAST2_FRAME]) ref_frame_list[1] = NONE_FRAME;
-    }
+  // Prune refs 5-7 if all refs are distant past (distance > 4). This
+  // typically happens when the current frame is altref.
+  const int n_refs = cm->ref_frames_info.num_total_refs;
 
-    if (prune_ref(ref_frame, ref_display_order_hint,
-                  ref_display_order_hint[GOLDEN_FRAME - LAST_FRAME],
-                  ref_frame_list))
+  const int closest_past_idx = get_closest_past_ref_index(cm);
+  if (closest_past_idx != NONE_FRAME) {
+    const int closest_past_dist =
+        cm->ref_frames_info.ref_frame_distance[closest_past_idx];
+    if (cm->ref_frames_info.num_past_refs == n_refs && closest_past_dist > 4 &&
+        (ref_frame[0] >= MAX_REFS_ARF || ref_frame[1] >= MAX_REFS_ARF))
       return 1;
   }
 
-  if (sf->inter_sf.selective_ref_frame >= 3) {
-    int ref_frame_list[2] = { ALTREF2_FRAME, BWDREF_FRAME };
-
-    if (x != NULL) {
-      if (x->tpl_keep_ref_frame[ALTREF2_FRAME]) ref_frame_list[0] = NONE_FRAME;
-      if (x->tpl_keep_ref_frame[BWDREF_FRAME]) ref_frame_list[1] = NONE_FRAME;
+  if (x != NULL) {
+    if (sf->inter_sf.selective_ref_frame >= 2 ||
+        (sf->inter_sf.selective_ref_frame == 1 && comp_pred)) {
+      if ((n_refs - 1) >= 0 && x->tpl_keep_ref_frame[n_refs - 1] &&
+          (ref_frame[0] == (n_refs - 1) || ref_frame[1] == (n_refs - 1)))
+        return 0;
+      if ((n_refs - 2) >= 0 && x->tpl_keep_ref_frame[n_refs - 2] &&
+          (ref_frame[0] == (n_refs - 2) || ref_frame[1] == (n_refs - 2)))
+        return 0;
     }
-
-    if (prune_ref(ref_frame, ref_display_order_hint,
-                  ref_display_order_hint[LAST_FRAME - LAST_FRAME],
-                  ref_frame_list))
-      return 1;
+    if (sf->inter_sf.selective_ref_frame >= 3) {
+      if ((n_refs - 3) >= 0 && x->tpl_keep_ref_frame[n_refs - 3] &&
+          (ref_frame[0] == (n_refs - 3) || ref_frame[1] == (n_refs - 3)))
+        return 0;
+      if ((n_refs - 4) >= 0 && x->tpl_keep_ref_frame[n_refs - 4] &&
+          (ref_frame[0] == (n_refs - 4) || ref_frame[1] == (n_refs - 4)))
+        return 0;
+    }
   }
 
+  int dir_refrank0[2] = { -1, -1 };
+  int dir_refrank1[2] = { -1, -1 };
+  int d0 = get_dir_rank(cm, ref_frame[0], dir_refrank0);
+  assert(d0 != -1);
+  int d1 = -1;
+  if (comp_pred) {
+    d1 = get_dir_rank(cm, ref_frame[1], dir_refrank1);
+    assert(d1 != -1);
+  }
+  const int one_sided_comp = (d0 == d1);
+
+  // Prune one sided compound mode if both dir ref ranks are above some
+  // thresholds. Pruning conditions are slightly relaxed when all refs are
+  // from the past, which allows more search for low delay configuration.
+  switch (sf->inter_sf.selective_ref_frame) {
+    case 0: return 0;
+    case 1:
+      if (comp_pred) {
+        if (one_sided_comp && cm->ref_frames_info.num_past_refs < n_refs) {
+          if (AOMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 2) return 1;
+        } else {
+          if (AOMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 3) return 1;
+        }
+      } else {
+        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - PRUNE_SINGLE_REFS - 1)
+          return 1;
+      }
+      break;
+    case 2:
+      if (comp_pred) {
+        if (one_sided_comp && cm->ref_frames_info.num_past_refs < n_refs) {
+          if (AOMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 1) return 1;
+        } else {
+          if (AOMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 2) return 1;
+        }
+      } else {
+        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - PRUNE_SINGLE_REFS - 2)
+          return 1;
+      }
+      break;
+    case 3:
+    default:
+      if (comp_pred) {
+        if (one_sided_comp) {
+          if (AOMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 0) return 1;
+        } else {
+          if (AOMMIN(dir_refrank0[d0], dir_refrank1[d1]) > 1) return 1;
+        }
+      } else {
+        if (dir_refrank0[d0] > INTER_REFS_PER_FRAME - PRUNE_SINGLE_REFS - 3)
+          return 1;
+      }
+      break;
+  }
   return 0;
 }
 
@@ -242,16 +323,102 @@ static INLINE int prune_ref_by_selective_ref_frame(
 // MB_MODE_INFO_EXT to MB_MODE_INFO_EXT_FRAME.
 static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
     MB_MODE_INFO_EXT_FRAME *mbmi_ext_best,
-    const MB_MODE_INFO_EXT *const mbmi_ext, uint8_t ref_frame_type) {
+    const MB_MODE_INFO_EXT *const mbmi_ext,
+#if CONFIG_SEP_COMP_DRL
+    MB_MODE_INFO *mbmi,
+#endif  // CONFIG_SEP_COMP_DRL
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+    uint8_t skip_mode,
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+    uint8_t ref_frame_type) {
+
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  if (skip_mode) {
+    memcpy(&(mbmi_ext_best->skip_mvp_candidate_list),
+           &(mbmi_ext->skip_mvp_candidate_list),
+           sizeof(mbmi_ext->skip_mvp_candidate_list));
+    return;
+  }
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+
+#if CONFIG_SEP_COMP_DRL
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame_type);
+  if (!has_second_drl(mbmi))
+    rf[0] = ref_frame_type;  //????????????? need to know how encoder work,
+                             // whether the mode has been set
+  memcpy(mbmi_ext_best->ref_mv_stack[0], mbmi_ext->ref_mv_stack[rf[0]],
+         sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+  memcpy(mbmi_ext_best->weight[0], mbmi_ext->weight[rf[0]],
+         sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+  mbmi_ext_best->ref_mv_count[0] = mbmi_ext->ref_mv_count[rf[0]];
+
+  if (has_second_drl(mbmi)) {
+    assert(rf[0] == mbmi->ref_frame[0]);
+    assert(rf[1] == mbmi->ref_frame[1]);
+    memcpy(mbmi_ext_best->ref_mv_stack[1], mbmi_ext->ref_mv_stack[rf[1]],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext_best->weight[1], mbmi_ext->weight[rf[1]],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext_best->ref_mv_count[1] = mbmi_ext->ref_mv_count[rf[1]];
+  }
+#else
   memcpy(mbmi_ext_best->ref_mv_stack, mbmi_ext->ref_mv_stack[ref_frame_type],
          sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
   memcpy(mbmi_ext_best->weight, mbmi_ext->weight[ref_frame_type],
          sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
-  mbmi_ext_best->mode_context = mbmi_ext->mode_context[ref_frame_type];
   mbmi_ext_best->ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
+#endif  // CONFIG_SEP_COMP_DRL
+  mbmi_ext_best->mode_context = mbmi_ext->mode_context[ref_frame_type];
   memcpy(mbmi_ext_best->global_mvs, mbmi_ext->global_mvs,
          sizeof(mbmi_ext->global_mvs));
+
+#if CONFIG_WARP_REF_LIST
+  if (ref_frame_type < INTER_REFS_PER_FRAME) {
+    memcpy(mbmi_ext_best->warp_param_stack,
+           mbmi_ext->warp_param_stack[ref_frame_type],
+           sizeof(mbmi_ext->warp_param_stack[MAX_WARP_REF_CANDIDATES]));
+  }
+#endif  // CONFIG_WARP_REF_LIST
 }
+
+#if CONFIG_C071_SUBBLK_WARPMV
+// store submi info into dst_submi
+void store_submi(const MACROBLOCKD *const xd, const AV1_COMMON *cm,
+                 SUBMB_INFO *dst_submi, BLOCK_SIZE bsize);
+
+// update submi from src_submi
+void update_submi(MACROBLOCKD *const xd, const AV1_COMMON *cm,
+                  const SUBMB_INFO *src_submi, BLOCK_SIZE bsize);
+
+// update curmv precision
+static INLINE void update_mv_precision(const MV ref_mv,
+#if CONFIG_FLEX_MVRES
+                                       const MvSubpelPrecision pb_mv_precision,
+#else
+                                       const bool allow_hp,
+#endif
+                                       MV *mv) {
+  MV sub_mv_offset = { 0, 0 };
+  get_phase_from_mv(ref_mv, &sub_mv_offset,
+#if CONFIG_FLEX_MVRES
+                    pb_mv_precision
+#else
+                    allow_hp
+#endif
+  );
+  if (
+#if CONFIG_FLEX_MVRES
+      pb_mv_precision >= MV_PRECISION_HALF_PEL
+#else
+      !allow_hp
+#endif
+  ) {
+    mv->col += sub_mv_offset.col;
+    mv->row += sub_mv_offset.row;
+  }
+}
+#endif  // CONFIG_C071_SUBBLK_WARPMV
 
 #ifdef __cplusplus
 }  // extern "C"

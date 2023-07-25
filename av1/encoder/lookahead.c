@@ -45,8 +45,8 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx) {
 
 struct lookahead_ctx *av1_lookahead_init(
     unsigned int width, unsigned int height, unsigned int subsampling_x,
-    unsigned int subsampling_y, int use_highbitdepth, unsigned int depth,
-    const int border_in_pixels, int byte_alignment, int num_lap_buffers) {
+    unsigned int subsampling_y, unsigned int depth, const int border_in_pixels,
+    int byte_alignment, int num_lap_buffers) {
   struct lookahead_ctx *ctx = NULL;
   int lag_in_frames = AOMMAX(1, depth);
 
@@ -72,10 +72,9 @@ struct lookahead_ctx *av1_lookahead_init(
     if (!ctx->buf) goto fail;
     for (i = 0; i < depth; i++) {
       aom_free_frame_buffer(&ctx->buf[i].img);
-      if (aom_realloc_frame_buffer(&ctx->buf[i].img, width, height,
-                                   subsampling_x, subsampling_y,
-                                   use_highbitdepth, border_in_pixels,
-                                   byte_alignment, NULL, NULL, NULL))
+      if (aom_realloc_frame_buffer(
+              &ctx->buf[i].img, width, height, subsampling_x, subsampling_y,
+              border_in_pixels, byte_alignment, NULL, NULL, NULL))
         goto fail;
     }
   }
@@ -86,7 +85,7 @@ fail:
 }
 
 int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
-                       int64_t ts_start, int64_t ts_end, int use_highbitdepth,
+                       int64_t ts_start, int64_t ts_end,
                        aom_enc_frame_flags_t flags) {
   struct lookahead_entry *buf;
   int width = src->y_crop_width;
@@ -119,8 +118,7 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
     YV12_BUFFER_CONFIG new_img;
     memset(&new_img, 0, sizeof(new_img));
     if (aom_alloc_frame_buffer(&new_img, width, height, subsampling_x,
-                               subsampling_y, use_highbitdepth,
-                               AOM_BORDER_IN_PIXELS, 0))
+                               subsampling_y, AOM_BORDER_IN_PIXELS, 0))
       return 1;
     aom_free_frame_buffer(&buf->img);
     buf->img = new_img;

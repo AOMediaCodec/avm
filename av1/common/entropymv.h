@@ -49,40 +49,49 @@ static INLINE int mv_joint_horizontal(MV_JOINT_TYPE type) {
 /* Symbols for coding magnitude class of nonzero components */
 #define MV_CLASSES 11
 enum {
-  MV_CLASS_0 = 0,   /* (0, 2]     integer pel */
-  MV_CLASS_1 = 1,   /* (2, 4]     integer pel */
-  MV_CLASS_2 = 2,   /* (4, 8]     integer pel */
-  MV_CLASS_3 = 3,   /* (8, 16]    integer pel */
-  MV_CLASS_4 = 4,   /* (16, 32]   integer pel */
-  MV_CLASS_5 = 5,   /* (32, 64]   integer pel */
-  MV_CLASS_6 = 6,   /* (64, 128]  integer pel */
-  MV_CLASS_7 = 7,   /* (128, 256] integer pel */
-  MV_CLASS_8 = 8,   /* (256, 512] integer pel */
-  MV_CLASS_9 = 9,   /* (512, 1024] integer pel */
-  MV_CLASS_10 = 10, /* (1024,2048] integer pel */
+  /* Class specifies the integer pel range */
+  MV_CLASS_0 = 0,   /* When AMVD is applied:(0, 1], {2}. Otherwise:(0, 2] */
+  MV_CLASS_1 = 1,   /* When AMVD is applied:{4}. Otherwise:(2, 4] */
+  MV_CLASS_2 = 2,   /* When AMVD is applied:{8}. Otherwise:(4, 8] */
+  MV_CLASS_3 = 3,   /* When AMVD is applied:{16}. Otherwise:(8, 16] */
+  MV_CLASS_4 = 4,   /* When AMVD is applied:{32}. Otherwise:(16, 32] */
+  MV_CLASS_5 = 5,   /* When AMVD is applied:{64}. Otherwise:(32, 64] */
+  MV_CLASS_6 = 6,   /* When AMVD is applied:{128}. Otherwise:(64, 128] */
+  MV_CLASS_7 = 7,   /* When AMVD is applied:{256}. Otherwise:(128, 256] */
+  MV_CLASS_8 = 8,   /* When AMVD is applied:{512}. Otherwise:(256, 512] */
+  MV_CLASS_9 = 9,   /* When AMVD is applied:{1024}. Otherwise:(512, 1024] */
+  MV_CLASS_10 = 10, /* When AMVD is applied:{2048}. Otherwise:(1024,2048] */
 } UENUM1BYTE(MV_CLASS_TYPE);
 
 #define CLASS0_BITS 1 /* bits at integer precision for class 0 */
 #define CLASS0_SIZE (1 << CLASS0_BITS)
 #define MV_OFFSET_BITS (MV_CLASSES + CLASS0_BITS - 2)
 #define MV_BITS_CONTEXTS 6
+#if !CONFIG_FLEX_MVRES
 #define MV_FP_SIZE 4
+#endif
 
 #define MV_MAX_BITS (MV_CLASSES + CLASS0_BITS + 2)
 #define MV_MAX ((1 << MV_MAX_BITS) - 1)
 #define MV_VALS ((MV_MAX << 1) + 1)
 
-#define MV_IN_USE_BITS 14
-#define MV_UPP (1 << MV_IN_USE_BITS)
-#define MV_LOW (-(1 << MV_IN_USE_BITS))
-
 typedef struct {
+#if CONFIG_FLEX_MVRES
+  aom_cdf_prob classes_cdf[NUM_MV_PRECISIONS][CDF_SIZE(MV_CLASSES)];
+#if CONFIG_ADAPTIVE_MVD
+  aom_cdf_prob amvd_classes_cdf[CDF_SIZE(MV_CLASSES)];
+#endif  // CONFIG_ADAPTIVE_MVD
+  aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][3][CDF_SIZE(2)];
+  aom_cdf_prob fp_cdf[3][CDF_SIZE(2)];
+#else
   aom_cdf_prob classes_cdf[CDF_SIZE(MV_CLASSES)];
 #if CONFIG_ADAPTIVE_MVD
   aom_cdf_prob amvd_classes_cdf[CDF_SIZE(MV_CLASSES)];
 #endif  // CONFIG_ADAPTIVE_MVD
   aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][CDF_SIZE(MV_FP_SIZE)];
   aom_cdf_prob fp_cdf[CDF_SIZE(MV_FP_SIZE)];
+#endif  // CONFIG_FLEX_MVRES
+
   aom_cdf_prob sign_cdf[CDF_SIZE(2)];
   aom_cdf_prob class0_hp_cdf[CDF_SIZE(2)];
   aom_cdf_prob hp_cdf[CDF_SIZE(2)];
@@ -98,11 +107,13 @@ typedef struct {
   nmv_component comps[2];
 } nmv_context;
 
+#if !CONFIG_FLEX_MVRES
 enum {
   MV_SUBPEL_NONE = -1,
   MV_SUBPEL_LOW_PRECISION = 0,
   MV_SUBPEL_HIGH_PRECISION,
 } SENUM1BYTE(MvSubpelPrecision);
+#endif
 
 #ifdef __cplusplus
 }  // extern "C"

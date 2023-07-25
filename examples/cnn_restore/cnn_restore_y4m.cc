@@ -106,6 +106,7 @@ static int split_words(char *buf, char delim, int nmax, char **words) {
 static int parse_rational_config(char *cfg, int *p, int *q, int *c) {
   char cfgbuf[CFG_MAX_LEN];
   strncpy(cfgbuf, cfg, CFG_MAX_LEN - 1);
+  cfgbuf[CFG_MAX_LEN - 1] = '\0';
 
   char *cfgwords[3];
   const int ncfgwords = split_words(cfgbuf, ':', 3, cfgwords);
@@ -338,6 +339,7 @@ int main(int argc, char *argv[]) {
     usage_and_exit(argv[0]);
   }
   strncpy(ohdr, hdr, Y4M_HDR_MAX_LEN - 1);
+  ohdr[CFG_MAX_LEN - 1] = '\0';
   nhdrwords = split_words(hdr, ' ', Y4M_HDR_MAX_WORDS, hdrwords);
 
   int subx, suby;

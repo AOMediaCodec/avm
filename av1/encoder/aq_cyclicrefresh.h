@@ -77,11 +77,7 @@ struct CYCLIC_REFRESH {
   /*!
    * Map of the last q a block was coded at.
    */
-#if CONFIG_EXTQUANT
   uint16_t *last_coded_q_map;
-#else
-  uint8_t *last_coded_q_map;
-#endif  // CONFIG_EXTQUANT
   /*!
    * Threshold applied to the projected rate of the coding block,
    * when deciding whether block should be refreshed.
@@ -120,12 +116,8 @@ struct AV1_COMP;
 
 typedef struct CYCLIC_REFRESH CYCLIC_REFRESH;
 
-CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
-#if CONFIG_EXTQUANT
-                                         ,
-                                         aom_bit_depth_t bit_depth
-#endif
-);
+CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols,
+                                         aom_bit_depth_t bit_depth);
 
 void av1_cyclic_refresh_free(CYCLIC_REFRESH *cr);
 
@@ -187,7 +179,7 @@ int av1_cyclic_refresh_rc_bits_per_mb(const struct AV1_COMP *cpi, int i,
  * \param[in]   dist      Projected block dist from pickmode
  * \param[in]  skip       Skip flag set from picmode
  *
- * \return Update the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
+ * Updates the \c mbmi->segment_id, the \c cpi->cyclic_refresh and
  * the \c cm->cpi->enc_seg.map.
  */
 void av1_cyclic_refresh_update_segment(const struct AV1_COMP *cpi,
@@ -206,7 +198,7 @@ void av1_cyclic_refresh_update_segment(const struct AV1_COMP *cpi,
  *
  * \param[in]   cpi       Top level encoder structure
  *
- * \return Updates the \c cpi->cyclic_refresh with the new stats.
+ * Updates the \c cpi->cyclic_refresh with the new stats.
  */
 void av1_cyclic_refresh_postencode(struct AV1_COMP *const cpi);
 
@@ -218,7 +210,7 @@ void av1_cyclic_refresh_postencode(struct AV1_COMP *const cpi);
  *
  * \param[in]   cpi       Top level encoder structure
  *
- * \return Returns the interval in \c cpi->rc.baseline_gf_interval.
+ * Populates the interval in \c cpi->rc.baseline_gf_interval.
  */
 void av1_cyclic_refresh_set_golden_update(struct AV1_COMP *const cpi);
 
@@ -235,7 +227,7 @@ void av1_cyclic_refresh_set_golden_update(struct AV1_COMP *const cpi);
  *
  * \param[in]       cpi          Top level encoder structure
  *
- * \return Updates the \c cpi->cyclic_refresh with the settings.
+ * Updates the \c cpi->cyclic_refresh with the settings.
  */
 void av1_cyclic_refresh_update_parameters(struct AV1_COMP *const cpi);
 
@@ -249,7 +241,7 @@ void av1_cyclic_refresh_update_parameters(struct AV1_COMP *const cpi);
  *
  * \param[in]       cpi          Top level encoder structure
  *
- * \return Updates the \c cpi->cyclic_refresh with the cyclic refresh
+ * Updates the \c cpi->cyclic_refresh with the cyclic refresh
  * parameters and the \c cm->seg with the segmentation data.
  */
 void av1_cyclic_refresh_setup(struct AV1_COMP *const cpi);

@@ -5663,7 +5663,7 @@ void highbd_inv_txfm2d_add_no_identity_neon(const int32_t *input,
 }
 
 void av1_highbd_inv_txfm2d_add_universe_neon(const int32_t *input,
-                                             uint8_t *output, int stride,
+                                             uint16_t *output, int stride,
                                              TX_TYPE tx_type, TX_SIZE tx_size,
                                              int eob, const int bd) {
   switch (tx_type) {
@@ -5676,30 +5676,29 @@ void av1_highbd_inv_txfm2d_add_universe_neon(const int32_t *input,
     case FLIPADST_FLIPADST:
     case ADST_FLIPADST:
     case FLIPADST_ADST:
-      highbd_inv_txfm2d_add_no_identity_neon(input, CONVERT_TO_SHORTPTR(output),
-                                             stride, tx_type, tx_size, eob, bd);
+      highbd_inv_txfm2d_add_no_identity_neon(input, output, stride, tx_type,
+                                             tx_size, eob, bd);
       break;
     case V_DCT:
     case V_ADST:
     case V_FLIPADST:
-      inv_txfm2d_add_h_identity_neon(input, CONVERT_TO_SHORTPTR(output), stride,
-                                     tx_type, tx_size, bd);
+      inv_txfm2d_add_h_identity_neon(input, output, stride, tx_type, tx_size,
+                                     bd);
       break;
     case H_DCT:
     case H_ADST:
     case H_FLIPADST:
-      inv_txfm2d_add_v_identity_neon(input, CONVERT_TO_SHORTPTR(output), stride,
-                                     tx_type, tx_size, bd);
+      inv_txfm2d_add_v_identity_neon(input, output, stride, tx_type, tx_size,
+                                     bd);
       break;
     case IDTX:
-      inv_txfm2d_add_idtx_neon(input, CONVERT_TO_SHORTPTR(output), stride,
-                               tx_type, tx_size, bd);
+      inv_txfm2d_add_idtx_neon(input, output, stride, tx_type, tx_size, bd);
       break;
     default: assert(0); break;
   }
 }
 
-void av1_inv_txfm2d_add_universe_neon(const int32_t *input, uint8_t *output,
+void av1_inv_txfm2d_add_universe_neon(const int32_t *input, uint16_t *output,
                                       int stride, TX_TYPE tx_type,
                                       TX_SIZE tx_size, const int bd) {
   switch (tx_type) {
@@ -5712,30 +5711,29 @@ void av1_inv_txfm2d_add_universe_neon(const int32_t *input, uint8_t *output,
     case FLIPADST_FLIPADST:
     case ADST_FLIPADST:
     case FLIPADST_ADST:
-      inv_txfm2d_add_no_identity_neon(input, CONVERT_TO_SHORTPTR(output),
-                                      stride, tx_type, tx_size, bd);
+      inv_txfm2d_add_no_identity_neon(input, output, stride, tx_type, tx_size,
+                                      bd);
       break;
     case V_DCT:
     case V_ADST:
     case V_FLIPADST:
-      inv_txfm2d_add_h_identity_neon(input, CONVERT_TO_SHORTPTR(output), stride,
-                                     tx_type, tx_size, bd);
+      inv_txfm2d_add_h_identity_neon(input, output, stride, tx_type, tx_size,
+                                     bd);
       break;
     case H_DCT:
     case H_ADST:
     case H_FLIPADST:
-      inv_txfm2d_add_v_identity_neon(input, CONVERT_TO_SHORTPTR(output), stride,
-                                     tx_type, tx_size, bd);
+      inv_txfm2d_add_v_identity_neon(input, output, stride, tx_type, tx_size,
+                                     bd);
       break;
     case IDTX:
-      inv_txfm2d_add_idtx_neon(input, CONVERT_TO_SHORTPTR(output), stride,
-                               tx_type, tx_size, bd);
+      inv_txfm2d_add_idtx_neon(input, output, stride, tx_type, tx_size, bd);
       break;
     default: assert(0); break;
   }
 }
 
-void av1_highbd_inv_txfm_add_8x8_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_8x8_neon(const tran_low_t *input, uint16_t *dest,
                                       int stride, const TxfmParam *txfm_param) {
   int bd = txfm_param->bd;
   const TX_TYPE tx_type = txfm_param->tx_type;
@@ -5752,13 +5750,10 @@ void av1_highbd_inv_txfm_add_8x8_neon(const tran_low_t *input, uint8_t *dest,
                                               txfm_param->tx_size,
                                               txfm_param->eob, bd);
       break;
-    default:
-      av1_inv_txfm2d_add_8x8_neon(src, CONVERT_TO_SHORTPTR(dest), stride,
-                                  tx_type, bd);
-      break;
+    default: av1_inv_txfm2d_add_8x8_neon(src, dest, stride, tx_type, bd); break;
   }
 }
-void av1_highbd_inv_txfm_add_4x4_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_4x4_neon(const tran_low_t *input, uint16_t *dest,
                                       int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
   int eob = txfm_param->eob;
@@ -5771,49 +5766,45 @@ void av1_highbd_inv_txfm_add_4x4_neon(const tran_low_t *input, uint8_t *dest,
     av1_highbd_iwht4x4_add(input, dest, stride, eob, bd);
     return;
   }
-  av1_inv_txfm2d_add_4x4_neon(src, CONVERT_TO_SHORTPTR(dest), stride, tx_type,
-                              bd);
+  av1_inv_txfm2d_add_4x4_neon(src, dest, stride, tx_type, bd);
 }
 
-void av1_highbd_inv_txfm_add_4x8_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_4x8_neon(const tran_low_t *input, uint16_t *dest,
                                       int stride, const TxfmParam *txfm_param) {
-  av1_inv_txfm2d_add_4x8_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                              txfm_param->tx_type, txfm_param->bd);
+  av1_inv_txfm2d_add_4x8_neon(input, dest, stride, txfm_param->tx_type,
+                              txfm_param->bd);
 }
 
-void av1_highbd_inv_txfm_add_8x4_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_8x4_neon(const tran_low_t *input, uint16_t *dest,
                                       int stride, const TxfmParam *txfm_param) {
-  av1_inv_txfm2d_add_8x4_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                              txfm_param->tx_type, txfm_param->bd);
+  av1_inv_txfm2d_add_8x4_neon(input, dest, stride, txfm_param->tx_type,
+                              txfm_param->bd);
 }
 
 void av1_inv_txfm2d_add_8x16_neon(const tran_low_t *input, uint16_t *dest,
                                   int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_8X16, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_8X16, bd);
 }
 
-void av1_highbd_inv_txfm_add_4x16_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_4x16_neon(const tran_low_t *input, uint16_t *dest,
                                        int stride,
                                        const TxfmParam *txfm_param) {
   int bd = txfm_param->bd;
   const TX_TYPE tx_type = txfm_param->tx_type;
   int eob = txfm_param->eob;
-  highbd_inv_txfm2d_add_4x16_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                                  tx_type, eob, bd);
+  highbd_inv_txfm2d_add_4x16_neon(input, dest, stride, tx_type, eob, bd);
 }
 
-void av1_highbd_inv_txfm_add_16x4_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_16x4_neon(const tran_low_t *input, uint16_t *dest,
                                        int stride,
                                        const TxfmParam *txfm_param) {
   int bd = txfm_param->bd;
   const TX_TYPE tx_type = txfm_param->tx_type;
   int eob = txfm_param->eob;
-  highbd_inv_txfm2d_add_16x4_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                                  tx_type, eob, bd);
+  highbd_inv_txfm2d_add_16x4_neon(input, dest, stride, tx_type, eob, bd);
 }
 
-void av1_highbd_inv_txfm_add_8x16_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_8x16_neon(const tran_low_t *input, uint16_t *dest,
                                        int stride,
                                        const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5821,7 +5812,7 @@ void av1_highbd_inv_txfm_add_8x16_neon(const tran_low_t *input, uint8_t *dest,
                                           txfm_param->eob, txfm_param->bd);
 }
 
-void av1_highbd_inv_txfm_add_16x8_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_16x8_neon(const tran_low_t *input, uint16_t *dest,
                                        int stride,
                                        const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5831,11 +5822,10 @@ void av1_highbd_inv_txfm_add_16x8_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_16x8_neon(const tran_low_t *input, uint16_t *dest,
                                   int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_16X8, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_16X8, bd);
 }
 
-void av1_highbd_inv_txfm_add_16x32_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_16x32_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5845,11 +5835,10 @@ void av1_highbd_inv_txfm_add_16x32_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_16x32_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_16X32, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_16X32, bd);
 }
 
-void av1_highbd_inv_txfm_add_32x16_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_32x16_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5859,11 +5848,10 @@ void av1_highbd_inv_txfm_add_32x16_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_32x16_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_32X16, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_32X16, bd);
 }
 
-void av1_highbd_inv_txfm_add_32x32_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_32x32_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5873,11 +5861,10 @@ void av1_highbd_inv_txfm_add_32x32_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_32x32_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_32X32, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_32X32, bd);
 }
 
-void av1_highbd_inv_txfm_add_64x64_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_64x64_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5887,11 +5874,10 @@ void av1_highbd_inv_txfm_add_64x64_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_64x64_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_64X64, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_64X64, bd);
 }
 
-void av1_highbd_inv_txfm_add_32x64_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_32x64_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5901,11 +5887,10 @@ void av1_highbd_inv_txfm_add_32x64_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_32x64_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_32X64, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_32X64, bd);
 }
 
-void av1_highbd_inv_txfm_add_64x32_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_64x32_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5915,11 +5900,10 @@ void av1_highbd_inv_txfm_add_64x32_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_64x32_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_64X32, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_64X32, bd);
 }
 
-void av1_highbd_inv_txfm_add_64x16_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_64x16_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5928,11 +5912,10 @@ void av1_highbd_inv_txfm_add_64x16_neon(const tran_low_t *input, uint8_t *dest,
 }
 void av1_inv_txfm2d_add_64x16_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_64X16, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_64X16, bd);
 }
 
-void av1_highbd_inv_txfm_add_16x64_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_16x64_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5942,11 +5925,10 @@ void av1_highbd_inv_txfm_add_16x64_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_16x64_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_16X64, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_16X64, bd);
 }
 
-void av1_highbd_inv_txfm_add_16x16_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_16x16_neon(const tran_low_t *input, uint16_t *dest,
                                         int stride,
                                         const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5956,11 +5938,10 @@ void av1_highbd_inv_txfm_add_16x16_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_16x16_neon(const tran_low_t *input, uint16_t *dest,
                                    int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_16X16, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_16X16, bd);
 }
 
-void av1_highbd_inv_txfm_add_32x8_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_32x8_neon(const tran_low_t *input, uint16_t *dest,
                                        int stride,
                                        const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5970,11 +5951,10 @@ void av1_highbd_inv_txfm_add_32x8_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_32x8_neon(const tran_low_t *input, uint16_t *dest,
                                   int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_32X8, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_32X8, bd);
 }
 
-void av1_highbd_inv_txfm_add_8x32_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_8x32_neon(const tran_low_t *input, uint16_t *dest,
                                        int stride,
                                        const TxfmParam *txfm_param) {
   av1_highbd_inv_txfm2d_add_universe_neon(input, dest, stride,
@@ -5984,11 +5964,10 @@ void av1_highbd_inv_txfm_add_8x32_neon(const tran_low_t *input, uint8_t *dest,
 
 void av1_inv_txfm2d_add_8x32_neon(const tran_low_t *input, uint16_t *dest,
                                   int stride, TX_TYPE tx_type, const int bd) {
-  av1_inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                                   TX_8X32, bd);
+  av1_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, TX_8X32, bd);
 }
 
-void av1_highbd_inv_txfm_add_neon(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_neon(const tran_low_t *input, uint16_t *dest,
                                   int stride, const TxfmParam *txfm_param) {
   const TX_SIZE tx_size = txfm_param->tx_size;
 
@@ -5999,75 +5978,62 @@ void av1_highbd_inv_txfm_add_neon(const tran_low_t *input, uint8_t *dest,
       av1_highbd_inv_txfm_add_8x8_neon(input, dest, stride, txfm_param);
       break;
     case TX_4X8:
-      av1_inv_txfm2d_add_4x8_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                                  txfm_param->tx_type, txfm_param->bd);
+      av1_inv_txfm2d_add_4x8_neon(input, dest, stride, txfm_param->tx_type,
+                                  txfm_param->bd);
       break;
     case TX_8X4:
-      av1_inv_txfm2d_add_8x4_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                                  txfm_param->tx_type, txfm_param->bd);
+      av1_inv_txfm2d_add_8x4_neon(input, dest, stride, txfm_param->tx_type,
+                                  txfm_param->bd);
       break;
     case TX_4X4:
       av1_highbd_inv_txfm_add_4x4_neon(input, dest, stride, txfm_param);
       break;
     case TX_16X4:
-      av1_inv_txfm2d_add_16x4_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                                   txfm_param->tx_type, txfm_param->bd);
+      av1_inv_txfm2d_add_16x4_neon(input, dest, stride, txfm_param->tx_type,
+                                   txfm_param->bd);
       break;
     case TX_4X16:
-      av1_inv_txfm2d_add_4x16_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
-                                   txfm_param->tx_type, txfm_param->bd);
+      av1_inv_txfm2d_add_4x16_neon(input, dest, stride, txfm_param->tx_type,
+                                   txfm_param->bd);
       break;
     case TX_8X16:
-      av1_inv_txfm2d_add_8x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
+      av1_inv_txfm2d_add_8x16_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_16X8:
-      av1_inv_txfm2d_add_16x8_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
+      av1_inv_txfm2d_add_16x8_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_16X32:
-      av1_inv_txfm2d_add_16x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_16x32_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_32X16:
-      av1_inv_txfm2d_add_32x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_32x16_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_16X16:
-      av1_inv_txfm2d_add_16x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_16x16_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_32X32:
-      av1_inv_txfm2d_add_32x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_32x32_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_64X64:
-      av1_inv_txfm2d_add_64x64_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_64x64_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_32X64:
-      av1_inv_txfm2d_add_32x64_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_32x64_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_64X32:
-      av1_inv_txfm2d_add_64x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_64x32_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_16X64:
-      av1_inv_txfm2d_add_16x64_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_16x64_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_64X16:
-      av1_inv_txfm2d_add_64x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
+      av1_inv_txfm2d_add_64x16_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_32X8:
-      av1_inv_txfm2d_add_32x8_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
+      av1_inv_txfm2d_add_32x8_neon(input, dest, stride, tx_type, bd);
       break;
     case TX_8X32:
-      av1_inv_txfm2d_add_8x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
+      av1_inv_txfm2d_add_8x32_neon(input, dest, stride, tx_type, bd);
       break;
   }
 }

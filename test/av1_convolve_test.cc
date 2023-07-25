@@ -13,11 +13,20 @@
 #include <ostream>
 #include <set>
 #include <vector>
+#include "aom_ports/aom_timer.h"
 #include "config/av1_rtcd.h"
 #include "config/aom_dsp_rtcd.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
 #include "test/acm_random.h"
+#pragma GCC diagnostic pop
 #include "test/clear_system_state.h"
+#include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+
+#if CONFIG_PC_WIENER
+#include "av1/common/restoration.h"
+#endif  // CONFIG_PC_WIENER
 
 namespace {
 
@@ -118,32 +127,8 @@ std::vector<TestParam<T>> GetTestParams(std::initializer_list<int> bit_depths,
   return result;
 }
 
-template <typename T>
-std::vector<TestParam<T>> GetLowbdTestParams(T test_func) {
-  return GetTestParams({ 8 }, test_func);
-}
-
-template <typename T>
-::testing::internal::ParamGenerator<TestParam<T>> BuildLowbdParams(
-    T test_func) {
-  return ::testing::ValuesIn(GetLowbdTestParams(test_func));
-}
-
 // Test the test-parameters generators work as expected.
 class AV1ConvolveParametersTest : public ::testing::Test {};
-
-TEST_F(AV1ConvolveParametersTest, GetLowbdTestParams) {
-  auto v = GetLowbdTestParams(av1_convolve_x_sr_c);
-  ASSERT_EQ(27U, v.size());
-  for (const auto &p : v) {
-    ASSERT_EQ(8, p.BitDepth());
-    // Needed (instead of ASSERT_EQ(...) since gtest does not
-    // have built in printing for arbitrary functions, which
-    // causes a compilation error.
-    bool same_fn = av1_convolve_x_sr_c == p.TestFunction();
-    ASSERT_TRUE(same_fn);
-  }
-}
 
 template <typename T>
 std::vector<TestParam<T>> GetHighbdTestParams(T test_func) {
@@ -262,6 +247,12 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
     return RandomInput16(input16_2_, param);
   }
 
+#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+  const uint16_t *FirstRandomInput16Extreme(const TestParam<T> &param) {
+    return RandomInput16Extreme(input16_1_, param);
+  }
+#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+
  private:
   const uint8_t *RandomInput8(uint8_t *p, const TestParam<T> &param) {
     EXPECT_EQ(8, param.BitDepth());
@@ -296,6 +287,33 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
     }
   }
 
+#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+  const uint16_t *RandomInput16Extreme(uint16_t *p, const TestParam<T> &param) {
+    // Check that this is only called with high bit-depths.
+    EXPECT_TRUE(param.BitDepth() == 10 || param.BitDepth() == 12);
+    EXPECT_GE(MAX_SB_SIZE, param.Block().Width());
+    EXPECT_GE(MAX_SB_SIZE, param.Block().Height());
+    const int padded_width = param.Block().Width() + kInputPadding;
+    const int padded_height = param.Block().Height() + kInputPadding;
+    RandomizeExtreme(p, padded_width * padded_height, param.BitDepth());
+    return p + (kInputPadding / 2) * padded_width + kInputPadding / 2;
+  }
+
+  void RandomizeExtreme(uint16_t *p, int size, int max_bit_range) {
+    EXPECT_GE(12, max_bit_range);
+    const int max_val = (1 << max_bit_range) - 1;
+    for (int i = 0; i < size; ++i) {
+      p[i] = static_cast<uint16_t>(RandBool() ? max_val : 0);
+    }
+  }
+
+  int RandBool() {
+    const uint32_t value = rnd_.Rand8();
+    // There's a bit more entropy in the upper bits of this implementation.
+    return (value >> 7) & 0x1;
+  }
+#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+
   static constexpr int kInputStride = MAX_SB_SIZE + kInputPadding;
 
   libaom_test::ACMRandom rnd_;
@@ -307,67 +325,6 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
   uint16_t input16_1_[kInputStride * kInputStride];
   uint16_t input16_2_[kInputStride * kInputStride];
 };
-
-////////////////////////////////////////////////////////
-// Single reference convolve-x functions (low bit-depth)
-////////////////////////////////////////////////////////
-typedef void (*convolve_x_func)(const uint8_t *src, int src_stride,
-                                uint8_t *dst, int dst_stride, int w, int h,
-                                const InterpFilterParams *filter_params_x,
-                                const int subpel_x_qn,
-                                ConvolveParams *conv_params);
-
-class AV1ConvolveXTest : public AV1ConvolveTest<convolve_x_func> {
- public:
-  void RunTest() {
-    for (int sub_x = 0; sub_x < 16; ++sub_x) {
-      for (int filter = EIGHTTAP_REGULAR; filter < INTERP_FILTERS_ALL;
-           ++filter) {
-        InterpFilter f = static_cast<InterpFilter>(filter);
-        TestConvolve(sub_x, f);
-      }
-    }
-  }
-
- private:
-  void TestConvolve(const int sub_x, const InterpFilter filter) {
-    const int width = GetParam().Block().Width();
-    const int height = GetParam().Block().Height();
-    const InterpFilterParams *filter_params_x =
-        av1_get_interp_filter_params_with_block_size(filter, width);
-    ConvolveParams conv_params1 = get_conv_params_no_round(0, 0, NULL, 0, 0, 8);
-    const uint8_t *input = FirstRandomInput8(GetParam());
-    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    av1_convolve_x_sr(input, width, reference, kOutputStride, width, height,
-                      filter_params_x, sub_x, &conv_params1);
-
-    ConvolveParams conv_params2 = get_conv_params_no_round(0, 0, NULL, 0, 0, 8);
-    convolve_x_func test_func = GetParam().TestFunction();
-    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
-    test_func(input, width, test, kOutputStride, width, height, filter_params_x,
-              sub_x, &conv_params2);
-    AssertOutputBufferEq(reference, test, width, height);
-  }
-};
-
-TEST_P(AV1ConvolveXTest, RunTest) { RunTest(); }
-INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveXTest,
-                         BuildLowbdParams(av1_convolve_x_sr_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveXTest,
-                         BuildLowbdParams(av1_convolve_x_sr_sse2));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveXTest,
-                         BuildLowbdParams(av1_convolve_x_sr_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveXTest,
-                         BuildLowbdParams(av1_convolve_x_sr_neon));
-#endif
 
 /////////////////////////////////////////////////////////
 // Single reference convolve-x functions (high bit-depth)
@@ -428,64 +385,6 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveXHighbdTest,
                          BuildHighbdParams(av1_highbd_convolve_x_sr_avx2));
 #endif
 
-////////////////////////////////////////////////////////
-// Single reference convolve-y functions (low bit-depth)
-////////////////////////////////////////////////////////
-typedef void (*convolve_y_func)(const uint8_t *src, int src_stride,
-                                uint8_t *dst, int dst_stride, int w, int h,
-                                const InterpFilterParams *filter_params_y,
-                                const int subpel_y_qn);
-
-class AV1ConvolveYTest : public AV1ConvolveTest<convolve_y_func> {
- public:
-  void RunTest() {
-    for (int sub_y = 0; sub_y < 16; ++sub_y) {
-      for (int filter = EIGHTTAP_REGULAR; filter < INTERP_FILTERS_ALL;
-           ++filter) {
-        InterpFilter f = static_cast<InterpFilter>(filter);
-        TestConvolve(sub_y, f);
-      }
-    }
-  }
-
- private:
-  void TestConvolve(const int sub_y, const InterpFilter filter) {
-    const int width = GetParam().Block().Width();
-    const int height = GetParam().Block().Height();
-
-    const InterpFilterParams *filter_params_y =
-        av1_get_interp_filter_params_with_block_size(filter, height);
-    const uint8_t *input = FirstRandomInput8(GetParam());
-    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    av1_convolve_y_sr(input, width, reference, kOutputStride, width, height,
-                      filter_params_y, sub_y);
-    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
-    GetParam().TestFunction()(input, width, test, kOutputStride, width, height,
-                              filter_params_y, sub_y);
-    AssertOutputBufferEq(reference, test, width, height);
-  }
-};
-
-TEST_P(AV1ConvolveYTest, RunTest) { RunTest(); }
-
-INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveYTest,
-                         BuildLowbdParams(av1_convolve_y_sr_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveYTest,
-                         BuildLowbdParams(av1_convolve_y_sr_sse2));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveYTest,
-                         BuildLowbdParams(av1_convolve_y_sr_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveYTest,
-                         BuildLowbdParams(av1_convolve_y_sr_neon));
-#endif
-
 /////////////////////////////////////////////////////////
 // Single reference convolve-y functions (high bit-depth)
 /////////////////////////////////////////////////////////
@@ -539,59 +438,6 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveYHighbdTest,
                          BuildHighbdParams(av1_highbd_convolve_y_sr_avx2));
 #endif
 
-//////////////////////////////////////////////////////////////
-// Single reference convolve-copy functions (low bit-depth)
-//////////////////////////////////////////////////////////////
-typedef void (*convolve_copy_func)(const uint8_t *src, ptrdiff_t src_stride,
-                                   uint8_t *dst, ptrdiff_t dst_stride, int w,
-                                   int h);
-
-class AV1ConvolveCopyTest : public AV1ConvolveTest<convolve_copy_func> {
- public:
-  void RunTest() {
-    const int width = GetParam().Block().Width();
-    const int height = GetParam().Block().Height();
-    const uint8_t *input = FirstRandomInput8(GetParam());
-    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    aom_convolve_copy(input, width, reference, kOutputStride, width, height);
-    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
-    GetParam().TestFunction()(input, width, test, kOutputStride, width, height);
-    AssertOutputBufferEq(reference, test, width, height);
-  }
-};
-
-// Note that even though these are AOM convolve functions, we are using the
-// newer AV1 test framework.
-TEST_P(AV1ConvolveCopyTest, RunTest) { RunTest(); }
-
-INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_sse2));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_neon));
-#endif
-
-#if HAVE_MSA
-INSTANTIATE_TEST_SUITE_P(MSA, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_msa));
-#endif
-
-#if HAVE_DSPR2
-INSTANTIATE_TEST_SUITE_P(DSPR2, AV1ConvolveCopyTest,
-                         BuildLowbdParams(aom_convolve_copy_dspr2));
-#endif
-
 ///////////////////////////////////////////////////////////////
 // Single reference convolve-copy functions (high bit-depth)
 ///////////////////////////////////////////////////////////////
@@ -629,75 +475,6 @@ INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveCopyHighbdTest,
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveCopyHighbdTest,
                          BuildHighbdParams(aom_highbd_convolve_copy_avx2));
-#endif
-
-/////////////////////////////////////////////////////////
-// Single reference convolve-2D functions (low bit-depth)
-/////////////////////////////////////////////////////////
-typedef void (*convolve_2d_func)(const uint8_t *src, int src_stride,
-                                 uint8_t *dst, int dst_stride, int w, int h,
-                                 const InterpFilterParams *filter_params_x,
-                                 const InterpFilterParams *filter_params_y,
-                                 const int subpel_x_qn, const int subpel_y_qn,
-                                 ConvolveParams *conv_params);
-
-class AV1Convolve2DTest : public AV1ConvolveTest<convolve_2d_func> {
- public:
-  void RunTest() {
-    for (int sub_x = 0; sub_x < 16; ++sub_x) {
-      for (int sub_y = 0; sub_y < 16; ++sub_y) {
-        for (int h_f = EIGHTTAP_REGULAR; h_f < INTERP_FILTERS_ALL; ++h_f) {
-          for (int v_f = EIGHTTAP_REGULAR; v_f < INTERP_FILTERS_ALL; ++v_f) {
-            TestConvolve(static_cast<InterpFilter>(h_f),
-                         static_cast<InterpFilter>(v_f), sub_x, sub_y);
-          }
-        }
-      }
-    }
-  }
-
- private:
-  void TestConvolve(const InterpFilter h_f, const InterpFilter v_f,
-                    const int sub_x, const int sub_y) {
-    const int width = GetParam().Block().Width();
-    const int height = GetParam().Block().Height();
-    const InterpFilterParams *filter_params_x =
-        av1_get_interp_filter_params_with_block_size(h_f, width);
-    const InterpFilterParams *filter_params_y =
-        av1_get_interp_filter_params_with_block_size(v_f, height);
-    const uint8_t *input = FirstRandomInput8(GetParam());
-    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    ConvolveParams conv_params1 = get_conv_params_no_round(0, 0, NULL, 0, 0, 8);
-    av1_convolve_2d_sr(input, width, reference, kOutputStride, width, height,
-                       filter_params_x, filter_params_y, sub_x, sub_y,
-                       &conv_params1);
-    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
-    ConvolveParams conv_params2 = get_conv_params_no_round(0, 0, NULL, 0, 0, 8);
-    GetParam().TestFunction()(input, width, test, kOutputStride, width, height,
-                              filter_params_x, filter_params_y, sub_x, sub_y,
-                              &conv_params2);
-    AssertOutputBufferEq(reference, test, width, height);
-  }
-};
-
-TEST_P(AV1Convolve2DTest, RunTest) { RunTest(); }
-
-INSTANTIATE_TEST_SUITE_P(C, AV1Convolve2DTest,
-                         BuildLowbdParams(av1_convolve_2d_sr_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1Convolve2DTest,
-                         BuildLowbdParams(av1_convolve_2d_sr_sse2));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1Convolve2DTest,
-                         BuildLowbdParams(av1_convolve_2d_sr_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1Convolve2DTest,
-                         BuildLowbdParams(av1_convolve_2d_sr_neon));
 #endif
 
 //////////////////////////////////////////////////////////
@@ -793,27 +570,6 @@ std::vector<TestParam<T>> GetLumaTestParams(
 }
 
 template <typename T>
-std::vector<TestParam<T>> GetLowbdLumaTestParams(T test_func) {
-  return GetLumaTestParams({ 8 }, test_func);
-}
-
-template <typename T>
-::testing::internal::ParamGenerator<TestParam<T>> BuildLowbdLumaParams(
-    T test_func) {
-  return ::testing::ValuesIn(GetLowbdLumaTestParams(test_func));
-}
-
-TEST_F(AV1ConvolveParametersTest, GetLowbdLumaTestParams) {
-  auto v = GetLowbdLumaTestParams(av1_dist_wtd_convolve_x_c);
-  ASSERT_EQ(22U, v.size());
-  for (const auto &e : v) {
-    ASSERT_EQ(8, e.BitDepth());
-    bool same_fn = av1_dist_wtd_convolve_x_c == e.TestFunction();
-    ASSERT_TRUE(same_fn);
-  }
-}
-
-template <typename T>
 std::vector<TestParam<T>> GetHighbdLumaTestParams(T test_func) {
   return GetLumaTestParams({ 10, 12 }, test_func);
 }
@@ -882,10 +638,9 @@ TEST_F(AV1ConvolveParametersTest, GetCompoundParams) {
   }
 }
 
-////////////////////////////////////////////////
-// Compound convolve-x functions (low bit-depth)
-////////////////////////////////////////////////
-
+/////////////////////////////////////////////////
+// Compound convolve-x functions (high bit-depth)
+/////////////////////////////////////////////////
 ConvolveParams GetConvolveParams(int do_average, CONV_BUF_TYPE *conv_buf,
                                  int width, int bit_depth,
                                  const CompoundParam &compound) {
@@ -897,94 +652,6 @@ ConvolveParams GetConvolveParams(int do_average, CONV_BUF_TYPE *conv_buf,
   return conv_params;
 }
 
-class AV1ConvolveXCompoundTest : public AV1ConvolveTest<convolve_x_func> {
- public:
-  void RunTest() {
-    auto compound_params = GetCompoundParams();
-    for (int sub_pix = 0; sub_pix < 16; ++sub_pix) {
-      for (int f = EIGHTTAP_REGULAR; f < INTERP_FILTERS_ALL; ++f) {
-        for (const auto &c : compound_params) {
-          TestConvolve(sub_pix, static_cast<InterpFilter>(f), c);
-        }
-      }
-    }
-  }
-
- protected:
-  virtual const InterpFilterParams *FilterParams(InterpFilter f,
-                                                 const BlockSize &block) const {
-    return av1_get_interp_filter_params_with_block_size(f, block.Width());
-  }
-
-  virtual convolve_x_func ReferenceFunc() const {
-    return av1_dist_wtd_convolve_x;
-  }
-
- private:
-  void TestConvolve(const int sub_pix, const InterpFilter filter,
-                    const CompoundParam &compound) {
-    const int width = GetParam().Block().Width();
-    const int height = GetParam().Block().Height();
-    const uint8_t *input1 = FirstRandomInput8(GetParam());
-    const uint8_t *input2 = SecondRandomInput8(GetParam());
-    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(ReferenceFunc(), input1, input2, reference, reference_conv_buf,
-             compound, sub_pix, filter);
-
-    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
-    DECLARE_ALIGNED(32, CONV_BUF_TYPE, test_conv_buf[MAX_SB_SQUARE]);
-    Convolve(GetParam().TestFunction(), input1, input2, test, test_conv_buf,
-             compound, sub_pix, filter);
-
-    AssertOutputBufferEq(reference_conv_buf, test_conv_buf, width, height);
-    AssertOutputBufferEq(reference, test, width, height);
-  }
-
- private:
-  void Convolve(convolve_x_func test_func, const uint8_t *src1,
-                const uint8_t *src2, uint8_t *dst, CONV_BUF_TYPE *conv_buf,
-                const CompoundParam &compound, const int sub_pix,
-                const InterpFilter filter) {
-    const int width = GetParam().Block().Width();
-    const int height = GetParam().Block().Height();
-    const InterpFilterParams *filter_params =
-        FilterParams(filter, GetParam().Block());
-
-    ConvolveParams conv_params =
-        GetConvolveParams(0, conv_buf, kOutputStride, 8, compound);
-    test_func(src1, width, dst, kOutputStride, width, height, filter_params,
-              sub_pix, &conv_params);
-
-    conv_params = GetConvolveParams(1, conv_buf, kOutputStride, 8, compound);
-    test_func(src2, width, dst, kOutputStride, width, height, filter_params,
-              sub_pix, &conv_params);
-  }
-};
-
-TEST_P(AV1ConvolveXCompoundTest, RunTest) { RunTest(); }
-
-INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveXCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_x_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveXCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_x_sse2));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveXCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_x_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveXCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_x_neon));
-#endif
-
-/////////////////////////////////////////////////
-// Compound convolve-x functions (high bit-depth)
-/////////////////////////////////////////////////
 class AV1ConvolveXHighbdCompoundTest
     : public AV1ConvolveTest<highbd_convolve_x_func> {
  public:
@@ -1069,44 +736,6 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_x_avx2));
 #endif
 
-////////////////////////////////////////////////
-// Compound convolve-y functions (low bit-depth)
-////////////////////////////////////////////////
-
-// Note that the X and Y convolve functions have the same type signature and
-// logic; they only differentiate the filter parameters and reference function.
-class AV1ConvolveYCompoundTest : public AV1ConvolveXCompoundTest {
- protected:
-  virtual const InterpFilterParams *FilterParams(
-      InterpFilter f, const BlockSize &block) const override {
-    return av1_get_interp_filter_params_with_block_size(f, block.Height());
-  }
-
-  virtual convolve_x_func ReferenceFunc() const override {
-    return av1_dist_wtd_convolve_y;
-  }
-};
-
-TEST_P(AV1ConvolveYCompoundTest, RunTest) { RunTest(); }
-
-INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveYCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_y_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1ConvolveYCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_y_sse2));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveYCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_y_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveYCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_y_neon));
-#endif
-
 /////////////////////////////////////////////////
 // Compound convolve-y functions (high bit-depth)
 /////////////////////////////////////////////////
@@ -1138,84 +767,6 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1ConvolveYHighbdCompoundTest,
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_y_avx2));
-#endif
-
-//////////////////////////////////////////////////////
-// Compound convolve-2d-copy functions (low bit-depth)
-//////////////////////////////////////////////////////
-typedef void (*compound_conv_2d_copy_func)(const uint8_t *src, int src_stride,
-                                           uint8_t *dst, int dst_stride, int w,
-                                           int h, ConvolveParams *conv_params);
-
-class AV1Convolve2DCopyCompoundTest
-    : public AV1ConvolveTest<compound_conv_2d_copy_func> {
- public:
-  void RunTest() {
-    auto compound_params = GetCompoundParams();
-    for (const auto &compound : compound_params) {
-      TestConvolve(compound);
-    }
-  }
-
- private:
-  void TestConvolve(const CompoundParam &compound) {
-    const BlockSize &block = GetParam().Block();
-    const int width = block.Width();
-    const int height = block.Height();
-
-    const uint8_t *input1 = FirstRandomInput8(GetParam());
-    const uint8_t *input2 = SecondRandomInput8(GetParam());
-    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av1_dist_wtd_convolve_2d_copy, input1, input2, reference,
-             reference_conv_buf, compound);
-
-    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
-    DECLARE_ALIGNED(32, CONV_BUF_TYPE, test_conv_buf[MAX_SB_SQUARE]);
-    Convolve(GetParam().TestFunction(), input1, input2, test, test_conv_buf,
-             compound);
-
-    AssertOutputBufferEq(reference_conv_buf, test_conv_buf, width, height);
-    AssertOutputBufferEq(reference, test, width, height);
-  }
-
- private:
-  void Convolve(compound_conv_2d_copy_func test_func, const uint8_t *src1,
-                const uint8_t *src2, uint8_t *dst, uint16_t *conv_buf,
-                const CompoundParam &compound) {
-    const BlockSize &block = GetParam().Block();
-    const int width = block.Width();
-    const int height = block.Height();
-    ConvolveParams conv_params =
-        GetConvolveParams(0, conv_buf, kOutputStride, 8, compound);
-    test_func(src1, width, dst, kOutputStride, width, height, &conv_params);
-
-    conv_params = GetConvolveParams(1, conv_buf, kOutputStride, 8, compound);
-    test_func(src2, width, dst, kOutputStride, width, height, &conv_params);
-  }
-};
-
-TEST_P(AV1Convolve2DCopyCompoundTest, RunTest) { RunTest(); }
-
-INSTANTIATE_TEST_SUITE_P(C, AV1Convolve2DCopyCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_copy_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(
-    SSE2, AV1Convolve2DCopyCompoundTest,
-    BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_copy_sse2));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1Convolve2DCopyCompoundTest,
-    BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_copy_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(
-    NEON, AV1Convolve2DCopyCompoundTest,
-    BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_copy_neon));
 #endif
 
 ///////////////////////////////////////////////////////
@@ -1295,103 +846,6 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1Convolve2DCopyHighbdCompoundTest,
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_2d_copy_avx2));
-#endif
-
-/////////////////////////////////////////////////
-// Compound convolve-2d functions (low bit-depth)
-/////////////////////////////////////////////////
-
-class AV1Convolve2DCompoundTest : public AV1ConvolveTest<convolve_2d_func> {
- public:
-  void RunTest() {
-    auto compound_params = GetCompoundParams();
-    for (int h_f = EIGHTTAP_REGULAR; h_f < INTERP_FILTERS_ALL; ++h_f) {
-      for (int v_f = EIGHTTAP_REGULAR; v_f < INTERP_FILTERS_ALL; ++v_f) {
-        for (int sub_x = 0; sub_x < 16; ++sub_x) {
-          for (int sub_y = 0; sub_y < 16; ++sub_y) {
-            for (const auto &compound : compound_params) {
-              TestConvolve(static_cast<InterpFilter>(h_f),
-                           static_cast<InterpFilter>(v_f), sub_x, sub_y,
-                           compound);
-            }
-          }
-        }
-      }
-    }
-  }
-
- private:
-  void TestConvolve(const InterpFilter h_f, const InterpFilter v_f,
-                    const int sub_x, const int sub_y,
-                    const CompoundParam &compound) {
-    const BlockSize &block = GetParam().Block();
-    const int width = block.Width();
-    const int height = block.Height();
-
-    const uint8_t *input1 = FirstRandomInput8(GetParam());
-    const uint8_t *input2 = SecondRandomInput8(GetParam());
-    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
-    DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av1_dist_wtd_convolve_2d, input1, input2, reference,
-             reference_conv_buf, compound, h_f, v_f, sub_x, sub_y);
-
-    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
-    DECLARE_ALIGNED(32, CONV_BUF_TYPE, test_conv_buf[MAX_SB_SQUARE]);
-    Convolve(GetParam().TestFunction(), input1, input2, test, test_conv_buf,
-             compound, h_f, v_f, sub_x, sub_y);
-
-    AssertOutputBufferEq(reference_conv_buf, test_conv_buf, width, height);
-    AssertOutputBufferEq(reference, test, width, height);
-  }
-
- private:
-  void Convolve(convolve_2d_func test_func, const uint8_t *src1,
-                const uint8_t *src2, uint8_t *dst, uint16_t *conv_buf,
-                const CompoundParam &compound, const InterpFilter h_f,
-                const InterpFilter v_f, const int sub_x, const int sub_y) {
-    const BlockSize &block = GetParam().Block();
-    const int width = block.Width();
-    const int height = block.Height();
-
-    const InterpFilterParams *filter_params_x =
-        av1_get_interp_filter_params_with_block_size(h_f, width);
-    const InterpFilterParams *filter_params_y =
-        av1_get_interp_filter_params_with_block_size(v_f, height);
-    ConvolveParams conv_params =
-        GetConvolveParams(0, conv_buf, kOutputStride, 8, compound);
-
-    test_func(src1, width, dst, kOutputStride, width, height, filter_params_x,
-              filter_params_y, sub_x, sub_y, &conv_params);
-
-    conv_params = GetConvolveParams(1, conv_buf, kOutputStride, 8, compound);
-    test_func(src2, width, dst, kOutputStride, width, height, filter_params_x,
-              filter_params_y, sub_x, sub_y, &conv_params);
-  }
-};
-
-TEST_P(AV1Convolve2DCompoundTest, RunTest) { RunTest(); }
-
-INSTANTIATE_TEST_SUITE_P(C, AV1Convolve2DCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_c));
-
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1Convolve2DCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_sse2));
-#endif
-
-#if HAVE_SSSE3
-INSTANTIATE_TEST_SUITE_P(SSSE3, AV1Convolve2DCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_ssse3));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, AV1Convolve2DCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_avx2));
-#endif
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1Convolve2DCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_neon));
 #endif
 
 //////////////////////////////////////////////////
@@ -1485,4 +939,1291 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_2d_avx2));
 #endif
 
+//////////////////////////////////////////////////////////
+// Nonseparable convolve-2d functions (high bit-depth)
+//////////////////////////////////////////////////////////
+
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+typedef void (*highbd_convolve_nonsep_2d_func)(
+    const uint16_t *src, int src_stride,
+    const NonsepFilterConfig *filter_config, const int16_t *filter,
+    uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin,
+    int block_row_end, int block_col_begin, int block_col_end);
+
+class AV1ConvolveNonSep2DHighbdTest
+    : public AV1ConvolveTest<highbd_convolve_nonsep_2d_func> {
+ public:
+  void RunTest(RestorationType rtype) {
+    for (int i = 0; i < kTestIterations; i++) {
+      SetFilterTaps();
+      TestConvolve(FilterTaps_, rtype);
+    }
+  }
+  void RunSpeedTest(RestorationType rtype) {
+    SpeedTestConvolve(FilterTaps_, rtype);
+  };
+
+ private:
+  void BitMatchTest(const uint16_t *input, int input_stride, int width,
+                    int height, const int16_t *filter, uint16_t *reference,
+                    uint16_t *test, int dst_stride, int bit_depth,
+                    int block_row_begin, int block_row_end, int block_col_begin,
+                    int block_col_end, RestorationType rtype) {
+    const NonsepFilterConfig *filter_config[2] = { NULL, NULL };
+    highbd_convolve_nonsep_2d_func ref_func = av1_convolve_symmetric_highbd_c;
+    const int num_planes = 2;
+
+#if CONFIG_PC_WIENER
+    if (rtype == RESTORE_PC_WIENER) {
+      ref_func = av1_convolve_symmetric_highbd_c;
+      filter_config[0] = &UnconstrainedSumFilterConfig_;
+      filter_config[1] = &PcWienerNonsepFilterConfigChroma_;
+    }
+#endif  // CONFIG_PC_WIENER
+
+#if CONFIG_WIENER_NONSEP
+    // When CONFIG_WIENER_NONSEP=1, luma and chroma plane uses different number
+    // of filter taps and both needs to be tested. Here, luma is tested for
+    // 12/13-tap filtering whereas chroma is tested for 6-tap filtering.
+    if (rtype == RESTORE_WIENER_NONSEP) {
+      ref_func = av1_convolve_symmetric_subtract_center_highbd_c;
+      filter_config[0] = &UnitSumFilterConfig_;
+      filter_config[1] = &UnitSumFilterConfigChroma_;
+    }
+#endif  // CONFIG_WIENER_NONSEP
+    assert(filter_config[0] != NULL && filter_config[1] != NULL);
+
+    for (int plane = 0; plane < num_planes; plane++) {
+      ref_func(input, input_stride, filter_config[plane], filter, reference,
+               dst_stride, bit_depth, block_row_begin, block_row_end,
+               block_col_begin, block_col_end);
+      GetParam().TestFunction()(input, input_stride, filter_config[plane],
+                                filter, test, dst_stride, bit_depth,
+                                block_row_begin, block_row_end, block_col_begin,
+                                block_col_end);
+      AssertOutputBufferEq(reference, test, width, height);
+    }
+  }
+  void TestConvolve(const int16_t *filter, RestorationType rtype) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+
+    const uint16_t *input = FirstRandomInput16(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+
+    ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
+        << "Not enough padding for 7x7 filters";
+    const uint16_t *centered_input =
+        input + kMaxTapOffset * width + kMaxTapOffset;
+    const int input_stride = width;
+    BitMatchTest(centered_input, input_stride, width, height, filter, reference,
+                 test, kOutputStride, bit_depth, 0, height, 0, width, rtype);
+    // Extreme value test
+    const uint16_t *extreme_input = FirstRandomInput16Extreme(GetParam());
+    const uint16_t *centered_extreme_input =
+        extreme_input + kMaxTapOffset * width + kMaxTapOffset;
+    int16_t Extream_Tap_[kNumSymmetricTaps + 1];
+    RandomizeExtreamFilterTap(Extream_Tap_, kNumSymmetricTaps + 1,
+                              kMaxPrecisionBeforeOverflow);
+    BitMatchTest(centered_extreme_input, input_stride, width, height,
+                 Extream_Tap_, reference, test, kOutputStride, bit_depth, 0,
+                 height, 0, width, rtype);
+  }
+
+  void SpeedTestConvolve(const int16_t *filter, RestorationType rtype) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+    const int num_planes = 2;
+
+    const uint16_t *input = FirstRandomInput16(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+
+    ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
+        << "Not enough padding for 7x7 filters";
+    const uint16_t *centered_input =
+        input + kMaxTapOffset * width + kMaxTapOffset;
+
+    // Calculate time taken for C function
+    const NonsepFilterConfig *filter_config[2] = { NULL, NULL };
+    highbd_convolve_nonsep_2d_func ref_func = av1_convolve_symmetric_highbd_c;
+#if CONFIG_PC_WIENER
+    if (rtype == RESTORE_PC_WIENER) {
+      ref_func = av1_convolve_symmetric_highbd_c;
+      filter_config[0] = &UnconstrainedSumFilterConfig_;
+      filter_config[1] = &PcWienerNonsepFilterConfigChroma_;
+    }
+#endif  // CONFIG_PC_WIENER
+
+#if CONFIG_WIENER_NONSEP
+    // When CONFIG_WIENER_NONSEP=1, luma and chroma uses different number of
+    // filter taps and both needs to be tested. Here, luma is tested for
+    // 12/13-tap filtering whereas chroma is tested for 6-tap filtering.
+    if (rtype == RESTORE_WIENER_NONSEP) {
+      ref_func = av1_convolve_symmetric_subtract_center_highbd_c;
+      filter_config[0] = &UnitSumFilterConfig_;
+      filter_config[1] = &UnitSumFilterConfigChroma_;
+    }
+#endif  // CONFIG_WIENER_NONSEP
+
+    for (int plane = 0; plane < num_planes; plane++) {
+      // Calculate time taken by reference/c function
+      aom_usec_timer timer;
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        ref_func(centered_input, width, filter_config[plane], filter, reference,
+                 kOutputStride, bit_depth, 0, height, 0, width);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+
+      // Calculate time taken by optimized/intrinsic function
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        GetParam().TestFunction()(centered_input, width, filter_config[plane],
+                                  filter, test, kOutputStride, bit_depth, 0,
+                                  height, 0, width);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+
+      float c_time_per_pixel =
+          (float)1000.0 * elapsed_time_c / (kSpeedIterations * width * height);
+      float opt_time_per_pixel = (float)1000.0 * elapsed_time_opt /
+                                 (kSpeedIterations * width * height);
+      float scaling = c_time_per_pixel / opt_time_per_pixel;
+      printf(
+          "plane=%3d, %3dx%-3d: c_time_per_pixel=%10.5f, "
+          "opt_time_per_pixel=%10.5f,  scaling=%f \n",
+          plane, width, height, c_time_per_pixel, opt_time_per_pixel, scaling);
+    }
+  }
+
+  // Generates NonsepFilterConfig compliant origin symmetric filter tap values.
+  // The first (2 * kNumSymmetricTaps) are for the CONFIG_WIENER_NONSEP use case
+  // where the center tap is constrained so that filter sums to one. The last
+  // added tap at (2 * kNumSymmetricTaps) is unconstrained and intended for
+  // CONFIG_PC_WIENER use case.
+  void SetFilterTaps() {
+    Randomize(FilterTaps_, kNumSymmetricTaps + 1, kMaxPrecisionBeforeOverflow);
+  }
+
+  // Fills the array p with signed integers.
+  void Randomize(int16_t *p, int size, int max_bit_range) {
+    ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
+    for (int i = 0; i < size; ++i) {
+      p[i] = rnd_.Rand15Signed() & ((1 << max_bit_range) - 1);
+    }
+  }
+
+  // Fills the array p with maximum and minimum possible integers.
+  void RandomizeExtreamFilterTap(int16_t *p, int size, int max_bit_range) {
+    ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
+    const int sign_max_val = (1 << (max_bit_range - 1)) - 1;
+    for (int i = 0; i < size; ++i) {
+      p[i] = static_cast<uint16_t>(RandBool() ? sign_max_val
+                                              : -(sign_max_val + 1));
+    }
+  }
+
+  int RandBool() {
+    const uint32_t value = rnd_.Rand8();
+    // There's a bit more entropy in the upper bits of this implementation.
+    return (value >> 7) & 0x1;
+  }
+
+  libaom_test::ACMRandom rnd_;
+  static constexpr int kMaxPrecisionBeforeOverflow = 12;
+  static constexpr int kNumSymmetricTaps = 12;
+  static constexpr int kNumSymmetricTapsChroma = 6;
+  static constexpr int kMaxTapOffset = 3;  // Filters are 7x7.
+  static constexpr int kSpeedIterations = 10000;
+  static constexpr int kTestIterations = 100;
+
+#if CONFIG_PC_WIENER
+  // Configuration for nonseparable 7x7 filters for DIAMOND shape.
+  // Format is offset (i) row and (ii) column from center pixel
+  // and the (iii) filter-tap index that multiplies the pixel at
+  // the respective offset.
+  const int NonsepConfig_[25][3] = {
+    { -3, 0, 0 },  { 3, 0, 0 },  { -2, -1, 1 }, { 2, 1, 1 },   { -2, 0, 2 },
+    { 2, 0, 2 },   { -2, 1, 3 }, { 2, -1, 3 },  { -1, -2, 4 }, { 1, 2, 4 },
+    { -1, -1, 5 }, { 1, 1, 5 },  { -1, 0, 6 },  { 1, 0, 6 },   { -1, 1, 7 },
+    { 1, -1, 7 },  { -1, 2, 8 }, { 1, -2, 8 },  { 0, -3, 9 },  { 0, 3, 9 },
+    { 0, -2, 10 }, { 0, 2, 10 }, { 0, -1, 11 }, { 0, 1, 11 },  { 0, 0, 12 },
+  };
+
+  const int wienerns_wout_subtract_center_config_uv_from_uv_[13][3] = {
+    { 1, 0, 0 },   { -1, 0, 0 }, { 0, 1, 1 },  { 0, -1, 1 }, { 1, 1, 2 },
+    { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 }, { 2, 0, 4 },  { -2, 0, 4 },
+    { 0, 2, 5 },   { 0, -2, 5 }, { 0, 0, 6 },
+  };
+
+  // Filters use all unique taps.
+  const NonsepFilterConfig UnconstrainedSumFilterConfig_ = {
+    kMaxPrecisionBeforeOverflow,
+    2 * kNumSymmetricTaps + 1,
+    0,
+    NonsepConfig_,
+    NULL,
+    0,
+    0
+  };
+
+  const NonsepFilterConfig PcWienerNonsepFilterConfigChroma_ = {
+    kMaxPrecisionBeforeOverflow,
+    2 * kNumSymmetricTapsChroma + 1,
+    0,
+    wienerns_wout_subtract_center_config_uv_from_uv_,
+    NULL,
+    0,
+    0
+  };
+#endif  // CONFIG_PC_WIENER
+
+#if CONFIG_WIENER_NONSEP
+  // Configuration for UnitSumFilterConfig_ wiener nonseparable 7x7 filters for
+  // DIAMOND shape. Format is offset (i) row and (ii) column from center pixel
+  // and the (iii) filter-tap index that multiplies the pixel at the respective
+  // offset.
+  const int WienerNonsepConfig_[25][3] = {
+    { 1, 0, 0 },
+    { -1, 0, 0 },
+    { 0, 1, 1 },
+    { 0, -1, 1 },
+    { 2, 0, 2 },
+    { -2, 0, 2 },
+    { 0, 2, 3 },
+    { 0, -2, 3 },
+    { 1, 1, 4 },
+    { -1, -1, 4 },
+    { -1, 1, 5 },
+    { 1, -1, 5 },
+    { 2, 1, 6 },
+    { -2, -1, 6 },
+    { 2, -1, 7 },
+    { -2, 1, 7 },
+    { 1, 2, 8 },
+    { -1, -2, 8 },
+    { 1, -2, 9 },
+    { -1, 2, 9 },
+    { 3, 0, 10 },
+    { -3, 0, 10 },
+    { 0, 3, 11 },
+    { 0, -3, 11 },
+#if USE_CENTER_WIENER_NONSEP
+    { 0, 0, 12 },
+#endif  // USE_CENTER_WIENER_NONSEP
+  };
+
+  const int WienerNonsepConfigChroma_[12][3] = {
+    { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
+    { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
+    { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
+  };
+
+  // Filters use only the first (2 * kNumSymmetricTaps) taps. Center tap is
+  // constrained.
+  const NonsepFilterConfig UnitSumFilterConfig_ = {
+    kMaxPrecisionBeforeOverflow,
+#if USE_CENTER_WIENER_NONSEP
+    2 * kNumSymmetricTaps + 1,
+#else
+    2 * kNumSymmetricTaps,
+#endif  // USE_CENTER_WIENER_NONSEP
+    0,
+    WienerNonsepConfig_,
+    NULL,
+    0,
+    1
+  };
+
+  // Config used for filtering of chroma when CONFIG_WIENER_NONSEP=1.
+  const NonsepFilterConfig UnitSumFilterConfigChroma_ = {
+    kMaxPrecisionBeforeOverflow,
+    2 * kNumSymmetricTapsChroma,
+    0,
+    WienerNonsepConfigChroma_,
+    NULL,
+    0,
+    1
+  };
+#endif  // CONFIG_WIENER_NONSEP
+
+  int16_t FilterTaps_[kNumSymmetricTaps + 1];
+};
+
+#if CONFIG_PC_WIENER
+TEST_P(AV1ConvolveNonSep2DHighbdTest, RunTest) { RunTest(RESTORE_PC_WIENER); }
+
+TEST_P(AV1ConvolveNonSep2DHighbdTest, DISABLED_Speed) {
+  RunSpeedTest(RESTORE_PC_WIENER);
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveNonSep2DHighbdTest,
+                         BuildHighbdParams(av1_convolve_symmetric_highbd_avx2));
+#endif
+#endif  // CONFIG_PC_WIENER
+
+#if CONFIG_WIENER_NONSEP
+class AV1ConvolveWienerNonSep2DHighbdTest
+    : public AV1ConvolveNonSep2DHighbdTest {};
+
+TEST_P(AV1ConvolveWienerNonSep2DHighbdTest, RunTest) {
+  RunTest(RESTORE_WIENER_NONSEP);
+}
+TEST_P(AV1ConvolveWienerNonSep2DHighbdTest, DISABLED_Speed) {
+  RunSpeedTest(RESTORE_WIENER_NONSEP);
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1ConvolveWienerNonSep2DHighbdTest,
+    BuildHighbdParams(av1_convolve_symmetric_subtract_center_highbd_avx2));
+#endif
+#endif  // CONFIG_WIENER_NONSEP
+
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+
+//////////////////////////////////////////////////////////
+// Nonseparable convolve-2d Dual functions (high bit-depth)
+//////////////////////////////////////////////////////////
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+typedef void (*highbd_convolve_nonsep_dual_2d_func)(
+    const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
+    int dgd_dual_stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_row_end, int block_col_begin,
+    int block_col_end);
+
+class AV1ConvolveNon_Sep_dual2DHighbdTest
+    : public AV1ConvolveTest<highbd_convolve_nonsep_dual_2d_func> {
+ public:
+  void RunTest(int is_subtract_center) {
+    for (int i = 0; i < kTestIterations; i++) {
+      SetFilterTaps();
+      TestConvolve(FilterTaps_, is_subtract_center);
+    }
+  }
+  void RunSpeedTest(int is_subtract_center) {
+    SpeedTestConvolve(FilterTaps_, is_subtract_center);
+  };
+
+ private:
+  libaom_test::ACMRandom rnd_;
+  static constexpr int kMaxPrecisionBeforeOverflow = 12;
+  static constexpr int kNumSymmetricTaps = 6;
+  // In dual filtering, 7 taps (6 symmetric + 1 center) are required for each of
+  // the buffer.
+  static constexpr int kNumSubtractCenterOffTaps = (2 * kNumSymmetricTaps) + 2;
+  static constexpr int kMaxTapOffset = 2;  // Filters are 5x5.
+  static constexpr int kSpeedIterations = 10000;
+  static constexpr int kTestIterations = 100;
+
+  // Declare the filter taps for worst case (i.e., for subtract center off
+  // case).
+  int16_t FilterTaps_[kNumSubtractCenterOffTaps];
+
+  // Fills the array p with signed integers.
+  void Randomize(int16_t *p, int size, int max_bit_range) {
+    ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
+    for (int i = 0; i < size; ++i) {
+      p[i] = rnd_.Rand15Signed() & ((1 << max_bit_range) - 1);
+    }
+  }
+
+  void SetFilterTaps() {
+    Randomize(FilterTaps_, kNumSubtractCenterOffTaps,
+              kMaxPrecisionBeforeOverflow);
+  }
+
+  int RandBool() {
+    const uint32_t value = rnd_.Rand8();
+    // There's a bit more entropy in the upper bits of this implementation.
+    return (value >> 7) & 0x1;
+  }
+
+  // Fills the array p with maximum and minimum possible integers.
+  void RandomizeExtreamFilterTap(int16_t *p, int size, int max_bit_range) {
+    ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
+    const int sign_max_val = (1 << (max_bit_range - 1)) - 1;
+    for (int i = 0; i < size; ++i) {
+      p[i] = static_cast<uint16_t>(RandBool() ? sign_max_val
+                                              : -(sign_max_val + 1));
+    }
+  }
+
+  void BitMatchTest(const uint16_t *dgd, const uint16_t *dgd_dual,
+                    int dgd_stride, int width, int height,
+                    const int16_t *filter, uint16_t *reference, uint16_t *test,
+                    int dst_stride, int bit_depth, int block_row_begin,
+                    int block_row_end, int block_col_begin, int block_col_end,
+                    int is_subtract_center) {
+    // Set filter_config and reference function appropriately.
+    highbd_convolve_nonsep_dual_2d_func ref_func;
+    const NonsepFilterConfig *filter_cfg;
+
+    filter_cfg = &DualFilterWithCenterConfig_;
+    ref_func = av1_convolve_symmetric_dual_subtract_center_highbd_c;
+
+    if (!is_subtract_center) {
+      ref_func = av1_convolve_symmetric_dual_highbd_c;
+      filter_cfg = &DualFilterWithoutCenterConfig_;
+    }
+    // Reference function
+    ref_func(dgd, dgd_stride, dgd_dual, dgd_stride, filter_cfg, filter,
+             reference, dst_stride, bit_depth, block_row_begin, block_row_end,
+             block_col_begin, block_col_end);
+
+    // Test function
+    GetParam().TestFunction()(dgd, dgd_stride, dgd_dual, dgd_stride, filter_cfg,
+                              filter, test, dst_stride, bit_depth,
+                              block_row_begin, block_row_end, block_col_begin,
+                              block_col_end);
+
+    // Compare the output of reference and test for bit match
+    AssertOutputBufferEq(reference, test, width, height);
+  }
+
+  void TestConvolve(const int16_t *filter, int is_subtract_center) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+
+    const uint16_t *dgd = FirstRandomInput16(GetParam());
+    const uint16_t *dgd_dual = FirstRandomInput16(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+
+    ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
+        << "Not enough padding for 5x5 filters";
+    const uint16_t *centered_input1 =
+        dgd + kMaxTapOffset * width + kMaxTapOffset;
+    const uint16_t *centered_input2 =
+        dgd_dual + kMaxTapOffset * width + kMaxTapOffset;
+    const int input_stride = width;
+    BitMatchTest(centered_input1, centered_input2, input_stride, width, height,
+                 filter, reference, test, kOutputStride, bit_depth, 0, height,
+                 0, width, is_subtract_center);
+    // Extreme value test
+    const uint16_t *extreme_input1 = FirstRandomInput16Extreme(GetParam());
+    const uint16_t *extreme_input2 = FirstRandomInput16Extreme(GetParam());
+    const uint16_t *centered_extreme_input1 =
+        extreme_input1 + kMaxTapOffset * width + kMaxTapOffset;
+    const uint16_t *centered_extreme_input2 =
+        extreme_input2 + kMaxTapOffset * width + kMaxTapOffset;
+    int16_t Extream_Tap_[kNumSubtractCenterOffTaps];
+    RandomizeExtreamFilterTap(Extream_Tap_, kNumSubtractCenterOffTaps,
+                              kMaxPrecisionBeforeOverflow);
+    BitMatchTest(centered_extreme_input1, centered_extreme_input2, input_stride,
+                 width, height, Extream_Tap_, reference, test, kOutputStride,
+                 bit_depth, 0, height, 0, width, is_subtract_center);
+  }
+
+  void SpeedTestConvolve(const int16_t *filter, int is_subtract_center) {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const int bit_depth = GetParam().BitDepth();
+
+    const uint16_t *dgd = FirstRandomInput16(GetParam());
+    const uint16_t *dgd_dual = FirstRandomInput16(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+
+    ASSERT_TRUE(kInputPadding >= kMaxTapOffset)
+        << "Not enough padding for 5x5 filters";
+    const uint16_t *centered_input1 =
+        dgd + kMaxTapOffset * width + kMaxTapOffset;
+    const uint16_t *centered_input2 =
+        dgd_dual + kMaxTapOffset * width + kMaxTapOffset;
+
+    // Set filter_config and reference function appropriately.
+    highbd_convolve_nonsep_dual_2d_func ref_func;
+    const NonsepFilterConfig *filter_cfg;
+
+    filter_cfg = &DualFilterWithCenterConfig_;
+    ref_func = av1_convolve_symmetric_dual_subtract_center_highbd_c;
+
+    if (!is_subtract_center) {
+      ref_func = av1_convolve_symmetric_dual_highbd_c;
+      filter_cfg = &DualFilterWithoutCenterConfig_;
+    }
+
+    // Calculate time taken by reference/c function
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < kSpeedIterations; ++i) {
+      ref_func(centered_input1, width, centered_input2, width, filter_cfg,
+               filter, reference, kOutputStride, bit_depth, 0, height, 0,
+               width);
+    }
+    aom_usec_timer_mark(&timer);
+    auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+
+    // Calculate time taken by optimized/intrinsic function
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < kSpeedIterations; ++i) {
+      GetParam().TestFunction()(centered_input1, width, centered_input2, width,
+                                filter_cfg, filter, test, kOutputStride,
+                                bit_depth, 0, height, 0, width);
+    }
+    aom_usec_timer_mark(&timer);
+    auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+
+    float c_time_per_pixel =
+        (float)1000.0 * elapsed_time_c / (kSpeedIterations * width * height);
+    float opt_time_per_pixel =
+        (float)1000.0 * elapsed_time_opt / (kSpeedIterations * width * height);
+    float scaling = c_time_per_pixel / opt_time_per_pixel;
+    printf(
+        " %3dx%-3d: c_time_per_pixel=%10.5f, "
+        "opt_time_per_pixel=%10.5f,  scaling=%f \n",
+        width, height, c_time_per_pixel, opt_time_per_pixel, scaling);
+  }
+
+  const int wienerns_config_uv_from_uv[12][3] = {
+    { 1, 0, 0 }, { -1, 0, 0 },  { 0, 1, 1 },  { 0, -1, 1 },
+    { 1, 1, 2 }, { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 },
+    { 2, 0, 4 }, { -2, 0, 4 },  { 0, 2, 5 },  { 0, -2, 5 },
+  };
+
+  const int wienerns_config_uv_from_y[12][3] = {
+    { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
+    { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
+    { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+  };
+
+  const int wienerns_wout_subtract_center_config_uv_from_uv[13][3] = {
+    { 1, 0, 0 },   { -1, 0, 0 }, { 0, 1, 1 },  { 0, -1, 1 }, { 1, 1, 2 },
+    { -1, -1, 2 }, { -1, 1, 3 }, { 1, -1, 3 }, { 2, 0, 4 },  { -2, 0, 4 },
+    { 0, 2, 5 },   { 0, -2, 5 }, { 0, 0, 6 },
+  };
+
+  // Adjust the beginning tap to account for the above change and add a tap at
+  // (0, 0).
+  const int wienerns_wout_subtract_center_config_uv_from_y[13][3] = {
+    { 1, 0, 7 },   { -1, 0, 7 },  { 0, 1, 8 },   { 0, -1, 8 }, { 1, 1, 9 },
+    { -1, -1, 9 }, { -1, 1, 10 }, { 1, -1, 10 }, { 2, 0, 11 }, { -2, 0, 11 },
+    { 0, 2, 12 },  { 0, -2, 12 }, { 0, 0, 13 },
+  };
+
+  const NonsepFilterConfig DualFilterWithCenterConfig_ = {
+    kMaxPrecisionBeforeOverflow,  // prec_bits;
+    sizeof(wienerns_config_uv_from_uv) /
+        sizeof(wienerns_config_uv_from_uv[0]),  // num_pixels;
+    sizeof(wienerns_config_uv_from_y) /
+        sizeof(wienerns_config_uv_from_y[0]),  // num_pixels2
+    wienerns_config_uv_from_uv,                // config
+    wienerns_config_uv_from_y,                 // config2
+    0,                                         // strict_bounds
+    1                                          // subtract_center
+  };
+
+  const NonsepFilterConfig DualFilterWithoutCenterConfig_ = {
+    kMaxPrecisionBeforeOverflow,  // prec_bits;
+    sizeof(wienerns_wout_subtract_center_config_uv_from_uv) /
+        sizeof(
+            wienerns_wout_subtract_center_config_uv_from_uv[0]),  // num_pixels;
+    sizeof(wienerns_wout_subtract_center_config_uv_from_y) /
+        sizeof(
+            wienerns_wout_subtract_center_config_uv_from_y[0]),  // num_pixels2
+    wienerns_wout_subtract_center_config_uv_from_uv,             // config
+    wienerns_wout_subtract_center_config_uv_from_y,              // config2
+    0,  // strict_bounds
+    0   // subtract_center
+  };
+};
+
+TEST_P(AV1ConvolveNon_Sep_dual2DHighbdTest, RunTest) { RunTest(1); }
+TEST_P(AV1ConvolveNon_Sep_dual2DHighbdTest, DISABLED_Speed) { RunSpeedTest(1); }
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1ConvolveNon_Sep_dual2DHighbdTest,
+    BuildHighbdParams(av1_convolve_symmetric_dual_subtract_center_highbd_avx2));
+#endif  // HAVE_AVX2
+
+/* Dual with subtract center off unit-test*/
+class AV1ConvolveDualWithoutsubtract2DHighbdTest
+    : public AV1ConvolveNon_Sep_dual2DHighbdTest {};
+
+TEST_P(AV1ConvolveDualWithoutsubtract2DHighbdTest, RunTest) { RunTest(0); }
+TEST_P(AV1ConvolveDualWithoutsubtract2DHighbdTest, DISABLED_Speed) {
+  RunSpeedTest(0);
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1ConvolveDualWithoutsubtract2DHighbdTest,
+    BuildHighbdParams(av1_convolve_symmetric_dual_highbd_avx2));
+#endif
+
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
+//////////////////////////////////////////////////////////
+// Unit-test corresponds to buffer accumulations to derive filter
+// index for each block size (pc_wiener_block_size: 4x4)
+//////////////////////////////////////////////////////////
+
+#if CONFIG_PC_WIENER
+typedef void (*fill_directional_feature_buffers_highbd_func)(
+    int *feature_sum_buffers[], int16_t *feature_line_buffers[], int row,
+    int buffer_row, const uint16_t *dgd, int dgd_stride, int width,
+    int feature_lead, int feature_lag);
+
+class AV1FillDirFeatureBufHighbdTest
+    : public AV1ConvolveTest<fill_directional_feature_buffers_highbd_func> {
+ public:
+  void RunTest() {
+    for (int i = 0; i < kTestIterations; i++) {
+      // Set buffer values here.
+      SetBufferValues();
+      TestConvolve();
+    }
+  }
+
+  void RunSpeedTest() { SpeedTestConvolve(); };
+
+ protected:
+  virtual void SetUp() {
+    for (int j = 0; j < NUM_FEATURE_LINE_BUFFERS; ++j) {
+      feature_line_buffers_c_[j] = static_cast<int16_t *>(
+          (aom_malloc(buffer_width_ * sizeof(*feature_line_buffers_c_[j]))));
+      ASSERT_NE(feature_line_buffers_c_[j], nullptr);
+
+      feature_line_buffers_simd_[j] = static_cast<int16_t *>(
+          (aom_malloc(buffer_width_ * sizeof(*feature_line_buffers_simd_[j]))));
+      ASSERT_NE(feature_line_buffers_simd_[j], nullptr);
+    }
+
+    for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
+      feature_sum_buffers_c_[j] = static_cast<int *>(
+          (aom_malloc(buffer_width_ * sizeof(*feature_sum_buffers_c_[j]))));
+      ASSERT_NE(feature_sum_buffers_c_[j], nullptr);
+
+      feature_sum_buffers_simd_[j] = static_cast<int *>(
+          (aom_malloc(buffer_width_ * sizeof(*feature_sum_buffers_simd_[j]))));
+      ASSERT_NE(feature_sum_buffers_simd_[j], nullptr);
+    }
+  }
+
+  virtual void TearDown() {
+    for (int j = 0; j < NUM_FEATURE_LINE_BUFFERS; ++j) {
+      aom_free(feature_line_buffers_c_[j]);
+      feature_line_buffers_c_[j] = NULL;
+      aom_free(feature_line_buffers_simd_[j]);
+      feature_line_buffers_simd_[j] = NULL;
+    }
+
+    for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
+      aom_free(feature_sum_buffers_c_[j]);
+      feature_sum_buffers_c_[j] = NULL;
+      aom_free(feature_sum_buffers_simd_[j]);
+      feature_sum_buffers_simd_[j] = NULL;
+    }
+  }
+
+  void SetBufferValues() {
+    const int bitdepth = GetParam().BitDepth();
+    for (int j = 0; j < NUM_FEATURE_LINE_BUFFERS; ++j) {
+      Randomize(feature_line_buffers_c_[j], buffer_width_, bitdepth);
+      memcpy(feature_line_buffers_simd_[j], feature_line_buffers_c_[j],
+             buffer_width_ * sizeof(*feature_line_buffers_simd_[j]));
+    }
+
+    for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
+      RandomizeSigned31(feature_sum_buffers_c_[j], buffer_width_, 31);
+      memcpy(feature_sum_buffers_simd_[j], feature_sum_buffers_c_[j],
+             buffer_width_ * sizeof(*feature_sum_buffers_simd_[j]));
+    }
+  }
+
+ private:
+  libaom_test::ACMRandom rnd_;
+  static constexpr int kSpeedIterations = 10000;
+  static constexpr int kTestIterations = 100;
+
+  void TestConvolve() {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    // Input buffer allocation.
+    const uint16_t *input = FirstRandomInput16(GetParam());
+    const int input_stride = width;
+
+    // C function call
+    for (int i = 0; i < height; ++i) {
+      const int row_to_process = AOMMIN(i + feature_lag, height + 3 - 2);
+      fill_directional_feature_buffers_highbd_c(
+          feature_sum_buffers_c_, feature_line_buffers_c_, row_to_process,
+          feature_length - 1, input, input_stride, width, feature_lead,
+          feature_lag);
+    }
+
+    // SIMD function call
+    for (int i = 0; i < height; ++i) {
+      const int row_to_process = AOMMIN(i + feature_lag, height + 3 - 2);
+      GetParam().TestFunction()(feature_sum_buffers_simd_,
+                                feature_line_buffers_simd_, row_to_process,
+                                feature_length - 1, input, input_stride, width,
+                                feature_lead, feature_lag);
+    }
+
+    // Compare the outputs of C and SIMD
+    for (int i = 0; i < NUM_PC_WIENER_FEATURES; i++) {
+      int *c_buf = feature_sum_buffers_c_[i];
+      int *simd_buf = feature_sum_buffers_simd_[i];
+      for (int j = 0; j < buffer_width_; ++j) {
+        ASSERT_EQ(c_buf[j], simd_buf[j])
+            << "feature_buf=" << i << " Pixel mismatch at width (" << i << ")";
+      }
+    }
+  }
+
+  void SpeedTestConvolve() {
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+
+    // Input buffer allocation.
+    const uint16_t *input = FirstRandomInput16(GetParam());
+    const int input_stride = width;
+
+    // Calculate time taken for C function
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < kSpeedIterations; ++i) {
+      for (int i = 0; i < height; ++i) {
+        const int row_to_process = AOMMIN(i + feature_lag, height + 3 - 2);
+        fill_directional_feature_buffers_highbd_c(
+            feature_sum_buffers_c_, feature_line_buffers_c_, row_to_process,
+            feature_length - 1, input, input_stride, width, feature_lead,
+            feature_lag);
+      }
+    }
+    aom_usec_timer_mark(&timer);
+    auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+
+    // Calculate time taken by optimized/intrinsic function
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < kSpeedIterations; ++i) {
+      for (int i = 0; i < height; ++i) {
+        const int row_to_process = AOMMIN(i + feature_lag, height + 3 - 2);
+        GetParam().TestFunction()(feature_sum_buffers_simd_,
+                                  feature_line_buffers_simd_, row_to_process,
+                                  feature_length - 1, input, input_stride,
+                                  width, feature_lead, feature_lag);
+      }
+    }
+    aom_usec_timer_mark(&timer);
+    auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+
+    float c_time_per_pixel =
+        (float)1000.0 * elapsed_time_c / (kSpeedIterations * width * height);
+    float opt_time_per_pixel =
+        (float)1000.0 * elapsed_time_opt / (kSpeedIterations * width * height);
+    float scaling = c_time_per_pixel / opt_time_per_pixel;
+    printf(
+        "%3dx%-3d: c_time_per_pixel=%10.5f, "
+        "opt_time_per_pixel=%10.5f,  scaling=%f \n",
+        width, height, c_time_per_pixel, opt_time_per_pixel, scaling);
+  }
+
+  // Fills the array p with signed integers.
+  void Randomize(int16_t *p, int size, int max_bit_range) {
+    ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
+    for (int i = 0; i < size; ++i) {
+      p[i] = rnd_.Rand15Signed() & ((1 << max_bit_range) - 1);
+    }
+  }
+
+  // Fills the array p with signed integers of 31 bit range.
+  void RandomizeSigned31(int *p, int size, uint32_t max_bit_range) {
+    assert(max_bit_range <= 31);
+    uint32_t mask = (uint32_t)(1 << max_bit_range) - 1;
+    for (int i = 0; i < size; ++i) {
+      p[i] = (int)(rnd_.Rand31() & mask);
+    }
+  }
+
+  int *feature_sum_buffers_c_[NUM_PC_WIENER_FEATURES];
+  int *feature_sum_buffers_simd_[NUM_PC_WIENER_FEATURES];
+  int16_t *feature_line_buffers_c_[NUM_FEATURE_LINE_BUFFERS];
+  int16_t *feature_line_buffers_simd_[NUM_FEATURE_LINE_BUFFERS];
+  const int feature_lead = PC_WIENER_FEATURE_LEAD_LUMA;
+  const int feature_lag = PC_WIENER_FEATURE_LAG_LUMA;
+  const int feature_length = PC_WIENER_FEATURE_LENGTH_LUMA;
+  const int buffer_width_ = MAX_SB_SIZE + kInputPadding;
+};
+
+TEST_P(AV1FillDirFeatureBufHighbdTest, RunTest) { RunTest(); }
+
+TEST_P(AV1FillDirFeatureBufHighbdTest, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1FillDirFeatureBufHighbdTest,
+    BuildHighbdParams(fill_directional_feature_buffers_highbd_avx2));
+#endif  // HAVE_AVX2
+
+typedef void (*FillTSkipSumBufferFunc)(int row, const uint8_t *tskip,
+                                       int tskip_stride,
+                                       int8_t *tskip_sum_buffer, int width,
+                                       int height, int tskip_lead,
+                                       int tskip_lag, bool use_strict_bounds);
+
+typedef std::tuple<const FillTSkipSumBufferFunc> AV1FillTSkipSumBufferFuncParam;
+
+class AV1Fill_TSkip_Sum_BufferTest
+    : public ::testing::TestWithParam<AV1FillTSkipSumBufferFuncParam> {
+ public:
+  virtual void SetUp() { target_func_ = GET_PARAM(0); }
+
+  void RunTest() {
+    for (int i = 0; i < kTestIterations; i++) {
+      TestTSkipSum();
+    }
+  }
+  void RunSpeedTest() { SpeedTestTSkipSum(); };
+
+ private:
+  libaom_test::ACMRandom rnd_;
+  FillTSkipSumBufferFunc target_func_;
+
+  static constexpr int kSpeedIterations = 10000;
+  static constexpr int kTestIterations = 100;
+  static constexpr int kNumPlanes = 1;
+  static constexpr int kWidth = RESTORATION_PROC_UNIT_SIZE;
+  static constexpr int kHeight = RESTORATION_PROC_UNIT_SIZE;
+  static constexpr int kInputWidth = MI_SIZE_64X64;
+  static constexpr int kInputStride = MI_SIZE_64X64;
+  static constexpr int kOutputWidth =
+      (RESTORATION_PROC_UNIT_SIZE + PC_WIENER_FEATURE_LENGTH_LUMA - 1);
+
+  uint8_t input_buffer_[MI_SIZE_64X64 * MI_SIZE_64X64];
+  int8_t ref_buffer_[kOutputWidth];
+  int8_t test_buffer_[kOutputWidth];
+  const bool tskip_strict_ = true;
+
+  int RandBool() {
+    const uint32_t value = rnd_.Rand8();
+    // There's a bit more entropy in the upper bits of this implementation.
+    return (value >> 7) & 0x1;
+  }
+
+  void TestTSkipSum() {
+    for (int i = 0; i < kInputWidth * kInputStride; ++i) {
+      input_buffer_[i] = static_cast<uint8_t>(RandBool() ? 1 : 0);
+    }
+
+    for (int plane = 0; plane < kNumPlanes; ++plane) {
+      const int is_uv = (plane > 0);
+      const int ss_x = is_uv ? 1 : 0;
+      const int ss_y = is_uv ? 1 : 0;
+      const int plane_width = kWidth >> ss_x;
+      const int plane_height = kHeight >> ss_y;
+      const int tskip_lead = PC_WIENER_TSKIP_LEAD_LUMA;
+      const int tskip_lag = PC_WIENER_TSKIP_LAG_LUMA;
+
+      memset(ref_buffer_, 0, sizeof(*ref_buffer_) * kOutputWidth);
+      memset(test_buffer_, 0, sizeof(*test_buffer_) * kOutputWidth);
+
+      // Reference function
+      for (int row = -tskip_lead; row < (tskip_lag + plane_height); ++row) {
+        av1_fill_tskip_sum_buffer_c(row, input_buffer_, kInputStride,
+                                    ref_buffer_, plane_width, plane_height,
+                                    tskip_lead, tskip_lag, tskip_strict_);
+      }
+
+      // Test function
+      for (int row = -tskip_lead; row < (tskip_lag + plane_height); ++row) {
+        target_func_(row, input_buffer_, kInputStride, test_buffer_,
+                     plane_width, plane_height, tskip_lead, tskip_lag,
+                     tskip_strict_);
+      }
+
+      // Compare the output of reference and test for bit match
+      for (int i = 0; i < kOutputWidth; ++i) {
+        ASSERT_EQ(ref_buffer_[i], test_buffer_[i])
+            << " Mismatch at (" << i << ")";
+      }
+    }
+  }
+
+  void SpeedTestTSkipSum() {
+    for (int i = 0; i < kInputWidth * kInputStride; ++i) {
+      input_buffer_[i] = static_cast<uint8_t>(RandBool() ? 1 : 0);
+    }
+
+    for (int plane = 0; plane < kNumPlanes; ++plane) {
+      const int is_uv = (plane > 0);
+      const int ss_x = is_uv ? 1 : 0;
+      const int ss_y = is_uv ? 1 : 0;
+      const int plane_width = kWidth >> ss_x;
+      const int plane_height = kHeight >> ss_y;
+      const int tskip_lead = PC_WIENER_TSKIP_LEAD_LUMA;
+      const int tskip_lag = PC_WIENER_TSKIP_LAG_LUMA;
+
+      memset(ref_buffer_, 0, sizeof(*ref_buffer_) * kOutputWidth);
+      memset(test_buffer_, 0, sizeof(*test_buffer_) * kOutputWidth);
+
+      // Calculate time taken by reference/c function
+      aom_usec_timer timer;
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        // Reference function
+        for (int row = -tskip_lead; row < (tskip_lag + plane_height - 1);
+             ++row) {
+          av1_fill_tskip_sum_buffer_c(row, input_buffer_, kInputStride,
+                                      ref_buffer_, plane_width, plane_height,
+                                      tskip_lead, tskip_lag, tskip_strict_);
+        }
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+
+      // Calculate time taken by optimized/intrinsic function
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        for (int row = -tskip_lead; row < (tskip_lag + plane_height - 1);
+             ++row) {
+          target_func_(row, input_buffer_, kInputStride, test_buffer_,
+                       plane_width, plane_height, tskip_lead, tskip_lag,
+                       tskip_strict_);
+        }
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+
+      float c_time_per_pixel =
+          (float)1000.0 * elapsed_time_c / kSpeedIterations;
+      float opt_time_per_pixel =
+          (float)1000.0 * elapsed_time_opt / kSpeedIterations;
+      float scaling = c_time_per_pixel / opt_time_per_pixel;
+      printf(
+          " %3dx%-3d: c_time_per_pixel=%10.5f, "
+          "opt_time_per_pixel=%10.5f,  scaling=%f \n",
+          plane_width, plane_height, c_time_per_pixel, opt_time_per_pixel,
+          scaling);
+    }
+  }
+};
+
+TEST_P(AV1Fill_TSkip_Sum_BufferTest, RunTest) { RunTest(); }
+TEST_P(AV1Fill_TSkip_Sum_BufferTest, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1Fill_TSkip_Sum_BufferTest,
+                         ::testing::Values(av1_fill_tskip_sum_buffer_avx2));
+#endif  // HAVE_AVX2
+
+//////////////////////////////////////////////////////////
+//       unit-test for 'directional_feature_accum'      //
+//////////////////////////////////////////////////////////
+typedef void (*FillDirFeatureAccumFunc)(
+    int dir_feature_accum[NUM_PC_WIENER_FEATURES][PC_WIENER_FEATURE_ACC_SIZE],
+    int *feature_sum_buf[NUM_PC_WIENER_FEATURES], int width, int col_offset,
+    int feature_lead, int feature_lag);
+
+typedef std::tuple<const FillDirFeatureAccumFunc>
+    AV1FillDirFeatureAccumFuncParam;
+
+class AV1FeatureDirAccumHighbdTest
+    : public ::testing::TestWithParam<AV1FillDirFeatureAccumFuncParam> {
+ public:
+  void RunTest() {
+    for (int i = 0; i < kTestIterations; i++) {
+      FillInputBufs();
+      TestFillDirFeatureAccum();
+    }
+  }
+
+  void RunSpeedTest() { SpeedTestConvolve(); };
+
+  virtual void SetUp() {
+    target_func_ = GET_PARAM(0);
+
+    for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
+      feature_sum_buf[j] =
+          (int *)(aom_malloc(kInputWidth * sizeof(*feature_sum_buf[j])));
+    }
+  }
+
+  virtual void TearDown() {
+    for (int j = 0; j < NUM_PC_WIENER_FEATURES; ++j) {
+      aom_free(feature_sum_buf[j]);
+      feature_sum_buf[j] = NULL;
+    }
+  }
+
+ private:
+  libaom_test::ACMRandom rnd_;
+  FillDirFeatureAccumFunc target_func_;
+
+  static constexpr int kSpeedIterations = 1000000;
+  static constexpr int kTestIterations = 100;
+  static constexpr int kNumPlanes = 2;
+  static constexpr int kWidth = RESTORATION_PROC_UNIT_SIZE;
+  static constexpr int kInputWidth =
+      (RESTORATION_PROC_UNIT_SIZE + PC_WIENER_FEATURE_LENGTH_LUMA - 1);
+
+  int *feature_sum_buf[NUM_PC_WIENER_FEATURES];
+  int dir_feature_accum_buf_c[NUM_PC_WIENER_FEATURES]
+                             [PC_WIENER_FEATURE_ACC_SIZE] = { { 0 } };
+  int dir_feature_accum_buf_simd[NUM_PC_WIENER_FEATURES]
+                                [PC_WIENER_FEATURE_ACC_SIZE] = { { 0 } };
+  int RandBool() {
+    const uint32_t value = rnd_.Rand8();
+    // There's a bit more entropy in the upper bits of this implementation.
+    return (value >> 7) & 0x1;
+  }
+
+  void FillInputBufs() {
+    for (int i = 0; i < NUM_PC_WIENER_FEATURES; ++i) {
+      for (int j = 0; j < kInputWidth; ++j) {
+        // For the extreme values case, the maimum input that feature_sum_buf
+        // can take is (kInputWidth * 2 * input_max_value). Hence, clipping the
+        // value generated to 23 bit.
+        const int max_range = (1 << 23);
+        const int value = rnd_.Rand31() % max_range;
+        feature_sum_buf[i][j] =
+            static_cast<uint8_t>(RandBool() ? value : -value);
+      }
+    }
+    // Reset output buffers
+    av1_zero(dir_feature_accum_buf_c);
+    av1_zero(dir_feature_accum_buf_simd);
+  }
+
+  void TestFillDirFeatureAccum() {
+    for (int plane = 0; plane < kNumPlanes; ++plane) {
+      const int is_uv = (plane > 0);
+      const int ss_x = is_uv ? 1 : 0;
+      const int plane_width = kWidth >> ss_x;
+      const int feature_lead = PC_WIENER_FEATURE_LEAD_LUMA;
+      const int feature_lag = PC_WIENER_FEATURE_LAG_LUMA;
+
+      // Reset output buffers
+      av1_zero(dir_feature_accum_buf_c);
+      av1_zero(dir_feature_accum_buf_simd);
+
+      // C function call
+      av1_fill_directional_feature_accumulators_c(
+          dir_feature_accum_buf_c, feature_sum_buf, plane_width, feature_lag,
+          feature_lead, feature_lag);
+
+      // SIMD function call
+      target_func_(dir_feature_accum_buf_simd, feature_sum_buf, plane_width,
+                   feature_lag, feature_lead, feature_lag);
+
+      // Compare the output of reference and test for bit match
+      for (int i = 0; i < NUM_PC_WIENER_FEATURES; i++) {
+        for (int j = 0; j < PC_WIENER_FEATURE_ACC_SIZE; j++) {
+          ASSERT_EQ(dir_feature_accum_buf_c[i][j],
+                    dir_feature_accum_buf_simd[i][j])
+              << " Feature_Buf: Pixel mismatch at (" << i << ", " << j << ", "
+              << plane_width << ")";
+        }
+      }
+    }
+  }
+
+  void SpeedTestConvolve() {
+    for (int plane = 0; plane < kNumPlanes; ++plane) {
+      const int is_uv = (plane > 0);
+      const int ss_x = is_uv ? 1 : 0;
+      const int plane_width = kWidth >> ss_x;
+      const int feature_lead = PC_WIENER_FEATURE_LEAD_LUMA;
+      const int feature_lag = PC_WIENER_FEATURE_LAG_LUMA;
+      FillInputBufs();
+
+      // Calculate time taken by reference/c function
+      aom_usec_timer timer;
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        av1_fill_directional_feature_accumulators_c(
+            dir_feature_accum_buf_c, feature_sum_buf, plane_width, feature_lag,
+            feature_lead, feature_lag);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+
+      // Calculate time taken by optimized/intrinsic function
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        target_func_(dir_feature_accum_buf_simd, feature_sum_buf, plane_width,
+                     feature_lag, feature_lead, feature_lag);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+
+      float c_time_per_pixel =
+          (float)1000.0 * elapsed_time_c / (kSpeedIterations * plane_width);
+      float opt_time_per_pixel =
+          (float)1000.0 * elapsed_time_opt / (kSpeedIterations * plane_width);
+      float scaling = c_time_per_pixel / opt_time_per_pixel;
+      printf(
+          " %3d: c_time_per_pixel=%10.5f, "
+          "opt_time_per_pixel=%10.5f,  scaling=%f \n",
+          plane_width, c_time_per_pixel, opt_time_per_pixel, scaling);
+    }
+  }
+};
+
+TEST_P(AV1FeatureDirAccumHighbdTest, RunTest) { RunTest(); }
+TEST_P(AV1FeatureDirAccumHighbdTest, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1FeatureDirAccumHighbdTest,
+    ::testing::Values(av1_fill_directional_feature_accumulators_avx2));
+#endif  // HAVE_AVX2
+
+//////////////////////////////////////////////////////////
+//     unit-test for 'fill_tskip_feature_accumulator'   //
+//////////////////////////////////////////////////////////
+typedef void (*FillTskip_Accumulator_func)(
+    int16_t tskip_feature_accum[PC_WIENER_FEATURE_ACC_SIZE],
+    int8_t *tskip_sum_buff, int width, int col_offset, int tskip_lead,
+    int tskip_lag);
+typedef std::tuple<const FillTskip_Accumulator_func>
+    AV1FillTSkipAccumBufferFuncParam;
+
+class AV1TskipAccumHighbdTest
+    : public ::testing::TestWithParam<AV1FillTSkipAccumBufferFuncParam> {
+ public:
+  virtual void SetUp() { target_func_ = GET_PARAM(0); }
+
+  void RunTest() {
+    for (int i = 0; i < kTestIterations; i++) TestTskipAccum();
+  }
+
+  void RunSpeedTest() { SpeedTestTskipAccum(); };
+
+ private:
+  libaom_test::ACMRandom rnd_;
+  FillTskip_Accumulator_func target_func_;
+
+  static constexpr int kSpeedIterations = 1000000;
+  static constexpr int kTestIterations = 100;
+  static constexpr int kNumPlanes = 2;
+  static constexpr int kWidth = RESTORATION_PROC_UNIT_SIZE;
+  static constexpr int kInputWidth =
+      (RESTORATION_PROC_UNIT_SIZE + PC_WIENER_FEATURE_LENGTH_LUMA - 1);
+
+  int8_t *tskip_sum_buf;
+  int16_t tskip_feature_accum_c[PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
+  int16_t tskip_feature_accum_simd[PC_WIENER_FEATURE_ACC_SIZE] = { 0 };
+
+  void buffer_alloc_and_set_data() {
+    tskip_sum_buf =
+        (int8_t *)(aom_malloc(kInputWidth * sizeof(*tskip_sum_buf)));
+    // Input buffer filling. Tskip buffer max value will not cross width of
+    // restoration unit size. Hence, the generated values are clipped to the
+    // same.
+    for (int i = 0; i < kInputWidth; ++i) {
+      const int8_t value =
+          static_cast<int8_t>(rnd_.Rand8() % RESTORATION_PROC_UNIT_SIZE);
+      tskip_sum_buf[i] = static_cast<uint8_t>(RandBool() ? value : -value);
+    }
+  }
+
+  int RandBool() {
+    const uint32_t value = rnd_.Rand8();
+    // There's a bit more entropy in the upper bits of this implementation.
+    return (value >> 7) & 0x1;
+  }
+
+  void TestTskipAccum() {
+    // Allocate memory and fill input buffer
+    buffer_alloc_and_set_data();
+
+    // Loop over luma and chroma plane
+    for (int plane = 0; plane < kNumPlanes; ++plane) {
+      const int is_uv = (plane > 0);
+      const int ss_x = is_uv ? 1 : 0;
+      const int plane_width = kWidth >> ss_x;
+      const int tskip_lead = PC_WIENER_TSKIP_LEAD_LUMA;
+      const int tskip_lag = PC_WIENER_TSKIP_LAG_LUMA;
+      av1_zero(tskip_feature_accum_c);
+      av1_zero(tskip_feature_accum_simd);
+
+      // C function call
+      av1_fill_tskip_feature_accumulator_c(tskip_feature_accum_c, tskip_sum_buf,
+                                           plane_width, tskip_lag, tskip_lead,
+                                           tskip_lag);
+
+      // SIMD function call
+      target_func_(tskip_feature_accum_simd, tskip_sum_buf, plane_width,
+                   tskip_lag, tskip_lead, tskip_lag);
+
+      // Compare the output of reference and test for bit match
+      for (int i = 0; i < PC_WIENER_FEATURE_ACC_SIZE; i++) {
+        ASSERT_EQ(tskip_feature_accum_c[i], tskip_feature_accum_simd[i])
+            << " Feature_Buf: Pixel mismatch at (" << i << "," << plane_width
+            << ")";
+      }
+    }
+    aom_free(tskip_sum_buf);
+    tskip_sum_buf = NULL;
+  }
+
+  void SpeedTestTskipAccum() {
+    // Allocate memory and fill input buffer
+    buffer_alloc_and_set_data();
+
+    for (int plane = 0; plane < kNumPlanes; ++plane) {
+      const int is_uv = (plane > 0);
+      const int ss_x = is_uv ? 1 : 0;
+      const int plane_width = kWidth >> ss_x;
+      const int tskip_lead = PC_WIENER_TSKIP_LEAD_LUMA;
+      const int tskip_lag = PC_WIENER_TSKIP_LAG_LUMA;
+
+      // Calculate time taken by reference/c function
+      aom_usec_timer timer;
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        av1_fill_tskip_feature_accumulator_c(tskip_feature_accum_c,
+                                             tskip_sum_buf, plane_width,
+                                             tskip_lag, tskip_lead, tskip_lag);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+
+      // Calculate time taken by optimized/intrinsic function
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        target_func_(tskip_feature_accum_simd, tskip_sum_buf, plane_width,
+                     tskip_lag, tskip_lead, tskip_lag);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+
+      float c_time_per_pixel =
+          (float)1000.0 * elapsed_time_c / (kSpeedIterations * plane_width);
+      float opt_time_per_pixel =
+          (float)1000.0 * elapsed_time_opt / (kSpeedIterations * plane_width);
+      float scaling = c_time_per_pixel / opt_time_per_pixel;
+      printf(
+          " %3d: c_time_per_pixel=%10.5f, "
+          "opt_time_per_pixel=%10.5f,  scaling=%f \n",
+          plane_width, c_time_per_pixel, opt_time_per_pixel, scaling);
+    }
+    aom_free(tskip_sum_buf);
+    tskip_sum_buf = NULL;
+  }
+};
+
+TEST_P(AV1TskipAccumHighbdTest, RunTest) { RunTest(); }
+TEST_P(AV1TskipAccumHighbdTest, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1TskipAccumHighbdTest,
+    ::testing::Values(av1_fill_tskip_feature_accumulator_avx2));
+#endif  // HAVE_AVX2
+#endif  // CONFIG_PC_WIENER
 }  // namespace

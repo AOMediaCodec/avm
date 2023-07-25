@@ -429,7 +429,6 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   set_fwd_txfm_non_scale_range(cfg);
 }
 
-#if CONFIG_IST
 void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size) {
   const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
@@ -459,4 +458,3 @@ void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
     kernel += (size * size);
   }
 }
-#endif

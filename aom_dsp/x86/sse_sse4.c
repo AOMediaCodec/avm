@@ -36,145 +36,6 @@ static INLINE void summary_32_sse4(const __m128i *sum32, __m128i *sum64) {
   *sum64 = _mm_add_epi64(sum1, *sum64);
 }
 
-static INLINE void sse_w16_sse4_1(__m128i *sum, const uint8_t *a,
-                                  const uint8_t *b) {
-  const __m128i v_a0 = xx_loadu_128(a);
-  const __m128i v_b0 = xx_loadu_128(b);
-  const __m128i v_a00_w = _mm_cvtepu8_epi16(v_a0);
-  const __m128i v_a01_w = _mm_cvtepu8_epi16(_mm_srli_si128(v_a0, 8));
-  const __m128i v_b00_w = _mm_cvtepu8_epi16(v_b0);
-  const __m128i v_b01_w = _mm_cvtepu8_epi16(_mm_srli_si128(v_b0, 8));
-  const __m128i v_d00_w = _mm_sub_epi16(v_a00_w, v_b00_w);
-  const __m128i v_d01_w = _mm_sub_epi16(v_a01_w, v_b01_w);
-  *sum = _mm_add_epi32(*sum, _mm_madd_epi16(v_d00_w, v_d00_w));
-  *sum = _mm_add_epi32(*sum, _mm_madd_epi16(v_d01_w, v_d01_w));
-}
-
-static INLINE void sse4x2_sse4_1(const uint8_t *a, int a_stride,
-                                 const uint8_t *b, int b_stride, __m128i *sum) {
-  const __m128i v_a0 = xx_loadl_32(a);
-  const __m128i v_a1 = xx_loadl_32(a + a_stride);
-  const __m128i v_b0 = xx_loadl_32(b);
-  const __m128i v_b1 = xx_loadl_32(b + b_stride);
-  const __m128i v_a_w = _mm_cvtepu8_epi16(_mm_unpacklo_epi32(v_a0, v_a1));
-  const __m128i v_b_w = _mm_cvtepu8_epi16(_mm_unpacklo_epi32(v_b0, v_b1));
-  const __m128i v_d_w = _mm_sub_epi16(v_a_w, v_b_w);
-  *sum = _mm_add_epi32(*sum, _mm_madd_epi16(v_d_w, v_d_w));
-}
-static INLINE void sse8_sse4_1(const uint8_t *a, const uint8_t *b,
-                               __m128i *sum) {
-  const __m128i v_a0 = xx_loadl_64(a);
-  const __m128i v_b0 = xx_loadl_64(b);
-  const __m128i v_a_w = _mm_cvtepu8_epi16(v_a0);
-  const __m128i v_b_w = _mm_cvtepu8_epi16(v_b0);
-  const __m128i v_d_w = _mm_sub_epi16(v_a_w, v_b_w);
-  *sum = _mm_add_epi32(*sum, _mm_madd_epi16(v_d_w, v_d_w));
-}
-
-int64_t aom_sse_sse4_1(const uint8_t *a, int a_stride, const uint8_t *b,
-                       int b_stride, int width, int height) {
-  int y = 0;
-  int64_t sse = 0;
-  __m128i sum = _mm_setzero_si128();
-  switch (width) {
-    case 4:
-      do {
-        sse4x2_sse4_1(a, a_stride, b, b_stride, &sum);
-        a += a_stride << 1;
-        b += b_stride << 1;
-        y += 2;
-      } while (y < height);
-      sse = summary_all_sse4(&sum);
-      break;
-    case 8:
-      do {
-        sse8_sse4_1(a, b, &sum);
-        a += a_stride;
-        b += b_stride;
-        y += 1;
-      } while (y < height);
-      sse = summary_all_sse4(&sum);
-      break;
-    case 16:
-      do {
-        sse_w16_sse4_1(&sum, a, b);
-        a += a_stride;
-        b += b_stride;
-        y += 1;
-      } while (y < height);
-      sse = summary_all_sse4(&sum);
-      break;
-    case 32:
-      do {
-        sse_w16_sse4_1(&sum, a, b);
-        sse_w16_sse4_1(&sum, a + 16, b + 16);
-        a += a_stride;
-        b += b_stride;
-        y += 1;
-      } while (y < height);
-      sse = summary_all_sse4(&sum);
-      break;
-    case 64:
-      do {
-        sse_w16_sse4_1(&sum, a, b);
-        sse_w16_sse4_1(&sum, a + 16 * 1, b + 16 * 1);
-        sse_w16_sse4_1(&sum, a + 16 * 2, b + 16 * 2);
-        sse_w16_sse4_1(&sum, a + 16 * 3, b + 16 * 3);
-        a += a_stride;
-        b += b_stride;
-        y += 1;
-      } while (y < height);
-      sse = summary_all_sse4(&sum);
-      break;
-    case 128:
-      do {
-        sse_w16_sse4_1(&sum, a, b);
-        sse_w16_sse4_1(&sum, a + 16 * 1, b + 16 * 1);
-        sse_w16_sse4_1(&sum, a + 16 * 2, b + 16 * 2);
-        sse_w16_sse4_1(&sum, a + 16 * 3, b + 16 * 3);
-        sse_w16_sse4_1(&sum, a + 16 * 4, b + 16 * 4);
-        sse_w16_sse4_1(&sum, a + 16 * 5, b + 16 * 5);
-        sse_w16_sse4_1(&sum, a + 16 * 6, b + 16 * 6);
-        sse_w16_sse4_1(&sum, a + 16 * 7, b + 16 * 7);
-        a += a_stride;
-        b += b_stride;
-        y += 1;
-      } while (y < height);
-      sse = summary_all_sse4(&sum);
-      break;
-    default:
-      if (width & 0x07) {
-        do {
-          int i = 0;
-          do {
-            sse8_sse4_1(a + i, b + i, &sum);
-            sse8_sse4_1(a + i + a_stride, b + i + b_stride, &sum);
-            i += 8;
-          } while (i + 4 < width);
-          sse4x2_sse4_1(a + i, a_stride, b + i, b_stride, &sum);
-          a += (a_stride << 1);
-          b += (b_stride << 1);
-          y += 2;
-        } while (y < height);
-      } else {
-        do {
-          int i = 0;
-          do {
-            sse8_sse4_1(a + i, b + i, &sum);
-            i += 8;
-          } while (i < width);
-          a += a_stride;
-          b += b_stride;
-          y += 1;
-        } while (y < height);
-      }
-      sse = summary_all_sse4(&sum);
-      break;
-  }
-
-  return sse;
-}
-
 static INLINE void highbd_sse_w4x2_sse4_1(__m128i *sum, const uint16_t *a,
                                           int a_stride, const uint16_t *b,
                                           int b_stride) {
@@ -196,13 +57,11 @@ static INLINE void highbd_sse_w8_sse4_1(__m128i *sum, const uint16_t *a,
   *sum = _mm_add_epi32(*sum, _mm_madd_epi16(v_d_w, v_d_w));
 }
 
-int64_t aom_highbd_sse_sse4_1(const uint8_t *a8, int a_stride,
-                              const uint8_t *b8, int b_stride, int width,
+int64_t aom_highbd_sse_sse4_1(const uint16_t *a, int a_stride,
+                              const uint16_t *b, int b_stride, int width,
                               int height) {
   int32_t y = 0;
   int64_t sse = 0;
-  uint16_t *a = CONVERT_TO_SHORTPTR(a8);
-  uint16_t *b = CONVERT_TO_SHORTPTR(b8);
   __m128i sum = _mm_setzero_si128();
   switch (width) {
     case 4:

@@ -27,8 +27,8 @@ static INLINE double clamp_dbl(double value, double low, double high) {
 }
 
 void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
-                 const uint16_t *ext_rec_y, uint16_t *rec_uv[2],
-                 uint16_t *org_uv[2]);
+                 const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
+                 uint16_t *org_uv[3]);
 #if CONFIG_CCSO_EXT
 void ccso_pre_compute_class_err(MACROBLOCKD *xd, const int plane,
                                 const uint16_t *src_y, const uint16_t *ref,
@@ -45,13 +45,6 @@ void ccso_try_chroma_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                             uint8_t *src_cls0, uint8_t *src_cls1,
                             const uint8_t shift_bits);
 #endif
-
-void compute_distortion(const uint16_t *org, const int org_stride,
-                        const uint16_t *rec16, const int rec_stride,
-                        const int log2_filter_unit_size, const int height,
-                        const int width, uint64_t *distortion_buf,
-                        const int distortion_buf_stride,
-                        uint64_t *total_distortion);
 
 void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                         const uint16_t *org_uv, const uint16_t *ext_rec_y,

@@ -25,9 +25,12 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
 void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
                          int diff_stride, TxfmParam *txfm_param);
 
-#if CONFIG_IST
+#if CONFIG_CROSS_CHROMA_TX
+void av1_fwd_cross_chroma_tx_block(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
+                                   TX_SIZE tx_size, CctxType cctx_type);
+#endif  // CONFIG_CROSS_CHROMA_TX
+
 void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param);
-#endif
 
 #ifdef __cplusplus
 }  // extern "C"

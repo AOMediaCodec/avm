@@ -16,9 +16,7 @@
 
 #include "av1/common/idct.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
-#if CONFIG_IST
 #include "av1/common/scan.h"
-#endif
 
 /* 4-point reversible, orthonormal Walsh-Hadamard in 3.5 adds, 0.5 shifts per
    pixel. */
@@ -311,7 +309,28 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
   }
 }
 
-#if CONFIG_IST
+#if CONFIG_CROSS_CHROMA_TX
+// Apply forward cross chroma component transform
+void av1_fwd_cross_chroma_tx_block(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
+                                   TX_SIZE tx_size, CctxType cctx_type) {
+  if (cctx_type == CCTX_NONE) return;
+  const int ncoeffs = av1_get_max_eob(tx_size);
+  int32_t *src_c1 = (int32_t *)coeff_c1;
+  int32_t *src_c2 = (int32_t *)coeff_c2;
+  int64_t tmp[2] = { 0, 0 };
+
+  const int angle_idx = cctx_type - CCTX_START;
+  for (int i = 0; i < ncoeffs; i++) {
+    tmp[0] = (int64_t)cctx_mtx[angle_idx][0] * (int64_t)src_c1[i] +
+             (int64_t)cctx_mtx[angle_idx][1] * (int64_t)src_c2[i];
+    tmp[1] = (int64_t)-cctx_mtx[angle_idx][1] * (int64_t)src_c1[i] +
+             (int64_t)cctx_mtx[angle_idx][0] * (int64_t)src_c2[i];
+    src_c1[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[0], CCTX_PREC_BITS);
+    src_c2[i] = (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tmp[1], CCTX_PREC_BITS);
+  }
+}
+#endif  // CONFIG_CROSS_CHROMA_TX
+
 void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
   const TX_TYPE stx_type = txfm_param->sec_tx_type;
 
@@ -328,16 +347,10 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     const int log2width = tx_size_wide_log2[txfm_param->tx_size];
     const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
     const int16_t *scan_order_in;
-#if CONFIG_IST_FIX_B076
     // Align scan order of IST with primary transform scan order
     const SCAN_ORDER *scan_order_out =
         get_scan(txfm_param->tx_size, txfm_param->tx_type);
     const int16_t *const scan = scan_order_out->scan;
-#else
-    const int16_t *scan_order_out = (sb_size == 4)
-                                        ? stx_scan_orders_4x4[log2width - 2]
-                                        : stx_scan_orders_8x8[log2width - 2];
-#endif  // CONFIG_IST_FIX_B076
     tran_low_t buf0[64] = { 0 }, buf1[64] = { 0 };
     tran_low_t *tmp = buf0;
     tran_low_t *src = coeff;
@@ -365,13 +378,8 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     memset(coeff, 0, width * height * sizeof(tran_low_t));
     tmp = buf1;
     for (int i = 0; i < sb_size * sb_size; i++) {
-#if CONFIG_IST_FIX_B076
       // Align scan order of IST with primary transform scan order
       coeff[scan[i]] = *tmp++;
-#else
-      coeff[scan_order_out[i]] = *tmp++;
-#endif  // CONFIG_IST_FIX_B076
     }
   }
 }
-#endif

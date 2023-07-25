@@ -16,17 +16,17 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
 
+#if CONFIG_IMPROVED_CFL
+#define CFL_ADD_BITS_ALPHA 5
+#else
+#define CFL_ADD_BITS_ALPHA 0
+#endif
+
 // Can we use CfL for the current block?
 static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_SDP
   if (xd->tree_type == LUMA_PART) return CFL_DISALLOWED;
-  const BLOCK_SIZE bsize =
-      mbmi->sb_type[xd->tree_type == SHARED_PART ? PLANE_TYPE_Y
-                                                 : PLANE_TYPE_UV];
-#else
-  const BLOCK_SIZE bsize = mbmi->sb_type;
-#endif
+  const BLOCK_SIZE bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
   assert(bsize < BLOCK_SIZES_ALL);
   if (xd->lossless[mbmi->segment_id]) {
     // In lossless, CfL is available when the partition size is equal to the
@@ -60,17 +60,13 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 
   // If this block has chroma information, we know whether we're
   // actually going to perform a CfL prediction
-#if CONFIG_SDP
   return (CFL_ALLOWED_TYPE)(!is_inter_block(mbmi, xd->tree_type) &&
-#else
-  return (CFL_ALLOWED_TYPE)(!is_inter_block(mbmi) &&
-#endif
                             mbmi->uv_mode == UV_CFL_PRED);
 }
 
 static INLINE int get_scaled_luma_q0(int alpha_q3, int16_t pred_buf_q3) {
   int scaled_luma_q6 = alpha_q3 * pred_buf_q3;
-  return ROUND_POWER_OF_TWO_SIGNED(scaled_luma_q6, 6);
+  return ROUND_POWER_OF_TWO_SIGNED(scaled_luma_q6, (6 + CFL_ADD_BITS_ALPHA));
 }
 
 static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
@@ -78,18 +74,80 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
   return (CFL_PRED_TYPE)(plane - 1);
 }
 
-void cfl_predict_block(MACROBLOCKD *const xd, uint8_t *dst, int dst_stride,
+void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane);
 
-void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size);
+void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
+#if CONFIG_ADAPTIVE_DS_FILTER
+                     ,
+                     int filter_type
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+);
 
-void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size,
-                  BLOCK_SIZE bsize);
+void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
+#if CONFIG_ADAPTIVE_DS_FILTER
+                  ,
+                  int filter_type
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+);
 
-void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint8_t *input,
+#if CONFIG_ADAPTIVE_DS_FILTER
+void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
+                                            int input_stride,
+                                            uint16_t *output_q3, int width,
+                                            int height);
+#if CONFIG_ADPTIVE_DS_422
+void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
+                                             int input_stride,
+                                             uint16_t *output_q3, int width,
+                                             int height, int filter_type);
+#endif  // CONFIG_ADPTIVE_DS_422
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+
+#if CONFIG_ADPTIVE_DS_422 && !CONFIG_ADAPTIVE_DS_FILTER
+void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
+                                            int input_stride,
+                                            uint16_t *output_q3, int width,
+                                            int height);
+#endif  // CONFIG_ADPTIVE_DS_422 && !CONFIG_ADAPTIVE_DS_FILTER
+
+#if CONFIG_IMPROVED_CFL
+// 121 subsample filter
+void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
+                                        uint16_t *output_q3, int width,
+                                        int height);
+
+// Get neighbor luma reconstruction pixels
+void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
+                                      MACROBLOCKD *const xd, int row, int col,
+                                      TX_SIZE tx_size);
+
+// Calculate luma DC
+void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size);
+
+// Get neighbor chroma reconstruction pixels
+void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
+                                        MACROBLOCKD *const xd, int plane,
+                                        int row, int col, TX_SIZE tx_size);
+
+// Derive the implicit scaling factor
+void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
+                                        int row, int col, TX_SIZE tx_size);
+#endif
+
+#if CONFIG_ADAPTIVE_DS_FILTER
+// Derive the implicit scaling factor for the block
+void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
+                                              const int width, const int height,
+                                              const int stride,
+                                              const int chroma_stride,
+                                              int *alpha);
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+
+void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
                        CFL_PRED_TYPE pred_plane, int width);
 
-void cfl_load_dc_pred(MACROBLOCKD *const xd, uint8_t *dst, int dst_stride,
+void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                       TX_SIZE tx_size, CFL_PRED_TYPE pred_plane);
 
 // Allows the CFL_SUBSAMPLE function to switch types depending on the bitdepth.
@@ -157,9 +215,6 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint8_t *dst, int dst_stride,
 // The RTCD script does not support passing in an array, so we wrap it in this
 // function.
 #define CFL_GET_SUBSAMPLE_FUNCTION(arch)  \
-  CFL_SUBSAMPLE_FUNCTIONS(arch, 420, lbd) \
-  CFL_SUBSAMPLE_FUNCTIONS(arch, 422, lbd) \
-  CFL_SUBSAMPLE_FUNCTIONS(arch, 444, lbd) \
   CFL_SUBSAMPLE_FUNCTIONS(arch, 420, hbd) \
   CFL_SUBSAMPLE_FUNCTIONS(arch, 422, hbd) \
   CFL_SUBSAMPLE_FUNCTIONS(arch, 444, hbd)
@@ -224,14 +279,6 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint8_t *dst, int dst_stride,
 void cfl_subtract_average_4x4_c(const uint16_t *src, int16_t *dst);
 void cfl_subtract_average_4x8_c(const uint16_t *src, int16_t *dst);
 void cfl_subtract_average_4x16_c(const uint16_t *src, int16_t *dst);
-
-#define CFL_PREDICT_lbd(arch, width, height)                              \
-  void cfl_predict_lbd_##width##x##height##_##arch(                       \
-      const int16_t *pred_buf_q3, uint8_t *dst, int dst_stride,           \
-      int alpha_q3) {                                                     \
-    cfl_predict_lbd_##arch(pred_buf_q3, dst, dst_stride, alpha_q3, width, \
-                           height);                                       \
-  }
 
 #define CFL_PREDICT_hbd(arch, width, height)                                   \
   void cfl_predict_hbd_##width##x##height##_##arch(                            \

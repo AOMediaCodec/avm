@@ -362,7 +362,7 @@ void av1_rc_postencode_update_drop_frame(struct AV1_COMP *cpi);
  * \param[in]   width                 Frame width
  * \param[in]   height                Frame height
  *
- * \return None but updates the relevant rate correction factor in cpi->rc
+ * No return value but updates the relevant rate correction factor in cpi->rc
  */
 void av1_rc_update_rate_correction_factors(struct AV1_COMP *cpi, int width,
                                            int height);

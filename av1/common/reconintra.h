@@ -14,6 +14,7 @@
 #define AOM_AV1_COMMON_RECONINTRA_H_
 
 #include <stdlib.h>
+#include <math.h>
 
 #include "aom/aom_integer.h"
 #include "av1/common/av1_common_int.h"
@@ -22,6 +23,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define DF_RESTRICT_ORIP 1
+#define ORIP_BLOCK_SIZE 32
 
 #if CONFIG_AIMC
 /*! \brief set the luma intra mode and delta angles for a given mode index.
@@ -62,17 +66,14 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 void av1_predict_intra_block(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
     TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
-    FILTER_INTRA_MODE filter_intra_mode, const uint8_t *ref, int ref_stride,
-    uint8_t *dst, int dst_stride, int col_off, int row_off, int plane);
+    FILTER_INTRA_MODE filter_intra_mode, const uint16_t *ref, int ref_stride,
+    uint16_t *dst, int dst_stride, int col_off, int row_off, int plane);
 
 #if CONFIG_ORIP
 void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
                                     TX_SIZE tx_size, const uint16_t *above,
                                     const uint16_t *left, PREDICTION_MODE mode,
                                     int bd);
-void av1_apply_orip_4x4subblock(uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size,
-                                const uint8_t *above, const uint8_t *left,
-                                PREDICTION_MODE mode);
 #endif
 
 // Mapping of interintra to intra mode for use in the intra component
@@ -92,6 +93,7 @@ static INLINE int av1_is_directional_mode(PREDICTION_MODE mode) {
   return mode >= V_PRED && mode <= D67_PRED;
 }
 
+// TODO(any): Verify the correct behavior when we have BLOCK_4X16
 static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
   return bsize >= BLOCK_8X8;
 }
@@ -106,6 +108,30 @@ static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm) {
 #endif  // CONFIG_IBC_SR_EXT
 }
 
+static INLINE int allow_fsc_intra(const AV1_COMMON *const cm,
+                                  const MACROBLOCKD *const xd, BLOCK_SIZE bs,
+                                  const MB_MODE_INFO *const mbmi) {
+  bool allow_fsc = cm->seq_params.enable_fsc &&
+                   !is_inter_block(mbmi, PLANE_TYPE_Y) &&
+                   !xd->lossless[mbmi->segment_id] &&
+                   (block_size_wide[bs] <= FSC_MAXWIDTH) &&
+                   (block_size_high[bs] <= FSC_MAXHEIGHT) &&
+                   (block_size_wide[bs] >= FSC_MINWIDTH) &&
+                   (block_size_high[bs] >= FSC_MINHEIGHT);
+  return allow_fsc;
+}
+
+static INLINE int use_inter_fsc(const AV1_COMMON *const cm,
+                                PLANE_TYPE plane_type, TX_TYPE tx_type,
+                                int is_inter) {
+  bool allow_fsc = cm->seq_params.enable_fsc &&
+#if !CONFIG_ATC_DCTX_ALIGNED
+                   cm->features.allow_screen_content_tools &&
+#endif  // !CONFIG_ATC_DCTX_ALIGNED
+                   plane_type == PLANE_TYPE_Y && is_inter && tx_type == IDTX;
+  return allow_fsc;
+}
+
 static INLINE int av1_filter_intra_allowed_bsize(const AV1_COMMON *const cm,
                                                  BLOCK_SIZE bs) {
   if (!cm->seq_params.enable_filter_intra || bs == BLOCK_INVALID) return 0;
@@ -115,24 +141,55 @@ static INLINE int av1_filter_intra_allowed_bsize(const AV1_COMMON *const cm,
 
 static INLINE int av1_filter_intra_allowed(const AV1_COMMON *const cm,
                                            const MB_MODE_INFO *mbmi) {
-#if CONFIG_SDP
-  return mbmi->mode == DC_PRED &&
-#if CONFIG_MRLS
-         mbmi->mrl_index == 0 &&
-#endif
+  return mbmi->mode == DC_PRED && mbmi->mrl_index == 0 &&
          mbmi->palette_mode_info.palette_size[0] == 0 &&
          av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y]);
-#else
-  return mbmi->mode == DC_PRED &&
-#if CONFIG_MRLS
-         mbmi->mrl_index == 0 &&
-#endif
-         mbmi->palette_mode_info.palette_size[0] == 0 &&
-         av1_filter_intra_allowed_bsize(cm, mbmi->sb_type);
-#endif
 }
 
 #if CONFIG_ORIP
+#if DF_RESTRICT_ORIP
+static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane,
+                                           TX_SIZE tx_size) {
+#if CONFIG_ORIP_DC_DISABLED
+#if CONFIG_ORIP_NONDC_DISABLED
+  return 0;
+#else
+  const int bw = tx_size_wide[tx_size];
+  const int bh = tx_size_high[tx_size];
+
+  int orip_allowed = 1;
+  if (bw >= ORIP_BLOCK_SIZE || bh >= ORIP_BLOCK_SIZE) orip_allowed = 0;
+
+  if (plane == AOM_PLANE_Y) return ((mode == SMOOTH_PRED) && orip_allowed);
+  return ((mode == UV_SMOOTH_PRED) && orip_allowed);
+#endif
+#else
+  const int bw = tx_size_wide[tx_size];
+  const int bh = tx_size_high[tx_size];
+
+  int orip_allowed = 1;
+  if (bw >= ORIP_BLOCK_SIZE || bh >= ORIP_BLOCK_SIZE) orip_allowed = 0;
+#if CONFIG_ORIP_NONDC_DISABLED
+  if (plane == AOM_PLANE_Y) return ((mode == DC_PRED) && orip_allowed);
+  return 0;
+#else
+  if (plane == AOM_PLANE_Y)
+    return ((mode == SMOOTH_PRED || mode == DC_PRED) && orip_allowed);
+  return ((mode == UV_SMOOTH_PRED) && orip_allowed);
+#endif
+#endif
+}
+static INLINE int av1_allow_orip_dir(int p_angle, TX_SIZE tx_size) {
+  const int bw = tx_size_wide[tx_size];
+  const int bh = tx_size_high[tx_size];
+
+  int orip_allowed = 1;
+  if (p_angle == 90 && bw >= ORIP_BLOCK_SIZE) orip_allowed = 0;
+  if (p_angle == 180 && bh >= ORIP_BLOCK_SIZE) orip_allowed = 0;
+
+  return ((p_angle == 90 || p_angle == 180) && orip_allowed);
+}
+#else
 static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane) {
 #if CONFIG_ORIP_DC_DISABLED
 #if CONFIG_ORIP_NONDC_DISABLED
@@ -155,9 +212,48 @@ static INLINE int av1_allow_orip_dir(int p_angle) {
   return (p_angle == 90 || p_angle == 180);
 }
 #endif
+#endif
 
 extern const int8_t av1_filter_intra_taps[FILTER_INTRA_MODES][8][8];
 
+#if CONFIG_EXT_DIR
+// moved to av1_common_int.h
+#elif CONFIG_IMPROVED_ANGULAR_INTRA
+static const int16_t dr_intra_derivative[90] = {
+  // Angles are dense around vertical and horizontal directions, and coarse
+  // close to
+  // diagonal directions.
+  //                    Approx angle
+  0,    0, 0,        //
+  2048, 0, 0,        // 3, ...
+  1024, 0, 0,        // 6, ...
+  512,  0, 0, 0, 0,  // 9, ...
+  340,  0, 0,        // 14, ...
+  256,  0, 0,        // 17, ...
+  204,  0, 0,        // 20, ...
+  170,  0, 0,        // 23, ... (113 & 203 are base angles)
+  146,  0, 0,        // 26, ...
+  128,  0, 0,        // 29, ...
+  106,  0, 0, 0,     // 32, ...
+  92,   0, 0,        // 36, ...
+  82,   0, 0,        // 39, ...
+  72,   0, 0,        // 42, ...
+  64,   0, 0,        // 45, ... (45 & 135 are base angles)
+  56,   0, 0,        // 48, ...
+  50,   0, 0,        // 51, ...
+  44,   0, 0, 0,     // 54, ...
+  38,   0, 0,        // 58, ...
+  32,   0, 0,        // 61, ...
+  28,   0, 0,        // 64, ...
+  24,   0, 0,        // 67, ... (67 & 157 are base angles)
+  20,   0, 0,        // 70, ...
+  16,   0, 0,        // 73, ...
+  12,   0, 0, 0, 0,  // 76, ...
+  8,    0, 0,        // 81, ...
+  4,    0, 0,        // 84, ...
+  2,    0, 0,        // 87, ...
+};
+#else
 static const int16_t dr_intra_derivative[90] = {
   // More evenly spread out angles and limited to 10-bit
   // Values that are 0 will never be used
@@ -191,6 +287,7 @@ static const int16_t dr_intra_derivative[90] = {
   7,    0, 0,        // 84, ...
   3,    0, 0,        // 87, ...
 };
+#endif  // CONFIG_EXT_DIR
 
 // Get the shift (up-scaled by 256) in X w.r.t a unit change in Y.
 // If angle > 0 && angle < 90, dx = -((int)(256 / t));
@@ -230,13 +327,39 @@ static INLINE int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
   return type ? (blk_wh <= 8) : (blk_wh <= 16);
 }
 
-#if CONFIG_IBP_DIR
 static const int32_t transpose_tx_size[TX_SIZES_ALL] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_8X4,   TX_4X8,
   TX_16X8, TX_8X16, TX_32X16, TX_16X32, TX_64X32, TX_32X64, TX_16X4,
   TX_4X16, TX_32X8, TX_8X32,  TX_64X16, TX_16X64,
 };
-#endif
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE void set_have_top_and_left(int *have_top, int *have_left,
+                                             const MACROBLOCKD *xd, int row_off,
+                                             int col_off, int plane) {
+  *have_top = row_off || (plane ? xd->chroma_up_available : xd->up_available);
+  *have_left =
+      col_off || (plane ? xd->chroma_left_available : xd->left_available);
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_IDIF
+#define POWER_DR_INTERP_FILTER 7
+
+DECLARE_ALIGNED(16, static const int16_t, av1_dr_interp_filter[32][4]) = {
+  { 0, 128, 0, 0 },     { -2, 127, 4, -1 },   { -3, 125, 8, -2 },
+  { -5, 123, 13, -3 },  { -6, 121, 17, -4 },  { -7, 118, 22, -5 },
+  { -9, 116, 27, -6 },  { -9, 112, 32, -7 },  { -10, 109, 37, -8 },
+  { -11, 106, 41, -8 }, { -11, 102, 46, -9 }, { -12, 98, 52, -10 },
+  { -12, 94, 56, -10 }, { -12, 90, 61, -11 }, { -12, 85, 66, -11 },
+  { -12, 81, 71, -12 }, { -12, 76, 76, -12 }, { -12, 71, 81, -12 },
+  { -11, 66, 85, -12 }, { -11, 61, 90, -12 }, { -10, 56, 94, -12 },
+  { -10, 52, 98, -12 }, { -9, 46, 102, -11 }, { -8, 41, 106, -11 },
+  { -8, 37, 109, -10 }, { -7, 32, 112, -9 },  { -6, 27, 116, -9 },
+  { -5, 22, 118, -7 },  { -4, 17, 121, -6 },  { -3, 13, 123, -5 },
+  { -2, 8, 125, -3 },   { -1, 4, 127, -2 }
+};
+#endif  // CONFIG_IDIF
 
 #ifdef __cplusplus
 }  // extern "C"

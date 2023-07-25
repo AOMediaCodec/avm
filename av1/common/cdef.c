@@ -27,11 +27,7 @@ static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
   MB_MODE_INFO **mbmi = grid + mi_row * mi_stride + mi_col;
   for (int r = 0; r < mi_size_high[BLOCK_8X8]; ++r, mbmi += mi_stride) {
     for (int c = 0; c < mi_size_wide[BLOCK_8X8]; ++c) {
-#if CONFIG_SDP
       if (!mbmi[c]->skip_txfm[PLANE_TYPE_Y]) return 0;
-#else
-      if (!mbmi[c]->skip_txfm) return 0;
-#endif
     }
   }
 
@@ -72,16 +68,6 @@ int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
   return count;
 }
 
-void cdef_copy_rect8_8bit_to_16bit_c(uint16_t *dst, int dstride,
-                                     const uint8_t *src, int sstride, int v,
-                                     int h) {
-  for (int i = 0; i < v; i++) {
-    for (int j = 0; j < h; j++) {
-      dst[i * dstride + j] = src[i * sstride + j];
-    }
-  }
-}
-
 void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
                                       const uint16_t *src, int sstride, int v,
                                       int h) {
@@ -93,16 +79,11 @@ void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
 }
 
 static void copy_sb8_16(AV1_COMMON *cm, uint16_t *dst, int dstride,
-                        const uint8_t *src, int src_voffset, int src_hoffset,
+                        const uint16_t *src, int src_voffset, int src_hoffset,
                         int sstride, int vsize, int hsize) {
-  if (cm->seq_params.use_highbitdepth) {
-    const uint16_t *base =
-        &CONVERT_TO_SHORTPTR(src)[src_voffset * sstride + src_hoffset];
-    cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
-  } else {
-    const uint8_t *base = &src[src_voffset * sstride + src_hoffset];
-    cdef_copy_rect8_8bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
-  }
+  (void)cm;
+  const uint16_t *base = &src[src_voffset * sstride + src_hoffset];
+  cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, vsize, hsize);
 }
 
 static INLINE void fill_rect(uint16_t *dst, int dstride, int v, int h,
@@ -143,8 +124,7 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int coeff_shift = AOMMAX(cm->seq_params.bit_depth - 8, 0);
   const int nvfb = (mi_params->mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
   const int nhfb = (mi_params->mi_cols + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, frame, 0, 0, 0,
-                       num_planes);
+  av1_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
   row_cdef = aom_malloc(sizeof(*row_cdef) * (nhfb + 2) * 2);
   memset(row_cdef, 1, sizeof(*row_cdef) * (nhfb + 2) * 2);
   prev_row_cdef = row_cdef + 1;
@@ -353,29 +333,16 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                     vsize + 2 * CDEF_VBORDER, CDEF_HBORDER, CDEF_VERY_LARGE);
         }
 
-        if (cm->seq_params.use_highbitdepth) {
-          av1_cdef_filter_fb(
-              NULL,
-              &CONVERT_TO_SHORTPTR(
-                  xd->plane[pli]
-                      .dst.buf)[xd->plane[pli].dst.stride *
-                                    (MI_SIZE_64X64 * fbr << mi_high_l2[pli]) +
-                                (fbc * MI_SIZE_64X64 << mi_wide_l2[pli])],
-              xd->plane[pli].dst.stride,
-              &src[CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER], xdec[pli],
-              ydec[pli], dir, NULL, var, pli, dlist, cdef_count, level,
-              sec_strength, damping, coeff_shift);
-        } else {
-          av1_cdef_filter_fb(
-              &xd->plane[pli]
-                   .dst.buf[xd->plane[pli].dst.stride *
-                                (MI_SIZE_64X64 * fbr << mi_high_l2[pli]) +
-                            (fbc * MI_SIZE_64X64 << mi_wide_l2[pli])],
-              NULL, xd->plane[pli].dst.stride,
-              &src[CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER], xdec[pli],
-              ydec[pli], dir, NULL, var, pli, dlist, cdef_count, level,
-              sec_strength, damping, coeff_shift);
-        }
+        av1_cdef_filter_fb(
+            NULL,
+            &xd->plane[pli]
+                 .dst.buf[xd->plane[pli].dst.stride *
+                              (MI_SIZE_64X64 * fbr << mi_high_l2[pli]) +
+                          (fbc * MI_SIZE_64X64 << mi_wide_l2[pli])],
+            xd->plane[pli].dst.stride,
+            &src[CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER], xdec[pli],
+            ydec[pli], dir, NULL, var, pli, dlist, cdef_count, level,
+            sec_strength, damping, coeff_shift);
       }
       cdef_left = 1;
     }

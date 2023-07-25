@@ -43,7 +43,6 @@ typedef void (*AV1_QUANT_FACADE)(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                                  const SCAN_ORDER *sc,
                                  const QUANT_PARAM *qparam);
 
-#if CONFIG_EXTQUANT
 static const int qindex_10b_offset[] = {
   0,
   48,
@@ -52,16 +51,12 @@ static const int qindex_12b_offset[] = {
   0,
   96,
 };
-#else
-#define QUANT_FP_BITS 0
-#endif  // CONFIG_EXTQUANT
 
 // The QUANTS structure is used only for internal quantizer setup in
 // av1_quantize.c.
 // All of its fields use the same coefficient shift/scaling at TX.
 typedef struct {
   // 0: dc 1: ac 2-8: ac repeated to SIMD width
-#if CONFIG_EXTQUANT
   DECLARE_ALIGNED(32, int32_t, y_quant[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(32, int32_t, y_quant_shift[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(32, int32_t, y_zbin[QINDEX_RANGE][8]);
@@ -84,30 +79,6 @@ typedef struct {
   DECLARE_ALIGNED(32, int32_t, v_zbin[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(32, int32_t, u_round[QINDEX_RANGE][8]);
   DECLARE_ALIGNED(32, int32_t, v_round[QINDEX_RANGE][8]);
-#else
-  DECLARE_ALIGNED(16, int16_t, y_quant[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, y_quant_shift[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, y_zbin[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, y_round[QINDEX_RANGE][8]);
-
-  // TODO(jingning): in progress of re-working the quantization. will decide
-  // if we want to deprecate the current use of y_quant.
-  DECLARE_ALIGNED(16, int16_t, y_quant_fp[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, u_quant_fp[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, v_quant_fp[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, y_round_fp[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, u_round_fp[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, v_round_fp[QINDEX_RANGE][8]);
-
-  DECLARE_ALIGNED(16, int16_t, u_quant[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, v_quant[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, u_quant_shift[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, v_quant_shift[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, u_zbin[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, v_zbin[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, u_round[QINDEX_RANGE][8]);
-  DECLARE_ALIGNED(16, int16_t, v_round[QINDEX_RANGE][8]);
-#endif
 } QUANTS;
 
 // The Dequants structure is used only for internal quantizer setup in
@@ -115,21 +86,12 @@ typedef struct {
 // Fields are suffixed according to whether or not they're expressed in
 // the same coefficient shift/precision as TX or a fixed Q3 format.
 typedef struct {
-#if CONFIG_EXTQUANT
   DECLARE_ALIGNED(32, int32_t,
                   y_dequant_QTX[QINDEX_RANGE][8]);  // 8: SIMD width
   DECLARE_ALIGNED(32, int32_t,
                   u_dequant_QTX[QINDEX_RANGE][8]);  // 8: SIMD width
   DECLARE_ALIGNED(32, int32_t,
                   v_dequant_QTX[QINDEX_RANGE][8]);  // 8: SIMD width
-#else
-  DECLARE_ALIGNED(16, int16_t,
-                  y_dequant_QTX[QINDEX_RANGE][8]);  // 8: SIMD width
-  DECLARE_ALIGNED(16, int16_t,
-                  u_dequant_QTX[QINDEX_RANGE][8]);  // 8: SIMD width
-  DECLARE_ALIGNED(16, int16_t,
-                  v_dequant_QTX[QINDEX_RANGE][8]);  // 8: SIMD width
-#endif
 } Dequants;
 
 typedef struct {
@@ -149,11 +111,9 @@ void av1_init_plane_quantizers(const struct AV1_COMP *cpi, MACROBLOCK *x,
 
 void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,
-                         int v_ac_delta_q,
-#if CONFIG_EXTQUANT
-                         int base_y_dc_delta_q, int base_uv_dc_delta_q,
-#endif  // CONFIG_EXTQUANT
-                         QUANTS *const quants, Dequants *const deq);
+                         int v_ac_delta_q, int base_y_dc_delta_q,
+                         int base_uv_dc_delta_q, QUANTS *const quants,
+                         Dequants *const deq);
 
 void av1_init_quantizer(SequenceHeader *seq_params,
                         EncQuantDequantParams *const enc_quant_dequant_params,
@@ -162,37 +122,12 @@ void av1_init_quantizer(SequenceHeader *seq_params,
 void av1_set_quantizer(struct AV1Common *const cm, int min_qmlevel,
                        int max_qmlevel, int q, int enable_chroma_deltaq);
 
-int av1_quantizer_to_qindex(int quantizer
-#if CONFIG_EXTQUANT
-                            ,
-                            aom_bit_depth_t bit_depth
-#endif
-);
+int av1_quantizer_to_qindex(int quantizer, aom_bit_depth_t bit_depth);
 
-int av1_qindex_to_quantizer(int qindex
-#if CONFIG_EXTQUANT
-                            ,
-                            aom_bit_depth_t bit_depth
-#endif
-);
+int av1_qindex_to_quantizer(int qindex, aom_bit_depth_t bit_depth);
 
 void av1_quantize_skip(intptr_t n_coeffs, tran_low_t *qcoeff_ptr,
                        tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr);
-
-void av1_quantize_fp_facade(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                            const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr,
-                            tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
-                            const SCAN_ORDER *sc, const QUANT_PARAM *qparam);
-
-void av1_quantize_b_facade(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                           const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr,
-                           tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
-                           const SCAN_ORDER *sc, const QUANT_PARAM *qparam);
-
-void av1_quantize_dc_facade(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                            const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr,
-                            tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
-                            const SCAN_ORDER *sc, const QUANT_PARAM *qparam);
 
 void av1_highbd_quantize_fp_facade(const tran_low_t *coeff_ptr,
                                    intptr_t n_coeffs, const MACROBLOCK_PLANE *p,

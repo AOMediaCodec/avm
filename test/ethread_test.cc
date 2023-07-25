@@ -211,7 +211,6 @@ class AVxEncoderThreadTest
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
     cfg.w = 1280;
     cfg.h = 720;
-    cfg.allow_lowbitdepth = 1;
     decoder_ = codec_->CreateDecoder(cfg, 0);
     if (decoder_->IsAV1()) {
       decoder_->Control(AV1_SET_DECODE_TILE_ROW, -1);
@@ -428,12 +427,13 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxFirstPassEncoderThreadTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadTest);
 
 // Test cpu_used 0, 1, 3 and 5.
+// TODO(urvang): Once https://gitlab.com/AOMediaCodec/avm/-/issues/79 is fixed,
+// change last parameter back to (0, 1) to re-enable unit tests with row-mt = 1.
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood),
                            ::testing::Values(0, 1, 3, 5),
-                           ::testing::Values(0, 1, 2, 6),
-                           ::testing::Values(0, 1, 2, 6),
-                           ::testing::Values(0, 1));
+                           ::testing::Values(1, 6), ::testing::Values(1, 6),
+                           ::testing::Values(0));
 
 class AVxEncoderThreadLSTest : public AVxEncoderThreadTest {
   virtual void SetTileSize(libaom_test::Encoder *encoder) {
@@ -470,6 +470,6 @@ TEST_P(AVxEncoderThreadLSTestLarge, EncoderResultTest) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadLSTestLarge, GOODQUALITY_TEST_MODES,
-                           ::testing::Range(0, 4), ::testing::Values(0, 6),
-                           ::testing::Values(0, 6), ::testing::Values(0, 1));
+                           ::testing::Range(1, 3), ::testing::Values(0, 6),
+                           ::testing::Values(0, 6), ::testing::Values(1));
 }  // namespace

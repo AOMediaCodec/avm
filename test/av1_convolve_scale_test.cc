@@ -382,58 +382,6 @@ class ConvolveScaleTestBase : public ::testing::Test {
 
 typedef tuple<int, int> BlockDimension;
 
-typedef void (*LowbdConvolveFunc)(const uint8_t *src, int src_stride,
-                                  uint8_t *dst, int dst_stride, int w, int h,
-                                  const InterpFilterParams *filter_params_x,
-                                  const InterpFilterParams *filter_params_y,
-                                  const int subpel_x_qn, const int x_step_qn,
-                                  const int subpel_y_qn, const int y_step_qn,
-                                  ConvolveParams *conv_params);
-
-// Test parameter list:
-//  <tst_fun, dims, ntaps_x, ntaps_y, avg>
-typedef tuple<LowbdConvolveFunc, BlockDimension, NTaps, NTaps, bool>
-    LowBDParams;
-
-class LowBDConvolveScaleTest
-    : public ConvolveScaleTestBase<uint8_t>,
-      public ::testing::WithParamInterface<LowBDParams> {
- public:
-  virtual ~LowBDConvolveScaleTest() {}
-
-  void SetUp() {
-    tst_fun_ = GET_PARAM(0);
-
-    const BlockDimension &block = GET_PARAM(1);
-    const NTaps ntaps_x = GET_PARAM(2);
-    const NTaps ntaps_y = GET_PARAM(3);
-    const int bd = 8;
-    const bool avg = GET_PARAM(4);
-
-    SetParams(BaseParams(block, ntaps_x, ntaps_y, avg), bd);
-  }
-
-  void RunOne(bool ref) {
-    const uint8_t *src = image_->GetSrcData(ref, false);
-    uint8_t *dst = image_->GetDstData(ref, false);
-    convolve_params_.dst = image_->GetDst16Data(ref, false);
-    const int src_stride = image_->src_stride();
-    const int dst_stride = image_->dst_stride();
-    if (ref) {
-      av1_convolve_2d_scale_c(src, src_stride, dst, dst_stride, width_, height_,
-                              &filter_x_.params_, &filter_y_.params_, subpel_x_,
-                              kXStepQn, subpel_y_, kYStepQn, &convolve_params_);
-    } else {
-      tst_fun_(src, src_stride, dst, dst_stride, width_, height_,
-               &filter_x_.params_, &filter_y_.params_, subpel_x_, kXStepQn,
-               subpel_y_, kYStepQn, &convolve_params_);
-    }
-  }
-
- private:
-  LowbdConvolveFunc tst_fun_;
-};
-
 const BlockDimension kBlockDim[] = {
   make_tuple(2, 2),    make_tuple(2, 4),    make_tuple(4, 4),
   make_tuple(4, 8),    make_tuple(8, 4),    make_tuple(8, 8),
@@ -444,16 +392,6 @@ const BlockDimension kBlockDim[] = {
 };
 
 const NTaps kNTaps[] = { EIGHT_TAP };
-
-TEST_P(LowBDConvolveScaleTest, Check) { Run(); }
-TEST_P(LowBDConvolveScaleTest, DISABLED_Speed) { SpeedTest(); }
-
-INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, LowBDConvolveScaleTest,
-    ::testing::Combine(::testing::Values(av1_convolve_2d_scale_sse4_1),
-                       ::testing::ValuesIn(kBlockDim),
-                       ::testing::ValuesIn(kNTaps), ::testing::ValuesIn(kNTaps),
-                       ::testing::Bool()));
 
 typedef void (*HighbdConvolveFunc)(const uint16_t *src, int src_stride,
                                    uint16_t *dst, int dst_stride, int w, int h,

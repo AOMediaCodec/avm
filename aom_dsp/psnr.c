@@ -27,31 +27,9 @@ double aom_sse_to_psnr(double samples, double peak, double sse) {
   }
 }
 
-static void encoder_variance(const uint8_t *a, int a_stride, const uint8_t *b,
-                             int b_stride, int w, int h, unsigned int *sse,
-                             int *sum) {
-  int i, j;
-
-  *sum = 0;
-  *sse = 0;
-
-  for (i = 0; i < h; i++) {
-    for (j = 0; j < w; j++) {
-      const int diff = a[j] - b[j];
-      *sum += diff;
-      *sse += diff * diff;
-    }
-
-    a += a_stride;
-    b += b_stride;
-  }
-}
-
-static void encoder_highbd_variance64(const uint8_t *a8, int a_stride,
-                                      const uint8_t *b8, int b_stride, int w,
+static void encoder_highbd_variance64(const uint16_t *a, int a_stride,
+                                      const uint16_t *b, int b_stride, int w,
                                       int h, uint64_t *sse, int64_t *sum) {
-  const uint16_t *a = CONVERT_TO_SHORTPTR(a8);
-  const uint16_t *b = CONVERT_TO_SHORTPTR(b8);
   int64_t tsum = 0;
   uint64_t tsse = 0;
   for (int i = 0; i < h; ++i) {
@@ -69,8 +47,8 @@ static void encoder_highbd_variance64(const uint8_t *a8, int a_stride,
   *sse = tsse;
 }
 
-static void encoder_highbd_8_variance(const uint8_t *a8, int a_stride,
-                                      const uint8_t *b8, int b_stride, int w,
+static void encoder_highbd_8_variance(const uint16_t *a8, int a_stride,
+                                      const uint16_t *b8, int b_stride, int w,
                                       int h, unsigned int *sse, int *sum) {
   uint64_t sse_long = 0;
   int64_t sum_long = 0;
@@ -80,51 +58,9 @@ static void encoder_highbd_8_variance(const uint8_t *a8, int a_stride,
   *sum = (int)sum_long;
 }
 
-static int64_t get_sse(const uint8_t *a, int a_stride, const uint8_t *b,
-                       int b_stride, int width, int height) {
-  const int dw = width % 16;
-  const int dh = height % 16;
-  int64_t total_sse = 0;
-  unsigned int sse = 0;
-  int sum = 0;
-  int x, y;
-
-  if (dw > 0) {
-    encoder_variance(&a[width - dw], a_stride, &b[width - dw], b_stride, dw,
-                     height, &sse, &sum);
-    total_sse += sse;
-  }
-
-  if (dh > 0) {
-    encoder_variance(&a[(height - dh) * a_stride], a_stride,
-                     &b[(height - dh) * b_stride], b_stride, width - dw, dh,
-                     &sse, &sum);
-    total_sse += sse;
-  }
-
-  for (y = 0; y < height / 16; ++y) {
-    const uint8_t *pa = a;
-    const uint8_t *pb = b;
-    for (x = 0; x < width / 16; ++x) {
-      aom_mse16x16(pa, a_stride, pb, b_stride, &sse);
-      total_sse += sse;
-
-      pa += 16;
-      pb += 16;
-    }
-
-    a += 16 * a_stride;
-    b += 16 * b_stride;
-  }
-
-  return total_sse;
-}
-
-static int64_t highbd_get_sse_shift(const uint8_t *a8, int a_stride,
-                                    const uint8_t *b8, int b_stride, int width,
+static int64_t highbd_get_sse_shift(const uint16_t *a, int a_stride,
+                                    const uint16_t *b, int b_stride, int width,
                                     int height, unsigned int input_shift) {
-  const uint16_t *a = CONVERT_TO_SHORTPTR(a8);
-  const uint16_t *b = CONVERT_TO_SHORTPTR(b8);
   int64_t total_sse = 0;
   int x, y;
   for (y = 0; y < height; ++y) {
@@ -139,8 +75,9 @@ static int64_t highbd_get_sse_shift(const uint8_t *a8, int a_stride,
   return total_sse;
 }
 
-static int64_t highbd_get_sse(const uint8_t *a, int a_stride, const uint8_t *b,
-                              int b_stride, int width, int height) {
+static int64_t highbd_get_sse(const uint16_t *a, int a_stride,
+                              const uint16_t *b, int b_stride, int width,
+                              int height) {
   int64_t total_sse = 0;
   int x, y;
   const int dw = width % 16;
@@ -159,8 +96,8 @@ static int64_t highbd_get_sse(const uint8_t *a, int a_stride, const uint8_t *b,
     total_sse += sse;
   }
   for (y = 0; y < height / 16; ++y) {
-    const uint8_t *pa = a;
-    const uint8_t *pb = b;
+    const uint16_t *pa = a;
+    const uint16_t *pb = b;
     for (x = 0; x < width / 16; ++x) {
       aom_highbd_8_mse16x16(pa, a_stride, pb, b_stride, &sse);
       total_sse += sse;
@@ -171,78 +108,6 @@ static int64_t highbd_get_sse(const uint8_t *a, int a_stride, const uint8_t *b,
     b += 16 * b_stride;
   }
   return total_sse;
-}
-
-uint64_t aom_get_y_var(const YV12_BUFFER_CONFIG *a, int hstart, int width,
-                       int vstart, int height) {
-  return aom_var_2d_u8(a->y_buffer + vstart * a->y_stride + hstart, a->y_stride,
-                       width, height) /
-         (width * height);
-}
-
-uint64_t aom_get_u_var(const YV12_BUFFER_CONFIG *a, int hstart, int width,
-                       int vstart, int height) {
-  return aom_var_2d_u8(a->u_buffer + vstart * a->uv_stride + hstart,
-                       a->uv_stride, width, height) /
-         (width * height);
-}
-
-uint64_t aom_get_v_var(const YV12_BUFFER_CONFIG *a, int hstart, int width,
-                       int vstart, int height) {
-  return aom_var_2d_u8(a->v_buffer + vstart * a->uv_stride + hstart,
-                       a->uv_stride, width, height) /
-         (width * height);
-}
-
-int64_t aom_get_y_sse_part(const YV12_BUFFER_CONFIG *a,
-                           const YV12_BUFFER_CONFIG *b, int hstart, int width,
-                           int vstart, int height) {
-  return get_sse(a->y_buffer + vstart * a->y_stride + hstart, a->y_stride,
-                 b->y_buffer + vstart * b->y_stride + hstart, b->y_stride,
-                 width, height);
-}
-
-int64_t aom_get_y_sse(const YV12_BUFFER_CONFIG *a,
-                      const YV12_BUFFER_CONFIG *b) {
-  assert(a->y_crop_width == b->y_crop_width);
-  assert(a->y_crop_height == b->y_crop_height);
-
-  return get_sse(a->y_buffer, a->y_stride, b->y_buffer, b->y_stride,
-                 a->y_crop_width, a->y_crop_height);
-}
-
-int64_t aom_get_u_sse_part(const YV12_BUFFER_CONFIG *a,
-                           const YV12_BUFFER_CONFIG *b, int hstart, int width,
-                           int vstart, int height) {
-  return get_sse(a->u_buffer + vstart * a->uv_stride + hstart, a->uv_stride,
-                 b->u_buffer + vstart * b->uv_stride + hstart, b->uv_stride,
-                 width, height);
-}
-
-int64_t aom_get_u_sse(const YV12_BUFFER_CONFIG *a,
-                      const YV12_BUFFER_CONFIG *b) {
-  assert(a->uv_crop_width == b->uv_crop_width);
-  assert(a->uv_crop_height == b->uv_crop_height);
-
-  return get_sse(a->u_buffer, a->uv_stride, b->u_buffer, b->uv_stride,
-                 a->uv_crop_width, a->uv_crop_height);
-}
-
-int64_t aom_get_v_sse_part(const YV12_BUFFER_CONFIG *a,
-                           const YV12_BUFFER_CONFIG *b, int hstart, int width,
-                           int vstart, int height) {
-  return get_sse(a->v_buffer + vstart * a->uv_stride + hstart, a->uv_stride,
-                 b->v_buffer + vstart * b->uv_stride + hstart, b->uv_stride,
-                 width, height);
-}
-
-int64_t aom_get_v_sse(const YV12_BUFFER_CONFIG *a,
-                      const YV12_BUFFER_CONFIG *b) {
-  assert(a->uv_crop_width == b->uv_crop_width);
-  assert(a->uv_crop_height == b->uv_crop_height);
-
-  return get_sse(a->v_buffer, a->uv_stride, b->v_buffer, b->uv_stride,
-                 a->uv_crop_width, a->uv_crop_height);
 }
 
 uint64_t aom_highbd_get_y_var(const YV12_BUFFER_CONFIG *a, int hstart,
@@ -278,8 +143,6 @@ int64_t aom_highbd_get_y_sse(const YV12_BUFFER_CONFIG *a,
                              const YV12_BUFFER_CONFIG *b) {
   assert(a->y_crop_width == b->y_crop_width);
   assert(a->y_crop_height == b->y_crop_height);
-  assert((a->flags & YV12_FLAG_HIGHBITDEPTH) != 0);
-  assert((b->flags & YV12_FLAG_HIGHBITDEPTH) != 0);
 
   return highbd_get_sse(a->y_buffer, a->y_stride, b->y_buffer, b->y_stride,
                         a->y_crop_width, a->y_crop_height);
@@ -298,8 +161,6 @@ int64_t aom_highbd_get_u_sse(const YV12_BUFFER_CONFIG *a,
                              const YV12_BUFFER_CONFIG *b) {
   assert(a->uv_crop_width == b->uv_crop_width);
   assert(a->uv_crop_height == b->uv_crop_height);
-  assert((a->flags & YV12_FLAG_HIGHBITDEPTH) != 0);
-  assert((b->flags & YV12_FLAG_HIGHBITDEPTH) != 0);
 
   return highbd_get_sse(a->u_buffer, a->uv_stride, b->u_buffer, b->uv_stride,
                         a->uv_crop_width, a->uv_crop_height);
@@ -318,29 +179,18 @@ int64_t aom_highbd_get_v_sse(const YV12_BUFFER_CONFIG *a,
                              const YV12_BUFFER_CONFIG *b) {
   assert(a->uv_crop_width == b->uv_crop_width);
   assert(a->uv_crop_height == b->uv_crop_height);
-  assert((a->flags & YV12_FLAG_HIGHBITDEPTH) != 0);
-  assert((b->flags & YV12_FLAG_HIGHBITDEPTH) != 0);
 
   return highbd_get_sse(a->v_buffer, a->uv_stride, b->v_buffer, b->uv_stride,
                         a->uv_crop_width, a->uv_crop_height);
 }
 
 int64_t aom_get_sse_plane(const YV12_BUFFER_CONFIG *a,
-                          const YV12_BUFFER_CONFIG *b, int plane, int highbd) {
-  if (highbd) {
-    switch (plane) {
-      case 0: return aom_highbd_get_y_sse(a, b);
-      case 1: return aom_highbd_get_u_sse(a, b);
-      case 2: return aom_highbd_get_v_sse(a, b);
-      default: assert(plane >= 0 && plane <= 2); return 0;
-    }
-  } else {
-    switch (plane) {
-      case 0: return aom_get_y_sse(a, b);
-      case 1: return aom_get_u_sse(a, b);
-      case 2: return aom_get_v_sse(a, b);
-      default: assert(plane >= 0 && plane <= 2); return 0;
-    }
+                          const YV12_BUFFER_CONFIG *b, int plane) {
+  switch (plane) {
+    case 0: return aom_highbd_get_y_sse(a, b);
+    case 1: return aom_highbd_get_u_sse(a, b);
+    case 2: return aom_highbd_get_v_sse(a, b);
+    default: assert(plane >= 0 && plane <= 2); return 0;
   }
 }
 
@@ -371,54 +221,14 @@ void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
     const int h = heights[i];
     const uint32_t samples = w * h;
     uint64_t sse;
-    if (a->flags & YV12_FLAG_HIGHBITDEPTH) {
-      if (input_shift) {
-        sse = highbd_get_sse_shift(a->buffers[i], a_strides[i], b->buffers[i],
-                                   b_strides[i], w, h, input_shift);
-      } else {
-        sse = highbd_get_sse(a->buffers[i], a_strides[i], b->buffers[i],
-                             b_strides[i], w, h);
-      }
+    if (input_shift) {
+      sse = highbd_get_sse_shift(a->buffers[i], a_strides[i], b->buffers[i],
+                                 b_strides[i], w, h, input_shift);
     } else {
-      sse = get_sse(a->buffers[i], a_strides[i], b->buffers[i], b_strides[i], w,
-                    h);
+      sse = highbd_get_sse(a->buffers[i], a_strides[i], b->buffers[i],
+                           b_strides[i], w, h);
     }
-    psnr->sse[1 + i] = sse;
-    psnr->samples[1 + i] = samples;
-    psnr->psnr[1 + i] = aom_sse_to_psnr(samples, peak, (double)sse);
 
-    total_sse += sse;
-    total_samples += samples;
-  }
-
-  psnr->sse[0] = total_sse;
-  psnr->samples[0] = total_samples;
-  psnr->psnr[0] =
-      aom_sse_to_psnr((double)total_samples, peak, (double)total_sse);
-}
-
-void aom_calc_psnr(const YV12_BUFFER_CONFIG *a, const YV12_BUFFER_CONFIG *b,
-                   PSNR_STATS *psnr) {
-  assert(a->y_crop_width == b->y_crop_width);
-  assert(a->y_crop_height == b->y_crop_height);
-  assert(a->uv_crop_width == b->uv_crop_width);
-  assert(a->uv_crop_height == b->uv_crop_height);
-  static const double peak = 255.0;
-  const int widths[3] = { a->y_crop_width, a->uv_crop_width, a->uv_crop_width };
-  const int heights[3] = { a->y_crop_height, a->uv_crop_height,
-                           a->uv_crop_height };
-  const int a_strides[3] = { a->y_stride, a->uv_stride, a->uv_stride };
-  const int b_strides[3] = { b->y_stride, b->uv_stride, b->uv_stride };
-  int i;
-  uint64_t total_sse = 0;
-  uint32_t total_samples = 0;
-
-  for (i = 0; i < 3; ++i) {
-    const int w = widths[i];
-    const int h = heights[i];
-    const uint32_t samples = w * h;
-    const uint64_t sse =
-        get_sse(a->buffers[i], a_strides[i], b->buffers[i], b_strides[i], w, h);
     psnr->sse[1 + i] = sse;
     psnr->samples[1 + i] = samples;
     psnr->psnr[1 + i] = aom_sse_to_psnr(samples, peak, (double)sse);

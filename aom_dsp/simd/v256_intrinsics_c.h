@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "config/aom_config.h"
 
@@ -71,10 +72,7 @@ SIMD_INLINE c_v256 c_v256_from_v64(c_v64 a, c_v64 b, c_v64 c, c_v64 d) {
 
 SIMD_INLINE c_v256 c_v256_load_unaligned(const void *p) {
   c_v256 t;
-  uint8_t *pp = (uint8_t *)p;
-  uint8_t *q = (uint8_t *)&t;
-  int c;
-  for (c = 0; c < 32; c++) q[c] = pp[c];
+  memcpy(&t, p, 32);
   return t;
 }
 
@@ -87,10 +85,7 @@ SIMD_INLINE c_v256 c_v256_load_aligned(const void *p) {
 }
 
 SIMD_INLINE void c_v256_store_unaligned(void *p, c_v256 a) {
-  uint8_t *pp = (uint8_t *)p;
-  uint8_t *q = (uint8_t *)&a;
-  int c;
-  for (c = 0; c < 32; c++) pp[c] = q[c];
+  memcpy(p, &a, 32);
 }
 
 SIMD_INLINE void c_v256_store_aligned(void *p, c_v256 a) {

@@ -462,12 +462,12 @@ Inside \ref av1_temporal_filter(), the reader's attention is directed to
   filtering algorithm. It breaks each frame into "MxM" blocks. For each
   block a motion search \ref tf_motion_search() is applied to find
   the motion vector from one neighboring frame. tf_build_predictor() is then
-  called to build the matching patch and \ref av1_apply_temporal_filter_c() (see
-  also optimised SIMD versions) to apply temporal filtering. The weighted
+  called to build the matching patch and \ref av1_highbd_apply_temporal_filter_c()
+  (see also optimised SIMD versions) to apply temporal filtering. The weighted
   average over each pixel is accumulated and finally normalized in
   \ref tf_normalize_filtered_frame() to generate the final filtered frame.
 
-- \ref av1_apply_temporal_filter_c(): the core function of our temporal
+- \ref av1_highbd_apply_temporal_filter_c(): the core function of our temporal
   filtering algorithm (see also optimised SIMD versions).
 
 \subsection architecture_enc_frame_proc_film Film Grain Modelling

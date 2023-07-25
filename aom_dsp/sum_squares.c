@@ -56,8 +56,8 @@ uint64_t aom_var_2d_u8_c(uint8_t *src, int src_stride, int width, int height) {
   return (ss - s * s / (width * height));
 }
 
-uint64_t aom_var_2d_u16_c(uint8_t *src, int src_stride, int width, int height) {
-  uint16_t *srcp = CONVERT_TO_SHORTPTR(src);
+uint64_t aom_var_2d_u16_c(uint16_t *srcp, int src_stride, int width,
+                          int height) {
   int r, c;
   uint64_t ss = 0, s = 0;
 

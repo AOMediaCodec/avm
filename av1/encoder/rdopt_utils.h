@@ -17,17 +17,12 @@
 #include "av1/encoder/block.h"
 #include "av1/common/cfl.h"
 #include "av1/common/pred_common.h"
-#include "av1/encoder/rdopt_data_defs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if CONFIG_NEW_INTER_MODES
 #define MAX_REF_MV_SEARCH (MAX_REF_MV_STACK_SIZE)
-#else
-#define MAX_REF_MV_SEARCH (MAX_DRL_BITS + 1)
-#endif  // CONFIG_NEW_INTER_MODES
 #define INTER_INTRA_RD_THRESH_SCALE 9
 #define INTER_INTRA_RD_THRESH_SHIFT 4
 
@@ -35,539 +30,6 @@ typedef struct {
   PREDICTION_MODE mode;
   MV_REFERENCE_FRAME ref_frame[2];
 } MODE_DEFINITION;
-
-// This array defines the mapping from the enums in THR_MODES to the actual
-// prediction modes and refrence frames
-#if CONFIG_NEW_INTER_MODES
-static const MODE_DEFINITION av1_mode_defs[MAX_MODES] = {
-  { NEARMV, { LAST_FRAME, NONE_FRAME } },
-  { NEARMV, { LAST2_FRAME, NONE_FRAME } },
-  { NEARMV, { LAST3_FRAME, NONE_FRAME } },
-  { NEARMV, { BWDREF_FRAME, NONE_FRAME } },
-  { NEARMV, { ALTREF2_FRAME, NONE_FRAME } },
-  { NEARMV, { ALTREF_FRAME, NONE_FRAME } },
-  { NEARMV, { GOLDEN_FRAME, NONE_FRAME } },
-
-  { NEWMV, { LAST_FRAME, NONE_FRAME } },
-  { NEWMV, { LAST2_FRAME, NONE_FRAME } },
-  { NEWMV, { LAST3_FRAME, NONE_FRAME } },
-  { NEWMV, { BWDREF_FRAME, NONE_FRAME } },
-  { NEWMV, { ALTREF2_FRAME, NONE_FRAME } },
-  { NEWMV, { ALTREF_FRAME, NONE_FRAME } },
-  { NEWMV, { GOLDEN_FRAME, NONE_FRAME } },
-
-  { GLOBALMV, { LAST_FRAME, NONE_FRAME } },
-  { GLOBALMV, { LAST2_FRAME, NONE_FRAME } },
-  { GLOBALMV, { LAST3_FRAME, NONE_FRAME } },
-  { GLOBALMV, { BWDREF_FRAME, NONE_FRAME } },
-  { GLOBALMV, { ALTREF2_FRAME, NONE_FRAME } },
-  { GLOBALMV, { GOLDEN_FRAME, NONE_FRAME } },
-  { GLOBALMV, { ALTREF_FRAME, NONE_FRAME } },
-
-  // TODO(zoeliu): May need to reconsider the order on the modes to check
-  { NEAR_NEARMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEAR_NEARMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEAR_NEARMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEAR_NEARMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEAR_NEARMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEAR_NEARMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEAR_NEARMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEAR_NEARMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEAR_NEARMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEARMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEARMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEARMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-
-  { NEAR_NEARMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEAR_NEARMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEAR_NEARMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEAR_NEARMV, { BWDREF_FRAME, ALTREF_FRAME } },
-
-  { NEW_NEARMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST2_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST2_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST2_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST3_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST3_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST3_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { GOLDEN_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { GOLDEN_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST2_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST2_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST2_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST3_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST3_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST3_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { GOLDEN_FRAME, BWDREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { GOLDEN_FRAME, BWDREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST2_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST2_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST2_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST3_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST3_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST3_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { GOLDEN_FRAME, ALTREF2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { GOLDEN_FRAME, ALTREF2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, LAST2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, LAST2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST_FRAME, LAST2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, LAST2_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST_FRAME, LAST2_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST_FRAME, LAST2_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST_FRAME, LAST2_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST_FRAME, LAST2_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, LAST3_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, LAST3_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST_FRAME, LAST3_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, LAST3_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST_FRAME, LAST3_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST_FRAME, LAST3_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST_FRAME, LAST3_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST_FRAME, LAST3_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, GOLDEN_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { LAST_FRAME, GOLDEN_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { LAST_FRAME, GOLDEN_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  { NEW_NEARMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { BWDREF_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_OPTFLOW_REFINEMENT
-  { NEAR_NEARMV_OPTFLOW, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV_OPTFLOW, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV_OPTFLOW, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV_OPTFLOW, { BWDREF_FRAME, ALTREF_FRAME } },
-#if CONFIG_JOINT_MVD
-  { JOINT_NEWMV_OPTFLOW, { BWDREF_FRAME, ALTREF_FRAME } },
-#endif  // CONFIG_JOINT_MVD
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-
-  // intra modes
-  { DC_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { PAETH_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { SMOOTH_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { SMOOTH_V_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { SMOOTH_H_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { H_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { V_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D135_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D203_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D157_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D67_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D113_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D45_PRED, { INTRA_FRAME, NONE_FRAME } },
-};
-#else
-static const MODE_DEFINITION av1_mode_defs[MAX_MODES] = {
-  { NEARESTMV, { LAST_FRAME, NONE_FRAME } },
-  { NEARESTMV, { LAST2_FRAME, NONE_FRAME } },
-  { NEARESTMV, { LAST3_FRAME, NONE_FRAME } },
-  { NEARESTMV, { BWDREF_FRAME, NONE_FRAME } },
-  { NEARESTMV, { ALTREF2_FRAME, NONE_FRAME } },
-  { NEARESTMV, { ALTREF_FRAME, NONE_FRAME } },
-  { NEARESTMV, { GOLDEN_FRAME, NONE_FRAME } },
-
-  { NEWMV, { LAST_FRAME, NONE_FRAME } },
-  { NEWMV, { LAST2_FRAME, NONE_FRAME } },
-  { NEWMV, { LAST3_FRAME, NONE_FRAME } },
-  { NEWMV, { BWDREF_FRAME, NONE_FRAME } },
-  { NEWMV, { ALTREF2_FRAME, NONE_FRAME } },
-  { NEWMV, { ALTREF_FRAME, NONE_FRAME } },
-  { NEWMV, { GOLDEN_FRAME, NONE_FRAME } },
-
-  { NEARMV, { LAST_FRAME, NONE_FRAME } },
-  { NEARMV, { LAST2_FRAME, NONE_FRAME } },
-  { NEARMV, { LAST3_FRAME, NONE_FRAME } },
-  { NEARMV, { BWDREF_FRAME, NONE_FRAME } },
-  { NEARMV, { ALTREF2_FRAME, NONE_FRAME } },
-  { NEARMV, { ALTREF_FRAME, NONE_FRAME } },
-  { NEARMV, { GOLDEN_FRAME, NONE_FRAME } },
-
-  { GLOBALMV, { LAST_FRAME, NONE_FRAME } },
-  { GLOBALMV, { LAST2_FRAME, NONE_FRAME } },
-  { GLOBALMV, { LAST3_FRAME, NONE_FRAME } },
-  { GLOBALMV, { BWDREF_FRAME, NONE_FRAME } },
-  { GLOBALMV, { ALTREF2_FRAME, NONE_FRAME } },
-  { GLOBALMV, { ALTREF_FRAME, NONE_FRAME } },
-  { GLOBALMV, { GOLDEN_FRAME, NONE_FRAME } },
-
-  // TODO(zoeliu): May need to reconsider the order on the modes to check
-
-  { NEAREST_NEARESTMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEARESTMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEARESTMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEARESTMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEARESTMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEARESTMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEARESTMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEARESTMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEARESTMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEAREST_NEARESTMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEAREST_NEARESTMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEAREST_NEARESTMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-
-  { NEAREST_NEARESTMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEAREST_NEARESTMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEAREST_NEARESTMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEAREST_NEARESTMV, { BWDREF_FRAME, ALTREF_FRAME } },
-
-  { NEAR_NEARMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEW_NEARESTMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, ALTREF_FRAME } },
-
-  { NEAR_NEARMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEW_NEARESTMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { LAST2_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST2_FRAME, ALTREF_FRAME } },
-
-  { NEAR_NEARMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEW_NEARESTMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { LAST3_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST3_FRAME, ALTREF_FRAME } },
-
-  { NEAR_NEARMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEW_NEARESTMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { GOLDEN_FRAME, ALTREF_FRAME } },
-
-  { NEAR_NEARMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEW_NEARESTMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, BWDREF_FRAME } },
-
-  { NEAR_NEARMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEW_NEARESTMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { LAST2_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST2_FRAME, BWDREF_FRAME } },
-
-  { NEAR_NEARMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEW_NEARESTMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { LAST3_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST3_FRAME, BWDREF_FRAME } },
-
-  { NEAR_NEARMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEW_NEARESTMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEAREST_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEW_NEARMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEAR_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { NEW_NEWMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-  { GLOBAL_GLOBALMV, { GOLDEN_FRAME, BWDREF_FRAME } },
-
-  { NEAR_NEARMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARESTMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEAREST_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, ALTREF2_FRAME } },
-
-  { NEAR_NEARMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARESTMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEAREST_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { LAST2_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST2_FRAME, ALTREF2_FRAME } },
-
-  { NEAR_NEARMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARESTMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEAREST_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { LAST3_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST3_FRAME, ALTREF2_FRAME } },
-
-  { NEAR_NEARMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARESTMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEAREST_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEW_NEARMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEAR_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { NEW_NEWMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-  { GLOBAL_GLOBALMV, { GOLDEN_FRAME, ALTREF2_FRAME } },
-
-  { NEAR_NEARMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEW_NEARESTMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEAREST_NEWMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEW_NEARMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, LAST2_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, LAST2_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, LAST2_FRAME } },
-
-  { NEAR_NEARMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEW_NEARESTMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEAREST_NEWMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEW_NEARMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, LAST3_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, LAST3_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, LAST3_FRAME } },
-
-  { NEAR_NEARMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEW_NEARESTMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEAREST_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEW_NEARMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEAR_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { NEW_NEWMV, { LAST_FRAME, GOLDEN_FRAME } },
-  { GLOBAL_GLOBALMV, { LAST_FRAME, GOLDEN_FRAME } },
-
-  { NEAR_NEARMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEW_NEARESTMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEAREST_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEW_NEARMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEAR_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { NEW_NEWMV, { BWDREF_FRAME, ALTREF_FRAME } },
-  { GLOBAL_GLOBALMV, { BWDREF_FRAME, ALTREF_FRAME } },
-
-  // intra modes
-  { DC_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { PAETH_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { SMOOTH_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { SMOOTH_V_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { SMOOTH_H_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { H_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { V_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D135_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D203_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D157_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D67_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D113_PRED, { INTRA_FRAME, NONE_FRAME } },
-  { D45_PRED, { INTRA_FRAME, NONE_FRAME } },
-};
-#endif  // CONFIG_NEW_INTER_MODES
 
 static AOM_INLINE void restore_dst_buf(MACROBLOCKD *xd, const BUFFER_SET dst,
                                        const int num_planes) {
@@ -589,31 +51,6 @@ static AOM_INLINE int64_t get_rd_thresh_from_best_rd(int64_t ref_best_rd,
                     : INT64_MAX;
   }
   return rd_thresh;
-}
-
-static AOM_INLINE THR_MODES
-get_prediction_mode_idx(PREDICTION_MODE this_mode, MV_REFERENCE_FRAME ref_frame,
-                        MV_REFERENCE_FRAME second_ref_frame) {
-  if (this_mode < INTRA_MODE_END) {
-    assert(ref_frame == INTRA_FRAME);
-    assert(second_ref_frame == NONE_FRAME);
-    return intra_to_mode_idx[this_mode - INTRA_MODE_START];
-  }
-  if (this_mode >= SINGLE_INTER_MODE_START &&
-      this_mode < SINGLE_INTER_MODE_END) {
-    assert((ref_frame > INTRA_FRAME) && (ref_frame <= ALTREF_FRAME));
-    return single_inter_to_mode_idx[this_mode - SINGLE_INTER_MODE_START]
-                                   [ref_frame];
-  }
-  if (this_mode >= COMP_INTER_MODE_START && this_mode < COMP_INTER_MODE_END) {
-    assert((ref_frame > INTRA_FRAME) && (ref_frame <= ALTREF_FRAME));
-    assert((second_ref_frame > INTRA_FRAME) &&
-           (second_ref_frame <= ALTREF_FRAME));
-    return comp_inter_to_mode_idx[this_mode - COMP_INTER_MODE_START][ref_frame]
-                                 [second_ref_frame];
-  }
-  assert(0);
-  return THR_INVALID;
 }
 
 static AOM_INLINE int inter_mode_data_block_idx(BLOCK_SIZE bsize) {
@@ -721,11 +158,7 @@ static INLINE int is_winner_mode_processing_enabled(
   const SPEED_FEATURES *sf = &cpi->sf;
 
   // TODO(any): Move block independent condition checks to frame level
-#if CONFIG_SDP
   if (is_inter_block(mbmi, SHARED_PART)) {
-#else
-  if (is_inter_block(mbmi)) {
-#endif
     if (is_inter_mode(best_mode) &&
         sf->tx_sf.tx_type_search.fast_inter_tx_type_search &&
         !cpi->oxcf.txfm_cfg.use_inter_dct_only)
@@ -750,7 +183,12 @@ static INLINE int is_winner_mode_processing_enabled(
 static INLINE void set_tx_size_search_method(
     const AV1_COMMON *cm, const WinnerModeParams *winner_mode_params,
     TxfmSearchParams *txfm_params, int enable_winner_mode_for_tx_size_srch,
-    int is_winner_mode) {
+    int is_winner_mode
+#if CONFIG_EXT_RECUR_PARTITIONS
+    ,
+    const MACROBLOCK *x, bool use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+) {
   // Populate transform size search method/transform mode appropriately
   txfm_params->tx_size_search_method =
       winner_mode_params->tx_size_search_methods[DEFAULT_EVAL];
@@ -762,6 +200,14 @@ static INLINE void set_tx_size_search_method(
       txfm_params->tx_size_search_method =
           winner_mode_params->tx_size_search_methods[MODE_EVAL];
   }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize = x->e_mbd.mi[0]->sb_type[0];
+  if (!frame_is_intra_only(cm) && x->sb_enc.min_partition_size == BLOCK_4X4 &&
+      use_largest_tx_size_for_small_bsize && is_bsize_geq(BLOCK_16X16, bsize)) {
+    txfm_params->tx_size_search_method = USE_LARGESTALL;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   txfm_params->tx_mode_search_type =
       select_tx_mode(cm, txfm_params->tx_size_search_method);
 }
@@ -832,7 +278,12 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
           winner_mode_params->coeff_opt_satd_threshold, 0, 0);
 
       // Set default transform size search method
-      set_tx_size_search_method(cm, winner_mode_params, txfm_params, 0, 0);
+      set_tx_size_search_method(cm, winner_mode_params, txfm_params, 0, 0
+#if CONFIG_EXT_RECUR_PARTITIONS
+                                ,
+                                x, sf->tx_sf.use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
       // Set default transform type prune
       set_tx_type_prune(sf, txfm_params, 0, 0);
       break;
@@ -863,7 +314,12 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
       // Set the transform size search method for mode evaluation
       set_tx_size_search_method(
           cm, winner_mode_params, txfm_params,
-          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 0);
+          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 0
+#if CONFIG_EXT_RECUR_PARTITIONS
+          ,
+          x, sf->tx_sf.use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
       // Set transform type prune for mode evaluation
       set_tx_type_prune(sf, txfm_params,
                         sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,
@@ -894,7 +350,12 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
       // Set the transform size search method for winner mode evaluation
       set_tx_size_search_method(
           cm, winner_mode_params, txfm_params,
-          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1);
+          sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch, 1
+#if CONFIG_EXT_RECUR_PARTITIONS
+          ,
+          x, sf->tx_sf.use_largest_tx_size_for_small_bsize
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
       // Set default transform type prune mode for winner mode evaluation
       set_tx_type_prune(sf, txfm_params,
                         sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning,
@@ -943,8 +404,9 @@ static AOM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {
 static INLINE void store_winner_mode_stats(
     const AV1_COMMON *const cm, MACROBLOCK *x, const MB_MODE_INFO *mbmi,
     RD_STATS *rd_cost, RD_STATS *rd_cost_y, RD_STATS *rd_cost_uv,
-    THR_MODES mode_index, uint8_t *color_map, BLOCK_SIZE bsize, int64_t this_rd,
-    int multi_winner_mode_type, int txfm_search_done) {
+    const MV_REFERENCE_FRAME *refs, PREDICTION_MODE mode, uint8_t *color_map,
+    BLOCK_SIZE bsize, int64_t this_rd, int multi_winner_mode_type,
+    int txfm_search_done) {
   WinnerModeStats *winner_mode_stats = x->winner_mode_stats;
   int mode_idx = 0;
   int is_palette_mode = mbmi->palette_mode_info.palette_size[PLANE_TYPE_Y] > 0;
@@ -983,26 +445,33 @@ static INLINE void store_winner_mode_stats(
   // Add a mode stat for winner mode processing
   winner_mode_stats[mode_idx].mbmi = *mbmi;
   winner_mode_stats[mode_idx].rd = this_rd;
-  winner_mode_stats[mode_idx].mode_index = mode_index;
+  winner_mode_stats[mode_idx].mode = mode;
+  winner_mode_stats[mode_idx].refs[0] = refs[0];
+  winner_mode_stats[mode_idx].refs[1] = refs[1];
 
   // Update rd stats required for inter frame
   if (!frame_is_intra_only(cm) && rd_cost && rd_cost_y && rd_cost_uv) {
     const MACROBLOCKD *xd = &x->e_mbd;
     const int skip_ctx = av1_get_skip_txfm_context(xd);
-    const int is_intra_mode = av1_mode_defs[mode_index].mode < INTRA_MODE_END;
-#if CONFIG_SDP
+    const int is_intra_mode = mode < INTRA_MODE_END;
     const int skip_txfm =
         mbmi->skip_txfm[xd->tree_type == CHROMA_PART] && !is_intra_mode;
-#else
-    const int skip_txfm = mbmi->skip_txfm && !is_intra_mode;
-#endif
 
     winner_mode_stats[mode_idx].rd_cost = *rd_cost;
     if (txfm_search_done) {
+#if CONFIG_SKIP_TXFM_OPT
+      winner_mode_stats[mode_idx].rate_y =
+          rd_cost_y->rate +
+          (!is_intra_mode
+               ? x->mode_costs
+                     .skip_txfm_cost[skip_ctx][rd_cost->skip_txfm || skip_txfm]
+               : 0);
+#else
       winner_mode_stats[mode_idx].rate_y =
           rd_cost_y->rate +
           x->mode_costs
               .skip_txfm_cost[skip_ctx][rd_cost->skip_txfm || skip_txfm];
+#endif  // CONFIG_SKIP_TXFM_OPT
       winner_mode_stats[mode_idx].rate_uv = rd_cost_uv->rate;
     }
   }
@@ -1020,10 +489,6 @@ static INLINE void store_winner_mode_stats(
   x->winner_mode_count =
       AOMMIN(x->winner_mode_count + 1, max_winner_mode_count);
 }
-
-unsigned int av1_get_sby_perpixel_variance(const struct AV1_COMP *cpi,
-                                           const struct buf_2d *ref,
-                                           BLOCK_SIZE bs);
 
 unsigned int av1_high_get_sby_perpixel_variance(const struct AV1_COMP *cpi,
                                                 const struct buf_2d *ref,

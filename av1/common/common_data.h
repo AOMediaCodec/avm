@@ -13,6 +13,9 @@
 #ifndef AOM_AV1_COMMON_COMMON_DATA_H_
 #define AOM_AV1_COMMON_COMMON_DATA_H_
 
+#include <assert.h>
+#include <stdbool.h>
+
 #include "av1/common/enums.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
@@ -62,10 +65,165 @@ static const uint8_t size_group_lookup[BLOCK_SIZES_ALL] = {
   0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 1, 2, 2
 };
 
+static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
+#if CONFIG_ATC_DCTX_ALIGNED
+  0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6, 3, 3, 4, 4, 6, 6
+#else
+  0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 3, 3, 5, 5, 5, 5
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+};
+
 static const uint8_t num_pels_log2_lookup[BLOCK_SIZES_ALL] = {
   4, 5, 5, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12, 13, 13, 14, 6, 6, 8, 8, 10, 10
 };
 
+#if CONFIG_CWP
+// Supported weighting factor for compound weighted prediction
+static const int8_t cwp_weighting_factor[2][MAX_CWP_NUM] = {
+  { 8, 12, 4, 10, 6 },
+  { 8, 12, 4, 20, -4 },
+};
+#endif  // CONFIG_CWP
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+/* clang-format off */
+// This table covers all square blocks and 1:2/2:1 rectangular blocks
+static const BLOCK_SIZE
+    subsize_lookup[EXT_PARTITION_TYPES + 1][BLOCK_SIZES_ALL] = {
+  {     // PARTITION_NONE
+    BLOCK_4X4, BLOCK_4X8, BLOCK_8X4, BLOCK_8X8, BLOCK_8X16, BLOCK_16X8,
+    BLOCK_16X16, BLOCK_16X32, BLOCK_32X16, BLOCK_32X32, BLOCK_32X64,
+    BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
+    BLOCK_4X16, BLOCK_16X4, BLOCK_8X32, BLOCK_32X8, BLOCK_16X64, BLOCK_64X16,
+  }, {  // PARTITION_HORZ
+    BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID, BLOCK_8X4, BLOCK_8X8, BLOCK_16X4,
+    BLOCK_16X8, BLOCK_16X16, BLOCK_32X8, BLOCK_32X16, BLOCK_32X32, BLOCK_64X16,
+    BLOCK_64X32, BLOCK_64X64, BLOCK_INVALID, BLOCK_128X64,
+    BLOCK_4X8, BLOCK_INVALID, BLOCK_8X16, BLOCK_INVALID, BLOCK_16X32,
+    BLOCK_INVALID,
+  }, {  // PARTITION_VERT
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X4, BLOCK_4X8, BLOCK_4X16, BLOCK_8X8,
+    BLOCK_8X16, BLOCK_8X32, BLOCK_16X16, BLOCK_16X32, BLOCK_16X64, BLOCK_32X32,
+    BLOCK_32X64, BLOCK_INVALID, BLOCK_64X64, BLOCK_64X128,
+    BLOCK_INVALID, BLOCK_8X4, BLOCK_INVALID, BLOCK_16X8, BLOCK_INVALID,
+    BLOCK_32X16,
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+  }, {  // PARTITION_HORZ_3
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_8X4,
+    BLOCK_INVALID, BLOCK_16X4, BLOCK_16X8, BLOCK_INVALID, BLOCK_32X8,
+    BLOCK_32X16, BLOCK_INVALID, BLOCK_64X16, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID, BLOCK_8X8, BLOCK_INVALID,
+    BLOCK_16X16, BLOCK_INVALID,
+  }, {  // PARTITION_VERT_3
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_4X8, BLOCK_4X16, BLOCK_INVALID, BLOCK_8X16, BLOCK_8X32, BLOCK_INVALID,
+    BLOCK_16X32, BLOCK_16X64, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID, BLOCK_8X8, BLOCK_INVALID,
+    BLOCK_16X16,
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  }, {  // PARTITION_HORZ_4A
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_16X4, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_32X8, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID,
+  }, {  // PARTITION_HORZ_4B
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_16X4, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_32X8, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID,
+  }, {  // PARTITION_VERT_4A
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X16, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_8X32, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID,
+  }, {  // PARTITION_VERT_4B
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X16, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_8X32, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID,
+#endif  // CONFIG_UNEVEN_4WAY
+  }, {  // PARTITION_SPLIT
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_8X8, BLOCK_INVALID, BLOCK_INVALID, BLOCK_16X16,
+    BLOCK_INVALID, BLOCK_INVALID, BLOCK_32X32, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_64X64, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
+    BLOCK_INVALID, BLOCK_INVALID,
+  },
+};
+
+static AOM_INLINE PARTITION_TYPE sdp_chroma_part_from_luma(BLOCK_SIZE bsize,
+                                         PARTITION_TYPE luma_part, int ssx,
+                                         int ssy) {
+  const int bh_chr = block_size_high[bsize] >> ssy;
+  const int bw_chr = block_size_wide[bsize] >> ssx;
+  assert(bh_chr >= 16 && bw_chr >= 16 &&
+         "Current implementation cannot handle SDP for sub 16x16 blocks!");
+
+  switch (luma_part) {
+    case PARTITION_NONE: return PARTITION_NONE;
+    case PARTITION_HORZ: return (bh_chr < 8) ? PARTITION_NONE : PARTITION_HORZ;
+    case PARTITION_VERT: return (bw_chr < 8) ? PARTITION_NONE : PARTITION_VERT;
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+      if (bh_chr >= 32) {
+        return PARTITION_HORZ_4A;
+      } else if (bh_chr >= 8) {
+        return PARTITION_HORZ;
+      } else {
+        return PARTITION_NONE;
+      }
+    case PARTITION_HORZ_4B:
+      if (bh_chr >= 32) {
+        return PARTITION_HORZ_4B;
+      } else if (bh_chr >= 8) {
+        return PARTITION_HORZ;
+      } else {
+        return PARTITION_NONE;
+      }
+    case PARTITION_VERT_4A:
+      if (bw_chr >= 32) {
+        return PARTITION_VERT_4A;
+      } else if (bw_chr >= 8) {
+        return PARTITION_VERT;
+      } else {
+        return PARTITION_NONE;
+      }
+    case PARTITION_VERT_4B:
+      if (bw_chr >= 32) {
+        return PARTITION_VERT_4B;
+      } else if (bw_chr >= 8) {
+        return PARTITION_VERT;
+      } else {
+        return PARTITION_NONE;
+      }
+#endif  // CONFIG_UNEVEN_4WAY
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+    case PARTITION_HORZ_3:
+      if (bh_chr >= 16)
+        return PARTITION_HORZ_3;
+      else
+        return (bh_chr < 8) ? PARTITION_NONE : PARTITION_HORZ;
+    case PARTITION_VERT_3:
+      if (bw_chr >= 16)
+        return PARTITION_VERT_3;
+      else
+        return (bw_chr < 8) ? PARTITION_NONE : PARTITION_VERT;
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+    default: assert(0);
+  }
+  return PARTITION_INVALID;
+}
+
+#else  // CONFIG_EXT_RECUR_PARTITIONS
 // A compressed version of the Partition_Subsize table in the spec (9.3.
 // Conversion tables), for square block sizes only.
 /* clang-format off */
@@ -102,6 +260,7 @@ static const BLOCK_SIZE subsize_lookup[EXT_PARTITION_TYPES][SQR_BLOCK_SIZES] = {
     BLOCK_8X32, BLOCK_16X64, BLOCK_INVALID
   }
 };
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static const TX_SIZE max_txsize_lookup[BLOCK_SIZES_ALL] = {
   //                   4X4
@@ -391,6 +550,34 @@ static const TX_SIZE tx_mode_to_biggest_tx_size[TX_MODES] = {
 
 // The Subsampled_Size table in the spec (Section 5.11.38. Get plane residual
 // size function).
+#if CONFIG_EXT_RECUR_PARTITIONS
+static const BLOCK_SIZE ss_size_lookup[BLOCK_SIZES_ALL][2][2] = {
+  //  ss_x == 0      ss_x == 0          ss_x == 1      ss_x == 1
+  //  ss_y == 0      ss_y == 1          ss_y == 0      ss_y == 1
+  { { BLOCK_4X4,     BLOCK_4X4 },     { BLOCK_4X4,     BLOCK_4X4 } },
+  { { BLOCK_4X8,     BLOCK_4X4 },     { BLOCK_INVALID, BLOCK_4X4 } },
+  { { BLOCK_8X4,     BLOCK_INVALID }, { BLOCK_4X4,     BLOCK_4X4 } },
+  { { BLOCK_8X8,     BLOCK_8X4 },     { BLOCK_4X8,     BLOCK_4X4 } },
+  { { BLOCK_8X16,    BLOCK_8X8 },     { BLOCK_4X16,    BLOCK_4X8 } },
+  { { BLOCK_16X8,    BLOCK_16X4 },    { BLOCK_8X8,     BLOCK_8X4 } },
+  { { BLOCK_16X16,   BLOCK_16X8 },    { BLOCK_8X16,    BLOCK_8X8 } },
+  { { BLOCK_16X32,   BLOCK_16X16 },   { BLOCK_8X32,    BLOCK_8X16 } },
+  { { BLOCK_32X16,   BLOCK_32X8 },    { BLOCK_16X16,   BLOCK_16X8 } },
+  { { BLOCK_32X32,   BLOCK_32X16 },   { BLOCK_16X32,   BLOCK_16X16 } },
+  { { BLOCK_32X64,   BLOCK_32X32 },   { BLOCK_16X64,   BLOCK_16X32 } },
+  { { BLOCK_64X32,   BLOCK_64X16 },   { BLOCK_32X32,   BLOCK_32X16 } },
+  { { BLOCK_64X64,   BLOCK_64X32 },   { BLOCK_32X64,   BLOCK_32X32 } },
+  { { BLOCK_64X128,  BLOCK_64X64 },   { BLOCK_INVALID, BLOCK_32X64 } },
+  { { BLOCK_128X64,  BLOCK_INVALID }, { BLOCK_64X64,   BLOCK_64X32 } },
+  { { BLOCK_128X128, BLOCK_128X64 },  { BLOCK_64X128,  BLOCK_64X64 } },
+  { { BLOCK_4X16,    BLOCK_4X8 },     { BLOCK_INVALID, BLOCK_4X8 } },
+  { { BLOCK_16X4,    BLOCK_INVALID }, { BLOCK_8X4,     BLOCK_8X4 } },
+  { { BLOCK_8X32,    BLOCK_8X16 },    { BLOCK_INVALID, BLOCK_4X16 } },
+  { { BLOCK_32X8,    BLOCK_INVALID }, { BLOCK_16X8,    BLOCK_16X4 } },
+  { { BLOCK_16X64,   BLOCK_16X32 },   { BLOCK_INVALID, BLOCK_8X32 } },
+  { { BLOCK_64X16,   BLOCK_INVALID }, { BLOCK_32X16,   BLOCK_32X8 } }
+};
+#else
 static const BLOCK_SIZE ss_size_lookup[BLOCK_SIZES_ALL][2][2] = {
   //  ss_x == 0      ss_x == 0          ss_x == 1      ss_x == 1
   //  ss_y == 0      ss_y == 1          ss_y == 0      ss_y == 1
@@ -417,6 +604,7 @@ static const BLOCK_SIZE ss_size_lookup[BLOCK_SIZES_ALL][2][2] = {
   { { BLOCK_16X64,   BLOCK_16X32 },   { BLOCK_INVALID, BLOCK_8X32 } },
   { { BLOCK_64X16,   BLOCK_INVALID }, { BLOCK_32X16,   BLOCK_32X8 } }
 };
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 /* clang-format on */
 
 // Generates 5 bit field in which each bit set to 1 represents
@@ -469,7 +657,34 @@ static const int quant_dist_lookup_table[4][2] = {
   { 13, 3 },
 };
 
-#if CONFIG_IST
+#if CONFIG_ATC_NEWTXSETS
+// Mapping of mode dependent TX  based on intra modes.
+static const int av1_md_class[INTRA_MODES] = {
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+};
+
+// Mapping between mode dependent TX size groups based on allowed TX sizes.
+static const int av1_size_class[TX_SIZES_ALL] = {
+  0, 1, 2, 3, 3, 0, 0, 1, 1, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3,
+};
+#endif  // CONFIG_ATC_NEWTXSETS
+
+static AOM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
+  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
+    return false;
+  }
+  return block_size_wide[bsize1] >= block_size_wide[bsize2] &&
+         block_size_high[bsize1] >= block_size_high[bsize2];
+}
+
+static AOM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
+  if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {
+    return false;
+  }
+  return block_size_wide[bsize1] > block_size_wide[bsize2] &&
+         block_size_high[bsize1] > block_size_high[bsize2];
+}
+
 // Mapping of intra modes to IST kernel set
 // Secondary transforms are enabled only intra modes < PAETH_PRED.
 // Thus, the array size is kept as INTRA_MODES - 1
@@ -10108,6 +10323,8 @@ static const int16_t
                     },
                   };
 
+#if CONFIG_FLEX_MVRES
+static const int min_class_with_offset[7] = { 4, 3, 2, 0, 0, 0, 0 };
 #endif
 #ifdef __cplusplus
 }  // extern "C"

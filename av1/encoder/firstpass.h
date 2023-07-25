@@ -161,10 +161,10 @@ typedef struct {
 
 /*!\cond */
 
-#define FC_ANIMATION_THRESH 0.15
+#define FC_HIGHMOTION_THRESH 0.15
 enum {
   FC_NORMAL = 0,
-  FC_GRAPHICS_ANIMATION = 1,
+  FC_HIGHMOTION = 1,
   FRAME_CONTENT_TYPES = 2
 } UENUM1BYTE(FRAME_CONTENT_TYPE);
 
@@ -323,7 +323,7 @@ void av1_accumulate_stats(FIRSTPASS_STATS *section,
  * \param[in]    cpi            Top-level encoder structure
  * \param[in]    ts_duration    Duration of the frame / collection of frames
  *
- * \return Nothing is returned. Instead, the "TWO_PASS" structure inside "cpi"
+ * Nothing is returned. Instead, the "TWO_PASS" structure inside "cpi"
  * is modified to store information computed in this function.
  */
 void av1_first_pass(struct AV1_COMP *cpi, const int64_t ts_duration);

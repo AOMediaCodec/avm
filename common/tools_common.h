@@ -17,7 +17,7 @@
 #include "config/aom_config.h"
 
 #include "aom/aom_codec.h"
-#include "aom/aom_image.h"
+#include "aom/internal/aom_image_internal.h"
 #include "aom/aom_integer.h"
 #include "aom_ports/mem.h"
 #include "aom_ports/msvc.h"
@@ -117,6 +117,7 @@ struct AvxInputContext {
 #if CONFIG_AV1_ENCODER
   y4m_input y4m;
 #endif
+  aom_color_range_t color_range;
 };
 
 #ifdef __cplusplus
@@ -168,7 +169,6 @@ void aom_img_write(const aom_image_t *img, FILE *file);
 int aom_img_read(aom_image_t *img, FILE *file);
 
 double sse_to_psnr(double samples, double peak, double mse);
-void aom_img_upshift(aom_image_t *dst, const aom_image_t *src, int input_shift);
 void aom_img_downshift(aom_image_t *dst, const aom_image_t *src,
                        int down_shift);
 void aom_shift_img(unsigned int output_bit_depth, aom_image_t **img_ptr,

@@ -29,40 +29,9 @@
 
 namespace libaom_test {
 
-namespace AV1HiprecConvolve {
-
-typedef void (*hiprec_convolve_func)(const uint8_t *src, ptrdiff_t src_stride,
-                                     uint8_t *dst, ptrdiff_t dst_stride,
-                                     const int16_t *filter_x, int x_step_q4,
-                                     const int16_t *filter_y, int y_step_q4,
-                                     int w, int h,
-                                     const ConvolveParams *conv_params);
-
-typedef std::tuple<int, int, int, hiprec_convolve_func> HiprecConvolveParam;
-
-::testing::internal::ParamGenerator<HiprecConvolveParam> BuildParams(
-    hiprec_convolve_func filter);
-
-class AV1HiprecConvolveTest
-    : public ::testing::TestWithParam<HiprecConvolveParam> {
- public:
-  virtual ~AV1HiprecConvolveTest();
-  virtual void SetUp();
-
-  virtual void TearDown();
-
- protected:
-  void RunCheckOutput(hiprec_convolve_func test_impl);
-  void RunSpeedTest(hiprec_convolve_func test_impl);
-
-  libaom_test::ACMRandom rnd_;
-};
-
-}  // namespace AV1HiprecConvolve
-
 namespace AV1HighbdHiprecConvolve {
 typedef void (*highbd_hiprec_convolve_func)(
-    const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
+    const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst,
     ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
     const int16_t *filter_y, int y_step_q4, int w, int h,
     const ConvolveParams *conv_params, int bps);

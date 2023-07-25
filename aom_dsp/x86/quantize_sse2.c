@@ -19,7 +19,6 @@
 #include "aom/aom_integer.h"
 #include "aom_dsp/x86/quantize_x86.h"
 
-#if CONFIG_EXTQUANT
 void aom_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                          const int32_t *zbin_ptr, const int32_t *round_ptr,
                          const int32_t *quant_ptr,
@@ -27,15 +26,6 @@ void aom_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                          tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr,
                          uint16_t *eob_ptr, const int16_t *scan_ptr,
                          const int16_t *iscan_ptr) {
-#else
-void aom_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                         const int16_t *zbin_ptr, const int16_t *round_ptr,
-                         const int16_t *quant_ptr,
-                         const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-                         tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr,
-                         uint16_t *eob_ptr, const int16_t *scan_ptr,
-                         const int16_t *iscan_ptr) {
-#endif
   const __m128i zero = _mm_setzero_si128();
   int index = 16;
 

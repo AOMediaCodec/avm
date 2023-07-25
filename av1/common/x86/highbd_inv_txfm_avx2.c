@@ -4124,8 +4124,8 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
   const int buf_size_nonzero_h_div8 = (eoby + 8) >> 3;
   const int input_stride = AOMMIN(32, txfm_size_col);
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
-  const int fun_idx_x = lowbd_txfm_all_1d_zeros_idx[eobx];
-  const int fun_idx_y = lowbd_txfm_all_1d_zeros_idx[eoby];
+  const int fun_idx_x = highbd_txfm_all_1d_zeros_idx[eobx];
+  const int fun_idx_y = highbd_txfm_all_1d_zeros_idx[eoby];
   const transform_1d_avx2 row_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txw_idx][hitx_1d_tab[tx_type]][fun_idx_x];
   const transform_1d_avx2 col_txfm =
@@ -4189,7 +4189,7 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
 }
 
 void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
-                                             uint8_t *output, int stride,
+                                             uint16_t *output, int stride,
                                              TX_TYPE tx_type, TX_SIZE tx_size,
                                              int eob, const int bd) {
   switch (tx_type) {
@@ -4202,8 +4202,8 @@ void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
     case FLIPADST_FLIPADST:
     case ADST_FLIPADST:
     case FLIPADST_ADST:
-      highbd_inv_txfm2d_add_no_identity_avx2(input, CONVERT_TO_SHORTPTR(output),
-                                             stride, tx_type, tx_size, eob, bd);
+      highbd_inv_txfm2d_add_no_identity_avx2(input, output, stride, tx_type,
+                                             tx_size, eob, bd);
       break;
     case IDTX:
     case H_DCT:
@@ -4218,7 +4218,7 @@ void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
     default: assert(0); break;
   }
 }
-void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint8_t *dest,
+void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
                                   int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
   const TX_SIZE tx_size = txfm_param->tx_size;

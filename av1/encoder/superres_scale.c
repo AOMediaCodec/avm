@@ -26,43 +26,19 @@ static void analyze_hor_freq(const AV1_COMP *cpi, double *energy) {
   DECLARE_ALIGNED(16, int32_t, coeff[16 * 4]);
   int n = 0;
   memset(freq_energy, 0, sizeof(freq_energy));
-  if (buf->flags & YV12_FLAG_HIGHBITDEPTH) {
-    const int16_t *src16 = (const int16_t *)CONVERT_TO_SHORTPTR(buf->y_buffer);
-    for (int i = 0; i < height - 4; i += 4) {
-      for (int j = 0; j < width - 16; j += 16) {
-        av1_fwd_txfm2d_16x4(src16 + i * buf->y_stride + j, coeff, buf->y_stride,
-                            H_DCT, bd);
-        for (int k = 1; k < 16; ++k) {
-          const uint64_t this_energy =
-              ((int64_t)coeff[k] * coeff[k]) +
-              ((int64_t)coeff[k + 16] * coeff[k + 16]) +
-              ((int64_t)coeff[k + 32] * coeff[k + 32]) +
-              ((int64_t)coeff[k + 48] * coeff[k + 48]);
-          freq_energy[k] += ROUND_POWER_OF_TWO(this_energy, 2 + 2 * (bd - 8));
-        }
-        n++;
+  const int16_t *src = (const int16_t *)buf->y_buffer;
+  for (int i = 0; i < height - 4; i += 4) {
+    for (int j = 0; j < width - 16; j += 16) {
+      av1_fwd_txfm2d_16x4(src + i * buf->y_stride + j, coeff, buf->y_stride,
+                          H_DCT, bd);
+      for (int k = 1; k < 16; ++k) {
+        const uint64_t this_energy = ((int64_t)coeff[k] * coeff[k]) +
+                                     ((int64_t)coeff[k + 16] * coeff[k + 16]) +
+                                     ((int64_t)coeff[k + 32] * coeff[k + 32]) +
+                                     ((int64_t)coeff[k + 48] * coeff[k + 48]);
+        freq_energy[k] += ROUND_POWER_OF_TWO(this_energy, 2 + 2 * (bd - 8));
       }
-    }
-  } else {
-    assert(bd == 8);
-    DECLARE_ALIGNED(16, int16_t, src16[16 * 4]);
-    for (int i = 0; i < height - 4; i += 4) {
-      for (int j = 0; j < width - 16; j += 16) {
-        for (int ii = 0; ii < 4; ++ii)
-          for (int jj = 0; jj < 16; ++jj)
-            src16[ii * 16 + jj] =
-                buf->y_buffer[(i + ii) * buf->y_stride + (j + jj)];
-        av1_fwd_txfm2d_16x4(src16, coeff, 16, H_DCT, bd);
-        for (int k = 1; k < 16; ++k) {
-          const uint64_t this_energy =
-              ((int64_t)coeff[k] * coeff[k]) +
-              ((int64_t)coeff[k + 16] * coeff[k + 16]) +
-              ((int64_t)coeff[k + 32] * coeff[k + 32]) +
-              ((int64_t)coeff[k + 48] * coeff[k + 48]);
-          freq_energy[k] += ROUND_POWER_OF_TWO(this_energy, 2);
-        }
-        n++;
-      }
+      n++;
     }
   }
   if (n) {
@@ -104,9 +80,9 @@ int av1_superres_in_recode_allowed(const AV1_COMP *const cpi) {
          cpi->rc.frames_to_key > 1;
 }
 
-#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME_SOLO 0.012
-#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME 0.008
-#define SUPERRES_ENERGY_BY_Q2_THRESH_ARFFRAME 0.008
+#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME_SOLO 0.048
+#define SUPERRES_ENERGY_BY_Q2_THRESH_KEYFRAME 0.032
+#define SUPERRES_ENERGY_BY_Q2_THRESH_ARFFRAME 0.032
 #define SUPERRES_ENERGY_BY_AC_THRESH 0.2
 
 static double get_energy_by_q2_thresh(const GF_GROUP *gf_group,
@@ -350,14 +326,6 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
   size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height,
                            SCALE_NUMERATOR };
   int resize_denom = SCALE_NUMERATOR;
-#if CONFIG_SVC_ENCODER
-  if (has_no_stats_stage(cpi) && cpi->use_svc &&
-      cpi->svc.spatial_layer_id < cpi->svc.number_spatial_layers - 1) {
-    rsz.resize_width = cpi->common.width;
-    rsz.resize_height = cpi->common.height;
-    return rsz;
-  }
-#endif  // CONFIG_SVC_ENCODER
   if (is_stat_generation_stage(cpi)) return rsz;
   if (resize_pending_params->width && resize_pending_params->height) {
     rsz.resize_width = resize_pending_params->width;

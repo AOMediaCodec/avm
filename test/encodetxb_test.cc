@@ -61,6 +61,7 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
     libaom_test::ClearSystemState();
   }
 
+#if !CONFIG_ATC_COEFCODING
   void GetNzMapContextsRun() {
     const int kNumTests = 10;
     int result = 0;
@@ -120,6 +121,7 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
       InitDataWithEob(scan, bwl, eob);
 
       aom_usec_timer_start(&timer_ref);
+
       for (int i = 0; i < numTests; ++i) {
         av1_get_nz_map_contexts_c(levels_, scan, eob, (TX_SIZE)tx_size,
                                   tx_class, coeff_contexts_ref_);
@@ -134,6 +136,7 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
         get_nz_map_contexts_func_(levels_, scan, eob, (TX_SIZE)tx_size,
                                   tx_class, coeff_contexts_);
       }
+
       aom_usec_timer_mark(&timer);
 
       const int elapsed_time_ref =
@@ -146,6 +149,7 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
              (elapsed_time_ref * 1.0) / (elapsed_time * 1.0));
     }
   }
+#endif  // !CONFIG_ATC_COEFCODING
 
  private:
   void InitDataWithEob(const int16_t *const scan, const int bwl,
@@ -189,6 +193,7 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EncodeTxbTest);
 
+#if !CONFIG_ATC_COEFCODING
 TEST_P(EncodeTxbTest, GetNzMapContexts) { GetNzMapContextsRun(); }
 
 TEST_P(EncodeTxbTest, DISABLED_SpeedTestGetNzMapContexts) {
@@ -204,6 +209,7 @@ INSTANTIATE_TEST_SUITE_P(SSE2, EncodeTxbTest,
 INSTANTIATE_TEST_SUITE_P(NEON, EncodeTxbTest,
                          ::testing::Values(av1_get_nz_map_contexts_neon));
 #endif
+#endif  // !CONFIG_ATC_COEFCODING
 
 typedef void (*av1_txb_init_levels_func)(const tran_low_t *const coeff,
                                          const int width, const int height,
@@ -255,7 +261,7 @@ void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
     printf("(%3.2f)\n", t1 / t2);
   }
   const int stride = width + TX_PAD_HOR;
-  for (int r = 0; r < height + TX_PAD_VER; ++r) {
+  for (int r = TX_PAD_TOP; r < height + TX_PAD_VER; ++r) {
     for (int c = 0; c < stride; ++c) {
       ASSERT_EQ(levels_buf[0][c + r * stride], levels_buf[1][c + r * stride])
           << "[" << r << "," << c << "] " << run_times << width << "x"

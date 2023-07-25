@@ -153,44 +153,41 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
                           const TX_MODE tx_mode) {
   MACROBLOCKD *const xd = &x->e_mbd;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-#if CONFIG_SDP
   int plane_index = xd->tree_type == CHROMA_PART;
-#endif
   if (xd->lossless[mbmi->segment_id]) {
     mbmi->tx_size = TX_4X4;
   } else if (tx_mode != TX_MODE_SELECT) {
-#if CONFIG_SDP
     mbmi->tx_size = tx_size_from_tx_mode(mbmi->sb_type[plane_index], tx_mode);
-#else
-    mbmi->tx_size = tx_size_from_tx_mode(mbmi->sb_type, tx_mode);
-#endif
   } else {
-#if CONFIG_SDP
     BLOCK_SIZE bsize = mbmi->sb_type[plane_index];
-#else
-    BLOCK_SIZE bsize = mbmi->sb_type;
-#endif
     TX_SIZE min_tx_size = depth_to_tx_size(MAX_TX_DEPTH, bsize);
     mbmi->tx_size = (TX_SIZE)TXSIZEMAX(mbmi->tx_size, min_tx_size);
   }
-#if CONFIG_SDP
   if (is_inter_block(mbmi, xd->tree_type)) {
-#else
-  if (is_inter_block(mbmi)) {
-#endif
     memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
+#if CONFIG_NEW_TX_PARTITION
+    memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
+           sizeof(mbmi->tx_partition_type));
+#endif  // CONFIG_NEW_TX_PARTITION
   }
   const int stride = xd->tx_type_map_stride;
-#if CONFIG_SDP
   const int bw = mi_size_wide[mbmi->sb_type[plane_index]];
   for (int row = 0; row < mi_size_high[mbmi->sb_type[plane_index]]; ++row) {
-#else
-  const int bw = mi_size_wide[mbmi->sb_type];
-  for (int row = 0; row < mi_size_high[mbmi->sb_type]; ++row) {
-#endif
     memset(xd->tx_type_map + row * stride, DCT_DCT,
            bw * sizeof(xd->tx_type_map[0]));
   }
+#if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
+  for (int row = 0; row < mi_size_high[chroma_bsize]; ++row)
+    memset(xd->cctx_type_map + row * xd->cctx_type_map_stride, CCTX_NONE,
+           mi_size_wide[chroma_bsize] * sizeof(xd->cctx_type_map[0]));
+#else
+  for (int row = 0; row < mi_size_high[mbmi->sb_type[plane_index]]; ++row)
+    memset(xd->cctx_type_map + row * xd->cctx_type_map_stride, CCTX_NONE,
+           bw * sizeof(xd->cctx_type_map[0]));
+#endif  // CONFIG_EXT_RECUR_PARTITION
+#endif  // CONFIG_CROSS_CHROMA_TX
   av1_zero(txfm_info->blk_skip);
   txfm_info->skip_txfm = 0;
 }
@@ -199,15 +196,52 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
 // MB_MODE_INFO_EXT_FRAME to MB_MODE_INFO_EXT.
 static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
     MB_MODE_INFO_EXT *mbmi_ext,
-    const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_best, uint8_t ref_frame_type) {
+    const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_best, uint8_t ref_frame_type
+#if CONFIG_SEP_COMP_DRL
+    ,
+    PREDICTION_MODE this_mode
+#endif  // CONFIG_SEP_COMP_DRL
+) {
+#if CONFIG_SEP_COMP_DRL
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame_type);
+  if (has_second_drl_by_mode(this_mode, rf)) {
+    memcpy(mbmi_ext->ref_mv_stack[rf[0]], mbmi_ext_best->ref_mv_stack[0],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext->weight[rf[0]], mbmi_ext_best->weight[0],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext->ref_mv_count[rf[0]] = mbmi_ext_best->ref_mv_count[0];
+    memcpy(mbmi_ext->ref_mv_stack[rf[1]], mbmi_ext_best->ref_mv_stack[1],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext->weight[rf[1]], mbmi_ext_best->weight[1],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext->ref_mv_count[rf[1]] = mbmi_ext_best->ref_mv_count[1];
+  } else {
+    memcpy(mbmi_ext->ref_mv_stack[ref_frame_type],
+           mbmi_ext_best->ref_mv_stack[0],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext->weight[ref_frame_type], mbmi_ext_best->weight[0],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext->ref_mv_count[ref_frame_type] = mbmi_ext_best->ref_mv_count[0];
+  }
+#else
   memcpy(mbmi_ext->ref_mv_stack[ref_frame_type], mbmi_ext_best->ref_mv_stack,
          sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
   memcpy(mbmi_ext->weight[ref_frame_type], mbmi_ext_best->weight,
          sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
-  mbmi_ext->mode_context[ref_frame_type] = mbmi_ext_best->mode_context;
   mbmi_ext->ref_mv_count[ref_frame_type] = mbmi_ext_best->ref_mv_count;
+#endif  // CONFIG_SEP_COMP_DRL
+  mbmi_ext->mode_context[ref_frame_type] = mbmi_ext_best->mode_context;
   memcpy(mbmi_ext->global_mvs, mbmi_ext_best->global_mvs,
          sizeof(mbmi_ext->global_mvs));
+
+#if CONFIG_WARP_REF_LIST
+  if (ref_frame_type < INTER_REFS_PER_FRAME) {
+    memcpy(mbmi_ext->warp_param_stack[ref_frame_type],
+           mbmi_ext_best->warp_param_stack,
+           sizeof(mbmi_ext->warp_param_stack[MAX_WARP_REF_CANDIDATES]));
+  }
+#endif  // CONFIG_WARP_REF_LIST
 }
 
 void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
@@ -226,37 +260,33 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   MB_MODE_INFO *const mi_addr = xd->mi[0];
   const struct segmentation *const seg = &cm->seg;
   assert(bsize < BLOCK_SIZES_ALL);
-#if CONFIG_SDP
   const int bw = mi_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
   const int bh = mi_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
-#else
-  const int bw = mi_size_wide[mi->sb_type];
-  const int bh = mi_size_high[mi->sb_type];
-#endif
   const int mis = mi_params->mi_stride;
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-#if CONFIG_SDP
   assert(mi->sb_type[xd->tree_type == CHROMA_PART] == bsize);
-#else
-  assert(mi->sb_type == bsize);
-#endif
 
   *mi_addr = *mi;
-#if CONFIG_SDP
+  mi_addr->chroma_ref_info = ctx->chroma_ref_info;
+#if CONFIG_C071_SUBBLK_WARPMV
+  if (is_warp_mode(mi->motion_mode)) update_submi(xd, cm, ctx->submic, bsize);
+#endif  // CONFIG_C071_SUBBLK_WARPMV
   if (xd->tree_type != CHROMA_PART)
-#endif
     copy_mbmi_ext_frame_to_mbmi_ext(x->mbmi_ext, &ctx->mbmi_ext_best,
-                                    av1_ref_frame_type(ctx->mic.ref_frame));
+                                    av1_ref_frame_type(ctx->mic.ref_frame)
+#if CONFIG_SEP_COMP_DRL
+                                        ,
+                                    ctx->mic.mode
+#endif  // CONFIG_SEP_COMP_DRL
+    );
 
   memcpy(txfm_info->blk_skip, ctx->blk_skip,
          sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
 
   txfm_info->skip_txfm = ctx->rd_stats.skip_txfm;
-#if CONFIG_SDP
   if (xd->tree_type != CHROMA_PART) {
-#endif
     xd->tx_type_map = ctx->tx_type_map;
     xd->tx_type_map_stride = mi_size_wide[bsize];
     // If not dry_run, copy the transform type data into the frame level buffer.
@@ -272,7 +302,54 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
       xd->tx_type_map = tx_type_map;
       xd->tx_type_map_stride = mi_stride;
     }
-#if CONFIG_SDP
+  }
+
+#if CONFIG_CROSS_CHROMA_TX
+  if (xd->tree_type != LUMA_PART && xd->is_chroma_ref &&
+      is_cctx_allowed(cm, xd)) {
+    xd->cctx_type_map = ctx->cctx_type_map;
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mi, AOM_PLANE_U);
+    xd->cctx_type_map_stride = mi_size_wide[chroma_bsize];
+#else
+    xd->cctx_type_map_stride = mi_size_wide[bsize];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    // If not dry_run, copy the cctx type data into the frame level buffer.
+    // Encoder will fetch cctx types when writing bitstream.
+    if (!dry_run) {
+      const int mi_stride = mi_params->mi_stride;
+      CctxType cur_cctx_type =
+          txfm_info->skip_txfm ? CCTX_NONE : xd->cctx_type_map[0];
+#if CONFIG_EXT_RECUR_PARTITIONS
+      const int chroma_bw = mi_size_wide[chroma_bsize];
+      const int chroma_bh = mi_size_high[chroma_bsize];
+      const int grid_idx =
+          get_mi_grid_idx(mi_params, mi->chroma_ref_info.mi_row_chroma_base,
+                          mi->chroma_ref_info.mi_col_chroma_base);
+      CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;
+      for (int blk_row = 0; blk_row < chroma_bh; ++blk_row) {
+        memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
+               chroma_bw * sizeof(cctx_type_map[0]));
+      }
+#else
+      // If this block is sub 8x8 in luma, derive the parent >= 8x8 block area,
+      // then update its corresponding chroma area in cctx_type_map to the
+      // current cctx type
+      const int ss_x = pd[AOM_PLANE_U].subsampling_x;
+      const int ss_y = pd[AOM_PLANE_U].subsampling_y;
+      const int mi_row_offset = (mi_row & 0x01) && (bh & 0x01) && ss_y;
+      const int mi_col_offset = (mi_col & 0x01) && (bw & 0x01) && ss_x;
+      const int grid_idx = get_mi_grid_idx(mi_params, mi_row - mi_row_offset,
+                                           mi_col - mi_col_offset);
+      CctxType *const cctx_type_map = mi_params->cctx_type_map + grid_idx;
+      for (int blk_row = 0; blk_row < (mi_row_offset ? 2 : bh); ++blk_row) {
+        memset(&cctx_type_map[blk_row * mi_stride], cur_cctx_type,
+               (mi_col_offset ? 2 : bw) * sizeof(cctx_type_map[0]));
+      }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      xd->cctx_type_map = cctx_type_map;
+      xd->cctx_type_map_stride = mi_stride;
+    }
   }
 #endif
 
@@ -288,12 +365,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     }
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
-#if CONFIG_SDP
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
         xd->tree_type == SHARED_PART) {
-#else
-    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
-#endif
       av1_cyclic_refresh_update_segment(cpi, mi_addr, mi_row, mi_col, bsize,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
                                         txfm_info->skip_txfm);
@@ -301,15 +374,14 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(xd))
       mi_addr->uv_mode = UV_DC_PRED;
   }
-#if CONFIG_SDP
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
-#else
-  for (i = 0; i < num_planes; ++i) {
-#endif
     p[i].coeff = ctx->coeff[i];
     p[i].qcoeff = ctx->qcoeff[i];
     p[i].dqcoeff = ctx->dqcoeff[i];
     p[i].eobs = ctx->eobs[i];
+#if CONFIG_ATC_DCTX_ALIGNED
+    p[i].bobs = ctx->bobs[i];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     p[i].txb_entropy_ctx = ctx->txb_entropy_ctx[i];
   }
   for (i = 0; i < 2; ++i) pd[i].color_index_map = ctx->color_index_map[i];
@@ -319,7 +391,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     for (x_idx = 0; x_idx < mi_width; x_idx++) {
       if ((xd->mb_to_right_edge >> (3 + MI_SIZE_LOG2)) + mi_width > x_idx &&
           (xd->mb_to_bottom_edge >> (3 + MI_SIZE_LOG2)) + mi_height > y) {
-#if CONFIG_SDP
         const int mi_idx =
             get_alloc_mi_idx(mi_params, mi_row + y, mi_col + x_idx);
         xd->mi[x_idx + y * mis] = &mi_params->mi_alloc[mi_idx];
@@ -334,6 +405,12 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
           xd->mi[x_idx + y * mis]->cfl_alpha_signs = mi_addr->cfl_alpha_signs;
           xd->mi[x_idx + y * mis]->cfl_alpha_idx = mi_addr->cfl_alpha_idx;
           xd->mi[x_idx + y * mis]->partition = mi_addr->partition;
+#if CONFIG_EXT_RECUR_PARTITIONS
+          xd->mi[x_idx + y * mis]->chroma_mi_row_start =
+              mi_addr->chroma_mi_row_start;
+          xd->mi[x_idx + y * mis]->chroma_mi_col_start =
+              mi_addr->chroma_mi_col_start;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
           xd->mi[x_idx + y * mis]
               ->palette_mode_info.palette_size[PLANE_TYPE_UV] =
               mi_addr->palette_mode_info.palette_size[PLANE_TYPE_UV];
@@ -343,9 +420,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
         } else {
           xd->mi[x_idx + y * mis] = mi_addr;
         }
-#else
-        xd->mi[x_idx + y * mis] = mi_addr;
-#endif
       }
     }
   }
@@ -355,46 +429,9 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 
   if (dry_run) return;
 
-#if CONFIG_INTERNAL_STATS
-  {
-    unsigned int *const mode_chosen_counts =
-        (unsigned int *)cpi->mode_chosen_counts;  // Cast const away.
-    if (frame_is_intra_only(cm)) {
-      static const int kf_mode_index[] = {
-        THR_DC /*DC_PRED*/,
-        THR_V_PRED /*V_PRED*/,
-        THR_H_PRED /*H_PRED*/,
-        THR_D45_PRED /*D45_PRED*/,
-        THR_D135_PRED /*D135_PRED*/,
-        THR_D113_PRED /*D113_PRED*/,
-        THR_D157_PRED /*D157_PRED*/,
-        THR_D203_PRED /*D203_PRED*/,
-        THR_D67_PRED /*D67_PRED*/,
-        THR_SMOOTH,   /*SMOOTH_PRED*/
-        THR_SMOOTH_V, /*SMOOTH_V_PRED*/
-        THR_SMOOTH_H, /*SMOOTH_H_PRED*/
-        THR_PAETH /*PAETH_PRED*/,
-      };
-      ++mode_chosen_counts[kf_mode_index[mi_addr->mode]];
-    } else {
-      // Note how often each mode chosen as best
-      ++mode_chosen_counts[ctx->best_mode_index];
-    }
-  }
-#endif
-  if (!frame_is_intra_only(cm)) {
-#if CONFIG_SDP
-    if (is_inter_block(mi_addr, xd->tree_type)) {
-#else
-    if (is_inter_block(mi_addr)) {
-#endif
-      // TODO(sarahparker): global motion stats need to be handled per-tile
-      // to be compatible with tile-based threading.
-      update_global_motion_used(mi_addr->mode, bsize, mi_addr, rdc);
-    }
-
+  if (mi_addr->ref_frame[0] != INTRA_FRAME) {
     if (cm->features.interp_filter == SWITCHABLE &&
-        mi_addr->motion_mode != WARPED_CAUSAL &&
+        !is_warp_mode(mi_addr->motion_mode) &&
         !is_nontrans_global_motion(xd, xd->mi[0])) {
       update_filter_type_count(td->counts, xd, mi_addr);
     }
@@ -404,75 +441,50 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     rdc->comp_pred_diff[REFERENCE_MODE_SELECT] += ctx->hybrid_pred_diff;
   }
 
-  const int x_mis = AOMMIN(bw, mi_params->mi_cols - mi_col);
-  const int y_mis = AOMMIN(bh, mi_params->mi_rows - mi_row);
+  const int x_inside_boundary = AOMMIN(bw, mi_params->mi_cols - mi_col);
+  const int y_inside_boundary = AOMMIN(bh, mi_params->mi_rows - mi_row);
   if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
-    av1_copy_frame_mvs(cm, mi, mi_row, mi_col, x_mis, y_mis);
+    av1_copy_frame_mvs(cm, mi, mi_row, mi_col, x_inside_boundary,
+                       y_inside_boundary);
 }
 
 void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
-                                 PREDICTION_MODE mode, int16_t mode_context) {
+                                 PREDICTION_MODE mode, int16_t mode_context
+#if CONFIG_WARPMV
+                                 ,
+                                 const AV1_COMMON *const cm,
+                                 const MACROBLOCKD *xd,
+                                 const MB_MODE_INFO *mbmi, BLOCK_SIZE bsize
+#endif  // CONFIG_WARPMV
+
+) {
   (void)counts;
-#if CONFIG_NEW_INTER_MODES
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
 #if CONFIG_ENTROPY_STATS
   ++counts->inter_single_mode[ismode_ctx][mode - SINGLE_INTER_MODE_START];
-#endif
+#endif  // CONFIG_ENTROPY_STATS
+
+#if CONFIG_WARPMV
+  if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
+    const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
+    update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx], mode == WARPMV, 2);
+    if (mode == WARPMV) return;
+  }
+#endif  // CONFIG_WARPMV
+
   update_cdf(fc->inter_single_mode_cdf[ismode_ctx],
              mode - SINGLE_INTER_MODE_START, INTER_SINGLE_MODES);
-#else
-  int16_t mode_ctx = mode_context & NEWMV_CTX_MASK;
-  if (mode == NEWMV) {
-#if CONFIG_ENTROPY_STATS
-    ++counts->newmv_mode[mode_ctx][0];
-#endif
-    update_cdf(fc->newmv_cdf[mode_ctx], 0, 2);
-    return;
-  }
-
-#if CONFIG_ENTROPY_STATS
-  ++counts->newmv_mode[mode_ctx][1];
-#endif
-  update_cdf(fc->newmv_cdf[mode_ctx], 1, 2);
-
-  mode_ctx = (mode_context >> GLOBALMV_OFFSET) & GLOBALMV_CTX_MASK;
-  if (mode == GLOBALMV) {
-#if CONFIG_ENTROPY_STATS
-    ++counts->zeromv_mode[mode_ctx][0];
-#endif
-    update_cdf(fc->zeromv_cdf[mode_ctx], 0, 2);
-    return;
-  }
-
-#if CONFIG_ENTROPY_STATS
-  ++counts->zeromv_mode[mode_ctx][1];
-#endif
-  update_cdf(fc->zeromv_cdf[mode_ctx], 1, 2);
-  mode_ctx = (mode_context >> REFMV_OFFSET) & REFMV_CTX_MASK;
-#if CONFIG_ENTROPY_STATS
-  ++counts->refmv_mode[mode_ctx][mode != NEARESTMV];
-#endif  // CONFIG_ENTROPY_STATS
-  update_cdf(fc->refmv_cdf[mode_ctx], mode != NEARESTMV, 2);
-#endif  // CONFIG_NEW_INTER_MODES
 }
 
 static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
                                FRAME_COUNTS *counts) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
-#if CONFIG_SDP
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-#else
-  const BLOCK_SIZE bsize = mbmi->sb_type;
-#endif
   const PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const int palette_bsize_ctx = av1_get_palette_bsize_ctx(bsize);
 
   (void)counts;
-#if CONFIG_SDP
   if (mbmi->mode == DC_PRED && xd->tree_type != CHROMA_PART) {
-#else
-  if (mbmi->mode == DC_PRED) {
-#endif
     const int n = pmi->palette_size[0];
     const int palette_mode_ctx = av1_get_palette_mode_ctx(xd);
 
@@ -489,11 +501,7 @@ static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
                  n - PALETTE_MIN_SIZE, PALETTE_SIZES);
     }
   }
-#if CONFIG_SDP
   if (mbmi->uv_mode == UV_DC_PRED && xd->tree_type != LUMA_PART) {
-#else
-  if (mbmi->uv_mode == UV_DC_PRED) {
-#endif
     const int n = pmi->palette_size[1];
     const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
 
@@ -512,27 +520,35 @@ static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
   }
 }
 
+static INLINE void update_fsc_cdf(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+#if CONFIG_ENTROPY_STATS
+                                  FRAME_COUNTS *counts,
+#endif  // CONFIG_ENTROPY_STATS
+                                  const int intraonly) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
+  if (allow_fsc_intra(cm, xd, bsize, mbmi)) {
+#if CONFIG_ENTROPY_STATS
+    const int ctx = get_fsc_mode_ctx(xd, intraonly);
+    ++counts->fsc_mode[ctx][fsc_bsize_groups[bsize]]
+                      [mbmi->fsc_mode[xd->tree_type == CHROMA_PART]];
+#endif  // CONFIG_ENTROPY_STATS
+    aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, intraonly);
+    update_cdf(fsc_cdf, mbmi->fsc_mode[xd->tree_type == CHROMA_PART],
+               FSC_MODES);
+  }
+}
+
 void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
-                         MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi
-#if !CONFIG_AIMC
-                         ,
-                         const MB_MODE_INFO *above_mi,
-                         const MB_MODE_INFO *left_mi, const int intraonly
-#endif  // !CONFIG_AIMC
-) {
+                         MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
 #if !CONFIG_AIMC
   const PREDICTION_MODE y_mode = mbmi->mode;
 #endif  // !CONFIG_AIMC
   (void)counts;
-#if CONFIG_SDP
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-#else
-  const BLOCK_SIZE bsize = mbmi->sb_type;
-#endif
-#if CONFIG_SDP
   if (xd->tree_type != CHROMA_PART) {
-#endif
+    const int intraonly = frame_is_intra_only(cm);
 #if CONFIG_AIMC
     const int context = get_y_mode_idx_ctx(xd);
     const int mode_idx = mbmi->y_mode_idx;
@@ -556,53 +572,60 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                  SECOND_MODE_COUNT);
     }
+    update_fsc_cdf(cm, xd,
+#if CONFIG_ENTROPY_STATS
+                   counts,
+#endif  // CONFIG_ENTROPY_STATS
+                   intraonly);
 #else
-  if (intraonly) {
+    if (intraonly) {
 #if CONFIG_ENTROPY_STATS
-    const PREDICTION_MODE above = av1_above_block_mode(above_mi);
-    const PREDICTION_MODE left = av1_left_block_mode(left_mi);
-    const int above_ctx = intra_mode_context[above];
-    const int left_ctx = intra_mode_context[left];
-    ++counts->kf_y_mode[above_ctx][left_ctx][y_mode];
+      const int neighbor0_ctx = get_y_mode_ctx(xd->neighbors[0]);
+      const int neighbor1_ctx = get_y_mode_ctx(xd->neighbors[1]);
+      ++counts->kf_y_mode[neighbor0_ctx][neighbor1_ctx][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
-    update_cdf(get_y_mode_cdf(fc, above_mi, left_mi), y_mode, INTRA_MODES);
-  } else {
+      update_cdf(get_y_mode_cdf(fc, xd->neighbors[0], xd->neighbors[1]), y_mode,
+                 INTRA_MODES);
+    } else {
 #if CONFIG_ENTROPY_STATS
-    ++counts->y_mode[size_group_lookup[bsize]][y_mode];
+      ++counts->y_mode[size_group_lookup[bsize]][y_mode];
 #endif  // CONFIG_ENTROPY_STATS
-    update_cdf(fc->y_mode_cdf[size_group_lookup[bsize]], y_mode, INTRA_MODES);
-  }
+      update_cdf(fc->y_mode_cdf[size_group_lookup[bsize]], y_mode, INTRA_MODES);
+    }
+    update_fsc_cdf(cm, xd,
+#if CONFIG_ENTROPY_STATS
+                   counts,
+#endif  // CONFIG_ENTROPY_STATS
+                   intraonly);
 #endif  // CONFIG_AIMC
-#if CONFIG_MRLS
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode)) {
+#if CONFIG_EXT_DIR
+      int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+      update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index, MRL_LINE_NUMBER);
+#if CONFIG_ENTROPY_STATS
+      ++counts->mrl_index[mrl_ctx][mbmi->mrl_index];
+#endif  // CONFIG_ENTROPY_STATS
+#else
+      update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
 #if CONFIG_ENTROPY_STATS
       ++counts->mrl_index[mbmi->mrl_index];
-#endif
-      update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
+#endif  // CONFIG_ENTROPY_STATS
+#endif  // CONFIG_EXT_DIR
     }
-#endif
     if (av1_filter_intra_allowed(cm, mbmi)) {
       const int use_filter_intra_mode =
           mbmi->filter_intra_mode_info.use_filter_intra;
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_SDP
       ++counts->filter_intra[mbmi->sb_type[xd->tree_type == CHROMA_PART]]
                             [use_filter_intra_mode];
-#else
-      ++counts->filter_intra[mbmi->sb_type][use_filter_intra_mode];
-#endif
       if (use_filter_intra_mode) {
         ++counts->filter_intra_mode[mbmi->filter_intra_mode_info
                                         .filter_intra_mode];
       }
 #endif  // CONFIG_ENTROPY_STATS
-#if CONFIG_SDP
       update_cdf(
           fc->filter_intra_cdfs[mbmi->sb_type[xd->tree_type == CHROMA_PART]],
           use_filter_intra_mode, 2);
-#else
-    update_cdf(fc->filter_intra_cdfs[mbmi->sb_type], use_filter_intra_mode, 2);
-#endif
       if (use_filter_intra_mode) {
         update_cdf(fc->filter_intra_mode_cdf,
                    mbmi->filter_intra_mode_info.filter_intra_mode,
@@ -616,23 +639,15 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                            [mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA];
 #endif
 
-#if CONFIG_SDP
       update_cdf(fc->angle_delta_cdf[PLANE_TYPE_Y][mbmi->mode - V_PRED],
-#else
-      update_cdf(fc->angle_delta_cdf[mbmi->mode - V_PRED],
-#endif
                  mbmi->angle_delta[PLANE_TYPE_Y] + MAX_ANGLE_DELTA,
                  2 * MAX_ANGLE_DELTA + 1);
     }
 #endif  // !CONFIG_AIMC
-#if CONFIG_SDP
   }
-#endif
 
   if (!xd->is_chroma_ref) return;
-#if CONFIG_SDP
   if (xd->tree_type != LUMA_PART) {
-#endif
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
     const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(xd);
 #if CONFIG_AIMC
@@ -648,9 +663,17 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_AIMC
     update_cdf(fc->uv_mode_cdf[cfl_allowed][uv_context], mbmi->uv_mode_idx,
                UV_INTRA_MODES - !cfl_allowed);
+#if CONFIG_IMPROVED_CFL
+    if (mbmi->uv_mode == UV_CFL_PRED) {
+#if CONFIG_ENTROPY_STATS
+      ++counts->cfl_index[mbmi->cfl_idx];
+#endif
+      update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx > 0, CFL_TYPE_COUNT);
+    }
+#endif
 #else
-  update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
-             UV_INTRA_MODES - !cfl_allowed);
+    update_cdf(fc->uv_mode_cdf[cfl_allowed][y_mode], uv_mode,
+               UV_INTRA_MODES - !cfl_allowed);
 #endif  // CONFIG_AIMC
     if (uv_mode == UV_CFL_PRED) {
       const int8_t joint_sign = mbmi->cfl_alpha_signs;
@@ -684,7 +707,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       ++counts->angle_delta[uv_mode - UV_V_PRED]
                            [mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA];
 #endif
-#if CONFIG_SDP
       if (cm->seq_params.enable_sdp)
         update_cdf(fc->angle_delta_cdf[PLANE_TYPE_UV][uv_mode - UV_V_PRED],
                    mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
@@ -693,49 +715,25 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(fc->angle_delta_cdf[PLANE_TYPE_Y][uv_mode - UV_V_PRED],
                    mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
                    2 * MAX_ANGLE_DELTA + 1);
-#else
-      update_cdf(fc->angle_delta_cdf[uv_mode - UV_V_PRED],
-                 mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
-                 2 * MAX_ANGLE_DELTA + 1);
-#endif
     }
 #endif  // !CONFIG_AIMC
-#if CONFIG_SDP
   }
-#endif
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
     update_palette_cdf(xd, mbmi, counts);
   }
 }
 
-#if CONFIG_IBC_SR_EXT
-static BLOCK_SIZE len_to_bsize(int length) {
-  switch (length) {
-    case 128: return BLOCK_128X128;
-    case 64: return BLOCK_64X64;
-    case 32: return BLOCK_32X32;
-    case 16: return BLOCK_16X16;
-    case 8: return BLOCK_8X8;
-    case 4: return BLOCK_4X4;
-    default: assert(0 && "Invalid block size"); return BLOCK_16X16;
-  }
-}
-#endif  // CONFIG_IBC_SR_EXT
-
-void av1_restore_context(MACROBLOCK *x, const RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
-                         int mi_row, int mi_col, BLOCK_SIZE bsize,
-                         const int num_planes) {
+void av1_restore_context(const AV1_COMMON *cm, MACROBLOCK *x,
+                         const RD_SEARCH_MACROBLOCK_CONTEXT *ctx, int mi_row,
+                         int mi_col, BLOCK_SIZE bsize, const int num_planes) {
+  (void)cm;
   MACROBLOCKD *xd = &x->e_mbd;
   int p;
   const int num_4x4_blocks_wide = mi_size_wide[bsize];
   const int num_4x4_blocks_high = mi_size_high[bsize];
   int mi_width = mi_size_wide[bsize];
   int mi_height = mi_size_high[bsize];
-#if CONFIG_SDP
   for (p = (xd->tree_type == CHROMA_PART); p < num_planes; p++) {
-#else
-  for (p = 0; p < num_planes; p++) {
-#endif
     int tx_col = mi_col;
     int tx_row = mi_row & MAX_MIB_MASK;
     memcpy(
@@ -747,30 +745,20 @@ void av1_restore_context(MACROBLOCK *x, const RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
            ctx->l + num_4x4_blocks_high * p,
            (sizeof(ENTROPY_CONTEXT) * num_4x4_blocks_high) >>
                xd->plane[p].subsampling_y);
-#if CONFIG_SDP
     memcpy(xd->above_partition_context[p] + mi_col, ctx->sa + mi_width * p,
            sizeof(*xd->above_partition_context[p]) * mi_width);
     memcpy(xd->left_partition_context[p] + (mi_row & MAX_MIB_MASK),
            ctx->sl + mi_height * p,
            sizeof(xd->left_partition_context[p][0]) * mi_height);
-#endif
   }
-#if !CONFIG_SDP
-  memcpy(xd->above_partition_context + mi_col, ctx->sa,
-         sizeof(*xd->above_partition_context) * mi_width);
-  memcpy(xd->left_partition_context + (mi_row & MAX_MIB_MASK), ctx->sl,
-         sizeof(xd->left_partition_context[0]) * mi_height);
-#endif
   xd->above_txfm_context = ctx->p_ta;
   xd->left_txfm_context = ctx->p_tl;
   memcpy(xd->above_txfm_context, ctx->ta,
          sizeof(*xd->above_txfm_context) * mi_width);
   memcpy(xd->left_txfm_context, ctx->tl,
          sizeof(*xd->left_txfm_context) * mi_height);
-#if CONFIG_IBC_SR_EXT
   av1_mark_block_as_not_coded(xd, mi_row, mi_col, bsize,
-                              len_to_bsize(x->e_mbd.is_mi_coded_stride * 4));
-#endif  // CONFIG_IBC_SR_EXT
+                              cm->seq_params.sb_size);
 }
 
 void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
@@ -782,11 +770,7 @@ void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
   int mi_height = mi_size_high[bsize];
 
   // buffer the above/left context information of the block in search.
-#if CONFIG_SDP
   for (p = (xd->tree_type == CHROMA_PART); p < num_planes; ++p) {
-#else
-  for (p = 0; p < num_planes; ++p) {
-#endif
     int tx_col = mi_col;
     int tx_row = mi_row & MAX_MIB_MASK;
     memcpy(
@@ -796,20 +780,12 @@ void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
     memcpy(ctx->l + mi_height * p,
            xd->left_entropy_context[p] + (tx_row >> xd->plane[p].subsampling_y),
            (sizeof(ENTROPY_CONTEXT) * mi_height) >> xd->plane[p].subsampling_y);
-#if CONFIG_SDP
     memcpy(ctx->sa + mi_width * p, xd->above_partition_context[p] + mi_col,
            sizeof(*xd->above_partition_context[p]) * mi_width);
     memcpy(ctx->sl + mi_height * p,
            xd->left_partition_context[p] + (mi_row & MAX_MIB_MASK),
            sizeof(xd->left_partition_context[p][0]) * mi_height);
-#endif
   }
-#if !CONFIG_SDP
-  memcpy(ctx->sa, xd->above_partition_context + mi_col,
-         sizeof(*xd->above_partition_context) * mi_width);
-  memcpy(ctx->sl, xd->left_partition_context + (mi_row & MAX_MIB_MASK),
-         sizeof(xd->left_partition_context[0]) * mi_height);
-#endif
   memcpy(ctx->ta, xd->above_txfm_context,
          sizeof(*xd->above_txfm_context) * mi_width);
   memcpy(ctx->tl, xd->left_txfm_context,
@@ -831,14 +807,9 @@ static void set_partial_sb_partition(const AV1_COMMON *const cm,
       const int grid_index = get_mi_grid_idx(&cm->mi_params, r, c);
       const int mi_index = get_alloc_mi_idx(&cm->mi_params, r, c);
       mib[grid_index] = mi + mi_index;
-#if CONFIG_SDP
       mib[grid_index]->sb_type[PLANE_TYPE_Y] =
           mib[grid_index]->sb_type[PLANE_TYPE_UV] = find_partition_size(
               bsize, mi_rows_remaining - r, mi_cols_remaining - c, &bh, &bw);
-#else
-      mib[grid_index]->sb_type = find_partition_size(
-          bsize, mi_rows_remaining - r, mi_cols_remaining - c, &bh, &bw);
-#endif
     }
   }
 }
@@ -874,12 +845,8 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
         const int grid_index = get_mi_grid_idx(mi_params, block_row, block_col);
         const int mi_index = get_alloc_mi_idx(mi_params, block_row, block_col);
         mib[grid_index] = mi_upper_left + mi_index;
-#if CONFIG_SDP
         mib[grid_index]->sb_type[PLANE_TYPE_Y] = bsize;
         mib[grid_index]->sb_type[PLANE_TYPE_UV] = bsize;
-#else
-        mib[grid_index]->sb_type = bsize;
-#endif
       }
     }
   } else {
@@ -888,13 +855,8 @@ void av1_set_fixed_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                              mi_cols_remaining, bsize, mib);
   }
 }
-#if CONFIG_SDP
 int av1_is_leaf_split_partition(AV1_COMMON *cm, MACROBLOCKD *const xd,
-                                int mi_row, int mi_col,
-#else
-int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
-#endif
-                                BLOCK_SIZE bsize) {
+                                int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const int bs = mi_size_wide[bsize];
   const int hbs = bs / 2;
   assert(bsize >= BLOCK_8X8);
@@ -906,13 +868,8 @@ int av1_is_leaf_split_partition(AV1_COMMON *cm, int mi_row, int mi_col,
     if ((mi_row + y_idx >= cm->mi_params.mi_rows) ||
         (mi_col + x_idx >= cm->mi_params.mi_cols))
       return 0;
-#if CONFIG_SDP
     if (get_partition(cm, xd->tree_type == CHROMA_PART, mi_row + y_idx,
-                      mi_col + x_idx, subsize) !=
-#else
-    if (get_partition(cm, mi_row + y_idx, mi_col + x_idx, subsize) !=
-#endif
-            PARTITION_NONE &&
+                      mi_col + x_idx, subsize) != PARTITION_NONE &&
         subsize != BLOCK_8X8)
       return 0;
   }
@@ -1163,14 +1120,11 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   offset = AOMMIN(offset, delta_q_info->delta_q_res * 9 - 1);
   offset = AOMMAX(offset, -delta_q_info->delta_q_res * 9 + 1);
   int qindex = cm->quant_params.base_qindex + offset;
-#if CONFIG_EXTQUANT
+
   qindex =
       AOMMIN(qindex, cm->seq_params.bit_depth == AOM_BITS_8    ? MAXQ_8_BITS
                      : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS
                                                                : MAXQ);
-#else
-  qindex = AOMMIN(qindex, MAXQ);
-#endif
   qindex = AOMMAX(qindex, MINQ);
 
   return qindex;
@@ -1191,14 +1145,21 @@ void av1_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
 void av1_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
                                        BLOCK_SIZE bsize, int mib_size,
                                        int mi_row, int mi_col) {
+#if !CONFIG_EXT_RECUR_PARTITIONS
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   const int sb_size_mask = mib_size - 1;
   const int mi_row_in_sb = mi_row & sb_size_mask;
   const int mi_col_in_sb = mi_col & sb_size_mask;
-  const int mi_size = mi_size_wide[bsize];
-  for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_size; ++i) {
-    for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_size; ++j) {
+  const int mi_size_h = mi_size_high[bsize];
+  const int mi_size_w = mi_size_wide[bsize];
+  for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_size_h; ++i) {
+    for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_size_w; ++j) {
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+      x->picked_ref_frames_mask[i * 32 + j] |= 1ULL << ref_type;
+#else
       x->picked_ref_frames_mask[i * 32 + j] |= 1 << ref_type;
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
     }
   }
 }
@@ -1245,9 +1206,15 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
     AVERAGE_CDF(nmv_left->comps[i].amvd_classes_cdf,
                 nmv_tr->comps[i].amvd_classes_cdf, MV_CLASSES);
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+    AVERAGE_CDF(nmv_left->comps[i].class0_fp_cdf,
+                nmv_tr->comps[i].class0_fp_cdf, 2);
+    AVERAGE_CDF(nmv_left->comps[i].fp_cdf, nmv_tr->comps[i].fp_cdf, 2);
+#else
     AVERAGE_CDF(nmv_left->comps[i].class0_fp_cdf,
                 nmv_tr->comps[i].class0_fp_cdf, MV_FP_SIZE);
     AVERAGE_CDF(nmv_left->comps[i].fp_cdf, nmv_tr->comps[i].fp_cdf, MV_FP_SIZE);
+#endif  // CONFIG_FLEX_MVRES
     AVERAGE_CDF(nmv_left->comps[i].sign_cdf, nmv_tr->comps[i].sign_cdf, 2);
     AVERAGE_CDF(nmv_left->comps[i].class0_hp_cdf,
                 nmv_tr->comps[i].class0_hp_cdf, 2);
@@ -1275,28 +1242,55 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->v_dc_sign_cdf, ctx_tr->v_dc_sign_cdf, 2);
   AVERAGE_CDF(ctx_left->v_ac_sign_cdf, ctx_tr->v_ac_sign_cdf, 2);
 #endif  // CONFIG_CONTEXT_DERIVATION
-  AVERAGE_CDF(ctx_left->eob_flag_cdf16, ctx_tr->eob_flag_cdf16, 5);
-  AVERAGE_CDF(ctx_left->eob_flag_cdf32, ctx_tr->eob_flag_cdf32, 6);
-  AVERAGE_CDF(ctx_left->eob_flag_cdf64, ctx_tr->eob_flag_cdf64, 7);
-  AVERAGE_CDF(ctx_left->eob_flag_cdf128, ctx_tr->eob_flag_cdf128, 8);
-  AVERAGE_CDF(ctx_left->eob_flag_cdf256, ctx_tr->eob_flag_cdf256, 9);
-  AVERAGE_CDF(ctx_left->eob_flag_cdf512, ctx_tr->eob_flag_cdf512, 10);
-  AVERAGE_CDF(ctx_left->eob_flag_cdf1024, ctx_tr->eob_flag_cdf1024, 11);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf16, ctx_tr->eob_flag_cdf16,
+              EOB_MAX_SYMS - 6);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf32, ctx_tr->eob_flag_cdf32,
+              EOB_MAX_SYMS - 5);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf64, ctx_tr->eob_flag_cdf64,
+              EOB_MAX_SYMS - 4);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf128, ctx_tr->eob_flag_cdf128,
+              EOB_MAX_SYMS - 3);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf256, ctx_tr->eob_flag_cdf256,
+              EOB_MAX_SYMS - 2);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf512, ctx_tr->eob_flag_cdf512,
+              EOB_MAX_SYMS - 1);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf1024, ctx_tr->eob_flag_cdf1024,
+              EOB_MAX_SYMS);
   AVERAGE_CDF(ctx_left->coeff_base_eob_cdf, ctx_tr->coeff_base_eob_cdf, 3);
+#if CONFIG_ATC_DCTX_ALIGNED
+  AVERAGE_CDF(ctx_left->coeff_base_bob_cdf, ctx_tr->coeff_base_bob_cdf, 3);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+#if CONFIG_ATC_COEFCODING
+  AVERAGE_CDF(ctx_left->coeff_base_lf_cdf, ctx_tr->coeff_base_lf_cdf,
+              LF_BASE_SYMBOLS);
+  AVERAGE_CDF(ctx_left->coeff_base_lf_eob_cdf, ctx_tr->coeff_base_lf_eob_cdf,
+              LF_BASE_SYMBOLS - 1);
+  AVERAGE_CDF(ctx_left->coeff_br_lf_cdf, ctx_tr->coeff_br_lf_cdf, BR_CDF_SIZE);
+#endif  // CONFIG_ATC_COEFCODING
   AVERAGE_CDF(ctx_left->coeff_base_cdf, ctx_tr->coeff_base_cdf, 4);
+  AVERAGE_CDF(ctx_left->idtx_sign_cdf, ctx_tr->idtx_sign_cdf, 2);
+  AVERAGE_CDF(ctx_left->coeff_base_cdf_idtx, ctx_tr->coeff_base_cdf_idtx, 4);
+  AVERAGE_CDF(ctx_left->coeff_br_cdf_idtx, ctx_tr->coeff_br_cdf_idtx,
+              BR_CDF_SIZE);
   AVERAGE_CDF(ctx_left->coeff_br_cdf, ctx_tr->coeff_br_cdf, BR_CDF_SIZE);
-#if CONFIG_NEW_INTER_MODES
   AVERAGE_CDF(ctx_left->inter_single_mode_cdf, ctx_tr->inter_single_mode_cdf,
               INTER_SINGLE_MODES);
+
+#if CONFIG_WARPMV
+  AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
+#endif  // CONFIG_WARPMV
+
+#if CONFIG_REFINEMV
+  AVERAGE_CDF(ctx_left->refinemv_flag_cdf, ctx_tr->refinemv_flag_cdf,
+              REFINEMV_NUM_MODES);
+#endif  // CONFIG_REFINEMV
+
   AVERAGE_CDF(ctx_left->drl_cdf[0], ctx_tr->drl_cdf[0], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[1], ctx_tr->drl_cdf[1], 2);
   AVERAGE_CDF(ctx_left->drl_cdf[2], ctx_tr->drl_cdf[2], 2);
-#else
-  AVERAGE_CDF(ctx_left->newmv_cdf, ctx_tr->newmv_cdf, 2);
-  AVERAGE_CDF(ctx_left->zeromv_cdf, ctx_tr->zeromv_cdf, 2);
-  AVERAGE_CDF(ctx_left->refmv_cdf, ctx_tr->refmv_cdf, 2);
-  AVERAGE_CDF(ctx_left->drl_cdf, ctx_tr->drl_cdf, 2);
-#endif  // CONFIG_NEW_INTER_MODES
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  AVERAGE_CDF(ctx_left->skip_drl_cdf, ctx_tr->skip_drl_cdf, 2);
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
 #if CONFIG_OPTFLOW_REFINEMENT
   AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
               ctx_tr->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
@@ -1304,15 +1298,61 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
               ctx_tr->inter_compound_mode_cdf, INTER_COMPOUND_MODES);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_CWP
+  AVERAGE_CDF(ctx_left->cwp_idx_cdf, ctx_tr->cwp_idx_cdf, 2);
+#endif  // CONFIG_CWP
+#if CONFIG_IMPROVED_JMVD
+  AVERAGE_CDF(ctx_left->jmvd_scale_mode_cdf, ctx_tr->jmvd_scale_mode_cdf,
+              JOINT_NEWMV_SCALE_FACTOR_CNT);
+  AVERAGE_CDF(ctx_left->jmvd_amvd_scale_mode_cdf,
+              ctx_tr->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
+#endif  // CONFIG_IMPROVED_JMVD
   AVERAGE_CDF(ctx_left->compound_type_cdf, ctx_tr->compound_type_cdf,
               MASKED_COMPOUND_TYPES);
+#if CONFIG_WEDGE_MOD_EXT
+  AVERAGE_CDF(ctx_left->wedge_angle_dir_cdf, ctx_tr->wedge_angle_dir_cdf, 2);
+  AVERAGE_CDF(ctx_left->wedge_angle_0_cdf, ctx_tr->wedge_angle_0_cdf,
+              H_WEDGE_ANGLES);
+  AVERAGE_CDF(ctx_left->wedge_angle_1_cdf, ctx_tr->wedge_angle_1_cdf,
+              H_WEDGE_ANGLES);
+  AVERAGE_CDF(ctx_left->wedge_dist_cdf, ctx_tr->wedge_dist_cdf, NUM_WEDGE_DIST);
+  AVERAGE_CDF(ctx_left->wedge_dist_cdf2, ctx_tr->wedge_dist_cdf2,
+              NUM_WEDGE_DIST - 1);
+#else
   AVERAGE_CDF(ctx_left->wedge_idx_cdf, ctx_tr->wedge_idx_cdf, 16);
+#endif
   AVERAGE_CDF(ctx_left->interintra_cdf, ctx_tr->interintra_cdf, 2);
   AVERAGE_CDF(ctx_left->wedge_interintra_cdf, ctx_tr->wedge_interintra_cdf, 2);
   AVERAGE_CDF(ctx_left->interintra_mode_cdf, ctx_tr->interintra_mode_cdf,
               INTERINTRA_MODES);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
+  AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf, 2);
+  AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
+  AVERAGE_CDF(ctx_left->warp_delta_param_cdf, ctx_tr->warp_delta_param_cdf,
+              WARP_DELTA_NUM_SYMBOLS);
+
+#if CONFIG_WARPMV
+  AVERAGE_CDF(ctx_left->warped_causal_warpmv_cdf,
+              ctx_tr->warped_causal_warpmv_cdf, 2);
+#endif  // CONFIG_WARPMV
+#if CONFIG_WARP_REF_LIST
+  AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[0], ctx_tr->warp_ref_idx_cdf[0], 2);
+  AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[1], ctx_tr->warp_ref_idx_cdf[1], 2);
+  AVERAGE_CDF(ctx_left->warp_ref_idx_cdf[2], ctx_tr->warp_ref_idx_cdf[2], 2);
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  AVERAGE_CDF(ctx_left->warpmv_with_mvd_flag_cdf,
+              ctx_tr->warpmv_with_mvd_flag_cdf, 2);
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+#endif  // CONFIG_WARP_REF_LIST
+  AVERAGE_CDF(ctx_left->warp_extend_cdf, ctx_tr->warp_extend_cdf, 2);
+#else
   AVERAGE_CDF(ctx_left->motion_mode_cdf, ctx_tr->motion_mode_cdf, MOTION_MODES);
   AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_BAWP
+  AVERAGE_CDF(ctx_left->bawp_cdf, ctx_tr->bawp_cdf, 2);
+#endif
   AVERAGE_CDF(ctx_left->palette_y_size_cdf, ctx_tr->palette_y_size_cdf,
               PALETTE_SIZES);
   AVERAGE_CDF(ctx_left->palette_uv_size_cdf, ctx_tr->palette_uv_size_cdf,
@@ -1330,10 +1370,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->palette_uv_mode_cdf, ctx_tr->palette_uv_mode_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_inter_cdf, ctx_tr->comp_inter_cdf, 2);
   AVERAGE_CDF(ctx_left->single_ref_cdf, ctx_tr->single_ref_cdf, 2);
-  AVERAGE_CDF(ctx_left->comp_ref_type_cdf, ctx_tr->comp_ref_type_cdf, 2);
-  AVERAGE_CDF(ctx_left->uni_comp_ref_cdf, ctx_tr->uni_comp_ref_cdf, 2);
-  AVERAGE_CDF(ctx_left->comp_ref_cdf, ctx_tr->comp_ref_cdf, 2);
-  AVERAGE_CDF(ctx_left->comp_bwdref_cdf, ctx_tr->comp_bwdref_cdf, 2);
+  AVERAGE_CDF(ctx_left->comp_ref0_cdf, ctx_tr->comp_ref0_cdf, 2);
+  AVERAGE_CDF(ctx_left->comp_ref1_cdf, ctx_tr->comp_ref1_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
   // Square blocks
   AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf[0],
@@ -1343,23 +1381,25 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->inter_4way_txfm_partition_cdf[1], 4);
   AVERAGE_CDF(ctx_left->inter_2way_txfm_partition_cdf,
               ctx_tr->inter_2way_txfm_partition_cdf, 2);
-  AVERAGE_CDF(ctx_left->inter_2way_rect_txfm_partition_cdf,
-              ctx_tr->inter_2way_rect_txfm_partition_cdf, 2);
 #else   // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->txfm_partition_cdf, ctx_tr->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->comp_group_idx_cdf, ctx_tr->comp_group_idx_cdf, 2);
   AVERAGE_CDF(ctx_left->skip_mode_cdfs, ctx_tr->skip_mode_cdfs, 2);
   AVERAGE_CDF(ctx_left->skip_txfm_cdfs, ctx_tr->skip_txfm_cdfs, 2);
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   AVERAGE_CDF(ctx_left->intra_inter_cdf[0], ctx_tr->intra_inter_cdf[0], 2);
   AVERAGE_CDF(ctx_left->intra_inter_cdf[1], ctx_tr->intra_inter_cdf[1], 2);
 #else
   AVERAGE_CDF(ctx_left->intra_inter_cdf, ctx_tr->intra_inter_cdf, 2);
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   avg_nmv(&ctx_left->nmvc, &ctx_tr->nmvc, wt_left, wt_tr);
   avg_nmv(&ctx_left->ndvc, &ctx_tr->ndvc, wt_left, wt_tr);
   AVERAGE_CDF(ctx_left->intrabc_cdf, ctx_tr->intrabc_cdf, 2);
+#if CONFIG_BVP_IMPROVEMENT
+  AVERAGE_CDF(ctx_left->intrabc_mode_cdf, ctx_tr->intrabc_mode_cdf, 2);
+  AVERAGE_CDF(ctx_left->intrabc_drl_idx_cdf, ctx_tr->intrabc_drl_idx_cdf, 2);
+#endif  // CONFIG_BVP_IMPROVEMENT
   AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
   AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
@@ -1367,8 +1407,13 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->filter_intra_cdfs, ctx_tr->filter_intra_cdfs, 2);
   AVERAGE_CDF(ctx_left->filter_intra_mode_cdf, ctx_tr->filter_intra_mode_cdf,
               FILTER_INTRA_MODES);
+#if CONFIG_LR_FLEX_SYNTAX
+  AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
+              ctx_tr->switchable_flex_restore_cdf, 2);
+#else
   AVERAGE_CDF(ctx_left->switchable_restore_cdf, ctx_tr->switchable_restore_cdf,
               RESTORE_SWITCHABLE_TYPES);
+#endif  // CONFIG_LR_FLEX_SYNTAX
   AVERAGE_CDF(ctx_left->wiener_restore_cdf, ctx_tr->wiener_restore_cdf, 2);
 #if CONFIG_CCSO_EXT
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
@@ -1376,8 +1421,25 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
 #endif
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
-#if CONFIG_MRLS
+#if CONFIG_WIENER_NONSEP
+  AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
+  AVERAGE_CDF(ctx_left->wienerns_reduce_cdf, ctx_tr->wienerns_reduce_cdf, 2);
+#if ENABLE_LR_4PART_CODE
+  AVERAGE_CDF(ctx_left->wienerns_4part_cdf, ctx_tr->wienerns_4part_cdf, 4);
+#endif  // ENABLE_LR_4PART_CODE
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+  AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf, ctx_tr->pc_wiener_restore_cdf,
+              2);
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_LR_MERGE_COEFFS
+  AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
+#endif  // CONFIG_LR_MERGE_COEFFS
+  AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
+
+#if CONFIG_IMPROVED_CFL
+  AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf, CFL_TYPE_COUNT);
 #endif
 #if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
@@ -1392,7 +1454,41 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVG_CDF_STRIDE(ctx_left->uv_mode_cdf[0], ctx_tr->uv_mode_cdf[0],
                  UV_INTRA_MODES - 1, CDF_SIZE(UV_INTRA_MODES));
   AVERAGE_CDF(ctx_left->uv_mode_cdf[1], ctx_tr->uv_mode_cdf[1], UV_INTRA_MODES);
-#if CONFIG_SDP
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+      AVERAGE_CDF(ctx_left->do_split_cdf[plane_index][i],
+                  ctx_tr->do_split_cdf[plane_index][i], 2);
+    }
+  }
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+      AVERAGE_CDF(ctx_left->rect_type_cdf[plane_index][i],
+                  ctx_tr->rect_type_cdf[plane_index][i], 2);
+    }
+  }
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (int i = 0; i < PARTITION_CONTEXTS; i++) {
+      for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_PARTS; rect++) {
+        AVERAGE_CDF(ctx_left->do_ext_partition_cdf[plane_index][rect][i],
+                    ctx_tr->do_ext_partition_cdf[plane_index][rect][i], 2);
+#if CONFIG_UNEVEN_4WAY
+        AVERAGE_CDF(
+            ctx_left->do_uneven_4way_partition_cdf[plane_index][rect][i],
+            ctx_tr->do_uneven_4way_partition_cdf[plane_index][rect][i], 2);
+        AVERAGE_CDF(
+            ctx_left->uneven_4way_partition_type_cdf[plane_index][rect][i],
+            ctx_tr->uneven_4way_partition_type_cdf[plane_index][rect][i],
+            NUM_UNEVEN_4WAY_PARTS);
+#endif  // CONFIG_UNEVEN_4WAY
+      }
+    }
+  }
+#else
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
     for (int i = 0; i < PARTITION_CONTEXTS; i++) {
@@ -1408,19 +1504,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
       }
     }
   }
-#else
-  for (int i = 0; i < PARTITION_CONTEXTS; i++) {
-    if (i < 4) {
-      AVG_CDF_STRIDE(ctx_left->partition_cdf[i], ctx_tr->partition_cdf[i], 4,
-                     CDF_SIZE(10));
-    } else if (i < 16) {
-      AVERAGE_CDF(ctx_left->partition_cdf[i], ctx_tr->partition_cdf[i], 10);
-    } else {
-      AVG_CDF_STRIDE(ctx_left->partition_cdf[i], ctx_tr->partition_cdf[i], 8,
-                     CDF_SIZE(10));
-    }
-  }
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
 #if !CONFIG_AIMC
@@ -1438,8 +1522,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->intra_4way_txfm_partition_cdf[1], 4);
   AVERAGE_CDF(ctx_left->intra_2way_txfm_partition_cdf,
               ctx_tr->intra_2way_txfm_partition_cdf, 2);
-  AVERAGE_CDF(ctx_left->intra_2way_rect_txfm_partition_cdf,
-              ctx_tr->intra_2way_rect_txfm_partition_cdf, 2);
 #else
   AVG_CDF_STRIDE(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0], MAX_TX_DEPTH,
                  CDF_SIZE(MAX_TX_DEPTH + 1));
@@ -1456,10 +1538,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVERAGE_CDF(ctx_left->delta_lf_multi_cdf[i], ctx_tr->delta_lf_multi_cdf[i],
                 DELTA_LF_PROBS + 1);
   }
-  AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[1], ctx_tr->intra_ext_tx_cdf[1], 7,
-                 CDF_SIZE(TX_TYPES));
-  AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[2], ctx_tr->intra_ext_tx_cdf[2], 5,
-                 CDF_SIZE(TX_TYPES));
+  AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[1], ctx_tr->intra_ext_tx_cdf[1],
+                 INTRA_TX_SET1, CDF_SIZE(TX_TYPES));
+#if !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
+  AVG_CDF_STRIDE(ctx_left->intra_ext_tx_cdf[2], ctx_tr->intra_ext_tx_cdf[2],
+                 INTRA_TX_SET2, CDF_SIZE(TX_TYPES));
+#endif  // !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
   AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[1], ctx_tr->inter_ext_tx_cdf[1], 16,
                  CDF_SIZE(TX_TYPES));
   AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[2], ctx_tr->inter_ext_tx_cdf[2], 12,
@@ -1469,15 +1553,45 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
               CFL_ALPHABET_SIZE);
-#if CONFIG_IST
   AVG_CDF_STRIDE(ctx_left->stx_cdf, ctx_tr->stx_cdf, STX_TYPES,
                  CDF_SIZE(STX_TYPES));
-#endif
+#if CONFIG_FLEX_MVRES
+
+  for (int p = 0; p < NUM_MV_PREC_MPP_CONTEXT; ++p) {
+    AVG_CDF_STRIDE(ctx_left->pb_mv_mpp_flag_cdf[p],
+                   ctx_tr->pb_mv_mpp_flag_cdf[p], 2, CDF_SIZE(2));
+  }
+  for (int p = MV_PRECISION_HALF_PEL; p < NUM_MV_PRECISIONS; ++p) {
+    int mb_precision_set = (p == MV_PRECISION_QTR_PEL);
+    const PRECISION_SET *precision_def =
+        &av1_mv_precision_sets[mb_precision_set];
+    int num_precisions = precision_def->num_precisions;
+    for (int j = 0; j < MV_PREC_DOWN_CONTEXTS; ++j) {
+      AVG_CDF_STRIDE(
+          ctx_left->pb_mv_precision_cdf[j][p - MV_PRECISION_HALF_PEL],
+          ctx_tr->pb_mv_precision_cdf[j][p - MV_PRECISION_HALF_PEL],
+          num_precisions - 1, CDF_SIZE(FLEX_MV_COSTS_SIZE));
+    }
+  }
+
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_PAR_HIDING
+  AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf, 4);
+  AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
+#endif  // CONFIG_PAR_HIDING
+#if CONFIG_CROSS_CHROMA_TX
+  AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf, CCTX_TYPES);
+#endif  // CONFIG_CROSS_CHROMA_TX
 }
 
 // Memset the mbmis at the current superblock to 0
+#if CONFIG_FLEX_MVRES
+void av1_reset_mbmi(const CommonModeInfoParams *const mi_params,
+                    BLOCK_SIZE sb_size, int mi_row, int mi_col) {
+#else
 void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
                     int mi_row, int mi_col) {
+#endif
   // size of sb in unit of mi (BLOCK_4X4)
   const int sb_size_mi = mi_size_wide[sb_size];
   const int mi_alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];
@@ -1500,9 +1614,21 @@ void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
            sb_size_mi * sizeof(*mi_params->mi_grid_base));
     memset(&mi_params->tx_type_map[mi_grid_idx], 0,
            sb_size_mi * sizeof(*mi_params->tx_type_map));
+#if CONFIG_C071_SUBBLK_WARPMV
+    memset(&mi_params->submi_grid_base[mi_grid_idx], 0,
+           sb_size_mi * sizeof(*mi_params->submi_grid_base));
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_CROSS_CHROMA_TX
+    memset(&mi_params->cctx_type_map[mi_grid_idx], 0,
+           sb_size_mi * sizeof(*mi_params->cctx_type_map));
+#endif  // CONFIG_CROSS_CHROMA_TX
     if (cur_mi_row % mi_alloc_size_1d == 0) {
       memset(&mi_params->mi_alloc[alloc_mi_idx], 0,
              sb_size_alloc_mi * sizeof(*mi_params->mi_alloc));
+#if CONFIG_C071_SUBBLK_WARPMV
+      memset(&mi_params->mi_alloc_sub[alloc_mi_idx], 0,
+             sb_size_alloc_mi * sizeof(*mi_params->mi_alloc_sub));
+#endif  // CONFIG_C071_SUBBLK_WARPMV
     }
   }
 }
@@ -1524,7 +1650,7 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   av1_save_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size, num_planes);
 
-  sb_fp_stats->rd_count = cpi->td.rd_counts;
+  sb_fp_stats->rd_count = td->rd_counts;
   sb_fp_stats->split_count = x->txfm_search_info.txb_split_count;
 
   sb_fp_stats->fc = *td->counts;
@@ -1538,11 +1664,15 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
   const int alloc_mi_idx = get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
   sb_fp_stats->current_qindex =
       cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex;
-
-#if CONFIG_INTERNAL_STATS
-  memcpy(sb_fp_stats->mode_chosen_counts, cpi->mode_chosen_counts,
-         sizeof(sb_fp_stats->mode_chosen_counts));
-#endif  // CONFIG_INTERNAL_STATS
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  sb_fp_stats->ref_mv_bank = td->mb.e_mbd.ref_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  sb_fp_stats->warp_param_bank = td->mb.e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
+#if CONFIG_EXT_RECUR_PARTITIONS
+  sb_fp_stats->min_partition_size = x->sb_enc.min_partition_size;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
@@ -1554,10 +1684,10 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
 
-  av1_restore_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size,
+  av1_restore_context(cm, x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size,
                       num_planes);
 
-  cpi->td.rd_counts = sb_fp_stats->rd_count;
+  td->rd_counts = sb_fp_stats->rd_count;
   x->txfm_search_info.txb_split_count = sb_fp_stats->split_count;
 
   *td->counts = sb_fp_stats->fc;
@@ -1570,11 +1700,15 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
   const int alloc_mi_idx = get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
   cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex =
       sb_fp_stats->current_qindex;
-
-#if CONFIG_INTERNAL_STATS
-  memcpy(cpi->mode_chosen_counts, sb_fp_stats->mode_chosen_counts,
-         sizeof(sb_fp_stats->mode_chosen_counts));
-#endif  // CONFIG_INTERNAL_STATS
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  x->e_mbd.ref_mv_bank = sb_fp_stats->ref_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  x->e_mbd.warp_param_bank = sb_fp_stats->warp_param_bank;
+#endif  // WARP_CU_BANK
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->sb_enc.min_partition_size = sb_fp_stats->min_partition_size;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 // Update the rate costs of some symbols according to the frequency directed
@@ -1611,11 +1745,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       if (mi_col != tile_info->mi_col_start) break;
       AOM_FALLTHROUGH_INTENDED;
     case COST_UPD_SB:  // SB level
-#if CONFIG_SDP
       av1_fill_mode_rates(cm, xd, &x->mode_costs, xd->tile_ctx);
-#else
-      av1_fill_mode_rates(cm, &x->mode_costs, xd->tile_ctx);
-#endif
       break;
     default: assert(0);
   }
@@ -1632,7 +1762,20 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
           mi_col != tile_info->mi_col_start)
         break;
       av1_fill_mv_costs(xd->tile_ctx, cm->features.cur_frame_force_integer_mv,
+#if CONFIG_FLEX_MVRES
+                        cm->features.fr_mv_precision, &x->mv_costs);
+#else
                         cm->features.allow_high_precision_mv, &x->mv_costs);
+#endif
+#if CONFIG_BVCOST_UPDATE
+      if (cm->features.allow_intrabc) {
+#if CONFIG_FLEX_MVRES
+        fill_dv_costs(&x->dv_costs, xd->tile_ctx, &x->mv_costs);
+#else
+        av1_fill_dv_costs(xd->tile_ctx, &x->dv_costs);
+#endif
+      }
+#endif  // CONFIG_BVCOST_UPDATE
       break;
     default: assert(0);
   }

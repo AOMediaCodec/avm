@@ -248,60 +248,6 @@ class ConvolveHorizRSTestBase : public ::testing::Test {
   TestImage<Pixel> *image_;
 };
 
-typedef void (*LowBDConvolveHorizRsFunc)(const uint8_t *src, int src_stride,
-                                         uint8_t *dst, int dst_stride, int w,
-                                         int h, const int16_t *x_filters,
-                                         const int x0_qn, const int x_step_qn);
-
-// Test parameter list:
-//  <tst_fun_>
-typedef tuple<LowBDConvolveHorizRsFunc> LowBDParams;
-
-class LowBDConvolveHorizRSTest
-    : public ConvolveHorizRSTestBase<uint8_t>,
-      public ::testing::WithParamInterface<LowBDParams> {
- public:
-  virtual ~LowBDConvolveHorizRSTest() {}
-
-  void SetUp() {
-    tst_fun_ = GET_PARAM(0);
-    const int bd = 8;
-    SetBitDepth(bd);
-  }
-
-  void RunOne(bool ref) {
-    const uint8_t *src = image_->GetSrcData(ref, false);
-    uint8_t *dst = image_->GetDstData(ref, false);
-    const int src_stride = image_->src_stride();
-    const int dst_stride = image_->dst_stride();
-    const int width_src = image_->src_width();
-    const int width_dst = image_->dst_width();
-    const int height = image_->height();
-    const int x0_qn = image_->x0();
-
-    const int32_t x_step_qn =
-        av1_get_upscale_convolve_step(width_src, width_dst);
-
-    if (ref) {
-      av1_convolve_horiz_rs_c(src, src_stride, dst, dst_stride, width_dst,
-                              height, &av1_resize_filter_normative[0][0], x0_qn,
-                              x_step_qn);
-    } else {
-      tst_fun_(src, src_stride, dst, dst_stride, width_dst, height,
-               &av1_resize_filter_normative[0][0], x0_qn, x_step_qn);
-    }
-  }
-
- private:
-  LowBDConvolveHorizRsFunc tst_fun_;
-};
-
-TEST_P(LowBDConvolveHorizRSTest, Correctness) { CorrectnessTest(); }
-TEST_P(LowBDConvolveHorizRSTest, DISABLED_Speed) { SpeedTest(); }
-
-INSTANTIATE_TEST_SUITE_P(SSE4_1, LowBDConvolveHorizRSTest,
-                         ::testing::Values(av1_convolve_horiz_rs_sse4_1));
-
 typedef void (*HighBDConvolveHorizRsFunc)(const uint16_t *src, int src_stride,
                                           uint16_t *dst, int dst_stride, int w,
                                           int h, const int16_t *x_filters,

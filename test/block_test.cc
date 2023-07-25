@@ -18,6 +18,7 @@
 #include "test/y4m_video_source.h"
 #include "test/util.h"
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 // Verify the optimized implementation of get_partition_subsize() produces the
 // same results as the Partition_Subsize lookup table in the spec.
 TEST(BlockdTest, GetPartitionSubsize) {
@@ -197,5 +198,6 @@ AV1_INSTANTIATE_TEST_SUITE(SuperBlockSizeTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AOM_SUPERBLOCK_SIZE_64X64,
                                              AOM_SUPERBLOCK_SIZE_128X128),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ));
+#endif  // !EXT_RECUR_PARTITIONS
 }  // namespace
 #endif

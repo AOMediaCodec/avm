@@ -46,11 +46,6 @@ list(
   "${AOM_ROOT}/test/util.h"
   "${AOM_ROOT}/test/video_source.h")
 
-if(CONFIG_INTERNAL_STATS)
-  list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
-       "${AOM_ROOT}/test/hbd_metrics_test.cc")
-endif()
-
 list(
   APPEND
   AOM_UNIT_TEST_DECODER_SOURCES
@@ -100,7 +95,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/hiprec_convolve_test_util.h"
     "${AOM_ROOT}/test/intrabc_test.cc"
     "${AOM_ROOT}/test/intrapred_test.cc"
-    "${AOM_ROOT}/test/lpf_test.cc"
     "${AOM_ROOT}/test/opt_flow_test.cc"
     "${AOM_ROOT}/test/scan_test.cc"
     "${AOM_ROOT}/test/selfguided_filter_test.cc"
@@ -122,7 +116,6 @@ if(NOT BUILD_SHARED_LIBS)
       "${AOM_ROOT}/test/binary_codes_test.cc"
       "${AOM_ROOT}/test/boolcoder_test.cc"
       "${AOM_ROOT}/test/cnn_test.cc"
-      "${AOM_ROOT}/test/coding_path_sync.cc"
       "${AOM_ROOT}/test/decode_multithreaded_test.cc"
       "${AOM_ROOT}/test/divu_small_test.cc"
       "${AOM_ROOT}/test/dr_prediction_test.cc"
@@ -139,6 +132,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AOM_ROOT}/test/segment_binarization_sync.cc"
       "${AOM_ROOT}/test/still_picture_test.cc"
       "${AOM_ROOT}/test/subgop_test.cc"
+      "${AOM_ROOT}/test/sef_test.cc"
       "${AOM_ROOT}/test/superframe_test.cc"
       "${AOM_ROOT}/test/tile_config_test.cc"
       "${AOM_ROOT}/test/tile_independence_test.cc"
@@ -191,13 +185,12 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/av1_fwd_txfm1d_test.cc"
     "${AOM_ROOT}/test/av1_fwd_txfm2d_test.cc"
     "${AOM_ROOT}/test/av1_inv_txfm1d_test.cc"
-    "${AOM_ROOT}/test/av1_inv_txfm2d_test.cc"
     "${AOM_ROOT}/test/av1_nn_predict_test.cc"
     "${AOM_ROOT}/test/av1_round_shift_array_test.cc"
     "${AOM_ROOT}/test/av1_txfm_test.cc"
     "${AOM_ROOT}/test/av1_txfm_test.h"
     "${AOM_ROOT}/test/av1_wedge_utils_test.cc"
-    "${AOM_ROOT}/test/avg_test.cc"
+    "${AOM_ROOT}/test/av1_ccso_simd_cmp.cc"
     "${AOM_ROOT}/test/blend_a64_mask_1d_test.cc"
     "${AOM_ROOT}/test/blend_a64_mask_test.cc"
     "${AOM_ROOT}/test/comp_avg_pred_test.cc"
@@ -209,7 +202,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/fft_test.cc"
     "${AOM_ROOT}/test/fwht4x4_test.cc"
     "${AOM_ROOT}/test/fdct4x4_test.cc"
-    "${AOM_ROOT}/test/hadamard_test.cc"
     "${AOM_ROOT}/test/horver_correlation_test.cc"
     "${AOM_ROOT}/test/masked_sad_test.cc"
     "${AOM_ROOT}/test/masked_variance_test.cc"
@@ -227,7 +219,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/sse_sum_test.cc"
     "${AOM_ROOT}/test/variance_test.cc"
     "${AOM_ROOT}/test/wiener_test.cc"
-    "${AOM_ROOT}/test/frame_error_test.cc"
     "${AOM_ROOT}/test/warp_filter_test.cc"
     "${AOM_ROOT}/test/warp_filter_test_util.cc"
     "${AOM_ROOT}/test/warp_filter_test_util.h"
@@ -243,7 +234,7 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/av1_quantize_test.cc"
     "${AOM_ROOT}/test/corner_match_test.cc" "${AOM_ROOT}/test/simd_cmp_sse4.cc")
 
-  if(NOT (HAVE_SSE2 OR HAVE_NEON))
+  if(NOT HAVE_SSE2)
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES
          "${AOM_ROOT}/test/quantize_func_test.cc")
   endif()

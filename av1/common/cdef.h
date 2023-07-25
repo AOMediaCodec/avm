@@ -34,6 +34,14 @@ static INLINE int constrain(int diff, int threshold, int damping) {
          AOMMIN(abs(diff), AOMMAX(0, threshold - (abs(diff) >> shift)));
 }
 
+static AOM_INLINE int av1_get_cdef_transmitted_index(int mi_row, int mi_col) {
+  // Find index of this CDEF unit in this superblock.
+  const int index_mask = 1 << MI_IN_CDEF_LINEAR_LOG2;
+  const int cdef_unit_row_in_sb = !!(mi_row & index_mask);
+  const int cdef_unit_col_in_sb = !!(mi_col & index_mask);
+  return cdef_unit_col_in_sb + CDEF_IN_SB_STRIDE * cdef_unit_row_in_sb;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,8 +59,7 @@ int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
  * \param[in, out]  cm          Pointer to top level common structure
  * \param[in]       xd          Pointer to common current coding block structure
  *
- * \return Nothing is returned. Instead, the filtered frame is output in
- * \c frame.
+ * Nothing is returned. Instead, the filtered frame is output in \c frame.
  */
 void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd);
 

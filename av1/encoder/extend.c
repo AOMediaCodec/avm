@@ -17,54 +17,11 @@
 #include "av1/common/common.h"
 #include "av1/encoder/extend.h"
 
-static void copy_and_extend_plane(const uint8_t *src, int src_pitch,
-                                  uint8_t *dst, int dst_pitch, int w, int h,
-                                  int extend_top, int extend_left,
-                                  int extend_bottom, int extend_right) {
-  int i, linesize;
-
-  // copy the left and right most columns out
-  const uint8_t *src_ptr1 = src;
-  const uint8_t *src_ptr2 = src + w - 1;
-  uint8_t *dst_ptr1 = dst - extend_left;
-  uint8_t *dst_ptr2 = dst + w;
-
-  for (i = 0; i < h; i++) {
-    memset(dst_ptr1, src_ptr1[0], extend_left);
-    memcpy(dst_ptr1 + extend_left, src_ptr1, w);
-    memset(dst_ptr2, src_ptr2[0], extend_right);
-    src_ptr1 += src_pitch;
-    src_ptr2 += src_pitch;
-    dst_ptr1 += dst_pitch;
-    dst_ptr2 += dst_pitch;
-  }
-
-  // Now copy the top and bottom lines into each line of the respective
-  // borders
-  src_ptr1 = dst - extend_left;
-  src_ptr2 = dst + dst_pitch * (h - 1) - extend_left;
-  dst_ptr1 = dst + dst_pitch * (-extend_top) - extend_left;
-  dst_ptr2 = dst + dst_pitch * (h)-extend_left;
-  linesize = extend_left + extend_right + w;
-
-  for (i = 0; i < extend_top; i++) {
-    memcpy(dst_ptr1, src_ptr1, linesize);
-    dst_ptr1 += dst_pitch;
-  }
-
-  for (i = 0; i < extend_bottom; i++) {
-    memcpy(dst_ptr2, src_ptr2, linesize);
-    dst_ptr2 += dst_pitch;
-  }
-}
-
-static void highbd_copy_and_extend_plane(const uint8_t *src8, int src_pitch,
-                                         uint8_t *dst8, int dst_pitch, int w,
+static void highbd_copy_and_extend_plane(const uint16_t *src, int src_pitch,
+                                         uint16_t *dst, int dst_pitch, int w,
                                          int h, int extend_top, int extend_left,
                                          int extend_bottom, int extend_right) {
   int i, linesize;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
 
   // copy the left and right most columns out
   const uint16_t *src_ptr1 = src;
@@ -119,30 +76,15 @@ void av1_copy_and_extend_frame(const YV12_BUFFER_CONFIG *src,
   const int eb_uv = eb_y >> uv_height_subsampling;
   const int er_uv = er_y >> uv_width_subsampling;
 
-  if (src->flags & YV12_FLAG_HIGHBITDEPTH) {
-    highbd_copy_and_extend_plane(src->y_buffer, src->y_stride, dst->y_buffer,
-                                 dst->y_stride, src->y_crop_width,
-                                 src->y_crop_height, et_y, el_y, eb_y, er_y);
-    if (!src->monochrome) {
-      highbd_copy_and_extend_plane(
-          src->u_buffer, src->uv_stride, dst->u_buffer, dst->uv_stride,
-          src->uv_crop_width, src->uv_crop_height, et_uv, el_uv, eb_uv, er_uv);
-      highbd_copy_and_extend_plane(
-          src->v_buffer, src->uv_stride, dst->v_buffer, dst->uv_stride,
-          src->uv_crop_width, src->uv_crop_height, et_uv, el_uv, eb_uv, er_uv);
-    }
-    return;
-  }
-
-  copy_and_extend_plane(src->y_buffer, src->y_stride, dst->y_buffer,
-                        dst->y_stride, src->y_crop_width, src->y_crop_height,
-                        et_y, el_y, eb_y, er_y);
+  highbd_copy_and_extend_plane(src->y_buffer, src->y_stride, dst->y_buffer,
+                               dst->y_stride, src->y_crop_width,
+                               src->y_crop_height, et_y, el_y, eb_y, er_y);
   if (!src->monochrome) {
-    copy_and_extend_plane(src->u_buffer, src->uv_stride, dst->u_buffer,
-                          dst->uv_stride, src->uv_crop_width,
-                          src->uv_crop_height, et_uv, el_uv, eb_uv, er_uv);
-    copy_and_extend_plane(src->v_buffer, src->uv_stride, dst->v_buffer,
-                          dst->uv_stride, src->uv_crop_width,
-                          src->uv_crop_height, et_uv, el_uv, eb_uv, er_uv);
+    highbd_copy_and_extend_plane(
+        src->u_buffer, src->uv_stride, dst->u_buffer, dst->uv_stride,
+        src->uv_crop_width, src->uv_crop_height, et_uv, el_uv, eb_uv, er_uv);
+    highbd_copy_and_extend_plane(
+        src->v_buffer, src->uv_stride, dst->v_buffer, dst->uv_stride,
+        src->uv_crop_width, src->uv_crop_height, et_uv, el_uv, eb_uv, er_uv);
   }
 }

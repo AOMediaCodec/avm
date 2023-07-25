@@ -59,107 +59,6 @@
  *
  * Note: For 4:2:0 luma subsampling, the width will never be greater than 16.
  */
-static void cfl_luma_subsampling_420_lbd_avx2(const uint8_t *input,
-                                              int input_stride,
-                                              uint16_t *pred_buf_q3, int width,
-                                              int height) {
-  (void)width;                               // Forever 32
-  const __m256i twos = _mm256_set1_epi8(2);  // Thirty two twos
-  const int luma_stride = input_stride << 1;
-  __m256i *row = (__m256i *)pred_buf_q3;
-  const __m256i *row_end = row + (height >> 1) * CFL_BUF_LINE_I256;
-  do {
-    __m256i top = _mm256_loadu_si256((__m256i *)input);
-    __m256i bot = _mm256_loadu_si256((__m256i *)(input + input_stride));
-
-    __m256i top_16x16 = _mm256_maddubs_epi16(top, twos);
-    __m256i bot_16x16 = _mm256_maddubs_epi16(bot, twos);
-    __m256i sum_16x16 = _mm256_add_epi16(top_16x16, bot_16x16);
-
-    _mm256_storeu_si256(row, sum_16x16);
-
-    input += luma_stride;
-  } while ((row += CFL_BUF_LINE_I256) < row_end);
-}
-
-CFL_GET_SUBSAMPLE_FUNCTION_AVX2(420, lbd)
-
-/**
- * Adds 2 pixels (in a 2x1 grid) and multiplies them by 4. Resulting in a more
- * precise version of a box filter 4:2:2 pixel subsampling in Q3.
- *
- * The CfL prediction buffer is always of size CFL_BUF_SQUARE. However, the
- * active area is specified using width and height.
- *
- * Note: We don't need to worry about going over the active area, as long as we
- * stay inside the CfL prediction buffer.
- */
-static void cfl_luma_subsampling_422_lbd_avx2(const uint8_t *input,
-                                              int input_stride,
-                                              uint16_t *pred_buf_q3, int width,
-                                              int height) {
-  (void)width;                                // Forever 32
-  const __m256i fours = _mm256_set1_epi8(4);  // Thirty two fours
-  __m256i *row = (__m256i *)pred_buf_q3;
-  const __m256i *row_end = row + height * CFL_BUF_LINE_I256;
-  do {
-    __m256i top = _mm256_loadu_si256((__m256i *)input);
-    __m256i top_16x16 = _mm256_maddubs_epi16(top, fours);
-    _mm256_storeu_si256(row, top_16x16);
-    input += input_stride;
-  } while ((row += CFL_BUF_LINE_I256) < row_end);
-}
-
-CFL_GET_SUBSAMPLE_FUNCTION_AVX2(422, lbd)
-
-/**
- * Multiplies the pixels by 8 (scaling in Q3). The AVX2 subsampling is only
- * performed on block of width 32.
- *
- * The CfL prediction buffer is always of size CFL_BUF_SQUARE. However, the
- * active area is specified using width and height.
- *
- * Note: We don't need to worry about going over the active area, as long as we
- * stay inside the CfL prediction buffer.
- */
-static void cfl_luma_subsampling_444_lbd_avx2(const uint8_t *input,
-                                              int input_stride,
-                                              uint16_t *pred_buf_q3, int width,
-                                              int height) {
-  (void)width;  // Forever 32
-  __m256i *row = (__m256i *)pred_buf_q3;
-  const __m256i *row_end = row + height * CFL_BUF_LINE_I256;
-  const __m256i zeros = _mm256_setzero_si256();
-  do {
-    __m256i top = _mm256_loadu_si256((__m256i *)input);
-    top = _mm256_permute4x64_epi64(top, _MM_SHUFFLE(3, 1, 2, 0));
-
-    __m256i row_lo = _mm256_unpacklo_epi8(top, zeros);
-    row_lo = _mm256_slli_epi16(row_lo, 3);
-    __m256i row_hi = _mm256_unpackhi_epi8(top, zeros);
-    row_hi = _mm256_slli_epi16(row_hi, 3);
-
-    _mm256_storeu_si256(row, row_lo);
-    _mm256_storeu_si256(row + 1, row_hi);
-
-    input += input_stride;
-  } while ((row += CFL_BUF_LINE_I256) < row_end);
-}
-
-CFL_GET_SUBSAMPLE_FUNCTION_AVX2(444, lbd)
-
-/**
- * Adds 4 pixels (in a 2x2 grid) and multiplies them by 2. Resulting in a more
- * precise version of a box filter 4:2:0 pixel subsampling in Q3.
- *
- * The CfL prediction buffer is always of size CFL_BUF_SQUARE. However, the
- * active area is specified using width and height.
- *
- * Note: We don't need to worry about going over the active area, as long as we
- * stay inside the CfL prediction buffer.
- *
- * Note: For 4:2:0 luma subsampling, the width will never be greater than 16.
- */
 static void cfl_luma_subsampling_420_hbd_avx2(const uint16_t *input,
                                               int input_stride,
                                               uint16_t *pred_buf_q3, int width,
@@ -250,57 +149,6 @@ static INLINE __m256i predict_unclipped(const __m256i *input, __m256i alpha_q12,
   return _mm256_add_epi16(scaled_luma_q0, dc_q0);
 }
 
-static INLINE void cfl_predict_lbd_avx2(const int16_t *pred_buf_q3,
-                                        uint8_t *dst, int dst_stride,
-                                        int alpha_q3, int width, int height) {
-  (void)width;
-  const __m256i alpha_sign = _mm256_set1_epi16(alpha_q3);
-  const __m256i alpha_q12 = _mm256_slli_epi16(_mm256_abs_epi16(alpha_sign), 9);
-  const __m256i dc_q0 = _mm256_set1_epi16(*dst);
-  __m256i *row = (__m256i *)pred_buf_q3;
-  const __m256i *row_end = row + height * CFL_BUF_LINE_I256;
-
-  do {
-    __m256i res = predict_unclipped(row, alpha_q12, alpha_sign, dc_q0);
-    __m256i next = predict_unclipped(row + 1, alpha_q12, alpha_sign, dc_q0);
-    res = _mm256_packus_epi16(res, next);
-    res = _mm256_permute4x64_epi64(res, _MM_SHUFFLE(3, 1, 2, 0));
-    _mm256_storeu_si256((__m256i *)dst, res);
-    dst += dst_stride;
-  } while ((row += CFL_BUF_LINE_I256) < row_end);
-}
-
-CFL_PREDICT_X(avx2, 32, 8, lbd);
-CFL_PREDICT_X(avx2, 32, 16, lbd);
-CFL_PREDICT_X(avx2, 32, 32, lbd);
-
-cfl_predict_lbd_fn cfl_get_predict_lbd_fn_avx2(TX_SIZE tx_size) {
-  static const cfl_predict_lbd_fn pred[TX_SIZES_ALL] = {
-    cfl_predict_lbd_4x4_ssse3,   /* 4x4 */
-    cfl_predict_lbd_8x8_ssse3,   /* 8x8 */
-    cfl_predict_lbd_16x16_ssse3, /* 16x16 */
-    cfl_predict_lbd_32x32_avx2,  /* 32x32 */
-    NULL,                        /* 64x64 (invalid CFL size) */
-    cfl_predict_lbd_4x8_ssse3,   /* 4x8 */
-    cfl_predict_lbd_8x4_ssse3,   /* 8x4 */
-    cfl_predict_lbd_8x16_ssse3,  /* 8x16 */
-    cfl_predict_lbd_16x8_ssse3,  /* 16x8 */
-    cfl_predict_lbd_16x32_ssse3, /* 16x32 */
-    cfl_predict_lbd_32x16_avx2,  /* 32x16 */
-    NULL,                        /* 32x64 (invalid CFL size) */
-    NULL,                        /* 64x32 (invalid CFL size) */
-    cfl_predict_lbd_4x16_ssse3,  /* 4x16  */
-    cfl_predict_lbd_16x4_ssse3,  /* 16x4  */
-    cfl_predict_lbd_8x32_ssse3,  /* 8x32  */
-    cfl_predict_lbd_32x8_avx2,   /* 32x8  */
-    NULL,                        /* 16x64 (invalid CFL size) */
-    NULL,                        /* 64x16 (invalid CFL size) */
-  };
-  // Modulo TX_SIZES_ALL to ensure that an attacker won't be able to index the
-  // function pointer array out of bounds.
-  return pred[tx_size % TX_SIZES_ALL];
-}
-
 static __m256i highbd_max_epi16(int bd) {
   const __m256i neg_one = _mm256_set1_epi16(-1);
   // (1 << bd) - 1 => -(-1 << bd) -1 => -1 - (-1 << bd) => -1 ^ (-1 << bd)
@@ -318,7 +166,8 @@ static INLINE void cfl_predict_hbd_avx2(const int16_t *pred_buf_q3,
   // Use SSSE3 version for smaller widths
   assert(width == 16 || width == 32);
   const __m256i alpha_sign = _mm256_set1_epi16(alpha_q3);
-  const __m256i alpha_q12 = _mm256_slli_epi16(_mm256_abs_epi16(alpha_sign), 9);
+  const __m256i alpha_q12 =
+      _mm256_slli_epi16(_mm256_abs_epi16(alpha_sign), (9 - CFL_ADD_BITS_ALPHA));
   const __m256i dc_q0 = _mm256_loadu_si256((__m256i *)dst);
   const __m256i max = highbd_max_epi16(bd);
 

@@ -285,7 +285,8 @@ We recommend automating the formatting by adding a
 
 ~~~
 #!/bin/bash
-CLANG_FORMAT_PATH=/usr/bin/
+# Replace 'VERSION' below to match clang-format version in the CI.
+CLANG_FORMAT_PATH=/usr/lib/llvm-VERSION/bin
 CMAKE_FORMAT_PATH=${HOME}/.local/bin/
 
 echo "Applying clang-format ..."

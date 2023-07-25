@@ -257,9 +257,9 @@ uint64_t aom_var_2d_u8_avx2(uint8_t *src, int src_stride, int width,
   return (ss - s * s / (width * height));
 }
 
-uint64_t aom_var_2d_u16_avx2(uint8_t *src, int src_stride, int width,
+uint64_t aom_var_2d_u16_avx2(uint16_t *srcp1, int src_stride, int width,
                              int height) {
-  uint16_t *srcp1 = CONVERT_TO_SHORTPTR(src), *srcp;
+  uint16_t *srcp;
   uint64_t s = 0, ss = 0;
   __m256i vzero = _mm256_setzero_si256();
   __m256i v_acc_sum = vzero;

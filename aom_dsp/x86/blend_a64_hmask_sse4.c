@@ -17,19 +17,10 @@
 // To start out, just dispatch to the function using the 2D mask and
 // pass mask stride as 0. This can be improved upon if necessary.
 
-void aom_blend_a64_hmask_sse4_1(uint8_t *dst, uint32_t dst_stride,
-                                const uint8_t *src0, uint32_t src0_stride,
-                                const uint8_t *src1, uint32_t src1_stride,
-                                const uint8_t *mask, int w, int h) {
-  aom_blend_a64_mask_sse4_1(dst, dst_stride, src0, src0_stride, src1,
-                            src1_stride, mask, 0, w, h, 0, 0);
-}
-
 void aom_highbd_blend_a64_hmask_sse4_1(
-    uint8_t *dst_8, uint32_t dst_stride, const uint8_t *src0_8,
-    uint32_t src0_stride, const uint8_t *src1_8, uint32_t src1_stride,
+    uint16_t *dst, uint32_t dst_stride, const uint16_t *src0,
+    uint32_t src0_stride, const uint16_t *src1, uint32_t src1_stride,
     const uint8_t *mask, int w, int h, int bd) {
-  aom_highbd_blend_a64_mask_sse4_1(dst_8, dst_stride, src0_8, src0_stride,
-                                   src1_8, src1_stride, mask, 0, w, h, 0, 0,
-                                   bd);
+  aom_highbd_blend_a64_mask_sse4_1(dst, dst_stride, src0, src0_stride, src1,
+                                   src1_stride, mask, 0, w, h, 0, 0, bd);
 }

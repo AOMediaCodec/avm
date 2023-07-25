@@ -77,25 +77,17 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
   img->r_h = yv12->render_height;
   img->x_chroma_shift = yv12->subsampling_x;
   img->y_chroma_shift = yv12->subsampling_y;
-  img->planes[AOM_PLANE_Y] = yv12->y_buffer;
-  img->planes[AOM_PLANE_U] = yv12->u_buffer;
-  img->planes[AOM_PLANE_V] = yv12->v_buffer;
-  img->stride[AOM_PLANE_Y] = yv12->y_stride;
-  img->stride[AOM_PLANE_U] = yv12->uv_stride;
-  img->stride[AOM_PLANE_V] = yv12->uv_stride;
-  if (yv12->flags & YV12_FLAG_HIGHBITDEPTH) {
-    bps *= 2;
-    // aom_image_t uses byte strides and a pointer to the first byte
-    // of the image.
-    img->fmt = (aom_img_fmt_t)(img->fmt | AOM_IMG_FMT_HIGHBITDEPTH);
-    img->bit_depth = yv12->bit_depth;
-    img->planes[AOM_PLANE_Y] = (uint8_t *)CONVERT_TO_SHORTPTR(yv12->y_buffer);
-    img->planes[AOM_PLANE_U] = (uint8_t *)CONVERT_TO_SHORTPTR(yv12->u_buffer);
-    img->planes[AOM_PLANE_V] = (uint8_t *)CONVERT_TO_SHORTPTR(yv12->v_buffer);
-    img->stride[AOM_PLANE_Y] = 2 * yv12->y_stride;
-    img->stride[AOM_PLANE_U] = 2 * yv12->uv_stride;
-    img->stride[AOM_PLANE_V] = 2 * yv12->uv_stride;
-  }
+  bps *= 2;
+  // aom_image_t uses byte strides and a pointer to the first byte
+  // of the image.
+  img->fmt = (aom_img_fmt_t)(img->fmt | AOM_IMG_FMT_HIGHBITDEPTH);
+  img->bit_depth = yv12->bit_depth;
+  img->planes[AOM_PLANE_Y] = (uint8_t *)yv12->y_buffer;
+  img->planes[AOM_PLANE_U] = (uint8_t *)yv12->u_buffer;
+  img->planes[AOM_PLANE_V] = (uint8_t *)yv12->v_buffer;
+  img->stride[AOM_PLANE_Y] = 2 * yv12->y_stride;
+  img->stride[AOM_PLANE_U] = 2 * yv12->uv_stride;
+  img->stride[AOM_PLANE_V] = 2 * yv12->uv_stride;
   img->bps = bps;
   img->user_priv = user_priv;
   img->img_data = yv12->buffer_alloc;
@@ -108,9 +100,9 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
 
 static aom_codec_err_t image2yuvconfig(const aom_image_t *img,
                                        YV12_BUFFER_CONFIG *yv12) {
-  yv12->y_buffer = img->planes[AOM_PLANE_Y];
-  yv12->u_buffer = img->planes[AOM_PLANE_U];
-  yv12->v_buffer = img->planes[AOM_PLANE_V];
+  yv12->y_buffer = (uint16_t *)img->planes[AOM_PLANE_Y];
+  yv12->u_buffer = (uint16_t *)img->planes[AOM_PLANE_U];
+  yv12->v_buffer = (uint16_t *)img->planes[AOM_PLANE_V];
 
   yv12->y_crop_width = img->d_w;
   yv12->y_crop_height = img->d_h;
@@ -135,26 +127,18 @@ static aom_codec_err_t image2yuvconfig(const aom_image_t *img,
   yv12->chroma_sample_position = img->csp;
   yv12->color_range = img->range;
 
-  if (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
-    // In aom_image_t
-    //     planes point to uint8 address of start of data
-    //     stride counts uint8s to reach next row
-    // In YV12_BUFFER_CONFIG
-    //     y_buffer, u_buffer, v_buffer point to uint16 address of data
-    //     stride and border counts in uint16s
-    // This means that all the address calculations in the main body of code
-    // should work correctly.
-    // However, before we do any pixel operations we need to cast the address
-    // to a uint16 ponter and double its value.
-    yv12->y_buffer = CONVERT_TO_BYTEPTR(yv12->y_buffer);
-    yv12->u_buffer = CONVERT_TO_BYTEPTR(yv12->u_buffer);
-    yv12->v_buffer = CONVERT_TO_BYTEPTR(yv12->v_buffer);
-    yv12->y_stride >>= 1;
-    yv12->uv_stride >>= 1;
-    yv12->flags = YV12_FLAG_HIGHBITDEPTH;
-  } else {
-    yv12->flags = 0;
-  }
+  // In aom_image_t
+  //     planes point to uint8 address of start of data
+  //     stride counts uint8s to reach next row
+  // In YV12_BUFFER_CONFIG
+  //     y_buffer, u_buffer, v_buffer point to uint16 address of data
+  //     stride and border counts in uint16s
+  // This means that all the address calculations in the main body of code
+  // should work correctly.
+  // However, before we do any pixel operations we need to cast the address
+  // to a uint16 ponter and double its value.
+  yv12->y_stride >>= 1;
+  yv12->uv_stride >>= 1;
 
   // Note(yunqing): if img is allocated the same as the frame buffer, y_stride
   // is 32-byte aligned. Also, handle the cases while allocating img without a
@@ -167,4 +151,18 @@ static aom_codec_err_t image2yuvconfig(const aom_image_t *img,
   return AOM_CODEC_OK;
 }
 
+static void image2yuvconfig_upshift(aom_image_t *hbd_img,
+                                    const aom_image_t *img,
+                                    YV12_BUFFER_CONFIG *yv12) {
+  aom_img_upshift(hbd_img, img, 0);
+  // Copy some properties aom_img_upshift() ignores
+  hbd_img->cp = img->cp;
+  hbd_img->tc = img->tc;
+  hbd_img->mc = img->mc;
+  hbd_img->monochrome = img->monochrome;
+  hbd_img->csp = img->csp;
+  hbd_img->range = img->range;
+  image2yuvconfig(hbd_img, yv12);
+  yv12->metadata = img->metadata;
+}
 #endif  // AOM_AV1_AV1_IFACE_COMMON_H_

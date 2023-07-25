@@ -29,6 +29,10 @@ if(DEFINED CONFIG_LOWBITDEPTH)
     high bit depth internal pipeline is always used.")
 endif()
 
+if(CONFIG_ERP_TFLITE)
+  experiment_requires_tf_lite(CONFIG_EXT_RECUR_PARTITIONS)
+endif()
+
 # Generate the user config settings.
 list(APPEND aom_build_vars ${AOM_CONFIG_VARS} ${AOM_OPTION_VARS})
 foreach(cache_var ${aom_build_vars})

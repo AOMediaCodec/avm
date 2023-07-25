@@ -2605,7 +2605,6 @@ void av1_fwd_txfm2d_64x16_sse4_1(const int16_t *input, int32_t *coeff,
 }
 
 // Forward secondary transform
-#if CONFIG_IST
 void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
                       const PREDICTION_MODE mode, const uint8_t stx_idx,
                       const int size) {
@@ -2644,4 +2643,3 @@ void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
     kernel += (size * size);
   }
 }
-#endif

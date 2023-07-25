@@ -312,7 +312,6 @@ class ExternalFrameBufferTest : public ::testing::Test {
     video_->Begin();
 
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
-    cfg.allow_lowbitdepth = 0;
     decoder_ = new libaom_test::AV1Decoder(cfg, 0);
     ASSERT_TRUE(decoder_ != NULL);
   }
@@ -380,7 +379,6 @@ class ExternalFrameBufferNonRefTest : public ExternalFrameBufferTest {
     video_->Begin();
 
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
-    cfg.allow_lowbitdepth = 0;
     decoder_ = new libaom_test::AV1Decoder(cfg, 0);
     ASSERT_TRUE(decoder_ != NULL);
   }
@@ -429,7 +427,6 @@ TEST_P(ExternalFrameBufferMD5Test, DISABLED_ExtFBMD5Match) {
   OpenMD5File(md5_filename);
 
   // Set decode config.
-  cfg.allow_lowbitdepth = 0;
   set_cfg(cfg);
 
   // Decode frame, and check the md5 matching.

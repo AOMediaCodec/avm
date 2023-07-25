@@ -121,44 +121,9 @@ static AOM_INLINE int get_hist_bin_idx(int dx, int dy) {
 }
 #undef FIX_PREC_BITS
 
-static AOM_INLINE void generate_hog(const uint8_t *src, int stride, int rows,
-                                    int cols, float *hist) {
-  float total = 0.1f;
-  src += stride;
-  for (int r = 1; r < rows - 1; ++r) {
-    for (int c = 1; c < cols - 1; ++c) {
-      const uint8_t *above = &src[c - stride];
-      const uint8_t *below = &src[c + stride];
-      const uint8_t *left = &src[c - 1];
-      const uint8_t *right = &src[c + 1];
-      // Calculate gradient using Sobel fitlers.
-      const int dx = (right[-stride] + 2 * right[0] + right[stride]) -
-                     (left[-stride] + 2 * left[0] + left[stride]);
-      const int dy = (below[-1] + 2 * below[0] + below[1]) -
-                     (above[-1] + 2 * above[0] + above[1]);
-      if (dx == 0 && dy == 0) continue;
-      const int temp = abs(dx) + abs(dy);
-      if (!temp) continue;
-      total += temp;
-      if (dx == 0) {
-        hist[0] += temp / 2;
-        hist[BINS - 1] += temp / 2;
-      } else {
-        const int idx = get_hist_bin_idx(dx, dy);
-        assert(idx >= 0 && idx < BINS);
-        hist[idx] += temp;
-      }
-    }
-    src += stride;
-  }
-
-  for (int i = 0; i < BINS; ++i) hist[i] /= total;
-}
-
-static AOM_INLINE void generate_hog_hbd(const uint8_t *src8, int stride,
+static AOM_INLINE void generate_hog_hbd(const uint16_t *src, int stride,
                                         int rows, int cols, float *hist) {
   float total = 0.1f;
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
   src += stride;
   for (int r = 1; r < rows - 1; ++r) {
     for (int c = 1; c < cols - 1; ++c) {
@@ -203,13 +168,9 @@ static AOM_INLINE void prune_intra_mode_with_hog(
   const int cols =
       (xd->mb_to_right_edge >= 0) ? bw : (xd->mb_to_right_edge >> 3) + bw;
   const int src_stride = x->plane[0].src.stride;
-  const uint8_t *src = x->plane[0].src.buf;
+  const uint16_t *src = x->plane[0].src.buf;
   float hist[BINS] = { 0.0f };
-  if (is_cur_buf_hbd(xd)) {
-    generate_hog_hbd(src, src_stride, rows, cols, hist);
-  } else {
-    generate_hog(src, src_stride, rows, cols, hist);
-  }
+  generate_hog_hbd(src, src_stride, rows, cols, hist);
 
   for (int i = 0; i < DIRECTIONAL_MODES; ++i) {
     float this_score = intra_hog_model_bias[i];
@@ -249,22 +210,13 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
   const int use_palette = mbmi->palette_mode_info.palette_size[0] > 0;
   const int use_filter_intra = mbmi->filter_intra_mode_info.use_filter_intra;
   const MACROBLOCKD *xd = &x->e_mbd;
-#if CONFIG_SDP
   const int use_intrabc = mbmi->use_intrabc[PLANE_TYPE_Y];
-#else
-  const int use_intrabc = mbmi->use_intrabc;
-#endif
   // Can only activate one mode.
   assert(((mbmi->mode != DC_PRED) + use_palette + use_intrabc +
           use_filter_intra) <= 1);
-#if CONFIG_SDP
   const int try_palette =
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_Y]);
-#else
-  const int try_palette = av1_allow_palette(
-      cpi->common.features.allow_screen_content_tools, mbmi->sb_type);
-#endif
   if (try_palette && mbmi->mode == DC_PRED) {
     const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
     const int mode_ctx = av1_get_palette_mode_ctx(xd);
@@ -290,15 +242,16 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       total_rate += palette_mode_cost;
     }
   }
+  if (allow_fsc_intra(&cpi->common, xd, bsize, mbmi)) {
+    const int use_fsc = mbmi->fsc_mode[PLANE_TYPE_Y];
+    const int fsc_ctx = get_fsc_mode_ctx(xd, frame_is_intra_only(&cpi->common));
+    total_rate +=
+        mode_costs->fsc_cost[fsc_ctx][fsc_bsize_groups[bsize]][use_fsc];
+  }
   if (av1_filter_intra_allowed(&cpi->common, mbmi)) {
-#if CONFIG_SDP
     total_rate +=
         mode_costs
             ->filter_intra_cost[mbmi->sb_type[PLANE_TYPE_Y]][use_filter_intra];
-#else
-    total_rate +=
-        mode_costs->filter_intra_cost[mbmi->sb_type][use_filter_intra];
-#endif
     if (use_filter_intra) {
       total_rate +=
           mode_costs->filter_intra_mode_cost[mbmi->filter_intra_mode_info
@@ -308,26 +261,21 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
 #if !CONFIG_AIMC
   if (av1_is_directional_mode(mbmi->mode)) {
     if (av1_use_angle_delta(bsize)) {
-#if CONFIG_SDP
       total_rate +=
           mode_costs->angle_delta_cost[PLANE_TYPE_Y][mbmi->mode - V_PRED]
                                       [MAX_ANGLE_DELTA +
                                        mbmi->angle_delta[PLANE_TYPE_Y]];
-#else
-      total_rate +=
-          mode_costs->angle_delta_cost[mbmi->mode - V_PRED]
-                                      [MAX_ANGLE_DELTA +
-                                       mbmi->angle_delta[PLANE_TYPE_Y]];
-#endif
     }
   }
 #endif  // !CONFIG_AIMC
-#if CONFIG_SDP
-  if (av1_allow_intrabc(&cpi->common) && xd->tree_type != CHROMA_PART)
+  if (av1_allow_intrabc(&cpi->common) && xd->tree_type != CHROMA_PART) {
+#if CONFIG_NEW_CONTEXT_MODELING
+    const int intrabc_ctx = get_intrabc_ctx(xd);
+    total_rate += mode_costs->intrabc_cost[intrabc_ctx][use_intrabc];
 #else
-  if (av1_allow_intrabc(&cpi->common))
-#endif
     total_rate += mode_costs->intrabc_cost[use_intrabc];
+#endif  // CONFIG_NEW_CONTEXT_MODELING
+  }
   return total_rate;
 }
 
@@ -344,21 +292,12 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
   const int use_palette = mbmi->palette_mode_info.palette_size[1] > 0;
   const UV_PREDICTION_MODE mode = mbmi->uv_mode;
   // Can only activate one mode.
-#if CONFIG_SDP
   assert(mbmi->use_intrabc[PLANE_TYPE_UV] == 0);
   assert(((mode != UV_DC_PRED) + use_palette +
           mbmi->use_intrabc[PLANE_TYPE_UV]) <= 1);
-#else
-  assert(((mode != UV_DC_PRED) + use_palette + mbmi->use_intrabc) <= 1);
-#endif
-#if CONFIG_SDP
   const int try_palette =
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_UV]);
-#else
-  const int try_palette = av1_allow_palette(
-      cpi->common.features.allow_screen_content_tools, mbmi->sb_type);
-#endif
   if (try_palette && mode == UV_DC_PRED) {
     const PALETTE_MODE_INFO *pmi = &mbmi->palette_mode_info;
     total_rate +=
@@ -384,7 +323,6 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
 #if !CONFIG_AIMC
   if (av1_is_directional_mode(get_uv_mode(mode))) {
     if (av1_use_angle_delta(bsize)) {
-#if CONFIG_SDP
       if (cpi->common.seq_params.enable_sdp) {
         total_rate +=
             mode_costs->angle_delta_cost[PLANE_TYPE_UV][mode - V_PRED]
@@ -396,12 +334,6 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
                                         [mbmi->angle_delta[PLANE_TYPE_UV] +
                                          MAX_ANGLE_DELTA];
       }
-#else
-      total_rate +=
-          mode_costs->angle_delta_cost[mode - V_PRED]
-                                      [mbmi->angle_delta[PLANE_TYPE_UV] +
-                                       MAX_ANGLE_DELTA];
-#endif
     }
   }
 #endif  // !CONFIG_AIMC
@@ -416,11 +348,7 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_SDP
   assert(!is_inter_block(mbmi, xd->tree_type));
-#else
-  assert(!is_inter_block(mbmi));
-#endif
   RD_STATS this_rd_stats;
   int row, col;
   int64_t temp_sse, this_rd;
@@ -445,18 +373,11 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       &this_rd_stats.skip_txfm, &temp_sse, NULL, NULL, NULL);
 #if !CONFIG_AIMC
   if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
-#if CONFIG_SDP
     mode_cost += mode_costs->angle_delta_cost[PLANE_TYPE_Y][mbmi->mode - V_PRED]
                                              [MAX_ANGLE_DELTA +
                                               mbmi->angle_delta[PLANE_TYPE_Y]];
-#else
-    mode_cost += mode_costs->angle_delta_cost[mbmi->mode - V_PRED]
-                                             [MAX_ANGLE_DELTA +
-                                              mbmi->angle_delta[PLANE_TYPE_Y]];
-#endif  // CONFIG_SDP
   }
 #endif  // !CONFIG_AIMC
-#if CONFIG_SDP
   if (mbmi->mode == DC_PRED &&
       av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y])) {
     if (mbmi->filter_intra_mode_info.use_filter_intra) {
@@ -468,17 +389,6 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       mode_cost +=
           mode_costs->filter_intra_cost[mbmi->sb_type[PLANE_TYPE_Y]][0];
     }
-#else
-  if (mbmi->mode == DC_PRED &&
-      av1_filter_intra_allowed_bsize(cm, mbmi->sb_type)) {
-    if (mbmi->filter_intra_mode_info.use_filter_intra) {
-      const int mode = mbmi->filter_intra_mode_info.filter_intra_mode;
-      mode_cost += mode_costs->filter_intra_cost[mbmi->sb_type][1] +
-                   mode_costs->filter_intra_mode_cost[mode];
-    } else {
-      mode_cost += mode_costs->filter_intra_cost[mbmi->sb_type][0];
-    }
-#endif
   }
   this_rd =
       RDCOST(x->rdmult, this_rd_stats.rate + mode_cost, this_rd_stats.dist);

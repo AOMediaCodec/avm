@@ -23,6 +23,24 @@
 extern "C" {
 #endif
 
+#define MAX_DF_OFFSETS 64
+#define ZERO_DF_OFFSET 32
+
+#define DF_TWO_PARAM 0
+#define DF_DUAL 1
+
+#define DF_PAR_BITS 5
+#define DF_DELTA_SCALE 8
+#define DF_SEARCH_STEP_SIZE 2
+#define DF_PAR_OFFSET (1 << (DF_PAR_BITS - 1))
+#define DF_PAR_MIN_VAL (-(1 << (DF_PAR_BITS - 1)))
+#define DF_PAR_MAX_VAL ((1 << (DF_PAR_BITS - 1)) - 1)
+
+#define DF_FILT26 1
+#define DF_CHROMA_WIDE 1
+
+#define DF_REDUCED_SB_EDGE 1
+
 #define MAX_LOOP_FILTER 63
 #define MAX_SHARPNESS 7
 
@@ -86,14 +104,23 @@ struct loopfilter {
   int filter_level_u;
   int filter_level_v;
 
-  int sharpness_level;
+#if DF_DUAL
+  int delta_q_luma[2];
+  int delta_side_luma[2];
+#else
+  int delta_q_luma;
+  int delta_side_luma;
+#endif  // DF_DUAL
+  int delta_q_u;
+  int delta_side_u;
+  int delta_q_v;
+  int delta_side_v;
 
   uint8_t mode_ref_delta_enabled;
   uint8_t mode_ref_delta_update;
 
-  // 0 = Intra, Last, Last2+Last3,
-  // GF, BRF, ARF2, ARF
-  int8_t ref_deltas[REF_FRAMES];
+  // The order is based on the ranked references.
+  int8_t ref_deltas[SINGLE_REF_FRAMES];
 
   // 0 = ZERO_MV, MV
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];
@@ -116,8 +143,10 @@ typedef struct {
 } loop_filter_thresh;
 
 typedef struct {
-  loop_filter_thresh lfthr[MAX_LOOP_FILTER + 1];
-  uint8_t lvl[MAX_MB_PLANE][MAX_SEGMENTS][2][REF_FRAMES][MAX_MODE_LF_DELTAS];
+  uint16_t q_thr[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
+                [MAX_MODE_LF_DELTAS];
+  uint16_t side_thr[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
+                   [MAX_MODE_LF_DELTAS];
 } loop_filter_info_n;
 
 typedef struct LoopFilterWorkerData {
@@ -164,10 +193,9 @@ void av1_filter_block_plane_horz(const struct AV1Common *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col);
+int df_quant_from_qindex(int q_index, int bit_depth);
 
-uint8_t av1_get_filter_level(const struct AV1Common *cm,
-                             const loop_filter_info_n *lfi_n, const int dir_idx,
-                             int plane, const MB_MODE_INFO *mbmi);
+int df_side_from_qindex(int q_index, int bit_depth);
 #if CONFIG_LPF_MASK
 void av1_filter_block_plane_ver(struct AV1Common *const cm,
                                 struct macroblockd_plane *const plane_ptr,

@@ -56,7 +56,7 @@ void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int *data, int *centroids,
  * \param[in]    k                  Number of clusters.
  * \param[in]    dim                Data dimension.
  *
- * \return Returns nothing, but saves each data's cluster index in indices.
+ * Returns nothing, but saves each data's cluster index in indices.
  */
 static INLINE void av1_calc_indices(const int *data, const int *centroids,
                                     uint8_t *indices, int n, int k, int dim) {
@@ -86,7 +86,7 @@ static INLINE void av1_calc_indices(const int *data, const int *centroids,
  * \param[in]    dim                Data dimension.
  * \param[in]    max_itr            Maximum number of iterations to run.
  *
- * \return Returns nothing, but saves each cluster's centroid in centroids and
+ * Returns nothing, but saves each cluster's centroid in centroids and
  * each data's cluster index in indices.
  *
  * \attention The output centroids are rounded off to nearest integers.

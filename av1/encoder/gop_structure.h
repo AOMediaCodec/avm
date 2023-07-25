@@ -39,7 +39,7 @@ struct EncodeFrameParams;
  *
  * \param[in]    cpi          Top - level encoder instance structure
  *
- * \return No return value but this function updates group data structures.
+ * No return value but this function updates group data structures.
  */
 void av1_gop_setup_structure(struct AV1_COMP *cpi);
 
@@ -59,8 +59,8 @@ void av1_gop_setup_structure(struct AV1_COMP *cpi);
  *                            uni-directional group.
  * \param[in]   gf_group_bits Bits available to be allocated.
  *
- * \return No return but updates the rate control and group data structures
- *         to reflect the allocation of bits.
+ * No return but updates the rate control and group data structures
+ * to reflect the allocation of bits.
  */
 void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
                             GF_GROUP *gf_group, int is_key_frame, int use_arf,

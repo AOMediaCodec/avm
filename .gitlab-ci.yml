@@ -10,7 +10,7 @@ stages:
   - test
   - report
 
-image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2004:20211125032922
+image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2004:20220429204253
 
 default:
   tags:
@@ -27,23 +27,35 @@ workflow:
 Style Check:
   stage: check
   interruptible: true
-  image: registry.gitlab.com/aomediacodec/aom-testing/alpine3:20210901124702
   variables:
     DIFF_REF: $CI_MERGE_REQUEST_DIFF_BASE_SHA
   script:
     - 'echo "Diff ref is: $DIFF_REF"'
     - git fetch --unshallow
+    - export PATH="/usr/lib/llvm-12/bin:${PATH}"
+    - clang-format --version
+    - cmake-format --version
     - |
       # Run clang-format check.
       for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.[hc]pp' '*.cc' '*.[ch]' \
         | grep -v third_party); do
-        clang-format -i --style=file $f -n -Werror
+        clang-format -i --style=file $f -n -Werror || exit_code=$?
+        if [ ${exit_code} -ne 0 ]; then
+          echo "Please format your code by following instructions here:"
+          echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check"
+          exit 1
+        fi
       done
     - |
       # Run cmake-format check.
       for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.cmake' 'CMakeLists.txt' \
         | grep -v third_party); do
-        cmake-format --check $f
+        cmake-format --check $f || exit_code=$?
+        if [ ${exit_code} -ne 0 ]; then
+          echo "Please format your code by following instructions here:"
+          echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check"
+          exit 1
+        fi
       done
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
@@ -53,7 +65,6 @@ Style Check:
 .commit-checks-common:
   stage: check
   interruptible: true
-  image: registry.gitlab.com/aomediacodec/aom-testing/alpine3:20210901124702
   script:
     - 'echo "Diff ref is: $DIFF_REF"'
     - git fetch --unshallow
@@ -72,21 +83,6 @@ Style Check:
               exit 1
               ;;
           esac
-        fi
-      done
-    - |
-      # Check commit messages
-      for i in $(git rev-list HEAD ^"$DIFF_REF"); do
-        echo "Checking commit $i"
-        subject="$(git log --pretty=format:%s -n 1 $i)"
-        if [ ! "${subject:0:6}" = "Revert" ]; then
-          length=$(echo -n "$subject" | wc -c)
-          if [ $length -gt 65 ]; then
-            echo "The commit subject: '$subject' is too long! ($length characters)"
-            echo "Try to keep this to 50 or less."
-            echo "https://www.git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project#_commit_guidelines"
-            exit 1
-          fi
         fi
       done
 
@@ -192,7 +188,9 @@ Test Data Check:
           - inspection-accounting
           - nasm
           - no-examples
+          - debug
   script:
+    - export PATH="/usr/lib/llvm-12/bin:${PATH}"
     - |
       case $AOM_BUILD_CONFIG in
         internal-stats)
@@ -234,6 +232,12 @@ Test Data Check:
         no-examples)
           CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_EXAMPLES=0"
           ;;
+        debug)
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_BUILD_TYPE=Debug"
+          ;;
+        release)
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_BUILD_TYPE=Release"
+          ;;
         *)
           echo -n "Unknown configuration: '$AOM_BUILD_CONFIG'"
           exit 1
@@ -243,7 +247,16 @@ Test Data Check:
       echo "Extra CMake Flags: $EXTRA_CMAKE_FLAGS"
       echo "Configuration:     $AOM_BUILD_CONFIG"
     - cmake -B aom_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS $EXTRA_CMAKE_FLAGS
-    - cmake --build aom_build -j 2
+    - cmake --build aom_build -j 2 || exit_code=$?
+    - |
+      if [ ${exit_code} -ne 0 ]; then
+        echo "You may reproduce the compile failure by following instructions here:"
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations"
+        echo "Using following values:"
+        echo "CMAKE_FLAGS = ${CMAKE_FLAGS}"
+        echo "EXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}"
+        exit 1
+      fi
     - cmake --build aom_build --target dist
     - DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build aom_build --target install/strip
   needs: []
@@ -278,6 +291,8 @@ Previous Build (x86_64-linux-gcc):
   variables:
     DIFF_REF: $CI_MERGE_REQUEST_DIFF_BASE_SHA
     INSTALLROOT_FOLDER: installroot_old
+    # Allow build warnings.
+    EXTRA_CMAKE_FLAGS: -DENABLE_WERROR=0
   before_script:
     - git fetch --unshallow
     - git checkout "$DIFF_REF"
@@ -399,6 +414,17 @@ Build Documentation:
     paths:
       - aom_docs_build/docs/
 
+Build (x86_64-clang):
+  extends: .build-common
+  parallel:
+    matrix:
+      - AOM_BUILD_CONFIG:
+          - debug
+          - release
+  variables:
+    EXTRA_CMAKE_FLAGS: >-
+      -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+
 Example Build (x86_64-gcc):
   stage: build
   interruptible: true
@@ -441,7 +467,7 @@ Linux Sanitizers (x86_64-clang):
           # CFI Sanitizer commented for now, as lto build does not work
           #- cfi
   script:
-    - export PATH="/usr/lib/llvm-6.0/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-12/bin:${PATH}"
     - |
       SANITIZER_BLACKLIST_FLAG="-fsanitize-blacklist=${PWD}/${SANITIZER_IGNORES_FILE}"
 
@@ -505,7 +531,7 @@ Example Test (x86_64):
      :fast_unwind_on_fatal=1\
      :allocator_may_return_null=1"
   before_script:
-    - export PATH="/usr/lib/llvm-6.0/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-12/bin:${PATH}"
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - |
@@ -526,7 +552,9 @@ Example Test (x86_64):
           export TSAN_OPTIONS
           ;;
         undefined|integer)
-          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:print_stacktrace=1:suppressions=.gitlab/UBSan.supp"
+          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:print_stacktrace=1"
+          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:report_error_type=1"
+          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:suppressions=.gitlab/UBSan.supp"
           export UBSAN_OPTIONS="${SANITIZER_OPTIONS}"
           ;;
       esac
@@ -540,14 +568,20 @@ Example Test (x86_64):
     - |
       # Looking for sanitizer output in log...
       grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" sanitizer.log && {
-        echo "Found sanitizer errors or warnings, check the log:"
+        echo "Found sanitizer errors or warnings, check the log below:"
         cat sanitizer.log
+        echo "You may reproduce sanitizer builds and tests by following instructions below: "
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
         exit 1
       }
       # Looking for UBSan output in log (differs from the common format)
       grep -q ":[[:digit:]]\+:[[:digit:]]\+: runtime error:" sanitizer.log && {
-        echo "Found sanitizer errors or warnings, check the log:"
+        echo "Found sanitizer errors or warnings, check the log below:"
         cat sanitizer.log
+        echo "You may reproduce sanitizer builds and tests by following instructions below: "
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
         exit 1
       }
       echo "No sanitizer errors found"
@@ -612,7 +646,7 @@ Linux Sanitizer (thread) Test:
   interruptible: true
   variables:
     AOMENC_LIMIT: 30
-    AOMENC_QP: 128
+    AOMENC_QP: 210
     AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
     AOMENC: installroot/usr/local/bin/aomenc
   before_script:
@@ -751,7 +785,6 @@ Previous Enc Run (Low-delay):
 Enc compare:
   stage: report
   interruptible: true
-  image: registry.gitlab.com/epirat/images/alpine:20210415142607
   script:
     - git fetch --unshallow
     - |
@@ -811,7 +844,7 @@ Static Analyzer:
           - shallow
           - deep
   script:
-    - export PATH="/usr/lib/llvm-10/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-12/bin:${PATH}"
     - mkdir output-${ANALYZER_MODE}
     - |
       scan_build() {

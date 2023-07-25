@@ -25,16 +25,6 @@
 #include "aom_dsp/ssim.h"
 #include "aom_ports/system_state.h"
 
-static void od_bin_fdct8x8(tran_low_t *y, int ystride, const int16_t *x,
-                           int xstride) {
-  int i, j;
-  (void)xstride;
-  aom_fdct8x8(x, y, ystride);
-  for (i = 0; i < 8; i++)
-    for (j = 0; j < 8; j++)
-      *(y + ystride * i + j) = (*(y + ystride * i + j) + 4) >> 3;
-}
-
 static void hbd_od_bin_fdct8x8(tran_low_t *y, int ystride, const int16_t *x,
                                int xstride) {
   int i, j;
@@ -110,16 +100,11 @@ static double convert_score_db(double _score, double _weight, int16_t pix_max) {
   return 10 * (log10(pix_max * pix_max) - log10(_weight * _score));
 }
 
-static double calc_psnrhvs(const unsigned char *src, int _systride,
-                           const unsigned char *dst, int _dystride, double _par,
+static double calc_psnrhvs(const uint16_t *_src16, int _systride,
+                           const uint16_t *_dst16, int _dystride, double _par,
                            int _w, int _h, int _step, const double _csf[8][8],
-                           uint32_t _shift, int buf_is_hbd, int16_t pix_max,
-                           int luma) {
+                           uint32_t _shift, int16_t pix_max, int luma) {
   double ret;
-  const uint8_t *_src8 = src;
-  const uint8_t *_dst8 = dst;
-  const uint16_t *_src16 = CONVERT_TO_SHORTPTR(src);
-  const uint16_t *_dst16 = CONVERT_TO_SHORTPTR(dst);
   DECLARE_ALIGNED(16, int16_t, dct_s[8 * 8]);
   DECLARE_ALIGNED(16, int16_t, dct_d[8 * 8]);
   DECLARE_ALIGNED(16, tran_low_t, dct_s_coef[8 * 8]);
@@ -136,13 +121,8 @@ static double calc_psnrhvs(const unsigned char *src, int _systride,
   sum1 = sum2 = delt = 0.0f;
   for (y = 0; y < _h; y++) {
     for (x = 0; x < _w; x++) {
-      if (!buf_is_hbd) {
-        sum1 += _src8[y * _systride + x];
-        sum2 += _dst8[y * _dystride + x];
-      } else {
-        sum1 += _src16[y * _systride + x] >> _shift;
-        sum2 += _dst16[y * _dystride + x] >> _shift;
-      }
+      sum1 += _src16[y * _systride + x] >> _shift;
+      sum2 += _dst16[y * _dystride + x] >> _shift;
     }
   }
   if (luma) delt = (sum1 - sum2) / (_w * _h);
@@ -183,13 +163,8 @@ static double calc_psnrhvs(const unsigned char *src, int _systride,
       double s_mask = 0;
       for (i = 0; i < 8; i++) {
         for (j = 0; j < 8; j++) {
-          if (!buf_is_hbd) {
-            dct_s[i * 8 + j] = _src8[(y + i) * _systride + (j + x)];
-            dct_d[i * 8 + j] = _dst8[(y + i) * _dystride + (j + x)];
-          } else {
-            dct_s[i * 8 + j] = _src16[(y + i) * _systride + (j + x)] >> _shift;
-            dct_d[i * 8 + j] = _dst16[(y + i) * _dystride + (j + x)] >> _shift;
-          }
+          dct_s[i * 8 + j] = _src16[(y + i) * _systride + (j + x)] >> _shift;
+          dct_d[i * 8 + j] = _dst16[(y + i) * _dystride + (j + x)] >> _shift;
           dct_d[i * 8 + j] += (int)(delt + 0.5f);
         }
       }
@@ -211,13 +186,8 @@ static double calc_psnrhvs(const unsigned char *src, int _systride,
         }
       }
       s_gvar = 1.f / (36 - n + 1) * s_gmean / 36.f;
-      if (!buf_is_hbd) {
-        od_bin_fdct8x8(dct_s_coef, 8, dct_s, 8);
-        od_bin_fdct8x8(dct_d_coef, 8, dct_d, 8);
-      } else {
-        hbd_od_bin_fdct8x8(dct_s_coef, 8, dct_s, 8);
-        hbd_od_bin_fdct8x8(dct_d_coef, 8, dct_d, 8);
-      }
+      hbd_od_bin_fdct8x8(dct_s_coef, 8, dct_s, 8);
+      hbd_od_bin_fdct8x8(dct_d_coef, 8, dct_d, 8);
       for (i = 0; i < 8; i++)
         for (j = (i == 0); j < 8; j++)
           s_mask += dct_s_coef[i * 8 + j] * dct_s_coef[i * 8 + j] * mask[i][j];
@@ -251,7 +221,6 @@ double aom_psnrhvs(const YV12_BUFFER_CONFIG *src, const YV12_BUFFER_CONFIG *dst,
   assert(bd == 8 || bd == 10 || bd == 12);
   assert(bd >= in_bd);
   assert(src->flags == dst->flags);
-  const int buf_is_hbd = src->flags & YV12_FLAG_HIGHBITDEPTH;
 
   int16_t pix_max = 255;
   if (in_bd == 10)
@@ -261,18 +230,17 @@ double aom_psnrhvs(const YV12_BUFFER_CONFIG *src, const YV12_BUFFER_CONFIG *dst,
 
   bd_shift = bd - in_bd;
 
-  *y_psnrhvs =
-      calc_psnrhvs(src->y_buffer, src->y_stride, dst->y_buffer, dst->y_stride,
-                   par, src->y_crop_width, src->y_crop_height, step, csf_y,
-                   bd_shift, buf_is_hbd, pix_max, 1);
+  *y_psnrhvs = calc_psnrhvs(
+      src->y_buffer, src->y_stride, dst->y_buffer, dst->y_stride, par,
+      src->y_crop_width, src->y_crop_height, step, csf_y, bd_shift, pix_max, 1);
   *u_psnrhvs =
       calc_psnrhvs(src->u_buffer, src->uv_stride, dst->u_buffer, dst->uv_stride,
                    par, src->uv_crop_width, src->uv_crop_height, step,
-                   csf_cb420, bd_shift, buf_is_hbd, pix_max, 0);
+                   csf_cb420, bd_shift, pix_max, 0);
   *v_psnrhvs =
       calc_psnrhvs(src->v_buffer, src->uv_stride, dst->v_buffer, dst->uv_stride,
                    par, src->uv_crop_width, src->uv_crop_height, step,
-                   csf_cr420, bd_shift, buf_is_hbd, pix_max, 0);
+                   csf_cr420, bd_shift, pix_max, 0);
   psnrhvs = (*y_psnrhvs) * .8 + .1 * ((*u_psnrhvs) + (*v_psnrhvs));
   return convert_score_db(psnrhvs, 1.0, pix_max);
 }

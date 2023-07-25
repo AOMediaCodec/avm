@@ -19,19 +19,11 @@
 
 #include "av1/encoder/av1_quantize.h"
 
-#if CONFIG_EXTQUANT
 static INLINE void highbd_load_b_values_avx2(
     const int32_t *zbin_ptr, __m256i *zbin, const int32_t *round_ptr,
     __m256i *round, const int32_t *quant_ptr, __m256i *quant,
     const int32_t *dequant_ptr, __m256i *dequant, const int32_t *shift_ptr,
     __m256i *shift) {
-#else
-static INLINE void highbd_load_b_values_avx2(
-    const int16_t *zbin_ptr, __m256i *zbin, const int16_t *round_ptr,
-    __m256i *round, const int16_t *quant_ptr, __m256i *quant,
-    const int16_t *dequant_ptr, __m256i *dequant, const int16_t *shift_ptr,
-    __m256i *shift) {
-#endif
   *zbin = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)zbin_ptr));
   *zbin = _mm256_sub_epi32(*zbin, _mm256_set1_epi32(1));
   *round = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)round_ptr));
@@ -112,21 +104,12 @@ static INLINE void highbd_store_coefficients_avx2(__m256i coeff0,
   _mm256_store_si256((__m256i *)(coeff_ptr + 8), coeff1);
 }
 
-#if CONFIG_EXTQUANT
 void aom_highbd_quantize_b_adaptive_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan) {
-#else
-void aom_highbd_quantize_b_adaptive_avx2(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan) {
-#endif
   int index = 16;
   int non_zero_count = 0;
   int non_zero_count_prescan_add_zero = 0;
@@ -142,12 +125,8 @@ void aom_highbd_quantize_b_adaptive_avx2(
   const int log_scale = 0;
   const qm_val_t wt = (1 << AOM_QM_BITS);
   for (int i = 0; i < 2; ++i) {
-#if CONFIG_EXTQUANT
     prescan_add[i] =
         ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7 + QUANT_TABLE_BITS);
-#else
-    prescan_add[i] = ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7);
-#endif
     thresh[i] = (zbin_ptr[i] * wt + prescan_add[i]) - 1;
   }
   __m256i threshold[2];
@@ -281,13 +260,8 @@ void aom_highbd_quantize_b_adaptive_avx2(
       const int coeff_sign = AOMSIGN(coeff);
       const int abs_coeff = (coeff ^ coeff_sign) - coeff_sign;
       const int factor = EOB_FACTOR + SKIP_EOB_FACTOR_ADJUST;
-#if CONFIG_EXTQUANT
       const int prescan_add_val = ROUND_POWER_OF_TWO(
           dequant_ptr[rc != 0] * factor, 7 + QUANT_TABLE_BITS);
-#else
-      const int prescan_add_val =
-          ROUND_POWER_OF_TWO(dequant_ptr[rc != 0] * factor, 7);
-#endif
       if (abs_coeff <
           (zbin_ptr[rc != 0] * (1 << AOM_QM_BITS) + prescan_add_val)) {
         qcoeff_ptr[rc] = 0;
@@ -299,21 +273,12 @@ void aom_highbd_quantize_b_adaptive_avx2(
 #endif
 }
 
-#if CONFIG_EXTQUANT
 void aom_highbd_quantize_b_32x32_adaptive_avx2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan) {
-#else
-void aom_highbd_quantize_b_32x32_adaptive_avx2(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan) {
-#endif
   int index = 16;
   int non_zero_count = 0;
   int non_zero_count_prescan_add_zero = 0;
@@ -333,12 +298,8 @@ void aom_highbd_quantize_b_32x32_adaptive_avx2(
                          ROUND_POWER_OF_TWO(zbin_ptr[1], log_scale) };
   const qm_val_t wt = (1 << AOM_QM_BITS);
   for (int i = 0; i < 2; ++i) {
-#if CONFIG_EXTQUANT
     prescan_add[i] =
         ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7 + QUANT_TABLE_BITS);
-#else
-    prescan_add[i] = ROUND_POWER_OF_TWO(dequant_ptr[i] * EOB_FACTOR, 7);
-#endif
     thresh[i] = (zbins[i] * wt + prescan_add[i]) - 1;
   }
   __m256i threshold[2];
@@ -486,13 +447,8 @@ void aom_highbd_quantize_b_32x32_adaptive_avx2(
       const int coeff_sign = AOMSIGN(coeff);
       const int abs_coeff = (coeff ^ coeff_sign) - coeff_sign;
       const int factor = EOB_FACTOR + SKIP_EOB_FACTOR_ADJUST;
-#if CONFIG_EXTQUANT
       const int prescan_add_val = ROUND_POWER_OF_TWO(
           dequant_ptr[rc != 0] * factor, 7 + QUANT_TABLE_BITS);
-#else
-      const int prescan_add_val =
-          ROUND_POWER_OF_TWO(dequant_ptr[rc != 0] * factor, 7);
-#endif
       if (abs_coeff < (zbins[rc != 0] * (1 << AOM_QM_BITS) + prescan_add_val)) {
         qcoeff_ptr[rc] = 0;
         dqcoeff_ptr[rc] = 0;

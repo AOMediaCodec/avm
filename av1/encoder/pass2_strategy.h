@@ -20,7 +20,6 @@ extern "C" {
 struct AV1_COMP;
 struct EncodeFrameParams;
 
-/*!\endcond */
 /*!
  * \brief accumulated stats and features in a gf group
  */
@@ -63,7 +62,7 @@ typedef struct {
   double frame_tr_coded_error;
   /*!\endcond */
 } GF_FRAME_STATS;
-/*!cond */
+/*!\cond */
 
 void av1_init_single_pass_lap(AV1_COMP *cpi);
 
@@ -83,8 +82,8 @@ void av1_init_single_pass_lap(AV1_COMP *cpi);
  * \param[in]    cpi           Top - level encoder instance structure
  * \param[in]    frame_params  Per frame encoding parameters
  *
- * \return No return but analyses first pass stats and assigns a target
- *         number of bits to the current frame and a target Q range.
+ * No return but analyses first pass stats and assigns a target
+ * number of bits to the current frame and a target Q range.
  */
 void av1_get_second_pass_params(struct AV1_COMP *cpi,
                                 struct EncodeFrameParams *const frame_params);
@@ -98,9 +97,9 @@ void av1_get_second_pass_params(struct AV1_COMP *cpi,
  *
  * \param[in]    cpi       Top - level encoder instance structure
  *
- * \return No return value but this function updates various rate control
- *         related data structures that for example track overshoot and
- *         undershoot.
+ * No return value but this function updates various rate control
+ * related data structures that for example track overshoot and
+ * undershoot.
  */
 void av1_twopass_postencode_update(struct AV1_COMP *cpi);
 
@@ -120,8 +119,8 @@ void av1_twopass_postencode_update(struct AV1_COMP *cpi);
  *                            uni-directional group.
  * \param[in]   gf_group_bits Bits available to be allocated.
  *
- * \return No return but updates the rate control and group data structures
- *         to reflect the allocation of bits.
+ * No return but updates the rate control and group data structures
+ * to reflect the allocation of bits.
  */
 void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
                             GF_GROUP *gf_group, int is_key_frame, int use_arf,

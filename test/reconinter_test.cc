@@ -30,36 +30,6 @@
 namespace {
 using libaom_test::ACMRandom;
 
-typedef void (*buildcompdiffwtdmaskd_func)(uint8_t *mask,
-                                           DIFFWTD_MASK_TYPE mask_type,
-                                           const uint8_t *src0, int src0_stride,
-                                           const uint8_t *src1, int src1_stride,
-                                           int h, int w);
-
-typedef std::tuple<BLOCK_SIZE, buildcompdiffwtdmaskd_func>
-    BuildCompDiffwtdMaskDParam;
-
-#if HAVE_SSE4_1
-::testing::internal::ParamGenerator<BuildCompDiffwtdMaskDParam> BuildParams(
-    buildcompdiffwtdmaskd_func filter) {
-  return ::testing::Combine(::testing::Range(BLOCK_4X4, BLOCK_SIZES_ALL),
-                            ::testing::Values(filter));
-}
-#endif
-
-class BuildCompDiffwtdMaskTest
-    : public ::testing::TestWithParam<BuildCompDiffwtdMaskDParam> {
- public:
-  virtual ~BuildCompDiffwtdMaskTest() {}
-
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
-  void RunTest(buildcompdiffwtdmaskd_func test_impl, const int is_speed,
-               const DIFFWTD_MASK_TYPE type);
-
- private:
-  ACMRandom rnd_;
-};
-
 typedef void (*buildcompdiffwtdmaskd16_func)(
     uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0,
     int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w,
@@ -176,57 +146,6 @@ void BuildCompDiffwtdMaskD16Test::RunSpeedTest(
   printf("av1_build_compound_diffwtd_mask_d16  %3dx%-3d: %7.2f \n", width,
          height, elapsed_time / double(elapsed_time1));
 }
-#if HAVE_SSE4_1
-void BuildCompDiffwtdMaskTest::RunTest(buildcompdiffwtdmaskd_func test_impl,
-                                       const int is_speed,
-                                       const DIFFWTD_MASK_TYPE type) {
-  const int sb_type = GET_PARAM(0);
-  const int width = block_size_wide[sb_type];
-  const int height = block_size_high[sb_type];
-  DECLARE_ALIGNED(16, uint8_t, mask_ref[MAX_SB_SQUARE]);
-  DECLARE_ALIGNED(16, uint8_t, mask_test[MAX_SB_SQUARE]);
-  DECLARE_ALIGNED(16, uint8_t, src0[MAX_SB_SQUARE]);
-  DECLARE_ALIGNED(16, uint8_t, src1[MAX_SB_SQUARE]);
-  ACMRandom rnd(ACMRandom::DeterministicSeed());
-  for (int i = 0; i < width * height; i++) {
-    src0[i] = rnd.Rand8();
-    src1[i] = rnd.Rand8();
-  }
-  const int run_times = is_speed ? (10000000 / (width + height)) : 1;
-  aom_usec_timer timer;
-  aom_usec_timer_start(&timer);
-  for (int i = 0; i < run_times; ++i) {
-    av1_build_compound_diffwtd_mask_c(mask_ref, type, src0, width, src1, width,
-                                      height, width);
-  }
-  const double t1 = get_time_mark(&timer);
-  aom_usec_timer_start(&timer);
-  for (int i = 0; i < run_times; ++i) {
-    test_impl(mask_test, type, src0, width, src1, width, height, width);
-  }
-  const double t2 = get_time_mark(&timer);
-  if (is_speed) {
-    printf("mask %d %3dx%-3d:%7.2f/%7.2fns", type, width, height, t1, t2);
-    printf("(%3.2f)\n", t1 / t2);
-  }
-  for (int r = 0; r < height; ++r) {
-    for (int c = 0; c < width; ++c) {
-      ASSERT_EQ(mask_ref[c + r * width], mask_test[c + r * width])
-          << "[" << r << "," << c << "] " << run_times << " @ " << width << "x"
-          << height << " inv " << type;
-    }
-  }
-}
-
-TEST_P(BuildCompDiffwtdMaskTest, match) {
-  RunTest(GET_PARAM(1), 0, DIFFWTD_38);
-  RunTest(GET_PARAM(1), 0, DIFFWTD_38_INV);
-}
-TEST_P(BuildCompDiffwtdMaskTest, DISABLED_Speed) {
-  RunTest(GET_PARAM(1), 1, DIFFWTD_38);
-  RunTest(GET_PARAM(1), 1, DIFFWTD_38_INV);
-}
-#endif
 TEST_P(BuildCompDiffwtdMaskD16Test, CheckOutput) {
   RunCheckOutput(GET_PARAM(1));
 }
@@ -237,18 +156,12 @@ TEST_P(BuildCompDiffwtdMaskD16Test, DISABLED_Speed) {
 }
 
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(SSE4_1, BuildCompDiffwtdMaskTest,
-                         BuildParams(av1_build_compound_diffwtd_mask_sse4_1));
-
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, BuildCompDiffwtdMaskD16Test,
     BuildParams(av1_build_compound_diffwtd_mask_d16_sse4_1));
 #endif
 
 #if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(AVX2, BuildCompDiffwtdMaskTest,
-                         BuildParams(av1_build_compound_diffwtd_mask_avx2));
-
 INSTANTIATE_TEST_SUITE_P(AVX2, BuildCompDiffwtdMaskD16Test,
                          BuildParams(av1_build_compound_diffwtd_mask_d16_avx2));
 #endif

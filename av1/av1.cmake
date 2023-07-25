@@ -93,9 +93,26 @@ list(
   "${AOM_ROOT}/av1/common/txb_common.h"
   "${AOM_ROOT}/av1/common/warped_motion.c"
   "${AOM_ROOT}/av1/common/warped_motion.h")
+if(CONFIG_PEF)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.h")
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.c")
+endif()
 
 if(CONFIG_LPF_MASK)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
+endif()
+
+if(CONFIG_AV1_ENCODER)
+  if(CONFIG_EXT_RECUR_PARTITIONS)
+    list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/encoder/erp_tflite.cc"
+         "${AOM_ROOT}/av1/encoder/erp_tflite.h")
+  endif()
+
+  if(CONFIG_TENSORFLOW_LITE)
+    list(APPEND AOM_AV1_COMMON_SOURCES
+         "${AOM_ROOT}/av1/tflite_models/op_registrations.cc"
+         "${AOM_ROOT}/av1/tflite_models/op_registrations.h")
+  endif()
 endif()
 
 if(CONFIG_CCSO)
@@ -103,6 +120,11 @@ if(CONFIG_CCSO)
        "${AOM_ROOT}/av1/common/ccso.h")
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/pickccso.c"
        "${AOM_ROOT}/av1/encoder/pickccso.h")
+endif()
+
+if(CONFIG_TIP)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/tip.c"
+       "${AOM_ROOT}/av1/common/tip.h")
 endif()
 
 list(
@@ -229,7 +251,6 @@ list(
   "${AOM_ROOT}/av1/encoder/rd.h"
   "${AOM_ROOT}/av1/encoder/rdopt.c"
   "${AOM_ROOT}/av1/encoder/rdopt.h"
-  "${AOM_ROOT}/av1/encoder/rdopt_data_defs.h"
   "${AOM_ROOT}/av1/encoder/rdopt_utils.h"
   "${AOM_ROOT}/av1/encoder/reconinter_enc.c"
   "${AOM_ROOT}/av1/encoder/reconinter_enc.h"
@@ -262,13 +283,11 @@ list(
   "${AOM_ROOT}/third_party/vector/vector.c"
   "${AOM_ROOT}/third_party/vector/vector.h"
   "${AOM_ROOT}/av1/encoder/dwt.c"
-  "${AOM_ROOT}/av1/encoder/dwt.h")
-
-if(CONFIG_SVC_ENCODER)
-  list(APPEND AOM_AV1_ENCODER_SOURCES
-       "${AOM_ROOT}/av1/encoder/svc_layercontext.c"
-       "${AOM_ROOT}/av1/encoder/svc_layercontext.h")
-endif()
+  "${AOM_ROOT}/av1/encoder/dwt.h"
+  "${AOM_ROOT}/common/md5_utils.c"
+  "${AOM_ROOT}/common/md5_utils.h"
+  "${AOM_ROOT}/common/rawenc.c"
+  "${AOM_ROOT}/common/rawenc.h")
 
 if(CONFIG_TUNE_VMAF)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/tune_vmaf.c"
@@ -281,29 +300,19 @@ if(CONFIG_OPTICAL_FLOW_API)
 endif()
 
 list(
-  APPEND
-  AOM_AV1_COMMON_INTRIN_SSE2
-  "${AOM_ROOT}/av1/common/cdef_block_sse2.c"
+  APPEND AOM_AV1_COMMON_INTRIN_SSE2 "${AOM_ROOT}/av1/common/cdef_block_sse2.c"
   "${AOM_ROOT}/av1/common/x86/cfl_sse2.c"
-  "${AOM_ROOT}/av1/common/x86/convolve_2d_sse2.c"
-  "${AOM_ROOT}/av1/common/x86/convolve_sse2.c"
-  "${AOM_ROOT}/av1/common/x86/jnt_convolve_sse2.c"
-  "${AOM_ROOT}/av1/common/x86/wiener_convolve_sse2.c"
-  "${AOM_ROOT}/av1/common/x86/av1_txfm_sse2.h"
-  "${AOM_ROOT}/av1/common/x86/warp_plane_sse2.c")
+  "${AOM_ROOT}/av1/common/x86/av1_txfm_sse2.h")
 
 list(
   APPEND
   AOM_AV1_COMMON_INTRIN_SSSE3
   "${AOM_ROOT}/av1/common/cdef_block_ssse3.c"
-  "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.c"
   "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.h"
   "${AOM_ROOT}/av1/common/x86/cfl_ssse3.c"
   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_ssse3.c"
   "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_ssse3.c"
-  "${AOM_ROOT}/av1/common/x86/jnt_convolve_ssse3.c"
-  "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c"
-  "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")
+  "${AOM_ROOT}/av1/common/x86/reconinter_ssse3.c")
 
 list(
   APPEND
@@ -321,31 +330,27 @@ list(
   "${AOM_ROOT}/av1/common/x86/intra_edge_sse4.c"
   "${AOM_ROOT}/av1/common/x86/optflow_refine_sse4.c"
   "${AOM_ROOT}/av1/common/x86/reconinter_sse4.c"
-  "${AOM_ROOT}/av1/common/x86/selfguided_sse4.c"
-  "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
+  "${AOM_ROOT}/av1/common/x86/selfguided_sse4.c")
 
 list(
   APPEND
   AOM_AV1_COMMON_INTRIN_AVX2
   "${AOM_ROOT}/av1/common/cdef_block_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_avx2.h"
   "${AOM_ROOT}/av1/common/x86/cfl_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/convolve_2d_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/convolve_avx2.c"
+  "${AOM_ROOT}/av1/common/x86/highbd_ccso_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/jnt_convolve_avx2.c"
   "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/wiener_convolve_avx2.c")
+  "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c")
+if(CONFIG_PEF)
+  list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+       "${AOM_ROOT}/av1/common/x86/highbd_pef_avx2.c")
+endif()
 
-list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm"
-     "${AOM_ROOT}/av1/encoder/x86/error_sse2.asm")
+list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm")
 
 list(
   APPEND
@@ -355,7 +360,6 @@ list(
   "${AOM_ROOT}/av1/encoder/x86/av1_quantize_sse2.c"
   "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse2.c"
   "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
-  "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c"
   "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c"
   "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
 
@@ -382,7 +386,6 @@ list(
   "${AOM_ROOT}/av1/encoder/x86/av1_quantize_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/corner_match_avx2.c"
-  "${AOM_ROOT}/av1/encoder/x86/error_intrin_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_avx2.h"
   "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx2.c"
@@ -390,7 +393,6 @@ list(
   "${AOM_ROOT}/av1/encoder/x86/wedge_utils_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/encodetxb_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/rdopt_avx2.c"
-  "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/pickrst_avx2.c")
 
 list(
@@ -398,20 +400,15 @@ list(
   AOM_AV1_ENCODER_INTRIN_NEON
   "${AOM_ROOT}/av1/encoder/arm/neon/quantize_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/ml_neon.c"
-  "${AOM_ROOT}/av1/encoder/arm/neon/picksrt_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/rdopt_neon.c"
-  "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/encodetxb_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/av1_fwd_txfm2d_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c")
 
-list(
-  APPEND
-  AOM_AV1_ENCODER_INTRIN_MSA
-  "${AOM_ROOT}/av1/encoder/mips/msa/error_msa.c"
-  "${AOM_ROOT}/av1/encoder/mips/msa/fdct4x4_msa.c"
-  "${AOM_ROOT}/av1/encoder/mips/msa/temporal_filter_msa.c")
+list(APPEND AOM_AV1_ENCODER_INTRIN_MSA
+     "${AOM_ROOT}/av1/encoder/mips/msa/fdct4x4_msa.c"
+     "${AOM_ROOT}/av1/encoder/mips/msa/temporal_filter_msa.c")
 
 list(
   APPEND
@@ -427,13 +424,8 @@ list(
   "${AOM_ROOT}/av1/common/arm/blend_a64_vmask_neon.c"
   "${AOM_ROOT}/av1/common/arm/reconinter_neon.c"
   "${AOM_ROOT}/av1/common/arm/reconintra_neon.c"
-  "${AOM_ROOT}/av1/common/arm/resize_neon.c"
-  "${AOM_ROOT}/av1/common/arm/wiener_convolve_neon.c"
   "${AOM_ROOT}/av1/common/arm/selfguided_neon.c"
-  "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.c"
-  "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.h"
   "${AOM_ROOT}/av1/common/arm/highbd_inv_txfm_neon.c"
-  "${AOM_ROOT}/av1/common/arm/warp_plane_neon.c"
   "${AOM_ROOT}/av1/common/cdef_block_neon.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_2

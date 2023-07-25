@@ -241,7 +241,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   av1_read_sequence_header(cm, rb, seq_params);
 
-  av1_read_color_config(rb, pbi->allow_lowbitdepth, seq_params, &cm->error);
+  av1_read_color_config(rb, seq_params, &cm->error);
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
@@ -385,40 +385,12 @@ static void alloc_tile_list_buffer(AV1Decoder *pbi) {
          (pbi->output_frame_width_in_tiles_minus_1 + 1) *
              (pbi->output_frame_height_in_tiles_minus_1 + 1));
 
-  // Allocate the tile list output buffer.
-  // Note: if cm->seq_params.use_highbitdepth is 1 and cm->seq_params.bit_depth
-  // is 8, we could allocate less memory, namely, 8 bits/pixel.
   if (aom_alloc_frame_buffer(&pbi->tile_list_outbuf, output_frame_width,
                              output_frame_height, cm->seq_params.subsampling_x,
-                             cm->seq_params.subsampling_y,
-                             (cm->seq_params.use_highbitdepth &&
-                              (cm->seq_params.bit_depth > AOM_BITS_8)),
-                             0, cm->features.byte_alignment))
+                             cm->seq_params.subsampling_y, 0,
+                             cm->features.byte_alignment))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate the tile list output buffer");
-}
-
-static void yv12_tile_copy(const YV12_BUFFER_CONFIG *src, int hstart1,
-                           int hend1, int vstart1, int vend1,
-                           YV12_BUFFER_CONFIG *dst, int hstart2, int vstart2,
-                           int plane) {
-  const int src_stride = (plane > 0) ? src->strides[1] : src->strides[0];
-  const int dst_stride = (plane > 0) ? dst->strides[1] : dst->strides[0];
-  int row, col;
-
-  assert(src->flags & YV12_FLAG_HIGHBITDEPTH);
-  assert(!(dst->flags & YV12_FLAG_HIGHBITDEPTH));
-
-  const uint16_t *src16 =
-      CONVERT_TO_SHORTPTR(src->buffers[plane] + vstart1 * src_stride + hstart1);
-  uint8_t *dst8 = dst->buffers[plane] + vstart2 * dst_stride + hstart2;
-
-  for (row = vstart1; row < vend1; ++row) {
-    for (col = 0; col < (hend1 - hstart1); ++col) *dst8++ = (uint8_t)(*src16++);
-    src16 += src_stride - (hend1 - hstart1);
-    dst8 += dst_stride - (hend1 - hstart1);
-  }
-  return;
 }
 
 static void copy_decoded_tile_to_tile_list_buffer(AV1Decoder *pbi,
@@ -453,26 +425,20 @@ static void copy_decoded_tile_to_tile_list_buffer(AV1Decoder *pbi,
     int vstart2 = tr * h;
     int hstart2 = tc * w;
 
-    if (cm->seq_params.use_highbitdepth &&
-        cm->seq_params.bit_depth == AOM_BITS_8) {
-      yv12_tile_copy(cur_frame, hstart1, hend1, vstart1, vend1,
-                     &pbi->tile_list_outbuf, hstart2, vstart2, plane);
-    } else {
-      switch (plane) {
-        case 0:
-          aom_yv12_partial_copy_y(cur_frame, hstart1, hend1, vstart1, vend1,
-                                  &pbi->tile_list_outbuf, hstart2, vstart2);
-          break;
-        case 1:
-          aom_yv12_partial_copy_u(cur_frame, hstart1, hend1, vstart1, vend1,
-                                  &pbi->tile_list_outbuf, hstart2, vstart2);
-          break;
-        case 2:
-          aom_yv12_partial_copy_v(cur_frame, hstart1, hend1, vstart1, vend1,
-                                  &pbi->tile_list_outbuf, hstart2, vstart2);
-          break;
-        default: assert(0);
-      }
+    switch (plane) {
+      case 0:
+        aom_yv12_partial_copy_y(cur_frame, hstart1, hend1, vstart1, vend1,
+                                &pbi->tile_list_outbuf, hstart2, vstart2);
+        break;
+      case 1:
+        aom_yv12_partial_copy_u(cur_frame, hstart1, hend1, vstart1, vend1,
+                                &pbi->tile_list_outbuf, hstart2, vstart2);
+        break;
+      case 2:
+        aom_yv12_partial_copy_v(cur_frame, hstart1, hend1, vstart1, vend1,
+                                &pbi->tile_list_outbuf, hstart2, vstart2);
+        break;
+      default: assert(0);
     }
   }
 }
@@ -671,6 +637,40 @@ static size_t read_metadata_hdr_mdcv(AV1Decoder *const pbi, const uint8_t *data,
   return kMdcvPayloadSize;
 }
 
+static int read_metadata_frame_hash(AV1Decoder *const pbi,
+                                    struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  const unsigned hash_type = aom_rb_read_literal(rb, 4);
+  const unsigned per_plane = aom_rb_read_bit(rb);
+  const unsigned has_grain = aom_rb_read_bit(rb);
+  aom_rb_read_literal(rb, 2);  // reserved
+
+  // If hash_type is reserved for future use, ignore the entire OBU
+  if (hash_type) return -1;
+
+  FrameHash *const frame_hash = has_grain ? &cm->cur_frame->grain_frame_hash
+                                          : &cm->cur_frame->raw_frame_hash;
+  memset(frame_hash, 0, sizeof(*frame_hash));
+
+  frame_hash->hash_type = hash_type;
+  frame_hash->per_plane = per_plane;
+  frame_hash->has_grain = has_grain;
+  if (per_plane) {
+    const int num_planes = av1_num_planes(cm);
+    for (int i = 0; i < num_planes; ++i) {
+      PlaneHash *plane = &frame_hash->plane[i];
+      for (size_t j = 0; j < 16; ++j)
+        plane->md5[j] = aom_rb_read_literal(rb, 8);
+    }
+  } else {
+    PlaneHash *plane = &frame_hash->plane[0];
+    for (size_t i = 0; i < 16; ++i) plane->md5[i] = aom_rb_read_literal(rb, 8);
+  }
+  frame_hash->is_present = 1;
+
+  return 0;
+}
+
 static void scalability_structure(struct aom_read_bit_buffer *rb) {
   const int spatial_layers_cnt_minus_1 = aom_rb_read_literal(rb, 2);
   const int spatial_layer_dimensions_present_flag = aom_rb_read_bit(rb);
@@ -774,7 +774,7 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
     return 0;
   }
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
-  if (metadata_type == 0 || metadata_type >= 6) {
+  if (metadata_type == 0 || metadata_type >= 7) {
     // If metadata_type is reserved for future use or a user private value,
     // ignore the entire OBU and just check trailing bits.
     if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
@@ -811,6 +811,16 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
   av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
   if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
     read_metadata_scalability(&rb);
+  } else if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
+    if (read_metadata_frame_hash(pbi, &rb)) {
+      // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
+      // just checking trailing bits
+      if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
+        cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+        return 0;
+      }
+      return sz;
+    }
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
@@ -970,7 +980,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         decoded_payload_size = frame_header_size;
         pbi->frame_header_size = frame_header_size;
 
-        if (cm->show_existing_frame) {
+        if (cm->show_existing_frame
+#if CONFIG_TIP
+            || cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT
+#endif  // CONFIG_TIP
+        ) {
           if (obu_header.type == OBU_FRAME) {
             cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
             return -1;

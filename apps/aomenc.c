@@ -221,6 +221,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                                        AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -273,7 +276,6 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.large_scale_tile,
   &g_av1_codec_arg_defs.monochrome,
   &g_av1_codec_arg_defs.full_still_picture_hdr,
-  &g_av1_codec_arg_defs.use_16bit_internal,
   &g_av1_codec_arg_defs.save_as_annexb,
   NULL
 };
@@ -415,30 +417,58 @@ const arg_def_t *av1_ctrl_args[] = {
 #endif
   &g_av1_codec_arg_defs.subgop_config_str,
   &g_av1_codec_arg_defs.subgop_config_path,
+  &g_av1_codec_arg_defs.frame_hash_metadata,
+  &g_av1_codec_arg_defs.frame_hash_per_plane,
   NULL,
 };
 
 const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.disable_ml_transform_speed_features,
   &g_av1_codec_arg_defs.disable_ml_partition_speed_features,
-#if CONFIG_SDP
+#if CONFIG_EXT_RECUR_PARTITIONS
+  &g_av1_codec_arg_defs.erp_pruning_level,
+  &g_av1_codec_arg_defs.use_ml_erp_pruning,
+  &g_av1_codec_arg_defs.enable_ext_partitions,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   &g_av1_codec_arg_defs.enable_sdp,
-#endif
-#if CONFIG_MRLS
   &g_av1_codec_arg_defs.enable_mrls,
-#endif
+  &g_av1_codec_arg_defs.enable_wiener,
+  &g_av1_codec_arg_defs.enable_sgrproj,
+#if CONFIG_PC_WIENER
+  &g_av1_codec_arg_defs.enable_pc_wiener,
+#endif  //  CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  &g_av1_codec_arg_defs.enable_wiener_nonsep,
+#endif  //  CONFIG_WIENER_NONSEP
+#if CONFIG_TIP
+  &g_av1_codec_arg_defs.enable_tip,
+#endif  // CONFIG_TIP
+#if CONFIG_BAWP
+  &g_av1_codec_arg_defs.enable_bawp,
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  &g_av1_codec_arg_defs.enable_cwp,
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  &g_av1_codec_arg_defs.enable_imp_msk_bld,
+#endif  // CONFIG_D071_IMP_MSK_BLD
+  &g_av1_codec_arg_defs.enable_fsc,
 #if CONFIG_ORIP
   &g_av1_codec_arg_defs.enable_orip,
 #endif
-#if CONFIG_IST
+#if CONFIG_IDIF
+  &g_av1_codec_arg_defs.enable_idif,
+#endif  // CONFIG_IDIF
   &g_av1_codec_arg_defs.enable_ist,
-#endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
+#if CONFIG_CROSS_CHROMA_TX
+  &g_av1_codec_arg_defs.enable_cctx,
+#endif  // CONFIG_CROSS_CHROMA_TX
   &g_av1_codec_arg_defs.enable_ibp,
-#endif
-#if CONFIG_NEW_INTER_MODES
+  &g_av1_codec_arg_defs.explicit_ref_frame_map,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  &g_av1_codec_arg_defs.enable_frame_output_order,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   &g_av1_codec_arg_defs.max_drl_refmvs,
-#endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_REF_MV_BANK
   &g_av1_codec_arg_defs.enable_refmvbank,
 #endif  // CONFIG_REF_MV_BANK
@@ -448,15 +478,35 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_CCSO
   &g_av1_codec_arg_defs.enable_ccso,
 #endif
+#if CONFIG_PEF
+  &g_av1_codec_arg_defs.enable_pef,
+#endif  // CONFIG_PEF
 #if CONFIG_IBC_SR_EXT
   &g_av1_codec_arg_defs.enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_ADAPTIVE_MVD
   &g_av1_codec_arg_defs.enable_adaptive_mvd,
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+  &g_av1_codec_arg_defs.enable_flex_mvres,
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_ADAPTIVE_DS_FILTER
+  &g_av1_codec_arg_defs.enable_cfl_ds_filter,
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 #if CONFIG_JOINT_MVD
   &g_av1_codec_arg_defs.enable_joint_mvd,
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  &g_av1_codec_arg_defs.enable_refinemv,
+#endif  // CONFIG_REFINEMV
+#if CONFIG_PAR_HIDING
+  &g_av1_codec_arg_defs.enable_parity_hiding,
+#endif  // CONFIG_PAR_HIDING
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  &g_av1_codec_arg_defs.enable_warped_causal,
+  &g_av1_codec_arg_defs.enable_warp_delta,
+  &g_av1_codec_arg_defs.enable_warp_extend,
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   NULL,
 };
 
@@ -531,13 +581,12 @@ struct stream_config {
   int write_webm;
   const char *film_grain_filename;
   int write_ivf;
-  // whether to use 16bit internal buffers
-  int use_16bit_internal;
 #if CONFIG_TUNE_VMAF
   const char *vmaf_model_path;
 #endif
   const char *subgop_config_str;
   const char *subgop_config_path;
+  aom_color_range_t color_range;
 };
 
 struct stream_state {
@@ -588,37 +637,86 @@ static void init_config(cfg_options_t *config) {
   config->enable_rect_partitions = 1;
   config->enable_1to4_partitions = 1;
   config->disable_ml_transform_speed_features = 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  config->disable_ml_partition_speed_features = 1;
+#else
   config->disable_ml_partition_speed_features = 0;
-#if CONFIG_SDP
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+  config->erp_pruning_level = 5;
+  config->use_ml_erp_pruning = 0;
+#if CONFIG_H_PARTITION
+  config->enable_ext_partitions = 1;
+#else
+  config->enable_ext_partitions = 0;
+#endif  // CONFIG_H_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;
-#endif
-#if CONFIG_MRLS
   config->enable_mrls = 1;
-#endif
+#if CONFIG_TIP
+  config->enable_tip = 1;
+#endif  // CONFIG_TIP
+#if CONFIG_BAWP
+  config->enable_bawp = 1;
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  config->enable_cwp = 1;
+#endif  // CONFIG_BAWP
+#if CONFIG_D071_IMP_MSK_BLD
+  config->enable_imp_msk_bld = 1;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+  config->enable_fsc = 1;
 #if CONFIG_ORIP
   config->enable_orip = 1;
 #endif
-#if CONFIG_IST
+#if CONFIG_IDIF
+  config->enable_idif = 1;
+#endif  // CONFIG_IDIF
   config->enable_ist = 1;
-#endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
+#if CONFIG_CROSS_CHROMA_TX
+  config->enable_cctx = 1;
+#endif  // CONFIG_CROSS_CHROMA_TX
   config->enable_ibp = 1;
-#endif
 #if CONFIG_ADAPTIVE_MVD
   config->enable_adaptive_mvd = 1;
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+  config->enable_flex_mvres = 1;
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_ADAPTIVE_DS_FILTER
+  config->enable_cfl_ds_filter = 1;
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 #if CONFIG_JOINT_MVD
   config->enable_joint_mvd = 1;
 #endif
+#if CONFIG_REFINEMV
+  config->enable_refinemv = 1;
+#endif  // CONFIG_REFINEMV
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
   config->enable_restoration = 1;
+  config->enable_wiener = !CONFIG_WIENER_NONSEP;
+  config->enable_sgrproj = 1;
+#if CONFIG_PC_WIENER
+  config->enable_pc_wiener = 1;
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  config->enable_wiener_nonsep = 1;
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   config->enable_ccso = 1;
 #endif
+#if CONFIG_PEF
+  config->enable_pef = 1;
+#endif  // CONFIG_PEF
   config->enable_obmc = 1;
   config->enable_warped_motion = 1;
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  config->enable_warped_causal = 1;
+  config->enable_warp_delta = 1;
+  config->enable_warp_extend = 1;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   config->enable_global_motion = 1;
   config->enable_diff_wtd_comp = 1;
   config->enable_interintra_comp = 1;
@@ -636,6 +734,10 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_OPTFLOW_REFINEMENT
   config->enable_opfl_refine = 1;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+  config->explicit_ref_frame_map = 0;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  config->enable_frame_output_order = 1;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
   config->enable_smooth_interintra = 1;
@@ -649,6 +751,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_REF_MV_BANK
   config->enable_refmvbank = 1;
 #endif
+#if CONFIG_PAR_HIDING
+  config->enable_parity_hiding = 1;
+#endif  // CONFIG_PAR_HIDING
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
@@ -805,6 +910,7 @@ static void open_input_file(struct AvxInputContext *input,
       input->framerate.denominator = input->y4m.fps_d;
       input->fmt = input->y4m.aom_fmt;
       input->bit_depth = input->y4m.bit_depth;
+      input->color_range = input->y4m.color_range;
     } else
       fatal("Unsupported Y4M stream.");
   } else if (input->detect.buf_read == 4 && fourcc_is_ivf(input->detect.buf)) {
@@ -1049,6 +1155,13 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->write_ivf = 0;
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.threads, argi)) {
       config->cfg.g_threads = arg_parse_uint(&arg);
+#if !CONFIG_MULTITHREAD
+      if (config->cfg.g_threads > 1) {
+        die("Error: --threads=%d is not supported when CONFIG_MULTITHREAD = "
+            "0.\n",
+            config->cfg.g_threads);
+      }
+#endif
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.profile, argi)) {
       config->cfg.g_profile = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.width, argi)) {
@@ -1093,9 +1206,12 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.full_still_picture_hdr,
                          argi)) {
       config->cfg.full_still_picture_hdr = 1;
-    } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_16bit_internal,
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.frame_hash_metadata,
                          argi)) {
-      warn("%s option deprecated. default to 1 always.\n", arg.name);
+      config->cfg.frame_hash_metadata = arg_parse_enum_or_int(&arg);
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.frame_hash_per_plane,
+                         argi)) {
+      config->cfg.frame_hash_per_plane = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.dropframe_thresh, argi)) {
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.resize_mode, argi)) {
@@ -1230,7 +1346,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       if (!match) argj++;
     }
   }
-  config->use_16bit_internal = 1;
 
   return eos_mark_found;
 }
@@ -1394,33 +1509,22 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "Reduced transform set          : %d\n",
           encoder_cfg->reduced_tx_type_set);
 
-#if CONFIG_NEW_INTER_MODES || CONFIG_REF_MV_BANK
   fprintf(stdout, "Tool setting (Ref MVs)         :");
-#if CONFIG_NEW_INTER_MODES
   fprintf(stdout, " max-drl-refmvs (%d)", encoder_cfg->max_drl_refmvs);
-#endif  // CONFIG_NEW_INTER_MODES
-#if CONFIG_NEW_INTER_MODES && CONFIG_REF_MV_BANK
-  fprintf(stdout, " ,");
-#endif  // CONFIG_NEW_INTER_MODES && CONFIG_REF_MV_BANK
 #if CONFIG_REF_MV_BANK
-  fprintf(stdout, " Refmv Bank (%d)", encoder_cfg->enable_refmvbank);
+  fprintf(stdout, " , Refmv Bank (%d)", encoder_cfg->enable_refmvbank);
 #endif  // CONFIG_REF_MV_BANK
   fprintf(stdout, "\n");
-#endif  // CONFIG_NEW_INTER_MODES || CONFIG_REF_MV_BANK
 
   fprintf(
       stdout, "Tool setting (Partition)       : T-Type (%d), 4:1/1:4 (%d)\n",
       encoder_cfg->enable_ab_partitions, encoder_cfg->enable_1to4_partitions);
   fprintf(stdout, "Disable ml tx speed features   : %d\n",
           encoder_cfg->disable_ml_transform_speed_features);
-#if CONFIG_SDP
   fprintf(stdout, "                               : SDP (%d)\n",
           encoder_cfg->enable_sdp);
-#endif
-#if CONFIG_IST
   fprintf(stdout, "                               : IST (%d)\n",
           encoder_cfg->enable_ist);
-#endif
   fprintf(stdout,
           "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), "
           "FilterIntra (%d)\n",
@@ -1432,62 +1536,74 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "                               : "
           "EdgeFilter (%d), PaethPredictor (%d)"
-#if CONFIG_MRLS
           ", MRLS(%d)"
-#endif
+          ", FSC(%d)"
 #if CONFIG_ORIP
           ", ORIP(%d)"
-#endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
+#endif  // CONFIG_CONFIG_ORIP
+#if CONFIG_IDIF
+          ", IDIF(%d)"
+#endif  // CONFIG_IDIF
           ", IBP(%d)"
-#endif
           "\n",
           encoder_cfg->enable_intra_edge_filter,
-
-#if CONFIG_MRLS
+          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
+          encoder_cfg->enable_fsc
 #if CONFIG_ORIP
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
-          encoder_cfg->enable_orip, encoder_cfg->enable_ibp);
-#else
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
-          encoder_cfg->enable_orip);
-#endif
-#else
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
+          ,
+          encoder_cfg->enable_orip
+#endif  //  CONFIG_ORIP
+#if CONFIG_IDIF
+          ,
+          encoder_cfg->enable_idif
+#endif  //  CONFIG_IDIF
+          ,
           encoder_cfg->enable_ibp);
-#else
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls);
-#endif
-#endif
-#else
-#if CONFIG_ORIP
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_orip,
-          encoder_cfg->enable_ibp);
-#else
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_orip);
-#endif
-#else
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
-          encoder_cfg->enable_paeth_intra, encoder_cfg->enable_ibp);
-#else
-          encoder_cfg->enable_paeth_intra);
-#endif
-#endif
-#endif
-  fprintf(stdout,
-          "Tool setting (Inter)           : OBMC (%d), WarpMotion (%d), "
-          "GlobalMotion (%d)\n",
-          encoder_cfg->enable_obmc, encoder_cfg->enable_warped_motion,
-          encoder_cfg->enable_global_motion);
+#if CONFIG_ADAPTIVE_DS_FILTER
+  fprintf(
+      stdout,
+      "                               : Adaptive Down sample filter: (%d)\n",
+      encoder_cfg->enable_cfl_ds_filter);
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 
   fprintf(stdout,
-          "                               : DiffCompound "
-          "(%d), InterIntra (%d)\n",
-          encoder_cfg->enable_diff_wtd_comp,
-          encoder_cfg->enable_interintra_comp);
+          "Tool setting (Inter)           : InterIntra (%d), OBMC (%d), "
+          "Warp (%d)\n",
+          encoder_cfg->enable_interintra_comp, encoder_cfg->enable_obmc,
+          encoder_cfg->enable_warped_motion);
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  if (encoder_cfg->enable_warped_motion) {
+    fprintf(stdout,
+            "                               : WARPED_CAUSAL (%d), "
+            "WARP_DELTA (%d), WARP_EXTEND (%d)\n",
+            encoder_cfg->enable_warped_causal, encoder_cfg->enable_warp_delta,
+            encoder_cfg->enable_warp_extend);
+  }
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_TIP
+  fprintf(stdout, "                               : TIP (%d)\n",
+          encoder_cfg->enable_tip);
+#endif  // CONFIG_TIP
+#if CONFIG_BAWP
+  fprintf(stdout, "                               : BAWP (%d)\n",
+          encoder_cfg->enable_bawp);
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  fprintf(stdout, "                               : CWP (%d)\n",
+          encoder_cfg->enable_cwp);
+#endif  // CONFIG_CWP
+
+#if CONFIG_D071_IMP_MSK_BLD
+  fprintf(stdout, "                               : ImpMskBld (%d)\n",
+          encoder_cfg->enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
+  fprintf(stdout,
+          "                               : GlobalMotion (%d), "
+          "DiffCompound (%d)\n",
+          encoder_cfg->enable_global_motion, encoder_cfg->enable_diff_wtd_comp);
 
   fprintf(stdout,
           "                               : MaskCompound: (%d), "
@@ -1499,10 +1615,19 @@ static void show_stream_config(struct stream_state *stream,
           "                               : Adaptive MVD resolution: (%d)\n",
           encoder_cfg->enable_adaptive_mvd);
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+  fprintf(stdout,
+          "                               : Flexible MV precisions: (%d)\n",
+          encoder_cfg->enable_flex_mvres);
+#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_JOINT_MVD
   fprintf(stdout, "                               : Joint MVD coding: (%d)\n",
           encoder_cfg->enable_joint_mvd);
 #endif
+#if CONFIG_REFINEMV
+  fprintf(stdout, "                               : RefineMV mode: (%d)\n",
+          encoder_cfg->enable_refinemv);
+#endif  // CONFIG_REFINEMV
   fprintf(stdout,
           "                               : InterInterWedge (%d), "
           "InterIntraWedge (%d), RefFrameMv (%d)\n",
@@ -1515,29 +1640,66 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_opfl_refine);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
+#if CONFIG_PEF
+  fprintf(stdout, "                               : PEF (%d)\n",
+          encoder_cfg->enable_pef);
+#endif  // CONFIG_PEF
+
   fprintf(stdout,
-          "Tool setting (Transform)       : Flip & IDT (%d), TX_64 (%d)\n",
-          encoder_cfg->enable_flip_idtx, encoder_cfg->enable_tx64);
+          "Tool setting (Transform)       : Flip & IDT (%d), "
+#if CONFIG_CROSS_CHROMA_TX
+          "CCTX (%d), "
+#endif  // CONFIG_CROSS_CHROMA_TX
+          "TX_64 (%d)\n",
+          encoder_cfg->enable_flip_idtx,
+#if CONFIG_CROSS_CHROMA_TX
+          encoder_cfg->enable_cctx,
+#endif  // CONFIG_CROSS_CHROMA_TX
+          encoder_cfg->enable_tx64);
 
   fprintf(stdout,
           "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "
 #if CONFIG_CCSO
           "CCSO (%d), "
 #endif
-          "LoopRestortion (%d)\n",
+#if CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+          "LoopRestoration (%d: [%d/%d/%d/%d])\n",
+#elif CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+          "LoopRestoration (%d: [%d/%d/%d])\n",
+#else
+          "LoopRestoration (%d: [%d/%d])\n",
+#endif  // CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
 #if CONFIG_CCSO
           encoder_cfg->enable_ccso,
 #endif
-          encoder_cfg->enable_restoration);
+          encoder_cfg->enable_restoration, encoder_cfg->enable_wiener,
+          encoder_cfg->enable_sgrproj
+#if CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+          ,
+          encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep
+#elif CONFIG_PC_WIENER && !CONFIG_WIENER_NONSEP
+          ,
+          encoder_cfg->enable_pc_wiener
+#elif !CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+          ,
+          encoder_cfg->enable_wiener_nonsep
+#endif  // CONFIG_PC_WIENER && CONFIG_WIENER_NONSEP
+  );
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "
+#if CONFIG_PAR_HIDING
+          "ParityHiding (%d), "
+#endif  // CONFIG_PAR_HIDING
 #if CONFIG_IBC_SR_EXT
           "IntraBCExt (%d), "
 #endif  // CONFIG_IBC_SR_EXT
           "IntraBC (%d)\n",
           encoder_cfg->enable_palette,
+#if CONFIG_PAR_HIDING
+          encoder_cfg->enable_parity_hiding,
+#endif  // CONFIG_PAR_HIDING
 #if CONFIG_IBC_SR_EXT
           encoder_cfg->enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
@@ -1625,7 +1787,6 @@ static void initialize_encoder(struct stream_state *stream,
   int flags = 0;
 
   flags |= global->show_psnr ? AOM_CODEC_USE_PSNR : 0;
-  flags |= stream->config.use_16bit_internal ? AOM_CODEC_USE_HIGHBITDEPTH : 0;
   flags |= global->quiet ? 0 : AOM_CODEC_USE_PER_FRAME_STATS;
 
   /* Construct Encoder Context */
@@ -1662,6 +1823,8 @@ static void initialize_encoder(struct stream_state *stream,
     AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_FILM_GRAIN_TABLE,
                                   stream->config.film_grain_filename);
   }
+  AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_COLOR_RANGE,
+                                stream->config.color_range);
 
   if (stream->config.subgop_config_str) {
     AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_SUBGOP_CONFIG_STR,
@@ -1675,7 +1838,7 @@ static void initialize_encoder(struct stream_state *stream,
   if (global->test_decode != TEST_DECODE_OFF) {
     aom_codec_iface_t *decoder = get_aom_decoder_by_short_name(
         get_short_name_by_aom_encoder(global->codec));
-    aom_codec_dec_cfg_t cfg = { 0, 0, 0, !stream->config.use_16bit_internal };
+    aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
     aom_codec_dec_init(&stream->decoder, decoder, &cfg, 0);
 
     if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {
@@ -1907,42 +2070,21 @@ static void test_decode(struct stream_state *stream,
   AOM_CODEC_CONTROL_TYPECHECKED(&stream->decoder, AV1_GET_NEW_FRAME_IMAGE,
                                 &dec_img);
 
-  if ((enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) !=
-      (dec_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH)) {
-    if (enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
-      aom_image_t enc_hbd_img;
-      aom_img_alloc(&enc_hbd_img, enc_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
-                    enc_img.d_w, enc_img.d_h, 16);
-      aom_img_truncate_16_to_8(&enc_hbd_img, &enc_img);
-      enc_img = enc_hbd_img;
-    }
-    if (dec_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
-      aom_image_t dec_hbd_img;
-      aom_img_alloc(&dec_hbd_img, dec_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
-                    dec_img.d_w, dec_img.d_h, 16);
-      aom_img_truncate_16_to_8(&dec_hbd_img, &dec_img);
-      dec_img = dec_hbd_img;
-    }
-  }
-
   ctx_exit_on_error(&stream->encoder, "Failed to get encoder reference frame");
   ctx_exit_on_error(&stream->decoder, "Failed to get decoder reference frame");
 
   if (!aom_compare_img(&enc_img, &dec_img)) {
     int y[4], u[4], v[4];
-    if (enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
-      aom_find_mismatch_high(&enc_img, &dec_img, y, u, v);
-    } else {
-      aom_find_mismatch(&enc_img, &dec_img, y, u, v);
-    }
+    aom_find_mismatch_high(&enc_img, &dec_img, y, u, v);
     stream->decoder.err = 1;
     warn_or_exit_on_error(&stream->decoder, fatal == TEST_DECODE_FATAL,
-                          "Stream %d: Encode/decode mismatch on frame %d at"
+                          "Stream %d: Encode/decode mismatch on POC %d at"
                           " Y[%d, %d] {%d/%d},"
                           " U[%d, %d] {%d/%d},"
                           " V[%d, %d] {%d/%d}",
-                          stream->index, stream->frames_out, y[0], y[1], y[2],
-                          y[3], u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3]);
+                          stream->index, stream->frames_out - 1, y[0], y[1],
+                          y[2], y[3], u[0], u[1], u[2], u[3], v[0], v[1], v[2],
+                          v[3]);
     stream->mismatch_seen = stream->frames_out;
   }
 
@@ -1955,14 +2097,12 @@ int main(int argc, const char **argv_) {
   aom_image_t raw;
   aom_image_t raw_shift;
   int allocated_raw_shift = 0;
-  int do_16bit_internal = 0;
   int input_shift = 0;
 
   struct AvxInputContext input;
   struct AvxEncoderConfig global;
   struct stream_state *streams = NULL;
   char **argv, **argi;
-  uint64_t cx_time = 0;
   int stream_cnt = 0;
   int res = 0;
   int profile_updated = 0;
@@ -2170,7 +2310,6 @@ int main(int argc, const char **argv_) {
         }
       }
       // Force encoder to use 16-bit pipeline for 8-bit video/image
-      stream->config.use_16bit_internal = 1;
       if (profile_updated && !global.quiet) {
         fprintf(stderr,
                 "Warning: automatically updating to profile %d to "
@@ -2183,6 +2322,7 @@ int main(int argc, const char **argv_) {
 
     FOREACH_STREAM(stream, streams) {
       set_stream_dimensions(stream, input.width, input.height);
+      stream->config.color_range = input.color_range;
     }
     FOREACH_STREAM(stream, streams) { validate_stream_config(stream, &global); }
 
@@ -2260,9 +2400,6 @@ int main(int argc, const char **argv_) {
       // Currently assume that the bit_depths for all streams using
       // highbitdepth are the same.
       FOREACH_STREAM(stream, streams) {
-        if (stream->config.use_16bit_internal) {
-          do_16bit_internal = 1;
-        }
         input_shift = (int)stream->config.cfg.g_bit_depth -
                       stream->config.cfg.g_input_bit_depth;
       };
@@ -2300,8 +2437,7 @@ int main(int argc, const char **argv_) {
       fflush(stdout);
 
       aom_image_t *frame_to_encode;
-      if (input_shift || (do_16bit_internal && input.bit_depth == 8)) {
-        assert(do_16bit_internal);
+      if (input_shift || input.bit_depth == 8) {
         // Input bit depth and stream bit depth do not match, so up
         // shift frame to stream bit depth
         if (!allocated_raw_shift) {
@@ -2314,26 +2450,11 @@ int main(int argc, const char **argv_) {
       } else {
         frame_to_encode = &raw;
       }
-      struct aom_usec_timer timer;
-      aom_usec_timer_start(&timer);
-      if (do_16bit_internal) {
-        assert(frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
-        FOREACH_STREAM(stream, streams) {
-          if (stream->config.use_16bit_internal)
-            encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,
-                         seen_frames);
-          else
-            assert(0);
-        };
-      } else {
-        assert((frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH) == 0);
-        FOREACH_STREAM(stream, streams) {
-          encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,
-                       seen_frames);
-        }
-      }
-      aom_usec_timer_mark(&timer);
-      cx_time += aom_usec_timer_elapsed(&timer);
+      assert(frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
+      FOREACH_STREAM(stream, streams) {
+        encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,
+                     seen_frames);
+      };
 
       FOREACH_STREAM(stream, streams) { update_quantizer_histogram(stream); }
 

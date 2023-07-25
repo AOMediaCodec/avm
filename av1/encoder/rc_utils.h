@@ -263,11 +263,7 @@ static AOM_INLINE void recode_loop_update_q(
     const int64_t high_err_target = cpi->ambient_err;
     const int64_t low_err_target = cpi->ambient_err >> 1;
 
-    if (cm->seq_params.use_highbitdepth) {
-      kf_err = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
-    } else {
-      kf_err = aom_get_y_sse(cpi->source, &cm->cur_frame->buf);
-    }
+    kf_err = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
 
     // Prevent possible divide by zero error below for perfect KF
     kf_err += !kf_err;

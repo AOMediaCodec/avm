@@ -8,7 +8,7 @@
 #
 
 default:
-  timeout: 8 hours
+  timeout: 11 hours
 
 # Simple x86_64 Linux build
 Linux Nightly Build:
@@ -23,11 +23,13 @@ Linux Nightly Build:
   script:
     - 'echo "CMake Flags: $CMAKE_FLAGS"'
     - cmake -B "aom_nightly_build" -GNinja $CMAKE_FLAGS
+    - cmake --build "aom_nightly_build" --target aomenc
     - cmake --build "aom_nightly_build" --target test_libaom
   needs: []
   artifacts:
     expire_in: 1 day
     paths:
+      - 'aom_nightly_build/aomenc'
       - 'aom_nightly_build/test_libaom'
       - 'aom_nightly_build/**/*.gcno'
       - 'aom_nightly_build/**/*.[hc]'
@@ -80,11 +82,15 @@ Coverage Report:
       --html --html-details ../coverage-html/coverage.html
       --print-summary
       -r ../ .
+  coverage: '/lines:\s(\d+.\d+\%)/'
   artifacts:
     reports:
-      cobertura: coverage.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
     paths:
       - coverage-html
+
 
 #
 # Tests run with varying SIMD levels
@@ -102,7 +108,7 @@ Coverage Report:
 .common-linux-unit-optim:
   stage: test
   interruptible: true
-  parallel: 20
+  parallel: 10
   variables:
     LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
     GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
@@ -121,7 +127,7 @@ Coverage Report:
         avx2) export AOM_SIMD_CAPS_MASK=0x1ff ;;
       esac
 
-      test_filter="-C*:MMX*:SSE*:SSSE*:AVX*"
+      test_filter="-C*:MMX*:SSE*:SSSE*:AVX*:*Large*"
 
     - ./test_libaom --gtest_filter=${test_filter}
   needs:
@@ -139,30 +145,15 @@ Linux Unit (x86_64, sse2):
   variables:
     AOM_OPTIM_LEVEL: sse2
 
-Linux Unit (x86_64, sse3):
-  extends: .common-linux-unit-optim
-  variables:
-    AOM_OPTIM_LEVEL: sse3
-
 Linux Unit (x86_64, ssse3):
   extends: .common-linux-unit-optim
   variables:
     AOM_OPTIM_LEVEL: ssse3
 
-Linux Unit (x86_64, sse4_1):
-  extends: .common-linux-unit-optim
-  variables:
-    AOM_OPTIM_LEVEL: sse4_1
-
 Linux Unit (x86_64, sse4_2):
   extends: .common-linux-unit-optim
   variables:
     AOM_OPTIM_LEVEL: sse4_2
-
-Linux Unit (x86_64, avx2):
-  extends: .common-linux-unit-optim
-  variables:
-    AOM_OPTIM_LEVEL: avx2
 
 #
 # Sanitizer jobs
@@ -193,7 +184,7 @@ Linux Unit (x86_64, avx2):
      :fast_unwind_on_fatal=1\
      :allocator_may_return_null=1"
   before_script:
-    - export PATH="/usr/lib/llvm-6.0/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-12/bin:${PATH}"
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - |
@@ -268,10 +259,89 @@ Linux Sanitizer (integer) Test Nightly:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [integer]'
 
-Linux Sanitizer (thread) Test Nightly:
-  extends: .sanitizer-common-nigtly
+# TODO(urvang): Temporarily disabled to debug memory usage.
+#Linux Sanitizer (thread) Test Nightly:
+#  extends: .sanitizer-common-nigtly
+#  variables:
+#    AOM_SANITIZER_TYPE: thread
+#  needs:
+#    - 'Test Data'
+#    - 'Linux Sanitizers (x86_64-clang): [thread]'
+
+
+# Encode 2 GOPs in parallel and serial manner and ensure that results match.
+.gop-enc-common:
+  stage: test
+  interruptible: true
   variables:
-    AOM_SANITIZER_TYPE: thread
+    AOMENC_LIMIT: 130
+    AOMENC_SKIP: 0
+    AOMENC_QP: 160
+    AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
+    AOMENC_OUTPUT: serial_2gops
+  before_script:
+    - curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AOMENC_INPUT}.xz
+    - unxz ${AOMENC_INPUT}.xz
+  script:
+    - aom_nightly_build/aomenc
+        --debug
+        --cpu-used=0
+        --passes=1
+        --lag-in-frames=19
+        --auto-alt-ref=1
+        --min-gf-interval=16
+        --max-gf-interval=16
+        --gf-min-pyr-height=4
+        --gf-max-pyr-height=4
+        --kf-min-dist=65
+        --kf-max-dist=65
+        --use-fixed-qp-offsets=1
+        --deltaq-mode=0
+        --enable-tpl-model=0
+        --end-usage=q
+        --qp=${AOMENC_QP}
+        --enable-keyframe-filtering=0
+        --obu
+        --limit=${AOMENC_LIMIT}
+        --skip=${AOMENC_SKIP}
+        -o "${AOMENC_OUTPUT}.obu"
+        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
+    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
+  artifacts:
+    when: always
+    paths:
+      - ${AOMENC_OUTPUT}.*
   needs:
-    - 'Test Data'
-    - 'Linux Sanitizers (x86_64-clang): [thread]'
+    - 'Linux Nightly Build'
+
+
+Serial Encode (2 GOPs):
+  extends: .gop-enc-common
+
+
+Parallel Encode (1st GOP):
+  extends: .gop-enc-common
+  variables:
+    AOMENC_LIMIT: 65
+    AOMENC_SKIP: 0
+    AOMENC_OUTPUT: parallel_gop1
+
+
+Parallel Encode (2nd GOP):
+  extends: .gop-enc-common
+  variables:
+    AOMENC_LIMIT: 130
+    AOMENC_SKIP: 65
+    AOMENC_OUTPUT: parallel_gop2
+
+
+Serial Parallel compare:
+  stage: report
+  interruptible: true
+  script:
+    - cat parallel_gop1.obu parallel_gop2.obu > parallel_2gops.obu
+    - diff serial_2gops.obu parallel_2gops.obu
+  needs:
+    - 'Serial Encode (2 GOPs)'
+    - 'Parallel Encode (1st GOP)'
+    - 'Parallel Encode (2nd GOP)'

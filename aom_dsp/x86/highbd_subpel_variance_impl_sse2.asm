@@ -338,8 +338,8 @@ SECTION .text
   movu                 m1, [srcq+src_strideq*2]
   movu                 m5, [srcq+src_strideq*4]
   mova                 m4, m1
-  mova                 m2, [dstq]
-  mova                 m3, [dstq+dst_strideq*2]
+  movu                 m2, [dstq]
+  movu                 m3, [dstq+dst_strideq*2]
   pmullw               m1, filter_y_a
   pmullw               m5, filter_y_b
   paddw                m1, filter_rnd
@@ -404,8 +404,8 @@ SECTION .text
   movu                 m1, [srcq + src_strideq*2]
   movu                 m4, [srcq + 2]
   movu                 m5, [srcq + src_strideq*2 + 2]
-  mova                 m2, [dstq]
-  mova                 m3, [dstq + dst_strideq*2]
+  movu                 m2, [dstq]
+  movu                 m3, [dstq + dst_strideq*2]
   pavgw                m0, m4
   pavgw                m1, m5
 %if %2 == 1 ; avg
@@ -476,8 +476,8 @@ SECTION .text
   pavgw                m3, m5
   pavgw                m0, m2
   pavgw                m2, m3
-  mova                 m4, [dstq]
-  mova                 m5, [dstq + dst_strideq*2]
+  movu                 m4, [dstq]
+  movu                 m5, [dstq + dst_strideq*2]
 %if %2 == 1 ; avg
   pavgw                m0, [secq]
   add                secq, sec_str
@@ -591,9 +591,9 @@ SECTION .text
   paddw                m0, filter_rnd
   psrlw                m4, 4
   paddw                m0, m2
-  mova                 m2, [dstq]
+  movu                 m2, [dstq]
   psrlw                m0, 4
-  mova                 m3, [dstq+dst_strideq*2]
+  movu                 m3, [dstq+dst_strideq*2]
 %if %2 == 1 ; avg
   pavgw                m0, [secq]
   add                secq, sec_str
@@ -682,8 +682,8 @@ SECTION .text
   movu                 m1, [srcq+src_strideq*2]
   movu                 m2, [srcq+2]
   movu                 m3, [srcq+src_strideq*2+2]
-  mova                 m4, [dstq]
-  mova                 m5, [dstq+dst_strideq*2]
+  movu                 m4, [dstq]
+  movu                 m5, [dstq+dst_strideq*2]
   pmullw               m1, filter_x_a
   pmullw               m3, filter_x_b
   paddw                m1, filter_rnd
@@ -817,8 +817,8 @@ SECTION .text
   paddw                m3, filter_rnd
   paddw                m2, m4
   paddw                m3, m5
-  mova                 m4, [dstq]
-  mova                 m5, [dstq+dst_strideq*2]
+  movu                 m4, [dstq]
+  movu                 m5, [dstq+dst_strideq*2]
   psrlw                m2, 4
   psrlw                m3, 4
   pavgw                m0, m2
@@ -986,11 +986,11 @@ SECTION .text
   pmullw               m3, filter_y_b
   paddw                m0, m2
   paddw                m4, filter_rnd
-  mova                 m2, [dstq]
+  movu                 m2, [dstq]
   paddw                m4, m3
   psrlw                m0, 4
   psrlw                m4, 4
-  mova                 m3, [dstq+dst_strideq*2]
+  movu                 m3, [dstq+dst_strideq*2]
 %if %2 == 1 ; avg
   pavgw                m0, [secq]
   add                secq, sec_str

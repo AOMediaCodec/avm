@@ -243,7 +243,7 @@ INSTANTIATE_TEST_SUITE_P(SSE2, SumSquares1DTest,
 
 #endif  // HAVE_SSE2
 
-typedef int64_t (*sse_func)(const uint8_t *a, int a_stride, const uint8_t *b,
+typedef int64_t (*sse_func)(const uint16_t *a, int a_stride, const uint16_t *b,
                             int b_stride, int width, int height);
 typedef libaom_test::FuncParam<sse_func> TestSSEFuncs;
 
@@ -255,11 +255,10 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
   virtual void SetUp() {
     params_ = GET_PARAM(0);
     width_ = GET_PARAM(1);
-    isHbd_ = params_.ref_func == aom_highbd_sse_c;
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
-    src_ = reinterpret_cast<uint8_t *>(aom_memalign(32, 256 * 256 * 2));
-    ref_ = reinterpret_cast<uint8_t *>(aom_memalign(32, 256 * 256 * 2));
+    src_ = reinterpret_cast<uint16_t *>(aom_memalign(32, 256 * 256 * 2));
+    ref_ = reinterpret_cast<uint16_t *>(aom_memalign(32, 256 * 256 * 2));
     ASSERT_TRUE(src_ != NULL);
     ASSERT_TRUE(ref_ != NULL);
   }
@@ -278,37 +277,27 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
     const int limit = 1 << (msb + 1);
     for (int ii = 0; ii < height; ii++) {
       for (int jj = 0; jj < width; jj++) {
-        if (!isHbd_) {
-          src_[ii * stride + jj] = rnd_.Rand8();
-          ref_[ii * stride + jj] = rnd_.Rand8();
-        } else {
-          pSrc[ii * stride + jj] = rnd_(limit);
-          pRef[ii * stride + jj] = rnd_(limit);
-        }
+        pSrc[ii * stride + jj] = rnd_(limit);
+        pRef[ii * stride + jj] = rnd_(limit);
       }
     }
   }
 
-  void GenExtremeData(int width, int height, int stride, uint8_t *data,
+  void GenExtremeData(int width, int height, int stride, uint16_t *data,
                       int16_t val) {
     uint16_t *pData = (uint16_t *)data;
     for (int ii = 0; ii < height; ii++) {
       for (int jj = 0; jj < width; jj++) {
-        if (!isHbd_) {
-          data[ii * stride + jj] = (uint8_t)val;
-        } else {
-          pData[ii * stride + jj] = val;
-        }
+        pData[ii * stride + jj] = val;
       }
     }
   }
 
  protected:
-  int isHbd_;
   int width_;
   TestSSEFuncs params_;
-  uint8_t *src_;
-  uint8_t *ref_;
+  uint16_t *src_;
+  uint16_t *ref_;
   ACMRandom rnd_;
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SSETest);
@@ -324,7 +313,7 @@ void SSETest::RunTest(int isRandom, int width, int height, int run_times) {
     if (isRandom) {
       GenRandomData(width, height, stride);
     } else {
-      const int msb = isHbd_ ? 12 : 8;  // Up to 12 bit input
+      const int msb = 12;  // Up to 12 bit input
       const int limit = (1 << msb) - 1;
       if (k == 0) {
         GenExtremeData(width, height, stride, src_, 0);
@@ -335,12 +324,8 @@ void SSETest::RunTest(int isRandom, int width, int height, int run_times) {
       }
     }
     int64_t res_ref, res_tst;
-    uint8_t *pSrc = src_;
-    uint8_t *pRef = ref_;
-    if (isHbd_) {
-      pSrc = CONVERT_TO_BYTEPTR(src_);
-      pRef = CONVERT_TO_BYTEPTR(ref_);
-    }
+    uint16_t *pSrc = src_;
+    uint16_t *pRef = ref_;
     res_ref = params_.ref_func(pSrc, stride, pRef, stride, width, height);
     res_tst = params_.tst_func(pSrc, stride, pRef, stride, width, height);
     if (run_times > 1) {
@@ -369,8 +354,8 @@ void SSETest::RunTest(int isRandom, int width, int height, int run_times) {
       if (!failed) {
         failed = res_ref != res_tst;
         EXPECT_EQ(res_ref, res_tst)
-            << "Error:" << (isHbd_ ? "hbd " : " ") << k << " SSE Test ["
-            << width << "x" << height
+            << "Error:"
+            << "hbd " << k << " SSE Test [" << width << "x" << height
             << "] C output does not match optimized output.";
       }
     }
@@ -396,16 +381,14 @@ TEST_P(SSETest, DISABLED_Speed) {
 }
 
 #if HAVE_NEON
-TestSSEFuncs sse_neon[] = { TestSSEFuncs(&aom_sse_c, &aom_sse_neon),
-                            TestSSEFuncs(&aom_highbd_sse_c,
+TestSSEFuncs sse_neon[] = { TestSSEFuncs(&aom_highbd_sse_c,
                                          &aom_highbd_sse_neon) };
 INSTANTIATE_TEST_SUITE_P(NEON, SSETest,
                          Combine(ValuesIn(sse_neon), Range(4, 129, 4)));
 #endif  // HAVE_NEON
 
 #if HAVE_SSE4_1
-TestSSEFuncs sse_sse4[] = { TestSSEFuncs(&aom_sse_c, &aom_sse_sse4_1),
-                            TestSSEFuncs(&aom_highbd_sse_c,
+TestSSEFuncs sse_sse4[] = { TestSSEFuncs(&aom_highbd_sse_c,
                                          &aom_highbd_sse_sse4_1) };
 INSTANTIATE_TEST_SUITE_P(SSE4_1, SSETest,
                          Combine(ValuesIn(sse_sse4), Range(4, 129, 4)));
@@ -413,8 +396,7 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, SSETest,
 
 #if HAVE_AVX2
 
-TestSSEFuncs sse_avx2[] = { TestSSEFuncs(&aom_sse_c, &aom_sse_avx2),
-                            TestSSEFuncs(&aom_highbd_sse_c,
+TestSSEFuncs sse_avx2[] = { TestSSEFuncs(&aom_highbd_sse_c,
                                          &aom_highbd_sse_avx2) };
 INSTANTIATE_TEST_SUITE_P(AVX2, SSETest,
                          Combine(ValuesIn(sse_avx2), Range(4, 129, 4)));
@@ -571,141 +553,10 @@ INSTANTIATE_TEST_SUITE_P(AVX2, SSE_Sum_Test,
 // 2D Variance test functions
 //////////////////////////////////////////////////////////////////////////////
 
-typedef uint64_t (*Var2DFunc)(uint8_t *src, int stride, int width, int height);
+typedef uint64_t (*Var2DFunc)(uint16_t *src, int stride, int width, int height);
 typedef libaom_test::FuncParam<Var2DFunc> TestFuncVar2D;
 
 const uint16_t test_block_size[2] = { 128, 256 };
-
-class Lowbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
- public:
-  virtual ~Lowbd2dVarTest() {}
-  virtual void SetUp() {
-    params_ = this->GetParam();
-    rnd_.Reset(ACMRandom::DeterministicSeed());
-    src_ = reinterpret_cast<uint8_t *>(
-        aom_memalign(16, 512 * 512 * sizeof(uint8_t)));
-    ASSERT_TRUE(src_ != NULL);
-  }
-
-  virtual void TearDown() {
-    libaom_test::ClearSystemState();
-    aom_free(src_);
-  }
-  void RunTest(int isRandom);
-  void RunSpeedTest();
-
-  void GenRandomData(int width, int height, int stride) {
-    const int msb = 7;  // Up to 8 bit input
-    const int limit = 1 << (msb + 1);
-    for (int ii = 0; ii < height; ii++) {
-      for (int jj = 0; jj < width; jj++) {
-        src_[ii * stride + jj] = rnd_(limit);
-      }
-    }
-  }
-
-  void GenExtremeData(int width, int height, int stride) {
-    const int msb = 7;  // Up to 8 bit input
-    const int limit = 1 << (msb + 1);
-    const int val = rnd_(2) ? limit - 1 : 0;
-    for (int ii = 0; ii < height; ii++) {
-      for (int jj = 0; jj < width; jj++) {
-        src_[ii * stride + jj] = val;
-      }
-    }
-  }
-
- protected:
-  TestFuncVar2D params_;
-  uint8_t *src_;
-  ACMRandom rnd_;
-};
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(Lowbd2dVarTest);
-
-void Lowbd2dVarTest::RunTest(int isRandom) {
-  int failed = 0;
-  for (int k = 0; k < kNumIterations; k++) {
-    const int width = 4 * (rnd_(63) + 1);   // Up to 256x256
-    const int height = 4 * (rnd_(63) + 1);  // Up to 256x256
-    int stride = 4 << rnd_(8);              // Up to 512 stride
-    while (stride < width) {                // Make sure it's valid
-      stride = 4 << rnd_(8);
-    }
-    if (isRandom) {
-      GenRandomData(width, height, stride);
-    } else {
-      GenExtremeData(width, height, stride);
-    }
-
-    const uint64_t res_ref = params_.ref_func(src_, stride, width, height);
-    uint64_t res_tst;
-    ASM_REGISTER_STATE_CHECK(res_tst =
-                                 params_.tst_func(src_, stride, width, height));
-
-    if (!failed) {
-      failed = res_ref != res_tst;
-      EXPECT_EQ(res_ref, res_tst)
-          << "Error: Sum Squares Test [" << width << "x" << height
-          << "] C output does not match optimized output.";
-    }
-  }
-}
-
-void Lowbd2dVarTest::RunSpeedTest() {
-  for (int block = 0; block < 2; block++) {
-    const int width = test_block_size[block];
-    const int height = test_block_size[block];
-    int stride = 4 << rnd_(8);  // Up to 512 stride
-    while (stride < width) {    // Make sure it's valid
-      stride = 4 << rnd_(8);
-    }
-    GenExtremeData(width, height, stride);
-    const int num_loops = 1000000000 / (width + height);
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
-
-    for (int i = 0; i < num_loops; ++i)
-      params_.ref_func(src_, stride, width, height);
-
-    aom_usec_timer_mark(&timer);
-    const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
-
-    aom_usec_timer timer1;
-    aom_usec_timer_start(&timer1);
-    for (int i = 0; i < num_loops; ++i)
-      params_.tst_func(src_, stride, width, height);
-    aom_usec_timer_mark(&timer1);
-    const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer1));
-    printf("%3dx%-3d: Scaling = %.2f\n", width, height,
-           (double)elapsed_time / elapsed_time1);
-  }
-}
-
-TEST_P(Lowbd2dVarTest, OperationCheck) {
-  RunTest(1);  // GenRandomData
-}
-
-TEST_P(Lowbd2dVarTest, ExtremeValues) {
-  RunTest(0);  // GenExtremeData
-}
-
-TEST_P(Lowbd2dVarTest, DISABLED_Speed) { RunSpeedTest(); }
-
-#if HAVE_SSE2
-
-INSTANTIATE_TEST_SUITE_P(SSE2, Lowbd2dVarTest,
-                         ::testing::Values(TestFuncVar2D(&aom_var_2d_u8_c,
-                                                         &aom_var_2d_u8_sse2)));
-
-#endif  // HAVE_SSE2
-
-#if HAVE_AVX2
-
-INSTANTIATE_TEST_SUITE_P(AVX2, Lowbd2dVarTest,
-                         ::testing::Values(TestFuncVar2D(&aom_var_2d_u8_c,
-                                                         &aom_var_2d_u8_avx2)));
-
-#endif  // HAVE_SSE2
 
 class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
  public:
@@ -768,12 +619,10 @@ void Highbd2dVarTest::RunTest(int isRandom) {
       GenExtremeData(width, height, stride);
     }
 
-    const uint64_t res_ref =
-        params_.ref_func(CONVERT_TO_BYTEPTR(src_), stride, width, height);
+    const uint64_t res_ref = params_.ref_func(src_, stride, width, height);
     uint64_t res_tst;
-    ASM_REGISTER_STATE_CHECK(
-        res_tst =
-            params_.tst_func(CONVERT_TO_BYTEPTR(src_), stride, width, height));
+    ASM_REGISTER_STATE_CHECK(res_tst =
+                                 params_.tst_func(src_, stride, width, height));
 
     if (!failed) {
       failed = res_ref != res_tst;
@@ -798,7 +647,7 @@ void Highbd2dVarTest::RunSpeedTest() {
     aom_usec_timer_start(&timer);
 
     for (int i = 0; i < num_loops; ++i)
-      params_.ref_func(CONVERT_TO_BYTEPTR(src_), stride, width, height);
+      params_.ref_func(src_, stride, width, height);
 
     aom_usec_timer_mark(&timer);
     const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
@@ -806,7 +655,7 @@ void Highbd2dVarTest::RunSpeedTest() {
     aom_usec_timer timer1;
     aom_usec_timer_start(&timer1);
     for (int i = 0; i < num_loops; ++i)
-      params_.tst_func(CONVERT_TO_BYTEPTR(src_), stride, width, height);
+      params_.tst_func(src_, stride, width, height);
     aom_usec_timer_mark(&timer1);
     const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer1));
     printf("%3dx%-3d: Scaling = %.2f\n", width, height,

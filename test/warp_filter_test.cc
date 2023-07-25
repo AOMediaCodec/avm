@@ -15,28 +15,12 @@
 #include "test/warp_filter_test_util.h"
 using libaom_test::ACMRandom;
 using libaom_test::AV1HighbdWarpFilter::AV1HighbdWarpFilterTest;
-using libaom_test::AV1WarpFilter::AV1WarpFilterTest;
 using std::make_tuple;
 using std::tuple;
 
 namespace {
 
-TEST_P(AV1WarpFilterTest, CheckOutput) {
-  RunCheckOutput(std::get<3>(GET_PARAM(0)));
-}
-TEST_P(AV1WarpFilterTest, DISABLED_Speed) {
-  RunSpeedTest(std::get<3>(GET_PARAM(0)));
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    C, AV1WarpFilterTest,
-    libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_c));
-
 #if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, AV1WarpFilterTest,
-    libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_sse4_1));
-
 TEST_P(AV1HighbdWarpFilterTest, CheckOutput) {
   RunCheckOutput(std::get<4>(GET_PARAM(0)));
 }
@@ -51,19 +35,9 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdWarpFilterTest,
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1WarpFilterTest,
-    libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_avx2));
-
-INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdWarpFilterTest,
     libaom_test::AV1HighbdWarpFilter::BuildParams(av1_highbd_warp_affine_avx2));
 
 #endif  // HAVE_AVX2
-
-#if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(
-    NEON, AV1WarpFilterTest,
-    libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_neon));
-#endif  // HAVE_NEON
 
 }  // namespace

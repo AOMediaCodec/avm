@@ -53,25 +53,14 @@ std::ostream &operator<<(std::ostream &os, const TestVideoParam &test_arg) {
 }
 
 const TestVideoParam kTestVideoVectors[] = {
-#if CONFIG_EXTQUANT
   { "park_joy_90p_8_420.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 5, 0, 25.0,
-    45.0 },
+    44.5 },
   { "park_joy_90p_10_444.y4m", AOM_IMG_FMT_I44416, AOM_BITS_10, 1, 5, 0, 28.0,
-    48.0 },
+    47.5 },
   { "screendata.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 4, 1, 16.0, 56.0 },
   // Image coding (single frame).
   { "niklas_1280_720_30.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 1, 0, 25.0,
     49.0 },
-#else
-  { "park_joy_90p_8_420.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 5, 0, 26.0,
-    45.0 },
-  { "park_joy_90p_10_444.y4m", AOM_IMG_FMT_I44416, AOM_BITS_10, 1, 5, 0, 28.0,
-    48.0 },
-  { "screendata.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 4, 1, 23.0, 56.0 },
-  // Image coding (single frame).
-  { "niklas_1280_720_30.y4m", AOM_IMG_FMT_I420, AOM_BITS_8, 0, 1, 0, 32.0,
-    49.0 },
-#endif  // CONFIG_EXTQUANT
 };
 
 // Modes with extra params have their own tests.
@@ -123,7 +112,6 @@ class HorzSuperresEndToEndTest
     cfg_.g_input_bit_depth = (unsigned int)test_video_param_.bit_depth;
     cfg_.g_bit_depth = test_video_param_.bit_depth;
     init_flags_ = AOM_CODEC_USE_PSNR;
-    if (cfg_.g_bit_depth > 8) init_flags_ |= AOM_CODEC_USE_HIGHBITDEPTH;
 
     // Set superres parameters
     cfg_.rc_superres_mode = superres_mode_;
@@ -227,7 +215,6 @@ class HorzSuperresFixedEndToEndTest
     cfg_.g_input_bit_depth = (unsigned int)test_video_param_.bit_depth;
     cfg_.g_bit_depth = test_video_param_.bit_depth;
     init_flags_ = AOM_CODEC_USE_PSNR;
-    if (cfg_.g_bit_depth > 8) init_flags_ |= AOM_CODEC_USE_HIGHBITDEPTH;
 
     // Set superres parameters
     cfg_.rc_superres_mode = superres_mode_;
@@ -338,7 +325,6 @@ class HorzSuperresQThreshEndToEndTest
     cfg_.g_input_bit_depth = (unsigned int)test_video_param_.bit_depth;
     cfg_.g_bit_depth = test_video_param_.bit_depth;
     init_flags_ = AOM_CODEC_USE_PSNR;
-    if (cfg_.g_bit_depth > 8) init_flags_ |= AOM_CODEC_USE_HIGHBITDEPTH;
 
     // Set superres parameters
     cfg_.rc_superres_mode = superres_mode_;

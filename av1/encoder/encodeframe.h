@@ -16,6 +16,7 @@
 #include "aom/aom_integer.h"
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
+#include "av1/common/reconinter.h"
 
 #include "av1/encoder/global_motion.h"
 
@@ -34,7 +35,8 @@ struct ThreadData;
 
 void av1_setup_src_planes(struct macroblock *x,
                           const struct yv12_buffer_config *src, int mi_row,
-                          int mi_col, const int num_planes, BLOCK_SIZE bsize);
+                          int mi_col, const int num_planes,
+                          const CHROMA_REF_INFO *chroma_ref_info);
 
 void av1_encode_frame(struct AV1_COMP *cpi);
 
@@ -44,6 +46,16 @@ void av1_encode_tile(struct AV1_COMP *cpi, struct ThreadData *td, int tile_row,
                      int tile_col);
 void av1_encode_sb_row(struct AV1_COMP *cpi, struct ThreadData *td,
                        int tile_row, int tile_col, int mi_row);
+void av1_tip_enc_calc_subpel_params(const MV *const src_mv,
+                                    InterPredParams *const inter_pred_params,
+                                    MACROBLOCKD *xd, int mi_x, int mi_y,
+                                    int ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                                    uint16_t **mc_buf, uint16_t **pre,
+                                    SubpelParams *subpel_params,
+                                    int *src_stride);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

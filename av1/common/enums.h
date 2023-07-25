@@ -28,6 +28,60 @@ extern "C" {
 /*!\cond */
 
 #undef MAX_SB_SIZE
+#define BAWP_BUGFIX 1
+
+#if CONFIG_REFINEMV
+#define SINGLE_STEP_SEARCH 0
+#endif  // CONFIG_REFINEMV
+
+#if CONFIG_D071_IMP_MSK_BLD
+#define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
+#endif                        // CONFIG_D071_IMP_MSK_BLD
+
+#if CONFIG_WEDGE_MOD_EXT
+/*WEDGE_0 is defined in the three o'clock direciton, the angles are defined in
+ * the anticlockwise.*/
+enum {
+  WEDGE_0,
+  WEDGE_14,
+  WEDGE_27,
+  WEDGE_45,
+  WEDGE_63,
+  WEDGE_90,
+  WEDGE_117,
+  WEDGE_135,
+  WEDGE_153,
+  WEDGE_166,
+  WEDGE_180,
+  WEDGE_194,
+  WEDGE_207,
+  WEDGE_225,
+  WEDGE_243,
+  WEDGE_270,
+  WEDGE_297,
+  WEDGE_315,
+  WEDGE_333,
+  WEDGE_346,
+  WEDGE_ANGLES
+} UENUM1BYTE(WedgeDirectionType);
+
+#define H_WEDGE_ANGLES 10
+#define NUM_WEDGE_DIST 4
+#define MAX_WEDGE_TYPES 68
+#define WEDGE_BLD_SIG 1  // 0 for linear blending, 1 for sigmoid blending
+#define WEDGE_BLD_LUT_SIZE 128
+#endif  // CONFIG_WEDGE_MOD_EXT
+
+#if CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
+#define WARP_CU_BANK 1
+#else
+#define WARP_CU_BANK 0
+#endif  // CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
+
+#if CONFIG_REFINEMV
+#define REFINEMV_SUBBLOCK_WIDTH 16
+#define REFINEMV_SUBBLOCK_HEIGHT 16
+#endif  // CONFIG_REFINEMV
 
 // Cross-Component Sample Offset (CCSO)
 #if CONFIG_CCSO
@@ -41,6 +95,24 @@ extern "C" {
 #define CCSO_NUM_COMPONENTS 2
 #endif
 #endif
+#if CONFIG_ADAPTIVE_MVD
+#define IMPROVED_AMVD 1
+#else
+#define IMPROVED_AMVD 0
+#endif  // CONFIG_ADAPTIVE_MVD
+
+#if CONFIG_ADAPTIVE_MVD && CONFIG_FLEX_MVRES
+#define BUGFIX_AMVD_AMVR 1
+#else
+#define BUGFIX_AMVD_AMVR 0
+#endif  // CONFIG_ADAPTIVE_MVD && CONFIG_FLEX_MVRES
+
+#if CONFIG_IMPROVED_JMVD
+// Supported scale modes for JOINT_NEWMV
+#define JOINT_NEWMV_SCALE_FACTOR_CNT 5
+// Supoorted scale modes for JOINT_AMVDNEWMV
+#define JOINT_AMVD_SCALE_FACTOR_CNT 3
+#endif  // CONFIG_IMPROVED_JMVD
 
 // Max superblock size
 #define MAX_SB_SIZE_LOG2 7
@@ -54,9 +126,15 @@ extern "C" {
 #define MI_SIZE_LOG2 2
 #define MI_SIZE (1 << MI_SIZE_LOG2)
 
+// 1/8 pels per Mode Info (MI) unit
+#define MI_SUBPEL_SIZE_LOG2 (MI_SIZE_LOG2 + 3)
+#define MI_SUBPEL_SIZE (1 << MI_SUBPEL_SIZE_LOG2)
+
 // MI-units per max superblock (MI Block - MIB)
 #define MAX_MIB_SIZE_LOG2 (MAX_SB_SIZE_LOG2 - MI_SIZE_LOG2)
 #define MAX_MIB_SIZE (1 << MAX_MIB_SIZE_LOG2)
+
+#define MAX_MIB_SQUARE (MAX_MIB_SIZE * MAX_MIB_SIZE)
 
 // MI-units per min superblock
 #define MIN_MIB_SIZE_LOG2 (MIN_SB_SIZE_LOG2 - MI_SIZE_LOG2)
@@ -89,15 +167,11 @@ extern "C" {
 #define MAX_MODE_LF_DELTAS 2
 
 // Semi-Decoupled Partitioning
-#if CONFIG_SDP
 #define SHARED_PART_SIZE 128
 #define PARTITION_STRUCTURE_NUM 2
-#endif
 
 // Multiple reference line selection for intra prediction
-#if CONFIG_MRLS
 #define MRL_LINE_NUMBER 4
-#endif
 #if CONFIG_AIMC
 #define FIRST_MODE_COUNT 13
 #define SECOND_MODE_COUNT 16
@@ -108,14 +182,23 @@ extern "C" {
 #endif  // CONFIG_AIMC
 
 // Intra Secondary Transform
-#if CONFIG_IST
 #define IST_SET_SIZE 14  // IST kernel set size
 #define STX_TYPES 4      // 4 sec_tx_types including no IST
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
-#endif  // CONFIG_IST
+
+#define FSC_MODES 2
+#if CONFIG_ATC_DCTX_ALIGNED
+#define FSC_MAXWIDTH 32
+#define FSC_MAXHEIGHT 32
+#else
+#define FSC_MAXWIDTH 16
+#define FSC_MAXHEIGHT 16
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+#define FSC_MINWIDTH 4
+#define FSC_MINHEIGHT 4
 
 #define DIST_PRECISION_BITS 4
 #define DIST_PRECISION (1 << DIST_PRECISION_BITS)  // 16
@@ -169,17 +252,51 @@ typedef enum ATTRIBUTE_PACKED {
   BLOCK_LARGEST = (BLOCK_SIZES - 1)
 } BLOCK_SIZE;
 
-#if CONFIG_SDP
+static AOM_INLINE BLOCK_SIZE get_larger_sqr_bsize(BLOCK_SIZE bsize) {
+  switch (bsize) {
+    case BLOCK_4X4:
+    case BLOCK_4X8:
+    case BLOCK_8X4: return BLOCK_8X8;
+
+    case BLOCK_8X8:
+    case BLOCK_8X16:
+    case BLOCK_16X8:
+    case BLOCK_4X16:
+    case BLOCK_16X4: return BLOCK_16X16;
+
+    case BLOCK_16X16:
+    case BLOCK_16X32:
+    case BLOCK_32X16:
+    case BLOCK_8X32:
+    case BLOCK_32X8: return BLOCK_32X32;
+
+    case BLOCK_32X32:
+    case BLOCK_32X64:
+    case BLOCK_64X32:
+    case BLOCK_16X64:
+    case BLOCK_64X16: return BLOCK_64X64;
+
+    case BLOCK_64X64:
+    case BLOCK_64X128:
+    case BLOCK_128X64:
+    case BLOCK_128X128: return BLOCK_128X128;
+    default: return BLOCK_INVALID;
+  }
+}
+
 enum {
   SHARED_PART = 0,
   LUMA_PART = 1,
   CHROMA_PART = 2,
   TREES_TYPES,
 } UENUM1BYTE(TREE_TYPE);
-#endif
 
 // 4X4, 8X8, 16X16, 32X32, 64X64, 128X128
 #define SQR_BLOCK_SIZES 6
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+#define KEEP_PARTITION_SPLIT 0
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 //  Partition types.  R: Recursive
 //
@@ -190,6 +307,52 @@ enum {
 //  |       |     |       |     |   |   |     | R | R |
 //  +-------+     +-------+     +---+---+     +---+---+
 //
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_H_PARTITION
+//  HORZ_3                 VERT_3
+//  +---------------+       +---+------+---+
+//  |               |       |   |      |   |
+//  +---------------+       |   |      |   |
+//  |       |       |       |   |______|   |
+//  |       |       |       |   |      |   |
+//  +---------------+       |   |      |   |
+//  |               |       |   |      |   |
+//  +---------------+       +---+------+---+
+#else
+//  HORZ_3                 VERT_3
+//  +--------------+       +---+------+---+
+//  |              |       |   |      |   |
+//  +--------------+       |   |      |   |
+//  |              |       |   |      |   |
+//  |              |       |   |      |   |
+//  +--------------+       |   |      |   |
+//  |              |       |   |      |   |
+//  +--------------+       +---+------+---+
+#endif  // CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+//  HORZ_4A                 HORZ_4B
+//  +---------------+       +---------------+
+//  |               |       |               |
+//  +---------------+       +---------------+
+//  |               |       |               |
+//  |               |       |               |
+//  +---------------+       |               |
+//  |               |       |               |
+//  |               |       +---------------+
+//  |               |       |               |
+//  |               |       |               |
+//  +---------------+       +---------------+
+//  |               |       |               |
+//  +---------------+       +---------------+
+//
+//  VERT_4A                                 VERT_4B
+//  +-------------------------+          +-------------------------+
+//  |   |      |          |   |          |   |          |      |   |
+//  |   |      |          |   |          |   |          |      |   |
+//  |   |      |          |   |          |   |          |      |   |
+//  +-------------------------+          +-------------------------+
+#endif  // CONFIG_UNEVEN_4WAY
+#else
 //  HORZ_A        HORZ_B        VERT_A        VERT_B
 //  +---+---+     +-------+     +---+---+     +---+---+
 //  |   |   |     |       |     |   |   |     |   |   |
@@ -202,6 +365,32 @@ enum {
 //  +-----+       | | | |
 //  +-----+       | | | |
 //  +-----+       +-+-+-+
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
+enum {
+  PARTITION_NONE,
+  PARTITION_HORZ,
+  PARTITION_VERT,
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+  PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
+  PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
+#endif               // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  PARTITION_HORZ_4A,  // 4 horizontal uneven sub-partitions (1:2:4:1).
+  PARTITION_HORZ_4B,  // 4 horizontal uneven sub-partitions (1:4:2:1).
+  PARTITION_VERT_4A,  // 4 vertical uneven sub-partitions (1:2:4:1).
+  PARTITION_VERT_4B,  // 4 vertical uneven sub-partitions (1:4:2:1).
+#endif                // CONFIG_UNEVEN_4WAY
+  EXT_PARTITION_TYPES,
+  PARTITION_SPLIT = EXT_PARTITION_TYPES,
+  PARTITION_TYPES = PARTITION_VERT + 1,
+#if !CONFIG_UNEVEN_4WAY
+  LIMITED_PARTITION_TYPES = PARTITION_TYPES - 1,
+  LIMITED_EXT_PARTITION_TYPES = EXT_PARTITION_TYPES - 1,
+#endif  // !CONFIG_UNEVEN_4WAY
+  PARTITION_INVALID = 255
+} UENUM1BYTE(PARTITION_TYPE);
+#else   // CONFIG_EXT_RECUR_PARTITIONS
 enum {
   PARTITION_NONE,
   PARTITION_HORZ,
@@ -217,10 +406,34 @@ enum {
   PARTITION_TYPES = PARTITION_SPLIT + 1,
   PARTITION_INVALID = 255
 } UENUM1BYTE(PARTITION_TYPE);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+// Rectangular partition types.
+enum {
+  HORZ = 0,
+  VERT,
+  NUM_RECT_PARTS,
+  RECT_INVALID = NUM_RECT_PARTS
+} UENUM1BYTE(RECT_PART_TYPE);
+
+#if CONFIG_UNEVEN_4WAY
+// Uneven 4-way partition types.
+enum {
+  UNEVEN_4A = 0,
+  UNEVEN_4B,
+  NUM_UNEVEN_4WAY_PARTS,
+} UENUM1BYTE(UNEVEN_4WAY_PART_TYPE);
+#endif  // CONFIG_UNEVEN_4WAY
 
 typedef char PARTITION_CONTEXT;
 #define PARTITION_PLOFFSET 4  // number of probability models per block size
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+#define PARTITION_BLOCK_SIZES BLOCK_SIZES
+#else
 #define PARTITION_BLOCK_SIZES 5
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 #define PARTITION_CONTEXTS (PARTITION_BLOCK_SIZES * PARTITION_PLOFFSET)
 
 // block transform size
@@ -286,21 +499,14 @@ enum {
 //  |       |      |   |   |
 //  +-------+      +---+---+
 //
-//  HORZ4              VERT4
-//  +-------+      +-+-+-+-+
-//  +-------+      | | | | |
-//  +-------+      | | | | |
-//  +-------+      | | | | |
-//  +-------+      +-+-+-+-+
 enum {
   TX_PARTITION_NONE,
   TX_PARTITION_SPLIT,
   TX_PARTITION_HORZ,
   TX_PARTITION_VERT,
-  TX_PARTITION_HORZ4,
-  TX_PARTITION_VERT4,
   TX_PARTITION_TYPES,
-  TX_PARTITION_TYPES_INTRA = TX_PARTITION_VERT4 + 1,
+  TX_PARTITION_TYPES_INTRA = TX_PARTITION_TYPES,
+  TX_PARTITION_INVALID = 255
 } UENUM1BYTE(TX_PARTITION_TYPE);
 #endif  // CONFIG_NEW_TX_PARTITION
 
@@ -324,7 +530,9 @@ enum {
 #define TX_PAD_HOR 4
 // Pad 6 extra rows (2 on top and 4 on bottom) to remove vertical availability
 // check.
-#define TX_PAD_TOP 0
+#define TX_PAD_LEFT 4
+#define TX_PAD_RIGHT 4
+#define TX_PAD_TOP 4
 #define TX_PAD_BOTTOM 4
 #define TX_PAD_VER (TX_PAD_TOP + TX_PAD_BOTTOM)
 // Pad 16 extra bytes to avoid reading overflow in SIMD optimization.
@@ -373,6 +581,30 @@ enum {
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM1BYTE(TX_TYPE);
 
+#if CONFIG_CROSS_CHROMA_TX
+#define CCTX_CONTEXTS 3
+
+// Drop C2 channel for some cctx_types.
+#define CCTX_C2_DROPPED 0
+#if CCTX_C2_DROPPED
+#define CCTX_DROP_30 1
+#define CCTX_DROP_60 1
+#define CCTX_DROP_45 1
+#endif  // CCTX_C2_DROPPED
+
+enum {
+  CCTX_NONE,     // No cross chroma transform
+  CCTX_45,       // 45 degrees rotation (Haar transform)
+  CCTX_30,       // 30 degrees rotation
+  CCTX_60,       // 60 degrees rotation
+  CCTX_MINUS45,  // -45 degrees rotation
+  CCTX_MINUS30,  // -30 degrees rotation
+  CCTX_MINUS60,  // -60 degrees rotation
+  CCTX_TYPES,
+  CCTX_START = CCTX_NONE + 1,
+} UENUM1BYTE(CctxType);
+#endif  // CONFIG_CROSS_CHROMA_TX
+
 enum {
   REG_REG,
   REG_SMOOTH,
@@ -398,23 +630,32 @@ enum {
   EXT_TX_SET_DTT9_IDTX_1DDCT,
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   EXT_TX_SET_ALL16,
+#if CONFIG_ATC_NEWTXSETS
+  EXT_NEW_TX_SET,
+#endif  // CONFIG_ATC_NEWTXSETS
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
 
+#if CONFIG_ATC_DCTX_ALIGNED
+#define EOB_TX_CTXS 3
+#endif                       // CONFIG_ATC_DCTX_ALIGNED
 #define EXT_TX_SIZES 4       // number of sizes that use extended transforms
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER
+#if CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET
+#define EXT_TX_SETS_INTRA 2  // Sets of transform selections for INTRA
+#else
 #define EXT_TX_SETS_INTRA 3  // Sets of transform selections for INTRA
+#endif  // CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET
 
-enum {
-  AOM_LAST_FLAG = 1 << 0,
-  AOM_LAST2_FLAG = 1 << 1,
-  AOM_LAST3_FLAG = 1 << 2,
-  AOM_GOLD_FLAG = 1 << 3,
-  AOM_BWD_FLAG = 1 << 4,
-  AOM_ALT2_FLAG = 1 << 5,
-  AOM_ALT_FLAG = 1 << 6,
-  AOM_REFFRAME_ALL = (1 << 7) - 1
-} UENUM1BYTE(AOM_REFFRAME);
+#if CONFIG_ATC_NEWTXSETS
+#define INTRA_TX_SET1 7
+#if CONFIG_ATC_REDUCED_TXSET
+#define INTRA_TX_SET2 2
+#endif  // CONFIG_ATC_REDUCED_TXSET
+#else
+#define INTRA_TX_SET1 6
+#define INTRA_TX_SET2 4
+#endif  // CONFIG_ATC_NEWTXSETS
 
 enum {
   UNIDIR_COMP_REFERENCE,
@@ -424,7 +665,11 @@ enum {
 
 enum { PLANE_TYPE_Y, PLANE_TYPE_UV, PLANE_TYPES } UENUM1BYTE(PLANE_TYPE);
 
+#if CONFIG_CFL_IMPROVEMENTS
+#define CFL_ALPHABET_SIZE_LOG2 3
+#else
 #define CFL_ALPHABET_SIZE_LOG2 4
+#endif  // CONFIG_CFL_IMPROVEMENTS
 #define CFL_ALPHABET_SIZE (1 << CFL_ALPHABET_SIZE_LOG2)
 #define CFL_MAGS_SIZE ((2 << CFL_ALPHABET_SIZE_LOG2) + 1)
 #define CFL_IDX_U(idx) (idx >> CFL_ALPHABET_SIZE_LOG2)
@@ -459,6 +704,10 @@ enum {
 // Also, the contexts are symmetric under swapping the planes.
 #define CFL_CONTEXT_V(js) \
   (CFL_SIGN_V(js) * CFL_SIGNS + CFL_SIGN_U(js) - CFL_SIGNS)
+
+#if CONFIG_SEP_COMP_DRL
+#define SEP_COMP_DRL_SIZE 3
+#endif  // CONFIG_SEP_COMP_DRL
 
 enum {
   PALETTE_MAP,
@@ -504,21 +753,18 @@ enum {
   SMOOTH_V_PRED,  // Vertical interpolation
   SMOOTH_H_PRED,  // Horizontal interpolation
   PAETH_PRED,     // Predict from the direction of smallest gradient
-#if !CONFIG_NEW_INTER_MODES
-  NEARESTMV,
-#endif  // !CONFIG_NEW_INTER_MODES
   NEARMV,
   GLOBALMV,
   NEWMV,
-// Compound ref compound modes
-#if !CONFIG_NEW_INTER_MODES
-  NEAREST_NEARESTMV,
-#endif  // !CONFIG_NEW_INTER_MODES
+#if IMPROVED_AMVD
+  AMVDNEWMV,
+#endif  // IMPROVED_AMVD
+
+#if CONFIG_WARPMV
+  WARPMV,  // WARPMV mode
+#endif     // CONFIG_WARPMV
+           // Compound ref compound modes
   NEAR_NEARMV,
-#if !CONFIG_NEW_INTER_MODES
-  NEAREST_NEWMV,
-  NEW_NEARESTMV,
-#endif  // !CONFIG_NEW_INTER_MODES
   NEAR_NEWMV,
   NEW_NEARMV,
   GLOBAL_GLOBALMV,
@@ -526,6 +772,9 @@ enum {
 #if CONFIG_JOINT_MVD
   JOINT_NEWMV,
 #endif  // CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+  JOINT_AMVDNEWMV,
+#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
   NEAR_NEARMV_OPTFLOW,
   NEAR_NEWMV_OPTFLOW,
@@ -534,44 +783,31 @@ enum {
 #if CONFIG_JOINT_MVD
   JOINT_NEWMV_OPTFLOW,
 #endif  // CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+  JOINT_AMVDNEWMV_OPTFLOW,
+#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   MB_MODE_COUNT,
   INTRA_MODE_START = DC_PRED,
-#if CONFIG_NEW_INTER_MODES
   INTRA_MODE_END = NEARMV,
-#else
-  INTRA_MODE_END = NEARESTMV,
-#endif  // CONFIG_NEW_INTER_MODES
   DIR_MODE_START = V_PRED,
   DIR_MODE_END = D67_PRED + 1,
   INTRA_MODE_NUM = INTRA_MODE_END - INTRA_MODE_START,
-#if CONFIG_NEW_INTER_MODES
   SINGLE_INTER_MODE_START = NEARMV,
   SINGLE_INTER_MODE_END = NEAR_NEARMV,
-#else
-  SINGLE_INTER_MODE_START = NEARESTMV,
-  SINGLE_INTER_MODE_END = NEAREST_NEARESTMV,
-#endif  // CONFIG_NEW_INTER_MODES
   SINGLE_INTER_MODE_NUM = SINGLE_INTER_MODE_END - SINGLE_INTER_MODE_START,
-#if CONFIG_NEW_INTER_MODES
   COMP_INTER_MODE_START = NEAR_NEARMV,
-#else
-  COMP_INTER_MODE_START = NEAREST_NEARESTMV,
-#endif  // CONFIG_NEW_INTER_MODES
   COMP_INTER_MODE_END = MB_MODE_COUNT,
   COMP_INTER_MODE_NUM = COMP_INTER_MODE_END - COMP_INTER_MODE_START,
 #if CONFIG_OPTFLOW_REFINEMENT
   COMP_OPTFLOW_MODE_START = NEAR_NEARMV_OPTFLOW,
   INTER_COMPOUND_REF_TYPES = COMP_OPTFLOW_MODE_START - COMP_INTER_MODE_START,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_NEW_INTER_MODES
   INTER_MODE_START = NEARMV,
-#else
-  INTER_MODE_START = NEARESTMV,
-#endif  // CONFIG_NEW_INTER_MODES
   INTER_MODE_END = MB_MODE_COUNT,
-  INTRA_MODES = PAETH_PRED + 1,  // PAETH_PRED has to be the last intra mode.
-  INTRA_INVALID = MB_MODE_COUNT  // For uv_mode in inter blocks
+  INTRA_MODES = PAETH_PRED + 1,   // PAETH_PRED has to be the last intra mode.
+  INTRA_INVALID = MB_MODE_COUNT,  // For uv_mode in inter blocks
+  MODE_INVALID = 255
 } UENUM1BYTE(PREDICTION_MODE);
 
 // TODO(ltrudeau) Do we really want to pack this?
@@ -595,6 +831,14 @@ enum {
   UV_MODE_INVALID,  // For uv_mode in inter blocks
 } UENUM1BYTE(UV_PREDICTION_MODE);
 
+#if CONFIG_IMPROVED_CFL
+enum {
+  CFL_EXPLICIT,       // av1 cfl
+  CFL_DERIVED_ALPHA,  // implicit CfL mode with derived scaling factor
+  CFL_TYPE_COUNT,     // CfL mode type count
+} UENUM1BYTE(CFL_TYPE);
+#endif
+
 // Number of top model rd to store for pruning y modes in intra mode decision
 #define TOP_INTRA_MODEL_COUNT 4
 // Total number of luma intra prediction modes (include both directional and
@@ -603,8 +847,15 @@ enum {
 
 enum {
   SIMPLE_TRANSLATION,
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  INTERINTRA,
+#endif            // CONFIG_EXTENDED_WARP_PREDICTION
   OBMC_CAUSAL,    // 2-sided OBMC
-  WARPED_CAUSAL,  // 2-sided WARPED
+  WARPED_CAUSAL,  // Warp estimation from spatial MVs
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  WARP_DELTA,   // Directly-signaled warp model
+  WARP_EXTEND,  // Extension of an existing warp model into another block
+#endif
   MOTION_MODES
 } UENUM1BYTE(MOTION_MODE);
 
@@ -673,11 +924,25 @@ enum {
 #define TOTAL_ANGLE_DELTA_COUNT 7
 #endif
 
+#if CONFIG_WARPMV
+// The warpmv mode is signalled as a separate flag
+// So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-1)
+#define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 1)
+#else
 #define INTER_SINGLE_MODES SINGLE_INTER_MODE_NUM
+#endif  // CONFIG_WARPMV
 #define INTER_COMPOUND_MODES COMP_INTER_MODE_NUM
 
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+#define SKIP_CONTEXTS 6
+#else
 #define SKIP_CONTEXTS 3
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #define SKIP_MODE_CONTEXTS 3
+
+#if CONFIG_NEW_CONTEXT_MODELING
+#define INTRABC_CONTEXTS 3
+#endif  // CONFIG_NEW_CONTEXT_MODELING
 
 #define COMP_GROUP_IDX_CONTEXTS 12
 
@@ -686,17 +951,28 @@ enum {
 #define GLOBALMV_MODE_CONTEXTS 2
 #define REFMV_MODE_CONTEXTS 6
 
-#if CONFIG_NEW_INTER_MODES
 #define ISREFMV_MODE_CONTEXTS 2
 #define MIN_MAX_DRL_BITS 1
 #define MAX_MAX_DRL_BITS 7
+#if CONFIG_C076_INTER_MOD_CTX
+#define INTER_SINGLE_MODE_CONTEXTS (NEWMV_MODE_CONTEXTS * ISREFMV_MODE_CONTEXTS)
+#else
 #define INTER_SINGLE_MODE_CONTEXTS \
   (NEWMV_MODE_CONTEXTS * GLOBALMV_MODE_CONTEXTS * ISREFMV_MODE_CONTEXTS)
-#define DRL_MODE_CONTEXTS (NEWMV_MODE_CONTEXTS * GLOBALMV_MODE_CONTEXTS)
+#endif  // CONFIG_C076_INTER_MOD_CTX
+#if CONFIG_C076_INTER_MOD_CTX
+#define DRL_MODE_CONTEXTS NEWMV_MODE_CONTEXTS
 #else
-#define MAX_DRL_BITS 2
-#define DRL_MODE_CONTEXTS 3
-#endif  // CONFIG_NEW_INTER_MODES
+#define DRL_MODE_CONTEXTS (NEWMV_MODE_CONTEXTS * GLOBALMV_MODE_CONTEXTS)
+#endif  // CONFIG_C076_INTER_MOD_CTX
+
+#if CONFIG_WARPMV
+#define WARPMV_MODE_CONTEXT 10
+#endif  // CONFIG_WARPMV
+
+#if CONFIG_BVP_IMPROVEMENT
+#define MAX_REF_BV_STACK_SIZE 4
+#endif  // CONFIG_BVP_IMPROVEMENT
 
 #define GLOBALMV_OFFSET 3
 #define REFMV_OFFSET 4
@@ -706,7 +982,24 @@ enum {
 #define REFMV_CTX_MASK ((1 << (8 - REFMV_OFFSET)) - 1)
 
 #define COMP_NEWMV_CTXS 5
+#if CONFIG_C076_INTER_MOD_CTX
+#define INTER_COMPOUND_MODE_CONTEXTS 6
+#else
 #define INTER_COMPOUND_MODE_CONTEXTS 8
+#endif  // CONFIG_C076_INTER_MOD_CTX
+
+#if CONFIG_CWP
+// Number of supported factors for compound weighted prediction
+#define MAX_CWP_NUM 5
+// maximum value for the supported factors
+#define CWP_MAX 20
+// minimum value for the supported factors
+#define CWP_MIN -4
+// Weighting factor for simple averge prediction
+#define CWP_EQUAL 8
+#define CWP_WEIGHT_BITS 4
+#define MAX_CWP_CONTEXTS 2
+#endif
 
 #define DELTA_Q_SMALL 3
 #define DELTA_Q_PROBS (DELTA_Q_SMALL)
@@ -717,18 +1010,15 @@ enum {
 #define DELTA_LF_PROBS (DELTA_LF_SMALL)
 #define DEFAULT_DELTA_LF_RES 2
 
-/* Segment Feature Masks */
 #define MAX_MV_REF_CANDIDATES 2
-
 #define MAX_REF_MV_STACK_SIZE 8
-
-#if CONFIG_NEW_INTER_MODES
 #define USABLE_REF_MV_STACK_SIZE (MAX_REF_MV_STACK_SIZE)
-#else
-#define USABLE_REF_MV_STACK_SIZE 4
-#endif  // CONFIG_NEW_INTER_MODES
-
 #define REF_CAT_LEVEL 640
+
+#if CONFIG_WARP_REF_LIST
+#define MAX_WARP_REF_CANDIDATES 4
+#define WARP_REF_CONTEXTS 1
+#endif  // CONFIG_WARP_REF_LIST
 
 #if CONFIG_CONTEXT_DERIVATION
 #define INTRA_INTER_SKIP_TXFM_CONTEXTS 2
@@ -747,35 +1037,49 @@ enum {
 #endif  // CONFIG_NEW_TX_PARTITION
 typedef uint8_t TXFM_CONTEXT;
 
-// An enum for single reference types (and some derived values).
-enum {
-  NONE_FRAME = -1,
-  INTRA_FRAME,
-  LAST_FRAME,
-  LAST2_FRAME,
-  LAST3_FRAME,
-  GOLDEN_FRAME,
-  BWDREF_FRAME,
-  ALTREF2_FRAME,
-  ALTREF_FRAME,
-  REF_FRAMES,
+#if CONFIG_TIP
+#define TIP_CONTEXTS 3
+#endif  // CONFIG_TIP
 
-  // Extra/scratch reference frame. It may be:
-  // - used to update the ALTREF2_FRAME ref (see lshift_bwd_ref_frames()), or
-  // - updated from ALTREF2_FRAME ref (see rshift_bwd_ref_frames()).
-  EXTREF_FRAME = REF_FRAMES,
-
-  // Number of inter (non-intra) reference types.
-  INTER_REFS_PER_FRAME = ALTREF_FRAME - LAST_FRAME + 1,
-
-  // Number of forward (aka past) reference types.
-  FWD_REFS = GOLDEN_FRAME - LAST_FRAME + 1,
-
-  // Number of backward (aka future) reference types.
-  BWD_REFS = ALTREF_FRAME - BWDREF_FRAME + 1,
-
-  SINGLE_REFS = FWD_REFS + BWD_REFS,
-};
+#define INTER_REFS_PER_FRAME 7
+#define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
+// NOTE: A limited number of unidirectional reference pairs can be signalled for
+//       compound prediction. The use of skip mode, on the other hand, makes it
+//       possible to have a reference pair not listed for explicit signaling.
+#if CONFIG_TIP
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+#define MODE_CTX_REF_FRAMES                                \
+  (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / 2 + \
+   2)  // additional combinations for the same reference of compound mode
+#else
+#define MODE_CTX_REF_FRAMES \
+  (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 1) / 2 + 2)
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+#else
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+#define MODE_CTX_REF_FRAMES \
+  (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / 2 + 1)
+#else
+#define MODE_CTX_REF_FRAMES \
+  (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 1) / 2 + 1)
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+#endif  // CONFIG_TIP
+// With k=INTER_REFS_PER_FRAMES, indices 0 to k-1 represent rank 1 to rank k
+// references. The next k(k-1)/2 indices are left for compound reference types
+// (there are k choose 2 compound combinations). Then, index for intra frame is
+// defined as k+k(k-1)/2.
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+#define INTRA_FRAME                                    \
+  (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / \
+   2)  // additional combinations for the same reference of compound mode
+#else
+#define INTRA_FRAME (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 1) / 2)
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+// Used for indexing into arrays that contain reference data for
+// inter and intra.
+#define INTRA_FRAME_INDEX INTER_REFS_PER_FRAME
+#define NONE_FRAME INVALID_IDX
+#define AOM_REFFRAME_ALL ((1 << INTER_REFS_PER_FRAME) - 1)
 
 #define REF_FRAMES_LOG2 3
 
@@ -787,34 +1091,29 @@ enum {
 #define FWD_RF_OFFSET(ref) (ref - LAST_FRAME)
 #define BWD_RF_OFFSET(ref) (ref - BWDREF_FRAME)
 
-enum {
-  LAST_LAST2_FRAMES,      // { LAST_FRAME, LAST2_FRAME }
-  LAST_LAST3_FRAMES,      // { LAST_FRAME, LAST3_FRAME }
-  LAST_GOLDEN_FRAMES,     // { LAST_FRAME, GOLDEN_FRAME }
-  BWDREF_ALTREF_FRAMES,   // { BWDREF_FRAME, ALTREF_FRAME }
-  LAST2_LAST3_FRAMES,     // { LAST2_FRAME, LAST3_FRAME }
-  LAST2_GOLDEN_FRAMES,    // { LAST2_FRAME, GOLDEN_FRAME }
-  LAST3_GOLDEN_FRAMES,    // { LAST3_FRAME, GOLDEN_FRAME }
-  BWDREF_ALTREF2_FRAMES,  // { BWDREF_FRAME, ALTREF2_FRAME }
-  ALTREF2_ALTREF_FRAMES,  // { ALTREF2_FRAME, ALTREF_FRAME }
-  TOTAL_UNIDIR_COMP_REFS,
-  // NOTE: UNIDIR_COMP_REFS is the number of uni-directional reference pairs
-  //       that are explicitly signaled.
-  UNIDIR_COMP_REFS = BWDREF_ALTREF_FRAMES + 1,
-} UENUM1BYTE(UNIDIR_COMP_REF);
-
 #define TOTAL_COMP_REFS (FWD_REFS * BWD_REFS + TOTAL_UNIDIR_COMP_REFS)
 
 #define COMP_REFS (FWD_REFS * BWD_REFS + UNIDIR_COMP_REFS)
 
-// NOTE: A limited number of unidirectional reference pairs can be signalled for
-//       compound prediction. The use of skip mode, on the other hand, makes it
-//       possible to have a reference pair not listed for explicit signaling.
-#define MODE_CTX_REF_FRAMES (REF_FRAMES + TOTAL_COMP_REFS)
+#if CONFIG_TIP
+#define TIP_FRAME (MODE_CTX_REF_FRAMES - 1)
+#define TIP_FRAME_INDEX (INTER_REFS_PER_FRAME + 1)
+#define EXTREF_FRAMES (REF_FRAMES + 1)
+#endif  // CONFIG_TIP
+
+#if CONFIG_TIP
+#define SINGLE_REF_FRAMES EXTREF_FRAMES
+#else
+#define SINGLE_REF_FRAMES REF_FRAMES
+#endif  // CONFIG_TIP
 
 // Note: It includes single and compound references. So, it can take values from
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.
 typedef int8_t MV_REFERENCE_FRAME;
+
+#if CONFIG_LR_FLEX_SYNTAX
+#define MAX_LR_FLEX_SWITCHABLE_BITS 4
+#endif  // CONFIG_LR_FLEX_SYNTAX
 
 /*!\endcond */
 
@@ -822,12 +1121,18 @@ typedef int8_t MV_REFERENCE_FRAME;
  * \brief This enumeration defines various restoration types supported
  */
 typedef enum {
-  RESTORE_NONE,       /**< No restoration */
-  RESTORE_WIENER,     /**< Separable Wiener restoration */
-  RESTORE_SGRPROJ,    /**< Selfguided restoration */
-  RESTORE_SWITCHABLE, /**< Switchable restoration */
+  RESTORE_NONE,    /**< No restoration */
+  RESTORE_WIENER,  /**< Separable Wiener restoration */
+  RESTORE_SGRPROJ, /**< Selfguided restoration */
+#if CONFIG_PC_WIENER
+  RESTORE_PC_WIENER, /**< Pixel-classified Wiener restoration */
+#endif               // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  RESTORE_WIENER_NONSEP, /**< Nonseparable Wiener restoration */
+#endif                   // CONFIG_WIENER_NONSEP
+  RESTORE_SWITCHABLE,    /**< Switchable restoration */
   RESTORE_SWITCHABLE_TYPES = RESTORE_SWITCHABLE, /**< Num Switchable types */
-  RESTORE_TYPES = 4,                             /**< Num Restore types */
+  RESTORE_TYPES = RESTORE_SWITCHABLE + 1,        /**< Num Restore types */
 } RestorationType;
 
 /*!\cond */
@@ -857,11 +1162,22 @@ enum {
 #define MAX_EXTERNAL_REFERENCES 128
 #define MAX_TILES 512
 
-#if CONFIG_IBP_DIR || CONFIG_IBP_DC
 #define DIR_MODES_0_90 17
 #define IBP_WEIGHT_SHIFT 8
 #define IBP_WEIGHT_MAX 255
-#endif
+
+#if CONFIG_WARP_REF_LIST
+/*!\enum Warp projection type
+ * \brief This enumeration defines various warp projection type supported
+ */
+typedef enum {
+  PROJ_GLOBAL_MOTION,  /**< block is from global motion */
+  PROJ_SPATIAL,        /**< Project from spatial neighborhood */
+  PROJ_PARAM_BANK,     /**< Project from circular buffer */
+  PROJ_DEFAULT,        /**< Default values */
+  WARP_PROJ_TYPES = 4, /**< Num projection types */
+} WarpProjectionType;
+#endif  // CONFIG_WARP_REF_LIST
 
 /*!\endcond */
 

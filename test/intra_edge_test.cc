@@ -64,50 +64,6 @@ class UpsampleTest : public FunctionEquivalenceTest<F> {
 };
 
 //////////////////////////////////////////////////////////////////////////////
-// 8 bit version
-//////////////////////////////////////////////////////////////////////////////
-
-typedef void (*UP8B)(uint8_t *p, int size);
-typedef libaom_test::FuncParam<UP8B> TestFuncs;
-
-class UpsampleTest8B : public UpsampleTest<UP8B, uint8_t> {
- protected:
-  void Execute(uint8_t *edge_tst) {
-    params_.ref_func(edge_ref_, size_);
-    ASM_REGISTER_STATE_CHECK(params_.tst_func(edge_tst, size_));
-  }
-};
-
-TEST_P(UpsampleTest8B, RandomValues) {
-  for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-    size_ = 4 * (this->rng_(4) + 1);
-
-    int i, pix = 0;
-    for (i = 0; i < kOffset + size_; ++i) {
-      pix = rng_.Rand8();
-      edge_ref_data_[i] = pix;
-      edge_tst_data_[i] = edge_ref_data_[i];
-    }
-
-    // Extend final sample
-    while (i < kBufSize) {
-      edge_ref_data_[i] = pix;
-      edge_tst_data_[i] = pix;
-      i++;
-    }
-
-    Common();
-  }
-}
-
-#if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, UpsampleTest8B,
-    ::testing::Values(TestFuncs(av1_upsample_intra_edge_c,
-                                av1_upsample_intra_edge_sse4_1)));
-#endif  // HAVE_SSE4_1
-
-//////////////////////////////////////////////////////////////////////////////
 // High bit-depth version
 //////////////////////////////////////////////////////////////////////////////
 
@@ -193,44 +149,6 @@ class FilterEdgeTest : public FunctionEquivalenceTest<F> {
 };
 
 //////////////////////////////////////////////////////////////////////////////
-// 8 bit version
-//////////////////////////////////////////////////////////////////////////////
-
-typedef void (*FE8B)(uint8_t *p, int size, int strength);
-typedef libaom_test::FuncParam<FE8B> FilterEdgeTestFuncs;
-
-class FilterEdgeTest8B : public FilterEdgeTest<FE8B, uint8_t> {
- protected:
-  void Execute(uint8_t *edge_tst) {
-    params_.ref_func(edge_ref_, size_, strength_);
-    ASM_REGISTER_STATE_CHECK(params_.tst_func(edge_tst, size_, strength_));
-  }
-};
-
-TEST_P(FilterEdgeTest8B, RandomValues) {
-  for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-    strength_ = this->rng_(4);
-    size_ = 4 * (this->rng_(128 / 4) + 1) + 1;
-
-    int i, pix = 0;
-    for (i = 0; i < kOffset + size_; ++i) {
-      pix = rng_.Rand8();
-      edge_ref_data_[i] = pix;
-      edge_tst_data_[i] = pix;
-    }
-
-    Common();
-  }
-}
-
-#if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, FilterEdgeTest8B,
-    ::testing::Values(FilterEdgeTestFuncs(av1_filter_intra_edge_c,
-                                          av1_filter_intra_edge_sse4_1)));
-#endif  // HAVE_SSE4_1
-
-//////////////////////////////////////////////////////////////////////////////
 // High bit-depth version
 //////////////////////////////////////////////////////////////////////////////
 
@@ -277,18 +195,6 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, FilterEdgeTestHB,
 
 // Speed tests
 
-TEST_P(UpsampleTest8B, DISABLED_Speed) {
-  const int test_count = 10000000;
-  size_ = kMaxEdge;
-  for (int i = 0; i < kOffset + size_; ++i) {
-    edge_tst_data_[i] = rng_.Rand8();
-  }
-  edge_tst_ = &edge_tst_data_[kOffset];
-  for (int iter = 0; iter < test_count; ++iter) {
-    ASM_REGISTER_STATE_CHECK(params_.tst_func(edge_tst_, size_));
-  }
-}
-
 TEST_P(UpsampleTestHB, DISABLED_Speed) {
   const int test_count = 10000000;
   size_ = kMaxEdge;
@@ -300,21 +206,6 @@ TEST_P(UpsampleTestHB, DISABLED_Speed) {
   edge_tst_ = &edge_tst_data_[kOffset];
   for (int iter = 0; iter < test_count; ++iter) {
     ASM_REGISTER_STATE_CHECK(params_.tst_func(edge_tst_, size_, bit_depth_));
-  }
-}
-
-TEST_P(FilterEdgeTest8B, DISABLED_Speed) {
-  const int test_count = 10000000;
-  size_ = kMaxEdge;
-  strength_ = 1;
-  for (int i = 0; i < kOffset + size_; ++i) {
-    edge_tst_data_[i] = rng_.Rand8();
-  }
-  edge_tst_ = &edge_tst_data_[kOffset];
-  for (int iter = 0; iter < test_count; ++iter) {
-    ASM_REGISTER_STATE_CHECK(params_.tst_func(edge_tst_, size_, strength_));
-    // iterate over filter strengths (1,2,3)
-    strength_ = (strength_ == 3) ? 1 : strength_ + 1;
   }
 }
 

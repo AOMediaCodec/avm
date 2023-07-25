@@ -143,24 +143,6 @@ void av1_end_first_pass(AV1_COMP *cpi) {
     output_stats(cpi->twopass.stats_buf_ctx->total_stats, cpi->output_pkt_list);
 }
 
-static aom_variance_fn_t get_block_variance_fn(BLOCK_SIZE bsize) {
-  switch (bsize) {
-    case BLOCK_8X8: return aom_mse8x8;
-    case BLOCK_16X8: return aom_mse16x8;
-    case BLOCK_8X16: return aom_mse8x16;
-    default: return aom_mse16x16;
-  }
-}
-
-static unsigned int get_prediction_error(BLOCK_SIZE bsize,
-                                         const struct buf_2d *src,
-                                         const struct buf_2d *ref) {
-  unsigned int sse;
-  const aom_variance_fn_t fn = get_block_variance_fn(bsize);
-  fn(src->buf, src->stride, ref->buf, ref->stride, &sse);
-  return sse;
-}
-
 static aom_variance_fn_t highbd_get_block_variance_fn(BLOCK_SIZE bsize,
                                                       int bd) {
   switch (bd) {
@@ -215,14 +197,13 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                                 const MV *ref_mv,
                                                 FULLPEL_MV *best_mv,
                                                 int *best_motion_err) {
+#if CONFIG_FLEX_MVRES
+  const AV1_COMMON *cm = &cpi->common;
+#endif
   MACROBLOCKD *const xd = &x->e_mbd;
   FULLPEL_MV start_mv = get_fullmv_from_mv(ref_mv);
   int tmp_err;
-#if CONFIG_SDP
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
-#else
-  const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
-#endif
   const int new_mv_mode_penalty = NEW_MV_MODE_PENALTY;
   const int sr = get_search_range(&cpi->initial_dimensions);
   const int step_param = 3 + sr;
@@ -230,19 +211,48 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const search_site_config *first_pass_search_sites =
       cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
   const int fine_search_interval =
+#if CONFIG_FLEX_MVRES
+      cpi->is_screen_content_type && cm->features.allow_intrabc;
+#else
       cpi->is_screen_content_type && cpi->common.features.allow_intrabc;
+#endif
   if (fine_search_interval) {
     av1_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
   }
+#if CONFIG_FLEX_MVRES
+  const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
+#if CONFIG_BVCOST_UPDATE
+  const int is_ibc_cost = 0;
+#endif
+#endif
+
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
+#if CONFIG_FLEX_MVRES
+  av1_make_default_fullpel_ms_params(
+      &ms_params, cpi, x, bsize, ref_mv, pb_mv_precision,
+#if CONFIG_BVCOST_UPDATE
+      is_ibc_cost,
+#endif
+      first_pass_search_sites, fine_search_interval);
+#else
   av1_make_default_fullpel_ms_params(&ms_params, cpi, x, bsize, ref_mv,
                                      first_pass_search_sites,
                                      fine_search_interval);
+#endif
   av1_set_mv_search_method(&ms_params, first_pass_search_sites, NSTEP);
+
+#if CONFIG_FLEX_MVRES
+  full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
+#endif
 
   FULLPEL_MV this_best_mv;
   tmp_err = av1_full_pixel_search(start_mv, &ms_params, step_param, NULL,
                                   &this_best_mv, NULL);
+
+#if CONFIG_FLEX_MVRES
+  assert(is_this_mv_precision_compliant(get_mv_from_fullmv(&this_best_mv),
+                                        pb_mv_precision));
+#endif
 
   if (tmp_err < INT_MAX) {
     aom_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[bsize];
@@ -276,14 +286,10 @@ static BLOCK_SIZE get_bsize(const CommonModeInfoParams *const mi_params,
 
 static int find_fp_qindex(aom_bit_depth_t bit_depth) {
   aom_clear_system_state();
-#if CONFIG_EXTQUANT
   return av1_find_qindex(FIRST_PASS_Q, bit_depth, 0,
                          bit_depth == AOM_BITS_8    ? QINDEX_RANGE_8_BITS - 1
                          : bit_depth == AOM_BITS_10 ? QINDEX_RANGE_10_BITS - 1
                                                     : QINDEX_RANGE - 1);
-#else
-  return av1_find_qindex(FIRST_PASS_Q, bit_depth, 0, QINDEX_RANGE - 1);
-#endif
 }
 
 static double raw_motion_error_stdev(int *raw_motion_err_list,
@@ -349,23 +355,32 @@ static int firstpass_intra_prediction(
   const int use_dc_pred = (mb_col || mb_row) && (!mb_col || !mb_row);
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE bsize = get_bsize(mi_params, mb_row, mb_col);
+#if CONFIG_C071_SUBBLK_WARPMV
+  const int mi_width = mi_size_wide[bsize];
+  const int mi_height = mi_size_high[bsize];
+  const int x_inside_boundary =
+      AOMMIN(mi_width, mi_params->mi_cols - xd->mi_col);
+  const int y_inside_boundary =
+      AOMMIN(mi_height, mi_params->mi_rows - xd->mi_row);
+#endif  // CONFIG_C071_SUBBLK_WARPMV
 
   aom_clear_system_state();
-  set_mi_offsets(mi_params, xd, mb_row * mb_scale, mb_col * mb_scale);
+  set_mi_offsets(mi_params, xd, mb_row * mb_scale, mb_col * mb_scale
+#if CONFIG_C071_SUBBLK_WARPMV
+                 ,
+                 x_inside_boundary, y_inside_boundary
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+  );
   xd->plane[0].dst.buf = this_frame->y_buffer + y_offset;
   xd->plane[1].dst.buf = this_frame->u_buffer + uv_offset;
   xd->plane[2].dst.buf = this_frame->v_buffer + uv_offset;
   xd->left_available = (mb_col != 0);
-#if CONFIG_SDP
   xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
-#else
-  xd->mi[0]->sb_type = bsize;
-#endif
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
   set_mi_row_col(xd, tile, mb_row * mb_scale, mi_size_high[bsize],
                  mb_col * mb_scale, mi_size_wide[bsize], mi_params->mi_rows,
-                 mi_params->mi_cols);
-  set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], num_planes);
+                 mi_params->mi_cols, NULL);
+  set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], num_planes, NULL);
   xd->mi[0]->segment_id = 0;
   xd->lossless[xd->mi[0]->segment_id] = (qindex == 0);
   xd->mi[0]->mode = DC_PRED;
@@ -374,17 +389,15 @@ static int firstpass_intra_prediction(
 
   av1_encode_intra_block_plane(cpi, x, bsize, 0, DRY_RUN_NORMAL, 0);
   int this_intra_error = aom_get_mb_ss(x->plane[0].src_diff);
-  if (seq_params->use_highbitdepth) {
-    switch (seq_params->bit_depth) {
-      case AOM_BITS_8: break;
-      case AOM_BITS_10: this_intra_error >>= 4; break;
-      case AOM_BITS_12: this_intra_error >>= 8; break;
-      default:
-        assert(0 &&
-               "seq_params->bit_depth should be AOM_BITS_8, "
-               "AOM_BITS_10 or AOM_BITS_12");
-        return -1;
-    }
+  switch (seq_params->bit_depth) {
+    case AOM_BITS_8: break;
+    case AOM_BITS_10: this_intra_error >>= 4; break;
+    case AOM_BITS_12: this_intra_error >>= 8; break;
+    default:
+      assert(0 &&
+             "seq_params->bit_depth should be AOM_BITS_8, "
+             "AOM_BITS_10 or AOM_BITS_12");
+      return -1;
   }
 
   if (this_intra_error < UL_INTRA_THRESH) {
@@ -402,23 +415,17 @@ static int firstpass_intra_prediction(
   }
 
   int level_sample;
-  if (seq_params->use_highbitdepth) {
-    level_sample = CONVERT_TO_SHORTPTR(x->plane[0].src.buf)[0];
-  } else {
-    level_sample = x->plane[0].src.buf[0];
-  }
+  level_sample = x->plane[0].src.buf[0];
 
-  if (seq_params->use_highbitdepth) {
-    switch (seq_params->bit_depth) {
-      case AOM_BITS_8: break;
-      case AOM_BITS_10: level_sample >>= 2; break;
-      case AOM_BITS_12: level_sample >>= 4; break;
-      default:
-        assert(0 &&
-               "seq_params->bit_depth should be AOM_BITS_8, "
-               "AOM_BITS_10 or AOM_BITS_12");
-        return -1;
-    }
+  switch (seq_params->bit_depth) {
+    case AOM_BITS_8: break;
+    case AOM_BITS_10: level_sample >>= 2; break;
+    case AOM_BITS_12: level_sample >>= 4; break;
+    default:
+      assert(0 &&
+             "seq_params->bit_depth should be AOM_BITS_8, "
+             "AOM_BITS_10 or AOM_BITS_12");
+      return -1;
   }
   if ((level_sample < DARK_THRESH) && (log_intra < 9.0)) {
     stats->brightness_factor += 1.0 + (0.01 * (DARK_THRESH - level_sample));
@@ -438,13 +445,12 @@ static int firstpass_intra_prediction(
   // Accumulate the intra error.
   stats->intra_error += (int64_t)this_intra_error;
 
-  const int hbd = is_cur_buf_hbd(xd);
   const int stride = x->plane[0].src.stride;
-  uint8_t *buf = x->plane[0].src.buf;
+  uint16_t *buf = x->plane[0].src.buf;
   for (int r8 = 0; r8 < 2; ++r8) {
     for (int c8 = 0; c8 < 2; ++c8) {
       stats->frame_avg_wavelet_energy += av1_haar_ac_sad_8x8_uint8_input(
-          buf + c8 * 8 + r8 * 8 * stride, stride, hbd);
+          buf + c8 * 8 + r8 * 8 * stride, stride);
     }
   }
 
@@ -452,15 +458,11 @@ static int firstpass_intra_prediction(
 }
 
 // Returns the sum of square error between source and reference blocks.
-static int get_prediction_error_bitdepth(const int is_high_bitdepth,
-                                         const int bitdepth,
+static int get_prediction_error_bitdepth(const int bitdepth,
                                          const BLOCK_SIZE block_size,
                                          const struct buf_2d *src,
                                          const struct buf_2d *ref) {
-  if (is_high_bitdepth) {
-    return highbd_get_prediction_error(block_size, src, ref, bitdepth);
-  }
-  return get_prediction_error(block_size, src, ref);
+  return highbd_get_prediction_error(block_size, src, ref, bitdepth);
 }
 
 // Accumulates motion vector stats.
@@ -553,7 +555,6 @@ static int firstpass_inter_prediction(
   CurrentFrame *const current_frame = &cm->current_frame;
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
-  const int is_high_bitdepth = is_cur_buf_hbd(xd);
   const int bitdepth = xd->bd;
   const int mb_scale = mi_size_wide[fp_block_size];
   const BLOCK_SIZE bsize = get_bsize(mi_params, mb_row, mb_col);
@@ -568,9 +569,8 @@ static int firstpass_inter_prediction(
                         (fp_block_size_height >> MI_SIZE_LOG2),
                         cpi->oxcf.border_in_pixels);
 
-  int motion_error =
-      get_prediction_error_bitdepth(is_high_bitdepth, bitdepth, bsize,
-                                    &x->plane[0].src, &xd->plane[0].pre[0]);
+  int motion_error = get_prediction_error_bitdepth(
+      bitdepth, bsize, &x->plane[0].src, &xd->plane[0].pre[0]);
 
   // Compute the motion error of the 0,0 motion using the last source
   // frame as the reference. Skip the further motion search on
@@ -580,8 +580,7 @@ static int firstpass_inter_prediction(
       cpi->unscaled_last_source->y_buffer + src_yoffset;
   unscaled_last_source_buf_2d.stride = cpi->unscaled_last_source->y_stride;
   const int raw_motion_error = get_prediction_error_bitdepth(
-      is_high_bitdepth, bitdepth, bsize, &x->plane[0].src,
-      &unscaled_last_source_buf_2d);
+      bitdepth, bsize, &x->plane[0].src, &unscaled_last_source_buf_2d);
   raw_motion_err_list[raw_motion_err_counts] = raw_motion_error;
 
   // TODO(pengchong): Replace the hard-coded threshold
@@ -608,9 +607,8 @@ static int firstpass_inter_prediction(
       // Assume 0,0 motion with no mv overhead.
       xd->plane[0].pre[0].buf = golden_frame->y_buffer + recon_yoffset;
       xd->plane[0].pre[0].stride = golden_frame->y_stride;
-      gf_motion_error =
-          get_prediction_error_bitdepth(is_high_bitdepth, bitdepth, bsize,
-                                        &x->plane[0].src, &xd->plane[0].pre[0]);
+      gf_motion_error = get_prediction_error_bitdepth(
+          bitdepth, bsize, &x->plane[0].src, &xd->plane[0].pre[0]);
       first_pass_motion_search(cpi, x, &kZeroMv, &tmp_mv, &gf_motion_error);
     }
     if (gf_motion_error < motion_error && gf_motion_error < this_intra_error) {
@@ -633,9 +631,8 @@ static int firstpass_inter_prediction(
     if (alt_ref_frame != NULL) {
       xd->plane[0].pre[0].buf = alt_ref_frame->y_buffer + alt_ref_frame_yoffset;
       xd->plane[0].pre[0].stride = alt_ref_frame->y_stride;
-      alt_motion_error =
-          get_prediction_error_bitdepth(is_high_bitdepth, bitdepth, bsize,
-                                        &x->plane[0].src, &xd->plane[0].pre[0]);
+      alt_motion_error = get_prediction_error_bitdepth(
+          bitdepth, bsize, &x->plane[0].src, &xd->plane[0].pre[0]);
       first_pass_motion_search(cpi, x, &kZeroMv, &tmp_mv, &alt_motion_error);
     }
     if (alt_motion_error < motion_error && alt_motion_error < gf_motion_error &&
@@ -689,8 +686,11 @@ static int firstpass_inter_prediction(
     xd->mi[0]->mode = NEWMV;
     xd->mi[0]->mv[0].as_mv = best_mv;
     xd->mi[0]->tx_size = TX_4X4;
-    xd->mi[0]->ref_frame[0] = LAST_FRAME;
+    xd->mi[0]->ref_frame[0] = get_closest_pastcur_ref_index(cm);
     xd->mi[0]->ref_frame[1] = NONE_FRAME;
+#if CONFIG_CWP
+    xd->mi[0]->cwp_idx = CWP_EQUAL;
+#endif  // CONFIG_CWP
     av1_enc_build_inter_predictor(cm, xd, mb_row * mb_scale, mb_col * mb_scale,
                                   NULL, bsize, AOM_PLANE_Y, AOM_PLANE_Y);
     av1_encode_sby_pass1(cpi, x, bsize);
@@ -928,6 +928,12 @@ static void first_pass_tiles(AV1_COMP *cpi) {
   }
 }
 
+// First pass inter prediction relies on last and golden frames as reference
+// frames. In new reference framework, references with rank 0 and 2 are used
+// as their proxies.
+#define LAST_FRAME_PROXY 0
+#define GOLDEN_FRAME_PROXY 2  // Any proxy index will do
+
 void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                         int mb_row) {
   MACROBLOCK *const x = &td->mb;
@@ -951,10 +957,11 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
 
+  xd->tile = *tile;
   const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME);
+      get_ref_frame_yv12_buf(cm, LAST_FRAME_PROXY);
   const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME_PROXY);
   const YV12_BUFFER_CONFIG *alt_ref_frame = NULL;
   const int alt_ref_offset =
       FIRST_PASS_ALT_REF_DISTANCE -
@@ -980,6 +987,9 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     x->plane[i].coeff = ctx->coeff[i];
     x->plane[i].qcoeff = ctx->qcoeff[i];
     x->plane[i].eobs = ctx->eobs[i];
+#if CONFIG_ATC_DCTX_ALIGNED
+    x->plane[i].bobs = ctx->bobs[i];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     x->plane[i].txb_entropy_ctx = ctx->txb_entropy_ctx[i];
     x->plane[i].dqcoeff = ctx->dqcoeff[i];
   }
@@ -1014,7 +1024,7 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                         cpi->oxcf.border_in_pixels);
 
   av1_setup_src_planes(x, cpi->source, mb_row << FP_MIB_SIZE_LOG2,
-                       tile->mi_col_start, num_planes, fp_block_size);
+                       tile->mi_col_start, num_planes, NULL);
 
   // Fix - zero the 16x16 block first. This ensures correct this_intra_error for
   // block sizes smaller than 16x16.
@@ -1082,6 +1092,11 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     av1_set_screen_content_options(cpi, features);
     cpi->is_screen_content_type = features->allow_screen_content_tools;
   }
+#if CONFIG_ADAPTIVE_DS_FILTER
+  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
+    av1_set_downsample_filter_options(cpi);
+  }
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
   // First pass coding proceeds in raster scan order with unit size of 16x16.
   const BLOCK_SIZE fp_block_size = BLOCK_16X16;
 
@@ -1103,9 +1118,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_init_tile_data(cpi);
 
   const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME);
+      get_ref_frame_yv12_buf(cm, LAST_FRAME_PROXY);
   const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME_PROXY);
   YV12_BUFFER_CONFIG *const this_frame = &cm->cur_frame->buf;
   // First pass code requires valid last and new frame buffers.
   assert(this_frame != NULL);
@@ -1114,13 +1129,14 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_setup_frame_size(cpi);
   aom_clear_system_state();
 
-  set_mi_offsets(mi_params, xd, 0, 0);
-#if CONFIG_SDP
+  set_mi_offsets(mi_params, xd, 0, 0
+#if CONFIG_C071_SUBBLK_WARPMV
+                 ,
+                 0, 0
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+  );
   xd->mi[0]->sb_type[PLANE_TYPE_Y] = fp_block_size;
   xd->mi[0]->sb_type[PLANE_TYPE_UV] = fp_block_size;
-#else
-  xd->mi[0]->sb_type = fp_block_size;
-#endif
 
   // Do not use periodic key frames.
   cpi->rc.frames_to_key = INT_MAX;
@@ -1132,15 +1148,19 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_setup_block_planes(xd, seq_params->subsampling_x,
                          seq_params->subsampling_y, num_planes);
 
-  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, fp_block_size);
-  av1_setup_dst_planes(xd->plane, seq_params->sb_size, this_frame, 0, 0, 0,
-                       num_planes);
+  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, NULL);
+  av1_setup_dst_planes(xd->plane, this_frame, 0, 0, 0, num_planes, NULL);
 
   if (!frame_is_intra_only(cm)) {
-    av1_setup_pre_planes(xd, 0, last_frame, 0, 0, NULL, num_planes);
+    av1_setup_pre_planes(xd, 0, last_frame, 0, 0, NULL, num_planes, NULL);
   }
 
-  set_mi_offsets(mi_params, xd, 0, 0);
+  set_mi_offsets(mi_params, xd, 0, 0
+#if CONFIG_C071_SUBBLK_WARPMV
+                 ,
+                 0, 0
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+  );
 
   // Don't store luma on the fist pass since chroma is not computed
   xd->cfl.store_y = 0;
@@ -1200,8 +1220,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
          DOUBLE_DIVIDE_CHECK(this_frame_stats->coded_error)) > 2.0))) {
     if (golden_frame != NULL) {
       assign_frame_buffer_p(
-          &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
-          cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)]);
+          &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY)],
+          cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)]);
     }
     twopass->sr_update_lag = 1;
   } else {
@@ -1212,15 +1232,16 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   // The frame we just compressed now becomes the last frame.
   assign_frame_buffer_p(
-      &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)], cm->cur_frame);
+      &cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)],
+      cm->cur_frame);
 
   // Special case for the first frame. Copy into the GF buffer as a second
   // reference.
   if (current_frame->frame_number == 0 &&
-      get_ref_frame_map_idx(cm, GOLDEN_FRAME) != INVALID_IDX) {
+      get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY) != INVALID_IDX) {
     assign_frame_buffer_p(
-        &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME)],
-        cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME)]);
+        &cm->ref_frame_map[get_ref_frame_map_idx(cm, GOLDEN_FRAME_PROXY)],
+        cm->ref_frame_map[get_ref_frame_map_idx(cm, LAST_FRAME_PROXY)]);
   }
 
   print_reconstruction_frame(last_frame, current_frame->frame_number,

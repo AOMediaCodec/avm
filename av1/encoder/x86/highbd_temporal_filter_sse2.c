@@ -244,12 +244,10 @@ void av1_highbd_apply_temporal_filter_sse2(
     const BLOCK_SIZE block_size, const int mb_row, const int mb_col,
     const int num_planes, const double *noise_levels, const MV *subblock_mvs,
     const int *subblock_mses, const int q_factor, const int filter_strength,
-    const uint8_t *pred, uint32_t *accum, uint16_t *count) {
-  const int is_high_bitdepth = frame_to_filter->flags & YV12_FLAG_HIGHBITDEPTH;
+    const uint16_t *pred, uint32_t *accum, uint16_t *count) {
   assert(block_size == BLOCK_32X32 && "Only support 32x32 block with avx2!");
   assert(TF_WINDOW_LENGTH == 5 && "Only support window length 5 with avx2!");
   assert(num_planes >= 1 && num_planes <= MAX_MB_PLANE);
-  (void)is_high_bitdepth;
 
   const int mb_height = block_size_high[block_size];
   const int mb_width = block_size_wide[block_size];
@@ -262,22 +260,20 @@ void av1_highbd_apply_temporal_filter_sse2(
       (num_planes > 0)
           ? (uint32_t *)aom_malloc(SSE_STRIDE * BH * sizeof(uint32_t))
           : NULL;
-  uint16_t *pred1 = CONVERT_TO_SHORTPTR(pred);
   for (int plane = 0; plane < num_planes; ++plane) {
     const uint32_t plane_h = mb_height >> mbd->plane[plane].subsampling_y;
     const uint32_t plane_w = mb_width >> mbd->plane[plane].subsampling_x;
     const uint32_t frame_stride = frame_to_filter->strides[plane == 0 ? 0 : 1];
     const int frame_offset = mb_row * plane_h * frame_stride + mb_col * plane_w;
 
-    const uint16_t *ref =
-        CONVERT_TO_SHORTPTR(frame_to_filter->buffers[plane]) + frame_offset;
+    const uint16_t *ref = frame_to_filter->buffers[plane] + frame_offset;
     const int ss_x_shift =
         mbd->plane[plane].subsampling_x - mbd->plane[0].subsampling_x;
     const int ss_y_shift =
         mbd->plane[plane].subsampling_y - mbd->plane[0].subsampling_y;
 
     highbd_apply_temporal_filter(
-        ref, frame_stride, pred1 + mb_pels * plane, plane_w, plane_w, plane_h,
+        ref, frame_stride, pred + mb_pels * plane, plane_w, plane_w, plane_h,
         min_frame_size, noise_levels[plane], subblock_mvs, subblock_mses,
         q_factor, filter_strength, accum + mb_pels * plane,
         count + mb_pels * plane, luma_sq_error, chroma_sq_error, plane,

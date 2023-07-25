@@ -33,8 +33,8 @@ namespace {
 
 static const unsigned int kMaxDimension = MAX_SB_SIZE;
 
-typedef void (*ConvolveFunc)(const uint8_t *src, ptrdiff_t src_stride,
-                             uint8_t *dst, ptrdiff_t dst_stride,
+typedef void (*ConvolveFunc)(const uint16_t *src, ptrdiff_t src_stride,
+                             uint16_t *dst, ptrdiff_t dst_stride,
                              const int16_t *filter_x, int filter_x_stride,
                              const int16_t *filter_y, int filter_y_stride,
                              int w, int h);
@@ -66,104 +66,6 @@ typedef std::tuple<int, int, const ConvolveFunctions *> ConvolveParam;
 // Reference 8-tap subpixel filter, slightly modified to fit into this test.
 #define AV1_FILTER_WEIGHT 128
 #define AV1_FILTER_SHIFT 7
-uint8_t clip_pixel(int x) { return x < 0 ? 0 : x > 255 ? 255 : x; }
-
-void filter_block2d_8_c(const uint8_t *src_ptr, unsigned int src_stride,
-                        const int16_t *HFilter, const int16_t *VFilter,
-                        uint8_t *dst_ptr, unsigned int dst_stride,
-                        unsigned int output_width, unsigned int output_height) {
-  // Between passes, we use an intermediate buffer whose height is extended to
-  // have enough horizontally filtered values as input for the vertical pass.
-  // This buffer is allocated to be big enough for the largest block type we
-  // support.
-  const int kInterp_Extend = 4;
-  const unsigned int intermediate_height =
-      (kInterp_Extend - 1) + output_height + kInterp_Extend;
-  unsigned int i, j;
-
-  assert(intermediate_height > 7);
-
-  // Size of intermediate_buffer is max_intermediate_height * filter_max_width,
-  // where max_intermediate_height = (kInterp_Extend - 1) + filter_max_height
-  //                                 + kInterp_Extend
-  //                               = 3 + 16 + 4
-  //                               = 23
-  // and filter_max_width          = 16
-  //
-  uint8_t intermediate_buffer[(kMaxDimension + 8) * kMaxDimension];
-  const int intermediate_next_stride =
-      1 - static_cast<int>(intermediate_height * output_width);
-
-  // Horizontal pass (src -> transposed intermediate).
-  uint8_t *output_ptr = intermediate_buffer;
-  const int src_next_row_stride = src_stride - output_width;
-  src_ptr -= (kInterp_Extend - 1) * src_stride + (kInterp_Extend - 1);
-  for (i = 0; i < intermediate_height; ++i) {
-    for (j = 0; j < output_width; ++j) {
-      // Apply filter...
-      const int temp = (src_ptr[0] * HFilter[0]) + (src_ptr[1] * HFilter[1]) +
-                       (src_ptr[2] * HFilter[2]) + (src_ptr[3] * HFilter[3]) +
-                       (src_ptr[4] * HFilter[4]) + (src_ptr[5] * HFilter[5]) +
-                       (src_ptr[6] * HFilter[6]) + (src_ptr[7] * HFilter[7]) +
-                       (AV1_FILTER_WEIGHT >> 1);  // Rounding
-
-      // Normalize back to 0-255...
-      *output_ptr = clip_pixel(temp >> AV1_FILTER_SHIFT);
-      ++src_ptr;
-      output_ptr += intermediate_height;
-    }
-    src_ptr += src_next_row_stride;
-    output_ptr += intermediate_next_stride;
-  }
-
-  // Vertical pass (transposed intermediate -> dst).
-  src_ptr = intermediate_buffer;
-  const int dst_next_row_stride = dst_stride - output_width;
-  for (i = 0; i < output_height; ++i) {
-    for (j = 0; j < output_width; ++j) {
-      // Apply filter...
-      const int temp = (src_ptr[0] * VFilter[0]) + (src_ptr[1] * VFilter[1]) +
-                       (src_ptr[2] * VFilter[2]) + (src_ptr[3] * VFilter[3]) +
-                       (src_ptr[4] * VFilter[4]) + (src_ptr[5] * VFilter[5]) +
-                       (src_ptr[6] * VFilter[6]) + (src_ptr[7] * VFilter[7]) +
-                       (AV1_FILTER_WEIGHT >> 1);  // Rounding
-
-      // Normalize back to 0-255...
-      *dst_ptr++ = clip_pixel(temp >> AV1_FILTER_SHIFT);
-      src_ptr += intermediate_height;
-    }
-    src_ptr += intermediate_next_stride;
-    dst_ptr += dst_next_row_stride;
-  }
-}
-
-void block2d_average_c(uint8_t *src, unsigned int src_stride,
-                       uint8_t *output_ptr, unsigned int output_stride,
-                       unsigned int output_width, unsigned int output_height) {
-  unsigned int i, j;
-  for (i = 0; i < output_height; ++i) {
-    for (j = 0; j < output_width; ++j) {
-      output_ptr[j] = (output_ptr[j] + src[i * src_stride + j] + 1) >> 1;
-    }
-    output_ptr += output_stride;
-  }
-}
-
-void filter_average_block2d_8_c(const uint8_t *src_ptr,
-                                const unsigned int src_stride,
-                                const int16_t *HFilter, const int16_t *VFilter,
-                                uint8_t *dst_ptr, unsigned int dst_stride,
-                                unsigned int output_width,
-                                unsigned int output_height) {
-  uint8_t tmp[kMaxDimension * kMaxDimension];
-
-  assert(output_width <= kMaxDimension);
-  assert(output_height <= kMaxDimension);
-  filter_block2d_8_c(src_ptr, src_stride, HFilter, VFilter, tmp, kMaxDimension,
-                     output_width, output_height);
-  block2d_average_c(tmp, kMaxDimension, dst_ptr, dst_stride, output_width,
-                    output_height);
-}
 
 void highbd_filter_block2d_8_c(const uint16_t *src_ptr,
                                const unsigned int src_stride,
@@ -271,15 +173,6 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
  public:
   static void SetUpTestSuite() {
     // Force input_ to be unaligned, output to be 16 byte aligned.
-    input_ = reinterpret_cast<uint8_t *>(
-                 aom_memalign(kDataAlignment, kInputBufferSize + 1)) +
-             1;
-    ref8_ = reinterpret_cast<uint8_t *>(
-        aom_memalign(kDataAlignment, kOutputStride * kMaxDimension));
-    output_ = reinterpret_cast<uint8_t *>(
-        aom_memalign(kDataAlignment, kOutputBufferSize));
-    output_ref_ = reinterpret_cast<uint8_t *>(
-        aom_memalign(kDataAlignment, kOutputBufferSize));
     input16_ = reinterpret_cast<uint16_t *>(aom_memalign(
                    kDataAlignment, (kInputBufferSize + 1) * sizeof(uint16_t))) +
                1;
@@ -294,14 +187,6 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
   virtual void TearDown() { libaom_test::ClearSystemState(); }
 
   static void TearDownTestSuite() {
-    aom_free(input_ - 1);
-    input_ = NULL;
-    aom_free(ref8_);
-    ref8_ = NULL;
-    aom_free(output_);
-    output_ = NULL;
-    aom_free(output_ref_);
-    output_ref_ = NULL;
     aom_free(input16_ - 1);
     input16_ = NULL;
     aom_free(ref16_);
@@ -337,17 +222,12 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
 
   virtual void SetUp() {
     UUT_ = GET_PARAM(2);
-    if (UUT_->use_highbd_ != 0)
-      mask_ = (1 << UUT_->use_highbd_) - 1;
-    else
-      mask_ = 255;
+    mask_ = (1 << UUT_->use_highbd_) - 1;
     /* Set up guard blocks for an inner block centered in the outer block */
     for (int i = 0; i < kOutputBufferSize; ++i) {
       if (IsIndexInBorder(i)) {
-        output_[i] = 255;
         output16_[i] = mask_;
       } else {
-        output_[i] = 0;
         output16_[i] = 0;
       }
     }
@@ -355,22 +235,18 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
     ::libaom_test::ACMRandom prng;
     for (int i = 0; i < kInputBufferSize; ++i) {
       if (i & 1) {
-        input_[i] = 255;
         input16_[i] = mask_;
       } else {
-        input_[i] = prng.Rand8Extremes();
         input16_[i] = prng.Rand16() & mask_;
       }
     }
   }
 
   void SetConstantInput(int value) {
-    memset(input_, value, kInputBufferSize);
     aom_memset16(input16_, value, kInputBufferSize);
   }
 
   void CopyOutputToRef() {
-    memcpy(output_ref_, output_, kOutputBufferSize);
     // Copy 16-bit pixels values. The effective number of bytes is double.
     memcpy(output16_ref_, output16_, sizeof(output16_[0]) * kOutputBufferSize);
   }
@@ -378,89 +254,51 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
   void CheckGuardBlocks() {
     for (int i = 0; i < kOutputBufferSize; ++i) {
       if (IsIndexInBorder(i)) {
-        EXPECT_EQ(255, output_[i]);
+        EXPECT_EQ((1 << UUT_->use_highbd_) - 1, output16_[i]);
       }
     }
   }
 
-  uint8_t *input() const {
+  uint16_t *input() const {
     const int offset = BorderTop() * kOuterBlockSize + BorderLeft();
-    if (UUT_->use_highbd_ == 0) {
-      return input_ + offset;
-    } else {
-      return CONVERT_TO_BYTEPTR(input16_) + offset;
-    }
+    return input16_ + offset;
   }
 
-  uint8_t *output() const {
+  uint16_t *output() const {
     const int offset = BorderTop() * kOuterBlockSize + BorderLeft();
-    if (UUT_->use_highbd_ == 0) {
-      return output_ + offset;
-    } else {
-      return CONVERT_TO_BYTEPTR(output16_) + offset;
-    }
+    return output16_ + offset;
   }
 
-  uint8_t *output_ref() const {
+  uint16_t *output_ref() const {
     const int offset = BorderTop() * kOuterBlockSize + BorderLeft();
-    if (UUT_->use_highbd_ == 0) {
-      return output_ref_ + offset;
-    } else {
-      return CONVERT_TO_BYTEPTR(output16_ref_) + offset;
-    }
+    return output16_ref_ + offset;
   }
 
-  uint16_t lookup(uint8_t *list, int index) const {
-    if (UUT_->use_highbd_ == 0) {
-      return list[index];
-    } else {
-      return CONVERT_TO_SHORTPTR(list)[index];
-    }
-  }
+  uint16_t lookup(uint16_t *list, int index) const { return list[index]; }
 
-  void assign_val(uint8_t *list, int index, uint16_t val) const {
-    if (UUT_->use_highbd_ == 0) {
-      list[index] = (uint8_t)val;
-    } else {
-      CONVERT_TO_SHORTPTR(list)[index] = val;
-    }
+  void assign_val(uint16_t *list, int index, uint16_t val) const {
+    list[index] = val;
   }
 
   void wrapper_filter_average_block2d_8_c(
-      const uint8_t *src_ptr, unsigned int src_stride, const int16_t *HFilter,
-      const int16_t *VFilter, uint8_t *dst_ptr, unsigned int dst_stride,
+      const uint16_t *src_ptr, unsigned int src_stride, const int16_t *HFilter,
+      const int16_t *VFilter, uint16_t *dst_ptr, unsigned int dst_stride,
       unsigned int output_width, unsigned int output_height) {
-    if (UUT_->use_highbd_ == 0) {
-      filter_average_block2d_8_c(src_ptr, src_stride, HFilter, VFilter, dst_ptr,
-                                 dst_stride, output_width, output_height);
-    } else {
-      highbd_filter_average_block2d_8_c(
-          CONVERT_TO_SHORTPTR(src_ptr), src_stride, HFilter, VFilter,
-          CONVERT_TO_SHORTPTR(dst_ptr), dst_stride, output_width, output_height,
-          UUT_->use_highbd_);
-    }
+    highbd_filter_average_block2d_8_c(src_ptr, src_stride, HFilter, VFilter,
+                                      dst_ptr, dst_stride, output_width,
+                                      output_height, UUT_->use_highbd_);
   }
 
   void wrapper_filter_block2d_8_c(
-      const uint8_t *src_ptr, unsigned int src_stride, const int16_t *HFilter,
-      const int16_t *VFilter, uint8_t *dst_ptr, unsigned int dst_stride,
+      const uint16_t *src_ptr, unsigned int src_stride, const int16_t *HFilter,
+      const int16_t *VFilter, uint16_t *dst_ptr, unsigned int dst_stride,
       unsigned int output_width, unsigned int output_height) {
-    if (UUT_->use_highbd_ == 0) {
-      filter_block2d_8_c(src_ptr, src_stride, HFilter, VFilter, dst_ptr,
-                         dst_stride, output_width, output_height);
-    } else {
-      highbd_filter_block2d_8_c(CONVERT_TO_SHORTPTR(src_ptr), src_stride,
-                                HFilter, VFilter, CONVERT_TO_SHORTPTR(dst_ptr),
-                                dst_stride, output_width, output_height,
-                                UUT_->use_highbd_);
-    }
+    highbd_filter_block2d_8_c(src_ptr, src_stride, HFilter, VFilter, dst_ptr,
+                              dst_stride, output_width, output_height,
+                              UUT_->use_highbd_);
   }
 
   const ConvolveFunctions *UUT_;
-  static uint8_t *input_;
-  static uint8_t *ref8_;
-  static uint8_t *output_;
-  static uint8_t *output_ref_;
   static uint16_t *input16_;
   static uint16_t *ref16_;
   static uint16_t *output16_;
@@ -468,10 +306,6 @@ class ConvolveTest : public ::testing::TestWithParam<ConvolveParam> {
   int mask_;
 };
 
-uint8_t *ConvolveTest::input_ = NULL;
-uint8_t *ConvolveTest::ref8_ = NULL;
-uint8_t *ConvolveTest::output_ = NULL;
-uint8_t *ConvolveTest::output_ref_ = NULL;
 uint16_t *ConvolveTest::input16_ = NULL;
 uint16_t *ConvolveTest::ref16_ = NULL;
 uint16_t *ConvolveTest::output16_ = NULL;
@@ -512,14 +346,10 @@ TEST(ConvolveTest, FiltersWontSaturateWhenAddedPairwise) {
 const int16_t kInvalidFilter[8] = { 0 };
 
 TEST_P(ConvolveTest, MatchesReferenceSubpixelFilter) {
-  uint8_t *const in = input();
-  uint8_t *const out = output();
-  uint8_t *ref;
-  if (UUT_->use_highbd_ == 0) {
-    ref = ref8_;
-  } else {
-    ref = CONVERT_TO_BYTEPTR(ref16_);
-  }
+  uint16_t *const in = input();
+  uint16_t *const out = output();
+  uint16_t *ref = ref16_;
+
   int subpel_search;
   for (subpel_search = USE_4_TAPS; subpel_search <= USE_8_TAPS;
        ++subpel_search) {
@@ -563,14 +393,9 @@ TEST_P(ConvolveTest, MatchesReferenceSubpixelFilter) {
 }
 
 TEST_P(ConvolveTest, FilterExtremes) {
-  uint8_t *const in = input();
-  uint8_t *const out = output();
-  uint8_t *ref;
-  if (UUT_->use_highbd_ == 0) {
-    ref = ref8_;
-  } else {
-    ref = CONVERT_TO_BYTEPTR(ref16_);
-  }
+  uint16_t *const in = input();
+  uint16_t *const out = output();
+  uint16_t *ref = ref16_;
 
   // Populate ref and out with some random data
   ::libaom_test::ACMRandom prng;
@@ -645,21 +470,16 @@ TEST_P(ConvolveTest, FilterExtremes) {
 }
 
 TEST_P(ConvolveTest, DISABLED_Speed) {
-  uint8_t *const in = input();
-  uint8_t *const out = output();
-  uint8_t *ref;
-  if (UUT_->use_highbd_ == 0) {
-    ref = ref8_;
-  } else {
-    ref = CONVERT_TO_BYTEPTR(ref16_);
-  }
+  uint16_t *const in = input();
+  uint16_t *const out = output();
+  uint16_t *ref = ref16_;
 
   // Populate ref and out with some random data
   ::libaom_test::ACMRandom prng;
   for (int y = 0; y < Height(); ++y) {
     for (int x = 0; x < Width(); ++x) {
       uint16_t r;
-      if (UUT_->use_highbd_ == 0 || UUT_->use_highbd_ == 8) {
+      if (UUT_->use_highbd_ == 8) {
         r = prng.Rand8Extremes();
       } else {
         r = prng.Rand16() & mask_;
@@ -714,7 +534,7 @@ using std::make_tuple;
 // WRAP macro is only used for high bitdepth build.
 #define WRAP(func, bd)                                                       \
   static void wrap_##func##_##bd(                                            \
-      const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,                \
+      const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst,              \
       ptrdiff_t dst_stride, const int16_t *filter_x, int filter_x_stride,    \
       const int16_t *filter_y, int filter_y_stride, int w, int h) {          \
     aom_highbd_##func(src, src_stride, dst, dst_stride, filter_x,            \
@@ -774,15 +594,6 @@ const ConvolveParam kArrayConvolve_sse2[] = { ALL_SIZES(wrap_convolve8_sse2),
                                               ALL_SIZES(wrap_convolve12_sse2) };
 INSTANTIATE_TEST_SUITE_P(SSE2, ConvolveTest,
                          ::testing::ValuesIn(kArrayConvolve_sse2));
-#endif
-
-#if HAVE_SSSE3
-const ConvolveFunctions convolve8_ssse3(aom_convolve8_horiz_ssse3,
-                                        aom_convolve8_vert_ssse3, 0);
-
-const ConvolveParam kArrayConvolve8_ssse3[] = { ALL_SIZES(convolve8_ssse3) };
-INSTANTIATE_TEST_SUITE_P(SSSE3, ConvolveTest,
-                         ::testing::ValuesIn(kArrayConvolve8_ssse3));
 #endif
 
 #if HAVE_AVX2

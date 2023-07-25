@@ -18,6 +18,7 @@
 #include <memory.h>
 #include <math.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "config/aom_config.h"
 
@@ -75,6 +76,59 @@ static INLINE int16_t resolve_divisor_32(uint32_t D, int16_t *shift) {
   // Use f as lookup into the precomputed table of multipliers
   return div_lut[f];
 }
+
+#if CONFIG_IMPROVED_CFL
+static INLINE int16_t resolve_divisor_32_CfL(int32_t N, int32_t D,
+                                             int16_t shift) {
+  int32_t f_n, f_d;
+  int ret;
+
+  assert(D >= 0);
+  int sign_N = N >= 0 ? 0 : 1;
+
+  if (sign_N) N = -N;
+
+  if (N == 0 || D == 0)
+    return 0;
+  else {
+    int16_t shift_n = get_msb(N);
+    int16_t shift_d = get_msb(D);
+    // e is obtained from D after resetting the most significant 1 bit.
+    const int32_t e_d = D - ((uint32_t)1 << shift_d);
+    // Get the most significant DIV_LUT_BITS (8) bits of e into f
+    if (shift_d > DIV_LUT_BITS)
+      f_d = ROUND_POWER_OF_TWO(e_d, shift_d - DIV_LUT_BITS);
+    else
+      f_d = e_d << (DIV_LUT_BITS - shift_d);
+    assert(f_d <= DIV_LUT_NUM);
+
+    if (shift_n > DIV_LUT_BITS)
+      f_n = ROUND_POWER_OF_TWO(N, shift_n - DIV_LUT_BITS);
+    else
+      f_n = N << (DIV_LUT_BITS - shift_n);
+
+    assert(f_d <= DIV_LUT_NUM);
+    assert(f_n <= DIV_LUT_NUM * 2);
+
+    const int shift_add = shift_d - shift_n - shift;
+
+    // The maximum value of `div_lut[f_d] * f_n` is
+    // `1 << (DIV_LUT_PREC_BITS + DIV_LUT_BITS + 1)`
+    // Hence `shift_add`below is constrained to be <= 1.
+    if (shift_add <= 1) {
+      ret = (div_lut[f_d] * f_n) >>
+            (DIV_LUT_PREC_BITS + DIV_LUT_BITS + shift_add);
+    } else {
+      ret = 0;
+    }
+
+    if (ret >= (2 << shift) - 1) ret = (2 << shift) - 1;
+
+    if (sign_N) ret = -ret;
+    return ret;
+  }
+}
+#endif
 
 extern const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8];
 
@@ -189,15 +243,21 @@ static INLINE int error_measure(int err) {
   return error_measure_lut[255 + err];
 }
 
+// Recompute the translational part of a warp model, so that the center
+// of the current block (determined by `mi_row`, `mi_col`, `bsize`)
+// has an induced motion vector of `mv`
+void av1_set_warp_translation(int mi_row, int mi_col, BLOCK_SIZE bsize, MV mv,
+                              WarpedMotionParams *wm);
+
 // Returns the error between the frame described by 'ref' and the frame
 // described by 'dst'.
-int64_t av1_frame_error(int use_hbd, int bd, const uint8_t *ref, int stride,
-                        uint8_t *dst, int p_width, int p_height, int p_stride);
+int64_t av1_frame_error(int bd, const uint16_t *ref, int stride, uint16_t *dst,
+                        int p_width, int p_height, int p_stride);
 
-int64_t av1_segmented_frame_error(int use_hbd, int bd, const uint8_t *ref,
-                                  int stride, uint8_t *dst, int p_width,
-                                  int p_height, int p_stride,
-                                  uint8_t *segment_map, int segment_map_stride);
+int64_t av1_segmented_frame_error(int bd, const uint16_t *ref, int stride,
+                                  uint16_t *dst, int p_width, int p_height,
+                                  int p_stride, uint8_t *segment_map,
+                                  int segment_map_stride);
 
 int64_t av1_calc_highbd_frame_error(const uint16_t *const ref, int stride,
                                     const uint16_t *const dst, int p_width,
@@ -214,15 +274,114 @@ void warp_plane(WarpedMotionParams *wm, const uint8_t *const ref, int width,
                 int p_width, int p_height, int p_stride, int subsampling_x,
                 int subsampling_y, ConvolveParams *conv_params);
 
-void av1_warp_plane(WarpedMotionParams *wm, int use_hbd, int bd,
-                    const uint8_t *ref, int width, int height, int stride,
-                    uint8_t *pred, int p_col, int p_row, int p_width,
-                    int p_height, int p_stride, int subsampling_x,
-                    int subsampling_y, ConvolveParams *conv_params);
+void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
+                    int width, int height, int stride, uint16_t *pred,
+                    int p_col, int p_row, int p_width, int p_height,
+                    int p_stride, int subsampling_x, int subsampling_y,
+                    ConvolveParams *conv_params);
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
-                        BLOCK_SIZE bsize, int mvy, int mvx,
-                        WarpedMotionParams *wm_params, int mi_row, int mi_col);
+                        BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
+                        int mi_row, int mi_col);
 
 int av1_get_shear_params(WarpedMotionParams *wm);
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+// Reduce the precision of a warp model, ready for use in the warp filter
+// and for storage. This should be called after the non-translational parameters
+// are calculated, but before av1_set_warp_translation() or
+// av1_get_shear_params() are called
+void av1_reduce_warp_model(WarpedMotionParams *wm);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
+                          const MV *center_mv, const int mi_row,
+                          const int mi_col,
+                          const WarpedMotionParams *neighbor_wm,
+                          WarpedMotionParams *wm_params);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+// Given a warp model which was initially used at a temporal distance of
+// `in_distance`, rescale it to a new temporal distance of `out_distance`.
+// Both distances are allowed to be negative, but they must be nonzero.
+//
+// The mathematically ideal way to rescale a warp model from one temporal
+// distance to another would be to use a matrix exponential: If we write the
+// input model as a 3x3 matrix M, then the output model should be
+//
+//  ideal output = M ^ (out_distance / in_distance)
+//
+// However, computing a matrix exponential is complicated, especially in
+// fixed point, and so would not be very hardware friendly. In addition,
+// this function is mainly used to predict global motion parameters, with
+// the true values being coded as a delta from this prediction. As the
+// global motion will not be perfectly consistent, there's a limit to how
+// accurate our prediction can be.
+//
+// For these reasons, we approximate the matrix exponential using its
+// first-order Taylor series:
+//
+//  output = I + (M - I) * (out_distance / in_distance)
+//
+// This is far easier to compute, and provides a "good enough" approximation
+// for the models we use in practice, which are all reasonably near to the
+// identity model (all parameters except for the translational part are
+// within +/- 1/2 of the identity).
+static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
+                                        int in_distance,
+                                        WarpedMotionParams *out_params,
+                                        int out_distance) {
+  static int param_shift[MAX_PARAMDIM - 1] = {
+    GM_TRANS_PREC_DIFF,    GM_TRANS_PREC_DIFF,   GM_ALPHA_PREC_DIFF,
+    GM_ALPHA_PREC_DIFF,    GM_ALPHA_PREC_DIFF,   GM_ALPHA_PREC_DIFF,
+    GM_ROW3HOMO_PREC_DIFF, GM_ROW3HOMO_PREC_DIFF
+  };
+
+  static int param_min[MAX_PARAMDIM - 1] = { GM_TRANS_MIN,    GM_TRANS_MIN,
+                                             GM_ALPHA_MIN,    GM_ALPHA_MIN,
+                                             GM_ALPHA_MIN,    GM_ALPHA_MIN,
+                                             GM_ROW3HOMO_MIN, GM_ROW3HOMO_MIN };
+
+  static int param_max[MAX_PARAMDIM - 1] = { GM_TRANS_MAX,    GM_TRANS_MAX,
+                                             GM_ALPHA_MAX,    GM_ALPHA_MAX,
+                                             GM_ALPHA_MAX,    GM_ALPHA_MAX,
+                                             GM_ROW3HOMO_MAX, GM_ROW3HOMO_MAX };
+
+  assert(in_distance != 0);
+  assert(out_distance != 0);
+
+  // Flip signs so that in_distance is positive.
+  // We do this because
+  //   scaled_value = (... + divisor/2) / divisor
+  // is the simplest way to implement division with round-to-nearest in C,
+  // but it only works correctly if the divisor is positive
+  if (in_distance < 0) {
+    in_distance = -in_distance;
+    out_distance = -out_distance;
+  }
+
+  out_params->wmtype = in_params->wmtype;
+  for (int param = 0; param < MAX_PARAMDIM - 1; param++) {
+    int center = default_warp_params.wmmat[param];
+
+    int input = in_params->wmmat[param] - center;
+    int divisor = in_distance * (1 << param_shift[param]);
+    int output = (int)(((int64_t)input * out_distance + divisor / 2) / divisor);
+    output = clamp(output, param_min[param], param_max[param]) *
+             (1 << param_shift[param]);
+
+    out_params->wmmat[param] = center + output;
+  }
+}
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
+                                     const int x, const int y,
+                                     MvSubpelPrecision precision);
+int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
+                              int np, int *mvs, const BLOCK_SIZE bsize);
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // AOM_AV1_COMMON_WARPED_MOTION_H_

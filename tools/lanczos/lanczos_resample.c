@@ -450,7 +450,7 @@ void resample_1d(const int16_t *x, int inlen, RationalResampleFilter *rf,
   int16_t *xext_ = (int16_t *)malloc((inlen + rf->length) * sizeof(*x));
   int16_t *xext = xext_ + tapsby2;
 
-  resample_1d_xc(xext, inlen, rf, downshift, clip, y, outlen, xext);
+  resample_1d_xc(x, inlen, rf, downshift, clip, y, outlen, xext);
 
   free(xext_);
 }

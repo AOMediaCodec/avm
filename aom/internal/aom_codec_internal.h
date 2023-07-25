@@ -36,7 +36,7 @@
  *       {
  *           aom_codec_ctx_t algo;
  *           int threads = 4;
- *           aom_codec_dec_cfg_t cfg = { threads, 0, 0, 1 };
+ *           aom_codec_dec_cfg_t cfg = { threads, 0, 0 };
  *           res = aom_codec_dec_init(&algo, &my_codec, &cfg, 0);
  *       }
  *     </pre>
@@ -49,9 +49,7 @@
 #include "../aom_decoder.h"
 #include "../aom_encoder.h"
 #include "common/args_helper.h"
-#if CONFIG_IBP_DIR
 #include "av1/common/enums.h"
-#endif
 #include <stdarg.h>
 
 #ifdef __cplusplus
@@ -328,9 +326,7 @@ struct aom_codec_iface {
 struct aom_codec_priv {
   const char *err_detail;
   aom_codec_flags_t init_flags;
-#if CONFIG_IBP_DIR
   uint8_t *ibp_directional_weights[TX_SIZES_ALL][DIR_MODES_0_90];
-#endif
   struct {
     aom_fixed_buf_t cx_data_dst_buf;
     unsigned int cx_data_pad_before;

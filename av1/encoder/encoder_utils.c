@@ -497,15 +497,15 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
   const int num_planes = av1_num_planes(cm);
   MV_REFERENCE_FRAME ref_frame;
 
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     // Need to convert from AOM_REFFRAME to index into ref_mask (subtract 1).
-    if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
+    if (cm->ref_frame_flags & (1 << ref_frame)) {
       BufferPool *const pool = cm->buffer_pool;
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, ref_frame);
 
       if (ref == NULL) {
-        cpi->scaled_ref_buf[ref_frame - 1] = NULL;
+        cpi->scaled_ref_buf[ref_frame] = NULL;
         continue;
       }
 
@@ -525,7 +525,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
           }
         }
         int force_scaling = 0;
-        RefCntBuffer *new_fb = cpi->scaled_ref_buf[ref_frame - 1];
+        RefCntBuffer *new_fb = cpi->scaled_ref_buf[ref_frame];
         if (new_fb == NULL) {
           const int new_fb_idx = get_free_fb(cm);
           if (new_fb_idx == INVALID_IDX) {
@@ -541,8 +541,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
           if (aom_realloc_frame_buffer(
                   &new_fb->buf, cm->width, cm->height,
                   cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-                  cm->seq_params.use_highbitdepth, AOM_BORDER_IN_PIXELS,
-                  cm->features.byte_alignment, NULL, NULL, NULL)) {
+                  AOM_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL,
+                  NULL)) {
             if (force_scaling) {
               // Release the reference acquired in the get_free_fb() call above.
               --new_fb->ref_count;
@@ -556,18 +556,18 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
           else
             av1_resize_and_extend_frame_nonnormative(
                 ref, &new_fb->buf, (int)cm->seq_params.bit_depth, num_planes);
-          cpi->scaled_ref_buf[ref_frame - 1] = new_fb;
+          cpi->scaled_ref_buf[ref_frame] = new_fb;
           alloc_frame_mvs(cm, new_fb);
         }
       } else {
         RefCntBuffer *buf = get_ref_frame_buf(cm, ref_frame);
         buf->buf.y_crop_width = ref->y_crop_width;
         buf->buf.y_crop_height = ref->y_crop_height;
-        cpi->scaled_ref_buf[ref_frame - 1] = buf;
+        cpi->scaled_ref_buf[ref_frame] = buf;
         ++buf->ref_count;
       }
     } else {
-      if (!has_no_stats_stage(cpi)) cpi->scaled_ref_buf[ref_frame - 1] = NULL;
+      if (!has_no_stats_stage(cpi)) cpi->scaled_ref_buf[ref_frame] = NULL;
     }
   }
 }
@@ -583,11 +583,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
 
   assert(oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
 
-  if (
-#if CONFIG_SVC_ENCODER
-      cpi->svc.number_spatial_layers > 1 ||
-#endif  // CONFIG_SVC_ENCODER
-      oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
+  if (oxcf->resize_cfg.resize_mode != RESIZE_NONE) {
     // Use the configured size (top resolution) for spatial layers or
     // on resize.
     return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) > 480
@@ -780,11 +776,9 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
                       q_for_screen_content_quick_run,
                       q_cfg->enable_chroma_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
-#if !CONFIG_EXTQUANT
-    if (q_cfg->deltaq_mode != NO_DELTA_Q || q_cfg->enable_chroma_deltaq)
-#endif
-      av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
-                         &cm->quant_params);
+
+    av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
+                       &cm->quant_params);
 
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);
@@ -798,28 +792,6 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   // Set partition speed feature back.
   cpi->sf.part_sf.partition_search_type = partition_search_type_orig;
   cpi->sf.part_sf.fixed_partition_size = fixed_partition_block_size_orig;
-}
-
-#define GM_RECODE_LOOP_NUM4X4_FACTOR 192
-int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
-                                       const int *const global_motion_used,
-                                       int *const gm_params_cost) {
-  int i;
-  int recode = 0;
-  for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
-    if (global_motion[i].wmtype != IDENTITY &&
-        global_motion_used[i] * GM_RECODE_LOOP_NUM4X4_FACTOR <
-            gm_params_cost[i]) {
-      global_motion[i] = default_warp_params;
-      assert(global_motion[i].wmtype == IDENTITY);
-      gm_params_cost[i] = 0;
-      recode = 1;
-      // TODO(sarahparker): The earlier condition for recoding here was:
-      // "recode |= (rdc->global_motion_used[i] > 0);". Can we bring something
-      // similar to that back to speed up global motion?
-    }
-  }
-  return recode;
 }
 
 static void fix_interp_filter(InterpFilter *const interp_filter,
@@ -915,35 +887,21 @@ int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,
       T++;
 
       // check whether collocated block match with current
-      uint8_t *p_cur = cur_picture->y_buffer;
-      uint8_t *p_ref = last_picture->y_buffer;
+      uint16_t *p_cur = cur_picture->y_buffer;
+      uint16_t *p_ref = last_picture->y_buffer;
       int stride_cur = cur_picture->y_stride;
       int stride_ref = last_picture->y_stride;
       p_cur += (y_pos * stride_cur + x_pos);
       p_ref += (y_pos * stride_ref + x_pos);
 
-      if (cur_picture->flags & YV12_FLAG_HIGHBITDEPTH) {
-        uint16_t *p16_cur = CONVERT_TO_SHORTPTR(p_cur);
-        uint16_t *p16_ref = CONVERT_TO_SHORTPTR(p_ref);
-        for (int tmpY = 0; tmpY < block_size && match; tmpY++) {
-          for (int tmpX = 0; tmpX < block_size && match; tmpX++) {
-            if (p16_cur[tmpX] != p16_ref[tmpX]) {
-              match = 0;
-            }
+      for (int tmpY = 0; tmpY < block_size && match; tmpY++) {
+        for (int tmpX = 0; tmpX < block_size && match; tmpX++) {
+          if (p_cur[tmpX] != p_ref[tmpX]) {
+            match = 0;
           }
-          p16_cur += stride_cur;
-          p16_ref += stride_ref;
         }
-      } else {
-        for (int tmpY = 0; tmpY < block_size && match; tmpY++) {
-          for (int tmpX = 0; tmpX < block_size && match; tmpX++) {
-            if (p_cur[tmpX] != p_ref[tmpX]) {
-              match = 0;
-            }
-          }
-          p_cur += stride_cur;
-          p_ref += stride_ref;
-        }
+        p_cur += stride_cur;
+        p_ref += stride_ref;
       }
 
       if (match) {
@@ -1006,7 +964,7 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
   ThreadData *td = &cpi->td;
   MACROBLOCK *x = &td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
-  uint8_t *y_buffer = cpi->source->y_buffer;
+  uint16_t *y_buffer = cpi->source->y_buffer;
   const int y_stride = cpi->source->y_stride;
   const int block_size = BLOCK_16X16;
 
@@ -1015,7 +973,6 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
   const int num_cols = (mi_params->mi_cols + num_mi_w - 1) / num_mi_w;
   const int num_rows = (mi_params->mi_rows + num_mi_h - 1) / num_mi_h;
   double log_sum = 0.0;
-  const int use_hbd = cpi->source->flags & YV12_FLAG_HIGHBITDEPTH;
 
   // Loop through each 16x16 block.
   for (int row = 0; row < num_rows; ++row) {
@@ -1037,12 +994,8 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
           buf.buf = y_buffer + row_offset_y * y_stride + col_offset_y;
           buf.stride = y_stride;
 
-          if (use_hbd) {
-            var += av1_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8,
-                                                      xd->bd);
-          } else {
-            var += av1_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8);
-          }
+          var +=
+              av1_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_8X8, xd->bd);
 
           num_of_var += 1.0;
         }

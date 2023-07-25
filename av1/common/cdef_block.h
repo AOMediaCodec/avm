@@ -19,6 +19,9 @@
 #define CDEF_BLOCKSIZE_LOG2 6
 #define CDEF_NBLOCKS ((1 << MAX_SB_SIZE_LOG2) / 8)
 #define CDEF_SB_SHIFT (MAX_SB_SIZE_LOG2 - CDEF_BLOCKSIZE_LOG2)
+#define CDEF_IN_SB_STRIDE (1 << (CDEF_SB_SHIFT))
+#define CDEF_IN_SB (1 << (CDEF_SB_SHIFT * 2))
+#define MI_IN_CDEF_LINEAR_LOG2 (CDEF_BLOCKSIZE_LOG2 - MI_SIZE_LOG2)
 
 /* We need to buffer three vertical lines. */
 #define CDEF_VBORDER (3)

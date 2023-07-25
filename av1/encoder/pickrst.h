@@ -56,6 +56,107 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
   return (uint16_t)avg;
 }
 
+#if CONFIG_LR_MERGE_COEFFS
+// Checks if the filters in info and ref are identical
+static INLINE int check_wiener_eq(const WienerInfo *info,
+                                  const WienerInfo *ref) {
+  return !memcmp(info->vfilter, ref->vfilter,
+                 WIENER_HALFWIN * sizeof(info->vfilter[0])) &&
+         !memcmp(info->hfilter, ref->hfilter,
+                 WIENER_HALFWIN * sizeof(info->hfilter[0]));
+}
+static INLINE int check_sgrproj_eq(const SgrprojInfo *info,
+                                   const SgrprojInfo *ref) {
+  if (info->ep == ref->ep && !memcmp(info->xqd, ref->xqd, sizeof(info->xqd)))
+    return 1;
+  return 0;
+}
+
+// Checks if the filter in info matches any in the bank. If it does, the
+// index of the matching filter is returned, else -1 is returned.
+static INLINE int check_wiener_bank_eq(const WienerInfoBank *bank,
+                                       const WienerInfo *info) {
+  for (int k = 0; k < AOMMAX(1, bank->bank_size); ++k) {
+    if (check_wiener_eq(info, av1_constref_from_wiener_bank(bank, k))) return k;
+  }
+  return -1;
+}
+static INLINE int check_sgrproj_bank_eq(const SgrprojInfoBank *bank,
+                                        const SgrprojInfo *info) {
+  for (int k = 0; k < AOMMAX(1, bank->bank_size); ++k) {
+    if (check_sgrproj_eq(info, av1_constref_from_sgrproj_bank(bank, k)))
+      return k;
+  }
+  return -1;
+}
+#if CONFIG_WIENER_NONSEP
+
+static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
+                                    const WienerNonsepInfo *ref, int num_coeffs,
+                                    int wiener_class_id) {
+  assert(info->num_classes == ref->num_classes);
+  int c_id_begin = 0;
+  int c_id_end = info->num_classes;
+  if (wiener_class_id != ALL_WIENERNS_CLASSES) {
+    c_id_begin = wiener_class_id;
+    c_id_end = wiener_class_id + 1;
+  }
+  for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
+    const int16_t *info_nsfilter = const_nsfilter_taps(info, c_id);
+    const int16_t *ref_nsfilter = const_nsfilter_taps(ref, c_id);
+    if (memcmp(info_nsfilter, ref_nsfilter,
+               num_coeffs * sizeof(*info_nsfilter)))
+      return 0;
+  }
+  return 1;
+}
+
+static INLINE int check_wienerns_bank_eq(const WienerNonsepInfoBank *bank,
+                                         const WienerNonsepInfo *info,
+                                         int num_coeffs, int wiener_class_id,
+                                         int *refs) {
+  int c_id_begin = 0;
+  int c_id_end = info->num_classes;
+  if (wiener_class_id != ALL_WIENERNS_CLASSES) {
+    c_id_begin = wiener_class_id;
+    c_id_end = wiener_class_id + 1;
+  }
+  int num_equal = 0;
+  for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
+    refs[c_id] = -1;
+    for (int k = 0; k < AOMMAX(1, bank->bank_size_for_class[c_id]); ++k) {
+      if (check_wienerns_eq(info,
+                            av1_constref_from_wienerns_bank(bank, k, c_id),
+                            num_coeffs, c_id)) {
+        refs[c_id] = k;
+        num_equal++;
+        break;
+      }
+    }
+  }
+
+  return num_equal == (c_id_end - c_id_begin) ? 0 : -1;
+}
+
+static INLINE int wienerns_info_diff(
+    const WienerNonsepInfo *info1, const WienerNonsepInfo *info2,
+    const WienernsFilterParameters *nsfilter_params) {
+  int diff = 0;
+  const int beg_feat = 0;
+  const int end_feat = nsfilter_params->ncoeffs;
+  assert(info1->num_classes == info2->num_classes);
+  for (int c_id = 0; c_id < info1->num_classes; ++c_id) {
+    const int16_t *info1_nsfilter = const_nsfilter_taps(info1, c_id);
+    const int16_t *info2_nsfilter = const_nsfilter_taps(info2, c_id);
+
+    for (int k = beg_feat; k < end_feat; ++k)
+      diff += abs(info1_nsfilter[k] - info2_nsfilter[k]);
+  }
+  return diff;
+}
+#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_MERGE_COEFFS
+
 /*!\brief Algorithm for AV1 loop restoration search and estimation.
  *
  * \ingroup in_loop_restoration
@@ -65,7 +166,7 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
  * \param[in]       sd           Source frame buffer
  * \param[in,out]   cpi          Top-level encoder structure
  *
- * \return Nothing is returned. Instead, chosen restoration filter
+ * Nothing is returned. Instead, chosen restoration filter
  * types and parameters are stored per plane in the \c rst_info structure
  * of type \ref RestorationInfo inside \c cpi->common:
  * \arg \c rst_info[ \c 0 ]: Chosen parameters for Y plane
@@ -90,7 +191,10 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
  *
  */
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi);
-
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+void av1_pick_cross_filter_restoration(const YV12_BUFFER_CONFIG *sd,
+                                       AV1_COMP *cpi);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #ifdef __cplusplus
 }  // extern "C"
 #endif

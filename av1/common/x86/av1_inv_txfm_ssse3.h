@@ -26,52 +26,6 @@
 extern "C" {
 #endif
 
-#define btf_16_ssse3(w0, w1, in, out0, out1)    \
-  do {                                          \
-    const __m128i _w0 = _mm_set1_epi16(w0 * 8); \
-    const __m128i _w1 = _mm_set1_epi16(w1 * 8); \
-    const __m128i _in = in;                     \
-    out0 = _mm_mulhrs_epi16(_in, _w0);          \
-    out1 = _mm_mulhrs_epi16(_in, _w1);          \
-  } while (0)
-
-#define btf_16_adds_subs_sse2(in0, in1) \
-  do {                                  \
-    const __m128i _in0 = in0;           \
-    const __m128i _in1 = in1;           \
-    in0 = _mm_adds_epi16(_in0, _in1);   \
-    in1 = _mm_subs_epi16(_in0, _in1);   \
-  } while (0)
-
-#define btf_16_subs_adds_sse2(in0, in1) \
-  do {                                  \
-    const __m128i _in0 = in0;           \
-    const __m128i _in1 = in1;           \
-    in1 = _mm_subs_epi16(_in0, _in1);   \
-    in0 = _mm_adds_epi16(_in0, _in1);   \
-  } while (0)
-
-#define btf_16_adds_subs_out_sse2(out0, out1, in0, in1) \
-  do {                                                  \
-    const __m128i _in0 = in0;                           \
-    const __m128i _in1 = in1;                           \
-    out0 = _mm_adds_epi16(_in0, _in1);                  \
-    out1 = _mm_subs_epi16(_in0, _in1);                  \
-  } while (0)
-
-static INLINE void round_shift_16bit_ssse3(__m128i *in, int size, int bit) {
-  if (bit < 0) {
-    const __m128i scale = _mm_set1_epi16(1 << (15 + bit));
-    for (int i = 0; i < size; ++i) {
-      in[i] = _mm_mulhrs_epi16(in[i], scale);
-    }
-  } else if (bit > 0) {
-    for (int i = 0; i < size; ++i) {
-      in[i] = _mm_slli_epi16(in[i], bit);
-    }
-  }
-}
-
 // 1D itx types
 enum {
   IDCT_1D,
@@ -114,7 +68,11 @@ DECLARE_ALIGNED(16, static const int16_t,
 };
 
 DECLARE_ALIGNED(16, static const int16_t, av1_eob_to_eobxy_8x16_default[16]) = {
+#if CONFIG_ATC_COEFCODING
+  0x0707, 0x0707, 0x0707, 0x0707, 0x0f07, 0x0f07, 0x0f07, 0x0f07,
+#else
   0x0707, 0x0707, 0x0707, 0x0707, 0x0707, 0x0f07, 0x0f07, 0x0f07,
+#endif  // CONFIG_ATC_COEFCODING
   0x0f07, 0x0f07, 0x0f07, 0x0f07, 0x0f07, 0x0f07, 0x0f07, 0x0f07,
 };
 
@@ -125,7 +83,11 @@ DECLARE_ALIGNED(16, static const int16_t, av1_eob_to_eobxy_16x8_default[8]) = {
 DECLARE_ALIGNED(16, static const int16_t,
                 av1_eob_to_eobxy_16x32_default[32]) = {
   0x0707, 0x0707, 0x0f0f, 0x0f0f, 0x0f0f, 0x0f0f, 0x0f0f, 0x0f0f,
+#if CONFIG_ATC_COEFCODING
+  0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f,
+#else
   0x0f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f,
+#endif  // CONFIG_ATC_COEFCODING
   0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f,
   0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f, 0x1f0f,
 };
@@ -137,8 +99,13 @@ DECLARE_ALIGNED(16, static const int16_t,
 };
 
 DECLARE_ALIGNED(16, static const int16_t, av1_eob_to_eobxy_8x32_default[32]) = {
+#if CONFIG_ATC_COEFCODING
+  0x0707, 0x0707, 0x0707, 0x0707, 0x0f07, 0x0f07, 0x0f07, 0x0f07,
+  0x0f07, 0x0f07, 0x0f07, 0x0f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07,
+#else
   0x0707, 0x0707, 0x0707, 0x0707, 0x0707, 0x0f07, 0x0f07, 0x0f07,
   0x0f07, 0x0f07, 0x0f07, 0x0f07, 0x0f07, 0x1f07, 0x1f07, 0x1f07,
+#endif  // CONFIG_ATC_COEFCODING
   0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07,
   0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07, 0x1f07,
 };
@@ -170,7 +137,7 @@ DECLARE_ALIGNED(16, static const int16_t *,
   av1_eob_to_eobxy_32x16_default,
 };
 
-static const int lowbd_txfm_all_1d_zeros_idx[32] = {
+static const int highbd_txfm_all_1d_zeros_idx[32] = {
   0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2,
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 };
@@ -220,12 +187,6 @@ static INLINE void get_eobx_eoby_scan_v_identity(int *eobx, int *eoby,
   *eoby = (eob >= eoby_max) ? eoby_max : eob_fill[eob];
 }
 
-typedef void (*transform_1d_ssse3)(const __m128i *input, __m128i *output,
-                                   int8_t cos_bit);
-
-void av1_lowbd_inv_txfm2d_add_ssse3(const int32_t *input, uint8_t *output,
-                                    int stride, TX_TYPE tx_type,
-                                    TX_SIZE tx_size, int eob);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

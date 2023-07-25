@@ -53,45 +53,24 @@ static int read_frame(float *ref_data, float *main_data, float *temp_data,
     assert(width == frames->distorted->y_width);
     assert(height == frames->distorted->y_height);
 
-    if (frames->source->flags & YV12_FLAG_HIGHBITDEPTH) {
-      const float scale_factor = 1.0f / (float)(1 << (frames->bit_depth - 8));
-      uint16_t *ref_ptr = CONVERT_TO_SHORTPTR(frames->source->y_buffer);
-      uint16_t *main_ptr = CONVERT_TO_SHORTPTR(frames->distorted->y_buffer);
+    const float scale_factor = 1.0f / (float)(1 << (frames->bit_depth - 8));
+    uint16_t *ref_ptr = frames->source->y_buffer;
+    uint16_t *main_ptr = frames->distorted->y_buffer;
 
-      for (int row = 0; row < height; ++row) {
-        for (int col = 0; col < width; ++col) {
-          ref_data[col] = scale_factor * (float)ref_ptr[col];
-        }
-        ref_ptr += frames->source->y_stride;
-        ref_data += stride / sizeof(*ref_data);
+    for (int row = 0; row < height; ++row) {
+      for (int col = 0; col < width; ++col) {
+        ref_data[col] = scale_factor * (float)ref_ptr[col];
       }
+      ref_ptr += frames->source->y_stride;
+      ref_data += stride / sizeof(*ref_data);
+    }
 
-      for (int row = 0; row < height; ++row) {
-        for (int col = 0; col < width; ++col) {
-          main_data[col] = scale_factor * (float)main_ptr[col];
-        }
-        main_ptr += frames->distorted->y_stride;
-        main_data += stride / sizeof(*main_data);
+    for (int row = 0; row < height; ++row) {
+      for (int col = 0; col < width; ++col) {
+        main_data[col] = scale_factor * (float)main_ptr[col];
       }
-    } else {
-      uint8_t *ref_ptr = frames->source->y_buffer;
-      uint8_t *main_ptr = frames->distorted->y_buffer;
-
-      for (int row = 0; row < height; ++row) {
-        for (int col = 0; col < width; ++col) {
-          ref_data[col] = (float)ref_ptr[col];
-        }
-        ref_ptr += frames->source->y_stride;
-        ref_data += stride / sizeof(*ref_data);
-      }
-
-      for (int row = 0; row < height; ++row) {
-        for (int col = 0; col < width; ++col) {
-          main_data[col] = (float)main_ptr[col];
-        }
-        main_ptr += frames->distorted->y_stride;
-        main_data += stride / sizeof(*main_data);
-      }
+      main_ptr += frames->distorted->y_stride;
+      main_data += stride / sizeof(*main_data);
     }
     frames->frame_set = 1;
     return 0;
@@ -192,7 +171,7 @@ static void copy_picture(const int bit_depth, const YV12_BUFFER_CONFIG *src,
   const int height = src->y_height;
 
   if (bit_depth > 8) {
-    uint16_t *src_ptr = CONVERT_TO_SHORTPTR(src->y_buffer);
+    uint16_t *src_ptr = src->y_buffer;
     uint16_t *dst_ptr = dst->data[0];
 
     for (int row = 0; row < height; ++row) {

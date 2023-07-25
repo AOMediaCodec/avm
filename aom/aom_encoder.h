@@ -56,10 +56,6 @@ extern "C" {
  */
 #define AOM_CODEC_CAP_PSNR 0x10000 /**< Can issue PSNR packets */
 
-/*! Can support input images at greater than 8 bitdepth.
- */
-#define AOM_CODEC_CAP_HIGHBITDEPTH 0x40000
-
 /*! \brief Initialization-time Feature Enabling
  *
  *  Certain codec features must be known at initialization time, to allow
@@ -68,8 +64,6 @@ extern "C" {
  *  The available flags are specified by AOM_CODEC_USE_* defines.
  */
 #define AOM_CODEC_USE_PSNR 0x10000 /**< Calculate PSNR on each frame */
-/*!\brief Make the encoder output one  partition at a time. */
-#define AOM_CODEC_USE_HIGHBITDEPTH 0x40000 /**< Use high bitdepth */
 /*!\brief Print per frame stats. */
 #define AOM_CODEC_USE_PER_FRAME_STATS 0x80000 /**< Enable printing of stats */
 
@@ -217,6 +211,28 @@ typedef enum {
 } aom_opfl_refine_type;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
+/*!\brief Decoded Frame Hash Metadata OBU writing mode.
+ *
+ * This enumeration determines whether one or more metadata OBUs of type
+ * Decoded Frame Hash are written before each encoded frame.
+ */
+enum aom_frame_hash_mode {
+  /**< Encoder does not write Decoded Frame Hash Metadata OBUs. */
+  AOM_DFH_DISABLED,
+  /**< Encoder writes Decoded Frame Hash Metadata OBUs for frames as
+   *   they are in reference picture buffer. */
+  AOM_DFH_RAW,
+  /**< Encoder writes Decoded Frame Hash Metadata OBUs for frames as
+   *   they are output, which may be as they are in reference picture buffer
+   *   or after Film Grain has been applied if such parameters are present. */
+  AOM_DFH_FG,
+  /**< Encoder writes Decoded Frame Hash Metadata OBUs for frames both
+   *   as they are in reference picture buffer and as they are output.
+   *   The latter is only written if it differs from the former (e.g.,
+   *   film grain has been applied if such parameters are present.) */
+  AOM_DFH_BOTH,
+};
+
 /*!\brief Encoder Config Options
  *
  * This type allows to enumerate and control flags defined for encoder control
@@ -255,52 +271,117 @@ typedef struct cfg_options {
    *
    */
   unsigned int disable_ml_partition_speed_features;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*!\brief prune partitions for ERP
+   *
+   */
+  unsigned int erp_pruning_level;
+  /*!\brief use ml model for erp pruning
+   *
+   */
+  unsigned int use_ml_erp_pruning;
+  /*!\brief enable extended partitions
+   *
+   */
+  unsigned int enable_ext_partitions;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*!\brief disable ml-based speed-up for transform search
    *
    */
   unsigned int disable_ml_transform_speed_features;
-#if CONFIG_SDP
   /*!\brief enable Semi-decoupled partitioning
    *
    */
   unsigned int enable_sdp;
-#endif  // CONFIG_SDP
-#if CONFIG_MRLS
   /*!\brief enable Multiple reference line selection
    *
    */
   unsigned int enable_mrls;
-#endif  // CONFIG_MRLS
+#if CONFIG_TIP
+  /*!\brief enable temporal interpolated prediction
+   *
+   */
+  unsigned int enable_tip;
+#endif  // CONFIG_TIP
+#if CONFIG_BAWP
+  /*!\brief enable block adaptive weighted prediction
+   *
+   */
+  unsigned int enable_bawp;
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  /*!\brief enable compound weighted prediction
+   *
+   */
+  unsigned int enable_cwp;
+#endif  // CONFIG_BAWP
+#if CONFIG_D071_IMP_MSK_BLD
+  /*!\brief enable implicit maksed blending
+   *
+   */
+  unsigned int enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+  /*!\brief enable Forward skip coding
+   *
+   */
+  unsigned int enable_fsc;
 #if CONFIG_ORIP
   /*!\brief enable Offset based refinement of Intra prediction
    *
    */
   unsigned int enable_orip;
 #endif  // CONFIG_ORIP
-#if CONFIG_IST
+#if CONFIG_IDIF
+  /*!\brief enable Intra Directional Interpolation Filter
+   *
+   */
+  unsigned int enable_idif;
+#endif  // CONFIG_IDIF
   /*!\brief enable Intra secondary transform
    *
    */
   unsigned int enable_ist;
-#endif  // CONFIG_IST
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
+#if CONFIG_CROSS_CHROMA_TX
+  /*!\brief enable cross-chroma component transform
+   *
+   */
+  unsigned int enable_cctx;
+#endif  // CONFIG_CROSS_CHROMA_TX
   /*!\brief enable Intra Bi-Prediction (IBP)
    *
    */
   unsigned int enable_ibp;
-#endif  // CONFIG_IBP_DC || CONFIG_IBP_DIR
 #if CONFIG_ADAPTIVE_MVD
   /*!\brief enable Adaptive MVD resolution
    *
    */
   unsigned int enable_adaptive_mvd;
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+  /*!\brief enable Flexible MV resolution
+   *
+   */
+  unsigned int enable_flex_mvres;
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_ADAPTIVE_DS_FILTER
+  /*!\brief enable downsample filter options for CFL
+   *
+   */
+  unsigned int enable_cfl_ds_filter;
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 #if CONFIG_JOINT_MVD
   /*!\brief enable joint MVD coding
    *
    */
   unsigned int enable_joint_mvd;
 #endif
+#if CONFIG_REFINEMV
+  /*!\brief enable refine MV mode
+   *
+   */
+  unsigned int enable_refinemv;
+#endif  // CONFIG_REFINEMV
+
   /*!\brief enable flip and identity transform type
    *
    */
@@ -317,20 +398,60 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_restoration;
+  /*!\brief enable Wiener Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_wiener;
+  /*!\brief enable Self-Guided Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_sgrproj;
+#if CONFIG_PC_WIENER
+  /*!\brief enable Pixel-Classified Wiener Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_pc_wiener;
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  /*!\brief enable Noseparable Wiener Filter in Loop Restoration
+   *
+   */
+  unsigned int enable_wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   /*!\brief enable cross-component sample offset
    *
    */
   unsigned int enable_ccso;
 #endif
+#if CONFIG_PEF
+  /*!\brief enable prediction enhancement filter
+   *
+   */
+  unsigned int enable_pef;
+#endif  // CONFIG_PEF
   /*!\brief enable OBMC
    *
    */
   unsigned int enable_obmc;
-  /*!\brief enable Warped Motion
+  /*!\brief enable local warped motion
    *
    */
   unsigned int enable_warped_motion;
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  /*!\brief enable spatial warp prediction
+   *
+   */
+  unsigned int enable_warped_causal;
+  /*!\brief enable explicit warp models
+   *
+   */
+  unsigned int enable_warp_delta;
+  /*!\brief enable warp extension
+   *
+   */
+  unsigned int enable_warp_extend;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   /*!\brief enable global motion
    *
    */
@@ -369,6 +490,7 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_cfl_intra;
+
   /*!\brief enable intra smooth mode
    *
    */
@@ -423,22 +545,36 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_reduced_reference_set;
+  /*!\brief explicitly signal reference frame mapping
+   *
+   */
+  unsigned int explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  /*!\brief enable frame output order derivation based on order hint
+   *
+   */
+  unsigned int enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   /*!\brief use reduced transform type set
    *
    */
   unsigned int reduced_tx_type_set;
-#if CONFIG_NEW_INTER_MODES
   /*!\brief Max number of reference mvs in dynamic reference list
    *
    */
   unsigned int max_drl_refmvs;
-#endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_REF_MV_BANK
   /*!\brief enable reference MV Bank
    *
    */
   unsigned int enable_refmvbank;
 #endif
+#if CONFIG_PAR_HIDING
+  /*!\brief enable parity hiding for coefficients coding
+   *
+   */
+  unsigned int enable_parity_hiding;
+#endif  // CONFIG_PAR_HIDING
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags
@@ -735,7 +871,7 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief Rate control adaptation undershoot control
    *
    * This value, controls the tolerance of the VBR algorithm to undershoot
-   * and is used as a trigger threshold for more agressive adaptation of Q.
+   * and is used as a trigger threshold for more aggressive adaptation of Q.
    *
    * Valid values in the range 0-100.
    */
@@ -744,7 +880,7 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief Rate control adaptation overshoot control
    *
    * This value, controls the tolerance of the VBR algorithm to overshoot
-   * and is used as a trigger threshold for more agressive adaptation of Q.
+   * and is used as a trigger threshold for more aggressive adaptation of Q.
    *
    * Valid values in the range 0-1000.
    */
@@ -967,6 +1103,21 @@ typedef struct aom_codec_enc_cfg {
    * - This option is only relevant for --end-usage=q.
    */
   int fixed_qp_offsets[FIXED_QP_OFFSET_COUNT];
+
+  /*!\brief Codec control function to set what decoded frame hash metadata to
+   * write
+   */
+  enum aom_frame_hash_mode frame_hash_metadata;
+
+  /*!\brief Codec control function to set if the hash values are written for
+   * each plane instead of the entire frame, unsigned int parameter
+   *
+   * \attention Only applicable if decoded frame hash metadata is not disabled.
+   *
+   * - 0 = per frame (default)
+   * - 1 = per plane
+   */
+  unsigned int frame_hash_per_plane;
 
   /*!\brief Options defined per config file
    *

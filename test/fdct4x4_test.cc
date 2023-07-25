@@ -80,7 +80,7 @@ class Trans4x4FDCT : public libaom_test::TransformTestBase<OutputType>,
     fwd_txfm_(in, out, stride);
   }
 
-  void RunInvTxfm(const OutputType *out, uint8_t *dst, int stride) {
+  void RunInvTxfm(const OutputType *out, uint16_t *dst, int stride) {
     (void)out;
     (void)dst;
     (void)stride;

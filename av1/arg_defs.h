@@ -79,7 +79,6 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t large_scale_tile;
   arg_def_t monochrome;
   arg_def_t full_still_picture_hdr;
-  arg_def_t use_16bit_internal;
   arg_def_t dropframe_thresh;
   arg_def_t resize_mode;
   arg_def_t resize_denominator;
@@ -132,35 +131,71 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_deblocking;
   arg_def_t enable_cdef;
   arg_def_t enable_restoration;
+  arg_def_t enable_wiener;
+  arg_def_t enable_sgrproj;
+#if CONFIG_PC_WIENER
+  arg_def_t enable_pc_wiener;
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  arg_def_t enable_wiener_nonsep;
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   arg_def_t enable_ccso;
 #endif
+#if CONFIG_PEF
+  arg_def_t enable_pef;
+#endif  // CONFIG_PEF
   arg_def_t disable_ml_partition_speed_features;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  arg_def_t erp_pruning_level;
+  arg_def_t use_ml_erp_pruning;
+  arg_def_t enable_ext_partitions;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   arg_def_t enable_rect_partitions;
   arg_def_t enable_ab_partitions;
   arg_def_t enable_1to4_partitions;
   arg_def_t disable_ml_transform_speed_features;
-#if CONFIG_SDP
   arg_def_t enable_sdp;
-#endif
-#if CONFIG_MRLS
   arg_def_t enable_mrls;
-#endif
+#if CONFIG_TIP
+  arg_def_t enable_tip;
+#endif  // CONFIG_TIP
+#if CONFIG_BAWP
+  arg_def_t enable_bawp;
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  arg_def_t enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  arg_def_t enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+  arg_def_t enable_fsc;
 #if CONFIG_ORIP
   arg_def_t enable_orip;
 #endif
-#if CONFIG_IST
+#if CONFIG_IDIF
+  arg_def_t enable_idif;
+#endif  // CONFIG_IDIF
   arg_def_t enable_ist;
-#endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
+#if CONFIG_CROSS_CHROMA_TX
+  arg_def_t enable_cctx;
+#endif  // CONFIG_CROSS_CHROMA_TX
   arg_def_t enable_ibp;
-#endif
 #if CONFIG_ADAPTIVE_MVD
   arg_def_t enable_adaptive_mvd;
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+  arg_def_t enable_flex_mvres;
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_ADAPTIVE_DS_FILTER
+  arg_def_t enable_cfl_ds_filter;
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 #if CONFIG_JOINT_MVD
   arg_def_t enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  arg_def_t enable_refinemv;
+#endif  // CONFIG_REFINEMV
   arg_def_t min_partition_size;
   arg_def_t max_partition_size;
   arg_def_t enable_chroma_deltaq;
@@ -177,6 +212,11 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_interintra_wedge;
   arg_def_t enable_global_motion;
   arg_def_t enable_warped_motion;
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  arg_def_t enable_warped_causal;
+  arg_def_t enable_warp_delta;
+  arg_def_t enable_warp_extend;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   arg_def_t enable_filter_intra;
   arg_def_t enable_smooth_intra;
   arg_def_t enable_paeth_intra;
@@ -232,6 +272,10 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t gf_max_pyr_height;
   arg_def_t max_reference_frames;
   arg_def_t reduced_reference_set;
+  arg_def_t explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  arg_def_t enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   arg_def_t target_seq_level_idx;
   arg_def_t set_min_cr;
   arg_def_t input_color_primaries;
@@ -247,13 +291,16 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t vbr_corpus_complexity_lap;
   arg_def_t subgop_config_str;
   arg_def_t subgop_config_path;
-#if CONFIG_NEW_INTER_MODES
   arg_def_t max_drl_refmvs;
-#endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_REF_MV_BANK
   arg_def_t enable_refmvbank;
 #endif  // CONFIG_REF_MV_BANK
+#if CONFIG_PAR_HIDING
+  arg_def_t enable_parity_hiding;
+#endif  // CONFIG_PAR_HIDING
 #endif  // CONFIG_AV1_ENCODER
+  arg_def_t frame_hash_metadata;
+  arg_def_t frame_hash_per_plane;
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

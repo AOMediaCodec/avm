@@ -86,15 +86,13 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
   // Now we need to allocate enough space to store the line buffers for the
   // stripes
   const int frame_w = cm->superres_upscaled_width;
-  const int use_highbd = cm->seq_params.use_highbitdepth;
 
   for (int p = 0; p < num_planes; ++p) {
     const int is_uv = p > 0;
     const int ss_x = is_uv && cm->seq_params.subsampling_x;
     const int plane_w = ((frame_w + ss_x) >> ss_x) + 2 * RESTORATION_EXTRA_HORZ;
     const int stride = ALIGN_POWER_OF_TWO(plane_w, 5);
-    const int buf_size = num_stripes * stride * RESTORATION_CTX_VERT
-                         << use_highbd;
+    const int buf_size = num_stripes * stride * RESTORATION_CTX_VERT << 1;
     RestorationStripeBoundaries *boundaries = &cm->rst_info[p].boundaries;
 
     if (buf_size != boundaries->stripe_boundary_size ||
@@ -104,9 +102,9 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
       aom_free(boundaries->stripe_boundary_below);
 
       CHECK_MEM_ERROR(cm, boundaries->stripe_boundary_above,
-                      (uint8_t *)aom_memalign(32, buf_size));
+                      aom_memalign(32, buf_size));
       CHECK_MEM_ERROR(cm, boundaries->stripe_boundary_below,
-                      (uint8_t *)aom_memalign(32, buf_size));
+                      aom_memalign(32, buf_size));
 
       boundaries->stripe_boundary_size = buf_size;
     }
@@ -131,6 +129,9 @@ void av1_free_restoration_buffers(AV1_COMMON *cm) {
   }
 
   aom_free_frame_buffer(&cm->rst_frame);
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  aom_free_frame_buffer(&cm->pre_rst_frame);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 }
 
 void av1_free_above_context_buffers(CommonContexts *above_contexts) {
@@ -141,32 +142,18 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
     for (i = 0; i < num_planes; i++) {
       aom_free(above_contexts->entropy[i][tile_row]);
       above_contexts->entropy[i][tile_row] = NULL;
-#if CONFIG_SDP
       aom_free(above_contexts->partition[i][tile_row]);
       above_contexts->partition[i][tile_row] = NULL;
-#endif
     }
-#if !CONFIG_SDP
-    aom_free(above_contexts->partition[tile_row]);
-    above_contexts->partition[tile_row] = NULL;
-#endif
-
     aom_free(above_contexts->txfm[tile_row]);
     above_contexts->txfm[tile_row] = NULL;
   }
   for (i = 0; i < num_planes; i++) {
     aom_free(above_contexts->entropy[i]);
     above_contexts->entropy[i] = NULL;
-#if CONFIG_SDP
     aom_free(above_contexts->partition[i]);
     above_contexts->partition[i] = NULL;
-#endif
   }
-#if !CONFIG_SDP
-  aom_free(above_contexts->partition);
-  above_contexts->partition = NULL;
-#endif
-
   aom_free(above_contexts->txfm);
   above_contexts->txfm = NULL;
 
@@ -175,8 +162,20 @@ void av1_free_above_context_buffers(CommonContexts *above_contexts) {
   above_contexts->num_planes = 0;
 }
 
+static void free_sbi(CommonSBInfoParams *sbi_params) {
+  for (int i = 0; i < sbi_params->sbi_alloc_size; ++i) {
+    av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[0]);
+    av1_free_ptree_recursive(sbi_params->sbi_grid_base[i].ptree_root[1]);
+  }
+
+  aom_free(sbi_params->sbi_grid_base);
+  sbi_params->sbi_grid_base = NULL;
+  sbi_params->sbi_alloc_size = 0;
+}
+
 void av1_free_context_buffers(AV1_COMMON *cm) {
   cm->mi_params.free_mi(&cm->mi_params);
+  free_sbi(&cm->sbi_params);
 
   av1_free_above_context_buffers(&cm->above_contexts);
 
@@ -199,17 +198,10 @@ int av1_alloc_above_context_buffers(CommonContexts *above_contexts,
     above_contexts->entropy[plane_idx] = (ENTROPY_CONTEXT **)aom_calloc(
         num_tile_rows, sizeof(above_contexts->entropy[0]));
     if (!above_contexts->entropy[plane_idx]) return 1;
-#if CONFIG_SDP
     above_contexts->partition[plane_idx] = (PARTITION_CONTEXT **)aom_calloc(
         num_tile_rows, sizeof(above_contexts->partition[plane_idx]));
     if (!above_contexts->partition[plane_idx]) return 1;
-#endif
   }
-#if !CONFIG_SDP
-  above_contexts->partition = (PARTITION_CONTEXT **)aom_calloc(
-      num_tile_rows, sizeof(above_contexts->partition));
-  if (!above_contexts->partition) return 1;
-#endif
 
   above_contexts->txfm =
       (TXFM_CONTEXT **)aom_calloc(num_tile_rows, sizeof(above_contexts->txfm));
@@ -221,20 +213,12 @@ int av1_alloc_above_context_buffers(CommonContexts *above_contexts,
           (ENTROPY_CONTEXT *)aom_calloc(
               aligned_mi_cols, sizeof(*above_contexts->entropy[0][tile_row]));
       if (!above_contexts->entropy[plane_idx][tile_row]) return 1;
-#if CONFIG_SDP
       above_contexts->partition[plane_idx][tile_row] =
           (PARTITION_CONTEXT *)aom_calloc(
               aligned_mi_cols,
               sizeof(*above_contexts->partition[plane_idx][tile_row]));
       if (!above_contexts->partition[plane_idx][tile_row]) return 1;
-#endif
     }
-#if !CONFIG_SDP
-    above_contexts->partition[tile_row] = (PARTITION_CONTEXT *)aom_calloc(
-        aligned_mi_cols, sizeof(*above_contexts->partition[tile_row]));
-    if (!above_contexts->partition[tile_row]) return 1;
-#endif
-
     above_contexts->txfm[tile_row] = (TXFM_CONTEXT *)aom_calloc(
         aligned_mi_cols, sizeof(*above_contexts->txfm[tile_row]));
     if (!above_contexts->txfm[tile_row]) return 1;
@@ -246,7 +230,12 @@ int av1_alloc_above_context_buffers(CommonContexts *above_contexts,
 // Allocate the dynamically allocated arrays in 'mi_params' assuming
 // 'mi_params->set_mb_mi()' was already called earlier to initialize the rest of
 // the struct members.
-static int alloc_mi(CommonModeInfoParams *mi_params) {
+static int alloc_mi(CommonModeInfoParams *mi_params
+#if CONFIG_PC_WIENER
+                    ,
+                    AV1_COMMON *cm
+#endif  // CONFIG_PC_WIENER
+) {
   const int aligned_mi_rows = calc_mi_size(mi_params->mi_rows);
   const int mi_grid_size = mi_params->mi_stride * aligned_mi_rows;
   const int alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];
@@ -266,10 +255,57 @@ static int alloc_mi(CommonModeInfoParams *mi_params) {
         mi_grid_size, sizeof(*mi_params->mi_grid_base));
     if (!mi_params->mi_grid_base) return 1;
     mi_params->mi_grid_size = mi_grid_size;
+#if CONFIG_PC_WIENER
+    av1_alloc_txk_skip_array(mi_params, cm);
+    av1_alloc_class_id_array(mi_params, cm);
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_C071_SUBBLK_WARPMV
+    mi_params->mi_alloc_sub =
+        aom_calloc(alloc_mi_size, sizeof(*mi_params->mi_alloc_sub));
+    if (!mi_params->mi_alloc_sub) return 1;
+    mi_params->submi_grid_base = (SUBMB_INFO **)aom_calloc(
+        mi_grid_size, sizeof(*mi_params->submi_grid_base));
+    if (!mi_params->submi_grid_base) return 1;
+#endif  // CONFIG_C071_SUBBLK_WARPMV
 
     mi_params->tx_type_map =
         aom_calloc(mi_grid_size, sizeof(*mi_params->tx_type_map));
     if (!mi_params->tx_type_map) return 1;
+#if CONFIG_CROSS_CHROMA_TX
+    mi_params->cctx_type_map =
+        aom_calloc(mi_grid_size, sizeof(*mi_params->cctx_type_map));
+    if (!mi_params->cctx_type_map) return 1;
+#endif  // CONFIG_CROSS_CHROMA_TX
+  }
+
+  return 0;
+}
+
+static void set_sb_si(AV1_COMMON *cm) {
+  CommonSBInfoParams *const sbi_params = &cm->sbi_params;
+  const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  sbi_params->sb_cols =
+      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, mib_size_log2) >> mib_size_log2;
+  sbi_params->sb_rows =
+      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, mib_size_log2) >> mib_size_log2;
+  sbi_params->sbi_stride = cm->mi_params.mi_stride >> mib_size_log2;
+}
+
+static int alloc_sbi(CommonSBInfoParams *sbi_params) {
+  const int sbi_size =
+      sbi_params->sbi_stride * calc_mi_size(sbi_params->sb_rows);
+
+  if (sbi_params->sbi_alloc_size < sbi_size) {
+    free_sbi(sbi_params);
+    sbi_params->sbi_grid_base = aom_calloc(sbi_size, sizeof(SB_INFO));
+
+    if (!sbi_params->sbi_grid_base) return 1;
+
+    sbi_params->sbi_alloc_size = sbi_size;
+    for (int i = 0; i < sbi_size; ++i) {
+      sbi_params->sbi_grid_base[i].ptree_root[0] = NULL;
+      sbi_params->sbi_grid_base[i].ptree_root[1] = NULL;
+    }
   }
 
   return 0;
@@ -278,7 +314,15 @@ static int alloc_mi(CommonModeInfoParams *mi_params) {
 int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->set_mb_mi(mi_params, width, height);
+#if CONFIG_PC_WIENER
+  if (alloc_mi(mi_params, cm)) goto fail;
+#else
   if (alloc_mi(mi_params)) goto fail;
+#endif  // CONFIG_PC_WIENER
+  CommonSBInfoParams *const sbi_params = &cm->sbi_params;
+  set_sb_si(cm);
+  if (alloc_sbi(sbi_params)) goto fail;
+
   return 0;
 
 fail:

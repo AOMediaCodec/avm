@@ -98,7 +98,7 @@ SECTION .text
 ; PROCESS_8x2x4 first, off_{first,second}_{src,ref}, advance_at_end
 %macro HIGH_PROCESS_8x2x4 5-6 0
   ; 1st 8 px
-  mova                  m0, [srcq +%2*2]
+  movu                  m0, [srcq +%2*2]
 %if %1 == 1
   movu                  m4, [ref1q+%3*2]
   movu                  m5, [ref2q+%3*2]
@@ -156,7 +156,7 @@ SECTION .text
 %endif
 
   ; 2nd 8 px
-  mova                  m0, [srcq +(%4)*2]
+  movu                  m0, [srcq +(%4)*2]
   mova                  m3, m0
   movu                  m2, [ref1q+(%5)*2]
   psubusw               m3, m2
@@ -255,13 +255,6 @@ cglobal highbd_sad_skip_%1x%2x4d, 4, 7, 8, src, src_stride, ref1, ref_stride, \
   mov                ref3q, [ref1q+gprsize*2]
   mov                ref4q, [ref1q+gprsize*3]
   mov                ref1q, [ref1q+gprsize*0]
-
-; convert byte pointers to short pointers
-  shl                 srcq, 1
-  shl                ref2q, 1
-  shl                ref3q, 1
-  shl                ref4q, 1
-  shl                ref1q, 1
 
   HIGH_PROCESS_%1x2x4 1, 0, 0, src_strideq, ref_strideq, 1
 %if %3 == 2  ;  Downsampling by two

@@ -88,16 +88,18 @@ void EncoderTest::SetMode(TestMode mode) {
   passes_ = 1;
 }
 
-static bool compare_plane(const uint8_t *const buf1, int stride1,
-                          const uint8_t *const buf2, int stride2, int w, int h,
+static bool compare_plane(const uint8_t *const _buf1, int stride1,
+                          const uint8_t *const _buf2, int stride2, int w, int h,
                           int *const mismatch_row, int *const mismatch_col,
                           int *const mismatch_pix1, int *const mismatch_pix2) {
   int r, c;
 
   for (r = 0; r < h; ++r) {
+    const uint16_t *buf1 = (const uint16_t *)(_buf1 + r * stride1);
+    const uint16_t *buf2 = (const uint16_t *)(_buf2 + r * stride2);
     for (c = 0; c < w; ++c) {
-      const int pix1 = buf1[r * stride1 + c];
-      const int pix2 = buf2[r * stride2 + c];
+      const int pix1 = buf1[c];
+      const int pix2 = buf2[c];
 
       if (pix1 != pix2) {
         if (mismatch_row != NULL) *mismatch_row = r;
@@ -163,7 +165,6 @@ void EncoderTest::MismatchHook(const aom_image_t *img_enc,
 
 void EncoderTest::RunLoop(VideoSource *video) {
   aom_codec_dec_cfg_t dec_cfg = aom_codec_dec_cfg_t();
-  dec_cfg.allow_lowbitdepth = 1;
 
   ASSERT_EQ(1, (int)passes_);
   for (unsigned int pass = 0; pass < passes_; pass++) {

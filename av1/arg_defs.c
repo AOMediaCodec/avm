@@ -132,6 +132,14 @@ static const struct arg_enum_list color_primaries_enum[] = {
   { "ebu3213", AOM_CICP_CP_EBU_3213 },
   { NULL, 0 }
 };
+
+static const struct arg_enum_list frame_hash_metadata_enum[] = {
+  { "off", AOM_DFH_DISABLED },
+  { "raw", AOM_DFH_RAW },
+  { "filmgrain", AOM_DFH_FG },
+  { "both", AOM_DFH_BOTH },
+  { NULL, 0 }
+};
 #endif  // CONFIG_AV1_ENCODER
 
 const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
@@ -213,8 +221,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "monochrome", 0, "Monochrome video (no chroma planes)"),
   .full_still_picture_hdr = ARG_DEF(NULL, "full-still-picture-hdr", 0,
                                     "Use full header for still picture"),
-  .use_16bit_internal =
-      ARG_DEF(NULL, "use-16bit-internal", 0, "Force use of 16-bit pipeline"),
   .dropframe_thresh =
       ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)"),
   .resize_mode = ARG_DEF(NULL, "resize-mode", 1, "Frame resize mode"),
@@ -295,8 +301,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .max_intra_rate_pct =
       ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)"),
 #if CONFIG_AV1_ENCODER
-  .cpu_used_av1 =
-      ARG_DEF(NULL, "cpu-used", 1, "Speed setting (0..6 in good mode"),
+  .cpu_used_av1 = ARG_DEF(NULL, "cpu-used", 1, "Speed setting (0..9)"),
   .rowmtarg =
       ARG_DEF(NULL, "row-mt", 1,
               "Enable row based multi-threading (0: off, 1: on (default))"),
@@ -329,15 +334,49 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_restoration = ARG_DEF(NULL, "enable-restoration", 1,
                                 "Enable the loop restoration filter (0: false, "
                                 "1: true (default))"),
+  .enable_wiener = ARG_DEF(NULL, "enable-wiener", 1,
+                           "Enable wiener lr filter (0: false, "
+                           "1: true (default))"),
+  .enable_sgrproj = ARG_DEF(NULL, "enable-sgrproj", 1,
+                            "Enable sgrproj lr filter (0: false, "
+                            "1: true (default))"),
+#if CONFIG_PC_WIENER
+  .enable_pc_wiener = ARG_DEF(NULL, "enable-pc-wiener", 1,
+                              "Enable pc-wiener lr filter (0: false, "
+                              "1: true (default))"),
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP
+  .enable_wiener_nonsep = ARG_DEF(NULL, "enable-wiener-nonsep", 1,
+                                  "Enable nonsep-wiener lr filter (0: false, "
+                                  "1: true (default))"),
+#endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_CCSO
   .enable_ccso = ARG_DEF(NULL, "enable-ccso", 1,
                          "Enable cross component sample offset (0: false "
                          "1: true)"),
 #endif
+#if CONFIG_PEF
+  .enable_pef = ARG_DEF(NULL, "enable-pef", 1,
+                        "Enable prediction enhancement filter (0: false "
+                        "1: true)"),
+#endif  // CONFIG_PEF
   .disable_ml_partition_speed_features =
       ARG_DEF(NULL, "disable-ml-partition-speed-features", 1,
               "Disable ML partition speed features "
               "(0: false (default), 1: true)"),
+#if CONFIG_EXT_RECUR_PARTITIONS
+  .erp_pruning_level =
+      ARG_DEF(NULL, "erp-pruning-level", 1,
+              "Set the level of aggressiveness for erp pruning."
+              "(0: off, 1: reuse partition decision for co-located block, "
+              "2 to 6 increasing level of aggressiveness. Default: 5."),
+  .use_ml_erp_pruning = ARG_DEF(NULL, "use-ml-erp-pruning", 1,
+                                "Use ML model to perform ERP Pruning."
+                                "(0: off (default), 1: on)."),
+  .enable_ext_partitions = ARG_DEF(NULL, "enable-ext-partitions", 1,
+                                   "Enable extended partitions"
+                                   "(0: off (default), 1: on)."),
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   .enable_rect_partitions = ARG_DEF(NULL, "enable-rect-partitions", 1,
                                     "Enable rectangular partitions "
                                     "(0: false, 1: true (default))"),
@@ -351,42 +390,89 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "disable-ml-transform-speed-features", 1,
               "Disable ML transform speed features "
               "(0: false (default), 1: true)"),
-#if CONFIG_SDP
   .enable_sdp = ARG_DEF(NULL, "enable-sdp", 1,
                         "Enable semi decoupled partitioning for key frame"
                         "(0: false, 1: true (default))"),
-#endif
-#if CONFIG_MRLS
   .enable_mrls =
       ARG_DEF(NULL, "enable-mrls", 1,
               "Enable multiple reference line selection for intra prediction"
               "(0: false, 1: true (default))"),
-#endif
+#if CONFIG_TIP
+  .enable_tip =
+      ARG_DEF(NULL, "enable-tip", 1,
+              "Enable temporal interpolated prediction (TIP)"
+              "(0: disable TIP, "
+              " 1: TIP frame is used as reference or direct output (default), "
+              " 2: TIP frame is only used as reference)"),
+#endif  // CONFIG_TIP
+#if CONFIG_BAWP
+  .enable_bawp = ARG_DEF(NULL, "enable-bawp", 1,
+                         "Enable block adaptive weighted prediction (BAWP)"
+                         "(0: false, 1: true (default))"),
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  .enable_cwp = ARG_DEF(NULL, "enable-cwp", 1,
+                        "Enable compound weighted prediction (CWP)"
+                        "(0: false, 1: true (default))"),
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  .enable_imp_msk_bld = ARG_DEF(NULL, "enable-imp-msk-bld", 1,
+                                "Enable implicit maksed blending"
+                                "(0:false), 1:true (default)"),
+#endif  // CONFIG_D071_IMP_MSK_BLD
+  .enable_fsc = ARG_DEF(NULL, "enable-fsc", 1,
+                        "Enable forward skip coding"
+                        "(0: false, 1: true (default))"),
 #if CONFIG_ORIP
   .enable_orip = ARG_DEF(NULL, "enable-orip", 1,
                          "Enable Offset Based refinement of intra prediction"
                          "(0: false, 1: true (default))"),
 #endif
-#if CONFIG_IST
+#if CONFIG_IDIF
+  .enable_idif = ARG_DEF(NULL, "enable-idif", 1,
+                         "Enable Intra Directional Interpolation Filter"
+                         "(0: false, 1: true (default))"),
+#endif  // CONFIG_IDIF
   .enable_ist = ARG_DEF(NULL, "enable-ist", 1,
                         "Enable intra secondary transform"
                         "(0: false, 1: true (default))"),
-#endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
+#if CONFIG_CROSS_CHROMA_TX
+  .enable_cctx = ARG_DEF(NULL, "enable-cctx", 1,
+                         "Enable cross-chroma component transform "
+                         "(0: false, 1: true(default))"),
+#endif  // CONFIG_CROSS_CHROMA_TX
   .enable_ibp = ARG_DEF(NULL, "enable-ibp", 1,
                         "Enable intra bi-prediction"
                         "(0: false, 1: true (default))"),
-#endif
 #if CONFIG_ADAPTIVE_MVD
   .enable_adaptive_mvd = ARG_DEF(NULL, "enable-adaptive-mvd", 1,
                                  "Enable adaptive MVD resolution"
                                  "(0: false, 1: true (default))"),
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+  .enable_flex_mvres = ARG_DEF(NULL, "enable-flex-mvres", 1,
+                               "Enable flexible MV resolution"
+                               "(0: false, 1: true (default))"),
+#endif  // CONFIG_FLEX_MVRES
+
+#if CONFIG_ADAPTIVE_DS_FILTER
+  .enable_cfl_ds_filter =
+      ARG_DEF(NULL, "enable-adaptive-ds", 1,
+              "Enable adaptive down-sampling filter"
+              "(0: false, 1: filter1, 2: filter 2, 3: filter 3"),
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+
 #if CONFIG_JOINT_MVD
   .enable_joint_mvd = ARG_DEF(NULL, "enable-joint-mvd", 1,
                               "Enable joint MVD coding"
                               "(0: false, 1: true (default))"),
 #endif  // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  .enable_refinemv = ARG_DEF(NULL, "enable-refinemv", 1,
+                             "Enable RefineMV mode"
+                             "(0: false, 1: true (default))"),
+#endif  // CONFIG_REFINEMV
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
               "Set min partition size "
@@ -439,10 +525,21 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                      "(0: false, 1: true (default))"),
   .enable_global_motion = ARG_DEF(NULL, "enable-global-motion", 1,
                                   "Enable global motion "
-                                  "(0: false, 1: true (default))"),
+                                  "(0: false (default), 1: true)"),
   .enable_warped_motion = ARG_DEF(NULL, "enable-warped-motion", 1,
                                   "Enable local warped motion "
                                   "(0: false, 1: true (default))"),
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  .enable_warped_causal = ARG_DEF(NULL, "enable-warped-causal", 1,
+                                  "Enable spatial warp prediction "
+                                  "(0: false, 1: true (default))"),
+  .enable_warp_delta = ARG_DEF(NULL, "enable-warp-delta", 1,
+                               "Enable explicit warp models "
+                               "(0: false, 1: true (default))"),
+  .enable_warp_extend = ARG_DEF(NULL, "enable-warp-extend", 1,
+                                "Enable warp extension "
+                                "(0: false, 1: true (default))"),
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   .enable_filter_intra = ARG_DEF(NULL, "enable-filter-intra", 1,
                                  "Enable filter intra prediction mode "
                                  "(0: false, 1: true (default))"),
@@ -592,6 +689,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "reduced-reference-set", 1,
               "Use reduced set of single and compound references (0: off "
               "(default), 1: on)"),
+  .explicit_ref_frame_map =
+      ARG_DEF(NULL, "explicit-ref-frame-map", 1,
+              "Explicitly signal the reference frame mapping (0: off "
+              "(default), 1: on)"),
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  .enable_frame_output_order =
+      ARG_DEF(NULL, "enable-frame-output-order", 1,
+              "Enable frame output order derivation based on order hint"
+              "(0: off, 1: on (default))"),
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   .target_seq_level_idx = ARG_DEF(
       NULL, "target-seq-level-idx", 1,
       "Target sequence level index. "
@@ -680,16 +787,26 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "If this option is not specified (default), the configurations "
       "are chosen by the encoder using a default algorithm."),
 
-#if CONFIG_NEW_INTER_MODES
   .max_drl_refmvs =
       ARG_DEF(NULL, "max-drl-refmvs", 1,
               "maximum number of drl reference MVs per reference. "
               "(0 (auto), 2-8 (fixed)) default is 0 (auto)."),
-#endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_REF_MV_BANK
   .enable_refmvbank = ARG_DEF(NULL, "enable-refmvbank", 1,
                               "Enable reference MV bank (0: false "
                               "1: true)"),
 #endif  // CONFIG_REF_MV_BANK
+#if CONFIG_PAR_HIDING
+  .enable_parity_hiding = ARG_DEF(NULL, "enable-parity-hiding", 1,
+                                  "Enable parity hiding "
+                                  "(0:false), 1:true (default)"),
+#endif  // CONFIG_PAR_HIDING
+  .frame_hash_metadata = ARG_DEF_ENUM(
+      NULL, "frame-hash", 1,
+      "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),
+  .frame_hash_per_plane =
+      ARG_DEF(NULL, "use-per-plane-frame-hash", 1,
+              "Write hash values for each plane instead of the entire frame. "
+              "(0: false (default), 1: true)"),
 #endif  // CONFIG_AV1_ENCODER
 };

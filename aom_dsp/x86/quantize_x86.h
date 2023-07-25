@@ -14,19 +14,11 @@
 
 #include "aom/aom_integer.h"
 
-#if CONFIG_EXTQUANT
 static INLINE void load_b_values(const int32_t *zbin_ptr, __m128i *zbin,
                                  const int32_t *round_ptr, __m128i *round,
                                  const int32_t *quant_ptr, __m128i *quant,
                                  const int32_t *dequant_ptr, __m128i *dequant,
                                  const int32_t *shift_ptr, __m128i *shift) {
-#else
-static INLINE void load_b_values(const int16_t *zbin_ptr, __m128i *zbin,
-                                 const int16_t *round_ptr, __m128i *round,
-                                 const int16_t *quant_ptr, __m128i *quant,
-                                 const int16_t *dequant_ptr, __m128i *dequant,
-                                 const int16_t *shift_ptr, __m128i *shift) {
-#endif
   *zbin = _mm_load_si128((const __m128i *)zbin_ptr);
   *round = _mm_load_si128((const __m128i *)round_ptr);
   *quant = _mm_load_si128((const __m128i *)quant_ptr);

@@ -288,8 +288,8 @@ static INLINE void thread_loop_filter_rows(
              mi_col += MAX_MIB_SIZE) {
           c = mi_col >> MAX_MIB_SIZE_LOG2;
 
-          av1_setup_dst_planes(planes, cm->seq_params.sb_size, frame_buffer,
-                               mi_row, mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
 
           av1_filter_block_plane_vert(cm, xd, plane, &planes[plane], mi_row,
                                       mi_col);
@@ -308,8 +308,8 @@ static INLINE void thread_loop_filter_rows(
           // completed
           sync_read(lf_sync, r + 1, c, plane);
 
-          av1_setup_dst_planes(planes, cm->seq_params.sb_size, frame_buffer,
-                               mi_row, mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
           av1_filter_block_plane_horz(cm, xd, plane, &planes[plane], mi_row,
                                       mi_col);
         }
@@ -355,8 +355,8 @@ static INLINE void thread_loop_filter_bitmask_rows(
              mi_col += MI_SIZE_64X64) {
           c = mi_col >> MIN_MIB_SIZE_LOG2;
 
-          av1_setup_dst_planes(planes, BLOCK_64X64, frame_buffer, mi_row,
-                               mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
 
           av1_filter_block_plane_bitmask_vert(cm, &planes[plane], plane, mi_row,
                                               mi_col);
@@ -375,8 +375,8 @@ static INLINE void thread_loop_filter_bitmask_rows(
           // completed
           sync_read(lf_sync, r + 1, c, plane);
 
-          av1_setup_dst_planes(planes, BLOCK_64X64, frame_buffer, mi_row,
-                               mi_col, plane, plane + 1);
+          av1_setup_dst_planes(planes, frame_buffer, mi_row, mi_col, plane,
+                               plane + 1, NULL);
           av1_filter_block_plane_bitmask_horz(cm, &planes[plane], plane, mi_row,
                                               mi_col);
         }
@@ -511,8 +511,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 
       // TODO(chengchen): can we remove this?
       struct macroblockd_plane *pd = xd->plane;
-      av1_setup_dst_planes(pd, cm->seq_params.sb_size, frame, 0, 0, plane,
-                           plane + 1);
+      av1_setup_dst_planes(pd, frame, 0, 0, plane, plane + 1, NULL);
 
       av1_build_bitmask_vert_info(cm, &pd[plane], plane);
       av1_build_bitmask_horz_info(cm, &pd[plane], plane);
@@ -708,7 +707,13 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   lr_sync->jobs_dequeued = 0;
 
   for (int plane = 0; plane < num_planes; plane++) {
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE &&
+        cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE)
+      continue;
+#else
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     num_even_lr_jobs =
         num_even_lr_jobs + ((ctxt[plane].rsi->vert_units_per_tile + 1) >> 1);
   }
@@ -716,7 +721,12 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   lr_job_counter[1] = num_even_lr_jobs;
 
   for (int plane = 0; plane < num_planes; plane++) {
-    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+        && cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    )
+      continue;
     const int is_uv = plane > 0;
     const int ss_y = is_uv && cm->seq_params.subsampling_y;
 
@@ -836,9 +846,10 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
           &limits, &(ctxt[plane].tile_rect), lr_ctxt->on_rest_unit, lr_unit_row,
           ctxt[plane].rsi->restoration_unit_size, unit_idx0,
           ctxt[plane].rsi->horz_units_per_tile,
-          ctxt[plane].rsi->vert_units_per_tile, plane, &ctxt[plane],
+          ctxt[plane].rsi->vert_units_per_tile,
+          ctxt[plane].rsi->horz_units_per_tile, plane, &ctxt[plane],
           lrworkerdata->rst_tmpbuf, lrworkerdata->rlbs, on_sync_read,
-          on_sync_write, lr_sync);
+          on_sync_write, lr_sync, NULL);
 
       copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, ctxt[plane].tile_rect.left,
                        ctxt[plane].tile_rect.right, cur_job_info->v_copy_start,
@@ -855,13 +866,59 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
                                            AV1LrSync *lr_sync, AV1_COMMON *cm) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  uint16_t *luma = NULL;
+  uint16_t *luma_buf;
+  const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
+  int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
+  luma_buf = wienerns_copy_luma_highbd(
+      dgd->buffers[AOM_PLANE_Y], dgd->crop_heights[AOM_PLANE_Y],
+      dgd->crop_widths[AOM_PLANE_Y], dgd->strides[AOM_PLANE_Y], &luma,
+      dgd->crop_heights[1], dgd->crop_widths[1], WIENERNS_UV_BRD, luma_stride,
+      cm->seq_params.bit_depth
+#if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
+      ,
+      cm->seq_params.enable_cfl_ds_filter == 1
+#endif
+  );
+  assert(luma_buf != NULL);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
   const int num_planes = av1_num_planes(cm);
 
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int num_rows_lr = 0;
 
   for (int plane = 0; plane < num_planes; plane++) {
-    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+        && cm->rst_info[plane].frame_cross_restoration_type == RESTORE_NONE
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    )
+      continue;
+
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+    ctxt[plane].plane = plane;
+    ctxt[plane].base_qindex = cm->quant_params.base_qindex;
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+    const int is_uv = (plane != AOM_PLANE_Y);
+    ctxt[plane].luma = is_uv ? luma : NULL;
+    ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_PC_WIENER
+    ctxt[plane].tskip = cm->mi_params.tx_skip[plane];
+    ctxt[plane].tskip_stride = cm->mi_params.tx_skip_stride[plane];
+    if (plane != AOM_PLANE_Y)
+      ctxt[plane].qindex_offset = plane == AOM_PLANE_U
+                                      ? cm->quant_params.u_dc_delta_q
+                                      : cm->quant_params.v_dc_delta_q;
+    else
+      ctxt[plane].qindex_offset = cm->quant_params.y_dc_delta_q;
+    ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
+    ctxt[plane].wiener_class_id_stride =
+        cm->mi_params.wiener_class_id_stride[plane];
+#endif  // CONFIG_PC_WIENER
 
     const AV1PixelRect tile_rect = ctxt[plane].tile_rect;
     const int max_tile_h = tile_rect.bottom - tile_rect.top;
@@ -911,6 +968,10 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   for (i = 0; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  free(luma_buf);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
 }
 
 void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,

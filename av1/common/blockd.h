@@ -19,6 +19,8 @@
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
+#include "av1/common/alloccommon.h"
+#include "av1/common/cdef_block.h"
 #include "av1/common/common_data.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/entropy.h"
@@ -39,6 +41,8 @@ extern "C" {
 #define MAX_DIFFWTD_MASK_BITS 1
 
 #define INTERINTRA_WEDGE_SIGN 0
+
+#define MAX_NUM_NEIGHBORS 2
 
 /*!\cond */
 
@@ -66,7 +70,7 @@ static INLINE int is_inter_mode(PREDICTION_MODE mode) {
 }
 
 typedef struct {
-  uint8_t *plane[MAX_MB_PLANE];
+  uint16_t *plane[MAX_MB_PLANE];
   int stride[MAX_MB_PLANE];
 } BUFFER_SET;
 
@@ -92,27 +96,26 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     SMOOTH_V_PRED,  // SMOOTH_V_PRED
     SMOOTH_H_PRED,  // SMOOTH_H_PRED
     PAETH_PRED,     // PAETH_PRED
-#if !CONFIG_NEW_INTER_MODES
-    NEARESTMV,  // NEARESTMV
-#endif          // !CONFIG_NEW_INTER_MODES
-    NEARMV,     // NEARMV
-    GLOBALMV,   // GLOBALMV
-    NEWMV,      // NEWMV
-#if !CONFIG_NEW_INTER_MODES
-    NEARESTMV,  // NEAREST_NEARESTMV
-#endif          // !CONFIG_NEW_INTER_MODES
-    NEARMV,     // NEAR_NEARMV
-#if !CONFIG_NEW_INTER_MODES
-    NEARESTMV,  // NEAREST_NEWMV
-    NEWMV,      // NEW_NEARESTMV
-#endif          // !CONFIG_NEW_INTER_MODES
-    NEARMV,     // NEAR_NEWMV
-    NEWMV,      // NEW_NEARMV
-    GLOBALMV,   // GLOBAL_GLOBALMV
-    NEWMV,      // NEW_NEWMV
+    NEARMV,         // NEARMV
+    GLOBALMV,       // GLOBALMV
+    NEWMV,          // NEWMV
+#if IMPROVED_AMVD
+    NEWMV,  // AMVDNEWMV
+#endif      // IMPROVED_AMVD
+#if CONFIG_WARPMV
+    WARPMV,    // WARPMV
+#endif         // CONFIG_WARPMV
+    NEARMV,    // NEAR_NEARMV
+    NEARMV,    // NEAR_NEWMV
+    NEWMV,     // NEW_NEARMV
+    GLOBALMV,  // GLOBAL_GLOBALMV
+    NEWMV,     // NEW_NEWMV
 #if CONFIG_JOINT_MVD
     NEWMV,  // JOINT_NEWMV
 #endif      // CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+    NEWMV,  // JOINT_AMVDNEWMV
+#endif      // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
     NEARMV,  // NEAR_NEARMV_OPTFLOW
     NEARMV,  // NEAR_NEWMV_OPTFLOW
@@ -121,6 +124,9 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
     NEWMV,  // JOINT_NEWMV_OPTFLOW
 #endif      // CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+    NEWMV,  // JOINT_AMVDNEWMV_OPTFLOW
+#endif      // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #endif      // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
@@ -143,27 +149,26 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // SMOOTH_V_PRED
     MB_MODE_COUNT,  // SMOOTH_H_PRED
     MB_MODE_COUNT,  // PAETH_PRED
-#if !CONFIG_NEW_INTER_MODES
-    MB_MODE_COUNT,  // NEARESTMV
-#endif              // !CONFIG_NEW_INTER_MODES
     MB_MODE_COUNT,  // NEARMV
     MB_MODE_COUNT,  // GLOBALMV
     MB_MODE_COUNT,  // NEWMV
-#if !CONFIG_NEW_INTER_MODES
-    NEARESTMV,  // NEAREST_NEARESTMV
-#endif          // !CONFIG_NEW_INTER_MODES
-    NEARMV,     // NEAR_NEARMV
-#if !CONFIG_NEW_INTER_MODES
-    NEWMV,      // NEAREST_NEWMV
-    NEARESTMV,  // NEW_NEARESTMV
-#endif          // !CONFIG_NEW_INTER_MODES
-    NEWMV,      // NEAR_NEWMV
-    NEARMV,     // NEW_NEARMV
-    GLOBALMV,   // GLOBAL_GLOBALMV
-    NEWMV,      // NEW_NEWMV
+#if IMPROVED_AMVD
+    MB_MODE_COUNT,  // AMVDNEWMV
+#endif              // IMPROVED_AMVD
+#if CONFIG_WARPMV
+    MB_MODE_COUNT,  // WARPMV
+#endif              // CONFIG_WARPMV
+    NEARMV,         // NEAR_NEARMV
+    NEWMV,          // NEAR_NEWMV
+    NEARMV,         // NEW_NEARMV
+    GLOBALMV,       // GLOBAL_GLOBALMV
+    NEWMV,          // NEW_NEWMV
 #if CONFIG_JOINT_MVD
     NEARMV,  // JOINT_NEWMV
 #endif       // CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+    NEARMV,  // JOINT_AMVDNEWMV
+#endif       // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
     NEARMV,  // NEAR_NEARMV_OPTFLOW
     NEWMV,   // NEAR_NEWMV_OPTFLOW
@@ -172,12 +177,32 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
     NEARMV,  // JOINT_NEWMV_OPTFLOW
 #endif       // CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+    NEARMV,  // JOINT_AMVDNEWMV_OPTFLOW
+#endif       // IMPROVED_AMVD && CONFIG_JOINT_MVD
 #endif       // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
   assert(is_inter_compound_mode(mode));
   return lut[mode];
 }
+
+#if CONFIG_JOINT_MVD
+// return whether current mode is joint MVD coding mode
+static INLINE int is_joint_mvd_coding_mode(PREDICTION_MODE mode) {
+  return mode == JOINT_NEWMV
+#if IMPROVED_AMVD
+         || mode == JOINT_AMVDNEWMV
+#endif  // IMPROVED_AMVD
+#if CONFIG_OPTFLOW_REFINEMENT
+         || mode == JOINT_NEWMV_OPTFLOW
+#if IMPROVED_AMVD
+         || mode == JOINT_AMVDNEWMV_OPTFLOW
+#endif  // IMPROVED_AMVD
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      ;
+}
+#endif  // CONFIG_JOINT_MVD
 
 static INLINE int have_nearmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEARMV || mode == NEAR_NEARMV || mode == NEAR_NEWMV ||
@@ -193,42 +218,93 @@ static INLINE int have_nearmv_newmv_in_inter_mode(PREDICTION_MODE mode) {
 #if CONFIG_OPTFLOW_REFINEMENT
          mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
-         mode == JOINT_NEWMV_OPTFLOW ||
-#endif  // CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_JOINT_MVD
-         mode == JOINT_NEWMV ||
+         is_joint_mvd_coding_mode(mode) ||
 #endif  // CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+         mode == JOINT_AMVDNEWMV ||
+#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
+         mode == JOINT_AMVDNEWMV_OPTFLOW ||
+#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
          mode == NEW_NEARMV;
 }
 
-#if CONFIG_NEW_INTER_MODES
+static INLINE int have_newmv_in_each_reference(PREDICTION_MODE mode) {
+  return mode == NEWMV ||
+#if IMPROVED_AMVD
+         mode == AMVDNEWMV ||
+#endif  // IMPROVED_AMVD
+#if CONFIG_OPTFLOW_REFINEMENT
+         mode == NEW_NEWMV_OPTFLOW ||
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+         mode == NEW_NEWMV;
+}
+
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+// return whether current mode is joint AMVD coding mode
+static INLINE int is_joint_amvd_coding_mode(PREDICTION_MODE mode) {
+  return mode == JOINT_AMVDNEWMV
+#if CONFIG_OPTFLOW_REFINEMENT
+         || mode == JOINT_AMVDNEWMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      ;
+}
+#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+
+#if CONFIG_IMPROVED_JMVD
+// Scale the MVD for joint MVD coding mode based on the jmvd_scale_mode.
+// The supported scale modes for JOINT_NEWMV mode is 0, 1, 2, 3, and 4.
+// The supported scale modes for JOINT_AMVDNEWMV mode is 0, 1, and 2.
+static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
+                                   PREDICTION_MODE mode) {
+  // This scaling factor is only applied to joint mvd coding mode
+  if (!is_joint_mvd_coding_mode(mode)) return;
+#if IMPROVED_AMVD
+  if (is_joint_amvd_coding_mode(mode)) {
+    if (jmvd_scaled_mode == 1) {
+      other_mvd->row = other_mvd->row * 2;
+      other_mvd->col = other_mvd->col * 2;
+    } else if (jmvd_scaled_mode == 2) {
+      other_mvd->row = other_mvd->row / 2;
+      other_mvd->col = other_mvd->col / 2;
+    }
+    assert(jmvd_scaled_mode < JOINT_AMVD_SCALE_FACTOR_CNT);
+    return;
+  }
+#endif  // IMPROVED_AMVD
+  if (is_joint_mvd_coding_mode(mode)) {
+    if (jmvd_scaled_mode == 1) {
+      other_mvd->row = other_mvd->row * 2;
+    } else if (jmvd_scaled_mode == 2) {
+      other_mvd->col = other_mvd->col * 2;
+    } else if (jmvd_scaled_mode == 3) {
+      other_mvd->row = other_mvd->row / 2;
+    } else if (jmvd_scaled_mode == 4) {
+      other_mvd->col = other_mvd->col / 2;
+    }
+    assert(jmvd_scaled_mode < JOINT_NEWMV_SCALE_FACTOR_CNT);
+  }
+}
+#endif  // CONFIG_IMPROVED_JMVD
+
 static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
+#if IMPROVED_AMVD
+          mode == AMVDNEWMV ||
+#endif  // IMPROVED_AMVD
 #if CONFIG_JOINT_MVD
-          mode == JOINT_NEWMV ||
+          is_joint_mvd_coding_mode(mode) ||
 #endif  // CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
           mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
           mode == NEW_NEWMV_OPTFLOW ||
-#if CONFIG_JOINT_MVD
-          mode == JOINT_NEWMV_OPTFLOW ||
-#endif  // CONFIG_JOINT_MVD
 #endif  // CONFIG_OPTFLOW_REFINEMENT
           mode == NEW_NEARMV);
 }
 static INLINE int have_drl_index(PREDICTION_MODE mode) {
   return have_nearmv_in_inter_mode(mode) || have_newmv_in_inter_mode(mode);
 }
-#else
-static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
-  return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAREST_NEWMV ||
-          mode == NEW_NEARESTMV || mode == NEAR_NEWMV || mode == NEW_NEARMV);
-}
-static INLINE int have_drl_index(PREDICTION_MODE mode) {
-  return have_nearmv_in_inter_mode(mode) || mode == NEWMV || mode == NEW_NEWMV;
-}
-#endif  // CONFIG_NEW_INTER_MODES
 
 static INLINE int is_masked_compound_type(COMPOUND_TYPE type) {
   return (type == COMPOUND_WEDGE || type == COMPOUND_DIFFWTD);
@@ -289,6 +365,40 @@ typedef struct {
   DIFFWTD_MASK_TYPE mask_type;
   COMPOUND_TYPE type;
 } INTERINTER_COMPOUND_DATA;
+#if CONFIG_D071_IMP_MSK_BLD
+// This structure is used for the position check of the implicit masked blending
+typedef struct BacpBlockData {
+  int x0;  // top left sample horizontal cood.
+  int x1;  // x0 + bw
+  int y0;  // top left sample vertical cood.
+  int y1;  // y0 + bh
+} BacpBlockData;
+// This struct contains enable flag and date for implicit masked blending mode
+typedef struct {
+  uint8_t enable_bacp;  // enable boundary aware compound prediction
+  BacpBlockData *bacp_block_data;
+} INTERINTER_COMPOUND_BORDER_DATA;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
+#if CONFIG_REFINEMV
+#define REF_BUFFER_WIDTH \
+  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_HEIGHT \
+  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+typedef struct PadBlock {
+  int x0;
+  int x1;
+  int y0;
+  int y1;
+} PadBlock;
+
+typedef struct PadArea {
+  PadBlock pad_block;
+  uint16_t paded_ref_buf[(REF_BUFFER_WIDTH) * (REF_BUFFER_HEIGHT)];
+  int paded_ref_buf_stride;
+} ReferenceArea;
+
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_OPTFLOW_REFINEMENT
 // Macros for optical flow experiment where offsets are added in nXn blocks
@@ -305,6 +415,23 @@ typedef struct {
 #define N_OF_OFFSETS 1
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
+/*! \brief Stores the coordinate/bsize for chroma plane. */
+typedef struct CHROMA_REF_INFO {
+  /*! \brief Whether the current luma block also contains chroma info. */
+  int is_chroma_ref;
+  /*! \brief Whether the luma and chroma block has different coordinate. */
+  int offset_started;
+  /*! \brief If offset_started, this stores the mi_row of the chroma block. */
+  int mi_row_chroma_base;
+  /*! \brief If offset_started, this stores the mi_row of the chroma block. */
+  int mi_col_chroma_base;
+  /*! \brief The block size of the current luma block. */
+  BLOCK_SIZE bsize;
+  /*! \brief Stores the size of that the current chroma block needs to be coded
+   * at. */
+  BLOCK_SIZE bsize_base;
+} CHROMA_REF_INFO;
+
 #define INTER_TX_SIZE_BUF_LEN 16
 #define TXK_TYPE_BUF_LEN 64
 /*!\endcond */
@@ -318,15 +445,29 @@ typedef struct MB_MODE_INFO {
   /**@{*/
   /*! \brief The block size of the current coding block */
   // Common for both INTER and INTRA blocks
-#if CONFIG_SDP
-  BLOCK_SIZE sb_type[2];
-#else
-  BLOCK_SIZE sb_type;
-#endif
+  BLOCK_SIZE sb_type[PARTITION_STRUCTURE_NUM];
+  /*! \brief Starting mi_row of current coding block */
+  int mi_row_start;
+  /*! \brief Starting mi_col of current coding block */
+  int mi_col_start;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*! \brief Starting chroma mi_row of current coding block */
+  int chroma_mi_row_start;
+  /*! \brief Starting chroma mi_col of current coding block */
+  int chroma_mi_col_start;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*! \brief The partition type of the current coding block. */
   PARTITION_TYPE partition;
   /*! \brief The prediction mode used */
   PREDICTION_MODE mode;
+#if CONFIG_IMPROVED_JMVD
+  /*! \brief The JMVD scaling mode for the current coding block. The supported
+   *  scale modes for JOINT_NEWMV mode is 0, 1, 2, 3, and 4. The supported scale
+   *  modes for JOINT_AMVDNEWMV mode is 0, 1, and 2.*/
+  int jmvd_scale_mode;
+#endif  // CONFIG_IMPROVED_JMVD
+  /*! \brief The forward skip mode for the current coding block. */
+  uint8_t fsc_mode[2];
   /*! \brief The UV mode when intra is used */
   UV_PREDICTION_MODE uv_mode;
   /*! \brief The q index for the current coding block. */
@@ -343,25 +484,59 @@ typedef struct MB_MODE_INFO {
   MV_REFERENCE_FRAME ref_frame[2];
 #if CONFIG_NEW_TX_PARTITION
   /*! \brief Transform partition type. */
-  TX_PARTITION_TYPE partition_type[INTER_TX_SIZE_BUF_LEN];
+  TX_PARTITION_TYPE tx_partition_type[INTER_TX_SIZE_BUF_LEN];
 #endif  // CONFIG_NEW_TX_PARTITION
   /*! \brief Filter used in subpel interpolation. */
   int interp_fltr;
+#if CONFIG_FLEX_MVRES
+  /*! The maximum mv_precision allowed for the given partition block. */
+  MvSubpelPrecision max_mv_precision;
+  /*! The mv_precision used by the given partition block. */
+  MvSubpelPrecision pb_mv_precision;
+  /*! The most probable mv_precision used by the given partition block. */
+  MvSubpelPrecision most_probable_pb_mv_precision;
+  /*!
+   * The precision_set of the current frame.
+   */
+  uint8_t mb_precision_set;
+#endif
+#if CONFIG_REFINEMV
+  /*! \brief The flag to signal if DMVR is used for the inter prediction. */
+  uint8_t refinemv_flag;
+#endif  // CONFIG_REFINEMV
+
   /*! \brief The motion mode used by the inter prediction. */
   MOTION_MODE motion_mode;
-  /*! \brief Number of samples used by warp causal */
+  /*! \brief Number of samples used by spatial warp prediction */
   uint8_t num_proj_ref;
   /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
    * mode. */
   uint8_t overlappable_neighbors[2];
   /*! \brief The parameters used in warp motion mode. */
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  WarpedMotionParams wm_params[2];
+#else
   WarpedMotionParams wm_params;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
   /*! \brief The type of intra mode used by inter-intra */
   INTERINTRA_MODE interintra_mode;
   /*! \brief The type of wedge used in interintra mode. */
   int8_t interintra_wedge_index;
   /*! \brief Struct that stores the data used in interinter compound mode. */
   INTERINTER_COMPOUND_DATA interinter_comp;
+#if CONFIG_BAWP
+  /*! \brief The block level bawp enabling flag*/
+  int8_t bawp_flag;
+  /*! \brief The bawp parameters weight*/
+  int16_t bawp_alpha[3][2];  //[yuv][ref0/1], current only [0][0] is used.
+  /*! \brief The bawp parameters offset*/
+  int32_t bawp_beta[3][2];  //[yuv][ref0/1], current only [0][0] is used.
+#endif                      // CONFIG_BAWP
+
+#if CONFIG_CWP
+  //! Index for compound weighted prediction parameters.
+  int8_t cwp_idx;
+#endif  // CONFIG_CWP
   /**@}*/
 
   /*****************************************************************************
@@ -377,12 +552,16 @@ typedef struct MB_MODE_INFO {
   int8_t cfl_alpha_signs;
   /*! \brief Chroma from Luma: Index of the alpha Cb and alpha Cr combination */
   uint8_t cfl_alpha_idx;
+#if CONFIG_IMPROVED_CFL
+  /*! \brief Chroma from Luma: Index of the CfL mode */
+  uint8_t cfl_idx;
+  /*! \brief The implicitly derived scaling factors*/
+  int cfl_implicit_alpha[2];  //[u/v]
+#endif
   /*! \brief Stores the size and colors of palette mode */
   PALETTE_MODE_INFO palette_mode_info;
-#if CONFIG_MRLS
   /*! \brief Reference line index for multiple reference line selection. */
   uint8_t mrl_index;
-#endif
 #if CONFIG_AIMC
   /*! \brief mode index of y mode and y delta angle after re-ordering. */
   uint8_t y_mode_idx;
@@ -402,11 +581,7 @@ typedef struct MB_MODE_INFO {
    ****************************************************************************/
   /**@{*/
   /*! \brief Whether to skip transforming and sending. */
-#if CONFIG_SDP
-  int8_t skip_txfm[2];
-#else
-  int8_t skip_txfm;
-#endif
+  int8_t skip_txfm[PARTITION_STRUCTURE_NUM];
   /*! \brief Transform size when fixed size txfm is used (e.g. intra modes). */
   TX_SIZE tx_size;
   /*! \brief Transform size when recursive txfm tree is on. */
@@ -432,25 +607,48 @@ typedef struct MB_MODE_INFO {
   /*! \brief Only valid when temporal update if off. */
   uint8_t seg_id_predicted : 1;
   /*! \brief Which ref_mv to use */
-#if CONFIG_NEW_INTER_MODES
+#if CONFIG_SEP_COMP_DRL
+  int ref_mv_idx[2];
+#else
   uint8_t ref_mv_idx : 3;
-#else
-  uint8_t ref_mv_idx : 2;
-#endif  // CONFIG_NEW_INTER_MODES
+#endif  // CONFIG_SEP_COMP_DRL
   /*! \brief Inter skip mode */
-  uint8_t skip_mode : 1;
-  /*! \brief Whether intrabc is used. */
-#if CONFIG_SDP
-  uint8_t use_intrabc[2];
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+  uint8_t skip_mode : 2;
 #else
-  uint8_t use_intrabc : 1;
-#endif
+  uint8_t skip_mode : 1;
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+  /*! \brief Whether intrabc is used. */
+  uint8_t use_intrabc[PARTITION_STRUCTURE_NUM];
+#if CONFIG_BVP_IMPROVEMENT
+  /*! \brief Intrabc BV prediction mode. */
+  uint8_t intrabc_mode;
+  /*! \brief Index of ref_bv. */
+  uint8_t intrabc_drl_idx;
+  /*! \brief Which ref_bv to use. */
+  int_mv ref_bv;
+#endif  // CONFIG_BVP_IMPROVEMENT
+
+#if CONFIG_WARP_REF_LIST
+  /*! \brief Which index to use for warp base parameter. */
+  uint8_t warp_ref_idx;
+  /*! \brief Maximum number of warp reference indices to use for warp base
+   * parameter. */
+  uint8_t max_num_warp_candidates;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  /*! \brief warpmv_with_mvd_flag. */
+  uint8_t warpmv_with_mvd_flag;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+#endif  // CONFIG_WARP_REF_LIST
+
   /*! \brief Indicates if masked compound is used(1) or not (0). */
   uint8_t comp_group_idx : 1;
   /*! \brief Whether to use interintra wedge */
   uint8_t use_wedge_interintra : 1;
   /*! \brief CDEF strength per BLOCK_64X64 */
   int8_t cdef_strength : 4;
+  /*! \brief chroma block info for sub-8x8 cases */
+  CHROMA_REF_INFO chroma_ref_info;
 #if CONFIG_CCSO
 #if CONFIG_CCSO_EXT
   /*! \brief Whether to use cross-component sample offset for the Y plane. */
@@ -477,17 +675,80 @@ typedef struct MB_MODE_INFO {
 #endif
 } MB_MODE_INFO;
 
-/*!\cond */
+#if CONFIG_C071_SUBBLK_WARPMV
+/*! \brief Stores the subblock motion info of the current coding block
+ */
+// Note that this can not be stored in MB_MODE_INFO, because The MB_MODE_INFO is
+// only physically stored for the first sunblock of a block, the info of the
+// rest subblocks in the same block are only pointed to the first subblock and
+// is not physically stored.
+typedef struct SUBMB_INFO {
+  /*! \brief Stored subblock mv for reference. */
+  int_mv mv[2];
+} SUBMB_INFO;
+#endif  // CONFIG_C071_SUBBLK_WARPMV
 
-#if CONFIG_SDP
+#if CONFIG_REFINEMV
+/*! \brief Stores the subblock refinemv motion info of the current coding block
+ */
+typedef struct REFINEMV_SUBMB_INFO {
+  /*! \brief Stored subblock mv for reference. */
+  int_mv refinemv[2];
+} REFINEMV_SUBMB_INFO;
+#endif  // CONFIG_REFINEMV
+
+/*!\cond */
+// Get the start plane for semi-decoupled partitioning
+static INLINE int get_partition_plane_start(int tree_type) {
+  return tree_type == CHROMA_PART;
+}
+
+// Get the end plane for semi-decoupled partitioning
+static INLINE int get_partition_plane_end(int tree_type, int num_planes) {
+  return (tree_type == LUMA_PART) ? 1 : num_planes;
+}
+
+/*! \brief Stores partition structure of the current block. */
+typedef struct PARTITION_TREE {
+  /*! \brief Pointer to the parent node. */
+  struct PARTITION_TREE *parent;
+  /*! \brief Pointers to the children if the current block is further split. */
+  struct PARTITION_TREE *sub_tree[4];
+  /*! \brief The partition type used to split the current block. */
+  PARTITION_TYPE partition;
+  /*! \brief Block size of the current block. */
+  BLOCK_SIZE bsize;
+  /*! \brief Whether the chroma block info is ready. */
+  int is_settled;
+  /*! \brief The row coordinate of the current block in units of mi. */
+  int mi_row;
+  /*! \brief The col coordinate of the current block in units of mi. */
+  int mi_col;
+  /*! \brief The index of current node among its siblings. i.e. current ==
+   * current->parent->sub_tree[current->index]. */
+  int index;
+  /*! \brief Data related to the chroma block that the current luma block
+   * corresponds to. */
+  CHROMA_REF_INFO chroma_ref_info;
+} PARTITION_TREE;
+
+PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index);
+void av1_free_ptree_recursive(PARTITION_TREE *ptree);
+
+typedef struct SB_INFO {
+  int mi_row;
+  int mi_col;
+  PARTITION_TREE *ptree_root[2];
+#if CONFIG_FLEX_MVRES
+  MvSubpelPrecision sb_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
+} SB_INFO;
+
+void av1_reset_ptree_in_sbi(SB_INFO *sbi, TREE_TYPE tree_type);
+
 static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi, int tree_type) {
   return mbmi->use_intrabc[tree_type == CHROMA_PART];
 }
-#else
-static INLINE int is_intrabc_block(const MB_MODE_INFO *mbmi) {
-  return mbmi->use_intrabc;
-}
-#endif
 
 static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
   assert(mode < UV_INTRA_MODES);
@@ -512,80 +773,650 @@ static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
   return uv2y[mode];
 }
 
-#if CONFIG_SDP
+static INLINE int is_inter_ref_frame(MV_REFERENCE_FRAME ref_frame) {
+  return ref_frame != INTRA_FRAME && ref_frame != INTRA_FRAME_INDEX &&
+         ref_frame != NONE_FRAME;
+}
+
+#if CONFIG_TIP
+static INLINE int is_tip_ref_frame(MV_REFERENCE_FRAME ref_frame) {
+  return ref_frame == TIP_FRAME;
+}
+#endif  // CONFIG_TIP
+
 static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
-  return is_intrabc_block(mbmi, tree_type) || mbmi->ref_frame[0] > INTRA_FRAME;
+  return is_intrabc_block(mbmi, tree_type) ||
+         is_inter_ref_frame(mbmi->ref_frame[0]);
 }
-#else
-static INLINE int is_inter_block(const MB_MODE_INFO *mbmi) {
-  return is_intrabc_block(mbmi) || mbmi->ref_frame[0] > INTRA_FRAME;
+
+/*!\brief Returns whether the current block size is square */
+static INLINE int is_square_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] == block_size_wide[bsize];
 }
-#endif
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+/*!\brief Returns whether the current block size has height > width. */
+static INLINE bool is_tall_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] > block_size_wide[bsize];
+}
+
+/*!\brief Returns whether the current block size has width > height. */
+static INLINE bool is_wide_block(BLOCK_SIZE bsize) {
+  return block_size_high[bsize] < block_size_wide[bsize];
+}
+
+/*!\brief Checks whether extended partition is allowed for current bsize. */
+static AOM_INLINE bool is_ext_partition_allowed_at_bsize(BLOCK_SIZE bsize,
+                                                         TREE_TYPE tree_type) {
+  // Extended partition is disabled above BLOCK_64X64 to avoid crossing the
+  // 64X64 boundary.
+  if (bsize > BLOCK_64X64) {
+    return false;
+  }
+  // At bsize <= 8X8, extended partitions will lead to dimension < 2.
+  if (bsize <= BLOCK_8X8) {
+    return false;
+  }
+  // For chroma part, we do not allow dimension 4. So anything smaller than
+  // 16X16 is not allowed.
+  if (tree_type == CHROMA_PART && bsize <= BLOCK_16X16) {
+    return false;
+  }
+  return true;
+}
+
+/*!\brief Checks whether extended partition is allowed for current bsize and
+ * rect_type. */
+static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
+                                                RECT_PART_TYPE rect_type,
+                                                TREE_TYPE tree_type) {
+  if (!is_ext_partition_allowed_at_bsize(bsize, tree_type)) {
+    return false;
+  }
+  // A splittable wide block has ratio 2:1. If it performs HORZ_3 split, then
+  // we'll get a block ratio of 2:0.25 == 8:1, which is illegal. So extended
+  // partition is disabled. The same goes for tall block.
+  if ((is_wide_block(bsize) && rect_type == HORZ) ||
+      (is_tall_block(bsize) && rect_type == VERT)) {
+    return false;
+  }
+  return true;
+}
+
+#if CONFIG_UNEVEN_4WAY
+/*!\brief Checks whether uneven 4-way partition is allowed for current bsize and
+ * rect_type. */
+static AOM_INLINE bool is_uneven_4way_partition_allowed(
+    BLOCK_SIZE bsize, RECT_PART_TYPE rect_type, TREE_TYPE tree_type) {
+  assert(is_ext_partition_allowed(bsize, rect_type, tree_type));
+
+  if (rect_type == HORZ) {
+    if (bsize == BLOCK_32X64) return true;
+    if (bsize == BLOCK_16X32 && tree_type != CHROMA_PART) return true;
+  } else {
+    assert(rect_type == VERT);
+    if (bsize == BLOCK_64X32) return true;
+    if (bsize == BLOCK_32X16 && tree_type != CHROMA_PART) return true;
+  }
+  return false;
+}
+#endif  // CONFIG_UNEVEN_4WAY
+
+/*!\brief Returns the rect_type that's implied by the bsize. If the rect_type
+ * cannot be derived from bsize, returns RECT_INVALID. */
+static AOM_INLINE RECT_PART_TYPE
+rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
+  // Handle luma part first
+  if (bsize == BLOCK_4X8 || bsize == BLOCK_64X128) {
+    return HORZ;
+  }
+  if (bsize == BLOCK_8X4 || bsize == BLOCK_128X64) {
+    return VERT;
+  }
+  // For chroma, we do not allow dimension of 4. If If we have BLOCK_8X16, we
+  // can only do HORZ.
+  if (tree_type == CHROMA_PART) {
+    if (bsize == BLOCK_8X16) {
+      return HORZ;
+    }
+    if (bsize == BLOCK_16X8) {
+      return VERT;
+    }
+  }
+  return RECT_INVALID;
+}
+
+/*!\brief Returns whether the current partition is horizontal type or vertical
+ * type. */
+static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
+  if (partition == PARTITION_HORZ || partition == PARTITION_HORZ_3
+#if CONFIG_UNEVEN_4WAY
+      || partition == PARTITION_HORZ_4A || partition == PARTITION_HORZ_4B
+#endif  // CONFIG_UNEVEN_4WAY
+  ) {
+    return HORZ;
+  } else if (partition == PARTITION_VERT || partition == PARTITION_VERT_3
+#if CONFIG_UNEVEN_4WAY
+             || partition == PARTITION_VERT_4A || partition == PARTITION_VERT_4B
+#endif  // CONFIG_UNEVEN_4WAY
+  ) {
+    return VERT;
+  }
+  assert(0 && "Rectangular partition expected!");
+  return NUM_RECT_PARTS;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
-  return mbmi->ref_frame[1] > INTRA_FRAME;
+  return is_inter_ref_frame(mbmi->ref_frame[1]);
 }
 
-static INLINE int has_uni_comp_refs(const MB_MODE_INFO *mbmi) {
-  return has_second_ref(mbmi) && (!((mbmi->ref_frame[0] >= BWDREF_FRAME) ^
-                                    (mbmi->ref_frame[1] >= BWDREF_FRAME)));
+#if CONFIG_SEP_COMP_DRL
+/*!\brief Return whether the current coding block has two separate DRLs */
+static INLINE int has_second_drl(const MB_MODE_INFO *mbmi) {
+  int ret = (mbmi->mode == NEAR_NEARMV || mbmi->mode == NEAR_NEWMV) &&
+            !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode;
+  return ret;
 }
 
-static INLINE MV_REFERENCE_FRAME comp_ref0(int ref_idx) {
-  static const MV_REFERENCE_FRAME lut[] = {
-    LAST_FRAME,     // LAST_LAST2_FRAMES,
-    LAST_FRAME,     // LAST_LAST3_FRAMES,
-    LAST_FRAME,     // LAST_GOLDEN_FRAMES,
-    BWDREF_FRAME,   // BWDREF_ALTREF_FRAMES,
-    LAST2_FRAME,    // LAST2_LAST3_FRAMES
-    LAST2_FRAME,    // LAST2_GOLDEN_FRAMES,
-    LAST3_FRAME,    // LAST3_GOLDEN_FRAMES,
-    BWDREF_FRAME,   // BWDREF_ALTREF2_FRAMES,
-    ALTREF2_FRAME,  // ALTREF2_ALTREF_FRAMES,
-  };
-  assert(NELEMENTS(lut) == TOTAL_UNIDIR_COMP_REFS);
-  return lut[ref_idx];
+/*!\brief Return the mv_ref_idx of the current coding block based on ref_idx */
+static INLINE int get_ref_mv_idx(const MB_MODE_INFO *mbmi, int ref_idx) {
+  return has_second_drl(mbmi) ? mbmi->ref_mv_idx[ref_idx] : mbmi->ref_mv_idx[0];
 }
-
-static INLINE MV_REFERENCE_FRAME comp_ref1(int ref_idx) {
-  static const MV_REFERENCE_FRAME lut[] = {
-    LAST2_FRAME,    // LAST_LAST2_FRAMES,
-    LAST3_FRAME,    // LAST_LAST3_FRAMES,
-    GOLDEN_FRAME,   // LAST_GOLDEN_FRAMES,
-    ALTREF_FRAME,   // BWDREF_ALTREF_FRAMES,
-    LAST3_FRAME,    // LAST2_LAST3_FRAMES
-    GOLDEN_FRAME,   // LAST2_GOLDEN_FRAMES,
-    GOLDEN_FRAME,   // LAST3_GOLDEN_FRAMES,
-    ALTREF2_FRAME,  // BWDREF_ALTREF2_FRAMES,
-    ALTREF_FRAME,   // ALTREF2_ALTREF_FRAMES,
-  };
-  assert(NELEMENTS(lut) == TOTAL_UNIDIR_COMP_REFS);
-  return lut[ref_idx];
-}
+#endif  // CONFIG_SEP_COMP_DRL
 
 #if CONFIG_AIMC
 PREDICTION_MODE av1_get_joint_mode(const MB_MODE_INFO *mi);
 #else
-PREDICTION_MODE av1_left_block_mode(const MB_MODE_INFO *left_mi);
-
-PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi);
+PREDICTION_MODE av1_get_block_mode(const MB_MODE_INFO *mi);
 #endif  // CONFIG_AIMC
 
 static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
                                      TransformationType type) {
   const PREDICTION_MODE mode = mbmi->mode;
-#if CONFIG_SDP
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
-#else
-  const BLOCK_SIZE bsize = mbmi->sb_type;
-#endif
   const int block_size_allowed =
       AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
   return (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) && type > TRANSLATION &&
          block_size_allowed;
 }
 
-#if CONFIG_MISMATCH_DEBUG
+static INLINE int is_partition_point(BLOCK_SIZE bsize) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
+#else
+  return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+}
+
+static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
+  switch (bsize) {
+    case BLOCK_4X4: return 0;
+    case BLOCK_8X8: return 1;
+    case BLOCK_16X16: return 2;
+    case BLOCK_32X32: return 3;
+    case BLOCK_64X64: return 4;
+    case BLOCK_128X128: return 5;
+    default: return SQR_BLOCK_SIZES;
+  }
+}
+
+// For a square block size 'bsize', returns the size of the sub-blocks used by
+// the given partition type. If the partition produces sub-blocks of different
+// sizes, then the function returns the largest sub-block size.
+// Implements the Partition_Subsize lookup table in the spec (Section 9.3.
+// Conversion tables).
+// Note: the input block size should be square.
+// Otherwise it's considered invalid.
+static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
+                                               PARTITION_TYPE partition) {
+  if (partition == PARTITION_INVALID) {
+    return BLOCK_INVALID;
+  } else {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    if (is_partition_point(bsize))
+      return subsize_lookup[partition][bsize];
+    else
+      return partition == PARTITION_NONE ? bsize : BLOCK_INVALID;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+    const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
+    return sqr_bsize_idx >= SQR_BLOCK_SIZES
+               ? BLOCK_INVALID
+               : subsize_lookup[partition][sqr_bsize_idx];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  }
+}
+
+#if CONFIG_H_PARTITION
+// Get the block size of the ith sub-block in a block partitioned via an
+// h-partition mode.
+static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
+                                                 PARTITION_TYPE partition) {
+  assert(partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
+  assert(index >= 0 && index <= 3);
+  if (!is_partition_point(bsize) ||
+      subsize_lookup[partition][bsize] == BLOCK_INVALID) {
+    return BLOCK_INVALID;
+  }
+
+  if (index == 0 || index == 3) {
+    return subsize_lookup[partition][bsize];
+  } else {
+    static const BLOCK_SIZE mid_sub_block_hpart[BLOCK_SIZES] = {
+      BLOCK_INVALID,  // BLOCK_4X4
+      BLOCK_INVALID,  // BLOCK_4X8
+      BLOCK_INVALID,  // BLOCK_8X4
+      BLOCK_INVALID,  // BLOCK_8X8
+      BLOCK_4X8,      // BLOCK_8X16
+      BLOCK_8X4,      // BLOCK_16X8
+      BLOCK_8X8,      // BLOCK_16X16
+      BLOCK_8X16,     // BLOCK_16X32
+      BLOCK_16X8,     // BLOCK_32X16
+      BLOCK_16X16,    // BLOCK_32X32
+      BLOCK_16X32,    // BLOCK_32X64
+      BLOCK_32X16,    // BLOCK_64X32
+      BLOCK_32X32,    // BLOCK_64X64
+      BLOCK_INVALID,  // BLOCK_64X128
+      BLOCK_INVALID,  // BLOCK_128X64
+      BLOCK_INVALID,  // BLOCK_128X128
+    };
+
+    return mid_sub_block_hpart[bsize];
+  }
+}
+
+// Get the mi_row offset of the ith sub-block in a block partitioned via an
+// h-partition mode.
+static INLINE int get_h_partition_offset_mi_row(BLOCK_SIZE bsize, int index,
+                                                PARTITION_TYPE partition) {
+  assert(get_h_partition_subsize(bsize, index, partition) != BLOCK_INVALID);
+
+  const int hbh = mi_size_high[bsize] >> 1;
+  assert(hbh > 0);
+  if (partition == PARTITION_VERT_3) {
+    return index == 2 ? hbh : 0;
+  } else {
+    const int qbh = hbh >> 1;
+    assert(qbh > 0);
+
+    switch (index) {
+      case 0: return 0;
+      case 1:
+      case 2: return qbh;
+      case 3: return 3 * qbh;
+      default: assert(0); return -1;
+    }
+  }
+}
+
+// Get the mi_col offset of the ith sub-block in a block partitioned via an
+// h-partition mode.
+static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
+                                                PARTITION_TYPE partition) {
+  assert(get_h_partition_subsize(bsize, index, partition) != BLOCK_INVALID);
+
+  const int hbw = mi_size_wide[bsize] >> 1;
+  assert(hbw > 0);
+  if (partition == PARTITION_HORZ_3) {
+    return index == 2 ? hbw : 0;
+  } else {
+    const int qbw = hbw >> 1;
+    assert(qbw > 0);
+
+    switch (index) {
+      case 0: return 0;
+      case 1:
+      case 2: return qbw;
+      case 3: return 3 * qbw;
+      default: assert(0); return -1;
+    }
+  }
+}
+#endif  // CONFIG_H_PARTITION
+
+static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (p == PARTITION_SPLIT) return 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  if (is_partition_point(bsize))
+    return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
+  else
+    return p == PARTITION_NONE;
+}
+
+static INLINE void initialize_chroma_ref_info(int mi_row, int mi_col,
+                                              BLOCK_SIZE bsize,
+                                              CHROMA_REF_INFO *info) {
+  info->is_chroma_ref = 1;
+  info->offset_started = 0;
+  info->mi_row_chroma_base = mi_row;
+  info->mi_col_chroma_base = mi_col;
+  info->bsize = bsize;
+  info->bsize_base = bsize;
+}
+
+// Decide whether a block needs coding multiple chroma coding blocks in it at
+// once to get around sub-4x4 coding.
+static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
+                                            PARTITION_TYPE partition,
+                                            int subsampling_x,
+                                            int subsampling_y) {
+  const int bw = block_size_wide[bsize] >> subsampling_x;
+  const int bh = block_size_high[bsize] >> subsampling_y;
+  // Check if block width/height is less than 4.
+  const int bw_less_than_4 = bw < 4;
+  const int bh_less_than_4 = bh < 4;
+  // Check if half block width/height is less than 8.
+  const int hbw_less_than_4 = bw < 8;
+  const int hbh_less_than_4 = bh < 8;
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+  // Check if quarter block width/height is less than 16.
+  const int qbw_less_than_4 = bw < 16;
+  const int qbh_less_than_4 = bh < 16;
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  // Check if one-eighth block width/height is less than 32.
+  const int ebw_less_than_4 = bw < 32;
+  const int ebh_less_than_4 = bh < 32;
+#endif  // CONFIG_UNEVEN_4WAY
+  switch (partition) {
+    case PARTITION_NONE: return bw_less_than_4 || bh_less_than_4;
+    case PARTITION_HORZ: return bw_less_than_4 || hbh_less_than_4;
+    case PARTITION_VERT: return hbw_less_than_4 || bh_less_than_4;
+    case PARTITION_SPLIT: return hbw_less_than_4 || hbh_less_than_4;
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B: return bw_less_than_4 || ebh_less_than_4;
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: return ebw_less_than_4 || bh_less_than_4;
+#endif  // CONFIG_UNEVEN_4WAY
+#if CONFIG_H_PARTITION
+    case PARTITION_HORZ_3: return hbw_less_than_4 || qbh_less_than_4;
+    case PARTITION_VERT_3: return qbw_less_than_4 || hbh_less_than_4;
+#endif  // CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+    case PARTITION_HORZ_3: return bw_less_than_4 || qbh_less_than_4;
+    case PARTITION_VERT_3: return qbw_less_than_4 || bh_less_than_4;
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ_A:
+    case PARTITION_HORZ_B:
+    case PARTITION_VERT_A:
+    case PARTITION_VERT_B: return hbw_less_than_4 || hbh_less_than_4;
+    case PARTITION_HORZ_4: return bw_less_than_4 || qbh_less_than_4;
+    case PARTITION_VERT_4: return qbw_less_than_4 || bh_less_than_4;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    default:
+      assert(0 && "Invalid partition type!");
+      return 0;
+      break;
+  }
+}
+
+// Decide whether a subblock is the main chroma reference when its parent block
+// needs coding multiple chroma coding blocks at once. The function returns a
+// flag indicating whether the mode info used for the combined chroma block is
+// located in the subblock.
+static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
+                                              int index, BLOCK_SIZE bsize,
+                                              BLOCK_SIZE parent_bsize, int ss_x,
+                                              int ss_y, int is_offset_started) {
+  (void)is_offset_started;
+  (void)parent_bsize;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int plane_w = bw >> ss_x;
+  const int plane_h = bh >> ss_y;
+  const int plane_w_less_than_4 = plane_w < 4;
+  const int plane_h_less_than_4 = plane_h < 4;
+  switch (partition) {
+    case PARTITION_NONE: return 1;
+    case PARTITION_HORZ:
+    case PARTITION_VERT: return index == 1;
+    case PARTITION_SPLIT:
+      if (is_offset_started) {
+        return index == 3;
+      } else {
+        if (plane_w_less_than_4 && plane_h_less_than_4)
+          return index == 3;
+        else if (plane_w_less_than_4)
+          return index == 1 || index == 3;
+        else if (plane_h_less_than_4)
+          return index == 2 || index == 3;
+        else
+          return 1;
+      }
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: return index == 3;
+#endif  // CONFIG_UNEVEN_4WAY
+#if CONFIG_H_PARTITION
+    case PARTITION_VERT_3:
+    case PARTITION_HORZ_3: return index == 3;
+#endif  // CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+    case PARTITION_VERT_3:
+    case PARTITION_HORZ_3: return index == 2;
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ_A:
+    case PARTITION_HORZ_B:
+    case PARTITION_VERT_A:
+    case PARTITION_VERT_B:
+      if (is_offset_started) {
+        return index == 2;
+      } else {
+        const int smallest_w = block_size_wide[parent_bsize] >> (ss_x + 1);
+        const int smallest_h = block_size_high[parent_bsize] >> (ss_y + 1);
+        const int smallest_w_less_than_4 = smallest_w < 4;
+        const int smallest_h_less_than_4 = smallest_h < 4;
+        if (smallest_w_less_than_4 && smallest_h_less_than_4) {
+          return index == 2;
+        } else if (smallest_w_less_than_4) {
+          if (partition == PARTITION_VERT_A || partition == PARTITION_VERT_B) {
+            return index == 2;
+          } else if (partition == PARTITION_HORZ_A) {
+            return index == 1 || index == 2;
+          } else {
+            return index == 0 || index == 2;
+          }
+        } else if (smallest_h_less_than_4) {
+          if (partition == PARTITION_HORZ_A || partition == PARTITION_HORZ_B) {
+            return index == 2;
+          } else if (partition == PARTITION_VERT_A) {
+            return index == 1 || index == 2;
+          } else {
+            return index == 0 || index == 2;
+          }
+        } else {
+          return 1;
+        }
+      }
+    case PARTITION_HORZ_4:
+    case PARTITION_VERT_4:
+      if (is_offset_started) {
+        return index == 3;
+      } else {
+        if ((partition == PARTITION_HORZ_4 && plane_h_less_than_4) ||
+            (partition == PARTITION_VERT_4 && plane_w_less_than_4)) {
+          return index == 1 || index == 3;
+        } else {
+          return 1;
+        }
+      }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    default:
+      assert(0 && "Invalid partition type!");
+      return 0;
+      break;
+  }
+}
+
+static INLINE void set_chroma_ref_offset_size(
+    int mi_row, int mi_col, PARTITION_TYPE partition, BLOCK_SIZE bsize,
+    BLOCK_SIZE parent_bsize, int ss_x, int ss_y, CHROMA_REF_INFO *info,
+    const CHROMA_REF_INFO *parent_info) {
+  const int plane_w = block_size_wide[bsize] >> ss_x;
+  const int plane_h = block_size_high[bsize] >> ss_y;
+  const int plane_w_less_than_4 = plane_w < 4;
+  const int plane_h_less_than_4 = plane_h < 4;
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  const int hpplane_w = block_size_wide[parent_bsize] >> (ss_x + 1);
+  const int hpplane_h = block_size_high[parent_bsize] >> (ss_y + 1);
+  const int hpplane_w_less_than_4 = hpplane_w < 4;
+  const int hpplane_h_less_than_4 = hpplane_h < 4;
+  const int mi_row_mid_point =
+      parent_info->mi_row_chroma_base + (mi_size_high[parent_bsize] >> 1);
+  const int mi_col_mid_point =
+      parent_info->mi_col_chroma_base + (mi_size_wide[parent_bsize] >> 1);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+  assert(parent_info->offset_started == 0);
+  switch (partition) {
+    case PARTITION_NONE:
+    case PARTITION_HORZ:
+    case PARTITION_VERT:
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B:
+#endif  // CONFIG_UNEVEN_4WAY
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+    case PARTITION_VERT_3:
+    case PARTITION_HORZ_3:
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+      info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+      info->bsize_base = parent_bsize;
+      break;
+    case PARTITION_SPLIT:
+      if (plane_w_less_than_4 && plane_h_less_than_4) {
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        info->bsize_base = parent_bsize;
+      } else if (plane_w_less_than_4) {
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        if (mi_row == parent_info->mi_row_chroma_base) {
+          info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        } else {
+          info->mi_row_chroma_base =
+              parent_info->mi_row_chroma_base + mi_size_high[bsize];
+        }
+      } else {
+        assert(plane_h_less_than_4);
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        if (mi_col == parent_info->mi_col_chroma_base) {
+          info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        } else {
+          info->mi_col_chroma_base =
+              parent_info->mi_col_chroma_base + mi_size_wide[bsize];
+        }
+      }
+      break;
+#if !CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_HORZ_A:
+    case PARTITION_HORZ_B:
+    case PARTITION_VERT_A:
+    case PARTITION_VERT_B:
+      if ((hpplane_w_less_than_4 && hpplane_h_less_than_4) ||
+          (hpplane_w_less_than_4 &&
+           (partition == PARTITION_VERT_A || partition == PARTITION_VERT_B)) ||
+          (hpplane_h_less_than_4 &&
+           (partition == PARTITION_HORZ_A || partition == PARTITION_HORZ_B))) {
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        info->bsize_base = parent_bsize;
+      } else if (hpplane_w_less_than_4) {
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        if (mi_row == parent_info->mi_row_chroma_base) {
+          info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        } else {
+          info->mi_row_chroma_base = parent_info->mi_row_chroma_base +
+                                     (mi_size_high[parent_bsize] >> 1);
+        }
+      } else {
+        assert(hpplane_h_less_than_4);
+        info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+        if (mi_col == parent_info->mi_col_chroma_base) {
+          info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+        } else {
+          info->mi_col_chroma_base = parent_info->mi_col_chroma_base +
+                                     (mi_size_wide[parent_bsize] >> 1);
+        }
+      }
+      break;
+    case PARTITION_HORZ_4:
+      info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_HORZ);
+      info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+      if (mi_row < mi_row_mid_point) {
+        info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+      } else {
+        info->mi_row_chroma_base = mi_row_mid_point;
+      }
+      break;
+    case PARTITION_VERT_4:
+      info->bsize_base = get_partition_subsize(parent_bsize, PARTITION_VERT);
+      info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+      if (mi_col < mi_col_mid_point) {
+        info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+      } else {
+        info->mi_col_chroma_base = mi_col_mid_point;
+      }
+      break;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+    default: assert(0 && "Invalid partition type!"); break;
+  }
+}
+
+static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
+                                       BLOCK_SIZE bsize, CHROMA_REF_INFO *info,
+                                       const CHROMA_REF_INFO *parent_info,
+                                       BLOCK_SIZE parent_bsize,
+                                       PARTITION_TYPE parent_partition,
+                                       int ss_x, int ss_y) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  initialize_chroma_ref_info(mi_row, mi_col, bsize, info);
+  if (parent_info == NULL) return;
+  if (parent_info->is_chroma_ref) {
+    if (parent_info->offset_started) {
+      if (is_sub_partition_chroma_ref(parent_partition, index, bsize,
+                                      parent_bsize, ss_x, ss_y, 1)) {
+        info->is_chroma_ref = 1;
+      } else {
+        info->is_chroma_ref = 0;
+      }
+      info->offset_started = 1;
+      info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+      info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+      info->bsize_base = parent_info->bsize_base;
+    } else if (have_nz_chroma_ref_offset(parent_bsize, parent_partition, ss_x,
+                                         ss_y)) {
+      info->offset_started = 1;
+      info->is_chroma_ref = is_sub_partition_chroma_ref(
+          parent_partition, index, bsize, parent_bsize, ss_x, ss_y, 0);
+      set_chroma_ref_offset_size(mi_row, mi_col, parent_partition, bsize,
+                                 parent_bsize, ss_x, ss_y, info, parent_info);
+    }
+  } else {
+    info->is_chroma_ref = 0;
+    info->offset_started = 1;
+    info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
+    info->mi_col_chroma_base = parent_info->mi_col_chroma_base;
+    info->bsize_base = parent_info->bsize_base;
+  }
+}
+
+#if CONFIG_MISMATCH_DEBUG || CONFIG_INSPECTION
 static INLINE void mi_to_pixel_loc(int *pixel_c, int *pixel_r, int mi_col,
                                    int mi_row, int tx_blk_col, int tx_blk_row,
                                    int subsampling_x, int subsampling_y) {
@@ -594,13 +1425,13 @@ static INLINE void mi_to_pixel_loc(int *pixel_c, int *pixel_r, int mi_col,
   *pixel_r = ((mi_row >> subsampling_y) << MI_SIZE_LOG2) +
              (tx_blk_row << MI_SIZE_LOG2);
 }
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
 enum { MV_PRECISION_Q3, MV_PRECISION_Q4 } UENUM1BYTE(mv_precision);
 
 struct buf_2d {
-  uint8_t *buf;
-  uint8_t *buf0;
+  uint16_t *buf;
+  uint16_t *buf0;
   int width;
   int height;
   int stride;
@@ -613,8 +1444,21 @@ typedef struct eob_info {
 
 typedef struct {
   DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+#if CONFIG_INSPECTION
+  // dqcoeff gets clobbered before the inspect callback happens, so keep a
+  // copy here.
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff_copy[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, dequant_values[MAX_MB_PLANE][MAX_SB_SQUARE]);
+#endif
+  // keeps the index that corresponds to end-of-block (eob)
   eob_info eob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#if CONFIG_ATC_DCTX_ALIGNED
+  // keeps the index that corresponds to beginning-of-block (bob)
+  eob_info bob_data[MAX_MB_PLANE]
+                   [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   DECLARE_ALIGNED(16, uint8_t, color_index_map[2][MAX_SB_SQUARE]);
 } CB_BUFFER;
 
@@ -630,11 +1474,7 @@ typedef struct macroblockd_plane {
   // The dequantizers below are true dequantizers used only in the
   // dequantization process.  They have the same coefficient
   // shift/scale as TX.
-#if CONFIG_EXTQUANT
   int32_t seg_dequant_QTX[MAX_SEGMENTS][2];
-#else
-  int16_t seg_dequant_QTX[MAX_SEGMENTS][2];
-#endif
   // Pointer to color index map of:
   // - Current coding block, on encoder side.
   // - Current superblock, on decoder side.
@@ -645,10 +1485,18 @@ typedef struct macroblockd_plane {
 
   qm_val_t *seg_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
   qm_val_t *seg_qmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
+#if CONFIG_INSPECTION
+  DECLARE_ALIGNED(32, int16_t, predicted_pixels[MAX_SB_SQUARE]);
+#endif
 } MACROBLOCKD_PLANE;
 
 #define BLOCK_OFFSET(i) ((i) << 4)
 
+#if CONFIG_LR_MERGE_COEFFS
+#define LR_BANK_SIZE 4
+#else
+#define LR_BANK_SIZE 1
+#endif  // CONFIG_LR_MERGE_COEFFS
 /*!\endcond */
 
 /*!\brief Parameters related to Wiener Filter */
@@ -662,7 +1510,29 @@ typedef struct {
    * Horizontal filter kernel.
    */
   DECLARE_ALIGNED(16, InterpKernel, hfilter);
+#if CONFIG_LR_MERGE_COEFFS
+  /*!
+   * Best Reference from dynamic bank
+   */
+  int bank_ref;
+#endif  // CONFIG_LR_MERGE_COEFFS
 } WienerInfo;
+
+/*!\brief Parameters related to Wiener Filter Bank */
+typedef struct {
+  /*!
+   * Bank of filter infos
+   */
+  WienerInfo filter[LR_BANK_SIZE];
+  /*!
+   * Size of the bank
+   */
+  int bank_size;
+  /*!
+   * Pointer to the most current filter
+   */
+  int bank_ptr;
+} WienerInfoBank;
 
 /*!\brief Parameters related to Sgrproj Filter */
 typedef struct {
@@ -675,8 +1545,94 @@ typedef struct {
    * Weights for linear combination of filtered versions
    */
   int xqd[2];
+#if CONFIG_LR_MERGE_COEFFS
+  /*!
+   * Best Reference from dynamic bank
+   */
+  int bank_ref;
+#endif  // CONFIG_LR_MERGE_COEFFS
 } SgrprojInfo;
 
+/*!\brief Parameters related to Sgrproj Filter Bank */
+typedef struct {
+  /*!
+   * Bank of filter infos
+   */
+  SgrprojInfo filter[LR_BANK_SIZE];
+  /*!
+   * Size of the bank
+   */
+  int bank_size;
+  /*!
+   * Pointer to the most current filter
+   */
+  int bank_ptr;
+} SgrprojInfoBank;
+
+#if CONFIG_WIENER_NONSEP
+#define WIENERNS_MAX_CLASSES 1
+#define NUM_WIENERNS_CLASS_INIT_LUMA 1
+#define NUM_WIENERNS_CLASS_INIT_CHROMA 1
+
+// Need two of the WIENERNS_YUV_MAX to store potential center taps. Adjust
+// accordingly.
+#define WIENERNS_YUV_MAX 32
+// Special symbol to indicate the set of all classes.
+#define ALL_WIENERNS_CLASSES -17
+/*!
+ * Nonseparable Wiener filter parameters.
+ */
+typedef struct {
+  /*!
+   * Filter data - number of classes
+   */
+  int num_classes;
+  /*!
+   * Filter data - taps
+   */
+  DECLARE_ALIGNED(16, int16_t,
+                  allfiltertaps[WIENERNS_MAX_CLASSES * WIENERNS_YUV_MAX]);
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  /*!
+   * Whether this is a cross-filter, temporaly used
+   */
+  int is_cross_filter;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+#if CONFIG_LR_MERGE_COEFFS
+  /*!
+   * Best Reference from dynamic bank for each class.
+   */
+
+  int bank_ref_for_class[WIENERNS_MAX_CLASSES];
+#endif  // CONFIG_LR_MERGE_COEFFS
+} WienerNonsepInfo;
+
+/*!\brief Parameters related to Nonseparable Wiener Filter Bank */
+typedef struct {
+  /*!
+   * Bank of filter infos
+   */
+  WienerNonsepInfo filter[LR_BANK_SIZE];
+  /*!
+   * Size of the bank for each class.
+   */
+  int bank_size_for_class[WIENERNS_MAX_CLASSES];
+  /*!
+   * Pointer to the most current filter for each class.
+   */
+  int bank_ptr_for_class[WIENERNS_MAX_CLASSES];
+} WienerNonsepInfoBank;
+
+int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int wiener_class_id);
+
+const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
+                                   int wiener_class_id);
+void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
+                                  const WienerNonsepInfo *from_info,
+                                  int wiener_class_id);
+void copy_nsfilter_taps(WienerNonsepInfo *to_info,
+                        const WienerNonsepInfo *from_info);
+#endif  // CONFIG_WIENER_NONSEP
 /*!\cond */
 
 #if CONFIG_DEBUG
@@ -695,7 +1651,14 @@ typedef struct cfl_ctx {
   uint16_t recon_buf_q3[CFL_BUF_SQUARE];
   // Q3 AC contributions (reconstructed luma pixels - tx block avg)
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
-
+#if CONFIG_IMPROVED_CFL
+  // above luma reconstruction buffer
+  uint16_t recon_yuv_buf_above[MAX_MB_PLANE][CFL_BUF_LINE];
+  // left luma reconstruction buffer
+  uint16_t recon_yuv_buf_left[MAX_MB_PLANE][CFL_BUF_LINE];
+  // luma neighboring pixel average
+  uint16_t avg_l;
+#endif
   // Cache the DC_PRED when performing RDO, so it does not have to be recomputed
   // for every scaling parameter
   int dc_pred_is_cached[CFL_PRED_PLANES];
@@ -753,6 +1716,50 @@ typedef struct {
 } REF_MV_BANK;
 #endif  // CONFIG_REF_MV_BANK
 
+#if CONFIG_WARP_REF_LIST
+#define WARP_PARAM_BANK_SIZE 4
+
+/*! \brief Variables related to reference warp parameters bank. */
+typedef struct {
+  /*!
+   * Number of warp parameters in the buffer.
+   */
+  int wpb_count[INTER_REFS_PER_FRAME];
+  /*!
+   * Index corresponding to the first warp parameters in the buffer.
+   */
+  int wpb_start_idx[INTER_REFS_PER_FRAME];
+  /*!
+   * Circular buffer storing the warp parameters.
+   */
+  WarpedMotionParams wpb_buffer[INTER_REFS_PER_FRAME][WARP_PARAM_BANK_SIZE];
+  /*!
+   * Total number of mbmi updates conducted in SB
+   */
+  int wpb_sb_hits;
+} WARP_PARAM_BANK;
+
+#endif  // CONFIG_WARP_REF_LIST
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+/*! \brief Variables related to mvp list of skip mode.*/
+typedef struct {
+  //! MV list
+  CANDIDATE_MV ref_mv_stack[USABLE_REF_MV_STACK_SIZE];
+  //! reference list 0 reference frame index
+  MV_REFERENCE_FRAME ref_frame0[USABLE_REF_MV_STACK_SIZE];
+  //! reference list 1 reference frame index
+  MV_REFERENCE_FRAME ref_frame1[USABLE_REF_MV_STACK_SIZE];
+  //! The weights used to compute the ref mvs.
+  uint16_t weight[USABLE_REF_MV_STACK_SIZE];
+  //! Number of ref mvs in the drl.
+  uint8_t ref_mv_count;
+  //! context
+  int16_t mode_context[MODE_CTX_REF_FRAMES];  // to be updated
+  //! Global mvs
+  int_mv global_mvs[2];
+} SKIP_MODE_MVP_LIST;
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+
 /*! \brief Variables related to current coding block.
  *
  * This is a common set of variables used by both encoder and decoder.
@@ -767,11 +1774,6 @@ typedef struct macroblockd {
   int mi_row; /*!< Row position in mi units. */
   int mi_col; /*!< Column position in mi units. */
   /**@}*/
-#if CONFIG_IBC_SR_EXT
-  /* An array for recording whether an mi(4x4) is coded. Reset at sb level */
-  uint8_t is_mi_coded[1024];
-  int is_mi_coded_stride;
-#endif  // CONFIG_IBC_SR_EXT
 
   /*!
    * Same as cm->mi_params.mi_stride, copied here for convenience.
@@ -783,10 +1785,24 @@ typedef struct macroblockd {
    * \name Reference MV bank info.
    */
   /**@{*/
-  REF_MV_BANK ref_mv_bank;     /*!< Ref mv bank to update */
+#if !CONFIG_C043_MVP_IMPROVEMENTS
   REF_MV_BANK *ref_mv_bank_pt; /*!< Pointer to bank to refer to */
+#endif
+  REF_MV_BANK ref_mv_bank; /*!< Ref mv bank to update */
   /**@}*/
 #endif  // CONFIG_REF_MV_BANK
+
+#if CONFIG_WARP_REF_LIST
+  /**
+   * \name Reference warp parameters bank info.
+   */
+  /**@{*/
+  WARP_PARAM_BANK warp_param_bank; /*!< Ref warp parameters bank to update */
+#if !WARP_CU_BANK
+  WARP_PARAM_BANK *warp_param_bank_pt; /*!< Pointer to bank to refer to */
+#endif                                 //! WARP_CU_BANK
+  /**@}*/
+#endif  // CONFIG_WARP_REF_LIST
 
   /*!
    * True if current block transmits chroma information.
@@ -823,6 +1839,14 @@ typedef struct macroblockd {
    */
   MB_MODE_INFO **mi;
 
+#if CONFIG_C071_SUBBLK_WARPMV
+  /*!
+   * Appropriate offset inside cm->mi_params.submi_grid_base based on current
+   * mi_row and mi_col.
+   */
+  SUBMB_INFO **submi;
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+
   /*!
    * True if 4x4 block above the current block is available.
    */
@@ -850,7 +1874,7 @@ typedef struct macroblockd {
    * up_available == true; otherwise NULL.
    */
   MB_MODE_INFO *above_mbmi;
-#if CONFIG_AIMC
+#if CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
   /*!
    * MB_MODE_INFO for 4x4 block to the bottom-left of the current block, if
    * left_available == true; otherwise NULL.
@@ -861,7 +1885,12 @@ typedef struct macroblockd {
    * up_available == true; otherwise NULL.
    */
   MB_MODE_INFO *above_right_mbmi;
-#endif  // CONFIG_AIMC
+#endif  // CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
+  /*!
+   * Neighboring blocks' mbmi
+   * if no available mbmi, set to be NULL.
+   */
+  MB_MODE_INFO *neighbors[MAX_NUM_NEIGHBORS];
   /*!
    * Above chroma reference block if is_chroma_ref == true for the current block
    * and chroma_up_available == true; otherwise NULL.
@@ -878,6 +1907,11 @@ typedef struct macroblockd {
   MB_MODE_INFO *chroma_above_mbmi;
 
   /*!
+   * SB_INFO for the superblock that the current coding block is located in
+   */
+  SB_INFO *sbi;
+
+  /*!
    * Appropriate offset based on current 'mi_row' and 'mi_col', inside
    * 'tx_type_map' in one of 'CommonModeInfoParams', 'PICK_MODE_CONTEXT' or
    * 'MACROBLOCK' structs.
@@ -888,6 +1922,17 @@ typedef struct macroblockd {
    * 'mi_stride', depending on which actual array 'tx_type_map' points to.
    */
   int tx_type_map_stride;
+#if CONFIG_CROSS_CHROMA_TX
+  /*!
+   * Array of CCTX types.
+   */
+  CctxType *cctx_type_map;
+  /*!
+   * Stride for 'cctx_type_map'. Note that this may / may not be same as
+   * 'mi_stride', depending on which actual array 'cctx_type_map' points to.
+   */
+  int cctx_type_map_stride;
+#endif  // CONFIG_CROSS_CHROMA_TX
 
   /**
    * \name Distance of this macroblock from frame edges in 1/8th pixel units.
@@ -899,13 +1944,24 @@ typedef struct macroblockd {
   int mb_to_bottom_edge; /*!< Distance from bottom edge */
   /**@}*/
 
-#if CONFIG_SDP
   /*!
    * tree_type specifies whether luma and chroma component in current coded
    * block shares the same tree or not.
    */
   TREE_TYPE tree_type;
-#endif
+
+  /*!
+   * An array for recording whether an mi(4x4) is coded. Reset at sb level.
+   * For the first dimension, index == 0 corresponds to LUMA_PART and
+   * SHARED_PART. Index == 1 corresponds to SHARED_PART.
+   */
+  // TODO(any): Convert to bit field instead.
+  uint8_t is_mi_coded[2][MAX_MIB_SQUARE];
+
+  /*!
+   * Stride of the is_mi_coded array.
+   */
+  int is_mi_coded_stride;
 
   /*!
    * Scale factors for reference frames of the current block.
@@ -936,7 +1992,6 @@ typedef struct macroblockd {
    */
   ENTROPY_CONTEXT left_entropy_context[MAX_MB_PLANE][MAX_MIB_SIZE];
 
-#if CONFIG_SDP
   /*!
    * Partition contexts for the above blocks.
    * above_partition_context[p][i] corresponds to above partition context for
@@ -951,22 +2006,6 @@ typedef struct macroblockd {
    * Note: These contain actual data, NOT pointers.
    */
   PARTITION_CONTEXT left_partition_context[MAX_MB_PLANE][MAX_MIB_SIZE];
-#else
-  /*!
-   * Partition contexts for the above blocks.
-   * above_partition_context[i] corresponds to above partition context for ith
-   * mi column of this *frame*, wrt current 'mi_row'.
-   * This is a pointer into 'cm->above_contexts.partition'.
-   */
-  PARTITION_CONTEXT *above_partition_context;
-  /*!
-   * Partition contexts for the left blocks.
-   * left_partition_context[i] corresponds to left partition context for ith
-   * mi row of this *superblock*, wrt current 'mi_col'.
-   * Note: These contain actual data, NOT pointers.
-   */
-  PARTITION_CONTEXT left_partition_context[MAX_MIB_SIZE];
-#endif
   /*!
    * Transform contexts for the above blocks.
    * above_txfm_context[i] corresponds to above transform context for ith mi col
@@ -997,8 +2036,21 @@ typedef struct macroblockd {
    * cm->rst_info[plane].unit_info[unit_idx] and these reference values.
    */
   /**@{*/
-  WienerInfo wiener_info[MAX_MB_PLANE];   /*!< Defaults for Wiener filter*/
-  SgrprojInfo sgrproj_info[MAX_MB_PLANE]; /*!< Defaults for SGR filter */
+  WienerInfoBank wiener_info[MAX_MB_PLANE];   /*!< Refs for Wiener filter*/
+  SgrprojInfoBank sgrproj_info[MAX_MB_PLANE]; /*!< Refs for SGR filter */
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * Nonseparable Wiener filter information for all planes.
+   */
+  WienerNonsepInfoBank wienerns_info[MAX_MB_PLANE];
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  /*!
+   * Nonseparable Wiener cross filter information for all planes, only Cb and Cr
+   * are applied
+   */
+  WienerNonsepInfoBank wienerns_cross_info[MAX_MB_PLANE];
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+#endif  // CONFIG_WIENER_NONSEP
   /**@}*/
 
   /**
@@ -1023,6 +2075,26 @@ typedef struct macroblockd {
    */
   uint16_t weight[MODE_CTX_REF_FRAMES][MAX_REF_MV_STACK_SIZE];
 
+/*!
+ * skip_mvp_candidate_list is the MVP list for skip mode.
+ */
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+
+#if CONFIG_WARP_REF_LIST
+  /*!
+   * warp_param_stack contains the predicted warp parameters
+   */
+  WARP_CANDIDATE warp_param_stack[INTER_REFS_PER_FRAME]
+                                 [MAX_WARP_REF_CANDIDATES];
+  /*!
+   * valid number of candidates in the warp_param_stack.
+   */
+  uint8_t valid_num_warp_candidates[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_WARP_REF_LIST
+
+#if !CONFIG_EXT_RECUR_PARTITIONS
   /*!
    * True if this is the last vertical rectangular block in a VERTICAL or
    * VERTICAL_4 partition.
@@ -1034,11 +2106,25 @@ typedef struct macroblockd {
    */
   bool is_first_horizontal_rect;
 
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  /*!
+   * True if this is the last horizontal rectangular block in a HORIZONTAL or
+   * HORIZONTAL_4 partition.
+   */
+  bool is_last_horizontal_rect;
+  /*!
+   * True if this is the 1st vertical rectangular block in a VERTICAL or
+   * VERTICAL_4 partition.
+   */
+  bool is_first_vertical_rect;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+
   /*!
    * Counts of each reference frame in the above and left neighboring blocks.
    * NOTE: Take into account both single and comp references.
    */
-  uint8_t neighbors_ref_counts[REF_FRAMES];
+  uint8_t neighbors_ref_counts[INTER_REFS_PER_FRAME];
 
   /*!
    * Current CDFs of all the symbols for the current tile.
@@ -1124,7 +2210,7 @@ typedef struct macroblockd {
    * stored in the MB_MODE_INFO of the 1st block in this CDEF unit (inside
    * cm->mi_params.mi_grid_base).
    */
-  bool cdef_transmitted[4];
+  bool cdef_transmitted[CDEF_IN_SB];
 
   /*!
    * Mask for this block used for compound prediction.
@@ -1167,13 +2253,11 @@ typedef struct macroblockd {
    * -In encoder, 'x->tmp_pred_bufs' or
    * 'cpi->tile_thr_data[t].td->mb.tmp_pred_bufs'.
    */
-  uint8_t *tmp_obmc_bufs[2];
-#if CONFIG_IST
+  uint16_t *tmp_obmc_bufs[2];
   /*!
    * Enable IST for current coding block.
    */
   uint8_t enable_ist;
-#endif
 #if CONFIG_CCSO
 #if CONFIG_CCSO_EXT
   /** ccso blk y */
@@ -1196,10 +2280,16 @@ typedef struct macroblockd {
   /** variable to store eob_u flag */
   uint8_t eob_u_flag;
 #endif  // CONFIG_CONTEXT_DERIVATION
+
+#if CONFIG_REFINEMV
+  /** block level storage to store luma refined MVs for chroma use */
+  REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#endif  // CONFIG_REFINEMV
 } MACROBLOCKD;
 
 /*!\cond */
 
+/*
 static INLINE int is_cur_buf_hbd(const MACROBLOCKD *xd) {
   return xd->cur_buf->flags & YV12_FLAG_HIGHBITDEPTH ? 1 : 0;
 }
@@ -1209,37 +2299,7 @@ static INLINE uint8_t *get_buf_by_bd(const MACROBLOCKD *xd, uint8_t *buf16) {
              ? CONVERT_TO_BYTEPTR(buf16)
              : buf16;
 }
-
-static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
-  switch (bsize) {
-    case BLOCK_4X4: return 0;
-    case BLOCK_8X8: return 1;
-    case BLOCK_16X16: return 2;
-    case BLOCK_32X32: return 3;
-    case BLOCK_64X64: return 4;
-    case BLOCK_128X128: return 5;
-    default: return SQR_BLOCK_SIZES;
-  }
-}
-
-// For a square block size 'bsize', returns the size of the sub-blocks used by
-// the given partition type. If the partition produces sub-blocks of different
-// sizes, then the function returns the largest sub-block size.
-// Implements the Partition_Subsize lookup table in the spec (Section 9.3.
-// Conversion tables).
-// Note: the input block size should be square.
-// Otherwise it's considered invalid.
-static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
-                                               PARTITION_TYPE partition) {
-  if (partition == PARTITION_INVALID) {
-    return BLOCK_INVALID;
-  } else {
-    const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
-    return sqr_bsize_idx >= SQR_BLOCK_SIZES
-               ? BLOCK_INVALID
-               : subsize_lookup[partition][sqr_bsize_idx];
-  }
-}
+*/
 
 static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
                                      PLANE_TYPE plane_type) {
@@ -1270,6 +2330,18 @@ static INLINE int block_signals_txsize(BLOCK_SIZE bsize) {
   return bsize > BLOCK_4X4;
 }
 
+// Number of transform types in each set type for intra blocks
+static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1, 1,  4,
+                                                                6, 11, 15,
+#if CONFIG_ATC_NEWTXSETS
+                                                                7
+#endif  // CONFIG_ATC_NEWTXSETS
+};
+
+#if CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
+static const int av1_num_reduced_tx_set = 2;
+#endif  // CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
+
 // Number of transform types in each set type
 static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
   1, 2, 5, 7, 12, 16,
@@ -1282,7 +2354,75 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+#if CONFIG_ATC_NEWTXSETS
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+#endif  // CONFIG_ATC_NEWTXSETS
 };
+
+#if CONFIG_ATC_NEWTXSETS
+static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
+  {
+      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
+      { 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0 },
+  },  // size_class: 0
+  {
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0 },
+  },  // size_class: 1
+  {
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0 },
+  },  // size_class: 2
+  {
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
+  },  // size_class: 3
+};
+#endif  // CONFIG_ATC_NEWTXSETS
 
 static const uint16_t av1_reduced_intra_tx_used_flag[INTRA_MODES] = {
   0x080F,  // DC_PRED:       0000 1000 0000 1111
@@ -1307,7 +2447,75 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0x0E0F,  // 0000 1110 0000 1111
   0x0FFF,  // 0000 1111 1111 1111
   0xFFFF,  // 1111 1111 1111 1111
+#if CONFIG_ATC_NEWTXSETS
+  0xFFFF,
+#endif  // CONFIG_ATC_NEWTXSETS
 };
+
+#if CONFIG_ATC_NEWTXSETS
+static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
+  {
+      0x218F,
+      0x148F,
+      0x290F,
+      0x01CF,
+      0x218F,
+      0x508F,
+      0x218F,
+      0x290F,
+      0x148F,
+      0x01CF,
+      0x118F,
+      0x218F,
+      0x3C0D,
+  },  // size_class: 0
+  {
+      0x019F,
+      0x148F,
+      0x290F,
+      0x01CF,
+      0x01AF,
+      0x10AF,
+      0x019F,
+      0x211F,
+      0x00EF,
+      0x01CF,
+      0x019F,
+      0x01AF,
+      0x2C0F,
+  },  // size_class: 1
+  {
+      0x019F,
+      0x04AF,
+      0x091F,
+      0x019F,
+      0x019F,
+      0x01AF,
+      0x019F,
+      0x015F,
+      0x01AF,
+      0x019F,
+      0x019F,
+      0x01AF,
+      0x1C0F,
+  },  // size_class: 2
+  {
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+      0x0000,
+  },  // size_class: 3
+};
+#endif  // CONFIG_ATC_NEWTXSETS
 
 static const TxSetType av1_ext_tx_set_lookup[2][2] = {
   { EXT_TX_SET_DTT4_IDTX_1DDCT, EXT_TX_SET_DTT4_IDTX },
@@ -1319,18 +2527,39 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
   if (tx_size_sqr_up > TX_32X32) return EXT_TX_SET_DCTONLY;
   if (tx_size_sqr_up == TX_32X32)
+#if CONFIG_ATC_DCTX_ALIGNED
+    return EXT_TX_SET_DCT_IDTX;
+#else
     return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DCTONLY;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+#if CONFIG_ATC_REDUCED_TXSET
+  if (use_reduced_set) return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_NEW_TX_SET;
+#else
   if (use_reduced_set)
     return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DTT4_IDTX;
+#endif  // CONFIG_ATC_REDUCED_TXSET
+#if CONFIG_ATC_NEWTXSETS
+  if (is_inter) {
+    const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
+    return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
+  } else {
+    return EXT_NEW_TX_SET;
+  }
+#else
   const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
   return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
+#endif  // CONFIG_ATC_NEWTXSETS
 }
 
 // Maps tx set types to the indices.
 static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Intra
+#if CONFIG_ATC_NEWTXSETS
+    0, -1, -1, -1, -1, -1, 1 },
+#else
     0, -1, 2, 1, -1, -1 },
-  { // Inter
+#endif  // CONFIG_ATC_NEWTXSETS
+  {     // Inter
     0, 3, -1, -1, 2, 1 },
 };
 
@@ -1345,7 +2574,8 @@ static INLINE int get_ext_tx_types(TX_SIZE tx_size, int is_inter,
                                    int use_reduced_set) {
   const int set_type =
       av1_get_ext_tx_set_type(tx_size, is_inter, use_reduced_set);
-  return av1_num_ext_tx_set[set_type];
+  return is_inter ? av1_num_ext_tx_set[set_type]
+                  : av1_num_ext_tx_set_intra[set_type];
 }
 
 #define TXSIZEMAX(t1, t2) (tx_size_2d[(t1)] >= tx_size_2d[(t2)] ? (t1) : (t2))
@@ -1392,13 +2622,13 @@ static INLINE TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
                                           TX_SIZE tx_size,
                                           int is_screen_content_type) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_SDP
-  if (is_inter_block(mbmi, xd->tree_type) ||
+  if (is_inter_block(mbmi, xd->tree_type) || plane_type != PLANE_TYPE_Y ||
+#if CONFIG_ATC_DCTX_ALIGNED
+      xd->lossless[mbmi->segment_id] || tx_size > TX_32X32 ||
 #else
-  if (is_inter_block(mbmi) ||
-#endif
-      plane_type != PLANE_TYPE_Y || xd->lossless[mbmi->segment_id] ||
-      tx_size >= TX_32X32 || is_screen_content_type)
+      xd->lossless[mbmi->segment_id] || tx_size >= TX_32X32 ||
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+      is_screen_content_type)
     return DCT_DCT;
 
   return intra_mode_to_tx_type(mbmi, plane_type);
@@ -1413,6 +2643,121 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
   assert(subsampling_x >= 0 && subsampling_x < 2);
   assert(subsampling_y >= 0 && subsampling_y < 2);
   return ss_size_lookup[bsize][subsampling_x][subsampling_y];
+}
+
+static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                 int plane) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  int max_blocks_wide = block_size_wide[bsize];
+
+  if (xd->mb_to_right_edge < 0) {
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    max_blocks_wide += xd->mb_to_right_edge >> (3 + pd->subsampling_x);
+  }
+
+  // Scale the width in the transform block unit.
+  return max_blocks_wide >> MI_SIZE_LOG2;
+}
+
+static INLINE int max_block_high(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                 int plane) {
+  int max_blocks_high = block_size_high[bsize];
+
+  if (xd->mb_to_bottom_edge < 0) {
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    max_blocks_high += xd->mb_to_bottom_edge >> (3 + pd->subsampling_y);
+  }
+
+  // Scale the height in the transform block unit.
+  return max_blocks_high >> MI_SIZE_LOG2;
+}
+
+static INLINE int get_plane_tx_unit_height(const MACROBLOCKD *xd,
+                                           BLOCK_SIZE plane_bsize, int plane,
+                                           int row, int ss_y) {
+  const int max_plane_blocks_high = max_block_high(xd, plane_bsize, plane);
+  const int mu_plane_blocks_high =
+      AOMMIN(mi_size_high[BLOCK_64X64] >> ss_y, max_plane_blocks_high);
+  return AOMMIN(mu_plane_blocks_high + (row >> ss_y), max_plane_blocks_high);
+}
+
+static INLINE int get_plane_tx_unit_width(const MACROBLOCKD *xd,
+                                          BLOCK_SIZE plane_bsize, int plane,
+                                          int col, int ss_x) {
+  const int max_plane_blocks_wide = max_block_wide(xd, plane_bsize, plane);
+  const int mu_plane_blocks_wide =
+      AOMMIN(mi_size_wide[BLOCK_64X64] >> ss_x, max_plane_blocks_wide);
+  return AOMMIN(mu_plane_blocks_wide + (col >> ss_x), max_plane_blocks_wide);
+}
+
+/*!\brief Returns the index of luma/chroma based on the current partition tree
+ * type.
+ *
+ * If the tree_type includes luma, returns 0, else returns 1. */
+static INLINE int av1_get_sdp_idx(TREE_TYPE tree_type) {
+  switch (tree_type) {
+    case SHARED_PART:
+    case LUMA_PART: return 0;
+    case CHROMA_PART: return 1; break;
+    default: assert(0 && "Invalid tree type"); return 0;
+  }
+}
+
+/*!\brief Returns bsize at which the current block needs to be coded.
+ *
+ * If the current plane is AOM_PLANE_Y, returns the current block size.
+ * If the luma and chroma trees are shared, and the current plane is chroma,
+ * then the corresponding luma block size is stored in
+ * CHROMA_REF_INFO::bsize_base.
+ * If the luma and chroma trees are decoupled, then the bsize is stored in
+ * MB_BLOCK_INFO::sb_type with the appropriate index.
+ * */
+static INLINE BLOCK_SIZE get_bsize_base(const MACROBLOCKD *xd,
+                                        const MB_MODE_INFO *mbmi, int plane) {
+  BLOCK_SIZE bsize_base = BLOCK_INVALID;
+  if (xd->tree_type == SHARED_PART) {
+    bsize_base =
+        plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type[PLANE_TYPE_Y];
+  } else {
+    bsize_base = mbmi->sb_type[av1_get_sdp_idx(xd->tree_type)];
+  }
+  return bsize_base;
+}
+
+static INLINE BLOCK_SIZE get_mb_plane_block_size(const MACROBLOCKD *xd,
+                                                 const MB_MODE_INFO *mbmi,
+                                                 int plane, int subsampling_x,
+                                                 int subsampling_y) {
+  assert(subsampling_x >= 0 && subsampling_x < 2);
+  assert(subsampling_y >= 0 && subsampling_y < 2);
+  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
+  return get_plane_block_size(bsize_base, subsampling_x, subsampling_y);
+}
+
+// These are only needed to support lpf multi-thread.
+// Because xd is shared among all the threads workers, xd->tree_type does not
+// contain the valid tree_type, so we are passing in the tree_type
+static INLINE BLOCK_SIZE get_bsize_base_from_tree_type(const MB_MODE_INFO *mbmi,
+                                                       TREE_TYPE tree_type,
+                                                       int plane) {
+  BLOCK_SIZE bsize_base = BLOCK_INVALID;
+  if (tree_type == SHARED_PART) {
+    bsize_base =
+        plane ? mbmi->chroma_ref_info.bsize_base : mbmi->sb_type[PLANE_TYPE_Y];
+  } else {
+    bsize_base = mbmi->sb_type[av1_get_sdp_idx(tree_type)];
+  }
+  return bsize_base;
+}
+
+static INLINE BLOCK_SIZE get_mb_plane_block_size_from_tree_type(
+    const MB_MODE_INFO *mbmi, TREE_TYPE tree_type, int plane, int subsampling_x,
+    int subsampling_y) {
+  assert(subsampling_x >= 0 && subsampling_x < 2);
+  assert(subsampling_y >= 0 && subsampling_y < 2);
+  const BLOCK_SIZE bsize_base =
+      get_bsize_base_from_tree_type(mbmi, tree_type, plane);
+  return get_plane_block_size(bsize_base, subsampling_x, subsampling_y);
 }
 
 /*
@@ -1511,23 +2856,100 @@ static INLINE void update_txk_array(MACROBLOCKD *const xd, int blk_row,
   }
 }
 
-#if CONFIG_IST
+#if CONFIG_CROSS_CHROMA_TX
+#if CCTX_C2_DROPPED
+// Determine whether or not to keep the second chroma channel (C2).
+static INLINE int keep_chroma_c2(CctxType cctx_type) {
+  return
+#if !CCTX_DROP_45
+      cctx_type == CCTX_MINUS45 || cctx_type == CCTX_45 ||
+#endif  // !CCTX_DROP_45
+#if !CCTX_DROP_30
+      cctx_type == CCTX_MINUS30 || cctx_type == CCTX_30 ||
+#endif  // !CCTX_DROP_30
+#if !CCTX_DROP_60
+      cctx_type == CCTX_MINUS60 || cctx_type == CCTX_60 ||
+#endif  // !CCTX_DROP_60
+      cctx_type == CCTX_NONE;
+}
+#endif
+
+// When the current block is chroma reference, obtain amounts of mi offsets to
+// its corresponding luma region. Otherwise set the offsets to 0.
+static INLINE void get_chroma_mi_offsets(MACROBLOCKD *const xd,
+#if !CONFIG_EXT_RECUR_PARTITIONS
+                                         TX_SIZE tx_size,
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+                                         int *row_offset, int *col_offset) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  *row_offset = xd->mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
+  *col_offset = xd->mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
+#else
+  const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
+  const int ss_x = pd->subsampling_x;
+  const int ss_y = pd->subsampling_y;
+  *row_offset =
+      (xd->mi_row & 0x01) && (tx_size_high_unit[tx_size] & 0x01) && ss_y;
+  *col_offset =
+      (xd->mi_col & 0x01) && (tx_size_wide_unit[tx_size] & 0x01) && ss_x;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+}
+
+static INLINE void update_cctx_array(MACROBLOCKD *const xd, int blk_row,
+                                     int blk_col, int blk_row_offset,
+                                     int blk_col_offset, TX_SIZE tx_size,
+                                     CctxType cctx_type) {
+  const int stride = xd->cctx_type_map_stride;
+  const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
+  const int ss_x = pd->subsampling_x;
+  const int ss_y = pd->subsampling_y;
+  assert(xd->is_chroma_ref);
+
+  // For sub 8x8 block, offsets will be applied to reach the mi_row and mi_col
+  // of the >= 8x8 block area. Transform block size is upscaled to match the
+  // luma block size.
+  const int br = (blk_row << ss_y) - blk_row_offset;
+  const int bc = (blk_col << ss_x) - blk_col_offset;
+  const int txw = tx_size_wide_unit[tx_size] << ss_x;
+  const int txh = tx_size_high_unit[tx_size] << ss_y;
+
+  // To make cctx_type available for its right and bottom neighbors, cover
+  // all elements in cctx_type_map within the transform block range with the
+  // current cctx type
+  for (int idy = 0; idy < txh; idy++)
+    memset(&xd->cctx_type_map[(br + idy) * stride + bc], cctx_type,
+           txw * sizeof(xd->cctx_type_map[0]));
+}
+
+static INLINE CctxType av1_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
+                                         int blk_col) {
+  const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
+  const int br = blk_row << pd->subsampling_y;
+  const int bc = blk_col << pd->subsampling_x;
+  return xd->cctx_type_map[br * xd->cctx_type_map_stride + bc];
+}
+#endif  // CONFIG_CROSS_CHROMA_TX
+
 static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
   return ctx_size == tx_size;
 }
 
+#if !CONFIG_NEW_TX_PARTITION
 static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
   TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
   int depth = 0;
   while (tx_size != ctx_size) {
     depth++;
     ctx_size = sub_tx_size_map[ctx_size];
+    assert(depth <= MAX_TX_DEPTH);
   }
   return depth;
 }
+#endif
+
 /*
- * If secondary transform is enabled (CONFIG_IST) :
+ * If secondary transform is enabled (IST) :
  * Bits 4~5 of tx_type stores secondary tx_type
  * Bits 0~3 of tx_type stores primary tx_type
  *
@@ -1570,39 +2992,32 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   } else {
     intra_dir = mbmi->mode;
   }
-#if CONFIG_SDP
   const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
-#else
-  const BLOCK_SIZE bs = mbmi->sb_type;
-#endif
   const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
   bool ist_eob = 1;
-#if CONFIG_IST_FIX_B076
   // Updated EOB condition
   if (((sb_size == 4) && (eob > IST_4x4_HEIGHT)) ||
       ((sb_size == 8) && (eob > IST_8x8_HEIGHT))) {
-#else
-  if (((sb_size == 4) && (eob > IST_4x4_HEIGHT - 1)) ||
-      ((sb_size == 8) && (eob > IST_8x8_HEIGHT - 1))) {
-#endif  // CONFIG_IST_FIX_B076
     ist_eob = 0;
   }
-  const int depth = tx_size_to_depth(tx_size, bs);
+  const int is_depth0 = tx_size_is_depth0(tx_size, bs);
   const int code_stx =
       (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
       (intra_dir < PAETH_PRED) &&
-      !(mbmi->filter_intra_mode_info.use_filter_intra) && !(depth) && ist_eob;
+#if CONFIG_ATC_DCTX_ALIGNED
+      (eob != 1) &&
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+      !(mbmi->filter_intra_mode_info.use_filter_intra) && is_depth0 && ist_eob;
   return code_stx;
 }
-#endif
 
 /*
  * This function returns the tx_type used by the transform block
  *
- * If secondary transform is enabled (CONFIG_IST) :
+ * If secondary transform is enabled (IST) :
  * Bits 4~5 of tx_type stores secondary tx_type
  * Bits 0~3 of tx_type stores primary tx_type
  */
@@ -1611,70 +3026,42 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
                                       int blk_col, TX_SIZE tx_size,
                                       int reduced_tx_set) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_IST
   if (xd->lossless[mbmi->segment_id]) {
-#else
-  if (xd->lossless[mbmi->segment_id] || txsize_sqr_up_map[tx_size] > TX_32X32) {
-#endif  // CONFIG_IST
     return DCT_DCT;
+  }
+  if (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+      !is_inter_block(mbmi, xd->tree_type) && plane_type == PLANE_TYPE_Y) {
+    return IDTX;
   }
   TX_TYPE tx_type;
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   } else {
-#if CONFIG_SDP
     if (is_inter_block(mbmi, xd->tree_type)) {
-#else
-    if (is_inter_block(mbmi)) {
-#endif  // CONFIG_SDP
       // scale back to y plane's coordinate
       const struct macroblockd_plane *const pd = &xd->plane[plane_type];
       blk_row <<= pd->subsampling_y;
       blk_col <<= pd->subsampling_x;
       tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-#if CONFIG_IST
       // Secondary transforms are disabled for chroma
       disable_secondary_tx_type(&tx_type);
-#endif  // CONFIG_IST
     } else {
       // In intra mode, uv planes don't share the same prediction mode as y
       // plane, so the tx_type should not be shared
       tx_type = intra_mode_to_tx_type(mbmi, PLANE_TYPE_UV);
     }
-    const TxSetType tx_set_type =
-#if CONFIG_SDP
-        av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi, xd->tree_type),
-                                reduced_tx_set);
-#else
-        av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi), reduced_tx_set);
-#endif  // CONFIG_SDP
+    const TxSetType tx_set_type = av1_get_ext_tx_set_type(
+        tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set);
     if (!av1_ext_tx_used[tx_set_type][tx_type]) tx_type = DCT_DCT;
   }
-#if CONFIG_IST
-#if CONFIG_SDP
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
       tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]
                         [get_primary_tx_type(tx_type)]);
-#else
-  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi),
-                                                 reduced_tx_set)]
-                        [get_primary_tx_type(tx_type)]);
-#endif  // CONFIG_SDP
   if (txsize_sqr_up_map[tx_size] > TX_32X32) {
     // secondary transforms are enabled for txsize_sqr_up_map[tx_size] >
     // TX_32X32 while tx_type is by default DCT_DCT.
     disable_primary_tx_type(&tx_type);
   }
-#else
-  assert(tx_type < TX_TYPES);
-#if CONFIG_SDP
-  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
-      tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)][tx_type]);
-#else
-  assert(av1_ext_tx_used[av1_get_ext_tx_set_type(tx_size, is_inter_block(mbmi),
-                                                 reduced_tx_set)][tx_type]);
-#endif  // CONFIG_SDP
-#endif  // CONFIG_IST
   return tx_type;
 }
 
@@ -1752,13 +3139,14 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   if (xd->lossless[mbmi->segment_id]) return TX_4X4;
   if (plane == 0) return mbmi->tx_size;
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
-#if CONFIG_SDP
-  return av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], pd->subsampling_x,
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
+  return av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
                                pd->subsampling_y);
 #else
-  return av1_get_max_uv_txsize(mbmi->sb_type, pd->subsampling_x,
+  return av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], pd->subsampling_x,
                                pd->subsampling_y);
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
@@ -1766,23 +3154,105 @@ void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
 
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
 
-void av1_reset_loop_restoration(MACROBLOCKD *xd, const int num_planes);
+void av1_reset_wiener_bank(WienerInfoBank *bank, int chroma);
+void av1_add_to_wiener_bank(WienerInfoBank *bank, const WienerInfo *info);
+WienerInfo *av1_ref_from_wiener_bank(WienerInfoBank *bank, int ndx);
+const WienerInfo *av1_constref_from_wiener_bank(const WienerInfoBank *bank,
+                                                int ndx);
+void av1_upd_to_wiener_bank(WienerInfoBank *bank, int ndx,
+                            const WienerInfo *info);
+
+void av1_reset_sgrproj_bank(SgrprojInfoBank *bank);
+void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info);
+SgrprojInfo *av1_ref_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx);
+const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
+                                                  int ndx);
+void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
+                             const SgrprojInfo *info);
+
+#if CONFIG_WIENER_NONSEP
+// Resets the bank data structure holding LR_BANK_SIZE nonseparable Wiener
+// filters. The bank holds a rootating buffer of filters.
+void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
+                             int num_classes, int chroma
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+                             ,
+                             int is_cross
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+);
+
+// Adds the nonseparable Wiener filter in info into the bank of rotating
+// filters. The add is so that once the bank has LR_BANK_SIZE filters the first
+// filter in the bank is discarded, filters in slots two  through LR_BANK_SIZE
+// are moved to slots one through LR_BANK_SIZE - 1 numbered slots, and the
+// filter in info is added to the last slot.
+void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
+                              const WienerNonsepInfo *info,
+                              int wiener_class_id);
+
+// Returns the filter that is at slot ndx from last. When ndx is zero the last
+// filter added is returned. When ndx is one the filter added before the last
+// and so on.
+WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
+                                             int ndx, int wiener_class_id);
+
+const WienerNonsepInfo *av1_constref_from_wienerns_bank(
+    const WienerNonsepInfoBank *bank, int ndx, int wiener_class_id);
+void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
+                              const WienerNonsepInfo *info,
+                              int wiener_class_id);
+#endif  // CONFIG_WIENER_NONSEP
+
+void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
+#if CONFIG_WIENER_NONSEP
+                                ,
+                                const int *num_filter_classes
+#endif  // CONFIG_WIENER_NONSEP
+);
 
 typedef void (*foreach_transformed_block_visitor)(int plane, int block,
                                                   int blk_row, int blk_col,
                                                   BLOCK_SIZE plane_bsize,
                                                   TX_SIZE tx_size, void *arg);
 
+void av1_reset_is_mi_coded_map(MACROBLOCKD *xd, int stride);
+
 void av1_set_entropy_contexts(const MACROBLOCKD *xd,
                               struct macroblockd_plane *pd, int plane,
                               BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                               int has_eob, int aoff, int loff);
 
+void av1_reset_is_mi_coded_map(MACROBLOCKD *xd, int stride);
+void av1_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                             BLOCK_SIZE sb_size);
+void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
+                                 BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
-  return (mbmi->ref_frame[0] > INTRA_FRAME &&
+  return (is_inter_ref_frame(mbmi->ref_frame[0]) &&
           mbmi->ref_frame[1] == INTRA_FRAME);
 }
+
+#if CONFIG_TIP
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int is_tip_allowed_bsize(const MB_MODE_INFO *mbmi) {
+  const BLOCK_SIZE bsize = mbmi->sb_type[0];
+  const BLOCK_SIZE chroma_bsize_base = mbmi->chroma_ref_info.bsize_base;
+  const int is_chroma_ref = mbmi->chroma_ref_info.is_chroma_ref;
+
+  assert(bsize < BLOCK_SIZES_ALL);
+  assert(chroma_bsize_base < BLOCK_SIZES_ALL);
+  return is_chroma_ref && (bsize == chroma_bsize_base) &&
+         (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8);
+}
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int is_tip_allowed_bsize(BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_TIP
 
 static INLINE int is_interintra_allowed_bsize(const BLOCK_SIZE bsize) {
   return (bsize >= BLOCK_8X8) && (bsize <= BLOCK_32X32);
@@ -1793,19 +3263,24 @@ static INLINE int is_interintra_allowed_mode(const PREDICTION_MODE mode) {
 }
 
 static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
-  return (rf[0] > INTRA_FRAME) && (rf[1] <= INTRA_FRAME);
+#if CONFIG_TIP
+  if (is_tip_ref_frame(rf[0])) return 0;
+#endif  // CONFIG_TIP
+  return is_inter_ref_frame(rf[0]) && !is_inter_ref_frame(rf[1]);
 }
 
 static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
-#if CONFIG_SDP
+#if CONFIG_WARPMV
+  if (mbmi->mode == WARPMV) return 0;
+#endif  // CONFIG_WARPMV
+
   return is_interintra_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
          is_interintra_allowed_mode(mbmi->mode) &&
-         is_interintra_allowed_ref(mbmi->ref_frame);
-#else
-  return is_interintra_allowed_bsize(mbmi->sb_type) &&
-         is_interintra_allowed_mode(mbmi->mode) &&
-         is_interintra_allowed_ref(mbmi->ref_frame);
-#endif
+         is_interintra_allowed_ref(mbmi->ref_frame)
+#if CONFIG_BAWP
+         && mbmi->bawp_flag != 1
+#endif  // CONFIG_BAWP
+      ;
 }
 
 static INLINE int is_interintra_allowed_bsize_group(int group) {
@@ -1820,7 +3295,7 @@ static INLINE int is_interintra_allowed_bsize_group(int group) {
 }
 
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
-  return mbmi->ref_frame[0] > INTRA_FRAME &&
+  return is_inter_ref_frame(mbmi->ref_frame[0]) &&
          mbmi->ref_frame[1] == INTRA_FRAME && is_interintra_allowed(mbmi);
 }
 
@@ -1832,9 +3307,30 @@ static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
   return av1_get_adjusted_tx_size(max_txsize);  // chroma
 }
 
-static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize) {
+static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
+                                                    int mi_row, int mi_col) {
   assert(bsize < BLOCK_SIZES_ALL);
-  return AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
+
+  if (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8) {
+    return 0;
+  }
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_UNEVEN_4WAY
+  // TODO(urvang): Enable this special case, if we make OBMC work.
+  // TODO(yuec): Enable this case when the alignment issue is fixed. There
+  // will be memory leak in global above_pred_buff and left_pred_buff if
+  // the restriction on mi_row and mi_col is removed.
+  if ((mi_row & 0x01) || (mi_col & 0x01)) {
+    return 0;
+  }
+#endif  // !CONFIG_UNEVEN_4WAY
+#else
+  assert(!(mi_row & 0x01) && !(mi_col & 0x01));
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  (void)mi_row;
+  (void)mi_col;
+
+  return 1;
 }
 
 static INLINE int is_motion_variation_allowed_compound(
@@ -1850,38 +3346,12 @@ static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
            mbmi->overlappable_neighbors[1] == 0);
 }
 
-static INLINE MOTION_MODE
-motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
-                    const MB_MODE_INFO *mbmi, int allow_warped_motion) {
-  if (xd->cur_frame_force_integer_mv == 0) {
-    const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
-    if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
-  }
-#if CONFIG_SDP
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
-#else
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type) &&
-#endif
-      is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
-      is_motion_variation_allowed_compound(mbmi)) {
-    if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
-    assert(!has_second_ref(mbmi));
-    if (mbmi->num_proj_ref >= 1 &&
-        (allow_warped_motion &&
-         !av1_is_scaled(xd->block_ref_scale_factors[0]))) {
-      if (xd->cur_frame_force_integer_mv) {
-        return OBMC_CAUSAL;
-      }
-      return WARPED_CAUSAL;
-    }
-    return OBMC_CAUSAL;
-  } else {
-    return SIMPLE_TRANSLATION;
-  }
-}
-#if CONFIG_SDP
 static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
                                            int tree_type) {
+#if CONFIG_TIP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
+#endif  // CONFIG_TIP
+
 #if CONFIG_IBC_SR_EXT
   return (is_inter_block(mbmi, tree_type) &&
           !is_intrabc_block(mbmi, tree_type));
@@ -1889,15 +3359,24 @@ static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi,
   return (is_inter_block(mbmi, tree_type));
 #endif  // CONFIG_IBC_SR_EXT
 }
-#else
-static INLINE int is_neighbor_overlappable(const MB_MODE_INFO *mbmi) {
-#if CONFIG_IBC_SR_EXT
-  return (is_inter_block(mbmi) && !is_intrabc_block(mbmi));
-#else
-  return (is_inter_block(mbmi));
-#endif  // CONFIG_IBC_SR_EXT
+
+#if CONFIG_BAWP
+static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
+                                 int mi_col) {
+#if CONFIG_WARPMV
+  if (mbmi->mode == WARPMV) return 0;
+#endif  // CONFIG_WARPMV
+#if CONFIG_TIP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
+#endif  // CONFIG_TIP
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
+                                        mi_col) &&
+      is_inter_singleref_mode(mbmi->mode))
+    return 1;
+  else
+    return 0;
 }
-#endif
+#endif  // CONFIG_BAWP
 
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {
@@ -1916,6 +3395,7 @@ static INLINE void av1_get_block_dimensions(BLOCK_SIZE bsize, int plane,
                                             int *height,
                                             int *rows_within_bounds,
                                             int *cols_within_bounds) {
+  if (plane > 0) bsize = xd->mi[0]->chroma_ref_info.bsize_base;
   const int block_height = block_size_high[bsize];
   const int block_width = block_size_wide[bsize];
   const int block_rows = (xd->mb_to_bottom_edge >= 0)
@@ -1961,6 +3441,11 @@ typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
                               [PALETTE_COLORS];
 /* clang-format on */
 
+#if CONFIG_NEW_COLOR_MAP_CODING
+typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(2)];
+typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][2];
+#endif  // CONFIG_NEW_COLOR_MAP_CODING
+
 typedef struct {
   int rows;
   int cols;
@@ -1970,6 +3455,10 @@ typedef struct {
   uint8_t *color_map;
   MapCdf map_cdf;
   ColorCost color_cost;
+#if CONFIG_NEW_COLOR_MAP_CODING
+  IdentityRowCdf identity_row_cdf;
+  IdentityRowCost identity_row_cost;
+#endif  // CONFIG_NEW_COLOR_MAP_CODING
 } Av1ColorMapParam;
 
 static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
@@ -1978,12 +3467,8 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
 
   // First check if all modes are GLOBALMV
   if (mbmi->mode != GLOBALMV && mbmi->mode != GLOBAL_GLOBALMV) return 0;
-#if CONFIG_SDP
   if (AOMMIN(mi_size_wide[mbmi->sb_type[PLANE_TYPE_Y]],
              mi_size_high[mbmi->sb_type[PLANE_TYPE_Y]]) < 2)
-#else
-  if (AOMMIN(mi_size_wide[mbmi->sb_type], mi_size_high[mbmi->sb_type]) < 2)
-#endif
     return 0;
 
   // Now check if all global motion is non translational
@@ -2007,13 +3492,38 @@ static INLINE int av1_get_max_eob(TX_SIZE tx_size) {
   return tx_size_2d[tx_size];
 }
 
-#if CONFIG_IBC_SR_EXT
-void av1_reset_is_mi_coded_map(MACROBLOCKD *xd, int stride);
-void av1_mark_block_as_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
-                             BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
-void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
-                                 BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
-#endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
+    const PARTITION_TREE *partition_tree, int idx) {
+  if (!partition_tree) {
+    return NULL;
+  }
+  return partition_tree->sub_tree[idx];
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_CWP
+// check whether compound weighted prediction can be allowed
+static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
+#if CONFIG_REFINEMV
+  if (mbmi->refinemv_flag) return 0;
+#endif  // CONFIG_REFINEMV
+
+  if (mbmi->skip_mode) return 1;
+  int use_cwp = has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
+                mbmi->interinter_comp.type == COMPOUND_AVERAGE &&
+                mbmi->motion_mode == SIMPLE_TRANSLATION;
+  use_cwp &=
+      (mbmi->mode == NEAR_NEARMV || is_joint_mvd_coding_mode(mbmi->mode));
+  use_cwp &= (mbmi->jmvd_scale_mode == 0);
+  return use_cwp;
+}
+// Return the index for compound weighted prediction
+static INLINE int8_t get_cwp_idx(const MB_MODE_INFO *mbmi) {
+  assert(mbmi->cwp_idx <= CWP_MAX && mbmi->cwp_idx >= CWP_MIN);
+  return mbmi->cwp_idx;
+}
+#endif
 
 /*!\endcond */
 

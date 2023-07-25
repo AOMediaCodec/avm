@@ -12,6 +12,7 @@
 #ifndef AOM_AV1_ENCODER_PICKCDEF_H_
 #define AOM_AV1_ENCODER_PICKCDEF_H_
 
+#include "av1/common/av1_common_int.h"
 #include "av1/common/cdef.h"
 #include "av1/encoder/speed_features.h"
 
@@ -32,7 +33,7 @@ extern "C" {
  * \param[in]      pick_method  The method used to select params
  * \param[in]      rdmult       rd multiplier to use in making param choices
  *
- * \return Nothing is returned. Instead, optimal CDEF parameters are stored
+ * Nothing is returned. Instead, optimal CDEF parameters are stored
  * in the \c cdef_info structure of type \ref CdefInfo inside \c cm:
  * \arg \c cdef_bits: Bits of strength parameters
  * \arg \c nb_cdef_strengths: Number of strength parameters

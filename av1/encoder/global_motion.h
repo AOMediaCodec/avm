@@ -113,22 +113,21 @@ void av1_compute_feature_segmentation_map(uint8_t *segment_map, int width,
 
 // Returns the error between the result of applying motion 'wm' to the frame
 // described by 'ref' and the frame described by 'dst'.
-int64_t av1_warp_error(WarpedMotionParams *wm, int use_hbd, int bd,
-                       const uint8_t *ref, int width, int height, int stride,
-                       uint8_t *dst, int p_col, int p_row, int p_width,
-                       int p_height, int p_stride, int subsampling_x,
-                       int subsampling_y, int64_t best_error,
-                       uint8_t *segment_map, int segment_map_stride);
+int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
+                       int width, int height, int stride, uint16_t *dst,
+                       int p_col, int p_row, int p_width, int p_height,
+                       int p_stride, int subsampling_x, int subsampling_y,
+                       int64_t best_error, uint8_t *segment_map,
+                       int segment_map_stride);
 
 // Returns the av1_warp_error between "dst" and the result of applying the
 // motion params that result from fine-tuning "wm" to "ref". Note that "wm" is
 // modified in place.
 int64_t av1_refine_integerized_param(
-    WarpedMotionParams *wm, TransformationType wmtype, int use_hbd, int bd,
-    uint8_t *ref, int r_width, int r_height, int r_stride, uint8_t *dst,
-    int d_width, int d_height, int d_stride, int n_refinements,
-    int64_t best_frame_error, uint8_t *segment_map, int segment_map_stride,
-    int64_t erroradv_threshold);
+    WarpedMotionParams *wm, TransformationType wmtype, int bd, uint16_t *ref,
+    int r_width, int r_height, int r_stride, uint16_t *dst, int d_width,
+    int d_height, int d_stride, int n_refinements, int64_t best_frame_error,
+    uint8_t *segment_map, int segment_map_stride, int64_t erroradv_threshold);
 
 /*
   Computes "num_motions" candidate global motion parameters between two frames.

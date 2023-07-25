@@ -54,8 +54,9 @@ static void count_segs(const AV1_COMMON *cm, MACROBLOCKD *xd,
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
   xd->mi = mi;
+  assert(xd->mi && xd->mi[0]);
   set_mi_row_col(xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows,
-                 mi_params->mi_cols);
+                 mi_params->mi_cols, &xd->mi[0]->chroma_ref_info);
 
   // Count the number of hits on each segment with no prediction
   const int segment_id = xd->mi[0]->segment_id;
@@ -63,11 +64,7 @@ static void count_segs(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   // Temporal prediction not allowed on key frames
   if (cm->current_frame.frame_type != KEY_FRAME) {
-#if CONFIG_SDP
     const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
-#else
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
-#endif
     // Test to see if the segment id matches the predicted value.
     const int pred_segment_id =
         cm->last_frame_seg_map
@@ -92,12 +89,24 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
                           unsigned *no_pred_segcounts,
                           unsigned (*temporal_predictor_count)[2],
                           unsigned *t_unpred_seg_counts, int mi_row, int mi_col,
-                          BLOCK_SIZE bsize) {
+#if !CONFIG_EXT_RECUR_PARTITIONS
+                          BLOCK_SIZE bsize,
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+                          const PARTITION_TREE *ptree) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mis = mi_params->mi_stride;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  BLOCK_SIZE bsize = ptree->bsize;
+  const int bw = mi_size_wide[bsize], bh = mi_size_high[bsize];
+  const int hbw = bw / 2, hbh = bh / 2;
+  const int qbw = bw / 4, qbh = bh / 4;
+#if CONFIG_UNEVEN_4WAY
+  const int ebw = bw / 8, ebh = bh / 8;
+#endif  // CONFIG_UNEVEN_4WAY
+#else
   const int bs = mi_size_wide[bsize], hbs = bs / 2;
-  PARTITION_TYPE partition;
   const int qbs = bs / 4;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
@@ -105,17 +114,93 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
   count_segs(cm, xd, tile, mi + mis * (cs_rowoff) + (cs_coloff),               \
              no_pred_segcounts, temporal_predictor_count, t_unpred_seg_counts, \
              (cs_bw), (cs_bh), mi_row + (cs_rowoff), mi_col + (cs_coloff));
+#if CONFIG_EXT_RECUR_PARTITIONS
+#define CSEGS_RECURSIVE(cs_rowoff, cs_coloff, subtree)              \
+  count_segs_sb(cm, xd, tile, mi + mis * (cs_rowoff) + (cs_coloff), \
+                no_pred_segcounts, temporal_predictor_count,        \
+                t_unpred_seg_counts, mi_row + (cs_rowoff),          \
+                mi_col + (cs_coloff), subtree);
 
+  int tree_idx = 0;
+  const PARTITION_TYPE partition = ptree->partition;
+#else
+  PARTITION_TYPE partition;
   if (bsize == BLOCK_8X8)
     partition = PARTITION_NONE;
   else
-#if CONFIG_SDP
     partition =
         get_partition(cm, xd->tree_type == CHROMA_PART, mi_row, mi_col, bsize);
-#else
-    partition = get_partition(cm, mi_row, mi_col, bsize);
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   switch (partition) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    case PARTITION_NONE: CSEGS(bw, bh, 0, 0); break;
+    case PARTITION_HORZ:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      CSEGS_RECURSIVE(hbh, 0, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_VERT:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      CSEGS_RECURSIVE(0, hbw, ptree->sub_tree[tree_idx++]);
+      break;
+#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+    case PARTITION_HORZ_3:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      CSEGS_RECURSIVE(qbh, 0, ptree->sub_tree[tree_idx++]);
+#if CONFIG_H_PARTITION
+      CSEGS_RECURSIVE(qbh, hbw, ptree->sub_tree[tree_idx++]);
+#endif  // CONFIG_H_PARTITION
+      if (mi_row + 3 * qbh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(3 * qbh, 0, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_VERT_3:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      CSEGS_RECURSIVE(0, qbw, ptree->sub_tree[tree_idx++]);
+#if CONFIG_H_PARTITION
+      CSEGS_RECURSIVE(hbh, qbw, ptree->sub_tree[tree_idx++]);
+#endif  // CONFIG_H_PARTITION
+      if (mi_col + 3 * qbw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 3 * qbw, ptree->sub_tree[tree_idx++]);
+      break;
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 3 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(3 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 7 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(7 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_HORZ_4B:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 5 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(5 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 7 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(7 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_VERT_4A:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_col + ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 3 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 3 * ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 7 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 7 * ebw, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_VERT_4B:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_col + ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 5 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 5 * ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 7 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 7 * ebw, ptree->sub_tree[tree_idx++]);
+      break;
+#endif  // CONFIG_UNEVEN_4WAY
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_NONE: CSEGS(bs, bs, 0, 0); break;
     case PARTITION_HORZ:
       CSEGS(bs, hbs, 0, 0);
@@ -151,26 +236,34 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
       CSEGS(bs, qbs, 2 * qbs, 0);
       if (mi_row + 3 * qbs < mi_params->mi_rows) CSEGS(bs, qbs, 3 * qbs, 0);
       break;
-
     case PARTITION_VERT_4:
       CSEGS(qbs, bs, 0, 0);
       CSEGS(qbs, bs, 0, qbs);
       CSEGS(qbs, bs, 0, 2 * qbs);
       if (mi_col + 3 * qbs < mi_params->mi_cols) CSEGS(qbs, bs, 0, 3 * qbs);
       break;
-
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT: {
+#if !CONFIG_EXT_RECUR_PARTITIONS
       const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
-      int n;
       assert(subsize < BLOCK_SIZES_ALL);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
-      for (n = 0; n < 4; n++) {
-        const int mi_dc = hbs * (n & 1);
-        const int mi_dr = hbs * (n >> 1);
-
+      for (int n = 0; n < 4; n++) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+        const int mi_dc = hbw * (n & 1);
+        const int mi_dr = hbh * (n >> 1);
         count_segs_sb(cm, xd, tile, &mi[mi_dr * mis + mi_dc], no_pred_segcounts,
                       temporal_predictor_count, t_unpred_seg_counts,
-                      mi_row + mi_dr, mi_col + mi_dc, subsize);
+                      mi_row + mi_dr, mi_col + mi_dc, ptree->sub_tree[n]);
+#else
+        const int mi_dc = hbs * (n & 1);
+        const int mi_dr = hbs * (n >> 1);
+        count_segs_sb(cm, xd, tile, &mi[mi_dr * mis + mi_dc], no_pred_segcounts,
+                      temporal_predictor_count, t_unpred_seg_counts,
+                      mi_row + mi_dr, mi_col + mi_dc, subsize,
+                      ptree->sub_tree[n]);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       }
     } break;
     default: assert(0);
@@ -210,9 +303,15 @@ void av1_choose_segmap_coding_method(AV1_COMMON *cm, MACROBLOCKD *xd) {
           for (mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
                mi_col += cm->seq_params.mib_size,
               mi += cm->seq_params.mib_size) {
+            const SB_INFO *sbi = av1_get_sb_info(cm, mi_row, mi_col);
+            const PARTITION_TREE *ptree = sbi->ptree_root[AOM_PLANE_Y];
             count_segs_sb(cm, xd, &tile_info, mi, no_pred_segcounts,
                           temporal_predictor_count, t_unpred_seg_counts, mi_row,
-                          mi_col, cm->seq_params.sb_size);
+                          mi_col,
+#if !CONFIG_EXT_RECUR_PARTITIONS
+                          cm->seq_params.sb_size,
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+                          ptree);
           }
         }
       }

@@ -35,9 +35,6 @@ const int count_test_block = 100000;
 typedef void (*HighbdIntraPred)(uint16_t *dst, ptrdiff_t stride,
                                 const uint16_t *above, const uint16_t *left,
                                 int bps);
-typedef void (*IntraPred)(uint8_t *dst, ptrdiff_t stride, const uint8_t *above,
-                          const uint8_t *left);
-
 }  // namespace
 
 // NOTE: Under gcc version 7.3.0 (Debian 7.3.0-5), if this template is in the
@@ -217,26 +214,6 @@ class HighbdIntraPredTest : public AV1IntraPredTest<HighbdIntraPred, uint16_t> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HighbdIntraPredTest);
 
-class LowbdIntraPredTest : public AV1IntraPredTest<IntraPred, uint8_t> {
- protected:
-  void Predict() {
-    params_.ref_fn(ref_dst_, stride_, above_row_, left_col_);
-    ASM_REGISTER_STATE_CHECK(
-        params_.pred_fn(dst_, stride_, above_row_, left_col_));
-  }
-  void PredictRefSpeedTest(int num) {
-    for (int i = 0; i < num; i++) {
-      params_.ref_fn(ref_dst_, stride_, above_row_, left_col_);
-    }
-  }
-  void PredictFncSpeedTest(int num) {
-    for (int i = 0; i < num; i++) {
-      params_.pred_fn(dst_, stride_, above_row_, left_col_);
-    }
-  }
-};
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(LowbdIntraPredTest);
-
 // Suppress an unitialized warning. Once there are implementations to test then
 // this can be restored.
 TEST_P(HighbdIntraPredTest, Bitexact) {
@@ -248,27 +225,6 @@ TEST_P(HighbdIntraPredTest, Bitexact) {
   av1_zero(left_col);
   av1_zero(above_data);
   RunTest(left_col, above_data, dst, ref_dst);
-}
-
-TEST_P(LowbdIntraPredTest, Bitexact) {
-  // max block size is 64
-  DECLARE_ALIGNED(16, uint8_t, left_col[2 * 64]);
-  DECLARE_ALIGNED(16, uint8_t, above_data[2 * 64 + 64]);
-  DECLARE_ALIGNED(16, uint8_t, dst[3 * 64 * 64]);
-  DECLARE_ALIGNED(16, uint8_t, ref_dst[3 * 64 * 64]);
-  av1_zero(left_col);
-  av1_zero(above_data);
-  RunTest(left_col, above_data, dst, ref_dst);
-}
-TEST_P(LowbdIntraPredTest, DISABLED_Speed) {
-  // max block size is 64
-  DECLARE_ALIGNED(16, uint8_t, left_col[2 * 64]);
-  DECLARE_ALIGNED(16, uint8_t, above_data[2 * 64 + 64]);
-  DECLARE_ALIGNED(16, uint8_t, dst[3 * 64 * 64]);
-  DECLARE_ALIGNED(16, uint8_t, ref_dst[3 * 64 * 64]);
-  av1_zero(left_col);
-  av1_zero(above_data);
-  RunSpeedTest(left_col, above_data, dst, ref_dst);
 }
 
 // -----------------------------------------------------------------------------
@@ -288,77 +244,6 @@ TEST_P(LowbdIntraPredTest, DISABLED_Speed) {
       highbd_entry(type, 16, 32, opt, bd),                                    \
       highbd_entry(type, 32, 16, opt, bd), highbd_entry(type, 32, 32, opt, bd)
 #endif
-// ---------------------------------------------------------------------------
-// Low Bit Depth Tests
-
-#define lowbd_entry(type, width, height, opt)                                  \
-  IntraPredFunc<IntraPred>(&aom_##type##_predictor_##width##x##height##_##opt, \
-                           &aom_##type##_predictor_##width##x##height##_c,     \
-                           width, height, 8)
-
-#define lowbd_intrapred(type, opt)                                    \
-  lowbd_entry(type, 4, 4, opt), lowbd_entry(type, 4, 8, opt),         \
-      lowbd_entry(type, 8, 4, opt), lowbd_entry(type, 8, 8, opt),     \
-      lowbd_entry(type, 8, 16, opt), lowbd_entry(type, 16, 8, opt),   \
-      lowbd_entry(type, 16, 16, opt), lowbd_entry(type, 16, 32, opt), \
-      lowbd_entry(type, 32, 16, opt), lowbd_entry(type, 32, 32, opt)
-
-#if HAVE_SSE2
-const IntraPredFunc<IntraPred> LowbdIntraPredTestVector[] = {
-  lowbd_intrapred(dc, sse2),      lowbd_intrapred(dc_top, sse2),
-  lowbd_intrapred(dc_left, sse2), lowbd_intrapred(dc_128, sse2),
-  lowbd_intrapred(v, sse2),       lowbd_intrapred(h, sse2),
-};
-
-INSTANTIATE_TEST_SUITE_P(SSE2, LowbdIntraPredTest,
-                         ::testing::ValuesIn(LowbdIntraPredTestVector));
-
-#endif  // HAVE_SSE2
-
-#if HAVE_NEON
-const IntraPredFunc<IntraPred> LowbdIntraPredTestVectorNeon[] = {
-  lowbd_entry(smooth, 4, 4, neon),   lowbd_entry(smooth, 4, 8, neon),
-  lowbd_entry(smooth, 4, 16, neon),  lowbd_entry(smooth, 8, 4, neon),
-  lowbd_entry(smooth, 8, 8, neon),   lowbd_entry(smooth, 8, 16, neon),
-  lowbd_entry(smooth, 8, 32, neon),  lowbd_entry(smooth, 16, 4, neon),
-  lowbd_entry(smooth, 16, 8, neon),  lowbd_entry(smooth, 16, 16, neon),
-  lowbd_entry(smooth, 16, 32, neon), lowbd_entry(smooth, 16, 64, neon),
-  lowbd_entry(smooth, 32, 8, neon),  lowbd_entry(smooth, 32, 16, neon),
-  lowbd_entry(smooth, 32, 32, neon), lowbd_entry(smooth, 32, 64, neon),
-  lowbd_entry(smooth, 64, 16, neon), lowbd_entry(smooth, 64, 32, neon),
-  lowbd_entry(smooth, 64, 64, neon)
-};
-INSTANTIATE_TEST_SUITE_P(NEON, LowbdIntraPredTest,
-                         ::testing::ValuesIn(LowbdIntraPredTestVectorNeon));
-#endif  // HAVE_NEON
-
-#if HAVE_SSSE3
-const IntraPredFunc<IntraPred> LowbdIntraPredTestVectorSsse3[] = {
-  lowbd_intrapred(paeth, ssse3),
-  lowbd_intrapred(smooth, ssse3),
-};
-
-INSTANTIATE_TEST_SUITE_P(SSSE3, LowbdIntraPredTest,
-                         ::testing::ValuesIn(LowbdIntraPredTestVectorSsse3));
-
-#endif  // HAVE_SSSE3
-
-#if HAVE_AVX2
-const IntraPredFunc<IntraPred> LowbdIntraPredTestVectorAvx2[] = {
-  lowbd_entry(dc, 32, 32, avx2),      lowbd_entry(dc_top, 32, 32, avx2),
-  lowbd_entry(dc_left, 32, 32, avx2), lowbd_entry(dc_128, 32, 32, avx2),
-  lowbd_entry(v, 32, 32, avx2),       lowbd_entry(h, 32, 32, avx2),
-  lowbd_entry(dc, 32, 16, avx2),      lowbd_entry(dc_top, 32, 16, avx2),
-  lowbd_entry(dc_left, 32, 16, avx2), lowbd_entry(dc_128, 32, 16, avx2),
-  lowbd_entry(v, 32, 16, avx2),       lowbd_entry(paeth, 16, 8, avx2),
-  lowbd_entry(paeth, 16, 16, avx2),   lowbd_entry(paeth, 16, 32, avx2),
-  lowbd_entry(paeth, 32, 16, avx2),   lowbd_entry(paeth, 32, 32, avx2),
-};
-
-INSTANTIATE_TEST_SUITE_P(AVX2, LowbdIntraPredTest,
-                         ::testing::ValuesIn(LowbdIntraPredTestVectorAvx2));
-
-#endif  // HAVE_AVX2
 
 #if HAVE_NEON
 const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorNeon[] = {

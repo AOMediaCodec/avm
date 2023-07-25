@@ -283,8 +283,6 @@ int main(int argc, char **argv) {
   cfg.g_lag_in_frames = 3;
   cfg.g_bit_depth = AOM_BITS_8;
 
-  flags |= AOM_CODEC_USE_HIGHBITDEPTH;
-
   writer = aom_video_writer_open(outfile_arg, kContainerIVF, &info);
   if (!writer) die("Failed to open %s for writing.", outfile_arg);
 

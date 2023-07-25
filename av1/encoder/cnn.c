@@ -998,60 +998,6 @@ void av1_cnn_predict_c(const float **input, int in_width, int in_height,
 
 // Assume output already has proper allocation
 // Assume input image buffers all have same resolution and strides
-void av1_cnn_predict_img_multi_out(uint8_t **dgd, int width, int height,
-                                   int stride, const CNN_CONFIG *cnn_config,
-                                   const CNN_THREAD_DATA *thread_data,
-                                   CNN_MULTI_OUT *output) {
-  const float max_val = 255.0;
-
-  const int in_width = width + 2 * cnn_config->ext_width;
-  const int in_height = height + 2 * cnn_config->ext_height;
-  const int in_channels = cnn_config->layer_config[0].in_channels;
-  float *inputs[CNN_MAX_CHANNELS];
-  float *input_ =
-      (float *)aom_malloc(in_width * in_height * in_channels * sizeof(*input_));
-  const int in_stride = in_width;
-
-  for (int c = 0; c < in_channels; ++c) {
-    inputs[c] = input_ + c * in_stride * in_height;
-    float *input =
-        inputs[c] + cnn_config->ext_height * in_stride + cnn_config->ext_width;
-
-    if (cnn_config->strict_bounds) {
-      for (int i = 0; i < height; ++i)
-        for (int j = 0; j < width; ++j)
-          input[i * in_stride + j] = (float)dgd[c][i * stride + j] / max_val;
-      // extend left and right
-      for (int i = 0; i < height; ++i) {
-        for (int j = -cnn_config->ext_width; j < 0; ++j)
-          input[i * in_stride + j] = input[i * in_stride];
-        for (int j = width; j < width + cnn_config->ext_width; ++j)
-          input[i * in_stride + j] = input[i * in_stride + width - 1];
-      }
-      // extend top and bottom
-      for (int i = -cnn_config->ext_height; i < 0; ++i)
-        memcpy(&input[i * in_stride - cnn_config->ext_width],
-               &input[-cnn_config->ext_width], in_width * sizeof(*input));
-      for (int i = height; i < height + cnn_config->ext_height; ++i)
-        memcpy(&input[i * in_stride - cnn_config->ext_width],
-               &input[(height - 1) * in_stride - cnn_config->ext_width],
-               in_width * sizeof(*input));
-    } else {
-      for (int i = -cnn_config->ext_height; i < height + cnn_config->ext_height;
-           ++i)
-        for (int j = -cnn_config->ext_width; j < width + cnn_config->ext_width;
-             ++j)
-          input[i * in_stride + j] = (float)dgd[c][i * stride + j] / max_val;
-    }
-  }
-  av1_cnn_predict((const float **)inputs, in_width, in_height, in_stride,
-                  cnn_config, thread_data, output);
-
-  aom_free(input_);
-}
-
-// Assume output already has proper allocation
-// Assume input image buffers all have same resolution and strides
 void av1_cnn_predict_img_multi_out_highbd(uint16_t **dgd, int width, int height,
                                           int stride,
                                           const CNN_CONFIG *cnn_config,
@@ -1105,24 +1051,6 @@ void av1_cnn_predict_img_multi_out_highbd(uint16_t **dgd, int width, int height,
                   cnn_config, thread_data, output);
 
   aom_free(input_);
-}
-
-// Assume output already has proper allocation
-// Assume input image buffers all have same resolution and strides
-void av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
-                         const CNN_CONFIG *cnn_config,
-                         const CNN_THREAD_DATA *thread_data, float **output,
-                         int out_stride) {
-  int out_width = 0, out_height = 0, out_channels = 0;
-  av1_find_cnn_output_size(width, height, cnn_config, &out_width, &out_height,
-                           &out_channels);
-  const int output_chs[1] = { out_channels };
-  const int output_strides[1] = { out_stride };
-  CNN_MULTI_OUT output_struct = { .output_channels = output_chs,
-                                  .output_strides = output_strides,
-                                  .output_buffer = output };
-  av1_cnn_predict_img_multi_out(dgd, width, height, stride, cnn_config,
-                                thread_data, &output_struct);
 }
 
 // Assume output already has proper allocation

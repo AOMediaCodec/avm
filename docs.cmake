@@ -141,12 +141,6 @@ if(CONFIG_AV1_ENCODER)
       "${AOM_ROOT}/av1/encoder/temporal_filter.c"
       "${AOM_ROOT}/av1/encoder/tpl_model.h"
       "${AOM_ROOT}/av1/encoder/tx_search.h")
-
-  if(CONFIG_SVC_ENCODER)
-    set(AOM_DOXYGEN_SOURCES
-        ${AOM_DOXYGEN_SOURCES} "${AOM_ROOT}/av1/encoder/svc_layercontext.c"
-        "${AOM_ROOT}/av1/encoder/svc_layercontext.h")
-  endif()
 endif()
 
 if(CONFIG_AV1_DECODER AND CONFIG_AV1_ENCODER)

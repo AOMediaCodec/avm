@@ -18,12 +18,6 @@
 #include "av1/common/restoration.h"
 #include "aom_dsp/x86/synonyms.h"
 
-// Load 4 bytes from the possibly-misaligned pointer p, extend each byte to
-// 32-bit precision and return them in an SSE register.
-static __m128i xx_load_extend_8_32(const void *p) {
-  return _mm_cvtepu8_epi32(xx_loadl_32(p));
-}
-
 // Load 4 halfwords from the possibly-misaligned pointer p, extend each
 // halfword to 32-bit precision and return them in an SSE register.
 static __m128i xx_load_extend_16_32(const void *p) {
@@ -36,53 +30,6 @@ static __m128i xx_load_extend_16_32(const void *p) {
 static __m128i scan_32(__m128i x) {
   const __m128i x01 = _mm_add_epi32(x, _mm_slli_si128(x, 4));
   return _mm_add_epi32(x01, _mm_slli_si128(x01, 8));
-}
-
-// Compute two integral images from src. B sums elements; A sums their
-// squares. The images are offset by one pixel, so will have width and height
-// equal to width + 1, height + 1 and the first row and column will be zero.
-//
-// A+1 and B+1 should be aligned to 16 bytes. buf_stride should be a multiple
-// of 4.
-static void integral_images(const uint8_t *src, int src_stride, int width,
-                            int height, int32_t *A, int32_t *B,
-                            int buf_stride) {
-  // Write out the zero top row
-  memset(A, 0, sizeof(*A) * (width + 1));
-  memset(B, 0, sizeof(*B) * (width + 1));
-
-  const __m128i zero = _mm_setzero_si128();
-  for (int i = 0; i < height; ++i) {
-    // Zero the left column.
-    A[(i + 1) * buf_stride] = B[(i + 1) * buf_stride] = 0;
-
-    // ldiff is the difference H - D where H is the output sample immediately
-    // to the left and D is the output sample above it. These are scalars,
-    // replicated across the four lanes.
-    __m128i ldiff1 = zero, ldiff2 = zero;
-    for (int j = 0; j < width; j += 4) {
-      const int ABj = 1 + j;
-
-      const __m128i above1 = xx_load_128(B + ABj + i * buf_stride);
-      const __m128i above2 = xx_load_128(A + ABj + i * buf_stride);
-
-      const __m128i x1 = xx_load_extend_8_32(src + j + i * src_stride);
-      const __m128i x2 = _mm_madd_epi16(x1, x1);
-
-      const __m128i sc1 = scan_32(x1);
-      const __m128i sc2 = scan_32(x2);
-
-      const __m128i row1 = _mm_add_epi32(_mm_add_epi32(sc1, above1), ldiff1);
-      const __m128i row2 = _mm_add_epi32(_mm_add_epi32(sc2, above2), ldiff2);
-
-      xx_store_128(B + ABj + (i + 1) * buf_stride, row1);
-      xx_store_128(A + ABj + (i + 1) * buf_stride, row2);
-
-      // Calculate the new H - D.
-      ldiff1 = _mm_shuffle_epi32(_mm_sub_epi32(row1, above1), 0xff);
-      ldiff2 = _mm_shuffle_epi32(_mm_sub_epi32(row2, above2), 0xff);
-    }
-  }
 }
 
 // Compute two integral images from src. B sums elements; A sums their squares
@@ -279,22 +226,18 @@ static INLINE __m128i cross_sum(const int32_t *buf, int stride) {
 // The final filter for self-guided restoration. Computes a weighted average
 // across A, B with "cross sums" (see cross_sum implementation above).
 static void final_filter(int32_t *dst, int dst_stride, const int32_t *A,
-                         const int32_t *B, int buf_stride, const void *dgd8,
-                         int dgd_stride, int width, int height, int highbd) {
+                         const int32_t *B, int buf_stride, const uint16_t *dgd,
+                         int dgd_stride, int width, int height) {
   const int nb = 5;
   const __m128i rounding =
       round_for_shift(SGRPROJ_SGR_BITS + nb - SGRPROJ_RST_BITS);
-  const uint8_t *dgd_real =
-      highbd ? (const uint8_t *)CONVERT_TO_SHORTPTR(dgd8) : dgd8;
 
   for (int i = 0; i < height; ++i) {
     for (int j = 0; j < width; j += 4) {
       const __m128i a = cross_sum(A + i * buf_stride + j, buf_stride);
       const __m128i b = cross_sum(B + i * buf_stride + j, buf_stride);
-      const __m128i raw =
-          xx_loadl_64(dgd_real + ((i * dgd_stride + j) << highbd));
-      const __m128i src =
-          highbd ? _mm_cvtepu16_epi32(raw) : _mm_cvtepu8_epi32(raw);
+      const __m128i raw = xx_loadl_64(dgd + (i * dgd_stride + j));
+      const __m128i src = _mm_cvtepu16_epi32(raw);
 
       __m128i v = _mm_add_epi32(_mm_madd_epi16(a, src), b);
       __m128i w = _mm_srai_epi32(_mm_add_epi32(v, rounding),
@@ -452,8 +395,8 @@ static INLINE __m128i cross_sum_fast_odd_row(const int32_t *buf) {
 // implementations above).
 static void final_filter_fast(int32_t *dst, int dst_stride, const int32_t *A,
                               const int32_t *B, int buf_stride,
-                              const void *dgd8, int dgd_stride, int width,
-                              int height, int highbd) {
+                              const uint16_t *dgd, int dgd_stride, int width,
+                              int height) {
   const int nb0 = 5;
   const int nb1 = 4;
 
@@ -462,9 +405,6 @@ static void final_filter_fast(int32_t *dst, int dst_stride, const int32_t *A,
   const __m128i rounding1 =
       round_for_shift(SGRPROJ_SGR_BITS + nb1 - SGRPROJ_RST_BITS);
 
-  const uint8_t *dgd_real =
-      highbd ? (const uint8_t *)CONVERT_TO_SHORTPTR(dgd8) : dgd8;
-
   for (int i = 0; i < height; ++i) {
     if (!(i & 1)) {  // even row
       for (int j = 0; j < width; j += 4) {
@@ -472,10 +412,8 @@ static void final_filter_fast(int32_t *dst, int dst_stride, const int32_t *A,
             cross_sum_fast_even_row(A + i * buf_stride + j, buf_stride);
         const __m128i b =
             cross_sum_fast_even_row(B + i * buf_stride + j, buf_stride);
-        const __m128i raw =
-            xx_loadl_64(dgd_real + ((i * dgd_stride + j) << highbd));
-        const __m128i src =
-            highbd ? _mm_cvtepu16_epi32(raw) : _mm_cvtepu8_epi32(raw);
+        const __m128i raw = xx_loadl_64(dgd + (i * dgd_stride + j));
+        const __m128i src = _mm_cvtepu16_epi32(raw);
 
         __m128i v = _mm_add_epi32(_mm_madd_epi16(a, src), b);
         __m128i w = _mm_srai_epi32(_mm_add_epi32(v, rounding0),
@@ -487,10 +425,9 @@ static void final_filter_fast(int32_t *dst, int dst_stride, const int32_t *A,
       for (int j = 0; j < width; j += 4) {
         const __m128i a = cross_sum_fast_odd_row(A + i * buf_stride + j);
         const __m128i b = cross_sum_fast_odd_row(B + i * buf_stride + j);
-        const __m128i raw =
-            xx_loadl_64(dgd_real + ((i * dgd_stride + j) << highbd));
-        const __m128i src =
-            highbd ? _mm_cvtepu16_epi32(raw) : _mm_cvtepu8_epi32(raw);
+
+        const __m128i raw = xx_loadl_64(dgd + (i * dgd_stride + j));
+        const __m128i src = _mm_cvtepu16_epi32(raw);
 
         __m128i v = _mm_add_epi32(_mm_madd_epi16(a, src), b);
         __m128i w = _mm_srai_epi32(_mm_add_epi32(v, rounding1),
@@ -502,11 +439,10 @@ static void final_filter_fast(int32_t *dst, int dst_stride, const int32_t *A,
   }
 }
 
-int av1_selfguided_restoration_sse4_1(const uint8_t *dgd8, int width,
+int av1_selfguided_restoration_sse4_1(const uint16_t *dgd, int width,
                                       int height, int dgd_stride, int32_t *flt0,
                                       int32_t *flt1, int flt_stride,
-                                      int sgr_params_idx, int bit_depth,
-                                      int highbd) {
+                                      int sgr_params_idx, int bit_depth) {
   int32_t *buf = (int32_t *)aom_memalign(
       16, 4 * sizeof(*buf) * RESTORATION_PROC_UNIT_PELS);
   if (!buf) return -1;
@@ -546,16 +482,12 @@ int av1_selfguided_restoration_sse4_1(const uint8_t *dgd8, int width,
 
   const int dgd_diag_border =
       SGRPROJ_BORDER_HORZ + dgd_stride * SGRPROJ_BORDER_VERT;
-  const uint8_t *dgd0 = dgd8 - dgd_diag_border;
+  const uint16_t *dgd0 = dgd - dgd_diag_border;
 
   // Generate integral images from the input. C will contain sums of squares; D
   // will contain just sums
-  if (highbd)
-    integral_images_highbd(CONVERT_TO_SHORTPTR(dgd0), dgd_stride, width_ext,
-                           height_ext, Ctl, Dtl, buf_stride);
-  else
-    integral_images(dgd0, dgd_stride, width_ext, height_ext, Ctl, Dtl,
-                    buf_stride);
+  integral_images_highbd(dgd0, dgd_stride, width_ext, height_ext, Ctl, Dtl,
+                         buf_stride);
 
   const sgr_params_type *const params = &av1_sgr_params[sgr_params_idx];
   // Write to flt0 and flt1
@@ -569,30 +501,30 @@ int av1_selfguided_restoration_sse4_1(const uint8_t *dgd8, int width,
   if (params->r[0] > 0) {
     calc_ab_fast(A, B, C, D, width, height, buf_stride, bit_depth,
                  sgr_params_idx, 0);
-    final_filter_fast(flt0, flt_stride, A, B, buf_stride, dgd8, dgd_stride,
-                      width, height, highbd);
+    final_filter_fast(flt0, flt_stride, A, B, buf_stride, dgd, dgd_stride,
+                      width, height);
   }
 
   if (params->r[1] > 0) {
     calc_ab(A, B, C, D, width, height, buf_stride, bit_depth, sgr_params_idx,
             1);
-    final_filter(flt1, flt_stride, A, B, buf_stride, dgd8, dgd_stride, width,
-                 height, highbd);
+    final_filter(flt1, flt_stride, A, B, buf_stride, dgd, dgd_stride, width,
+                 height);
   }
   aom_free(buf);
   return 0;
 }
 
-void av1_apply_selfguided_restoration_sse4_1(const uint8_t *dat8, int width,
+void av1_apply_selfguided_restoration_sse4_1(const uint16_t *dat, int width,
                                              int height, int stride, int eps,
-                                             const int *xqd, uint8_t *dst8,
+                                             const int *xqd, uint16_t *dst,
                                              int dst_stride, int32_t *tmpbuf,
-                                             int bit_depth, int highbd) {
+                                             int bit_depth) {
   int32_t *flt0 = tmpbuf;
   int32_t *flt1 = flt0 + RESTORATION_UNITPELS_MAX;
   assert(width * height <= RESTORATION_UNITPELS_MAX);
   const int ret = av1_selfguided_restoration_sse4_1(
-      dat8, width, height, stride, flt0, flt1, width, eps, bit_depth, highbd);
+      dat, width, height, stride, flt0, flt1, width, eps, bit_depth);
   (void)ret;
   assert(!ret);
   const sgr_params_type *const params = &av1_sgr_params[eps];
@@ -608,13 +540,9 @@ void av1_apply_selfguided_restoration_sse4_1(const uint8_t *dat8, int width,
       const int k = i * width + j;
       const int m = i * dst_stride + j;
 
-      const uint8_t *dat8ij = dat8 + i * stride + j;
+      const uint16_t *datij = dat + i * stride + j;
       __m128i src;
-      if (highbd) {
-        src = xx_loadu_128(CONVERT_TO_SHORTPTR(dat8ij));
-      } else {
-        src = _mm_cvtepu8_epi16(xx_loadl_64(dat8ij));
-      }
+      src = xx_loadu_128(datij);
 
       const __m128i u = _mm_slli_epi16(src, SGRPROJ_RST_BITS);
       const __m128i u_0 = _mm_cvtepu16_epi32(u);
@@ -646,18 +574,11 @@ void av1_apply_selfguided_restoration_sse4_1(const uint8_t *dat8, int width,
       const __m128i w_1 = _mm_srai_epi32(_mm_add_epi32(v_1, rounding),
                                          SGRPROJ_PRJ_BITS + SGRPROJ_RST_BITS);
 
-      if (highbd) {
-        // Pack into 16 bits and clamp to [0, 2^bit_depth)
-        const __m128i tmp = _mm_packus_epi32(w_0, w_1);
-        const __m128i max = _mm_set1_epi16((1 << bit_depth) - 1);
-        const __m128i res = _mm_min_epi16(tmp, max);
-        xx_storeu_128(CONVERT_TO_SHORTPTR(dst8 + m), res);
-      } else {
-        // Pack into 8 bits and clamp to [0, 256)
-        const __m128i tmp = _mm_packs_epi32(w_0, w_1);
-        const __m128i res = _mm_packus_epi16(tmp, tmp /* "don't care" value */);
-        xx_storel_64(dst8 + m, res);
-      }
+      // Pack into 16 bits and clamp to [0, 2^bit_depth)
+      const __m128i tmp = _mm_packus_epi32(w_0, w_1);
+      const __m128i max = _mm_set1_epi16((1 << bit_depth) - 1);
+      const __m128i res = _mm_min_epi16(tmp, max);
+      xx_storeu_128(dst + m, res);
     }
   }
 }

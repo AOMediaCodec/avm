@@ -27,8 +27,8 @@ extern "C" {
 
 /*!\cond */
 
-#define TXB_SKIP_CTX_MASK 15
-#define DC_SIGN_CTX_SHIFT 4
+#define TXB_SKIP_CTX_MASK 31
+#define DC_SIGN_CTX_SHIFT 5
 #define DC_SIGN_CTX_MASK 3
 
 typedef struct TxbInfo {
@@ -36,11 +36,7 @@ typedef struct TxbInfo {
   uint8_t *levels;  // absolute values and clamped to 255.
   tran_low_t *dqcoeff;
   const tran_low_t *tcoeff;
-#if CONFIG_EXTQUANT
   const int32_t *dequant;
-#else
-  const int16_t *dequant;
-#endif
   int shift;
   TX_SIZE tx_size;
   TX_SIZE txs_ctx;
@@ -77,10 +73,38 @@ void av1_alloc_txb_buf(AV1_COMP *cpi);
  * \param[in]    cpi            Top-level encoder structure
  */
 void av1_free_txb_buf(AV1_COMP *cpi);
+
+#if CONFIG_CROSS_CHROMA_TX
 /*!\brief Compute the entropy cost of coding coefficients in a transform block.
  *
  * \ingroup coefficient_coding
  *
+ * \param[in]    cm                   Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x                    Pointer to structure holding the data for
+ the current encoding macroblock.
+ * \param[in]    plane                The index of the current plane.
+ * \param[in]    block                The index of the current transform block
+ in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block.
+ * \param[in]    tx_size              The transform size.
+ * \param[in]    tx_type              The transform type.
+ * \param[in]    cctx_type            The cross chroma component transform
+ * type.
+ * \param[in]    txb_ctx              Context info for entropy coding transform
+ block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[in]    reduced_tx_set_used  Whether the transform type is chosen from
+ * a reduced set.
+ */
+#else
+/*!\brief Compute the entropy cost of coding coefficients in a transform block.
+ *
+ * \ingroup coefficient_coding
+ *
+ * \param[in]    cm                   Top-level structure shared by encoder and
+ * decoder
  * \param[in]    x                    Pointer to structure holding the data for
  the current encoding macroblock.
  * \param[in]    plane                The index of the current plane.
@@ -96,10 +120,17 @@ void av1_free_txb_buf(AV1_COMP *cpi);
  * \param[in]    reduced_tx_set_used  Whether the transform type is chosen from
  * a reduced set.
  */
-int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
-                        const TX_SIZE tx_size, const TX_TYPE tx_type,
+#endif  // CONFIG_CROSS_CHROMA_TX
+
+int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
+                        const int plane, const int block, const TX_SIZE tx_size,
+                        const TX_TYPE tx_type,
+#if CONFIG_CROSS_CHROMA_TX
+                        const CctxType cctx_type,
+#endif  // CONFIG_CROSS_CHROMA_TX
                         const TXB_CTX *const txb_ctx, int reduced_tx_set_used);
 
+#if CONFIG_CROSS_CHROMA_TX
 /*!\brief Estimate the entropy cost of coding a transform block using Laplacian
  * distribution.
  *
@@ -117,8 +148,49 @@ int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
  * Compared to \ref av1_cost_coeffs_txb, this function is much faster but less
  * accurate.
  *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ * decoder
  * \param[in]    x              Pointer to structure holding the data for the
-                                current encoding macroblock
+ *                              current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \param[in]    cctx_type      The cross chroma component transform type
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[in]    reduced_tx_set_used  Whether the transform type is chosen from
+ * a reduced set.
+ * \param[in]    adjust_eob     Whether to adjust the end of block position
+ (eob)
+ * or not.
+ * \return       int            Estimated entropy cost of coding the transform
+ block.
+ */
+#else
+/*!\brief Estimate the entropy cost of coding a transform block using Laplacian
+ * distribution.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function compute the entropy costs of the end of block position (eob)
+ * and the transform type (tx_type) precisely.
+ *
+ * Then using \ref av1_cost_coeffs_txb_estimate to estimate the entropy costs
+ * of coefficients in the transform block.
+ *
+ * In the end, the function returns the sum of entropy costs of end of block
+ * position (eob), transform type (tx_type) and coefficients.
+ *
+ * Compared to \ref av1_cost_coeffs_txb, this function is much faster but less
+ * accurate.
+ *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x              Pointer to structure holding the data for the
+ *                              current encoding macroblock
  * \param[in]    plane          The index of the current plane
  * \param[in]    block          The index of the current transform block in the
  * macroblock. It's defined by number of 4x4 units that have been coded before
@@ -135,9 +207,13 @@ int av1_cost_coeffs_txb(const MACROBLOCK *x, const int plane, const int block,
  * \return       int            Estimated entropy cost of coding the transform
  block.
  */
-int av1_cost_coeffs_txb_laplacian(const MACROBLOCK *x, const int plane,
-                                  const int block, const TX_SIZE tx_size,
-                                  const TX_TYPE tx_type,
+#endif  // CONFIG_CROSS_CHROMA_TX
+int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
+                                  const int plane, const int block,
+                                  const TX_SIZE tx_size, const TX_TYPE tx_type,
+#if CONFIG_CROSS_CHROMA_TX
+                                  const CctxType cctx_type,
+#endif  // CONFIG_CROSS_CHROMA_TX
                                   const TXB_CTX *const txb_ctx,
                                   const int reduced_tx_set_used,
                                   const int adjust_eob);
@@ -212,6 +288,108 @@ int av1_cost_coeffs_txb_estimate(const MACROBLOCK *x, const int plane,
 void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                           aom_writer *w, int blk_row, int blk_col, int plane,
                           int block, TX_SIZE tx_size);
+
+/*!\brief Write the transform unit skip flag and the transform type for Luma
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function will write the transform unit skip flag (eob==0) first and
+ * then the transform type for the Luma component.
+ *
+ * The coding steps are as follows.
+ *
+ * 1) Code the transform unit skip flag (eob==0)
+ *
+ * 2) Code the transform type
+ *
+ * \param[in]    cm        Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x         Pointer to structure holding the data for the
+                           current encoding macroblock
+ * \param[in]    w         Entropy coding write pointer
+ * \param[in]    blk_row   The row index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    blk_col   The col index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    plane     The index of the current plane
+ * \param[in]    block     The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block
+ * \param[in]    tx_size   The given transform size
+ */
+int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
+                         aom_writer *w, int blk_row, int blk_col, int plane,
+                         int block, TX_SIZE tx_size);
+
+/*!\brief Estimate the entropy cost of 2D IDTX transform coefficients
+ * using Laplacian distribution for forward skip residual coding. Unlike
+ * av1_cost_coeffs_txb_estimate this function does not consider EOB.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function assumes each transform coefficient is of its own Laplacian
+ * distribution and the coefficient is the only observation of the Laplacian
+ * distribution.
+ *
+ * Based on that, each coefficient's coding cost can be estimated by computing
+ * the entropy of the corresponding Laplacian distribution.
+ *
+ * This function then return the sum of the estimated entropy cost for all
+ * coefficients in the transform block.
+ *
+ * Note that the entropy cost of end of block (eob) and transform type (tx_type)
+ * are not included.
+ *
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \return       int            Estimated entropy cost of coefficients in the
+ * transform block.
+ */
+int av1_cost_coeffs_txb_skip_estimate(const MACROBLOCK *x, const int plane,
+                                      const int block, const TX_SIZE tx_size,
+                                      const TX_TYPE tx_type);
+
+/*!\brief Write quantized coefficients in a identity transform block into
+ * bitstream using forward skip coding.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function will write the quantized coefficients in a transform block
+ after 2D
+ * identity transform into the bitstream using forward skip entropy coding.
+ *
+ * The coding steps are as follows.
+ *
+ * 1) Code the lower magnitude level (<= COEFF_BASE_RANGE + NUM_BASE_LEVELS)
+ * for each coefficient in reversed scan order.
+ *
+ * 2) Code the sign and higher magnitude level
+ * (> COEFF_BASE_RANGE + NUM_BASE_LEVELS) in forward scan order.
+ *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ * decoder
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    w              Entropy coding write pointer
+ * \param[in]    blk_row      The row index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    blk_col      The col index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block
+ * \param[in]    tx_size        The given transform size
+ */
+void av1_write_coeffs_txb_skip(const AV1_COMMON *const cm, MACROBLOCK *const x,
+                               aom_writer *w, int blk_row, int blk_col,
+                               int plane, int block, TX_SIZE tx_size);
 
 /*!\brief Write quantized coefficients of all transform blocks in an intra
  * macroblock into the bitstream using entropy coding.
@@ -309,6 +487,79 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                                        int blk_col, BLOCK_SIZE plane_bsize,
                                        TX_SIZE tx_size, void *arg);
 
+/*!\brief Update the probability model (cdf) and the entropy context related to
+ * coefficient coding for a transform block when the transform type is 2D
+ * identity (IDTX) and the forward skip residual coding mode is used..
+ *
+ * \ingroup coefficient_coding
+ *
+ * There are regular mode and dry run for this funtion.
+ *
+ * Regular mode:
+ *
+ * The probability model (cdf) for each coding symbol in the
+ * transform block will be updated.
+ *
+ * The entropy context of this transform block will be updated.
+ *
+ * Dry run:
+ *
+ * The probability model update will be skipped.
+ *
+ * The entropy context of this transform block will be updated.
+ *
+ * \param[in]    plane        The index of the current plane.
+ * \param[in]    block        The index of the current transform block in the
+ * macroblock. It's defined by number of 4x4 units that have been coded before
+ * the currernt transform block.
+ * \param[in]    blk_row      The row index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane.
+ * \param[in]    blk_col      The col index of the current transform block
+ * in the macroblock. Each unit has 4 pixels in y plane.
+ * \param[in]    plane_bsize  Block size for this plane. When the video source
+ * uses chroma subsampling, the block size of UV planes will be smaller than the
+ * block size of Y plane.
+ * \param[in]    tx_size      The given transform size.
+ * \param[in]    arg          This parameter will be translated into
+ * tokenize_b_args, in which RUN_TYPE indicates using regular mode or dry run.
+ */
+void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
+                                            int blk_col, BLOCK_SIZE plane_bsize,
+                                            TX_SIZE tx_size, void *arg);
+
+#if CONFIG_CROSS_CHROMA_TX
+/*!\brief Adjust the magnitude of quantized coefficients to achieve better
+ * rate-distortion (RD) trade-off.
+ *
+ * \ingroup coefficient_coding
+ *
+ * This function goes through each coefficient and greedily choose to lower
+ * the coefficient magnitude by 1 or not based on the RD score.
+ *
+ * The coefficients are processing in reversed scan order.
+ *
+ * Note that, the end of block position (eob) may change if the original last
+ * coefficient is lowered to zero.
+ *
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    block          The index of the current transform block in the
+ * \param[in]    tx_size        The transform size
+ * \param[in]    tx_type        The transform type
+ * \param[in]    cctx_type      The cross chroma component transform type
+ * \param[in]    txb_ctx        Context info for entropy coding transform block
+ * skip flag (tx_skip) and the sign of DC coefficient (dc_sign).
+ * \param[out]   rate_cost      The entropy cost of coding the transform block
+ * after adjustment of coefficients.
+ * \param[in]    sharpness      When sharpness == 1, the function will be less
+ * aggressive toward lowering the magnitude of coefficients.
+ * In this way, the transform block will contain more high-frequency
+ coefficients
+ * and therefore preserve the sharpness of the reconstructed block.
+ */
+#else
 /*!\brief Adjust the magnitude of quantized coefficients to achieve better
  * rate-distortion (RD) trade-off.
  *
@@ -339,8 +590,12 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
  coefficients
  * and therefore preserve the sharpness of the reconstructed block.
  */
+#endif  // CONFIG_CROSS_CHROMA_TX
 int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          int block, TX_SIZE tx_size, TX_TYPE tx_type,
+#if CONFIG_CROSS_CHROMA_TX
+                         CctxType cctx_type,
+#endif  // CONFIG_CROSS_CHROMA_TX
                          const TXB_CTX *const txb_ctx, int *rate_cost,
                          int sharpness);
 
@@ -363,6 +618,29 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
  */
 CB_COEFF_BUFFER *av1_get_cb_coeff_buffer(const struct AV1_COMP *cpi, int mi_row,
                                          int mi_col);
+
+#if CONFIG_CROSS_CHROMA_TX
+/*!\brief Return the entropy cost associated with the cross chroma transform
+ *
+ * \ingroup coefficient_coding
+ *
+ * \param[in]    cm             Top-level structure shared by encoder and
+ decoder
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    xd             Pointer to structure holding the data for the
+                                current macroblockd
+ * \param[in]    plane          The index of the current plane
+ * \param[in]    tx_size        The transform size
+ * \param[in]    block          The index of the current transform block
+ * \param[in]    cctx_type      The cross chroma transform type
+ *
+ * \return       int            Entropy cost for cctx type
+ */
+int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
+                       const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
+                       int block, CctxType cctx_type);
+#endif  // CONFIG_CROSS_CHROMA_TX
 
 #if CONFIG_CONTEXT_DERIVATION
 /*!\brief Returns the entropy cost associated with skipping the current

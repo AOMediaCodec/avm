@@ -26,8 +26,8 @@
 using libaom_test::ACMRandom;
 
 namespace {
-#define CONVOLVE_ROUNDING_PARAM                                            \
-  const int32_t *src, int src_stride, uint8_t *dst, int dst_stride, int w, \
+#define CONVOLVE_ROUNDING_PARAM                                             \
+  const int32_t *src, int src_stride, uint16_t *dst, int dst_stride, int w, \
       int h, int bits
 
 typedef void (*ConvolveRoundFunc)(CONVOLVE_ROUNDING_PARAM);
@@ -89,18 +89,8 @@ class ConvolveRoundTest : public ::testing::TestWithParam<ConvolveRoundParam> {
     const int src_stride = 128;
     const int dst_stride = 128;
     int bits = 13;
-    uint8_t *dst = 0;
-    uint8_t *dst_ref = 0;
-
-    if (data_path_ == LOWBITDEPTH_TEST) {
-      dst = reinterpret_cast<uint8_t *>(dst_);
-      dst_ref = reinterpret_cast<uint8_t *>(dst_ref_);
-    } else if (data_path_ == HIGHBITDEPTH_TEST) {
-      dst = CONVERT_TO_BYTEPTR(dst_);
-      dst_ref = CONVERT_TO_BYTEPTR(dst_ref_);
-    } else {
-      assert(0);
-    }
+    uint16_t *dst = dst_;
+    uint16_t *dst_ref = dst_ref_;
 
     while (test_num < kTestNum) {
       int block_size = test_num % BLOCK_SIZES_ALL;
@@ -167,8 +157,6 @@ TEST_P(ConvolveRoundTest, BitExactCheck) { ConvolveRoundingRun(); }
 using std::make_tuple;
 #if HAVE_AVX2
 const ConvolveRoundParam kConvRndParamArray[] = {
-  make_tuple(&av1_convolve_rounding_c, &av1_convolve_rounding_avx2,
-             LOWBITDEPTH_TEST),
   make_tuple(&highbd_convolve_rounding_8<av1_highbd_convolve_rounding_c>,
              &highbd_convolve_rounding_8<av1_highbd_convolve_rounding_avx2>,
              HIGHBITDEPTH_TEST),

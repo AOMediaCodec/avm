@@ -136,7 +136,6 @@ TEST_P(TestVectorTest, DISABLED_MD5Match) {
   OpenMD5File(md5_filename);
 
   // Set decode config and flags.
-  cfg.allow_lowbitdepth = 0;
   set_cfg(cfg);
   set_flags(flags);
 

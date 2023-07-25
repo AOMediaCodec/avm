@@ -19,6 +19,10 @@
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
 
+#if CONFIG_LR_MERGE_COEFFS
+#include "third_party/vector/vector.h"
+#endif  // CONFIG_LR_MERGE_COEFFS
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -78,7 +82,11 @@ extern "C" {
    (RESTORATION_PROC_UNIT_SIZE + RESTORATION_BORDER_VERT * 2 + \
     RESTORATION_PADDING))
 
+#if CONFIG_FLEXIBLE_RU_SIZE
+#define RESTORATION_UNITSIZE_MAX 512
+#else
 #define RESTORATION_UNITSIZE_MAX 256
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
 #define RESTORATION_UNITPELS_HORZ_MAX \
   (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_BORDER_HORZ + 16)
 #define RESTORATION_UNITPELS_VERT_MAX                                \
@@ -86,6 +94,11 @@ extern "C" {
     RESTORATION_UNIT_OFFSET))
 #define RESTORATION_UNITPELS_MAX \
   (RESTORATION_UNITPELS_HORZ_MAX * RESTORATION_UNITPELS_VERT_MAX)
+
+#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+#define NUM_PC_WIENER_TAPS_LUMA 13
+#include "av1/common/pc_wiener_filters.h"
+#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
 
 // Two 32-bit buffers needed for the restored versions from two filters
 // TODO(debargha, rupert): Refactor to not need the large tilesize to be stored
@@ -95,6 +108,7 @@ extern "C" {
 #define SGRPROJ_EXTBUF_SIZE (0)
 #define SGRPROJ_PARAMS_BITS 4
 #define SGRPROJ_PARAMS (1 << SGRPROJ_PARAMS_BITS)
+#define SGRPROJ_PARAMS_DEFAULT 9
 
 // Precision bits for projection
 #define SGRPROJ_PRJ_BITS 7
@@ -166,6 +180,76 @@ extern "C" {
 #define WIENER_FILT_TAP1_SUBEXP_K 2
 #define WIENER_FILT_TAP2_SUBEXP_K 3
 
+#if CONFIG_WIENER_NONSEP
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+#define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
+#else
+#define WIENERNS_UV_BRD 0  // Max offset for luma used for chorma
+#endif                     // CONFIG_WIENER_NONSEP_CROSS_FILT
+
+#define WIENERNS_MAX 20
+
+#define WIENERNS_ROW_ID 0
+#define WIENERNS_COL_ID 1
+#define WIENERNS_BUF_POS 2
+
+#define WIENERNS_COEFCFG_LEN 3
+#define WIENERNS_BIT_ID 0
+#define WIENERNS_MIN_ID 1
+#define WIENERNS_PAR_ID 2
+
+typedef struct {
+  NonsepFilterConfig nsfilter_config;
+  int ncoeffs;
+  const int (*coeffs)[WIENERNS_COEFCFG_LEN];
+} WienernsFilterParameters;
+
+typedef struct {
+  const WienernsFilterParameters *y;
+  const WienernsFilterParameters *uv;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  const WienernsFilterParameters *uv_cross;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+} WienernsFilterPairParameters;
+
+extern const WienernsFilterPairParameters wienerns_filters_lowqp;
+extern const WienernsFilterPairParameters wienerns_filters_midqp;
+extern const WienernsFilterPairParameters wienerns_filters_highqp;
+
+#define USE_CENTER_WIENER_NONSEP 0
+
+static INLINE const WienernsFilterParameters *get_wienerns_parameters(
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    int qindex, int is_uv, int is_cross) {
+#else
+    int qindex, int is_uv) {
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  const WienernsFilterPairParameters *pair_nsfilter_params = NULL;
+  (void)qindex;
+  pair_nsfilter_params = &wienerns_filters_midqp;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  if (is_cross) return pair_nsfilter_params->uv_cross;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  return is_uv ? pair_nsfilter_params->uv : pair_nsfilter_params->y;
+}
+
+static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
+                                                            int is_uv
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+                                                            ,
+                                                            int is_cross
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+) {
+  const WienernsFilterParameters *base_nsfilter_params =
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+      get_wienerns_parameters(qindex, is_uv, is_cross);
+#else
+      get_wienerns_parameters(qindex, is_uv);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  return &base_nsfilter_params->nsfilter_config;
+}
+#endif  // CONFIG_WIENER_NONSEP
+
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
 #define RESTORATION_TMPBUF_SIZE (SGRPROJ_TMPBUF_SIZE)
 
@@ -197,6 +281,11 @@ typedef struct {
    */
   RestorationType restoration_type;
 
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  /*! Cross restoration type*/
+  RestorationType cross_restoration_type;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+
   /*!
    * Wiener filter parameters if restoration_type indicates Wiener
    */
@@ -206,6 +295,74 @@ typedef struct {
    * Sgrproj filter parameters if restoration_type indicates Sgrproj
    */
   SgrprojInfo sgrproj_info;
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * Nonseparable Wiener filter information.
+   */
+  WienerNonsepInfo wienerns_info;
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  /*!
+   * Pointer to luma frame.
+   */
+  const uint16_t *luma;
+  /*!
+   * Stride for luma frame.
+   */
+  int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_WIENER_NONSEP
+
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+  /*!
+   * Plane for filtering.
+   */
+  int plane;
+  /*!
+   * Quantizer index.
+   */
+  int base_qindex;
+  /*!
+   * The class-id that classifcation related processing should be restricted to.
+   */
+  int wiener_class_id_restrict;
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_PC_WIENER
+  /*!
+   * Pointer to tskip frame.
+   */
+  const uint8_t *tskip;
+  /*!
+   * Stride for tskip frame.
+   */
+  int tskip_stride;
+  /*!
+   * Offset to quantizer index.
+   */
+  int qindex_offset;
+  /*!
+   * Pointer to wiener_class_id frame.
+   */
+  uint8_t *wiener_class_id;
+  /*!
+   * Stride for wiener_class_id frame.
+   */
+  int wiener_class_id_stride;
+  /*!
+   * Pointer to buffers for pcwiener computations.
+   */
+  PcwienerBuffers *pcwiener_buffers;
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  /*!
+   * Nonseparable Wiener cross filter information.
+   */
+  WienerNonsepInfo wienerns_cross_info;
+
+  /*!
+   * wienerns cross filter idx of the current RU
+   */
+  int wienerns_cross_filter_idx;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 } RestorationUnitInfo;
 
 /*!\cond */
@@ -234,12 +391,12 @@ typedef struct {
   /*!
    * stripe boundary above
    */
-  uint8_t *stripe_boundary_above;
+  uint16_t *stripe_boundary_above;
 
   /*!
    * stripe boundary below
    */
-  uint8_t *stripe_boundary_below;
+  uint16_t *stripe_boundary_below;
 
   /*!
    * strides for stripe boundaries above and below
@@ -264,6 +421,16 @@ typedef struct {
    */
   int restoration_unit_size;
 
+#if CONFIG_FLEXIBLE_RU_SIZE
+  /*!
+   * Maximum restoration unit size
+   */
+  int max_restoration_unit_size;
+  /*!
+   * Minimum restoration unit size
+   */
+  int min_restoration_unit_size;
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
   /**
    * \name Fields allocated and initialised by av1_alloc_restoration_struct.
    * (horz_)units_per_tile give the number of restoration units in
@@ -295,6 +462,11 @@ typedef struct {
    */
   RestorationUnitInfo *unit_info;
 
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  /*! Cross restoration type for frame*/
+  RestorationType frame_cross_restoration_type;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+
   /*!
    * Restoration Stripe boundary info
    */
@@ -306,26 +478,94 @@ typedef struct {
    * are used on the encoder side.
    */
   int optimized_lr;
+#if CONFIG_LR_FLEX_SYNTAX
+  /*!
+   * Additional tools disable mask in switchable frame mode
+   */
+  uint8_t sw_lr_tools_disable_mask;
+#endif  // CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * Number of classes in the Wienerns filtering calculation.
+   */
+  int num_filter_classes;
+#endif  // CONFIG_WIENER_NONSEP
 } RestorationInfo;
 
 /*!\cond */
 
 static INLINE void set_default_sgrproj(SgrprojInfo *sgrproj_info) {
+  sgrproj_info->ep = SGRPROJ_PARAMS_DEFAULT;
   sgrproj_info->xqd[0] = (SGRPROJ_PRJ_MIN0 + SGRPROJ_PRJ_MAX0) / 2;
   sgrproj_info->xqd[1] = (SGRPROJ_PRJ_MIN1 + SGRPROJ_PRJ_MAX1) / 2;
 }
 
-static INLINE void set_default_wiener(WienerInfo *wiener_info) {
-  wiener_info->vfilter[0] = wiener_info->hfilter[0] = WIENER_FILT_TAP0_MIDV;
+static INLINE void set_default_wiener(WienerInfo *wiener_info, int chroma) {
+  const int wiener_filt_tap0_midv = chroma ? 0 : WIENER_FILT_TAP0_MIDV;
+  wiener_info->vfilter[0] = wiener_info->hfilter[0] = wiener_filt_tap0_midv;
   wiener_info->vfilter[1] = wiener_info->hfilter[1] = WIENER_FILT_TAP1_MIDV;
   wiener_info->vfilter[2] = wiener_info->hfilter[2] = WIENER_FILT_TAP2_MIDV;
   wiener_info->vfilter[WIENER_HALFWIN] = wiener_info->hfilter[WIENER_HALFWIN] =
       -2 *
-      (WIENER_FILT_TAP2_MIDV + WIENER_FILT_TAP1_MIDV + WIENER_FILT_TAP0_MIDV);
+      (WIENER_FILT_TAP2_MIDV + WIENER_FILT_TAP1_MIDV + wiener_filt_tap0_midv);
   wiener_info->vfilter[4] = wiener_info->hfilter[4] = WIENER_FILT_TAP2_MIDV;
   wiener_info->vfilter[5] = wiener_info->hfilter[5] = WIENER_FILT_TAP1_MIDV;
-  wiener_info->vfilter[6] = wiener_info->hfilter[6] = WIENER_FILT_TAP0_MIDV;
+  wiener_info->vfilter[6] = wiener_info->hfilter[6] = wiener_filt_tap0_midv;
 }
+
+#if CONFIG_WIENER_NONSEP
+static INLINE void set_default_wienerns(WienerNonsepInfo *wienerns_info,
+                                        int qindex, int num_classes, int chroma
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+                                        ,
+                                        int is_cross
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+) {
+  const WienernsFilterParameters *nsfilter_params =
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+      get_wienerns_parameters(qindex, chroma, is_cross);
+#else
+      get_wienerns_parameters(qindex, chroma);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  wienerns_info->num_classes = num_classes;
+  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+#if CONFIG_LR_MERGE_COEFFS
+    wienerns_info->bank_ref_for_class[c_id] = 0;
+#endif  // CONFIG_LR_MERGE_COEFFS
+    int16_t *wienerns_info_nsfilter = nsfilter_taps(wienerns_info, c_id);
+    for (int i = 0; i < nsfilter_params->ncoeffs; ++i) {
+      wienerns_info_nsfilter[i] =
+          nsfilter_params->coeffs[i][WIENERNS_MIN_ID] +
+          (1 << nsfilter_params->coeffs[i][WIENERNS_BIT_ID]) / 2;
+    }
+  }
+}
+
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+
+// 0: Skip luma pixels to scale down to chroma (simplest)
+// 1: Average 4 or 2 luma pixels to scale down to chroma
+// 2: Average 2 (top and down) luma pixels to scale down to chroma for 420,
+// could be based on the luma downsampling type from CFL tool 3: Use 8-tap
+// downsampling filter
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+#define WIENERNS_CROSS_FILT_LUMA_TYPE 2
+#else
+#define WIENERNS_CROSS_FILT_LUMA_TYPE 0
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+
+uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
+                                    int width_y, int in_stride, uint16_t **luma,
+                                    int height_uv, int width_uv, int border,
+                                    int out_stride, int bd
+#if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
+                                    ,
+                                    int ds_type
+#endif
+);
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+
+#endif  // CONFIG_WIENER_NONSEP
 
 typedef struct {
   int h_start, h_end, v_start, v_end;
@@ -333,18 +573,33 @@ typedef struct {
 
 typedef void (*rest_unit_visitor_t)(const RestorationTileLimits *limits,
                                     const AV1PixelRect *tile_rect,
-                                    int rest_unit_idx, void *priv,
-                                    int32_t *tmpbuf,
+                                    int rest_unit_idx, int rest_unit_idx_seq,
+                                    void *priv, int32_t *tmpbuf,
                                     RestorationLineBuffers *rlbs);
 
 typedef struct FilterFrameCtxt {
   const RestorationInfo *rsi;
   int tile_stripe0;
   int ss_x, ss_y;
-  int highbd, bit_depth;
-  uint8_t *data8, *dst8;
+  int bit_depth;
+  uint16_t *data8, *dst8;
   int data_stride, dst_stride;
   AV1PixelRect tile_rect;
+#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+  int plane;
+  int base_qindex;
+#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_WIENER_NONSEP_CROSS_FILT
+  const uint16_t *luma;
+  int luma_stride;
+#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_PC_WIENER
+  const uint8_t *tskip;
+  int tskip_stride;
+  int qindex_offset;
+  uint8_t *wiener_class_id;
+  int wiener_class_id_stride;
+#endif  // CONFIG_PC_WIENER
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {
@@ -352,6 +607,9 @@ typedef struct AV1LrStruct {
   FilterFrameCtxt ctxt[MAX_MB_PLANE];
   YV12_BUFFER_CONFIG *frame;
   YV12_BUFFER_CONFIG *dst;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  YV12_BUFFER_CONFIG *pre_filter_frame;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 } AV1LrStruct;
 
 extern const sgr_params_type av1_sgr_params[SGRPROJ_PARAMS];
@@ -363,8 +621,8 @@ void av1_alloc_restoration_struct(struct AV1Common *cm, RestorationInfo *rsi,
                                   int is_uv);
 void av1_free_restoration_struct(RestorationInfo *rst_info);
 
-void av1_extend_frame(uint8_t *data, int width, int height, int stride,
-                      int border_horz, int border_vert, int highbd);
+void av1_extend_frame(uint16_t *data, int width, int height, int stride,
+                      int border_horz, int border_vert);
 void av1_decode_xq(const int *xqd, int *xq, const sgr_params_type *params);
 
 /*!\endcond */
@@ -384,28 +642,39 @@ void av1_decode_xq(const int *xqd, int *xq, const sgr_params_type *params);
  * \param[in]  tile_stripe0  Index of the first stripe in this tile
  * \param[in]  ss_x          Horizontal subsampling for plane
  * \param[in]  ss_y          Vertical subsampling for plane
- * \param[in]  highbd        Whether high bitdepth pipeline is used
  * \param[in]  bit_depth     Bit-depth of the video
- * \param[in]  data8         Frame data (pointing at the top-left corner of
+ * \param[in]  data          Frame data (pointing at the top-left corner of
  *                           the frame, not the restoration unit).
- * \param[in]  stride        Stride of \c data8
- * \param[out] dst8          Buffer where the results will be written. Like
- *                           \c data8, \c dst8 should point at the top-left
+ * \param[in]  stride        Stride of \c data
+ * \param[out] dst           Buffer where the results will be written. Like
+ *                           \c data, \c dst should point at the top-left
  *                           corner of the frame
- * \param[in]  dst_stride    Stride of \c dst8
+ * \param[in]  dst_stride    Stride of \c dst
  * \param[in]  tmpbuf        Scratch buffer used by the sgrproj filter which
  *                           should be at least SGRPROJ_TMPBUF_SIZE big.
  * \param[in]  optimized_lr  Whether to use fast optimized Loop Restoration
  *
- * \return Nothing is returned. Instead, the filtered unit is output in
- * \c dst8 at the proper restoration unit offset.
+ * Nothing is returned. Instead, the filtered unit is output in \c dst
+ * at the proper restoration unit offset.
  */
 void av1_loop_restoration_filter_unit(
     const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
     const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
     const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
-    int highbd, int bit_depth, uint8_t *data8, int stride, uint8_t *dst8,
-    int dst_stride, int32_t *tmpbuf, int optimized_lr);
+    int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
+    int32_t *tmpbuf, int optimized_lr);
+
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+/*!\brief Function for applying cross wienerns filter to a single unit.
+ * The inputs are same as those of av1_loop_restoration_filter_unit
+ */
+void av1_wiener_ns_cross_filter_unit(
+    const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
+    const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
+    const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
+    int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
+    int32_t *tmpbuf, int optimized_lr);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 /*!\brief Function for applying loop restoration filter to a frame
  *
@@ -417,13 +686,22 @@ void av1_loop_restoration_filter_unit(
  * \param[in]       optimized_lr  Whether to use fast optimized Loop Restoration
  * \param[in]       lr_ctxt       Loop restoration context
  *
- * \return Nothing is returned. Instead, the filtered frame is output in
- * \c frame.
+ * Nothing is returned. Instead, the filtered frame is output in \c frame.
  */
 void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,
                                        struct AV1Common *cm, int optimized_lr,
                                        void *lr_ctxt);
 /*!\cond */
+
+#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_PC_WIENER
+#define DEF_UV_LR_TOOLS_DISABLE_MASK (1 << RESTORE_PC_WIENER)
+#else
+#define DEF_UV_LR_TOOLS_DISABLE_MASK 0
+#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_FLEX_SYNTAX
 
 void av1_loop_restoration_precal();
 
@@ -436,6 +714,21 @@ typedef void (*sync_read_fn_t)(void *const lr_sync, int r, int c, int plane);
 typedef void (*sync_write_fn_t)(void *const lr_sync, int r, int c,
                                 const int sb_cols, int plane);
 
+// Call on_rest_unit for each loop restoration unit in a tile.
+void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
+                                   int hunits_per_tile, int vunits_per_tile,
+                                   int unit_stride, int unit_size, int ss_y,
+                                   int plane, rest_unit_visitor_t on_rest_unit,
+                                   void *priv, int32_t *tmpbuf,
+                                   RestorationLineBuffers *rlbs,
+                                   int *processed);
+// Call on_rest_unit for each loop restoration unit in a coded SB.
+void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect, int unit_idx0,
+                                 int hunits_per_tile, int vunits_per_tile,
+                                 int unit_stride, int unit_size, int ss_y,
+                                 int plane, rest_unit_visitor_t on_rest_unit,
+                                 void *priv, int32_t *tmpbuf,
+                                 RestorationLineBuffers *rlbs, int *processed);
 // Call on_rest_unit for each loop restoration unit in the plane.
 void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
                                     rest_unit_visitor_t on_rest_unit,
@@ -469,16 +762,29 @@ void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
 void av1_foreach_rest_unit_in_row(
     RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
     rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,
-    int unit_idx0, int hunits_per_tile, int vunits_per_tile, int plane,
-    void *priv, int32_t *tmpbuf, RestorationLineBuffers *rlbs,
+    int unit_idx0, int hunits_per_tile, int vunits_per_tile, int unit_stride,
+    int plane, void *priv, int32_t *tmpbuf, RestorationLineBuffers *rlbs,
     sync_read_fn_t on_sync_read, sync_write_fn_t on_sync_write,
-    struct AV1LrSyncData *const lr_sync);
+    struct AV1LrSyncData *const lr_sync, int *processed);
 AV1PixelRect av1_whole_frame_rect(const struct AV1Common *cm, int is_uv);
+AV1PixelRect av1_get_rutile_rect(const struct AV1Common *cm, int is_uv,
+                                 int ru_start_row, int ru_end_row,
+                                 int ru_start_col, int ru_end_col,
+                                 int ru_height, int ru_width);
+
 int av1_lr_count_units_in_tile(int unit_size, int tile_size);
 void av1_lr_sync_read_dummy(void *const lr_sync, int r, int c, int plane);
 void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
                              const int sb_cols, int plane);
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+void copy_tile(int width, int height, const uint16_t *src, int src_stride,
+               uint16_t *dst, int dst_stride);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
+#if CONFIG_FLEXIBLE_RU_SIZE
+void set_restoration_unit_size(int width, int height, int sx, int sy,
+                               RestorationInfo *rst);
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
 /*!\endcond */
 
 #ifdef __cplusplus

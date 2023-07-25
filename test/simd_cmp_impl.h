@@ -1519,7 +1519,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
 
     if (typeid(CRet) == typeid(c_v64) && typeid(CArg) == typeid(c_v64)) {
       // V64_V64
-      error = CompareSimd1Arg<v64, v64, CRet, CArg>(
+      error = CompareSimd1Arg<v64, v64, c_v64, c_v64>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v64_store_aligned),
@@ -1527,7 +1527,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v64) &&
                typeid(CArg) == typeid(uint8_t)) {
       // V64_U8
-      error = CompareSimd1Arg<v64, uint8_t, CRet, CArg>(
+      error = CompareSimd1Arg<v64, uint8_t, c_v64, uint8_t>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(u8_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v64_store_aligned),
@@ -1535,7 +1535,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v64) &&
                typeid(CArg) == typeid(uint16_t)) {
       // V64_U16
-      error = CompareSimd1Arg<v64, uint16_t, CRet, CArg>(
+      error = CompareSimd1Arg<v64, uint16_t, c_v64, uint16_t>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(u16_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v64_store_aligned),
@@ -1543,7 +1543,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v64) &&
                typeid(CArg) == typeid(uint32_t)) {
       // V64_U32
-      error = CompareSimd1Arg<v64, uint32_t, CRet, CArg>(
+      error = CompareSimd1Arg<v64, uint32_t, c_v64, uint32_t>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(u32_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v64_store_aligned),
@@ -1551,7 +1551,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(uint64_t) &&
                typeid(CArg) == typeid(c_v64)) {
       // U64_V64
-      error = CompareSimd1Arg<uint64_t, v64, CRet, CArg>(
+      error = CompareSimd1Arg<uint64_t, v64, uint64_t, c_v64>(
           reinterpret_cast<fptr>(u64_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_u64_store_aligned),
@@ -1559,7 +1559,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(int64_t) &&
                typeid(CArg) == typeid(c_v64)) {
       // S64_V64
-      error = CompareSimd1Arg<int64_t, v64, CRet, CArg>(
+      error = CompareSimd1Arg<int64_t, v64, int64_t, c_v64>(
           reinterpret_cast<fptr>(s64_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_s64_store_aligned),
@@ -1567,7 +1567,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(uint32_t) &&
                typeid(CArg) == typeid(c_v64)) {
       // U32_V64
-      error = CompareSimd1Arg<uint32_t, v64, CRet, CArg>(
+      error = CompareSimd1Arg<uint32_t, v64, uint32_t, c_v64>(
           reinterpret_cast<fptr>(u32_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_u32_store_aligned),
@@ -1575,7 +1575,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(int32_t) &&
                typeid(CArg) == typeid(c_v64)) {
       // S32_V64
-      error = CompareSimd1Arg<int32_t, v64, CRet, CArg>(
+      error = CompareSimd1Arg<int32_t, v64, int32_t, c_v64>(
           reinterpret_cast<fptr>(s32_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_s32_store_aligned),
@@ -1583,7 +1583,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(uint32_t) &&
                typeid(CArg) == typeid(c_v128)) {
       // U32_V128
-      error = CompareSimd1Arg<uint32_t, v128, CRet, CArg>(
+      error = CompareSimd1Arg<uint32_t, v128, uint32_t, c_v128>(
           reinterpret_cast<fptr>(u32_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_u32_store_aligned),
@@ -1591,7 +1591,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(uint64_t) &&
                typeid(CArg) == typeid(c_v128)) {
       // U64_V128
-      error = CompareSimd1Arg<uint64_t, v128, CRet, CArg>(
+      error = CompareSimd1Arg<uint64_t, v128, uint64_t, c_v128>(
           reinterpret_cast<fptr>(u64_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_u64_store_aligned),
@@ -1599,7 +1599,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(uint64_t) &&
                typeid(CArg) == typeid(c_v256)) {
       // U64_V256
-      error = CompareSimd1Arg<uint64_t, v256, CRet, CArg>(
+      error = CompareSimd1Arg<uint64_t, v256, uint64_t, c_v256>(
           reinterpret_cast<fptr>(u64_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_u64_store_aligned),
@@ -1607,7 +1607,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v64) &&
                typeid(CArg) == typeid(c_v128)) {
       // V64_V128
-      error = CompareSimd1Arg<v64, v128, CRet, CArg>(
+      error = CompareSimd1Arg<v64, v128, c_v64, c_v128>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v64_store_aligned),
@@ -1615,7 +1615,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v128) &&
                typeid(CArg) == typeid(c_v128)) {
       // V128_V128
-      error = CompareSimd1Arg<v128, v128, CRet, CArg>(
+      error = CompareSimd1Arg<v128, v128, c_v128, c_v128>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v128_store_aligned),
@@ -1623,7 +1623,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v128) &&
                typeid(CArg) == typeid(c_v64)) {
       // V128_V64
-      error = CompareSimd1Arg<v128, v64, CRet, CArg>(
+      error = CompareSimd1Arg<v128, v64, c_v128, c_v64>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v128_store_aligned),
@@ -1631,7 +1631,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v128) &&
                typeid(CArg) == typeid(uint8_t)) {
       // V128_U8
-      error = CompareSimd1Arg<v128, uint8_t, CRet, CArg>(
+      error = CompareSimd1Arg<v128, uint8_t, c_v128, uint8_t>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(u8_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v128_store_aligned),
@@ -1639,7 +1639,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v128) &&
                typeid(CArg) == typeid(uint16_t)) {
       // V128_U16
-      error = CompareSimd1Arg<v128, uint16_t, CRet, CArg>(
+      error = CompareSimd1Arg<v128, uint16_t, c_v128, uint16_t>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(u16_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v128_store_aligned),
@@ -1647,7 +1647,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v128) &&
                typeid(CArg) == typeid(uint32_t)) {
       // V128_U32
-      error = CompareSimd1Arg<v128, uint32_t, CRet, CArg>(
+      error = CompareSimd1Arg<v128, uint32_t, c_v128, uint32_t>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(u32_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v128_store_aligned),
@@ -1655,7 +1655,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v128) &&
                typeid(CArg) == typeid(uint64_t)) {
       // V128_U64
-      error = CompareSimd1Arg<v128, uint64_t, CRet, CArg>(
+      error = CompareSimd1Arg<v128, uint64_t, c_v128, uint64_t>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(u64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v128_store_aligned),
@@ -1663,7 +1663,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v256) &&
                typeid(CArg) == typeid(c_v256)) {
       // V256_V256
-      error = CompareSimd1Arg<v256, v256, CRet, CArg>(
+      error = CompareSimd1Arg<v256, v256, c_v256, c_v256>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v256_store_aligned),
@@ -1671,7 +1671,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v256) &&
                typeid(CArg) == typeid(c_v128)) {
       // V256_V128
-      error = CompareSimd1Arg<v256, v128, CRet, CArg>(
+      error = CompareSimd1Arg<v256, v128, c_v256, c_v128>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v256_store_aligned),
@@ -1679,7 +1679,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v256) &&
                typeid(CArg) == typeid(uint8_t)) {
       // V256_U8
-      error = CompareSimd1Arg<v256, uint8_t, CRet, CArg>(
+      error = CompareSimd1Arg<v256, uint8_t, c_v256, uint8_t>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(u8_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v256_store_aligned),
@@ -1687,7 +1687,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v256) &&
                typeid(CArg) == typeid(uint16_t)) {
       // V256_U16
-      error = CompareSimd1Arg<v256, uint16_t, CRet, CArg>(
+      error = CompareSimd1Arg<v256, uint16_t, c_v256, uint16_t>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(u16_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v256_store_aligned),
@@ -1695,7 +1695,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v256) &&
                typeid(CArg) == typeid(uint32_t)) {
       // V256_U32
-      error = CompareSimd1Arg<v256, uint32_t, CRet, CArg>(
+      error = CompareSimd1Arg<v256, uint32_t, c_v256, uint32_t>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(u32_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v256_store_aligned),
@@ -1703,7 +1703,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v256) &&
                typeid(CArg) == typeid(uint64_t)) {
       // V256_U64
-      error = CompareSimd1Arg<v256, uint64_t, CRet, CArg>(
+      error = CompareSimd1Arg<v256, uint64_t, c_v256, uint64_t>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(u64_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v256_store_aligned),
@@ -1711,7 +1711,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(uint32_t) &&
                typeid(CArg) == typeid(c_v256)) {
       // U32_V256
-      error = CompareSimd1Arg<uint32_t, v256, CRet, CArg>(
+      error = CompareSimd1Arg<uint32_t, v256, uint32_t, c_v256>(
           reinterpret_cast<fptr>(u32_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_u32_store_aligned),
@@ -1719,7 +1719,7 @@ void TestSimd1Arg(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     } else if (typeid(CRet) == typeid(c_v64) &&
                typeid(CArg) == typeid(c_v256)) {
       // V64_V256
-      error = CompareSimd1Arg<v64, v256, CRet, CArg>(
+      error = CompareSimd1Arg<v64, v256, c_v64, c_v256>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
           reinterpret_cast<fptr>(c_v64_store_aligned),
@@ -1768,7 +1768,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     if (typeid(CRet) == typeid(c_v64) && typeid(CArg1) == typeid(c_v64) &&
         typeid(CArg2) == typeid(c_v64)) {
       // V64_V64V64
-      error = CompareSimd2Args<v64, v64, v64, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v64, v64, v64, c_v64, c_v64, c_v64>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
@@ -1780,19 +1780,20 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(uint32_t) &&
                typeid(CArg2) == typeid(uint32_t)) {
       // V64_U32U32
-      error = CompareSimd2Args<v64, uint32_t, uint32_t, CRet, CArg1, CArg2>(
-          reinterpret_cast<fptr>(v64_store_aligned),
-          reinterpret_cast<fptr>(u32_load_aligned),
-          reinterpret_cast<fptr>(u32_load_aligned), simd, d,
-          reinterpret_cast<fptr>(c_v64_store_aligned),
-          reinterpret_cast<fptr>(c_u32_load_aligned),
-          reinterpret_cast<fptr>(c_u32_load_aligned),
-          reinterpret_cast<fptr>(ref_simd), ref_d, s1, s2);
+      error =
+          CompareSimd2Args<v64, uint32_t, uint32_t, c_v64, uint32_t, uint32_t>(
+              reinterpret_cast<fptr>(v64_store_aligned),
+              reinterpret_cast<fptr>(u32_load_aligned),
+              reinterpret_cast<fptr>(u32_load_aligned), simd, d,
+              reinterpret_cast<fptr>(c_v64_store_aligned),
+              reinterpret_cast<fptr>(c_u32_load_aligned),
+              reinterpret_cast<fptr>(c_u32_load_aligned),
+              reinterpret_cast<fptr>(ref_simd), ref_d, s1, s2);
     } else if (typeid(CRet) == typeid(uint32_t) &&
                typeid(CArg1) == typeid(c_v64) &&
                typeid(CArg2) == typeid(c_v64)) {
       // U32_V64V64
-      error = CompareSimd2Args<uint32_t, v64, v64, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<uint32_t, v64, v64, uint32_t, c_v64, c_v64>(
           reinterpret_cast<fptr>(u32_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
@@ -1804,7 +1805,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v64) &&
                typeid(CArg2) == typeid(c_v64)) {
       // S64_V64V64
-      error = CompareSimd2Args<int64_t, v64, v64, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<int64_t, v64, v64, int64_t, c_v64, c_v64>(
           reinterpret_cast<fptr>(s64_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
@@ -1816,7 +1817,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v64) &&
                typeid(CArg2) == typeid(uint32_t)) {
       // V64_V64U32
-      error = CompareSimd2Args<v64, v64, uint32_t, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v64, v64, uint32_t, c_v64, c_v64, uint32_t>(
           reinterpret_cast<fptr>(v64_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned),
           reinterpret_cast<fptr>(u32_load_aligned), simd, d,
@@ -1828,7 +1829,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v128) &&
                typeid(CArg2) == typeid(c_v128)) {
       // V128_V128V128
-      error = CompareSimd2Args<v128, v128, v128, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v128, v128, v128, c_v128, c_v128, c_v128>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
@@ -1840,7 +1841,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v128) &&
                typeid(CArg2) == typeid(c_v128)) {
       // U32_V128V128
-      error = CompareSimd2Args<uint32_t, v128, v128, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<uint32_t, v128, v128, uint32_t, c_v128, c_v128>(
           reinterpret_cast<fptr>(u32_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
@@ -1852,7 +1853,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v128) &&
                typeid(CArg2) == typeid(c_v128)) {
       // U64_V128V128
-      error = CompareSimd2Args<uint64_t, v128, v128, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<uint64_t, v128, v128, uint64_t, c_v128, c_v128>(
           reinterpret_cast<fptr>(u64_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
@@ -1864,7 +1865,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v128) &&
                typeid(CArg2) == typeid(c_v128)) {
       // S64_V128V128
-      error = CompareSimd2Args<int64_t, v128, v128, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<int64_t, v128, v128, int64_t, c_v128, c_v128>(
           reinterpret_cast<fptr>(s64_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
@@ -1876,7 +1877,8 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(uint64_t) &&
                typeid(CArg2) == typeid(uint64_t)) {
       // V128_U64U64
-      error = CompareSimd2Args<v128, uint64_t, uint64_t, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v128, uint64_t, uint64_t, c_v128, uint64_t,
+                               uint64_t>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(u64_load_aligned),
           reinterpret_cast<fptr>(u64_load_aligned), simd, d,
@@ -1888,7 +1890,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v64) &&
                typeid(CArg2) == typeid(c_v64)) {
       // V128_V64V64
-      error = CompareSimd2Args<v128, v64, v64, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v128, v64, v64, c_v128, c_v64, c_v64>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(v64_load_aligned),
           reinterpret_cast<fptr>(v64_load_aligned), simd, d,
@@ -1900,7 +1902,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v128) &&
                typeid(CArg2) == typeid(uint32_t)) {
       // V128_V128U32
-      error = CompareSimd2Args<v128, v128, uint32_t, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v128, v128, uint32_t, c_v128, c_v128, uint32_t>(
           reinterpret_cast<fptr>(v128_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned),
           reinterpret_cast<fptr>(u32_load_aligned), simd, d,
@@ -1912,7 +1914,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v256) &&
                typeid(CArg2) == typeid(c_v256)) {
       // V256_V256V256
-      error = CompareSimd2Args<v256, v256, v256, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v256, v256, v256, c_v256, c_v256, c_v256>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
@@ -1924,7 +1926,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v256) &&
                typeid(CArg2) == typeid(c_v256)) {
       // U64_V256V256
-      error = CompareSimd2Args<uint64_t, v256, v256, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<uint64_t, v256, v256, uint64_t, c_v256, c_v256>(
           reinterpret_cast<fptr>(u64_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
@@ -1936,7 +1938,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v256) &&
                typeid(CArg2) == typeid(c_v256)) {
       // S64_V256V256
-      error = CompareSimd2Args<int64_t, v256, v256, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<int64_t, v256, v256, int64_t, c_v256, c_v256>(
           reinterpret_cast<fptr>(s64_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
@@ -1948,7 +1950,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v256) &&
                typeid(CArg2) == typeid(c_v256)) {
       // U32_V256V256
-      error = CompareSimd2Args<uint32_t, v256, v256, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<uint32_t, v256, v256, uint32_t, c_v256, c_v256>(
           reinterpret_cast<fptr>(u32_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned),
           reinterpret_cast<fptr>(v256_load_aligned), simd, d,
@@ -1960,7 +1962,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v128) &&
                typeid(CArg2) == typeid(c_v128)) {
       // V256_V128V128
-      error = CompareSimd2Args<v256, v128, v128, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v256, v128, v128, c_v256, c_v128, c_v128>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(v128_load_aligned),
           reinterpret_cast<fptr>(v128_load_aligned), simd, d,
@@ -1972,7 +1974,7 @@ void TestSimd2Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                typeid(CArg1) == typeid(c_v256) &&
                typeid(CArg2) == typeid(uint32_t)) {
       // V256_V256U32
-      error = CompareSimd2Args<v256, v256, uint32_t, CRet, CArg1, CArg2>(
+      error = CompareSimd2Args<v256, v256, uint32_t, c_v256, c_v256, uint32_t>(
           reinterpret_cast<fptr>(v256_store_aligned),
           reinterpret_cast<fptr>(v256_load_aligned),
           reinterpret_cast<fptr>(u32_load_aligned), simd, d,
@@ -2030,33 +2032,33 @@ void TestSimd3Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
     if (typeid(CRet) == typeid(c_v128) && typeid(CArg1) == typeid(c_v128) &&
         typeid(CArg2) == typeid(c_v128) && typeid(CArg3) == typeid(c_v128)) {
       // V128_V128V128V128
-      error =
-          CompareSimd3Args<v128, v128, v128, v128, CRet, CArg1, CArg2, CArg3>(
-              reinterpret_cast<fptr>(v128_store_aligned),
-              reinterpret_cast<fptr>(v128_load_aligned),
-              reinterpret_cast<fptr>(v128_load_aligned),
-              reinterpret_cast<fptr>(v128_load_aligned), simd, d,
-              reinterpret_cast<fptr>(c_v128_store_aligned),
-              reinterpret_cast<fptr>(c_v128_load_aligned),
-              reinterpret_cast<fptr>(c_v128_load_aligned),
-              reinterpret_cast<fptr>(c_v128_load_aligned),
-              reinterpret_cast<fptr>(ref_simd), ref_d, s1, s2, s3);
+      error = CompareSimd3Args<v128, v128, v128, v128, c_v128, c_v128, c_v128,
+                               c_v128>(
+          reinterpret_cast<fptr>(v128_store_aligned),
+          reinterpret_cast<fptr>(v128_load_aligned),
+          reinterpret_cast<fptr>(v128_load_aligned),
+          reinterpret_cast<fptr>(v128_load_aligned), simd, d,
+          reinterpret_cast<fptr>(c_v128_store_aligned),
+          reinterpret_cast<fptr>(c_v128_load_aligned),
+          reinterpret_cast<fptr>(c_v128_load_aligned),
+          reinterpret_cast<fptr>(c_v128_load_aligned),
+          reinterpret_cast<fptr>(ref_simd), ref_d, s1, s2, s3);
     } else if (typeid(CRet) == typeid(c_v256) &&
                typeid(CArg1) == typeid(c_v256) &&
                typeid(CArg2) == typeid(c_v256) &&
                typeid(CArg3) == typeid(c_v256)) {
       // V256_V256V256V256
-      error =
-          CompareSimd3Args<v256, v256, v256, v256, CRet, CArg1, CArg2, CArg3>(
-              reinterpret_cast<fptr>(v256_store_aligned),
-              reinterpret_cast<fptr>(v256_load_aligned),
-              reinterpret_cast<fptr>(v256_load_aligned),
-              reinterpret_cast<fptr>(v256_load_aligned), simd, d,
-              reinterpret_cast<fptr>(c_v256_store_aligned),
-              reinterpret_cast<fptr>(c_v256_load_aligned),
-              reinterpret_cast<fptr>(c_v256_load_aligned),
-              reinterpret_cast<fptr>(c_v256_load_aligned),
-              reinterpret_cast<fptr>(ref_simd), ref_d, s1, s2, s3);
+      error = CompareSimd3Args<v256, v256, v256, v256, c_v256, c_v256, c_v256,
+                               c_v256>(
+          reinterpret_cast<fptr>(v256_store_aligned),
+          reinterpret_cast<fptr>(v256_load_aligned),
+          reinterpret_cast<fptr>(v256_load_aligned),
+          reinterpret_cast<fptr>(v256_load_aligned), simd, d,
+          reinterpret_cast<fptr>(c_v256_store_aligned),
+          reinterpret_cast<fptr>(c_v256_load_aligned),
+          reinterpret_cast<fptr>(c_v256_load_aligned),
+          reinterpret_cast<fptr>(c_v256_load_aligned),
+          reinterpret_cast<fptr>(ref_simd), ref_d, s1, s2, s3);
     } else {
       FAIL() << "Internal error: Unknown intrinsic function "
              << typeid(CRet).name() << " " << name << "("

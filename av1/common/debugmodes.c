@@ -52,11 +52,7 @@ void av1_print_modes_and_motion_vectors(AV1_COMMON *cm, const char *file) {
   MB_MODE_INFO **mi = mi_params->mi_grid_base;
   const int rows = mi_params->mi_rows;
   const int cols = mi_params->mi_cols;
-#if CONFIG_SDP
   print_mi_data(cm, mvs, "Partitions:", offsetof(MB_MODE_INFO, sb_type[0]));
-#else
-  print_mi_data(cm, mvs, "Partitions:", offsetof(MB_MODE_INFO, sb_type));
-#endif
   print_mi_data(cm, mvs, "Modes:", offsetof(MB_MODE_INFO, mode));
   print_mi_data(cm, mvs, "Ref frame:", offsetof(MB_MODE_INFO, ref_frame[0]));
   print_mi_data(cm, mvs, "Transform:", offsetof(MB_MODE_INFO, tx_size));
@@ -67,11 +63,7 @@ void av1_print_modes_and_motion_vectors(AV1_COMMON *cm, const char *file) {
   for (int mi_row = 0; mi_row < rows; mi_row++) {
     fprintf(mvs, "S ");
     for (int mi_col = 0; mi_col < cols; mi_col++) {
-#if CONFIG_SDP
       fprintf(mvs, "%2d ", mi[0]->skip_txfm[0]);
-#else
-      fprintf(mvs, "%2d ", mi[0]->skip_txfm);
-#endif
       mi++;
     }
     fprintf(mvs, "\n");

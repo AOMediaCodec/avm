@@ -258,6 +258,80 @@ static void optimize_cdf_table_var_modes_4d(aom_count_type *counts,
   fprintf(logfile, "============================\n");
 }
 
+// Like optimize_cdf_table_var_modes_3d, but the number of modes varies across
+// the context dimension.
+static void optimize_cdf_table_var_modes_3d_inner(
+    aom_count_type *counts, FILE *const probsfile, int dim_of_cts,
+    int *cts_each_dim, int *modes_each_ctx, char *prefix) {
+  aom_count_type *ct_ptr = counts;
+
+  assert(dim_of_cts == 3);
+  (void)dim_of_cts;
+
+  fprintf(probsfile, "%s = {\n", prefix);
+  fprintf(logfile, "%s\n", prefix);
+
+  for (int d0_idx = 0; d0_idx < cts_each_dim[0]; ++d0_idx) {
+    fprintf(probsfile, "%*c{\n", SPACES_PER_TAB, ' ');
+    for (int d1_idx = 0; d1_idx < cts_each_dim[1]; ++d1_idx) {
+      int num_of_modes = modes_each_ctx[d1_idx];
+
+      if (num_of_modes > 0) {
+        fprintf(probsfile, "%*c{ ", 2 * SPACES_PER_TAB, ' ');
+        parse_counts_for_cdf_opt(&ct_ptr, probsfile, 0, 1, &num_of_modes);
+        ct_ptr += cts_each_dim[2] - num_of_modes;
+        fprintf(probsfile, " },\n");
+      } else {
+        fprintf(probsfile, "%*c{ 0 },\n", 2 * SPACES_PER_TAB, ' ');
+        fprintf(logfile, "dummy cdf, no need to optimize\n");
+        ct_ptr += cts_each_dim[2];
+      }
+    }
+    fprintf(probsfile, "%*c},\n", SPACES_PER_TAB, ' ');
+  }
+  fprintf(probsfile, "};\n\n");
+  fprintf(logfile, "============================\n");
+}
+
+// Like optimize_cdf_table_var_modes_4d, but the number of modes varies across
+// the last dimension.
+static void optimize_cdf_table_var_modes_4d_inner(
+    aom_count_type *counts, FILE *const probsfile, int dim_of_cts,
+    int *cts_each_dim, int *modes_each_ctx, char *prefix) {
+  aom_count_type *ct_ptr = counts;
+
+  assert(dim_of_cts == 4);
+  (void)dim_of_cts;
+
+  fprintf(probsfile, "%s = {\n", prefix);
+  fprintf(logfile, "%s\n", prefix);
+
+  for (int d0_idx = 0; d0_idx < cts_each_dim[0]; ++d0_idx) {
+    fprintf(probsfile, "%*c{\n", SPACES_PER_TAB, ' ');
+    for (int d1_idx = 0; d1_idx < cts_each_dim[1]; ++d1_idx) {
+      fprintf(probsfile, "%*c{\n", 2 * SPACES_PER_TAB, ' ');
+      for (int d2_idx = 0; d2_idx < cts_each_dim[2]; ++d2_idx) {
+        int num_of_modes = modes_each_ctx[d2_idx];
+
+        if (num_of_modes > 0) {
+          fprintf(probsfile, "%*c{ ", 3 * SPACES_PER_TAB, ' ');
+          parse_counts_for_cdf_opt(&ct_ptr, probsfile, 0, 1, &num_of_modes);
+          ct_ptr += cts_each_dim[3] - num_of_modes;
+          fprintf(probsfile, " },\n");
+        } else {
+          fprintf(probsfile, "%*c{ 0 },\n", 3 * SPACES_PER_TAB, ' ');
+          fprintf(logfile, "dummy cdf, no need to optimize\n");
+          ct_ptr += cts_each_dim[3];
+        }
+      }
+      fprintf(probsfile, "%*c},\n", 2 * SPACES_PER_TAB, ' ');
+    }
+    fprintf(probsfile, "%*c},\n", SPACES_PER_TAB, ' ');
+  }
+  fprintf(probsfile, "};\n\n");
+  fprintf(logfile, "============================\n");
+}
+
 int main(int argc, const char **argv) {
   if (argc < 2) {
     fprintf(stderr, "Please specify the input stats file!\n");
@@ -345,29 +419,116 @@ int main(int argc, const char **argv) {
                    "default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]"
                    "[CDF_SIZE(UV_INTRA_MODES)]");
 
+#if CONFIG_EXT_DIR
+  /* MRL index */
+  cts_each_dim[0] = MRL_INDEX_CONTEXTS;
+  cts_each_dim[1] = MRL_LINE_NUMBER;
+  optimize_cdf_table(&fc.mrl_index[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob default_mrl_index_cdf"
+                     "[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)]");
+#endif  // CONFIG_EXT_DIR
+
+#if CONFIG_CROSS_CHROMA_TX
+  /* cctx type */
+  cts_each_dim[0] = EXT_TX_SIZES;
+  cts_each_dim[1] = CCTX_CONTEXTS;
+  cts_each_dim[2] = CCTX_TYPES;
+  optimize_cdf_table(&fc.cctx_type[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob default_cctx_type[EXT_TX_SIZES]"
+                     "[CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)]");
+#endif  // CONFIG_CROSS_CHROMA_TX
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
+  cts_each_dim[1] = PARTITION_CONTEXTS;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(
+      &fc.do_split[0][0][0], probsfile, 3, cts_each_dim,
+      "static aom_cdf_prob default_do_split_cdf"
+      "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]");
+  optimize_cdf_table(
+      &fc.rect_type[0][0][0], probsfile, 3, cts_each_dim,
+      "static aom_cdf_prob default_rect_type_cdf"
+      "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]");
+  cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
+  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[2] = PARTITION_CONTEXTS;
+  cts_each_dim[3] = 2;
+  optimize_cdf_table(&fc.do_ext_partition[0][0][0][0], probsfile, 4,
+                     cts_each_dim,
+                     "static aom_cdf_prob default_do_ext_partition_cdf"
+                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
+                     "CONTEXTS][CDF_SIZE(2)]");
+#if CONFIG_UNEVEN_4WAY
+  cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
+  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[2] = PARTITION_CONTEXTS;
+  cts_each_dim[3] = 2;
+  optimize_cdf_table(&fc.do_uneven_4way_partition[0][0][0][0], probsfile, 4,
+                     cts_each_dim,
+                     "static aom_cdf_prob default_do_uneven_4way_partition_cdf"
+                     "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
+                     "CONTEXTS][CDF_SIZE(2)]");
+  cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
+  cts_each_dim[1] = NUM_RECT_PARTS;
+  cts_each_dim[2] = PARTITION_CONTEXTS;
+  cts_each_dim[3] = NUM_UNEVEN_4WAY_PARTS;
+  optimize_cdf_table(
+      &fc.uneven_4way_partition_type[0][0][0][0], probsfile, 4, cts_each_dim,
+      "static aom_cdf_prob default_uneven_4way_partition_type_cdf"
+      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
+      "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]");
+#endif  // CONFIG_UNEVEN_4WAY
+#else
   /* block partition */
-  cts_each_dim[0] = PARTITION_CONTEXTS;
-  cts_each_dim[1] = EXT_PARTITION_TYPES;
+  cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
+  cts_each_dim[1] = PARTITION_CONTEXTS;
+  cts_each_dim[2] = EXT_PARTITION_TYPES;
   int part_types_each_ctx[PARTITION_CONTEXTS] = { 4,  4,  4,  4,  10, 10, 10,
                                                   10, 10, 10, 10, 10, 10, 10,
                                                   10, 10, 8,  8,  8,  8 };
-  optimize_cdf_table_var_modes_2d(
-      &fc.partition[0][0], probsfile, 2, cts_each_dim, part_types_each_ctx,
-      "static const aom_cdf_prob default_partition_cdf[PARTITION_CONTEXTS]"
+  optimize_cdf_table_var_modes_3d_inner(
+      &fc.partition[0][0][0], probsfile, 3, cts_each_dim, part_types_each_ctx,
+      "static const aom_cdf_prob "
+      "default_partition_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]"
       "[CDF_SIZE(EXT_PARTITION_TYPES)]");
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   /* tx type */
   cts_each_dim[0] = EXT_TX_SETS_INTRA;
   cts_each_dim[1] = EXT_TX_SIZES;
   cts_each_dim[2] = INTRA_MODES;
   cts_each_dim[3] = TX_TYPES;
-  int intra_ext_tx_types_each_ctx[EXT_TX_SETS_INTRA] = { 0, 7, 5 };
+#if CONFIG_ATC_NEWTXSETS
+  int intra_ext_tx_types_each_ctx[EXT_TX_SETS_INTRA] = { 0, INTRA_TX_SET1 };
   optimize_cdf_table_var_modes_4d(
       &fc.intra_ext_tx[0][0][0][0], probsfile, 4, cts_each_dim,
       intra_ext_tx_types_each_ctx,
       "static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA]"
       "[EXT_TX_SIZES][INTRA_MODES][CDF_SIZE(TX_TYPES)]");
+#else
+  int intra_ext_tx_types_each_ctx[EXT_TX_SETS_INTRA] = { 0, INTRA_TX_SET1,
+                                                         INTRA_TX_SET2 };
+  optimize_cdf_table_var_modes_4d(
+      &fc.intra_ext_tx[0][0][0][0], probsfile, 4, cts_each_dim,
+      intra_ext_tx_types_each_ctx,
+      "static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA]"
+      "[EXT_TX_SIZES][INTRA_MODES][CDF_SIZE(TX_TYPES)]");
+#endif
 
+#if CONFIG_ATC_DCTX_ALIGNED
+  cts_each_dim[0] = EXT_TX_SETS_INTER;
+  cts_each_dim[1] = EOB_TX_CTXS;
+  cts_each_dim[2] = EXT_TX_SIZES;
+  cts_each_dim[3] = TX_TYPES;
+  int inter_ext_tx_types_each_ctx[EXT_TX_SETS_INTER] = { 0, 16, 12, 2 };
+  optimize_cdf_table_var_modes_4d(
+      &fc.inter_ext_tx[0][0][0][0], probsfile, 4, cts_each_dim,
+      inter_ext_tx_types_each_ctx,
+      "static const aom_cdf_prob "
+      "default_inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS]"
+      "[EXT_TX_SIZES][CDF_SIZE(TX_TYPES)]");
+#else
   cts_each_dim[0] = EXT_TX_SETS_INTER;
   cts_each_dim[1] = EXT_TX_SIZES;
   cts_each_dim[2] = TX_TYPES;
@@ -377,8 +538,15 @@ int main(int argc, const char **argv) {
       inter_ext_tx_types_each_ctx,
       "static const aom_cdf_prob default_inter_ext_tx_cdf[EXT_TX_SETS_INTER]"
       "[EXT_TX_SIZES][CDF_SIZE(TX_TYPES)]");
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
   /* Chroma from Luma */
+#if CONFIG_IMPROVED_CFL
+  cts_each_dim[0] = CFL_TYPE_COUNT;
+  optimize_cdf_table(&fc.cfl_index[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)]");
+#endif
   cts_each_dim[0] = CFL_JOINT_SIGNS;
   optimize_cdf_table(&fc.cfl_sign[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob\n"
@@ -398,7 +566,7 @@ int main(int argc, const char **argv) {
                      "default_switchable_interp_cdf[SWITCHABLE_FILTER_CONTEXTS]"
                      "[CDF_SIZE(SWITCHABLE_FILTERS)]");
 
-#if CONFIG_NEW_INTER_MODES
+  /* Motion vector referencing */
   cts_each_dim[0] = INTER_SINGLE_MODE_CONTEXTS;
   cts_each_dim[1] = INTER_SINGLE_MODES;
   optimize_cdf_table(&fc.inter_single_mode[0][0], probsfile, 2, cts_each_dim,
@@ -418,32 +586,6 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.drl_mode[2][0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)]");
-#else
-  /* Motion vector referencing */
-  cts_each_dim[0] = NEWMV_MODE_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.newmv_mode[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_newmv_cdf[NEWMV_MODE_CONTEXTS][CDF_SIZE(2)]");
-
-  cts_each_dim[0] = GLOBALMV_MODE_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.zeromv_mode[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_zeromv_cdf[GLOBALMV_MODE_CONTEXTS][CDF_SIZE(2)]");
-
-  cts_each_dim[0] = REFMV_MODE_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.refmv_mode[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_refmv_cdf[REFMV_MODE_CONTEXTS][CDF_SIZE(2)]");
-
-  cts_each_dim[0] = DRL_MODE_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.drl_mode[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_drl_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)]");
-#endif  // CONFIG_NEW_INTER_MODES
 
 #if CONFIG_OPTFLOW_REFINEMENT
   /* Optical flow MV refinement */
@@ -501,13 +643,74 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_compound_type_cdf"
                      "[BLOCK_SIZES_ALL][CDF_SIZE(COMPOUND_TYPES - 1)]");
 
+#if CONFIG_WEDGE_MOD_EXT
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.wedge_angle_dir_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_angle_dir_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = H_WEDGE_ANGLES;
+  optimize_cdf_table(
+      &fc.wedge_angle_0_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_angle_0_cdf[BLOCK_SIZES_ALL][CDF_SIZE(H_WEDGE_ANGLES)]");
+
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = H_WEDGE_ANGLES;
+  optimize_cdf_table(
+      &fc.wedge_angle_1_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_angle_1_cdf[BLOCK_SIZES_ALL][CDF_SIZE(H_WEDGE_ANGLES)]");
+
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = NUM_WEDGE_DIST;
+  optimize_cdf_table(
+      &fc.wedge_dist_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_dist_cdf[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST)]");
+
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 16;
   optimize_cdf_table(&fc.wedge_idx[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(16)]");
+#endif  // CONFIG_WEDGE_MOD_EXT
 
   /* motion_var and warped_motion experiments */
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.obmc[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.warped_causal[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.warp_delta[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = WARP_DELTA_NUM_SYMBOLS;
+  optimize_cdf_table(&fc.warp_delta_param[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob default_warp_delta_param_cdf"
+                     "[2][CDF_SIZE(WARP_DELTA_NUM_SYMBOLS)]");
+  cts_each_dim[0] = WARP_EXTEND_CTXS1;
+  cts_each_dim[1] = WARP_EXTEND_CTXS2;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(
+      &fc.warp_extend[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_warp_extend_cdf[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2]"
+      "[CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = MOTION_MODES;
   optimize_cdf_table(
@@ -519,24 +722,31 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.obmc[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
-
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  /* Bawp flag */
+#if CONFIG_BAWP
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.bawp[0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_bawp_cdf[CDF_SIZE(2)]");
+#endif
   /* Intra/inter flag */
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   cts_each_dim[0] = INTRA_INTER_SKIP_TXFM_CONTEXTS;
   cts_each_dim[1] = INTRA_INTER_CONTEXTS;
   cts_each_dim[2] = 2;
-  optimize_cdf_table(
-      &fc.intra_inter[0][0][0], probsfile, 3, cts_each_dim,
-      "static const aom_cdf_prob\n"
-      "default_intra_inter_cdf[INTRA_INTER_CONTEXTS][CDF_SIZE(2)]");
-#else
-  cts_each_dim[0] = INTRA_INTER_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.intra_inter[0][0], probsfile, 2, cts_each_dim,
+  optimize_cdf_table(&fc.intra_inter[0][0][0], probsfile, 3, cts_each_dim,
                      "static const aom_cdf_prob\n"
                      "default_intra_inter_cdf[INTRA_INTER_SKIP_TXFM_CONTEXTS]["
                      "INTRA_INTER_CONTEXTS][CDF_SIZE(2)]");
-#endif  // CONFIG_CONTEXT_DERIVATION
+#else
+  cts_each_dim[0] = INTRA_INTER_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.intra_inter[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob\n"
+      "default_intra_inter_cdf[INTRA_INTER_CONTEXTS][CDF_SIZE(2)]");
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   /* Single/comp ref flag */
   cts_each_dim[0] = COMP_INTER_CONTEXTS;
   cts_each_dim[1] = 2;
@@ -545,47 +755,31 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob\n"
       "default_comp_inter_cdf[COMP_INTER_CONTEXTS][CDF_SIZE(2)]");
 
-  /* ext_comp_refs experiment */
-  cts_each_dim[0] = COMP_REF_TYPE_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(
-      &fc.comp_ref_type[0][0], probsfile, 2, cts_each_dim,
-      "static const aom_cdf_prob\n"
-      "default_comp_ref_type_cdf[COMP_REF_TYPE_CONTEXTS][CDF_SIZE(2)]");
-
-  cts_each_dim[0] = UNI_COMP_REF_CONTEXTS;
-  cts_each_dim[1] = UNIDIR_COMP_REFS - 1;
-  cts_each_dim[2] = 2;
-  optimize_cdf_table(&fc.uni_comp_ref[0][0][0], probsfile, 3, cts_each_dim,
-                     "static const aom_cdf_prob\n"
-                     "default_uni_comp_ref_cdf[UNI_COMP_REF_CONTEXTS][UNIDIR_"
-                     "COMP_REFS - 1][CDF_SIZE(2)]");
-
   /* Reference frame (single ref) */
   cts_each_dim[0] = REF_CONTEXTS;
-  cts_each_dim[1] = SINGLE_REFS - 1;
+  cts_each_dim[1] = INTER_REFS_PER_FRAME - 1;
   cts_each_dim[2] = 2;
-  optimize_cdf_table(
-      &fc.single_ref[0][0][0], probsfile, 3, cts_each_dim,
-      "static const aom_cdf_prob\n"
-      "default_single_ref_cdf[REF_CONTEXTS][SINGLE_REFS - 1][CDF_SIZE(2)]");
+  optimize_cdf_table(&fc.single_ref[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_"
+                     "FRAME - 1][CDF_SIZE(2)]");
 
   /* ext_refs experiment */
   cts_each_dim[0] = REF_CONTEXTS;
-  cts_each_dim[1] = FWD_REFS - 1;
+  cts_each_dim[1] = INTER_REFS_PER_FRAME - 2;
   cts_each_dim[2] = 2;
-  optimize_cdf_table(
-      &fc.comp_ref[0][0][0], probsfile, 3, cts_each_dim,
-      "static const aom_cdf_prob\n"
-      "default_comp_ref_cdf[REF_CONTEXTS][FWD_REFS - 1][CDF_SIZE(2)]");
-
+  optimize_cdf_table(&fc.comp_ref0[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_comp_ref0_cdf[REF_CONTEXTS]"
+                     "[INTER_REFS_PER_FRAME - 2][CDF_SIZE(2)]");
   cts_each_dim[0] = REF_CONTEXTS;
-  cts_each_dim[1] = BWD_REFS - 1;
-  cts_each_dim[2] = 2;
-  optimize_cdf_table(
-      &fc.comp_bwdref[0][0][0], probsfile, 3, cts_each_dim,
-      "static const aom_cdf_prob\n"
-      "default_comp_bwdref_cdf[REF_CONTEXTS][BWD_REFS - 1][CDF_SIZE(2)]");
+  cts_each_dim[1] = COMPREF_BIT_TYPES;
+  cts_each_dim[2] = INTER_REFS_PER_FRAME - 2;
+  cts_each_dim[3] = 2;
+  optimize_cdf_table(&fc.comp_ref1[0][0][0][0], probsfile, 4, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_comp_ref1_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]"
+                     "[INTER_REFS_PER_FRAME - 2][CDF_SIZE(2)]");
 
   /* palette */
   cts_each_dim[0] = PALATTE_BSIZE_CTXS;
@@ -634,14 +828,42 @@ int main(int argc, const char **argv) {
       "[PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)]");
 
   /* Transform size */
-#if !CONFIG_NEW_TX_PARTITION
+#if CONFIG_NEW_TX_PARTITION
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = TXFM_PARTITION_INTER_CONTEXTS;
+  cts_each_dim[2] = 4;
+  optimize_cdf_table(
+      &fc.inter_4way_txfm_partition[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob default_inter_4way_txfm_partition_cdf\n"
+      "[2][TXFM_PARTITION_INTER_CONTEXTS][CDF_SIZE(4)]");
+
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(
+      &fc.inter_2way_txfm_partition[0], probsfile, 1, cts_each_dim,
+      "static const aom_cdf_prob default_inter_2way_txfm_partition_cdf\n"
+      "[CDF_SIZE(2)]");
+
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = TX_SIZE_CONTEXTS;
+  cts_each_dim[2] = 4;
+  optimize_cdf_table(
+      &fc.intra_4way_txfm_partition[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob default_intra_4way_txfm_partition_cdf\n"
+      "[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)]");
+
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(
+      &fc.intra_2way_txfm_partition[0], probsfile, 1, cts_each_dim,
+      "static const aom_cdf_prob default_intra_2way_txfm_partition_cdf\n"
+      "[CDF_SIZE(2)]");
+#else   // CONFIG_NEW_TX_PARTITION
   cts_each_dim[0] = TXFM_PARTITION_CONTEXTS;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
       &fc.txfm_partition[0][0], probsfile, 2, cts_each_dim,
       "static const aom_cdf_prob\n"
       "default_txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)]");
-#endif  // !CONFIG_NEW_TX_PARTITION
+#endif  // CONFIG_NEW_TX_PARTITION
 
   /* Skip flag */
   cts_each_dim[0] = SKIP_CONTEXTS;
@@ -657,6 +879,15 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_skip_mode_cdfs[SKIP_MODE_CONTEXTS][CDF_SIZE(2)]");
 
+#if CONFIG_TIP
+  /* TIP ref flag */
+  cts_each_dim[0] = TIP_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.tip_ref[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_tip_cdf[TIP_CONTEXTS][CDF_SIZE(2)]");
+#endif  // CONFIG_TIP
+
   /* joint compound group index */
   cts_each_dim[0] = COMP_GROUP_IDX_CONTEXTS;
   cts_each_dim[1] = 2;
@@ -665,10 +896,33 @@ int main(int argc, const char **argv) {
                      "[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)]");
 
   /* intrabc */
+#if CONFIG_NEW_CONTEXT_MODELING
+  cts_each_dim[0] = INTRABC_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.intrabc[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_intrabc_cdf[INTRABC_CONTEXTS][CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = 2;
   optimize_cdf_table(
       &fc.intrabc[0], probsfile, 1, cts_each_dim,
       "static const aom_cdf_prob default_intrabc_cdf[CDF_SIZE(2)]");
+#endif  // CONFIG_NEW_CONTEXT_MODELING
+
+#if CONFIG_BVP_IMPROVEMENT
+  /* intrabc mode flag*/
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.intrabc_mode[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_intrabc_mode_cdf[CDF_SIZE(2)]");
+
+  /* intrabc drl index*/
+  cts_each_dim[0] = MAX_REF_BV_STACK_SIZE - 1;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.intrabc_drl_idx[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob default_intrabc_drl_idx_cdf"
+                     "[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)]");
+#endif
 
   /* filter_intra experiment */
   cts_each_dim[0] = FILTER_INTRA_MODES;
@@ -682,6 +936,15 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.filter_intra[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+
+  /* forward skip coding flag */
+  cts_each_dim[0] = FSC_MODE_CONTEXTS;
+  cts_each_dim[1] = FSC_BSIZE_CONTEXTS;
+  cts_each_dim[2] = FSC_MODES;
+  optimize_cdf_table(&fc.fsc_mode[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_fsc_mode_cdf[FSC_MODE_CONTEXTS]"
+                     "[FSC_BSIZE_CONTEXTS][CDF_SIZE(FSC_MODES)]");
 
   /* restoration type */
   cts_each_dim[0] = RESTORE_SWITCHABLE_TYPES;
@@ -721,6 +984,27 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "av1_default_txb_skip_cdfs[TOKEN_CDF_Q_CTXS][TX_SIZES]"
                      "[TXB_SKIP_CONTEXTS][CDF_SIZE(2)]");
+
+  /* forward skip sign bit */
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = IDTX_SIGN_CONTEXTS;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(&fc.idtx_sign[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS]"
+                     "[IDTX_SIGN_CONTEXTS][CDF_SIZE(2)]");
+
+#if CONFIG_ATC_DCTX_ALIGNED
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = SIG_COEF_CONTEXTS_BOB;
+  cts_each_dim[2] = NUM_BASE_LEVELS + 1;
+  optimize_cdf_table(
+      &fc.coeff_base_bob_multi[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs"
+      "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB]"
+      "[CDF_SIZE(NUM_BASE_LEVELS + 1)]");
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
 #if CONFIG_CONTEXT_DERIVATION
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = V_TXB_SKIP_CONTEXTS;
@@ -742,6 +1026,62 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS]"
       "[CDF_SIZE(2)]");
 
+#if CONFIG_ATC_DCTX_ALIGNED
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = EOB_MAX_SYMS - 6;
+  optimize_cdf_table(
+      &fc.eob_multi16[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi16_cdfs"
+      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 6)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = EOB_MAX_SYMS - 5;
+  optimize_cdf_table(
+      &fc.eob_multi32[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi32_cdfs"
+      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 5)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = EOB_MAX_SYMS - 4;
+  optimize_cdf_table(
+      &fc.eob_multi64[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi64_cdfs"
+      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 4)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = EOB_MAX_SYMS - 3;
+  optimize_cdf_table(
+      &fc.eob_multi128[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi128_cdfs"
+      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 3)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = EOB_MAX_SYMS - 2;
+  optimize_cdf_table(
+      &fc.eob_multi256[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi256_cdfs"
+      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 2)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = EOB_MAX_SYMS - 1;
+  optimize_cdf_table(
+      &fc.eob_multi512[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi512_cdfs"
+      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 1)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = EOB_MAX_SYMS;
+  optimize_cdf_table(&fc.eob_multi1024[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob av1_default_eob_multi1024_cdfs"
+                     "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS)]");
+#else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = PLANE_TYPES;
   cts_each_dim[2] = 2;
@@ -797,7 +1137,53 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.eob_multi1024[0][0][0][0], probsfile, 4, cts_each_dim,
                      "static const aom_cdf_prob av1_default_eob_multi1024_cdfs"
                      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][CDF_SIZE(11)]");
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
+#if CONFIG_ATC_COEFCODING
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = TX_SIZES;
+  cts_each_dim[2] = PLANE_TYPES;
+  cts_each_dim[3] = LF_SIG_COEF_CONTEXTS;
+  cts_each_dim[4] = LF_BASE_SYMBOLS;
+  optimize_cdf_table(
+      &fc.coeff_base_lf_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
+      "static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs"
+      "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]"
+      "[CDF_SIZE(LF_BASE_SYMBOLS)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = TX_SIZES;
+  cts_each_dim[2] = PLANE_TYPES;
+  cts_each_dim[3] = SIG_COEF_CONTEXTS_EOB;
+  cts_each_dim[4] = LF_BASE_SYMBOLS - 1;
+  optimize_cdf_table(
+      &fc.coeff_base_lf_eob_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
+      "static const aom_cdf_prob av1_default_coeff_base_lf_eob_multi_cdfs"
+      "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]"
+      "[CDF_SIZE(LF_BASE_SYMBOLS - 1)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = LF_LEVEL_CONTEXTS;
+  cts_each_dim[3] = BR_CDF_SIZE;
+  optimize_cdf_table(&fc.coeff_lps_lf_multi[0][0][0][0], probsfile, 4,
+                     cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "av1_default_coeff_lps_lf_multi_cdfs[TOKEN_CDF_Q_CTXS]"
+                     "[PLANE_TYPES][LF_LEVEL_CONTEXTS]"
+                     "[CDF_SIZE(BR_CDF_SIZE)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = PLANE_TYPES;
+  cts_each_dim[2] = LEVEL_CONTEXTS;
+  cts_each_dim[3] = BR_CDF_SIZE;
+  optimize_cdf_table(&fc.coeff_lps_multi[0][0][0][0], probsfile, 4,
+                     cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "av1_default_coeff_lps_multi_cdfs[TOKEN_CDF_Q_CTXS]"
+                     "[PLANE_TYPES][LEVEL_CONTEXTS]"
+                     "[CDF_SIZE(BR_CDF_SIZE)]");
+#else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = PLANE_TYPES;
@@ -809,6 +1195,7 @@ int main(int argc, const char **argv) {
                      "av1_default_coeff_lps_multi_cdfs[TOKEN_CDF_Q_CTXS]"
                      "[TX_SIZES][PLANE_TYPES][LEVEL_CONTEXTS]"
                      "[CDF_SIZE(BR_CDF_SIZE)]");
+#endif
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
@@ -819,6 +1206,25 @@ int main(int argc, const char **argv) {
       &fc.coeff_base_multi[0][0][0][0][0], probsfile, 5, cts_each_dim,
       "static const aom_cdf_prob av1_default_coeff_base_multi_cdfs"
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]"
+      "[CDF_SIZE(NUM_BASE_LEVELS + 2)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = IDTX_LEVEL_CONTEXTS;
+  cts_each_dim[2] = BR_CDF_SIZE;
+  optimize_cdf_table(&fc.coeff_lps_multi_skip[0][0][0], probsfile, 3,
+                     cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "av1_default_coeff_lps_multi_cdfs_idtx"
+                     "[TOKEN_CDF_Q_CTXS][IDTX_LEVEL_CONTEXTS]"
+                     "[CDF_SIZE(BR_CDF_SIZE)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = IDTX_SIG_COEF_CONTEXTS;
+  cts_each_dim[2] = NUM_BASE_LEVELS + 2;
+  optimize_cdf_table(
+      &fc.coeff_base_multi_skip[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx"
+      "[TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]");
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;

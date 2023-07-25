@@ -229,36 +229,36 @@ unsigned int aom_masked_sad4xh_ssse3(const uint8_t *src_ptr, int src_stride,
 
 // For width a multiple of 8
 static INLINE unsigned int highbd_masked_sad_ssse3(
-    const uint8_t *src8, int src_stride, const uint8_t *a8, int a_stride,
-    const uint8_t *b8, int b_stride, const uint8_t *m_ptr, int m_stride,
+    const uint16_t *src, int src_stride, const uint16_t *a, int a_stride,
+    const uint16_t *b, int b_stride, const uint8_t *m_ptr, int m_stride,
     int width, int height);
 
-#define HIGHBD_MASKSADMXN_SSSE3(m, n)                                         \
-  unsigned int aom_highbd_masked_sad##m##x##n##_ssse3(                        \
-      const uint8_t *src8, int src_stride, const uint8_t *ref8,               \
-      int ref_stride, const uint8_t *second_pred8, const uint8_t *msk,        \
-      int msk_stride, int invert_mask) {                                      \
-    if (!invert_mask)                                                         \
-      return highbd_masked_sad_ssse3(src8, src_stride, ref8, ref_stride,      \
-                                     second_pred8, m, msk, msk_stride, m, n); \
-    else                                                                      \
-      return highbd_masked_sad_ssse3(src8, src_stride, second_pred8, m, ref8, \
-                                     ref_stride, msk, msk_stride, m, n);      \
+#define HIGHBD_MASKSADMXN_SSSE3(m, n)                                        \
+  unsigned int aom_highbd_masked_sad##m##x##n##_ssse3(                       \
+      const uint16_t *src, int src_stride, const uint16_t *ref,              \
+      int ref_stride, const uint16_t *second_pred, const uint8_t *msk,       \
+      int msk_stride, int invert_mask) {                                     \
+    if (!invert_mask)                                                        \
+      return highbd_masked_sad_ssse3(src, src_stride, ref, ref_stride,       \
+                                     second_pred, m, msk, msk_stride, m, n); \
+    else                                                                     \
+      return highbd_masked_sad_ssse3(src, src_stride, second_pred, m, ref,   \
+                                     ref_stride, msk, msk_stride, m, n);     \
   }
 
-#define HIGHBD_MASKSAD4XN_SSSE3(n)                                             \
-  unsigned int aom_highbd_masked_sad4x##n##_ssse3(                             \
-      const uint8_t *src8, int src_stride, const uint8_t *ref8,                \
-      int ref_stride, const uint8_t *second_pred8, const uint8_t *msk,         \
-      int msk_stride, int invert_mask) {                                       \
-    if (!invert_mask)                                                          \
-      return aom_highbd_masked_sad4xh_ssse3(src8, src_stride, ref8,            \
-                                            ref_stride, second_pred8, 4, msk,  \
-                                            msk_stride, n);                    \
-    else                                                                       \
-      return aom_highbd_masked_sad4xh_ssse3(src8, src_stride, second_pred8, 4, \
-                                            ref8, ref_stride, msk, msk_stride, \
-                                            n);                                \
+#define HIGHBD_MASKSAD4XN_SSSE3(n)                                            \
+  unsigned int aom_highbd_masked_sad4x##n##_ssse3(                            \
+      const uint16_t *src, int src_stride, const uint16_t *ref,               \
+      int ref_stride, const uint16_t *second_pred, const uint8_t *msk,        \
+      int msk_stride, int invert_mask) {                                      \
+    if (!invert_mask)                                                         \
+      return aom_highbd_masked_sad4xh_ssse3(src, src_stride, ref, ref_stride, \
+                                            second_pred, 4, msk, msk_stride,  \
+                                            n);                               \
+    else                                                                      \
+      return aom_highbd_masked_sad4xh_ssse3(src, src_stride, second_pred, 4,  \
+                                            ref, ref_stride, msk, msk_stride, \
+                                            n);                               \
   }
 
 HIGHBD_MASKSADMXN_SSSE3(128, 128)
@@ -285,12 +285,9 @@ HIGHBD_MASKSADMXN_SSSE3(16, 64)
 HIGHBD_MASKSADMXN_SSSE3(64, 16)
 
 static INLINE unsigned int highbd_masked_sad_ssse3(
-    const uint8_t *src8, int src_stride, const uint8_t *a8, int a_stride,
-    const uint8_t *b8, int b_stride, const uint8_t *m_ptr, int m_stride,
-    int width, int height) {
-  const uint16_t *src_ptr = CONVERT_TO_SHORTPTR(src8);
-  const uint16_t *a_ptr = CONVERT_TO_SHORTPTR(a8);
-  const uint16_t *b_ptr = CONVERT_TO_SHORTPTR(b8);
+    const uint16_t *src_ptr, int src_stride, const uint16_t *a_ptr,
+    int a_stride, const uint16_t *b_ptr, int b_stride, const uint8_t *m_ptr,
+    int m_stride, int width, int height) {
   int x, y;
   __m128i res = _mm_setzero_si128();
   const __m128i mask_max = _mm_set1_epi16((1 << AOM_BLEND_A64_ROUND_BITS));
@@ -342,14 +339,12 @@ static INLINE unsigned int highbd_masked_sad_ssse3(
   return sad;
 }
 
-unsigned int aom_highbd_masked_sad4xh_ssse3(const uint8_t *src8, int src_stride,
-                                            const uint8_t *a8, int a_stride,
-                                            const uint8_t *b8, int b_stride,
+unsigned int aom_highbd_masked_sad4xh_ssse3(const uint16_t *src_ptr,
+                                            int src_stride,
+                                            const uint16_t *a_ptr, int a_stride,
+                                            const uint16_t *b_ptr, int b_stride,
                                             const uint8_t *m_ptr, int m_stride,
                                             int height) {
-  const uint16_t *src_ptr = CONVERT_TO_SHORTPTR(src8);
-  const uint16_t *a_ptr = CONVERT_TO_SHORTPTR(a8);
-  const uint16_t *b_ptr = CONVERT_TO_SHORTPTR(b8);
   int y;
   __m128i res = _mm_setzero_si128();
   const __m128i mask_max = _mm_set1_epi16((1 << AOM_BLEND_A64_ROUND_BITS));

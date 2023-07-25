@@ -255,11 +255,9 @@ static SubtractWxHFuncType getSubtractFunc(int rows, int cols) {
 }
 
 void aom_highbd_subtract_block_sse2(int rows, int cols, int16_t *diff,
-                                    ptrdiff_t diff_stride, const uint8_t *src8,
-                                    ptrdiff_t src_stride, const uint8_t *pred8,
+                                    ptrdiff_t diff_stride, const uint16_t *src,
+                                    ptrdiff_t src_stride, const uint16_t *pred,
                                     ptrdiff_t pred_stride, int bd) {
-  uint16_t *src = CONVERT_TO_SHORTPTR(src8);
-  uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
   SubtractWxHFuncType func;
   (void)bd;
 

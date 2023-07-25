@@ -73,15 +73,15 @@ typedef struct RD_OPT {
   // means that we will accept the best mode so far more often. This number
   // is used in combination with the current block size, and thresh_freq_fact
   // to pick a threshold.
-  int thresh_mult[MAX_MODES];
-
-  int threshes[MAX_SEGMENTS][BLOCK_SIZES_ALL][MAX_MODES];
+  int thresh_mult[MB_MODE_COUNT];
+  int threshes[MAX_SEGMENTS][BLOCK_SIZES_ALL][MB_MODE_COUNT];
 
   int RDMULT;
 
   double r0;
 } RD_OPT;
 
+#if !CONFIG_FLEX_MVRES && !CONFIG_BVCOST_UPDATE
 typedef struct {
   // Cost of transmitting the actual motion vector.
   // mv_component[0][i] is the cost of motion vector with horizontal component
@@ -99,6 +99,7 @@ typedef struct {
   int res_mv_component[2][MV_VALS];
 #endif  // CONFIG_ADAPTIVE_MVD
 } IntraBCMVCosts;
+#endif
 
 static INLINE void av1_init_rd_stats(RD_STATS *rd_stats) {
 #if CONFIG_RD_DEBUG
@@ -153,6 +154,9 @@ static INLINE void av1_invalid_rd_stats(RD_STATS *rd_stats) {
 static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
                                       const RD_STATS *rd_stats_src) {
   assert(rd_stats_dst->rate != INT_MAX && rd_stats_src->rate != INT_MAX);
+#if CONFIG_ATC_DCTX_ALIGNED
+  if (rd_stats_src->dist == INT64_MAX || rd_stats_src->rate == INT_MAX) return;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   rd_stats_dst->rate = (int)AOMMIN(
       ((int64_t)rd_stats_dst->rate + (int64_t)rd_stats_src->rate), INT_MAX);
   if (!rd_stats_dst->zero_rate)
@@ -251,7 +255,7 @@ int av1_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
                             InterpFilter interp_filter);
 
 YV12_BUFFER_CONFIG *av1_get_scaled_ref_frame(const struct AV1_COMP *cpi,
-                                             int ref_frame);
+                                             MV_REFERENCE_FRAME ref_frame);
 
 void av1_init_me_luts(void);
 
@@ -265,12 +269,12 @@ void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
 void av1_set_rd_speed_thresholds(struct AV1_COMP *cpi);
 
 void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
-                               int (*fact)[MAX_MODES], int rd_thresh,
-                               BLOCK_SIZE bsize, THR_MODES best_mode_index);
+                               int (*fact)[MB_MODE_COUNT], int rd_thresh,
+                               BLOCK_SIZE bsize, PREDICTION_MODE best_mode);
 
 static INLINE void reset_thresh_freq_fact(MACROBLOCK *const x) {
   for (int i = 0; i < BLOCK_SIZES_ALL; ++i) {
-    for (int j = 0; j < MAX_MODES; ++j) {
+    for (int j = 0; j < MB_MODE_COUNT; ++j) {
       x->thresh_freq_fact[i][j] = RD_THRESH_FAC_FRAC_VAL;
     }
   }
@@ -282,7 +286,7 @@ static INLINE int rd_less_than_thresh(int64_t best_rd, int thresh,
 }
 
 void av1_mv_pred(const struct AV1_COMP *cpi, MACROBLOCK *x,
-                 uint8_t *ref_y_buffer, int ref_y_stride, int ref_frame,
+                 uint16_t *ref_y_buffer, int ref_y_stride, int ref_frame,
                  BLOCK_SIZE block_size);
 
 // Sets the multiplier to convert mv cost to l2 error during motion search.
@@ -353,26 +357,30 @@ void av1_setup_pred_block(const MACROBLOCKD *xd,
                           const struct scale_factors *scale_uv,
                           const int num_planes);
 
-int av1_get_intra_cost_penalty(int qindex, int qdelta,
-#if CONFIG_EXTQUANT
-                               int base_y_dc_delta_q,
-#endif  // CONFIG_EXTQUANT
+int av1_get_intra_cost_penalty(int qindex, int qdelta, int base_y_dc_delta_q,
                                aom_bit_depth_t bit_depth);
-#if CONFIG_SDP
 void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
-                         ModeCosts *mode_costs,
-#else
-void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
-#endif
-                         FRAME_CONTEXT *fc);
+                         ModeCosts *mode_costs, FRAME_CONTEXT *fc);
 
 void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc);
 
 void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                           const int num_planes);
 
+#if CONFIG_FLEX_MVRES
+void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
+                       MvSubpelPrecision precision, MvCosts *mv_costs);
+#else
 void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv, int usehp,
                        MvCosts *mv_costs);
+#endif
+
+#if CONFIG_FLEX_MVRES
+void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
+                   MvCosts *mv_costs);
+#elif CONFIG_BVCOST_UPDATE
+void av1_fill_dv_costs(const FRAME_CONTEXT *fc, IntraBCMVCosts *dv_costs);
+#endif
 
 int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);
 

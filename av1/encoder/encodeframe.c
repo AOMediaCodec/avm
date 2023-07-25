@@ -18,6 +18,9 @@
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
+#if CONFIG_TIP
+#include "config/aom_scale_rtcd.h"
+#endif  // CONFIG_TIP
 #include "config/av1_rtcd.h"
 
 #include "aom_dsp/aom_dsp_common.h"
@@ -40,9 +43,11 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconintra.h"
-#include "av1/common/reconinter.h"
 #include "av1/common/seg_common.h"
 #include "av1/common/tile_common.h"
+#if CONFIG_TIP
+#include "av1/common/tip.h"
+#endif  // CONFIG_TIP
 #include "av1/common/warped_motion.h"
 
 #include "av1/encoder/aq_complexity.h"
@@ -143,15 +148,6 @@ static const uint16_t AV1_HIGH_VAR_OFFS_12[MAX_SB_SIZE] = {
 };
 /*!\endcond */
 
-unsigned int av1_get_sby_perpixel_variance(const AV1_COMP *cpi,
-                                           const struct buf_2d *ref,
-                                           BLOCK_SIZE bs) {
-  unsigned int sse;
-  const unsigned int var =
-      cpi->fn_ptr[bs].vf(ref->buf, ref->stride, AV1_VAR_OFFS, 0, &sse);
-  return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
-}
-
 unsigned int av1_high_get_sby_perpixel_variance(const AV1_COMP *cpi,
                                                 const struct buf_2d *ref,
                                                 BLOCK_SIZE bs, int bd) {
@@ -161,9 +157,8 @@ unsigned int av1_high_get_sby_perpixel_variance(const AV1_COMP *cpi,
   const uint16_t *high_var_offs[3] = { AV1_HIGH_VAR_OFFS_8,
                                        AV1_HIGH_VAR_OFFS_10,
                                        AV1_HIGH_VAR_OFFS_12 };
-  var =
-      cpi->fn_ptr[bs].vf(ref->buf, ref->stride,
-                         CONVERT_TO_BYTEPTR(high_var_offs[off_index]), 0, &sse);
+  var = cpi->fn_ptr[bs].vf(ref->buf, ref->stride, high_var_offs[off_index], 0,
+                           &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
 }
 
@@ -172,9 +167,9 @@ static unsigned int get_sby_perpixel_diff_variance(const AV1_COMP *const cpi,
                                                    int mi_row, int mi_col,
                                                    BLOCK_SIZE bs) {
   unsigned int sse, var;
-  uint8_t *last_y;
-  const YV12_BUFFER_CONFIG *last =
-      get_ref_frame_yv12_buf(&cpi->common, LAST_FRAME);
+  uint16_t *last_y;
+  const YV12_BUFFER_CONFIG *last = get_ref_frame_yv12_buf(
+      &cpi->common, get_closest_pastcur_ref_index(&cpi->common));
 
   assert(last != NULL);
   last_y =
@@ -199,7 +194,7 @@ static BLOCK_SIZE get_rd_var_based_fixed_partition(AV1_COMP *cpi, MACROBLOCK *x,
 
 void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
                           int mi_row, int mi_col, const int num_planes,
-                          BLOCK_SIZE bsize) {
+                          const CHROMA_REF_INFO *chroma_ref_info) {
   // Set current frame pointer.
   x->e_mbd.cur_buf = src;
 
@@ -207,10 +202,10 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
   // the static analysis warnings.
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); i++) {
     const int is_uv = i > 0;
-    setup_pred_plane(
-        &x->plane[i].src, bsize, src->buffers[i], src->crop_widths[is_uv],
-        src->crop_heights[is_uv], src->strides[is_uv], mi_row, mi_col, NULL,
-        x->e_mbd.plane[i].subsampling_x, x->e_mbd.plane[i].subsampling_y);
+    setup_pred_plane(&x->plane[i].src, src->buffers[i], src->crop_widths[is_uv],
+                     src->crop_heights[is_uv], src->strides[is_uv], mi_row,
+                     mi_col, NULL, x->e_mbd.plane[i].subsampling_x,
+                     x->e_mbd.plane[i].subsampling_y, chroma_ref_info);
   }
 }
 
@@ -227,8 +222,8 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
  * \param[in]     mi_col      Block column (in "MI_SIZE" units) index
  * \param[out]    num_planes  Number of image planes (e.g. Y,U,V)
  *
- * \return No return value but updates macroblock and thread data
- * relating to the q / q delta to be used.
+ * No return value but updates macroblock and thread data relating
+ * to the q / q delta to be used.
  */
 static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
                                      MACROBLOCK *const x,
@@ -241,7 +236,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
 
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
   // Delta-q modulation based on variance
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, sb_size);
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
 
   int current_qindex = cm->quant_params.base_qindex;
   if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) {
@@ -288,7 +283,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   assert(current_qindex > 0);
 
   x->delta_qindex = current_qindex - cm->quant_params.base_qindex;
-  av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+  av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
   xd->mi[0]->current_qindex = current_qindex;
   av1_init_plane_quantizers(cpi, x, xd->mi[0]->segment_id);
 
@@ -380,9 +375,9 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
         }
       }
       // tpl_pred_error is the pred_error reduction of best_ref w.r.t.
-      // LAST_FRAME.
-      tpl_pred_error[best_rf_idx] = this_stats->pred_error[best_rf_idx] -
-                                    this_stats->pred_error[LAST_FRAME - 1];
+      // rank 0 frame.
+      tpl_pred_error[best_rf_idx] =
+          this_stats->pred_error[best_rf_idx] - this_stats->pred_error[0];
 
       for (int rf_idx = 1; rf_idx < INTER_REFS_PER_FRAME; ++rf_idx)
         inter_cost[rf_idx] += tpl_pred_error[rf_idx];
@@ -401,12 +396,12 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
     }
   }
 
-  x->tpl_keep_ref_frame[INTRA_FRAME] = 1;
-  x->tpl_keep_ref_frame[LAST_FRAME] = 1;
+  x->tpl_keep_ref_frame[INTRA_FRAME_INDEX] = 1;
+  x->tpl_keep_ref_frame[0] = 1;
 
   int cutoff_ref = 0;
   for (int idx = 0; idx < INTER_REFS_PER_FRAME - 1; ++idx) {
-    x->tpl_keep_ref_frame[rank_index[idx] + LAST_FRAME] = 1;
+    x->tpl_keep_ref_frame[rank_index[idx]] = 1;
     if (idx > 2) {
       if (!cutoff_ref) {
         // If the predictive coding gains are smaller than the previous more
@@ -418,7 +413,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
           cutoff_ref = 1;
       }
 
-      if (cutoff_ref) x->tpl_keep_ref_frame[rank_index[idx] + LAST_FRAME] = 0;
+      if (cutoff_ref) x->tpl_keep_ref_frame[rank_index[idx]] = 0;
     }
   }
 }
@@ -444,6 +439,30 @@ static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
 #define AVG_CDF_WEIGHT_LEFT 3
 #define AVG_CDF_WEIGHT_TOP_RIGHT 1
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static void fill_sms_buf(SimpleMotionDataBufs *data_buf,
+                         SIMPLE_MOTION_DATA_TREE *sms_node, int mi_row,
+                         int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+  SimpleMotionData *sms_data =
+      av1_get_sms_data_entry(data_buf, mi_row, mi_col, bsize, sb_size);
+  sms_data->old_sms = sms_node;
+  if (bsize >= BLOCK_8X8) {
+    const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
+    for (int r_idx = 0; r_idx < SUB_PARTITIONS_SPLIT; r_idx++) {
+      assert(bsize < BLOCK_SIZES_ALL);
+      const int w_mi = mi_size_wide[bsize];
+      const int h_mi = mi_size_high[bsize];
+      const int sub_mi_col = mi_col + (r_idx & 1) * w_mi / 2;
+      const int sub_mi_row = mi_row + (r_idx >> 1) * h_mi / 2;
+      SIMPLE_MOTION_DATA_TREE *sub_tree = sms_node->split[r_idx];
+
+      fill_sms_buf(data_buf, sub_tree, sub_mi_row, sub_mi_col, subsize,
+                   sb_size);
+    }
+  }
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // This function initializes the stats for encode_rd_sb.
 static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                      const TileDataEnc *tile_data,
@@ -453,6 +472,10 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   const AV1_COMMON *cm = &cpi->common;
   const TileInfo *tile_info = &tile_data->tile_info;
   MACROBLOCK *x = &td->mb;
+#if CONFIG_FLEX_MVRES
+  MACROBLOCKD *const xd = &x->e_mbd;
+  SB_INFO *sbi = xd->sbi;
+#endif
 
   const SPEED_FEATURES *sf = &cpi->sf;
   const int use_simple_motion_search =
@@ -464,6 +487,10 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   if (use_simple_motion_search) {
     init_simple_motion_search_mvs(sms_root);
   }
+
+#if CONFIG_FLEX_MVRES
+  (void)sbi;
+#endif
 
   init_ref_frame_space(cpi, td, mi_row, mi_col);
   x->sb_energy_level = 0;
@@ -484,7 +511,233 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   reset_hash_records(&x->txfm_search_info, cpi->sf.tx_sf.use_inter_txb_hash);
   av1_zero(x->picked_ref_frames_mask);
   av1_invalid_rd_stats(rd_cost);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  SimpleMotionDataBufs *data_bufs = x->sms_bufs;
+  av1_init_sms_data_bufs(data_bufs);
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->seq_params.sb_size,
+               cm->seq_params.sb_size);
+
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  if (x->e_mbd.tree_type == CHROMA_PART) {
+    assert(is_bsize_square(x->sb_enc.min_partition_size));
+    x->sb_enc.min_partition_size =
+        AOMMAX(x->sb_enc.min_partition_size, BLOCK_8X8);
+  }
 }
+
+/*!\brief Parameters for \ref perform_one_partition_pass to support multiple sb
+ * passes.
+ * \ingroup partition_search
+ * */
+typedef struct SbMultiPassParams {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*!\brief The reference partition tree template. */
+  const PARTITION_TREE *template_tree;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+} SbMultiPassParams;
+
+/*!\brief Call \ref av1_rd_pick_partition.
+ *
+ * \ingroup partition_search
+ * This is a helper function used to handle some SDP related logics.
+ */
+static AOM_INLINE void perform_one_partition_pass(
+    AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+    const int mi_row, const int mi_col,
+    const SB_MULTI_PASS_MODE multi_pass_mode,
+    const SbMultiPassParams *multi_pass_params) {
+  const AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  SuperBlockEnc *sb_enc = &x->sb_enc;
+  SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const int ss_x = cm->seq_params.subsampling_x;
+  const int ss_y = cm->seq_params.subsampling_y;
+  RD_STATS dummy_rdc;
+  av1_invalid_rd_stats(&dummy_rdc);
+
+  const int total_loop_num =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp)
+          ? 2
+          : 1;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->is_whole_sb = mi_row + mi_size_high[sb_size] <= cm->mi_params.mi_rows &&
+                   mi_col + mi_size_wide[sb_size] <= cm->mi_params.mi_cols;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+    const BLOCK_SIZE min_partition_size = sb_enc->min_partition_size;
+    xd->tree_type =
+        (total_loop_num == 1 ? SHARED_PART
+                             : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
+    init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
+                      1);
+    PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+        mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const PARTITION_TREE *template_tree =
+        multi_pass_params ? multi_pass_params->template_tree : NULL;
+    assert(IMPLIES(template_tree, total_loop_num == 1) &&
+           "perform_one_partition_pass cannot handle fixed partitioning for "
+           "erp yet.");
+#else
+    (void)multi_pass_params;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    av1_rd_pick_partition(
+        cpi, td, tile_data, tp, mi_row, mi_col, sb_size, &dummy_rdc, dummy_rdc,
+        pc_root,
+#if CONFIG_EXT_RECUR_PARTITIONS
+        xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL,
+        template_tree, INT_MAX,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        sms_root, NULL, multi_pass_mode, NULL);
+    sb_enc->min_partition_size = min_partition_size;
+  }
+  xd->tree_type = SHARED_PART;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->is_whole_sb = 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+}
+
+/*!\brief Call \ref av1_rd_pick_partition twice.
+ *
+ * \ingroup partition_search
+ * This function is mostly used to unit tests to make sure that
+ * SB_FIRST_PASS_STATS caches the correct statistics to recode the superblock.
+ */
+static AOM_INLINE void perform_two_partition_passes(
+    AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+    const int mi_row, const int mi_col) {
+  SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
+  AV1_COMMON *const cm = &cpi->common;
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+
+  // First pass
+  SB_FIRST_PASS_STATS sb_fp_stats;
+  av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
+#endif  // WARP_CU_BANK
+  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                             SB_DRY_PASS, NULL);
+
+  // Second pass
+  RD_STATS dummy_rdc;
+  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
+                    0);
+  av1_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
+  av1_reset_simple_motion_tree_partition(sms_root, sb_size);
+
+  av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#if WARP_CU_BANK
+  td->mb.e_mbd.warp_param_bank = stored_warp_bank;
+#endif  // WARP_CU_BANK
+  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                             SB_WET_PASS, NULL);
+}
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+/*!\brief Set all tree nodes <= min_bsize to PARTITION_INVALID.
+ *
+ * \ingroup partition_search
+ */
+static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
+                                               BLOCK_SIZE min_bsize) {
+  const BLOCK_SIZE bsize = part_tree->bsize;
+  const PARTITION_TYPE part_type = part_tree->partition;
+  if (!is_bsize_geq(bsize, min_bsize)) {
+    part_tree->partition = PARTITION_INVALID;
+    for (int idx = 0; idx < 4; idx++) {
+      av1_free_ptree_recursive(part_tree->sub_tree[idx]);
+      part_tree->sub_tree[idx] = NULL;
+    }
+
+    return;
+  }
+
+  int num_subtrees = 0;
+  switch (part_type) {
+    case PARTITION_NONE: num_subtrees = 0; break;
+    case PARTITION_HORZ:
+    case PARTITION_VERT: num_subtrees = 2; break;
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: num_subtrees = 4; break;
+#endif  // CONFIG_UNEVEN_4WAY
+#if CONFIG_H_PARTITION
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3: num_subtrees = 4; break;
+#endif  // CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3: num_subtrees = 3; break;
+#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+    default:
+      assert(0 && "Invalid partition type in set_min_none_to_invalid!");
+      return;
+  }
+
+  for (int idx = 0; idx < num_subtrees; idx++) {
+    set_min_none_to_invalid(part_tree->sub_tree[idx], min_bsize);
+  }
+}
+
+/*!\brief Performs partition search in two passes.
+ *
+ * \ingroup partition_search
+ * In the first pass, this function calls \ref av1_rd_pick_partition with the
+ * minimum bsize set to BLOCK_16X16. In the second pass, this function calls
+ * \ref av1_rd_pick_partition with the same partition tree from the first pass,
+ * but \ref av1_rd_pick_partition is allowed to search recursively starting from
+ * BLOCK_32X32.
+ */
+static AOM_INLINE void perform_two_pass_partition_search(
+    AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data, TokenExtra **tp,
+    const int mi_row, const int mi_col) {
+  SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
+
+  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  assert(!frame_is_intra_only(cm));
+
+  // First pass to estimate  partition structures
+  SB_FIRST_PASS_STATS sb_fp_stats;
+  av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+  const BLOCK_SIZE fp_min_bsize = BLOCK_16X16;
+  x->sb_enc.min_partition_size = fp_min_bsize;
+  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                             SB_DRY_PASS, NULL);
+  PARTITION_TREE *part_ref = xd->sbi->ptree_root[0];
+  // Set this to NULL otherwise part_ref will get freed in the second pass.
+  xd->sbi->ptree_root[0] = NULL;
+  set_min_none_to_invalid(part_ref, get_larger_sqr_bsize(fp_min_bsize));
+
+  // Second pass
+  RD_STATS dummy_rdc;
+  init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
+                    0);
+  av1_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
+  av1_reset_simple_motion_tree_partition(sms_root, sb_size);
+
+  SbMultiPassParams multi_pass_params = { part_ref };
+  av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
+  perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                             SB_WET_PASS, &multi_pass_params);
+
+  av1_free_ptree_recursive(part_ref);
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 /*!\brief Encode a superblock (RD-search-based)
  *
@@ -508,65 +761,97 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   int64_t dummy_dist;
   RD_STATS dummy_rdc;
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
+  const int ss_x = cm->seq_params.subsampling_x;
+  const int ss_y = cm->seq_params.subsampling_y;
+  (void)tile_info;
+  (void)num_planes;
+  (void)mi;
 
-#if CONFIG_SDP
   const int total_loop_num =
       (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
        cm->seq_params.enable_sdp)
           ? 2
           : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
-#endif
 
+#if CONFIG_FLEX_MVRES
+  x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->sms_bufs = td->sms_bufs;
+  x->reuse_inter_mode_cache_type = cpi->sf.inter_sf.reuse_erp_mode_flag;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
 
   // Encode the superblock
   if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
     const BLOCK_SIZE bsize =
         seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-#if CONFIG_SDP
     for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+      const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
       xd->tree_type =
           (total_loop_num == 1 ? SHARED_PART
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
-#endif
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+#if CONFIG_EXT_RECUR_PARTITIONS
+      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      av1_build_partition_tree_fixed_partitioning(
+          cm, xd->tree_type, mi_row, mi_col, bsize,
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                           &dummy_rate, &dummy_dist, 1, pc_root);
+                           &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#else
+                           NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                           pc_root);
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-#if CONFIG_SDP
+      x->sb_enc.min_partition_size = min_partition_size;
     }
     xd->tree_type = SHARED_PART;
-#endif
   } else if (cpi->partition_search_skippable_frame) {
     // partition search by adjusting a fixed-size partition for which the size
     // is determined by the source variance
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
     const BLOCK_SIZE bsize =
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-#if CONFIG_SDP
     for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+      const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
       xd->tree_type =
           (total_loop_num == 1 ? SHARED_PART
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
-#endif
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+#if CONFIG_EXT_RECUR_PARTITIONS
+      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      av1_build_partition_tree_fixed_partitioning(
+          cm, xd->tree_type, mi_row, mi_col, bsize,
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                           &dummy_rate, &dummy_dist, 1, pc_root);
+                           &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#else
+                           NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                           pc_root);
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
-#if CONFIG_SDP
+      x->sb_enc.min_partition_size = min_partition_size;
     }
     xd->tree_type = SHARED_PART;
-#endif
   } else {
     // The most exhaustive recursive partition search
     SuperBlockEnc *sb_enc = &x->sb_enc;
@@ -584,74 +869,25 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     // as the starting block size for partitioning the sb
     set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
 
-    // The superblock can be searched only once, or twice consecutively for
-    // better quality. Note that the meaning of passes here is different from
-    // the general concept of 1-pass/2-pass encoders.
-    const int num_passes =
-        cpi->oxcf.unit_test_cfg.sb_multipass_unit_test ? 2 : 1;
+#if CONFIG_FLEX_MVRES
+    // Sets the sb_mv_precision
+    x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
 
-    if (num_passes == 1) {
-#if CONFIG_SDP
-      for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
-        xd->tree_type =
-            (total_loop_num == 1 ? SHARED_PART
-                                 : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
-        init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                          mi_col, 1);
-#endif
-        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                              &dummy_rdc, dummy_rdc, pc_root, sms_root, NULL,
-                              SB_SINGLE_PASS, NULL);
-#if CONFIG_SDP
-      }
-      xd->tree_type = SHARED_PART;
-#endif
-    } else {
-      // First pass
-      SB_FIRST_PASS_STATS sb_fp_stats;
-      av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_SDP
-      for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
-        xd->tree_type =
-            (total_loop_num == 1 ? SHARED_PART
-                                 : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
-        init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                          mi_col, 1);
-#endif
-        PC_TREE *const pc_root_p0 = av1_alloc_pc_tree_node(sb_size);
-        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                              &dummy_rdc, dummy_rdc, pc_root_p0, sms_root, NULL,
-                              SB_DRY_PASS, NULL);
-#if CONFIG_SDP
-      }
-      xd->tree_type = SHARED_PART;
-#endif
-
-      // Second pass
-      init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                        mi_col, 0);
-      av1_reset_mbmi(&cm->mi_params, sb_size, mi_row, mi_col);
-      av1_reset_simple_motion_tree_partition(sms_root, sb_size);
-
-      av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_SDP
-      for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
-        xd->tree_type =
-            (total_loop_num == 1 ? SHARED_PART
-                                 : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
-        init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
-                          mi_col, 1);
-#endif
-        PC_TREE *const pc_root_p1 = av1_alloc_pc_tree_node(sb_size);
-        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                              &dummy_rdc, dummy_rdc, pc_root_p1, sms_root, NULL,
-                              SB_WET_PASS, NULL);
-#if CONFIG_SDP
-      }
-      xd->tree_type = SHARED_PART;
-#endif
+    if (cpi->oxcf.unit_test_cfg.sb_multipass_unit_test) {
+      perform_two_partition_passes(cpi, td, tile_data, tp, mi_row, mi_col);
     }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    else if (!frame_is_intra_only(cm) &&
+             sf->part_sf.two_pass_partition_search) {
+      perform_two_pass_partition_search(cpi, td, tile_data, tp, mi_row, mi_col);
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    else {
+      perform_one_partition_pass(cpi, td, tile_data, tp, mi_row, mi_col,
+                                 SB_SINGLE_PASS, NULL);
+    }
+
     // Reset to 0 so that it wouldn't be used elsewhere mistakenly.
     sb_enc->tpl_data_count = 0;
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -714,10 +950,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
-
-#if CONFIG_IBC_SR_EXT
     av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
-#endif  // CONFIG_IBC_SR_EXT
+    av1_set_sb_info(cm, xd, mi_row, mi_col);
+
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
@@ -746,6 +981,10 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_REF_MV_BANK
     xd->ref_mv_bank.rmb_sb_hits = 0;
 #endif  // CONFIG_REF_MV_BANK
+
+#if CONFIG_WARP_REF_LIST
+    xd->warp_param_bank.wpb_sb_hits = 0;
+#endif  // CONFIG_WARP_REF_LIST
 
     // Get segment id and skip flag
     const struct segmentation *const seg = &cm->seg;
@@ -786,8 +1025,7 @@ static AOM_INLINE void init_encode_frame_mb_context(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &x->e_mbd;
 
   // Copy data over into macro block data structures.
-  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes,
-                       cm->seq_params.sb_size);
+  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, NULL);
 
   av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
                          cm->seq_params.subsampling_y, num_planes);
@@ -906,13 +1144,22 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
   av1_crc32c_calculator_init(
       &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
 
-#if CONFIG_REF_MV_BANK
-  av1_zero(td->mb.e_mbd.ref_mv_bank);
-  td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
-#endif  // CONFIG_REF_MV_BANK
-
   for (int mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
        mi_row += cm->seq_params.mib_size) {
+#if CONFIG_REF_MV_BANK
+    av1_zero(td->mb.e_mbd.ref_mv_bank);
+#if !CONFIG_C043_MVP_IMPROVEMENTS
+    td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
+#endif
+#endif  // CONFIG_REF_MV_BANK
+
+#if CONFIG_WARP_REF_LIST
+    av1_zero(td->mb.e_mbd.warp_param_bank);
+#if !WARP_CU_BANK
+    td->mb.e_mbd.warp_param_bank_pt = &td->mb.e_mbd.warp_param_bank;
+#endif  //! WARP_CU_BANK
+#endif  // CONFIG_WARP_REF_LIST
+
     av1_encode_sb_row(cpi, td, tile_row, tile_col, mi_row);
   }
 }
@@ -958,13 +1205,13 @@ static AOM_INLINE void set_rel_frame_dist(
   int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
   ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
   ref_frame_dist_info->nearest_future_ref = NONE_FRAME;
-  for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
-    ref_frame_dist_info->ref_relative_dist[ref_frame - LAST_FRAME] = 0;
-    if (ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
+    ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
+    if (ref_frame_flags & (1 << ref_frame)) {
       int dist = av1_encoder_get_relative_dist(
-          cm->cur_frame->ref_display_order_hint[ref_frame - LAST_FRAME],
+          cm->cur_frame->ref_display_order_hint[ref_frame],
           cm->current_frame.display_order_hint);
-      ref_frame_dist_info->ref_relative_dist[ref_frame - LAST_FRAME] = dist;
+      ref_frame_dist_info->ref_relative_dist[ref_frame] = dist;
       // Get the nearest ref_frame in the past
       if (abs(dist) < min_past_dist && dist < 0) {
         ref_frame_dist_info->nearest_past_ref = ref_frame;
@@ -982,18 +1229,9 @@ static AOM_INLINE void set_rel_frame_dist(
 static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
   assert(!frame_is_intra_only(cm));
 
-  int one_sided_refs = 1;
-  const int cur_display_order_hint = cm->current_frame.display_order_hint;
-  for (int ref = LAST_FRAME; ref <= ALTREF_FRAME; ++ref) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
-    if (buf == NULL) continue;
-    if (av1_encoder_get_relative_dist(buf->display_order_hint,
-                                      cur_display_order_hint) > 0) {
-      one_sided_refs = 0;  // bwd reference
-      break;
-    }
-  }
-  return one_sided_refs;
+  return (cm->ref_frames_info.num_past_refs == 0 &&
+          cm->ref_frames_info.num_cur_refs == 0) ||
+         cm->ref_frames_info.num_future_refs == 0;
 }
 
 static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
@@ -1003,13 +1241,18 @@ static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
   if (!skip_mode_info->skip_mode_allowed) return;
 
   const RefCntBuffer *const buf_0 =
-      get_ref_frame_buf(cm, LAST_FRAME + skip_mode_info->ref_frame_idx_0);
+      get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_0);
   const RefCntBuffer *const buf_1 =
-      get_ref_frame_buf(cm, LAST_FRAME + skip_mode_info->ref_frame_idx_1);
+      get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1);
   assert(buf_0 != NULL && buf_1 != NULL);
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  ref_order_hint[0] = buf_0->display_order_hint;
+  ref_order_hint[1] = buf_1->display_order_hint;
+#else
   ref_order_hint[0] = buf_0->order_hint;
   ref_order_hint[1] = buf_1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 }
 
 static int check_skip_mode_enabled(AV1_COMP *const cpi) {
@@ -1018,9 +1261,13 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   av1_setup_skip_mode_allowed(cm);
   if (!cm->current_frame.skip_mode_info.skip_mode_allowed) return 0;
 
-  // Turn off skip mode if the temporal distances of the reference pair to the
-  // current frame are different by more than 1 frame.
+    // Turn off skip mode if the temporal distances of the reference pair to the
+    // current frame are different by more than 1 frame.
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_offset = (int)cm->current_frame.display_order_hint;
+#else
   const int cur_offset = (int)cm->current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int ref_offset[2];
   get_skip_mode_ref_offsets(cm, ref_offset);
   const int cur_to_ref0 = get_relative_dist(&cm->seq_params.order_hint_info,
@@ -1032,20 +1279,14 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   // High Latency: Turn off skip mode if all refs are fwd.
   if (cpi->all_one_sided_refs && cpi->oxcf.gf_cfg.lag_in_frames > 0) return 0;
 
-  static const int flag_list[REF_FRAMES] = { 0,
-                                             AOM_LAST_FLAG,
-                                             AOM_LAST2_FLAG,
-                                             AOM_LAST3_FLAG,
-                                             AOM_GOLD_FLAG,
-                                             AOM_BWD_FLAG,
-                                             AOM_ALT2_FLAG,
-                                             AOM_ALT_FLAG };
-  const int ref_frame[2] = {
-    cm->current_frame.skip_mode_info.ref_frame_idx_0 + LAST_FRAME,
-    cm->current_frame.skip_mode_info.ref_frame_idx_1 + LAST_FRAME
-  };
-  if (!(cpi->ref_frame_flags & flag_list[ref_frame[0]]) ||
-      !(cpi->ref_frame_flags & flag_list[ref_frame[1]]))
+  const int ref_frame[2] = { cm->current_frame.skip_mode_info.ref_frame_idx_0,
+                             cm->current_frame.skip_mode_info.ref_frame_idx_1 };
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+  assert(ref_frame[0] <= INTER_REFS_PER_FRAME &&
+         ref_frame[1] <= INTER_REFS_PER_FRAME);
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+  if (!(cpi->common.ref_frame_flags & (1 << ref_frame[0])) ||
+      !(cpi->common.ref_frame_flags & (1 << ref_frame[1])))
     return 0;
 
   return 1;
@@ -1059,61 +1300,178 @@ static AOM_INLINE void set_default_interp_skip_flags(
                         : INTERP_SKIP_LUMA_SKIP_CHROMA;
 }
 
-static AOM_INLINE void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
-  if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
-       cpi->sf.inter_sf.disable_onesided_comp) &&
-      cpi->all_one_sided_refs) {
-    // Disable all compound references
-    cpi->prune_ref_frame_mask = (1 << MODE_CTX_REF_FRAMES) - (1 << REF_FRAMES);
-  } else if (cpi->sf.inter_sf.selective_ref_frame >= 2) {
-    AV1_COMMON *const cm = &cpi->common;
-    const int cur_frame_display_order_hint =
-        cm->current_frame.display_order_hint;
-    unsigned int *ref_display_order_hint =
-        cm->cur_frame->ref_display_order_hint;
-    const int arf2_dist = av1_encoder_get_relative_dist(
-        ref_display_order_hint[ALTREF2_FRAME - LAST_FRAME],
-        cur_frame_display_order_hint);
-    const int bwd_dist = av1_encoder_get_relative_dist(
-        ref_display_order_hint[BWDREF_FRAME - LAST_FRAME],
-        cur_frame_display_order_hint);
+#if CONFIG_TIP
+AOM_INLINE void av1_tip_enc_calc_subpel_params(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
+    int *src_stride) {
 
-    for (int ref_idx = REF_FRAMES; ref_idx < MODE_CTX_REF_FRAMES; ++ref_idx) {
-      MV_REFERENCE_FRAME rf[2];
-      av1_set_ref_frame(rf, ref_idx);
-      if (!(cpi->ref_frame_flags & av1_ref_frame_flag_list[rf[0]]) ||
-          !(cpi->ref_frame_flags & av1_ref_frame_flag_list[rf[1]])) {
-        continue;
-      }
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    tip_common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif  // CONFIG_REFINEMV
 
-      if (!cpi->all_one_sided_refs) {
-        int ref_dist[2];
-        for (int i = 0; i < 2; ++i) {
-          ref_dist[i] = av1_encoder_get_relative_dist(
-              ref_display_order_hint[rf[i] - LAST_FRAME],
-              cur_frame_display_order_hint);
-        }
+  // These are part of the function signature to use this function through a
+  // function pointer. See typedef of 'CalcSubpelParamsFunc'.
+  (void)xd;
+  (void)mi_x;
+  (void)mi_y;
+  (void)ref;
+  (void)mc_buf;
 
-        // One-sided compound is used only when all reference frames are
-        // one-sided.
-        if ((ref_dist[0] > 0) == (ref_dist[1] > 0)) {
-          cpi->prune_ref_frame_mask |= 1 << ref_idx;
-        }
-      }
-
-      if (cpi->sf.inter_sf.selective_ref_frame >= 4 &&
-          (rf[0] == ALTREF2_FRAME || rf[1] == ALTREF2_FRAME) &&
-          (cpi->ref_frame_flags & av1_ref_frame_flag_list[BWDREF_FRAME])) {
-        // Check if both ALTREF2_FRAME and BWDREF_FRAME are future references.
-        if (arf2_dist > 0 && bwd_dist > 0 && bwd_dist <= arf2_dist) {
-          // Drop ALTREF2_FRAME as a reference if BWDREF_FRAME is a closer
-          // reference to the current frame than ALTREF2_FRAME
-          cpi->prune_ref_frame_mask |= 1 << ref_idx;
-        }
-      }
+  const struct scale_factors *sf = inter_pred_params->scale_factors;
+  struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
+  const int is_scaled = av1_is_scaled(sf);
+  if (is_scaled) {
+    const int ssx = inter_pred_params->subsampling_x;
+    const int ssy = inter_pred_params->subsampling_y;
+    int orig_pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+    int orig_pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
+#if CONFIG_OPTFLOW_REFINEMENT
+    if (use_optflow_refinement) {
+      orig_pos_y += ROUND_POWER_OF_TWO_SIGNED(src_mv->row * (1 << SUBPEL_BITS),
+                                              MV_REFINE_PREC_BITS + ssy);
+      orig_pos_x += ROUND_POWER_OF_TWO_SIGNED(src_mv->col * (1 << SUBPEL_BITS),
+                                              MV_REFINE_PREC_BITS + ssx);
+    } else {
+      orig_pos_y += src_mv->row * (1 << (1 - ssy));
+      orig_pos_x += src_mv->col * (1 << (1 - ssx));
     }
+#else
+    orig_pos_y += src_mv->row * (1 << (1 - ssy));
+    orig_pos_x += src_mv->col * (1 << (1 - ssx));
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    int pos_y = sf->scale_value_y(orig_pos_y, sf);
+    int pos_x = sf->scale_value_x(orig_pos_x, sf);
+    pos_x += SCALE_EXTRA_OFF;
+    pos_y += SCALE_EXTRA_OFF;
+
+    const int top = -AOM_LEFT_TOP_MARGIN_SCALED(ssy);
+    const int left = -AOM_LEFT_TOP_MARGIN_SCALED(ssx);
+    const int bottom = (pre_buf->height + AOM_INTERP_EXTEND)
+                       << SCALE_SUBPEL_BITS;
+    const int right = (pre_buf->width + AOM_INTERP_EXTEND) << SCALE_SUBPEL_BITS;
+    pos_y = clamp(pos_y, top, bottom);
+    pos_x = clamp(pos_x, left, right);
+
+    subpel_params->subpel_x = pos_x & SCALE_SUBPEL_MASK;
+    subpel_params->subpel_y = pos_y & SCALE_SUBPEL_MASK;
+    subpel_params->xs = sf->x_step_q4;
+    subpel_params->ys = sf->y_step_q4;
+
+#if CONFIG_D071_IMP_MSK_BLD
+    if (inter_pred_params->border_data.enable_bacp) {
+      // Get reference block top left coordinate.
+      subpel_params->x0 = pos_x >> SCALE_SUBPEL_BITS;
+      subpel_params->y0 = pos_y >> SCALE_SUBPEL_BITS;
+      // Get reference block bottom right coordinate.
+      subpel_params->x1 = subpel_params->x0 + inter_pred_params->block_width;
+      subpel_params->y1 = subpel_params->y0 + inter_pred_params->block_height;
+    }
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
+    *pre = pre_buf->buf0 + (pos_y >> SCALE_SUBPEL_BITS) * pre_buf->stride +
+           (pos_x >> SCALE_SUBPEL_BITS);
+  } else {
+    int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
+    int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+
+#if CONFIG_REFINEMV
+    const int bw = inter_pred_params->original_pu_width;
+    const int bh = inter_pred_params->original_pu_height;
+
+#else
+#if CONFIG_OPTFLOW_REFINEMENT
+    // Use original block size to clamp MV and to extend block boundary
+    const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
+                                          : inter_pred_params->block_width;
+    const int bh = use_optflow_refinement ? inter_pred_params->orig_block_height
+                                          : inter_pred_params->block_height;
+#else
+    const int bw = inter_pred_params->block_width;
+    const int bh = inter_pred_params->block_height;
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#endif  // CONFIG_REFINEMV
+    const MV mv_q4 = tip_clamp_mv_to_umv_border_sb(
+        inter_pred_params, src_mv, bw, bh,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
+
+    subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
+    subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
+    subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
+    pos_x += mv_q4.col;
+    pos_y += mv_q4.row;
+
+#if CONFIG_D071_IMP_MSK_BLD
+    if (inter_pred_params->border_data.enable_bacp) {
+      // Get reference block top left coordinate.
+      subpel_params->x0 = pos_x >> SUBPEL_BITS;
+      subpel_params->y0 = pos_y >> SUBPEL_BITS;
+      // Get reference block bottom right coordinate.
+      subpel_params->x1 = subpel_params->x0 + inter_pred_params->block_width;
+      subpel_params->y1 = subpel_params->y0 + inter_pred_params->block_height;
+    }
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
+    *pre = pre_buf->buf0 + (pos_y >> SUBPEL_BITS) * pre_buf->stride +
+           (pos_x >> SUBPEL_BITS);
+  }
+  *src_stride = pre_buf->stride;
+}
+
+static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
+  ThreadData *const td = &cpi->td;
+  AV1_COMMON *const cm = &cpi->common;
+  if (cm->seq_params.enable_tip) {
+    if (cm->features.allow_ref_frame_mvs &&
+        cm->seq_params.order_hint_info.enable_order_hint && cm->has_bwd_ref) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      start_timing(cpi, av1_enc_setup_tip_frame_time);
+#endif
+      av1_setup_tip_motion_field(cm, 1);
+      if (cm->features.tip_frame_mode) {
+#if CONFIG_OPTFLOW_ON_TIP
+        cm->features.use_optflow_tip = 1;
+#endif  // CONFIG_OPTFLOW_ON_TIP
+        av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
+                            av1_tip_enc_calc_subpel_params);
+      }
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      end_timing(cpi, av1_enc_setup_tip_frame_time);
+#endif
+    } else {
+      cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
+    }
+  } else {
+    cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
   }
 }
+#endif  // CONFIG_TIP
+
+#if CONFIG_PAR_HIDING
+static void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding)
+    cm->features.allow_parity_hiding = false;
+  else
+    cm->features.allow_parity_hiding = true;
+}
+#endif  // CONFIG_PAR_HIDING
 
 /*!\brief Encoder setup(only for the current frame), encoding, and recontruction
  * for a single frame
@@ -1138,7 +1496,12 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   mi_params->setup_mi(mi_params);
 
-  set_mi_offsets(mi_params, xd, 0, 0);
+  set_mi_offsets(mi_params, xd, 0, 0
+#if CONFIG_C071_SUBBLK_WARPMV
+                 ,
+                 0, 0
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+  );
 
   av1_zero(*td->counts);
   av1_zero(rdc->comp_pred_diff);
@@ -1155,6 +1518,21 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   features->allow_intrabc &= (oxcf->kf_cfg.enable_intrabc);
 
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  // Decide which motion modes to scan this frame
+  // TODO(rachelbarker): Rework pruning into something more unified in phase 2
+  int enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
+
+  if ((enabled_motion_modes & (1 << WARPED_CAUSAL)) != 0 &&
+      cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    if (frame_probs->warped_probs[update_type] <
+        cpi->sf.inter_sf.prune_warped_prob_thresh)
+      enabled_motion_modes &= ~(1 << WARPED_CAUSAL);
+  }
+
+  features->enabled_motion_modes = enabled_motion_modes;
+#else
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
@@ -1162,6 +1540,19 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         cpi->sf.inter_sf.prune_warped_prob_thresh)
       features->allow_warped_motion = 0;
   }
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  features->allow_warpmv_mode = features->enabled_motion_modes ? 1 : 0;
+  if (features->allow_warpmv_mode &&
+      cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
+    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    if (frame_probs->warped_probs[update_type] <
+        cpi->sf.inter_sf.prune_warpmv_prob_thresh) {
+      features->allow_warpmv_mode = 0;
+    }
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   int hash_table_created = 0;
   if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) {
@@ -1223,16 +1614,10 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   const CommonQuantParams *quant_params = &cm->quant_params;
   for (i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex =
-        cm->seg.enabled
-#if CONFIG_EXTQUANT
-            ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
-                             cm->seq_params.bit_depth)
-#else
-            ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex)
-#endif
-            : quant_params->base_qindex;
+        cm->seg.enabled ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
+                                         cm->seq_params.bit_depth)
+                        : quant_params->base_qindex;
 
-#if CONFIG_EXTQUANT
     xd->lossless[i] =
         qindex == 0 &&
         (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
@@ -1240,12 +1625,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
         quant_params->u_ac_delta_q <= 0 &&
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         quant_params->v_ac_delta_q <= 0;
-#else
-    xd->lossless[i] =
-        qindex == 0 && quant_params->y_dc_delta_q == 0 &&
-        quant_params->u_dc_delta_q == 0 && quant_params->u_ac_delta_q == 0 &&
-        quant_params->v_dc_delta_q == 0 && quant_params->v_ac_delta_q == 0;
-#endif
+
     if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
     xd->qindex[i] = qindex;
     if (xd->lossless[i]) {
@@ -1297,6 +1677,10 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   av1_initialize_rd_consts(cpi);
   av1_set_sad_per_bit(cpi, &x->mv_costs, quant_params->base_qindex);
 
+#if CONFIG_PC_WIENER
+  av1_reset_txk_skip_array(cm);
+#endif  // CONFIG_PC_WIENER
+
   init_encode_frame_mb_context(cpi);
   set_default_interp_skip_flags(cm, &cpi->interp_search_flags);
   if (cm->prev_frame && cm->prev_frame->seg.enabled)
@@ -1307,18 +1691,16 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     av1_set_default_ref_deltas(cm->lf.ref_deltas);
     av1_set_default_mode_deltas(cm->lf.mode_deltas);
   } else if (cm->prev_frame) {
-    memcpy(cm->lf.ref_deltas, cm->prev_frame->ref_deltas, REF_FRAMES);
+    memcpy(cm->lf.ref_deltas, cm->prev_frame->ref_deltas, SINGLE_REF_FRAMES);
     memcpy(cm->lf.mode_deltas, cm->prev_frame->mode_deltas, MAX_MODE_LF_DELTAS);
   }
-  memcpy(cm->cur_frame->ref_deltas, cm->lf.ref_deltas, REF_FRAMES);
+  memcpy(cm->cur_frame->ref_deltas, cm->lf.ref_deltas, SINGLE_REF_FRAMES);
   memcpy(cm->cur_frame->mode_deltas, cm->lf.mode_deltas, MAX_MODE_LF_DELTAS);
 
   cpi->all_one_sided_refs =
       frame_is_intra_only(cm) ? 0 : refs_are_one_sided(cm);
 
   cpi->prune_ref_frame_mask = 0;
-  // Figure out which ref frames can be skipped at frame level.
-  setup_prune_ref_frame_mask(cpi);
 
   x->txfm_search_info.txb_split_count = 0;
 #if CONFIG_SPEED_STATS
@@ -1344,6 +1726,26 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_setup_motion_field_time);
 #endif
+
+#if CONFIG_PEF
+  const int pef_qp_thr =
+      PEF_QTHR + (cm->seq_params.bit_depth - AOM_BITS_8) * PEF_BD_FACTOR;
+  if (!cm->seq_params.enable_pef || cm->quant_params.base_qindex < pef_qp_thr) {
+    cm->features.allow_pef = 0;
+  } else {
+    cm->features.allow_pef = 1;
+    cm->pef_params.pef_delta = PEF_DELTA;
+  }
+  if (cm->features.allow_pef) init_pef_parameter(cm, 0, av1_num_planes(cm));
+#endif  // CONFIG_PEF
+
+#if CONFIG_TIP
+  av1_enc_setup_tip_frame(cpi);
+#endif  // CONFIG_TIP
+
+#if CONFIG_PAR_HIDING
+  av1_enc_setup_ph_frame(cpi);
+#endif  // CONFIG_PAR_HIDING
 
   cm->current_frame.skip_mode_info.skip_mode_flag =
       check_skip_mode_enabled(cpi);
@@ -1410,6 +1812,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     }
   }
 
+  // TODO(rachelbarker): Improve pruning logic in phase 2
   if (!cpi->sf.inter_sf.disable_obmc &&
       cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
@@ -1425,8 +1828,12 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     }
   }
 
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+#else
   if (features->allow_warped_motion &&
       cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
     int sum = 0;
     for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
@@ -1434,6 +1841,17 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     frame_probs->warped_probs[update_type] =
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  if (cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
+    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    int sum = 0;
+    for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
+    const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
+    frame_probs->warped_probs[update_type] =
+        (frame_probs->warped_probs[update_type] + new_prob) >> 1;
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) ||
       hash_table_created) {
@@ -1473,16 +1891,15 @@ void av1_encode_frame(AV1_COMP *cpi) {
   }
 
   av1_setup_frame_buf_refs(cm);
-  enforce_max_ref_frames(cpi, &cpi->ref_frame_flags);
-  set_rel_frame_dist(&cpi->common, &cpi->ref_frame_dist_info,
-                     cpi->ref_frame_flags);
+  enforce_max_ref_frames(cpi, &cm->ref_frame_flags);
+  set_rel_frame_dist(cm, &cpi->ref_frame_dist_info, cm->ref_frame_flags);
   av1_setup_frame_sign_bias(cm);
 
 #if CONFIG_MISMATCH_DEBUG
   mismatch_reset_frame(num_planes);
 #else
   (void)num_planes;
-#endif
+#endif  // CONFIG_MISMATCH_DEBUG
 
   if (cpi->sf.hl_sf.frame_parameter_update) {
     RD_COUNTS *const rdc = &cpi->td.rd_counts;
@@ -1495,7 +1912,9 @@ void av1_encode_frame(AV1_COMP *cpi) {
     features->interp_filter = SWITCHABLE;
     if (cm->tiles.large_scale) features->interp_filter = EIGHTTAP_REGULAR;
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
     features->switchable_motion_mode = 1;
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
     rdc->compound_ref_used_flag = 0;
     rdc->skip_mode_used_flag = 0;

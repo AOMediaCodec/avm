@@ -21,38 +21,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_EXTQUANT
-void aom_quantize_b_adaptive_helper_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
-    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr,
-    const qm_val_t *iqm_ptr, const int log_scale);
-
-void aom_quantize_b_adaptive_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                               const int32_t *zbin_ptr,
-                               const int32_t *round_ptr,
-                               const int32_t *quant_ptr,
-                               const int32_t *quant_shift_ptr,
-                               tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                               const int32_t *dequant_ptr, uint16_t *eob_ptr,
-                               const int16_t *scan, const int16_t *iscan);
-
-void aom_quantize_b_32x32_adaptive_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
-    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan);
-
-void aom_quantize_b_64x64_adaptive_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
-    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan);
-
 void aom_highbd_quantize_b_adaptive_helper_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -82,23 +50,6 @@ void aom_highbd_quantize_b_64x64_adaptive_c(
     tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
     const int16_t *scan, const int16_t *iscan);
 
-void aom_quantize_b_helper_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                             const int32_t *zbin_ptr, const int32_t *round_ptr,
-                             const int32_t *quant_ptr,
-                             const int32_t *quant_shift_ptr,
-                             tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                             const int32_t *dequant_ptr, uint16_t *eob_ptr,
-                             const int16_t *scan, const int16_t *iscan,
-                             const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr,
-                             const int log_scale);
-
-void aom_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                      const int32_t *zbin_ptr, const int32_t *round_ptr,
-                      const int32_t *quant_ptr, const int32_t *quant_shift_ptr,
-                      tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                      const int32_t *dequant_ptr, uint16_t *eob_ptr,
-                      const int16_t *scan, const int16_t *iscan);
-
 void aom_highbd_quantize_b_helper_c(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
@@ -114,100 +65,6 @@ void aom_highbd_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                              tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
                              const int32_t *dequant_ptr, uint16_t *eob_ptr,
                              const int16_t *scan, const int16_t *iscan);
-#else
-void aom_quantize_b_adaptive_helper_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr,
-    const qm_val_t *iqm_ptr, const int log_scale);
-
-void aom_quantize_b_adaptive_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                               const int16_t *zbin_ptr,
-                               const int16_t *round_ptr,
-                               const int16_t *quant_ptr,
-                               const int16_t *quant_shift_ptr,
-                               tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                               const int16_t *dequant_ptr, uint16_t *eob_ptr,
-                               const int16_t *scan, const int16_t *iscan);
-
-void aom_quantize_b_32x32_adaptive_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan);
-
-void aom_quantize_b_64x64_adaptive_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan);
-
-void aom_highbd_quantize_b_adaptive_helper_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr,
-    const qm_val_t *iqm_ptr, const int log_scale);
-
-void aom_highbd_quantize_b_adaptive_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan);
-
-void aom_highbd_quantize_b_32x32_adaptive_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan);
-
-void aom_highbd_quantize_b_64x64_adaptive_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan);
-
-void aom_quantize_b_helper_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                             const int16_t *zbin_ptr, const int16_t *round_ptr,
-                             const int16_t *quant_ptr,
-                             const int16_t *quant_shift_ptr,
-                             tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                             const int16_t *dequant_ptr, uint16_t *eob_ptr,
-                             const int16_t *scan, const int16_t *iscan,
-                             const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr,
-                             const int log_scale);
-
-void aom_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                      const int16_t *zbin_ptr, const int16_t *round_ptr,
-                      const int16_t *quant_ptr, const int16_t *quant_shift_ptr,
-                      tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                      const int16_t *dequant_ptr, uint16_t *eob_ptr,
-                      const int16_t *scan, const int16_t *iscan);
-
-void aom_highbd_quantize_b_helper_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
-    const int16_t *round_ptr, const int16_t *quant_ptr,
-    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr,
-    const qm_val_t *iqm_ptr, const int log_scale);
-
-void aom_highbd_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                             const int16_t *zbin_ptr, const int16_t *round_ptr,
-                             const int16_t *quant_ptr,
-                             const int16_t *quant_shift_ptr,
-                             tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                             const int16_t *dequant_ptr, uint16_t *eob_ptr,
-                             const int16_t *scan, const int16_t *iscan);
-#endif  // CONFIG_EXTQUANT
 #ifdef __cplusplus
 }  // extern "C"
 #endif

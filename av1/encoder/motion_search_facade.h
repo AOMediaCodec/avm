@@ -35,7 +35,21 @@ typedef struct {
 void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                               BLOCK_SIZE bsize, int ref_idx, int *rate_mv,
                               int search_range, inter_mode_info *mode_info,
-                              int_mv *best_mv);
+                              int_mv *best_mv
+#if CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+                              ,
+                              const int_mv *warp_ref_mv
+#endif  // CONFIG_WARPMV && CONFIG_CWG_D067_IMPROVED_WARP
+);
+
+#if CONFIG_FLEX_MVRES
+void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
+                                             MACROBLOCK *x, BLOCK_SIZE bsize,
+                                             int ref_idx, int *rate_mv,
+                                             inter_mode_info *mode_info,
+                                             const int_mv *start_mv,
+                                             int_mv *best_mv);
+#endif
 
 void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                              BLOCK_SIZE bsize, int_mv *cur_mv,
@@ -48,6 +62,12 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
                                           const BLOCK_SIZE bsize,
                                           const PREDICTION_MODE this_mode);
 
+#if IMPROVED_AMVD
+void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
+                                   BLOCK_SIZE bsize, MV *this_mv, int *rate_mv,
+                                   int ref_idx);
+#endif  // IMPROVED_AMVD
+
 void av1_compound_single_motion_search_interinter(
     const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int_mv *cur_mv,
     const uint8_t *mask, int mask_stride, int *rate_mv, int ref_idx);
@@ -55,9 +75,9 @@ void av1_compound_single_motion_search_interinter(
 void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                        BLOCK_SIZE bsize, MV *this_mv,
 #if CONFIG_JOINT_MVD
-                                       MV *other_mv, uint8_t *second_pred,
+                                       MV *other_mv, uint16_t *second_pred,
 #else
-                                       const uint8_t *second_pred,
+                                       const uint16_t *second_pred,
 #endif  // CONFIG_JOINT_MVD
                                        const uint8_t *mask, int mask_stride,
                                        int *rate_mv, int ref_idx);
@@ -75,7 +95,14 @@ int_mv av1_simple_motion_sse_var(struct AV1_COMP *cpi, MACROBLOCK *x,
                                  int mi_row, int mi_col, BLOCK_SIZE bsize,
                                  const FULLPEL_MV start_mv, int use_subpixel,
                                  unsigned int *sse, unsigned int *var);
-
+#if CONFIG_EXT_RECUR_PARTITIONS
+int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
+                                    const TileInfo *const tile, MACROBLOCK *x,
+                                    int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                    int ref, FULLPEL_MV start_mv,
+                                    int num_planes, int use_subpixel,
+                                    SimpleMotionData *sms_data);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #ifdef __cplusplus
 }  // extern "C"
 #endif

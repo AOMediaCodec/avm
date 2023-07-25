@@ -22,19 +22,29 @@ extern "C" {
 #endif
 
 void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
-                        aom_reader *r, int x_mis, int y_mis);
+                        aom_reader *r, int x_inside_boundary,
+                        int y_inside_boundary);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#if CONFIG_IST
 void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           int blk_row, int blk_col, TX_SIZE tx_size,
                           uint16_t *eob, aom_reader *r);
-#endif
 
 void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
-                      int blk_col, TX_SIZE tx_size, aom_reader *r);
+                      int blk_col, TX_SIZE tx_size, aom_reader *r
+#if CONFIG_ATC_DCTX_ALIGNED
+                      ,
+                      const int plane, const int eob, const int dc_skip
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+);
+
+#if CONFIG_CROSS_CHROMA_TX
+void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+                        int blk_row, int blk_col, TX_SIZE tx_size,
+                        aom_reader *r);
+#endif  // CONFIG_CROSS_CHROMA_TX
 
 #endif  // AOM_AV1_DECODER_DECODEMV_H_

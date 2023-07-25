@@ -15,7 +15,7 @@
 # Ignore false-positives in third-party code such as:
 #   basic_string.h:403:51: runtime error: unsigned integer overflow: 18 - 22 cannot be represented in type 'unsigned long'
 # See https://github.com/google/sanitizers/issues/1348
-src:/usr/lib/gcc/x86_64-linux-gnu/.*
+src:*/lib/gcc/x86_64-linux-gnu/.*
 
 # Ignore failures in googletest
 src:.*/third_party/googletest/.*

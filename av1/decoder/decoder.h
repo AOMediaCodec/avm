@@ -56,12 +56,19 @@ typedef struct DecoderCodingBlock {
    * Pointer to 'mc_buf' inside 'pbi->td' (single-threaded decoding) or
    * 'pbi->thread_data[i].td' (multi-threaded decoding).
    */
-  uint8_t *mc_buf[2];
+  uint16_t *mc_buf[2];
   /*!
    * Pointer to 'dqcoeff' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
    * with appropriate offset for the current superblock, for each plane.
    */
   tran_low_t *dqcoeff_block[MAX_MB_PLANE];
+#if CONFIG_INSPECTION
+  // dqcoeff_block gets clobbered before the inspect callback happens, so keep a
+  // copy here.
+  tran_low_t *dqcoeff_block_copy[MAX_MB_PLANE];
+  tran_low_t *qcoeff_block[MAX_MB_PLANE];
+  tran_low_t *dequant_values[MAX_MB_PLANE];
+#endif
   /*!
    * cb_offset[p] is the offset into the dqcoeff_block[p] for the current coding
    * block, for each plane 'p'.
@@ -72,6 +79,13 @@ typedef struct DecoderCodingBlock {
    * with appropriate offset for the current superblock, for each plane.
    */
   eob_info *eob_data[MAX_MB_PLANE];
+#if CONFIG_ATC_DCTX_ALIGNED
+  /*!
+   * Pointer to 'bob_data' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
+   * with appropriate offset for the current superblock, for each plane.
+   */
+  eob_info *bob_data[MAX_MB_PLANE];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   /*!
    * txb_offset[p] is the offset into the eob_data[p] for the current coding
    * block, for each plane 'p'.
@@ -112,19 +126,19 @@ typedef struct ThreadData {
 
   // Motion compensation buffer used to get a prediction buffer with extended
   // borders. One buffer for each of the two possible references.
-  uint8_t *mc_buf[2];
+  uint16_t *mc_buf[2];
   // Allocated size of 'mc_buf'.
   int32_t mc_buf_size;
-  // If true, the pointers in 'mc_buf' were converted from highbd pointers.
-  int mc_buf_use_highbd;  // Boolean: whether the byte pointers stored in
-                          // mc_buf were converted from highbd pointers.
 
   CONV_BUF_TYPE *tmp_conv_dst;
-  uint8_t *tmp_obmc_bufs[2];
+  uint16_t *tmp_obmc_bufs[2];
 
   decode_block_visitor_fn_t read_coeffs_tx_intra_block_visit;
   decode_block_visitor_fn_t predict_and_recon_intra_block_visit;
   decode_block_visitor_fn_t read_coeffs_tx_inter_block_visit;
+#if CONFIG_CROSS_CHROMA_TX
+  decode_block_visitor_fn_t inverse_cctx_block_visit;
+#endif  // CONFIG_CROSS_CHROMA_TX
   decode_block_visitor_fn_t inverse_tx_inter_block_visit;
   predict_inter_block_visitor_fn_t predict_inter_block_visit;
   cfl_store_inter_block_visitor_fn_t cfl_store_inter_block_visit;
@@ -132,6 +146,9 @@ typedef struct ThreadData {
 #if CONFIG_REF_MV_BANK
   REF_MV_BANK ref_mv_bank;
 #endif  // CONFIG_REF_MV_BANK
+#if CONFIG_WARP_REF_LIST
+  WARP_PARAM_BANK warp_param_bank;
+#endif  // CONFIG_WARP_REF_LIST
 } ThreadData;
 
 typedef struct AV1DecRowMTJobInfo {
@@ -266,7 +283,11 @@ typedef struct AV1Decoder {
   // Note: The saved buffers are released at the start of the next time the
   // application calls aom_codec_decode().
   int output_all_layers;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  RefCntBuffer *output_frames[REF_FRAMES];  // Use only for single layer
+#else                        // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   RefCntBuffer *output_frames[MAX_NUM_SPATIAL_LAYERS];
+#endif                       // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   size_t num_output_frames;  // How many frames are queued up so far?
 
   // In order to properly support random-access decoding, we need
@@ -274,7 +295,6 @@ typedef struct AV1Decoder {
   // So we track whether this is the first frame or not.
   int decoding_first_frame;
 
-  int allow_lowbitdepth;
   int max_threads;
   int inv_tile_order;
   int need_resync;  // wait for key/intra-only frame.
@@ -290,7 +310,10 @@ typedef struct AV1Decoder {
   int sequence_header_ready;
   int sequence_header_changed;
 #if CONFIG_INSPECTION
+  // Inspection callback at the end of each frame.
   aom_inspect_cb inspect_cb;
+  // Inspection callback at the end of each superblock.
+  aom_inspect_cb inspect_sb_cb;
   void *inspect_ctx;
 #endif
   int operating_point;
@@ -402,16 +425,15 @@ static INLINE void decrease_ref_count(RefCntBuffer *const buf,
   }
 }
 
-#define ACCT_STR __func__
 static INLINE int av1_read_uniform(aom_reader *r, int n) {
   const int l = get_unsigned_bits(n);
   const int m = (1 << l) - n;
-  const int v = aom_read_literal(r, l - 1, ACCT_STR);
+  const int v = aom_read_literal(r, l - 1, ACCT_INFO("v"));
   assert(l != 0);
   if (v < m)
     return v;
   else
-    return (v << 1) - m + aom_read_literal(r, 1, ACCT_STR);
+    return (v << 1) - m + aom_read_literal(r, 1, ACCT_INFO());
 }
 
 typedef void (*palette_visitor_fn_t)(MACROBLOCKD *const xd, int plane,
@@ -422,7 +444,8 @@ void av1_visit_palette(AV1Decoder *const pbi, MACROBLOCKD *const xd,
 
 typedef void (*block_visitor_fn_t)(AV1Decoder *const pbi, ThreadData *const td,
                                    int mi_row, int mi_col, aom_reader *r,
-                                   PARTITION_TYPE partition, BLOCK_SIZE bsize);
+                                   PARTITION_TYPE partition, BLOCK_SIZE bsize,
+                                   PARTITION_TREE *parent, int index);
 
 /*!\endcond */
 

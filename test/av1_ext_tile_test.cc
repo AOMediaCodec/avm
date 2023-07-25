@@ -44,7 +44,6 @@ class AV1ExtTileTest
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
     cfg.w = kImgWidth;
     cfg.h = kImgHeight;
-    cfg.allow_lowbitdepth = 1;
 
     decoder_ = codec_->CreateDecoder(cfg, 0);
     decoder_->Control(AV1_SET_TILE_MODE, 1);
@@ -53,7 +52,7 @@ class AV1ExtTileTest
     decoder_->Control(AV1_SET_DECODE_TILE_COL, -1);
 
     // Allocate buffer to store tile image.
-    aom_img_alloc(&tile_img_, AOM_IMG_FMT_I420, kImgWidth, kImgHeight, 32);
+    aom_img_alloc(&tile_img_, AOM_IMG_FMT_I42016, kImgWidth, kImgHeight, 32);
 
     md5_.clear();
     tile_md5_.clear();
@@ -95,8 +94,7 @@ class AV1ExtTileTest
     }
 
     if (video->frame() == 1) {
-      frame_flags_ =
-          AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF | AOM_EFLAG_NO_UPD_ARF;
+      frame_flags_ = AOM_EFLAG_NO_UPD_ALL;
     }
   }
 
@@ -148,6 +146,8 @@ class AV1ExtTileTest
           break;
         }
 
+        if (!img) continue;
+
         const int kMaxMBPlane = 3;
         for (int plane = 0; plane < kMaxMBPlane; ++plane) {
           const int shift = (plane == 0) ? 0 : 1;
@@ -155,10 +155,13 @@ class AV1ExtTileTest
           int tile_width = kTIleSizeInPixels >> shift;
 
           for (int tr = 0; tr < tile_height; ++tr) {
-            memcpy(tile_img_.planes[plane] +
-                       tile_img_.stride[plane] * (r * tile_height + tr) +
-                       c * tile_width,
-                   img->planes[plane] + img->stride[plane] * tr, tile_width);
+            const uint16_t *src = (const uint16_t *)(img->planes[plane] +
+                                                     img->stride[plane] * tr);
+            uint16_t *dst =
+                (uint16_t *)(tile_img_.planes[plane] +
+                             tile_img_.stride[plane] * (r * tile_height + tr) +
+                             c * tile_width * sizeof(src[0]));
+            memcpy(dst, src, tile_width * sizeof(src[0]));
           }
         }
       }

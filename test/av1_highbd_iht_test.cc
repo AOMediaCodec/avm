@@ -192,7 +192,7 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdInvHTNxN,
                          ::testing::ValuesIn(kArrayIhtParam));
 #endif  // HAVE_SSE4_1
 
-typedef void (*HighbdInvTxfm2dFunc)(const int32_t *input, uint8_t *output,
+typedef void (*HighbdInvTxfm2dFunc)(const int32_t *input, uint16_t *output,
                                     int stride, const TxfmParam *txfm_param);
 
 typedef std::tuple<const HighbdInvTxfm2dFunc> AV1HighbdInvTxfm2dParam;
@@ -237,7 +237,6 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
   txfm_param.tx_size = tx_size_;
   txfm_param.lossless = 0;
   txfm_param.bd = bit_depth_;
-  txfm_param.is_hbd = 1;
   txfm_param.tx_set_type = EXT_TX_SET_ALL16;
 
   for (int cnt = 0; cnt < randTimes; ++cnt) {
@@ -268,8 +267,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
     aom_usec_timer ref_timer, test_timer;
     aom_usec_timer_start(&ref_timer);
     for (int i = 0; i < run_times; ++i) {
-      av1_highbd_inv_txfm_add_c(inv_input, CONVERT_TO_BYTEPTR(ref_output),
-                                stride, &txfm_param);
+      av1_highbd_inv_txfm_add_c(inv_input, ref_output, stride, &txfm_param);
     }
     aom_usec_timer_mark(&ref_timer);
     const int elapsed_time_c =
@@ -277,7 +275,7 @@ void AV1HighbdInvTxfm2d::RunAV1InvTxfm2dTest(TX_TYPE tx_type_, TX_SIZE tx_size_,
 
     aom_usec_timer_start(&test_timer);
     for (int i = 0; i < run_times; ++i) {
-      target_func_(inv_input, CONVERT_TO_BYTEPTR(output), stride, &txfm_param);
+      target_func_(inv_input, output, stride, &txfm_param);
     }
     aom_usec_timer_mark(&test_timer);
     const int elapsed_time_simd =

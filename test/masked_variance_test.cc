@@ -35,143 +35,9 @@ namespace {
 const int number_of_iterations = 200;
 
 typedef unsigned int (*MaskedSubPixelVarianceFunc)(
-    const uint8_t *src, int src_stride, int xoffset, int yoffset,
-    const uint8_t *ref, int ref_stride, const uint8_t *second_pred,
+    const uint16_t *src, int src_stride, int xoffset, int yoffset,
+    const uint16_t *ref, int ref_stride, const uint16_t *second_pred,
     const uint8_t *msk, int msk_stride, int invert_mask, unsigned int *sse);
-
-typedef std::tuple<MaskedSubPixelVarianceFunc, MaskedSubPixelVarianceFunc>
-    MaskedSubPixelVarianceParam;
-
-class MaskedSubPixelVarianceTest
-    : public ::testing::TestWithParam<MaskedSubPixelVarianceParam> {
- public:
-  virtual ~MaskedSubPixelVarianceTest() {}
-  virtual void SetUp() {
-    opt_func_ = GET_PARAM(0);
-    ref_func_ = GET_PARAM(1);
-  }
-
-  virtual void TearDown() { libaom_test::ClearSystemState(); }
-
- protected:
-  MaskedSubPixelVarianceFunc opt_func_;
-  MaskedSubPixelVarianceFunc ref_func_;
-};
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MaskedSubPixelVarianceTest);
-
-TEST_P(MaskedSubPixelVarianceTest, OperationCheck) {
-  unsigned int ref_ret, opt_ret;
-  unsigned int ref_sse, opt_sse;
-  ACMRandom rnd(ACMRandom::DeterministicSeed());
-  // Note: We pad out the input array to a multiple of 16 bytes wide, so that
-  // consecutive rows keep the 16-byte alignment.
-  DECLARE_ALIGNED(16, uint8_t, src_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  DECLARE_ALIGNED(16, uint8_t, ref_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  DECLARE_ALIGNED(16, uint8_t,
-                  second_pred_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  DECLARE_ALIGNED(16, uint8_t, msk_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  int err_count = 0;
-  int first_failure = -1;
-  int src_stride = (MAX_SB_SIZE + 16);
-  int ref_stride = (MAX_SB_SIZE + 16);
-  int msk_stride = (MAX_SB_SIZE + 16);
-  int xoffset;
-  int yoffset;
-
-  for (int i = 0; i < number_of_iterations; ++i) {
-    int xoffsets[] = { 0, 4, rnd(BIL_SUBPEL_SHIFTS) };
-    int yoffsets[] = { 0, 4, rnd(BIL_SUBPEL_SHIFTS) };
-    for (int j = 0; j < (MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16); j++) {
-      src_ptr[j] = rnd.Rand8();
-      ref_ptr[j] = rnd.Rand8();
-      second_pred_ptr[j] = rnd.Rand8();
-      msk_ptr[j] = rnd(65);
-    }
-    for (int k = 0; k < 3; k++) {
-      for (int l = 0; l < 3; l++) {
-        xoffset = xoffsets[k];
-        yoffset = yoffsets[l];
-        for (int invert_mask = 0; invert_mask < 2; ++invert_mask) {
-          ref_ret = ref_func_(src_ptr, src_stride, xoffset, yoffset, ref_ptr,
-                              ref_stride, second_pred_ptr, msk_ptr, msk_stride,
-                              invert_mask, &ref_sse);
-          ASM_REGISTER_STATE_CHECK(
-              opt_ret = opt_func_(src_ptr, src_stride, xoffset, yoffset,
-                                  ref_ptr, ref_stride, second_pred_ptr, msk_ptr,
-                                  msk_stride, invert_mask, &opt_sse));
-
-          if (opt_ret != ref_ret || opt_sse != ref_sse) {
-            err_count++;
-            if (first_failure == -1) first_failure = i;
-          }
-        }
-      }
-    }
-  }
-
-  EXPECT_EQ(0, err_count)
-      << "Error: Masked Sub Pixel Variance Test OperationCheck,"
-      << "C output doesn't match SSSE3 output. "
-      << "First failed at test case " << first_failure;
-}
-
-TEST_P(MaskedSubPixelVarianceTest, ExtremeValues) {
-  unsigned int ref_ret, opt_ret;
-  unsigned int ref_sse, opt_sse;
-  ACMRandom rnd(ACMRandom::DeterministicSeed());
-  DECLARE_ALIGNED(16, uint8_t, src_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  DECLARE_ALIGNED(16, uint8_t, ref_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  DECLARE_ALIGNED(16, uint8_t,
-                  second_pred_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  DECLARE_ALIGNED(16, uint8_t, msk_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16)]);
-  int first_failure_x = -1;
-  int first_failure_y = -1;
-  int err_count = 0;
-  int first_failure = -1;
-  int src_stride = (MAX_SB_SIZE + 16);
-  int ref_stride = (MAX_SB_SIZE + 16);
-  int msk_stride = (MAX_SB_SIZE + 16);
-
-  for (int xoffset = 0; xoffset < BIL_SUBPEL_SHIFTS; xoffset++) {
-    for (int yoffset = 0; yoffset < BIL_SUBPEL_SHIFTS; yoffset++) {
-      for (int i = 0; i < 16; ++i) {
-        memset(src_ptr, (i & 0x1) ? 255 : 0,
-               (MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16));
-        memset(ref_ptr, (i & 0x2) ? 255 : 0,
-               (MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16));
-        memset(second_pred_ptr, (i & 0x4) ? 255 : 0,
-               (MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16));
-        memset(msk_ptr, (i & 0x8) ? 64 : 0,
-               (MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 16));
-
-        for (int invert_mask = 0; invert_mask < 2; ++invert_mask) {
-          ref_ret = ref_func_(src_ptr, src_stride, xoffset, yoffset, ref_ptr,
-                              ref_stride, second_pred_ptr, msk_ptr, msk_stride,
-                              invert_mask, &ref_sse);
-          ASM_REGISTER_STATE_CHECK(
-              opt_ret = opt_func_(src_ptr, src_stride, xoffset, yoffset,
-                                  ref_ptr, ref_stride, second_pred_ptr, msk_ptr,
-                                  msk_stride, invert_mask, &opt_sse));
-
-          if (opt_ret != ref_ret || opt_sse != ref_sse) {
-            err_count++;
-            if (first_failure == -1) {
-              first_failure = i;
-              first_failure_x = xoffset;
-              first_failure_y = yoffset;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  EXPECT_EQ(0, err_count) << "Error: Masked Variance Test ExtremeValues,"
-                          << "C output doesn't match SSSE3 output. "
-                          << "First failed at test case " << first_failure
-                          << " x_offset = " << first_failure_x
-                          << " y_offset = " << first_failure_y;
-}
 
 typedef std::tuple<MaskedSubPixelVarianceFunc, MaskedSubPixelVarianceFunc,
                    aom_bit_depth_t>
@@ -205,9 +71,6 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, OperationCheck) {
   DECLARE_ALIGNED(16, uint16_t,
                   second_pred_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 8)]);
   DECLARE_ALIGNED(16, uint8_t, msk_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 8)]);
-  uint8_t *src8_ptr = CONVERT_TO_BYTEPTR(src_ptr);
-  uint8_t *ref8_ptr = CONVERT_TO_BYTEPTR(ref_ptr);
-  uint8_t *second_pred8_ptr = CONVERT_TO_BYTEPTR(second_pred_ptr);
   int err_count = 0;
   int first_failure = -1;
   int first_failure_x = -1;
@@ -227,13 +90,13 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, OperationCheck) {
     for (xoffset = 0; xoffset < BIL_SUBPEL_SHIFTS; xoffset++) {
       for (yoffset = 0; yoffset < BIL_SUBPEL_SHIFTS; yoffset++) {
         for (int invert_mask = 0; invert_mask < 2; ++invert_mask) {
-          ref_ret = ref_func_(src8_ptr, src_stride, xoffset, yoffset, ref8_ptr,
-                              ref_stride, second_pred8_ptr, msk_ptr, msk_stride,
+          ref_ret = ref_func_(src_ptr, src_stride, xoffset, yoffset, ref_ptr,
+                              ref_stride, second_pred_ptr, msk_ptr, msk_stride,
                               invert_mask, &ref_sse);
           ASM_REGISTER_STATE_CHECK(
-              opt_ret = opt_func_(src8_ptr, src_stride, xoffset, yoffset,
-                                  ref8_ptr, ref_stride, second_pred8_ptr,
-                                  msk_ptr, msk_stride, invert_mask, &opt_sse));
+              opt_ret = opt_func_(src_ptr, src_stride, xoffset, yoffset,
+                                  ref_ptr, ref_stride, second_pred_ptr, msk_ptr,
+                                  msk_stride, invert_mask, &opt_sse));
 
           if (opt_ret != ref_ret || opt_sse != ref_sse) {
             err_count++;
@@ -264,9 +127,6 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, ExtremeValues) {
   DECLARE_ALIGNED(16, uint8_t, msk_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 8)]);
   DECLARE_ALIGNED(16, uint16_t,
                   second_pred_ptr[(MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 8)]);
-  uint8_t *src8_ptr = CONVERT_TO_BYTEPTR(src_ptr);
-  uint8_t *ref8_ptr = CONVERT_TO_BYTEPTR(ref_ptr);
-  uint8_t *second_pred8_ptr = CONVERT_TO_BYTEPTR(second_pred_ptr);
   int first_failure_x = -1;
   int first_failure_y = -1;
   int err_count = 0;
@@ -288,13 +148,13 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, ExtremeValues) {
                (MAX_SB_SIZE + 1) * (MAX_SB_SIZE + 8));
 
         for (int invert_mask = 0; invert_mask < 2; ++invert_mask) {
-          ref_ret = ref_func_(src8_ptr, src_stride, xoffset, yoffset, ref8_ptr,
-                              ref_stride, second_pred8_ptr, msk_ptr, msk_stride,
+          ref_ret = ref_func_(src_ptr, src_stride, xoffset, yoffset, ref_ptr,
+                              ref_stride, second_pred_ptr, msk_ptr, msk_stride,
                               invert_mask, &ref_sse);
           ASM_REGISTER_STATE_CHECK(
-              opt_ret = opt_func_(src8_ptr, src_stride, xoffset, yoffset,
-                                  ref8_ptr, ref_stride, second_pred8_ptr,
-                                  msk_ptr, msk_stride, invert_mask, &opt_sse));
+              opt_ret = opt_func_(src_ptr, src_stride, xoffset, yoffset,
+                                  ref_ptr, ref_stride, second_pred_ptr, msk_ptr,
+                                  msk_stride, invert_mask, &opt_sse));
 
           if (opt_ret != ref_ret || opt_sse != ref_sse) {
             err_count++;
@@ -319,58 +179,6 @@ TEST_P(HighbdMaskedSubPixelVarianceTest, ExtremeValues) {
 using std::make_tuple;
 
 #if HAVE_SSSE3
-
-const MaskedSubPixelVarianceParam sub_pel_var_test[] = {
-  make_tuple(&aom_masked_sub_pixel_variance128x128_ssse3,
-             &aom_masked_sub_pixel_variance128x128_c),
-  make_tuple(&aom_masked_sub_pixel_variance128x64_ssse3,
-             &aom_masked_sub_pixel_variance128x64_c),
-  make_tuple(&aom_masked_sub_pixel_variance64x128_ssse3,
-             &aom_masked_sub_pixel_variance64x128_c),
-  make_tuple(&aom_masked_sub_pixel_variance64x64_ssse3,
-             &aom_masked_sub_pixel_variance64x64_c),
-  make_tuple(&aom_masked_sub_pixel_variance64x32_ssse3,
-             &aom_masked_sub_pixel_variance64x32_c),
-  make_tuple(&aom_masked_sub_pixel_variance32x64_ssse3,
-             &aom_masked_sub_pixel_variance32x64_c),
-  make_tuple(&aom_masked_sub_pixel_variance32x32_ssse3,
-             &aom_masked_sub_pixel_variance32x32_c),
-  make_tuple(&aom_masked_sub_pixel_variance32x16_ssse3,
-             &aom_masked_sub_pixel_variance32x16_c),
-  make_tuple(&aom_masked_sub_pixel_variance16x32_ssse3,
-             &aom_masked_sub_pixel_variance16x32_c),
-  make_tuple(&aom_masked_sub_pixel_variance16x16_ssse3,
-             &aom_masked_sub_pixel_variance16x16_c),
-  make_tuple(&aom_masked_sub_pixel_variance16x8_ssse3,
-             &aom_masked_sub_pixel_variance16x8_c),
-  make_tuple(&aom_masked_sub_pixel_variance8x16_ssse3,
-             &aom_masked_sub_pixel_variance8x16_c),
-  make_tuple(&aom_masked_sub_pixel_variance8x8_ssse3,
-             &aom_masked_sub_pixel_variance8x8_c),
-  make_tuple(&aom_masked_sub_pixel_variance8x4_ssse3,
-             &aom_masked_sub_pixel_variance8x4_c),
-  make_tuple(&aom_masked_sub_pixel_variance4x8_ssse3,
-             &aom_masked_sub_pixel_variance4x8_c),
-  make_tuple(&aom_masked_sub_pixel_variance4x4_ssse3,
-             &aom_masked_sub_pixel_variance4x4_c),
-
-  make_tuple(&aom_masked_sub_pixel_variance64x16_ssse3,
-             &aom_masked_sub_pixel_variance64x16_c),
-  make_tuple(&aom_masked_sub_pixel_variance16x64_ssse3,
-             &aom_masked_sub_pixel_variance16x64_c),
-  make_tuple(&aom_masked_sub_pixel_variance32x8_ssse3,
-             &aom_masked_sub_pixel_variance32x8_c),
-  make_tuple(&aom_masked_sub_pixel_variance8x32_ssse3,
-             &aom_masked_sub_pixel_variance8x32_c),
-  make_tuple(&aom_masked_sub_pixel_variance16x4_ssse3,
-             &aom_masked_sub_pixel_variance16x4_c),
-  make_tuple(&aom_masked_sub_pixel_variance4x16_ssse3,
-             &aom_masked_sub_pixel_variance4x16_c),
-};
-
-INSTANTIATE_TEST_SUITE_P(SSSE3_C_COMPARE, MaskedSubPixelVarianceTest,
-                         ::testing::ValuesIn(sub_pel_var_test));
-
 const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
   make_tuple(&aom_highbd_8_masked_sub_pixel_variance128x128_ssse3,
              &aom_highbd_8_masked_sub_pixel_variance128x128_c, AOM_BITS_8),

@@ -93,6 +93,10 @@ static const arg_def_t fb_arg =
     ARG_DEF(NULL, "frame-buffers", 1, "Number of frame buffers to use");
 static const arg_def_t md5arg =
     ARG_DEF(NULL, "md5", 0, "Compute the MD5 sum of the decoded frame");
+static const arg_def_t verifyarg =
+    ARG_DEF(NULL, "verify", 1,
+            "Use Decoded Frame Hash Metadata to verify integrity of decoded "
+            "frames (off, fatal, warn)");
 static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
@@ -107,11 +111,13 @@ static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
 
 static const arg_def_t *all_args[] = {
-  &help,       &codecarg,   &use_yv12,      &use_i420,      &flipuvarg,
-  &rawvideo,   &noblitarg,  &progressarg,   &limitarg,      &skiparg,
-  &summaryarg, &outputfile, &threadsarg,    &verbosearg,    &scalearg,
-  &fb_arg,     &md5arg,     &framestatsarg, &continuearg,   &outbitdeptharg,
-  &isannexb,   &oppointarg, &outallarg,     &skipfilmgrain, NULL
+  &help,           &codecarg,   &use_yv12,      &use_i420,
+  &flipuvarg,      &rawvideo,   &noblitarg,     &progressarg,
+  &limitarg,       &skiparg,    &summaryarg,    &outputfile,
+  &threadsarg,     &verbosearg, &scalearg,      &fb_arg,
+  &md5arg,         &verifyarg,  &framestatsarg, &continuearg,
+  &outbitdeptharg, &isannexb,   &oppointarg,    &outallarg,
+  &skipfilmgrain,  NULL
 };
 
 #if CONFIG_LIBYUV
@@ -412,6 +418,90 @@ static void print_md5(unsigned char digest[16], const char *filename) {
   printf("  %s\n", filename);
 }
 
+static int check_decoded_frame_hash(aom_codec_ctx_t *decoder, aom_image_t *img,
+                                    int frame_out, int skip_film_gain) {
+  size_t num_metadata = aom_img_num_metadata(img);
+  int checked = 0, ret = 0, flags;
+
+  if (AOM_CODEC_CONTROL_TYPECHECKED(decoder, AOMD_GET_FRAME_FLAGS, &flags)) {
+    fprintf(stderr, "Failed to get frame flags: %s\n",
+            aom_codec_error(decoder));
+    return -1;
+  }
+
+  for (size_t i = 0; i < num_metadata; ++i) {
+    const aom_metadata_t *metadata = aom_img_get_metadata(img, i);
+    if (metadata->type != OBU_METADATA_TYPE_DECODED_FRAME_HASH) continue;
+
+    int type = (metadata->payload[0] & 0xF0) >> 4;
+    int per_plane = !!(metadata->payload[0] & 8);
+    int has_grain = !!(metadata->payload[0] & 4);
+    if (type) continue;
+
+    if (has_grain) {
+      if (skip_film_gain || !(flags & AOM_FRAME_HAS_FILM_GRAIN_PARAMS))
+        continue;
+    } else {
+      if (!skip_film_gain && (flags & AOM_FRAME_HAS_FILM_GRAIN_PARAMS))
+        continue;
+    }
+
+    const int planes[] = { AOM_PLANE_Y, AOM_PLANE_U, AOM_PLANE_V };
+    const char *plane_names[] = { "y", "u", "v" };
+    int num_planes = img->monochrome ? 1 : 3;
+    MD5Context md5_ctx;
+    unsigned char md5_digest[16];
+    if (per_plane) {
+      for (int j = 0; j < num_planes; j++) {
+        MD5Init(&md5_ctx);
+        raw_update_image_md5(img, &planes[j], 1, &md5_ctx);
+        MD5Final(md5_digest, &md5_ctx);
+        if (memcmp(&metadata->payload[j * sizeof(md5_digest) + 1], md5_digest,
+                   sizeof(md5_digest))) {
+          char expected[33], invalid[33];
+          for (size_t k = 0; k < sizeof(md5_digest); ++k) {
+            snprintf(expected + k * 2, sizeof(expected) - k * 2, "%02x",
+                     metadata->payload[j * sizeof(md5_digest) + k + 1]);
+            snprintf(invalid + k * 2, sizeof(invalid) - k * 2, "%02x",
+                     md5_digest[k]);
+          }
+          expected[32] = '\0';
+          invalid[32] = '\0';
+          warn("Frame %d plane %s mismatch (expected %s, got %s)\n", frame_out,
+               plane_names[j], expected, invalid);
+          ret = -1;
+        }
+      }
+    } else {
+      MD5Init(&md5_ctx);
+      raw_update_image_md5(img, planes, num_planes, &md5_ctx);
+      MD5Final(md5_digest, &md5_ctx);
+      if (memcmp(&metadata->payload[1], md5_digest, sizeof(md5_digest))) {
+        char expected[33], invalid[33];
+        for (size_t j = 0; j < sizeof(md5_digest); ++j) {
+          snprintf(expected + j * 2, sizeof(expected) - j * 2, "%02x",
+                   metadata->payload[j + 1]);
+          snprintf(invalid + j * 2, sizeof(invalid) - j * 2, "%02x",
+                   md5_digest[j]);
+        }
+        expected[32] = '\0';
+        invalid[32] = '\0';
+        warn("Frame %d mismatch (expected %s, got %s)\n", frame_out, expected,
+             invalid);
+        ret = -1;
+      }
+    }
+    checked = 1;
+  }
+
+  if (!checked) {
+    warn("Could not verify integrity of frame %d\n", frame_out);
+    ret = -1;
+  }
+
+  return ret;
+}
+
 static FILE *open_outfile(const char *name) {
   if (strcmp("-", name) == 0) {
     set_binary_mode(stdout);
@@ -433,6 +523,7 @@ static int main_loop(int argc, const char **argv_) {
   FILE *infile;
   int frame_in = 0, frame_out = 0, flipuv = 0, noblit = 0;
   int do_md5 = 0, progress = 0;
+  int do_verify = 0, error_on_verify = 0;
   int stop_after = 0, summary = 0, quiet = 1;
   int arg_skip = 0;
   int keep_going = 0;
@@ -445,7 +536,7 @@ static int main_loop(int argc, const char **argv_) {
   int opt_yv12 = 0;
   int opt_i420 = 0;
   int opt_raw = 0;
-  aom_codec_dec_cfg_t cfg = { 0, 0, 0, 0 };
+  aom_codec_dec_cfg_t cfg = { 0, 0, 0 };
   unsigned int fixed_output_bit_depth = 0;
   unsigned int is_annexb = 0;
   int frames_corrupted = 0;
@@ -533,6 +624,15 @@ static int main_loop(int argc, const char **argv_) {
       arg_skip = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &md5arg, argi)) {
       do_md5 = 1;
+    } else if (arg_match(&arg, &verifyarg, argi)) {
+      if (!strcmp(arg.val, "warn")) {
+        do_verify = 1;
+        error_on_verify = 0;
+      } else if (!strcmp(arg.val, "fatal")) {
+        do_verify = 1;
+        error_on_verify = 1;
+      } else if (strcmp(arg.val, "off"))
+        die("Error: Invalid argument for --verify (%s).\n", arg.val);
     } else if (arg_match(&arg, &framestatsarg, argi)) {
       framestats_file = fopen(arg.val, "w");
       if (!framestats_file) {
@@ -800,6 +900,12 @@ static int main_loop(int argc, const char **argv_) {
 
       if (progress) show_progress(frame_in, frame_out, dx_time);
 
+      if (do_verify) {
+        if (check_decoded_frame_hash(&decoder, img, frame_out,
+                                     skip_film_grain) &&
+            error_on_verify && !keep_going)
+          goto fail;
+      }
       if (!noblit) {
         const int PLANES_YUV[] = { AOM_PLANE_Y, AOM_PLANE_U, AOM_PLANE_V };
         const int PLANES_YVU[] = { AOM_PLANE_Y, AOM_PLANE_V, AOM_PLANE_U };
@@ -872,7 +978,8 @@ static int main_loop(int argc, const char **argv_) {
               len = y4m_write_file_header(
                   y4m_buf, sizeof(y4m_buf), aom_input_ctx.width,
                   aom_input_ctx.height, &aom_input_ctx.framerate,
-                  img->monochrome, img->csp, img->fmt, img->bit_depth);
+                  img->monochrome, img->csp, img->fmt, img->bit_depth,
+                  img->range);
               if (img->csp == AOM_CSP_COLOCATED) {
                 fprintf(stderr,
                         "Warning: Y4M lacks a colorspace for colocated "

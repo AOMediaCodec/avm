@@ -18,155 +18,9 @@
 
 #include "av1/common/x86/cfl_simd.h"
 
-// Load 32-bit integer from memory into the first element of dst.
-static INLINE __m128i _mm_loadh_epi32(__m128i const *mem_addr) {
-  return _mm_cvtsi32_si128(*((int *)mem_addr));
-}
-
 // Store 32-bit integer from the first element of a into memory.
 static INLINE void _mm_storeh_epi32(__m128i const *mem_addr, __m128i a) {
   *((int *)mem_addr) = _mm_cvtsi128_si32(a);
-}
-
-/**
- * Adds 4 pixels (in a 2x2 grid) and multiplies them by 2. Resulting in a more
- * precise version of a box filter 4:2:0 pixel subsampling in Q3.
- *
- * The CfL prediction buffer is always of size CFL_BUF_SQUARE. However, the
- * active area is specified using width and height.
- *
- * Note: We don't need to worry about going over the active area, as long as we
- * stay inside the CfL prediction buffer.
- */
-static INLINE void cfl_luma_subsampling_420_lbd_ssse3(const uint8_t *input,
-                                                      int input_stride,
-                                                      uint16_t *pred_buf_q3,
-                                                      int width, int height) {
-  const __m128i twos = _mm_set1_epi8(2);
-  __m128i *pred_buf_m128i = (__m128i *)pred_buf_q3;
-  const __m128i *end = pred_buf_m128i + (height >> 1) * CFL_BUF_LINE_I128;
-  const int luma_stride = input_stride << 1;
-  do {
-    if (width == 4) {
-      __m128i top = _mm_loadh_epi32((__m128i *)input);
-      top = _mm_maddubs_epi16(top, twos);
-      __m128i bot = _mm_loadh_epi32((__m128i *)(input + input_stride));
-      bot = _mm_maddubs_epi16(bot, twos);
-      const __m128i sum = _mm_add_epi16(top, bot);
-      _mm_storeh_epi32(pred_buf_m128i, sum);
-    } else if (width == 8) {
-      __m128i top = _mm_loadl_epi64((__m128i *)input);
-      top = _mm_maddubs_epi16(top, twos);
-      __m128i bot = _mm_loadl_epi64((__m128i *)(input + input_stride));
-      bot = _mm_maddubs_epi16(bot, twos);
-      const __m128i sum = _mm_add_epi16(top, bot);
-      _mm_storel_epi64(pred_buf_m128i, sum);
-    } else {
-      __m128i top = _mm_loadu_si128((__m128i *)input);
-      top = _mm_maddubs_epi16(top, twos);
-      __m128i bot = _mm_loadu_si128((__m128i *)(input + input_stride));
-      bot = _mm_maddubs_epi16(bot, twos);
-      const __m128i sum = _mm_add_epi16(top, bot);
-      _mm_storeu_si128(pred_buf_m128i, sum);
-      if (width == 32) {
-        __m128i top_1 = _mm_loadu_si128(((__m128i *)input) + 1);
-        __m128i bot_1 =
-            _mm_loadu_si128(((__m128i *)(input + input_stride)) + 1);
-        top_1 = _mm_maddubs_epi16(top_1, twos);
-        bot_1 = _mm_maddubs_epi16(bot_1, twos);
-        __m128i sum_1 = _mm_add_epi16(top_1, bot_1);
-        _mm_storeu_si128(pred_buf_m128i + 1, sum_1);
-      }
-    }
-    input += luma_stride;
-    pred_buf_m128i += CFL_BUF_LINE_I128;
-  } while (pred_buf_m128i < end);
-}
-
-/**
- * Adds 2 pixels (in a 2x1 grid) and multiplies them by 4. Resulting in a more
- * precise version of a box filter 4:2:2 pixel subsampling in Q3.
- *
- * The CfL prediction buffer is always of size CFL_BUF_SQUARE. However, the
- * active area is specified using width and height.
- *
- * Note: We don't need to worry about going over the active area, as long as we
- * stay inside the CfL prediction buffer.
- */
-static INLINE void cfl_luma_subsampling_422_lbd_ssse3(const uint8_t *input,
-                                                      int input_stride,
-                                                      uint16_t *pred_buf_q3,
-                                                      int width, int height) {
-  const __m128i fours = _mm_set1_epi8(4);
-  __m128i *pred_buf_m128i = (__m128i *)pred_buf_q3;
-  const __m128i *end = pred_buf_m128i + height * CFL_BUF_LINE_I128;
-  do {
-    if (width == 4) {
-      __m128i top = _mm_loadh_epi32((__m128i *)input);
-      top = _mm_maddubs_epi16(top, fours);
-      _mm_storeh_epi32(pred_buf_m128i, top);
-    } else if (width == 8) {
-      __m128i top = _mm_loadl_epi64((__m128i *)input);
-      top = _mm_maddubs_epi16(top, fours);
-      _mm_storel_epi64(pred_buf_m128i, top);
-    } else {
-      __m128i top = _mm_loadu_si128((__m128i *)input);
-      top = _mm_maddubs_epi16(top, fours);
-      _mm_storeu_si128(pred_buf_m128i, top);
-      if (width == 32) {
-        __m128i top_1 = _mm_loadu_si128(((__m128i *)input) + 1);
-        top_1 = _mm_maddubs_epi16(top_1, fours);
-        _mm_storeu_si128(pred_buf_m128i + 1, top_1);
-      }
-    }
-    input += input_stride;
-    pred_buf_m128i += CFL_BUF_LINE_I128;
-  } while (pred_buf_m128i < end);
-}
-
-/**
- * Multiplies the pixels by 8 (scaling in Q3).
- *
- * The CfL prediction buffer is always of size CFL_BUF_SQUARE. However, the
- * active area is specified using width and height.
- *
- * Note: We don't need to worry about going over the active area, as long as we
- * stay inside the CfL prediction buffer.
- */
-static INLINE void cfl_luma_subsampling_444_lbd_ssse3(const uint8_t *input,
-                                                      int input_stride,
-                                                      uint16_t *pred_buf_q3,
-                                                      int width, int height) {
-  const __m128i zeros = _mm_setzero_si128();
-  const int luma_stride = input_stride;
-  __m128i *pred_buf_m128i = (__m128i *)pred_buf_q3;
-  const __m128i *end = pred_buf_m128i + height * CFL_BUF_LINE_I128;
-  do {
-    if (width == 4) {
-      __m128i row = _mm_loadh_epi32((__m128i *)input);
-      row = _mm_unpacklo_epi8(row, zeros);
-      _mm_storel_epi64(pred_buf_m128i, _mm_slli_epi16(row, 3));
-    } else if (width == 8) {
-      __m128i row = _mm_loadl_epi64((__m128i *)input);
-      row = _mm_unpacklo_epi8(row, zeros);
-      _mm_storeu_si128(pred_buf_m128i, _mm_slli_epi16(row, 3));
-    } else {
-      __m128i row = _mm_loadu_si128((__m128i *)input);
-      const __m128i row_lo = _mm_unpacklo_epi8(row, zeros);
-      const __m128i row_hi = _mm_unpackhi_epi8(row, zeros);
-      _mm_storeu_si128(pred_buf_m128i, _mm_slli_epi16(row_lo, 3));
-      _mm_storeu_si128(pred_buf_m128i + 1, _mm_slli_epi16(row_hi, 3));
-      if (width == 32) {
-        __m128i row_1 = _mm_loadu_si128(((__m128i *)input) + 1);
-        const __m128i row_1_lo = _mm_unpacklo_epi8(row_1, zeros);
-        const __m128i row_1_hi = _mm_unpackhi_epi8(row_1, zeros);
-        _mm_storeu_si128(pred_buf_m128i + 2, _mm_slli_epi16(row_1_lo, 3));
-        _mm_storeu_si128(pred_buf_m128i + 3, _mm_slli_epi16(row_1_hi, 3));
-      }
-    }
-    input += luma_stride;
-    pred_buf_m128i += CFL_BUF_LINE_I128;
-  } while (pred_buf_m128i < end);
 }
 
 /**
@@ -309,39 +163,6 @@ static INLINE __m128i predict_unclipped(const __m128i *input, __m128i alpha_q12,
   return _mm_add_epi16(scaled_luma_q0, dc_q0);
 }
 
-static INLINE void cfl_predict_lbd_ssse3(const int16_t *pred_buf_q3,
-                                         uint8_t *dst, int dst_stride,
-                                         int alpha_q3, int width, int height) {
-  const __m128i alpha_sign = _mm_set1_epi16(alpha_q3);
-  const __m128i alpha_q12 = _mm_slli_epi16(_mm_abs_epi16(alpha_sign), 9);
-  const __m128i dc_q0 = _mm_set1_epi16(*dst);
-  __m128i *row = (__m128i *)pred_buf_q3;
-  const __m128i *row_end = row + height * CFL_BUF_LINE_I128;
-  do {
-    __m128i res = predict_unclipped(row, alpha_q12, alpha_sign, dc_q0);
-    if (width < 16) {
-      res = _mm_packus_epi16(res, res);
-      if (width == 4)
-        _mm_storeh_epi32((__m128i *)dst, res);
-      else
-        _mm_storel_epi64((__m128i *)dst, res);
-    } else {
-      __m128i next = predict_unclipped(row + 1, alpha_q12, alpha_sign, dc_q0);
-      res = _mm_packus_epi16(res, next);
-      _mm_storeu_si128((__m128i *)dst, res);
-      if (width == 32) {
-        res = predict_unclipped(row + 2, alpha_q12, alpha_sign, dc_q0);
-        next = predict_unclipped(row + 3, alpha_q12, alpha_sign, dc_q0);
-        res = _mm_packus_epi16(res, next);
-        _mm_storeu_si128((__m128i *)(dst + 16), res);
-      }
-    }
-    dst += dst_stride;
-  } while ((row += CFL_BUF_LINE_I128) < row_end);
-}
-
-CFL_PREDICT_FN(ssse3, lbd)
-
 static INLINE __m128i highbd_max_epi16(int bd) {
   const __m128i neg_one = _mm_set1_epi16(-1);
   // (1 << bd) - 1 => -(-1 << bd) -1 => -1 - (-1 << bd) => -1 ^ (-1 << bd)
@@ -357,7 +178,8 @@ static INLINE void cfl_predict_hbd_ssse3(const int16_t *pred_buf_q3,
                                          int alpha_q3, int bd, int width,
                                          int height) {
   const __m128i alpha_sign = _mm_set1_epi16(alpha_q3);
-  const __m128i alpha_q12 = _mm_slli_epi16(_mm_abs_epi16(alpha_sign), 9);
+  const __m128i alpha_q12 =
+      _mm_slli_epi16(_mm_abs_epi16(alpha_sign), (9 - CFL_ADD_BITS_ALPHA));
   const __m128i dc_q0 = _mm_set1_epi16(*dst);
   const __m128i max = highbd_max_epi16(bd);
   const __m128i zeros = _mm_setzero_si128();

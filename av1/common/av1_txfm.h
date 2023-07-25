@@ -35,6 +35,11 @@ extern "C" {
 extern const int32_t av1_cospi_arr_data[7][64];
 extern const int32_t av1_sinpi_arr_data[7][5];
 
+#if CONFIG_CROSS_CHROMA_TX
+#define CCTX_PREC_BITS 8
+extern const int32_t cctx_mtx[CCTX_TYPES - 1][2];
+#endif  // CONFIG_CROSS_CHROMA_TX
+
 #define MAX_TXFM_STAGE_NUM 12
 
 static const int cos_bit_min = 10;

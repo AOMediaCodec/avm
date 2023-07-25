@@ -46,24 +46,23 @@ int aom_free_frame_buffer(YV12_BUFFER_CONFIG *ybf) {
 
 static int realloc_frame_buffer_aligned(
     YV12_BUFFER_CONFIG *ybf, int width, int height, int ss_x, int ss_y,
-    int use_highbitdepth, int border, int byte_alignment,
-    aom_codec_frame_buffer_t *fb, aom_get_frame_buffer_cb_fn_t cb,
-    void *cb_priv, const int y_stride, const uint64_t yplane_size,
-    const uint64_t uvplane_size, const int aligned_width,
-    const int aligned_height, const int uv_width, const int uv_height,
-    const int uv_stride, const int uv_border_w, const int uv_border_h) {
+    int border, int byte_alignment, aom_codec_frame_buffer_t *fb,
+    aom_get_frame_buffer_cb_fn_t cb, void *cb_priv, const int y_stride,
+    const uint64_t yplane_size, const uint64_t uvplane_size,
+    const int aligned_width, const int aligned_height, const int uv_width,
+    const int uv_height, const int uv_stride, const int uv_border_w,
+    const int uv_border_h) {
   if (ybf) {
     const int aom_byte_align = (byte_alignment == 0) ? 1 : byte_alignment;
-    const uint64_t frame_size =
-        (1 + use_highbitdepth) * (yplane_size + 2 * uvplane_size);
+    const uint64_t frame_size = 2 * (yplane_size + 2 * uvplane_size);
 
-    uint8_t *buf = NULL;
+    uint16_t *buf = NULL;
 
 #if defined AOM_MAX_ALLOCABLE_MEMORY
     // The size of ybf->buffer_alloc.
     uint64_t alloc_size = frame_size;
     // The size of ybf->y_buffer_8bit.
-    if (use_highbitdepth) alloc_size += yplane_size;
+    alloc_size += yplane_size;
     // The decoder may allocate REF_FRAMES frame buffers in the frame buffer
     // pool. Bound the total amount of allocated memory as if these REF_FRAMES
     // frame buffers were allocated in a single allocation.
@@ -133,37 +132,24 @@ static int realloc_frame_buffer_aligned(
     ybf->subsampling_x = ss_x;
     ybf->subsampling_y = ss_y;
 
-    buf = ybf->buffer_alloc;
-    if (use_highbitdepth) {
-      // Store uint16 addresses when using 16bit framebuffers
-      buf = CONVERT_TO_BYTEPTR(ybf->buffer_alloc);
-      ybf->flags = YV12_FLAG_HIGHBITDEPTH;
-    } else {
-      ybf->flags = 0;
-    }
+    // Store uint16 addresses when using 16bit framebuffers
+    buf = (uint16_t *)ybf->buffer_alloc;
 
-    ybf->y_buffer = (uint8_t *)aom_align_addr(
+    ybf->y_buffer = (uint16_t *)aom_align_addr(
         buf + (border * y_stride) + border, aom_byte_align);
-    ybf->u_buffer = (uint8_t *)aom_align_addr(
+    ybf->u_buffer = (uint16_t *)aom_align_addr(
         buf + yplane_size + (uv_border_h * uv_stride) + uv_border_w,
         aom_byte_align);
     ybf->v_buffer =
-        (uint8_t *)aom_align_addr(buf + yplane_size + uvplane_size +
-                                      (uv_border_h * uv_stride) + uv_border_w,
-                                  aom_byte_align);
+        (uint16_t *)aom_align_addr(buf + yplane_size + uvplane_size +
+                                       (uv_border_h * uv_stride) + uv_border_w,
+                                   aom_byte_align);
 
     ybf->use_external_reference_buffers = 0;
 
-    if (use_highbitdepth) {
-      if (ybf->y_buffer_8bit) aom_free(ybf->y_buffer_8bit);
-      ybf->y_buffer_8bit = (uint8_t *)aom_memalign(32, (size_t)yplane_size);
-      if (!ybf->y_buffer_8bit) return AOM_CODEC_MEM_ERROR;
-    } else {
-      if (ybf->y_buffer_8bit) {
-        aom_free(ybf->y_buffer_8bit);
-        ybf->y_buffer_8bit = NULL;
-      }
-    }
+    if (ybf->y_buffer_8bit) aom_free(ybf->y_buffer_8bit);
+    ybf->y_buffer_8bit = (uint8_t *)aom_memalign(32, (size_t)yplane_size);
+    if (!ybf->y_buffer_8bit) return AOM_CODEC_MEM_ERROR;
     // y_buffer_8bit may have been allocated above, but it has not been filled
     // in yet. So, mark it as invalid.
     ybf->buf_8bit_valid = 0;
@@ -197,8 +183,7 @@ static int calc_stride_and_planesize(const int ss_x, const int ss_y,
 }
 
 int aom_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
-                             int ss_x, int ss_y, int use_highbitdepth,
-                             int border, int byte_alignment,
+                             int ss_x, int ss_y, int border, int byte_alignment,
                              aom_codec_frame_buffer_t *fb,
                              aom_get_frame_buffer_cb_fn_t cb, void *cb_priv) {
 #if CONFIG_SIZE_LIMIT
@@ -223,22 +208,19 @@ int aom_realloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
         &y_stride, &uv_stride, &yplane_size, &uvplane_size, uv_height);
     if (error) return error;
     return realloc_frame_buffer_aligned(
-        ybf, width, height, ss_x, ss_y, use_highbitdepth, border,
-        byte_alignment, fb, cb, cb_priv, y_stride, yplane_size, uvplane_size,
-        aligned_width, aligned_height, uv_width, uv_height, uv_stride,
-        uv_border_w, uv_border_h);
+        ybf, width, height, ss_x, ss_y, border, byte_alignment, fb, cb, cb_priv,
+        y_stride, yplane_size, uvplane_size, aligned_width, aligned_height,
+        uv_width, uv_height, uv_stride, uv_border_w, uv_border_h);
   }
   return AOM_CODEC_MEM_ERROR;
 }
 
 int aom_alloc_frame_buffer(YV12_BUFFER_CONFIG *ybf, int width, int height,
-                           int ss_x, int ss_y, int use_highbitdepth, int border,
-                           int byte_alignment) {
+                           int ss_x, int ss_y, int border, int byte_alignment) {
   if (ybf) {
     aom_free_frame_buffer(ybf);
-    return aom_realloc_frame_buffer(ybf, width, height, ss_x, ss_y,
-                                    use_highbitdepth, border, byte_alignment,
-                                    NULL, NULL, NULL);
+    return aom_realloc_frame_buffer(ybf, width, height, ss_x, ss_y, border,
+                                    byte_alignment, NULL, NULL, NULL);
   }
   return AOM_CODEC_MEM_ERROR;
 }

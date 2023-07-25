@@ -175,7 +175,6 @@ TEST_P(ArfFreqTestLarge, MinArfFreqTest) {
   cfg_.g_input_bit_depth = test_video_param_.input_bit_depth;
   cfg_.g_bit_depth = test_video_param_.bit_depth;
   init_flags_ = AOM_CODEC_USE_PSNR;
-  if (cfg_.g_bit_depth > 8) init_flags_ |= AOM_CODEC_USE_HIGHBITDEPTH;
 
   std::unique_ptr<libaom_test::VideoSource> video;
   if (is_extension_y4m(test_video_param_.filename)) {

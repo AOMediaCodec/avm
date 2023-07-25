@@ -29,6 +29,7 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/av1_loopfilter.h"
+#include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
@@ -102,6 +103,17 @@ static void dec_setup_mi(CommonModeInfoParams *mi_params) {
       mi_params->mi_stride * calc_mi_size(mi_params->mi_rows);
   memset(mi_params->mi_grid_base, 0,
          mi_grid_size * sizeof(*mi_params->mi_grid_base));
+#if CONFIG_C071_SUBBLK_WARPMV
+  memset(mi_params->submi_grid_base, 0,
+         mi_grid_size * sizeof(*mi_params->submi_grid_base));
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_CROSS_CHROMA_TX
+  memset(mi_params->cctx_type_map, 0,
+         mi_grid_size * sizeof(*mi_params->cctx_type_map));
+#endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  av1_reset_txk_skip_array_using_mi_params(mi_params);
+#endif  // CONFIG_PC_WIENER
 }
 
 static void dec_free_mi(CommonModeInfoParams *mi_params) {
@@ -109,10 +121,59 @@ static void dec_free_mi(CommonModeInfoParams *mi_params) {
   mi_params->mi_alloc = NULL;
   aom_free(mi_params->mi_grid_base);
   mi_params->mi_grid_base = NULL;
+#if CONFIG_C071_SUBBLK_WARPMV
+  aom_free(mi_params->mi_alloc_sub);
+  mi_params->mi_alloc_sub = NULL;
+  aom_free(mi_params->submi_grid_base);
+  mi_params->submi_grid_base = NULL;
+#endif
   mi_params->mi_alloc_size = 0;
   aom_free(mi_params->tx_type_map);
   mi_params->tx_type_map = NULL;
+#if CONFIG_CROSS_CHROMA_TX
+  aom_free(mi_params->cctx_type_map);
+  mi_params->cctx_type_map = NULL;
+#endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  av1_dealloc_class_id_array(mi_params);
+  av1_dealloc_txk_skip_array(mi_params);
+#endif  // CONFIG_PC_WIENER
 }
+
+#if CONFIG_TIP
+static INLINE void dec_init_tip_ref_frame(AV1_COMMON *const cm) {
+  TIP *tip_ref = &cm->tip_ref;
+  tip_ref->tip_frame = aom_calloc(1, sizeof(*tip_ref->tip_frame));
+}
+
+static INLINE void dec_free_tip_ref_frame(AV1_COMMON *const cm) {
+  aom_free(cm->tip_ref.available_flag);
+  cm->tip_ref.available_flag = NULL;
+  aom_free(cm->tip_ref.mf_need_clamp);
+  cm->tip_ref.mf_need_clamp = NULL;
+
+  aom_free_frame_buffer(&cm->tip_ref.tip_frame->buf);
+  aom_free(cm->tip_ref.tip_frame);
+  cm->tip_ref.tip_frame = NULL;
+}
+
+#if CONFIG_OPTFLOW_ON_TIP
+static INLINE void dec_init_optflow_bufs(AV1_COMMON *const cm) {
+  cm->dst0_16_tip = aom_memalign(32, 8 * 8 * sizeof(uint16_t));
+  cm->dst1_16_tip = aom_memalign(32, 8 * 8 * sizeof(uint16_t));
+  cm->gx0 = aom_memalign(32, 2 * 8 * 8 * sizeof(*cm->gx0));
+  cm->gx1 = aom_memalign(32, 2 * 8 * 8 * sizeof(*cm->gx1));
+  cm->gy0 = cm->gx0 + (8 * 8);
+  cm->gy1 = cm->gx1 + (8 * 8);
+}
+static INLINE void dec_free_optflow_bufs(AV1_COMMON *const cm) {
+  aom_free(cm->dst0_16_tip);
+  aom_free(cm->dst1_16_tip);
+  aom_free(cm->gx0);
+  aom_free(cm->gx1);
+}
+#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_TIP
 
 AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   AV1Decoder *volatile const pbi = aom_memalign(32, sizeof(*pbi));
@@ -166,6 +227,13 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   pbi->acct_enabled = 1;
   aom_accounting_init(&pbi->accounting);
 #endif
+
+#if CONFIG_TIP
+  dec_init_tip_ref_frame(cm);
+#if CONFIG_OPTFLOW_ON_TIP
+  dec_init_optflow_bufs(cm);
+#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_TIP
 
   cm->error.setjmp = 0;
 
@@ -247,6 +315,13 @@ void av1_decoder_remove(AV1Decoder *pbi) {
     av1_dealloc_dec_jobs(&pbi->tile_mt_info);
   }
 
+#if CONFIG_TIP
+  dec_free_tip_ref_frame(&pbi->common);
+#if CONFIG_OPTFLOW_ON_TIP
+  dec_free_optflow_bufs(&pbi->common);
+#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_TIP
+
   av1_dec_free_cb_buf(pbi);
 #if CONFIG_ACCOUNTING
   aom_accounting_clear(&pbi->accounting);
@@ -265,18 +340,11 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 
 void av1_visit_palette(AV1Decoder *const pbi, MACROBLOCKD *const xd,
                        aom_reader *r, palette_visitor_fn_t visit) {
-#if CONFIG_SDP
   if (!is_inter_block(xd->mi[0], xd->tree_type)) {
-    const int plane_start = (xd->tree_type == CHROMA_PART);
-    const int plane_end =
-        (xd->tree_type == LUMA_PART ? 1
-                                    : AOMMIN(2, av1_num_planes(&pbi->common)));
+    const int plane_start = get_partition_plane_start(xd->tree_type);
+    const int plane_end = get_partition_plane_end(
+        xd->tree_type, AOMMIN(2, av1_num_planes(&pbi->common)));
     for (int plane = plane_start; plane < plane_end; ++plane) {
-#else
-  if (!is_inter_block(xd->mi[0])) {
-    for (int plane = 0; plane < AOMMIN(2, av1_num_planes(&pbi->common));
-         ++plane) {
-#endif
       if (plane == 0 || xd->is_chroma_ref) {
         if (xd->mi[0]->palette_mode_info.palette_size[plane])
           visit(xd, plane, r);
@@ -317,9 +385,7 @@ static int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
   return a->y_height == b->y_height && a->y_width == b->y_width &&
          a->uv_height == b->uv_height && a->uv_width == b->uv_width &&
          a->y_stride == b->y_stride && a->uv_stride == b->uv_stride &&
-         a->border == b->border &&
-         (a->flags & YV12_FLAG_HIGHBITDEPTH) ==
-             (b->flags & YV12_FLAG_HIGHBITDEPTH);
+         a->border == b->border;
 }
 
 aom_codec_err_t av1_set_reference_dec(AV1_COMMON *cm, int idx,
@@ -420,8 +486,38 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                           pbi->enable_subgop_stats);
     }
-
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    if (cm->seq_params.order_hint_info.enable_order_hint &&
+        cm->seq_params.enable_frame_output_order && cm->show_frame &&
+        !cm->show_existing_frame) {
+      // Refresh the reference slots of output frames in the output queue.
+      if (pbi->num_output_frames > 0) {
+        decrease_ref_count(pbi->output_frames[0], pool);
+      }
+      // Add the currently decoded frame into the output queue.
+      pbi->output_frames[0] = cm->cur_frame;
+      pbi->num_output_frames = 1;
+      // Add the next frames (showable_frame == 1) into the output queue.
+      int successive_output = 1;
+      for (int k = 1; k <= REF_FRAMES && successive_output > 0; k++) {
+        unsigned int next_disp_order = cm->cur_frame->display_order_hint + k;
+        successive_output = 0;
+        for (int i = 0; i < REF_FRAMES; i++) {
+          if (cm->ref_frame_map[i]->display_order_hint == next_disp_order &&
+              cm->ref_frame_map[i]->showable_frame == 1) {
+            pbi->output_frames[k] = cm->ref_frame_map[i];
+            pbi->num_output_frames++;
+            successive_output++;
+          }
+        }
+        assert(successive_output < 2);
+      }
+    } else if ((!cm->seq_params.order_hint_info.enable_order_hint ||
+                !cm->seq_params.enable_frame_output_order) &&
+               (cm->show_existing_frame || cm->show_frame)) {
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (cm->show_existing_frame || cm->show_frame) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (pbi->output_all_layers) {
         // Append this frame to the output queue
         if (pbi->num_output_frames >= MAX_NUM_SPATIAL_LAYERS) {
@@ -480,7 +576,8 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     // TODO(jkoleszar): Error concealment is undefined and non-normative
     // at this point, but if it becomes so, [0] may not always be the correct
     // thing to do here.
-    RefCntBuffer *ref_buf = get_ref_frame_buf(cm, LAST_FRAME);
+    const int last_frame = get_closest_pastcur_ref_index(cm);
+    RefCntBuffer *ref_buf = get_ref_frame_buf(cm, last_frame);
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
 
@@ -578,7 +675,15 @@ int av1_get_raw_frame(AV1Decoder *pbi, size_t index, YV12_BUFFER_CONFIG **sd,
 // TODO(rachelbarker): What should this do?
 int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
-
-  *frame = pbi->output_frames[pbi->num_output_frames - 1]->buf;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  const size_t out_frame_idx =
+      (pbi->common.seq_params.order_hint_info.enable_order_hint &&
+       pbi->common.seq_params.enable_frame_output_order)
+          ? 0
+          : pbi->num_output_frames - 1;
+#else
+  const size_t out_frame_idx = pbi->num_output_frames - 1;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  *frame = pbi->output_frames[out_frame_idx]->buf;
   return 0;
 }

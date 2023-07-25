@@ -34,21 +34,63 @@ extern "C" {
 #define V_TXB_SKIP_CONTEXT_OFFSET 6
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-#define TXB_SKIP_CONTEXTS 13
+#define TXB_SKIP_CONTEXTS 20
+
+#define IDTX_SIGN_CONTEXTS 9
+#define IDTX_SIG_COEF_CONTEXTS 14
+#define IDTX_LEVEL_CONTEXTS 14
 
 #define EOB_COEF_CONTEXTS 9
+#if CONFIG_ATC_DCTX_ALIGNED
+#define SIG_COEF_CONTEXTS_BOB 3
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
+#define EOB_MAX_SYMS 11
+
+#if CONFIG_PAR_HIDING
+#define COEFF_BASE_PH_CONTEXTS 5
+#define COEFF_BR_PH_CONTEXTS 7
+#endif  // CONFIG_PAR_HIDING
+
+#if CONFIG_ATC_COEFCODING
+// Number of coefficient coding contexts for the low-frequency region
+// for 2D and 1D transforms
+#define LF_SIG_COEF_CONTEXTS_2D 21
+#define LF_SIG_COEF_CONTEXTS_1D 12
+#define LF_SIG_COEF_CONTEXTS (LF_SIG_COEF_CONTEXTS_2D + LF_SIG_COEF_CONTEXTS_1D)
+#define LF_LEVEL_CONTEXTS 14  // low-range contexts
+
+// Number of coefficient coding contexts for the higher-frequency default region
+// for 2D and 1D transforms
+#define SIG_COEF_CONTEXTS_2D 20
+#define SIG_COEF_CONTEXTS SIG_COEF_CONTEXTS_2D  // base range contexts
+#define LEVEL_CONTEXTS 7                        // low range contexts
+
+#define SIG_COEF_CONTEXTS_EOB 4  // context count for the EOB coefficient
+
+// Number of symbols for base range coding in low-frequency region
+#define LF_BASE_SYMBOLS 6
+#define LF_NUM_BASE_LEVELS (LF_BASE_SYMBOLS - 2)
+#define LF_MAX_BASE_BR_RANGE (COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS + 1)
+
+// Limits to determine the low-frequency region for coefficient coding.
+#define LF_2D_LIM 4     // row + column limit
+#define LF_2D_LIM_UV 1  // row + column limit for chroma
+#define LF_RC_LIM 2     // row or column limit
+#define LF_RC_LIM_UV 1  // row or column limit for chroma
+#else
+#define LEVEL_CONTEXTS 21
 #define SIG_COEF_CONTEXTS_2D 26
 #define SIG_COEF_CONTEXTS_1D 16
 #define SIG_COEF_CONTEXTS_EOB 4
 #define SIG_COEF_CONTEXTS (SIG_COEF_CONTEXTS_2D + SIG_COEF_CONTEXTS_1D)
+#endif  // CONFIG_ATC_COEFCODING
 
 #define COEFF_BASE_CONTEXTS (SIG_COEF_CONTEXTS)
 #define DC_SIGN_CONTEXTS 3
 
 #define BR_TMP_OFFSET 12
 #define BR_REF_CAT 4
-#define LEVEL_CONTEXTS 21
 
 #define NUM_BASE_LEVELS 2
 
@@ -90,89 +132,49 @@ static INLINE int combine_entropy_contexts(ENTROPY_CONTEXT a,
   return (a != 0) + (b != 0);
 }
 
+static INLINE ENTROPY_CONTEXT get_entropy_context_1d(const ENTROPY_CONTEXT *ctx,
+                                                     int size) {
+  switch (size) {
+    case 4: return ctx[0] != 0;
+    case 8:
+#if CONFIG_H_PARTITION
+      return ctx[0] != 0 || ctx[1] != 0;
+#else
+      return !!*(const uint16_t *)ctx;
+#endif  // CONFIG_H_PARTITION
+    case 16:
+#if CONFIG_UNEVEN_4WAY
+      return ctx[0] != 0 || ctx[1] != 0 || ctx[2] != 0 || ctx[3] != 0;
+#elif CONFIG_H_PARTITION
+      return !!(*(const uint16_t *)ctx | *(const uint16_t *)(ctx + 2));
+#else
+      return !!*(const uint32_t *)ctx;
+#endif  // CONFIG_UNEVEN_4WAY
+    case 32:
+#if CONFIG_UNEVEN_4WAY
+      return !!(*(const uint16_t *)ctx | *(const uint16_t *)(ctx + 2) |
+                *(const uint16_t *)(ctx + 4) | *(const uint16_t *)(ctx + 6));
+#elif CONFIG_H_PARTITION
+      return !!(*(const uint32_t *)ctx | *(const uint32_t *)(ctx + 4));
+#else
+      return !!*(const uint64_t *)ctx;
+#endif  // CONFIG_UNEVEN_4WAY
+    case 64: return !!(*(const uint64_t *)ctx | *(const uint64_t *)(ctx + 8));
+    default: assert(0 && "Invalid transform 1d size."); break;
+  }
+
+  return 0;
+}
+
 static INLINE int get_entropy_context(TX_SIZE tx_size, const ENTROPY_CONTEXT *a,
                                       const ENTROPY_CONTEXT *l) {
+  assert(tx_size < TX_SIZES_ALL);
+  const int txw = tx_size_wide[tx_size];
+  const int txh = tx_size_high[tx_size];
   ENTROPY_CONTEXT above_ec = 0, left_ec = 0;
 
-  switch (tx_size) {
-    case TX_4X4:
-      above_ec = a[0] != 0;
-      left_ec = l[0] != 0;
-      break;
-    case TX_4X8:
-      above_ec = a[0] != 0;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_8X4:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = l[0] != 0;
-      break;
-    case TX_8X16:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_16X8:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_16X32:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_32X16:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_8X8:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_16X16:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_32X32:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_64X64:
-      above_ec = !!(*(const uint64_t *)a | *(const uint64_t *)(a + 8));
-      left_ec = !!(*(const uint64_t *)l | *(const uint64_t *)(l + 8));
-      break;
-    case TX_32X64:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!(*(const uint64_t *)l | *(const uint64_t *)(l + 8));
-      break;
-    case TX_64X32:
-      above_ec = !!(*(const uint64_t *)a | *(const uint64_t *)(a + 8));
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_4X16:
-      above_ec = a[0] != 0;
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    case TX_16X4:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = l[0] != 0;
-      break;
-    case TX_8X32:
-      above_ec = !!*(const uint16_t *)a;
-      left_ec = !!*(const uint64_t *)l;
-      break;
-    case TX_32X8:
-      above_ec = !!*(const uint64_t *)a;
-      left_ec = !!*(const uint16_t *)l;
-      break;
-    case TX_16X64:
-      above_ec = !!*(const uint32_t *)a;
-      left_ec = !!(*(const uint64_t *)l | *(const uint64_t *)(l + 8));
-      break;
-    case TX_64X16:
-      above_ec = !!(*(const uint64_t *)a | *(const uint64_t *)(a + 8));
-      left_ec = !!*(const uint32_t *)l;
-      break;
-    default: assert(0 && "Invalid transform size."); break;
-  }
+  above_ec = get_entropy_context_1d(a, txw);
+  left_ec = get_entropy_context_1d(l, txh);
   return combine_entropy_contexts(above_ec, left_ec);
 }
 

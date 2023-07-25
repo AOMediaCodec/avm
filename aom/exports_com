@@ -26,6 +26,7 @@ text aom_img_plane_height
 text aom_img_plane_width
 text aom_img_remove_metadata
 text aom_img_set_rect
+text aom_img_upshift
 text aom_img_wrap
 text aom_malloc
 text aom_rb_bytes_read

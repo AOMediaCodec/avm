@@ -27,10 +27,6 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
   for (int i = 0; i < REFERENCE_MODES; i++)
     td->rd_counts.comp_pred_diff[i] += td_t->rd_counts.comp_pred_diff[i];
 
-  for (int i = 0; i < REF_FRAMES; i++)
-    td->rd_counts.global_motion_used[i] +=
-        td_t->rd_counts.global_motion_used[i];
-
   td->rd_counts.compound_ref_used_flag |=
       td_t->rd_counts.compound_ref_used_flag;
   td->rd_counts.skip_mode_used_flag |= td_t->rd_counts.skip_mode_used_flag;
@@ -70,14 +66,9 @@ static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
           const int idx_str = cm->mi_params.mi_stride * mi_row + mi_col;
           MB_MODE_INFO **mi = cm->mi_params.mi_grid_base + idx_str;
           MB_MODE_INFO *mbmi = mi[0];
-#if CONFIG_SDP
           if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] == 1 &&
               (mbmi->sb_type[xd->tree_type == CHROMA_PART] ==
                cm->seq_params.sb_size)) {
-#else
-          if (mbmi->skip_txfm == 1 &&
-              (mbmi->sb_type == cm->seq_params.sb_size)) {
-#endif
             for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id)
               mbmi->delta_lf[lf_id] = xd->delta_lf[lf_id];
             mbmi->delta_lf_from_base = xd->delta_lf_from_base;
@@ -476,8 +467,17 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
         &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
 #if CONFIG_REF_MV_BANK
     av1_zero(td->mb.e_mbd.ref_mv_bank);
+#if !CONFIG_C043_MVP_IMPROVEMENTS
     td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
+#endif
 #endif  // CONFIG_REF_MV_BANK}
+
+#if CONFIG_WARP_REF_LIST
+    av1_zero(td->mb.e_mbd.warp_param_bank);
+#if !WARP_CU_BANK
+    td->mb.e_mbd.warp_param_bank_pt = &td->mb.e_mbd.warp_param_bank;
+#endif  //! WARP_CU_BANK
+#endif  // CONFIG_WARP_REF_LIST
 
     av1_encode_sb_row(cpi, td, tile_row, tile_col, current_mi_row);
 #if CONFIG_MULTITHREAD
@@ -555,6 +555,9 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
     if (i > 0) {
       // Set up sms_tree.
       av1_setup_sms_tree(cpi, thread_data->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+      av1_setup_sms_bufs(cm, thread_data->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
       alloc_obmc_buffers(&thread_data->td->obmc_buffer, cm);
 
@@ -671,8 +674,10 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
 
     if (i > 0) {
       // Set up firstpass PICK_MODE_CONTEXT.
-      thread_data->td->firstpass_ctx =
-          av1_alloc_pmc(cm, BLOCK_16X16, &thread_data->td->shared_coeff_buf);
+      thread_data->td->firstpass_ctx = av1_alloc_pmc(
+          cm, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
+          cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+          &thread_data->td->shared_coeff_buf);
 
       // Create threads
       if (!winterface->reset(worker))
@@ -801,9 +806,19 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     }
 #if CONFIG_REF_MV_BANK
     av1_zero(thread_data->td->mb.e_mbd.ref_mv_bank);
+#if !CONFIG_C043_MVP_IMPROVEMENTS
     thread_data->td->mb.e_mbd.ref_mv_bank_pt =
         &thread_data->td->mb.e_mbd.ref_mv_bank;
+
+#endif
 #endif  // CONFIG_REF_MV_BANK
+#if CONFIG_WARP_REF_LIST
+    av1_zero(thread_data->td->mb.e_mbd.warp_param_bank);
+#if !WARP_CU_BANK
+    thread_data->td->mb.e_mbd.warp_param_bank_pt =
+        &thread_data->td->mb.e_mbd.warp_param_bank;
+#endif  //! WARP_CU_BANK
+#endif  // CONFIG_WARP_REF_LIST
   }
 }
 
@@ -1408,7 +1423,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     // source_alt_ref_frame w.r.t. ARF frames.
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
         gm_info->reference_frames[cur_dir][ref_frame_idx].distance != 0 &&
-        cpi->common.global_motion[ref_buf_idx].wmtype != ROTZOOM)
+        cpi->common.global_motion[ref_buf_idx].wmtype <= TRANSLATION)
       job_info->early_exit[cur_dir] = 1;
 
 #if CONFIG_MULTITHREAD

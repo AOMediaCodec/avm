@@ -15,6 +15,7 @@
 #include <memory.h>
 #include <math.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "config/av1_rtcd.h"
 
@@ -193,6 +194,33 @@ const int16_t av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8] = {
 
 /* clang-format on */
 
+// Recompute the translational part of a warp model, so that the center
+// of the current block (determined by `mi_row`, `mi_col`, `bsize`)
+// has an induced motion vector of `mv`
+void av1_set_warp_translation(int mi_row, int mi_col, BLOCK_SIZE bsize, MV mv,
+                              WarpedMotionParams *wm) {
+  const int center_x = mi_col * MI_SIZE + block_size_wide[bsize] / 2 - 1;
+  const int center_y = mi_row * MI_SIZE + block_size_high[bsize] / 2 - 1;
+
+  // Note(rachelbarker): We subtract 1 from the diagonal part of the model here.
+  // This is because the warp model M maps (current frame) pixel coordinates to
+  // (ref frame) pixel coordinates. So, in order to calculate the induced
+  // motion vector, we have to subtract the identity matrix.
+  wm->wmmat[0] = mv.col * (1 << (WARPEDMODEL_PREC_BITS - 3)) -
+                 (center_x * (wm->wmmat[2] - (1 << WARPEDMODEL_PREC_BITS)) +
+                  center_y * wm->wmmat[3]);
+  wm->wmmat[1] = mv.row * (1 << (WARPEDMODEL_PREC_BITS - 3)) -
+                 (center_x * wm->wmmat[4] +
+                  center_y * (wm->wmmat[5] - (1 << WARPEDMODEL_PREC_BITS)));
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
+                       WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
+  wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
+                       WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+}
+
 const uint16_t div_lut[DIV_LUT_NUM + 1] = {
   16384, 16320, 16257, 16194, 16132, 16070, 16009, 15948, 15888, 15828, 15768,
   15709, 15650, 15592, 15534, 15477, 15420, 15364, 15308, 15252, 15197, 15142,
@@ -251,20 +279,67 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
                         (1 << WARPEDMODEL_PREC_BITS),
                     INT16_MIN, INT16_MAX);
 
-  wm->alpha = ROUND_POWER_OF_TWO_SIGNED(wm->alpha, WARP_PARAM_REDUCE_BITS) *
-              (1 << WARP_PARAM_REDUCE_BITS);
-  wm->beta = ROUND_POWER_OF_TWO_SIGNED(wm->beta, WARP_PARAM_REDUCE_BITS) *
-             (1 << WARP_PARAM_REDUCE_BITS);
-  wm->gamma = ROUND_POWER_OF_TWO_SIGNED(wm->gamma, WARP_PARAM_REDUCE_BITS) *
-              (1 << WARP_PARAM_REDUCE_BITS);
-  wm->delta = ROUND_POWER_OF_TWO_SIGNED(wm->delta, WARP_PARAM_REDUCE_BITS) *
-              (1 << WARP_PARAM_REDUCE_BITS);
+  // Note(rachelbarker):
+  // In extreme cases, the `clamp` operations in the previous block can set
+  // parameters equal to to INT16_MAX == 32767.
+  //
+  // The following round-then-multiply, which is intended to reduce the bit
+  // storage requirement in hardware, then rounds to 32768, which is outside
+  // the range of an int16_t. But casting to int16_t is okay - it will cause
+  // this value to become -32768, and so the model will be rejected
+  // by is_affine_shear_allowed(), so the outcome is the same.
+  //
+  // However, we must make this cast explicit, because otherwise the integer
+  // sanitizer (correctly) complains about overflow during an implicit cast
+  wm->alpha =
+      (int16_t)(ROUND_POWER_OF_TWO_SIGNED(wm->alpha, WARP_PARAM_REDUCE_BITS) *
+                (1 << WARP_PARAM_REDUCE_BITS));
+  wm->beta =
+      (int16_t)(ROUND_POWER_OF_TWO_SIGNED(wm->beta, WARP_PARAM_REDUCE_BITS) *
+                (1 << WARP_PARAM_REDUCE_BITS));
+  wm->gamma =
+      (int16_t)(ROUND_POWER_OF_TWO_SIGNED(wm->gamma, WARP_PARAM_REDUCE_BITS) *
+                (1 << WARP_PARAM_REDUCE_BITS));
+  wm->delta =
+      (int16_t)(ROUND_POWER_OF_TWO_SIGNED(wm->delta, WARP_PARAM_REDUCE_BITS) *
+                (1 << WARP_PARAM_REDUCE_BITS));
 
   if (!is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta))
     return 0;
 
   return 1;
 }
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+// Reduce the precision of a warp model, ready for use in the warp filter
+// and for storage. This should be called after the non-translational parameters
+// are calculated, but before av1_set_warp_translation() or
+// av1_get_shear_params() are called
+//
+// This also clamps the values. The clamping range is well outside the
+// "useful" range (ie, what is_affine_shear_allowed() permits), but it
+// ensures that hardware can store each value in a signed integer with
+// (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS) total bits
+void av1_reduce_warp_model(WarpedMotionParams *wm) {
+  // Think of this range as an int<N>, multiplied by (1 <<
+  // WARP_PARAM_REDUCE_BITS). In other words, the max is -2^(N-1) and max is
+  // (2^(N-1) - 1), but with an extra multiplier applied to both terms
+  const int min_value = -(1 << (WARPEDMODEL_PREC_BITS - 1));
+  const int max_value =
+      (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
+
+  for (int i = 2; i < 6; i++) {
+    int offset = (i == 2 || i == 5) ? (1 << WARPEDMODEL_PREC_BITS) : 0;
+
+    int original = wm->wmmat[i] - offset;
+    int rounded = ROUND_POWER_OF_TWO_SIGNED(original, WARP_PARAM_REDUCE_BITS) *
+                  (1 << WARP_PARAM_REDUCE_BITS);
+    int clamped = clamp(rounded, min_value, max_value);
+
+    wm->wmmat[i] = clamped + offset;
+  }
+}
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE int highbd_error_measure(int err, int bd) {
   const int b = bd - 8;
@@ -277,8 +352,90 @@ static INLINE int highbd_error_measure(int err, int bd) {
          error_measure_lut[256 + e1] * e2;
 }
 
-/* Note: For an explanation of the warp algorithm, and some notes on bit widths
-    for hardware implementations, see the comments above av1_warp_affine_c
+/* The warp filter for ROTZOOM and AFFINE models works as follows:
+   * Split the input into 8x8 blocks
+   * For each block, project the point (4, 4) within the block, to get the
+     overall block position. Split into integer and fractional coordinates,
+     maintaining full WARPEDMODEL precision
+   * Filter horizontally: Generate 15 rows of 8 pixels each. Each pixel gets a
+     variable horizontal offset. This means that, while the rows of the
+     intermediate buffer align with the rows of the *reference* image, the
+     columns align with the columns of the *destination* image.
+   * Filter vertically: Generate the output block (up to 8x8 pixels, but if the
+     destination is too small we crop the output at this stage). Each pixel has
+     a variable vertical offset, so that the resulting rows are aligned with
+     the rows of the destination image.
+
+   To accomplish these alignments, we factor the warp matrix as a
+   product of two shear / asymmetric zoom matrices:
+   / a b \  = /   1       0    \ * / 1+alpha  beta \
+   \ c d /    \ gamma  1+delta /   \    0      1   /
+   where a, b, c, d are wmmat[2], wmmat[3], wmmat[4], wmmat[5] respectively.
+   The horizontal shear (with alpha and beta) is applied first,
+   then the vertical shear (with gamma and delta) is applied second.
+
+   The only limitation is that, to fit this in a fixed 8-tap filter size,
+   the fractional pixel offsets must be at most +-1. Since the horizontal filter
+   generates 15 rows of 8 columns, and the initial point we project is at (4, 4)
+   within the block, the parameters must satisfy
+   4 * |alpha| + 7 * |beta| <= 1   and   4 * |gamma| + 4 * |delta| <= 1
+   for this filter to be applicable.
+
+   Note: This function assumes that the caller has done all of the relevant
+   checks, ie. that we have a ROTZOOM or AFFINE model, that wm[4] and wm[5]
+   are set appropriately (if using a ROTZOOM model), and that alpha, beta,
+   gamma, delta are all in range.
+
+   TODO(rachelbarker): Maybe support scaled references?
+*/
+/* A note on hardware implementation:
+    The warp filter is intended to be implementable using the same hardware as
+    the high-precision convolve filters from the loop-restoration and
+    convolve-round experiments.
+
+    For a single filter stage, considering all of the coefficient sets for the
+    warp filter and the regular convolution filter, an input in the range
+    [0, 2^k - 1] is mapped into the range [-56 * (2^k - 1), 184 * (2^k - 1)]
+    before rounding.
+
+    Allowing for some changes to the filter coefficient sets, call the range
+    [-64 * 2^k, 192 * 2^k]. Then, if we initialize the accumulator to 64 * 2^k,
+    we can replace this by the range [0, 256 * 2^k], which can be stored in an
+    unsigned value with 8 + k bits.
+
+    This allows the derivation of the appropriate bit widths and offsets for
+    the various intermediate values: If
+
+    F := FILTER_BITS = 7 (or else the above ranges need adjusting)
+         So a *single* filter stage maps a k-bit input to a (k + F + 1)-bit
+         intermediate value.
+    H := ROUND0_BITS
+    V := VERSHEAR_REDUCE_PREC_BITS
+    (and note that we must have H + V = 2*F for the output to have the same
+     scale as the input)
+
+    then we end up with the following offsets and ranges:
+    Horizontal filter: Apply an offset of 1 << (bd + F - 1), sum fits into a
+                       uint{bd + F + 1}
+    After rounding: The values stored in 'tmp' fit into a uint{bd + F + 1 - H}.
+    Vertical filter: Apply an offset of 1 << (bd + 2*F - H), sum fits into a
+                     uint{bd + 2*F + 2 - H}
+    After rounding: The final value, before undoing the offset, fits into a
+                    uint{bd + 2}.
+
+    Then we need to undo the offsets before clamping to a pixel. Note that,
+    if we do this at the end, the amount to subtract is actually independent
+    of H and V:
+
+    offset to subtract = (1 << ((bd + F - 1) - H + F - V)) +
+                         (1 << ((bd + 2*F - H) - V))
+                      == (1 << (bd - 1)) + (1 << bd)
+
+    This allows us to entirely avoid clamping in both the warp filter and
+    the convolve-round experiment. As of the time of writing, the Wiener filter
+    from loop-restoration can encode a central coefficient up to 216, which
+    leads to a maximum value of about 282 * 2^k after applying the offset.
+    So in that case we still need to clamp.
 */
 void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
                               int width, int height, int stride, uint16_t *pred,
@@ -467,319 +624,29 @@ static int64_t highbd_segmented_frame_error(
   return sum_error;
 }
 
-/* The warp filter for ROTZOOM and AFFINE models works as follows:
-   * Split the input into 8x8 blocks
-   * For each block, project the point (4, 4) within the block, to get the
-     overall block position. Split into integer and fractional coordinates,
-     maintaining full WARPEDMODEL precision
-   * Filter horizontally: Generate 15 rows of 8 pixels each. Each pixel gets a
-     variable horizontal offset. This means that, while the rows of the
-     intermediate buffer align with the rows of the *reference* image, the
-     columns align with the columns of the *destination* image.
-   * Filter vertically: Generate the output block (up to 8x8 pixels, but if the
-     destination is too small we crop the output at this stage). Each pixel has
-     a variable vertical offset, so that the resulting rows are aligned with
-     the rows of the destination image.
-
-   To accomplish these alignments, we factor the warp matrix as a
-   product of two shear / asymmetric zoom matrices:
-   / a b \  = /   1       0    \ * / 1+alpha  beta \
-   \ c d /    \ gamma  1+delta /   \    0      1   /
-   where a, b, c, d are wmmat[2], wmmat[3], wmmat[4], wmmat[5] respectively.
-   The horizontal shear (with alpha and beta) is applied first,
-   then the vertical shear (with gamma and delta) is applied second.
-
-   The only limitation is that, to fit this in a fixed 8-tap filter size,
-   the fractional pixel offsets must be at most +-1. Since the horizontal filter
-   generates 15 rows of 8 columns, and the initial point we project is at (4, 4)
-   within the block, the parameters must satisfy
-   4 * |alpha| + 7 * |beta| <= 1   and   4 * |gamma| + 4 * |delta| <= 1
-   for this filter to be applicable.
-
-   Note: This function assumes that the caller has done all of the relevant
-   checks, ie. that we have a ROTZOOM or AFFINE model, that wm[4] and wm[5]
-   are set appropriately (if using a ROTZOOM model), and that alpha, beta,
-   gamma, delta are all in range.
-
-   TODO(rachelbarker): Maybe support scaled references?
-*/
-/* A note on hardware implementation:
-    The warp filter is intended to be implementable using the same hardware as
-    the high-precision convolve filters from the loop-restoration and
-    convolve-round experiments.
-
-    For a single filter stage, considering all of the coefficient sets for the
-    warp filter and the regular convolution filter, an input in the range
-    [0, 2^k - 1] is mapped into the range [-56 * (2^k - 1), 184 * (2^k - 1)]
-    before rounding.
-
-    Allowing for some changes to the filter coefficient sets, call the range
-    [-64 * 2^k, 192 * 2^k]. Then, if we initialize the accumulator to 64 * 2^k,
-    we can replace this by the range [0, 256 * 2^k], which can be stored in an
-    unsigned value with 8 + k bits.
-
-    This allows the derivation of the appropriate bit widths and offsets for
-    the various intermediate values: If
-
-    F := FILTER_BITS = 7 (or else the above ranges need adjusting)
-         So a *single* filter stage maps a k-bit input to a (k + F + 1)-bit
-         intermediate value.
-    H := ROUND0_BITS
-    V := VERSHEAR_REDUCE_PREC_BITS
-    (and note that we must have H + V = 2*F for the output to have the same
-     scale as the input)
-
-    then we end up with the following offsets and ranges:
-    Horizontal filter: Apply an offset of 1 << (bd + F - 1), sum fits into a
-                       uint{bd + F + 1}
-    After rounding: The values stored in 'tmp' fit into a uint{bd + F + 1 - H}.
-    Vertical filter: Apply an offset of 1 << (bd + 2*F - H), sum fits into a
-                     uint{bd + 2*F + 2 - H}
-    After rounding: The final value, before undoing the offset, fits into a
-                    uint{bd + 2}.
-
-    Then we need to undo the offsets before clamping to a pixel. Note that,
-    if we do this at the end, the amount to subtract is actually independent
-    of H and V:
-
-    offset to subtract = (1 << ((bd + F - 1) - H + F - V)) +
-                         (1 << ((bd + 2*F - H) - V))
-                      == (1 << (bd - 1)) + (1 << bd)
-
-    This allows us to entirely avoid clamping in both the warp filter and
-    the convolve-round experiment. As of the time of writing, the Wiener filter
-    from loop-restoration can encode a central coefficient up to 216, which
-    leads to a maximum value of about 282 * 2^k after applying the offset.
-    So in that case we still need to clamp.
-*/
-void av1_warp_affine_c(const int32_t *mat, const uint8_t *ref, int width,
-                       int height, int stride, uint8_t *pred, int p_col,
-                       int p_row, int p_width, int p_height, int p_stride,
-                       int subsampling_x, int subsampling_y,
-                       ConvolveParams *conv_params, int16_t alpha, int16_t beta,
-                       int16_t gamma, int16_t delta) {
-  int32_t tmp[15 * 8];
-  const int bd = 8;
-  const int reduce_bits_horiz = conv_params->round_0;
-  const int reduce_bits_vert = conv_params->is_compound
-                                   ? conv_params->round_1
-                                   : 2 * FILTER_BITS - reduce_bits_horiz;
-  const int max_bits_horiz = bd + FILTER_BITS + 1 - reduce_bits_horiz;
-  const int offset_bits_horiz = bd + FILTER_BITS - 1;
-  const int offset_bits_vert = bd + 2 * FILTER_BITS - reduce_bits_horiz;
-  const int round_bits =
-      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
-  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
-  const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
-  (void)max_bits_horiz;
-  assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
-  assert(IMPLIES(conv_params->do_average, conv_params->is_compound));
-
-  for (int i = p_row; i < p_row + p_height; i += 8) {
-    for (int j = p_col; j < p_col + p_width; j += 8) {
-      // Calculate the center of this 8x8 block,
-      // project to luma coordinates (if in a subsampled chroma plane),
-      // apply the affine transformation,
-      // then convert back to the original coordinates (if necessary)
-      const int32_t src_x = (j + 4) << subsampling_x;
-      const int32_t src_y = (i + 4) << subsampling_y;
-      const int32_t dst_x = mat[2] * src_x + mat[3] * src_y + mat[0];
-      const int32_t dst_y = mat[4] * src_x + mat[5] * src_y + mat[1];
-      const int32_t x4 = dst_x >> subsampling_x;
-      const int32_t y4 = dst_y >> subsampling_y;
-
-      int32_t ix4 = x4 >> WARPEDMODEL_PREC_BITS;
-      int32_t sx4 = x4 & ((1 << WARPEDMODEL_PREC_BITS) - 1);
-      int32_t iy4 = y4 >> WARPEDMODEL_PREC_BITS;
-      int32_t sy4 = y4 & ((1 << WARPEDMODEL_PREC_BITS) - 1);
-
-      sx4 += alpha * (-4) + beta * (-4);
-      sy4 += gamma * (-4) + delta * (-4);
-
-      sx4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
-      sy4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
-
-      // Horizontal filter
-      for (int k = -7; k < 8; ++k) {
-        // Clamp to top/bottom edge of the frame
-        const int iy = clamp(iy4 + k, 0, height - 1);
-
-        int sx = sx4 + beta * (k + 4);
-
-        for (int l = -4; l < 4; ++l) {
-          int ix = ix4 + l - 3;
-          // At this point, sx = sx4 + alpha * l + beta * k
-          const int offs = ROUND_POWER_OF_TWO(sx, WARPEDDIFF_PREC_BITS) +
-                           WARPEDPIXEL_PREC_SHIFTS;
-          assert(offs >= 0 && offs <= WARPEDPIXEL_PREC_SHIFTS * 3);
-          const int16_t *coeffs = av1_warped_filter[offs];
-
-          int32_t sum = 1 << offset_bits_horiz;
-          for (int m = 0; m < 8; ++m) {
-            // Clamp to left/right edge of the frame
-            const int sample_x = clamp(ix + m, 0, width - 1);
-
-            sum += ref[iy * stride + sample_x] * coeffs[m];
-          }
-          sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);
-          assert(0 <= sum && sum < (1 << max_bits_horiz));
-          tmp[(k + 7) * 8 + (l + 4)] = sum;
-          sx += alpha;
-        }
-      }
-
-      // Vertical filter
-      for (int k = -4; k < AOMMIN(4, p_row + p_height - i - 4); ++k) {
-        int sy = sy4 + delta * (k + 4);
-        for (int l = -4; l < AOMMIN(4, p_col + p_width - j - 4); ++l) {
-          // At this point, sy = sy4 + gamma * l + delta * k
-          const int offs = ROUND_POWER_OF_TWO(sy, WARPEDDIFF_PREC_BITS) +
-                           WARPEDPIXEL_PREC_SHIFTS;
-          assert(offs >= 0 && offs <= WARPEDPIXEL_PREC_SHIFTS * 3);
-          const int16_t *coeffs = av1_warped_filter[offs];
-
-          int32_t sum = 1 << offset_bits_vert;
-          for (int m = 0; m < 8; ++m) {
-            sum += tmp[(k + m + 4) * 8 + (l + 4)] * coeffs[m];
-          }
-
-          if (conv_params->is_compound) {
-            CONV_BUF_TYPE *p =
-                &conv_params
-                     ->dst[(i - p_row + k + 4) * conv_params->dst_stride +
-                           (j - p_col + l + 4)];
-            sum = ROUND_POWER_OF_TWO(sum, reduce_bits_vert);
-            if (conv_params->do_average) {
-              uint8_t *dst8 =
-                  &pred[(i - p_row + k + 4) * p_stride + (j - p_col + l + 4)];
-              int32_t tmp32 = *p;
-              if (use_wtd_comp_avg) {
-                tmp32 = tmp32 * conv_params->fwd_offset +
-                        sum * conv_params->bck_offset;
-                tmp32 = tmp32 >> DIST_PRECISION_BITS;
-              } else {
-                tmp32 += sum;
-                tmp32 = tmp32 >> 1;
-              }
-              tmp32 = tmp32 - (1 << (offset_bits - conv_params->round_1)) -
-                      (1 << (offset_bits - conv_params->round_1 - 1));
-              *dst8 = clip_pixel(ROUND_POWER_OF_TWO(tmp32, round_bits));
-            } else {
-              *p = sum;
-            }
-          } else {
-            uint8_t *p =
-                &pred[(i - p_row + k + 4) * p_stride + (j - p_col + l + 4)];
-            sum = ROUND_POWER_OF_TWO(sum, reduce_bits_vert);
-            assert(0 <= sum && sum < (1 << (bd + 2)));
-            *p = clip_pixel(sum - (1 << (bd - 1)) - (1 << bd));
-          }
-          sy += gamma;
-        }
-      }
-    }
-  }
+int64_t av1_frame_error(int bd, const uint16_t *ref, int stride, uint16_t *dst,
+                        int p_width, int p_height, int p_stride) {
+  return av1_calc_highbd_frame_error(ref, stride, dst, p_width, p_height,
+                                     p_stride, bd);
 }
 
-void warp_plane(WarpedMotionParams *wm, const uint8_t *const ref, int width,
-                int height, int stride, uint8_t *pred, int p_col, int p_row,
-                int p_width, int p_height, int p_stride, int subsampling_x,
-                int subsampling_y, ConvolveParams *conv_params) {
-  assert(wm->wmtype <= AFFINE);
-  if (wm->wmtype == ROTZOOM) {
-    wm->wmmat[5] = wm->wmmat[2];
-    wm->wmmat[4] = -wm->wmmat[3];
-  }
-  const int32_t *const mat = wm->wmmat;
-  const int16_t alpha = wm->alpha;
-  const int16_t beta = wm->beta;
-  const int16_t gamma = wm->gamma;
-  const int16_t delta = wm->delta;
-  av1_warp_affine(mat, ref, width, height, stride, pred, p_col, p_row, p_width,
-                  p_height, p_stride, subsampling_x, subsampling_y, conv_params,
-                  alpha, beta, gamma, delta);
-}
-
-int64_t av1_calc_frame_error_c(const uint8_t *const ref, int stride,
-                               const uint8_t *const dst, int p_width,
-                               int p_height, int p_stride) {
-  int64_t sum_error = 0;
-  for (int i = 0; i < p_height; ++i) {
-    for (int j = 0; j < p_width; ++j) {
-      sum_error +=
-          (int64_t)error_measure(dst[j + i * p_stride] - ref[j + i * stride]);
-    }
-  }
-  return sum_error;
-}
-
-static int64_t segmented_frame_error(const uint8_t *const ref, int stride,
-                                     const uint8_t *const dst, int p_width,
-                                     int p_height, int p_stride,
-                                     uint8_t *segment_map,
-                                     int segment_map_stride) {
-  int patch_w, patch_h;
-  const int error_bsize_w = AOMMIN(p_width, WARP_ERROR_BLOCK);
-  const int error_bsize_h = AOMMIN(p_height, WARP_ERROR_BLOCK);
-  int64_t sum_error = 0;
-  for (int i = 0; i < p_height; i += WARP_ERROR_BLOCK) {
-    for (int j = 0; j < p_width; j += WARP_ERROR_BLOCK) {
-      int seg_x = j >> WARP_ERROR_BLOCK_LOG;
-      int seg_y = i >> WARP_ERROR_BLOCK_LOG;
-      // Only compute the error if this block contains inliers from the motion
-      // model
-      if (!segment_map[seg_y * segment_map_stride + seg_x]) continue;
-
-      // avoid computing error into the frame padding
-      patch_w = AOMMIN(error_bsize_w, p_width - j);
-      patch_h = AOMMIN(error_bsize_h, p_height - i);
-      sum_error += av1_calc_frame_error(ref + j + i * stride, stride,
-                                        dst + j + i * p_stride, patch_w,
-                                        patch_h, p_stride);
-    }
-  }
-  return sum_error;
-}
-
-int64_t av1_frame_error(int use_hbd, int bd, const uint8_t *ref, int stride,
-                        uint8_t *dst, int p_width, int p_height, int p_stride) {
-  if (use_hbd) {
-    return av1_calc_highbd_frame_error(CONVERT_TO_SHORTPTR(ref), stride,
-                                       CONVERT_TO_SHORTPTR(dst), p_width,
-                                       p_height, p_stride, bd);
-  }
-
-  return av1_calc_frame_error(ref, stride, dst, p_width, p_height, p_stride);
-}
-
-int64_t av1_segmented_frame_error(int use_hbd, int bd, const uint8_t *ref,
-                                  int stride, uint8_t *dst, int p_width,
-                                  int p_height, int p_stride,
-                                  uint8_t *segment_map,
+int64_t av1_segmented_frame_error(int bd, const uint16_t *ref, int stride,
+                                  uint16_t *dst, int p_width, int p_height,
+                                  int p_stride, uint8_t *segment_map,
                                   int segment_map_stride) {
-  if (use_hbd) {
-    return highbd_segmented_frame_error(
-        CONVERT_TO_SHORTPTR(ref), stride, CONVERT_TO_SHORTPTR(dst), p_width,
-        p_height, p_stride, bd, segment_map, segment_map_stride);
-  }
-
-  return segmented_frame_error(ref, stride, dst, p_width, p_height, p_stride,
-                               segment_map, segment_map_stride);
+  return highbd_segmented_frame_error(ref, stride, dst, p_width, p_height,
+                                      p_stride, bd, segment_map,
+                                      segment_map_stride);
 }
 
-void av1_warp_plane(WarpedMotionParams *wm, int use_hbd, int bd,
-                    const uint8_t *ref, int width, int height, int stride,
-                    uint8_t *pred, int p_col, int p_row, int p_width,
-                    int p_height, int p_stride, int subsampling_x,
-                    int subsampling_y, ConvolveParams *conv_params) {
-  if (use_hbd)
-    highbd_warp_plane(wm, CONVERT_TO_SHORTPTR(ref), width, height, stride,
-                      CONVERT_TO_SHORTPTR(pred), p_col, p_row, p_width,
-                      p_height, p_stride, subsampling_x, subsampling_y, bd,
-                      conv_params);
-  else
-    warp_plane(wm, ref, width, height, stride, pred, p_col, p_row, p_width,
-               p_height, p_stride, subsampling_x, subsampling_y, conv_params);
+void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
+                    int width, int height, int stride, uint16_t *pred,
+                    int p_col, int p_row, int p_width, int p_height,
+                    int p_stride, int subsampling_x, int subsampling_y,
+                    ConvolveParams *conv_params) {
+  highbd_warp_plane(wm, ref, width, height, stride, pred, p_col, p_row, p_width,
+                    p_height, p_stride, subsampling_x, subsampling_y, bd,
+                    conv_params);
 }
 
 #define LS_MV_MAX 256  // max mv in 1/8-pel
@@ -895,8 +762,8 @@ static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
 #endif  // USE_LIMITED_PREC_MULT
 
 static int find_affine_int(int np, const int *pts1, const int *pts2,
-                           BLOCK_SIZE bsize, int mvy, int mvx,
-                           WarpedMotionParams *wm, int mi_row, int mi_col) {
+                           BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm,
+                           int mi_row, int mi_col) {
   int32_t A[2][2] = { { 0, 0 }, { 0, 0 } };
   int32_t Bx[2] = { 0, 0 };
   int32_t By[2] = { 0, 0 };
@@ -907,8 +774,8 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
   const int rsux = bw / 2 - 1;
   const int suy = rsuy * 8;
   const int sux = rsux * 8;
-  const int duy = suy + mvy;
-  const int dux = sux + mvx;
+  const int duy = suy + mv.row;
+  const int dux = sux + mv.col;
 
   // Assume the center pixel of the block has exactly the same motion vector
   // as transmitted for the block. First shift the origin of the source
@@ -985,38 +852,319 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
   wm->wmmat[4] = get_mult_shift_ndiag(Py[0], iDet, shift);
   wm->wmmat[5] = get_mult_shift_diag(Py[1], iDet, shift);
 
-  const int isuy = (mi_row * MI_SIZE + rsuy);
-  const int isux = (mi_col * MI_SIZE + rsux);
-  // Note: In the vx, vy expressions below, the max value of each of the
-  // 2nd and 3rd terms are (2^16 - 1) * (2^13 - 1). That leaves enough room
-  // for the first term so that the overall sum in the worst case fits
-  // within 32 bits overall.
-  const int32_t vx = mvx * (1 << (WARPEDMODEL_PREC_BITS - 3)) -
-                     (isux * (wm->wmmat[2] - (1 << WARPEDMODEL_PREC_BITS)) +
-                      isuy * wm->wmmat[3]);
-  const int32_t vy = mvy * (1 << (WARPEDMODEL_PREC_BITS - 3)) -
-                     (isux * wm->wmmat[4] +
-                      isuy * (wm->wmmat[5] - (1 << WARPEDMODEL_PREC_BITS)));
-  wm->wmmat[0] =
-      clamp(vx, -WARPEDMODEL_TRANS_CLAMP, WARPEDMODEL_TRANS_CLAMP - 1);
-  wm->wmmat[1] =
-      clamp(vy, -WARPEDMODEL_TRANS_CLAMP, WARPEDMODEL_TRANS_CLAMP - 1);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  av1_reduce_warp_model(wm);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  // check compatibility with the fast warp filter
+  if (!av1_get_shear_params(wm)) return 1;
+
+  av1_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
+#if !CONFIG_EXTENDED_WARP_PREDICTION
+  wm->wmmat[0] = clamp(wm->wmmat[0], -WARPEDMODEL_TRANS_CLAMP,
+                       WARPEDMODEL_TRANS_CLAMP - 1);
+  wm->wmmat[1] = clamp(wm->wmmat[1], -WARPEDMODEL_TRANS_CLAMP,
+                       WARPEDMODEL_TRANS_CLAMP - 1);
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
   wm->wmmat[6] = wm->wmmat[7] = 0;
   return 0;
 }
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
-                        BLOCK_SIZE bsize, int mvy, int mvx,
-                        WarpedMotionParams *wm_params, int mi_row, int mi_col) {
+                        BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
+                        int mi_row, int mi_col) {
   assert(wm_params->wmtype == AFFINE);
 
-  if (find_affine_int(np, pts1, pts2, bsize, mvy, mvx, wm_params, mi_row,
-                      mi_col))
+  if (find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col))
     return 1;
-
-  // check compatibility with the fast warp filter
-  if (!av1_get_shear_params(wm_params)) return 1;
 
   return 0;
 }
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+/* Given a neighboring block's warp model and the motion vector at the center
+   of the current block, construct a new warp model which is continuous with
+   the neighbor at the common edge but which has the given motion vector at
+   the center of the block.
+
+    The `neighbor_is_above` parameter should be true if the neighboring block
+    is above the current block, or false if it is to the left of the current
+    block.
+
+    Returns 0 if the resulting model can be used with the warp filter,
+    1 if not.
+*/
+int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
+                          const MV *center_mv, const int mi_row,
+                          const int mi_col,
+                          const WarpedMotionParams *neighbor_wm,
+                          WarpedMotionParams *wm_params) {
+  const int half_width_log2 = mi_size_wide_log2[bsize] + MI_SIZE_LOG2 - 1;
+  const int half_height_log2 = mi_size_high_log2[bsize] + MI_SIZE_LOG2 - 1;
+  const int center_x = (mi_col * MI_SIZE) + (1 << half_width_log2) - 1;
+  const int center_y = (mi_row * MI_SIZE) + (1 << half_height_log2) - 1;
+  // Calculate the point (at warp model precision) where the center of the
+  // current block should be mapped to
+  int proj_center_x = (center_x * (1 << WARPEDMODEL_PREC_BITS)) +
+                      (center_mv->col * (1 << (WARPEDMODEL_PREC_BITS - 3)));
+  int proj_center_y = (center_y * (1 << WARPEDMODEL_PREC_BITS)) +
+                      (center_mv->row * (1 << (WARPEDMODEL_PREC_BITS - 3)));
+
+  *wm_params = default_warp_params;
+  wm_params->wmtype = AFFINE;
+
+  if (neighbor_is_above) {
+    // We want to construct a model which will project the block center
+    // according to the signaled motion vector, and which matches the
+    // neighbor's warp model along the top edge of the block.
+    //
+    // We do this in three steps:
+    // 1) Since the models should match along the whole top edge of the block,
+    //    the coefficients of x in the warp model must be the same as for the
+    //    neighboring block
+    //
+    // 2) The coefficients of y in the warp model can then be determined from
+    //    the difference in projected positions between a point on the edge
+    //    and the block center
+    //
+    // 3) The translational part can be derived (outside of this `if`)
+    //    by subtracting the linear part of the model from the signaled MV.
+
+    wm_params->wmmat[2] = neighbor_wm->wmmat[2];
+    wm_params->wmmat[4] = neighbor_wm->wmmat[4];
+
+    // Project above point
+    int above_x = center_x;
+    int above_y = center_y - (1 << half_height_log2);
+    int proj_above_x = neighbor_wm->wmmat[2] * above_x +
+                       neighbor_wm->wmmat[3] * above_y + neighbor_wm->wmmat[0];
+    int proj_above_y = neighbor_wm->wmmat[4] * above_x +
+                       neighbor_wm->wmmat[5] * above_y + neighbor_wm->wmmat[1];
+
+    // y coefficients are (project(center) - project(above)) / (center.y -
+    // above.y), which simplifies to (project(center) - project(above)) /
+    // 2^(half_height_log2)
+    wm_params->wmmat[3] =
+        ROUND_POWER_OF_TWO(proj_center_x - proj_above_x, half_height_log2);
+    wm_params->wmmat[5] =
+        ROUND_POWER_OF_TWO(proj_center_y - proj_above_y, half_height_log2);
+  } else {
+    // If the neighboring block is to the left of the current block, we do the
+    // same thing as for the above case, but with x and y axes interchanged
+
+    wm_params->wmmat[3] = neighbor_wm->wmmat[3];
+    wm_params->wmmat[5] = neighbor_wm->wmmat[5];
+
+    // Project left point
+    int left_x = center_x - (1 << half_width_log2);
+    int left_y = center_y;
+    int proj_left_x = neighbor_wm->wmmat[2] * left_x +
+                      neighbor_wm->wmmat[3] * left_y + neighbor_wm->wmmat[0];
+    int proj_left_y = neighbor_wm->wmmat[4] * left_x +
+                      neighbor_wm->wmmat[5] * left_y + neighbor_wm->wmmat[1];
+
+    // y coefficients are
+    //    (project(center) - project(left)) / (center.y - left.y)
+    // which simplifies to
+    //    (project(center) - project(left)) / 2^(half_width_log2)
+    wm_params->wmmat[2] =
+        ROUND_POWER_OF_TWO(proj_center_x - proj_left_x, half_width_log2);
+    wm_params->wmmat[4] =
+        ROUND_POWER_OF_TWO(proj_center_y - proj_left_y, half_width_log2);
+  }
+
+  av1_reduce_warp_model(wm_params);
+  // check compatibility with the fast warp filter
+  if (!av1_get_shear_params(wm_params)) return 1;
+
+  // Derive translational part from signaled MV
+  av1_set_warp_translation(mi_row, mi_col, bsize, *center_mv, wm_params);
+
+  return 0;
+}
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+// From the warp model, derive the MV in (x,y) position.
+// (x,y) is the horizontal and vertical position of the frame
+//(0,0) is the top-left co-ordinate of the frame
+int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
+                                     const int x, const int y,
+                                     MvSubpelPrecision precision) {
+  int_mv res;
+
+  if (model->wmtype == IDENTITY) {
+    res.as_int = 0;
+    return res;
+  }
+
+  if (model->wmtype == TRANSLATION) {
+    // All global motion vectors are stored with WARPEDMODEL_PREC_BITS (16)
+    // bits of fractional precision. The offset for a translation is stored in
+    // entries 0 and 1. For translations, all but the top three (two if
+    // precision < MV_SUBPEL_EIGHTH) fractional bits are always
+    // zero.
+    //
+#if CONFIG_FLEX_MVRES
+    // After the right shifts, there are 3 fractional bits of precision. If
+    // precision < MV_SUBPEL_EIGHTH is false, the bottom bit is always zero
+    // (so we don't need a call to convert_to_trans_prec here)
+    res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
+    res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
+
+    // When extended warp prediction is enabled, the warp model can be derived
+    // from the neighbor. Neighbor may have different MV precision than current
+    // block. Therefore, this assertion is not valid when
+    // CONFIG_EXTENDED_WARP_PREDICTION is enabled
+#if !CONFIG_EXTENDED_WARP_PREDICTION
+    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col),
+                   precision == MV_PRECISION_ONE_EIGHTH_PEL));
+#endif
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&res.as_mv, precision);
+#else
+    // After the right shifts, there are 3 fractional bits of precision. If
+    // allow_hp is false, the bottom bit is always zero (so we don't need a
+    // call to convert_to_trans_prec here)
+    res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
+    res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
+    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));
+    if (is_integer) {
+      integer_mv_precision(&res.as_mv);
+    }
+#endif
+    return res;
+  }
+
+  const int32_t *mat = model->wmmat;
+  int tx, ty;
+
+  if (model->wmtype == ROTZOOM) {
+    assert(model->wmmat[5] == model->wmmat[2]);
+    assert(model->wmmat[4] == -model->wmmat[3]);
+  }
+
+  int xc =
+      (mat[2] * x + mat[3] * y + mat[0]) - (1 << WARPEDMODEL_PREC_BITS) * x;
+  int yc =
+      (mat[4] * x + mat[5] * y + mat[1]) - (1 << WARPEDMODEL_PREC_BITS) * y;
+
+#if CONFIG_FLEX_MVRES
+  tx = convert_to_trans_prec(precision, xc);
+  ty = convert_to_trans_prec(precision, yc);
+#else
+  tx = convert_to_trans_prec(allow_hp, xc);
+  ty = convert_to_trans_prec(allow_hp, yc);
+#endif
+
+  res.as_mv.row = ty;
+  res.as_mv.col = tx;
+
+#if CONFIG_FLEX_MVRES
+#if CONFIG_C071_SUBBLK_WARPMV
+  if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+    lower_mv_precision(&res.as_mv, precision);
+#else
+  if (is_integer) {
+    integer_mv_precision(&res.as_mv);
+  }
+#endif
+  return res;
+}
+
+// return 0 if the model is invalid
+// pts (col, row) is the array of source points in the unit of integer pixel
+// mvs are the array of the MVs corresponding to the source points
+// for nth point,
+//  pts[2*n] is the col value of the source position. pts[2*n + 1] is the row
+//  value of the source position mvs[2*n] is the col value of mv. mvs[2*n + 1]
+//  is the row value of mv pts_inref[2*n] is the col value of the projected
+//  position. pts_inref[2*n + 1] is the row value of the projected position
+int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
+                              int np, int *mvs, const BLOCK_SIZE bsize) {
+  // In order to derive the warp model we need 3 projected points
+  // If the number of projected points (np) is not equal to 3, model is not
+  // valid.
+  if (np != 3) {
+    derive_model->invalid = 1;
+    return 0;
+  }
+
+  int x0, y0;
+  int ref_x0, ref_x1, ref_x2, ref_y0, ref_y1, ref_y2;
+  int pts_inref[2 * 3];
+  const int width_log2 = mi_size_wide_log2[bsize] + MI_SIZE_LOG2;
+  const int height_log2 = mi_size_high_log2[bsize] + MI_SIZE_LOG2;
+
+  assert(derive_model != NULL);
+
+  for (int n = 0; n < np; n++) {
+    pts_inref[2 * n] = pts[2 * n] * (1 << WARPEDMODEL_PREC_BITS) +
+                       mvs[2 * n] * (1 << GM_TRANS_ONLY_PREC_DIFF);
+    pts_inref[2 * n + 1] = pts[2 * n + 1] * (1 << WARPEDMODEL_PREC_BITS) +
+                           mvs[2 * n + 1] * (1 << GM_TRANS_ONLY_PREC_DIFF);
+    int valid_point = (pts[2 * n] >= 0 && pts[2 * n + 1] >= 0 &&
+                       pts_inref[2 * n] >= 0 && pts_inref[2 * n + 1] >= 0);
+    if (!valid_point) return 0;
+  }
+
+  int all_mvs_same = 1;
+  for (int k = 1; k < np; k++) {
+    all_mvs_same &= (mvs[0] == mvs[2 * k]) & (mvs[1] == mvs[2 * k + 1]);
+  }
+  if (all_mvs_same) {
+    derive_model->invalid = 1;
+    return 0;
+  }
+
+  // Top-left point
+  x0 = pts[2 * 0];
+  y0 = pts[2 * 0 + 1];
+  ref_x0 = pts_inref[2 * 0];
+  ref_y0 = pts_inref[2 * 0 + 1];
+
+  // Top-right point
+  ref_x1 = pts_inref[2 * 1];
+  ref_y1 = pts_inref[2 * 1 + 1];
+
+  // Bottom-left point
+  ref_x2 = pts_inref[2 * 2];
+  ref_y2 = pts_inref[2 * 2 + 1];
+
+  derive_model->wmmat[2] = (ref_x1 - ref_x0) >> width_log2;
+  derive_model->wmmat[4] = (ref_y1 - ref_y0) >> width_log2;
+
+  derive_model->wmmat[3] = (ref_x2 - ref_x0) >> height_log2;
+  derive_model->wmmat[5] = (ref_y2 - ref_y0) >> height_log2;
+
+  int64_t wmmat0 = (int64_t)ref_x0 -
+                   (int64_t)derive_model->wmmat[2] * (int64_t)x0 -
+                   (int64_t)derive_model->wmmat[3] * (int64_t)y0;
+  int64_t wmmat1 = (int64_t)ref_y0 -
+                   (int64_t)derive_model->wmmat[4] * (int64_t)x0 -
+                   (int64_t)derive_model->wmmat[5] * (int64_t)y0;
+
+  derive_model->wmtype = AFFINE;
+  derive_model->invalid = 0;
+
+  av1_reduce_warp_model(derive_model);
+
+  // check compatibility with the fast warp filter
+  if (!av1_get_shear_params(derive_model)) {
+    derive_model->invalid = 1;
+    return 0;
+  }
+
+  derive_model->wmmat[0] = (int32_t)clamp64(wmmat0, -WARPEDMODEL_TRANS_CLAMP,
+                                            WARPEDMODEL_TRANS_CLAMP - 1);
+  derive_model->wmmat[1] = (int32_t)clamp64(wmmat1, -WARPEDMODEL_TRANS_CLAMP,
+                                            WARPEDMODEL_TRANS_CLAMP - 1);
+
+  derive_model->wmmat[6] = derive_model->wmmat[7] = 0;
+
+  return 1;
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP

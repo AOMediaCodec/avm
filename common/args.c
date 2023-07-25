@@ -83,27 +83,52 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_1to4_partitions);
     GET_PARAMS(disable_ml_partition_speed_features);
     GET_PARAMS(disable_ml_transform_speed_features);
-#if CONFIG_SDP
+#if CONFIG_EXT_RECUR_PARTITIONS
+    GET_PARAMS(erp_pruning_level);
+    GET_PARAMS(use_ml_erp_pruning);
+    GET_PARAMS(enable_ext_partitions);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     GET_PARAMS(enable_sdp);
-#endif
-#if CONFIG_MRLS
     GET_PARAMS(enable_mrls);
-#endif
+#if CONFIG_TIP
+    GET_PARAMS(enable_tip);
+#endif  // CONFIG_TIP
+#if CONFIG_BAWP
+    GET_PARAMS(enable_bawp);
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+    GET_PARAMS(enable_cwp);
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+    GET_PARAMS(enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
+    GET_PARAMS(enable_fsc);
 #if CONFIG_ORIP
     GET_PARAMS(enable_orip);
 #endif
-#if CONFIG_IST
+#if CONFIG_IDIF
+    GET_PARAMS(enable_idif);
+#endif  // CONFIG_IDIF
     GET_PARAMS(enable_ist);
-#endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
+#if CONFIG_CROSS_CHROMA_TX
+    GET_PARAMS(enable_cctx);
+#endif  // CONFIG_CROSS_CHROMA_TX
     GET_PARAMS(enable_ibp);
-#endif
 #if CONFIG_ADAPTIVE_MVD
     GET_PARAMS(enable_adaptive_mvd);
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+    GET_PARAMS(enable_flex_mvres);
+#endif  // CONFIG_FLEX_MVRES
+#if CONFIG_ADAPTIVE_DS_FILTER
+    GET_PARAMS(enable_cfl_ds_filter);
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 #if CONFIG_JOINT_MVD
     GET_PARAMS(enable_joint_mvd);
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+    GET_PARAMS(enable_refinemv);
+#endif  // CONFIG_REFINEMV
     GET_PARAMS(enable_flip_idtx);
     GET_PARAMS(enable_deblocking);
     GET_PARAMS(enable_cdef);
@@ -111,9 +136,17 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_CCSO
     GET_PARAMS(enable_ccso);
 #endif
+#if CONFIG_PEF
+    GET_PARAMS(enable_pef);
+#endif  // CONFIG_PEF
     GET_PARAMS(enable_obmc);
     GET_PARAMS(enable_warped_motion);
     GET_PARAMS(enable_global_motion);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+    GET_PARAMS(enable_warped_causal);
+    GET_PARAMS(enable_warp_delta);
+    GET_PARAMS(enable_warp_extend);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
     GET_PARAMS(enable_diff_wtd_comp);
     GET_PARAMS(enable_interintra_comp);
     GET_PARAMS(enable_masked_comp);
@@ -140,12 +173,13 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_ref_frame_mvs);
     GET_PARAMS(enable_reduced_reference_set);
     GET_PARAMS(reduced_tx_type_set);
-#if CONFIG_NEW_INTER_MODES
     GET_PARAMS(max_drl_refmvs);
-#endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_REF_MV_BANK
     GET_PARAMS(enable_refmvbank);
 #endif  // CONFIG_REF_MV_BANK
+#if CONFIG_PAR_HIDING
+    GET_PARAMS(enable_parity_hiding);
+#endif  // CONFIG_PAR_HIDING
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);

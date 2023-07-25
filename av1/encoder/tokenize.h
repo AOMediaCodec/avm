@@ -24,6 +24,10 @@ extern "C" {
 typedef struct {
   aom_cdf_prob *color_map_cdf;
   uint8_t token;
+#if CONFIG_NEW_COLOR_MAP_CODING
+  aom_cdf_prob *identity_row_cdf;
+  uint8_t identity_row_flag;
+#endif  // CONFIG_NEW_COLOR_MAP_CODING
 } TokenExtra;
 
 typedef struct {
@@ -64,7 +68,8 @@ struct tokenize_b_args {
 // otherwise rate is not incremented.
 void av1_tokenize_sb_vartx(const struct AV1_COMP *cpi, struct ThreadData *td,
                            RUN_TYPE dry_run, BLOCK_SIZE bsize, int *rate,
-                           uint8_t allow_update_cdf);
+                           uint8_t allow_update_cdf, int plane_start,
+                           int plane_end);
 
 int av1_cost_color_map(const MACROBLOCK *const x, int plane, BLOCK_SIZE bsize,
                        TX_SIZE tx_size, COLOR_MAP_TYPE type);

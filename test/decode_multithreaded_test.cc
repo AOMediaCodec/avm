@@ -37,10 +37,9 @@ class AV1DecodeMultiThreadedTest
         row_mt_(GET_PARAM(5)) {
     init_flags_ = AOM_CODEC_USE_PSNR;
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
-    cfg.w = 704;
-    cfg.h = 576;
+    cfg.w = 352;
+    cfg.h = 288;
     cfg.threads = 1;
-    cfg.allow_lowbitdepth = 1;
     single_thread_dec_ = codec_->CreateDecoder(cfg, 0);
 
     // Test cfg.threads == powers of 2.
@@ -111,7 +110,7 @@ class AV1DecodeMultiThreadedTest
     cfg_.g_lag_in_frames = 12;
     cfg_.rc_end_usage = AOM_VBR;
 
-    libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 704, 576,
+    libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        timebase.den, timebase.num, 0, 2);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 

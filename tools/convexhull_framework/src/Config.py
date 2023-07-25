@@ -8,7 +8,7 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-__author__ = "maggie.sun@intel.com, ryanlei@fb.com"
+__author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 
 import os
 import platform
@@ -45,7 +45,10 @@ APSNR_Y_WEIGHT = 4.0
 APSNR_U_WEIGHT = 1.0
 APSNR_V_WEIGHT = 1.0
 
-if CTC_VERSION == '2.1':
+if CTC_VERSION == '4.0':
+    CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTCv4_v7.3.xlsm')
+    CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.8.xlsm')
+elif CTC_VERSION == '3.0':
     CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTC_v7.2.xlsm')
     CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.7.xlsm')
 elif CTC_VERSION == '2.0':
@@ -70,23 +73,24 @@ if SMOKE_TEST:
     DnScalingAlgos = ['bicubic', 'lanczos', 'sinc']
     UpScalingAlgos = ['bicubic', 'lanczos', 'sinc']
 HDRToolsConfigFileTemplate = os.path.join(BinPath, 'HDRConvScalerY4MFile.cfg')
-HDRConvert = os.path.join(BinPath, 'HDRConvert.exe')
-AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m.exe')
+HDRConvert = os.path.join(BinPath, 'HDRConvert')
+AOMScaler = os.path.join(BinPath, 'lanczos_resample_y4m')
 
 ##################### Encode Config ########################################
 EncodeMethods = ["aom", "svt", "hm"]
 CodecNames = ["av1", "av2", "hevc"]
 SUFFIX = {"av1": ".obu", "av2": ".obu", "hevc":".265"}
-FFMPEG = os.path.join(BinPath, 'ffmpeg.exe')
-AOMENC = os.path.join(BinPath, 'aomenc.exe')
-SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp.exe')
-AOMDEC = os.path.join(BinPath, 'aomdec.exe')
-AV1ENC = os.path.join(BinPath, 'av1enc.exe')
-AV1DEC = os.path.join(BinPath, 'av1dec.exe')
-HMENC = os.path.join(BinPath, "TAppEncoderStatic.exe")
+FFMPEG = os.path.join(BinPath, 'ffmpeg')
+AOMENC = os.path.join(BinPath, 'aomenc')
+SVTAV1 = os.path.join(BinPath, 'SvtAv1EncApp')
+AOMDEC = os.path.join(BinPath, 'aomdec')
+AV1ENC = os.path.join(BinPath, 'av1enc')
+AV1DEC = os.path.join(BinPath, 'av1dec')
+HMENC = os.path.join(BinPath, "TAppEncoderStatic")
+VMAF = os.path.join(BinPath, 'vmaf')
 HEVCCfgFile = os.path.join(BinPath, "s2-hm-01.cfg")
 
-if CTC_VERSION == '2.0' or CTC_VERSION == "2.1":
+if CTC_VERSION in ["2.0", "3.0", "4.0"]:
     QPs = {
         "LD": [110, 135, 160, 185, 210, 235],
         "RA": [110, 135, 160, 185, 210, 235],
@@ -117,8 +121,8 @@ AS_DOWNSCALE_ON_THE_FLY = False
 
 ######################## quality evalution config #############################
 QualityList = ['PSNR_Y','PSNR_U','PSNR_V','SSIM_Y(dB)','MS-SSIM_Y(dB)','VMAF_Y',
-               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V']
-VMAF = os.path.join(BinPath, 'vmaf.exe')
+               'VMAF_Y-NEG','PSNR-HVS','CIEDE2000','APSNR_Y','APSNR_U','APSNR_V','CAMBI']
+
 CalcBDRateInExcel = True
 EnablePreInterpolation = True
 UsePCHIPInterpolation = False

@@ -74,6 +74,13 @@
   Even relatively modest values like 100 would work fine.*/
 #define OD_EC_LOTS_OF_BITS (0x4000)
 
+/* Minimum # of preloaded bits to maintain in od_ec_window. */
+#if CONFIG_BYPASS_IMPROVEMENT
+#define OD_EC_MIN_BITS 8
+#else
+#define OD_EC_MIN_BITS 0
+#endif  // CONFIG_BYPASS_IMPROVEMENT
+
 /*The return value of od_ec_dec_tell does not change across an od_ec_dec_refill
    call.*/
 static void od_ec_dec_refill(od_ec_dec *dec) {
@@ -134,9 +141,33 @@ static int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif, unsigned rng,
   /*This is equivalent to shifting in 1's instead of 0's.*/
   dec->dif = ((dif + 1) << d) - 1;
   dec->rng = rng << d;
-  if (dec->cnt < 0) od_ec_dec_refill(dec);
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
   return ret;
 }
+
+#if CONFIG_BYPASS_IMPROVEMENT
+/* This function performs renormalization after decoding bypass symbols.
+   This is a simplified version of od_ec_dec_normalize(), as bypass
+   symbol decoding only requires shifting in new bits, and the range
+   value remains unchanged. */
+static int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
+                                      int n_bypass, int ret) {
+  /*n_bypass bits in dec->dif are consumed.*/
+  dec->cnt -= n_bypass;
+  /*This is equivalent to shifting in 1's instead of 0's.*/
+  dec->dif = ((dif + 1) << n_bypass) - 1;
+  if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
+  return ret;
+}
+
+// Scale the CDF to match the range value stored in the entropy decoder.
+static INLINE unsigned od_ec_prob_scale(uint16_t p, unsigned r, int n) {
+  return (((r >> 8) * (uint32_t)(p >> EC_PROB_SHIFT) >>
+           (7 - EC_PROB_SHIFT - CDF_SHIFT + 1))
+          << 1) +
+         EC_MIN_PROB * n;
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*Initializes the decoder.
   buf: The input buffer to use.
@@ -144,12 +175,12 @@ static int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif, unsigned rng,
 void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf,
                     uint32_t storage) {
   dec->buf = buf;
-  dec->tell_offs = 10 - (OD_EC_WINDOW_SIZE - 8);
   dec->end = buf + storage;
   dec->bptr = buf;
   dec->dif = ((od_ec_window)1 << (OD_EC_WINDOW_SIZE - 1)) - 1;
   dec->rng = 0x8000;
   dec->cnt = -15;
+  dec->tell_offs = dec->cnt + 1;
   od_ec_dec_refill(dec);
 }
 
@@ -169,8 +200,12 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   r = dec->rng;
   assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
   assert(32768U <= r);
+#if CONFIG_BYPASS_IMPROVEMENT
+  v = od_ec_prob_scale(f, r, 1);
+#else
   v = ((r >> 8) * (uint32_t)(f >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT));
   v += EC_MIN_PROB;
+#endif
   vw = (od_ec_window)v << (OD_EC_WINDOW_SIZE - 16);
   ret = 1;
   r_new = v;
@@ -181,6 +216,75 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   }
   return od_ec_dec_normalize(dec, dif, r_new, ret);
 }
+
+#if CONFIG_BYPASS_IMPROVEMENT
+/*Decode a single binary value, with 50/50 probability.
+  Return: The value decoded (0 or 1).*/
+int od_ec_decode_bool_bypass(od_ec_dec *dec) {
+  return od_ec_decode_literal_bypass(dec, 1);
+}
+
+/*Decode a literal of n_bits
+  n_bits: Number of bits to decode 1..8
+  Return: The value decoded (0..2^n_bits-1).*/
+int od_ec_decode_literal_bypass(od_ec_dec *dec, int n_bits) {
+  od_ec_window dif;
+  od_ec_window vw;
+  unsigned r;
+  int ret;
+  dif = dec->dif;
+  r = dec->rng;
+  assert((r & 1) == 0);
+  assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
+  assert(32768U <= r);
+  assert(0 < n_bits && n_bits <= 32);
+  vw = (od_ec_window)r << (OD_EC_WINDOW_SIZE - 16);
+  ret = 0;
+  for (int bit = 0; bit < n_bits; bit++) {
+    vw >>= 1;
+    ret <<= 1;
+    if (dif >= vw) {
+      dif -= vw;
+    } else {
+      ret |= 1;
+    }
+  }
+  return od_ec_dec_bypass_normalize(dec, dif, n_bits, ret);
+}
+
+/*Decode unary-coded symbol.
+  max_bits: Max number of decoded bits.
+  Return: The value decoded (0..2^n_bits-1).*/
+OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
+                                                    int max_bits)
+    OD_ARG_NONNULL(1);
+int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
+  if (dec->cnt < max_bits - 1) od_ec_dec_refill(dec);
+  od_ec_window dif;
+  od_ec_window vw;
+  unsigned r;
+  int ret;
+  dif = dec->dif;
+  r = dec->rng;
+  assert((r & 1) == 0);
+  assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
+  assert(32768U <= r);
+  assert((0 < max_bits) && (max_bits <= 32));
+  vw = (od_ec_window)r << (OD_EC_WINDOW_SIZE - 16);
+  ret = 0;
+  int bit;
+  for (bit = 0; bit < max_bits; bit++) {
+    vw >>= 1;
+    if (dif >= vw) {
+      dif -= vw;
+      ret++;
+    } else {
+      break;
+    }
+  }
+  return od_ec_dec_bypass_normalize(dec, dif, bit + 1, ret);
+}
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*Decodes a symbol given an inverse cumulative distribution function (CDF)
    table in Q15.
@@ -212,9 +316,14 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
   ret = -1;
   do {
     u = v;
+#if CONFIG_BYPASS_IMPROVEMENT
+    ret++;
+    v = od_ec_prob_scale(icdf[ret], r, N - ret);
+#else
     v = ((r >> 8) * (uint32_t)(icdf[++ret] >> EC_PROB_SHIFT) >>
          (7 - EC_PROB_SHIFT - CDF_SHIFT));
     v += EC_MIN_PROB * (N - ret);
+#endif  // CONFIG_BYPASS_IMPROVEMENT
   } while (c < v);
   assert(v < u);
   assert(u <= r);
@@ -243,6 +352,6 @@ int od_ec_dec_tell(const od_ec_dec *dec) {
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-uint32_t od_ec_dec_tell_frac(const od_ec_dec *dec) {
+uint64_t od_ec_dec_tell_frac(const od_ec_dec *dec) {
   return od_ec_tell_frac(od_ec_dec_tell(dec), dec->rng);
 }

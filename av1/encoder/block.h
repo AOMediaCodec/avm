@@ -91,7 +91,9 @@ typedef struct {
   //! The color map needed to reconstruct palette mode.
   uint8_t color_index_map[MAX_SB_SQUARE];
   //! The current winner mode.
-  THR_MODES mode_index;
+  REFERENCE_MODE mode;
+  //! Reference frame(s) for winner mode.
+  int refs[2];
 } WinnerModeStats;
 
 /*! \brief Each source plane of the current macroblock
@@ -102,9 +104,7 @@ typedef struct macroblock_plane {
   //! Stores source - pred so the txfm can be computed later
   DECLARE_ALIGNED(32, int16_t, src_diff[MAX_SB_SQUARE]);
   //! Temporary buffer for primary transform coeffs
-#if CONFIG_IST
   DECLARE_ALIGNED(32, int32_t, temp_coeff[4096]);
-#endif
   //! Dequantized coefficients
   tran_low_t *dqcoeff;
   //! Quantized coefficients
@@ -113,6 +113,10 @@ typedef struct macroblock_plane {
   tran_low_t *coeff;
   //! Location of the end of qcoeff (end of block).
   uint16_t *eobs;
+#if CONFIG_ATC_DCTX_ALIGNED
+  //! Location of the beginning of qcoeff (beginning of block).
+  uint16_t *bobs;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! Contexts used to code the transform coefficients.
   uint8_t *txb_entropy_ctx;
   //! A buffer containing the source frame.
@@ -126,7 +130,7 @@ typedef struct macroblock_plane {
    */
   /**@{*/
   //! Quantization step size used by AV1_XFORM_QUANT_FP.
-#if CONFIG_EXTQUANT
+
   const int32_t *quant_fp_QTX;
   //! Offset used for rounding in the quantizer process by AV1_XFORM_QUANT_FP.
   const int32_t *round_fp_QTX;
@@ -140,21 +144,6 @@ typedef struct macroblock_plane {
   const int32_t *zbin_QTX;
   //! Dequantizer
   const int32_t *dequant_QTX;
-#else
-  const int16_t *quant_fp_QTX;
-  //! Offset used for rounding in the quantizer process by AV1_XFORM_QUANT_FP.
-  const int16_t *round_fp_QTX;
-  //! Quantization step size used by AV1_XFORM_QUANT_B.
-  const int16_t *quant_QTX;
-  //! Offset used for rounding in the quantizer process by AV1_XFORM_QUANT_B.
-  const int16_t *round_QTX;
-  //! Scale factor to shift coefficients toward zero. Only used by QUANT_B.
-  const int16_t *quant_shift_QTX;
-  //! Size of the quantization bin around 0. Only Used by QUANT_B
-  const int16_t *zbin_QTX;
-  //! Dequantizer
-  const int16_t *dequant_QTX;
-#endif  // CONFIG_EXTQUANT
   /**@}*/
 } MACROBLOCK_PLANE;
 
@@ -169,6 +158,22 @@ typedef struct {
   //! Cost to skip txfm for the current AOM_PLANE_V txfm block.
   int v_txb_skip_cost[V_TXB_SKIP_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_ATC_COEFCODING
+  //! Cost for encoding the base_eob level of a low-frequency coefficient
+  int base_lf_eob_cost[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
+  //! Cost for encoding the base level of a low-frequency coefficient
+  int base_lf_cost[LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS * 2];
+  //! Cost for encoding an increment to the low-frequency coefficient
+  int lps_lf_cost[LF_LEVEL_CONTEXTS]
+                 [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#endif  // CONFIG_ATC_COEFCODING
+#if CONFIG_PAR_HIDING
+  //! Cost for encoding the base level of a parity-hidden coefficient
+  int base_ph_cost[COEFF_BASE_PH_CONTEXTS][4];
+  //! Cost for encoding an increment to the parity-hidden coefficient
+  int lps_ph_cost[COEFF_BR_PH_CONTEXTS]
+                 [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#endif
   /*! \brief Cost for encoding the base_eob of a level.
    *
    * Decoder uses base_eob to derive the base_level as base_eob := base_eob+1.
@@ -194,13 +199,31 @@ typedef struct {
 #endif  // CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding an increment to the coefficient
   int lps_cost[LEVEL_CONTEXTS][COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+  //! Cost for encoding the base level of a coefficient for IDTX blocks
+  int idtx_base_cost[IDTX_SIG_COEF_CONTEXTS][8];
+  //! Cost for encoding the sign of a coefficient for IDTX blocks
+  int idtx_sign_cost[IDTX_SIGN_CONTEXTS][2];
+  //! Cost for encoding an increment to the coefficient for IDTX blocks
+  int lps_cost_skip[IDTX_LEVEL_CONTEXTS]
+                   [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#if CONFIG_ATC_DCTX_ALIGNED
+  /*! \brief Cost for encoding the base_bob of a level for IDTX blocks.
+   *
+   * Decoder uses base_bob to derive the base_level as base_bob := base_bob+1.
+   */
+  int base_bob_cost[SIG_COEF_CONTEXTS_BOB][3];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 } LV_MAP_COEFF_COST;
 
 /*! \brief Costs for encoding the eob.
  */
 typedef struct {
   //! eob_cost.
+#if CONFIG_ATC_DCTX_ALIGNED
+  int eob_cost[EOB_MAX_SYMS];
+#else
   int eob_cost[2][11];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 } LV_MAP_EOB_COST;
 
 /*! \brief Stores the transforms coefficients for the whole superblock.
@@ -210,6 +233,10 @@ typedef struct {
   tran_low_t tcoeff[MAX_MB_PLANE][MAX_SB_SQUARE];
   //! Where the transformed coefficients end.
   uint16_t eobs[MAX_MB_PLANE][MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#if CONFIG_ATC_DCTX_ALIGNED
+  //! Where the transformed coefficients begin.
+  uint16_t bobs[MAX_MB_PLANE][MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   /*! \brief Transform block entropy contexts.
    *
    * Each element is used as a bit field.
@@ -231,9 +258,23 @@ typedef struct {
   //! Number of ref mvs in the drl.
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
   //! Global mvs
-  int_mv global_mvs[REF_FRAMES];
+  int_mv global_mvs[INTER_REFS_PER_FRAME];
+  //! skip_mvp_candidate_list is the MVP list for skip mode.
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
+#endif
+
   //! Context used to encode the current mode.
   int16_t mode_context[MODE_CTX_REF_FRAMES];
+
+#if CONFIG_WARP_REF_LIST
+  /*!
+   * warp_param_stack is the warp candidate list.
+   */
+  WARP_CANDIDATE warp_param_stack[INTER_REFS_PER_FRAME]
+                                 [MAX_WARP_REF_CANDIDATES];
+#endif  // CONFIG_WARP_REF_LIST
+
 } MB_MODE_INFO_EXT;
 
 /*! \brief Stores best extended mode information at frame level.
@@ -243,23 +284,38 @@ typedef struct {
  * memory.
  */
 typedef struct {
+#if CONFIG_SEP_COMP_DRL
+  //! \copydoc MB_MODE_INFO_EXT::ref_mv_stack
+  CANDIDATE_MV ref_mv_stack[2][USABLE_REF_MV_STACK_SIZE];
+  //! \copydoc MB_MODE_INFO_EXT::weight
+  uint16_t weight[2][USABLE_REF_MV_STACK_SIZE];
+  //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
+  uint8_t ref_mv_count[2];
+#else
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_stack
   CANDIDATE_MV ref_mv_stack[USABLE_REF_MV_STACK_SIZE];
   //! \copydoc MB_MODE_INFO_EXT::weight
   uint16_t weight[USABLE_REF_MV_STACK_SIZE];
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
   uint8_t ref_mv_count;
+#endif  // CONFIG_SEP_COMP_DRL
+  //! skip_mvp_candidate_list is the MVP list for skip mode.
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
+#endif
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
   //! \copydoc MB_MODE_INFO_EXT::global_mvs
-  int_mv global_mvs[REF_FRAMES];
+  int_mv global_mvs[INTER_REFS_PER_FRAME];
   //! \copydoc MB_MODE_INFO_EXT::mode_context
   int16_t mode_context;
   //! Offset of current coding block's coeff buffer relative to the sb.
-#if CONFIG_SDP
   int cb_offset[MAX_MB_PLANE];
-#else
-  int cb_offset;
-#endif
+
+#if CONFIG_WARP_REF_LIST
+  //! warp_param_stack is the warp candidate list.
+  WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES];
+#endif  // CONFIG_WARP_REF_LIST
+
 } MB_MODE_INFO_EXT_FRAME;
 
 /*! \brief Txfm search results for a partition
@@ -271,12 +327,16 @@ typedef struct {
   TX_SIZE inter_tx_size[INTER_TX_SIZE_BUF_LEN];
 #if CONFIG_NEW_TX_PARTITION
   //! Txfm partitions used if the current mode is inter mode.
-  TX_PARTITION_TYPE partition_type[INTER_TX_SIZE_BUF_LEN];
+  TX_PARTITION_TYPE tx_partition_type[INTER_TX_SIZE_BUF_LEN];
 #endif  // CONFIG_NEW_TX_PARTITION
   //! Map showing which txfm block skips the txfm process.
   uint8_t blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   //! Map showing the txfm types for each blcok.
   TX_TYPE tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#if CONFIG_CROSS_CHROMA_TX
+  //! Map showing the cctx types for each block.
+  CctxType cctx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#endif  // CONFIG_CROSS_CHROMA_TX
   //! Rd_stats for the whole partition block.
   RD_STATS rd_stats;
   //! Hash value of the current record.
@@ -307,6 +367,10 @@ typedef struct {
   int rate;
   //! Location of the end of non-zero entries.
   uint16_t eob;
+#if CONFIG_ATC_DCTX_ALIGNED
+  //! Location of the first of non-zero entries.
+  uint16_t bob;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! Transform type used on the current block.
   TX_TYPE tx_type;
   //! Unknown usage
@@ -358,11 +422,19 @@ typedef struct {
   //! Current interpolation filter.
   InterpFilter interp_fltr;
   //! Refmv index in the drl.
+#if CONFIG_SEP_COMP_DRL
+  int ref_mv_idx[2];
+#else
   int ref_mv_idx;
+#endif  // CONFIG_SEP_COMP_DRL
   //! Whether the predictors are GLOBALMV.
   int is_global[2];
   //! Current parameters for interinter mode.
   INTERINTER_COMPOUND_DATA interinter_comp;
+#if CONFIG_CWP
+  //! Index for compound weighted prediction parameters.
+  int cwp_idx;
+#endif  // CONFIG_CWP
 } COMP_RD_STATS;
 
 /*! \brief Contains buffers used to speed up rdopt for obmc.
@@ -384,12 +456,12 @@ typedef struct {
    *
    * Used to build the obmc predictor.
    */
-  uint8_t *above_pred;
+  uint16_t *above_pred;
   /*! \brief Prediction from the up predictor.
    *
    * \copydetails above_pred
    */
-  uint8_t *left_pred;
+  uint16_t *left_pred;
 } OBMCBuffer;
 
 /*! \brief Contains color maps used in palette mode.
@@ -408,9 +480,9 @@ typedef struct {
  */
 typedef struct {
   //! First prediction.
-  uint8_t *pred0;
+  uint16_t *pred0;
   //! Second prediction.
-  uint8_t *pred1;
+  uint16_t *pred1;
   //! Source - first prediction.
   int16_t *residual1;
   //! Second prediction - first prediction.
@@ -418,6 +490,108 @@ typedef struct {
   //! Backup of the best segmentation mask.
   uint8_t *tmp_best_mask_buf;
 } CompoundTypeRdBuffers;
+
+/*!\cond */
+/*! \brief MV cost types
+ */
+enum {
+  MV_COST_ENTROPY,    // Use the entropy rate of the mv as the cost
+  MV_COST_L1_LOWRES,  // Use the l1 norm of the mv as the cost (<480p)
+  MV_COST_L1_MIDRES,  // Use the l1 norm of the mv as the cost (>=480p)
+  MV_COST_L1_HDRES,   // Use the l1 norm of the mv as the cost (>=720p)
+  MV_COST_NONE        // Use 0 as as cost irrespective of the current mv
+} UENUM1BYTE(MV_COST_TYPE);
+/*!\endcond */
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+/*! \brief max length of start Mv list
+ */
+#define kSMSMaxStartMVs 1
+/*! \brief Contains data for simple motion
+ */
+typedef struct SimpleMotionData {
+  MV mv_ref;                               /*!< mv reference */
+  MV fullmv;                               /*!< mv full */
+  MV submv;                                /*!< mv subpel */
+  unsigned int sse;                        /*!< sse */
+  unsigned int var;                        /*!< variance */
+  int64_t dist;                            /*!< distortion */
+  int rate;                                /*!< rate */
+  int64_t rdcost;                          /*!< rdcost */
+  int valid;                               /*!< whether valid */
+  BLOCK_SIZE bsize;                        /*!< blocksize */
+  int mi_row;                              /*!< row position in mi units */
+  int mi_col;                              /*!< col position in mi units */
+  MV_COST_TYPE mv_cost_type;               /*!< mv cost type */
+  int sadpb;                               /*!< sad per bit */
+  int errorperbit;                         /*!< error per bit */
+  MV start_mv_list[kSMSMaxStartMVs];       /*!< start mv list */
+  int num_start_mvs;                       /*!< number of start mvs */
+  int has_prev_partition;                  /*!< has previous partition */
+  PARTITION_TYPE prev_partition;           /*!< previous partition */
+  struct PICK_MODE_CONTEXT *mode_cache[1]; /*!< mode cache */
+  struct SIMPLE_MOTION_DATA_TREE *old_sms; /*!< old sms */
+} SimpleMotionData;
+
+/*!\cond */
+#define BLOCK_128_COUNT 1
+#define BLOCK_64_COUNT 3
+#if CONFIG_UNEVEN_4WAY
+#define BLOCK_32_COUNT 15
+#define BLOCK_16_COUNT 31
+#define BLOCK_8_COUNT 32
+#else
+#define BLOCK_32_COUNT 7
+#define BLOCK_16_COUNT 15
+#define BLOCK_8_COUNT 31
+#endif  // CONFIG_UNEVEN_4WAY
+#define BLOCK_4_COUNT 32
+
+#define MAKE_SM_DATA_BUF(width, height) \
+  SimpleMotionData                      \
+      b_##width##x##height[BLOCK_##width##_COUNT * BLOCK_##height##_COUNT]
+/*!\endcond */
+
+/*! \brief Simple motion data buffers
+ */
+typedef struct SimpleMotionDataBufs {
+  /*!\cond */
+  // Square blocks
+  MAKE_SM_DATA_BUF(128, 128);
+  MAKE_SM_DATA_BUF(64, 64);
+  MAKE_SM_DATA_BUF(32, 32);
+  MAKE_SM_DATA_BUF(16, 16);
+  MAKE_SM_DATA_BUF(8, 8);
+  MAKE_SM_DATA_BUF(4, 4);
+
+  // 1:2 blocks
+  MAKE_SM_DATA_BUF(64, 128);
+  MAKE_SM_DATA_BUF(32, 64);
+  MAKE_SM_DATA_BUF(16, 32);
+  MAKE_SM_DATA_BUF(8, 16);
+  MAKE_SM_DATA_BUF(4, 8);
+
+  // 2:1 blocks
+  MAKE_SM_DATA_BUF(128, 64);
+  MAKE_SM_DATA_BUF(64, 32);
+  MAKE_SM_DATA_BUF(32, 16);
+  MAKE_SM_DATA_BUF(16, 8);
+  MAKE_SM_DATA_BUF(8, 4);
+
+  // 1:4 blocks
+  MAKE_SM_DATA_BUF(16, 64);
+  MAKE_SM_DATA_BUF(8, 32);
+  MAKE_SM_DATA_BUF(4, 16);
+
+  // 4:1 blocks
+  MAKE_SM_DATA_BUF(64, 16);
+  MAKE_SM_DATA_BUF(32, 8);
+  MAKE_SM_DATA_BUF(16, 4);
+  /*!\endcond */
+} SimpleMotionDataBufs;
+
+#undef MAKE_SM_DATA_BUF
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 /*! \brief Holds some parameters related to partitioning schemes in AV1.
  */
@@ -543,12 +717,16 @@ typedef struct {
    * allocates the memory for MACROBLOCKD::tx_type_map during rdopt on the
    * partition block. So if we need to save memory, we could move the allocation
    * to pick_sb_mode instead.
-   * If secondary transform in enabled (CONFIG_IST) each element of the array
+   * If secondary transform in enabled (IST) each element of the array
    * stores both primary and secondary transform types as shown below: Bits 4~5
    * of each element stores secondary tx_type Bits 0~3 of each element stores
    * primary tx_type
    */
   TX_TYPE tx_type_map_[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#if CONFIG_CROSS_CHROMA_TX
+  //! \brief CCTX types inside the partition block.
+  CctxType cctx_type_map_[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#endif  // CONFIG_CROSS_CHROMA_TX
 
   /** \name Txfm hash records
    * Hash records of the transform search results based on the residue. There
@@ -608,12 +786,26 @@ typedef struct {
    ****************************************************************************/
   /**@{*/
   //! Cost for coding the partition.
-#if CONFIG_SDP
   int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                     [EXT_PARTITION_TYPES];
-#else
-  int partition_cost[PARTITION_CONTEXTS][EXT_PARTITION_TYPES];
-#endif
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*! Cost for sending split token. */
+  int do_split_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+  /*! Cost for sending rectangular type token. */
+  int rect_type_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+  /*! Cost for sending do_ext_partition token. */
+  int do_ext_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                           [PARTITION_CONTEXTS][2];
+#if CONFIG_UNEVEN_4WAY
+  /*! Cost for sending do_uneven_4way_partition token. */
+  int do_uneven_4way_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                                   [PARTITION_CONTEXTS][2];
+  /*! Cost for sending uneven_4way_partition_type token. */
+  int uneven_4way_partition_type_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                                     [PARTITION_CONTEXTS]
+                                     [NUM_UNEVEN_4WAY_PARTS];
+#endif  // CONFIG_UNEVEN_4WAY
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 
   /*****************************************************************************
@@ -632,18 +824,21 @@ typedef struct {
   int filter_intra_cost[BLOCK_SIZES_ALL][2];
   //! filter_intra_mode_cost
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
-#if CONFIG_SDP
   //! angle_delta_cost
   int angle_delta_cost[PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
                       [2 * MAX_ANGLE_DELTA + 1];
-#else
-  //! angle_delta_cost
-  int angle_delta_cost[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];
-#endif
 
-#if CONFIG_MRLS
   //! mrl_index_cost
+#if CONFIG_EXT_DIR
+  int mrl_index_cost[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
+#else
   int mrl_index_cost[MRL_LINE_NUMBER];
+#endif  // CONFIG_EXT_DIR
+  //! Cost of signaling the forward skip coding mode
+  int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
+#if CONFIG_IMPROVED_CFL
+  //! Cost of signaling the cfl mode
+  int cfl_index_cost[CFL_TYPE_COUNT];
 #endif
 #if CONFIG_AIMC
   //! y primary flag cost
@@ -656,10 +851,8 @@ typedef struct {
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][UV_MODE_CONTEXTS][UV_INTRA_MODES];
 #endif  // CONFIG_AIMC
 
-#if CONFIG_IST
   //! Cost of signaling secondary transform index
   int stx_flag_cost[TX_SIZES][STX_TYPES];
-#endif
 
   //! Rate rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
@@ -670,7 +863,17 @@ typedef struct {
    ****************************************************************************/
   /**@{*/
   //! intrabc_cost
+#if CONFIG_NEW_CONTEXT_MODELING
+  int intrabc_cost[INTRABC_CONTEXTS][2];
+#else
   int intrabc_cost[2];
+#endif  // CONFIG_NEW_CONTEXT_MODELING
+#if CONFIG_BVP_IMPROVEMENT
+  //! intrabc_mode_cost
+  int intrabc_mode_cost[2];
+  //! intrabc_drl_idx_cost
+  int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
+#endif  // CONFIG_BVP_IMPROVEMENT
 
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
@@ -686,6 +889,12 @@ typedef struct {
   int palette_y_mode_cost[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
   //! palette_uv_mode_cost
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
+#if CONFIG_NEW_COLOR_MAP_CODING
+  //! palette_y_row_flag_cost
+  int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
+  //! palette_uv_row_flag_cost
+  int palette_uv_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
+#endif  // CONFIG_NEW_COLOR_MAP_CODING
   /**@}*/
 
   /*****************************************************************************
@@ -694,21 +903,28 @@ typedef struct {
   /**@{*/
   //! skip_mode_cost
   int skip_mode_cost[SKIP_MODE_CONTEXTS][2];
-#if CONFIG_NEW_INTER_MODES
   //! inter single mode cost
   int inter_single_mode_cost[INTER_SINGLE_MODE_CONTEXTS][INTER_SINGLE_MODES];
+
+#if CONFIG_WARPMV
+  //! inter warpmv mode cost
+  int inter_warp_mode_cost[WARPMV_MODE_CONTEXT][2];
+#endif  // CONFIG_WARPMV
+
   //! drl_mode_cost
   int drl_mode_cost[3][DRL_MODE_CONTEXTS][2];
-#else
-  //! newmv_mode_cost
-  int newmv_mode_cost[NEWMV_MODE_CONTEXTS][2];
-  //! zeromv_mode_cost
-  int zeromv_mode_cost[GLOBALMV_MODE_CONTEXTS][2];
-  //! refmv_mode_cost
-  int refmv_mode_cost[REFMV_MODE_CONTEXTS][2];
-  //! drl_mode_cost0
-  int drl_mode_cost0[DRL_MODE_CONTEXTS][2];
-#endif  // CONFIG_NEW_INTER_MODES
+#if CONFIG_FLEX_MVRES
+  /*! Costs for coding the most probable mv resolution. */
+  int pb_block_mv_mpp_flag_costs[NUM_MV_PREC_MPP_CONTEXT][2];
+
+  /*! Costs for coding the mv resolution. */
+  int pb_block_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
+                                 [NUM_MV_PRECISIONS];
+#endif
+#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+  //! skip_drl_mode_cost
+  int skip_drl_mode_cost[3][2];
+#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
   /**@}*/
 
   /*****************************************************************************
@@ -716,25 +932,25 @@ typedef struct {
    ****************************************************************************/
   /**@{*/
   //! single_ref_cost
-  int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];
+  int single_ref_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+  //! comp_ref0_cost
+  int comp_ref0_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME][2];
+  //! comp_ref1_cost
+  int comp_ref1_cost[REF_CONTEXTS][COMPREF_BIT_TYPES][INTER_REFS_PER_FRAME][2];
+#else
+  //! comp_ref0_cost
+  int comp_ref0_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME - 2][2];
+  //! comp_ref1_cost
+  int comp_ref1_cost[REF_CONTEXTS][COMPREF_BIT_TYPES][INTER_REFS_PER_FRAME - 2]
+                    [2];
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
   //! comp_inter_cost
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
-  //! comp_ref_type_cost
-  int comp_ref_type_cost[COMP_REF_TYPE_CONTEXTS]
-                        [CDF_SIZE(COMP_REFERENCE_TYPES)];
-  //! uni_comp_ref_cost
-  int uni_comp_ref_cost[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1]
-                       [CDF_SIZE(2)];
-  /*! \brief Cost for signaling ref_frame[0] in bidir-comp mode
-   *
-   * Includes LAST_FRAME, LAST2_FRAME, LAST3_FRAME, and GOLDEN_FRAME.
-   */
-  int comp_ref_cost[REF_CONTEXTS][FWD_REFS - 1][2];
-  /*! \brief Cost for signaling ref_frame[1] in bidir-comp mode
-   *
-   * Includes ALTREF_FRAME, ALTREF2_FRAME, and BWDREF_FRAME.
-   */
-  int comp_bwdref_cost[REF_CONTEXTS][BWD_REFS - 1][2];
+#if CONFIG_TIP
+  //! tip_cost
+  int tip_cost[TIP_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_TIP
   /**@}*/
 
   /*****************************************************************************
@@ -742,11 +958,11 @@ typedef struct {
    ****************************************************************************/
   /**@{*/
   //! intra_inter_cost
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   int intra_inter_cost[INTRA_INTER_SKIP_TXFM_CONTEXTS][INTRA_INTER_CONTEXTS][2];
 #else
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   //! inter_compound_mode_cost
 #if CONFIG_OPTFLOW_REFINEMENT
   /*! use_optflow_cost */
@@ -759,10 +975,33 @@ typedef struct {
   int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
                               [INTER_COMPOUND_MODES];
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_CWP
+  //! cwp_idx_cost for compound weighted prediction
+  int cwp_idx_cost[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];
+#endif  // CONFIG_CWP
+#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
+  //! jmvd_scale_mode_cost for JOINT_NEWMV
+  int jmvd_scale_mode_cost[JOINT_NEWMV_SCALE_FACTOR_CNT];
+  //! jmvd_scale_mode_cost for JOINT_AMVDNEWMV
+  int jmvd_amvd_scale_mode_cost[JOINT_AMVD_SCALE_FACTOR_CNT];
+#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   //! compound_type_cost
   int compound_type_cost[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
   //! wedge_idx_cost
+#if CONFIG_WEDGE_MOD_EXT
+  //! wedge_angle_dir_cost
+  int wedge_angle_dir_cost[BLOCK_SIZES_ALL][2];
+  //! wedge_angle_0_cost
+  int wedge_angle_0_cost[BLOCK_SIZES_ALL][H_WEDGE_ANGLES];
+  //! wedge_angle_1_cost
+  int wedge_angle_1_cost[BLOCK_SIZES_ALL][H_WEDGE_ANGLES];
+  //! wedge_dist_cost
+  int wedge_dist_cost[BLOCK_SIZES_ALL][NUM_WEDGE_DIST];
+  //! wedge_dist_cost2
+  int wedge_dist_cost2[BLOCK_SIZES_ALL][NUM_WEDGE_DIST - 1];
+#else
   int wedge_idx_cost[BLOCK_SIZES_ALL][16];
+#endif  // CONFIG_WEDGE_MOD_EXT
   //! interintra_cost
   int interintra_cost[BLOCK_SIZE_GROUPS][2];
   //! wedge_interintra_cost
@@ -783,10 +1022,46 @@ typedef struct {
    * \name Inter Costs: Motion Modes/Filters
    ****************************************************************************/
   /**@{*/
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  //! obmc_cost
+  int obmc_cost[BLOCK_SIZES_ALL][2];
+  //! warped_causal_cost
+  int warped_causal_cost[BLOCK_SIZES_ALL][2];
+  //! warp_delta_cost
+  int warp_delta_cost[BLOCK_SIZES_ALL][2];
+
+#if CONFIG_WARPMV
+  //! warped_causal_warpmv_cost
+  int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_WARPMV
+
+#if CONFIG_REFINEMV
+  //! refinemv_flag_cost
+  int refinemv_flag_cost[NUM_REFINEMV_CTX][REFINEMV_NUM_MODES];
+#endif  // CONFIG_REFINEMV
+
+  //! warp_delta_param_cost
+  int warp_delta_param_cost[2][WARP_DELTA_NUM_SYMBOLS];
+#if CONFIG_WARP_REF_LIST
+  //! warp_ref_idx_cost
+  int warp_ref_idx_cost[3][WARP_REF_CONTEXTS][2];
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  //! warpmv_with_mvd_flag_cost
+  int warpmv_with_mvd_flag_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+#endif  // CONFIG_WARP_REF_LIST
+  //! warp_extend_cost
+  int warp_extend_cost[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];
+#else
   //! motion_mode_cost
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
   //! motion_mode_cost1
   int motion_mode_cost1[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_BAWP
+  //! bawp flag cost
+  int bawp_flg_cost[2];
+#endif
   //! switchable_interp_costs
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
   /**@}*/
@@ -817,22 +1092,65 @@ typedef struct {
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
   //! inter_tx_type_costs
+#if CONFIG_ATC_DCTX_ALIGNED
+  int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
+                         [TX_TYPES];
+#else
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! intra_tx_type_costs
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                          [TX_TYPES];
+#if CONFIG_CROSS_CHROMA_TX
+  //! cctx_type_cost
+  int cctx_type_cost[EXT_TX_SIZES][CCTX_CONTEXTS][CCTX_TYPES];
+#endif  // CONFIG_CROSS_CHROMA_TX
   /**@}*/
 
   /*****************************************************************************
    * \name Restoration Mode Costs
    ****************************************************************************/
   /**@{*/
+#if CONFIG_LR_FLEX_SYNTAX
+  //! switchable_flex_restore_cost
+  int switchable_flex_restore_cost[MAX_LR_FLEX_SWITCHABLE_BITS][MAX_MB_PLANE]
+                                  [2];
+#else
   //! switchable_restore_cost
   int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
+#endif  // CONFIG_LR_FLEX_SYNTAX
   //! wiener_restore_cost
   int wiener_restore_cost[2];
   //! sgrproj_restore_cost
   int sgrproj_restore_cost[2];
+#if CONFIG_LR_MERGE_COEFFS
+  /*!
+   * merged_param_cost
+   */
+  int merged_param_cost[2];
+#endif  // CONFIG_LR_MERGE_COEFFS
+#if CONFIG_WIENER_NONSEP
+  /*!
+   * wienerns_restore_cost
+   */
+  int wienerns_restore_cost[2];
+  /*!
+   * wienerns_reduce_cost
+   */
+  int wienerns_reduce_cost[WIENERNS_REDUCE_STEPS][2];
+#if ENABLE_LR_4PART_CODE
+  /*!
+   * wienerns_4part_cost
+   */
+  int wienerns_4part_cost[WIENERNS_4PART_CTX_MAX][4];
+#endif  // ENABLE_LR_4PART_CODE
+#endif  // CONFIG_WIENER_NONSEP
+#if CONFIG_PC_WIENER
+  /*!
+   * pc_wiener_restore_cost
+   */
+  int pc_wiener_restore_cost[2];
+#endif  // CONFIG_PC_WIENER
   /**@}*/
 } ModeCosts;
 
@@ -848,7 +1166,45 @@ typedef struct {
   //! A multiplier that converts mv cost to l1 error.
   int sadperbit;
   /**@}*/
+#if CONFIG_FLEX_MVRES
+  /*****************************************************************************
+   * \name Encoding Costs
+   * Here are the entropy costs needed to encode a given mv.
+   * \ref nmv_costs_alloc is an array that holds the memory for mv cost. Since
+   * the motion vectors can be negative, we save a pointer to the middle of the
+   * array in \ref nmv_costs for easier referencing.
+   ****************************************************************************/
+  /**@{*/
+  /*! Costs for coding the zero components. */
+  int nmv_joint_cost[MV_JOINTS];
 
+  /*! Allocates memory for motion vector costs. */
+  int nmv_costs_alloc[NUM_MV_PRECISIONS][2][MV_VALS];
+  /*! Points to the middle of \ref nmv_costs_alloc. */
+  int *nmv_costs[NUM_MV_PRECISIONS][2];
+
+#if CONFIG_ADAPTIVE_MVD
+  //! Costs for coding the zero components when adaptive MVD resolution is
+  //! applied
+  int amvd_nmv_joint_cost[MV_JOINTS];
+
+  //! Allocates memory for 1/4-pel motion vector costs when adaptive MVD
+  //! resolution is applied
+  int amvd_nmv_cost_alloc[2][MV_VALS];
+
+  //! Points to the middle of \ref amvd_nmv_cost_alloc
+  int *amvd_nmv_cost[2];
+#endif  // CONFIG_ADAPTIVE_MVD
+
+#if CONFIG_BVCOST_UPDATE
+  /*! Costs for coding the zero components of dv cost. */
+  int *dv_joint_cost;
+
+  /*! Points to the middle of dvcost. */
+  int *dv_nmv_cost[2];
+#endif
+
+#else
   /*****************************************************************************
    * \name Encoding Costs
    * Here are the entropy costs needed to encode a given mv.
@@ -898,9 +1254,55 @@ typedef struct {
   //! Points to the nmv_cost_hp in use.
   int **amvd_mv_cost_stack;
 #endif  // CONFIG_ADAPTIVE_MVD
+#endif
   /**@}*/
 } MvCosts;
 
+#if CONFIG_FLEX_MVRES
+/*! \brief Holds mv costs for intrabc.
+ */
+typedef struct {
+  /*! Costs for coding the joint mv. */
+  // TODO(huisu@google.com): we can update dv_joint_cost per SB.
+  int joint_mv[MV_JOINTS];
+
+  /*! \brief Cost of transmitting the actual motion vector.
+   *  mv_costs_alloc[0][i] is the cost of motion vector with horizontal
+   * component (mv_row) equal to i - MV_MAX. mv_costs_alloc[1][i] is the cost of
+   * motion vector with vertical component (mv_col) equal to i - MV_MAX.
+   */
+  int dv_costs_alloc[2][MV_VALS];
+
+  /*! Points to the middle of \ref dv_costs_alloc. */
+  int *dv_costs[2];
+} IntraBCMvCosts;
+#endif
+
+#if CONFIG_BVCOST_UPDATE && !CONFIG_FLEX_MVRES
+/*! \brief Holds mv costs for intrabc.
+ */
+typedef struct {
+  /*! Cost of transmitting the actual motion vector.
+mv_component[0][i] is the cost of motion vector with horizontal component
+(mv_row) equal to i - MV_MAX.
+ mv_component[1][i] is the cost of motion vector with vertical component
+ (mv_col) equal to i - MV_MAX.*/
+  int mv_component[2][MV_VALS];
+
+  /*! joint_mv[i] is the cost of transmitting joint mv(MV_JOINT_TYPE) of
+   type i.*/
+  // TODO(huisu@google.com): we can update dv_joint_cost per SB.
+  int joint_mv[MV_JOINTS];
+
+#if CONFIG_ADAPTIVE_MVD
+  /*! amvd_joint_mv */
+  int amvd_joint_mv[MV_JOINTS];
+
+  /*! res_mv_component */
+  int res_mv_component[2][MV_VALS];
+#endif  // CONFIG_ADAPTIVE_MVD
+} IntraBCMVCosts;
+#endif
 /*! \brief Holds the costs needed to encode the coefficients
  */
 typedef struct {
@@ -911,7 +1313,6 @@ typedef struct {
 } CoeffCosts;
 
 /*!\cond */
-// 4: NEAREST, NEW, NEAR, GLOBAL
 #define SINGLE_REF_MODES ((REF_FRAMES - 1) * 4)
 /*!\endcond */
 struct inter_modes_info;
@@ -979,11 +1380,7 @@ typedef struct macroblock {
    */
   CB_COEFF_BUFFER *cb_coef_buff;
   //! Offset of current coding block's coeff buffer relative to the sb.
-#if CONFIG_SDP
   int cb_offset[MAX_MB_PLANE];
-#else
-  uint16_t cb_offset;
-#endif
 
   //! Modified source and masks used for fast OBMC search.
   OBMCBuffer obmc_buffer;
@@ -1003,7 +1400,7 @@ typedef struct macroblock {
    * - xd->tmp_obmc_bufs also points to this buffer, and is used in ombc
    *   prediction.
    */
-  uint8_t *tmp_pred_bufs[2];
+  uint16_t *tmp_pred_bufs[2];
   /**@}*/
 
   /*****************************************************************************
@@ -1046,6 +1443,14 @@ typedef struct macroblock {
   //! multipliers for motion search.
   MvCosts mv_costs;
 
+  //! The rate needed to encode a new block vector to the bitstream and some
+  //! multipliers for motion search.
+#if CONFIG_FLEX_MVRES
+  IntraBCMvCosts dv_costs;
+#elif CONFIG_BVCOST_UPDATE
+  IntraBCMVCosts dv_costs;
+#endif
+
   //! The rate needed to signal the txfm coefficients to the bitstream.
   CoeffCosts coeff_costs;
   /**@}*/
@@ -1079,7 +1484,8 @@ typedef struct macroblock {
    *
    * This is used to measure how viable a reference frame is.
    */
-  int pred_mv_sad[REF_FRAMES];
+  int pred_mv_sad[SINGLE_REF_FRAMES];
+
   //! The minimum of \ref pred_mv_sad.
   int best_pred_mv_sad;
 
@@ -1097,7 +1503,11 @@ typedef struct macroblock {
    * within a superblock, in MI resolution. They can be used to prune ref frames
    * for rectangular blocks.
    */
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+  uint64_t picked_ref_frames_mask[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#else
   int picked_ref_frames_mask[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 
   /**@}*/
 
@@ -1136,7 +1546,7 @@ typedef struct macroblock {
    * current mode. If the current best rd is already <= threshold, then we skip
    * the current mode.
    */
-  int thresh_freq_fact[BLOCK_SIZES_ALL][MAX_MODES];
+  int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
 
   /*! \brief Tracks the winner modes in the current coding block.
    *
@@ -1208,7 +1618,7 @@ typedef struct macroblock {
    * This context is defined as the \f$l_\inf\f$ norm of the best ref_mvs for
    * each frame.
    */
-  unsigned int max_mv_context[REF_FRAMES];
+  unsigned int max_mv_context[SINGLE_REF_FRAMES];
 
   /*! \brief Limit for the range of motion vectors.
    *
@@ -1244,7 +1654,17 @@ typedef struct macroblock {
   //! Variance of the source frame.
   unsigned int source_variance;
   //! SSE of the current predictor.
-  unsigned int pred_sse[REF_FRAMES];
+  unsigned int pred_sse[SINGLE_REF_FRAMES];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*! Simple motion search buffers. */
+  SimpleMotionDataBufs *sms_bufs;
+  /*! \brief Determines what encoding decision should be reused. */
+  int reuse_inter_mode_cache_type;
+  /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
+  MB_MODE_INFO *inter_mode_cache;
+  /*! \brief Whether the whole superblock is inside the frame boudnary */
+  bool is_whole_sb;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
@@ -1306,28 +1726,10 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
 
 static INLINE int is_rect_tx_allowed(const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *mbmi) {
-#if CONFIG_SDP
   return is_rect_tx_allowed_bsize(
              mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
          !xd->lossless[mbmi->segment_id];
-#else
-  return is_rect_tx_allowed_bsize(mbmi->sb_type) &&
-         !xd->lossless[mbmi->segment_id];
-#endif
 }
-
-#if !CONFIG_IST && !CONFIG_NEW_TX_PARTITION
-static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
-  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
-  int depth = 0;
-  while (tx_size != ctx_size) {
-    depth++;
-    ctx_size = sub_tx_size_map[ctx_size];
-    assert(depth <= MAX_TX_DEPTH);
-  }
-  return depth;
-}
-#endif
 
 static INLINE void set_blk_skip(uint8_t txb_skip[], int plane, int blk_idx,
                                 int skip) {
@@ -1350,16 +1752,17 @@ static INLINE void set_blk_skip(uint8_t txb_skip[], int plane, int blk_idx,
 
 static INLINE int is_blk_skip(uint8_t *txb_skip, int plane, int blk_idx) {
 #ifndef NDEBUG
-  // Check if this is initialized
-#if !CONFIG_SDP
-  assert(!(txb_skip[blk_idx] & (1UL << (plane + 4))));
-#endif
   // The magic number is 0x77, this is to test if there is garbage data
   assert((txb_skip[blk_idx] & 0x88) == 0);
 #endif
   return (txb_skip[blk_idx] >> plane) & 1;
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int should_reuse_mode(const MACROBLOCK *x, int mode_flag) {
+  return x->reuse_inter_mode_cache_type & mode_flag;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 /*!\endcond */
 
 #ifdef __cplusplus

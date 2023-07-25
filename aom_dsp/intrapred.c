@@ -258,109 +258,6 @@ static INLINE int divide_using_multiply_shift(int num, int shift1,
 // constants for smaller block sizes, where the range of the 'sum' is
 // restricted to fewer bits.
 
-#define DC_MULTIPLIER_1X2 0x5556
-#define DC_MULTIPLIER_1X4 0x3334
-
-#define DC_SHIFT2 16
-
-static INLINE void dc_predictor_rect(uint8_t *dst, ptrdiff_t stride, int bw,
-                                     int bh, const uint8_t *above,
-                                     const uint8_t *left, int shift1,
-                                     int multiplier) {
-  int sum = 0;
-
-  for (int i = 0; i < bw; i++) {
-    sum += above[i];
-  }
-  for (int i = 0; i < bh; i++) {
-    sum += left[i];
-  }
-
-  const int expected_dc = divide_using_multiply_shift(
-      sum + ((bw + bh) >> 1), shift1, multiplier, DC_SHIFT2);
-  assert(expected_dc < (1 << 8));
-
-  for (int r = 0; r < bh; r++) {
-    memset(dst, expected_dc, bw);
-    dst += stride;
-  }
-}
-
-#undef DC_SHIFT2
-
-void aom_dc_predictor_4x8_c(uint8_t *dst, ptrdiff_t stride,
-                            const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 4, 8, above, left, 2, DC_MULTIPLIER_1X2);
-}
-
-void aom_dc_predictor_8x4_c(uint8_t *dst, ptrdiff_t stride,
-                            const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 8, 4, above, left, 2, DC_MULTIPLIER_1X2);
-}
-
-void aom_dc_predictor_4x16_c(uint8_t *dst, ptrdiff_t stride,
-                             const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 4, 16, above, left, 2, DC_MULTIPLIER_1X4);
-}
-
-void aom_dc_predictor_16x4_c(uint8_t *dst, ptrdiff_t stride,
-                             const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 16, 4, above, left, 2, DC_MULTIPLIER_1X4);
-}
-
-void aom_dc_predictor_8x16_c(uint8_t *dst, ptrdiff_t stride,
-                             const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 8, 16, above, left, 3, DC_MULTIPLIER_1X2);
-}
-
-void aom_dc_predictor_16x8_c(uint8_t *dst, ptrdiff_t stride,
-                             const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 16, 8, above, left, 3, DC_MULTIPLIER_1X2);
-}
-
-void aom_dc_predictor_8x32_c(uint8_t *dst, ptrdiff_t stride,
-                             const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 8, 32, above, left, 3, DC_MULTIPLIER_1X4);
-}
-
-void aom_dc_predictor_32x8_c(uint8_t *dst, ptrdiff_t stride,
-                             const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 32, 8, above, left, 3, DC_MULTIPLIER_1X4);
-}
-
-void aom_dc_predictor_16x32_c(uint8_t *dst, ptrdiff_t stride,
-                              const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 16, 32, above, left, 4, DC_MULTIPLIER_1X2);
-}
-
-void aom_dc_predictor_32x16_c(uint8_t *dst, ptrdiff_t stride,
-                              const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 32, 16, above, left, 4, DC_MULTIPLIER_1X2);
-}
-
-void aom_dc_predictor_16x64_c(uint8_t *dst, ptrdiff_t stride,
-                              const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 16, 64, above, left, 4, DC_MULTIPLIER_1X4);
-}
-
-void aom_dc_predictor_64x16_c(uint8_t *dst, ptrdiff_t stride,
-                              const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 64, 16, above, left, 4, DC_MULTIPLIER_1X4);
-}
-
-void aom_dc_predictor_32x64_c(uint8_t *dst, ptrdiff_t stride,
-                              const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 32, 64, above, left, 5, DC_MULTIPLIER_1X2);
-}
-
-void aom_dc_predictor_64x32_c(uint8_t *dst, ptrdiff_t stride,
-                              const uint8_t *above, const uint8_t *left) {
-  dc_predictor_rect(dst, stride, 64, 32, above, left, 5, DC_MULTIPLIER_1X2);
-}
-
-#undef DC_MULTIPLIER_1X2
-#undef DC_MULTIPLIER_1X4
-
 static INLINE void highbd_v_predictor(uint16_t *dst, ptrdiff_t stride, int bw,
                                       int bh, const uint16_t *above,
                                       const uint16_t *left, int bd) {
@@ -399,11 +296,51 @@ static INLINE void highbd_paeth_predictor(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
+#if CONFIG_BLEND_MODE
+#define BLEND_WEIGHT_MAX 32
+static const uint8_t blk_size_log2[65] = {
+  0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4,
+  4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+  5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6
+};
+#endif  // CONFIG_BLEND_MODE
+
 static INLINE void highbd_smooth_predictor(uint16_t *dst, ptrdiff_t stride,
                                            int bw, int bh,
                                            const uint16_t *above,
                                            const uint16_t *left, int bd) {
   (void)bd;
+#if CONFIG_BLEND_MODE
+  const uint16_t bl = left[bh];   // estimated by bottom-left pixel
+  const uint16_t tr = above[bw];  // estimated by top-right pixel
+
+  uint16_t *pred = dst;
+  const int scale =
+      ROUND_POWER_OF_TWO((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2), 2);
+  assert(scale >= 0 && scale <= BLEND_WEIGHT_MAX - 1);
+  for (int r = 0; r < bh; r++) {
+    const int s_top =
+        BLEND_WEIGHT_MAX >>
+        AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((r << 1) >> scale));
+    const uint32_t l = left[r];
+    for (int c = 0; c < bw; c++) {
+      const int s_left =
+          BLEND_WEIGHT_MAX >>
+          AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((c << 1) >> scale));
+      const uint32_t top = above[c];
+      uint32_t predv = (above[c] * (bh - 1 - r) + bl * (r + 1)) * bw;
+      uint32_t predh = (left[r] * (bw - 1 - c) + tr * (c + 1)) * bh;
+      predv = (s_top * top * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_top) * predv);
+      assert(predv < UINT_MAX);
+      predh = (s_left * l * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_left) * predh);
+      assert(predh < UINT_MAX);
+
+      const int bits = 1 + 6 + blk_size_log2[bh] + blk_size_log2[bw];
+      pred[c] = divide_round((predv + predh), bits);
+    }
+    pred += stride;
+  }
+#else
   const uint16_t below_pred = left[bh - 1];   // estimated by bottom-left pixel
   const uint16_t right_pred = above[bw - 1];  // estimated by top-right pixel
   const uint8_t *const sm_weights_w = sm_weight_arrays + bw;
@@ -430,6 +367,7 @@ static INLINE void highbd_smooth_predictor(uint16_t *dst, ptrdiff_t stride,
     }
     dst += stride;
   }
+#endif  // CONFIG_BLEND_MODE
 }
 
 static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
@@ -437,6 +375,29 @@ static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
                                              const uint16_t *above,
                                              const uint16_t *left, int bd) {
   (void)bd;
+#if CONFIG_BLEND_MODE
+  const uint16_t bl = left[bh];  // estimated by bottom-left pixel
+
+  uint16_t *pred = dst;
+  const int scale =
+      ROUND_POWER_OF_TWO((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2), 2);
+  assert(scale >= 0 && scale <= BLEND_WEIGHT_MAX - 1);
+  for (int r = 0; r < bh; ++r) {
+    const int s_top =
+        BLEND_WEIGHT_MAX >>
+        AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((r << 1) >> scale));
+    for (int c = 0; c < bw; ++c) {
+      const uint32_t top = above[c];
+      uint32_t predv = (above[c] * (bh - 1 - r) + bl * (r + 1)) * bw;
+      assert(predv < UINT_MAX);
+      const int bits = 6 + blk_size_log2[bh] + blk_size_log2[bw];
+      pred[c] = divide_round(
+          (s_top * top * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_top) * predv),
+          bits);
+    }
+    pred += stride;
+  }
+#else
   const uint16_t below_pred = left[bh - 1];  // estimated by bottom-left pixel
   const uint8_t *const sm_weights = sm_weight_arrays + bh;
   // scale = 2^sm_weight_log2_scale
@@ -461,6 +422,7 @@ static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
     }
     dst += stride;
   }
+#endif  // CONFIG_BLEND_MODE
 }
 
 static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
@@ -468,6 +430,29 @@ static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
                                              const uint16_t *above,
                                              const uint16_t *left, int bd) {
   (void)bd;
+#if CONFIG_BLEND_MODE
+  const uint16_t tr = above[bw];  // estimated by top-right pixel
+
+  uint16_t *pred = dst;
+  const int scale =
+      ROUND_POWER_OF_TWO((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2), 2);
+  assert(scale >= 0 && scale <= BLEND_WEIGHT_MAX - 1);
+  for (int r = 0; r < bh; r++) {
+    const uint32_t l = left[r];
+    for (int c = 0; c < bw; c++) {
+      const int s_left =
+          BLEND_WEIGHT_MAX >>
+          AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((c << 1) >> scale));
+      uint32_t predh = (left[r] * (bw - 1 - c) + tr * (c + 1)) * bh;
+      assert(predh < UINT_MAX);
+      const int bits = 6 + blk_size_log2[bh] + blk_size_log2[bw];
+      pred[c] = divide_round(
+          (s_left * l * (bw * bh) + (BLEND_WEIGHT_MAX * 2 - s_left) * predh),
+          bits);
+    }
+    pred += stride;
+  }
+#else
   const uint16_t right_pred = above[bw - 1];  // estimated by top-right pixel
   const uint8_t *const sm_weights = sm_weight_arrays + bw;
   // scale = 2^sm_weight_log2_scale
@@ -492,6 +477,7 @@ static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
     }
     dst += stride;
   }
+#endif  // CONFIG_BLEND_MODE
 }
 
 static INLINE void highbd_dc_128_predictor(uint16_t *dst, ptrdiff_t stride,

@@ -20,12 +20,8 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/system_state.h"
 
-CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
-#if CONFIG_EXTQUANT
-                                         ,
-                                         aom_bit_depth_t bit_depth
-#endif
-) {
+CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols,
+                                         aom_bit_depth_t bit_depth) {
   size_t last_coded_q_map_size;
   CYCLIC_REFRESH *const cr = aom_calloc(1, sizeof(*cr));
   if (cr == NULL) return NULL;
@@ -36,16 +32,14 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
     return NULL;
   }
   last_coded_q_map_size = mi_rows * mi_cols * sizeof(*cr->last_coded_q_map);
-#if CONFIG_EXTQUANT
+
   cr->last_coded_q_map = (uint16_t *)aom_malloc(last_coded_q_map_size);
-#else
-  cr->last_coded_q_map = (uint8_t *)aom_malloc(last_coded_q_map_size);
-#endif  // CONFIG_EXTQUANT
+
   if (cr->last_coded_q_map == NULL) {
     av1_cyclic_refresh_free(cr);
     return NULL;
   }
-#if CONFIG_EXTQUANT
+
   assert(bit_depth == AOM_BITS_8 ? (MAXQ_8_BITS <= (QINDEX_RANGE_8_BITS - 1))
          : bit_depth == AOM_BITS_10
              ? (MAXQ_10_BITS <= (QINDEX_RANGE_10_BITS - 1))
@@ -54,10 +48,6 @@ CYCLIC_REFRESH *av1_cyclic_refresh_alloc(int mi_rows, int mi_cols
                          : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS
                                                     : MAXQ;
   for (int i = 0; i < mi_rows * mi_cols; ++i) cr->last_coded_q_map[i] = qinit;
-#else
-  assert(MAXQ <= 255);
-  memset(cr->last_coded_q_map, MAXQ, last_coded_q_map_size);
-#endif
 
   cr->avg_frame_low_motion = 0.0;
   return cr;
@@ -87,18 +77,10 @@ static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
   if (dist > cr->thresh_dist_sb &&
       (mv.row > cr->motion_thresh || mv.row < -cr->motion_thresh ||
        mv.col > cr->motion_thresh || mv.col < -cr->motion_thresh ||
-#if CONFIG_SDP
        !is_inter_block(mbmi, SHARED_PART)))
-#else
-       !is_inter_block(mbmi)))
-#endif
     return CR_SEGMENT_ID_BASE;
   else if (bsize >= BLOCK_16X16 && rate < cr->thresh_rate_sb &&
-#if CONFIG_SDP
            is_inter_block(mbmi, SHARED_PART) && mbmi->mv[0].as_int == 0 &&
-#else
-           is_inter_block(mbmi) && mbmi->mv[0].as_int == 0 &&
-#endif
            cr->rate_boost_fac > 10)
     // More aggressive delta-q for bigger blocks with zero motion.
     return CR_SEGMENT_ID_BOOST2;
@@ -250,12 +232,8 @@ void av1_cyclic_refresh_postencode(AV1_COMP *const cpi) {
           cr->actual_num_seg2_blocks++;
       }
       // Accumulate low_content_frame.
-#if CONFIG_SDP
       if (is_inter_block(mi[0], SHARED_PART) && abs(mv.row) < 16 &&
           abs(mv.col) < 16)
-#else
-      if (is_inter_block(mi[0]) && abs(mv.row) < 16 && abs(mv.col) < 16)
-#endif
         cr->cnt_zeromv++;
     }
   }
@@ -318,14 +296,10 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     // cpi->common.features.allow_screen_content_tools and use the same instead
     // of cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN
     int qindex_thresh = cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN
-#if CONFIG_EXTQUANT
                             ? av1_get_qindex(&cm->seg, CR_SEGMENT_ID_BOOST2,
                                              cm->quant_params.base_qindex,
                                              cm->seq_params.bit_depth)
-#else
-                            ? av1_get_qindex(&cm->seg, CR_SEGMENT_ID_BOOST2,
-                                             cm->quant_params.base_qindex)
-#endif
+
                             : 0;
     assert(mi_row >= 0 && mi_row < mi_params->mi_rows);
     assert(mi_col >= 0 && mi_col < mi_params->mi_cols);
@@ -377,9 +351,6 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   int qp_max_thresh = 118 * MAXQ >> 7;
   cr->apply_cyclic_refresh = 1;
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
-#if CONFIG_SVC_ENCODER
-      cpi->svc.temporal_layer_id > 0 ||
-#endif  // CONFIG_SVC_ENCODER
       rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (rc->frames_since_key > 20 &&
        rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
@@ -418,10 +389,6 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
     cr->percent_refresh = 10;
     cr->rate_ratio_qdelta = 1.5;
     cr->rate_boost_fac = 10;
-    if (cpi->refresh_frame.golden_frame) {
-      cr->percent_refresh = 0;
-      cr->rate_ratio_qdelta = 1.0;
-    }
   }
   // Weight for segment prior to encoding: take the average of the target
   // number for the frame to be encoded and the actual from the previous frame.
@@ -456,17 +423,12 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     memset(seg_map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
     av1_disable_segmentation(&cm->seg);
     if (cm->current_frame.frame_type == KEY_FRAME) {
-#if CONFIG_EXTQUANT
       for (int i = 0; i <= (cm->mi_params.mi_rows * cm->mi_params.mi_cols); i++)
         cr->last_coded_q_map[i] =
             cm->seq_params.bit_depth == AOM_BITS_8    ? MAXQ_8_BITS
             : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS
                                                       : MAXQ;
-#else
-      memset(cr->last_coded_q_map, MAXQ,
-             cm->mi_params.mi_rows * cm->mi_params.mi_cols *
-                 sizeof(*cr->last_coded_q_map));
-#endif
+
       cr->sb_index = 0;
     }
     return;
@@ -480,7 +442,7 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     // Distortion threshold, quadratic in Q, scale factor to be adjusted.
     // q will not exceed 457, so (q * q) is within 32bit; see:
     // av1_convert_qindex_to_q(), av1_ac_quant(), ac_qlookup*[].
-    cr->thresh_dist_sb = ((int64_t)(q * q)) << 2;
+    cr->thresh_dist_sb = ((int64_t)(q * q)) << 4;
 
     // Set up segmentation.
     // Clear down the segment map.
@@ -509,18 +471,14 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     cr->qindex_delta[1] = qindex_delta;
 
     // Compute rd-mult for segment BOOST1.
-#if CONFIG_EXTQUANT
+
     const int qindex2 = clamp(
         quant_params->base_qindex + quant_params->y_dc_delta_q + qindex_delta,
         0,
         cm->seq_params.bit_depth == AOM_BITS_8    ? MAXQ_8_BITS
         : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS
                                                   : MAXQ);
-#else
-    const int qindex2 = clamp(
-        quant_params->base_qindex + quant_params->y_dc_delta_q + qindex_delta,
-        0, MAXQ);
-#endif
+
     cr->rdmult = av1_compute_rd_mult(cpi, qindex2);
 
     av1_set_segdata(seg, CR_SEGMENT_ID_BOOST1, SEG_LVL_ALT_Q, qindex_delta);
@@ -547,6 +505,5 @@ void av1_cyclic_refresh_reset_resize(AV1_COMP *const cpi) {
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   memset(cr->map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
   cr->sb_index = 0;
-  cpi->refresh_frame.golden_frame = true;
   cr->apply_cyclic_refresh = 0;
 }

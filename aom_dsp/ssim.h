@@ -65,13 +65,6 @@ typedef struct {
   double ssimcd;
 } Metrics;
 
-double aom_get_ssim_metrics(uint8_t *img1, int img1_pitch, uint8_t *img2,
-                            int img2_pitch, int width, int height, Ssimv *sv2,
-                            Metrics *m, int do_inconsistency);
-
-double aom_calc_ssim(const YV12_BUFFER_CONFIG *source,
-                     const YV12_BUFFER_CONFIG *dest, double *weight);
-
 double aom_calc_fastssim(const YV12_BUFFER_CONFIG *source,
                          const YV12_BUFFER_CONFIG *dest, double *ssim_y,
                          double *ssim_u, double *ssim_v, uint32_t bd,

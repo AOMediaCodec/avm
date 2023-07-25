@@ -83,7 +83,7 @@
  *       {
  *           aom_codec_ctx_t algo;
  *           int threads = 4;
- *           aom_codec_dec_cfg_t cfg = { threads, 0, 0, 1 };
+ *           aom_codec_dec_cfg_t cfg = { threads, 0, 0 };
  *           res = aom_codec_dec_init(&algo, &my_codec, &cfg, 0);
  *       }
  *     </pre>
@@ -245,7 +245,7 @@ typedef int64_t aom_codec_pts_t;
  *   - aom_codec_get_caps(aom_codec_iface_t *iface): returns
  *     the capabilities of the codec
  *   - aom_codec_enc_config_default: generate the default config for
- *     initializing the encoder (see documention in aom_encoder.h)
+ *     initializing the encoder (see documentation in aom_encoder.h)
  *   - aom_codec_dec_init, aom_codec_enc_init: initialize the codec context
  *     structure (see documentation on aom_codec_ctx).
  *
@@ -281,6 +281,8 @@ typedef uint32_t aom_codec_frame_flags_t;
 #define AOM_FRAME_IS_ERROR_RESILIENT 0x40
 /*!\brief this is a key-frame dependent recovery-point frame */
 #define AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT 0x80
+/*!\brief this frame has coded film frain params */
+#define AOM_FRAME_HAS_FILM_GRAIN_PARAMS 0x100
 
 /*!\brief Iterator
  *
@@ -558,6 +560,7 @@ typedef enum {
   OBU_METADATA_TYPE_SCALABILITY = 3,
   OBU_METADATA_TYPE_ITUT_T35 = 4,
   OBU_METADATA_TYPE_TIMECODE = 5,
+  OBU_METADATA_TYPE_DECODED_FRAME_HASH = 6,
 } OBU_METADATA_TYPE;
 
 /*!\brief Returns string representation of OBU_TYPE.

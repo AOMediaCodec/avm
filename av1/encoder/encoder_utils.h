@@ -84,9 +84,23 @@ static AOM_INLINE void enc_free_mi(CommonModeInfoParams *mi_params) {
   mi_params->mi_alloc = NULL;
   aom_free(mi_params->mi_grid_base);
   mi_params->mi_grid_base = NULL;
+#if CONFIG_C071_SUBBLK_WARPMV
+  aom_free(mi_params->mi_alloc_sub);
+  mi_params->mi_alloc_sub = NULL;
+  aom_free(mi_params->submi_grid_base);
+  mi_params->submi_grid_base = NULL;
+#endif
   mi_params->mi_alloc_size = 0;
   aom_free(mi_params->tx_type_map);
   mi_params->tx_type_map = NULL;
+#if CONFIG_CROSS_CHROMA_TX
+  aom_free(mi_params->cctx_type_map);
+  mi_params->cctx_type_map = NULL;
+#endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  av1_dealloc_txk_skip_array(mi_params);
+  av1_dealloc_class_id_array(mi_params);
+#endif  // CONFIG_PC_WIENER
 }
 
 static AOM_INLINE void enc_set_mb_mi(CommonModeInfoParams *mi_params, int width,
@@ -113,12 +127,19 @@ static AOM_INLINE void enc_setup_mi(CommonModeInfoParams *mi_params) {
          mi_grid_size * sizeof(*mi_params->mi_grid_base));
   memset(mi_params->tx_type_map, 0,
          mi_grid_size * sizeof(*mi_params->tx_type_map));
+#if CONFIG_CROSS_CHROMA_TX
+  memset(mi_params->cctx_type_map, 0,
+         mi_grid_size * sizeof(*mi_params->cctx_type_map));
+#endif  // CONFIG_CROSS_CHROMA_TX
+#if CONFIG_PC_WIENER
+  av1_reset_txk_skip_array_using_mi_params(mi_params);
+#endif  // CONFIG_PC_WIENER
 }
 
 static AOM_INLINE void init_buffer_indices(
     ForceIntegerMVInfo *const force_intpel_info, int *const remapped_ref_idx) {
   int fb_idx;
-  for (fb_idx = 0; fb_idx < REF_FRAMES; ++fb_idx)
+  for (fb_idx = 0; fb_idx < INTER_REFS_PER_FRAME; ++fb_idx)
     remapped_ref_idx[fb_idx] = fb_idx;
   force_intpel_info->rate_index = 0;
   force_intpel_info->rate_size = 0;
@@ -145,82 +166,82 @@ static AOM_INLINE void init_buffer_indices(
       aom_highbd_dist_wtd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,              \
       aom_highbd_##BD##_dist_wtd_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
 
-#define MAKE_BFP_SAD_WRAPPER(fnname)                                           \
-  static unsigned int fnname##_bits8(const uint8_t *src_ptr,                   \
-                                     int source_stride,                        \
-                                     const uint8_t *ref_ptr, int ref_stride) { \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);                \
-  }                                                                            \
-  static unsigned int fnname##_bits10(                                         \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,       \
-      int ref_stride) {                                                        \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;           \
-  }                                                                            \
-  static unsigned int fnname##_bits12(                                         \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,       \
-      int ref_stride) {                                                        \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;           \
+#define MAKE_BFP_SAD_WRAPPER(fnname)                                       \
+  static unsigned int fnname##_bits8(                                      \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
+      int ref_stride) {                                                    \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);            \
+  }                                                                        \
+  static unsigned int fnname##_bits10(                                     \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
+      int ref_stride) {                                                    \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;       \
+  }                                                                        \
+  static unsigned int fnname##_bits12(                                     \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
+      int ref_stride) {                                                    \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;       \
   }
 
 #define MAKE_BFP_SADAVG_WRAPPER(fnname)                                        \
   static unsigned int fnname##_bits8(                                          \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,       \
-      int ref_stride, const uint8_t *second_pred) {                            \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,     \
+      int ref_stride, const uint16_t *second_pred) {                           \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred);   \
   }                                                                            \
   static unsigned int fnname##_bits10(                                         \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,       \
-      int ref_stride, const uint8_t *second_pred) {                            \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,     \
+      int ref_stride, const uint16_t *second_pred) {                           \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred) >> \
            2;                                                                  \
   }                                                                            \
   static unsigned int fnname##_bits12(                                         \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,       \
-      int ref_stride, const uint8_t *second_pred) {                            \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,     \
+      int ref_stride, const uint16_t *second_pred) {                           \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred) >> \
            4;                                                                  \
   }
 
-#define MAKE_BFP_SAD4D_WRAPPER(fnname)                                        \
-  static void fnname##_bits8(const uint8_t *src_ptr, int source_stride,       \
-                             const uint8_t *const ref_ptr[], int ref_stride,  \
-                             unsigned int *sad_array) {                       \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
-  }                                                                           \
-  static void fnname##_bits10(const uint8_t *src_ptr, int source_stride,      \
-                              const uint8_t *const ref_ptr[], int ref_stride, \
-                              unsigned int *sad_array) {                      \
-    int i;                                                                    \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
-    for (i = 0; i < 4; i++) sad_array[i] >>= 2;                               \
-  }                                                                           \
-  static void fnname##_bits12(const uint8_t *src_ptr, int source_stride,      \
-                              const uint8_t *const ref_ptr[], int ref_stride, \
-                              unsigned int *sad_array) {                      \
-    int i;                                                                    \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
-    for (i = 0; i < 4; i++) sad_array[i] >>= 4;                               \
+#define MAKE_BFP_SAD4D_WRAPPER(fnname)                                         \
+  static void fnname##_bits8(const uint16_t *src_ptr, int source_stride,       \
+                             const uint16_t *const ref_ptr[], int ref_stride,  \
+                             unsigned int *sad_array) {                        \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
+  }                                                                            \
+  static void fnname##_bits10(const uint16_t *src_ptr, int source_stride,      \
+                              const uint16_t *const ref_ptr[], int ref_stride, \
+                              unsigned int *sad_array) {                       \
+    int i;                                                                     \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
+    for (i = 0; i < 4; i++) sad_array[i] >>= 2;                                \
+  }                                                                            \
+  static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,      \
+                              const uint16_t *const ref_ptr[], int ref_stride, \
+                              unsigned int *sad_array) {                       \
+    int i;                                                                     \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
+    for (i = 0; i < 4; i++) sad_array[i] >>= 4;                                \
   }
 
 #define MAKE_BFP_JSADAVG_WRAPPER(fnname)                                    \
   static unsigned int fnname##_bits8(                                       \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,    \
-      int ref_stride, const uint8_t *second_pred,                           \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
+      int ref_stride, const uint16_t *second_pred,                          \
       const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
                   jcp_param);                                               \
   }                                                                         \
   static unsigned int fnname##_bits10(                                      \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,    \
-      int ref_stride, const uint8_t *second_pred,                           \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
+      int ref_stride, const uint16_t *second_pred,                          \
       const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
                   jcp_param) >>                                             \
            2;                                                               \
   }                                                                         \
   static unsigned int fnname##_bits12(                                      \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,    \
-      int ref_stride, const uint8_t *second_pred,                           \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr,  \
+      int ref_stride, const uint16_t *second_pred,                          \
       const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
     return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
                   jcp_param) >>                                             \
@@ -327,29 +348,29 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
               aom_highbd_masked_sad##WIDTH##x##HEIGHT##_bits##BD, \
               aom_highbd_##BD##_masked_sub_pixel_variance##WIDTH##x##HEIGHT)
 
-#define MAKE_MBFP_COMPOUND_SAD_WRAPPER(fnname)                           \
-  static unsigned int fnname##_bits8(                                    \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, \
-      int ref_stride, const uint8_t *second_pred_ptr, const uint8_t *m,  \
-      int m_stride, int invert_mask) {                                   \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride,           \
-                  second_pred_ptr, m, m_stride, invert_mask);            \
-  }                                                                      \
-  static unsigned int fnname##_bits10(                                   \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, \
-      int ref_stride, const uint8_t *second_pred_ptr, const uint8_t *m,  \
-      int m_stride, int invert_mask) {                                   \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride,           \
-                  second_pred_ptr, m, m_stride, invert_mask) >>          \
-           2;                                                            \
-  }                                                                      \
-  static unsigned int fnname##_bits12(                                   \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, \
-      int ref_stride, const uint8_t *second_pred_ptr, const uint8_t *m,  \
-      int m_stride, int invert_mask) {                                   \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride,           \
-                  second_pred_ptr, m, m_stride, invert_mask) >>          \
-           4;                                                            \
+#define MAKE_MBFP_COMPOUND_SAD_WRAPPER(fnname)                             \
+  static unsigned int fnname##_bits8(                                      \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
+      int ref_stride, const uint16_t *second_pred_ptr, const uint8_t *m,   \
+      int m_stride, int invert_mask) {                                     \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride,             \
+                  second_pred_ptr, m, m_stride, invert_mask);              \
+  }                                                                        \
+  static unsigned int fnname##_bits10(                                     \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
+      int ref_stride, const uint16_t *second_pred_ptr, const uint8_t *m,   \
+      int m_stride, int invert_mask) {                                     \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride,             \
+                  second_pred_ptr, m, m_stride, invert_mask) >>            \
+           2;                                                              \
+  }                                                                        \
+  static unsigned int fnname##_bits12(                                     \
+      const uint16_t *src_ptr, int source_stride, const uint16_t *ref_ptr, \
+      int ref_stride, const uint16_t *second_pred_ptr, const uint8_t *m,   \
+      int m_stride, int invert_mask) {                                     \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride,             \
+                  second_pred_ptr, m, m_stride, invert_mask) >>            \
+           4;                                                              \
   }
 
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad128x128)
@@ -384,39 +405,39 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
                aom_highbd_sad_skip_##WIDTH##x##HEIGHT##_bits##BD, \
                aom_highbd_sad_skip_##WIDTH##x##HEIGHT##x4d##_bits##BD)
 
-#define MAKE_SDSF_SKIP_SAD_WRAPPER(fnname)                                  \
-  static unsigned int fnname##_bits8(const uint8_t *src, int src_stride,    \
-                                     const uint8_t *ref, int ref_stride) {  \
-    return fnname(src, src_stride, ref, ref_stride);                        \
-  }                                                                         \
-  static unsigned int fnname##_bits10(const uint8_t *src, int src_stride,   \
-                                      const uint8_t *ref, int ref_stride) { \
-    return fnname(src, src_stride, ref, ref_stride) >> 2;                   \
-  }                                                                         \
-  static unsigned int fnname##_bits12(const uint8_t *src, int src_stride,   \
-                                      const uint8_t *ref, int ref_stride) { \
-    return fnname(src, src_stride, ref, ref_stride) >> 4;                   \
+#define MAKE_SDSF_SKIP_SAD_WRAPPER(fnname)                                   \
+  static unsigned int fnname##_bits8(const uint16_t *src, int src_stride,    \
+                                     const uint16_t *ref, int ref_stride) {  \
+    return fnname(src, src_stride, ref, ref_stride);                         \
+  }                                                                          \
+  static unsigned int fnname##_bits10(const uint16_t *src, int src_stride,   \
+                                      const uint16_t *ref, int ref_stride) { \
+    return fnname(src, src_stride, ref, ref_stride) >> 2;                    \
+  }                                                                          \
+  static unsigned int fnname##_bits12(const uint16_t *src, int src_stride,   \
+                                      const uint16_t *ref, int ref_stride) { \
+    return fnname(src, src_stride, ref, ref_stride) >> 4;                    \
   }
 
-#define MAKE_SDSF_SKIP_SAD_4D_WRAPPER(fnname)                                 \
-  static void fnname##_bits8(const uint8_t *src_ptr, int source_stride,       \
-                             const uint8_t *const ref_ptr[], int ref_stride,  \
-                             unsigned int *sad_array) {                       \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
-  }                                                                           \
-  static void fnname##_bits10(const uint8_t *src_ptr, int source_stride,      \
-                              const uint8_t *const ref_ptr[], int ref_stride, \
-                              unsigned int *sad_array) {                      \
-    int i;                                                                    \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
-    for (i = 0; i < 4; i++) sad_array[i] >>= 2;                               \
-  }                                                                           \
-  static void fnname##_bits12(const uint8_t *src_ptr, int source_stride,      \
-                              const uint8_t *const ref_ptr[], int ref_stride, \
-                              unsigned int *sad_array) {                      \
-    int i;                                                                    \
-    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
-    for (i = 0; i < 4; i++) sad_array[i] >>= 4;                               \
+#define MAKE_SDSF_SKIP_SAD_4D_WRAPPER(fnname)                                  \
+  static void fnname##_bits8(const uint16_t *src_ptr, int source_stride,       \
+                             const uint16_t *const ref_ptr[], int ref_stride,  \
+                             unsigned int *sad_array) {                        \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
+  }                                                                            \
+  static void fnname##_bits10(const uint16_t *src_ptr, int source_stride,      \
+                              const uint16_t *const ref_ptr[], int ref_stride, \
+                              unsigned int *sad_array) {                       \
+    int i;                                                                     \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
+    for (i = 0; i < 4; i++) sad_array[i] >>= 2;                                \
+  }                                                                            \
+  static void fnname##_bits12(const uint16_t *src_ptr, int source_stride,      \
+                              const uint16_t *const ref_ptr[], int ref_stride, \
+                              unsigned int *sad_array) {                       \
+    int i;                                                                     \
+    fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);            \
+    for (i = 0; i < 4; i++) sad_array[i] >>= 4;                                \
   }
 
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x128)
@@ -476,21 +497,21 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
               aom_highbd_obmc_variance##WIDTH##x##HEIGHT,    \
               aom_highbd_obmc_sub_pixel_variance##WIDTH##x##HEIGHT)
 
-#define MAKE_OBFP_SAD_WRAPPER(fnname)                                     \
-  static unsigned int fnname##_bits8(const uint8_t *ref, int ref_stride,  \
-                                     const int32_t *wsrc,                 \
-                                     const int32_t *msk) {                \
-    return fnname(ref, ref_stride, wsrc, msk);                            \
-  }                                                                       \
-  static unsigned int fnname##_bits10(const uint8_t *ref, int ref_stride, \
-                                      const int32_t *wsrc,                \
-                                      const int32_t *msk) {               \
-    return fnname(ref, ref_stride, wsrc, msk) >> 2;                       \
-  }                                                                       \
-  static unsigned int fnname##_bits12(const uint8_t *ref, int ref_stride, \
-                                      const int32_t *wsrc,                \
-                                      const int32_t *msk) {               \
-    return fnname(ref, ref_stride, wsrc, msk) >> 4;                       \
+#define MAKE_OBFP_SAD_WRAPPER(fnname)                                      \
+  static unsigned int fnname##_bits8(const uint16_t *ref, int ref_stride,  \
+                                     const int32_t *wsrc,                  \
+                                     const int32_t *msk) {                 \
+    return fnname(ref, ref_stride, wsrc, msk);                             \
+  }                                                                        \
+  static unsigned int fnname##_bits10(const uint16_t *ref, int ref_stride, \
+                                      const int32_t *wsrc,                 \
+                                      const int32_t *msk) {                \
+    return fnname(ref, ref_stride, wsrc, msk) >> 2;                        \
+  }                                                                        \
+  static unsigned int fnname##_bits12(const uint16_t *ref, int ref_stride, \
+                                      const int32_t *wsrc,                 \
+                                      const int32_t *msk) {                \
+    return fnname(ref, ref_stride, wsrc, msk) >> 4;                        \
   }
 
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x128)
@@ -518,286 +539,284 @@ MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x16)
 
 static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->seq_params.use_highbitdepth) {
-    switch (cm->seq_params.bit_depth) {
-      case AOM_BITS_8:
-        HIGHBD_BFP_WRAPPER(64, 16, 8)
-        HIGHBD_BFP_WRAPPER(16, 64, 8)
-        HIGHBD_BFP_WRAPPER(32, 8, 8)
-        HIGHBD_BFP_WRAPPER(8, 32, 8)
-        HIGHBD_BFP_WRAPPER(16, 4, 8)
-        HIGHBD_BFP_WRAPPER(4, 16, 8)
-        HIGHBD_BFP_WRAPPER(32, 16, 8)
-        HIGHBD_BFP_WRAPPER(16, 32, 8)
-        HIGHBD_BFP_WRAPPER(64, 32, 8)
-        HIGHBD_BFP_WRAPPER(32, 64, 8)
-        HIGHBD_BFP_WRAPPER(32, 32, 8)
-        HIGHBD_BFP_WRAPPER(64, 64, 8)
-        HIGHBD_BFP_WRAPPER(16, 16, 8)
-        HIGHBD_BFP_WRAPPER(16, 8, 8)
-        HIGHBD_BFP_WRAPPER(8, 16, 8)
-        HIGHBD_BFP_WRAPPER(8, 8, 8)
-        HIGHBD_BFP_WRAPPER(8, 4, 8)
-        HIGHBD_BFP_WRAPPER(4, 8, 8)
-        HIGHBD_BFP_WRAPPER(4, 4, 8)
-        HIGHBD_BFP_WRAPPER(128, 128, 8)
-        HIGHBD_BFP_WRAPPER(128, 64, 8)
-        HIGHBD_BFP_WRAPPER(64, 128, 8)
+  switch (cm->seq_params.bit_depth) {
+    case AOM_BITS_8:
+      HIGHBD_BFP_WRAPPER(64, 16, 8)
+      HIGHBD_BFP_WRAPPER(16, 64, 8)
+      HIGHBD_BFP_WRAPPER(32, 8, 8)
+      HIGHBD_BFP_WRAPPER(8, 32, 8)
+      HIGHBD_BFP_WRAPPER(16, 4, 8)
+      HIGHBD_BFP_WRAPPER(4, 16, 8)
+      HIGHBD_BFP_WRAPPER(32, 16, 8)
+      HIGHBD_BFP_WRAPPER(16, 32, 8)
+      HIGHBD_BFP_WRAPPER(64, 32, 8)
+      HIGHBD_BFP_WRAPPER(32, 64, 8)
+      HIGHBD_BFP_WRAPPER(32, 32, 8)
+      HIGHBD_BFP_WRAPPER(64, 64, 8)
+      HIGHBD_BFP_WRAPPER(16, 16, 8)
+      HIGHBD_BFP_WRAPPER(16, 8, 8)
+      HIGHBD_BFP_WRAPPER(8, 16, 8)
+      HIGHBD_BFP_WRAPPER(8, 8, 8)
+      HIGHBD_BFP_WRAPPER(8, 4, 8)
+      HIGHBD_BFP_WRAPPER(4, 8, 8)
+      HIGHBD_BFP_WRAPPER(4, 4, 8)
+      HIGHBD_BFP_WRAPPER(128, 128, 8)
+      HIGHBD_BFP_WRAPPER(128, 64, 8)
+      HIGHBD_BFP_WRAPPER(64, 128, 8)
 
-        HIGHBD_MBFP_WRAPPER(128, 128, 8)
-        HIGHBD_MBFP_WRAPPER(128, 64, 8)
-        HIGHBD_MBFP_WRAPPER(64, 128, 8)
-        HIGHBD_MBFP_WRAPPER(64, 64, 8)
-        HIGHBD_MBFP_WRAPPER(64, 32, 8)
-        HIGHBD_MBFP_WRAPPER(32, 64, 8)
-        HIGHBD_MBFP_WRAPPER(32, 32, 8)
-        HIGHBD_MBFP_WRAPPER(32, 16, 8)
-        HIGHBD_MBFP_WRAPPER(16, 32, 8)
-        HIGHBD_MBFP_WRAPPER(16, 16, 8)
-        HIGHBD_MBFP_WRAPPER(8, 16, 8)
-        HIGHBD_MBFP_WRAPPER(16, 8, 8)
-        HIGHBD_MBFP_WRAPPER(8, 8, 8)
-        HIGHBD_MBFP_WRAPPER(4, 8, 8)
-        HIGHBD_MBFP_WRAPPER(8, 4, 8)
-        HIGHBD_MBFP_WRAPPER(4, 4, 8)
-        HIGHBD_MBFP_WRAPPER(64, 16, 8)
-        HIGHBD_MBFP_WRAPPER(16, 64, 8)
-        HIGHBD_MBFP_WRAPPER(32, 8, 8)
-        HIGHBD_MBFP_WRAPPER(8, 32, 8)
-        HIGHBD_MBFP_WRAPPER(16, 4, 8)
-        HIGHBD_MBFP_WRAPPER(4, 16, 8)
+      HIGHBD_MBFP_WRAPPER(128, 128, 8)
+      HIGHBD_MBFP_WRAPPER(128, 64, 8)
+      HIGHBD_MBFP_WRAPPER(64, 128, 8)
+      HIGHBD_MBFP_WRAPPER(64, 64, 8)
+      HIGHBD_MBFP_WRAPPER(64, 32, 8)
+      HIGHBD_MBFP_WRAPPER(32, 64, 8)
+      HIGHBD_MBFP_WRAPPER(32, 32, 8)
+      HIGHBD_MBFP_WRAPPER(32, 16, 8)
+      HIGHBD_MBFP_WRAPPER(16, 32, 8)
+      HIGHBD_MBFP_WRAPPER(16, 16, 8)
+      HIGHBD_MBFP_WRAPPER(8, 16, 8)
+      HIGHBD_MBFP_WRAPPER(16, 8, 8)
+      HIGHBD_MBFP_WRAPPER(8, 8, 8)
+      HIGHBD_MBFP_WRAPPER(4, 8, 8)
+      HIGHBD_MBFP_WRAPPER(8, 4, 8)
+      HIGHBD_MBFP_WRAPPER(4, 4, 8)
+      HIGHBD_MBFP_WRAPPER(64, 16, 8)
+      HIGHBD_MBFP_WRAPPER(16, 64, 8)
+      HIGHBD_MBFP_WRAPPER(32, 8, 8)
+      HIGHBD_MBFP_WRAPPER(8, 32, 8)
+      HIGHBD_MBFP_WRAPPER(16, 4, 8)
+      HIGHBD_MBFP_WRAPPER(4, 16, 8)
 
-        LOWBD_OBFP_WRAPPER(128, 128)
-        LOWBD_OBFP_WRAPPER(128, 64)
-        LOWBD_OBFP_WRAPPER(64, 128)
-        LOWBD_OBFP_WRAPPER(64, 64)
-        LOWBD_OBFP_WRAPPER(64, 32)
-        LOWBD_OBFP_WRAPPER(32, 64)
-        LOWBD_OBFP_WRAPPER(32, 32)
-        LOWBD_OBFP_WRAPPER(32, 16)
-        LOWBD_OBFP_WRAPPER(16, 32)
-        LOWBD_OBFP_WRAPPER(16, 16)
-        LOWBD_OBFP_WRAPPER(8, 16)
-        LOWBD_OBFP_WRAPPER(16, 8)
-        LOWBD_OBFP_WRAPPER(8, 8)
-        LOWBD_OBFP_WRAPPER(4, 8)
-        LOWBD_OBFP_WRAPPER(8, 4)
-        LOWBD_OBFP_WRAPPER(4, 4)
-        LOWBD_OBFP_WRAPPER(64, 16)
-        LOWBD_OBFP_WRAPPER(16, 64)
-        LOWBD_OBFP_WRAPPER(32, 8)
-        LOWBD_OBFP_WRAPPER(8, 32)
-        LOWBD_OBFP_WRAPPER(16, 4)
-        LOWBD_OBFP_WRAPPER(4, 16)
+      LOWBD_OBFP_WRAPPER(128, 128)
+      LOWBD_OBFP_WRAPPER(128, 64)
+      LOWBD_OBFP_WRAPPER(64, 128)
+      LOWBD_OBFP_WRAPPER(64, 64)
+      LOWBD_OBFP_WRAPPER(64, 32)
+      LOWBD_OBFP_WRAPPER(32, 64)
+      LOWBD_OBFP_WRAPPER(32, 32)
+      LOWBD_OBFP_WRAPPER(32, 16)
+      LOWBD_OBFP_WRAPPER(16, 32)
+      LOWBD_OBFP_WRAPPER(16, 16)
+      LOWBD_OBFP_WRAPPER(8, 16)
+      LOWBD_OBFP_WRAPPER(16, 8)
+      LOWBD_OBFP_WRAPPER(8, 8)
+      LOWBD_OBFP_WRAPPER(4, 8)
+      LOWBD_OBFP_WRAPPER(8, 4)
+      LOWBD_OBFP_WRAPPER(4, 4)
+      LOWBD_OBFP_WRAPPER(64, 16)
+      LOWBD_OBFP_WRAPPER(16, 64)
+      LOWBD_OBFP_WRAPPER(32, 8)
+      LOWBD_OBFP_WRAPPER(8, 32)
+      LOWBD_OBFP_WRAPPER(16, 4)
+      LOWBD_OBFP_WRAPPER(4, 16)
 
-        HIGHBD_SDSFP_WRAPPER(128, 128, 8);
-        HIGHBD_SDSFP_WRAPPER(128, 64, 8);
-        HIGHBD_SDSFP_WRAPPER(64, 128, 8);
-        HIGHBD_SDSFP_WRAPPER(64, 64, 8);
-        HIGHBD_SDSFP_WRAPPER(64, 32, 8);
-        HIGHBD_SDSFP_WRAPPER(64, 16, 8);
-        HIGHBD_SDSFP_WRAPPER(32, 64, 8);
-        HIGHBD_SDSFP_WRAPPER(32, 32, 8);
-        HIGHBD_SDSFP_WRAPPER(32, 16, 8);
-        HIGHBD_SDSFP_WRAPPER(32, 8, 8);
-        HIGHBD_SDSFP_WRAPPER(16, 64, 8);
-        HIGHBD_SDSFP_WRAPPER(16, 32, 8);
-        HIGHBD_SDSFP_WRAPPER(16, 16, 8);
-        HIGHBD_SDSFP_WRAPPER(16, 8, 8);
-        HIGHBD_SDSFP_WRAPPER(8, 16, 8);
-        HIGHBD_SDSFP_WRAPPER(8, 8, 8);
-        HIGHBD_SDSFP_WRAPPER(4, 16, 8);
-        HIGHBD_SDSFP_WRAPPER(4, 8, 8);
-        HIGHBD_SDSFP_WRAPPER(8, 32, 8);
-        break;
+      HIGHBD_SDSFP_WRAPPER(128, 128, 8);
+      HIGHBD_SDSFP_WRAPPER(128, 64, 8);
+      HIGHBD_SDSFP_WRAPPER(64, 128, 8);
+      HIGHBD_SDSFP_WRAPPER(64, 64, 8);
+      HIGHBD_SDSFP_WRAPPER(64, 32, 8);
+      HIGHBD_SDSFP_WRAPPER(64, 16, 8);
+      HIGHBD_SDSFP_WRAPPER(32, 64, 8);
+      HIGHBD_SDSFP_WRAPPER(32, 32, 8);
+      HIGHBD_SDSFP_WRAPPER(32, 16, 8);
+      HIGHBD_SDSFP_WRAPPER(32, 8, 8);
+      HIGHBD_SDSFP_WRAPPER(16, 64, 8);
+      HIGHBD_SDSFP_WRAPPER(16, 32, 8);
+      HIGHBD_SDSFP_WRAPPER(16, 16, 8);
+      HIGHBD_SDSFP_WRAPPER(16, 8, 8);
+      HIGHBD_SDSFP_WRAPPER(8, 16, 8);
+      HIGHBD_SDSFP_WRAPPER(8, 8, 8);
+      HIGHBD_SDSFP_WRAPPER(4, 16, 8);
+      HIGHBD_SDSFP_WRAPPER(4, 8, 8);
+      HIGHBD_SDSFP_WRAPPER(8, 32, 8);
+      break;
 
-      case AOM_BITS_10:
-        HIGHBD_BFP_WRAPPER(64, 16, 10)
-        HIGHBD_BFP_WRAPPER(16, 64, 10)
-        HIGHBD_BFP_WRAPPER(32, 8, 10)
-        HIGHBD_BFP_WRAPPER(8, 32, 10)
-        HIGHBD_BFP_WRAPPER(16, 4, 10)
-        HIGHBD_BFP_WRAPPER(4, 16, 10)
-        HIGHBD_BFP_WRAPPER(32, 16, 10)
-        HIGHBD_BFP_WRAPPER(16, 32, 10)
-        HIGHBD_BFP_WRAPPER(64, 32, 10)
-        HIGHBD_BFP_WRAPPER(32, 64, 10)
-        HIGHBD_BFP_WRAPPER(32, 32, 10)
-        HIGHBD_BFP_WRAPPER(64, 64, 10)
-        HIGHBD_BFP_WRAPPER(16, 16, 10)
-        HIGHBD_BFP_WRAPPER(16, 8, 10)
-        HIGHBD_BFP_WRAPPER(8, 16, 10)
-        HIGHBD_BFP_WRAPPER(8, 8, 10)
-        HIGHBD_BFP_WRAPPER(8, 4, 10)
-        HIGHBD_BFP_WRAPPER(4, 8, 10)
-        HIGHBD_BFP_WRAPPER(4, 4, 10)
-        HIGHBD_BFP_WRAPPER(128, 128, 10)
-        HIGHBD_BFP_WRAPPER(128, 64, 10)
-        HIGHBD_BFP_WRAPPER(64, 128, 10)
+    case AOM_BITS_10:
+      HIGHBD_BFP_WRAPPER(64, 16, 10)
+      HIGHBD_BFP_WRAPPER(16, 64, 10)
+      HIGHBD_BFP_WRAPPER(32, 8, 10)
+      HIGHBD_BFP_WRAPPER(8, 32, 10)
+      HIGHBD_BFP_WRAPPER(16, 4, 10)
+      HIGHBD_BFP_WRAPPER(4, 16, 10)
+      HIGHBD_BFP_WRAPPER(32, 16, 10)
+      HIGHBD_BFP_WRAPPER(16, 32, 10)
+      HIGHBD_BFP_WRAPPER(64, 32, 10)
+      HIGHBD_BFP_WRAPPER(32, 64, 10)
+      HIGHBD_BFP_WRAPPER(32, 32, 10)
+      HIGHBD_BFP_WRAPPER(64, 64, 10)
+      HIGHBD_BFP_WRAPPER(16, 16, 10)
+      HIGHBD_BFP_WRAPPER(16, 8, 10)
+      HIGHBD_BFP_WRAPPER(8, 16, 10)
+      HIGHBD_BFP_WRAPPER(8, 8, 10)
+      HIGHBD_BFP_WRAPPER(8, 4, 10)
+      HIGHBD_BFP_WRAPPER(4, 8, 10)
+      HIGHBD_BFP_WRAPPER(4, 4, 10)
+      HIGHBD_BFP_WRAPPER(128, 128, 10)
+      HIGHBD_BFP_WRAPPER(128, 64, 10)
+      HIGHBD_BFP_WRAPPER(64, 128, 10)
 
-        HIGHBD_MBFP_WRAPPER(128, 128, 10)
-        HIGHBD_MBFP_WRAPPER(128, 64, 10)
-        HIGHBD_MBFP_WRAPPER(64, 128, 10)
-        HIGHBD_MBFP_WRAPPER(64, 64, 10)
-        HIGHBD_MBFP_WRAPPER(64, 32, 10)
-        HIGHBD_MBFP_WRAPPER(32, 64, 10)
-        HIGHBD_MBFP_WRAPPER(32, 32, 10)
-        HIGHBD_MBFP_WRAPPER(32, 16, 10)
-        HIGHBD_MBFP_WRAPPER(16, 32, 10)
-        HIGHBD_MBFP_WRAPPER(16, 16, 10)
-        HIGHBD_MBFP_WRAPPER(8, 16, 10)
-        HIGHBD_MBFP_WRAPPER(16, 8, 10)
-        HIGHBD_MBFP_WRAPPER(8, 8, 10)
-        HIGHBD_MBFP_WRAPPER(4, 8, 10)
-        HIGHBD_MBFP_WRAPPER(8, 4, 10)
-        HIGHBD_MBFP_WRAPPER(4, 4, 10)
-        HIGHBD_MBFP_WRAPPER(64, 16, 10)
-        HIGHBD_MBFP_WRAPPER(16, 64, 10)
-        HIGHBD_MBFP_WRAPPER(32, 8, 10)
-        HIGHBD_MBFP_WRAPPER(8, 32, 10)
-        HIGHBD_MBFP_WRAPPER(16, 4, 10)
-        HIGHBD_MBFP_WRAPPER(4, 16, 10)
+      HIGHBD_MBFP_WRAPPER(128, 128, 10)
+      HIGHBD_MBFP_WRAPPER(128, 64, 10)
+      HIGHBD_MBFP_WRAPPER(64, 128, 10)
+      HIGHBD_MBFP_WRAPPER(64, 64, 10)
+      HIGHBD_MBFP_WRAPPER(64, 32, 10)
+      HIGHBD_MBFP_WRAPPER(32, 64, 10)
+      HIGHBD_MBFP_WRAPPER(32, 32, 10)
+      HIGHBD_MBFP_WRAPPER(32, 16, 10)
+      HIGHBD_MBFP_WRAPPER(16, 32, 10)
+      HIGHBD_MBFP_WRAPPER(16, 16, 10)
+      HIGHBD_MBFP_WRAPPER(8, 16, 10)
+      HIGHBD_MBFP_WRAPPER(16, 8, 10)
+      HIGHBD_MBFP_WRAPPER(8, 8, 10)
+      HIGHBD_MBFP_WRAPPER(4, 8, 10)
+      HIGHBD_MBFP_WRAPPER(8, 4, 10)
+      HIGHBD_MBFP_WRAPPER(4, 4, 10)
+      HIGHBD_MBFP_WRAPPER(64, 16, 10)
+      HIGHBD_MBFP_WRAPPER(16, 64, 10)
+      HIGHBD_MBFP_WRAPPER(32, 8, 10)
+      HIGHBD_MBFP_WRAPPER(8, 32, 10)
+      HIGHBD_MBFP_WRAPPER(16, 4, 10)
+      HIGHBD_MBFP_WRAPPER(4, 16, 10)
 
-        HIGHBD_OBFP_WRAPPER(128, 128, 10)
-        HIGHBD_OBFP_WRAPPER(128, 64, 10)
-        HIGHBD_OBFP_WRAPPER(64, 128, 10)
-        HIGHBD_OBFP_WRAPPER(64, 64, 10)
-        HIGHBD_OBFP_WRAPPER(64, 32, 10)
-        HIGHBD_OBFP_WRAPPER(32, 64, 10)
-        HIGHBD_OBFP_WRAPPER(32, 32, 10)
-        HIGHBD_OBFP_WRAPPER(32, 16, 10)
-        HIGHBD_OBFP_WRAPPER(16, 32, 10)
-        HIGHBD_OBFP_WRAPPER(16, 16, 10)
-        HIGHBD_OBFP_WRAPPER(8, 16, 10)
-        HIGHBD_OBFP_WRAPPER(16, 8, 10)
-        HIGHBD_OBFP_WRAPPER(8, 8, 10)
-        HIGHBD_OBFP_WRAPPER(4, 8, 10)
-        HIGHBD_OBFP_WRAPPER(8, 4, 10)
-        HIGHBD_OBFP_WRAPPER(4, 4, 10)
-        HIGHBD_OBFP_WRAPPER(64, 16, 10)
-        HIGHBD_OBFP_WRAPPER(16, 64, 10)
-        HIGHBD_OBFP_WRAPPER(32, 8, 10)
-        HIGHBD_OBFP_WRAPPER(8, 32, 10)
-        HIGHBD_OBFP_WRAPPER(16, 4, 10)
-        HIGHBD_OBFP_WRAPPER(4, 16, 10)
+      HIGHBD_OBFP_WRAPPER(128, 128, 10)
+      HIGHBD_OBFP_WRAPPER(128, 64, 10)
+      HIGHBD_OBFP_WRAPPER(64, 128, 10)
+      HIGHBD_OBFP_WRAPPER(64, 64, 10)
+      HIGHBD_OBFP_WRAPPER(64, 32, 10)
+      HIGHBD_OBFP_WRAPPER(32, 64, 10)
+      HIGHBD_OBFP_WRAPPER(32, 32, 10)
+      HIGHBD_OBFP_WRAPPER(32, 16, 10)
+      HIGHBD_OBFP_WRAPPER(16, 32, 10)
+      HIGHBD_OBFP_WRAPPER(16, 16, 10)
+      HIGHBD_OBFP_WRAPPER(8, 16, 10)
+      HIGHBD_OBFP_WRAPPER(16, 8, 10)
+      HIGHBD_OBFP_WRAPPER(8, 8, 10)
+      HIGHBD_OBFP_WRAPPER(4, 8, 10)
+      HIGHBD_OBFP_WRAPPER(8, 4, 10)
+      HIGHBD_OBFP_WRAPPER(4, 4, 10)
+      HIGHBD_OBFP_WRAPPER(64, 16, 10)
+      HIGHBD_OBFP_WRAPPER(16, 64, 10)
+      HIGHBD_OBFP_WRAPPER(32, 8, 10)
+      HIGHBD_OBFP_WRAPPER(8, 32, 10)
+      HIGHBD_OBFP_WRAPPER(16, 4, 10)
+      HIGHBD_OBFP_WRAPPER(4, 16, 10)
 
-        HIGHBD_SDSFP_WRAPPER(128, 128, 10);
-        HIGHBD_SDSFP_WRAPPER(128, 64, 10);
-        HIGHBD_SDSFP_WRAPPER(64, 128, 10);
-        HIGHBD_SDSFP_WRAPPER(64, 64, 10);
-        HIGHBD_SDSFP_WRAPPER(64, 32, 10);
-        HIGHBD_SDSFP_WRAPPER(64, 16, 10);
-        HIGHBD_SDSFP_WRAPPER(32, 64, 10);
-        HIGHBD_SDSFP_WRAPPER(32, 32, 10);
-        HIGHBD_SDSFP_WRAPPER(32, 16, 10);
-        HIGHBD_SDSFP_WRAPPER(32, 8, 10);
-        HIGHBD_SDSFP_WRAPPER(16, 64, 10);
-        HIGHBD_SDSFP_WRAPPER(16, 32, 10);
-        HIGHBD_SDSFP_WRAPPER(16, 16, 10);
-        HIGHBD_SDSFP_WRAPPER(16, 8, 10);
-        HIGHBD_SDSFP_WRAPPER(8, 16, 10);
-        HIGHBD_SDSFP_WRAPPER(8, 8, 10);
-        HIGHBD_SDSFP_WRAPPER(4, 16, 10);
-        HIGHBD_SDSFP_WRAPPER(4, 8, 10);
-        HIGHBD_SDSFP_WRAPPER(8, 32, 10);
-        break;
+      HIGHBD_SDSFP_WRAPPER(128, 128, 10);
+      HIGHBD_SDSFP_WRAPPER(128, 64, 10);
+      HIGHBD_SDSFP_WRAPPER(64, 128, 10);
+      HIGHBD_SDSFP_WRAPPER(64, 64, 10);
+      HIGHBD_SDSFP_WRAPPER(64, 32, 10);
+      HIGHBD_SDSFP_WRAPPER(64, 16, 10);
+      HIGHBD_SDSFP_WRAPPER(32, 64, 10);
+      HIGHBD_SDSFP_WRAPPER(32, 32, 10);
+      HIGHBD_SDSFP_WRAPPER(32, 16, 10);
+      HIGHBD_SDSFP_WRAPPER(32, 8, 10);
+      HIGHBD_SDSFP_WRAPPER(16, 64, 10);
+      HIGHBD_SDSFP_WRAPPER(16, 32, 10);
+      HIGHBD_SDSFP_WRAPPER(16, 16, 10);
+      HIGHBD_SDSFP_WRAPPER(16, 8, 10);
+      HIGHBD_SDSFP_WRAPPER(8, 16, 10);
+      HIGHBD_SDSFP_WRAPPER(8, 8, 10);
+      HIGHBD_SDSFP_WRAPPER(4, 16, 10);
+      HIGHBD_SDSFP_WRAPPER(4, 8, 10);
+      HIGHBD_SDSFP_WRAPPER(8, 32, 10);
+      break;
 
-      case AOM_BITS_12:
-        HIGHBD_BFP_WRAPPER(64, 16, 12)
-        HIGHBD_BFP_WRAPPER(16, 64, 12)
-        HIGHBD_BFP_WRAPPER(32, 8, 12)
-        HIGHBD_BFP_WRAPPER(8, 32, 12)
-        HIGHBD_BFP_WRAPPER(16, 4, 12)
-        HIGHBD_BFP_WRAPPER(4, 16, 12)
-        HIGHBD_BFP_WRAPPER(32, 16, 12)
-        HIGHBD_BFP_WRAPPER(16, 32, 12)
-        HIGHBD_BFP_WRAPPER(64, 32, 12)
-        HIGHBD_BFP_WRAPPER(32, 64, 12)
-        HIGHBD_BFP_WRAPPER(32, 32, 12)
-        HIGHBD_BFP_WRAPPER(64, 64, 12)
-        HIGHBD_BFP_WRAPPER(16, 16, 12)
-        HIGHBD_BFP_WRAPPER(16, 8, 12)
-        HIGHBD_BFP_WRAPPER(8, 16, 12)
-        HIGHBD_BFP_WRAPPER(8, 8, 12)
-        HIGHBD_BFP_WRAPPER(8, 4, 12)
-        HIGHBD_BFP_WRAPPER(4, 8, 12)
-        HIGHBD_BFP_WRAPPER(4, 4, 12)
-        HIGHBD_BFP_WRAPPER(128, 128, 12)
-        HIGHBD_BFP_WRAPPER(128, 64, 12)
-        HIGHBD_BFP_WRAPPER(64, 128, 12)
+    case AOM_BITS_12:
+      HIGHBD_BFP_WRAPPER(64, 16, 12)
+      HIGHBD_BFP_WRAPPER(16, 64, 12)
+      HIGHBD_BFP_WRAPPER(32, 8, 12)
+      HIGHBD_BFP_WRAPPER(8, 32, 12)
+      HIGHBD_BFP_WRAPPER(16, 4, 12)
+      HIGHBD_BFP_WRAPPER(4, 16, 12)
+      HIGHBD_BFP_WRAPPER(32, 16, 12)
+      HIGHBD_BFP_WRAPPER(16, 32, 12)
+      HIGHBD_BFP_WRAPPER(64, 32, 12)
+      HIGHBD_BFP_WRAPPER(32, 64, 12)
+      HIGHBD_BFP_WRAPPER(32, 32, 12)
+      HIGHBD_BFP_WRAPPER(64, 64, 12)
+      HIGHBD_BFP_WRAPPER(16, 16, 12)
+      HIGHBD_BFP_WRAPPER(16, 8, 12)
+      HIGHBD_BFP_WRAPPER(8, 16, 12)
+      HIGHBD_BFP_WRAPPER(8, 8, 12)
+      HIGHBD_BFP_WRAPPER(8, 4, 12)
+      HIGHBD_BFP_WRAPPER(4, 8, 12)
+      HIGHBD_BFP_WRAPPER(4, 4, 12)
+      HIGHBD_BFP_WRAPPER(128, 128, 12)
+      HIGHBD_BFP_WRAPPER(128, 64, 12)
+      HIGHBD_BFP_WRAPPER(64, 128, 12)
 
-        HIGHBD_MBFP_WRAPPER(128, 128, 12)
-        HIGHBD_MBFP_WRAPPER(128, 64, 12)
-        HIGHBD_MBFP_WRAPPER(64, 128, 12)
-        HIGHBD_MBFP_WRAPPER(64, 64, 12)
-        HIGHBD_MBFP_WRAPPER(64, 32, 12)
-        HIGHBD_MBFP_WRAPPER(32, 64, 12)
-        HIGHBD_MBFP_WRAPPER(32, 32, 12)
-        HIGHBD_MBFP_WRAPPER(32, 16, 12)
-        HIGHBD_MBFP_WRAPPER(16, 32, 12)
-        HIGHBD_MBFP_WRAPPER(16, 16, 12)
-        HIGHBD_MBFP_WRAPPER(8, 16, 12)
-        HIGHBD_MBFP_WRAPPER(16, 8, 12)
-        HIGHBD_MBFP_WRAPPER(8, 8, 12)
-        HIGHBD_MBFP_WRAPPER(4, 8, 12)
-        HIGHBD_MBFP_WRAPPER(8, 4, 12)
-        HIGHBD_MBFP_WRAPPER(4, 4, 12)
-        HIGHBD_MBFP_WRAPPER(64, 16, 12)
-        HIGHBD_MBFP_WRAPPER(16, 64, 12)
-        HIGHBD_MBFP_WRAPPER(32, 8, 12)
-        HIGHBD_MBFP_WRAPPER(8, 32, 12)
-        HIGHBD_MBFP_WRAPPER(16, 4, 12)
-        HIGHBD_MBFP_WRAPPER(4, 16, 12)
+      HIGHBD_MBFP_WRAPPER(128, 128, 12)
+      HIGHBD_MBFP_WRAPPER(128, 64, 12)
+      HIGHBD_MBFP_WRAPPER(64, 128, 12)
+      HIGHBD_MBFP_WRAPPER(64, 64, 12)
+      HIGHBD_MBFP_WRAPPER(64, 32, 12)
+      HIGHBD_MBFP_WRAPPER(32, 64, 12)
+      HIGHBD_MBFP_WRAPPER(32, 32, 12)
+      HIGHBD_MBFP_WRAPPER(32, 16, 12)
+      HIGHBD_MBFP_WRAPPER(16, 32, 12)
+      HIGHBD_MBFP_WRAPPER(16, 16, 12)
+      HIGHBD_MBFP_WRAPPER(8, 16, 12)
+      HIGHBD_MBFP_WRAPPER(16, 8, 12)
+      HIGHBD_MBFP_WRAPPER(8, 8, 12)
+      HIGHBD_MBFP_WRAPPER(4, 8, 12)
+      HIGHBD_MBFP_WRAPPER(8, 4, 12)
+      HIGHBD_MBFP_WRAPPER(4, 4, 12)
+      HIGHBD_MBFP_WRAPPER(64, 16, 12)
+      HIGHBD_MBFP_WRAPPER(16, 64, 12)
+      HIGHBD_MBFP_WRAPPER(32, 8, 12)
+      HIGHBD_MBFP_WRAPPER(8, 32, 12)
+      HIGHBD_MBFP_WRAPPER(16, 4, 12)
+      HIGHBD_MBFP_WRAPPER(4, 16, 12)
 
-        HIGHBD_OBFP_WRAPPER(128, 128, 12)
-        HIGHBD_OBFP_WRAPPER(128, 64, 12)
-        HIGHBD_OBFP_WRAPPER(64, 128, 12)
-        HIGHBD_OBFP_WRAPPER(64, 64, 12)
-        HIGHBD_OBFP_WRAPPER(64, 32, 12)
-        HIGHBD_OBFP_WRAPPER(32, 64, 12)
-        HIGHBD_OBFP_WRAPPER(32, 32, 12)
-        HIGHBD_OBFP_WRAPPER(32, 16, 12)
-        HIGHBD_OBFP_WRAPPER(16, 32, 12)
-        HIGHBD_OBFP_WRAPPER(16, 16, 12)
-        HIGHBD_OBFP_WRAPPER(8, 16, 12)
-        HIGHBD_OBFP_WRAPPER(16, 8, 12)
-        HIGHBD_OBFP_WRAPPER(8, 8, 12)
-        HIGHBD_OBFP_WRAPPER(4, 8, 12)
-        HIGHBD_OBFP_WRAPPER(8, 4, 12)
-        HIGHBD_OBFP_WRAPPER(4, 4, 12)
-        HIGHBD_OBFP_WRAPPER(64, 16, 12)
-        HIGHBD_OBFP_WRAPPER(16, 64, 12)
-        HIGHBD_OBFP_WRAPPER(32, 8, 12)
-        HIGHBD_OBFP_WRAPPER(8, 32, 12)
-        HIGHBD_OBFP_WRAPPER(16, 4, 12)
-        HIGHBD_OBFP_WRAPPER(4, 16, 12)
+      HIGHBD_OBFP_WRAPPER(128, 128, 12)
+      HIGHBD_OBFP_WRAPPER(128, 64, 12)
+      HIGHBD_OBFP_WRAPPER(64, 128, 12)
+      HIGHBD_OBFP_WRAPPER(64, 64, 12)
+      HIGHBD_OBFP_WRAPPER(64, 32, 12)
+      HIGHBD_OBFP_WRAPPER(32, 64, 12)
+      HIGHBD_OBFP_WRAPPER(32, 32, 12)
+      HIGHBD_OBFP_WRAPPER(32, 16, 12)
+      HIGHBD_OBFP_WRAPPER(16, 32, 12)
+      HIGHBD_OBFP_WRAPPER(16, 16, 12)
+      HIGHBD_OBFP_WRAPPER(8, 16, 12)
+      HIGHBD_OBFP_WRAPPER(16, 8, 12)
+      HIGHBD_OBFP_WRAPPER(8, 8, 12)
+      HIGHBD_OBFP_WRAPPER(4, 8, 12)
+      HIGHBD_OBFP_WRAPPER(8, 4, 12)
+      HIGHBD_OBFP_WRAPPER(4, 4, 12)
+      HIGHBD_OBFP_WRAPPER(64, 16, 12)
+      HIGHBD_OBFP_WRAPPER(16, 64, 12)
+      HIGHBD_OBFP_WRAPPER(32, 8, 12)
+      HIGHBD_OBFP_WRAPPER(8, 32, 12)
+      HIGHBD_OBFP_WRAPPER(16, 4, 12)
+      HIGHBD_OBFP_WRAPPER(4, 16, 12)
 
-        HIGHBD_SDSFP_WRAPPER(128, 128, 12);
-        HIGHBD_SDSFP_WRAPPER(128, 64, 12);
-        HIGHBD_SDSFP_WRAPPER(64, 128, 12);
-        HIGHBD_SDSFP_WRAPPER(64, 64, 12);
-        HIGHBD_SDSFP_WRAPPER(64, 32, 12);
-        HIGHBD_SDSFP_WRAPPER(64, 16, 12);
-        HIGHBD_SDSFP_WRAPPER(32, 64, 12);
-        HIGHBD_SDSFP_WRAPPER(32, 32, 12);
-        HIGHBD_SDSFP_WRAPPER(32, 16, 12);
-        HIGHBD_SDSFP_WRAPPER(32, 8, 12);
-        HIGHBD_SDSFP_WRAPPER(16, 64, 12);
-        HIGHBD_SDSFP_WRAPPER(16, 32, 12);
-        HIGHBD_SDSFP_WRAPPER(16, 16, 12);
-        HIGHBD_SDSFP_WRAPPER(16, 8, 12);
-        HIGHBD_SDSFP_WRAPPER(8, 16, 12);
-        HIGHBD_SDSFP_WRAPPER(8, 8, 12);
-        HIGHBD_SDSFP_WRAPPER(4, 16, 12);
-        HIGHBD_SDSFP_WRAPPER(4, 8, 12);
-        HIGHBD_SDSFP_WRAPPER(8, 32, 12);
-        break;
+      HIGHBD_SDSFP_WRAPPER(128, 128, 12);
+      HIGHBD_SDSFP_WRAPPER(128, 64, 12);
+      HIGHBD_SDSFP_WRAPPER(64, 128, 12);
+      HIGHBD_SDSFP_WRAPPER(64, 64, 12);
+      HIGHBD_SDSFP_WRAPPER(64, 32, 12);
+      HIGHBD_SDSFP_WRAPPER(64, 16, 12);
+      HIGHBD_SDSFP_WRAPPER(32, 64, 12);
+      HIGHBD_SDSFP_WRAPPER(32, 32, 12);
+      HIGHBD_SDSFP_WRAPPER(32, 16, 12);
+      HIGHBD_SDSFP_WRAPPER(32, 8, 12);
+      HIGHBD_SDSFP_WRAPPER(16, 64, 12);
+      HIGHBD_SDSFP_WRAPPER(16, 32, 12);
+      HIGHBD_SDSFP_WRAPPER(16, 16, 12);
+      HIGHBD_SDSFP_WRAPPER(16, 8, 12);
+      HIGHBD_SDSFP_WRAPPER(8, 16, 12);
+      HIGHBD_SDSFP_WRAPPER(8, 8, 12);
+      HIGHBD_SDSFP_WRAPPER(4, 16, 12);
+      HIGHBD_SDSFP_WRAPPER(4, 8, 12);
+      HIGHBD_SDSFP_WRAPPER(8, 32, 12);
+      break;
 
-      default:
-        assert(0 &&
-               "cm->seq_params.bit_depth should be AOM_BITS_8, "
-               "AOM_BITS_10 or AOM_BITS_12");
-    }
+    default:
+      assert(0 &&
+             "cm->seq_params.bit_depth should be AOM_BITS_8, "
+             "AOM_BITS_10 or AOM_BITS_12");
   }
 }
 
@@ -810,7 +829,11 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
       cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
     av1_copy(frame_probs->obmc_probs, default_obmc_probs);
   }
-  if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+  if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      || cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+  ) {
     av1_copy(frame_probs->warped_probs, default_warped_probs);
   }
 }
@@ -832,9 +855,7 @@ static AOM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
   return a->y_height == b->y_height && a->y_width == b->y_width &&
          a->uv_height == b->uv_height && a->uv_width == b->uv_width &&
          a->y_stride == b->y_stride && a->uv_stride == b->uv_stride &&
-         a->border == b->border &&
-         (a->flags & YV12_FLAG_HIGHBITDEPTH) ==
-             (b->flags & YV12_FLAG_HIGHBITDEPTH);
+         a->border == b->border;
 }
 
 static AOM_INLINE int update_entropy(bool *ext_refresh_frame_context,
@@ -863,7 +884,7 @@ static AOM_INLINE int combine_prior_with_tpl_boost(double min_factor,
 static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   int i;
   AV1_COMMON *const cm = &cpi->common;
-  for (i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
+  for (i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;
   }
   cpi->gm_info.search_done = 0;
@@ -871,7 +892,9 @@ static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   av1_set_speed_features_framesize_independent(cpi, cpi->speed);
   av1_set_rd_speed_thresholds(cpi);
   cm->features.interp_filter = SWITCHABLE;
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   cm->features.switchable_motion_mode = 1;
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_OPTFLOW_REFINEMENT
   cm->features.opfl_refine_type = REFINE_SWITCHABLE;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -959,10 +982,6 @@ void av1_apply_active_map(AV1_COMP *cpi);
 uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi);
 
 void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig);
-
-int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
-                                       const int *const global_motion_used,
-                                       int *const gm_params_cost);
 
 void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
                                  int *top_index);

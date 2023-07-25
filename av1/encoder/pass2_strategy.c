@@ -45,6 +45,8 @@
 #define DEFAULT_KF_BOOST 2300
 #define DEFAULT_GF_BOOST 2000
 #define GROUP_ADAPTIVE_MAXQ 1
+#define GF_BOOST_SCALE 50
+
 static void init_gf_stats(GF_GROUP_STATS *gf_stats);
 
 // Calculate an active area of the image that discounts formatting
@@ -167,7 +169,7 @@ static void twopass_update_bpm_factor(TWO_PASS *twopass) {
 }
 
 static int qbpm_enumerator(int rate_err_tol) {
-  return 1250000 + ((300000 * AOMMIN(75, AOMMAX(rate_err_tol - 25, 0))) / 75);
+  return 625000 + 150000 * AOMMIN(75, AOMMAX(rate_err_tol - 25, 0)) / 75;
 }
 
 // Similar to find_qindex_by_rate() function in ratectrl.c, but includes
@@ -502,7 +504,7 @@ static double calc_frame_boost(const RATE_CONTROL *rc,
   double frame_boost;
   const double lq = av1_convert_qindex_to_q(rc->avg_frame_qindex[INTER_FRAME],
                                             frame_info->bit_depth);
-  const double boost_q_correction = AOMMIN((0.5 + (lq * 0.015)), 1.5);
+  const double boost_q_correction = AOMMIN((0.5 + (lq * 0.030)), 1.5);
   const double active_area = calculate_active_area(frame_info, this_frame);
   int num_mbs = frame_info->num_mbs;
 
@@ -534,7 +536,7 @@ static double calc_kf_frame_boost(const RATE_CONTROL *rc,
   double frame_boost;
   const double lq = av1_convert_qindex_to_q(rc->avg_frame_qindex[INTER_FRAME],
                                             frame_info->bit_depth);
-  const double boost_q_correction = AOMMIN((0.50 + (lq * 0.015)), 2.00);
+  const double boost_q_correction = AOMMIN((0.50 + (lq * 0.030)), 2.00);
   const double active_area = calculate_active_area(frame_info, this_frame);
   int num_mbs = frame_info->num_mbs;
 
@@ -671,8 +673,8 @@ int av1_calc_arf_boost(const TWO_PASS *twopass, const RATE_CONTROL *rc,
     }
   }
 
-  if (arf_boost < ((b_frames + f_frames) * 50))
-    arf_boost = ((b_frames + f_frames) * 50);
+  if (arf_boost < ((b_frames + f_frames) * GF_BOOST_SCALE))
+    arf_boost = ((b_frames + f_frames) * GF_BOOST_SCALE);
 
   return arf_boost;
 }
@@ -1208,8 +1210,8 @@ void set_last_prev_low_err(int *cur_start_ptr, int *cur_last_ptr, int *cut_pos,
  * \param[in]    max_intervals       Maximum number of intervals to decide
  * \param[in]    curr_frame_type     Frame type of the current frame in subgop
  *
- * \return Nothing is returned. Instead, cpi->rc.gf_intervals is
- * changed to store the decided GF group lengths.
+ * Nothing is returned. Instead, cpi->rc.gf_intervals is changed to store
+ * the decided GF group lengths.
  */
 static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
                                 int max_intervals, FRAME_TYPE curr_frame_type) {
@@ -1266,7 +1268,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
 
     // reaches next key frame, break here
     if (i >= rc->frames_to_key) {
-      cut_pos[count_cuts] = AOMMIN(i, active_max_gf_interval);
+      cut_pos[count_cuts] = i;
       // When there exists a single subgop in a kf-interval, correct the
       // gf_interval appropriately. gf-interval always accounts only for the
       // total number of inter frames in the sub-gop.
@@ -1279,6 +1281,7 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
       // curr_frame_type == KEY_FRAME, which is the only frame in subgop,
       // then gf-interval will account for KEY_FRAME.
       if (is_keyframe_subgop) cut_pos[count_cuts] = cut_pos[count_cuts] - 1;
+      cut_pos[count_cuts] = AOMMIN(cut_pos[count_cuts], active_max_gf_interval);
       count_cuts++;
       break;
     }
@@ -1440,7 +1443,7 @@ static int is_last_subgop(AV1_COMP *cpi) {
  * \param[in]    cpi               Top-level encoder structure
  * \param[in]    curr_frame_type   Frame type of the current frame in subgop
  *
- * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ * Nothing is returned. Instead, cpi->gf_group is changed.
  */
 static void define_gf_group_pass0(AV1_COMP *cpi, FRAME_TYPE curr_frame_type) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -1606,7 +1609,7 @@ static void init_gf_stats(GF_GROUP_STATS *gf_stats) {
  * \param[in]    frame_params    Structure with frame parameters
  * \param[in]    max_gop_length  Maximum length of the GF group
  *
- * \return Nothing is returned. Instead, cpi->gf_group is changed.
+ * Nothing is returned. Instead, cpi->gf_group is changed.
  */
 static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                             EncodeFrameParams *frame_params,
@@ -1800,22 +1803,40 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
                                    : AOMMAX(0, rc->frames_to_key - i + 1);
 
     // Calculate the boost for alt ref.
-    rc->gfu_boost = av1_calc_arf_boost(
-        twopass, rc, frame_info, alt_offset, forward_frames, (i - 1),
-        cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
-        cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL);
+    if (cpi->oxcf.rc_cfg.mode == AOM_Q &&
+        cpi->oxcf.q_cfg.use_fixed_qp_offsets) {
+      const int b_frames = i - 1;
+      const int f_frames = forward_frames;
+      rc->gfu_boost =
+          AOMMIN(MAX_GF_BOOST, (b_frames + f_frames) * GF_BOOST_SCALE);
+    } else {
+      rc->gfu_boost = AOMMIN(
+          MAX_GF_BOOST,
+          av1_calc_arf_boost(
+              twopass, rc, frame_info, alt_offset, forward_frames, (i - 1),
+              cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
+              cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL));
+    }
   } else {
     reset_fpf_position(twopass, start_pos);
     gf_group->max_layer_depth_allowed = 0;
     set_baseline_gf_interval(cpi, (i - 1), active_max_gf_interval, use_alt_ref,
                              frame_params->frame_type);
 
-    rc->gfu_boost = AOMMIN(
-        MAX_GF_BOOST,
-        av1_calc_arf_boost(
-            twopass, rc, frame_info, alt_offset, (i - 1), 0,
-            cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
-            cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL));
+    if (cpi->oxcf.rc_cfg.mode == AOM_Q &&
+        cpi->oxcf.q_cfg.use_fixed_qp_offsets) {
+      const int b_frames = 0;
+      const int f_frames = i - 1;
+      rc->gfu_boost =
+          AOMMIN(MAX_GF_BOOST, (b_frames + f_frames) * GF_BOOST_SCALE);
+    } else {
+      rc->gfu_boost = AOMMIN(
+          MAX_GF_BOOST,
+          av1_calc_arf_boost(
+              twopass, rc, frame_info, alt_offset, (i - 1), 0,
+              cpi->lap_enabled ? &rc->num_stats_used_for_gfu_boost : NULL,
+              cpi->lap_enabled ? &rc->num_stats_required_for_gfu_boost : NULL));
+    }
   }
 
   // rc->gf_intervals assumes the usage of alt_ref, therefore adding one overlay
@@ -2277,8 +2298,8 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
           cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap / 10.0;
       /* Get the average corpus complexity of the frame */
       vbr_corpus_complexity_lap = vbr_corpus_complexity_lap * num_mbs;
-      kf_group_bits = (int64_t)(
-          kf_group_bits * (kf_group_avg_error / vbr_corpus_complexity_lap));
+      kf_group_bits = (int64_t)(kf_group_bits * (kf_group_avg_error /
+                                                 vbr_corpus_complexity_lap));
     }
   } else {
     kf_group_bits = (int64_t)(twopass->bits_left *
@@ -2397,8 +2418,6 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
  *
  * \param[in]    cpi              Top-level encoder structure
  * \param[in]    this_frame       Pointer to first pass stats
- *
- * \return Nothing is returned.
  */
 static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   RATE_CONTROL *const rc = &cpi->rc;
@@ -2730,10 +2749,11 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     subtract_stats(twopass->stats_buf_ctx->total_left_stats, this_frame);
 
   // Set the frame content type flag.
-  if (this_frame->intra_skip_pct >= FC_ANIMATION_THRESH)
-    twopass->fr_content_type = FC_GRAPHICS_ANIMATION;
-  else
-    twopass->fr_content_type = FC_NORMAL;
+  twopass->fr_content_type = FC_HIGHMOTION;
+  if (!(cpi->oxcf.rc_cfg.mode == AOM_Q && cpi->oxcf.q_cfg.use_fixed_qp_offsets))
+    if (this_frame->intra_skip_pct < FC_HIGHMOTION_THRESH)
+      twopass->fr_content_type = FC_NORMAL;
+  // Note for typical sequences FC_HIGHMOTION is chosen a majority of the time
 }
 
 static void setup_target_rate(AV1_COMP *cpi) {

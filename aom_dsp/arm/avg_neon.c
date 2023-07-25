@@ -16,38 +16,6 @@
 #include "av1/common/arm/mem_neon.h"
 #include "av1/common/arm/transpose_neon.h"
 
-unsigned int aom_avg_4x4_neon(const uint8_t *a, int a_stride) {
-  const uint8x16_t b = load_unaligned_u8q(a, a_stride);
-  const uint16x8_t c = vaddl_u8(vget_low_u8(b), vget_high_u8(b));
-#if defined(__aarch64__)
-  const uint32_t d = vaddlvq_u16(c);
-  return (d + 8) >> 4;
-#else
-  const uint32x2_t d = horizontal_add_u16x8(c);
-  return vget_lane_u32(vrshr_n_u32(d, 4), 0);
-#endif
-}
-
-unsigned int aom_avg_8x8_neon(const uint8_t *a, int a_stride) {
-  uint16x8_t sum;
-  uint32x2_t d;
-  uint8x8_t b = vld1_u8(a);
-  a += a_stride;
-  uint8x8_t c = vld1_u8(a);
-  a += a_stride;
-  sum = vaddl_u8(b, c);
-
-  for (int i = 0; i < 6; ++i) {
-    const uint8x8_t e = vld1_u8(a);
-    a += a_stride;
-    sum = vaddw_u8(sum, e);
-  }
-
-  d = horizontal_add_u16x8(sum);
-
-  return vget_lane_u32(vrshr_n_u32(d, 6), 0);
-}
-
 int aom_satd_lp_neon(const int16_t *coeff, int length) {
   const int16x4_t zero = vdup_n_s16(0);
   int32x4_t accum = vdupq_n_s32(0);
@@ -71,60 +39,6 @@ int aom_satd_lp_neon(const int16_t *coeff, int length) {
     const int satd = vget_lane_s32(s1, 0);
     return satd;
   }
-}
-
-void aom_int_pro_row_neon(int16_t hbuf[16], const uint8_t *ref,
-                          const int ref_stride, const int height) {
-  int i;
-  const uint8_t *idx = ref;
-  uint16x8_t vec0 = vdupq_n_u16(0);
-  uint16x8_t vec1 = vec0;
-  uint8x16_t tmp;
-
-  for (i = 0; i < height; ++i) {
-    tmp = vld1q_u8(idx);
-    idx += ref_stride;
-    vec0 = vaddw_u8(vec0, vget_low_u8(tmp));
-    vec1 = vaddw_u8(vec1, vget_high_u8(tmp));
-  }
-
-  if (128 == height) {
-    vec0 = vshrq_n_u16(vec0, 6);
-    vec1 = vshrq_n_u16(vec1, 6);
-  } else if (64 == height) {
-    vec0 = vshrq_n_u16(vec0, 5);
-    vec1 = vshrq_n_u16(vec1, 5);
-  } else if (32 == height) {
-    vec0 = vshrq_n_u16(vec0, 4);
-    vec1 = vshrq_n_u16(vec1, 4);
-  } else if (16 == height) {
-    vec0 = vshrq_n_u16(vec0, 3);
-    vec1 = vshrq_n_u16(vec1, 3);
-  }
-
-  vst1q_s16(hbuf, vreinterpretq_s16_u16(vec0));
-  hbuf += 8;
-  vst1q_s16(hbuf, vreinterpretq_s16_u16(vec1));
-}
-
-int16_t aom_int_pro_col_neon(const uint8_t *ref, const int width) {
-  const uint8_t *idx;
-  uint16x8_t sum = vdupq_n_u16(0);
-
-  for (idx = ref; idx < (ref + width); idx += 16) {
-    uint8x16_t vec = vld1q_u8(idx);
-    sum = vaddq_u16(sum, vpaddlq_u8(vec));
-  }
-
-#if defined(__aarch64__)
-  return (int16_t)vaddvq_u16(sum);
-#else
-  const uint32x4_t a = vpaddlq_u16(sum);
-  const uint64x2_t b = vpaddlq_u32(a);
-  const uint32x2_t c = vadd_u32(vreinterpret_u32_u64(vget_low_u64(b)),
-                                vreinterpret_u32_u64(vget_high_u64(b)));
-  return (int16_t)vget_lane_u32(c, 0);
-#endif
 }
 
 // coeff: 16 bits, dynamic range [-32640, 32640].

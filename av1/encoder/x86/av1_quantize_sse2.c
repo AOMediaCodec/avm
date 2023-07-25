@@ -136,7 +136,6 @@ static INLINE void quantize(const int16_t *iscan_ptr,
   }
 }
 
-#if CONFIG_EXTQUANT
 void av1_quantize_fp_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           const int32_t *zbin_ptr, const int32_t *round_ptr,
                           const int32_t *quant_ptr,
@@ -144,15 +143,6 @@ void av1_quantize_fp_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                           tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
                           const int32_t *dequant_ptr, uint16_t *eob_ptr,
                           const int16_t *scan_ptr, const int16_t *iscan_ptr) {
-#else
-void av1_quantize_fp_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
-                          const int16_t *zbin_ptr, const int16_t *round_ptr,
-                          const int16_t *quant_ptr,
-                          const int16_t *quant_shift_ptr,
-                          tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                          const int16_t *dequant_ptr, uint16_t *eob_ptr,
-                          const int16_t *scan_ptr, const int16_t *iscan_ptr) {
-#endif
   (void)scan_ptr;
   (void)zbin_ptr;
   (void)quant_shift_ptr;

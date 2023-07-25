@@ -29,10 +29,21 @@ extern "C" {
 // allowed initial step
 #define MAX_MVSEARCH_STEPS 11
 // Max full pel mv specified in the unit of full pixel
+#if CONFIG_MV_SEARCH_RANGE
+// Enable the use of motion vector in range [-2047, 2047].
+#define MAX_FULL_PEL_VAL ((1 << MV_CLASSES) - 1)
+#else
 // Enable the use of motion vector in range [-1023, 1023].
 #define MAX_FULL_PEL_VAL ((1 << (MAX_MVSEARCH_STEPS - 1)) - 1)
+#endif  // CONFIG_MV_SEARCH_RANGE
 // Maximum size of the first step in full pel units
 #define MAX_FIRST_STEP (1 << (MAX_MVSEARCH_STEPS - 1))
+// Maximum number of neighbors to scan per iteration during
+// WARPED_CAUSAL refinement
+// Note: The elements of warp_search_config.neighbor_mask must be at least
+// MAX_WARP_SEARCH_NEIGHBORS many bits wide. So the type may need to be
+// widened if this value is increased.
+#define MAX_WARP_SEARCH_NEIGHBORS 8
 
 #define SEARCH_RANGE_8P 3
 #define SEARCH_GRID_STRIDE_8P (2 * SEARCH_RANGE_8P + 1)
@@ -62,44 +73,57 @@ typedef struct {
 struct AV1_COMP;
 struct SPEED_FEATURES;
 
-// =============================================================================
-//  Cost functions
-// =============================================================================
-
-enum {
-  MV_COST_ENTROPY,    // Use the entropy rate of the mv as the cost
-  MV_COST_L1_LOWRES,  // Use the l1 norm of the mv as the cost (<480p)
-  MV_COST_L1_MIDRES,  // Use the l1 norm of the mv as the cost (>=480p)
-  MV_COST_L1_HDRES,   // Use the l1 norm of the mv as the cost (>=720p)
-  MV_COST_NONE        // Use 0 as as cost irrespective of the current mv
-} UENUM1BYTE(MV_COST_TYPE);
-
 typedef struct {
   // The reference mv used to compute the mv cost
   const MV *ref_mv;
   FULLPEL_MV full_ref_mv;
   MV_COST_TYPE mv_cost_type;
+#if !CONFIG_FLEX_MVRES
   const int *mvjcost;
   const int *mvcost[2];
   int error_per_bit;
   // A multiplier used to convert rate to sad cost
   int sad_per_bit;
-} MV_COST_PARAMS;
+#else
+  // Stores the entropy table needed to signal an mv. Includes the joint-mv cost
+  // and the diff cost.
+  const MvCosts *mv_costs;
+  MvSubpelPrecision pb_mv_precision;
+#if CONFIG_ADAPTIVE_MVD
+  int is_adaptive_mvd;
+#endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_BVCOST_UPDATE
+  int is_ibc_cost;
+#endif
+#endif
 
+} MV_COST_PARAMS;
+#if CONFIG_FLEX_MVRES
+int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
+                    const MvSubpelPrecision pb_mv_precision,
+                    const MvCosts *mv_costs, int weight
+#if CONFIG_ADAPTIVE_MVD
+                    ,
+                    const int is_adaptive_mvd
+#endif
+);
+
+int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
+                            const IntraBCMvCosts *mv_costs, int weight);
+#else
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv, const int *mvjcost,
                     int *mvcost[2], int weight);
+#endif
 
 int av1_get_mvpred_sse(const MV_COST_PARAMS *mv_cost_params,
                        const FULLPEL_MV best_mv,
                        const aom_variance_fn_ptr_t *vfp,
                        const struct buf_2d *src, const struct buf_2d *pre);
-int av1_get_mvpred_compound_var(const MV_COST_PARAMS *ms_params,
-                                const FULLPEL_MV best_mv,
-                                const uint8_t *second_pred, const uint8_t *mask,
-                                int mask_stride, int invert_mask,
-                                const aom_variance_fn_ptr_t *vfp,
-                                const struct buf_2d *src,
-                                const struct buf_2d *pre);
+int av1_get_mvpred_compound_var(
+    const MV_COST_PARAMS *ms_params, const FULLPEL_MV best_mv,
+    const uint16_t *second_pred, const uint8_t *mask, int mask_stride,
+    int invert_mask, const aom_variance_fn_ptr_t *vfp, const struct buf_2d *src,
+    const struct buf_2d *pre);
 
 // =============================================================================
 //  Motion Search
@@ -110,7 +134,7 @@ typedef struct {
 
   // The source and predictors/mask used by translational search
   const struct buf_2d *src;
-  const uint8_t *second_pred;
+  const uint16_t *second_pred;
   const uint8_t *mask;
   int mask_stride;
   int inv_mask;
@@ -121,7 +145,7 @@ typedef struct {
 } MSBuffers;
 
 static INLINE void av1_set_ms_compound_refs(MSBuffers *ms_buffers,
-                                            const uint8_t *second_pred,
+                                            const uint16_t *second_pred,
                                             const uint8_t *mask,
                                             int mask_stride, int invert_mask) {
   ms_buffers->second_pred = second_pred;
@@ -161,6 +185,24 @@ enum {
   NUM_DISTINCT_SEARCH_METHODS = SQUARE + 1,
 } UENUM1BYTE(SEARCH_METHODS);
 
+typedef struct warp_search_config {
+  int num_neighbors;
+  MV neighbors[MAX_WARP_SEARCH_NEIGHBORS];
+  // Bitmask which is used to prune the search neighbors at one iteration
+  // based on which direction we chose in the previous iteration.
+  // See comments in av1_refine_warped_mv for details.
+  uint8_t neighbor_mask[MAX_WARP_SEARCH_NEIGHBORS];
+} warp_search_config;
+
+// Methods for refining WARPED_CAUSAL motion vectors
+enum {
+  // Search 4 adjacent points in a diamond shape at each iteration
+  WARP_SEARCH_DIAMOND,
+  // Search 8 adjacent points in a square at each iteration
+  WARP_SEARCH_SQUARE,
+  WARP_SEARCH_METHODS
+} UENUM1BYTE(WARP_SEARCH_METHOD);
+
 // This struct holds fullpixel motion search parameters that should be constant
 // during the search
 typedef struct {
@@ -175,6 +217,11 @@ typedef struct {
   int mi_row;
   int mi_col;
 #endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_BVP_IMPROVEMENT
+  MACROBLOCK *x;
+  int ref_bv_cnt;
+#endif  // CONFIG_BVP_IMPROVEMENT
+
   MSBuffers ms_buffers;
 
   // WARNING: search_method should be regarded as a private variable and should
@@ -212,6 +259,12 @@ typedef struct {
 void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
+#if CONFIG_FLEX_MVRES
+    const MvSubpelPrecision pb_mv_precision,
+#if CONFIG_BVCOST_UPDATE
+    const int is_ibc_cost,
+#endif
+#endif
     const search_site_config search_sites[NUM_DISTINCT_SEARCH_METHODS],
     int fine_search_interval);
 
@@ -232,7 +285,7 @@ void av1_init_motion_compensation_square(search_site_config *cfg, int stride);
 // Mv beyond the range do not produce new/different prediction block.
 static INLINE void av1_set_mv_search_method(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-    const search_site_config search_sites[NUM_SEARCH_METHODS],
+    const search_site_config search_sites[NUM_DISTINCT_SEARCH_METHODS],
     SEARCH_METHODS search_method) {
   // Array to inform which all search methods are having
   // same candidates and different in number of search steps.
@@ -287,17 +340,26 @@ static INLINE void av1_set_mv_limits(
   av1_set_mv_col_limits(mi_params, mv_limits, mi_col, mi_width, border);
 }
 
-void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv);
+void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
+#if CONFIG_FLEX_MVRES
+                             ,
+                             MvSubpelPrecision pb_mv_precision
+#endif
+);
+
+#if CONFIG_TIP
+void av1_set_tip_mv_search_range(FullMvLimits *mv_limits);
+#endif  // CONFIG_TIP
 
 int av1_init_search_range(int size);
 
-unsigned int av1_int_pro_motion_estimation(const struct AV1_COMP *cpi,
-                                           MACROBLOCK *x, BLOCK_SIZE bsize,
-                                           int mi_row, int mi_col,
-                                           const MV *ref_mv);
-
 int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                              const FULLPEL_MV start_mv, FULLPEL_MV *best_mv);
+#if CONFIG_FLEX_MVRES
+int av1_refining_search_8p_c_low_precision(
+    const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const FULLPEL_MV start_mv,
+    FULLPEL_MV *best_mv, int fast_mv_refinement);
+#endif
 
 int av1_full_pixel_search(const FULLPEL_MV start_mv,
                           const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -314,7 +376,22 @@ int av1_obmc_full_pixel_search(const FULLPEL_MV start_mv,
                                const int step_param, FULLPEL_MV *best_mv);
 
 static INLINE int av1_is_fullmv_in_range(const FullMvLimits *mv_limits,
-                                         FULLPEL_MV mv) {
+                                         FULLPEL_MV mv
+#if CONFIG_FLEX_MVRES
+                                         ,
+                                         MvSubpelPrecision pb_mv_precision
+#endif
+) {
+
+#if CONFIG_FLEX_MVRES
+  if (pb_mv_precision < MV_PRECISION_ONE_PEL) {
+    if (mv.col & ((1 << (MV_PRECISION_ONE_PEL - pb_mv_precision)) - 1))
+      return 0;
+    if (mv.row & ((1 << (MV_PRECISION_ONE_PEL - pb_mv_precision)) - 1))
+      return 0;
+  }
+#endif
+
   return (mv.col >= mv_limits->col_min) && (mv.col <= mv_limits->col_max) &&
          (mv.row >= mv_limits->row_min) && (mv.row <= mv_limits->row_max);
 }
@@ -340,7 +417,9 @@ typedef struct {
 // during the search
 typedef struct {
   // High level motion search settings
+#if !CONFIG_FLEX_MVRES
   int allow_hp;
+#endif
   const int *cost_list;
   SUBPEL_FORCE_STOP forced_stop;
   int iters_per_step;
@@ -359,9 +438,20 @@ int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                      SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV ref_mv,
                      MV *start_mv, MV *bestmv, int *distortion,
                      unsigned int *sse1, int ref_idx, MV *other_mv,
-                     MV *best_other_mv, uint8_t *second_pred,
+                     MV *best_other_mv, uint16_t *second_pred,
                      InterPredParams *inter_pred_params,
                      int_mv *last_mv_search_list);
+#if CONFIG_FLEX_MVRES
+// motion search for 2/4/8 pel precision for joint MVD coding
+int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+                                   SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                                   MV ref_mv, MV *start_mv, MV *bestmv,
+                                   int *distortion, unsigned int *sse1,
+                                   int ref_idx, MV *other_mv, MV *best_other_mv,
+                                   uint16_t *second_pred,
+                                   InterPredParams *inter_pred_params);
+#endif
+
 #endif  // CONFIG_JOINT_MVD
 #if CONFIG_ADAPTIVE_MVD
 // motion search for near_new and new_near mode when adaptive MVD resolution is
@@ -370,11 +460,24 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv,
                         MV *bestmv, int *distortion, unsigned int *sse1);
 #endif  // CONFIG_ADAPTIVE_MVD
+#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+                                 SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                                 const MV *start_mv, MV *bestmv,
+                                 int *distortion, unsigned int *sse1,
+                                 int ref_idx, MV *other_mv, MV *best_other_mv,
+                                 uint16_t *second_pred,
+                                 InterPredParams *inter_pred_params);
+#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
 
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const struct AV1_COMP *cpi,
                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
-                                       const MV *ref_mv, const int *cost_list);
+                                       const MV *ref_mv,
+#if CONFIG_FLEX_MVRES
+                                       const MvSubpelPrecision pb_mv_precision,
+#endif
+                                       const int *cost_list);
 
 typedef int(fractional_mv_step_fp)(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -393,7 +496,37 @@ extern fractional_mv_step_fp av1_find_best_obmc_sub_pixel_tree_up;
 unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                   BLOCK_SIZE bsize, const int *pts0,
-                                  const int *pts_inref0, int total_samples);
+                                  const int *pts_inref0, int total_samples,
+                                  WARP_SEARCH_METHOD search_method,
+                                  int num_iterations);
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+// Returns 1 if able to select a good model, 0 if not
+int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+                        MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT *mbmi_ext,
+                        const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                        const ModeCosts *mode_costs
+#if CONFIG_WARP_REF_LIST
+                        ,
+                        WARP_CANDIDATE *warp_param_stack
+#endif  // CONFIG_WARP_REF_LIST
+);
+
+#if CONFIG_WARP_REF_LIST
+int av1_refine_mv_for_base_param_warp_model(
+    const AV1_COMMON *const cm, MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+    const MB_MODE_INFO_EXT *mbmi_ext,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+    WARP_SEARCH_METHOD search_method, int num_iterations);
+#endif  // CONFIG_WARP_REF_LIST
+
+void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
+                                   bool neighbor_is_above, BLOCK_SIZE bsize,
+                                   const WarpedMotionParams *neighbor_params,
+                                   WARP_SEARCH_METHOD search_method,
+                                   int num_iterations);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE void av1_set_fractional_mv(int_mv *fractional_best_mv) {
   for (int z = 0; z < 3; z++) {
@@ -401,30 +534,130 @@ static INLINE void av1_set_fractional_mv(int_mv *fractional_best_mv) {
   }
 }
 
-static INLINE void av1_set_subpel_mv_search_range(SubpelMvLimits *subpel_limits,
-                                                  const FullMvLimits *mv_limits,
-                                                  const MV *ref_mv) {
+#if CONFIG_FLEX_MVRES
+// This function convert the mv value to the target precision
+static INLINE int av1_lower_mv_limit(const int mv, const int shift) {
+  int out = ((abs(mv) >> shift) << shift);
+  return out * (mv < 0 ? -1 : 1);
+}
+#endif
+
+static INLINE void av1_set_subpel_mv_search_range(
+    SubpelMvLimits *subpel_limits, const FullMvLimits *mv_limits,
+    const MV *ref_mv
+#if CONFIG_FLEX_MVRES
+    ,
+    MvSubpelPrecision pb_mv_precision
+#endif
+
+) {
+
+#if CONFIG_FLEX_MVRES
+  //  We have to make sure the generated mv_limits
+  //  are compatible with target precision.
+  MV low_prec_ref_mv = *ref_mv;
+#if CONFIG_C071_SUBBLK_WARPMV
+  if (pb_mv_precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+    lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
+  // sub_pel_prec_shift is the number of LSBs need to be 0 to make the
+  // mv/mv_limit compatible
+  const int sub_pel_prec_shift =
+      (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision);
+
+  const int max_mv =
+      av1_lower_mv_limit(GET_MV_SUBPEL(MAX_FULL_PEL_VAL), sub_pel_prec_shift);
+
+  int col_min =
+      av1_lower_mv_limit(GET_MV_SUBPEL(mv_limits->col_min), sub_pel_prec_shift);
+  int col_max =
+      av1_lower_mv_limit(GET_MV_SUBPEL(mv_limits->col_max), sub_pel_prec_shift);
+  int row_min =
+      av1_lower_mv_limit(GET_MV_SUBPEL(mv_limits->row_min), sub_pel_prec_shift);
+  int row_max =
+      av1_lower_mv_limit(GET_MV_SUBPEL(mv_limits->row_max), sub_pel_prec_shift);
+
+  int minc = AOMMAX(col_min, low_prec_ref_mv.col - max_mv);
+  int maxc = AOMMIN(col_max, low_prec_ref_mv.col + max_mv);
+  int minr = AOMMAX(row_min, low_prec_ref_mv.row - max_mv);
+  int maxr = AOMMIN(row_max, low_prec_ref_mv.row + max_mv);
+
+  maxc = AOMMAX(minc, maxc);
+  maxr = AOMMAX(minr, maxr);
+
+  subpel_limits->col_min = AOMMAX(MV_LOW + (1 << sub_pel_prec_shift), minc);
+  subpel_limits->col_max = AOMMIN(MV_UPP - (1 << sub_pel_prec_shift), maxc);
+  subpel_limits->row_min = AOMMAX(MV_LOW + (1 << sub_pel_prec_shift), minr);
+  subpel_limits->row_max = AOMMIN(MV_UPP - (1 << sub_pel_prec_shift), maxr);
+#else
+
   const int max_mv = GET_MV_SUBPEL(MAX_FULL_PEL_VAL);
-  const int minc =
-      AOMMAX(GET_MV_SUBPEL(mv_limits->col_min), ref_mv->col - max_mv);
-  const int maxc =
-      AOMMIN(GET_MV_SUBPEL(mv_limits->col_max), ref_mv->col + max_mv);
-  const int minr =
-      AOMMAX(GET_MV_SUBPEL(mv_limits->row_min), ref_mv->row - max_mv);
-  const int maxr =
-      AOMMIN(GET_MV_SUBPEL(mv_limits->row_max), ref_mv->row + max_mv);
+  int minc = AOMMAX(GET_MV_SUBPEL(mv_limits->col_min), ref_mv->col - max_mv);
+  int maxc = AOMMIN(GET_MV_SUBPEL(mv_limits->col_max), ref_mv->col + max_mv);
+  int minr = AOMMAX(GET_MV_SUBPEL(mv_limits->row_min), ref_mv->row - max_mv);
+  int maxr = AOMMIN(GET_MV_SUBPEL(mv_limits->row_max), ref_mv->row + max_mv);
+
+  maxc = AOMMAX(minc, maxc);
+  maxr = AOMMAX(minr, maxr);
 
   subpel_limits->col_min = AOMMAX(MV_LOW + 1, minc);
   subpel_limits->col_max = AOMMIN(MV_UPP - 1, maxc);
   subpel_limits->row_min = AOMMAX(MV_LOW + 1, minr);
   subpel_limits->row_max = AOMMIN(MV_UPP - 1, maxr);
+#endif
 }
+
+#if CONFIG_TIP
+static INLINE void av1_set_tip_subpel_mv_search_range(
+    SubpelMvLimits *subpel_limits, const FullMvLimits *mv_limits) {
+  const int tmvp_mv = GET_MV_SUBPEL(TIP_MV_SEARCH_RANGE << TMVP_MI_SZ_LOG2);
+
+  subpel_limits->col_min = AOMMAX(GET_MV_SUBPEL(mv_limits->col_min), -tmvp_mv);
+  subpel_limits->col_max = AOMMIN(GET_MV_SUBPEL(mv_limits->col_max), tmvp_mv);
+  subpel_limits->row_min = AOMMAX(GET_MV_SUBPEL(mv_limits->row_min), -tmvp_mv);
+  subpel_limits->row_max = AOMMIN(GET_MV_SUBPEL(mv_limits->row_max), tmvp_mv);
+}
+#endif  // CONFIG_TIP
 
 static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
                                            MV mv) {
   return (mv.col >= mv_limits->col_min) && (mv.col <= mv_limits->col_max) &&
          (mv.row >= mv_limits->row_min) && (mv.row <= mv_limits->row_max);
 }
+
+#if CONFIG_CWP
+// Returns the cost for signaling the index of compound weighted prediction
+int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,
+                         const MACROBLOCK *x);
+#endif  // CONFIG_CWP
+
+#if CONFIG_BVP_IMPROVEMENT
+// Returns the cost of using the current mv during the motion search
+int av1_get_mv_err_cost(const MV *mv, const MV_COST_PARAMS *mv_cost_params);
+
+// Set the reference MV for the motion search
+void av1_init_ref_mv(MV_COST_PARAMS *mv_cost_params, const MV *ref_mv);
+
+// Compute the cost for signalling the intrabc DRL index
+int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx,
+                                 const MACROBLOCK *x);
+
+// Compute the cost for signalling the intrabc mode and intrabc DRL index. This
+// is only used during the motion search
+int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
+                             MACROBLOCK *x,
+                             FULLPEL_MOTION_SEARCH_PARAMS fullms_params,
+                             int ref_bv_cnt);
+
+// Pick the best reference BV for the current BV
+int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
+                    const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params);
+
+// Compute the estimated RD cost for the reference BV
+int av1_get_ref_mvpred_var_cost(const struct AV1_COMP *cpi,
+                                const MACROBLOCKD *xd,
+                                const FULLPEL_MOTION_SEARCH_PARAMS *ms_params);
+#endif  // CONFIG_BVP_IMPROVEMENT
 
 #ifdef __cplusplus
 }  // extern "C"

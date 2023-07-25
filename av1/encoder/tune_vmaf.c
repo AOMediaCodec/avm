@@ -98,7 +98,7 @@ static unsigned int residual_variance(const AV1_COMP *cpi,
 
 static double frame_average_variance(const AV1_COMP *const cpi,
                                      const YV12_BUFFER_CONFIG *const frame) {
-  const uint8_t *const y_buffer = frame->y_buffer;
+  const uint16_t *const y_buffer = frame->y_buffer;
   const int y_stride = frame->y_stride;
   const BLOCK_SIZE block_size = BLOCK_64X64;
 
@@ -115,16 +115,11 @@ static double frame_average_variance(const AV1_COMP *const cpi,
       const int row_offset_y = row * block_h;
       const int col_offset_y = col * block_w;
 
-      buf.buf = (uint8_t *)y_buffer + row_offset_y * y_stride + col_offset_y;
+      buf.buf = y_buffer + row_offset_y * y_stride + col_offset_y;
       buf.stride = y_stride;
 
-      if (cpi->common.seq_params.use_highbitdepth) {
-        assert(frame->flags & YV12_FLAG_HIGHBITDEPTH);
-        var += av1_high_get_sby_perpixel_variance(cpi, &buf, block_size,
-                                                  bit_depth);
-      } else {
-        var += av1_get_sby_perpixel_variance(cpi, &buf, block_size);
-      }
+      var +=
+          av1_high_get_sby_perpixel_variance(cpi, &buf, block_size, bit_depth);
       var_count += 1.0;
     }
   }
@@ -152,7 +147,7 @@ static double residual_frame_average_variance(AV1_COMP *cpi,
   // Save input state.
   MACROBLOCK *const mb = &cpi->td.mb;
   MACROBLOCKD *const mbd = &mb->e_mbd;
-  uint8_t *input_buffer[MAX_MB_PLANE];
+  uint16_t *input_buffer[MAX_MB_PLANE];
   for (int i = 0; i < num_planes; i++) {
     input_buffer[i] = mbd->plane[i].pre[0].buf;
   }
@@ -214,41 +209,14 @@ static AOM_INLINE void highbd_unsharp_rect(const uint16_t *source,
   }
 }
 
-static AOM_INLINE void unsharp_rect(const uint8_t *source, int source_stride,
-                                    const uint8_t *blurred, int blurred_stride,
-                                    uint8_t *dst, int dst_stride, int w, int h,
-                                    double amount) {
-  for (int i = 0; i < h; ++i) {
-    for (int j = 0; j < w; ++j) {
-      const double val =
-          (double)source[j] + amount * ((double)source[j] - (double)blurred[j]);
-      dst[j] = (uint8_t)clamp((int)(val + 0.5), 0, 255);
-    }
-    source += source_stride;
-    blurred += blurred_stride;
-    dst += dst_stride;
-  }
-}
-
 static AOM_INLINE void unsharp(const AV1_COMP *const cpi,
                                const YV12_BUFFER_CONFIG *source,
                                const YV12_BUFFER_CONFIG *blurred,
                                const YV12_BUFFER_CONFIG *dst, double amount) {
   const int bit_depth = cpi->td.mb.e_mbd.bd;
-  if (cpi->common.seq_params.use_highbitdepth) {
-    assert(source->flags & YV12_FLAG_HIGHBITDEPTH);
-    assert(blurred->flags & YV12_FLAG_HIGHBITDEPTH);
-    assert(dst->flags & YV12_FLAG_HIGHBITDEPTH);
-    highbd_unsharp_rect(CONVERT_TO_SHORTPTR(source->y_buffer), source->y_stride,
-                        CONVERT_TO_SHORTPTR(blurred->y_buffer),
-                        blurred->y_stride, CONVERT_TO_SHORTPTR(dst->y_buffer),
-                        dst->y_stride, source->y_width, source->y_height,
-                        amount, bit_depth);
-  } else {
-    unsharp_rect(source->y_buffer, source->y_stride, blurred->y_buffer,
-                 blurred->y_stride, dst->y_buffer, dst->y_stride,
-                 source->y_width, source->y_height, amount);
-  }
+  highbd_unsharp_rect(source->y_buffer, source->y_stride, blurred->y_buffer,
+                      blurred->y_stride, dst->y_buffer, dst->y_stride,
+                      source->y_width, source->y_height, amount, bit_depth);
 }
 
 // 8-tap Gaussian convolution filter with sigma = 1.0, sums to 128,
@@ -275,21 +243,14 @@ static AOM_INLINE void gaussian_blur(const int bit_depth,
       const int row_offset_y = row * block_h;
       const int col_offset_y = col * block_w;
 
-      uint8_t *src_buf =
+      uint16_t *src_buf =
           source->y_buffer + row_offset_y * source->y_stride + col_offset_y;
-      uint8_t *dst_buf =
+      uint16_t *dst_buf =
           dst->y_buffer + row_offset_y * dst->y_stride + col_offset_y;
 
-      if (source->flags & YV12_FLAG_HIGHBITDEPTH) {
-        av1_highbd_convolve_2d_sr(
-            CONVERT_TO_SHORTPTR(src_buf), source->y_stride,
-            CONVERT_TO_SHORTPTR(dst_buf), dst->y_stride, block_w, block_h,
-            &filter, &filter, 0, 0, &conv_params, bit_depth);
-      } else {
-        av1_convolve_2d_sr(src_buf, source->y_stride, dst_buf, dst->y_stride,
-                           block_w, block_h, &filter, &filter, 0, 0,
-                           &conv_params);
-      }
+      av1_highbd_convolve_2d_sr(src_buf, source->y_stride, dst_buf,
+                                dst->y_stride, block_w, block_h, &filter,
+                                &filter, 0, 0, &conv_params, bit_depth);
     }
   }
 }
@@ -368,9 +329,9 @@ static double find_best_frame_unsharp_amount(const AV1_COMP *const cpi,
 #endif
   YV12_BUFFER_CONFIG sharpened;
   memset(&sharpened, 0, sizeof(sharpened));
-  aom_alloc_frame_buffer(
-      &sharpened, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&sharpened, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
 
   const double baseline_variance = frame_average_variance(cpi, source);
   double unsharp_amount;
@@ -444,9 +405,9 @@ void av1_vmaf_neg_preprocessing(AV1_COMP *const cpi,
 
   YV12_BUFFER_CONFIG blurred;
   memset(&blurred, 0, sizeof(blurred));
-  aom_alloc_frame_buffer(
-      &blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&blurred, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
 
   gaussian_blur(bit_depth, source, &blurred);
   unsharp(cpi, source, &blurred, source, best_frame_unsharp_amount);
@@ -466,12 +427,12 @@ void av1_vmaf_frame_preprocessing(AV1_COMP *const cpi,
   YV12_BUFFER_CONFIG source_extended, blurred;
   memset(&source_extended, 0, sizeof(source_extended));
   memset(&blurred, 0, sizeof(blurred));
-  aom_alloc_frame_buffer(
-      &source_extended, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&source_extended, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&blurred, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
 
   av1_copy_and_extend_frame(source, &source_extended);
   gaussian_blur(bit_depth, &source_extended, &blurred);
@@ -505,12 +466,12 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
   YV12_BUFFER_CONFIG source_extended, blurred;
   memset(&blurred, 0, sizeof(blurred));
   memset(&source_extended, 0, sizeof(source_extended));
-  aom_alloc_frame_buffer(
-      &blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &source_extended, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&blurred, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&source_extended, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
 
   av1_copy_and_extend_frame(source, &source_extended);
   gaussian_blur(bit_depth, &source_extended, &blurred);
@@ -541,12 +502,12 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
   YV12_BUFFER_CONFIG source_block, blurred_block;
   memset(&source_block, 0, sizeof(source_block));
   memset(&blurred_block, 0, sizeof(blurred_block));
-  aom_alloc_frame_buffer(
-      &source_block, block_w, block_h, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &blurred_block, block_w, block_h, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&source_block, block_w, block_h, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&blurred_block, block_w, block_h, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
 
   for (int row = 0; row < num_rows; ++row) {
     for (int col = 0; col < num_cols; ++col) {
@@ -556,58 +517,28 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
       const int block_height = AOMMIN(height - row_offset_y, block_h);
       const int index = col + row * num_cols;
 
-      if (cm->seq_params.use_highbitdepth) {
-        assert(source->flags & YV12_FLAG_HIGHBITDEPTH);
-        assert(blurred.flags & YV12_FLAG_HIGHBITDEPTH);
-        uint16_t *frame_src_buf = CONVERT_TO_SHORTPTR(source->y_buffer) +
-                                  row_offset_y * source->y_stride +
-                                  col_offset_y;
-        uint16_t *frame_blurred_buf = CONVERT_TO_SHORTPTR(blurred.y_buffer) +
-                                      row_offset_y * blurred.y_stride +
-                                      col_offset_y;
-        uint16_t *blurred_dst = CONVERT_TO_SHORTPTR(blurred_block.y_buffer);
-        uint16_t *src_dst = CONVERT_TO_SHORTPTR(source_block.y_buffer);
+      uint16_t *frame_src_buf =
+          source->y_buffer + row_offset_y * source->y_stride + col_offset_y;
+      uint16_t *frame_blurred_buf =
+          blurred.y_buffer + row_offset_y * blurred.y_stride + col_offset_y;
+      uint16_t *blurred_dst = blurred_block.y_buffer;
+      uint16_t *src_dst = source_block.y_buffer;
 
-        // Copy block from source frame.
-        for (int i = 0; i < block_h; ++i) {
-          for (int j = 0; j < block_w; ++j) {
-            if (i >= block_height || j >= block_width) {
-              src_dst[j] = 0;
-              blurred_dst[j] = 0;
-            } else {
-              src_dst[j] = frame_src_buf[j];
-              blurred_dst[j] = frame_blurred_buf[j];
-            }
+      // Copy block from source frame.
+      for (int i = 0; i < block_h; ++i) {
+        for (int j = 0; j < block_w; ++j) {
+          if (i >= block_height || j >= block_width) {
+            src_dst[j] = 0;
+            blurred_dst[j] = 0;
+          } else {
+            src_dst[j] = frame_src_buf[j];
+            blurred_dst[j] = frame_blurred_buf[j];
           }
-          frame_src_buf += source->y_stride;
-          frame_blurred_buf += blurred.y_stride;
-          src_dst += source_block.y_stride;
-          blurred_dst += blurred_block.y_stride;
         }
-      } else {
-        uint8_t *frame_src_buf =
-            source->y_buffer + row_offset_y * source->y_stride + col_offset_y;
-        uint8_t *frame_blurred_buf =
-            blurred.y_buffer + row_offset_y * blurred.y_stride + col_offset_y;
-        uint8_t *blurred_dst = blurred_block.y_buffer;
-        uint8_t *src_dst = source_block.y_buffer;
-
-        // Copy block from source frame.
-        for (int i = 0; i < block_h; ++i) {
-          for (int j = 0; j < block_w; ++j) {
-            if (i >= block_height || j >= block_width) {
-              src_dst[j] = 0;
-              blurred_dst[j] = 0;
-            } else {
-              src_dst[j] = frame_src_buf[j];
-              blurred_dst[j] = frame_blurred_buf[j];
-            }
-          }
-          frame_src_buf += source->y_stride;
-          frame_blurred_buf += blurred.y_stride;
-          src_dst += source_block.y_stride;
-          blurred_dst += blurred_block.y_stride;
-        }
+        frame_src_buf += source->y_stride;
+        frame_blurred_buf += blurred.y_stride;
+        src_dst += source_block.y_stride;
+        blurred_dst += blurred_block.y_stride;
       }
 
       best_unsharp_amounts[index] = find_best_frame_unsharp_amount(
@@ -625,26 +556,14 @@ void av1_vmaf_blk_preprocessing(AV1_COMP *const cpi,
       const int block_height = AOMMIN(source->y_height - row_offset_y, block_h);
       const int index = col + row * num_cols;
 
-      if (cm->seq_params.use_highbitdepth) {
-        assert(source->flags & YV12_FLAG_HIGHBITDEPTH);
-        assert(blurred.flags & YV12_FLAG_HIGHBITDEPTH);
-        uint16_t *src_buf = CONVERT_TO_SHORTPTR(source->y_buffer) +
-                            row_offset_y * source->y_stride + col_offset_y;
-        uint16_t *blurred_buf = CONVERT_TO_SHORTPTR(blurred.y_buffer) +
-                                row_offset_y * blurred.y_stride + col_offset_y;
-        highbd_unsharp_rect(src_buf, source->y_stride, blurred_buf,
-                            blurred.y_stride, src_buf, source->y_stride,
-                            block_width, block_height,
-                            best_unsharp_amounts[index], bit_depth);
-      } else {
-        uint8_t *src_buf =
-            source->y_buffer + row_offset_y * source->y_stride + col_offset_y;
-        uint8_t *blurred_buf =
-            blurred.y_buffer + row_offset_y * blurred.y_stride + col_offset_y;
-        unsharp_rect(src_buf, source->y_stride, blurred_buf, blurred.y_stride,
-                     src_buf, source->y_stride, block_width, block_height,
-                     best_unsharp_amounts[index]);
-      }
+      uint16_t *src_buf =
+          source->y_buffer + row_offset_y * source->y_stride + col_offset_y;
+      uint16_t *blurred_buf =
+          blurred.y_buffer + row_offset_y * blurred.y_stride + col_offset_y;
+      highbd_unsharp_rect(src_buf, source->y_stride, blurred_buf,
+                          blurred.y_stride, src_buf, source->y_stride,
+                          block_width, block_height,
+                          best_unsharp_amounts[index], bit_depth);
     }
   }
 
@@ -686,18 +605,9 @@ static int update_frame(float *ref_data, float *main_data, float *temp_data,
     float *ref, *main;
     ref = ref_data + i * stride;
     main = main_data + i * stride;
-    if (source->flags & YV12_FLAG_HIGHBITDEPTH) {
-      uint16_t *src;
-      src = CONVERT_TO_SHORTPTR(source->y_buffer) + i * source->y_stride;
-      for (int j = 0; j < width; ++j) {
-        ref[j] = main[j] = scale_factor * (float)src[j];
-      }
-    } else {
-      uint8_t *src;
-      src = source->y_buffer + i * source->y_stride;
-      for (int j = 0; j < width; ++j) {
-        ref[j] = main[j] = (float)src[j];
-      }
+    uint16_t *src = source->y_buffer + i * source->y_stride;
+    for (int j = 0; j < width; ++j) {
+      ref[j] = main[j] = scale_factor * (float)src[j];
     }
   }
   if (row < num_rows && col < num_cols) {
@@ -708,26 +618,14 @@ static int update_frame(float *ref_data, float *main_data, float *temp_data,
     const int block_height = AOMMIN(height - row_offset, block_h);
 
     float *main_buf = main_data + col_offset + row_offset * stride;
-    if (source->flags & YV12_FLAG_HIGHBITDEPTH) {
-      uint16_t *blurred_buf = CONVERT_TO_SHORTPTR(blurred->y_buffer) +
-                              row_offset * blurred->y_stride + col_offset;
-      for (int i = 0; i < block_height; ++i) {
-        for (int j = 0; j < block_width; ++j) {
-          main_buf[j] = scale_factor * (float)blurred_buf[j];
-        }
-        main_buf += stride;
-        blurred_buf += blurred->y_stride;
+    uint16_t *blurred_buf =
+        blurred->y_buffer + row_offset * blurred->y_stride + col_offset;
+    for (int i = 0; i < block_height; ++i) {
+      for (int j = 0; j < block_width; ++j) {
+        main_buf[j] = scale_factor * (float)blurred_buf[j];
       }
-    } else {
-      uint8_t *blurred_buf =
-          blurred->y_buffer + row_offset * blurred->y_stride + col_offset;
-      for (int i = 0; i < block_height; ++i) {
-        for (int j = 0; j < block_width; ++j) {
-          main_buf[j] = (float)blurred_buf[j];
-        }
-        main_buf += stride;
-        blurred_buf += blurred->y_stride;
-      }
+      main_buf += stride;
+      blurred_buf += blurred->y_stride;
     }
 
     frames->col++;
@@ -755,8 +653,7 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
   memset(&resized_source, 0, sizeof(resized_source));
   aom_alloc_frame_buffer(
       &resized_source, y_width / resize_factor, y_height / resize_factor, 1, 1,
-      cm->seq_params.use_highbitdepth, cpi->oxcf.border_in_pixels,
-      cm->features.byte_alignment);
+      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
   av1_resize_and_extend_frame_nonnormative(cpi->source, &resized_source,
                                            bit_depth, av1_num_planes(cm));
 
@@ -772,7 +669,6 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
   YV12_BUFFER_CONFIG blurred;
   memset(&blurred, 0, sizeof(blurred));
   aom_alloc_frame_buffer(&blurred, resized_y_width, resized_y_height, 1, 1,
-                         cm->seq_params.use_highbitdepth,
                          cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment);
   gaussian_blur(bit_depth, &resized_source, &blurred);
@@ -781,7 +677,6 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
   YV12_BUFFER_CONFIG recon;
   memset(&recon, 0, sizeof(recon));
   aom_alloc_frame_buffer(&recon, resized_y_width, resized_y_height, 1, 1,
-                         cm->seq_params.use_highbitdepth,
                          cpi->oxcf.border_in_pixels,
                          cm->features.byte_alignment);
   aom_yv12_copy_frame(&resized_source, &recon, 1);
@@ -815,10 +710,10 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
       const int row_offset_y = row * resized_block_h;
       const int col_offset_y = col * resized_block_w;
 
-      uint8_t *const orig_buf = resized_source.y_buffer +
-                                row_offset_y * resized_source.y_stride +
-                                col_offset_y;
-      uint8_t *const blurred_buf =
+      uint16_t *const orig_buf = resized_source.y_buffer +
+                                 row_offset_y * resized_source.y_stride +
+                                 col_offset_y;
+      uint16_t *const blurred_buf =
           blurred.y_buffer + row_offset_y * blurred.y_stride + col_offset_y;
 
       unsigned int sse;
@@ -826,19 +721,12 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
                                          blurred_buf, blurred.y_stride, &sse);
 
 #if CONFIG_USE_VMAF_RC
-      uint8_t *const recon_buf =
+      uint16_t *const recon_buf =
           recon.y_buffer + row_offset_y * recon.y_stride + col_offset_y;
       // Set recon buf
-      if (cpi->common.seq_params.use_highbitdepth) {
-        highbd_unsharp_rect(CONVERT_TO_SHORTPTR(blurred_buf), blurred.y_stride,
-                            CONVERT_TO_SHORTPTR(blurred_buf), blurred.y_stride,
-                            CONVERT_TO_SHORTPTR(recon_buf), recon.y_stride,
-                            resized_block_w, resized_block_h, 0.0, bit_depth);
-      } else {
-        unsharp_rect(blurred_buf, blurred.y_stride, blurred_buf,
-                     blurred.y_stride, recon_buf, recon.y_stride,
-                     resized_block_w, resized_block_h, 0.0);
-      }
+      highbd_unsharp_rect(blurred_buf, blurred.y_stride, blurred_buf,
+                          blurred.y_stride, recon_buf, recon.y_stride,
+                          resized_block_w, resized_block_h, 0.0, bit_depth);
 
       double vmaf;
       aom_calc_vmaf_at_index_rc(vmaf_context, cpi->vmaf_info.vmaf_model,
@@ -846,17 +734,9 @@ void av1_set_mb_vmaf_rdmult_scaling(AV1_COMP *cpi) {
                                 &vmaf);
 
       // Restore recon buf
-      if (cpi->common.seq_params.use_highbitdepth) {
-        highbd_unsharp_rect(
-            CONVERT_TO_SHORTPTR(orig_buf), resized_source.y_stride,
-            CONVERT_TO_SHORTPTR(orig_buf), resized_source.y_stride,
-            CONVERT_TO_SHORTPTR(recon_buf), recon.y_stride, resized_block_w,
-            resized_block_h, 0.0, bit_depth);
-      } else {
-        unsharp_rect(orig_buf, resized_source.y_stride, orig_buf,
-                     resized_source.y_stride, recon_buf, recon.y_stride,
-                     resized_block_w, resized_block_h, 0.0);
-      }
+      highbd_unsharp_rect(orig_buf, resized_source.y_stride, orig_buf,
+                          resized_source.y_stride, recon_buf, recon.y_stride,
+                          resized_block_w, resized_block_h, 0.0, bit_depth);
 #else
       const double vmaf = scores[index];
 #endif
@@ -941,24 +821,6 @@ static AOM_INLINE double highbd_image_sad_c(const uint16_t *src, int src_stride,
   return accum / (double)(h * w);
 }
 
-static AOM_INLINE double image_sad_c(const uint8_t *src, int src_stride,
-                                     const uint8_t *ref, int ref_stride, int w,
-                                     int h) {
-  double accum = 0.0;
-  int i, j;
-
-  for (i = 0; i < h; ++i) {
-    for (j = 0; j < w; ++j) {
-      double img1px = src[i * src_stride + j];
-      double img2px = ref[i * ref_stride + j];
-
-      accum += fabs(img1px - img2px);
-    }
-  }
-
-  return accum / (double)(h * w);
-}
-
 static double calc_vmaf_motion_score(const AV1_COMP *const cpi,
                                      const AV1_COMMON *const cm,
                                      const YV12_BUFFER_CONFIG *const cur,
@@ -973,47 +835,31 @@ static double calc_vmaf_motion_score(const AV1_COMP *const cpi,
   memset(&blurred_last, 0, sizeof(blurred_last));
   memset(&blurred_next, 0, sizeof(blurred_next));
 
-  aom_alloc_frame_buffer(
-      &blurred_cur, y_width, y_height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &blurred_last, y_width, y_height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &blurred_next, y_width, y_height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&blurred_cur, y_width, y_height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&blurred_last, y_width, y_height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&blurred_next, y_width, y_height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
 
   gaussian_blur(bit_depth, cur, &blurred_cur);
   gaussian_blur(bit_depth, last, &blurred_last);
   if (next) gaussian_blur(bit_depth, next, &blurred_next);
 
   double motion1, motion2 = 65536.0;
-  if (cm->seq_params.use_highbitdepth) {
-    assert(blurred_cur.flags & YV12_FLAG_HIGHBITDEPTH);
-    assert(blurred_last.flags & YV12_FLAG_HIGHBITDEPTH);
-    const float scale_factor = 1.0f / (float)(1 << (bit_depth - 8));
-    motion1 = highbd_image_sad_c(CONVERT_TO_SHORTPTR(blurred_cur.y_buffer),
-                                 blurred_cur.y_stride,
-                                 CONVERT_TO_SHORTPTR(blurred_last.y_buffer),
-                                 blurred_last.y_stride, y_width, y_height) *
+  const float scale_factor = 1.0f / (float)(1 << (bit_depth - 8));
+  motion1 = highbd_image_sad_c(blurred_cur.y_buffer, blurred_cur.y_stride,
+                               blurred_last.y_buffer, blurred_last.y_stride,
+                               y_width, y_height) *
+            scale_factor;
+  if (next) {
+    motion2 = highbd_image_sad_c(blurred_cur.y_buffer, blurred_cur.y_stride,
+                                 blurred_next.y_buffer, blurred_next.y_stride,
+                                 y_width, y_height) *
               scale_factor;
-    if (next) {
-      assert(blurred_next.flags & YV12_FLAG_HIGHBITDEPTH);
-      motion2 = highbd_image_sad_c(CONVERT_TO_SHORTPTR(blurred_cur.y_buffer),
-                                   blurred_cur.y_stride,
-                                   CONVERT_TO_SHORTPTR(blurred_next.y_buffer),
-                                   blurred_next.y_stride, y_width, y_height) *
-                scale_factor;
-    }
-  } else {
-    motion1 = image_sad_c(blurred_cur.y_buffer, blurred_cur.y_stride,
-                          blurred_last.y_buffer, blurred_last.y_stride, y_width,
-                          y_height);
-    if (next) {
-      motion2 = image_sad_c(blurred_cur.y_buffer, blurred_cur.y_stride,
-                            blurred_next.y_buffer, blurred_next.y_stride,
-                            y_width, y_height);
-    }
   }
 
   aom_free_frame_buffer(&blurred_cur);
@@ -1128,18 +974,18 @@ static double find_best_frame_unsharp_amount_loop_neg(
   memset(&src_sharpened, 0, sizeof(src_sharpened));
   memset(&recon_blurred, 0, sizeof(recon_blurred));
   memset(&src_blurred, 0, sizeof(src_blurred));
-  aom_alloc_frame_buffer(
-      &recon_sharpened, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &src_sharpened, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &recon_blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
-  aom_alloc_frame_buffer(
-      &src_blurred, width, height, 1, 1, cm->seq_params.use_highbitdepth,
-      cpi->oxcf.border_in_pixels, cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&recon_sharpened, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&src_sharpened, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&recon_blurred, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
+  aom_alloc_frame_buffer(&src_blurred, width, height, 1, 1,
+                         cpi->oxcf.border_in_pixels,
+                         cm->features.byte_alignment);
 
   gaussian_blur(bit_depth, recon, &recon_blurred);
   gaussian_blur(bit_depth, src, &src_blurred);
@@ -1208,15 +1054,8 @@ void av1_update_vmaf_curve(AV1_COMP *cpi) {
   aom_calc_vmaf(cpi->oxcf.tune_cfg.vmaf_model_path, source, recon, bit_depth,
                 &cpi->vmaf_info.last_frame_vmaf[layer_depth]);
 #endif  // CONFIG_USE_VMAF_RC
-  if (cpi->common.seq_params.use_highbitdepth) {
-    assert(source->flags & YV12_FLAG_HIGHBITDEPTH);
-    assert(recon->flags & YV12_FLAG_HIGHBITDEPTH);
-    cpi->vmaf_info.last_frame_ysse[layer_depth] =
-        (double)aom_highbd_get_y_sse(source, recon);
-  } else {
-    cpi->vmaf_info.last_frame_ysse[layer_depth] =
-        (double)aom_get_y_sse(source, recon);
-  }
+  cpi->vmaf_info.last_frame_ysse[layer_depth] =
+      (double)aom_highbd_get_y_sse(source, recon);
 
 #if CONFIG_USE_VMAF_RC
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {

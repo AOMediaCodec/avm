@@ -34,7 +34,7 @@ using libaom_test::ACMRandom;
 
 namespace {
 typedef void (*FdctFunc)(const int16_t *in, tran_low_t *out, int stride);
-typedef void (*IdctFunc)(const tran_low_t *in, uint8_t *out, int stride);
+typedef void (*IdctFunc)(const tran_low_t *in, uint16_t *out, int stride);
 
 using libaom_test::FhtFunc;
 
@@ -46,11 +46,11 @@ void fwht4x4_ref(const int16_t *in, tran_low_t *out, int stride,
   av1_fwht4x4_c(in, out, stride);
 }
 
-void iwht4x4_10(const tran_low_t *in, uint8_t *out, int stride) {
+void iwht4x4_10(const tran_low_t *in, uint16_t *out, int stride) {
   av1_highbd_iwht4x4_16_add_c(in, out, stride, 10);
 }
 
-void iwht4x4_12(const tran_low_t *in, uint8_t *out, int stride) {
+void iwht4x4_12(const tran_low_t *in, uint16_t *out, int stride) {
   av1_highbd_iwht4x4_16_add_c(in, out, stride, 12);
 }
 
@@ -76,7 +76,7 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
   void RunFwdTxfm(const int16_t *in, tran_low_t *out, int stride) {
     fwd_txfm_(in, out, stride);
   }
-  void RunInvTxfm(const tran_low_t *out, uint8_t *dst, int stride) {
+  void RunInvTxfm(const tran_low_t *out, uint16_t *dst, int stride) {
     inv_txfm_(out, dst, stride);
   }
   void RunSpeedTest() {
@@ -107,12 +107,8 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
             int out_idx = j * pitch_ + k;
             input_block[in_idx] =
                 (rnd.Rand16() & mask_) - (rnd.Rand16() & mask_);
-            if (bit_depth_ == AOM_BITS_8) {
-              output_block[out_idx] = output_ref_block[out_idx] = rnd.Rand8();
-            } else {
-              output_block[out_idx] = output_ref_block[out_idx] =
-                  rnd.Rand16() & mask_;
-            }
+            output_block[out_idx] = output_ref_block[out_idx] =
+                rnd.Rand16() & mask_;
           }
         }
 

@@ -23,20 +23,24 @@
 
 /*OPT: od_ec_window must be at least 32 bits, but if you have fast arithmetic
    on a larger type, you can speed up the decoder by using it here.*/
+#if CONFIG_BYPASS_IMPROVEMENT
+typedef uint64_t od_ec_window;
+#else
 typedef uint32_t od_ec_window;
+#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*The size in bits of od_ec_window.*/
 #define OD_EC_WINDOW_SIZE ((int)sizeof(od_ec_window) * CHAR_BIT)
 
 /*The resolution of fractional-precision bit usage measurements, i.e.,
-   3 => 1/8th bits.*/
-#define OD_BITRES (3)
+   16 => 1/65536th bits.*/
+#define OD_BITRES (16)
 
 #define OD_ICDF AOM_ICDF
 
 /*See entcode.c for further documentation.*/
 
-OD_WARN_UNUSED_RESULT uint32_t od_ec_tell_frac(uint32_t nbits_total,
+OD_WARN_UNUSED_RESULT uint64_t od_ec_tell_frac(uint32_t nbits_total,
                                                uint32_t rng);
 
 #endif  // AOM_AOM_DSP_ENTCODE_H_

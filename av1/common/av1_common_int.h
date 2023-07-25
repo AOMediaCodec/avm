@@ -20,6 +20,10 @@
 #include "aom_util/aom_thread.h"
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_loopfilter.h"
+#if CONFIG_PEF
+#include "av1/common/pef.h"
+#endif  // CONFIG_PEF
+#include "av1/common/blockd.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
@@ -31,9 +35,7 @@
 #include "av1/common/tile_common.h"
 #include "av1/common/timing.h"
 #include "av1/common/odintrin.h"
-#if CONFIG_IBP_DIR
 #include "av1/common/warped_motion.h"
-#endif
 #include "av1/encoder/hash_motion.h"
 #include "aom_dsp/grain_synthesis.h"
 #include "aom_dsp/grain_table.h"
@@ -63,11 +65,9 @@ extern "C" {
 #define FRAME_ID_LENGTH 15
 #define DELTA_FRAME_ID_LENGTH 14
 
-#if CONFIG_EXTQUANT
 #define DELTA_DCQUANT_BITS 5
 #define DELTA_DCQUANT_MAX (1 << (DELTA_DCQUANT_BITS - 2))
 #define DELTA_DCQUANT_MIN (DELTA_DCQUANT_MAX - (1 << DELTA_DCQUANT_BITS) + 1)
-#endif  // CONFIG_EXTQUANT
 
 #define DEBUG_EXTQUANT 0
 
@@ -93,6 +93,70 @@ extern "C" {
 #define TXCOEFF_TIMER 0
 #define TXCOEFF_COST_TIMER 0
 
+#if CONFIG_TIP
+// Some arrays (e.g. x->pred_sse and yv12_mb) are defined such that their
+// indices 0-8 correspond to inter ref0, ref1,... ref6, intra ref, and TIP ref.
+// This macros maps the ref_frame indices to corresponding array indices, where
+// intra ref_frame index, INTRA_FRAME (28) is mapped to INTRA_FRAME_INDEX (7).
+// and tip ref_frame index, TIP_FRAME (29) is mapped to TIP_FRAME_INDEX (8)
+#define COMPACT_INDEX0_NRS(r)               \
+  (((r) == INTRA_FRAME) ? INTRA_FRAME_INDEX \
+                        : (((r) == TIP_FRAME) ? TIP_FRAME_INDEX : (r)))
+#else
+// Some arrays (e.g. x->pred_sse and yv12_mb) are defined such that their
+// indices 0-7 correspond to inter ref0, ref1,... ref6, and intra ref. This
+// macros maps the ref_frame indices to corresponding array indices, where
+// intra ref_frame index, INTRA_FRAME (28) is mapped to INTRA_FRAME_INDEX (7).
+#define COMPACT_INDEX0_NRS(r) (((r) == INTRA_FRAME) ? INTRA_FRAME_INDEX : (r))
+#endif  // CONFIG_TIP
+
+// This macro is similar to the previous one, but also maps INVALID_IDX
+// (ref_frame[1] for the single reference case) to 7, which typically
+// corresponds to an unused slot allocated for convenience.
+#define COMPACT_INDEX1_NRS(r) \
+  (!is_inter_ref_frame((r)) ? INTRA_FRAME_INDEX : (r))
+
+#if CONFIG_TIP || CONFIG_PEF
+// MI unit is 4x4, TMVP unit is 8x8, so there is 1 shift
+// between TMVP unit and MI unit
+#define TMVP_SHIFT_BITS 1
+// TMVP unit size
+#define TMVP_MI_SZ_LOG2 (MI_SIZE_LOG2 + TMVP_SHIFT_BITS)
+#define TMVP_MI_SIZE (1 << TMVP_MI_SZ_LOG2)
+// TIP MV search range constraint in TMVP unit
+#define TIP_MV_SEARCH_RANGE 4
+#endif  // CONFIG_TIP || CONFIG_PEF
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+#define MIN_BSIZE_WARP_DELTA 8
+
+// Using the WARP_DELTA motion mode, we can use a nearby block's warp model as
+// a prediction and then modify it with an explicitly coded delta.
+//
+// If this flag is set to 0, then any spatial reference block (ie, a DRL entry
+// which came from a block in the current frame) can provide a warp model which
+// we can use as a prediction.
+//
+// If this flag is set to 1, then only directly adjacent blocks can be used
+// as references (similar to WARP_EXTEND), meaning that we only need to store
+// one above row and one left column of warp models. This can be enabled if
+// the above behaviour causes concerns for hardware implementations.
+//
+// Interaction with different modes:
+//
+// For GLOBALMV, WARP_DELTA can always be used, and uses the global warp model
+// (if any) as a base. If no global warp model was given, we use a translational
+// model as a base.
+//
+// For NEARMV, WARP_DELTA can only be used if the reference block selected from
+// the DRL can provide a warp model under the logic mentioned above.
+//
+// For NEWMV, WARP_DELTA can always be used. If the reference block can provide
+// a warp model, then this is used as a base; otherwise the global warp model
+// (or a translational model) is used.
+#define WARP_DELTA_REQUIRES_NEIGHBOR 1
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
 /*!\cond */
 
 enum {
@@ -114,16 +178,56 @@ enum {
   REFRESH_FRAME_CONTEXT_BACKWARD,
 } UENUM1BYTE(REFRESH_FRAME_CONTEXT_MODE);
 
-#define MFMV_STACK_SIZE 3
+#if CONFIG_TIP
+enum {
+  /**
+   * TIP frame generation is disabled
+   */
+  TIP_FRAME_DISABLED = 0,
+  /**
+   * TIP frame is used as a reference frame
+   */
+  TIP_FRAME_AS_REF,
+  /**
+   * TIP frame is directly output for displaying
+   */
+  TIP_FRAME_AS_OUTPUT,
+  /**
+   * TIP frame maximum mode
+   */
+  TIP_FRAME_MODES,
+} UENUM1BYTE(TIP_FRAME_MODE);
+#endif  // CONFIG_TIP
+
 typedef struct {
   int_mv mfmv0;
   uint8_t ref_frame_offset;
 } TPL_MV_REF;
 
+#if CONFIG_TIP
+typedef struct {
+  int_mv mv[2];
+  MV_REFERENCE_FRAME ref_frame[2];
+} MV_REF;
+#else
 typedef struct {
   int_mv mv;
   MV_REFERENCE_FRAME ref_frame;
 } MV_REF;
+#endif  // CONFIG_TIP
+
+typedef struct PlaneHash {
+  uint8_t md5[16];
+} PlaneHash;
+
+typedef struct FrameHash {
+  uint8_t unused : 2;
+  uint8_t has_grain : 1;
+  uint8_t per_plane : 1;
+  uint8_t hash_type : 4;
+  PlaneHash plane[3];
+  int is_present;
+} FrameHash;
 
 typedef struct RefCntBuffer {
   // For a RefCntBuffer, the following are reference-holding variables:
@@ -141,7 +245,8 @@ typedef struct RefCntBuffer {
   int ref_count;
 
   unsigned int order_hint;
-  unsigned int ref_order_hints[INTER_REFS_PER_FRAME];
+  int ref_order_hints[INTER_REFS_PER_FRAME];
+  int ref_display_order_hint[INTER_REFS_PER_FRAME];
 
   // These variables are used only in encoder and compare the absolute
   // display order hint to compute the relative distance and overcome
@@ -149,9 +254,14 @@ typedef struct RefCntBuffer {
   // distance when a very old frame is used as a reference.
   unsigned int display_order_hint;
   unsigned int absolute_poc;
-  unsigned int ref_display_order_hint[INTER_REFS_PER_FRAME];
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  // How many ref frames did this frame use?
+  // This is set to 0 for intra frames
+  int num_ref_frames;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   MV_REF *mvs;
   uint8_t *seg_map;
@@ -162,7 +272,7 @@ typedef struct RefCntBuffer {
   // the sizes that can be derived from the buf structure)
   int width;
   int height;
-  WarpedMotionParams global_motion[REF_FRAMES];
+  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
   int showable_frame;  // frame can be used as show existing frame in future
   uint8_t film_grain_params_present;
   aom_film_grain_t film_grain_params;
@@ -175,12 +285,16 @@ typedef struct RefCntBuffer {
   int interp_filter_selected[SWITCHABLE];
 
   // Inter frame reference frame delta for loop filter
-  int8_t ref_deltas[REF_FRAMES];
+  int8_t ref_deltas[SINGLE_REF_FRAMES];
 
   // 0 = ZERO_MV, MV
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];
 
   FRAME_CONTEXT frame_context;
+  int base_qindex;
+
+  FrameHash raw_frame_hash;
+  FrameHash grain_frame_hash;
 } RefCntBuffer;
 
 typedef struct BufferPool {
@@ -215,6 +329,9 @@ typedef struct {
   int cdef_uv_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for
                                                 chroma */
   int cdef_bits; /*!< Number of CDEF strength values in bits */
+#if CONFIG_FIX_CDEF_SYNTAX
+  int cdef_frame_enable; /*!< CDEF on/off for current frame */
+#endif                   // CONFIG_FIX_CDEF_SYNTAX
 } CdefInfo;
 
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -295,9 +412,19 @@ typedef struct SequenceHeader {
   uint8_t frame_id_numbers_present_flag;
   int frame_id_length;
   int delta_frame_id_length;
-  BLOCK_SIZE sb_size;  // Size of the superblock used for this frame
-  int mib_size;        // Size of the superblock in units of MI blocks
-  int mib_size_log2;   // Log 2 of above.
+  BLOCK_SIZE sb_size;          // Size of the superblock used for this frame
+  int mib_size;                // Size of the superblock in units of MI blocks
+  int mib_size_log2;           // Log 2 of above.
+  int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  int enable_frame_output_order;  // Enable frame output order derivation based
+                                  // on order hint value
+#endif                            // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  int max_reference_frames;       // Number of reference frames allowed
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+  int num_same_ref_compound;  // Number of the allowed same reference frames for
+                              // the compound mode
+#endif                        // CONFIG_ALLOW_SAME_REF_COMPOUND
 
   OrderHintInfo order_hint_info;
 
@@ -309,57 +436,111 @@ typedef struct SequenceHeader {
   uint8_t force_integer_mv;            // 0 - Don't force. MV can use subpel
                                        // 1 - force to integer
                                        // 2 - adaptive
-#if CONFIG_SDP
-  uint8_t enable_sdp;  // enables/disables semi-decoupled partitioning
-#endif
-#if CONFIG_MRLS
+  uint8_t enable_sdp;   // enables/disables semi-decoupled partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection
-#endif
+#if CONFIG_TIP
+  uint8_t enable_tip;  // enables/disables temporal interpolated prediction
+  uint8_t enable_tip_hole_fill;  // enables/disables hole fill for TIP
+#endif                           // CONFIG_TIP
+#if CONFIG_BAWP
+  uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
+#endif                  // CONFIG_BAWP
+#if CONFIG_CWP
+  uint8_t enable_cwp;  // enables/disables compound weighted prediction
+#endif                 // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  uint8_t enable_imp_msk_bld;        // enable implicit maksed blending
+#endif                               // CONFIG_D071_IMP_MSK_BLD
+  uint8_t enable_fsc;                // enables/disables forward skip coding
   uint8_t enable_filter_intra;       // enables/disables filterintra
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
 
 #if CONFIG_ORIP
   uint8_t enable_orip;  // To turn on/off sub-block based ORIP
 #endif
-#if CONFIG_IST
+#if CONFIG_IDIF
+  uint8_t
+      enable_idif;  // enables/disables Intra Directional Interpolation Filter
+#endif              // CONFIG_IDIF
   uint8_t enable_ist;  // enables/disables intra secondary transform
-#endif
-#if CONFIG_IBP_DC || CONFIG_IBP_DIR
-  uint8_t enable_ibp;  // enables/disables intra bi-prediction(IBP)
-#endif
+#if CONFIG_CROSS_CHROMA_TX
+  uint8_t enable_cctx;  // enables/disables cross-chroma component transform
+#endif                  // CONFIG_CROSS_CHROMA_TX
+  uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
 #if CONFIG_ADAPTIVE_MVD
   uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
 #endif                          // CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
+  uint8_t enable_flex_mvres;  // enables/disables flexible MV resolution
+#endif                        // CONFIG_FLEX_MVRES
+
+#if CONFIG_ADAPTIVE_DS_FILTER
+  uint8_t enable_cfl_ds_filter;  // enable/disables adaptive downsampling filter
+#endif                           // CONFIG_ADAPTIVE_DS_FILTER
+
 #if CONFIG_JOINT_MVD
-  uint8_t enable_joint_mvd;            // enables/disables joint MVD coding
-#endif                                 // CONFIG_JOINT_MVD
+  uint8_t enable_joint_mvd;  // enables/disables joint MVD coding
+#endif                       // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  uint8_t enable_refinemv;  // enables/disables refineMV mode
+#endif                      // CONFIG_REFINEMV
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
+                                 // sequence
+#endif
+
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_interintra_compound;  // enables/disables interintra_compound
-  uint8_t enable_masked_compound;      // enables/disables masked compound
+#endif
+  uint8_t enable_masked_compound;  // enables/disables masked compound
 #if CONFIG_OPTFLOW_REFINEMENT
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#endif                           // 1 - enable vert/horz filter selection
+#endif  // 1 - enable vert/horz filter selection
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   uint8_t enable_warped_motion;  // 0 - disable warp for the sequence
                                  // 1 - enable warp for the sequence
-  uint8_t enable_superres;       // 0 - Disable superres for the sequence
-                                 //     and no frame level superres flag
-                                 // 1 - Enable superres for the sequence
-                                 //     enable per-frame superres flag
-  uint8_t enable_cdef;           // To turn on/off CDEF
+#endif
+  uint8_t enable_superres;  // 0 - Disable superres for the sequence
+                            //     and no frame level superres flag
+                            // 1 - Enable superres for the sequence
+                            //     enable per-frame superres flag
+  uint8_t enable_cdef;      // To turn on/off CDEF
 
   uint8_t enable_restoration;  // To turn on/off loop restoration
 #if CONFIG_CCSO
   uint8_t enable_ccso;  // To turn on/off CCSO
 #endif
+#if CONFIG_PEF
+  uint8_t enable_pef;  // To turn on/off prediction enhancement filter
+#endif                 // CONFIG_PEF
 #if CONFIG_REF_MV_BANK
   uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
 #endif                       // CONFIG_REF_MV_BANK
+#if CONFIG_LR_FLEX_SYNTAX
+  uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
+                                     // To disable tool i in RestorationType
+                                     // enum where:
+                                     // 1 <= i <= RESTORE_SWITCHABLE_TYPES, set
+                                     // the ith bit in least to most significant
+                                     // order to 1.
+#endif                               // CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_PAR_HIDING
+  uint8_t enable_parity_hiding;  // To turn on/off PAR_HIDING
+#endif                           // CONFIG_PAR_HIDING
+#if CONFIG_EXT_RECUR_PARTITIONS
+  uint8_t enable_ext_partitions;  // enable extended partitions
+#endif                            // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  bool enable_global_motion;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   BITSTREAM_PROFILE profile;
 
   // Color config.
   aom_bit_depth_t bit_depth;  // AOM_BITS_8 in profile 0 or 1,
                               // AOM_BITS_10 or AOM_BITS_12 in profile 2 or 3.
-  uint8_t use_highbitdepth;   // If true, we need to use 16bit frame buffers.
   uint8_t monochrome;         // Monochorme video
   aom_color_primaries_t color_primaries;
   aom_transfer_characteristics_t transfer_characteristics;
@@ -369,10 +550,8 @@ typedef struct SequenceHeader {
   int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;
   uint8_t separate_uv_delta_q;
-#if CONFIG_EXTQUANT
   int8_t base_y_dc_delta_q;
   int8_t base_uv_dc_delta_q;
-#endif  // CONFIG_EXTQUANT
   uint8_t film_grain_params_present;
 
   // Operating point info.
@@ -412,7 +591,6 @@ typedef struct {
   unsigned int frame_number;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
-  int frame_refs_short_signaling;
 } CurrentFrame;
 
 /*!\endcond */
@@ -425,15 +603,35 @@ typedef struct {
    * If true, CDF update in the symbol encoding/decoding process is disabled.
    */
   bool disable_cdf_update;
+#if CONFIG_FLEX_MVRES
+  /*!
+   * The maximum allowable mv precision of the current frame.
+   */
+  MvSubpelPrecision fr_mv_precision;
+  /*!
+   * The most probable mv precision of the current frame.
+   */
+  MvSubpelPrecision most_probable_fr_mv_precision;
+#else
   /*!
    * If true, motion vectors are specified to eighth pel precision; and
    * if false, motion vectors are specified to quarter pel precision.
    */
   bool allow_high_precision_mv;
+#endif
+
   /*!
    * If true, force integer motion vectors; if false, use the default.
    */
   bool cur_frame_force_integer_mv;
+#if CONFIG_FLEX_MVRES
+  /*!
+   * If true, allow the mv precision to be changed at the prediction block
+   * level.
+   */
+  bool use_pb_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
+
   /*!
    * If true, palette tool and/or intra block copy tools may be used.
    */
@@ -445,7 +643,12 @@ typedef struct {
   bool allow_local_intrabc;  /*!< If true, intra block copy tool may use the
                               local  search range. */
 #endif                       // CONFIG_IBC_SR_EXT
-  bool allow_warped_motion;  /*!< If true, frame may use warped motion mode. */
+#if !CONFIG_EXTENDED_WARP_PREDICTION
+  bool allow_warped_motion; /*!< If true, frame may use warped motion mode. */
+#endif
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  bool allow_warpmv_mode; /*!< If true, frame may use WARPMV mode. */
+#endif                    // CONFIG_CWG_D067_IMPROVED_WARP
   /*!
    * If true, using previous frames' motion vectors for prediction is allowed.
    */
@@ -469,11 +672,13 @@ typedef struct {
    * independently of previously decoded frames.
    */
   bool error_resilient_mode;
+#if !CONFIG_EXTENDED_WARP_PREDICTION
   /*!
    * If false, only MOTION_MODE that may be used is SIMPLE_TRANSLATION;
    * if true, all MOTION_MODES may be used.
    */
   bool switchable_motion_mode;
+#endif
   TX_MODE tx_mode;            /*!< Transform mode at frame level. */
   InterpFilter interp_filter; /*!< Interpolation filter at frame level. */
   /*!
@@ -490,12 +695,10 @@ typedef struct {
    * a frame decode.
    */
   REFRESH_FRAME_CONTEXT_MODE refresh_frame_context;
-#if CONFIG_NEW_INTER_MODES
   /*!
    * Max_drl_bits. Note number of ref MVs allowed is max_drl_bits + 1
    */
   int max_drl_bits;
-#endif  // CONFIG_NEW_INTER_MODES
 #if CONFIG_OPTFLOW_REFINEMENT
   /*!
    * Ternary symbol for optical flow refinement type. 0: do not refine,
@@ -503,6 +706,90 @@ typedef struct {
    */
   OPTFLOW_REFINE_TYPE opfl_refine_type;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_TIP
+  /*!
+   * TIP mode.
+   */
+  TIP_FRAME_MODE tip_frame_mode;
+#if CONFIG_OPTFLOW_ON_TIP
+  /*!
+   * Whether optflow refinement is used for TIP frames
+   */
+  int use_optflow_tip;
+#endif  // CONFIG_OPTFLOW_ON_TIP
+  /*!
+   * Enables/disables hole fill for TIP
+   */
+  bool allow_tip_hole_fill;
+#endif  // CONFIG_TIP
+#if CONFIG_PEF
+  /*!
+   * Enables/disables prediction enhancement filter
+   */
+  bool allow_pef;
+#endif  // CONFIG_PEF
+#if CONFIG_PAR_HIDING
+  /*!
+   * Enables/disables parity hiding.
+   */
+  bool allow_parity_hiding;
+#endif  // CONFIG_PAR_HIDING
+#if CONFIG_BAWP
+  /*!
+   * Enables/disables block adaptive weighted prediction
+   */
+  bool enable_bawp;
+#endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  /*!
+   * Enables/disables compound weighted prediction
+   */
+  bool enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  /*!
+   * Enables/disables implicit masked blending.
+   */
+  bool enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  /*!
+   * Bit mask of enabled motion modes for this frame
+   */
+  int enabled_motion_modes;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_LR_FLEX_SYNTAX
+  /*!
+   * mask of lr tool(s) to disable. To disable tool i in RestorationType enum
+   * where: * 1 <= i <= RESTORE_SWITCHABLE_TYPES, set the ith bit in least to
+   * most ignificant order to 1.
+   */
+  uint8_t lr_tools_disable_mask[MAX_MB_PLANE];
+  /*!
+   * Number of lr tools enabled
+   */
+  int lr_tools_count[MAX_MB_PLANE];
+  /*!
+   * Number of lr options in switchable mode
+   */
+  int lr_switchable_tools_count[MAX_MB_PLANE];
+  /*!
+   * Number of lr modes available at frame level
+   */
+  int lr_frame_tools_count[MAX_MB_PLANE];
+  /*!
+   * index of last bit transmitted for convenience. Beyond this index
+   * there is exactly one allowed option, and therefore there is no need
+   * to signal anything.
+   */
+  int lr_last_switchable_ndx[MAX_MB_PLANE];
+  /*!
+   * Restoration Type if last bit transmitted is 0 for convenience. If the
+   * last bit (lr_last_switchable_ndx) transmitted is 0, the
+   * restoration type is lr_last_switchable_ndx_0_type.
+   */
+  int lr_last_switchable_ndx_0_type[MAX_MB_PLANE];
+#endif  // CONFIG_LR_FLEX_SYNTAX
 } FeatureFlags;
 
 /*!
@@ -617,6 +904,13 @@ struct CommonModeInfoParams {
    * accessed directly, in most cases. Please use 'mi_grid_base' array instead.
    */
   MB_MODE_INFO *mi_alloc;
+#if CONFIG_C071_SUBBLK_WARPMV
+  /*!
+   * An array of SUBMB_INFO structs for every 'mi_alloc_bsize' sized block
+   * in the frame.
+   */
+  SUBMB_INFO *mi_alloc_sub;
+#endif  // CONFIG_C071_SUBBLK_WARPMV
   /*!
    * Number of allocated elements in 'mi_alloc'.
    */
@@ -641,6 +935,12 @@ struct CommonModeInfoParams {
    * - Some pointers can be NULL (for example, for blocks outside visible area).
    */
   MB_MODE_INFO **mi_grid_base;
+#if CONFIG_C071_SUBBLK_WARPMV
+  /*!
+   * Grid of pointers to 4x4 SUBMB_INFO structs allocated in 'mi_alloc_sub'.
+   */
+  SUBMB_INFO **submi_grid_base;
+#endif  // CONFIG_C071_SUBBLK_WARPMV
   /*!
    * Number of allocated elements in 'mi_grid_base' (and 'tx_type_map' also).
    */
@@ -655,12 +955,44 @@ struct CommonModeInfoParams {
    * Number of allocated elements is same as 'mi_grid_size', and stride is
    * same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
    * 'mi_grid_base'.
-   * If secondary transform in enabled (CONFIG_IST) each element of the array
+   * If secondary transform in enabled (IST) each element of the array
    * stores both primary and secondary transform types as shown below: Bits 4~5
    * of each element stores secondary tx_type Bits 0~3 of each element stores
    * primary tx_type
    */
   TX_TYPE *tx_type_map;
+#if CONFIG_PC_WIENER
+  /*!
+   * indicate if a transform block has any non-zero coefficients or not.
+   * the buffer is allocated for each 4x4 block
+   */
+  uint8_t *tx_skip[MAX_MB_PLANE];
+  /*!
+   * tx_skip buffer allocated for each 4x4 block
+   */
+  uint32_t tx_skip_buf_size[MAX_MB_PLANE];
+  /*!
+   * tx_skip stride
+   */
+  uint32_t tx_skip_stride[MAX_MB_PLANE];
+  /*!
+   * Buffer that stores pc-wiener classification information.
+   */
+  uint8_t *wiener_class_id[MAX_MB_PLANE];
+  /*!
+   * wiener_class_id stride
+   */
+  uint32_t wiener_class_id_stride[MAX_MB_PLANE];
+#endif  // CONFIG_PC_WIENER
+#if CONFIG_CROSS_CHROMA_TX
+  /*!
+   * An array of cctx types for each 4x4 block in the frame.
+   * Number of allocated elements is same as 'mi_grid_size', and stride is
+   * same as 'mi_grid_size'. So, indexing into 'tx_type_map' is same as that of
+   * 'mi_grid_base'.
+   */
+  CctxType *cctx_type_map;
+#endif  // CONFIG_CROSS_CHROMA_TX
 
   /**
    * \name Function pointers to allow separate logic for encoder and decoder.
@@ -686,6 +1018,32 @@ struct CommonModeInfoParams {
                     int height);
   /**@}*/
 };
+
+/*!
+ * \brief Params related to SB_INFO arrays and related info.
+ */
+typedef struct CommonSBInfoParams {
+  /*!
+   * Grid of pointers to SB_INFO structs.
+   */
+  SB_INFO *sbi_grid_base;
+  /*!
+   * Stride for 'sbi_grid_base'.
+   */
+  int sbi_stride;
+  /*!
+   * Number of superblocks in the vertical direction.
+   */
+  int sb_rows;
+  /*!
+   * Number of superblocks in the horizontal direction.
+   */
+  int sb_cols;
+  /*!
+   * Number of SB_INFO structs that are currently allocated.
+   */
+  int sbi_alloc_size;
+} CommonSBInfoParams;
 
 typedef struct CommonQuantParams CommonQuantParams;
 /*!
@@ -735,15 +1093,9 @@ struct CommonQuantParams {
    * shift/scale as TX.
    */
   /**@{*/
-#if CONFIG_EXTQUANT
   int32_t y_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for Y plane */
   int32_t u_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for U plane */
   int32_t v_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for V plane */
-#else
-  int16_t y_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for Y plane */
-  int16_t u_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for U plane */
-  int16_t v_dequant_QTX[MAX_SEGMENTS][2]; /*!< Dequant for V plane */
-#endif
   /**@}*/
 
   /**
@@ -806,11 +1158,7 @@ struct CommonContexts {
    * Context used by 'FRAME_CONTEXT.partition_cdf' to transmit partition type.
    * partition[i][j] is the context for ith tile row, jth mi_col.
    */
-#if CONFIG_SDP
   PARTITION_CONTEXT **partition[MAX_MB_PLANE];
-#else
-  PARTITION_CONTEXT **partition;
-#endif
 
   /*!
    * Context used to derive context for multiple symbols:
@@ -859,6 +1207,135 @@ struct total_sym_stats {
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
 
 /*!
+ * \brief Structure to contain information about the reference frame mapping
+ * scheme.
+ */
+typedef struct {
+  /*!
+   * Distance of ref frame from current frame. Negative value indicates
+   * reference in the future, and positive value indicates reference in
+   * the past from the current frame
+   */
+  int ref_frame_distance[INTER_REFS_PER_FRAME];
+  /*!
+   * Total number of reference buffers available to the current frame.
+   */
+  int num_total_refs;
+  /*!
+   * Contains the indices of the frames in ref_frame_map that are future
+   * references.
+   */
+  int future_refs[INTER_REFS_PER_FRAME];
+  /*!
+   * Number of future references.
+   */
+  int num_future_refs;
+  /*!
+   * Contains the indices of the frames in ref_frame_map that are past
+   * references.
+   */
+  int past_refs[INTER_REFS_PER_FRAME];
+  /*!
+   * Number of past references.
+   */
+  int num_past_refs;
+  /*!
+   * Contains the indices of the frames in ref_frame_map with same order hint
+   * as current frame. -1 if unset.
+   */
+  int cur_refs[INTER_REFS_PER_FRAME];
+  /*!
+   * Number of references with the same order hint.
+   */
+  int num_cur_refs;
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+  /*!
+   * Number of references for the compound mode with the same slot.
+   */
+  int num_same_ref_compound;
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+} RefFramesInfo;
+
+#if CONFIG_TIP
+/*!
+ * \brief Structure used for storing tip reconstruct and prediction
+ */
+typedef struct {
+  /** dst buffer */
+  struct buf_2d dst;
+  /** pred buffer */
+  struct buf_2d pred[2];
+} TIP_PLANE;
+
+/*!
+ * \brief Structure used for tip
+ */
+typedef struct TIP_Buffer {
+  /*!
+   * Buffer into which the interpolated tip frame will be stored and other
+   * related info.
+   */
+  RefCntBuffer *tip_frame;
+  /*!
+   * Info specific to each plane.
+   */
+  TIP_PLANE tip_plane[MAX_MB_PLANE];
+  /*!
+   * Offset of TIP frame to its reference frame.
+   */
+  int ref_offset[2];
+  /*!
+   * Order hint of TIP's reference frames.
+   */
+  int ref_order_hint[2];
+  /*!
+   * Reference frame type of TIP's reference frames.
+   */
+  MV_REFERENCE_FRAME ref_frame[2];
+  /*!
+   * Buffer where TIP's reference frame is stored.
+   */
+  RefCntBuffer *ref_frame_buffer[2];
+  /*!
+   * Temporal scaling factor of the frame offset between current frame to one of
+   * TIP's reference frame with respect to the frame offset between TIP's two
+   * reference frames.
+   */
+  int ref_frames_offset_sf[2];
+  /*!
+   * Frame offset between TIP's two reference frames.
+   */
+  int ref_frames_offset;
+  /*!
+   * Scale factors of the reference frame with respect to the current frame.
+   * This is required for generating inter prediction and will be non-identity
+   * for a reference frame, if it has different dimensions than the coded
+   * dimensions of the current frame.
+   */
+  const struct scale_factors *ref_scale_factor[2];
+  /*!
+   * Scale factors of tip frame.
+   */
+  struct scale_factors scale_factor;
+  /*!
+   * Buffer into which the scaled interpolated tip frame will be stored and
+   * other related info. This is required for generating inter prediction and
+   * will be non-identity for a reference frame, if it has different dimensions
+   * than the coded dimensions of the current frame.
+   */
+  RefCntBuffer *scaled_tip_frame;
+  /*!
+   * Check a block is already interpolated
+   */
+  int *available_flag;
+  /*!
+   * Check the motion field of TIP block is within the frame
+   */
+  int *mf_need_clamp;
+} TIP;
+#endif  // CONFIG_TIP
+
+/*!
  * \brief Top level common structure used by both encoder and decoder.
  */
 typedef struct AV1Common {
@@ -868,6 +1345,11 @@ typedef struct AV1Common {
    */
   struct total_sym_stats sym_stats;
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
+  /*!
+   * Bitmask indicating which reference buffers may be referenced by this frame.
+   */
+  int ref_frame_flags;
+
   /*!
    * Information about the current frame that is being coded.
    */
@@ -956,21 +1438,27 @@ typedef struct AV1Common {
   RefCntBuffer *cur_frame;
 
   /*!
+   * An alternative to remapped_ref_idx (above) which contains a mapping to
+   * ref_frame_map[] according to a "usefulness" score. It also contains all
+   * other relevant data to aid the reference mapping and signaling.
+   */
+  RefFramesInfo ref_frames_info;
+  /*!
    * For encoder, we have a two-level mapping from reference frame type to the
    * corresponding buffer in the buffer pool:
-   * * 'remapped_ref_idx[i - 1]' maps reference type 'i' (range: LAST_FRAME ...
-   * EXTREF_FRAME) to a remapped index 'j' (in range: 0 ... REF_FRAMES - 1)
+   * * 'remapped_ref_idx[i - 1]' maps reference type 'i' (range: 0 ...
+   * INTER_REFS_PER_FRAME - 1) to a remapped index 'j' in the same range.
    * * Later, 'cm->ref_frame_map[j]' maps the remapped index 'j' to a pointer to
    * the reference counted buffer structure RefCntBuffer, taken from the buffer
    * pool cm->buffer_pool->frame_bufs.
    *
-   * LAST_FRAME,                        ...,      EXTREF_FRAME
+   *      0,               ...,            INTER_REFS_PER_FRAME - 1
    *      |                                           |
    *      v                                           v
-   * remapped_ref_idx[LAST_FRAME - 1],  ...,  remapped_ref_idx[EXTREF_FRAME - 1]
+   * remapped_ref_idx[0],  ...,     remapped_ref_idx[INTER_REFS_PER_FRAME- 1]
    *      |                                           |
    *      v                                           v
-   * ref_frame_map[],                   ...,     ref_frame_map[]
+   * ref_frame_map[],      ...,                ref_frame_map[]
    *
    * Note: INTRA_FRAME always refers to the current frame, so there's no need to
    * have a remapped index for the same.
@@ -1033,6 +1521,11 @@ typedef struct AV1Common {
    */
   CommonModeInfoParams mi_params;
 
+  /*!
+   * Params related to SB_INFO arrays and related info.
+   */
+  CommonSBInfoParams sbi_params;
+
 #if CONFIG_ENTROPY_STATS
   /*!
    * Context type used by token CDFs, in the range 0 .. (TOKEN_CDF_Q_CTXS - 1).
@@ -1063,6 +1556,16 @@ typedef struct AV1Common {
   struct loopfilter lf;       /*!< Loop filter parameters */
   /**@}*/
 
+#if CONFIG_PEF
+  /**
+   * \name Prediction enhancement filter parameters.
+   */
+  /**@{*/
+  PefInfo pef_info;     /*!< Prediction enhancement filter info*/
+  PefParams pef_params; /*!< Prediction enhancement filter parameters*/
+  /**@}*/
+#endif  // CONFIG_PEF
+
   /**
    * \name Loop Restoration filter parameters.
    */
@@ -1071,6 +1574,11 @@ typedef struct AV1Common {
   int32_t *rst_tmpbuf; /*!< Scratch buffer for self-guided restoration */
   RestorationLineBuffers *rlbs; /*!< Line buffers needed by loop restoration */
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  YV12_BUFFER_CONFIG pre_rst_frame; /*!< Stores the reconstructed frame before
+                                       loop restoration, only used by encoder,
+                                       to be moved to encoder buffer */
+#endif                              // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   /**@}*/
 
   /*!
@@ -1095,10 +1603,22 @@ typedef struct AV1Common {
    */
   DeltaQInfo delta_q_info;
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  /*!
+   * Base model used for delta-coding global motion parameters
+   */
+  WarpedMotionParams base_global_motion_model;
+
+  /*!
+   * Temporal length of `base_global_motion_model`
+   */
+  int base_global_motion_distance;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   /*!
    * Global motion parameters for each reference frame.
    */
-  WarpedMotionParams global_motion[REF_FRAMES];
+  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
 
   /*!
    * Elements part of the sequence header, that are applicable for all the
@@ -1159,19 +1679,19 @@ typedef struct AV1Common {
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
    * current frame is positive; and 0 otherwise.
    */
-  int ref_frame_sign_bias[REF_FRAMES];
+  int ref_frame_sign_bias[INTER_REFS_PER_FRAME];
   /*!
    * ref_frame_side[k] is 1 if relative distance between reference 'k' and
    * current frame is positive, -1 if relative distance is 0; and 0 otherwise.
    * TODO(jingning): This can be combined with sign_bias later.
    */
-  int8_t ref_frame_side[REF_FRAMES];
-#if CONFIG_SMVP_IMPROVEMENT
+  int8_t ref_frame_side[INTER_REFS_PER_FRAME];
+#if CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * relative distance between reference 'k' and current frame.
    */
-  int8_t ref_frame_relative_dist[REF_FRAMES];
-#endif  // CONFIG_SMVP_IMPROVEMENT
+  int ref_frame_relative_dist[REF_FRAMES];
+#endif  // CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
    */
@@ -1192,12 +1712,10 @@ typedef struct AV1Common {
    */
   int spatial_layer_id;
 
-#if CONFIG_IBP_DIR
   /*!
    * Weights for IBP of directional modes.
    */
   uint8_t *ibp_directional_weights[TX_SIZES_ALL][DIR_MODES_0_90];
-#endif
 
 #if TXCOEFF_TIMER
   int64_t cum_txcoeff_timer;
@@ -1219,9 +1737,74 @@ typedef struct AV1Common {
   FILE *fEncCoeffLog;
   FILE *fDecCoeffLog;
 #endif
+
+#if CONFIG_TIP
+  /*!
+   * Flag to indicate if current frame has backward ref frame
+   */
+  int has_bwd_ref;
+  /*!
+   * TIP reference frame
+   */
+  TIP tip_ref;
+
+#if CONFIG_OPTFLOW_ON_TIP
+  /*!
+   * Blk buffer of the first reference for tip optflow
+   */
+  uint16_t *dst0_16_tip;
+  /*!
+   * Blk buffer of the second reference for tip optflow
+   */
+  uint16_t *dst1_16_tip;
+  /*!
+   * Buffer of horizontal gradient in buffer 0
+   */
+  int16_t *gx0;
+  /*!
+   * Buffer of vertical gradient in buffer 0
+   */
+  int16_t *gy0;
+  /*!
+   * Buffer of horizontal gradient in buffer 1
+   */
+  int16_t *gx1;
+  /*!
+   * Buffer of vertical gradient in buffer 1
+   */
+  int16_t *gy1;
+#endif  // CONFIG_OPTFLOW_ON_TIP
+#endif  // CONFIG_TIP
+
+#if CONFIG_INSPECTION
+  YV12_BUFFER_CONFIG predicted_pixels;
+  YV12_BUFFER_CONFIG prefiltered_pixels;
+#endif  // CONFIG_INSPECTION
 } AV1_COMMON;
 
 /*!\cond */
+
+#if CONFIG_PC_WIENER
+#define ILLEGAL_TXK_SKIP_VALUE 255
+void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_dealloc_txk_skip_array(CommonModeInfoParams *mi_params);
+void av1_reset_txk_skip_array(AV1_COMMON *cm);
+void av1_reset_txk_skip_array_using_mi_params(CommonModeInfoParams *mi_params);
+void av1_init_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
+                             BLOCK_SIZE bsize, uint8_t value,
+                             TREE_TYPE tree_type,
+                             const CHROMA_REF_INFO *chroma_ref_info,
+                             int plane_start, int plane_end);
+void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
+                               TREE_TYPE tree_type,
+                               const CHROMA_REF_INFO *chroma_ref_info,
+                               int plane, int blk_row, int blk_col,
+                               TX_SIZE tx_size);
+uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
+                         int plane, int blk_row, int blk_col);
+void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
+void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
+#endif  // CONFIG_PC_WIENER
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.
@@ -1242,6 +1825,9 @@ static void unlock_buffer_pool(BufferPool *const pool) {
 }
 
 static INLINE YV12_BUFFER_CONFIG *get_ref_frame(AV1_COMMON *cm, int index) {
+#if CONFIG_TIP
+  if (is_tip_ref_frame(index)) return &cm->tip_ref.tip_frame->buf;
+#endif  // CONFIG_TIP
   if (index < 0 || index >= REF_FRAMES) return NULL;
   if (cm->ref_frame_map[index] == NULL) return NULL;
   return &cm->ref_frame_map[index]->buf;
@@ -1294,6 +1880,8 @@ static INLINE RefCntBuffer *assign_cur_frame_new_fb(AV1_COMMON *const cm) {
   cm->cur_frame = &cm->buffer_pool->frame_bufs[new_fb_idx];
   cm->cur_frame->buf.buf_8bit_valid = 0;
   av1_zero(cm->cur_frame->interp_filter_selected);
+  av1_zero(cm->cur_frame->raw_frame_hash);
+  av1_zero(cm->cur_frame->grain_frame_hash);
   return cm->cur_frame;
 }
 
@@ -1322,18 +1910,20 @@ static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
   return cm->current_frame.frame_type == S_FRAME;
 }
 
-// These functions take a reference frame label between LAST_FRAME and
-// EXTREF_FRAME inclusive.  Note that this is different to the indexing
-// previously used by the frame_refs[] array.
 static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
-                                        const MV_REFERENCE_FRAME ref_frame) {
-  return (ref_frame >= LAST_FRAME && ref_frame <= EXTREF_FRAME)
-             ? cm->remapped_ref_idx[ref_frame - LAST_FRAME]
+                                        const int ref_frame) {
+  return (ref_frame >= 0 && ref_frame < REF_FRAMES)
+             ? cm->remapped_ref_idx[ref_frame]
              : INVALID_IDX;
 }
 
 static INLINE RefCntBuffer *get_ref_frame_buf(
     const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
+#if CONFIG_TIP
+  if (is_tip_ref_frame(ref_frame)) {
+    return cm->tip_ref.tip_frame;
+  }
+#endif  // CONFIG_TIP
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
@@ -1342,12 +1932,22 @@ static INLINE RefCntBuffer *get_ref_frame_buf(
 // can be used with a const AV1_COMMON if needed.
 static INLINE const struct scale_factors *get_ref_scale_factors_const(
     const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
+#if CONFIG_TIP
+  if (is_tip_ref_frame(ref_frame)) {
+    return &cm->tip_ref.scale_factor;
+  }
+#endif  // CONFIG_TIP
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
 }
 
 static INLINE struct scale_factors *get_ref_scale_factors(
     AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
+#if CONFIG_TIP
+  if (is_tip_ref_frame(ref_frame)) {
+    return &cm->tip_ref.scale_factor;
+  }
+#endif  // CONFIG_TIP
   const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? &cm->ref_scale_factors[map_idx] : NULL;
 }
@@ -1356,7 +1956,12 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
     const AV1_COMMON *const cm) {
   const int primary_ref_frame = cm->features.primary_ref_frame;
   if (primary_ref_frame == PRIMARY_REF_NONE) return NULL;
-  const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame + 1);
+#if CONFIG_TIP
+  if (is_tip_ref_frame(primary_ref_frame)) {
+    return cm->tip_ref.tip_frame;
+  }
+#endif  // CONFIG_TIP
+  const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame);
   return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
 
@@ -1368,26 +1973,39 @@ static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
          !frame_is_intra_only(cm);
 }
 
+#if !CONFIG_EXTENDED_WARP_PREDICTION
 // Returns 1 if this frame might use warped_motion
 static INLINE int frame_might_allow_warped_motion(const AV1_COMMON *cm) {
   return !cm->features.error_resilient_mode && !frame_is_intra_only(cm) &&
          cm->seq_params.enable_warped_motion;
 }
+#endif  // !CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
   const int buf_rows = buf->mi_rows;
   const int buf_cols = buf->mi_cols;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
 
+#if CONFIG_TIP
+  const int tpl_rows = ROUND_POWER_OF_TWO(mi_params->mi_rows, TMVP_SHIFT_BITS);
+  const int tpl_cols = ROUND_POWER_OF_TWO(mi_params->mi_cols, TMVP_SHIFT_BITS);
+  const int mem_size = tpl_rows * tpl_cols;
+#endif  // CONFIG_TIP
+
   if (buf->mvs == NULL || buf_rows != mi_params->mi_rows ||
       buf_cols != mi_params->mi_cols) {
     aom_free(buf->mvs);
     buf->mi_rows = mi_params->mi_rows;
     buf->mi_cols = mi_params->mi_cols;
+#if CONFIG_TIP
+    CHECK_MEM_ERROR(cm, buf->mvs,
+                    (MV_REF *)aom_calloc(mem_size, sizeof(*buf->mvs)));
+#else
     CHECK_MEM_ERROR(cm, buf->mvs,
                     (MV_REF *)aom_calloc(((mi_params->mi_rows + 1) >> 1) *
                                              ((mi_params->mi_cols + 1) >> 1),
                                          sizeof(*buf->mvs)));
+#endif  // CONFIG_TIP
     aom_free(buf->seg_map);
     CHECK_MEM_ERROR(
         cm, buf->seg_map,
@@ -1395,17 +2013,36 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
                               sizeof(*buf->seg_map)));
   }
 
+#if !CONFIG_TIP
   const int mem_size =
       ((mi_params->mi_rows + MAX_MIB_SIZE) >> 1) * (mi_params->mi_stride >> 1);
-  int realloc = cm->tpl_mvs == NULL;
-  if (cm->tpl_mvs) realloc |= cm->tpl_mvs_mem_size < mem_size;
-
+#endif  // !CONFIG_TIP
+  const int is_tpl_mvs_mem_size_too_small = (cm->tpl_mvs_mem_size < mem_size);
+  int realloc = cm->tpl_mvs == NULL || is_tpl_mvs_mem_size_too_small;
   if (realloc) {
     aom_free(cm->tpl_mvs);
     CHECK_MEM_ERROR(cm, cm->tpl_mvs,
                     (TPL_MV_REF *)aom_calloc(mem_size, sizeof(*cm->tpl_mvs)));
     cm->tpl_mvs_mem_size = mem_size;
   }
+
+#if CONFIG_TIP
+  realloc = cm->tip_ref.available_flag == NULL || is_tpl_mvs_mem_size_too_small;
+  if (realloc) {
+    aom_free(cm->tip_ref.available_flag);
+    CHECK_MEM_ERROR(
+        cm, cm->tip_ref.available_flag,
+        (int *)aom_calloc(mem_size, sizeof(*cm->tip_ref.available_flag)));
+  }
+
+  realloc = cm->tip_ref.mf_need_clamp == NULL || is_tpl_mvs_mem_size_too_small;
+  if (realloc) {
+    aom_free(cm->tip_ref.mf_need_clamp);
+    CHECK_MEM_ERROR(
+        cm, cm->tip_ref.mf_need_clamp,
+        (int *)aom_calloc(mem_size, sizeof(*cm->tip_ref.mf_need_clamp)));
+  }
+#endif  // CONFIG_TIP
 }
 
 void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params);
@@ -1419,13 +2056,8 @@ static INLINE void av1_init_above_context(CommonContexts *above_contexts,
                                           MACROBLOCKD *xd) {
   for (int i = 0; i < num_planes; ++i) {
     xd->above_entropy_context[i] = above_contexts->entropy[i][tile_row];
-#if CONFIG_SDP
     xd->above_partition_context[i] = above_contexts->partition[i][tile_row];
-#endif
   }
-#if !CONFIG_SDP
-  xd->above_partition_context = above_contexts->partition[tile_row];
-#endif
   xd->above_txfm_context = above_contexts->txfm[tile_row];
 }
 
@@ -1460,28 +2092,19 @@ static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd) {
 }
 
 static INLINE void set_entropy_context(MACROBLOCKD *xd, int mi_row, int mi_col,
-                                       const int num_planes) {
-  int i;
-  int row_offset = mi_row;
-  int col_offset = mi_col;
-#if CONFIG_SDP
-  for (i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
-#else
-  for (i = 0; i < num_planes; ++i) {
-#endif
+                                       const int num_planes,
+                                       const CHROMA_REF_INFO *chroma_ref_info) {
+  for (int i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
     struct macroblockd_plane *const pd = &xd->plane[i];
     // Offset the buffer pointer
-#if CONFIG_SDP
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
-#else
-    const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
-#endif
-    if (pd->subsampling_y && (mi_row & 0x01) && (mi_size_high[bsize] == 1))
-      row_offset = mi_row - 1;
-    if (pd->subsampling_x && (mi_col & 0x01) && (mi_size_wide[bsize] == 1))
-      col_offset = mi_col - 1;
-    int above_idx = col_offset;
-    int left_idx = row_offset & MAX_MIB_MASK;
+    const int row_offset =
+        i && chroma_ref_info ? chroma_ref_info->mi_row_chroma_base : mi_row;
+    const int col_offset =
+        i && chroma_ref_info ? chroma_ref_info->mi_col_chroma_base : mi_col;
+    assert(row_offset >= 0);
+    assert(col_offset >= 0);
+    const int above_idx = col_offset;
+    const int left_idx = row_offset & MAX_MIB_MASK;
     pd->above_entropy_context =
         &xd->above_entropy_context[i][above_idx >> pd->subsampling_x];
     pd->left_entropy_context =
@@ -1495,24 +2118,62 @@ static INLINE int calc_mi_size(int len) {
 }
 
 static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
-                                const int num_planes) {
+                                const int num_planes,
+                                const CHROMA_REF_INFO *chroma_ref_info) {
   int i;
-#if CONFIG_SDP
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; i++) {
-#else
-  for (i = 0; i < num_planes; i++) {
-#endif
-    xd->plane[i].width = (bw * MI_SIZE) >> xd->plane[i].subsampling_x;
-    xd->plane[i].height = (bh * MI_SIZE) >> xd->plane[i].subsampling_y;
+    if (chroma_ref_info && i > 0) {
+      const BLOCK_SIZE plane_bsize = chroma_ref_info->bsize_base;
+      assert(plane_bsize < BLOCK_SIZES_ALL);
+
+      xd->plane[i].width =
+          block_size_wide[plane_bsize] >> xd->plane[i].subsampling_x;
+      xd->plane[i].height =
+          block_size_high[plane_bsize] >> xd->plane[i].subsampling_y;
+    } else {
+      xd->plane[i].width = (bw * MI_SIZE) >> xd->plane[i].subsampling_x;
+      xd->plane[i].height = (bh * MI_SIZE) >> xd->plane[i].subsampling_y;
+    }
 
     xd->plane[i].width = AOMMAX(xd->plane[i].width, 4);
     xd->plane[i].height = AOMMAX(xd->plane[i].height, 4);
   }
 }
 
+static INLINE void fetch_spatial_neighbors(MACROBLOCKD *xd) {
+  // Scan from bottom left->above right->left->above
+  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
+    xd->neighbors[i] = NULL;
+  }
+
+  int index = 0;
+#if CONFIG_NEW_CONTEXT_MODELING
+  if (xd->bottom_left_mbmi) {
+    xd->neighbors[index++] = xd->bottom_left_mbmi;
+    if (index >= MAX_NUM_NEIGHBORS) return;
+  }
+
+  if (xd->above_right_mbmi) {
+    xd->neighbors[index++] = xd->above_right_mbmi;
+    if (index >= MAX_NUM_NEIGHBORS) return;
+  }
+#endif  // CONFIG_NEW_CONTEXT_MODELING
+
+  if (xd->left_mbmi) {
+    xd->neighbors[index++] = xd->left_mbmi;
+    if (index >= MAX_NUM_NEIGHBORS) return;
+  }
+
+  if (xd->above_mbmi) {
+    xd->neighbors[index++] = xd->above_mbmi;
+    if (index >= MAX_NUM_NEIGHBORS) return;
+  }
+}
+
 static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
                                   int mi_row, int bh, int mi_col, int bw,
-                                  int mi_rows, int mi_cols) {
+                                  int mi_rows, int mi_cols,
+                                  const CHROMA_REF_INFO *chroma_ref_info) {
   xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
   xd->mb_to_bottom_edge = GET_MV_SUBPEL((mi_rows - bh - mi_row) * MI_SIZE);
   xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col * MI_SIZE));
@@ -1520,20 +2181,25 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
+  xd->mi[0]->mi_row_start = mi_row;
+  xd->mi[0]->mi_col_start = mi_col;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  xd->mi[0]->chroma_mi_row_start = mi_row;
+  xd->mi[0]->chroma_mi_col_start = mi_col;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  xd->tile.mi_col_start = tile->mi_col_start;
+  xd->tile.mi_col_end = tile->mi_col_end;
+  xd->tile.mi_row_start = tile->mi_row_start;
+  xd->tile.mi_row_end = tile->mi_row_end;
+#endif
 
   // Are edges available for intra prediction?
   xd->up_available = (mi_row > tile->mi_row_start);
-
-  const int ss_x = xd->plane[1].subsampling_x;
-  const int ss_y = xd->plane[1].subsampling_y;
-
   xd->left_available = (mi_col > tile->mi_col_start);
   xd->chroma_up_available = xd->up_available;
   xd->chroma_left_available = xd->left_available;
-  if (ss_x && bw < mi_size_wide[BLOCK_8X8])
-    xd->chroma_left_available = (mi_col - 1) > tile->mi_col_start;
-  if (ss_y && bh < mi_size_high[BLOCK_8X8])
-    xd->chroma_up_available = (mi_row - 1) > tile->mi_row_start;
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {
@@ -1546,7 +2212,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
     xd->left_mbmi = NULL;
   }
 
-#if CONFIG_AIMC
+#if CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
   if (xd->up_available) {
     xd->above_right_mbmi = xd->mi[-xd->mi_stride + bw - 1];
   } else {
@@ -1557,35 +2223,48 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   } else {
     xd->bottom_left_mbmi = NULL;
   }
-#endif  // CONFIG_AIMC
+#endif  // CONFIG_AIMC || CONFIG_NEW_CONTEXT_MODELING
 
-  const int chroma_ref = ((mi_row & 0x01) || !(bh & 0x01) || !ss_y) &&
-                         ((mi_col & 0x01) || !(bw & 0x01) || !ss_x);
-  xd->is_chroma_ref = chroma_ref;
-  if (chroma_ref) {
-    // To help calculate the "above" and "left" chroma blocks, note that the
-    // current block may cover multiple luma blocks (eg, if partitioned into
-    // 4x4 luma blocks).
-    // First, find the top-left-most luma block covered by this chroma block
-    MB_MODE_INFO **base_mi =
-        &xd->mi[-(mi_row & ss_y) * xd->mi_stride - (mi_col & ss_x)];
+  fetch_spatial_neighbors(xd);
 
-    // Then, we consider the luma region covered by the left or above 4x4 chroma
-    // prediction. We want to point to the chroma reference block in that
-    // region, which is the bottom-right-most mi unit.
-    // This leads to the following offsets:
-    MB_MODE_INFO *chroma_above_mi =
-        xd->chroma_up_available ? base_mi[-xd->mi_stride + ss_x] : NULL;
-    xd->chroma_above_mbmi = chroma_above_mi;
+  if (chroma_ref_info) {
+    xd->is_chroma_ref = chroma_ref_info->is_chroma_ref;
+    xd->chroma_left_available =
+        chroma_ref_info->mi_col_chroma_base > tile->mi_col_start;
+    xd->chroma_up_available =
+        chroma_ref_info->mi_row_chroma_base > tile->mi_row_start;
+    if (xd->is_chroma_ref) {
+      // To help calculate the "above" and "left" chroma blocks, note that the
+      // current block may cover multiple luma blocks (eg, if partitioned into
+      // 4x4 luma blocks).
+      // First, find the top-left-most luma block covered by this chroma block
+      const int ss_x = xd->plane[1].subsampling_x;
+      const int ss_y = xd->plane[1].subsampling_y;
+      const int mi_row_offset = mi_row - chroma_ref_info->mi_row_chroma_base;
+      const int mi_col_offset = mi_col - chroma_ref_info->mi_col_chroma_base;
+      MB_MODE_INFO **base_mi =
+          &xd->mi[-mi_row_offset * xd->mi_stride - mi_col_offset];
 
-    MB_MODE_INFO *chroma_left_mi =
-        xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
-    xd->chroma_left_mbmi = chroma_left_mi;
+      // Then, we consider the luma region covered by the left or above 4x4
+      // chroma prediction. We want to point to the chroma reference block in
+      // that region, which is the bottom-right-most mi unit. This leads to the
+      // following offsets:
+      MB_MODE_INFO *chroma_above_mi =
+          xd->chroma_up_available ? base_mi[-xd->mi_stride + ss_x] : NULL;
+      xd->chroma_above_mbmi = chroma_above_mi;
+
+      MB_MODE_INFO *chroma_left_mi =
+          xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
+      xd->chroma_left_mbmi = chroma_left_mi;
+    }
+  } else {
+    xd->is_chroma_ref = 1;
   }
 
   xd->height = bh;
   xd->width = bw;
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   xd->is_last_vertical_rect = 0;
   if (xd->width < xd->height) {
     if (!((mi_col + xd->width) & (xd->height - 1))) {
@@ -1596,34 +2275,104 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->is_first_horizontal_rect = 0;
   if (xd->width > xd->height)
     if (!(mi_row & (xd->width - 1))) xd->is_first_horizontal_rect = 1;
+
+#if CONFIG_C043_MVP_IMPROVEMENTS
+  xd->is_last_horizontal_rect = 0;
+  if (xd->width > xd->height) {
+    if (!((mi_row + xd->height) & (xd->width - 1))) {
+      xd->is_last_horizontal_rect = 1;
+    }
+  }
+
+  xd->is_first_vertical_rect = 0;
+  if (xd->width < xd->height)
+    if (!(mi_col & (xd->height - 1))) xd->is_first_vertical_rect = 1;
+#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+}
+
+#if CONFIG_ATC_DCTX_ALIGNED
+// Return the inter TX context based on last position value.
+static INLINE int get_lp2tx_ctx(TX_SIZE tx_size, int bwl, int eob) {
+  assert(eob != 0);
+  const int lim = 2;
+  const int eoby = (eob - 1) >> bwl;
+  const int eobx = (eob - 1) - (eoby << bwl);
+  const int diag = eobx + eoby;
+  const int max_diag = tx_size_wide[tx_size] + tx_size_high[tx_size] - 2;
+  int ctx_idx = 0;
+  if (diag < lim) {
+    ctx_idx = 1;
+  } else if (diag > (max_diag - lim)) {
+    ctx_idx = 2;
+  }
+  return ctx_idx;
+}
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
+static INLINE int get_fsc_mode_ctx(const MACROBLOCKD *xd, const int is_key) {
+  int ctx = 0;
+  if (is_key) {
+    for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
+      const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+      if (neighbor != NULL) {
+        ctx += neighbor->fsc_mode[PLANE_TYPE_Y];
+      }
+    }
+  } else {
+    ctx = 3;
+  }
+
+  return ctx;
+}
+
+static INLINE aom_cdf_prob *get_fsc_mode_cdf(const MACROBLOCKD *xd,
+                                             const BLOCK_SIZE bsize,
+                                             const int is_key) {
+  FRAME_CONTEXT *tile_ctx = xd->tile_ctx;
+  const uint8_t fsc_size_group = fsc_bsize_groups[bsize];
+  assert(fsc_size_group < FSC_BSIZE_CONTEXTS);
+  const int ctx = get_fsc_mode_ctx(xd, is_key);
+  return tile_ctx->fsc_mode_cdf[ctx][fsc_size_group];
 }
 
 #if !CONFIG_AIMC
+static INLINE int get_y_mode_ctx(const MB_MODE_INFO *neighbor) {
+  const PREDICTION_MODE neighbor_mode = av1_get_block_mode(neighbor);
+  return intra_mode_context[neighbor_mode];
+}
+
 static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
-                                           const MB_MODE_INFO *above_mi,
-                                           const MB_MODE_INFO *left_mi) {
-  const PREDICTION_MODE above = av1_above_block_mode(above_mi);
-  const PREDICTION_MODE left = av1_left_block_mode(left_mi);
-  const int above_ctx = intra_mode_context[above];
-  const int left_ctx = intra_mode_context[left];
-  return tile_ctx->kf_y_cdf[above_ctx][left_ctx];
+                                           const MB_MODE_INFO *neighbor0,
+                                           const MB_MODE_INFO *neighbor1) {
+  const int neighbor0_ctx = get_y_mode_ctx(neighbor0);
+  const int neighbor1_ctx = get_y_mode_ctx(neighbor1);
+  return tile_ctx->kf_y_cdf[neighbor0_ctx][neighbor1_ctx];
 }
 #endif  // !CONFIG_AIMC
+
+#if CONFIG_EXT_DIR
+static INLINE int get_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
+                                    const MB_MODE_INFO *neighbor1) {
+  int ctx0 = neighbor0 && !is_inter_block(neighbor0, SHARED_PART) &&
+             !is_intrabc_block(neighbor0, SHARED_PART) &&
+             neighbor0->mrl_index != 0;
+  int ctx1 = neighbor1 && !is_inter_block(neighbor1, SHARED_PART) &&
+             !is_intrabc_block(neighbor1, SHARED_PART) &&
+             neighbor1->mrl_index != 0;
+  return ctx0 + ctx1;
+}
+#endif  // CONFIG_EXT_DIR
 
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,
                                             BLOCK_SIZE bsize) {
-#if CONFIG_SDP
   const int plane = xd->tree_type == CHROMA_PART;
   PARTITION_CONTEXT *const above_ctx =
       xd->above_partition_context[plane] + mi_col;
   PARTITION_CONTEXT *const left_ctx =
       xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
-#else
-  PARTITION_CONTEXT *const above_ctx = xd->above_partition_context + mi_col;
-  PARTITION_CONTEXT *const left_ctx =
-      xd->left_partition_context + (mi_row & MAX_MIB_MASK);
-#endif
+  assert(bsize < BLOCK_SIZES_ALL);
 
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
@@ -1647,6 +2396,7 @@ static INLINE aom_cdf_prob cdf_element_prob(const aom_cdf_prob *cdf,
   return (element > 0 ? cdf[element - 1] : CDF_PROB_TOP) - cdf[element];
 }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
                                                const aom_cdf_prob *const in,
                                                BLOCK_SIZE bsize) {
@@ -1676,14 +2426,21 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
                                                 int mi_col, BLOCK_SIZE subsize,
                                                 BLOCK_SIZE bsize,
                                                 PARTITION_TYPE partition) {
-  if (bsize >= BLOCK_8X8) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (partition == PARTITION_NONE) {
+    assert(bsize == subsize);
+    update_partition_context(xd, mi_row, mi_col, subsize, bsize);
+  }
+#else
+  if (is_partition_point(bsize)) {
     const int hbs = mi_size_wide[bsize] / 2;
-    BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
+    const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
     switch (partition) {
       case PARTITION_SPLIT:
         if (bsize != BLOCK_8X8) break;
@@ -1691,8 +2448,6 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
       case PARTITION_NONE:
       case PARTITION_HORZ:
       case PARTITION_VERT:
-      case PARTITION_HORZ_4:
-      case PARTITION_VERT_4:
         update_partition_context(xd, mi_row, mi_col, subsize, bsize);
         break;
       case PARTITION_HORZ_A:
@@ -1711,24 +2466,33 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
         update_partition_context(xd, mi_row, mi_col, subsize, subsize);
         update_partition_context(xd, mi_row, mi_col + hbs, bsize2, subsize);
         break;
+      case PARTITION_HORZ_4:
+      case PARTITION_VERT_4:
+        update_partition_context(xd, mi_row, mi_col, subsize, bsize);
+        break;
       default: assert(0 && "Invalid partition type");
     }
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int mi_col, BLOCK_SIZE bsize) {
-#if CONFIG_SDP
   const int plane = xd->tree_type == CHROMA_PART;
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
   const PARTITION_CONTEXT *left_ctx =
       xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  assert(bsize < BLOCK_SIZES);
+  const int bsl_w = mi_size_wide_log2[bsize];
+  const int bsl_h = mi_size_high_log2[bsize];
+
+  const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
+  const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
+
+  return (left * 2 + above) + bsize * PARTITION_PLOFFSET;
 #else
-  const PARTITION_CONTEXT *above_ctx = xd->above_partition_context + mi_col;
-  const PARTITION_CONTEXT *left_ctx =
-      xd->left_partition_context + (mi_row & MAX_MIB_MASK);
-#endif
   // Minimum partition point is 8x8. Offset the bsl accordingly.
   const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
   int above = (*above_ctx >> bsl) & 1, left = (*left_ctx >> bsl) & 1;
@@ -1737,8 +2501,10 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
   assert(bsl >= 0);
 
   return (left * 2 + above) + bsl * PARTITION_PLOFFSET;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 // Return the number of elements in the partition CDF when
 // partitioning the (square) block with luma block size of bsize.
 static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
@@ -1749,33 +2515,7 @@ static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
   else
     return EXT_PARTITION_TYPES;
 }
-
-static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                                 int plane) {
-  assert(bsize < BLOCK_SIZES_ALL);
-  int max_blocks_wide = block_size_wide[bsize];
-
-  if (xd->mb_to_right_edge < 0) {
-    const struct macroblockd_plane *const pd = &xd->plane[plane];
-    max_blocks_wide += xd->mb_to_right_edge >> (3 + pd->subsampling_x);
-  }
-
-  // Scale the width in the transform block unit.
-  return max_blocks_wide >> MI_SIZE_LOG2;
-}
-
-static INLINE int max_block_high(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
-                                 int plane) {
-  int max_blocks_high = block_size_high[bsize];
-
-  if (xd->mb_to_bottom_edge < 0) {
-    const struct macroblockd_plane *const pd = &xd->plane[plane];
-    max_blocks_high += xd->mb_to_bottom_edge >> (3 + pd->subsampling_y);
-  }
-
-  // Scale the height in the transform block unit.
-  return max_blocks_high >> MI_SIZE_LOG2;
-}
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
                                           const MACROBLOCKD *xd,
@@ -1805,7 +2545,6 @@ static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
                          "Invalid value of planes");
     }
   }
-#if CONFIG_SDP
   av1_zero_array(above_contexts->partition[0][tile_row] + mi_col_start,
                  aligned_width);
   if (num_planes > 1) {
@@ -1820,10 +2559,6 @@ static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
                          "Invalid value of planes");
     }
   }
-#else
-  av1_zero_array(above_contexts->partition[tile_row] + mi_col_start,
-                 aligned_width);
-#endif
 
   memset(above_contexts->txfm[tile_row] + mi_col_start,
          tx_size_wide[TX_SIZES_LARGEST], aligned_width * sizeof(TXFM_CONTEXT));
@@ -1884,23 +2619,45 @@ static INLINE int get_alloc_mi_idx(const CommonModeInfoParams *const mi_params,
 
 // For this partition block, set pointers in mi_params->mi_grid_base and xd->mi.
 static INLINE void set_mi_offsets(const CommonModeInfoParams *const mi_params,
-                                  MACROBLOCKD *const xd, int mi_row,
-                                  int mi_col) {
+                                  MACROBLOCKD *const xd, int mi_row, int mi_col
+#if CONFIG_C071_SUBBLK_WARPMV
+                                  ,
+                                  int x_inside_boundary, int y_inside_boundary
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+) {
   // 'mi_grid_base' should point to appropriate memory in 'mi'.
   const int mi_grid_idx = get_mi_grid_idx(mi_params, mi_row, mi_col);
   const int mi_alloc_idx = get_alloc_mi_idx(mi_params, mi_row, mi_col);
   mi_params->mi_grid_base[mi_grid_idx] = &mi_params->mi_alloc[mi_alloc_idx];
   // 'xd->mi' should point to an offset in 'mi_grid_base';
   xd->mi = mi_params->mi_grid_base + mi_grid_idx;
+#if CONFIG_C071_SUBBLK_WARPMV
+  mi_params->submi_grid_base[mi_grid_idx] =
+      &mi_params->mi_alloc_sub[mi_alloc_idx];
+  xd->submi = mi_params->submi_grid_base + mi_grid_idx;
+  for (int y = 0; y < y_inside_boundary; y++) {
+    for (int x = 0; x < x_inside_boundary; x++) {
+      if (x == 0 && y == 0) continue;
+      const int mi_alloc_sub_idx =
+          get_alloc_mi_idx(mi_params, mi_row + y, mi_col + x);
+      xd->submi[y * mi_params->mi_stride + x] =
+          &mi_params->mi_alloc_sub[mi_alloc_sub_idx];
+    }
+  }
+#endif  // CONFIG_C071_SUBBLK_WARPMV
   // 'xd->tx_type_map' should point to an offset in 'mi_params->tx_type_map'.
-#if CONFIG_SDP
-  if (xd->tree_type != CHROMA_PART)
-#endif
+  if (xd->tree_type != CHROMA_PART) {
     xd->tx_type_map = mi_params->tx_type_map + mi_grid_idx;
+  }
   xd->tx_type_map_stride = mi_params->mi_stride;
+#if CONFIG_CROSS_CHROMA_TX
+  if (xd->tree_type != LUMA_PART) {
+    xd->cctx_type_map = mi_params->cctx_type_map + mi_grid_idx;
+  }
+  xd->cctx_type_map_stride = mi_params->mi_stride;
+#endif  // CONFIG_CROSS_CHROMA_TX
 }
 
-#if CONFIG_SDP
 // For this partition block, set pointers in mi_params->mi_grid_base and xd->mi.
 static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
                                    MACROBLOCKD *const xd, int mi_row,
@@ -1916,7 +2673,182 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
       mi_params->mi_grid_base[mi_grid_idx];
   xd->tx_type_map = mi_params->tx_type_map + mi_grid_idx;
   xd->tx_type_map_stride = mi_params->mi_stride;
+#if CONFIG_CROSS_CHROMA_TX
+  xd->cctx_type_map = mi_params->cctx_type_map + mi_grid_idx;
+  xd->cctx_type_map_stride = mi_params->mi_stride;
+#endif  // CONFIG_CROSS_CHROMA_TX
 }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+// The blocksize above which chroma and luma partitions will stayed coupled.
+// Currently this is set to BLOCK_128X128 (e.g. chroma always follows luma at
+// BLOCK_128X128, but can be de-coupled later).
+static AOM_INLINE bool is_bsize_above_decoupled_thresh(BLOCK_SIZE bsize) {
+  return bsize == BLOCK_128X128;
+}
+
+// Whether the partition tree contains a block size that is strictly smaller
+// than width x height.
+static AOM_INLINE bool tree_has_bsize_smaller_than(const PARTITION_TREE *ptree,
+                                                   int width, int height) {
+  if (!ptree || ptree->partition == PARTITION_INVALID) {
+    return false;
+  }
+  const BLOCK_SIZE bsize = ptree->bsize;
+  if (ptree->partition == PARTITION_NONE) {
+    return block_size_wide[bsize] < width && block_size_high[bsize] < height;
+  }
+  for (int idx = 0; idx < 4; idx++) {
+    if (tree_has_bsize_smaller_than(ptree->sub_tree[idx], width, height)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static AOM_INLINE bool is_luma_chroma_share_same_partition(
+    TREE_TYPE tree_type, const PARTITION_TREE *ptree_luma, BLOCK_SIZE bsize) {
+  if (tree_type != CHROMA_PART || !ptree_luma ||
+      !is_bsize_above_decoupled_thresh(bsize)) {
+    return false;
+  }
+  if (ptree_luma->partition == PARTITION_NONE) {
+    return false;
+  }
+  // For now, follow the logic in baseline SDP. i.e. we will force the current
+  // chroma partition to follow the luma split iff all the luma subblocks
+  // split further into blocks that's strictly smaller than half of the current
+  // bsize.
+  const int width_threshold = block_size_wide[bsize] / 2,
+            height_threshold = block_size_high[bsize] / 2;
+  for (int idx = 0; idx < 4; idx++) {
+    const PARTITION_TREE *sub_tree = ptree_luma->sub_tree[idx];
+    if (sub_tree && sub_tree->partition != PARTITION_INVALID) {
+      if (!tree_has_bsize_smaller_than(sub_tree, width_threshold,
+                                       height_threshold)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+static INLINE int check_is_chroma_size_valid(
+    TREE_TYPE tree_type, PARTITION_TYPE partition, BLOCK_SIZE bsize, int mi_row,
+    int mi_col, int ss_x, int ss_y,
+    const CHROMA_REF_INFO *parent_chroma_ref_info) {
+  if (tree_type == LUMA_PART) {
+    // If we handling luma tree and the current luma tree is decoupled from
+    // chroma tree, we don't need to concern with chroma bsize. But if they are
+    // still coupled, then we need to make sure the corresponding chroma bsize
+    // is valid.
+    if (is_bsize_above_decoupled_thresh(bsize)) {
+      const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+      if (subsize == BLOCK_INVALID) {
+        return false;
+      }
+      return get_plane_block_size(subsize, ss_x, ss_y) != BLOCK_INVALID;
+    }
+
+    return true;
+  }
+  const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+  int is_valid = 0;
+  if (subsize < BLOCK_SIZES_ALL) {
+    CHROMA_REF_INFO tmp_chroma_ref_info = { 1,      0,       mi_row,
+                                            mi_col, subsize, subsize };
+    set_chroma_ref_info(mi_row, mi_col, 0, subsize, &tmp_chroma_ref_info,
+                        parent_chroma_ref_info, bsize, partition, ss_x, ss_y);
+    is_valid = get_plane_block_size(tmp_chroma_ref_info.bsize_base, ss_x,
+                                    ss_y) != BLOCK_INVALID;
+  }
+  return is_valid;
+}
+
+// Returns true if partition is implied for blocks near bottom/right
+// border, and not signaled in the bistream. And when it returns true, it also
+// sets `implied_partition` appropriately.
+// Note: `implied_partition` can be passed NULL.
+static AOM_INLINE bool is_partition_implied_at_boundary(
+    const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, bool ss_x,
+    bool ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
+    const CHROMA_REF_INFO *chroma_ref_info, PARTITION_TYPE *implied_partition) {
+  if (bsize >= BLOCK_SIZES_ALL) return false;
+  bool is_implied = false;
+  PARTITION_TYPE tmp_implied_partition = PARTITION_INVALID;
+  if (implied_partition) *implied_partition = PARTITION_INVALID;
+
+  const int hbs_w = mi_size_wide[bsize] / 2;
+  const int hbs_h = mi_size_high[bsize] / 2;
+  const int has_rows = (mi_row + hbs_h) < mi_params->mi_rows;
+  const int has_cols = (mi_col + hbs_w) < mi_params->mi_cols;
+
+  if (has_rows && has_cols) return false;  // Not at boundary.
+  assert(!has_rows || !has_cols);
+
+  if (is_square_block(bsize)) {
+    is_implied = true;
+    if (has_rows && !has_cols) {
+      tmp_implied_partition = PARTITION_VERT;
+    } else {
+      tmp_implied_partition = PARTITION_HORZ;
+    }
+  } else if (is_tall_block(bsize)) {
+    // Force PARTITION_HORZ if
+    //  * We are missing rows, OR
+    //  * We are missing cols and PARTITION_VERT will produce 1:4 block that is
+    //    still missing cols.
+    if (!has_rows) {
+      is_implied = true;
+      tmp_implied_partition = PARTITION_HORZ;
+    } else {
+      assert(!has_cols);
+      const bool sub_has_cols =
+          (mi_col + mi_size_wide[bsize] / 4) < mi_params->mi_cols;
+      if (mi_size_wide[bsize] >= 4 && !sub_has_cols) {
+        is_implied = true;
+        tmp_implied_partition = PARTITION_HORZ;
+      }
+    }
+  } else {
+    assert(is_wide_block(bsize));
+    // Force PARTITION_VERT if
+    //  * We are missing cols, OR
+    //  * We are missing rows and PARTITION_HORZ will produce 1:4 block that is
+    //    still missing rows.
+    if (!has_cols) {
+      is_implied = true;
+      tmp_implied_partition = PARTITION_VERT;
+    } else {
+      assert(!has_rows);
+      const bool sub_has_rows =
+          (mi_row + mi_size_high[bsize] / 4) < mi_params->mi_rows;
+      if (mi_size_high[bsize] >= 4 && !sub_has_rows) {
+        is_implied = true;
+        tmp_implied_partition = PARTITION_VERT;
+      }
+    }
+  }
+  if (is_implied) {
+    assert(tmp_implied_partition == PARTITION_HORZ ||
+           tmp_implied_partition == PARTITION_VERT);
+    if (!check_is_chroma_size_valid(tree_type, tmp_implied_partition, bsize,
+                                    mi_row, mi_col, ss_x, ss_y,
+                                    chroma_ref_info)) {
+      is_implied = false;
+      tmp_implied_partition = PARTITION_INVALID;
+    }
+  }
+  assert(IMPLIES(is_implied && implied_partition,
+                 tmp_implied_partition == PARTITION_HORZ ||
+                     tmp_implied_partition == PARTITION_VERT));
+  if (implied_partition) {
+    *implied_partition = tmp_implied_partition;
+  }
+  return is_implied;
+}
+
+#else
 // Return the number of sub-blocks whose width and height are
 // less than half of the parent block.
 static INLINE int get_luma_split_flag(
@@ -1926,10 +2858,11 @@ static INLINE int get_luma_split_flag(
   int width_unit = mi_size_wide[bsize];
   int height_unit = mi_size_high[bsize];
   int parent_block_width = block_size_wide[bsize];
-  const int x_mis = AOMMIN(width_unit, mi_params->mi_cols - mi_col);
-  const int y_mis = AOMMIN(height_unit, mi_params->mi_rows - mi_row);
-  int x_mis_half = x_mis >> 1;
-  int y_mis_half = y_mis >> 1;
+  const int x_inside_boundary = AOMMIN(width_unit, mi_params->mi_cols - mi_col);
+  const int y_inside_boundary =
+      AOMMIN(height_unit, mi_params->mi_rows - mi_row);
+  int x_mis_half = x_inside_boundary >> 1;
+  int y_mis_half = y_inside_boundary >> 1;
   int half_parent_width = parent_block_width >> 1;
   for (int y_district = 0; y_district < 2; y_district++) {
     for (int x_district = 0; x_district < 2; x_district++) {
@@ -1952,7 +2885,7 @@ static INLINE int get_luma_split_flag(
   }
   return luma_split_flag;
 }
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE void txfm_partition_update(TXFM_CONTEXT *above_ctx,
                                          TXFM_CONTEXT *left_ctx,
@@ -2036,8 +2969,6 @@ static const TX_PARTITION_BIT_SHIFT
           { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
           { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
           { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
-          { { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, 4 },  // TX_PARTITION_HORZ4
-          { { 0, 0, 0, 0 }, { 2, 2, 2, 2 }, 4 },  // TX_PARTITION_VERT4
       },
       // Rectangular
       {
@@ -2045,8 +2976,6 @@ static const TX_PARTITION_BIT_SHIFT
           { { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, 4 },  // TX_PARTITION_SPLIT
           { { 1, 1 }, { 0, 0 }, 2 },              // TX_PARTITION_HORZ
           { { 0, 0 }, { 1, 1 }, 2 },              // TX_PARTITION_VERT
-          { { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, 4 },  // TX_PARTITION_HORZ4
-          { { 0, 0, 0, 0 }, { 2, 2, 2, 2 }, 4 },  // TX_PARTITION_VERT4
       },
     };
 
@@ -2078,8 +3007,6 @@ static INLINE int get_split4_partition(TX_PARTITION_TYPE partition) {
     case TX_PARTITION_SPLIT:
     case TX_PARTITION_VERT:
     case TX_PARTITION_HORZ: return partition;
-    case TX_PARTITION_VERT4: return TX_PARTITION_VERT;
-    case TX_PARTITION_HORZ4: return TX_PARTITION_HORZ;
     default: assert(0);
   }
   assert(0);
@@ -2118,15 +3045,11 @@ static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
                                    TX_SIZE max_tx_size) {
   const int allow_horz = allow_tx_horz_split(max_tx_size);
   const int allow_vert = allow_tx_vert_split(max_tx_size);
-  const int allow_horz4 = allow_tx_horz4_split(max_tx_size);
-  const int allow_vert4 = allow_tx_vert4_split(max_tx_size);
   switch (partition) {
     case TX_PARTITION_NONE: return 1;
     case TX_PARTITION_SPLIT: return (allow_horz && allow_vert);
     case TX_PARTITION_HORZ: return allow_horz;
     case TX_PARTITION_VERT: return allow_vert;
-    case TX_PARTITION_HORZ4: return allow_horz4;
-    case TX_PARTITION_VERT4: return allow_vert4;
     default: assert(0);
   }
   assert(0);
@@ -2186,22 +3109,15 @@ static INLINE int txfm_partition_context(const TXFM_CONTEXT *const above_ctx,
 // Compute the next partition in the direction of the sb_type stored in the mi
 // array, starting with bsize.
 static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
-#if CONFIG_SDP
-                                           const int plane_type,
-#endif
-                                           int mi_row, int mi_col,
-                                           BLOCK_SIZE bsize) {
+                                           const int plane_type, int mi_row,
+                                           int mi_col, BLOCK_SIZE bsize) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols)
     return PARTITION_INVALID;
 
   const int offset = mi_row * mi_params->mi_stride + mi_col;
   MB_MODE_INFO **mi = mi_params->mi_grid_base + offset;
-#if CONFIG_SDP
   const BLOCK_SIZE subsize = mi[0]->sb_type[plane_type];
-#else
-  const BLOCK_SIZE subsize = mi[0]->sb_type;
-#endif
 
   assert(bsize < BLOCK_SIZES_ALL);
 
@@ -2223,30 +3139,45 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // Smaller height but same width. Is PARTITION_HORZ_4, PARTITION_HORZ or
       // PARTITION_HORZ_B. To distinguish the latter two, check if the lower
       // half was split.
-      if (sshigh * 4 == bhigh) return PARTITION_HORZ_4;
+      if (sshigh * 4 == bhigh) {
+#if CONFIG_UNEVEN_4WAY
+        return PARTITION_HORZ_4A;
+#elif CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_HORZ_3;
+#else   // !CONFIG_UNEVEN_4WAY && !CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_HORZ_4;
+#endif  // CONFIG_UNEVEN_4WAY
+      }
+#if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sshigh * 2 == bhigh);
-#if CONFIG_SDP
-      if (mbmi_below->sb_type[plane_type] == subsize)
-#else
-      if (mbmi_below->sb_type == subsize)
-#endif
-        return PARTITION_HORZ;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+      if (mbmi_below->sb_type[plane_type] == subsize) return PARTITION_HORZ;
+#if !CONFIG_EXT_RECUR_PARTITIONS
       else
         return PARTITION_HORZ_B;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     } else if (sshigh == bhigh) {
       // Smaller width but same height. Is PARTITION_VERT_4, PARTITION_VERT or
       // PARTITION_VERT_B. To distinguish the latter two, check if the right
       // half was split.
-      if (sswide * 4 == bwide) return PARTITION_VERT_4;
+      if (sswide * 4 == bwide) {
+#if CONFIG_UNEVEN_4WAY
+        return PARTITION_VERT_4A;
+#elif CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_VERT_3;
+#else   // !CONFIG_UNEVEN_4WAY && !CONFIG_EXT_RECUR_PARTITIONS
+        return PARTITION_VERT_4;
+#endif  // CONFIG_UNEVEN_4WAY
+      }
+#if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sswide * 2 == bhigh);
-#if CONFIG_SDP
-      if (mbmi_right->sb_type[plane_type] == subsize)
-#else
-      if (mbmi_right->sb_type == subsize)
-#endif
-        return PARTITION_VERT;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+      if (mbmi_right->sb_type[plane_type] == subsize) return PARTITION_VERT;
+
+#if !CONFIG_EXT_RECUR_PARTITIONS
       else
         return PARTITION_VERT_B;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
     } else {
       // Smaller width and smaller height. Might be PARTITION_SPLIT or could be
       // PARTITION_HORZ_A or PARTITION_VERT_A. If subsize isn't halved in both
@@ -2255,16 +3186,19 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // PARTITION_VERT_A, the right block will have height bhigh; with
       // PARTITION_HORZ_A, the lower block with have width bwide. Otherwise
       // it's PARTITION_SPLIT.
+#if CONFIG_EXT_RECUR_PARTITIONS
+      if (sswide * 2 != bwide || sshigh * 2 != bhigh) {
+        if (mi_size_wide[mbmi_below->sb_type[plane_type]] < bwide &&
+            mi_size_high[mbmi_right->sb_type[plane_type]] < bhigh)
+          return PARTITION_SPLIT;
+      }
+#else   // CONFIG_EXT_RECUR_PARTITIONS
       if (sswide * 2 != bwide || sshigh * 2 != bhigh) return PARTITION_SPLIT;
-#if CONFIG_SDP
       if (mi_size_wide[mbmi_below->sb_type[plane_type]] == bwide)
         return PARTITION_HORZ_A;
       if (mi_size_high[mbmi_right->sb_type[plane_type]] == bhigh)
         return PARTITION_VERT_A;
-#else
-      if (mi_size_wide[mbmi_below->sb_type] == bwide) return PARTITION_HORZ_A;
-      if (mi_size_high[mbmi_right->sb_type] == bhigh) return PARTITION_VERT_A;
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       return PARTITION_SPLIT;
     }
   }
@@ -2285,6 +3219,63 @@ static INLINE void set_sb_size(SequenceHeader *const seq_params,
   seq_params->sb_size = sb_size;
   seq_params->mib_size = mi_size_wide[seq_params->sb_size];
   seq_params->mib_size_log2 = mi_size_wide_log2[seq_params->sb_size];
+}
+
+#if CONFIG_LR_FLEX_SYNTAX
+// Sets the frame's lr specific fields in feature params depending on
+// which tools are enabled for the frame for the given plane.
+static INLINE void av1_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,
+                                    FeatureFlags *const fea_params) {
+  fea_params->lr_tools_disable_mask[plane] = lr_tools_disable_mask;
+  int tools_count = 0;
+  for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i)
+    tools_count += !((fea_params->lr_tools_disable_mask[plane] >> i) & 1);
+  fea_params->lr_tools_count[plane] = tools_count;
+  fea_params->lr_switchable_tools_count[plane] = tools_count + 1;
+
+  // If total tools is < 2, there is no need to have switchable
+  if (tools_count < 2)
+    fea_params->lr_tools_disable_mask[plane] |= (1 << RESTORE_SWITCHABLE);
+  else
+    tools_count++;
+  fea_params->lr_frame_tools_count[plane] = tools_count + 1;
+
+  // If switchable is allowed get last index for transmitted bit, and the
+  // type if that bit is 0.
+  if (!((fea_params->lr_tools_disable_mask[plane] >> RESTORE_SWITCHABLE) & 1)) {
+    for (int t = 0, i = RESTORE_SWITCHABLE_TYPES - 1; i >= 0; --i) {
+      if (!((fea_params->lr_tools_disable_mask[plane] >> i) & 1)) {
+        t++;
+        if (t == 1) {
+          fea_params->lr_last_switchable_ndx_0_type[plane] = i;
+        } else if (t == 2) {
+          fea_params->lr_last_switchable_ndx[plane] = i;
+          break;
+        }
+      }
+    }
+  }
+}
+#endif  // CONFIG_LR_FLEX_SYNTAX
+
+static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,
+                                       int mi_col) {
+  const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
+  const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
+  return cm->sbi_params.sbi_grid_base + sb_row * cm->sbi_params.sbi_stride +
+         sb_col;
+}
+
+static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
+                                   int mi_col) {
+  SB_INFO *sbi = xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
+
+  sbi->mi_row = mi_row;
+  sbi->mi_col = mi_col;
+
+#if CONFIG_FLEX_MVRES
+  sbi->sb_mv_precision = cm->features.fr_mv_precision;
+#endif  // CONFIG_FLEX_MVRES
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.
@@ -2316,9 +3307,74 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
           seq_level_idx != SEQ_LEVEL_7_0 && seq_level_idx != SEQ_LEVEL_7_1 &&
           seq_level_idx != SEQ_LEVEL_7_2 && seq_level_idx != SEQ_LEVEL_7_3);
 }
-#if CONFIG_IBP_DIR
-// Intra derivative for second directional predictor of IBP
+
+// Intra derivative for directional predictions.
 // second_dr_intra_derivative[x] = 64*64/dr_intra_derivative[x]
+#if CONFIG_EXT_DIR
+static const int16_t dr_intra_derivative[90] = {
+  // Angle in degrees.
+  // Starred (*) values are unused.
+  0,    4096, 2048,            //    *,  0.9,  1.8,
+  1365, 1024, 819,             //  2.7,  3.6,  4.5,
+  682,  585,  512,             //  5.4,  6.2,  7.1,
+  455,  409,  409,  409, 372,  //  8.0,  8.9, *, *,  9.8,
+  341,  292,  273,             // 10.6, 12.4, 13.2,
+  256,  227,  215,             // 14.0, 15.7, 16.6,
+  204,  186,  178,             // 17.4, 19.0, 19.8,
+  170,  157,  151,             // 20.6, 22.2, 23.0,
+  146,  136,  132,             // 23.7, 25.2, 25.9,
+  128,  117,  110,             // 26.6, 28.7, 30.2,
+  107,  99,   97,   97,        // 30.9, 32.9,    *, 33.4,
+  93,   87,   83,              // 34.5, 36.3, 37.6,
+  81,   77,   74,              // 38.3, 39.7, 40.9,
+  73,   69,   66,              // 41.2, 42.8, 44.1,
+  64,   62,   59,              // 45.0, 45.9, 47.3,
+  56,   55,   53,              // 48.8, 49.3, 50.4,
+  50,   49,   47,              // 52.0, 52.6, 53.7,
+  44,   42,   42,   41,        // 55.5, 56.7,    *, 57.4,
+  38,   37,   35,              // 59.3, 60.0, 61.3,
+  32,   31,   30,              // 63.4, 64.2, 64.9,
+  28,   27,   26,              // 66.4, 67.1, 67.9,
+  24,   23,   22,              // 69.4, 70.2, 71.0,
+  20,   19,   18,              // 72.6, 73.5, 74.3,
+  16,   15,   14,              // 76.0, 76.8, 77.7,
+  12,   11,   10,   10,  10,   // 79.4, 80.2, *, *, 81.1,
+  9,    8,    7,               // 82.0, 82.9, 83.8,
+  6,    5,    4,               // 84.6, 85.5, 86.4,
+  3,    2,    1,               // 87.3, 88.2, 89.1,
+};
+#elif CONFIG_IMPROVED_ANGULAR_INTRA
+static const int16_t second_dr_intra_derivative[90] = {
+  0,    0, 0,        //
+  2,    0, 0,        // 3, ...
+  4,    0, 0,        // 6, ...
+  8,    0, 0, 0, 0,  // 9, ...
+  12,   0, 0,        // 14, ...
+  16,   0, 0,        // 17, ...
+  20,   0, 0,        // 20, ...
+  24,   0, 0,        // 23, ... (113 & 203 are base angles)
+  28,   0, 0,        // 26, ...
+  32,   0, 0,        // 29, ...
+  38,   0, 0, 0,     // 32, ...
+  44,   0, 0,        // 36, ...
+  50,   0, 0,        // 39, ...
+  56,   0, 0,        // 42, ...
+  64,   0, 0,        // 45, ... (45 & 135 are base angles)
+  72,   0, 0,        // 48, ...
+  82,   0, 0,        // 51, ...
+  92,   0, 0, 0,     // 54, ...
+  106,  0, 0,        // 58, ...
+  128,  0, 0,        // 61, ...
+  146,  0, 0,        // 64, ...
+  170,  0, 0,        // 67, ... (67 & 157 are base angles)
+  204,  0, 0,        // 70, ...
+  256,  0, 0,        // 73, ...
+  340,  0, 0, 0, 0,  // 76, ...
+  512,  0, 0,        // 81, ...
+  1024, 0, 0,        // 84, ...
+  2048, 0, 0,        // 87, ...
+};
+#else
 static const int16_t second_dr_intra_derivative[90] = {
   0,    0, 0,        //
   4,    0, 0,        // 3, ...
@@ -2349,6 +3405,7 @@ static const int16_t second_dr_intra_derivative[90] = {
   585,  0, 0,        // 84, ...
   1365, 0, 0,        // 87, ...
 };
+#endif  // CONFIG_EXT_DIR
 
 // Generate the weights per pixel position for IBP
 static void av1_dr_prediction_z1_info(uint8_t *weights, int bw, int bh,
@@ -2417,6 +3474,7 @@ static void av1_dr_prediction_z1_info(uint8_t *weights, int bw, int bh,
     weights += bw;
   }
 }
+
 static const uint8_t angle_to_mode_index[90] = {
   0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0,
   0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 16, 0, 0, 15, 0, 0, 14, 0, 0, 13,
@@ -2430,7 +3488,11 @@ static INLINE void init_ibp_info_per_mode(
     int delta, int txw, int txh, int txw_log2, int txh_log2) {
   const int angle = mode_to_angle_map[mode] + delta * 3;
   const int mode_idx = angle_to_mode_index[angle];
+#if CONFIG_EXT_DIR
+  const int dy = dr_intra_derivative[90 - angle];
+#else
   const int dy = second_dr_intra_derivative[angle];
+#endif  // CONFIG_EXT_DIR
   weights[block_idx][mode_idx] =
       (uint8_t *)(aom_calloc(txw * txh, sizeof(uint8_t)));
   av1_dr_prediction_z1_info(weights[block_idx][mode_idx], txw, txh, txw_log2,
@@ -2447,7 +3509,11 @@ static INLINE void init_ibp_info(
     const int txh = tx_size_high[iblock];
     const int txw_log2 = tx_size_wide_log2[iblock];
     const int txh_log2 = tx_size_high_log2[iblock];
+#if CONFIG_IMPROVED_ANGULAR_INTRA
+    for (int delta = -2; delta < 0; delta += 2) {
+#else
     for (int delta = -3; delta < 0; delta++) {
+#endif  // CONFIG_IMPROVED_ANGULAR_INTRA
       init_ibp_info_per_mode(weights, iblock, V_PRED, delta, txw, txh, txw_log2,
                              txh_log2);
       init_ibp_info_per_mode(weights, iblock, D67_PRED, delta, txw, txh,
@@ -2455,7 +3521,11 @@ static INLINE void init_ibp_info(
       init_ibp_info_per_mode(weights, iblock, D45_PRED, delta, txw, txh,
                              txw_log2, txh_log2);
     }
+#if CONFIG_IMPROVED_ANGULAR_INTRA
+    for (int delta = 0; delta <= 2; delta += 2) {
+#else
     for (int delta = 0; delta <= 3; delta++) {
+#endif  // CONFIG_IMPROVED_ANGULAR_INTRA
       init_ibp_info_per_mode(weights, iblock, D67_PRED, delta, txw, txh,
                              txw_log2, txh_log2);
       init_ibp_info_per_mode(weights, iblock, D45_PRED, delta, txw, txh,
@@ -2463,6 +3533,7 @@ static INLINE void init_ibp_info(
     }
   }
 }
+
 static INLINE void free_ibp_info(
     uint8_t *weights[TX_SIZES_ALL][DIR_MODES_0_90]) {
   for (int i = 0; i < TX_SIZES_ALL; i++) {
@@ -2471,7 +3542,6 @@ static INLINE void free_ibp_info(
     }
   }
 }
-#endif
 
 static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 #if CONFIG_IBC_SR_EXT
@@ -2483,6 +3553,218 @@ static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 }
 /*!\endcond */
 
+#if CONFIG_FLEX_MVRES
+static inline int is_this_mv_precision_compliant(
+    const MV this_mv, MvSubpelPrecision pb_mv_precision) {
+  bool check_row = this_mv.row &
+                   ((1 << (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision)) - 1);
+  bool check_col = this_mv.col &
+                   ((1 << (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision)) - 1);
+  return (check_row || check_col) ? 0 : 1;
+}
+#endif  // CONFIG_FLEX_MVRES
+
+static INLINE bool is_warp_mode(MOTION_MODE motion_mode) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  return (motion_mode >= WARPED_CAUSAL);
+#else
+  return (motion_mode == WARPED_CAUSAL);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+}
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+/* Evaluate which motion modes are allowed for the current block
+ * Returns a bit field, where motion mode `i` is allowed if and only if
+ * the i'th bit is set.
+ *
+ * That is, to check if a given motion mode is allowed, do the following:
+ *   int allowed_motion_modes = motion_mode_allowed([...]);
+ *   if (allowed_motion_modes & (1 << i)) {
+ *     [...]
+ *   }
+ */
+
+// Returns true WARP_EXTEND is allowed by checking the top and left neighboring
+// blocks.
+// this function is used for two cases (a) to decide if WARP_EXTEND mode is
+// allowed or not (b) to derive the CDFs for WARPMV mode
+int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                    const MB_MODE_INFO *mbmi
+#if CONFIG_WARPMV
+                    ,
+                    int *p_num_of_warp_neighbors
+#endif  // CONFIG_WARPMV
+
+);
+
+static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
+                                      const MACROBLOCKD *xd,
+                                      const CANDIDATE_MV *ref_mv_stack,
+                                      const MB_MODE_INFO *mbmi) {
+  (void)ref_mv_stack;
+  const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
+  int enabled_motion_modes = cm->features.enabled_motion_modes;
+
+#if CONFIG_WARPMV
+  // only WARP_DELTA and WARPED_CAUSAL are supported for WARPMV mode
+  if (mbmi->mode == WARPMV) {
+    int allowed_motion_mode_warpmv = (1 << WARP_DELTA);
+    int frame_warp_causal_allowed =
+        cm->features.enabled_motion_modes & (1 << WARPED_CAUSAL);
+    if (frame_warp_causal_allowed && mbmi->num_proj_ref >= 1) {
+      allowed_motion_mode_warpmv |= (1 << WARPED_CAUSAL);
+    }
+    return (allowed_motion_mode_warpmv & enabled_motion_modes);
+  }
+#endif  // CONFIG_WARPMV
+
+  if (mbmi->skip_mode || mbmi->ref_frame[0] == INTRA_FRAME) {
+    return (1 << SIMPLE_TRANSLATION);
+  }
+
+#if CONFIG_BAWP
+  if (mbmi->bawp_flag == 1) {
+    return (1 << SIMPLE_TRANSLATION);
+  }
+#endif  // CONFIG_BAWP
+
+  int allowed_motion_modes = (1 << SIMPLE_TRANSLATION);
+
+  bool interintra_allowed =
+      cm->current_frame.reference_mode != COMPOUND_REFERENCE &&
+      is_interintra_allowed(mbmi);
+
+  if (interintra_allowed) {
+    allowed_motion_modes |= (1 << INTERINTRA);
+  }
+
+#if CONFIG_TIP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    return (allowed_motion_modes & enabled_motion_modes);
+  }
+#endif  // CONFIG_TIP
+
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+  if (mbmi->ref_frame[0] == mbmi->ref_frame[1]) {
+    return (allowed_motion_modes & enabled_motion_modes);
+  }
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+
+  if (xd->cur_frame_force_integer_mv == 0) {
+    const TransformationType gm_type =
+        cm->global_motion[mbmi->ref_frame[0]].wmtype;
+    if (is_global_mv_block(mbmi, gm_type)) {
+      return (allowed_motion_modes & enabled_motion_modes);
+    }
+  }
+
+  bool motion_variation_allowed =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      is_inter_mode(mbmi->mode) && is_motion_variation_allowed_compound(mbmi);
+
+  bool obmc_allowed =
+      motion_variation_allowed && check_num_overlappable_neighbors(mbmi);
+
+  if (obmc_allowed) {
+    allowed_motion_modes |= (1 << OBMC_CAUSAL);
+  }
+
+  // From here on, all modes are warped, so have some common criteria:
+  const int allow_warped_motion =
+      motion_variation_allowed &&
+      !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+      !xd->cur_frame_force_integer_mv;
+
+  if (obmc_allowed && allow_warped_motion && mbmi->num_proj_ref >= 1
+#if CONFIG_WARPMV
+      && mbmi->mode != NEARMV
+#endif  // CONFIG_WARPMV
+  ) {
+    allowed_motion_modes |= (1 << WARPED_CAUSAL);
+  }
+
+  bool warp_extend_allowed = false;
+  PREDICTION_MODE mode = mbmi->mode;
+
+  if (allow_warped_motion && (
+#if !CONFIG_WARPMV
+                                 mode == NEARMV ||
+#endif  // !CONFIG_WARPMV
+                                 mode == NEWMV)) {
+    warp_extend_allowed = allow_extend_nb(cm, xd, mbmi
+#if CONFIG_WARPMV
+                                          ,
+                                          NULL
+#endif  // CONFIG_WARPMV
+
+    );
+  }
+
+  if (warp_extend_allowed) {
+    allowed_motion_modes |= (1 << WARP_EXTEND);
+  }
+
+  bool warp_delta_allowed =
+      allow_warped_motion &&
+      AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >=
+          MIN_BSIZE_WARP_DELTA;
+
+  if (warp_delta_allowed && mode == NEARMV) {
+    warp_delta_allowed = false;
+  }
+
+  if (warp_delta_allowed) {
+    allowed_motion_modes |= (1 << WARP_DELTA);
+  }
+
+  return (allowed_motion_modes & enabled_motion_modes);
+}
+#else
+static INLINE MOTION_MODE motion_mode_allowed(const AV1_COMMON *cm,
+                                              const MACROBLOCKD *xd,
+                                              const MB_MODE_INFO *mbmi) {
+  if (!cm->features.switchable_motion_mode) {
+    return SIMPLE_TRANSLATION;
+  }
+#if CONFIG_BAWP
+  if (mbmi->bawp_flag == 1) return SIMPLE_TRANSLATION;
+#endif  // CONFIG_BAWP
+
+#if CONFIG_TIP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) return SIMPLE_TRANSLATION;
+#endif  // CONFIG_TIP
+
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+  if (mbmi->ref_frame[0] == mbmi->ref_frame[1]) return SIMPLE_TRANSLATION;
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+
+  if (xd->cur_frame_force_integer_mv == 0) {
+    const TransformationType gm_type =
+        cm->global_motion[mbmi->ref_frame[0]].wmtype;
+    if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
+  }
+
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], xd->mi_row,
+                                        xd->mi_col) &&
+      is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
+      is_motion_variation_allowed_compound(mbmi)) {
+    if (!check_num_overlappable_neighbors(mbmi)) return SIMPLE_TRANSLATION;
+    assert(!has_second_ref(mbmi));
+    const int allow_warped_motion = cm->features.allow_warped_motion;
+    if (mbmi->num_proj_ref >= 1 &&
+        (allow_warped_motion &&
+         !av1_is_scaled(xd->block_ref_scale_factors[0]))) {
+      if (xd->cur_frame_force_integer_mv) {
+        return OBMC_CAUSAL;
+      }
+      return WARPED_CAUSAL;
+    }
+    return OBMC_CAUSAL;
+  } else {
+    return SIMPLE_TRANSLATION;
+  }
+}
+#endif
 #ifdef __cplusplus
 }  // extern "C"
 #endif

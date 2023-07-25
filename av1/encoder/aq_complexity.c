@@ -49,11 +49,10 @@ static int get_aq_c_strength(int q_index, aom_bit_depth_t bit_depth) {
 
 static bool is_frame_aq_enabled(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
-  const RefreshFrameFlagsInfo *const refresh_frame_flags = &cpi->refresh_frame;
 
-  return frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
-         refresh_frame_flags->alt_ref_frame ||
-         (refresh_frame_flags->golden_frame && !cpi->rc.is_src_frame_alt_ref);
+  (void)cm;
+  // TODO(kslu) enable this for nrs
+  return 0;
 }
 
 // Segmentation only makes sense if the target bits per SB is above a threshold.
@@ -162,7 +161,8 @@ void av1_caq_select_segment(const AV1_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
     aom_clear_system_state();
     low_var_thresh = DEFAULT_LV_THRESH;
 
-    av1_setup_src_planes(mb, cpi->source, mi_row, mi_col, num_planes, bs);
+    av1_setup_src_planes(mb, cpi->source, mi_row, mi_col, num_planes,
+                         &mb->e_mbd.mi[0]->chroma_ref_info);
     logvar = av1_log_block_var(cpi, mb, bs);
 
     segment = AQ_C_SEGMENTS - 1;  // Just in case no break out below.

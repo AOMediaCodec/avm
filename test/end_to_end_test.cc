@@ -80,7 +80,7 @@ const libaom_test::TestMode kEncodingModeVectors[] = {
 };
 
 // Speed settings tested
-const int kCpuUsedVectors[] = { 1, 2, 3, 5, 6 };
+const int kCpuUsedVectors[] = { 1, 3, 5 };
 
 int is_extension_y4m(const char *filename) {
   const char *dot = strrchr(filename, '.');
@@ -107,9 +107,7 @@ class EndToEndTest
     SetMode(encoding_mode_);
     cfg_.g_lag_in_frames = 5;
     cfg_.rc_end_usage = AOM_VBR;
-#if CONFIG_EXTQUANT
     cfg_.rc_max_quantizer = 224;
-#endif  // CONFIG_EXTQUANT
   }
 
   virtual void BeginPassHook(unsigned int) {
@@ -151,7 +149,6 @@ class EndToEndTest
     cfg_.g_input_bit_depth = test_video_param_.input_bit_depth;
     cfg_.g_bit_depth = test_video_param_.bit_depth;
     init_flags_ = AOM_CODEC_USE_PSNR;
-    if (cfg_.g_bit_depth > 8) init_flags_ |= AOM_CODEC_USE_HIGHBITDEPTH;
 
     std::unique_ptr<libaom_test::VideoSource> video;
     if (is_extension_y4m(test_video_param_.filename)) {

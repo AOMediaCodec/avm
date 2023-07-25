@@ -133,12 +133,11 @@ typedef struct {
   int num_params;  // The number of parameters used for internal low-order model
   int block_size;  // The block size the finder was initialized with
   double normalization;  // Normalization factor (1 / (2^(bit_depth) - 1))
-  int use_highbd;        // Whether input data should be interpreted as uint16
 } aom_flat_block_finder_t;
 
 /*!\brief Init the block_finder with the given block size, bit_depth */
 int aom_flat_block_finder_init(aom_flat_block_finder_t *block_finder,
-                               int block_size, int bit_depth, int use_highbd);
+                               int block_size, int bit_depth);
 void aom_flat_block_finder_free(aom_flat_block_finder_t *block_finder);
 
 /*!\brief Helper to extract a block and low order "planar" model. */
@@ -171,7 +170,6 @@ typedef struct {
   aom_noise_shape shape;
   int lag;
   int bit_depth;
-  int use_highbd;
 } aom_noise_model_params_t;
 
 /*!\brief State of a noise model estimate for a single channel.
@@ -274,14 +272,10 @@ int aom_noise_model_get_grain_parameters(aom_noise_model_t *const noise_model,
  * \param[in]     noise_psd       The power spectral density of the noise
  * \param[in]     block_size      The size of blocks
  * \param[in]     bit_depth       Bit depth of the image
- * \param[in]     use_highbd      If true, uint8 pointers are interpreted as
- *                                uint16 and stride is measured in uint16.
- *                                This must be true when bit_depth >= 10.
  */
 int aom_wiener_denoise_2d(const uint8_t *const data[3], uint8_t *denoised[3],
                           int w, int h, int stride[3], int chroma_sub_log2[2],
-                          float *noise_psd[3], int block_size, int bit_depth,
-                          int use_highbd);
+                          float *noise_psd[3], int block_size, int bit_depth);
 
 struct aom_denoise_and_model_t;
 

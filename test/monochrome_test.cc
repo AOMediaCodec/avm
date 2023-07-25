@@ -38,8 +38,9 @@ class MonochromeTest
                                      aom_codec_pts_t pts) {
     (void)pts;
 
+    const uint16_t *const u_plane = (const uint16_t *)img.planes[AOM_PLANE_U];
     // Get value of top-left corner pixel of U plane
-    int chroma_value = img.planes[AOM_PLANE_U][0];
+    int chroma_value = u_plane[0];
 
     bool is_chroma_constant =
         ComparePlaneToValue(img, AOM_PLANE_U, chroma_value) &&
@@ -60,12 +61,13 @@ class MonochromeTest
                            const int value) {
     const int w = aom_img_plane_width(&img, plane);
     const int h = aom_img_plane_height(&img, plane);
-    const uint8_t *const buf = img.planes[plane];
     const int stride = img.stride[plane];
 
     for (int r = 0; r < h; ++r) {
+      const uint16_t *const buf =
+          (const uint16_t *)(img.planes[plane] + r * stride);
       for (int c = 0; c < w; ++c) {
-        if (buf[r * stride + c] != value) return false;
+        if (buf[c] != value) return false;
       }
     }
     return true;
@@ -99,11 +101,7 @@ TEST_P(MonochromeTest, TestMonochromeEncoding) {
   cfg_.rc_buf_optimal_sz = 600;
   cfg_.rc_buf_sz = 1000;
   cfg_.rc_min_quantizer = 8;
-#if CONFIG_EXTQUANT
   cfg_.rc_max_quantizer = 164;
-#else
-  cfg_.rc_max_quantizer = 224;
-#endif  // CONFIG_EXTQUANT
   cfg_.rc_undershoot_pct = 50;
   cfg_.rc_overshoot_pct = 50;
   cfg_.rc_end_usage = AOM_CBR;

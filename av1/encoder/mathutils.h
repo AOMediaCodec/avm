@@ -58,6 +58,24 @@ static INLINE int linsolve(int n, double *A, int stride, double *b, double *x) {
   return 1;
 }
 
+// Solves Ax = b, where x and b are column vectors of size nx1 and A is nxn,
+// without destroying the contents of matrix A and vector b.
+static INLINE int linsolve_const(int n, const double *A, int stride,
+                                 const double *b, double *x) {
+  assert(n > 0);
+  assert(stride > 0);
+  double *A_ = (double *)malloc(sizeof(*A_) * n * n);
+  double *b_ = (double *)malloc(sizeof(*b_) * n);
+  for (int i = 0; i < n; ++i) {
+    memcpy(A_ + i * n, A + i * stride, sizeof(*A_) * n);
+  }
+  memcpy(b_, b, sizeof(*b_) * n);
+  int ret = linsolve(n, A_, n, b_, x);
+  free(A_);
+  free(b_);
+  return ret;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Least-squares
 // Solves for n-dim x in a least squares sense to minimize |Ax - b|^2
@@ -357,4 +375,148 @@ static INLINE int SVD(double *U, double *W, double *V, double *matx, int M,
   return 0;
 }
 
+// Finds n - dimensional KLT to decorrelate n image components of size
+// width x height stored in components arrays each with the same stride.
+// The n x n forward KLT is returned in klt array which is assumed to store n^2
+// values in the KLT matrix in row by row order.
+// Returns 0 for success, 1 for failure.
+static INLINE int klt_components(int n, const int16_t **components, int width,
+                                 int height, int stride, double *klt) {
+  const int size = width * height;
+  double one_by_size = 1.0 / size;
+  int64_t *sumsq = (int64_t *)aom_malloc(n * (n + 2) * sizeof(*sumsq));
+  if (!sumsq) return 1;
+  int64_t *sum = sumsq + n * n;
+  int64_t *vec = sum + n;
+
+  double *covar = (double *)aom_malloc(2 * n * (n + 1) * sizeof(*covar));
+  if (!covar) {
+    aom_free(sumsq);
+    return 1;
+  }
+  double *means = covar + n * n;
+  double *V = means + n;
+  double *W = V + n * n;
+
+  for (int i = 0; i < n; ++i) sum[i] = 0;
+  for (int i = 0; i < n * n; ++i) sumsq[i] = 0;
+  for (int r = 0; r < height; ++r) {
+    for (int c = 0; c < width; ++c) {
+      const int o = r * stride + c;
+      for (int i = 0; i < n; ++i) vec[i] = components[i][o];
+      for (int i = 0; i < n; ++i) {
+        for (int j = i; j < n; ++j) sumsq[i * n + j] += vec[i] * vec[j];
+        sum[i] += vec[i];
+      }
+    }
+  }
+  for (int i = 0; i < n; ++i) means[i] = (double)sum[i] * one_by_size;
+  for (int i = 0; i < n; ++i)
+    for (int j = i; j < n; ++j)
+      covar[i * n + j] =
+          (double)sumsq[i * n + j] * one_by_size - means[i] * means[j];
+
+  // Fill up with Symmetry
+  for (int i = 0; i < n; ++i)
+    for (int j = 0; j < i; ++j) covar[i * n + j] = covar[j * n + i];
+  aom_free(sumsq);
+
+  int res = SVD(klt, W, V, covar, n, n);
+  if (!res) {
+    // Transpose to get the forward klt
+    for (int i = 0; i < n; ++i) {
+      for (int j = i + 1; j < n; ++j) {
+        double tmp = klt[i * n + j];
+        klt[i * n + j] = klt[j * n + i];
+        klt[j * n + i] = tmp;
+      }
+    }
+    // As a convention make the first column of the KLT non-negative
+    for (int i = 0; i < n; ++i) {
+      if (klt[i * n] < 0.0) {
+        for (int j = 0; j < n; ++j) klt[i * n + j] = -klt[i * n + j];
+      }
+    }
+  }
+  aom_free(covar);
+  return res;
+}
+
+// Variation of the above where filtered versions of the components
+// are used where the filter kernel is provided as an input.
+static INLINE int klt_filtered_components(int n, const int16_t **components,
+                                          int width, int height, int stride,
+                                          int kernel_size, int *kernel,
+                                          double *klt) {
+  assert(kernel_size & 1);  // must be odd
+  const int half_kernel_size = kernel_size >> 1;
+  assert(width > 2 * half_kernel_size);
+  assert(height > 2 * half_kernel_size);
+  const int size =
+      (width - 2 * half_kernel_size) * (height - 2 * half_kernel_size);
+
+  double one_by_size = 1.0 / size;
+  int64_t *sumsq = (int64_t *)aom_malloc(n * (n + 2) * sizeof(*sumsq));
+  if (!sumsq) return 1;
+  int64_t *sum = sumsq + n * n;
+  int64_t *vec = sum + n;
+
+  double *covar = (double *)aom_malloc(2 * n * (n + 1) * sizeof(*covar));
+  if (!covar) {
+    aom_free(sumsq);
+    return 1;
+  }
+  double *means = covar + n * n;
+  double *V = means + n;
+  double *W = V + n * n;
+
+  for (int i = 0; i < n; ++i) sum[i] = 0;
+  for (int i = 0; i < n * n; ++i) sumsq[i] = 0;
+  for (int r = half_kernel_size; r < height - half_kernel_size; ++r) {
+    for (int c = half_kernel_size; c < width - half_kernel_size; ++c) {
+      const int o = r * stride + c;
+      for (int i = 0; i < n; ++i) {
+        vec[i] = 0;
+        int m = 0;
+        for (int k = -half_kernel_size; k <= half_kernel_size; ++k)
+          for (int l = -half_kernel_size; l <= half_kernel_size; ++l)
+            vec[i] += components[i][o + k * stride + l] * kernel[m++];
+      }
+      for (int i = 0; i < n; ++i) {
+        for (int j = i; j < n; ++j) sumsq[i * n + j] += vec[i] * vec[j];
+        sum[i] += vec[i];
+      }
+    }
+  }
+  for (int i = 0; i < n; ++i) means[i] = (double)sum[i] * one_by_size;
+  for (int i = 0; i < n; ++i)
+    for (int j = i; j < n; ++j)
+      covar[i * n + j] =
+          (double)sumsq[i * n + j] * one_by_size - means[i] * means[j];
+
+  // Fill up with Symmetry
+  for (int i = 0; i < n; ++i)
+    for (int j = 0; j < i; ++j) covar[i * n + j] = covar[j * n + i];
+  aom_free(sumsq);
+
+  int res = SVD(klt, W, V, covar, n, n);
+  if (!res) {
+    // Transpose to get the forward klt
+    for (int i = 0; i < n; ++i) {
+      for (int j = i + 1; j < n; ++j) {
+        double tmp = klt[i * n + j];
+        klt[i * n + j] = klt[j * n + i];
+        klt[j * n + i] = tmp;
+      }
+    }
+    // As a convention make the first column of the KLT non-negative
+    for (int i = 0; i < n; ++i) {
+      if (klt[i * n] < 0.0) {
+        for (int j = 0; j < n; ++j) klt[i * n + j] = -klt[i * n + j];
+      }
+    }
+  }
+  aom_free(covar);
+  return res;
+}
 #endif  // AOM_AV1_ENCODER_MATHUTILS_H_
