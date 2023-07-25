@@ -544,7 +544,11 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     if (use_interintra) {
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
+
+#if !CLEANUP_MBMI_REF
       mbmi->ref_frame[1] = INTRA_FRAME;
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
+
       mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;

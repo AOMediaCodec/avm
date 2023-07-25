@@ -294,6 +294,10 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                mi_x, mi_y);
 #endif
 
+#if CONFIG_INTERINTRA_IMPROVEMENT
+    assert(IMPLIES(!is_interintra_allowed(xd->mi[0]),
+                   xd->mi[0]->motion_mode != INTERINTRA));
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
     if (is_interintra_pred(xd->mi[0])) {
       BUFFER_SET default_ctx = {
         { xd->plane[0].dst.buf, xd->plane[1].dst.buf, xd->plane[2].dst.buf },

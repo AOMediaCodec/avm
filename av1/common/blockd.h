@@ -3598,11 +3598,18 @@ void av1_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                              BLOCK_SIZE sb_size);
 void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
                                  BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
-
+#if CONFIG_INTERINTRA_IMPROVEMENT
+#define MAX_INTERINTRA_SB_SQUARE 64 * 64
+#else
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
+#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+  return mbmi->motion_mode == INTERINTRA;
+#else
   return (is_inter_ref_frame(mbmi->ref_frame[0]) &&
           mbmi->ref_frame[1] == INTRA_FRAME);
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 }
 
 #if CONFIG_TIP
@@ -3626,7 +3633,12 @@ static INLINE int is_tip_allowed_bsize(BLOCK_SIZE bsize) {
 #endif  // CONFIG_TIP
 
 static INLINE int is_interintra_allowed_bsize(const BLOCK_SIZE bsize) {
-  return (bsize >= BLOCK_8X8) && (bsize <= BLOCK_32X32);
+  return bsize >= BLOCK_8X8 &&
+#if CONFIG_INTERINTRA_IMPROVEMENT
+         AOMMAX(block_size_wide[bsize], block_size_high[bsize]) <= 64;
+#else
+         (bsize <= BLOCK_32X32);
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 }
 
 static INLINE int is_interintra_allowed_mode(const PREDICTION_MODE mode) {
@@ -3670,8 +3682,14 @@ static INLINE int is_interintra_allowed_bsize_group(int group) {
 }
 
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
+#if CLEANUP_MBMI_REF && CONFIG_INTERINTRA_IMPROVEMENT
+  assert(IMPLIES(mbmi->motion_mode == INTERINTRA,
+                 mbmi->ref_frame[1] == NONE_FRAME));
+  return (mbmi->motion_mode == INTERINTRA);
+#else
   return is_inter_ref_frame(mbmi->ref_frame[0]) &&
          mbmi->ref_frame[1] == INTRA_FRAME && is_interintra_allowed(mbmi);
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 }
 
 static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,

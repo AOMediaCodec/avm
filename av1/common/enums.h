@@ -30,6 +30,8 @@ extern "C" {
 #undef MAX_SB_SIZE
 #define BAWP_BUGFIX 1
 
+#define CLEANUP_MBMI_REF 1
+
 #if CONFIG_REFINEMV
 #define SINGLE_STEP_SEARCH 0
 #endif  // CONFIG_REFINEMV

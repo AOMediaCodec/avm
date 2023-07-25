@@ -2245,6 +2245,10 @@ static int64_t motion_mode_rd(
                                                       ref_best_rd, &tmp_rate_mv,
                                                       &tmp_rate2, orig_dst);
           if (ret < 0) continue;
+#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+          assert(mbmi->motion_mode == INTERINTRA);
+          // assert(mbmi->ref_frame[1] == INTRA_FRAME);
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 #if CONFIG_EXTENDED_WARP_PREDICTION
         } else if (mbmi->motion_mode == WARP_DELTA) {
 #if CONFIG_FLEX_MVRES
@@ -2375,11 +2379,11 @@ static int64_t motion_mode_rd(
 
             tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
 #if CONFIG_WARPMV
+            assert(mbmi->mode == NEWMV
 #if CONFIG_CWG_D067_IMPROVED_WARP
-            assert(mbmi->mode == NEWMV || mbmi->warpmv_with_mvd_flag);
-#else
-            assert(mbmi->mode == NEWMV);
+                   || mbmi->warpmv_with_mvd_flag
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
+            );
 #if CONFIG_CWG_D067_IMPROVED_WARP
             assert(IMPLIES(mbmi->mode == WARPMV, rate_mv0 == 0));
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
