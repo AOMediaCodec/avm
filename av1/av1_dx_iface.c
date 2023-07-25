@@ -617,7 +617,8 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     // show_existing_frame
     if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
         pbi->common.seq_params.enable_frame_output_order) {
-      decrease_ref_count(pbi->output_frames[0], pool);
+      if (!pbi->common.show_existing_frame)
+        decrease_ref_count(pbi->output_frames[0], pool);
     } else {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       for (size_t j = 0; j < pbi->num_output_frames; j++) {

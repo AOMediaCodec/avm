@@ -2375,11 +2375,11 @@ static int64_t motion_mode_rd(
 
             tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
 #if CONFIG_WARPMV
-            assert(mbmi->mode == NEWMV
 #if CONFIG_CWG_D067_IMPROVED_WARP
-                   || mbmi->warpmv_with_mvd_flag
+            assert(mbmi->mode == NEWMV || mbmi->warpmv_with_mvd_flag);
+#else
+            assert(mbmi->mode == NEWMV);
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
-            );
 #if CONFIG_CWG_D067_IMPROVED_WARP
             assert(IMPLIES(mbmi->mode == WARPMV, rate_mv0 == 0));
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
@@ -5755,16 +5755,14 @@ static int64_t handle_inter_mode(
 #endif
                 int rate2_nocoeff = rd_stats->rate;
 #if CONFIG_WARPMV
-                assert(IMPLIES(mbmi->mode == WARPMV,
-                               (rd_stats->rate == base_rate &&
 #if CONFIG_REFINEMV
-                                tmp_rate_mv == 0
+                assert(
+                    IMPLIES(mbmi->mode == WARPMV,
+                            (rd_stats->rate == base_rate && tmp_rate_mv == 0)));
 #else
-
-                              rate_mv == 0
-#endif  // CONFIG_REFINEMV
-
-                                )));
+              assert(IMPLIES(mbmi->mode == WARPMV,
+                             (rd_stats->rate == base_rate && rate_mv == 0)));
+#endif
 #endif  // CONFIG_WARPMV
         // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
         // OBMC_CAUSAL or WARPED_CAUSAL or WARP_EXTEND or WARP_DELTA
