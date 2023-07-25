@@ -119,13 +119,10 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
 
     csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, test_cfg)
     csv = open(csv_file, 'wt')
-    # "TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,Bit Depth,CodedRes,QP,Bitrate(kbps)")
+    # "TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,BitDepth,CodedRes,QP,Bitrate(kbps)")
     csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,OrigRes,FPS,"\
-              "Bit Depth,CodecRes,QP,")
-    if (test_cfg == "STILL"):
-        csv.write("FileSize(bytes)")
-    else:
-        csv.write("Bitrate(kbps)")
+              "BitDepth,CodedRes,QP,")
+    csv.write("Bitrate(kbps)")
     for qty in QualityList:
         csv.write(',' + qty)
     csv.write(",EncT[s],DecT[s]")
@@ -138,7 +135,7 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
     perframe_csv = open(perframe_csvfile, 'wt')
 
     perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,Res,FPS," \
-                       "Bit Depth,QP,POC,FrameType,Level,qindex,FrameSize")
+                       "BitDepth,QP,POC,FrameType,Level,qindex,FrameSize")
     for qty in QualityList:
         if (qty != "Overall_PSNR" and qty != "Overall_APSNR" and not qty.startswith("APSNR")):
             perframe_csv.write(',' + qty)

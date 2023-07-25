@@ -46,8 +46,8 @@ APSNR_U_WEIGHT = 1.0
 APSNR_V_WEIGHT = 1.0
 
 if CTC_VERSION == '4.0':
-    CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTCv4_v7.3.xlsm')
-    CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.8.xlsm')
+    CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTCv4_v7.3.2.xlsm')
+    CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.7.1.xlsm')
 elif CTC_VERSION == '3.0':
     CTC_RegularXLSTemplate = os.path.join(BinPath, 'AOM_CWG_Regular_CTC_v7.2.xlsm')
     CTC_ASXLSTemplate = os.path.join(BinPath, 'AOM_CWG_AS_CTC_v9.7.xlsm')
