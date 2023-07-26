@@ -782,6 +782,67 @@ Previous Enc Run (Low-delay):
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
 
+# Decode encoded streams and verify that number of frames is as expected.
+.dec-run-common:
+  stage: test
+  interruptible: true
+  variables:
+    AOMENC_LIMIT: 30  # Should match the same variable in `.enc-run-common`
+    AOMDEC: installroot/usr/local/bin/aomdec
+  script:
+    - ${AOMDEC} ${AOMENC_OUTPUT}.obu -o ${AOMDEC_OUTPUT}.decoded.y4m --summary
+       2>&1 | tee "${AOMDEC_OUTPUT}.summary.log"
+    - '[ -f "${AOMDEC_OUTPUT}.decoded.y4m" ] || exit 1'
+    - '[ -f "${AOMDEC_OUTPUT}.summary.log" ] || exit 1'
+    - |
+      for str in 'decoded frames' 'showed frames'; do
+        frame_count=$(grep -E -o "[0-9]+ ${str}" "${AOMDEC_OUTPUT}.summary.log" | sed -E "s/([0-9]+) ${str}/\1/g")
+        echo "${str} = ${frame_count}"
+        if [[ ${frame_count} -ne ${AOMENC_LIMIT} ]]; then
+          echo "ERROR: Unexpected number of ${str}. Got ${frame_count}, expected ${AOMENC_LIMIT}"
+          exit 1
+        fi
+      done
+  artifacts:
+    when: always
+    paths:
+      - ${AOMDEC_OUTPUT}.*
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+
+
+Dec Run (All-intra):
+  extends: .dec-run-common
+  variables:
+    AOMENC_OUTPUT: all-intra
+    AOMDEC_OUTPUT: dec-all-intra
+  needs:
+    - 'Enc Run (All-intra)'
+    - 'Build (x86_64-linux-gcc): [decode-only]'
+
+
+Dec Run (Random Access):
+  extends: .dec-run-common
+  variables:
+    AOMENC_OUTPUT: random-access
+    AOMDEC_OUTPUT: dec-random-access
+  needs:
+    - 'Enc Run (Random Access)'
+    - 'Build (x86_64-linux-gcc): [decode-only]'
+
+
+Dec Run (Low-delay):
+  extends: .dec-run-common
+  variables:
+    AOMENC_OUTPUT: low-delay
+    AOMDEC_OUTPUT: dec-low-delay
+  needs:
+    - 'Enc Run (Low-delay)'
+    - 'Build (x86_64-linux-gcc): [decode-only]'
+
+
 Enc compare:
   stage: report
   interruptible: true
