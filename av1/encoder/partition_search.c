@@ -3343,7 +3343,10 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                     invalid_rdc);
       av1_init_rd_stats(&last_part_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-      if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
+      if (last_part_rdc.rate != INT_MAX &&
+#if !CONFIG_EXT_RECUR_PARTITIONS
+          bsize >= BLOCK_8X8 &&
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
           mi_row + hbs_h < mi_params->mi_rows) {
         RD_STATS tmp_rdc;
         av1_init_rd_stats(&tmp_rdc);
@@ -3394,7 +3397,10 @@ void av1_use_partition_mi(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
                     PARTITION_VERT, subsize, pc_tree->vertical[0], invalid_rdc);
       av1_init_rd_stats(&last_part_rdc);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-      if (last_part_rdc.rate != INT_MAX && bsize >= BLOCK_8X8 &&
+      if (last_part_rdc.rate != INT_MAX &&
+#if !CONFIG_EXT_RECUR_PARTITIONS
+          bsize >= BLOCK_8X8 &&
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
           mi_col + hbs_w < mi_params->mi_cols) {
         RD_STATS tmp_rdc;
         av1_init_rd_stats(&tmp_rdc);
