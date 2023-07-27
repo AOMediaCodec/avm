@@ -1974,7 +1974,11 @@ static void get_cx_data(struct stream_state *stream,
 
     switch (pkt->kind) {
       case AOM_CODEC_CX_FRAME_PKT:
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        stream->frames_out += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         ++stream->frames_out;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO
         if (stream->config.write_webm) {
@@ -2473,6 +2477,11 @@ int main(int argc, const char **argv_) {
         }
       }
       fflush(stdout);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      FOREACH_STREAM(stream, streams) {
+        if (stream->frames_out < seen_frames) got_data = 1;
+      }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
 
     if (stream_cnt > 1) fprintf(stderr, "\n");

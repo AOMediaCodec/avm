@@ -6491,7 +6491,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     data += fh_info.total_length;
   }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  if ((cm->show_existing_frame && !cm->features.error_resilient_mode)
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (encode_show_existing_frame(cm)
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 #if CONFIG_TIP
       || (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
 #endif  // CONFIG_TIP

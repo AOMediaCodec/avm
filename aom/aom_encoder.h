@@ -122,8 +122,12 @@ typedef struct aom_codec_cx_pkt {
       int partition_id;
       /*!\brief size of the visible frame in this packet */
       size_t vis_frame_size;
-    } frame;                            /**< data for compressed frame packet */
-    aom_fixed_buf_t twopass_stats;      /**< data for two-pass packet */
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      /*!\brief the number of frames in this packet */
+      int frame_count;
+#endif                             // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    } frame;                       /**< data for compressed frame packet */
+    aom_fixed_buf_t twopass_stats; /**< data for two-pass packet */
     aom_fixed_buf_t firstpass_mb_stats; /**< first pass mb packet */
     struct aom_psnr_pkt {
       unsigned int samples[4]; /**< Number of samples, total/y/u/v */

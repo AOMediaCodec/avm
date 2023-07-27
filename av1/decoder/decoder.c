@@ -510,7 +510,6 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
             successive_output++;
           }
         }
-        assert(successive_output < 2);
       }
     } else if ((!cm->seq_params.order_hint_info.enable_order_hint ||
                 !cm->seq_params.enable_frame_output_order) &&
@@ -681,7 +680,7 @@ int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
        pbi->common.seq_params.enable_frame_output_order)
           ? 0
           : pbi->num_output_frames - 1;
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   const size_t out_frame_idx = pbi->num_output_frames - 1;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   *frame = pbi->output_frames[out_frame_idx]->buf;

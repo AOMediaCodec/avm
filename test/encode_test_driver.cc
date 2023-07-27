@@ -184,6 +184,10 @@ void EncoderTest::RunLoop(VideoSource *video) {
     ASSERT_NO_FATAL_FAILURE(video->Begin());
     encoder->InitEncoder(video);
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+
     ASSERT_FALSE(::testing::Test::HasFatalFailure());
 
     std::unique_ptr<Decoder> decoder(

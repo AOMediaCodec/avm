@@ -507,7 +507,7 @@ class SubGopTestLarge
       if (subgop_cfg_ref_->step[idx].refresh != -1 &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           !curr_step_data->show_existing_frame) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         EXPECT_EQ(subgop_cfg_ref_->step[idx].refresh,
@@ -518,9 +518,9 @@ class SubGopTestLarge
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (refresh_frame_flags &&
           subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (refresh_frame_flags && !curr_step_data->show_existing_frame) {
-#endif
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         for (int mask = refresh_frame_flags; mask; mask >>= 1) {
           if (mask & 1)
             EXPECT_EQ(curr_step_data->disp_frame_idx,
@@ -566,7 +566,7 @@ class SubGopTestLarge
         if (subgop_cfg_ref_->step[idx].type_code !=
                 FRAME_TYPE_INO_SHOWEXISTING &&
             subgop_data_.step[idx].is_valid_ref_frame[ref]) {
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         if (subgop_data_.step[idx].is_valid_ref_frame[ref]) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           EXPECT_EQ(subgop_cfg_ref_->step[idx].references[ref],

@@ -3287,7 +3287,20 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         index_size = MAG_SIZE * (ctx->pending_frame_count - 1) + 2;
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
+          if (cpi->common.current_frame.frame_type == KEY_FRAME ||
+              !cpi->common.show_existing_frame) {
+            is_frame_visible = cpi->common.show_frame;
+          } else {
+            is_frame_visible = 0;
+          }
+        } else {
+          is_frame_visible = cpi->common.show_frame;
+        }
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         is_frame_visible = cpi->common.show_frame;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
         has_no_show_keyframe |=
             (!is_frame_visible &&
@@ -3297,6 +3310,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           report_stats(cpi, frame_size, cx_time);
         }
       }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order &&
+          cpi->common.show_frame && cpi->common.show_existing_frame)
+        break;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     if (is_frame_visible) {
       // Add the frame packet to the list of returned packets.
@@ -3326,6 +3344,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
       pkt.data.frame.vis_frame_size = frame_size;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      pkt.data.frame.frame_count = ctx->pending_frame_count;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       pkt.data.frame.pts =
           ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
