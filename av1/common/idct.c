@@ -318,8 +318,9 @@ void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-void av1_inverse_transform_block(const MACROBLOCKD *xd, tran_low_t *dqcoeff,
-                                 int plane, TX_TYPE tx_type, TX_SIZE tx_size,
+void av1_inverse_transform_block(const MACROBLOCKD *xd,
+                                 const tran_low_t *dqcoeff, int plane,
+                                 TX_TYPE tx_type, TX_SIZE tx_size,
                                  uint16_t *dst, int stride, int eob,
                                  int reduced_tx_set) {
   if (!eob) return;
@@ -338,9 +339,14 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd, tran_low_t *dqcoeff,
   assert(((intra_mode >= PAETH_PRED || filter) && txfm_param.sec_tx_type) == 0);
   (void)intra_mode;
   (void)filter;
-  av1_inv_stxfm(dqcoeff, &txfm_param);
 
-  av1_highbd_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
+  // Work buffer for secondary transform
+  DECLARE_ALIGNED(32, tran_low_t, temp_dqcoeff[MAX_SB_SQUARE]);
+  memcpy(temp_dqcoeff, dqcoeff, sizeof(tran_low_t) * tx_size_2d[tx_size]);
+
+  av1_inv_stxfm(temp_dqcoeff, &txfm_param);
+
+  av1_highbd_inv_txfm_add(temp_dqcoeff, dst, stride, &txfm_param);
 }
 
 // Inverse secondary transform

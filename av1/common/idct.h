@@ -39,8 +39,9 @@ void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
                                    CctxType cctx_type);
 #endif  // CONFIG_CROSS_CHROMA_TX
 
-void av1_inverse_transform_block(const MACROBLOCKD *xd, tran_low_t *dqcoeff,
-                                 int plane, TX_TYPE tx_type, TX_SIZE tx_size,
+void av1_inverse_transform_block(const MACROBLOCKD *xd,
+                                 const tran_low_t *dqcoeff, int plane,
+                                 TX_TYPE tx_type, TX_SIZE tx_size,
                                  uint16_t *dst, int stride, int eob,
                                  int reduced_tx_set);
 void av1_highbd_iwht4x4_add(const tran_low_t *input, uint16_t *dest, int stride,
