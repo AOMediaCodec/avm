@@ -2412,7 +2412,7 @@ int main(int argc, const char **argv_) {
     // Keep track of the total number of frames passed to the encoder.
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     unsigned int seen_frames = 0;
-#else  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     int seen_frames = 0;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     // Does the encoder have queued data that needs retrieval?
