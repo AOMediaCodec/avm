@@ -2410,7 +2410,7 @@ int main(int argc, const char **argv_) {
     }
 
     // Keep track of the total number of frames passed to the encoder.
-    int seen_frames = 0;
+    unsigned int seen_frames = 0;
     // Does the encoder have queued data that needs retrieval?
     int got_data = 0;
     // Is there a frame available for processing?
