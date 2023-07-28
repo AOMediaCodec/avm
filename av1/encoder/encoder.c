@@ -4028,10 +4028,16 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   aom_usec_timer_mark(&cmptimer);
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  if (cpi->b_calculate_psnr) {
+    if (cm->show_existing_frame ||
+        (!is_stat_generation_stage(cpi) && cm->show_frame && *size > 0)) {
+#else
   // Note *size = 0 indicates a dropeed frame for which psnr is not calculated
   if (cpi->b_calculate_psnr && *size > 0) {
     if (cm->show_existing_frame ||
         (!is_stat_generation_stage(cpi) && cm->show_frame)) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       generate_psnr_packet(cpi);
     }
   }
