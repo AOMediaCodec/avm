@@ -447,23 +447,50 @@ void quad_copy(QUADInfo *cur_quad_info, QUADInfo *postcnn_quad_info) {
   }
 }
 
+// Returns (int)floor(x / y),
+#define DIVIDE_WITH_FLOOR(x, y) ((x) / (y))
 // Returns (int)ceil(x / y),
 #define DIVIDE_WITH_CEILING(x, y) (((x) + (y)-1) / (y))
 
-int quad_tree_get_unit_info_bits(int width, int height, int unit_length) {
-  const int smallest_unit_len = unit_length / 2;  // In case of split.
-  const int max_units_wide = DIVIDE_WITH_CEILING(width, smallest_unit_len);
-  const int max_units_high = DIVIDE_WITH_CEILING(height, smallest_unit_len);
-  const int max_units_total = max_units_wide * max_units_high;
-  return get_msb(max_units_total) + 1;
+int quad_tree_get_unit_info_length(int width, int height, int unit_length,
+                                   const QUADSplitInfo *split_info,
+                                   int split_info_length) {
+  // We can compute total units as follows:
+  // (1) regular units: they may / may not be split. So, compute length of
+  // regular unit info by going through the split_info array. (2) unregular
+  // units (blocks near boundary that are NOT unit_length in size): they are
+  // never split. So, length of unregular unit info is same as number of
+  // unregular units.
+  const int regular_units = DIVIDE_WITH_FLOOR(width, unit_length) *
+                            DIVIDE_WITH_FLOOR(height, unit_length);
+  assert(regular_units * 2 == split_info_length);
+  const int total_units = DIVIDE_WITH_CEILING(width, unit_length) *
+                          DIVIDE_WITH_CEILING(height, unit_length);
+  const int unregular_unit_info_len = total_units - regular_units;
+
+  int regular_unit_info_len = 0;
+  for (int i = 0; i < split_info_length; i += 2) {
+    if (split_info[i].split == 0 && split_info[i + 1].split == 1) {
+      regular_unit_info_len += 4;  // Split
+    } else if (split_info[i].split == 1 && split_info[i + 1].split == 1) {
+      regular_unit_info_len += 2;  // Horz
+    } else if (split_info[i].split == 1 && split_info[i + 1].split == 0) {
+      regular_unit_info_len += 2;  // Vert
+    } else {
+      assert(split_info[i].split == 0 && split_info[i + 1].split == 0);
+      regular_unit_info_len += 1;  // No split
+    }
+  }
+
+  return regular_unit_info_len + unregular_unit_info_len;
 }
 
-int quad_tree_get_split_info_bits(int width, int height, int unit_length) {
-  const int num_split_info_wide = DIVIDE_WITH_CEILING(width, unit_length);
-  const int num_split_info_high = DIVIDE_WITH_CEILING(height, unit_length);
+int quad_tree_get_split_info_length(int width, int height, int unit_length) {
+  // Split info only signaled for units of full size. Blocks near boundaries are
+  // never split, so no info is signaled for those.
+  const int num_split_info_wide = DIVIDE_WITH_FLOOR(width, unit_length);
+  const int num_split_info_high = DIVIDE_WITH_FLOOR(height, unit_length);
   // 2 bits signaled for each split info.
-  const int num_split_info_total =
-      num_split_info_wide * num_split_info_high * 2;
-  return get_msb(num_split_info_total) + 1;
+  return num_split_info_wide * num_split_info_high * 2;
 }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE

@@ -2336,6 +2336,12 @@ static AOM_INLINE void write_modes_sb(
     QUADInfo *qi = (QUADInfo *)&cm->postcnn_quad_info;
     int superres_denom = cm->superres_scale_denominator;
     const int is_intra_only = frame_is_intra_only(cm);
+    assert(cm->postcnn_quad_info.unit_info_length ==
+           quad_tree_get_unit_info_length(
+               cm->superres_upscaled_width, cm->superres_upscaled_height,
+               cm->postcnn_quad_info.unit_size,
+               cm->postcnn_quad_info.split_info,
+               cm->postcnn_quad_info.split_info_length));
     write_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_indices[0],
                           superres_denom, is_intra_only, qi, w);
     qi->is_write = 1;
@@ -3117,38 +3123,12 @@ static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   if (cm->use_cnn[0]) {
     // printf("writing pamrater\n");
     aom_wb_write_bit(wb, cm->use_quad_level);
-    // Length of unit_info and split_info.
-    int flag;
-    int unit_length = cm->postcnn_quad_info.unit_info_length;
-    int split_length = cm->postcnn_quad_info.split_info_length;
-    const int unit_info_len_bits = quad_tree_get_unit_info_bits(
-        cm->superres_upscaled_width, cm->superres_upscaled_height,
-        cm->postcnn_quad_info.unit_size);
-    assert(unit_length < (1 << unit_info_len_bits));
-    flag = 1;
-    for (int i = 0; i < unit_info_len_bits; ++i) {
-      if (unit_length & flag) {
-        aom_wb_write_bit(wb, 1);
-      } else {
-        aom_wb_write_bit(wb, 0);
-      }
-      flag <<= 1;
-    }
-
-    const int split_info_len_bits = quad_tree_get_split_info_bits(
-        cm->superres_upscaled_width, cm->superres_upscaled_height,
-        cm->postcnn_quad_info.unit_size);
-    assert(split_length < (1 << split_info_len_bits));
-    flag = 1;
-    for (int i = 0; i < split_info_len_bits; ++i) {
-      if (split_length & flag) {
-        aom_wb_write_bit(wb, 1);
-      } else {
-        aom_wb_write_bit(wb, 0);
-      }
-      flag <<= 1;
-    }
-
+    // Signal split_info.
+    const int split_length = cm->postcnn_quad_info.split_info_length;
+    assert(split_length ==
+           quad_tree_get_split_info_length(cm->superres_upscaled_width,
+                                           cm->superres_upscaled_height,
+                                           cm->postcnn_quad_info.unit_size));
     for (int i = 0; i < cm->postcnn_quad_info.split_info_length; i++) {
       aom_wb_write_bit(wb, cm->postcnn_quad_info.split_info[i].split);
       // printf("flag:%d\n", cm->quad_info->split_info[i].split);

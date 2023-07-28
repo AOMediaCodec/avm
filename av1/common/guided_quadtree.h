@@ -52,10 +52,12 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
 int64_t count_guided_quad_bits(struct AV1Common *cm);
 #if CONFIG_CNN_GUIDED_QUADTREE
 void quad_copy(QUADInfo *cur_quad_info, QUADInfo *postcnn_quad_info);
-// Get bits required to signal max possible units for given image and unit size.
-int quad_tree_get_unit_info_bits(int width, int height, int unit_length);
-// Get bits required to signal all splits for given image and unit size.
-int quad_tree_get_split_info_bits(int width, int height, int unit_length);
+// Get the length of unit info array based on dimensions and split info.
+int quad_tree_get_unit_info_length(int width, int height, int unit_length,
+                                   const QUADSplitInfo *split_info,
+                                   int split_info_length);
+// Get the length of split info array based on dimensions.
+int quad_tree_get_split_info_length(int width, int height, int unit_length);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
 #ifdef __cplusplus
