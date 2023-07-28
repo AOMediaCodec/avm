@@ -3312,8 +3312,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order &&
-          cpi->common.show_frame && cpi->common.show_existing_frame)
+          cpi->common.show_frame && cpi->common.show_existing_frame) {
+        cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
         break;
+      }
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     if (is_frame_visible) {
