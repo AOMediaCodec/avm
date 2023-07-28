@@ -612,12 +612,18 @@ class SubGopTestLarge
     }
   }
 
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+    const int frames_in_pkt = pkt->data.frame.frame_count;
+    frame_num_ += frames_in_pkt;
+    frame_num_in_subgop_ += frames_in_pkt;
+  }
+
   virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
                                   libaom_test::Decoder *decoder) {
     EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
     if (AOM_CODEC_OK != res_dec) return 0;
     aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-    frame_num_in_subgop_++;
+
     int is_last_frame_in_subgop = (frame_num_in_subgop_ == subgop_info_.size);
 
     if (subgop_info_.is_user_specified ||
@@ -652,7 +658,6 @@ class SubGopTestLarge
       }
       ResetSubgop();
     }
-    frame_num_++;
     return AOM_CODEC_OK == res_dec;
   }
 
