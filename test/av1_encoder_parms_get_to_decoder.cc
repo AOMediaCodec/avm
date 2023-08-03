@@ -24,8 +24,6 @@
 
 namespace {
 
-const int kMaxPsnr = 100;
-
 struct ParamPassingTestVideo {
   const char *name;
   uint32_t width;
@@ -131,7 +129,9 @@ class AVxEncoderParmsGetToDecoder
 
   virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
     if (encode_parms.lossless) {
-      EXPECT_EQ(kMaxPsnr, pkt->data.psnr.psnr[0]);
+      const double lossless_psnr =
+          get_lossless_psnr(test_video_.width, test_video_.height, 8, false);
+      EXPECT_EQ(lossless_psnr, pkt->data.psnr.psnr[0]);
     }
   }
 

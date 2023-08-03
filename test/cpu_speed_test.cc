@@ -58,28 +58,12 @@ class CpuSpeedTest
   void TestTuneScreen();
   void TestEncodeHighBitrate();
   void TestLowBitrate();
-  double GetLosslessPSNR(unsigned int width, unsigned int height,
-                         unsigned int bit_depth);
 
   ::libaom_test::TestMode encoding_mode_;
   int set_cpu_used_;
   double min_psnr_;
   int tune_content_;
 };
-
-// Returns the expected total PSNR for the zero distortion case, based on frame
-// dimensions.
-double CpuSpeedTest::GetLosslessPSNR(unsigned int width, unsigned int height,
-                                     unsigned int bit_depth) {
-#if CONFIG_AV2CTC_PSNR_PEAK
-  const double peak = (double)(255 << (bit_depth - 8));
-#else
-  const double peak = (double)((1 << in_bit_depth) - 1);
-#endif  // CONFIG_AV2CTC_PSNR_PEAK
-  const double y_samples = width * height;
-  const double uv_samples = y_samples / 4 * 2;  // Assuming YUV4:2:0 format.
-  return sse_to_psnr(y_samples + uv_samples, peak, 0);
-}
 
 void CpuSpeedTest::TestQ0() {
   // Validate that this non multiple of 64 wide clip encodes and decodes
@@ -99,7 +83,8 @@ void CpuSpeedTest::TestQ0() {
   init_flags_ = AOM_CODEC_USE_PSNR;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  const double lossless_psnr = GetLosslessPSNR(width, height, bit_depth);
+  const double lossless_psnr =
+      get_lossless_psnr(width, height, bit_depth, false);
   EXPECT_EQ(min_psnr_, lossless_psnr);
 }
 
@@ -117,7 +102,8 @@ void CpuSpeedTest::TestScreencastQ0() {
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
-  const double lossless_psnr = GetLosslessPSNR(width, height, bit_depth);
+  const double lossless_psnr =
+      get_lossless_psnr(width, height, bit_depth, false);
   EXPECT_EQ(min_psnr_, lossless_psnr);
 }
 
