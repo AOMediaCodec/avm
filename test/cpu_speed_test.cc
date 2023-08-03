@@ -78,7 +78,7 @@ double CpuSpeedTest::GetLosslessPSNR(unsigned int width, unsigned int height,
 #endif  // CONFIG_AV2CTC_PSNR_PEAK
   const double y_samples = width * height;
   const double uv_samples = y_samples / 4 * 2;  // Assuming YUV4:2:0 format.
-  return aom_sse_to_psnr(y_samples + uv_samples, peak, 0);
+  return sse_to_psnr(y_samples + uv_samples, peak, 0);
 }
 
 void CpuSpeedTest::TestQ0() {

@@ -17,11 +17,21 @@
 #include <math.h>
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "aom/aom_image.h"
-#include "aom_dsp/psnr.h"
 #include "aom_ports/aom_timer.h"
 
 // Macros
 #define GET_PARAM(k) std::get<k>(GetParam())
+
+// Same as 'aom_sse_to_psnr'.
+inline double sse_to_psnr(double samples, double peak, double sse) {
+  static const double kMinSSE = 0.5;
+  const bool zero_sse = (sse < kMinSSE);
+  if (zero_sse) sse = kMinSSE;
+  assert(sse > 0.0);
+  double psnr = 10.0 * log10(samples * peak * peak / sse);
+  if (zero_sse) psnr = ceil(psnr);
+  return psnr;
+}
 
 inline double compute_psnr(const aom_image_t *img1, const aom_image_t *img2) {
   assert((img1->fmt == img2->fmt) && (img1->d_w == img2->d_w) &&
@@ -39,7 +49,7 @@ inline double compute_psnr(const aom_image_t *img1, const aom_image_t *img2) {
       sse += d * d;
     }
   }
-  return aom_sse_to_psnr(width_y * height_y, 255.0, sse);
+  return sse_to_psnr(width_y * height_y, 255.0, sse);
 }
 
 static INLINE double get_time_mark(aom_usec_timer *t) {
