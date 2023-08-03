@@ -15,8 +15,6 @@
 
 #include "aom_scale/yv12config.h"
 
-#define MAX_PSNR 100.0
-
 #ifdef __cplusplus
 extern "C" {
 #endif

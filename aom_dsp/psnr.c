@@ -18,13 +18,15 @@
 #include "aom_dsp/psnr.h"
 #include "aom_scale/yv12config.h"
 
+#define MIN_SSE 0.5
+
 double aom_sse_to_psnr(double samples, double peak, double sse) {
-  if (sse > 0.0) {
-    const double psnr = 10.0 * log10(samples * peak * peak / sse);
-    return psnr > MAX_PSNR ? MAX_PSNR : psnr;
-  } else {
-    return MAX_PSNR;
-  }
+  const bool zero_sse = (sse < MIN_SSE);
+  if (zero_sse) sse = MIN_SSE;
+  assert(sse > 0.0);
+  double psnr = 10.0 * log10(samples * peak * peak / sse);
+  if (zero_sse) psnr = ceil(psnr);
+  return psnr;
 }
 
 static void encoder_highbd_variance64(const uint16_t *a, int a_stride,

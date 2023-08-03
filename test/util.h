@@ -17,6 +17,7 @@
 #include <math.h>
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "aom/aom_image.h"
+#include "aom_dsp/psnr.h"
 #include "aom_ports/aom_timer.h"
 
 // Macros
@@ -28,21 +29,17 @@ inline double compute_psnr(const aom_image_t *img1, const aom_image_t *img2) {
 
   const unsigned int width_y = img1->d_w;
   const unsigned int height_y = img1->d_h;
-  unsigned int i, j;
 
-  int64_t sqrerr = 0;
-  for (i = 0; i < height_y; ++i)
-    for (j = 0; j < width_y; ++j) {
-      int64_t d = img1->planes[AOM_PLANE_Y][i * img1->stride[AOM_PLANE_Y] + j] -
-                  img2->planes[AOM_PLANE_Y][i * img2->stride[AOM_PLANE_Y] + j];
-      sqrerr += d * d;
+  double sse = 0;
+  for (unsigned int i = 0; i < height_y; ++i) {
+    for (unsigned int j = 0; j < width_y; ++j) {
+      const double d =
+          img1->planes[AOM_PLANE_Y][i * img1->stride[AOM_PLANE_Y] + j] -
+          img2->planes[AOM_PLANE_Y][i * img2->stride[AOM_PLANE_Y] + j];
+      sse += d * d;
     }
-  double mse = static_cast<double>(sqrerr) / (width_y * height_y);
-  double psnr = 100.0;
-  if (mse > 0.0) {
-    psnr = 10 * log10(255.0 * 255.0 / mse);
   }
-  return psnr;
+  return aom_sse_to_psnr(width_y * height_y, 255.0, sse);
 }
 
 static INLINE double get_time_mark(aom_usec_timer *t) {
