@@ -1614,7 +1614,7 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
                      double delta_128_vert, int depth, int block_length,
                      int starty, int startx, std::vector<int> *Split,
                      std::vector<std::pair<int, int>> *A, int RDMULT,
-                     int bit_depth) {
+                     int *costs, int bit_depth) {
   int index;
   int quadtree_max_size = block_length;
 
@@ -1636,16 +1636,20 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
                                 block_length, height, width, width, src_stride);
 
   double cost_split = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      RDMULT, (4 * 2 * 4 + 2) << 5, split_sse, bit_depth);
+      RDMULT, (((4 * 2 * 4) << AV1_PROB_COST_SHIFT) + costs[1]) >> 4, split_sse,
+      bit_depth);
 
   double cost_vert = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      RDMULT, (4 * 2 * 2 + 2) << 5, vert_sse, bit_depth);
+      RDMULT, (((4 * 2 * 2) << AV1_PROB_COST_SHIFT) + costs[2]) >> 4, vert_sse,
+      bit_depth);
 
   double cost_horz = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      RDMULT, (4 * 2 * 2 + 2) << 5, horz_sse, bit_depth);
+      RDMULT, (((4 * 2 * 2) << AV1_PROB_COST_SHIFT) + costs[3]) >> 4, horz_sse,
+      bit_depth);
 
-  double cost_all = RDCOST_DBL_WITH_NATIVE_BD_DIST(RDMULT, (4 * 2 + 2) << 5,
-                                                   all_sse, bit_depth);
+  double cost_all = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      RDMULT, (((4 * 2) << AV1_PROB_COST_SHIFT) + costs[0]) >> 4, all_sse,
+      bit_depth);
 
   double best_cost = min_tflite(cost_split, cost_vert, cost_horz, cost_all);
   // double best_cost = cost_all;
@@ -1873,8 +1877,8 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
 
 extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
     YV12_BUFFER_CONFIG *source_frame, AV1_COMMON *cm, int superres_denom,
-    int RDMULT, int num_threads, int bit_depth, int is_intra_only, int is_luma,
-    int cnn_index) {
+    int RDMULT, int *costs, int num_threads, int bit_depth, int is_intra_only,
+    int is_luma, int cnn_index) {
   // save Split flag
   std::vector<int> Split;
   // save a0 a1
@@ -2004,12 +2008,12 @@ extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
         std::pair<int, int> A0A1(a0, a1);
         A.push_back(A0A1);
       } else {  // retular block  start   judge
-        Tree_tflite_hbd(rec, buf_level_0, buf_level_1, buf_level_1_horz,
-                        buf_level_1_vert, dgr, src, dgr_stride, src_stride,
-                        A_level_0, A_level_1, A_level_1_horz, A_level_1_vert,
-                        height, width, dgdpsnr, delta_level_1,
-                        delta_level_1_horz, delta_level_1_vert, 0,
-                        quadtree_max_size, i, j, &Split, &A, RDMULT, bit_depth);
+        Tree_tflite_hbd(
+            rec, buf_level_0, buf_level_1, buf_level_1_horz, buf_level_1_vert,
+            dgr, src, dgr_stride, src_stride, A_level_0, A_level_1,
+            A_level_1_horz, A_level_1_vert, height, width, dgdpsnr,
+            delta_level_1, delta_level_1_horz, delta_level_1_vert, 0,
+            quadtree_max_size, i, j, &Split, &A, RDMULT, costs, bit_depth);
       }
     }
   }
@@ -2169,7 +2173,7 @@ extern "C" int av1_restore_cnn_quadtree_decode_img_tflite_highbd(
 }
 
 extern "C" void av1_restore_cnn_quadtree_tflite(
-    struct AV1Common *cm, YV12_BUFFER_CONFIG *source_frame, int RDMULT,
+    AV1_COMMON *cm, YV12_BUFFER_CONFIG *source_frame, int RDMULT, int *costs,
     int num_threads, const int apply_cnn[MAX_MB_PLANE],
     const int cnn_indices[MAX_MB_PLANE]) {
   YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
@@ -2183,7 +2187,7 @@ extern "C" void av1_restore_cnn_quadtree_tflite(
     switch (plane) {
       case AOM_PLANE_Y:
         av1_restore_cnn_quadtree_img_tflite_highbd(
-            source_frame, cm, cm->superres_scale_denominator, RDMULT,
+            source_frame, cm, cm->superres_scale_denominator, RDMULT, costs,
             num_threads, cm->seq_params.bit_depth, is_intra_only, is_luma,
             cnn_index);
         break;

@@ -400,29 +400,29 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
 }
 
 #if CONFIG_CNN_GUIDED_QUADTREE
-int64_t count_guided_quad_bits(struct AV1Common *cm) {
+int64_t count_guided_quad_bits(struct AV1Common *cm, int *costs) {
   int64_t bits = 0;
   for (int i = 0; i < cm->cur_quad_info.split_info_length; i++) {
     if (i % 2 == 0) {
       if (cm->cur_quad_info.split_info[i].split == 0 &&
           cm->cur_quad_info.split_info[i + 1].split == 1) {
         // bits += (4 * 2 * 4 + 2);
-        bits += (4 * 2 * 4 + 2) << AV1_PROB_COST_SHIFT;
+        bits += ((4 * 2 * 4) << AV1_PROB_COST_SHIFT) + costs[1];
         // printf("it'split\n");
       } else if (cm->cur_quad_info.split_info[i].split == 1 &&
                  cm->cur_quad_info.split_info[i + 1].split == 1) {
         // bits += (4 * 2 * 2 + 2);
-        bits += (4 * 2 * 2 + 2) << AV1_PROB_COST_SHIFT;
+        bits += ((4 * 2 * 2) << AV1_PROB_COST_SHIFT) + costs[3];
         // printf("it's horz\n");
       } else if (cm->cur_quad_info.split_info[i].split == 1 &&
                  cm->cur_quad_info.split_info[i + 1].split == 0) {
         // bits += (4 * 2 * 2 + 2);
-        bits += (4 * 2 * 2 + 2) << AV1_PROB_COST_SHIFT;
+        bits += ((4 * 2 * 2) << AV1_PROB_COST_SHIFT) + costs[2];
         // printf("it's vert\n");
       } else if (cm->cur_quad_info.split_info[i].split == 0 &&
                  cm->cur_quad_info.split_info[i + 1].split == 0) {
         // bits += (4 * 2 + 2);
-        bits += (4 * 2 + 2) << AV1_PROB_COST_SHIFT;
+        bits += ((4 * 2) << AV1_PROB_COST_SHIFT) + costs[0];
         // printf("it's all\n");
       }
     }

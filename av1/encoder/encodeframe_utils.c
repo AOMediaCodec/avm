@@ -1269,6 +1269,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_RST_MERGECOEFFS
   AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
 #endif  // CONFIG_RST_MERGECEOFFS
+#if CONFIG_CNN_GUIDED_QUADTREE
+  AVERAGE_CDF(ctx_left->cnn_guided_quad_cdf, ctx_tr->cnn_guided_quad_cdf, 4);
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
 #if CONFIG_FORWARDSKIP
   AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
 #endif  // CONFIG_FORWARDSKIP

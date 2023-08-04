@@ -239,6 +239,9 @@ typedef struct frame_contexts {
 #if CONFIG_RST_MERGECOEFFS
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_RST_MERGECOEFFS
+#if CONFIG_CNN_GUIDED_QUADTREE
+  aom_cdf_prob cnn_guided_quad_cdf[CDF_SIZE(4)];
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
 #if !CONFIG_AIMC
   aom_cdf_prob y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)];
   aom_cdf_prob uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]

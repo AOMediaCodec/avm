@@ -878,6 +878,12 @@ typedef struct {
    */
   int pc_wiener_restore_cost[2];
 #endif  // CONFIG_PC_WIENER
+#if CONFIG_CNN_GUIDED_QUADTREE
+  /*!
+   * cnn_guided quad split cost
+   */
+  int cnn_guided_quad_cost[4];
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
   /**@}*/
 } ModeCosts;
 

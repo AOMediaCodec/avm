@@ -1903,11 +1903,34 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #if CONFIG_CNN_GUIDED_QUADTREE
     if (cm->use_cnn[0] && !cm->postcnn_quad_info.is_write) {
       cm->postcnn_quad_info.is_write = 1;
+      QUADInfo *qi = (QUADInfo *)&cm->postcnn_quad_info;
+      int unit_length = 0;
+      // int split_cnt[4] = { 0 };
+      for (int s = 0; s < qi->split_info_length; s += 2) {
+        const int split_index = aom_read_symbol(
+            reader, xd->tile_ctx->cnn_guided_quad_cdf, 4, ACCT_STR);
+        qi->split_info[s].split = split_index >> 1;
+        qi->split_info[s + 1].split = split_index & 1;
+        unit_length += split_index == 0 ? 1 : split_index == 1 ? 4 : 2;
+        // split_cnt[split_index]++;
+      }
+      // printf("Hello %d %d %d %d\n", split_cnt[0], split_cnt[1],
+      //        split_cnt[2], split_cnt[3]);
+      int splittable_rus =
+          (cm->superres_upscaled_width / cm->postcnn_quad_info.unit_size) *
+          (cm->superres_upscaled_height / cm->postcnn_quad_info.unit_size);
+      int total_rus =
+          ((cm->superres_upscaled_width + cm->postcnn_quad_info.unit_size - 1) /
+           cm->postcnn_quad_info.unit_size) *
+          ((cm->superres_upscaled_height + cm->postcnn_quad_info.unit_size -
+            1) /
+           cm->postcnn_quad_info.unit_size);
+      unit_length += total_rus - splittable_rus;
+      qi->unit_info_length = unit_length;
       int superres_denom = cm->superres_scale_denominator;
       const int is_intra_only = frame_is_intra_only(cm);
       read_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_indices[0],
-                           superres_denom, is_intra_only,
-                           &cm->postcnn_quad_info, reader);
+                           superres_denom, is_intra_only, qi, reader);
     }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
@@ -2163,36 +2186,33 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
                         16, sizeof(*cm->postcnn_quad_info.split_info) *
                                 cm->postcnn_quad_info.split_info_length));
 
-    for (int i = 0; i < cm->postcnn_quad_info.split_info_length; i++) {
-      cm->postcnn_quad_info.split_info[i].split = aom_rb_read_bit(rb);
+    int splittable_rus =
+        (cm->superres_upscaled_width / cm->postcnn_quad_info.unit_size) *
+        (cm->superres_upscaled_height / cm->postcnn_quad_info.unit_size);
+    int split_info_length = splittable_rus * 2;
+    int total_rus =
+        ((cm->superres_upscaled_width + cm->postcnn_quad_info.unit_size - 1) /
+         cm->postcnn_quad_info.unit_size) *
+        ((cm->superres_upscaled_height + cm->postcnn_quad_info.unit_size - 1) /
+         cm->postcnn_quad_info.unit_size);
+    int max_units = splittable_rus * 3 + total_rus;
 
-      // if (i % 2 == 1) {
-      //  if (cm->postcnn_quad_info.split_info[i-1].split == 0 &&
-      //      cm->postcnn_quad_info.split_info[i].split == 1)
-      //    printf("writing split\n");
-      //  else if (cm->postcnn_quad_info.split_info[i-1].split == 1 &&
-      //           cm->postcnn_quad_info.split_info[i].split == 1)
-      //    printf("writing horz\n");
-      //  else if (cm->postcnn_quad_info.split_info[i-1].split == 1 &&
-      //           cm->postcnn_quad_info.split_info[i].split == 0)
-      //    printf("writing vert\n");
-      //  else if (cm->postcnn_quad_info.split_info[i-1].split == 0 &&
-      //           cm->postcnn_quad_info.split_info[i].split == 0)
-      //    printf("writing all\n");
-      //}
-    }
+    cm->postcnn_quad_info.split_info_length = split_info_length;
+    cm->postcnn_quad_info.split_info_index = 0;
+    cm->postcnn_quad_info.is_write = false;
+
+    CHECK_MEM_ERROR(
+        cm, cm->postcnn_quad_info.unit_info,
+        (QUADUnitInfo *)aom_memalign(
+            16, sizeof(*cm->postcnn_quad_info.unit_info) * max_units));
 
     // Unit info.
+    /*
     cm->postcnn_quad_info.unit_info_length = quad_tree_get_unit_info_length(
         cm->superres_upscaled_width, cm->superres_upscaled_height,
         cm->postcnn_quad_info.unit_size, cm->postcnn_quad_info.split_info,
         cm->postcnn_quad_info.split_info_length);
-    cm->postcnn_quad_info.split_info_index = 0;
-
-    CHECK_MEM_ERROR(cm, cm->postcnn_quad_info.unit_info,
-                    (QUADUnitInfo *)aom_memalign(
-                        16, sizeof(*cm->postcnn_quad_info.unit_info) *
-                                cm->postcnn_quad_info.unit_info_length));
+        */
   }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 }

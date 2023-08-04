@@ -450,6 +450,15 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
   }
 }
 
+#if CONFIG_CNN_RESTORATION
+void av1_fill_cnn_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
+#if CONFIG_CNN_GUIDED_QUADTREE
+  av1_cost_tokens_from_cdf(mode_costs->cnn_guided_quad_cost,
+                           fc->cnn_guided_quad_cdf, NULL);
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
+}
+#endif  // CONFIG_CNN_RESTORATION
+
 void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc,
                        const int qindex) {
   (void)qindex;
@@ -487,6 +496,10 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc,
   av1_cost_tokens_from_cdf(mode_costs->merged_param_cost, fc->merged_param_cdf,
                            NULL);
 #endif  // CONFIG_RST_MERGECOEFFS
+#if CONFIG_CNN_GUIDED_QUADTREE
+  av1_cost_tokens_from_cdf(mode_costs->cnn_guided_quad_cost,
+                           fc->cnn_guided_quad_cdf, NULL);
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
 }
 
 // Values are now correlated to quantizer.

@@ -49,7 +49,7 @@ int CalculateIndex_tflite(int width, int block_size_h, int block_size_w,
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
                               int is_luma, int cnn_index);
 
-int64_t count_guided_quad_bits(struct AV1Common *cm);
+int64_t count_guided_quad_bits(struct AV1Common *cm, int *costs);
 #if CONFIG_CNN_GUIDED_QUADTREE
 void quad_copy(QUADInfo *cur_quad_info, QUADInfo *postcnn_quad_info);
 // Get the length of unit info array based on dimensions and split info.

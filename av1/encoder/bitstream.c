@@ -2334,6 +2334,24 @@ static AOM_INLINE void write_modes_sb(
 #if CONFIG_CNN_GUIDED_QUADTREE
   if (cm->use_cnn[0] && !cm->postcnn_quad_info.is_write) {
     QUADInfo *qi = (QUADInfo *)&cm->postcnn_quad_info;
+    int unit_length = 0;
+    for (int s = 0; s < qi->split_info_length; s += 2) {
+      const int split_index =
+          qi->split_info[s].split * 2 + qi->split_info[s + 1].split;
+      aom_write_symbol(w, split_index, xd->tile_ctx->cnn_guided_quad_cdf, 4);
+      unit_length += split_index == 0 ? 1 : split_index == 1 ? 4 : 2;
+    }
+    int splittable_rus =
+        (cm->superres_upscaled_width / cm->postcnn_quad_info.unit_size) *
+        (cm->superres_upscaled_height / cm->postcnn_quad_info.unit_size);
+    int total_rus =
+        ((cm->superres_upscaled_width + cm->postcnn_quad_info.unit_size - 1) /
+         cm->postcnn_quad_info.unit_size) *
+        ((cm->superres_upscaled_height + cm->postcnn_quad_info.unit_size - 1) /
+         cm->postcnn_quad_info.unit_size);
+    unit_length += total_rus - splittable_rus;
+    // printf(" unit_length %d %d est\n", qi->unit_info_length, unit_length);
+    assert(qi->unit_info_length == unit_length);
     int superres_denom = cm->superres_scale_denominator;
     const int is_intra_only = frame_is_intra_only(cm);
     assert(cm->postcnn_quad_info.unit_info_length ==
@@ -3129,25 +3147,6 @@ static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
            quad_tree_get_split_info_length(cm->superres_upscaled_width,
                                            cm->superres_upscaled_height,
                                            cm->postcnn_quad_info.unit_size));
-    for (int i = 0; i < cm->postcnn_quad_info.split_info_length; i++) {
-      aom_wb_write_bit(wb, cm->postcnn_quad_info.split_info[i].split);
-      // printf("flag:%d\n", cm->quad_info->split_info[i].split);
-      /*if (i % 2 == 0) {
-        if (cm->postcnn_quad_info.split_info[i].split == 0 &&
-            cm->postcnn_quad_info.split_info[i + 1].split == 1)
-            printf("writing split\n");
-        else if (cm->postcnn_quad_info.split_info[i].split == 1 &&
-                 cm->postcnn_quad_info.split_info[i + 1].split == 1)
-           printf("writing horz\n");
-        else if (cm->postcnn_quad_info.split_info[i].split == 1 &&
-                 cm->postcnn_quad_info.split_info[i + 1].split == 0)
-          printf("writing vert\n");
-        else if (cm->postcnn_quad_info.split_info[i].split == 0 &&
-                 cm->postcnn_quad_info.split_info[i + 1].split == 0)
-          printf("writing all\n");
-
-      }*/
-    }
   }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 }

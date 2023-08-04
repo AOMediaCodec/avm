@@ -395,6 +395,10 @@ int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);
 
 int av1_get_deltaq_offset(const struct AV1_COMP *cpi, int qindex, double beta);
 
+#if CONFIG_CNN_RESTORATION
+void av1_fill_cnn_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc);
+#endif  // CONFIG_CNN_RESTORATION
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

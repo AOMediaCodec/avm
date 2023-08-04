@@ -239,6 +239,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_RST_MERGECOEFFS
   RESET_CDF_COUNTER(fc->merged_param_cdf, 2);
 #endif  // CONFIG_RST_MERGECOEFFS
+#if CONFIG_CNN_GUIDED_QUADTREE
+  RESET_CDF_COUNTER(fc->cnn_guided_quad_cdf, 4);
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
 #if CONFIG_AIMC
   RESET_CDF_COUNTER(fc->y_mode_set_cdf, INTRA_MODE_SETS);
   RESET_CDF_COUNTER(fc->y_mode_idx_cdf_0, FIRST_MODE_COUNT);

@@ -2321,6 +2321,8 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
 
 #if CONFIG_CNN_RESTORATION
+    MACROBLOCK *const x = &cpi->td.mb;
+    av1_fill_cnn_rates(&x->mode_costs, x->e_mbd.tile_ctx);
     if (av1_use_cnn_encode(cm,
                            cpi->gf_group.update_type[cpi->gf_group.index])) {
       // Save unrestored frame.
@@ -2345,13 +2347,14 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
         };
         const int curr_cnn_indices[MAX_MB_PLANE] = { y_cnn_index, 0, 0 };
         double curr_cnn_rdcosts = 0;
-        av1_restore_cnn_quadtree_tflite(cm, cpi->source, cpi->rd.RDMULT,
-                                        cpi->mt_info.num_workers, quadtree_cnn,
-                                        curr_cnn_indices);
+        av1_restore_cnn_quadtree_tflite(
+            cm, cpi->source, cpi->rd.RDMULT, x->mode_costs.cnn_guided_quad_cost,
+            cpi->mt_info.num_workers, quadtree_cnn, curr_cnn_indices);
         int64_t curr_cnn_errors[MAX_MB_PLANE];
         get_sse_planes(cpi->source, &cm->cur_frame->buf, curr_cnn_errors,
                        num_planes);
-        int64_t bits_quad = count_guided_quad_bits(cm);
+        int64_t bits_quad =
+            count_guided_quad_bits(cm, x->mode_costs.cnn_guided_quad_cost);
         curr_cnn_rdcosts = RDCOST_DBL_WITH_NATIVE_BD_DIST(
             cpi->rd.RDMULT, bits_quad >> 4, curr_cnn_errors[0],
             cm->seq_params.bit_depth);
