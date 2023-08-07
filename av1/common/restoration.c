@@ -471,11 +471,12 @@ void av1_alloc_quadtree_struct(struct AV1Common *cm, QUADInfo *quad_info) {
   int un_regularblock_num = all_num - regularblock_num;
 
   split_size = regularblock_num * 2;  // every split way need two bits
-  assert(split_size > 0);
 
-  CHECK_MEM_ERROR(cm, quad_info->split_info,
-                  (QUADSplitInfo *)aom_memalign(
-                      16, sizeof(*quad_info->split_info) * split_size));
+  if (split_size > 0) {
+    CHECK_MEM_ERROR(cm, quad_info->split_info,
+                    (QUADSplitInfo *)aom_memalign(
+                        16, sizeof(*quad_info->split_info) * split_size));
+  }
 
   A_size = regularblock_num * 4 + un_regularblock_num;
   assert(A_size > 0);

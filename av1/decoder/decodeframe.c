@@ -2180,7 +2180,8 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   // 2)//2
   //    printf("2 frame;\n");
   if (cm->use_cnn[0]) {
-    cm->use_quad_level = aom_rb_read_bit(rb);
+    cm->use_quad_level = quad_tree_get_level(cm->superres_upscaled_width,
+                                             cm->superres_upscaled_height);
     cm->postcnn_quad_info.unit_size = 512 >> cm->use_quad_level;
     cm->postcnn_quad_info.is_write = false;
 

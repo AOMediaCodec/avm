@@ -3153,13 +3153,11 @@ static void encode_cnn(AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
     }
   }
 #if CONFIG_CNN_GUIDED_QUADTREE
-
   if (cm->use_cnn[0]) {
-    // printf("writing pamrater\n");
-    aom_wb_write_bit(wb, cm->use_quad_level);
-    // Signal split_info.
-    const int split_length = cm->postcnn_quad_info.split_info_length;
-    assert(split_length ==
+    assert(cm->use_quad_level ==
+           quad_tree_get_level(cm->superres_upscaled_width,
+                               cm->superres_upscaled_height));
+    assert(cm->postcnn_quad_info.split_info_length ==
            quad_tree_get_split_info_length(cm->superres_upscaled_width,
                                            cm->superres_upscaled_height,
                                            cm->postcnn_quad_info.unit_size));

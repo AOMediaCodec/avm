@@ -67,6 +67,11 @@ static INLINE int get_guided_norestore_ctx(int qindex, int superres_denom,
   if (superres_denom != SCALE_NUMERATOR) return 1;
   return 0;
 }
+
+// Get quad tree level based on dimension.
+static INLINE int quad_tree_get_level(int width, int height) {
+  return (width * height <= 1280 * 720);
+}
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
 #ifdef __cplusplus
