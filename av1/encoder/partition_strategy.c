@@ -928,8 +928,8 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
 void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
                                  const MACROBLOCK *const x, BLOCK_SIZE bsize,
                                  int64_t best_rd, int64_t none_rd,
-                                 int64_t *split_rd, int *const dst_prune_horz,
-                                 int *const dst_prune_vert) {
+                                 int64_t *split_rd, bool *const dst_prune_horz,
+                                 bool *const dst_prune_vert) {
   if (bsize < BLOCK_8X8 || best_rd >= 1000000000) return;
   best_rd = AOMMAX(best_rd, 1);
   const NN_CONFIG *nn_config = NULL;

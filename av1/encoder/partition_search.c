@@ -3868,15 +3868,15 @@ static void rd_pick_rect_partition(
     }
   }
 }
-#endif
-
-typedef int (*active_edge_info)(const AV1_COMP *cpi, int mi_col, int mi_step);
 
 static AOM_INLINE bool is_part_pruned_by_forced_partition(
     const PartitionSearchState *part_state, PARTITION_TYPE partition) {
   const PARTITION_TYPE forced_partition = part_state->forced_partition;
   return forced_partition != PARTITION_INVALID && forced_partition != partition;
 }
+#endif
+
+typedef int (*active_edge_info)(const AV1_COMP *cpi, int mi_col, int mi_step);
 
 // Checks if HORZ / VERT partition search is allowed.
 static AOM_INLINE int is_rect_part_allowed(
@@ -4234,7 +4234,7 @@ static void rd_pick_ab_part(
                          mi_row, mi_col, bsize, part_type, ab_subsize, ab_mi_pos
 #if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
                          ,
-                         &level_banks
+                         level_banks
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
       );
 
@@ -4372,7 +4372,7 @@ static void ab_partitions_search(
       // Set AB partition context.
       if (cur_part_ctxs[ab_part_type][i] == NULL)
         cur_part_ctxs[ab_part_type][i] = av1_alloc_pmc(
-            cm, xd->tree_type, ab_mi_pos[ab_part_type][i][0],
+            cm, x->e_mbd.tree_type, ab_mi_pos[ab_part_type][i][0],
             ab_mi_pos[ab_part_type][i][1], ab_subsize[ab_part_type][i], pc_tree,
             part_type, i, part_search_state->ss_x, part_search_state->ss_y,
             &td->shared_coeff_buf);
@@ -4400,7 +4400,7 @@ static void ab_partitions_search(
                     ab_subsize[ab_part_type], ab_mi_pos[ab_part_type], part_type
 #if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
                     ,
-                    &level_banks
+                    level_banks
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
     );
 #if CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
@@ -4434,10 +4434,10 @@ static void set_4_part_ctx_and_rdcost(
       RDCOST(x->rdmult, part_search_state->sum_rdc.rate, 0);
   for (PART4_TYPES i = 0; i < SUB_PARTITIONS_PART4; ++i) {
     if (cur_part_ctx[i] == NULL)
-      cur_part_ctx[i] =
-          av1_alloc_pmc(cm, xd->tree_type, mi_pos[i][0], mi_pos[i][1], subsize,
-                        pc_tree, partition_type, i, part_search_state->ss_x,
-                        part_search_state->ss_y, &td->shared_coeff_buf);
+      cur_part_ctx[i] = av1_alloc_pmc(
+          cm, x->e_mbd.tree_type, mi_pos[i][0], mi_pos[i][1], subsize, pc_tree,
+          partition_type, i, part_search_state->ss_x, part_search_state->ss_y,
+          &td->shared_coeff_buf);
   }
 }
 
@@ -4849,10 +4849,14 @@ static void none_partition_search(
                              x->e_mbd.tree_type,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                              part_search_state);
-  if (!part_search_state->partition_none_allowed ||
-      part_search_state->prune_partition_none) {
+  if (!part_search_state->partition_none_allowed) {
     return;
   }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (part_search_state->prune_partition_none) {
+    return;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int pt_cost = 0;
   RD_STATS best_remain_rdcost;
@@ -4998,7 +5002,7 @@ static void split_partition_search(
 
     if (pc_tree->split[idx] == NULL) {
       pc_tree->split[idx] = av1_alloc_pc_tree_node(
-          x->e_ebd.tree_type, mi_row + y_idx, mi_col + x_idx, subsize, pc_tree,
+          x->e_mbd.tree_type, mi_row + y_idx, mi_col + x_idx, subsize, pc_tree,
           PARTITION_SPLIT, idx, idx == 3, part_search_state->ss_x,
           part_search_state->ss_y);
     }
@@ -6818,11 +6822,13 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                   &pc_tree->chroma_ref_info);
 
   bool search_none_after_rect = false;
+#if CONFIG_EXT_RECUR_PARTITIONS
   if (cpi->sf.part_sf.adaptive_partition_search_order &&
       part_search_state.forced_partition == PARTITION_INVALID) {
     search_none_after_rect =
         try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
@@ -7002,6 +7008,7 @@ BEGIN_PARTITION_SEARCH:
 
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
+#if CONFIG_EXT_RECUR_PARTITIONS
   if (search_none_after_rect) {
     prune_none_with_rect_results(&part_search_state, pc_tree);
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
@@ -7013,6 +7020,7 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_C043_MVP_IMPROVEMENTS || WARP_CU_BANK
     );
   }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
   const int ext_partition_allowed =
