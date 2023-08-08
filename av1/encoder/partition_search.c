@@ -6846,16 +6846,16 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
-  LevelBanksRDO level_banks = {
 #if CONFIG_MVP_IMPROVEMENT
+  LevelBanksRDO level_banks = {
     x->e_mbd.ref_mv_bank, /* curr_level_bank*/
     x->e_mbd.ref_mv_bank, /* best_level_bank*/
-#endif                    // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
     x->e_mbd.warp_param_bank, /* curr_level_warp_bank*/
     x->e_mbd.warp_param_bank, /* best_level_warp_bank*/
 #endif                        // WARP_CU_BANK
   };
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if CONFIG_EXT_RECUR_PARTITIONS
   {
     SimpleMotionData *sms_data = av1_get_sms_data_entry(
