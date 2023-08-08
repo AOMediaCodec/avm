@@ -149,10 +149,6 @@ set_aom_config_var(
   "AV2 TX signaling restriction for DC blocks with EOB alignment.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
-set_aom_config_var(CONFIG_C043_MVP_IMPROVEMENTS 1
-                   "AV2 enable MVP list improvements.")
-set_aom_config_var(CONFIG_C063_TMVP_IMPROVEMENT 1
-                   "AV2 experiment flag for improved TMVP derivation.")
 set_aom_config_var(CONFIG_EXT_DIR 1 "AV2 extended intra prediction angles.")
 set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
                    "AV2 Fully recursive partitions experiment flag")
@@ -175,8 +171,7 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for non-DC modes.")
-set_aom_config_var(CONFIG_SMVP_IMPROVEMENT 1 "Enable SMVP improvement")
-set_aom_config_var(CONFIG_TMVP_IMPROVEMENT 1 "Enable TMVP improvement")
+set_aom_config_var(CONFIG_MVP_IMPROVEMENT 1 "Enable MVP improvement")
 set_aom_config_var(CONFIG_REF_MV_BANK 1 "AV2 ref mv bank experiment flag")
 set_aom_config_var(
   CONFIG_CCSO 1 "AV2 experiment flag to enable cross component sample offset.")
@@ -186,8 +181,6 @@ set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
-set_aom_config_var(CONFIG_COMPLEXITY_SCALABLE_MVP 1
-                   "Enable complexity scalable mvp")
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")

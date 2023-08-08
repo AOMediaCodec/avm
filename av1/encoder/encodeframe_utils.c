@@ -1664,9 +1664,9 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
   const int alloc_mi_idx = get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
   sb_fp_stats->current_qindex =
       cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex;
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   sb_fp_stats->ref_mv_bank = td->mb.e_mbd.ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   sb_fp_stats->warp_param_bank = td->mb.e_mbd.warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -1700,9 +1700,9 @@ void av1_restore_sb_state(const SB_FIRST_PASS_STATS *sb_fp_stats, AV1_COMP *cpi,
   const int alloc_mi_idx = get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
   cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex =
       sb_fp_stats->current_qindex;
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   x->e_mbd.ref_mv_bank = sb_fp_stats->ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   x->e_mbd.warp_param_bank = sb_fp_stats->warp_param_bank;
 #endif  // WARP_CU_BANK

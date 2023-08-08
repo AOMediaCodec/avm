@@ -22,12 +22,12 @@
 extern "C" {
 #endif
 
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
 #define MVREF_ROWS 1
 #define MVREF_COLS 3
 #else
 #define MVREF_ROW_COLS 3
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 // Set the upper limit of the motion vector component magnitude.
 // This would make a motion vector fit in 26 bits. Plus 3 bits for the
@@ -549,9 +549,9 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm);
 void av1_setup_frame_sign_bias(AV1_COMMON *cm);
 void av1_setup_skip_mode_allowed(AV1_COMMON *cm);
 void av1_setup_motion_field(AV1_COMMON *cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
 void av1_setup_ref_frame_sides(AV1_COMMON *cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   av1_zero(xd->neighbors_ref_counts);

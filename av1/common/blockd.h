@@ -1794,7 +1794,7 @@ typedef struct macroblockd {
    * \name Reference MV bank info.
    */
   /**@{*/
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK *ref_mv_bank_pt; /*!< Pointer to bank to refer to */
 #endif
   REF_MV_BANK ref_mv_bank; /*!< Ref mv bank to update */
@@ -2115,7 +2115,7 @@ typedef struct macroblockd {
    */
   bool is_first_horizontal_rect;
 
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   /*!
    * True if this is the last horizontal rectangular block in a HORIZONTAL or
    * HORIZONTAL_4 partition.
@@ -2126,7 +2126,7 @@ typedef struct macroblockd {
    * VERTICAL_4 partition.
    */
   bool is_first_vertical_rect;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   /*!

@@ -617,9 +617,9 @@ static AOM_INLINE void perform_two_partition_passes(
   // First pass
   SB_FIRST_PASS_STATS sb_fp_stats;
   av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -634,9 +634,9 @@ static AOM_INLINE void perform_two_partition_passes(
   av1_reset_simple_motion_tree_partition(sms_root, sb_size);
 
   av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
 #endif  // WARP_CU_BANK
@@ -1151,7 +1151,7 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
        mi_row += cm->seq_params.mib_size) {
 #if CONFIG_REF_MV_BANK
     av1_zero(td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -1723,10 +1723,10 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   start_timing(cpi, av1_setup_motion_field_time);
 #endif
   if (features->allow_ref_frame_mvs) av1_setup_motion_field(cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
   else
     av1_setup_ref_frame_sides(cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_setup_motion_field_time);
 #endif

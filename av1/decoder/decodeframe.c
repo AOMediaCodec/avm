@@ -4795,7 +4795,7 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
     av1_zero_left_context(xd);
 #if CONFIG_REF_MV_BANK
     av1_zero(xd->ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -4817,9 +4817,9 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
       // for MV referencing during decoding the tile.
       // xd->ref_mv_bank is updated as decoding goes.
       xd->ref_mv_bank.rmb_sb_hits = 0;
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
-#endif  // !CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_MVP_IMPROVEMENT
 #endif  // CONFIG_REF_MV_BANK
 
 #if CONFIG_WARP_REF_LIST
@@ -5316,7 +5316,7 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
     av1_zero_left_context(xd);
 #if CONFIG_REF_MV_BANK
     av1_zero(xd->ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -5336,9 +5336,9 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 
 #if CONFIG_REF_MV_BANK
       xd->ref_mv_bank.rmb_sb_hits = 0;
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
-#endif  // !CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_MVP_IMPROVEMENT
 #endif  // CONFIG_REF_MV_BANK
 
 #if CONFIG_WARP_REF_LIST
@@ -8022,10 +8022,10 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   cm->mi_params.setup_mi(&cm->mi_params);
 
   if (cm->features.allow_ref_frame_mvs) av1_setup_motion_field(cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
   else
     av1_setup_ref_frame_sides(cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_PEF
   if (cm->seq_params.enable_pef && cm->features.allow_pef) {
