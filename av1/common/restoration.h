@@ -224,6 +224,18 @@ static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
 }
 #endif  // CONFIG_LR_IMPROVEMENTS
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index);
+void fill_filter_with_match(WienerNonsepInfo *filter,
+                            const WienerNonsepInfo *reference, int set_index,
+                            const int *match_indices,
+                            const WienernsFilterParameters *nsfilter_params,
+                            int class_id);
+void fill_first_slot_of_bank_with_filter_match(
+    WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
+    const int *match_indices, int base_qindex, int qindex_offset, int class_id);
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
 #define RESTORATION_TMPBUF_SIZE (SGRPROJ_TMPBUF_SIZE)
 
@@ -316,6 +328,12 @@ typedef struct {
    * Pointer to buffers for pcwiener computations.
    */
   PcwienerBuffers *pcwiener_buffers;
+#if CONFIG_COMBINE_PC_NS_WIENER
+  /*!
+   * Whether classification needs to be computed.
+   */
+  int compute_classification;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 #endif  // CONFIG_LR_IMPROVEMENTS
 } RestorationUnitInfo;
 
@@ -436,6 +454,18 @@ typedef struct {
    * Number of classes in the Wienerns filtering calculation.
    */
   int num_filter_classes;
+  /*!
+   * Whether frame-level filters are on or off.
+   */
+  int frame_filters_on;
+  /*!
+   * Frame-level filter taps.
+   */
+  WienerNonsepInfo frame_filters;
+  /*!
+   * Whether frame-level filters are initialized.
+   */
+  int frame_filters_initialized;
 #endif  // CONFIG_LR_IMPROVEMENTS
 } RestorationInfo;
 

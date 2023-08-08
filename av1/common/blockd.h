@@ -1966,9 +1966,19 @@ typedef struct {
 } SgrprojInfoBank;
 
 #if CONFIG_LR_IMPROVEMENTS
+#if CONFIG_COMBINE_PC_NS_WIENER
+// Currently allowed number of classes are [16, 8, 4, 2, 1].
+#define WIENERNS_MAX_CLASSES 16
+#define NUM_WIENERNS_CLASS_INIT_LUMA 16
+#define NUM_WIENERNS_CLASS_INIT_CHROMA 1
+
+// ceil(log_2(NUM_PC_WIENER_FILTERS + NUM_WIENERNS_CLASS_INIT_LUMA))
+#define NUM_FRAME_PREDICTOR_BITS 7
+#else
 #define WIENERNS_MAX_CLASSES 1
 #define NUM_WIENERNS_CLASS_INIT_LUMA 1
 #define NUM_WIENERNS_CLASS_INIT_CHROMA 1
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 // Need two of the WIENERNS_YUV_MAX to store potential center taps. Adjust
 // accordingly.
@@ -1984,6 +1994,10 @@ typedef struct {
    */
   int num_classes;
   /*!
+   * Whether frame-level filters are on or off.
+   */
+  int frame_filters_on;
+  /*!
    * Filter data - taps
    */
   DECLARE_ALIGNED(16, int16_t,
@@ -1995,6 +2009,13 @@ typedef struct {
 
   int bank_ref_for_class[WIENERNS_MAX_CLASSES];
 #endif  // CONFIG_LR_MERGE_COEFFS
+#if CONFIG_COMBINE_PC_NS_WIENER
+  /*!
+   * Indices of trained filters that can be used to populate the first bank slot
+   * to be used as frame filter predictors.
+   */
+  int match_indices[WIENERNS_MAX_CLASSES];
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 } WienerNonsepInfo;
 
 /*!\brief Parameters related to Nonseparable Wiener Filter Bank */
@@ -2011,6 +2032,13 @@ typedef struct {
    * Pointer to the most current filter for each class.
    */
   int bank_ptr_for_class[WIENERNS_MAX_CLASSES];
+#if CONFIG_COMBINE_PC_NS_WIENER
+  /*!
+   * Whether the bank has been initialized with side-information used to better
+   * code the frame-level filters.
+   */
+  int frame_filter_predictors_are_set;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 } WienerNonsepInfoBank;
 
 int16_t *nsfilter_taps(WienerNonsepInfo *nsinfo, int wiener_class_id);

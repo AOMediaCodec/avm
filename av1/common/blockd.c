@@ -323,6 +323,9 @@ void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
     bank->bank_size_for_class[c_id] = 0;
     bank->bank_ptr_for_class[c_id] = 0;
   }
+#if CONFIG_COMBINE_PC_NS_WIENER
+  bank->frame_filter_predictors_are_set = 0;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 }
 
 // Add a new filter to bank
@@ -348,11 +351,15 @@ void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
   }
 }
 
-// Get a reference to a filter given the index
-WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
-                                             int ndx, int wiener_class_id) {
+// Returns the filter that is at slot ndx from last. When ndx is zero the last
+// filter added is returned. When ndx is one the filter added before the last
+// and so on.
+static WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
+                                                    int ndx,
+                                                    int wiener_class_id) {
   assert(wiener_class_id != ALL_WIENERNS_CLASSES);
   if (bank->bank_size_for_class[wiener_class_id] == 0) {
+    assert(ndx == 0);
     return &bank->filter[0];
   } else {
     assert(ndx < bank->bank_size_for_class[wiener_class_id]);

@@ -114,6 +114,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_UV_CFL 0 !CONFIG_AIMC)
   endif()
 
+  if(CONFIG_COMBINE_PC_NS_WIENER)
+    change_config_and_warn(CONFIG_LR_IMPROVEMENTS 1 CONFIG_COMBINE_PC_NS_WIENER)
+  endif()
+
   # CONFIG_D072_SKIP_MODE_IMPROVE is dependent on CONFIG_SKIP_MODE_ENHANCEMENT
   # If CONFIG_SKIP_MODE_ENHANCEMENT is off, CONFIG_D072_SKIP_MODE_IMPROVE needs
   # to be turned off.
