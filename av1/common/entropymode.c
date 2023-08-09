@@ -1688,13 +1688,13 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_IMPROVED_JMVD
 
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 static const aom_cdf_prob default_skip_drl_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(24394) },
   { AOM_CDF2(22637) },
   { AOM_CDF2(21474) },
 };
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_C076_INTER_MOD_CTX
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -3307,9 +3307,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->motion_mode_cdf, default_motion_mode_cdf);
   av1_copy(fc->obmc_cdf, default_obmc_cdf);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   av1_copy(fc->skip_drl_cdf, default_skip_drl_cdf);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_BAWP
   av1_copy(fc->bawp_cdf, default_bawp_cdf);
 #endif  // CONFIG_BAWP

@@ -152,12 +152,12 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
       assert(mbmi->mode == NEAR_NEARMV);
   }
 
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode)
     assert(mbmi->ref_mv_idx[0] <
            mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
   else
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     assert(mbmi->ref_mv_idx[0] < mbmi_ext_frame->ref_mv_count[0]);
   if (has_second_drl(mbmi))
     assert(mbmi->ref_mv_idx[1] < mbmi_ext_frame->ref_mv_count[1]);
@@ -166,35 +166,35 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   for (int ref = 0; ref < 1 + has_second_drl(mbmi); ref++) {
     for (int idx = 0; idx < max_drl_bits; ++idx) {
       aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
           mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
                           : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref],
                                             mode_ctx, idx);
 #else
           av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref], mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
       aom_write_symbol(w, mbmi->ref_mv_idx[ref] != idx, drl_cdf, 2);
       if (mbmi->ref_mv_idx[ref] == idx) break;
     }
   }
 #else
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode)
     assert(mbmi->ref_mv_idx <
            mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
   else
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
         mbmi->skip_mode
             ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
             : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
 #else
         av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     aom_write_symbol(w, mbmi->ref_mv_idx != idx, drl_cdf, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }

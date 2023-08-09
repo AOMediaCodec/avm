@@ -161,9 +161,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);

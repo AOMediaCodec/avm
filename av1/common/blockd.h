@@ -1735,7 +1735,7 @@ typedef struct {
 } WARP_PARAM_BANK;
 
 #endif  // CONFIG_WARP_REF_LIST
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 /*! \brief Variables related to mvp list of skip mode.*/
 typedef struct {
   //! MV list
@@ -1753,7 +1753,7 @@ typedef struct {
   //! Global mvs
   int_mv global_mvs[2];
 } SKIP_MODE_MVP_LIST;
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 /*! \brief Variables related to current coding block.
  *
@@ -2073,9 +2073,9 @@ typedef struct macroblockd {
 /*!
  * skip_mvp_candidate_list is the MVP list for skip mode.
  */
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_WARP_REF_LIST
   /*!

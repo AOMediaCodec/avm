@@ -1347,9 +1347,9 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_single_mode[INTER_SINGLE_MODE_CONTEXTS]
                                 [INTER_SINGLE_MODES];
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   unsigned int skip_drl_mode[3][2];
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   unsigned int use_optflow[INTER_COMPOUND_MODE_CONTEXTS][2];
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]

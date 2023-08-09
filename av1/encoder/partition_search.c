@@ -1077,7 +1077,7 @@ static void update_warp_delta_stats(const AV1_COMMON *cm,
 #endif  // CONFIG_WARP_REF_LIST
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
                                         FRAME_COUNTS *counts,
                                         const MB_MODE_INFO *mbmi) {
@@ -1116,7 +1116,7 @@ static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
 #endif  // CONFIG_SEP_COMP_DRL
   }
 }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   MACROBLOCK *x = &td->mb;
@@ -1294,14 +1294,14 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode && have_drl_index(mbmi->mode)) {
     FRAME_COUNTS *const counts = td->counts;
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
     update_skip_drl_index_stats(cm->features.max_drl_bits, fc, counts, mbmi);
 #else
     const int16_t mode_ctx_pristine =
         av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
     update_drl_index_stats(cm->features.max_drl_bits, mode_ctx_pristine, fc,
                            counts, mbmi, mbmi_ext);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
@@ -2034,9 +2034,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       assert(!frame_is_intra_only(cm));
       rdc->skip_mode_used_flag = 1;
       if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
-#if !CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if !CONFIG_SKIP_MODE_ENHANCEMENT
         assert(has_second_ref(mbmi));
-#endif  // !CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
         rdc->compound_ref_used_flag = 1;
       }
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
@@ -2120,7 +2120,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   // frame level buffer (cpi->mbmi_ext_info.frame_base) will be used during
   // bitstream preparation.
   if (xd->tree_type != CHROMA_PART)
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   {
     if (mbmi->skip_mode) {
       const SkipModeInfo *const skip_mode_info =
@@ -2147,20 +2147,20 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
       av1_copy_usable_ref_mv_stack_and_weight(xd, x->mbmi_ext, ref_frame_type);
     }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
     av1_copy_mbmi_ext_to_mbmi_ext_frame(
         x->mbmi_ext_frame, x->mbmi_ext,
 #if CONFIG_SEP_COMP_DRL
         mbmi,
 #endif  // CONFIG_SEP_COMP_DRL
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
         mbmi->skip_mode,
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
         av1_ref_frame_type(xd->mi[0]->ref_frame));
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   x->rdmult = origin_mult;
 }
 

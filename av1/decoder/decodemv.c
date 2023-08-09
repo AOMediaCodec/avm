@@ -332,12 +332,12 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                                    ? xd->weight[mbmi->ref_frame[ref]]
                                    : xd->weight[ref_frame_type];
       aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
           mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
                           : av1_get_drl_cdf(ec_ctx, weight, mode_ctx, idx);
 #else
           av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
       int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_INFO("drl_idx"));
       mbmi->ref_mv_idx[ref] = idx + drl_idx;
       if (!drl_idx) break;
@@ -351,13 +351,13 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
         mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
                         : av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type],
                                           mode_ctx, idx);
 #else
         av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_INFO("drl_idx"));
     mbmi->ref_mv_idx = idx + drl_idx;
     if (!drl_idx) break;
@@ -2884,7 +2884,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     );
 #endif  // CONFIG_SEP_COMP_DRL
 
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_SEP_COMP_DRL
     mbmi->ref_frame[0] =
         xd->skip_mvp_candidate_list.ref_frame0[get_ref_mv_idx(mbmi, 0)];
@@ -2896,7 +2896,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     mbmi->ref_frame[1] =
         xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx];
 #endif
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_REFINEMV && !CONFIG_CWP
     mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
@@ -3077,7 +3077,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     ref_mv[1] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].comp_mv;
 #endif
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
     if (mbmi->skip_mode) {
 #if CONFIG_SEP_COMP_DRL
       ref_mv[0] =
@@ -3093,7 +3093,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].comp_mv;
 #endif  // CONFIG_SEP_COMP_DRL
     }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   }
 
   if (mbmi->skip_mode) {
@@ -3292,7 +3292,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
     }
   }
-#if CONFIG_CWP
+#if CONFIG_CWP && CONFIG_SKIP_MODE_ENHANCEMENT
   mbmi->cwp_idx = CWP_EQUAL;
   if (cm->features.enable_cwp) {
     if (is_cwp_allowed(mbmi) && !mbmi->skip_mode)
@@ -3303,7 +3303,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx[0]].cwp_idx;
 #else
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
-#endif  // CONFIG_SEP_COMP_DRL
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_SKIP_MODE_ENHANCEMENT
   }
 #if CONFIG_REFINEMV
   if (mbmi->skip_mode) {

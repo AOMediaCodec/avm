@@ -541,12 +541,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->drl_cdf[2][i], NULL);
     }
 
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
     for (i = 0; i < 3; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->skip_drl_mode_cost[i],
                                fc->skip_drl_cdf[i], NULL);
     }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_OPTFLOW_REFINEMENT
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
