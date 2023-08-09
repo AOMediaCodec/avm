@@ -1406,7 +1406,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int intrabc[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   unsigned int intrabc_mode[2];
   unsigned int intrabc_drl_idx[MAX_REF_BV_STACK_SIZE - 1][2];
 #endif
@@ -2797,7 +2797,7 @@ typedef struct AV1_COMP {
   /*!
    * Tables to calculate IntraBC MV cost.
    */
-#if !CONFIG_FLEX_MVRES && !CONFIG_BVP_IMPROVEMENT
+#if !CONFIG_FLEX_MVRES && !CONFIG_IBC_BV_IMPROVEMENT
   IntraBCMVCosts dv_costs;
 #endif
 

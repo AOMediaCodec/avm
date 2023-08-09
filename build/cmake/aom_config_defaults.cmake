@@ -209,8 +209,8 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
-set_aom_config_var(CONFIG_BVP_IMPROVEMENT 1 "Enables BVP improvements")
-set_aom_config_var(CONFIG_BVCOST_UPDATE 1 "Enables sb-level update for bv cost")
+set_aom_config_var(CONFIG_IBC_BV_IMPROVEMENT 1
+                   "Enables BV improvements for IBC")
 set_aom_config_var(CONFIG_CCSO_EXT 1
                    "AV2 experiment flag to enable extended CCSO.")
 set_aom_config_var(CONFIG_CFL_IMPROVEMENTS 1

@@ -98,7 +98,7 @@ static void tf_motion_search(AV1_COMP *cpi,
   // Save input state.
 #if CONFIG_FLEX_MVRES
   const AV1_COMMON *cm = &cpi->common;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -153,7 +153,7 @@ static void tf_motion_search(AV1_COMP *cpi,
                                      &baseline_mv,
 #if CONFIG_FLEX_MVRES
                                      pb_mv_precision,
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
 #endif
@@ -226,7 +226,7 @@ static void tf_motion_search(AV1_COMP *cpi,
                                            subblock_size, &baseline_mv,
 #if CONFIG_FLEX_MVRES
                                            pb_mv_precision,
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
                                            is_ibc_cost,
 #endif
 #endif

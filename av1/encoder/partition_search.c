@@ -497,12 +497,12 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         ++x->txfm_search_info.txb_split_count;
     }
 #if CONFIG_REF_MV_BANK && !CONFIG_MVP_IMPROVEMENT
-#if CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
     if (cm->seq_params.enable_refmvbank && is_inter &&
         !is_intrabc_block(mbmi, xd->tree_type))
 #else
     if (cm->seq_params.enable_refmvbank && is_inter)
-#endif  // CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
       av1_update_ref_mv_bank(cm, xd, mbmi);
 #endif  // CONFIG_REF_MV_BANK && !CONFIG_MVP_IMPROVEMENT
 
@@ -744,12 +744,12 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
     rd_cost->rdcost = ctx->rd_stats.rdcost;
 #if CONFIG_MVP_IMPROVEMENT
     const int is_inter = is_inter_block(&ctx->mic, xd->tree_type);
-#if CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
     if (cm->seq_params.enable_refmvbank && is_inter &&
         !is_intrabc_block(&ctx->mic, xd->tree_type))
 #else
     if (cm->seq_params.enable_refmvbank && is_inter)
-#endif  // CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
       av1_update_ref_mv_bank(cm, xd, &ctx->mic);
 #endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
@@ -851,12 +851,12 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 
 #if CONFIG_MVP_IMPROVEMENT
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-#if CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
   if (cm->seq_params.enable_refmvbank && is_inter &&
       !is_intrabc_block(mbmi, xd->tree_type))
 #else
   if (cm->seq_params.enable_refmvbank && is_inter)
-#endif  // CONFIG_IBC_SR_EXT && !CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
     av1_update_ref_mv_bank(cm, xd, mbmi);
 #endif  // CONFIG_MVP_IMPROVEMENT
 
@@ -946,7 +946,7 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
 #endif  // CONFIG_SEP_COMP_DRL
 }
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 static void update_intrabc_drl_idx_stats(int max_ref_bv_num, FRAME_CONTEXT *fc,
                                          FRAME_COUNTS *counts,
                                          const MB_MODE_INFO *mbmi) {
@@ -965,7 +965,7 @@ static void update_intrabc_drl_idx_stats(int max_ref_bv_num, FRAME_CONTEXT *fc,
     ++bit_cnt;
   }
 }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #if CONFIG_CWP
 // Update the stats for compound weighted prediction
@@ -1260,7 +1260,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ENTROPY_STATS
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 #endif  // !CONFIG_SKIP_TXFM_OPT
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     if (use_intrabc) {
       const int_mv ref_mv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
 #if CONFIG_FLEX_MVRES
@@ -1279,8 +1279,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
 #endif
 
-#endif  // CONFIG_BVP_IMPROVEMENT
-#if CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     if (use_intrabc) {
       update_cdf(fc->intrabc_mode_cdf, mbmi->intrabc_mode, 2);
 #if CONFIG_ENTROPY_STATS
@@ -1288,7 +1288,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ENTROPY_STATS
       update_intrabc_drl_idx_stats(MAX_REF_BV_STACK_SIZE, fc, td->counts, mbmi);
     }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   }
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT

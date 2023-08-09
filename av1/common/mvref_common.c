@@ -1799,7 +1799,7 @@ static AOM_INLINE bool check_rmb_cand(
 }
 #endif  // CONFIG_REF_MV_BANK
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 // Add a BV candidate to ref MV stack without duplicate check
 static AOM_INLINE bool add_to_ref_bv_list(CANDIDATE_MV cand_mv,
                                           CANDIDATE_MV *ref_mv_stack,
@@ -1814,7 +1814,7 @@ static AOM_INLINE bool add_to_ref_bv_list(CANDIDATE_MV cand_mv,
 
   return true;
 }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static AOM_INLINE void setup_ref_mv_list(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame,
@@ -2463,9 +2463,9 @@ static AOM_INLINE void setup_ref_mv_list(
 
     // If open slots are available, fetch reference MVs from the ref mv banks.
     if (*refmv_count < ref_mv_limit
-#if !CONFIG_BVP_IMPROVEMENT
+#if !CONFIG_IBC_BV_IMPROVEMENT
         && ref_frame != INTRA_FRAME
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     ) {
       const REF_MV_BANK *ref_mv_bank = &xd->ref_mv_bank;
       const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[ref_frame];
@@ -2692,9 +2692,9 @@ static AOM_INLINE void setup_ref_mv_list(
     // If there is extra space in the stack, copy the GLOBALMV vector into it.
     // This also guarantees the existence of at least one vector to search.
     if (*refmv_count < MAX_REF_MV_STACK_SIZE
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
         && !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     ) {
       int stack_idx;
       for (stack_idx = 0; stack_idx < *refmv_count; ++stack_idx) {
@@ -2722,9 +2722,9 @@ static AOM_INLINE void setup_ref_mv_list(
       AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
   // If open slots are available, fetch reference MVs from the ref mv banks.
   if (*refmv_count < ref_mv_limit
-#if !CONFIG_BVP_IMPROVEMENT
+#if !CONFIG_IBC_BV_IMPROVEMENT
       && ref_frame != INTRA_FRAME
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   ) {
     const REF_MV_BANK *ref_mv_bank = xd->ref_mv_bank_pt;
     const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[ref_frame];
@@ -2813,7 +2813,7 @@ static AOM_INLINE void setup_ref_mv_list(
 
 #endif  // CONFIG_WARP_REF_LIST
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   // If there are open slots in reference BV candidate list
   // fetch reference BVs from the default BVPs
   if (xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
@@ -2838,7 +2838,7 @@ static AOM_INLINE void setup_ref_mv_list(
       add_to_ref_bv_list(tmp_mv, ref_mv_stack, ref_mv_weight, refmv_count);
     }
   }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 }
 
 #if CONFIG_WARP_REF_LIST

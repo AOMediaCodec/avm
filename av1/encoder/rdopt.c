@@ -6010,7 +6010,7 @@ static int64_t handle_inter_mode(
   return rd_stats->rdcost;
 }
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 // Check if BV is valid
 static INLINE int is_bv_valid(const FULLPEL_MV *full_mv, const AV1_COMMON *cm,
                               const MACROBLOCKD *xd, int mi_row, int mi_col,
@@ -6139,7 +6139,7 @@ int rd_pick_ref_bv(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   }
   return 0;
 }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 /*!\brief Search for the best intrabc predictor
  *
@@ -6169,7 +6169,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
   set_default_precision_set(cm, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 1;
 #endif
 #endif
@@ -6224,11 +6224,11 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       /*allow_hp=*/0, mbmi_ext, ref_frame, /*is_integer=*/0);
 #endif
   dv_ref.as_int = dv_ref.as_int == INVALID_MV ? 0 : dv_ref.as_int;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   if (mbmi_ext->ref_mv_count[INTRA_FRAME] == 0) {
     dv_ref.as_int = 0;
   }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   if (dv_ref.as_int == 0) {
     av1_find_ref_dv(&dv_ref, tile, cm->seq_params.mib_size, mi_row);
   }
@@ -6267,7 +6267,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   av1_make_default_fullpel_ms_params(&fullms_params, cpi, x, bsize,
                                      &dv_ref.as_mv, mbmi->pb_mv_precision,
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
                                      lookahead_search_sites,
@@ -6277,7 +6277,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                      &dv_ref.as_mv, lookahead_search_sites,
                                      /*fine_search_interval=*/0);
 #endif
-#if CONFIG_BVP_IMPROVEMENT && !CONFIG_FLEX_MVRES
+#if CONFIG_IBC_BV_IMPROVEMENT && !CONFIG_FLEX_MVRES
   // The costs for block vector are stored in x->dv_costs. Assign the costs
   // to mv_cost_params for motion search.
   fullms_params.mv_cost_params.mvjcost = x->dv_costs.joint_mv;
@@ -6285,7 +6285,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       (int *)&x->dv_costs.mv_component[0][MV_MAX];
   fullms_params.mv_cost_params.mvcost[1] =
       (int *)&x->dv_costs.mv_component[1][MV_MAX];
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   fullms_params.is_intra_mode = 1;
 #if CONFIG_IBC_SR_EXT
@@ -6295,14 +6295,14 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   fullms_params.mi_col = mi_col;
   fullms_params.mi_row = mi_row;
 #endif  // CONFIG_IBC_SR_EXT
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   fullms_params.x = x;
   fullms_params.cm = cm;
   fullms_params.ref_bv_cnt = mbmi_ext->ref_mv_count[INTRA_FRAME];
   mbmi->intrabc_mode = 0;
   mbmi->intrabc_drl_idx = 0;
   mbmi->ref_bv.as_int = 0;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
@@ -6391,7 +6391,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     assert(fullms_params.mv_limits.row_min >= fullms_params.mv_limits.row_min);
     assert(fullms_params.mv_limits.row_max <= fullms_params.mv_limits.row_max);
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     FULLPEL_MOTION_SEARCH_PARAMS fullms_params_init = fullms_params;
     int best_ref_bv_cost = INT_MAX;
     int_mv best_bv;
@@ -6415,7 +6415,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     mbmi->ref_bv = dv_ref;
     int best_intrabc_drl_idx = mbmi->intrabc_drl_idx;
     int best_intrabc_mode = mbmi->intrabc_mode;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
     av1_set_mv_search_range(&fullms_params.mv_limits, &dv_ref.as_mv
 
@@ -6437,7 +6437,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
     int bestsme = av1_full_pixel_search(start_mv, &fullms_params, step_param,
                                         NULL, &best_mv.as_fullmv, NULL);
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     if (bestsme != INT_MAX && is_bv_valid(&best_mv.as_fullmv, cm, xd, mi_row,
                                           mi_col, bsize, fullms_params)) {
       int cur_ref_bv_cost = bestsme;
@@ -6469,12 +6469,12 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
         best_bv.as_mv = cur_bv.as_mv;
       }
     }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
     const int hashsme = av1_intrabc_hash_search(
         cpi, xd, &fullms_params, intrabc_hash_info, &best_hash_mv.as_fullmv);
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     if (hashsme != INT_MAX &&
         is_bv_valid(&best_hash_mv.as_fullmv, cm, xd, mi_row, mi_col, bsize,
                     fullms_params)) {
@@ -6525,7 +6525,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
                          cm->seq_params.mib_size_log2))
       continue;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
     // DV should not have sub-pel.
     assert((dv.col & 7) == 0);
@@ -6568,7 +6568,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
     const IntraBCMvCosts *const dv_costs = &x->dv_costs;
 #else
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     const IntraBCMVCosts *const dv_costs = &x->dv_costs;
 #else
     const IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
@@ -6577,7 +6577,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                        (int *)&dv_costs->mv_component[1][MV_MAX] };
 #endif
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     int rate_mv = 0;
     if (!mbmi->intrabc_mode)
 #if CONFIG_FLEX_MVRES
@@ -6615,7 +6615,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #else
     const int rate_mode = x->mode_costs.intrabc_cost[1];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
     RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
     if (!av1_txfm_search(cpi, x, bsize, &rd_stats_yuv, &rd_stats_y,
@@ -6637,13 +6637,13 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
   *mbmi = best_mbmi;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   if (mbmi->use_intrabc[xd->tree_type == CHROMA_PART]) {
     mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv = mbmi->ref_bv;
   } else {
     mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv.as_int = 0;
   }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   *rd_stats = best_rdstats;
   memcpy(txfm_info->blk_skip, best_blk_skip,

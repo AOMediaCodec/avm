@@ -1396,10 +1396,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   avg_nmv(&ctx_left->nmvc, &ctx_tr->nmvc, wt_left, wt_tr);
   avg_nmv(&ctx_left->ndvc, &ctx_tr->ndvc, wt_left, wt_tr);
   AVERAGE_CDF(ctx_left->intrabc_cdf, ctx_tr->intrabc_cdf, 2);
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   AVERAGE_CDF(ctx_left->intrabc_mode_cdf, ctx_tr->intrabc_mode_cdf, 2);
   AVERAGE_CDF(ctx_left->intrabc_drl_idx_cdf, ctx_tr->intrabc_drl_idx_cdf, 2);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
   AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
@@ -1767,7 +1767,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
 #else
                         cm->features.allow_high_precision_mv, &x->mv_costs);
 #endif
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
       if (cm->features.allow_intrabc) {
 #if CONFIG_FLEX_MVRES
         fill_dv_costs(&x->dv_costs, xd->tile_ctx, &x->mv_costs);
@@ -1775,7 +1775,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
         av1_fill_dv_costs(xd->tile_ctx, &x->dv_costs);
 #endif
       }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
       break;
     default: assert(0);
   }

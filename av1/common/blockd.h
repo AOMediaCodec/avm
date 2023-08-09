@@ -620,14 +620,14 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   /*! \brief Whether intrabc is used. */
   uint8_t use_intrabc[PARTITION_STRUCTURE_NUM];
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   /*! \brief Intrabc BV prediction mode. */
   uint8_t intrabc_mode;
   /*! \brief Index of ref_bv. */
   uint8_t intrabc_drl_idx;
   /*! \brief Which ref_bv to use. */
   int_mv ref_bv;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #if CONFIG_WARP_REF_LIST
   /*! \brief Which index to use for warp base parameter. */

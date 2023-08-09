@@ -7306,12 +7306,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       features->allow_global_intrabc = aom_rb_read_bit(rb);
       features->allow_local_intrabc =
           features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
       features->max_drl_bits =
           aom_rb_read_primitive_quniform(
               rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
           MIN_MAX_DRL_BITS;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
 
@@ -7337,12 +7337,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_global_intrabc = aom_rb_read_bit(rb);
         features->allow_local_intrabc =
             features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
         features->max_drl_bits =
             aom_rb_read_primitive_quniform(
                 rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
             MIN_MAX_DRL_BITS;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
 

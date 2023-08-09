@@ -868,12 +868,12 @@ typedef struct {
 #else
   int intrabc_cost[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   //! intrabc_mode_cost
   int intrabc_mode_cost[2];
   //! intrabc_drl_idx_cost
   int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
@@ -1196,7 +1196,7 @@ typedef struct {
   int *amvd_nmv_cost[2];
 #endif  // CONFIG_ADAPTIVE_MVD
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   /*! Costs for coding the zero components of dv cost. */
   int *dv_joint_cost;
 
@@ -1278,7 +1278,7 @@ typedef struct {
 } IntraBCMvCosts;
 #endif
 
-#if CONFIG_BVP_IMPROVEMENT && !CONFIG_FLEX_MVRES
+#if CONFIG_IBC_BV_IMPROVEMENT && !CONFIG_FLEX_MVRES
 /*! \brief Holds mv costs for intrabc.
  */
 typedef struct {
@@ -1447,7 +1447,7 @@ typedef struct macroblock {
   //! multipliers for motion search.
 #if CONFIG_FLEX_MVRES
   IntraBCMvCosts dv_costs;
-#elif CONFIG_BVP_IMPROVEMENT
+#elif CONFIG_IBC_BV_IMPROVEMENT
   IntraBCMVCosts dv_costs;
 #endif
 

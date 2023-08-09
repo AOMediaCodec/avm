@@ -441,14 +441,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #else
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   av1_cost_tokens_from_cdf(mode_costs->intrabc_mode_cost, fc->intrabc_mode_cdf,
                            NULL);
   for (i = 0; i < MAX_REF_BV_STACK_SIZE - 1; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->intrabc_drl_idx_cost[i],
                              fc->intrabc_drl_idx_cdf[i], NULL);
   }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   for (i = 0; i < TX_SIZES; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->stx_flag_cost[i], fc->stx_cdf[i],
@@ -1180,7 +1180,7 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
 #endif
   );
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   // Copy the pointer of the dv cost to the mvcost
   mv_costs->dv_joint_cost = &dv_costs->joint_mv[0];
   mv_costs->dv_nmv_cost[0] = dv_costs->dv_costs[0];
@@ -1189,7 +1189,7 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
   (void)mv_costs;
 #endif
 }
-#elif CONFIG_BVP_IMPROVEMENT
+#elif CONFIG_IBC_BV_IMPROVEMENT
 void av1_fill_dv_costs(const FRAME_CONTEXT *fc, IntraBCMVCosts *dv_costs) {
   int *dvcost[2] = { &dv_costs->mv_component[0][MV_MAX],
                      &dv_costs->mv_component[1][MV_MAX] };
@@ -1304,14 +1304,14 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 #endif
 
   if (cm->features.allow_screen_content_tools &&
-#if !CONFIG_BVP_IMPROVEMENT
+#if !CONFIG_IBC_BV_IMPROVEMENT
       frame_is_intra_only(cm) &&
-#endif  // !CONFIG_BVP_IMPROVEMENT
+#endif  // !CONFIG_IBC_BV_IMPROVEMENT
       !is_stat_generation_stage(cpi)) {
 #if CONFIG_FLEX_MVRES
     fill_dv_costs(&x->dv_costs, cm->fc, mv_costs);
 #else
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     IntraBCMVCosts *const dv_costs = &x->dv_costs;
 #else
     IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
