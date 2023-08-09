@@ -987,7 +987,7 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
   }
 }
 
-#if CONFIG_H_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 // Get the block size of the ith sub-block in a block partitioned via an
 // h-partition mode.
 static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
@@ -1072,7 +1072,7 @@ static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
     }
   }
 }
-#endif  // CONFIG_H_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -1109,11 +1109,11 @@ static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
   // Check if half block width/height is less than 8.
   const int hbw_less_than_4 = bw < 8;
   const int hbh_less_than_4 = bh < 8;
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#if !CONFIG_UNEVEN_4WAY || CONFIG_EXT_RECUR_PARTITIONS
   // Check if quarter block width/height is less than 16.
   const int qbw_less_than_4 = bw < 16;
   const int qbh_less_than_4 = bh < 16;
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_UNEVEN_4WAY
   // Check if one-eighth block width/height is less than 32.
   const int ebw_less_than_4 = bw < 32;
@@ -1131,14 +1131,8 @@ static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
     case PARTITION_VERT_4A:
     case PARTITION_VERT_4B: return ebw_less_than_4 || bh_less_than_4;
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3: return hbw_less_than_4 || qbh_less_than_4;
     case PARTITION_VERT_3: return qbw_less_than_4 || hbh_less_than_4;
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3: return bw_less_than_4 || qbh_less_than_4;
-    case PARTITION_VERT_3: return qbw_less_than_4 || bh_less_than_4;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
@@ -1194,14 +1188,8 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
     case PARTITION_VERT_4A:
     case PARTITION_VERT_4B: return index == 3;
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
     case PARTITION_VERT_3:
     case PARTITION_HORZ_3: return index == 3;
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_VERT_3:
-    case PARTITION_HORZ_3: return index == 2;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
@@ -1286,10 +1274,8 @@ static INLINE void set_chroma_ref_offset_size(
     case PARTITION_VERT_4A:
     case PARTITION_VERT_4B:
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
     case PARTITION_VERT_3:
     case PARTITION_HORZ_3:
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       info->mi_row_chroma_base = parent_info->mi_row_chroma_base;
       info->mi_col_chroma_base = parent_info->mi_col_chroma_base;

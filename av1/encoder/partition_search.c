@@ -2172,9 +2172,6 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                                    const CommonModeInfoParams *const mi_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
                                    int disable_ext_part,
-#if !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
-                                   PARTITION_TREE const *ptree,
-#endif  // !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
                                    PARTITION_TREE const *ptree_luma,
                                    const CHROMA_REF_INFO *chroma_ref_info,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -2387,10 +2384,10 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const int ebs_w = mi_size_wide[bsize] / 8;
   const int ebs_h = mi_size_high[bsize] / 8;
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   const int is_partition_root = is_partition_point(bsize);
   const int ctx = is_partition_root
                       ? partition_plane_context(xd, mi_row, mi_col, bsize)
@@ -2416,11 +2413,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_ENTROPY_STATS
                            tile_data->allow_update_cdf, mi_params,
 #if CONFIG_EXT_RECUR_PARTITIONS
-                           disable_ext_part,
-#if !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
-                           ptree,
-#endif  // !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
-                           ptree_luma, &pc_tree->chroma_ref_info,
+                           disable_ext_part, ptree_luma,
+                           &pc_tree->chroma_ref_info,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                            partition, mi_row, mi_col, bsize, ctx);
 
@@ -2471,9 +2465,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
-#if CONFIG_H_PARTITION
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-#endif  // CONFIG_H_PARTITION
         break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
@@ -2623,7 +2615,6 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       break;
     }
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: {
       for (int i = 0; i < 4; ++i) {
@@ -2648,40 +2639,6 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       }
       break;
     }
-#endif  // CONFIG_H_PARTITION
-
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
-      encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
-                pc_tree->horizontal3[0], sub_tree[0],
-                track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_row + qbs_h >= cm->mi_params.mi_rows) break;
-      encode_sb(cpi, td, tile_data, tp, mi_row + qbs_h, mi_col, dry_run, bsize3,
-                pc_tree->horizontal3[1], sub_tree[1],
-                track_ptree_luma ? ptree_luma->sub_tree[1] : NULL, rate);
-      if (mi_row + 3 * qbs_h >= cm->mi_params.mi_rows) break;
-      encode_sb(cpi, td, tile_data, tp, mi_row + 3 * qbs_h, mi_col, dry_run,
-                subsize, pc_tree->horizontal3[2], sub_tree[2],
-                track_ptree_luma ? ptree_luma->sub_tree[2] : NULL, rate);
-      break;
-    }
-    case PARTITION_VERT_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
-      encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
-                pc_tree->vertical3[0], sub_tree[0],
-                track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_col + qbs_w >= cm->mi_params.mi_cols) break;
-      encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + qbs_w, dry_run, bsize3,
-                pc_tree->vertical3[1], sub_tree[1],
-                track_ptree_luma ? ptree_luma->sub_tree[1] : NULL, rate);
-      if (mi_col + 3 * qbs_w >= cm->mi_params.mi_cols) break;
-      encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + 3 * qbs_w, dry_run,
-                subsize, pc_tree->vertical3[2], sub_tree[2],
-                track_ptree_luma ? ptree_luma->sub_tree[2] : NULL, rate);
-      break;
-    }
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
@@ -3140,10 +3097,8 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     case PARTITION_VERT_4A:
     case PARTITION_VERT_4B:
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3:
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       last_part_rdc.rate = 0;
@@ -4032,16 +3987,6 @@ static void rectangular_partition_search(
     if (!is_rect_part_allowed(cpi, part_search_state, active_edge_type, i,
                               mi_pos_rect[i][0][i]))
       continue;
-
-#if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_H_PARTITION && !CONFIG_UNEVEN_4WAY
-    if (pc_tree->parent) {
-      if ((pc_tree->parent->horizontal3[1] == pc_tree && i == HORZ) ||
-          (pc_tree->parent->vertical3[1] == pc_tree && i == VERT)) {
-        continue;
-      }
-    }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_H_PARTITION &&
-        // !CONFIG_UNEVEN_4WAY
 
     // Sub-partition idx.
     const PARTITION_TYPE partition_type = rect_partition_type[i];
@@ -5116,10 +5061,7 @@ static AOM_INLINE bool node_uses_horz(const PC_TREE *pc_tree) {
          || pc_tree->partitioning == PARTITION_HORZ_4A ||
          pc_tree->partitioning == PARTITION_HORZ_4B
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
-         || pc_tree->partitioning == PARTITION_HORZ_3
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
-      ;
+         || pc_tree->partitioning == PARTITION_HORZ_3;
 }
 
 /*!\brief Whether the current partition node uses vertical type partitions. */
@@ -5130,10 +5072,7 @@ static AOM_INLINE bool node_uses_vert(const PC_TREE *pc_tree) {
          || pc_tree->partitioning == PARTITION_VERT_4A ||
          pc_tree->partitioning == PARTITION_VERT_4B
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
-         || pc_tree->partitioning == PARTITION_VERT_3
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
-      ;
+         || pc_tree->partitioning == PARTITION_VERT_3;
 }
 
 /*!\brief Try searching for an encoding for the given subblock.
@@ -5420,6 +5359,7 @@ static AOM_INLINE void prune_part_3_with_partition_boundary(
   }
 }
 
+#if CONFIG_UNEVEN_4WAY
 /*!\brief Prunes 4-way partitions using the current best partition boundaries.
  *
  * If the 4-way partitions don't have any overlap with the current best
@@ -5520,6 +5460,8 @@ static AOM_INLINE void prune_part_4_with_partition_boundary(
     part_search_state->prune_partition_4b[VERT] |= !keep_vert_4b;
   }
 }
+
+#endif  // CONFIG_UNEVEN_4WAY
 
 // Pruning logic for PARTITION_HORZ_3 and PARTITION_VERT_3.
 static AOM_INLINE void prune_ext_partitions_3way(
@@ -5623,7 +5565,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // horz
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
-#if CONFIG_H_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
@@ -5632,7 +5573,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in horizontal direction.
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
-#endif  // CONFIG_H_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
@@ -5656,7 +5596,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // horz
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
-#if CONFIG_H_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
@@ -5665,7 +5604,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in horizontal direction.
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
-#endif  // CONFIG_H_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
@@ -5689,7 +5627,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // vert
       part_search_state->prune_partition_4a[VERT] = 1;
     }
-#if CONFIG_H_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
@@ -5698,7 +5635,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in vertical direction.
       part_search_state->prune_partition_4a[VERT] = 1;
     }
-#endif  // CONFIG_H_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
@@ -5722,7 +5658,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // vert
       part_search_state->prune_partition_4b[VERT] = 1;
     }
-#if CONFIG_H_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
@@ -5731,7 +5666,6 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in vertical direction.
       part_search_state->prune_partition_4b[VERT] = 1;
     }
-#endif  // CONFIG_H_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
@@ -5785,11 +5719,9 @@ static INLINE void search_partition_horz_4a(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_EXT_RECUR_PARTITIONS
   MACROBLOCKD *const xd = &x->e_mbd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const PartitionBlkParams *blk_params = &search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -5895,11 +5827,9 @@ static INLINE void search_partition_horz_4b(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_EXT_RECUR_PARTITIONS
   MACROBLOCKD *const xd = &x->e_mbd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const PartitionBlkParams *blk_params = &search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -6005,11 +5935,9 @@ static INLINE void search_partition_vert_4a(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_EXT_RECUR_PARTITIONS
   MACROBLOCKD *const xd = &x->e_mbd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const PartitionBlkParams *blk_params = &search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -6115,11 +6043,9 @@ static INLINE void search_partition_vert_4b(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_EXT_RECUR_PARTITIONS
   MACROBLOCKD *const xd = &x->e_mbd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const PartitionBlkParams *blk_params = &search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -6213,7 +6139,6 @@ static INLINE void search_partition_vert_4b(
 }
 #endif  // CONFIG_UNEVEN_4WAY
 
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 /*!\brief Performs rdopt on PARTITION_HORZ_3. */
 static INLINE void search_partition_horz_3(
     PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
@@ -6228,11 +6153,9 @@ static INLINE void search_partition_horz_3(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_EXT_RECUR_PARTITIONS
   MACROBLOCKD *const xd = &x->e_mbd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const PartitionBlkParams *blk_params = &search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -6250,11 +6173,9 @@ static INLINE void search_partition_horz_3(
         av1_active_h_edge(cpi, mi_row, blk_params->mi_step_h))) {
     return;
   }
-#if CONFIG_H_PARTITION
   // TODO(yuec): set default partition modes for the edge directly by ruling out
   // h partitions from the syntax if the 2nd middle block is not in the frame.
   if (mi_col + (mi_size_wide[bsize] >> 1) >= cm->mi_params.mi_cols) return;
-#endif  // CONFIG_H_PARTITION
 
   const int part_h3_rate = search_state->partition_cost[PARTITION_HORZ_3];
   if (part_h3_rate == INT_MAX ||
@@ -6268,7 +6189,6 @@ static INLINE void search_partition_horz_3(
   sum_rdc.rate = search_state->partition_cost[PARTITION_HORZ_3];
   sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
 
-#if CONFIG_H_PARTITION
   const BLOCK_SIZE sml_subsize =
       get_h_partition_subsize(bsize, 0, PARTITION_HORZ_3);
   const BLOCK_SIZE big_subsize =
@@ -6289,56 +6209,22 @@ static INLINE void search_partition_horz_3(
         subblock_sizes[idx], pc_tree, PARTITION_HORZ_3, idx, idx == 3, ss_x,
         ss_y);
   }
-#else   // CONFIG_H_PARTITION
-  const BLOCK_SIZE sml_subsize = get_partition_subsize(bsize, PARTITION_HORZ_3);
-  const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-  const int step_multipliers[3] = { 0, 1, 2 };
-  const BLOCK_SIZE subblock_sizes[3] = { sml_subsize, big_subsize,
-                                         sml_subsize };
-
-  for (int idx = 0; idx < 3; idx++) {
-    if (pc_tree->horizontal3[idx]) {
-      av1_free_pc_tree_recursive(pc_tree->horizontal3[idx], num_planes, 0, 0);
-      pc_tree->horizontal3[idx] = NULL;
-    }
-  }
-  pc_tree->horizontal3[0] =
-      av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, subblock_sizes[0],
-                             pc_tree, PARTITION_HORZ_3, 0, 0, ss_x, ss_y);
-  pc_tree->horizontal3[1] = av1_alloc_pc_tree_node(
-      xd->tree_type, mi_row + quarter_step, mi_col, subblock_sizes[1], pc_tree,
-      PARTITION_HORZ_3, 1, 0, ss_x, ss_y);
-  pc_tree->horizontal3[2] = av1_alloc_pc_tree_node(
-      xd->tree_type, mi_row + quarter_step * 3, mi_col, subblock_sizes[2],
-      pc_tree, PARTITION_HORZ_3, 2, 1, ss_x, ss_y);
-#endif  // CONFIG_H_PARTITION
 
   bool skippable = true;
-#if CONFIG_H_PARTITION
   for (int i = 0; i < 4; ++i) {
     const int this_mi_row = mi_row + offset_mr[i];
     const int this_mi_col = mi_col + offset_mc[i];
-#else   //  CONFIG_H_PARTITION
-  int this_mi_row = mi_row;
-  for (int i = 0; i < 3; ++i) {
-    this_mi_row += quarter_step * step_multipliers[i];
-#endif  // CONFIG_H_PARTITION
 
     if (i > 0 && this_mi_row >= cm->mi_params.mi_rows) break;
 
-    SUBBLOCK_RDO_DATA rdo_data = {
-      pc_tree->horizontal3[i],
-      get_partition_subtree_const(ptree_luma, i),
-      get_partition_subtree_const(template_tree, i),
-      this_mi_row,
-#if CONFIG_H_PARTITION
-      this_mi_col,
-#else
-      mi_col,
-#endif  // CONFIG_H_PARTITION
-      subblock_sizes[i],
-      PARTITION_HORZ_3
-    };
+    SUBBLOCK_RDO_DATA rdo_data = { pc_tree->horizontal3[i],
+                                   get_partition_subtree_const(ptree_luma, i),
+                                   get_partition_subtree_const(template_tree,
+                                                               i),
+                                   this_mi_row,
+                                   this_mi_col,
+                                   subblock_sizes[i],
+                                   PARTITION_HORZ_3 };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode, &skippable,
                              max_recursion_depth)) {
@@ -6378,11 +6264,9 @@ static INLINE void search_partition_vert_3(
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_EXT_RECUR_PARTITIONS
   MACROBLOCKD *const xd = &x->e_mbd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const PartitionBlkParams *blk_params = &search_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -6400,11 +6284,9 @@ static INLINE void search_partition_vert_3(
         av1_active_v_edge(cpi, mi_col, blk_params->mi_step_w))) {
     return;
   }
-#if CONFIG_H_PARTITION
   // TODO(yuec): set default partition modes for the edge directly by ruling out
   // h partitions from the syntax if the 2nd middle block is not in the frame.
   if (mi_row + (mi_size_high[bsize] >> 1) >= cm->mi_params.mi_rows) return;
-#endif  // CONFIG_H_PARTITION
 
   const int part_v3_rate = search_state->partition_cost[PARTITION_VERT_3];
   if (part_v3_rate == INT_MAX ||
@@ -6419,7 +6301,6 @@ static INLINE void search_partition_vert_3(
   sum_rdc.rate = search_state->partition_cost[PARTITION_VERT_3];
   sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, 0);
 
-#if CONFIG_H_PARTITION
   const BLOCK_SIZE sml_subsize =
       get_h_partition_subsize(bsize, 0, PARTITION_VERT_3);
   const BLOCK_SIZE big_subsize =
@@ -6440,56 +6321,22 @@ static INLINE void search_partition_vert_3(
         subblock_sizes[idx], pc_tree, PARTITION_VERT_3, idx, idx == 3, ss_x,
         ss_y);
   }
-#else
-  const BLOCK_SIZE sml_subsize = get_partition_subsize(bsize, PARTITION_VERT_3);
-  const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-  const int step_multipliers[3] = { 0, 1, 2 };
-  const BLOCK_SIZE subblock_sizes[3] = { sml_subsize, big_subsize,
-                                         sml_subsize };
-
-  for (int idx = 0; idx < 3; idx++) {
-    if (pc_tree->vertical3[idx]) {
-      av1_free_pc_tree_recursive(pc_tree->vertical3[idx], num_planes, 0, 0);
-      pc_tree->vertical3[idx] = NULL;
-    }
-  }
-  pc_tree->vertical3[0] =
-      av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, subblock_sizes[0],
-                             pc_tree, PARTITION_VERT_3, 0, 0, ss_x, ss_y);
-  pc_tree->vertical3[1] = av1_alloc_pc_tree_node(
-      xd->tree_type, mi_row, mi_col + quarter_step, subblock_sizes[1], pc_tree,
-      PARTITION_VERT_3, 1, 0, ss_x, ss_y);
-  pc_tree->vertical3[2] = av1_alloc_pc_tree_node(
-      xd->tree_type, mi_row, mi_col + quarter_step * 3, subblock_sizes[2],
-      pc_tree, PARTITION_VERT_3, 2, 1, ss_x, ss_y);
-#endif  // CONFIG_H_PARTITION
 
   bool skippable = true;
-#if CONFIG_H_PARTITION
   for (int i = 0; i < 4; ++i) {
     const int this_mi_row = mi_row + offset_mr[i];
     const int this_mi_col = mi_col + offset_mc[i];
-#else
-  int this_mi_col = mi_col;
-  for (int i = 0; i < 3; ++i) {
-    this_mi_col += quarter_step * step_multipliers[i];
-#endif  // CONFIG_H_PARTITION
 
     if (i > 0 && this_mi_col >= cm->mi_params.mi_cols) break;
 
-    SUBBLOCK_RDO_DATA rdo_data = {
-      pc_tree->vertical3[i],
-      get_partition_subtree_const(ptree_luma, i),
-      get_partition_subtree_const(template_tree, i),
-#if CONFIG_H_PARTITION
-      this_mi_row,
-#else   // CONFIG_H_PARTITION
-      mi_row,
-#endif  // CONFIG_H_PARTITION
-      this_mi_col,
-      subblock_sizes[i],
-      PARTITION_VERT_3
-    };
+    SUBBLOCK_RDO_DATA rdo_data = { pc_tree->vertical3[i],
+                                   get_partition_subtree_const(ptree_luma, i),
+                                   get_partition_subtree_const(template_tree,
+                                                               i),
+                                   this_mi_row,
+                                   this_mi_col,
+                                   subblock_sizes[i],
+                                   PARTITION_VERT_3 };
     if (!rd_try_subblock_new(cpi, td, tile_data, tp, &rdo_data, *best_rdc,
                              &sum_rdc, multi_pass_mode, &skippable,
                              max_recursion_depth)) {
@@ -6514,7 +6361,6 @@ static INLINE void search_partition_vert_3(
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
 }
 
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXT_RECUR_PARTITIONS

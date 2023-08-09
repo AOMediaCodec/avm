@@ -464,11 +464,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // disable ML based partition speed up features
   5,  // aggressiveness for erp pruning
   0,  // use ml model for erp pruning
-#if CONFIG_H_PARTITION
   1,  // enable extended partitions
-#else
-  0,        // enable extended partitions
-#endif
 #else
   0,                        // disable ML based partition speed up features
 #endif
@@ -4424,14 +4420,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
         5,  // aggressiveness for erp pruning
         0,  // use ml model for erp pruning
-#if CONFIG_H_PARTITION
         1,  // enable extended partitions
-#else
-        0,  // enable extended partitions
-#endif
-#else   // CONFIG_EXT_RECUR_PARTITIONS
+#else       // CONFIG_EXT_RECUR_PARTITIONS
         0,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif      // CONFIG_EXT_RECUR_PARTITIONS
         0, 1,   1,
 #if CONFIG_TIP
         1,

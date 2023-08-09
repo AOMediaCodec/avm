@@ -89,25 +89,11 @@ macro(fix_experiment_configs)
   endif()
   # End: CWG-C016.
 
-  # CONFIG_H_PARTITION is dependent on CONFIG_EXT_RECUR_PARTITIONS. If
-  # CONFIG_EXT_RECUR_PARTITIONS is off, CONFIG_H_PARTITION needs to be turned
-  # off.
-  if(NOT CONFIG_EXT_RECUR_PARTITIONS AND CONFIG_H_PARTITION)
-    change_config_and_warn(CONFIG_H_PARTITION 0 !CONFIG_EXT_RECUR_PARTITIONS)
-  endif()
-
   # CONFIG_UNEVEN_4WAY is dependent on CONFIG_EXT_RECUR_PARTITIONS. If
   # CONFIG_EXT_RECUR_PARTITIONS is off, CONFIG_UNEVEN_4WAY needs to be turned
   # off.
   if(NOT CONFIG_EXT_RECUR_PARTITIONS AND CONFIG_UNEVEN_4WAY)
     change_config_and_warn(CONFIG_UNEVEN_4WAY 0 !CONFIG_EXT_RECUR_PARTITIONS)
-  endif()
-
-  # CONFIG_H_PARTITION is dependent on CONFIG_EXT_RECUR_PARTITIONS. If
-  # CONFIG_EXT_RECUR_PARTITIONS is off, CONFIG_H_PARTITION needs to be turned
-  # off.
-  if(NOT CONFIG_EXT_RECUR_PARTITIONS AND CONFIG_H_PARTITION)
-    change_config_and_warn(CONFIG_H_PARTITION 0 !CONFIG_EXT_RECUR_PARTITIONS)
   endif()
 
 endmacro()

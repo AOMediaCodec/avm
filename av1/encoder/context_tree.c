@@ -230,18 +230,10 @@ PC_TREE *av1_alloc_pc_tree_node(TREE_TYPE tree_type, int mi_row, int mi_col,
     pc_tree->vertical4b[i] = NULL;
   }
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
   for (int i = 0; i < 4; ++i) {
     pc_tree->horizontal3[i] = NULL;
     pc_tree->vertical3[i] = NULL;
   }
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-  for (int i = 0; i < 3; ++i) {
-    pc_tree->horizontal3[i] = NULL;
-    pc_tree->vertical3[i] = NULL;
-  }
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else
   for (int i = 0; i < 3; ++i) {
     pc_tree->horizontala[i] = NULL;
@@ -334,7 +326,6 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
     }
   }
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
   for (int i = 0; i < 4; ++i) {
     if ((!keep_best || (partition != PARTITION_HORZ_3)) &&
         pc_tree->horizontal3[i] != NULL) {
@@ -347,22 +338,6 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
       pc_tree->vertical3[i] = NULL;
     }
   }
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-  for (int i = 0; i < 3; ++i) {
-    if ((!keep_best || (partition != PARTITION_HORZ_3)) &&
-        pc_tree->horizontal3[i] != NULL) {
-      av1_free_pc_tree_recursive(pc_tree->horizontal3[i], num_planes, 0, 0);
-      pc_tree->horizontal3[i] = NULL;
-    }
-    if ((!keep_best || (partition != PARTITION_VERT_3)) &&
-        pc_tree->vertical3[i] != NULL) {
-      av1_free_pc_tree_recursive(pc_tree->vertical3[i], num_planes, 0, 0);
-      pc_tree->vertical3[i] = NULL;
-    }
-  }
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-
 #else
   for (int i = 0; i < 3; ++i) {
     if (!keep_best || (partition != PARTITION_HORZ_A))
@@ -608,7 +583,6 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
       break;
 #endif  // CONFIG_UNEVEN_4WAY
 
-#if CONFIG_H_PARTITION
     // PARTITION_HORZ_3
     case PARTITION_HORZ_3:
       if (is_partition_valid(bsize, PARTITION_HORZ_3)) {
@@ -661,60 +635,6 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
         }
       }
       break;
-#endif  // CONFIG_H_PARTITION
-
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    // PARTITION_HORZ_3
-    case PARTITION_HORZ_3:
-      if (is_partition_valid(bsize, PARTITION_HORZ_3)) {
-        const int mi_rows[3] = { mi_row, mi_row + (mi_size_high[bsize] >> 2),
-                                 mi_row + (mi_size_high[bsize] >> 2) * 3 };
-        const BLOCK_SIZE subsizes[3] = {
-          subsize, get_partition_subsize(bsize, PARTITION_HORZ), subsize
-        };
-
-        for (int i = 0; i < 3; ++i) {
-          if (dst->horizontal3[i]) {
-            av1_free_pc_tree_recursive(dst->horizontal3[i], num_planes, 0, 0);
-            dst->horizontal3[i] = NULL;
-          }
-          if (src->horizontal3[i]) {
-            dst->horizontal3[i] = av1_alloc_pc_tree_node(
-                tree_type, mi_rows[i], mi_col, subsizes[i], dst,
-                PARTITION_HORZ_3, i, i == 2, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->horizontal3[i],
-                                       src->horizontal3[i], ss_x, ss_y,
-                                       shared_bufs, tree_type, num_planes);
-          }
-        }
-      }
-      break;
-    // PARTITION_VERT_3
-    case PARTITION_VERT_3:
-      if (is_partition_valid(bsize, PARTITION_VERT_3)) {
-        const int mi_cols[3] = { mi_col, mi_col + (mi_size_wide[bsize] >> 2),
-                                 mi_col + (mi_size_wide[bsize] >> 2) * 3 };
-        const BLOCK_SIZE subsizes[3] = {
-          subsize, get_partition_subsize(bsize, PARTITION_VERT), subsize
-        };
-
-        for (int i = 0; i < 3; ++i) {
-          if (dst->vertical3[i]) {
-            av1_free_pc_tree_recursive(dst->vertical3[i], num_planes, 0, 0);
-            dst->vertical3[i] = NULL;
-          }
-          if (src->vertical3[i]) {
-            dst->vertical3[i] = av1_alloc_pc_tree_node(
-                tree_type, mi_row, mi_cols[i], subsizes[i], dst,
-                PARTITION_VERT_3, i, i == 2, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->vertical3[i], src->vertical3[i],
-                                       ss_x, ss_y, shared_bufs, tree_type,
-                                       num_planes);
-          }
-        }
-      }
-      break;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
     default: assert(0 && "Not a valid partition."); break;
   }
 }
@@ -847,12 +767,10 @@ PC_TREE *counterpart_from_different_partition(PC_TREE *pc_tree,
   result = look_for_counterpart_helper(pc_tree->vertical4b[0], target);
   if (result) return result;
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
   result = look_for_counterpart_helper(pc_tree->horizontal3[0], target);
   if (result) return result;
   result = look_for_counterpart_helper(pc_tree->vertical3[0], target);
   if (result) return result;
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
   return NULL;
 }
 

@@ -3050,10 +3050,10 @@ static AOM_INLINE void write_modes_sb(
   const int ebs_w = mi_size_wide[bsize] / 8;
   const int ebs_h = mi_size_high[bsize] / 8;
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   assert(ptree);
   const PARTITION_TYPE partition = ptree->partition;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
@@ -3223,7 +3223,6 @@ static AOM_INLINE void write_modes_sb(
       break;
     }
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3:
       for (int i = 0; i < 4; ++i) {
@@ -3247,38 +3246,6 @@ static AOM_INLINE void write_modes_sb(
                        this_mi_row, this_mi_col, this_bsize);
       }
       break;
-#endif  // CONFIG_H_PARTITION
-
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
-                     track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, mi_row,
-                     mi_col, subsize);
-      if (mi_row + qbs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
-                     mi_row + qbs_h, mi_col,
-                     get_partition_subsize(bsize, PARTITION_HORZ));
-      if (mi_row + 3 * qbs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
-                     track_ptree_luma ? ptree_luma->sub_tree[2] : NULL,
-                     mi_row + 3 * qbs_h, mi_col, subsize);
-      break;
-    case PARTITION_VERT_3:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
-                     track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, mi_row,
-                     mi_col, subsize);
-      if (mi_col + qbs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     track_ptree_luma ? ptree_luma->sub_tree[1] : NULL, mi_row,
-                     mi_col + qbs_w,
-                     get_partition_subsize(bsize, PARTITION_VERT));
-      if (mi_col + 3 * qbs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
-                     track_ptree_luma ? ptree_luma->sub_tree[2] : NULL, mi_row,
-                     mi_col + 3 * qbs_w, subsize);
-      break;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,

@@ -308,7 +308,6 @@ enum {
 //  +-------+     +-------+     +---+---+     +---+---+
 //
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_H_PARTITION
 //  HORZ_3                 VERT_3
 //  +---------------+       +---+------+---+
 //  |               |       |   |      |   |
@@ -318,17 +317,6 @@ enum {
 //  +---------------+       |   |      |   |
 //  |               |       |   |      |   |
 //  +---------------+       +---+------+---+
-#else
-//  HORZ_3                 VERT_3
-//  +--------------+       +---+------+---+
-//  |              |       |   |      |   |
-//  +--------------+       |   |      |   |
-//  |              |       |   |      |   |
-//  |              |       |   |      |   |
-//  +--------------+       |   |      |   |
-//  |              |       |   |      |   |
-//  +--------------+       +---+------+---+
-#endif  // CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
 //  HORZ_4A                 HORZ_4B
 //  +---------------+       +---------------+
@@ -371,10 +359,8 @@ enum {
   PARTITION_NONE,
   PARTITION_HORZ,
   PARTITION_VERT,
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
   PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
   PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
-#endif               // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
   PARTITION_HORZ_4A,  // 4 horizontal uneven sub-partitions (1:2:4:1).
   PARTITION_HORZ_4B,  // 4 horizontal uneven sub-partitions (1:4:2:1).

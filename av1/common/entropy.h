@@ -137,15 +137,15 @@ static INLINE ENTROPY_CONTEXT get_entropy_context_1d(const ENTROPY_CONTEXT *ctx,
   switch (size) {
     case 4: return ctx[0] != 0;
     case 8:
-#if CONFIG_H_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
       return ctx[0] != 0 || ctx[1] != 0;
 #else
       return !!*(const uint16_t *)ctx;
-#endif  // CONFIG_H_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     case 16:
 #if CONFIG_UNEVEN_4WAY
       return ctx[0] != 0 || ctx[1] != 0 || ctx[2] != 0 || ctx[3] != 0;
-#elif CONFIG_H_PARTITION
+#elif CONFIG_EXT_RECUR_PARTITIONS
       return !!(*(const uint16_t *)ctx | *(const uint16_t *)(ctx + 2));
 #else
       return !!*(const uint32_t *)ctx;
@@ -154,7 +154,7 @@ static INLINE ENTROPY_CONTEXT get_entropy_context_1d(const ENTROPY_CONTEXT *ctx,
 #if CONFIG_UNEVEN_4WAY
       return !!(*(const uint16_t *)ctx | *(const uint16_t *)(ctx + 2) |
                 *(const uint16_t *)(ctx + 4) | *(const uint16_t *)(ctx + 6));
-#elif CONFIG_H_PARTITION
+#elif CONFIG_EXT_RECUR_PARTITIONS
       return !!(*(const uint32_t *)ctx | *(const uint32_t *)(ctx + 4));
 #else
       return !!*(const uint64_t *)ctx;

@@ -2448,11 +2448,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   const int ebs_w = mi_size_wide[bsize] / 8;
   const int ebs_h = mi_size_high[bsize] / 8;
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#if !CONFIG_EXT_RECUR_PARTITIONS
   // Quarter block width/height.
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   PARTITION_TYPE partition;
   const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
@@ -2545,9 +2545,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
-#if CONFIG_H_PARTITION
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-#endif  // CONFIG_H_PARTITION
         break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
@@ -2734,7 +2732,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     }
 #endif  // CONFIG_UNEVEN_4WAY
 
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: {
       for (int i = 0; i < 4; ++i) {
@@ -2757,34 +2754,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       }
       break;
     }
-#endif  // CONFIG_H_PARTITION
-
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
-      int this_mi_row = mi_row;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += qbs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      DEC_PARTITION(this_mi_row, mi_col, bsize3, 1);
-      this_mi_row += 2 * qbs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 2);
-      break;
-    }
-    case PARTITION_VERT_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
-      int this_mi_col = mi_col;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += qbs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      DEC_PARTITION(mi_row, this_mi_col, bsize3, 1);
-      this_mi_col += 2 * qbs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 2);
-      break;
-    }
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);

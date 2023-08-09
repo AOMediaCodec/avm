@@ -150,10 +150,9 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
 set_aom_config_var(CONFIG_EXT_DIR 1 "AV2 extended intra prediction angles.")
-set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
-                   "AV2 Fully recursive partitions experiment flag")
-set_aom_config_var(CONFIG_H_PARTITION 1 NUMBER
-                   "AV2 H partition mode experiment flag")
+set_aom_config_var(
+  CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
+  "AV2 Fully recursive partitions including H partitions experiment flag")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_UNEVEN_4WAY 1 NUMBER
                    "AV2 uneven 4-way partition experiment flag")

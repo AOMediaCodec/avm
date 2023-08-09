@@ -652,10 +652,10 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
   const int ebs_w = mi_size_wide[bsize] / 8;
   const int ebs_h = mi_size_high[bsize] / 8;
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   switch (partition) {
     case PARTITION_NONE:
       collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);
@@ -754,7 +754,6 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
       break;
     }
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: {
       for (int i = 0; i < 4; ++i) {
@@ -770,29 +769,6 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
       }
       break;
     }
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3: {
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + qbs_h, mi_col,
-                          get_partition_subsize(bsize, PARTITION_HORZ),
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + 3 * qbs_h, mi_col, subsize,
-                          ptree->sub_tree[2]);
-      break;
-    }
-    case PARTITION_VERT_3: {
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + qbs_w,
-                          get_partition_subsize(bsize, PARTITION_VERT),
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 3 * qbs_w, subsize,
-                          ptree->sub_tree[2]);
-      break;
-    }
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
       collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);

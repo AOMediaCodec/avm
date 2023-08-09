@@ -86,14 +86,8 @@ typedef struct PC_TREE {
   struct PC_TREE *vertical4a[4];
   struct PC_TREE *vertical4b[4];
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
   struct PC_TREE *horizontal3[4];
   struct PC_TREE *vertical3[4];
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-  struct PC_TREE *horizontal3[3];
-  struct PC_TREE *vertical3[3];
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else
   PICK_MODE_CONTEXT *horizontal[2];
   PICK_MODE_CONTEXT *vertical[2];

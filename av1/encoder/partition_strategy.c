@@ -1847,14 +1847,8 @@ static INLINE void add_start_mv_to_partition(
     1,  // PARTITION_NONE
     2,  // PARTITION_HORZ
     2,  // PARTITION_VERT
-#if CONFIG_H_PARTITION
     4,  // PARTITION_HORZ_3
     4,  // PARTITION_VERT_3
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    3,  // PARTITION_HORZ_3
-    3,  // PARTITION_VERT_3
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
     4,  // PARTITION_HORZ_4A
     4,  // PARTITION_HORZ_4B
@@ -1867,14 +1861,8 @@ static INLINE void add_start_mv_to_partition(
     { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
     { { 0, 0 }, { 4, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
     { { 0, 0 }, { 0, 4 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
-#if CONFIG_H_PARTITION
     { { 0, 0 }, { 2, 0 }, { 2, 4 }, { 6, 0 } },  // PARTITION_HORZ_3
     { { 0, 0 }, { 0, 2 }, { 4, 2 }, { 0, 6 } },  // PARTITION_VERT_3
-#endif                                           // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    { { 0, 0 }, { 2, 0 }, { 6, 0 }, { 0, 0 } },  // PARTITION_HORZ_3
-    { { 0, 0 }, { 0, 2 }, { 0, 6 }, { 0, 0 } },  // PARTITION_VERT_3
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
     { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 7, 0 } },  // PARTITION_HORZ_4A
     { { 0, 0 }, { 1, 0 }, { 5, 0 }, { 7, 0 } },  // PARTITION_HORZ_4B
@@ -1904,7 +1892,6 @@ static INLINE void add_start_mv_to_partition(
     subsizes[2] = get_partition_subsize(subsizes[1], PARTITION_VERT);
   }
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
   if (partition == PARTITION_HORZ_3) {
     subsizes[1] = get_h_partition_subsize(sb_size, 1, PARTITION_HORZ_3);
     subsizes[2] = get_h_partition_subsize(sb_size, 2, PARTITION_HORZ_3);
@@ -1912,14 +1899,6 @@ static INLINE void add_start_mv_to_partition(
     subsizes[1] = get_h_partition_subsize(sb_size, 1, PARTITION_VERT_3);
     subsizes[2] = get_h_partition_subsize(sb_size, 2, PARTITION_VERT_3);
   }
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-  if (partition == PARTITION_HORZ_3) {
-    subsizes[1] = get_partition_subsize(bsize, PARTITION_HORZ);
-  } else if (partition == PARTITION_VERT_3) {
-    subsizes[1] = get_partition_subsize(bsize, PARTITION_VERT);
-  }
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 
   for (int idx = 0; idx < subblock_count[partition]; idx++) {
     const int sub_row =
@@ -2049,15 +2028,10 @@ void av1_gather_erp_rect_features(
 
   // Whether we are in the middle of a PARTITION_3 subblock
   const PC_TREE *parent = pc_tree->parent;
-#if CONFIG_H_PARTITION
   ml_features[num_features++] = parent && (parent->horizontal3[1] == pc_tree ||
                                            parent->horizontal3[2] == pc_tree);
   ml_features[num_features++] = parent && (parent->vertical3[1] == pc_tree ||
                                            parent->vertical3[2] == pc_tree);
-#else
-  ml_features[num_features++] = parent && parent->horizontal3[1] == pc_tree;
-  ml_features[num_features++] = parent && parent->vertical3[1] == pc_tree;
-#endif  // CONFIG_H_PARTITION
   assert(num_features == 19);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
