@@ -92,7 +92,7 @@ typedef struct {
 #if CONFIG_ADAPTIVE_MVD
   int is_adaptive_mvd;
 #endif  // CONFIG_ADAPTIVE_MVD
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
   int is_ibc_cost;
 #endif
 #endif
@@ -261,7 +261,7 @@ void av1_make_default_fullpel_ms_params(
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
 #if CONFIG_FLEX_MVRES
     const MvSubpelPrecision pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
     const int is_ibc_cost,
 #endif
 #endif

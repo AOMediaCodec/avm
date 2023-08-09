@@ -1180,7 +1180,7 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
 #endif
   );
 
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
   // Copy the pointer of the dv cost to the mvcost
   mv_costs->dv_joint_cost = &dv_costs->joint_mv[0];
   mv_costs->dv_nmv_cost[0] = dv_costs->dv_costs[0];
@@ -1189,7 +1189,7 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
   (void)mv_costs;
 #endif
 }
-#elif CONFIG_BVCOST_UPDATE
+#elif CONFIG_BVP_IMPROVEMENT
 void av1_fill_dv_costs(const FRAME_CONTEXT *fc, IntraBCMVCosts *dv_costs) {
   int *dvcost[2] = { &dv_costs->mv_component[0][MV_MAX],
                      &dv_costs->mv_component[1][MV_MAX] };
@@ -1304,14 +1304,14 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 #endif
 
   if (cm->features.allow_screen_content_tools &&
-#if !CONFIG_BVCOST_UPDATE
+#if !CONFIG_BVP_IMPROVEMENT
       frame_is_intra_only(cm) &&
-#endif  // !CONFIG_BVCOST_UPDATE
+#endif  // !CONFIG_BVP_IMPROVEMENT
       !is_stat_generation_stage(cpi)) {
 #if CONFIG_FLEX_MVRES
     fill_dv_costs(&x->dv_costs, cm->fc, mv_costs);
 #else
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
     IntraBCMVCosts *const dv_costs = &x->dv_costs;
 #else
     IntraBCMVCosts *const dv_costs = &cpi->dv_costs;

@@ -1196,7 +1196,7 @@ typedef struct {
   int *amvd_nmv_cost[2];
 #endif  // CONFIG_ADAPTIVE_MVD
 
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
   /*! Costs for coding the zero components of dv cost. */
   int *dv_joint_cost;
 
@@ -1278,7 +1278,7 @@ typedef struct {
 } IntraBCMvCosts;
 #endif
 
-#if CONFIG_BVCOST_UPDATE && !CONFIG_FLEX_MVRES
+#if CONFIG_BVP_IMPROVEMENT && !CONFIG_FLEX_MVRES
 /*! \brief Holds mv costs for intrabc.
  */
 typedef struct {
@@ -1447,7 +1447,7 @@ typedef struct macroblock {
   //! multipliers for motion search.
 #if CONFIG_FLEX_MVRES
   IntraBCMvCosts dv_costs;
-#elif CONFIG_BVCOST_UPDATE
+#elif CONFIG_BVP_IMPROVEMENT
   IntraBCMVCosts dv_costs;
 #endif
 

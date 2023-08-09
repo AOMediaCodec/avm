@@ -1260,7 +1260,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ENTROPY_STATS
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 #endif  // !CONFIG_SKIP_TXFM_OPT
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
     if (use_intrabc) {
       const int_mv ref_mv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
 #if CONFIG_FLEX_MVRES
@@ -1279,7 +1279,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
 #endif
 
-#endif  // CONFIG_BVCOST_UPDATE
+#endif  // CONFIG_BVP_IMPROVEMENT
 #if CONFIG_BVP_IMPROVEMENT
     if (use_intrabc) {
       update_cdf(fc->intrabc_mode_cdf, mbmi->intrabc_mode, 2);

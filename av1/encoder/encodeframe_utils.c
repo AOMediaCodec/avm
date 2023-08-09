@@ -1767,7 +1767,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
 #else
                         cm->features.allow_high_precision_mv, &x->mv_costs);
 #endif
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
       if (cm->features.allow_intrabc) {
 #if CONFIG_FLEX_MVRES
         fill_dv_costs(&x->dv_costs, xd->tile_ctx, &x->mv_costs);
@@ -1775,7 +1775,7 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
         av1_fill_dv_costs(xd->tile_ctx, &x->dv_costs);
 #endif
       }
-#endif  // CONFIG_BVCOST_UPDATE
+#endif  // CONFIG_BVP_IMPROVEMENT
       break;
     default: assert(0);
   }

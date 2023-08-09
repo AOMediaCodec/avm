@@ -6169,7 +6169,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
   set_default_precision_set(cm, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
   const int is_ibc_cost = 1;
 #endif
 #endif
@@ -6267,7 +6267,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   av1_make_default_fullpel_ms_params(&fullms_params, cpi, x, bsize,
                                      &dv_ref.as_mv, mbmi->pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
                                      is_ibc_cost,
 #endif
                                      lookahead_search_sites,
@@ -6277,7 +6277,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                      &dv_ref.as_mv, lookahead_search_sites,
                                      /*fine_search_interval=*/0);
 #endif
-#if CONFIG_BVCOST_UPDATE && !CONFIG_FLEX_MVRES
+#if CONFIG_BVP_IMPROVEMENT && !CONFIG_FLEX_MVRES
   // The costs for block vector are stored in x->dv_costs. Assign the costs
   // to mv_cost_params for motion search.
   fullms_params.mv_cost_params.mvjcost = x->dv_costs.joint_mv;
@@ -6285,7 +6285,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       (int *)&x->dv_costs.mv_component[0][MV_MAX];
   fullms_params.mv_cost_params.mvcost[1] =
       (int *)&x->dv_costs.mv_component[1][MV_MAX];
-#endif  // CONFIG_BVCOST_UPDATE
+#endif  // CONFIG_BVP_IMPROVEMENT
 
   fullms_params.is_intra_mode = 1;
 #if CONFIG_IBC_SR_EXT
@@ -6568,7 +6568,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
     const IntraBCMvCosts *const dv_costs = &x->dv_costs;
 #else
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_BVP_IMPROVEMENT
     const IntraBCMVCosts *const dv_costs = &x->dv_costs;
 #else
     const IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
