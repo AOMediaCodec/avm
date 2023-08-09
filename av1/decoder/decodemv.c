@@ -3303,7 +3303,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx[0]].cwp_idx;
 #else
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].cwp_idx;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SEP_COMP_DRL
   }
 #if CONFIG_REFINEMV
   if (mbmi->skip_mode) {
@@ -3312,8 +3312,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
             ? 1
             : 0;
   }
-#endif
-#endif  // CONFIG_CWP
+#endif  // CONFIG_REFINEMV
+#endif  // CONFIG_CWP && CONFIG_SKIP_MODE_ENHANCEMENT
 
   read_mb_interp_filter(xd, features->interp_filter, cm, mbmi, r);
 
