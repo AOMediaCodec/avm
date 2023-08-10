@@ -5731,6 +5731,8 @@ static AOM_INLINE void prune_ext_partitions_4way(
   const AV1_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
+
+  // Prune HORZ 4A with speed features
   if (part_search_state->partition_4a_allowed[HORZ] &&
       forced_partition != PARTITION_HORZ_4A) {
     if (part_sf->prune_ext_part_with_part_none &&
@@ -5738,6 +5740,23 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    // TODO(now): Try same change with prune_part_4_with_part_3 also.
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in horz
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_horz(pc_tree->horizontal[0]) &&
+          !node_uses_horz(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4a[HORZ] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_horz(pc_tree->vertical[0]) &&
+          !node_uses_horz(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4a[HORZ] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_HORZ &&
         !node_uses_horz(pc_tree->horizontal[0]) &&
@@ -5746,6 +5765,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // horz
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
@@ -5769,6 +5789,22 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in horz
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_horz(pc_tree->horizontal[0]) &&
+          !node_uses_horz(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4b[HORZ] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_horz(pc_tree->vertical[0]) &&
+          !node_uses_horz(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4b[HORZ] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_HORZ &&
         !node_uses_horz(pc_tree->horizontal[0]) &&
@@ -5777,6 +5813,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // horz
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ_3 &&
         !node_uses_horz(pc_tree->horizontal3[0]) &&
@@ -5800,6 +5837,22 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4a[VERT] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in vert
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_vert(pc_tree->vertical[0]) &&
+          !node_uses_vert(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4a[VERT] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_vert(pc_tree->horizontal[0]) &&
+          !node_uses_vert(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4a[VERT] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_VERT &&
         !node_uses_vert(pc_tree->vertical[0]) &&
@@ -5808,6 +5861,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // vert
       part_search_state->prune_partition_4a[VERT] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
@@ -5831,6 +5885,22 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4b[VERT] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in vert
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_vert(pc_tree->vertical[0]) &&
+          !node_uses_vert(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4b[VERT] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_vert(pc_tree->horizontal[0]) &&
+          !node_uses_vert(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4b[VERT] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_VERT &&
         !node_uses_vert(pc_tree->vertical[0]) &&
@@ -5839,6 +5909,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // vert
       part_search_state->prune_partition_4b[VERT] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT_3 &&
         !node_uses_vert(pc_tree->vertical3[0]) &&
