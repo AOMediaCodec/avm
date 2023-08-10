@@ -731,7 +731,7 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
 static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
                                        int n, int cols, int rows) {
   const TokenExtra *p = *tp;
@@ -762,7 +762,7 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
   }
   *tp = p;
 }
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 static AOM_INLINE void av1_write_coeffs_txb_facade(
     aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x, MACROBLOCKD *xd,
@@ -2858,11 +2858,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       av1_get_block_dimensions(mbmi->sb_type[plane], plane, xd, NULL, NULL,
                                &rows, &cols);
       assert(*tok < tok_end);
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
       pack_map_tokens(w, tok, palette_size_plane, cols, rows);
 #else
       pack_map_tokens(w, tok, palette_size_plane, rows * cols);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
     }
   }
 

@@ -2444,7 +2444,7 @@ static const aom_cdf_prob
       { AOM_CDF2(32461) }, { AOM_CDF2(21488) }
     };
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
 static const aom_cdf_prob
     default_identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
@@ -2677,7 +2677,7 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
           { AOM_CDF8(31190, 31329, 31516, 31679, 31825, 32026, 32322) },
       },
     };
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 #if CONFIG_NEW_TX_PARTITION
 static const aom_cdf_prob default_inter_4way_txfm_partition_cdf
@@ -3021,10 +3021,10 @@ static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, int palette_size,
                                         uint8_t *color_order, int *color_idx
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
                                         ,
                                         int row_flag, int prev_row_flag
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 ) {
   assert(palette_size <= PALETTE_MAX_SIZE);
   assert(r > 0 || c > 0);
@@ -3083,12 +3083,12 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
   if (color_idx != NULL)
     *color_idx = inverse_color_order[color_map[r * stride + c]];
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   // Special context value for the first (and only) index of an identity row and
   // when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     return PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
   // Get hash value of context.
   int color_index_ctx_hash = 0;
@@ -3109,10 +3109,10 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
 
 int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
                                          int r, int c, int *color_idx
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
                                          ,
                                          int row_flag, int prev_row_flag
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 ) {
   assert(r > 0 || c > 0);
 
@@ -3202,12 +3202,12 @@ int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
     }
   }
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   // Special context value for the first (and only) index of an identity row and
   // when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     return PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
   // Get hash value of context.
   int color_index_ctx_hash = 0;
@@ -3233,10 +3233,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   (void)seq_params;
   av1_copy(fc->palette_y_size_cdf, default_palette_y_size_cdf);
   av1_copy(fc->palette_uv_size_cdf, default_palette_uv_size_cdf);
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->identity_row_cdf_y, default_identity_row_cdf_y);
   av1_copy(fc->identity_row_cdf_uv, default_identity_row_cdf_uv);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
 #if !CONFIG_AIMC

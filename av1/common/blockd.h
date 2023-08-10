@@ -3436,10 +3436,10 @@ typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
                               [PALETTE_COLORS];
 /* clang-format on */
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
 typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(2)];
 typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][2];
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 typedef struct {
   int rows;
@@ -3450,10 +3450,10 @@ typedef struct {
   uint8_t *color_map;
   MapCdf map_cdf;
   ColorCost color_cost;
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   IdentityRowCdf identity_row_cdf;
   IdentityRowCost identity_row_cost;
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 } Av1ColorMapParam;
 
 static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
