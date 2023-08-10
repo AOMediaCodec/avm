@@ -1295,14 +1295,14 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 ) {
 #endif  // CONFIG_ATC_DCTX_ALIGNED
   MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   PREDICTION_MODE intra_dir;
   if (mbmi->filter_intra_mode_info.use_filter_intra)
     intra_dir =
         fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
   else
     intra_dir = mbmi->mode;
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
@@ -1319,7 +1319,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     // eset == 0 should correspond to a set with only DCT_DCT and there
     // is no need to send the tx_type
     assert(eset > 0);
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
     const int size_info = av1_size_class[tx_size];
     if (!is_inter) {
       const int mode_info = av1_md_class[intra_dir];
@@ -1331,7 +1331,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #else
     assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
     if (is_inter) {
 #if CONFIG_ATC_DCTX_ALIGNED
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
@@ -1348,16 +1348,16 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         return;
       }
-#if !CONFIG_ATC_NEWTXSETS
+#if !CONFIG_ATC
       PREDICTION_MODE intra_dir;
       if (mbmi->filter_intra_mode_info.use_filter_intra)
         intra_dir =
             fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
       else
         intra_dir = mbmi->mode;
-#endif  // !CONFIG_ATC_NEWTXSETS
+#endif  // !CONFIG_ATC
       aom_write_symbol(
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
           w,
           av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                              intra_dir, size_info),
@@ -1375,7 +1375,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
           w, av1_ext_tx_ind_intra[tx_set_type][get_primary_tx_type(tx_type)],
           ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
           av1_num_ext_tx_set_intra[tx_set_type]);
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
     }
   }
 }

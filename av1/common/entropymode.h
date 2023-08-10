@@ -171,7 +171,7 @@ typedef struct frame_contexts {
   aom_cdf_prob idtx_sign_cdf[IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob coeff_base_cdf_idtx[IDTX_SIG_COEF_CONTEXTS][CDF_SIZE(4)];
   aom_cdf_prob coeff_br_cdf_idtx[IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
                                 [CDF_SIZE(LF_BASE_SYMBOLS)];
   aom_cdf_prob coeff_base_lf_eob_cdf[TX_SIZES][PLANE_TYPES]
@@ -183,7 +183,7 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob coeff_br_cdf[TX_SIZES][PLANE_TYPES][LEVEL_CONTEXTS]
                            [CDF_SIZE(BR_CDF_SIZE)];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
   aom_cdf_prob coeff_base_ph_cdf[COEFF_BASE_PH_CONTEXTS]
                                 [CDF_SIZE(NUM_BASE_LEVELS + 2)];
@@ -484,7 +484,7 @@ static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 4, 5, 3, 6, 7, 8 },
 };
 
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
 static const int av1_md_type2idx[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   {
       { 0, 2, 3, 1, 0, 0, 0, 4, 5, 0, 0, 0, 0, 6, 0, 0 },  // mode_class: 0
@@ -624,7 +624,7 @@ static INLINE int av1_tx_idx_to_type(int tx_idx, int tx_set_type,
              ? av1_md_idx2type[size_idx][av1_md_class[intra_mode]][tx_idx]
              : av1_ext_tx_inv[tx_set_type][tx_idx];
 }
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 
 void av1_set_default_ref_deltas(int8_t *ref_deltas);
 void av1_set_default_mode_deltas(int8_t *mode_deltas);

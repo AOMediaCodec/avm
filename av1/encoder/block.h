@@ -158,7 +158,7 @@ typedef struct {
   //! Cost to skip txfm for the current AOM_PLANE_V txfm block.
   int v_txb_skip_cost[V_TXB_SKIP_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   //! Cost for encoding the base_eob level of a low-frequency coefficient
   int base_lf_eob_cost[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency coefficient
@@ -166,7 +166,7 @@ typedef struct {
   //! Cost for encoding an increment to the low-frequency coefficient
   int lps_lf_cost[LF_LEVEL_CONTEXTS]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
   //! Cost for encoding the base level of a parity-hidden coefficient
   int base_ph_cost[COEFF_BASE_PH_CONTEXTS][4];

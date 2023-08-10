@@ -1040,7 +1040,7 @@ static const aom_cdf_prob default_intra_ext_tx_cdf
               { 0 },
           },
       },
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
       {
           {
               { AOM_CDF7(3368, 14670, 18533, 22660, 26441, 30407) },
@@ -1292,7 +1292,7 @@ static const aom_cdf_prob default_intra_ext_tx_cdf
               { AOM_CDF4(8192, 16384, 24576) },
           },
       }
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
     };
 
 #if CONFIG_ATC_DCTX_ALIGNED

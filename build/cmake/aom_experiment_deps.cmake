@@ -37,11 +37,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_CCSO_EXT 0 !CONFIG_CCSO)
   endif()
 
-  # CONFIG_ATC_REDUCED_TXSET depends on CONFIG_ATC_NEWTXSETS. If
-  # CONFIG_ATC_NEWTXSETS is off, then CONFIG_ATC_REDUCED_TXSET needs to be
-  # disabled.
-  if(NOT CONFIG_ATC_NEWTXSETS AND CONFIG_ATC_REDUCED_TXSET)
-    change_config_and_warn(CONFIG_ATC_REDUCED_TXSET 0 !CONFIG_ATC_NEWTXSETS)
+  # CONFIG_ATC_REDUCED_TXSET depends on CONFIG_ATC. If CONFIG_ATC is off, then
+  # CONFIG_ATC_REDUCED_TXSET needs to be disabled.
+  if(NOT CONFIG_ATC AND CONFIG_ATC_REDUCED_TXSET)
+    change_config_and_warn(CONFIG_ATC_REDUCED_TXSET 0 !CONFIG_ATC)
   endif()
 
   # CONFIG_OPTFLOW_ON_TIP is dependent on CONFIG_OPTFLOW_REFINEMENT and

@@ -653,7 +653,7 @@ static const int quant_dist_lookup_table[4][2] = {
   { 13, 3 },
 };
 
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
 // Mapping of mode dependent TX  based on intra modes.
 static const int av1_md_class[INTRA_MODES] = {
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
@@ -663,7 +663,7 @@ static const int av1_md_class[INTRA_MODES] = {
 static const int av1_size_class[TX_SIZES_ALL] = {
   0, 1, 2, 3, 3, 0, 0, 1, 1, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3,
 };
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 
 static AOM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
   if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {

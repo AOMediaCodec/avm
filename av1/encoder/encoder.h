@@ -1318,7 +1318,7 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][10];
   unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][11];
 #endif  // CONFIG_ATC_DCTX_ALIGNED
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   unsigned int coeff_lps_lf[PLANE_TYPES][BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                                   [LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS];
@@ -1332,7 +1332,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int coeff_lps_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                               [LEVEL_CONTEXTS][BR_CDF_SIZE];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
   unsigned int coeff_base_ph_multi[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]
                                   [NUM_BASE_LEVELS + 2];

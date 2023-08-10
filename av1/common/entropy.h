@@ -52,7 +52,7 @@ extern "C" {
 #define COEFF_BR_PH_CONTEXTS 7
 #endif  // CONFIG_PAR_HIDING
 
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
 // Number of coefficient coding contexts for the low-frequency region
 // for 2D and 1D transforms
 #define LF_SIG_COEF_CONTEXTS_2D 21
@@ -84,7 +84,7 @@ extern "C" {
 #define SIG_COEF_CONTEXTS_1D 16
 #define SIG_COEF_CONTEXTS_EOB 4
 #define SIG_COEF_CONTEXTS (SIG_COEF_CONTEXTS_2D + SIG_COEF_CONTEXTS_1D)
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 
 #define COEFF_BASE_CONTEXTS (SIG_COEF_CONTEXTS)
 #define DC_SIGN_CONTEXTS 3
