@@ -891,34 +891,123 @@ extern "C" int TFlite_Predict_quadtree_hbd(
       }
       A0 = A0 * scale0;
       A1 = A1 * scale1;
-      A0 = int(round(A0));
-      A1 = int(round(A1));
-      if (A0 < A0_min) {
-        A0 = A0_min;
+
+      bool do_finer_search = true;
+      if (do_finer_search) {
+        // finer search
+        double flrA0 = (floor(A0));
+        double flrA1 = (floor(A1));
+        flrA0 = AOMMIN(AOMMAX(flrA0, A0_min), A0_min + 15);
+        flrA1 = AOMMIN(AOMMAX(flrA1, A1_min), A1_min + 15);
+        A0 = flrA0;
+        A1 = flrA1;
+        int64_t err = 0;
+        for (int i = start_row; i < end_row; i++) {
+          for (int j = start_clow; j < end_clow; j++) {
+            int rest = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
+                                 A1 * r1[i][j] / scale1));
+            rest = clip_pixel_highbd(rest, bit_depth);
+            const int diff = sub_src[i][j] - rest;
+            err += diff * diff;
+          }
+        }
+        double bestA0 = A0;
+        double bestA1 = A1;
+        int64_t besterr = err;
+        if (flrA0 < A0_min + 15) {
+          A0 = flrA0 + 1;
+          A1 = flrA1;
+          err = 0;
+          for (int i = start_row; i < end_row; i++) {
+            for (int j = start_clow; j < end_clow; j++) {
+              int rest = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
+                                   A1 * r1[i][j] / scale1));
+              rest = clip_pixel_highbd(rest, bit_depth);
+              const int diff = sub_src[i][j] - rest;
+              err += diff * diff;
+            }
+          }
+          if (err < besterr) {
+            bestA0 = A0;
+            bestA1 = A1;
+            besterr = err;
+          }
+        }
+        if (flrA1 < A1_min + 15) {
+          A0 = flrA0;
+          A1 = flrA1 + 1;
+          err = 0;
+          for (int i = start_row; i < end_row; i++) {
+            for (int j = start_clow; j < end_clow; j++) {
+              int rest = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
+                                   A1 * r1[i][j] / scale1));
+              rest = clip_pixel_highbd(rest, bit_depth);
+              const int diff = sub_src[i][j] - rest;
+              err += diff * diff;
+            }
+          }
+          if (err < besterr) {
+            bestA0 = A0;
+            bestA1 = A1;
+            besterr = err;
+          }
+        }
+        if (flrA0 < A0_min + 15 && flrA1 < A1_min + 15) {
+          A0 = flrA0 + 1;
+          A1 = flrA1 + 1;
+          err = 0;
+          for (int i = start_row; i < end_row; i++) {
+            for (int j = start_clow; j < end_clow; j++) {
+              int rest = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
+                                   A1 * r1[i][j] / scale1));
+              rest = clip_pixel_highbd(rest, bit_depth);
+              const int diff = sub_src[i][j] - rest;
+              err += diff * diff;
+            }
+          }
+          if (err < besterr) {
+            bestA0 = A0;
+            bestA1 = A1;
+            besterr = err;
+          }
+        }
+        A0 = bestA0;
+        A1 = bestA1;
+      } else {
+        A0 = (round(A0));
+        A1 = (round(A1));
+        A0 = AOMMIN(AOMMAX(A0, A0_min), A0_min + 15);
+        A1 = AOMMIN(AOMMAX(A1, A1_min), A1_min + 15);
       }
-      if (A0 > A0_min + 15) {
-        A0 = A0_min + 15;
-      }
+
+      A0 = AOMMAX(A0, A0_min);
+      A0 = AOMMIN(A0, A0_min + 15);
+      A1 = AOMMAX(A1, A1_min);
+      A1 = AOMMIN(A1, A1_min + 15);
       A[index_A] = int(A0);
       index_A = index_A + 1;
-      if (A1 < A1_min) {
-        A1 = A1_min;
-      }
-      if (A1 > A1_min + 15) {
-        A1 = A1_min + 15;
-      }
       A[index_A] = int(A1);
       // fprintf(stderr, "ENCODER A VALUES ARE %d, %d\n", int(A0), int(A1));
       index_A = index_A + 1;
       // printf("A0:%lf  A1:%lf\n", A0, A1);
+      int64_t err = 0;
+      int64_t err0 = 0;
       for (int i = start_row; i < end_row; i++) {
         for (int j = start_clow; j < end_clow; j++) {
           repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
                                   A1 * r1[i][j] / scale1));
           // repic[i][j] = int(round(sub_dgr[i][j]));
           repic[i][j] = clip_pixel_highbd(repic[i][j], bit_depth);
+          const int diff = sub_src[i][j] - repic[i][j];
+          err += diff * diff;
+          const int diff0 = sub_src[i][j] - sub_dgr[i][j];
+          err0 += diff0 * diff0;
         }
       }
+      /*
+      printf("  Stats(%d x %d): orig %ld restored %ld\n", unit_width,
+             unit_height, err0, err);
+             */
 
       for (int i = 0; i < lenth; i++) {
         delete[] R[i];
@@ -1820,8 +1909,8 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
     std::pair<int, int> A0A1(a0, a1);
     A[0].push_back(A0A1);
   }
-  /*
   (void)best_sse;
+  /*
   int64_t none_sse =
       computeSSE_buf_tflite_hbd(dgd, src, startx, starty, block_length,
                                 block_length, dgd_stride, src_stride);

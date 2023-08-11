@@ -2358,6 +2358,8 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
         curr_cnn_rdcosts = RDCOST_DBL_WITH_NATIVE_BD_DIST(
             cpi->rd.RDMULT, bits_quad >> 4, curr_cnn_errors[0],
             cm->seq_params.bit_depth);
+        // printf(" CNN(%d): %g (%ld, %ld)\n", y_cnn_index, curr_cnn_rdcosts,
+        //        curr_cnn_errors[0], bits_quad);
 
         // Save CNN restored frame.
         if (y_cnn_index == 0 || (curr_cnn_errors[0] < cnn_errors[0] &&
@@ -2392,6 +2394,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
       int64_t res_errors[MAX_MB_PLANE];
       get_sse_planes(cpi->source, &cm->cur_frame->buf, res_errors, num_planes);
 
+      // printf(" CNN vs. LR: %g %g\n", cnn_rdcosts, cm->lr_y_rdcost);
       // For each plane, pick either CNN or LR (mutually exclusive).
       if (av1_allow_cnn_for_plane(cm, AOM_PLANE_Y) &&
           cnn_errors[0] < res_errors[0] && cnn_errors[0] < dgd_errors[0] &&
