@@ -77,7 +77,7 @@ class KeyFrameIntervalTestLarge
     if (kf_dist_ != -1) {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       kf_dist_ += pkt->data.frame.frame_count;
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       (void)pkt;
       ++kf_dist_;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
@@ -180,7 +180,9 @@ class ForcedKeyTestLarge
           is_kf_placement_violated_ = true;
         }
       }
+#if !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       ++frame_num_;
+#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     return AOM_CODEC_OK == res_dec;
   }

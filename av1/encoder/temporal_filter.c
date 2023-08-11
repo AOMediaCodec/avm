@@ -1117,12 +1117,13 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
     // 1, showable_frame of the filtered frame is set to zero by default.
     cpi->common.showable_frame =
         (!cpi->oxcf.ref_frm_cfg.enable_frame_output_order &&
-         num_frames_for_filtering == 1) ||
+         (num_frames_for_filtering == 1 || is_second_arf)) ||
+        cpi->oxcf.ref_frm_cfg.enable_frame_output_order ||
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    cpi->common.showable_frame =
-        num_frames_for_filtering == 1 ||
+    cpi->common.showable_frame = num_frames_for_filtering == 1 ||
+                                 is_second_arf ||
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        is_second_arf || (cpi->oxcf.algo_cfg.enable_overlay == 0);
+        (cpi->oxcf.algo_cfg.enable_overlay == 0);
   }
 
   // Do filtering.

@@ -6460,7 +6460,15 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  if ((cm->show_existing_frame && !cm->features.error_resilient_mode)
+  // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
+  // is not signaled for non-error-resilient mode.
+  // For error-resilienet mode, still an OBU is signaled.
+  if ((cm->seq_params.order_hint_info.enable_order_hint &&
+       cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
+       !cm->features.error_resilient_mode) ||
+      ((!cm->seq_params.order_hint_info.enable_order_hint ||
+        !cm->seq_params.enable_frame_output_order) &&
+       encode_show_existing_frame(cm))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (encode_show_existing_frame(cm)
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT

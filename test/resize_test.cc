@@ -279,8 +279,11 @@ class ResizeInternalTestLarge : public ResizeTest {
 
 #if WRITE_COMPRESSED_STREAM
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    out_frames_ += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     ++out_frames_;
-
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0) write_ivf_file_header(&cfg_, 0, outfile_);
 
@@ -372,6 +375,9 @@ class ResizeModeTestLarge
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
   }
 

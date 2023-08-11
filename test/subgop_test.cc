@@ -614,7 +614,7 @@ class SubGopTestLarge
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     frame_num_in_subgop_ += pkt->data.frame.frame_count;
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     (void)pkt;
     ++frame_num_in_subgop_;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
@@ -1001,7 +1001,7 @@ class SubGopSwitchingTestLarge
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     frame_num_in_subgop_ += pkt->data.frame.frame_count;
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     (void)pkt;
     ++frame_num_in_subgop_;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT

@@ -185,7 +185,11 @@ class GoldenFrameIntervalTestLarge
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
     (void)pkt;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    frame_num_ += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     ++frame_num_;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   }
 
   const gfIntervalParam gf_interval_param_;

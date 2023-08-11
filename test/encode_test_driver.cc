@@ -202,6 +202,10 @@ void EncoderTest::RunLoop(VideoSource *video) {
     number_spatial_layers_ = GetNumSpatialLayers();
 
     bool again;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    unsigned int rec_frame_cnt = 0;
+    unsigned int failed_frame_cnt = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     for (again = true; again; video->Next()) {
       again = (video->img() != NULL);
 
@@ -236,6 +240,9 @@ void EncoderTest::RunLoop(VideoSource *video) {
                 if (!HandleDecodeResult(res_dec, decoder.get())) break;
 
                 has_dxdata = true;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                rec_frame_cnt += pkt->data.frame.frame_count;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
               }
               ASSERT_GE(pkt->data.frame.pts, last_pts_);
               if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
@@ -260,7 +267,22 @@ void EncoderTest::RunLoop(VideoSource *video) {
             }
           }
           if (img_dec) DecompressedFrameHook(*img_dec, video->pts());
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+          failed_frame_cnt = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        // Continue the encoding process, when an empty packet is received
+        // by skipping OBU with show_existing_frame == 1) and
+        // no longer input frames are remained due to lag_in frames.
+        // However the consecutive(10) packets are empty/failed, stop the
+        // encoding.
+        else if (rec_frame_cnt < video->limit() && !again &&
+                 failed_frame_cnt < 10) {
+          again = true;
+          failed_frame_cnt++;
+        }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         if (!Continue()) break;
       }  // Loop over spatial layers
     }

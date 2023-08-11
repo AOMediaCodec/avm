@@ -1537,7 +1537,14 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   PSNR_STATS psnr;
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // To match the PSNR results between encoder log and VMAF results,
+  // the same reference sources (unfiltered source) need to be used.
+  aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
+                       &psnr,
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                        bit_depth, in_bit_depth);
 
   for (i = 0; i < 4; ++i) {
@@ -3929,7 +3936,11 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
 #endif
   cpi->bytes += frame_bytes;
   if (cm->show_frame) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    const YV12_BUFFER_CONFIG *orig = cpi->unfiltered_source;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     const YV12_BUFFER_CONFIG *orig = cpi->source;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
     double y, u, v, frame_all;
 
@@ -4029,9 +4040,11 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  if (cpi->b_calculate_psnr) {
-    if (cm->show_existing_frame ||
-        (!is_stat_generation_stage(cpi) && cm->show_frame && *size > 0)) {
+  if (cpi->b_calculate_psnr && *size > 0) {
+    if ((cm->showable_frame && cm->seq_params.enable_frame_output_order) ||
+        (cm->show_existing_frame &&
+         !cm->seq_params.enable_frame_output_order) ||
+        (!is_stat_generation_stage(cpi) && cm->show_frame)) {
 #else
   // Note *size = 0 indicates a dropeed frame for which psnr is not calculated
   if (cpi->b_calculate_psnr && *size > 0) {
