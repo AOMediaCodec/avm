@@ -1949,7 +1949,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 
   av1_alloc_restoration_buffers(cm);
 #if CONFIG_CNN_GUIDED_QUADTREE
-  if (cm->use_quad_level != 1) cm->use_quad_level = 1;
+  cm->use_quad_level = (frame_width * frame_height <= 1280 * 720);
   const int guided_unit_size = 512 >> cm->use_quad_level;
   set_quadtree_unit_size(guided_unit_size, &cm->cur_quad_info);
   av1_alloc_quadtree_buffers(cm);
