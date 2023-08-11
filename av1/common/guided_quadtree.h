@@ -23,10 +23,9 @@
 extern "C" {
 #endif
 
-int computeSSE_buf_tflite_hbd(uint16_t *buf_all, uint16_t *src, int startx,
-                              int starty, int buf_width, int buf_height,
-                              int height, int width, int buf_stride,
-                              int src_stride);
+int64_t computeSSE_buf_tflite_hbd(uint16_t *buf_all, uint16_t *src, int startx,
+                                  int starty, int buf_width, int buf_height,
+                                  int buf_stride, int src_stride);
 
 double min_tflite(double a, double b, double c, double d);
 

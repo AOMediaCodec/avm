@@ -17,6 +17,7 @@
 #include "config/aom_scale_rtcd.h"
 
 #include "aom/aom_integer.h"
+#include "aom_dsp/binary_codes_writer.h"
 #include "av1/common/cnn_tflite.h"
 #include "av1/common/guided_quadtree.h"
 #include "av1/common/reconinter.h"
@@ -29,26 +30,14 @@
 
 // utils
 
-int computeSSE_buf_tflite_hbd(uint16_t *buf_all, uint16_t *src, int startx,
-                              int starty, int buf_width, int buf_height,
-                              int height, int width, int buf_stride,
-                              int src_stride) {
-  int uiSSDtemp = 0;
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      if (y >= starty && y < starty + buf_height && x >= startx &&
-          x < startx + buf_width) {
-        int iDiff =
-            (int)(buf_all[y * buf_stride + x] - src[y * src_stride + x]);
-        // c[y][x] = (buf_all[y][x]);
-        // c[y][x]=0;
-        uiSSDtemp += iDiff * iDiff;
-      } else {
-        // int iDiff = (int)(dgd[y * dgd_stride + x] -
-        //                  src[y * src_stride + x]);  //������ȡdiff
-        //// c[y][x] = (int)(dgd[y * dgd_stride + x]);
-        // uiSSDtemp += iDiff * iDiff;  // diff��ƽ��
-      }
+int64_t computeSSE_buf_tflite_hbd(uint16_t *buf_all, uint16_t *src, int startx,
+                                  int starty, int buf_width, int buf_height,
+                                  int buf_stride, int src_stride) {
+  int64_t uiSSDtemp = 0;
+  for (int y = starty; y < starty + buf_height; y++) {
+    for (int x = startx; x < startx + buf_width; x++) {
+      int iDiff = (int)(buf_all[y * buf_stride + x] - src[y * src_stride + x]);
+      uiSSDtemp += iDiff * iDiff;
     }
   }
   return uiSSDtemp;
@@ -402,31 +391,50 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
 #if CONFIG_CNN_GUIDED_QUADTREE
 int64_t count_guided_quad_bits(struct AV1Common *cm, int *costs) {
   int64_t bits = 0;
-  for (int i = 0; i < cm->cur_quad_info.split_info_length; i++) {
-    if (i % 2 == 0) {
-      if (cm->cur_quad_info.split_info[i].split == 0 &&
-          cm->cur_quad_info.split_info[i + 1].split == 1) {
-        // bits += (4 * 2 * 4 + 2);
-        bits += ((4 * 2 * 4) << AV1_PROB_COST_SHIFT) + costs[1];
-        // printf("it'split\n");
-      } else if (cm->cur_quad_info.split_info[i].split == 1 &&
-                 cm->cur_quad_info.split_info[i + 1].split == 1) {
-        // bits += (4 * 2 * 2 + 2);
-        bits += ((4 * 2 * 2) << AV1_PROB_COST_SHIFT) + costs[3];
-        // printf("it's horz\n");
-      } else if (cm->cur_quad_info.split_info[i].split == 1 &&
-                 cm->cur_quad_info.split_info[i + 1].split == 0) {
-        // bits += (4 * 2 * 2 + 2);
-        bits += ((4 * 2 * 2) << AV1_PROB_COST_SHIFT) + costs[2];
-        // printf("it's vert\n");
-      } else if (cm->cur_quad_info.split_info[i].split == 0 &&
-                 cm->cur_quad_info.split_info[i + 1].split == 0) {
-        // bits += (4 * 2 + 2);
-        bits += ((4 * 2) << AV1_PROB_COST_SHIFT) + costs[0];
-        // printf("it's all\n");
-      }
+  for (int i = 0; i < cm->cur_quad_info.split_info_length; i += 2) {
+    if (cm->cur_quad_info.split_info[i].split == 0 &&
+        cm->cur_quad_info.split_info[i + 1].split == 1) {
+      // bits += (4 * 2 * 4 + 2);
+      bits += costs[1];
+      // printf("it'split\n");
+    } else if (cm->cur_quad_info.split_info[i].split == 1 &&
+               cm->cur_quad_info.split_info[i + 1].split == 1) {
+      // bits += (4 * 2 * 2 + 2);
+      bits += costs[3];
+      // printf("it's horz\n");
+    } else if (cm->cur_quad_info.split_info[i].split == 1 &&
+               cm->cur_quad_info.split_info[i + 1].split == 0) {
+      // bits += (4 * 2 * 2 + 2);
+      bits += costs[2];
+      // printf("it's vert\n");
+    } else if (cm->cur_quad_info.split_info[i].split == 0 &&
+               cm->cur_quad_info.split_info[i + 1].split == 0) {
+      // bits += (4 * 2 + 2);
+      bits += costs[0];
+      // printf("it's all\n");
     }
   }
+  int *quadtset = get_quadparm_from_qindex(
+      cm->quant_params.base_qindex, cm->superres_scale_denominator,
+      frame_is_intra_only(cm), 1, cm->cnn_indices[0]);
+  const int A0_min = quadtset[2];
+  const int A1_min = quadtset[3];
+  int ref0 = 8;
+  int ref1 = 8;
+  int bits_coeff = 0;
+  for (int i = 0; i < cm->cur_quad_info.unit_info_length; i++) {
+    const int a0 = cm->cur_quad_info.unit_info[i].xqd[0] - A0_min;
+    const int a1 = cm->cur_quad_info.unit_info[i].xqd[1] - A1_min;
+    bits_coeff += (aom_count_primitive_refsubexpfin(16, 1, ref0, a0) +
+                   aom_count_primitive_refsubexpfin(16, 1, ref1, a1));
+    ref0 = a0;
+    ref1 = a1;
+  }
+  /*
+  printf("  Bits_coeff %d for %d units\n", bits_coeff,
+         cm->cur_quad_info.unit_info_length);
+         */
+  bits += (bits_coeff << AV1_PROB_COST_SHIFT);
   return bits;
 }
 
