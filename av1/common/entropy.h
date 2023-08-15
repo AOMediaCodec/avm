@@ -86,6 +86,10 @@ enum {
  * REF_TYPES, COEF_BANDS and COEF_CONTEXTS. */
 #define REF_TYPES 2  // intra=0, inter=1
 
+#if CONFIG_CNN_GUIDED_QUADTREE
+#define GUIDED_NORESTORE_CONTEXTS 2
+#endif  // CONFIG_CNN_GUIDED_QUADTREE
+
 struct AV1Common;
 struct frame_contexts;
 void av1_reset_cdf_symbol_counters(struct frame_contexts *fc);

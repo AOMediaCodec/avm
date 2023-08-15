@@ -84,9 +84,9 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 
 #if CONFIG_CNN_GUIDED_QUADTREE
 // Write crlc coeffs for one frame
-static void write_filter_quadtree(int qp, int cnn_index, int superres_denom,
-                                  int is_intra_only, const QUADInfo *ci,
-                                  aom_writer *wb);
+static void write_filter_quadtree(FRAME_CONTEXT *ctx, int qp, int cnn_index,
+                                  int superres_denom, int is_intra_only,
+                                  const QUADInfo *ci, aom_writer *wb);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
 #if CONFIG_IBC_SR_EXT
@@ -2360,8 +2360,9 @@ static AOM_INLINE void write_modes_sb(
                cm->postcnn_quad_info.unit_size,
                cm->postcnn_quad_info.split_info,
                cm->postcnn_quad_info.split_info_length));
-    write_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_indices[0],
-                          superres_denom, is_intra_only, qi, w);
+    write_filter_quadtree(xd->tile_ctx, cm->quant_params.base_qindex,
+                          cm->cnn_indices[0], superres_denom, is_intra_only, qi,
+                          w);
     qi->is_write = 1;
   }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
@@ -3074,13 +3075,15 @@ static bool is_mode_ref_delta_meaningful(AV1_COMMON *cm) {
 #endif  // !CONFIG_NEW_DF
 
 #if CONFIG_CNN_GUIDED_QUADTREE
-static void write_filter_quadtree(int QP, int cnn_index, int superres_denom,
-                                  int is_intra_only, const QUADInfo *ci,
-                                  aom_writer *wb) {
+static void write_filter_quadtree(FRAME_CONTEXT *ctx, int QP, int cnn_index,
+                                  int superres_denom, int is_intra_only,
+                                  const QUADInfo *ci, aom_writer *wb) {
   int A0_min, A1_min;
   int *quadtset;
   quadtset =
       get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1, cnn_index);
+  const int norestore_ctx =
+      get_guided_norestore_ctx(QP, superres_denom, is_intra_only);
   A0_min = quadtset[2];
   A1_min = quadtset[3];
   int a0;
@@ -3091,27 +3094,40 @@ static void write_filter_quadtree(int QP, int cnn_index, int superres_denom,
   int ref_1 = 8;
   for (int i = 0; i < ci->unit_info_length; i++) {
     a0 = ci->unit_info[i].xqd[0];
-
-    b_a0 = a0 - A0_min;
-    if (b_a0 < 0) {
-      b_a0 = 0;
-    }
-    if (b_a0 > 15) {
-      b_a0 = 15;
-    }
     a1 = ci->unit_info[i].xqd[1];
-    b_a1 = a1 - A1_min;
-    if (b_a1 < 0) {
-      b_a1 = 0;
-    }
-    if (b_a1 > 15) {
-      b_a1 = 15;
-    }
+    int norestore;
+
     // printf("a0:%d  a1:%d\n", a0, a1);
-    aom_write_primitive_refsubexpfin(wb, 16, 1, ref_0, b_a0);
-    aom_write_primitive_refsubexpfin(wb, 16, 1, ref_1, b_a1);
-    ref_0 = b_a0;
-    ref_1 = b_a1;
+    if (norestore_ctx != -1) {
+      norestore = (a0 == 0 && a1 == 0);
+      aom_write_symbol(wb, norestore,
+                       ctx->cnn_guided_norestore_cdf[norestore_ctx], 2);
+    } else {
+      norestore = 0;
+    }
+    if (norestore) {
+      ref_0 = AOMMAX(A0_min, AOMMIN(A0_min + 15, 0)) - A0_min;
+      ref_1 = AOMMAX(A1_min, AOMMIN(A1_min + 15, 0)) - A1_min;
+    } else {
+      b_a0 = a0 - A0_min;
+      if (b_a0 < 0) {
+        b_a0 = 0;
+      }
+      if (b_a0 > 15) {
+        b_a0 = 15;
+      }
+      b_a1 = a1 - A1_min;
+      if (b_a1 < 0) {
+        b_a1 = 0;
+      }
+      if (b_a1 > 15) {
+        b_a1 = 15;
+      }
+      aom_write_primitive_refsubexpfin(wb, 16, 1, ref_0, b_a0);
+      aom_write_primitive_refsubexpfin(wb, 16, 1, ref_1, b_a1);
+      ref_0 = b_a0;
+      ref_1 = b_a1;
+    }
   }
 }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE

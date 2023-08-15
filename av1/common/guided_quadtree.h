@@ -45,11 +45,12 @@ double computePSNR_tflite_hbd(uint16_t *dgd, uint16_t *src, int height,
 int CalculateIndex_tflite(int width, int block_size_h, int block_size_w,
                           int starty, int startx, int quadtree_max_size);
 
+#if CONFIG_CNN_GUIDED_QUADTREE
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
                               int is_luma, int cnn_index);
 
-int64_t count_guided_quad_bits(struct AV1Common *cm, int *costs);
-#if CONFIG_CNN_GUIDED_QUADTREE
+int64_t count_guided_quad_bits(struct AV1Common *cm, int *splitcosts,
+                               int (*norestorecosts)[2]);
 void quad_copy(QUADInfo *cur_quad_info, QUADInfo *postcnn_quad_info);
 // Get the length of unit info array based on dimensions and split info.
 int quad_tree_get_unit_info_length(int width, int height, int unit_length,
@@ -57,6 +58,15 @@ int quad_tree_get_unit_info_length(int width, int height, int unit_length,
                                    int split_info_length);
 // Get the length of split info array based on dimensions.
 int quad_tree_get_split_info_length(int width, int height, int unit_length);
+
+static INLINE int get_guided_norestore_ctx(int qindex, int superres_denom,
+                                           int is_intra_only) {
+  (void)qindex;
+  (void)is_intra_only;
+  if (is_intra_only) return 1;
+  if (superres_denom != SCALE_NUMERATOR) return 1;
+  return 0;
+}
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
 #ifdef __cplusplus

@@ -2349,12 +2349,14 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
         double curr_cnn_rdcosts = 0;
         av1_restore_cnn_quadtree_tflite(
             cm, cpi->source, cpi->rd.RDMULT, x->mode_costs.cnn_guided_quad_cost,
-            cpi->mt_info.num_workers, quadtree_cnn, curr_cnn_indices);
+            x->mode_costs.cnn_guided_norestore_cost, cpi->mt_info.num_workers,
+            quadtree_cnn, curr_cnn_indices);
         int64_t curr_cnn_errors[MAX_MB_PLANE];
         get_sse_planes(cpi->source, &cm->cur_frame->buf, curr_cnn_errors,
                        num_planes);
         int64_t bits_quad =
-            count_guided_quad_bits(cm, x->mode_costs.cnn_guided_quad_cost);
+            count_guided_quad_bits(cm, x->mode_costs.cnn_guided_quad_cost,
+                                   x->mode_costs.cnn_guided_norestore_cost);
         curr_cnn_rdcosts = RDCOST_DBL_WITH_NATIVE_BD_DIST(
             cpi->rd.RDMULT, bits_quad >> 4, curr_cnn_errors[0],
             cm->seq_params.bit_depth);

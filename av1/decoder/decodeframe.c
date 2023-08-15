@@ -136,8 +136,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     int runit_idx);
 
 #if CONFIG_CNN_GUIDED_QUADTREE
-static AOM_INLINE void read_filter_quadtree(int QP, int cnn_index,
-                                            int superres_denom,
+static AOM_INLINE void read_filter_quadtree(FRAME_CONTEXT *ctx, int QP,
+                                            int cnn_index, int superres_denom,
                                             int is_intra_only, QUADInfo *qi,
                                             aom_reader *rb);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
@@ -1822,28 +1822,43 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   }
 }
 #if CONFIG_CNN_GUIDED_QUADTREE
-static AOM_INLINE void read_filter_quadtree(int QP, int cnn_index,
-                                            int superres_denom,
+static AOM_INLINE void read_filter_quadtree(FRAME_CONTEXT *ctx, int QP,
+                                            int cnn_index, int superres_denom,
                                             int is_intra_only, QUADInfo *qi,
                                             aom_reader *rb) {
   int A0_min, A1_min;
   int *quadtset;
   quadtset =
       get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1, cnn_index);
+  const int norestore_ctx =
+      get_guided_norestore_ctx(QP, superres_denom, is_intra_only);
+
   A0_min = quadtset[2];
   A1_min = quadtset[3];
 
   int ref_0 = 8;
   int ref_1 = 8;
   for (int i = 0; i < qi->unit_info_length; i++) {
-    qi->unit_info[i].xqd[0] =
-        aom_read_primitive_refsubexpfin(rb, 16, 1, ref_0, ACCT_STR) + A0_min;
-    qi->unit_info[i].xqd[1] =
-        aom_read_primitive_refsubexpfin(rb, 16, 1, ref_1, ACCT_STR) + A1_min;
+    const int norestore =
+        norestore_ctx == -1
+            ? 0
+            : aom_read_symbol(rb, ctx->cnn_guided_norestore_cdf[norestore_ctx],
+                              2, ACCT_STR);
+    if (norestore) {
+      qi->unit_info[i].xqd[0] = 0;
+      qi->unit_info[i].xqd[1] = 0;
+      ref_0 = AOMMAX(A0_min, AOMMIN(A0_min + 15, 0)) - A0_min;
+      ref_1 = AOMMAX(A1_min, AOMMIN(A1_min + 15, 0)) - A1_min;
+    } else {
+      qi->unit_info[i].xqd[0] =
+          aom_read_primitive_refsubexpfin(rb, 16, 1, ref_0, ACCT_STR) + A0_min;
+      qi->unit_info[i].xqd[1] =
+          aom_read_primitive_refsubexpfin(rb, 16, 1, ref_1, ACCT_STR) + A1_min;
+      ref_0 = qi->unit_info[i].xqd[0] - A0_min;
+      ref_1 = qi->unit_info[i].xqd[1] - A1_min;
+    }
     // printf("a0:%d a1:%d\n", qi->unit_info[i].xqd[0],
     // qi->unit_info[i].xqd[1]);
-    ref_0 = qi->unit_info[i].xqd[0] - A0_min;
-    ref_1 = qi->unit_info[i].xqd[1] - A1_min;
   }
 }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
@@ -1921,8 +1936,9 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
           cm->postcnn_quad_info.split_info_length);
       int superres_denom = cm->superres_scale_denominator;
       const int is_intra_only = frame_is_intra_only(cm);
-      read_filter_quadtree(cm->quant_params.base_qindex, cm->cnn_indices[0],
-                           superres_denom, is_intra_only, qi, reader);
+      read_filter_quadtree(xd->tile_ctx, cm->quant_params.base_qindex,
+                           cm->cnn_indices[0], superres_denom, is_intra_only,
+                           qi, reader);
     }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 

@@ -628,7 +628,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
     uint16_t *dgd, uint16_t *src, int *A, int A_size, int height, int width,
     int dgd_stride, int src_stride, int QP, int unit_width, int unit_height,
     uint16_t *rePic, int rec_stride, int superres_denom, int num_threads,
-    int bit_depth, int is_intra_only, int is_luma, int cnn_index) {
+    int bit_depth, int is_intra_only, int is_luma, int cnn_index, int RDMULT,
+    int norestorecost[2]) {
   // makesure can downscale 3 times
   int padding_width = (int)ceil(width * 1.0 / 8) * 8;
   int padding_height = (int)ceil(height * 1.0 / 8) * 8;
@@ -898,26 +899,47 @@ extern "C" int TFlite_Predict_quadtree_hbd(
 
       bool do_finer_search = true;
       if (do_finer_search) {
+        double bestA0 = 0;
+        double bestA1 = 0;
+        double cost;
+        int64_t err = 0;
+        for (int i = start_row; i < end_row; i++) {
+          for (int j = start_clow; j < end_clow; j++) {
+            const int diff = sub_src[i][j] - sub_dgr[i][j];
+            err += diff * diff;
+          }
+        }
+        double bestcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+            RDMULT, norestorecost[1] >> 4, err, bit_depth);
+
         // finer search
         double flrA0 = (floor(A0));
         double flrA1 = (floor(A1));
         flrA0 = AOMMIN(AOMMAX(flrA0, A0_min), A0_min + 15);
         flrA1 = AOMMIN(AOMMAX(flrA1, A1_min), A1_min + 15);
-        A0 = flrA0;
-        A1 = flrA1;
-        int64_t err = 0;
-        for (int i = start_row; i < end_row; i++) {
-          for (int j = start_clow; j < end_clow; j++) {
-            int rest = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
-                                 A1 * r1[i][j] / scale1));
-            rest = clip_pixel_highbd(rest, bit_depth);
-            const int diff = sub_src[i][j] - rest;
-            err += diff * diff;
+        {
+          A0 = flrA0;
+          A1 = flrA1;
+          err = 0;
+          for (int i = start_row; i < end_row; i++) {
+            for (int j = start_clow; j < end_clow; j++) {
+              int rest = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
+                                   A1 * r1[i][j] / scale1));
+              rest = clip_pixel_highbd(rest, bit_depth);
+              const int diff = sub_src[i][j] - rest;
+              err += diff * diff;
+            }
+          }
+          // approx RD cost assuming 7 bits per a0, a1 pair
+          cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              RDMULT, (norestorecost[0] + (7 << AV1_PROB_COST_SHIFT)) >> 4, err,
+              bit_depth);
+          if (cost < bestcost) {
+            bestA0 = A0;
+            bestA1 = A1;
+            bestcost = cost;
           }
         }
-        double bestA0 = A0;
-        double bestA1 = A1;
-        int64_t besterr = err;
         if (flrA0 < A0_min + 15) {
           A0 = flrA0 + 1;
           A1 = flrA1;
@@ -931,10 +953,14 @@ extern "C" int TFlite_Predict_quadtree_hbd(
               err += diff * diff;
             }
           }
-          if (err < besterr) {
+          // approx RD cost assuming 7 bits per a0, a1 pair
+          cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              RDMULT, (norestorecost[0] + (7 << AV1_PROB_COST_SHIFT)) >> 4, err,
+              bit_depth);
+          if (cost < bestcost) {
             bestA0 = A0;
             bestA1 = A1;
-            besterr = err;
+            bestcost = cost;
           }
         }
         if (flrA1 < A1_min + 15) {
@@ -950,10 +976,14 @@ extern "C" int TFlite_Predict_quadtree_hbd(
               err += diff * diff;
             }
           }
-          if (err < besterr) {
+          // approx RD cost assuming 7 bits per a0, a1 pair
+          cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              RDMULT, (norestorecost[0] + (7 << AV1_PROB_COST_SHIFT)) >> 4, err,
+              bit_depth);
+          if (cost < bestcost) {
             bestA0 = A0;
             bestA1 = A1;
-            besterr = err;
+            bestcost = cost;
           }
         }
         if (flrA0 < A0_min + 15 && flrA1 < A1_min + 15) {
@@ -969,10 +999,14 @@ extern "C" int TFlite_Predict_quadtree_hbd(
               err += diff * diff;
             }
           }
-          if (err < besterr) {
+          // approx RD cost assuming 7 bits per a0, a1 pair
+          cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+              RDMULT, (norestorecost[0] + (7 << AV1_PROB_COST_SHIFT)) >> 4, err,
+              bit_depth);
+          if (cost < bestcost) {
             bestA0 = A0;
             bestA1 = A1;
-            besterr = err;
+            bestcost = cost;
           }
         }
         A0 = bestA0;
@@ -984,10 +1018,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
         A1 = AOMMIN(AOMMAX(A1, A1_min), A1_min + 15);
       }
 
-      A0 = AOMMAX(A0, A0_min);
-      A0 = AOMMIN(A0, A0_min + 15);
-      A1 = AOMMAX(A1, A1_min);
-      A1 = AOMMIN(A1, A1_min + 15);
+      A0 = AOMMIN(AOMMAX(A0, A0_min), A0_min + 15);
+      A1 = AOMMIN(AOMMAX(A1, A1_min), A1_min + 15);
       A[index_A] = int(A0);
       index_A = index_A + 1;
       A[index_A] = int(A1);
@@ -1675,7 +1707,7 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
                      int block_length, int starty, int startx,
                      std::vector<int> *Split,
                      std::vector<std::pair<int, int>> *A, int RDMULT,
-                     int *costs, int bit_depth) {
+                     int *splitcosts, int norestorecosts[2], int bit_depth) {
   (void)dgd;
   (void)dgd_stride;
   (void)delta_128;
@@ -1686,6 +1718,7 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
   (void)depth;
   (void)A0_min;
   (void)A1_min;
+  (void)norestorecosts;
   int index;
   int quadtree_max_size = block_length;
 
@@ -1739,15 +1772,23 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
   a0_split[4] = A_128[index * 2];
   a1_split[4] = A_128[index * 2 + 1];
   int bits_split = 0;
+  int ref0 = AOMMIN(AOMMAX(a0_split[0] - A0_min, 0), 15);
+  int ref1 = AOMMIN(AOMMAX(a1_split[0] - A1_min, 0), 15);
   for (int i = 1; i <= 4; i++) {
-    bits_split += aom_count_primitive_refsubexpfin(
-                      16, 1, a0_split[i - 1] - A0_min, a0_split[i] - A0_min) +
-                  aom_count_primitive_refsubexpfin(
-                      16, 1, a1_split[i - 1] - A1_min, a1_split[i] - A1_min);
+    if (a0_split[i] == 0 && a1_split[i] == 0) {
+      bits_split += norestorecosts[1];
+    } else {
+      bits_split += norestorecosts[0];
+      bits_split +=
+          (aom_count_primitive_refsubexpfin(16, 1, ref0, a0_split[i] - A0_min) +
+           aom_count_primitive_refsubexpfin(16, 1, ref1, a1_split[i] - A1_min))
+          << AV1_PROB_COST_SHIFT;
+    }
+    ref0 = AOMMIN(AOMMAX(a0_split[i] - A0_min, 0), 15);
+    ref1 = AOMMIN(AOMMAX(a1_split[i] - A1_min, 0), 15);
   }
   double cost_split = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      RDMULT, ((bits_split << AV1_PROB_COST_SHIFT) + costs[1]) >> 4, split_sse,
-      bit_depth);
+      RDMULT, (bits_split + splitcosts[1]) >> 4, split_sse, bit_depth);
 
   // cost vert
   int a0_vert[3], a1_vert[3];
@@ -1762,15 +1803,23 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
   a0_vert[2] = A_128_vert[index * 2];
   a1_vert[2] = A_128_vert[index * 2 + 1];
   int bits_vert = 0;
+  ref0 = AOMMIN(AOMMAX(a0_vert[0] - A0_min, 0), 15);
+  ref1 = AOMMIN(AOMMAX(a1_vert[0] - A1_min, 0), 15);
   for (int i = 1; i <= 2; i++) {
-    bits_vert += aom_count_primitive_refsubexpfin(
-                     16, 1, a0_vert[i - 1] - A0_min, a0_vert[i] - A0_min) +
-                 aom_count_primitive_refsubexpfin(
-                     16, 1, a1_vert[i - 1] - A1_min, a1_vert[i] - A1_min);
+    if (a0_vert[i] == 0 && a1_vert[i] == 0) {
+      bits_vert += norestorecosts[1];
+    } else {
+      bits_vert += norestorecosts[0];
+      bits_vert +=
+          (aom_count_primitive_refsubexpfin(16, 1, ref0, a0_vert[i] - A0_min) +
+           aom_count_primitive_refsubexpfin(16, 1, ref1, a1_vert[i] - A1_min))
+          << AV1_PROB_COST_SHIFT;
+    }
+    ref0 = AOMMIN(AOMMAX(a0_vert[i] - A0_min, 0), 15);
+    ref1 = AOMMIN(AOMMAX(a1_vert[i] - A1_min, 0), 15);
   }
   double cost_vert = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      RDMULT, ((bits_vert << AV1_PROB_COST_SHIFT) + costs[2]) >> 4, vert_sse,
-      bit_depth);
+      RDMULT, (bits_vert + splitcosts[2]) >> 4, vert_sse, bit_depth);
 
   // cost horz
   int a0_horz[3], a1_horz[3];
@@ -1786,15 +1835,23 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
   a0_horz[2] = A_128_horz[index * 2];
   a1_horz[2] = A_128_horz[index * 2 + 1];
   int bits_horz = 0;
+  ref0 = AOMMIN(AOMMAX(a0_horz[0] - A0_min, 0), 15);
+  ref1 = AOMMIN(AOMMAX(a1_horz[0] - A1_min, 0), 15);
   for (int i = 1; i <= 2; i++) {
-    bits_horz += aom_count_primitive_refsubexpfin(
-                     16, 1, a0_horz[i - 1] - A0_min, a0_horz[i] - A0_min) +
-                 aom_count_primitive_refsubexpfin(
-                     16, 1, a1_horz[i - 1] - A1_min, a1_horz[i] - A1_min);
+    if (a0_horz[i] == 0 && a1_horz[i] == 0) {
+      bits_horz += norestorecosts[1];
+    } else {
+      bits_horz += norestorecosts[0];
+      bits_horz +=
+          (aom_count_primitive_refsubexpfin(16, 1, ref0, a0_horz[i] - A0_min) +
+           aom_count_primitive_refsubexpfin(16, 1, ref1, a1_horz[i] - A1_min))
+          << AV1_PROB_COST_SHIFT;
+    }
+    ref0 = AOMMIN(AOMMAX(a0_horz[i] - A0_min, 0), 15);
+    ref1 = AOMMIN(AOMMAX(a1_horz[i] - A1_min, 0), 15);
   }
   double cost_horz = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      RDMULT, ((bits_horz << AV1_PROB_COST_SHIFT) + costs[3]) >> 4, horz_sse,
-      bit_depth);
+      RDMULT, (bits_horz + splitcosts[3]) >> 4, horz_sse, bit_depth);
 
   // cost all
   int a0_all[2], a1_all[2];
@@ -1805,15 +1862,23 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
   a0_all[1] = A_256[index * 2];
   a1_all[1] = A_256[index * 2 + 1];
   int bits_all = 0;
+  ref0 = AOMMIN(AOMMAX(a0_all[0] - A0_min, 0), 15);
+  ref1 = AOMMIN(AOMMAX(a1_all[0] - A1_min, 0), 15);
   for (int i = 1; i <= 1; i++) {
-    bits_all += aom_count_primitive_refsubexpfin(16, 1, a0_all[i - 1] - A0_min,
-                                                 a0_all[i] - A0_min) +
-                aom_count_primitive_refsubexpfin(16, 1, a1_all[i - 1] - A1_min,
-                                                 a1_all[i] - A1_min);
+    if (a0_all[i] == 0 && a1_all[i] == 0) {
+      bits_all += norestorecosts[1];
+    } else {
+      bits_all += norestorecosts[0];
+      bits_all +=
+          (aom_count_primitive_refsubexpfin(16, 1, ref0, a0_all[i] - A0_min) +
+           aom_count_primitive_refsubexpfin(16, 1, ref1, a1_all[i] - A1_min))
+          << AV1_PROB_COST_SHIFT;
+    }
+    ref0 = AOMMIN(AOMMAX(a0_all[i] - A0_min, 0), 15);
+    ref1 = AOMMIN(AOMMAX(a1_all[i] - A1_min, 0), 15);
   }
   double cost_all = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      RDMULT, ((bits_all << AV1_PROB_COST_SHIFT) + costs[0]) >> 4, all_sse,
-      bit_depth);
+      RDMULT, (bits_all + splitcosts[0]) >> 4, all_sse, bit_depth);
 
   double best_cost = min_tflite(cost_split, cost_vert, cost_horz, cost_all);
 
@@ -2056,8 +2121,8 @@ void Tree_tflite_hbd(uint16_t *rec, uint16_t *buf_256, uint16_t *buf_128,
 
 extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
     YV12_BUFFER_CONFIG *source_frame, AV1_COMMON *cm, int superres_denom,
-    int RDMULT, int *costs, int num_threads, int bit_depth, int is_intra_only,
-    int is_luma, int cnn_index) {
+    int RDMULT, int *splitcosts, int (*norestorecosts)[2], int num_threads,
+    int bit_depth, int is_intra_only, int is_luma, int cnn_index) {
   // save Split flag
   std::vector<int> Split;
   // save a0 a1
@@ -2080,6 +2145,15 @@ extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
   uint16_t *buf_level_1 = new uint16_t[height * width];
   uint16_t *buf_level_1_horz = new uint16_t[height * width];
   uint16_t *buf_level_1_vert = new uint16_t[height * width];
+
+  int *quadtset;
+  quadtset = get_quadparm_from_qindex(qp, superres_denom, is_intra_only,
+                                      is_luma, cnn_index);
+  const int norestore_ctx =
+      get_guided_norestore_ctx(qp, superres_denom, is_intra_only);
+  int null_norestorecosts[2] = { 0, 0 };
+  int *this_norestorecosts =
+      norestore_ctx == -1 ? null_norestorecosts : norestorecosts[norestore_ctx];
 
   // save unfilter frame psnr
   double dgdpsnr = computePSNR_tflite_hbd(dgr, src, height, width, dgr_stride,
@@ -2114,11 +2188,11 @@ extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
   // cv::imwrite("../../res/beforeloop.jpg", image);
 
   // loopfilter all frame
-  TFlite_Predict_quadtree_hbd(dgr, src, A_level_0, A_num_level_0, height, width,
-                              dgr_stride, src_stride, qp, quadtree_max_size,
-                              quadtree_max_size, buf_level_0, width,
-                              superres_denom, num_threads, bit_depth,
-                              is_intra_only, is_luma, cnn_index);
+  TFlite_Predict_quadtree_hbd(
+      dgr, src, A_level_0, A_num_level_0, height, width, dgr_stride, src_stride,
+      qp, quadtree_max_size, quadtree_max_size, buf_level_0, width,
+      superres_denom, num_threads, bit_depth, is_intra_only, is_luma, cnn_index,
+      RDMULT, this_norestorecosts);
   // double psnr_level_0 = computePSNR_tflite_hbd(buf_level_0, src, height,
   // width,
   //                                              width, src_stride, bit_depth);
@@ -2135,25 +2209,25 @@ extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
   double delta_level_1_horz = 0;
   double delta_level_1_vert = 0;
   if (regularblock_num != 0) {  // start quadtree
-    TFlite_Predict_quadtree_hbd(dgr, src, A_level_1, A_num_level_1,
-                                regular_height_num * quadtree_max_size,
-                                regular_width_num * quadtree_max_size,
-                                dgr_stride, src_stride, qp,
-                                quadtree_max_size / 2, quadtree_max_size / 2,
-                                buf_level_1, width, superres_denom, num_threads,
-                                bit_depth, is_intra_only, is_luma, cnn_index);
+    TFlite_Predict_quadtree_hbd(
+        dgr, src, A_level_1, A_num_level_1,
+        regular_height_num * quadtree_max_size,
+        regular_width_num * quadtree_max_size, dgr_stride, src_stride, qp,
+        quadtree_max_size / 2, quadtree_max_size / 2, buf_level_1, width,
+        superres_denom, num_threads, bit_depth, is_intra_only, is_luma,
+        cnn_index, RDMULT, this_norestorecosts);
     double psnr_level_1 = computePSNR_tflite_hbd(
         buf_level_1, src, height, width, width, src_stride, bit_depth);
     double num_level_1 = regular_height_num * regular_width_num * 4;
     delta_level_1 = ((psnr_level_1 - dgdpsnr) * 1000) / num_level_1;
 
-    TFlite_Predict_quadtree_hbd(dgr, src, A_level_1_horz, A_num_level_1_horz,
-                                regular_height_num * quadtree_max_size,
-                                regular_width_num * quadtree_max_size,
-                                dgr_stride, src_stride, qp, quadtree_max_size,
-                                quadtree_max_size / 2, buf_level_1_horz, width,
-                                superres_denom, num_threads, bit_depth,
-                                is_intra_only, is_luma, cnn_index);
+    TFlite_Predict_quadtree_hbd(
+        dgr, src, A_level_1_horz, A_num_level_1_horz,
+        regular_height_num * quadtree_max_size,
+        regular_width_num * quadtree_max_size, dgr_stride, src_stride, qp,
+        quadtree_max_size, quadtree_max_size / 2, buf_level_1_horz, width,
+        superres_denom, num_threads, bit_depth, is_intra_only, is_luma,
+        cnn_index, RDMULT, this_norestorecosts);
     double psnr_buf_level_1_horz = computePSNR_tflite_hbd(
         buf_level_1_horz, src, height, width, width, src_stride, bit_depth);
     double rate_buf_level_1_horz = regular_height_num * regular_width_num * 2;
@@ -2166,7 +2240,7 @@ extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
         regular_width_num * quadtree_max_size, dgr_stride, src_stride, qp,
         quadtree_max_size / 2, quadtree_max_size, buf_level_1_vert, width,
         superres_denom, num_threads, bit_depth, is_intra_only, is_luma,
-        cnn_index);
+        cnn_index, RDMULT, this_norestorecosts);
     double psnr_buf_level_1_vert = computePSNR_tflite_hbd(
         buf_level_1_vert, src, height, width, width, src_stride, bit_depth);
     double rate_buf_level_1_vert = regular_height_num * regular_width_num * 2;
@@ -2187,17 +2261,15 @@ extern "C" int av1_restore_cnn_quadtree_img_tflite_highbd(
         std::pair<int, int> A0A1(a0, a1);
         A.push_back(A0A1);
       } else {  // retular block  start   judge
-        int *quadtset;
-        quadtset = get_quadparm_from_qindex(qp, superres_denom, is_intra_only,
-                                            is_luma, cnn_index);
         int A0_min = quadtset[2];
         int A1_min = quadtset[3];
-        Tree_tflite_hbd(
-            rec, buf_level_0, buf_level_1, buf_level_1_horz, buf_level_1_vert,
-            dgr, src, dgr_stride, src_stride, A0_min, A1_min, A_level_0,
-            A_level_1, A_level_1_horz, A_level_1_vert, height, width, dgdpsnr,
-            delta_level_1, delta_level_1_horz, delta_level_1_vert, 0,
-            quadtree_max_size, i, j, &Split, &A, RDMULT, costs, bit_depth);
+        Tree_tflite_hbd(rec, buf_level_0, buf_level_1, buf_level_1_horz,
+                        buf_level_1_vert, dgr, src, dgr_stride, src_stride,
+                        A0_min, A1_min, A_level_0, A_level_1, A_level_1_horz,
+                        A_level_1_vert, height, width, dgdpsnr, delta_level_1,
+                        delta_level_1_horz, delta_level_1_vert, 0,
+                        quadtree_max_size, i, j, &Split, &A, RDMULT, splitcosts,
+                        this_norestorecosts, bit_depth);
       }
     }
   }
@@ -2355,9 +2427,9 @@ extern "C" int av1_restore_cnn_quadtree_decode_img_tflite_highbd(
 }
 
 extern "C" void av1_restore_cnn_quadtree_tflite(
-    AV1_COMMON *cm, YV12_BUFFER_CONFIG *source_frame, int RDMULT, int *costs,
-    int num_threads, const int apply_cnn[MAX_MB_PLANE],
-    const int cnn_indices[MAX_MB_PLANE]) {
+    AV1_COMMON *cm, YV12_BUFFER_CONFIG *source_frame, int RDMULT,
+    int *splitcosts, int (*norestorecosts)[2], int num_threads,
+    const int apply_cnn[MAX_MB_PLANE], const int cnn_indices[MAX_MB_PLANE]) {
   YV12_BUFFER_CONFIG *buf = &cm->cur_frame->buf;
   const int is_intra_only = frame_is_intra_only(cm);
   for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
@@ -2369,9 +2441,9 @@ extern "C" void av1_restore_cnn_quadtree_tflite(
     switch (plane) {
       case AOM_PLANE_Y:
         av1_restore_cnn_quadtree_img_tflite_highbd(
-            source_frame, cm, cm->superres_scale_denominator, RDMULT, costs,
-            num_threads, cm->seq_params.bit_depth, is_intra_only, is_luma,
-            cnn_index);
+            source_frame, cm, cm->superres_scale_denominator, RDMULT,
+            splitcosts, norestorecosts, num_threads, cm->seq_params.bit_depth,
+            is_intra_only, is_luma, cnn_index);
         break;
       case AOM_PLANE_U:
         av1_restore_cnn_img_tflite_highbd(

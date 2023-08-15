@@ -389,52 +389,67 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
 }
 
 #if CONFIG_CNN_GUIDED_QUADTREE
-int64_t count_guided_quad_bits(struct AV1Common *cm, int *costs) {
+int64_t count_guided_quad_bits(struct AV1Common *cm, int *splitcosts,
+                               int (*norestorecost)[2]) {
+  (void)norestorecost;
   int64_t bits = 0;
   for (int i = 0; i < cm->cur_quad_info.split_info_length; i += 2) {
     if (cm->cur_quad_info.split_info[i].split == 0 &&
         cm->cur_quad_info.split_info[i + 1].split == 1) {
       // bits += (4 * 2 * 4 + 2);
-      bits += costs[1];
+      bits += splitcosts[1];
       // printf("it'split\n");
     } else if (cm->cur_quad_info.split_info[i].split == 1 &&
                cm->cur_quad_info.split_info[i + 1].split == 1) {
       // bits += (4 * 2 * 2 + 2);
-      bits += costs[3];
+      bits += splitcosts[3];
       // printf("it's horz\n");
     } else if (cm->cur_quad_info.split_info[i].split == 1 &&
                cm->cur_quad_info.split_info[i + 1].split == 0) {
       // bits += (4 * 2 * 2 + 2);
-      bits += costs[2];
+      bits += splitcosts[2];
       // printf("it's vert\n");
     } else if (cm->cur_quad_info.split_info[i].split == 0 &&
                cm->cur_quad_info.split_info[i + 1].split == 0) {
       // bits += (4 * 2 + 2);
-      bits += costs[0];
+      bits += splitcosts[0];
       // printf("it's all\n");
     }
   }
+  const int is_intra_only = frame_is_intra_only(cm);
   int *quadtset = get_quadparm_from_qindex(
       cm->quant_params.base_qindex, cm->superres_scale_denominator,
-      frame_is_intra_only(cm), 1, cm->cnn_indices[0]);
+      is_intra_only, 1, cm->cnn_indices[0]);
+  const int norestore_ctx =
+      get_guided_norestore_ctx(cm->quant_params.base_qindex,
+                               cm->superres_scale_denominator, is_intra_only);
   const int A0_min = quadtset[2];
   const int A1_min = quadtset[3];
   int ref0 = 8;
   int ref1 = 8;
   int bits_coeff = 0;
   for (int i = 0; i < cm->cur_quad_info.unit_info_length; i++) {
-    const int a0 = cm->cur_quad_info.unit_info[i].xqd[0] - A0_min;
-    const int a1 = cm->cur_quad_info.unit_info[i].xqd[1] - A1_min;
-    bits_coeff += (aom_count_primitive_refsubexpfin(16, 1, ref0, a0) +
-                   aom_count_primitive_refsubexpfin(16, 1, ref1, a1));
-    ref0 = a0;
-    ref1 = a1;
+    if (cm->cur_quad_info.unit_info[i].xqd[0] == 0 &&
+        cm->cur_quad_info.unit_info[i].xqd[1] == 0) {
+      if (norestore_ctx != -1) bits_coeff += norestorecost[norestore_ctx][1];
+      ref0 = AOMMIN(AOMMAX(0, A0_min), A0_min + 15) - A0_min;
+      ref1 = AOMMIN(AOMMAX(0, A1_min), A1_min + 15) - A1_min;
+    } else {
+      const int a0 = cm->cur_quad_info.unit_info[i].xqd[0] - A0_min;
+      const int a1 = cm->cur_quad_info.unit_info[i].xqd[1] - A1_min;
+      if (norestore_ctx != -1) bits_coeff += norestorecost[norestore_ctx][0];
+      bits_coeff += ((aom_count_primitive_refsubexpfin(16, 1, ref0, a0) +
+                      aom_count_primitive_refsubexpfin(16, 1, ref1, a1))
+                     << AV1_PROB_COST_SHIFT);
+      ref0 = a0;
+      ref1 = a1;
+    }
   }
   /*
   printf("  Bits_coeff %d for %d units\n", bits_coeff,
          cm->cur_quad_info.unit_info_length);
          */
-  bits += (bits_coeff << AV1_PROB_COST_SHIFT);
+  bits += bits_coeff;
   return bits;
 }
 
