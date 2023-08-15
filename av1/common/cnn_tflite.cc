@@ -664,7 +664,11 @@ extern "C" int TFlite_Predict_quadtree_hbd(
         assert(input[r * in_stride + c] >= 0.0f);
         assert(input[r * in_stride + c] <= 1.0f);
       } else {
-        input[r * in_stride + c] = 0;
+        // input[r * in_stride + c] = 0;
+        input[r * in_stride + c] =
+            static_cast<float>(dgd[AOMMIN(r, height - 1) * dgd_stride +
+                                   AOMMIN(c, width - 1)]) /
+            max_val;
       }
     }
   }
@@ -1450,7 +1454,11 @@ extern "C" int TFlite_recon_quadtree_unregular_hbd(
         assert(input[r * in_stride + c] >= 0.0f);
         assert(input[r * in_stride + c] <= 1.0f);
       } else {
-        input[r * in_stride + c] = 0;
+        // input[r * in_stride + c] = 0;
+        input[r * in_stride + c] =
+            static_cast<float>(dgd[AOMMIN(r, img_height - 1) * dgd_stride +
+                                   AOMMIN(c, img_width - 1)]) /
+            max_val;
       }
     }
   }
