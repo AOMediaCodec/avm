@@ -731,8 +731,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
   A0_min = quadtset[2];
   A1_min = quadtset[3];
 
-  int cols = int(ceil(double(height) / unit_height));
-  int rows = int(ceil(double(width) / unit_width));
+  int rows = int(ceil(double(height) / unit_height));
+  int cols = int(ceil(double(width) / unit_width));
   int number_crlc = cols * rows;
   int index_A = 0;
   int start_row = 0;
@@ -740,29 +740,29 @@ extern "C" int TFlite_Predict_quadtree_hbd(
   int start_clow = 0;
   int end_clow = 0;
   int testnum = 10;
-  for (int i = 0; i < cols; i++) {
-    for (int j = 0; j < rows; j++) {
-      if (i == cols - 1) {
-        start_clow = i * unit_height;
-        end_clow = height;
+  for (int row = 0; row < rows; row++) {
+    for (int col = 0; col < cols; col++) {
+      if (col == cols - 1) {
+        start_clow = col * unit_width;
+        end_clow = width;
       } else {
-        start_clow = i * unit_height;
-        end_clow = (i + 1) * unit_height;
+        start_clow = col * unit_width;
+        end_clow = (col + 1) * unit_width;
       }
-      if (j == rows - 1) {
-        start_row = j * unit_width;
-        end_row = width;
+      if (row == rows - 1) {
+        start_row = row * unit_height;
+        end_row = height;
       } else {
-        start_row = j * unit_width;
-        end_row = (j + 1) * unit_width;
+        start_row = row * unit_height;
+        end_row = (row + 1) * unit_height;
       }
       if (width < unit_width) {
-        start_row = 0;
-        end_row = width;
+        start_clow = 0;
+        end_clow = width;
       }
       if (height < unit_height) {
-        start_clow = 0;
-        end_clow = height;
+        start_row = 0;
+        end_row = height;
       }
       int lenth_clows = end_clow - start_clow;
       int lenth_rows = end_row - start_row;
@@ -770,8 +770,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
       int lenth = lenth_clows * lenth_rows;
       int *sub_r_flatten = new int[lenth];
       int k = 0;
-      for (int i = start_clow; i < end_clow; i++) {
-        for (int j = start_row; j < end_row; j++) {
+      for (int i = start_row; i < end_row; i++) {
+        for (int j = start_clow; j < end_clow; j++) {
           sub_r_flatten[k] = sub_r[i][j];
           k = k + 1;
         }
@@ -780,8 +780,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
       double *sub_r0 = new double[lenth];
 
       int k_r0 = 0;
-      for (int i = start_clow; i < end_clow; i++) {
-        for (int j = start_row; j < end_row; j++) {
+      for (int i = start_row; i < end_row; i++) {
+        for (int j = start_clow; j < end_clow; j++) {
           sub_r0[k_r0] = r0[i][j];
           k_r0++;
         }
@@ -789,8 +789,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
 
       double *sub_r1 = new double[lenth];
       int k_r1 = 0;
-      for (int i = start_clow; i < end_clow; i++) {
-        for (int j = start_row; j < end_row; j++) {
+      for (int i = start_row; i < end_row; i++) {
+        for (int j = start_clow; j < end_clow; j++) {
           sub_r1[k_r1] = r1[i][j];
           k_r1++;
         }
@@ -912,8 +912,8 @@ extern "C" int TFlite_Predict_quadtree_hbd(
       // fprintf(stderr, "ENCODER A VALUES ARE %d, %d\n", int(A0), int(A1));
       index_A = index_A + 1;
       // printf("A0:%lf  A1:%lf\n", A0, A1);
-      for (int i = start_clow; i < end_clow; i++) {
-        for (int j = start_row; j < end_row; j++) {
+      for (int i = start_row; i < end_row; i++) {
+        for (int j = start_clow; j < end_clow; j++) {
           repic[i][j] = int(round(sub_dgr[i][j] + A0 * r0[i][j] / scale0 +
                                   A1 * r1[i][j] / scale1));
           // repic[i][j] = int(round(sub_dgr[i][j]));
