@@ -642,6 +642,12 @@ int main(int argc, const char **argv) {
                      "[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE("
                      "INTER_COMPOUND_MODES)]");
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if GET_MODE_COUNTS
+  cts_each_dim[0] = INTER_COMPOUND_REF_TYPES;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.compound_mode[0][0], probsfile, 2, cts_each_dim,
+                     "Compound modes");
+#endif  // GET_MODE_COUNTS
 
   /* Interintra */
   cts_each_dim[0] = BLOCK_SIZE_GROUPS;

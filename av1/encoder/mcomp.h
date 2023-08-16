@@ -346,6 +346,104 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 #endif
 );
 
+#if CONFIG_OPFL_MV_SEARCH
+#define OMVS_MV_DEBUG 0
+#define OMVS_OPFL_DEBUG 0
+#define OMVS_USE_SIMD 1
+#define OMVS_AVG_POOLING 1
+#define OMVS_FILTER_SRC 0
+#define OMVS_DISABLED_FOR_LOW_MV_PREC 0
+#define OMVS_JMV_TWOSIDED 1
+#define OMVS_RANGE_THR 2
+#define OMVS_BIG_STEP 4
+#define OMVS_RELAX_CONSTRAINTS 1
+#define OMVS_EARLY_TERM 1
+#define OMVS_SAD_THR 8
+#define OPFL_NEWMV_SEARCH_STEP 1
+
+static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
+  if (mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW) return 1;
+  if (mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW) return 1;
+  if (mbmi->mode == NEWMV || mbmi->mode == WARPMV) return 3;
+  return 0;
+}
+
+static INLINE int allow_one_sided_opfl_mv_step(const AV1_COMMON *cm,
+                                               const MB_MODE_INFO *mbmi,
+                                               int ref) {
+  if (mbmi->ref_frame[ref] == NONE_FRAME) return 0;
+#if OMVS_RELAX_CONSTRAINTS
+  (void)cm;
+#else
+  if (mbmi->mode != WARPMV && mbmi->motion_mode != SIMPLE_TRANSLATION) return 0;
+  if (mbmi->interinter_comp.type != COMPOUND_AVERAGE) return 0;
+  const unsigned int cur_index = cm->cur_frame->display_order_hint;
+  const RefCntBuffer *const ref_buf =
+      get_ref_frame_buf(cm, mbmi->ref_frame[ref]);
+  int d = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                            ref_buf->display_order_hint);
+  if (d == 0) return 0;
+#endif
+  return 1;
+}
+
+static INLINE int get_opfl_mv_iterations(const AV1_COMMON *cm,
+                                         const MB_MODE_INFO *mbmi) {
+  // TODO(kslu) add this as a speed feature or sequence level flag
+  // if (!cm->seq_params.enable_opfl_mv_search) return 0;
+
+#if CONFIG_FLEX_MVRES && OMVS_DISABLED_FOR_LOW_MV_PREC
+  // Magnitudes of optical flow MV delta are mostly smaller than full pel, so
+  // it is disabled for low MV precision when subpel search is allowed.
+  if (mbmi->pb_mv_precision < MV_PRECISION_ONE_PEL &&
+      !cm->features.allow_screen_content_tools &&
+      !cm->features.cur_frame_force_integer_mv)
+    return 0;
+#endif  // CONFIG_FLEX_MVRES && OMVS_DISABLED_FOR_LOW_MV_PREC
+
+  const int its_comp1 = 0;  // NEAR_NEWMV/NEW_NEARMV
+  const int its_sing = 3;   // NEWMV/WARPMV
+  const int its_comp2 = 0;  // NEW_NEWMV
+  const int its_jcomp = 0;  // JOINT_NEWMV
+
+  switch (mbmi->mode) {
+    case WARPMV:
+    case NEWMV: return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_sing : 0;
+    case NEW_NEWMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case NEW_NEWMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
+                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
+                 ? its_comp2
+                 : 0;
+    case NEAR_NEWMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case NEAR_NEWMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 1) ? its_comp1 : 0;
+    case NEW_NEARMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case NEW_NEARMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_comp1 : 0;
+#if CONFIG_JOINT_MVD
+    case JOINT_NEWMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case JOINT_NEWMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
+                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
+                 ? its_jcomp
+                 : 0;
+#endif  // CONFIG_JOINT_MVD
+    default: return 0;
+  }
+
+  return 0;
+}
+#endif  // CONFIG_OPFL_MV_SEARCH
+
 #if CONFIG_TIP
 void av1_set_tip_mv_search_range(FullMvLimits *mv_limits);
 #endif  // CONFIG_TIP
@@ -353,7 +451,11 @@ void av1_set_tip_mv_search_range(FullMvLimits *mv_limits);
 int av1_init_search_range(int size);
 
 int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-                             const FULLPEL_MV start_mv, FULLPEL_MV *best_mv);
+                             const FULLPEL_MV start_mv,
+#if CONFIG_OPFL_MV_SEARCH
+                             int use_opfl,
+#endif  // CONFIG_OPFL_MV_SEARCH
+                             FULLPEL_MV *best_mv);
 #if CONFIG_FLEX_MVRES
 int av1_refining_search_8p_c_low_precision(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const FULLPEL_MV start_mv,
@@ -430,6 +532,19 @@ typedef struct {
   // Distortion calculation params
   SUBPEL_SEARCH_VAR_PARAMS var_params;
 } SUBPEL_MOTION_SEARCH_PARAMS;
+
+#if CONFIG_OPFL_MV_SEARCH
+int opfl_refine_fullpel_mv_one_sided(
+    const AV1_COMMON *cm, MACROBLOCKD *xd,
+    const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
+    const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize);
+
+int opfl_refine_subpel_mv_one_sided(
+    const AV1_COMMON *cm, MACROBLOCKD *xd,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
+    int_mv *mv_refined, int ref, BLOCK_SIZE bsize,
+    InterPredParams *inter_pred_params);
+#endif  // CONFIG_OPFL_MV_SEARCH
 
 #if CONFIG_JOINT_MVD
 // motion search for joint MVD coding

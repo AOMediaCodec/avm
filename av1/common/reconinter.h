@@ -856,6 +856,30 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
                             int bw, int bh);
 #endif  // CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 
+#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_OPFL_MV_SEARCH
+void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
+                                   const uint16_t *p1, int pstride1,
+                                   const int16_t *gx0, const int16_t *gy0,
+                                   const int16_t *gx1, const int16_t *gy1,
+                                   int gstride, int bw, int bh, int d0, int d1,
+                                   int grad_prec_bits, int mv_prec_bits,
+                                   int *vx0, int *vy0, int *vx1, int *vy1);
+void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
+                                        const int16_t *gx, const int16_t *gy,
+                                        int gstride, int bw, int bh, int d0,
+                                        int d1, int grad_prec_bits,
+                                        int mv_prec_bits, int *vx0, int *vy0,
+                                        int *vx1, int *vy1);
+void av1_compute_subpel_gradients_mc_highbd(
+    MACROBLOCKD *xd, const MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
+    uint16_t **mc_buf, InterPredParams *inter_pred_params,
+    CalcSubpelParamsFunc calc_subpel_params_func, int ref, int *grad_prec_bits,
+    int16_t *x_grad, int16_t *y_grad);
+void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
+                                         int *grad_prec_bits, int16_t *x_grad,
+                                         int16_t *y_grad);
+#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_OPFL_MV_SEARCH
+
 #if CONFIG_OPTFLOW_REFINEMENT
 // Apply regularized least squares (RLS). The RLS parameter is bw * bh * 2^(b-4)
 // where b = OPFL_RLS_PARAM_BITS.
@@ -867,14 +891,6 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
 // int64_t. Its value must be <= (64 - mv_prec_bits - grad_prec_bits) / 2.
 #define OPFL_COV_CLAMP_BITS 28
 #define OPFL_COV_CLAMP_VAL (1 << OPFL_COV_CLAMP_BITS)
-
-void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
-                                   const uint16_t *p1, int pstride1,
-                                   const int16_t *gx0, const int16_t *gy0,
-                                   const int16_t *gx1, const int16_t *gy1,
-                                   int gstride, int bw, int bh, int d0, int d1,
-                                   int grad_prec_bits, int mv_prec_bits,
-                                   int *vx0, int *vy0, int *vx1, int *vy1);
 
 void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,

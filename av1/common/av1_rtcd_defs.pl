@@ -131,6 +131,11 @@ if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes") {
   specialize qw/av1_copy_pred_array_highbd sse4_1/;
 }
 
+if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes") {
+  add_proto qw/void av1_copy_pred_array_one_sided_highbd/, "const uint16_t *src1, const uint16_t *src2, int16_t *dst1,int16_t *dst2, int bw, int bh";
+  specialize qw/av1_copy_pred_array_one_sided_highbd sse4_1/;
+}
+
 # High bitdepth functions
 
 #inv txfm

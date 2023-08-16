@@ -29,16 +29,18 @@
 #include "av1/common/reconintra.h"
 #include "av1/encoder/reconinter_enc.h"
 
-static void enc_calc_subpel_params(const MV *const src_mv,
-                                   InterPredParams *const inter_pred_params,
-                                   MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
+#if CONFIG_OPFL_MV_SEARCH
+void enc_calc_subpel_params(
+#else
+static void enc_calc_subpel_params(
+#endif
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
 #if CONFIG_OPTFLOW_REFINEMENT
-                                   int use_optflow_refinement,
+    int use_optflow_refinement,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-                                   uint16_t **mc_buf, uint16_t **pre,
-                                   SubpelParams *subpel_params,
-                                   int *src_stride) {
-
+    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
+    int *src_stride) {
 #if CONFIG_REFINEMV
   if (inter_pred_params->use_ref_padding) {
     common_calc_subpel_params_and_extend(

@@ -1169,7 +1169,12 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
   (void)is_hbd;
   av1_bilinear_grad_interpolation_c(pred_dst, x_grad, y_grad, bw, bh);
 #else
-  av1_bicubic_grad_interpolation_highbd(pred_dst, x_grad, y_grad, bw, bh);
+#if CONFIG_OPFL_MV_SEARCH
+  if (bw < 8 || bh < 8)
+    av1_bicubic_grad_interpolation_highbd_c(pred_dst, x_grad, y_grad, bw, bh);
+  else
+#endif  // CONFIG_OPFL_MV_SEARCH
+    av1_bicubic_grad_interpolation_highbd(pred_dst, x_grad, y_grad, bw, bh);
 #endif  // OPFL_BILINEAR_GRAD
   *grad_prec_bits = 3 - SUBPEL_GRAD_DELTA_BITS - 2;
 }

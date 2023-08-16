@@ -414,6 +414,403 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
   mv_limits->row_max = AOMMAX(mv_limits->row_min, mv_limits->row_max);
 }
 
+#if CONFIG_OPFL_MV_SEARCH
+static AOM_FORCE_INLINE void compute_pred_one_sided_interp_grad_highbd(
+    const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
+    int bw, int bh) {
+  for (int i = 0; i < bh; ++i) {
+    for (int j = 0; j < bw; ++j) {
+      // To avoid overflow, we clamp (P0+cur)/2 and P0-Cur.
+      int32_t tmp_dst = ROUND_POWER_OF_TWO(
+          (int32_t)src1[i * bw + j] + (int32_t)src2[i * bw + j], 1);
+      dst1[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
+      tmp_dst = (int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j];
+      dst2[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
+    }
+  }
+}
+
+// TODO(kslu) SIMD
+void av1_copy_pred_array_one_sided_highbd_c(const uint16_t *src1,
+                                            const uint16_t *src2, int16_t *dst1,
+                                            int16_t *dst2, int bw, int bh) {
+  compute_pred_one_sided_interp_grad_highbd(src1, src2, dst1, dst2, bw, bh);
+}
+
+// Filters to smooth the source bblock
+int16_t src_filter_kernels[12][8] = {
+  // order = 4 FIR filters
+  { 0, 4, 30, 60, 30, 4, 0, 0 },
+  { 0, 3, 29, 64, 29, 3, 0, 0 },
+  { 0, 1, 28, 70, 28, 1, 0, 0 },
+  { 0, 0, 26, 76, 26, 0, 0, 0 },
+  { 0, -1, 23, 84, 23, -1, 0, 0 },
+  { 0, -2, 19, 94, 19, -2, 0, 0 },
+  { 0, -2, 13, 106, 13, -2, 0, 0 },
+  // order = 2 FIR filters
+  { 0, 0, 8, 112, 8, 0, 0, 0 },
+  { 0, 0, 6, 116, 6, 0, 0, 0 },
+  { 0, 0, 4, 120, 4, 0, 0, 0 },
+  // Others (hand-designed)
+  { 0, 2, 12, 100, 12, 2, 0, 0 },
+  { 0, 0, 32, 64, 32, 0, 0, 0 },
+};
+
+void apply_smooth_filter(uint16_t *src, const int src_stride, const int bw,
+                         const int bh, uint16_t *dst, const int dst_stride,
+                         const int bd) {
+  const int taps = 8;
+  const int taps_half = 3;
+  const int filter_idx = 4;
+  const int16_t *kernel = src_filter_kernels[filter_idx];
+  uint16_t *tmp = (uint16_t *)aom_memalign(16, bw * bh * sizeof(uint16_t));
+  int idx;
+
+  // horizontal filter
+  for (int y = 0; y < bh; y++) {
+    for (int x = 0; x < bw; x++) {
+      int32_t res = 0;
+      for (int k = 0; k < taps; k++) {
+        idx = clamp(x - taps_half + k, 0, bw - 1);
+        res += kernel[k] * src[y * src_stride + idx];
+      }
+      res = ROUND_POWER_OF_TWO(res, FILTER_BITS);
+      tmp[y * bw + x] = clip_pixel_highbd(res, bd);
+    }
+  }
+  // vertical filter
+  for (int y = 0; y < bh; y++) {
+    for (int x = 0; x < bw; x++) {
+      int32_t res = 0;
+      for (int k = 0; k < taps; k++) {
+        idx = clamp(y - taps_half + k, 0, bh - 1);
+        res += kernel[k] * tmp[idx * bw + x];
+      }
+      res = ROUND_POWER_OF_TWO(res, FILTER_BITS);
+      dst[y * dst_stride + x] = clip_pixel_highbd(res, bd);
+    }
+  }
+  aom_free(tmp);
+}
+
+void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
+                                 int16_t *gy, const int gstride, const int bw,
+                                 const int bh, const int n) {
+  assert(bw >= n);
+  assert(bh >= n);
+  const int bh_bits = get_msb(bh);
+  const int bw_bits = get_msb(bw);
+  const int n_bits = get_msb(n);
+  const int step_h = 1 << (bh_bits - n_bits);
+  const int step_w = 1 << (bw_bits - n_bits);
+  int avg_bits = bh_bits + bw_bits - n_bits * 2;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      int32_t tmp_gx = 0, tmp_gy = 0, tmp_pdiff = 0;
+      for (int k = 0; k < step_h; k++) {
+        for (int l = 0; l < step_w; l++) {
+          tmp_gx += gx[(i * step_h + k) * gstride + (j * step_w + l)];
+          tmp_gy += gy[(i * step_h + k) * gstride + (j * step_w + l)];
+          tmp_pdiff += pdiff[(i * step_h + k) * pstride + (j * step_w + l)];
+        }
+      }
+      gx[i * gstride + j] =
+          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gx, avg_bits);
+      gy[i * gstride + j] =
+          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gy, avg_bits);
+      pdiff[i * pstride + j] =
+          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_pdiff, avg_bits);
+    }
+  }
+}
+
+int opfl_refine_fullpel_mv_one_sided(
+    const AV1_COMMON *cm, MACROBLOCKD *xd,
+    const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
+    const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize) {
+  (void)cm;
+  (void)mbmi;
+  int bw = block_size_wide[bsize];
+  int bh = block_size_high[bsize];
+
+  const struct buf_2d *const pred = ms_params->ms_buffers.ref;
+  const struct buf_2d *const src = ms_params->ms_buffers.src;
+  uint16_t *pred_ptr = &pred->buf[smv->row * pred->stride + smv->col];
+
+#if OMVS_EARLY_TERM
+  // Early termination based on SAD
+  // int sad = ms_params->vfp->sdf(dst0, bw, dst1, bw);
+  int sad = ms_params->vfp->sdf(pred_ptr, pred->stride, src->buf, src->stride);
+  if (sad < bw * bh * OMVS_SAD_THR) return 1;
+#endif
+
+  int vx0, vx1, vy0, vy1;
+  int16_t *gx0, *gy0;
+  uint16_t *dst0 = NULL, *dst1 = NULL;
+  gx0 = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+  gy0 = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+  dst0 = (uint16_t *)aom_memalign(16, bw * bh * sizeof(uint16_t));
+  dst1 = (uint16_t *)aom_memalign(16, bw * bh * sizeof(uint16_t));
+
+  // Obrain Pred as dst0 and Cur as dst1
+  aom_highbd_convolve_copy(pred_ptr, pred->stride, dst0, bw, bw, bh);
+#if OMVS_FILTER_SRC
+  // TODO(kslu) fine tune the filter
+#if OMVS_OPFL_DEBUG
+  fprintf(stderr, "Cur (before filter):\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", src->buf[i * src->stride + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+#endif
+  apply_smooth_filter(src->buf, src->stride, bw, bh, dst1, bw, xd->bd);
+#else
+  (void)xd;
+  aom_highbd_convolve_copy(src->buf, src->stride, dst1, bw, bw, bh);
+#endif
+
+#if OMVS_OPFL_DEBUG
+  fprintf(stderr, "Ref:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", dst0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "Cur:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", dst1[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+#if OMVS_EARLY_TERM
+  fprintf(stderr, "npel %d sad %d\n", bw * bh, sad);
+#endif
+#endif
+
+  // TODO(kslu) support !COMBINE_INTERP_GRAD_LS and !OPFL_BICUBIC_GRAD
+  int grad_prec_bits;
+  int16_t *tmp0 =
+      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  int16_t *tmp1 =
+      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  // tmp0 = (P0 + Cur) / 2, tmp1 = P0 - Cur
+#if OMVS_USE_SIMD
+  if (bw < 8)
+    av1_copy_pred_array_one_sided_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh);
+  else
+    av1_copy_pred_array_one_sided_highbd(dst0, dst1, tmp0, tmp1, bw, bh);
+#else
+  av1_copy_pred_array_one_sided_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh);
+#endif  // OMVS_USE_SIMD
+  // Buffers gx0 and gy0 are used to store the gradients of tmp0
+  av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
+  int bits = 3 + get_opfl_mv_upshift_bits(mbmi);
+#if OMVS_AVG_POOLING
+  int n = AOMMIN(8, AOMMIN(bw, bh));
+  avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, n);
+  av1_opfl_mv_refinement_nxn_interp_grad(tmp1, bw, gx0, gy0, bw, n, n, n, 1, 0,
+                                         grad_prec_bits, bits, &vx0, &vy0, &vx1,
+                                         &vy1);
+#else
+  av1_opfl_mv_refinement_interp_grad(tmp1, bw, gx0, gy0, bw, bw, bh, 1, 0,
+                                     grad_prec_bits, bits, &vx0, &vy0, &vx1,
+                                     &vy1);
+#endif
+#if OMVS_OPFL_DEBUG
+  fprintf(stderr, "tmp0:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", tmp0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "tmp1:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", tmp1[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "gx:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", gx0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "gy:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", gy0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "vx %d vy %d\n", vx0, vy0);
+#endif  // OMVS_OPFL_DEBUG
+
+  aom_free(tmp0);
+  aom_free(tmp1);
+  aom_free(dst0);
+  aom_free(dst1);
+  aom_free(gx0);
+  aom_free(gy0);
+  mv_refined[0].as_mv.row += vy0;
+  mv_refined[0].as_mv.col += vx0;
+  return 0;
+}
+
+int opfl_refine_subpel_mv_one_sided(
+    const AV1_COMMON *cm, MACROBLOCKD *xd,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
+    int_mv *mv_refined, int ref, BLOCK_SIZE bsize,
+    InterPredParams *inter_pred_params) {
+  int bw = block_size_wide[bsize];
+  int bh = block_size_high[bsize];
+  int vx0, vx1, vy0, vy1;
+  int16_t *gx0, *gy0;
+  uint16_t *dst0 = NULL, *dst1 = NULL;
+  gx0 = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+  gy0 = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+  dst0 = (uint16_t *)aom_memalign(16, bw * bh * sizeof(uint16_t));
+  dst1 = (uint16_t *)aom_memalign(16, bw * bh * sizeof(uint16_t));
+
+  const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
+  const struct buf_2d *const src = var_params->ms_buffers.src;
+
+  // Obrain Pred as dst0
+  if (ref == 0) {
+    MV orig_mv = mbmi->mv[0].as_mv;
+    mbmi->mv[0].as_mv = mv_refined[0].as_mv;
+    av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, NULL, bsize,
+                                  AOM_PLANE_Y, AOM_PLANE_Y);
+    aom_highbd_convolve_copy(xd->plane[0].dst.buf, xd->plane[0].dst.stride,
+                             dst0, bw, bw, bh);
+    mbmi->mv[0].as_mv = orig_mv;
+  } else {
+    av1_enc_build_one_inter_predictor(dst0, bw, &mv_refined[0].as_mv,
+                                      inter_pred_params);
+  }
+
+#if OMVS_EARLY_TERM
+  // Early termination based on SAD
+  int sad = ms_params->var_params.vfp->sdf(dst0, bw, src->buf, src->stride);
+  if (sad < bw * bh * OMVS_SAD_THR) return 1;
+#endif
+
+    // Obtain Cur as dst1
+#if OMVS_FILTER_SRC
+    // TODO(kslu) fine tune the filter
+#if OMVS_OPFL_DEBUG
+  fprintf(stderr, "Cur (before filter):\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", src->buf[i * src->stride + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+#endif
+  apply_smooth_filter(src->buf, src->stride, bw, bh, dst1, bw, xd->bd);
+#else
+  aom_highbd_convolve_copy(src->buf, src->stride, dst1, bw, bw, bh);
+#endif
+
+#if OMVS_OPFL_DEBUG
+  fprintf(stderr, "Ref:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", dst0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "Cur:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", dst1[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+#if OMVS_EARLY_TERM
+  fprintf(stderr, "npel %d sad %d\n", bw * bh, sad);
+#endif
+#endif
+
+  // TODO(kslu) support !COMBINE_INTERP_GRAD_LS and !OPFL_BICUBIC_GRAD
+  int grad_prec_bits;
+  int16_t *tmp0 =
+      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  int16_t *tmp1 =
+      (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
+  // tmp0 = (P0 + Cur) / 2, tmp1 = P0 - Cur
+#if OMVS_USE_SIMD
+  if (bw < 8)
+    av1_copy_pred_array_one_sided_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh);
+  else
+    av1_copy_pred_array_one_sided_highbd(dst0, dst1, tmp0, tmp1, bw, bh);
+#else
+  av1_copy_pred_array_one_sided_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh);
+#endif  // OMVS_USE_SIMD
+  // Buffers gx0 and gy0 are used to store the gradients of tmp0
+  av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
+  int bits = 3 + get_opfl_mv_upshift_bits(mbmi);
+#if OMVS_AVG_POOLING
+  int n = AOMMIN(8, AOMMIN(bw, bh));
+  avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, n);
+  av1_opfl_mv_refinement_nxn_interp_grad(tmp1, bw, gx0, gy0, bw, n, n, n, 1, 0,
+                                         grad_prec_bits, bits, &vx0, &vy0, &vx1,
+                                         &vy1);
+#else
+  av1_opfl_mv_refinement_interp_grad(tmp1, bw, gx0, gy0, bw, bw, bh, 1, 0,
+                                     grad_prec_bits, bits, &vx0, &vy0, &vx1,
+                                     &vy1);
+#endif
+
+#if OMVS_OPFL_DEBUG
+  fprintf(stderr, "tmp0:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", tmp0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "tmp1:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", tmp1[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "gx:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", gx0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "gy:\n");
+  for (int i = 0; i < bh; i++) {
+    for (int j = 0; j < bw; j++) {
+      fprintf(stderr, "%d,", gy0[i * bw + j]);
+    }
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "vx %d vy %d\n", vx0, vy0);
+#endif  // OMVS_OPFL_DEBUG
+
+  aom_free(tmp0);
+  aom_free(tmp1);
+  aom_free(dst0);
+  aom_free(dst1);
+  aom_free(gx0);
+  aom_free(gy0);
+  mv_refined[0].as_mv.row += vy0;
+  mv_refined[0].as_mv.col += vx0;
+  return 0;
+}
+#endif  // CONFIG_OPFL_MV_SEARCH
 #if CONFIG_TIP
 void av1_set_tip_mv_search_range(FullMvLimits *mv_limits) {
   const int tmvp_mv = (TIP_MV_SEARCH_RANGE << TMVP_MI_SZ_LOG2);
@@ -2501,7 +2898,11 @@ static int full_pixel_exhaustive(const FULLPEL_MV start_mv,
 // This function is called when we do joint motion search in comp_inter_inter
 // mode, or when searching for one component of an ext-inter compound mode.
 int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-                             const FULLPEL_MV start_mv, FULLPEL_MV *best_mv) {
+                             const FULLPEL_MV start_mv,
+#if CONFIG_OPFL_MV_SEARCH
+                             int use_opfl,
+#endif  // CONFIG_OPFL_MV_SEARCH
+                             FULLPEL_MV *best_mv) {
   static const search_neighbors neighbors[8] = {
     { { -1, 0 }, -1 * SEARCH_GRID_STRIDE_8P + 0 },
     { { 0, -1 }, 0 * SEARCH_GRID_STRIDE_8P - 1 },
@@ -2513,6 +2914,11 @@ int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     { { 1, 1 }, 1 * SEARCH_GRID_STRIDE_8P + 1 }
   };
 
+#if CONFIG_OPFL_MV_SEARCH
+  // Search with a bigger step to increase search range when optical flow
+  // refinement is applied.
+  const int step = use_opfl ? OPFL_NEWMV_SEARCH_STEP : 1;
+#endif  // CONFIG_OPFL_MV_SEARCH
   uint8_t do_refine_search_grid[SEARCH_GRID_STRIDE_8P *
                                 SEARCH_GRID_STRIDE_8P] = { 0 };
   int grid_center = SEARCH_GRID_CENTER_8P;
@@ -2550,8 +2956,13 @@ int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
       if (do_refine_search_grid[grid_coord] == 1) {
         continue;
       }
+#if CONFIG_OPFL_MV_SEARCH
+      const FULLPEL_MV mv = { best_mv->row + neighbors[j].coord.row * step,
+                              best_mv->col + neighbors[j].coord.col * step };
+#else
       const FULLPEL_MV mv = { best_mv->row + neighbors[j].coord.row,
                               best_mv->col + neighbors[j].coord.col };
+#endif  // CONFIG_OPFL_MV_SEARCH
 
       do_refine_search_grid[grid_coord] = 1;
       if (av1_is_fullmv_in_range(mv_limits, mv
@@ -2581,8 +2992,13 @@ int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     if (best_site == -1) {
       break;
     } else {
+#if CONFIG_OPFL_MV_SEARCH
+      best_mv->row += neighbors[best_site].coord.row * step;
+      best_mv->col += neighbors[best_site].coord.col * step;
+#else
       best_mv->row += neighbors[best_site].coord.row;
       best_mv->col += neighbors[best_site].coord.col;
+#endif  // CONFIG_OPFL_MV_SEARCH
       grid_center += neighbors[best_site].coord_offset;
     }
   }
@@ -4122,6 +4538,10 @@ int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         unsigned int sad =
             check_better(xd, cm, &cur_mv, bestmv, mv_limits, var_params,
                          mv_cost_params, &besterr, sse1, distortion, &dummy);
+#if CONFIG_OPFL_MV_SEARCH && OMVS_MV_DEBUG && 0
+        fprintf(stderr, "      cur_mvd (%d,%d) sad %d\n", cur_mvd.row,
+                cur_mvd.col, sad);
+#endif
 
         if (sad == besterr && bestmv->row == cur_mv.row &&
             bestmv->col == cur_mv.col) {

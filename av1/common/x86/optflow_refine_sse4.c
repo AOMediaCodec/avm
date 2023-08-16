@@ -1047,3 +1047,50 @@ void av1_copy_pred_array_highbd_sse4_1(const uint16_t *src1,
 }
 
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#if CONFIG_OPFL_MV_SEARCH
+// TODO(kslu) unify with compute_pred_using_interp_grad_highbd_sse4_1
+static AOM_FORCE_INLINE void compute_pred_one_sided_interp_grad_highbd_sse4_1(
+    const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
+    int bw, int bh) {
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i mul_one = _mm_set1_epi16(1);
+  const __m128i mul_minus_one = _mm_sub_epi16(zero, mul_one);
+  const __m128i mul_plus_minus_one = _mm_unpacklo_epi16(mul_one, mul_minus_one);
+
+  for (int i = 0; i < bh; i++) {
+    const uint16_t *inp1 = src1 + i * bw;
+    const uint16_t *inp2 = src2 + i * bw;
+    int16_t *out1 = dst1 + i * bw;
+    int16_t *out2 = dst2 + i * bw;
+    for (int j = 0; j < bw; j = j + 8) {
+      const __m128i src_buf1 = xx_load_128(inp1 + j);
+      const __m128i src_buf2 = xx_load_128(inp2 + j);
+
+      __m128i temp1, temp2;
+      __m128i reg1 = _mm_unpacklo_epi16(src_buf1, src_buf2);
+      __m128i reg2 = _mm_unpackhi_epi16(src_buf1, src_buf2);
+
+      temp1 = _mm_madd_epi16(reg1, mul_one);
+      temp2 = _mm_madd_epi16(reg2, mul_one);
+      temp1 = _mm_packs_epi32(temp1, temp2);
+      temp1 = _mm_srli_epi16(_mm_add_epi16(temp1, mul_one), 1);
+
+      reg1 = _mm_madd_epi16(reg1, mul_plus_minus_one);
+      reg2 = _mm_madd_epi16(reg2, mul_plus_minus_one);
+      temp2 = _mm_packs_epi32(reg1, reg2);
+
+      xx_store_128(out1 + j, temp1);
+      xx_store_128(out2 + j, temp2);
+    }
+  }
+}
+
+void av1_copy_pred_array_one_sided_highbd_sse4_1(const uint16_t *src1,
+                                                 const uint16_t *src2,
+                                                 int16_t *dst1, int16_t *dst2,
+                                                 int bw, int bh) {
+  compute_pred_one_sided_interp_grad_highbd_sse4_1(src1, src2, dst1, dst2, bw,
+                                                   bh);
+}
+#endif  // CONFIG_OPFL_MV_SEARCH
