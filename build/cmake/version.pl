@@ -58,6 +58,12 @@ my @version_components = split('\.', $version_string, 4);
 my $version_major = $version_components[0];
 my $version_minor = $version_components[1];
 my $version_patch = $version_components[2];
+if (!defined $version_minor) {
+  $version_minor = "0";
+}
+if (!defined $version_patch) {
+  $version_patch = "0";
+}
 
 my $version_extra = "";
 if (length($git_desc) > 0) {
