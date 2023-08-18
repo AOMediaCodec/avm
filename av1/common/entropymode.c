@@ -2681,7 +2681,11 @@ static const aom_cdf_prob
 #endif  // CONFIG_BLOCK_256
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-      { AOM_CDF2(16384) }
+      { AOM_CDF2(16384) },
+#if CONFIG_FLEX_PARTITION
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+#endif  // CONFIG_FLEX_PARTITION
     };
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
