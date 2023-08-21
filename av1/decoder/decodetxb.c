@@ -101,7 +101,12 @@ static INLINE void read_coeffs_reverse_2d(
         }
       }
     } else {
-      const int coeff_ctx = get_lower_levels_ctx_2d(levels, pos, bwl);
+      const int coeff_ctx = get_lower_levels_ctx_2d(levels, pos, bwl
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                                    ,
+                                                    plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+      );
       level += aom_read_symbol(r, base_cdf[coeff_ctx], 4,
                                ACCT_INFO("level", "base_cdf"));
       if (level > NUM_BASE_LEVELS) {
@@ -170,7 +175,12 @@ static INLINE void read_coeffs_reverse(aom_reader *r,
         }
       }
     } else {
-      const int coeff_ctx = get_lower_levels_ctx(levels, pos, bwl, tx_class);
+      const int coeff_ctx = get_lower_levels_ctx(levels, pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                                 ,
+                                                 plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+      );
       level += aom_read_symbol(r, base_cdf[coeff_ctx], 4,
                                ACCT_INFO("level", "base_cdf"));
       if (level > NUM_BASE_LEVELS) {

@@ -460,7 +460,12 @@ static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats(
 #if !CONFIG_ATC
     const TX_SIZE tx_size,
 #endif  // !CONFIG_ATC
-    const TX_CLASS tx_class) {
+    const TX_CLASS tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+    ,
+    const int plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+) {
   // tx_class == 0(TX_CLASS_2D)
   if ((tx_class | coeff_idx) == 0) return 0;
   int ctx = (stats + 1) >> 1;
@@ -468,6 +473,9 @@ static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats(
   switch (tx_class) {
     case TX_CLASS_2D: {
 #if CONFIG_ATC
+#if CONFIG_CHROMA_TX_COEFF_CODING
+      if (plane > 0) return ctx;
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
       const int row = coeff_idx >> bwl;
       const int col = coeff_idx - (row << bwl);
       if (row + col < 6) return ctx;
@@ -631,6 +639,10 @@ static INLINE int get_lower_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
                                           ,
                                           TX_SIZE tx_size
 #endif  // !CONFIG_ATC
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                          ,
+                                          int plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
 ) {
   assert(coeff_idx > 0);
   int mag;
@@ -644,6 +656,9 @@ static INLINE int get_lower_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
 
   const int ctx = AOMMIN((mag + 1) >> 1, 4);
 #if CONFIG_ATC
+#if CONFIG_CHROMA_TX_COEFF_CODING
+  if (plane > 0) return ctx;
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
   const int row = coeff_idx >> bwl;
   const int col = coeff_idx - (row << bwl);
   if (row + col < 6) return ctx;
@@ -679,11 +694,22 @@ static AOM_FORCE_INLINE int get_lower_levels_ctx(const uint8_t *levels,
 #if !CONFIG_ATC
                                                  TX_SIZE tx_size,
 #endif  // !CONFIG_ATC
-                                                 TX_CLASS tx_class) {
+                                                 TX_CLASS tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                                 ,
+                                                 int plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+) {
   const int stats =
       get_nz_mag(levels + get_padded_idx(coeff_idx, bwl), bwl, tx_class);
 #if CONFIG_ATC
-  return get_nz_map_ctx_from_stats(stats, coeff_idx, bwl, tx_class);
+  return get_nz_map_ctx_from_stats(stats, coeff_idx, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+
+                                   ,
+                                   plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+  );
 #else
   return get_nz_map_ctx_from_stats(stats, coeff_idx, bwl, tx_size, tx_class);
 #endif  // CONFIG_ATC
@@ -715,7 +741,12 @@ static INLINE int get_lower_levels_ctx_general(int is_last, int scan_idx,
   if (limits) {
     return get_lower_levels_lf_ctx(levels, coeff_idx, bwl, tx_class);
   } else {
-    return get_lower_levels_ctx(levels, coeff_idx, bwl, tx_class);
+    return get_lower_levels_ctx(levels, coeff_idx, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                ,
+                                plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+    );
   }
 #else
   return get_lower_levels_ctx(levels, coeff_idx, bwl, tx_size, tx_class);

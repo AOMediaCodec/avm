@@ -476,7 +476,13 @@ static INLINE int get_nz_map_ctx(const uint8_t *const levels,
     return get_nz_map_ctx_from_stats_lf(stats, coeff_idx, bwl, tx_class);
   } else {
     stats = get_nz_mag(levels + get_padded_idx(coeff_idx, bwl), bwl, tx_class);
-    return get_nz_map_ctx_from_stats(stats, coeff_idx, bwl, tx_class);
+    return get_nz_map_ctx_from_stats(stats, coeff_idx, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+
+                                     ,
+                                     plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+    );
   }
 #else
   const int stats =
@@ -2731,7 +2737,12 @@ static AOM_FORCE_INLINE void update_coeff_simple(
   if (limits) {
     coeff_ctx = get_lower_levels_lf_ctx(levels, ci, bwl, tx_class);
   } else {
-    coeff_ctx = get_lower_levels_ctx(levels, ci, bwl, tx_class);
+    coeff_ctx = get_lower_levels_ctx(levels, ci, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                     ,
+                                     plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+    );
   }
 #else
   const int coeff_ctx =
@@ -2838,7 +2849,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
   if (limits) {
     coeff_ctx = get_lower_levels_lf_ctx(levels, ci, bwl, tx_class);
   } else {
-    coeff_ctx = get_lower_levels_ctx(levels, ci, bwl, tx_class);
+    coeff_ctx = get_lower_levels_ctx(levels, ci, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                     ,
+                                     plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+    );
   }
 #else
   const int coeff_ctx =
@@ -3055,6 +3071,10 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
                                       ,
                                       TX_SIZE tx_size
 #endif  // CONFIG_ATC
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                      ,
+                                      int plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
 ) {
   tran_low_t abslevel = abs(level), q_index = abslevel >> 1;
   int sign = level < 0;
@@ -3066,7 +3086,12 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
   if (limits) {
     coeff_ctx = get_lower_levels_lf_ctx(levels, pos, bwl, tx_class);
   } else {
-    coeff_ctx = get_lower_levels_ctx(levels, pos, bwl, tx_class);
+    coeff_ctx = get_lower_levels_ctx(levels, pos, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                     ,
+                                     plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+    );
   }
 #else
   const int coeff_ctx =
@@ -3271,6 +3296,10 @@ static AOM_FORCE_INLINE bool parity_hide_tb(
     ,
     TX_SIZE tx_size
 #endif  // CONFIG_ATC
+#if CONFIG_CHROMA_TX_COEFF_CODING
+    ,
+    int plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
 ) {
   int nzsbb = 0, sum_abs1 = 0;
   for (int scan_idx = eob - 1; scan_idx > 0; --scan_idx) {
@@ -3295,6 +3324,10 @@ static AOM_FORCE_INLINE bool parity_hide_tb(
                 ,
                 tx_size
 #endif  // CONFIG_ATC
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                ,
+                plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
       );
 
   if (!needtune && nzsbb >= PHTHRESH) {
@@ -3659,6 +3692,10 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                    ,
                    tx_size
 #endif  // CONFIG_ATC
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                   ,
+                   plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
     );
   }
 
