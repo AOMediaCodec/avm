@@ -308,6 +308,12 @@ int av1_get_shear_params(WarpedMotionParams *wm);
 // are calculated, but before av1_set_warp_translation() or
 // av1_get_shear_params() are called
 void av1_reduce_warp_model(WarpedMotionParams *wm);
+
+#if CONFIG_EXT_WARP_FILTER
+// Check if a model is already properly reduced, according to the same logic
+// used in av1_reduce_warp_model()
+bool av1_is_warp_model_reduced(WarpedMotionParams *wm);
+#endif  // CONFIG_EXT_WARP_FILTER
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_EXTENDED_WARP_PREDICTION

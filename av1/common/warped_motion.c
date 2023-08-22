@@ -377,8 +377,13 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
       (int16_t)(ROUND_POWER_OF_TWO_SIGNED(wm->delta, WARP_PARAM_REDUCE_BITS) *
                 (1 << WARP_PARAM_REDUCE_BITS));
 
+#if CONFIG_EXT_WARP_FILTER
+  wm->use_affine_filter =
+      is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta);
+#else
   if (!is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta))
     return 0;
+#endif  // CONFIG_EXT_WARP_FILTER
 
   return 1;
 }
@@ -389,17 +394,30 @@ int av1_get_shear_params(WarpedMotionParams *wm) {
 // are calculated, but before av1_set_warp_translation() or
 // av1_get_shear_params() are called
 //
-// This also clamps the values. The clamping range is well outside the
-// "useful" range (ie, what is_affine_shear_allowed() permits), but it
-// ensures that hardware can store each value in a signed integer with
-// (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS) total bits
+// This also clamps the values, ensuring that hardware can store each value
+// in a signed integer with (WARPEDMODEL_PREC_BITS - WARP_PARAM_REDUCE_BITS)
+// total bits
 void av1_reduce_warp_model(WarpedMotionParams *wm) {
+#if CONFIG_EXT_WARP_FILTER
+  // Constrain parameters so that they lie within the range of +/- 1/2
+  // relative to the identity model.
+  //
+  // In order to avoid needing one extra bit, we limit the maximum to one
+  // unit less than 1/2, similarly to how an int<n> can only go up to
+  // 2^(n-1) - 1. However, unlike an int<n>, the allowable range must
+  // remain symmetric, so that ROTZOOM models can maintain the constraint
+  // that wmmat[4] == -wmmat[3].
+  const int max_value =
+      (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
+  const int min_value = -max_value;
+#else
   // Think of this range as an int<N>, multiplied by (1 <<
   // WARP_PARAM_REDUCE_BITS). In other words, the max is -2^(N-1) and max is
   // (2^(N-1) - 1), but with an extra multiplier applied to both terms
   const int min_value = -(1 << (WARPEDMODEL_PREC_BITS - 1));
   const int max_value =
       (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
+#endif  // CONFIG_EXT_WARP_FILTER
 
   for (int i = 2; i < 6; i++) {
     int offset = (i == 2 || i == 5) ? (1 << WARPEDMODEL_PREC_BITS) : 0;
@@ -412,6 +430,37 @@ void av1_reduce_warp_model(WarpedMotionParams *wm) {
     wm->wmmat[i] = clamped + offset;
   }
 }
+
+#if CONFIG_EXT_WARP_FILTER
+// Check if a model is already properly reduced, according to the same logic
+// used in av1_reduce_warp_model()
+bool av1_is_warp_model_reduced(WarpedMotionParams *wm) {
+  // Constrain parameters so that they lie within the range of +/- 1/2
+  // relative to the identity model.
+  //
+  // In order to avoid needing one extra bit, we limit the maximum to one
+  // unit less than 1/2, similarly to how an int<n> can only go up to
+  // 2^(n-1) - 1. However, unlike an int<n>, the allowable range must
+  // remain symmetric, so that ROTZOOM models can maintain the constraint
+  // that wmmat[4] == -wmmat[3].
+  const int max_value =
+      (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
+  const int min_value = -max_value;
+
+  for (int i = 2; i < 6; i++) {
+    int offset = (i == 2 || i == 5) ? (1 << WARPEDMODEL_PREC_BITS) : 0;
+
+    int original = wm->wmmat[i] - offset;
+    int rounded = ROUND_POWER_OF_TWO_SIGNED(original, WARP_PARAM_REDUCE_BITS) *
+                  (1 << WARP_PARAM_REDUCE_BITS);
+    int clamped = clamp(rounded, min_value, max_value);
+
+    if (clamped != original) return false;
+  }
+
+  return true;
+}
+#endif  // CONFIG_EXT_WARP_FILTER
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 static INLINE int highbd_error_measure(int err, int bd) {
@@ -768,10 +817,20 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
   const int16_t gamma = wm->gamma;
   const int16_t delta = wm->delta;
 
-  av1_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col, p_row,
-                         p_width, p_height, p_stride, subsampling_x,
-                         subsampling_y, bd, conv_params, alpha, beta, gamma,
-                         delta);
+#if CONFIG_EXT_WARP_FILTER
+  assert(wm->use_affine_filter ==
+         is_affine_shear_allowed(alpha, beta, gamma, delta));
+
+  if (!wm->use_affine_filter)
+    av1_ext_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col,
+                               p_row, p_width, p_height, p_stride,
+                               subsampling_x, subsampling_y, bd, conv_params);
+  else
+#endif  // CONFIG_EXT_WARP_FILTER
+    av1_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col, p_row,
+                           p_width, p_height, p_stride, subsampling_x,
+                           subsampling_y, bd, conv_params, alpha, beta, gamma,
+                           delta);
 }
 
 int64_t av1_calc_highbd_frame_error(const uint16_t *const ref, int stride,

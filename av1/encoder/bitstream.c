@@ -538,6 +538,8 @@ static void write_warp_delta_param(const MACROBLOCKD *xd, int index, int value,
   int index_type = (index == 2 || index == 5) ? 0 : 1;
   int coded_value = (value / WARP_DELTA_STEP) + WARP_DELTA_CODED_MAX;
   assert(0 <= coded_value && coded_value < WARP_DELTA_NUM_SYMBOLS);
+  // Check that the value will round-trip properly
+  assert((coded_value - WARP_DELTA_CODED_MAX) * WARP_DELTA_STEP == value);
 
   aom_write_symbol(w, coded_value,
                    xd->tile_ctx->warp_delta_param_cdf[index_type],

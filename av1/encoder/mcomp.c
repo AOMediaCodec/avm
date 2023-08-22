@@ -5433,6 +5433,7 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   int rate, sse;
   int delta;
   uint64_t best_rd, inc_rd, dec_rd;
+  int valid;
 
   static const MV neighbors[8] = { { 0, -1 }, { 1, 0 }, { 0, 1 },   { -1, 0 },
                                    { 1, -1 }, { 1, 1 }, { -1, -1 }, { -1, 1 } };
@@ -5459,12 +5460,17 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   params->wmmat[4] = -params->wmmat[3];
   params->wmmat[5] = params->wmmat[2];
   av1_reduce_warp_model(params);
-  int valid = av1_get_shear_params(params);
+#if CONFIG_EXT_WARP_FILTER
+  av1_get_shear_params(params);
+  params->invalid = 0;
+#else
+  valid = av1_get_shear_params(params);
   params->invalid = !valid;
   if (!valid) {
     // Don't try to refine from a broken starting point
     return 0;
   }
+#endif  // CONFIG_EXT_WARP_FILTER
 
   av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
 
@@ -5552,9 +5558,14 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       } else {
         params->wmmat[4] = -params->wmmat[3];
         params->wmmat[5] = params->wmmat[2];
+#if CONFIG_EXT_WARP_FILTER
+        valid =
+            av1_is_warp_model_reduced(params) && av1_get_shear_params(params);
+#else
         av1_reduce_warp_model(params);
         valid = av1_get_shear_params(params);
         params->invalid = !valid;
+#endif  // CONFIG_EXT_WARP_FILTER
         if (valid) {
           av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
                                    params);
@@ -5579,9 +5590,14 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       } else {
         params->wmmat[4] = -params->wmmat[3];
         params->wmmat[5] = params->wmmat[2];
+#if CONFIG_EXT_WARP_FILTER
+        valid =
+            av1_is_warp_model_reduced(params) && av1_get_shear_params(params);
+#else
         av1_reduce_warp_model(params);
         valid = av1_get_shear_params(params);
         params->invalid = !valid;
+#endif  // CONFIG_EXT_WARP_FILTER
         if (valid) {
           av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
                                    params);
