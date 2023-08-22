@@ -6632,12 +6632,23 @@ static AOM_INLINE void prune_none_with_rect_results(
 
   const PARTITION_TYPE cur_best_partition = pc_tree->partitioning;
   PC_TREE *const *tree = NULL;
+  if (cur_best_partition == PARTITION_SPLIT) {
+    tree = pc_tree->horizontal;
+    tree = pc_tree->split;
+    for (int idx = 0; idx < SUB_PARTITIONS_SPLIT; idx++) {
+      if (!tree[idx]) {
+        break;
+      }
+      part_search_state->prune_partition_none |=
+          tree[idx]->partitioning != PARTITION_NONE;
+    }
+    return;
+  }
+
   if (cur_best_partition == PARTITION_HORZ) {
     tree = pc_tree->horizontal;
   } else if (cur_best_partition == PARTITION_VERT) {
     tree = pc_tree->vertical;
-  } else if (cur_best_partition == PARTITION_SPLIT) {
-    return;
   } else {
     assert(0 &&
            "Unexpected best partition type in prune_none_with_rect_results.");
