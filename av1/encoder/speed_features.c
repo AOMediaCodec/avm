@@ -123,16 +123,6 @@ static unsigned int predict_dc_levels[3][MODE_EVAL_TYPES] = { { 0, 0, 0 },
                                                               { 1, 1, 0 },
                                                               { 1, 1, 1 } };
 
-// This table holds the maximum number of reference frames for global motion.
-// The table is indexed as per the speed feature 'gm_search_type'.
-// 0 : All reference frames are allowed.
-// 1 : All reference frames except L2 and L3 are allowed.
-// 2 : All reference frames except L2, L3 and ARF2 are allowed.
-// 3 : No reference frame is allowed.
-static int gm_available_reference_frames[GM_DISABLE_SEARCH + 1] = {
-  INTER_REFS_PER_FRAME, INTER_REFS_PER_FRAME - 2, INTER_REFS_PER_FRAME - 3, 0
-};
-
 // Intra only frames, golden frames (except alt ref overlays) and
 // alt ref frames tend to be coded at a higher than ambient quality
 static int frame_is_boosted(const AV1_COMP *cpi) {
@@ -353,8 +343,9 @@ static void set_good_speed_features_framesize_independent(
 #endif
 
   // Speed 0 for all speed features that give neutral coding performance change.
-  sf->gm_sf.gm_disable_recode = 1;
-  sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV2;
+  sf->gm_sf.max_ref_frames = boosted ? 4 : 2;
+  sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
+  sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
   sf->part_sf.less_rectangular_check_level = 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -410,9 +401,6 @@ static void set_good_speed_features_framesize_independent(
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
 
   if (speed >= 1) {
-    sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_LEV3;
-    sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
-
 #if CONFIG_EXT_RECUR_PARTITIONS
     sf->part_sf.intra_cnn_split = 0;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
@@ -514,7 +502,7 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
-    sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
+    sf->gm_sf.max_ref_frames = 0;
 
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg = 1;
@@ -715,10 +703,9 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
-  gm_sf->selective_ref_gm = 1;
-  gm_sf->gm_search_type = GM_FULL_SEARCH;
-  gm_sf->gm_disable_recode = 0;
+  gm_sf->max_ref_frames = INTER_REFS_PER_FRAME;
   gm_sf->prune_ref_frame_for_gm_search = 0;
+  gm_sf->disable_gm_search_based_on_stats = 0;
 }
 
 static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
@@ -759,13 +746,19 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->early_term_after_none_split = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
   part_sf->prune_rect_with_none_rd = 0;
-  part_sf->prune_part_3_with_part_none = 0;
-  part_sf->prune_part_3_with_part_rect = 0;
+  part_sf->prune_ext_part_with_part_none = 0;
+  part_sf->prune_ext_part_with_part_rect = 0;
+#if CONFIG_UNEVEN_4WAY
+  part_sf->prune_part_4_with_partition_boundary = 0;
+  part_sf->prune_part_4_horz_or_vert = 0;
+  part_sf->prune_part_4_with_part_3 = 0;
+#endif  // CONFIG_UNEVEN_4WAY
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
   part_sf->ext_recur_depth = INT_MAX;
   part_sf->prune_rect_with_split_depth = 0;
+  part_sf->prune_part_h_with_partition_boundary = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
@@ -853,6 +846,10 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   inter_sf->reuse_erp_mode_flag = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  inter_sf->prune_warpmv_prob_thresh = 32;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
@@ -1053,17 +1050,22 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       sf->part_sf.simple_motion_search_early_term_none = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 5:
+      sf->part_sf.prune_part_h_with_partition_boundary = true;
+      sf->part_sf.adaptive_partition_search_order = true;
       sf->tx_sf.use_largest_tx_size_for_small_bsize = true;
       // TODO(chiyotsai@google.com): This speed feature causes large regression
       // on b2 testset. Disable this for now until we figure out how to avoid
       // the loss.
       // sf->part_sf.end_part_search_after_consec_failures = 1;
       AOM_FALLTHROUGH_INTENDED;
-    case 4:
-      sf->part_sf.prune_part_3_with_part_rect = 1;
+    case 4: sf->part_sf.prune_ext_part_with_part_rect = 1;
+#if CONFIG_UNEVEN_4WAY
+      sf->part_sf.prune_part_4_horz_or_vert = 1;
+      sf->part_sf.prune_part_4_with_part_3 = 1;
+#endif  // CONFIG_UNEVEN_4WAY
       AOM_FALLTHROUGH_INTENDED;
     case 3:
-      sf->part_sf.prune_part_3_with_part_none = 1;
+      sf->part_sf.prune_ext_part_with_part_none = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 2:
       sf->inter_sf.prune_ref_frame_for_rect_partitions =
@@ -1249,9 +1251,8 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     // Disable the speed feature 'prune_ref_frame_for_gm_search' to achieve
     // better parallelism when number of threads available are greater than or
     // equal to maximum number of reference frames allowed for global motion.
-    if (sf->gm_sf.gm_search_type != GM_DISABLE_SEARCH &&
-        (cpi->oxcf.max_threads >=
-         gm_available_reference_frames[sf->gm_sf.gm_search_type]))
+    if (sf->gm_sf.max_ref_frames > 0 &&
+        cpi->oxcf.max_threads >= sf->gm_sf.max_ref_frames)
       sf->gm_sf.prune_ref_frame_for_gm_search = 0;
   }
 }

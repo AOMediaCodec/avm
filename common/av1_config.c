@@ -9,6 +9,7 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -234,7 +235,10 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
 }
 
 // Parse Sequence Header OBU for coding tools beyond AV1
-int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
+int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
+                                     bool reduced_still_picture_header) {
+  (void)reduced_still_picture_header;
+
   int result = 0;
 #if CONFIG_REF_MV_BANK
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_refmvbank);
@@ -244,6 +248,10 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
     AV1C_READ_BITS_OR_RETURN_ERROR(max_reference_frames, 2);
   }
   AV1C_READ_BIT_OR_RETURN_ERROR(explicit_ref_frame_map);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // 0: show_existing_frame, 1: implicit derivation
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_frame_output_order);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_sdp);
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_ist);
 #if CONFIG_CROSS_CHROMA_TX
@@ -259,6 +267,12 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
 #if CONFIG_BAWP
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_bawp);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_cwp);
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_fsc);
 #if CONFIG_CCSO
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_ccso);
@@ -269,10 +283,16 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
 #if CONFIG_ORIP
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_orip);
 #endif
+#if CONFIG_IDIF
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_idif);
+#endif  // CONFIG_IDIF
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_ibp);
 #if CONFIG_ADAPTIVE_MVD
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_adaptive_mvd);
 #endif  // CONFIG_ADAPTIVE_MVD
+#if CONFIG_REFINEMV
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_refinemv);
+#endif  // CONFIG_REFINEMV
 #if CONFIG_FLEX_MVRES
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_flex_mvres);
 #endif  // CONFIG_FLEX_MVRES
@@ -282,6 +302,11 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader) {
 #if CONFIG_PAR_HIDING
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (!reduced_still_picture_header) {
+    AV1C_READ_BIT_OR_RETURN_ERROR(enable_global_motion);
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   return 0;
 }
@@ -447,7 +472,7 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV1C_READ_BIT_OR_RETURN_ERROR(film_grain_params_present);
 
   // Sequence header for coding tools beyond AV1
-  parse_sequence_header_beyond_av1(reader);
+  parse_sequence_header_beyond_av1(reader, reduced_still_picture_header);
 
   return 0;
 }

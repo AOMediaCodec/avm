@@ -167,6 +167,13 @@ typedef struct SubpelParams {
   int ys;
   int subpel_x;
   int subpel_y;
+#if CONFIG_D071_IMP_MSK_BLD
+  int x0;  // top left sample horizontal cood.
+  int y0;  // top left sample vertical cood.
+  int x1;  // x0 + bw
+  int y1;  // y0 + bh
+#endif     // CONFIG_D071_IMP_MSK_BLD
+
 } SubpelParams;
 
 struct build_prediction_ctxt {
@@ -178,6 +185,14 @@ struct build_prediction_ctxt {
   int mb_to_far_edge;
   void *dcb;  // Decoder-only coding block.
 };
+
+#if CONFIG_REFINEMV
+#define REFINE_MV_MAX_OFFSET 1
+#define REF_TOP_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
+#define REF_LEFT_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
+#define REF_RIGHT_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
+#define REF_BOTTOM_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
+#endif  // CONFIG_REFINEMV
 
 typedef enum InterPredMode {
   TRANSLATION_PRED,
@@ -206,6 +221,15 @@ typedef struct InterPredParams {
   int orig_block_width;
   int orig_block_height;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#if CONFIG_REFINEMV
+  // In refinemV, the prediction is generated maximum 16x16 sub-block basis
+  // original_pu_width and  original_pu_height represents the width and height
+  // of the original block.
+  int original_pu_width;
+  int original_pu_height;
+#endif  // CONFIG_REFINEMV
+
   int pix_row;
   int pix_col;
   struct buf_2d ref_frame_buf;
@@ -226,6 +250,15 @@ typedef struct InterPredParams {
   int dist_to_top_edge;    /*!< Distance from top edge */
   int dist_to_bottom_edge; /*!< Distance from bottom edge */
 #endif                     // CONFIG_TIP
+
+#if CONFIG_REFINEMV
+  int use_ref_padding;
+  ReferenceArea *ref_area;
+#endif  // CONFIG_REFINEMV
+
+#if CONFIG_D071_IMP_MSK_BLD
+  INTERINTER_COMPOUND_BORDER_DATA border_data;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 } InterPredParams;
 
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -300,14 +333,48 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
 
 #if CONFIG_WARP_REF_LIST
 // Check if the signaling of the warp delta parameters are allowed
-static INLINE int allow_warp_parameter_signaling(const MB_MODE_INFO *mbmi) {
+static INLINE int allow_warp_parameter_signaling(
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    const AV1_COMMON *const cm,
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+    const MB_MODE_INFO *mbmi) {
   return (
 #if CONFIG_WARPMV
       mbmi->mode != WARPMV &&
 #endif  // CONFIG_WARPMV
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      cm->features.allow_warpmv_mode &&
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
       mbmi->motion_mode == WARP_DELTA && mbmi->warp_ref_idx == 1);
 }
 #endif  // CONFIG_WARP_REF_LIST
+
+#if CONFIG_CWP
+// Map the index to weighting factor for compound weighted prediction
+static INLINE int get_cwp_coding_idx(int val, int encode,
+                                     const AV1_COMMON *const cm,
+                                     const MB_MODE_INFO *const mbmi) {
+  int is_same_side = 0;
+  int cur_ref_side = 0;
+  int other_ref_side = 0;
+  if (has_second_ref(mbmi)) {
+    cur_ref_side = cm->ref_frame_side[mbmi->ref_frame[0]];
+    other_ref_side = cm->ref_frame_side[mbmi->ref_frame[1]];
+
+    is_same_side = (cur_ref_side > 0 && other_ref_side > 0) ||
+                   (cur_ref_side == 0 && other_ref_side == 0);
+  }
+
+  if (encode) {
+    for (int i = 0; i < MAX_CWP_NUM; i++) {
+      if (cwp_weighting_factor[is_same_side][i] == val) return i;
+    }
+    return 0;
+  } else {
+    return cwp_weighting_factor[is_same_side][val];
+  }
+}
+#endif  // CONFIG_CWP
 
 #if CONFIG_ADAPTIVE_MVD
 static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
@@ -474,9 +541,315 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_BAWP
                                 const BUFFER_SET *dst_orig,
 #endif
+#if CONFIG_REFINEMV
+                                int build_for_refine_mv_only,
+#endif  // CONFIG_REFINEMV
                                 int build_for_obmc, int bw, int bh, int mi_x,
                                 int mi_y, uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
+
+#if CONFIG_REFINEMV
+// Generate one prediction signal for a TIP block
+void tip_build_one_inter_predictor(
+    uint16_t *dst, int dst_stride, const MV *const src_mv,
+    InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
+    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func);
+
+// Compute the SAD between the two predictors when refinemv is ON
+int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
+                     int bd);
+// Genrate two prediction signals and compute SAD of a given mv0 and mv1
+int av1_refinemv_build_predictors_and_get_sad(
+    MACROBLOCKD *xd, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
+    CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst_ref0,
+    uint16_t *dst_ref1, MV mv0, MV mv1, InterPredParams *inter_pred_params);
+
+// Get the context index to code refinemv flag
+int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                             BLOCK_SIZE bsize);
+
+// Full blocks refine MVs are stored in 4x4 grid so that the MVs can be reused
+// for chroma
+void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
+                             int bh, MV mv0, MV mv1);
+
+// Generate the reference area ( bounding box) based on the signaled MV
+void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                         int plane, MB_MODE_INFO *mi, int bw,
+                                         int bh, int mi_x, int mi_y,
+                                         ReferenceArea ref_area[2],
+                                         const int comp_pixel_x,
+                                         const int comp_pixel_y);
+
+// Derive the sub-pixel related parameters of TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" and "block"
+void tip_dec_calc_subpel_params(const MV *const src_mv,
+                                InterPredParams *const inter_pred_params,
+                                int mi_x, int mi_y, uint16_t **pre,
+                                SubpelParams *subpel_params, int *src_stride,
+                                PadBlock *block,
+#if CONFIG_OPTFLOW_REFINEMENT
+                                int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                                MV32 *scaled_mv, int *subpel_x_mv,
+                                int *subpel_y_mv);
+
+// Derive the sub-pixel related parameters of non-TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" and "block"
+void dec_calc_subpel_params(const MV *const src_mv,
+                            InterPredParams *const inter_pred_params,
+                            const MACROBLOCKD *const xd, int mi_x, int mi_y,
+                            uint16_t **pre, SubpelParams *subpel_params,
+                            int *src_stride, PadBlock *block,
+#if CONFIG_OPTFLOW_REFINEMENT
+                            int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+                            MV32 *scaled_mv, int *subpel_x_mv,
+                            int *subpel_y_mv);
+
+// check if the refinemv mode is allwed for a given blocksize
+static INLINE int is_refinemv_allowed_bsize(BLOCK_SIZE bsize) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  return (block_size_wide[bsize] >= 16 || block_size_high[bsize] >= 16);
+}
+
+// check if the refinemv mode is allwed for a given mode and precision
+static INLINE int is_refinemv_allowed_mode_precision(
+    PREDICTION_MODE mode, MvSubpelPrecision precision,
+    const AV1_COMMON *const cm) {
+  (void)precision;
+  if (mode == GLOBAL_GLOBALMV) return 0;
+  if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+      (mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV || mode == NEAR_NEWMV ||
+       mode == NEW_NEARMV || mode == NEW_NEWMV))
+    return 0;
+  return (mode >= NEAR_NEARMV && mode <= JOINT_AMVDNEWMV_OPTFLOW);
+}
+// check if the prediction mode infered to refimemv to always 1.
+static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
+  return (mbmi->skip_mode || mbmi->mode == NEAR_NEARMV ||
+          mbmi->mode == NEAR_NEARMV_OPTFLOW ||
+          mbmi->mode == JOINT_NEWMV_OPTFLOW);
+}
+// Check if the compound and equal distance references
+static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
+                                                const MB_MODE_INFO *mbmi) {
+  if (!cm->seq_params.enable_refinemv) return 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const unsigned int cur_index = cm->cur_frame->display_order_hint;
+#else
+  const unsigned int cur_index = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  int d0, d1;
+  int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
+
+  if (is_tip) {
+    d0 = cm->tip_ref.ref_offset[0];
+    d1 = cm->tip_ref.ref_offset[1];
+  } else {
+    if (!mbmi->ref_frame[1]) return 0;
+    const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
+    const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref0->display_order_hint);
+    d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref1->display_order_hint);
+#else
+    d0 = (int)cur_index - (int)ref0->order_hint;
+    d1 = (int)cur_index - (int)ref1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  }
+
+  // reference frame has to be both sides to apply dmvr
+  if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
+
+  // Current implementation only supports when both has the same distance
+  if (abs(d0) != abs(d1)) return 0;
+
+  return 1;
+}
+
+// check if the refinemv mode is allowed for a given block
+static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
+                                      const MB_MODE_INFO *mbmi,
+                                      BLOCK_SIZE bsize) {
+  if (!cm->seq_params.enable_refinemv ||
+      cm->superres_scale_denominator != SCALE_NUMERATOR)
+    return 0;
+  int is_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
+  if (is_tip) return 0;
+  assert(!mbmi->skip_mode);
+  int is_compound = has_second_ref(mbmi);
+  return is_compound && is_refinemv_allowed_bsize(bsize) &&
+         is_refinemv_allowed_mode_precision(mbmi->mode, mbmi->pb_mv_precision,
+                                            cm) &&
+         is_refinemv_allowed_reference(cm, mbmi);
+}
+
+// check if the refinemv mode is allowed for a given block for TIP mode
+static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
+                                                 const MB_MODE_INFO *mbmi) {
+  assert(is_tip_ref_frame(mbmi->ref_frame[0]));
+  return cm->seq_params.enable_refinemv &&
+         cm->superres_scale_denominator == SCALE_NUMERATOR &&
+         is_refinemv_allowed_reference(cm, mbmi);
+}
+
+// check if the refinemv mode is allowed for a given block for skip mode
+static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
+                                                const MB_MODE_INFO *mbmi) {
+  assert(mbmi->skip_mode);
+  return cm->seq_params.enable_refinemv &&
+         cm->superres_scale_denominator == SCALE_NUMERATOR &&
+         is_refinemv_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+         is_refinemv_allowed_reference(cm, mbmi);
+}
+static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
+                                            const MB_MODE_INFO *mbmi) {
+  if (!cm->seq_params.enable_refinemv ||
+      cm->superres_scale_denominator != SCALE_NUMERATOR)
+    return 0;
+  int is_refinemv =
+      (mbmi->skip_mode
+           ? is_refinemv_allowed_skip_mode(cm, mbmi)
+           : is_refinemv_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]));
+  if (is_refinemv) {
+    if (default_refinemv_modes(mbmi)) return 1;
+  }
+  return 0;
+}
+
+// check if the refinemv mode is switchable for a given block
+static INLINE int switchable_refinemv_flag(const AV1_COMMON *const cm,
+                                           const MB_MODE_INFO *mbmi) {
+  if (!cm->seq_params.enable_refinemv) return 0;
+  int is_refinemv =
+      (mbmi->skip_mode
+           ? is_refinemv_allowed_skip_mode(cm, mbmi)
+           : is_refinemv_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]));
+  if (is_refinemv && !is_tip_ref_frame(mbmi->ref_frame[0])) {
+    if (default_refinemv_modes(mbmi)) return 0;
+    return 1;
+  }
+
+  return 0;
+}
+
+// Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
+// 1/16-pel can be used.
+#define MV_REFINE_PREC_BITS 4  // (1/16-pel)
+
+// Clamp MV to UMV border based on its distance to left/right/top/bottom edge
+static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
+    InterPredParams *const inter_pred_params, const MV *src_mv, int bw, int bh,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    int ss_x, int ss_y) {
+  // If the MV points so far into the UMV border that no visible pixels
+  // are used for reconstruction, the subpel part of the MV can be
+  // discarded and the MV limited to 16 pixels with equivalent results.
+  const int spel_left = (AOM_INTERP_EXTEND + bw) << SUBPEL_BITS;
+  const int spel_right = spel_left - SUBPEL_SHIFTS;
+  const int spel_top = (AOM_INTERP_EXTEND + bh) << SUBPEL_BITS;
+  const int spel_bottom = spel_top - SUBPEL_SHIFTS;
+#if CONFIG_OPTFLOW_REFINEMENT
+  MV clamped_mv;
+  if (use_optflow_refinement) {
+    // optflow refinement always returns MVs with 1/16 precision so it is not
+    // necessary to shift the MV before clamping
+    // Here it should be:
+    // clamped_mv.row = (int16_t)ROUND_POWER_OF_TWO_SIGNED(
+    //     src_mv->row * (1 << SUBPEL_BITS), MV_REFINE_PREC_BITS + ss_y);
+    // But currently SUBPEL_BITS == MV_REFINE_PREC_BITS
+    assert(SUBPEL_BITS == MV_REFINE_PREC_BITS);
+
+    if (ss_y || ss_x) {
+      clamped_mv.row = (int16_t)ROUND_POWER_OF_TWO_SIGNED(
+          src_mv->row * (1 << SUBPEL_BITS), MV_REFINE_PREC_BITS + ss_y);
+      clamped_mv.col = (int16_t)ROUND_POWER_OF_TWO_SIGNED(
+          src_mv->col * (1 << SUBPEL_BITS), MV_REFINE_PREC_BITS + ss_x);
+    } else {
+      clamped_mv = *src_mv;
+    }
+  } else {
+    clamped_mv.row = (int16_t)(src_mv->row * (1 << (1 - ss_y)));
+    clamped_mv.col = (int16_t)(src_mv->col * (1 << (1 - ss_x)));
+  }
+#else
+  MV clamped_mv = { (int16_t)(src_mv->row * (1 << (1 - ss_y))),
+                    (int16_t)(src_mv->col * (1 << (1 - ss_x))) };
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+  assert(ss_x <= 1);
+  assert(ss_y <= 1);
+  const SubpelMvLimits mv_limits = {
+    inter_pred_params->dist_to_left_edge * (1 << (1 - ss_x)) - spel_left,
+    inter_pred_params->dist_to_right_edge * (1 << (1 - ss_x)) + spel_right,
+    inter_pred_params->dist_to_top_edge * (1 << (1 - ss_y)) - spel_top,
+    inter_pred_params->dist_to_bottom_edge * (1 << (1 - ss_y)) + spel_bottom
+  };
+
+  clamp_mv(&clamped_mv, &mv_limits);
+
+  return clamped_mv;
+}
+
+// This function conduct the SAD search between two predictors and find the best
+// MVs
+void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
+                         MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
+                         uint16_t **mc_buf,
+                         CalcSubpelParamsFunc calc_subpel_params_func,
+                         int pre_x, int pre_y, uint16_t *dst_ref0,
+                         uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
+                         int pu_height);
+
+// check if padding is required during motion compensation
+// return 1 means reference pixel is outside of the reference range and padding
+// is required return 0 means no padding.
+int update_extend_mc_border_params(const struct scale_factors *const sf,
+                                   struct buf_2d *const pre_buf, MV32 scaled_mv,
+                                   PadBlock *block, int subpel_x_mv,
+                                   int subpel_y_mv, int do_warp, int is_intrabc,
+                                   int *x_pad, int *y_pad,
+                                   const ReferenceArea *ref_area);
+
+// Derive the sub-pixel related parameters of refinemv non-TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" Also do padding if required This function is used for both
+// encoder and decoder
+void common_calc_subpel_params_and_extend(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
+    int *src_stride);
+
+// Derive the sub-pixel related parameters of refinemv TIP blocks
+// Sub-pel related parameters are stored in the structures pointed by
+// "subpel_params" Also do padding if required This function is used for both
+// encoder and decoder
+void tip_common_calc_subpel_params_and_extend(
+    const MV *const src_mv, InterPredParams *const inter_pred_params,
+    MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+    int use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+    uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
+    int *src_stride);
+#endif  // CONFIG_REFINEMV
+
+#if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
+
+unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
+                            const uint16_t *ref_ptr, int ref_stride, int bd,
+                            int bw, int bh);
+#endif  // CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 
 #if CONFIG_OPTFLOW_REFINEMENT
 // This parameter k=OPFL_DIST_RATIO_THR is used to prune MV refinement for the
@@ -497,9 +870,11 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #define OPFL_COV_CLAMP_BITS 28
 #define OPFL_COV_CLAMP_VAL (1 << OPFL_COV_CLAMP_BITS)
 
+#if !CONFIG_REFINEMV
 // Precision of refined MV returned, 0 being integer pel. For now, only 1/8 or
 // 1/16-pel can be used.
 #define MV_REFINE_PREC_BITS 4  // (1/16-pel)
+#endif                         //! CONFIG_REFINEMV
 void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
                                    const uint16_t *p1, int pstride1,
                                    const int16_t *gx0, const int16_t *gy0,
@@ -512,14 +887,23 @@ void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
     InterPredParams *inter_pred_params,
-    CalcSubpelParamsFunc calc_subpel_params_func, int ref, uint16_t *pred_dst);
+    CalcSubpelParamsFunc calc_subpel_params_func, int ref, uint16_t *pred_dst
+#if CONFIG_REFINEMV
+    ,
+    const MV *const src_mv, int pu_width, int pu_height
+#endif  // CONFIG_REFINEMV
+);
 
 static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
                                          const MB_MODE_INFO *mbmi) {
   if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const unsigned int cur_index = cm->cur_frame->display_order_hint;
+#else
   const unsigned int cur_index = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int d0, d1;
 #if CONFIG_OPTFLOW_ON_TIP
   if (mbmi->ref_frame[0] == TIP_FRAME) {
@@ -530,8 +914,15 @@ static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
     if (!mbmi->ref_frame[1]) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-    d0 = (int)cur_index - (int)ref0->order_hint;
-    d1 = (int)cur_index - (int)ref1->order_hint;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref0->display_order_hint);
+    d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
+                           ref1->display_order_hint);
+#else
+  d0 = (int)cur_index - (int)ref0->order_hint;
+  d1 = (int)cur_index - (int)ref1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 #if CONFIG_OPTFLOW_ON_TIP
   }
 #endif  // CONFIG_OPTFLOW_ON_TIP
@@ -553,6 +944,10 @@ int av1_get_optflow_based_mv_highbd(
     ,
     int do_pred, int use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
+#if CONFIG_REFINEMV
+    ,
+    MV *best_mv_ref, int pu_width, int pu_height
+#endif  // CONFIG_REFINEMV
 );
 
 // With the refined MVs, generate the inter prediction for the block.
@@ -669,6 +1064,30 @@ static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
   return clamped_mv;
 }
 
+#if CONFIG_D071_IMP_MSK_BLD
+void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
+                                 uint16_t *dst, int dst_stride,
+                                 InterPredParams *inter_pred_params,
+                                 const SubpelParams *subpel_params,
+                                 int use_bacp, int sub_block_id);
+
+static INLINE int use_border_aware_compound(const AV1_COMMON *cm,
+                                            const MB_MODE_INFO *mbmi) {
+  if (is_masked_compound_type(mbmi->interinter_comp.type) ||
+      mbmi->mode == GLOBAL_GLOBALMV)
+    return 0;
+
+  (void)cm;
+  return has_second_ref(mbmi) &&
+         (mbmi->mode >= COMP_INTER_MODE_START &&
+          mbmi->mode < COMP_INTER_MODE_END) &&
+         (mbmi->interinter_comp.type == COMPOUND_DIFFWTD ||
+          mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+}
+int is_out_of_frame_block(InterPredParams const *inter_pred_params,
+                          int frame_width, int frame_height, int sub_block_id);
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
 static INLINE int64_t scaled_buffer_offset(int x_offset, int y_offset,
                                            int stride,
                                            const struct scale_factors *sf) {
@@ -725,7 +1144,11 @@ static INLINE void set_default_interp_filters(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   mbmi->interp_fltr =
-      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+#if CONFIG_REFINEMV
+       || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+       )
           ? MULTITAP_SHARP
           : av1_unswitchable_filter(frame_interp_filter);
 #else
@@ -748,6 +1171,12 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
   if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
     return 0;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#if CONFIG_REFINEMV
+  // No interpolation filter search when MV refinement is used.
+  if (mbmi->refinemv_flag) return 0;
+#endif  // CONFIG_REFINEMV
+
   if (is_warp_mode(mbmi->motion_mode)) return 0;
   if (is_nontrans_global_motion(xd, xd->mi[0])) return 0;
   return 1;
@@ -789,6 +1218,13 @@ static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);
+
+#if CONFIG_CWP
+// Init the masks for compound weighted prediction
+void init_cwp_masks();
+// Get the mask for compound weighted prediction
+const int8_t *av1_get_cwp_mask(int list_idx, int idx);
+#endif  // CONFIG_CWP
 
 // build interintra_predictors for one plane
 void av1_build_interintra_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -852,7 +1288,11 @@ void set_default_precision_set(const AV1_COMMON *const cm, MB_MODE_INFO *mbmi,
 // Set the precision set of the block. Currently, the value is 0.
 void set_precision_set(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                        MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize,
+#if CONFIG_SEP_COMP_DRL
+                       int *ref_mv_idx);
+#else
                        uint8_t ref_mv_idx);
+#endif  // CONFIG_SEP_COMP_DRL
 // Get the index of the precision
 // this index is signalled when precision is not same as the most probable
 // precision
@@ -874,7 +1314,6 @@ MvSubpelPrecision av1_get_mbmi_max_mv_precision(const AV1_COMMON *const cm,
 // check if pb_mv_precision is allowed or not
 int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize);
-
 #endif
 
 #if CONFIG_WARPMV
@@ -888,17 +1327,31 @@ static INLINE int is_warpmv_allowed_bsize(BLOCK_SIZE bsize) {
 static INLINE int is_warpmv_mode_allowed(const AV1_COMMON *const cm,
                                          const MB_MODE_INFO *mbmi,
                                          BLOCK_SIZE bsize) {
-  if (has_second_ref(mbmi) || !cm->features.enabled_motion_modes
+  int frame_warp_delta_allowed =
+      (cm->features.enabled_motion_modes & (1 << WARP_DELTA)) != 0;
+
+  if (has_second_ref(mbmi) || !frame_warp_delta_allowed
 #if CONFIG_TIP
       || is_tip_ref_frame(mbmi->ref_frame[0])
 #endif  // CONFIG_TIP
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      || !cm->features.allow_warpmv_mode
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   )
     return 0;
 
-  int frame_warp_delta_allowed =
-      cm->features.enabled_motion_modes & (1 << WARP_DELTA);
   return frame_warp_delta_allowed && is_warpmv_allowed_bsize(bsize);
 }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+// check if warpmv with mvd is allowed or not
+static INLINE int allow_warpmv_with_mvd_coding(const AV1_COMMON *const cm,
+                                               const MB_MODE_INFO *mbmi) {
+  if (!cm->features.allow_warpmv_mode) return 0;
+  return (mbmi->mode == WARPMV && mbmi->warp_ref_idx < 2);
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
 #endif  // CONFIG_WARPMV
 
 #ifdef __cplusplus

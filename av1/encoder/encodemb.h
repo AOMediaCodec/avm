@@ -105,6 +105,12 @@ void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
                                     CctxType cctx_type);
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+#if CONFIG_ATC_DCTX_ALIGNED
+// This function sets the first position index in a TU.
+void set_bob(MACROBLOCK *x, int plane, int block, TX_SIZE tx_size,
+             TX_TYPE tx_type);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
 void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
                QUANT_PARAM *qparam);
 

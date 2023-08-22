@@ -21,9 +21,9 @@
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-uint32_t od_ec_tell_frac(uint32_t nbits_total, uint32_t rng) {
-  uint32_t nbits;
-  int l;
+uint64_t od_ec_tell_frac(uint32_t nbits_total, uint32_t rng) {
+  uint64_t nbits;
+  int64_t l;
   int i;
   /*To handle the non-integral number of bits still left in the encoder/decoder
      state, we compute the worst-case number of bits of val that must be
@@ -37,7 +37,7 @@ uint32_t od_ec_tell_frac(uint32_t nbits_total, uint32_t rng) {
      probability of 1/(1 << n) might sometimes appear to use more than n bits.
     This may help explain the surprising result that a newly initialized
      encoder or decoder claims to have used 1 bit.*/
-  nbits = nbits_total << OD_BITRES;
+  nbits = (uint64_t)nbits_total << OD_BITRES;
   l = 0;
   for (i = OD_BITRES; i-- > 0;) {
     int b;

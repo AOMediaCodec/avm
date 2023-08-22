@@ -137,25 +137,22 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 0
                    "Use zero offset for non-normative bit upshift")
 
 # AV2 experiment flags.
-set_aom_config_var(
-  CONFIG_ATC_COEFCODING 1
-  "AV2 enable adaptive transform coefficient coding improvement.")
-set_aom_config_var(CONFIG_ATC_NEWTXSETS 1
-                   "AV2 enable adaptive transform coding and new TX sets.")
+set_aom_config_var(CONFIG_ATC 1 "AV2 enable adaptive transform coding.")
 set_aom_config_var(CONFIG_ATC_REDUCED_TXSET 1
                    "AV2 enable reduced transform set.")
+set_aom_config_var(
+  CONFIG_ATC_DCTX_ALIGNED 1
+  "AV2 TX signaling restriction for DC blocks with EOB alignment.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
-set_aom_config_var(CONFIG_C043_MVP_IMPROVEMENTS 1
-                   "AV2 enable MVP list improvements.")
-set_aom_config_var(CONFIG_C063_TMVP_IMPROVEMENT 1
-                   "AV2 experiment flag for improved TMVP derivation.")
-set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
-                   "AV2 Fully recursive partitions experiment flag")
-set_aom_config_var(CONFIG_H_PARTITION 1 NUMBER
-                   "AV2 H partition mode experiment flag")
+set_aom_config_var(CONFIG_EXT_DIR 1 "AV2 extended intra prediction angles.")
+set_aom_config_var(
+  CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
+  "AV2 Fully recursive partitions including H partitions experiment flag")
 set_aom_config_var(CONFIG_BLOCK_256 1 NUMBER "AV2 BLOCK_256 experiment flag")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
+set_aom_config_var(CONFIG_UNEVEN_4WAY 1 NUMBER
+                   "AV2 uneven 4-way partition experiment flag")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")
 set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
@@ -163,12 +160,14 @@ set_aom_config_var(CONFIG_NEW_TX_PARTITION 1
 set_aom_config_var(
   CONFIG_ORIP 1
   "AV2 experiment flag to enable offset based refinement of intra prediction.")
+set_aom_config_var(
+  CONFIG_IDIF 1
+  "AV2 experiment flag to enable Intra Directional Interpolation Filter.")
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for non-DC modes.")
-set_aom_config_var(CONFIG_SMVP_IMPROVEMENT 1 "Enable SMVP improvement")
-set_aom_config_var(CONFIG_TMVP_IMPROVEMENT 1 "Enable TMVP improvement")
+set_aom_config_var(CONFIG_MVP_IMPROVEMENT 1 "Enable MVP improvement")
 set_aom_config_var(CONFIG_REF_MV_BANK 1 "AV2 ref mv bank experiment flag")
 set_aom_config_var(
   CONFIG_CCSO 1 "AV2 experiment flag to enable cross component sample offset.")
@@ -178,8 +177,6 @@ set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
-set_aom_config_var(CONFIG_COMPLEXITY_SCALABLE_MVP 1
-                   "Enable complexity scalable mvp")
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
@@ -199,31 +196,40 @@ set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 1 NUMBER
 set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
                    "AV2 pixel-classified Wiener filter experiment flag")
 # End: CWG-C016
+set_aom_config_var(CONFIG_HIGH_PASS_CROSS_WIENER_FILTER 1
+                   "AV2 high pass cross non-sep wiener filter experiment flag")
+set_aom_config_var(
+  CONFIG_FLEXIBLE_RU_SIZE 1
+  "AV2 experiment flag to choose RU size between 128x128, 256x256 and 512x512")
 
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
-set_aom_config_var(CONFIG_BVP_IMPROVEMENT 1 "Enables BVP improvements")
-set_aom_config_var(CONFIG_BVCOST_UPDATE 1 "Enables sb-level update for bv cost")
+set_aom_config_var(CONFIG_IBC_BV_IMPROVEMENT 1
+                   "Enables BV improvements for IBC")
 set_aom_config_var(CONFIG_CCSO_EXT 1
                    "AV2 experiment flag to enable extended CCSO.")
+set_aom_config_var(CONFIG_CFL_IMPROVEMENTS 1
+                   "AV2 Cfl improvements from CWG-D029.")
+set_aom_config_var(CONFIG_ADPTIVE_DS_422 1
+                   "AV2 adaptive downsampling in CfL for 422 from CWG-D028.")
 set_aom_config_var(CONFIG_ADAPTIVE_MVD 1 "Enable adaptive MVD resolution")
 set_aom_config_var(CONFIG_JOINT_MVD 1 "Enable joint MVD coding")
 set_aom_config_var(CONFIG_IMPROVED_JMVD 1
                    "Enable joint MVD coding with multiple scaling factors")
-set_aom_config_var(CONFIG_INDEP_PALETTE_PARSING 1
-                   "AV2 experiment flag for palette parsing independency.")
-set_aom_config_var(CONFIG_NEW_COLOR_MAP_CODING 1
-                   "AV2 experiment flag to enable improved palette coding.")
+set_aom_config_var(
+  CONFIG_PALETTE_IMPROVEMENTS
+  1
+  "AV2 experiment flag for palette parsing independency and improved palette color map coding."
+)
 set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
                    "AV2 experiment flag to fix the SSE calc bug for skip mode.")
 set_aom_config_var(CONFIG_SKIP_MODE_ENHANCEMENT 1
-                   "AV2 experiment flag to enable skip mode enhancement: C019.")
-set_aom_config_var(
-  CONFIG_SKIP_MODE_DRL_WITH_REF_IDX 1
-  "AV2 experiment flag to enable DRL with ref_MV_idx for skip mode.")
+                   "AV2 experiment flag to enable skip mode enhancement.")
 set_aom_config_var(CONFIG_TIP 1 "Enable temporal interpolated prediction (TIP)")
+set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT 0
+                   "Enable frame output order derivation from order hint")
 set_aom_config_var(CONFIG_OPTFLOW_ON_TIP 1
                    "Enable optical flow refinement on top of TIP")
 set_aom_config_var(CONFIG_FLEX_MVRES 1
@@ -236,6 +242,28 @@ set_aom_config_var(CONFIG_PAR_HIDING 1
                    "Enable parity hiding for coefficients coding. (PH)")
 set_aom_config_var(CONFIG_BAWP 1 "Enable block adaptive weighted prediction")
 set_aom_config_var(CONFIG_WARPMV 1 "Enable warpmv modes")
+set_aom_config_var(CONFIG_IMPROVED_ANGULAR_INTRA 1
+                   "Improved angular intra prediction mode")
+set_aom_config_var(CONFIG_D071_IMP_MSK_BLD 1
+                   "Enable single reference mode for frame boundary")
+
+set_aom_config_var(CONFIG_SKIP_TXFM_OPT 1
+                   "Enable to optimize the signaling of skip_txfm")
+set_aom_config_var(CONFIG_CWP 1 "Enables compound weighted prediction.")
+set_aom_config_var(CONFIG_REFINEMV 1 "Enable refinemv modes")
+
+set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
+                   "Enable to explicit temporal distance calculation")
+
+set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
+                   "New global motion syntax for AV2")
+set_aom_config_var(CONFIG_SEP_COMP_DRL 1
+                   "Use separate drl list for compound modes")
+set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
+                   "Reuse the mvs of compound mode from non-opfl path")
+
+set_aom_config_var(CONFIG_CWG_D067_IMPROVED_WARP 1
+                   "Improvement of warp motions")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
@@ -244,6 +272,9 @@ set_aom_config_var(CONFIG_FIX_CDEF_SYNTAX 1
                    "AV2 experiment flag to fix CDEF syntax.")
 set_aom_config_var(CONFIG_IMPROVED_CFL 1
                    "Enable improved CfL mode from CWG-C044")
+set_aom_config_var(CONFIG_BLEND_MODE 1
+                   "Enable improved intra blend mode from CWG-D046")
+
 set_aom_config_var(
   CONFIG_PEF 1 "AV2 experiment flag to enable prediction enhancement filter")
 
@@ -264,6 +295,10 @@ set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
 set_aom_config_var(CONFIG_CROSS_CHROMA_TX 1
                    "AV2 cross chroma component transform experiment flag.")
 set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
+
+set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
+                   "Enable to improve temporal motion projection")
+
 #
 # Variables in this section control optional features of the build system.
 #

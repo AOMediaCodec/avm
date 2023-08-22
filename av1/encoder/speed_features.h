@@ -33,13 +33,6 @@ typedef struct MESH_PATTERN {
 } MESH_PATTERN;
 
 enum {
-  GM_FULL_SEARCH,
-  GM_REDUCED_REF_SEARCH_SKIP_LEV2,
-  GM_REDUCED_REF_SEARCH_SKIP_LEV3,
-  GM_DISABLE_SEARCH
-} UENUM1BYTE(GM_SEARCH_TYPE);
-
-enum {
   INTRA_ALL = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED) | (1 << D45_PRED) |
               (1 << D135_PRED) | (1 << D113_PRED) | (1 << D157_PRED) |
               (1 << D203_PRED) | (1 << D67_PRED) | (1 << SMOOTH_PRED) |
@@ -369,20 +362,16 @@ typedef struct TPL_SPEED_FEATURES {
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
-  // Do not compute the global motion parameters for a LAST2_FRAME or
-  // LAST3_FRAME if the GOLDEN_FRAME is closer and it has a non identity
-  // global model.
-  int selective_ref_gm;
-
-  GM_SEARCH_TYPE gm_search_type;
-
-  // whether to disable the global motion recode loop
-  int gm_disable_recode;
+  int max_ref_frames;
 
   // During global motion estimation, prune remaining reference frames in a
   // given direction(past/future), if the evaluated ref_frame in that direction
   // yields gm_type as INVALID/TRANSLATION/IDENTITY
   int prune_ref_frame_for_gm_search;
+
+  // Disable global motion estimation based on stats of previous frames in the
+  // GF group
+  int disable_gm_search_based_on_stats;
 } GLOBAL_MOTION_SPEED_FEATURES;
 
 typedef struct PARTITION_SPEED_FEATURES {
@@ -496,11 +485,23 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prunes PARTITION_3 if PARTITION_NONE is used instead of PARTITION_HORZ|VERT
   int prune_rect_with_none_rd;
 
-  // Prunes PARTITION_3 if PARTITION_NONE is used instead of PARTITION_HORZ|VERT
-  int prune_part_3_with_part_none;
+  // Prunes extended partitions if PARTITION_NONE is used instead of
+  // PARTITION_HORZ|VERT.
+  int prune_ext_part_with_part_none;
 
-  // Prunes PARTITION_3 partition 3 doesn't split in the same direction
-  int prune_part_3_with_part_rect;
+  // Prunes extended partitions if rect sub-partitions don't further split in
+  // the same direction.
+  int prune_ext_part_with_part_rect;
+
+#if CONFIG_UNEVEN_4WAY
+  // Prunes PARTITION_HORZ_4A/4B if vertical is the best partition, and
+  // Prunes PARTITION_VERT_4A/4B if horizontal is the best partition.
+  int prune_part_4_horz_or_vert;
+
+  // Prunes PARTITION_HORZ_4A/4B based on PARTITION_HORZ_3 search result, and
+  // Prunes PARTITION_VERT_4A/4B based on PARTITION_VERT_3 search result.
+  int prune_part_4_with_part_3;
+#endif  // CONFIG_UNEVEN_4WAY
 
   int two_pass_partition_search;
 
@@ -516,6 +517,21 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Prune rect partitions if PARTITION_SPLIT goes deep.
   int prune_rect_with_split_depth;
+
+  // Search horizontal and vertical split before PARTITION_NONE if the neighbor
+  // blocks are much smaller than the current block size.
+  int adaptive_partition_search_order;
+
+  // Prune h partition types if their resulting boundary does not agree with
+  // the current best partition's boundary after searching NONE, HORZ, and VERT.
+  int prune_part_h_with_partition_boundary;
+
+#if CONFIG_UNEVEN_4WAY
+  // Prune r-way partition types if their resulting boundary does not agree with
+  // the current best partition's boundary after searching NONE, HORZ, VERT, and
+  // H-parts.
+  int prune_part_4_with_partition_boundary;
+#endif  // CONFIG_UNEVEN_4WAY
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 
@@ -724,6 +740,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune warped motion search using previous frame stats.
   int prune_warped_prob_thresh;
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  // Prune warpmv with mvd search using previous frame stats.
+  int prune_warpmv_prob_thresh;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   // Enable/disable interintra wedge search.
   int disable_wedge_interintra_search;

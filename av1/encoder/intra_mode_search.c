@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include "av1/common/av1_common_int.h"
 #include "av1/common/reconintra.h"
 
 #include "av1/encoder/intra_mode_search.h"
@@ -790,12 +791,19 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   set_mv_precision(mbmi, mbmi->max_mv_precision);
 #endif
 
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #endif
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  mbmi->warpmv_with_mvd_flag = 0;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   RD_STATS rd_stats_y;
   av1_invalid_rd_stats(&rd_stats_y);
@@ -856,10 +864,15 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   if (skippable) {
     rate2 -= rd_stats_y.rate;
     if (num_planes > 1) rate2 -= intra_search_state->rate_uv_tokenonly;
+#if !CONFIG_SKIP_TXFM_OPT
     rate2 += mode_costs->skip_txfm_cost[av1_get_skip_txfm_context(xd)][1];
-  } else {
+#endif  // !CONFIG_SKIP_TXFM_OPT
+  }
+#if !CONFIG_SKIP_TXFM_OPT
+  else {
     rate2 += mode_costs->skip_txfm_cost[av1_get_skip_txfm_context(xd)][0];
   }
+#endif  // !CONFIG_SKIP_TXFM_OPT
   this_rd = RDCOST(x->rdmult, rate2, distortion2);
   this_rd_cost->rate = rate2;
   this_rd_cost->dist = distortion2;
@@ -948,6 +961,9 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   set_mv_precision(mbmi, mbmi->max_mv_precision);
 #endif
+#if CONFIG_REFINEMV
+  mbmi->refinemv_flag = 0;
+#endif  // CONFIG_REFINEMV
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 
   RD_STATS rd_stats_y_fi;
@@ -1026,10 +1042,20 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   assert(mbmi->ref_frame[0] == INTRA_FRAME);
   const PREDICTION_MODE mode = mbmi->mode;
   const ModeCosts *mode_costs = &x->mode_costs;
+
+#if CONFIG_EXT_DIR
+  int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+  int mrl_idx_cost =
+      (av1_is_directional_mode(mbmi->mode) &&
+       cpi->common.seq_params.enable_mrls)
+          ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+          : 0;
+#else
   int mrl_idx_cost = (av1_is_directional_mode(mbmi->mode) &&
                       cpi->common.seq_params.enable_mrls)
                          ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
                          : 0;
+#endif  // CONFIG_EXT_DIR
 #if CONFIG_AIMC
   int mode_cost = 0;
   const int context = get_y_mode_idx_ctx(xd);
@@ -1055,12 +1081,16 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   const int intra_cost_penalty = av1_get_intra_cost_penalty(
       cm->quant_params.base_qindex, cm->quant_params.y_dc_delta_q,
       cm->seq_params.base_y_dc_delta_q, cm->seq_params.bit_depth);
+#if !CONFIG_SKIP_TXFM_OPT
   const int skip_ctx = av1_get_skip_txfm_context(xd);
+#endif  // !CONFIG_SKIP_TXFM_OPT
 
   int known_rate = mode_cost;
   if (mode != DC_PRED && mode != PAETH_PRED) known_rate += intra_cost_penalty;
+#if !CONFIG_SKIP_TXFM_OPT
   known_rate += AOMMIN(mode_costs->skip_txfm_cost[skip_ctx][0],
                        mode_costs->skip_txfm_cost[skip_ctx][1]);
+#endif  // !CONFIG_SKIP_TXFM_OPT
   const int64_t known_rd = RDCOST(x->rdmult, known_rate, 0);
   if (known_rd > best_rd) {
     intra_search_state->skip_intra_modes = 1;
@@ -1140,10 +1170,14 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
 #if !CONFIG_AIMC
     if (intra_search_state->rate_uv_intra == INT_MAX) {
 #endif  // !CONFIG_AIMC
-      // If no good uv-predictor had been found, search for it.
-      const int rate_y = rd_stats_y->skip_txfm
-                             ? mode_costs->skip_txfm_cost[skip_ctx][1]
-                             : rd_stats_y->rate;
+        // If no good uv-predictor had been found, search for it.
+#if CONFIG_SKIP_TXFM_OPT
+      const int rate_y = rd_stats_y->rate;
+#else
+    const int rate_y = rd_stats_y->skip_txfm
+                           ? mode_costs->skip_txfm_cost[skip_ctx][1]
+                           : rd_stats_y->rate;
+#endif  // CONFIG_SKIP_TXFM_OPT
       const int64_t rdy =
           RDCOST(x->rdmult, rate_y + mode_cost_y, rd_stats_y->dist);
       if (best_rd < (INT64_MAX / 2) && rdy > (best_rd + (best_rd >> 2))) {
@@ -1224,8 +1258,10 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   // Intra block is always coded as non-skip
   rd_stats->skip_txfm = 0;
   rd_stats->dist = rd_stats_y->dist + rd_stats_uv->dist;
+#if !CONFIG_SKIP_TXFM_OPT
   // Add in the cost of the no skip flag.
   rd_stats->rate += mode_costs->skip_txfm_cost[skip_ctx][0];
+#endif  // !CONFIG_SKIP_TXFM_OPT
   // Calculate the final RD estimate for this mode.
   const int64_t this_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
   // Keep record of best intra rd
@@ -1349,13 +1385,23 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
         continue;
 
       if (!is_directional_mode && mrl_idx) continue;
+#if !CONFIG_EXT_DIR
       if (best_mbmi->mrl_index == 0 && mbmi->mrl_index > 1 &&
           av1_is_directional_mode(best_mbmi->mode) == 0) {
         continue;
       }
+#endif  // CONFIG_EXT_DIR
+#if CONFIG_EXT_DIR
+      int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+      int mrl_idx_cost =
+          (is_directional_mode && enable_mrls_flag)
+              ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+              : 0;
+#else
       int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
                              ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
                              : 0;
+#endif  // CONFIG_EXT_DIR
 #if CONFIG_AIMC
       mode_costs += mrl_idx_cost;
 #endif  // CONFIG_AIMC
@@ -1548,13 +1594,23 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         continue;
 
       if (!is_directional_mode && mrl_idx) continue;
+#if !CONFIG_EXT_DIR
       if (best_mbmi.mrl_index == 0 && mbmi->mrl_index > 1 &&
           av1_is_directional_mode(best_mbmi.mode) == 0) {
         continue;
       }
+#endif  // CONFIG_EXT_DIR
+#if CONFIG_EXT_DIR
+      int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
+      int mrl_idx_cost =
+          (is_directional_mode && enable_mrls_flag)
+              ? x->mode_costs.mrl_index_cost[mrl_ctx][mbmi->mrl_index]
+              : 0;
+#else
       int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
                              ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
                              : 0;
+#endif  // CONFIG_EXT_DIR
 #if CONFIG_AIMC
       mode_costs += mrl_idx_cost;
 #endif  // CONFIG_AIMC

@@ -64,12 +64,12 @@ static const uint8_t rd_thresh_block_size_factor[BLOCK_SIZES_ALL] = {
 static const int use_intra_ext_tx_for_txsize[EXT_TX_SETS_INTRA]
                                             [EXT_TX_SIZES] = {
                                               { 1, 1, 1, 1 },  // unused
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
                                               { 1, 1, 1, 0 },
 #else
                                               { 1, 1, 0, 0 },
                                               { 0, 0, 1, 0 },
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
                                             };
 
 static const int use_inter_ext_tx_for_txsize[EXT_TX_SETS_INTER]
@@ -85,12 +85,12 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
   {
       // Intra
       EXT_TX_SET_DCTONLY,
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
       EXT_NEW_TX_SET,
 #else
       EXT_TX_SET_DTT4_IDTX_1DDCT,
       EXT_TX_SET_DTT4_IDTX,
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
   },
   {
       // Inter
@@ -133,6 +133,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
         av1_cost_tokens_from_cdf(
             mode_costs->do_ext_partition_cost[plane_index][rect_type][i],
             fc->do_ext_partition_cdf[plane_index][rect_type][i], NULL);
+#if CONFIG_UNEVEN_4WAY
+        av1_cost_tokens_from_cdf(
+            mode_costs
+                ->do_uneven_4way_partition_cost[plane_index][rect_type][i],
+            fc->do_uneven_4way_partition_cdf[plane_index][rect_type][i], NULL);
+        av1_cost_tokens_from_cdf(
+            mode_costs
+                ->uneven_4way_partition_type_cost[plane_index][rect_type][i],
+            fc->uneven_4way_partition_type_cdf[plane_index][rect_type][i],
+            NULL);
+#endif  // CONFIG_UNEVEN_4WAY
       }
     }
   }
@@ -164,15 +175,36 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
             mode_costs->partition_cost[plane_index][ctx][part] +=
                 mode_costs->rect_type_cost[plane_index][ctx][rect_type];
           }
-          const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
           const bool ext_partition_allowed =
-              !disable_ext_part &&
+              cm->seq_params.enable_ext_partitions &&
               is_ext_partition_allowed(bsize, rect_type, tree_type);
           if (ext_partition_allowed) {
             const bool do_ext_partition = (part >= PARTITION_HORZ_3);
             mode_costs->partition_cost[plane_index][ctx][part] +=
                 mode_costs->do_ext_partition_cost[plane_index][rect_type][ctx]
                                                  [do_ext_partition];
+#if CONFIG_UNEVEN_4WAY
+            if (do_ext_partition) {
+              const bool uneven_4way_partition_allowed =
+                  is_uneven_4way_partition_allowed(bsize, rect_type, tree_type);
+              if (uneven_4way_partition_allowed) {
+                const bool do_uneven_4way_partition =
+                    (part >= PARTITION_HORZ_4A);
+                mode_costs->partition_cost[plane_index][ctx][part] +=
+                    mode_costs->do_uneven_4way_partition_cost
+                        [plane_index][rect_type][ctx][do_uneven_4way_partition];
+                if (do_uneven_4way_partition) {
+                  const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
+                      (part == PARTITION_HORZ_4A || part == PARTITION_VERT_4A)
+                          ? UNEVEN_4A
+                          : UNEVEN_4B;
+                  mode_costs->partition_cost[plane_index][ctx][part] +=
+                      mode_costs->uneven_4way_partition_type_cost
+                          [plane_index][rect_type][ctx][uneven_4way_type];
+                }
+              }
+            }
+#endif  // CONFIG_UNEVEN_4WAY
           }
         }
       }
@@ -200,7 +232,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              fc->skip_txfm_cdfs[i], NULL);
   }
 
+#if CONFIG_EXT_DIR
+  for (i = 0; i < MRL_INDEX_CONTEXTS; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost[i],
+                             fc->mrl_index_cdf[i], NULL);
+  }
+#else
   av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);
+#endif  // CONFIG_EXT_DIR
 
   for (i = 0; i < FSC_MODE_CONTEXTS; ++i) {
     for (j = 0; j < FSC_BSIZE_CONTEXTS; ++j) {
@@ -278,7 +317,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
   }
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   for (i = 0; i < PALETTE_ROW_FLAG_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->palette_y_row_flag_cost[i],
                              fc->identity_row_cdf_y[i], NULL);
@@ -344,6 +383,24 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     int s;
+#if CONFIG_ATC_DCTX_ALIGNED
+    int k;
+    for (k = 0; k < EOB_TX_CTXS; ++k) {
+      for (s = 1; s < EXT_TX_SETS_INTER; ++s) {
+#if CONFIG_ATC_REDUCED_TXSET
+        if (cm->features.reduced_tx_set_used ||
+            use_inter_ext_tx_for_txsize[s][i]) {
+#else
+        if (use_inter_ext_tx_for_txsize[s][i]) {
+#endif  // CONFIG_ATC_REDUCED_TXSET
+          av1_cost_tokens_from_cdf(
+              mode_costs->inter_tx_type_costs[s][k][i],
+              fc->inter_ext_tx_cdf[s][k][i],
+              av1_ext_tx_inv[av1_ext_tx_set_idx_to_type[1][s]]);
+        }
+      }
+    }
+#else
     for (s = 1; s < EXT_TX_SETS_INTER; ++s) {
 #if CONFIG_ATC_REDUCED_TXSET
       if (cm->features.reduced_tx_set_used ||
@@ -356,17 +413,18 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
             av1_ext_tx_inv[av1_ext_tx_set_idx_to_type[1][s]]);
       }
     }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     for (s = 1; s < EXT_TX_SETS_INTRA; ++s) {
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
       int tx_set_type = av1_ext_tx_set_idx_to_type[0][s];
 #if CONFIG_ATC_REDUCED_TXSET
       const int cdf_offset = cm->features.reduced_tx_set_used ? 1 : 0;
 #endif  // CONFIG_ATC_REDUCED_TXSET
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
       if (use_intra_ext_tx_for_txsize[s][i]) {
         for (j = 0; j < INTRA_MODES; ++j) {
           av1_cost_tokens_from_cdf(
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
               mode_costs->intra_tx_type_costs[s][i][j],
 #if CONFIG_ATC_REDUCED_TXSET
               fc->intra_ext_tx_cdf[s + cdf_offset][i][j],
@@ -380,7 +438,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
               mode_costs->intra_tx_type_costs[s][i][j],
               fc->intra_ext_tx_cdf[s][i][j],
               av1_ext_tx_inv_intra[av1_ext_tx_set_idx_to_type[0][s]]);
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
         }
       }
     }
@@ -402,14 +460,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #else
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   av1_cost_tokens_from_cdf(mode_costs->intrabc_mode_cost, fc->intrabc_mode_cdf,
                            NULL);
   for (i = 0; i < MAX_REF_BV_STACK_SIZE - 1; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->intrabc_drl_idx_cost[i],
                              fc->intrabc_drl_idx_cdf[i], NULL);
   }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   for (i = 0; i < TX_SIZES; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->stx_flag_cost[i], fc->stx_cdf[i],
@@ -467,7 +525,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       }
     }
 
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
     for (j = 0; j < INTRA_INTER_SKIP_TXFM_CONTEXTS; ++j) {
       for (i = 0; i < INTRA_INTER_CONTEXTS; ++i) {
         av1_cost_tokens_from_cdf(mode_costs->intra_inter_cost[j][i],
@@ -479,7 +537,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->intra_inter_cost[i],
                                fc->intra_inter_cdf[i], NULL);
     }
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 
     for (i = 0; i < INTER_SINGLE_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_single_mode_cost[i],
@@ -502,12 +560,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->drl_cdf[2][i], NULL);
     }
 
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
     for (i = 0; i < 3; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->skip_drl_mode_cost[i],
                                fc->skip_drl_cdf[i], NULL);
     }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_OPTFLOW_REFINEMENT
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
@@ -570,6 +628,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->wedge_interintra_cost[i],
                                fc->wedge_interintra_cdf[i], NULL);
     }
+
+#if CONFIG_REFINEMV
+    for (i = 0; i < NUM_REFINEMV_CTX; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->refinemv_flag_cost[i],
+                               fc->refinemv_flag_cdf[i], NULL);
+    }
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->obmc_cost[i], fc->obmc_cdf[i], NULL);
@@ -584,6 +650,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->warped_causal_warpmv_cdf[i], NULL);
     }
 #endif  // CONFIG_WARPMV
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
+      av1_cost_tokens_from_cdf(mode_costs->warpmv_with_mvd_flag_cost[i],
+                               fc->warpmv_with_mvd_flag_cdf[i], NULL);
+    }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #if CONFIG_WARP_REF_LIST
     for (i = 0; i < 3; i++) {
@@ -625,6 +697,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->comp_group_idx_cost[i],
                                fc->comp_group_idx_cdf[i], NULL);
     }
+#if CONFIG_CWP
+    for (j = 0; j < MAX_CWP_CONTEXTS; j++) {
+      for (i = 0; i < MAX_CWP_NUM - 1; ++i) {
+        av1_cost_tokens_from_cdf(mode_costs->cwp_idx_cost[j][i],
+                                 fc->cwp_idx_cdf[j][i], NULL);
+      }
+    }
+#endif  // CONFIG_CWP
   }
 }
 
@@ -868,6 +948,20 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
     for (int plane = 0; plane < nplanes; ++plane) {
       LV_MAP_EOB_COST *pcost = &coeff_costs->eob_costs[eob_multi_size][plane];
 
+#if CONFIG_ATC_DCTX_ALIGNED
+      aom_cdf_prob *pcdf;
+      switch (eob_multi_size) {
+        case 0: pcdf = fc->eob_flag_cdf16[plane]; break;
+        case 1: pcdf = fc->eob_flag_cdf32[plane]; break;
+        case 2: pcdf = fc->eob_flag_cdf64[plane]; break;
+        case 3: pcdf = fc->eob_flag_cdf128[plane]; break;
+        case 4: pcdf = fc->eob_flag_cdf256[plane]; break;
+        case 5: pcdf = fc->eob_flag_cdf512[plane]; break;
+        case 6: pcdf = fc->eob_flag_cdf1024[plane]; break;
+        default: assert(0 && "Invalid eob_multi_size");
+      }
+      av1_cost_tokens_from_cdf(pcost->eob_cost, pcdf, NULL);
+#else
       for (int ctx = 0; ctx < 2; ++ctx) {
         aom_cdf_prob *pcdf;
         switch (eob_multi_size) {
@@ -882,6 +976,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         }
         av1_cost_tokens_from_cdf(pcost->eob_cost[ctx], pcdf, NULL);
       }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     }
   }
   for (int tx_size = 0; tx_size < TX_SIZES; ++tx_size) {
@@ -900,7 +995,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         av1_cost_tokens_from_cdf(pcost->base_eob_cost[ctx],
                                  fc->coeff_base_eob_cdf[tx_size][plane][ctx],
                                  NULL);
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
         av1_cost_tokens_from_cdf(pcost->base_lf_eob_cost[ctx],
                                  fc->coeff_base_lf_eob_cdf[tx_size][plane][ctx],
@@ -929,7 +1024,12 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         pcost->base_cost[ctx][7] =
             pcost->base_cost[ctx][3] - pcost->base_cost[ctx][2];
       }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
+#if CONFIG_ATC_DCTX_ALIGNED
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_BOB; ++ctx)
+        av1_cost_tokens_from_cdf(pcost->base_bob_cost[ctx],
+                                 fc->coeff_base_bob_cdf[ctx], NULL);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       for (int ctx = 0; ctx < EOB_COEF_CONTEXTS; ++ctx)
         av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx],
                                  fc->eob_extra_cdf[tx_size][plane][ctx], NULL);
@@ -949,7 +1049,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       }
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       for (int ctx = 0; ctx < LF_LEVEL_CONTEXTS; ++ctx) {
         int br_lf_rate[BR_CDF_SIZE];
         int prev_cost_lf = 0;
@@ -972,17 +1072,17 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               pcost->lps_lf_cost[ctx][i] - pcost->lps_lf_cost[ctx][i - 1];
         }
       }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
       for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx) {
         int br_rate[BR_CDF_SIZE];
         int prev_cost = 0;
         int i, j;
         av1_cost_tokens_from_cdf(
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
             br_rate, fc->coeff_br_cdf[plane][ctx],
 #else
             br_rate, fc->coeff_br_cdf[AOMMIN(tx_size, TX_32X32)][plane][ctx],
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
             NULL);
         // printf("br_rate: ");
         // for(j = 0; j < BR_CDF_SIZE; j++)
@@ -1099,7 +1199,7 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
 #endif
   );
 
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   // Copy the pointer of the dv cost to the mvcost
   mv_costs->dv_joint_cost = &dv_costs->joint_mv[0];
   mv_costs->dv_nmv_cost[0] = dv_costs->dv_costs[0];
@@ -1108,7 +1208,7 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
   (void)mv_costs;
 #endif
 }
-#elif CONFIG_BVCOST_UPDATE
+#elif CONFIG_IBC_BV_IMPROVEMENT
 void av1_fill_dv_costs(const FRAME_CONTEXT *fc, IntraBCMVCosts *dv_costs) {
   int *dvcost[2] = { &dv_costs->mv_component[0][MV_MAX],
                      &dv_costs->mv_component[1][MV_MAX] };
@@ -1223,14 +1323,14 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 #endif
 
   if (cm->features.allow_screen_content_tools &&
-#if !CONFIG_BVCOST_UPDATE
+#if !CONFIG_IBC_BV_IMPROVEMENT
       frame_is_intra_only(cm) &&
-#endif  // !CONFIG_BVCOST_UPDATE
+#endif  // !CONFIG_IBC_BV_IMPROVEMENT
       !is_stat_generation_stage(cpi)) {
 #if CONFIG_FLEX_MVRES
     fill_dv_costs(&x->dv_costs, cm->fc, mv_costs);
 #else
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
     IntraBCMVCosts *const dv_costs = &x->dv_costs;
 #else
     IntraBCMVCosts *const dv_costs = &cpi->dv_costs;
@@ -1243,16 +1343,6 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
 #endif  // CONFIG_ADAPTIVE_MVD
                              dvcost, &cm->fc->ndvc, MV_SUBPEL_NONE);
 #endif
-  }
-
-  if (!is_stat_generation_stage(cpi)) {
-    for (int i = 0; i < TRANS_TYPES; ++i)
-      // IDENTITY: 1 bit
-      // TRANSLATION: 3 bits
-      // ROTZOOM: 2 bits
-      // AFFINE: 3 bits
-      cpi->gm_info.type_cost[i] = (1 + (i > 0 ? (i == ROTZOOM ? 1 : 2) : 0))
-                                  << AV1_PROB_COST_SHIFT;
   }
 }
 
@@ -1635,10 +1725,19 @@ void av1_mv_pred(const AV1_COMP *cpi, MACROBLOCK *x, uint16_t *ref_y_buffer,
   }
 #endif  // CONFIG_TIP
   const MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
+
+#if CONFIG_SEP_COMP_DRL
+  const MB_MODE_INFO *mbmi = x->e_mbd.mi[0];
+  const int_mv ref_mv =
+      av1_get_ref_mv_from_stack(0, ref_frames, 0, x->mbmi_ext, mbmi);
+  const int_mv ref_mv1 =
+      av1_get_ref_mv_from_stack(0, ref_frames, 1, x->mbmi_ext, mbmi);
+#else
   const int_mv ref_mv =
       av1_get_ref_mv_from_stack(0, ref_frames, 0, x->mbmi_ext);
   const int_mv ref_mv1 =
       av1_get_ref_mv_from_stack(0, ref_frames, 1, x->mbmi_ext);
+#endif  // CONFIG_SEP_COMP_DRL
   MV pred_mv[MAX_MV_REF_CANDIDATES + 1];
   int num_mv_refs = 0;
   pred_mv[num_mv_refs++] = ref_mv.as_mv;

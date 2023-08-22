@@ -983,3 +983,188 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
   return 0;
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+// From the warp model, derive the MV in (x,y) position.
+// (x,y) is the horizontal and vertical position of the frame
+//(0,0) is the top-left co-ordinate of the frame
+int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
+                                     const int x, const int y,
+                                     MvSubpelPrecision precision) {
+  int_mv res;
+
+  if (model->wmtype == IDENTITY) {
+    res.as_int = 0;
+    return res;
+  }
+
+  if (model->wmtype == TRANSLATION) {
+    // All global motion vectors are stored with WARPEDMODEL_PREC_BITS (16)
+    // bits of fractional precision. The offset for a translation is stored in
+    // entries 0 and 1. For translations, all but the top three (two if
+    // precision < MV_SUBPEL_EIGHTH) fractional bits are always
+    // zero.
+    //
+#if CONFIG_FLEX_MVRES
+    // After the right shifts, there are 3 fractional bits of precision. If
+    // precision < MV_SUBPEL_EIGHTH is false, the bottom bit is always zero
+    // (so we don't need a call to convert_to_trans_prec here)
+    res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
+    res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
+
+    // When extended warp prediction is enabled, the warp model can be derived
+    // from the neighbor. Neighbor may have different MV precision than current
+    // block. Therefore, this assertion is not valid when
+    // CONFIG_EXTENDED_WARP_PREDICTION is enabled
+#if !CONFIG_EXTENDED_WARP_PREDICTION
+    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col),
+                   precision == MV_PRECISION_ONE_EIGHTH_PEL));
+#endif
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&res.as_mv, precision);
+#else
+    // After the right shifts, there are 3 fractional bits of precision. If
+    // allow_hp is false, the bottom bit is always zero (so we don't need a
+    // call to convert_to_trans_prec here)
+    res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
+    res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
+    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));
+    if (is_integer) {
+      integer_mv_precision(&res.as_mv);
+    }
+#endif
+    return res;
+  }
+
+  const int32_t *mat = model->wmmat;
+  int tx, ty;
+
+  if (model->wmtype == ROTZOOM) {
+    assert(model->wmmat[5] == model->wmmat[2]);
+    assert(model->wmmat[4] == -model->wmmat[3]);
+  }
+
+  int xc =
+      (mat[2] * x + mat[3] * y + mat[0]) - (1 << WARPEDMODEL_PREC_BITS) * x;
+  int yc =
+      (mat[4] * x + mat[5] * y + mat[1]) - (1 << WARPEDMODEL_PREC_BITS) * y;
+
+#if CONFIG_FLEX_MVRES
+  tx = convert_to_trans_prec(precision, xc);
+  ty = convert_to_trans_prec(precision, yc);
+#else
+  tx = convert_to_trans_prec(allow_hp, xc);
+  ty = convert_to_trans_prec(allow_hp, yc);
+#endif
+
+  res.as_mv.row = ty;
+  res.as_mv.col = tx;
+
+#if CONFIG_FLEX_MVRES
+#if CONFIG_C071_SUBBLK_WARPMV
+  if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+    lower_mv_precision(&res.as_mv, precision);
+#else
+  if (is_integer) {
+    integer_mv_precision(&res.as_mv);
+  }
+#endif
+  return res;
+}
+
+// return 0 if the model is invalid
+// pts (col, row) is the array of source points in the unit of integer pixel
+// mvs are the array of the MVs corresponding to the source points
+// for nth point,
+//  pts[2*n] is the col value of the source position. pts[2*n + 1] is the row
+//  value of the source position mvs[2*n] is the col value of mv. mvs[2*n + 1]
+//  is the row value of mv pts_inref[2*n] is the col value of the projected
+//  position. pts_inref[2*n + 1] is the row value of the projected position
+int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
+                              int np, int *mvs, const BLOCK_SIZE bsize) {
+  // In order to derive the warp model we need 3 projected points
+  // If the number of projected points (np) is not equal to 3, model is not
+  // valid.
+  if (np != 3) {
+    derive_model->invalid = 1;
+    return 0;
+  }
+
+  int x0, y0;
+  int ref_x0, ref_x1, ref_x2, ref_y0, ref_y1, ref_y2;
+  int pts_inref[2 * 3];
+  const int width_log2 = mi_size_wide_log2[bsize] + MI_SIZE_LOG2;
+  const int height_log2 = mi_size_high_log2[bsize] + MI_SIZE_LOG2;
+
+  assert(derive_model != NULL);
+
+  for (int n = 0; n < np; n++) {
+    pts_inref[2 * n] = pts[2 * n] * (1 << WARPEDMODEL_PREC_BITS) +
+                       mvs[2 * n] * (1 << GM_TRANS_ONLY_PREC_DIFF);
+    pts_inref[2 * n + 1] = pts[2 * n + 1] * (1 << WARPEDMODEL_PREC_BITS) +
+                           mvs[2 * n + 1] * (1 << GM_TRANS_ONLY_PREC_DIFF);
+    int valid_point = (pts[2 * n] >= 0 && pts[2 * n + 1] >= 0 &&
+                       pts_inref[2 * n] >= 0 && pts_inref[2 * n + 1] >= 0);
+    if (!valid_point) return 0;
+  }
+
+  int all_mvs_same = 1;
+  for (int k = 1; k < np; k++) {
+    all_mvs_same &= (mvs[0] == mvs[2 * k]) & (mvs[1] == mvs[2 * k + 1]);
+  }
+  if (all_mvs_same) {
+    derive_model->invalid = 1;
+    return 0;
+  }
+
+  // Top-left point
+  x0 = pts[2 * 0];
+  y0 = pts[2 * 0 + 1];
+  ref_x0 = pts_inref[2 * 0];
+  ref_y0 = pts_inref[2 * 0 + 1];
+
+  // Top-right point
+  ref_x1 = pts_inref[2 * 1];
+  ref_y1 = pts_inref[2 * 1 + 1];
+
+  // Bottom-left point
+  ref_x2 = pts_inref[2 * 2];
+  ref_y2 = pts_inref[2 * 2 + 1];
+
+  derive_model->wmmat[2] = (ref_x1 - ref_x0) >> width_log2;
+  derive_model->wmmat[4] = (ref_y1 - ref_y0) >> width_log2;
+
+  derive_model->wmmat[3] = (ref_x2 - ref_x0) >> height_log2;
+  derive_model->wmmat[5] = (ref_y2 - ref_y0) >> height_log2;
+
+  int64_t wmmat0 = (int64_t)ref_x0 -
+                   (int64_t)derive_model->wmmat[2] * (int64_t)x0 -
+                   (int64_t)derive_model->wmmat[3] * (int64_t)y0;
+  int64_t wmmat1 = (int64_t)ref_y0 -
+                   (int64_t)derive_model->wmmat[4] * (int64_t)x0 -
+                   (int64_t)derive_model->wmmat[5] * (int64_t)y0;
+
+  derive_model->wmtype = AFFINE;
+  derive_model->invalid = 0;
+
+  av1_reduce_warp_model(derive_model);
+
+  // check compatibility with the fast warp filter
+  if (!av1_get_shear_params(derive_model)) {
+    derive_model->invalid = 1;
+    return 0;
+  }
+
+  derive_model->wmmat[0] = (int32_t)clamp64(wmmat0, -WARPEDMODEL_TRANS_CLAMP,
+                                            WARPEDMODEL_TRANS_CLAMP - 1);
+  derive_model->wmmat[1] = (int32_t)clamp64(wmmat1, -WARPEDMODEL_TRANS_CLAMP,
+                                            WARPEDMODEL_TRANS_CLAMP - 1);
+
+  derive_model->wmmat[6] = derive_model->wmmat[7] = 0;
+
+  return 1;
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP

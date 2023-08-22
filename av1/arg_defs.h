@@ -163,10 +163,19 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_BAWP
   arg_def_t enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  arg_def_t enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  arg_def_t enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   arg_def_t enable_fsc;
 #if CONFIG_ORIP
   arg_def_t enable_orip;
 #endif
+#if CONFIG_IDIF
+  arg_def_t enable_idif;
+#endif  // CONFIG_IDIF
   arg_def_t enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   arg_def_t enable_cctx;
@@ -184,6 +193,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_JOINT_MVD
   arg_def_t enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  arg_def_t enable_refinemv;
+#endif  // CONFIG_REFINEMV
   arg_def_t min_partition_size;
   arg_def_t max_partition_size;
   arg_def_t enable_chroma_deltaq;
@@ -261,6 +273,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t max_reference_frames;
   arg_def_t reduced_reference_set;
   arg_def_t explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  arg_def_t enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   arg_def_t target_seq_level_idx;
   arg_def_t set_min_cr;
   arg_def_t input_color_primaries;

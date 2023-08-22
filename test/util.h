@@ -22,27 +22,49 @@
 // Macros
 #define GET_PARAM(k) std::get<k>(GetParam())
 
+// Same as 'aom_sse_to_psnr'.
+inline double sse_to_psnr(double samples, double peak, double sse) {
+  static const double kMinSSE = 0.5;
+  const bool zero_sse = (sse < kMinSSE);
+  if (zero_sse) sse = kMinSSE;
+  assert(sse > 0.0);
+  double psnr = 10.0 * log10(samples * peak * peak / sse);
+  if (zero_sse) psnr = ceil(psnr);
+  return psnr;
+}
+
 inline double compute_psnr(const aom_image_t *img1, const aom_image_t *img2) {
   assert((img1->fmt == img2->fmt) && (img1->d_w == img2->d_w) &&
          (img1->d_h == img2->d_h));
 
   const unsigned int width_y = img1->d_w;
   const unsigned int height_y = img1->d_h;
-  unsigned int i, j;
 
-  int64_t sqrerr = 0;
-  for (i = 0; i < height_y; ++i)
-    for (j = 0; j < width_y; ++j) {
-      int64_t d = img1->planes[AOM_PLANE_Y][i * img1->stride[AOM_PLANE_Y] + j] -
-                  img2->planes[AOM_PLANE_Y][i * img2->stride[AOM_PLANE_Y] + j];
-      sqrerr += d * d;
+  double sse = 0;
+  for (unsigned int i = 0; i < height_y; ++i) {
+    for (unsigned int j = 0; j < width_y; ++j) {
+      const double d =
+          img1->planes[AOM_PLANE_Y][i * img1->stride[AOM_PLANE_Y] + j] -
+          img2->planes[AOM_PLANE_Y][i * img2->stride[AOM_PLANE_Y] + j];
+      sse += d * d;
     }
-  double mse = static_cast<double>(sqrerr) / (width_y * height_y);
-  double psnr = 100.0;
-  if (mse > 0.0) {
-    psnr = 10 * log10(255.0 * 255.0 / mse);
   }
-  return psnr;
+  return sse_to_psnr(width_y * height_y, 255.0, sse);
+}
+
+// Returns the expected total PSNR for the zero distortion case, based on frame
+// dimensions.
+// If `is_yuv444` is true: assumes YUV4:4:4 format, otherwise assumes YUV4:2:0.
+inline double get_lossless_psnr(unsigned int width, unsigned int height,
+                                unsigned int bit_depth, bool is_yuv444) {
+#if CONFIG_AV2CTC_PSNR_PEAK
+  const double peak = (double)(255 << (bit_depth - 8));
+#else
+  const double peak = (double)((1 << in_bit_depth) - 1);
+#endif  // CONFIG_AV2CTC_PSNR_PEAK
+  const double y_samples = width * height;
+  const double uv_samples = is_yuv444 ? 2 * y_samples : 2 * y_samples / 4;
+  return sse_to_psnr(y_samples + uv_samples, peak, 0);
 }
 
 static INLINE double get_time_mark(aom_usec_timer *t) {

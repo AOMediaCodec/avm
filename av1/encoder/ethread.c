@@ -27,10 +27,6 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
   for (int i = 0; i < REFERENCE_MODES; i++)
     td->rd_counts.comp_pred_diff[i] += td_t->rd_counts.comp_pred_diff[i];
 
-  for (int i = 0; i < INTER_REFS_PER_FRAME; i++)
-    td->rd_counts.global_motion_used[i] +=
-        td_t->rd_counts.global_motion_used[i];
-
   td->rd_counts.compound_ref_used_flag |=
       td_t->rd_counts.compound_ref_used_flag;
   td->rd_counts.skip_mode_used_flag |= td_t->rd_counts.skip_mode_used_flag;
@@ -470,7 +466,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
         &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
 #if CONFIG_REF_MV_BANK
     av1_zero(td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK}
@@ -679,7 +675,7 @@ static AOM_INLINE void fp_create_enc_workers(AV1_COMP *cpi, int num_workers) {
     if (i > 0) {
       // Set up firstpass PICK_MODE_CONTEXT.
       thread_data->td->firstpass_ctx = av1_alloc_pmc(
-          cm, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
+          cm, SHARED_PART, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
           cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
           &thread_data->td->shared_coeff_buf);
 
@@ -814,7 +810,7 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     }
 #if CONFIG_REF_MV_BANK
     av1_zero(thread_data->td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     thread_data->td->mb.e_mbd.ref_mv_bank_pt =
         &thread_data->td->mb.e_mbd.ref_mv_bank;
 
@@ -1431,7 +1427,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     // source_alt_ref_frame w.r.t. ARF frames.
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
         gm_info->reference_frames[cur_dir][ref_frame_idx].distance != 0 &&
-        cpi->common.global_motion[ref_buf_idx].wmtype != ROTZOOM)
+        cpi->common.global_motion[ref_buf_idx].wmtype <= TRANSLATION)
       job_info->early_exit[cur_dir] = 1;
 
 #if CONFIG_MULTITHREAD

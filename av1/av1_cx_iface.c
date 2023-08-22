@@ -137,10 +137,19 @@ struct av1_extracfg {
 #if CONFIG_BAWP
   int enable_bawp;  // enable block adaptive weighted prediction
 #endif              // CONFIG_BAWP
-  int enable_fsc;   // enable forward skip coding
+#if CONFIG_CWP
+  int enable_cwp;  // enable compound weighted prediction
+#endif             // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  int enable_imp_msk_bld;
+#endif             // CONFIG_D071_IMP_MSK_BLD
+  int enable_fsc;  // enable forward skip coding
 #if CONFIG_ORIP
   int enable_orip;  // enable ORIP
 #endif              // CONFIG_ORIP
+#if CONFIG_IDIF
+  int enable_idif;  // enable IDIF
+#endif              // CONFIG_IDIF
   int enable_ist;   // enable intra secondary transform
 #if CONFIG_CROSS_CHROMA_TX
   int enable_cctx;  // enable cross-chroma component transform
@@ -159,8 +168,11 @@ struct av1_extracfg {
 #endif                       // CONFIG_ADAPTIVE_DS_FILTER
 
 #if CONFIG_JOINT_MVD
-  int enable_joint_mvd;          // enable joint MVD coding
-#endif                           // CONFIG_ADAPTIVE_MVD
+  int enable_joint_mvd;  // enable joint MVD coding
+#endif                   // CONFIG_ADAPTIVE_MVD
+#if CONFIG_REFINEMV
+  int enable_refinemv;           // enable refineMV mode
+#endif                           // CONFIG_REFINEMV
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
@@ -169,18 +181,22 @@ struct av1_extracfg {
   int enable_flip_idtx;          // enable flip and identity transform types
   int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
-  int explicit_ref_frame_map;    // explicitly signal reference frame mapping
-  int enable_ref_frame_mvs;      // sequence level
-  int allow_ref_frame_mvs;       // frame level
-  int enable_masked_comp;        // enable masked compound for sequence
-  int enable_onesided_comp;      // enable one sided compound for sequence
-  int enable_interintra_comp;    // enable interintra compound for sequence
-  int enable_smooth_interintra;  // enable smooth interintra mode usage
-  int enable_diff_wtd_comp;      // enable diff-wtd compound usage
-  int enable_interinter_wedge;   // enable interinter-wedge compound usage
-  int enable_interintra_wedge;   // enable interintra-wedge compound usage
-  int enable_global_motion;      // enable global motion usage for sequence
-  int enable_warped_motion;      // enable local warped motion for sequence
+  int explicit_ref_frame_map;  // explicitly signal reference frame mapping
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  int enable_frame_output_order;  // enable frame output order derivation based
+                                  // on order hint value
+#endif                            // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  int enable_ref_frame_mvs;       // sequence level
+  int allow_ref_frame_mvs;        // frame level
+  int enable_masked_comp;         // enable masked compound for sequence
+  int enable_onesided_comp;       // enable one sided compound for sequence
+  int enable_interintra_comp;     // enable interintra compound for sequence
+  int enable_smooth_interintra;   // enable smooth interintra mode usage
+  int enable_diff_wtd_comp;       // enable diff-wtd compound usage
+  int enable_interinter_wedge;    // enable interinter-wedge compound usage
+  int enable_interintra_wedge;    // enable interintra-wedge compound usage
+  int enable_global_motion;       // enable global motion usage for sequence
+  int enable_warped_motion;       // enable local warped motion for sequence
 #if CONFIG_EXTENDED_WARP_PREDICTION
   int enable_warped_causal;  // enable spatial warp prediction for sequence
   int enable_warp_delta;     // enable explicit warp models for sequence
@@ -448,11 +464,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // disable ML based partition speed up features
   5,  // aggressiveness for erp pruning
   0,  // use ml model for erp pruning
-#if CONFIG_H_PARTITION
   1,  // enable extended partitions
-#else
-  0,        // enable extended partitions
-#endif
 #else
   0,                        // disable ML based partition speed up features
 #endif
@@ -468,10 +480,19 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_BAWP
   1,    // enable block adaptive weighted prediction (BAWP)
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  1,    // enable compound weighted prediction (CWP)
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  1,    // eanble implicit maksed blending
+#endif  // CONFIG_D071_IMP_MSK_BLD
   1,    // enable forward skip coding
 #if CONFIG_ORIP
   1,    // enable ORIP
 #endif  // CONFIG_ORIP
+#if CONFIG_IDIF
+  1,    // enable IDIF
+#endif  // CONFIG_IDIF
   1,    // enable intra secondary transform
 #if CONFIG_CROSS_CHROMA_TX
   1,    // enable cross-chroma component transform
@@ -489,6 +510,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_JOINT_MVD
   1,    // enable joint mvd coding
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  1,    // enable refineMV mode
+#endif  // CONFIG_REFINEMV
   4,    // min_partition_size
 #if CONFIG_BLOCK_256
   256,  // max_partition_size
@@ -503,17 +527,20 @@ static struct av1_extracfg default_extra_cfg = {
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
   0,  // explicit_ref_frame_map
-  1,  // enable_ref_frame_mvs sequence level
-  1,  // allow ref_frame_mvs frame level
-  1,  // enable masked compound at sequence level
-  1,  // enable one sided compound at sequence level
-  1,  // enable interintra compound at sequence level
-  1,  // enable smooth interintra mode
-  1,  // enable difference-weighted compound
-  1,  // enable interinter wedge compound
-  1,  // enable interintra wedge compound
-  1,  // enable_global_motion usage
-  1,  // enable_warped_motion at sequence level
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  1,    // enable frame output order derivation based on order hint value
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  1,    // enable_ref_frame_mvs sequence level
+  1,    // allow ref_frame_mvs frame level
+  1,    // enable masked compound at sequence level
+  1,    // enable one sided compound at sequence level
+  1,    // enable interintra compound at sequence level
+  1,    // enable smooth interintra mode
+  1,    // enable difference-weighted compound
+  1,    // enable interinter wedge compound
+  1,    // enable interintra wedge compound
+  0,    // enable_global_motion usage
+  1,    // enable_warped_motion at sequence level
 #if CONFIG_EXTENDED_WARP_PREDICTION
   1,  // enable_warped_causal at sequence level
   1,  // enable_warp_delta at sequence level
@@ -831,6 +858,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, max_reference_frames, 3, 7);
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  RANGE_CHECK(extra_cfg, enable_frame_output_order, 0, 1);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
@@ -974,10 +1004,19 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_BAWP
   cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  cfg->enable_cwp = extra_cfg->enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   cfg->enable_fsc = extra_cfg->enable_fsc;
 #if CONFIG_ORIP
   cfg->enable_orip = extra_cfg->enable_orip;
 #endif
+#if CONFIG_IDIF
+  cfg->enable_idif = extra_cfg->enable_idif;
+#endif  // CONFIG_IDIF
   cfg->enable_ist = extra_cfg->enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   cfg->enable_cctx = extra_cfg->enable_cctx;
@@ -997,6 +1036,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_JOINT_MVD
   cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  cfg->enable_refinemv = extra_cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
   cfg->max_partition_size = extra_cfg->max_partition_size;
   cfg->min_partition_size = extra_cfg->min_partition_size;
   cfg->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
@@ -1029,6 +1071,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  cfg->enable_frame_output_order = extra_cfg->enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
 #if CONFIG_REF_MV_BANK
@@ -1088,10 +1133,19 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_BAWP
   extra_cfg->enable_bawp = cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  extra_cfg->enable_cwp = cfg->enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  extra_cfg->enable_imp_msk_bld = cfg->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   extra_cfg->enable_fsc = cfg->enable_fsc;
 #if CONFIG_ORIP
   extra_cfg->enable_orip = cfg->enable_orip;
 #endif
+#if CONFIG_IDIF
+  extra_cfg->enable_idif = cfg->enable_idif;
+#endif  // CONFIG_IDIF
   extra_cfg->enable_ist = cfg->enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   extra_cfg->enable_cctx = cfg->enable_cctx;
@@ -1111,6 +1165,10 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_JOINT_MVD
   extra_cfg->enable_joint_mvd = cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  extra_cfg->enable_refinemv = cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
   extra_cfg->max_partition_size = cfg->max_partition_size;
   extra_cfg->min_partition_size = cfg->min_partition_size;
   extra_cfg->enable_intra_edge_filter = cfg->enable_intra_edge_filter;
@@ -1142,6 +1200,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
 #if CONFIG_REF_MV_BANK
@@ -1390,6 +1451,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_JOINT_MVD
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  tool_cfg->enable_refinemv = extra_cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
 #if CONFIG_TIP
   tool_cfg->enable_tip = extra_cfg->enable_tip;
   if (tool_cfg->enable_tip) {
@@ -1405,6 +1469,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_BAWP
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  tool_cfg->enable_cwp = extra_cfg->enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  tool_cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   tool_cfg->force_video_mode = extra_cfg->force_video_mode;
   tool_cfg->enable_palette = extra_cfg->enable_palette;
   // FIXME(debargha): Should this be:
@@ -1601,6 +1671,16 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_reduced_reference_set;
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // Disable the implicit derivation of frame output order
+  // when order_hint is not available, S-frame is used or error resilience mode
+  // is used.
+  oxcf->ref_frm_cfg.enable_frame_output_order =
+      (!tool_cfg->enable_order_hint || kf_cfg->enable_sframe ||
+       tool_cfg->error_resilient_mode)
+          ? 0
+          : extra_cfg->enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
   oxcf->row_mt = extra_cfg->row_mt;
 
@@ -1662,6 +1742,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_ORIP
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
 #endif
+#if CONFIG_IDIF
+  intra_mode_cfg->enable_idif = extra_cfg->enable_idif;
+#endif  // CONFIG_IDIF
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
 
   // Set transform size/type configuration.
@@ -1673,7 +1756,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->use_intra_default_tx_only = extra_cfg->use_intra_default_tx_only;
   txfm_cfg->disable_ml_transform_speed_features =
       extra_cfg->disable_ml_transform_speed_features;
-  txfm_cfg->enable_ist = extra_cfg->enable_ist;
+  txfm_cfg->enable_ist = extra_cfg->enable_ist && !extra_cfg->lossless;
 #if CONFIG_CROSS_CHROMA_TX
   txfm_cfg->enable_cctx =
       tool_cfg->enable_monochrome ? 0 : extra_cfg->enable_cctx;
@@ -2666,6 +2749,15 @@ static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_frame_output_order =
+      CAST(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -3205,7 +3297,20 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         index_size = MAG_SIZE * (ctx->pending_frame_count - 1) + 2;
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
+          if (cpi->common.current_frame.frame_type == KEY_FRAME ||
+              !cpi->common.show_existing_frame) {
+            is_frame_visible = cpi->common.show_frame;
+          } else {
+            is_frame_visible = 0;
+          }
+        } else {
+          is_frame_visible = cpi->common.show_frame;
+        }
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         is_frame_visible = cpi->common.show_frame;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
         has_no_show_keyframe |=
             (!is_frame_visible &&
@@ -3215,6 +3320,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           report_stats(cpi, frame_size, cx_time);
         }
       }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order &&
+          cpi->common.show_frame && cpi->common.show_existing_frame) {
+        cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
+        break;
+      }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     if (is_frame_visible) {
       // Add the frame packet to the list of returned packets.
@@ -3244,6 +3356,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
       pkt.data.frame.vis_frame_size = frame_size;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      pkt.data.frame.frame_count = ctx->pending_frame_count;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       pkt.data.frame.pts =
           ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
@@ -3818,6 +3933,16 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_bawp = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cwp, argv,
+                              err_string)) {
+    extra_cfg.enable_cwp = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_imp_msk_bld,
+                              argv, err_string)) {
+    extra_cfg.enable_imp_msk_bld = arg_parse_uint_helper(&arg, err_string);
+#endif  // CONFIG_D071_IMP_MSK_BLD
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_fsc, argv,
                               err_string)) {
     extra_cfg.enable_fsc = arg_parse_int_helper(&arg, err_string);
@@ -3826,6 +3951,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_orip = arg_parse_int_helper(&arg, err_string);
 #endif
+#if CONFIG_IDIF
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_idif, argv,
+                              err_string)) {
+    extra_cfg.enable_idif = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_IDIF
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ist, argv,
                               err_string)) {
     extra_cfg.enable_ist = arg_parse_int_helper(&arg, err_string);
@@ -3857,6 +3987,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_joint_mvd = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refinemv, argv,
+                              err_string)) {
+    extra_cfg.enable_refinemv = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_REFINEMV
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.min_partition_size,
                               argv, err_string)) {
     extra_cfg.min_partition_size = arg_parse_int_helper(&arg, err_string);
@@ -3888,6 +4024,13 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.explicit_ref_frame_map,
                               argv, err_string)) {
     extra_cfg.explicit_ref_frame_map = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.enable_frame_output_order,
+                              argv, err_string)) {
+    extra_cfg.enable_frame_output_order =
+        arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
@@ -4198,6 +4341,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
@@ -4288,14 +4434,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
         5,  // aggressiveness for erp pruning
         0,  // use ml model for erp pruning
-#if CONFIG_H_PARTITION
         1,  // enable extended partitions
-#else
-        0,  // enable extended partitions
-#endif
-#else   // CONFIG_EXT_RECUR_PARTITIONS
+#else       // CONFIG_EXT_RECUR_PARTITIONS
         0,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif      // CONFIG_EXT_RECUR_PARTITIONS
         0, 1,   1,
 #if CONFIG_TIP
         1,
@@ -4303,10 +4445,19 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_BAWP
         1,
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+        1,
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+        1,
+#endif  // CONFIG_D071_IMP_MSK_BLD
         1,
 #if CONFIG_ORIP
         1,
 #endif
+#if CONFIG_IDIF
+        1,
+#endif      // CONFIG_IDIF
         1,  // IST
 #if CONFIG_CROSS_CHROMA_TX
         1,
@@ -4324,6 +4475,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_JOINT_MVD
         1,
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+        1,
+#endif  // CONFIG_REFINEMV
         1, 1,   1,   1, 1, 1,
 #if CONFIG_PC_WIENER
         1,
@@ -4349,7 +4503,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_OPTFLOW_REFINEMENT
         1,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-        1, 1,   1,   1, 1, 1, 3, 1, 1, 0, 0, 0,
+        1, 1,   1,   1, 1, 1, 3, 1, 1, 0,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        1,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        0, 0,
 #if CONFIG_REF_MV_BANK
         1,
 #endif  // CONFIG_REF_MV_BANK

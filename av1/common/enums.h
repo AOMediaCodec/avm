@@ -28,6 +28,15 @@ extern "C" {
 /*!\cond */
 
 #undef MAX_SB_SIZE
+#define BAWP_BUGFIX 1
+
+#if CONFIG_REFINEMV
+#define SINGLE_STEP_SEARCH 0
+#endif  // CONFIG_REFINEMV
+
+#if CONFIG_D071_IMP_MSK_BLD
+#define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
+#endif                        // CONFIG_D071_IMP_MSK_BLD
 
 #if CONFIG_WEDGE_MOD_EXT
 /*WEDGE_0 is defined in the three o'clock direciton, the angles are defined in
@@ -59,17 +68,20 @@ enum {
 #define H_WEDGE_ANGLES 10
 #define NUM_WEDGE_DIST 4
 #define MAX_WEDGE_TYPES 68
+#define WEDGE_BLD_SIG 1  // 0 for linear blending, 1 for sigmoid blending
+#define WEDGE_BLD_LUT_SIZE 128
 #endif  // CONFIG_WEDGE_MOD_EXT
 
-#if CONFIG_ADAPTIVE_DS_FILTER
-#define DS_FRAME_LEVEL 1  // Signal at key frame
-#endif
-
-#if CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_WARP_REF_LIST && CONFIG_MVP_IMPROVEMENT
 #define WARP_CU_BANK 1
 #else
 #define WARP_CU_BANK 0
-#endif  // CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_WARP_REF_LIST && CONFIG_MVP_IMPROVEMENT
+
+#if CONFIG_REFINEMV
+#define REFINEMV_SUBBLOCK_WIDTH 16
+#define REFINEMV_SUBBLOCK_HEIGHT 16
+#endif  // CONFIG_REFINEMV
 
 // Cross-Component Sample Offset (CCSO)
 #if CONFIG_CCSO
@@ -179,14 +191,14 @@ enum {
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
 
-#if CONFIG_ATC_NEWTXSETS
-// TX sizes used for mode dependent TX sets
-#define MODE_DEPTX_TXSIZES 19
-#endif  // CONFIG_ATC_NEWTXSETS
-
 #define FSC_MODES 2
+#if CONFIG_ATC_DCTX_ALIGNED
+#define FSC_MAXWIDTH 32
+#define FSC_MAXHEIGHT 32
+#else
 #define FSC_MAXWIDTH 16
 #define FSC_MAXHEIGHT 16
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #define FSC_MINWIDTH 4
 #define FSC_MINHEIGHT 4
 
@@ -303,14 +315,37 @@ enum {
 //
 #if CONFIG_EXT_RECUR_PARTITIONS
 //  HORZ_3                 VERT_3
-//  +--------------+       +---+------+---+
-//  |              |       |   |      |   |
-//  +--------------+       |   |      |   |
-//  |              |       |   |      |   |
-//  |              |       |   |      |   |
-//  +--------------+       |   |      |   |
-//  |              |       |   |      |   |
-//  +--------------+       +---+------+---+
+//  +---------------+       +---+------+---+
+//  |               |       |   |      |   |
+//  +---------------+       |   |      |   |
+//  |       |       |       |   |______|   |
+//  |       |       |       |   |      |   |
+//  +---------------+       |   |      |   |
+//  |               |       |   |      |   |
+//  +---------------+       +---+------+---+
+#if CONFIG_UNEVEN_4WAY
+//  HORZ_4A                 HORZ_4B
+//  +---------------+       +---------------+
+//  |               |       |               |
+//  +---------------+       +---------------+
+//  |               |       |               |
+//  |               |       |               |
+//  +---------------+       |               |
+//  |               |       |               |
+//  |               |       +---------------+
+//  |               |       |               |
+//  |               |       |               |
+//  +---------------+       +---------------+
+//  |               |       |               |
+//  +---------------+       +---------------+
+//
+//  VERT_4A                                 VERT_4B
+//  +-------------------------+          +-------------------------+
+//  |   |      |          |   |          |   |          |      |   |
+//  |   |      |          |   |          |   |          |      |   |
+//  |   |      |          |   |          |   |          |      |   |
+//  +-------------------------+          +-------------------------+
+#endif  // CONFIG_UNEVEN_4WAY
 #else
 //  HORZ_A        HORZ_B        VERT_A        VERT_B
 //  +---+---+     +-------+     +---+---+     +---+---+
@@ -332,10 +367,20 @@ enum {
   PARTITION_VERT,
   PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
   PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
+#if CONFIG_UNEVEN_4WAY
+  PARTITION_HORZ_4A,  // 4 horizontal uneven sub-partitions (1:2:4:1).
+  PARTITION_HORZ_4B,  // 4 horizontal uneven sub-partitions (1:4:2:1).
+  PARTITION_VERT_4A,  // 4 vertical uneven sub-partitions (1:2:4:1).
+  PARTITION_VERT_4B,  // 4 vertical uneven sub-partitions (1:4:2:1).
+#endif                // CONFIG_UNEVEN_4WAY
   PARTITION_SPLIT,
+  EXT_PARTITION_TYPES = PARTITION_SPLIT,
+  ALL_PARTITION_TYPES = EXT_PARTITION_TYPES + 1,
   PARTITION_TYPES = PARTITION_VERT + 1,
-  EXT_PARTITION_TYPES = PARTITION_VERT_3 + 1,
-  ALL_PARTITION_TYPES = PARTITION_SPLIT + 1,
+#if !CONFIG_UNEVEN_4WAY
+  LIMITED_PARTITION_TYPES = PARTITION_TYPES - 1,
+  LIMITED_EXT_PARTITION_TYPES = EXT_PARTITION_TYPES - 1,
+#endif  // !CONFIG_UNEVEN_4WAY
   PARTITION_INVALID = 255
 } UENUM1BYTE(PARTITION_TYPE);
 #else   // CONFIG_EXT_RECUR_PARTITIONS
@@ -355,6 +400,7 @@ enum {
   PARTITION_INVALID = 255
 } UENUM1BYTE(PARTITION_TYPE);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // Rectangular partition types.
 enum {
   HORZ = 0,
@@ -362,6 +408,16 @@ enum {
   NUM_RECT_PARTS,
   RECT_INVALID = NUM_RECT_PARTS
 } UENUM1BYTE(RECT_PART_TYPE);
+
+#if CONFIG_UNEVEN_4WAY
+// Uneven 4-way partition types.
+enum {
+  UNEVEN_4A = 0,
+  UNEVEN_4B,
+  NUM_UNEVEN_4WAY_PARTS,
+} UENUM1BYTE(UNEVEN_4WAY_PART_TYPE);
+#endif  // CONFIG_UNEVEN_4WAY
+
 typedef char PARTITION_CONTEXT;
 #define PARTITION_PLOFFSET 4  // number of probability models per block size
 
@@ -568,21 +624,24 @@ enum {
   EXT_TX_SET_DTT9_IDTX_1DDCT,
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   EXT_TX_SET_ALL16,
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   EXT_NEW_TX_SET,
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
 
+#if CONFIG_ATC_DCTX_ALIGNED
+#define EOB_TX_CTXS 3
+#endif                       // CONFIG_ATC_DCTX_ALIGNED
 #define EXT_TX_SIZES 4       // number of sizes that use extended transforms
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER
-#if CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET
+#if CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET
 #define EXT_TX_SETS_INTRA 2  // Sets of transform selections for INTRA
 #else
 #define EXT_TX_SETS_INTRA 3  // Sets of transform selections for INTRA
-#endif  // CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET
+#endif                       // CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET
 
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
 #define INTRA_TX_SET1 7
 #if CONFIG_ATC_REDUCED_TXSET
 #define INTRA_TX_SET2 2
@@ -590,7 +649,7 @@ enum {
 #else
 #define INTRA_TX_SET1 6
 #define INTRA_TX_SET2 4
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 
 enum {
   UNIDIR_COMP_REFERENCE,
@@ -600,7 +659,11 @@ enum {
 
 enum { PLANE_TYPE_Y, PLANE_TYPE_UV, PLANE_TYPES } UENUM1BYTE(PLANE_TYPE);
 
+#if CONFIG_CFL_IMPROVEMENTS
+#define CFL_ALPHABET_SIZE_LOG2 3
+#else
 #define CFL_ALPHABET_SIZE_LOG2 4
+#endif  // CONFIG_CFL_IMPROVEMENTS
 #define CFL_ALPHABET_SIZE (1 << CFL_ALPHABET_SIZE_LOG2)
 #define CFL_MAGS_SIZE ((2 << CFL_ALPHABET_SIZE_LOG2) + 1)
 #define CFL_IDX_U(idx) (idx >> CFL_ALPHABET_SIZE_LOG2)
@@ -635,6 +698,10 @@ enum {
 // Also, the contexts are symmetric under swapping the planes.
 #define CFL_CONTEXT_V(js) \
   (CFL_SIGN_V(js) * CFL_SIGNS + CFL_SIGN_U(js) - CFL_SIGNS)
+
+#if CONFIG_SEP_COMP_DRL
+#define SEP_COMP_DRL_SIZE 3
+#endif  // CONFIG_SEP_COMP_DRL
 
 enum {
   PALETTE_MAP,
@@ -897,9 +964,9 @@ enum {
 #define WARPMV_MODE_CONTEXT 10
 #endif  // CONFIG_WARPMV
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 #define MAX_REF_BV_STACK_SIZE 4
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #define GLOBALMV_OFFSET 3
 #define REFMV_OFFSET 4
@@ -914,6 +981,19 @@ enum {
 #else
 #define INTER_COMPOUND_MODE_CONTEXTS 8
 #endif  // CONFIG_C076_INTER_MOD_CTX
+
+#if CONFIG_CWP
+// Number of supported factors for compound weighted prediction
+#define MAX_CWP_NUM 5
+// maximum value for the supported factors
+#define CWP_MAX 20
+// minimum value for the supported factors
+#define CWP_MIN -4
+// Weighting factor for simple averge prediction
+#define CWP_EQUAL 8
+#define CWP_WEIGHT_BITS 4
+#define MAX_CWP_CONTEXTS 2
+#endif
 
 #define DELTA_Q_SMALL 3
 #define DELTA_Q_PROBS (DELTA_Q_SMALL)
@@ -1089,7 +1169,7 @@ typedef enum {
   PROJ_SPATIAL,        /**< Project from spatial neighborhood */
   PROJ_PARAM_BANK,     /**< Project from circular buffer */
   PROJ_DEFAULT,        /**< Default values */
-  WARP_PROJ_TYPES = 5, /**< Num projection types */
+  WARP_PROJ_TYPES = 4, /**< Num projection types */
 } WarpProjectionType;
 #endif  // CONFIG_WARP_REF_LIST
 

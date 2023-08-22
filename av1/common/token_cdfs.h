@@ -398,6 +398,24 @@ static const aom_cdf_prob
                                                  } };
 #endif  // CONFIG_CONTEXT_DERIVATION
 
+#if CONFIG_ATC_DCTX_ALIGNED
+static const aom_cdf_prob av1_default_coeff_base_bob_multi_cdfs
+    [TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB][CDF_SIZE(NUM_BASE_LEVELS + 1)] = {
+      { { AOM_CDF3(10923, 21845) },
+        { AOM_CDF3(10923, 21845) },
+        { AOM_CDF3(10923, 21845) } },
+      { { AOM_CDF3(18786, 24298) },
+        { AOM_CDF3(24159, 27856) },
+        { AOM_CDF3(25533, 28778) } },
+      { { AOM_CDF3(19757, 25371) },
+        { AOM_CDF3(20834, 26403) },
+        { AOM_CDF3(20013, 26339) } },
+      { { AOM_CDF3(21974, 28446) },
+        { AOM_CDF3(23020, 29244) },
+        { AOM_CDF3(23858, 29893) } }
+    };
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
 static const aom_cdf_prob
     av1_default_eob_extra_cdfs[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                               [EOB_COEF_CONTEXTS][CDF_SIZE(2)] = {
@@ -843,6 +861,110 @@ static const aom_cdf_prob
                                     } } }
                               };
 
+#if CONFIG_ATC_DCTX_ALIGNED
+static const aom_cdf_prob
+    av1_default_eob_multi16_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 6)] = { { { AOM_CDF5(6554, 13107, 19661, 26214) },
+                                 { AOM_CDF5(6554, 13107, 19661, 26214) } },
+                               { { AOM_CDF5(222, 339, 759, 2493) },
+                                 { AOM_CDF5(4613, 6877, 12106, 18380) } },
+                               { { AOM_CDF5(1418, 2074, 4194, 10380) },
+                                 { AOM_CDF5(14420, 18173, 23582, 28265) } },
+                               { { AOM_CDF5(2817, 4572, 9636, 19946) },
+                                 { AOM_CDF5(18618, 21512, 26133, 29765) } } };
+
+static const aom_cdf_prob
+    av1_default_eob_multi32_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 5)] = {
+      { { AOM_CDF6(5461, 10923, 16384, 21845, 27307) },
+        { AOM_CDF6(5461, 10923, 16384, 21845, 27307) } },
+      { { AOM_CDF6(169, 487, 1046, 1986, 4403) },
+        { AOM_CDF6(4144, 7636, 13889, 20369, 26338) } },
+      { { AOM_CDF6(1365, 1804, 3348, 6966, 13052) },
+        { AOM_CDF6(12169, 14967, 19396, 23910, 28156) } },
+      { { AOM_CDF6(2394, 3348, 6277, 12419, 20179) },
+        { AOM_CDF6(16608, 19308, 23841, 28108, 31336) } }
+    };
+
+static const aom_cdf_prob
+    av1_default_eob_multi64_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 4)] = {
+      { { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087) },
+        { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087) } },
+      { { AOM_CDF7(100, 388, 969, 2002, 4280, 9308) },
+        { AOM_CDF7(4333, 8167, 14492, 20418, 26250, 29955) } },
+      { { AOM_CDF7(1148, 1569, 2970, 5924, 10850, 20433) },
+        { AOM_CDF7(11727, 14694, 19634, 24043, 27541, 30259) } },
+      { { AOM_CDF7(2471, 3361, 6306, 11907, 19426, 28048) },
+        { AOM_CDF7(16268, 19103, 23823, 27751, 30728, 32149) } }
+    };
+
+static const aom_cdf_prob
+    av1_default_eob_multi128_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 3)] = {
+      { { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672) },
+        { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672) } },
+      { { AOM_CDF8(34, 889, 2098, 3797, 6595, 10857, 15412) },
+        { AOM_CDF8(2654, 4900, 10162, 15197, 21643, 27251, 31178) } },
+      { { AOM_CDF8(1804, 2359, 3999, 7338, 12798, 19374, 26178) },
+        { AOM_CDF8(12268, 15216, 20355, 24508, 27905, 29986, 31541) } },
+      { { AOM_CDF8(3169, 4356, 7874, 13681, 20866, 27270, 30960) },
+        { AOM_CDF8(17157, 19749, 24432, 27880, 30345, 31718, 32514) } }
+    };
+
+static const aom_cdf_prob
+    av1_default_eob_multi256_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 2)] = {
+      { { AOM_CDF9(3641, 7282, 10923, 14564, 18204, 21845, 25486, 29127) },
+        { AOM_CDF9(3641, 7282, 10923, 14564, 18204, 21845, 25486, 29127) } },
+      { { AOM_CDF9(33, 670, 2335, 4307, 7421, 13364, 18212, 24272) },
+        { AOM_CDF9(4218, 6101, 11211, 14560, 18294, 23147, 29103, 31965) } },
+      { { AOM_CDF9(2847, 3904, 6472, 10515, 16418, 23542, 27413, 30171) },
+        { AOM_CDF9(10704, 13812, 18880, 22949, 26500, 29132, 31028, 31981) } },
+      { { AOM_CDF9(3871, 5381, 9315, 15338, 22376, 28297, 31018, 32233) },
+        { AOM_CDF9(16748, 19447, 24213, 27658, 30076, 31428, 32280, 32665) } }
+    };
+
+static const aom_cdf_prob
+    av1_default_eob_multi512_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS - 1)] = {
+      { { AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214,
+                    29491) },
+        { AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214,
+                    29491) } },
+      { { AOM_CDF10(210, 734, 3354, 8943, 13834, 20297, 25921, 28366, 28820) },
+        { AOM_CDF10(7846, 10783, 17565, 23721, 26809, 28393, 30689, 32349,
+                    32667) } },
+      { { AOM_CDF10(4390, 7204, 11548, 15823, 20831, 26069, 28315, 30071,
+                    31063) },
+        { AOM_CDF10(9109, 12852, 19233, 23707, 27291, 29681, 31403, 32259,
+                    32589) } },
+      { { AOM_CDF10(7299, 9302, 13207, 18796, 25134, 30084, 31270, 32095,
+                    32513) },
+        { AOM_CDF10(18536, 20753, 25277, 28762, 31002, 31931, 32489, 32703,
+                    32707) } }
+    };
+
+static const aom_cdf_prob
+    av1_default_eob_multi1024_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(
+        EOB_MAX_SYMS)] = { { { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873,
+                                         20852, 23831, 26810, 29789) },
+                             { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873,
+                                         20852, 23831, 26810, 29789) } },
+                           { { AOM_CDF11(401, 535, 3344, 6821, 8426, 13375,
+                                         14043, 17788, 19527, 21667) },
+                             { AOM_CDF11(4161, 8108, 14066, 17761, 20706, 21700,
+                                         22771, 26741, 31827, 32653) } },
+                           { { AOM_CDF11(4252, 6240, 9718, 13784, 19105, 24225,
+                                         26454, 28321, 29757, 30648) },
+                             { AOM_CDF11(11539, 14807, 19777, 22884, 26491,
+                                         28818, 30433, 31677, 32422, 32654) } },
+                           { { AOM_CDF11(8416, 10839, 15261, 20667, 26077,
+                                         30169, 31223, 31886, 32276, 32527) },
+                             { AOM_CDF11(21740, 24160, 28114, 30490, 31733,
+                                         32248, 32571, 32700, 32704,
+                                         32708) } } };
+#else
 static const aom_cdf_prob
     av1_default_eob_multi16_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][CDF_SIZE(
         5)] = { { { { AOM_CDF5(840, 1039, 1980, 4895) },
@@ -1013,6 +1135,7 @@ static const aom_cdf_prob
                                  29486, 29724, 29807, 32570) },
                      { AOM_CDF11(2979, 5958, 8937, 11916, 14895, 17873, 20852,
                                  23831, 26810, 29789) } } } };
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 static const aom_cdf_prob
     av1_default_coeff_lps_multi_cdfs_idtx[TOKEN_CDF_Q_CTXS][IDTX_LEVEL_CONTEXTS]
@@ -1075,7 +1198,7 @@ static const aom_cdf_prob
                                              { AOM_CDF4(13384, 20248, 26029) } }
                                          };
 
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
 static const aom_cdf_prob
     av1_default_coeff_lps_multi_cdfs[TOKEN_CDF_Q_CTXS][PLANE_TYPES]
                                     [LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)] = {
@@ -1901,7 +2024,7 @@ static const aom_cdf_prob av1_default_coeff_lps_multi_cdfs
             { AOM_CDF4(8192, 16384, 24576) }, { AOM_CDF4(8192, 16384, 24576) },
             { AOM_CDF4(8192, 16384, 24576) } } } }
     };
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 
 static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
     [TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]
@@ -1962,7 +2085,7 @@ static const aom_cdf_prob av1_default_coeff_base_multi_cdfs_idtx
                                           { AOM_CDF4(2674, 5476, 12215) },
                                           { AOM_CDF4(1568, 3054, 5228) } } };
 
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
 static const aom_cdf_prob av1_default_coeff_base_lf_multi_cdfs
     [TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
     [CDF_SIZE(LF_BASE_SYMBOLS)] = {
@@ -6461,7 +6584,7 @@ static const aom_cdf_prob av1_default_coeff_base_eob_multi_cdfs
                                         { AOM_CDF3(10923, 21845) },
                                         { AOM_CDF3(10923, 21845) },
                                         { AOM_CDF3(10923, 21845) } } } } };
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
 static const aom_cdf_prob
     av1_default_coeff_base_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]

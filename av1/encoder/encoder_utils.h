@@ -921,7 +921,11 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
       cpi->sf.inter_sf.prune_obmc_prob_thresh > 0) {
     av1_copy(frame_probs->obmc_probs, default_obmc_probs);
   }
-  if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+  if (cpi->sf.inter_sf.prune_warped_prob_thresh > 0
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      || cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+  ) {
     av1_copy(frame_probs->warped_probs, default_warped_probs);
   }
 }
@@ -1071,10 +1075,6 @@ uint16_t av1_setup_interp_filter_search_mask(AV1_COMP *cpi);
 
 void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig);
 
-int av1_recode_loop_test_global_motion(WarpedMotionParams *const global_motion,
-                                       const int *const global_motion_used,
-                                       int *const gm_params_cost);
-
 void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
                                  int *top_index);
 
@@ -1136,31 +1136,6 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
   }
   av1_calculate_tile_rows(cm, mi_params->mi_rows, tiles);
 }
-
-#define COUPLED_CHROMA_FROM_LUMA_RESTORATION 0
-static AOM_INLINE void av1_set_restoration_unit_size(int width, int height,
-                                                     int sx, int sy,
-                                                     RestorationInfo *rst,
-                                                     BLOCK_SIZE sb_size) {
-  (void)width;
-  (void)height;
-  (void)sx;
-  (void)sy;
-#if COUPLED_CHROMA_FROM_LUMA_RESTORATION
-  int s = AOMMIN(sx, sy);
-#else
-  int s = 0;
-#endif  // !COUPLED_CHROMA_FROM_LUMA_RESTORATION
-
-  if (width * height > 352 * 288)
-    rst[0].restoration_unit_size = RESTORATION_UNITSIZE_MAX;
-  else
-    rst[0].restoration_unit_size =
-        AOMMAX((RESTORATION_UNITSIZE_MAX >> 1), block_size_wide[sb_size]);
-  rst[1].restoration_unit_size = rst[0].restoration_unit_size >> s;
-  rst[2].restoration_unit_size = rst[1].restoration_unit_size;
-}
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

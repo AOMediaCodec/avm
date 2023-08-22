@@ -365,6 +365,40 @@ typedef struct {
   DIFFWTD_MASK_TYPE mask_type;
   COMPOUND_TYPE type;
 } INTERINTER_COMPOUND_DATA;
+#if CONFIG_D071_IMP_MSK_BLD
+// This structure is used for the position check of the implicit masked blending
+typedef struct BacpBlockData {
+  int x0;  // top left sample horizontal cood.
+  int x1;  // x0 + bw
+  int y0;  // top left sample vertical cood.
+  int y1;  // y0 + bh
+} BacpBlockData;
+// This struct contains enable flag and date for implicit masked blending mode
+typedef struct {
+  uint8_t enable_bacp;  // enable boundary aware compound prediction
+  BacpBlockData *bacp_block_data;
+} INTERINTER_COMPOUND_BORDER_DATA;
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
+#if CONFIG_REFINEMV
+#define REF_BUFFER_WIDTH \
+  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+#define REF_BUFFER_HEIGHT \
+  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND)
+typedef struct PadBlock {
+  int x0;
+  int x1;
+  int y0;
+  int y1;
+} PadBlock;
+
+typedef struct PadArea {
+  PadBlock pad_block;
+  uint16_t paded_ref_buf[(REF_BUFFER_WIDTH) * (REF_BUFFER_HEIGHT)];
+  int paded_ref_buf_stride;
+} ReferenceArea;
+
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_OPTFLOW_REFINEMENT
 // Macros for optical flow experiment where offsets are added in nXn blocks
@@ -420,6 +454,12 @@ typedef struct MB_MODE_INFO {
   int mi_row_start;
   /*! \brief Starting mi_col of current coding block */
   int mi_col_start;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  /*! \brief Starting chroma mi_row of current coding block */
+  int chroma_mi_row_start;
+  /*! \brief Starting chroma mi_col of current coding block */
+  int chroma_mi_col_start;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   /*! \brief The partition type of the current coding block. */
   PARTITION_TYPE partition;
   /*! \brief The prediction mode used */
@@ -464,6 +504,11 @@ typedef struct MB_MODE_INFO {
    */
   uint8_t mb_precision_set;
 #endif
+#if CONFIG_REFINEMV
+  /*! \brief The flag to signal if DMVR is used for the inter prediction. */
+  uint8_t refinemv_flag;
+#endif  // CONFIG_REFINEMV
+
   /*! \brief The motion mode used by the inter prediction. */
   MOTION_MODE motion_mode;
   /*! \brief Number of samples used by spatial warp prediction */
@@ -491,6 +536,11 @@ typedef struct MB_MODE_INFO {
   /*! \brief The bawp parameters offset*/
   int32_t bawp_beta[3][2];  //[yuv][ref0/1], current only [0][0] is used.
 #endif                      // CONFIG_BAWP
+
+#if CONFIG_CWP
+  //! Index for compound weighted prediction parameters.
+  int8_t cwp_idx;
+#endif  // CONFIG_CWP
   /**@}*/
 
   /*****************************************************************************
@@ -561,7 +611,11 @@ typedef struct MB_MODE_INFO {
   /*! \brief Only valid when temporal update if off. */
   uint8_t seg_id_predicted : 1;
   /*! \brief Which ref_mv to use */
+#if CONFIG_SEP_COMP_DRL
+  int ref_mv_idx[2];
+#else
   uint8_t ref_mv_idx : 3;
+#endif  // CONFIG_SEP_COMP_DRL
   /*! \brief Inter skip mode */
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   uint8_t skip_mode : 2;
@@ -570,14 +624,14 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   /*! \brief Whether intrabc is used. */
   uint8_t use_intrabc[PARTITION_STRUCTURE_NUM];
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   /*! \brief Intrabc BV prediction mode. */
   uint8_t intrabc_mode;
   /*! \brief Index of ref_bv. */
   uint8_t intrabc_drl_idx;
   /*! \brief Which ref_bv to use. */
   int_mv ref_bv;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #if CONFIG_WARP_REF_LIST
   /*! \brief Which index to use for warp base parameter. */
@@ -585,6 +639,10 @@ typedef struct MB_MODE_INFO {
   /*! \brief Maximum number of warp reference indices to use for warp base
    * parameter. */
   uint8_t max_num_warp_candidates;
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  /*! \brief warpmv_with_mvd_flag. */
+  uint8_t warpmv_with_mvd_flag;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
 
   /*! \brief Indicates if masked compound is used(1) or not (0). */
@@ -633,6 +691,15 @@ typedef struct SUBMB_INFO {
   int_mv mv[2];
 } SUBMB_INFO;
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+
+#if CONFIG_REFINEMV
+/*! \brief Stores the subblock refinemv motion info of the current coding block
+ */
+typedef struct REFINEMV_SUBMB_INFO {
+  /*! \brief Stored subblock mv for reference. */
+  int_mv refinemv[2];
+} REFINEMV_SUBMB_INFO;
+#endif  // CONFIG_REFINEMV
 
 /*!\cond */
 // Get the start plane for semi-decoupled partitioning
@@ -750,7 +817,7 @@ static AOM_INLINE bool is_ext_partition_allowed_at_bsize(BLOCK_SIZE bsize,
   if (bsize > BLOCK_64X64) {
     return false;
   }
-  // At bsize \leq 8X8, extended partitions will lead to dimension < 2.
+  // At bsize <= 8X8, extended partitions will lead to dimension < 2.
   if (bsize <= BLOCK_8X8) {
     return false;
   }
@@ -771,7 +838,7 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
     return false;
   }
   // A splittable wide block has ratio 2:1. If it performs HORZ_3 split, then
-  // we'll get a block ratio of 2:0.5 == 4:1, which is illegal. So extended
+  // we'll get a block ratio of 2:0.25 == 8:1, which is illegal. So extended
   // partition is disabled. The same goes for tall block.
   if ((is_wide_block(bsize) && rect_type == HORZ) ||
       (is_tall_block(bsize) && rect_type == VERT)) {
@@ -779,6 +846,25 @@ static AOM_INLINE bool is_ext_partition_allowed(BLOCK_SIZE bsize,
   }
   return true;
 }
+
+#if CONFIG_UNEVEN_4WAY
+/*!\brief Checks whether uneven 4-way partition is allowed for current bsize and
+ * rect_type. */
+static AOM_INLINE bool is_uneven_4way_partition_allowed(
+    BLOCK_SIZE bsize, RECT_PART_TYPE rect_type, TREE_TYPE tree_type) {
+  assert(is_ext_partition_allowed(bsize, rect_type, tree_type));
+
+  if (rect_type == HORZ) {
+    if (bsize == BLOCK_32X64) return true;
+    if (bsize == BLOCK_16X32 && tree_type != CHROMA_PART) return true;
+  } else {
+    assert(rect_type == VERT);
+    if (bsize == BLOCK_64X32) return true;
+    if (bsize == BLOCK_32X16 && tree_type != CHROMA_PART) return true;
+  }
+  return false;
+}
+#endif  // CONFIG_UNEVEN_4WAY
 
 /*!\brief Returns the rect_type that's implied by the bsize. If the rect_type
  * cannot be derived from bsize, returns RECT_INVALID. */
@@ -813,12 +899,20 @@ static AOM_INLINE bool is_square_split_eligible(BLOCK_SIZE bsize,
   return bsize == BLOCK_128X128 || bsize == BLOCK_256X256;
 }
 
-/*!\brief Returns whether the current partition is horizontal type for vertical
+/*!\brief Returns whether the current partition is horizontal type or vertical
  * type. */
 static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
-  if (partition == PARTITION_HORZ || partition == PARTITION_HORZ_3) {
+  if (partition == PARTITION_HORZ || partition == PARTITION_HORZ_3
+#if CONFIG_UNEVEN_4WAY
+      || partition == PARTITION_HORZ_4A || partition == PARTITION_HORZ_4B
+#endif  // CONFIG_UNEVEN_4WAY
+  ) {
     return HORZ;
-  } else if (partition == PARTITION_VERT || partition == PARTITION_VERT_3) {
+  } else if (partition == PARTITION_VERT || partition == PARTITION_VERT_3
+#if CONFIG_UNEVEN_4WAY
+             || partition == PARTITION_VERT_4A || partition == PARTITION_VERT_4B
+#endif  // CONFIG_UNEVEN_4WAY
+  ) {
     return VERT;
   }
   assert(0 && "Rectangular partition expected!");
@@ -829,6 +923,20 @@ static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
   return is_inter_ref_frame(mbmi->ref_frame[1]);
 }
+
+#if CONFIG_SEP_COMP_DRL
+/*!\brief Return whether the current coding block has two separate DRLs */
+static INLINE int has_second_drl(const MB_MODE_INFO *mbmi) {
+  int ret = (mbmi->mode == NEAR_NEARMV || mbmi->mode == NEAR_NEWMV) &&
+            !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode;
+  return ret;
+}
+
+/*!\brief Return the mv_ref_idx of the current coding block based on ref_idx */
+static INLINE int get_ref_mv_idx(const MB_MODE_INFO *mbmi, int ref_idx) {
+  return has_second_drl(mbmi) ? mbmi->ref_mv_idx[ref_idx] : mbmi->ref_mv_idx[0];
+}
+#endif  // CONFIG_SEP_COMP_DRL
 
 #if CONFIG_AIMC
 PREDICTION_MODE av1_get_joint_mode(const MB_MODE_INFO *mi);
@@ -893,7 +1001,7 @@ static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
   }
 }
 
-#if CONFIG_H_PARTITION
+#if CONFIG_EXT_RECUR_PARTITIONS
 // Get the block size of the ith sub-block in a block partitioned via an
 // h-partition mode.
 static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
@@ -981,7 +1089,7 @@ static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
     }
   }
 }
-#endif  // CONFIG_H_PARTITION
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
   if (is_partition_point(bsize))
@@ -1009,25 +1117,36 @@ static INLINE int have_nz_chroma_ref_offset(BLOCK_SIZE bsize,
                                             int subsampling_y) {
   const int bw = block_size_wide[bsize] >> subsampling_x;
   const int bh = block_size_high[bsize] >> subsampling_y;
+  // Check if block width/height is less than 4.
   const int bw_less_than_4 = bw < 4;
   const int bh_less_than_4 = bh < 4;
+  // Check if half block width/height is less than 8.
   const int hbw_less_than_4 = bw < 8;
   const int hbh_less_than_4 = bh < 8;
+#if !CONFIG_UNEVEN_4WAY || CONFIG_EXT_RECUR_PARTITIONS
+  // Check if quarter block width/height is less than 16.
   const int qbw_less_than_4 = bw < 16;
   const int qbh_less_than_4 = bh < 16;
+#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+  // Check if one-eighth block width/height is less than 32.
+  const int ebw_less_than_4 = bw < 32;
+  const int ebh_less_than_4 = bh < 32;
+#endif  // CONFIG_UNEVEN_4WAY
   switch (partition) {
     case PARTITION_NONE: return bw_less_than_4 || bh_less_than_4;
     case PARTITION_HORZ: return bw_less_than_4 || hbh_less_than_4;
     case PARTITION_VERT: return hbw_less_than_4 || bh_less_than_4;
     case PARTITION_SPLIT: return hbw_less_than_4 || hbh_less_than_4;
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B: return bw_less_than_4 || ebh_less_than_4;
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: return ebw_less_than_4 || bh_less_than_4;
+#endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_3: return hbw_less_than_4 || qbh_less_than_4;
     case PARTITION_VERT_3: return qbw_less_than_4 || hbh_less_than_4;
-#else
-    case PARTITION_HORZ_3: return bw_less_than_4 || qbh_less_than_4;
-    case PARTITION_VERT_3: return qbw_less_than_4 || bh_less_than_4;
-#endif  // CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
@@ -1077,13 +1196,14 @@ static INLINE int is_sub_partition_chroma_ref(PARTITION_TYPE partition,
           return 1;
       }
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: return index == 3;
+#endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_VERT_3:
     case PARTITION_HORZ_3: return index == 3;
-#else
-    case PARTITION_VERT_3:
-    case PARTITION_HORZ_3: return index == 2;
-#endif  // CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
     case PARTITION_HORZ_B:
@@ -1162,6 +1282,12 @@ static INLINE void set_chroma_ref_offset_size(
     case PARTITION_HORZ:
     case PARTITION_VERT:
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B:
+#endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_VERT_3:
     case PARTITION_HORZ_3:
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1252,14 +1378,23 @@ static INLINE void set_chroma_ref_offset_size(
   }
 }
 
-static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
-                                       BLOCK_SIZE bsize, CHROMA_REF_INFO *info,
+static INLINE void set_chroma_ref_info(TREE_TYPE tree_type, int mi_row,
+                                       int mi_col, int index, BLOCK_SIZE bsize,
+                                       CHROMA_REF_INFO *info,
                                        const CHROMA_REF_INFO *parent_info,
                                        BLOCK_SIZE parent_bsize,
                                        PARTITION_TYPE parent_partition,
                                        int ss_x, int ss_y) {
   assert(bsize < BLOCK_SIZES_ALL);
   initialize_chroma_ref_info(mi_row, mi_col, bsize, info);
+  if (tree_type == LUMA_PART) {
+    info->is_chroma_ref = 0;
+    return;
+  }
+  if (tree_type == CHROMA_PART) {
+    info->is_chroma_ref = 1;
+    return;
+  }
   if (parent_info == NULL) return;
   if (parent_info->is_chroma_ref) {
     if (parent_info->offset_started) {
@@ -1290,7 +1425,7 @@ static INLINE void set_chroma_ref_info(int mi_row, int mi_col, int index,
   }
 }
 
-#if CONFIG_MISMATCH_DEBUG
+#if CONFIG_MISMATCH_DEBUG || CONFIG_INSPECTION
 static INLINE void mi_to_pixel_loc(int *pixel_c, int *pixel_r, int mi_col,
                                    int mi_row, int tx_blk_col, int tx_blk_row,
                                    int subsampling_x, int subsampling_y) {
@@ -1318,8 +1453,21 @@ typedef struct eob_info {
 
 typedef struct {
   DECLARE_ALIGNED(32, tran_low_t, dqcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+#if CONFIG_INSPECTION
+  // dqcoeff gets clobbered before the inspect callback happens, so keep a
+  // copy here.
+  DECLARE_ALIGNED(32, tran_low_t, dqcoeff_copy[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, qcoeff[MAX_MB_PLANE][MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, dequant_values[MAX_MB_PLANE][MAX_SB_SQUARE]);
+#endif
+  // keeps the index that corresponds to end-of-block (eob)
   eob_info eob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#if CONFIG_ATC_DCTX_ALIGNED
+  // keeps the index that corresponds to beginning-of-block (bob)
+  eob_info bob_data[MAX_MB_PLANE]
+                   [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   DECLARE_ALIGNED(16, uint8_t, color_index_map[2][MAX_SB_SQUARE]);
 } CB_BUFFER;
 
@@ -1351,6 +1499,9 @@ typedef struct macroblockd_plane {
 
   qm_val_t *seg_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
   qm_val_t *seg_qmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
+#if CONFIG_INSPECTION
+  DECLARE_ALIGNED(32, int16_t, predicted_pixels[MAX_SB_SQUARE]);
+#endif
 } MACROBLOCKD_PLANE;
 
 #define BLOCK_OFFSET(i) ((i) << 4)
@@ -1360,7 +1511,6 @@ typedef struct macroblockd_plane {
 #else
 #define LR_BANK_SIZE 1
 #endif  // CONFIG_LR_MERGE_COEFFS
-
 /*!\endcond */
 
 /*!\brief Parameters related to Wiener Filter */
@@ -1456,7 +1606,12 @@ typedef struct {
    */
   DECLARE_ALIGNED(16, int16_t,
                   allfiltertaps[WIENERNS_MAX_CLASSES * WIENERNS_YUV_MAX]);
-
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  /*!
+   * Whether this is a cross-filter, temporaly used
+   */
+  int is_cross_filter;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_LR_MERGE_COEFFS
   /*!
    * Best Reference from dynamic bank for each class.
@@ -1599,7 +1754,7 @@ typedef struct {
 } WARP_PARAM_BANK;
 
 #endif  // CONFIG_WARP_REF_LIST
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
 /*! \brief Variables related to mvp list of skip mode.*/
 typedef struct {
   //! MV list
@@ -1617,7 +1772,7 @@ typedef struct {
   //! Global mvs
   int_mv global_mvs[2];
 } SKIP_MODE_MVP_LIST;
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 /*! \brief Variables related to current coding block.
  *
@@ -1644,7 +1799,7 @@ typedef struct macroblockd {
    * \name Reference MV bank info.
    */
   /**@{*/
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK *ref_mv_bank_pt; /*!< Pointer to bank to refer to */
 #endif
   REF_MV_BANK ref_mv_bank; /*!< Ref mv bank to update */
@@ -1902,6 +2057,13 @@ typedef struct macroblockd {
    * Nonseparable Wiener filter information for all planes.
    */
   WienerNonsepInfoBank wienerns_info[MAX_MB_PLANE];
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  /*!
+   * Nonseparable Wiener cross filter information for all planes, only Cb and Cr
+   * are applied
+   */
+  WienerNonsepInfoBank wienerns_cross_info[MAX_MB_PLANE];
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #endif  // CONFIG_WIENER_NONSEP
   /**@}*/
 
@@ -1930,9 +2092,9 @@ typedef struct macroblockd {
 /*!
  * skip_mvp_candidate_list is the MVP list for skip mode.
  */
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_WARP_REF_LIST
   /*!
@@ -1958,7 +2120,7 @@ typedef struct macroblockd {
    */
   bool is_first_horizontal_rect;
 
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   /*!
    * True if this is the last horizontal rectangular block in a HORIZONTAL or
    * HORIZONTAL_4 partition.
@@ -1969,7 +2131,7 @@ typedef struct macroblockd {
    * VERTICAL_4 partition.
    */
   bool is_first_vertical_rect;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   /*!
@@ -2132,6 +2294,11 @@ typedef struct macroblockd {
   /** variable to store eob_u flag */
   uint8_t eob_u_flag;
 #endif  // CONFIG_CONTEXT_DERIVATION
+
+#if CONFIG_REFINEMV
+  /** block level storage to store luma refined MVs for chroma use */
+  REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
+#endif  // CONFIG_REFINEMV
 } MACROBLOCKD;
 
 /*!\cond */
@@ -2180,14 +2347,14 @@ static INLINE int block_signals_txsize(BLOCK_SIZE bsize) {
 // Number of transform types in each set type for intra blocks
 static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1, 1,  4,
                                                                 6, 11, 15,
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
                                                                 7
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 };
 
-#if CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
+#if CONFIG_ATC && CONFIG_ATC_REDUCED_TXSET
 static const int av1_num_reduced_tx_set = 2;
-#endif  // CONFIG_ATC_NEWTXSETS && CONFIG_ATC_REDUCED_TXSET
+#endif  // CONFIG_ATC && CONFIG_ATC_REDUCED_TXSET
 
 // Number of transform types in each set type
 static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
@@ -2201,12 +2368,12 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 };
 
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
 static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   {
       { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
@@ -2269,7 +2436,7 @@ static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
       { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
   },  // size_class: 3
 };
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 
 static const uint16_t av1_reduced_intra_tx_used_flag[INTRA_MODES] = {
   0x080F,  // DC_PRED:       0000 1000 0000 1111
@@ -2294,12 +2461,12 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0x0E0F,  // 0000 1110 0000 1111
   0x0FFF,  // 0000 1111 1111 1111
   0xFFFF,  // 1111 1111 1111 1111
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   0xFFFF,
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 };
 
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
 static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
   {
       0x218F,
@@ -2362,7 +2529,7 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
       0x0000,
   },  // size_class: 3
 };
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 
 static const TxSetType av1_ext_tx_set_lookup[2][2] = {
   { EXT_TX_SET_DTT4_IDTX_1DDCT, EXT_TX_SET_DTT4_IDTX },
@@ -2374,14 +2541,18 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
   if (tx_size_sqr_up > TX_32X32) return EXT_TX_SET_DCTONLY;
   if (tx_size_sqr_up == TX_32X32)
+#if CONFIG_ATC_DCTX_ALIGNED
+    return EXT_TX_SET_DCT_IDTX;
+#else
     return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DCTONLY;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #if CONFIG_ATC_REDUCED_TXSET
   if (use_reduced_set) return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_NEW_TX_SET;
 #else
   if (use_reduced_set)
     return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DTT4_IDTX;
 #endif  // CONFIG_ATC_REDUCED_TXSET
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   if (is_inter) {
     const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
     return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
@@ -2391,17 +2562,17 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
 #else
   const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
   return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 }
 
 // Maps tx set types to the indices.
 static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Intra
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
     0, -1, -1, -1, -1, -1, 1 },
 #else
     0, -1, 2, 1, -1, -1 },
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
   {     // Inter
     0, 3, -1, -1, 2, 1 },
 };
@@ -2466,7 +2637,11 @@ static INLINE TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
                                           int is_screen_content_type) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   if (is_inter_block(mbmi, xd->tree_type) || plane_type != PLANE_TYPE_Y ||
+#if CONFIG_ATC_DCTX_ALIGNED
+      xd->lossless[mbmi->segment_id] || tx_size > TX_32X32 ||
+#else
       xd->lossless[mbmi->segment_id] || tx_size >= TX_32X32 ||
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       is_screen_content_type)
     return DCT_DCT;
 
@@ -2846,6 +3021,9 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   const int code_stx =
       (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
       (intra_dir < PAETH_PRED) &&
+#if CONFIG_ATC_DCTX_ALIGNED
+      (eob != 1) &&
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       !(mbmi->filter_intra_mode_info.use_filter_intra) && is_depth0 && ist_eob;
   return code_stx;
 }
@@ -2990,14 +3168,13 @@ void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
 
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
 
-void av1_reset_wiener_bank(WienerInfoBank *bank);
+void av1_reset_wiener_bank(WienerInfoBank *bank, int chroma);
 void av1_add_to_wiener_bank(WienerInfoBank *bank, const WienerInfo *info);
 WienerInfo *av1_ref_from_wiener_bank(WienerInfoBank *bank, int ndx);
 const WienerInfo *av1_constref_from_wiener_bank(const WienerInfoBank *bank,
                                                 int ndx);
 void av1_upd_to_wiener_bank(WienerInfoBank *bank, int ndx,
                             const WienerInfo *info);
-void av1_get_from_wiener_bank(WienerInfoBank *bank, int ndx, WienerInfo *info);
 
 void av1_reset_sgrproj_bank(SgrprojInfoBank *bank);
 void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info);
@@ -3006,14 +3183,17 @@ const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
                                                   int ndx);
 void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
                              const SgrprojInfo *info);
-void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
-                               SgrprojInfo *info);
 
 #if CONFIG_WIENER_NONSEP
 // Resets the bank data structure holding LR_BANK_SIZE nonseparable Wiener
 // filters. The bank holds a rootating buffer of filters.
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
-                             int num_classes, int chroma);
+                             int num_classes, int chroma
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+                             ,
+                             int is_cross
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+);
 
 // Adds the nonseparable Wiener filter in info into the bank of rotating
 // filters. The add is so that once the bank has LR_BANK_SIZE filters the first
@@ -3149,6 +3329,7 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
     return 0;
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_UNEVEN_4WAY
   // TODO(urvang): Enable this special case, if we make OBMC work.
   // TODO(yuec): Enable this case when the alignment issue is fixed. There
   // will be memory leak in global above_pred_buff and left_pred_buff if
@@ -3156,11 +3337,13 @@ static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
   if ((mi_row & 0x01) || (mi_col & 0x01)) {
     return 0;
   }
+#endif  // !CONFIG_UNEVEN_4WAY
 #else
   assert(!(mi_row & 0x01) && !(mi_col & 0x01));
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   (void)mi_row;
   (void)mi_col;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   return 1;
 }
 
@@ -3276,10 +3459,10 @@ typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
                               [PALETTE_COLORS];
 /* clang-format on */
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
 typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(2)];
 typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][2];
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 typedef struct {
   int rows;
@@ -3290,10 +3473,10 @@ typedef struct {
   uint8_t *color_map;
   MapCdf map_cdf;
   ColorCost color_cost;
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   IdentityRowCdf identity_row_cdf;
   IdentityRowCost identity_row_cost;
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 } Av1ColorMapParam;
 
 static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
@@ -3336,6 +3519,29 @@ static AOM_INLINE const PARTITION_TREE *get_partition_subtree_const(
   return partition_tree->sub_tree[idx];
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_CWP
+// check whether compound weighted prediction can be allowed
+static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
+#if CONFIG_REFINEMV
+  if (mbmi->refinemv_flag) return 0;
+#endif  // CONFIG_REFINEMV
+
+  if (mbmi->skip_mode) return 1;
+  int use_cwp = has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
+                mbmi->interinter_comp.type == COMPOUND_AVERAGE &&
+                mbmi->motion_mode == SIMPLE_TRANSLATION;
+  use_cwp &=
+      (mbmi->mode == NEAR_NEARMV || is_joint_mvd_coding_mode(mbmi->mode));
+  use_cwp &= (mbmi->jmvd_scale_mode == 0);
+  return use_cwp;
+}
+// Return the index for compound weighted prediction
+static INLINE int8_t get_cwp_idx(const MB_MODE_INFO *mbmi) {
+  assert(mbmi->cwp_idx <= CWP_MAX && mbmi->cwp_idx >= CWP_MIN);
+  return mbmi->cwp_idx;
+}
+#endif
 
 /*!\endcond */
 

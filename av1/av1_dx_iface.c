@@ -76,6 +76,7 @@ struct aom_codec_alg_priv {
   unsigned int enable_subgop_stats;
 #if CONFIG_INSPECTION
   aom_inspect_cb inspect_cb;
+  aom_inspect_cb inspect_sb_cb;
   void *inspect_ctx;
 #endif
 };
@@ -566,6 +567,7 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
   AV1Decoder *const pbi = frame_worker_data->pbi;
   AV1_COMMON *const cm = &pbi->common;
   frame_worker_data->pbi->inspect_cb = ctx->inspect_cb;
+  frame_worker_data->pbi->inspect_sb_cb = ctx->inspect_sb_cb;
   frame_worker_data->pbi->inspect_ctx = ctx->inspect_ctx;
   res = av1_receive_compressed_data(frame_worker_data->pbi, data_sz, &data);
   check_resync(ctx, frame_worker_data->pbi);
@@ -610,9 +612,21 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     struct AV1Decoder *pbi = frame_worker_data->pbi;
     if (ctx->enable_subgop_stats)
       memset(&pbi->subgop_stats, 0, sizeof(pbi->subgop_stats));
-    for (size_t j = 0; j < pbi->num_output_frames; j++) {
-      decrease_ref_count(pbi->output_frames[j], pool);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    // When multiple layers are enabled, use the mechanism of
+    // show_existing_frame
+    if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
+        pbi->common.seq_params.enable_frame_output_order) {
+      if (!pbi->common.show_existing_frame)
+        decrease_ref_count(pbi->output_frames[0], pool);
+    } else {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      for (size_t j = 0; j < pbi->num_output_frames; j++) {
+        decrease_ref_count(pbi->output_frames[j], pool);
+      }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     pbi->num_output_frames = 0;
     unlock_buffer_pool(pool);
     for (size_t j = 0; j < ctx->num_grain_image_frame_buffers; j++) {
@@ -1590,6 +1604,7 @@ static aom_codec_err_t ctrl_set_inspection_callback(aom_codec_alg_priv_t *ctx,
 #else
   aom_inspect_init *init = va_arg(args, aom_inspect_init *);
   ctx->inspect_cb = init->inspect_cb;
+  ctx->inspect_sb_cb = init->inspect_sb_cb;
   ctx->inspect_ctx = init->inspect_ctx;
   return AOM_CODEC_OK;
 #endif

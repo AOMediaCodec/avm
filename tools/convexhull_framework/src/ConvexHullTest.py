@@ -284,7 +284,7 @@ def SaveConvexHullResultsToExcel(content, ScaleMethod, dnScAlgos, upScAlgos, csv
                 quality, perframe_vmaf_log = GatherQualityMetrics(reconyuv, Path_QualityLog)
                 qualities.append(quality)
 
-                #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,Bit Depth,CodedRes,QP,Bitrate(kbps)")
+                #"TestCfg,EncodeMethod,CodecName,EncodePreset,Class,OrigRes,Name,FPS,BitDepth,CodedRes,QP,Bitrate(kbps)")
                 csv.write("%s,%s,%s,%s,%s,%s,%s,%.4f,%d,%s,%d,%f"%
                           ("AS", EncodeMethod, CodecName, EncodePreset, clip.file_class,contentname,
                            str(clip.width)+"x"+str(clip.height), clip.fps,clip.bit_depth,
@@ -460,7 +460,7 @@ if __name__ == "__main__":
         csv_file, perframe_csvfile = GetRDResultCsvFile(EncodeMethod, CodecName, EncodePreset, "AS")
         csv = open(csv_file, "wt")
         csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,OrigRes,FPS," \
-                  "Bit Depth,CodedRes,QP,Bitrate(kbps)")
+                  "BitDepth,CodedRes,QP,Bitrate(kbps)")
         for qty in QualityList:
             csv.write(',' + qty)
         csv.write(",EncT[s],DecT[s]")
@@ -473,7 +473,7 @@ if __name__ == "__main__":
 
         perframe_csv = open(perframe_csvfile, 'wt')
         perframe_csv.write("TestCfg,EncodeMethod,CodecName,EncodePreset,Class,Name,Res,FPS," \
-                           "Bit Depth,QP,POC,FrameType,Level,qindex,FrameSize")
+                           "BitDepth,QP,POC,FrameType,Level,qindex,FrameSize")
         for qty in QualityList:
             if not qty.startswith("APSNR"):
                 perframe_csv.write(',' + qty)

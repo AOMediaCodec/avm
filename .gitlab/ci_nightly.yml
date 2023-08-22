@@ -261,6 +261,7 @@ Linux Sanitizer (integer) Test Nightly:
 
 Linux Sanitizer (thread) Test Nightly:
   extends: .sanitizer-common-nigtly
+  parallel: 16
   variables:
     AOM_SANITIZER_TYPE: thread
   needs:

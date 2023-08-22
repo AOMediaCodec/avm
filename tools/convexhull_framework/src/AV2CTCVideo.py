@@ -255,7 +255,7 @@ AS_Downscaled_Clips = {
                                                           "/A1_4k_720p/NocturneDance_1280x720p_10bit_60fps.y4m",
                                                           "/A1_4k_540p/NocturneDance_960x540p_10bit_60fps.y4m",
                                                           "/A1_4k_360p/NocturneDance_640x360p_10bit_60fps.y4m"],
-"PierSeaSide_3840x2160_2997fps_10bit_420"               :["/A1_4k_1440p/PierSeaSide_2560x1440_2997fps_10bit_420_v2.y4m",
+"PierSeaSide_3840x2160_2997fps_10bit_420_v2"            :["/A1_4k_1440p/PierSeaSide_2560x1440_2997fps_10bit_420_v2.y4m",
                                                           "/A1_4k_1080p/PierSeaSide_1920x1080_2997fps_10bit_420_v2.y4m",
                                                           "/A1_4k_720p/PierSeaSide_1280x720_2997fps_10bit_420_v2.y4m",
                                                           "/A1_4k_540p/PierSeaSide_960x540_2997fps_10bit_420_v2.y4m",

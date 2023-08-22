@@ -251,6 +251,7 @@ unsigned int aom_highbd_12_mse8x8_sse2(const uint16_t *src, int src_stride,
       const uint16_t *src, ptrdiff_t src_stride, int x_offset, int y_offset, \
       const uint16_t *dst, ptrdiff_t dst_stride, int height,                 \
       unsigned int *sse, void *unused0, void *unused);
+
 #define DECLS(opt) \
   DECL(8, opt);    \
   DECL(16, opt)
@@ -394,6 +395,26 @@ DECLS(sse2);
     return (var >= 0) ? (uint32_t)var : 0;                                     \
   }
 
+#if CONFIG_UNEVEN_4WAY
+// TODO(any): Add back 16X16, 16X8, 16X4 after fixing alignment issues.
+#define FNS(opt)                          \
+  FN(128, 128, 16, 7, 7, opt, (int64_t)); \
+  FN(128, 64, 16, 7, 6, opt, (int64_t));  \
+  FN(64, 128, 16, 6, 7, opt, (int64_t));  \
+  FN(64, 64, 16, 6, 6, opt, (int64_t));   \
+  FN(64, 32, 16, 6, 5, opt, (int64_t));   \
+  FN(32, 64, 16, 5, 6, opt, (int64_t));   \
+  FN(32, 32, 16, 5, 5, opt, (int64_t));   \
+  FN(32, 16, 16, 5, 4, opt, (int64_t));   \
+  FN(16, 32, 16, 4, 5, opt, (int64_t));   \
+  FN(8, 16, 8, 3, 4, opt, (int64_t));     \
+  FN(8, 8, 8, 3, 3, opt, (int64_t));      \
+  FN(8, 4, 8, 3, 2, opt, (int64_t));      \
+  FN(8, 32, 8, 3, 5, opt, (int64_t));     \
+  FN(32, 8, 16, 5, 3, opt, (int64_t));    \
+  FN(16, 64, 16, 4, 6, opt, (int64_t));   \
+  FN(64, 16, 16, 6, 4, opt, (int64_t))
+#else
 #define FNS(opt)                          \
   FN(128, 128, 16, 7, 7, opt, (int64_t)); \
   FN(128, 64, 16, 7, 6, opt, (int64_t));  \
@@ -414,6 +435,7 @@ DECLS(sse2);
   FN(32, 8, 16, 5, 3, opt, (int64_t));    \
   FN(16, 64, 16, 4, 6, opt, (int64_t));   \
   FN(64, 16, 16, 6, 4, opt, (int64_t))
+#endif  // CONFIG_UNEVEN_4WAY
 
 FNS(sse2);
 
@@ -552,6 +574,23 @@ DECLS(sse2);
     return (var >= 0) ? (uint32_t)var : 0;                                     \
   }
 
+#if CONFIG_UNEVEN_4WAY
+// TODO(any): Add back 16X16, 16X8, 16X4 after fixing alignment issues.
+#define FNS(opt)                        \
+  FN(64, 64, 16, 6, 6, opt, (int64_t)); \
+  FN(64, 32, 16, 6, 5, opt, (int64_t)); \
+  FN(32, 64, 16, 5, 6, opt, (int64_t)); \
+  FN(32, 32, 16, 5, 5, opt, (int64_t)); \
+  FN(32, 16, 16, 5, 4, opt, (int64_t)); \
+  FN(16, 32, 16, 4, 5, opt, (int64_t)); \
+  FN(8, 16, 8, 3, 4, opt, (int64_t));   \
+  FN(8, 8, 8, 3, 3, opt, (int64_t));    \
+  FN(8, 4, 8, 3, 2, opt, (int64_t));    \
+  FN(8, 32, 8, 3, 5, opt, (int64_t));   \
+  FN(32, 8, 16, 5, 3, opt, (int64_t));  \
+  FN(16, 64, 16, 4, 6, opt, (int64_t)); \
+  FN(64, 16, 16, 6, 4, opt, (int64_t));
+#else
 #define FNS(opt)                        \
   FN(64, 64, 16, 6, 6, opt, (int64_t)); \
   FN(64, 32, 16, 6, 5, opt, (int64_t)); \
@@ -569,6 +608,7 @@ DECLS(sse2);
   FN(32, 8, 16, 5, 3, opt, (int64_t));  \
   FN(16, 64, 16, 4, 6, opt, (int64_t)); \
   FN(64, 16, 16, 6, 4, opt, (int64_t));
+#endif  // CONFIG_UNEVEN_4WAY
 
 FNS(sse2);
 

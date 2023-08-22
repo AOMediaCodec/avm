@@ -45,13 +45,13 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   av1_copy(cm->fc->v_dc_sign_cdf, av1_default_v_dc_sign_cdfs[index]);
   av1_copy(cm->fc->v_ac_sign_cdf, av1_default_v_ac_sign_cdfs[index]);
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   av1_copy(cm->fc->coeff_base_lf_cdf,
            av1_default_coeff_base_lf_multi_cdfs[index]);
   av1_copy(cm->fc->coeff_base_lf_eob_cdf,
            av1_default_coeff_base_lf_eob_multi_cdfs[index]);
   av1_copy(cm->fc->coeff_br_lf_cdf, av1_default_coeff_lps_lf_multi_cdfs[index]);
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
   av1_copy(cm->fc->coeff_br_cdf, av1_default_coeff_lps_multi_cdfs[index]);
   av1_copy(cm->fc->coeff_base_cdf, av1_default_coeff_base_multi_cdfs[index]);
   av1_copy(cm->fc->idtx_sign_cdf, av1_default_idtx_sign_cdfs[index]);
@@ -72,6 +72,10 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   av1_copy(cm->fc->coeff_base_ph_cdf, av1_default_coeff_base_ph_cdfs[index]);
   av1_copy(cm->fc->coeff_br_ph_cdf, av1_default_coeff_br_ph_cdfs[index]);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_ATC_DCTX_ALIGNED
+  av1_copy(cm->fc->coeff_base_bob_cdf,
+           av1_default_coeff_base_bob_multi_cdfs[index]);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 }
 
 static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
@@ -129,19 +133,22 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->v_dc_sign_cdf, 2);
   RESET_CDF_COUNTER(fc->v_ac_sign_cdf, 2);
 #endif  // CONFIG_CONTEXT_DERIVATION
-  RESET_CDF_COUNTER(fc->eob_flag_cdf16, 5);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf32, 6);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf64, 7);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf128, 8);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf256, 9);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf512, 10);
-  RESET_CDF_COUNTER(fc->eob_flag_cdf1024, 11);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf16, EOB_MAX_SYMS - 6);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf32, EOB_MAX_SYMS - 5);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf64, EOB_MAX_SYMS - 4);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf128, EOB_MAX_SYMS - 3);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf256, EOB_MAX_SYMS - 2);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf512, EOB_MAX_SYMS - 1);
+  RESET_CDF_COUNTER(fc->eob_flag_cdf1024, EOB_MAX_SYMS);
   RESET_CDF_COUNTER(fc->coeff_base_eob_cdf, 3);
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC_DCTX_ALIGNED
+  RESET_CDF_COUNTER(fc->coeff_base_bob_cdf, 3);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+#if CONFIG_ATC
   RESET_CDF_COUNTER(fc->coeff_base_lf_cdf, LF_BASE_SYMBOLS);
   RESET_CDF_COUNTER(fc->coeff_base_lf_eob_cdf, LF_BASE_SYMBOLS - 1);
   RESET_CDF_COUNTER(fc->coeff_br_lf_cdf, BR_CDF_SIZE);
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
   RESET_CDF_COUNTER(fc->coeff_base_cdf, 4);
   RESET_CDF_COUNTER(fc->idtx_sign_cdf, 2);
   RESET_CDF_COUNTER(fc->coeff_base_cdf_idtx, 4);
@@ -154,15 +161,19 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
 #else
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_MODES);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#if CONFIG_CWP
+  RESET_CDF_COUNTER(fc->cwp_idx_cdf, 2);
+#endif
 #if CONFIG_IMPROVED_JMVD
   RESET_CDF_COUNTER(fc->jmvd_scale_mode_cdf, JOINT_NEWMV_SCALE_FACTOR_CNT);
   RESET_CDF_COUNTER(fc->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
@@ -180,6 +191,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->interintra_cdf, 2);
   RESET_CDF_COUNTER(fc->wedge_interintra_cdf, 2);
   RESET_CDF_COUNTER(fc->interintra_mode_cdf, INTERINTRA_MODES);
+
+#if CONFIG_REFINEMV
+  RESET_CDF_COUNTER(fc->refinemv_flag_cdf, REFINEMV_NUM_MODES);
+#endif  // CONFIG_REFINEMV
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
   RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
@@ -191,6 +207,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[0], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[1], 2);
   RESET_CDF_COUNTER(fc->warp_ref_idx_cdf[2], 2);
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  RESET_CDF_COUNTER(fc->warpmv_with_mvd_flag_cdf, 2);
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   RESET_CDF_COUNTER(fc->warp_delta_param_cdf, WARP_DELTA_NUM_SYMBOLS);
   RESET_CDF_COUNTER(fc->warp_extend_cdf, 2);
@@ -206,10 +225,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_TIP
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);
   RESET_CDF_COUNTER(fc->palette_uv_size_cdf, PALETTE_SIZES);
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   RESET_CDF_COUNTER(fc->identity_row_cdf_y, 2);
   RESET_CDF_COUNTER(fc->identity_row_cdf_uv, 2);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   for (int j = 0; j < PALETTE_SIZES; j++) {
     int nsymbs = j + PALETTE_MIN_SIZE;
     RESET_CDF_COUNTER_STRIDE(fc->palette_y_color_index_cdf[j], nsymbs,
@@ -234,20 +253,20 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->comp_group_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_mode_cdfs, 2);
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   RESET_CDF_COUNTER(fc->intra_inter_cdf[0], 2);
   RESET_CDF_COUNTER(fc->intra_inter_cdf[1], 2);
 #else
   RESET_CDF_COUNTER(fc->intra_inter_cdf, 2);
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   RESET_CDF_COUNTER(fc->skip_txfm_cdfs, 2);
   reset_nmv_counter(&fc->nmvc);
   reset_nmv_counter(&fc->ndvc);
   RESET_CDF_COUNTER(fc->intrabc_cdf, 2);
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   RESET_CDF_COUNTER(fc->intrabc_mode_cdf, 2);
   RESET_CDF_COUNTER(fc->intrabc_drl_idx_cdf, 2);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   RESET_CDF_COUNTER(fc->seg.tree_cdf, MAX_SEGMENTS);
   RESET_CDF_COUNTER(fc->seg.pred_cdf, 2);
   RESET_CDF_COUNTER(fc->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
@@ -294,6 +313,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
                            CDF_SIZE(UV_INTRA_MODES));
   RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
@@ -318,6 +338,13 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     for (RECT_PART_TYPE rect = 0; rect < NUM_RECT_PARTS; rect++) {
       for (int i = 0; i < PARTITION_CONTEXTS; i++) {
         RESET_CDF_COUNTER(fc->do_ext_partition_cdf[plane_index][rect][i], 2);
+#if CONFIG_UNEVEN_4WAY
+        RESET_CDF_COUNTER(
+            fc->do_uneven_4way_partition_cdf[plane_index][rect][i], 2);
+        RESET_CDF_COUNTER(
+            fc->uneven_4way_partition_type_cdf[plane_index][rect][i],
+            NUM_UNEVEN_4WAY_PARTS);
+#endif  // CONFIG_UNEVEN_4WAY
       }
     }
   }
@@ -361,10 +388,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[1], INTRA_TX_SET1,
                            CDF_SIZE(TX_TYPES));
-#if !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
+#if !(CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET)
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[2], INTRA_TX_SET2,
                            CDF_SIZE(TX_TYPES));
-#endif  // !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
+#endif  // !(CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET)
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[1], 16, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[2], 12, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], 2, CDF_SIZE(TX_TYPES));

@@ -68,19 +68,19 @@ std::ostream &operator<<(std::ostream &os, const GFPyrHeightTestParam &p) {
 }
 
 // Params: encoding mode, rate control mode and GFPyrHeightTestParam object.
-class GFPyrHeightTest
+class GFPyrHeightTestLarge
     : public ::libaom_test::CodecTestWith3Params<
           libaom_test::TestMode, aom_rc_mode, GFPyrHeightTestParam>,
       public ::libaom_test::EncoderTest {
  protected:
-  GFPyrHeightTest()
+  GFPyrHeightTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         rc_mode_(GET_PARAM(2)) {
     gf_min_pyr_height_ = GET_PARAM(3).gf_min_pyr_height;
     gf_max_pyr_height_ = GET_PARAM(3).gf_max_pyr_height;
     psnr_threshold_ = GET_PARAM(3).psnr_thresh;
   }
-  virtual ~GFPyrHeightTest() {}
+  virtual ~GFPyrHeightTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -139,7 +139,7 @@ class GFPyrHeightTest
   double psnr_;
 };
 
-TEST_P(GFPyrHeightTest, EncodeAndVerifyPSNR) {
+TEST_P(GFPyrHeightTestLarge, EncodeAndVerifyPSNR) {
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
                                      0, 32);
@@ -149,7 +149,7 @@ TEST_P(GFPyrHeightTest, EncodeAndVerifyPSNR) {
       << "GF Max Pyramid Height = " << gf_max_pyr_height_;
 }
 
-AV1_INSTANTIATE_TEST_SUITE(GFPyrHeightTest, GOODQUALITY_TEST_MODES,
+AV1_INSTANTIATE_TEST_SUITE(GFPyrHeightTestLarge, GOODQUALITY_TEST_MODES,
                            ::testing::Values(AOM_Q, AOM_VBR),
                            ::testing::ValuesIn(kTestParams));
 }  // namespace

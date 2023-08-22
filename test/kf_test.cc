@@ -73,6 +73,20 @@ class KeyFrameIntervalTestLarge
     }
   }
 
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+    if (kf_dist_ != -1) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      kf_dist_ += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      (void)pkt;
+      ++kf_dist_;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (kf_dist_ > (int)kf_dist_param_.max_kf_dist) {
+        is_kf_interval_violated_ = true;
+      }
+    }
+  }
+
   virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
                                   libaom_test::Decoder *decoder) {
     EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
@@ -81,12 +95,6 @@ class KeyFrameIntervalTestLarge
       int frame_flags = 0;
       AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_FLAGS,
                                     &frame_flags);
-      if (kf_dist_ != -1) {
-        kf_dist_++;
-        if (kf_dist_ > (int)kf_dist_param_.max_kf_dist) {
-          is_kf_interval_violated_ = true;
-        }
-      }
       if ((frame_flags & AOM_FRAME_IS_KEY) ==
           static_cast<aom_codec_frame_flags_t>(AOM_FRAME_IS_KEY)) {
         if (kf_dist_ != -1 && kf_dist_ < (int)kf_dist_param_.min_kf_dist) {
@@ -172,7 +180,9 @@ class ForcedKeyTestLarge
           is_kf_placement_violated_ = true;
         }
       }
+#if !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       ++frame_num_;
+#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     return AOM_CODEC_OK == res_dec;
   }

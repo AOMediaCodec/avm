@@ -19,15 +19,13 @@
 
 namespace {
 
-const int kMaxPSNR = 100;
-
 class CpuSpeedTest
     : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
       public ::libaom_test::EncoderTest {
  protected:
   CpuSpeedTest()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
-        set_cpu_used_(GET_PARAM(2)), min_psnr_(kMaxPSNR),
+        set_cpu_used_(GET_PARAM(2)), min_psnr_(DBL_MAX),
         tune_content_(AOM_CONTENT_DEFAULT) {}
   virtual ~CpuSpeedTest() {}
 
@@ -38,7 +36,7 @@ class CpuSpeedTest
     cfg_.rc_end_usage = AOM_VBR;
   }
 
-  virtual void BeginPassHook(unsigned int /*pass*/) { min_psnr_ = kMaxPSNR; }
+  virtual void BeginPassHook(unsigned int /*pass*/) { min_psnr_ = DBL_MAX; }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
@@ -75,14 +73,19 @@ void CpuSpeedTest::TestQ0() {
   cfg_.rc_target_bitrate = 400;
   cfg_.rc_max_quantizer = 0;
   cfg_.rc_min_quantizer = 0;
+  const unsigned int width = 208;
+  const unsigned int height = 144;
+  const unsigned int bit_depth = 8;
 
-  ::libaom_test::I420VideoSource video("hantro_odd.yuv", 208, 144, 30, 1, 0,
-                                       10);
+  ::libaom_test::I420VideoSource video("hantro_odd.yuv", width, height, 30, 1,
+                                       0, 10);
 
   init_flags_ = AOM_CODEC_USE_PSNR;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  EXPECT_GE(min_psnr_, kMaxPSNR);
+  const double lossless_psnr =
+      get_lossless_psnr(width, height, bit_depth, false);
+  EXPECT_EQ(min_psnr_, lossless_psnr);
 }
 
 void CpuSpeedTest::TestScreencastQ0() {
@@ -91,11 +94,17 @@ void CpuSpeedTest::TestScreencastQ0() {
   cfg_.rc_target_bitrate = 400;
   cfg_.rc_max_quantizer = 0;
   cfg_.rc_min_quantizer = 0;
+  const unsigned int width = 640;
+  const unsigned int height = 480;
+  const unsigned int bit_depth = 8;
 
   init_flags_ = AOM_CODEC_USE_PSNR;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  EXPECT_GE(min_psnr_, kMaxPSNR);
+
+  const double lossless_psnr =
+      get_lossless_psnr(width, height, bit_depth, false);
+  EXPECT_EQ(min_psnr_, lossless_psnr);
 }
 
 void CpuSpeedTest::TestTuneScreen() {

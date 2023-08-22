@@ -24,8 +24,6 @@
 
 namespace {
 
-const int kMaxPsnr = 100;
-
 struct ParamPassingTestVideo {
   const char *name;
   uint32_t width;
@@ -99,6 +97,7 @@ class AVxEncoderParmsGetToDecoder
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, 5);
       encoder->Control(AV1E_SET_COLOR_PRIMARIES, encode_parms.color_primaries);
       encoder->Control(AV1E_SET_TRANSFER_CHARACTERISTICS,
                        encode_parms.transfer_characteristics);
@@ -130,7 +129,9 @@ class AVxEncoderParmsGetToDecoder
 
   virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
     if (encode_parms.lossless) {
-      EXPECT_EQ(kMaxPsnr, pkt->data.psnr.psnr[0]);
+      const double lossless_psnr =
+          get_lossless_psnr(test_video_.width, test_video_.height, 8, false);
+      EXPECT_EQ(lossless_psnr, pkt->data.psnr.psnr[0]);
     }
   }
 

@@ -22,6 +22,7 @@ from Utils import ParseCSVFile, plot_rd_curve, Interpolate_Bilinear, Interpolate
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from CalcBDRate import BD_RATE
+from itertools import cycle
 
 qtys = ["psnr_y", "psnr_u", "psnr_v", "overall_psnr", "ssim_y", "ms_ssim_y",
         "vmaf", "vmaf_neg", "psnr_hvs","ciede2k", "apsnr_y", "apsnr_u",
@@ -50,51 +51,19 @@ csv_files = {
 csv_files = {
     "v1.0.0":
     {
-        "AI":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "D:\\AV2-CTC\\AV2-CTC-v1.0.0-Final\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+        "AI":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "F:\\Av2-CTC-v4-ToolOffTest\\v1.0-alt\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
     },
-    "v1.0.1":
+    "v4.0.0":
     {
-        "AI":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "D:\\AV2-CTC\\AV2-CTC-v1.0.1\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
-    },
-    "B034":
-    {
-        "AI":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "D:\\AV2-CTC\\AV2-CTC-B034\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
-    },
-    "ext-quant":
-    {
-        "AI":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "D:\\AV2-CTC\\AV2-CTC-ExtQuant\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
-    },
-    "sdp-off":
-    {
-        "AI":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "D:\\AV2-CTC\\AV2-CTC-SDP-OFF\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
-    },
-    "sdp-on":
-    {
-        "AI":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
-        "LD":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
-        "RA":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
-        "Still":  "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
-        "AS":     "D:\\AV2-CTC\\AV2-CTC-SDP-ON\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
+        "AI":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_AI_Preset_0.csv",
+        "LD":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_LD_Preset_0.csv",
+        "RA":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_RA_Preset_0.csv",
+        "Still":  "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_STILL_Preset_0.csv",
+        "AS":     "F:\\Av2-CTC-v4-ToolOffTest\\v4.0\\analysis\\rdresult\\RDResults_aom_av2_AS_Preset_0.csv",
     },
 }
 
@@ -108,15 +77,7 @@ start_row = {
 
 formats = {
     "v1.0.0":       ['r', '-', 'o'],
-    "v1.0.1":       ['g', '-', '*'],
-    "B034":         ['k', '-', '^'],
-    "ext-quant":    ['r', '-', '*'],
-    "sdp-off":      ['b', '-', '+'],
-    "sdp-on":       ['r', '-', '<'],
-    "HM_CloseGOP":     ['r', '-', 'o'],
-    "HM_OpenGOP":      ['b', '-', '+'],
-    "AV1_CloseGOP":     ['g', '-', '>'],
-    "AV1_OpenGOP":      ['k', '-', '*'],
+    "v4.0.0":       ['g', '-', '*'],
 }
 
 AS_formats = {
@@ -130,6 +91,8 @@ AS_formats = {
 
 anchor = "v1.0.0"
 rd_curve_pdf = "rdcurve.pdf"
+colors = cycle('bgrycmk')
+markers = cycle('o*^+<x')
 
 def WriteSheet(csv_file, sht, start_row):
     csv = open(csv_file, 'rt')
@@ -179,7 +142,7 @@ def FillXlsFile():
 
                 wb.save(xls_file)
 
-def DrawRDCurve(records, anchor, pdf):
+def DrawIndividualRDCurve(records, anchor, pdf):
     with PdfPages(pdf) as export_pdf:
         for cfg in records[anchor].keys():
             videos = records[anchor][cfg].keys()
@@ -212,7 +175,7 @@ def DrawRDCurve(records, anchor, pdf):
                             Int_RDPoints[tag] += int_rdpnts
                             plot_rd_curve(br[res], apsnr[res], "overall_apsnr", res, "bitrate(Kbps)",
                                           AS_formats[res][0], AS_formats[res][1], AS_formats[res][2])
-                        plt.legend()
+                        plt.legend(loc='lower right')
                         plt.grid(True)
                         export_pdf.savefig()
                         plt.close()
@@ -224,9 +187,9 @@ def DrawRDCurve(records, anchor, pdf):
                         lower, upper = convex_hull(Int_RDPoints[tag])
                         br    = [h[0] for h in upper]
                         apsnr = [h[1] for h in upper]
-                        plot_rd_curve(br, apsnr, "overall_apsnr", tag, "bitrate(Kbps)",
+                        plot_rd_curve(br, apsnr, "overall_apsnr(dB)", tag, "bitrate(kbps)",
                                       formats[tag][0], formats[tag][1], formats[tag][2])
-                    plt.legend()
+                    plt.legend(loc='lower right')
                     plt.grid(True)
                     export_pdf.savefig()
                     plt.close()
@@ -238,12 +201,101 @@ def DrawRDCurve(records, anchor, pdf):
                         record = records[tag][cfg][video]
                         br    = [record[key].bitrate for key in record.keys()]
                         apsnr = [record[key].overall_apsnr for key in record.keys()]
-                        plot_rd_curve(br, apsnr, "overall_apsnr", tag, "bitrate(Kbps)",
+                        plot_rd_curve(br, apsnr, "overall_apsnr(dB)", tag, "bitrate(kbps)",
                                       formats[tag][0], formats[tag][1], formats[tag][2])
-                    plt.legend()
+                    plt.legend(loc='lower right')
                     plt.grid(True)
                     export_pdf.savefig()
                     plt.close()
+
+
+def DrawCombinedRDCurve(records):
+    pdf = "combined_rdcurve.pdf"
+    with PdfPages(pdf) as export_pdf:
+        for tag in csv_files.keys():
+            for cfg in csv_files[tag].keys():
+                videos = records[tag][cfg].keys()
+                plt.figure(figsize=(30, 30))
+                plt.suptitle("%s : %s" % (tag, cfg))
+
+                for video in videos:
+                    short_name = video.split('_')[0]
+                    if cfg == "AS":
+                        Int_RDPoints = []
+                        record = records[tag][cfg][video]
+                        br = {};
+                        apsnr = {}
+                        for key in record.keys():
+                            res = re.split('_', key)[0]
+                            if res not in br.keys():
+                                br[res] = []
+                                apsnr[res] = []
+                            br[res].append(record[key].bitrate)
+                            apsnr[res].append(record[key].overall_apsnr)
+
+                        for res in br.keys():
+                            rdpnts = [(brt, qty) for brt, qty in zip(br[res], apsnr[res])]
+                            if UsePCHIPInterpolation:
+                                int_rdpnts = Interpolate_PCHIP(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+                            else:
+                                int_rdpnts = Interpolate_Bilinear(rdpnts, QPs['AS'][:], InterpolatePieces, True)
+                            Int_RDPoints += int_rdpnts
+
+                        # draw convex hull
+                        lower, upper = convex_hull(Int_RDPoints)
+                        br = [h[0] for h in upper]
+                        apsnr = [h[1] for h in upper]
+                        plot_rd_curve(br, apsnr, "overall_apsnr(dB)", short_name, "bitrate(kbps)",
+                                      next(colors), '-', next(markers))
+                    else:
+                        record = records[tag][cfg][video]
+                        br = [record[key].bitrate for key in record.keys()]
+                        apsnr = [record[key].overall_apsnr for key in record.keys()]
+                        plot_rd_curve(br, apsnr, "overall_apsnr(dB)", short_name, "bitrate(kbps)",
+                                      next(colors), '-', next(markers))
+
+                plt.legend(loc='lower right')
+                plt.grid(True)
+                export_pdf.savefig()
+                plt.close()
+
+def DrawCombinedRuntime(records):
+    pdf = "combined_runtime.pdf"
+    with PdfPages(pdf) as export_pdf:
+        for tag in csv_files.keys():
+            for cfg in csv_files[tag].keys():
+                videos = records[tag][cfg].keys()
+                plt.figure(figsize=(30, 30))
+                plt.suptitle("%s : %s" % (tag, cfg))
+
+                for video in videos:
+                    short_name = video.split('_')[0]
+                    if cfg == "AS":
+                        record = records[tag][cfg][video]
+                        br = {};
+                        enc_time = {}
+                        for key in record.keys():
+                            res = re.split('_', key)[0]
+                            if res not in br.keys():
+                                br[res] = []
+                                enc_time[res] = []
+                            br[res].append(record[key].bitrate)
+                            enc_time[res].append(record[key].enc_time)
+
+                        for res in br.keys():
+                            plot_rd_curve(br[res], enc_time[res], "enc_time(s)", short_name+'_'+res, "bitrate(kbps)",
+                                          next(colors), '-', next(markers))
+                    else:
+                        record = records[tag][cfg][video]
+                        br = [record[key].bitrate for key in record.keys()]
+                        enc_time = [record[key].enc_time for key in record.keys()]
+                        plot_rd_curve(br, enc_time, "enc_time(s)", short_name, "bitrate(kbps)",
+                                      next(colors), '-', next(markers))
+
+                plt.legend(loc='lower right')
+                plt.grid(True)
+                export_pdf.savefig()
+                plt.close()
 
 def GetQty(record, qty):
     qtys = []
@@ -399,11 +451,13 @@ if __name__ == "__main__":
             records[tag][test_cfg] = ParseCSVFile(csv_files[tag][test_cfg])
 
     FillXlsFile()
-    DrawRDCurve(records, anchor, rd_curve_pdf)
+    DrawCombinedRDCurve(records)
+    DrawCombinedRuntime(records)
+    DrawIndividualRDCurve(records, anchor, rd_curve_pdf)
 
     #Calculate BDRate and collect total time
     for test_cfg in csv_files[anchor].keys():
         (bdrate, seq_time, seq_instr) = CalcFullBDRate(test_cfg)
         #Write output summary xls file
-        filename = "Summary-HEVC-AV1-%s"%test_cfg
+        filename = "Summary-AV1-vs-AV2_v4.0_%s"%test_cfg
         WriteSummaryXlsFile(bdrate, seq_time, seq_instr, filename)

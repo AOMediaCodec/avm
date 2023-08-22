@@ -467,7 +467,7 @@ int od_ec_enc_tell(const od_ec_enc *enc) {
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-uint32_t od_ec_enc_tell_frac(const od_ec_enc *enc) {
+uint64_t od_ec_enc_tell_frac(const od_ec_enc *enc) {
   return od_ec_tell_frac(od_ec_enc_tell(enc), enc->rng);
 }
 

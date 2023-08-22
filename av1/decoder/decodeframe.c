@@ -72,8 +72,6 @@
 #include "av1/decoder/decodetxb.h"
 #include "av1/decoder/detokenize.h"
 
-#define ACCT_STR __func__
-
 #define AOM_MIN_THREADS_PER_TILE 1
 #define AOM_MAX_THREADS_PER_TILE 2
 
@@ -128,7 +126,11 @@ static AOM_INLINE void set_planes_to_neutral_grey(
 }
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#else
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     int runit_idx);
 
 static int read_is_valid(const uint8_t *start, size_t len, const uint8_t *end) {
@@ -247,6 +249,37 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
   PLANE_TYPE plane_type = get_plane_type(plane);
 
   av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
+#if CONFIG_INSPECTION
+  {
+    const int txwpx = tx_size_wide[tx_size];
+    const int txhpx = tx_size_high[tx_size];
+
+    struct macroblockd_plane *const pd = &xd->plane[plane];
+    const int dst_stride = pd->dst.stride;
+    uint16_t *dst = &pd->dst.buf[(row * dst_stride + col) << MI_SIZE_LOG2];
+    for (int i = 0; i < txhpx; i++) {
+      for (int j = 0; j < txwpx; j++) {
+        uint16_t pixel = dst[i * dst_stride + j];
+        int stride = cm->predicted_pixels.strides[plane > 0];
+        int pixel_c, pixel_r;
+
+        if (plane) {
+          mi_to_pixel_loc(&pixel_c, &pixel_r,
+                          mbmi->chroma_ref_info.mi_col_chroma_base,
+                          mbmi->chroma_ref_info.mi_row_chroma_base, col, row,
+                          pd->subsampling_x, pd->subsampling_y);
+        } else {
+          mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, col, row,
+                          pd->subsampling_x, pd->subsampling_y);
+        }
+
+        pixel_c += j;
+        pixel_r += i;
+        cm->predicted_pixels.buffers[plane][pixel_r * stride + pixel_c] = pixel;
+      }
+    }
+  }
+#endif  // CONFIG_INSPECTION
 
 #if CONFIG_MISMATCH_DEBUG
   const int mi_row = -xd->mb_to_top_edge >> (3 + MI_SIZE_LOG2);
@@ -267,8 +300,12 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
                       pd->subsampling_x, pd->subsampling_y);
     }
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
-                             cm->current_frame.order_hint, plane, pixel_c,
-                             pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -317,7 +354,12 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
       mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, col, row,
                       pd->subsampling_x, pd->subsampling_y);
     }
-    mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+    mismatch_check_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                            cm->current_frame.display_order_hint,
+#else
+                            cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                             plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -325,12 +367,7 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
   if (plane == AOM_PLANE_Y && store_cfl_required(cm, xd) &&
       xd->tree_type == SHARED_PART) {
 #if CONFIG_ADAPTIVE_DS_FILTER
-    cfl_store_tx(xd, row, col, tx_size,
-#if DS_FRAME_LEVEL
-                 cm->features.ds_filter_type);
-#else
-                 cm->seq_params.enable_cfl_ds_filter);
-#endif  // DS_FRAME_LEVEL
+    cfl_store_tx(xd, row, col, tx_size, cm->seq_params.enable_cfl_ds_filter);
 #else
     cfl_store_tx(xd, row, col, tx_size);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
@@ -394,7 +431,12 @@ static AOM_INLINE void inverse_transform_inter_block(
     mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, blk_col, blk_row,
                     pd->subsampling_x, pd->subsampling_y);
   }
-  mismatch_check_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+  mismatch_check_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                          cm->current_frame.display_order_hint,
+#else
+                          cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                           plane, pixel_c, pixel_r, blk_w, blk_h);
 #endif  // CONFIG_MISMATCH_DEBUG
 }
@@ -561,8 +603,8 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
-                      parent ? &parent->chroma_ref_info : NULL,
+  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
@@ -578,12 +620,14 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                        num_planes, chroma_ref_info);
 }
 
+#if !CONFIG_REFINEMV
 typedef struct PadBlock {
   int x0;
   int x1;
   int y0;
   int y1;
 } PadBlock;
+#endif  //! CONFIG_REFINEMV
 
 static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
                                               int src_stride, uint16_t *dst,
@@ -622,10 +666,12 @@ static AOM_INLINE void highbd_build_mc_border(const uint16_t *src,
   } while (--b_h);
 }
 
-static INLINE int update_extend_mc_border_params(
-    const struct scale_factors *const sf, struct buf_2d *const pre_buf,
-    MV32 scaled_mv, PadBlock *block, int subpel_x_mv, int subpel_y_mv,
-    int do_warp, int is_intrabc, int *x_pad, int *y_pad) {
+#if !CONFIG_REFINEMV
+int update_extend_mc_border_params(const struct scale_factors *const sf,
+                                   struct buf_2d *const pre_buf, MV32 scaled_mv,
+                                   PadBlock *block, int subpel_x_mv,
+                                   int subpel_y_mv, int do_warp, int is_intrabc,
+                                   int *x_pad, int *y_pad) {
   // Get reference width and height.
   int frame_width = pre_buf->width;
   int frame_height = pre_buf->height;
@@ -662,6 +708,7 @@ static INLINE int update_extend_mc_border_params(
   }
   return 0;
 }
+#endif  //! CONFIG_REFINEMV
 
 static INLINE void extend_mc_border(const struct scale_factors *const sf,
                                     struct buf_2d *const pre_buf,
@@ -673,7 +720,13 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
   int x_pad = 0, y_pad = 0;
   if (update_extend_mc_border_params(sf, pre_buf, scaled_mv, &block,
                                      subpel_x_mv, subpel_y_mv, do_warp,
-                                     is_intrabc, &x_pad, &y_pad)) {
+                                     is_intrabc, &x_pad, &y_pad
+#if CONFIG_REFINEMV
+                                     ,
+                                     NULL
+#endif  // CONFIG_REFINEMV
+
+                                     )) {
     // Get reference block pointer.
     const uint16_t *const buf_ptr =
         pre_buf->buf0 + block.y0 * pre_buf->stride + block.x0;
@@ -690,7 +743,7 @@ static INLINE void extend_mc_border(const struct scale_factors *const sf,
            x_pad * (AOM_INTERP_EXTEND - 1);
   }
 }
-
+#if !CONFIG_REFINEMV
 static void dec_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     const MACROBLOCKD *const xd, int mi_x, int mi_y, uint16_t **pre,
@@ -810,8 +863,17 @@ static void dec_calc_subpel_params(
   }
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
-}
 
+#if CONFIG_D071_IMP_MSK_BLD
+  if (inter_pred_params->border_data.enable_bacp) {
+    subpel_params->x0 = block->x0;
+    subpel_params->x1 = block->x1;
+    subpel_params->y0 = block->y0;
+    subpel_params->y1 = block->y1;
+  }
+#endif  // CONFIG_D071_IMP_MSK_BLD
+}
+#endif  //! CONFIG_REFINEMV
 static void dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
@@ -820,6 +882,19 @@ static void dec_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif
+
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -837,6 +912,7 @@ static void dec_calc_subpel_params_and_extend(
 }
 
 #if CONFIG_TIP
+#if !CONFIG_REFINEMV
 static AOM_INLINE void tip_dec_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params, int mi_x,
     int mi_y, uint16_t **pre, SubpelParams *subpel_params, int *src_stride,
@@ -847,6 +923,11 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     MV32 *scaled_mv, int *subpel_x_mv, int *subpel_y_mv) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
   struct buf_2d *pre_buf = &inter_pred_params->ref_frame_buf;
+
+#if CONFIG_REFINEMV
+  const int bw = inter_pred_params->original_pu_width;
+  const int bh = inter_pred_params->original_pu_height;
+#else
 #if CONFIG_OPTFLOW_REFINEMENT
   // Use original block size to clamp MV and to extend block boundary
   const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
@@ -857,6 +938,8 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
   const int bw = inter_pred_params->block_width;
   const int bh = inter_pred_params->block_height;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_REFINEMV
+
   const int is_scaled = av1_is_scaled(sf);
   if (is_scaled) {
     const int ssx = inter_pred_params->subsampling_x;
@@ -900,10 +983,21 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     block->y0 = pos_y >> SCALE_SUBPEL_BITS;
 
     // Get reference block bottom right coordinate.
+#if CONFIG_D071_IMP_MSK_BLD
+    block->x1 =
+        ((pos_x + (inter_pred_params->block_width - 1) * subpel_params->xs) >>
+         SCALE_SUBPEL_BITS) +
+        1;
+    block->y1 =
+        ((pos_y + (inter_pred_params->block_height - 1) * subpel_params->ys) >>
+         SCALE_SUBPEL_BITS) +
+        1;
+#else
     block->x1 =
         ((pos_x + (bw - 1) * subpel_params->xs) >> SCALE_SUBPEL_BITS) + 1;
     block->y1 =
         ((pos_y + (bh - 1) * subpel_params->ys) >> SCALE_SUBPEL_BITS) + 1;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
     MV temp_mv;
     temp_mv = tip_clamp_mv_to_umv_border_sb(inter_pred_params, src_mv, bw, bh,
@@ -942,8 +1036,13 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
     block->y0 = pos_y;
 
     // Get reference block bottom right coordinate.
+#if CONFIG_D071_IMP_MSK_BLD
+    block->x1 = pos_x + inter_pred_params->block_width;
+    block->y1 = pos_y + inter_pred_params->block_height;
+#else
     block->x1 = pos_x + bw;
     block->y1 = pos_y + bh;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
     scaled_mv->row = mv_q4.row;
     scaled_mv->col = mv_q4.col;
@@ -952,8 +1051,17 @@ static AOM_INLINE void tip_dec_calc_subpel_params(
   }
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
-}
 
+#if CONFIG_D071_IMP_MSK_BLD
+  if (inter_pred_params->border_data.enable_bacp) {
+    subpel_params->x0 = block->x0;
+    subpel_params->x1 = block->x1;
+    subpel_params->y0 = block->y0;
+    subpel_params->y1 = block->y1;
+  }
+#endif  // CONFIG_D071_IMP_MSK_BLD
+}
+#endif
 static void tip_dec_calc_subpel_params_and_extend(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
@@ -962,7 +1070,22 @@ static void tip_dec_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    // printf(" used pading in the decoder \n");
+    tip_common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#else
+
   (void)xd;
+#endif  // CONFIG_REFINEMV
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -1083,7 +1206,7 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
   MACROBLOCKD *const xd = &dcb->xd;
 
 #if CONFIG_ACCOUNTING
-  aom_accounting_set_context(&pbi->accounting, mi_col, mi_row);
+  aom_accounting_set_context(&pbi->accounting, mi_col, mi_row, xd->tree_type);
 #endif
   set_offsets(cm, xd, bsize, mi_row, mi_col, bw, bh, x_mis, y_mis, parent,
               index);
@@ -1158,11 +1281,19 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
                                        DecoderCodingBlock *dcb, int plane,
                                        MB_MODE_INFO *mi, int build_for_obmc,
-                                       int bw, int bh, int mi_x, int mi_y) {
+                                       int bw, int bh, int mi_x, int mi_y
+#if CONFIG_REFINEMV
+                                       ,
+                                       int build_for_refine_mv_only
+#endif  // CONFIG_REFINEMV
+) {
   av1_build_inter_predictors(cm, &dcb->xd, plane, mi,
 #if CONFIG_BAWP
                              NULL,
 #endif
+#if CONFIG_REFINEMV
+                             build_for_refine_mv_only,
+#endif  // CONFIG_REFINEMV
                              build_for_obmc, bw, bh, mi_x, mi_y, dcb->mc_buf,
                              dec_calc_subpel_params_and_extend);
 }
@@ -1173,13 +1304,35 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
                                                  BLOCK_SIZE bsize) {
   MACROBLOCKD *const xd = &dcb->xd;
   const int num_planes = av1_num_planes(cm);
+
+#if CONFIG_REFINEMV
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  int need_subblock_mvs = xd->is_chroma_ref && mbmi->refinemv_flag &&
+                          !is_intrabc_block(mbmi, xd->tree_type);
+  assert(IMPLIES(need_subblock_mvs, !is_interintra_pred(mbmi)));
+  if (need_subblock_mvs && default_refinemv_modes(mbmi))
+    need_subblock_mvs &= (mbmi->comp_group_idx == 0 &&
+                          mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+  if (need_subblock_mvs) {
+    fill_subblock_refine_mv(xd->refinemv_subinfo, xd->plane[0].width,
+                            xd->plane[0].height, mbmi->mv[0].as_mv,
+                            mbmi->mv[1].as_mv);
+  }
+#endif  // CONFIG_REFINEMV
+
   for (int plane = 0; plane < num_planes; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
     const int mi_y = mi_row * MI_SIZE;
     dec_build_inter_predictors(cm, dcb, plane, xd->mi[0], 0,
                                xd->plane[plane].width, xd->plane[plane].height,
-                               mi_x, mi_y);
+                               mi_x, mi_y
+#if CONFIG_REFINEMV
+                               ,
+                               0
+#endif  // CONFIG_REFINEMV
+    );
+
     if (is_interintra_pred(xd->mi[0])) {
       BUFFER_SET ctx = { { xd->plane[0].dst.buf, xd->plane[1].dst.buf,
                            xd->plane[2].dst.buf },
@@ -1217,7 +1370,12 @@ static INLINE void dec_build_prediction_by_above_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 0)) continue;
     dec_build_inter_predictors(ctxt->cm, (DecoderCodingBlock *)ctxt->dcb, j,
-                               &backup_mbmi, 1, bw, bh, mi_x, mi_y);
+                               &backup_mbmi, 1, bw, bh, mi_x, mi_y
+#if CONFIG_REFINEMV
+                               ,
+                               0
+#endif  // CONFIG_REFINEMV
+    );
   }
 }
 
@@ -1238,9 +1396,9 @@ static AOM_INLINE void dec_build_prediction_by_above_preds(
     cm, tmp_buf, tmp_width, tmp_height, tmp_stride, xd->mb_to_right_edge, dcb
   };
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-  foreach_overlappable_nb_above(cm, xd,
-                                max_neighbor_obmc[mi_size_wide_log2[bsize]],
-                                dec_build_prediction_by_above_pred, &ctxt);
+  foreach_overlappable_nb_above(
+      cm, xd, max_neighbor_obmc[mi_size_wide_log2[bsize]],
+      dec_build_prediction_by_above_pred, &ctxt, false);
 
   xd->mb_to_left_edge = -GET_MV_SUBPEL(xd->mi_col * MI_SIZE);
   xd->mb_to_right_edge = ctxt.mb_to_far_edge;
@@ -1272,7 +1430,12 @@ static INLINE void dec_build_prediction_by_left_pred(
 
     if (av1_skip_u4x4_pred_in_obmc(bsize, pd, 1)) continue;
     dec_build_inter_predictors(ctxt->cm, (DecoderCodingBlock *)ctxt->dcb, j,
-                               &backup_mbmi, 1, bw, bh, mi_x, mi_y);
+                               &backup_mbmi, 1, bw, bh, mi_x, mi_y
+#if CONFIG_REFINEMV
+                               ,
+                               0
+#endif  // CONFIG_REFINEMV
+    );
   }
 }
 
@@ -1335,12 +1498,7 @@ static AOM_INLINE void cfl_store_inter_block(AV1_COMMON *const cm,
   if (store_cfl_required(cm, xd) && xd->tree_type == SHARED_PART) {
 #if CONFIG_ADAPTIVE_DS_FILTER
     cfl_store_block(xd, mbmi->sb_type[PLANE_TYPE_Y], mbmi->tx_size,
-#if DS_FRAME_LEVEL
-                    cm->features.ds_filter_type
-#else
-                    cm->seq_params.enable_cfl_ds_filter
-#endif
-    );
+                    cm->seq_params.enable_cfl_ds_filter);
 #else
     cfl_store_block(xd, mbmi->sb_type[PLANE_TYPE_Y], mbmi->tx_size);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
@@ -1394,10 +1552,44 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
                       pd->subsampling_x, pd->subsampling_y);
     }
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
-                             cm->current_frame.order_hint, plane, pixel_c,
-                             pixel_r, pd->width, pd->height);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             plane, pixel_c, pixel_r, pd->width, pd->height);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
+
+#if CONFIG_INSPECTION
+  for (int plane = 0; plane < num_planes; plane++) {
+    struct macroblockd_plane *const pd = &xd->plane[plane];
+    const int dst_stride = pd->dst.stride;
+    const int plane_block_size =
+        get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+    const int plane_width = mi_size_wide[plane_block_size];
+    const int plane_height = mi_size_high[plane_block_size];
+    for (int i = 0; i < plane_height * MI_SIZE; i++) {
+      for (int j = 0; j < plane_width * MI_SIZE; j++) {
+        uint16_t pixel = pd->dst.buf[i * dst_stride + j];
+        int stride = cm->predicted_pixels.strides[plane > 0];
+        int pixel_c, pixel_r;
+        if (plane) {
+          mi_to_pixel_loc(&pixel_c, &pixel_r,
+                          mbmi->chroma_ref_info.mi_col_chroma_base,
+                          mbmi->chroma_ref_info.mi_row_chroma_base, 0, 0,
+                          pd->subsampling_x, pd->subsampling_y);
+        } else {
+          mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, 0, 0,
+                          pd->subsampling_x, pd->subsampling_y);
+        }
+        pixel_c += j;
+        pixel_r += i;
+        cm->predicted_pixels.buffers[plane][pixel_r * stride + pixel_c] = pixel;
+      }
+    }
+  }
+#endif  // CONFIG_INSPECTION
 }
 
 static AOM_INLINE void set_color_index_map_offset(MACROBLOCKD *const xd,
@@ -1672,7 +1864,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
         is_inter ? ec_ctx->inter_4way_txfm_partition_cdf[is_rect][split4_ctx]
                  : ec_ctx->intra_4way_txfm_partition_cdf[is_rect][split4_ctx];
     const TX_PARTITION_TYPE split4_partition =
-        aom_read_symbol(r, split4_cdf, 4, ACCT_STR);
+        aom_read_symbol(r, split4_cdf, 4, ACCT_INFO("split4_partition"));
     partition = split4_partition;
     /*
     If only one split type (horizontal or vertical) is allowed for this block,
@@ -1684,7 +1876,8 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     // Read bit to indicate if there is any split at all
     aom_cdf_prob *split2_cdf = is_inter ? ec_ctx->inter_2way_txfm_partition_cdf
                                         : ec_ctx->intra_2way_txfm_partition_cdf;
-    const int has_first_split = aom_read_symbol(r, split2_cdf, 2, ACCT_STR);
+    const int has_first_split =
+        aom_read_symbol(r, split2_cdf, 2, ACCT_INFO("has_first_split"));
     partition = has_first_split
                     ? (allow_horz ? TX_PARTITION_HORZ : TX_PARTITION_VERT)
                     : TX_PARTITION_NONE;
@@ -1751,7 +1944,8 @@ static AOM_INLINE void read_tx_size_vartx(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   const int ctx = txfm_partition_context(xd->above_txfm_context + blk_col,
                                          xd->left_txfm_context + blk_row,
                                          mbmi->sb_type[plane_type], tx_size);
-  is_split = aom_read_symbol(r, ec_ctx->txfm_partition_cdf[ctx], 2, ACCT_STR);
+  is_split = aom_read_symbol(r, ec_ctx->txfm_partition_cdf[ctx], 2,
+                             ACCT_INFO("is_split"));
 
   if (is_split) {
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
@@ -1817,7 +2011,7 @@ static TX_SIZE read_selected_tx_size(const MACROBLOCKD *const xd,
   const int ctx = get_tx_size_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const int depth = aom_read_symbol(r, ec_ctx->tx_size_cdf[tx_size_cat][ctx],
-                                    max_depths + 1, ACCT_STR);
+                                    max_depths + 1, ACCT_INFO("depth"));
   assert(depth >= 0 && depth <= max_depths);
   const TX_SIZE tx_size = depth_to_tx_size(depth, bsize);
   return tx_size;
@@ -2023,8 +2217,8 @@ static AOM_INLINE void set_offsets_for_pred_and_recon(
 #endif  // CONFIG_CROSS_CHROMA_TX
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
-                      parent ? &parent->chroma_ref_info : NULL,
+  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
@@ -2049,6 +2243,46 @@ static AOM_INLINE void decode_block(AV1Decoder *const pbi, ThreadData *const td,
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+/*!\brief Maps (ext_part, 4way, 4way_type, rect_type) to partition_type. */
+static PARTITION_TYPE
+    rect_part_table[2][2][NUM_UNEVEN_4WAY_PARTS][NUM_RECT_PARTS] = {
+      {
+          // !do_ext_partition
+          {
+              // !do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ, PARTITION_VERT },
+              { // UNEVEN_4B
+                PARTITION_HORZ, PARTITION_VERT },
+          },
+          {
+              // do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ, PARTITION_VERT },
+              { // UNEVEN_4B
+                PARTITION_HORZ, PARTITION_VERT },
+          },
+      },
+      {
+          // do_ext_partition
+          {
+              // !do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ_3, PARTITION_VERT_3 },
+              { // UNEVEN_4B
+                PARTITION_HORZ_3, PARTITION_VERT_3 },
+          },
+          {
+              // do_4way
+              { // UNEVEN_4A
+                PARTITION_HORZ_4A, PARTITION_VERT_4A },
+              { // UNEVEN_4B
+                PARTITION_HORZ_4B, PARTITION_VERT_4B },
+          },
+      },
+    };
+#else
 /*!\brief Maps (ext_part, rect_type) to partition_type. */
 static PARTITION_TYPE rect_part_table[2][NUM_RECT_PARTS] = {
   // !do_ext_partition
@@ -2056,6 +2290,7 @@ static PARTITION_TYPE rect_part_table[2][NUM_RECT_PARTS] = {
   // do_ext_partition
   { PARTITION_HORZ_3, PARTITION_VERT_3 },
 };
+#endif  // CONFIG_UNEVEN_4WAY
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
@@ -2071,6 +2306,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
+  assert(ctx >= 0);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -2092,15 +2328,16 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       &ptree->chroma_ref_info, &implied_partition);
   if (is_part_implied) return implied_partition;
 
-  const bool do_split =
-      aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2, ACCT_STR);
+  const bool do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
+                                        ACCT_INFO("do_split"));
   if (!do_split) {
     return PARTITION_NONE;
   }
   const int square_split_ctx = square_split_context(xd, mi_row, mi_col, bsize);
   if (is_square_split_eligible(bsize, cm->sb_size)) {
-    const bool do_square_split = aom_read_symbol(
-        r, ec_ctx->do_square_split_cdf[plane][square_split_ctx], 2, ACCT_STR);
+    const bool do_square_split =
+        aom_read_symbol(r, ec_ctx->do_square_split_cdf[plane][square_split_ctx],
+                        2, ACCT_STR("do_square_split"));
     if (do_square_split) {
       return PARTITION_SPLIT;
     }
@@ -2108,20 +2345,46 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
 
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
   if (rect_type == RECT_INVALID) {
-    rect_type =
-        aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][ctx], 2, ACCT_STR);
+    rect_type = aom_read_symbol(r, ec_ctx->rect_type_cdf[plane][ctx],
+                                NUM_RECT_PARTS, ACCT_INFO("rect_type"));
   }
 
-  const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
-  const bool ext_partition_allowed =
-      !disable_ext_part &&
-      is_ext_partition_allowed(bsize, rect_type, xd->tree_type);
   bool do_ext_partition = false;
+#if CONFIG_UNEVEN_4WAY
+  bool do_uneven_4way_partition = false;
+  UNEVEN_4WAY_PART_TYPE uneven_4way_partition_type = UNEVEN_4A;
+#endif  // CONFIG_UNEVEN_4WAY
+
+  const bool ext_partition_allowed =
+      cm->seq_params.enable_ext_partitions &&
+      is_ext_partition_allowed(bsize, rect_type, xd->tree_type);
   if (ext_partition_allowed) {
-    do_ext_partition = aom_read_symbol(
-        r, ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx], 2, ACCT_STR);
+    do_ext_partition =
+        aom_read_symbol(r, ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx],
+                        2, ACCT_INFO("do_ext_partition"));
+#if CONFIG_UNEVEN_4WAY
+    if (do_ext_partition) {
+      const bool uneven_4way_partition_allowed =
+          is_uneven_4way_partition_allowed(bsize, rect_type, xd->tree_type);
+      if (uneven_4way_partition_allowed) {
+        do_uneven_4way_partition = aom_read_symbol(
+            r, ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2,
+            ACCT_INFO("do_uneven_4way_partition"));
+        if (do_uneven_4way_partition) {
+          uneven_4way_partition_type = aom_read_symbol(
+              r, ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
+              NUM_UNEVEN_4WAY_PARTS, ACCT_INFO("uneven_4way_partition_type"));
+        }
+      }
+    }
+#endif  // CONFIG_UNEVEN_4WAY
   }
+#if CONFIG_UNEVEN_4WAY
+  return rect_part_table[do_ext_partition][do_uneven_4way_partition]
+                        [uneven_4way_partition_type][rect_type];
+#else
   return rect_part_table[do_ext_partition][rect_type];
+#endif  // CONFIG_UNEVEN_4WAY
 #else   // !CONFIG_EXT_RECUR_PARTITIONS
   if (!has_rows && !has_cols) return PARTITION_SPLIT;
 
@@ -2141,20 +2404,22 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
   if (has_rows && has_cols) {
     return (PARTITION_TYPE)aom_read_symbol(
-        r, partition_cdf, partition_cdf_length(bsize), ACCT_STR);
+        r, partition_cdf, partition_cdf_length(bsize), ACCT_INFO());
   } else if (!has_rows && has_cols) {
     assert(bsize > BLOCK_8X8);
     aom_cdf_prob cdf[2];
     partition_gather_vert_alike(cdf, partition_cdf, bsize);
     assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_HORZ;
+    return aom_read_cdf(r, cdf, 2, ACCT_INFO()) ? PARTITION_SPLIT
+                                                : PARTITION_HORZ;
   } else {
     assert(has_rows && !has_cols);
     assert(bsize > BLOCK_8X8);
     aom_cdf_prob cdf[2];
     partition_gather_horz_alike(cdf, partition_cdf, bsize);
     assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_STR) ? PARTITION_SPLIT : PARTITION_VERT;
+    return aom_read_cdf(r, cdf, 2, ACCT_INFO()) ? PARTITION_SPLIT
+                                                : PARTITION_VERT;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
@@ -2185,12 +2450,19 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   MACROBLOCKD *const xd = &dcb->xd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
+  // Half block width/height.
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
-#if !CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  // One-eighth block width/height.
+  const int ebs_w = mi_size_wide[bsize] / 8;
+  const int ebs_h = mi_size_high[bsize] / 8;
+#endif  // CONFIG_UNEVEN_4WAY
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  // Quarter block width/height.
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   PARTITION_TYPE partition;
   const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
@@ -2220,7 +2492,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
     for (int plane = plane_start; plane < plane_end; ++plane) {
       int rcol0, rcol1, rrow0, rrow1;
-      if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
+      if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+           || cm->rst_info[plane].frame_cross_restoration_type != RESTORE_NONE
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+           ) &&
           av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                              &rcol0, &rcol1, &rrow0, &rrow1)) {
         const int rstride = cm->rst_info[plane].horz_units_per_tile;
@@ -2239,8 +2515,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     ptree->is_settled = 1;
     PARTITION_TREE *parent = ptree->parent;
     set_chroma_ref_info(
-        mi_row, mi_col, ptree->index, bsize, &ptree->chroma_ref_info,
-        parent ? &parent->chroma_ref_info : NULL,
+        xd->tree_type, mi_row, mi_col, ptree->index, bsize,
+        &ptree->chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
         parent ? parent->bsize : BLOCK_INVALID,
         parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
@@ -2263,6 +2539,12 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     ptree->partition = partition;
 
     switch (partition) {
+#if CONFIG_UNEVEN_4WAY
+      case PARTITION_HORZ_4A:
+      case PARTITION_HORZ_4B:
+      case PARTITION_VERT_4A:
+      case PARTITION_VERT_4B:
+#endif  // CONFIG_UNEVEN_4WAY
       case PARTITION_SPLIT:
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
@@ -2280,9 +2562,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
-#if CONFIG_H_PARTITION
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-#endif  // CONFIG_H_PARTITION
         break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
@@ -2310,7 +2590,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     const int index =
         (partition == PARTITION_HORZ || partition == PARTITION_VERT) +
         (partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
-    set_chroma_ref_info(mi_row, mi_col, index, bsize, &chroma_ref_info,
+    set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                        &chroma_ref_info,
                         parent ? &parent->chroma_ref_info : NULL,
                         parent ? parent->bsize : BLOCK_INVALID,
                         parent ? parent->partition : PARTITION_NONE,
@@ -2391,7 +2672,81 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_H_PARTITION
+
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      int this_mi_row = mi_row;
+      DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
+      this_mi_row += ebs_h;
+      if (this_mi_row >= cm->mi_params.mi_rows) break;
+      DEC_PARTITION(this_mi_row, mi_col, bsize_med, 1);
+      this_mi_row += 2 * ebs_h;
+      if (this_mi_row >= cm->mi_params.mi_rows) break;
+      DEC_PARTITION(this_mi_row, mi_col, bsize_big, 2);
+      this_mi_row += 4 * ebs_h;
+      if (this_mi_row >= cm->mi_params.mi_rows) break;
+      DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
+      break;
+    }
+    case PARTITION_HORZ_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      int this_mi_row = mi_row;
+      DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
+      this_mi_row += ebs_h;
+      if (this_mi_row >= cm->mi_params.mi_rows) break;
+      DEC_PARTITION(this_mi_row, mi_col, bsize_big, 1);
+      this_mi_row += 4 * ebs_h;
+      if (this_mi_row >= cm->mi_params.mi_rows) break;
+      DEC_PARTITION(this_mi_row, mi_col, bsize_med, 2);
+      this_mi_row += 2 * ebs_h;
+      if (this_mi_row >= cm->mi_params.mi_rows) break;
+      DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
+      break;
+    }
+    case PARTITION_VERT_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      int this_mi_col = mi_col;
+      DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
+      this_mi_col += ebs_w;
+      if (this_mi_col >= cm->mi_params.mi_cols) break;
+      DEC_PARTITION(mi_row, this_mi_col, bsize_med, 1);
+      this_mi_col += 2 * ebs_w;
+      if (this_mi_col >= cm->mi_params.mi_cols) break;
+      DEC_PARTITION(mi_row, this_mi_col, bsize_big, 2);
+      this_mi_col += 4 * ebs_w;
+      if (this_mi_col >= cm->mi_params.mi_cols) break;
+      DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
+      break;
+    }
+    case PARTITION_VERT_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      int this_mi_col = mi_col;
+      DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
+      this_mi_col += ebs_w;
+      if (this_mi_col >= cm->mi_params.mi_cols) break;
+      DEC_PARTITION(mi_row, this_mi_col, bsize_big, 1);
+      this_mi_col += 4 * ebs_w;
+      if (this_mi_col >= cm->mi_params.mi_cols) break;
+      DEC_PARTITION(mi_row, this_mi_col, bsize_med, 2);
+      this_mi_col += 2 * ebs_w;
+      if (this_mi_col >= cm->mi_params.mi_cols) break;
+      DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
+      break;
+    }
+#endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: {
       for (int i = 0; i < 4; ++i) {
@@ -2414,39 +2769,13 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       }
       break;
     }
-#else
-    case PARTITION_HORZ_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
-      int this_mi_row = mi_row;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += qbs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      DEC_PARTITION(this_mi_row, mi_col, bsize3, 1);
-      this_mi_row += 2 * qbs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 2);
-      break;
-    }
-    case PARTITION_VERT_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
-      int this_mi_col = mi_col;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += qbs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      DEC_PARTITION(mi_row, this_mi_col, bsize3, 1);
-      this_mi_col += 2 * qbs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 2);
-      break;
-    }
-#endif  // CONFIG_H_PARTITION
     case PARTITION_SPLIT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
       DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
       DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 2);
       DEC_PARTITION(mi_row + hbs_h, mi_col + hbs_w, subsize, 3);
       break;
-#else
+#else   // !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
       DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
@@ -2561,6 +2890,11 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
                      parse_decode_flag);
     xd->tree_type = SHARED_PART;
   }
+#if CONFIG_INSPECTION
+  if (pbi->inspect_sb_cb != NULL) {
+    (*pbi->inspect_sb_cb)(pbi, pbi->inspect_ctx);
+  }
+#endif  // CONFIG_INSPECTION
 }
 
 static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
@@ -2652,7 +2986,7 @@ static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n) {
 
 #if CONFIG_LR_FLEX_SYNTAX
 // Converts decoded index to frame restoration type depending on lr tools
-// thta are enabled for the frame for a given plane.
+// that are enabled for the frame for a given plane.
 static RestorationType index_to_frame_restoration_type(
     const AV1_COMMON *const cm, int plane, int ndx) {
   RestorationType r = RESTORE_NONE;
@@ -2671,8 +3005,19 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
   assert(!cm->features.all_lossless);
   const int num_planes = av1_num_planes(cm);
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  for (int p = 0; p < num_planes; ++p) {
+    RestorationInfo *rsi = &cm->rst_info[p];
+    rsi->frame_restoration_type = RESTORE_NONE;
+    rsi->frame_cross_restoration_type = RESTORE_NONE;
+  }
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   if (is_global_intrabc_allowed(cm)) return;
+#if CONFIG_FLEXIBLE_RU_SIZE
+  int luma_none = 1, chroma_none = 1;
+#else
   int all_none = 1, chroma_none = 1;
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_LR_FLEX_SYNTAX
@@ -2690,9 +3035,16 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
         cm->features.lr_tools_count[p] > 2) {
       if (aom_rb_read_bit(rb)) {
+        int tools_count = cm->features.lr_tools_count[p];
         for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-          if (!(plane_lr_tools_disable_mask & (1 << i)))
-            plane_lr_tools_disable_mask |= (aom_rb_read_bit(rb) << i);
+          if (!(plane_lr_tools_disable_mask & (1 << i))) {
+            const int disable_tool = aom_rb_read_bit(rb);
+            plane_lr_tools_disable_mask |= (disable_tool << i);
+            tools_count -= disable_tool;
+            // if tools_count becomes 2 break from the loop since we
+            // do not allow any other tool to be disabled.
+            if (tools_count == 2) break;
+          }
         }
         av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
       }
@@ -2728,8 +3080,23 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       }
     }
 #endif  // CONFIG_LR_FLEX_SYNTAX
+
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    if (p > 0) {
+      if (aom_rb_read_bit(rb)) {
+        rsi->frame_cross_restoration_type = RESTORE_WIENER_NONSEP;
+      }
+    }
+    if (rsi->frame_restoration_type != RESTORE_NONE ||
+        rsi->frame_cross_restoration_type != RESTORE_NONE) {
+#else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+#if CONFIG_FLEXIBLE_RU_SIZE
+      luma_none &= p > 0;
+#else
       all_none = 0;
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
       chroma_none &= p == 0;
     }
 #if CONFIG_WIENER_NONSEP
@@ -2742,6 +3109,44 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                     : NUM_WIENERNS_CLASS_INIT_CHROMA;
 #endif  // CONFIG_WIENER_NONSEP
   }
+#if CONFIG_FLEXIBLE_RU_SIZE
+  const int frame_width = cm->superres_upscaled_width;
+  const int frame_height = cm->superres_upscaled_height;
+  set_restoration_unit_size(frame_width, frame_height,
+                            cm->seq_params.subsampling_x,
+                            cm->seq_params.subsampling_y, cm->rst_info);
+  int size = cm->rst_info[0].max_restoration_unit_size;
+
+  cm->rst_info[0].restoration_unit_size =
+      cm->rst_info[0].max_restoration_unit_size;
+  if (!luma_none) {
+    if (aom_rb_read_bit(rb))
+      cm->rst_info[0].restoration_unit_size = size >> 1;
+    else {
+      if (aom_rb_read_bit(rb))
+        cm->rst_info[0].restoration_unit_size = size;
+      else
+        cm->rst_info[0].restoration_unit_size = size >> 2;
+    }
+  }
+  if (num_planes > 1) {
+    cm->rst_info[1].restoration_unit_size =
+        cm->rst_info[1].max_restoration_unit_size;
+    if (!chroma_none) {
+      size = cm->rst_info[1].max_restoration_unit_size;
+      if (aom_rb_read_bit(rb))
+        cm->rst_info[1].restoration_unit_size = size >> 1;
+      else {
+        if (aom_rb_read_bit(rb))
+          cm->rst_info[1].restoration_unit_size = size;
+        else
+          cm->rst_info[1].restoration_unit_size = size >> 2;
+      }
+    }
+    cm->rst_info[2].restoration_unit_size =
+        cm->rst_info[1].restoration_unit_size;
+  }
+#else
   if (!all_none) {
 #if CONFIG_BLOCK_256
     assert(cm->sb_size == BLOCK_64X64 || cm->sb_size == BLOCK_128X128 ||
@@ -2796,6 +3201,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     cm->rst_info[2].restoration_unit_size =
         cm->rst_info[1].restoration_unit_size;
   }
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
 }
 
 static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
@@ -2803,11 +3209,11 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
                                           WienerInfoBank *bank,
                                           aom_reader *rb) {
 #if CONFIG_LR_MERGE_COEFFS
-  const int exact_match =
-      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+  const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
+                                          ACCT_INFO("exact_match"));
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
-    if (aom_read_literal(rb, 1, ACCT_STR)) break;
+    if (aom_read_literal(rb, 1, ACCT_INFO("bank_size"))) break;
   }
   const int ref = k;
   if (exact_match) {
@@ -2830,7 +3236,8 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
         aom_read_primitive_refsubexpfin(
             rb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
             WIENER_FILT_TAP0_SUBEXP_K,
-            ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV, ACCT_STR) +
+            ref_wiener_info->vfilter[0] - WIENER_FILT_TAP0_MINV,
+            ACCT_INFO("vfilter[0]")) +
         WIENER_FILT_TAP0_MINV;
   else
     wiener_info->vfilter[0] = wiener_info->vfilter[WIENER_WIN - 1] = 0;
@@ -2838,13 +3245,15 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
           WIENER_FILT_TAP1_SUBEXP_K,
-          ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV, ACCT_STR) +
+          ref_wiener_info->vfilter[1] - WIENER_FILT_TAP1_MINV,
+          ACCT_INFO("vfilter[1]")) +
       WIENER_FILT_TAP1_MINV;
   wiener_info->vfilter[2] = wiener_info->vfilter[WIENER_WIN - 3] =
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
           WIENER_FILT_TAP2_SUBEXP_K,
-          ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV, ACCT_STR) +
+          ref_wiener_info->vfilter[2] - WIENER_FILT_TAP2_MINV,
+          ACCT_INFO("vfilter[2]")) +
       WIENER_FILT_TAP2_MINV;
   // The central element has an implicit +WIENER_FILT_STEP
   wiener_info->vfilter[WIENER_HALFWIN] =
@@ -2856,7 +3265,8 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
         aom_read_primitive_refsubexpfin(
             rb, WIENER_FILT_TAP0_MAXV - WIENER_FILT_TAP0_MINV + 1,
             WIENER_FILT_TAP0_SUBEXP_K,
-            ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV, ACCT_STR) +
+            ref_wiener_info->hfilter[0] - WIENER_FILT_TAP0_MINV,
+            ACCT_INFO("hfilter[0]")) +
         WIENER_FILT_TAP0_MINV;
   else
     wiener_info->hfilter[0] = wiener_info->hfilter[WIENER_WIN - 1] = 0;
@@ -2864,13 +3274,15 @@ static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP1_MAXV - WIENER_FILT_TAP1_MINV + 1,
           WIENER_FILT_TAP1_SUBEXP_K,
-          ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV, ACCT_STR) +
+          ref_wiener_info->hfilter[1] - WIENER_FILT_TAP1_MINV,
+          ACCT_INFO("hfilter[1]")) +
       WIENER_FILT_TAP1_MINV;
   wiener_info->hfilter[2] = wiener_info->hfilter[WIENER_WIN - 3] =
       aom_read_primitive_refsubexpfin(
           rb, WIENER_FILT_TAP2_MAXV - WIENER_FILT_TAP2_MINV + 1,
           WIENER_FILT_TAP2_SUBEXP_K,
-          ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV, ACCT_STR) +
+          ref_wiener_info->hfilter[2] - WIENER_FILT_TAP2_MINV,
+          ACCT_INFO("hfilter[2]")) +
       WIENER_FILT_TAP2_MINV;
   // The central element has an implicit +WIENER_FILT_STEP
   wiener_info->hfilter[WIENER_HALFWIN] =
@@ -2884,11 +3296,11 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
                                            SgrprojInfoBank *bank,
                                            aom_reader *rb) {
 #if CONFIG_LR_MERGE_COEFFS
-  const int exact_match =
-      aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+  const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
+                                          ACCT_INFO("exact_match"));
   int k;
   for (k = 0; k < bank->bank_size - 1; ++k) {
-    if (aom_read_literal(rb, 1, ACCT_STR)) break;
+    if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
   }
   const int ref = k;
   if (exact_match) {
@@ -2904,7 +3316,7 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
 #endif  // CONFIG_LR_MERGE_COEFFS
   SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
 
-  sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_STR);
+  sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_INFO("ep"));
   const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
 
   if (params->r[0] == 0) {
@@ -2912,13 +3324,13 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
     sgrproj_info->xqd[1] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_STR) +
+            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN1;
   } else if (params->r[1] == 0) {
     sgrproj_info->xqd[0] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_STR) +
+            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN0;
     sgrproj_info->xqd[1] = clamp((1 << SGRPROJ_PRJ_BITS) - sgrproj_info->xqd[0],
                                  SGRPROJ_PRJ_MIN1, SGRPROJ_PRJ_MAX1);
@@ -2926,12 +3338,12 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
     sgrproj_info->xqd[0] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_STR) +
+            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN0;
     sgrproj_info->xqd[1] =
         aom_read_primitive_refsubexpfin(
             rb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_STR) +
+            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_INFO()) +
         SGRPROJ_PRJ_MIN1;
   }
 
@@ -2948,11 +3360,11 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   assert(num_classes <= WIENERNS_MAX_CLASSES);
 #if CONFIG_LR_MERGE_COEFFS
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-    const int exact_match =
-        aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2, ACCT_STR);
+    const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf,
+                                            2, ACCT_INFO("exact_match"));
     int ref;
     for (ref = 0; ref < bank->bank_size_for_class[c_id] - 1; ++ref) {
-      if (aom_read_literal(rb, 1, ACCT_STR)) break;
+      if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
     }
     if (exact_match) {
       copy_nsfilter_taps_for_class(
@@ -2967,7 +3379,12 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   (void)xd;
 #endif  // CONFIG_LR_MERGE_COEFFS
   const WienernsFilterParameters *nsfilter_params =
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+      get_wienerns_parameters(xd->current_base_qindex, is_uv,
+                              wienerns_info->is_cross_filter);
+#else
       get_wienerns_parameters(xd->current_base_qindex, is_uv);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   const int beg_feat = 0;
   const int end_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
@@ -2997,28 +3414,33 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
     const int rodd = is_uv ? 0 : (end_feat & 1);
     for (int i = beg_feat; i < end_feat; ++i) {
       if (rodd && i == end_feat - 5 && i != beg_feat) {
-        reduce_step[0] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[0], 2, ACCT_STR);
+        reduce_step[0] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[0], 2,
+                            ACCT_INFO("wienerns_reduce_cdf0"));
         if (reduce_step[0]) break;
       }
       if (!rodd && i == end_feat - 4 && i != beg_feat) {
-        reduce_step[1] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[1], 2, ACCT_STR);
+        reduce_step[1] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[1], 2,
+                            ACCT_INFO("wienerns_reduce_cdf1"));
         if (reduce_step[1]) break;
       }
       if (rodd && i == end_feat - 3 && i != beg_feat) {
-        reduce_step[2] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[2], 2, ACCT_STR);
+        reduce_step[2] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[2], 2,
+                            ACCT_INFO("wienerns_reduce_cdf2"));
         if (reduce_step[2]) break;
       }
       if (!rodd && i == end_feat - 2 && i != beg_feat) {
-        reduce_step[3] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[3], 2, ACCT_STR);
+        reduce_step[3] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[3], 2,
+                            ACCT_INFO("wienerns_reduce_cdf3"));
         if (reduce_step[3]) break;
       }
       if (rodd && i == end_feat - 1 && i != beg_feat) {
-        reduce_step[4] = aom_read_symbol(
-            rb, xd->tile_ctx->wienerns_reduce_cdf[4], 2, ACCT_STR);
+        reduce_step[4] =
+            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[4], 2,
+                            ACCT_INFO("wienerns_reduce_cdf4"));
         if (reduce_step[4]) break;
       }
 #if ENABLE_LR_4PART_CODE
@@ -3029,7 +3451,8 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
                   wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
               xd->tile_ctx->wienerns_4part_cdf
                   [wienerns_coeffs[i - beg_feat][WIENERNS_PAR_ID]],
-              wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID], ACCT_STR) +
+              wienerns_coeffs[i - beg_feat][WIENERNS_BIT_ID],
+              ACCT_INFO("wienerns_info_nsfilter")) +
           wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID];
 #else
       wienerns_info_nsfilter[i] =
@@ -3038,7 +3461,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
               wienerns_coeffs[i - beg_feat][WIENERNS_PAR_ID],
               ref_wienerns_info_nsfilter[i] -
                   wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
-              ACCT_STR) +
+              ACCT_INFO("wienerns_info_nsfilter")) +
           wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID];
 #endif  // ENABLE_LR_4PART_CODE
     }
@@ -3048,17 +3471,39 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 #endif  // CONFIG_WIENER_NONSEP
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#else
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     int runit_idx) {
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  RestorationInfo *rsi = &cm->rst_info[plane];
+#else
   const RestorationInfo *rsi = &cm->rst_info[plane];
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  assert(rsi->frame_restoration_type != RESTORE_NONE ||
+         rsi->frame_cross_restoration_type != RESTORE_NONE);
+  rui->restoration_type = RESTORE_NONE;
+  rui->cross_restoration_type = RESTORE_NONE;
+#else
   assert(rsi->frame_restoration_type != RESTORE_NONE);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
 #if CONFIG_WIENER_NONSEP
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  rui->wienerns_cross_info.num_classes =
+      xd->wienerns_cross_info[plane].filter[0].num_classes;
+
+  rui->wienerns_info.is_cross_filter = 0;
+  rui->wienerns_cross_info.is_cross_filter = 1;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #endif  // CONFIG_WIENER_NONSEP
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
@@ -3067,16 +3512,17 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
       if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
       const int found = aom_read_symbol(
-          r, xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2, ACCT_STR);
+          r, xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2,
+          ACCT_INFO("found"));
       if (found) {
         rui->restoration_type = re;
         break;
       }
     }
 #else
-    rui->restoration_type =
-        aom_read_symbol(r, xd->tile_ctx->switchable_restore_cdf,
-                        RESTORE_SWITCHABLE_TYPES, ACCT_STR);
+    rui->restoration_type = aom_read_symbol(
+        r, xd->tile_ctx->switchable_restore_cdf, RESTORE_SWITCHABLE_TYPES,
+        ACCT_INFO("restoration_type"));
 #endif  // CONFIG_LR_FLEX_SYNTAX
     switch (rui->restoration_type) {
       case RESTORE_WIENER:
@@ -3101,7 +3547,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
-    if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->wiener_restore_cdf, 2,
+                        ACCT_INFO("wiener_restore_cdf"))) {
       rui->restoration_type = RESTORE_WIENER;
       read_wiener_filter(xd, wiener_win, &rui->wiener_info,
                          &xd->wiener_info[plane], r);
@@ -3109,7 +3556,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       rui->restoration_type = RESTORE_NONE;
     }
   } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
-    if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2,
+                        ACCT_INFO("sgrproj_restore_cdf"))) {
       rui->restoration_type = RESTORE_SGRPROJ;
       read_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], r);
     } else {
@@ -3117,7 +3565,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     }
 #if CONFIG_WIENER_NONSEP
   } else if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP) {
-    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2,
+                        ACCT_INFO("wienerns_restore_cdf"))) {
       rui->restoration_type = RESTORE_WIENER_NONSEP;
       read_wienerns_filter(xd, plane != AOM_PLANE_Y, &rui->wienerns_info,
                            &xd->wienerns_info[plane], r);
@@ -3127,7 +3576,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #endif  // CONFIG_WIENER_NONSEP
 #if CONFIG_PC_WIENER
   } else if (rsi->frame_restoration_type == RESTORE_PC_WIENER) {
-    if (aom_read_symbol(r, xd->tile_ctx->pc_wiener_restore_cdf, 2, ACCT_STR)) {
+    if (aom_read_symbol(r, xd->tile_ctx->pc_wiener_restore_cdf, 2,
+                        ACCT_INFO("pc_wiener_restore_cdf"))) {
       rui->restoration_type = RESTORE_PC_WIENER;
       // No side-information for now.
     } else {
@@ -3135,6 +3585,18 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     }
 #endif  // CONFIG_PC_WIENER
   }
+
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  if (rsi->frame_cross_restoration_type == RESTORE_WIENER_NONSEP) {
+    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2,
+                        ACCT_INFO())) {
+      rui->cross_restoration_type = RESTORE_WIENER_NONSEP;
+      read_wienerns_filter(xd, plane != AOM_PLANE_Y, &rui->wienerns_cross_info,
+                           &xd->wienerns_cross_info[plane], r);
+    }
+  }
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+
 #if CONFIG_LR_FLEX_SYNTAX
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
@@ -3790,6 +4252,11 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
                         cdef_info->cdef_strengths[0] == 0 &&
                         cdef_info->cdef_uv_strengths[0] == 0;
     const int no_restoration =
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+        rst_info[0].frame_cross_restoration_type == RESTORE_NONE &&
+        rst_info[1].frame_cross_restoration_type == RESTORE_NONE &&
+        rst_info[2].frame_cross_restoration_type == RESTORE_NONE &&
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         rst_info[0].frame_restoration_type == RESTORE_NONE &&
         rst_info[1].frame_restoration_type == RESTORE_NONE &&
         rst_info[2].frame_restoration_type == RESTORE_NONE;
@@ -4065,7 +4532,15 @@ static AOM_INLINE void set_cb_buffer(AV1Decoder *pbi, DecoderCodingBlock *dcb,
 
   for (int plane = 0; plane < num_planes; ++plane) {
     dcb->dqcoeff_block[plane] = cb_buffer->dqcoeff[plane];
+#if CONFIG_INSPECTION
+    dcb->dqcoeff_block_copy[plane] = cb_buffer->dqcoeff_copy[plane];
+    dcb->qcoeff_block[plane] = cb_buffer->qcoeff[plane];
+    dcb->dequant_values[plane] = cb_buffer->dequant_values[plane];
+#endif  // CONFIG_INSPECTION
     dcb->eob_data[plane] = cb_buffer->eob_data[plane];
+#if CONFIG_ATC_DCTX_ALIGNED
+    dcb->bob_data[plane] = cb_buffer->bob_data[plane];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     dcb->cb_offset[plane] = 0;
     dcb->txb_offset[plane] = 0;
   }
@@ -4344,7 +4819,7 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
     av1_zero_left_context(xd);
 #if CONFIG_REF_MV_BANK
     av1_zero(xd->ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -4366,9 +4841,9 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
       // for MV referencing during decoding the tile.
       // xd->ref_mv_bank is updated as decoding goes.
       xd->ref_mv_bank.rmb_sb_hits = 0;
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
-#endif  // !CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_MVP_IMPROVEMENT
 #endif  // CONFIG_REF_MV_BANK
 
 #if CONFIG_WARP_REF_LIST
@@ -4865,7 +5340,7 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
     av1_zero_left_context(xd);
 #if CONFIG_REF_MV_BANK
     av1_zero(xd->ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -4885,9 +5360,9 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 
 #if CONFIG_REF_MV_BANK
       xd->ref_mv_bank.rmb_sb_hits = 0;
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
-#endif  // !CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_MVP_IMPROVEMENT
 #endif  // CONFIG_REF_MV_BANK
 
 #if CONFIG_WARP_REF_LIST
@@ -6003,7 +6478,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     if (aom_rb_read_bit(rb)) {
       seq_params->lr_tools_disable_mask[1] = DEF_UV_LR_TOOLS_DISABLE_MASK;
       for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-        if (DEF_UV_LR_TOOLS_DISABLE_MASK | (1 << i)) continue;
+        if (DEF_UV_LR_TOOLS_DISABLE_MASK & (1 << i)) continue;
         seq_params->lr_tools_disable_mask[1] |= (aom_rb_read_bit(rb) << i);
       }
     } else {
@@ -6016,10 +6491,15 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 
 void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
                                          SequenceHeader *seq_params) {
+  // printf("print sps\n");
 #if CONFIG_REF_MV_BANK
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
 #endif  // CONFIG_REF_MV_BANK
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // 0 : use show_existing_frame, 1: use implicit derivation
+  seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
@@ -6048,6 +6528,12 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_BAWP
   seq_params->enable_bawp = aom_rb_read_bit(rb);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  seq_params->enable_cwp = aom_rb_read_bit(rb);
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
+#endif  // CONFIG_D071_IMP_MSK_BLD
   seq_params->enable_fsc = aom_rb_read_bit(rb);
 #if CONFIG_CCSO
   seq_params->enable_ccso = aom_rb_read_bit(rb);
@@ -6058,6 +6544,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_ORIP
   seq_params->enable_orip = aom_rb_read_bit(rb);
 #endif
+#if CONFIG_IDIF
+  seq_params->enable_idif = aom_rb_read_bit(rb);
+#endif  // CONFIG_IDIF
 #if CONFIG_OPTFLOW_REFINEMENT
   seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
                                        ? aom_rb_read_literal(rb, 2)
@@ -6067,6 +6556,10 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_ADAPTIVE_MVD
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 #endif  // CONFIG_ADAPTIVE_MVD
+
+#if CONFIG_REFINEMV
+  seq_params->enable_refinemv = aom_rb_read_bit(rb);
+#endif  // CONFIG_REFINEMV
 #if CONFIG_FLEX_MVRES
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
 #endif  // CONFIG_FLEX_MVRES
@@ -6081,6 +6574,13 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (seq_params->reduced_still_picture_hdr) {
+    seq_params->enable_global_motion = 0;
+  } else {
+    seq_params->enable_global_motion = aom_rb_read_bit(rb);
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 static int read_global_motion_params(WarpedMotionParams *params,
@@ -6088,16 +6588,27 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                      struct aom_read_bit_buffer *rb,
 #if !CONFIG_FLEX_MVRES
                                      int allow_hp) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)allow_hp;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #else
                                      MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
-#endif
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)precision_loss;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#endif  // !CONFIG_FLEX_MVRES
   TransformationType type = aom_rb_read_bit(rb);
   if (type != IDENTITY) {
-    if (aom_rb_read_bit(rb))
+    if (aom_rb_read_bit(rb)) {
       type = ROTZOOM;
-    else
+    } else {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      type = AFFINE;
+#else
       type = aom_rb_read_bit(rb) ? TRANSLATION : AFFINE;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+    }
   }
 
   *params = default_warp_params;
@@ -6133,6 +6644,11 @@ static int read_global_motion_params(WarpedMotionParams *params,
   }
 
   if (type >= TRANSLATION) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    const int trans_dec_factor = GM_TRANS_DECODE_FACTOR;
+    const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+    const int trans_max = GM_TRANS_MAX;
+#else
     const int trans_bits = (type == TRANSLATION)
 #if CONFIG_FLEX_MVRES
                                ? GM_ABS_TRANS_ONLY_BITS - precision_loss
@@ -6155,13 +6671,15 @@ static int read_global_motion_params(WarpedMotionParams *params,
                                     ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
 #endif
                                     : GM_TRANS_PREC_DIFF;
+    const int trans_max = (1 << trans_bits);
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     params->wmmat[0] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+                           rb, trans_max + 1, SUBEXPFIN_K,
                            (ref_params->wmmat[0] >> trans_prec_diff)) *
                        trans_dec_factor;
     params->wmmat[1] = aom_rb_read_signed_primitive_refsubexpfin(
-                           rb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+                           rb, trans_max + 1, SUBEXPFIN_K,
                            (ref_params->wmmat[1] >> trans_prec_diff)) *
                        trans_dec_factor;
   }
@@ -6179,10 +6697,86 @@ static int read_global_motion_params(WarpedMotionParams *params,
 
 static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                                           struct aom_read_bit_buffer *rb) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  int num_total_refs = cm->ref_frames_info.num_total_refs;
+  bool use_global_motion = false;
+  if (seq_params->enable_global_motion) {
+    use_global_motion = aom_rb_read_bit(rb);
+  }
+  if (!use_global_motion) {
+    for (int frame = 0; frame < INTER_REFS_PER_FRAME; ++frame) {
+      cm->global_motion[frame] = default_warp_params;
+      cm->cur_frame->global_motion[frame] = default_warp_params;
+    }
+    return;
+  }
+
+  int our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
+  if (our_ref == num_total_refs) {
+    // Special case: Use IDENTITY model
+    cm->base_global_motion_model = default_warp_params;
+    cm->base_global_motion_distance = 1;
+  } else {
+    RefCntBuffer *buf = get_ref_frame_buf(cm, our_ref);
+    assert(buf);
+    int their_num_refs = buf->num_ref_frames;
+    if (their_num_refs == 0) {
+      // Special case: if an intra/key frame is used as a ref, use an
+      // IDENTITY model
+      cm->base_global_motion_model = default_warp_params;
+      cm->base_global_motion_distance = 1;
+    } else {
+      int their_ref = aom_rb_read_primitive_quniform(rb, their_num_refs);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int our_ref_order_hint = buf->display_order_hint;
+      const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
+#else
+        const int our_ref_order_hint = buf->order_hint;
+        const int their_ref_order_hint = buf->ref_order_hints[their_ref];
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      cm->base_global_motion_model = buf->global_motion[their_ref];
+      cm->base_global_motion_distance =
+          get_relative_dist(&seq_params->order_hint_info, our_ref_order_hint,
+                            their_ref_order_hint);
+    }
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   for (int frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    int temporal_distance;
+    if (seq_params->order_hint_info.enable_order_hint) {
+      const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int ref_order_hint = ref_buf->display_order_hint;
+      const int cur_order_hint = cm->cur_frame->display_order_hint;
+#else
+        const int ref_order_hint = ref_buf->order_hint;
+        const int cur_order_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+                                            cur_order_hint, ref_order_hint);
+    } else {
+      temporal_distance = 1;
+    }
+
+    if (temporal_distance == 0) {
+      // Don't code global motion for frames at the same temporal instant
+      cm->global_motion[frame] = default_warp_params;
+      continue;
+    }
+
+    WarpedMotionParams ref_params_;
+    av1_scale_warp_model(&cm->base_global_motion_model,
+                         cm->base_global_motion_distance, &ref_params_,
+                         temporal_distance);
+    WarpedMotionParams *ref_params = &ref_params_;
+#else
     const WarpedMotionParams *ref_params =
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                        : &default_warp_params;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
     int good_params =
 #if !CONFIG_FLEX_MVRES
         read_global_motion_params(&cm->global_motion[frame], ref_params, rb,
@@ -6291,6 +6885,10 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
       continue;
     }
     frame_bufs[i].order_hint = 0;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    frame_bufs[i].display_order_hint = 0;
+    av1_zero(frame_bufs[i].ref_display_order_hint);
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     av1_zero(frame_bufs[i].ref_order_hints);
   }
   av1_zero_unused_internal_frame_buffers(&cm->buffer_pool->int_frame_buffers);
@@ -6335,6 +6933,33 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
   }
   return cur_disp_order_hint;
 }
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
+                                                const RefCntBuffer *const buf) {
+  // Find the reference frame with the largest order_hint
+  int max_disp_order_hint = 0;
+  for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
+    if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
+      max_disp_order_hint = buf->ref_display_order_hint[map_idx];
+  }
+
+  // If the order_hint is above the threshold distance of 35 frames (largest
+  // possible lag_in_frames) from the found reference frame, we assume it was
+  // modified using:
+  //     order_hint = display_order_hint % display_order_hint_factor
+  // Here, the actual display_order_hint is recovered.
+  const int display_order_hint_factor =
+      1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
+  int disp_order_hint = buf->order_hint;
+  while (abs(max_disp_order_hint - disp_order_hint) > 35) {
+    if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
+
+    disp_order_hint += display_order_hint_factor;
+  }
+  return disp_order_hint;
+}
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
@@ -6507,11 +7132,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
   features->disable_cdf_update = aom_rb_read_bit(rb);
-#if DS_FRAME_LEVEL
-  if (current_frame->frame_type == KEY_FRAME) {
-    features->ds_filter_type = aom_rb_read_literal(rb, 2);
-  }
-#endif  // DS_FRAME_LEVEL
+
   if (seq_params->force_screen_content_tools == 2) {
     features->allow_screen_content_tools = aom_rb_read_bit(rb);
   } else {
@@ -6707,7 +7328,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           buf->order_hint = order_hint;
           // TODO(kslu) This is a workaround for error resilient mode. Make
           // it more consistent with get_disp_order_hint().
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+          buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
+#else
           buf->display_order_hint = order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         }
       }
     }
@@ -6736,17 +7361,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       features->allow_global_intrabc = aom_rb_read_bit(rb);
       features->allow_local_intrabc =
           features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
       features->max_drl_bits =
           aom_rb_read_primitive_quniform(
               rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
           MIN_MAX_DRL_BITS;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
 
     features->allow_ref_frame_mvs = 0;
     cm->prev_frame = NULL;
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    cm->cur_frame->num_ref_frames = 0;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   } else {
     features->allow_ref_frame_mvs = 0;
 #if CONFIG_TIP
@@ -6763,14 +7392,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_global_intrabc = aom_rb_read_bit(rb);
         features->allow_local_intrabc =
             features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
         features->max_drl_bits =
             aom_rb_read_primitive_quniform(
                 rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
             MIN_MAX_DRL_BITS;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      cm->cur_frame->num_ref_frames = 0;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       // Implicitly derive the reference mapping
@@ -6852,6 +7485,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
         av1_get_past_future_cur_ref_lists(cm, scores);
       }
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
       if (!features->error_resilient_mode && frame_size_override_flag) {
         setup_frame_size_with_refs(cm, rb);
@@ -6975,7 +7611,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     if (!(current_frame->frame_type == INTRA_ONLY_FRAME) &&
         pbi->need_resync != 1) {
-      for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+      for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
         if (!ref_buf) continue;
         struct scale_factors *const ref_scale_factors =
@@ -7066,6 +7702,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
+#endif
   }
 
 #if CONFIG_TIP
@@ -7182,6 +7823,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
+#endif
   }
   setup_loopfilter(cm, rb);
 
@@ -7224,6 +7870,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   else
     features->enable_bawp = 0;
 #endif  // CONFIG_BAWP
+
+#if CONFIG_CWP
+  features->enable_cwp = seq_params->enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  features->allow_warpmv_mode = 0;
+  if (!frame_is_intra_only(cm) &&
+      (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {
+    features->allow_warpmv_mode = aom_rb_read_bit(rb);
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
+#if CONFIG_D071_IMP_MSK_BLD
+  features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
   features->reduced_tx_set_used = aom_rb_read_bit(rb);
 
@@ -7385,10 +8046,10 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   cm->mi_params.setup_mi(&cm->mi_params);
 
   if (cm->features.allow_ref_frame_mvs) av1_setup_motion_field(cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
   else
     av1_setup_ref_frame_sides(cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_PEF
   if (cm->seq_params.enable_pef && cm->features.allow_pef) {
@@ -7426,7 +8087,13 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
 
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-      cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
+      cm->rst_info[2].frame_restoration_type != RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+      || cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
+      cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
+      cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE
+#endif
+  ) {
     av1_alloc_restoration_buffers(cm);
   }
   const int buf_size = MC_TEMP_BUF_PELS << 1;
@@ -7450,7 +8117,16 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_LPF_MASK
   av1_loop_filter_frame_init(cm, 0, num_planes);
 #endif
-
+#if CONFIG_INSPECTION
+  aom_realloc_frame_buffer(
+      &cm->predicted_pixels, cm->width, cm->height,
+      cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+      AOM_DEC_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL, NULL);
+  aom_realloc_frame_buffer(
+      &cm->prefiltered_pixels, cm->width, cm->height,
+      cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+      AOM_DEC_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL, NULL);
+#endif  // CONFIG_INSPECTION
   if (pbi->max_threads > 1 && !(tiles->large_scale && !pbi->ext_tile_debug) &&
       pbi->row_mt)
     *p_data_end =
@@ -7465,6 +8141,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (num_planes < 3) {
     set_planes_to_neutral_grey(&cm->seq_params, xd->cur_buf, 1);
   }
+
+#if CONFIG_INSPECTION
+  memcpy(cm->prefiltered_pixels.buffer_alloc, cm->cur_frame->buf.buffer_alloc,
+         cm->prefiltered_pixels.frame_size);
+#endif  // CONFIG_INSPECTION
 
   if (end_tile != tiles->rows * tiles->cols - 1) {
     return;
@@ -7539,6 +8220,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif
 
     const int do_loop_restoration =
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+        cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
+        cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
+        cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE ||
+#endif
         cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
@@ -7633,7 +8319,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (pbi->inspect_cb != NULL) {
     (*pbi->inspect_cb)(pbi, pbi->inspect_ctx);
   }
-#endif
+#endif  // CONFIG_INSPECTION
 
   // Non frame parallel update frame context here.
   if (!tiles->large_scale) {

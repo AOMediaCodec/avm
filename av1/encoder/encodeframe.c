@@ -572,8 +572,9 @@ static AOM_INLINE void perform_one_partition_pass(
                              : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
     init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                       1);
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-        mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+    PC_TREE *const pc_root =
+        av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                               PARTITION_NONE, 0, 1, ss_x, ss_y);
 #if CONFIG_EXT_RECUR_PARTITIONS
     const PARTITION_TREE *template_tree =
         multi_pass_params ? multi_pass_params->template_tree : NULL;
@@ -615,9 +616,9 @@ static AOM_INLINE void perform_two_partition_passes(
   // First pass
   SB_FIRST_PASS_STATS sb_fp_stats;
   av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -632,9 +633,9 @@ static AOM_INLINE void perform_two_partition_passes(
   av1_reset_simple_motion_tree_partition(sms_root, sb_size);
 
   av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
 #endif  // WARP_CU_BANK
@@ -666,13 +667,14 @@ static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
     case PARTITION_NONE: num_subtrees = 0; break;
     case PARTITION_HORZ:
     case PARTITION_VERT: num_subtrees = 2; break;
-#if CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B: num_subtrees = 4; break;
+#endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: num_subtrees = 4; break;
-#else
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3: num_subtrees = 3; break;
-#endif  // CONFIG_H_PARTITION
     case PARTITION_SPLIT: num_subtrees = 4; break;
     default:
       assert(0 && "Invalid partition type in set_min_none_to_invalid!");
@@ -797,8 +799,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
           cm, xd->tree_type, mi_row, mi_col, bsize,
           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      PC_TREE *const pc_root =
+          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                                 PARTITION_NONE, 0, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                            &dummy_rate, &dummy_dist, 1,
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -825,8 +828,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      PC_TREE *const pc_root =
+          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                                 PARTITION_NONE, 0, 1, ss_x, ss_y);
 #if CONFIG_EXT_RECUR_PARTITIONS
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av1_build_partition_tree_fixed_partitioning(
@@ -1139,7 +1143,7 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
        mi_row += cm->mib_size) {
 #if CONFIG_REF_MV_BANK
     av1_zero(td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -1237,8 +1241,13 @@ static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
       get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1);
   assert(buf_0 != NULL && buf_1 != NULL);
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  ref_order_hint[0] = buf_0->display_order_hint;
+  ref_order_hint[1] = buf_1->display_order_hint;
+#else
   ref_order_hint[0] = buf_0->order_hint;
   ref_order_hint[1] = buf_1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 }
 
 static int check_skip_mode_enabled(AV1_COMP *const cpi) {
@@ -1247,9 +1256,13 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   av1_setup_skip_mode_allowed(cm);
   if (!cm->current_frame.skip_mode_info.skip_mode_allowed) return 0;
 
-  // Turn off skip mode if the temporal distances of the reference pair to the
-  // current frame are different by more than 1 frame.
+    // Turn off skip mode if the temporal distances of the reference pair to the
+    // current frame are different by more than 1 frame.
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int cur_offset = (int)cm->current_frame.display_order_hint;
+#else
   const int cur_offset = (int)cm->current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int ref_offset[2];
   get_skip_mode_ref_offsets(cm, ref_offset);
   const int cur_to_ref0 = get_relative_dist(&cm->seq_params.order_hint_info,
@@ -1291,6 +1304,19 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride) {
+
+#if CONFIG_REFINEMV
+  if (inter_pred_params->use_ref_padding) {
+    tip_common_calc_subpel_params_and_extend(
+        src_mv, inter_pred_params, xd, mi_x, mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+        use_optflow_refinement,
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+        mc_buf, pre, subpel_params, src_stride);
+    return;
+  }
+#endif  // CONFIG_REFINEMV
+
   // These are part of the function signature to use this function through a
   // function pointer. See typedef of 'CalcSubpelParamsFunc'.
   (void)xd;
@@ -1338,11 +1364,29 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
     subpel_params->subpel_y = pos_y & SCALE_SUBPEL_MASK;
     subpel_params->xs = sf->x_step_q4;
     subpel_params->ys = sf->y_step_q4;
+
+#if CONFIG_D071_IMP_MSK_BLD
+    if (inter_pred_params->border_data.enable_bacp) {
+      // Get reference block top left coordinate.
+      subpel_params->x0 = pos_x >> SCALE_SUBPEL_BITS;
+      subpel_params->y0 = pos_y >> SCALE_SUBPEL_BITS;
+      // Get reference block bottom right coordinate.
+      subpel_params->x1 = subpel_params->x0 + inter_pred_params->block_width;
+      subpel_params->y1 = subpel_params->y0 + inter_pred_params->block_height;
+    }
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
     *pre = pre_buf->buf0 + (pos_y >> SCALE_SUBPEL_BITS) * pre_buf->stride +
            (pos_x >> SCALE_SUBPEL_BITS);
   } else {
     int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
+
+#if CONFIG_REFINEMV
+    const int bw = inter_pred_params->original_pu_width;
+    const int bh = inter_pred_params->original_pu_height;
+
+#else
 #if CONFIG_OPTFLOW_REFINEMENT
     // Use original block size to clamp MV and to extend block boundary
     const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
@@ -1353,6 +1397,8 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
     const int bw = inter_pred_params->block_width;
     const int bh = inter_pred_params->block_height;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
+#endif  // CONFIG_REFINEMV
     const MV mv_q4 = tip_clamp_mv_to_umv_border_sb(
         inter_pred_params, src_mv, bw, bh,
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1365,6 +1411,18 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
     subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
     pos_x += mv_q4.col;
     pos_y += mv_q4.row;
+
+#if CONFIG_D071_IMP_MSK_BLD
+    if (inter_pred_params->border_data.enable_bacp) {
+      // Get reference block top left coordinate.
+      subpel_params->x0 = pos_x >> SUBPEL_BITS;
+      subpel_params->y0 = pos_y >> SUBPEL_BITS;
+      // Get reference block bottom right coordinate.
+      subpel_params->x1 = subpel_params->x0 + inter_pred_params->block_width;
+      subpel_params->y1 = subpel_params->y0 + inter_pred_params->block_height;
+    }
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
     *pre = pre_buf->buf0 + (pos_y >> SUBPEL_BITS) * pre_buf->stride +
            (pos_x >> SUBPEL_BITS);
   }
@@ -1478,6 +1536,19 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       features->allow_warped_motion = 0;
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  features->allow_warpmv_mode =
+      (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0;
+  if (features->allow_warpmv_mode &&
+      cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
+    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    if (frame_probs->warped_probs[update_type] <
+        cpi->sf.inter_sf.prune_warpmv_prob_thresh) {
+      features->allow_warpmv_mode = 0;
+    }
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   int hash_table_created = 0;
   if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) {
@@ -1643,10 +1714,10 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   start_timing(cpi, av1_setup_motion_field_time);
 #endif
   if (features->allow_ref_frame_mvs) av1_setup_motion_field(cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
   else
     av1_setup_ref_frame_sides(cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_setup_motion_field_time);
 #endif
@@ -1765,6 +1836,17 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     frame_probs->warped_probs[update_type] =
         (frame_probs->warped_probs[update_type] + new_prob) >> 1;
   }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  if (cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
+    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
+    int sum = 0;
+    for (i = 0; i < 2; i++) sum += cpi->td.rd_counts.warped_used[i];
+    const int new_prob = sum ? 128 * cpi->td.rd_counts.warped_used[1] / sum : 0;
+    frame_probs->warped_probs[update_type] =
+        (frame_probs->warped_probs[update_type] + new_prob) >> 1;
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   if ((!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi)) ||
       hash_table_created) {

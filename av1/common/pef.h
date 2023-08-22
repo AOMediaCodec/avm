@@ -53,7 +53,8 @@ typedef struct {
 
 // Structure for PEF function input
 typedef struct {
-  // 0 for OPFL prediciton, 1 for TIP prediciton, 2 for TIP frame
+  // 0 for OPFL prediciton, 1 for TIP prediciton, 2 for TIP frame, 3 for
+  // refinemv prediction
   int pef_mode;
   int plane;
   int bw;
@@ -64,6 +65,9 @@ typedef struct {
   uint16_t *dst;
   int dst_stride;
   int_mv *mv_refined;
+#if CONFIG_REFINEMV
+  REFINEMV_SUBMB_INFO *refinemv_subinfo;
+#endif  // CONFIG_REFINEMV
 } PefFuncInput;
 
 typedef void (*filt_func)(uint16_t *s, int stride, int bd, uint16_t q_thresh,
@@ -84,6 +88,10 @@ void enhance_prediction(const struct AV1Common *cm, MACROBLOCKD *xd, int plane,
                         ,
                         int_mv *const mv_refined, int use_opfl
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+                        ,
+                        int use_refinemv, REFINEMV_SUBMB_INFO *refinemv_subinfo
+#endif  // CONFIG_REFINEMV
 );
 
 #ifdef __cplusplus

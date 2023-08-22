@@ -113,6 +113,10 @@ typedef struct macroblock_plane {
   tran_low_t *coeff;
   //! Location of the end of qcoeff (end of block).
   uint16_t *eobs;
+#if CONFIG_ATC_DCTX_ALIGNED
+  //! Location of the beginning of qcoeff (beginning of block).
+  uint16_t *bobs;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! Contexts used to code the transform coefficients.
   uint8_t *txb_entropy_ctx;
   //! A buffer containing the source frame.
@@ -154,7 +158,7 @@ typedef struct {
   //! Cost to skip txfm for the current AOM_PLANE_V txfm block.
   int v_txb_skip_cost[V_TXB_SKIP_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   //! Cost for encoding the base_eob level of a low-frequency coefficient
   int base_lf_eob_cost[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency coefficient
@@ -162,7 +166,7 @@ typedef struct {
   //! Cost for encoding an increment to the low-frequency coefficient
   int lps_lf_cost[LF_LEVEL_CONTEXTS]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
   //! Cost for encoding the base level of a parity-hidden coefficient
   int base_ph_cost[COEFF_BASE_PH_CONTEXTS][4];
@@ -202,13 +206,24 @@ typedef struct {
   //! Cost for encoding an increment to the coefficient for IDTX blocks
   int lps_cost_skip[IDTX_LEVEL_CONTEXTS]
                    [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+#if CONFIG_ATC_DCTX_ALIGNED
+  /*! \brief Cost for encoding the base_bob of a level for IDTX blocks.
+   *
+   * Decoder uses base_bob to derive the base_level as base_bob := base_bob+1.
+   */
+  int base_bob_cost[SIG_COEF_CONTEXTS_BOB][3];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 } LV_MAP_COEFF_COST;
 
 /*! \brief Costs for encoding the eob.
  */
 typedef struct {
   //! eob_cost.
+#if CONFIG_ATC_DCTX_ALIGNED
+  int eob_cost[EOB_MAX_SYMS];
+#else
   int eob_cost[2][11];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 } LV_MAP_EOB_COST;
 
 /*! \brief Stores the transforms coefficients for the whole superblock.
@@ -218,6 +233,10 @@ typedef struct {
   tran_low_t tcoeff[MAX_MB_PLANE][MAX_SB_SQUARE];
   //! Where the transformed coefficients end.
   uint16_t eobs[MAX_MB_PLANE][MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#if CONFIG_ATC_DCTX_ALIGNED
+  //! Where the transformed coefficients begin.
+  uint16_t bobs[MAX_MB_PLANE][MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   /*! \brief Transform block entropy contexts.
    *
    * Each element is used as a bit field.
@@ -241,7 +260,7 @@ typedef struct {
   //! Global mvs
   int_mv global_mvs[INTER_REFS_PER_FRAME];
   //! skip_mvp_candidate_list is the MVP list for skip mode.
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
 #endif
 
@@ -265,14 +284,23 @@ typedef struct {
  * memory.
  */
 typedef struct {
+#if CONFIG_SEP_COMP_DRL
+  //! \copydoc MB_MODE_INFO_EXT::ref_mv_stack
+  CANDIDATE_MV ref_mv_stack[2][USABLE_REF_MV_STACK_SIZE];
+  //! \copydoc MB_MODE_INFO_EXT::weight
+  uint16_t weight[2][USABLE_REF_MV_STACK_SIZE];
+  //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
+  uint8_t ref_mv_count[2];
+#else
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_stack
   CANDIDATE_MV ref_mv_stack[USABLE_REF_MV_STACK_SIZE];
   //! \copydoc MB_MODE_INFO_EXT::weight
   uint16_t weight[USABLE_REF_MV_STACK_SIZE];
   //! \copydoc MB_MODE_INFO_EXT::ref_mv_count
   uint8_t ref_mv_count;
+#endif  // CONFIG_SEP_COMP_DRL
   //! skip_mvp_candidate_list is the MVP list for skip mode.
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
 #endif
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
@@ -339,6 +367,10 @@ typedef struct {
   int rate;
   //! Location of the end of non-zero entries.
   uint16_t eob;
+#if CONFIG_ATC_DCTX_ALIGNED
+  //! Location of the first of non-zero entries.
+  uint16_t bob;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! Transform type used on the current block.
   TX_TYPE tx_type;
   //! Unknown usage
@@ -390,11 +422,19 @@ typedef struct {
   //! Current interpolation filter.
   InterpFilter interp_fltr;
   //! Refmv index in the drl.
+#if CONFIG_SEP_COMP_DRL
+  int ref_mv_idx[2];
+#else
   int ref_mv_idx;
+#endif  // CONFIG_SEP_COMP_DRL
   //! Whether the predictors are GLOBALMV.
   int is_global[2];
   //! Current parameters for interinter mode.
   INTERINTER_COMPOUND_DATA interinter_comp;
+#if CONFIG_CWP
+  //! Index for compound weighted prediction parameters.
+  int cwp_idx;
+#endif  // CONFIG_CWP
 } COMP_RD_STATS;
 
 /*! \brief Contains buffers used to speed up rdopt for obmc.
@@ -495,19 +535,37 @@ typedef struct SimpleMotionData {
 
 /*!\cond */
 #if CONFIG_BLOCK_256
+
 #define BLOCK_256_COUNT 1
 #define BLOCK_128_COUNT 3
 #define BLOCK_64_COUNT 7
+
+#if CONFIG_UNEVEN_4WAY
+#define BLOCK_32_COUNT 31
+#define BLOCK_16_COUNT 63
+#define BLOCK_8_COUNT 64
+#else
 #define BLOCK_32_COUNT 15
 #define BLOCK_16_COUNT 31
-#define BLOCK_8_COUNT 127
-#define BLOCK_4_COUNT 128
+#define BLOCK_8_COUNT 63
+#endif  // CONFIG_UNEVEN_4WAY
+
+#define BLOCK_4_COUNT 64
+
 #else
 #define BLOCK_128_COUNT 1
 #define BLOCK_64_COUNT 3
+
+#if CONFIG_UNEVEN_4WAY
+#define BLOCK_32_COUNT 15
+#define BLOCK_16_COUNT 31
+#define BLOCK_8_COUNT 32
+#else
 #define BLOCK_32_COUNT 7
 #define BLOCK_16_COUNT 15
 #define BLOCK_8_COUNT 31
+#endif  // CONFIG_UNEVEN_4WAY
+
 #define BLOCK_4_COUNT 32
 #endif  // CONFIG_BLOCK_256
 
@@ -768,6 +826,15 @@ typedef struct {
   /*! Cost for sending do_ext_partition token. */
   int do_ext_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
                            [PARTITION_CONTEXTS][2];
+#if CONFIG_UNEVEN_4WAY
+  /*! Cost for sending do_uneven_4way_partition token. */
+  int do_uneven_4way_partition_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                                   [PARTITION_CONTEXTS][2];
+  /*! Cost for sending uneven_4way_partition_type token. */
+  int uneven_4way_partition_type_cost[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                                     [PARTITION_CONTEXTS]
+                                     [NUM_UNEVEN_4WAY_PARTS];
+#endif  // CONFIG_UNEVEN_4WAY
   //! Cost for coding the partition.
   int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                     [ALL_PARTITION_TYPES];
@@ -799,7 +866,11 @@ typedef struct {
                       [2 * MAX_ANGLE_DELTA + 1];
 
   //! mrl_index_cost
+#if CONFIG_EXT_DIR
+  int mrl_index_cost[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
+#else
   int mrl_index_cost[MRL_LINE_NUMBER];
+#endif  // CONFIG_EXT_DIR
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
 #if CONFIG_IMPROVED_CFL
@@ -834,12 +905,12 @@ typedef struct {
 #else
   int intrabc_cost[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   //! intrabc_mode_cost
   int intrabc_mode_cost[2];
   //! intrabc_drl_idx_cost
   int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
@@ -855,12 +926,12 @@ typedef struct {
   int palette_y_mode_cost[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
   //! palette_uv_mode_cost
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   //! palette_y_row_flag_cost
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
   //! palette_uv_row_flag_cost
   int palette_uv_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   /**@}*/
 
   /*****************************************************************************
@@ -887,10 +958,10 @@ typedef struct {
   int pb_block_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                                  [NUM_MV_PRECISIONS];
 #endif
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   /**@}*/
 
   /*****************************************************************************
@@ -924,11 +995,11 @@ typedef struct {
    ****************************************************************************/
   /**@{*/
   //! intra_inter_cost
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   int intra_inter_cost[INTRA_INTER_SKIP_TXFM_CONTEXTS][INTRA_INTER_CONTEXTS][2];
 #else
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   //! inter_compound_mode_cost
 #if CONFIG_OPTFLOW_REFINEMENT
   /*! use_optflow_cost */
@@ -941,6 +1012,10 @@ typedef struct {
   int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
                               [INTER_COMPOUND_MODES];
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_CWP
+  //! cwp_idx_cost for compound weighted prediction
+  int cwp_idx_cost[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];
+#endif  // CONFIG_CWP
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   //! jmvd_scale_mode_cost for JOINT_NEWMV
   int jmvd_scale_mode_cost[JOINT_NEWMV_SCALE_FACTOR_CNT];
@@ -997,11 +1072,20 @@ typedef struct {
   int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_WARPMV
 
+#if CONFIG_REFINEMV
+  //! refinemv_flag_cost
+  int refinemv_flag_cost[NUM_REFINEMV_CTX][REFINEMV_NUM_MODES];
+#endif  // CONFIG_REFINEMV
+
   //! warp_delta_param_cost
   int warp_delta_param_cost[2][WARP_DELTA_NUM_SYMBOLS];
 #if CONFIG_WARP_REF_LIST
   //! warp_ref_idx_cost
   int warp_ref_idx_cost[3][WARP_REF_CONTEXTS][2];
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  //! warpmv_with_mvd_flag_cost
+  int warpmv_with_mvd_flag_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   //! warp_extend_cost
   int warp_extend_cost[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];
@@ -1045,7 +1129,12 @@ typedef struct {
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
   //! inter_tx_type_costs
+#if CONFIG_ATC_DCTX_ALIGNED
+  int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
+                         [TX_TYPES];
+#else
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! intra_tx_type_costs
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                          [TX_TYPES];
@@ -1144,7 +1233,7 @@ typedef struct {
   int *amvd_nmv_cost[2];
 #endif  // CONFIG_ADAPTIVE_MVD
 
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   /*! Costs for coding the zero components of dv cost. */
   int *dv_joint_cost;
 
@@ -1226,7 +1315,7 @@ typedef struct {
 } IntraBCMvCosts;
 #endif
 
-#if CONFIG_BVCOST_UPDATE && !CONFIG_FLEX_MVRES
+#if CONFIG_IBC_BV_IMPROVEMENT && !CONFIG_FLEX_MVRES
 /*! \brief Holds mv costs for intrabc.
  */
 typedef struct {
@@ -1395,7 +1484,7 @@ typedef struct macroblock {
   //! multipliers for motion search.
 #if CONFIG_FLEX_MVRES
   IntraBCMvCosts dv_costs;
-#elif CONFIG_BVCOST_UPDATE
+#elif CONFIG_IBC_BV_IMPROVEMENT
   IntraBCMVCosts dv_costs;
 #endif
 

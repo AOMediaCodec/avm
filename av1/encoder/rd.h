@@ -81,7 +81,7 @@ typedef struct RD_OPT {
   double r0;
 } RD_OPT;
 
-#if !CONFIG_FLEX_MVRES && !CONFIG_BVCOST_UPDATE
+#if !CONFIG_FLEX_MVRES && !CONFIG_IBC_BV_IMPROVEMENT
 typedef struct {
   // Cost of transmitting the actual motion vector.
   // mv_component[0][i] is the cost of motion vector with horizontal component
@@ -154,6 +154,9 @@ static INLINE void av1_invalid_rd_stats(RD_STATS *rd_stats) {
 static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
                                       const RD_STATS *rd_stats_src) {
   assert(rd_stats_dst->rate != INT_MAX && rd_stats_src->rate != INT_MAX);
+#if CONFIG_ATC_DCTX_ALIGNED
+  if (rd_stats_src->dist == INT64_MAX || rd_stats_src->rate == INT_MAX) return;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   rd_stats_dst->rate = (int)AOMMIN(
       ((int64_t)rd_stats_dst->rate + (int64_t)rd_stats_src->rate), INT_MAX);
   if (!rd_stats_dst->zero_rate)
@@ -375,7 +378,7 @@ void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv, int usehp,
 #if CONFIG_FLEX_MVRES
 void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
                    MvCosts *mv_costs);
-#elif CONFIG_BVCOST_UPDATE
+#elif CONFIG_IBC_BV_IMPROVEMENT
 void av1_fill_dv_costs(const FRAME_CONTEXT *fc, IntraBCMVCosts *dv_costs);
 #endif
 

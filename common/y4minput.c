@@ -24,12 +24,13 @@
 // Reads 'size' bytes from 'file' into 'buf' with some fault tolerance.
 // Returns true on success.
 static int file_read(void *buf, size_t size, FILE *file) {
-  const int kMaxRetries = 5;
-  int retry_count = 0;
-  int file_error;
+  const int kMaxTries = 5;
+  int try_count = 0;
+  int file_error = 0;
   size_t len = 0;
-  do {
+  while (!feof(file) && len < size && try_count < kMaxTries) {
     const size_t n = fread((uint8_t *)buf + len, 1, size - len, file);
+    ++try_count;
     len += n;
     file_error = ferror(file);
     if (file_error) {
@@ -42,13 +43,13 @@ static int file_read(void *buf, size_t size, FILE *file) {
         return 0;
       }
     }
-  } while (!feof(file) && len < size && ++retry_count < kMaxRetries);
+  }
 
   if (!feof(file) && len != size) {
     fprintf(stderr,
             "Error reading file: %u of %u bytes read,"
-            " error: %d, retries: %d, %d: %s\n",
-            (uint32_t)len, (uint32_t)size, file_error, retry_count, errno,
+            " error: %d, tries: %d, %d: %s\n",
+            (uint32_t)len, (uint32_t)size, file_error, try_count, errno,
             strerror(errno));
   }
   return len == size;
@@ -1142,9 +1143,15 @@ int y4m_input_open(y4m_input *y4m_ctx, FILE *file, char *skip_buffer,
     y4m_ctx->dst_buf = (unsigned char *)malloc(y4m_ctx->dst_buf_sz);
   else
     y4m_ctx->dst_buf = (unsigned char *)malloc(2 * y4m_ctx->dst_buf_sz);
+  if (!y4m_ctx->dst_buf) return -1;
 
-  if (y4m_ctx->aux_buf_sz > 0)
+  if (y4m_ctx->aux_buf_sz > 0) {
     y4m_ctx->aux_buf = (unsigned char *)malloc(y4m_ctx->aux_buf_sz);
+    if (!y4m_ctx->aux_buf) {
+      free(y4m_ctx->dst_buf);
+      return -1;
+    }
+  }
   return 0;
 }
 

@@ -28,23 +28,42 @@
 static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
     const MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     int ref_idx) {
+#if CONFIG_SEP_COMP_DRL
+  const int ref_mv_idx = get_ref_mv_idx(mbmi, ref_idx);
+#else
   const int ref_mv_idx = mbmi->ref_mv_idx;
+#endif  // CONFIG_SEP_COMP_DRL
   assert(IMPLIES(have_nearmv_newmv_in_inter_mode(mbmi->mode),
                  has_second_ref(mbmi)));
 
   const MV_REFERENCE_FRAME *ref_frames = mbmi->ref_frame;
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frames);
+#if CONFIG_SEP_COMP_DRL
+  const CANDIDATE_MV *curr_ref_mv_stack =
+      has_second_drl(mbmi) ? mbmi_ext_frame->ref_mv_stack[ref_idx]
+                           : mbmi_ext_frame->ref_mv_stack[0];
+#else
   const CANDIDATE_MV *curr_ref_mv_stack = mbmi_ext_frame->ref_mv_stack;
+#endif  // CONFIG_SEP_COMP_DRL
 
   if (is_inter_ref_frame(ref_frames[1])) {
     assert(ref_idx == 0 || ref_idx == 1);
+#if CONFIG_SEP_COMP_DRL
+    return ref_idx && !has_second_drl(mbmi)
+               ? curr_ref_mv_stack[ref_mv_idx].comp_mv
+#else
     return ref_idx ? curr_ref_mv_stack[ref_mv_idx].comp_mv
-                   : curr_ref_mv_stack[ref_mv_idx].this_mv;
+#endif  // CONFIG_SEP_COMP_DRL
+               : curr_ref_mv_stack[ref_mv_idx].this_mv;
   }
 
   assert(ref_idx == 0);
 #if CONFIG_TIP
+#if CONFIG_SEP_COMP_DRL
+  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count[0]) {
+#else
   if (ref_mv_idx < mbmi_ext_frame->ref_mv_count) {
+#endif  // CONFIG_SEP_COMP_DRL
     return curr_ref_mv_stack[ref_mv_idx].this_mv;
   } else if (is_tip_ref_frame(ref_frame_type)) {
     int_mv zero_mv;
@@ -629,10 +648,14 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
 
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
-#if !CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  const int ebs_w = mi_size_wide[bsize] / 8;
+  const int ebs_h = mi_size_high[bsize] / 8;
+#endif  // CONFIG_UNEVEN_4WAY
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   switch (partition) {
     case PARTITION_NONE:
       collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);
@@ -670,7 +693,68 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
                           subsize, ptree->sub_tree[3]);
       break;
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_med,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 3 * ebs_h, mi_col, bsize_big,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 7 * ebs_h, mi_col, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+    case PARTITION_HORZ_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_big,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 5 * ebs_h, mi_col, bsize_med,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + 7 * ebs_h, mi_col, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+    case PARTITION_VERT_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_med,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 3 * ebs_w, bsize_big,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 7 * ebs_w, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+    case PARTITION_VERT_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
+                          ptree->sub_tree[0]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_big,
+                          ptree->sub_tree[1]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 5 * ebs_w, bsize_med,
+                          ptree->sub_tree[2]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 7 * ebs_w, subsize,
+                          ptree->sub_tree[3]);
+      break;
+    }
+#endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: {
       for (int i = 0; i < 4; ++i) {
@@ -686,28 +770,6 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
       }
       break;
     }
-#else
-    case PARTITION_HORZ_3: {
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + qbs_h, mi_col,
-                          get_partition_subsize(bsize, PARTITION_HORZ),
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + 3 * qbs_h, mi_col, subsize,
-                          ptree->sub_tree[2]);
-      break;
-    }
-    case PARTITION_VERT_3: {
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + qbs_w,
-                          get_partition_subsize(bsize, PARTITION_VERT),
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + 3 * qbs_w, subsize,
-                          ptree->sub_tree[2]);
-      break;
-    }
-#endif  // CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_A:
       collect_mv_stats_b(mv_stats, cpi, mi_row, mi_col);
@@ -788,14 +850,22 @@ void av1_collect_mv_stats(AV1_COMP *cpi, int current_q) {
   }
 
   mv_stats->q = current_q;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  mv_stats->order = cpi->common.current_frame.display_order_hint;
+#else
   mv_stats->order = cpi->common.current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   mv_stats->valid = 1;
 }
 
 static AOM_INLINE int get_smart_mv_prec(AV1_COMP *cpi, const MV_STATS *mv_stats,
                                         int current_q) {
   const AV1_COMMON *cm = &cpi->common;
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  const int order_hint = cpi->common.current_frame.display_order_hint;
+#else
   const int order_hint = cpi->common.current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int order_diff = order_hint - mv_stats->order;
   aom_clear_system_state();
   const float area = (float)(cm->width * cm->height);

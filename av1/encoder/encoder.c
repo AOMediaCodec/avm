@@ -204,6 +204,9 @@ void av1_initialize_enc(void) {
   av1_init_me_luts();
   av1_rc_init_minq_luts();
   av1_init_wedge_masks();
+#if CONFIG_CWP
+  init_cwp_masks();
+#endif  // CONFIG_CWP
 }
 
 static void update_reference_segmentation_map(AV1_COMP *cpi) {
@@ -371,6 +374,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // Set 0 for multi-layer coding
+  seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
@@ -414,6 +421,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_BAWP
   seq->enable_bawp = tool_cfg->enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  seq->enable_cwp = tool_cfg->enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  seq->enable_imp_msk_bld = tool_cfg->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 #if CONFIG_EXTENDED_WARP_PREDICTION
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
@@ -434,6 +447,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_ORIP
   seq->enable_orip = oxcf->intra_mode_cfg.enable_orip;
 #endif
+#if CONFIG_IDIF
+  seq->enable_idif = oxcf->intra_mode_cfg.enable_idif;
+#endif  // CONFIG_IDIF
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
 #if CONFIG_CROSS_CHROMA_TX
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
@@ -451,6 +467,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_JOINT_MVD
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  seq->enable_refinemv = tool_cfg->enable_refinemv;
+#endif  // CONFIG_REFINEMV
   set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate);
 
@@ -495,6 +514,13 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_PAR_HIDING
   seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
+  // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
+  // if possible
+  seq->enable_global_motion =
+      tool_cfg->enable_global_motion && !seq->reduced_still_picture_hdr;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -575,7 +601,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   // set sb size before allocations
   const BLOCK_SIZE sb_size = av1_select_sb_size(cpi);
   set_sb_size(cm, sb_size);
-  cpi->td.sb_size = sb_size;
+  cpi->td.sb_size = cm->sb_size;
   alloc_compressor_data(cpi);
 
   av1_update_film_grain_parameters(cpi, oxcf);
@@ -1469,7 +1495,14 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   PSNR_STATS psnr;
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // To match the PSNR results between encoder log and VMAF results,
+  // the same reference sources (unfiltered source) need to be used.
+  aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
+                       &psnr,
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                        bit_depth, in_bit_depth);
 
   for (i = 0; i < 4; ++i) {
@@ -1622,9 +1655,13 @@ static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
     dst += CFL_BUF_LINE;
   }
 }
-
+#if CONFIG_CFL_IMPROVEMENTS
+static int64_t compute_sad(const uint16_t *src, uint16_t *src2, int width,
+                           int height, int round_offset, int src2_stride) {
+#else
 static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
                        int height, int round_offset, int src2_stride) {
+#endif  // CONFIG_CFL_IMPROVEMENTS
   int sad = round_offset;
   for (int j = 0; j < height; ++j) {
     for (int i = 0; i < width; ++i) {
@@ -1633,7 +1670,11 @@ static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
     src += CFL_BUF_LINE;
     src2 += src2_stride;
   }
+#if CONFIG_CFL_IMPROVEMENTS
+  return sad;
+#else
   return (sad / (height * width));
+#endif  // CONFIG_CFL_IMPROVEMENTS
 }
 
 static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
@@ -1688,11 +1729,7 @@ static void cfl_luma_subsampling_420_hbd_c(const uint16_t *input,
   }
 }
 
-#if DS_FRAME_LEVEL
-void av1_set_downsample_filter_options(AV1_COMP *cpi, FeatureFlags *features) {
-#else
 void av1_set_downsample_filter_options(AV1_COMP *cpi) {
-#endif  // DS_FRAME_LEVE
   AV1_COMMON *cm = &cpi->common;
   const uint16_t *src = cpi->unfiltered_source->y_buffer;
   uint16_t *src_chroma_u = cpi->unfiltered_source->u_buffer;
@@ -1707,14 +1744,34 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   const int subsampling_x = cpi->unfiltered_source->subsampling_x;
   const int subsampling_y = cpi->unfiltered_source->subsampling_y;
 
+#if CONFIG_ADPTIVE_DS_422
+  if (subsampling_x == 0 && subsampling_y == 0) {
+    cm->seq_params.enable_cfl_ds_filter =
+        0;  // For 4:4:4 chroma format, downsampling filter is not used. There
+            // is a redundant that the filter index is still signalled for
+            // 4:4:4. Should we remove the index signalling for 4:4:4 with this
+            // MR?
+    return;
+  }
+#endif  // CONFIG_ADPTIVE_DS_422
+
+#if CONFIG_CFL_IMPROVEMENTS
+  const int blk_w = 16;
+  const int blk_h = 16;
+#else
   const int blk_w = 32;
   const int blk_h = 32;
+#endif  // CONFIG_CFL_IMPROVEMENTS
 
   uint16_t recon_buf_q3[CFL_BUF_SQUARE];
   uint16_t dc_buf_q3[CFL_BUF_SQUARE];
   // Q3 AC contributions (reconstructed luma pixels - tx block avg)
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
+#if CONFIG_CFL_IMPROVEMENTS
+  int64_t cost[3] = { 0, 0, 0 };
+#else
   int cost[3] = { 0, 0, 0 };
+#endif  // CONFIG_CFL_IMPROVEMENTS
   for (int filter_type = 0; filter_type < 3; ++filter_type) {
     for (int comp = 0; comp < 2; comp++) {
       for (int r = 2; r + blk_h <= height - 2; r += blk_h) {
@@ -1730,7 +1787,14 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           }
 
           int alpha = 0;
+#if CONFIG_ADPTIVE_DS_422
+          if (subsampling_x == 1 && subsampling_y == 0) {
+            cfl_adaptive_luma_subsampling_422_hbd_c(
+                this_src, stride, recon_buf_q3, blk_w, blk_h, filter_type);
+          } else if (filter_type == 1) {
+#else
           if (filter_type == 1) {
+#endif  // CONFIG_ADPTIVE_DS_422
             cfl_luma_subsampling_420_hbd_121_c(this_src, stride, recon_buf_q3,
                                                blk_w, blk_h);
           } else if (filter_type == 2) {
@@ -1740,6 +1804,30 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
             cfl_luma_subsampling_420_hbd_c(this_src, stride, recon_buf_q3,
                                            blk_w, blk_h);
           }
+#if CONFIG_ADPTIVE_DS_422
+          cfl_derive_block_implicit_scaling_factor(
+              recon_buf_q3, this_src_chroma, blk_w >> subsampling_x,
+              blk_h >> subsampling_y, CFL_BUF_LINE, chroma_stride, &alpha);
+          subtract_average_c(
+              recon_buf_q3, ac_buf_q3, blk_w >> subsampling_x,
+              blk_h >> subsampling_y, 4,
+              (blk_w >> subsampling_x) * (blk_h >> subsampling_y));
+          cfl_predict_hbd_dc(this_src_chroma - chroma_stride, dc_buf_q3,
+                             chroma_stride, blk_w >> subsampling_x,
+                             blk_h >> subsampling_y);
+          cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
+                                       alpha, bd, blk_w >> subsampling_x,
+                                       blk_h >> subsampling_y);
+#if CONFIG_CFL_IMPROVEMENTS
+          int64_t filter_cost =
+              compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
+                          chroma_stride);
+#else
+          int filter_cost =
+              compute_sad(dc_buf_q3, this_src_chroma, blk_w >> subsampling_x,
+                          blk_h >> subsampling_y, 2, chroma_stride);
+#endif  // CONFIG_CFL_IMPROVEMENTS
+#else
           cfl_derive_block_implicit_scaling_factor(
               recon_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1,
               CFL_BUF_LINE, chroma_stride, &alpha);
@@ -1749,23 +1837,29 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
                              chroma_stride, blk_w >> 1, blk_h >> 1);
           cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
                                        alpha, bd, blk_w >> 1, blk_h >> 1);
+#if CONFIG_CFL_IMPROVEMENTS
+          int64_t filter_cost =
+              compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
+                          chroma_stride);
+#else
           int filter_cost = compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1,
                                         blk_h >> 1, 2, chroma_stride);
+#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_ADPTIVE_DS_422
           cost[filter_type] = cost[filter_type] + filter_cost;
         }
       }
     }
   }
-
+#if CONFIG_CFL_IMPROVEMENTS
+  int64_t min_cost = INT64_MAX;
+#else
   int min_cost = INT_MAX;
+#endif  // CONFIG_CFL_IMPROVEMENTS
   for (int i = 0; i < 3; ++i) {
     if (cost[i] < min_cost) {
       min_cost = cost[i];
-#if DS_FRAME_LEVEL
-      features->ds_filter_type = i;
-#else
       cm->seq_params.enable_cfl_ds_filter = i;
-#endif  // DS_FRAME_LEVEL
     }
   }
 }
@@ -1911,6 +2005,29 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   }
 }
 
+#define COUPLED_CHROMA_FROM_LUMA_RESTORATION 0
+#if !CONFIG_FLEXIBLE_RU_SIZE
+static void set_restoration_unit_size(int width, int height, int sx, int sy,
+                                      RestorationInfo *rst) {
+  (void)width;
+  (void)height;
+  (void)sx;
+  (void)sy;
+#if COUPLED_CHROMA_FROM_LUMA_RESTORATION
+  int s = AOMMIN(sx, sy);
+#else
+  int s = 0;
+#endif  // !COUPLED_CHROMA_FROM_LUMA_RESTORATION
+
+  if (width * height > 352 * 288)
+    rst[0].restoration_unit_size = RESTORATION_UNITSIZE_MAX;
+  else
+    rst[0].restoration_unit_size = (RESTORATION_UNITSIZE_MAX >> 1);
+  rst[1].restoration_unit_size = rst[0].restoration_unit_size >> s;
+  rst[2].restoration_unit_size = rst[1].restoration_unit_size;
+}
+#endif  // !CONFIG_FLEXIBLE_RU_SIZE
+
 static void init_ref_frame_bufs(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   int i;
@@ -2049,11 +2166,15 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 
   const int frame_width = cm->superres_upscaled_width;
   const int frame_height = cm->superres_upscaled_height;
-  av1_set_restoration_unit_size(
-      frame_width, frame_height, seq_params->subsampling_x,
-      seq_params->subsampling_y, cm->rst_info, cm->sb_size);
+  set_restoration_unit_size(frame_width, frame_height,
+                            seq_params->subsampling_x,
+                            seq_params->subsampling_y, cm->rst_info);
   for (int i = 0; i < num_planes; ++i)
     cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  for (int i = 0; i < num_planes; ++i)
+    cm->rst_info[i].frame_cross_restoration_type = RESTORE_NONE;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   av1_alloc_restoration_buffers(cm);
   if (!is_stat_generation_stage(cpi)) alloc_util_frame_buffers(cpi);
@@ -2093,6 +2214,30 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 
   set_ref_ptrs(cm, xd, 0, 0);
 }
+
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+static void save_pre_filter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
+  (void)cpi;
+  YV12_BUFFER_CONFIG *frame = &cm->cur_frame->buf;
+  YV12_BUFFER_CONFIG *pre_filter_frame = &cm->pre_rst_frame;
+
+  const SequenceHeader *const seq_params = &cm->seq_params;
+
+  const int frame_width = frame->crop_widths[0];
+  const int frame_height = frame->crop_heights[0];
+
+  if (aom_realloc_frame_buffer(
+          pre_filter_frame, frame_width, frame_height,
+          seq_params->subsampling_x, seq_params->subsampling_y,
+          AOM_RESTORATION_FRAME_BORDER, cm->features.byte_alignment, NULL, NULL,
+          NULL) < 0)
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate restoration dst buffer");
+
+  const int num_planes = av1_num_planes(cm);
+  aom_yv12_copy_frame(frame, pre_filter_frame, num_planes);
+}
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
@@ -2235,9 +2380,32 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   if (use_restoration) {
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
     av1_pick_filter_restoration(cpi->source, cpi);
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    save_pre_filter_frame(cpi, cm);
+    if (num_workers > 1)
+      av1_loop_restoration_filter_frame_mt(
+          &cm->cur_frame->buf, cm, 0, mt_info->workers, num_workers,
+          &mt_info->lr_row_sync, &cpi->lr_ctxt);
+    else
+      av1_loop_restoration_filter_frame(&cm->cur_frame->buf, cm, 0,
+                                        &cpi->lr_ctxt);
+
+    // restore luma component of the frame
+    aom_yv12_copy_y(&cm->pre_rst_frame, &cm->cur_frame->buf);
+    av1_pick_cross_filter_restoration(cpi->source, cpi);
+    // restore chroma components of the frame
+    aom_yv12_copy_u(&cm->pre_rst_frame, &cm->cur_frame->buf);
+    aom_yv12_copy_v(&cm->pre_rst_frame, &cm->cur_frame->buf);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-        cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
+        cm->rst_info[2].frame_restoration_type != RESTORE_NONE
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+        || cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
+        cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
+        cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    ) {
       if (num_workers > 1)
         av1_loop_restoration_filter_frame_mt(
             &cm->cur_frame->buf, cm, 0, mt_info->workers, num_workers,
@@ -2250,6 +2418,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);
@@ -2724,13 +2897,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       loop = 0;
     }
 
-    if (allow_recode && !cpi->sf.gm_sf.gm_disable_recode &&
-        av1_recode_loop_test_global_motion(cm->global_motion,
-                                           cpi->td.rd_counts.global_motion_used,
-                                           gm_info->params_cost)) {
-      loop = 1;
-    }
-
     if (loop) {
       ++loop_count;
 
@@ -2837,6 +3003,11 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->global_motion[i] = default_warp_params;
@@ -2967,6 +3138,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
+    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
 
 #if CONFIG_TIP
@@ -3218,13 +3394,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_ADAPTIVE_DS_FILTER
-#if DS_FRAME_LEVEL
-  if (cm->current_frame.frame_type == KEY_FRAME) {
-    av1_set_downsample_filter_options(cpi, features);
-#else
-  if (cpi->common.current_frame.absolute_poc == 0) {
+  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     av1_set_downsample_filter_options(cpi);
-#endif  // DS_FRAME_LEVEL
   }
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
   // frame type has been decided outside of this function call
@@ -3243,11 +3414,20 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   features->allow_warped_motion = oxcf->motion_mode_cfg.allow_warped_motion &&
                                   frame_might_allow_warped_motion(cm);
 #endif  // !CONFIG_EXTENDED_WARP_PREDICTION
-
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  features->allow_warpmv_mode = features->enabled_motion_modes;
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
   // temporal set of frame level enable_bawp flag.
 #if CONFIG_BAWP
   features->enable_bawp = seq_params->enable_bawp;
 #endif
+#if CONFIG_CWP
+  features->enable_cwp = seq_params->enable_cwp;
+#endif  // CONFIG_CWP
+
+#if CONFIG_D071_IMP_MSK_BLD
+  features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
   cpi->last_frame_type = current_frame->frame_type;
 
@@ -3715,7 +3895,11 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
 #endif
   cpi->bytes += frame_bytes;
   if (cm->show_frame) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    const YV12_BUFFER_CONFIG *orig = cpi->unfiltered_source;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     const YV12_BUFFER_CONFIG *orig = cpi->source;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
     double y, u, v, frame_all;
 
@@ -3814,10 +3998,18 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   aom_usec_timer_mark(&cmptimer);
   cpi->time_compress_data += aom_usec_timer_elapsed(&cmptimer);
 #endif  // CONFIG_INTERNAL_STATS
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  if (cpi->b_calculate_psnr && *size > 0) {
+    if ((cm->showable_frame && cm->seq_params.enable_frame_output_order) ||
+        (cm->show_existing_frame &&
+         !cm->seq_params.enable_frame_output_order) ||
+        (!is_stat_generation_stage(cpi) && cm->show_frame)) {
+#else
   // Note *size = 0 indicates a dropeed frame for which psnr is not calculated
   if (cpi->b_calculate_psnr && *size > 0) {
     if (cm->show_existing_frame ||
         (!is_stat_generation_stage(cpi) && cm->show_frame)) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       generate_psnr_packet(cpi);
     }
   }

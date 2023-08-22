@@ -22,12 +22,12 @@
 extern "C" {
 #endif
 
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
 #define MVREF_ROWS 1
 #define MVREF_COLS 3
 #else
 #define MVREF_ROW_COLS 3
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 // Set the upper limit of the motion vector component magnitude.
 // This would make a motion vector fit in 26 bits. Plus 3 bits for the
@@ -48,14 +48,26 @@ typedef struct position {
 static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
                                          int blk_row, int blk_col, MV mv,
                                          int sign_bias) {
+#if CONFIG_MF_IMPROVEMENT
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int sb_size = block_size_high[seq_params->sb_size];
+  const int mf_sb_size_log2 = (sb_size <= 64 ? mi_size_high_log2[BLOCK_64X64]
+                                             : seq_params->mib_size_log2) +
+                              MI_SIZE_LOG2;
+  const int mf_sb_size = (1 << mf_sb_size_log2);
+  const int sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
+  const int sb_tmvp_size_log2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
+  const int base_blk_row = (blk_row >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
+  const int base_blk_col = (blk_col >> sb_tmvp_size_log2) << sb_tmvp_size_log2;
+#else
   const int base_blk_row = (blk_row >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
   const int base_blk_col = (blk_col >> TMVP_MI_SZ_LOG2) << TMVP_MI_SZ_LOG2;
+#endif  // CONFIG_MF_IMPROVEMENT
 
   // The motion vector in units of 1/8-pel
   const int shift = (3 + TMVP_MI_SZ_LOG2);
   const int row_offset =
       (mv.row >= 0) ? (mv.row >> shift) : -((-mv.row) >> shift);
-
   const int col_offset =
       (mv.col >= 0) ? (mv.col >> shift) : -((-mv.col) >> shift);
 
@@ -68,10 +80,17 @@ static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
       col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
     return 0;
 
+#if CONFIG_MF_IMPROVEMENT
+  if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
+      row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
+      col < base_blk_col - sb_tmvp_size ||
+      col >= base_blk_col + (sb_tmvp_size << 1))
+#else
   if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
       row >= base_blk_row + TMVP_MI_SIZE + MAX_OFFSET_HEIGHT_LOG2 ||
       col < base_blk_col - MAX_OFFSET_WIDTH_LOG2 ||
       col >= base_blk_col + TMVP_MI_SIZE + MAX_OFFSET_WIDTH_LOG2)
+#endif  // CONFIG_MF_IMPROVEMENT
     return 0;
 
   *mi_r = row;
@@ -84,15 +103,24 @@ static AOM_INLINE int get_block_position(AV1_COMMON *cm, int *mi_r, int *mi_c,
 // clamp_mv_ref
 #define MV_BORDER (16 << 3)  // Allow 16 pels in 1/8th pel units
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+#define DISPLAY_ORDER_HINT_BITS 31
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (!oh->enable_order_hint) return 0;
 
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  assert(a >= 0);
+  assert(b >= 0);
+  const int bits = DISPLAY_ORDER_HINT_BITS;
+#else
   const int bits = oh->order_hint_bits_minus_1 + 1;
 
   assert(bits >= 1);
   assert(a >= 0 && a < (1 << bits));
   assert(b >= 0 && b < (1 << bits));
-
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int diff = a - b;
   const int m = 1 << (bits - 1);
   diff = (diff & (m - 1)) - (diff & m);
@@ -399,6 +427,31 @@ static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
   }
 }
 
+#if CONFIG_SEP_COMP_DRL
+/*!\brief Return ref_mv_idx_type of the current coding block
+ * conversion of two ref_mv_idx(s) into one value when there are two DRLs */
+static INLINE int av1_ref_mv_idx_type(const MB_MODE_INFO *mbmi,
+                                      const int *ref_mv_idx) {
+  assert(ref_mv_idx[0] < MAX_REF_MV_STACK_SIZE);
+  assert(ref_mv_idx[1] < MAX_REF_MV_STACK_SIZE);
+  if (has_second_drl(mbmi)) {
+    return ref_mv_idx[1] * MAX_REF_MV_STACK_SIZE + ref_mv_idx[0];
+  } else {
+    assert(0 == ref_mv_idx[1]);
+    return ref_mv_idx[0];
+  }
+}
+
+/*!\brief Reset ref_mv_idx(s) based on the ref_mv_idx_type value */
+static INLINE void av1_set_ref_mv_idx(int *ref_mv_idx, int ref_mv_idx_type) {
+  assert(ref_mv_idx_type >= 0 &&
+         ref_mv_idx_type < MAX_REF_MV_STACK_SIZE * MAX_REF_MV_STACK_SIZE);
+  ref_mv_idx[1] = ref_mv_idx_type / MAX_REF_MV_STACK_SIZE;
+  ref_mv_idx[0] = ref_mv_idx_type - ref_mv_idx[1] * MAX_REF_MV_STACK_SIZE;
+  return;
+}
+#endif  // CONFIG_SEP_COMP_DRL
+
 static INLINE void av1_set_ref_frame(MV_REFERENCE_FRAME *rf,
                                      MV_REFERENCE_FRAME ref_frame_type) {
   if (ref_frame_type == INTRA_FRAME ||
@@ -496,9 +549,9 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm);
 void av1_setup_frame_sign_bias(AV1_COMMON *cm);
 void av1_setup_skip_mode_allowed(AV1_COMMON *cm);
 void av1_setup_motion_field(AV1_COMMON *cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
 void av1_setup_ref_frame_sides(AV1_COMMON *cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   av1_zero(xd->neighbors_ref_counts);
@@ -760,12 +813,32 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
 
   // Special case for sub 8x8 chroma cases, to prevent referring to chroma
   // pixels outside current tile.
-  if (xd->is_chroma_ref && av1_num_planes(cm) > 1) {
-    const struct macroblockd_plane *const pd = &xd->plane[1];
-    if (bw < 8 && pd->subsampling_x)
-      if (src_left_edge < tile_left_edge + 4 * SCALE_PX_TO_MV) return 0;
-    if (bh < 8 && pd->subsampling_y)
-      if (src_top_edge < tile_top_edge + 4 * SCALE_PX_TO_MV) return 0;
+  if (!cm->seq_params.enable_sdp || !frame_is_intra_only(cm)) {
+    if (xd->is_chroma_ref && av1_num_planes(cm) > 1) {
+      const struct macroblockd_plane *const pd = &xd->plane[1];
+#if CONFIG_EXT_RECUR_PARTITIONS
+      if (xd->mi && xd->mi[0]) {
+        const CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
+        const int src_left_edge_chroma =
+            chroma_ref_info->mi_col_chroma_base * MI_SIZE * SCALE_PX_TO_MV +
+            dv.col;
+        const int src_top_edge_chroma =
+            chroma_ref_info->mi_row_chroma_base * MI_SIZE * SCALE_PX_TO_MV +
+            dv.row;
+        if (bw < 8 && pd->subsampling_x)
+          if (src_left_edge_chroma < tile_left_edge) return 0;
+        if (bh < 8 && pd->subsampling_y)
+          if (src_top_edge_chroma < tile_top_edge) return 0;
+      } else {
+#endif
+        if (bw < 8 && pd->subsampling_x)
+          if (src_left_edge < tile_left_edge + 4 * SCALE_PX_TO_MV) return 0;
+        if (bh < 8 && pd->subsampling_y)
+          if (src_top_edge < tile_top_edge + 4 * SCALE_PX_TO_MV) return 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+      }
+#endif
+    }
   }
 
 #if CONFIG_IBC_SR_EXT
@@ -1133,6 +1206,13 @@ static INLINE int is_ref_motion_field_eligible(
     return 0;
   return 1;
 }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+// Check all 3 neighbors to generate projected points
+int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
+                                 int *np, MV_REFERENCE_FRAME ref_frame);
+
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #ifdef __cplusplus
 }  // extern "C"

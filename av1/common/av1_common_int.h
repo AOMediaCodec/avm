@@ -257,6 +257,12 @@ typedef struct RefCntBuffer {
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
 
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  // How many ref frames did this frame use?
+  // This is set to 0 for intra frames
+  int num_ref_frames;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
   MV_REF *mvs;
   uint8_t *seg_map;
   struct segmentation seg;
@@ -410,7 +416,11 @@ typedef struct SequenceHeader {
   int mib_size;                // Size of the superblock in units of MI blocks
   int mib_size_log2;           // Log 2 of above.
   int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
-  int max_reference_frames;    // Number of reference frames allowed
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  int enable_frame_output_order;  // Enable frame output order derivation based
+                                  // on order hint value
+#endif                            // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  int max_reference_frames;       // Number of reference frames allowed
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
@@ -435,13 +445,23 @@ typedef struct SequenceHeader {
 #if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
 #endif                  // CONFIG_BAWP
-  uint8_t enable_fsc;   // enables/disables forward skip coding
+#if CONFIG_CWP
+  uint8_t enable_cwp;  // enables/disables compound weighted prediction
+#endif                 // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  uint8_t enable_imp_msk_bld;        // enable implicit maksed blending
+#endif                               // CONFIG_D071_IMP_MSK_BLD
+  uint8_t enable_fsc;                // enables/disables forward skip coding
   uint8_t enable_filter_intra;       // enables/disables filterintra
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
 
 #if CONFIG_ORIP
   uint8_t enable_orip;  // To turn on/off sub-block based ORIP
 #endif
+#if CONFIG_IDIF
+  uint8_t
+      enable_idif;  // enables/disables Intra Directional Interpolation Filter
+#endif              // CONFIG_IDIF
   uint8_t enable_ist;  // enables/disables intra secondary transform
 #if CONFIG_CROSS_CHROMA_TX
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
@@ -461,6 +481,10 @@ typedef struct SequenceHeader {
 #if CONFIG_JOINT_MVD
   uint8_t enable_joint_mvd;  // enables/disables joint MVD coding
 #endif                       // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  uint8_t enable_refinemv;  // enables/disables refineMV mode
+#endif                      // CONFIG_REFINEMV
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
@@ -509,6 +533,9 @@ typedef struct SequenceHeader {
 #if CONFIG_EXT_RECUR_PARTITIONS
   uint8_t enable_ext_partitions;  // enable extended partitions
 #endif                            // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  bool enable_global_motion;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   BITSTREAM_PROFILE profile;
 
   // Color config.
@@ -604,12 +631,7 @@ typedef struct {
    */
   bool use_pb_mv_precision;
 #endif  // CONFIG_FLEX_MVRES
-#if DS_FRAME_LEVEL
-  /*!
-   * Dowsample filter type
-   */
-  int ds_filter_type;
-#endif  // DS_FRAME_LEVEl
+
   /*!
    * If true, palette tool and/or intra block copy tools may be used.
    */
@@ -624,6 +646,9 @@ typedef struct {
 #if !CONFIG_EXTENDED_WARP_PREDICTION
   bool allow_warped_motion; /*!< If true, frame may use warped motion mode. */
 #endif
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  bool allow_warpmv_mode; /*!< If true, frame may use WARPMV mode. */
+#endif                    // CONFIG_CWG_D067_IMPROVED_WARP
   /*!
    * If true, using previous frames' motion vectors for prediction is allowed.
    */
@@ -715,6 +740,18 @@ typedef struct {
    */
   bool enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  /*!
+   * Enables/disables compound weighted prediction
+   */
+  bool enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  /*!
+   * Enables/disables implicit masked blending.
+   */
+  bool enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
 #if CONFIG_EXTENDED_WARP_PREDICTION
   /*!
    * Bit mask of enabled motion modes for this frame
@@ -1537,6 +1574,11 @@ typedef struct AV1Common {
   int32_t *rst_tmpbuf; /*!< Scratch buffer for self-guided restoration */
   RestorationLineBuffers *rlbs; /*!< Line buffers needed by loop restoration */
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  YV12_BUFFER_CONFIG pre_rst_frame; /*!< Stores the reconstructed frame before
+                                       loop restoration, only used by encoder,
+                                       to be moved to encoder buffer */
+#endif                              // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   /**@}*/
 
   /*!
@@ -1560,6 +1602,18 @@ typedef struct AV1Common {
    * Parameters for delta quantization and delta loop filter level.
    */
   DeltaQInfo delta_q_info;
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  /*!
+   * Base model used for delta-coding global motion parameters
+   */
+  WarpedMotionParams base_global_motion_model;
+
+  /*!
+   * Temporal length of `base_global_motion_model`
+   */
+  int base_global_motion_distance;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   /*!
    * Global motion parameters for each reference frame.
@@ -1632,12 +1686,12 @@ typedef struct AV1Common {
    * TODO(jingning): This can be combined with sign_bias later.
    */
   int8_t ref_frame_side[INTER_REFS_PER_FRAME];
-#if CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
+#if CONFIG_MVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * relative distance between reference 'k' and current frame.
    */
-  int8_t ref_frame_relative_dist[REF_FRAMES];
-#endif  // CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
+  int ref_frame_relative_dist[REF_FRAMES];
+#endif  // CONFIG_MVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
    */
@@ -1733,6 +1787,11 @@ typedef struct AV1Common {
    * Log2 of the size of the superblock in units of MI.
    */
   int mib_size_log2;
+
+#if CONFIG_INSPECTION
+  YV12_BUFFER_CONFIG predicted_pixels;
+  YV12_BUFFER_CONFIG prefiltered_pixels;
+#endif  // CONFIG_INSPECTION
 } AV1_COMMON;
 
 /*!\cond */
@@ -2136,6 +2195,10 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->mi_col = mi_col;
   xd->mi[0]->mi_row_start = mi_row;
   xd->mi[0]->mi_col_start = mi_col;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  xd->mi[0]->chroma_mi_row_start = mi_row;
+  xd->mi[0]->chroma_mi_col_start = mi_col;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   xd->tile.mi_col_start = tile->mi_col_start;
@@ -2225,7 +2288,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   if (xd->width > xd->height)
     if (!(mi_row & (xd->width - 1))) xd->is_first_horizontal_rect = 1;
 
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   xd->is_last_horizontal_rect = 0;
   if (xd->width > xd->height) {
     if (!((mi_row + xd->height) & (xd->width - 1))) {
@@ -2236,9 +2299,28 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->is_first_vertical_rect = 0;
   if (xd->width < xd->height)
     if (!(mi_col & (xd->height - 1))) xd->is_first_vertical_rect = 1;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 }
+
+#if CONFIG_ATC_DCTX_ALIGNED
+// Return the inter TX context based on last position value.
+static INLINE int get_lp2tx_ctx(TX_SIZE tx_size, int bwl, int eob) {
+  assert(eob != 0);
+  const int lim = 2;
+  const int eoby = (eob - 1) >> bwl;
+  const int eobx = (eob - 1) - (eoby << bwl);
+  const int diag = eobx + eoby;
+  const int max_diag = tx_size_wide[tx_size] + tx_size_high[tx_size] - 2;
+  int ctx_idx = 0;
+  if (diag < lim) {
+    ctx_idx = 1;
+  } else if (diag > (max_diag - lim)) {
+    ctx_idx = 2;
+  }
+  return ctx_idx;
+}
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 static INLINE int get_fsc_mode_ctx(const MACROBLOCKD *xd, const int is_key) {
   int ctx = 0;
@@ -2280,6 +2362,19 @@ static INLINE aom_cdf_prob *get_y_mode_cdf(FRAME_CONTEXT *tile_ctx,
   return tile_ctx->kf_y_cdf[neighbor0_ctx][neighbor1_ctx];
 }
 #endif  // !CONFIG_AIMC
+
+#if CONFIG_EXT_DIR
+static INLINE int get_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
+                                    const MB_MODE_INFO *neighbor1) {
+  int ctx0 = neighbor0 && !is_inter_block(neighbor0, SHARED_PART) &&
+             !is_intrabc_block(neighbor0, SHARED_PART) &&
+             neighbor0->mrl_index != 0;
+  int ctx1 = neighbor1 && !is_inter_block(neighbor1, SHARED_PART) &&
+             !is_intrabc_block(neighbor1, SHARED_PART) &&
+             neighbor1->mrl_index != 0;
+  return ctx0 + ctx1;
+}
+#endif  // CONFIG_EXT_DIR
 
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
                                             int mi_col, BLOCK_SIZE subsize,
@@ -2708,8 +2803,9 @@ static INLINE int check_is_chroma_size_valid(
   if (subsize < BLOCK_SIZES_ALL) {
     CHROMA_REF_INFO tmp_chroma_ref_info = { 1,      0,       mi_row,
                                             mi_col, subsize, subsize };
-    set_chroma_ref_info(mi_row, mi_col, 0, subsize, &tmp_chroma_ref_info,
-                        parent_chroma_ref_info, bsize, partition, ss_x, ss_y);
+    set_chroma_ref_info(tree_type, mi_row, mi_col, 0, subsize,
+                        &tmp_chroma_ref_info, parent_chroma_ref_info, bsize,
+                        partition, ss_x, ss_y);
     is_valid = get_plane_block_size(tmp_chroma_ref_info.bsize_base, ss_x,
                                     ss_y) != BLOCK_INVALID;
   }
@@ -3101,11 +3197,13 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // PARTITION_HORZ_B. To distinguish the latter two, check if the lower
       // half was split.
       if (sshigh * 4 == bhigh) {
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+        return PARTITION_HORZ_4A;
+#elif CONFIG_EXT_RECUR_PARTITIONS
         return PARTITION_HORZ_3;
-#else   // CONFIG_EXT_RECUR_PARTITIONS
+#else   // !CONFIG_UNEVEN_4WAY && !CONFIG_EXT_RECUR_PARTITIONS
         return PARTITION_HORZ_4;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_UNEVEN_4WAY
       }
 #if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sshigh * 2 == bhigh);
@@ -3120,11 +3218,13 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // PARTITION_VERT_B. To distinguish the latter two, check if the right
       // half was split.
       if (sswide * 4 == bwide) {
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_UNEVEN_4WAY
+        return PARTITION_VERT_4A;
+#elif CONFIG_EXT_RECUR_PARTITIONS
         return PARTITION_VERT_3;
-#else   // CONFIG_EXT_RECUR_PARTITIONS
+#else   // !CONFIG_UNEVEN_4WAY && !CONFIG_EXT_RECUR_PARTITIONS
         return PARTITION_VERT_4;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_UNEVEN_4WAY
       }
 #if !CONFIG_EXT_RECUR_PARTITIONS
       assert(sswide * 2 == bhigh);
@@ -3279,8 +3379,73 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
           seq_level_idx != SEQ_LEVEL_7_2 && seq_level_idx != SEQ_LEVEL_7_3);
 }
 
-// Intra derivative for second directional predictor of IBP
+// Intra derivative for directional predictions.
 // second_dr_intra_derivative[x] = 64*64/dr_intra_derivative[x]
+#if CONFIG_EXT_DIR
+static const int16_t dr_intra_derivative[90] = {
+  // Angle in degrees.
+  // Starred (*) values are unused.
+  0,    4096, 2048,            //    *,  0.9,  1.8,
+  1365, 1024, 819,             //  2.7,  3.6,  4.5,
+  682,  585,  512,             //  5.4,  6.2,  7.1,
+  455,  409,  409,  409, 372,  //  8.0,  8.9, *, *,  9.8,
+  341,  292,  273,             // 10.6, 12.4, 13.2,
+  256,  227,  215,             // 14.0, 15.7, 16.6,
+  204,  186,  178,             // 17.4, 19.0, 19.8,
+  170,  157,  151,             // 20.6, 22.2, 23.0,
+  146,  136,  132,             // 23.7, 25.2, 25.9,
+  128,  117,  110,             // 26.6, 28.7, 30.2,
+  107,  99,   97,   97,        // 30.9, 32.9,    *, 33.4,
+  93,   87,   83,              // 34.5, 36.3, 37.6,
+  81,   77,   74,              // 38.3, 39.7, 40.9,
+  73,   69,   66,              // 41.2, 42.8, 44.1,
+  64,   62,   59,              // 45.0, 45.9, 47.3,
+  56,   55,   53,              // 48.8, 49.3, 50.4,
+  50,   49,   47,              // 52.0, 52.6, 53.7,
+  44,   42,   42,   41,        // 55.5, 56.7,    *, 57.4,
+  38,   37,   35,              // 59.3, 60.0, 61.3,
+  32,   31,   30,              // 63.4, 64.2, 64.9,
+  28,   27,   26,              // 66.4, 67.1, 67.9,
+  24,   23,   22,              // 69.4, 70.2, 71.0,
+  20,   19,   18,              // 72.6, 73.5, 74.3,
+  16,   15,   14,              // 76.0, 76.8, 77.7,
+  12,   11,   10,   10,  10,   // 79.4, 80.2, *, *, 81.1,
+  9,    8,    7,               // 82.0, 82.9, 83.8,
+  6,    5,    4,               // 84.6, 85.5, 86.4,
+  3,    2,    1,               // 87.3, 88.2, 89.1,
+};
+#elif CONFIG_IMPROVED_ANGULAR_INTRA
+static const int16_t second_dr_intra_derivative[90] = {
+  0,    0, 0,        //
+  2,    0, 0,        // 3, ...
+  4,    0, 0,        // 6, ...
+  8,    0, 0, 0, 0,  // 9, ...
+  12,   0, 0,        // 14, ...
+  16,   0, 0,        // 17, ...
+  20,   0, 0,        // 20, ...
+  24,   0, 0,        // 23, ... (113 & 203 are base angles)
+  28,   0, 0,        // 26, ...
+  32,   0, 0,        // 29, ...
+  38,   0, 0, 0,     // 32, ...
+  44,   0, 0,        // 36, ...
+  50,   0, 0,        // 39, ...
+  56,   0, 0,        // 42, ...
+  64,   0, 0,        // 45, ... (45 & 135 are base angles)
+  72,   0, 0,        // 48, ...
+  82,   0, 0,        // 51, ...
+  92,   0, 0, 0,     // 54, ...
+  106,  0, 0,        // 58, ...
+  128,  0, 0,        // 61, ...
+  146,  0, 0,        // 64, ...
+  170,  0, 0,        // 67, ... (67 & 157 are base angles)
+  204,  0, 0,        // 70, ...
+  256,  0, 0,        // 73, ...
+  340,  0, 0, 0, 0,  // 76, ...
+  512,  0, 0,        // 81, ...
+  1024, 0, 0,        // 84, ...
+  2048, 0, 0,        // 87, ...
+};
+#else
 static const int16_t second_dr_intra_derivative[90] = {
   0,    0, 0,        //
   4,    0, 0,        // 3, ...
@@ -3311,6 +3476,7 @@ static const int16_t second_dr_intra_derivative[90] = {
   585,  0, 0,        // 84, ...
   1365, 0, 0,        // 87, ...
 };
+#endif  // CONFIG_EXT_DIR
 
 // Generate the weights per pixel position for IBP
 static void av1_dr_prediction_z1_info(uint8_t *weights, int bw, int bh,
@@ -3393,7 +3559,11 @@ static INLINE void init_ibp_info_per_mode(
     int delta, int txw, int txh, int txw_log2, int txh_log2) {
   const int angle = mode_to_angle_map[mode] + delta * 3;
   const int mode_idx = angle_to_mode_index[angle];
+#if CONFIG_EXT_DIR
+  const int dy = dr_intra_derivative[90 - angle];
+#else
   const int dy = second_dr_intra_derivative[angle];
+#endif  // CONFIG_EXT_DIR
   weights[block_idx][mode_idx] =
       (uint8_t *)(aom_malloc(txw * txh * sizeof(uint8_t)));
   av1_dr_prediction_z1_info(weights[block_idx][mode_idx], txw, txh, txw_log2,
@@ -3410,7 +3580,11 @@ static INLINE void init_ibp_info(
     const int txh = tx_size_high[iblock];
     const int txw_log2 = tx_size_wide_log2[iblock];
     const int txh_log2 = tx_size_high_log2[iblock];
+#if CONFIG_IMPROVED_ANGULAR_INTRA
+    for (int delta = -2; delta < 0; delta += 2) {
+#else
     for (int delta = -3; delta < 0; delta++) {
+#endif  // CONFIG_IMPROVED_ANGULAR_INTRA
       init_ibp_info_per_mode(weights, iblock, V_PRED, delta, txw, txh, txw_log2,
                              txh_log2);
       init_ibp_info_per_mode(weights, iblock, D67_PRED, delta, txw, txh,
@@ -3418,7 +3592,11 @@ static INLINE void init_ibp_info(
       init_ibp_info_per_mode(weights, iblock, D45_PRED, delta, txw, txh,
                              txw_log2, txh_log2);
     }
+#if CONFIG_IMPROVED_ANGULAR_INTRA
+    for (int delta = 0; delta <= 2; delta += 2) {
+#else
     for (int delta = 0; delta <= 3; delta++) {
+#endif  // CONFIG_IMPROVED_ANGULAR_INTRA
       init_ibp_info_per_mode(weights, iblock, D67_PRED, delta, txw, txh,
                              txw_log2, txh_log2);
       init_ibp_info_per_mode(weights, iblock, D45_PRED, delta, txw, txh,

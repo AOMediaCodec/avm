@@ -39,13 +39,23 @@ Style Check:
       # Run clang-format check.
       for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.[hc]pp' '*.cc' '*.[ch]' \
         | grep -v third_party); do
-        clang-format -i --style=file $f -n -Werror
+        clang-format -i --style=file $f -n -Werror || exit_code=$?
+        if [ ${exit_code} -ne 0 ]; then
+          echo "Please format your code by following instructions here:"
+          echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check"
+          exit 1
+        fi
       done
     - |
       # Run cmake-format check.
       for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.cmake' 'CMakeLists.txt' \
         | grep -v third_party); do
-        cmake-format --check $f
+        cmake-format --check $f || exit_code=$?
+        if [ ${exit_code} -ne 0 ]; then
+          echo "Please format your code by following instructions here:"
+          echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check"
+          exit 1
+        fi
       done
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
@@ -237,7 +247,16 @@ Test Data Check:
       echo "Extra CMake Flags: $EXTRA_CMAKE_FLAGS"
       echo "Configuration:     $AOM_BUILD_CONFIG"
     - cmake -B aom_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS $EXTRA_CMAKE_FLAGS
-    - cmake --build aom_build -j 2
+    - cmake --build aom_build -j 2 || exit_code=$?
+    - |
+      if [ ${exit_code} -ne 0 ]; then
+        echo "You may reproduce the compile failure by following instructions here:"
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations"
+        echo "Using following values:"
+        echo "CMAKE_FLAGS = ${CMAKE_FLAGS}"
+        echo "EXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}"
+        exit 1
+      fi
     - cmake --build aom_build --target dist
     - DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build aom_build --target install/strip
   needs: []
@@ -549,14 +568,20 @@ Example Test (x86_64):
     - |
       # Looking for sanitizer output in log...
       grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" sanitizer.log && {
-        echo "Found sanitizer errors or warnings, check the log:"
+        echo "Found sanitizer errors or warnings, check the log below:"
         cat sanitizer.log
+        echo "You may reproduce sanitizer builds and tests by following instructions below: "
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
         exit 1
       }
       # Looking for UBSan output in log (differs from the common format)
       grep -q ":[[:digit:]]\+:[[:digit:]]\+: runtime error:" sanitizer.log && {
-        echo "Found sanitizer errors or warnings, check the log:"
+        echo "Found sanitizer errors or warnings, check the log below:"
         cat sanitizer.log
+        echo "You may reproduce sanitizer builds and tests by following instructions below: "
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
+        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
         exit 1
       }
       echo "No sanitizer errors found"
@@ -621,7 +646,7 @@ Linux Sanitizer (thread) Test:
   interruptible: true
   variables:
     AOMENC_LIMIT: 30
-    AOMENC_QP: 128
+    AOMENC_QP: 210
     AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
     AOMENC: installroot/usr/local/bin/aomenc
   before_script:
@@ -756,6 +781,67 @@ Previous Enc Run (Low-delay):
     AOMENC_OUTPUT: previous-low-delay
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
+
+# Decode encoded streams and verify that number of frames is as expected.
+.dec-run-common:
+  stage: test
+  interruptible: true
+  variables:
+    AOMENC_LIMIT: 30  # Should match the same variable in `.enc-run-common`
+    AOMDEC: installroot/usr/local/bin/aomdec
+  script:
+    - ${AOMDEC} ${AOMENC_OUTPUT}.obu -o ${AOMDEC_OUTPUT}.decoded.y4m --summary
+       2>&1 | tee "${AOMDEC_OUTPUT}.summary.log"
+    - '[ -f "${AOMDEC_OUTPUT}.decoded.y4m" ] || exit 1'
+    - '[ -f "${AOMDEC_OUTPUT}.summary.log" ] || exit 1'
+    - |
+      for str in 'decoded frames' 'showed frames'; do
+        frame_count=$(grep -E -o "[0-9]+ ${str}" "${AOMDEC_OUTPUT}.summary.log" | sed -E "s/([0-9]+) ${str}/\1/g")
+        echo "${str} = ${frame_count}"
+        if [[ ${frame_count} -ne ${AOMENC_LIMIT} ]]; then
+          echo "ERROR: Unexpected number of ${str}. Got ${frame_count}, expected ${AOMENC_LIMIT}"
+          exit 1
+        fi
+      done
+  artifacts:
+    when: always
+    paths:
+      - ${AOMDEC_OUTPUT}.*
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+
+
+Dec Run (All-intra):
+  extends: .dec-run-common
+  variables:
+    AOMENC_OUTPUT: all-intra
+    AOMDEC_OUTPUT: dec-all-intra
+  needs:
+    - 'Enc Run (All-intra)'
+    - 'Build (x86_64-linux-gcc): [decode-only]'
+
+
+Dec Run (Random Access):
+  extends: .dec-run-common
+  variables:
+    AOMENC_OUTPUT: random-access
+    AOMDEC_OUTPUT: dec-random-access
+  needs:
+    - 'Enc Run (Random Access)'
+    - 'Build (x86_64-linux-gcc): [decode-only]'
+
+
+Dec Run (Low-delay):
+  extends: .dec-run-common
+  variables:
+    AOMENC_OUTPUT: low-delay
+    AOMDEC_OUTPUT: dec-low-delay
+  needs:
+    - 'Enc Run (Low-delay)'
+    - 'Build (x86_64-linux-gcc): [decode-only]'
+
 
 Enc compare:
   stage: report

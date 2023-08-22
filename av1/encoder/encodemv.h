@@ -57,12 +57,20 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx);
 int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MV_REFERENCE_FRAME *ref_frame,
                                  int ref_mv_idx,
-                                 const MB_MODE_INFO_EXT *mbmi_ext);
+                                 const MB_MODE_INFO_EXT *mbmi_ext
+#if CONFIG_SEP_COMP_DRL
+                                 ,
+                                 const MB_MODE_INFO *mbmi
+#endif  // CONFIG_SEP_COMP_DRL
+);
 #if CONFIG_FLEX_MVRES
 int_mv av1_find_first_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
                                         MV_REFERENCE_FRAME ref_frame,
                                         MvSubpelPrecision precision);
 int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
+#if CONFIG_SEP_COMP_DRL
+                                       const MB_MODE_INFO *mbmi,
+#endif  // CONFIG_SEP_COMP_DRL
                                        MV_REFERENCE_FRAME ref_frame,
                                        MvSubpelPrecision precision);
 #else

@@ -80,7 +80,7 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   cpi->td.firstpass_ctx =
-      av1_alloc_pmc(cm, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
+      av1_alloc_pmc(cm, SHARED_PART, 0, 0, BLOCK_16X16, NULL, PARTITION_NONE, 0,
                     cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
                     &cpi->td.shared_coeff_buf);
 }

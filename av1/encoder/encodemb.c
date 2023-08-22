@@ -466,6 +466,32 @@ void forward_cross_chroma_transform(MACROBLOCK *x, int block, TX_SIZE tx_size,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+#if CONFIG_ATC_DCTX_ALIGNED
+// Finds and sets the first position (BOB) index.
+// To make sure the BOB value is statistically similar to EOB
+// for arithmetic coding efficiency performs a simple rotation.
+void set_bob(MACROBLOCK *x, int plane, int block, TX_SIZE tx_size,
+             TX_TYPE tx_type) {
+  const struct macroblock_plane *const p = &x->plane[plane];
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+  const int block_offset = BLOCK_OFFSET(block);
+  tran_low_t *const qcoeff = p->qcoeff + block_offset;
+  uint16_t *const eob = &p->eobs[block];
+  uint16_t *const bob_ptr = &p->bobs[block];
+  int bob = 0;
+  for (int c = 0; c < *eob; ++c) {
+    const int pos = scan_order->scan[c];
+    const tran_low_t v = qcoeff[pos];
+    const tran_low_t level = abs(v);
+    if (level != 0) {
+      break;
+    }
+    bob++;
+  }
+  *bob_ptr = av1_get_max_eob(tx_size) - bob;
+}
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+
 void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
                QUANT_PARAM *qparam) {
   const struct macroblock_plane *const p = &x->plane[plane];
@@ -486,6 +512,10 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
       av1_quantize_skip(n_coeffs, qcoeff, dqcoeff, eob);
     }
   }
+
+#if CONFIG_ATC_DCTX_ALIGNED
+  set_bob(x, plane, block, txfm_param->tx_size, txfm_param->tx_type);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 #if CONFIG_CONTEXT_DERIVATION
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -687,10 +717,17 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     }
 #endif
 #if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_ATC_DCTX_ALIGNED
+    const int skip_cctx = is_inter ? 0 : (p->eobs[block] == 1);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     // Since eob can be updated here, make sure cctx_type is always CCTX_NONE
     // when eob of U is 0.
     if (is_cctx_allowed(cm, xd) && plane == AOM_PLANE_U &&
+#if CONFIG_ATC_DCTX_ALIGNED
+        (p->eobs[block] == 0 || skip_cctx)) {
+#else
         p->eobs[block] == 0) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
       // In dry run, cctx type will not be referenced by neighboring blocks, so
       // there is no need to fill in the whole chroma region. In addition,
       // ctx->cctx_type_map size in dry run may not be aligned with actual
@@ -709,6 +746,9 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                         &p->eobs[block]);
 #endif  // CONFIG_CROSS_CHROMA_TX && CCTX_C2_DROPPED
     p->eobs[block] = 0;
+#if CONFIG_ATC_DCTX_ALIGNED
+    p->bobs[block] = 0;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     p->txb_entropy_ctx[block] = 0;
   }
 
@@ -733,7 +773,13 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
              .buf[(blk_row * pd_c1->dst.stride + blk_col) << MI_SIZE_LOG2];
     int eob_c1 = p_c1->eobs[block];
     int eob_c2 = x->plane[AOM_PLANE_V].eobs[block];
+#if CONFIG_ATC_DCTX_ALIGNED
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    const int skip_cctx = is_inter ? 0 : (p->eobs[block] == 1);
+    recon_with_cctx = (eob_c1 || eob_c2) && !skip_cctx;
+#else
     recon_with_cctx = eob_c1 || eob_c2;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     max_chroma_eob = AOMMAX(eob_c1, eob_c2);
     if (recon_with_cctx) {
       av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff, tx_size, cctx_type);
@@ -751,8 +797,14 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     av1_inverse_transform_block(
         xd, dqcoeff, plane, tx_type, tx_size, dst, pd->dst.stride,
 #if CONFIG_CROSS_CHROMA_TX
+#if CONFIG_ATC_DCTX_ALIGNED
+        (plane == 0 || !is_cctx_allowed(cm, xd) || !recon_with_cctx)
+            ? p->eobs[block]
+            : max_chroma_eob,
+#else
         (plane == 0 || !is_cctx_allowed(cm, xd)) ? p->eobs[block]
                                                  : max_chroma_eob,
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #else
         p->eobs[block],
 #endif
@@ -816,11 +868,20 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
           &pd_c1->dst
                .buf[(blk_row * pd_c1->dst.stride + blk_col) << MI_SIZE_LOG2];
       mismatch_record_block_tx(dst_c1, pd_c1->dst.stride,
-                               cm->current_frame.order_hint, AOM_PLANE_U,
-                               pixel_c, pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                               cm->current_frame.display_order_hint,
+#else
+                               cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                               AOM_PLANE_U, pixel_c, pixel_r, blk_w, blk_h);
     }
 #endif  // CONFIG_CROSS_CHROMA_TX
-    mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+    mismatch_record_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                              plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -1136,6 +1197,9 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   tran_low_t *dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
   PLANE_TYPE plane_type = get_plane_type(plane);
   uint16_t *eob = &p->eobs[block];
+#if CONFIG_ATC_DCTX_ALIGNED
+  uint16_t *bob_code = &p->bobs[block];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const int dst_stride = pd->dst.stride;
   uint16_t *dst =
       &pd->dst.buf[(blk_row * dst_stride + blk_col) << MI_SIZE_LOG2];
@@ -1155,9 +1219,14 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
                       blk_row, pd->subsampling_x, pd->subsampling_y);
     }
-    mismatch_record_block_pre(
-        pd->dst.buf, pd->dst.stride, cm->current_frame.order_hint, plane,
-        pixel_c, pixel_r, tx_size_wide[tx_size], tx_size_high[tx_size]);
+    mismatch_record_block_pre(pd->dst.buf, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              cm->current_frame.display_order_hint,
+#else
+                              cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              plane, pixel_c, pixel_r, tx_size_wide[tx_size],
+                              tx_size_high[tx_size]);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -1175,6 +1244,9 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   if (plane == 0 && is_blk_skip(x->txfm_search_info.blk_skip, plane,
                                 blk_row * bw + blk_col)) {
     *eob = 0;
+#if CONFIG_ATC_DCTX_ALIGNED
+    *bob_code = 0;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     p->txb_entropy_ctx[block] = 0;
 #if DEBUG_EXTQUANT
     if (args->dry_run == OUTPUT_ENABLED) {
@@ -1260,6 +1332,43 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
                          cm->quant_params.base_qindex);
     }
+#if CONFIG_ATC_DCTX_ALIGNED
+    // make sure recon is correct at the encoder
+    if (*eob == 1 && tx_type != 0 && plane == 0) {
+      xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col] = DCT_DCT;
+      tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
+                                cm->features.reduced_tx_set_used);
+      av1_setup_xform(cm, x, plane, tx_size, tx_type,
+#if CONFIG_CROSS_CHROMA_TX
+                      CCTX_NONE,
+#endif  // CONFIG_CROSS_CHROMA_TX
+                      &txfm_param);
+      av1_setup_quant(tx_size, use_trellis, quant_idx,
+                      cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
+      av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
+                        &quant_param);
+      av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
+                      &txfm_param, &quant_param);
+      if (quant_param.use_optimize_b && do_trellis) {
+        TXB_CTX txb_ctx;
+        get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
+                    mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+        av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
+#if CONFIG_CROSS_CHROMA_TX
+                       CCTX_NONE,
+#endif  // CONFIG_CROSS_CHROMA_TX
+                       &txb_ctx, &dummy_rate_cost);
+      }
+      if (do_dropout && !fsc_mode
+#if CONFIG_PAR_HIDING
+          && !enable_parity_hiding
+#endif  // CONFIG_PAR_HIDING
+      ) {
+        av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
+                           cm->quant_params.base_qindex);
+      }
+    }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
 #if CONFIG_PAR_HIDING
     if (!quant_param.use_optimize_b && enable_parity_hiding) {
       parity_hiding_trellis_off(cpi, x, plane, block, tx_size, tx_type);
@@ -1312,7 +1421,12 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       mi_to_pixel_loc(&pixel_c, &pixel_r, xd->mi_col, xd->mi_row, blk_col,
                       blk_row, pd->subsampling_x, pd->subsampling_y);
     }
-    mismatch_record_block_tx(dst, pd->dst.stride, cm->current_frame.order_hint,
+    mismatch_record_block_tx(dst, pd->dst.stride,
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                              plane, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -1323,11 +1437,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   if (plane == AOM_PLANE_Y && xd->cfl.store_y && xd->tree_type == SHARED_PART) {
 #if CONFIG_ADAPTIVE_DS_FILTER
     cfl_store_tx(xd, blk_row, blk_col, tx_size,
-#if DS_FRAME_LEVEL
-                 cm->features.ds_filter_type);
-#else
                  cm->seq_params.enable_cfl_ds_filter);
-#endif  // DS_FRAME_LEVEL
 #else
     cfl_store_tx(xd, blk_row, blk_col, tx_size);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
@@ -1402,13 +1512,21 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                     xd->mi[0]->chroma_ref_info.mi_row_chroma_base, blk_col,
                     blk_row, pd_c1->subsampling_x, pd_c1->subsampling_y);
     mismatch_record_block_pre(pd_c1->dst.buf, pd_c1->dst.stride,
-                              cm->current_frame.order_hint, AOM_PLANE_U,
-                              pixel_c, pixel_r, tx_size_wide[tx_size],
-                              tx_size_high[tx_size]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              cm->current_frame.display_order_hint,
+#else
+                              cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              AOM_PLANE_U, pixel_c, pixel_r,
+                              tx_size_wide[tx_size], tx_size_high[tx_size]);
     mismatch_record_block_pre(pd_c2->dst.buf, pd_c2->dst.stride,
-                              cm->current_frame.order_hint, AOM_PLANE_V,
-                              pixel_c, pixel_r, tx_size_wide[tx_size],
-                              tx_size_high[tx_size]);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              cm->current_frame.display_order_hint,
+#else
+                              cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                              AOM_PLANE_V, pixel_c, pixel_r,
+                              tx_size_wide[tx_size], tx_size_high[tx_size]);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -1447,6 +1565,14 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                            (INTRA_BLOCK_OPT_TYPE == DROPOUT_OPT ||
                             INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
   for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
+#if CONFIG_ATC_DCTX_ALIGNED
+    int skip_cctx = !is_inter_block(xd->mi[0], xd->tree_type) && *eob_c1 == 1;
+    if (plane == AOM_PLANE_V && skip_cctx) {
+      update_cctx_array(xd, blk_row, blk_col, 0, 0,
+                        args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
+      cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
+    }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     // Since eob can be updated here, make sure cctx_type is always CCTX_NONE
     // when eob of U is 0.
     if (plane == AOM_PLANE_V && *eob_c1 == 0) {
@@ -1486,6 +1612,33 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
                          cm->quant_params.base_qindex);
     }
+#if CONFIG_ATC_DCTX_ALIGNED
+    skip_cctx = !is_inter_block(xd->mi[0], xd->tree_type) && *eob_c1 == 1;
+    if (plane == AOM_PLANE_V && skip_cctx) {
+      update_cctx_array(xd, blk_row, blk_col, 0, 0,
+                        args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
+      cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
+      av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
+                        &quant_param);
+      av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
+                      &txfm_param, &quant_param);
+      if (quant_param.use_optimize_b && do_trellis) {
+        const ENTROPY_CONTEXT *a =
+            &args->ta[blk_col + (plane - AOM_PLANE_U) * MAX_MIB_SIZE];
+        const ENTROPY_CONTEXT *l =
+            &args->tl[blk_row + (plane - AOM_PLANE_U) * MAX_MIB_SIZE];
+        TXB_CTX txb_ctx;
+        get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
+                    xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
+        av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
+                       &txb_ctx, &dummy_rate_cost);
+      }
+      if (do_dropout) {
+        av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
+                           cm->quant_params.base_qindex);
+      }
+    }
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   }
 
   if (*eob_c1 || *eob_c2) {
@@ -1522,11 +1675,19 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                     xd->mi[0]->chroma_ref_info.mi_row_chroma_base, blk_col,
                     blk_row, pd_c1->subsampling_x, pd_c1->subsampling_y);
     mismatch_record_block_tx(dst_c1, pd_c1->dst.stride,
-                             cm->current_frame.order_hint, AOM_PLANE_U, pixel_c,
-                             pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             AOM_PLANE_U, pixel_c, pixel_r, blk_w, blk_h);
     mismatch_record_block_tx(dst_c2, pd_c2->dst.stride,
-                             cm->current_frame.order_hint, AOM_PLANE_V, pixel_c,
-                             pixel_r, blk_w, blk_h);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             cm->current_frame.display_order_hint,
+#else
+                             cm->current_frame.order_hint,
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+                             AOM_PLANE_V, pixel_c, pixel_r, blk_w, blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 

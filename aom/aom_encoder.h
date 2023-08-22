@@ -122,8 +122,12 @@ typedef struct aom_codec_cx_pkt {
       int partition_id;
       /*!\brief size of the visible frame in this packet */
       size_t vis_frame_size;
-    } frame;                            /**< data for compressed frame packet */
-    aom_fixed_buf_t twopass_stats;      /**< data for two-pass packet */
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      /*!\brief the number of frames in this packet */
+      int frame_count;
+#endif                             // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    } frame;                       /**< data for compressed frame packet */
+    aom_fixed_buf_t twopass_stats; /**< data for two-pass packet */
     aom_fixed_buf_t firstpass_mb_stats; /**< first pass mb packet */
     struct aom_psnr_pkt {
       unsigned int samples[4]; /**< Number of samples, total/y/u/v */
@@ -324,6 +328,18 @@ typedef struct cfg_options {
    */
   unsigned int enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  /*!\brief enable compound weighted prediction
+   *
+   */
+  unsigned int enable_cwp;
+#endif  // CONFIG_BAWP
+#if CONFIG_D071_IMP_MSK_BLD
+  /*!\brief enable implicit maksed blending
+   *
+   */
+  unsigned int enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   /*!\brief enable Forward skip coding
    *
    */
@@ -334,6 +350,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_orip;
 #endif  // CONFIG_ORIP
+#if CONFIG_IDIF
+  /*!\brief enable Intra Directional Interpolation Filter
+   *
+   */
+  unsigned int enable_idif;
+#endif  // CONFIG_IDIF
   /*!\brief enable Intra secondary transform
    *
    */
@@ -372,6 +394,13 @@ typedef struct cfg_options {
    */
   unsigned int enable_joint_mvd;
 #endif
+#if CONFIG_REFINEMV
+  /*!\brief enable refine MV mode
+   *
+   */
+  unsigned int enable_refinemv;
+#endif  // CONFIG_REFINEMV
+
   /*!\brief enable flip and identity transform type
    *
    */
@@ -539,6 +568,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  /*!\brief enable frame output order derivation based on order hint
+   *
+   */
+  unsigned int enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   /*!\brief use reduced transform type set
    *
    */

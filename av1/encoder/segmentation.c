@@ -100,6 +100,9 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
   const int bw = mi_size_wide[bsize], bh = mi_size_high[bsize];
   const int hbw = bw / 2, hbh = bh / 2;
   const int qbw = bw / 4, qbh = bh / 4;
+#if CONFIG_UNEVEN_4WAY
+  const int ebw = bw / 8, ebh = bh / 8;
+#endif  // CONFIG_UNEVEN_4WAY
 #else
   const int bs = mi_size_wide[bsize], hbs = bs / 2;
   const int qbs = bs / 4;
@@ -142,21 +145,55 @@ static void count_segs_sb(const AV1_COMMON *cm, MACROBLOCKD *xd,
     case PARTITION_HORZ_3:
       CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
       CSEGS_RECURSIVE(qbh, 0, ptree->sub_tree[tree_idx++]);
-#if CONFIG_H_PARTITION
       CSEGS_RECURSIVE(qbh, hbw, ptree->sub_tree[tree_idx++]);
-#endif  // CONFIG_H_PARTITION
       if (mi_row + 3 * qbh < mi_params->mi_rows)
         CSEGS_RECURSIVE(3 * qbh, 0, ptree->sub_tree[tree_idx++]);
       break;
     case PARTITION_VERT_3:
       CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
       CSEGS_RECURSIVE(0, qbw, ptree->sub_tree[tree_idx++]);
-#if CONFIG_H_PARTITION
       CSEGS_RECURSIVE(hbh, qbw, ptree->sub_tree[tree_idx++]);
-#endif  // CONFIG_H_PARTITION
       if (mi_col + 3 * qbw < mi_params->mi_cols)
         CSEGS_RECURSIVE(0, 3 * qbw, ptree->sub_tree[tree_idx++]);
       break;
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 3 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(3 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 7 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(7 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_HORZ_4B:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 5 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(5 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_row + 7 * ebh < mi_params->mi_rows)
+        CSEGS_RECURSIVE(7 * ebh, 0, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_VERT_4A:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_col + ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 3 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 3 * ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 7 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 7 * ebw, ptree->sub_tree[tree_idx++]);
+      break;
+    case PARTITION_VERT_4B:
+      CSEGS_RECURSIVE(0, 0, ptree->sub_tree[tree_idx++]);
+      if (mi_col + ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 5 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 5 * ebw, ptree->sub_tree[tree_idx++]);
+      if (mi_col + 7 * ebw < mi_params->mi_cols)
+        CSEGS_RECURSIVE(0, 7 * ebw, ptree->sub_tree[tree_idx++]);
+      break;
+#endif  // CONFIG_UNEVEN_4WAY
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_NONE: CSEGS(bs, bs, 0, 0); break;
     case PARTITION_HORZ:

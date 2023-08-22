@@ -221,7 +221,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   }
 #if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -230,7 +230,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   av1_make_default_fullpel_ms_params(
       &ms_params, cpi, x, bsize, ref_mv, pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
       is_ibc_cost,
 #endif
       first_pass_search_sites, fine_search_interval);
@@ -688,6 +688,9 @@ static int firstpass_inter_prediction(
     xd->mi[0]->tx_size = TX_4X4;
     xd->mi[0]->ref_frame[0] = get_closest_pastcur_ref_index(cm);
     xd->mi[0]->ref_frame[1] = NONE_FRAME;
+#if CONFIG_CWP
+    xd->mi[0]->cwp_idx = CWP_EQUAL;
+#endif  // CONFIG_CWP
     av1_enc_build_inter_predictor(cm, xd, mb_row * mb_scale, mb_col * mb_scale,
                                   NULL, bsize, AOM_PLANE_Y, AOM_PLANE_Y);
     av1_encode_sby_pass1(cpi, x, bsize);
@@ -984,6 +987,9 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     x->plane[i].coeff = ctx->coeff[i];
     x->plane[i].qcoeff = ctx->qcoeff[i];
     x->plane[i].eobs = ctx->eobs[i];
+#if CONFIG_ATC_DCTX_ALIGNED
+    x->plane[i].bobs = ctx->bobs[i];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     x->plane[i].txb_entropy_ctx = ctx->txb_entropy_ctx[i];
     x->plane[i].dqcoeff = ctx->dqcoeff[i];
   }
@@ -1087,14 +1093,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
     cpi->is_screen_content_type = features->allow_screen_content_tools;
   }
 #if CONFIG_ADAPTIVE_DS_FILTER
-#if DS_FRAME_LEVEL
-  if (cm->current_frame.frame_type == KEY_FRAME) {
-    FeatureFlags *const features = &cm->features;
-    av1_set_downsample_filter_options(cpi, features);
-#else
-  if (cpi->common.current_frame.absolute_poc == 0) {
+  if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     av1_set_downsample_filter_options(cpi);
-#endif  // DS_FRAME_LEVEL
   }
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
   // First pass coding proceeds in raster scan order with unit size of 16x16.

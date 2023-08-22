@@ -78,7 +78,7 @@ TEST(AV1, TestBitIO) {
           } else if (bit_method == 3) {
             bit = bit_rnd(2);
           }
-          GTEST_ASSERT_EQ(aom_read(&br, probas[i], NULL), bit)
+          GTEST_ASSERT_EQ(aom_read(&br, probas[i], {}), bit)
               << "pos: " << i << " / " << kBitsToTest
               << " bit_method: " << bit_method << " method: " << method;
         }
@@ -105,25 +105,26 @@ TEST(AV1, TestTell) {
     aom_reader br;
     aom_reader_init(&br, bw_buffer, bw.pos);
     uint32_t last_tell = aom_reader_tell(&br);
-    uint32_t last_tell_frac = aom_reader_tell_frac(&br);
+    uint64_t last_tell_frac = aom_reader_tell_frac(&br);
     double frac_diff_total = 0;
     GTEST_ASSERT_GE(aom_reader_tell(&br), 0u);
     GTEST_ASSERT_LE(aom_reader_tell(&br), 1u);
     ASSERT_FALSE(aom_reader_has_overflowed(&br));
     for (int i = 0; i < kSymbols; i++) {
-      aom_read(&br, p, NULL);
+      aom_read(&br, p, {});
       uint32_t tell = aom_reader_tell(&br);
-      uint32_t tell_frac = aom_reader_tell_frac(&br);
+      uint64_t tell_frac = aom_reader_tell_frac(&br);
       GTEST_ASSERT_GE(tell, last_tell)
           << "tell: " << tell << ", last_tell: " << last_tell;
       GTEST_ASSERT_GE(tell_frac, last_tell_frac)
           << "tell_frac: " << tell_frac
           << ", last_tell_frac: " << last_tell_frac;
       // Frac tell should round up to tell.
-      GTEST_ASSERT_EQ(tell, (tell_frac + 7) >> 3);
+      GTEST_ASSERT_EQ(tell, (tell_frac + (1 << OD_BITRES) - 1) >> OD_BITRES);
       last_tell = tell;
       frac_diff_total +=
-          fabs(((tell_frac - last_tell_frac) / 8.0) + log2(probability));
+          fabs(((tell_frac - last_tell_frac) / (double)(1 << OD_BITRES)) +
+               log2(probability));
       last_tell_frac = tell_frac;
     }
     const uint32_t expected = (uint32_t)(-kSymbols * log2(probability));
@@ -152,7 +153,7 @@ TEST(AV1, TestHasOverflowedLarge) {
     aom_reader_init(&br, bw_buffer, bw.pos);
     ASSERT_FALSE(aom_reader_has_overflowed(&br));
     for (int i = 0; i < kSymbols; i++) {
-      GTEST_ASSERT_EQ(aom_read(&br, p, NULL), 1);
+      GTEST_ASSERT_EQ(aom_read(&br, p, {}), 1);
       ASSERT_FALSE(aom_reader_has_overflowed(&br));
     }
     // In the worst case, the encoder uses just a tiny fraction of the last
@@ -171,11 +172,11 @@ TEST(AV1, TestHasOverflowedLarge) {
     // additional bits; therefore the number of reads should be increased;
     // 174 * 8 will be enough to consume more than this number of bits.
     for (int i = 0; i < 174 * 8; i++) {
-      aom_read(&br, p, NULL);
+      aom_read(&br, p, {});
     }
 #else
     for (int i = 0; i < 174; i++) {
-      aom_read(&br, p, NULL);
+      aom_read(&br, p, {});
     }
 #endif
     ASSERT_TRUE(aom_reader_has_overflowed(&br));

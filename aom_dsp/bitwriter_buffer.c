@@ -92,6 +92,13 @@ void aom_wb_write_uvlc(struct aom_write_bit_buffer *wb, uint32_t v) {
 void aom_wb_write_primitive_quniform(struct aom_write_bit_buffer *wb,
                                      uint16_t n, uint16_t v) {
   if (n <= 1) return;
+  assert(v < n);
+  // Split the valid range into two.
+  // The encoded value is in the range [0, n), but in order to map a range
+  // which may not be a power of 2 onto a binary code, we split into the
+  // sub-ranges [0, m) and [m, n), where m is an intermediate point.
+  // Values in the range [0, m) then use one fewer bit than values in
+  // the range [m, n).
   const int l = get_msb(n) + 1;
   const int m = (1 << l) - n;
   if (v < m) {

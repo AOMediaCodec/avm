@@ -26,7 +26,7 @@ typedef struct {
 } FwdKfTestParam;
 
 const FwdKfTestParam kTestParams[] = {
-  { 4, 31.1 },  { 6, 31.1 },  { 8, 32.6 },
+  { 4, 31.1 },  { 6, 31.1 },  { 8, 32.3 },
   { 12, 31.7 }, { 16, 32.3 }, { 18, 32.1 }
 };
 
@@ -183,7 +183,7 @@ TEST_P(ForwardKeyPresenceTestLarge, ForwardKeyEncodePresenceTest) {
   is_fwd_kf_present_ = 0;
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      cfg_.g_timebase.den, cfg_.g_timebase.num,
-                                     0, 150);
+                                     0, 60);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(is_fwd_kf_present_, 1);
 }

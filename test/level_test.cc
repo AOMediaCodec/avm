@@ -26,21 +26,21 @@ const int kLevelMax = 31;
 const int kLevelKeepStats = 24;
 // Speed settings tested
 static const int kCpuUsedVectors[] = {
-  1,
   2,
   3,
   4,
+  5,
 };
 
-class LevelTest
+class LevelTestLarge
     : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode, int>,
       public ::libaom_test::EncoderTest {
  protected:
-  LevelTest()
+  LevelTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         cpu_used_(GET_PARAM(2)), target_level_(31) {}
 
-  virtual ~LevelTest() {}
+  virtual ~LevelTestLarge() {}
 
   virtual void SetUp() {
     InitializeConfig();
@@ -70,7 +70,7 @@ class LevelTest
   int level_[32];
 };
 
-TEST_P(LevelTest, TestTargetLevelApi) {
+TEST_P(LevelTestLarge, TestTargetLevelApi) {
   static aom_codec_iface_t *codec = &aom_codec_av1_cx_algo;
   aom_codec_ctx_t enc;
   aom_codec_enc_cfg_t cfg;
@@ -96,7 +96,7 @@ TEST_P(LevelTest, TestTargetLevelApi) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
-TEST_P(LevelTest, TestTargetLevel19) {
+TEST_P(LevelTestLarge, TestTargetLevel19) {
   std::unique_ptr<libaom_test::VideoSource> video;
   video.reset(new libaom_test::Y4mVideoSource("park_joy_90p_8_420.y4m", 0, 10));
   ASSERT_TRUE(video.get() != NULL);
@@ -105,9 +105,9 @@ TEST_P(LevelTest, TestTargetLevel19) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(video.get()));
 }
 
-TEST_P(LevelTest, TestLevelMonitoringLowBitrate) {
+TEST_P(LevelTestLarge, TestLevelMonitoringLowBitrate) {
   // To save run time, we only test speed 4.
-  if (cpu_used_ == 4) {
+  if (cpu_used_ == 5) {
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 40);
     target_level_ = kLevelKeepStats;
@@ -118,22 +118,23 @@ TEST_P(LevelTest, TestLevelMonitoringLowBitrate) {
   }
 }
 
-TEST_P(LevelTest, TestLevelMonitoringHighBitrate) {
+TEST_P(LevelTestLarge, TestLevelMonitoringHighBitrate) {
   // To save run time, we only test speed 4.
-  if (cpu_used_ == 4) {
+  if (cpu_used_ == 5) {
+    const int num_frames = 17;
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                       30, 1, 0, 40);
+                                       30, 1, 0, num_frames);
     target_level_ = kLevelKeepStats;
     cfg_.rc_target_bitrate = 4000;
-    cfg_.g_limit = 40;
+    cfg_.g_limit = num_frames;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
     ASSERT_EQ(level_[0], 4);
   }
 }
 
-TEST_P(LevelTest, TestTargetLevel0) {
+TEST_P(LevelTestLarge, TestTargetLevel0) {
   // To save run time, we only test speed 4.
-  if (cpu_used_ == 4) {
+  if (cpu_used_ == 5) {
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 50);
     const int target_level = 0;
@@ -144,7 +145,7 @@ TEST_P(LevelTest, TestTargetLevel0) {
   }
 }
 
-AV1_INSTANTIATE_TEST_SUITE(LevelTest,
+AV1_INSTANTIATE_TEST_SUITE(LevelTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood),
                            ::testing::ValuesIn(kCpuUsedVectors));
 }  // namespace

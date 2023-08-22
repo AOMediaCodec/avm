@@ -20,7 +20,8 @@
 #include "aom_ports/mem.h"
 
 // SAD
-static INLINE unsigned int get_sad_from_mm256_epi32(const __m256i *v) {
+static AOM_FORCE_INLINE unsigned int get_sad_from_mm256_epi32(
+    const __m256i *v) {
   // input 8 32-bit summation
   __m128i lo128, hi128;
   __m256i u = _mm256_srli_si256(*v, 8);
@@ -38,8 +39,8 @@ static INLINE unsigned int get_sad_from_mm256_epi32(const __m256i *v) {
   return (unsigned int)_mm_cvtsi128_si32(lo128);
 }
 
-static INLINE void highbd_sad16x4_core_avx2(__m256i *s, __m256i *r,
-                                            __m256i *sad_acc) {
+static AOM_FORCE_INLINE void highbd_sad16x4_core_avx2(__m256i *s, __m256i *r,
+                                                      __m256i *sad_acc) {
   const __m256i zero = _mm256_setzero_si256();
   int i;
   for (i = 0; i < 4; i++) {
@@ -59,9 +60,10 @@ static INLINE void highbd_sad16x4_core_avx2(__m256i *s, __m256i *r,
 }
 
 // If sec_ptr = 0, calculate regular SAD. Otherwise, calculate average SAD.
-static INLINE void sad16x4(const uint16_t *src_ptr, int src_stride,
-                           const uint16_t *ref_ptr, int ref_stride,
-                           const uint16_t *sec_ptr, __m256i *sad_acc) {
+static AOM_FORCE_INLINE void sad16x4(const uint16_t *src_ptr, int src_stride,
+                                     const uint16_t *ref_ptr, int ref_stride,
+                                     const uint16_t *sec_ptr,
+                                     __m256i *sad_acc) {
   __m256i s[4], r[4];
   s[0] = _mm256_loadu_si256((const __m256i *)src_ptr);
   s[1] = _mm256_loadu_si256((const __m256i *)(src_ptr + src_stride));
@@ -98,9 +100,10 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad16xN_avx2(
   return (unsigned int)get_sad_from_mm256_epi32(&sad);
 }
 
-static void sad32x4(const uint16_t *src_ptr, int src_stride,
-                    const uint16_t *ref_ptr, int ref_stride,
-                    const uint16_t *sec_ptr, __m256i *sad_acc) {
+static AOM_FORCE_INLINE void sad32x4(const uint16_t *src_ptr, int src_stride,
+                                     const uint16_t *ref_ptr, int ref_stride,
+                                     const uint16_t *sec_ptr,
+                                     __m256i *sad_acc) {
   __m256i s[4], r[4];
   int row_sections = 0;
 
@@ -149,9 +152,10 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad32xN_avx2(
   return get_sad_from_mm256_epi32(&sad);
 }
 
-static void sad64x2(const uint16_t *src_ptr, int src_stride,
-                    const uint16_t *ref_ptr, int ref_stride,
-                    const uint16_t *sec_ptr, __m256i *sad_acc) {
+static AOM_FORCE_INLINE void sad64x2(const uint16_t *src_ptr, int src_stride,
+                                     const uint16_t *ref_ptr, int ref_stride,
+                                     const uint16_t *sec_ptr,
+                                     __m256i *sad_acc) {
   __m256i s[4], r[4];
   int i;
   for (i = 0; i < 2; i++) {
@@ -589,8 +593,8 @@ unsigned int aom_highbd_sad256x256_avg_avx2(const uint16_t *src, int src_stride,
 
 // SAD 4D
 // Combine 4 __m256i input vectors  v to uint32_t result[4]
-static INLINE void get_4d_sad_from_mm256_epi32(const __m256i *v,
-                                               uint32_t *res) {
+static AOM_FORCE_INLINE void get_4d_sad_from_mm256_epi32(const __m256i *v,
+                                                         uint32_t *res) {
   __m256i u0, u1, u2, u3;
   const __m256i mask = yy_set1_64_from_32i(UINT32_MAX);
   __m128i sad;
@@ -628,7 +632,7 @@ static INLINE void get_4d_sad_from_mm256_epi32(const __m256i *v,
   _mm_storeu_si128((__m128i *)res, sad);
 }
 
-static void init_sad(__m256i *s) {
+static AOM_FORCE_INLINE void init_sad(__m256i *s) {
   s[0] = _mm256_setzero_si256();
   s[1] = _mm256_setzero_si256();
   s[2] = _mm256_setzero_si256();

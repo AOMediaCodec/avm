@@ -118,6 +118,7 @@ static AOM_INLINE void clamp_tip_smvp_refmv(const AV1_COMMON *const cm, MV *mv,
   *mv = get_mv_from_fullmv(&fullmv);
 }
 
+#if !CONFIG_REFINEMV
 // Clamp MV to UMV border based on its distance to left/right/top/bottom edge
 static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
     InterPredParams *const inter_pred_params, const MV *src_mv, int bw, int bh,
@@ -172,7 +173,7 @@ static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
 
   return clamped_mv;
 }
-
+#endif  //! CONFIG_REFINEMV
 #ifdef __cplusplus
 }  // extern "C"
 #endif

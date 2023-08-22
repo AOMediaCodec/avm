@@ -63,8 +63,10 @@ typedef void (*aom_inspect_cb)(void *decoder, void *ctx);
  * context.
  */
 typedef struct aom_inspect_init {
-  /*! Inspection callback. */
+  /*! Inspection callback (per frame). */
   aom_inspect_cb inspect_cb;
+  /*! Inspection callback (per superblock). */
+  aom_inspect_cb inspect_sb_cb;
 
   /*! Inspection context. */
   void *inspect_ctx;

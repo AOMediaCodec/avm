@@ -13,6 +13,7 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 import os
 import re
 import sys
+from csv import DictReader
 import subprocess
 import time
 import logging
@@ -81,6 +82,7 @@ class Record:
     apsnr_u = 0.0
     apsnr_v = 0.0
     overall_apsnr = 0.0
+    cambi = 0.0
     enc_time = 0.0
     dec_time = 0.0
     enc_instr = 0.0
@@ -91,7 +93,7 @@ class Record:
     def __init__(self, test_cfg, encode_mode , codec_name, encode_preset, file_class, file_name,
                  orig_res, fps, bit_depth, coded_res, qp, bitrate, psnr_y, psnr_u, psnr_v,
                  ssim_y, ms_ssim_y, vmaf_y, vmaf_y_neg, psnr_hvs, ciede2k, apsnr_y, apsnr_u,
-                 apsnr_v, enc_time, dec_time, enc_instr, dec_instr, enc_cycle, dec_cycle):
+                 apsnr_v, cambi, enc_time, dec_time, enc_instr, dec_instr, enc_cycle, dec_cycle):
 
         self.test_cfg = test_cfg
         self.encode_mode = encode_mode
@@ -124,6 +126,7 @@ class Record:
                                                    APSNR_U_WEIGHT/pow(10, (self.apsnr_u / 10)) +
                                                    APSNR_V_WEIGHT/pow(10, (self.apsnr_v / 10))) /
                                               (APSNR_Y_WEIGHT + APSNR_U_WEIGHT + APSNR_V_WEIGHT)))
+        self.cambi = float(cambi)
         self.enc_time = float(enc_time)
         self.dec_time = float(dec_time)
         self.enc_instr = float(enc_instr)
@@ -133,20 +136,22 @@ class Record:
 
 def ParseCSVFile(csv_file):
     records = {}
-    csv = open(csv_file, 'rt')
-    for line in csv:
-        if not line.startswith('TestCfg'):
-            words = re.split(',', line.strip())
-            record = Record(words[0], words[1], words[2], words[3], words[4], words[5], words[6], words[7], words[8],
-                            words[9], words[10], words[11], words[12], words[13], words[14], words[15], words[16],
-                            words[17],words[18], words[19], words[20], words[21], words[22], words[23], words[24],
-                            words[25], words[26],words[27], words[28],words[29])
-            key = record.coded_res + "_" + record.qp
-            if record.file_name not in records.keys():
-                records[record.file_name] = {}
-            records[record.file_name][key] = record
+    with open(csv_file, 'r') as f:
+        list_of_data = list(DictReader(f))
+        for data in list_of_data:
+            key = data['CodedRes'] + "_" + data['QP']
+            name = data['Name']
+            record = Record(data['TestCfg'], data['EncodeMethod'], data['CodecName'], data['EncodePreset'],
+                            data['Class'], data['Name'], data['OrigRes'], data['FPS'], data['BitDepth'],
+                            data['CodedRes'], data['QP'], data['Bitrate(kbps)'], data['PSNR_Y'], data['PSNR_U'],
+                            data['PSNR_V'], data['SSIM_Y(dB)'], data['MS-SSIM_Y(dB)'], data['VMAF_Y'],
+                            data['VMAF_Y-NEG'], data['PSNR-HVS'], data['CIEDE2000'], data['APSNR_Y'],
+                            data['APSNR_U'], data['APSNR_V'], data['CAMBI'], data['EncT[s]'], data['DecT[s]'],
+                            data['EncInstr'], data['DecInstr'], data['EncCycles'], data['DecCycles'])
 
-    csv.close()
+            if name not in records.keys():
+                records[name] = {}
+            records[name][key] = record
     return records
 
 def Cleanfolder(folder):

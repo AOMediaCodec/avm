@@ -459,10 +459,19 @@ static INLINE void store_winner_mode_stats(
 
     winner_mode_stats[mode_idx].rd_cost = *rd_cost;
     if (txfm_search_done) {
+#if CONFIG_SKIP_TXFM_OPT
+      winner_mode_stats[mode_idx].rate_y =
+          rd_cost_y->rate +
+          (!is_intra_mode
+               ? x->mode_costs
+                     .skip_txfm_cost[skip_ctx][rd_cost->skip_txfm || skip_txfm]
+               : 0);
+#else
       winner_mode_stats[mode_idx].rate_y =
           rd_cost_y->rate +
           x->mode_costs
               .skip_txfm_cost[skip_ctx][rd_cost->skip_txfm || skip_txfm];
+#endif  // CONFIG_SKIP_TXFM_OPT
       winner_mode_stats[mode_idx].rate_uv = rd_cost_uv->rate;
     }
   }

@@ -321,6 +321,17 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 
   cpi->td.mb.rdmult = cpi->rd.RDMULT;
 
+  double no_deblocking_cost[MAX_MB_PLANE] = { DBL_MAX, DBL_MAX, DBL_MAX };
+
+  for (int i = 0; i < num_planes; i++) {
+    const int chroma_lambda_mult = i ? CHROMA_LAMBDA_MULT : 1;
+    const int64_t no_deblocking_sse =
+        aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, i);
+    no_deblocking_cost[i] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        cpi->td.mb.rdmult * chroma_lambda_mult, 0, no_deblocking_sse,
+        cm->seq_params.bit_depth);
+  }
+
   if (method == LPF_PICK_MINIMAL_LPF) {
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
@@ -416,7 +427,12 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     last_frame_offsets[2] = lf->delta_q_luma[1] = lf->delta_side_luma[1];
 #endif  // DF_TWO_PARAM
 
-    if (best_single_cost < best_dual_cost) {
+    if (no_deblocking_cost[0] < AOMMIN(best_single_cost, best_dual_cost)) {
+      lf->filter_level[0] = 0;
+      lf->filter_level[1] = 0;
+      lf->delta_q_luma[0] = lf->delta_side_luma[0] = lf->delta_q_luma[1] =
+          lf->delta_side_luma[1] = 0;
+    } else if (best_single_cost < best_dual_cost) {
       lf->delta_q_luma[0] = last_frame_offsets[0] = best_single_offsets[0];
       lf->delta_side_luma[0] = last_frame_offsets[1] = best_single_offsets[1];
       lf->delta_q_luma[1] = last_frame_offsets[2] = best_single_offsets[2];
@@ -424,10 +440,12 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     }
 
     if (num_planes > 1) {
+      double best_cost_u = DBL_MAX;
+      double best_cost_v = DBL_MAX;
       // Cb
       last_frame_offsets[5] = lf->delta_side_u =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, NULL, 1, 1, dir);
+                                last_frame_offsets, &best_cost_u, 1, 1, dir);
 #if DF_TWO_PARAM
       last_frame_offsets[4] = lf->delta_q_u =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
@@ -438,7 +456,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 
       last_frame_offsets[5] = lf->delta_side_u =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, NULL, 1, 1, dir);
+                                last_frame_offsets, &best_cost_u, 1, 1, dir);
 #if DF_TWO_PARAM
       last_frame_offsets[4] = lf->delta_q_u =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
@@ -446,10 +464,16 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 #else
       last_frame_offsets[4] = lf->delta_q_u = lf->delta_side_u;
 #endif  // DF_TWO_PARAM
+
+      if (no_deblocking_cost[1] < best_cost_u) {
+        lf->filter_level_u = 0;
+        lf->delta_q_u = lf->delta_side_u = 0;
+      }
+
       // Cr
       last_frame_offsets[7] = lf->delta_side_v =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, NULL, 2, 1, dir);
+                                last_frame_offsets, &best_cost_v, 2, 1, dir);
 #if DF_TWO_PARAM
       last_frame_offsets[6] = lf->delta_q_v =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
@@ -459,7 +483,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 #endif  // DF_TWO_PARAM
       last_frame_offsets[7] = lf->delta_side_v =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
-                                last_frame_offsets, NULL, 2, 1, dir);
+                                last_frame_offsets, &best_cost_v, 2, 1, dir);
 #if DF_TWO_PARAM
       last_frame_offsets[6] = lf->delta_q_v =
           search_filter_offsets(sd, cpi, method == LPF_PICK_FROM_SUBIMAGE,
@@ -467,6 +491,11 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 #else
       last_frame_offsets[6] = lf->delta_q_v = lf->delta_side_v;
 #endif  // DF_TWO_PARAM
+
+      if (no_deblocking_cost[2] < best_cost_v) {
+        lf->filter_level_v = 0;
+        lf->delta_q_v = lf->delta_side_v = 0;
+      }
 
       // to switch off filters if offsets are zero
       if (!df_quant_from_qindex(cm->quant_params.base_qindex +

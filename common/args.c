@@ -96,10 +96,19 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_BAWP
     GET_PARAMS(enable_bawp);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+    GET_PARAMS(enable_cwp);
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+    GET_PARAMS(enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
     GET_PARAMS(enable_fsc);
 #if CONFIG_ORIP
     GET_PARAMS(enable_orip);
 #endif
+#if CONFIG_IDIF
+    GET_PARAMS(enable_idif);
+#endif  // CONFIG_IDIF
     GET_PARAMS(enable_ist);
 #if CONFIG_CROSS_CHROMA_TX
     GET_PARAMS(enable_cctx);
@@ -117,6 +126,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_JOINT_MVD
     GET_PARAMS(enable_joint_mvd);
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+    GET_PARAMS(enable_refinemv);
+#endif  // CONFIG_REFINEMV
     GET_PARAMS(enable_flip_idtx);
     GET_PARAMS(enable_deblocking);
     GET_PARAMS(enable_cdef);

@@ -98,7 +98,7 @@ static void tf_motion_search(AV1_COMP *cpi,
   // Save input state.
 #if CONFIG_FLEX_MVRES
   const AV1_COMMON *cm = &cpi->common;
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -153,7 +153,7 @@ static void tf_motion_search(AV1_COMP *cpi,
                                      &baseline_mv,
 #if CONFIG_FLEX_MVRES
                                      pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
 #endif
@@ -226,7 +226,7 @@ static void tf_motion_search(AV1_COMP *cpi,
                                            subblock_size, &baseline_mv,
 #if CONFIG_FLEX_MVRES
                                            pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                            is_ibc_cost,
 #endif
 #endif
@@ -1111,9 +1111,19 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
 
   // Set showable frame.
   if (filter_frame_lookahead_idx >= 0) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    // When enable_frame_output_order == 1, it is intended to set showable_frame
+    // to one only for the coded frames to be outputted. When enable_overlay ==
+    // 1, showable_frame of the filtered frame is set to zero by default.
+    cpi->common.showable_frame =
+        (!cpi->oxcf.ref_frm_cfg.enable_frame_output_order &&
+         (num_frames_for_filtering == 1 || is_second_arf)) ||
+        cpi->oxcf.ref_frm_cfg.enable_frame_output_order ||
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     cpi->common.showable_frame = num_frames_for_filtering == 1 ||
                                  is_second_arf ||
-                                 (cpi->oxcf.algo_cfg.enable_overlay == 0);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        (cpi->oxcf.algo_cfg.enable_overlay == 0);
   }
 
   // Do filtering.

@@ -145,27 +145,61 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
   // Also use the number of reference MVs for a frame type to reduce the
   // number of bits written if there are less than 4 valid DRL indices.
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SEP_COMP_DRL
+  if (has_second_drl(mbmi)) {
+    if (mbmi->mode == NEAR_NEWMV)
+      max_drl_bits = AOMMIN(max_drl_bits, SEP_COMP_DRL_SIZE);
+    else
+      assert(mbmi->mode == NEAR_NEARMV);
+  }
+
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+  if (mbmi->skip_mode)
+    assert(mbmi->ref_mv_idx[0] <
+           mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
+  else
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+    assert(mbmi->ref_mv_idx[0] < mbmi_ext_frame->ref_mv_count[0]);
+  if (has_second_drl(mbmi))
+    assert(mbmi->ref_mv_idx[1] < mbmi_ext_frame->ref_mv_count[1]);
+  assert(mbmi->ref_mv_idx[0] < max_drl_bits + 1);
+  if (has_second_drl(mbmi)) assert(mbmi->ref_mv_idx[1] < max_drl_bits + 1);
+  for (int ref = 0; ref < 1 + has_second_drl(mbmi); ref++) {
+    for (int idx = 0; idx < max_drl_bits; ++idx) {
+      aom_cdf_prob *drl_cdf =
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+          mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
+                          : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref],
+                                            mode_ctx, idx);
+#else
+          av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref], mode_ctx, idx);
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+      aom_write_symbol(w, mbmi->ref_mv_idx[ref] != idx, drl_cdf, 2);
+      if (mbmi->ref_mv_idx[ref] == idx) break;
+    }
+  }
+#else
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode)
     assert(mbmi->ref_mv_idx <
            mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
   else
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
-
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
         mbmi->skip_mode
             ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
             : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
 #else
         av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     aom_write_symbol(w, mbmi->ref_mv_idx != idx, drl_cdf, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
+#endif  // CONFIG_SEP_COMP_DRL
 }
 #if CONFIG_WARP_REF_LIST
 static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
@@ -184,6 +218,16 @@ static void write_warp_ref_idx(FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
     if (mbmi->warp_ref_idx == bit_idx) break;
   }
 }
+#if CONFIG_CWG_D067_IMPROVED_WARP
+static void write_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx,
+                                       const MB_MODE_INFO *mbmi,
+                                       aom_writer *w) {
+  aom_write_symbol(
+      w, mbmi->warpmv_with_mvd_flag,
+      ec_ctx->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]], 2);
+}
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
 #endif  // CONFIG_WARP_REF_LIST
 
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -207,6 +251,24 @@ static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
 #endif  // CONFIG_ADAPTIVE_MVD
 }
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
+
+#if CONFIG_CWP
+// Write the index for the weighting factor of compound weighted prediction
+static AOM_INLINE void write_cwp_idx(MACROBLOCKD *xd, aom_writer *w,
+                                     const AV1_COMMON *const cm,
+                                     const MB_MODE_INFO *const mbmi) {
+  const int8_t final_idx = get_cwp_coding_idx(mbmi->cwp_idx, 1, cm, mbmi);
+
+  int bit_cnt = 0;
+  const int ctx = 0;
+  for (int idx = 0; idx < MAX_CWP_NUM - 1; ++idx) {
+    aom_write_symbol(w, final_idx != idx,
+                     xd->tile_ctx->cwp_idx_cdf[ctx][bit_cnt], 2);
+    if (final_idx == idx) break;
+    ++bit_cnt;
+  }
+}
+#endif  // CONFIG_CWP
 
 static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  PREDICTION_MODE mode,
@@ -397,10 +459,10 @@ static int write_skip_mode(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd, int segment_id,
                                       aom_writer *w, const int is_inter
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
                                       ,
                                       const int skip_txfm
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 ) {
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     assert(is_inter);
@@ -408,11 +470,11 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
   }
   const int ctx = av1_get_intra_inter_context(xd);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   aom_write_symbol(w, is_inter, ec_ctx->intra_inter_cdf[skip_txfm][ctx], 2);
 #else
   aom_write_symbol(w, is_inter, ec_ctx->intra_inter_cdf[ctx], 2);
-#endif  // CONFIG_CONTEXT_DERIVATION
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 }
 
 #if CONFIG_WEDGE_MOD_EXT
@@ -464,7 +526,11 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #if !CONFIG_WARPMV
   write_warp_ref_idx(xd->tile_ctx, mbmi, w);
 #endif  // !CONFIG_WARPMV
-  if (!allow_warp_parameter_signaling(mbmi)) {
+  if (!allow_warp_parameter_signaling(
+#if CONFIG_CWG_D067_IMPROVED_WARP
+          cm,
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+          mbmi)) {
     return;
   }
 #endif  // CONFIG_WARP_REF_LIST
@@ -501,7 +567,11 @@ static AOM_INLINE void write_motion_mode(
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w) {
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   const int allowed_motion_modes =
+#if CONFIG_SEP_COMP_DRL
+      motion_mode_allowed(cm, xd, mbmi_ext_frame->ref_mv_stack[0], mbmi);
+#else
       motion_mode_allowed(cm, xd, mbmi_ext_frame->ref_mv_stack, mbmi);
+#endif  // CONFIG_SEP_COMP_DRL
   assert((allowed_motion_modes & (1 << mbmi->motion_mode)) != 0);
   assert((cm->features.enabled_motion_modes & (1 << mbmi->motion_mode)) != 0);
 
@@ -662,7 +732,7 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
 static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
                                        int n, int cols, int rows) {
   const TokenExtra *p = *tp;
@@ -693,7 +763,7 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
   }
   *tp = p;
 }
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 static AOM_INLINE void av1_write_coeffs_txb_facade(
     aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x, MACROBLOCKD *xd,
@@ -1016,7 +1086,12 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_OPTFLOW_REFINEMENT
     // Sharp filter is always used whenever optical flow refinement is applied.
     int mb_interp_filter =
-        (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+        (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+
+#if CONFIG_REFINEMV
+         || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+         )
             ? MULTITAP_SHARP
             : cm->features.interp_filter;
 #else
@@ -1029,10 +1104,20 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   }
   if (cm->features.interp_filter == SWITCHABLE) {
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)) {
+    if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+#if CONFIG_REFINEMV
+        || mbmi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+    ) {
+#if CONFIG_REFINEMV
+      assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+                         use_opfl_refine_all(cm, mbmi) || mbmi->refinemv_flag,
+                     mbmi->interp_fltr == MULTITAP_SHARP));
+#else
       assert(IMPLIES(
           mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi),
           mbmi->interp_fltr == MULTITAP_SHARP));
+#endif  // CONFIG_REFINEMV
       return;
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -1202,16 +1287,23 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
 }
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
-                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w) {
+                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w
+#if CONFIG_ATC_DCTX_ALIGNED
+                       ,
+                       const int plane, const int eob, const int dc_skip) {
+  if (plane != PLANE_TYPE_Y || dc_skip) return;
+#else
+) {
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   PREDICTION_MODE intra_dir;
   if (mbmi->filter_intra_mode_info.use_filter_intra)
     intra_dir =
         fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
   else
     intra_dir = mbmi->mode;
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
@@ -1228,7 +1320,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     // eset == 0 should correspond to a set with only DCT_DCT and there
     // is no need to send the tx_type
     assert(eset > 0);
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
     const int size_info = av1_size_class[tx_size];
     if (!is_inter) {
       const int mode_info = av1_md_class[intra_dir];
@@ -1240,25 +1332,33 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #else
     assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
     if (is_inter) {
+#if CONFIG_ATC_DCTX_ALIGNED
+      const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
+      aom_write_symbol(
+          w, av1_ext_tx_ind[tx_set_type][tx_type],
+          ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
+          av1_num_ext_tx_set[tx_set_type]);
+#else
       aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],
                        ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
                        av1_num_ext_tx_set[tx_set_type]);
+#endif  // CONFIG_ATC_DCTX_ALIGNED
     } else {
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         return;
       }
-#if !CONFIG_ATC_NEWTXSETS
+#if !CONFIG_ATC
       PREDICTION_MODE intra_dir;
       if (mbmi->filter_intra_mode_info.use_filter_intra)
         intra_dir =
             fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
       else
         intra_dir = mbmi->mode;
-#endif  // !CONFIG_ATC_NEWTXSETS
+#endif  // !CONFIG_ATC
       aom_write_symbol(
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
           w,
           av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                              intra_dir, size_info),
@@ -1276,7 +1376,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
           w, av1_ext_tx_ind_intra[tx_set_type][get_primary_tx_type(tx_type)],
           ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
           av1_num_ext_tx_set_intra[tx_set_type]);
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
     }
   }
 }
@@ -1347,9 +1447,19 @@ static AOM_INLINE void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx,
                    INTRA_MODES);
 }
 #endif  // !CONFIG_AIMC
-static AOM_INLINE void write_mrl_index(FRAME_CONTEXT *ec_ctx, uint8_t mrl_index,
-                                       aom_writer *w) {
+static AOM_INLINE void write_mrl_index(FRAME_CONTEXT *ec_ctx,
+#if CONFIG_EXT_DIR
+                                       const MB_MODE_INFO *neighbor0,
+                                       const MB_MODE_INFO *neighbor1,
+#endif  // CONFIG_EXT_DIR
+                                       uint8_t mrl_index, aom_writer *w) {
+#if CONFIG_EXT_DIR
+  int ctx = get_mrl_index_ctx(neighbor0, neighbor1);
+  aom_cdf_prob *mrl_cdf = ec_ctx->mrl_index_cdf[ctx];
+  aom_write_symbol(w, mrl_index, mrl_cdf, MRL_LINE_NUMBER);
+#else
   aom_write_symbol(w, mrl_index, ec_ctx->mrl_index_cdf, MRL_LINE_NUMBER);
+#endif  // CONFIG_EXT_DIR
 }
 
 static AOM_INLINE void write_fsc_mode(uint8_t fsc_mode, aom_writer *w,
@@ -1645,7 +1755,11 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #endif  // CONFIG_AIMC
     // Encoding reference line index
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mode)) {
-      write_mrl_index(ec_ctx, mbmi->mrl_index, w);
+      write_mrl_index(ec_ctx,
+#if CONFIG_EXT_DIR
+                      xd->neighbors[0], xd->neighbors[1],
+#endif  // CONFIG_EXT_DIR
+                      mbmi->mrl_index, w);
     }
   }
 
@@ -1705,19 +1819,39 @@ static INLINE int16_t mode_context_analyzer(
 
 static INLINE int_mv get_ref_mv_from_stack(
     int ref_idx, const MV_REFERENCE_FRAME *ref_frame, int ref_mv_idx,
-    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
+    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame
+#if CONFIG_SEP_COMP_DRL
+    ,
+    const MB_MODE_INFO *mbmi
+#endif  // CONFIG_SEP_COMP_DRL
+) {
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
+#if CONFIG_SEP_COMP_DRL
+  const CANDIDATE_MV *curr_ref_mv_stack =
+      has_second_drl(mbmi) ? mbmi_ext_frame->ref_mv_stack[ref_idx]
+                           : mbmi_ext_frame->ref_mv_stack[0];
+#else
   const CANDIDATE_MV *curr_ref_mv_stack = mbmi_ext_frame->ref_mv_stack;
+#endif  // CONFIG_SEP_COMP_DRL
 
   if (is_inter_ref_frame(ref_frame[1])) {
     assert(ref_idx == 0 || ref_idx == 1);
+#if CONFIG_SEP_COMP_DRL
+    return ref_idx && !has_second_drl(mbmi)
+               ? curr_ref_mv_stack[ref_mv_idx].comp_mv
+#else
     return ref_idx ? curr_ref_mv_stack[ref_mv_idx].comp_mv
-                   : curr_ref_mv_stack[ref_mv_idx].this_mv;
+#endif  // CONFIG_SEP_COMP_DRL
+               : curr_ref_mv_stack[ref_mv_idx].this_mv;
   }
 
   assert(ref_idx == 0);
 #if CONFIG_TIP
+#if CONFIG_SEP_COMP_DRL
+  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count[0]) {
+#else
   if (ref_mv_idx < mbmi_ext_frame->ref_mv_count) {
+#endif  // CONFIG_SEP_COMP_DRL
     return curr_ref_mv_stack[ref_mv_idx].this_mv;
   } else if (is_tip_ref_frame(ref_frame_type)) {
     int_mv zero_mv;
@@ -1736,12 +1870,41 @@ static INLINE int_mv get_ref_mv_from_stack(
 static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_SEP_COMP_DRL
+  const int ref_mv_idx = get_ref_mv_idx(mbmi, ref_idx);
+#else
   const int ref_mv_idx = mbmi->ref_mv_idx;
+#endif  // CONFIG_SEP_COMP_DRL
   assert(IMPLIES(have_nearmv_newmv_in_inter_mode(mbmi->mode),
                  has_second_ref(mbmi)));
   return get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
+#if CONFIG_SEP_COMP_DRL
+                               x->mbmi_ext_frame, mbmi);
+#else
                                x->mbmi_ext_frame);
+#endif  // CONFIG_SEP_COMP_DRL
 }
+
+#if CONFIG_REFINEMV
+// This function write the refinemv_flag ( if require) to the bitstream
+static void write_refinemv_flag(const AV1_COMMON *const cm,
+                                MACROBLOCKD *const xd, aom_writer *w,
+                                BLOCK_SIZE bsize) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  int signal_refinemv = switchable_refinemv_flag(cm, mbmi);
+
+  if (signal_refinemv) {
+    const int refinemv_ctx = av1_get_refinemv_context(cm, xd, bsize);
+    assert(mbmi->refinemv_flag < REFINEMV_NUM_MODES);
+    aom_write_symbol(w, mbmi->refinemv_flag,
+                     xd->tile_ctx->refinemv_flag_cdf[refinemv_ctx],
+                     REFINEMV_NUM_MODES);
+
+  } else {
+    assert(mbmi->refinemv_flag == get_default_refinemv_flag(cm, mbmi));
+  }
+}
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_FLEX_MVRES
 static void write_pb_mv_precision(const AV1_COMMON *const cm,
@@ -1823,6 +1986,39 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   write_skip_mode(cm, xd, segment_id, mbmi, w);
 
+#if CONFIG_SKIP_TXFM_OPT
+  if (!mbmi->skip_mode) {
+    write_is_inter(cm, xd, mbmi->segment_id, w, is_inter);
+
+#if CONFIG_IBC_SR_EXT
+    if (!is_inter && av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
+      const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
+      if (xd->tree_type == CHROMA_PART) assert(use_intrabc == 0);
+#if CONFIG_NEW_CONTEXT_MODELING
+      const int intrabc_ctx = get_intrabc_ctx(xd);
+      aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf[intrabc_ctx], 2);
+#else
+      aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf, 2);
+#endif  // CONFIG_NEW_CONTEXT_MODELING
+    }
+#endif  // CONFIG_IBC_SR_EXT
+  }
+
+  int skip = 0;
+  if (is_inter
+#if CONFIG_IBC_SR_EXT
+      || (!is_inter && is_intrabc_block(mbmi, xd->tree_type))
+#endif  // CONFIG_IBC_SR_EXT
+  ) {
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+    skip = write_skip(cm, xd, segment_id, mbmi, w);
+#else
+    assert(IMPLIES(mbmi->skip_mode,
+                   mbmi->skip_txfm[xd->tree_type == CHROMA_PART]));
+    skip = mbmi->skip_mode ? 1 : write_skip(cm, xd, segment_id, mbmi, w);
+#endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
+  }
+#else
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   const int skip = write_skip(cm, xd, segment_id, mbmi, w);
 #else
@@ -1831,6 +2027,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   const int skip =
       mbmi->skip_mode ? 1 : write_skip(cm, xd, segment_id, mbmi, w);
 #endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_TXFM_OPT
   write_inter_segment_id(cpi, w, seg, segp, skip, 0);
 
   write_cdef(cm, xd, w, skip);
@@ -1841,13 +2038,31 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   write_delta_q_params(cpi, skip, w);
 
+#if CONFIG_REFINEMV
+  assert(IMPLIES(mbmi->refinemv_flag,
+                 mbmi->skip_mode ? is_refinemv_allowed_skip_mode(cm, mbmi)
+                                 : is_refinemv_allowed(cm, mbmi, bsize)));
+  if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi)) {
+    assert(mbmi->interinter_comp.type == COMPOUND_AVERAGE);
+    assert(mbmi->comp_group_idx == 0);
+    assert(mbmi->bawp_flag == 0);
+  }
+#if CONFIG_CWP
+  assert(IMPLIES(mbmi->refinemv_flag, mbmi->cwp_idx == CWP_EQUAL));
+#endif  // CONFIG_CWP
+#endif  // CONFIG_REFINEMV
 #if CONFIG_WARPMV
   // Just for debugging purpose
   if (mbmi->mode == WARPMV) {
     assert(mbmi->skip_mode == 0);
     assert(mbmi->motion_mode == WARP_DELTA ||
            mbmi->motion_mode == WARPED_CAUSAL);
+#if CONFIG_SEP_COMP_DRL
+    assert(get_ref_mv_idx(mbmi, 0) == 0);
+    assert(get_ref_mv_idx(mbmi, 1) == 0);
+#else
     assert(mbmi->ref_mv_idx == 0);
+#endif  // CONFIG_SEP_COMP_DRL
     assert(!is_tip_ref_frame(mbmi->ref_frame[0]));
     assert(is_inter);
     assert(!have_drl_index(mode));
@@ -1860,6 +2075,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   }
 #endif  // CONFIG_WARPMV
 
+#if !CONFIG_SKIP_TXFM_OPT
   if (!mbmi->skip_mode)
     write_is_inter(cm, xd, mbmi->segment_id, w, is_inter
 #if CONFIG_CONTEXT_DERIVATION
@@ -1867,6 +2083,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                    skip
 #endif  // CONFIG_CONTEXT_DERIVATION
     );
+#endif  // !CONFIG_SKIP_TXFM_OPT
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode) {
@@ -1881,6 +2098,13 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
 #if CONFIG_IBC_SR_EXT
   if (!is_inter && av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
+#if CONFIG_NEW_CONTEXT_MODELING
+    const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
+    const int intrabc_ctx = get_intrabc_ctx(xd);
+    aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf[intrabc_ctx], 2);
+#else
+    aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf, 2);
+#endif  // CONFIG_NEW_CONTEXT_MODELING
     write_intrabc_info(xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
@@ -1941,10 +2165,18 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
       int is_warpmv_warp_causal =
-          (mbmi->motion_mode == WARPED_CAUSAL && mbmi->mode == WARPMV);
+          ((mbmi->motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV);
       if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal)
         write_warp_ref_idx(xd->tile_ctx, mbmi, w);
 #endif  // CONFIG_WARPMV
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+      if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
+        write_warpmv_with_mvd_flag(xd->tile_ctx, mbmi, w);
+      } else {
+        assert(mbmi->warpmv_with_mvd_flag == 0);
+      }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       write_jmvd_scale_mode(xd, w, mbmi);
@@ -1963,7 +2195,14 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // IMPROVED_AMVD
             mbmi_ext_frame->mode_context, ec_ctx, mbmi, mbmi_ext_frame, w);
       else
+#if CONFIG_SEP_COMP_DRL
+      {
+        assert(get_ref_mv_idx(mbmi, 0) == 0);
+        assert(get_ref_mv_idx(mbmi, 1) == 0);
+      }
+#else
         assert(mbmi->ref_mv_idx == 0);
+#endif  // CONFIG_SEP_COMP_DRL
 #if CONFIG_FLEX_MVRES
       if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
         write_pb_mv_precision(cm, xd, w);
@@ -1971,65 +2210,19 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_FLEX_MVRES
     }
 
-    if (have_newmv_in_each_reference(mode)) {
-      for (ref = 0; ref < 1 + is_compound; ++ref) {
-        nmv_context *nmvc = &ec_ctx->nmvc;
-        const int_mv ref_mv = get_ref_mv(x, ref);
-
-        av1_encode_mv(cpi, w,
-#if CONFIG_FLEX_MVRES
-                      mbmi->mv[ref].as_mv, ref_mv.as_mv,
-#else
-                      &mbmi->mv[ref].as_mv, &ref_mv.as_mv,
-#endif
-                      nmvc,
-#if CONFIG_FLEX_MVRES
-                      pb_mv_precision);
-#else
-                      allow_hp);
-#endif
-      }
-    } else if (mode == NEAR_NEWMV
-#if CONFIG_OPTFLOW_REFINEMENT
-               || mode == NEAR_NEWMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
-               || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)
-#endif  // CONFIG_JOINT_MVD
-    ) {
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    if (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag) {
       nmv_context *nmvc = &ec_ctx->nmvc;
-      const int_mv ref_mv = get_ref_mv(x, 1);
-
-      av1_encode_mv(cpi, w,
-#if CONFIG_FLEX_MVRES
-                    mbmi->mv[1].as_mv, ref_mv.as_mv,
-#else
-                    &mbmi->mv[1].as_mv, &ref_mv.as_mv,
-#endif
-                    nmvc,
-#if CONFIG_FLEX_MVRES
-                    pb_mv_precision);
-#else
-                    allow_hp);
-#endif
-
-    } else if (mode == NEW_NEARMV
-#if CONFIG_OPTFLOW_REFINEMENT
-               || mode == NEW_NEARMV_OPTFLOW
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
-               || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)
-#endif  // CONFIG_JOINT_MVD
-    ) {
-      nmv_context *nmvc = &ec_ctx->nmvc;
-      const int_mv ref_mv = get_ref_mv(x, 0);
-
+      WarpedMotionParams ref_warp_model =
+          x->mbmi_ext_frame->warp_param_stack[mbmi->warp_ref_idx].wm_params;
+      const int_mv ref_mv =
+          get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
+                          xd->mi_col, xd->mi_row);
       av1_encode_mv(cpi, w,
 #if CONFIG_FLEX_MVRES
                     mbmi->mv[0].as_mv, ref_mv.as_mv,
-
 #else
-                    &mbmi->mv[0].as_mv, &ref_mv.as_mv,
+                    &mbmi->mv[ref].as_mv, &ref_mv.as_mv,
 #endif
                     nmvc,
 #if CONFIG_FLEX_MVRES
@@ -2038,6 +2231,81 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                     allow_hp);
 #endif
     }
+
+    else {
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
+
+      if (have_newmv_in_each_reference(mode)) {
+        for (ref = 0; ref < 1 + is_compound; ++ref) {
+          nmv_context *nmvc = &ec_ctx->nmvc;
+          const int_mv ref_mv = get_ref_mv(x, ref);
+
+          av1_encode_mv(cpi, w,
+#if CONFIG_FLEX_MVRES
+                        mbmi->mv[ref].as_mv, ref_mv.as_mv,
+#else
+                      &mbmi->mv[ref].as_mv, &ref_mv.as_mv,
+#endif
+                        nmvc,
+#if CONFIG_FLEX_MVRES
+                        pb_mv_precision);
+#else
+                      allow_hp);
+#endif
+        }
+      } else if (mode == NEAR_NEWMV
+#if CONFIG_OPTFLOW_REFINEMENT
+                 || mode == NEAR_NEWMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_JOINT_MVD
+                 || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)
+#endif  // CONFIG_JOINT_MVD
+      ) {
+        nmv_context *nmvc = &ec_ctx->nmvc;
+        const int_mv ref_mv = get_ref_mv(x, 1);
+
+        av1_encode_mv(cpi, w,
+#if CONFIG_FLEX_MVRES
+                      mbmi->mv[1].as_mv, ref_mv.as_mv,
+#else
+                    &mbmi->mv[1].as_mv, &ref_mv.as_mv,
+#endif
+                      nmvc,
+#if CONFIG_FLEX_MVRES
+                      pb_mv_precision);
+#else
+                    allow_hp);
+#endif
+
+      } else if (mode == NEW_NEARMV
+#if CONFIG_OPTFLOW_REFINEMENT
+                 || mode == NEW_NEARMV_OPTFLOW
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_JOINT_MVD
+                 || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)
+#endif  // CONFIG_JOINT_MVD
+      ) {
+        nmv_context *nmvc = &ec_ctx->nmvc;
+        const int_mv ref_mv = get_ref_mv(x, 0);
+
+        av1_encode_mv(cpi, w,
+#if CONFIG_FLEX_MVRES
+                      mbmi->mv[0].as_mv, ref_mv.as_mv,
+
+#else
+                    &mbmi->mv[0].as_mv, &ref_mv.as_mv,
+#endif
+                      nmvc,
+#if CONFIG_FLEX_MVRES
+                      pb_mv_precision);
+#else
+                    allow_hp);
+#endif
+      }
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+    }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #if CONFIG_BAWP && !CONFIG_WARPMV
     if (cm->features.enable_bawp &&
         av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
@@ -2083,6 +2351,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     if (mbmi->ref_frame[1] != INTRA_FRAME) write_motion_mode(cm, xd, mbmi, w);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if CONFIG_REFINEMV
+    if (!mbmi->skip_mode) {
+      write_refinemv_flag(cm, xd, w, bsize);
+    }
+#endif  // CONFIG_REFINEMV
+
     // First write idx to indicate current compound inter prediction mode
     // group Group A (0): dist_wtd_comp, compound_average Group B (1):
     // interintra, compound_diffwtd, wedge
@@ -2091,6 +2365,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_OPTFLOW_REFINEMENT
         && mbmi->mode < NEAR_NEARMV_OPTFLOW
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+        && (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))
+#endif  // CONFIG_REFINEMV
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
         && !is_joint_amvd_coding_mode(mbmi->mode)
 #endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
@@ -2139,17 +2416,25 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         }
       }
     }
+#if CONFIG_CWP
+    if (cm->features.enable_cwp && is_cwp_allowed(mbmi) && !mbmi->skip_mode)
+      write_cwp_idx(xd, w, cm, mbmi);
+#endif  // CONFIG_CWP
     write_mb_interp_filter(cm, xd, w);
   }
 }
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
                                   const MB_MODE_INFO *mbmi,
                                   const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                                   aom_writer *w) {
   assert(!mbmi->skip_mode);
+#if CONFIG_SEP_COMP_DRL
+  assert(mbmi->intrabc_drl_idx < mbmi_ext_frame->ref_mv_count[0]);
+#else
   assert(mbmi->intrabc_drl_idx < mbmi_ext_frame->ref_mv_count);
+#endif
   assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
   (void)mbmi_ext_frame;
 
@@ -2161,7 +2446,7 @@ static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
     ++bit_cnt;
   }
 }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static AOM_INLINE void write_intrabc_info(
     MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
@@ -2170,12 +2455,14 @@ static AOM_INLINE void write_intrabc_info(
   int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
   if (xd->tree_type == CHROMA_PART) assert(use_intrabc == 0);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+#if !CONFIG_SKIP_TXFM_OPT
 #if CONFIG_NEW_CONTEXT_MODELING
   const int intrabc_ctx = get_intrabc_ctx(xd);
   aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf[intrabc_ctx], 2);
 #else
   aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf, 2);
 #endif  // CONFIG_NEW_CONTEXT_MODELING
+#endif  // !CONFIG_SKIP_TXFM_OPT
 
   if (use_intrabc) {
     assert(mbmi->mode == DC_PRED);
@@ -2185,9 +2472,13 @@ static AOM_INLINE void write_intrabc_info(
     assert(mbmi->pb_mv_precision == MV_PRECISION_ONE_PEL);
 #endif
 
+#if CONFIG_SEP_COMP_DRL
+    int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0][0].this_mv;
+#else
     int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0].this_mv;
+#endif
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     aom_write_symbol(w, mbmi->intrabc_mode, ec_ctx->intrabc_mode_cdf, 2);
     write_intrabc_drl_idx(MAX_REF_BV_STACK_SIZE, ec_ctx, mbmi, mbmi_ext_frame,
                           w);
@@ -2196,7 +2487,7 @@ static AOM_INLINE void write_intrabc_info(
       av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
 #else
     av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   }
 }
 
@@ -2212,8 +2503,25 @@ static AOM_INLINE void write_mb_modes_kf(
   if (seg->segid_preskip && seg->update_map)
     write_segment_id(cpi, mbmi, w, seg, segp, 0);
 
-  const int skip = write_skip(cm, xd, mbmi->segment_id, mbmi, w);
+#if CONFIG_SKIP_TXFM_OPT
+  if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
+    const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
+    if (xd->tree_type == CHROMA_PART) assert(use_intrabc == 0);
+#if CONFIG_NEW_CONTEXT_MODELING
+    const int intrabc_ctx = get_intrabc_ctx(xd);
+    aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf[intrabc_ctx], 2);
+#else
+    aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf, 2);
+#endif  // CONFIG_NEW_CONTEXT_MODELING
+  }
 
+  int skip = 0;
+  if (is_intrabc_block(mbmi, xd->tree_type)) {
+    skip = write_skip(cm, xd, mbmi->segment_id, mbmi, w);
+  }
+#else
+  const int skip = write_skip(cm, xd, mbmi->segment_id, mbmi, w);
+#endif  // CONFIG_SKIP_TXFM_OPT
   if (!seg->segid_preskip && seg->update_map)
     write_segment_id(cpi, mbmi, w, seg, segp, skip);
 
@@ -2550,11 +2858,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       av1_get_block_dimensions(mbmi->sb_type[plane], plane, xd, NULL, NULL,
                                &rows, &cols);
       assert(*tok < tok_end);
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
       pack_map_tokens(w, tok, palette_size_plane, cols, rows);
 #else
       pack_map_tokens(w, tok, palette_size_plane, rows * cols);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
     }
   }
 
@@ -2597,7 +2905,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
     write_tokens_b(cpi, w, tok, tok_end);
   }
 #if CONFIG_PC_WIENER
-  else {
+  else if (!is_global_intrabc_allowed(cm) && !cm->features.coded_lossless) {
+    // Assert only when LR is enabled.
     assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
   }
 #endif  // CONFIG_PC_WIENER
@@ -2627,6 +2936,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const int ssx = cm->seq_params.subsampling_x;
   const int ssy = cm->seq_params.subsampling_y;
   if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
+    assert(ptree_luma);
     assert(p ==
            sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy));
     return;
@@ -2644,6 +2954,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
 
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   const bool do_split = p != PARTITION_NONE;
   aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
@@ -2658,20 +2969,42 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
                      ec_ctx->do_square_split_cdf[plane][square_split_ctx], 2);
   }
   if (do_square_split) {
+    assert(p == PARTITION_SPLIT);
     return;
   }
   RECT_PART_TYPE rect_type = get_rect_part_type(p);
   if (rect_type_implied_by_bsize(bsize, xd->tree_type) == RECT_INVALID) {
-    aom_write_symbol(w, rect_type, ec_ctx->rect_type_cdf[plane][ctx], 2);
+    aom_write_symbol(w, rect_type, ec_ctx->rect_type_cdf[plane][ctx],
+                     NUM_RECT_PARTS);
   }
-  const bool disable_ext_part = !cm->seq_params.enable_ext_partitions;
   const bool ext_partition_allowed =
-      !disable_ext_part &&
+      cm->seq_params.enable_ext_partitions &&
       is_ext_partition_allowed(bsize, rect_type, xd->tree_type);
   if (ext_partition_allowed) {
     const bool do_ext_partition = (p >= PARTITION_HORZ_3);
     aom_write_symbol(w, do_ext_partition,
                      ec_ctx->do_ext_partition_cdf[plane][rect_type][ctx], 2);
+#if CONFIG_UNEVEN_4WAY
+    if (do_ext_partition) {
+      const bool uneven_4way_partition_allowed =
+          is_uneven_4way_partition_allowed(bsize, rect_type, xd->tree_type);
+      if (uneven_4way_partition_allowed) {
+        const bool do_uneven_4way_partition = (p >= PARTITION_HORZ_4A);
+        aom_write_symbol(
+            w, do_uneven_4way_partition,
+            ec_ctx->do_uneven_4way_partition_cdf[plane][rect_type][ctx], 2);
+        if (do_uneven_4way_partition) {
+          const UNEVEN_4WAY_PART_TYPE uneven_4way_type =
+              (p == PARTITION_HORZ_4A || p == PARTITION_VERT_4A) ? UNEVEN_4A
+                                                                 : UNEVEN_4B;
+          aom_write_symbol(
+              w, uneven_4way_type,
+              ec_ctx->uneven_4way_partition_type_cdf[plane][rect_type][ctx],
+              NUM_UNEVEN_4WAY_PARTS);
+        }
+      }
+    }
+#endif  // CONFIG_UNEVEN_4WAY
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
   const int hbs_w = mi_size_wide[bsize] / 2;
@@ -2728,13 +3061,18 @@ static AOM_INLINE void write_modes_sb(
   assert(bsize < BLOCK_SIZES_ALL);
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
-#if !CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  const int ebs_w = mi_size_wide[bsize] / 8;
+  const int ebs_h = mi_size_high[bsize] / 8;
+#endif  // CONFIG_UNEVEN_4WAY
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   assert(ptree);
   const PARTITION_TYPE partition = ptree->partition;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
+  if (subsize == BLOCK_INVALID) return;
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
@@ -2743,7 +3081,12 @@ static AOM_INLINE void write_modes_sb(
       get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
   for (int plane = plane_start; plane < plane_end; ++plane) {
     int rcol0, rcol1, rrow0, rrow1;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE ||
+         cm->rst_info[plane].frame_cross_restoration_type != RESTORE_NONE) &&
+#else
     if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
       const int rstride = cm->rst_info[plane].horz_units_per_tile;
@@ -2762,9 +3105,12 @@ static AOM_INLINE void write_modes_sb(
 #if CONFIG_EXT_RECUR_PARTITIONS
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree, ptree_luma,
                   w);
-  if (!is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
+  const int track_ptree_luma =
+      is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
+  if (!track_ptree_luma) {
     ptree_luma = NULL;
   }
+  assert(IMPLIES(track_ptree_luma, ptree_luma));
 #else
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -2805,7 +3151,96 @@ static AOM_INLINE void write_modes_sb(
 #endif
       break;
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+    case PARTITION_HORZ_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
+                     subsize);
+      if (mi_row + ebs_h >= mi_params->mi_rows) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+                     get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
+                     mi_col, bsize_med);
+      if (mi_row + 3 * ebs_h >= mi_params->mi_rows) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+                     get_partition_subtree_const(ptree_luma, 2),
+                     mi_row + 3 * ebs_h, mi_col, bsize_big);
+      if (mi_row + 7 * ebs_h >= mi_params->mi_rows) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+                     get_partition_subtree_const(ptree_luma, 3),
+                     mi_row + 7 * ebs_h, mi_col, subsize);
+      break;
+    }
+    case PARTITION_HORZ_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_HORZ);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
+                     subsize);
+      if (mi_row + ebs_h >= mi_params->mi_rows) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+                     get_partition_subtree_const(ptree_luma, 1), mi_row + ebs_h,
+                     mi_col, bsize_big);
+      if (mi_row + 5 * ebs_h >= mi_params->mi_rows) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+                     get_partition_subtree_const(ptree_luma, 2),
+                     mi_row + 5 * ebs_h, mi_col, bsize_med);
+      if (mi_row + 7 * ebs_h >= mi_params->mi_rows) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+                     get_partition_subtree_const(ptree_luma, 3),
+                     mi_row + 7 * ebs_h, mi_col, subsize);
+      break;
+    }
+    case PARTITION_VERT_4A: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
+                     subsize);
+      if (mi_col + ebs_w >= mi_params->mi_cols) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+                     get_partition_subtree_const(ptree_luma, 1), mi_row,
+                     mi_col + ebs_w, bsize_med);
+      if (mi_col + 3 * ebs_w >= mi_params->mi_cols) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+                     get_partition_subtree_const(ptree_luma, 2), mi_row,
+                     mi_col + 3 * ebs_w, bsize_big);
+      if (mi_col + 7 * ebs_w >= mi_params->mi_cols) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+                     get_partition_subtree_const(ptree_luma, 3), mi_row,
+                     mi_col + 7 * ebs_w, subsize);
+      break;
+    }
+    case PARTITION_VERT_4B: {
+      const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      const BLOCK_SIZE bsize_med =
+          get_partition_subsize(bsize_big, PARTITION_VERT);
+      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
+                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
+                     subsize);
+      if (mi_col + ebs_w >= mi_params->mi_cols) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
+                     get_partition_subtree_const(ptree_luma, 1), mi_row,
+                     mi_col + ebs_w, bsize_big);
+      if (mi_col + 5 * ebs_w >= mi_params->mi_cols) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
+                     get_partition_subtree_const(ptree_luma, 2), mi_row,
+                     mi_col + 5 * ebs_w, bsize_med);
+      if (mi_col + 7 * ebs_w >= mi_params->mi_cols) break;
+      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[3],
+                     get_partition_subtree_const(ptree_luma, 3), mi_row,
+                     mi_col + 7 * ebs_w, subsize);
+      break;
+    }
+#endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3:
       for (int i = 0; i < 4; ++i) {
@@ -2829,36 +3264,6 @@ static AOM_INLINE void write_modes_sb(
                        this_mi_col, this_bsize);
       }
       break;
-#else
-    case PARTITION_HORZ_3:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      if (mi_row + qbs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_row + qbs_h, mi_col,
-                     get_partition_subsize(bsize, PARTITION_HORZ));
-      if (mi_row + 3 * qbs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row,
-                     mi_row + 3 * qbs_h, mi_col, subsize);
-      break;
-    case PARTITION_VERT_3:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
-                     get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
-                     subsize);
-      if (mi_col + qbs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     get_partition_subtree_const(ptree_luma, 1), mi_row,
-                     mi_col + qbs_w,
-                     get_partition_subsize(bsize, PARTITION_VERT));
-      if (mi_col + 3 * qbs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
-                     get_partition_subtree_const(ptree_luma, 2), mi_row,
-                     mi_col + 3 * qbs_w, subsize);
-      break;
-#endif  // CONFIG_H_PARTITION
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
@@ -2873,7 +3278,7 @@ static AOM_INLINE void write_modes_sb(
                      get_partition_subtree_const(ptree_luma, 3), mi_row + hbs_h,
                      mi_col + hbs_w, subsize);
       break;
-#else
+#else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
                      mi_col, subsize);
@@ -3024,11 +3429,25 @@ static AOM_INLINE void encode_restoration_mode(
   if (!cm->seq_params.enable_restoration) return;
   if (is_global_intrabc_allowed(cm)) return;
   const int num_planes = av1_num_planes(cm);
+#if CONFIG_FLEXIBLE_RU_SIZE
+  int luma_none = 1, chroma_none = 1;
+#else
   int all_none = 1, chroma_none = 1;
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    if (rsi->frame_restoration_type != RESTORE_NONE ||
+        rsi->frame_cross_restoration_type != RESTORE_NONE) {
+      if (p == 0) assert(rsi->frame_cross_restoration_type == RESTORE_NONE);
+#else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+#if CONFIG_FLEXIBLE_RU_SIZE
+      luma_none &= p > 0;
+#else
       all_none = 0;
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
       chroma_none &= p == 0;
     }
 #if CONFIG_LR_FLEX_SYNTAX
@@ -3046,11 +3465,17 @@ static AOM_INLINE void encode_restoration_mode(
         aom_wb_write_bit(wb, 0);
       } else {
         aom_wb_write_bit(wb, 1);
+        int tools_count = cm->features.lr_tools_count[p];
         for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
           if (!(plane_lr_tools_disable_mask & (1 << i))) {
-            aom_wb_write_bit(wb, ((sw_lr_tools_disable_mask >> i) & 1));
+            const int disable_tool = (sw_lr_tools_disable_mask >> i) & 1;
+            aom_wb_write_bit(wb, disable_tool);
             plane_lr_tools_disable_mask |=
                 (sw_lr_tools_disable_mask & (1 << i));
+            tools_count -= disable_tool;
+            // if tools_count becomes 2 break from the loop since we
+            // do not allow any other tool to be disabled.
+            if (tools_count == 2) break;
           }
         }
         av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
@@ -3107,7 +3532,29 @@ static AOM_INLINE void encode_restoration_mode(
                                              ? NUM_WIENERNS_CLASS_INIT_LUMA
                                              : NUM_WIENERNS_CLASS_INIT_CHROMA));
 #endif  // CONFIG_WIENER_NONSEP
+
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    if (p > 0) {
+      aom_wb_write_bit(wb, rsi->frame_cross_restoration_type != RESTORE_NONE);
+    }
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
+#if CONFIG_FLEXIBLE_RU_SIZE
+  int size = cm->rst_info[0].max_restoration_unit_size;
+  if (!luma_none) {
+    aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size >> 1);
+    if (cm->rst_info[0].restoration_unit_size != size >> 1)
+      aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size);
+  }
+  if (!chroma_none) {
+    size = cm->rst_info[1].max_restoration_unit_size;
+    aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size >> 1);
+    if (cm->rst_info[1].restoration_unit_size != size >> 1)
+      aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size);
+    assert(cm->rst_info[2].restoration_unit_size ==
+           cm->rst_info[1].restoration_unit_size);
+  }
+#else
   if (!all_none) {
 #if CONFIG_BLOCK_256
     assert(cm->sb_size == BLOCK_64X64 || cm->sb_size == BLOCK_128X128 ||
@@ -3161,6 +3608,7 @@ static AOM_INLINE void encode_restoration_mode(
              cm->rst_info[1].restoration_unit_size);
     }
   }
+#endif  // CONFIG_FLEXIBLE_RU_SIZE
 }
 
 static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
@@ -3313,8 +3761,9 @@ static int check_and_write_merge_info(
     aom_write_literal(wb, match, 1);
     if (match) break;
   }
-  assert(
-      IMPLIES(!match, ref == bank->bank_size_for_class[wiener_class_id] - 1));
+  assert(IMPLIES(
+      !match,
+      ref == AOMMAX(0, bank->bank_size_for_class[wiener_class_id] - 1)));
   return exact_match;
 }
 #endif  // CONFIG_LR_MERGE_COEFFS
@@ -3323,7 +3772,12 @@ static AOM_INLINE void write_wienerns_filter(
     MACROBLOCKD *xd, int plane, const WienerNonsepInfo *wienerns_info,
     WienerNonsepInfoBank *bank, aom_writer *wb) {
   const WienernsFilterParameters *nsfilter_params =
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+      get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y,
+                              wienerns_info->is_cross_filter);
+#else
       get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };
   int ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
 #if CONFIG_LR_MERGE_COEFFS
@@ -3344,7 +3798,6 @@ static AOM_INLINE void write_wienerns_filter(
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_write_for_class[c_id]) continue;
     const int ref = ref_for_class[c_id];
-
     const WienerNonsepInfo *ref_wienerns_info =
         av1_constref_from_wienerns_bank(bank, ref, c_id);
     const int16_t *wienerns_info_nsfilter =
@@ -3437,13 +3890,25 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     aom_writer *const w, int plane, FRAME_COUNTS *counts) {
   const RestorationInfo *rsi = cm->rst_info + plane;
   RestorationType frame_rtype = rsi->frame_restoration_type;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  RestorationType frame_cross_rtype = rsi->frame_cross_restoration_type;
+  RestorationType unit_cross_rtype = rui->cross_restoration_type;
+  assert(frame_rtype != RESTORE_NONE || frame_cross_rtype != RESTORE_NONE);
+#else
   assert(frame_rtype != RESTORE_NONE);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   (void)counts;
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
   RestorationType unit_rtype = rui->restoration_type;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  WienerNonsepInfo *info = (WienerNonsepInfo *)&rui->wienerns_info;
+  info->is_cross_filter = 0;
+  info = (WienerNonsepInfo *)&rui->wienerns_cross_info;
+  info->is_cross_filter = 1;
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_LR_FLEX_SYNTAX
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
@@ -3533,6 +3998,19 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     }
 #endif  // CONFIG_PC_WIENER
   }
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  if (frame_cross_rtype == RESTORE_WIENER_NONSEP) {
+    aom_write_symbol(w, unit_cross_rtype != RESTORE_NONE,
+                     xd->tile_ctx->wienerns_restore_cdf, 2);
+#if CONFIG_ENTROPY_STATS
+    ++counts->wienerns_restore[unit_cross_rtype != RESTORE_NONE];
+#endif  // CONFIG_ENTROPY_STATS
+    if (unit_cross_rtype != RESTORE_NONE) {
+      write_wienerns_filter(xd, plane, &rui->wienerns_cross_info,
+                            &xd->wienerns_cross_info[plane], w);
+    }
+  }
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 }
 
 static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
@@ -4378,7 +4856,7 @@ static AOM_INLINE void write_sequence_header(
     aom_wb_write_bit(wb, uv_neq_y);
     if (uv_neq_y) {
       for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-        if (DEF_UV_LR_TOOLS_DISABLE_MASK | (1 << i)) continue;
+        if (DEF_UV_LR_TOOLS_DISABLE_MASK & (1 << i)) continue;
         aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[1] >> i) & 1);
       }
     }
@@ -4392,6 +4870,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_refmvbank);
 #endif  // CONFIG_REF_MV_BANK
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // 0 : show_existing_frame, 1: implicit derviation
+  aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
@@ -4416,6 +4898,12 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_BAWP
   aom_wb_write_bit(wb, seq_params->enable_bawp);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  aom_wb_write_bit(wb, seq_params->enable_cwp);
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
   aom_wb_write_bit(wb, seq_params->enable_fsc);
 #if CONFIG_CCSO
   aom_wb_write_bit(wb, seq_params->enable_ccso);
@@ -4426,6 +4914,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_ORIP
   aom_wb_write_bit(wb, seq_params->enable_orip);
 #endif
+#if CONFIG_IDIF
+  aom_wb_write_bit(wb, seq_params->enable_idif);
+#endif  // CONFIG_IDIF
 #if CONFIG_OPTFLOW_REFINEMENT
   if (seq_params->order_hint_info.enable_order_hint)
     aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
@@ -4434,6 +4925,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_ADAPTIVE_MVD
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
 #endif  // CONFIG_ADAPTIVE_MVD
+
+#if CONFIG_REFINEMV
+  aom_wb_write_bit(wb, seq_params->enable_refinemv);
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_FLEX_MVRES
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
@@ -4449,22 +4944,41 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_EXT_RECUR_PARTITIONS
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (seq_params->reduced_still_picture_hdr) {
+    assert(seq_params->enable_global_motion == 0);
+  } else {
+    aom_wb_write_bit(wb, seq_params->enable_global_motion);
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 static AOM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
 #if !CONFIG_FLEX_MVRES
     struct aom_write_bit_buffer *wb, int allow_hp) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)allow_hp;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #else
     struct aom_write_bit_buffer *wb, MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
-#endif
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  (void)precision_loss;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+#endif  // !CONFIG_FLEX_MVRES
   const TransformationType type = params->wmtype;
 
   aom_wb_write_bit(wb, type != IDENTITY);
   if (type != IDENTITY) {
     aom_wb_write_bit(wb, type == ROTZOOM);
-    if (type != ROTZOOM) aom_wb_write_bit(wb, type == TRANSLATION);
+    if (type != ROTZOOM) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+      assert(type == AFFINE);
+#else
+      aom_wb_write_bit(wb, type == TRANSLATION);
+#endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
+    }
   }
 
   if (type >= ROTZOOM) {
@@ -4492,6 +5006,10 @@ static AOM_INLINE void write_global_motion_params(
   }
 
   if (type >= TRANSLATION) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    const int trans_prec_diff = GM_TRANS_PREC_DIFF;
+    const int trans_max = GM_TRANS_MAX;
+#else
 #if CONFIG_FLEX_MVRES
     const int trans_bits = (type == TRANSLATION)
                                ? GM_ABS_TRANS_ONLY_BITS - precision_loss
@@ -4506,14 +5024,16 @@ static AOM_INLINE void write_global_motion_params(
     const int trans_prec_diff = (type == TRANSLATION)
                                     ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
                                     : GM_TRANS_PREC_DIFF;
-#endif
+#endif  // CONFIG_FLEX_MVRES
+    const int trans_max = (1 << trans_bits);
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     aom_wb_write_signed_primitive_refsubexpfin(
-        wb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+        wb, trans_max + 1, SUBEXPFIN_K,
         (ref_params->wmmat[0] >> trans_prec_diff),
         (params->wmmat[0] >> trans_prec_diff));
     aom_wb_write_signed_primitive_refsubexpfin(
-        wb, (1 << trans_bits) + 1, SUBEXPFIN_K,
+        wb, trans_max + 1, SUBEXPFIN_K,
         (ref_params->wmmat[1] >> trans_prec_diff),
         (params->wmmat[1] >> trans_prec_diff));
   }
@@ -4522,11 +5042,88 @@ static AOM_INLINE void write_global_motion_params(
 static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
                                            struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
+  int num_total_refs = cm->ref_frames_info.num_total_refs;
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  assert(cm->cur_frame->num_ref_frames == num_total_refs);
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   int frame;
-  for (frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  if (!seq_params->enable_global_motion) {
+    return;
+  }
+
+  bool use_global_motion = false;
+  for (frame = 0; frame < num_total_refs; ++frame) {
+    if (cm->global_motion[frame].wmtype != IDENTITY) {
+      use_global_motion = true;
+      break;
+    }
+  }
+
+  aom_wb_write_bit(wb, use_global_motion);
+  if (!use_global_motion) {
+    return;
+  }
+
+  int our_ref = cpi->gm_info.base_model_our_ref;
+  int their_ref = cpi->gm_info.base_model_their_ref;
+  aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
+  if (our_ref >= num_total_refs) {
+    // Special case: Use IDENTITY model
+    // Nothing more to code
+    assert(their_ref == -1);
+  } else {
+    RefCntBuffer *buf = get_ref_frame_buf(cm, our_ref);
+    assert(buf);
+    int their_num_refs = buf->num_ref_frames;
+    if (their_num_refs == 0) {
+      // Special case: if an intra/key frame is used as a ref, use an
+      // IDENTITY model
+      // Nothing more to code
+      assert(their_ref == -1);
+    } else {
+      aom_wb_write_primitive_quniform(wb, their_num_refs, their_ref);
+    }
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
+  for (frame = 0; frame < num_total_refs; ++frame) {
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+    int temporal_distance;
+    if (seq_params->order_hint_info.enable_order_hint) {
+      const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      const int ref_order_hint = ref_buf->display_order_hint;
+      const int cur_order_hint = cm->cur_frame->display_order_hint;
+#else
+        const int ref_order_hint = ref_buf->order_hint;
+        const int cur_order_hint = cm->cur_frame->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+      temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+                                            cur_order_hint, ref_order_hint);
+    } else {
+      temporal_distance = 1;
+    }
+
+    if (temporal_distance == 0) {
+      // Don't code global motion for frames at the same temporal instant
+      assert(cm->global_motion[frame].wmtype == IDENTITY);
+      continue;
+    }
+
+    WarpedMotionParams ref_params_;
+    av1_scale_warp_model(&cm->base_global_motion_model,
+                         cm->base_global_motion_distance, &ref_params_,
+                         temporal_distance);
+    WarpedMotionParams *ref_params = &ref_params_;
+#else
     const WarpedMotionParams *ref_params =
         cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                        : &default_warp_params;
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
     write_global_motion_params(&cm->global_motion[frame], ref_params, wb,
 #if !CONFIG_FLEX_MVRES
                                cm->features.allow_high_precision_mv);
@@ -4610,11 +5207,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     }
   }
   aom_wb_write_bit(wb, features->disable_cdf_update);
-#if DS_FRAME_LEVEL
-  if (current_frame->frame_type == KEY_FRAME) {
-    aom_wb_write_literal(wb, features->ds_filter_type, 2);
-  }
-#endif  // DS_FRAME_LEVEL
+
   if (seq_params->force_screen_content_tools == 2) {
     aom_wb_write_bit(wb, features->allow_screen_content_tools);
   } else {
@@ -4734,11 +5327,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
       if (features->allow_global_intrabc) {
         aom_wb_write_bit(wb, features->allow_local_intrabc);
       }
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
       aom_wb_write_primitive_quniform(
           wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
           features->max_drl_bits - MIN_MAX_DRL_BITS);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
   } else {
@@ -4753,11 +5346,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
         if (features->allow_global_intrabc) {
           aom_wb_write_bit(wb, features->allow_local_intrabc);
         }
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
         aom_wb_write_primitive_quniform(
             wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
             features->max_drl_bits - MIN_MAX_DRL_BITS);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
     } else if (current_frame->frame_type == INTER_FRAME ||
@@ -4996,6 +5589,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)
     aom_wb_write_bit(wb, features->enable_bawp);
 #endif  // CONFIG_BAWP
+
+#if CONFIG_CWG_D067_IMPROVED_WARP
+  if (!frame_is_intra_only(cm) &&
+      (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {
+    aom_wb_write_bit(wb, features->allow_warpmv_mode);
+  } else {
+    assert(IMPLIES(!frame_is_intra_only(cm), !features->allow_warpmv_mode));
+  }
+#endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
   aom_wb_write_bit(wb, features->reduced_tx_set_used);
 
@@ -5881,7 +6483,16 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
 
   const int write_frame_header =
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      (cpi->num_tg > 1 ||
+       (encode_show_existing_frame(cm) &&
+        (!cm->seq_params.order_hint_info.enable_order_hint ||
+         !cm->seq_params.enable_frame_output_order)) ||
+       (encode_show_existing_frame(cm) &&
+        cm->cur_frame->frame_type == KEY_FRAME)
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       (cpi->num_tg > 1 || encode_show_existing_frame(cm)
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 #if CONFIG_TIP
        || (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
 #endif  // CONFIG_TIP
@@ -5907,7 +6518,19 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     data += fh_info.total_length;
   }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
+  // is not signaled for non-error-resilient mode.
+  // For error-resilienet mode, still an OBU is signaled.
+  if ((cm->seq_params.order_hint_info.enable_order_hint &&
+       cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
+       !cm->features.error_resilient_mode) ||
+      ((!cm->seq_params.order_hint_info.enable_order_hint ||
+        !cm->seq_params.enable_frame_output_order) &&
+       encode_show_existing_frame(cm))
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (encode_show_existing_frame(cm)
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 #if CONFIG_TIP
       || (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
 #endif  // CONFIG_TIP
@@ -5916,7 +6539,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   } else {
     // Since length_field is determined adaptively after frame header
     // encoding, saved_wb must be adjusted accordingly.
-    saved_wb.bit_buffer += length_field;
+    if (saved_wb.bit_buffer) saved_wb.bit_buffer += length_field;
 
     //  Each tile group obu will be preceded by 4-byte size of the tile group
     //  obu

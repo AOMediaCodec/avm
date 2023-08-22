@@ -28,7 +28,7 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/tokenize.h"
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
 static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
                                  int plane, int calc_rate, int allow_update_cdf,
                                  FRAME_COUNTS *counts, MapCdf map_pb_cdf,
@@ -157,7 +157,7 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
   if (calc_rate) return this_rate;
   return 0;
 }
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 static void get_palette_params(const MACROBLOCK *const x, int plane,
                                BLOCK_SIZE bsize, Av1ColorMapParam *params) {
@@ -167,12 +167,12 @@ static void get_palette_params(const MACROBLOCK *const x, int plane,
   params->color_map = xd->plane[plane].color_index_map;
   params->map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
                           : xd->tile_ctx->palette_y_color_index_cdf;
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   params->identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                    : xd->tile_ctx->identity_row_cdf_y;
   params->identity_row_cost = plane ? &x->mode_costs.palette_uv_row_flag_cost
                                     : &x->mode_costs.palette_y_row_flag_cost;
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   params->color_cost = plane ? &x->mode_costs.palette_uv_color_cost
                              : &x->mode_costs.palette_y_color_cost;
   params->n_colors = pmi->palette_size[plane];
@@ -200,7 +200,7 @@ int av1_cost_color_map(const MACROBLOCK *const x, int plane, BLOCK_SIZE bsize,
   get_color_map_params(x, plane, bsize, tx_size, type, &color_map_params);
   MapCdf map_pb_cdf = plane ? x->tile_pb_ctx->palette_uv_color_index_cdf
                             : x->tile_pb_ctx->palette_y_color_index_cdf;
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   IdentityRowCdf eq_row_pb_cdf = plane ? x->tile_pb_ctx->identity_row_cdf_uv
                                        : x->tile_pb_ctx->identity_row_cdf_y;
   return cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
@@ -208,7 +208,7 @@ int av1_cost_color_map(const MACROBLOCK *const x, int plane, BLOCK_SIZE bsize,
 #else
   return cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
                                map_pb_cdf);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 }
 
 void av1_tokenize_color_map(const MACROBLOCK *const x, int plane,
@@ -218,7 +218,7 @@ void av1_tokenize_color_map(const MACROBLOCK *const x, int plane,
   assert(plane == 0 || plane == 1);
   Av1ColorMapParam color_map_params;
   get_color_map_params(x, plane, bsize, tx_size, type, &color_map_params);
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   MapCdf map_pb_cdf = plane ? x->tile_pb_ctx->palette_uv_color_index_cdf
                             : x->tile_pb_ctx->palette_y_color_index_cdf;
   IdentityRowCdf eq_row_pb_cdf = plane ? x->tile_pb_ctx->identity_row_cdf_uv
@@ -234,7 +234,7 @@ void av1_tokenize_color_map(const MACROBLOCK *const x, int plane,
                             : x->tile_pb_ctx->palette_y_color_index_cdf;
   cost_and_tokenize_map(&color_map_params, t, plane, 0, allow_update_cdf,
                         counts, map_pb_cdf);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 }
 
 static void tokenize_vartx(ThreadData *td, TX_SIZE tx_size,

@@ -38,6 +38,10 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
   // Check if interp filter matches with previous case
   if (st->interp_fltr != mi->interp_fltr) return 0;
 
+#if CONFIG_CWP
+  if (st->cwp_idx != mi->cwp_idx) return 0;
+#endif  // CONFIG_CWP
+
   const MACROBLOCKD *const xd = &x->e_mbd;
   // Match MV and reference indices
   for (int i = 0; i < 2; ++i) {
@@ -87,6 +91,10 @@ static INLINE int find_comp_rd_in_stats(const AV1_COMP *const cpi,
                                         int32_t *comp_model_rate,
                                         int64_t *comp_model_dist, int *comp_rs2,
                                         int *match_index) {
+#if CONFIG_CWP
+  if (mbmi->cwp_idx != CWP_EQUAL) return 0;
+#endif  // CONFIG_CWP
+
   for (int j = 0; j < x->comp_rd_stats_idx; ++j) {
     if (is_comp_rd_match(cpi, x, &x->comp_rd_stats[j], mbmi, comp_rate,
                          comp_dist, comp_model_rate, comp_model_dist,
@@ -904,19 +912,23 @@ static INLINE int compute_valid_comp_types(
     COMPOUND_TYPE *valid_comp_types) {
   int valid_type_count = 0;
   int comp_type, valid_check;
-#if CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_OPTFLOW_REFINEMENT || CONFIG_REFINEMV
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const PREDICTION_MODE this_mode = mbmi->mode;
   // For implementation simplicity, set compound type to COMPOUND_AVERAGE for
   // now to avoid compound type RD search. In practice, dist_wtd will always
   // be applied instead.
-  if (this_mode >= NEAR_NEARMV_OPTFLOW) {
+  if (this_mode >= NEAR_NEARMV_OPTFLOW
+#if CONFIG_REFINEMV
+      || (mbmi->refinemv_flag && switchable_refinemv_flag(&cpi->common, mbmi))
+#endif  // CONFIG_REFINEMV
+  ) {
     *try_average_and_distwtd_comp = 0;
     valid_comp_types[0] = COMPOUND_AVERAGE;
     return 1;
   }
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_OPTFLOW_REFINEMENT || CONFIG_REFINEMV
   int8_t enable_masked_type[MASKED_COMPOUND_TYPES] = { 0, 0 };
 
   const int try_average_comp = (mode_search_mask & (1 << COMPOUND_AVERAGE));
@@ -976,6 +988,9 @@ static INLINE void update_mbmi_for_compound_type(MB_MODE_INFO *mbmi,
                                                  COMPOUND_TYPE cur_type) {
   mbmi->interinter_comp.type = cur_type;
   mbmi->comp_group_idx = (cur_type >= COMPOUND_WEDGE);
+#if CONFIG_CWP
+  mbmi->cwp_idx = (cur_type == COMPOUND_AVERAGE) ? mbmi->cwp_idx : CWP_EQUAL;
+#endif  // CONFIG_CWP
 }
 
 // When match is found, populate the compound type data
@@ -1010,6 +1025,9 @@ static INLINE void update_best_info(const MB_MODE_INFO *const mbmi, int64_t *rd,
   best_type_stats->comp_best_model_rd = comp_model_rd_cur;
   best_type_stats->best_compound_data = mbmi->interinter_comp;
   best_type_stats->best_compmode_interinter_cost = rs2;
+#if CONFIG_CWP
+  best_type_stats->cwp_idx = mbmi->cwp_idx;
+#endif  // CONFIG_CWP
 }
 
 // Updates best_mv for masked compound types
@@ -1034,6 +1052,9 @@ static INLINE void save_comp_rd_search_stat(
     MACROBLOCK *x, const MB_MODE_INFO *const mbmi, const int32_t *comp_rate,
     const int64_t *comp_dist, const int32_t *comp_model_rate,
     const int64_t *comp_model_dist, const int_mv *cur_mv, const int *comp_rs2) {
+#if CONFIG_CWP
+  if (mbmi->cwp_idx != CWP_EQUAL) return;
+#endif  // CONFIG_CWP
   const int offset = x->comp_rd_stats_idx;
   if (offset < MAX_COMP_RD_STATS) {
     COMP_RD_STATS *const rd_stats = x->comp_rd_stats + offset;
@@ -1046,7 +1067,15 @@ static INLINE void save_comp_rd_search_stat(
     memcpy(rd_stats->ref_frames, mbmi->ref_frame, sizeof(rd_stats->ref_frames));
     rd_stats->mode = mbmi->mode;
     rd_stats->interp_fltr = mbmi->interp_fltr;
+#if CONFIG_SEP_COMP_DRL
+    rd_stats->ref_mv_idx[0] = mbmi->ref_mv_idx[0];
+    rd_stats->ref_mv_idx[1] = mbmi->ref_mv_idx[1];
+#else
     rd_stats->ref_mv_idx = mbmi->ref_mv_idx;
+#endif  // CONFIG_SEP_COMP_DRL
+#if CONFIG_CWP
+    rd_stats->cwp_idx = mbmi->cwp_idx;
+#endif  // CONFIG_CWP
     const MACROBLOCKD *const xd = &x->e_mbd;
     for (int i = 0; i < 2; ++i) {
       const WarpedMotionParams *const wm =
@@ -1324,6 +1353,10 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   best_type_stats.best_compmode_interinter_cost = 0;
   best_type_stats.comp_best_model_rd = INT64_MAX;
 
+#if CONFIG_CWP
+  best_type_stats.cwp_idx = CWP_EQUAL;
+#endif  // CONFIG_CWP
+
   int tmp_rate_mv;
   const int num_pix = 1 << num_pels_log2_lookup[bsize];
   const int mask_len = 2 * num_pix * sizeof(uint8_t);
@@ -1369,6 +1402,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     av1_zero_array(masked_type_cost, COMPOUND_TYPES);
   else
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+      if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi))
+    av1_zero_array(masked_type_cost, COMPOUND_TYPES);
+  else
+#endif  // CONFIG_REFINEMV
     // Populates masked_type_cost local array for the 4 compound types
     calc_masked_type_cost(&x->mode_costs, bsize, comp_group_idx_ctx,
                           masked_compound_used, masked_type_cost);
@@ -1384,6 +1422,9 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_OPTFLOW_REFINEMENT
       this_mode < NEAR_NEARMV_OPTFLOW &&
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_REFINEMV
+      (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
+#endif  // CONFIG_REFINEMV
       cpi->sf.inter_sf.reuse_compound_type_decision) {
     return populate_reuse_comp_type_data(x, mbmi, &best_type_stats, cur_mv,
                                          comp_rate, comp_dist, comp_rs2,
@@ -1396,6 +1437,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   // Loop over valid compound types
   for (int i = 0; i < valid_type_count; i++) {
     cur_type = valid_comp_types[i];
+
     comp_model_rd_cur = INT64_MAX;
     tmp_rate_mv = *rate_mv;
     best_rd_cur = INT64_MAX;
@@ -1404,6 +1446,13 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     if (cur_type < COMPOUND_WEDGE) {
       update_mbmi_for_compound_type(mbmi, cur_type);
       rs2 = masked_type_cost[cur_type];
+
+#if CONFIG_CWP
+      if (cm->features.enable_cwp && is_cwp_allowed(mbmi) && !mbmi->skip_mode) {
+        rs2 += av1_get_cwp_idx_cost(mbmi->cwp_idx, cm, x);
+      }
+#endif  // CONFIG_CWP
+
       const int64_t mode_rd = RDCOST(x->rdmult, rs2 + rd_stats->rate, 0);
       if (mode_rd < ref_best_rd) {
         // Reuse data if matching record is found
@@ -1506,6 +1555,11 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->interinter_comp = best_type_stats.best_compound_data;
     memcpy(xd->seg_mask, buffers->tmp_best_mask_buf, mask_len);
   }
+#if CONFIG_CWP
+  // update best cwp_idx
+  mbmi->cwp_idx = best_type_stats.cwp_idx;
+#endif  // CONFIG_CWP
+
   if (have_newmv_in_inter_mode(this_mode)) {
     mbmi->mv[0].as_int = best_mv[0].as_int;
     mbmi->mv[1].as_int = best_mv[1].as_int;

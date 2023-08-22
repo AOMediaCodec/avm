@@ -203,18 +203,27 @@ void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
 #endif  // CONFIG_WIENER_NONSEP
 ) {
   for (int p = plane_start; p < plane_end; ++p) {
-    av1_reset_wiener_bank(&xd->wiener_info[p]);
+    av1_reset_wiener_bank(&xd->wiener_info[p], p != AOM_PLANE_Y);
     av1_reset_sgrproj_bank(&xd->sgrproj_info[p]);
 #if CONFIG_WIENER_NONSEP
     av1_reset_wienerns_bank(&xd->wienerns_info[p], xd->current_base_qindex,
-                            num_filter_classes[p], p != AOM_PLANE_Y);
+                            num_filter_classes[p], p != AOM_PLANE_Y
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+                            ,
+                            0
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    );
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    av1_reset_wienerns_bank(&xd->wienerns_cross_info[p],
+                            xd->current_base_qindex, 1, p != AOM_PLANE_Y, 1);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #endif  // CONFIG_WIENER_NONSEP
   }
 }
 
 // Initialize bank
-void av1_reset_wiener_bank(WienerInfoBank *bank) {
-  set_default_wiener(&bank->filter[0]);
+void av1_reset_wiener_bank(WienerInfoBank *bank, int chroma) {
+  set_default_wiener(&bank->filter[0], chroma);
   bank->bank_size = 0;
   bank->bank_ptr = 0;
 }
@@ -260,19 +269,6 @@ const WienerInfo *av1_constref_from_wiener_bank(const WienerInfoBank *bank,
 void av1_upd_to_wiener_bank(WienerInfoBank *bank, int ndx,
                             const WienerInfo *info) {
   memcpy(av1_ref_from_wiener_bank(bank, ndx), info, sizeof(*info));
-}
-
-// Convenience function to fill the provided info structure with
-// filter at given index
-void av1_get_from_wiener_bank(WienerInfoBank *bank, int ndx, WienerInfo *info) {
-  if (bank->bank_size == 0) {
-    set_default_wiener(info);
-  } else {
-    assert(ndx < bank->bank_size);
-    const int ptr =
-        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
-    memcpy(info, &bank->filter[ptr], sizeof(*info));
-  }
 }
 
 // Initialize bank
@@ -325,29 +321,25 @@ void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
   memcpy(av1_ref_from_sgrproj_bank(bank, ndx), info, sizeof(*info));
 }
 
-// Convenience function to fill the provided info structure with
-// filter at given index
-void av1_get_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
-                               SgrprojInfo *info) {
-  if (bank->bank_size == 0) {
-    set_default_sgrproj(info);
-  } else {
-    assert(ndx < bank->bank_size);
-    const int ptr =
-        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
-    memcpy(info, &bank->filter[ptr], sizeof(*info));
-  }
-}
-
 #if CONFIG_WIENER_NONSEP
 // Initialize bank
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
-                             int num_classes, int chroma) {
+                             int num_classes, int chroma
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+                             ,
+                             int is_cross
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+) {
   for (int i = 0; i < LR_BANK_SIZE; ++i) {
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+    set_default_wienerns(&bank->filter[i], qindex, num_classes, chroma,
+                         is_cross);
+#else
     set_default_wienerns(&bank->filter[i], qindex, num_classes, chroma);
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-    bank->bank_size_for_class[c_id] = 1;
+    bank->bank_size_for_class[c_id] = 0;
     bank->bank_ptr_for_class[c_id] = 0;
   }
 }
@@ -379,26 +371,30 @@ void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
 WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
                                              int ndx, int wiener_class_id) {
   assert(wiener_class_id != ALL_WIENERNS_CLASSES);
-  assert(bank->bank_size_for_class[wiener_class_id] > 0);
-
-  assert(ndx < bank->bank_size_for_class[wiener_class_id]);
-  const int ptr =
-      bank->bank_ptr_for_class[wiener_class_id] - ndx +
-      (bank->bank_ptr_for_class[wiener_class_id] < ndx ? LR_BANK_SIZE : 0);
-  return &bank->filter[ptr];
+  if (bank->bank_size_for_class[wiener_class_id] == 0) {
+    return &bank->filter[0];
+  } else {
+    assert(ndx < bank->bank_size_for_class[wiener_class_id]);
+    const int ptr =
+        bank->bank_ptr_for_class[wiener_class_id] - ndx +
+        (bank->bank_ptr_for_class[wiener_class_id] < ndx ? LR_BANK_SIZE : 0);
+    return &bank->filter[ptr];
+  }
 }
 
 // Get a const reference to a filter given the index
 const WienerNonsepInfo *av1_constref_from_wienerns_bank(
     const WienerNonsepInfoBank *bank, int ndx, int wiener_class_id) {
   assert(wiener_class_id != ALL_WIENERNS_CLASSES);
-  assert(bank->bank_size_for_class[wiener_class_id] > 0);
-
-  assert(ndx < bank->bank_size_for_class[wiener_class_id]);
-  const int ptr =
-      bank->bank_ptr_for_class[wiener_class_id] - ndx +
-      (bank->bank_ptr_for_class[wiener_class_id] < ndx ? LR_BANK_SIZE : 0);
-  return &bank->filter[ptr];
+  if (bank->bank_size_for_class[wiener_class_id] == 0) {
+    return &bank->filter[0];
+  } else {
+    assert(ndx < bank->bank_size_for_class[wiener_class_id]);
+    const int ptr =
+        bank->bank_ptr_for_class[wiener_class_id] - ndx +
+        (bank->bank_ptr_for_class[wiener_class_id] < ndx ? LR_BANK_SIZE : 0);
+    return &bank->filter[ptr];
+  }
 }
 
 // Directly replace a filter in the bank at given index

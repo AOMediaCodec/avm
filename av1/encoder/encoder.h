@@ -288,6 +288,12 @@ typedef struct {
    */
   bool enable_orip;
 #endif
+#if CONFIG_IDIF
+  /*!
+   * Flag to indicate if IDIF should be enabled
+   */
+  bool enable_idif;
+#endif
   /*!
    * Flag to indicate if IBP should be enabled
    */
@@ -678,6 +684,10 @@ typedef struct {
   // Indicates if one-sided compound should be enabled.
   bool enable_onesided_comp;
   bool explicit_ref_frame_map;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // Indicates if the implicit frame order derivation is enabled.
+  bool enable_frame_output_order;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 } RefFrameCfg;
 
 typedef struct {
@@ -864,6 +874,10 @@ typedef struct {
   // Indicates if joint mvd coding should be enabled.
   bool enable_joint_mvd;
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  // Indicates if refineMV mode should be enabled.
+  bool enable_refinemv;
+#endif  // CONFIG_REFINEMV
 #if CONFIG_TIP
   // enable temporal interpolated prediction
   int enable_tip;
@@ -872,6 +886,14 @@ typedef struct {
   // enable block adaptive weighted prediction
   int enable_bawp;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  // enable compound weighted prediction
+  int enable_cwp;
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  // enable implicit masked blending
+  bool enable_imp_msk_bld;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   // When enabled, video mode should be used even for single frame input.
   bool force_video_mode;
   // Indicates if the error resiliency features should be enabled.
@@ -1220,7 +1242,11 @@ typedef struct FRAME_COUNTS {
   unsigned int uv_mode[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
 #endif
   unsigned int fsc_mode[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
+#if CONFIG_EXT_DIR
+  unsigned int mrl_index[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
+#else
   unsigned int mrl_index[MRL_LINE_NUMBER];
+#endif  // CONFIG_EXT_DIR
 #if CONFIG_IMPROVED_CFL
   unsigned int cfl_index[CFL_TYPE_COUNT];
 #endif
@@ -1243,6 +1269,13 @@ typedef struct FRAME_COUNTS {
   unsigned int rect_type[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
   unsigned int do_ext_partition[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
                                [PARTITION_CONTEXTS][2];
+#if CONFIG_UNEVEN_4WAY
+  unsigned int do_uneven_4way_partition[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
+                                       [PARTITION_CONTEXTS][2];
+  unsigned int uneven_4way_partition_type[PARTITION_STRUCTURE_NUM]
+                                         [NUM_RECT_PARTS][PARTITION_CONTEXTS]
+                                         [NUM_UNEVEN_4WAY_PARTS];
+#endif  // CONFIG_UNEVEN_4WAY
 #else
   unsigned int partition[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                         [EXT_PARTITION_TYPES];
@@ -1268,6 +1301,17 @@ typedef struct FRAME_COUNTS {
   unsigned int coeff_lps[TX_SIZES][PLANE_TYPES][BR_CDF_SIZE - 1][LEVEL_CONTEXTS]
                         [2];
   unsigned int eob_flag[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS][2];
+#if CONFIG_ATC_DCTX_ALIGNED
+  unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB]
+                                   [NUM_BASE_LEVELS + 1];
+  unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 6];
+  unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 5];
+  unsigned int eob_multi64[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 4];
+  unsigned int eob_multi128[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 3];
+  unsigned int eob_multi256[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 2];
+  unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 1];
+  unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS];
+#else
   unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][5];
   unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][6];
   unsigned int eob_multi64[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][7];
@@ -1275,7 +1319,8 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_multi256[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][9];
   unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][10];
   unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][11];
-#if CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+#if CONFIG_ATC
   unsigned int coeff_lps_lf[PLANE_TYPES][BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                                   [LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS];
@@ -1289,7 +1334,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int coeff_lps_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                               [LEVEL_CONTEXTS][BR_CDF_SIZE];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
   unsigned int coeff_base_ph_multi[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]
                                   [NUM_BASE_LEVELS + 2];
@@ -1304,9 +1349,9 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_single_mode[INTER_SINGLE_MODE_CONTEXTS]
                                 [INTER_SINGLE_MODES];
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   unsigned int skip_drl_mode[3][2];
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   unsigned int use_optflow[INTER_COMPOUND_MODE_CONTEXTS][2];
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
@@ -1338,12 +1383,15 @@ typedef struct FRAME_COUNTS {
   unsigned int motion_mode[BLOCK_SIZES_ALL][MOTION_MODES];
   unsigned int obmc[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_CONTEXT_DERIVATION
+#if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
   unsigned int intra_inter[INTRA_INTER_SKIP_TXFM_CONTEXTS][INTRA_INTER_CONTEXTS]
                           [2];
 #else
   unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];
-#endif
+#endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
+#if CONFIG_CWP
+  int8_t cwp_idx[MAX_CWP_NUM - 1][2];
+#endif  // CONFIG_CWP
 #if CONFIG_BAWP
   unsigned int bawp[2];
 #endif  // CONFIG_BAWP
@@ -1360,7 +1408,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int intrabc[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   unsigned int intrabc_mode[2];
   unsigned int intrabc_drl_idx[MAX_REF_BV_STACK_SIZE - 1][2];
 #endif
@@ -1380,7 +1428,12 @@ typedef struct FRAME_COUNTS {
   unsigned int delta_lf_multi[FRAME_LF_COUNT][DELTA_LF_PROBS][2];
   unsigned int delta_lf[DELTA_LF_PROBS][2];
 
+#if CONFIG_ATC_DCTX_ALIGNED
+  unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
+                           [TX_TYPES];
+#else
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                            [TX_TYPES];
 #if CONFIG_CROSS_CHROMA_TX
@@ -1625,8 +1678,6 @@ typedef struct TileDataEnc {
 
 typedef struct RD_COUNTS {
   int64_t comp_pred_diff[REFERENCE_MODES];
-  // Stores number of 4x4 blocks using global motion per reference frame.
-  int global_motion_used[INTER_REFS_PER_FRAME];
   int compound_ref_used_flag;
   int skip_mode_used_flag;
   int tx_type_used[TX_SIZES_ALL][TX_TYPES];
@@ -1944,19 +1995,6 @@ static INLINE char const *get_component_name(int index) {
  */
 typedef struct {
   /*!
-   * Array to store the cost for signalling each global motion model.
-   * gmtype_cost[i] stores the cost of signalling the ith Global Motion model.
-   */
-  int type_cost[TRANS_TYPES];
-
-  /*!
-   * Array to store the cost for signalling a particular global motion model for
-   * each reference frame. gmparams_cost[i] stores the cost of signalling global
-   * motion for the ith reference frame.
-   */
-  int params_cost[INTER_REFS_PER_FRAME];
-
-  /*!
    * Flag to indicate if global motion search needs to be rerun.
    */
   bool search_done;
@@ -2007,6 +2045,25 @@ typedef struct {
    * the y co-ordinate of the ith corner point detected.
    */
   int src_corners[2 * MAX_CORNERS];
+
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  /*!
+   * \brief Error ratio for each selected global motion model
+   *
+   * This is used to help decide which models will actually be used,
+   * because that decision has to be deferred until we actually select a
+   * base model to use
+   */
+  double erroradvantage[INTER_REFS_PER_FRAME];
+
+  /**
+   * \name Reference path for selected base model
+   */
+  /**@{*/
+  int base_model_our_ref;   /*!< which of our ref frames to copy from */
+  int base_model_their_ref; /*!< which model to copy from that frame */
+  /**@}*/
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 } GlobalMotionInfo;
 
 /*!
@@ -2743,7 +2800,7 @@ typedef struct AV1_COMP {
   /*!
    * Tables to calculate IntraBC MV cost.
    */
-#if !CONFIG_FLEX_MVRES && !CONFIG_BVCOST_UPDATE
+#if !CONFIG_FLEX_MVRES && !CONFIG_IBC_BV_IMPROVEMENT
   IntraBCMVCosts dv_costs;
 #endif
 
@@ -2896,6 +2953,14 @@ typedef struct AV1_COMP {
    * Number of frames left to be encoded, is 0 if limit is not set.
    */
   int frames_left;
+
+  /*!
+   * Indicates if a valid global motion model has been found in the different
+   * frame update types of a GF group.
+   * valid_gm_model_found[i] indicates if valid global motion model has been
+   * found in the frame update type with enum value equal to i
+   */
+  int valid_gm_model_found[FRAME_UPDATE_TYPES];
 } AV1_COMP;
 
 /*!
@@ -3077,11 +3142,7 @@ int av1_get_quantizer(struct AV1_COMP *cpi);
 
 int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 
-#if DS_FRAME_LEVEL
-void av1_set_downsample_filter_options(AV1_COMP *cpi, FeatureFlags *features);
-#else
 void av1_set_downsample_filter_options(AV1_COMP *cpi);
-#endif  // DS_FRAME_LEVEl
 
 // Set screen content options.
 // This function estimates whether to use screen content tools, by counting
@@ -3289,8 +3350,18 @@ static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
 // frame. An exception can be made for a forward keyframe since it has no
 // previous dependencies.
 static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
-  return cm->show_existing_frame && (!cm->features.error_resilient_mode ||
-                                     cm->current_frame.frame_type == KEY_FRAME);
+  if (!cm->show_existing_frame) return 0;
+
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // When enable_frame_output_order == 1, show_existing_frame can be equal to 1
+  // only for a forward key frame
+  if (cm->seq_params.enable_frame_output_order)
+    return (!cm->features.error_resilient_mode &&
+            cm->current_frame.frame_type == KEY_FRAME);
+  else
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    return (!cm->features.error_resilient_mode ||
+            cm->current_frame.frame_type == KEY_FRAME);
 }
 
 // Get index into the 'cpi->mbmi_ext_info.frame_base' array for the given
@@ -3357,6 +3428,16 @@ static INLINE int get_max_allowed_ref_frames(
                                  : INTER_REFS_PER_FRAME;
   return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
 }
+
+#if CONFIG_SEP_COMP_DRL
+/*!\brief Return whether the current coding block has two separate DRLs,
+ * the mdoe info is used as inputs */
+static INLINE int has_second_drl_by_mode(const PREDICTION_MODE mode,
+                                         const MV_REFERENCE_FRAME *ref_frame) {
+  return (mode == NEAR_NEARMV || mode == NEAR_NEWMV) &&
+         !is_tip_ref_frame(ref_frame[0]);
+}
+#endif  // CONFIG_SEP_COMP_DRL
 
 // Enforce the number of references for each arbitrary frame based on user
 // options and speed.

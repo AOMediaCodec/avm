@@ -177,17 +177,38 @@ static INLINE int av1_get_sb_mi_size(const AV1_COMMON *const cm) {
 static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
     const MACROBLOCKD *xd, MB_MODE_INFO_EXT *const mbmi_ext,
     MV_REFERENCE_FRAME ref_frame) {
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (xd->mi[0]->skip_mode) {
     memcpy(&(mbmi_ext->skip_mvp_candidate_list), &(xd->skip_mvp_candidate_list),
            sizeof(xd->skip_mvp_candidate_list));
     return;
   }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SEP_COMP_DRL
+  if (has_second_drl(xd->mi[0])) {
+    MV_REFERENCE_FRAME rf[2];
+    av1_set_ref_frame(rf, ref_frame);
+    if (rf[1] < 0) rf[1] = 0;
+    memcpy(mbmi_ext->weight[rf[0]], xd->weight[rf[0]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
+    memcpy(mbmi_ext->ref_mv_stack[rf[0]], xd->ref_mv_stack[rf[0]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+    memcpy(mbmi_ext->weight[rf[1]], xd->weight[rf[1]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
+    memcpy(mbmi_ext->ref_mv_stack[rf[1]], xd->ref_mv_stack[rf[1]],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+  } else {
+    memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
+    memcpy(mbmi_ext->ref_mv_stack[ref_frame], xd->ref_mv_stack[ref_frame],
+           USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+  }
+#else
   memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
          USABLE_REF_MV_STACK_SIZE * sizeof(xd->weight[0][0]));
   memcpy(mbmi_ext->ref_mv_stack[ref_frame], xd->ref_mv_stack[ref_frame],
          USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
+#endif  // CONFIG_SEP_COMP_DRL
 }
 
 #define PRUNE_SINGLE_REFS 0
@@ -301,26 +322,52 @@ static INLINE int prune_ref_by_selective_ref_frame(
 static INLINE void av1_copy_mbmi_ext_to_mbmi_ext_frame(
     MB_MODE_INFO_EXT_FRAME *mbmi_ext_best,
     const MB_MODE_INFO_EXT *const mbmi_ext,
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SEP_COMP_DRL
+    MB_MODE_INFO *mbmi,
+#endif  // CONFIG_SEP_COMP_DRL
+#if CONFIG_SKIP_MODE_ENHANCEMENT
     uint8_t skip_mode,
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     uint8_t ref_frame_type) {
 
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (skip_mode) {
     memcpy(&(mbmi_ext_best->skip_mvp_candidate_list),
            &(mbmi_ext->skip_mvp_candidate_list),
            sizeof(mbmi_ext->skip_mvp_candidate_list));
     return;
   }
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
+#if CONFIG_SEP_COMP_DRL
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame_type);
+  if (!has_second_drl(mbmi))
+    rf[0] = ref_frame_type;  //????????????? need to know how encoder work,
+                             // whether the mode has been set
+  memcpy(mbmi_ext_best->ref_mv_stack[0], mbmi_ext->ref_mv_stack[rf[0]],
+         sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+  memcpy(mbmi_ext_best->weight[0], mbmi_ext->weight[rf[0]],
+         sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+  mbmi_ext_best->ref_mv_count[0] = mbmi_ext->ref_mv_count[rf[0]];
+
+  if (has_second_drl(mbmi)) {
+    assert(rf[0] == mbmi->ref_frame[0]);
+    assert(rf[1] == mbmi->ref_frame[1]);
+    memcpy(mbmi_ext_best->ref_mv_stack[1], mbmi_ext->ref_mv_stack[rf[1]],
+           sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
+    memcpy(mbmi_ext_best->weight[1], mbmi_ext->weight[rf[1]],
+           sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
+    mbmi_ext_best->ref_mv_count[1] = mbmi_ext->ref_mv_count[rf[1]];
+  }
+#else
   memcpy(mbmi_ext_best->ref_mv_stack, mbmi_ext->ref_mv_stack[ref_frame_type],
          sizeof(mbmi_ext->ref_mv_stack[USABLE_REF_MV_STACK_SIZE]));
   memcpy(mbmi_ext_best->weight, mbmi_ext->weight[ref_frame_type],
          sizeof(mbmi_ext->weight[USABLE_REF_MV_STACK_SIZE]));
-  mbmi_ext_best->mode_context = mbmi_ext->mode_context[ref_frame_type];
   mbmi_ext_best->ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
+#endif  // CONFIG_SEP_COMP_DRL
+  mbmi_ext_best->mode_context = mbmi_ext->mode_context[ref_frame_type];
   memcpy(mbmi_ext_best->global_mvs, mbmi_ext->global_mvs,
          sizeof(mbmi_ext->global_mvs));
 

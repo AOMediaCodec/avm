@@ -31,7 +31,7 @@ const uint8_t *aom_reader_find_end(aom_reader *r) { return r->buffer_end; }
 
 uint32_t aom_reader_tell(const aom_reader *r) { return od_ec_dec_tell(&r->ec); }
 
-uint32_t aom_reader_tell_frac(const aom_reader *r) {
+uint64_t aom_reader_tell_frac(const aom_reader *r) {
   return od_ec_dec_tell_frac(&r->ec);
 }
 

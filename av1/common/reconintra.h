@@ -14,6 +14,7 @@
 #define AOM_AV1_COMMON_RECONINTRA_H_
 
 #include <stdlib.h>
+#include <math.h>
 
 #include "aom/aom_integer.h"
 #include "av1/common/av1_common_int.h"
@@ -124,7 +125,9 @@ static INLINE int use_inter_fsc(const AV1_COMMON *const cm,
                                 PLANE_TYPE plane_type, TX_TYPE tx_type,
                                 int is_inter) {
   bool allow_fsc = cm->seq_params.enable_fsc &&
+#if !CONFIG_ATC_DCTX_ALIGNED
                    cm->features.allow_screen_content_tools &&
+#endif  // !CONFIG_ATC_DCTX_ALIGNED
                    plane_type == PLANE_TYPE_Y && is_inter && tx_type == IDTX;
   return allow_fsc;
 }
@@ -213,6 +216,44 @@ static INLINE int av1_allow_orip_dir(int p_angle) {
 
 extern const int8_t av1_filter_intra_taps[FILTER_INTRA_MODES][8][8];
 
+#if CONFIG_EXT_DIR
+// moved to av1_common_int.h
+#elif CONFIG_IMPROVED_ANGULAR_INTRA
+static const int16_t dr_intra_derivative[90] = {
+  // Angles are dense around vertical and horizontal directions, and coarse
+  // close to
+  // diagonal directions.
+  //                    Approx angle
+  0,    0, 0,        //
+  2048, 0, 0,        // 3, ...
+  1024, 0, 0,        // 6, ...
+  512,  0, 0, 0, 0,  // 9, ...
+  340,  0, 0,        // 14, ...
+  256,  0, 0,        // 17, ...
+  204,  0, 0,        // 20, ...
+  170,  0, 0,        // 23, ... (113 & 203 are base angles)
+  146,  0, 0,        // 26, ...
+  128,  0, 0,        // 29, ...
+  106,  0, 0, 0,     // 32, ...
+  92,   0, 0,        // 36, ...
+  82,   0, 0,        // 39, ...
+  72,   0, 0,        // 42, ...
+  64,   0, 0,        // 45, ... (45 & 135 are base angles)
+  56,   0, 0,        // 48, ...
+  50,   0, 0,        // 51, ...
+  44,   0, 0, 0,     // 54, ...
+  38,   0, 0,        // 58, ...
+  32,   0, 0,        // 61, ...
+  28,   0, 0,        // 64, ...
+  24,   0, 0,        // 67, ... (67 & 157 are base angles)
+  20,   0, 0,        // 70, ...
+  16,   0, 0,        // 73, ...
+  12,   0, 0, 0, 0,  // 76, ...
+  8,    0, 0,        // 81, ...
+  4,    0, 0,        // 84, ...
+  2,    0, 0,        // 87, ...
+};
+#else
 static const int16_t dr_intra_derivative[90] = {
   // More evenly spread out angles and limited to 10-bit
   // Values that are 0 will never be used
@@ -246,6 +287,7 @@ static const int16_t dr_intra_derivative[90] = {
   7,    0, 0,        // 84, ...
   3,    0, 0,        // 87, ...
 };
+#endif  // CONFIG_EXT_DIR
 
 // Get the shift (up-scaled by 256) in X w.r.t a unit change in Y.
 // If angle > 0 && angle < 90, dx = -((int)(256 / t));
@@ -300,6 +342,24 @@ static AOM_INLINE void set_have_top_and_left(int *have_top, int *have_left,
       col_off || (plane ? xd->chroma_left_available : xd->left_available);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_IDIF
+#define POWER_DR_INTERP_FILTER 7
+
+DECLARE_ALIGNED(16, static const int16_t, av1_dr_interp_filter[32][4]) = {
+  { 0, 128, 0, 0 },     { -2, 127, 4, -1 },   { -3, 125, 8, -2 },
+  { -5, 123, 13, -3 },  { -6, 121, 17, -4 },  { -7, 118, 22, -5 },
+  { -9, 116, 27, -6 },  { -9, 112, 32, -7 },  { -10, 109, 37, -8 },
+  { -11, 106, 41, -8 }, { -11, 102, 46, -9 }, { -12, 98, 52, -10 },
+  { -12, 94, 56, -10 }, { -12, 90, 61, -11 }, { -12, 85, 66, -11 },
+  { -12, 81, 71, -12 }, { -12, 76, 76, -12 }, { -12, 71, 81, -12 },
+  { -11, 66, 85, -12 }, { -11, 61, 90, -12 }, { -10, 56, 94, -12 },
+  { -10, 52, 98, -12 }, { -9, 46, 102, -11 }, { -8, 41, 106, -11 },
+  { -8, 37, 109, -10 }, { -7, 32, 112, -9 },  { -6, 27, 116, -9 },
+  { -5, 22, 118, -7 },  { -4, 17, 121, -6 },  { -3, 13, 123, -5 },
+  { -2, 8, 125, -3 },   { -1, 4, 127, -2 }
+};
+#endif  // CONFIG_IDIF
 
 #ifdef __cplusplus
 }  // extern "C"

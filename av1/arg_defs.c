@@ -410,6 +410,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                          "Enable block adaptive weighted prediction (BAWP)"
                          "(0: false, 1: true (default))"),
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  .enable_cwp = ARG_DEF(NULL, "enable-cwp", 1,
+                        "Enable compound weighted prediction (CWP)"
+                        "(0: false, 1: true (default))"),
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  .enable_imp_msk_bld = ARG_DEF(NULL, "enable-imp-msk-bld", 1,
+                                "Enable implicit maksed blending"
+                                "(0:false), 1:true (default)"),
+#endif  // CONFIG_D071_IMP_MSK_BLD
   .enable_fsc = ARG_DEF(NULL, "enable-fsc", 1,
                         "Enable forward skip coding"
                         "(0: false, 1: true (default))"),
@@ -418,6 +428,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                          "Enable Offset Based refinement of intra prediction"
                          "(0: false, 1: true (default))"),
 #endif
+#if CONFIG_IDIF
+  .enable_idif = ARG_DEF(NULL, "enable-idif", 1,
+                         "Enable Intra Directional Interpolation Filter"
+                         "(0: false, 1: true (default))"),
+#endif  // CONFIG_IDIF
   .enable_ist = ARG_DEF(NULL, "enable-ist", 1,
                         "Enable intra secondary transform"
                         "(0: false, 1: true (default))"),
@@ -452,6 +467,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                               "Enable joint MVD coding"
                               "(0: false, 1: true (default))"),
 #endif  // CONFIG_JOINT_MVD
+
+#if CONFIG_REFINEMV
+  .enable_refinemv = ARG_DEF(NULL, "enable-refinemv", 1,
+                             "Enable RefineMV mode"
+                             "(0: false, 1: true (default))"),
+#endif  // CONFIG_REFINEMV
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
               "Set min partition size "
@@ -511,7 +532,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                      "(0: false, 1: true (default))"),
   .enable_global_motion = ARG_DEF(NULL, "enable-global-motion", 1,
                                   "Enable global motion "
-                                  "(0: false, 1: true (default))"),
+                                  "(0: false (default), 1: true)"),
   .enable_warped_motion = ARG_DEF(NULL, "enable-warped-motion", 1,
                                   "Enable local warped motion "
                                   "(0: false, 1: true (default))"),
@@ -679,6 +700,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "explicit-ref-frame-map", 1,
               "Explicitly signal the reference frame mapping (0: off "
               "(default), 1: on)"),
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  .enable_frame_output_order =
+      ARG_DEF(NULL, "enable-frame-output-order", 1,
+              "Enable frame output order derivation based on order hint"
+              "(0: off, 1: on (default))"),
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   .target_seq_level_idx = ARG_DEF(
       NULL, "target-seq-level-idx", 1,
       "Target sequence level index. "

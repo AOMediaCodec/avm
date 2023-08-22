@@ -253,6 +253,9 @@ void av1_simple_motion_search_based_split(
     int *partition_horz_allowed, int *partition_vert_allowed,
     int *do_rectangular_split, int *do_square_split) {
   aom_clear_system_state();
+  (void)partition_horz_allowed;
+  (void)partition_vert_allowed;
+  (void)do_rectangular_split;
 
   const AV1_COMMON *const cm = &cpi->common;
   const int bsize_idx = convert_bsize_to_idx(bsize);
@@ -511,7 +514,11 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
 void av1_simple_motion_search_prune_rect(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, int partition_horz_allowed,
-    int partition_vert_allowed, int *prune_horz, int *prune_vert) {
+    int partition_vert_allowed, bool *prune_horz, bool *prune_vert) {
+  // TODO(urvang): Need to change for CONFIG_UNEVEN_4WAY.
+#if CONFIG_UNEVEN_4WAY
+  assert(0 && "Not implemented");
+#endif  // CONFIG_UNEVEN_4WAY
   aom_clear_system_state();
   const AV1_COMMON *const cm = &cpi->common;
   const int bsize_idx = convert_bsize_to_idx(bsize);
@@ -924,8 +931,8 @@ void av1_ml_early_term_after_split(AV1_COMP *const cpi, MACROBLOCK *const x,
 void av1_ml_prune_rect_partition(const AV1_COMP *const cpi,
                                  const MACROBLOCK *const x, BLOCK_SIZE bsize,
                                  int64_t best_rd, int64_t none_rd,
-                                 int64_t *split_rd, int *const dst_prune_horz,
-                                 int *const dst_prune_vert) {
+                                 int64_t *split_rd, bool *const dst_prune_horz,
+                                 bool *const dst_prune_vert) {
   if (bsize < BLOCK_8X8 || best_rd >= 1000000000) return;
   best_rd = AOMMAX(best_rd, 1);
   const NN_CONFIG *nn_config = NULL;
@@ -1091,6 +1098,7 @@ void av1_ml_prune_ab_partition(
   }
 }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 #define FEATURES 18
 #define LABELS 4
 // Use a ML model to predict if horz4 and vert4 should be considered.
@@ -1229,6 +1237,8 @@ void av1_ml_prune_4_partition(
 #undef FEATURES
 #undef LABELS
 
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
+
 #define FEATURES 4
 int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                             const MACROBLOCK *const x,
@@ -1300,7 +1310,7 @@ void av1_prune_partitions_before_search(
     BLOCK_SIZE bsize, SIMPLE_MOTION_DATA_TREE *const sms_tree,
     int *partition_none_allowed, int *partition_horz_allowed,
     int *partition_vert_allowed, int *do_rectangular_split,
-    int *do_square_split, int *prune_horz, int *prune_vert,
+    int *do_square_split, bool *prune_horz, bool *prune_vert,
     const PC_TREE *pc_tree) {
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -1342,27 +1352,15 @@ void av1_prune_partitions_before_search(
         do_square_split);
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (!*partition_none_allowed) {
-      if (!pc_tree->parent || pc_tree != pc_tree->parent->horizontal3[1]) {
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
-                                 cm->sb_size, PARTITION_HORZ);
-        const int mi_step = block_size_high[bsize] / 2;
-        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
-                                 cm->sb_size, PARTITION_VERT);
-        av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
-                                 cm->sb_size, PARTITION_VERT);
-      } else if (pc_tree != pc_tree->parent->vertical[1]) {
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
-                                 cm->sb_size, PARTITION_VERT);
-        const int mi_step = block_size_wide[bsize] / 2;
-        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_VERT);
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
-                                 cm->sb_size, PARTITION_HORZ);
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col + mi_step, subsize,
-                                 cm->sb_size, PARTITION_HORZ);
-      }
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               PARTITION_HORZ);
+      const int mi_step = block_size_high[bsize] / 2;
+      BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
+                               cm->sb_size, PARTITION_VERT);
+      av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
+                               cm->sb_size, PARTITION_VERT);
     }
-#else
     (void)pc_tree;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
@@ -1631,6 +1629,24 @@ static INLINE int get_sms_count_from_length(int mi_length) {
 }
 
 // Gets the linear index corresponds to the current block.
+
+#if CONFIG_UNEVEN_4WAY
+static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
+  int idx = -1;
+  if (mi_bsize <= 2) {
+    idx = mi_in_sb;
+  } else if (mi_bsize <= 8) {
+    assert(mi_in_sb % (mi_bsize / 4) == 0);
+    idx = mi_in_sb / (mi_bsize / 4);
+  } else {
+    assert(mi_in_sb % (mi_bsize / 2) == 0);
+    idx = mi_in_sb / (mi_bsize / 2);
+  }
+  assert(idx >= 0 && idx < get_sms_count_from_length(mi_bsize));
+
+  return idx;
+}
+#else
 static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
   int idx = -1;
   if (mi_bsize == 1) {
@@ -1643,6 +1659,7 @@ static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
 
   return idx;
 }
+#endif  // CONFIG_UNEVEN_4WAY
 
 #define MAKE_SMS_ARR_SWITCH_CASE(width, height) \
   case BLOCK_##width##X##height: {              \
@@ -1817,42 +1834,59 @@ static INLINE void add_start_mv_to_partition(
     SimpleMotionDataBufs *sms_bufs, int mi_row, int mi_col, BLOCK_SIZE bsize,
     BLOCK_SIZE sb_size, PARTITION_TYPE partition, MV start_mv) {
   assert(bsize < BLOCK_SIZES_ALL);
-  const int quarter_step_h = block_size_high[bsize] / 4;
-  const int quarter_step_w = block_size_wide[bsize] / 4;
+  const int eighth_step_h = block_size_high[bsize] / 8;
+  const int eighth_step_w = block_size_wide[bsize] / 8;
   static const int subblock_count[ALL_PARTITION_TYPES] = {
     1,  // PARTITION_NONE
     2,  // PARTITION_HORZ
     2,  // PARTITION_VERT
-#if CONFIG_H_PARTITION
     4,  // PARTITION_HORZ_3
     4,  // PARTITION_VERT_3
-#else
-    3,                                           // PARTITION_HORZ_3
-    3,                                           // PARTITION_VERT_3
-#endif  // CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+    4,  // PARTITION_HORZ_4A
+    4,  // PARTITION_HORZ_4B
+    4,  // PARTITION_VERT_4A
+    4,  // PARTITION_VERT_4B
+#endif  // CONFIG_UNEVEN_4WAY
     4,  // PARTITION_SPLIT
   };
   // PARTITION x NUM_SUBBLOCKS x (ROW and COL)
   static const int step_multiplier[ALL_PARTITION_TYPES][4][2] = {
     { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
-    { { 0, 0 }, { 2, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
-    { { 0, 0 }, { 0, 2 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
-#if CONFIG_H_PARTITION
-    { { 0, 0 }, { 1, 0 }, { 1, 2 }, { 3, 0 } },  // PARTITION_HORZ_3
-    { { 0, 0 }, { 0, 1 }, { 2, 1 }, { 0, 3 } },  // PARTITION_VERT_3
-#else
-    { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 0, 0 } },  // PARTITION_HORZ_3
-    { { 0, 0 }, { 0, 1 }, { 0, 3 }, { 0, 0 } },  // PARTITION_VERT_3
-#endif                                           // CONFIG_H_PARTITION
-    { { 0, 0 }, { 0, 2 }, { 2, 0 }, { 2, 2 } },  // PARTITION_SPLIT
+    { { 0, 0 }, { 4, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
+    { { 0, 0 }, { 0, 4 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
+    { { 0, 0 }, { 2, 0 }, { 2, 4 }, { 6, 0 } },  // PARTITION_HORZ_3
+    { { 0, 0 }, { 0, 2 }, { 4, 2 }, { 0, 6 } },  // PARTITION_VERT_3
+#if CONFIG_UNEVEN_4WAY
+    { { 0, 0 }, { 1, 0 }, { 3, 0 }, { 7, 0 } },  // PARTITION_HORZ_4A
+    { { 0, 0 }, { 1, 0 }, { 5, 0 }, { 7, 0 } },  // PARTITION_HORZ_4B
+    { { 0, 0 }, { 0, 1 }, { 0, 3 }, { 0, 7 } },  // PARTITION_VERT_4A
+    { { 0, 0 }, { 0, 1 }, { 0, 5 }, { 0, 7 } },  // PARTITION_VERT_4B
+#endif                                           // CONFIG_UNEVEN_4WAY
+    { { 0, 0 }, { 0, 4 }, { 4, 0 }, { 4, 4 } },  // PARTITION_SPLIT
   };
 
+  // Sizes of subblocks.
   const BLOCK_SIZE part_subsize = get_partition_subsize(bsize, partition);
   if (part_subsize == BLOCK_INVALID) return;
 
   BLOCK_SIZE subsizes[4] = { part_subsize, part_subsize, part_subsize,
                              part_subsize };
-#if CONFIG_H_PARTITION
+#if CONFIG_UNEVEN_4WAY
+  if (partition == PARTITION_HORZ_4A) {
+    subsizes[2] = get_partition_subsize(bsize, PARTITION_HORZ);
+    subsizes[1] = get_partition_subsize(subsizes[2], PARTITION_HORZ);
+  } else if (partition == PARTITION_HORZ_4B) {
+    subsizes[1] = get_partition_subsize(bsize, PARTITION_HORZ);
+    subsizes[2] = get_partition_subsize(subsizes[1], PARTITION_HORZ);
+  } else if (partition == PARTITION_VERT_4A) {
+    subsizes[2] = get_partition_subsize(bsize, PARTITION_VERT);
+    subsizes[1] = get_partition_subsize(subsizes[2], PARTITION_VERT);
+  } else if (partition == PARTITION_VERT_4B) {
+    subsizes[1] = get_partition_subsize(bsize, PARTITION_VERT);
+    subsizes[2] = get_partition_subsize(subsizes[1], PARTITION_VERT);
+  }
+#endif  // CONFIG_UNEVEN_4WAY
   if (partition == PARTITION_HORZ_3) {
     subsizes[1] = get_h_partition_subsize(sb_size, 1, PARTITION_HORZ_3);
     subsizes[2] = get_h_partition_subsize(sb_size, 2, PARTITION_HORZ_3);
@@ -1860,12 +1894,12 @@ static INLINE void add_start_mv_to_partition(
     subsizes[1] = get_h_partition_subsize(sb_size, 1, PARTITION_VERT_3);
     subsizes[2] = get_h_partition_subsize(sb_size, 2, PARTITION_VERT_3);
   }
-#endif  // CONFIG_H_PARTITION
+
   for (int idx = 0; idx < subblock_count[partition]; idx++) {
     const int sub_row =
-        mi_row + step_multiplier[partition][idx][0] * quarter_step_h / 4;
+        mi_row + step_multiplier[partition][idx][0] * eighth_step_h / 4;
     const int sub_col =
-        mi_col + step_multiplier[partition][idx][1] * quarter_step_w / 4;
+        mi_col + step_multiplier[partition][idx][1] * eighth_step_w / 4;
     SimpleMotionData *subblock = av1_get_sms_data_entry(
         sms_bufs, sub_row, sub_col, subsizes[idx], sb_size);
     add_start_mv_to_block(subblock, start_mv);
@@ -1989,15 +2023,10 @@ void av1_gather_erp_rect_features(
 
   // Whether we are in the middle of a PARTITION_3 subblock
   const PC_TREE *parent = pc_tree->parent;
-#if CONFIG_H_PARTITION
   ml_features[num_features++] = parent && (parent->horizontal3[1] == pc_tree ||
                                            parent->horizontal3[2] == pc_tree);
   ml_features[num_features++] = parent && (parent->vertical3[1] == pc_tree ||
                                            parent->vertical3[2] == pc_tree);
-#else
-  ml_features[num_features++] = parent && parent->horizontal3[1] == pc_tree;
-  ml_features[num_features++] = parent && parent->vertical3[1] == pc_tree;
-#endif  // CONFIG_H_PARTITION
   assert(num_features == 19);
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

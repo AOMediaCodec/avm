@@ -221,6 +221,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                                        AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -443,16 +446,28 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_BAWP
   &g_av1_codec_arg_defs.enable_bawp,
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  &g_av1_codec_arg_defs.enable_cwp,
+#endif  // CONFIG_CWP
+#if CONFIG_D071_IMP_MSK_BLD
+  &g_av1_codec_arg_defs.enable_imp_msk_bld,
+#endif  // CONFIG_D071_IMP_MSK_BLD
   &g_av1_codec_arg_defs.enable_fsc,
 #if CONFIG_ORIP
   &g_av1_codec_arg_defs.enable_orip,
 #endif
+#if CONFIG_IDIF
+  &g_av1_codec_arg_defs.enable_idif,
+#endif  // CONFIG_IDIF
   &g_av1_codec_arg_defs.enable_ist,
 #if CONFIG_CROSS_CHROMA_TX
   &g_av1_codec_arg_defs.enable_cctx,
 #endif  // CONFIG_CROSS_CHROMA_TX
   &g_av1_codec_arg_defs.enable_ibp,
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  &g_av1_codec_arg_defs.enable_frame_output_order,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   &g_av1_codec_arg_defs.max_drl_refmvs,
 #if CONFIG_REF_MV_BANK
   &g_av1_codec_arg_defs.enable_refmvbank,
@@ -481,6 +496,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_JOINT_MVD
   &g_av1_codec_arg_defs.enable_joint_mvd,
 #endif  // CONFIG_JOINT_MVD
+#if CONFIG_REFINEMV
+  &g_av1_codec_arg_defs.enable_refinemv,
+#endif  // CONFIG_REFINEMV
 #if CONFIG_PAR_HIDING
   &g_av1_codec_arg_defs.enable_parity_hiding,
 #endif  // CONFIG_PAR_HIDING
@@ -632,11 +650,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   config->erp_pruning_level = 5;
   config->use_ml_erp_pruning = 0;
-#if CONFIG_H_PARTITION
   config->enable_ext_partitions = 1;
-#else
-  config->enable_ext_partitions = 0;
-#endif  // CONFIG_H_PARTITION
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;
   config->enable_mrls = 1;
@@ -646,10 +660,19 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_BAWP
   config->enable_bawp = 1;
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  config->enable_cwp = 1;
+#endif  // CONFIG_BAWP
+#if CONFIG_D071_IMP_MSK_BLD
+  config->enable_imp_msk_bld = 1;
+#endif  // CONFIG_D071_IMP_MSK_BLD
   config->enable_fsc = 1;
 #if CONFIG_ORIP
   config->enable_orip = 1;
 #endif
+#if CONFIG_IDIF
+  config->enable_idif = 1;
+#endif  // CONFIG_IDIF
   config->enable_ist = 1;
 #if CONFIG_CROSS_CHROMA_TX
   config->enable_cctx = 1;
@@ -667,6 +690,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_JOINT_MVD
   config->enable_joint_mvd = 1;
 #endif
+#if CONFIG_REFINEMV
+  config->enable_refinemv = 1;
+#endif  // CONFIG_REFINEMV
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
@@ -710,6 +736,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_opfl_refine = 1;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   config->explicit_ref_frame_map = 0;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  config->enable_frame_output_order = 1;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
   config->enable_smooth_interintra = 1;
@@ -1513,6 +1542,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_ORIP
           ", ORIP(%d)"
 #endif  // CONFIG_CONFIG_ORIP
+#if CONFIG_IDIF
+          ", IDIF(%d)"
+#endif  // CONFIG_IDIF
           ", IBP(%d)"
           "\n",
           encoder_cfg->enable_intra_edge_filter,
@@ -1522,8 +1554,18 @@ static void show_stream_config(struct stream_state *stream,
           ,
           encoder_cfg->enable_orip
 #endif  //  CONFIG_ORIP
+#if CONFIG_IDIF
+          ,
+          encoder_cfg->enable_idif
+#endif  //  CONFIG_IDIF
           ,
           encoder_cfg->enable_ibp);
+#if CONFIG_ADAPTIVE_DS_FILTER
+  fprintf(
+      stdout,
+      "                               : Adaptive Down sample filter: (%d)\n",
+      encoder_cfg->enable_cfl_ds_filter);
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
 
   fprintf(stdout,
           "Tool setting (Inter)           : InterIntra (%d), OBMC (%d), "
@@ -1549,6 +1591,15 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : BAWP (%d)\n",
           encoder_cfg->enable_bawp);
 #endif  // CONFIG_BAWP
+#if CONFIG_CWP
+  fprintf(stdout, "                               : CWP (%d)\n",
+          encoder_cfg->enable_cwp);
+#endif  // CONFIG_CWP
+
+#if CONFIG_D071_IMP_MSK_BLD
+  fprintf(stdout, "                               : ImpMskBld (%d)\n",
+          encoder_cfg->enable_imp_msk_bld);
+#endif  // CONFIG_D071_IMP_MSK_BLD
 
   fprintf(stdout,
           "                               : GlobalMotion (%d), "
@@ -1570,16 +1621,14 @@ static void show_stream_config(struct stream_state *stream,
           "                               : Flexible MV precisions: (%d)\n",
           encoder_cfg->enable_flex_mvres);
 #endif  // CONFIG_FLEX_MVRES
-#if CONFIG_ADAPTIVE_DS_FILTER
-  fprintf(
-      stdout,
-      "                               : Adaptive Down sample filter: (%d)\n",
-      encoder_cfg->enable_cfl_ds_filter);
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
 #if CONFIG_JOINT_MVD
   fprintf(stdout, "                               : Joint MVD coding: (%d)\n",
           encoder_cfg->enable_joint_mvd);
 #endif
+#if CONFIG_REFINEMV
+  fprintf(stdout, "                               : RefineMV mode: (%d)\n",
+          encoder_cfg->enable_refinemv);
+#endif  // CONFIG_REFINEMV
   fprintf(stdout,
           "                               : InterInterWedge (%d), "
           "InterIntraWedge (%d), RefFrameMv (%d)\n",
@@ -1926,7 +1975,11 @@ static void get_cx_data(struct stream_state *stream,
 
     switch (pkt->kind) {
       case AOM_CODEC_CX_FRAME_PKT:
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        stream->frames_out += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         ++stream->frames_out;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO
         if (stream->config.write_webm) {
@@ -2358,7 +2411,11 @@ int main(int argc, const char **argv_) {
     }
 
     // Keep track of the total number of frames passed to the encoder.
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    unsigned int seen_frames = 0;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     int seen_frames = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     // Does the encoder have queued data that needs retrieval?
     int got_data = 0;
     // Is there a frame available for processing?
@@ -2425,6 +2482,11 @@ int main(int argc, const char **argv_) {
         }
       }
       fflush(stdout);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      FOREACH_STREAM(stream, streams) {
+        if (stream->frames_out < seen_frames) got_data = 1;
+      }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
 
     if (stream_cnt > 1) fprintf(stderr, "\n");

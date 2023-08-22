@@ -40,6 +40,19 @@ typedef struct {
   TXFM_CONTEXT *p_tl;
   TXFM_CONTEXT ta[MAX_MIB_SIZE];
   TXFM_CONTEXT tl[MAX_MIB_SIZE];
+#if CONFIG_MVP_IMPROVEMENT
+  //! The current level bank, used to restore the level bank in MACROBLOCKD.
+  REF_MV_BANK curr_level_bank;
+  //! The best level bank from the rdopt process.
+  REF_MV_BANK best_level_bank;
+#endif  // CONFIG_MVP_IMPROVEMENT
+#if WARP_CU_BANK
+  //! The current warp, level bank, used to restore the warp level bank in
+  //! MACROBLOCKD.
+  WARP_PARAM_BANK curr_level_warp_bank;
+  //! The best warp level bank from the rdopt process.
+  WARP_PARAM_BANK best_level_warp_bank;
+#endif  // WARP_CU_BANK
 } RD_SEARCH_MACROBLOCK_CONTEXT;
 
 // This struct is used to store the statistics used by sb-level multi-pass
@@ -54,9 +67,9 @@ typedef struct SB_FIRST_PASS_STATS {
   InterModeRdModel inter_mode_rd_models[BLOCK_SIZES_ALL];
   int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
   int current_qindex;
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -99,9 +112,15 @@ typedef struct PartitionBlkParams {
   int bsize_at_least_8x8;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
-  // Indicates edge blocks in frame.
+  // Indicates if at least half of the rows / cols of this block are within the
+  // frame.
   int has_rows;
   int has_cols;
+
+  // Indicates if at least 7/8th of the rows / cols of this block are within the
+  // frame. Used by HORZ/VERT_4A/4B partitions.
+  int has_7_8th_rows;
+  int has_7_8th_cols;
 
   // Block size of current partition.
   BLOCK_SIZE bsize;
@@ -164,7 +183,24 @@ typedef struct PartitionSearchState {
 #if !CONFIG_EXT_RECUR_PARTITIONS
   int do_square_split;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
-  int prune_rect_part[NUM_RECT_PARTS];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  bool prune_partition_none;
+  bool ext_partition_allowed;
+  bool partition_3_allowed[NUM_RECT_PARTS];
+  bool prune_partition_3[NUM_RECT_PARTS];
+#if CONFIG_UNEVEN_4WAY
+  bool partition_4a_allowed[NUM_RECT_PARTS];
+  bool partition_4b_allowed[NUM_RECT_PARTS];
+  bool prune_partition_4a[NUM_RECT_PARTS];
+  bool prune_partition_4b[NUM_RECT_PARTS];
+#endif  // CONFIG_UNEVEN_4WAY
+  PARTITION_TYPE forced_partition;
+  // Pointer to an array that traces out the current best partition boundary.
+  // Used by prune_part_h_with_partition_boundary and
+  // prune_part_4_with_partition_boundary.
+  bool *partition_boundaries;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  bool prune_rect_part[NUM_RECT_PARTS];
   int is_block_splittable;
 
   // Chroma subsampling in x and y directions.
@@ -177,19 +213,6 @@ typedef struct PartitionSearchState {
   // This flag will be set if best partition is found from the search.
   bool found_best_partition;
 } PartitionSearchState;
-
-static AOM_INLINE void update_global_motion_used(PREDICTION_MODE mode,
-                                                 BLOCK_SIZE bsize,
-                                                 const MB_MODE_INFO *mbmi,
-                                                 RD_COUNTS *rdc) {
-  if (mode == GLOBALMV || mode == GLOBAL_GLOBALMV) {
-    const int num_4x4s = mi_size_wide[bsize] * mi_size_high[bsize];
-    int ref;
-    for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-      rdc->global_motion_used[mbmi->ref_frame[ref]] += num_4x4s;
-    }
-  }
-}
 
 #if CONFIG_WEDGE_MOD_EXT
 static AOM_INLINE void update_wedge_mode_cdf(FRAME_CONTEXT *fc,
