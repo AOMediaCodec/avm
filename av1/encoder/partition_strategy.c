@@ -1348,35 +1348,15 @@ void av1_prune_partitions_before_search(
         do_square_split);
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (!*partition_none_allowed) {
-      if (!pc_tree->parent
-#if !CONFIG_UNEVEN_4WAY
-          || pc_tree != pc_tree->parent->horizontal3[1]
-#endif  // !CONFIG_UNEVEN_4WAY
-      ) {
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
-                                 cm->seq_params.sb_size, PARTITION_HORZ);
-        const int mi_step = block_size_high[bsize] / 2;
-        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
-                                 cm->seq_params.sb_size, PARTITION_VERT);
-        av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
-                                 cm->seq_params.sb_size, PARTITION_VERT);
-#if CONFIG_UNEVEN_4WAY
-      } else {
-#else
-      } else if (pc_tree != pc_tree->parent->vertical[1]) {
-#endif  // CONFIG_UNEVEN_4WAY
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
-                                 cm->seq_params.sb_size, PARTITION_VERT);
-        const int mi_step = block_size_wide[bsize] / 2;
-        BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_VERT);
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
-                                 cm->seq_params.sb_size, PARTITION_HORZ);
-        av1_cache_best_partition(x->sms_bufs, mi_row, mi_col + mi_step, subsize,
-                                 cm->seq_params.sb_size, PARTITION_HORZ);
-      }
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
+                               cm->seq_params.sb_size, PARTITION_HORZ);
+      const int mi_step = block_size_high[bsize] / 2;
+      BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
+                               cm->seq_params.sb_size, PARTITION_VERT);
+      av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
+                               cm->seq_params.sb_size, PARTITION_VERT);
     }
-#else
     (void)pc_tree;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
