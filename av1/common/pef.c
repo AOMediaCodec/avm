@@ -203,11 +203,15 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
               REFINEMV_SUBMB_INFO *refinemv_subinfo, int refinemv_step
 #endif  // CONFIG_REFINEMV
 ) {
+#if CONFIG_EXT_WARP_FILTER
+  if (pef_mode < 0 || pef_mode > 4) return;
+#else
 #if CONFIG_REFINEMV
   if (pef_mode < 0 || pef_mode > 3) return;
 #else
   if (pef_mode < 0 || pef_mode > 2) return;
 #endif                  // CONFIG_REFINEMV
+#endif                  // CONFIG_EXT_WARP_FILTER
   if (pef_mode == 0) {  // opfl mv
     const int_mv *cur_mv_refined_ref0 = &mv_refined[n_blocks * 2 + 0];
     const int_mv *cur_mv_refined_ref1 = &mv_refined[n_blocks * 2 + 1];
@@ -225,7 +229,12 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
         &refinemv_subinfo[-refinemv_step].refinemv[1];
     *diff_mv = cur_mv_refined_ref0[0].as_int != prev_mv_refined_ref0[0].as_int;
     *diff_mv |= cur_mv_refined_ref1[0].as_int != prev_mv_refined_ref1[0].as_int;
-#endif      // CONFIG_REFINEMV
+#endif  // CONFIG_REFINEMV
+#if CONFIG_EXT_WARP_FILTER
+  } else if (pef_mode == 4) {  // Extended warp filter
+    // Filter every 4x4 unit boundary
+    *diff_mv = true;
+#endif      // CONFIG_EXT_WARP_FILTER
   } else {  // tip mv
     const TPL_MV_REF *cur_tpl_mv = tpl_mvs + mv_rows * mvs_stride + mv_cols;
     const TPL_MV_REF *prev_tpl_mv = cur_tpl_mv - tip_step;
@@ -243,11 +252,14 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const int pef_mode = pef_input->pef_mode;
   if (pef_mode == 1 && (bw < PEF_MCU_SZ || bh < PEF_MCU_SZ)) return;
   const int plane = pef_input->plane;
-  const int n =
+
+  int n = PEF_MCU_SZ;  // n is motion compensation unit size
 #if CONFIG_OPTFLOW_REFINEMENT
-      pef_mode == 0 ? opfl_get_subblock_size(bw, bh, plane) :
-#endif                           // CONFIG_OPTFLOW_REFINEMENT
-                    PEF_MCU_SZ;  // n is motion compensation unit size
+  if (pef_mode == 0) n = opfl_get_subblock_size(bw, bh, plane);
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+#if CONFIG_EXT_WARP_FILTER
+  if (pef_mode == 4) n = PEF_MCU_SZ / 2;
+#endif  // CONFIG_EXT_WARP_FILTER
 
   const int bit_depth = pef_input->bit_depth;
   const int dst_stride = pef_input->dst_stride;
@@ -490,6 +502,10 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                         ,
                         int use_refinemv, REFINEMV_SUBMB_INFO *refinemv_subinfo
 #endif  // CONFIG_REFINEMV
+#if CONFIG_EXT_WARP_FILTER
+                        ,
+                        bool ext_warp_used
+#endif  // CONFIG_EXT_WARP_FILTER
 ) {
   if (!cm->seq_params.enable_pef) return;
   if (!cm->features.allow_pef) return;
@@ -529,5 +545,17 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     return;
   }
 #endif  // CONFIG_REFINEMV
+#if CONFIG_EXT_WARP_FILTER
+  if (ext_warp_used) {
+    PefFuncInput pef_input;
+    setup_pef_input(xd, 4, plane, dst, dst_stride, bw, bh, 0,
+#if CONFIG_REFINEMV
+                    NULL,
+#endif  // CONFIG_REFINEMV
+                    &pef_input);
+    enhance_sub_prediction_blocks(cm, xd, &pef_input);
+    return;
+  }
+#endif  // CONFIG_EXT_WARP_FILTER
   return;
 }

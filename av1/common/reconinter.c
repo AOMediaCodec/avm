@@ -3398,8 +3398,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
 
-    if (!build_for_obmc)
+    if (!build_for_obmc) {
       av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
+      assert(inter_pred_params.mode != WARP_PRED);
+    }
 
 #if CONFIG_D071_IMP_MSK_BLD
     if (is_compound) {
@@ -3451,6 +3453,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                        ,
                        0, NULL
 #endif  // CONFIG_REFINEMV
+#if CONFIG_EXT_WARP_FILTER
+                       ,
+                       false
+#endif  // CONFIG_EXT_WARP_FILTER
     );
   }
 #endif  // CONFIG_PEF
@@ -3582,7 +3588,12 @@ static void build_inter_predictors_8x8_and_bigger(
                        NULL, 0
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                        ,
-                       apply_sub_block_refinemv, &xd->refinemv_subinfo[0]);
+                       apply_sub_block_refinemv, &xd->refinemv_subinfo[0]
+#if CONFIG_EXT_WARP_FILTER
+                       ,
+                       false
+#endif  // CONFIG_EXT_WARP_FILTER
+    );
 #endif  // CONFIG_PEF
     dst_buf->buf = dst;
     xd->tmp_conv_dst = tmp_conv_dst;
@@ -3705,6 +3716,12 @@ static void build_inter_predictors_8x8_and_bigger(
                      cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
+#if CONFIG_EXT_WARP_FILTER
+  // Track whether we used the extended warp filter for either ref frame,
+  // so that we can apply PEF
+  bool ext_warp_used = false;
+#endif  // CONFIG_EXT_WARP_FILTER
+
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf =
         is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref];
@@ -3727,8 +3744,15 @@ static void build_inter_predictors_8x8_and_bigger(
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
 
-    if (!build_for_obmc)
+    if (!build_for_obmc) {
       av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
+#if CONFIG_EXT_WARP_FILTER
+      if (inter_pred_params.mode == WARP_PRED &&
+          !inter_pred_params.warp_params.use_affine_filter) {
+        ext_warp_used = true;
+      }
+#endif  // CONFIG_EXT_WARP_FILTER
+    }
 
 #if CONFIG_D071_IMP_MSK_BLD
     if (is_compound) {
@@ -3813,6 +3837,10 @@ static void build_inter_predictors_8x8_and_bigger(
                      ,
                      0, NULL
 #endif  // CONFIG_REFINEMV
+#if CONFIG_EXT_WARP_FILTER
+                     ,
+                     ext_warp_used
+#endif  // CONFIG_EXT_WARP_FILTER
   );
 #endif  // CONFIG_PEF
 }

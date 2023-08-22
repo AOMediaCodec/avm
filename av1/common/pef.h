@@ -54,7 +54,7 @@ typedef struct {
 // Structure for PEF function input
 typedef struct {
   // 0 for OPFL prediciton, 1 for TIP prediciton, 2 for TIP frame, 3 for
-  // refinemv prediction
+  // refinemv prediction, 4 for extended warp filter
   int pef_mode;
   int plane;
   int bw;
@@ -92,6 +92,10 @@ void enhance_prediction(const struct AV1Common *cm, MACROBLOCKD *xd, int plane,
                         ,
                         int use_refinemv, REFINEMV_SUBMB_INFO *refinemv_subinfo
 #endif  // CONFIG_REFINEMV
+#if CONFIG_EXT_WARP_FILTER
+                        ,
+                        bool ext_warp_used
+#endif  // CONFIG_EXT_WARP_FILTER
 );
 
 #ifdef __cplusplus
