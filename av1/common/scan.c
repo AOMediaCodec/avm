@@ -122,7 +122,7 @@ DECLARE_ALIGNED(16, static const int16_t, mcol_scan_16x4[64]) = {
 };
 
 #if CONFIG_FLEX_PARTITION
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
 DECLARE_ALIGNED(16, static const int16_t, default_scan_4x32[128]) = {
   0,   4,   1,   8,   5,   2,   12,  9,   6,   3,   16,  13,  10,  7,   20,
   17,  14,  11,  24,  21,  18,  15,  28,  25,  22,  19,  32,  29,  26,  23,
@@ -146,7 +146,7 @@ DECLARE_ALIGNED(16, static const int16_t, default_scan_4x32[128]) = {
   108, 103, 106, 109, 112, 107, 110, 113, 116, 111, 114, 117, 120, 115, 118,
   121, 124, 119, 122, 125, 123, 126, 127,
 };
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 
 DECLARE_ALIGNED(16, static const int16_t, default_scan_32x4[128]) = {
   0,  32, 1,   64, 33, 2,  96,  65, 34, 3,  97,  66, 35, 4,   98,  67,
@@ -1241,7 +1241,7 @@ DECLARE_ALIGNED(16, static const int16_t, av1_mcol_iscan_16x4[64]) = {
 };
 
 #if CONFIG_FLEX_PARTITION
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
 DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_4x32[128]) = {
   0,   2,   5,   9,   1,   4,   8,   13,  3,   7,   12,  17,  6,   11,  16,
   21,  10,  15,  20,  25,  14,  19,  24,  29,  18,  23,  28,  33,  22,  27,
@@ -1265,7 +1265,7 @@ DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_4x32[128]) = {
   104, 107, 110, 105, 108, 111, 114, 109, 112, 115, 118, 113, 116, 119, 122,
   117, 120, 123, 125, 121, 124, 126, 127,
 };
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 
 DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_32x4[128]) = {
   0,  2,  5,  9,  13, 17, 21, 25, 29,  33,  37,  41,  45,  49,  53,  57,
