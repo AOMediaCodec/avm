@@ -394,8 +394,8 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV1_COMMON *cm,
     // their shortest side, as otherwise they would be chroma reference
     // blocks.
     // Also, their largest dimention must be <= 32.
-    assert(block_size_wide[mbmi->sb_type[0]] <= 32 &&
-           block_size_high[mbmi->sb_type[0]] <= 32);
+    assert(block_size_wide[xd->mi[0]->sb_type[0]] <= 32 &&
+           block_size_high[xd->mi[0]->sb_type[0]] <= 32);
     return CFL_ALLOWED;
 #endif  // CONFIG_FLEX_PARTITION
   }
