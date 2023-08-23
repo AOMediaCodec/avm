@@ -5028,9 +5028,6 @@ static void split_partition_search(
   if (max_recursion_depth < 0) {
     return;
   }
-  if (frame_is_intra_only(cm)) {
-    return;
-  }
 
   const int num_planes = av1_num_planes(cm);
   PC_TREE **sub_tree = pc_tree->split;
