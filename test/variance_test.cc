@@ -1729,7 +1729,7 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
 #if !CONFIG_UNEVEN_4WAY
   SubpelVarianceParams(4, 2, &aom_highbd_8_sub_pixel_variance16x4_sse2, 8),
 #endif  // !CONFIG_UNEVEN_4WAY
-  // SubpelVarianceParams(2, 4, &aom_highbd_8_sub_pixel_variance4x16_sse2, 8),
+// SubpelVarianceParams(2, 4, &aom_highbd_8_sub_pixel_variance4x16_sse2, 8),
 #if CONFIG_FLEX_PARTITION
   SubpelVarianceParams(6, 3, &aom_highbd_12_sub_pixel_variance64x8_sse2, 12),
   SubpelVarianceParams(3, 6, &aom_highbd_12_sub_pixel_variance8x64_sse2, 12),
@@ -1748,7 +1748,7 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
   SubpelVarianceParams(5, 2, &aom_highbd_8_sub_pixel_variance32x4_sse2, 8),
   // SubpelVarianceParams(2, 5, &aom_highbd_8_sub_pixel_variance4x32_sse2, 8),
   SubpelVarianceParams(6, 2, &aom_highbd_8_sub_pixel_variance64x4_sse2, 8),
-  // SubpelVarianceParams(2, 6, &aom_highbd_8_sub_pixel_variance4x64_sse2, 8),
+// SubpelVarianceParams(2, 6, &aom_highbd_8_sub_pixel_variance4x64_sse2, 8),
 #endif  // CONFIG_FLEX_PARTITION
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, AvxHBDSubpelVarianceTest,
@@ -1868,8 +1868,8 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_sse2[] = {
   SubpelAvgVarianceParams(4, 2, &aom_highbd_8_sub_pixel_avg_variance16x4_sse2,
                           8),
 #endif  // !CONFIG_UNEVEN_4WAY
-  // SubpelAvgVarianceParams(2, 4,
-  // &aom_highbd_8_sub_pixel_avg_variance4x16_sse2, 8),
+// SubpelAvgVarianceParams(2, 4,
+// &aom_highbd_8_sub_pixel_avg_variance4x16_sse2, 8),
 #if CONFIG_FLEX_PARTITION
   SubpelAvgVarianceParams(6, 3, &aom_highbd_12_sub_pixel_avg_variance64x8_sse2,
                           12),
@@ -1909,8 +1909,8 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_sse2[] = {
   //                         &aom_highbd_8_sub_pixel_avg_variance4x32_sse2, 8),
   SubpelAvgVarianceParams(6, 2, &aom_highbd_8_sub_pixel_avg_variance64x4_sse2,
                           8),
-  // SubpelAvgVarianceParams(2, 6,
-  //`                        &aom_highbd_8_sub_pixel_avg_variance4x64_sse2, 8),
+// SubpelAvgVarianceParams(2, 6,
+//`                        &aom_highbd_8_sub_pixel_avg_variance4x64_sse2, 8),
 #endif  // CONFIG_FLEX_PARTITION
 };
 
