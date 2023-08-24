@@ -143,7 +143,11 @@ template <typename T>
 
 TEST_F(AV1ConvolveParametersTest, GetHighbdTestParams) {
   auto v = GetHighbdTestParams(av1_highbd_convolve_x_sr_c);
+#if CONFIG_FLEX_PARTITION
+  ASSERT_EQ(80U, v.size());
+#else
   ASSERT_EQ(60U, v.size());
+#endif  // CONFIG_1_TO_3_PARTITIONS
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &p : v) {
