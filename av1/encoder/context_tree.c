@@ -151,15 +151,24 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
     ctx->coeff[i] = shared_bufs->coeff_buf[i];
     ctx->qcoeff[i] = shared_bufs->qcoeff_buf[i];
     ctx->dqcoeff[i] = shared_bufs->dqcoeff_buf[i];
-    AOM_CHECK_MEM_ERROR(&error, ctx->eobs[i],
-                        aom_memalign(32, num_blk * sizeof(*ctx->eobs[i])));
+#if CONFIG_FLEX_PARTITION
+    const int num_blk_plane =
+        (i == 0) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
+#else
+    const int num_blk_plane =
+        ctx->num_4x4_blk
+#endif  // CONFIG_FLEX_PARTITION
+    AOM_CHECK_MEM_ERROR(
+        &error, ctx->eobs[i],
+        aom_memalign(32, num_blk_plane * sizeof(*ctx->eobs[i])));
 #if CONFIG_ATC_DCTX_ALIGNED
-    AOM_CHECK_MEM_ERROR(&error, ctx->bobs[i],
-                        aom_memalign(32, num_blk * sizeof(*ctx->bobs[i])));
+    AOM_CHECK_MEM_ERROR(
+        &error, ctx->bobs[i],
+        aom_memalign(32, num_blk_plane * sizeof(*ctx->bobs[i])));
 #endif  // CONFIG_ATC_DCTX_ALIGNED
     AOM_CHECK_MEM_ERROR(
         &error, ctx->txb_entropy_ctx[i],
-        aom_memalign(32, num_blk * sizeof(*ctx->txb_entropy_ctx[i])));
+        aom_memalign(32, num_blk_plane * sizeof(*ctx->txb_entropy_ctx[i])));
   }
 
   if (num_pix <= MAX_PALETTE_SQUARE) {
