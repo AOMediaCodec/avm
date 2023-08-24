@@ -576,7 +576,7 @@ std::vector<TestParam<T>> GetHighbdLumaTestParams(T test_func) {
 
 TEST_F(AV1ConvolveParametersTest, GetHighbdLumaTestParams) {
   auto v = GetHighbdLumaTestParams(av1_highbd_dist_wtd_convolve_x_c);
-  ASSERT_EQ(BLOCK_SIZES_ALL * 2, v.size());
+  ASSERT_EQ(static_cast<size_t>(BLOCK_SIZES_ALL * 2), v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &e : v) {
