@@ -7877,6 +7877,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                      (int)ref_frame_map_pairs[ref].disp_order)
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
                   : 1;
+          cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
         av1_get_past_future_cur_ref_lists(cm, scores);
       }
