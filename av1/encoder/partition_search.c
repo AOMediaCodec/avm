@@ -2191,7 +2191,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                                               mi_row, mi_col, bsize, ptree_luma,
                                               chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
-    assert(partition == derived_partition_mode &&
+    assert(partition == derived_partition &&
            "Partition does not match normatively derived partition.");
     return;
   }
@@ -2840,9 +2840,9 @@ static PARTITION_TYPE get_preset_partition(const AV1_COMMON *cm,
     const bool ss_x = cm->cur_frame->buf.subsampling_x;
     const bool ss_y = cm->cur_frame->buf.subsampling_y;
     const PARTITION_TYPE derived_partition =
-        av1_get_normative_forced_partition_type(&cm->mi_params, tree_type, ss_x,
-                                                ss_y, mi_row, mi_col, bsize,
-                                                ptree_luma, chroma_ref_info);
+        av1_get_normative_forced_partition_type(
+            &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
+            /* ptree_luma= */ NULL, &ptree->chroma_ref_info);
     assert(IMPLIES(derived_partition != PARTITION_INVALID,
                    ptree->partition == derived_partition));
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
