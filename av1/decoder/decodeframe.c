@@ -2301,10 +2301,6 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
                                      const PARTITION_TREE *ptree_luma,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                                      BLOCK_SIZE bsize) {
-#if CONFIG_EXT_RECUR_PARTITIONS
-  if (!is_partition_point(bsize)) return PARTITION_NONE;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   assert(ctx >= 0);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -2315,18 +2311,13 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   const int plane = xd->tree_type == CHROMA_PART;
   const int ssx = cm->seq_params.subsampling_x;
   const int ssy = cm->seq_params.subsampling_y;
-  if (plane == 1 && bsize == BLOCK_8X8) {
-    return PARTITION_NONE;
+  const PARTITION_TYPE derived_partition =
+      av1_get_normative_forced_partition_type(
+          &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
+          ptree_luma, &ptree->chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID) {
+    return derived_partition;
   }
-  if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
-    return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ssx, ssy);
-  }
-
-  PARTITION_TYPE implied_partition;
-  const bool is_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
-      &ptree->chroma_ref_info, &implied_partition);
-  if (is_part_implied) return implied_partition;
 
   const bool do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
                                         ACCT_INFO("do_split"));

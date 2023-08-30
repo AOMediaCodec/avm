@@ -2176,35 +2176,21 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                                    PARTITION_TYPE partition, const int mi_row,
                                    const int mi_col, BLOCK_SIZE bsize,
                                    const int ctx, BLOCK_SIZE sb_size) {
-  const int plane_index = xd->tree_type == CHROMA_PART;
+  const TREE_TYPE tree_type = xd->tree_type;
+  const int plane_index = tree_type == CHROMA_PART;
   FRAME_CONTEXT *fc = xd->tile_ctx;
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (!is_partition_point(bsize)) {
-    return;
-  }
-  if (xd->tree_type == CHROMA_PART && bsize == BLOCK_8X8) {
-    return;
-  }
+  const bool ss_x = xd->plane[1].subsampling_x;
+  const bool ss_y = xd->plane[1].subsampling_y;
 
-  const int ss_x = xd->plane[1].subsampling_x;
-  const int ss_y = xd->plane[1].subsampling_y;
-  if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
-    PARTITION_TYPE derived_partition_mode =
-        sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
-    assert(partition == derived_partition_mode &&
-           "Chroma partition does not match the derived mode.");
-    (void)derived_partition_mode;
-    return;
-  }
-
-  PARTITION_TYPE implied_partition;
-  const bool is_part_implied = is_partition_implied_at_boundary(
-      mi_params, xd->tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-      chroma_ref_info, &implied_partition);
-  if (is_part_implied) {
-    assert(partition == implied_partition &&
-           "Partition doesn't match the implied partition at boundary.");
+  const PARTITION_TYPE derived_partition =
+      av1_get_normative_forced_partition_type(mi_params, tree_type, ss_x, ss_y,
+                                              mi_row, mi_col, bsize, ptree_luma,
+                                              chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID) {
+    assert(partition == derived_partition &&
+           "Partition does not match normatively derived partition.");
     return;
   }
 
@@ -2234,7 +2220,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
   }
 
   RECT_PART_TYPE rect_type = get_rect_part_type(partition);
-  if (rect_type_implied_by_bsize(bsize, xd->tree_type) == RECT_INVALID) {
+  if (rect_type_implied_by_bsize(bsize, tree_type) == RECT_INVALID) {
 #if CONFIG_ENTROPY_STATS
     counts->rect_type[plane_index][ctx][rect_type]++;
 #endif  // CONFIG_ENTROPY_STATS
@@ -2243,7 +2229,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
 
   const bool ext_partition_allowed =
       !disable_ext_part &&
-      is_ext_partition_allowed(bsize, rect_type, xd->tree_type);
+      is_ext_partition_allowed(bsize, rect_type, tree_type);
   if (ext_partition_allowed) {
     const bool do_ext_partition = (partition >= PARTITION_HORZ_3);
 #if CONFIG_ENTROPY_STATS
@@ -2254,7 +2240,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
 #if CONFIG_UNEVEN_4WAY
     if (do_ext_partition) {
       const bool uneven_4way_partition_allowed =
-          is_uneven_4way_partition_allowed(bsize, rect_type, xd->tree_type);
+          is_uneven_4way_partition_allowed(bsize, rect_type, tree_type);
       if (uneven_4way_partition_allowed) {
         const bool do_uneven_4way_partition = (partition >= PARTITION_HORZ_4A);
 #if CONFIG_ENTROPY_STATS
@@ -2289,8 +2275,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
   if (has_rows && has_cols) {
     int luma_split_flag = 0;
     int parent_block_width = block_size_wide[bsize];
-    if (xd->tree_type == CHROMA_PART &&
-        parent_block_width >= SHARED_PART_SIZE) {
+    if (tree_type == CHROMA_PART && parent_block_width >= SHARED_PART_SIZE) {
       luma_split_flag = get_luma_split_flag(bsize, mi_params, mi_row, mi_col);
     }
     if (luma_split_flag <= 3) {
@@ -2902,13 +2887,14 @@ static PARTITION_TYPE get_preset_partition(const AV1_COMMON *cm,
   if (ptree) {
 #ifndef NDEBUG
 #if CONFIG_EXT_RECUR_PARTITIONS
-    const bool ssx = cm->cur_frame->buf.subsampling_x;
-    const bool ssy = cm->cur_frame->buf.subsampling_y;
-    PARTITION_TYPE implied_partition;
-    const bool is_part_implied = is_partition_implied_at_boundary(
-        &cm->mi_params, tree_type, ssx, ssy, mi_row, mi_col, bsize,
-        &ptree->chroma_ref_info, &implied_partition);
-    assert(IMPLIES(is_part_implied, ptree->partition == implied_partition));
+    const bool ss_x = cm->cur_frame->buf.subsampling_x;
+    const bool ss_y = cm->cur_frame->buf.subsampling_y;
+    const PARTITION_TYPE derived_partition =
+        av1_get_normative_forced_partition_type(
+            &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
+            /* ptree_luma= */ NULL, &ptree->chroma_ref_info);
+    assert(IMPLIES(derived_partition != PARTITION_INVALID,
+                   ptree->partition == derived_partition));
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // NDEBUG
     return ptree->partition;
@@ -3410,20 +3396,17 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
     BLOCK_SIZE bsize, const PARTITION_TREE *ptree_luma,
     const PARTITION_TREE *template_tree,
     const CHROMA_REF_INFO *chroma_ref_info) {
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  const int ss_x = cm->seq_params.subsampling_x;
-  const int ss_y = cm->seq_params.subsampling_y;
-
   // Partition types forced by bitstream syntax.
-  if (is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize)) {
-    return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
+  const MACROBLOCKD *xd = &x->e_mbd;
+  const bool ss_x = cm->seq_params.subsampling_x;
+  const bool ss_y = cm->seq_params.subsampling_y;
+  const PARTITION_TYPE derived_partition =
+      av1_get_normative_forced_partition_type(&cm->mi_params, xd->tree_type,
+                                              ss_x, ss_y, mi_row, mi_col, bsize,
+                                              ptree_luma, chroma_ref_info);
+  if (derived_partition != PARTITION_INVALID) {
+    return derived_partition;
   }
-
-  PARTITION_TYPE implied_partition;
-  const bool is_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, xd->tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-      chroma_ref_info, &implied_partition);
-  if (is_part_implied) return implied_partition;
 
   // Partition types forced by speed_features.
   if (template_tree) {
@@ -3543,6 +3526,8 @@ static AOM_INLINE void init_allowed_partitions(
   // than the bound best_rdc has been found.
   part_search_state->found_best_partition = false;
 }
+
+static const int kZeroPartitionCosts[ALL_PARTITION_TYPES];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 // Initialize state variables of partition search used in
 // av1_rd_pick_partition().
@@ -3557,6 +3542,7 @@ static void init_partition_search_state_params(
   const AV1_COMMON *const cm = &cpi->common;
   PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  const TREE_TYPE tree_type = xd->tree_type;
 
   assert(bsize < BLOCK_SIZES_ALL);
 
@@ -3589,6 +3575,10 @@ static void init_partition_search_state_params(
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
   blk_params->bsize = bsize;
 
+  // Chroma subsampling.
+  part_search_state->ss_x = x->e_mbd.plane[1].subsampling_x;
+  part_search_state->ss_y = x->e_mbd.plane[1].subsampling_y;
+
   // Check if the partition corresponds to edge block.
   blk_params->has_rows = (blk_params->mi_row_edge < mi_params->mi_rows);
   blk_params->has_cols = (blk_params->mi_col_edge < mi_params->mi_cols);
@@ -3619,8 +3609,16 @@ static void init_partition_search_state_params(
   // Partition cost buffer update
   ModeCosts *mode_costs = &x->mode_costs;
   part_search_state->partition_cost =
-      mode_costs->partition_cost[xd->tree_type == CHROMA_PART]
+      mode_costs->partition_cost[tree_type == CHROMA_PART]
                                 [part_search_state->pl_ctx_idx];
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (av1_get_normative_forced_partition_type(
+          mi_params, tree_type, part_search_state->ss_x,
+          part_search_state->ss_y, mi_row, mi_col, bsize, ptree_luma,
+          &pc_tree->chroma_ref_info) != PARTITION_INVALID) {
+    part_search_state->partition_cost = kZeroPartitionCosts;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Initialize HORZ and VERT win flags as true for all split partitions.
   for (int i = 0; i < SUB_PARTITIONS_SPLIT; i++) {
@@ -3641,10 +3639,6 @@ static void init_partition_search_state_params(
   // Initialize HORZ and VERT partitions to be not ready.
   av1_zero(part_search_state->is_rect_ctx_is_ready);
 
-  // Chroma subsampling.
-  part_search_state->ss_x = x->e_mbd.plane[1].subsampling_x;
-  part_search_state->ss_y = x->e_mbd.plane[1].subsampling_y;
-
   // Initialize partition search flags to defaults.
   part_search_state->terminate_partition_search = 0;
 
@@ -3664,7 +3658,7 @@ static void init_partition_search_state_params(
                                 template_tree, &pc_tree->chroma_ref_info);
 
   init_allowed_partitions(part_search_state, &cpi->oxcf.part_cfg,
-                          &pc_tree->chroma_ref_info, xd->tree_type);
+                          &pc_tree->chroma_ref_info, tree_type);
 
   if (max_recursion_depth == 0) {
     part_search_state->prune_rect_part[HORZ] =
@@ -3681,10 +3675,10 @@ static void init_partition_search_state_params(
 #else
   part_search_state->do_square_split =
       blk_params->bsize_at_least_8x8 &&
-      (xd->tree_type != CHROMA_PART || bsize > BLOCK_8X8);
+      (tree_type != CHROMA_PART || bsize > BLOCK_8X8);
   part_search_state->do_rectangular_split =
       cpi->oxcf.part_cfg.enable_rect_partitions &&
-      (xd->tree_type != CHROMA_PART || bsize > BLOCK_8X8);
+      (tree_type != CHROMA_PART || bsize > BLOCK_8X8);
 
   const BLOCK_SIZE horz_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
   const BLOCK_SIZE vert_subsize = get_partition_subsize(bsize, PARTITION_VERT);
@@ -3697,7 +3691,7 @@ static void init_partition_search_state_params(
       get_plane_block_size(vert_subsize, part_search_state->ss_x,
                            part_search_state->ss_y) != BLOCK_INVALID;
   const bool no_sub_16_chroma_part =
-      xd->tree_type != CHROMA_PART ||
+      tree_type != CHROMA_PART ||
       (block_size_wide[bsize] > 8 && block_size_high[bsize] > 8);
 
   // Initialize allowed partition types for the partition block.
@@ -3719,27 +3713,11 @@ static void init_partition_search_state_params(
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
 // Override partition cost buffer for the edge blocks.
 static void set_partition_cost_for_edge_blk(
     AV1_COMMON const *cm, MACROBLOCKD *const xd,
-#if CONFIG_EXT_RECUR_PARTITIONS
-    const CHROMA_REF_INFO *chroma_ref_info,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
     PartitionSearchState *part_search_state) {
-#if CONFIG_EXT_RECUR_PARTITIONS
-  const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
-  const bool is_part_implied = is_partition_implied_at_boundary(
-      &cm->mi_params, xd->tree_type, part_search_state->ss_x,
-      part_search_state->ss_y, blk_params->mi_row, blk_params->mi_col,
-      blk_params->bsize, chroma_ref_info, NULL);
-  if (is_part_implied) {
-    for (int i = 0; i < PARTITION_TYPES; ++i) {
-      part_search_state->tmp_partition_cost[i] = 0;
-    }
-    part_search_state->partition_cost = part_search_state->tmp_partition_cost;
-  }
-  (void)xd;
-#else   // CONFIG_EXT_RECUR_PARTITIONS
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   assert(blk_params.bsize_at_least_8x8 && part_search_state->pl_ctx_idx >= 0);
   const int plane = xd->tree_type == CHROMA_PART;
@@ -3768,10 +3746,8 @@ static void set_partition_cost_for_edge_blk(
   }
   // Override the partition cost buffer.
   part_search_state->partition_cost = part_search_state->tmp_partition_cost;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
-#if !CONFIG_EXT_RECUR_PARTITIONS
 // Reset the partition search state flags when
 // must_find_valid_partition is equal to 1.
 static AOM_INLINE void reset_part_limitations(
@@ -6849,14 +6825,12 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #endif
 #endif
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   // Override partition costs at the edges of the frame in the same
   // way as in read_partition (see decodeframe.c).
   if (!(blk_params.has_rows && blk_params.has_cols))
-    set_partition_cost_for_edge_blk(cm, xd,
-#if CONFIG_EXT_RECUR_PARTITIONS
-                                    &pc_tree->chroma_ref_info,
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-                                    &part_search_state);
+    set_partition_cost_for_edge_blk(cm, xd, &part_search_state);
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
   // Disable rectangular partitions for inner blocks when the current block is
   // forced to only use square partitions.

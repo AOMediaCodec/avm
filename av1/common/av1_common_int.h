@@ -2902,6 +2902,37 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
   return is_implied;
 }
 
+static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
+    const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, int ss_x,
+    int ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
+    const PARTITION_TREE *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info) {
+  // Return NONE if this block size is not splittable
+  if (!is_partition_point(bsize)) {
+    return PARTITION_NONE;
+  }
+
+  // Special case where 8x8 chroma blocks are not splittable.
+  // TODO(chiyotsai@google.com): This should be moved into `is_partition_point`,
+  // but this will require too many lines of change to do right now.
+  if (tree_type == CHROMA_PART && bsize == BLOCK_8X8) {
+    return PARTITION_NONE;
+  }
+
+  // Partitions forced by SDP
+  if (is_luma_chroma_share_same_partition(tree_type, ptree_luma, bsize)) {
+    return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
+  }
+
+  // Partitions forced by boundary
+  PARTITION_TYPE implied_partition;
+  const bool is_part_implied = is_partition_implied_at_boundary(
+      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, chroma_ref_info,
+      &implied_partition);
+  if (is_part_implied) return implied_partition;
+
+  // No forced partitions
+  return PARTITION_INVALID;
+}
 #else
 // Return the number of sub-blocks whose width and height are
 // less than half of the parent block.
