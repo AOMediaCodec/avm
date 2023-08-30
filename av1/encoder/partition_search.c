@@ -3446,6 +3446,8 @@ static AOM_INLINE void init_allowed_partitions(
   // than the bound best_rdc has been found.
   part_search_state->found_best_partition = false;
 }
+
+static const int kZeroPartitionCosts[EXT_PARTITION_TYPES];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 // Initialize state variables of partition search used in
 // av1_rd_pick_partition().
@@ -3534,8 +3536,7 @@ static void init_partition_search_state_params(
           mi_params, tree_type, part_search_state->ss_x,
           part_search_state->ss_y, mi_row, mi_col, bsize, ptree_luma,
           &pc_tree->chroma_ref_info) != PARTITION_INVALID) {
-    av1_zero(part_search_state->tmp_partition_cost);
-    part_search_state->partition_cost = part_search_state->tmp_partition_cost;
+    part_search_state->partition_cost = kZeroPartitionCosts;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 

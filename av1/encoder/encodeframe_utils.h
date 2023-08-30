@@ -149,7 +149,7 @@ typedef struct PartitionSearchState {
   // RD cost summed across all blocks of partition type.
   RD_STATS sum_rdc;
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_EXT_RECUR_PARTITIONS
   // Array holding partition type cost.
   int tmp_partition_cost[PARTITION_TYPES];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
