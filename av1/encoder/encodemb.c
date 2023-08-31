@@ -429,7 +429,17 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
     const int tr_height = tx_size_high[txfm_param->tx_size] <= 32
                               ? tx_size_high[txfm_param->tx_size]
                               : 32;
-    if (txfm_param->sec_tx_type == 0) {
+#if CONFIG_IST_ANY_SET
+    // perform fwd tx only once (and save the result in temp buff) during the
+    // search loop for IST Set (IST_DIR_SIZE sets) and its kenerls (3 tx kernels
+    // per set) Set 0 ~ IST_DIR_SIZE-1 for DCT_DCT, and Set IST_DIR_SIZE ~
+    // IST_SET_SIZE-1 for ADST_ADST
+    if (txfm_param->sec_tx_type == 0 &&
+        (txfm_param->sec_tx_set == 0 || txfm_param->sec_tx_set == IST_DIR_SIZE))
+#else
+    if (txfm_param->sec_tx_type == 0)
+#endif  // CONFIG_IST_ANY_SET
+    {
       av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
       if (plane == 0) {
         memcpy(p->temp_coeff, coeff, tr_width * tr_height * sizeof(tran_low_t));

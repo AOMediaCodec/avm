@@ -488,15 +488,16 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
 #if CONFIG_IST_SET_FLAG
     mode_t = txfm_param->sec_tx_set;
     assert(mode_t < IST_SET_SIZE);
-// Verify whether txfm_param->sec_tx_set == intra pred dir based tx set id
-#ifndef NDEBUG
+// If in debug mode, verify whether txfm_param->sec_tx_set == intra pred dir
+// based tx set id
+#if !CONFIG_IST_ANY_SET && !defined(NDEBUG)
     {
       int mode_t2 = (txfm_param->tx_type == ADST_ADST)
                         ? stx_transpose_mapping[mode] + 7
                         : stx_transpose_mapping[mode];
       assert(mode_t == mode_t2);
     }
-#endif  // NDEBUG
+#endif  // !CONFIG_IST_ANY_SET && !defined(NDEBUG)
 #else   // CONFIG_IST_SET_FLAG
     mode_t = (txfm_param->tx_type == ADST_ADST)
                  ? stx_transpose_mapping[mode] + 7

@@ -344,6 +344,9 @@ set_aom_config_var(CONFIG_IST_SET_FLAG 1
 set_aom_config_var(CONFIG_SCC_DETERMINATION 1
                    "Enable the screen content tools determination improvement.")
 
+set_aom_config_var(CONFIG_IST_ANY_SET 1
+                   "Enable R-D Optimized IST set selection from CWG-D159.")
+
 #
 # Variables in this section control optional features of the build system.
 #
