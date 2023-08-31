@@ -237,6 +237,7 @@ TEST_P(HBDTemporalFilterTest, DISABLED_Speed) {
     RunTest(1, height, height, 100000, 10);
   }
 }
+#if !CONFIG_LARGE_TF_BLOCK
 #if HAVE_SSE2
 HBDTemporalFilterFuncParam HBDtemporal_filter_test_sse2[] = {
   HBDTemporalFilterFuncParam(&av1_highbd_apply_temporal_filter_c,
@@ -246,4 +247,5 @@ INSTANTIATE_TEST_SUITE_P(SSE2, HBDTemporalFilterTest,
                          Combine(ValuesIn(HBDtemporal_filter_test_sse2),
                                  Range(64, 65, 4)));
 #endif  // HAVE_SSE2
+#endif  // !CONFIG_LARGE_TF_BLOCK
 }  // namespace
