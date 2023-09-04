@@ -180,6 +180,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_PAR_HIDING
     GET_PARAMS(enable_parity_hiding);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+    GET_PARAMS(enable_mrsse);
+#endif  // CONFIG_MRSSE
 
     fprintf(stderr, "\nInvalid parameter: %s", left);
     exit(-1);

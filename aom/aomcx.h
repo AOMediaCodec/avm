@@ -1266,6 +1266,9 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION = 166,
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  /*!\brief Control to mrsse
+   */
+  AOME_SET_ENABLE_MRSSE = 167,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1760,6 +1763,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_PATH, const char *)
 AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, int)
 #define AOM_CTRL_AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+
+AOM_CTRL_USE_TYPE(AOME_SET_ENABLE_MRSSE, unsigned int)
+#define AOM_CTRL_AOME_ENBALE_MRSSE
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
