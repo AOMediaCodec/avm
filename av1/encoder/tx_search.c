@@ -2550,6 +2550,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // Use DCT_DCT transform for DC only block.
   if (dc_only_blk)
     tx_mask = 1 << DCT_DCT;
+  // Only search DCT_DCT and IDTX for inter sub8x8 blocks
+  else if (is_inter && plane == 0 && av1_txtype_skipped(tx_size)) {
+    tx_mask = 1 << DCT_DCT;
+    tx_mask |= 1 << IDTX;
+  }
   else
     tx_mask = get_tx_mask(cpi, x, plane, block, blk_row, blk_col, plane_bsize,
                           tx_size, txb_ctx, ftxs_mode, ref_best_rd,
