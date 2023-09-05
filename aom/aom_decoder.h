@@ -209,6 +209,24 @@ aom_codec_err_t aom_codec_decode(aom_codec_ctx_t *ctx, const uint8_t *data,
  */
 aom_image_t *aom_codec_get_frame(aom_codec_ctx_t *ctx, aom_codec_iter_t *iter);
 
+/*!\brief Decoded frames peek
+ *
+ * Peeks the next frame from a list of the frames available for display.
+ * The iterator points to the index of the frame to peek, but does not
+ * increment it.
+ *
+ * The list of available frames becomes valid upon completion of the
+ * aom_codec_decode call, and remains valid until the next call to
+ * aom_codec_decode.
+ *
+ * \param[in]     ctx      Pointer to this instance's context
+ * \param[in,out] iter     Iterator storage, initialized to NULL
+ *
+ * \return Returns a pointer to an image, if one is ready for display. Frames
+ *         produced will always be in PTS (presentation time stamp) order.
+ */
+aom_image_t *aom_codec_peek_frame(aom_codec_ctx_t *ctx, aom_codec_iter_t *iter);
+
 /*!\defgroup cap_external_frame_buffer External Frame Buffer Functions
  *
  * The following function is required to be implemented for all decoders

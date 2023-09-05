@@ -110,7 +110,12 @@ class AV1ExtTileTest
     md5_.push_back(md5_res.Get());
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
     // Skip decoding 1 frame.
     if (pkt->data.frame.pts == (aom_codec_pts_t)kSkip) return;
 
@@ -128,14 +133,22 @@ class AV1ExtTileTest
           decoder_->Control(AV1_SET_DECODE_TILE_COL, c);
         }
 
-        const aom_codec_err_t res = decoder_->DecodeFrame(
-            reinterpret_cast<uint8_t *>(pkt->data.frame.buf),
-            pkt->data.frame.sz);
-        if (res != AOM_CODEC_OK) {
-          abort_ = true;
-          ASSERT_EQ(AOM_CODEC_OK, res);
+        const aom_image_t *img;
+        if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+          const aom_codec_err_t res = decoder_->DecodeFrame(
+              reinterpret_cast<uint8_t *>(pkt->data.frame.buf),
+              pkt->data.frame.sz);
+          if (res != AOM_CODEC_OK) {
+            abort_ = true;
+            ASSERT_EQ(AOM_CODEC_OK, res);
+          }
+          img = decoder_->GetDxData().Next();
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        } else {
+          assert(dec_iter != NULL);
+          img = dec_iter->Peek();
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         }
-        const aom_image_t *img = decoder_->GetDxData().Next();
 
         if (!IsLastFrame) {
           if (img) {

@@ -147,13 +147,17 @@ class AV1NewEncodeDecodePerfTest
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    out_frames_ += pkt->data.frame.frame_count;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    ++out_frames_;
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-
+  ) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)dec_iter;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    ++out_frames_;
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0)
       ivf_write_file_header(outfile_, &cfg_, AV1_FOURCC, out_frames_);

@@ -2760,15 +2760,6 @@ static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
 }
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
-                                                   va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_frame_output_order =
-      CAST(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -3190,6 +3181,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     size_t frame_size = 0;
     unsigned int lib_flags = 0;
     int is_frame_visible = 0;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    int is_frame_visible_null = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     int index_size = 0;
     int has_no_show_keyframe = 0;
     int num_workers = 0;
@@ -3248,6 +3242,20 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
 
       cpi->seq_params_locked = 1;
+      is_frame_visible = cpi->common.show_frame;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
+        if (cpi->common.current_frame.frame_type != KEY_FRAME &&
+            cpi->common.show_existing_frame) {
+          is_frame_visible_null = 1;
+        }
+        assert(IMPLIES(is_frame_visible_null, frame_size == 0));
+      }
+      if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
+#else
+      if (frame_size == 0) is_frame_visible = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
 
@@ -3308,21 +3316,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         index_size = MAG_SIZE * (ctx->pending_frame_count - 1) + 2;
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
-          if (cpi->common.current_frame.frame_type == KEY_FRAME ||
-              !cpi->common.show_existing_frame) {
-            is_frame_visible = cpi->common.show_frame;
-          } else {
-            is_frame_visible = 0;
-          }
-        } else {
-          is_frame_visible = cpi->common.show_frame;
-        }
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        is_frame_visible = cpi->common.show_frame;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-
         has_no_show_keyframe |=
             (!is_frame_visible &&
              cpi->common.current_frame.frame_type == KEY_FRAME);
@@ -3331,13 +3324,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           report_stats(cpi, frame_size, cx_time);
         }
       }
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order &&
-          cpi->common.show_frame && cpi->common.show_existing_frame) {
-        cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
-        break;
-      }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
     if (is_frame_visible) {
       // Add the frame packet to the list of returned packets.
@@ -3345,31 +3331,39 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       // decrement frames_left counter
       cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
-      if (ctx->oxcf.save_as_annexb) {
-        //  B_PRIME (add TU size)
-        size_t tu_size = ctx->pending_cx_data_sz;
-        const size_t length_field_size = aom_uleb_size_in_bytes(tu_size);
-        if (ctx->pending_cx_data) {
-          const size_t move_offset = length_field_size;
-          memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
-                  tu_size);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      if (!is_frame_visible_null) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        if (ctx->oxcf.save_as_annexb) {
+          //  B_PRIME (add TU size)
+          size_t tu_size = ctx->pending_cx_data_sz;
+          const size_t length_field_size = aom_uleb_size_in_bytes(tu_size);
+          if (ctx->pending_cx_data) {
+            const size_t move_offset = length_field_size;
+            memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
+                    tu_size);
+          }
+          if (av1_write_uleb_obu_size(0, (uint32_t)tu_size,
+                                      ctx->pending_cx_data) != AOM_CODEC_OK) {
+            aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+          }
+          ctx->pending_cx_data_sz += length_field_size;
         }
-        if (av1_write_uleb_obu_size(0, (uint32_t)tu_size,
-                                    ctx->pending_cx_data) != AOM_CODEC_OK) {
-          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
-        }
-        ctx->pending_cx_data_sz += length_field_size;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
+                                       : AOM_CODEC_CX_FRAME_PKT;
+#else
       pkt.kind = AOM_CODEC_CX_FRAME_PKT;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       pkt.data.frame.buf = ctx->pending_cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
       pkt.data.frame.vis_frame_size = frame_size;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      pkt.data.frame.frame_count = ctx->pending_frame_count;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
       pkt.data.frame.pts =
           ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
@@ -4552,6 +4546,7 @@ aom_codec_iface_t aom_codec_av1_cx_algo = {
       NULL,  // aom_codec_get_si_fn_t
       NULL,  // aom_codec_decode_fn_t
       NULL,  // aom_codec_get_frame_fn_t
+      NULL,  // aom_codec_peek_frame_fn_t
       NULL   // aom_codec_set_fb_fn_t
   },
   {

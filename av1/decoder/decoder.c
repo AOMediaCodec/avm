@@ -466,6 +466,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   AV1_COMMON *const cm = &pbi->common;
   BufferPool *const pool = cm->buffer_pool;
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  pbi->output_frames_offset = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (frame_decoded) {
     lock_buffer_pool(pool);
 
@@ -678,8 +681,12 @@ int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   const size_t out_frame_idx =
       (pbi->common.seq_params.order_hint_info.enable_order_hint &&
        pbi->common.seq_params.enable_frame_output_order)
-          ? 0
+          ? pbi->output_frames_offset
           : pbi->num_output_frames - 1;
+  if (pbi->common.seq_params.order_hint_info.enable_order_hint &&
+      pbi->common.seq_params.enable_frame_output_order) {
+    if (pbi->num_output_frames <= out_frame_idx) return -1;
+  }
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   const size_t out_frame_idx = pbi->num_output_frames - 1;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT

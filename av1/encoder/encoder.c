@@ -3479,12 +3479,23 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     gf_group->update_type[gf_group->size] = GF_UPDATE;
   }
 
-  if (encode_show_existing_frame(cm)) {
+  const int encode_show_existing = encode_show_existing_frame(cm);
+  if (encode_show_existing
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      || cm->show_existing_frame
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
     av1_finalize_encoded_frame(cpi);
-    // Build the bitstream
-    int largest_tile_id = 0;  // Output from bitstream: unused here
-    if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
-      return AOM_CODEC_ERROR;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    if (encode_show_existing) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      // Build the bitstream
+      int largest_tile_id = 0;  // Output from bitstream: unused here
+      if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
+        return AOM_CODEC_ERROR;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
     if (seq_params->frame_id_numbers_present_flag &&
         current_frame->frame_type == KEY_FRAME) {
