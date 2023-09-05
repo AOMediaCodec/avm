@@ -1021,7 +1021,12 @@ enum {
 #define UNI_COMP_REF_CONTEXTS 3
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+// Group size from mapping block size to tx partition context
+#define TXFM_PARTITION_GROUP 8
+#else
 #define TXFM_PARTITION_INTER_CONTEXTS ((TX_SIZES - TX_8X8) * 6 - 3)
+#endif  // CONFIG_TX_PARTITION_CTX
 #else
 #define TXFM_PARTITION_CONTEXTS ((TX_SIZES - TX_8X8) * 6 - 3)
 #endif  // CONFIG_NEW_TX_PARTITION

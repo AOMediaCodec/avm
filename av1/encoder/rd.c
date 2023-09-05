@@ -328,6 +328,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
   }
 
 #if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
   av1_cost_tokens_from_cdf(mode_costs->intra_2way_txfm_partition_cost,
                            fc->intra_2way_txfm_partition_cdf, NULL);
   for (i = 0; i < TX_SIZE_CONTEXTS; ++i) {
@@ -338,6 +339,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     av1_cost_tokens_from_cdf(mode_costs->intra_4way_txfm_partition_cost[1][i],
                              fc->intra_4way_txfm_partition_cdf[1][i], NULL);
   }
+#endif  // !CONFIG_TX_PARTITION_CTX
 #else
   for (i = 0; i < MAX_TX_CATS; ++i)
     for (j = 0; j < TX_SIZE_CONTEXTS; ++j)
@@ -346,6 +348,21 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_NEW_TX_PARTITION
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  // 0: intra, 1: inter
+  for (i = 0; i < 2; ++i) {
+    // Group index from block size to tx partition context mapping
+    for (j = 0; j < TXFM_PARTITION_GROUP - 1; ++j) {
+      av1_cost_tokens_from_cdf(mode_costs->txfm_do_partition_cost[i][j],
+                               fc->txfm_do_partition_cdf[i][j], NULL);
+      av1_cost_tokens_from_cdf(mode_costs->txfm_4way_partition_type_cost[i][j],
+                               fc->txfm_4way_partition_type_cdf[i][j], NULL);
+    }
+    av1_cost_tokens_from_cdf(
+        mode_costs->txfm_do_partition_cost[i][TXFM_PARTITION_GROUP - 1],
+        fc->txfm_do_partition_cdf[i][TXFM_PARTITION_GROUP - 1], NULL);
+  }
+#else
   av1_cost_tokens_from_cdf(mode_costs->inter_2way_txfm_partition_cost,
                            fc->inter_2way_txfm_partition_cdf, NULL);
   for (i = 0; i < TXFM_PARTITION_INTER_CONTEXTS; ++i) {
@@ -355,12 +372,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     // Rectangular
     av1_cost_tokens_from_cdf(mode_costs->inter_4way_txfm_partition_cost[1][i],
                              fc->inter_4way_txfm_partition_cdf[1][i], NULL);
+  }
+#endif  // CONFIG_TX_PARTITION_CTX
 #else
   for (i = 0; i < TXFM_PARTITION_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->txfm_partition_cost[i],
                              fc->txfm_partition_cdf[i], NULL);
-#endif  // CONFIG_NEW_TX_PARTITION
   }
+#endif  // CONFIG_NEW_TX_PARTITION
 
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     int s;

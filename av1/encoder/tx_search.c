@@ -3474,9 +3474,14 @@ static void select_tx_partition_type(
 
     // Add rate cost of signalling this partition type
     if (max_tx_size > TX_4X4) {
+#if CONFIG_TX_PARTITION_CTX
+      partition_rd_stats.rate += inter_tx_partition_cost(
+          x, type, mbmi->sb_type[xd->tree_type == CHROMA_PART], max_tx_size);
+#else
       partition_rd_stats.rate += inter_tx_partition_cost(
           x, is_rect, type, tx_above + blk_col, tx_left + blk_row,
           mbmi->sb_type[xd->tree_type == CHROMA_PART], max_tx_size);
+#endif  // CONFIG_TX_PARTITION_CTX
     }
 
     // Get transform sizes created by this partition type
@@ -4055,12 +4060,19 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   if (tx_select) {
 #if CONFIG_NEW_TX_PARTITION
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[bs];
+#if CONFIG_TX_PARTITION_CTX
+    tx_size_rate = is_inter
+                       ? inter_tx_partition_cost(
+                             x, 0, mbmi->sb_type[PLANE_TYPE_Y], max_tx_size)
+                       : tx_size_cost(x, bs, tx_size);
+#else
     const int is_rect = is_rect_tx(max_tx_size);
     tx_size_rate = is_inter ? inter_tx_partition_cost(
                                   x, is_rect, 0, xd->above_txfm_context,
                                   xd->left_txfm_context,
                                   mbmi->sb_type[PLANE_TYPE_Y], max_tx_size)
                             : tx_size_cost(x, bs, tx_size);
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
     const int ctx =
         txfm_partition_context(xd->above_txfm_context, xd->left_txfm_context,
@@ -4446,15 +4458,19 @@ static int64_t select_tx_size_and_type(const AV1_COMP *cpi, MACROBLOCK *x,
       fast_tx_search ? FTXS_DCT_AND_1D_DCT_ONLY : FTXS_NONE;
   const struct macroblockd_plane *const pd = &xd->plane[0];
   assert(bsize < BLOCK_SIZES_ALL);
+#if !CONFIG_TX_PARTITION_CTX
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
+#endif  // !CONFIG_TX_PARTITION_CTX
   ENTROPY_CONTEXT ctxa[MAX_MIB_SIZE];
   ENTROPY_CONTEXT ctxl[MAX_MIB_SIZE];
   TXFM_CONTEXT tx_above[MAX_MIB_SIZE];
   TXFM_CONTEXT tx_left[MAX_MIB_SIZE];
   av1_get_entropy_contexts(bsize, pd, ctxa, ctxl);
+#if !CONFIG_TX_PARTITION_CTX
   memcpy(tx_above, xd->above_txfm_context, sizeof(TXFM_CONTEXT) * mi_width);
   memcpy(tx_left, xd->left_txfm_context, sizeof(TXFM_CONTEXT) * mi_height);
+#endif  // !CONFIG_TX_PARTITION_CTX
   const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
   const int bh = tx_size_high_unit[max_tx_size];
   const int bw = tx_size_wide_unit[max_tx_size];

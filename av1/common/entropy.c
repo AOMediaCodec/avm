@@ -249,11 +249,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->comp_ref0_cdf, 2);
   RESET_CDF_COUNTER(fc->comp_ref1_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  RESET_CDF_COUNTER(fc->txfm_do_partition_cdf, 2);
+  RESET_CDF_COUNTER(fc->txfm_4way_partition_type_cdf, 3);
+#else
   // Square blocks
   RESET_CDF_COUNTER(fc->inter_4way_txfm_partition_cdf[0], 4);
   // Rectangular blocks
   RESET_CDF_COUNTER(fc->inter_4way_txfm_partition_cdf[1], 4);
   RESET_CDF_COUNTER(fc->inter_2way_txfm_partition_cdf, 2);
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -370,10 +375,12 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
 #endif  // !CONFIG_AIMC
 #if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
   RESET_CDF_COUNTER(fc->intra_4way_txfm_partition_cdf[0], 4);
   // Rectangular blocks
   RESET_CDF_COUNTER(fc->intra_4way_txfm_partition_cdf[1], 4);
   RESET_CDF_COUNTER(fc->intra_2way_txfm_partition_cdf, 2);
+#endif  // !CONFIG_TX_PARTITION_CTX
 #else
   RESET_CDF_COUNTER_STRIDE(fc->tx_size_cdf[0], MAX_TX_DEPTH,
                            CDF_SIZE(MAX_TX_DEPTH + 1));

@@ -56,10 +56,45 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int txb_size_index =
       is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
+#if !CONFIG_TX_PARTITION_CTX
   const int is_rect = is_rect_tx(max_tx_size);
+#endif  // !CONFIG_TX_PARTITION_CTX
   const TX_PARTITION_TYPE partition = mbmi->tx_partition_type[txb_size_index];
   const int allow_horz = allow_tx_horz_split(max_tx_size);
   const int allow_vert = allow_tx_vert_split(max_tx_size);
+#if CONFIG_TX_PARTITION_CTX
+  const int bsize_group = size_to_tx_part_group_lookup[bsize];
+  int do_partition = 0;
+  if (allow_horz || allow_vert) {
+    do_partition = (partition != TX_PARTITION_NONE);
+    if (allow_update_cdf) {
+      aom_cdf_prob *do_partition_cdf =
+          xd->tile_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
+      update_cdf(do_partition_cdf, do_partition, 2);
+    }
+#if CONFIG_ENTROPY_STATS
+    ++counts->txfm_do_partition[is_inter][bsize_group][do_partition];
+#endif  // CONFIG_ENTROPY_STATS
+  }
+
+  if (do_partition) {
+    if (allow_horz && allow_vert) {
+      assert(bsize_group > 0);
+      const TX_PARTITION_TYPE split4_partition =
+          get_split4_partition(partition);
+      if (allow_update_cdf) {
+        aom_cdf_prob *partition_type_cdf =
+            xd->tile_ctx
+                ->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
+        update_cdf(partition_type_cdf, split4_partition - 1, 3);
+      }
+#if CONFIG_ENTROPY_STATS
+      ++counts->txfm_4way_partition_type[is_inter][bsize_group - 1]
+                                        [split4_partition - 1];
+#endif  // CONFIG_ENTROPY_STATS
+    }
+  }
+#else
   if (allow_horz && allow_vert) {
     const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);
     const int split4_ctx =
@@ -101,6 +136,7 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
     assert(!allow_horz && !allow_vert);
     assert(partition == PARTITION_NONE);
   }
+#endif  // CONFIG_TX_PARTITION_CTX
 }
 #endif  // CONFIG_NEW_TX_PARTITION
 
@@ -132,9 +168,11 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   update_partition_cdfs_and_counts(xd, blk_col, blk_row, tx_size,
                                    allow_update_cdf, counts);
   mbmi->tx_size = this_size;
+#if !CONFIG_TX_PARTITION_CTX
   txfm_partition_update(xd->above_txfm_context + blk_col,
                         xd->left_txfm_context + blk_row, this_size, tx_size);
-#else  // CONFIG_NEW_TX_PARTITION
+#endif  // !CONFIG_TX_PARTITION_CTX
+#else   // CONFIG_NEW_TX_PARTITION
   int ctx = txfm_partition_context(
       xd->above_txfm_context + blk_col, xd->left_txfm_context + blk_row,
       mbmi->sb_type[xd->tree_type == CHROMA_PART], tx_size);
@@ -189,10 +227,12 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
 #endif  // CONFIG_NEW_TX_PARTITION
 }
 
-static void tx_partition_count_update(const AV1_COMMON *const cm, MACROBLOCK *x,
-                                      BLOCK_SIZE plane_bsize,
-                                      FRAME_COUNTS *td_counts,
-                                      uint8_t allow_update_cdf) {
+static void tx_partition_count_update(
+#if !CONFIG_TX_PARTITION_CTX
+    const AV1_COMMON *const cm,
+#endif  // !CONFIG_TX_PARTITION_CTX
+    MACROBLOCK *x, BLOCK_SIZE plane_bsize, FRAME_COUNTS *td_counts,
+    uint8_t allow_update_cdf) {
   MACROBLOCKD *xd = &x->e_mbd;
   const int mi_width = mi_size_wide[plane_bsize];
   const int mi_height = mi_size_high[plane_bsize];
@@ -200,10 +240,12 @@ static void tx_partition_count_update(const AV1_COMMON *const cm, MACROBLOCK *x,
   const int bh = tx_size_high_unit[max_tx_size];
   const int bw = tx_size_wide_unit[max_tx_size];
 
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context =
       cm->above_contexts.txfm[xd->tile.tile_row] + xd->mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (xd->mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
   for (int idy = 0; idy < mi_height; idy += bh) {
     for (int idx = 0; idx < mi_width; idx += bw) {
@@ -213,6 +255,7 @@ static void tx_partition_count_update(const AV1_COMMON *const cm, MACROBLOCK *x,
   }
 }
 
+#if !CONFIG_TX_PARTITION_CTX
 static void set_txfm_context(MACROBLOCKD *xd, TX_SIZE tx_size, int blk_row,
                              int blk_col) {
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -292,6 +335,7 @@ static void tx_partition_set_contexts(const AV1_COMMON *const cm,
     }
   }
 }
+#endif  // !CONFIG_TX_PARTITION_CTX
 
 static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                               ThreadData *td, TokenExtra **t, RUN_TYPE dry_run,
@@ -444,8 +488,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         !(is_inter &&
           (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] || seg_skip))) {
       if (is_inter) {
-        tx_partition_count_update(cm, x, bsize, td->counts,
-                                  tile_data->allow_update_cdf);
+        tx_partition_count_update(
+#if !CONFIG_TX_PARTITION_CTX
+            cm,
+#endif  // !CONFIG_TX_PARTITION_CTX
+            x, bsize, td->counts, tile_data->allow_update_cdf);
       } else {
         if (mbmi->tx_size != max_txsize_rect_lookup[bsize] &&
             xd->tree_type != CHROMA_PART)
@@ -515,7 +562,9 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       is_inter &&
       !(mbmi->skip_txfm[xd->tree_type == CHROMA_PART] || seg_skip) &&
       !xd->lossless[mbmi->segment_id]) {
+#if !CONFIG_TX_PARTITION_CTX
     if (dry_run) tx_partition_set_contexts(cm, xd, bsize);
+#endif  // !CONFIG_TX_PARTITION_CTX
   } else {
     TX_SIZE tx_size = mbmi->tx_size;
     // The new intra coding scheme requires no change of transform size
@@ -529,10 +578,12 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       tx_size = (bsize > BLOCK_4X4) ? tx_size : TX_4X4;
     }
     mbmi->tx_size = tx_size;
+#if !CONFIG_TX_PARTITION_CTX
     set_txfm_ctxs(tx_size, xd->width, xd->height,
                   (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] || seg_skip) &&
                       is_inter_block(mbmi, xd->tree_type),
                   xd);
+#endif  // !CONFIG_TX_PARTITION_CTX
   }
 
   if (is_inter_block(mbmi, xd->tree_type) && !xd->is_chroma_ref &&
@@ -627,9 +678,11 @@ void av1_set_offsets_without_segment_id(
   );
 
   set_entropy_context(xd, mi_row, mi_col, num_planes, chroma_ref_info);
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context = cm->above_contexts.txfm[tile->tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
   // Set up destination pointers.
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
@@ -2957,10 +3010,12 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   pc_tree->partitioning = partition;
 
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context =
       cm->above_contexts.txfm[tile_info->tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
   if (bsize == BLOCK_16X16 && cpi->vaq_refresh) {
@@ -6686,11 +6741,13 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   if (bsize == BLOCK_16X16 && cpi->vaq_refresh)
     x->mb_energy = av1_log_block_var(cpi, x, bsize);
 
+#if !CONFIG_TX_PARTITION_CTX
   // Set the context.
   xd->above_txfm_context =
       cm->above_contexts.txfm[tile_info->tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 #if CONFIG_MVP_IMPROVEMENT
   LevelBanksRDO level_banks = {
