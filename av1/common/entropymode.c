@@ -3639,6 +3639,21 @@ static const aom_cdf_prob
 
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX
+#if CONFIG_FLEX_PARTITION
+static const aom_cdf_prob
+    default_intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)] = {
+      { { AOM_CDF4(23833, 29543, 30199) },
+        { AOM_CDF4(26803, 30401, 30864) },
+        { AOM_CDF4(30480, 31851, 32016) } },
+      { { AOM_CDF4(16056, 19436, 22911) },
+        { AOM_CDF4(18856, 20728, 24099) },
+        { AOM_CDF4(24218, 25110, 26664) } }
+    };
+
+static const aom_cdf_prob default_intra_2way_txfm_partition_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(21783)
+};
+#else
 static const aom_cdf_prob
     default_intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)] = {
       { { AOM_CDF4(19968, 20968, 21968) },
@@ -3651,6 +3666,7 @@ static const aom_cdf_prob
 static const aom_cdf_prob default_intra_2way_txfm_partition_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(30531)
 };
+#endif  // CONFIG_FLEX_PARTITION
 #endif  // !CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
 #if CONFIG_NEW_CONTEXT_MODELING
