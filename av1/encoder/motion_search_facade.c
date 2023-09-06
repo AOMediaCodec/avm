@@ -244,7 +244,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       mv_search_params->search_site_cfg[SS_CFG_SRC];
 #if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -253,7 +253,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
                                      pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
                                      src_search_sites, fine_search_interval);
@@ -557,13 +557,13 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
     lower_mv_precision(&ref_mv_low_prec, mbmi->pb_mv_precision);
   const MV ref_mv = ref_mv_low_prec;
 
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
                                      pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
 
@@ -793,7 +793,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     // Do full-pixel compound motion search on the current reference frame.
     if (id) xd->plane[plane].pre[0] = ref_yv12[id];
 
-#if CONFIG_FLEX_MVRES && CONFIG_BVCOST_UPDATE
+#if CONFIG_FLEX_MVRES && CONFIG_IBC_BV_IMPROVEMENT
     const int is_ibc_cost = 0;
 #endif
 
@@ -803,7 +803,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                        &ref_mv[id].as_mv,
 #if CONFIG_FLEX_MVRES
                                        pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                        is_ibc_cost,
 #endif
 #endif
@@ -1050,7 +1050,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const MvCosts *mv_costs = &x->mv_costs;
 #if CONFIG_FLEX_MVRES
   MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -1208,7 +1208,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                        &ref_mv.as_mv,
 #if CONFIG_FLEX_MVRES
                                        pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                        is_ibc_cost,
 #endif
 #endif
@@ -1567,7 +1567,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   const int fine_search_interval = use_fine_search_interval(cpi);
 #if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -1576,7 +1576,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
 #if CONFIG_FLEX_MVRES
                                      pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
 #endif
@@ -1714,7 +1714,7 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 
 #if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -1723,7 +1723,7 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
 #if CONFIG_FLEX_MVRES
                                      pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
 #endif

@@ -92,7 +92,7 @@ typedef struct {
 #if CONFIG_ADAPTIVE_MVD
   int is_adaptive_mvd;
 #endif  // CONFIG_ADAPTIVE_MVD
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   int is_ibc_cost;
 #endif
 #endif
@@ -217,10 +217,10 @@ typedef struct {
   int mi_row;
   int mi_col;
 #endif  // CONFIG_IBC_SR_EXT
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   MACROBLOCK *x;
   int ref_bv_cnt;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   MSBuffers ms_buffers;
 
@@ -261,7 +261,7 @@ void av1_make_default_fullpel_ms_params(
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
 #if CONFIG_FLEX_MVRES
     const MvSubpelPrecision pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
     const int is_ibc_cost,
 #endif
 #endif
@@ -631,7 +631,7 @@ int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,
                          const MACROBLOCK *x);
 #endif  // CONFIG_CWP
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 // Returns the cost of using the current mv during the motion search
 int av1_get_mv_err_cost(const MV *mv, const MV_COST_PARAMS *mv_cost_params);
 
@@ -657,7 +657,7 @@ int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
 int av1_get_ref_mvpred_var_cost(const struct AV1_COMP *cpi,
                                 const MACROBLOCKD *xd,
                                 const FULLPEL_MOTION_SEARCH_PARAMS *ms_params);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #ifdef __cplusplus
 }  // extern "C"

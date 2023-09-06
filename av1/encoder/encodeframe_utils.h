@@ -40,12 +40,12 @@ typedef struct {
   TXFM_CONTEXT *p_tl;
   TXFM_CONTEXT ta[MAX_MIB_SIZE];
   TXFM_CONTEXT tl[MAX_MIB_SIZE];
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   //! The current level bank, used to restore the level bank in MACROBLOCKD.
   REF_MV_BANK curr_level_bank;
   //! The best level bank from the rdopt process.
   REF_MV_BANK best_level_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   //! The current warp, level bank, used to restore the warp level bank in
   //! MACROBLOCKD.
@@ -67,9 +67,9 @@ typedef struct SB_FIRST_PASS_STATS {
   InterModeRdModel inter_mode_rd_models[BLOCK_SIZES_ALL];
   int thresh_freq_fact[BLOCK_SIZES_ALL][MB_MODE_COUNT];
   int current_qindex;
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK warp_param_bank;
 #endif  // WARP_CU_BANK

@@ -645,11 +645,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   config->erp_pruning_level = 5;
   config->use_ml_erp_pruning = 0;
-#if CONFIG_H_PARTITION
   config->enable_ext_partitions = 1;
-#else
-  config->enable_ext_partitions = 0;
-#endif  // CONFIG_H_PARTITION
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   config->enable_sdp = 1;
   config->enable_mrls = 1;
@@ -1974,7 +1970,11 @@ static void get_cx_data(struct stream_state *stream,
 
     switch (pkt->kind) {
       case AOM_CODEC_CX_FRAME_PKT:
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        stream->frames_out += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         ++stream->frames_out;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO
         if (stream->config.write_webm) {
@@ -2406,7 +2406,11 @@ int main(int argc, const char **argv_) {
     }
 
     // Keep track of the total number of frames passed to the encoder.
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    unsigned int seen_frames = 0;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     int seen_frames = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     // Does the encoder have queued data that needs retrieval?
     int got_data = 0;
     // Is there a frame available for processing?
@@ -2473,6 +2477,11 @@ int main(int argc, const char **argv_) {
         }
       }
       fflush(stdout);
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      FOREACH_STREAM(stream, streams) {
+        if (stream->frames_out < seen_frames) got_data = 1;
+      }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
 
     if (stream_cnt > 1) fprintf(stderr, "\n");

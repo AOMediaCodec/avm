@@ -31,7 +31,7 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
   int rows = param->rows;
   int cols = param->cols;
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   IdentityRowCdf identity_row_cdf = param->identity_row_cdf;
   int prev_identity_row_flag = 0;
   for (int y = 0; y < rows; y++) {
@@ -98,10 +98,10 @@ void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
       xd->plane[plane].color_index_map + xd->color_index_map_offset[plane];
   params.map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
                          : xd->tile_ctx->palette_y_color_index_cdf;
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   params.identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                   : xd->tile_ctx->identity_row_cdf_y;
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   params.n_colors = mbmi->palette_mode_info.palette_size[plane];
   av1_get_block_dimensions(mbmi->sb_type[plane > 0], plane, xd,

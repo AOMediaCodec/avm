@@ -72,11 +72,11 @@ enum {
 #define WEDGE_BLD_LUT_SIZE 128
 #endif  // CONFIG_WEDGE_MOD_EXT
 
-#if CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_WARP_REF_LIST && CONFIG_MVP_IMPROVEMENT
 #define WARP_CU_BANK 1
 #else
 #define WARP_CU_BANK 0
-#endif  // CONFIG_WARP_REF_LIST && CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_WARP_REF_LIST && CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_REFINEMV
 #define REFINEMV_SUBBLOCK_WIDTH 16
@@ -308,7 +308,6 @@ enum {
 //  +-------+     +-------+     +---+---+     +---+---+
 //
 #if CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_H_PARTITION
 //  HORZ_3                 VERT_3
 //  +---------------+       +---+------+---+
 //  |               |       |   |      |   |
@@ -318,17 +317,6 @@ enum {
 //  +---------------+       |   |      |   |
 //  |               |       |   |      |   |
 //  +---------------+       +---+------+---+
-#else
-//  HORZ_3                 VERT_3
-//  +--------------+       +---+------+---+
-//  |              |       |   |      |   |
-//  +--------------+       |   |      |   |
-//  |              |       |   |      |   |
-//  |              |       |   |      |   |
-//  +--------------+       |   |      |   |
-//  |              |       |   |      |   |
-//  +--------------+       +---+------+---+
-#endif  // CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
 //  HORZ_4A                 HORZ_4B
 //  +---------------+       +---------------+
@@ -371,10 +359,8 @@ enum {
   PARTITION_NONE,
   PARTITION_HORZ,
   PARTITION_VERT,
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
   PARTITION_HORZ_3,  // 3 horizontal sub-partitions with ratios 4:1, 2:1 and 4:1
   PARTITION_VERT_3,  // 3 vertical sub-partitions with ratios 4:1, 2:1 and 4:1
-#endif               // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
   PARTITION_HORZ_4A,  // 4 horizontal uneven sub-partitions (1:2:4:1).
   PARTITION_HORZ_4B,  // 4 horizontal uneven sub-partitions (1:4:2:1).
@@ -630,9 +616,9 @@ enum {
   EXT_TX_SET_DTT9_IDTX_1DDCT,
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   EXT_TX_SET_ALL16,
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   EXT_NEW_TX_SET,
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
 
@@ -641,13 +627,13 @@ enum {
 #endif                       // CONFIG_ATC_DCTX_ALIGNED
 #define EXT_TX_SIZES 4       // number of sizes that use extended transforms
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER
-#if CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET
+#if CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET
 #define EXT_TX_SETS_INTRA 2  // Sets of transform selections for INTRA
 #else
 #define EXT_TX_SETS_INTRA 3  // Sets of transform selections for INTRA
-#endif  // CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET
+#endif                       // CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET
 
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
 #define INTRA_TX_SET1 7
 #if CONFIG_ATC_REDUCED_TXSET
 #define INTRA_TX_SET2 2
@@ -655,7 +641,7 @@ enum {
 #else
 #define INTRA_TX_SET1 6
 #define INTRA_TX_SET2 4
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 
 enum {
   UNIDIR_COMP_REFERENCE,
@@ -970,9 +956,9 @@ enum {
 #define WARPMV_MODE_CONTEXT 10
 #endif  // CONFIG_WARPMV
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 #define MAX_REF_BV_STACK_SIZE 4
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #define GLOBALMV_OFFSET 3
 #define REFMV_OFFSET 4

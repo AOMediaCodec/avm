@@ -221,7 +221,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   }
 #if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -230,7 +230,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   av1_make_default_fullpel_ms_params(
       &ms_params, cpi, x, bsize, ref_mv, pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
       is_ibc_cost,
 #endif
       first_pass_search_sites, fine_search_interval);

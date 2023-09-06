@@ -156,7 +156,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
   full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
 #endif
@@ -165,7 +165,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
 #if CONFIG_FLEX_MVRES
                                      pb_mv_precision,
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
 #endif

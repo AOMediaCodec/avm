@@ -86,14 +86,8 @@ typedef struct PC_TREE {
   struct PC_TREE *vertical4a[4];
   struct PC_TREE *vertical4b[4];
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
   struct PC_TREE *horizontal3[4];
   struct PC_TREE *vertical3[4];
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-  struct PC_TREE *horizontal3[3];
-  struct PC_TREE *vertical3[3];
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else
   PICK_MODE_CONTEXT *horizontal[2];
   PICK_MODE_CONTEXT *vertical[2];
@@ -115,9 +109,9 @@ typedef struct PC_TREE {
 #if CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS none_rd;
   bool skippable;
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -145,8 +139,8 @@ void av1_setup_shared_coeff_buffer(AV1_COMMON *cm,
                                    PC_TREE_SHARED_BUFFERS *shared_bufs);
 void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs);
 
-PC_TREE *av1_alloc_pc_tree_node(int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                PC_TREE *parent,
+PC_TREE *av1_alloc_pc_tree_node(TREE_TYPE tree_type, int mi_row, int mi_col,
+                                BLOCK_SIZE bsize, PC_TREE *parent,
                                 PARTITION_TYPE parent_partition, int index,
                                 int is_last, int subsampling_x,
                                 int subsampling_y);
@@ -156,11 +150,12 @@ void av1_free_pc_tree_recursive(PC_TREE *tree, int num_planes, int keep_best,
 void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                 PC_TREE *src, int ss_x, int ss_y,
                                 PC_TREE_SHARED_BUFFERS *shared_bufs,
-                                int num_planes);
+                                TREE_TYPE tree_type, int num_planes);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, int mi_row, int mi_col,
-                                 BLOCK_SIZE bsize, PC_TREE *parent,
+PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
+                                 int mi_row, int mi_col, BLOCK_SIZE bsize,
+                                 PC_TREE *parent,
                                  PARTITION_TYPE parent_partition, int index,
                                  int subsampling_x, int subsampling_y,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs);

@@ -152,12 +152,12 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
       assert(mbmi->mode == NEAR_NEARMV);
   }
 
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode)
     assert(mbmi->ref_mv_idx[0] <
            mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
   else
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     assert(mbmi->ref_mv_idx[0] < mbmi_ext_frame->ref_mv_count[0]);
   if (has_second_drl(mbmi))
     assert(mbmi->ref_mv_idx[1] < mbmi_ext_frame->ref_mv_count[1]);
@@ -166,35 +166,35 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   for (int ref = 0; ref < 1 + has_second_drl(mbmi); ref++) {
     for (int idx = 0; idx < max_drl_bits; ++idx) {
       aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
           mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
                           : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref],
                                             mode_ctx, idx);
 #else
           av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref], mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
       aom_write_symbol(w, mbmi->ref_mv_idx[ref] != idx, drl_cdf, 2);
       if (mbmi->ref_mv_idx[ref] == idx) break;
     }
   }
 #else
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   if (mbmi->skip_mode)
     assert(mbmi->ref_mv_idx <
            mbmi_ext_frame->skip_mvp_candidate_list.ref_mv_count);
   else
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   for (int idx = 0; idx < max_drl_bits; ++idx) {
     aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
         mbmi->skip_mode
             ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
             : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
 #else
         av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
     aom_write_symbol(w, mbmi->ref_mv_idx != idx, drl_cdf, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
@@ -731,7 +731,7 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
 static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
                                        int n, int cols, int rows) {
   const TokenExtra *p = *tp;
@@ -762,7 +762,7 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
   }
   *tp = p;
 }
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 static AOM_INLINE void av1_write_coeffs_txb_facade(
     aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x, MACROBLOCKD *xd,
@@ -1295,14 +1295,14 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 ) {
 #endif  // CONFIG_ATC_DCTX_ALIGNED
   MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   PREDICTION_MODE intra_dir;
   if (mbmi->filter_intra_mode_info.use_filter_intra)
     intra_dir =
         fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
   else
     intra_dir = mbmi->mode;
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
@@ -1319,7 +1319,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     // eset == 0 should correspond to a set with only DCT_DCT and there
     // is no need to send the tx_type
     assert(eset > 0);
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
     const int size_info = av1_size_class[tx_size];
     if (!is_inter) {
       const int mode_info = av1_md_class[intra_dir];
@@ -1331,7 +1331,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #else
     assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
     if (is_inter) {
 #if CONFIG_ATC_DCTX_ALIGNED
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
@@ -1348,16 +1348,16 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         return;
       }
-#if !CONFIG_ATC_NEWTXSETS
+#if !CONFIG_ATC
       PREDICTION_MODE intra_dir;
       if (mbmi->filter_intra_mode_info.use_filter_intra)
         intra_dir =
             fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
       else
         intra_dir = mbmi->mode;
-#endif  // !CONFIG_ATC_NEWTXSETS
+#endif  // !CONFIG_ATC
       aom_write_symbol(
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
           w,
           av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                              intra_dir, size_info),
@@ -1375,7 +1375,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
           w, av1_ext_tx_ind_intra[tx_set_type][get_primary_tx_type(tx_type)],
           ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
           av1_num_ext_tx_set_intra[tx_set_type]);
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
     }
   }
 }
@@ -2424,7 +2424,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   }
 }
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
 static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
                                   const MB_MODE_INFO *mbmi,
                                   const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
@@ -2446,7 +2446,7 @@ static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
     ++bit_cnt;
   }
 }
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static AOM_INLINE void write_intrabc_info(
     MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
@@ -2478,7 +2478,7 @@ static AOM_INLINE void write_intrabc_info(
     int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0].this_mv;
 #endif
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
     aom_write_symbol(w, mbmi->intrabc_mode, ec_ctx->intrabc_mode_cdf, 2);
     write_intrabc_drl_idx(MAX_REF_BV_STACK_SIZE, ec_ctx, mbmi, mbmi_ext_frame,
                           w);
@@ -2487,7 +2487,7 @@ static AOM_INLINE void write_intrabc_info(
       av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
 #else
     av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   }
 }
 
@@ -2858,11 +2858,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       av1_get_block_dimensions(mbmi->sb_type[plane], plane, xd, NULL, NULL,
                                &rows, &cols);
       assert(*tok < tok_end);
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
       pack_map_tokens(w, tok, palette_size_plane, cols, rows);
 #else
       pack_map_tokens(w, tok, palette_size_plane, rows * cols);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
     }
   }
 
@@ -3050,10 +3050,10 @@ static AOM_INLINE void write_modes_sb(
   const int ebs_w = mi_size_wide[bsize] / 8;
   const int ebs_h = mi_size_high[bsize] / 8;
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#if !CONFIG_EXT_RECUR_PARTITIONS
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   assert(ptree);
   const PARTITION_TYPE partition = ptree->partition;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
@@ -3223,7 +3223,6 @@ static AOM_INLINE void write_modes_sb(
       break;
     }
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3:
       for (int i = 0; i < 4; ++i) {
@@ -3247,38 +3246,6 @@ static AOM_INLINE void write_modes_sb(
                        this_mi_row, this_mi_col, this_bsize);
       }
       break;
-#endif  // CONFIG_H_PARTITION
-
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
-                     track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, mi_row,
-                     mi_col, subsize);
-      if (mi_row + qbs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
-                     mi_row + qbs_h, mi_col,
-                     get_partition_subsize(bsize, PARTITION_HORZ));
-      if (mi_row + 3 * qbs_h >= mi_params->mi_rows) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
-                     track_ptree_luma ? ptree_luma->sub_tree[2] : NULL,
-                     mi_row + 3 * qbs_h, mi_col, subsize);
-      break;
-    case PARTITION_VERT_3:
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
-                     track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, mi_row,
-                     mi_col, subsize);
-      if (mi_col + qbs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[1],
-                     track_ptree_luma ? ptree_luma->sub_tree[1] : NULL, mi_row,
-                     mi_col + qbs_w,
-                     get_partition_subsize(bsize, PARTITION_VERT));
-      if (mi_col + 3 * qbs_w >= mi_params->mi_cols) break;
-      write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[2],
-                     track_ptree_luma ? ptree_luma->sub_tree[2] : NULL, mi_row,
-                     mi_col + 3 * qbs_w, subsize);
-      break;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
@@ -5301,11 +5268,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
       if (features->allow_global_intrabc) {
         aom_wb_write_bit(wb, features->allow_local_intrabc);
       }
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
       aom_wb_write_primitive_quniform(
           wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
           features->max_drl_bits - MIN_MAX_DRL_BITS);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
   } else {
@@ -5320,11 +5287,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
         if (features->allow_global_intrabc) {
           aom_wb_write_bit(wb, features->allow_local_intrabc);
         }
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
         aom_wb_write_primitive_quniform(
             wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
             features->max_drl_bits - MIN_MAX_DRL_BITS);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
     } else if (current_frame->frame_type == INTER_FRAME ||
@@ -5565,7 +5532,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_BAWP
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
-  if (!frame_is_intra_only(cm) && features->enabled_motion_modes) {
+  if (!frame_is_intra_only(cm) &&
+      (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {
     aom_wb_write_bit(wb, features->allow_warpmv_mode);
   } else {
     assert(IMPLIES(!frame_is_intra_only(cm), !features->allow_warpmv_mode));
@@ -6491,7 +6459,19 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     data += fh_info.total_length;
   }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
+  // is not signaled for non-error-resilient mode.
+  // For error-resilienet mode, still an OBU is signaled.
+  if ((cm->seq_params.order_hint_info.enable_order_hint &&
+       cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
+       !cm->features.error_resilient_mode) ||
+      ((!cm->seq_params.order_hint_info.enable_order_hint ||
+        !cm->seq_params.enable_frame_output_order) &&
+       encode_show_existing_frame(cm))
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (encode_show_existing_frame(cm)
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 #if CONFIG_TIP
       || (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
 #endif  // CONFIG_TIP

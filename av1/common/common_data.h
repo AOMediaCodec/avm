@@ -107,7 +107,6 @@ static const BLOCK_SIZE
     BLOCK_32X64, BLOCK_INVALID, BLOCK_64X64, BLOCK_64X128,
     BLOCK_INVALID, BLOCK_8X4, BLOCK_INVALID, BLOCK_16X8, BLOCK_INVALID,
     BLOCK_32X16,
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
   }, {  // PARTITION_HORZ_3
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_8X4,
     BLOCK_INVALID, BLOCK_16X4, BLOCK_16X8, BLOCK_INVALID, BLOCK_32X8,
@@ -120,7 +119,6 @@ static const BLOCK_SIZE
     BLOCK_16X32, BLOCK_16X64, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
     BLOCK_INVALID, BLOCK_4X4, BLOCK_INVALID, BLOCK_8X8, BLOCK_INVALID,
     BLOCK_16X16,
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
 #if CONFIG_UNEVEN_4WAY
   }, {  // PARTITION_HORZ_4A
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID,
@@ -206,7 +204,6 @@ static AOM_INLINE PARTITION_TYPE sdp_chroma_part_from_luma(BLOCK_SIZE bsize,
         return PARTITION_NONE;
       }
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
       if (bh_chr >= 16)
         return PARTITION_HORZ_3;
@@ -217,7 +214,6 @@ static AOM_INLINE PARTITION_TYPE sdp_chroma_part_from_luma(BLOCK_SIZE bsize,
         return PARTITION_VERT_3;
       else
         return (bw_chr < 8) ? PARTITION_NONE : PARTITION_VERT;
-#endif  // !CONFIG_UNEVEN_4WAY || CONFIG_H_PARTITION
     default: assert(0);
   }
   return PARTITION_INVALID;
@@ -657,7 +653,7 @@ static const int quant_dist_lookup_table[4][2] = {
   { 13, 3 },
 };
 
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
 // Mapping of mode dependent TX  based on intra modes.
 static const int av1_md_class[INTRA_MODES] = {
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
@@ -667,7 +663,7 @@ static const int av1_md_class[INTRA_MODES] = {
 static const int av1_size_class[TX_SIZES_ALL] = {
   0, 1, 2, 3, 3, 0, 0, 1, 1, 3, 3, 3, 3, 0, 0, 3, 3, 3, 3,
 };
-#endif  // CONFIG_ATC_NEWTXSETS
+#endif  // CONFIG_ATC
 
 static AOM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
   if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {

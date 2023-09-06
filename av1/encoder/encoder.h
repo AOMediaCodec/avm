@@ -1318,7 +1318,7 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][10];
   unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][11];
 #endif  // CONFIG_ATC_DCTX_ALIGNED
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   unsigned int coeff_lps_lf[PLANE_TYPES][BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                                   [LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS];
@@ -1332,7 +1332,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int coeff_lps_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                               [LEVEL_CONTEXTS][BR_CDF_SIZE];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
   unsigned int coeff_base_ph_multi[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]
                                   [NUM_BASE_LEVELS + 2];
@@ -1347,9 +1347,9 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_single_mode[INTER_SINGLE_MODE_CONTEXTS]
                                 [INTER_SINGLE_MODES];
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   unsigned int skip_drl_mode[3][2];
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   unsigned int use_optflow[INTER_COMPOUND_MODE_CONTEXTS][2];
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
@@ -1406,7 +1406,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int intrabc[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   unsigned int intrabc_mode[2];
   unsigned int intrabc_drl_idx[MAX_REF_BV_STACK_SIZE - 1][2];
 #endif
@@ -2797,7 +2797,7 @@ typedef struct AV1_COMP {
   /*!
    * Tables to calculate IntraBC MV cost.
    */
-#if !CONFIG_FLEX_MVRES && !CONFIG_BVCOST_UPDATE
+#if !CONFIG_FLEX_MVRES && !CONFIG_IBC_BV_IMPROVEMENT
   IntraBCMVCosts dv_costs;
 #endif
 

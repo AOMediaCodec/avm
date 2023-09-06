@@ -137,11 +137,7 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 0
                    "Use zero offset for non-normative bit upshift")
 
 # AV2 experiment flags.
-set_aom_config_var(
-  CONFIG_ATC_COEFCODING 1
-  "AV2 enable adaptive transform coefficient coding improvement.")
-set_aom_config_var(CONFIG_ATC_NEWTXSETS 1
-                   "AV2 enable adaptive transform coding and new TX sets.")
+set_aom_config_var(CONFIG_ATC 1 "AV2 enable adaptive transform coding.")
 set_aom_config_var(CONFIG_ATC_REDUCED_TXSET 1
                    "AV2 enable reduced transform set.")
 set_aom_config_var(
@@ -149,15 +145,10 @@ set_aom_config_var(
   "AV2 TX signaling restriction for DC blocks with EOB alignment.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
-set_aom_config_var(CONFIG_C043_MVP_IMPROVEMENTS 1
-                   "AV2 enable MVP list improvements.")
-set_aom_config_var(CONFIG_C063_TMVP_IMPROVEMENT 1
-                   "AV2 experiment flag for improved TMVP derivation.")
 set_aom_config_var(CONFIG_EXT_DIR 1 "AV2 extended intra prediction angles.")
-set_aom_config_var(CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
-                   "AV2 Fully recursive partitions experiment flag")
-set_aom_config_var(CONFIG_H_PARTITION 1 NUMBER
-                   "AV2 H partition mode experiment flag")
+set_aom_config_var(
+  CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
+  "AV2 Fully recursive partitions including H partitions experiment flag")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_UNEVEN_4WAY 1 NUMBER
                    "AV2 uneven 4-way partition experiment flag")
@@ -175,8 +166,7 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
 set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for non-DC modes.")
-set_aom_config_var(CONFIG_SMVP_IMPROVEMENT 1 "Enable SMVP improvement")
-set_aom_config_var(CONFIG_TMVP_IMPROVEMENT 1 "Enable TMVP improvement")
+set_aom_config_var(CONFIG_MVP_IMPROVEMENT 1 "Enable MVP improvement")
 set_aom_config_var(CONFIG_REF_MV_BANK 1 "AV2 ref mv bank experiment flag")
 set_aom_config_var(
   CONFIG_CCSO 1 "AV2 experiment flag to enable cross component sample offset.")
@@ -186,8 +176,6 @@ set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
-set_aom_config_var(CONFIG_COMPLEXITY_SCALABLE_MVP 1
-                   "Enable complexity scalable mvp")
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
@@ -217,8 +205,8 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
 set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
-set_aom_config_var(CONFIG_BVP_IMPROVEMENT 1 "Enables BVP improvements")
-set_aom_config_var(CONFIG_BVCOST_UPDATE 1 "Enables sb-level update for bv cost")
+set_aom_config_var(CONFIG_IBC_BV_IMPROVEMENT 1
+                   "Enables BV improvements for IBC")
 set_aom_config_var(CONFIG_CCSO_EXT 1
                    "AV2 experiment flag to enable extended CCSO.")
 set_aom_config_var(CONFIG_CFL_IMPROVEMENTS 1
@@ -229,19 +217,17 @@ set_aom_config_var(CONFIG_ADAPTIVE_MVD 1 "Enable adaptive MVD resolution")
 set_aom_config_var(CONFIG_JOINT_MVD 1 "Enable joint MVD coding")
 set_aom_config_var(CONFIG_IMPROVED_JMVD 1
                    "Enable joint MVD coding with multiple scaling factors")
-set_aom_config_var(CONFIG_INDEP_PALETTE_PARSING 1
-                   "AV2 experiment flag for palette parsing independency.")
-set_aom_config_var(CONFIG_NEW_COLOR_MAP_CODING 1
-                   "AV2 experiment flag to enable improved palette coding.")
+set_aom_config_var(
+  CONFIG_PALETTE_IMPROVEMENTS
+  1
+  "AV2 experiment flag for palette parsing independency and improved palette color map coding."
+)
 set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
                    "AV2 experiment flag to fix the SSE calc bug for skip mode.")
 set_aom_config_var(CONFIG_SKIP_MODE_ENHANCEMENT 1
-                   "AV2 experiment flag to enable skip mode enhancement: C019.")
-set_aom_config_var(
-  CONFIG_SKIP_MODE_DRL_WITH_REF_IDX 1
-  "AV2 experiment flag to enable DRL with ref_MV_idx for skip mode.")
+                   "AV2 experiment flag to enable skip mode enhancement.")
 set_aom_config_var(CONFIG_TIP 1 "Enable temporal interpolated prediction (TIP)")
-set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT 1
+set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT 0
                    "Enable frame output order derivation from order hint")
 set_aom_config_var(CONFIG_OPTFLOW_ON_TIP 1
                    "Enable optical flow refinement on top of TIP")

@@ -499,7 +499,7 @@ int main(int argc, const char **argv) {
   cts_each_dim[1] = EXT_TX_SIZES;
   cts_each_dim[2] = INTRA_MODES;
   cts_each_dim[3] = TX_TYPES;
-#if CONFIG_ATC_NEWTXSETS
+#if CONFIG_ATC
   int intra_ext_tx_types_each_ctx[EXT_TX_SETS_INTRA] = { 0, INTRA_TX_SET1 };
   optimize_cdf_table_var_modes_4d(
       &fc.intra_ext_tx[0][0][0][0], probsfile, 4, cts_each_dim,
@@ -909,7 +909,7 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_intrabc_cdf[CDF_SIZE(2)]");
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   /* intrabc mode flag*/
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.intrabc_mode[0], probsfile, 1, cts_each_dim,
@@ -1139,7 +1139,7 @@ int main(int argc, const char **argv) {
                      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][CDF_SIZE(11)]");
 #endif  // CONFIG_ATC_DCTX_ALIGNED
 
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
   cts_each_dim[2] = PLANE_TYPES;

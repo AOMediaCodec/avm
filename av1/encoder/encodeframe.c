@@ -573,8 +573,9 @@ static AOM_INLINE void perform_one_partition_pass(
                              : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
     init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                       1);
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-        mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+    PC_TREE *const pc_root =
+        av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                               PARTITION_NONE, 0, 1, ss_x, ss_y);
 #if CONFIG_EXT_RECUR_PARTITIONS
     const PARTITION_TREE *template_tree =
         multi_pass_params ? multi_pass_params->template_tree : NULL;
@@ -616,9 +617,9 @@ static AOM_INLINE void perform_two_partition_passes(
   // First pass
   SB_FIRST_PASS_STATS sb_fp_stats;
   av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   REF_MV_BANK stored_mv_bank = td->mb.e_mbd.ref_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK stored_warp_bank = td->mb.e_mbd.warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -633,9 +634,9 @@ static AOM_INLINE void perform_two_partition_passes(
   av1_reset_simple_motion_tree_partition(sms_root, sb_size);
 
   av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   td->mb.e_mbd.ref_mv_bank = stored_mv_bank;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   td->mb.e_mbd.warp_param_bank = stored_warp_bank;
 #endif  // WARP_CU_BANK
@@ -673,14 +674,8 @@ static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
     case PARTITION_VERT_4A:
     case PARTITION_VERT_4B: num_subtrees = 4; break;
 #endif  // CONFIG_UNEVEN_4WAY
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: num_subtrees = 4; break;
-#endif  // CONFIG_H_PARTITION
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3:
-    case PARTITION_VERT_3: num_subtrees = 3; break;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
     default:
       assert(0 && "Invalid partition type in set_min_none_to_invalid!");
       return;
@@ -804,8 +799,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
           cm, xd->tree_type, mi_row, mi_col, bsize,
           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      PC_TREE *const pc_root =
+          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                                 PARTITION_NONE, 0, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                            &dummy_rate, &dummy_dist, 1,
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -832,8 +828,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
-          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+      PC_TREE *const pc_root =
+          av1_alloc_pc_tree_node(xd->tree_type, mi_row, mi_col, sb_size, NULL,
+                                 PARTITION_NONE, 0, 1, ss_x, ss_y);
 #if CONFIG_EXT_RECUR_PARTITIONS
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       av1_build_partition_tree_fixed_partitioning(
@@ -1148,7 +1145,7 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
        mi_row += cm->seq_params.mib_size) {
 #if CONFIG_REF_MV_BANK
     av1_zero(td->mb.e_mbd.ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     td->mb.e_mbd.ref_mv_bank_pt = &td->mb.e_mbd.ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -1543,7 +1540,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
-  features->allow_warpmv_mode = features->enabled_motion_modes ? 1 : 0;
+  features->allow_warpmv_mode =
+      (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0;
   if (features->allow_warpmv_mode &&
       cpi->sf.inter_sf.prune_warpmv_prob_thresh > 0) {
     const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
@@ -1719,10 +1717,10 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   start_timing(cpi, av1_setup_motion_field_time);
 #endif
   if (features->allow_ref_frame_mvs) av1_setup_motion_field(cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
   else
     av1_setup_ref_frame_sides(cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_setup_motion_field_time);
 #endif

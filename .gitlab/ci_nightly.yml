@@ -259,14 +259,14 @@ Linux Sanitizer (integer) Test Nightly:
     - 'Test Data'
     - 'Linux Sanitizers (x86_64-clang): [integer]'
 
-# TODO(urvang): Temporarily disabled to debug memory usage.
-#Linux Sanitizer (thread) Test Nightly:
-#  extends: .sanitizer-common-nigtly
-#  variables:
-#    AOM_SANITIZER_TYPE: thread
-#  needs:
-#    - 'Test Data'
-#    - 'Linux Sanitizers (x86_64-clang): [thread]'
+Linux Sanitizer (thread) Test Nightly:
+  extends: .sanitizer-common-nigtly
+  parallel: 16
+  variables:
+    AOM_SANITIZER_TYPE: thread
+  needs:
+    - 'Test Data'
+    - 'Linux Sanitizers (x86_64-clang): [thread]'
 
 
 # Encode 2 GOPs in parallel and serial manner and ensure that results match.

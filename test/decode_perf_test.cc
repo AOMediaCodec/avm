@@ -148,7 +148,11 @@ class AV1NewEncodeDecodePerfTest
   }
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    out_frames_ += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     ++out_frames_;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0)

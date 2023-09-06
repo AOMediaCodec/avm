@@ -22,15 +22,13 @@
 
 namespace {
 
-const int kMaxPsnr = 100;
-
 class LosslessTestLarge
     : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode,
                                                  aom_rc_mode>,
       public ::libaom_test::EncoderTest {
  protected:
   LosslessTestLarge()
-      : EncoderTest(GET_PARAM(0)), psnr_(kMaxPsnr), nframes_(0),
+      : EncoderTest(GET_PARAM(0)), psnr_(DBL_MAX), nframes_(0),
         encoding_mode_(GET_PARAM(1)), rc_end_usage_(GET_PARAM(2)) {}
 
   virtual ~LosslessTestLarge() {}
@@ -53,7 +51,7 @@ class LosslessTestLarge
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
-    psnr_ = kMaxPsnr;
+    psnr_ = DBL_MAX;
     nframes_ = 0;
   }
 
@@ -95,11 +93,17 @@ TEST_P(LosslessTestLarge, TestLossLessEncoding) {
   init_flags_ = AOM_CODEC_USE_PSNR;
 
   // intentionally changed the dimension for better testing coverage
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                     timebase.den, timebase.num, 0, 5);
+  const unsigned int width = 352;
+  const unsigned int height = 288;
+  const unsigned int bit_depth = 8;
+  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", width,
+                                     height, timebase.den, timebase.num, 0, 5);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  const double psnr_lossless = GetMinPsnr();
-  EXPECT_GE(psnr_lossless, kMaxPsnr);
+
+  const double min_psnr = GetMinPsnr();
+  const double lossless_psnr =
+      get_lossless_psnr(width, height, bit_depth, false);
+  EXPECT_EQ(min_psnr, lossless_psnr);
 }
 
 TEST_P(LosslessTestLarge, TestLossLessEncoding444) {
@@ -115,8 +119,10 @@ TEST_P(LosslessTestLarge, TestLossLessEncoding444) {
   init_flags_ = AOM_CODEC_USE_PSNR;
 
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  const double psnr_lossless = GetMinPsnr();
-  EXPECT_GE(psnr_lossless, kMaxPsnr);
+
+  const double min_psnr = GetMinPsnr();
+  const double lossless_psnr = get_lossless_psnr(352, 288, 8, true);
+  EXPECT_EQ(min_psnr, lossless_psnr);
 }
 
 TEST_P(LosslessTestLarge, TestLossLessEncodingCtrl) {
@@ -131,11 +137,17 @@ TEST_P(LosslessTestLarge, TestLossLessEncodingCtrl) {
 
   init_flags_ = AOM_CODEC_USE_PSNR;
 
-  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
-                                     timebase.den, timebase.num, 0, 5);
+  const unsigned int width = 352;
+  const unsigned int height = 288;
+  const unsigned int bit_depth = 8;
+  libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", width,
+                                     height, timebase.den, timebase.num, 0, 5);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-  const double psnr_lossless = GetMinPsnr();
-  EXPECT_GE(psnr_lossless, kMaxPsnr);
+
+  const double min_psnr = GetMinPsnr();
+  const double lossless_psnr =
+      get_lossless_psnr(width, height, bit_depth, false);
+  EXPECT_EQ(min_psnr, lossless_psnr);
 }
 
 AV1_INSTANTIATE_TEST_SUITE(LosslessTestLarge, GOODQUALITY_TEST_MODES,

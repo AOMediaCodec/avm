@@ -498,12 +498,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // Prunes PARTITION_VERT_4A/4B if horizontal is the best partition.
   int prune_part_4_horz_or_vert;
 
-#if CONFIG_H_PARTITION
   // Prunes PARTITION_HORZ_4A/4B based on PARTITION_HORZ_3 search result, and
   // Prunes PARTITION_VERT_4A/4B based on PARTITION_VERT_3 search result.
   int prune_part_4_with_part_3;
-#endif  // CONFIG_H_PARTITION
-
 #endif  // CONFIG_UNEVEN_4WAY
 
   int two_pass_partition_search;

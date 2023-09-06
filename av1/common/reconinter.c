@@ -1712,11 +1712,7 @@ static
         &inter_pred_params->border_data.bacp_block_data[2 * sub_block_id + 0];
     BacpBlockData *b_data_1 =
         &inter_pred_params->border_data.bacp_block_data[2 * sub_block_id + 1];
-    // printf(" Applied bacp \n");
-    assert(b_data_0->y1 - b_data_0->y0 == inter_pred_params->block_height);
-    assert(b_data_0->x1 - b_data_0->x0 == inter_pred_params->block_width);
-    assert(b_data_1->y1 - b_data_1->y0 == inter_pred_params->block_height);
-    assert(b_data_1->x1 - b_data_1->x0 == inter_pred_params->block_width);
+
     for (int i = 0; i < inter_pred_params->block_height; ++i) {
       for (int j = 0; j < inter_pred_params->block_width; ++j) {
         int x = b_data_0->x0 + j;

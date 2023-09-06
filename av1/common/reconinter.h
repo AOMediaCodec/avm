@@ -1327,7 +1327,10 @@ static INLINE int is_warpmv_allowed_bsize(BLOCK_SIZE bsize) {
 static INLINE int is_warpmv_mode_allowed(const AV1_COMMON *const cm,
                                          const MB_MODE_INFO *mbmi,
                                          BLOCK_SIZE bsize) {
-  if (has_second_ref(mbmi) || !cm->features.enabled_motion_modes
+  int frame_warp_delta_allowed =
+      (cm->features.enabled_motion_modes & (1 << WARP_DELTA)) != 0;
+
+  if (has_second_ref(mbmi) || !frame_warp_delta_allowed
 #if CONFIG_TIP
       || is_tip_ref_frame(mbmi->ref_frame[0])
 #endif  // CONFIG_TIP
@@ -1337,8 +1340,6 @@ static INLINE int is_warpmv_mode_allowed(const AV1_COMMON *const cm,
   )
     return 0;
 
-  int frame_warp_delta_allowed =
-      cm->features.enabled_motion_modes & (1 << WARP_DELTA);
   return frame_warp_delta_allowed && is_warpmv_allowed_bsize(bsize);
 }
 

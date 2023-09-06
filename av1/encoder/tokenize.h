@@ -24,10 +24,10 @@ extern "C" {
 typedef struct {
   aom_cdf_prob *color_map_cdf;
   uint8_t token;
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   aom_cdf_prob *identity_row_cdf;
   uint8_t identity_row_flag;
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
 } TokenExtra;
 
 typedef struct {

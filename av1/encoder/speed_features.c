@@ -748,9 +748,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 #if CONFIG_UNEVEN_4WAY
   part_sf->prune_part_4_with_partition_boundary = 0;
   part_sf->prune_part_4_horz_or_vert = 0;
-#if CONFIG_H_PARTITION
   part_sf->prune_part_4_with_part_3 = 0;
-#endif  // CONFIG_H_PARTITION
 #endif  // CONFIG_UNEVEN_4WAY
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
@@ -1055,9 +1053,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
     case 4: sf->part_sf.prune_ext_part_with_part_rect = 1;
 #if CONFIG_UNEVEN_4WAY
       sf->part_sf.prune_part_4_horz_or_vert = 1;
-#if CONFIG_H_PARTITION
       sf->part_sf.prune_part_4_with_part_3 = 1;
-#endif  // CONFIG_H_PARTITION
 #endif  // CONFIG_UNEVEN_4WAY
       AOM_FALLTHROUGH_INTENDED;
     case 3:

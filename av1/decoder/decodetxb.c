@@ -71,17 +71,17 @@ static INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
 
 static INLINE void read_coeffs_reverse_2d(
     aom_reader *r,
-#if !CONFIG_ATC_COEFCODING
+#if !CONFIG_ATC
     TX_SIZE tx_size,
-#endif  // !CONFIG_ATC_COEFCODING
+#endif  // !CONFIG_ATC
     int start_si, int end_si, const int16_t *scan, int bwl, uint8_t *levels,
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
     base_lf_cdf_arr base_lf_cdf, br_cdf_arr br_lf_cdf, int plane,
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     base_cdf_arr base_cdf, br_cdf_arr br_cdf) {
   for (int c = end_si; c >= start_si; --c) {
     const int pos = scan[c];
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
     int level = 0;
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
@@ -130,27 +130,27 @@ static INLINE void read_coeffs_reverse_2d(
         if (k < BR_CDF_SIZE - 1) break;
       }
     }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     levels[get_padded_idx(pos, bwl)] = level;
   }
 }
 
 static INLINE void read_coeffs_reverse(aom_reader *r,
-#if !CONFIG_ATC_COEFCODING
+#if !CONFIG_ATC
                                        TX_SIZE tx_size,
-#endif  // !CONFIG_ATC_COEFCODING
+#endif  // !CONFIG_ATC
                                        TX_CLASS tx_class, int start_si,
                                        int end_si, const int16_t *scan, int bwl,
                                        uint8_t *levels,
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
                                        base_lf_cdf_arr base_lf_cdf,
                                        br_cdf_arr br_lf_cdf, int plane,
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
                                        base_cdf_arr base_cdf,
                                        br_cdf_arr br_cdf) {
   for (int c = end_si; c >= start_si; --c) {
     const int pos = scan[c];
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
     int level = 0;
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
@@ -200,7 +200,7 @@ static INLINE void read_coeffs_reverse(aom_reader *r,
         if (k < BR_CDF_SIZE - 1) break;
       }
     }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     levels[get_padded_idx(pos, bwl)] = level;
   }
 }
@@ -773,7 +773,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     const int c = *eob - 1;
     const int pos = scan[c];
     const int coeff_ctx = get_lower_levels_ctx_eob(bwl, height, c);
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
     int level = 0;
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
@@ -828,7 +828,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         if (k < BR_CDF_SIZE - 1) break;
       }
     }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     levels[get_padded_idx(pos, bwl)] = level;
   }
 #if CONFIG_PAR_HIDING
@@ -839,21 +839,21 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   bool is_hidden = false;
 #endif  // CONFIG_PAR_HIDING
   if (*eob > 1) {
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
     base_lf_cdf_arr base_lf_cdf =
         ec_ctx->coeff_base_lf_cdf[txs_ctx][plane_type];
     br_cdf_arr br_lf_cdf = ec_ctx->coeff_br_lf_cdf[plane_type];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     base_cdf_arr base_cdf = ec_ctx->coeff_base_cdf[txs_ctx][plane_type];
     br_cdf_arr br_cdf =
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
         ec_ctx->coeff_br_cdf[plane_type];
 #else
         ec_ctx->coeff_br_cdf[AOMMIN(txs_ctx, TX_32X32)][plane_type];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
     if (tx_class == TX_CLASS_2D) {
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       read_coeffs_reverse_2d(r, 1, *eob - 2, scan, bwl, levels, base_lf_cdf,
                              br_lf_cdf, plane, base_cdf, br_cdf);
       if (enable_parity_hiding) {
@@ -897,9 +897,9 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         read_coeffs_reverse(r, tx_size, tx_class, 0, 0, scan, bwl, levels,
                             base_cdf, br_cdf);
       }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     } else {
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       read_coeffs_reverse(r, tx_class, 1, *eob - 2, scan, bwl, levels,
                           base_lf_cdf, br_lf_cdf, plane, base_cdf, br_cdf);
       if (enable_parity_hiding) {
@@ -943,11 +943,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         read_coeffs_reverse(r, tx_size, tx_class, 0, 0, scan, bwl, levels,
                             base_cdf, br_cdf);
       }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     }
 #else
     if (tx_class == TX_CLASS_2D) {
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       read_coeffs_reverse_2d(r, 1, *eob - 2, scan, bwl, levels, base_lf_cdf,
                              br_lf_cdf, plane, base_cdf, br_cdf);
       read_coeffs_reverse(r, tx_class, 0, 0, scan, bwl, levels, base_lf_cdf,
@@ -957,15 +957,15 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                              base_cdf, br_cdf);
       read_coeffs_reverse(r, tx_size, tx_class, 0, 0, scan, bwl, levels,
                           base_cdf, br_cdf);
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     } else {
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       read_coeffs_reverse(r, tx_class, 0, *eob - 2, scan, bwl, levels,
                           base_lf_cdf, br_lf_cdf, plane, base_cdf, br_cdf);
 #else
       read_coeffs_reverse(r, tx_size, tx_class, 0, *eob - 2, scan, bwl, levels,
                           base_cdf, br_cdf);
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
     }
 #endif  // CONFIG_PAR_HIDING
   }
@@ -1016,7 +1016,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_CONTEXT_DERIVATION
       }
 #if CONFIG_PAR_HIDING
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       if (is_hidden && c == 0) {
         if (level >= (MAX_BASE_BR_RANGE << 1)) {
           level += (read_golomb(xd, r) << 1);
@@ -1045,9 +1045,9 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
           level += read_golomb(xd, r);
         }
       }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #else
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
@@ -1064,7 +1064,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       if (level >= MAX_BASE_BR_RANGE) {
         level += read_golomb(xd, r);
       }
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #endif  // CONFIG_PAR_HIDING
       if (c == 0) dc_val = sign ? -level : level;
 

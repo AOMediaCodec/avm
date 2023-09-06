@@ -158,7 +158,7 @@ typedef struct {
   //! Cost to skip txfm for the current AOM_PLANE_V txfm block.
   int v_txb_skip_cost[V_TXB_SKIP_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   //! Cost for encoding the base_eob level of a low-frequency coefficient
   int base_lf_eob_cost[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency coefficient
@@ -166,7 +166,7 @@ typedef struct {
   //! Cost for encoding an increment to the low-frequency coefficient
   int lps_lf_cost[LF_LEVEL_CONTEXTS]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
 #if CONFIG_PAR_HIDING
   //! Cost for encoding the base level of a parity-hidden coefficient
   int base_ph_cost[COEFF_BASE_PH_CONTEXTS][4];
@@ -260,7 +260,7 @@ typedef struct {
   //! Global mvs
   int_mv global_mvs[INTER_REFS_PER_FRAME];
   //! skip_mvp_candidate_list is the MVP list for skip mode.
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
 #endif
 
@@ -300,7 +300,7 @@ typedef struct {
   uint8_t ref_mv_count;
 #endif  // CONFIG_SEP_COMP_DRL
   //! skip_mvp_candidate_list is the MVP list for skip mode.
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   SKIP_MODE_MVP_LIST skip_mvp_candidate_list;
 #endif
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
@@ -868,12 +868,12 @@ typedef struct {
 #else
   int intrabc_cost[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   //! intrabc_mode_cost
   int intrabc_mode_cost[2];
   //! intrabc_drl_idx_cost
   int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
@@ -889,12 +889,12 @@ typedef struct {
   int palette_y_mode_cost[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
   //! palette_uv_mode_cost
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   //! palette_y_row_flag_cost
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
   //! palette_uv_row_flag_cost
   int palette_uv_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   /**@}*/
 
   /*****************************************************************************
@@ -921,10 +921,10 @@ typedef struct {
   int pb_block_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                                  [NUM_MV_PRECISIONS];
 #endif
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   /**@}*/
 
   /*****************************************************************************
@@ -1196,7 +1196,7 @@ typedef struct {
   int *amvd_nmv_cost[2];
 #endif  // CONFIG_ADAPTIVE_MVD
 
-#if CONFIG_BVCOST_UPDATE
+#if CONFIG_IBC_BV_IMPROVEMENT
   /*! Costs for coding the zero components of dv cost. */
   int *dv_joint_cost;
 
@@ -1278,7 +1278,7 @@ typedef struct {
 } IntraBCMvCosts;
 #endif
 
-#if CONFIG_BVCOST_UPDATE && !CONFIG_FLEX_MVRES
+#if CONFIG_IBC_BV_IMPROVEMENT && !CONFIG_FLEX_MVRES
 /*! \brief Holds mv costs for intrabc.
  */
 typedef struct {
@@ -1447,7 +1447,7 @@ typedef struct macroblock {
   //! multipliers for motion search.
 #if CONFIG_FLEX_MVRES
   IntraBCMvCosts dv_costs;
-#elif CONFIG_BVCOST_UPDATE
+#elif CONFIG_IBC_BV_IMPROVEMENT
   IntraBCMVCosts dv_costs;
 #endif
 

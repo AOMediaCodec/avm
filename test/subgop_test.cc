@@ -263,7 +263,6 @@ class SubGopTestLarge
     ResetSubgop();
     is_first_frame_in_subgop_key_ = 0;
     frames_from_key_ = 0;
-    frame_num_ = 0;
     enable_subgop_stats_ = 1;
     memset(&subgop_last_step_, 0, sizeof(subgop_last_step_));
   }
@@ -507,7 +506,7 @@ class SubGopTestLarge
       if (subgop_cfg_ref_->step[idx].refresh != -1 &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           !curr_step_data->show_existing_frame) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         EXPECT_EQ(subgop_cfg_ref_->step[idx].refresh,
@@ -518,9 +517,9 @@ class SubGopTestLarge
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (refresh_frame_flags &&
           subgop_cfg_ref_->step[idx].type_code != FRAME_TYPE_INO_SHOWEXISTING) {
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (refresh_frame_flags && !curr_step_data->show_existing_frame) {
-#endif
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         for (int mask = refresh_frame_flags; mask; mask >>= 1) {
           if (mask & 1)
             EXPECT_EQ(curr_step_data->disp_frame_idx,
@@ -566,7 +565,7 @@ class SubGopTestLarge
         if (subgop_cfg_ref_->step[idx].type_code !=
                 FRAME_TYPE_INO_SHOWEXISTING &&
             subgop_data_.step[idx].is_valid_ref_frame[ref]) {
-#else
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
         if (subgop_data_.step[idx].is_valid_ref_frame[ref]) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
           EXPECT_EQ(subgop_cfg_ref_->step[idx].references[ref],
@@ -612,12 +611,21 @@ class SubGopTestLarge
     }
   }
 
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    frame_num_in_subgop_ += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)pkt;
+    ++frame_num_in_subgop_;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  }
+
   virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
                                   libaom_test::Decoder *decoder) {
     EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
     if (AOM_CODEC_OK != res_dec) return 0;
     aom_codec_ctx_t *ctx_dec = decoder->GetDecoder();
-    frame_num_in_subgop_++;
+
     int is_last_frame_in_subgop = (frame_num_in_subgop_ == subgop_info_.size);
 
     if (subgop_info_.is_user_specified ||
@@ -652,7 +660,6 @@ class SubGopTestLarge
       }
       ResetSubgop();
     }
-    frame_num_++;
     return AOM_CODEC_OK == res_dec;
   }
 
@@ -937,6 +944,16 @@ class SubGopSwitchingTestLarge
     // Set max gf interval
     if (subgop_str) encoder->Control(AV1E_SET_MAX_GF_INTERVAL, max_gf_interval);
 
+    // Keep min gf interval same as max gf interval in most cases, to ensure
+    // that user-provided subgop config is used.
+    int min_gf_interval = max_gf_interval;
+    // In case of no subgop config / enhanced subgop config, test arbitrary gf
+    // intervals by setting a lower min gf interval.
+    if (!subgop_str || !strcmp(subgop_str, "enh")) min_gf_interval = 6;
+
+    // Set min gf interval
+    encoder->Control(AV1E_SET_MIN_GF_INTERVAL, min_gf_interval);
+
     last_subgop_str_ = subgop_str;
   }
 
@@ -947,8 +964,6 @@ class SubGopSwitchingTestLarge
       if (rc_end_usage_ == AOM_Q) {
         encoder->Control(AOME_SET_QP, 210);
       }
-      // Set min gf interval
-      encoder->Control(AV1E_SET_MIN_GF_INTERVAL, 6);
       set_subgop_config(encoder);
     }
 
@@ -983,12 +998,19 @@ class SubGopSwitchingTestLarge
     return 1;
   }
 
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    frame_num_in_subgop_ += pkt->data.frame.frame_count;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)pkt;
+    ++frame_num_in_subgop_;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  }
+
   virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
                                   libaom_test::Decoder *decoder) {
     EXPECT_EQ(AOM_CODEC_OK, res_dec) << decoder->DecodeError();
     if (AOM_CODEC_OK != res_dec) return 0;
-
-    frame_num_in_subgop_++;
 
     return AOM_CODEC_OK == res_dec;
   }

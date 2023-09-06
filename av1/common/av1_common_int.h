@@ -1686,12 +1686,12 @@ typedef struct AV1Common {
    * TODO(jingning): This can be combined with sign_bias later.
    */
   int8_t ref_frame_side[INTER_REFS_PER_FRAME];
-#if CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
+#if CONFIG_MVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * relative distance between reference 'k' and current frame.
    */
   int ref_frame_relative_dist[REF_FRAMES];
-#endif  // CONFIG_SMVP_IMPROVEMENT || CONFIG_JOINT_MVD
+#endif  // CONFIG_MVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
    */
@@ -2276,7 +2276,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   if (xd->width > xd->height)
     if (!(mi_row & (xd->width - 1))) xd->is_first_horizontal_rect = 1;
 
-#if CONFIG_C043_MVP_IMPROVEMENTS
+#if CONFIG_MVP_IMPROVEMENT
   xd->is_last_horizontal_rect = 0;
   if (xd->width > xd->height) {
     if (!((mi_row + xd->height) & (xd->width - 1))) {
@@ -2287,7 +2287,7 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
   xd->is_first_vertical_rect = 0;
   if (xd->width < xd->height)
     if (!(mi_col & (xd->height - 1))) xd->is_first_vertical_rect = 1;
-#endif  // CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // CONFIG_MVP_IMPROVEMENT
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 }
 
@@ -2757,8 +2757,9 @@ static INLINE int check_is_chroma_size_valid(
   if (subsize < BLOCK_SIZES_ALL) {
     CHROMA_REF_INFO tmp_chroma_ref_info = { 1,      0,       mi_row,
                                             mi_col, subsize, subsize };
-    set_chroma_ref_info(mi_row, mi_col, 0, subsize, &tmp_chroma_ref_info,
-                        parent_chroma_ref_info, bsize, partition, ss_x, ss_y);
+    set_chroma_ref_info(tree_type, mi_row, mi_col, 0, subsize,
+                        &tmp_chroma_ref_info, parent_chroma_ref_info, bsize,
+                        partition, ss_x, ss_y);
     is_valid = get_plane_block_size(tmp_chroma_ref_info.bsize_base, ss_x,
                                     ss_y) != BLOCK_INVALID;
   }

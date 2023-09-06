@@ -45,13 +45,13 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   av1_copy(cm->fc->v_dc_sign_cdf, av1_default_v_dc_sign_cdfs[index]);
   av1_copy(cm->fc->v_ac_sign_cdf, av1_default_v_ac_sign_cdfs[index]);
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   av1_copy(cm->fc->coeff_base_lf_cdf,
            av1_default_coeff_base_lf_multi_cdfs[index]);
   av1_copy(cm->fc->coeff_base_lf_eob_cdf,
            av1_default_coeff_base_lf_eob_multi_cdfs[index]);
   av1_copy(cm->fc->coeff_br_lf_cdf, av1_default_coeff_lps_lf_multi_cdfs[index]);
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
   av1_copy(cm->fc->coeff_br_cdf, av1_default_coeff_lps_multi_cdfs[index]);
   av1_copy(cm->fc->coeff_base_cdf, av1_default_coeff_base_multi_cdfs[index]);
   av1_copy(cm->fc->idtx_sign_cdf, av1_default_idtx_sign_cdfs[index]);
@@ -103,7 +103,13 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
   RESET_CDF_COUNTER(nmv->amvd_joints_cdf, 4);
 #endif  // CONFIG_ADAPTIVE_MVD
   for (int i = 0; i < 2; i++) {
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf, MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[0], MV_CLASSES - 2);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[1], MV_CLASSES - 1);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[2], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[3], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[4], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[5], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[6], MV_CLASSES);
 #if CONFIG_ADAPTIVE_MVD
     RESET_CDF_COUNTER(nmv->comps[i].amvd_classes_cdf, MV_CLASSES);
 #endif  // CONFIG_ADAPTIVE_MVD
@@ -144,11 +150,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_ATC_DCTX_ALIGNED
   RESET_CDF_COUNTER(fc->coeff_base_bob_cdf, 3);
 #endif  // CONFIG_ATC_DCTX_ALIGNED
-#if CONFIG_ATC_COEFCODING
+#if CONFIG_ATC
   RESET_CDF_COUNTER(fc->coeff_base_lf_cdf, LF_BASE_SYMBOLS);
   RESET_CDF_COUNTER(fc->coeff_base_lf_eob_cdf, LF_BASE_SYMBOLS - 1);
   RESET_CDF_COUNTER(fc->coeff_br_lf_cdf, BR_CDF_SIZE);
-#endif  // CONFIG_ATC_COEFCODING
+#endif  // CONFIG_ATC
   RESET_CDF_COUNTER(fc->coeff_base_cdf, 4);
   RESET_CDF_COUNTER(fc->idtx_sign_cdf, 2);
   RESET_CDF_COUNTER(fc->coeff_base_cdf_idtx, 4);
@@ -161,9 +167,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
-#if CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#if CONFIG_SKIP_MODE_ENHANCEMENT
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_DRL_WITH_REF_IDX
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
@@ -225,10 +231,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_TIP
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);
   RESET_CDF_COUNTER(fc->palette_uv_size_cdf, PALETTE_SIZES);
-#if CONFIG_NEW_COLOR_MAP_CODING
+#if CONFIG_PALETTE_IMPROVEMENTS
   RESET_CDF_COUNTER(fc->identity_row_cdf_y, 2);
   RESET_CDF_COUNTER(fc->identity_row_cdf_uv, 2);
-#endif  // CONFIG_NEW_COLOR_MAP_CODING
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   for (int j = 0; j < PALETTE_SIZES; j++) {
     int nsymbs = j + PALETTE_MIN_SIZE;
     RESET_CDF_COUNTER_STRIDE(fc->palette_y_color_index_cdf[j], nsymbs,
@@ -263,10 +269,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   reset_nmv_counter(&fc->nmvc);
   reset_nmv_counter(&fc->ndvc);
   RESET_CDF_COUNTER(fc->intrabc_cdf, 2);
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
   RESET_CDF_COUNTER(fc->intrabc_mode_cdf, 2);
   RESET_CDF_COUNTER(fc->intrabc_drl_idx_cdf, 2);
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   RESET_CDF_COUNTER(fc->seg.tree_cdf, MAX_SEGMENTS);
   RESET_CDF_COUNTER(fc->seg.pred_cdf, 2);
   RESET_CDF_COUNTER(fc->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
@@ -382,10 +388,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   }
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[1], INTRA_TX_SET1,
                            CDF_SIZE(TX_TYPES));
-#if !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
+#if !(CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET)
   RESET_CDF_COUNTER_STRIDE(fc->intra_ext_tx_cdf[2], INTRA_TX_SET2,
                            CDF_SIZE(TX_TYPES));
-#endif  // !(CONFIG_ATC_NEWTXSETS && !CONFIG_ATC_REDUCED_TXSET)
+#endif  // !(CONFIG_ATC && !CONFIG_ATC_REDUCED_TXSET)
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[1], 16, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[2], 12, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], 2, CDF_SIZE(TX_TYPES));

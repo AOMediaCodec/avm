@@ -602,8 +602,8 @@ static AOM_INLINE void set_offsets(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
-                      parent ? &parent->chroma_ref_info : NULL,
+  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
@@ -2216,8 +2216,8 @@ static AOM_INLINE void set_offsets_for_pred_and_recon(
 #endif  // CONFIG_CROSS_CHROMA_TX
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(mi_row, mi_col, index, bsize, chroma_ref_info,
-                      parent ? &parent->chroma_ref_info : NULL,
+  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
                       parent ? parent->bsize : BLOCK_INVALID,
                       parent ? parent->partition : PARTITION_NONE,
                       xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
@@ -2448,11 +2448,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   const int ebs_w = mi_size_wide[bsize] / 8;
   const int ebs_h = mi_size_high[bsize] / 8;
 #endif  // CONFIG_UNEVEN_4WAY
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#if !CONFIG_EXT_RECUR_PARTITIONS
   // Quarter block width/height.
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   PARTITION_TYPE partition;
   const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
@@ -2505,8 +2505,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     ptree->is_settled = 1;
     PARTITION_TREE *parent = ptree->parent;
     set_chroma_ref_info(
-        mi_row, mi_col, ptree->index, bsize, &ptree->chroma_ref_info,
-        parent ? &parent->chroma_ref_info : NULL,
+        xd->tree_type, mi_row, mi_col, ptree->index, bsize,
+        &ptree->chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
         parent ? parent->bsize : BLOCK_INVALID,
         parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
@@ -2545,9 +2545,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
         ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
         ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
-#if CONFIG_H_PARTITION
         ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-#endif  // CONFIG_H_PARTITION
         break;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       default: break;
@@ -2573,7 +2571,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     const int index =
         (partition == PARTITION_HORZ || partition == PARTITION_VERT) +
         (partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
-    set_chroma_ref_info(mi_row, mi_col, index, bsize, &chroma_ref_info,
+    set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
+                        &chroma_ref_info,
                         parent ? &parent->chroma_ref_info : NULL,
                         parent ? parent->bsize : BLOCK_INVALID,
                         parent ? parent->partition : PARTITION_NONE,
@@ -2733,7 +2732,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     }
 #endif  // CONFIG_UNEVEN_4WAY
 
-#if CONFIG_H_PARTITION
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: {
       for (int i = 0; i < 4; ++i) {
@@ -2756,34 +2754,6 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       }
       break;
     }
-#endif  // CONFIG_H_PARTITION
-
-#if !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
-    case PARTITION_HORZ_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_HORZ);
-      int this_mi_row = mi_row;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
-      this_mi_row += qbs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      DEC_PARTITION(this_mi_row, mi_col, bsize3, 1);
-      this_mi_row += 2 * qbs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
-      DEC_PARTITION(this_mi_row, mi_col, subsize, 2);
-      break;
-    }
-    case PARTITION_VERT_3: {
-      const BLOCK_SIZE bsize3 = get_partition_subsize(bsize, PARTITION_VERT);
-      int this_mi_col = mi_col;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
-      this_mi_col += qbs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      DEC_PARTITION(mi_row, this_mi_col, bsize3, 1);
-      this_mi_col += 2 * qbs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
-      DEC_PARTITION(mi_row, this_mi_col, subsize, 2);
-      break;
-    }
-#endif  // !CONFIG_UNEVEN_4WAY && !CONFIG_H_PARTITION
 #else   // !CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
@@ -4794,7 +4764,7 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
     av1_zero_left_context(xd);
 #if CONFIG_REF_MV_BANK
     av1_zero(xd->ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -4816,9 +4786,9 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
       // for MV referencing during decoding the tile.
       // xd->ref_mv_bank is updated as decoding goes.
       xd->ref_mv_bank.rmb_sb_hits = 0;
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
-#endif  // !CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_MVP_IMPROVEMENT
 #endif  // CONFIG_REF_MV_BANK
 
 #if CONFIG_WARP_REF_LIST
@@ -5315,7 +5285,7 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
     av1_zero_left_context(xd);
 #if CONFIG_REF_MV_BANK
     av1_zero(xd->ref_mv_bank);
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
     xd->ref_mv_bank_pt = &td->ref_mv_bank;
 #endif
 #endif  // CONFIG_REF_MV_BANK
@@ -5335,9 +5305,9 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 
 #if CONFIG_REF_MV_BANK
       xd->ref_mv_bank.rmb_sb_hits = 0;
-#if !CONFIG_C043_MVP_IMPROVEMENTS
+#if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
-#endif  // !CONFIG_C043_MVP_IMPROVEMENTS
+#endif  // !CONFIG_MVP_IMPROVEMENT
 #endif  // CONFIG_REF_MV_BANK
 
 #if CONFIG_WARP_REF_LIST
@@ -7336,12 +7306,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       features->allow_global_intrabc = aom_rb_read_bit(rb);
       features->allow_local_intrabc =
           features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
       features->max_drl_bits =
           aom_rb_read_primitive_quniform(
               rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
           MIN_MAX_DRL_BITS;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
 
@@ -7367,12 +7337,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_global_intrabc = aom_rb_read_bit(rb);
         features->allow_local_intrabc =
             features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_BVP_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT
         features->max_drl_bits =
             aom_rb_read_primitive_quniform(
                 rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
             MIN_MAX_DRL_BITS;
-#endif  // CONFIG_BVP_IMPROVEMENT
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
 
@@ -7851,7 +7821,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CWP
 #if CONFIG_CWG_D067_IMPROVED_WARP
   features->allow_warpmv_mode = 0;
-  if (!frame_is_intra_only(cm) && features->enabled_motion_modes) {
+  if (!frame_is_intra_only(cm) &&
+      (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {
     features->allow_warpmv_mode = aom_rb_read_bit(rb);
   }
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
@@ -8020,10 +7991,10 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   cm->mi_params.setup_mi(&cm->mi_params);
 
   if (cm->features.allow_ref_frame_mvs) av1_setup_motion_field(cm);
-#if CONFIG_SMVP_IMPROVEMENT
+#if CONFIG_MVP_IMPROVEMENT
   else
     av1_setup_ref_frame_sides(cm);
-#endif  // CONFIG_SMVP_IMPROVEMENT
+#endif  // CONFIG_MVP_IMPROVEMENT
 
 #if CONFIG_PEF
   if (cm->seq_params.enable_pef && cm->features.allow_pef) {
