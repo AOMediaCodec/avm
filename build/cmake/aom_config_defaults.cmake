@@ -149,6 +149,7 @@ set_aom_config_var(
   "AV2 TX signaling restriction for DC blocks with EOB alignment.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
+set_aom_config_var(CONFIG_EOB_POS_LUMA 0 "EOB position coding for luma.")
 set_aom_config_var(CONFIG_EXT_DIR 1 "AV2 extended intra prediction angles.")
 set_aom_config_var(
   CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER

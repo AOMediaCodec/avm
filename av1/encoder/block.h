@@ -219,7 +219,9 @@ typedef struct {
  */
 typedef struct {
   //! eob_cost.
-#if CONFIG_ATC_DCTX_ALIGNED
+#if CONFIG_ATC_DCTX_ALIGNED && CONFIG_EOB_POS_LUMA
+  int eob_cost[2][16];
+#elif CONFIG_ATC_DCTX_ALIGNED
   int eob_cost[EOB_MAX_SYMS];
 #else
   int eob_cost[2][11];

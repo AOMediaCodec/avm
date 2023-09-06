@@ -183,6 +183,14 @@ static INLINE TX_SIZE get_txsize_entropy_ctx(TX_SIZE txsize) {
                    1);
 }
 
+#if CONFIG_EOB_POS_LUMA
+#define EOB_PLANE_CTXS 3
+
+static INLINE int get_eob_plane_ctx(int plane, int is_inter) {
+  return plane ? 2 : is_inter;
+}
+#endif  // CONFIG_EOB_POS_LUMA
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

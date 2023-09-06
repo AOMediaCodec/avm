@@ -1067,20 +1067,38 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
   for (int eob_multi_size = 0; eob_multi_size < 7; ++eob_multi_size) {
     for (int plane = 0; plane < nplanes; ++plane) {
       LV_MAP_EOB_COST *pcost = &coeff_costs->eob_costs[eob_multi_size][plane];
-
 #if CONFIG_ATC_DCTX_ALIGNED
       aom_cdf_prob *pcdf;
-      switch (eob_multi_size) {
-        case 0: pcdf = fc->eob_flag_cdf16[plane]; break;
-        case 1: pcdf = fc->eob_flag_cdf32[plane]; break;
-        case 2: pcdf = fc->eob_flag_cdf64[plane]; break;
-        case 3: pcdf = fc->eob_flag_cdf128[plane]; break;
-        case 4: pcdf = fc->eob_flag_cdf256[plane]; break;
-        case 5: pcdf = fc->eob_flag_cdf512[plane]; break;
-        case 6: pcdf = fc->eob_flag_cdf1024[plane]; break;
-        default: assert(0 && "Invalid eob_multi_size");
+      {
+#if CONFIG_EOB_POS_LUMA
+        for (int is_inter = 0; is_inter < 2; is_inter++) {
+          int pl_ctx = get_eob_plane_ctx(plane, is_inter);
+          switch (eob_multi_size) {
+            case 0: pcdf = fc->eob_flag_cdf16[pl_ctx]; break;
+            case 1: pcdf = fc->eob_flag_cdf32[pl_ctx]; break;
+            case 2: pcdf = fc->eob_flag_cdf64[pl_ctx]; break;
+            case 3: pcdf = fc->eob_flag_cdf128[pl_ctx]; break;
+            case 4: pcdf = fc->eob_flag_cdf256[pl_ctx]; break;
+            case 5: pcdf = fc->eob_flag_cdf512[pl_ctx]; break;
+            case 6: pcdf = fc->eob_flag_cdf1024[pl_ctx]; break;
+            default: assert(0 && "Invalid eob_multi_size");
+          }
+          av1_cost_tokens_from_cdf(pcost->eob_cost[is_inter], pcdf, NULL);
+        }
+#else
+        switch (eob_multi_size) {
+          case 0: pcdf = fc->eob_flag_cdf16[plane]; break;
+          case 1: pcdf = fc->eob_flag_cdf32[plane]; break;
+          case 2: pcdf = fc->eob_flag_cdf64[plane]; break;
+          case 3: pcdf = fc->eob_flag_cdf128[plane]; break;
+          case 4: pcdf = fc->eob_flag_cdf256[plane]; break;
+          case 5: pcdf = fc->eob_flag_cdf512[plane]; break;
+          case 6: pcdf = fc->eob_flag_cdf1024[plane]; break;
+          default: assert(0 && "Invalid eob_multi_size");
+        }
+        av1_cost_tokens_from_cdf(pcost->eob_cost, pcdf, NULL);
+#endif  // CONFIG_EOB_POS_LUMA
       }
-      av1_cost_tokens_from_cdf(pcost->eob_cost, pcdf, NULL);
 #else
       for (int ctx = 0; ctx < 2; ++ctx) {
         aom_cdf_prob *pcdf;
@@ -1153,7 +1171,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       for (int ctx = 0; ctx < EOB_COEF_CONTEXTS; ++ctx)
         av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx],
                                  fc->eob_extra_cdf[tx_size][plane][ctx], NULL);
-
       for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx)
         av1_cost_tokens_from_cdf(pcost->dc_sign_cost[ctx],
                                  fc->dc_sign_cdf[plane][ctx], NULL);

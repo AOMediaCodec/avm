@@ -247,6 +247,13 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   MACROBLOCKD *const xd = &dcb->xd;
   const PLANE_TYPE plane_type = get_plane_type(plane);
   FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
+#if CONFIG_EOB_POS_LUMA
+  const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+  const int pl_ctx = get_eob_plane_ctx(plane, is_inter);
+#else
+  const int pl_ctx = plane_type;
+#endif  // CONFIG_EOB_POS_LUMA
+
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   eob_info *eob_data = dcb->eob_data[plane] + dcb->txb_offset[plane];
   uint16_t *const eob = &(eob_data->eob);
@@ -258,37 +265,37 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   switch (eob_multi_size) {
     case 0:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf16[plane_type],
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf16[pl_ctx],
                                EOB_MAX_SYMS - 6,
                                ACCT_INFO("eob_pt", "eob_multi_size:0")) +
                1;
       break;
     case 1:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf32[plane_type],
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf32[pl_ctx],
                                EOB_MAX_SYMS - 5,
                                ACCT_INFO("eob_pt", "eob_multi_size:1")) +
                1;
       break;
     case 2:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf64[plane_type],
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf64[pl_ctx],
                                EOB_MAX_SYMS - 4,
                                ACCT_INFO("eob_pt", "eob_multi_size:2")) +
                1;
       break;
     case 3:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf128[plane_type],
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf128[pl_ctx],
                                EOB_MAX_SYMS - 3,
                                ACCT_INFO("eob_pt", "eob_multi_size:3")) +
                1;
       break;
     case 4:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf256[plane_type],
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf256[pl_ctx],
                                EOB_MAX_SYMS - 2,
                                ACCT_INFO("eob_pt", "eob_multi_size:4")) +
                1;
       break;
     case 5:
-      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf512[plane_type],
+      eob_pt = aom_read_symbol(r, ec_ctx->eob_flag_cdf512[pl_ctx],
                                EOB_MAX_SYMS - 1,
                                ACCT_INFO("eob_pt", "eob_multi_size:5")) +
                1;
@@ -296,7 +303,7 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
     case 6:
     default:
       eob_pt =
-          aom_read_symbol(r, ec_ctx->eob_flag_cdf1024[plane_type], EOB_MAX_SYMS,
+          aom_read_symbol(r, ec_ctx->eob_flag_cdf1024[pl_ctx], EOB_MAX_SYMS,
                           ACCT_INFO("eob_pt", "eob_multi_size:6")) +
           1;
       break;

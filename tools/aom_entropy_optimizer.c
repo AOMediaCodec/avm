@@ -1193,8 +1193,63 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob av1_default_eob_extra_cdfs "
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS]"
       "[CDF_SIZE(2)]");
-
 #if CONFIG_ATC_DCTX_ALIGNED
+#if CONFIG_EOB_POS_LUMA
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = EOB_PLANE_CTXS;
+  cts_each_dim[2] = EOB_MAX_SYMS - 6;
+  optimize_cdf_table(
+      &fc.eob_multi16[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi16_cdfs"
+      "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 6)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = EOB_PLANE_CTXS;
+  cts_each_dim[2] = EOB_MAX_SYMS - 5;
+  optimize_cdf_table(
+      &fc.eob_multi32[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi32_cdfs"
+      "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 5)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = EOB_PLANE_CTXS;
+  cts_each_dim[2] = EOB_MAX_SYMS - 4;
+  optimize_cdf_table(
+      &fc.eob_multi64[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi64_cdfs"
+      "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 4)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = EOB_PLANE_CTXS;
+  cts_each_dim[2] = EOB_MAX_SYMS - 3;
+  optimize_cdf_table(
+      &fc.eob_multi128[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi128_cdfs"
+      "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 3)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = EOB_PLANE_CTXS;
+  cts_each_dim[2] = EOB_MAX_SYMS - 2;
+  optimize_cdf_table(
+      &fc.eob_multi256[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi256_cdfs"
+      "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 2)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = EOB_PLANE_CTXS;
+  cts_each_dim[2] = EOB_MAX_SYMS - 1;
+  optimize_cdf_table(
+      &fc.eob_multi512[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi512_cdfs"
+      "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 1)]");
+
+  cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
+  cts_each_dim[1] = EOB_PLANE_CTXS;
+  cts_each_dim[2] = EOB_MAX_SYMS;
+  optimize_cdf_table(&fc.eob_multi1024[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob av1_default_eob_multi1024_cdfs"
+                     "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS)]");
+#else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = PLANE_TYPES;
   cts_each_dim[2] = EOB_MAX_SYMS - 6;
@@ -1249,6 +1304,7 @@ int main(int argc, const char **argv) {
   optimize_cdf_table(&fc.eob_multi1024[0][0][0], probsfile, 3, cts_each_dim,
                      "static const aom_cdf_prob av1_default_eob_multi1024_cdfs"
                      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS)]");
+#endif  // CONFIG_EOB_POS_LUMA
 #else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = PLANE_TYPES;
