@@ -324,13 +324,19 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
                    : ec_ctx->intra_4way_txfm_partition_cdf[is_rect][split4_ctx];
       const TX_PARTITION_TYPE split4_partition =
           get_split4_partition(partition);
-      aom_write_symbol(w, split4_partition, split4_cdf, 4);
+      // Always TX_PARTITION_NONE for small inter blocks
+      if (!(bsize <= BLOCK_8X8 && is_inter == 1)) {
+        aom_write_symbol(w, split4_partition, split4_cdf, 4);
+      }
     } else if (allow_horz || allow_vert) {
       const int has_first_split = partition != TX_PARTITION_NONE;
       aom_cdf_prob *split2_cdf = is_inter
                                      ? ec_ctx->inter_2way_txfm_partition_cdf
                                      : ec_ctx->intra_2way_txfm_partition_cdf;
-      aom_write_symbol(w, has_first_split, split2_cdf, 2);
+      // Always TX_PARTITION_NONE for small inter blocks
+      if (!(bsize <= BLOCK_8X8 && is_inter == 1)) {
+        aom_write_symbol(w, has_first_split, split2_cdf, 2);
+      }
     } else {
       assert(!allow_horz && !allow_vert);
       assert(partition == PARTITION_NONE);

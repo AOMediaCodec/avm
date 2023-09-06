@@ -3457,7 +3457,7 @@ static void select_tx_partition_type(
     memcpy(&cur_tx_left, tx_left, sizeof(TXFM_CONTEXT) * mi_height);
 
     // Add rate cost of signalling this partition type
-    if (max_tx_size > TX_4X4) {
+    if (txw > 8 || txh > 8) {
       partition_rd_stats.rate += inter_tx_partition_cost(
           x, is_rect, type, tx_above + blk_col, tx_left + blk_row,
           mbmi->sb_type[xd->tree_type == CHROMA_PART], max_tx_size);
@@ -3549,6 +3549,8 @@ static void select_tx_partition_type(
         }
       }
     }
+    // Always TX_PARTITION_NONE for small inter blocks
+    if (plane_bsize <= BLOCK_8X8) break;
   }
 
   if (best_rd == INT64_MAX) *is_cost_valid = 0;

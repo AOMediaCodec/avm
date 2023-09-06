@@ -1862,9 +1862,12 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     aom_cdf_prob *split4_cdf =
         is_inter ? ec_ctx->inter_4way_txfm_partition_cdf[is_rect][split4_ctx]
                  : ec_ctx->intra_4way_txfm_partition_cdf[is_rect][split4_ctx];
-    const TX_PARTITION_TYPE split4_partition =
-        aom_read_symbol(r, split4_cdf, 4, ACCT_INFO("split4_partition"));
-    partition = split4_partition;
+    // Always TX_PARTITION_NONE for small inter blocks
+    if (!(bsize <= BLOCK_8X8 && is_inter == 1)) {
+      const TX_PARTITION_TYPE split4_partition =
+          aom_read_symbol(r, split4_cdf, 4, ACCT_INFO("split4_partition"));
+      partition = split4_partition;
+    }
     /*
     If only one split type (horizontal or vertical) is allowed for this block,
     first signal a bit indicating whether there is any split at all. If
@@ -1875,8 +1878,11 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     // Read bit to indicate if there is any split at all
     aom_cdf_prob *split2_cdf = is_inter ? ec_ctx->inter_2way_txfm_partition_cdf
                                         : ec_ctx->intra_2way_txfm_partition_cdf;
-    const int has_first_split =
-        aom_read_symbol(r, split2_cdf, 2, ACCT_INFO("has_first_split"));
+    int has_first_split = 0;
+    // Always TX_PARTITION_NONE for small inter blocks
+    if (!(bsize <= BLOCK_8X8 && is_inter == 1)) {
+      has_first_split = aom_read_symbol(r, split2_cdf, 2, ACCT_INFO("has_first_split"));
+    }
     partition = has_first_split
                     ? (allow_horz ? TX_PARTITION_HORZ : TX_PARTITION_VERT)
                     : TX_PARTITION_NONE;
