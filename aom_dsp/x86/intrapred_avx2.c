@@ -1896,7 +1896,7 @@ static void highbd_dr_prediction_32bit_z2_HxW_avx2(
         mask256 = _mm256_cmpgt_epi32(min_base_y256, base_y_c256);
         base_y_c256 = _mm256_andnot_si256(mask256, base_y_c256);
         _mm256_store_si256((__m256i *)base_y_c, base_y_c256);
-        c256 = _mm256_add_epi32(c256, c8);
+        c256 = _mm256_add_epi32(c256_, c8);
         y_c_1_256 = _mm256_sub_epi32(r6, _mm256_mullo_epi32(c256, dy256));
         base_y_c256 = _mm256_srai_epi32(y_c_1_256, frac_bits_y);
         mask256 = _mm256_cmpgt_epi32(min_base_y256, base_y_c256);
