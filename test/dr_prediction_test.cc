@@ -195,10 +195,7 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
 
     aom_usec_timer_start(&timer);
     for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
-      if (mrl_index_) {
-        upsample_above_ = 0;
-        upsample_left_ = 0;
-      }
+      if (mrl_index_ && (upsample_above_ || upsample_left_)) continue;
       for (int k = 0; k < kNumTests; ++k) {
         params_.ref_fn(dst_ref_, dst_stride_, bw_, bh_, above_, left_,
                        upsample_above_, upsample_left_, dx_, dy_, bd_,
@@ -212,10 +209,7 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
     if (params_.tst_fn) {
       aom_usec_timer_start(&timer);
       for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
-        if (mrl_index_) {
-          upsample_above_ = 0;
-          upsample_left_ = 0;
-        }
+        if (mrl_index_ && (upsample_above_ || upsample_left_)) continue;
         for (int k = 0; k < kNumTests; ++k) {
           ASM_REGISTER_STATE_CHECK(params_.tst_fn(
               dst_tst_, dst_stride_, bw_, bh_, above_, left_, upsample_above_,
