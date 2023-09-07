@@ -2760,15 +2760,6 @@ static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
 }
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
-#if CONFIG_MRSSE
-static aom_codec_err_t ctrl_enable_mrsse(aom_codec_alg_priv_t *ctx,
-                                         va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_mrsse = CAST(AOME_SET_ENABLE_MRSSE, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // CONFIG_MRSSE
-
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
@@ -4369,9 +4360,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-#if CONFIG_MRSSE
-  { AOME_SET_ENABLE_MRSSE, ctrl_enable_mrsse },
-#endif  // CONFIG_MRSSE
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },

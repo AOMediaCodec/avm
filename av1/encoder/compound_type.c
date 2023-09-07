@@ -1481,13 +1481,12 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
           int eval_txfm = 1;
           // Check if the mode is good enough based on skip rd
           if (cpi->sf.inter_sf.txfm_rd_gate_level) {
-            int64_t sse_y =
-                compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize
+            int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize
 #if CONFIG_MRSSE
-                                  ,
-                                  cpi->oxcf.tool_cfg.enable_mrsse ? 1 : 0
+                                              ,
+                                              cpi->oxcf.tool_cfg.enable_mrsse
 #endif  // CONFIG_MRSSE
-                );
+            );
             int64_t skip_rd = RDCOST(x->rdmult, rs2 + *rate_mv, (sse_y << 4));
             eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd, skip_rd,
                                         cpi->sf.inter_sf.txfm_rd_gate_level, 1);

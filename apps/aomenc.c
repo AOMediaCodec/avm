@@ -224,9 +224,6 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-#if CONFIG_MRSSE
-                                        AOME_SET_ENABLE_MRSSE,
-#endif  // CONFIG_MRSSE
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -1326,7 +1323,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->arg_ctrls[idx][0] = AOME_SET_QP;
       config->arg_ctrls[idx][1] = qp_val;
       ++config->arg_ctrl_cnt;
-
     } else {
       int i, match = 0;
       // check if the control ID API supports this arg

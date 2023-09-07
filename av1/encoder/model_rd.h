@@ -57,7 +57,7 @@ typedef void (*model_rd_for_sb_type)(const AV1_COMP *const cpi,
                                      int64_t *plane_sse, int64_t *plane_dist
 #if CONFIG_MRSSE
                                      ,
-                                     int is_mr
+                                     int use_mrsse
 #endif  // CONFIG_MRSSE
 );
 typedef void (*model_rd_from_sse_type)(const AV1_COMP *const cpi,
@@ -72,7 +72,6 @@ static int64_t calculate_sse(MACROBLOCKD *const xd,
                              const int bh) {
   int64_t sse = 0;
   const int shift = xd->bd - 8;
-
   sse = aom_highbd_sse(p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride,
                        bw, bh);
   sse = ROUND_POWER_OF_TWO(sse, shift * 2);
@@ -105,7 +104,7 @@ static AOM_INLINE int64_t compute_sse_plane(MACROBLOCK *x, MACROBLOCKD *xd,
                                             int plane, const BLOCK_SIZE bsize
 #if CONFIG_MRSSE
                                             ,
-                                            int is_mr
+                                            bool use_mrsse
 #endif  // CONFIG_MRSSE
 ) {
   struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -116,7 +115,7 @@ static AOM_INLINE int64_t compute_sse_plane(MACROBLOCK *x, MACROBLOCKD *xd,
   get_txb_dimensions(xd, plane, plane_bsize, 0, 0, plane_bsize, NULL, NULL, &bw,
                      &bh);
 #if CONFIG_MRSSE
-  const int sse_fn_idx = is_mr ? 1 : 0;
+  const int sse_fn_idx = (int)use_mrsse;
   int64_t sse = sse_fn[sse_fn_idx](xd, p, pd, bw, bh);
 #else
   int64_t sse = calculate_sse(xd, p, pd, bw, bh);
@@ -211,7 +210,7 @@ static AOM_INLINE void model_rd_for_sb(const AV1_COMP *const cpi,
                                        int64_t *plane_sse, int64_t *plane_dist
 #if CONFIG_MRSSE
                                        ,
-                                       int is_mr
+                                       int use_mrsse
 #endif  // CONFIG_MRSSE
 ) {
   // Note our transform coeffs are 8 times an orthogonal transform.
@@ -224,7 +223,7 @@ static AOM_INLINE void model_rd_for_sb(const AV1_COMP *const cpi,
   int64_t dist_sum = 0;
   int64_t total_sse = 0;
 #if CONFIG_MRSSE
-  const int sse_fn_idx = cpi->oxcf.tool_cfg.enable_mrsse || is_mr ? 1 : 0;
+  const int sse_fn_idx = cpi->oxcf.tool_cfg.enable_mrsse || use_mrsse ? 1 : 0;
 #endif  // CONFIG_MRSSE
   assert(bsize < BLOCK_SIZES_ALL);
 
@@ -272,7 +271,7 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
     int64_t *plane_sse, int64_t *plane_dist
 #if CONFIG_MRSSE
     ,
-    int is_mr
+    int use_mrsse
 #endif  // CONFIG_MRSSE
 ) {
   // Note our transform coeffs are 8 times an orthogonal transform.
@@ -284,7 +283,7 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
   int64_t dist_sum = 0;
   int64_t total_sse = 0;
 #if CONFIG_MRSSE
-  const int sse_fn_idx = cpi->oxcf.tool_cfg.enable_mrsse || is_mr ? 1 : 0;
+  const int sse_fn_idx = cpi->oxcf.tool_cfg.enable_mrsse || use_mrsse ? 1 : 0;
 #endif  // CONFIG_MRSSE
 
   for (int plane = plane_from; plane <= plane_to; ++plane) {
