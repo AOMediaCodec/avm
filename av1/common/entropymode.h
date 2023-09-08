@@ -36,7 +36,11 @@ extern "C" {
 // extra case for the first element of an identity row. These are mapped to
 // a value from 0 to 5 using 'palette_color_index_context_lookup' table.
 #define PALETTE_COLOR_INDEX_CONTEXTS 6
+#if CONFIG_PALETTE_LINE_COPY
+#define PALETTE_ROW_FLAG_CONTEXTS 4
+#else
 #define PALETTE_ROW_FLAG_CONTEXTS 3
+#endif // CONFIG_PALETTE_LINE_COPY
 #else
 // As can be seen from av1_get_palette_color_index_context(), the possible
 // contexts are (2,0,0), (2,2,1), (3,2,0), (4,1,0), (5,0,0). These are mapped to
@@ -267,8 +271,14 @@ typedef struct frame_contexts {
   aom_cdf_prob palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
   aom_cdf_prob palette_uv_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
 #if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_LINE_COPY
+  aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
+  aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
+  aom_cdf_prob palette_direction_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_PALETTE_LINE_COPY
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   aom_cdf_prob palette_y_color_index_cdf[PALETTE_SIZES]
                                         [PALETTE_COLOR_INDEX_CONTEXTS]

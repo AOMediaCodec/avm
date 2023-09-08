@@ -28,6 +28,10 @@ typedef struct {
   aom_cdf_prob *identity_row_cdf;
   uint8_t identity_row_flag;
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_TRANSVERSE
+  uint8_t direction;
+  aom_cdf_prob *direction_cdf;
+#endif // CONFIG_PALETTE_TRANSVERSE
 } TokenExtra;
 
 typedef struct {
