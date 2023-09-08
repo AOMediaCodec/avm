@@ -4354,6 +4354,22 @@ static const aom_cdf_prob
 
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_ENTROPY_PARA
+#if CONFIG_PALETTE_LINE_COPY
+static const aom_cdf_prob
+    default_identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)] = {
+        {AOM_CDF3(10923, 21845), 0},
+        {AOM_CDF3(10923, 21845), 0},
+        {AOM_CDF3(10923, 21845), 0},
+        {AOM_CDF3(10923, 21845), 0}};
+static const aom_cdf_prob
+    default_identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)] = {
+        {AOM_CDF3(10923, 21845), 0},
+        {AOM_CDF3(10923, 21845), 0},
+        {AOM_CDF3(10923, 21845), 0},
+        {AOM_CDF3(10923, 21845), 0}};
+static const aom_cdf_prob default_palette_direction_cdf[CDF_SIZE(2)] = {
+    AOM_CDF2(16384), 0};
+#else
 static const aom_cdf_prob default_identity_row_cdf_y[3][CDF_SIZE(2)] = {
   { AOM_CDF2(16384), 28 },
   { AOM_CDF2(16384), 30 },
@@ -4365,6 +4381,7 @@ static const aom_cdf_prob default_identity_row_cdf_uv[3][CDF_SIZE(2)] = {
   { AOM_CDF2(16384), 30 },
   { AOM_CDF2(16384), 27 },
 };
+#endif  // CONFIG_PALETTE_LINE_COPY
 
 static const aom_cdf_prob default_palette_y_color_index_cdf
     [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
@@ -4486,14 +4503,30 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
       },
     };
 #else
+#if CONFIG_PALETTE_LINE_COPY
+static const aom_cdf_prob
+    default_identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)] = {
+        {AOM_CDF3(10923, 21845)},
+        {AOM_CDF3(10923, 21845)},
+        {AOM_CDF3(10923, 21845)},
+        {AOM_CDF3(10923, 21845)}};
+static const aom_cdf_prob
+    default_identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)] = {
+        {AOM_CDF3(10923, 21845)},
+        {AOM_CDF3(10923, 21845)},
+        {AOM_CDF3(10923, 21845)},
+        {AOM_CDF3(10923, 21845)}};
+static const aom_cdf_prob default_palette_direction_cdf[CDF_SIZE(2)] = {
+    AOM_CDF2(16384)};
+#else
 static const aom_cdf_prob
     default_identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)] = {
-      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
-    };
+        {AOM_CDF2(16384)}, {AOM_CDF2(16384)}, {AOM_CDF2(16384)}};
 static const aom_cdf_prob
     default_identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)] = {
-      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
-    };
+        {AOM_CDF2(16384)}, {AOM_CDF2(16384)}, {AOM_CDF2(16384)}};
+#endif  // CONFIG_PALETTE_LINE_COPY
+
 static const aom_cdf_prob default_palette_y_color_index_cdf
     [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
       {
@@ -5663,6 +5696,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->identity_row_cdf_y, default_identity_row_cdf_y);
   av1_copy(fc->identity_row_cdf_uv, default_identity_row_cdf_uv);
+#if CONFIG_PALETTE_LINE_COPY
+  av1_copy(fc->palette_direction_cdf, default_palette_direction_cdf);
+#endif // CONFIG_PALETTE_LINE_COPY
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);

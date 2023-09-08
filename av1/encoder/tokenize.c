@@ -29,6 +29,150 @@
 #include "av1/encoder/tokenize.h"
 
 #if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_TRANSVERSE
+static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
+                                 int plane, int calc_rate, int allow_update_cdf,
+                                 FRAME_COUNTS *counts, MapCdf map_pb_cdf,
+                                 IdentityRowCdf identity_row_pb_cdf,
+                                 PaletteDirectionCdf palette_direction_pb_cdf,
+                                 int direction) {
+  const uint8_t *const color_map = param->color_map;
+  MapCdf map_cdf = param->map_cdf;
+  ColorCost color_cost = param->color_cost;
+  IdentityRowCdf identity_row_cdf = param->identity_row_cdf;
+  IdentityRowCost identity_row_cost = param->identity_row_cost;
+  const int plane_block_width = param->plane_width;
+  const int plane_block_height = param->plane_height;
+  const int rows = param->rows;
+  const int cols = param->cols;
+  const int n = param->n_colors;
+  const int palette_size_idx = n - PALETTE_MIN_SIZE;
+  int this_rate = 0;
+
+  (void)plane;
+  (void)counts;
+  int prev_identity_row_flag = 0;
+  int identity_row_flag = 0;
+  const int ax1_limit = direction ? rows : cols;
+  const int ax2_limit = direction ? cols : rows;
+  PaletteDirectionCost direction_cost = param->direction_cost;
+  if (calc_rate) {
+    this_rate += (*direction_cost)[direction];
+  }
+  for (int ax2 = 0; ax2 < ax2_limit; ax2++) {
+    int line_copy_flag = 0;
+    if (ax2 > 0) {
+      line_copy_flag = 1;
+      for (int ax1 = 0; ax1 < ax1_limit; ax1++) {
+        const int y = direction ? ax1 : ax2;
+        const int x = direction ? ax2 : ax1;
+        if (direction) {
+          // Vertical
+          if (color_map[y * plane_block_width + (x - 1)] !=
+              color_map[y * plane_block_width + x])
+            line_copy_flag = 0;
+        } else {
+          // Horizontal
+          if (color_map[(y - 1) * plane_block_width + x] !=
+              color_map[y * plane_block_width + x])
+            line_copy_flag = 0;
+        }
+      }
+    }
+    if (line_copy_flag) {
+      identity_row_flag = 2;
+    } else {
+      identity_row_flag = 1;
+      for (int ax1 = 1; ax1 < ax1_limit; ax1++) {
+        const int y = direction ? ax1 : ax2;
+        const int x = direction ? ax2 : ax1;
+        if (direction) {
+          if (color_map[(y - 1) * plane_block_width + x] !=
+              color_map[y * plane_block_width + x])
+            identity_row_flag = 0;
+          // Vertical
+        } else {
+          // Horizontal
+          if (color_map[y * plane_block_width + x - 1] !=
+              color_map[y * plane_block_width + x])
+            identity_row_flag = 0;
+        }
+      }
+    }
+    const int ctx = ax2 == 0 ? 3 : prev_identity_row_flag;
+    for (int ax1 = 0; ax1 < ax1_limit; ax1++) {
+      if (ax1 == 0 && ax2 == 0) {
+        if (!calc_rate) {
+          (*t)->token = param->color_map[0];
+          (*t)->color_map_cdf = NULL;
+          (*t)->identity_row_flag = identity_row_flag;
+          (*t)->identity_row_cdf = identity_row_pb_cdf[ctx];
+          (*t)->direction = direction;
+          // Is this star ok?
+          (*t)->direction_cdf = *palette_direction_pb_cdf;
+          (*t)++;
+          if (allow_update_cdf) {
+                      // Is this star ok?
+            update_cdf(*param->direction_cdf, direction, 2);
+            update_cdf(identity_row_cdf[ctx], identity_row_flag, 3);
+          }
+        } else {
+          // This was missing when the identity_row was added
+          this_rate += (*identity_row_cost)[ctx][identity_row_flag];
+        }
+      } else {
+        int color_new_idx;
+        const int y = direction ? ax1 : ax2;
+        const int x = direction ? ax2 : ax1;
+        const int color_ctx = av1_fast_palette_color_index_context(
+            color_map, plane_block_width, y, x, &color_new_idx,
+            identity_row_flag, prev_identity_row_flag);
+        assert(color_new_idx >= 0 && color_new_idx < n);
+        if (calc_rate) {
+          if (ax1 == 0) {
+            this_rate += (*identity_row_cost)[ctx][identity_row_flag];
+          }
+          if (!line_copy_flag && (!(identity_row_flag == 1) || ax1 == 0)) {
+            this_rate +=
+                (*color_cost)[palette_size_idx][color_ctx][color_new_idx];
+          }
+        } else {
+          (*t)->token = color_new_idx;
+          (*t)->color_map_cdf = map_pb_cdf[palette_size_idx][color_ctx];
+          (*t)->identity_row_flag = identity_row_flag;
+          (*t)->identity_row_cdf = identity_row_pb_cdf[ctx];
+          (*t)->direction = direction;
+          (*t)->direction_cdf = *palette_direction_pb_cdf;
+          (*t)++;
+
+          if (allow_update_cdf) {
+            if (ax1 == 0)
+              update_cdf(identity_row_cdf[ctx], identity_row_flag, 3);
+
+            if (!line_copy_flag && (!identity_row_flag || ax1 == 0)) {
+              update_cdf(map_cdf[palette_size_idx][color_ctx], color_new_idx,
+                         n);
+            }
+          }
+#if CONFIG_ENTROPY_STATS
+          if (plane) {
+            ++counts->palette_uv_color_index[palette_size_idx][color_ctx]
+                                            [color_new_idx];
+          } else {
+            ++counts->palette_y_color_index[palette_size_idx][color_ctx]
+                                           [color_new_idx];
+          }
+#endif
+        }
+      }
+    }
+    prev_identity_row_flag = identity_row_flag;
+  }
+  if (calc_rate) return this_rate;
+  return 0;
+}
+
+#else
 static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
                                  int plane, int calc_rate, int allow_update_cdf,
                                  FRAME_COUNTS *counts, MapCdf map_pb_cdf,
@@ -48,14 +192,38 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
   (void)plane;
   (void)counts;
   int prev_identity_row_flag = 0;
+  int identity_row_flag = 0;
   for (int y = 0; y < rows; y++) {
-    int identity_row_flag = 1;
+#if CONFIG_PALETTE_LINE_COPY
+    int line_copy_flag = 0;
+    if (y > 0) {
+      line_copy_flag = 1;
+      for (int x = 0; x < cols; x++) {
+        if (color_map[(y - 1) * plane_block_width + x] !=
+            color_map[y * plane_block_width + x])
+          line_copy_flag = 0;
+      }
+    }
+    if (line_copy_flag) {
+      identity_row_flag = 2;
+    } else {
+      identity_row_flag = 1;
+      for (int x = 1; x < cols; x++) {
+        if (color_map[y * plane_block_width + x - 1] !=
+            color_map[y * plane_block_width + x])
+          identity_row_flag = 0;
+      }
+    }
+    const int ctx = y == 0 ? 3 : prev_identity_row_flag;
+#else
+    identity_row_flag = 1;
     for (int x = 1; x < cols; x++) {
       if (color_map[y * plane_block_width + x - 1] !=
           color_map[y * plane_block_width + x])
         identity_row_flag = 0;
     }
     const int ctx = y == 0 ? 2 : prev_identity_row_flag;
+#endif  // CONFIG_PALETTE_LINE_COPY
     for (int x = 0; x < cols; x++) {
       if (x == 0 && y == 0) {
         if (!calc_rate) {
@@ -65,9 +233,19 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
           (*t)->identity_row_cdf = identity_row_pb_cdf[ctx];
           (*t)++;
           if (allow_update_cdf) {
+#if CONFIG_PALETTE_LINE_COPY
+            update_cdf(identity_row_cdf[ctx], identity_row_flag, 3);
+#else
             update_cdf(identity_row_cdf[ctx], identity_row_flag, 2);
+#endif
           }
         }
+#if CONFIG_PALETTE_LINE_COPY
+        // This was missing when the identity_row was added
+        else {
+          this_rate += (*identity_row_cost)[ctx][identity_row_flag];
+        }
+#endif // CONFIG_PALETTE_LINE_COPY
       } else {
         int color_new_idx;
         const int color_ctx = av1_fast_palette_color_index_context(
@@ -78,7 +256,11 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
           if (x == 0) {
             this_rate += (*identity_row_cost)[ctx][identity_row_flag];
           }
+#if CONFIG_PALETTE_LINE_COPY
+          if (!line_copy_flag && (!(identity_row_flag == 1) || x == 0)) {
+#else
           if (!identity_row_flag || x == 0) {
+#endif
             this_rate +=
                 (*color_cost)[palette_size_idx][color_ctx][color_new_idx];
           }
@@ -87,12 +269,26 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
           (*t)->color_map_cdf = map_pb_cdf[palette_size_idx][color_ctx];
           (*t)->identity_row_flag = identity_row_flag;
           (*t)->identity_row_cdf = identity_row_pb_cdf[ctx];
+#if CONFIG_PALETTE_LINE_COPY
+          (*t)++;
+#else
           if (!identity_row_flag || x == 0) (*t)++;
+#endif
+
           if (allow_update_cdf) {
+#if CONFIG_PALETTE_LINE_COPY
+            if (x == 0) update_cdf(identity_row_cdf[ctx], identity_row_flag, 3);
+
+            if (!line_copy_flag && (!identity_row_flag || x == 0)) {
+              update_cdf(map_cdf[palette_size_idx][color_ctx], color_new_idx,
+                         n);
+            }
+#else
             if (!identity_row_flag || x == 0)
               update_cdf(map_cdf[palette_size_idx][color_ctx], color_new_idx,
                          n);
             if (x == 0) update_cdf(identity_row_cdf[ctx], identity_row_flag, 2);
+#endif // CONFIG_PALETTE_LINE_COPY
           }
 #if CONFIG_ENTROPY_STATS
           if (plane) {
@@ -111,6 +307,7 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
   if (calc_rate) return this_rate;
   return 0;
 }
+#endif // CONFIG_PALETTE_TRANSVERSE
 #else
 static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
                                  int plane, int calc_rate, int allow_update_cdf,
@@ -167,7 +364,12 @@ static void get_palette_params(const MACROBLOCK *const x, int plane,
   params->color_map = xd->plane[plane].color_index_map;
   params->map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
                           : xd->tile_ctx->palette_y_color_index_cdf;
+
 #if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_TRANSVERSE
+  params->direction_cdf = xd->tile_ctx->palette_direction_cdf;
+  params->direction_cost = &x->mode_costs.palette_direction_cost;
+#endif // CONFIG_PALETTE_TRANSVERSE
   params->identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                    : xd->tile_ctx->identity_row_cdf_y;
   params->identity_row_cost = plane ? &x->mode_costs.palette_uv_row_flag_cost
@@ -200,11 +402,26 @@ int av1_cost_color_map(const MACROBLOCK *const x, int plane, BLOCK_SIZE bsize,
   get_color_map_params(x, plane, bsize, tx_size, type, &color_map_params);
   MapCdf map_pb_cdf = plane ? x->tile_pb_ctx->palette_uv_color_index_cdf
                             : x->tile_pb_ctx->palette_y_color_index_cdf;
+
 #if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_TRANSVERSE
+  PaletteDirectionCdf palette_direction_pb_cdf =
+      x->tile_pb_ctx->palette_direction_cdf;
+#endif  // CONFIG_PALETTE_TRANSVERSE
   IdentityRowCdf eq_row_pb_cdf = plane ? x->tile_pb_ctx->identity_row_cdf_uv
                                        : x->tile_pb_ctx->identity_row_cdf_y;
-  return cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
+#if CONFIG_PALETTE_TRANSVERSE
+  int dir0 = cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
+                               map_pb_cdf, eq_row_pb_cdf,
+                               palette_direction_pb_cdf, 0);
+  int dir1 = cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
+                                   map_pb_cdf, eq_row_pb_cdf,
+                                   palette_direction_pb_cdf, 1);
+  return AOMMIN(dir0, dir1);
+#else 
+    return cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
                                map_pb_cdf, eq_row_pb_cdf);
+#endif // CONFIG_PALETTE_TRANSVERSE
 #else
   return cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
                                map_pb_cdf);
@@ -223,8 +440,25 @@ void av1_tokenize_color_map(const MACROBLOCK *const x, int plane,
                             : x->tile_pb_ctx->palette_y_color_index_cdf;
   IdentityRowCdf eq_row_pb_cdf = plane ? x->tile_pb_ctx->identity_row_cdf_uv
                                        : x->tile_pb_ctx->identity_row_cdf_y;
+
+#if CONFIG_PALETTE_TRANSVERSE
+  PaletteDirectionCdf palette_direction_pb_cdf =
+      x->tile_pb_ctx->palette_direction_cdf;
+  int cost_dir0 = cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0,
+                                        NULL, map_pb_cdf, eq_row_pb_cdf,
+                                        palette_direction_pb_cdf, 0);
+  int cost_dir1 = cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0,
+                                        NULL, map_pb_cdf, eq_row_pb_cdf,
+                                        palette_direction_pb_cdf, 1);
+  int direction = (cost_dir0 < cost_dir1) ? 0 : 1;
+#endif  // CONFIG_PALETTE_TRANSVERSE
   cost_and_tokenize_map(&color_map_params, t, plane, 0, allow_update_cdf,
-                        counts, map_pb_cdf, eq_row_pb_cdf);
+                        counts, map_pb_cdf, eq_row_pb_cdf
+#if CONFIG_PALETTE_TRANSVERSE
+                        ,
+                        palette_direction_pb_cdf, direction
+#endif // CONFIG_PALETTE_TRANSVERSE
+  );
 #else
   // The first color index does not use context or entropy.
   (*t)->token = color_map_params.color_map[0];

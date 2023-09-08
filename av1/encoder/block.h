@@ -977,11 +977,19 @@ typedef struct {
   //! palette_uv_mode_cost
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
 #if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_LINE_COPY
+  int palette_direction_cost[2];
   //! palette_y_row_flag_cost
+  int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][3];
+  //! palette_uv_row_flag_cost
+  int palette_uv_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][3];
+#else 
+    //! palette_y_row_flag_cost
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
   //! palette_uv_row_flag_cost
   int palette_uv_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_IMPROVEMENTS  
   /**@}*/
 
   /*****************************************************************************

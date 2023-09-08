@@ -848,16 +848,43 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
 static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
                                        int n, int cols, int rows) {
   const TokenExtra *p = *tp;
-  for (int y = 0; y < rows; y++) {
+#if CONFIG_PALETTE_TRANSVERSE
+  const int direction = p->direction;
+  aom_write_symbol(w, p->direction, p->direction_cdf, 2);
+#else
+  const int direction = 0;
+#endif // CONFIG_PALETTE_LINE_COPY
+  const int ax1_limit = direction ? rows : cols;
+  const int ax2_limit = direction ? cols : rows;
+  
+  // for (int y = 0; y < rows; y++) {
+  for (int ax2 = 0; ax2 < ax2_limit; ax2++) {
     int identity_row_flag = p->identity_row_flag;
+#if CONFIG_PALETTE_LINE_COPY
+    aom_write_symbol(w, identity_row_flag, p->identity_row_cdf, 3);
+#else
     aom_write_symbol(w, identity_row_flag, p->identity_row_cdf, 2);
-    for (int x = 0; x < cols; x++) {
-      if (y == 0 && x == 0) {
+#endif  // CONFIG_PALETTE_LINE_COPY
+    // for (int x = 0; x < cols; x++) {
+    for (int ax1 = 0; ax1 < ax1_limit; ax1++) {
+      // if (y == 0 && x == 0) {
+      if (ax2 == 0 && ax1 == 0) {
         write_uniform(w, n, p->token);
-      } else if (!identity_row_flag || x == 0) {
+      }
+#if CONFIG_PALETTE_LINE_COPY
+      // else if (!(identity_row_flag == 2) &&
+      //          (!(identity_row_flag == 1) || x == 0)) {
+      else if (!(identity_row_flag == 2) &&
+               (!(identity_row_flag == 1) || ax1 == 0)) {     
         aom_write_symbol(w, p->token, p->color_map_cdf, n);
       }
-      if (!identity_row_flag || x == 0) p++;
+      p++;
+#else
+      else if (!identity_row_flag || ax1 == 0) {
+        aom_write_symbol(w, p->token, p->color_map_cdf, n);
+      }
+      if (!identity_row_flag || ax1 == 0) p++;
+#endif // CONFIG_PALETTE_LINE_COPY
     }
   }
   *tp = p;
