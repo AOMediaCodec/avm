@@ -3535,7 +3535,12 @@ static void init_partition_search_state_params(
   if (av1_get_normative_forced_partition_type(
           mi_params, tree_type, part_search_state->ss_x,
           part_search_state->ss_y, mi_row, mi_col, bsize, ptree_luma,
-          &pc_tree->chroma_ref_info) != PARTITION_INVALID) {
+          &pc_tree->chroma_ref_info) != PARTITION_INVALID &&
+      !(tree_type == CHROMA_PART && bsize == BLOCK_8X8)) {
+    // We shouldn't need the second condition
+    // `!(tree_type == CHROMA_PART && bsize == BLOCK_8X8)` but due to the weight
+    // ctc weighs luma and chroma bdrate, we get a small loss if we correct the
+    // chroma partition cost.
     part_search_state->partition_cost = kZeroPartitionCosts;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
