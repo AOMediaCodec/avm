@@ -4148,7 +4148,7 @@ static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,
     }
   }
   rsi->frame_restoration_type = ntools < 2 ? rused : RESTORE_SWITCHABLE;
-#if CONFIG_LR_IMPROVEMENTS
+#if CONFIG_LR_IMPROVEMENTS && !CONFIG_COMBINE_PC_NS_WIENER
   rsi->num_filter_classes = rsc->num_filter_classes;
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
       rsc->cm->features.lr_tools_count[rsc->plane] > 2) {
@@ -4355,6 +4355,7 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->frame_restoration_type = frame_rtype;
 #if CONFIG_COMBINE_PC_NS_WIENER
   rsi->frame_filters_on = rsc->frame_filters_on;
+  rsi->num_filter_classes = rsc->num_filter_classes;
 #endif
   if (frame_rtype != RESTORE_NONE) {
     process_by_rutile(rsc, copy_unit_info_visitor);
