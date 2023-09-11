@@ -79,6 +79,7 @@ static int64_t calculate_sse(MACROBLOCKD *const xd,
 }
 
 #if CONFIG_MRSSE
+// Caclulate Mean-removed SSE.
 static int64_t calculate_mrsse(MACROBLOCKD *const xd,
                                const struct macroblock_plane *p,
                                struct macroblockd_plane *pd, const int bw,

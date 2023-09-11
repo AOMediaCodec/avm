@@ -35,6 +35,11 @@ int64_t aom_highbd_sse_c(const uint16_t *a, int a_stride, const uint16_t *b,
 
 #if CONFIG_MRSSE
 
+// Applies a Mean removed SSE (MRSSE) to the every corresponding element of the
+// buffers to calculate distortion of the block.
+//
+// The original MRSSE calculates a formula of [(a - b - mean)^2] for each
+// element. The above formula is summarized as [sse - sum^2 / (w * h)].
 int64_t aom_highbd_mrsse_c(const uint16_t *a, int a_stride, const uint16_t *b,
                            int b_stride, int width, int height) {
   int y, x;
