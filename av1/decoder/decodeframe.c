@@ -3805,6 +3805,10 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   }
 #if CONFIG_LR_IMPROVEMENTS
   rui->wienerns_info.frame_filters_on = rsi->frame_filters_on;
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+  // to be updated, should define frame_cross_filters_on in rsi to support frame level filter for cross filter
+  rui->wienerns_cross_info.frame_filters_on = 0;
+#endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_WIENER_NONSEP
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
