@@ -1738,6 +1738,12 @@ typedef struct macroblock {
   bool is_whole_sb;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
+#if CONFIG_SCC_DETERMINATION
+  /*!\brief Number of pixels in current thread that choose palette mode in the
+   * fast encoding stage for screen content tool detemination.
+   */
+  int palette_pixels;
+#endif  // CONFIG_SCC_DETERMINATION
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

@@ -1185,7 +1185,13 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
       cpi->td.deltaq_used = 0;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       cpi->td.mb.tile_pb_ctx = &this_tile->tctx;
+#if CONFIG_SCC_DETERMINATION
+      cpi->td.mb.palette_pixels = 0;
+#endif  // CONFIG_SCC_DETERMINATION
       av1_encode_tile(cpi, &cpi->td, tile_row, tile_col);
+#if CONFIG_SCC_DETERMINATION
+      cpi->palette_pixel_num += cpi->td.mb.palette_pixels;
+#endif  // CONFIG_SCC_DETERMINATION
       cpi->intrabc_used |= cpi->td.intrabc_used;
       cpi->deltaq_used |= cpi->td.deltaq_used;
     }
@@ -1889,7 +1895,9 @@ void av1_encode_frame(AV1_COMP *cpi) {
   enforce_max_ref_frames(cpi, &cm->ref_frame_flags);
   set_rel_frame_dist(cm, &cpi->ref_frame_dist_info, cm->ref_frame_flags);
   av1_setup_frame_sign_bias(cm);
-
+#if CONFIG_SCC_DETERMINATION
+  cpi->palette_pixel_num = 0;
+#endif  // CONFIG_SCC_DETERMINATION
 #if CONFIG_MISMATCH_DEBUG
   mismatch_reset_frame(num_planes);
 #else

@@ -617,6 +617,11 @@ void av1_rd_pick_palette_intra_sby(
   if (best_mbmi->palette_mode_info.palette_size[0] > 0) {
     memcpy(color_map, best_palette_color_map,
            block_width * block_height * sizeof(best_palette_color_map[0]));
+#if CONFIG_SCC_DETERMINATION
+    // Gather the stats to determine whether to use screen content tools in
+    // function av1_determine_sc_tools_with_encoding().
+    x->palette_pixels += (block_width * block_height);
+#endif  // CONFIG_SCC_DETERMINATION
   }
   *mbmi = *best_mbmi;
 }
