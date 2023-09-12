@@ -2328,7 +2328,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   if (is_square_split_eligible(bsize, cm->sb_size)) {
     const bool do_square_split =
         aom_read_symbol(r, ec_ctx->do_square_split_cdf[plane][square_split_ctx],
-                        2, ACCT_STR("do_square_split"));
+                        2, ACCT_INFO("do_square_split"));
     if (do_square_split) {
       return PARTITION_SPLIT;
     }
