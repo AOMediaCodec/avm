@@ -14,7 +14,7 @@ __author__ = "maggie.sun@intel.com, ryanlei@meta.com"
 Python file for definition of AV2 CTC testing clips/sets
 """
 
-CTC_VERSION = '4.0'
+CTC_VERSION = '5.0'
 
 CTC_TEST_SET = {
     "AI": ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "G1", "G2", "E"],
@@ -33,7 +33,7 @@ Y4M_CLIPs = {
                    "PierSeaSide_3840x2160_2997fps_10bit_420_v2.y4m",
                    "Tango_3840x2160_5994fps_10bit_420.y4m",
                    "TimeLapse_3840x2160_5994fps_10bit_420.y4m"]
-                   if CTC_VERSION == "4.0" else
+                   if (CTC_VERSION in ["4.0", "5.0"]) else
                   ["BoxingPractice_3840x2160_5994fps_10bit_420.y4m",
                    "Crosswalk_3840x2160_5994fps_10bit_420.y4m",
                    "FoodMarket2_3840x2160_5994fps_10bit_420.y4m",
@@ -43,6 +43,26 @@ Y4M_CLIPs = {
                    "Tango_3840x2160_5994fps_10bit_420.y4m",
                    "TimeLapse_3840x2160_5994fps_10bit_420.y4m"],
 "A2"            : ["Aerial3200_1920x1080_5994_10bit_420.y4m",
+                   "Boat_1920x1080_5994_10bit_420.y4m",
+                   "CrowdRun_1920x1080p50.y4m",
+                   "DinnerSceneCropped_1920x1080_2997fps_10bit_420.y4m",
+                   "FoodMarket_1920x1080_5994_10bit_420.y4m",
+                   "GregoryScarf_1080x1920p30_yuv420p10le_130frames.y4m",
+                   "MeridianTalk_sdr_1920x1080p_5994_10bit.y4m",
+                   "Motorcycle_1920x1080_30fps_8bit.y4m",
+                   "OldTownCross_1920x1080p50.y4m",
+                   "PedestrianArea_1920x1080p25.y4m",
+                   "RitualDance_1920x1080_5994_10bit_420.y4m",
+                   "Riverbed_1920x1080p25.y4m",
+                   "RushFieldCuts_1920x1080_2997.y4m",
+                   "Skater227_1920x1080_30fps.y4m",
+                   "ToddlerFountainCropped_1080x1080p2997_yuv420p10le_130frames.y4m",
+                   "TreesAndGrass_1920_1080_30fps_8bit.y4m",
+                   "TunnelFlag_1920x1080_5994_10bit_420.y4m",
+                   "Vertical_bees_1080x1920_2997.y4m",
+                   "WorldCup_1920x1080_30p.y4m"]
+                   if (CTC_VERSION in ["5.0"]) else
+                   ["Aerial3200_1920x1080_5994_10bit_420.y4m",
                    "Boat_1920x1080_5994_10bit_420.y4m",
                    "CrowdRun_1920x1080p50.y4m",
                    "DinnerSceneCropped_1920x1080_2997fps_10bit_420.y4m",
@@ -78,7 +98,7 @@ Y4M_CLIPs = {
                    "SpeedBag_640x360_2997.y4m",
                    "Stockholm_640x360_5994.y4m",
                    "TouchdownPass_640x360_2997.y4m"]
-                   if CTC_VERSION == "4.0" else
+                   if (CTC_VERSION in ["4.0", "5.0"]) else
                   ["BlueSky_360p25.y4m",
                    "RedKayak_360_2997.y4m",
                    "SnowMountain_640x360_2997.y4m",
@@ -99,7 +119,7 @@ Y4M_CLIPs = {
                    "SolLevanteFace_sdr_1920x1080_24_10bit.y4m",
                    "STARCRAFT_1080p60.y4m",
                    "WITCHER3_1920x1080_60_8bit_420.y4m"]
-                   if CTC_VERSION == "4.0" else
+                   if (CTC_VERSION in ["4.0", "5.0"]) else
                   ["CosmosTreeTrunk_sdr_2048x858_25_8bit.y4m",
                    "DOTA2_1920x1080_60_8bit_420.y4m",
                    "EuroTruckSimulator2_1920x1080p60.y4m",
@@ -110,7 +130,7 @@ Y4M_CLIPs = {
                    "SolLevanteDragons_sdr_1920x1080_24_10bit.y4m",
                    "SolLevanteFace_sdr_1920x1080_24_10bit.y4m",
                    "WITCHER3_1920x1080_60_8bit_420.y4m"]
-                   if CTC_VERSION == "3.0" else
+                   if (CTC_VERSION in ["3.0"]) else
                   ["CosmosTreeTrunk_sdr_2048x858_25_8bit.y4m",
                    "DOTA2_1920x1080_60_8bit_420.y4m",
                    "EuroTruckSimulator2_1920x1080p60.y4m",
@@ -123,7 +143,7 @@ Y4M_CLIPs = {
                    "SolLevanteFace_sdr_1920x1080_24_10bit.y4m",
                    "Wikipedia_1920x1080p30.y4m",
                    "WITCHER3_1920x1080_60_8bit_420.y4m"]
-                   if CTC_VERSION == "2.0" else
+                   if (CTC_VERSION in ["2.0"]) else
                   ["AOV5_1920x1080_60_8bit_420.y4m",
                    "Baolei_2048x1080_60fps.y4m",
                    "CosmosTreeTrunk_sdr_2048x858_25_8bit.y4m",
@@ -137,6 +157,16 @@ Y4M_CLIPs = {
                    "SolLevanteFace_sdr_1920x1080_24_10bit.y4m",
                    "Wikipedia_1920x1080p30.y4m"],
 "B2"            : ["BigBuckBunnyStudio1_1920x1080_60fps_10bit_420_020_0149.y4m",
+                   "Debugging_1920x1080_30fps_8bit_420.y4m",
+                   "MissionControlClip1_1920x1080_60fps_10bit_420_0450_0579.y4m",
+                   "MobileDeviceScreenSharing.y4m",
+                   "SceneComposition_2.y4m",
+                   "Slides1_1920x1080_30fps_8bit_420.y4m",
+                   "Slides2r_1920x1080_30fps_8bit_420.y4m",
+                   "Spreadsheet_1920x1080_30fps_8bit_420_130f.y4m",
+                   "Wikipedia_1920x1080p30.y4m"]
+                    if (CTC_VERSION in ["5.0"]) else
+                  ["BigBuckBunnyStudio1_1920x1080_60fps_10bit_420_020_0149.y4m",
                    "Debugging_1920x1080_30fps_8bit_420.y4m",
                    "MissionControlClip1_1920x1080_60fps_10bit_420_0450_0579.y4m",
                    "MissionControlClip3_1920x1080_60_420.y4m",
@@ -219,6 +249,23 @@ Y4M_CLIPs = {
                    "Artistic_Intro_1920x1080_2997fps.y4m",
                    "MixedCoding_NewsIntroAnchor_1280x720_2997fps.y4m",
                    "MixedCoding_NewsIntroOnly_1280x720_2997fps.y4m",
+                   "MountainBike_1920x1080_30fps_8bit.y4m",
+                   "Noise_AnimationCrayon_1920x1080_2398fps.y4m",
+                   "Noise_Animation_1280x720_2398fps.y4m",
+                   "Noise_Ocean_1920x1080_60fps.y4m",
+                   "Noise_Soccer_1920x1080_50fps.y4m",
+                   "Shaky_Baseball_3840x2160_5994fps.y4m",
+                   "Shaky_Fireworks_3840x2160_2997fps.y4m",
+                   "Shaky_Quad_1920x1080_30fps.y4m",
+                   "Shaky_Walk_1920x1080_25fps.y4m",
+                   "Vertical_Carnaby_1080x1920_5994.y4m",
+                   "WalkingInStreet_1920x1080_30fps.y4m",
+                   "WorldCup_far_1920x1080_30p.y4m"]
+                 if (CTC_VERSION in  ["5.0"]) else
+                  ["Artistic_Concert_1920x1080_25fps.y4m",
+                   "Artistic_Intro_1920x1080_2997fps.y4m",
+                   "MixedCoding_NewsIntroAnchor_1280x720_2997fps.y4m",
+                   "MixedCoding_NewsIntroOnly_1280x720_2997fps.y4m",
                    "Noise_AnimationCrayon_1920x1080_2398fps.y4m",
                    "Noise_Animation_1280x720_2398fps.y4m",
                    "Noise_Ocean_1920x1080_60fps.y4m",
@@ -260,7 +307,7 @@ AS_Downscaled_Clips = {
                                                           "/A1_4k_720p/PierSeaSide_1280x720_2997fps_10bit_420_v2.y4m",
                                                           "/A1_4k_540p/PierSeaSide_960x540_2997fps_10bit_420_v2.y4m",
                                                           "/A1_4k_360p/PierSeaSide_640x360_2997fps_10bit_420_v2.y4m"]
-                                                          if CTC_VERSION == "4.0" else
+                                                          if (CTC_VERSION in ["4.0", "5.0"]) else
                                                          ["/A1_4k_1440p/PierSeaSide_2560x1440_2997fps_10bit_420.y4m",
                                                           "/A1_4k_1080p/PierSeaSide_1920x1080_2997fps_10bit_420.y4m",
                                                           "/A1_4k_720p/PierSeaSide_1280x720_2997fps_10bit_420.y4m",
