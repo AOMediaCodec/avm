@@ -1405,6 +1405,20 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+// This function writes a 'secondary tx set' onto the bitstream
+static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
+                             MB_MODE_INFO *mbmi, TX_TYPE tx_type) {
+  TX_TYPE stx_set_flag = get_secondary_tx_set(tx_type);
+  assert(stx_set_flag <= IST_SET_SIZE - 1);
+  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
+  assert(stx_set_flag < IST_DIR_SIZE);
+  uint8_t intra_mode = mbmi->mode;
+  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
+  assert(stx_set_ctx < IST_DIR_SIZE);
+  aom_write_symbol(w, stx_set_flag, ec_ctx->stx_set_cdf[stx_set_ctx],
+                   IST_DIR_SIZE);
+}
+
 void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                            TX_TYPE tx_type, TX_SIZE tx_size, uint16_t eob,
                            aom_writer *w) {
@@ -1419,20 +1433,26 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     if (!is_inter) {
-      TX_TYPE stx_flag = get_secondary_tx_type(tx_type);
+      const TX_TYPE stx_flag = get_secondary_tx_type(tx_type);
       assert(stx_flag <= STX_TYPES - 1);
       if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
         aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[square_tx_size],
                          STX_TYPES);
+#if CONFIG_IST_SET_FLAG
+        if (stx_flag > 0) write_sec_tx_set(ec_ctx, w, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
       }
     }
   } else if (!is_inter && !xd->lossless[mbmi->segment_id]) {
-    TX_TYPE stx_flag = get_secondary_tx_type(tx_type);
-    assert(stx_flag <= STX_TYPES - 1);
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+    TX_TYPE stx_flag = get_secondary_tx_type(tx_type);
+    assert(stx_flag <= STX_TYPES - 1);
     if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
       aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[square_tx_size], STX_TYPES);
+#if CONFIG_IST_SET_FLAG
+      if (stx_flag > 0) write_sec_tx_set(ec_ctx, w, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
     }
   }
 }

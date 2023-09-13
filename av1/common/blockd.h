@@ -2943,8 +2943,20 @@ static INLINE int tx_size_to_depth(TX_SIZE tx_size, BLOCK_SIZE bsize) {
 }
 #endif
 
+#if CONFIG_IST_SET_FLAG
+// Number of bits to be taken from TX_TYPE to represent
+// primary tx, secondary tx set, and secondary tx kernel
+#define PRIMARY_TX_BITS 4        // # of bits for primary tx
+#define SECONDARY_TX_SET_BITS 4  // # of bits for secondary tx set
+#define SECONDARY_TX_BITS 2      // # of bits for secondary tx kernel
+// Bit masks to keep only wanted info
+#define SECONDARY_TX_SET_MASK ((1 << SECONDARY_TX_SET_BITS) - 1)
+#define SECONDARY_TX_MASK ((1 << SECONDARY_TX_BITS) - 1)
+#endif  // CONFIG_IST_SET_FLAG
+
 /*
  * If secondary transform is enabled (IST) :
+ * Bits 6~9 of tx_type stores secondary tx_set
  * Bits 4~5 of tx_type stores secondary tx_type
  * Bits 0~3 of tx_type stores primary tx_type
  *
@@ -2958,7 +2970,11 @@ static INLINE void disable_secondary_tx_type(TX_TYPE *tx_type) {
  * This function masks primary transform type used by the transform block
  */
 static INLINE void disable_primary_tx_type(TX_TYPE *tx_type) {
+#if CONFIG_IST_SET_FLAG
+  *tx_type &= 0xfff0;
+#else   // CONFIG_IST_SET_FLAG
   *tx_type &= 0xf0;
+#endif  // CONFIG_IST_SET_FLAG
 }
 /*
  * This function returns primary transform type used by the transform block
@@ -2970,8 +2986,36 @@ static INLINE TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
  * This function returns secondary transform type used by the transform block
  */
 static INLINE TX_TYPE get_secondary_tx_type(TX_TYPE tx_type) {
-  return (tx_type >> 4);
+#if CONFIG_IST_SET_FLAG
+  return (tx_type >> PRIMARY_TX_BITS) & SECONDARY_TX_MASK;
+#else   // CONFIG_IST_SET_FLAG
+  return (tx_type >> PRIMARY_TX_BITS);
+#endif  // CONFIG_IST_SET_FLAG
 }
+
+static INLINE void set_secondary_tx_type(TX_TYPE *tx_type, TX_TYPE stx_flag) {
+  *tx_type |= (stx_flag << PRIMARY_TX_BITS);
+}
+
+#if CONFIG_IST_SET_FLAG
+/*
+ * This function returns secondary transform set used by the transform block
+ */
+static INLINE TX_TYPE get_secondary_tx_set(TX_TYPE tx_type) {
+  return (tx_type >> (PRIMARY_TX_BITS + SECONDARY_TX_BITS)) &
+         SECONDARY_TX_SET_MASK;
+}
+
+/*
+ * This function sets the 'secondary transform set' info on the input 'tx_type'
+ * parameter
+ */
+static INLINE void set_secondary_tx_set(TX_TYPE *tx_type,
+                                        TX_TYPE stx_set_flag) {
+  *tx_type |= (stx_set_flag << (PRIMARY_TX_BITS + SECONDARY_TX_BITS));
+}
+#endif  // CONFIG_IST_SET_FLAG
+
 /*
  * This function checks and returns 1 if secondary transform type needs to be
  * signaled for the transform block
@@ -2979,6 +3023,9 @@ static INLINE TX_TYPE get_secondary_tx_type(TX_TYPE tx_type) {
 static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
                                             TX_SIZE tx_size, TX_TYPE tx_type,
                                             int eob) {
+#if CONFIG_ATC_DCTX_ALIGNED
+  if (eob <= 1) return 0;
+#endif  // CONFIG_ATC_DCTX_ALIGNED
   const MB_MODE_INFO *mbmi = xd->mi[0];
   PREDICTION_MODE intra_dir;
   if (mbmi->filter_intra_mode_info.use_filter_intra) {
@@ -3002,9 +3049,6 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   const int code_stx =
       (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
       (intra_dir < PAETH_PRED) &&
-#if CONFIG_ATC_DCTX_ALIGNED
-      (eob != 1) &&
-#endif  // CONFIG_ATC_DCTX_ALIGNED
       !(mbmi->filter_intra_mode_info.use_filter_intra) && is_depth0 && ist_eob;
   return code_stx;
 }
@@ -3013,6 +3057,7 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
  * This function returns the tx_type used by the transform block
  *
  * If secondary transform is enabled (IST) :
+ * Bits 6~9 of tx_type stores secondary tx_set
  * Bits 4~5 of tx_type stores secondary tx_type
  * Bits 0~3 of tx_type stores primary tx_type
  */
@@ -3057,6 +3102,10 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
     // TX_32X32 while tx_type is by default DCT_DCT.
     disable_primary_tx_type(&tx_type);
   }
+#if CONFIG_IST_SET_FLAG
+  assert(tx_type <
+         (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS + SECONDARY_TX_SET_BITS)));
+#endif  // CONFIG_IST_SET_FLAG
   return tx_type;
 }
 

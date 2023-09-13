@@ -1555,6 +1555,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               CFL_ALPHABET_SIZE);
   AVG_CDF_STRIDE(ctx_left->stx_cdf, ctx_tr->stx_cdf, STX_TYPES,
                  CDF_SIZE(STX_TYPES));
+#if CONFIG_IST_SET_FLAG
+  AVERAGE_CDF(ctx_left->stx_set_cdf, ctx_tr->stx_set_cdf, IST_DIR_SIZE);
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
 
   for (int p = 0; p < NUM_MV_PREC_MPP_CONTEXT; ++p) {

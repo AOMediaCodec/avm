@@ -300,6 +300,8 @@ set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
 
 set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
 
+set_aom_config_var(CONFIG_IST_SET_FLAG 1
+                   "AV2 experiment flag to signal Secondary Tx set ID.")
 #
 # Variables in this section control optional features of the build system.
 #

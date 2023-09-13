@@ -183,7 +183,11 @@ enum {
 
 // Intra Secondary Transform
 #define IST_SET_SIZE 14  // IST kernel set size
-#define STX_TYPES 4      // 4 sec_tx_types including no IST
+#if CONFIG_IST_SET_FLAG
+// Number of directional groups in IST kernels
+#define IST_DIR_SIZE (IST_SET_SIZE >> 1)
+#endif               // CONFIG_IST_SET_FLAG
+#define STX_TYPES 4  // 4 sec_tx_types including no IST
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
 #define IST_8x8_WIDTH 64
