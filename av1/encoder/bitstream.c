@@ -2142,13 +2142,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
 #if CONFIG_IBC_SR_EXT
   if (!is_inter && av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
-#if CONFIG_NEW_CONTEXT_MODELING
-    const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
-    const int intrabc_ctx = get_intrabc_ctx(xd);
-    aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf[intrabc_ctx], 2);
-#else
-    aom_write_symbol(w, use_intrabc, ec_ctx->intrabc_cdf, 2);
-#endif  // CONFIG_NEW_CONTEXT_MODELING
     write_intrabc_info(xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }

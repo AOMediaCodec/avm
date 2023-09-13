@@ -3580,17 +3580,6 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
     mbmi->ref_frame[1] = NONE_FRAME;
     mbmi->palette_mode_info.palette_size[0] = 0;
     mbmi->palette_mode_info.palette_size[1] = 0;
-#if CONFIG_NEW_CONTEXT_MODELING
-    mbmi->use_intrabc[0] = 0;
-    mbmi->use_intrabc[1] = 0;
-    const int intrabc_ctx = get_intrabc_ctx(xd);
-    mbmi->use_intrabc[xd->tree_type == CHROMA_PART] =
-        aom_read_symbol(r, xd->tile_ctx->intrabc_cdf[intrabc_ctx], 2,
-                        ACCT_INFO("use_intrabc", "chroma"));
-#else
-    mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = aom_read_symbol(
-        r, xd->tile_ctx->intrabc_cdf, 2, ACCT_INFO("use_intrabc", "chroma"));
-#endif  // CONFIG_NEW_CONTEXT_MODELING
     read_intrabc_info(cm, dcb, r);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
