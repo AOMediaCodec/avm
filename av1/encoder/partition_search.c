@@ -6632,32 +6632,29 @@ static AOM_INLINE void prune_none_with_rect_results(
 
   const PARTITION_TYPE cur_best_partition = pc_tree->partitioning;
   PC_TREE *const *tree = NULL;
+  int num_sub_parts = 0;
   if (cur_best_partition == PARTITION_SPLIT) {
-    tree = pc_tree->horizontal;
     tree = pc_tree->split;
-    for (int idx = 0; idx < SUB_PARTITIONS_SPLIT; idx++) {
-      if (!tree[idx]) {
-        break;
-      }
-      part_search_state->prune_partition_none |=
-          tree[idx]->partitioning != PARTITION_NONE;
-    }
-    return;
-  }
-
-  if (cur_best_partition == PARTITION_HORZ) {
+    num_sub_parts = SUB_PARTITIONS_SPLIT;
+  } else if (cur_best_partition == PARTITION_HORZ) {
     tree = pc_tree->horizontal;
+    num_sub_parts = NUM_RECT_PARTS;
   } else if (cur_best_partition == PARTITION_VERT) {
     tree = pc_tree->vertical;
+    num_sub_parts = NUM_RECT_PARTS;
   } else {
     assert(0 &&
            "Unexpected best partition type in prune_none_with_rect_results.");
   }
   // Give up on PARTITION_NONE if either of the subtrees decided to split
   // further.
-  part_search_state->prune_partition_none |=
-      tree[0]->partitioning != PARTITION_NONE ||
-      tree[1]->partitioning != PARTITION_NONE;
+  for (int idx = 0; idx < num_sub_parts; idx++) {
+    if (!tree[idx]) {
+      break;
+    }
+    part_search_state->prune_partition_none |=
+        tree[idx]->partitioning != PARTITION_NONE;
+  }
 }
 
 /*!\brief AV1 block partition search (full search).
