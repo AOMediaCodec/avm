@@ -2920,6 +2920,7 @@ static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
 
   // Partitions forced by SDP
   if (is_luma_chroma_share_same_partition(tree_type, ptree_luma, bsize)) {
+    assert(ptree_luma);
     return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
   }
 
