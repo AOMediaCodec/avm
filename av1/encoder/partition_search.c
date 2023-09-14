@@ -6871,6 +6871,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
                   &pc_tree->chroma_ref_info);
 
+  bool search_none_after_split = false;
   bool search_none_after_rect = false;
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (part_search_state.forced_partition == PARTITION_INVALID) {
@@ -6880,7 +6881,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
     }
 #if CONFIG_BLOCK_256
     // For 256X256, always search the subblocks first.
-    search_none_after_rect |= bsize == BLOCK_256X256;
+    search_none_after_split |= bsize == BLOCK_256X256;
 #endif  // CONFIG_BLOCK_256
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -6992,7 +6993,7 @@ BEGIN_PARTITION_SEARCH:
 
   // PARTITION_NONE search stage.
   int64_t part_none_rd = INT64_MAX;
-  if (!search_none_after_rect) {
+  if (!search_none_after_rect && !search_none_after_split) {
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd
@@ -7047,13 +7048,13 @@ BEGIN_PARTITION_SEARCH:
                                part_none_rd, part_split_rd);
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 #if CONFIG_BLOCK_256
-  bool prune_none = false;
-  if (part_search_state.forced_partition == PARTITION_INVALID &&
-      bsize == BLOCK_256X256) {
+  if (search_none_after_split) {
+    // Based on split result, decide if we want to further delay the search to
+    // after rect
     assert(pc_tree->partitioning == PARTITION_SPLIT);
     for (int idx = 0; idx < 4; idx++) {
       const int depth = get_partition_depth(pc_tree->split[idx], 0);
-      prune_none |= depth > 0;
+      search_none_after_split &= depth == 0;
     }
   }
   if (cpi->sf.part_sf.prune_rect_with_split_depth && !frame_is_intra_only(cm) &&
@@ -7073,9 +7074,8 @@ BEGIN_PARTITION_SEARCH:
     (void)max_depth;
   }
 
-  bool none_searched = false;
   if (part_search_state.forced_partition == PARTITION_INVALID &&
-      bsize == BLOCK_256X256 && !prune_none) {
+      search_none_after_split) {
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd
@@ -7084,7 +7084,6 @@ BEGIN_PARTITION_SEARCH:
                           &level_banks
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
     );
-    none_searched = true;
   }
 #endif  // CONFIG_BLOCK_256
 
@@ -7109,11 +7108,7 @@ BEGIN_PARTITION_SEARCH:
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (search_none_after_rect
-#if CONFIG_BLOCK_256
-      && !none_searched
-#endif  // CONFIG_BLOCK_256
-  ) {
+  if (search_none_after_rect && !search_none_after_split) {
     prune_none_with_rect_results(&part_search_state, pc_tree);
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
