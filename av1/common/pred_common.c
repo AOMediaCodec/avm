@@ -130,8 +130,8 @@ static const int temp_dist_score_lookup[7] = {
 
 // Determine reference mapping by ranking the reference frames based on a
 // score function.
-void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
-                        RefFrameMapPair *ref_frame_map_pairs) {
+int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
+                       RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
   for (int i = 0; i < REF_FRAMES; i++) {
@@ -202,6 +202,7 @@ void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   for (int i = 0; i < REF_FRAMES; i++) {
     if (cm->remapped_ref_idx[i] == INVALID_IDX) cm->remapped_ref_idx[i] = 0;
   }
+  return n_ranked;
 }
 
 // Returns a context number for the given MB prediction signal

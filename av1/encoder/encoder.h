@@ -938,6 +938,12 @@ typedef struct {
   // Indicates if the hash values are written for each plane instead of the
   // entire frame.
   bool frame_hash_per_plane;
+
+#if CONFIG_MRSSE
+  // If true, uses mean removed SSE instead of SSE to calculate distortion.
+  bool enable_mrsse;
+#endif  // CONFIG_MRSSE
+
 } ToolCfg;
 
 #define MAX_SUBGOP_CONFIGS 64

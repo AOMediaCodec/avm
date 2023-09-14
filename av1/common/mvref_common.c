@@ -4542,9 +4542,16 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 ) {
   const TileInfo *const tile = &xd->tile;
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, xd->width);
+  const int has_bl =
+      has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, xd->height);
+#else
   const int bs = AOMMAX(xd->width, xd->height);
   const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
   const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   POSITION mi_pos;
 
   int allow_new_ext = 0;
@@ -4759,9 +4766,15 @@ static AOM_INLINE POSITION get_pos_from_pos_idx(const MACROBLOCKD *xd,
 static AOM_INLINE int get_cand_from_pos_idx(const AV1_COMMON *cm,
                                             const MACROBLOCKD *xd,
                                             int pos_idx) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, xd->width);
+  const int has_bl =
+      has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, xd->height);
+#else
   const int bs = AOMMAX(xd->width, xd->height);
   const int has_tr = has_top_right(cm, xd, xd->mi_row, xd->mi_col, bs);
   const int has_bl = has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, bs);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   int ret_cand = 0;
 

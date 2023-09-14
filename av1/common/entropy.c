@@ -103,7 +103,13 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
   RESET_CDF_COUNTER(nmv->amvd_joints_cdf, 4);
 #endif  // CONFIG_ADAPTIVE_MVD
   for (int i = 0; i < 2; i++) {
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf, MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[0], MV_CLASSES - 2);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[1], MV_CLASSES - 1);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[2], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[3], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[4], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[5], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[6], MV_CLASSES);
 #if CONFIG_ADAPTIVE_MVD
     RESET_CDF_COUNTER(nmv->comps[i].amvd_classes_cdf, MV_CLASSES);
 #endif  // CONFIG_ADAPTIVE_MVD
