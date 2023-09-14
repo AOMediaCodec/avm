@@ -534,6 +534,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // H-parts.
   int prune_part_4_with_partition_boundary;
 #endif  // CONFIG_UNEVEN_4WAY
+#if CONFIG_BLOCK_256
+  // Delay the search for block 256 to after block 128
+  int search_256_after_128;
+#endif  // CONFIG_BLOCK_256
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 

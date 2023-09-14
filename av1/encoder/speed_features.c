@@ -762,6 +762,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->ext_recur_depth = INT_MAX;
 #if CONFIG_BLOCK_256
   part_sf->prune_rect_with_split_depth = 0;
+  part_sf->search_256_after_128 = 0;
 #endif  // CONFIG_BLOCK_256
   part_sf->prune_part_h_with_partition_boundary = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1087,6 +1088,9 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       sf->inter_sf.reuse_erp_mode_flag =
           (REUSE_PARTITION_MODE_FLAG | REUSE_INTERFRAME_FLAG);
       sf->part_sf.prune_rect_with_none_rd = 1;
+#if CONFIG_BLOCK_256
+      sf->part_sf.search_256_after_128 = 1;
+#endif  // CONFIG_BLOCK_256
       AOM_FALLTHROUGH_INTENDED;
     case 0: break;
     default: assert(0 && "Invalid ERP pruning level.");
