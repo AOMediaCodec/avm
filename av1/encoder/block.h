@@ -1728,9 +1728,11 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_64X128
     1,  // BLOCK_128X64
     1,  // BLOCK_128X128
+#if CONFIG_BLOCK_256
     1,  // BLOCK_128X256
     1,  // BLOCK_256X128
     1,  // BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
     1,  // BLOCK_4X16
     1,  // BLOCK_16X4
     1,  // BLOCK_8X32
@@ -1754,9 +1756,11 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     0,  // BLOCK_64X128
     0,  // BLOCK_128X64
     0,  // BLOCK_128X128
+#if CONFIG_BLOCK_256
     0,  // BLOCK_128X256
     0,  // BLOCK_256X128
     0,  // BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
     1,  // BLOCK_4X16
     1,  // BLOCK_16X4
     1,  // BLOCK_8X32

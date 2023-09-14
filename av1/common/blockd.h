@@ -974,7 +974,9 @@ static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
     case BLOCK_32X32: return 3;
     case BLOCK_64X64: return 4;
     case BLOCK_128X128: return 5;
+#if CONFIG_BLOCK_256
     case BLOCK_256X256: return 6;
+#endif  // CONFIG_BLOCK_256
     default: return SQR_BLOCK_SIZES;
   }
 }
@@ -1037,9 +1039,11 @@ static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
       BLOCK_INVALID,  // BLOCK_64X128
       BLOCK_INVALID,  // BLOCK_128X64
       BLOCK_INVALID,  // BLOCK_128X128
+#if CONFIG_BLOCK_256
       BLOCK_INVALID,  // BLOCK_128X256
       BLOCK_INVALID,  // BLOCK_256X128
       BLOCK_INVALID,  // BLOCK_256X256
+#endif                // CONFIG_BLOCK_256
     };
 
     return mid_sub_block_hpart[bsize];
@@ -2792,13 +2796,91 @@ static INLINE BLOCK_SIZE get_mb_plane_block_size_from_tree_type(
 static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
   static const uint8_t tw_w_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 1, 1, 2, 2, 3,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+#if CONFIG_BLOCK_256
+    3,
+    3,
+    3,
+#endif  // CONFIG_BLOCK_256
+    0,
+    1,
+    1,
+    2,
+    2,
+    3,
   };
   static const uint8_t tw_h_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 2, 1, 3, 2,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+#if CONFIG_BLOCK_256
+    3,
+    3,
+    3,
+#endif  // CONFIG_BLOCK_256
+    1,
+    0,
+    2,
+    1,
+    3,
+    2,
   };
   static const uint8_t stride_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 2, 2, 2, 3, 3, 0, 1, 0, 1, 0, 1,
+    0,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    3,
+    3,
+#endif  // CONFIG_BLOCK_256
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
   };
   const int index =
       ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
@@ -3098,7 +3180,33 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
  */
 static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
   static const uint8_t bsize_to_max_depth_table[BLOCK_SIZES_ALL] = {
-    0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+#endif  // CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
   };
   return bsize_to_max_depth_table[bsize];
 }
@@ -3118,7 +3226,33 @@ static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
 static INLINE int bsize_to_tx_size_cat(BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
   static const uint8_t bsize_to_tx_size_depth_table[BLOCK_SIZES_ALL] = {
-    0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 3, 3, 4, 4,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+#if CONFIG_BLOCK_256
+    4,
+    4,
+    4,
+#endif  // CONFIG_BLOCK_256
+    2,
+    2,
+    3,
+    3,
+    4,
+    4,
   };
   const int depth = bsize_to_tx_size_depth_table[bsize];
   assert(depth <= MAX_TX_CATS);

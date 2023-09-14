@@ -182,8 +182,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     0, 0, 0,
     // BLOCK_64X128 .. BLOCK_128X128
     0, 0, 0,
+#if CONFIG_BLOCK_256
     // BLOCK_128X256 .. BLOCK_256X256
     0, 0, 0,
+#endif  // CONFIG_BLOCK_256
     // BLOCK_4X16, BLOCK_16X4
     0, 0,
     // BLOCK_8X32, BLOCK_32X8
@@ -203,8 +205,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     28, 30, 38,
     // BLOCK_64X128 .. BLOCK_128X128
     16, 16,  16,
+#if CONFIG_BLOCK_256
     // BLOCK_128X256 .. BLOCK_256X256
     16, 16,  16,
+#endif  // CONFIG_BLOCK_256
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8
@@ -224,8 +228,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     0, 0, 0,
     // BLOCK_64X128 .. BLOCK_128X128
     0, 0, 0,
+#if CONFIG_BLOCK_256
     // BLOCK_128X256 .. BLOCK_256X256
     0, 0, 0,
+#endif  // CONFIG_BLOCK_256
     // BLOCK_4X16, BLOCK_16X4
     0, 0,
     // BLOCK_8X32, BLOCK_32X8
@@ -245,8 +251,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     30, 33, 16,
     // BLOCK_64X128 .. BLOCK_128X128
     16, 16, 16,
+#if CONFIG_BLOCK_256
     // BLOCK_128X256 .. BLOCK_256X256
     16, 16, 16,
+#endif  // CONFIG_BLOCK_256
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8
@@ -267,7 +275,9 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     // BLOCK_64X128 .. BLOCK_128X128
     16, 16, 16,
     // BLOCK_128X256 .. BLOCK_256X256
+#if CONFIG_BLOCK_256
     16, 16, 16,
+#endif  // CONFIG_BLOCK_256
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8
@@ -287,8 +297,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     0, 0, 0,
     // BLOCK_64X128 .. BLOCK_128X128
     0, 0, 0,
+#if CONFIG_BLOCK_256
     // BLOCK_128X256 .. BLOCK_256X256
     0, 0, 0,
+#endif  // CONFIG_BLOCK_256
     // BLOCK_4X16, BLOCK_16X4
     0, 0,
     // BLOCK_8X32, BLOCK_32X8
@@ -308,8 +320,10 @@ const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
     34, 35, 32,
     // BLOCK_64X128 .. BLOCK_128X128
     19, 16,  16,
+#if CONFIG_BLOCK_256
     // BLOCK_128X256 .. BLOCK_256X256
     19, 16,  16,
+#endif  // CONFIG_BLOCK_256
     // BLOCK_4X16, BLOCK_16X4
     0,  0,
     // BLOCK_8X32, BLOCK_32X8

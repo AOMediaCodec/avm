@@ -447,6 +447,7 @@ int main(int argc, const char **argv) {
       &fc.do_split[0][0][0], probsfile, 3, cts_each_dim,
       "static aom_cdf_prob default_do_split_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]");
+#if CONFIG_BLOCK_256
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = SQUARE_SPLIT_CONTEXTS;
   cts_each_dim[2] = 2;
@@ -457,6 +458,7 @@ int main(int argc, const char **argv) {
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = PARTITION_CONTEXTS;
   cts_each_dim[2] = 2;
+#endif  // CONFIG_BLOCK_256
   optimize_cdf_table(
       &fc.rect_type[0][0][0], probsfile, 3, cts_each_dim,
       "static aom_cdf_prob default_rect_type_cdf"

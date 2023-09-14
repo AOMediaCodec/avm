@@ -241,8 +241,10 @@ static const uint8_t *const has_tr_tables[BLOCK_SIZES_ALL] = {
   has_tr_32x64, has_tr_64x32, has_tr_64x64,
   // 64x128,    128x64,         128x128
   has_tr_64x128, has_tr_128x64, has_tr_128x128,
-  // 128X256,   256X128,        256X256,
+// 128X256,   256X128,        256X256,
+#if CONFIG_BLOCK_256
   NULL, NULL, NULL,
+#endif  // CONFIG_BLOCK_256
   // 4x16,      16x4,            8x32
   has_tr_4x16, has_tr_16x4, has_tr_8x32,
   // 32x8,      16x64,           64x16
@@ -291,10 +293,12 @@ static const uint8_t *const has_tr_vert_tables[BLOCK_SIZES] = {
   has_tr_64x128,
   NULL,
   has_tr_128x128
+#if CONFIG_BLOCK_256
       // 128X256,   256X128,        256X256,
       NULL,
   NULL,
   NULL,
+#endif  // CONFIG_BLOCK_256
 };
 
 static const uint8_t *get_has_tr_table(PARTITION_TYPE partition,

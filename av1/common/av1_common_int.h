@@ -2496,7 +2496,7 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_BLOCK_256
 static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize) {
   const int plane = xd->tree_type == CHROMA_PART;
@@ -2513,7 +2513,7 @@ static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
 
   return (left * 2 + above) + (bsize == BLOCK_256X256) * PARTITION_PLOFFSET;
 }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_BLOCK_256
 
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int mi_col, BLOCK_SIZE bsize) {

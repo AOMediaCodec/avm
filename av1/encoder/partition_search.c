@@ -2176,6 +2176,9 @@ static void update_partition_stats(MACROBLOCKD *const xd,
                                    PARTITION_TYPE partition, const int mi_row,
                                    const int mi_col, BLOCK_SIZE bsize,
                                    const int ctx, BLOCK_SIZE sb_size) {
+#if !CONFIG_BLOCK_256
+  (void)sb_size;
+#endif  // !CONFIG_BLOCK_256
   const TREE_TYPE tree_type = xd->tree_type;
   const int plane_index = tree_type == CHROMA_PART;
   FRAME_CONTEXT *fc = xd->tile_ctx;
@@ -6875,7 +6878,10 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
       search_none_after_rect =
           try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);
     }
+#if CONFIG_BLOCK_256
+    // For 256X256, always search the subblocks first.
     search_none_after_rect |= bsize == BLOCK_256X256;
+#endif  // CONFIG_BLOCK_256
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -7040,7 +7046,7 @@ BEGIN_PARTITION_SEARCH:
   prune_partitions_after_split(cpi, x, sms_tree, &part_search_state, &best_rdc,
                                part_none_rd, part_split_rd);
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_BLOCK_256
   bool prune_none = false;
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       bsize == BLOCK_256X256) {
@@ -7066,12 +7072,12 @@ BEGIN_PARTITION_SEARCH:
     }
     (void)max_depth;
   }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_BLOCK_256
+#if CONFIG_BLOCK_256
   bool none_searched = false;
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       bsize == BLOCK_256X256 && !prune_none) {
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_BLOCK_256
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd
@@ -7080,10 +7086,10 @@ BEGIN_PARTITION_SEARCH:
                           &level_banks
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
     );
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_BLOCK_256
     none_searched = true;
   }
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_BLOCK_256
 
   // Rectangular partitions search stage.
   rectangular_partition_search(
@@ -7106,7 +7112,11 @@ BEGIN_PARTITION_SEARCH:
   assert(IMPLIES(!cpi->oxcf.part_cfg.enable_rect_partitions,
                  !part_search_state.do_rectangular_split));
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (search_none_after_rect && !none_searched) {
+  if (search_none_after_rect
+#if CONFIG_BLOCK_256
+      && !none_searched
+#endif  // CONFIG_BLOCK_256
+  ) {
     prune_none_with_rect_results(&part_search_state, pc_tree);
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,

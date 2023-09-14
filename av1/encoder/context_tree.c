@@ -16,8 +16,11 @@
 #include "av1/encoder/rd.h"
 
 static const BLOCK_SIZE square[MAX_SB_SIZE_LOG2 - 1] = {
-  BLOCK_4X4,   BLOCK_8X8,     BLOCK_16X16,   BLOCK_32X32,
-  BLOCK_64X64, BLOCK_128X128, BLOCK_256X256,
+  BLOCK_4X4,     BLOCK_8X8,   BLOCK_16X16,
+  BLOCK_32X32,   BLOCK_64X64, BLOCK_128X128,
+#if CONFIG_BLOCK_256
+  BLOCK_256X256,
+#endif  // CONFIG_BLOCK_256
 };
 
 void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
