@@ -2189,7 +2189,6 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
       }
     }
   }
-  // av1_mark_block_as_coded(xd, bsize, cm->sb_size);
 }
 
 static AOM_INLINE void set_offsets_for_pred_and_recon(

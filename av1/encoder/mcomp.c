@@ -148,14 +148,14 @@ void av1_make_default_fullpel_ms_params(
 
   SEARCH_METHODS search_method = mv_sf->search_method;
   const int min_dim = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
-  const int max_dim = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
   if (mv_sf->use_bsize_dependent_search_method) {
     if (min_dim >= 32) {
       search_method = get_faster_search_method(search_method);
     }
   }
 #if CONFIG_BLOCK_256
-  if (max_dim >= 256) {
+  const int max_dim = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
+  if (cpi->sf.mv_sf.fast_motion_estimation_on_block_256 && max_dim >= 256) {
     search_method = get_faster_search_method(search_method);
   }
 #endif  // CONFIG_BLOCK_256
@@ -314,7 +314,8 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
       cpi->sf.mv_sf.use_accurate_subpel_search;
 #endif
 #if CONFIG_BLOCK_256
-  if (AOMMAX(block_size_wide[bsize], block_size_high[bsize]) >= 256) {
+  if (cpi->sf.mv_sf.fast_motion_estimation_on_block_256 &&
+      AOMMAX(block_size_wide[bsize], block_size_high[bsize]) >= 256) {
     ms_params->var_params.subpel_search_type =
         AOMMIN(ms_params->var_params.subpel_search_type, USE_2_TAPS);
   }
