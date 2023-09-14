@@ -2951,6 +2951,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   if (!do_split) {
     return;
   }
+#if CONFIG_BLOCK_256
   const bool do_square_split = p == PARTITION_SPLIT;
   if (is_square_split_eligible(bsize, cm->sb_size)) {
     const int square_split_ctx =
@@ -2962,6 +2963,7 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
     assert(p == PARTITION_SPLIT);
     return;
   }
+#endif  // CONFIG_BLOCK_256
   RECT_PART_TYPE rect_type = get_rect_part_type(p);
   if (rect_type_implied_by_bsize(bsize, xd->tree_type) == RECT_INVALID) {
     aom_write_symbol(w, rect_type, ec_ctx->rect_type_cdf[plane][ctx],

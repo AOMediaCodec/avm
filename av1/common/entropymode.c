@@ -663,6 +663,7 @@ static aom_cdf_prob default_do_ext_partition_cdf
       }
     };
 
+#if CONFIG_BLOCK_256
 static aom_cdf_prob
     default_do_square_split_cdf[PARTITION_STRUCTURE_NUM][SQUARE_SPLIT_CONTEXTS][CDF_SIZE(2)] = {
       // Luma
@@ -680,6 +681,7 @@ static aom_cdf_prob
         { AOM_CDF2(26187) }, { AOM_CDF2(14749) }, { AOM_CDF2(15794) }, { AOM_CDF2(6386) },
       },
     };
+#endif  // CONFIG_BLOCK_256
 
 #if CONFIG_UNEVEN_4WAY
 static aom_cdf_prob default_do_uneven_4way_partition_cdf
@@ -3559,7 +3561,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_copy(fc->do_split_cdf, default_do_split_cdf);
+#if CONFIG_BLOCK_256
   av1_copy(fc->do_square_split_cdf, default_do_square_split_cdf);
+#endif  // CONFIG_BLOCK_256
   av1_copy(fc->rect_type_cdf, default_rect_type_cdf);
   av1_copy(fc->do_ext_partition_cdf, default_do_ext_partition_cdf);
 #if CONFIG_UNEVEN_4WAY

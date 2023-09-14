@@ -2830,13 +2830,6 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
   const int has_rows = (mi_row + hbs_h) < mi_params->mi_rows;
   const int has_cols = (mi_col + hbs_w) < mi_params->mi_cols;
 
-  if (tree_type != SHARED_PART && bsize == BLOCK_256X256) {
-    if (implied_partition) {
-      *implied_partition = PARTITION_SPLIT;
-    }
-    return true;
-  }
-
   if (has_rows && has_cols) return false;  // Not at boundary.
   assert(!has_rows || !has_cols);
 
@@ -3165,7 +3158,7 @@ static INLINE int txfm_partition_split4_inter_context(
         (txsize_sqr_up_map[tx_size] != max_tx_size && max_tx_size > TX_8X8) +
         (TX_SIZES - 1 - max_tx_size) * 2;
   }
-  assert(category < TXFM_PARTITION_INTER_CONTEXTS);
+  assert(category != TXFM_PARTITION_INTER_CONTEXTS);
   return category * 3 + above + left;
 }
 
@@ -3305,11 +3298,13 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
 
 static AOM_INLINE void av1_set_frame_sb_size(AV1_COMMON *cm,
                                              BLOCK_SIZE sb_size) {
+#if CONFIG_BLOCK_256
   // BLOCK_256X256 gives no benefits in all intra encoding, so downsize the
   // superblock size to 128x128 on key frames.
   if (frame_is_intra_only(cm) && sb_size == BLOCK_256X256) {
     sb_size = BLOCK_128X128;
   }
+#endif  // CONFIG_BLOCK_256
   cm->sb_size = sb_size;
   cm->mib_size = mi_size_wide[sb_size];
   cm->mib_size_log2 = mi_size_wide_log2[sb_size];

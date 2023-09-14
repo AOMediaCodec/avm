@@ -382,8 +382,10 @@ typedef struct frame_contexts {
 #if CONFIG_EXT_RECUR_PARTITIONS
   aom_cdf_prob do_split_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                            [CDF_SIZE(2)];
+#if CONFIG_BLOCK_256
   aom_cdf_prob do_square_split_cdf[PARTITION_STRUCTURE_NUM]
                                   [SQUARE_SPLIT_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_BLOCK_256
   aom_cdf_prob rect_type_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
                             [CDF_SIZE(2)];
   aom_cdf_prob do_ext_partition_cdf[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]

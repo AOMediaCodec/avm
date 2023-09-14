@@ -111,6 +111,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->do_split_cdf[plane_index][i], NULL);
     }
   }
+#if CONFIG_BLOCK_256
   for (int plane_index = (xd->tree_type == CHROMA_PART);
        plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
     for (i = 0; i < SQUARE_SPLIT_CONTEXTS; ++i) {
@@ -118,6 +119,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->do_square_split_cdf[plane_index][i], NULL);
     }
   }
+#endif  // CONFIG_BLOCK_256
   for (int plane_index = (xd->tree_type == CHROMA_PART);
        plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
     for (i = 0; i < PARTITION_CONTEXTS; ++i) {
@@ -156,12 +158,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
         for (int context = 0; context < PARTITION_PLOFFSET; context++) {
           const int ctx = PARTITION_PLOFFSET * bsize + context;
           const bool do_split = part != PARTITION_NONE;
-          const bool do_square_split = part == PARTITION_SPLIT;
           mode_costs->partition_cost[plane_index][ctx][part] +=
               mode_costs->do_split_cost[plane_index][ctx][do_split];
           if (!do_split) {
             continue;
           }
+#if CONFIG_BLOCK_256
+          const bool do_square_split = part == PARTITION_SPLIT;
           if (is_square_split_eligible(bsize, cm->sb_size)) {
             mode_costs->partition_cost[plane_index][ctx][part] +=
                 mode_costs->do_square_split_cost[plane_index][context]
@@ -170,6 +173,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
           if (do_square_split) {
             continue;
           }
+#endif  // CONFIG_BLOCK_256
           RECT_PART_TYPE rect_type = get_rect_part_type(part);
           if (rect_type_implied_by_bsize(bsize, tree_type) == RECT_INVALID) {
             mode_costs->partition_cost[plane_index][ctx][part] +=

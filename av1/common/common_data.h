@@ -323,7 +323,6 @@ static const BLOCK_SIZE subsize_lookup[EXT_PARTITION_TYPES][SQR_BLOCK_SIZES] = {
 };
 /* clang-format on */
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-        //
 /* clang-format off */
 
 static const TX_SIZE max_txsize_lookup[BLOCK_SIZES_ALL] = {

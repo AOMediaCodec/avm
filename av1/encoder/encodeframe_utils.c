@@ -1460,6 +1460,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                   ctx_tr->do_split_cdf[plane_index][i], 2);
     }
   }
+#if CONFIG_BLOCK_256
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
     for (int i = 0; i < SQUARE_SPLIT_CONTEXTS; i++) {
@@ -1467,6 +1468,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                   ctx_tr->do_square_split_cdf[plane_index][i], 2);
     }
   }
+#endif  // CONFIG_BLOCK_256
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
     for (int i = 0; i < PARTITION_CONTEXTS; i++) {

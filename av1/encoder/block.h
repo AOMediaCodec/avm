@@ -819,8 +819,10 @@ typedef struct {
 #if CONFIG_EXT_RECUR_PARTITIONS
   /*! Cost for sending split token. */
   int do_split_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+#if CONFIG_BLOCK_256
   /*! Cost for sending square split token. */
   int do_square_split_cost[PARTITION_STRUCTURE_NUM][SQUARE_SPLIT_CONTEXTS][2];
+#endif  // CONFIG_BLOCK_256
   /*! Cost for sending rectangular type token. */
   int rect_type_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
   /*! Cost for sending do_ext_partition token. */

@@ -1617,7 +1617,9 @@ void av1_prune_ab_partitions(
 // Gets the number of sms data in a single dimension
 static INLINE int get_sms_count_from_length(int mi_length) {
   switch (mi_length) {
+#if CONFIG_BLOCK_256
     case 64: return BLOCK_256_COUNT;
+#endif  // CONFIG_BLOCK_256
     case 32: return BLOCK_128_COUNT;
     case 16: return BLOCK_64_COUNT;
     case 8: return BLOCK_32_COUNT;

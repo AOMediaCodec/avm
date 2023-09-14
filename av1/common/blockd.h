@@ -893,8 +893,14 @@ rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
 /*!\brief Returns whether square split is allowed for current bsize. */
 static AOM_INLINE bool is_square_split_eligible(BLOCK_SIZE bsize,
                                                 BLOCK_SIZE sb_size) {
+#if CONFIG_BLOCK_256
   (void)sb_size;
   return bsize == BLOCK_128X128 || bsize == BLOCK_256X256;
+#else
+  (void)bsize;
+  (void)sb_size;
+  return false;
+#endif  // CONFIG_BLOCK_256
 }
 
 /*!\brief Returns whether the current partition is horizontal type or vertical

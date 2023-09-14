@@ -2324,6 +2324,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   if (!do_split) {
     return PARTITION_NONE;
   }
+#if CONFIG_BLOCK_256
   const int square_split_ctx = square_split_context(xd, mi_row, mi_col, bsize);
   if (is_square_split_eligible(bsize, cm->sb_size)) {
     const bool do_square_split =
@@ -2333,6 +2334,7 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       return PARTITION_SPLIT;
     }
   }
+#endif  // CONFIG_BLOCK_256
 
   RECT_PART_TYPE rect_type = rect_type_implied_by_bsize(bsize, xd->tree_type);
   if (rect_type == RECT_INVALID) {

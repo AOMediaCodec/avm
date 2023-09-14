@@ -2195,7 +2195,6 @@ static void update_partition_stats(MACROBLOCKD *const xd,
   }
 
   const bool do_split = partition != PARTITION_NONE;
-  const bool do_square_split = partition == PARTITION_SPLIT;
   if (allow_update_cdf) {
 #if CONFIG_ENTROPY_STATS
     counts->do_split[plane_index][ctx][do_split]++;
@@ -2206,6 +2205,8 @@ static void update_partition_stats(MACROBLOCKD *const xd,
     return;
   }
 
+#if CONFIG_BLOCK_256
+  const bool do_square_split = partition == PARTITION_SPLIT;
   if (is_square_split_eligible(bsize, sb_size)) {
     const int square_split_ctx =
         square_split_context(xd, mi_row, mi_col, bsize);
@@ -2218,6 +2219,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
   if (do_square_split) {
     return;
   }
+#endif  // CONFIG_BLOCK_256
 
   RECT_PART_TYPE rect_type = get_rect_part_type(partition);
   if (rect_type_implied_by_bsize(bsize, tree_type) == RECT_INVALID) {
