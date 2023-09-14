@@ -7072,12 +7072,10 @@ BEGIN_PARTITION_SEARCH:
     }
     (void)max_depth;
   }
-#endif  // CONFIG_BLOCK_256
-#if CONFIG_BLOCK_256
+
   bool none_searched = false;
   if (part_search_state.forced_partition == PARTITION_INVALID &&
       bsize == BLOCK_256X256 && !prune_none) {
-#endif  // CONFIG_BLOCK_256
     none_partition_search(cpi, td, tile_data, x, pc_tree, sms_tree, &x_ctx,
                           &part_search_state, &best_rdc, &pb_source_variance,
                           none_rd, &part_none_rd
@@ -7086,7 +7084,6 @@ BEGIN_PARTITION_SEARCH:
                           &level_banks
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
     );
-#if CONFIG_BLOCK_256
     none_searched = true;
   }
 #endif  // CONFIG_BLOCK_256

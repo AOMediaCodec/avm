@@ -1100,6 +1100,9 @@ static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
+#if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
+  if (p == PARTITION_SPLIT) return 0;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
   if (is_partition_point(bsize))
     return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
   else
@@ -2918,13 +2921,91 @@ static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
   return index;
 #endif  // CONFIG_NEW_TX_PARTITION
   static const uint8_t tw_w_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 1, 1, 2, 2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+#endif  // CONFIG_BLOCK_256
+    0,
+    0,
+    1,
+    1,
+    2,
+    2,
   };
   static const uint8_t tw_h_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 1, 1, 2, 2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+#endif  // CONFIG_BLOCK_256
+    0,
+    0,
+    1,
+    1,
+    2,
+    2,
   };
   static const uint8_t stride_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 1, 1, 1, 2, 2, 1, 2, 2, 1, 2, 2, 2, 3, 3, 3, 4, 4, 0, 2, 0, 2, 0, 2,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    1,
+    2,
+    2,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+#if CONFIG_BLOCK_256
+    3,
+    4,
+    4,
+#endif  // CONFIG_BLOCK_256
+    0,
+    2,
+    0,
+    2,
+    0,
+    2,
   };
   index = ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
           (blk_col >> tw_w_log2_table[bsize]);

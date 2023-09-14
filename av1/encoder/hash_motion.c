@@ -60,7 +60,9 @@ static int hash_block_size_to_index(int block_size) {
     case 32: return 3;
     case 64: return 4;
     case 128: return 5;
+#if CONFIG_BLOCK_256
     case 256: return 6;
+#endif  // CONFIG_BLOCK_256
     default: return -1;
   }
 }

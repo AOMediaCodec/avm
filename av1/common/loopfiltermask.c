@@ -80,27 +80,42 @@
 // A loopfilter should be applied to every other 4x4 horizontally.
 #if CONFIG_LPF_MASK
 static const int mask_id_table_tx_4x4[BLOCK_SIZES_ALL] = {
-  0,  1,  2,  3,      4,  5,  6,  7,  8,  9,  10, 11,
-  12, -1, -1, -1 - 1, -1, -1, 13, 14, 15, 16, 17, 18
+  0,  1,  2,  3,  4,  5, 6, 7, 8, 9, 10, 11, 12, -1, -1, -1,
+#if CONFIG_BLOCK_256
+  -1, -1, -1,
+#endif  // CONFIG_BLOCK_256
+  13, 14, 15, 16, 17, 18
 };
 
 static const int mask_id_table_tx_8x8[BLOCK_SIZES_ALL] = {
-  -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8, 9,
-  -1, -1, -1, -1, -1, -1, -1, -1, 10, 11, 12, 13
+  -1, -1, -1, 0,  1,  2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1,
+#if CONFIG_BLOCK_256
+  -1, -1, -1,
+#endif  // CONFIG_BLOCK_256
+  -1, -1, 10, 11, 12, 13
 };
 
 static const int mask_id_table_tx_16x16[BLOCK_SIZES_ALL] = {
-  -1, -1, -1, -1, -1, -1, 0,  1,  2,  3,  4, 5, 6,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 7, 8
+  -1, -1, -1, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, -1, -1, -1,
+#if CONFIG_BLOCK_256
+  -1, -1, -1,
+#endif  // CONFIG_BLOCK_256
+  -1, -1, -1, -1, 7,  8
 };
 
 static const int mask_id_table_tx_32x32[BLOCK_SIZES_ALL] = {
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, 0,  1,  2, 3,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+  -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 2, 3, -1, -1, -1,
+#if CONFIG_BLOCK_256
+  -1, -1, -1,
+#endif  // CONFIG_BLOCK_256
+  -1, -1, -1, -1, -1, -1
 };
 static const int mask_id_table_vert_border[BLOCK_SIZES_ALL] = {
-  0,  47, 49, 19, 51, 53, 33, 55, 57, 42, 59, 60, 46,
-  -1, -1, -1, -1, -1, -1, 61, 62, 63, 64, 65, 66
+  0,  47, 49, 19, 51, 53, 33, 55, 57, 42, 59, 60, 46, -1, -1, -1,
+#if CONFIG_BLOCK_256
+  -1, -1, -1,
+#endif  // CONFIG_BLOCK_256
+  61, 62, 63, 64, 65, 66
 };
 
 static const FilterMask left_mask_univariant_reordered[67] = {
