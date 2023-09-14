@@ -801,6 +801,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                                   "Enable parity hiding "
                                   "(0:false), 1:true (default)"),
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  .enable_mrsse = ARG_DEF(NULL, "enable-mrsse", 1,
+                          "Enable mean removed sse "
+                          "(0: false (default), 1: true)"),
+#endif  // CONFIG_MRSSE
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),

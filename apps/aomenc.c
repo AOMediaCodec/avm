@@ -507,6 +507,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_warp_delta,
   &g_av1_codec_arg_defs.enable_warp_extend,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_MRSSE
+  &g_av1_codec_arg_defs.enable_mrsse,
+#endif  // CONFIG_MRSSE
   NULL,
 };
 
@@ -750,6 +753,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_PAR_HIDING
   config->enable_parity_hiding = 1;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  config->enable_mrsse = 0;
+#endif  // CONFIG_MRSSE
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
@@ -1691,6 +1697,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_IBC_SR_EXT
           "IntraBCExt (%d), "
 #endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_MRSSE
+          "MRSSE (%d), "
+#endif  // CONFIG_MRSSE
           "IntraBC (%d)\n",
           encoder_cfg->enable_palette,
 #if CONFIG_PAR_HIDING
@@ -1699,6 +1708,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_IBC_SR_EXT
           encoder_cfg->enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_MRSSE
+          encoder_cfg->enable_mrsse,
+#endif  // CONFIG_MRSSE
           encoder_cfg->enable_intrabc);
 
   fprintf(stdout, "\n\n");

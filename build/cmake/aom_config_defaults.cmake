@@ -298,6 +298,8 @@ set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
 set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
                    "Enable to improve temporal motion projection")
 
+set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
+
 #
 # Variables in this section control optional features of the build system.
 #

@@ -579,6 +579,13 @@ typedef struct cfg_options {
    */
   unsigned int enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  /*!\brief enable mrsse for mean removed SSE
+   *
+   */
+  unsigned int enable_mrsse;
+#endif  // CONFIG_MRSSE
+
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

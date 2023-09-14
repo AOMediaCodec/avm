@@ -4529,7 +4529,12 @@ static AOM_INLINE int model_based_tx_search_prune(const AV1_COMP *cpi,
   MACROBLOCKD *const xd = &x->e_mbd;
   model_rd_sb_fn[MODELRD_TYPE_TX_SEARCH_PRUNE](
       cpi, bsize, x, xd, 0, 0, &model_rate, &model_dist, &model_skip, NULL,
-      NULL, NULL, NULL);
+      NULL, NULL, NULL
+#if CONFIG_MRSSE
+      ,
+      SSE_TYPE_TX_SEARCH_PRUNE
+#endif  // CONFIG_MRSSE
+  );
   if (model_skip) return 0;
   const int64_t model_rd = RDCOST(x->rdmult, model_rate, model_dist);
   // TODO(debargha, urvang): Improve the model and make the check below

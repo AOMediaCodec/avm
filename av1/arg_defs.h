@@ -298,6 +298,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_PAR_HIDING
   arg_def_t enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  arg_def_t enable_mrsse;
+#endif  // CONFIG_MRSSE
 #endif  // CONFIG_AV1_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;

@@ -252,6 +252,9 @@ struct av1_extracfg {
 #if CONFIG_PAR_HIDING
   int enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  unsigned int enable_mrsse;
+#endif  // CONFIG_MRSSE
 };
 
 // Example subgop configs. Currently not used by default.
@@ -595,6 +598,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_PAR_HIDING
   1,    // enable_parity_hiding
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  0,
+#endif  // CONFIG_MRSSE
 };
 
 struct aom_codec_alg_priv {
@@ -1068,6 +1074,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_PAR_HIDING
   cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  cfg->enable_mrsse = extra_cfg->enable_mrsse;
+#endif  // CONFIG_MRSSE
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1197,6 +1206,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_PAR_HIDING
   extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  extra_cfg->enable_mrsse = cfg->enable_mrsse;
+#endif  // CONFIG_MRSSE
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1497,6 +1509,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_PAR_HIDING
   tool_cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  tool_cfg->enable_mrsse = extra_cfg->enable_mrsse;
+#endif  // CONFIG_MRSSE
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
   q_cfg->qm_minlevel = extra_cfg->qm_min;
@@ -2734,6 +2749,16 @@ static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
   return AOM_CODEC_OK;
 }
+
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_frame_output_order =
+      CAST(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
@@ -4174,6 +4199,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_parity_hiding = arg_parse_uint_helper(&arg, err_string);
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_mrsse, argv,
+                              err_string)) {
+    extra_cfg.enable_mrsse = arg_parse_uint_helper(&arg, err_string);
+#endif  // CONFIG_MRSSE
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4330,7 +4360,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },
@@ -4500,6 +4529,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_PAR_HIDING
         1,
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+        0,
+#endif  // CONFIG_MRSSE
     },  // cfg
 } };
 
