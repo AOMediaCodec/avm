@@ -1537,14 +1537,7 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   PSNR_STATS psnr;
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  // To match the PSNR results between encoder log and VMAF results,
-  // the same reference sources (unfiltered source) need to be used.
-  aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
-                       &psnr,
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                        bit_depth, in_bit_depth);
 
   for (i = 0; i < 4; ++i) {
