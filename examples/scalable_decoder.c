@@ -160,7 +160,8 @@ int main(int argc, char **argv) {
           aom_img_alloc(NULL, AOM_IMG_FMT_I420, img->d_w, img->d_h, 16);
       img_shifted->bit_depth = 8;
       aom_img_downshift(img_shifted, img,
-                        img->bit_depth - img_shifted->bit_depth);
+                        img->bit_depth - img_shifted->bit_depth,
+                        img_shifted->bit_depth);
       if (img->spatial_id == 0) {
         printf("Writing        base layer 0 %d\n", frame_cnt);
         aom_img_write(img_shifted, outfile[0]);
