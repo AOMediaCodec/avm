@@ -3270,19 +3270,22 @@ static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
                                         PREDICTION_MODE this_mode) {
   for (int ref_idx = 0; ref_idx < 2; ++ref_idx) {
     const PREDICTION_MODE single_mode = get_single_mode(this_mode, ref_idx);
-    const MV_REFERENCE_FRAME ref = mbmi->ref_frame[ref_idx];
+    const MV_REFERENCE_FRAME ref =
+        ref_idx == 0 ? COMPACT_INDEX0_NRS(mbmi->ref_frame[ref_idx])
+                     : COMPACT_INDEX1_NRS(mbmi->ref_frame[ref_idx]);
     if (single_mode == NEWMV &&
 #if CONFIG_FLEX_MVRES
 #if CONFIG_SEP_COMP_DRL
         args->single_newmv_valid[mbmi->pb_mv_precision]
-                                [get_ref_mv_idx(mbmi, ref_idx)][ref] == 0) {
+                                [get_ref_mv_idx(mbmi, ref_idx)][ref] == 0
 #else
         args->single_newmv_valid[mbmi->pb_mv_precision][mbmi->ref_mv_idx]
-                                [ref] == 0) {
+                                [ref] == 0
 #endif
 #else
-        args->single_newmv_valid[mbmi->ref_mv_idx][ref] == 0) {
+        args->single_newmv_valid[mbmi->ref_mv_idx][ref] == 0
 #endif
+    ) {
       return 0;
     }
   }
