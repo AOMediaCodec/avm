@@ -415,6 +415,62 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 }
 
 #if CONFIG_OPFL_MV_SEARCH
+int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
+  const AV1_COMMON *cm = &cpi->common;
+  // TODO(kslu) add this as a speed feature or sequence level flag
+  // if (!cm->seq_params.enable_opfl_mv_search) return 0;
+
+#if OMVS_RESTRICTION == 1
+  if (cpi->oxcf.gf_cfg.lag_in_frames > 0 &&
+      !cm->features.allow_screen_content_tools)
+    return 0;
+#elif OMVS_RESTRICTION == 2
+  if (!cm->features.allow_screen_content_tools) return 0;
+#elif OMVS_RESTRICTION == 3
+  if (!cm->features.allow_intrabc) return 0;
+#endif  // OMVS_DISABLED_FOR_LOW_MV_PREC
+
+  const int its_comp1 = 0;  // NEAR_NEWMV/NEW_NEARMV
+  const int its_sing = 3;   // NEWMV/WARPMV
+  const int its_comp2 = 0;  // NEW_NEWMV
+  const int its_jcomp = 0;  // JOINT_NEWMV
+
+  switch (mbmi->mode) {
+    case WARPMV:
+    case NEWMV: return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_sing : 0;
+    case NEW_NEWMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case NEW_NEWMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
+                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
+                 ? its_comp2
+                 : 0;
+    case NEAR_NEWMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case NEAR_NEWMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 1) ? its_comp1 : 0;
+    case NEW_NEARMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case NEW_NEARMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_comp1 : 0;
+#if CONFIG_JOINT_MVD
+    case JOINT_NEWMV:
+#if CONFIG_OPTFLOW_REFINEMENT
+    case JOINT_NEWMV_OPTFLOW:
+#endif  // CONFIG_OPTFLOW_REFINEMENT
+      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
+                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
+                 ? its_jcomp
+                 : 0;
+#endif  // CONFIG_JOINT_MVD
+    default: return 0;
+  }
+
+  return 0;
+}
 static AOM_FORCE_INLINE void compute_pred_one_sided_interp_grad_highbd(
     const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
     int bw, int bh) {

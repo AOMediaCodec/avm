@@ -352,7 +352,12 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 #define OMVS_USE_SIMD 1
 #define OMVS_AVG_POOLING 1
 #define OMVS_FILTER_SRC 0
-#define OMVS_DISABLED_FOR_LOW_MV_PREC 0
+// Restrictions on optical flow MV search
+// 0: no restrictions
+// 1: allowed only for low delay and screen content
+// 2: allowed only for screen content
+// 3: allowed only when intrabc is allowed (most strict)
+#define OMVS_RESTRICTION 2
 #define OMVS_JMV_TWOSIDED 1
 #define OMVS_RANGE_THR 2
 #define OMVS_BIG_STEP 4
@@ -387,61 +392,8 @@ static INLINE int allow_one_sided_opfl_mv_step(const AV1_COMMON *cm,
   return 1;
 }
 
-static INLINE int get_opfl_mv_iterations(const AV1_COMMON *cm,
-                                         const MB_MODE_INFO *mbmi) {
-  // TODO(kslu) add this as a speed feature or sequence level flag
-  // if (!cm->seq_params.enable_opfl_mv_search) return 0;
-
-#if CONFIG_FLEX_MVRES && OMVS_DISABLED_FOR_LOW_MV_PREC
-  // Magnitudes of optical flow MV delta are mostly smaller than full pel, so
-  // it is disabled for low MV precision when subpel search is allowed.
-  if (mbmi->pb_mv_precision < MV_PRECISION_ONE_PEL &&
-      !cm->features.allow_screen_content_tools &&
-      !cm->features.cur_frame_force_integer_mv)
-    return 0;
-#endif  // CONFIG_FLEX_MVRES && OMVS_DISABLED_FOR_LOW_MV_PREC
-
-  const int its_comp1 = 0;  // NEAR_NEWMV/NEW_NEARMV
-  const int its_sing = 3;   // NEWMV/WARPMV
-  const int its_comp2 = 0;  // NEW_NEWMV
-  const int its_jcomp = 0;  // JOINT_NEWMV
-
-  switch (mbmi->mode) {
-    case WARPMV:
-    case NEWMV: return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_sing : 0;
-    case NEW_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEW_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
-                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
-                 ? its_comp2
-                 : 0;
-    case NEAR_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEAR_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 1) ? its_comp1 : 0;
-    case NEW_NEARMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEW_NEARMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_comp1 : 0;
-#if CONFIG_JOINT_MVD
-    case JOINT_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case JOINT_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
-                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
-                 ? its_jcomp
-                 : 0;
-#endif  // CONFIG_JOINT_MVD
-    default: return 0;
-  }
-
-  return 0;
-}
+int get_opfl_mv_iterations(const struct AV1_COMP *cpi,
+                           const MB_MODE_INFO *mbmi);
 #endif  // CONFIG_OPFL_MV_SEARCH
 
 #if CONFIG_TIP

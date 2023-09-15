@@ -65,7 +65,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_OPFL_MV_SEARCH
-  int opfl_its = get_opfl_mv_iterations(cm, mbmi);
+  int opfl_its = get_opfl_mv_iterations(cpi, mbmi);
   int_mv cur_mv;
   FULLPEL_MV this_best_opfl_mv, this_second_best_opfl_mv;
   int best_opfl_sme = INT_MAX;
@@ -634,7 +634,7 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
   *best_mv = *start_mv;
 
 #if CONFIG_OPFL_MV_SEARCH
-  int opfl_its = get_opfl_mv_iterations(cm, mbmi);
+  int opfl_its = get_opfl_mv_iterations(cpi, mbmi);
   int_mv cur_mv;
   FULLPEL_MV best_opfl_mv;
   int best_opfl_sme = INT_MAX;
@@ -941,7 +941,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   // Allow joint search multiple times iteratively for each reference frame
   // and break out of the search loop if it couldn't find a better mv.
 #if CONFIG_OPFL_MV_SEARCH
-  int opfl_its = get_opfl_mv_iterations(cm, mbmi);
+  int opfl_its = get_opfl_mv_iterations(cpi, mbmi);
   FULLPEL_MV refined_fullmv;
   FULLPEL_MV diff_fullmv;
   int_mv prev_best_mv[2] = { cur_mv[0], cur_mv[1] };
@@ -1447,7 +1447,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 
 #if CONFIG_OPFL_MV_SEARCH
-  int opfl_its = get_opfl_mv_iterations(cm, mbmi);
+  int opfl_its = get_opfl_mv_iterations(cpi, mbmi);
   int_mv cur_mv = ref_mv;
 #if CONFIG_FLEX_MVRES
   const int radix =
