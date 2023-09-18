@@ -4369,8 +4369,8 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
           clamp(mv_row, MV_LOW + 1, MV_UPP - 1);
       submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.col =
           clamp(mv_col, MV_LOW + 1, MV_UPP - 1);
-      span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row, mi_col,
-                 BLOCK_8X8);
+      span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row + mi_y,
+                 mi_col + mi_x, BLOCK_8X8);
     }
   }
 }
