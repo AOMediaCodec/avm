@@ -1537,14 +1537,7 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   PSNR_STATS psnr;
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-  // To match the PSNR results between encoder log and VMAF results,
-  // the same reference sources (unfiltered source) need to be used.
-  aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
-                       &psnr,
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
                        bit_depth, in_bit_depth);
 
   for (i = 0; i < 4; ++i) {
@@ -3479,12 +3472,23 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     gf_group->update_type[gf_group->size] = GF_UPDATE;
   }
 
-  if (encode_show_existing_frame(cm)) {
+  const int encode_show_existing = encode_show_existing_frame(cm);
+  if (encode_show_existing
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      || cm->show_existing_frame
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
     av1_finalize_encoded_frame(cpi);
-    // Build the bitstream
-    int largest_tile_id = 0;  // Output from bitstream: unused here
-    if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
-      return AOM_CODEC_ERROR;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    if (encode_show_existing) {
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      // Build the bitstream
+      int largest_tile_id = 0;  // Output from bitstream: unused here
+      if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
+        return AOM_CODEC_ERROR;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
     if (seq_params->frame_id_numbers_present_flag &&
         current_frame->frame_type == KEY_FRAME) {

@@ -61,6 +61,7 @@ void MD5Init(struct MD5Context *ctx) {
  */
 void MD5Update(struct MD5Context *ctx, md5byte const *buf, unsigned len) {
   UWORD32 t;
+  if (len == 0) return;
 
   /* Update byte count */
 

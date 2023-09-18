@@ -73,14 +73,18 @@ class KeyFrameIntervalTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
-    if (kf_dist_ != -1) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      kf_dist_ += pkt->data.frame.frame_count;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)dec_iter;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    if (kf_dist_ != -1) {
       (void)pkt;
       ++kf_dist_;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
       if (kf_dist_ > (int)kf_dist_param_.max_kf_dist) {
         is_kf_interval_violated_ = true;
       }

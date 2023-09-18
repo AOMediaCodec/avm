@@ -183,13 +183,17 @@ class GoldenFrameIntervalTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
-    (void)pkt;
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    frame_num_ += pkt->data.frame.frame_count;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    ++frame_num_;
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)dec_iter;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)pkt;
+    ++frame_num_;
   }
 
   const gfIntervalParam gf_interval_param_;
