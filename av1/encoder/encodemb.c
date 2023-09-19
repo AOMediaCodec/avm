@@ -554,6 +554,9 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
   txfm_param->tx_type = get_primary_tx_type(tx_type);
+#if CONFIG_IST_SET_FLAG
+  txfm_param->sec_tx_set = 0;
+#endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode =
       (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
@@ -562,6 +565,9 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
       !(mbmi->filter_intra_mode_info.use_filter_intra) &&
       !(mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) &&
       cm->seq_params.enable_ist) {
+#if CONFIG_IST_SET_FLAG
+    txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
+#endif  // CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
   }
 #if CONFIG_CROSS_CHROMA_TX

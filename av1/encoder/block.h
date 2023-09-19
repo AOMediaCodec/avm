@@ -853,6 +853,10 @@ typedef struct {
 
   //! Cost of signaling secondary transform index
   int stx_flag_cost[TX_SIZES][STX_TYPES];
+#if CONFIG_IST_SET_FLAG
+  //! Cost of signaling secondary transform set index
+  int stx_set_flag_cost[IST_DIR_SIZE][IST_DIR_SIZE];
+#endif  // CONFIG_IST_SET_FLAG
 
   //! Rate rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];

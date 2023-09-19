@@ -1312,7 +1312,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
   av1_copy(best_tx_partition_type, best_mbmi->tx_partition_type);
 #endif  // CONFIG_NEW_TX_PARTITION
   uint8_t best_filt = mbmi->filter_intra_mode_info.use_filter_intra;
-  uint8_t best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
+  TX_TYPE best_tx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   int8_t best_angle_delta = best_mbmi->angle_delta[PLANE_TYPE_Y];
   uint8_t best_mrl = best_mbmi->mrl_index;
   uint8_t enable_mrls_flag = cpi->common.seq_params.enable_mrls;

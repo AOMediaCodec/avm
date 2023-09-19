@@ -435,6 +435,9 @@ typedef struct frame_contexts {
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
   aom_cdf_prob stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)];
+#if CONFIG_IST_SET_FLAG
+  aom_cdf_prob stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)];
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
   aom_cdf_prob pb_mv_mpp_flag_cdf[NUM_MV_PREC_MPP_CONTEXT][CDF_SIZE(2)];
 

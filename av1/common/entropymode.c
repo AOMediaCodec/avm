@@ -2995,7 +2995,18 @@ static const aom_cdf_prob default_stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)] = {
   { AOM_CDF4(7447, 17278, 24725) },  { AOM_CDF4(5783, 17348, 21203) },
   { AOM_CDF4(17873, 20852, 23831) },
 };
-
+#if CONFIG_IST_SET_FLAG
+static const aom_cdf_prob
+    default_stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)] = {
+      { AOM_CDF7(32744, 32748, 32752, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 32748, 32752, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 8, 32752, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 8, 12, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 8, 12, 16, 32760, 32764) },
+      { AOM_CDF7(4, 8, 12, 16, 20, 32764) },
+      { AOM_CDF7(4, 8, 12, 16, 20, 24) },
+    };
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
 static const aom_cdf_prob
     default_pb_mv_most_probable_precision_cdf[NUM_MV_PREC_MPP_CONTEXT][CDF_SIZE(
@@ -3427,6 +3438,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->intrabc_drl_idx_cdf, default_intrabc_drl_idx_cdf);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   av1_copy(fc->stx_cdf, default_stx_cdf);
+#if CONFIG_IST_SET_FLAG
+  av1_copy(fc->stx_set_cdf, default_stx_set_cdf);
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
   av1_copy(fc->pb_mv_precision_cdf, default_pb_mv_precision_cdf);
   av1_copy(fc->pb_mv_mpp_flag_cdf, default_pb_mv_most_probable_precision_cdf);

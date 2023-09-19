@@ -455,6 +455,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              NULL);
   }
 
+#if CONFIG_IST_SET_FLAG
+  for (i = 0; i < IST_DIR_SIZE; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->stx_set_flag_cost[i],
+                             fc->stx_set_cdf[i], NULL);
+  }
+#endif  // CONFIG_IST_SET_FLAG
+
 #if CONFIG_CROSS_CHROMA_TX
   for (i = 0; i < EXT_TX_SIZES; ++i) {
     for (j = 0; j < CCTX_CONTEXTS; ++j) {

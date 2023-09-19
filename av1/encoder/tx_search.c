@@ -2663,9 +2663,24 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
            mbmi->fsc_mode[xd->tree_type == CHROMA_PART] ||
            xd->lossless[mbmi->segment_id]);
       if (skip_stx && stx) continue;
-      tx_type += (stx << 4);
+      set_secondary_tx_type(&tx_type, stx);
       txfm_param.tx_type = get_primary_tx_type(tx_type);
       txfm_param.sec_tx_type = stx;
+#if CONFIG_IST_SET_FLAG
+      const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
+      uint16_t stx_set = 0;
+      if (!skip_stx) {
+        stx_set = (txfm_param.tx_type == ADST_ADST)
+                      ? stx_transpose_mapping[mode] + IST_DIR_SIZE
+                      : stx_transpose_mapping[mode];
+      }
+      TX_TYPE tx_type1 = tx_type;  // does not keep set info
+      assert(stx_set < IST_SET_SIZE);
+      set_secondary_tx_set(&tx_type, stx_set);
+      assert(tx_type < (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS +
+                              SECONDARY_TX_SET_BITS)));
+      txfm_param.sec_tx_set = stx_set;
+#endif  // CONFIG_IST_SET_FLAG
       if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
         av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                           &quant_param);
@@ -2704,8 +2719,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       // pre-skip DC only case to make things faster
       uint16_t *const eob = &p->eobs[block];
       if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
-        if (tx_type == DCT_DCT) eob_found = 1;
-        if (tx_type != DCT_DCT || (stx && get_primary_tx_type(tx_type))) {
+        if (tx_type1 == DCT_DCT) eob_found = 1;
+        if (tx_type1 != DCT_DCT || (stx && get_primary_tx_type(tx_type))) {
           update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
           continue;
         }
@@ -2738,8 +2753,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_ATC_DCTX_ALIGNED
       if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
         // post quant-skip DC only case
-        if (tx_type == DCT_DCT) eob_found = 1;
-        if (tx_type != DCT_DCT || (stx && get_primary_tx_type(tx_type))) {
+        if (tx_type1 == DCT_DCT) eob_found = 1;
+        if (tx_type1 != DCT_DCT || (stx && get_primary_tx_type(tx_type))) {
           if (plane == 0)
             update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
           continue;
@@ -2881,7 +2896,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   }
 
 #if CONFIG_ATC_DCTX_ALIGNED
-  if (((best_eob == 1 && best_tx_type != DCT_DCT && plane == 0) ||
+  if (((best_eob == 1 && get_primary_tx_type(best_tx_type) != DCT_DCT &&
+        plane == 0) ||
        best_rd == INT64_MAX) &&
       !is_inter) {
     best_tx_type = DCT_DCT;
@@ -2910,7 +2926,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
 #if CONFIG_ATC_DCTX_ALIGNED
   if (plane == 0 && x->plane[plane].eobs[block] == 1 &&
-      best_tx_type != DCT_DCT && !is_inter) {
+      get_primary_tx_type(best_tx_type) != DCT_DCT && !is_inter) {
     av1_invalid_rd_stats(best_rd_stats);
   }
 #endif  // CONFIG_ATC_DCTX_ALIGNED
@@ -3408,7 +3424,7 @@ static void select_tx_partition_type(
   int64_t best_rd = INT64_MAX;
   TX_PARTITION_TYPE best_tx_partition = TX_PARTITION_INVALID;
   uint8_t best_partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
-  uint8_t best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
+  TX_PARTITION_TYPE best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
 
   const int threshold = cpi->sf.tx_sf.tx_type_search.ml_tx_split_thresh;
@@ -3470,7 +3486,7 @@ static void select_tx_partition_type(
     int blk_idx = 0;
     uint8_t this_blk_skip[MAX_TX_PARTITIONS] = { 0 };
     uint8_t partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
-    TX_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
+    TX_PARTITION_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
     int cur_block = block;
 
     // Compute cost of each tx size in this partition

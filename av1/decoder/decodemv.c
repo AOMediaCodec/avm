@@ -1330,6 +1330,20 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+// This function reads a 'secondary tx set' from the bitstream
+static void read_secondary_tx_set(FRAME_CONTEXT *ec_ctx, aom_reader *r,
+                                  MB_MODE_INFO *mbmi, TX_TYPE *tx_type) {
+  uint8_t intra_mode = mbmi->mode;
+  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
+  assert(stx_set_ctx < IST_DIR_SIZE);
+  TX_TYPE stx_set_flag =
+      aom_read_symbol(r, ec_ctx->stx_set_cdf[stx_set_ctx], IST_DIR_SIZE,
+                      ACCT_INFO("stx_set_flag"));
+  assert(stx_set_flag < IST_DIR_SIZE);
+  if (get_primary_tx_type(*tx_type) == ADST_ADST) stx_set_flag += IST_DIR_SIZE;
+  set_secondary_tx_set(tx_type, stx_set_flag);
+}
+
 void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           int blk_row, int blk_col, TX_SIZE tx_size,
                           uint16_t *eob, aom_reader *r) {
@@ -1356,6 +1370,9 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
             aom_read_symbol(r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES,
                             ACCT_INFO("stx_flag"));
         *tx_type |= (stx_flag << 4);
+#if CONFIG_IST_SET_FLAG
+        if (stx_flag > 0) read_secondary_tx_set(ec_ctx, r, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
       }
     }
   } else if (!inter_block) {
@@ -1365,6 +1382,9 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       const uint8_t stx_flag = aom_read_symbol(
           r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES, ACCT_INFO("stx_flag"));
       *tx_type |= (stx_flag << 4);
+#if CONFIG_IST_SET_FLAG
+      if (stx_flag > 0) read_secondary_tx_set(ec_ctx, r, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
     }
   }
 }
