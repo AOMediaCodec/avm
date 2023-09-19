@@ -62,13 +62,23 @@ static void encoder_highbd_8_variance(const uint16_t *a8, int a_stride,
 
 static int64_t highbd_get_sse_shift(const uint16_t *a, int a_stride,
                                     const uint16_t *b, int b_stride, int width,
-                                    int height, unsigned int input_shift) {
+                                    int height, unsigned int down_shift,
+                                    int bit_depth) {
+  (void)bit_depth;
   int64_t total_sse = 0;
   int x, y;
   for (y = 0; y < height; ++y) {
     for (x = 0; x < width; ++x) {
       int64_t diff;
-      diff = (a[x] >> input_shift) - (b[x] >> input_shift);
+#if CONFIG_ZERO_OFFSET_BITUPSHIFT
+      uint16_t av = (uint16_t)ROUND_POWER_OF_TWO(a[x], down_shift);
+      av = (uint16_t)clip_pixel_highbd(av, bit_depth);
+      uint16_t bv = (uint16_t)ROUND_POWER_OF_TWO(b[x], down_shift);
+      bv = (uint16_t)clip_pixel_highbd(bv, bit_depth);
+      diff = (av - bv);
+#else
+      diff = (a[x] >> down_shift) - (b[x] >> down_shift);
+#endif  // CONFIG_ZERO_OFFSET_BITUPSHIFT
       total_sse += diff * diff;
     }
     a += a_stride;
@@ -225,7 +235,7 @@ void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
     uint64_t sse;
     if (input_shift) {
       sse = highbd_get_sse_shift(a->buffers[i], a_strides[i], b->buffers[i],
-                                 b_strides[i], w, h, input_shift);
+                                 b_strides[i], w, h, input_shift, in_bit_depth);
     } else {
       sse = highbd_get_sse(a->buffers[i], a_strides[i], b->buffers[i],
                            b_strides[i], w, h);
