@@ -1841,10 +1841,43 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   if (is_inter && (blk_row >= max_blocks_high || blk_col >= max_blocks_wide))
     return TX_INVALID;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+#if !CONFIG_TX_PARTITION_CTX
   const int is_rect = is_rect_tx(max_tx_size);
+#endif  // !CONFIG_TX_PARTITION_CTX
   const int allow_horz = allow_tx_horz_split(max_tx_size);
   const int allow_vert = allow_tx_vert_split(max_tx_size);
   TX_PARTITION_TYPE partition = 0;
+#if CONFIG_TX_PARTITION_CTX
+  const int bsize_group = size_to_tx_part_group_lookup[bsize];
+  int do_partition = 0;
+  if (allow_horz || allow_vert) {
+    aom_cdf_prob *do_partition_cdf =
+        ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
+    do_partition =
+        aom_read_symbol(r, do_partition_cdf, 2, ACCT_INFO("do_partition"));
+  }
+
+  if (do_partition) {
+    if (allow_horz && allow_vert) {
+      // Read 4way tree type
+      assert(bsize_group > 0);
+      aom_cdf_prob *partition_type_cdf =
+          ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
+      const TX_PARTITION_TYPE partition_type = aom_read_symbol(
+          r, partition_type_cdf, 3, ACCT_INFO("partition_type"));
+      partition = partition_type + 1;
+    } else {
+      /*
+       If only one split type (horizontal or vertical) is allowed for this
+       block, then derive parition type based on the allowed split type
+       (horizontal or vertical).
+       */
+      partition = allow_horz ? TX_PARTITION_HORZ : TX_PARTITION_VERT;
+    }
+  } else {
+    partition = TX_PARTITION_NONE;
+  }
+#else
   /*
   If both horizontal and vertical splits are allowed for this block,
   first signal using a 4 way tree to indicate TX_PARTITION_NONE,
@@ -1865,6 +1898,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     const TX_PARTITION_TYPE split4_partition =
         aom_read_symbol(r, split4_cdf, 4, ACCT_INFO("split4_partition"));
     partition = split4_partition;
+
     /*
     If only one split type (horizontal or vertical) is allowed for this block,
     first signal a bit indicating whether there is any split at all. If
@@ -1884,6 +1918,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     assert(!allow_horz && !allow_vert);
     partition = TX_PARTITION_NONE;
   }
+#endif  // CONFIG_TX_PARTITION_CTX
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(partition, max_tx_size, sub_txs);
   // TODO(sarahparker) This assumes all of the tx sizes in the partition scheme
@@ -1901,9 +1936,11 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
     const int stride_log2 = bw_log2 - tx_w_log2;
     set_inter_tx_size(mbmi, stride_log2, tx_w_log2, tx_h_log2, txs, max_tx_size,
                       mbmi->tx_size, blk_row, blk_col);
+#if !CONFIG_TX_PARTITION_CTX
     txfm_partition_update(xd->above_txfm_context + blk_col,
                           xd->left_txfm_context + blk_row, mbmi->tx_size,
                           max_tx_size);
+#endif  // !CONFIG_TX_PARTITION_CTX
   }
   return sub_txs[0];
 }
@@ -2086,10 +2123,12 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
                        !mbmi->skip_txfm[xd->tree_type == CHROMA_PART], r);
       if (inter_block_tx)
         memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
+#if !CONFIG_TX_PARTITION_CTX
       set_txfm_ctxs(mbmi->tx_size, xd->width, xd->height,
                     mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
                         is_inter_block(mbmi, xd->tree_type),
                     xd);
+#endif  // !CONFIG_TX_PARTITION_CTX
 #if CONFIG_LPF_MASK
       const int w = mi_size_wide[bsize];
       const int h = mi_size_high[bsize];

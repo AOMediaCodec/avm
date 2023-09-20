@@ -7162,11 +7162,13 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
         memset(search_state->best_mbmode.inter_tx_size,
                search_state->best_mbmode.tx_size,
                sizeof(search_state->best_mbmode.inter_tx_size));
+#if !CONFIG_TX_PARTITION_CTX
         set_txfm_ctxs(
             search_state->best_mbmode.tx_size, xd->width, xd->height,
             search_state->best_mbmode.skip_txfm[xd->tree_type == CHROMA_PART] &&
                 is_inter_block(mbmi, xd->tree_type),
             xd);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
         x->txfm_search_info.skip_txfm = 1;
         search_state->best_mode_skippable = 1;
@@ -7385,11 +7387,13 @@ static AOM_INLINE void rd_pick_skip_mode(
     memset(search_state->best_mbmode.inter_tx_size,
            search_state->best_mbmode.tx_size,
            sizeof(search_state->best_mbmode.inter_tx_size));
+#if !CONFIG_TX_PARTITION_CTX
     set_txfm_ctxs(
         search_state->best_mbmode.tx_size, xd->width, xd->height,
         search_state->best_mbmode.skip_txfm[xd->tree_type == CHROMA_PART] &&
             is_inter_block(mbmi, xd->tree_type),
         xd);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
     // Set up color-related variables for skip mode.
     search_state->best_mbmode.uv_mode = UV_DC_PRED;

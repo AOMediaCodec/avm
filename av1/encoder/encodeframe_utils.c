@@ -751,12 +751,14 @@ void av1_restore_context(const AV1_COMMON *cm, MACROBLOCK *x,
            ctx->sl + mi_height * p,
            sizeof(xd->left_partition_context[p][0]) * mi_height);
   }
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context = ctx->p_ta;
   xd->left_txfm_context = ctx->p_tl;
   memcpy(xd->above_txfm_context, ctx->ta,
          sizeof(*xd->above_txfm_context) * mi_width);
   memcpy(xd->left_txfm_context, ctx->tl,
          sizeof(*xd->left_txfm_context) * mi_height);
+#endif  // !CONFIG_TX_PARTITION_CTX
   av1_mark_block_as_not_coded(xd, mi_row, mi_col, bsize,
                               cm->seq_params.sb_size);
 }
@@ -786,12 +788,14 @@ void av1_save_context(const MACROBLOCK *x, RD_SEARCH_MACROBLOCK_CONTEXT *ctx,
            xd->left_partition_context[p] + (mi_row & MAX_MIB_MASK),
            sizeof(xd->left_partition_context[p][0]) * mi_height);
   }
+#if !CONFIG_TX_PARTITION_CTX
   memcpy(ctx->ta, xd->above_txfm_context,
          sizeof(*xd->above_txfm_context) * mi_width);
   memcpy(ctx->tl, xd->left_txfm_context,
          sizeof(*xd->left_txfm_context) * mi_height);
   ctx->p_ta = xd->above_txfm_context;
   ctx->p_tl = xd->left_txfm_context;
+#endif  // !CONFIG_TX_PARTITION_CTX
 }
 
 static void set_partial_sb_partition(const AV1_COMMON *const cm,
@@ -1373,6 +1377,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->comp_ref0_cdf, ctx_tr->comp_ref0_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_ref1_cdf, ctx_tr->comp_ref1_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  AVERAGE_CDF(ctx_left->txfm_do_partition_cdf, ctx_tr->txfm_do_partition_cdf,
+              2);
+  AVERAGE_CDF(ctx_left->txfm_4way_partition_type_cdf,
+              ctx_tr->txfm_4way_partition_type_cdf, 3);
+#else
   // Square blocks
   AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf[0],
               ctx_tr->inter_4way_txfm_partition_cdf[0], 4);
@@ -1381,6 +1391,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->inter_4way_txfm_partition_cdf[1], 4);
   AVERAGE_CDF(ctx_left->inter_2way_txfm_partition_cdf,
               ctx_tr->inter_2way_txfm_partition_cdf, 2);
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
   AVERAGE_CDF(ctx_left->txfm_partition_cdf, ctx_tr->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -1514,6 +1525,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // !CONFIG_AIMC
 
 #if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
   // Square blocks
   AVERAGE_CDF(ctx_left->intra_4way_txfm_partition_cdf[0],
               ctx_tr->intra_4way_txfm_partition_cdf[0], 4);
@@ -1522,6 +1534,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               ctx_tr->intra_4way_txfm_partition_cdf[1], 4);
   AVERAGE_CDF(ctx_left->intra_2way_txfm_partition_cdf,
               ctx_tr->intra_2way_txfm_partition_cdf, 2);
+#endif  // !CONFIG_TX_PARTITION_CTX
 #else
   AVG_CDF_STRIDE(ctx_left->tx_size_cdf[0], ctx_tr->tx_size_cdf[0], MAX_TX_DEPTH,
                  CDF_SIZE(MAX_TX_DEPTH + 1));
@@ -1640,17 +1653,21 @@ void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
                          ThreadData *td, const TileDataEnc *tile_data,
                          int mi_row, int mi_col) {
   MACROBLOCK *x = &td->mb;
+#if !CONFIG_TX_PARTITION_CTX
   MACROBLOCKD *xd = &x->e_mbd;
   const TileInfo *tile_info = &tile_data->tile_info;
+#endif  // !CONFIG_TX_PARTITION_CTX
 
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
 
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context =
       cm->above_contexts.txfm[tile_info->tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
   av1_save_context(x, &sb_fp_stats->x_ctx, mi_row, mi_col, sb_size, num_planes);
 
   sb_fp_stats->rd_count = td->rd_counts;

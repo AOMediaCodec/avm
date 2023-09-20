@@ -2001,6 +2001,7 @@ typedef struct macroblockd {
    * Note: These contain actual data, NOT pointers.
    */
   PARTITION_CONTEXT left_partition_context[MAX_MB_PLANE][MAX_MIB_SIZE];
+#if !CONFIG_TX_PARTITION_CTX
   /*!
    * Transform contexts for the above blocks.
    * above_txfm_context[i] corresponds to above transform context for ith mi col
@@ -2022,6 +2023,7 @@ typedef struct macroblockd {
    * and never accessed directly except to fill in initial default values.
    */
   TXFM_CONTEXT left_txfm_context_buffer[MAX_MIB_SIZE];
+#endif  // !CONFIG_TX_PARTITION_CTX
 
   /**
    * \name Default values for the two restoration filters for each plane.

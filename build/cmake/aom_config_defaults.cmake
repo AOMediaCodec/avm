@@ -264,6 +264,9 @@ set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
 set_aom_config_var(CONFIG_CWG_D067_IMPROVED_WARP 1
                    "Improvement of warp motions")
 
+set_aom_config_var(CONFIG_TX_PARTITION_CTX 1
+                   "Enable to optimize txfm partition context")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

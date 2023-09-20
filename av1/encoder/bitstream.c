@@ -310,9 +310,30 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   if (is_inter || (!is_inter && block_signals_txsize(bsize))) {
     const TX_PARTITION_TYPE partition = mbmi->tx_partition_type[txb_size_index];
+#if !CONFIG_TX_PARTITION_CTX
     const int is_rect = is_rect_tx(max_tx_size);
+#endif  // !CONFIG_TX_PARTITION_CTX
     const int allow_horz = allow_tx_horz_split(max_tx_size);
     const int allow_vert = allow_tx_vert_split(max_tx_size);
+#if CONFIG_TX_PARTITION_CTX
+    const int bsize_group = size_to_tx_part_group_lookup[bsize];
+    int do_partition = 0;
+    if (allow_horz || allow_vert) {
+      do_partition = (partition != TX_PARTITION_NONE);
+      aom_cdf_prob *do_partition_cdf =
+          ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
+      aom_write_symbol(w, do_partition, do_partition_cdf, 2);
+    }
+
+    if (do_partition) {
+      if (allow_horz && allow_vert) {
+        assert(bsize_group > 0);
+        aom_cdf_prob *partition_type_cdf =
+            ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
+        aom_write_symbol(w, partition - 1, partition_type_cdf, 3);
+      }
+    }
+#else
     if (allow_horz && allow_vert) {
       const int split4_ctx =
           is_inter ? txfm_partition_split4_inter_context(
@@ -335,13 +356,16 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
       assert(!allow_horz && !allow_vert);
       assert(partition == PARTITION_NONE);
     }
+#endif  // CONFIG_TX_PARTITION_CTX
   }
+#if !CONFIG_TX_PARTITION_CTX
   if (is_inter) {
     const TX_SIZE tx_size = mbmi->inter_tx_size[txb_size_index];
     txfm_partition_update(xd->above_txfm_context + blk_col,
                           xd->left_txfm_context + blk_row, tx_size,
                           max_tx_size);
   }
+#endif  // !CONFIG_TX_PARTITION_CTX
 }
 #else
 static AOM_INLINE void write_tx_size_vartx(MACROBLOCKD *xd,
@@ -2856,9 +2880,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context = cm->above_contexts.txfm[tile->tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
   write_mbmi_b(cpi, w);
 
@@ -2913,12 +2939,17 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 #else
         write_selected_tx_size(xd, w);
 #endif
+#if !CONFIG_TX_PARTITION_CTX
         set_txfm_ctxs(mbmi->tx_size, xd->width, xd->height, 0, xd);
+#endif  // !CONFIG_TX_PARTITION_CTX
       }
-    } else {
+    }
+#if !CONFIG_TX_PARTITION_CTX
+    else {
       set_txfm_ctxs(mbmi->tx_size, xd->width, xd->height,
                     skip_txfm && is_inter_tx, xd);
     }
+#endif  // !CONFIG_TX_PARTITION_CTX
   }
 
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {

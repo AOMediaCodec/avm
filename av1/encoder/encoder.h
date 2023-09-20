@@ -1417,10 +1417,15 @@ typedef struct FRAME_COUNTS {
   unsigned int intrabc_drl_idx[MAX_REF_BV_STACK_SIZE - 1][2];
 #endif
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  unsigned int txfm_do_partition[2][TXFM_PARTITION_GROUP][2];
+  unsigned int txfm_4way_partition_type[2][TXFM_PARTITION_GROUP - 1][3];
+#else
   unsigned int intra_4way_txfm_partition[2][TX_SIZE_CONTEXTS][4];
   unsigned int intra_2way_txfm_partition[2];
   unsigned int inter_4way_txfm_partition[2][TXFM_PARTITION_INTER_CONTEXTS][4];
   unsigned int inter_2way_txfm_partition[2];
+#endif  // CONFIG_TX_PARTITION_CTX
 #else
   unsigned int txfm_partition[TXFM_PARTITION_CONTEXTS][2];
   unsigned int intra_tx_size[MAX_TX_CATS][TX_SIZE_CONTEXTS][MAX_TX_DEPTH + 1];
