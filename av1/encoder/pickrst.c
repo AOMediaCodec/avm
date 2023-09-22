@@ -4929,6 +4929,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   double *work_cost_array = (double *)(aom_malloc(rsc->wienerns_stats->size *
                                                   sizeof(*work_cost_array)));
   double best_cost = DBL_MAX;
+  int best_utilization = 0;
   int best_num_classes = -1;
 
   int num_stats_classes = rsc->num_stats_classes;
@@ -4952,6 +4953,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter, &tmp_bank);
     if (cost < best_cost) {
       best_cost = cost;
+      best_utilization = utilization;
       best_num_classes = num_target_classes;
       best_filter = tmp_filter;
       double *tmp_array = work_cost_array;
@@ -4961,6 +4963,13 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   }
 
   assert(best_num_classes != -1);
+#ifndef NDEBUG
+  printf(
+      "Plane %2d, found best num classes: %2d, utilization: %3d (%3d), cost: "
+      "%f\n",
+      rsc->plane, best_num_classes, best_utilization,
+      (int)rsc->wienerns_stats->size, best_cost);
+#endif  // NDEBUG
 
   rsc->num_filter_classes = best_num_classes;
   rsc->best_num_filter_classes = best_num_classes;
@@ -4972,6 +4981,10 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   const int num_changes =
       count_changes_in_filters(rsc, &tmp_filter, &best_filter);
   (void)num_changes;
+#ifndef NDEBUG
+  printf("optimize_frame_filters_with_rounding changes: %3d out of %3d\n",
+         num_changes, best_filter.num_classes);
+#endif  // NDEBUG
 #endif  // USE_FINER_TILE
   initialize_bank_with_best_frame_filter_match(rsc, &best_filter, &tmp_bank);
 
@@ -5062,6 +5075,22 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
   *best_cost = cost;
   return final_r;
 }
+
+void print_costs(double cost, char best_highlight, int r, char highlight,
+                 const RestSearchCtxt *rsc, int unit_size) {
+#ifndef NDEBUG
+  if (rsc->plane != AOM_PLANE_Y) return;
+  printf("%c U(%4d) Plane[%1d], %cr[%1d], %15.1f", best_highlight, unit_size,
+         rsc->plane, highlight, r, cost);
+  if (r == RESTORE_SWITCHABLE || r == RESTORE_WIENER_NONSEP) {
+    printf(" (c:%3d, ns%3d).\n", rsc->num_filter_classes,
+           rsc->num_wiener_nonsep);
+  } else {
+    printf(".\n");
+  }
+#endif  // NDEBUG
+}
+
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
@@ -5249,9 +5278,13 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           if (r == RESTORE_SWITCHABLE && plane == AOM_PLANE_Y &&
               cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
+            print_costs(cost, cost < best_cost ? '*' : ' ', r, ' ', &rsc,
+                        rsi->restoration_unit_size);
             real_r = replace_with_frame_filters(&rsc, &cost);
           }
-
+          print_costs(cost, cost < best_cost ? '*' : ' ', real_r,
+                      rsc.frame_filters_on ? 'f' : ' ', &rsc,
+                      rsi->restoration_unit_size);
           assert(RESTORE_PC_WIENER < RESTORE_WIENER_NONSEP);
           if (r == RESTORE_PC_WIENER && plane == AOM_PLANE_Y) {
             rsc.is_buffered = true;  // Buffer is set.
