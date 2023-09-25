@@ -144,6 +144,19 @@ void z3_wrapper_hbd(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
   fn(dst, stride, bw, bh, above, left, upsample_left, dx, dy, bd, mrl_index);
 }
 
+typedef void (*Z3_IDIF_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
+                            const uint16_t *above, const uint16_t *left, int dx,
+                            int dy, int bd, int mrl_index);
+template <Z3_IDIF_Hbd fn>
+void z3_idif_wrapper_hbd(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
+                         const uint16_t *above, const uint16_t *left,
+                         int upsample_above, int upsample_left, int dx, int dy,
+                         int bd, int mrl_index) {
+  (void)upsample_above;
+  (void)upsample_left;
+  fn(dst, stride, bw, bh, above, left, dx, dy, bd, mrl_index);
+}
+
 template <typename FuncType>
 struct DrPredFunc {
   DrPredFunc(FuncType pred = NULL, FuncType tst = NULL, int bit_depth_value = 0,
@@ -360,47 +373,69 @@ INSTANTIATE_TEST_SUITE_P(
         DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
                                NULL, AOM_BITS_10, kZ3Start),
         DrPredFunc<DrPred_Hbd>(&z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                               NULL, AOM_BITS_12, kZ3Start)));
+                               NULL, AOM_BITS_12, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>, NULL,
+            AOM_BITS_8, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>, NULL,
+            AOM_BITS_10, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>, NULL,
+            AOM_BITS_12, kZ3Start)));
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, HighbdDrPredTest,
-    ::testing::Values(DrPredFunc<DrPred_Hbd>(
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
-                          AOM_BITS_8, kZ1Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
-                          AOM_BITS_10, kZ1Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
-                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>,
-                          AOM_BITS_12, kZ1Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
-                          AOM_BITS_8, kZ2Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
-                          AOM_BITS_10, kZ2Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
-                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>,
-                          AOM_BITS_12, kZ2Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
-                          AOM_BITS_8, kZ3Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
-                          AOM_BITS_10, kZ3Start),
-                      DrPredFunc<DrPred_Hbd>(
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
-                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
-                          AOM_BITS_12, kZ3Start)));
+    ::testing::Values(
+        DrPredFunc<DrPred_Hbd>(
+            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>, AOM_BITS_8,
+            kZ1Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>, AOM_BITS_10,
+            kZ1Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+            &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_avx2>, AOM_BITS_12,
+            kZ1Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>, AOM_BITS_8,
+            kZ2Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>, AOM_BITS_10,
+            kZ2Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+            &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_avx2>, AOM_BITS_12,
+            kZ2Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>, AOM_BITS_8,
+            kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>, AOM_BITS_10,
+            kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+            &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>, AOM_BITS_12,
+            kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>,
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_avx2>,
+            AOM_BITS_8, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>,
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_avx2>,
+            AOM_BITS_10, kZ3Start),
+        DrPredFunc<DrPred_Hbd>(
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_c>,
+            &z3_idif_wrapper_hbd<av1_highbd_dr_prediction_z3_idif_avx2>,
+            AOM_BITS_12, kZ3Start)));
 
 TEST_P(HighbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };
