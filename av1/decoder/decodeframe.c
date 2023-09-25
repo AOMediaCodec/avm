@@ -7410,16 +7410,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->features.error_resilient_mode || frame_is_sframe(cm) ||
           seq_params->explicit_ref_frame_map ||
           !seq_params->order_hint_info.enable_order_hint;
-      if (explicit_ref_frame_map)
+      if (explicit_ref_frame_map) {
         cm->ref_frames_info.num_total_refs =
             aom_rb_read_literal(rb, REF_FRAMES_LOG2);
-      // Check whether num_total_refs read is valid and not greater than
-      // n_ranked (using a reference frame more than once is not allowed).
-      if (cm->ref_frames_info.num_total_refs <= 0 ||
-          cm->ref_frames_info.num_total_refs > n_ranked ||
-          cm->ref_frames_info.num_total_refs > seq_params->max_reference_frames)
-        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                           "Invalid num_total_refs");
+        // Check whether num_total_refs read is valid and not greater than
+        // n_ranked (using a reference frame more than once is not allowed).
+        if (cm->ref_frames_info.num_total_refs <= 0 ||
+            (seq_params->order_hint_info.enable_order_hint &&
+             cm->ref_frames_info.num_total_refs > n_ranked) ||
+            cm->ref_frames_info.num_total_refs >
+                seq_params->max_reference_frames)
+          aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                             "Invalid num_total_refs");
+      }
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
           features->primary_ref_frame != PRIMARY_REF_NONE) {
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
