@@ -2617,6 +2617,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
+    const TX_TYPE primary_tx_type = (TX_TYPE)txk_map[idx];
+    if (!(allowed_tx_mask & (1 << primary_tx_type))) continue;
     int skip_trellis_in =
         skip_trellis || use_inter_fsc(cm, plane, txk_map[idx], is_inter);
     av1_update_trellisq(!skip_trellis_in,
@@ -2641,30 +2643,34 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                      !cpi->sf.tx_sf.tx_type_search.skip_stx_search &&
                      !mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                      !xd->lossless[mbmi->segment_id];
+    const PREDICTION_MODE intra_mode =
+        (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+    const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
+    const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
 #if CONFIG_ATC_DCTX_ALIGNED
-    const int max_stx = xd->enable_ist && !(eob_found) ? 4 : 1;
+    bool skip_stx =
 #else
-    const int max_stx = xd->enable_ist ? 4 : 1;
+    const bool skip_stx =
 #endif  // CONFIG_ATC_DCTX_ALIGNED
+        ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
+         plane != 0 || is_inter_block(mbmi, xd->tree_type) || dc_only_blk ||
+         intra_mode >= PAETH_PRED || filter || !is_depth0 ||
+#if CONFIG_ATC_DCTX_ALIGNED
+         (eob_found) ||
+#endif  // CONFIG_ATC_DCTX_ALIGNED
+         mbmi->fsc_mode[xd->tree_type == CHROMA_PART] ||
+         xd->lossless[mbmi->segment_id]);
+
+    const int max_stx = xd->enable_ist && !skip_stx ? 4 : 1;
+
     for (int stx = 0; stx < max_stx; ++stx) {
       TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
-      if (!(allowed_tx_mask & (1 << tx_type))) continue;
-      const PREDICTION_MODE intra_mode =
-          (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
-      const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
-      const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
-      const bool skip_stx =
-          ((tx_type != DCT_DCT && tx_type != ADST_ADST) || plane != 0 ||
-           is_inter_block(mbmi, xd->tree_type) || dc_only_blk ||
-           intra_mode >= PAETH_PRED || filter || !is_depth0 ||
 #if CONFIG_ATC_DCTX_ALIGNED
-           (eob_found) ||
+      skip_stx |= eob_found;
 #endif  // CONFIG_ATC_DCTX_ALIGNED
-           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] ||
-           xd->lossless[mbmi->segment_id]);
       if (skip_stx && stx) continue;
       set_secondary_tx_type(&tx_type, stx);
-      txfm_param.tx_type = get_primary_tx_type(tx_type);
+      txfm_param.tx_type = primary_tx_type;
       txfm_param.sec_tx_type = stx;
 #if CONFIG_IST_SET_FLAG
       const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
@@ -2710,7 +2716,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       if (fsc_mode_in) quant_param.use_optimize_b = false;
       av1_quant(x, plane, block, &txfm_param, &quant_param);
       if (fsc_mode_in) {
-        if (get_primary_tx_type(tx_type) == IDTX) {
+        if (primary_tx_type == IDTX) {
           uint16_t *const eob = &p->eobs[block];
           if (*eob != 0) *eob = av1_get_max_eob(txfm_param.tx_size);
         }
@@ -2720,7 +2726,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       uint16_t *const eob = &p->eobs[block];
       if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
         if (tx_type1 == DCT_DCT) eob_found = 1;
-        if (tx_type1 != DCT_DCT || (stx && get_primary_tx_type(tx_type))) {
+        if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
           update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
           continue;
         }
@@ -2738,7 +2744,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         bool enable_parity_hiding = cm->features.allow_parity_hiding &&
                                     !xd->lossless[mbmi->segment_id] &&
                                     plane == PLANE_TYPE_Y &&
-                                    get_primary_tx_type(tx_type) < IDTX;
+                                    primary_tx_type < IDTX;
         if (enable_parity_hiding)
           parity_hiding_trellis_off(cpi, x, plane, block, tx_size, tx_type);
 #endif
@@ -2754,7 +2760,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
         // post quant-skip DC only case
         if (tx_type1 == DCT_DCT) eob_found = 1;
-        if (tx_type1 != DCT_DCT || (stx && get_primary_tx_type(tx_type))) {
+        if (tx_type1 != DCT_DCT || (stx && primary_tx_type)) {
           if (plane == 0)
             update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
           continue;
