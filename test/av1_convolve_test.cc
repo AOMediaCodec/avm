@@ -147,7 +147,7 @@ TEST_F(AV1ConvolveParametersTest, GetHighbdTestParams) {
   ASSERT_EQ(80U, v.size());
 #else
   ASSERT_EQ(60U, v.size());
-#endif  // CONFIG_1_TO_3_PARTITIONS
+#endif  // CONFIG_FLEX_PARTITION
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &p : v) {

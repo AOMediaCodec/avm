@@ -3336,6 +3336,59 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
 
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
+#if CONFIG_FLEX_PARTITION
+static const aom_cdf_prob
+    default_txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)] = {
+      {
+          // intra
+          { AOM_CDF2(20611) },
+          { AOM_CDF2(24192) },
+          { AOM_CDF2(18182) },
+          { AOM_CDF2(24924) },
+          { AOM_CDF2(23143) },
+          { AOM_CDF2(27141) },
+          { AOM_CDF2(26227) },
+          { AOM_CDF2(29654) },
+          { AOM_CDF2(16384) },
+      },
+      {
+          // inter
+          { AOM_CDF2(25160) },
+          { AOM_CDF2(27750) },
+          { AOM_CDF2(26384) },
+          { AOM_CDF2(26847) },
+          { AOM_CDF2(21474) },
+          { AOM_CDF2(22726) },
+          { AOM_CDF2(29609) },
+          { AOM_CDF2(30945) },
+          { AOM_CDF2(16384) },
+      }
+    };
+static const aom_cdf_prob
+    default_txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(
+        3)] = { {
+                    // intra
+                    { AOM_CDF3(32760, 32764) },
+                    { AOM_CDF3(6342, 22640) },
+                    { AOM_CDF3(14298, 22864) },
+                    { AOM_CDF3(7287, 19333) },
+                    { AOM_CDF3(19825, 28798) },
+                    { AOM_CDF3(1824, 28283) },
+                    { AOM_CDF3(9256, 24339) },
+                    { AOM_CDF3(10923, 21845) },
+                },
+                {
+                    // inter
+                    { AOM_CDF3(16749, 24722) },
+                    { AOM_CDF3(20629, 25838) },
+                    { AOM_CDF3(21140, 25334) },
+                    { AOM_CDF3(29351, 30800) },
+                    { AOM_CDF3(28304, 30575) },
+                    { AOM_CDF3(21051, 26911) },
+                    { AOM_CDF3(11702, 22867) },
+                    { AOM_CDF3(10923, 21845) },
+                } };
+#else
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)] = {
       { // intra
@@ -3375,6 +3428,7 @@ static const aom_cdf_prob
                   { AOM_CDF3(28304, 30575) },
                   { AOM_CDF3(21051, 26911) },
                   { AOM_CDF3(11702, 22867) } } };
+#endif  // CONFIG_FLEX_PARTITION
 #else
 static const aom_cdf_prob default_inter_4way_txfm_partition_cdf
     [2][TXFM_PARTITION_INTER_CONTEXTS][CDF_SIZE(4)] = {
