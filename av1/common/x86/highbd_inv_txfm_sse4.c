@@ -481,9 +481,9 @@ static void iadst4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
 
   // stage 1
   x0 = u0;
+  x1 = _mm_sub_epi32(_mm_setzero_si128(), u3);
   x2 = _mm_sub_epi32(_mm_setzero_si128(), u1);
   x3 = u2;
-  x1 = _mm_sub_epi32(_mm_setzero_si128(), u3);
 
   // stage 2
   s0 = x0;
@@ -492,14 +492,8 @@ static void iadst4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
   s3 = half_btf_neg_sse4_1(&cospi32, &x2, &cospi32, &x3, &rnding, bit);
 
   // stage 3
-  // Stage 3
   addsub_sse4_1(s0, s2, &x0, &x2, &clamp_lo, &clamp_hi);
-  addsub_sse4_1(s1, v2, out + 1, out + 2, &clamp_lo, &clamp_hi);
-
-  x0 = _mm_add_epi32(s0, s2);
-  x1 = _mm_add_epi32(s1, s3);
-  x2 = _mm_sub_epi32(s0, s2);
-  x3 = _mm_sub_epi32(s1, s3);
+  addsub_sse4_1(s1, s3, &x1, &x3, &clamp_lo, &clamp_hi);
 
   // stage 4
   s0 = half_btf_sse4_1(&cospi8, &x0, &cospi56, &x1, &rnding, bit);
