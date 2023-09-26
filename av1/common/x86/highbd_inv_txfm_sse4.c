@@ -5960,9 +5960,9 @@ void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
   const TX_SIZE tx_size = txfm_param->tx_size;
   switch (tx_size) {
-    case TX_8X8:
-      av1_highbd_inv_txfm_add_8x8_sse4_1(input, dest, stride, txfm_param);
-      break;
+    //case TX_8X8:
+      //av1_highbd_inv_txfm_add_8x8_sse4_1(input, dest, stride, txfm_param);
+      //break;
     case TX_4X8:
       av1_highbd_inv_txfm_add_4x8_sse4_1(input, dest, stride, txfm_param);
       break;
