@@ -99,10 +99,13 @@ static INLINE __m128i highbd_get_recon_8x8_sse4_1(const __m128i pred,
 static INLINE __m128i highbd_get_recon_4xn_sse4_1(const __m128i pred,
                                                   __m128i res0, const int bd) {
   __m128i x0 = _mm_cvtepi16_epi32(pred);
+  __m128i min_clip_val = _mm_setzero_si128();
+  __m128i max_clip_val = _mm_set1_epi32((1 << bd) - 1);
 
   x0 = _mm_add_epi32(res0, x0);
+  x0 = _mm_max_epi32(x0, min_clip_val);
+  x0 = _mm_min_epi32(x0, max_clip_val);
   x0 = _mm_packus_epi32(x0, x0);
-  x0 = highbd_clamp_epi16(x0, bd);
   return x0;
 }
 
