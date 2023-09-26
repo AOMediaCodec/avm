@@ -1006,7 +1006,9 @@ static void iadst8x8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                             int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8);
+                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8, 2);
+  iadst_matrix_mult_sse4(in + 1, out + 1, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8, 2);
 }
 #else
 static void iadst8x8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
@@ -1674,7 +1676,7 @@ static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                                  int do_cols, int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, 1);
+                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, 1, 1);
 }
 #else
 static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -1771,7 +1773,7 @@ static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                                 int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8);
+                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8, 1);
 }
 #else
 static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
@@ -2142,7 +2144,7 @@ static void idct16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
 #if CONFIG_ADST_TUNED
 void iadst_matrix_mult_sse4(__m128i *in, __m128i *out, int bit, int do_cols,
                             int bd, int out_shift, const int32_t *kernel,
-                            int kernel_size, int num_cols) {
+                            int kernel_size, int num_cols, int col_stride) {
   const __m128i zero = _mm_setzero_si128();
   const __m128i rnding = _mm_set1_epi32(1 << (bit - 1));
   int log_range = AOMMAX(16, bd + (do_cols ? 6 : 8));
@@ -2156,7 +2158,7 @@ void iadst_matrix_mult_sse4(__m128i *in, __m128i *out, int bit, int do_cols,
     __m128i t;
     for (int j = 0; j < num_cols; ++j) {
       const __m128i coef = _mm_set1_epi32(kernel[row_idx + j]);
-      t = _mm_mullo_epi32(in[j], coef);
+      t = _mm_mullo_epi32(in[j * col_stride], coef);
       sum = _mm_add_epi32(sum, t);
     }
     sum = _mm_add_epi32(sum, rnding);
@@ -2180,7 +2182,7 @@ void iadst_matrix_mult_sse4(__m128i *in, __m128i *out, int bit, int do_cols,
 
   for (int i = 0; i < kernel_size; ++i) {
     x[i] = _mm_max_epi32(x[i], clamp_lo);
-    out[i] = _mm_min_epi32(x[i], clamp_hi);
+    out[i * col_stride] = _mm_min_epi32(x[i], clamp_hi);
   }
 }
 
@@ -2188,7 +2190,7 @@ static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                                    int do_cols, int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 1);
+                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 1, 1);
 }
 #else
 static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -2369,7 +2371,7 @@ static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
                                    int do_cols, int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 8);
+                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 8, 1);
 }
 #else
 static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -2877,7 +2879,7 @@ static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, TXFM_SIZE16);
+                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, TXFM_SIZE16, 1);
 }
 #else
 static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
