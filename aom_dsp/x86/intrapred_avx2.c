@@ -276,6 +276,57 @@ static INLINE void highbd_transpose16x16_avx2(__m256i *x, __m256i *d) {
   }
 }
 
+static AOM_FORCE_INLINE void highbd_transpose16x4_8x8_avx2(__m128i *dstvec,
+                                                           __m256i *d) {
+  // r0 = 00 10 01 11 02 12 03 13
+  const __m128i r0 = _mm_unpacklo_epi16(dstvec[0], dstvec[1]);
+  // r1 = 20 30 21 31 22 32 23 33
+  const __m128i r1 = _mm_unpacklo_epi16(dstvec[2], dstvec[3]);
+  // r2 = 40 50 41 51 42 52 43 53
+  const __m128i r2 = _mm_unpacklo_epi16(dstvec[4], dstvec[5]);
+  // r3 = 60 70 61 71 62 72 63 73
+  const __m128i r3 = _mm_unpacklo_epi16(dstvec[6], dstvec[7]);
+  // r4 = 80 90 81 91 82 92 83 93
+  const __m128i r4 = _mm_unpacklo_epi16(dstvec[8], dstvec[9]);
+  // r5 = 100 110 101 111 102 112 103 113
+  const __m128i r5 = _mm_unpacklo_epi16(dstvec[10], dstvec[11]);
+  // r6 = 120 130 121 131 122 132 123 133
+  const __m128i r6 = _mm_unpacklo_epi16(dstvec[12], dstvec[13]);
+  // r7 = 140 150 141 151 142 152 143 153
+  const __m128i r7 = _mm_unpacklo_epi16(dstvec[14], dstvec[15]);
+
+  // 00 10 01 11 02 12 03 13 | 80 90 81 91 82 92 83 93
+  const __m256i dstvec256_0 =
+      _mm256_insertf128_si256(_mm256_castsi128_si256(r0), r4, 0x1);
+  // 20 30 21 31 22 32 23 33 | 100 110 101 111 102 112 103 113
+  const __m256i dstvec256_1 =
+      _mm256_insertf128_si256(_mm256_castsi128_si256(r1), r5, 0x1);
+  // 40 50 41 51 42 52 43 53 | 120 130 121 131 122 132 123 133
+  const __m256i dstvec256_2 =
+      _mm256_insertf128_si256(_mm256_castsi128_si256(r2), r6, 0x1);
+  // 60 70 61 71 62 72 63 73 | 140 150 141 151 142 152 143 153
+  const __m256i dstvec256_3 =
+      _mm256_insertf128_si256(_mm256_castsi128_si256(r3), r7, 0x1);
+
+  // 00 10 20 30 01 11 21 31 | 80 90 100 110 81 91 101 111
+  const __m256i r8 = _mm256_unpacklo_epi32(dstvec256_0, dstvec256_1);
+  // 02 12 22 32 03 13 23 33 | 82 92 102 112 83 93 103 113
+  const __m256i r9 = _mm256_unpackhi_epi32(dstvec256_0, dstvec256_1);
+  // 40 50 60 70 41 51 61 71 | 120 130 140 150 121 131 141 151
+  const __m256i r10 = _mm256_unpacklo_epi32(dstvec256_2, dstvec256_3);
+  // 42 52 62 72 43 53 63 73 | 122 132 142 152 123 133 143 153
+  const __m256i r11 = _mm256_unpackhi_epi32(dstvec256_2, dstvec256_3);
+
+  // 00 10 20 30 40 50 60 70 | 80 90 100 110 120 130 140 150
+  d[0] = _mm256_unpacklo_epi64(r8, r10);
+  // 01 11 21 31 41 51 61 71 | 81 91 101 111 121 131 141 151
+  d[1] = _mm256_unpackhi_epi64(r8, r10);
+  // 02 12 22 32 42 52 62 72 | 82 92 102 112 122 132 142 152
+  d[2] = _mm256_unpacklo_epi64(r9, r11);
+  // 03 13 23 33 43 53 63 73 | 83 93 103 113 123 133 143 153
+  d[3] = _mm256_unpackhi_epi64(r9, r11);
+}
+
 #define PERM4x64(c0, c1, c2, c3) c0 + (c1 << 2) + (c2 << 4) + (c3 << 6)
 #define PERM2x128(c0, c1) c0 + (c1 << 4)
 
@@ -4651,7 +4702,8 @@ static void highbd_dr_prediction_z3_16x8_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
                                                    const uint16_t *left, int dy,
                                                    int bd, int mrl_index) {
-  __m128i dstvec[16], d[16];
+  __m128i dstvec[16];
+  __m256i dstvec256[8], d256[8];
   if (bd < 10) {
     highbd_dr_prediction_z1_8xN_internal_idif_avx2(16, dstvec, left, dy,
                                                    mrl_index, bd);
@@ -4659,16 +4711,19 @@ static void highbd_dr_prediction_z3_16x8_idif_avx2(uint16_t *dst,
     highbd_dr_prediction_32bit_z1_8xN_internal_idif_avx2(16, dstvec, left, dy,
                                                          mrl_index, bd);
   }
-  for (int i = 0; i < 16; i += 8) {
-    highbd_transpose8x8_sse2(&dstvec[0 + i], &dstvec[1 + i], &dstvec[2 + i],
-                             &dstvec[3 + i], &dstvec[4 + i], &dstvec[5 + i],
-                             &dstvec[6 + i], &dstvec[7 + i], &d[0 + i],
-                             &d[1 + i], &d[2 + i], &d[3 + i], &d[4 + i],
-                             &d[5 + i], &d[6 + i], &d[7 + i]);
-  }
+
   for (int i = 0; i < 8; i++) {
-    _mm_storeu_si128((__m128i *)(dst + i * stride), d[i]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 8), d[i + 8]);
+    dstvec256[i] = _mm256_insertf128_si256(
+        _mm256_castsi128_si256(dstvec[i + 0]), dstvec[i + 8], 0x1);
+  }
+
+  highbd_transpose8x16_16x8_avx2(
+      &dstvec256[0], &dstvec256[1], &dstvec256[2], &dstvec256[3], &dstvec256[4],
+      &dstvec256[5], &dstvec256[6], &dstvec256[7], &d256[0], &d256[1], &d256[2],
+      &d256[3], &d256[4], &d256[5], &d256[6], &d256[7]);
+
+  for (int i = 0; i < 8; i++) {
+    _mm256_storeu_si256((__m256i *)(dst + i * stride), d256[i]);
   }
 }
 
@@ -4703,7 +4758,8 @@ static void highbd_dr_prediction_z3_64x8_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
                                                    const uint16_t *left, int dy,
                                                    int bd, int mrl_index) {
-  __m128i dstvec[64], d[64];
+  __m128i dstvec[64];
+  __m256i dstvec256[32], d256[32];
   if (bd < 10) {
     highbd_dr_prediction_z1_8xN_internal_idif_avx2(64, dstvec, left, dy,
                                                    mrl_index, bd);
@@ -4711,22 +4767,31 @@ static void highbd_dr_prediction_z3_64x8_idif_avx2(uint16_t *dst,
     highbd_dr_prediction_32bit_z1_8xN_internal_idif_avx2(64, dstvec, left, dy,
                                                          mrl_index, bd);
   }
-  for (int i = 0; i < 64; i += 8) {
-    highbd_transpose8x8_sse2(&dstvec[0 + i], &dstvec[1 + i], &dstvec[2 + i],
-                             &dstvec[3 + i], &dstvec[4 + i], &dstvec[5 + i],
-                             &dstvec[6 + i], &dstvec[7 + i], &d[0 + i],
-                             &d[1 + i], &d[2 + i], &d[3 + i], &d[4 + i],
-                             &d[5 + i], &d[6 + i], &d[7 + i]);
+
+  for (int i = 0; i < 8; i++) {
+    dstvec256[i] = _mm256_insertf128_si256(
+        _mm256_castsi128_si256(dstvec[i + 0]), dstvec[i + 8], 0x1);
+    dstvec256[i + 8] = _mm256_insertf128_si256(
+        _mm256_castsi128_si256(dstvec[i + 16]), dstvec[i + 24], 0x1);
+    dstvec256[i + 16] = _mm256_insertf128_si256(
+        _mm256_castsi128_si256(dstvec[i + 32]), dstvec[i + 40], 0x1);
+    dstvec256[i + 24] = _mm256_insertf128_si256(
+        _mm256_castsi128_si256(dstvec[i + 48]), dstvec[i + 56], 0x1);
+  }
+
+  for (int i = 0; i < 32; i += 8) {
+    highbd_transpose8x16_16x8_avx2(
+        &dstvec256[i + 0], &dstvec256[i + 1], &dstvec256[i + 2],
+        &dstvec256[i + 3], &dstvec256[i + 4], &dstvec256[i + 5],
+        &dstvec256[i + 6], &dstvec256[i + 7], &d256[i + 0], &d256[i + 1],
+        &d256[i + 2], &d256[i + 3], &d256[i + 4], &d256[i + 5], &d256[i + 6],
+        &d256[i + 7]);
   }
   for (int i = 0; i < 8; i++) {
-    _mm_storeu_si128((__m128i *)(dst + i * stride), d[i]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 8), d[i + 8]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 16), d[i + 16]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 24), d[i + 24]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 32), d[i + 32]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 40), d[i + 40]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 48), d[i + 48]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 56), d[i + 56]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride), d256[i]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride + 16), d256[i + 8]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride + 32), d256[i + 16]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride + 48), d256[i + 24]);
   }
 }
 
@@ -4734,7 +4799,8 @@ static void highbd_dr_prediction_z3_64x4_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
                                                    const uint16_t *left, int dy,
                                                    int bd, int mrl_index) {
-  __m128i dstvec[64], d[32];
+  __m128i dstvec[64];
+  __m256i d[16];
   if (bd < 10) {
     highbd_dr_prediction_z1_4xN_internal_idif_avx2(64, dstvec, left, dy,
                                                    mrl_index, bd);
@@ -4742,20 +4808,17 @@ static void highbd_dr_prediction_z3_64x4_idif_avx2(uint16_t *dst,
     highbd_dr_prediction_32bit_z1_4xN_internal_idif_avx2(64, dstvec, left, dy,
                                                          mrl_index, bd);
   }
-  highbd_transpose16x4_8x8_sse2(dstvec, d);
-  highbd_transpose16x4_8x8_sse2(dstvec + 16, d + 8);
-  highbd_transpose16x4_8x8_sse2(dstvec + 32, d + 16);
-  highbd_transpose16x4_8x8_sse2(dstvec + 48, d + 24);
+
+  highbd_transpose16x4_8x8_avx2(dstvec, d);
+  highbd_transpose16x4_8x8_avx2(dstvec + 16, d + 4);
+  highbd_transpose16x4_8x8_avx2(dstvec + 32, d + 8);
+  highbd_transpose16x4_8x8_avx2(dstvec + 48, d + 12);
 
   for (int i = 0; i < 4; i++) {
-    _mm_storeu_si128((__m128i *)(dst + i * stride), d[2 * i]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 8), d[2 * i + 1]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 16), d[2 * i + 8]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 24), d[2 * i + 9]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 32), d[2 * i + 16]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 40), d[2 * i + 17]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 48), d[2 * i + 24]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 56), d[2 * i + 25]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride), d[i]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride + 16), d[i + 4]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride + 32), d[i + 8]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride + 48), d[i + 12]);
   }
 }
 
@@ -4855,7 +4918,8 @@ static void highbd_dr_prediction_z3_32x4_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
                                                    const uint16_t *left, int dy,
                                                    int bd, int mrl_index) {
-  __m128i dstvec[32], d[16];
+  __m128i dstvec[32];
+  __m256i d[8];
   if (bd < 10) {
     highbd_dr_prediction_z1_4xN_internal_idif_avx2(32, dstvec, left, dy,
                                                    mrl_index, bd);
@@ -4863,14 +4927,13 @@ static void highbd_dr_prediction_z3_32x4_idif_avx2(uint16_t *dst,
     highbd_dr_prediction_32bit_z1_4xN_internal_idif_avx2(32, dstvec, left, dy,
                                                          mrl_index, bd);
   }
-  highbd_transpose16x4_8x8_sse2(dstvec, d);
-  highbd_transpose16x4_8x8_sse2(dstvec + 16, d + 8);
+
+  highbd_transpose16x4_8x8_avx2(dstvec, d);
+  highbd_transpose16x4_8x8_avx2(dstvec + 16, d + 4);
 
   for (int i = 0; i < 4; i++) {
-    _mm_storeu_si128((__m128i *)(dst + i * stride), d[2 * i]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 8), d[2 * i + 1]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 16), d[2 * i + 8]);
-    _mm_storeu_si128((__m128i *)(dst + i * stride + 24), d[2 * i + 9]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride), d[i]);
+    _mm256_storeu_si256((__m256i *)(dst + i * stride + 16), d[i + 4]);
   }
 }
 
@@ -4878,7 +4941,8 @@ static void highbd_dr_prediction_z3_16x4_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
                                                    const uint16_t *left, int dy,
                                                    int bd, int mrl_index) {
-  __m128i dstvec[16], d[8];
+  __m128i dstvec[16];
+  __m256i d[4];
   if (bd < 10) {
     highbd_dr_prediction_z1_4xN_internal_idif_avx2(16, dstvec, left, dy,
                                                    mrl_index, bd);
@@ -4886,16 +4950,12 @@ static void highbd_dr_prediction_z3_16x4_idif_avx2(uint16_t *dst,
     highbd_dr_prediction_32bit_z1_4xN_internal_idif_avx2(16, dstvec, left, dy,
                                                          mrl_index, bd);
   }
-  highbd_transpose16x4_8x8_sse2(dstvec, d);
 
-  _mm_storeu_si128((__m128i *)(dst + 0 * stride), d[0]);
-  _mm_storeu_si128((__m128i *)(dst + 0 * stride + 8), d[1]);
-  _mm_storeu_si128((__m128i *)(dst + 1 * stride), d[2]);
-  _mm_storeu_si128((__m128i *)(dst + 1 * stride + 8), d[3]);
-  _mm_storeu_si128((__m128i *)(dst + 2 * stride), d[4]);
-  _mm_storeu_si128((__m128i *)(dst + 2 * stride + 8), d[5]);
-  _mm_storeu_si128((__m128i *)(dst + 3 * stride), d[6]);
-  _mm_storeu_si128((__m128i *)(dst + 3 * stride + 8), d[7]);
+  highbd_transpose16x4_8x8_avx2(dstvec, d);
+
+  for (int i = 0; i < 4; i++) {
+    _mm256_storeu_si256((__m256i *)(dst + i * stride), d[i]);
+  }
 }
 
 static void highbd_dr_prediction_z3_8x32_idif_avx2(uint16_t *dst,
