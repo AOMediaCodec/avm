@@ -15,6 +15,7 @@
 #include "config/aom_dsp_rtcd.h"
 #include "aom_dsp/x86/intrapred_x86.h"
 #include "aom_dsp/x86/lpf_common_sse2.h"
+#include "aom_dsp/x86/synonyms.h"
 #if CONFIG_IDIF
 #include "av1/common/reconintra.h"
 #endif  // CONFIG_IDIF
@@ -2754,15 +2755,12 @@ static void highbd_dr_prediction_z3_4x64_avx2(uint16_t *dst, ptrdiff_t stride,
   // {0, 4, 8, 12}, {1, 5, 9, 13}, ...
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
-      int64_t temp_0 = _mm256_extract_epi64(d[4 * i + j], 0);
-      int64_t temp_1 = _mm256_extract_epi64(d[4 * i + j], 1);
-      int64_t temp_2 = _mm256_extract_epi64(d[4 * i + j], 2);
-      int64_t temp_3 = _mm256_extract_epi64(d[4 * i + j], 3);
-
-      *(int64_t *)(dst + (16 * i + j) * stride) = temp_0;
-      *(int64_t *)(dst + (16 * i + j + 4) * stride) = temp_1;
-      *(int64_t *)(dst + (16 * i + j + 8) * stride) = temp_2;
-      *(int64_t *)(dst + (16 * i + j + 12) * stride) = temp_3;
+      const __m128i temph = _mm256_extracti128_si256(d[4 * i + j], 1);
+      const __m128i templ = _mm256_castsi256_si128(d[4 * i + j]);
+      xx_storel_64(dst + (16 * i + j) * stride, templ);
+      xx_storel_64(dst + (16 * i + j + 4) * stride, _mm_srli_si128(templ, 8));
+      xx_storel_64(dst + (16 * i + j + 8) * stride, temph);
+      xx_storel_64(dst + (16 * i + j + 12) * stride, _mm_srli_si128(temph, 8));
     }
   }
 }
@@ -4782,15 +4780,12 @@ static void highbd_dr_prediction_z3_4x64_idif_avx2(uint16_t *dst,
 
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
-      int64_t temp_0 = _mm256_extract_epi64(d[4 * i + j], 0);
-      int64_t temp_1 = _mm256_extract_epi64(d[4 * i + j], 1);
-      int64_t temp_2 = _mm256_extract_epi64(d[4 * i + j], 2);
-      int64_t temp_3 = _mm256_extract_epi64(d[4 * i + j], 3);
-
-      *(int64_t *)(dst + (16 * i + j) * stride) = temp_0;
-      *(int64_t *)(dst + (16 * i + j + 4) * stride) = temp_1;
-      *(int64_t *)(dst + (16 * i + j + 8) * stride) = temp_2;
-      *(int64_t *)(dst + (16 * i + j + 12) * stride) = temp_3;
+      const __m128i temph = _mm256_extracti128_si256(d[4 * i + j], 1);
+      const __m128i templ = _mm256_castsi256_si128(d[4 * i + j]);
+      xx_storel_64(dst + (16 * i + j) * stride, templ);
+      xx_storel_64(dst + (16 * i + j + 4) * stride, _mm_srli_si128(templ, 8));
+      xx_storel_64(dst + (16 * i + j + 8) * stride, temph);
+      xx_storel_64(dst + (16 * i + j + 12) * stride, _mm_srli_si128(temph, 8));
     }
   }
 }
