@@ -53,6 +53,7 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 #if CONFIG_FLEX_PARTITION
     // CfL is available to luma partitions lesser than or equal to 32x32.
     const BLOCK_SIZE bsize = mbmi->sb_type[0];
+    assert(bsize < BLOCK_SIZES_ALL);
     return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= 32 &&
                               block_size_high[bsize] <= 32);
 #else
