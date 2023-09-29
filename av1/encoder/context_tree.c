@@ -155,8 +155,7 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
     const int num_blk_plane =
         (i == 0) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
 #else
-    const int num_blk_plane =
-        ctx->num_4x4_blk
+    const int num_blk_plane = ctx->num_4x4_blk;
 #endif  // CONFIG_FLEX_PARTITION
     AOM_CHECK_MEM_ERROR(
         &error, ctx->eobs[i],
