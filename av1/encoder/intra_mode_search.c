@@ -759,7 +759,8 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     if (this_rd < best_rd) {
       best_mbmi = *mbmi;
-      av1_copy_array(ctx->cctx_type_map, xd->cctx_type_map, ctx->num_4x4_blk);
+      av1_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
+                     ctx->num_4x4_blk_chroma);
       best_rd = this_rd;
       *rate = this_rate;
       *rate_tokenonly = tokenonly_rd_stats.rate;
@@ -799,7 +800,8 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
   *mbmi = best_mbmi;
-  av1_copy_array(xd->cctx_type_map, ctx->cctx_type_map, ctx->num_4x4_blk);
+  av1_copy_array(xd->cctx_type_map, ctx->cctx_type_map,
+                 ctx->num_4x4_blk_chroma);
   // Make sure we actually chose a mode
   assert(best_rd < INT64_MAX);
   return best_rd;

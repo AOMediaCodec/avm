@@ -42,7 +42,7 @@ void av1_copy_tree_context(PICK_MODE_CONTEXT *dst_ctx,
   av1_copy_array(dst_ctx->tx_type_map, src_ctx->tx_type_map,
                  src_ctx->num_4x4_blk);
   av1_copy_array(dst_ctx->cctx_type_map, src_ctx->cctx_type_map,
-                 src_ctx->num_4x4_blk);
+                 src_ctx->num_4x4_blk_chroma);
 
   dst_ctx->hybrid_pred_diff = src_ctx->hybrid_pred_diff;
   dst_ctx->comp_pred_diff = src_ctx->comp_pred_diff;
@@ -128,6 +128,8 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
   // least 64 pixels.
   const int num_pix_chroma = num_pix;
 #endif  // CONFIG_FLEX_PARTITION
+  ctx->num_4x4_blk = num_blk;
+  ctx->num_4x4_blk_chroma = num_pix_chroma / 16;
 
   AOM_CHECK_MEM_ERROR(&error, ctx->blk_skip,
                       aom_calloc(num_blk, sizeof(*ctx->blk_skip)));
@@ -138,10 +140,9 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
     ctx->submic = malloc(num_blk * sizeof(*ctx->submic));
   }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-  AOM_CHECK_MEM_ERROR(&error, ctx->cctx_type_map,
-                      aom_calloc(num_blk, sizeof(*ctx->cctx_type_map)));
-  ctx->num_4x4_blk = num_blk;
-  ctx->num_4x4_blk_chroma = num_pix_chroma / 16;
+  AOM_CHECK_MEM_ERROR(
+      &error, ctx->cctx_type_map,
+      aom_calloc(ctx->num_4x4_blk_chroma, sizeof(*ctx->cctx_type_map)));
 
   for (int i = 0; i < num_planes; ++i) {
     ctx->coeff[i] = shared_bufs->coeff_buf[i];

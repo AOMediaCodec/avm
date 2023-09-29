@@ -3011,7 +3011,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   if (xd->tree_type == SHARED_PART)
     assert(mbmi->sb_type[PLANE_TYPE_Y] == mbmi->sb_type[PLANE_TYPE_UV]);
   assert(bsize <= cm->sb_size ||
-         (bsize >= BLOCK_SIZES && bsize < BLOCK_SIZES_ALL));
+         (bsize > BLOCK_LARGEST && bsize < BLOCK_SIZES_ALL));
 
   const int bh = mi_size_high[bsize];
   const int bw = mi_size_wide[bsize];
@@ -3160,6 +3160,9 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(
           &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
+#if CONFIG_CB1TO4_SPLIT
+          ptree->parent ? ptree->parent->bsize : BLOCK_INVALID,
+#endif  // CONFIG_CB1TO4_SPLIT
           ptree_luma, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     assert(p == derived_partition);

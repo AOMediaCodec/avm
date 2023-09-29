@@ -124,8 +124,20 @@ typedef struct PartitionBlkParams {
   int has_7_8th_rows;
   int has_7_8th_cols;
 
+#if CONFIG_CB1TO4_SPLIT
+  // Indicates if at least 3/4th of the rows / cols of this block are within the
+  // frame. Used by HORZ/VERT_3 partitions.
+  int has_3_4th_rows;
+  int has_3_4th_cols;
+#endif  // CONFIG_CB1TO4_SPLIT
+
   // Block size of current partition.
   BLOCK_SIZE bsize;
+
+#if CONFIG_CB1TO4_SPLIT
+  // Block size of parent partition.
+  BLOCK_SIZE parent_bsize;
+#endif  // CONFIG_CB1TO4_SPLIT
 
   // Size of current sub-partition.
   BLOCK_SIZE subsize;

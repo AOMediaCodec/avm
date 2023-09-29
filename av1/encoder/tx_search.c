@@ -560,7 +560,10 @@ static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
   const int n4 = bsize_to_num_blk(bsize);
   const TX_SIZE tx_size = max_txsize_rect_lookup[bsize];
   memset(xd->tx_type_map, DCT_DCT, sizeof(xd->tx_type_map[0]) * n4);
-  memset(xd->cctx_type_map, CCTX_NONE, sizeof(xd->cctx_type_map[0]) * n4);
+  const int num_4x4_blk_chroma =
+      (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2);
+  memset(xd->cctx_type_map, CCTX_NONE,
+         sizeof(xd->cctx_type_map[0]) * num_4x4_blk_chroma);
   memset(mbmi->inter_tx_size, tx_size, sizeof(mbmi->inter_tx_size));
 #if CONFIG_NEW_TX_PARTITION
   memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
@@ -4709,8 +4712,10 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
     return;
   }
 
-  const int n4 = bsize_to_num_blk(bs);
-  memset(xd->cctx_type_map, CCTX_NONE, sizeof(xd->cctx_type_map[0]) * n4);
+  const int num_4x4_blk_chroma =
+      (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2);
+  memset(xd->cctx_type_map, CCTX_NONE,
+         sizeof(xd->cctx_type_map[0]) * num_4x4_blk_chroma);
 
   if (xd->lossless[mbmi->segment_id]) {
     // Lossless mode can only pick the smallest (4x4) transform size.

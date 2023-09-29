@@ -2538,7 +2538,10 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
   const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
   const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
 
-  return (left * 2 + above) + bsize * PARTITION_PLOFFSET;
+  const int ctx = (left * 2 + above) + bsize * PARTITION_PLOFFSET;
+  assert(ctx >= 0);
+  assert(ctx < PARTITION_CONTEXTS);
+  return ctx;
 #else
   // Minimum partition point is 8x8. Offset the bsl accordingly.
   const int bsl = mi_size_wide_log2[bsize] - mi_size_wide_log2[BLOCK_8X8];
@@ -2913,9 +2916,17 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
 static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
     const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, int ss_x,
     int ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
+#if CONFIG_CB1TO4_SPLIT
+    BLOCK_SIZE parent_bsize,
+#endif  // CONFIG_CB1TO4_SPLIT
     const PARTITION_TREE *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info) {
   // Return NONE if this block size is not splittable
-  if (!is_partition_point(bsize)) {
+  if (!is_partition_point(bsize
+#if CONFIG_CB1TO4_SPLIT
+                          ,
+                          parent_bsize
+#endif  // CONFIG_CB1TO4_SPLIT
+                          )) {
     return PARTITION_NONE;
   }
 

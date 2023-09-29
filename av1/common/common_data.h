@@ -251,7 +251,7 @@ static const BLOCK_SIZE
 #if CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
-    BLOCK_4X4,     BLOCK_INVALID,                // 4,16
+    BLOCK_INVALID, BLOCK_INVALID,                // 4,16
     BLOCK_8X8,     BLOCK_INVALID,                // 8,32
 #if CONFIG_FLEX_PARTITION
     BLOCK_16X16,   BLOCK_64X4,                   // 16,64
@@ -279,7 +279,7 @@ static const BLOCK_SIZE
 #if CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
-    BLOCK_INVALID, BLOCK_4X4,                    // 4,16
+    BLOCK_INVALID, BLOCK_INVALID,                // 4,16
     BLOCK_INVALID, BLOCK_8X8,                    // 8,32
 #if CONFIG_FLEX_PARTITION
     BLOCK_4X64,    BLOCK_16X16,                  // 16,64
@@ -307,8 +307,8 @@ static const BLOCK_SIZE
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
-    BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
+    BLOCK_8X4,     BLOCK_INVALID,                // 8,32
+    BLOCK_16X8,    BLOCK_INVALID,                // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
@@ -330,8 +330,8 @@ static const BLOCK_SIZE
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
-    BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
+    BLOCK_8X4,     BLOCK_INVALID,                // 8,32
+    BLOCK_16X8,    BLOCK_INVALID,                // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
@@ -353,15 +353,15 @@ static const BLOCK_SIZE
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
-    BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
+    BLOCK_INVALID, BLOCK_4X8,                    // 8,32
+    BLOCK_INVALID, BLOCK_8X16,                   // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 64
 #endif  // CONFIG_FLEX_PARTITION
   }, {  // PARTITION_VERT_4B
-    BLOCK_INVALID,                               // 4
+     BLOCK_INVALID,                               // 4
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 8
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 16
 #if CONFIG_FLEX_PARTITION
@@ -376,8 +376,8 @@ static const BLOCK_SIZE
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
-    BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
+    BLOCK_INVALID, BLOCK_4X8,                    // 8,32
+    BLOCK_INVALID, BLOCK_8X16,                   // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
