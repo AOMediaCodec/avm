@@ -31,7 +31,12 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
   int plane_block_height = param->plane_height;
   int rows = param->rows;
   int cols = param->cols;
+#if CONFIG_PALETTE_D114_RESTRICT
+  const bool transverse_allowed = plane_block_width < 64 && plane_block_height < 64;
+  const int direction = transverse_allowed ? aom_read_symbol(r, param->direction_cdf, 2, ACCT_STR) : 0;
+#else
   const int direction = aom_read_symbol(r, param->direction_cdf, 2, ACCT_STR);
+#endif  // CONFIG_PALETTE_D114_RESTRICT
   const int ax1_limit = direction ? rows : cols;
   const int ax2_limit = direction ? cols : rows;
 
