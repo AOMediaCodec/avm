@@ -56,9 +56,15 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
   const int ax1_limit = direction ? rows : cols;
   const int ax2_limit = direction ? cols : rows;
   PaletteDirectionCost direction_cost = param->direction_cost;
+#if CONFIG_PALETTE_D114_RESTRICT
+  if (calc_rate && plane_block_width < 64 && plane_block_height < 64) {
+    this_rate += (*direction_cost)[direction];
+  }
+#else
   if (calc_rate) {
     this_rate += (*direction_cost)[direction];
   }
+#endif  // CONFIG_PALETTE_D114_RESTRICT
   for (int ax2 = 0; ax2 < ax2_limit; ax2++) {
     int line_copy_flag = 0;
     if (ax2 > 0) {
@@ -417,6 +423,12 @@ int av1_cost_color_map(const MACROBLOCK *const x, int plane, BLOCK_SIZE bsize,
   int dir1 = cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
                                    map_pb_cdf, eq_row_pb_cdf,
                                    palette_direction_pb_cdf, 1);
+#if CONFIG_PALETTE_D114_RESTRICT
+  if (color_map_params.plane_width >= 64 ||
+      color_map_params.plane_height >= 64) {
+    return dir0;
+  }
+#endif  // CONFIG_PALETTE_D114_RESTRICT
   return AOMMIN(dir0, dir1);
 #else 
     return cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0, NULL,
@@ -450,7 +462,17 @@ void av1_tokenize_color_map(const MACROBLOCK *const x, int plane,
   int cost_dir1 = cost_and_tokenize_map(&color_map_params, NULL, plane, 1, 0,
                                         NULL, map_pb_cdf, eq_row_pb_cdf,
                                         palette_direction_pb_cdf, 1);
+#if CONFIG_PALETTE_D114_RESTRICT
+  int direction;
+  if (color_map_params.plane_width >= 64 ||
+      color_map_params.plane_height >= 64) {
+    return direction = 0;
+  } else {
+    direction = (cost_dir0 < cost_dir1) ? 0 : 1;
+  }
+#else
   int direction = (cost_dir0 < cost_dir1) ? 0 : 1;
+#endif  // CONFIG_PALETTE_D114_RESTRICT
 #endif  // CONFIG_PALETTE_TRANSVERSE
   cost_and_tokenize_map(&color_map_params, t, plane, 0, allow_update_cdf,
                         counts, map_pb_cdf, eq_row_pb_cdf
