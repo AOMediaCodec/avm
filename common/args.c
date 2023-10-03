@@ -174,6 +174,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_reduced_reference_set);
     GET_PARAMS(reduced_tx_type_set);
     GET_PARAMS(max_drl_refmvs);
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+    GET_PARAMS(max_drl_refbvs);
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_REF_MV_BANK
     GET_PARAMS(enable_refmvbank);
 #endif  // CONFIG_REF_MV_BANK

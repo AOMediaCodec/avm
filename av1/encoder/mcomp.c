@@ -2929,6 +2929,9 @@ int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx,
 }
 
 int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                             int max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
                              MACROBLOCK *x,
                              FULLPEL_MOTION_SEARCH_PARAMS fullms_params,
                              int ref_bv_cnt) {
@@ -2936,7 +2939,11 @@ int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
   int ref_bv_cost = 0;
   ref_bv_cost += x->mode_costs.intrabc_mode_cost[intrabc_mode];
   ref_bv_cost +=
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+      av1_get_intrabc_drl_idx_cost(max_bvp_drl_bits + 1, intrabc_drl_idx, x);
+#else
       av1_get_intrabc_drl_idx_cost(MAX_REF_BV_STACK_SIZE, intrabc_drl_idx, x);
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_FLEX_MVRES
   ref_bv_cost = (int)ROUND_POWER_OF_TWO_64(
       (int64_t)ref_bv_cost * fullms_params.mv_cost_params.mv_costs->errorperbit,
@@ -2950,6 +2957,9 @@ int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
 }
 
 int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                    int max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
                     const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params) {
   MACROBLOCK *x = fullms_params->x;
   const MACROBLOCKD *const xd = fullms_params->xd;
@@ -2965,7 +2975,11 @@ int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
 
   for (cur_intrabc_drl_idx = 0; cur_intrabc_drl_idx < ref_bv_cnt;
        cur_intrabc_drl_idx++) {
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+    if (cur_intrabc_drl_idx > max_bvp_drl_bits) break;
+#else
     if (cur_intrabc_drl_idx > MAX_REF_BV_STACK_SIZE - 1) break;
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
     cur_ref_bv = xd->ref_mv_stack[INTRA_FRAME][cur_intrabc_drl_idx].this_mv;
     get_default_ref_bv(&cur_ref_bv, fullms_params);
 
@@ -2987,8 +3001,11 @@ int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
 #endif
 
     cur_ref_bv_cost =
-        av1_get_ref_bv_rate_cost(0, cur_intrabc_drl_idx, x, ref_bv_ms_params,
-                                 ref_bv_cnt) +
+        av1_get_ref_bv_rate_cost(0, cur_intrabc_drl_idx,
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                                 max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                                 x, ref_bv_ms_params, ref_bv_cnt) +
         av1_get_mv_err_cost(&best_mv, &ref_bv_ms_params.mv_cost_params);
 
     if (cur_ref_bv_cost < best_ref_bv_cost) {
@@ -3084,7 +3101,11 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
 
       int cur_dist = refCost - av1_get_mv_err_cost(&cur_bv.as_mv,
                                                    &ms_params->mv_cost_params);
-      int cur_rate = av1_pick_ref_bv(&hash_mv, ms_params);
+      int cur_rate = av1_pick_ref_bv(&hash_mv,
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                                     cpi->common.features.max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                                     ms_params);
       if (cur_rate != INT_MAX) {
         cur_ref_bv.as_mv = mbmi->ref_bv.as_mv;
         cur_intrabc_drl_idx = mbmi->intrabc_drl_idx;

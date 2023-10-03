@@ -920,6 +920,9 @@ typedef struct {
   // Indicates if palette should be enabled.
   bool enable_palette;
   unsigned int max_drl_refmvs;
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+  unsigned int max_drl_refbvs;
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_REF_MV_BANK
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;

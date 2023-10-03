@@ -84,6 +84,9 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 
 #if CONFIG_IBC_SR_EXT
 static AOM_INLINE void write_intrabc_info(
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+    int max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
     MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     aom_writer *w);
 #endif  // CONFIG_IBC_SR_EXT
@@ -2150,7 +2153,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
 #if CONFIG_IBC_SR_EXT
   if (!is_inter && av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
-    write_intrabc_info(xd, mbmi_ext_frame, w);
+    write_intrabc_info(
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        cm->features.max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
 #endif  // CONFIG_IBC_SR_EXT
@@ -2550,6 +2557,9 @@ static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static AOM_INLINE void write_intrabc_info(
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+    int max_bvp_drl_bits,
+#endif  //  CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
     MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
     aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -2581,8 +2591,13 @@ static AOM_INLINE void write_intrabc_info(
 
 #if CONFIG_IBC_BV_IMPROVEMENT
     aom_write_symbol(w, mbmi->intrabc_mode, ec_ctx->intrabc_mode_cdf, 2);
-    write_intrabc_drl_idx(MAX_REF_BV_STACK_SIZE, ec_ctx, mbmi, mbmi_ext_frame,
-                          w);
+    write_intrabc_drl_idx(
+#if CONFIG_IBC_MAX_DRL
+        max_bvp_drl_bits + 1,
+#else
+        MAX_REF_BV_STACK_SIZE,
+#endif  // CONFIG_IBC_MAX_DRL
+        ec_ctx, mbmi, mbmi_ext_frame, w);
 
     if (!mbmi->intrabc_mode)
       av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
@@ -2642,7 +2657,11 @@ static AOM_INLINE void write_mb_modes_kf(
   write_delta_q_params(cpi, skip, w);
 
   if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
-    write_intrabc_info(xd, mbmi_ext_frame, w);
+    write_intrabc_info(
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        cm->features.max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
 
@@ -5452,9 +5471,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_bit(wb, features->allow_local_intrabc);
       }
 #if CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_MAX_DRL
+      aom_wb_write_primitive_quniform(
+          wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+          features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+#else
       aom_wb_write_primitive_quniform(
           wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
           features->max_drl_bits - MIN_MAX_DRL_BITS);
+#endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
@@ -5471,9 +5496,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_wb_write_bit(wb, features->allow_local_intrabc);
         }
 #if CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_MAX_DRL
+        aom_wb_write_primitive_quniform(
+            wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+            features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+#else
         aom_wb_write_primitive_quniform(
             wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
             features->max_drl_bits - MIN_MAX_DRL_BITS);
+#endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
@@ -5570,7 +5601,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_primitive_quniform(
             wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
             features->max_drl_bits - MIN_MAX_DRL_BITS);
-
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        if (features->allow_intrabc) {
+          aom_wb_write_primitive_quniform(
+              wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+              features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+        }
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_FLEX_MVRES
         if (!features->cur_frame_force_integer_mv) {
           aom_wb_write_bit(wb,

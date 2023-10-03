@@ -469,6 +469,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_frame_output_order,
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   &g_av1_codec_arg_defs.max_drl_refmvs,
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+  &g_av1_codec_arg_defs.max_drl_refbvs,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_REF_MV_BANK
   &g_av1_codec_arg_defs.enable_refmvbank,
 #endif  // CONFIG_REF_MV_BANK
@@ -1518,6 +1521,9 @@ static void show_stream_config(struct stream_state *stream,
 
   fprintf(stdout, "Tool setting (Ref MVs)         :");
   fprintf(stdout, " max-drl-refmvs (%d)", encoder_cfg->max_drl_refmvs);
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+  fprintf(stdout, " max-drl-refbvs (%d)", encoder_cfg->max_drl_refbvs);
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_REF_MV_BANK
   fprintf(stdout, " , Refmv Bank (%d)", encoder_cfg->enable_refmvbank);
 #endif  // CONFIG_REF_MV_BANK

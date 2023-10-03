@@ -6339,7 +6339,11 @@ int rd_pick_ref_bv(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     for (intrabc_drl_idx = 0;
          intrabc_drl_idx < mbmi_ext->ref_mv_count[INTRA_FRAME];
          intrabc_drl_idx++) {
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+      if (intrabc_drl_idx > cm->features.max_bvp_drl_bits) break;
+#else
       if (intrabc_drl_idx > MAX_REF_BV_STACK_SIZE - 1) break;
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
       cur_ref_bv = xd->ref_mv_stack[INTRA_FRAME][intrabc_drl_idx].this_mv;
 
       if (cur_ref_bv.as_int == 0 || cur_ref_bv.as_int == INVALID_MV) {
@@ -6367,9 +6371,12 @@ int rd_pick_ref_bv(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
         continue;
       }
 
-      cur_ref_bv_cost =
-          av1_get_ref_bv_rate_cost(1, intrabc_drl_idx, x, fullms_params,
-                                   mbmi_ext->ref_mv_count[INTRA_FRAME]);
+      cur_ref_bv_cost = av1_get_ref_bv_rate_cost(
+          1, intrabc_drl_idx,
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+          cm->features.max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+          x, fullms_params, mbmi_ext->ref_mv_count[INTRA_FRAME]);
       cur_cost = av1_get_ref_mvpred_var_cost(cpi, xd, &fullms_params);
 
       if (cur_cost != INT_MAX) cur_cost += cur_ref_bv_cost;
@@ -6731,7 +6738,11 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
           bestsme -
           av1_get_mv_err_cost(&cur_bv.as_mv, &fullms_params.mv_cost_params);
       assert(cur_dist >= 0);
-      int cur_rate = av1_pick_ref_bv(&best_mv.as_fullmv, &fullms_params);
+      int cur_rate = av1_pick_ref_bv(&best_mv.as_fullmv,
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                                     cm->features.max_bvp_drl_bits,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+                                     &fullms_params);
 
       if (cur_rate != INT_MAX) {
         cur_ref_bv_cost = cur_dist + cur_rate;
@@ -6874,8 +6885,13 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     int rate_mode = x->mode_costs.intrabc_cost[1];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
     rate_mode += x->mode_costs.intrabc_mode_cost[mbmi->intrabc_mode];
-    rate_mode += av1_get_intrabc_drl_idx_cost(MAX_REF_BV_STACK_SIZE,
-                                              mbmi->intrabc_drl_idx, x);
+    rate_mode += av1_get_intrabc_drl_idx_cost(
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        cm->features.max_bvp_drl_bits + 1,
+#else
+        MAX_REF_BV_STACK_SIZE,
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        mbmi->intrabc_drl_idx, x);
 #else
     // TODO(aconverse@google.com): The full motion field defining discount
     // in MV_COST_WEIGHT is too large. Explore other values.

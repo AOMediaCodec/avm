@@ -215,6 +215,8 @@ set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
 set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
 set_aom_config_var(CONFIG_IBC_BV_IMPROVEMENT 1
                    "Enables BV improvements for IBC")
+set_aom_config_var(CONFIG_IBC_MAX_DRL 1
+                   "Enables Max DRL index signaling for IntraBC")
 set_aom_config_var(CONFIG_CCSO_EXT 1
                    "AV2 experiment flag to enable extended CCSO.")
 set_aom_config_var(CONFIG_CFL_IMPROVEMENTS 1
