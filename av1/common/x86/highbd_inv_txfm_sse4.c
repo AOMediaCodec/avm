@@ -2879,7 +2879,8 @@ static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, TXFM_SIZE16, 1);
+                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, TXFM_SIZE16,
+                         1);
 }
 #else
 static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
