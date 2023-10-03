@@ -2156,12 +2156,14 @@ static void build_inter_predictors_sub8x8(
   // from luma blocks is 32X32. With the four way partition, we can get 4x32
   // block sizes. So we only need to track results for 8 mi units.
   // Row progress keeps track of which mi block in the row has been set.
-  uint8_t row_progress[8] = { 0 };
-  assert(plane_mi_height <= 8);
-  assert(plane_mi_width <= 8);
+#define MAX_MI_LUMA_SIZE_FOR_SUB_8 (32 >> MI_SIZE_LOG2)
+  uint8_t row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
+  assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == 8);
+  assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
+  assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
   for (int mi_row = 0; mi_row < plane_mi_height; mi_row++) {
     for (int mi_col = 0; mi_col < plane_mi_width; mi_col++) {
-      const uint8_t check_flag = 128 >> mi_col;
+      const uint8_t check_flag = 1 << (MAX_MI_LUMA_SIZE_FOR_SUB_8 - 1 - mi_col);
       if (row_progress[mi_row] & check_flag) {
         continue;
       }
@@ -2173,7 +2175,15 @@ static void build_inter_predictors_sub8x8(
       const int mi_width = mi_size_wide[bsize];
       const int mi_height = mi_size_high[bsize];
       // The flag here is a block of mi_width many 1s offset by the mi_col.
-      const uint8_t set_flag = ((255 << (8 - mi_width)) & 255) >> mi_col;
+      // For example, if the current mi_col is 2, and the mi_width is 2, then
+      // the flag will be 00110000. We or this with row_progress to update the
+      // blocks that have been coded.
+      // Note that because we are always coding in a causal order, we could
+      // technically simplify the bitwise operation, and use the flag 11110000
+      // in the above example instead. However, we are not taking this approach
+      // here to keep the logic simpler.
+      const uint8_t set_flag =
+          ((UINT8_MAX << (8 - mi_width)) & UINT8_MAX) >> mi_col;
       for (int mi_row_offset = 0; mi_row_offset < mi_height; mi_row_offset++) {
         row_progress[mi_row + mi_row_offset] |= set_flag;
       }
@@ -2220,6 +2230,7 @@ static void build_inter_predictors_sub8x8(
           mi_y + pixel_row, ref, mc_buf, calc_subpel_params_func);
     }
   }
+#undef MAX_MI_LUMA_SIZE_FOR_SUB_8
 }
 
 #if CONFIG_REFINEMV
