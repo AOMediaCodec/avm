@@ -2152,11 +2152,7 @@ static void build_inter_predictors_sub8x8(
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
   const int mi_stride = xd->mi_stride;
 
-  // The largest block size where we need to construct chroma blocks separately
-  // from luma blocks is 32X32. With the four way partition, we can get 4x32
-  // block sizes. So we only need to track results for 8 mi units.
   // Row progress keeps track of which mi block in the row has been set.
-#define MAX_MI_LUMA_SIZE_FOR_SUB_8 (32 >> MI_SIZE_LOG2)
   uint8_t row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
   assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == 8);
   assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
@@ -2230,7 +2226,6 @@ static void build_inter_predictors_sub8x8(
           mi_y + pixel_row, ref, mc_buf, calc_subpel_params_func);
     }
   }
-#undef MAX_MI_LUMA_SIZE_FOR_SUB_8
 }
 
 #if CONFIG_REFINEMV
