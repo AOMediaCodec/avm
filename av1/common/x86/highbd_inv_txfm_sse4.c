@@ -384,7 +384,7 @@ static void neg_shift_sse4_1(const __m128i in0, const __m128i in1,
   *out0 = a0;
   *out1 = a1;
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 static void idct4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                            int bd, int out_shift) {
@@ -641,7 +641,7 @@ static void iadst4x4_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
     highbd_clamp_epi32_sse4_1(out, out, &clamp_lo, &clamp_hi, 4);
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 static void write_buffer_4x4(__m128i *in, uint16_t *output, int stride,
                              int fliplr, int flipud, int shift, int bd) {
@@ -1331,7 +1331,7 @@ static void iadst8x8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                      &clamp_hi_out, out_shift);
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 static void iidentity8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                               int bd, int out_shift) {
@@ -1767,7 +1767,8 @@ static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                      out_shift);
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
+
 #if CONFIG_ADST_TUNED
 static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                                 int bd, int out_shift) {
@@ -1946,7 +1947,7 @@ static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                      out_shift);
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 static void idct16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                                   int do_cols, int bd, int out_shift) {
@@ -2364,7 +2365,7 @@ static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                      &clamp_hi_out, out_shift);
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 #if CONFIG_ADST_TUNED
 static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -2690,7 +2691,7 @@ static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
                      &clamp_hi_out, out_shift);
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 static void idct16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                              int bd, int out_shift) {
@@ -3259,7 +3260,8 @@ static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                      &clamp_hi_out, out_shift);
   }
 }
-#endif
+#endif  // CONFIG_ADST_TUNED
+
 static void iidentity16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                                int bd, int out_shift) {
   (void)bit;

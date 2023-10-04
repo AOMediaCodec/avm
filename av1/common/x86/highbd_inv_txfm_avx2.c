@@ -159,7 +159,7 @@ static void neg_shift_avx2(const __m256i in0, const __m256i in1, __m256i *out0,
   *out0 = a0;
   *out1 = a1;
 }
-#endif
+#endif  // !CONFIG_ADST_TUNED
 
 static void transpose_8x8_avx2(const __m256i *in, __m256i *out) {
   __m256i u0, u1, u2, u3, u4, u5, u6, u7;
@@ -2442,6 +2442,7 @@ static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
   }
 }
 #endif  // CONFIG_ADST_TUNED
+
 static void idct8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   const int32_t *cospi = cospi_arr(bit);
@@ -2735,6 +2736,7 @@ static void iadst8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
   }
 }
 #endif  // CONFIG_ADST_TUNED
+
 #if CONFIG_ADST_TUNED
 static void iadst8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                           int bd, int out_shift) {

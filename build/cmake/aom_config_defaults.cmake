@@ -140,7 +140,6 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 0
 set_aom_config_var(CONFIG_ATC 1 "AV2 enable adaptive transform coding.")
 set_aom_config_var(CONFIG_ATC_REDUCED_TXSET 1
                    "AV2 enable reduced transform set.")
-set_aom_config_var(CONFIG_ATC_NEWTXSETS 0 "AV2 enable new transform set.")
 set_aom_config_var(
   CONFIG_ATC_DCTX_ALIGNED 1
   "AV2 TX signaling restriction for DC blocks with EOB alignment.")

@@ -193,14 +193,7 @@ enum {
 #define IST_8x8_WIDTH 64
 #define IST_8x8_HEIGHT 32
 
-#if CONFIG_ATC_NEWTXSETS
-// TX sizes used for mode dependent TX sets
-#define MODE_DEPTX_TXSIZES 19
-#endif  // CONFIG_ATC_NEWTXSETS
-
 #if CONFIG_ADST_TUNED
-#define TXFM_SIZE_MAX 16
-#define STAGE_RANGE_MAX 30
 #define TXFM_SIZE8 8
 #define TXFM_KERNEL_SIZE8 64
 #define TXFM_SIZE16 16

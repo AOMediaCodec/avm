@@ -161,6 +161,9 @@ const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16] = {
   }
 };
 
+#define TXFM_SIZE_MAX 16
+#define STAGE_RANGE_MAX 30
+
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
                           const int32_t *kernel, int kernel_size, int8_t bit,
                           int8_t clamp) {

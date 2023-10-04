@@ -50,7 +50,7 @@ const TxfmFunc inv_txfm_func_ls[][txfm_type_num] = {
   { av1_idct16, av1_iadst16 }, { av1_idct32, NULL },
   { av1_idct64, NULL },
 };
-#endif
+#endif  // CONFIG_ADST_TUNED
 
 // the maximum stage number of fwd/inv 1d dct/adst txfm is 12
 const int8_t cos_bit = 13;
