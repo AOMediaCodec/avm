@@ -1237,7 +1237,7 @@ static void highbd_filter_intra_predictor(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
-static int is_smooth(const MB_MODE_INFO *mbmi, int plane) {
+static int is_smooth(const MB_MODE_INFO *mbmi, int plane, TREE_TYPE tree_type) {
   if (plane == 0) {
     const PREDICTION_MODE mode = mbmi->mode;
     return (mode == SMOOTH_PRED || mode == SMOOTH_V_PRED ||
@@ -1245,7 +1245,7 @@ static int is_smooth(const MB_MODE_INFO *mbmi, int plane) {
   } else {
     // uv_mode is not set for inter blocks, so need to explicitly
     // detect that case.
-    if (is_inter_block(mbmi, SHARED_PART)) return 0;
+    if (is_inter_block(mbmi, tree_type)) return 0;
 
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
     return (uv_mode == UV_SMOOTH_PRED || uv_mode == UV_SMOOTH_V_PRED ||
@@ -1259,13 +1259,13 @@ static int get_filt_type(const MACROBLOCKD *xd, int plane) {
   if (plane == 0) {
     const MB_MODE_INFO *ab = xd->above_mbmi;
     const MB_MODE_INFO *le = xd->left_mbmi;
-    ab_sm = ab ? is_smooth(ab, plane) : 0;
-    le_sm = le ? is_smooth(le, plane) : 0;
+    ab_sm = ab ? is_smooth(ab, plane, xd->tree_type) : 0;
+    le_sm = le ? is_smooth(le, plane, xd->tree_type) : 0;
   } else {
     const MB_MODE_INFO *ab = xd->chroma_above_mbmi;
     const MB_MODE_INFO *le = xd->chroma_left_mbmi;
-    ab_sm = ab ? is_smooth(ab, plane) : 0;
-    le_sm = le ? is_smooth(le, plane) : 0;
+    ab_sm = ab ? is_smooth(ab, plane, xd->tree_type) : 0;
+    le_sm = le ? is_smooth(le, plane, xd->tree_type) : 0;
   }
 
   return (ab_sm || le_sm) ? 1 : 0;
@@ -1619,8 +1619,8 @@ static void build_intra_predictors_high(
             (plane == 0) ? xd->above_mbmi : xd->chroma_above_mbmi;
         const MB_MODE_INFO *le =
             (plane == 0) ? xd->left_mbmi : xd->chroma_left_mbmi;
-        filt_type_above = ab ? is_smooth(ab, plane) : 0;
-        filt_type_left = le ? is_smooth(le, plane) : 0;
+        filt_type_above = ab ? is_smooth(ab, plane, xd->tree_type) : 0;
+        filt_type_left = le ? is_smooth(le, plane, xd->tree_type) : 0;
         angle_above = p_angle > 180 ? (p_angle - 180 - 90) : angle_above;
         angle_left = p_angle < 90 ? p_angle : angle_left;
       }
