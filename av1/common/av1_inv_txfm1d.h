@@ -55,6 +55,7 @@ void av1_iidentity16_c(const int32_t *input, int32_t *output, int8_t cos_bit,
 void av1_iidentity32_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
 #if CONFIG_ADST_TUNED
+// New inverse ADST functions
 void av2_iadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range);
 void av2_iadst8(const int32_t *input, int32_t *output, int8_t cos_bit,

@@ -37,7 +37,10 @@ extern const int32_t av1_sinpi_arr_data[7][5];
 #if CONFIG_ADST_TUNED
 #define TXFM_KERNEL_SIZE8 64
 #define TXFM_KERNEL_SIZE16 256
+// 8 point kernel: Graph Fourier Transform with self-loop of 1.5 using matrix
+// multiplication
 extern const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
+// 16-point kernel: DST-7 using matrix multiplication
 extern const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
 #endif  // CONFIG_ADST_TUNED
 
@@ -52,6 +55,7 @@ static const int cos_bit_min = 10;
 static const int cos_bit_max = 16;
 
 #if CONFIG_ADST_TUNED
+// Round shift bits for the ADST forward and inverse transforms
 #define FWD_ADST_BIT 12
 #define INV_ADST_BIT 7
 #endif  // CONFIG_ADST_TUNED
@@ -233,6 +237,7 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
                           TXFM_2D_FLIP_CFG *cfg);
 #if CONFIG_ADST_TUNED
+// Apply transform by matrix multiplication with a kernel
 void av2_txfm_matrix_mult(const int32_t *input, int32_t *output,
                           const int32_t *kernel, int kernel_size, int8_t bit,
                           int8_t clamp);
