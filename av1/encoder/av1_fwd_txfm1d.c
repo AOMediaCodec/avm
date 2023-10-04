@@ -797,8 +797,8 @@ void av2_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   (void)stage_range;
   (void)cos_bit;
-  av2_txfm_matrix_mult(input, output, av2_adst_kernel8[FWD_TXFM], tx_size_wide[TX_8X8],
-                       FWD_ADST_BIT, 0);
+  av2_txfm_matrix_mult(input, output, av2_adst_kernel8[FWD_TXFM],
+                       tx_size_wide[TX_8X8], FWD_ADST_BIT, 0);
 }
 #else
 void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -921,8 +921,8 @@ void av2_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
   (void)stage_range;
   (void)cos_bit;
-  av2_txfm_matrix_mult(input, output, av2_adst_kernel16[FWD_TXFM], tx_size_wide[TX_16X16],
-                       FWD_ADST_BIT, 0);
+  av2_txfm_matrix_mult(input, output, av2_adst_kernel16[FWD_TXFM],
+                       tx_size_wide[TX_16X16], FWD_ADST_BIT, 0);
 }
 #else
 void av1_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,

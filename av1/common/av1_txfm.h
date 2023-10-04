@@ -35,6 +35,8 @@ extern "C" {
 extern const int32_t av1_cospi_arr_data[7][64];
 extern const int32_t av1_sinpi_arr_data[7][5];
 #if CONFIG_ADST_TUNED
+#define TXFM_KERNEL_SIZE8 64
+#define TXFM_KERNEL_SIZE16 256
 extern const int32_t av2_adst_kernel8[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE8];
 extern const int32_t av2_adst_kernel16[TXFM_DIRECTIONS][TXFM_KERNEL_SIZE16];
 #endif  // CONFIG_ADST_TUNED
