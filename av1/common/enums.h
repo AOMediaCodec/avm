@@ -146,7 +146,7 @@ enum {
 // from luma blocks is 32x16. With the four way partition, we can get 4x16
 // block sizes. So we only need to track results for 8 mi units.
 #define MAX_MI_LUMA_SIZE_FOR_SUB_8 (32 >> MI_SIZE_LOG2)
-// Once 1:16 partition types are merged in, the maximum luma size will be 32x16,
+// Once 1:16 partition types are merged in, the maximum luma size will be 32x64,
 // and we will need to increase the bit mask to uint16_t
 #define SUB_8_BITMASK_T uint8_t
 #define SUB_8_BITMASK_SIZE (8)
