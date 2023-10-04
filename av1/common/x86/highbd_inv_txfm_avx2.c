@@ -1542,7 +1542,8 @@ static void iadst16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], 1);
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16],
+                         1);
 }
 #else
 static void iadst16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
@@ -1729,7 +1730,8 @@ static void iadst16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], 8);
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16],
+                         8);
 }
 #else
 static void iadst16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
@@ -2059,7 +2061,8 @@ static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                          int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], tx_size_wide[TX_16X16]);
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16],
+                         tx_size_wide[TX_16X16]);
 }
 #else
 static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
@@ -2742,7 +2745,8 @@ static void iadst8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                           int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8], tx_size_wide[TX_8X8]);
+                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8],
+                         tx_size_wide[TX_8X8]);
 }
 #else
 static void iadst8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
