@@ -2059,7 +2059,7 @@ static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                          int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], tx_size_wide[TX_16X16]e[TX_16X16]);
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], tx_size_wide[TX_16X16]);
 }
 #else
 static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
