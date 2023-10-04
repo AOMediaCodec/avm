@@ -2153,13 +2153,14 @@ static void build_inter_predictors_sub8x8(
   const int mi_stride = xd->mi_stride;
 
   // Row progress keeps track of which mi block in the row has been set.
-  uint8_t row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
+  SUB_8_BITMASK_T row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
   assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == 8);
   assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
   assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
+  assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == SUB_8_BITMASK_SIZE);
   for (int mi_row = 0; mi_row < plane_mi_height; mi_row++) {
     for (int mi_col = 0; mi_col < plane_mi_width; mi_col++) {
-      const uint8_t check_flag = 1 << (MAX_MI_LUMA_SIZE_FOR_SUB_8 - 1 - mi_col);
+      const SUB_8_BITMASK_T check_flag = 1 << (SUB_8_BITMASK_SIZE - 1 - mi_col);
       if (row_progress[mi_row] & check_flag) {
         continue;
       }
@@ -2178,8 +2179,10 @@ static void build_inter_predictors_sub8x8(
       // technically simplify the bitwise operation, and use the flag 11110000
       // in the above example instead. However, we are not taking this approach
       // here to keep the logic simpler.
-      const uint8_t set_flag =
-          ((UINT8_MAX << (8 - mi_width)) & UINT8_MAX) >> mi_col;
+      const SUB_8_BITMASK_T set_flag =
+          ((SUB_8_BITMASK_ON << (SUB_8_BITMASK_SIZE - mi_width)) &
+           SUB_8_BITMASK_ON) >>
+          mi_col;
       for (int mi_row_offset = 0; mi_row_offset < mi_height; mi_row_offset++) {
         row_progress[mi_row + mi_row_offset] |= set_flag;
       }
