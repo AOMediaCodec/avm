@@ -362,7 +362,7 @@ static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
                         const int col_num, const int outstride) {
   (void)bit;
   const int32_t *kernel = av2_adst_kernel8[FWD_TXFM];
-  const int size = TXFM_SIZE8;
+  const int size = tx_size_wide[TX_8X8];
   const __m256i zero = _mm256_setzero_si256();
   const __m256i rnding = _mm256_set1_epi32(1 << (FWD_ADST_BIT - 1));
   __m256i x[8];
@@ -1049,7 +1049,7 @@ static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
                          const int num_cols, const int outstride) {
   (void)bit;
   const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
-  const int size = TXFM_SIZE16;
+  const int size = tx_size_wide[TX_16X16];
   const __m256i zero = _mm256_setzero_si256();
   const __m256i rnding = _mm256_set1_epi32(1 << (FWD_ADST_BIT - 1));
   __m256i x[16];

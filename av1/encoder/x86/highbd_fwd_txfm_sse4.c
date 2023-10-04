@@ -703,7 +703,7 @@ static void fadst8x8_sse4_1(__m128i *in, __m128i *out, int bit,
                             const int col_num) {
   (void)bit;
   const int32_t *kernel = av2_adst_kernel8[FWD_TXFM];
-  const int size = TXFM_SIZE8;
+  const int size = tx_size_wide[TX_8X8];
   const __m128i zero = _mm_setzero_si128();
   const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));
   __m128i x[8];
@@ -1562,7 +1562,7 @@ static void fadst16x16_sse4_1(__m128i *in, __m128i *out, int bit,
                               const int num_cols) {
   (void)bit;
   const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
-  const int size = TXFM_SIZE16;
+  const int size = tx_size_wide[TX_16X16];
 
   const __m128i zero = _mm_setzero_si128();
   const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));

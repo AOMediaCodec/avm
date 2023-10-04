@@ -194,9 +194,7 @@ enum {
 #define IST_8x8_HEIGHT 32
 
 #if CONFIG_ADST_TUNED
-#define TXFM_SIZE8 8
 #define TXFM_KERNEL_SIZE8 64
-#define TXFM_SIZE16 16
 #define TXFM_KERNEL_SIZE16 256
 #endif  // CONFIG_ADST_TUNED
 

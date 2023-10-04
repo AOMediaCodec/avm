@@ -1006,9 +1006,9 @@ static void iadst8x8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                             int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8, 2);
+                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8], tx_size_wide[TX_8X8], 2);
   iadst_matrix_mult_sse4(in + 1, out + 1, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8, 2);
+                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8], tx_size_wide[TX_8X8], 2);
 }
 #else
 static void iadst8x8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
@@ -1676,7 +1676,7 @@ static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                                  int do_cols, int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, 1, 1);
+                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8], 1, 1);
 }
 #else
 static void iadst8x8_low1_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -1774,7 +1774,7 @@ static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                                 int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel8[INV_TXFM], TXFM_SIZE8, TXFM_SIZE8, 1);
+                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8], tx_size_wide[TX_8X8], 1);
 }
 #else
 static void iadst8x8_new_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
@@ -2191,7 +2191,7 @@ static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
                                    int do_cols, int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 1, 1);
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], 1, 1);
 }
 #else
 static void iadst16x16_low1_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -2372,7 +2372,7 @@ static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
                                    int do_cols, int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, 8, 1);
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], 8, 1);
 }
 #else
 static void iadst16x16_low8_sse4_1(__m128i *in, __m128i *out, int bit,
@@ -2880,7 +2880,7 @@ static void iadst16x16_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   (void)bit;
   iadst_matrix_mult_sse4(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
-                         av2_adst_kernel16[INV_TXFM], TXFM_SIZE16, TXFM_SIZE16,
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16], tx_size_wide[TX_16X16],
                          1);
 }
 #else
