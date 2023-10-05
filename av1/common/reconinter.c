@@ -3163,7 +3163,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp = !build_for_obmc && use_border_aware_compound(cm, mi) &&
+#if CONFIG_CWP
                      mi->cwp_idx == CWP_EQUAL &&
+#endif  // CONFIG_CWP
                      cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
@@ -3490,7 +3492,9 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp = !build_for_obmc && use_border_aware_compound(cm, mi) &&
+#if CONFIG_CWP
                      mi->cwp_idx == CWP_EQUAL &&
+#endif  // CONFIG_CWP
                      cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
