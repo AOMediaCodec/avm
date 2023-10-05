@@ -69,7 +69,7 @@ int ifd_inspect_superblock(insp_frame_data *fd, void *decoder) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   if (fd->mi_rows != mi_params->mi_rows || fd->mi_cols != mi_params->mi_cols) {
     ifd_clear(fd);
-    ifd_init_mi_rc(fd, mi_params->mi_rows, mi_params->mi_cols);
+    ifd_init_mi_rc(fd, mi_params->mi_cols, mi_params->mi_rows);
   }
 
   int sb_size = cm->seq_params.sb_size;
@@ -115,7 +115,7 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
   fd->prefiltered_frame_buffer = cm->prefiltered_pixels;
   if (fd->mi_rows != mi_params->mi_rows || fd->mi_cols != mi_params->mi_cols) {
     ifd_clear(fd);
-    ifd_init_mi_rc(fd, mi_params->mi_rows, mi_params->mi_cols);
+    ifd_init_mi_rc(fd, mi_params->mi_cols, mi_params->mi_rows);
   }
   fd->show_existing_frame = cm->show_existing_frame;
   fd->frame_number = cm->current_frame.frame_number;
