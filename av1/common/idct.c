@@ -200,6 +200,9 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   (void)plane;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   txfm_param->tx_type = get_primary_tx_type(tx_type);
+#if CONFIG_IST_SET_FLAG
+  txfm_param->sec_tx_set = 0;
+#endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode =
       (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
@@ -208,6 +211,9 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
       !(mbmi->filter_intra_mode_info.use_filter_intra)) {
     // updated EOB condition
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
+#if CONFIG_IST_SET_FLAG
+    txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
+#endif  // CONFIG_IST_SET_FLAG
   }
   txfm_param->tx_size = tx_size;
   // EOB needs to adjusted after inverse IST
@@ -415,9 +421,23 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     if ((mode == H_PRED) || (mode == D157_PRED) || (mode == D67_PRED) ||
         (mode == SMOOTH_H_PRED))
       transpose = 1;
+#if CONFIG_IST_SET_FLAG
+    mode_t = txfm_param->sec_tx_set;
+    assert(mode_t < IST_SET_SIZE);
+// Verify whether txfm_param->sec_tx_set == intra pred dir based tx set id
+#ifndef NDEBUG
+    {
+      int mode_t2 = (txfm_param->tx_type == ADST_ADST)
+                        ? stx_transpose_mapping[mode] + 7
+                        : stx_transpose_mapping[mode];
+      assert(mode_t == mode_t2);
+    }
+#endif  // NDEBUG
+#else   // CONFIG_IST_SET_FLAG
     mode_t = (txfm_param->tx_type == ADST_ADST)
                  ? stx_transpose_mapping[mode] + 7
                  : stx_transpose_mapping[mode];
+#endif  // CONFIG_IST_SET_FLAG
     if (transpose) {
       scan_order_out = (sb_size == 4)
                            ? stx_scan_orders_transpose_4x4[log2width - 2]

@@ -77,7 +77,7 @@ class TestVectorTest : public ::libaom_test::DecoderTest,
           aom_img_alloc(NULL, shifted_fmt, img.d_w, img.d_h, 16);
       img_shifted->bit_depth = img.bit_depth;
       img_shifted->monochrome = img.monochrome;
-      aom_img_downshift(img_shifted, &img, 0);
+      aom_img_downshift(img_shifted, &img, 0, 8);
       md5_res.Add(img_shifted);
       aom_img_free(img_shifted);
     } else {

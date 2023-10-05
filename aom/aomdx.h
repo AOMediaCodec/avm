@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+#include "config/aom_config.h"
+
 /* Include controls common to both the encoder and decoder */
 #include "aom/aom.h"
 
@@ -437,6 +439,12 @@ enum aom_dec_control_id {
   /*!\brief Codec control function to enable subgop stats
    */
   AV1D_ENABLE_SUBGOP_STATS,
+
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  /*!\brief Codec control function to advance output_frames_offset by given step
+   */
+  AOMD_INCR_OUTPUT_FRAMES_OFFSET,
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 };
 
 /*!\cond */
@@ -493,6 +501,11 @@ AOM_CTRL_USE_TYPE(AOMD_GET_S_FRAME_INFO, aom_s_frame_info *)
 
 AOM_CTRL_USE_TYPE(AOMD_GET_FRAME_INFO, void *)
 #define AOMD_CTRL_AOMD_GET_FRAME_INFO
+
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+AOM_CTRL_USE_TYPE(AOMD_INCR_OUTPUT_FRAMES_OFFSET, int)
+#define AOMD_CTRL_AOMD_INCR_OUTPUT_FRAMES_OFFSET
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 AOM_CTRL_USE_TYPE(AV1D_ENABLE_SUBGOP_STATS, unsigned int)
 #define AOMD_CTRL_AV1D_ENABLE_SUBGOP_STATS

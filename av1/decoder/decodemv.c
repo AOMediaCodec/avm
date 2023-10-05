@@ -1330,6 +1330,20 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+// This function reads a 'secondary tx set' from the bitstream
+static void read_secondary_tx_set(FRAME_CONTEXT *ec_ctx, aom_reader *r,
+                                  MB_MODE_INFO *mbmi, TX_TYPE *tx_type) {
+  uint8_t intra_mode = mbmi->mode;
+  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
+  assert(stx_set_ctx < IST_DIR_SIZE);
+  TX_TYPE stx_set_flag =
+      aom_read_symbol(r, ec_ctx->stx_set_cdf[stx_set_ctx], IST_DIR_SIZE,
+                      ACCT_INFO("stx_set_flag"));
+  assert(stx_set_flag < IST_DIR_SIZE);
+  if (get_primary_tx_type(*tx_type) == ADST_ADST) stx_set_flag += IST_DIR_SIZE;
+  set_secondary_tx_set(tx_type, stx_set_flag);
+}
+
 void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           int blk_row, int blk_col, TX_SIZE tx_size,
                           uint16_t *eob, aom_reader *r) {
@@ -1356,6 +1370,9 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
             aom_read_symbol(r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES,
                             ACCT_INFO("stx_flag"));
         *tx_type |= (stx_flag << 4);
+#if CONFIG_IST_SET_FLAG
+        if (stx_flag > 0) read_secondary_tx_set(ec_ctx, r, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
       }
     }
   } else if (!inter_block) {
@@ -1365,6 +1382,9 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       const uint8_t stx_flag = aom_read_symbol(
           r, ec_ctx->stx_cdf[square_tx_size], STX_TYPES, ACCT_INFO("stx_flag"));
       *tx_type |= (stx_flag << 4);
+#if CONFIG_IST_SET_FLAG
+      if (stx_flag > 0) read_secondary_tx_set(ec_ctx, r, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
     }
   }
 }
@@ -1716,11 +1736,13 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (xd->tree_type != CHROMA_PART)
     mbmi->filter_intra_mode_info.use_filter_intra = 0;
 
+#if !CONFIG_TX_PARTITION_CTX
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   xd->above_txfm_context = cm->above_contexts.txfm[xd->tile.tile_row] + mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
   if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
     read_intrabc_info(cm, dcb, r);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
@@ -3545,10 +3567,12 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
   mbmi->current_qindex = xd->current_base_qindex;
 
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context =
       cm->above_contexts.txfm[xd->tile.tile_row] + xd->mi_col;
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (xd->mi_row & MAX_MIB_MASK);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
 #if CONFIG_IBC_SR_EXT
   if (!inter_block && av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
@@ -3556,17 +3580,6 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
     mbmi->ref_frame[1] = NONE_FRAME;
     mbmi->palette_mode_info.palette_size[0] = 0;
     mbmi->palette_mode_info.palette_size[1] = 0;
-#if CONFIG_NEW_CONTEXT_MODELING
-    mbmi->use_intrabc[0] = 0;
-    mbmi->use_intrabc[1] = 0;
-    const int intrabc_ctx = get_intrabc_ctx(xd);
-    mbmi->use_intrabc[xd->tree_type == CHROMA_PART] =
-        aom_read_symbol(r, xd->tile_ctx->intrabc_cdf[intrabc_ctx], 2,
-                        ACCT_INFO("use_intrabc", "chroma"));
-#else
-    mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = aom_read_symbol(
-        r, xd->tile_ctx->intrabc_cdf, 2, ACCT_INFO("use_intrabc", "chroma"));
-#endif  // CONFIG_NEW_CONTEXT_MODELING
     read_intrabc_info(cm, dcb, r);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }

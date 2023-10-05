@@ -781,8 +781,9 @@ static void copy_frame_hash_metadata_to_img(
   }
 }
 
-static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
-                                      aom_codec_iter_t *iter) {
+static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
+                                       aom_codec_iter_t *iter,
+                                       int update_iter) {
   aom_image_t *img = NULL;
 
   if (!iter) {
@@ -818,9 +819,9 @@ static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
         yuvconfig2image(&ctx->img, sd, frame_worker_data->user_priv);
         move_decoder_metadata_to_img(pbi, &ctx->img);
         copy_frame_hash_metadata_to_img(pbi, &ctx->img, output_frame_buf);
-
         if (!pbi->ext_tile_debug && tiles->large_scale) {
-          *index += 1;  // Advance the iterator to point to the next image
+          if (update_iter)
+            *index += 1;  // Advance the iterator to point to the next image
           aom_img_remove_metadata(&ctx->img);
           yuvconfig2image(&ctx->img, &pbi->tile_list_outbuf, NULL);
           move_decoder_metadata_to_img(pbi, &ctx->img);
@@ -877,7 +878,8 @@ static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
           aom_internal_error(&pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
                              "Grain systhesis failed\n");
         }
-        *index += 1;  // Advance the iterator to point to the next image
+        if (update_iter)
+          *index += 1;  // Advance the iterator to point to the next image
         return res;
       }
     } else {
@@ -888,6 +890,16 @@ static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
     }
   }
   return NULL;
+}
+
+static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
+                                      aom_codec_iter_t *iter) {
+  return decoder_get_frame_(ctx, iter, 1);
+}
+
+static aom_image_t *decoder_peek_frame(aom_codec_alg_priv_t *ctx,
+                                       aom_codec_iter_t *iter) {
+  return decoder_get_frame_(ctx, iter, 0);
 }
 
 static aom_codec_err_t decoder_set_fb_fn(
@@ -1017,6 +1029,16 @@ static aom_codec_err_t ctrl_copy_new_frame_image(aom_codec_alg_priv_t *ctx,
     return AOM_CODEC_INVALID_PARAM;
   }
 }
+
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+static aom_codec_err_t ctrl_incr_output_frames_offset(aom_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  int incr = va_arg(args, int);
+  ((FrameWorkerData *)ctx->frame_worker->data1)->pbi->output_frames_offset +=
+      incr;
+  return AOM_CODEC_OK;
+}
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 
 static aom_codec_err_t ctrl_get_last_ref_updates(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
@@ -1656,6 +1678,9 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1_GET_ACCOUNTING, ctrl_get_accounting },
   { AV1_GET_NEW_FRAME_IMAGE, ctrl_get_new_frame_image },
   { AV1_COPY_NEW_FRAME_IMAGE, ctrl_copy_new_frame_image },
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  { AOMD_INCR_OUTPUT_FRAMES_OFFSET, ctrl_incr_output_frames_offset },
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   { AV1_GET_REFERENCE, ctrl_get_reference },
   { AV1D_GET_FRAME_HEADER_INFO, ctrl_get_frame_header_info },
   { AV1D_GET_TILE_DATA, ctrl_get_tile_data },
@@ -1687,11 +1712,12 @@ aom_codec_iface_t aom_codec_av1_dx_algo = {
   decoder_ctrl_maps,                        // aom_codec_ctrl_fn_map_t
   {
       // NOLINT
-      decoder_peek_si,    // aom_codec_peek_si_fn_t
-      decoder_get_si,     // aom_codec_get_si_fn_t
-      decoder_decode,     // aom_codec_decode_fn_t
-      decoder_get_frame,  // aom_codec_get_frame_fn_t
-      decoder_set_fb_fn,  // aom_codec_set_fb_fn_t
+      decoder_peek_si,     // aom_codec_peek_si_fn_t
+      decoder_get_si,      // aom_codec_get_si_fn_t
+      decoder_decode,      // aom_codec_decode_fn_t
+      decoder_get_frame,   // aom_codec_get_frame_fn_t
+      decoder_peek_frame,  // aom_codec_peek_frame_fn_t
+      decoder_set_fb_fn,   // aom_codec_set_fb_fn_t
   },
   {
       // NOLINT

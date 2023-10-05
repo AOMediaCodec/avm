@@ -3270,19 +3270,22 @@ static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
                                         PREDICTION_MODE this_mode) {
   for (int ref_idx = 0; ref_idx < 2; ++ref_idx) {
     const PREDICTION_MODE single_mode = get_single_mode(this_mode, ref_idx);
-    const MV_REFERENCE_FRAME ref = mbmi->ref_frame[ref_idx];
+    const MV_REFERENCE_FRAME ref =
+        ref_idx == 0 ? COMPACT_INDEX0_NRS(mbmi->ref_frame[ref_idx])
+                     : COMPACT_INDEX1_NRS(mbmi->ref_frame[ref_idx]);
     if (single_mode == NEWMV &&
 #if CONFIG_FLEX_MVRES
 #if CONFIG_SEP_COMP_DRL
         args->single_newmv_valid[mbmi->pb_mv_precision]
-                                [get_ref_mv_idx(mbmi, ref_idx)][ref] == 0) {
+                                [get_ref_mv_idx(mbmi, ref_idx)][ref] == 0
 #else
         args->single_newmv_valid[mbmi->pb_mv_precision][mbmi->ref_mv_idx]
-                                [ref] == 0) {
+                                [ref] == 0
 #endif
 #else
-        args->single_newmv_valid[mbmi->ref_mv_idx][ref] == 0) {
+        args->single_newmv_valid[mbmi->ref_mv_idx][ref] == 0
 #endif
+    ) {
       return 0;
     }
   }
@@ -7156,11 +7159,13 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
         memset(search_state->best_mbmode.inter_tx_size,
                search_state->best_mbmode.tx_size,
                sizeof(search_state->best_mbmode.inter_tx_size));
+#if !CONFIG_TX_PARTITION_CTX
         set_txfm_ctxs(
             search_state->best_mbmode.tx_size, xd->width, xd->height,
             search_state->best_mbmode.skip_txfm[xd->tree_type == CHROMA_PART] &&
                 is_inter_block(mbmi, xd->tree_type),
             xd);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
         x->txfm_search_info.skip_txfm = 1;
         search_state->best_mode_skippable = 1;
@@ -7379,11 +7384,13 @@ static AOM_INLINE void rd_pick_skip_mode(
     memset(search_state->best_mbmode.inter_tx_size,
            search_state->best_mbmode.tx_size,
            sizeof(search_state->best_mbmode.inter_tx_size));
+#if !CONFIG_TX_PARTITION_CTX
     set_txfm_ctxs(
         search_state->best_mbmode.tx_size, xd->width, xd->height,
         search_state->best_mbmode.skip_txfm[xd->tree_type == CHROMA_PART] &&
             is_inter_block(mbmi, xd->tree_type),
         xd);
+#endif  // !CONFIG_TX_PARTITION_CTX
 
     // Set up color-related variables for skip mode.
     search_state->best_mbmode.uv_mode = UV_DC_PRED;

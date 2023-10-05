@@ -2887,6 +2887,47 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+static const aom_cdf_prob
+    default_txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)] = {
+      { // intra
+        { AOM_CDF2(20611) },
+        { AOM_CDF2(24192) },
+        { AOM_CDF2(18182) },
+        { AOM_CDF2(24924) },
+        { AOM_CDF2(23143) },
+        { AOM_CDF2(27141) },
+        { AOM_CDF2(26227) },
+        { AOM_CDF2(29654) } },
+      { // inter
+        { AOM_CDF2(25160) },
+        { AOM_CDF2(27750) },
+        { AOM_CDF2(26384) },
+        { AOM_CDF2(26847) },
+        { AOM_CDF2(21474) },
+        { AOM_CDF2(22726) },
+        { AOM_CDF2(29609) },
+        { AOM_CDF2(30945) } }
+    };
+static const aom_cdf_prob
+    default_txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(
+        3)] = { { // intra
+                  { AOM_CDF3(32760, 32764) },
+                  { AOM_CDF3(6342, 22640) },
+                  { AOM_CDF3(14298, 22864) },
+                  { AOM_CDF3(7287, 19333) },
+                  { AOM_CDF3(19825, 28798) },
+                  { AOM_CDF3(1824, 28283) },
+                  { AOM_CDF3(9256, 24339) } },
+                { // inter
+                  { AOM_CDF3(16749, 24722) },
+                  { AOM_CDF3(20629, 25838) },
+                  { AOM_CDF3(21140, 25334) },
+                  { AOM_CDF3(29351, 30800) },
+                  { AOM_CDF3(28304, 30575) },
+                  { AOM_CDF3(21051, 26911) },
+                  { AOM_CDF3(11702, 22867) } } };
+#else
 static const aom_cdf_prob default_inter_4way_txfm_partition_cdf
     [2][TXFM_PARTITION_INTER_CONTEXTS][CDF_SIZE(4)] = {
       {
@@ -2921,6 +2962,7 @@ static const aom_cdf_prob default_inter_4way_txfm_partition_cdf
 static const aom_cdf_prob default_inter_2way_txfm_partition_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(30531)
 };
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
 static const aom_cdf_prob
     default_txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)] = {
@@ -3143,6 +3185,7 @@ static const aom_cdf_prob
     };
 
 #if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
 static const aom_cdf_prob
     default_intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)] = {
       { { AOM_CDF4(19968, 20968, 21968) },
@@ -3155,7 +3198,8 @@ static const aom_cdf_prob
 static const aom_cdf_prob default_intra_2way_txfm_partition_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(30531)
 };
-#else  // CONFIG_NEW_TX_PARTITION
+#endif  // !CONFIG_TX_PARTITION_CTX
+#else   // CONFIG_NEW_TX_PARTITION
 #if CONFIG_NEW_CONTEXT_MODELING
 static const aom_cdf_prob default_tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                                              [CDF_SIZE(MAX_TX_DEPTH + 1)] = {
@@ -3205,7 +3249,18 @@ static const aom_cdf_prob default_stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)] = {
   { AOM_CDF4(7447, 17278, 24725) },  { AOM_CDF4(5783, 17348, 21203) },
   { AOM_CDF4(17873, 20852, 23831) },
 };
-
+#if CONFIG_IST_SET_FLAG
+static const aom_cdf_prob
+    default_stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)] = {
+      { AOM_CDF7(32744, 32748, 32752, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 32748, 32752, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 8, 32752, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 8, 12, 32756, 32760, 32764) },
+      { AOM_CDF7(4, 8, 12, 16, 32760, 32764) },
+      { AOM_CDF7(4, 8, 12, 16, 20, 32764) },
+      { AOM_CDF7(4, 8, 12, 16, 20, 24) },
+    };
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
 static const aom_cdf_prob
     default_pb_mv_most_probable_precision_cdf[NUM_MV_PREC_MPP_CONTEXT][CDF_SIZE(
@@ -3463,10 +3518,16 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->comp_ref0_cdf, default_comp_ref0_cdf);
   av1_copy(fc->comp_ref1_cdf, default_comp_ref1_cdf);
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  av1_copy(fc->txfm_do_partition_cdf, default_txfm_do_partition_cdf);
+  av1_copy(fc->txfm_4way_partition_type_cdf,
+           default_txfm_4way_partition_type_cdf);
+#else
   av1_copy(fc->inter_4way_txfm_partition_cdf,
            default_inter_4way_txfm_partition_cdf);
   av1_copy(fc->inter_2way_txfm_partition_cdf,
            default_inter_2way_txfm_partition_cdf);
+#endif  // CONFIG_TX_PARTITION_CTX
 #else
   av1_copy(fc->txfm_partition_cdf, default_txfm_partition_cdf);
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -3622,10 +3683,12 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
     av1_copy(fc->seg.spatial_pred_seg_cdf[i],
              default_spatial_pred_seg_tree_cdf[i]);
 #if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
   av1_copy(fc->intra_4way_txfm_partition_cdf,
            default_intra_4way_txfm_partition_cdf);
   av1_copy(fc->intra_2way_txfm_partition_cdf,
            default_intra_2way_txfm_partition_cdf);
+#endif  // !CONFIG_TX_PARTITION_CTX
 #else
   av1_copy(fc->tx_size_cdf, default_tx_size_cdf);
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -3640,6 +3703,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->intrabc_drl_idx_cdf, default_intrabc_drl_idx_cdf);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   av1_copy(fc->stx_cdf, default_stx_cdf);
+#if CONFIG_IST_SET_FLAG
+  av1_copy(fc->stx_set_cdf, default_stx_set_cdf);
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
   av1_copy(fc->pb_mv_precision_cdf, default_pb_mv_precision_cdf);
   av1_copy(fc->pb_mv_mpp_flag_cdf, default_pb_mv_most_probable_precision_cdf);

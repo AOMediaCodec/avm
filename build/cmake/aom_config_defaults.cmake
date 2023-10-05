@@ -228,7 +228,7 @@ set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
 set_aom_config_var(CONFIG_SKIP_MODE_ENHANCEMENT 1
                    "AV2 experiment flag to enable skip mode enhancement.")
 set_aom_config_var(CONFIG_TIP 1 "Enable temporal interpolated prediction (TIP)")
-set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT 0
+set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT 1
                    "Enable frame output order derivation from order hint")
 set_aom_config_var(CONFIG_OPTFLOW_ON_TIP 1
                    "Enable optical flow refinement on top of TIP")
@@ -264,6 +264,9 @@ set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
 
 set_aom_config_var(CONFIG_CWG_D067_IMPROVED_WARP 1
                    "Improvement of warp motions")
+
+set_aom_config_var(CONFIG_TX_PARTITION_CTX 1
+                   "Enable to optimize txfm partition context")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
@@ -301,6 +304,8 @@ set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
 
 set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
 
+set_aom_config_var(CONFIG_IST_SET_FLAG 1
+                   "AV2 experiment flag to signal Secondary Tx set ID.")
 #
 # Variables in this section control optional features of the build system.
 #

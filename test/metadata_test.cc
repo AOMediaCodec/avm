@@ -100,8 +100,21 @@ class MetadataEncodeTest
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
+
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)dec_iter;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+        || pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    ) {
       const size_t bitstream_size = pkt->data.frame.sz;
       const uint8_t *bitstream =
           static_cast<const uint8_t *>(pkt->data.frame.buf);

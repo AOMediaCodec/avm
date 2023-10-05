@@ -93,11 +93,14 @@ typedef uint32_t aom_codec_er_flags_t;
  * extend this list to provide additional functionality.
  */
 enum aom_codec_cx_pkt_kind {
-  AOM_CODEC_CX_FRAME_PKT,    /**< Compressed video frame */
-  AOM_CODEC_STATS_PKT,       /**< Two-pass statistics for this frame */
-  AOM_CODEC_FPMB_STATS_PKT,  /**< first pass mb statistics for this frame */
-  AOM_CODEC_PSNR_PKT,        /**< PSNR statistics for this frame */
-  AOM_CODEC_CUSTOM_PKT = 256 /**< Algorithm extensions  */
+  AOM_CODEC_CX_FRAME_PKT,   /**< Compressed video frame */
+  AOM_CODEC_STATS_PKT,      /**< Two-pass statistics for this frame */
+  AOM_CODEC_FPMB_STATS_PKT, /**< first pass mb statistics for this frame */
+  AOM_CODEC_PSNR_PKT,       /**< PSNR statistics for this frame */
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  AOM_CODEC_CX_FRAME_NULL_PKT, /**< Null show-existing frame */
+#endif                         // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  AOM_CODEC_CUSTOM_PKT = 256   /**< Algorithm extensions  */
 };
 
 /*!\brief Encoder output packet
@@ -122,12 +125,8 @@ typedef struct aom_codec_cx_pkt {
       int partition_id;
       /*!\brief size of the visible frame in this packet */
       size_t vis_frame_size;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      /*!\brief the number of frames in this packet */
-      int frame_count;
-#endif                             // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    } frame;                       /**< data for compressed frame packet */
-    aom_fixed_buf_t twopass_stats; /**< data for two-pass packet */
+    } frame;                            /**< data for compressed frame packet */
+    aom_fixed_buf_t twopass_stats;      /**< data for two-pass packet */
     aom_fixed_buf_t firstpass_mb_stats; /**< first pass mb packet */
     struct aom_psnr_pkt {
       unsigned int samples[4]; /**< Number of samples, total/y/u/v */

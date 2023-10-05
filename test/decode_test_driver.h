@@ -31,6 +31,7 @@ class DxDataIterator {
       : decoder_(decoder), iter_(NULL) {}
 
   const aom_image_t *Next() { return aom_codec_get_frame(decoder_, &iter_); }
+  const aom_image_t *Peek() { return aom_codec_peek_frame(decoder_, &iter_); }
 
  private:
   aom_codec_ctx_t *decoder_;
