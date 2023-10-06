@@ -2284,7 +2284,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #if CONFIG_CCSO
   uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
   uint16_t *org_uv[CCSO_NUM_COMPONENTS];
-  uint16_t *ext_rec_y;
+  uint16_t *ext_rec_y = NULL;
   uint16_t *ref_buffer;
   const YV12_BUFFER_CONFIG *ref = cpi->source;
   int ref_stride;
