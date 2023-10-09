@@ -755,11 +755,65 @@ int main(int argc, const char **argv) {
   // MVD/blockvector coding related CDFs
   for (int ibc = 0; ibc < 2; ibc++) {
     nmv_context_count *nmvc_cnts = (ibc == 0) ? &fc.nmvc_cnts : &fc.ndvc_cnts;
+
+#if CONFIG_VQ_MVD_CODING
+    cts_each_dim[0] = ibc == 0 ? NUM_MV_PRECISIONS : 1;
+    cts_each_dim[1] = MAX_NUM_SHELL_CLASS;
+    optimize_cdf_table(&nmvc_cnts->joint_shell_class_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob joint_shell_class_cdf_placeholder"
+                       "[NUM_MV_PRECISIONS][CDF_SIZE(MAX_NUM_SHELL_CLASS)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+
+    cts_each_dim[0] = 2;
+    cts_each_dim[1] = 2;
+    optimize_cdf_table(
+        &nmvc_cnts->shell_offset_low_class_cnts[0][0], probsfile, 2,
+        cts_each_dim,
+        "static aom_cdf_prob shell_offset_low_class_cdf_placeholder"
+        "[2][CDF_SIZE(2)]",
+        0, &total_count, 0, mem_wanted, "Inter");
+
+    cts_each_dim[0] = 3;
+    cts_each_dim[1] = 2;
+    optimize_cdf_table(&nmvc_cnts->shell_offset_class2_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob shell_offset_class2_cdf_placeholder"
+                       "[3][CDF_SIZE(2)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+
+    cts_each_dim[0] = NUM_CTX_CLASS_OFFSETS;
+    cts_each_dim[1] = SHELL_INT_OFFSET_BIT;
+    cts_each_dim[2] = 2;
+    optimize_cdf_table(
+        &nmvc_cnts->shell_offset_other_class_cnts[0][0][0], probsfile, 3,
+        cts_each_dim,
+        "static aom_cdf_prob shell_offset_other_class_cdf_placeholder"
+        "[NUM_CTX_CLASS_OFFSETS][SHELL_INT_OFFSET_BIT][CDF_SIZE(2)]",
+        0, &total_count, 0, mem_wanted, "Inter");
+
+    cts_each_dim[0] = NUM_CTX_COL_MV_GTX;
+    cts_each_dim[1] = 2;
+    optimize_cdf_table(&nmvc_cnts->col_mv_greter_flags_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob col_mv_greter_flags_cdf_placeholder"
+                       "[NUM_CTX_COL_MV_GTX][CDF_SIZE(2)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+
+    cts_each_dim[0] = NUM_CTX_COL_MV_INDEX;
+    cts_each_dim[1] = 2;
+    optimize_cdf_table(&nmvc_cnts->col_mv_index_cnts[0][0], probsfile, 2,
+                       cts_each_dim,
+                       "static aom_cdf_prob col_mv_index_cdf_placeholder"
+                       "[NUM_CTX_COL_MV_INDEX][CDF_SIZE(2)]",
+                       0, &total_count, 0, mem_wanted, "Inter");
+#else
     cts_each_dim[0] = MV_JOINTS;
     optimize_cdf_table(&nmvc_cnts->joints_cnts[0], probsfile, 1, cts_each_dim,
                        "static aom_cdf_prob joints_cdf_placeholder"
                        "[CDF_SIZE(MV_JOINTS)]",
                        0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_VQ_MVD_CODING
 
     if (!ibc) {
       cts_each_dim[0] = MV_JOINTS;
@@ -772,6 +826,18 @@ int main(int argc, const char **argv) {
 
     // Separate CDFs for row and columns of MVD
     for (int mvd_comp = 0; mvd_comp < 2; mvd_comp++) {
+#if CONFIG_VQ_MVD_CODING
+      if (!ibc) {
+        cts_each_dim[0] = MAX_AMVD_INDEX;
+        optimize_cdf_table(
+            &nmvc_cnts->mvd_comp_cnts[mvd_comp].amvd_indices_cnts[0], probsfile,
+            1, cts_each_dim,
+            "static aom_cdf_prob amvd_indices_cdf_placeholder"
+            "[CDF_SIZE(MAX_AMVD_INDEX)]",
+            0, &total_count, 0, mem_wanted, "Inter");
+      }
+#else
+
       cts_each_dim[0] = (ibc == 0)
                             ? NUM_MV_PRECISIONS
                             : 1;  // For IBC case only one valid precision
@@ -824,13 +890,6 @@ int main(int argc, const char **argv) {
                            0, &total_count, 0, mem_wanted, "Inter");
       }
 
-      cts_each_dim[0] = 2;
-      optimize_cdf_table(&nmvc_cnts->mvd_comp_cnts[mvd_comp].sign_cnts[0],
-                         probsfile, 1, cts_each_dim,
-                         "static aom_cdf_prob sign_cdf_placeholder"
-                         "[CDF_SIZE(2)]",
-                         0, &total_count, 0, mem_wanted, "Inter");
-
       cts_each_dim[0] = CLASS0_SIZE;
       optimize_cdf_table(&nmvc_cnts->mvd_comp_cnts[mvd_comp].class0_cnts[0],
                          probsfile, 1, cts_each_dim,
@@ -844,6 +903,15 @@ int main(int argc, const char **argv) {
                          probsfile, 2, cts_each_dim,
                          "static aom_cdf_prob bits_cdf_placeholder"
                          "[MV_OFFSET_BITS][CDF_SIZE(2)]",
+                         0, &total_count, 0, mem_wanted, "Inter");
+
+#endif  // CONFIG_VQ_MVD_CODING
+
+      cts_each_dim[0] = 2;
+      optimize_cdf_table(&nmvc_cnts->mvd_comp_cnts[mvd_comp].sign_cnts[0],
+                         probsfile, 1, cts_each_dim,
+                         "static aom_cdf_prob sign_cdf_placeholder"
+                         "[CDF_SIZE(2)]",
                          0, &total_count, 0, mem_wanted, "Inter");
     }  // for (int mvd_comp = 0; mvd_comp < 2; mvd_comp++)
   }    // for (int ibc = 0; ibc < 2; ibc++)

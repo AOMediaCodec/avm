@@ -758,6 +758,44 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
          is_inter_ref_frame(mbmi->ref_frame[0]);
 }
 
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+// This function return the MVD from MV and refMV
+static INLINE void get_mvd_from_ref_mv(MV mv, MV ref_mv, int is_adaptive_mvd,
+                                       MvSubpelPrecision precision, MV *mvd) {
+#if BUGFIX_AMVD_AMVR
+  if (!is_adaptive_mvd)
+#endif  // BUGFIX_AMVD_AMVR
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&ref_mv, precision);
+  mvd->row = mv.row - ref_mv.row;
+  mvd->col = mv.col - ref_mv.col;
+}
+
+#if CONFIG_DERIVED_MVD_SIGN
+// This function compute the MV from MVD and refMV
+static INLINE void update_mv_component_from_mvd(int16_t modified_mvd_comp,
+                                                MV ref_mv, int comp,
+                                                int is_adaptive_mvd,
+                                                MvSubpelPrecision precision,
+                                                MV *mv) {
+#if BUGFIX_AMVD_AMVR
+  if (!is_adaptive_mvd)
+#endif  // BUGFIX_AMVD_AMVR
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&ref_mv, precision);
+
+  if (comp == 0)
+    mv->row = ref_mv.row + modified_mvd_comp;
+  else
+    mv->col = ref_mv.col + modified_mvd_comp;
+}
+#endif  // CONFIG_DERIVED_MVD_SIGN
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+
 /*!\brief Returns whether the current block size is square */
 static INLINE int is_square_block(BLOCK_SIZE bsize) {
   return block_size_high[bsize] == block_size_wide[bsize];

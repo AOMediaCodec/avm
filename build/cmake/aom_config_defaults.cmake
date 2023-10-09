@@ -346,6 +346,8 @@ set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
                    "Keep optical flow refined MVs in TMVP list.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
                    "Decoder side affine motion refinement.")
+set_aom_config_var(CONFIG_DERIVED_MVD_SIGN 1 "Enable MVD sign derivations")
+set_aom_config_var(CONFIG_VQ_MVD_CODING 1 "Enable VQ based MVD coding")
 #
 # Variables in this section control optional features of the build system.
 #

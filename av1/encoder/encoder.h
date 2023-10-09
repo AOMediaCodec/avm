@@ -864,6 +864,10 @@ typedef struct {
   // Indicates if refineMV mode should be enabled.
   bool enable_refinemv;
 #endif  // CONFIG_REFINEMV
+#if CONFIG_DERIVED_MVD_SIGN
+  // Indicates if mvd sign derivation should be enabled.
+  bool enable_mvd_sign_derive;
+#endif  // CONFIG_DERIVED_MVD_SIGN
   // enable temporal interpolated prediction
   int enable_tip;
 #if CONFIG_BAWP
@@ -1220,20 +1224,38 @@ typedef struct {
 
 #if CONFIG_ENTROPY_STATS
 typedef struct {
+#if CONFIG_VQ_MVD_CODING
+  unsigned int amvd_indices_cnts[CDF_SIZE(MAX_AMVD_INDEX)];  // placeholder
+#else
   unsigned int classes_cnts[NUM_MV_PRECISIONS]
                            [CDF_SIZE(MV_CLASSES)];           // placeholder
   unsigned int amvd_classes_cnts[CDF_SIZE(MV_CLASSES)];      // placeholder
   unsigned int class0_fp_cnts[CLASS0_SIZE][3][CDF_SIZE(2)];  // placeholder
   unsigned int fp_cnts[3][CDF_SIZE(2)];                      // placeholder
-  unsigned int sign_cnts[CDF_SIZE(2)];                       // placeholder
   unsigned int class0_hp_cnts[CDF_SIZE(2)];                  // placeholder
   unsigned int hp_cnts[CDF_SIZE(2)];                         // placeholder
   unsigned int class0_cnts[CDF_SIZE(CLASS0_SIZE)];           // placeholder
   unsigned int bits_cnts[MV_OFFSET_BITS][CDF_SIZE(2)];       // placeholder
+#endif                                  // CONFIG_VQ_MVD_CODING
+  unsigned int sign_cnts[CDF_SIZE(2)];  // placeholder
 } nmv_component_count;
 
 typedef struct {
-  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];       // placeholder
+#if CONFIG_VQ_MVD_CODING
+  unsigned int joint_shell_class_cnts[NUM_MV_PRECISIONS][CDF_SIZE(
+      MAX_NUM_SHELL_CLASS)];                                 // placeholder
+  unsigned int shell_offset_low_class_cnts[2][CDF_SIZE(2)];  // placeholder
+  unsigned int shell_offset_class2_cnts[3][CDF_SIZE(2)];     // // placeholder
+  unsigned int shell_offset_other_class_cnts[NUM_CTX_CLASS_OFFSETS]
+                                            [SHELL_INT_OFFSET_BIT]
+                                            [CDF_SIZE(2)];  // placeholder
+  unsigned int col_mv_greter_flags_cnts[NUM_CTX_COL_MV_GTX]
+                                       [CDF_SIZE(2)];  // placeholder
+  unsigned int col_mv_index_cnts[NUM_CTX_COL_MV_INDEX]
+                                [CDF_SIZE(2)];  // placeholder
+#else
+  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];             // placeholder
+#endif                                                 // CONFIG_VQ_MVD_CODING
   unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
   nmv_component_count mvd_comp_cnts[2];
 } nmv_context_count;

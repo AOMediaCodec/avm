@@ -2447,7 +2447,14 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         write_pb_mv_precision(cm, xd, w);
       }
     }
-
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+    MV mv_diff[2] = { kZeroMv, kZeroMv };
+    const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
+#if CONFIG_DERIVED_MVD_SIGN
+    int num_signaled_mvd = 0;
+    int start_signaled_mvd_idx = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 #if CONFIG_EXTENDED_WARP_PREDICTION
     if (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag) {
       nmv_context *nmvc = &ec_ctx->nmvc;
@@ -2457,20 +2464,58 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #else
           x->mbmi_ext_frame->warp_param_stack[mbmi->warp_ref_idx].wm_params;
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
-      const int_mv ref_mv =
+      int_mv ref_mv =
           get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
                           xd->mi_col, xd->mi_row);
-      av1_encode_mv(cpi, w, mbmi->mv[0].as_mv, ref_mv.as_mv, nmvc,
-                    pb_mv_precision);
+#if CONFIG_DERIVED_MVD_SIGN
+      num_signaled_mvd = 1;
+      start_signaled_mvd_idx = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+      get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
+                          pb_mv_precision, &mv_diff[0]);
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+#if CONFIG_VQ_MVD_CODING
+      av1_encode_mv(cpi, mbmi->mv[0].as_mv, w, nmvc, mv_diff[0],
+                    pb_mv_precision, is_adaptive_mvd);
+#else
+      av1_encode_mv(cpi, w, mbmi->mv[0].as_mv,
+#if CONFIG_DERIVED_MVD_SIGN
+                    mv_diff[0],
+#else
+                    ref_mv.as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+                    nmvc, pb_mv_precision);
+#endif  // CONFIG_VQ_MVD_CODING
+
     } else {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
       if (have_newmv_in_each_reference(mode)) {
+#if CONFIG_DERIVED_MVD_SIGN
+        num_signaled_mvd = 1 + is_compound;
+        start_signaled_mvd_idx = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+
         for (ref = 0; ref < 1 + is_compound; ++ref) {
           nmv_context *nmvc = &ec_ctx->nmvc;
-          const int_mv ref_mv = get_ref_mv(x, ref);
-          av1_encode_mv(cpi, w, mbmi->mv[ref].as_mv, ref_mv.as_mv, nmvc,
-                        pb_mv_precision);
+          int_mv ref_mv = get_ref_mv(x, ref);
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+          get_mvd_from_ref_mv(mbmi->mv[ref].as_mv, ref_mv.as_mv,
+                              is_adaptive_mvd, pb_mv_precision, &mv_diff[ref]);
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+#if CONFIG_VQ_MVD_CODING
+          av1_encode_mv(cpi, mbmi->mv[ref].as_mv, w, nmvc, mv_diff[ref],
+                        pb_mv_precision, is_adaptive_mvd);
+#else
+        av1_encode_mv(cpi, w, mbmi->mv[ref].as_mv,
+#if CONFIG_DERIVED_MVD_SIGN
+                      mv_diff[ref],
+#else
+                      ref_mv.as_mv,
+#endif
+                      nmvc, pb_mv_precision);
+#endif  // CONFIG_VQ_MVD_CODING
         }
       } else if (mode == NEAR_NEWMV
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -2479,10 +2524,29 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                  ||
                  (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
-        const int_mv ref_mv = get_ref_mv(x, 1);
+        int_mv ref_mv = get_ref_mv(x, 1);
 
-        av1_encode_mv(cpi, w, mbmi->mv[1].as_mv, ref_mv.as_mv, nmvc,
-                      pb_mv_precision);
+#if CONFIG_DERIVED_MVD_SIGN
+        num_signaled_mvd = 1;
+        start_signaled_mvd_idx = 1;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+#if CONFIG_VQ_MVD_CODING || CONFIG_DERIVED_MVD_SIGN
+        get_mvd_from_ref_mv(mbmi->mv[1].as_mv, ref_mv.as_mv, is_adaptive_mvd,
+                            pb_mv_precision, &mv_diff[1]);
+#endif  // CONFIG_VQ_MVD_CODING || CONFIG_DERIVED_MVD_SIGN
+
+#if CONFIG_VQ_MVD_CODING
+        av1_encode_mv(cpi, mbmi->mv[1].as_mv, w, nmvc, mv_diff[1],
+                      pb_mv_precision, is_adaptive_mvd);
+#else
+      av1_encode_mv(cpi, w, mbmi->mv[1].as_mv,
+#if CONFIG_DERIVED_MVD_SIGN
+                    mv_diff[1],
+#else
+                    ref_mv.as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+                    nmvc, pb_mv_precision);
+#endif  // CONFIG_VQ_MVD_CODING
 
       } else if (mode == NEW_NEARMV
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -2491,16 +2555,77 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                  ||
                  (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
-        const int_mv ref_mv = get_ref_mv(x, 0);
-
-        av1_encode_mv(cpi, w, mbmi->mv[0].as_mv, ref_mv.as_mv,
-
-                      nmvc, pb_mv_precision);
+        int_mv ref_mv = get_ref_mv(x, 0);
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+#if CONFIG_DERIVED_MVD_SIGN
+        num_signaled_mvd = 1;
+        start_signaled_mvd_idx = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+        get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
+                            pb_mv_precision, &mv_diff[0]);
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+#if CONFIG_VQ_MVD_CODING
+        av1_encode_mv(cpi, mbmi->mv[0].as_mv, w, nmvc, mv_diff[0],
+                      pb_mv_precision, is_adaptive_mvd);
+#else
+      av1_encode_mv(cpi, w, mbmi->mv[0].as_mv,
+#if CONFIG_DERIVED_MVD_SIGN
+                    mv_diff[0],
+#else
+                    ref_mv.as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+                    nmvc, pb_mv_precision);
+#endif  // CONFIG_VQ_MVD_CODING
       }
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
     }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_DERIVED_MVD_SIGN
+    // Code sign in the second pass
+    if (num_signaled_mvd > 0) {
+      int last_ref = -1;
+      int last_comp = -1;
+      uint16_t sum_mvd = 0;
+      int precision_shift = MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision;
+      int th_for_num_nonzero = get_derive_sign_nzero_th(mbmi);
+      uint8_t num_nonzero_mvd_comp = 0;
+      uint8_t enable_sign_derive = 0;
+      if (is_mvd_sign_derive_allowed(cm, xd, mbmi)) {
+        for (ref = start_signaled_mvd_idx;
+             ref < start_signaled_mvd_idx + num_signaled_mvd; ++ref) {
+          assert(ref == 0 || ref == 1);
+          for (int comp = 0; comp < 2; comp++) {
+            int this_mvd_comp = comp == 0 ? mv_diff[ref].row : mv_diff[ref].col;
+            if (this_mvd_comp) {
+              last_ref = ref;
+              last_comp = comp;
+              sum_mvd = sum_mvd + (abs(this_mvd_comp) >> precision_shift);
+              num_nonzero_mvd_comp++;
+            }
+          }
+        }
+        if (num_nonzero_mvd_comp >= th_for_num_nonzero) enable_sign_derive = 1;
+      }
+
+      for (ref = start_signaled_mvd_idx;
+           ref < start_signaled_mvd_idx + num_signaled_mvd; ++ref) {
+        assert(ref == 0 || ref == 1);
+        for (int comp = 0; comp < 2; comp++) {
+          int this_mvd_comp = comp == 0 ? mv_diff[ref].row : mv_diff[ref].col;
+          if (enable_sign_derive && (ref == last_ref && comp == last_comp)) {
+            assert((this_mvd_comp < 0) == (sum_mvd & 0x1));
+            continue;
+          }
+          if (this_mvd_comp) {
+            const int sign = this_mvd_comp < 0;
+            aom_write_symbol(w, sign, ec_ctx->nmvc.comps[comp].sign_cdf, 2);
+          }
+        }
+      }
+    }
+#endif  // CONFIG_DERIVED_MVD_SIGN
+
 #if CONFIG_BAWP && !CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP_CHROMA
     if (cm->features.enable_bawp &&
@@ -2705,8 +2830,31 @@ static AOM_INLINE void write_intrabc_info(
 
     if (!mbmi->intrabc_mode)
       av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
+
+#if CONFIG_DERIVED_MVD_SIGN
+    if (!mbmi->intrabc_mode) {
+      const MV diff = { mbmi->mv[0].as_mv.row - dv_ref.as_mv.row,
+                        mbmi->mv[0].as_mv.col - dv_ref.as_mv.col };
+      if (diff.row) {
+        aom_write_symbol(w, diff.row < 0, ec_ctx->ndvc.comps[0].sign_cdf, 2);
+      }
+      if (diff.col) {
+        aom_write_symbol(w, diff.col < 0, ec_ctx->ndvc.comps[1].sign_cdf, 2);
+      }
+    }
+#endif  // CONFIG_DERIVED_MVD_SIGN
 #else
     av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
+#if CONFIG_DERIVED_MVD_SIGN
+    const MV diff = { mbmi->mv[0].as_mv.row - dv_ref.as_mv.row,
+                      mbmi->mv[0].as_mv.col - dv_ref.as_mv.col };
+    if (diff.row) {
+      aom_write_symbol(w, diff.row < 0, ec_ctx->ndvc.comps[0].sign_cdf, 2);
+    }
+    if (diff.col) {
+      aom_write_symbol(w, diff.col < 0, ec_ctx->ndvc.comps[1].sign_cdf, 2);
+    }
+#endif  // CONFIG_DERIVED_MVD_SIGN
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   }
 }
@@ -5171,6 +5319,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_REFINEMV
   aom_wb_write_bit(wb, seq_params->enable_refinemv);
 #endif  // CONFIG_REFINEMV
+
+#if CONFIG_DERIVED_MVD_SIGN
+  aom_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
+#endif  // CONFIG_DERIVED_MVD_SIGN
 
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 

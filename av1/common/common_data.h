@@ -164,6 +164,13 @@ static const int8_t cwp_weighting_factor[2][MAX_CWP_NUM] = {
   { 8, 12, 4, 20, -4 },
 };
 
+#if CONFIG_VQ_MVD_CODING
+// Supported set of MVD values in unit of 1/8 pel for AMVD mode
+static const int16_t amvd_index_to_mvd[MAX_AMVD_INDEX + 1] = { 0,  2,  4,
+                                                               6,  8,  16,
+                                                               32, 64, 128 };
+#endif  // CONFIG_VQ_MVD_CODING
+
 #if CONFIG_EXT_RECUR_PARTITIONS
 /* clang-format off */
 // This table covers all block sizes.

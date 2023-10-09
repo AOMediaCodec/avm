@@ -1168,6 +1168,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 1);
+#if CONFIG_VQ_MVD_CODING
+        if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
+#endif
       } else {
         // aomenc2
         if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
@@ -1226,6 +1229,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
       av1_compound_single_motion_search_interinter(
           cpi, x, bsize, cur_mv, NULL, 0, rate_mv, jmvd_base_ref_list);
+#if CONFIG_VQ_MVD_CODING
+      if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
+#endif  // CONFIG_VQ_MVD_CODING
     } else {
 #if CONFIG_OPTFLOW_REFINEMENT
       assert(this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
@@ -1251,6 +1257,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 0);
+#if CONFIG_VQ_MVD_CODING
+        if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
+#endif  // CONFIG_VQ_MVD_CODING
       } else {
         // aomenc3
         if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
@@ -1508,6 +1517,484 @@ static INLINE void update_mode_start_end_index(const AV1_COMP *const cpi,
   }
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_DERIVED_MVD_SIGN
+#define NUMBER_OF_ITER_PER_COMP 4
+// Get the other non-signaled MVD for joint MVD mode
+static int get_othermv_for_jointmv_mode(
+    const AV1_COMP *const cpi, BLOCK_SIZE bsize, MACROBLOCK *x,
+    MB_MODE_INFO *mbmi, MV this_mv, MV *other_mv, MvSubpelPrecision precision,
+    int is_adaptive_mvd, int jmvd_base_ref_list) {
+  const AV1_COMMON *cm = &cpi->common;
+  const int same_side = is_ref_frame_same_side(cm, mbmi);
+  assert(jmvd_base_ref_list == get_joint_mvd_base_ref_list(cm, mbmi));
+  assert(is_joint_mvd_coding_mode(mbmi->mode));
+  const int_mv ref_mvs[2] = { av1_get_ref_mv(x, 0), av1_get_ref_mv(x, 1) };
+
+  int first_ref_dist =
+      cm->ref_frame_relative_dist[mbmi->ref_frame[jmvd_base_ref_list]];
+  int sec_ref_dist =
+      cm->ref_frame_relative_dist[mbmi->ref_frame[1 - jmvd_base_ref_list]];
+  assert(first_ref_dist >= sec_ref_dist);
+  sec_ref_dist = same_side ? sec_ref_dist : -sec_ref_dist;
+
+  MV other_mvd = { 0, 0 };
+  MV diff = { 0, 0 };
+  MV low_prec_refmv = ref_mvs[jmvd_base_ref_list].as_mv;
+#if BUGFIX_AMVD_AMVR
+  if (!is_adaptive_mvd)
+#endif  // BUGFIX_AMVD_AMVR
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&low_prec_refmv, precision);
+  diff.row = this_mv.row - low_prec_refmv.row;
+  diff.col = this_mv.col - low_prec_refmv.col;
+
+  get_mv_projection(&other_mvd, diff, sec_ref_dist, first_ref_dist);
+  scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
+#if !CONFIG_C071_SUBBLK_WARPMV
+  // TODO(Mohammed): Do we need to apply block level lower mv precision?
+  lower_mv_precision(&other_mvd, features->fr_mv_precision);
+#endif  // !CONFIG_C071_SUBBLK_WARPMV
+  other_mv->row =
+      (int)(ref_mvs[1 - jmvd_base_ref_list].as_mv.row + other_mvd.row);
+  other_mv->col =
+      (int)(ref_mvs[1 - jmvd_base_ref_list].as_mv.col + other_mvd.col);
+
+  SUBPEL_MOTION_SEARCH_PARAMS ms_params;
+  av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
+                                    &ref_mvs[1 - jmvd_base_ref_list].as_mv,
+                                    mbmi->pb_mv_precision, NULL);
+  const SubpelMvLimits *other_mv_limits = &ms_params.mv_limits;
+  return av1_is_subpelmv_in_range(other_mv_limits, *other_mv);
+}
+// Cost of signaling sign of last non-zero MVD component
+static int get_last_sign_cost(MACROBLOCK *x, int is_adaptive_mvd, MV mv_diff[2],
+                              int start_signaled_mv_ref_idx,
+                              int num_signaled_mvd) {
+  int last_sign = -1;
+  int last_comp = -1;
+  for (int ref_idx = start_signaled_mv_ref_idx;
+       ref_idx < start_signaled_mv_ref_idx + num_signaled_mvd; ++ref_idx) {
+    for (int comp = 0; comp < 2; comp++) {
+      int16_t this_mvd_comp =
+          comp == 0 ? mv_diff[ref_idx].row : mv_diff[ref_idx].col;
+      if (this_mvd_comp) {
+        last_sign = (this_mvd_comp < 0);
+        last_comp = comp;
+      }
+    }
+  }
+  assert(last_sign == 0 || last_sign == 1);
+  return (av1_mv_sign_cost(last_sign, last_comp, &x->mv_costs, MV_COST_WEIGHT,
+                           7, is_adaptive_mvd));
+}
+
+// Generate the prediction and compute model RD for a given MV
+static void av1_get_model_rd(const AV1_COMP *const cpi, MACROBLOCKD *xd,
+                             MACROBLOCK *x, BLOCK_SIZE bsize,
+                             const BUFFER_SET *orig_dst, MV this_mvs[2],
+                             MV ref_mvs[2], int num_signaled_mvd, int *rate_sum,
+                             int64_t *dist_sum, int *mv_rate,
+                             int signaled_mv_ref_idx) {
+  const AV1_COMMON *cm = &cpi->common;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
+  int is_compound = has_second_ref(mbmi);
+  int tmp_skip_txfm_sb;
+  int64_t tmp_skip_sse_sb;
+  int plane_from = AOM_PLANE_Y;
+  int plane_to = AOM_PLANE_Y;
+
+  // build the predictor
+  av1_enc_build_inter_predictor(cm, xd, xd->mi_row, xd->mi_col, orig_dst, bsize,
+                                plane_from, plane_to);
+
+  // Compute the MVcosts for all signaled MVDs
+  int this_mv_rate = av1_mv_bit_cost(
+      &this_mvs[signaled_mv_ref_idx], &ref_mvs[signaled_mv_ref_idx],
+      mbmi->pb_mv_precision, &x->mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
+  if (num_signaled_mvd == 2) {
+    this_mv_rate += av1_mv_bit_cost(
+        &this_mvs[!signaled_mv_ref_idx], &ref_mvs[!signaled_mv_ref_idx],
+        mbmi->pb_mv_precision, &x->mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
+  }
+  if (is_compound) {
+    model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+        cpi, bsize, x, xd, plane_from, plane_to, rate_sum, dist_sum,
+        &tmp_skip_txfm_sb, &tmp_skip_sse_sb, NULL, NULL, NULL);
+  } else {
+    if (mbmi->motion_mode == INTERINTRA) {
+      model_rd_sb_fn[MODELRD_TYPE_INTERINTRA](cpi, bsize, x, xd, plane_from,
+                                              plane_to, rate_sum, dist_sum,
+                                              NULL, NULL, NULL, NULL, NULL);
+    } else {
+      model_rd_sb_fn[MODELRD_CURVFIT](cpi, bsize, x, xd, plane_from, plane_to,
+                                      rate_sum, dist_sum, NULL, NULL, NULL,
+                                      NULL, NULL);
+    }
+  }
+
+  *mv_rate = this_mv_rate;
+}
+
+// Check if this MVD is valid for derive sign
+static INLINE int is_this_mvds_valid_for_derivesign(
+    const MV mvd[2], const MvSubpelPrecision precision,
+    const int is_adaptive_mvd, const int start_signaled_mv_ref_idx,
+    const int num_signaled_mvd, int *modified_last_sign,
+    int *modified_last_comp, int *modified_num_non_zero_comp,
+    int th_for_num_nonzero) {
+  (void)is_adaptive_mvd;
+  int num_nonzero_mvd_comp = 0;
+  int precision_shift = MV_PRECISION_ONE_EIGHTH_PEL - precision;
+  int last_sign = -1;
+  int sum_mvd = 0;
+  int last_comp = -1;
+  for (int ref_idx = start_signaled_mv_ref_idx;
+       ref_idx < start_signaled_mv_ref_idx + num_signaled_mvd; ++ref_idx) {
+    for (int comp = 0; comp < 2; comp++) {
+      int this_mvd_comp = comp == 0 ? mvd[ref_idx].row : mvd[ref_idx].col;
+      if (this_mvd_comp) {
+        last_sign = (this_mvd_comp < 0);
+        num_nonzero_mvd_comp++;
+        last_comp = comp;
+        sum_mvd += (abs(this_mvd_comp) >> precision_shift);
+      }
+    }
+  }
+  if (modified_last_sign) *modified_last_sign = last_sign;
+  if (modified_last_comp) *modified_last_comp = last_comp;
+  if (modified_num_non_zero_comp)
+    *modified_num_non_zero_comp = num_nonzero_mvd_comp;
+
+  if (num_nonzero_mvd_comp < th_for_num_nonzero) return 1;
+  return (last_sign == (sum_mvd & 0x1));
+}
+// Motion search for sign derivation  if only one MVD is signaled
+static int av1_adjust_mvs_for_derive_sign_single_mvd(
+    const AV1_COMP *const cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+    const BUFFER_SET *orig_dst, int signaled_mv_ref_idx, int num_signaled_mvd,
+    MV mv_diff[2], MV ref_mvs[2], int rate2_nocoeff, int rate_mv0,
+    int *tmp_rate_mv) {
+  const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  int is_compound = has_second_ref(mbmi);
+  const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
+  int th_for_num_nonzero = get_derive_sign_nzero_th(mbmi);
+  const int joint_mvd_mode = is_joint_mvd_coding_mode(mbmi->mode);
+  assert(!is_adaptive_mvd);
+  assert(num_signaled_mvd == 1);
+  (void)num_signaled_mvd;
+  int rate_sum;
+  int64_t dist_sum;
+  int rate_without_mv = rate2_nocoeff - rate_mv0;
+  int best_mv_rate = rate_mv0;
+  SubpelMvLimits *mv_limits[2] = { NULL, NULL };
+
+  assert(
+      IMPLIES(is_adaptive_mvd, mbmi->pb_mv_precision == MV_PRECISION_QTR_PEL));
+  assert(
+      IMPLIES(!is_compound, signaled_mv_ref_idx == 0 && num_signaled_mvd == 1));
+  const int mv_delta =
+      1 << (MV_PRECISION_ONE_EIGHTH_PEL - mbmi->pb_mv_precision);
+  assert(!is_valid_sign_mvd_single(mv_diff[signaled_mv_ref_idx],
+                                   mbmi->pb_mv_precision, is_adaptive_mvd,
+                                   th_for_num_nonzero));
+
+  // Get the MV limits for both references
+  SUBPEL_MOTION_SEARCH_PARAMS ms_params[2];
+  for (int ref_idx = 0; ref_idx < 1 + is_compound; ref_idx++) {
+    av1_make_default_subpel_ms_params(&ms_params[ref_idx], cpi, x, bsize,
+                                      &ref_mvs[ref_idx], mbmi->pb_mv_precision,
+                                      NULL);
+    mv_limits[ref_idx] = &ms_params[ref_idx].mv_limits;
+  }
+
+  int64_t best_model_rd = INT64_MAX;
+  const MV initial_mvs[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
+  MV best_mvs[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
+  const MV initial_mvd[2] = { mv_diff[0], mv_diff[1] };
+
+  int search_range = 1;
+  for (int row_mvd_idx = -search_range; row_mvd_idx <= search_range;
+       row_mvd_idx++) {
+    for (int col_mvd_idx = -search_range; col_mvd_idx <= search_range;
+         col_mvd_idx++) {
+      const MV this_mvd = {
+        initial_mvd[signaled_mv_ref_idx].row + row_mvd_idx * mv_delta,
+        initial_mvd[signaled_mv_ref_idx].col + col_mvd_idx * mv_delta
+      };
+      if (!is_valid_sign_mvd_single(this_mvd, mbmi->pb_mv_precision,
+                                    is_adaptive_mvd, th_for_num_nonzero))
+        continue;
+
+      // Get the last sign
+      int last_nonzero_sign = -1;
+      int last_comp = -1;
+      int num_nonzero_mvd_comp = (this_mvd.row != 0) + (this_mvd.col != 0);
+      if (this_mvd.col) {
+        last_nonzero_sign = this_mvd.col < 0;
+        last_comp = 1;
+      } else if (this_mvd.row) {
+        last_nonzero_sign = this_mvd.row < 0;
+        last_comp = 0;
+      }
+
+      MV this_mvs[2] = { initial_mvs[0], initial_mvs[1] };
+      update_mv_component_from_mvd(this_mvd.row, ref_mvs[signaled_mv_ref_idx],
+                                   0, is_adaptive_mvd, mbmi->pb_mv_precision,
+                                   &this_mvs[signaled_mv_ref_idx]);
+      update_mv_component_from_mvd(this_mvd.col, ref_mvs[signaled_mv_ref_idx],
+                                   1, is_adaptive_mvd, mbmi->pb_mv_precision,
+                                   &this_mvs[signaled_mv_ref_idx]);
+      if (av1_is_subpelmv_in_range(mv_limits[signaled_mv_ref_idx],
+                                   this_mvs[signaled_mv_ref_idx])) {
+        mbmi->mv[signaled_mv_ref_idx].as_mv = this_mvs[signaled_mv_ref_idx];
+        if (is_compound) {
+          if (joint_mvd_mode) {
+            MV other_mv;
+            int valid = get_othermv_for_jointmv_mode(
+                cpi, bsize, x, mbmi, this_mvs[signaled_mv_ref_idx], &other_mv,
+                mbmi->pb_mv_precision, is_adaptive_mvd, signaled_mv_ref_idx);
+            if (!valid) continue;
+            mbmi->mv[!signaled_mv_ref_idx].as_mv = other_mv;
+          } else {
+            mbmi->mv[!signaled_mv_ref_idx].as_mv =
+                this_mvs[!signaled_mv_ref_idx];
+          }
+        }
+        int this_mv_rate;
+        MV this_mv[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
+        av1_get_model_rd(cpi, xd, x, bsize, orig_dst, this_mv, ref_mvs,
+                         num_signaled_mvd, &rate_sum, &dist_sum, &this_mv_rate,
+                         signaled_mv_ref_idx);
+        if (num_nonzero_mvd_comp >= th_for_num_nonzero) {
+          assert(last_comp != -1);
+          assert(last_nonzero_sign != -1);
+          int last_sign_cost =
+              av1_mv_sign_cost(last_nonzero_sign, last_comp, &x->mv_costs,
+                               MV_COST_WEIGHT, 7, is_adaptive_mvd);
+          this_mv_rate -= last_sign_cost;
+        }
+        int64_t comp_model_rd_cur = RDCOST(
+            x->rdmult, rate_without_mv + this_mv_rate + rate_sum, dist_sum);
+        if (comp_model_rd_cur < best_model_rd) {
+          best_model_rd = comp_model_rd_cur;
+          best_mvs[signaled_mv_ref_idx] = mbmi->mv[signaled_mv_ref_idx].as_mv;
+          if (is_compound)
+            best_mvs[!signaled_mv_ref_idx] =
+                mbmi->mv[!signaled_mv_ref_idx].as_mv;
+          best_mv_rate = this_mv_rate;
+
+          assert(this_mvs[signaled_mv_ref_idx].row ==
+                 mbmi->mv[signaled_mv_ref_idx].as_mv.row);
+          assert(this_mvs[signaled_mv_ref_idx].col ==
+                 mbmi->mv[signaled_mv_ref_idx].as_mv.col);
+          if (is_compound && !joint_mvd_mode) {
+            assert(this_mvs[!signaled_mv_ref_idx].row ==
+                   mbmi->mv[!signaled_mv_ref_idx].as_mv.row);
+            assert(this_mvs[!signaled_mv_ref_idx].col ==
+                   mbmi->mv[!signaled_mv_ref_idx].as_mv.col);
+          }
+        }
+      }
+    }
+  }
+
+  mbmi->mv[0].as_mv = best_mvs[0];
+  if (is_compound) mbmi->mv[1].as_mv = best_mvs[1];
+  *tmp_rate_mv = best_mv_rate;
+
+  return (best_model_rd != INT64_MAX);
+}
+
+// Perform refinement for sign derivation
+static int av1_adjust_mvs_for_derive_sign(const AV1_COMP *const cpi,
+                                          MACROBLOCK *x, BLOCK_SIZE bsize,
+                                          const BUFFER_SET *orig_dst,
+                                          int start_signaled_mv_ref_idx,
+                                          int num_signaled_mvd, MV mv_diff[2],
+                                          MV ref_mvs[2], int rate2_nocoeff,
+                                          int rate_mv0, int *tmp_rate_mv) {
+  const AV1_COMMON *cm = &cpi->common;
+  MACROBLOCKD *xd = &x->e_mbd;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  int is_compound = has_second_ref(mbmi);
+  const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
+  int th_for_num_nonzero = get_derive_sign_nzero_th(mbmi);
+  assert(is_adaptive_mvd == 0);
+  const int joint_mvd_mode = is_joint_mvd_coding_mode(mbmi->mode);
+  int rate_sum;      //, tmp_skip_txfm_sb;
+  int64_t dist_sum;  //, tmp_skip_sse_sb;
+  int rate_without_mv = rate2_nocoeff - rate_mv0;
+  int best_mv_rate = rate_mv0;
+
+  if (num_signaled_mvd < 2) {
+    return av1_adjust_mvs_for_derive_sign_single_mvd(
+        cpi, x, bsize, orig_dst, start_signaled_mv_ref_idx, num_signaled_mvd,
+        mv_diff, ref_mvs, rate2_nocoeff, rate_mv0, tmp_rate_mv);
+  }
+
+  SubpelMvLimits *mv_limits[2] = { NULL, NULL };
+
+  assert(
+      IMPLIES(is_adaptive_mvd, mbmi->pb_mv_precision == MV_PRECISION_QTR_PEL));
+  const int mv_delta =
+      1 << (MV_PRECISION_ONE_EIGHTH_PEL - mbmi->pb_mv_precision);
+  assert(IMPLIES(!is_compound,
+                 start_signaled_mv_ref_idx == 0 && num_signaled_mvd == 1));
+
+  SUBPEL_MOTION_SEARCH_PARAMS ms_params[2];
+  for (int ref_idx = start_signaled_mv_ref_idx;
+       ref_idx < start_signaled_mv_ref_idx + num_signaled_mvd; ++ref_idx) {
+    av1_make_default_subpel_ms_params(&ms_params[ref_idx], cpi, x, bsize,
+                                      &ref_mvs[ref_idx], mbmi->pb_mv_precision,
+                                      NULL);
+    mv_limits[ref_idx] = &ms_params[ref_idx].mv_limits;
+  }
+  int64_t best_model_rd = INT64_MAX;
+  const MV initial_mvs[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
+  MV best_mvs[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
+
+  // Get the position of the last non-zero mv component
+  int initial_last_non_zero_pos = 0;
+  int curr_pos = 0;
+  int initial_num_nonzero_mvd_comp = 0;
+  int initial_last_sign = -1;
+
+  for (int ref_idx = start_signaled_mv_ref_idx;
+       ref_idx < start_signaled_mv_ref_idx + num_signaled_mvd; ++ref_idx) {
+    for (int comp = 0; comp < 2; comp++) {
+      int16_t this_mvd_comp =
+          comp == 0 ? mv_diff[ref_idx].row : mv_diff[ref_idx].col;
+      if (this_mvd_comp) {
+        initial_last_non_zero_pos = curr_pos;
+        initial_last_sign = (this_mvd_comp < 0);
+        initial_num_nonzero_mvd_comp++;
+      }
+      curr_pos++;
+    }
+  }
+
+  curr_pos = 0;
+  int offsets[NUMBER_OF_ITER_PER_COMP] = { 1, -1, 3, -3 };
+
+  assert(initial_num_nonzero_mvd_comp >= th_for_num_nonzero);
+
+  // int max_num_iterations = is_4k_or_larger ? 2 : 4;
+
+  for (int ref_idx = start_signaled_mv_ref_idx;
+       ref_idx < start_signaled_mv_ref_idx + num_signaled_mvd; ++ref_idx) {
+    for (int comp = 0; comp < 2; comp++) {
+      int16_t this_mvd_comp =
+          comp == 0 ? mv_diff[ref_idx].row : mv_diff[ref_idx].col;
+      assert(IMPLIES(curr_pos > initial_last_non_zero_pos, this_mvd_comp == 0));
+
+      if (curr_pos <= initial_last_non_zero_pos || best_model_rd == INT64_MAX) {
+        const int max_num_iterations = 2;
+        for (int iteration = 0; iteration < max_num_iterations; iteration++) {
+          int16_t modified_mvd_comp =
+              this_mvd_comp + mv_delta * offsets[iteration];
+          if (abs(modified_mvd_comp) > MV_MAX) continue;
+
+          MV modified_mvds[2] = { mv_diff[0], mv_diff[1] };
+          if (comp == 0) {
+            modified_mvds[ref_idx].row = modified_mvd_comp;
+          } else {
+            modified_mvds[ref_idx].col = modified_mvd_comp;
+          }
+          int modified_last_sign = -1;
+          int modified_last_comp = -1;
+          int modified_num_non_zero_comp = 0;
+          if (!is_this_mvds_valid_for_derivesign(
+                  modified_mvds, mbmi->pb_mv_precision, is_adaptive_mvd,
+                  start_signaled_mv_ref_idx, num_signaled_mvd,
+                  &modified_last_sign, &modified_last_comp,
+                  &modified_num_non_zero_comp, th_for_num_nonzero))
+            continue;
+          // It is not allowed to modify the last non-zero MVD to 0
+          // It is also not allowed to modify any coeff to 0 if
+          // (num_nonzero_mvd_comp == get_derive_sign_nzero_th(mbmi);)
+          if (modified_mvd_comp == 0 &&
+              (initial_num_nonzero_mvd_comp == th_for_num_nonzero ||
+               curr_pos == initial_last_non_zero_pos))
+            continue;
+
+          // Not allowed to change the sign of the last component
+          if (curr_pos == initial_last_non_zero_pos &&
+              ((initial_last_sign != (modified_mvd_comp < 0))))
+            continue;
+
+          MV this_mvs[2] = { initial_mvs[0], initial_mvs[1] };
+          update_mv_component_from_mvd(
+              modified_mvd_comp, ref_mvs[ref_idx], comp,
+              enable_adaptive_mvd_resolution(cm, mbmi), mbmi->pb_mv_precision,
+              &this_mvs[ref_idx]);
+
+          if (av1_is_subpelmv_in_range(mv_limits[ref_idx], this_mvs[ref_idx])) {
+            mbmi->mv[ref_idx].as_mv = this_mvs[ref_idx];
+            if (is_compound) {
+              if (joint_mvd_mode) {
+                MV other_mv;
+                int valid = get_othermv_for_jointmv_mode(
+                    cpi, bsize, x, mbmi, this_mvs[ref_idx], &other_mv,
+                    mbmi->pb_mv_precision, is_adaptive_mvd,
+                    start_signaled_mv_ref_idx);
+                if (!valid) continue;
+                mbmi->mv[!ref_idx].as_mv = other_mv;
+              } else {
+                // assert(av1_is_subpelmv_in_range(mv_limits[!ref_idx],
+                // this_mvs[!ref_idx]));
+                mbmi->mv[!ref_idx].as_mv = this_mvs[!ref_idx];
+              }
+            }
+            int this_mv_rate;
+            MV this_mv[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
+            av1_get_model_rd(cpi, xd, x, bsize, orig_dst, this_mv, ref_mvs,
+                             num_signaled_mvd, &rate_sum, &dist_sum,
+                             &this_mv_rate, start_signaled_mv_ref_idx);
+            if (modified_num_non_zero_comp >= th_for_num_nonzero) {
+              this_mv_rate -= av1_mv_sign_cost(
+                  modified_last_sign, modified_last_comp, &x->mv_costs,
+                  MV_COST_WEIGHT, 7, is_adaptive_mvd);
+            }
+            int64_t comp_model_rd_cur = RDCOST(
+                x->rdmult, rate_without_mv + this_mv_rate + rate_sum, dist_sum);
+            if (comp_model_rd_cur < best_model_rd) {
+              best_model_rd = comp_model_rd_cur;
+              best_mvs[ref_idx] = mbmi->mv[ref_idx].as_mv;
+              if (is_compound) best_mvs[!ref_idx] = mbmi->mv[!ref_idx].as_mv;
+              best_mv_rate = this_mv_rate;
+
+              assert(this_mvs[ref_idx].row == mbmi->mv[ref_idx].as_mv.row);
+              assert(this_mvs[ref_idx].col == mbmi->mv[ref_idx].as_mv.col);
+              if (is_compound && !joint_mvd_mode) {
+                assert(this_mvs[!ref_idx].row == mbmi->mv[!ref_idx].as_mv.row);
+                assert(this_mvs[!ref_idx].col == mbmi->mv[!ref_idx].as_mv.col);
+              }
+            }
+          }
+        }
+      }
+      curr_pos++;
+    }
+  }
+
+  mbmi->mv[0].as_mv = best_mvs[0];
+  if (is_compound) mbmi->mv[1].as_mv = best_mvs[1];
+  *tmp_rate_mv = best_mv_rate;
+  assert(IMPLIES(best_model_rd != INT64_MAX,
+                 !(mbmi->mv[0].as_mv.row == initial_mvs[0].row &&
+                   mbmi->mv[0].as_mv.col == initial_mvs[0].col &&
+                   mbmi->mv[1].as_mv.row == initial_mvs[1].row &&
+                   mbmi->mv[1].as_mv.col == initial_mvs[1].col)));
+
+  return (best_model_rd != INT64_MAX);
+}
+#endif
 
 /*!\brief AV1 motion mode search
  *
@@ -1839,6 +2326,46 @@ static int64_t motion_mode_rd(
         // SIMPLE_TRANSLATION mode: no need to recalculate.
         // The prediction is calculated before motion_mode_rd() is called in
         // handle_inter_mode()
+
+#if CONFIG_DERIVED_MVD_SIGN
+          if (is_mvd_sign_derive_allowed(cm, xd, mbmi)) {
+            MV mv_diff[2] = { kZeroMv, kZeroMv };
+            MV ref_mvs[2] = { kZeroMv, kZeroMv };
+            int num_signaled_mvd = 0;
+            int start_signaled_mvd_idx = 0;
+            int num_nonzero_mvd = 0;
+            int th_for_num_nonzero = get_derive_sign_nzero_th(mbmi);
+            if (need_mv_adjustment(xd, cm, x, mbmi, bsize, mv_diff, ref_mvs,
+                                   mbmi->pb_mv_precision, &num_signaled_mvd,
+                                   &start_signaled_mvd_idx, &num_nonzero_mvd)) {
+              if (!av1_adjust_mvs_for_derive_sign(
+                      cpi, x, bsize, orig_dst, start_signaled_mvd_idx,
+                      num_signaled_mvd, mv_diff, ref_mvs, rate2_nocoeff,
+                      rate_mv0, &tmp_rate_mv))
+                continue;
+
+              tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
+
+              assert(!need_mv_adjustment(
+                  xd, cm, x, mbmi, bsize, mv_diff, ref_mvs,
+                  mbmi->pb_mv_precision, &num_signaled_mvd,
+                  &start_signaled_mvd_idx, &num_nonzero_mvd));
+
+              // Rebuild the predictor with updated MV
+              av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst,
+                                            bsize, 0, av1_num_planes(cm) - 1);
+
+            } else if (num_nonzero_mvd >= th_for_num_nonzero) {
+              int last_sign_cost = get_last_sign_cost(
+                  x, enable_adaptive_mvd_resolution(cm, mbmi), mv_diff,
+                  start_signaled_mvd_idx, num_signaled_mvd);
+              tmp_rate_mv = rate_mv0 - last_sign_cost;
+              tmp_rate2 = rate2_nocoeff - last_sign_cost;
+              assert(tmp_rate_mv >= 0);
+            }
+          }  // if (is_mvd_sign_derive_allowed(cm, xd, mbmi))
+#endif
+
         } else if (mbmi->motion_mode == OBMC_CAUSAL) {
           // OBMC_CAUSAL not allowed for compound prediction
           assert(!is_comp_pred);
@@ -3941,6 +4468,9 @@ static int skip_repeated_newmv(
   // with ref_mv_idx
   if (is_warp_mode(best_mbmi->motion_mode)) return 0;
 #endif
+#if CONFIG_DERIVED_MVD_SIGN
+  if (is_mvd_sign_derive_allowed(cm, xd, mbmi)) return 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
 
   int skip = 0;
   int this_rate_mv = 0;

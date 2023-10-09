@@ -71,20 +71,47 @@ enum {
 #define MV_MAX ((1 << MV_MAX_BITS) - 1)
 #define MV_VALS ((MV_MAX << 1) + 1)
 
+#if CONFIG_VQ_MVD_CODING
+#define SHELL_INT_OFFSET_BIT (MAX_NUM_SHELL_CLASS - 1)
+#define MAX_COL_TRUNCATED_UNARY_VAL 2
+#define NUM_CTX_COL_MV_GTX 2
+#define NUM_CTX_COL_MV_INDEX 4
+#define NUM_CTX_CLASS_OFFSETS 1
+#endif  // CONFIG_VQ_MVD_CODING
 typedef struct {
+#if CONFIG_VQ_MVD_CODING
+  aom_cdf_prob amvd_indices_cdf[CDF_SIZE(MAX_AMVD_INDEX)];
+#else
   aom_cdf_prob classes_cdf[NUM_MV_PRECISIONS][CDF_SIZE(MV_CLASSES)];
   aom_cdf_prob amvd_classes_cdf[CDF_SIZE(MV_CLASSES)];
   aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][3][CDF_SIZE(2)];
   aom_cdf_prob fp_cdf[3][CDF_SIZE(2)];
+#endif  // CONFIG_VQ_MVD_CODING
   aom_cdf_prob sign_cdf[CDF_SIZE(2)];
+
+#if !CONFIG_VQ_MVD_CODING
   aom_cdf_prob class0_hp_cdf[CDF_SIZE(2)];
   aom_cdf_prob hp_cdf[CDF_SIZE(2)];
   aom_cdf_prob class0_cdf[CDF_SIZE(CLASS0_SIZE)];
   aom_cdf_prob bits_cdf[MV_OFFSET_BITS][CDF_SIZE(2)];
+#endif  // !CONFIG_VQ_MVD_CODING
 } nmv_component;
 
 typedef struct {
+#if !CONFIG_VQ_MVD_CODING
   aom_cdf_prob joints_cdf[CDF_SIZE(MV_JOINTS)];
+#else
+  aom_cdf_prob joint_shell_class_cdf[NUM_MV_PRECISIONS]
+                                    [CDF_SIZE(MAX_NUM_SHELL_CLASS)];
+  aom_cdf_prob shell_offset_low_class_cdf[2][CDF_SIZE(2)];
+
+  aom_cdf_prob
+      shell_offset_class2_cdf[3][CDF_SIZE(2)];  // 3 bins for truncated unary
+  aom_cdf_prob shell_offset_other_class_cdf[NUM_CTX_CLASS_OFFSETS]
+                                           [SHELL_INT_OFFSET_BIT][CDF_SIZE(2)];
+  aom_cdf_prob col_mv_greter_flags_cdf[NUM_CTX_COL_MV_GTX][CDF_SIZE(2)];
+  aom_cdf_prob col_mv_index_cdf[NUM_CTX_COL_MV_INDEX][CDF_SIZE(2)];
+#endif  // !CONFIG_VQ_MVD_CODING
   aom_cdf_prob amvd_joints_cdf[CDF_SIZE(MV_JOINTS)];
   nmv_component comps[2];
 } nmv_context;

@@ -460,6 +460,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                              "Enable RefineMV mode"
                              "(0: false, 1: true (default))"),
 #endif  // CONFIG_REFINEMV
+#if CONFIG_DERIVED_MVD_SIGN
+  .enable_mvd_sign_derive = ARG_DEF(NULL, "enable-mvd-sign-derive", 1,
+                                    "Enable MVD sign derivation"
+                                    "(0: false, 1: true (default))"),
+#endif  // CONFIG_DERIVED_MVD_SIGN
   .min_partition_size =
       ARG_DEF(NULL, "min-partition-size", 1,
               "Set min partition size "

@@ -485,6 +485,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_REFINEMV
   &g_av1_codec_arg_defs.enable_refinemv,
 #endif  // CONFIG_REFINEMV
+#if CONFIG_DERIVED_MVD_SIGN
+  &g_av1_codec_arg_defs.enable_mvd_sign_derive,
+#endif  // CONFIG_DERIVED_MVD_SIGN
   &g_av1_codec_arg_defs.enable_parity_hiding,
 #if CONFIG_EXTENDED_WARP_PREDICTION
   &g_av1_codec_arg_defs.enable_warped_causal,
@@ -669,6 +672,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_REFINEMV
   config->enable_refinemv = 1;
 #endif  // CONFIG_REFINEMV
+#if CONFIG_DERIVED_MVD_SIGN
+  config->enable_mvd_sign_derive = 1;
+#endif  // CONFIG_DERIVED_MVD_SIGN
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
@@ -1595,6 +1601,11 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : RefineMV mode: (%d)\n",
           encoder_cfg->enable_refinemv);
 #endif  // CONFIG_REFINEMV
+#if CONFIG_DERIVED_MVD_SIGN
+  fprintf(stdout,
+          "                               : MVD sign derivation mode: (%d)\n",
+          encoder_cfg->enable_mvd_sign_derive);
+#endif  // CONFIG_DERIVED_MVD_SIGN
   fprintf(stdout,
           "                               : InterInterWedge (%d), "
           "InterIntraWedge (%d), RefFrameMv (%d)\n",

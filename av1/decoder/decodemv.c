@@ -32,7 +32,9 @@
 #include "av1/decoder/decodemv.h"
 
 #include "aom_dsp/aom_dsp_common.h"
-
+#if CONFIG_VQ_MVD_CODING
+#include "aom_dsp/binary_codes_reader.h"
+#endif  // CONFIG_VQ_MVD_CODING
 #define DEC_MISMATCH_DEBUG 0
 
 #if !CONFIG_AIMC
@@ -1407,9 +1409,25 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
     }
   }
 }
-
-static INLINE void read_mv(aom_reader *r, MV *mv, MV ref, int is_adaptive_mvd,
-                           nmv_context *ctx, MvSubpelPrecision precision);
+#if !CONFIG_VQ_MVD_CODING
+static INLINE void read_mv(aom_reader *r,
+#if CONFIG_DERIVED_MVD_SIGN
+                           MV *mv_diff,
+#else
+                           MV *mv, MV ref,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+                           int is_adaptive_mvd, nmv_context *ctx,
+                           MvSubpelPrecision precision);
+#else
+static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
+                           nmv_context *ctx, MvSubpelPrecision precision,
+                           int is_adaptive_mvd
+#if !CONFIG_DERIVED_MVD_SIGN
+                           ,
+                           MV *mv, MV ref
+#endif
+);
+#endif  // !CONFIG_VQ_MVD_CODING
 
 static INLINE int is_mv_valid(const MV *mv);
 
@@ -1423,9 +1441,44 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
     mv->as_int = ref_mv->as_int;
   } else {
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
-    read_mv(r, &mv->as_mv, ref_mv->as_mv, 0, &ec_ctx->ndvc,
-            MV_PRECISION_ONE_PEL);
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+    MV mv_diff = kZeroMv;
+#endif
+#if CONFIG_VQ_MVD_CODING
+    read_mv(r, &mv_diff, 1, &ec_ctx->ndvc, MV_PRECISION_ONE_PEL, 0
+#if !CONFIG_DERIVED_MVD_SIGN
+            ,
+            &mv->as_mv, ref_mv->as_mv
+#endif
+    );
+#else
 
+  read_mv(r,
+#if CONFIG_DERIVED_MVD_SIGN
+          &mv_diff,
+#else
+          &mv->as_mv, ref_mv->as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+          0, &ec_ctx->ndvc, MV_PRECISION_ONE_PEL);
+
+#endif  //   CONFIG_VQ_MVD_CODING
+
+#if CONFIG_DERIVED_MVD_SIGN
+    // Encode sign
+    if (mv_diff.row) {
+      int sign = aom_read_symbol(r, ec_ctx->ndvc.comps[0].sign_cdf, 2,
+                                 ACCT_INFO("sign"));
+      if (sign) mv_diff.row = -mv_diff.row;
+    }
+    if (mv_diff.col) {
+      int sign = aom_read_symbol(r, ec_ctx->ndvc.comps[1].sign_cdf, 2,
+                                 ACCT_INFO("sign"));
+      if (sign) mv_diff.col = -mv_diff.col;
+    }
+
+    mv->as_mv.row = ref_mv->as_mv.row + mv_diff.row;
+    mv->as_mv.col = ref_mv->as_mv.col + mv_diff.col;
+#endif  // CONFIG_DERIVED_MVD_SIGN
 #if CONFIG_IBC_BV_IMPROVEMENT
   }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -1881,13 +1934,21 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   if (xd->tree_type != CHROMA_PART) read_filter_intra_mode_info(cm, xd, r);
 }
+
+#if !CONFIG_VQ_MVD_CODING
 // Read the MVD for the lower precision
 // this function is executed when the precision is less than integer pixel
 // precision
 static int read_mv_component_low_precision(aom_reader *r, nmv_component *mvcomp,
                                            MvSubpelPrecision precision) {
   int offset, mag;
+
+#if CONFIG_DERIVED_MVD_SIGN
+  const int sign = 0;
+#else
   const int sign = aom_read_symbol(r, mvcomp->sign_cdf, 2, ACCT_INFO("sign"));
+#endif  // CONFIG_DERIVED_MVD_SIGN
+
   const int num_mv_classes = MV_CLASSES - (precision <= MV_PRECISION_FOUR_PEL) -
                              (precision <= MV_PRECISION_8_PEL);
 
@@ -1930,7 +1991,12 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
   }
 
   int mag, d, fr, hp;
+#if CONFIG_DERIVED_MVD_SIGN
+  const int sign = 0;
+#else
   const int sign = aom_read_symbol(r, mvcomp->sign_cdf, 2, ACCT_INFO("sign"));
+#endif  // CONFIG_DERIVED_MVD_SIGN
+
   const int mv_class =
       is_adaptive_mvd
           ? aom_read_symbol(r, mvcomp->amvd_classes_cdf, MV_CLASSES,
@@ -1999,9 +2065,14 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
   mag += ((d << 3) | (fr << 1) | hp) + 1;
   return sign ? -mag : mag;
 }
-
-static INLINE void read_mv(aom_reader *r, MV *mv, MV ref, int is_adaptive_mvd,
-                           nmv_context *ctx, MvSubpelPrecision precision) {
+static INLINE void read_mv(aom_reader *r,
+#if CONFIG_DERIVED_MVD_SIGN
+                           MV *mv_diff,
+#else
+                           MV *mv, MV ref,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+                           int is_adaptive_mvd, nmv_context *ctx,
+                           MvSubpelPrecision precision) {
   MV diff = kZeroMv;
   const MV_JOINT_TYPE joint_type =
       is_adaptive_mvd ? (MV_JOINT_TYPE)aom_read_symbol(
@@ -2016,6 +2087,10 @@ static INLINE void read_mv(aom_reader *r, MV *mv, MV ref, int is_adaptive_mvd,
   if (mv_joint_horizontal(joint_type))
     diff.col = read_mv_component(r, &ctx->comps[1], is_adaptive_mvd, precision);
 
+#if CONFIG_DERIVED_MVD_SIGN
+  mv_diff->row = diff.row;
+  mv_diff->col = diff.col;
+#else
 #if BUGFIX_AMVD_AMVR
   if (!is_adaptive_mvd)
 #endif  // BUGFIX_AMVD_AMVR
@@ -2025,7 +2100,242 @@ static INLINE void read_mv(aom_reader *r, MV *mv, MV ref, int is_adaptive_mvd,
       lower_mv_precision(&ref, precision);
   mv->row = ref.row + diff.row;
   mv->col = ref.col + diff.col;
+#endif  // CONFIG_DERIVED_MVD_SIGN
 }
+#else
+// Coding of col mvd for shell class 2
+static void read_truncated_unary_mvd(aom_reader *r, nmv_context *ctx,
+                                     const int max_coded_value, int num_of_ctx,
+                                     int *decoded_value) {
+  int col = 0;
+  int max_idx_bits = max_coded_value;
+  for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+    int context_index = bit_idx < num_of_ctx ? bit_idx : num_of_ctx - 1;
+    assert(context_index < num_of_ctx);
+    aom_cdf_prob *cdf = ctx->shell_offset_class2_cdf[context_index];
+    int this_bit = aom_read_symbol(
+        r, cdf, 2, ACCT_INFO("greater_flags", "col_mv_greter_flags_cdf"));
+
+    col = bit_idx + this_bit;
+    if (!this_bit) break;
+  }
+  *decoded_value = col;
+}
+// Decoding of truncated unary followed by quasi uniform code
+static void read_tu_quasi_uniform(aom_reader *r, nmv_context *ctx,
+                                  const int max_coded_value, int *scaled_mv_col,
+                                  int max_trunc_unary_value) {
+  int col = 0;
+  int max_idx_bits = AOMMIN(max_coded_value, max_trunc_unary_value);
+  int max_num_of_ctx = NUM_CTX_COL_MV_GTX;
+  for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+    int context_index = bit_idx < max_num_of_ctx ? bit_idx : max_num_of_ctx - 1;
+    assert(context_index < max_num_of_ctx);
+    int this_bit =
+        aom_read_symbol(r, ctx->col_mv_greter_flags_cdf[context_index], 2,
+                        ACCT_INFO("greater_flags", "col_mv_greter_flags_cdf"));
+
+    col = bit_idx + this_bit;
+    if (!this_bit) break;
+  }
+  if (max_coded_value > max_trunc_unary_value && col == max_trunc_unary_value) {
+    int remainder_max_value = max_coded_value - max_trunc_unary_value;
+    int remainder = aom_read_primitive_quniform(r, remainder_max_value + 1,
+                                                ACCT_INFO("remainder"));
+    col = remainder + max_trunc_unary_value;
+  }
+  *scaled_mv_col = col;
+}
+// Read MVD for AMVD mode
+static INLINE void read_vq_amvd(aom_reader *r, MV *mv_diff, nmv_context *ctx
+#if !CONFIG_DERIVED_MVD_SIGN
+                                ,
+                                MV *mv, MV ref
+#endif
+) {
+  MV diff_index = kZeroMv;
+
+  const MV_JOINT_TYPE joint_type = (MV_JOINT_TYPE)aom_read_symbol(
+      r, ctx->amvd_joints_cdf, MV_JOINTS,
+      ACCT_INFO("joint_type", "amvd_joints_cdf"));
+  int code_row = mv_joint_vertical(joint_type);
+  int code_col = mv_joint_horizontal(joint_type);
+
+  if (code_row) {
+    diff_index.row =
+        1 + aom_read_symbol(r, ctx->comps[0].amvd_indices_cdf, MAX_AMVD_INDEX,
+                            ACCT_INFO("amvd_index", "amvd_indices_cdf"));
+  }
+
+  if (code_col) {
+    diff_index.col =
+        1 + aom_read_symbol(r, ctx->comps[1].amvd_indices_cdf, MAX_AMVD_INDEX,
+                            ACCT_INFO("amvd_index", "amvd_indices_cdf"));
+  }
+
+  MV diff = { get_mvd_from_amvd_index(diff_index.row),
+              get_mvd_from_amvd_index(diff_index.col) };
+
+  mv_diff->row = diff.row;
+  mv_diff->col = diff.col;
+#if !CONFIG_DERIVED_MVD_SIGN
+  // Decode signs
+  for (int component = 0; component < 2; component++) {
+    int value = component == 0 ? mv_diff->row : mv_diff->col;
+    if (value) {
+      int sign = aom_read_symbol(r, ctx->comps[component].sign_cdf, 2,
+                                 ACCT_INFO("sign"));
+      if (component == 0) {
+        mv_diff->row = sign ? -value : value;
+      } else {
+        mv_diff->col = sign ? -value : value;
+      }
+    }
+  }
+
+  mv->row = ref.row + mv_diff->row;
+  mv->col = ref.col + mv_diff->col;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+}
+
+static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
+                           nmv_context *ctx, MvSubpelPrecision precision,
+                           int is_adaptive_mvd
+#if !CONFIG_DERIVED_MVD_SIGN
+                           ,
+                           MV *mv, MV ref
+#endif
+) {
+
+  if (is_adaptive_mvd) {
+    read_vq_amvd(r, mv_diff, ctx
+#if !CONFIG_DERIVED_MVD_SIGN
+                 ,
+                 mv, ref
+#endif
+    );
+    return;
+  }
+
+  MV scaled_mv_diff;
+
+  // Read shell class
+  int num_mv_class = get_default_num_shell_class(precision);
+
+  const int shell_class =
+      aom_read_symbol(r, ctx->joint_shell_class_cdf[precision], num_mv_class,
+                      ACCT_INFO("shell_class", "joint_shell_class_cdf"));
+  assert(shell_class < num_mv_class);
+
+  // Decode shell class offset
+
+  int shell_cls_offset = 0;
+
+  if (shell_class < 2) {
+    shell_cls_offset = aom_read_symbol(
+        r, ctx->shell_offset_low_class_cdf[shell_class], 2,
+        ACCT_INFO("shell_cls_offset", "shell_offset_low_class_cdf"));
+    assert(shell_cls_offset == 0 || shell_cls_offset == 1);
+  } else if (shell_class == 2) {
+    read_truncated_unary_mvd(r, ctx, 3, 3, &shell_cls_offset);
+
+  } else {
+    const int num_of_bits_for_this_offset =
+        (shell_class == 0) ? 1 : shell_class;
+    for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
+      shell_cls_offset |=
+          aom_read_symbol(
+              r,
+              ctx->shell_offset_other_class_cdf[get_class_offset_ctx(
+                  precision, shell_class)][i],
+              2, ACCT_INFO("offset"))
+          << i;
+    }
+  }
+
+  // Reconstruct shell index
+  const int shell_class_base_index =
+      (shell_class == 0) ? 0 : (1 << (shell_class));
+  const int shell_index = shell_cls_offset + shell_class_base_index;
+
+  if (shell_index > 0) {
+    // Coding the col here
+    int scaled_mv_col;
+    int max_trunc_unary_value = MAX_COL_TRUNCATED_UNARY_VAL;
+    int this_pair_index = 0;
+    int maximum_pair_index = shell_index >> 1;
+    if (maximum_pair_index > 0) {
+      read_tu_quasi_uniform(r, ctx, maximum_pair_index, &this_pair_index,
+                            max_trunc_unary_value);
+    }
+    assert(this_pair_index <= maximum_pair_index);
+    int skip_coding_col_bit =
+        (this_pair_index == maximum_pair_index) && ((shell_index % 2 == 0));
+    if (skip_coding_col_bit) {
+      scaled_mv_col = maximum_pair_index;
+    } else {
+      // int bit = aom_read_literal(r, 1, ACCT_INFO());
+      int context_index = shell_class < NUM_CTX_COL_MV_INDEX
+                              ? shell_class
+                              : NUM_CTX_COL_MV_INDEX - 1;
+      assert(context_index < NUM_CTX_COL_MV_INDEX);
+
+      int this_bit = aom_read_symbol(
+          r, ctx->col_mv_index_cdf[context_index], 2,
+          ACCT_INFO("greater_flags", "col_mv_greter_flags_cdf"));
+      if (!this_bit)
+        scaled_mv_col = this_pair_index;
+      else
+        scaled_mv_col = shell_index - this_pair_index;
+    }
+
+    scaled_mv_diff.col = scaled_mv_col;
+    scaled_mv_diff.row = shell_index - scaled_mv_diff.col;
+    assert(scaled_mv_diff.row >= 0 && scaled_mv_diff.col >= 0);
+  } else {
+    scaled_mv_diff.row = 0;
+    scaled_mv_diff.col = 0;
+  }
+
+  int start_lsb = (MV_PRECISION_ONE_EIGHTH_PEL - precision);
+  mv_diff->row = scaled_mv_diff.row << start_lsb;
+  mv_diff->col = scaled_mv_diff.col << start_lsb;
+
+  // Decode signs
+#if !CONFIG_DERIVED_MVD_SIGN
+  for (int component = 0; component < 2; component++) {
+    int value = component == 0 ? mv_diff->row : mv_diff->col;
+    if (value) {
+      int sign = aom_read_symbol(r, ctx->comps[component].sign_cdf, 2,
+                                 ACCT_INFO("sign"));
+      if (component == 0) {
+        mv_diff->row = sign ? -value : value;
+      } else {
+        mv_diff->col = sign ? -value : value;
+      }
+    }
+  }
+
+#if BUGFIX_AMVD_AMVR
+  if (!is_adaptive_mvd)
+#endif  // BUGFIX_AMVD_AMVR
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&ref, precision);
+  mv->row = ref.row + mv_diff->row;
+  mv->col = ref.col + mv_diff->col;
+#endif
+
+#if 0
+  static int counter = 0;
+  printf(" Decoder: counter = %d shell_index = %d \n", counter, shell_index);
+  counter++;
+#endif
+
+  (void)skip_sign_coding;
+}
+#endif  // !CONFIG_VQ_MVD_CODING
 
 static REFERENCE_MODE read_block_reference_mode(AV1_COMMON *cm,
                                                 const MACROBLOCKD *xd,
@@ -2363,13 +2673,40 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   assert(!(is_adaptive_mvd && is_pb_mv_precision_active(cm, mbmi, bsize)));
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+  MV mv_diff[2] = { kZeroMv, kZeroMv };
+#if CONFIG_DERIVED_MVD_SIGN
+  int num_signaled_mvd = 0;
+  int start_signaled_mvd_idx = 0;
+  int is_joint_mv_mode = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
   switch (mode) {
     case AMVDNEWMV:
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
-      read_mv(r, &mv[0].as_mv, ref_mv[0].as_mv, is_adaptive_mvd, nmvc,
-              precision);
+#if CONFIG_DERIVED_MVD_SIGN
+      num_signaled_mvd = 1;
+      start_signaled_mvd_idx = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+#if CONFIG_VQ_MVD_CODING
+      read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd
+#if !CONFIG_DERIVED_MVD_SIGN
+              ,
+              &mv[0].as_mv, ref_mv[0].as_mv
+#endif
+      );
+#else
+      read_mv(r,
+#if CONFIG_DERIVED_MVD_SIGN
+              &mv_diff[0],
+#else
+              &mv[0].as_mv, ref_mv[0].as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+              is_adaptive_mvd, nmvc, precision);
+#endif  // CONFIG_VQ_MVD_CODING
+
       break;
     }
     case NEARMV: {
@@ -2381,8 +2718,27 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       mbmi->mv[0] = ref_mv[0];
       if (mbmi->warpmv_with_mvd_flag) {
         nmv_context *const nmvc = &ec_ctx->nmvc;
-        read_mv(r, &mv[0].as_mv, ref_mv[0].as_mv, is_adaptive_mvd, nmvc,
-                precision);
+#if CONFIG_DERIVED_MVD_SIGN
+        num_signaled_mvd = 1;
+        start_signaled_mvd_idx = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+
+#if CONFIG_VQ_MVD_CODING
+        read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd
+#if !CONFIG_DERIVED_MVD_SIGN
+                ,
+                &mv[0].as_mv, ref_mv[0].as_mv
+#endif
+        );
+#else
+        read_mv(r,
+#if CONFIG_DERIVED_MVD_SIGN
+                &mv_diff[0],
+#else
+                &mv[0].as_mv, ref_mv[0].as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+                is_adaptive_mvd, nmvc, precision);
+#endif  // CONFIG_VQ_MVD_CODING
       }
 
       break;
@@ -2407,10 +2763,28 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     {
       assert(is_compound);
+#if CONFIG_DERIVED_MVD_SIGN
+      num_signaled_mvd = 2;
+      start_signaled_mvd_idx = 0;
+#endif  // CONFIG_DERIVED_MVD_SIGN
       for (int i = 0; i < 2; ++i) {
         nmv_context *const nmvc = &ec_ctx->nmvc;
-        read_mv(r, &mv[i].as_mv, ref_mv[i].as_mv, is_adaptive_mvd, nmvc,
-                precision);
+#if CONFIG_VQ_MVD_CODING
+        read_mv(r, &mv_diff[i], 1, nmvc, precision, is_adaptive_mvd
+#if !CONFIG_DERIVED_MVD_SIGN
+                ,
+                &mv[i].as_mv, ref_mv[i].as_mv
+#endif  //! CONFIG_DERIVED_MVD_SIGN
+        );
+#else
+        read_mv(r,
+#if CONFIG_DERIVED_MVD_SIGN
+                &mv_diff[i],
+#else
+                &mv[i].as_mv, ref_mv[i].as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+                is_adaptive_mvd, nmvc, precision);
+#endif  // CONFIG_VQ_MVD_CODING
       }
       break;
     }
@@ -2431,8 +2805,27 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       mv[0].as_int = ref_mv[0].as_int;
-      read_mv(r, &mv[1].as_mv, ref_mv[1].as_mv, is_adaptive_mvd, nmvc,
-              precision);
+#if CONFIG_DERIVED_MVD_SIGN
+      num_signaled_mvd = 1;
+      start_signaled_mvd_idx = 1;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+
+#if CONFIG_VQ_MVD_CODING
+      read_mv(r, &mv_diff[1], 1, nmvc, precision, is_adaptive_mvd
+#if !CONFIG_DERIVED_MVD_SIGN
+              ,
+              &mv[1].as_mv, ref_mv[1].as_mv
+#endif  //! CONFIG_DERIVED_MVD_SIGN
+      );
+#else
+      read_mv(r,
+#if CONFIG_DERIVED_MVD_SIGN
+              &mv_diff[1],
+#else
+              &mv[1].as_mv, ref_mv[1].as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+              is_adaptive_mvd, nmvc, precision);
+#endif  // CONFIG_VQ_MVD_CODING
       assert(is_compound);
       break;
     }
@@ -2444,8 +2837,26 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       nmv_context *const nmvc = &ec_ctx->nmvc;
       assert(is_compound);
       mv[1].as_int = ref_mv[1].as_int;
-      read_mv(r, &mv[0].as_mv, ref_mv[0].as_mv, is_adaptive_mvd, nmvc,
-              precision);
+#if CONFIG_DERIVED_MVD_SIGN
+      num_signaled_mvd = 1;
+      start_signaled_mvd_idx = 0;
+#endif
+#if CONFIG_VQ_MVD_CODING
+      read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd
+#if !CONFIG_DERIVED_MVD_SIGN
+              ,
+              &mv[0].as_mv, ref_mv[0].as_mv
+#endif
+      );
+#else
+      read_mv(r,
+#if CONFIG_DERIVED_MVD_SIGN
+              &mv_diff[0],
+#else
+              &mv[0].as_mv, ref_mv[0].as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+              is_adaptive_mvd, nmvc, precision);
+#endif  // CONFIG_VQ_MVD_CODING
       break;
     }
     case GLOBAL_GLOBALMV: {
@@ -2472,9 +2883,31 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       nmv_context *const nmvc = &ec_ctx->nmvc;
       assert(is_compound);
       mv[1 - jmvd_base_ref_list].as_int = ref_mv[1 - jmvd_base_ref_list].as_int;
-      read_mv(r, &mv[jmvd_base_ref_list].as_mv,
-              ref_mv[jmvd_base_ref_list].as_mv, is_adaptive_mvd, nmvc,
-              precision);
+#if CONFIG_DERIVED_MVD_SIGN
+      is_joint_mv_mode = 1;
+      num_signaled_mvd = 1;
+      start_signaled_mvd_idx = jmvd_base_ref_list;
+#endif  // CONFIG_DERIVED_MVD_SIGN
+#if CONFIG_VQ_MVD_CODING
+      read_mv(r, &mv_diff[jmvd_base_ref_list], 1, nmvc, precision,
+              is_adaptive_mvd
+
+#if !CONFIG_DERIVED_MVD_SIGN
+              ,
+              &mv[jmvd_base_ref_list].as_mv, ref_mv[jmvd_base_ref_list].as_mv
+#endif
+      );
+#else
+      read_mv(r,
+#if CONFIG_DERIVED_MVD_SIGN
+              &mv_diff[jmvd_base_ref_list],
+#else
+              &mv[jmvd_base_ref_list].as_mv, ref_mv[jmvd_base_ref_list].as_mv,
+#endif  // CONFIG_DERIVED_MVD_SIGN
+              is_adaptive_mvd, nmvc, precision);
+#endif  // CONFIG_VQ_MVD_CODING
+
+#if !CONFIG_DERIVED_MVD_SIGN
       sec_ref_dist = same_side ? sec_ref_dist : -sec_ref_dist;
       MV other_mvd = { 0, 0 };
       MV diff = { 0, 0 };
@@ -2500,12 +2933,114 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
           (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.row + other_mvd.row);
       mv[1 - jmvd_base_ref_list].as_mv.col =
           (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.col + other_mvd.col);
+#endif  //! CONFIG_DERIVED_MVD_SIGN
+
       break;
     }
     default: {
       return 0;
     }
   }
+
+#if CONFIG_DERIVED_MVD_SIGN
+  if (num_signaled_mvd > 0) {
+    int last_ref = -1;
+    int last_comp = -1;
+    uint16_t sum_mvd = 0;
+    int precision_shift = MV_PRECISION_ONE_EIGHTH_PEL - precision;
+    int th_for_num_nonzero = get_derive_sign_nzero_th(mbmi);
+    uint8_t num_nonzero_mvd_comp = 0;
+    uint8_t enable_sign_derive = 0;
+    if (is_mvd_sign_derive_allowed(cm, xd, mbmi)) {
+      for (int ref_idx = start_signaled_mvd_idx;
+           ref_idx < start_signaled_mvd_idx + num_signaled_mvd; ++ref_idx) {
+        assert(ref_idx == 0 || ref_idx == 1);
+        for (int comp = 0; comp < 2; comp++) {
+          int this_mvd_comp =
+              comp == 0 ? mv_diff[ref_idx].row : mv_diff[ref_idx].col;
+          assert(this_mvd_comp >= 0);
+          if (this_mvd_comp) {
+            last_ref = ref_idx;
+            last_comp = comp;
+            sum_mvd += (this_mvd_comp >> precision_shift);
+            num_nonzero_mvd_comp++;
+          }
+        }
+      }
+      if (num_nonzero_mvd_comp >= th_for_num_nonzero) enable_sign_derive = 1;
+    }
+
+    // Decode sign
+    for (int ref_idx = start_signaled_mvd_idx;
+         ref_idx < start_signaled_mvd_idx + num_signaled_mvd; ++ref_idx) {
+      assert(ref_idx == 0 || ref_idx == 1);
+
+      for (int comp = 0; comp < 2; comp++) {
+        int this_mvd_comp =
+            comp == 0 ? mv_diff[ref_idx].row : mv_diff[ref_idx].col;
+        assert(this_mvd_comp >= 0);
+
+        if (this_mvd_comp != 0) {
+          assert(this_mvd_comp > 0);
+          int sign = 0;
+          if (enable_sign_derive &&
+              (ref_idx == last_ref && comp == last_comp)) {
+            sign = (sum_mvd & 0x1);
+          } else {
+            sign = aom_read_symbol(r, ec_ctx->nmvc.comps[comp].sign_cdf, 2,
+                                   ACCT_INFO("sign"));
+          }
+          if (sign) {
+            if (comp == 0)
+              mv_diff[ref_idx].row = -1 * this_mvd_comp;
+            else
+              mv_diff[ref_idx].col = -1 * this_mvd_comp;
+          }
+        }
+      }
+    }
+
+    for (int ref_idx = start_signaled_mvd_idx;
+         ref_idx < (num_signaled_mvd + start_signaled_mvd_idx); ref_idx++) {
+      MV low_prec_refmv = ref_mv[ref_idx].as_mv;
+#if BUGFIX_AMVD_AMVR
+      if (!is_adaptive_mvd)
+#endif  // BUGFIX_AMVD_AMVR
+#if CONFIG_C071_SUBBLK_WARPMV
+        if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+          lower_mv_precision(&low_prec_refmv, precision);
+      mv[ref_idx].as_mv.row = low_prec_refmv.row + mv_diff[ref_idx].row;
+      mv[ref_idx].as_mv.col = low_prec_refmv.col + mv_diff[ref_idx].col;
+    }
+
+    if (is_joint_mv_mode) {
+      sec_ref_dist = same_side ? sec_ref_dist : -sec_ref_dist;
+      MV other_mvd = { 0, 0 };
+      MV diff = { 0, 0 };
+      MV low_prec_refmv = ref_mv[jmvd_base_ref_list].as_mv;
+#if BUGFIX_AMVD_AMVR
+      if (!is_adaptive_mvd)
+#endif  // BUGFIX_AMVD_AMVR
+#if CONFIG_C071_SUBBLK_WARPMV
+        if (precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+          lower_mv_precision(&low_prec_refmv, precision);
+      diff.row = mv[jmvd_base_ref_list].as_mv.row - low_prec_refmv.row;
+      diff.col = mv[jmvd_base_ref_list].as_mv.col - low_prec_refmv.col;
+      get_mv_projection(&other_mvd, diff, sec_ref_dist, first_ref_dist);
+      scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
+#if !CONFIG_C071_SUBBLK_WARPMV
+      // TODO(Mohammed): Do we need to apply block level lower mv precision?
+      lower_mv_precision(&other_mvd, features->fr_mv_precision);
+#endif  // !CONFIG_C071_SUBBLK_WARPMV
+      mv[1 - jmvd_base_ref_list].as_mv.row =
+          (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.row + other_mvd.row);
+      mv[1 - jmvd_base_ref_list].as_mv.col =
+          (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.col + other_mvd.col);
+    }
+  }
+#endif  // CONFIG_DERIVED_MVD_SIGN
 
   int ret = is_mv_valid(&mv[0].as_mv);
   if (is_compound) {

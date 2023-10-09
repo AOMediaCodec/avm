@@ -1321,10 +1321,41 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
 
 void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
                    MvCosts *mv_costs) {
+#if CONFIG_VQ_MVD_CODING
+  av1_build_vq_nmv_cost_table(NULL, &fc->ndvc, MV_PRECISION_ONE_PEL, dv_costs,
+                              1);
+
+  // Copy values from the dv_costs to the mv_costs
+  mv_costs->dv_joint_shell_cost = &dv_costs->dv_joint_shell_cost[0];
+  for (int i = 0; i < (MAX_COL_TRUNCATED_UNARY_VAL + 1); i++) {
+    for (int j = 0; j < (MAX_COL_TRUNCATED_UNARY_VAL + 1); j++) {
+      mv_costs->dv_col_mv_greater_flags_costs[i][j] =
+          dv_costs->dv_col_mv_greater_flags_costs[i][j];
+    }
+  }
+
+  for (int i = 0; i < NUM_CTX_COL_MV_INDEX; i++) {
+    for (int j = 0; j < 2; j++) {
+      mv_costs->dv_col_mv_index_cost[i][j] =
+          dv_costs->dv_col_mv_index_cost[i][j];
+    }
+  }
+
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2; j++) {
+      mv_costs->dv_sign_cost[i][j] = dv_costs->dv_sign_cost[i][j];
+    }
+  }
+#else
   dv_costs->dv_costs[0] = &dv_costs->dv_costs_alloc[0][MV_MAX];
   dv_costs->dv_costs[1] = &dv_costs->dv_costs_alloc[1][MV_MAX];
   av1_build_nmv_cost_table(dv_costs->joint_mv, dv_costs->dv_costs, &fc->ndvc,
-                           MV_PRECISION_ONE_PEL, 0);
+                           MV_PRECISION_ONE_PEL, 0
+#if CONFIG_DERIVED_MVD_SIGN
+                           ,
+                           dv_costs->dv_sign_cost
+#endif  // CONFIG_DERIVED_MVD_SIGN
+  );
 
 #if CONFIG_IBC_BV_IMPROVEMENT
   // Copy the pointer of the dv cost to the mvcost
@@ -1334,21 +1365,45 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
 #else
   (void)mv_costs;
 #endif
+#endif  // CONFIG_VQ_MVD_CODING
 }
 
 void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
                        MvSubpelPrecision fr_mv_precision, MvCosts *mv_costs) {
+#if CONFIG_VQ_MVD_CODING
+  int mb_precision_set =
+      (fr_mv_precision == MV_PRECISION_QTR_PEL) ? NUMBER_OF_PRECISION_SETS : 0;
+  const PRECISION_SET *precision_def = &av1_mv_precision_sets[mb_precision_set];
+  for (int precision_dx = precision_def->num_precisions - 1; precision_dx >= 0;
+       precision_dx--) {
+    MvSubpelPrecision pb_mv_prec = precision_def->precision[precision_dx];
+
+    av1_build_vq_nmv_cost_table(mv_costs, &fc->nmvc, pb_mv_prec, NULL, 0);
+#else
   for (MvSubpelPrecision pb_mv_prec = MV_PRECISION_8_PEL;
-       pb_mv_prec < NUM_MV_PRECISIONS; pb_mv_prec++) {
+       pb_mv_prec < (NUM_MV_PRECISIONS); pb_mv_prec++) {
+#endif  // CONFIG_VQ_MVD_CODING
+
+#if !CONFIG_VQ_MVD_CODING
     mv_costs->nmv_costs[pb_mv_prec][0] =
         &mv_costs->nmv_costs_alloc[pb_mv_prec][0][MV_MAX];
     mv_costs->nmv_costs[pb_mv_prec][1] =
         &mv_costs->nmv_costs_alloc[pb_mv_prec][1][MV_MAX];
     av1_build_nmv_cost_table(mv_costs->nmv_joint_cost,
                              mv_costs->nmv_costs[pb_mv_prec], &fc->nmvc,
-                             pb_mv_prec, 0);
+                             pb_mv_prec, 0
+#if CONFIG_DERIVED_MVD_SIGN
+                             ,
+                             mv_costs->nmv_sign_cost
+#endif  // CONFIG_DERIVED_MVD_SIGN
+    );
+#endif  //! CONFIG_VQ_MVD_CODING
     (void)integer_mv;
   }
+#if CONFIG_VQ_MVD_CODING
+  av1_build_vq_amvd_nmv_cost_table(mv_costs, &fc->nmvc);
+  (void)fr_mv_precision;
+#else
 
   mv_costs->amvd_nmv_cost[0] = &mv_costs->amvd_nmv_cost_alloc[0][MV_MAX];
   mv_costs->amvd_nmv_cost[1] = &mv_costs->amvd_nmv_cost_alloc[1][MV_MAX];
@@ -1360,7 +1415,13 @@ void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
 #else
       fr_mv_precision,
 #endif
-      1);
+      1
+#if CONFIG_DERIVED_MVD_SIGN
+      ,
+      mv_costs->amvd_nmv_sign_cost
+#endif  // CONFIG_DERIVED_MVD_SIGN
+  );
+#endif  // CONFIG_VQ_MVD_CODING
 }
 
 void av1_initialize_rd_consts(AV1_COMP *cpi) {

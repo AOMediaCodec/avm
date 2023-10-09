@@ -76,7 +76,7 @@ static AOM_INLINE int get_symbol_cost(const aom_cdf_prob *cdf, int symbol) {
 
   return av1_cost_symbol(p15);
 }
-
+#if !CONFIG_VQ_MVD_CODING
 static AOM_INLINE int keep_one_comp_stat_low_precision(
     MV_STATS *mv_stats, int comp, int comp_idx, const AV1_COMP *cpi, int *rates,
     const MvSubpelPrecision pb_mv_precision) {
@@ -385,6 +385,228 @@ static AOM_INLINE void keep_one_mv_stat(
   }
 }
 
+#else
+// MVCost for quasi-uniform code
+static INLINE int get_quniform_costs(uint16_t n, uint16_t v) {
+  if (n <= 1) return 0;
+  int total_bits = 0;
+  const int l = get_msb(n) + 1;
+  const int m = (1 << l) - n;
+  total_bits += (l - 1);
+  if (v >= m) {
+    total_bits++;
+  }
+  return av1_cost_literal(total_bits);
+}
+static AOM_INLINE int get_vq_col_mvd_rate(nmv_context *mvctx,
+                                          const int max_coded_value, int col,
+                                          int max_trunc_unary_value) {
+  int total_rate = 0;
+  int max_idx_bits = AOMMIN(max_coded_value, max_trunc_unary_value);
+  const int coded_col =
+      col > max_trunc_unary_value ? max_trunc_unary_value : col;
+  for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+    int context_index =
+        bit_idx < NUM_CTX_COL_MV_GTX ? bit_idx : NUM_CTX_COL_MV_GTX - 1;
+    assert(context_index < NUM_CTX_COL_MV_GTX);
+    total_rate += get_symbol_cost(mvctx->col_mv_greter_flags_cdf[context_index],
+                                  coded_col != bit_idx);
+    update_cdf(mvctx->col_mv_greter_flags_cdf[context_index],
+               coded_col != bit_idx, 2);
+    if (coded_col == bit_idx) break;
+  }
+
+  if (max_coded_value > max_trunc_unary_value && col >= max_trunc_unary_value) {
+    int remainder = col - max_trunc_unary_value;
+    int remainder_max_value = max_coded_value - max_trunc_unary_value;
+    total_rate += get_quniform_costs(remainder_max_value + 1, remainder);
+  }
+
+  return total_rate;
+}
+static AOM_INLINE int get_truncated_unary_rate(nmv_context *mvctx,
+                                               const int max_coded_value,
+                                               int coded_value, int num_of_ctx,
+                                               int low_shell_class) {
+  (void)low_shell_class;
+  int total_rate = 0;
+  int max_idx_bits = max_coded_value;
+  for (int bit_idx = 0; bit_idx < max_idx_bits; ++bit_idx) {
+    int context_index = bit_idx < num_of_ctx ? bit_idx : num_of_ctx - 1;
+    assert(context_index < num_of_ctx);
+    aom_cdf_prob *cdf = mvctx->shell_offset_class2_cdf[context_index];
+    total_rate += get_symbol_cost(cdf, coded_value != bit_idx);
+    update_cdf(cdf, coded_value != bit_idx, 2);
+    if (coded_value == bit_idx) break;
+  }
+  return total_rate;
+}
+
+static AOM_INLINE int get_vq_mvd_rate(nmv_context *mvctx, const MV mv_diff,
+                                      MvSubpelPrecision pb_mv_precision) {
+  int total_rate = 0;
+  int start_lsb = (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision);
+  const MV scaled_mv_diff = { abs(mv_diff.row) >> start_lsb,
+                              abs(mv_diff.col) >> start_lsb };
+
+  int num_mv_class = get_default_num_shell_class(pb_mv_precision);
+  int shell_cls_offset;
+  const int shell_index = (scaled_mv_diff.row) + (scaled_mv_diff.col);
+  const int shell_class =
+      get_shell_class_with_precision(shell_index, &shell_cls_offset);
+
+  total_rate += get_symbol_cost(mvctx->joint_shell_class_cdf[pb_mv_precision],
+                                shell_class);
+  update_cdf(mvctx->joint_shell_class_cdf[pb_mv_precision], shell_class,
+             num_mv_class);
+
+  assert(shell_class >= 0 && shell_class < num_mv_class);
+
+  if (shell_class < 2) {
+    assert(shell_cls_offset == 0 || shell_cls_offset == 1);
+    total_rate += get_symbol_cost(
+        mvctx->shell_offset_low_class_cdf[shell_class], shell_cls_offset);
+    update_cdf(mvctx->shell_offset_low_class_cdf[shell_class], shell_cls_offset,
+               2);
+
+  } else if (shell_class == 2) {
+    int max_coded_value = 3;
+    int coded_value = shell_cls_offset;
+    total_rate +=
+        get_truncated_unary_rate(mvctx, max_coded_value, coded_value, 3, 0);
+  } else {
+    const int num_of_bits_for_this_offset = shell_class;
+    for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
+      total_rate += get_symbol_cost(
+          mvctx->shell_offset_other_class_cdf[get_class_offset_ctx(
+              pb_mv_precision, shell_class)][i],
+          (shell_cls_offset >> i) & 1);
+      update_cdf(mvctx->shell_offset_other_class_cdf[get_class_offset_ctx(
+                     pb_mv_precision, shell_class)][i],
+                 (shell_cls_offset >> i) & 1, 2);
+    }
+  }
+
+  assert(scaled_mv_diff.col <= shell_index);
+  assert(IMPLIES(shell_index == 0, scaled_mv_diff.col == 0));
+  if (shell_index > 0) {
+    int max_trunc_unary_value = MAX_COL_TRUNCATED_UNARY_VAL;
+    // Coding the col here
+    int maximum_pair_index = shell_index >> 1;
+    int this_pair_index = scaled_mv_diff.col <= maximum_pair_index
+                              ? scaled_mv_diff.col
+                              : shell_index - scaled_mv_diff.col;
+    assert(this_pair_index <= maximum_pair_index);
+    // Encode the pair index
+    if (maximum_pair_index > 0) {
+      total_rate += get_vq_col_mvd_rate(mvctx, maximum_pair_index,
+                                        this_pair_index, max_trunc_unary_value);
+    }
+    int skip_coding_col_bit =
+        (this_pair_index == maximum_pair_index) && ((shell_index % 2 == 0));
+    assert(
+        IMPLIES(skip_coding_col_bit, scaled_mv_diff.col == maximum_pair_index));
+    if (!skip_coding_col_bit) {
+      // aom_write_literal(w, scaled_mv_diff.col > maximum_pair_index, 1);
+      int context_index = shell_class < NUM_CTX_COL_MV_INDEX
+                              ? shell_class
+                              : NUM_CTX_COL_MV_INDEX - 1;
+      assert(context_index < NUM_CTX_COL_MV_INDEX);
+      total_rate += get_symbol_cost(mvctx->col_mv_index_cdf[context_index],
+                                    scaled_mv_diff.col > maximum_pair_index);
+      update_cdf(mvctx->col_mv_index_cdf[context_index],
+                 scaled_mv_diff.col > maximum_pair_index, 2);
+    }
+  }
+
+  // Encode signs
+  for (int component = 0; component < 2; component++) {
+    int value = component == 0 ? mv_diff.row : mv_diff.col;
+    if (value) {
+      int sign = value < 0;
+      total_rate += get_symbol_cost(mvctx->comps[component].sign_cdf, sign);
+      update_cdf(mvctx->comps[component].sign_cdf, sign, 2);
+    }
+  }
+  return total_rate;
+}
+
+static AOM_INLINE void keep_vq_one_mv_stat(
+    MV_STATS *mv_stats, const MV *ref_mv, const MV *cur_mv, const AV1_COMP *cpi,
+    const MvSubpelPrecision max_mv_precision, const int allow_pb_mv_precision,
+    const MvSubpelPrecision pb_mv_precision,
+    const int most_probable_pb_mv_precision, const MB_MODE_INFO *mbmi) {
+  const MACROBLOCK *const x = &cpi->td.mb;
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+  nmv_context *nmvc = &ec_ctx->nmvc;
+  const AV1_COMMON *cm = &cpi->common;
+  const int use_hp = pb_mv_precision > MV_PRECISION_QTR_PEL;
+  const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
+  const int pb_mv_precision_ctx =
+      av1_get_pb_mv_precision_down_context(&cpi->common, xd);
+  aom_cdf_prob *pb_mv_precision_cdf =
+      xd->tile_ctx
+          ->pb_mv_precision_cdf[pb_mv_precision_ctx]
+                               [max_mv_precision - MV_PRECISION_HALF_PEL];
+
+  MV low_prec_ref_mv = *ref_mv;
+#if BUGFIX_AMVD_AMVR
+  if (!is_adaptive_mvd)
+#endif
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (pb_mv_precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
+  const MV diff = { cur_mv->row - low_prec_ref_mv.row,
+                    cur_mv->col - low_prec_ref_mv.col };
+
+  const int mv_joint = av1_get_mv_joint(&diff);
+
+  const MV hp_diff = diff;
+  const MV truncated_diff = { (diff.row / 2) * 2, (diff.col / 2) * 2 };
+  const MV lp_diff = use_hp ? truncated_diff : diff;
+
+  aom_clear_system_state();
+  int flex_mv_rate = 0;
+  if (allow_pb_mv_precision) {
+    const int mpp_flag = (pb_mv_precision == most_probable_pb_mv_precision);
+    const int mpp_flag_context = av1_get_mpp_flag_context(&cpi->common, xd);
+    aom_cdf_prob *pb_mv_mpp_flag_cdf =
+        xd->tile_ctx->pb_mv_mpp_flag_cdf[mpp_flag_context];
+    flex_mv_rate += get_symbol_cost(pb_mv_mpp_flag_cdf, mpp_flag);
+    update_cdf(pb_mv_mpp_flag_cdf, mpp_flag, 2);
+    if (!mpp_flag) {
+      const PRECISION_SET *precision_def =
+          &av1_mv_precision_sets[mbmi->mb_precision_set];
+      int down = av1_get_pb_mv_precision_index(mbmi);
+      int nsymbs = precision_def->num_precisions - 1;
+      flex_mv_rate += get_symbol_cost(pb_mv_precision_cdf, down);
+      update_cdf(pb_mv_precision_cdf, down, nsymbs);
+    }
+    mv_stats->precision_count[pb_mv_precision]++;
+  }
+
+  mv_stats->total_mv_rate +=
+      flex_mv_rate + get_vq_mvd_rate(nmvc, diff, pb_mv_precision);
+  mv_stats->hp_total_mv_rate +=
+      flex_mv_rate + get_vq_mvd_rate(nmvc, hp_diff, pb_mv_precision);
+  mv_stats->lp_total_mv_rate +=
+      flex_mv_rate + get_vq_mvd_rate(nmvc, lp_diff, pb_mv_precision);
+  mv_stats->mv_joint_count[mv_joint]++;
+
+  for (int comp_idx = 0; comp_idx < 2; comp_idx++) {
+    const int comp_val = comp_idx ? diff.col : diff.row;
+    if (comp_val) {
+      int high_part = (comp_val % 2) == 1;
+      mv_stats->last_bit_zero += !high_part;
+      mv_stats->last_bit_nonzero += high_part;
+    }
+  }
+}
+
+#endif  // !CONFIG_VQ_MVD_CODING
+
 static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
                                           const AV1_COMP *cpi, int mi_row,
                                           int mi_col) {
@@ -428,12 +650,18 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
       const MV ref_mv =
           get_ref_mv_for_mv_stats(mbmi, mbmi_ext_frame, ref_idx).as_mv;
       const MV cur_mv = mbmi->mv[ref_idx].as_mv;
+#if CONFIG_VQ_MVD_CODING
+      keep_vq_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi, max_mv_precision,
+                          allow_pb_mv_precision, pb_mv_precision,
+                          most_probable_pb_mv_precision, mbmi);
+#else
       keep_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi, max_mv_precision,
                        allow_pb_mv_precision, pb_mv_precision,
                        most_probable_pb_mv_precision
 
                        ,
                        mbmi);
+#endif  // CONFIG_VQ_MVD_CODING
     }
   } else if (have_nearmv_newmv_in_inter_mode(mode)) {
     // has exactly one new_mv
@@ -451,6 +679,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
     const MV ref_mv =
         get_ref_mv_for_mv_stats(mbmi, mbmi_ext_frame, ref_idx).as_mv;
     const MV cur_mv = mbmi->mv[ref_idx].as_mv;
+#if CONFIG_VQ_MVD_CODING
+    keep_vq_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi, max_mv_precision,
+                        allow_pb_mv_precision, pb_mv_precision,
+                        most_probable_pb_mv_precision, mbmi);
+#else
     keep_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi
 
                      ,
@@ -459,6 +692,7 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
 
                      ,
                      mbmi);
+#endif  // CONFIG_VQ_MVD_CODING
   } else {
     // No new_mv
     mv_stats->default_mvs += 1 + is_compound;

@@ -6596,6 +6596,9 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_REFINEMV
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
 #endif  // CONFIG_REFINEMV
+#if CONFIG_DERIVED_MVD_SIGN
+  seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
+#endif  // CONFIG_DERIVED_MVD_SIGN
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
 #if CONFIG_IMPROVED_CFL
   seq_params->enable_cfl_ds_filter = aom_rb_read_literal(rb, 2);
