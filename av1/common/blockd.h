@@ -44,13 +44,6 @@ extern "C" {
 
 #define MAX_NUM_NEIGHBORS 2
 
-#if EXPLICIT_BAWP_STATS
-#define BAWP_SCALE_CNT 21
-extern int bawp_scales[BAWP_SCALE_CNT];
-extern float bawp_scales_percentage[BAWP_SCALE_CNT];
-extern int global_is_decoding;
-#endif
-
 /*!\cond */
 
 // DIFFWTD_MASK_TYPES should not surpass 1 << MAX_DIFFWTD_MASK_BITS
@@ -3331,11 +3324,7 @@ static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame)
 #if CONFIG_BAWP
-#if EXPLICIT_BAWP
          && mbmi->bawp_flag == 0
-#else
-         && mbmi->bawp_flag != 1
-#endif
 #endif  // CONFIG_BAWP
       ;
 }
@@ -3435,11 +3424,11 @@ static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
 }
 #endif  // CONFIG_BAWP
 
-#if EXPLICIT_BAWP
-static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO* mbmi) {
+#if CONFIG_EXPLICIT_BAWP
+static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
   return mbmi->mode == AMVDNEWMV || mbmi->mode == NEWMV || mbmi->mode == NEARMV;
 }
-#endif
+#endif  // CONFIG_EXPLICIT_BAWP
 
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {

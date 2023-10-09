@@ -2874,9 +2874,6 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
   AV1_COMMON *const cm = &pbi->common;
   DecoderCodingBlock *const dcb = &td->dcb;
   MACROBLOCKD *const xd = &dcb->xd;
-#if EXPLICIT_BAWP_STATS
-  global_is_decoding = 1;
-#endif
   const int total_loop_num =
       (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
        cm->seq_params.enable_sdp)
@@ -2916,9 +2913,6 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
     (*pbi->inspect_sb_cb)(pbi, pbi->inspect_ctx);
   }
 #endif  // CONFIG_INSPECTION
-#if EXPLICIT_BAWP_STATS
-  global_is_decoding = 0;
-#endif
 }
 
 static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,

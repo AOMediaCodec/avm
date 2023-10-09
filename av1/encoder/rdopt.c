@@ -2581,20 +2581,21 @@ static int64_t motion_mode_rd(
 
 #if CONFIG_BAWP
         if (cm->features.enable_bawp && av1_allow_bawp(mbmi, mi_row, mi_col))
-#if EXPLICIT_BAWP
+#if CONFIG_EXPLICIT_BAWP
         {
-            rd_stats->rate += mode_costs->bawp_flg_cost[mbmi->bawp_flag >= 1];
-            const int ctx_index =
-                (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
-            if (mbmi->bawp_flag >= 1 && av1_allow_explicit_bawp(mbmi))
-                rd_stats->rate += mode_costs->explict_bawp_cost[ctx_index][mbmi->bawp_flag >= 2];
-            if (mbmi->bawp_flag >= 2)
-                rd_stats->rate +=
-                    mode_costs->explict_bawp_scale_cost[mbmi->bawp_flag - 2];
+          rd_stats->rate += mode_costs->bawp_flg_cost[mbmi->bawp_flag > 0];
+          const int ctx_index =
+              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+          if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi))
+            rd_stats->rate +=
+                mode_costs->explict_bawp_cost[ctx_index][mbmi->bawp_flag >= 2];
+          if (mbmi->bawp_flag > 1)
+            rd_stats->rate +=
+                mode_costs->explict_bawp_scale_cost[mbmi->bawp_flag - 2];
         }
 #else
         rd_stats->rate += mode_costs->bawp_flg_cost[mbmi->bawp_flag == 1];
-#endif
+#endif  // CONFIG_EXPLICIT_BAWP
 #endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -4703,23 +4704,23 @@ static int64_t handle_inter_mode(
 #if CONFIG_FLEX_MVRES
 #if CONFIG_BAWP
 #if CONFIG_SEP_COMP_DRL
-#if EXPLICIT_BAWP
+#if CONFIG_EXPLICIT_BAWP
   inter_mode_info mode_info[EXPLICIT_BAWP_SCALE_CNT + 2][NUM_MV_PRECISIONS]
                            [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
 #else
   inter_mode_info mode_info[2][NUM_MV_PRECISIONS]
                            [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
-#endif
+#endif  // CONFIG_EXPLICIT_BAWP
 #else
   inter_mode_info mode_info[2][NUM_MV_PRECISIONS][MAX_REF_MV_SEARCH];
 #endif
 
   // initialize mode_info
-#if EXPLICIT_BAWP
+#if CONFIG_EXPLICIT_BAWP
   for (int bawp = 0; bawp < EXPLICIT_BAWP_SCALE_CNT + 2; bawp++) {
 #else
   for (int bawp = 0; bawp < 2; bawp++) {
-#endif
+#endif  // CONFIG_EXPLICIT_BAWP
     for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
 #if CONFIG_SEP_COMP_DRL
       for (int idx = 0; idx < MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH; idx++) {
@@ -4898,12 +4899,12 @@ static int64_t handle_inter_mode(
 #if CONFIG_FLEX_MVRES
   int flex_mv_cost[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
 #if CONFIG_BAWP
-#if EXPLICIT_BAWP
+#if CONFIG_EXPLICIT_BAWP
   int idx_mask[2 + EXPLICIT_BAWP_SCALE_CNT][NUM_MV_PRECISIONS] = { 0 };
 #else
   int idx_mask[2][NUM_MV_PRECISIONS] = { { 0, 0, 0, 0, 0, 0, 0 },
                                          { 0, 0, 0, 0, 0, 0, 0 } };
-#endif
+#endif  // CONFIG_EXPLICIT_BAWP
 #else
   int idx_mask[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
 #endif
@@ -4932,7 +4933,7 @@ static int64_t handle_inter_mode(
           bsize, ref_set, flex_mv_cost[pb_mv_precision]);
       if (cm->features.enable_bawp &&
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
-#if EXPLICIT_BAWP
+#if CONFIG_EXPLICIT_BAWP
         for (int bawp = 1; bawp <= 1 + EXPLICIT_BAWP_SCALE_CNT; bawp++) {
           mbmi->bawp_flag = bawp;
           idx_mask[bawp][pb_mv_precision] =
@@ -4945,7 +4946,7 @@ static int64_t handle_inter_mode(
         idx_mask[1][pb_mv_precision] = ref_mv_idx_to_search(
             cpi, x, rd_stats, args, ref_best_rd, mode_info[1][pb_mv_precision],
             bsize, ref_set, flex_mv_cost[pb_mv_precision]);
-#endif
+#endif  // CONFIG_EXPLICIT_BAWP
         mbmi->bawp_flag = 0;
       }
 #else
@@ -4967,7 +4968,7 @@ static int64_t handle_inter_mode(
 
     if (cm->features.enable_bawp &&
         av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
-#if EXPLICIT_BAWP
+#if CONFIG_EXPLICIT_BAWP
       for (int bawp = 1; bawp <= 1 + EXPLICIT_BAWP_SCALE_CNT; bawp++) {
         mbmi->bawp_flag = bawp;
         idx_mask[bawp][mbmi->max_mv_precision] = ref_mv_idx_to_search(
@@ -4979,7 +4980,7 @@ static int64_t handle_inter_mode(
       idx_mask[1][mbmi->max_mv_precision] = ref_mv_idx_to_search(
           cpi, x, rd_stats, args, ref_best_rd,
           mode_info[1][mbmi->max_mv_precision], bsize, ref_set, 0);
-#endif
+#endif  // CONFIG_EXPLICIT_BAWP
       mbmi->bawp_flag = 0;
     }
 #else
@@ -5302,22 +5303,25 @@ static int64_t handle_inter_mode(
                                !mbmi->refinemv_flag &&
 #endif  // CONFIG_REFINEMV
                                av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col);
-#if EXPLICIT_BAWP
-        if (bawp_eanbled && av1_allow_explicit_bawp(mbmi))
-          bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
-#endif
-        for (int bawp_flag = 0; bawp_flag <= bawp_eanbled; bawp_flag++) {
-#if EXPLICIT_BAWP_FAST
+#if CONFIG_EXPLICIT_BAWP
+            if (bawp_eanbled && av1_allow_explicit_bawp(mbmi))
+              bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
+#endif  // CONFIG_EXPLICIT_BAWP
+            for (int bawp_flag = 0; bawp_flag <= bawp_eanbled; bawp_flag++) {
+#if CONFIG_EXPLICIT_BAWP
 #if CONFIG_SEP_COMP_DRL
-          if (mbmi->ref_mv_idx[0] > 0 && bawp_flag > 1 && best_mbmi.bawp_flag == 0)
-            continue;
+              if (mbmi->ref_mv_idx[0] > 0 && bawp_flag > 1 &&
+                  best_mbmi.bawp_flag == 0)
+                continue;
 #else
-          if (mbmi->ref_mv_idx > 0 && bawp_flag > 1 && best_mbmi.bawp_flag == 0) continue;
-#endif
-          mbmi->bawp_flag = bawp_flag;
+              if (mbmi->ref_mv_idx > 0 && bawp_flag > 1 &&
+                  best_mbmi.bawp_flag == 0)
+                continue;
+#endif  // CONFIG_SEP_COMP_DRL
+              mbmi->bawp_flag = bawp_flag;
 #else
-        mbmi->bawp_flag = bawp_flag;
-#endif
+            mbmi->bawp_flag = bawp_flag;
+#endif  // CONFIG_EXPLICIT_BAWP
 
 #if CONFIG_FLEX_MVRES
 #if CONFIG_SEP_COMP_DRL
@@ -5389,26 +5393,24 @@ static int64_t handle_inter_mode(
               assert(!(mbmi->bawp_flag && mbmi->refinemv_flag));
 #endif  // CONFIG_REFINEMV
 
-#if EXPLICIT_BAWP
               if (mbmi->bawp_flag >= 1) {
-#else
-              if (mbmi->bawp_flag == 1) {
-#endif
                 for (i = 0; i < is_comp_pred + 1; ++i) {
                   mbmi->mv[i].as_int = bawp_off_mv[i].as_int;
                   cur_mv[i].as_int = bawp_off_mv[i].as_int;
                 }
 #if CONFIG_FLEX_MVRES
 #if CONFIG_SEP_COMP_DRL
-#if EXPLICIT_BAWP
-            mode_info[mbmi->bawp_flag][mbmi->pb_mv_precision][ref_mv_idx_type]
-                .full_search_mv.as_int =
-                mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
-                    .full_search_mv.as_int;
-            mode_info[mbmi->bawp_flag][mbmi->pb_mv_precision][ref_mv_idx_type]
-                .full_mv_rate =
-                mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
-                    .full_mv_rate;
+#if CONFIG_EXPLICIT_BAWP
+                mode_info[mbmi->bawp_flag][mbmi->pb_mv_precision]
+                         [ref_mv_idx_type]
+                             .full_search_mv.as_int =
+                    mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
+                        .full_search_mv.as_int;
+                mode_info[mbmi->bawp_flag][mbmi->pb_mv_precision]
+                         [ref_mv_idx_type]
+                             .full_mv_rate =
+                    mode_info[0][mbmi->pb_mv_precision][ref_mv_idx_type]
+                        .full_mv_rate;
 #else
                 mode_info[1][mbmi->pb_mv_precision][ref_mv_idx_type]
                     .full_search_mv.as_int =

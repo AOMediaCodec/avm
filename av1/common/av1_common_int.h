@@ -3635,11 +3635,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   }
 
 #if CONFIG_BAWP
-#if EXPLICIT_BAWP
-  if (mbmi->bawp_flag >= 1) {
-#else
-  if (mbmi->bawp_flag == 1) {
-#endif
+  if (mbmi->bawp_flag > 0) {
     return (1 << SIMPLE_TRANSLATION);
   }
 #endif  // CONFIG_BAWP
@@ -3743,11 +3739,7 @@ static INLINE MOTION_MODE motion_mode_allowed(const AV1_COMMON *cm,
     return SIMPLE_TRANSLATION;
   }
 #if CONFIG_BAWP
-#if EXPLICIT_BAWP
-  if (mbmi->bawp_flag >= 1) return SIMPLE_TRANSLATION;
-#else
-  if (mbmi->bawp_flag == 1) return SIMPLE_TRANSLATION;
-#endif
+  if (mbmi->bawp_flag > 0) return SIMPLE_TRANSLATION;
 #endif  // CONFIG_BAWP
 
 #if CONFIG_TIP
