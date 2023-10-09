@@ -1265,6 +1265,22 @@ typedef struct {
    * array in \ref nmv_costs for easier referencing.
    ****************************************************************************/
   /**@{*/
+#if CONFIG_VQ_MVD_CODING
+  /*! costs to code mvd shell index. */
+  int nmv_joint_shell_cost[NUM_MV_PRECISIONS][(2 * MV_MAX) + 1];
+
+  /*! costs to code col_mv_greter_flags. */
+  int col_mv_greater_flags_costs[NUM_MV_PRECISIONS]
+                                [MAX_COL_TRUNCATED_UNARY_VAL + 1]
+                                [MAX_COL_TRUNCATED_UNARY_VAL + 1];
+
+  /*! costs to code col_mv_index. */
+  int col_mv_index_cost[NUM_MV_PRECISIONS][NUM_CTX_COL_MV_INDEX][2];
+  /*! costs to code amvd mvd magnitude. */
+  int amvd_index_mag_cost[MAX_AMVD_INDEX + 1][MAX_AMVD_INDEX + 1];
+  /*! costs to code amvd mvd sign. */
+  int amvd_index_sign_cost[2][2];
+#else
   /*! Costs for coding the zero components. */
   int nmv_joint_cost[MV_JOINTS];
 
@@ -1273,6 +1289,14 @@ typedef struct {
   /*! Points to the middle of \ref nmv_costs_alloc. */
   int *nmv_costs[NUM_MV_PRECISIONS][2];
 
+#endif  // CONFIG_VQ_MVD_CODING
+
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+  /*! Costs for coding the sign components. */
+  int nmv_sign_cost[2][2];
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+
+#if !CONFIG_VQ_MVD_CODING
   //! Costs for coding the zero components when adaptive MVD resolution is
   //! applied
   int amvd_nmv_joint_cost[MV_JOINTS];
@@ -1283,6 +1307,20 @@ typedef struct {
 
   //! Points to the middle of \ref amvd_nmv_cost_alloc
   int *amvd_nmv_cost[2];
+#endif  // !CONFIG_VQ_MVD_CODING
+
+#if CONFIG_DERIVED_MVD_SIGN && !CONFIG_VQ_MVD_CODING
+  /*! Costs for coding the sign components. */
+  int amvd_nmv_sign_cost[2][2];
+#endif  // CONFIG_DERIVED_MVD_SIGN && !CONFIG_VQ_MVD_CODING
+
+#if CONFIG_VQ_MVD_CODING
+  int *dv_joint_shell_cost;
+  int dv_col_mv_greater_flags_costs[MAX_COL_TRUNCATED_UNARY_VAL + 1]
+                                   [MAX_COL_TRUNCATED_UNARY_VAL + 1];
+  int dv_col_mv_index_cost[NUM_CTX_COL_MV_INDEX][2];
+  int dv_sign_cost[2][2];
+#else
 
 #if CONFIG_IBC_BV_IMPROVEMENT
   /*! Costs for coding the zero components of dv cost. */
@@ -1291,12 +1329,19 @@ typedef struct {
   /*! Points to the middle of dvcost. */
   int *dv_nmv_cost[2];
 #endif
+#endif  // CONFIG_VQ_MVD_CODING
   /**@}*/
 } MvCosts;
 
 /*! \brief Holds mv costs for intrabc.
  */
 typedef struct {
+#if CONFIG_VQ_MVD_CODING
+  int dv_joint_shell_cost[(2 * MV_MAX) + 1];
+  int dv_col_mv_greater_flags_costs[MAX_COL_TRUNCATED_UNARY_VAL + 1]
+                                   [MAX_COL_TRUNCATED_UNARY_VAL + 1];
+  int dv_col_mv_index_cost[NUM_CTX_COL_MV_INDEX][2];
+#else
   /*! Costs for coding the joint mv. */
   // TODO(huisu@google.com): we can update dv_joint_cost per SB.
   int joint_mv[MV_JOINTS];
@@ -1310,6 +1355,12 @@ typedef struct {
 
   /*! Points to the middle of \ref dv_costs_alloc. */
   int *dv_costs[2];
+#endif  // CONFIG_VQ_MVD_CODING
+#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+  /*! Costs for coding the sign components. */
+  int dv_sign_cost[2][2];
+#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+
 } IntraBCMvCosts;
 
 /*! \brief Holds the costs needed to encode the coefficients

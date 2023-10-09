@@ -67,7 +67,12 @@ static void motion_search(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *src,
   // Do motion search.
   // Only do full search on the entire block.
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
-                                     &baseline_mv, search_site_cfg,
+                                     &baseline_mv, MV_PRECISION_ONE_EIGHTH_PEL,
+#if CONFIG_IBC_BV_IMPROVEMENT
+                                     0,
+#endif
+
+                                     search_site_cfg,
                                      /*fine_search_interval=*/0);
   av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
   av1_full_pixel_search(*ref_mv, &full_ms_params, step_param,

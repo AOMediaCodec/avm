@@ -5755,6 +5755,16 @@ int is_pb_mv_precision_active(const AV1_COMMON *const cm,
          cm->features.use_pb_mv_precision &&
          have_newmv_in_inter_mode(mbmi->mode);
 }
+
+#if CONFIG_VQ_MVD_CODING
+int get_class_offset_ctx(MvSubpelPrecision pb_mv_precision, int shell_class) {
+  (void)shell_class;
+  (void)pb_mv_precision;
+  int ctx = 0;
+  return ctx < NUM_CTX_CLASS_OFFSETS ? ctx : NUM_CTX_CLASS_OFFSETS - 1;
+}
+#endif  // CONFIG_VQ_MVD_CODING
+
 #if CONFIG_REFINEMV
 // Copy mv0 and mv1 to the sub-blocks
 // submi is the top-left corner of the sub-block need to fill

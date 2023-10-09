@@ -1405,6 +1405,9 @@ MvSubpelPrecision av1_get_mbmi_max_mv_precision(const AV1_COMMON *const cm,
 // check if pb_mv_precision is allowed or not
 int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize);
+#if CONFIG_VQ_MVD_CODING
+int get_class_offset_ctx(MvSubpelPrecision pb_mv_precision, int shell_class);
+#endif  // CONFIG_VQ_MVD_CODING
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
 // check if the WARPMV mode is allwed for a given blocksize
@@ -1435,6 +1438,36 @@ static INLINE int allow_warpmv_with_mvd_coding(const AV1_COMMON *const cm,
 }
 
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_DERIVED_MVD_SIGN
+
+static INLINE int get_derive_sign_nzero_th(const MB_MODE_INFO *mbmi) {
+  return (mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW) ? 4 : 1;
+}
+static INLINE int is_mvd_sign_derive_allowed(const AV1_COMMON *const cm,
+                                             const MACROBLOCKD *const xd,
+                                             const MB_MODE_INFO *mbmi) {
+  if (!cm->seq_params.enable_mvd_sign_derive ||
+      mbmi->motion_mode != SIMPLE_TRANSLATION ||
+      is_intrabc_block(mbmi, xd->tree_type) ||
+      enable_adaptive_mvd_resolution(cm, mbmi) || mbmi->skip_mode ||
+      cm->features.allow_screen_content_tools ||
+      cm->features.fr_mv_precision > MV_PRECISION_QTR_PEL ||
+      mbmi->pb_mv_precision >= MV_PRECISION_QTR_PEL)
+    return 0;
+
+  if (has_second_ref(mbmi)) {
+    int drl_idx = mbmi->ref_mv_idx[0];
+    if (has_second_drl(mbmi)) {
+      drl_idx = AOMMAX(mbmi->ref_mv_idx[0], mbmi->ref_mv_idx[1]);
+    }
+    if (drl_idx > 0) return 0;
+  }
+  return (mbmi->mode == NEWMV || mbmi->mode == JOINT_NEWMV ||
+          mbmi->mode == JOINT_NEWMV_OPTFLOW || mbmi->mode == NEW_NEWMV ||
+          mbmi->mode == NEW_NEWMV_OPTFLOW);
+}
+#endif  // CONFIG_DERIVED_MVD_SIGN
 
 #ifdef __cplusplus
 }  // extern "C"

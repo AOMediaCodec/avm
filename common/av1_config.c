@@ -279,7 +279,9 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
 #if CONFIG_REFINEMV
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_refinemv);
 #endif  // CONFIG_REFINEMV
-
+#if CONFIG_DERIVED_MVD_SIGN
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_mvd_sign_derive);
+#endif  // CONFIG_DERIVED_MVD_SIGN
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_flex_mvres);
 #if CONFIG_IMPROVED_CFL
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_cfl_ds_filter);

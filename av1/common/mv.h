@@ -95,6 +95,9 @@ static const PRECISION_SET av1_mv_precision_sets[2] = {
 #define NUM_PB_FLEX_QUALIFIED_MAX_PREC \
   ((NUM_MV_PRECISIONS) - (MV_PRECISION_HALF_PEL))
 
+#if CONFIG_VQ_MVD_CODING
+#define MAX_NUM_SHELL_CLASS 15
+#endif  // CONFIG_VQ_MVD_CODING
 // The mv limit for fullpel mvs
 typedef struct {
   int col_min;
@@ -219,7 +222,11 @@ static INLINE void full_pel_lower_mv_precision(FULLPEL_MV *full_pel_mv,
                              GET_MV_RAWPEL(MV_UPP) - radix);
   }
 }
-
+#if CONFIG_VQ_MVD_CODING
+static INLINE int get_default_num_shell_class(MvSubpelPrecision precision) {
+  return (MAX_NUM_SHELL_CLASS - (MV_PRECISION_ONE_EIGHTH_PEL - precision));
+}
+#endif  // CONFIG_VQ_MVD_CODING
 static INLINE void full_pel_lower_mv_precision_one_comp(
     int *comp_value, MvSubpelPrecision precision, int is_max) {
   if (precision >= MV_PRECISION_ONE_PEL) return;
@@ -239,6 +246,39 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
                         GET_MV_RAWPEL(MV_UPP) - radix);
   }
 }
+
+#if CONFIG_VQ_MVD_CODING
+static INLINE int16_t get_index_from_amvd_mvd(int this_mvd_comp) {
+  int index = -1;
+  for (index = 0; index <= MAX_AMVD_INDEX; index++) {
+    if (abs(this_mvd_comp) == amvd_index_to_mvd[abs(index)]) break;
+  }
+  assert(index >= 0 && index <= MAX_AMVD_INDEX);
+  index = this_mvd_comp < 0 ? -1 * index : index;
+  return index;
+}
+static INLINE int get_mvd_from_amvd_index(int index) {
+  int this_mvd_comp = 0;
+  this_mvd_comp = amvd_index_to_mvd[abs(index)];
+  this_mvd_comp = index < 0 ? -1 * this_mvd_comp : this_mvd_comp;
+  return this_mvd_comp;
+}
+static INLINE int is_valid_amvd_mvd(const MV mvd) {
+  const MV mvd_index = { get_index_from_amvd_mvd(mvd.row),
+                         get_index_from_amvd_mvd(mvd.col) };
+
+  assert(mvd.row == get_mvd_from_amvd_index(mvd_index.row));
+  assert(mvd.col == get_mvd_from_amvd_index(mvd_index.col));
+
+  return (abs(mvd_index.row) <= MAX_AMVD_INDEX &&
+          abs(mvd_index.col) <= MAX_AMVD_INDEX);
+}
+
+static INLINE void get_adaptive_mvd_from_ref_mv(MV mv, MV ref_mv, MV *mvd) {
+  mvd->row = mv.row - ref_mv.row;
+  mvd->col = mv.col - ref_mv.col;
+}
+#endif  // CONFIG_VQ_MVD_CODING
 
 // Calculation precision for warp models
 #define WARPEDMODEL_PREC_BITS 16

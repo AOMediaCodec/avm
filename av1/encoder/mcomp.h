@@ -84,9 +84,11 @@ typedef struct {
 #if CONFIG_IBC_BV_IMPROVEMENT
   int is_ibc_cost;
 #endif
-
 } MV_COST_PARAMS;
-
+#if CONFIG_DERIVED_MVD_SIGN
+int av1_mv_sign_cost(const int sign, const int comp, const MvCosts *mv_costs,
+                     int weight, int round_bit, const int is_adaptive_mvd);
+#endif  // CONFIG_DERIVED_MVD_SIGN
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
                     const MvSubpelPrecision pb_mv_precision,
                     const MvCosts *mv_costs, int weight,
@@ -493,6 +495,14 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
                                   WARP_SEARCH_METHOD search_method,
                                   int num_iterations);
+#if CONFIG_DERIVED_MVD_SIGN
+uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
+                           MACROBLOCK *const x, MB_MODE_INFO *mbmi,
+                           BLOCK_SIZE bsize, MV *mv_diffs, MV *ref_mvs,
+                           MvSubpelPrecision pb_mv_precision,
+                           int *num_signaled_mvd, int *start_signaled_mvd_idx,
+                           int *num_nonzero_mvd);
+#endif  // CONFIG_DERIVED_MVD_SIGN
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
 // Returns 1 if able to select a good model, 0 if not
@@ -522,6 +532,29 @@ static INLINE void av1_set_fractional_mv(int_mv *fractional_best_mv) {
   }
 }
 
+#if CONFIG_DERIVED_MVD_SIGN
+static INLINE int is_valid_sign_mvd_single(const MV mvd,
+                                           MvSubpelPrecision precision,
+                                           const int is_adaptive_mvd,
+                                           int th_for_num_nonzero) {
+  (void)is_adaptive_mvd;
+  int num_nonzero_mvd_comp = (mvd.row != 0) + (mvd.col != 0);
+  if (num_nonzero_mvd_comp < th_for_num_nonzero) return 1;
+  int precision_shift = MV_PRECISION_ONE_EIGHTH_PEL - precision;
+  int last_sign = -1;
+  int sum_mvd = 0;
+  for (int comp = 0; comp < 2; comp++) {
+    int this_mvd_comp = comp == 0 ? mvd.row : mvd.col;
+    if (abs(this_mvd_comp) > MV_MAX) return 0;
+    if (this_mvd_comp) {
+      last_sign = (this_mvd_comp < 0);
+      sum_mvd += (abs(this_mvd_comp) >> precision_shift);
+    }
+  }
+
+  return (last_sign == (sum_mvd & 0x1));
+}
+#endif  // CONFIG_DERIVED_MVD_SIGN
 // This function convert the mv value to the target precision
 static INLINE int av1_lower_mv_limit(const int mv, const int shift) {
   int out = ((abs(mv) >> shift) << shift);
