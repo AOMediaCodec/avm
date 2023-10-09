@@ -2588,7 +2588,7 @@ static int64_t motion_mode_rd(
               (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
           if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi))
             rd_stats->rate +=
-                mode_costs->explict_bawp_cost[ctx_index][mbmi->bawp_flag >= 2];
+                mode_costs->explict_bawp_cost[ctx_index][mbmi->bawp_flag > 1];
           if (mbmi->bawp_flag > 1)
             rd_stats->rate +=
                 mode_costs->explict_bawp_scale_cost[mbmi->bawp_flag - 2];

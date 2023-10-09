@@ -2120,7 +2120,7 @@ static const aom_cdf_prob default_bawp_cdf[CDF_SIZE(2)] = { AOM_CDF2(23664) };
 #if CONFIG_EXPLICIT_BAWP
 static const aom_cdf_prob
     default_explicit_bawp_cdf[BAWP_SCALES_CTX_COUNT][CDF_SIZE(2)] = {
-      AOM_CDF2(19664), AOM_CDF2(21664), AOM_CDF2(23664)
+      { AOM_CDF2(19664) }, { AOM_CDF2(21664) }, { AOM_CDF2(23664) }
     };
 static const aom_cdf_prob default_explicit_bawp_scale_cdf[CDF_SIZE(
     EXPLICIT_BAWP_SCALE_CNT)] = { AOM_CDF2(16384) };
