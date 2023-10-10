@@ -990,10 +990,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   // write sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
 #if CONFIG_ATC_DCTX_ALIGNED
-  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist) && eob != 1) {
+  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist) && eob != 1)
 #else
-  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist)) {
+  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist))
 #endif  // CONFIG_ATC_DCTX_ALIGNED
+  {
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
   }
 
@@ -1028,10 +1029,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                               !xd->lossless[xd->mi[0]->segment_id] &&
                               plane == PLANE_TYPE_Y &&
                               get_primary_tx_type(tx_type) < IDTX;
-  for (int c = eob - 1; c > 0; --c) {
+  for (int c = eob - 1; c > 0; --c)
 #else
-  for (int c = eob - 1; c >= 0; --c) {
+  for (int c = eob - 1; c >= 0; --c)
 #endif  // CONFIG_PAR_HIDING
+  {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = tcoeff[pos];
@@ -1066,6 +1068,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
       }
+    }
 #else
     if (c == eob - 1) {
       aom_write_symbol(
@@ -1075,8 +1078,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       aom_write_symbol(w, AOMMIN(level, 3),
                        ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                        4);
-#endif  // CONFIG_ATC
     }
+#endif  // CONFIG_ATC
+
 #if CONFIG_ATC
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
@@ -1173,6 +1177,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
       }
+    }
 #else
     if (c == eob - 1) {
       aom_write_symbol(
@@ -1182,8 +1187,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       aom_write_symbol(w, AOMMIN(level, 3),
                        ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                        4);
-#endif  // CONFIG_ATC
     }
+#endif  // CONFIG_ATC
+
 #if CONFIG_ATC
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
