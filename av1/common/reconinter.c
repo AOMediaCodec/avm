@@ -2102,10 +2102,24 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, const MB_MODE_INFO *mi,
       plane ? mi->chroma_ref_info.mi_row_chroma_base - mi_row : 0;
   const int col_start =
       plane ? mi->chroma_ref_info.mi_col_chroma_base - mi_col : 0;
+  const BLOCK_SIZE plane_bsize =
+      plane ? mi->chroma_ref_info.bsize_base : mi->sb_type[PLANE_TYPE_Y];
+  const int plane_mi_height = mi_size_high[plane_bsize];
+  const int plane_mi_width = mi_size_wide[plane_bsize];
 
-  for (int row = row_start; row <= 0; ++row) {
-    for (int col = col_start; col <= 0; ++col) {
-      const MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+  // Scan through all the blocks in the current chroma unit
+  for (int row = 0; row < plane_mi_height; ++row) {
+    for (int col = 0; col < plane_mi_width; ++col) {
+      const int row_coord = row_start + row;
+      const int col_coord = col_start + col;
+      // For the blocks at the lower right of the final chroma block, the mis
+      // are not set up correctly yet, so we do not check them.
+      if ((row_coord >= 0 && col_coord > 0) ||
+          (col_coord >= 0 && row_coord > 0)) {
+        break;
+      }
+      const MB_MODE_INFO *this_mbmi =
+          xd->mi[row_coord * xd->mi_stride + col_coord];
       if (!is_inter_block(this_mbmi, xd->tree_type)) return false;
       if (is_intrabc_block(this_mbmi, xd->tree_type)) return false;
     }
@@ -2117,15 +2131,13 @@ static void build_inter_predictors_sub8x8(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int mi_x, int mi_y, uint16_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
-  const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const bool ss_x = pd->subsampling_x;
   const bool ss_y = pd->subsampling_y;
-  const int b4_w = block_size_wide[bsize] >> ss_x;
-  const int b4_h = block_size_high[bsize] >> ss_y;
-  const BLOCK_SIZE plane_bsize = plane ? mi->chroma_ref_info.bsize_base : bsize;
-  const int b8_w = block_size_wide[plane_bsize] >> ss_x;
-  const int b8_h = block_size_high[plane_bsize] >> ss_y;
+  const BLOCK_SIZE plane_bsize =
+      plane ? mi->chroma_ref_info.bsize_base : mi->sb_type[PLANE_TYPE_Y];
+  const int plane_mi_height = mi_size_high[plane_bsize];
+  const int plane_mi_width = mi_size_wide[plane_bsize];
   assert(!is_intrabc_block(mi, xd->tree_type));
 
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
@@ -2138,12 +2150,48 @@ static void build_inter_predictors_sub8x8(
       plane ? (mi->chroma_ref_info.mi_col_chroma_base - xd->mi_col) : 0;
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
+  const int mi_stride = xd->mi_stride;
 
-  int row = row_start;
-  for (int y = 0; y < b8_h; y += b4_h) {
-    int col = col_start;
-    for (int x = 0; x < b8_w; x += b4_w) {
-      MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+  // Row progress keeps track of which mi block in the row has been set.
+  SUB_8_BITMASK_T row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
+  assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == 8);
+  assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
+  assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
+  assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == SUB_8_BITMASK_SIZE);
+  for (int mi_row = 0; mi_row < plane_mi_height; mi_row++) {
+    for (int mi_col = 0; mi_col < plane_mi_width; mi_col++) {
+      const SUB_8_BITMASK_T check_flag = 1 << (SUB_8_BITMASK_SIZE - 1 - mi_col);
+      if (row_progress[mi_row] & check_flag) {
+        continue;
+      }
+
+      const MB_MODE_INFO *this_mbmi =
+          xd->mi[(row_start + mi_row) * mi_stride + (col_start + mi_col)];
+
+      const BLOCK_SIZE bsize = this_mbmi->sb_type[PLANE_TYPE_Y];
+      const int mi_width = mi_size_wide[bsize];
+      const int mi_height = mi_size_high[bsize];
+      // The flag here is a block of mi_width many 1s offset by the mi_col.
+      // For example, if the current mi_col is 2, and the mi_width is 2, then
+      // the flag will be 00110000. We or this with row_progress to update the
+      // blocks that have been coded.
+      // Note that because we are always coding in a causal order, we could
+      // technically simplify the bitwise operation, and use the flag 11110000
+      // in the above example instead. However, we are not taking this approach
+      // here to keep the logic simpler.
+      const SUB_8_BITMASK_T set_flag =
+          ((SUB_8_BITMASK_ON << (SUB_8_BITMASK_SIZE - mi_width)) &
+           SUB_8_BITMASK_ON) >>
+          mi_col;
+      for (int mi_row_offset = 0; mi_row_offset < mi_height; mi_row_offset++) {
+        row_progress[mi_row + mi_row_offset] |= set_flag;
+      }
+
+      assert(is_inter_block(this_mbmi, xd->tree_type));
+      const int chroma_width = block_size_wide[bsize] >> ss_x;
+      const int chroma_height = block_size_high[bsize] >> ss_y;
+      const int pixel_row = (MI_SIZE * mi_row >> ss_y);
+      const int pixel_col = (MI_SIZE * mi_col >> ss_x);
 #if CONFIG_EXT_RECUR_PARTITIONS
       // TODO(yuec): enabling compound prediction in none sub8x8 mbs in the
       // group
@@ -2152,7 +2200,7 @@ static void build_inter_predictors_sub8x8(
       bool is_compound = has_second_ref(this_mbmi);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       struct buf_2d *const dst_buf = &pd->dst;
-      uint16_t *dst = dst_buf->buf + dst_buf->stride * y + x;
+      uint16_t *dst = dst_buf->buf + dst_buf->stride * pixel_row + pixel_col;
       int ref = 0;
       const RefCntBuffer *ref_buf =
           get_ref_frame_buf(cm, this_mbmi->ref_frame[ref]);
@@ -2169,20 +2217,17 @@ static void build_inter_predictors_sub8x8(
 
       const MV mv = this_mbmi->mv[ref].as_mv;
       InterPredParams inter_pred_params;
-      av1_init_inter_params(&inter_pred_params, b4_w, b4_h, pre_y + y,
-                            pre_x + x, pd->subsampling_x, pd->subsampling_y,
-                            xd->bd, mi->use_intrabc[0], sf, &pre_buf,
-                            this_mbmi->interp_fltr);
+      av1_init_inter_params(
+          &inter_pred_params, chroma_width, chroma_height, pre_y + pixel_row,
+          pre_x + pixel_col, pd->subsampling_x, pd->subsampling_y, xd->bd,
+          mi->use_intrabc[0], sf, &pre_buf, this_mbmi->interp_fltr);
       inter_pred_params.conv_params =
           get_conv_params_no_round(ref, plane, NULL, 0, is_compound, xd->bd);
 
-      av1_build_one_inter_predictor(dst, dst_buf->stride, &mv,
-                                    &inter_pred_params, xd, mi_x + x, mi_y + y,
-                                    ref, mc_buf, calc_subpel_params_func);
-
-      col += mi_size_wide[bsize];
+      av1_build_one_inter_predictor(
+          dst, dst_buf->stride, &mv, &inter_pred_params, xd, mi_x + pixel_col,
+          mi_y + pixel_row, ref, mc_buf, calc_subpel_params_func);
     }
-    row += mi_size_high[bsize];
   }
 }
 
