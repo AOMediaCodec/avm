@@ -2257,7 +2257,6 @@ static void build_inter_predictors_sub8x8(
 
   // Row progress keeps track of which mi block in the row has been set.
   SUB_8_BITMASK_T row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
-  assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == 8);
   assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
   assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
   assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == SUB_8_BITMASK_SIZE);

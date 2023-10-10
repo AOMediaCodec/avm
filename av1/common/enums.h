@@ -147,15 +147,23 @@ enum {
 // Mask to extract MI offset within max MIB
 #define MAX_MIB_MASK (MAX_MIB_SIZE - 1)
 
+#if CONFIG_FLEX_PARTITION
+// The largest block size where we need to construct chroma blocks separately
+// from luma blocks is 64x32. With the four way partition, we can get 64x4
+// block sizes. So we only need to track results for 16 mi units.
+#define MAX_MI_LUMA_SIZE_FOR_SUB_8 (64 >> MI_SIZE_LOG2)
+#define SUB_8_BITMASK_T uint16_t
+#define SUB_8_BITMASK_SIZE (16)
+#define SUB_8_BITMASK_ON (UINT16_MAX)
+#else
 // The largest block size where we need to construct chroma blocks separately
 // from luma blocks is 32x16. With the four way partition, we can get 4x16
 // block sizes. So we only need to track results for 8 mi units.
 #define MAX_MI_LUMA_SIZE_FOR_SUB_8 (32 >> MI_SIZE_LOG2)
-// Once 1:16 partition types are merged in, the maximum luma size will be 32x64,
-// and we will need to increase the bit mask to uint16_t
 #define SUB_8_BITMASK_T uint8_t
 #define SUB_8_BITMASK_SIZE (8)
 #define SUB_8_BITMASK_ON (UINT8_MAX)
+#endif  // CONFIG_FLEX_PARTITION
 
 // Maximum number of tile rows and tile columns
 #define MAX_TILE_ROWS 64
