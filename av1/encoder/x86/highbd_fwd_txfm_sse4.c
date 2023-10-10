@@ -126,6 +126,69 @@ static INLINE void write_buffer_4x4(__m128i *res, int32_t *output) {
   _mm_store_si128((__m128i *)(output + 3 * 4), res[3]);
 }
 
+#if CONFIG_ADST_TUNED
+static void fadst4x4_sse4_1(__m128i *in, __m128i *out, int bit,
+                            const int num_col) {
+  const int32_t *cospi = cospi_arr(bit);
+  const __m128i rnding = _mm_set1_epi32(1 << (bit - 1));
+  const __m128i cospi8 = _mm_set1_epi32((int)cospi[8]);
+  const __m128i cospi24 = _mm_set1_epi32((int)cospi[24]);
+  const __m128i cospi32 = _mm_set1_epi32((int)cospi[32]);
+  const __m128i cospi40 = _mm_set1_epi32((int)cospi[40]);
+  const __m128i cospi56 = _mm_set1_epi32((int)cospi[56]);
+
+  __m128i s0, s1, s2, s3;
+  __m128i x0, x1, x2, x3;
+  __m128i u0, u1, u2, u3;
+  __m128i v0, v1, v2, v3;
+
+  // stage 0
+  // stage 1
+  int idx = 0 * num_col;
+  x1 = in[idx];
+  idx += num_col;
+  x2 = in[idx];
+  idx += num_col;
+  x3 = in[idx];
+  idx += num_col;
+  x0 = in[idx];
+
+  // stage 2
+  s0 = half_btf_sse4_1(&cospi8, &x0, &cospi56, &x1, &rnding, bit);
+  s1 = half_btf_neg_sse4_1(&cospi56, &x0, &cospi8, &x1, &rnding, bit);
+  s2 = half_btf_sse4_1(&cospi40, &x2, &cospi24, &x3, &rnding, bit);
+  s3 = half_btf_neg_sse4_1(&cospi24, &x2, &cospi40, &x3, &rnding, bit);
+
+  // stage 3
+  x0 = _mm_add_epi32(s0, s2);
+  x1 = _mm_add_epi32(s1, s3);
+  x2 = _mm_sub_epi32(s0, s2);
+  x3 = _mm_sub_epi32(s1, s3);
+
+  // stage 4
+  s0 = x0;
+  s1 = x1;
+  s2 = half_btf_sse4_1(&cospi32, &x2, &cospi32, &x3, &rnding, bit);
+  s3 = half_btf_neg_sse4_1(&cospi32, &x2, &cospi32, &x3, &rnding, bit);
+
+  // stage 5
+  u0 = s0;
+  u1 = _mm_sub_epi32(_mm_setzero_si128(), s2);
+  u2 = s3;
+  u3 = _mm_sub_epi32(_mm_setzero_si128(), s1);
+
+  // Transpose 4x4 32-bit
+  v0 = _mm_unpacklo_epi32(u0, u1);
+  v1 = _mm_unpackhi_epi32(u0, u1);
+  v2 = _mm_unpacklo_epi32(u2, u3);
+  v3 = _mm_unpackhi_epi32(u2, u3);
+
+  out[0] = _mm_unpacklo_epi64(v0, v2);
+  out[1] = _mm_unpackhi_epi64(v0, v2);
+  out[2] = _mm_unpacklo_epi64(v1, v3);
+  out[3] = _mm_unpackhi_epi64(v1, v3);
+}
+#else
 static void fadst4x4_sse4_1(__m128i *in, __m128i *out, int bit,
                             const int num_col) {
   const int32_t *sinpi = sinpi_arr(bit);
@@ -189,6 +252,8 @@ static void fadst4x4_sse4_1(__m128i *in, __m128i *out, int bit,
   out[2] = _mm_unpacklo_epi64(v1, v3);
   out[3] = _mm_unpackhi_epi64(v1, v3);
 }
+#endif  // CONFIG_ADST_TUNED
+
 static void idtx4x4_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
   (void)bit;
   __m128i fact = _mm_set1_epi32(NewSqrt2);
@@ -633,6 +698,33 @@ static void fdct8x8_sse4_1(__m128i *in, __m128i *out, int bit,
   fdct4x8_sse4_1(in + 1, out + 1, bit, col_num);
 }
 
+#if CONFIG_ADST_TUNED
+static void fadst8x8_sse4_1(__m128i *in, __m128i *out, int bit,
+                            const int col_num) {
+  (void)bit;
+  const int32_t *kernel = av2_adst_kernel8[FWD_TXFM];
+  const int size = tx_size_wide[TX_8X8];
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m128i x[8];
+  int col;
+  for (col = 0; col < col_num; ++col) {
+    for (int i = 0; i < 8; ++i) {
+      int row_idx = i * size;
+      __m128i sum = zero;
+      __m128i t;
+      for (int j = 0; j < 8; ++j) {
+        const __m128i coef = _mm_set1_epi32(kernel[row_idx + j]);
+        t = _mm_mullo_epi32(in[j * col_num + col], coef);
+        sum = _mm_add_epi32(sum, t);
+      }
+      sum = _mm_add_epi32(sum, rnding);
+      x[i] = _mm_srai_epi32(sum, FWD_ADST_BIT);
+    }
+    for (int i = 0; i < 8; ++i) out[i * col_num + col] = x[i];
+  }
+}
+#else
 static void fadst8x8_sse4_1(__m128i *in, __m128i *out, int bit,
                             const int col_num) {
   const int32_t *cospi = cospi_arr(bit);
@@ -814,6 +906,8 @@ static void fadst8x8_sse4_1(__m128i *in, __m128i *out, int bit,
     out[col_num * 7 + col] = v0;
   }
 }
+#endif  // CONFIG_ADST_TUNED
+
 static void idtx8x8_sse4_1(__m128i *in, __m128i *out, int bit, int col_num) {
   (void)bit;
 
@@ -1463,6 +1557,34 @@ static void fdct16x16_sse4_1(__m128i *in, __m128i *out, int bit,
   }
 }
 
+#if CONFIG_ADST_TUNED
+static void fadst16x16_sse4_1(__m128i *in, __m128i *out, int bit,
+                              const int num_cols) {
+  (void)bit;
+  const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
+  const int size = tx_size_wide[TX_16X16];
+
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i rnding = _mm_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m128i x[16];
+  int col;
+  for (col = 0; col < num_cols; ++col) {
+    for (int i = 0; i < 16; ++i) {
+      int row_idx = i * size;
+      __m128i sum = zero;
+      __m128i t;
+      for (int j = 0; j < 16; ++j) {
+        const __m128i coef = _mm_set1_epi32(kernel[row_idx + j]);
+        t = _mm_mullo_epi32(in[j * num_cols + col], coef);
+        sum = _mm_add_epi32(sum, t);
+      }
+      sum = _mm_add_epi32(sum, rnding);
+      x[i] = _mm_srai_epi32(sum, FWD_ADST_BIT);
+    }
+    for (int i = 0; i < 16; ++i) out[i * num_cols + col] = x[i];
+  }
+}
+#else
 static void fadst16x16_sse4_1(__m128i *in, __m128i *out, int bit,
                               const int num_cols) {
   const int32_t *cospi = cospi_arr(bit);
@@ -1709,6 +1831,7 @@ static void fadst16x16_sse4_1(__m128i *in, __m128i *out, int bit,
     out[15 * num_cols + col] = v[0];
   }
 }
+#endif  // CONFIG_ADST_TUNED
 
 static void col_txfm_16x16_rounding(__m128i *in, int shift) {
   // Note:

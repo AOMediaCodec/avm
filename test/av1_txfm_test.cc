@@ -123,6 +123,50 @@ void reference_idct_1d(const double *in, double *out, int size) {
 // TODO(any): Copied from the old 'fadst4' (same as the new 'av1_fadst4'
 // function). Should be replaced by a proper reference function that takes
 // 'double' input & output.
+#if CONFIG_ADST_TUNED
+static void fadst4_new(const tran_low_t *input, tran_low_t *output) {
+  tran_low_t x0, x1, x2, x3;
+  tran_low_t s0, s1, s2, s3;
+  tran_low_t cospi8 = 8035;
+  tran_low_t cospi56 = 1598;
+  tran_low_t cospi24 = 6811;
+  tran_low_t cospi40 = 4551;
+  tran_low_t cospi32 = 5793;
+
+  int cos_bit = 13;
+  int offset = (1 << (cos_bit - 1));
+
+  // stage 1
+  x0 = input[3];
+  x1 = input[0];
+  x2 = input[1];
+  x3 = input[2];
+
+  // stage 2
+  s0 = (cospi8 * x0 + cospi56 * x1 + offset) >> cos_bit;
+  s1 = (-cospi8 * x1 + cospi56 * x0 + offset) >> cos_bit;
+  s2 = (cospi40 * x2 + cospi24 * x3 + offset) >> cos_bit;
+  s3 = (-cospi40 * x3 + cospi24 * x2 + offset) >> cos_bit;
+
+  // stage 3
+  x0 = s0 + s2;
+  x1 = s1 + s3;
+  x2 = -s2 + s0;
+  x3 = -s3 + s1;
+
+  // stage 4
+  s0 = x0;
+  s1 = x1;
+  s2 = (cospi32 * x2 + cospi32 * x3 + offset) >> cos_bit;
+  s3 = (-cospi32 * x3 + cospi32 * x2 + offset) >> cos_bit;
+
+  // stage 5
+  output[0] = (tran_low_t)s0;
+  output[1] = (tran_low_t)-s2;
+  output[2] = (tran_low_t)s3;
+  output[3] = (tran_low_t)-s1;
+}
+#else
 static void fadst4_new(const tran_low_t *input, tran_low_t *output) {
   tran_high_t x0, x1, x2, x3;
   tran_high_t s0, s1, s2, s3, s4, s5, s6, s7;
@@ -162,7 +206,53 @@ static void fadst4_new(const tran_low_t *input, tran_low_t *output) {
   output[2] = (tran_low_t)fdct_round_shift(s2);
   output[3] = (tran_low_t)fdct_round_shift(s3);
 }
+#endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_ADST_TUNED
+void reference_adst_1d(const double *in, double *out, int size) {
+  if (size == 4) {  // Special case.
+    tran_low_t int_input[4];
+    for (int i = 0; i < 4; ++i) {
+      int_input[i] = static_cast<tran_low_t>(round(in[i]));
+    }
+    tran_low_t int_output[4];
+    fadst4_new(int_input, int_output);
+    for (int i = 0; i < 4; ++i) {
+      out[i] = int_output[i];
+    }
+    return;
+  }
+
+  if (size == 16) {  // DST-7
+    for (int k = 0; k < size; ++k) {
+      out[k] = 0;
+      for (int n = 0; n < size; ++n) {
+        out[k] += in[n] * sin(PI * (2 * k + 1) * (n + 1) / (2 * size + 1));
+      }
+      out[k] /= (0.3535533905932738 /
+                 0.3481553119113957);  // Renormalize from DST-4 to DST-7
+    }
+    return;
+  }
+
+  const int32_t av2_adst_kernel8[64] = {
+    519,   1278,  1989,  2628,  3169,  3594,  3886,  4035, 1529,  3327,  4049,
+    3461,  1754,  -521,  -2627, -3884, 2454,  4041,  2179, -1542, -3947, -2984,
+    526,   3587,  3232,  3081,  -1835, -3913, 61,    3941, 1726,  -3158, 3781,
+    759,   -4008, 440,   3877,  -1599, -3398, 2616,  3974, -1987, -1987, 3974,
+    -1987, -1987, 3974,  -1987, 3581,  -3764, 2258,  262,  -2665, 3871,  -3339,
+    1309,  2264,  -3145, 3679,  -3805, 3511,  -2828, 1832, -634,
+  };
+
+  for (int k = 0; k < size; ++k) {
+    out[k] = 0;
+    for (int n = 0; n < size; ++n) {
+      out[k] += in[n] * av2_adst_kernel8[n + 8 * k];
+    }
+    out[k] = out[k] / 4096;
+  }
+}
+#else
 void reference_adst_1d(const double *in, double *out, int size) {
   if (size == 4) {  // Special case.
     tran_low_t int_input[4];
@@ -184,6 +274,7 @@ void reference_adst_1d(const double *in, double *out, int size) {
     }
   }
 }
+#endif  // CONFIG_ADST_TUNED
 
 void reference_idtx_1d(const double *in, double *out, int size) {
   double scale = 0;

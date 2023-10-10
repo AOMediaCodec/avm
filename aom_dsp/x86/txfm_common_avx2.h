@@ -26,6 +26,39 @@ static INLINE __m256i pair_set_w16_epi16(int16_t a, int16_t b) {
       (int32_t)(((uint16_t)(a)) | (((uint32_t)(b)) << 16)));
 }
 
+#if CONFIG_ADST_TUNED
+void iadst_matrix_mult_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
+                            int bd, int out_shift, const int32_t *kernel,
+                            int kernel_size, int num_cols);
+
+static INLINE void round_shift_avx2(__m256i *in, const __m256i _r,
+                                    const int bit) {
+  __m256i a0 = _mm256_add_epi32(*in, _r);
+  *in = _mm256_srai_epi32(a0, bit);
+}
+
+static INLINE __m256i interleave_coefs_avx2(const int32_t a, const int32_t b) {
+  const __m128i coef1 = _mm_set1_epi16(a);
+  const __m128i coef2 = _mm_set1_epi16(b);
+  const __m256i coef =
+      _mm256_insertf128_si256(_mm256_castsi128_si256(coef1), coef2, 0x1);
+  return coef;
+}
+
+static INLINE void matrix_coef_mult_avx2(const __m256i w0, const __m256i w1,
+                                         const __m256i in0, const __m256i in1,
+                                         __m256i *out0, __m256i *out1) {
+  __m256i t0 = _mm256_unpacklo_epi16(in0, in1);
+  __m256i t1 = _mm256_unpackhi_epi16(in0, in1);
+
+  __m256i v0 = _mm256_unpacklo_epi16(w0, w1);
+  __m256i v1 = _mm256_unpackhi_epi16(w0, w1);
+
+  *out0 = _mm256_madd_epi16(t0, v0);
+  *out1 = _mm256_madd_epi16(t1, v1);
+}
+#endif  // CONFIG_ADST_TUNED
+
 static INLINE void btf_16_w16_avx2(const __m256i w0, const __m256i w1,
                                    __m256i *in0, __m256i *in1, const __m256i _r,
                                    const int32_t cos_bit) {

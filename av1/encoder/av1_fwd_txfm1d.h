@@ -43,6 +43,15 @@ void av1_fidentity16_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
 void av1_fidentity32_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
+#if CONFIG_ADST_TUNED
+// New forward ADST functions
+void av2_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
+                const int8_t *stage_range);
+void av2_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
+                const int8_t *stage_range);
+void av2_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
+                 const int8_t *stage_range);
+#endif  // CONFIG_ADST_TUNED
 #ifdef __cplusplus
 }
 #endif

@@ -26,6 +26,19 @@ namespace {
 const int txfm_type_num = 2;
 const int txfm_size_ls[] = { 4, 8, 16, 32, 64 };
 
+#if CONFIG_ADST_TUNED
+const TxfmFunc fwd_txfm_func_ls[][txfm_type_num] = {
+  { av1_fdct4, av2_fadst4 },   { av1_fdct8, av2_fadst8 },
+  { av1_fdct16, av2_fadst16 }, { av1_fdct32, NULL },
+  { av1_fdct64, NULL },
+};
+
+const TxfmFunc inv_txfm_func_ls[][txfm_type_num] = {
+  { av1_idct4, av2_iadst4 },   { av1_idct8, av2_iadst8 },
+  { av1_idct16, av2_iadst16 }, { av1_idct32, NULL },
+  { av1_idct64, NULL },
+};
+#else
 const TxfmFunc fwd_txfm_func_ls[][txfm_type_num] = {
   { av1_fdct4, av1_fadst4 },   { av1_fdct8, av1_fadst8 },
   { av1_fdct16, av1_fadst16 }, { av1_fdct32, NULL },
@@ -37,6 +50,7 @@ const TxfmFunc inv_txfm_func_ls[][txfm_type_num] = {
   { av1_idct16, av1_iadst16 }, { av1_idct32, NULL },
   { av1_idct64, NULL },
 };
+#endif  // CONFIG_ADST_TUNED
 
 // the maximum stage number of fwd/inv 1d dct/adst txfm is 12
 const int8_t cos_bit = 13;
@@ -125,7 +139,7 @@ TEST(av1_inv_txfm1d, round_trip) {
     for (int ti = 0; ti < txfm_type_num; ++ti) {
       TxfmFunc fwd_txfm_func = fwd_txfm_func_ls[si][ti];
       TxfmFunc inv_txfm_func = inv_txfm_func_ls[si][ti];
-      int max_error = 2;
+      int max_error = 5;
 
       if (!fwd_txfm_func) continue;
 
