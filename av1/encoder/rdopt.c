@@ -4705,7 +4705,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_BAWP
 #if CONFIG_SEP_COMP_DRL
 #if CONFIG_EXPLICIT_BAWP
-  inter_mode_info mode_info[EXPLICIT_BAWP_SCALE_CNT + 2][NUM_MV_PRECISIONS]
+  inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]
                            [MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH];
 #else
   inter_mode_info mode_info[2][NUM_MV_PRECISIONS]
@@ -4717,7 +4717,7 @@ static int64_t handle_inter_mode(
 
   // initialize mode_info
 #if CONFIG_EXPLICIT_BAWP
-  for (int bawp = 0; bawp < EXPLICIT_BAWP_SCALE_CNT + 2; bawp++) {
+  for (int bawp = 0; bawp < BAWP_OPTION_CNT; bawp++) {
 #else
   for (int bawp = 0; bawp < 2; bawp++) {
 #endif  // CONFIG_EXPLICIT_BAWP
@@ -4900,7 +4900,7 @@ static int64_t handle_inter_mode(
   int flex_mv_cost[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
 #if CONFIG_BAWP
 #if CONFIG_EXPLICIT_BAWP
-  int idx_mask[2 + EXPLICIT_BAWP_SCALE_CNT][NUM_MV_PRECISIONS] = { 0 };
+  int idx_mask[BAWP_OPTION_CNT][NUM_MV_PRECISIONS] = { 0 };
 #else
   int idx_mask[2][NUM_MV_PRECISIONS] = { { 0, 0, 0, 0, 0, 0, 0 },
                                          { 0, 0, 0, 0, 0, 0, 0 } };
@@ -4934,7 +4934,7 @@ static int64_t handle_inter_mode(
       if (cm->features.enable_bawp &&
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
-        for (int bawp = 1; bawp <= 1 + EXPLICIT_BAWP_SCALE_CNT; bawp++) {
+        for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
           mbmi->bawp_flag = bawp;
           idx_mask[bawp][pb_mv_precision] =
               ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd,
@@ -4969,7 +4969,7 @@ static int64_t handle_inter_mode(
     if (cm->features.enable_bawp &&
         av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
-      for (int bawp = 1; bawp <= 1 + EXPLICIT_BAWP_SCALE_CNT; bawp++) {
+      for (int bawp = 1; bawp < BAWP_OPTION_CNT; bawp++) {
         mbmi->bawp_flag = bawp;
         idx_mask[bawp][mbmi->max_mv_precision] = ref_mv_idx_to_search(
             cpi, x, rd_stats, args, ref_best_rd,

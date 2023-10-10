@@ -525,7 +525,8 @@ typedef struct MB_MODE_INFO {
   /*! \brief Struct that stores the data used in interinter compound mode. */
   INTERINTER_COMPOUND_DATA interinter_comp;
 #if CONFIG_BAWP
-  /*! \brief The block level bawp enabling flag*/
+  /*! \brief The block level bawp enabling flag, and the value range for
+   * bawp_flag depends on whether CONFIG_EXPLICIT_BAWP is turned on or not. */
   int8_t bawp_flag;
   /*! \brief The bawp parameters weight*/
   int16_t bawp_alpha[3][2];  //[yuv][ref0/1], current only [0][0] is used.

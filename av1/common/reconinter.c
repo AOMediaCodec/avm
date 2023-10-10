@@ -1942,11 +1942,11 @@ void av1_build_one_inter_predictor(
 // Derive the offset value of block adaptive weighted prediction
 // mode. One row from the top boundary and one column from the left boundary
 // are used in the less square error process.
-void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
-                                  uint16_t *recon_left, int rec_stride,
-                                  uint16_t *ref_top, uint16_t *ref_left,
-                                  int ref_stride, int ref, int plane, int bw,
-                                  int bh) {
+static void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
+                                         uint16_t *recon_left, int rec_stride,
+                                         uint16_t *ref_top, uint16_t *ref_left,
+                                         int ref_stride, int ref, int plane,
+                                         int bw, int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(mbmi->bawp_flag > 1);
   // only integer position of reference, may need to consider
@@ -1987,11 +1987,11 @@ void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
 // Derive the scaling factor and offset of block adaptive weighted prediction
 // mode. One row from the top boundary and one column from the left boundary
 // are used in the less square error process.
-void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
-                            uint16_t *recon_left, int rec_stride,
-                            uint16_t *ref_top, uint16_t *ref_left,
-                            int ref_stride, int ref, int plane, int bw,
-                            int bh) {
+static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
+                                   uint16_t *recon_left, int rec_stride,
+                                   uint16_t *ref_top, uint16_t *ref_left,
+                                   int ref_stride, int ref, int plane, int bw,
+                                   int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(mbmi->bawp_flag == 1);
   // only integer position of reference, may need to consider
