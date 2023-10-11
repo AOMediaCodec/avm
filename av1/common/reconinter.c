@@ -2185,8 +2185,9 @@ void av1_build_one_bawp_inter_predictor(
 //  2. At least one dimension is size 4 with subsampling
 //  3. If sub-sampled, none of the previous blocks around the sub-sample
 //     are intrabc or inter-blocks
-static bool is_sub8x8_inter(const MACROBLOCKD *xd, const MB_MODE_INFO *mi,
-                            int plane, int is_intrabc, int build_for_obmc) {
+static bool is_sub8x8_inter(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                            const MB_MODE_INFO *mi, int plane, int is_intrabc,
+                            int build_for_obmc) {
   if (is_intrabc || build_for_obmc) {
     return false;
   }
@@ -2196,11 +2197,11 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, const MB_MODE_INFO *mi,
     return false;
 
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
-  // worth of pixels. Thus (mi_x, mi_y) may not be the correct coordinates for
-  // the top-left corner of the prediction source - the correct top-left corner
-  // is at (pre_x, pre_y).
-  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+  // worth of pixels. Thus (mi_row, mi_col) may not be the correct coordinates
+  // for the top-left corner of the prediction source. So, we need to find the
+  // correct top-left corner (row_start, col_start).
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
   const int row_start =
       plane ? mi->chroma_ref_info.mi_row_chroma_base - mi_row : 0;
   const int col_start =
@@ -2212,9 +2213,11 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, const MB_MODE_INFO *mi,
 
   // Scan through all the blocks in the current chroma unit
   for (int row = 0; row < plane_mi_height; ++row) {
+    const int row_coord = row_start + row;
+    if (mi_row + row_coord >= cm->mi_params.mi_rows) break;
     for (int col = 0; col < plane_mi_width; ++col) {
-      const int row_coord = row_start + row;
       const int col_coord = col_start + col;
+      if (mi_col + col_coord >= cm->mi_params.mi_cols) break;
       // For the blocks at the lower right of the final chroma block, the mis
       // are not set up correctly yet, so we do not check them.
       if ((row_coord >= 0 && col_coord > 0) ||
@@ -2223,6 +2226,7 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, const MB_MODE_INFO *mi,
       }
       const MB_MODE_INFO *this_mbmi =
           xd->mi[row_coord * xd->mi_stride + col_coord];
+      assert(this_mbmi != NULL);
       if (!is_inter_block(this_mbmi, xd->tree_type)) return false;
       if (is_intrabc_block(this_mbmi, xd->tree_type)) return false;
     }
@@ -2261,7 +2265,9 @@ static void build_inter_predictors_sub8x8(
   assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
   assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == SUB_8_BITMASK_SIZE);
   for (int mi_row = 0; mi_row < plane_mi_height; mi_row++) {
+    if (xd->mi_row + row_start + mi_row >= cm->mi_params.mi_rows) break;
     for (int mi_col = 0; mi_col < plane_mi_width; mi_col++) {
+      if (xd->mi_col + col_start + mi_col >= cm->mi_params.mi_cols) break;
       const SUB_8_BITMASK_T check_flag = 1 << (SUB_8_BITMASK_SIZE - 1 - mi_col);
       if (row_progress[mi_row] & check_flag) {
         continue;
@@ -2269,6 +2275,7 @@ static void build_inter_predictors_sub8x8(
 
       const MB_MODE_INFO *this_mbmi =
           xd->mi[(row_start + mi_row) * mi_stride + (col_start + mi_col)];
+      assert(this_mbmi != NULL);
 
       const BLOCK_SIZE bsize = this_mbmi->sb_type[PLANE_TYPE_Y];
       const int mi_width = mi_size_wide[bsize];
@@ -3779,7 +3786,7 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
     assert(mi->motion_mode == WARP_DELTA || mi->motion_mode == WARPED_CAUSAL);
   }
 #endif  // CONFIG_WARPMV
-  if (is_sub8x8_inter(xd, mi, plane, is_intrabc_block(mi, xd->tree_type),
+  if (is_sub8x8_inter(cm, xd, mi, plane, is_intrabc_block(mi, xd->tree_type),
                       build_for_obmc)) {
 #if !CONFIG_EXT_RECUR_PARTITIONS
     assert(bw < 8 || bh < 8);
