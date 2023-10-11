@@ -79,9 +79,9 @@ const int wienerns_config_uv_from_uv[][3] = {
 };
 
 const int wienerns_config_uv_from_y[][3] = {
-  { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
-  { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
-  { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+  { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
+  { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
+  { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
 };
 
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
@@ -141,6 +141,12 @@ const int wienerns_coeff_uv[][WIENERNS_COEFCFG_LEN] = {
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 1),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
@@ -154,6 +160,12 @@ const int wienerns_coeff_uv[][WIENERNS_COEFCFG_LEN] = {
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 4, -8, 3),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
+  AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_UV, 3, -4, 2),
@@ -211,9 +223,9 @@ const int wienerns_wout_subtract_center_config_uv_from_uv[][3] = {
 // Adjust the beginning tap to account for the above change and add a tap at
 // (0, 0).
 const int wienerns_wout_subtract_center_config_uv_from_y[][3] = {
-  { 1, 0, 7 },   { -1, 0, 7 },  { 0, 1, 8 },   { 0, -1, 8 }, { 1, 1, 9 },
-  { -1, -1, 9 }, { -1, 1, 10 }, { 1, -1, 10 }, { 2, 0, 11 }, { -2, 0, 11 },
-  { 0, 2, 12 },  { 0, -2, 12 }, { 0, 0, 13 },
+  { 1, 0, 7 },    { -1, 0, 8 },  { 0, 1, 9 },   { 0, -1, 10 }, { 1, 1, 11 },
+  { -1, -1, 12 }, { -1, 1, 13 }, { 1, -1, 14 }, { 2, 0, 15 },  { -2, 0, 16 },
+  { 0, 2, 17 },   { 0, -2, 18 }, { 0, 0, 19 },
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -236,9 +248,9 @@ const int wienerns_config_uv_from_uv2[][3] = {
 };
 
 const int wienerns_config_uv_from_y2[][3] = {
-  { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
-  { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
-  { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+  { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
+  { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
+  { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
 };
 
 #define WIENERNS_PREC_BITS_Y2 7
@@ -307,9 +319,9 @@ const int wienerns_config_uv_from_uv3[][3] = {
 };
 
 const int wienerns_config_uv_from_y3[][3] = {
-  { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
-  { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
-  { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+  { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
+  { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
+  { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
 };
 
 #define WIENERNS_PREC_BITS_Y3 7
@@ -1809,9 +1821,8 @@ static void adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
   }
   if (is_uv) {
     adjusted_config->config2 = wienerns_wout_subtract_center_config_uv_from_y;
-    const int num_sym_taps_dual = nsfilter_config->num_pixels2 / 2;
     const int begin_idx = num_sym_taps;
-    const int end_idx = begin_idx + num_sym_taps_dual;
+    const int end_idx = begin_idx + nsfilter_config->num_pixels2;
     const int center_tap_index_dual = end_idx + 1;
 
     // luma -> chroma part of the dual filter. This case needs a shift of the
@@ -1828,7 +1839,7 @@ static void adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
         adjusted_filter[i + 1] = dual_filter[i];
       }
       // Add the center tap at the end.
-      adjusted_filter[center_tap_index_dual] = -2 * sum;
+      adjusted_filter[center_tap_index_dual] = -sum;
     }
   }
 }

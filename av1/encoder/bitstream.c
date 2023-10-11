@@ -4152,21 +4152,27 @@ static AOM_INLINE void write_wienerns_filter(
     int end_feat = nsfilter_params->ncoeffs;
     if (end_feat > 6) {
       // Decide whether to signal a short (0) or long (1) filter
-      int filter_length_bit = 1;
-      if (wienerns_info_nsfilter[end_feat - 1] == 0 &&
-          wienerns_info_nsfilter[end_feat - 2] == 0 &&
-          wienerns_info_nsfilter[end_feat - 3] == 0 &&
-          wienerns_info_nsfilter[end_feat - 4] == 0 &&
-          wienerns_info_nsfilter[end_feat - 5] == 0 &&
-          wienerns_info_nsfilter[end_feat - 6] == 0) {
-        filter_length_bit = 0;
+      int filter_length_bit = 0;
+      for (int i = 6; i < end_feat; i++) {
+        if (wienerns_info_nsfilter[i] != 0) {
+          filter_length_bit = 1;
+        }
       }
       aom_write_symbol(wb, filter_length_bit,
                        xd->tile_ctx->wienerns_length_cdf[is_uv], 2);
-      end_feat = filter_length_bit ? nsfilter_params->ncoeffs
-                                   : (nsfilter_params->ncoeffs - 6);
+      end_feat = filter_length_bit ? nsfilter_params->ncoeffs : 6;
     }
     assert((end_feat & 1) == 0);
+
+    int uv_sym = 0;
+    if (is_uv && end_feat > 6) {
+      uv_sym = 1;
+      for (int i = 6; i < end_feat; i += 2) {
+        if (wienerns_info_nsfilter[i + 1] != wienerns_info_nsfilter[i])
+          uv_sym = 0;
+      }
+      aom_write_symbol(wb, uv_sym, xd->tile_ctx->wienerns_uv_sym_cdf, 2);
+    }
 
     for (int i = beg_feat; i < end_feat; ++i) {
 #if ENABLE_LR_4PART_CODE
@@ -4188,6 +4194,11 @@ static AOM_INLINE void write_wienerns_filter(
           wienerns_info_nsfilter[i] -
               wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID]);
 #endif  // ENABLE_LR_4PART_CODE
+      if (uv_sym && i >= 6) {
+        // Don't code symmetrical taps
+        assert(wienerns_info_nsfilter[i + 1] == wienerns_info_nsfilter[i]);
+        i += 1;
+      }
     }
     av1_add_to_wienerns_bank(bank, wienerns_info, c_id);
   }

@@ -3377,10 +3377,15 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
       const int filter_length_bit =
           aom_read_symbol(rb, xd->tile_ctx->wienerns_length_cdf[is_uv], 2,
                           ACCT_INFO("wienerns_length"));
-      end_feat = filter_length_bit ? nsfilter_params->ncoeffs
-                                   : (nsfilter_params->ncoeffs - 6);
+      end_feat = filter_length_bit ? nsfilter_params->ncoeffs : 6;
     }
     assert((end_feat & 1) == 0);
+
+    int uv_sym = 0;
+    if (is_uv && end_feat > 6) {
+      uv_sym = aom_read_symbol(rb, xd->tile_ctx->wienerns_uv_sym_cdf, 2,
+                               ACCT_INFO("wienerns_uv_sym"));
+    }
 
     for (int i = beg_feat; i < end_feat; ++i) {
 #if ENABLE_LR_4PART_CODE
@@ -3404,6 +3409,11 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
               ACCT_INFO("wienerns_info_nsfilter")) +
           wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID];
 #endif  // ENABLE_LR_4PART_CODE
+      if (uv_sym && i >= 6) {
+        // Fill in symmetrical tap without reading it
+        wienerns_info_nsfilter[i + 1] = wienerns_info_nsfilter[i];
+        i++;
+      }
     }
     av1_add_to_wienerns_bank(bank, wienerns_info, c_id);
   }

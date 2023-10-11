@@ -791,6 +791,8 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
   for (int c = 0; c < 2; ++c)
     av1_cost_tokens_from_cdf(mode_costs->wienerns_length_cost[c],
                              fc->wienerns_length_cdf[c], NULL);
+  av1_cost_tokens_from_cdf(mode_costs->wienerns_uv_sym_cost,
+                           fc->wienerns_uv_sym_cdf, NULL);
 #if ENABLE_LR_4PART_CODE
   for (int c = 0; c < WIENERNS_4PART_CTX_MAX; ++c)
     av1_cost_tokens_from_cdf(mode_costs->wienerns_4part_cost[c],

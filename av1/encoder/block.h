@@ -1261,6 +1261,10 @@ typedef struct {
    * wienerns_length_cost
    */
   int wienerns_length_cost[2][2];
+  /*!
+   * wienerns_uv_sym_cost
+   */
+  int wienerns_uv_sym_cost[2];
 #if ENABLE_LR_4PART_CODE
   /*!
    * wienerns_4part_cost
