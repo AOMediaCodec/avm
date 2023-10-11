@@ -2501,6 +2501,7 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
 }
 
 #if CONFIG_BLOCK_256
+/*!\brief Returns the context used by \ref PARTITION_SPLIT. */
 static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
                                        int mi_col, BLOCK_SIZE bsize) {
   const int plane = xd->tree_type == CHROMA_PART;
@@ -2905,6 +2906,11 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
   return is_implied;
 }
 
+/*!\brief Returns the partition type forced by the bitstream constraint.
+ *
+ * \return A \ref PARTITION_TYPE that corresponds to the one forced by the
+ * bitstream. If no partition type is forced, returns \ref PARTITION_INVALID.
+ */
 static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
     const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, int ss_x,
     int ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,

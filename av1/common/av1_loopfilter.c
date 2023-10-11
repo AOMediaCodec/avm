@@ -839,7 +839,7 @@ static void loop_filter_rows(YV12_BUFFER_CONFIG *frame_buffer, AV1_COMMON *cm,
       continue;
 
     if (cm->lf.combine_vert_horz_lf) {
-      // filter all vertical and horizontal edges in every 128x128 super block
+      // filter all vertical and horizontal edges in every super block
       for (mi_row = start; mi_row < stop; mi_row += mib_size) {
         for (mi_col = col_start; mi_col < col_end; mi_col += mib_size) {
           // filter vertical edges
