@@ -533,11 +533,7 @@ static INLINE void set_default_wienerns(WienerNonsepInfo *wienerns_info,
 // 2: Average 2 (top and down) luma pixels to scale down to chroma for 420,
 // could be based on the luma downsampling type from CFL tool 3: Use 8-tap
 // downsampling filter
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #define WIENERNS_CROSS_FILT_LUMA_TYPE 2
-#else
-#define WIENERNS_CROSS_FILT_LUMA_TYPE 0
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
                                     int width_y, int in_stride, uint16_t **luma,
