@@ -829,6 +829,22 @@ int main(int argc, const char **argv) {
 
   /* Transform size */
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = TXFM_PARTITION_GROUP;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(&fc.txfm_do_partition[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob default_txfm_do_partition_cdf\n"
+                     "[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)]");
+
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = TXFM_PARTITION_GROUP - 1;
+  cts_each_dim[2] = 3;
+  optimize_cdf_table(
+      &fc.txfm_4way_partition_type[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob default_txfm_4way_partition_type_cdf\n"
+      "[2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(3)]");
+#else
   cts_each_dim[0] = 2;
   cts_each_dim[1] = TXFM_PARTITION_INTER_CONTEXTS;
   cts_each_dim[2] = 4;
@@ -856,6 +872,7 @@ int main(int argc, const char **argv) {
       &fc.intra_2way_txfm_partition[0], probsfile, 1, cts_each_dim,
       "static const aom_cdf_prob default_intra_2way_txfm_partition_cdf\n"
       "[CDF_SIZE(2)]");
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
   cts_each_dim[0] = TXFM_PARTITION_CONTEXTS;
   cts_each_dim[1] = 2;

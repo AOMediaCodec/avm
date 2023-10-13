@@ -83,8 +83,8 @@ typedef struct {
 /*!\endcond */
 
 void av1_get_past_future_cur_ref_lists(AV1_COMMON *cm, RefScoreData *scores);
-void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
-                        RefFrameMapPair *ref_frame_map_pairs);
+int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
+                       RefFrameMapPair *ref_frame_map_pairs);
 
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
@@ -517,6 +517,7 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_compound_ref(
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 }
 
+#if !CONFIG_TX_PARTITION_CTX
 // Returns a context number for the given MB prediction signal
 // The mode info data structure has a one element border above and to the
 // left of the entries corresponding to real blocks.
@@ -552,6 +553,7 @@ static INLINE int get_tx_size_context(const MACROBLOCKD *xd) {
   else
     return 0;
 }
+#endif  // !CONFIG_TX_PARTITION_CTX
 
 #ifdef __cplusplus
 }  // extern "C"

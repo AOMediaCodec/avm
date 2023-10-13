@@ -74,8 +74,8 @@ extern "C" {
 #define FRAME_CONTEXTS (FRAME_BUFFERS + 1)
 // Extra frame context which is always kept at default values
 #define FRAME_CONTEXT_DEFAULTS (FRAME_CONTEXTS - 1)
-#define PRIMARY_REF_BITS 3
-#define PRIMARY_REF_NONE 7
+#define PRIMARY_REF_BITS REF_FRAMES_LOG2
+#define PRIMARY_REF_NONE INTER_REFS_PER_FRAME
 
 #define NUM_PING_PONG_BUFFERS 2
 
@@ -1170,6 +1170,7 @@ struct CommonContexts {
    */
   ENTROPY_CONTEXT **entropy[MAX_MB_PLANE];
 
+#if !CONFIG_TX_PARTITION_CTX
   /*!
    * Context used to derive context for 'FRAME_CONTEXT.txfm_partition_cdf' to
    * transmit 'is_split' flag to indicate if this transform block should be
@@ -1177,6 +1178,7 @@ struct CommonContexts {
    * txfm[i][j] is the context for ith tile row, jth mi_col.
    */
   TXFM_CONTEXT **txfm;
+#endif  // !CONFIG_TX_PARTITION_CTX
 
   /*!
    * Dimensions that were used to allocate the arrays above.
@@ -2058,7 +2060,9 @@ static INLINE void av1_init_above_context(CommonContexts *above_contexts,
     xd->above_entropy_context[i] = above_contexts->entropy[i][tile_row];
     xd->above_partition_context[i] = above_contexts->partition[i][tile_row];
   }
+#if !CONFIG_TX_PARTITION_CTX
   xd->above_txfm_context = above_contexts->txfm[tile_row];
+#endif  // !CONFIG_TX_PARTITION_CTX
 }
 
 static INLINE void av1_init_macroblockd(AV1_COMMON *cm, MACROBLOCKD *xd) {
@@ -2560,16 +2564,20 @@ static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
     }
   }
 
+#if !CONFIG_TX_PARTITION_CTX
   memset(above_contexts->txfm[tile_row] + mi_col_start,
          tx_size_wide[TX_SIZES_LARGEST], aligned_width * sizeof(TXFM_CONTEXT));
+#endif  // !CONFIG_TX_PARTITION_CTX
 }
 
 static INLINE void av1_zero_left_context(MACROBLOCKD *const xd) {
   av1_zero(xd->left_entropy_context);
   av1_zero(xd->left_partition_context);
 
+#if !CONFIG_TX_PARTITION_CTX
   memset(xd->left_txfm_context_buffer, tx_size_high[TX_SIZES_LARGEST],
          sizeof(xd->left_txfm_context_buffer));
+#endif  // !CONFIG_TX_PARTITION_CTX
 }
 
 // Disable array-bounds checks as the TX_SIZE enum contains values larger than
@@ -2584,6 +2592,7 @@ static INLINE void av1_zero_left_context(MACROBLOCKD *const xd) {
 #pragma GCC diagnostic warning "-Warray-bounds"
 #endif
 
+#if !CONFIG_TX_PARTITION_CTX
 static INLINE void set_txfm_ctx(TXFM_CONTEXT *txfm_ctx, uint8_t txs, int len) {
   int i;
   for (i = 0; i < len; ++i) txfm_ctx[i] = txs;
@@ -2602,6 +2611,7 @@ static INLINE void set_txfm_ctxs(TX_SIZE tx_size, int n4_w, int n4_h, int skip,
   set_txfm_ctx(xd->above_txfm_context, bw, n4_w);
   set_txfm_ctx(xd->left_txfm_context, bh, n4_h);
 }
+#endif  // !CONFIG_TX_PARTITION_CTX
 
 static INLINE int get_mi_grid_idx(const CommonModeInfoParams *const mi_params,
                                   int mi_row, int mi_col) {
@@ -3057,6 +3067,7 @@ static INLINE int use_tx_partition(TX_PARTITION_TYPE partition,
   return 0;
 }
 
+#if !CONFIG_TX_PARTITION_CTX
 static INLINE int txfm_partition_split4_inter_context(
     const TXFM_CONTEXT *const above_ctx, const TXFM_CONTEXT *const left_ctx,
     BLOCK_SIZE bsize, TX_SIZE tx_size) {
@@ -3080,7 +3091,7 @@ static INLINE int txfm_partition_split4_inter_context(
   assert(category != TXFM_PARTITION_INTER_CONTEXTS);
   return category * 3 + above + left;
 }
-
+#endif  // !CONFIG_TX_PARTITION_CTX
 #else
 static INLINE int txfm_partition_context(const TXFM_CONTEXT *const above_ctx,
                                          const TXFM_CONTEXT *const left_ctx,
@@ -3624,7 +3635,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   }
 
 #if CONFIG_BAWP
-  if (mbmi->bawp_flag == 1) {
+  if (mbmi->bawp_flag > 0) {
     return (1 << SIMPLE_TRANSLATION);
   }
 #endif  // CONFIG_BAWP
@@ -3728,7 +3739,7 @@ static INLINE MOTION_MODE motion_mode_allowed(const AV1_COMMON *cm,
     return SIMPLE_TRANSLATION;
   }
 #if CONFIG_BAWP
-  if (mbmi->bawp_flag == 1) return SIMPLE_TRANSLATION;
+  if (mbmi->bawp_flag > 0) return SIMPLE_TRANSLATION;
 #endif  // CONFIG_BAWP
 
 #if CONFIG_TIP

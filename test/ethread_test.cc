@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+
+#include "config/aom_config.h"
+
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/md5_helper.h"
@@ -256,7 +259,12 @@ class AVxEncoderThreadTest
     encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
     size_enc_.push_back(pkt->data.frame.sz);
 
     ::libaom_test::MD5 md5_enc;
@@ -264,13 +272,21 @@ class AVxEncoderThreadTest
                 pkt->data.frame.sz);
     md5_enc_.push_back(md5_enc.Get());
 
-    const aom_codec_err_t res = decoder_->DecodeFrame(
-        reinterpret_cast<uint8_t *>(pkt->data.frame.buf), pkt->data.frame.sz);
-    if (res != AOM_CODEC_OK) {
-      abort_ = true;
-      ASSERT_EQ(AOM_CODEC_OK, res);
+    const aom_image_t *img;
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+      const aom_codec_err_t res = decoder_->DecodeFrame(
+          reinterpret_cast<uint8_t *>(pkt->data.frame.buf), pkt->data.frame.sz);
+      if (res != AOM_CODEC_OK) {
+        abort_ = true;
+        ASSERT_EQ(AOM_CODEC_OK, res);
+      }
+      img = decoder_->GetDxData().Next();
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    } else {
+      assert(dec_iter != NULL);
+      img = dec_iter->Peek();
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
-    const aom_image_t *img = decoder_->GetDxData().Next();
 
     if (img) {
       ::libaom_test::MD5 md5_res;

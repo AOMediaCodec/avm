@@ -35,13 +35,38 @@ enum {
 } UENUM1BYTE(FAST_TX_SEARCH_MODE);
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+static AOM_INLINE int inter_tx_partition_cost(const MACROBLOCK *const x,
+                                              TX_PARTITION_TYPE partition,
+                                              BLOCK_SIZE bsize,
+                                              TX_SIZE max_tx_size) {
+#else
 static AOM_INLINE int inter_tx_partition_cost(
     const MACROBLOCK *const x, int is_rect, TX_PARTITION_TYPE partition,
     const TXFM_CONTEXT *const above_ctx, const TXFM_CONTEXT *const left_ctx,
     BLOCK_SIZE bsize, TX_SIZE max_tx_size) {
+#endif  // CONFIG_TX_PARTITION_CTX
   int cost = 0;
   const int allow_horz = allow_tx_horz_split(max_tx_size);
   const int allow_vert = allow_tx_vert_split(max_tx_size);
+#if CONFIG_TX_PARTITION_CTX
+  const int bsize_group = size_to_tx_part_group_lookup[bsize];
+  int do_partition = 0;
+  if (allow_horz || allow_vert) {
+    do_partition = (partition != TX_PARTITION_NONE);
+    cost += x->mode_costs.txfm_do_partition_cost[1][bsize_group][do_partition];
+  }
+
+  if (do_partition) {
+    if (allow_horz && allow_vert) {
+      assert(bsize_group > 0);
+      const TX_PARTITION_TYPE split4_partition =
+          get_split4_partition(partition);
+      cost += x->mode_costs.txfm_4way_partition_type_cost[1][bsize_group - 1]
+                                                         [split4_partition - 1];
+    }
+  }
+#else
   if (allow_horz && allow_vert) {
     const int split4_ctx_0 = txfm_partition_split4_inter_context(
         above_ctx, left_ctx, bsize, max_tx_size);
@@ -55,17 +80,40 @@ static AOM_INLINE int inter_tx_partition_cost(
     assert(!allow_horz && !allow_vert);
     assert(partition == PARTITION_NONE);
   }
+#endif  // CONFIG_TX_PARTITION_CTX
   return cost;
 }
 
 static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
+#if !CONFIG_TX_PARTITION_CTX
                                               int is_rect,
+#endif  // !CONFIG_TX_PARTITION_CTX
                                               TX_PARTITION_TYPE partition,
                                               TX_SIZE max_tx_size) {
   int cost = 0;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const int allow_horz = allow_tx_horz_split(max_tx_size);
   const int allow_vert = allow_tx_vert_split(max_tx_size);
+#if CONFIG_TX_PARTITION_CTX
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const int bsize = mbmi->sb_type[PLANE_TYPE_Y];
+  const int bsize_group = size_to_tx_part_group_lookup[bsize];
+  int do_partition = 0;
+  if (allow_horz || allow_vert) {
+    do_partition = (partition != TX_PARTITION_NONE);
+    cost += x->mode_costs.txfm_do_partition_cost[0][bsize_group][do_partition];
+  }
+
+  if (do_partition) {
+    if (allow_horz && allow_vert) {
+      assert(bsize_group > 0);
+      const TX_PARTITION_TYPE split4_partition =
+          get_split4_partition(partition);
+      cost += x->mode_costs.txfm_4way_partition_type_cost[0][bsize_group - 1]
+                                                         [split4_partition - 1];
+    }
+  }
+#else
   if (allow_horz && allow_vert) {
     const int split4_ctx_0 = get_tx_size_context(xd);
     const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);
@@ -78,6 +126,7 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
     assert(!allow_horz && !allow_vert);
     assert(partition == PARTITION_NONE);
   }
+#endif  // CONFIG_TX_PARTITION_CTX
   return cost;
 }
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -96,9 +145,13 @@ static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
   (void)tx_size;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
+#if CONFIG_TX_PARTITION_CTX
+  return intra_tx_partition_cost(x, mbmi->tx_partition_type[0], max_tx_size);
+#else
   const int is_rect = is_rect_tx(max_tx_size);
   return intra_tx_partition_cost(x, is_rect, mbmi->tx_partition_type[0],
                                  max_tx_size);
+#endif  // CONFIG_TX_PARTITION_CTX
 #else
   const int32_t tx_size_cat = bsize_to_tx_size_cat(bsize);
   const int depth = tx_size_to_depth(tx_size, bsize);

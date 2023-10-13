@@ -39,7 +39,7 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
            % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
               clip.bit_depth, clip.bit_depth, clip.width, clip.height)
 
-    if CTC_VERSION in ['2.0', '3.0', '4.0']:
+    if CTC_VERSION in ['2.0', '3.0', '4.0', '5.0']:
         args += " --qp=%d" % QP
     else:
         args += " --use-16bit-internal --cq-level=%d" % QP
@@ -50,6 +50,8 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
         args += " --tile-columns=1 --threads=2 --row-mt=0 "
     elif ((CTC_VERSION in ['4.0']) and (clip.file_class in ['A2', 'B1']) and (test_cfg == "LD")):
         args += " --tile-rows=1 --threads=2 --row-mt=0 "
+    elif ((CTC_VERSION in ['5.0']) and (clip.file_class in ['A2', 'B1']) and (test_cfg == "LD")):
+        args += " --tile-rows=1 --tile-columns=1 --threads=4 --row-mt=0 "
     else:
         args += " --tile-columns=0 --threads=1 "
 

@@ -853,6 +853,10 @@ typedef struct {
 
   //! Cost of signaling secondary transform index
   int stx_flag_cost[TX_SIZES][STX_TYPES];
+#if CONFIG_IST_SET_FLAG
+  //! Cost of signaling secondary transform set index
+  int stx_set_flag_cost[IST_DIR_SIZE][IST_DIR_SIZE];
+#endif  // CONFIG_IST_SET_FLAG
 
   //! Rate rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];
@@ -1062,6 +1066,12 @@ typedef struct {
   //! bawp flag cost
   int bawp_flg_cost[2];
 #endif
+#if CONFIG_EXPLICIT_BAWP
+  //! Bawp type flag cost
+  int explict_bawp_cost[BAWP_SCALES_CTX_COUNT][2];
+  //! Explicit bawp scaling factor cost
+  int explict_bawp_scale_cost[EXPLICIT_BAWP_SCALE_CNT];
+#endif  // CONFIG_EXPLICIT_BAWP
   //! switchable_interp_costs
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
   /**@}*/
@@ -1073,6 +1083,12 @@ typedef struct {
   //! skip_txfm_cost
   int skip_txfm_cost[SKIP_CONTEXTS][2];
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  //! txfm_do_partition_cost
+  int txfm_do_partition_cost[2][TXFM_PARTITION_GROUP][2];
+  //! txfm_4way_partition_type_cost
+  int txfm_4way_partition_type_cost[2][TXFM_PARTITION_GROUP - 1][3];
+#else
   //! intra_4way_txfm_partition_cost
   int intra_4way_txfm_partition_cost[2][TX_SIZE_CONTEXTS][4];
   //! intra_2way_txfm_partition_cost
@@ -1085,6 +1101,7 @@ typedef struct {
   int inter_2way_txfm_partition_cost[2];
   //! inter_2way_rect_txfm_partition_cost
   int inter_2way_rect_txfm_partition_cost[2];
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
   //! tx_size_cost
   int tx_size_cost[TX_SIZES - 1][TX_SIZE_CONTEXTS][TX_SIZES];

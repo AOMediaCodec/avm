@@ -73,7 +73,12 @@ static void write_ivf_frame_header(const aom_codec_cx_pkt_t *const pkt,
   char header[12];
   aom_codec_pts_t pts;
 
-  if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
+  if (pkt->kind != AOM_CODEC_CX_FRAME_PKT
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      && pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  )
+    return;
 
   pts = pkt->data.frame.pts;
   mem_put_le32(header, static_cast<unsigned int>(pkt->data.frame.sz));
@@ -278,12 +283,17 @@ class ResizeInternalTestLarge : public ResizeTest {
   }
 
 #if WRITE_COMPRESSED_STREAM
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    out_frames_ += pkt->data.frame.frame_count;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    ++out_frames_;
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)dec_iter;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    ++out_frames_;
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0) write_ivf_file_header(&cfg_, 0, outfile_);
 

@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "aom_dsp/aom_dsp_common.h"
 #include "common/tools_common.h"
 
 #if CONFIG_AV1_ENCODER
@@ -317,7 +318,8 @@ void aom_img_truncate_16_to_8(aom_image_t *dst, const aom_image_t *src) {
 }
 
 static void highbd_img_downshift(aom_image_t *dst, const aom_image_t *src,
-                                 int down_shift) {
+                                 int down_shift, int out_bit_depth) {
+  (void)out_bit_depth;
   int plane;
   if (dst->d_w != src->d_w || dst->d_h != src->d_h ||
       dst->x_chroma_shift != src->x_chroma_shift ||
@@ -344,7 +346,15 @@ static void highbd_img_downshift(aom_image_t *dst, const aom_image_t *src,
           (const uint16_t *)(src->planes[plane] + y * src->stride[plane]);
       uint16_t *p_dst =
           (uint16_t *)(dst->planes[plane] + y * dst->stride[plane]);
-      for (x = 0; x < w; x++) *p_dst++ = *p_src++ >> down_shift;
+      for (x = 0; x < w; x++) {
+#if CONFIG_ZERO_OFFSET_BITUPSHIFT
+        const uint16_t v = (uint16_t)ROUND_POWER_OF_TWO(*p_src, down_shift);
+        *p_dst++ = (uint16_t)clip_pixel_highbd(v, out_bit_depth);
+        p_src++;
+#else
+        *p_dst++ = *p_src++ >> down_shift;
+#endif  // CONFIG_ZERO_OFFSET_BITUPSHIFT
+      }
     }
   }
 }
@@ -377,16 +387,22 @@ static void lowbd_img_downshift(aom_image_t *dst, const aom_image_t *src,
           (const uint16_t *)(src->planes[plane] + y * src->stride[plane]);
       uint8_t *p_dst = dst->planes[plane] + y * dst->stride[plane];
       for (x = 0; x < w; x++) {
-        *p_dst++ = *p_src++ >> down_shift;
+#if CONFIG_ZERO_OFFSET_BITUPSHIFT
+        const uint16_t v = (uint16_t)ROUND_POWER_OF_TWO(*p_src, down_shift);
+        *p_dst++ = (uint8_t)clip_pixel(v);
+        p_src++;
+#else
+        *p_dst++ = (uint8_t)(*p_src++ >> down_shift);
+#endif  // CONFIG_ZERO_OFFSET_BITUPSHIFT
       }
     }
   }
 }
 
-void aom_img_downshift(aom_image_t *dst, const aom_image_t *src,
-                       int down_shift) {
+void aom_img_downshift(aom_image_t *dst, const aom_image_t *src, int down_shift,
+                       int out_bit_depth) {
   if (dst->fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
-    highbd_img_downshift(dst, src, down_shift);
+    highbd_img_downshift(dst, src, down_shift, out_bit_depth);
   } else {
     lowbd_img_downshift(dst, src, down_shift);
   }
@@ -426,7 +442,8 @@ void aom_shift_img(unsigned int output_bit_depth, aom_image_t **img_ptr,
     if (output_bit_depth > img->bit_depth) {
       aom_img_upshift(img_shifted, img, output_bit_depth - img->bit_depth);
     } else {
-      aom_img_downshift(img_shifted, img, img->bit_depth - output_bit_depth);
+      aom_img_downshift(img_shifted, img, img->bit_depth - output_bit_depth,
+                        output_bit_depth);
     }
     *img_shifted_ptr = img_shifted;
     *img_ptr = img_shifted;

@@ -65,6 +65,18 @@ static const uint8_t size_group_lookup[BLOCK_SIZES_ALL] = {
   0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 1, 2, 2
 };
 
+#if CONFIG_TX_PARTITION_CTX
+// Maps a block size to a transform partition context.
+// 1) 0: for block sizes do not allow 4way partition
+// 2) For 8x8 =< block size < 64x64, assuming k is assigned to the mapping value
+//    of square block size, then (i + 1) is assigned to the mapping value of
+//    rectangular block size
+// 3) For block size >= 64x64, the mapping value is 7
+static const uint8_t size_to_tx_part_group_lookup[BLOCK_SIZES_ALL] = {
+  0, 0, 0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0
+};
+#endif  // CONFIG_TX_PARTITION_CTX
+
 static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
 #if CONFIG_ATC_DCTX_ALIGNED
   0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6, 3, 3, 4, 4, 6, 6

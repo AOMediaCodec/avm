@@ -193,23 +193,28 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
 
     bd_ = params_.bit_depth;
 
-    mrl_index_ = 0;
-
     aom_usec_timer_start(&timer);
-    for (int k = 0; k < kNumTests; ++k) {
-      params_.ref_fn(dst_ref_, dst_stride_, bw_, bh_, above_, left_,
-                     upsample_above_, upsample_left_, dx_, dy_, bd_,
-                     mrl_index_);
+    for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
+      if (mrl_index_ && (upsample_above_ || upsample_left_)) continue;
+      for (int k = 0; k < kNumTests; ++k) {
+        params_.ref_fn(dst_ref_, dst_stride_, bw_, bh_, above_, left_,
+                       upsample_above_, upsample_left_, dx_, dy_, bd_,
+                       mrl_index_);
+      }
     }
+
     aom_usec_timer_mark(&timer);
     const int ref_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
 
     if (params_.tst_fn) {
       aom_usec_timer_start(&timer);
-      for (int k = 0; k < kNumTests; ++k) {
-        ASM_REGISTER_STATE_CHECK(params_.tst_fn(
-            dst_tst_, dst_stride_, bw_, bh_, above_, left_, upsample_above_,
-            upsample_left_, dx_, dy_, bd_, mrl_index_));
+      for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
+        if (mrl_index_ && (upsample_above_ || upsample_left_)) continue;
+        for (int k = 0; k < kNumTests; ++k) {
+          ASM_REGISTER_STATE_CHECK(params_.tst_fn(
+              dst_tst_, dst_stride_, bw_, bh_, above_, left_, upsample_above_,
+              upsample_left_, dx_, dy_, bd_, mrl_index_));
+        }
       }
       aom_usec_timer_mark(&timer);
       tst_time = static_cast<int>(aom_usec_timer_elapsed(&timer));

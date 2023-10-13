@@ -118,6 +118,18 @@ aom_image_t *aom_codec_get_frame(aom_codec_ctx_t *ctx, aom_codec_iter_t *iter) {
   return img;
 }
 
+aom_image_t *aom_codec_peek_frame(aom_codec_ctx_t *ctx,
+                                  aom_codec_iter_t *iter) {
+  aom_image_t *img;
+
+  if (!ctx || !iter || !ctx->iface || !ctx->priv)
+    img = NULL;
+  else
+    img = ctx->iface->dec.peek_frame(get_alg_priv(ctx), iter);
+
+  return img;
+}
+
 aom_codec_err_t aom_codec_set_frame_buffer_functions(
     aom_codec_ctx_t *ctx, aom_get_frame_buffer_cb_fn_t cb_get,
     aom_release_frame_buffer_cb_fn_t cb_release, void *cb_priv) {

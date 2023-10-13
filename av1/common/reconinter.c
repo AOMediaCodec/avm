@@ -1938,15 +1938,60 @@ void av1_build_one_inter_predictor(
   }
 }
 
+#if CONFIG_EXPLICIT_BAWP
+// Derive the offset value of block adaptive weighted prediction
+// mode. One row from the top boundary and one column from the left boundary
+// are used in the less square error process.
+static void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
+                                         uint16_t *recon_left, int rec_stride,
+                                         uint16_t *ref_top, uint16_t *ref_left,
+                                         int ref_stride, int ref, int plane,
+                                         int bw, int bh) {
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  assert(mbmi->bawp_flag > 1);
+  // only integer position of reference, may need to consider
+  // fractional position of ref samples
+  int count = 0;
+  int sum_x = 0, sum_y = 0;
+
+  if (xd->up_available) {
+    for (int i = 0; i < bw; ++i) {
+      sum_x += ref_top[i];
+      sum_y += recon_top[i];
+    }
+    count += bw;
+  }
+
+  if (xd->left_available) {
+    for (int i = 0; i < bh; ++i) {
+      sum_x += ref_left[0];
+      sum_y += recon_left[0];
+
+      recon_left += rec_stride;
+      ref_left += ref_stride;
+    }
+    count += bh;
+  }
+
+  const int16_t shift = 8;  // maybe a smaller value can be used
+  if (count > 0) {
+    mbmi->bawp_beta[plane][ref] =
+        ((sum_y << shift) - sum_x * mbmi->bawp_alpha[plane][ref]) / count;
+  } else {
+    mbmi->bawp_beta[plane][ref] = -(1 << shift);
+  }
+}
+#endif  // CONFIG_EXPLICIT_BAWP
+
 #if CONFIG_BAWP
 // Derive the scaling factor and offset of block adaptive weighted prediction
 // mode. One row from the top boundary and one column from the left boundary
 // are used in the less square error process.
-void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
-                            uint16_t *recon_left, int rec_stride,
-                            uint16_t *ref_top, uint16_t *ref_left,
-                            int ref_stride, int ref, int plane, int bw,
-                            int bh) {
+static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
+                                   uint16_t *recon_left, int rec_stride,
+                                   uint16_t *ref_top, uint16_t *ref_left,
+                                   int ref_stride, int ref, int plane, int bw,
+                                   int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(mbmi->bawp_flag == 1);
   // only integer position of reference, may need to consider
@@ -2061,9 +2106,27 @@ void av1_build_one_bawp_inter_predictor(
     uint16_t *ref_buf = pd->pre[ref].buf + y_off * ref_stride + x_off;
     uint16_t *ref_top = ref_buf - BAWP_REF_LINES * ref_stride;
     uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
-
-    derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
-                           ref_left, ref_stride, ref, plane, ref_w, ref_h);
+#if CONFIG_EXPLICIT_BAWP
+    if (mbmi->bawp_flag > 1) {
+      const int first_ref_dist =
+          cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
+      const int bawp_scale_table[3][EXPLICIT_BAWP_SCALE_CNT] = { { -1, 1 },
+                                                                 { -2, 2 },
+                                                                 { -3, 3 } };
+      const int list_index =
+          (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+      int delta_scales = bawp_scale_table[list_index][mbmi->bawp_flag - 2];
+      const int delta_sign = delta_scales > 0 ? 1 : -1;
+      const int delta_magtitude = delta_sign * delta_scales;
+      if (first_ref_dist > 4) delta_scales = delta_sign * (delta_magtitude + 1);
+      mbmi->bawp_alpha[plane][ref] = 256 + (delta_scales * 16);
+      derive_explicit_bawp_offsets(xd, recon_top, recon_left, recon_stride,
+                                   ref_top, ref_left, ref_stride, ref, plane,
+                                   ref_w, ref_h);
+    } else
+#endif  // CONFIG_EXPLICIT_BAWP
+      derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
+                             ref_left, ref_stride, ref, plane, ref_w, ref_h);
   }
 
   int16_t alpha = mbmi->bawp_alpha[plane][ref];
@@ -2102,10 +2165,24 @@ static bool is_sub8x8_inter(const MACROBLOCKD *xd, const MB_MODE_INFO *mi,
       plane ? mi->chroma_ref_info.mi_row_chroma_base - mi_row : 0;
   const int col_start =
       plane ? mi->chroma_ref_info.mi_col_chroma_base - mi_col : 0;
+  const BLOCK_SIZE plane_bsize =
+      plane ? mi->chroma_ref_info.bsize_base : mi->sb_type[PLANE_TYPE_Y];
+  const int plane_mi_height = mi_size_high[plane_bsize];
+  const int plane_mi_width = mi_size_wide[plane_bsize];
 
-  for (int row = row_start; row <= 0; ++row) {
-    for (int col = col_start; col <= 0; ++col) {
-      const MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+  // Scan through all the blocks in the current chroma unit
+  for (int row = 0; row < plane_mi_height; ++row) {
+    for (int col = 0; col < plane_mi_width; ++col) {
+      const int row_coord = row_start + row;
+      const int col_coord = col_start + col;
+      // For the blocks at the lower right of the final chroma block, the mis
+      // are not set up correctly yet, so we do not check them.
+      if ((row_coord >= 0 && col_coord > 0) ||
+          (col_coord >= 0 && row_coord > 0)) {
+        break;
+      }
+      const MB_MODE_INFO *this_mbmi =
+          xd->mi[row_coord * xd->mi_stride + col_coord];
       if (!is_inter_block(this_mbmi, xd->tree_type)) return false;
       if (is_intrabc_block(this_mbmi, xd->tree_type)) return false;
     }
@@ -2117,15 +2194,13 @@ static void build_inter_predictors_sub8x8(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int mi_x, int mi_y, uint16_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func) {
-  const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const bool ss_x = pd->subsampling_x;
   const bool ss_y = pd->subsampling_y;
-  const int b4_w = block_size_wide[bsize] >> ss_x;
-  const int b4_h = block_size_high[bsize] >> ss_y;
-  const BLOCK_SIZE plane_bsize = plane ? mi->chroma_ref_info.bsize_base : bsize;
-  const int b8_w = block_size_wide[plane_bsize] >> ss_x;
-  const int b8_h = block_size_high[plane_bsize] >> ss_y;
+  const BLOCK_SIZE plane_bsize =
+      plane ? mi->chroma_ref_info.bsize_base : mi->sb_type[PLANE_TYPE_Y];
+  const int plane_mi_height = mi_size_high[plane_bsize];
+  const int plane_mi_width = mi_size_wide[plane_bsize];
   assert(!is_intrabc_block(mi, xd->tree_type));
 
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
@@ -2138,12 +2213,48 @@ static void build_inter_predictors_sub8x8(
       plane ? (mi->chroma_ref_info.mi_col_chroma_base - xd->mi_col) : 0;
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
+  const int mi_stride = xd->mi_stride;
 
-  int row = row_start;
-  for (int y = 0; y < b8_h; y += b4_h) {
-    int col = col_start;
-    for (int x = 0; x < b8_w; x += b4_w) {
-      MB_MODE_INFO *this_mbmi = xd->mi[row * xd->mi_stride + col];
+  // Row progress keeps track of which mi block in the row has been set.
+  SUB_8_BITMASK_T row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
+  assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == 8);
+  assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
+  assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
+  assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == SUB_8_BITMASK_SIZE);
+  for (int mi_row = 0; mi_row < plane_mi_height; mi_row++) {
+    for (int mi_col = 0; mi_col < plane_mi_width; mi_col++) {
+      const SUB_8_BITMASK_T check_flag = 1 << (SUB_8_BITMASK_SIZE - 1 - mi_col);
+      if (row_progress[mi_row] & check_flag) {
+        continue;
+      }
+
+      const MB_MODE_INFO *this_mbmi =
+          xd->mi[(row_start + mi_row) * mi_stride + (col_start + mi_col)];
+
+      const BLOCK_SIZE bsize = this_mbmi->sb_type[PLANE_TYPE_Y];
+      const int mi_width = mi_size_wide[bsize];
+      const int mi_height = mi_size_high[bsize];
+      // The flag here is a block of mi_width many 1s offset by the mi_col.
+      // For example, if the current mi_col is 2, and the mi_width is 2, then
+      // the flag will be 00110000. We or this with row_progress to update the
+      // blocks that have been coded.
+      // Note that because we are always coding in a causal order, we could
+      // technically simplify the bitwise operation, and use the flag 11110000
+      // in the above example instead. However, we are not taking this approach
+      // here to keep the logic simpler.
+      const SUB_8_BITMASK_T set_flag =
+          ((SUB_8_BITMASK_ON << (SUB_8_BITMASK_SIZE - mi_width)) &
+           SUB_8_BITMASK_ON) >>
+          mi_col;
+      for (int mi_row_offset = 0; mi_row_offset < mi_height; mi_row_offset++) {
+        row_progress[mi_row + mi_row_offset] |= set_flag;
+      }
+
+      assert(is_inter_block(this_mbmi, xd->tree_type));
+      const int chroma_width = block_size_wide[bsize] >> ss_x;
+      const int chroma_height = block_size_high[bsize] >> ss_y;
+      const int pixel_row = (MI_SIZE * mi_row >> ss_y);
+      const int pixel_col = (MI_SIZE * mi_col >> ss_x);
 #if CONFIG_EXT_RECUR_PARTITIONS
       // TODO(yuec): enabling compound prediction in none sub8x8 mbs in the
       // group
@@ -2152,7 +2263,7 @@ static void build_inter_predictors_sub8x8(
       bool is_compound = has_second_ref(this_mbmi);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       struct buf_2d *const dst_buf = &pd->dst;
-      uint16_t *dst = dst_buf->buf + dst_buf->stride * y + x;
+      uint16_t *dst = dst_buf->buf + dst_buf->stride * pixel_row + pixel_col;
       int ref = 0;
       const RefCntBuffer *ref_buf =
           get_ref_frame_buf(cm, this_mbmi->ref_frame[ref]);
@@ -2169,20 +2280,17 @@ static void build_inter_predictors_sub8x8(
 
       const MV mv = this_mbmi->mv[ref].as_mv;
       InterPredParams inter_pred_params;
-      av1_init_inter_params(&inter_pred_params, b4_w, b4_h, pre_y + y,
-                            pre_x + x, pd->subsampling_x, pd->subsampling_y,
-                            xd->bd, mi->use_intrabc[0], sf, &pre_buf,
-                            this_mbmi->interp_fltr);
+      av1_init_inter_params(
+          &inter_pred_params, chroma_width, chroma_height, pre_y + pixel_row,
+          pre_x + pixel_col, pd->subsampling_x, pd->subsampling_y, xd->bd,
+          mi->use_intrabc[0], sf, &pre_buf, this_mbmi->interp_fltr);
       inter_pred_params.conv_params =
           get_conv_params_no_round(ref, plane, NULL, 0, is_compound, xd->bd);
 
-      av1_build_one_inter_predictor(dst, dst_buf->stride, &mv,
-                                    &inter_pred_params, xd, mi_x + x, mi_y + y,
-                                    ref, mc_buf, calc_subpel_params_func);
-
-      col += mi_size_wide[bsize];
+      av1_build_one_inter_predictor(
+          dst, dst_buf->stride, &mv, &inter_pred_params, xd, mi_x + pixel_col,
+          mi_y + pixel_row, ref, mc_buf, calc_subpel_params_func);
     }
-    row += mi_size_high[bsize];
   }
 }
 
@@ -3163,7 +3271,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp = !build_for_obmc && use_border_aware_compound(cm, mi) &&
+#if CONFIG_CWP
                      mi->cwp_idx == CWP_EQUAL &&
+#endif  // CONFIG_CWP
                      cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
@@ -3490,7 +3600,9 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp = !build_for_obmc && use_border_aware_compound(cm, mi) &&
+#if CONFIG_CWP
                      mi->cwp_idx == CWP_EQUAL &&
+#endif  // CONFIG_CWP
                      cm->features.enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
@@ -3576,7 +3688,7 @@ static void build_inter_predictors_8x8_and_bigger(
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_BAWP
-    if (mi->bawp_flag == 1 && plane == 0 && !build_for_obmc) {
+    if (mi->bawp_flag > 0 && plane == 0 && !build_for_obmc) {
       av1_build_one_bawp_inter_predictor(
           dst, dst_buf->stride, &mv, &inter_pred_params, cm, xd, dst_orig, bw,
           bh, mi_x, mi_y, ref, plane, mc_buf, calc_subpel_params_func);

@@ -370,7 +370,12 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   // RD estimation.
   model_rd_sb_fn[MODELRD_TYPE_INTRA](
       cpi, bsize, x, xd, 0, 0, &this_rd_stats.rate, &this_rd_stats.dist,
-      &this_rd_stats.skip_txfm, &temp_sse, NULL, NULL, NULL);
+      &this_rd_stats.skip_txfm, &temp_sse, NULL, NULL, NULL
+#if CONFIG_MRSSE
+      ,
+      SSE_TYPE_INTRA
+#endif  // CONFIG_MRSSE
+  );
 #if !CONFIG_AIMC
   if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
     mode_cost += mode_costs->angle_delta_cost[PLANE_TYPE_Y][mbmi->mode - V_PRED]

@@ -142,6 +142,16 @@ enum {
 // Mask to extract MI offset within max MIB
 #define MAX_MIB_MASK (MAX_MIB_SIZE - 1)
 
+// The largest block size where we need to construct chroma blocks separately
+// from luma blocks is 32x16. With the four way partition, we can get 4x16
+// block sizes. So we only need to track results for 8 mi units.
+#define MAX_MI_LUMA_SIZE_FOR_SUB_8 (32 >> MI_SIZE_LOG2)
+// Once 1:16 partition types are merged in, the maximum luma size will be 32x64,
+// and we will need to increase the bit mask to uint16_t
+#define SUB_8_BITMASK_T uint8_t
+#define SUB_8_BITMASK_SIZE (8)
+#define SUB_8_BITMASK_ON (UINT8_MAX)
+
 // Maximum number of tile rows and tile columns
 #define MAX_TILE_ROWS 64
 #define MAX_TILE_COLS 64
@@ -183,7 +193,11 @@ enum {
 
 // Intra Secondary Transform
 #define IST_SET_SIZE 14  // IST kernel set size
-#define STX_TYPES 4      // 4 sec_tx_types including no IST
+#if CONFIG_IST_SET_FLAG
+// Number of directional groups in IST kernels
+#define IST_DIR_SIZE (IST_SET_SIZE >> 1)
+#endif               // CONFIG_IST_SET_FLAG
+#define STX_TYPES 4  // 4 sec_tx_types including no IST
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
 #define IST_8x8_WIDTH 64
@@ -565,7 +579,7 @@ enum {
   H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
   TX_TYPES,
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
-} UENUM1BYTE(TX_TYPE);
+} UENUM2BYTE(TX_TYPE);
 
 #if CONFIG_CROSS_CHROMA_TX
 #define CCTX_CONTEXTS 3
@@ -590,6 +604,10 @@ enum {
   CCTX_START = CCTX_NONE + 1,
 } UENUM1BYTE(CctxType);
 #endif  // CONFIG_CROSS_CHROMA_TX
+
+#if CONFIG_ADST_TUNED
+enum { FWD_TXFM, INV_TXFM, TXFM_DIRECTIONS } UENUM1BYTE(TXFM_DIRECTION);
+#endif  // CONFIG_ADST_TUNED
 
 enum {
   REG_REG,
@@ -963,6 +981,15 @@ enum {
 #define GLOBALMV_OFFSET 3
 #define REFMV_OFFSET 4
 
+#if CONFIG_EXPLICIT_BAWP
+// Explicit BAWP scaling factor counts
+#define EXPLICIT_BAWP_SCALE_CNT 2
+// Explicit BAWP scaling factor context counts
+#define BAWP_SCALES_CTX_COUNT 3
+// The allowed value range for bawp_flag
+#define BAWP_OPTION_CNT 4
+#endif  // CONFIG_EXPLICIT_BAWP
+
 #define NEWMV_CTX_MASK ((1 << GLOBALMV_OFFSET) - 1)
 #define GLOBALMV_CTX_MASK ((1 << (REFMV_OFFSET - GLOBALMV_OFFSET)) - 1)
 #define REFMV_CTX_MASK ((1 << (8 - REFMV_OFFSET)) - 1)
@@ -1017,7 +1044,12 @@ enum {
 #define UNI_COMP_REF_CONTEXTS 3
 
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+// Group size from mapping block size to tx partition context
+#define TXFM_PARTITION_GROUP 8
+#else
 #define TXFM_PARTITION_INTER_CONTEXTS ((TX_SIZES - TX_8X8) * 6 - 3)
+#endif  // CONFIG_TX_PARTITION_CTX
 #else
 #define TXFM_PARTITION_CONTEXTS ((TX_SIZES - TX_8X8) * 6 - 3)
 #endif  // CONFIG_NEW_TX_PARTITION

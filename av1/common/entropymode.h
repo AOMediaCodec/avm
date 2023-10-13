@@ -260,6 +260,10 @@ typedef struct frame_contexts {
 #endif
 #if CONFIG_BAWP
   aom_cdf_prob bawp_cdf[CDF_SIZE(2)];
+#if CONFIG_EXPLICIT_BAWP
+  aom_cdf_prob explicit_bawp_cdf[BAWP_SCALES_CTX_COUNT][CDF_SIZE(2)];
+  aom_cdf_prob explicit_bawp_scale_cdf[CDF_SIZE(EXPLICIT_BAWP_SCALE_CNT)];
+#endif  // CONFIG_EXPLICIT_BAWP
 #endif  // CONFIG_BAWP
 #if CONFIG_TIP
   aom_cdf_prob tip_cdf[TIP_CONTEXTS][CDF_SIZE(2)];
@@ -294,9 +298,15 @@ typedef struct frame_contexts {
                             [INTER_REFS_PER_FRAME - 2][CDF_SIZE(2)];
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  aom_cdf_prob txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)];
+  aom_cdf_prob txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1]
+                                           [CDF_SIZE(3)];
+#else
   aom_cdf_prob inter_4way_txfm_partition_cdf[2][TXFM_PARTITION_INTER_CONTEXTS]
                                             [CDF_SIZE(4)];
   aom_cdf_prob inter_2way_txfm_partition_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
   aom_cdf_prob txfm_partition_cdf[TXFM_PARTITION_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -414,8 +424,10 @@ typedef struct frame_contexts {
 #endif  // !CONFIG_AIMC
 
 #if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
   aom_cdf_prob intra_4way_txfm_partition_cdf[2][TX_SIZE_CONTEXTS][CDF_SIZE(4)];
   aom_cdf_prob intra_2way_txfm_partition_cdf[CDF_SIZE(2)];
+#endif  // !CONFIG_TX_PARTITION_CTX
 #else
   aom_cdf_prob tx_size_cdf[MAX_TX_CATS][TX_SIZE_CONTEXTS]
                           [CDF_SIZE(MAX_TX_DEPTH + 1)];
@@ -435,6 +447,9 @@ typedef struct frame_contexts {
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
   aom_cdf_prob stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)];
+#if CONFIG_IST_SET_FLAG
+  aom_cdf_prob stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)];
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
   aom_cdf_prob pb_mv_mpp_flag_cdf[NUM_MV_PREC_MPP_CONTEXT][CDF_SIZE(2)];
 
