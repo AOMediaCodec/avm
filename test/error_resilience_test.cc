@@ -151,7 +151,16 @@ class ErrorResilienceTestLarge
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+                            ,
+                            ::libaom_test::DxDataIterator *dec_iter
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  ) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    (void)dec_iter;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
     // Check that the encode frame flags are correctly reflected
     // in the output frame flags.
     const int encode_flags = pkt->data.frame.flags >> 16;

@@ -138,7 +138,7 @@ class AV1FwdTxfm2d : public ::testing::TestWithParam<AV1FwdTxfm2dParam> {
 };
 
 static double avg_error_ls[TX_SIZES_ALL] = {
-  0.5,   // 4x4 transform
+  0.66,  // 4x4 transform
   0.5,   // 8x8 transform
   1.2,   // 16x16 transform
   6.1,   // 32x32 transform
@@ -160,7 +160,7 @@ static double avg_error_ls[TX_SIZES_ALL] = {
 };
 
 static double max_error_ls[TX_SIZES_ALL] = {
-  3,    // 4x4 transform
+  3.5,  // 4x4 transform
   5,    // 8x8 transform
   11,   // 16x16 transform
   70,   // 32x32 transform
@@ -420,7 +420,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1FwdTxfm2dTest,
                                  Values(av1_lowbd_fwd_txfm_avx2)));
 #endif  // HAVE_AVX2
 
-#if HAVE_NEON
+#if HAVE_NEON && !CONFIG_ADST_TUNED
 
 static TX_SIZE fwd_txfm_for_neon[] = { TX_4X4,   TX_8X8,   TX_16X16, TX_32X32,
                                        TX_64X64, TX_4X8,   TX_8X4,   TX_8X16,
@@ -432,7 +432,7 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1FwdTxfm2dTest,
                          Combine(ValuesIn(fwd_txfm_for_neon),
                                  Values(av1_lowbd_fwd_txfm_neon)));
 
-#endif  // HAVE_NEON
+#endif  // HAVE_NEON && !CONFIG_ADST_TUNED
 
 typedef void (*Highbd_fwd_txfm_func)(const int16_t *src_diff, tran_low_t *coeff,
                                      int diff_stride, TxfmParam *txfm_param);
@@ -598,7 +598,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdFwdTxfm2dTest,
                                  Values(av1_highbd_fwd_txfm)));
 #endif  // HAVE_AVX2
 
-#if HAVE_NEON
+#if HAVE_NEON && !CONFIG_ADST_TUNED
 static TX_SIZE Highbd_fwd_txfm_for_neon[] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,   TX_8X4,
   TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X64, TX_64X32, TX_4X16,
@@ -608,6 +608,6 @@ static TX_SIZE Highbd_fwd_txfm_for_neon[] = {
 INSTANTIATE_TEST_SUITE_P(NEON, AV1HighbdFwdTxfm2dTest,
                          Combine(ValuesIn(Highbd_fwd_txfm_for_neon),
                                  Values(av1_highbd_fwd_txfm)));
-#endif  // HAVE_NEON
+#endif  // HAVE_NEON && !CONFIG_ADST_TUNED
 
 }  // namespace

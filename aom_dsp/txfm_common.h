@@ -25,7 +25,13 @@
 
 typedef struct txfm_param {
   // for both forward and inverse transforms
+  // Primary transform set used for the current tx block.
   TX_TYPE tx_type;
+#if CONFIG_IST_SET_FLAG
+  // for both forward and inverse secondary transforms
+  // Secondary transform set used for the current tx block.
+  TX_TYPE sec_tx_set;
+#endif  // CONFIG_IST_SET_FLAG
   // for both forward and inverse secondary transforms
   // Secondary transform type used for the current tx block.
   TX_TYPE sec_tx_type;

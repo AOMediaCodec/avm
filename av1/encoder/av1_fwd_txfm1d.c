@@ -674,6 +674,64 @@ void av1_fdct32(const int32_t *input, int32_t *output, int8_t cos_bit,
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
 }
 
+#if CONFIG_ADST_TUNED
+void av2_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
+                const int8_t *stage_range) {
+  const int32_t size = 4;
+  const int32_t *cospi;
+
+  int32_t *bf0, *bf1;
+  int32_t step[4];
+
+  // stage 0;
+  av1_range_check_buf(0, input, input, size, stage_range[0]);
+
+  // stage 1;
+  bf1 = output;
+  bf1[0] = input[3];
+  bf1[1] = input[0];
+  bf1[2] = input[1];
+  bf1[3] = input[2];
+  av1_range_check_buf(1, input, bf1, size, stage_range[1]);
+
+  // stage 2
+  cospi = cospi_arr(cos_bit);
+  bf0 = output;
+  bf1 = step;
+  bf1[0] = half_btf(cospi[8], bf0[0], cospi[56], bf0[1], cos_bit);
+  bf1[1] = half_btf(-cospi[8], bf0[1], cospi[56], bf0[0], cos_bit);
+  bf1[2] = half_btf(cospi[40], bf0[2], cospi[24], bf0[3], cos_bit);
+  bf1[3] = half_btf(-cospi[40], bf0[3], cospi[24], bf0[2], cos_bit);
+  av1_range_check_buf(2, input, bf1, size, stage_range[2]);
+
+  // stage 3
+  bf0 = step;
+  bf1 = output;
+  bf1[0] = bf0[0] + bf0[2];
+  bf1[1] = bf0[1] + bf0[3];
+  bf1[2] = -bf0[2] + bf0[0];
+  bf1[3] = -bf0[3] + bf0[1];
+  av1_range_check_buf(3, input, bf1, size, stage_range[3]);
+
+  // stage 4
+  bf0 = output;
+  bf1 = step;
+  bf1[0] = bf0[0];
+  bf1[1] = bf0[1];
+  bf1[2] = half_btf(cospi[32], bf0[2], cospi[32], bf0[3], cos_bit);
+  bf1[3] = half_btf(-cospi[32], bf0[3], cospi[32], bf0[2], cos_bit);
+  av1_range_check_buf(4, input, bf1, size, stage_range[4]);
+
+  // stage 5
+  bf0 = step;
+  bf1 = output;
+  bf1[0] = bf0[0];
+  bf1[1] = -bf0[2];
+  bf1[2] = bf0[3];
+  bf1[3] = -bf0[1];
+  av1_range_check_buf(5, input, bf1, size, stage_range[5]);
+}
+#else
 void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   int bit = cos_bit;
@@ -732,7 +790,17 @@ void av1_fadst4(const int32_t *input, int32_t *output, int8_t cos_bit,
   output[3] = round_shift(s3, bit);
   av1_range_check_buf(6, input, output, 4, stage_range[6]);
 }
+#endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_ADST_TUNED
+void av2_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
+                const int8_t *stage_range) {
+  (void)stage_range;
+  (void)cos_bit;
+  av2_txfm_matrix_mult(input, output, av2_adst_kernel8[FWD_TXFM],
+                       tx_size_wide[TX_8X8], FWD_ADST_BIT, 0);
+}
+#else
 void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
                 const int8_t *stage_range) {
   const int32_t size = 8;
@@ -846,7 +914,17 @@ void av1_fadst8(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[7] = bf0[0];
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
 }
+#endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_ADST_TUNED
+void av2_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
+                 const int8_t *stage_range) {
+  (void)stage_range;
+  (void)cos_bit;
+  av2_txfm_matrix_mult(input, output, av2_adst_kernel16[FWD_TXFM],
+                       tx_size_wide[TX_16X16], FWD_ADST_BIT, 0);
+}
+#else
 void av1_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
                  const int8_t *stage_range) {
   const int32_t size = 16;
@@ -1061,6 +1139,7 @@ void av1_fadst16(const int32_t *input, int32_t *output, int8_t cos_bit,
   bf1[15] = bf0[0];
   av1_range_check_buf(stage, input, bf1, size, stage_range[stage]);
 }
+#endif  // CONFIG_ADST_TUNED
 
 void av1_fidentity4_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                       const int8_t *stage_range) {

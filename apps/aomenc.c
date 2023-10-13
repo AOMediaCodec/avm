@@ -507,6 +507,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_warp_delta,
   &g_av1_codec_arg_defs.enable_warp_extend,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_MRSSE
+  &g_av1_codec_arg_defs.enable_mrsse,
+#endif  // CONFIG_MRSSE
   NULL,
 };
 
@@ -750,6 +753,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_PAR_HIDING
   config->enable_parity_hiding = 1;
 #endif  // CONFIG_PAR_HIDING
+#if CONFIG_MRSSE
+  config->enable_mrsse = 0;
+#endif  // CONFIG_MRSSE
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
@@ -1691,6 +1697,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_IBC_SR_EXT
           "IntraBCExt (%d), "
 #endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_MRSSE
+          "MRSSE (%d), "
+#endif  // CONFIG_MRSSE
           "IntraBC (%d)\n",
           encoder_cfg->enable_palette,
 #if CONFIG_PAR_HIDING
@@ -1699,6 +1708,9 @@ static void show_stream_config(struct stream_state *stream,
 #if CONFIG_IBC_SR_EXT
           encoder_cfg->enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
+#if CONFIG_MRSSE
+          encoder_cfg->enable_mrsse,
+#endif  // CONFIG_MRSSE
           encoder_cfg->enable_intrabc);
 
   fprintf(stdout, "\n\n");
@@ -1969,12 +1981,23 @@ static void get_cx_data(struct stream_state *stream,
     static FileOffset ivf_header_pos = 0;
 
     switch (pkt->kind) {
-      case AOM_CODEC_CX_FRAME_PKT:
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-        stream->frames_out += pkt->data.frame.frame_count;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+      case AOM_CODEC_CX_FRAME_NULL_PKT:
         ++stream->frames_out;
+        update_rate_histogram(stream->rate_hist, cfg, pkt);
+        *got_data = 1;
+#if CONFIG_AV1_DECODER
+        if (global->test_decode != TEST_DECODE_OFF && !stream->mismatch_seen) {
+          // Advance internal pointer to point to next output frame.
+          AOM_CODEC_CONTROL_TYPECHECKED(&stream->decoder,
+                                        AOMD_INCR_OUTPUT_FRAMES_OFFSET, 1);
+        }
+#endif
+        break;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+
+      case AOM_CODEC_CX_FRAME_PKT:
+        ++stream->frames_out;
         update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO
         if (stream->config.write_webm) {
@@ -2004,8 +2027,8 @@ static void get_cx_data(struct stream_state *stream,
                        stream->file);
         }
         stream->nbytes += pkt->data.raw.sz;
-
         *got_data = 1;
+
 #if CONFIG_AV1_DECODER
         if (global->test_decode != TEST_DECODE_OFF && !stream->mismatch_seen) {
           aom_codec_decode(&stream->decoder, pkt->data.frame.buf,
@@ -2020,8 +2043,8 @@ static void get_cx_data(struct stream_state *stream,
         }
 #endif
         break;
-      case AOM_CODEC_PSNR_PKT:
 
+      case AOM_CODEC_PSNR_PKT:
         if (global->show_psnr) {
           int i;
 
@@ -2062,6 +2085,8 @@ static void test_decode(struct stream_state *stream,
                         enum TestDecodeFatality fatal) {
   aom_image_t enc_img, dec_img;
 
+  // fprintf(stderr, "DEBUG: Running test_decode at POC: %d\n",
+  //         stream->frames_out - 1);
   if (stream->mismatch_seen) return;
 
   /* Get the internal reference frame */
@@ -2477,11 +2502,6 @@ int main(int argc, const char **argv_) {
         }
       }
       fflush(stdout);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-      FOREACH_STREAM(stream, streams) {
-        if (stream->frames_out < seen_frames) got_data = 1;
-      }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
 
     if (stream_cnt > 1) fprintf(stderr, "\n");

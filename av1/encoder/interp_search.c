@@ -164,7 +164,12 @@ static INLINE void interp_model_rd_eval(
   model_rd_sb_fn[MODELRD_TYPE_INTERP_FILTER](
       cpi, bsize, x, xd, plane_from, plane_to, &tmp_rd_stats.rate,
       &tmp_rd_stats.dist, &tmp_rd_stats.skip_txfm, &tmp_rd_stats.sse, NULL,
-      NULL, NULL);
+      NULL, NULL
+#if CONFIG_MRSSE
+      ,
+      SSE_TYPE_INTERP_FILTER
+#endif  // CONFIG_MRSSE
+  );
 
   av1_merge_rd_stats(rd_stats, &tmp_rd_stats);
 }

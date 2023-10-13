@@ -234,6 +234,25 @@ typedef aom_codec_err_t (*aom_codec_decode_fn_t)(aom_codec_alg_priv_t *ctx,
 typedef aom_image_t *(*aom_codec_get_frame_fn_t)(aom_codec_alg_priv_t *ctx,
                                                  aom_codec_iter_t *iter);
 
+/*!\brief Decoded frames peek
+ *
+ * Peeks at the next frame available for display given by the iterator index
+ * over a list of the frames available for display. The iterator is not
+ * incremented after the operation.
+ *
+ * The list of available frames becomes valid upon completion of the
+ * aom_codec_decode call, and remains valid until the next call to
+ * aom_codec_decode.
+ *
+ * \param[in]     ctx      Pointer to this instance's context
+ * \param[in out] iter     Iterator storage, initialized to NULL
+ *
+ * \return Returns a pointer to an image, if one is ready for display. Frames
+ *         produced will always be in PTS (presentation time stamp) order.
+ */
+typedef aom_image_t *(*aom_codec_peek_frame_fn_t)(aom_codec_alg_priv_t *ctx,
+                                                  aom_codec_iter_t *iter);
+
 /*!\brief Pass in external frame buffers for the decoder to use.
  *
  * Registers functions to be called when libaom needs a frame buffer
@@ -296,7 +315,9 @@ struct aom_codec_iface {
     aom_codec_get_si_fn_t get_si;   /**< \copydoc ::aom_codec_get_si_fn_t */
     aom_codec_decode_fn_t decode;   /**< \copydoc ::aom_codec_decode_fn_t */
     aom_codec_get_frame_fn_t
-        get_frame;                   /**< \copydoc ::aom_codec_get_frame_fn_t */
+        get_frame; /**< \copydoc ::aom_codec_get_frame_fn_t */
+    aom_codec_peek_frame_fn_t
+        peek_frame; /**< \copydoc ::aom_codec_peek_frame_fn_t */
     aom_codec_set_fb_fn_t set_fb_fn; /**< \copydoc ::aom_codec_set_fb_fn_t */
   } dec;
   struct aom_codec_enc_iface {

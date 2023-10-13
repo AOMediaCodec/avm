@@ -103,7 +103,13 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
   RESET_CDF_COUNTER(nmv->amvd_joints_cdf, 4);
 #endif  // CONFIG_ADAPTIVE_MVD
   for (int i = 0; i < 2; i++) {
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf, MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[0], MV_CLASSES - 2);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[1], MV_CLASSES - 1);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[2], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[3], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[4], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[5], MV_CLASSES);
+    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[6], MV_CLASSES);
 #if CONFIG_ADAPTIVE_MVD
     RESET_CDF_COUNTER(nmv->comps[i].amvd_classes_cdf, MV_CLASSES);
 #endif  // CONFIG_ADAPTIVE_MVD
@@ -220,6 +226,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_BAWP
   RESET_CDF_COUNTER(fc->bawp_cdf, 2);
 #endif  // CONFIG_BAWP
+#if CONFIG_EXPLICIT_BAWP
+  RESET_CDF_COUNTER(fc->explicit_bawp_cdf, 2);
+  RESET_CDF_COUNTER(fc->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT);
+#endif  // CONFIG_EXPLICIT_BAWP
 #if CONFIG_TIP
   RESET_CDF_COUNTER(fc->tip_cdf, 2);
 #endif  // CONFIG_TIP
@@ -243,11 +253,16 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->comp_ref0_cdf, 2);
   RESET_CDF_COUNTER(fc->comp_ref1_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_CTX
+  RESET_CDF_COUNTER(fc->txfm_do_partition_cdf, 2);
+  RESET_CDF_COUNTER(fc->txfm_4way_partition_type_cdf, 3);
+#else
   // Square blocks
   RESET_CDF_COUNTER(fc->inter_4way_txfm_partition_cdf[0], 4);
   // Rectangular blocks
   RESET_CDF_COUNTER(fc->inter_4way_txfm_partition_cdf[1], 4);
   RESET_CDF_COUNTER(fc->inter_2way_txfm_partition_cdf, 2);
+#endif  // CONFIG_TX_PARTITION_CTX
 #else   // CONFIG_NEW_TX_PARTITION
   RESET_CDF_COUNTER(fc->txfm_partition_cdf, 2);
 #endif  // CONFIG_NEW_TX_PARTITION
@@ -364,10 +379,12 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->angle_delta_cdf, 2 * MAX_ANGLE_DELTA + 1);
 #endif  // !CONFIG_AIMC
 #if CONFIG_NEW_TX_PARTITION
+#if !CONFIG_TX_PARTITION_CTX
   RESET_CDF_COUNTER(fc->intra_4way_txfm_partition_cdf[0], 4);
   // Rectangular blocks
   RESET_CDF_COUNTER(fc->intra_4way_txfm_partition_cdf[1], 4);
   RESET_CDF_COUNTER(fc->intra_2way_txfm_partition_cdf, 2);
+#endif  // !CONFIG_TX_PARTITION_CTX
 #else
   RESET_CDF_COUNTER_STRIDE(fc->tx_size_cdf[0], MAX_TX_DEPTH,
                            CDF_SIZE(MAX_TX_DEPTH + 1));
@@ -391,7 +408,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], 2, CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER(fc->cfl_sign_cdf, CFL_JOINT_SIGNS);
   RESET_CDF_COUNTER(fc->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
+
   RESET_CDF_COUNTER_STRIDE(fc->stx_cdf, STX_TYPES, CDF_SIZE(STX_TYPES));
+#if CONFIG_IST_SET_FLAG
+  RESET_CDF_COUNTER(fc->stx_set_cdf, IST_DIR_SIZE);
+#endif  // CONFIG_IST_SET_FLAG
 #if CONFIG_FLEX_MVRES
   for (int p = 0; p < NUM_MV_PREC_MPP_CONTEXT; ++p) {
     RESET_CDF_COUNTER(fc->pb_mv_mpp_flag_cdf[p], 2);

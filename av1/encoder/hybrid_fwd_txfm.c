@@ -359,9 +359,22 @@ void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     if ((mode == H_PRED) || (mode == D157_PRED) || (mode == D67_PRED) ||
         (mode == SMOOTH_H_PRED))
       transpose = 1;
+#if CONFIG_IST_SET_FLAG
+    mode_t = txfm_param->sec_tx_set;
+    assert(mode_t < IST_SET_SIZE);
+#ifndef NDEBUG
+    {
+      int mode_t2 = (txfm_param->tx_type == ADST_ADST)
+                        ? stx_transpose_mapping[mode] + IST_DIR_SIZE
+                        : stx_transpose_mapping[mode];
+      assert(mode_t == mode_t2);
+    }
+#endif  // NDEBUG
+#else   // CONFIG_IST_SET_FLAG
     mode_t = (txfm_param->tx_type == ADST_ADST)
                  ? stx_transpose_mapping[mode] + 7
                  : stx_transpose_mapping[mode];
+#endif  // CONFIG_IST_SET_FLAG
     if (transpose) {
       scan_order_in = (sb_size == 4)
                           ? stx_scan_orders_transpose_4x4[log2width - 2]

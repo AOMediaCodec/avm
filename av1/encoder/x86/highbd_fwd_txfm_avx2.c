@@ -210,6 +210,7 @@ static INLINE void fwd_txfm_transpose_16x16_avx2(const __m256i *in,
   fwd_txfm_transpose_8x8_avx2(&in[17], &out[17], 2, 2);
 }
 
+#if !CONFIG_ADST_TUNED
 static INLINE __m256i av1_half_btf_avx2(const __m256i *w0, const __m256i *n0,
                                         const __m256i *w1, const __m256i *n1,
                                         const __m256i *rounding, int bit) {
@@ -222,6 +223,8 @@ static INLINE __m256i av1_half_btf_avx2(const __m256i *w0, const __m256i *n0,
   x = _mm256_srai_epi32(x, bit);
   return x;
 }
+#endif  // !CONFIG_ADST_TUNED
+
 #define btf_32_avx2_type0(w0, w1, in0, in1, out0, out1, bit) \
   do {                                                       \
     const __m256i ww0 = _mm256_set1_epi32(w0);               \
@@ -354,6 +357,33 @@ static void fdct8_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[6 * outstride + col] = u[3];  // buf0[3]
   }
 }
+#if CONFIG_ADST_TUNED
+static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
+                        const int col_num, const int outstride) {
+  (void)bit;
+  const int32_t *kernel = av2_adst_kernel8[FWD_TXFM];
+  const int size = tx_size_wide[TX_8X8];
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i rnding = _mm256_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m256i x[8];
+  int col;
+  for (col = 0; col < col_num; ++col) {
+    for (int i = 0; i < 8; ++i) {
+      int row_idx = i * size;
+      __m256i sum = zero;
+      __m256i t;
+      for (int j = 0; j < 8; ++j) {
+        const __m256i coef = _mm256_set1_epi32(kernel[row_idx + j]);
+        t = _mm256_mullo_epi32(in[j * col_num + col], coef);
+        sum = _mm256_add_epi32(sum, t);
+      }
+      sum = _mm256_add_epi32(sum, rnding);
+      x[i] = _mm256_srai_epi32(sum, FWD_ADST_BIT);
+    }
+    for (int i = 0; i < 8; ++i) out[i * outstride + col] = x[i];
+  }
+}
+#else
 static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
                         const int col_num, const int outstirde) {
   (void)col_num;
@@ -527,6 +557,7 @@ static void fadst8_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[7 * outstirde + col] = v0;
   }
 }
+#endif  // CONFIG_ADST_TUNED
 static void idtx8_avx2(__m256i *in, __m256i *out, const int8_t bit, int col_num,
                        int outstride) {
   (void)bit;
@@ -1012,6 +1043,34 @@ static void fdct16_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[15 * outstride + col] = v[15];
   }
 }
+
+#if CONFIG_ADST_TUNED
+static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
+                         const int num_cols, const int outstride) {
+  (void)bit;
+  const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
+  const int size = tx_size_wide[TX_16X16];
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i rnding = _mm256_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m256i x[16];
+  int col;
+  for (col = 0; col < num_cols; ++col) {
+    for (int i = 0; i < 16; ++i) {
+      int row_idx = i * size;
+      __m256i sum = zero;
+      __m256i t;
+      for (int j = 0; j < 16; ++j) {
+        const __m256i coef = _mm256_set1_epi32(kernel[row_idx + j]);
+        t = _mm256_mullo_epi32(in[j * num_cols + col], coef);
+        sum = _mm256_add_epi32(sum, t);
+      }
+      sum = _mm256_add_epi32(sum, rnding);
+      x[i] = _mm256_srai_epi32(sum, FWD_ADST_BIT);
+    }
+    for (int i = 0; i < 16; ++i) out[i * outstride + col] = x[i];
+  }
+}
+#else
 static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
                          const int num_cols, const int outstride) {
   const int32_t *cospi = cospi_arr(bit);
@@ -1264,6 +1323,8 @@ static void fadst16_avx2(__m256i *in, __m256i *out, const int8_t bit,
     out[15 * outstride + col] = v[0];
   }
 }
+#endif  // CONFIG_ADST_TUNED
+
 static void idtx16_avx2(__m256i *in, __m256i *out, const int8_t bit,
                         int col_num, const int outstride) {
   (void)bit;

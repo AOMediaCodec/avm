@@ -55,6 +55,7 @@
 #include "aom/aom_decoder.h"
 #include "aom/aom_encoder.h"
 #include "aom/aomcx.h"
+#include "aom/aomdx.h"
 #include "aom_scale/yv12config.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
@@ -164,6 +165,26 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
           if (aom_codec_control(dcodec, AV1_COPY_NEW_FRAME_IMAGE, ext_ref))
             die_codec(dcodec, "Failed to get decoder new frame");
       }
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    } else if (pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
+      const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
+
+      ++*frame_out;
+
+      printf(keyframe ? "K" : ".");
+      fflush(stdout);
+      got_data = 1;
+
+      // Decode 1 frame.
+      if (test_decode) {
+        AOM_CODEC_CONTROL_TYPECHECKED(dcodec, AOMD_INCR_OUTPUT_FRAMES_OFFSET,
+                                      1);
+        // Copy out first decoded frame, and use it as reference later.
+        if (*frame_out == 1 && ext_ref != NULL)
+          if (aom_codec_control(dcodec, AV1_COPY_NEW_FRAME_IMAGE, ext_ref))
+            die_codec(dcodec, "Failed to get decoder new frame");
+      }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     }
   }
 

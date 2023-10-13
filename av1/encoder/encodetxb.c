@@ -996,10 +996,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   // write sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
 #if CONFIG_ATC_DCTX_ALIGNED
-  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist) && eob != 1) {
+  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist) && eob != 1)
 #else
-  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist)) {
+  if ((plane == AOM_PLANE_Y) && (cm->seq_params.enable_ist))
 #endif  // CONFIG_ATC_DCTX_ALIGNED
+  {
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
   }
 
@@ -1034,10 +1035,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                               !xd->lossless[xd->mi[0]->segment_id] &&
                               plane == PLANE_TYPE_Y &&
                               get_primary_tx_type(tx_type) < IDTX;
-  for (int c = eob - 1; c > 0; --c) {
+  for (int c = eob - 1; c > 0; --c)
 #else
-  for (int c = eob - 1; c >= 0; --c) {
+  for (int c = eob - 1; c >= 0; --c)
 #endif  // CONFIG_PAR_HIDING
+  {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = tcoeff[pos];
@@ -1072,6 +1074,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
       }
+    }
 #else
     if (c == eob - 1) {
       aom_write_symbol(
@@ -1081,8 +1084,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       aom_write_symbol(w, AOMMIN(level, 3),
                        ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                        4);
-#endif  // CONFIG_ATC
     }
+#endif  // CONFIG_ATC
+
 #if CONFIG_ATC
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
@@ -1179,6 +1183,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
       }
+    }
 #else
     if (c == eob - 1) {
       aom_write_symbol(
@@ -1188,8 +1193,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       aom_write_symbol(w, AOMMIN(level, 3),
                        ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                        4);
-#endif  // CONFIG_ATC
     }
+#endif  // CONFIG_ATC
+
 #if CONFIG_ATC
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
@@ -1449,6 +1455,18 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+// This function gets the estimated bit cost for a 'secondary tx set'
+static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
+                               TX_TYPE tx_type) {
+  uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
+  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
+  assert(stx_set_flag < IST_DIR_SIZE);
+  uint8_t intra_mode = mbmi->mode;
+  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
+  assert(stx_set_ctx < IST_DIR_SIZE);
+  return x->mode_costs.stx_set_flag_cost[stx_set_ctx][stx_set_flag];
+}
+
 // TODO(angiebird): use this function whenever it's possible
 static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                             int plane, TX_SIZE tx_size, TX_TYPE tx_type,
@@ -1495,38 +1513,44 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         else
           intra_dir = mbmi->mode;
         TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
-#if CONFIG_ATC_DCTX_ALIGNED
         int tx_type_cost = 0;
+#if CONFIG_ATC_DCTX_ALIGNED
         if (eob != 1) {
-          tx_type_cost =
+          tx_type_cost +=
               x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
                                                [intra_dir][primary_tx_type];
+        } else {
+          return tx_type_cost;
         }
-        if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob) &&
-            xd->enable_ist) {
-          tx_type_cost +=
-              x->mode_costs.stx_flag_cost[square_tx_size]
-                                         [get_secondary_tx_type(tx_type)];
-        }
-#else
-        int tx_type_cost =
+#else   // CONFIG_ATC_DCTX_ALIGNED
+        tx_type_cost +=
             x->mode_costs.intra_tx_type_costs[ext_tx_set][square_tx_size]
                                              [intra_dir][primary_tx_type];
+#endif  // CONFIG_ATC_DCTX_ALIGNED
         if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob) &&
             xd->enable_ist) {
           tx_type_cost +=
               x->mode_costs.stx_flag_cost[square_tx_size]
                                          [get_secondary_tx_type(tx_type)];
+#if CONFIG_IST_SET_FLAG
+          if (get_secondary_tx_type(tx_type) > 0)
+            tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
         }
-#endif  // CONFIG_ATC_DCTX_ALIGNED
         return tx_type_cost;
       }
     }
   } else if (!is_inter && !xd->lossless[xd->mi[0]->segment_id]) {
     if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob) &&
         xd->enable_ist) {
-      return x->mode_costs
-          .stx_flag_cost[square_tx_size][get_secondary_tx_type(tx_type)];
+      int tx_type_cost =
+          x->mode_costs
+              .stx_flag_cost[square_tx_size][get_secondary_tx_type(tx_type)];
+#if CONFIG_IST_SET_FLAG
+      if (get_secondary_tx_type(tx_type) > 0)
+        tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
+      return tx_type_cost;
     }
   }
   return 0;
@@ -3760,6 +3784,18 @@ static void update_cctx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 }
 #endif  // CONFIG_CROSS_CHROMA_TX
 
+// This function updates the cdf for a 'secondary tx set'
+static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
+                                  TX_TYPE tx_type) {
+  uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
+  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
+  assert(stx_set_flag < IST_DIR_SIZE);
+  uint8_t intra_mode = mbmi->mode;
+  uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
+  assert(stx_set_ctx < IST_DIR_SIZE);
+  update_cdf(fc->stx_set_cdf[stx_set_ctx], (int8_t)stx_set_flag, IST_DIR_SIZE);
+}
+
 static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
                                  MACROBLOCKD *xd, int blk_row, int blk_col,
                                  int plane, TX_SIZE tx_size,
@@ -3881,9 +3917,14 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
 #endif  // CONFIG_ATC_REDUCED_TXSET
         // Modified condition for CDF update
           if (cm->seq_params.enable_ist &&
-              block_signals_sec_tx_type(xd, tx_size, tx_type, eob))
+              block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
             update_cdf(fc->stx_cdf[txsize_sqr_map[tx_size]],
                        (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
+#if CONFIG_IST_SET_FLAG
+            if (get_secondary_tx_type(tx_type) > 0)
+              update_sec_tx_set_cdf(fc, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
+          }
         }
       }
     }
@@ -3897,9 +3938,14 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
 #if CONFIG_ATC_DCTX_ALIGNED
     if (eob == 1 && allow_update_cdf) return;
 #endif  // CONFIG_ATC_DCTX_ALIGNED
-    if (allow_update_cdf)
+    if (allow_update_cdf) {
       update_cdf(fc->stx_cdf[txsize_sqr_map[tx_size]],
                  (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
+#if CONFIG_IST_SET_FLAG
+      if (get_secondary_tx_type(tx_type) > 0)
+        update_sec_tx_set_cdf(fc, mbmi, tx_type);
+#endif  // CONFIG_IST_SET_FLAG
+    }
   }
 }
 

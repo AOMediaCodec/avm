@@ -285,6 +285,7 @@ typedef struct AV1Decoder {
   int output_all_layers;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   RefCntBuffer *output_frames[REF_FRAMES];  // Use only for single layer
+  size_t output_frames_offset;              // Use only for single layer
 #else                        // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   RefCntBuffer *output_frames[MAX_NUM_SPATIAL_LAYERS];
 #endif                       // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
