@@ -361,7 +361,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdInvTxfm2d,
                          ::testing::Values(av1_highbd_inv_txfm_add_avx2));
 #endif
 
-#if HAVE_NEON
+#if HAVE_NEON && !CONFIG_ADST_TUNED
 INSTANTIATE_TEST_SUITE_P(NEON, AV1HighbdInvTxfm2d,
                          ::testing::Values(av1_highbd_inv_txfm_add_neon));
 #endif

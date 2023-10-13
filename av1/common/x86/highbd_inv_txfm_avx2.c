@@ -139,6 +139,8 @@ static INLINE void highbd_write_buffer_8xn_avx2(__m256i *in, uint16_t *output,
     _mm_storeu_si128((__m128i *)(output + i * stride), u1);
   }
 }
+
+#if !CONFIG_ADST_TUNED
 static void neg_shift_avx2(const __m256i in0, const __m256i in1, __m256i *out0,
                            __m256i *out1, const __m256i *clamp_lo,
                            const __m256i *clamp_hi, int shift) {
@@ -157,6 +159,7 @@ static void neg_shift_avx2(const __m256i in0, const __m256i in1, __m256i *out0,
   *out0 = a0;
   *out1 = a1;
 }
+#endif  // !CONFIG_ADST_TUNED
 
 static void transpose_8x8_avx2(const __m256i *in, __m256i *out) {
   __m256i u0, u1, u2, u3, u4, u5, u6, u7;
@@ -1534,6 +1537,15 @@ static void idct16_avx2(__m256i *in, __m256i *out, int bit, int do_cols, int bd,
   }
 }
 
+#if CONFIG_ADST_TUNED
+static void iadst16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
+                              int bd, int out_shift) {
+  (void)bit;
+  iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16],
+                         1);
+}
+#else
 static void iadst16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   const int32_t *cospi = cospi_arr(bit);
@@ -1711,7 +1723,17 @@ static void iadst16_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
     }
   }
 }
+#endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_ADST_TUNED
+static void iadst16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
+                              int bd, int out_shift) {
+  (void)bit;
+  iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16],
+                         8);
+}
+#else
 static void iadst16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   const int32_t *cospi = cospi_arr(bit);
@@ -2032,7 +2054,17 @@ static void iadst16_low8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
     }
   }
 }
+#endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_ADST_TUNED
+static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
+                         int bd, int out_shift) {
+  (void)bit;
+  iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel16[INV_TXFM], tx_size_wide[TX_16X16],
+                         tx_size_wide[TX_16X16]);
+}
+#else
 static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                          int bd, int out_shift) {
   const int32_t *cospi = cospi_arr(bit);
@@ -2412,6 +2444,8 @@ static void iadst16_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
     }
   }
 }
+#endif  // CONFIG_ADST_TUNED
+
 static void idct8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                               int bd, int out_shift) {
   const int32_t *cospi = cospi_arr(bit);
@@ -2562,6 +2596,59 @@ static void idct8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
     highbd_clamp_epi32_avx2(out, out, &clamp_lo_out, &clamp_hi_out, 8);
   }
 }
+
+#if CONFIG_ADST_TUNED
+void iadst_matrix_mult_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
+                            int bd, int out_shift, const int32_t *kernel,
+                            int kernel_size, int num_cols) {
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i rnding = _mm256_set1_epi32(1 << (bit - 1));
+  int log_range = AOMMAX(16, bd + (do_cols ? 6 : 8));
+  __m256i clamp_lo = _mm256_set1_epi32(-(1 << (log_range - 1)));
+  __m256i clamp_hi = _mm256_set1_epi32((1 << (log_range - 1)) - 1);
+  __m256i x[16];
+
+  for (int i = 0; i < kernel_size; ++i) {
+    int row_idx = i * kernel_size;
+    __m256i sum = zero;
+    __m256i t;
+    for (int j = 0; j < num_cols; ++j) {
+      const __m256i coef = _mm256_set1_epi32(kernel[row_idx + j]);
+      t = _mm256_mullo_epi32(in[j], coef);
+      sum = _mm256_add_epi32(sum, t);
+    }
+    sum = _mm256_add_epi32(sum, rnding);
+    sum = _mm256_srai_epi32(sum, bit);
+    sum = _mm256_max_epi32(sum, clamp_lo);
+    x[i] = _mm256_min_epi32(sum, clamp_hi);
+  }
+
+  if (!do_cols) {
+    log_range = AOMMAX(16, bd + 6);
+    clamp_lo = _mm256_set1_epi32(-(1 << (log_range - 1)));
+    clamp_hi = _mm256_set1_epi32((1 << (log_range - 1)) - 1);
+    if (out_shift != 0) {
+      __m256i offset = _mm256_set1_epi32((1 << out_shift) >> 1);
+      for (int i = 0; i < kernel_size; ++i) {
+        x[i] = _mm256_add_epi32(x[i], offset);
+        x[i] = _mm256_sra_epi32(x[i], _mm_cvtsi32_si128(out_shift));
+      }
+    }
+  }
+
+  for (int i = 0; i < kernel_size; ++i) {
+    x[i] = _mm256_max_epi32(x[i], clamp_lo);
+    out[i] = _mm256_min_epi32(x[i], clamp_hi);
+  }
+}
+
+static void iadst8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
+                               int bd, int out_shift) {
+  (void)bit;
+  iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8], 1);
+}
+#else
 static void iadst8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                                int bd, int out_shift) {
   const int32_t *cospi = cospi_arr(bit);
@@ -2651,7 +2738,17 @@ static void iadst8x8_low1_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                    out_shift);
   }
 }
+#endif  // CONFIG_ADST_TUNED
 
+#if CONFIG_ADST_TUNED
+static void iadst8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
+                          int bd, int out_shift) {
+  (void)bit;
+  iadst_matrix_mult_avx2(in, out, INV_ADST_BIT, do_cols, bd, out_shift,
+                         av2_adst_kernel8[INV_TXFM], tx_size_wide[TX_8X8],
+                         tx_size_wide[TX_8X8]);
+}
+#else
 static void iadst8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                           int bd, int out_shift) {
   const int32_t *cospi = cospi_arr(bit);
@@ -2820,6 +2917,8 @@ static void iadst8x8_avx2(__m256i *in, __m256i *out, int bit, int do_cols,
                    out_shift);
   }
 }
+#endif  // CONFIG_ADST_TUNED
+
 static INLINE void idct64_stage8_avx2(
     __m256i *u, const __m256i *cospim32, const __m256i *cospi32,
     const __m256i *cospim16, const __m256i *cospi48, const __m256i *cospi16,

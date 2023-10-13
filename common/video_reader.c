@@ -45,7 +45,6 @@ AvxVideoReader *aom_video_reader_open(const char *filename) {
   reader->input_ctx.filename = filename;
   reader->input_ctx.file = file;
   reader->obu_ctx.avx_ctx = &reader->input_ctx;
-  reader->obu_ctx.is_annexb = 1;
 
   if (file_is_ivf(&reader->input_ctx)) {
     reader->input_ctx.file_type = FILE_TYPE_IVF;

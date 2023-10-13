@@ -19,6 +19,12 @@
 extern "C" {
 #endif
 
+#if CONFIG_ADST_TUNED
+void iadst_matrix_mult_sse4(__m128i *in, __m128i *out, int bit, int do_cols,
+                            int bd, int out_shift, const int32_t *kernel,
+                            int kernel_size, int num_cols, int col_stride);
+#endif  // CONFIG_ADST_TUNED
+
 static INLINE __m128i av1_round_shift_32_sse4_1(__m128i vec, int bit) {
   __m128i tmp, round;
   round = _mm_set1_epi32(1 << (bit - 1));

@@ -4096,7 +4096,7 @@ static int skip_repeated_newmv(
 
   int skip = 0;
   int this_rate_mv = 0;
-  int i;
+  int i = -1;
 #if CONFIG_SEP_COMP_DRL
   int ref_mv_idx_type = av1_ref_mv_idx_type(mbmi, ref_mv_idx);
   int temp_mv_idx[2];
@@ -4222,6 +4222,7 @@ static int skip_repeated_newmv(
         &cpi->common, x, best_mbmi, best_rd_stats, best_rd_stats_y,
         best_rd_stats_uv, refs, best_mbmi->mode, NULL, bsize, *best_rd,
         cpi->sf.winner_mode_sf.multi_winner_mode_type, do_tx_search);
+    assert(i != -1);
 #if CONFIG_SEP_COMP_DRL
     args->modelled_rd[this_mode][ref_mv_idx[0]][refs[0]] =
         args->modelled_rd[this_mode][i][refs[0]];

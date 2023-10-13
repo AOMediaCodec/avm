@@ -1279,6 +1279,35 @@ static INLINE void fdct64_new_avx2(const __m256i *input, __m256i *output,
   output[63] = x1[63];
 }
 
+#if CONFIG_ADST_TUNED
+static INLINE void fadst16x16_new_avx2(const __m256i *input, __m256i *output,
+                                       int8_t cos_bit) {
+  (void)cos_bit;
+  const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
+  const int size = tx_size_wide[TX_16X16];
+
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i rnding = _mm256_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m256i x[16];
+  for (int i = 0; i < 16; ++i) {
+    int row_idx = i * size;
+    __m256i sum1 = zero;
+    __m256i sum2 = zero;
+    __m256i t1, t2;
+    for (int j = 0; j < 16; j += 2) {
+      const __m256i coef1 = _mm256_set1_epi16(kernel[row_idx + j]);
+      const __m256i coef2 = _mm256_set1_epi16(kernel[row_idx + j + 1]);
+      matrix_coef_mult_avx2(coef1, coef2, input[j], input[j + 1], &t1, &t2);
+      sum1 = _mm256_add_epi32(sum1, t1);
+      sum2 = _mm256_add_epi32(sum2, t2);
+    }
+    round_shift_avx2(&sum1, rnding, FWD_ADST_BIT);
+    round_shift_avx2(&sum2, rnding, FWD_ADST_BIT);
+    x[i] = _mm256_packs_epi32(sum1, sum2);
+  }
+  for (int i = 0; i < 16; ++i) output[i] = x[i];
+}
+#else
 static INLINE void fadst16x16_new_avx2(const __m256i *input, __m256i *output,
                                        int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
@@ -1408,6 +1437,7 @@ static INLINE void fadst16x16_new_avx2(const __m256i *input, __m256i *output,
   output[14] = x1[15];
   output[15] = x1[0];
 }
+#endif  // CONFIG_ADST_TUNED
 
 static INLINE void fidentity16x16_new_avx2(const __m256i *input,
                                            __m256i *output, int8_t cos_bit) {
@@ -2101,6 +2131,35 @@ static INLINE void fdct8x8_new_avx2(const __m256i *input, __m256i *output,
   output[7] = x4[7];
 }
 
+#if CONFIG_ADST_TUNED
+static INLINE void fadst8x8_new_avx2(const __m256i *input, __m256i *output,
+                                     int8_t cos_bit) {
+  (void)cos_bit;
+
+  const int32_t *kernel = av2_adst_kernel8[FWD_TXFM];
+  const int size = tx_size_wide[TX_8X8];
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i rnding = _mm256_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m256i x[8];
+  for (int i = 0; i < 8; ++i) {
+    int row_idx = i * size;
+    __m256i sum1 = zero;
+    __m256i sum2 = zero;
+    __m256i t1, t2;
+    for (int j = 0; j < 8; j += 2) {
+      const __m256i coef1 = _mm256_set1_epi16(kernel[row_idx + j]);
+      const __m256i coef2 = _mm256_set1_epi16(kernel[row_idx + j + 1]);
+      matrix_coef_mult_avx2(coef1, coef2, input[j], input[j + 1], &t1, &t2);
+      sum1 = _mm256_add_epi32(sum1, t1);
+      sum2 = _mm256_add_epi32(sum2, t2);
+    }
+    round_shift_avx2(&sum1, rnding, FWD_ADST_BIT);
+    round_shift_avx2(&sum2, rnding, FWD_ADST_BIT);
+    x[i] = _mm256_packs_epi32(sum1, sum2);
+  }
+  for (int i = 0; i < 8; ++i) output[i] = x[i];
+}
+#else
 static INLINE void fadst8x8_new_avx2(const __m256i *input, __m256i *output,
                                      int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
@@ -2213,6 +2272,7 @@ static INLINE void fadst8x8_new_avx2(const __m256i *input, __m256i *output,
   output[6] = x6[7];
   output[7] = x6[0];
 }
+#endif  // CONFIG_ADST_TUNED
 
 static INLINE void fidentity8x8_new_avx2(const __m256i *input, __m256i *output,
                                          int8_t cos_bit) {
@@ -2377,6 +2437,48 @@ static INLINE void fdct8x16_new_avx2(const __m128i *input, __m128i *output,
               &output[11], &output[13], &output[3], &__rounding_256, &cos_bit);
 }
 
+#if CONFIG_ADST_TUNED
+static INLINE void fadst8x16_new_avx2(const __m128i *input, __m128i *output,
+                                      int8_t cos_bit) {
+  (void)cos_bit;
+  const int32_t *kernel = av2_adst_kernel16[FWD_TXFM];
+  const int size = tx_size_wide[TX_16X16];
+
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i rnding = _mm256_set1_epi32(1 << (FWD_ADST_BIT - 1));
+  __m256i x[16], s[8];
+
+  for (int i = 0; i < size; ++i) {
+    x[i] = _mm256_insertf128_si256(_mm256_castsi128_si256(input[i]), input[i],
+                                   0x1);
+  }
+
+  for (int i = 0; i < 8; ++i) {
+    int row_idx = (2 * i) * size;
+    __m256i sum1 = zero;
+    __m256i sum2 = zero;
+    __m256i t1, t2;
+    for (int j = 0; j < 8; ++j) {
+      int col_idx = 2 * j;
+      const __m256i coef1 = interleave_coefs_avx2(
+          kernel[row_idx + col_idx], kernel[row_idx + size + col_idx]);
+      const __m256i coef2 = interleave_coefs_avx2(
+          kernel[row_idx + col_idx + 1], kernel[row_idx + size + col_idx + 1]);
+      matrix_coef_mult_avx2(coef1, coef2, x[col_idx], x[col_idx + 1], &t1, &t2);
+      sum1 = _mm256_add_epi32(sum1, t1);
+      sum2 = _mm256_add_epi32(sum2, t2);
+    }
+    round_shift_avx2(&sum1, rnding, FWD_ADST_BIT);
+    round_shift_avx2(&sum2, rnding, FWD_ADST_BIT);
+    s[i] = _mm256_packs_epi32(sum1, sum2);
+  }
+
+  for (int i = 0; i < 8; ++i) {
+    output[2 * i] = _mm256_extracti128_si256(s[i], 0x00);
+    output[2 * i + 1] = _mm256_extracti128_si256(s[i], 0x01);
+  }
+}
+#else
 static INLINE void fadst8x16_new_avx2(const __m128i *input, __m128i *output,
                                       int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
@@ -2593,6 +2695,7 @@ static INLINE void fadst8x16_new_avx2(const __m128i *input, __m128i *output,
   btf_16_avx2(&cospi_arr[18], &cospi_arr[19], &in0, &in1, &output[3],
               &output[12], &output[1], &output[14], &__rounding_256, &cos_bit);
 }
+#endif  // CONFIG_ADST_TUNED
 
 static INLINE void fidentity8x16_new_avx2(const __m128i *input, __m128i *output,
                                           int8_t cos_bit) {
