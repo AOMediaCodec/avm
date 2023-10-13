@@ -2117,6 +2117,14 @@ static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
 #if CONFIG_BAWP
 static const aom_cdf_prob default_bawp_cdf[CDF_SIZE(2)] = { AOM_CDF2(23664) };
 #endif  // CONFIG_BAWP
+#if CONFIG_EXPLICIT_BAWP
+static const aom_cdf_prob
+    default_explicit_bawp_cdf[BAWP_SCALES_CTX_COUNT][CDF_SIZE(2)] = {
+      { AOM_CDF2(19664) }, { AOM_CDF2(21664) }, { AOM_CDF2(23664) }
+    };
+static const aom_cdf_prob default_explicit_bawp_scale_cdf[CDF_SIZE(
+    EXPLICIT_BAWP_SCALE_CNT)] = { AOM_CDF2(16384) };
+#endif  // CONFIG_EXPLICIT_BAWP
 
 #if CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 #if CONFIG_NEW_CONTEXT_MODELING
@@ -3374,6 +3382,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_BAWP
   av1_copy(fc->bawp_cdf, default_bawp_cdf);
 #endif  // CONFIG_BAWP
+#if CONFIG_EXPLICIT_BAWP
+  av1_copy(fc->explicit_bawp_cdf, default_explicit_bawp_cdf);
+  av1_copy(fc->explicit_bawp_scale_cdf, default_explicit_bawp_scale_cdf);
+#endif  // CONFIG_EXPLICIT_BAWP
 #if CONFIG_OPTFLOW_REFINEMENT
   av1_copy(fc->use_optflow_cdf, default_use_optflow_cdf);
 #endif  // CONFIG_OPTFLOW_REFINEMENT

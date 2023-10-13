@@ -240,6 +240,8 @@ set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
 set_aom_config_var(CONFIG_PAR_HIDING 1
                    "Enable parity hiding for coefficients coding. (PH)")
 set_aom_config_var(CONFIG_BAWP 1 "Enable block adaptive weighted prediction")
+set_aom_config_var(CONFIG_EXPLICIT_BAWP 0
+                   "Explicit signaling for block adaptive weighted prediction")
 set_aom_config_var(CONFIG_WARPMV 1 "Enable warpmv modes")
 set_aom_config_var(CONFIG_IMPROVED_ANGULAR_INTRA 1
                    "Improved angular intra prediction mode")

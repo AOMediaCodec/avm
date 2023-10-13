@@ -981,6 +981,15 @@ enum {
 #define GLOBALMV_OFFSET 3
 #define REFMV_OFFSET 4
 
+#if CONFIG_EXPLICIT_BAWP
+// Explicit BAWP scaling factor counts
+#define EXPLICIT_BAWP_SCALE_CNT 2
+// Explicit BAWP scaling factor context counts
+#define BAWP_SCALES_CTX_COUNT 3
+// The allowed value range for bawp_flag
+#define BAWP_OPTION_CNT 4
+#endif  // CONFIG_EXPLICIT_BAWP
+
 #define NEWMV_CTX_MASK ((1 << GLOBALMV_OFFSET) - 1)
 #define GLOBALMV_CTX_MASK ((1 << (REFMV_OFFSET - GLOBALMV_OFFSET)) - 1)
 #define REFMV_CTX_MASK ((1 << (8 - REFMV_OFFSET)) - 1)

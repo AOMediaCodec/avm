@@ -2197,7 +2197,22 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_BAWP
       if (cm->features.enable_bawp &&
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+#if CONFIG_EXPLICIT_BAWP
+        aom_write_symbol(w, mbmi->bawp_flag > 0, xd->tile_ctx->bawp_cdf, 2);
+        if (mbmi->bawp_flag > 0 && av1_allow_explicit_bawp(mbmi)) {
+          const int ctx_index =
+              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+          aom_write_symbol(w, mbmi->bawp_flag > 1,
+                           xd->tile_ctx->explicit_bawp_cdf[ctx_index], 2);
+          if (mbmi->bawp_flag > 1) {
+            aom_write_symbol(w, mbmi->bawp_flag - 2,
+                             xd->tile_ctx->explicit_bawp_scale_cdf,
+                             EXPLICIT_BAWP_SCALE_CNT);
+          }
+        }
+#else
         aom_write_symbol(w, mbmi->bawp_flag == 1, xd->tile_ctx->bawp_cdf, 2);
+#endif  // CONFIG_EXPLICIT_BAWP
       }
 #endif
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);

@@ -1938,15 +1938,60 @@ void av1_build_one_inter_predictor(
   }
 }
 
+#if CONFIG_EXPLICIT_BAWP
+// Derive the offset value of block adaptive weighted prediction
+// mode. One row from the top boundary and one column from the left boundary
+// are used in the less square error process.
+static void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
+                                         uint16_t *recon_left, int rec_stride,
+                                         uint16_t *ref_top, uint16_t *ref_left,
+                                         int ref_stride, int ref, int plane,
+                                         int bw, int bh) {
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  assert(mbmi->bawp_flag > 1);
+  // only integer position of reference, may need to consider
+  // fractional position of ref samples
+  int count = 0;
+  int sum_x = 0, sum_y = 0;
+
+  if (xd->up_available) {
+    for (int i = 0; i < bw; ++i) {
+      sum_x += ref_top[i];
+      sum_y += recon_top[i];
+    }
+    count += bw;
+  }
+
+  if (xd->left_available) {
+    for (int i = 0; i < bh; ++i) {
+      sum_x += ref_left[0];
+      sum_y += recon_left[0];
+
+      recon_left += rec_stride;
+      ref_left += ref_stride;
+    }
+    count += bh;
+  }
+
+  const int16_t shift = 8;  // maybe a smaller value can be used
+  if (count > 0) {
+    mbmi->bawp_beta[plane][ref] =
+        ((sum_y << shift) - sum_x * mbmi->bawp_alpha[plane][ref]) / count;
+  } else {
+    mbmi->bawp_beta[plane][ref] = -(1 << shift);
+  }
+}
+#endif  // CONFIG_EXPLICIT_BAWP
+
 #if CONFIG_BAWP
 // Derive the scaling factor and offset of block adaptive weighted prediction
 // mode. One row from the top boundary and one column from the left boundary
 // are used in the less square error process.
-void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
-                            uint16_t *recon_left, int rec_stride,
-                            uint16_t *ref_top, uint16_t *ref_left,
-                            int ref_stride, int ref, int plane, int bw,
-                            int bh) {
+static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
+                                   uint16_t *recon_left, int rec_stride,
+                                   uint16_t *ref_top, uint16_t *ref_left,
+                                   int ref_stride, int ref, int plane, int bw,
+                                   int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(mbmi->bawp_flag == 1);
   // only integer position of reference, may need to consider
@@ -2061,9 +2106,27 @@ void av1_build_one_bawp_inter_predictor(
     uint16_t *ref_buf = pd->pre[ref].buf + y_off * ref_stride + x_off;
     uint16_t *ref_top = ref_buf - BAWP_REF_LINES * ref_stride;
     uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
-
-    derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
-                           ref_left, ref_stride, ref, plane, ref_w, ref_h);
+#if CONFIG_EXPLICIT_BAWP
+    if (mbmi->bawp_flag > 1) {
+      const int first_ref_dist =
+          cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
+      const int bawp_scale_table[3][EXPLICIT_BAWP_SCALE_CNT] = { { -1, 1 },
+                                                                 { -2, 2 },
+                                                                 { -3, 3 } };
+      const int list_index =
+          (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+      int delta_scales = bawp_scale_table[list_index][mbmi->bawp_flag - 2];
+      const int delta_sign = delta_scales > 0 ? 1 : -1;
+      const int delta_magtitude = delta_sign * delta_scales;
+      if (first_ref_dist > 4) delta_scales = delta_sign * (delta_magtitude + 1);
+      mbmi->bawp_alpha[plane][ref] = 256 + (delta_scales * 16);
+      derive_explicit_bawp_offsets(xd, recon_top, recon_left, recon_stride,
+                                   ref_top, ref_left, ref_stride, ref, plane,
+                                   ref_w, ref_h);
+    } else
+#endif  // CONFIG_EXPLICIT_BAWP
+      derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
+                             ref_left, ref_stride, ref, plane, ref_w, ref_h);
   }
 
   int16_t alpha = mbmi->bawp_alpha[plane][ref];
@@ -3625,7 +3688,7 @@ static void build_inter_predictors_8x8_and_bigger(
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_BAWP
-    if (mi->bawp_flag == 1 && plane == 0 && !build_for_obmc) {
+    if (mi->bawp_flag > 0 && plane == 0 && !build_for_obmc) {
       av1_build_one_bawp_inter_predictor(
           dst, dst_buf->stride, &mv, &inter_pred_params, cm, xd, dst_orig, bw,
           bh, mi_x, mi_y, ref, plane, mc_buf, calc_subpel_params_func);

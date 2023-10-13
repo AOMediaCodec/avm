@@ -700,6 +700,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #if CONFIG_BAWP
     av1_cost_tokens_from_cdf(mode_costs->bawp_flg_cost, fc->bawp_cdf, NULL);
 #endif
+#if CONFIG_EXPLICIT_BAWP
+    for (i = 0; i < BAWP_SCALES_CTX_COUNT; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->explict_bawp_cost[i],
+                               fc->explicit_bawp_cdf[i], NULL);
+    }
+    av1_cost_tokens_from_cdf(mode_costs->explict_bawp_scale_cost,
+                             fc->explicit_bawp_scale_cdf, NULL);
+#endif  // CONFIG_EXPLICIT_BAWP
     for (i = 0; i < COMP_GROUP_IDX_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_group_idx_cost[i],
                                fc->comp_group_idx_cdf[i], NULL);
