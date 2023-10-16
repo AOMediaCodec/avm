@@ -226,6 +226,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_BAWP
   RESET_CDF_COUNTER(fc->bawp_cdf, 2);
 #endif  // CONFIG_BAWP
+#if CONFIG_EXPLICIT_BAWP
+  RESET_CDF_COUNTER(fc->explicit_bawp_cdf, 2);
+  RESET_CDF_COUNTER(fc->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT);
+#endif  // CONFIG_EXPLICIT_BAWP
 #if CONFIG_TIP
   RESET_CDF_COUNTER(fc->tip_cdf, 2);
 #endif  // CONFIG_TIP

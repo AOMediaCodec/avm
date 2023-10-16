@@ -529,7 +529,8 @@ typedef struct MB_MODE_INFO {
   /*! \brief Struct that stores the data used in interinter compound mode. */
   INTERINTER_COMPOUND_DATA interinter_comp;
 #if CONFIG_BAWP
-  /*! \brief The block level bawp enabling flag*/
+  /*! \brief The block level bawp enabling flag, and the value range for
+   * bawp_flag depends on whether CONFIG_EXPLICIT_BAWP is turned on or not. */
   int8_t bawp_flag;
   /*! \brief The bawp parameters weight*/
   int16_t bawp_alpha[3][2];  //[yuv][ref0/1], current only [0][0] is used.
@@ -3562,7 +3563,7 @@ static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame)
 #if CONFIG_BAWP
-         && mbmi->bawp_flag != 1
+         && mbmi->bawp_flag == 0
 #endif  // CONFIG_BAWP
       ;
 }
@@ -3665,6 +3666,12 @@ static INLINE int av1_allow_bawp(const MB_MODE_INFO *mbmi, int mi_row,
     return 0;
 }
 #endif  // CONFIG_BAWP
+
+#if CONFIG_EXPLICIT_BAWP
+static INLINE int av1_allow_explicit_bawp(const MB_MODE_INFO *mbmi) {
+  return mbmi->mode == AMVDNEWMV || mbmi->mode == NEWMV || mbmi->mode == NEARMV;
+}
+#endif  // CONFIG_EXPLICIT_BAWP
 
 static INLINE int av1_allow_palette(int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {
