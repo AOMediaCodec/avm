@@ -3315,6 +3315,7 @@ static AOM_INLINE void write_modes_sb(
                        this_mi_col, this_bsize);
       }
       break;
+#if CONFIG_BLOCK_256
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
@@ -3329,6 +3330,7 @@ static AOM_INLINE void write_modes_sb(
                      get_partition_subtree_const(ptree_luma, 3), mi_row + hbs_h,
                      mi_col + hbs_w, subsize);
       break;
+#endif  // CONFIG_BLOCK_256
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_SPLIT:
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0], mi_row,
