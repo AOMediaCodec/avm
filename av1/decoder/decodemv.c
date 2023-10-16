@@ -61,7 +61,7 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 
   // At the start of a superblock, mark that we haven't yet read CDEF strengths
   // for any of the CDEF units contained in this superblock.
-  const int sb_mask = (cm->seq_params.mib_size - 1);
+  const int sb_mask = (cm->mib_size - 1);
   const int mi_row_in_sb = (xd->mi_row & sb_mask);
   const int mi_col_in_sb = (xd->mi_col & sb_mask);
   if (mi_row_in_sb == 0 && mi_col_in_sb == 0) {
@@ -153,11 +153,11 @@ static int read_delta_qindex(AV1_COMMON *cm, const MACROBLOCKD *xd,
                              aom_reader *r, MB_MODE_INFO *const mbmi) {
   int sign, abs, reduced_delta_qindex = 0;
   BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-  const int b_col = xd->mi_col & (cm->seq_params.mib_size - 1);
-  const int b_row = xd->mi_row & (cm->seq_params.mib_size - 1);
+  const int b_col = xd->mi_col & (cm->mib_size - 1);
+  const int b_row = xd->mi_row & (cm->mib_size - 1);
   const int read_delta_q_flag = (b_col == 0 && b_row == 0);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-  if ((bsize != cm->seq_params.sb_size ||
+  if ((bsize != cm->sb_size ||
        mbmi->skip_txfm[xd->tree_type == CHROMA_PART] == 0) &&
       read_delta_q_flag) {
     abs = aom_read_symbol(r, ec_ctx->delta_q_cdf, DELTA_Q_PROBS + 1,
@@ -187,10 +187,10 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
   int reduced_delta_lflevel = 0;
   const int plane_type = (tree_type == CHROMA_PART);
   const BLOCK_SIZE bsize = mbmi->sb_type[plane_type];
-  const int b_col = mi_col & (cm->seq_params.mib_size - 1);
-  const int b_row = mi_row & (cm->seq_params.mib_size - 1);
+  const int b_col = mi_col & (cm->mib_size - 1);
+  const int b_row = mi_row & (cm->mib_size - 1);
   const int read_delta_lf_flag = (b_col == 0 && b_row == 0);
-  if ((bsize != cm->seq_params.sb_size || mbmi->skip_txfm[plane_type] == 0) &&
+  if ((bsize != cm->sb_size || mbmi->skip_txfm[plane_type] == 0) &&
       read_delta_lf_flag) {
     int abs = aom_read_symbol(r, cdf, DELTA_LF_PROBS + 1, ACCT_INFO("abs"));
     const int smallval = (abs < DELTA_LF_SMALL);
@@ -1439,7 +1439,7 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
   mv->as_mv.row = (mv->as_mv.row >> 3) * 8;
   int valid = is_mv_valid(&mv->as_mv) &&
               av1_is_dv_valid(mv->as_mv, cm, xd, mi_row, mi_col, bsize,
-                              cm->seq_params.mib_size_log2);
+                              cm->mib_size_log2);
   return valid;
 }
 
@@ -1558,7 +1558,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     if (dv_ref.as_int == 0)
-      av1_find_ref_dv(&dv_ref, &xd->tile, cm->seq_params.mib_size, xd->mi_row);
+      av1_find_ref_dv(&dv_ref, &xd->tile, cm->mib_size, xd->mi_row);
     // Ref DV should not have sub-pel.
     int valid_dv = (dv_ref.as_mv.col & 7) == 0 && (dv_ref.as_mv.row & 7) == 0;
     dv_ref.as_mv.col = (dv_ref.as_mv.col >> 3) * 8;

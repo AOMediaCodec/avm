@@ -534,8 +534,28 @@ typedef struct SimpleMotionData {
 } SimpleMotionData;
 
 /*!\cond */
+#if CONFIG_BLOCK_256
+
+#define BLOCK_256_COUNT 1
+#define BLOCK_128_COUNT 3
+#define BLOCK_64_COUNT 7
+
+#if CONFIG_UNEVEN_4WAY
+#define BLOCK_32_COUNT 31
+#define BLOCK_16_COUNT 63
+#define BLOCK_8_COUNT 64
+#else
+#define BLOCK_32_COUNT 15
+#define BLOCK_16_COUNT 31
+#define BLOCK_8_COUNT 63
+#endif  // CONFIG_UNEVEN_4WAY
+
+#define BLOCK_4_COUNT 64
+
+#else
 #define BLOCK_128_COUNT 1
 #define BLOCK_64_COUNT 3
+
 #if CONFIG_UNEVEN_4WAY
 #define BLOCK_32_COUNT 15
 #define BLOCK_16_COUNT 31
@@ -545,7 +565,9 @@ typedef struct SimpleMotionData {
 #define BLOCK_16_COUNT 15
 #define BLOCK_8_COUNT 31
 #endif  // CONFIG_UNEVEN_4WAY
+
 #define BLOCK_4_COUNT 32
+#endif  // CONFIG_BLOCK_256
 
 #define MAKE_SM_DATA_BUF(width, height) \
   SimpleMotionData                      \
@@ -557,6 +579,9 @@ typedef struct SimpleMotionData {
 typedef struct SimpleMotionDataBufs {
   /*!\cond */
   // Square blocks
+#if CONFIG_BLOCK_256
+  MAKE_SM_DATA_BUF(256, 256);
+#endif  // CONFIG_BLOCK_256
   MAKE_SM_DATA_BUF(128, 128);
   MAKE_SM_DATA_BUF(64, 64);
   MAKE_SM_DATA_BUF(32, 32);
@@ -565,6 +590,9 @@ typedef struct SimpleMotionDataBufs {
   MAKE_SM_DATA_BUF(4, 4);
 
   // 1:2 blocks
+#if CONFIG_BLOCK_256
+  MAKE_SM_DATA_BUF(128, 256);
+#endif  // CONFIG_BLOCK_256
   MAKE_SM_DATA_BUF(64, 128);
   MAKE_SM_DATA_BUF(32, 64);
   MAKE_SM_DATA_BUF(16, 32);
@@ -572,6 +600,9 @@ typedef struct SimpleMotionDataBufs {
   MAKE_SM_DATA_BUF(4, 8);
 
   // 2:1 blocks
+#if CONFIG_BLOCK_256
+  MAKE_SM_DATA_BUF(256, 128);
+#endif  // CONFIG_BLOCK_256
   MAKE_SM_DATA_BUF(128, 64);
   MAKE_SM_DATA_BUF(64, 32);
   MAKE_SM_DATA_BUF(32, 16);
@@ -785,12 +816,13 @@ typedef struct {
    * \name Partition Costs
    ****************************************************************************/
   /**@{*/
-  //! Cost for coding the partition.
-  int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
-                    [EXT_PARTITION_TYPES];
 #if CONFIG_EXT_RECUR_PARTITIONS
   /*! Cost for sending split token. */
   int do_split_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+#if CONFIG_BLOCK_256
+  /*! Cost for sending square split token. */
+  int do_square_split_cost[PARTITION_STRUCTURE_NUM][SQUARE_SPLIT_CONTEXTS][2];
+#endif  // CONFIG_BLOCK_256
   /*! Cost for sending rectangular type token. */
   int rect_type_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
   /*! Cost for sending do_ext_partition token. */
@@ -805,6 +837,13 @@ typedef struct {
                                      [PARTITION_CONTEXTS]
                                      [NUM_UNEVEN_4WAY_PARTS];
 #endif  // CONFIG_UNEVEN_4WAY
+  //! Cost for coding the partition.
+  int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
+                    [ALL_PARTITION_TYPES];
+#else
+  //! Cost for coding the partition.
+  int partition_cost[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]
+                    [EXT_PARTITION_TYPES];
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
 
@@ -1706,6 +1745,11 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_64X128
     1,  // BLOCK_128X64
     1,  // BLOCK_128X128
+#if CONFIG_BLOCK_256
+    1,  // BLOCK_128X256
+    1,  // BLOCK_256X128
+    1,  // BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
     1,  // BLOCK_4X16
     1,  // BLOCK_16X4
     1,  // BLOCK_8X32
@@ -1729,6 +1773,11 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     0,  // BLOCK_64X128
     0,  // BLOCK_128X64
     0,  // BLOCK_128X128
+#if CONFIG_BLOCK_256
+    0,  // BLOCK_128X256
+    0,  // BLOCK_256X128
+    0,  // BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
     1,  // BLOCK_4X16
     1,  // BLOCK_16X4
     1,  // BLOCK_8X32

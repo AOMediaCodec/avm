@@ -333,7 +333,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
 static AOM_INLINE void variance_partition_alloc(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  const int num_64x64_blocks = (cm->seq_params.sb_size == BLOCK_64X64) ? 1 : 4;
+  const int num_64x64_blocks = (cm->sb_size == BLOCK_64X64) ? 1 : 4;
   if (cpi->td.vt64x64) {
     if (num_64x64_blocks != cpi->td.num_64x64_blocks) {
       aom_free(cpi->td.vt64x64);

@@ -41,11 +41,21 @@ int av1_cdef_compute_sb_list(const CommonModeInfoParams *const mi_params,
   int maxc = mi_params->mi_cols - mi_col;
   int maxr = mi_params->mi_rows - mi_row;
 
-  if (bs == BLOCK_128X128 || bs == BLOCK_128X64)
+#if CONFIG_BLOCK_256
+  if (bs == BLOCK_256X256 || bs == BLOCK_256X128) {
+    maxc = AOMMIN(maxc, MI_SIZE_256X256);
+  } else
+#endif  // CONFIG_BLOCK_256
+      if (bs == BLOCK_128X128 || bs == BLOCK_128X64)
     maxc = AOMMIN(maxc, MI_SIZE_128X128);
   else
     maxc = AOMMIN(maxc, MI_SIZE_64X64);
-  if (bs == BLOCK_128X128 || bs == BLOCK_64X128)
+#if CONFIG_BLOCK_256
+  if (bs == BLOCK_256X256 || bs == BLOCK_128X256) {
+    maxr = AOMMIN(maxr, MI_SIZE_256X256);
+  } else
+#endif  // CONFIG_BLOCK_256
+      if (bs == BLOCK_128X128 || bs == BLOCK_64X128)
     maxr = AOMMIN(maxr, MI_SIZE_128X128);
   else
     maxr = AOMMIN(maxr, MI_SIZE_64X64);

@@ -515,6 +515,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   // The recursion depth allowed for ext partitions
   int ext_recur_depth;
 
+#if CONFIG_BLOCK_256
+  // Prune rect partitions if PARTITION_SPLIT goes deep.
+  int prune_rect_with_split_depth;
+#endif  // CONFIG_BLOCK_256
+
   // Search horizontal and vertical split before PARTITION_NONE if the neighbor
   // blocks are much smaller than the current block size.
   int adaptive_partition_search_order;
@@ -529,6 +534,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // H-parts.
   int prune_part_4_with_partition_boundary;
 #endif  // CONFIG_UNEVEN_4WAY
+#if CONFIG_BLOCK_256
+  // Delay the search for block 256 to after block 128
+  int search_256_after_128;
+#endif  // CONFIG_BLOCK_256
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PARTITION_SPEED_FEATURES;
 
@@ -605,6 +614,11 @@ typedef struct MV_SPEED_FEATURES {
 
   // Maximum number of iterations in WARPED_CAUSAL refinement search
   int warp_search_iters;
+#if CONFIG_BLOCK_256
+  // Use faster motion search settings for partition blocks with at least one
+  // dimension that's >= 256
+  int fast_motion_estimation_on_block_256;
+#endif  // CONFIG_BLOCK_256
 } MV_SPEED_FEATURES;
 
 typedef struct INTER_MODE_SPEED_FEATURES {

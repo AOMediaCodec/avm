@@ -143,7 +143,7 @@ template <typename T>
 
 TEST_F(AV1ConvolveParametersTest, GetHighbdTestParams) {
   auto v = GetHighbdTestParams(av1_highbd_convolve_x_sr_c);
-  ASSERT_EQ(54U, v.size());
+  ASSERT_EQ(60U, v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &p : v) {
@@ -576,7 +576,7 @@ std::vector<TestParam<T>> GetHighbdLumaTestParams(T test_func) {
 
 TEST_F(AV1ConvolveParametersTest, GetHighbdLumaTestParams) {
   auto v = GetHighbdLumaTestParams(av1_highbd_dist_wtd_convolve_x_c);
-  ASSERT_EQ(44U, v.size());
+  ASSERT_EQ(50U, v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &e : v) {
@@ -1571,6 +1571,39 @@ INSTANTIATE_TEST_SUITE_P(
 //////////////////////////////////////////////////////////
 
 #if CONFIG_PC_WIENER
+
+// Generate the list of all block widths / heights that need to be tested for
+// pc_wiener.
+template <typename T>
+std::vector<TestParam<T>> GetPCWienerTestParams(
+    std::initializer_list<int> bit_depths, T test_func) {
+  std::set<BlockSize> sizes;
+  for (int b = BLOCK_4X4; b < BLOCK_SIZES_ALL; ++b) {
+    const int w = block_size_wide[b];
+    const int h = block_size_high[b];
+    if (w > RESTORATION_PROC_UNIT_SIZE || h > RESTORATION_PROC_UNIT_SIZE) {
+      continue;
+    }
+    sizes.insert(BlockSize(w, h));
+    // Add in smaller chroma sizes as well.
+    if (w == 4 || h == 4) {
+      sizes.insert(BlockSize(w / 2, h / 2));
+    }
+  }
+  std::vector<TestParam<T>> result;
+  for (const BlockSize &block : sizes) {
+    for (int bd : bit_depths) {
+      result.push_back(TestParam<T>(block, bd, test_func));
+    }
+  }
+  return result;
+}
+template <typename T>
+::testing::internal::ParamGenerator<TestParam<T>> BuildHighbdPCWienerParams(
+    T test_func) {
+  return ::testing::ValuesIn(GetPCWienerTestParams({ 10, 12 }, test_func));
+}
+
 typedef void (*fill_directional_feature_buffers_highbd_func)(
     int *feature_sum_buffers[], int16_t *feature_line_buffers[], int row,
     int buffer_row, const uint16_t *dgd, int dgd_stride, int width,
@@ -1766,7 +1799,7 @@ TEST_P(AV1FillDirFeatureBufHighbdTest, DISABLED_Speed) { RunSpeedTest(); }
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1FillDirFeatureBufHighbdTest,
-    BuildHighbdParams(fill_directional_feature_buffers_highbd_avx2));
+    BuildHighbdPCWienerParams(fill_directional_feature_buffers_highbd_avx2));
 #endif  // HAVE_AVX2
 
 typedef void (*FillTSkipSumBufferFunc)(int row, const uint8_t *tskip,

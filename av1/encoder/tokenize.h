@@ -104,9 +104,12 @@ static INLINE unsigned int get_token_alloc(int mb_rows, int mb_cols,
 
 // Allocate memory for token related info.
 static AOM_INLINE void alloc_token_info(AV1_COMMON *cm, TokenInfo *token_info) {
+  // We use the frame level sb size here instead of the seq level sb size. This
+  // is because fr_sb_size <= seq_sb_size, and we want to avoid repeated
+  // allocations. So we prefer to to allocate a larger memory in one go here.
   int mi_rows_aligned_to_sb =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, cm->seq_params.mib_size_log2);
-  int sb_rows = mi_rows_aligned_to_sb >> cm->seq_params.mib_size_log2;
+      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, cm->mib_size_log2);
+  int sb_rows = mi_rows_aligned_to_sb >> cm->mib_size_log2;
   const int num_planes = av1_num_planes(cm);
   unsigned int tokens =
       get_token_alloc(cm->mi_params.mb_rows, cm->mi_params.mb_cols,

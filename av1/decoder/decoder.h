@@ -73,7 +73,11 @@ typedef struct DecoderCodingBlock {
    * cb_offset[p] is the offset into the dqcoeff_block[p] for the current coding
    * block, for each plane 'p'.
    */
+#if CONFIG_BLOCK_256
+  uint32_t cb_offset[MAX_MB_PLANE];
+#else
   uint16_t cb_offset[MAX_MB_PLANE];
+#endif  // CONFIG_BLOCK_256
   /*!
    * Pointer to 'eob_data' inside 'td->cb_buffer_base' or 'pbi->cb_buffer_base'
    * with appropriate offset for the current superblock, for each plane.

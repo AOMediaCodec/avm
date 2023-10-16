@@ -4358,13 +4358,13 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   reset_rsc(rsc);
   rsc_on_tile(rsc, *processed);
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
-       mi_row += rsc->cm->seq_params.mib_size) {
+       mi_row += rsc->cm->mib_size) {
     for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
-         mi_col += rsc->cm->seq_params.mib_size) {
+         mi_col += rsc->cm->mib_size) {
       int rrow0, rrow1, rcol0, rcol1;
-      if (av1_loop_restoration_corners_in_sb(
-              rsc->cm, rsc->plane, mi_row, mi_col, rsc->cm->seq_params.sb_size,
-              &rcol0, &rcol1, &rrow0, &rrow1)) {
+      if (av1_loop_restoration_corners_in_sb(rsc->cm, rsc->plane, mi_row,
+                                             mi_col, rsc->cm->sb_size, &rcol0,
+                                             &rcol1, &rrow0, &rrow1)) {
         // RU domain rectangle for the coded SB
         AV1PixelRect ru_sb_rect = av1_get_rutile_rect(
             rsc->cm, is_uv, rrow0, rrow1, rcol0, rcol1, ru_size, ru_size);

@@ -14,6 +14,8 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "av1/common/blockd.h"
+#include "av1/common/enums.h"
 #include "config/av1_rtcd.h"
 
 #include "aom_dsp/aom_dsp_common.h"
@@ -55,7 +57,11 @@
 // This table is used to correct for block size.
 // The factors here are << 2 (2 = x0.5, 32 = x8 etc).
 static const uint8_t rd_thresh_block_size_factor[BLOCK_SIZES_ALL] = {
-  2, 3, 3, 4, 6, 6, 8, 12, 12, 16, 24, 24, 32, 48, 48, 64, 4, 4, 8, 8, 16, 16
+  2,  3,  3,   4, 6,  6, 8, 12, 12, 16, 24, 24, 32, 48, 48, 64,
+#if CONFIG_BLOCK_256
+  96, 96, 128,
+#endif  // CONFIG_BLOCK_256
+  4,  4,  8,   8, 16, 16
 };
 
 static const int use_intra_ext_tx_for_txsize[EXT_TX_SETS_INTRA]
@@ -108,6 +114,15 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->do_split_cdf[plane_index][i], NULL);
     }
   }
+#if CONFIG_BLOCK_256
+  for (int plane_index = (xd->tree_type == CHROMA_PART);
+       plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
+    for (i = 0; i < SQUARE_SPLIT_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(mode_costs->do_square_split_cost[plane_index][i],
+                               fc->do_square_split_cdf[plane_index][i], NULL);
+    }
+  }
+#endif  // CONFIG_BLOCK_256
   for (int plane_index = (xd->tree_type == CHROMA_PART);
        plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
     for (i = 0; i < PARTITION_CONTEXTS; ++i) {
@@ -142,7 +157,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
        plane_index < PARTITION_STRUCTURE_NUM; plane_index++) {
     const TREE_TYPE tree_type = plane_index ? CHROMA_PART : LUMA_PART;
     for (BLOCK_SIZE bsize = 0; bsize < BLOCK_SIZES; bsize++) {
-      for (PARTITION_TYPE part = 0; part < EXT_PARTITION_TYPES; part++) {
+      for (PARTITION_TYPE part = 0; part < ALL_PARTITION_TYPES; part++) {
         for (int context = 0; context < PARTITION_PLOFFSET; context++) {
           const int ctx = PARTITION_PLOFFSET * bsize + context;
           const bool do_split = part != PARTITION_NONE;
@@ -151,6 +166,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
           if (!do_split) {
             continue;
           }
+#if CONFIG_BLOCK_256
+          const bool do_square_split = part == PARTITION_SPLIT;
+          if (is_square_split_eligible(bsize, cm->sb_size)) {
+            mode_costs->partition_cost[plane_index][ctx][part] +=
+                mode_costs->do_square_split_cost[plane_index][context]
+                                                [do_square_split];
+          }
+          if (do_square_split) {
+            continue;
+          }
+#endif  // CONFIG_BLOCK_256
           RECT_PART_TYPE rect_type = get_rect_part_type(part);
           if (rect_type_implied_by_bsize(bsize, tree_type) == RECT_INVALID) {
             mode_costs->partition_cost[plane_index][ctx][part] +=
@@ -1471,7 +1497,33 @@ static double interp_bicubic(const double *p, int p_stride, double x,
 */
 
 static const uint8_t bsize_curvfit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-  0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3
+  0,
+  0,
+  0,
+  1,
+  1,
+  1,
+  2,
+  2,
+  2,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+#if CONFIG_BLOCK_256
+  3,
+  3,
+  3,
+#endif  // CONFIG_BLOCK_256
+  1,
+  1,
+  2,
+  2,
+  3,
+  3
 };
 
 static int sse_norm_curvfit_model_cat_lookup(double sse_norm) {
@@ -1496,9 +1548,36 @@ static double get_rate_clamplinear(double l, double a, double b) {
 }
 
 static const uint8_t bsize_surffit_model_cat_lookup[BLOCK_SIZES_ALL] = {
-  0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8, 0, 0, 2, 2, 4, 4
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  2,
+  3,
+  3,
+  4,
+  5,
+  5,
+  6,
+  7,
+  7,
+  8,
+#if CONFIG_BLOCK_256
+  8,
+  8,
+  8,
+#endif  // CONFIG_BLOCK_256
+  0,
+  0,
+  2,
+  2,
+  4,
+  4
 };
 
+// TODO(any): Add models for BLOCK_256
 static const double surffit_rate_params[9][4] = {
   {
       638.390212,
@@ -1883,7 +1962,7 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
   assert(use_adaptive_rd_thresh > 0);
   const int max_rd_thresh_factor = use_adaptive_rd_thresh * RD_THRESH_MAX_FACT;
 
-  const int bsize_is_1_to_4 = bsize > cm->seq_params.sb_size;
+  const int bsize_is_1_to_4 = bsize > cm->sb_size;
   BLOCK_SIZE min_size, max_size;
   if (bsize_is_1_to_4) {
     // This part handles block sizes with 1:4 and 4:1 aspect ratios
@@ -1892,7 +1971,7 @@ void av1_update_rd_thresh_fact(const AV1_COMMON *const cm,
     max_size = bsize;
   } else {
     min_size = AOMMAX(bsize - 2, BLOCK_4X4);
-    max_size = AOMMIN(bsize + 2, (int)cm->seq_params.sb_size);
+    max_size = AOMMIN(bsize + 2, (int)cm->sb_size);
   }
 
   for (PREDICTION_MODE mode = 0; mode < MB_MODE_COUNT; ++mode) {

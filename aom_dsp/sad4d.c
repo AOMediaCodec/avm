@@ -95,6 +95,20 @@ static INLINE unsigned int highbd_sadb(const uint16_t *a, int a_stride,
     }                                                                         \
   }
 
+#if CONFIG_BLOCK_256
+// 256X256
+highbd_avg_skip_sadMxN(256, 256);
+highbd_sadMxNx4D(256, 256);
+
+// 256X128
+highbd_avg_skip_sadMxN(256, 128);
+highbd_sadMxNx4D(256, 128);
+
+// 128X256
+highbd_avg_skip_sadMxN(128, 256);
+highbd_sadMxNx4D(128, 256);
+#endif  // CONFIG_BLOCK_256
+
 // 128x128
 highbd_avg_skip_sadMxN(128, 128);
 highbd_sadMxNx4D(128, 128);

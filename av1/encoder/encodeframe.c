@@ -234,7 +234,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   assert(delta_q_info->delta_q_present_flag);
 
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
   // Delta-q modulation based on variance
   av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
 
@@ -299,7 +299,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
         (int8_t)clamp(delta_lf_from_base, -MAX_LOOP_FILTER, MAX_LOOP_FILTER);
     const int frame_lf_count =
         av1_num_planes(cm) > 1 ? FRAME_LF_COUNT : FRAME_LF_COUNT - 2;
-    const int mib_size = cm->seq_params.mib_size;
+    const int mib_size = cm->mib_size;
 
     // pre-set the delta lf for loop filter. Note that this value is set
     // before mi is assigned for each block in current superblock
@@ -345,7 +345,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   const int tpl_stride = tpl_frame->stride;
   int64_t inter_cost[INTER_REFS_PER_FRAME] = { 0 };
   const int step = 1 << block_mis_log2;
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
 
   const int mi_row_end =
       AOMMIN(mi_size_high[sb_size] + mi_row, mi_params->mi_rows);
@@ -420,7 +420,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
 
 static AOM_INLINE void adjust_rdmult_tpl_model(AV1_COMP *cpi, MACROBLOCK *x,
                                                int mi_row, int mi_col) {
-  const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cpi->common.sb_size;
   const int orig_rdmult = cpi->rd.RDMULT;
 
   assert(IMPLIES(cpi->gf_group.size > 0,
@@ -498,7 +498,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   if (gather_tpl_data) {
     if (cm->delta_q_info.delta_q_present_flag) {
       const int num_planes = av1_num_planes(cm);
-      const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+      const BLOCK_SIZE sb_size = cm->sb_size;
       setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);
       av1_tpl_rdmult_setup_sb(cpi, x, sb_size, mi_row, mi_col);
     }
@@ -514,8 +514,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
   SimpleMotionDataBufs *data_bufs = x->sms_bufs;
   av1_init_sms_data_bufs(data_bufs);
-  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->seq_params.sb_size,
-               cm->seq_params.sb_size);
+  fill_sms_buf(data_bufs, sms_root, mi_row, mi_col, cm->sb_size, cm->sb_size);
 
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   if (x->e_mbd.tree_type == CHROMA_PART) {
@@ -551,7 +550,7 @@ static AOM_INLINE void perform_one_partition_pass(
   MACROBLOCKD *const xd = &x->e_mbd;
   SuperBlockEnc *sb_enc = &x->sb_enc;
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
   const int ss_x = cm->seq_params.subsampling_x;
   const int ss_y = cm->seq_params.subsampling_y;
   RD_STATS dummy_rdc;
@@ -612,7 +611,7 @@ static AOM_INLINE void perform_two_partition_passes(
     const int mi_row, const int mi_col) {
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
   AV1_COMMON *const cm = &cpi->common;
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
 
   // First pass
   SB_FIRST_PASS_STATS sb_fp_stats;
@@ -676,6 +675,7 @@ static AOM_INLINE void set_min_none_to_invalid(PARTITION_TREE *part_tree,
 #endif  // CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_3:
     case PARTITION_VERT_3: num_subtrees = 4; break;
+    case PARTITION_SPLIT: num_subtrees = 4; break;
     default:
       assert(0 && "Invalid partition type in set_min_none_to_invalid!");
       return;
@@ -703,7 +703,7 @@ static AOM_INLINE void perform_two_pass_partition_search(
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
 
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
   assert(!frame_is_intra_only(cm));
 
   // First pass to estimate  partition structures
@@ -750,7 +750,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   const TileInfo *const tile_info = &tile_data->tile_info;
   MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
                       get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
   const int num_planes = av1_num_planes(cm);
   int dummy_rate;
   int64_t dummy_dist;
@@ -920,9 +920,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   const int sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_data->tile_info);
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
-  const int mib_size = cm->seq_params.mib_size;
-  const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  const BLOCK_SIZE sb_size = cm->sb_size;
+  const int mib_size = cm->mib_size;
+  const int mib_size_log2 = cm->mib_size_log2;
   const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -947,7 +947,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
-    av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
+    av1_reset_is_mi_coded_map(xd, cm->mib_size);
     av1_set_sb_info(cm, xd, mi_row, mi_col);
 
     if (tile_data->allow_update_cdf && row_mt_enabled &&
@@ -1064,9 +1064,8 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       if (pre_tok != NULL && tplist != NULL) {
         token_info->tile_tok[tile_row][tile_col] = pre_tok + tile_tok;
         pre_tok = token_info->tile_tok[tile_row][tile_col];
-        tile_tok = allocated_tokens(*tile_info,
-                                    cm->seq_params.mib_size_log2 + MI_SIZE_LOG2,
-                                    num_planes);
+        tile_tok = allocated_tokens(
+            *tile_info, cm->mib_size_log2 + MI_SIZE_LOG2, num_planes);
         token_info->tplist[tile_row][tile_col] = tplist + tplist_count;
         tplist = token_info->tplist[tile_row][tile_col];
         tplist_count = av1_get_sb_rows_in_tile(cm, tile_data->tile_info);
@@ -1093,14 +1092,14 @@ void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
   TokenExtra *tok = NULL;
   TokenList *const tplist = cpi->token_info.tplist[tile_row][tile_col];
   const int sb_row_in_tile =
-      (mi_row - tile_info->mi_row_start) >> cm->seq_params.mib_size_log2;
+      (mi_row - tile_info->mi_row_start) >> cm->mib_size_log2;
   const int tile_mb_cols =
       (tile_info->mi_col_end - tile_info->mi_col_start + 2) >> 2;
   const int num_mb_rows_in_sb =
-      ((1 << (cm->seq_params.mib_size_log2 + MI_SIZE_LOG2)) + 8) >> 4;
+      ((1 << (cm->mib_size_log2 + MI_SIZE_LOG2)) + 8) >> 4;
 
   get_start_tok(cpi, tile_row, tile_col, mi_row, &tok,
-                cm->seq_params.mib_size_log2 + MI_SIZE_LOG2, num_planes);
+                cm->mib_size_log2 + MI_SIZE_LOG2, num_planes);
   tplist[sb_row_in_tile].start = tok;
 
   encode_sb_row(cpi, td, this_tile, mi_row, &tok);
@@ -1110,8 +1109,7 @@ void av1_encode_sb_row(AV1_COMP *cpi, ThreadData *td, int tile_row,
 
   assert((unsigned int)(tok - tplist[sb_row_in_tile].start) <=
          get_token_alloc(num_mb_rows_in_sb, tile_mb_cols,
-                         cm->seq_params.mib_size_log2 + MI_SIZE_LOG2,
-                         num_planes));
+                         cm->mib_size_log2 + MI_SIZE_LOG2, num_planes));
 
   (void)tile_mb_cols;
   (void)num_mb_rows_in_sb;
@@ -1142,7 +1140,7 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
       &td->mb.txfm_search_info.mb_rd_record.crc_calculator);
 
   for (int mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
-       mi_row += cm->seq_params.mib_size) {
+       mi_row += cm->mib_size) {
 #if CONFIG_REF_MV_BANK
     av1_zero(td->mb.e_mbd.ref_mv_bank);
 #if !CONFIG_MVP_IMPROVEMENT
@@ -1582,8 +1580,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
                                       block_hash_values[0], is_block_same[0]);
     // Hash data generated for screen contents is used for intraBC ME
     const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
-    const int max_sb_size =
-        (1 << (cm->seq_params.mib_size_log2 + MI_SIZE_LOG2));
+    const int max_sb_size = (1 << (cm->mib_size_log2 + MI_SIZE_LOG2));
     int src_idx = 0;
     for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
       const int dst_idx = !src_idx;

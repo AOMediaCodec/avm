@@ -147,12 +147,18 @@ void av1_make_default_fullpel_ms_params(
   init_ms_buffers(&ms_params->ms_buffers, x);
 
   SEARCH_METHODS search_method = mv_sf->search_method;
+  const int min_dim = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
   if (mv_sf->use_bsize_dependent_search_method) {
-    const int min_dim = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
     if (min_dim >= 32) {
       search_method = get_faster_search_method(search_method);
     }
   }
+#if CONFIG_BLOCK_256
+  const int max_dim = AOMMAX(block_size_wide[bsize], block_size_high[bsize]);
+  if (cpi->sf.mv_sf.fast_motion_estimation_on_block_256 && max_dim >= 256) {
+    search_method = get_faster_search_method(search_method);
+  }
+#endif  // CONFIG_BLOCK_256
 #if CONFIG_FLEX_MVRES
   // MV search of flex MV precision is supported only for NSTEP or DIAMOND
   // search
@@ -307,6 +313,13 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
   ms_params->var_params.subpel_search_type =
       cpi->sf.mv_sf.use_accurate_subpel_search;
 #endif
+#if CONFIG_BLOCK_256
+  if (cpi->sf.mv_sf.fast_motion_estimation_on_block_256 &&
+      AOMMAX(block_size_wide[bsize], block_size_high[bsize]) >= 256) {
+    ms_params->var_params.subpel_search_type =
+        AOMMIN(ms_params->var_params.subpel_search_type, USE_2_TAPS);
+  }
+#endif  // CONFIG_BLOCK_256
 
   ms_params->var_params.w = block_size_wide[bsize];
   ms_params->var_params.h = block_size_high[bsize];
@@ -2738,8 +2751,13 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
   // Should we allow a follow on exhaustive search?
   if (!run_mesh_search && search_method == NSTEP) {
     int exhaustive_thr = ms_params->force_mesh_thresh;
-    exhaustive_thr >>=
+    const int right_shift =
         10 - (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]);
+    if (right_shift >= 0) {
+      exhaustive_thr >>= right_shift;
+    } else {
+      exhaustive_thr <<= (-right_shift);
+    }
     // Threshold variance for an exhaustive full search.
     if (var > exhaustive_thr) run_mesh_search = 1;
   }
@@ -2855,7 +2873,7 @@ int av1_get_ref_mvpred_var_cost(const AV1_COMP *cpi, const MACROBLOCKD *xd,
   const FullMvLimits *mv_limits = &ms_params->mv_limits;
   const MV *dv = ms_params->mv_cost_params.ref_mv;
   if (!av1_is_dv_valid(*dv, &cpi->common, xd, mi_row, mi_col, bsize,
-                       cpi->common.seq_params.mib_size_log2))
+                       cpi->common.mib_size_log2))
     return INT_MAX;
 
   FULLPEL_MV cur_mv = get_fullmv_from_mv(dv);
@@ -2890,7 +2908,7 @@ void get_default_ref_bv(int_mv *cur_ref_bv,
     const TileInfo *const tile = &fullms_params->xd->tile;
     const AV1_COMMON *cm = fullms_params->cm;
     const int mi_row = fullms_params->mi_row;
-    av1_find_ref_dv(cur_ref_bv, tile, cm->seq_params.mib_size, mi_row);
+    av1_find_ref_dv(cur_ref_bv, tile, cm->mib_size, mi_row);
   }
   // Ref DV should not have sub-pel.
   assert((cur_ref_bv->as_mv.col & 7) == 0);
@@ -3041,7 +3059,7 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
       const MV dv = { GET_MV_SUBPEL(ref_block_hash.y - y_pos),
                       GET_MV_SUBPEL(ref_block_hash.x - x_pos) };
       if (!av1_is_dv_valid(dv, &cpi->common, xd, mi_row, mi_col, bsize,
-                           cpi->common.seq_params.mib_size_log2))
+                           cpi->common.mib_size_log2))
         continue;
 
       FULLPEL_MV hash_mv;

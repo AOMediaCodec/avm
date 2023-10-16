@@ -180,6 +180,14 @@ using std::make_tuple;
 
 #if HAVE_SSSE3
 const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
+#if CONFIG_BLOCK_256
+  make_tuple(&aom_highbd_8_masked_sub_pixel_variance256x256_ssse3,
+             &aom_highbd_8_masked_sub_pixel_variance256x256_c, AOM_BITS_8),
+  make_tuple(&aom_highbd_8_masked_sub_pixel_variance256x128_ssse3,
+             &aom_highbd_8_masked_sub_pixel_variance256x128_c, AOM_BITS_8),
+  make_tuple(&aom_highbd_8_masked_sub_pixel_variance128x256_ssse3,
+             &aom_highbd_8_masked_sub_pixel_variance128x256_c, AOM_BITS_8),
+#endif  // CONFIG_BLOCK_256
   make_tuple(&aom_highbd_8_masked_sub_pixel_variance128x128_ssse3,
              &aom_highbd_8_masked_sub_pixel_variance128x128_c, AOM_BITS_8),
   make_tuple(&aom_highbd_8_masked_sub_pixel_variance128x64_ssse3,
@@ -212,6 +220,15 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
              &aom_highbd_8_masked_sub_pixel_variance4x8_c, AOM_BITS_8),
   make_tuple(&aom_highbd_8_masked_sub_pixel_variance4x4_ssse3,
              &aom_highbd_8_masked_sub_pixel_variance4x4_c, AOM_BITS_8),
+
+#if CONFIG_BLOCK_256
+  make_tuple(&aom_highbd_10_masked_sub_pixel_variance256x256_ssse3,
+             &aom_highbd_10_masked_sub_pixel_variance256x256_c, AOM_BITS_10),
+  make_tuple(&aom_highbd_10_masked_sub_pixel_variance256x128_ssse3,
+             &aom_highbd_10_masked_sub_pixel_variance256x128_c, AOM_BITS_10),
+  make_tuple(&aom_highbd_10_masked_sub_pixel_variance128x256_ssse3,
+             &aom_highbd_10_masked_sub_pixel_variance128x256_c, AOM_BITS_10),
+#endif  // CONFIG_BLOCK_256
   make_tuple(&aom_highbd_10_masked_sub_pixel_variance128x128_ssse3,
              &aom_highbd_10_masked_sub_pixel_variance128x128_c, AOM_BITS_10),
   make_tuple(&aom_highbd_10_masked_sub_pixel_variance128x64_ssse3,
@@ -244,6 +261,15 @@ const HighbdMaskedSubPixelVarianceParam hbd_sub_pel_var_test[] = {
              &aom_highbd_10_masked_sub_pixel_variance4x8_c, AOM_BITS_10),
   make_tuple(&aom_highbd_10_masked_sub_pixel_variance4x4_ssse3,
              &aom_highbd_10_masked_sub_pixel_variance4x4_c, AOM_BITS_10),
+
+#if CONFIG_BLOCK_256
+  make_tuple(&aom_highbd_12_masked_sub_pixel_variance256x256_ssse3,
+             &aom_highbd_12_masked_sub_pixel_variance256x256_c, AOM_BITS_12),
+  make_tuple(&aom_highbd_12_masked_sub_pixel_variance256x128_ssse3,
+             &aom_highbd_12_masked_sub_pixel_variance256x128_c, AOM_BITS_12),
+  make_tuple(&aom_highbd_12_masked_sub_pixel_variance128x256_ssse3,
+             &aom_highbd_12_masked_sub_pixel_variance128x256_c, AOM_BITS_12),
+#endif  // CONFIG_BLOCK_256
   make_tuple(&aom_highbd_12_masked_sub_pixel_variance128x128_ssse3,
              &aom_highbd_12_masked_sub_pixel_variance128x128_c, AOM_BITS_12),
   make_tuple(&aom_highbd_12_masked_sub_pixel_variance128x64_ssse3,

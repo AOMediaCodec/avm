@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "av1/common/av1_common_int.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
@@ -245,59 +246,6 @@ double av1_get_compression_ratio(const AV1_COMMON *const cm,
   return uncompressed_frame_size / (double)encoded_frame_size;
 }
 
-static void set_tile_info(AV1_COMMON *const cm,
-                          const TileConfig *const tile_cfg) {
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  CommonTileParams *const tiles = &cm->tiles;
-  int i, start_sb;
-
-  av1_get_tile_limits(cm);
-
-  // configure tile columns
-  if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
-    tiles->uniform_spacing = 1;
-    tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
-    tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
-  } else {
-    int mi_cols =
-        ALIGN_POWER_OF_TWO(mi_params->mi_cols, seq_params->mib_size_log2);
-    int sb_cols = mi_cols >> seq_params->mib_size_log2;
-    int size_sb, j = 0;
-    tiles->uniform_spacing = 0;
-    for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
-      tiles->col_start_sb[i] = start_sb;
-      size_sb = tile_cfg->tile_widths[j++];
-      if (j >= tile_cfg->tile_width_count) j = 0;
-      start_sb += AOMMIN(size_sb, tiles->max_width_sb);
-    }
-    tiles->cols = i;
-    tiles->col_start_sb[i] = sb_cols;
-  }
-  av1_calculate_tile_cols(seq_params, mi_params->mi_rows, mi_params->mi_cols,
-                          tiles);
-
-  // configure tile rows
-  if (tiles->uniform_spacing) {
-    tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
-    tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
-  } else {
-    int mi_rows =
-        ALIGN_POWER_OF_TWO(mi_params->mi_rows, seq_params->mib_size_log2);
-    int sb_rows = mi_rows >> seq_params->mib_size_log2;
-    int size_sb, j = 0;
-    for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
-      tiles->row_start_sb[i] = start_sb;
-      size_sb = tile_cfg->tile_heights[j++];
-      if (j >= tile_cfg->tile_height_count) j = 0;
-      start_sb += AOMMIN(size_sb, tiles->max_height_sb);
-    }
-    tiles->rows = i;
-    tiles->row_start_sb[i] = sb_rows;
-  }
-  av1_calculate_tile_rows(seq_params, mi_params->mi_rows, tiles);
-}
-
 static void update_frame_size(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
@@ -314,10 +262,15 @@ static void update_frame_size(AV1_COMP *cpi) {
   if (!is_stat_generation_stage(cpi))
     alloc_context_buffers_ext(cm, &cpi->mbmi_ext_info);
 
-  if (!cpi->seq_params_locked)
-    set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+  const BLOCK_SIZE sb_size = av1_select_sb_size(cpi);
+  if (!cpi->seq_params_locked) {
+    set_sb_size(cm, sb_size);
+  } else {
+    av1_set_frame_sb_size(cm, sb_size);
+  }
+  cpi->td.sb_size = cm->sb_size;
 
-  set_tile_info(cm, &cpi->oxcf.tile_cfg);
+  av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
 }
 
 static INLINE int does_level_match(int width, int height, double fps,
@@ -645,8 +598,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
-  set_sb_size(seq_params,
-              av1_select_sb_size(cpi));  // set sb size before allocations
+  // set sb size before allocations
+  const BLOCK_SIZE sb_size = av1_select_sb_size(cpi);
+  set_sb_size(cm, sb_size);
+  cpi->td.sb_size = cm->sb_size;
   alloc_compressor_data(cpi);
 
   av1_update_film_grain_parameters(cpi, oxcf);
@@ -909,18 +864,21 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->width = frm_dim_cfg->width;
   cm->height = frm_dim_cfg->height;
 
-  int sb_size = seq_params->sb_size;
+  BLOCK_SIZE sb_size = cm->sb_size;
+  BLOCK_SIZE new_sb_size = av1_select_sb_size(cpi);
   // Superblock size should not be updated after the first key frame.
   if (!cpi->seq_params_locked) {
-    set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+    set_sb_size(cm, new_sb_size);
     for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i)
       seq_params->tier[i] = (oxcf->tier_mask >> i) & 1;
+  } else {
+    av1_set_frame_sb_size(cm, new_sb_size);
   }
+  cpi->td.sb_size = cm->sb_size;
 
-  if (initial_dimensions->width || sb_size != seq_params->sb_size) {
+  if (initial_dimensions->width || sb_size != cm->sb_size) {
     if (cm->width > initial_dimensions->width ||
-        cm->height > initial_dimensions->height ||
-        seq_params->sb_size != sb_size) {
+        cm->height > initial_dimensions->height || cm->sb_size != sb_size) {
       av1_free_context_buffers(cm);
       av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
       av1_free_sms_tree(&cpi->td);
@@ -938,7 +896,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   rc->is_src_frame_alt_ref = 0;
 
-  set_tile_info(cm, &cpi->oxcf.tile_cfg);
+  av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
 
   cpi->ext_flags.refresh_frame.update_pending = 0;
   cpi->ext_flags.refresh_frame_context_pending = 0;
@@ -2341,6 +2299,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     if (cm->cdef_info.cdef_frame_enable)
 #endif  // CONFIG_FIX_CDEF_SYNTAX
       av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, cdef_time);
 #endif

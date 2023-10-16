@@ -36,7 +36,7 @@ typedef struct {
 typedef struct PICK_MODE_CONTEXT {
   MB_MODE_INFO mic;
 #if CONFIG_C071_SUBBLK_WARPMV
-  SUBMB_INFO submic[MAX_MIB_SIZE * MAX_MIB_SIZE];
+  SUBMB_INFO *submic;
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   MB_MODE_INFO_EXT_FRAME mbmi_ext_best;
   uint8_t *color_index_map[2];

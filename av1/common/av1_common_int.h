@@ -1777,6 +1777,18 @@ typedef struct AV1Common {
   int16_t *gy1;
 #endif  // CONFIG_OPTFLOW_ON_TIP
 #endif  // CONFIG_TIP
+  /*!
+   * Size of the superblock used for this frame.
+   */
+  BLOCK_SIZE sb_size;
+  /*!
+   * Size of the superblock used for this frame in units of MI.
+   */
+  int mib_size;
+  /*!
+   * Log2 of the size of the superblock in units of MI.
+   */
+  int mib_size_log2;
 
 #if CONFIG_INSPECTION
   YV12_BUFFER_CONFIG predicted_pixels;
@@ -2411,7 +2423,11 @@ static INLINE void partition_gather_horz_alike(aom_cdf_prob *out,
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_B);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
+#if CONFIG_BLOCK_256
+  if (bsize < BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_4);
+#else
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_HORZ_4);
+#endif  // CONFIG_BLOCK_256
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -2426,7 +2442,11 @@ static INLINE void partition_gather_vert_alike(aom_cdf_prob *out,
   out[0] -= cdf_element_prob(in, PARTITION_HORZ_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_A);
   out[0] -= cdf_element_prob(in, PARTITION_VERT_B);
+#if CONFIG_BLOCK_256
+  if (bsize < BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_4);
+#else
   if (bsize != BLOCK_128X128) out[0] -= cdf_element_prob(in, PARTITION_VERT_4);
+#endif  // CONFIG_BLOCK_256
   out[0] = AOM_ICDF(out[0]);
   out[1] = AOM_ICDF(CDF_PROB_TOP);
 }
@@ -2480,6 +2500,26 @@ static INLINE void update_ext_partition_context(MACROBLOCKD *xd, int mi_row,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
+#if CONFIG_BLOCK_256
+/*!\brief Returns the context used by \ref PARTITION_SPLIT. */
+static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
+                                       int mi_col, BLOCK_SIZE bsize) {
+  const int plane = xd->tree_type == CHROMA_PART;
+  const PARTITION_CONTEXT *above_ctx =
+      xd->above_partition_context[plane] + mi_col;
+  const PARTITION_CONTEXT *left_ctx =
+      xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
+  assert(bsize < BLOCK_SIZES);
+  const int bsl_w = mi_size_wide_log2[bsize];
+  const int bsl_h = mi_size_high_log2[bsize];
+
+  const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
+  const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
+
+  return (left * 2 + above) + (bsize == BLOCK_256X256) * PARTITION_PLOFFSET;
+}
+#endif  // CONFIG_BLOCK_256
+
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int mi_col, BLOCK_SIZE bsize) {
   const int plane = xd->tree_type == CHROMA_PART;
@@ -2512,10 +2552,14 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
 // Return the number of elements in the partition CDF when
 // partitioning the (square) block with luma block size of bsize.
 static INLINE int partition_cdf_length(BLOCK_SIZE bsize) {
-  if (bsize <= BLOCK_8X8)
-    return PARTITION_TYPES;
+  if (bsize <= BLOCK_8X8) return PARTITION_TYPES;
+#if CONFIG_BLOCK_256
+  else if (bsize >= BLOCK_128X128)
+    return EXT_PARTITION_TYPES - 2;
+#else
   else if (bsize == BLOCK_128X128)
     return EXT_PARTITION_TYPES - 2;
+#endif  // CONFIG_BLOCK_256
   else
     return EXT_PARTITION_TYPES;
 }
@@ -2528,8 +2572,7 @@ static INLINE void av1_zero_above_context(AV1_COMMON *const cm,
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int num_planes = av1_num_planes(cm);
   const int width = mi_col_end - mi_col_start;
-  const int aligned_width =
-      ALIGN_POWER_OF_TWO(width, seq_params->mib_size_log2);
+  const int aligned_width = ALIGN_POWER_OF_TWO(width, cm->mib_size_log2);
   const int offset_y = mi_col_start;
   const int width_y = aligned_width;
   const int offset_uv = offset_y >> seq_params->subsampling_x;
@@ -2593,15 +2636,15 @@ static INLINE void av1_zero_left_context(MACROBLOCKD *const xd) {
 #endif
 
 #if !CONFIG_TX_PARTITION_CTX
-static INLINE void set_txfm_ctx(TXFM_CONTEXT *txfm_ctx, uint8_t txs, int len) {
+static INLINE void set_txfm_ctx(TXFM_CONTEXT *txfm_ctx, uint16_t txs, int len) {
   int i;
   for (i = 0; i < len; ++i) txfm_ctx[i] = txs;
 }
 
 static INLINE void set_txfm_ctxs(TX_SIZE tx_size, int n4_w, int n4_h, int skip,
                                  const MACROBLOCKD *xd) {
-  uint8_t bw = tx_size_wide[tx_size];
-  uint8_t bh = tx_size_high[tx_size];
+  uint16_t bw = tx_size_wide[tx_size];
+  uint16_t bh = tx_size_high[tx_size];
 
   if (skip) {
     bw = n4_w * MI_SIZE;
@@ -2694,7 +2737,11 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
 // Currently this is set to BLOCK_128X128 (e.g. chroma always follows luma at
 // BLOCK_128X128, but can be de-coupled later).
 static AOM_INLINE bool is_bsize_above_decoupled_thresh(BLOCK_SIZE bsize) {
+#if CONFIG_BLOCK_256
+  return bsize >= BLOCK_128X128 && bsize <= BLOCK_256X256;
+#else
   return bsize == BLOCK_128X128;
+#endif  // CONFIG_BLOCK_256
 }
 
 // Whether the partition tree contains a block size that is strictly smaller
@@ -2777,7 +2824,7 @@ static INLINE int check_is_chroma_size_valid(
 }
 
 // Returns true if partition is implied for blocks near bottom/right
-// border, and not signaled in the bistream. And when it returns true, it also
+// border, and not signaled in the bitstream. And when it returns true, it also
 // sets `implied_partition` appropriately.
 // Note: `implied_partition` can be passed NULL.
 static AOM_INLINE bool is_partition_implied_at_boundary(
@@ -2859,6 +2906,43 @@ static AOM_INLINE bool is_partition_implied_at_boundary(
   return is_implied;
 }
 
+/*!\brief Returns the partition type forced by the bitstream constraint.
+ *
+ * \return A \ref PARTITION_TYPE that corresponds to the one forced by the
+ * bitstream. If no partition type is forced, returns \ref PARTITION_INVALID.
+ */
+static AOM_INLINE PARTITION_TYPE av1_get_normative_forced_partition_type(
+    const CommonModeInfoParams *const mi_params, TREE_TYPE tree_type, int ss_x,
+    int ss_y, int mi_row, int mi_col, BLOCK_SIZE bsize,
+    const PARTITION_TREE *ptree_luma, const CHROMA_REF_INFO *chroma_ref_info) {
+  // Return NONE if this block size is not splittable
+  if (!is_partition_point(bsize)) {
+    return PARTITION_NONE;
+  }
+
+  // Special case where 8x8 chroma blocks are not splittable.
+  // TODO(chiyotsai@google.com): This should be moved into `is_partition_point`,
+  // but this will require too many lines of change to do right now.
+  if (tree_type == CHROMA_PART && bsize == BLOCK_8X8) {
+    return PARTITION_NONE;
+  }
+
+  // Partitions forced by SDP
+  if (is_luma_chroma_share_same_partition(tree_type, ptree_luma, bsize)) {
+    assert(ptree_luma);
+    return sdp_chroma_part_from_luma(bsize, ptree_luma->partition, ss_x, ss_y);
+  }
+
+  // Partitions forced by boundary
+  PARTITION_TYPE implied_partition;
+  const bool is_part_implied = is_partition_implied_at_boundary(
+      mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, chroma_ref_info,
+      &implied_partition);
+  if (is_part_implied) return implied_partition;
+
+  // No forced partitions
+  return PARTITION_INVALID;
+}
 #else
 // Return the number of sub-blocks whose width and height are
 // less than half of the parent block.
@@ -2913,6 +2997,9 @@ static INLINE void txfm_partition_update(TXFM_CONTEXT *above_ctx,
 
 static INLINE TX_SIZE get_sqr_tx_size(int tx_dim) {
   switch (tx_dim) {
+#if CONFIG_BLOCK_256
+    case 256:
+#endif  // CONFIG_BLOCK_256
     case 128:
     case 64: return TX_64X64; break;
     case 32: return TX_32X32; break;
@@ -3226,11 +3313,27 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
   return base_partitions[split_idx];
 }
 
-static INLINE void set_sb_size(SequenceHeader *const seq_params,
-                               BLOCK_SIZE sb_size) {
+static AOM_INLINE void av1_set_frame_sb_size(AV1_COMMON *cm,
+                                             BLOCK_SIZE sb_size) {
+#if CONFIG_BLOCK_256
+  // BLOCK_256X256 gives no benefits in all intra encoding, so downsize the
+  // superblock size to 128x128 on key frames.
+  if (frame_is_intra_only(cm) && sb_size == BLOCK_256X256) {
+    sb_size = BLOCK_128X128;
+  }
+#endif  // CONFIG_BLOCK_256
+  cm->sb_size = sb_size;
+  cm->mib_size = mi_size_wide[sb_size];
+  cm->mib_size_log2 = mi_size_wide_log2[sb_size];
+}
+
+static INLINE void set_sb_size(AV1_COMMON *cm, BLOCK_SIZE sb_size) {
+  SequenceHeader *const seq_params = &cm->seq_params;
   seq_params->sb_size = sb_size;
-  seq_params->mib_size = mi_size_wide[seq_params->sb_size];
-  seq_params->mib_size_log2 = mi_size_wide_log2[seq_params->sb_size];
+  seq_params->mib_size = mi_size_wide[sb_size];
+  seq_params->mib_size_log2 = mi_size_wide_log2[sb_size];
+
+  av1_set_frame_sb_size(cm, sb_size);
 }
 
 #if CONFIG_LR_FLEX_SYNTAX
@@ -3272,8 +3375,8 @@ static INLINE void av1_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,
 
 static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,
                                        int mi_col) {
-  const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
-  const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
+  const int sb_row = mi_row >> cm->mib_size_log2;
+  const int sb_col = mi_col >> cm->mib_size_log2;
   return cm->sbi_params.sbi_grid_base + sb_row * cm->sbi_params.sbi_stride +
          sb_col;
 }
@@ -3506,7 +3609,7 @@ static INLINE void init_ibp_info_per_mode(
   const int dy = second_dr_intra_derivative[angle];
 #endif  // CONFIG_EXT_DIR
   weights[block_idx][mode_idx] =
-      (uint8_t *)(aom_calloc(txw * txh, sizeof(uint8_t)));
+      (uint8_t *)(aom_malloc(txw * txh * sizeof(uint8_t)));
   av1_dr_prediction_z1_info(weights[block_idx][mode_idx], txw, txh, txw_log2,
                             txh_log2, dy, mode);
   return;

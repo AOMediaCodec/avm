@@ -42,6 +42,17 @@ static INLINE unsigned int highbd_sad(const uint16_t *a, int a_stride,
     return highbd_sad(src, src_stride, ref, ref_stride, m, n);  \
   }
 
+#if CONFIG_BLOCK_256
+// 256X256
+highbd_sadMxN(256, 256);
+
+// 256X128
+highbd_sadMxN(256, 128);
+
+// 128X256
+highbd_sadMxN(128, 256);
+#endif  // CONFIG_BLOCK_256
+
 // 128x128
 highbd_sadMxN(128, 128);
 

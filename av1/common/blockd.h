@@ -432,7 +432,11 @@ typedef struct CHROMA_REF_INFO {
   BLOCK_SIZE bsize_base;
 } CHROMA_REF_INFO;
 
+#if CONFIG_BLOCK_256
+#define INTER_TX_SIZE_BUF_LEN 64
+#else
 #define INTER_TX_SIZE_BUF_LEN 16
+#endif  // CONFIG_BLOCK_256
 #define TXK_TYPE_BUF_LEN 64
 /*!\endcond */
 
@@ -887,6 +891,19 @@ rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
   return RECT_INVALID;
 }
 
+/*!\brief Returns whether square split is allowed for current bsize. */
+static AOM_INLINE bool is_square_split_eligible(BLOCK_SIZE bsize,
+                                                BLOCK_SIZE sb_size) {
+#if CONFIG_BLOCK_256
+  (void)sb_size;
+  return bsize == BLOCK_128X128 || bsize == BLOCK_256X256;
+#else
+  (void)bsize;
+  (void)sb_size;
+  return false;
+#endif  // CONFIG_BLOCK_256
+}
+
 /*!\brief Returns whether the current partition is horizontal type or vertical
  * type. */
 static AOM_INLINE RECT_PART_TYPE get_rect_part_type(PARTITION_TYPE partition) {
@@ -958,6 +975,9 @@ static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
     case BLOCK_32X32: return 3;
     case BLOCK_64X64: return 4;
     case BLOCK_128X128: return 5;
+#if CONFIG_BLOCK_256
+    case BLOCK_256X256: return 6;
+#endif  // CONFIG_BLOCK_256
     default: return SQR_BLOCK_SIZES;
   }
 }
@@ -1020,6 +1040,11 @@ static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
       BLOCK_INVALID,  // BLOCK_64X128
       BLOCK_INVALID,  // BLOCK_128X64
       BLOCK_INVALID,  // BLOCK_128X128
+#if CONFIG_BLOCK_256
+      BLOCK_INVALID,  // BLOCK_128X256
+      BLOCK_INVALID,  // BLOCK_256X128
+      BLOCK_INVALID,  // BLOCK_256X256
+#endif                // CONFIG_BLOCK_256
     };
 
     return mid_sub_block_hpart[bsize];
@@ -1076,9 +1101,9 @@ static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
-#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
   if (p == PARTITION_SPLIT) return 0;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
   if (is_partition_point(bsize))
     return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
   else
@@ -1476,8 +1501,13 @@ typedef struct macroblockd_plane {
   // - Current superblock, on decoder side.
   uint8_t *color_index_map;
 
+#if CONFIG_BLOCK_256
+  // block size in pixels
+  uint16_t width, height;
+#else
   // block size in pixels
   uint8_t width, height;
+#endif  // CONFIG_BLOCK_256
 
   qm_val_t *seg_iqmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
   qm_val_t *seg_qmatrix[MAX_SEGMENTS][TX_SIZES_ALL];
@@ -2772,13 +2802,91 @@ static INLINE BLOCK_SIZE get_mb_plane_block_size_from_tree_type(
 static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
   static const uint8_t tw_w_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 0, 1, 1, 2, 2, 3,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+#if CONFIG_BLOCK_256
+    3,
+    3,
+    3,
+#endif  // CONFIG_BLOCK_256
+    0,
+    1,
+    1,
+    2,
+    2,
+    3,
   };
   static const uint8_t tw_h_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 1, 0, 2, 1, 3, 2,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+#if CONFIG_BLOCK_256
+    3,
+    3,
+    3,
+#endif  // CONFIG_BLOCK_256
+    1,
+    0,
+    2,
+    1,
+    3,
+    2,
   };
   static const uint8_t stride_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 2, 2, 0, 1, 0, 1, 0, 1,
+    0,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    3,
+    3,
+#endif  // CONFIG_BLOCK_256
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
   };
   const int index =
       ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
@@ -2816,13 +2924,91 @@ static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
   return index;
 #endif  // CONFIG_NEW_TX_PARTITION
   static const uint8_t tw_w_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 0, 0, 1, 1, 2, 2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+#endif  // CONFIG_BLOCK_256
+    0,
+    0,
+    1,
+    1,
+    2,
+    2,
   };
   static const uint8_t tw_h_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 0, 0, 1, 1, 2, 2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+#endif  // CONFIG_BLOCK_256
+    0,
+    0,
+    1,
+    1,
+    2,
+    2,
   };
   static const uint8_t stride_log2_table[BLOCK_SIZES_ALL] = {
-    0, 0, 1, 1, 1, 2, 2, 1, 2, 2, 1, 2, 2, 2, 3, 3, 0, 2, 0, 2, 0, 2,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    1,
+    2,
+    2,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+#if CONFIG_BLOCK_256
+    3,
+    4,
+    4,
+#endif  // CONFIG_BLOCK_256
+    0,
+    2,
+    0,
+    2,
+    0,
+    2,
   };
   index = ((blk_row >> tw_h_log2_table[bsize]) << stride_log2_table[bsize]) +
           (blk_col >> tw_w_log2_table[bsize]);
@@ -3127,7 +3313,33 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
  */
 static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
   static const uint8_t bsize_to_max_depth_table[BLOCK_SIZES_ALL] = {
-    0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+#if CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+#endif  // CONFIG_BLOCK_256
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
   };
   return bsize_to_max_depth_table[bsize];
 }
@@ -3147,7 +3359,33 @@ static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
 static INLINE int bsize_to_tx_size_cat(BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
   static const uint8_t bsize_to_tx_size_depth_table[BLOCK_SIZES_ALL] = {
-    0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4, 2, 2, 3, 3, 4, 4,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+#if CONFIG_BLOCK_256
+    4,
+    4,
+    4,
+#endif  // CONFIG_BLOCK_256
+    2,
+    2,
+    3,
+    3,
+    4,
+    4,
   };
   const int depth = bsize_to_tx_size_depth_table[bsize];
   assert(depth <= MAX_TX_CATS);
@@ -3385,8 +3623,12 @@ static INLINE int is_motion_variation_allowed_compound(
   return !has_second_ref(mbmi);
 }
 
+#if CONFIG_BLOCK_256
+static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4, 4 };
+#else
 // input: log2 of length, 0(4), 1(8), ...
-static const int max_neighbor_obmc[6] = { 0, 1, 2, 3, 4, 4 };
+static const int max_neighbor_obmc[MAX_SB_SIZE - 1] = { 0, 1, 2, 3, 4, 4 };
+#endif  // BLOCK_256
 
 static INLINE int check_num_overlappable_neighbors(const MB_MODE_INFO *mbmi) {
   return !(mbmi->overlappable_neighbors[0] == 0 &&

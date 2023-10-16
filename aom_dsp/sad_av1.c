@@ -57,6 +57,11 @@ static INLINE unsigned int highbd_masked_sad(const uint16_t *src,
                                ref_stride, msk, msk_stride, m, n);            \
   }
 
+#if CONFIG_BLOCK_256
+HIGHBD_MASKSADMXN(256, 256)
+HIGHBD_MASKSADMXN(256, 128)
+HIGHBD_MASKSADMXN(128, 256)
+#endif  // CONFIG_BLOCK_256
 HIGHBD_MASKSADMXN(128, 128)
 HIGHBD_MASKSADMXN(128, 64)
 HIGHBD_MASKSADMXN(64, 128)
@@ -113,6 +118,11 @@ static INLINE unsigned int highbd_obmc_sad(const uint16_t *pre, int pre_stride,
   }
 
 /* clang-format off */
+#if CONFIG_BLOCK_256
+HIGHBD_OBMCSADMXN(256, 256)
+HIGHBD_OBMCSADMXN(256, 128)
+HIGHBD_OBMCSADMXN(128, 256)
+#endif  // CONFIG_BLOCK_256
 HIGHBD_OBMCSADMXN(128, 128)
 HIGHBD_OBMCSADMXN(128, 64)
 HIGHBD_OBMCSADMXN(64, 128)

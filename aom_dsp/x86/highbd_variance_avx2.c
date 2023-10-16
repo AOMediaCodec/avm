@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <immintrin.h>  // AVX2
 
+#include "aom_ports/mem.h"
 #include "config/aom_dsp_rtcd.h"
 #include "aom_dsp/aom_filter.h"
 #include "aom_dsp/x86/synonyms.h"
@@ -758,6 +759,11 @@ static AOM_INLINE void highbd_8_variance_avx2(
     return (var >= 0) ? (uint32_t)var : 0;                                 \
   }
 
+#if CONFIG_BLOCK_256
+VAR_FN(256, 256, 16, 16);
+VAR_FN(256, 128, 16, 15);
+VAR_FN(128, 256, 16, 15);
+#endif  // CONFIG_BLOCK_256
 VAR_FN(128, 128, 16, 14);
 VAR_FN(128, 64, 16, 13);
 VAR_FN(64, 128, 16, 13);
@@ -777,6 +783,11 @@ VAR_FN(16, 64, 16, 10);
 VAR_FN(64, 16, 16, 10);
 VAR_FN(8, 16, 8, 7);
 
+#if CONFIG_BLOCK_256
+VAR_FN_BD12(256, 256, 8, 16);
+VAR_FN_BD12(256, 128, 8, 15);
+VAR_FN_BD12(128, 256, 8, 15);
+#endif  // CONFIG_BLOCK_256
 VAR_FN_BD12(128, 128, 8, 14);
 VAR_FN_BD12(128, 64, 8, 13);
 VAR_FN_BD12(64, 128, 8, 13);
@@ -853,6 +864,11 @@ VAR_FN_BD12(8, 16, 8, 7);
     return (var > 0) ? var : 0;                                               \
   }
 
+#if CONFIG_BLOCK_256
+HIGHBD_SUBPIX_VAR(256, 256, 16);
+HIGHBD_SUBPIX_VAR(256, 128, 15);
+HIGHBD_SUBPIX_VAR(128, 256, 15);
+#endif  // CONFIG_BLOCK_256
 HIGHBD_SUBPIX_VAR(128, 128, 14);
 HIGHBD_SUBPIX_VAR(128, 64, 13);
 HIGHBD_SUBPIX_VAR(64, 128, 13);
@@ -870,6 +886,11 @@ HIGHBD_SUBPIX_VAR(16, 64, 10);
 HIGHBD_SUBPIX_VAR(32, 8, 8);
 HIGHBD_SUBPIX_VAR(16, 4, 6);
 
+#if CONFIG_BLOCK_256
+// HIGHBD_SUBPIX_VAR_BD12(256, 256, 16);
+// HIGHBD_SUBPIX_VAR_BD12(256, 128, 15);
+// HIGHBD_SUBPIX_VAR_BD12(128, 256, 15);
+#endif  // CONFIG_BLOCK_256
 // HIGHBD_SUBPIX_VAR_BD12(128, 128, 14);
 // HIGHBD_SUBPIX_VAR_BD12(128, 64, 13);
 // HIGHBD_SUBPIX_VAR_BD12(64, 128, 13);

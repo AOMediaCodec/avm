@@ -208,6 +208,11 @@ SUBTRACT_FUN(64x64) { STACK_V(32, subtract_64x32); }
 SUBTRACT_FUN(64x128) { STACK_V(64, subtract_64x64); }
 SUBTRACT_FUN(128x64) { STACK_H(64, subtract_64x64); }
 SUBTRACT_FUN(128x128) { STACK_V(64, subtract_128x64); }
+#if CONFIG_BLOCK_256
+SUBTRACT_FUN(128x256) { STACK_V(128, subtract_128x128); }
+SUBTRACT_FUN(256x128) { STACK_H(128, subtract_128x128); }
+SUBTRACT_FUN(256x256) { STACK_V(128, subtract_256x128); }
+#endif  // CONFIG_BLOCK_256
 SUBTRACT_FUN(4x16) { STACK_V(8, subtract_4x8); }
 SUBTRACT_FUN(16x4) { STACK_H(8, subtract_8x4); }
 SUBTRACT_FUN(8x32) { STACK_V(16, subtract_8x16); }
@@ -249,7 +254,16 @@ static SubtractWxHFuncType getSubtractFunc(int rows, int cols) {
   if (rows == 128) {
     if (cols == 64) return subtract_64x128;
     if (cols == 128) return subtract_128x128;
+#if CONFIG_BLOCK_256
+    if (cols == 256) return subtract_256x128;
+#endif  // CONFIG_BLOCK_256
   }
+#if CONFIG_BLOCK_256
+  if (rows == 256) {
+    if (cols == 128) return subtract_128x256;
+    if (cols == 256) return subtract_256x256;
+  }
+#endif  // CONFIG_BLOCK_256
   assert(0);
   return NULL;
 }

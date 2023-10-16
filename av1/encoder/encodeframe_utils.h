@@ -151,14 +151,13 @@ typedef struct PartitionSearchState {
   // RD cost summed across all blocks of partition type.
   RD_STATS sum_rdc;
 
+#if !CONFIG_EXT_RECUR_PARTITIONS
   // Array holding partition type cost.
   int tmp_partition_cost[PARTITION_TYPES];
-#if CONFIG_EXT_RECUR_PARTITIONS
-  int partition_cost_table[EXT_PARTITION_TYPES];
-#endif
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Pointer to partition cost buffer
-  int *partition_cost;
+  const int *partition_cost;
 
   // RD costs for different partition types.
   int64_t none_rd;
@@ -304,6 +303,9 @@ static BLOCK_SIZE dim_to_size(int dim) {
     case 32: return BLOCK_32X32;
     case 64: return BLOCK_64X64;
     case 128: return BLOCK_128X128;
+#if CONFIG_BLOCK_256
+    case 256: return BLOCK_256X256;
+#endif  // CONFIG_BLOCK_256
     default: assert(0); return 0;
   }
 }
@@ -321,10 +323,8 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
   sb_enc->min_partition_size =
       AOMMAX(sf->part_sf.default_min_partition_size,
              dim_to_size(cpi->oxcf.part_cfg.min_partition_size));
-  sb_enc->max_partition_size =
-      AOMMIN(sb_enc->max_partition_size, cm->seq_params.sb_size);
-  sb_enc->min_partition_size =
-      AOMMIN(sb_enc->min_partition_size, cm->seq_params.sb_size);
+  sb_enc->max_partition_size = AOMMIN(sb_enc->max_partition_size, cm->sb_size);
+  sb_enc->min_partition_size = AOMMIN(sb_enc->min_partition_size, cm->sb_size);
 
   if (use_auto_max_partition(cpi, sb_size, mi_row, mi_col)) {
     float features[FEATURE_SIZE_MAX_MIN_PART_PRED] = { 0.0f };

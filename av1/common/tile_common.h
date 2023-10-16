@@ -59,11 +59,10 @@ AV1PixelRect av1_get_tile_rect(const TileInfo *tile_info,
 
 void av1_get_uniform_tile_size(const struct AV1Common *cm, int *w, int *h);
 void av1_get_tile_limits(struct AV1Common *const cm);
-void av1_calculate_tile_cols(const struct SequenceHeader *const seq_params,
-                             int cm_mi_rows, int cm_mi_cols,
+void av1_calculate_tile_cols(const struct AV1Common *cm, int cm_mi_rows,
+                             int cm_mi_cols,
                              struct CommonTileParams *const tiles);
-void av1_calculate_tile_rows(const struct SequenceHeader *const seq_params,
-                             int cm_mi_rows,
+void av1_calculate_tile_rows(const struct AV1Common *cm, int cm_mi_rows,
                              struct CommonTileParams *const tiles);
 
 // Checks if the minimum tile_width requirement is satisfied

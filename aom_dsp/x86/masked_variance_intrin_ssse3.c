@@ -671,6 +671,11 @@ static void highbd_masked_variance4xh(const uint16_t *src_ptr, int src_stride,
     return (var >= 0) ? (uint32_t)var : 0;                                  \
   }
 
+#if CONFIG_BLOCK_256
+HIGHBD_MASK_SUBPIX_VAR_SSSE3(256, 256)
+HIGHBD_MASK_SUBPIX_VAR_SSSE3(256, 128)
+HIGHBD_MASK_SUBPIX_VAR_SSSE3(128, 256)
+#endif  // CONFIG_BLOCK_256X256
 HIGHBD_MASK_SUBPIX_VAR_SSSE3(128, 128)
 HIGHBD_MASK_SUBPIX_VAR_SSSE3(128, 64)
 HIGHBD_MASK_SUBPIX_VAR_SSSE3(64, 128)

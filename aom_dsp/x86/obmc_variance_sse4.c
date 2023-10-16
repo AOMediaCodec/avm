@@ -213,6 +213,11 @@ static INLINE void highbd_12_obmc_variance(const uint16_t *pre8, int pre_stride,
     return (var >= 0) ? (uint32_t)var : 0;                                 \
   }
 
+#if CONFIG_BLOCK_256
+HBD_OBMCVARWXH(256, 256)
+HBD_OBMCVARWXH(256, 128)
+HBD_OBMCVARWXH(128, 256)
+#endif  // CONFIG_BLOCK_256
 HBD_OBMCVARWXH(128, 128)
 HBD_OBMCVARWXH(128, 64)
 HBD_OBMCVARWXH(64, 128)

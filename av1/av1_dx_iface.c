@@ -1208,7 +1208,7 @@ static aom_codec_err_t ctrl_get_sb_size(aom_codec_alg_priv_t *ctx,
       FrameWorkerData *const frame_worker_data =
           (FrameWorkerData *)worker->data1;
       const AV1Decoder *pbi = frame_worker_data->pbi;
-      if (pbi->common.seq_params.sb_size == BLOCK_128X128) {
+      if (pbi->common.sb_size == BLOCK_128X128) {
         *sb_size = AOM_SUPERBLOCK_SIZE_128X128;
       } else {
         *sb_size = AOM_SUPERBLOCK_SIZE_64X64;

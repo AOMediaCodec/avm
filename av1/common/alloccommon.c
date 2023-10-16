@@ -291,7 +291,7 @@ static int alloc_mi(CommonModeInfoParams *mi_params
 
 static void set_sb_si(AV1_COMMON *cm) {
   CommonSBInfoParams *const sbi_params = &cm->sbi_params;
-  const int mib_size_log2 = cm->seq_params.mib_size_log2;
+  const int mib_size_log2 = cm->mib_size_log2;
   sbi_params->sb_cols =
       ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, mib_size_log2) >> mib_size_log2;
   sbi_params->sb_rows =

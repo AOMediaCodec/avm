@@ -235,8 +235,7 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
-  } else {
-    assert(w == 128);
+  } else if (w == 128) {
     do {
       highbd_copy_128(src, dst);
       src += src_stride;
@@ -246,5 +245,22 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
+  } else {
+#if CONFIG_BLOCK_256
+    assert(w == 256);
+    do {
+      highbd_copy_128(src, dst);
+      highbd_copy_128(src + 128, dst + 128);
+      src += src_stride;
+      dst += dst_stride;
+      highbd_copy_128(src, dst);
+      highbd_copy_128(src + 128, dst + 128);
+      src += src_stride;
+      dst += dst_stride;
+      h -= 2;
+    } while (h);
+#else
+    assert(0);
+#endif  // CONFIG_BLOCK_256
   }
 }

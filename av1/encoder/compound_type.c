@@ -131,6 +131,7 @@ static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
                                   const BLOCK_SIZE bsize, const uint16_t *pred0,
                                   int stride0, const uint16_t *pred1,
                                   int stride1) {
+  /* clang-format off */
   static const BLOCK_SIZE split_qtr[BLOCK_SIZES_ALL] = {
     //                            4X4
     BLOCK_INVALID,
@@ -144,11 +145,16 @@ static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
     BLOCK_16X32, BLOCK_32X16, BLOCK_32X32,
     // 64x128,     128x64,        128x128
     BLOCK_32X64, BLOCK_64X32, BLOCK_64X64,
+#if CONFIG_BLOCK_256
+    // 128X256,    256X128,       256X256
+    BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
+#endif  // CONFIG_BLOCK_256
     // 4X16,       16X4,          8X32
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_4X16,
     // 32X8,       16X64,         64X16
     BLOCK_16X4, BLOCK_8X32, BLOCK_32X8
   };
+  /* clang-format on */
   const struct macroblock_plane *const p = &x->plane[0];
   const uint16_t *src = p->src.buf;
   int src_stride = p->src.stride;

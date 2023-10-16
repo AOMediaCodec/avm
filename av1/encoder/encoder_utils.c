@@ -168,19 +168,171 @@ const int default_tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][TX_TYPES] = {
     { 1024, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
 };
 
-const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = {
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0,  0,  0,  106, 90, 90, 97, 67, 59, 70, 28,
-    30, 38, 16, 16,  16, 0,  0,  44, 50, 26, 25 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0,  0,  0,  98, 93, 97, 68, 82, 85, 33, 30,
-    33, 16, 16, 16, 16, 0,  0,  43, 37, 26, 16 },
-  { 0,  0,  0,  91, 80, 76, 78, 55, 49, 24, 16,
-    16, 16, 16, 16, 16, 0,  0,  29, 45, 16, 38 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0,  0,  0,  103, 89, 89, 89, 62, 63, 76, 34,
-    35, 32, 19, 16,  16, 0,  0,  49, 55, 29, 19 }
+/* clang-format off */
+const int default_obmc_probs[FRAME_UPDATE_TYPES][BLOCK_SIZES_ALL] = { {
+    // BLOCK_4X4
+    0,
+    // BLOCK_4X8 .. BLOCK_8X8
+    0, 0, 0,
+    // BLOCK_8X16 .. BLOCK_16X16
+    0, 0, 0,
+    // BLOCK_16X32 .. BLOCK_32X32
+    0, 0, 0,
+    // BLOCK_32X64 .. BLOCK_64X64
+    0, 0, 0,
+    // BLOCK_64X128 .. BLOCK_128X128
+    0, 0, 0,
+#if CONFIG_BLOCK_256
+    // BLOCK_128X256 .. BLOCK_256X256
+    0, 0, 0,
+#endif  // CONFIG_BLOCK_256
+    // BLOCK_4X16, BLOCK_16X4
+    0, 0,
+    // BLOCK_8X32, BLOCK_32X8
+    0, 0,
+    // BLOCK_16X64, BLOCK_64X16
+    0, 0
+  }, {
+    // BLOCK_4X4
+    0,
+    // BLOCK_4X8 .. BLOCK_8X8
+    0,  0,  106,
+    // BLOCK_8X16 .. BLOCK_16X16
+    90, 90, 97,
+    // BLOCK_16X32 .. BLOCK_32X32
+    67, 59, 70,
+    // BLOCK_32X64 .. BLOCK_64X64
+    28, 30, 38,
+    // BLOCK_64X128 .. BLOCK_128X128
+    16, 16,  16,
+#if CONFIG_BLOCK_256
+    // BLOCK_128X256 .. BLOCK_256X256
+    16, 16,  16,
+#endif  // CONFIG_BLOCK_256
+    // BLOCK_4X16, BLOCK_16X4
+    0,  0,
+    // BLOCK_8X32, BLOCK_32X8
+    44, 50,
+    // BLOCK_16X64, BLOCK_64X16
+    26, 25
+  }, {
+    // BLOCK_4X4
+    0,
+    // BLOCK_4X8 .. BLOCK_8X8
+    0, 0, 0,
+    // BLOCK_8X16 .. BLOCK_16X16
+    0, 0, 0,
+    // BLOCK_16X32 .. BLOCK_32X32
+    0, 0, 0,
+    // BLOCK_32X64 .. BLOCK_64X64
+    0, 0, 0,
+    // BLOCK_64X128 .. BLOCK_128X128
+    0, 0, 0,
+#if CONFIG_BLOCK_256
+    // BLOCK_128X256 .. BLOCK_256X256
+    0, 0, 0,
+#endif  // CONFIG_BLOCK_256
+    // BLOCK_4X16, BLOCK_16X4
+    0, 0,
+    // BLOCK_8X32, BLOCK_32X8
+    0, 0,
+    // BLOCK_16X64, BLOCK_64X16
+    0, 0
+  }, {
+    // BLOCK_4X4
+    0,
+    // BLOCK_4X8 .. BLOCK_8X8
+    0,  0,  98,
+    // BLOCK_8X16 .. BLOCK_16X16
+    93, 97, 68,
+    // BLOCK_16X32 .. BLOCK_32X32
+    82, 85, 33,
+    // BLOCK_32X64 .. BLOCK_64X64
+    30, 33, 16,
+    // BLOCK_64X128 .. BLOCK_128X128
+    16, 16, 16,
+#if CONFIG_BLOCK_256
+    // BLOCK_128X256 .. BLOCK_256X256
+    16, 16, 16,
+#endif  // CONFIG_BLOCK_256
+    // BLOCK_4X16, BLOCK_16X4
+    0,  0,
+    // BLOCK_8X32, BLOCK_32X8
+    43, 37,
+    // BLOCK_16X64, BLOCK_64X16
+    26, 16
+  }, {
+    // BLOCK_4X4
+    0,
+    // BLOCK_4X8 .. BLOCK_8X8
+    0,  0,  91,
+    // BLOCK_8X16 .. BLOCK_16X16
+    80, 76, 78,
+    // BLOCK_16X32 .. BLOCK_32X32
+    55, 49, 24,
+    // BLOCK_32X64 .. BLOCK_64X64
+    16, 16, 16,
+    // BLOCK_64X128 .. BLOCK_128X128
+    16, 16, 16,
+    // BLOCK_128X256 .. BLOCK_256X256
+#if CONFIG_BLOCK_256
+    16, 16, 16,
+#endif  // CONFIG_BLOCK_256
+    // BLOCK_4X16, BLOCK_16X4
+    0,  0,
+    // BLOCK_8X32, BLOCK_32X8
+    29, 45,
+    // BLOCK_16X64, BLOCK_64X16
+    16, 38
+  }, {
+    // BLOCK_4X4
+    0,
+    // BLOCK_4X8 .. BLOCK_8X8
+    0, 0, 0,
+    // BLOCK_8X16 .. BLOCK_16X16
+    0, 0, 0,
+    // BLOCK_16X32 .. BLOCK_32X32
+    0, 0, 0,
+    // BLOCK_32X64 .. BLOCK_64X64
+    0, 0, 0,
+    // BLOCK_64X128 .. BLOCK_128X128
+    0, 0, 0,
+#if CONFIG_BLOCK_256
+    // BLOCK_128X256 .. BLOCK_256X256
+    0, 0, 0,
+#endif  // CONFIG_BLOCK_256
+    // BLOCK_4X16, BLOCK_16X4
+    0, 0,
+    // BLOCK_8X32, BLOCK_32X8
+    0, 0,
+    // BLOCK_16X64, BLOCK_64X16
+    0, 0
+  }, {
+    // BLOCK_4X4
+    0,
+    // BLOCK_4X8 .. BLOCK_8X8
+    0,  0,  103,
+    // BLOCK_8X16 .. BLOCK_16X16
+    89, 89, 89,
+    // BLOCK_16X32 .. BLOCK_32X32
+    62, 63, 76,
+    // BLOCK_32X64 .. BLOCK_64X64
+    34, 35, 32,
+    // BLOCK_64X128 .. BLOCK_128X128
+    19, 16,  16,
+#if CONFIG_BLOCK_256
+    // BLOCK_128X256 .. BLOCK_256X256
+    19, 16,  16,
+#endif  // CONFIG_BLOCK_256
+    // BLOCK_4X16, BLOCK_16X4
+    0,  0,
+    // BLOCK_8X32, BLOCK_32X8
+    49, 55,
+    // BLOCK_16X64, BLOCK_64X16
+    29, 19
+  }
 };
+/* clang-format on */
 
 const int default_warped_probs[FRAME_UPDATE_TYPES] = { 64, 64, 64, 64,
                                                        64, 64, 64 };
@@ -601,8 +753,53 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
       oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed >= 1) {
     return AOMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
   }
-
+#if CONFIG_BLOCK_256
+  return AOMMIN(oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height) >= 720
+             ? BLOCK_256X256
+             : BLOCK_128X128;
+#else
   return BLOCK_128X128;
+#endif  // CONFIG_BLOCK_256
+}
+
+static AOM_INLINE void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
+  // Note: this is heavier than it needs to be. We can avoid reallocating some
+  // of the buffers.
+  AV1_COMMON *const cm = &cpi->common;
+  const int num_planes = av1_num_planes(cm);
+
+  av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
+  av1_free_context_buffers(cm);
+  av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
+  av1_free_sms_tree(&cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_free_sms_bufs(&cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  av1_free_pmc(cpi->td.firstpass_ctx, num_planes);
+  cpi->td.firstpass_ctx = NULL;
+  alloc_compressor_data(cpi);
+  if (av1_alloc_above_context_buffers(&cm->above_contexts, cm->tiles.rows,
+                                      cm->mi_params.mi_cols, num_planes)) {
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate context buffers");
+  }
+
+  const int old_restoration_unit_size = cm->rst_info[0].restoration_unit_size;
+
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int frame_width = cm->superres_upscaled_width;
+  const int frame_height = cm->superres_upscaled_height;
+
+  set_restoration_unit_size(frame_width, frame_height,
+                            seq_params->subsampling_x,
+                            seq_params->subsampling_y, cm->rst_info);
+
+  if (old_restoration_unit_size != cm->rst_info[0].restoration_unit_size) {
+    for (int i = 0; i < num_planes; ++i)
+      cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
+
+    av1_alloc_restoration_buffers(cm);
+  }
 }
 
 void av1_setup_frame(AV1_COMP *cpi) {
@@ -618,10 +815,11 @@ void av1_setup_frame(AV1_COMP *cpi) {
     av1_setup_past_independence(cm);
   }
 
+  const BLOCK_SIZE old_sb_size = cm->sb_size;
   if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame) ||
       frame_is_sframe(cm)) {
     if (!cpi->seq_params_locked) {
-      set_sb_size(&cm->seq_params, av1_select_sb_size(cpi));
+      set_sb_size(cm, av1_select_sb_size(cpi));
     }
   } else {
     const RefCntBuffer *const primary_ref_buf = get_primary_ref_frame_buf(cm);
@@ -632,6 +830,31 @@ void av1_setup_frame(AV1_COMP *cpi) {
     } else {
       *cm->fc = primary_ref_buf->frame_context;
     }
+  }
+  av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
+  cpi->td.sb_size = cm->sb_size;
+  av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
+  if (cm->sb_size != old_sb_size) {
+    av1_free_context_buffers(cm);
+    av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
+    av1_free_sms_tree(&cpi->td);
+#if CONFIG_EXT_RECUR_PARTITIONS
+    av1_free_sms_bufs(&cpi->td);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
+    cpi->td.firstpass_ctx = NULL;
+    alloc_compressor_data(cpi);
+    if (av1_alloc_above_context_buffers(&cm->above_contexts, cm->tiles.rows,
+                                        cm->mi_params.mi_cols,
+                                        av1_num_planes(cm))) {
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate context buffers");
+    }
+  }
+
+  if (cm->seq_params.sb_size != old_sb_size) {
+    // Reallocate sb_size-dependent buffers if the sb_size has changed.
+    reallocate_sb_size_dependent_buffers(cpi);
   }
 
   av1_zero(cm->cur_frame->interp_filter_selected);

@@ -248,6 +248,19 @@ static AOM_INLINE void init_buffer_indices(
            4;                                                               \
   }
 
+#if CONFIG_BLOCK_256
+MAKE_BFP_SAD_WRAPPER(aom_highbd_sad256x256)
+MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad256x256_avg)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad256x256x4d)
+
+MAKE_BFP_SAD_WRAPPER(aom_highbd_sad256x128)
+MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad256x128_avg)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad256x128x4d)
+
+MAKE_BFP_SAD_WRAPPER(aom_highbd_sad128x256)
+MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad128x256_avg)
+MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad128x256x4d)
+#endif  // CONFIG_BLOCK_256
 MAKE_BFP_SAD_WRAPPER(aom_highbd_sad128x128)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad128x128_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad128x128x4d)
@@ -316,6 +329,11 @@ MAKE_BFP_SAD_WRAPPER(aom_highbd_sad64x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad64x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x16x4d)
 
+#if CONFIG_BLOCK_256
+MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad256x256_avg)
+MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad256x128_avg)
+MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x256_avg)
+#endif  // CONFIG_BLOCK_256
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x128_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x64_avg)
 MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x128_avg)
@@ -373,6 +391,11 @@ MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
            4;                                                              \
   }
 
+#if CONFIG_BLOCK_256
+MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad256x256)
+MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad256x128)
+MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad128x256)
+#endif  // CONFIG_BLOCK_256
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad128x128)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad128x64)
 MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x128)
@@ -440,6 +463,11 @@ MAKE_MBFP_COMPOUND_SAD_WRAPPER(aom_highbd_masked_sad64x16)
     for (i = 0; i < 4; i++) sad_array[i] >>= 4;                                \
   }
 
+#if CONFIG_BLOCK_256
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_256x256)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_256x128)
+MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x256)
+#endif  // CONFIG_BLOCK_256
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x128)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_128x64)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_64x128)
@@ -460,6 +488,11 @@ MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_4x16)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_4x8)
 MAKE_SDSF_SKIP_SAD_WRAPPER(aom_highbd_sad_skip_8x32)
 
+#if CONFIG_BLOCK_256
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_256x256x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_256x128x4d)
+MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_128x256x4d)
+#endif  // CONFIG_BLOCK_256
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_128x128x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_128x64x4d)
 MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_64x128x4d)
@@ -514,6 +547,11 @@ MAKE_SDSF_SKIP_SAD_4D_WRAPPER(aom_highbd_sad_skip_8x32x4d)
     return fnname(ref, ref_stride, wsrc, msk) >> 4;                        \
   }
 
+#if CONFIG_BLOCK_256
+MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad256x256)
+MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad256x128)
+MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x256)
+#endif  // CONFIG_BLOCK_256
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x128)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad128x64)
 MAKE_OBFP_SAD_WRAPPER(aom_highbd_obmc_sad64x128)
@@ -563,7 +601,15 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_BFP_WRAPPER(128, 128, 8)
       HIGHBD_BFP_WRAPPER(128, 64, 8)
       HIGHBD_BFP_WRAPPER(64, 128, 8)
+#if CONFIG_BLOCK_256
+      HIGHBD_BFP_WRAPPER(128, 256, 8)
+      HIGHBD_BFP_WRAPPER(256, 128, 8)
+      HIGHBD_BFP_WRAPPER(256, 256, 8)
 
+      HIGHBD_MBFP_WRAPPER(256, 256, 8)
+      HIGHBD_MBFP_WRAPPER(256, 128, 8)
+      HIGHBD_MBFP_WRAPPER(128, 256, 8)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_MBFP_WRAPPER(128, 128, 8)
       HIGHBD_MBFP_WRAPPER(128, 64, 8)
       HIGHBD_MBFP_WRAPPER(64, 128, 8)
@@ -587,6 +633,11 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_MBFP_WRAPPER(16, 4, 8)
       HIGHBD_MBFP_WRAPPER(4, 16, 8)
 
+#if CONFIG_BLOCK_256
+      LOWBD_OBFP_WRAPPER(256, 256)
+      LOWBD_OBFP_WRAPPER(256, 128)
+      LOWBD_OBFP_WRAPPER(128, 256)
+#endif  // CONFIG_BLOCK_128
       LOWBD_OBFP_WRAPPER(128, 128)
       LOWBD_OBFP_WRAPPER(128, 64)
       LOWBD_OBFP_WRAPPER(64, 128)
@@ -610,6 +661,11 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       LOWBD_OBFP_WRAPPER(16, 4)
       LOWBD_OBFP_WRAPPER(4, 16)
 
+#if CONFIG_BLOCK_256
+      HIGHBD_SDSFP_WRAPPER(256, 256, 8)
+      HIGHBD_SDSFP_WRAPPER(256, 128, 8)
+      HIGHBD_SDSFP_WRAPPER(128, 256, 8)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_SDSFP_WRAPPER(128, 128, 8);
       HIGHBD_SDSFP_WRAPPER(128, 64, 8);
       HIGHBD_SDSFP_WRAPPER(64, 128, 8);
@@ -654,7 +710,15 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_BFP_WRAPPER(128, 128, 10)
       HIGHBD_BFP_WRAPPER(128, 64, 10)
       HIGHBD_BFP_WRAPPER(64, 128, 10)
+#if CONFIG_BLOCK_256
+      HIGHBD_BFP_WRAPPER(128, 256, 10)
+      HIGHBD_BFP_WRAPPER(256, 128, 10)
+      HIGHBD_BFP_WRAPPER(256, 256, 10)
 
+      HIGHBD_MBFP_WRAPPER(256, 256, 10)
+      HIGHBD_MBFP_WRAPPER(256, 128, 10)
+      HIGHBD_MBFP_WRAPPER(128, 256, 10)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_MBFP_WRAPPER(128, 128, 10)
       HIGHBD_MBFP_WRAPPER(128, 64, 10)
       HIGHBD_MBFP_WRAPPER(64, 128, 10)
@@ -678,6 +742,11 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_MBFP_WRAPPER(16, 4, 10)
       HIGHBD_MBFP_WRAPPER(4, 16, 10)
 
+#if CONFIG_BLOCK_256
+      HIGHBD_OBFP_WRAPPER(256, 256, 10)
+      HIGHBD_OBFP_WRAPPER(256, 128, 10)
+      HIGHBD_OBFP_WRAPPER(128, 256, 10)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_OBFP_WRAPPER(128, 128, 10)
       HIGHBD_OBFP_WRAPPER(128, 64, 10)
       HIGHBD_OBFP_WRAPPER(64, 128, 10)
@@ -701,6 +770,11 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_OBFP_WRAPPER(16, 4, 10)
       HIGHBD_OBFP_WRAPPER(4, 16, 10)
 
+#if CONFIG_BLOCK_256
+      HIGHBD_SDSFP_WRAPPER(256, 256, 10)
+      HIGHBD_SDSFP_WRAPPER(256, 128, 10)
+      HIGHBD_SDSFP_WRAPPER(128, 256, 10)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_SDSFP_WRAPPER(128, 128, 10);
       HIGHBD_SDSFP_WRAPPER(128, 64, 10);
       HIGHBD_SDSFP_WRAPPER(64, 128, 10);
@@ -745,7 +819,15 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_BFP_WRAPPER(128, 128, 12)
       HIGHBD_BFP_WRAPPER(128, 64, 12)
       HIGHBD_BFP_WRAPPER(64, 128, 12)
+#if CONFIG_BLOCK_256
+      HIGHBD_BFP_WRAPPER(128, 256, 12)
+      HIGHBD_BFP_WRAPPER(256, 128, 12)
+      HIGHBD_BFP_WRAPPER(256, 256, 12)
 
+      HIGHBD_MBFP_WRAPPER(128, 256, 12)
+      HIGHBD_MBFP_WRAPPER(256, 128, 12)
+      HIGHBD_MBFP_WRAPPER(256, 256, 12)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_MBFP_WRAPPER(128, 128, 12)
       HIGHBD_MBFP_WRAPPER(128, 64, 12)
       HIGHBD_MBFP_WRAPPER(64, 128, 12)
@@ -769,6 +851,11 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_MBFP_WRAPPER(16, 4, 12)
       HIGHBD_MBFP_WRAPPER(4, 16, 12)
 
+#if CONFIG_BLOCK_256
+      HIGHBD_OBFP_WRAPPER(256, 256, 12)
+      HIGHBD_OBFP_WRAPPER(256, 128, 12)
+      HIGHBD_OBFP_WRAPPER(128, 256, 12)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_OBFP_WRAPPER(128, 128, 12)
       HIGHBD_OBFP_WRAPPER(128, 64, 12)
       HIGHBD_OBFP_WRAPPER(64, 128, 12)
@@ -792,6 +879,11 @@ static AOM_INLINE void highbd_set_var_fns(AV1_COMP *const cpi) {
       HIGHBD_OBFP_WRAPPER(16, 4, 12)
       HIGHBD_OBFP_WRAPPER(4, 16, 12)
 
+#if CONFIG_BLOCK_256
+      HIGHBD_SDSFP_WRAPPER(256, 256, 12)
+      HIGHBD_SDSFP_WRAPPER(256, 128, 12)
+      HIGHBD_SDSFP_WRAPPER(128, 256, 12)
+#endif  // CONFIG_BLOCK_128
       HIGHBD_SDSFP_WRAPPER(128, 128, 12);
       HIGHBD_SDSFP_WRAPPER(128, 64, 12);
       HIGHBD_SDSFP_WRAPPER(64, 128, 12);
@@ -996,6 +1088,54 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi);
 
 void av1_save_all_coding_context(AV1_COMP *cpi);
 
+static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
+                                         const TileConfig *const tile_cfg) {
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  CommonTileParams *const tiles = &cm->tiles;
+  int i, start_sb;
+
+  av1_get_tile_limits(cm);
+
+  // configure tile columns
+  if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
+    tiles->uniform_spacing = 1;
+    tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
+    tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
+  } else {
+    int mi_cols = ALIGN_POWER_OF_TWO(mi_params->mi_cols, cm->mib_size_log2);
+    int sb_cols = mi_cols >> cm->mib_size_log2;
+    int size_sb, j = 0;
+    tiles->uniform_spacing = 0;
+    for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
+      tiles->col_start_sb[i] = start_sb;
+      size_sb = tile_cfg->tile_widths[j++];
+      if (j >= tile_cfg->tile_width_count) j = 0;
+      start_sb += AOMMIN(size_sb, tiles->max_width_sb);
+    }
+    tiles->cols = i;
+    tiles->col_start_sb[i] = sb_cols;
+  }
+  av1_calculate_tile_cols(cm, mi_params->mi_rows, mi_params->mi_cols, tiles);
+
+  // configure tile rows
+  if (tiles->uniform_spacing) {
+    tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
+    tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
+  } else {
+    int mi_rows = ALIGN_POWER_OF_TWO(mi_params->mi_rows, cm->mib_size_log2);
+    int sb_rows = mi_rows >> cm->mib_size_log2;
+    int size_sb, j = 0;
+    for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
+      tiles->row_start_sb[i] = start_sb;
+      size_sb = tile_cfg->tile_heights[j++];
+      if (j >= tile_cfg->tile_height_count) j = 0;
+      start_sb += AOMMIN(size_sb, tiles->max_height_sb);
+    }
+    tiles->rows = i;
+    tiles->row_start_sb[i] = sb_rows;
+  }
+  av1_calculate_tile_rows(cm, mi_params->mi_rows, tiles);
+}
 #ifdef __cplusplus
 }  // extern "C"
 #endif

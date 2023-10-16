@@ -904,14 +904,16 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
   const int sb_size = max_mib_size * MI_SIZE;
   const int src_sb_row = ((src_bottom_edge >> 3) - 1) / sb_size;
   const int src_sb64_col = ((src_right_edge >> 3) - 1) >> 6;
+
   const int total_sb64_per_row =
-      ((tile->mi_col_end - tile->mi_col_start - 1) >> 4) + 1;
+      (((tile->mi_col_end - tile->mi_col_start - 1) >> 4) + 1);
   const int active_sb64 = active_sb_row * total_sb64_per_row + active_sb64_col;
   const int src_sb64 = src_sb_row * total_sb64_per_row + src_sb64_col;
   if (src_sb64 >= active_sb64 - INTRABC_DELAY_SB64) return 0;
 
   // Wavefront constraint: use only top left area of frame for reference.
-  const int gradient = 1 + INTRABC_DELAY_SB64 + (sb_size > 64);
+  const int gradient =
+      1 + INTRABC_DELAY_SB64 + (sb_size > 64) + 2 * (sb_size > 128);
   const int wf_offset = gradient * (active_sb_row - src_sb_row);
   if (src_sb_row > active_sb_row ||
       src_sb64_col >= active_sb64_col - INTRABC_DELAY_SB64 + wf_offset)

@@ -2859,7 +2859,7 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
                                        int *rrow1) {
   assert(rcol0 && rcol1 && rrow0 && rrow1);
 
-  if (bsize != cm->seq_params.sb_size) return 0;
+  if (bsize != cm->sb_size) return 0;
 
   assert(!cm->features.all_lossless);
 

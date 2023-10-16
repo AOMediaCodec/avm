@@ -269,6 +269,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   }
 
   cm->seq_params = *seq_params;
+  av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
   pbi->sequence_header_ready = 1;
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);

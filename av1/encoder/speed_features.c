@@ -309,6 +309,9 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.prune_ref_mv_idx_search = 1;
     }
   }
+#if CONFIG_BLOCK_256
+  sf->part_sf.use_square_partition_only_threshold = BLOCK_MAX;
+#endif  // CONFIG_BLOCK_256
 }
 
 static void set_good_speed_features_framesize_independent(
@@ -393,6 +396,9 @@ static void set_good_speed_features_framesize_independent(
   } else {
     sf->mv_sf.exhaustive_searches_thresh = (1 << 25);
   }
+#if CONFIG_BLOCK_256
+  sf->mv_sf.fast_motion_estimation_on_block_256 = 1;
+#endif  // CONFIG_BLOCK_256
 
   sf->rd_sf.perform_coeff_opt = 1;
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
@@ -754,6 +760,10 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
   part_sf->ext_recur_depth = INT_MAX;
+#if CONFIG_BLOCK_256
+  part_sf->prune_rect_with_split_depth = 0;
+  part_sf->search_256_after_128 = 0;
+#endif  // CONFIG_BLOCK_256
   part_sf->prune_part_h_with_partition_boundary = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
@@ -780,6 +790,9 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->use_downsampled_sad = 0;
   mv_sf->warp_search_method = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_iters = 8;
+#if CONFIG_BLOCK_256
+  mv_sf->fast_motion_estimation_on_block_256 = 0;
+#endif  // CONFIG_BLOCK_256
 }
 
 #if CONFIG_FLEX_MVRES
@@ -990,6 +1003,12 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
       } else {
         sf->part_sf.partition_search_breakout_dist_thr = (1 << 22);
       }
+#if CONFIG_BLOCK_256
+      const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+      if (is_720p_or_larger) {
+        sf->part_sf.prune_rect_with_split_depth = 1;
+      }
+#endif  // CONFIG_BLOCK_256
       sf->part_sf.partition_search_breakout_rate_thr = 100;
       AOM_FALLTHROUGH_INTENDED;
     case 4: AOM_FALLTHROUGH_INTENDED;
@@ -1069,6 +1088,9 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       sf->inter_sf.reuse_erp_mode_flag =
           (REUSE_PARTITION_MODE_FLAG | REUSE_INTERFRAME_FLAG);
       sf->part_sf.prune_rect_with_none_rd = 1;
+#if CONFIG_BLOCK_256
+      sf->part_sf.search_256_after_128 = 1;
+#endif  // CONFIG_BLOCK_256
       AOM_FALLTHROUGH_INTENDED;
     case 0: break;
     default: assert(0 && "Invalid ERP pruning level.");

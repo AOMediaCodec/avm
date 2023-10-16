@@ -812,7 +812,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   const int comp_bw = bw >> ss_x;
   const int comp_bh = bh >> ss_y;
 
-  MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));
+  MB_MODE_INFO mbmi_buf;
+  MB_MODE_INFO *mbmi = &mbmi_buf;
 
   int_mv mv_refined[2 * 4];
 
@@ -982,7 +983,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   }
 
   xd->tmp_conv_dst = org_buf;
-  aom_free(mbmi);
 }
 #endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_REFINEMV
 

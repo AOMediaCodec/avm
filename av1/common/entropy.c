@@ -336,6 +336,14 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
       RESET_CDF_COUNTER(fc->do_split_cdf[plane_index][i], 2);
     }
   }
+#if CONFIG_BLOCK_256
+  for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
+       plane_index++) {
+    for (int i = 0; i < SQUARE_SPLIT_CONTEXTS; i++) {
+      RESET_CDF_COUNTER(fc->do_square_split_cdf[plane_index][i], 2);
+    }
+  }
+#endif  // CONFIG_BLOCK_256
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;
        plane_index++) {
     for (int i = 0; i < PARTITION_CONTEXTS; i++) {

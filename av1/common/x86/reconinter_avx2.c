@@ -165,7 +165,7 @@ static INLINE void build_compound_diffwtd_mask_d16_avx2(
       mask += 64;
       i += 1;
     } while (i < h);
-  } else {
+  } else if (w == 128) {
     do {
       const __m256i s0A = yy_loadu_256(src0);
       const __m256i s0B = yy_loadu_256(src0 + 16);
@@ -212,6 +212,64 @@ static INLINE void build_compound_diffwtd_mask_d16_avx2(
       mask += 128;
       i += 1;
     } while (i < h);
+  } else {
+#if CONFIG_BLOCK_256
+    assert(w == 256);
+    do {
+      const CONV_BUF_TYPE *src0_ptr = src0;
+      const CONV_BUF_TYPE *src1_ptr = src1;
+      for (int loop = 0; loop < 2; loop++) {
+        const __m256i s0A = yy_loadu_256(src0_ptr);
+        const __m256i s0B = yy_loadu_256(src0_ptr + 16);
+        const __m256i s0C = yy_loadu_256(src0_ptr + 32);
+        const __m256i s0D = yy_loadu_256(src0_ptr + 48);
+        const __m256i s0E = yy_loadu_256(src0_ptr + 64);
+        const __m256i s0F = yy_loadu_256(src0_ptr + 80);
+        const __m256i s0G = yy_loadu_256(src0_ptr + 96);
+        const __m256i s0H = yy_loadu_256(src0_ptr + 112);
+        const __m256i s1A = yy_loadu_256(src1_ptr);
+        const __m256i s1B = yy_loadu_256(src1_ptr + 16);
+        const __m256i s1C = yy_loadu_256(src1_ptr + 32);
+        const __m256i s1D = yy_loadu_256(src1_ptr + 48);
+        const __m256i s1E = yy_loadu_256(src1_ptr + 64);
+        const __m256i s1F = yy_loadu_256(src1_ptr + 80);
+        const __m256i s1G = yy_loadu_256(src1_ptr + 96);
+        const __m256i s1H = yy_loadu_256(src1_ptr + 112);
+        const __m256i m16A =
+            calc_mask_d16_avx2(&s0A, &s1A, &_r, &y38, &y64, shift);
+        const __m256i m16B =
+            calc_mask_d16_avx2(&s0B, &s1B, &_r, &y38, &y64, shift);
+        const __m256i m16C =
+            calc_mask_d16_avx2(&s0C, &s1C, &_r, &y38, &y64, shift);
+        const __m256i m16D =
+            calc_mask_d16_avx2(&s0D, &s1D, &_r, &y38, &y64, shift);
+        const __m256i m16E =
+            calc_mask_d16_avx2(&s0E, &s1E, &_r, &y38, &y64, shift);
+        const __m256i m16F =
+            calc_mask_d16_avx2(&s0F, &s1F, &_r, &y38, &y64, shift);
+        const __m256i m16G =
+            calc_mask_d16_avx2(&s0G, &s1G, &_r, &y38, &y64, shift);
+        const __m256i m16H =
+            calc_mask_d16_avx2(&s0H, &s1H, &_r, &y38, &y64, shift);
+        const __m256i m8AB = _mm256_packus_epi16(m16A, m16B);
+        const __m256i m8CD = _mm256_packus_epi16(m16C, m16D);
+        const __m256i m8EF = _mm256_packus_epi16(m16E, m16F);
+        const __m256i m8GH = _mm256_packus_epi16(m16G, m16H);
+        yy_storeu_256(mask, _mm256_permute4x64_epi64(m8AB, 0xd8));
+        yy_storeu_256(mask + 32, _mm256_permute4x64_epi64(m8CD, 0xd8));
+        yy_storeu_256(mask + 64, _mm256_permute4x64_epi64(m8EF, 0xd8));
+        yy_storeu_256(mask + 96, _mm256_permute4x64_epi64(m8GH, 0xd8));
+        src0_ptr += 128;
+        src1_ptr += 128;
+        mask += 128;
+      }
+      src0 += src0_stride;
+      src1 += src1_stride;
+      i += 1;
+    } while (i < h);
+#else
+    assert(0);
+#endif  // CONFIG_BLOCK_256
   }
 }
 
@@ -327,7 +385,7 @@ static INLINE void build_compound_diffwtd_mask_d16_inv_avx2(
       mask += 64;
       i += 1;
     } while (i < h);
-  } else {
+  } else if (w == 128) {
     do {
       const __m256i s0A = yy_loadu_256(src0);
       const __m256i s0B = yy_loadu_256(src0 + 16);
@@ -374,6 +432,64 @@ static INLINE void build_compound_diffwtd_mask_d16_inv_avx2(
       mask += 128;
       i += 1;
     } while (i < h);
+  } else {
+#if CONFIG_BLOCK_256
+    assert(w == 256);
+    do {
+      const CONV_BUF_TYPE *src0_ptr = src0;
+      const CONV_BUF_TYPE *src1_ptr = src1;
+      for (int loop = 0; loop < 2; loop++) {
+        const __m256i s0A = yy_loadu_256(src0_ptr);
+        const __m256i s0B = yy_loadu_256(src0_ptr + 16);
+        const __m256i s0C = yy_loadu_256(src0_ptr + 32);
+        const __m256i s0D = yy_loadu_256(src0_ptr + 48);
+        const __m256i s0E = yy_loadu_256(src0_ptr + 64);
+        const __m256i s0F = yy_loadu_256(src0_ptr + 80);
+        const __m256i s0G = yy_loadu_256(src0_ptr + 96);
+        const __m256i s0H = yy_loadu_256(src0_ptr + 112);
+        const __m256i s1A = yy_loadu_256(src1_ptr);
+        const __m256i s1B = yy_loadu_256(src1_ptr + 16);
+        const __m256i s1C = yy_loadu_256(src1_ptr + 32);
+        const __m256i s1D = yy_loadu_256(src1_ptr + 48);
+        const __m256i s1E = yy_loadu_256(src1_ptr + 64);
+        const __m256i s1F = yy_loadu_256(src1_ptr + 80);
+        const __m256i s1G = yy_loadu_256(src1_ptr + 96);
+        const __m256i s1H = yy_loadu_256(src1_ptr + 112);
+        const __m256i m16A =
+            calc_mask_d16_inv_avx2(&s0A, &s1A, &_r, &y38, &y64, shift);
+        const __m256i m16B =
+            calc_mask_d16_inv_avx2(&s0B, &s1B, &_r, &y38, &y64, shift);
+        const __m256i m16C =
+            calc_mask_d16_inv_avx2(&s0C, &s1C, &_r, &y38, &y64, shift);
+        const __m256i m16D =
+            calc_mask_d16_inv_avx2(&s0D, &s1D, &_r, &y38, &y64, shift);
+        const __m256i m16E =
+            calc_mask_d16_inv_avx2(&s0E, &s1E, &_r, &y38, &y64, shift);
+        const __m256i m16F =
+            calc_mask_d16_inv_avx2(&s0F, &s1F, &_r, &y38, &y64, shift);
+        const __m256i m16G =
+            calc_mask_d16_inv_avx2(&s0G, &s1G, &_r, &y38, &y64, shift);
+        const __m256i m16H =
+            calc_mask_d16_inv_avx2(&s0H, &s1H, &_r, &y38, &y64, shift);
+        const __m256i m8AB = _mm256_packus_epi16(m16A, m16B);
+        const __m256i m8CD = _mm256_packus_epi16(m16C, m16D);
+        const __m256i m8EF = _mm256_packus_epi16(m16E, m16F);
+        const __m256i m8GH = _mm256_packus_epi16(m16G, m16H);
+        yy_storeu_256(mask, _mm256_permute4x64_epi64(m8AB, 0xd8));
+        yy_storeu_256(mask + 32, _mm256_permute4x64_epi64(m8CD, 0xd8));
+        yy_storeu_256(mask + 64, _mm256_permute4x64_epi64(m8EF, 0xd8));
+        yy_storeu_256(mask + 96, _mm256_permute4x64_epi64(m8GH, 0xd8));
+        src0_ptr += 128;
+        src1_ptr += 128;
+        mask += 128;
+      }
+      src0 += src0_stride;
+      src1 += src1_stride;
+      i += 1;
+    } while (i < h);
+#else
+    assert(0);
+#endif  // CONFIG_BLOCK_256
   }
 }
 

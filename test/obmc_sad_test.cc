@@ -119,6 +119,11 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, ObmcSadHBDTest,
 
 #if HAVE_AVX2
 ObmcSadHBDTest::ParamType avx2_functions_hbd[] = {
+#if CONFIG_BLOCK_256
+  TestFuncs(aom_highbd_obmc_sad256x256_c, aom_highbd_obmc_sad256x256_avx2),
+  TestFuncs(aom_highbd_obmc_sad256x128_c, aom_highbd_obmc_sad256x128_avx2),
+  TestFuncs(aom_highbd_obmc_sad128x256_c, aom_highbd_obmc_sad128x256_avx2),
+#endif  // CONFIG_BLOCK_256
   TestFuncs(aom_highbd_obmc_sad128x128_c, aom_highbd_obmc_sad128x128_avx2),
   TestFuncs(aom_highbd_obmc_sad128x64_c, aom_highbd_obmc_sad128x64_avx2),
   TestFuncs(aom_highbd_obmc_sad64x128_c, aom_highbd_obmc_sad64x128_avx2),

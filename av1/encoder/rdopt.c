@@ -736,7 +736,7 @@ void store_submi(const MACROBLOCKD *const xd, const AV1_COMMON *cm,
   const int mi_col = xd->mi_col;
   const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
   const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - mi_row);
-  const int dst_stride = MAX_MIB_SIZE;
+  const int dst_stride = bw;
   const int src_stride = cm->mi_params.mi_stride;
   for (int y = 0; y < y_inside_boundary; y++) {
     for (int x = 0; x < x_inside_boundary; x++) {
@@ -753,7 +753,7 @@ void update_submi(MACROBLOCKD *const xd, const AV1_COMMON *cm,
   const int mi_col = xd->mi_col;
   const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
   const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - mi_row);
-  const int src_stride = MAX_MIB_SIZE;
+  const int src_stride = bw;
   const int dst_stride = cm->mi_params.mi_stride;
   for (int y = 0; y < y_inside_boundary; y++) {
     for (int x = 0; x < x_inside_boundary; x++) {
@@ -6113,8 +6113,7 @@ static INLINE int is_bv_valid(const FULLPEL_MV *full_mv, const AV1_COMMON *cm,
 #endif
                               ))
     return 0;
-  if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
-                       cm->seq_params.mib_size_log2))
+  if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2))
     return 0;
   return 1;
 }
@@ -6160,7 +6159,7 @@ int rd_pick_ref_bv(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
         cur_ref_bv.as_int = 0;
       }
       if (cur_ref_bv.as_int == 0) {
-        av1_find_ref_dv(&cur_ref_bv, tile, cm->seq_params.mib_size, mi_row);
+        av1_find_ref_dv(&cur_ref_bv, tile, cm->mib_size, mi_row);
       }
       // Ref DV should not have sub-pel.
       assert((cur_ref_bv.as_mv.col & 7) == 0);
@@ -6218,7 +6217,7 @@ int rd_pick_ref_bv(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       cur_ref_bv.as_int = 0;
     }
     if (cur_ref_bv.as_int == 0) {
-      av1_find_ref_dv(&cur_ref_bv, tile, cm->seq_params.mib_size, mi_row);
+      av1_find_ref_dv(&cur_ref_bv, tile, cm->mib_size, mi_row);
     }
     // Ref DV should not have sub-pel.
     assert((cur_ref_bv.as_mv.col & 7) == 0);
@@ -6275,8 +6274,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   const int mi_col = xd->mi_col;
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
-  const int sb_row = mi_row >> cm->seq_params.mib_size_log2;
-  const int sb_col = mi_col >> cm->seq_params.mib_size_log2;
+  const int sb_row = mi_row >> cm->mib_size_log2;
+  const int sb_col = mi_col >> cm->mib_size_log2;
 
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
@@ -6319,7 +6318,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   if (dv_ref.as_int == 0) {
-    av1_find_ref_dv(&dv_ref, tile, cm->seq_params.mib_size, mi_row);
+    av1_find_ref_dv(&dv_ref, tile, cm->mib_size, mi_row);
   }
   // Ref DV should not have sub-pel.
   assert((dv_ref.as_mv.col & 7) == 0);
@@ -6380,7 +6379,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_IBC_SR_EXT
   fullms_params.xd = xd;
   fullms_params.cm = cm;
-  fullms_params.mib_size_log2 = cm->seq_params.mib_size_log2;
+  fullms_params.mib_size_log2 = cm->mib_size_log2;
   fullms_params.mi_col = mi_col;
   fullms_params.mi_row = mi_row;
 #endif  // CONFIG_IBC_SR_EXT
@@ -6417,7 +6416,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
           fullms_params.mv_limits.row_max = -h;
 #else
         fullms_params.mv_limits.row_max =
-            (sb_row * cm->seq_params.mib_size - mi_row) * MI_SIZE - h;
+            (sb_row * cm->mib_size - mi_row) * MI_SIZE - h;
 #endif  // CONFIG_IBC_SR_EXT
           break;
         case IBC_MOTION_LEFT:
@@ -6427,14 +6426,14 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
           fullms_params.mv_limits.col_max = -w;
 #else
         fullms_params.mv_limits.col_max =
-            (sb_col * cm->seq_params.mib_size - mi_col) * MI_SIZE - w;
+            (sb_col * cm->mib_size - mi_col) * MI_SIZE - w;
 #endif  // CONFIG_IBC_SR_EXT
         // TODO(aconverse@google.com): Minimize the overlap between above and
         // left areas.
           fullms_params.mv_limits.row_min =
               (tile->mi_row_start - mi_row) * MI_SIZE;
           int bottom_coded_mi_edge =
-              AOMMIN((sb_row + 1) * cm->seq_params.mib_size, tile->mi_row_end);
+              AOMMIN((sb_row + 1) * cm->mib_size, tile->mi_row_end);
           fullms_params.mv_limits.row_max =
               (bottom_coded_mi_edge - mi_row) * MI_SIZE - h;
           break;
@@ -6443,13 +6442,12 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_IBC_SR_EXT
     } else {
       int left_coded_mi_edge =
-          AOMMAX((sb_col - 1) * cm->seq_params.mib_size, tile->mi_col_start);
+          AOMMAX((sb_col - 1) * cm->mib_size, tile->mi_col_start);
       int right_coded_mi_edge =
-          AOMMIN((sb_col + 1) * cm->seq_params.mib_size, tile->mi_col_end);
-      int up_coded_mi_edge =
-          AOMMAX((sb_row)*cm->seq_params.mib_size, tile->mi_row_start);
+          AOMMIN((sb_col + 1) * cm->mib_size, tile->mi_col_end);
+      int up_coded_mi_edge = AOMMAX((sb_row)*cm->mib_size, tile->mi_row_start);
       int bottom_coded_mi_edge =
-          AOMMIN((sb_row + 1) * cm->seq_params.mib_size, tile->mi_row_end);
+          AOMMIN((sb_row + 1) * cm->mib_size, tile->mi_row_end);
 
       switch (dir) {
         case IBC_MOTION_ABOVE:
@@ -6611,8 +6609,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif
                                 ))
       continue;
-    if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize,
-                         cm->seq_params.mib_size_log2))
+    if (!av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2))
       continue;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
@@ -9460,10 +9457,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           continue;
         }
         for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
-          const PARTITION_TYPE prev_part =
-              av1_get_prev_partition(x, mi_pos_rect[rect_type][sub_idx][0],
-                                     mi_pos_rect[rect_type][sub_idx][1],
-                                     subsize, cm->seq_params.sb_size);
+          const PARTITION_TYPE prev_part = av1_get_prev_partition(
+              x, mi_pos_rect[rect_type][sub_idx][0],
+              mi_pos_rect[rect_type][sub_idx][1], subsize, cm->sb_size);
           if (prev_part != PARTITION_INVALID) {
             prune_ref_frames = true;
             break;
@@ -9474,7 +9470,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
     if (prune_ref_frames) {
       picked_ref_frames_mask =
-          fetch_picked_ref_frames_mask(x, bsize, cm->seq_params.mib_size);
+          fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
     }
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
@@ -9487,7 +9483,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
          mbmi->partition != PARTITION_HORZ) ||
         cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions >= 2) {
       picked_ref_frames_mask =
-          fetch_picked_ref_frames_mask(x, bsize, cm->seq_params.mib_size);
+          fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
     }
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -9593,7 +9589,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       (AOMMIN(cm->width, cm->height) > 480 && cpi->speed <= 1) ? 0 : 1;
   if (do_pruning && sf->intra_sf.skip_intra_in_interframe) {
     // Only consider full SB.
-    const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+    const BLOCK_SIZE sb_size = cm->sb_size;
     const int tpl_bsize_1d = cpi->tpl_data.tpl_bsize_1d;
     const int len = (block_size_wide[sb_size] / tpl_bsize_1d) *
                     (block_size_high[sb_size] / tpl_bsize_1d);

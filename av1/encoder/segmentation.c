@@ -291,19 +291,18 @@ void av1_choose_segmap_coding_method(AV1_COMMON *cm, MACROBLOCKD *xd) {
                  tile_info.mi_row_start * cm->mi_params.mi_stride +
                  tile_info.mi_col_start;
         for (mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
-             mi_row += cm->seq_params.mib_size,
-            mi_ptr += cm->seq_params.mib_size * cm->mi_params.mi_stride) {
+             mi_row += cm->mib_size,
+            mi_ptr += cm->mib_size * cm->mi_params.mi_stride) {
           MB_MODE_INFO **mi = mi_ptr;
           for (mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
-               mi_col += cm->seq_params.mib_size,
-              mi += cm->seq_params.mib_size) {
+               mi_col += cm->mib_size, mi += cm->mib_size) {
             const SB_INFO *sbi = av1_get_sb_info(cm, mi_row, mi_col);
             const PARTITION_TREE *ptree = sbi->ptree_root[AOM_PLANE_Y];
             count_segs_sb(cm, xd, &tile_info, mi, no_pred_segcounts,
                           temporal_predictor_count, t_unpred_seg_counts, mi_row,
                           mi_col,
 #if !CONFIG_EXT_RECUR_PARTITIONS
-                          cm->seq_params.sb_size,
+                          cm->sb_size,
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
                           ptree);
           }

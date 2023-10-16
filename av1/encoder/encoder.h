@@ -235,12 +235,12 @@ typedef struct {
    * Indicates the minimum partition size that should be allowed. Both width and
    * height of a partition cannot be smaller than the min_partition_size.
    */
-  BLOCK_SIZE min_partition_size;
+  unsigned int min_partition_size;
   /*!
    * Indicates the maximum partition size that should be allowed. Both width and
    * height of a partition cannot be larger than the max_partition_size.
    */
-  BLOCK_SIZE max_partition_size;
+  unsigned int max_partition_size;
 } PartitionCfg;
 
 /*!
@@ -1270,6 +1270,8 @@ typedef struct FRAME_COUNTS {
                                      [PALETTE_COLORS];
 #if CONFIG_EXT_RECUR_PARTITIONS
   unsigned int do_split[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
+  unsigned int do_square_split[PARTITION_STRUCTURE_NUM][SQUARE_SPLIT_CONTEXTS]
+                              [2];
   unsigned int rect_type[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][2];
   unsigned int do_ext_partition[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS]
                                [PARTITION_CONTEXTS][2];
@@ -1703,6 +1705,7 @@ typedef struct ThreadData {
   SIMPLE_MOTION_DATA_TREE *sms_root;
 #if CONFIG_EXT_RECUR_PARTITIONS
   struct SimpleMotionDataBufs *sms_bufs;
+  BLOCK_SIZE sb_size;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   InterModesInfo *inter_modes_info;
   uint32_t *hash_value_buffer[2][2];

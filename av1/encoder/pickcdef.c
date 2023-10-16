@@ -360,7 +360,11 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     return;
   }
 
+#if CONFIG_BLOCK_256
+  cdef_list dlist[MI_SIZE_256X256 * MI_SIZE_256X256];
+#else
   cdef_list dlist[MI_SIZE_128X128 * MI_SIZE_128X128];
+#endif  // CONFIG_BLOCK_256
   int dir[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   int var[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -422,17 +426,56 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       const MB_MODE_INFO *const mbmi =
           mi_params->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
                                   MI_SIZE_64X64 * fbc];
+      BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
+#if CONFIG_BLOCK_256
+      if (bs > BLOCK_64X64 && bs <= BLOCK_256X256) {
+        const int bw = block_size_wide[bs];
+        const int bh = block_size_high[bs];
+        if ((bw == 256 && (fbc & 3)) || (bh == 256 && (fbr & 3))) {
+          continue;
+        };
+        if ((bw == 128 && (fbc & 1)) || (bh == 128 && (fbr & 1))) {
+          continue;
+        };
+      }
+#else
       if (((fbc & 1) && (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X128 ||
                          mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X64)) ||
           ((fbr & 1) && (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X128 ||
                          mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_64X128)))
         continue;
+#endif  // CONFIG_BLOCK_256
 
       int nhb = AOMMIN(MI_SIZE_64X64, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
       int nvb = AOMMIN(MI_SIZE_64X64, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
       int hb_step = 1;
       int vb_step = 1;
-      BLOCK_SIZE bs;
+#if CONFIG_BLOCK_256
+      if (bs > BLOCK_64X64 && bs <= BLOCK_256X256) {
+        if (block_size_wide[bs] == 256) {
+          nhb =
+              AOMMIN(MI_SIZE_256X256, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
+          hb_step = 4;
+        }
+        if (block_size_high[bs] == 256) {
+          nvb =
+              AOMMIN(MI_SIZE_256X256, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
+          vb_step = 4;
+        }
+        if (block_size_wide[bs] == 128) {
+          nhb =
+              AOMMIN(MI_SIZE_128X128, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
+          hb_step = 2;
+        }
+        if (block_size_high[bs] == 128) {
+          nvb =
+              AOMMIN(MI_SIZE_128X128, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
+          vb_step = 2;
+        }
+      } else {
+        bs = BLOCK_64X64;
+      }
+#else
       if (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X128 ||
           mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_128X64 ||
           mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_64X128) {
@@ -450,6 +493,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       } else {
         bs = BLOCK_64X64;
       }
+#endif  // CONFIG_BLOCK_256
 
       const int cdef_count = av1_cdef_compute_sb_list(
           mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist, bs);
@@ -552,17 +596,19 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       }
     }
     mi_params->mi_grid_base[sb_index[i]]->cdef_strength = best_gi;
-    int bsize_y = mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y];
+    BLOCK_SIZE bsize_y =
+        mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y];
     const int bh = mi_size_high[bsize_y];
     const int bw = mi_size_wide[bsize_y];
     int mi_row = sb_index[i] / mi_params->mi_stride;
     int mi_col = sb_index[i] % mi_params->mi_stride;
-    if (mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y] ==
-            BLOCK_64X128 ||
-        mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y] ==
-            BLOCK_128X128 ||
-        mi_params->mi_grid_base[sb_index[i]]->sb_type[PLANE_TYPE_Y] ==
-            BLOCK_128X64) {
+    if (
+#if CONFIG_BLOCK_256
+        bsize_y == BLOCK_256X256 || bsize_y == BLOCK_256X128 ||
+        bsize_y == BLOCK_128X256 ||
+#endif  // CONFIG_BLOCK_256
+        bsize_y == BLOCK_128X128 || bsize_y == BLOCK_128X64 ||
+        bsize_y == BLOCK_64X128) {
       const int x_inside_boundary = AOMMIN(bw, mi_params->mi_cols - mi_col);
       const int y_inside_boundary = AOMMIN(bh, mi_params->mi_rows - mi_row);
       int idx = mi_params->mi_stride;

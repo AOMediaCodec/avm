@@ -123,6 +123,9 @@ static INLINE unsigned int hbd_obmc_sad_w8n_avx2(
     }                                                                  \
   }
 
+HBD_OBMCSADWXH(256, 256)
+HBD_OBMCSADWXH(256, 128)
+HBD_OBMCSADWXH(128, 256)
 HBD_OBMCSADWXH(128, 128)
 HBD_OBMCSADWXH(128, 64)
 HBD_OBMCSADWXH(64, 128)

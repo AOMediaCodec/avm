@@ -50,7 +50,7 @@ static int is_block16_2x2_col_same_value(const uint16_t *p) {
 }
 
 // the hash value (hash_value1 consists two parts, the first 3 bits relate to
-// the block size and the remaining 16 bits are the crc values. This fuction
+// the block size and the remaining 16 bits are the crc values. This function
 // is used to get the first 3 bits.
 static int hash_block_size_to_index(int block_size) {
   switch (block_size) {
@@ -60,6 +60,9 @@ static int hash_block_size_to_index(int block_size) {
     case 32: return 3;
     case 64: return 4;
     case 128: return 5;
+#if CONFIG_BLOCK_256
+    case 256: return 6;
+#endif  // CONFIG_BLOCK_256
     default: return -1;
   }
 }

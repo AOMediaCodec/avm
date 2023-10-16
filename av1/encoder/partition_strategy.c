@@ -63,8 +63,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
                                   int *partition_vert_allowed,
                                   int *do_rectangular_split,
                                   int *do_square_split) {
-  assert(cm->seq_params.sb_size >= BLOCK_64X64 &&
-         "Invalid sb_size for intra_cnn!");
+  assert(cm->sb_size >= BLOCK_64X64 && "Invalid sb_size for intra_cnn!");
   const int bsize_idx = convert_bsize_to_idx(bsize);
 
   if (bsize == BLOCK_128X128) {
@@ -618,6 +617,10 @@ void av1_simple_motion_search_early_term_none(
     ml_mean = av1_simple_motion_search_term_none_mean_16;
     ml_std = av1_simple_motion_search_term_none_std_16;
     ml_model = av1_simple_motion_search_term_none_model_16;
+#if CONFIG_BLOCK_256
+  } else if (bsize == BLOCK_256X256) {
+    return;
+#endif  // CONFIG_BLOCK_256
   } else {
     assert(0 && "Unexpected block size in simple_motion_term_none");
   }
@@ -641,7 +644,7 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
                                         float *features) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
 
   assert(sb_size == BLOCK_128X128);
 
@@ -770,7 +773,7 @@ BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
     }
   } else if (cpi->sf.part_sf.auto_max_partition_based_on_simple_motion ==
              ADAPT_PRED) {
-    const BLOCK_SIZE sb_size = cpi->common.seq_params.sb_size;
+    const BLOCK_SIZE sb_size = cpi->common.sb_size;
     const MACROBLOCKD *const xd = &x->e_mbd;
     // TODO(debargha): x->source_variance is unavailable at this point,
     // so compute. The redundant recomputation later can be removed.
@@ -1264,6 +1267,9 @@ int av1_ml_predict_breakout(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
       nn_config = &av1_partition_breakout_nnconfig_128;
       thresh = cpi->sf.part_sf.ml_partition_search_breakout_thresh[4];
       break;
+#if CONFIG_BLOCK_256
+    case BLOCK_256X256: return 0; break;
+#endif  // CONFIG_BLOCK_256
     default: assert(0 && "Unexpected bsize.");
   }
   if (!nn_config || thresh < 0) return 0;
@@ -1317,7 +1323,7 @@ void av1_prune_partitions_before_search(
   const int try_intra_cnn_split =
       !cpi->is_screen_content_type && frame_is_intra_only(cm) &&
       cpi->sf.part_sf.intra_cnn_split && xd->tree_type != CHROMA_PART &&
-      cm->seq_params.sb_size >= BLOCK_64X64 && bsize <= BLOCK_64X64 &&
+      cm->sb_size >= BLOCK_64X64 && bsize <= BLOCK_64X64 &&
       bsize >= BLOCK_8X8 &&
       mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols;
@@ -1348,14 +1354,14 @@ void av1_prune_partitions_before_search(
         do_square_split);
 #if CONFIG_EXT_RECUR_PARTITIONS
     if (!*partition_none_allowed) {
-      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize,
-                               cm->seq_params.sb_size, PARTITION_HORZ);
+      av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
+                               PARTITION_HORZ);
       const int mi_step = block_size_high[bsize] / 2;
       BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
       av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, subsize,
-                               cm->seq_params.sb_size, PARTITION_VERT);
+                               cm->sb_size, PARTITION_VERT);
       av1_cache_best_partition(x->sms_bufs, mi_row + mi_step, mi_col, subsize,
-                               cm->seq_params.sb_size, PARTITION_VERT);
+                               cm->sb_size, PARTITION_VERT);
     }
     (void)pc_tree;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1613,6 +1619,9 @@ void av1_prune_ab_partitions(
 // Gets the number of sms data in a single dimension
 static INLINE int get_sms_count_from_length(int mi_length) {
   switch (mi_length) {
+#if CONFIG_BLOCK_256
+    case 64: return BLOCK_256_COUNT;
+#endif  // CONFIG_BLOCK_256
     case 32: return BLOCK_128_COUNT;
     case 16: return BLOCK_64_COUNT;
     case 8: return BLOCK_32_COUNT;
@@ -1666,6 +1675,9 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
                                             BLOCK_SIZE bsize) {
   switch (bsize) {
     // Square blocks
+#if CONFIG_BLOCK_256
+    MAKE_SMS_ARR_SWITCH_CASE(256, 256);
+#endif  // CONFIG_BLOCK_256
     MAKE_SMS_ARR_SWITCH_CASE(128, 128);
     MAKE_SMS_ARR_SWITCH_CASE(64, 64);
     MAKE_SMS_ARR_SWITCH_CASE(32, 32);
@@ -1674,6 +1686,9 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
     MAKE_SMS_ARR_SWITCH_CASE(4, 4);
 
     // 1:2 blocks
+#if CONFIG_BLOCK_256
+    MAKE_SMS_ARR_SWITCH_CASE(128, 256);
+#endif  // CONFIG_BLOCK_256
     MAKE_SMS_ARR_SWITCH_CASE(64, 128);
     MAKE_SMS_ARR_SWITCH_CASE(32, 64);
     MAKE_SMS_ARR_SWITCH_CASE(16, 32);
@@ -1681,6 +1696,9 @@ static INLINE SimpleMotionData *get_sms_arr(SimpleMotionDataBufs *sms_bufs,
     MAKE_SMS_ARR_SWITCH_CASE(4, 8);
 
     // 2:1 blocks
+#if CONFIG_BLOCK_256
+    MAKE_SMS_ARR_SWITCH_CASE(256, 128);
+#endif  // CONFIG_BLOCK_256
     MAKE_SMS_ARR_SWITCH_CASE(128, 64);
     MAKE_SMS_ARR_SWITCH_CASE(64, 32);
     MAKE_SMS_ARR_SWITCH_CASE(32, 16);
@@ -1820,10 +1838,9 @@ static INLINE void add_start_mv_to_partition(
     SimpleMotionDataBufs *sms_bufs, int mi_row, int mi_col, BLOCK_SIZE bsize,
     BLOCK_SIZE sb_size, PARTITION_TYPE partition, MV start_mv) {
   assert(bsize < BLOCK_SIZES_ALL);
-
   const int eighth_step_h = block_size_high[bsize] / 8;
   const int eighth_step_w = block_size_wide[bsize] / 8;
-  static const int subblock_count[EXT_PARTITION_TYPES] = {
+  static const int subblock_count[ALL_PARTITION_TYPES] = {
     1,  // PARTITION_NONE
     2,  // PARTITION_HORZ
     2,  // PARTITION_VERT
@@ -1835,9 +1852,10 @@ static INLINE void add_start_mv_to_partition(
     4,  // PARTITION_VERT_4A
     4,  // PARTITION_VERT_4B
 #endif  // CONFIG_UNEVEN_4WAY
+    4,  // PARTITION_SPLIT
   };
   // PARTITION x NUM_SUBBLOCKS x (ROW and COL)
-  static const int step_multiplier[EXT_PARTITION_TYPES][4][2] = {
+  static const int step_multiplier[ALL_PARTITION_TYPES][4][2] = {
     { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_NONE
     { { 0, 0 }, { 4, 0 }, { 0, 0 }, { 0, 0 } },  // PARTITION_HORZ
     { { 0, 0 }, { 0, 4 }, { 0, 0 }, { 0, 0 } },  // PARTITION_VERT
@@ -1849,6 +1867,7 @@ static INLINE void add_start_mv_to_partition(
     { { 0, 0 }, { 0, 1 }, { 0, 3 }, { 0, 7 } },  // PARTITION_VERT_4A
     { { 0, 0 }, { 0, 1 }, { 0, 5 }, { 0, 7 } },  // PARTITION_VERT_4B
 #endif                                           // CONFIG_UNEVEN_4WAY
+    { { 0, 0 }, { 0, 4 }, { 4, 0 }, { 4, 4 } },  // PARTITION_SPLIT
   };
 
   // Sizes of subblocks.
@@ -1897,7 +1916,7 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
                                    const TileInfo *const tile, MACROBLOCK *x,
                                    int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
-  const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
+  const BLOCK_SIZE sb_size = cm->sb_size;
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
   SimpleMotionData *cur_block =
       av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);

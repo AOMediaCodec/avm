@@ -110,7 +110,7 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     if (col_off + top_right_count_unit < plane_bw_unit) return 1;
 
     // Handle the top-right intra tx block of the coding block
-    const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+    const int sb_mi_size = mi_size_wide[cm->sb_size];
     const int mi_row_aligned =
         is_bsize_altered_for_chroma
             ? xd->mi[0]->chroma_ref_info.mi_row_chroma_base
@@ -241,6 +241,10 @@ static const uint8_t *const has_tr_tables[BLOCK_SIZES_ALL] = {
   has_tr_32x64, has_tr_64x32, has_tr_64x64,
   // 64x128,    128x64,         128x128
   has_tr_64x128, has_tr_128x64, has_tr_128x128,
+#if CONFIG_BLOCK_256
+  // 128X256,   256X128,        256X256,
+  NULL, NULL, NULL,
+#endif  // CONFIG_BLOCK_256
   // 4x16,      16x4,            8x32
   has_tr_4x16, has_tr_16x4, has_tr_8x32,
   // 32x8,      16x64,           64x16
@@ -270,15 +274,31 @@ static const uint8_t *const has_tr_vert_tables[BLOCK_SIZES] = {
   // 4X4
   NULL,
   // 4X8,      8X4,         8X8
-  has_tr_4x8, NULL, has_tr_vert_8x8,
+  has_tr_4x8,
+  NULL,
+  has_tr_vert_8x8,
   // 8X16,     16X8,        16X16
-  has_tr_8x16, NULL, has_tr_vert_16x16,
+  has_tr_8x16,
+  NULL,
+  has_tr_vert_16x16,
   // 16X32,    32X16,       32X32
-  has_tr_16x32, NULL, has_tr_vert_32x32,
+  has_tr_16x32,
+  NULL,
+  has_tr_vert_32x32,
   // 32X64,    64X32,       64X64
-  has_tr_32x64, NULL, has_tr_vert_64x64,
+  has_tr_32x64,
+  NULL,
+  has_tr_vert_64x64,
   // 64x128,   128x64,      128x128
-  has_tr_64x128, NULL, has_tr_128x128
+  has_tr_64x128,
+  NULL,
+  has_tr_128x128
+#if CONFIG_BLOCK_256
+      // 128X256,   256X128,        256X256,
+      NULL,
+  NULL,
+  NULL,
+#endif  // CONFIG_BLOCK_256
 };
 
 static const uint8_t *get_has_tr_table(PARTITION_TYPE partition,
@@ -325,7 +345,7 @@ static int has_top_right(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
 
     const int bw_in_mi_log2 = mi_size_wide_log2[bsize];
     const int bh_in_mi_log2 = mi_size_high_log2[bsize];
-    const int sb_mi_size = mi_size_high[cm->seq_params.sb_size];
+    const int sb_mi_size = mi_size_high[cm->sb_size];
     const int blk_row_in_sb = (mi_row & (sb_mi_size - 1)) >> bh_in_mi_log2;
     const int blk_col_in_sb = (mi_col & (sb_mi_size - 1)) >> bw_in_mi_log2;
 
@@ -397,7 +417,7 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
     // The general case: neither the leftmost column nor the bottom row. The
     // bottom-left mi is in the same SB
-    const int sb_mi_size = mi_size_high[cm->seq_params.sb_size];
+    const int sb_mi_size = mi_size_high[cm->sb_size];
     const int mi_row_aligned =
         is_bsize_altered_for_chroma
             ? xd->mi[0]->chroma_ref_info.mi_row_chroma_base
@@ -411,8 +431,7 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const int bl_mask_col = (mi_col_aligned & (sb_mi_size - 1)) - 1;
 
     if (bl_mask_col < 0) {
-      const int plane_sb_height =
-          block_size_high[cm->seq_params.sb_size] >> ss_y;
+      const int plane_sb_height = block_size_high[cm->sb_size] >> ss_y;
       const int plane_bottom_row =
           (((mi_row_aligned & (sb_mi_size - 1)) << MI_SIZE_LOG2) +
            block_size_high[bsize]) >>
@@ -1866,7 +1885,7 @@ void av1_predict_intra_block(
 #endif  // CONFIG_IDIF
 
   const int is_sb_boundary =
-      (mi_row % cm->seq_params.mib_size == 0 && row_off == 0) ? 1 : 0;
+      (mi_row % cm->mib_size == 0 && row_off == 0) ? 1 : 0;
 
   build_intra_predictors_high(
       xd, ref, ref_stride, dst, dst_stride, mode, angle_delta,

@@ -633,8 +633,13 @@ static void init_config(cfg_options_t *config) {
   /* These parameters are set in the function parseCfg.
      In absence of these parameters in the config file,
      the default values should match  */
+#if CONFIG_BLOCK_256
+  config->superblock_size = 256;
+  config->max_partition_size = 256;
+#else
   config->superblock_size = 128;
   config->max_partition_size = 128;
+#endif  // CONFIG_BLOCK_256
   config->min_partition_size = 4;
   config->enable_ab_partitions = 1;
   config->enable_rect_partitions = 1;

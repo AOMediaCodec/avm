@@ -167,16 +167,34 @@ const map_entry refs_map[] = { ENUM(INTRA_FRAME), ENUM(0), ENUM(1),
                                ENUM(2),           ENUM(3), ENUM(4),
                                ENUM(5),           ENUM(6), LAST_ENUM };
 
-const map_entry block_size_map[] = {
-  ENUM(BLOCK_4X4),     ENUM(BLOCK_4X8),    ENUM(BLOCK_8X4),
-  ENUM(BLOCK_8X8),     ENUM(BLOCK_8X16),   ENUM(BLOCK_16X8),
-  ENUM(BLOCK_16X16),   ENUM(BLOCK_16X32),  ENUM(BLOCK_32X16),
-  ENUM(BLOCK_32X32),   ENUM(BLOCK_32X64),  ENUM(BLOCK_64X32),
-  ENUM(BLOCK_64X64),   ENUM(BLOCK_64X128), ENUM(BLOCK_128X64),
-  ENUM(BLOCK_128X128), ENUM(BLOCK_4X16),   ENUM(BLOCK_16X4),
-  ENUM(BLOCK_8X32),    ENUM(BLOCK_32X8),   ENUM(BLOCK_16X64),
-  ENUM(BLOCK_64X16),   LAST_ENUM
-};
+const map_entry block_size_map[] = { ENUM(BLOCK_4X4),
+                                     ENUM(BLOCK_4X8),
+                                     ENUM(BLOCK_8X4),
+                                     ENUM(BLOCK_8X8),
+                                     ENUM(BLOCK_8X16),
+                                     ENUM(BLOCK_16X8),
+                                     ENUM(BLOCK_16X16),
+                                     ENUM(BLOCK_16X32),
+                                     ENUM(BLOCK_32X16),
+                                     ENUM(BLOCK_32X32),
+                                     ENUM(BLOCK_32X64),
+                                     ENUM(BLOCK_64X32),
+                                     ENUM(BLOCK_64X64),
+                                     ENUM(BLOCK_64X128),
+                                     ENUM(BLOCK_128X64),
+                                     ENUM(BLOCK_128X128),
+#if CONFIG_BLOCK_256
+                                     ENUM(BLOCK_128X256),
+                                     ENUM(BLOCK_256X128),
+                                     ENUM(BLOCK_256X256),
+#endif  // CONFIG_BLOCK_256
+                                     ENUM(BLOCK_4X16),
+                                     ENUM(BLOCK_16X4),
+                                     ENUM(BLOCK_8X32),
+                                     ENUM(BLOCK_32X8),
+                                     ENUM(BLOCK_16X64),
+                                     ENUM(BLOCK_64X16),
+                                     LAST_ENUM };
 
 #define TX_SKIP -1
 

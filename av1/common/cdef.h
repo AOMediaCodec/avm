@@ -34,13 +34,31 @@ static INLINE int constrain(int diff, int threshold, int damping) {
          AOMMIN(abs(diff), AOMMAX(0, threshold - (abs(diff) >> shift)));
 }
 
-static AOM_INLINE int av1_get_cdef_transmitted_index(int mi_row, int mi_col) {
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define AOM_NO_UNSIGNED_OVERFLOW_CHECK \
+  __attribute__((                      \
+      no_sanitize("unsigned-integer-overflow", "unsigned-shift-base")))
+#endif
+#endif
+
+#ifndef AOM_NO_UNSIGNED_OVERFLOW_CHECK
+#define AOM_NO_UNSIGNED_OVERFLOW_CHECK
+#endif
+
+AOM_NO_UNSIGNED_OVERFLOW_CHECK static AOM_INLINE int
+av1_get_cdef_transmitted_index(int mi_row, int mi_col) {
   // Find index of this CDEF unit in this superblock.
-  const int index_mask = 1 << MI_IN_CDEF_LINEAR_LOG2;
-  const int cdef_unit_row_in_sb = !!(mi_row & index_mask);
-  const int cdef_unit_col_in_sb = !!(mi_col & index_mask);
-  return cdef_unit_col_in_sb + CDEF_IN_SB_STRIDE * cdef_unit_row_in_sb;
+  const int index_mask = (UINT32_MAX << (32 - CDEF_SB_SHIFT)) >>
+                         (32 - CDEF_SB_SHIFT - MI_IN_CDEF_LINEAR_LOG2);
+  const int cdef_unit_row_in_sb =
+      ((mi_row & index_mask) >> MI_IN_CDEF_LINEAR_LOG2);
+  const int cdef_unit_col_in_sb =
+      ((mi_col & index_mask) >> MI_IN_CDEF_LINEAR_LOG2);
+  return CDEF_IN_SB_STRIDE * cdef_unit_row_in_sb + cdef_unit_col_in_sb;
 }
+
+#undef AOM_NO_UNSIGNED_OVERFLOW_CHECK
 
 #ifdef __cplusplus
 extern "C" {

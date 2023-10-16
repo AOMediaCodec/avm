@@ -321,6 +321,11 @@ DECLARE_ALIGNED(16, static uint8_t,
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+#if CONFIG_BLOCK_256
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
+#endif  // CONFIG_BLOCK_256
   { 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, },
   { 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },  // not used
@@ -442,6 +447,11 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
+#if CONFIG_BLOCK_256
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+#endif  // CONFIG_BLOCK_256
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X32] },
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X8] },
   { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X64] },
@@ -474,6 +484,11 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL },
+#if CONFIG_BLOCK_256
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+  { 0, NULL, NULL, NULL },
+#endif  // CONFIG_BLOCK_256
   { MAX_WEDGE_TYPES, wedge_codebook_16_hgtw, wedge_signflip_lookup[BLOCK_8X32],
     wedge_masks[BLOCK_8X32] },
   { MAX_WEDGE_TYPES, wedge_codebook_16_hltw, wedge_signflip_lookup[BLOCK_32X8],
@@ -784,6 +799,9 @@ static const uint8_t ii_weights1d[MAX_SB_SIZE] = {
 static uint8_t ii_size_scales[BLOCK_SIZES_ALL] = {
     32, 16, 16, 16, 8, 8, 8, 4,
     4,  4,  2,  2,  2, 1, 1, 1,
+#if CONFIG_BLOCK_256
+    0,  0,  0,  // unused
+#endif  // CONFIG_BLOCK_256
     8,  8,  4,  4,  2, 2
 };
 /* clang-format on */
@@ -1377,14 +1395,16 @@ int av1_get_optflow_based_mv_highbd(
 #endif  // CONFIG_REFINEMV
 ) {
   const int target_prec = MV_REFINE_PREC_BITS;
+  const int n = opfl_get_subblock_size(bw, bh, plane
+#if CONFIG_OPTFLOW_ON_TIP
+                                       ,
+                                       use_4x4
+#endif  // CONFIG_OPTFLOW_ON_TIP
+  );
+  int n_blocks = (bw / n) * (bh / n);
   // Convert output MV to 1/16th pel
   assert(MV_REFINE_PREC_BITS >= 3);
-#if CONFIG_OPTFLOW_ON_TIP
-  const int num_mv = (mbmi->ref_frame[0] == TIP_FRAME) ? 4 : N_OF_OFFSETS;
-#else
-  const int num_mv = N_OF_OFFSETS;
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  for (int mvi = 0; mvi < num_mv; mvi++) {
+  for (int mvi = 0; mvi < n_blocks; mvi++) {
     mv_refined[mvi * 2].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
     mv_refined[mvi * 2].as_mv.col *= 1 << (MV_REFINE_PREC_BITS - 3);
     mv_refined[mvi * 2 + 1].as_mv.row *= 1 << (MV_REFINE_PREC_BITS - 3);
@@ -1446,14 +1466,7 @@ int av1_get_optflow_based_mv_highbd(
   }
 #endif  // CONFIG_OPTFLOW_ON_TIP
 
-  int n_blocks = 1;
   int grad_prec_bits;
-  int n = opfl_get_subblock_size(bw, bh, plane
-#if CONFIG_OPTFLOW_ON_TIP
-                                 ,
-                                 use_4x4
-#endif  // CONFIG_OPTFLOW_ON_TIP
-  );
 
 #if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
   // Compute gradients of P0 and P1 with interpolation
@@ -3551,15 +3564,23 @@ static void build_inter_predictors_8x8_and_bigger(
   int vy1[N_OF_OFFSETS] = { 0 };
 
   // Pointers to gradient and dst buffers
-  int16_t *gx0, *gy0, *gx1, *gy1;
-  uint16_t *dst0 = NULL, *dst1 = NULL;
 
   if (use_optflow_refinement && plane == 0) {
     // Allocate gradient and dst buffers
-    gx0 = aom_memalign(32, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*gx0));
-    gx1 = aom_memalign(32, 2 * MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*gx1));
-    gy0 = gx0 + (MAX_SB_SIZE * MAX_SB_SIZE);
-    gy1 = gx1 + (MAX_SB_SIZE * MAX_SB_SIZE);
+    const int n = opfl_get_subblock_size(bw, bh, plane
+#if CONFIG_OPTFLOW_ON_TIP
+                                         ,
+                                         1
+#endif  // CONFIG_OPTFLOW_ON_TIP
+    );
+    const int n_blocks = (bw / n) * (bh / n);
+    int16_t *gx0, *gy0, *gx1, *gy1;
+    DECLARE_ALIGNED(32, int16_t, g0_buf[2 * MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, int16_t, g1_buf[2 * MAX_SB_SQUARE]);
+    gx0 = g0_buf;
+    gx1 = g1_buf;
+    gy0 = g0_buf + MAX_SB_SQUARE;
+    gy1 = g1_buf + MAX_SB_SQUARE;
 
     // Initialize refined mv
 #if CONFIG_REFINEMV
@@ -3569,14 +3590,13 @@ static void build_inter_predictors_8x8_and_bigger(
       const MV mv0 = mi->mv[0].as_mv;
       const MV mv1 = mi->mv[1].as_mv;
 #endif  // CONFIG_REFINEMV
-    for (int mvi = 0; mvi < N_OF_OFFSETS; mvi++) {
+    for (int mvi = 0; mvi < n_blocks; mvi++) {
       mv_refined[mvi * 2].as_mv = mv0;
       mv_refined[mvi * 2 + 1].as_mv = mv1;
     }
     // Refine MV using optical flow. The final output MV will be in 1/16
     // precision.
-    dst0 = aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint16_t));
-    dst1 = aom_calloc(1, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(uint16_t));
+    uint16_t dst0[MAX_SB_SQUARE], dst1[MAX_SB_SQUARE];
     av1_get_optflow_based_mv_highbd(cm, xd, plane, mi, mv_refined, bw, bh, mi_x,
                                     mi_y, mc_buf, calc_subpel_params_func, gx0,
                                     gy0, gx1, gy1, vx0, vy0, vx1, vy1, dst0,
@@ -3590,10 +3610,6 @@ static void build_inter_predictors_8x8_and_bigger(
                                     best_mv_ref, bw, bh
 #endif  // CONFIG_REFINEMV
     );
-    aom_free(dst0);
-    aom_free(dst1);
-    aom_free(gx0);
-    aom_free(gx1);
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
@@ -3666,10 +3682,10 @@ static void build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_OPTFLOW_REFINEMENT
     if (use_optflow_refinement && plane == 0) {
-      int n = opfl_get_subblock_size(bw, bh, plane
+      const int n = opfl_get_subblock_size(bw, bh, plane
 #if CONFIG_OPTFLOW_ON_TIP
-                                     ,
-                                     1
+                                           ,
+                                           1
 #endif  // CONFIG_OPTFLOW_ON_TIP
       );
       inter_pred_params.interp_filter_params[0] =

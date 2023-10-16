@@ -163,8 +163,8 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       const int nh = mi_size_high[bsize] / tplh;
 
       if (nw >= 1 && nh >= 1) {
-        const int of_h = mi_row % mi_size_high[cm->seq_params.sb_size];
-        const int of_w = mi_col % mi_size_wide[cm->seq_params.sb_size];
+        const int of_h = mi_row % mi_size_high[cm->sb_size];
+        const int of_w = mi_col % mi_size_wide[cm->sb_size];
         const int start = of_h / tplh * sb_enc->tpl_stride + of_w / tplw;
         int valid = 1;
 
