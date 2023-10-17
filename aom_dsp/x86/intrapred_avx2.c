@@ -4754,6 +4754,8 @@ static void highbd_dr_prediction_z3_4x16_idif_avx2(uint16_t *dst,
   }
 }
 
+#if CONFIG_FLEX_PARTITION
+
 static void highbd_dr_prediction_z3_64x8_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
                                                    const uint16_t *left, int dy,
@@ -4936,6 +4938,8 @@ static void highbd_dr_prediction_z3_32x4_idif_avx2(uint16_t *dst,
     _mm256_storeu_si256((__m256i *)(dst + i * stride + 16), d[i + 4]);
   }
 }
+
+#endif  // CONFIG_FLEX_PARTITION
 
 static void highbd_dr_prediction_z3_16x4_idif_avx2(uint16_t *dst,
                                                    ptrdiff_t stride,
