@@ -1369,6 +1369,14 @@ static NN_CONFIG_V2 *av1_tx_type_nnconfig_map_hor[] = {
   NULL,                            // 32x8 transform
   NULL,                            // 16x64 transform
   NULL,                            // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  NULL,  // 4x32 transform
+  NULL,  // 32x4 transform
+  NULL,  // 8x64 transform
+  NULL,  // 64x8 transform
+  NULL,  // 4x64 transform
+  NULL,  // 64x4 transform
+#endif   // CONFIG_FLEX_PARTITION
 };
 
 static NN_CONFIG_V2 *av1_tx_type_nnconfig_map_ver[] = {
@@ -1391,6 +1399,14 @@ static NN_CONFIG_V2 *av1_tx_type_nnconfig_map_ver[] = {
   NULL,                            // 32x8 transform
   NULL,                            // 16x64 transform
   NULL,                            // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  NULL,  // 4x32 transform
+  NULL,  // 32x4 transform
+  NULL,  // 8x64 transform
+  NULL,  // 64x8 transform
+  NULL,  // 4x64 transform
+  NULL,  // 64x4 transform
+#endif   // CONFIG_FLEX_PARTITION
 };
 #else
 /******************************CONFIG_NN***************************************/
@@ -2338,6 +2354,14 @@ static const NN_CONFIG *av1_tx_type_nnconfig_map_hor[] = {
   NULL,                            // 32x8 transform
   NULL,                            // 16x64 transform
   NULL,                            // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  NULL,                            // 4x32 transform
+  NULL,                            // 32x4 transform
+  NULL,                            // 8x64 transform
+  NULL,                            // 64x8 transform
+  NULL,                            // 4x64 transform
+  NULL,                            // 64x4 transform
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static const NN_CONFIG *av1_tx_type_nnconfig_map_ver[] = {
@@ -2360,6 +2384,14 @@ static const NN_CONFIG *av1_tx_type_nnconfig_map_ver[] = {
   NULL,                            // 32x8 transform
   NULL,                            // 16x64 transform
   NULL,                            // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+  NULL,                            // 4x32 transform
+  NULL,                            // 32x4 transform
+  NULL,                            // 8x64 transform
+  NULL,                            // 64x8 transform
+  NULL,                            // 4x64 transform
+  NULL,                            // 64x4 transform
+#endif  // CONFIG_FLEX_PARTITION
 };
 #endif  // CONFIG_NN_V2
 
@@ -3312,6 +3344,15 @@ static const NN_CONFIG *av1_tx_split_nnconfig_map[TX_SIZES_ALL] = {
   &av1_tx_split_nnconfig_8x32,   // TX_32X8,
   &av1_tx_split_nnconfig_16x64,  // TX_16X64,
   &av1_tx_split_nnconfig_16x64,  // TX_64X16,
+#if CONFIG_FLEX_PARTITION
+  // TODO(now): Can add ML models for these.
+  NULL,  // 4x32 transform
+  NULL,  // 32x4 transform
+  NULL,  // 8x64 transform
+  NULL,  // 64x8 transform
+  NULL,  // 4x64 transform
+  NULL,  // 64x4 transform
+#endif   // CONFIG_FLEX_PARTITION
 };
 
 #ifdef __cplusplus

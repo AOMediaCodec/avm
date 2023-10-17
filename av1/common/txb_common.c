@@ -348,7 +348,29 @@ const int8_t av1_nz_map_ctx_offset_32x8[256] = {
   21, 21, 21, 21, 21, 21, 21, 21, 21,
 };
 
-const int8_t *av1_nz_map_ctx_offset[19] = {
+#if CONFIG_FLEX_PARTITION
+const int8_t av1_nz_map_ctx_offset_4x32[128] = {
+  0,  11, 11, 11, 11, 11, 11, 11, 6,  6,  21, 21, 6,  21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+};
+
+const int8_t av1_nz_map_ctx_offset_32x4[128] = {
+  0,  16, 6,  6,  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 16, 16, 6,  21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 16, 16, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 16, 16, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+  21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
+};
+#endif  // CONFIG_FLEX_PARTITION
+
+const int8_t *av1_nz_map_ctx_offset[TX_SIZES_ALL] = {
   av1_nz_map_ctx_offset_4x4,    // TX_4x4
   av1_nz_map_ctx_offset_8x8,    // TX_8x8
   av1_nz_map_ctx_offset_16x16,  // TX_16x16
@@ -368,6 +390,14 @@ const int8_t *av1_nz_map_ctx_offset[19] = {
   av1_nz_map_ctx_offset_32x8,   // TX_32x8
   av1_nz_map_ctx_offset_16x32,  // TX_16x64
   av1_nz_map_ctx_offset_64x32,  // TX_64x16
+#if CONFIG_FLEX_PARTITION
+  av1_nz_map_ctx_offset_4x32,  // TX_4x32
+  av1_nz_map_ctx_offset_32x4,  // TX_32x4
+  av1_nz_map_ctx_offset_8x32,  // TX_8x64
+  av1_nz_map_ctx_offset_32x8,  // TX_64x8
+  av1_nz_map_ctx_offset_4x32,  // TX_4x64
+  av1_nz_map_ctx_offset_32x4,  // TX_64x4
+#endif                         // CONFIG_FLEX_PARTITION
 };
 
 const int16_t av1_eob_group_start[12] = { 0,  1,  2,  3,   5,   9,

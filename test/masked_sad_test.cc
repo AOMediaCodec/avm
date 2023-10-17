@@ -150,6 +150,14 @@ const HighbdMaskedSADParam hbd_msad_test[] = {
   make_tuple(&aom_highbd_masked_sad32x8_ssse3, &aom_highbd_masked_sad32x8_c),
   make_tuple(&aom_highbd_masked_sad16x64_ssse3, &aom_highbd_masked_sad16x64_c),
   make_tuple(&aom_highbd_masked_sad64x16_ssse3, &aom_highbd_masked_sad64x16_c),
+#if CONFIG_FLEX_PARTITION
+  make_tuple(&aom_highbd_masked_sad4x32_ssse3, &aom_highbd_masked_sad4x32_c),
+  make_tuple(&aom_highbd_masked_sad32x4_ssse3, &aom_highbd_masked_sad32x4_c),
+  make_tuple(&aom_highbd_masked_sad8x64_ssse3, &aom_highbd_masked_sad8x64_c),
+  make_tuple(&aom_highbd_masked_sad64x8_ssse3, &aom_highbd_masked_sad64x8_c),
+  make_tuple(&aom_highbd_masked_sad4x64_ssse3, &aom_highbd_masked_sad4x64_c),
+  make_tuple(&aom_highbd_masked_sad64x4_ssse3, &aom_highbd_masked_sad64x4_c),
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 INSTANTIATE_TEST_SUITE_P(SSSE3, HighbdMaskedSADTest,
@@ -201,7 +209,15 @@ const HighbdMaskedSADParam hbd_msad_avx2_test[] = {
   make_tuple(&aom_highbd_masked_sad16x64_avx2,
              &aom_highbd_masked_sad16x64_ssse3),
   make_tuple(&aom_highbd_masked_sad64x16_avx2,
-             &aom_highbd_masked_sad64x16_ssse3)
+             &aom_highbd_masked_sad64x16_ssse3),
+#if CONFIG_FLEX_PARTITION
+  make_tuple(&aom_highbd_masked_sad4x32_avx2, &aom_highbd_masked_sad4x32_ssse3),
+  make_tuple(&aom_highbd_masked_sad32x4_avx2, &aom_highbd_masked_sad32x4_ssse3),
+  make_tuple(&aom_highbd_masked_sad8x64_avx2, &aom_highbd_masked_sad8x64_ssse3),
+  make_tuple(&aom_highbd_masked_sad64x8_avx2, &aom_highbd_masked_sad64x8_ssse3),
+  make_tuple(&aom_highbd_masked_sad4x64_avx2, &aom_highbd_masked_sad4x64_ssse3),
+  make_tuple(&aom_highbd_masked_sad64x4_avx2, &aom_highbd_masked_sad64x4_ssse3),
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, HighbdMaskedSADTest,

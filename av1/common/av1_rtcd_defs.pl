@@ -179,6 +179,16 @@ add_proto qw/void av1_highbd_inv_txfm_add_16x64/,  "const tran_low_t *input, uin
 specialize qw/av1_highbd_inv_txfm_add_64x32  neon/;
 add_proto qw/void av1_highbd_inv_txfm_add_64x16/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 specialize qw/av1_highbd_inv_txfm_add_64x64  neon/;
+if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+  add_proto qw/void av1_highbd_inv_txfm_add_4x32/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+  specialize qw/av1_highbd_inv_txfm_add_4x32 sse4_1/;
+  add_proto qw/void av1_highbd_inv_txfm_add_32x4/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+  specialize qw/av1_highbd_inv_txfm_add_32x4 sse4_1/;
+  add_proto qw/void av1_highbd_inv_txfm_add_4x64/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+  specialize qw/av1_highbd_inv_txfm_add_4x64 sse4_1/;
+  add_proto qw/void av1_highbd_inv_txfm_add_64x4/,  "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
+  specialize qw/av1_highbd_inv_txfm_add_64x4 sse4_1/;
+}
 
 add_proto qw/void av1_highbd_iwht4x4_1_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
 add_proto qw/void av1_highbd_iwht4x4_16_add/, "const tran_low_t *input, uint16_t *dest, int dest_stride, int bd";
@@ -223,6 +233,14 @@ add_proto qw/void av1_inv_txfm2d_add_8x32/, "const int32_t *input, uint16_t *out
 specialize qw/av1_inv_txfm2d_add_8x32 neon/;
 add_proto qw/void av1_inv_txfm2d_add_32x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
 specialize qw/av1_inv_txfm2d_add_32x8 neon/;
+if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+  add_proto qw/void av1_inv_txfm2d_add_4x32/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  add_proto qw/void av1_inv_txfm2d_add_32x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  add_proto qw/void av1_inv_txfm2d_add_8x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  add_proto qw/void av1_inv_txfm2d_add_64x8/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  add_proto qw/void av1_inv_txfm2d_add_4x64/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+  add_proto qw/void av1_inv_txfm2d_add_64x4/, "const int32_t *input, uint16_t *output, int stride, TX_TYPE tx_type, int bd";
+}
 
 # directional intra predictor functions
 add_proto qw/void av1_highbd_dr_prediction_z1/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int upsample_above, int dx, int dy, int bd, int mrl_index";
@@ -340,6 +358,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/av1_fwd_txfm2d_16x64 sse4_1 neon/;
   add_proto qw/void av1_fwd_txfm2d_64x16/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
   specialize qw/av1_fwd_txfm2d_64x16 sse4_1 neon/;
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    add_proto qw/void av1_fwd_txfm2d_4x32/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_32x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_8x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_64x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_4x64/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+    add_proto qw/void av1_fwd_txfm2d_64x4/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
+  }
 
   #
   # Motion search
@@ -371,7 +397,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/av1_get_nz_map_contexts_skip sse2/;
   }
 
-  if (aom_config("CONFIG_ATC") eq "yes") {
+  if (aom_config("CONFIG_ATC") eq "yes" or aom_config("CONFIG_FLEX_PARTITION") eq "yes" ) {
     add_proto qw/void av1_get_nz_map_contexts/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t eob, const TX_SIZE tx_size, const TX_CLASS tx_class, int8_t *const coeff_contexts, const int plane";
   } else {
     add_proto qw/void av1_get_nz_map_contexts/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t eob, const TX_SIZE tx_size, const TX_CLASS tx_class, int8_t *const coeff_contexts";

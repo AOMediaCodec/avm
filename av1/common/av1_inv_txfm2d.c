@@ -153,6 +153,14 @@ static const int8_t inv_shift_8x32[2] = { -2, -4 };
 static const int8_t inv_shift_32x8[2] = { -2, -4 };
 static const int8_t inv_shift_16x64[2] = { -2, -4 };
 static const int8_t inv_shift_64x16[2] = { -2, -4 };
+#if CONFIG_FLEX_PARTITION
+static const int8_t inv_shift_4x32[2] = { -1, -4 };
+static const int8_t inv_shift_32x4[2] = { -1, -4 };
+static const int8_t inv_shift_8x64[2] = { -1, -4 };
+static const int8_t inv_shift_64x8[2] = { -1, -4 };
+static const int8_t inv_shift_4x64[2] = { -2, -4 };
+static const int8_t inv_shift_64x4[2] = { -2, -4 };
+#endif  // CONFIG_FLEX_PARTITION
 
 const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL] = {
   inv_shift_4x4,   inv_shift_8x8,   inv_shift_16x16, inv_shift_32x32,
@@ -160,25 +168,29 @@ const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL] = {
   inv_shift_16x8,  inv_shift_16x32, inv_shift_32x16, inv_shift_32x64,
   inv_shift_64x32, inv_shift_4x16,  inv_shift_16x4,  inv_shift_8x32,
   inv_shift_32x8,  inv_shift_16x64, inv_shift_64x16,
+#if CONFIG_FLEX_PARTITION
+  inv_shift_4x32,  inv_shift_32x4,  inv_shift_8x64,  inv_shift_64x8,
+  inv_shift_4x64,  inv_shift_64x4,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 /* clang-format off */
 const int8_t av1_inv_cos_bit_col[MAX_TXWH_IDX]      // txw_idx
                             [MAX_TXWH_IDX] = {  // txh_idx
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0,           0 },
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0 },
     { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0,           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
   };
 
 const int8_t av1_inv_cos_bit_row[MAX_TXWH_IDX]      // txw_idx
                             [MAX_TXWH_IDX] = {  // txh_idx
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0,           0 },
-    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT,           0 },
     { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
-    {           0,           0, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT },
+    { INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT, INV_COS_BIT }
   };
 /* clang-format on */
 
@@ -294,7 +306,7 @@ static INLINE void inv_txfm2d_add_c(const int32_t *input, uint16_t *output,
 
   // Rows
   for (r = 0; r < txfm_size_row; ++r) {
-    if (abs(rect_type) == 1) {
+    if ((abs(rect_type) % 2) == 1) {
       for (c = 0; c < txfm_size_col; ++c) {
         temp_in[c] = round_shift((int64_t)input[c] * NewInvSqrt2, NewSqrt2Bits);
       }
@@ -507,3 +519,73 @@ void av1_inv_txfm2d_add_32x8_c(const int32_t *input, uint16_t *output,
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 32 + 32 + 32]);
   inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_32X8, bd);
 }
+
+#if CONFIG_FLEX_PARTITION
+void av1_inv_txfm2d_add_4x32_c(const int32_t *input, uint16_t *output,
+                               int stride, TX_TYPE tx_type, int bd) {
+  DECLARE_ALIGNED(32, int, txfm_buf[4 * 32 + 32 + 32]);
+  inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_4X32, bd);
+}
+
+void av1_inv_txfm2d_add_32x4_c(const int32_t *input, uint16_t *output,
+                               int stride, TX_TYPE tx_type, int bd) {
+  DECLARE_ALIGNED(32, int, txfm_buf[4 * 32 + 32 + 32]);
+  inv_txfm2d_add_facade(input, output, stride, txfm_buf, tx_type, TX_32X4, bd);
+}
+
+void av1_inv_txfm2d_add_8x64_c(const int32_t *input, uint16_t *output,
+                               int stride, TX_TYPE tx_type, int bd) {
+  // Remap 8x32 input into a modified 8x64 input by:
+  // - Copying over these values in top-left 8x32 locations.
+  // - Setting the rest of the locations to 0.
+  int32_t mod_input[8 * 64];
+  memcpy(mod_input, input, 8 * 32 * sizeof(*mod_input));
+  memset(mod_input + 8 * 32, 0, 8 * 32 * sizeof(*mod_input));
+  DECLARE_ALIGNED(32, int, txfm_buf[8 * 64 + 64 + 64]);
+  inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_8X64,
+                        bd);
+}
+
+void av1_inv_txfm2d_add_64x8_c(const int32_t *input, uint16_t *output,
+                               int stride, TX_TYPE tx_type, int bd) {
+  // Remap 32x8 input into a modified 64x8 by:
+  // - Copying over these values in top-left 32x8 locations.
+  // - Setting the rest of the locations to 0.
+  int32_t mod_input[64 * 8];
+  for (int row = 0; row < 8; ++row) {
+    memcpy(mod_input + row * 64, input + row * 32, 32 * sizeof(*mod_input));
+    memset(mod_input + row * 64 + 32, 0, 32 * sizeof(*mod_input));
+  }
+  DECLARE_ALIGNED(32, int, txfm_buf[8 * 64 + 64 + 64]);
+  inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X8,
+                        bd);
+}
+
+void av1_inv_txfm2d_add_4x64_c(const int32_t *input, uint16_t *output,
+                               int stride, TX_TYPE tx_type, int bd) {
+  // Remap 4x32 input into a modified 4x64 input by:
+  // - Copying over these values in top-left 4x32 locations.
+  // - Setting the rest of the locations to 0.
+  int32_t mod_input[4 * 64];
+  memcpy(mod_input, input, 4 * 32 * sizeof(*mod_input));
+  memset(mod_input + 4 * 32, 0, 4 * 32 * sizeof(*mod_input));
+  DECLARE_ALIGNED(32, int, txfm_buf[4 * 64 + 64 + 64]);
+  inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_4X64,
+                        bd);
+}
+
+void av1_inv_txfm2d_add_64x4_c(const int32_t *input, uint16_t *output,
+                               int stride, TX_TYPE tx_type, int bd) {
+  // Remap 32x4 input into a modified 64x8 by:
+  // - Copying over these values in top-left 32x4 locations.
+  // - Setting the rest of the locations to 0.
+  int32_t mod_input[64 * 4];
+  for (int row = 0; row < 4; ++row) {
+    memcpy(mod_input + row * 64, input + row * 32, 32 * sizeof(*mod_input));
+    memset(mod_input + row * 64 + 32, 0, 32 * sizeof(*mod_input));
+  }
+  DECLARE_ALIGNED(32, int, txfm_buf[4 * 64 + 64 + 64]);
+  inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X4,
+                        bd);
+}
+#endif  // CONFIG_FLEX_PARTITION

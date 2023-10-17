@@ -57,11 +57,14 @@
 // This table is used to correct for block size.
 // The factors here are << 2 (2 = x0.5, 32 = x8 etc).
 static const uint8_t rd_thresh_block_size_factor[BLOCK_SIZES_ALL] = {
-  2,  3,  3,   4, 6,  6, 8, 12, 12, 16, 24, 24, 32, 48, 48, 64,
+  2,  3,  3,   4,  6,  6,  8, 12, 12, 16, 24, 24, 32, 48, 48, 64,
 #if CONFIG_BLOCK_256
   96, 96, 128,
 #endif  // CONFIG_BLOCK_256
-  4,  4,  8,   8, 16, 16
+  4,  4,  8,   8,  16, 16,
+#if CONFIG_FLEX_PARTITION
+  6,  6,  12,  12, 8,  8,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static const int use_intra_ext_tx_for_txsize[EXT_TX_SETS_INTRA]
@@ -1523,7 +1526,15 @@ static const uint8_t bsize_curvfit_model_cat_lookup[BLOCK_SIZES_ALL] = {
   2,
   2,
   3,
-  3
+  3,
+#if CONFIG_FLEX_PARTITION
+  1,
+  1,
+  2,
+  2,
+  2,
+  2,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 static int sse_norm_curvfit_model_cat_lookup(double sse_norm) {
@@ -1574,7 +1585,15 @@ static const uint8_t bsize_surffit_model_cat_lookup[BLOCK_SIZES_ALL] = {
   2,
   2,
   4,
-  4
+  4,
+#if CONFIG_FLEX_PARTITION
+  1,
+  1,
+  3,
+  3,
+  2,
+  2,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 // TODO(any): Add models for BLOCK_256

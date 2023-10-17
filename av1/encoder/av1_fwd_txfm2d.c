@@ -117,9 +117,9 @@ static INLINE void fwd_txfm2d_c(const int16_t *input, int32_t *output,
     txfm_func_row(buf + r * txfm_size_col, output + r * txfm_size_col,
                   cos_bit_row, stage_range_row);
     av1_round_shift_array(output + r * txfm_size_col, txfm_size_col, -shift[2]);
-    if (abs(rect_type) == 1) {
+    if ((abs(rect_type) % 2) == 1) {
       // Multiply everything by Sqrt2 if the transform is rectangular and the
-      // size difference is a factor of 2.
+      // size difference is a factor of 2 or 8.
       for (c = 0; c < txfm_size_col; ++c) {
         output[r * txfm_size_col + c] = round_shift(
             (int64_t)output[r * txfm_size_col + c] * NewSqrt2, NewSqrt2Bits);
@@ -314,6 +314,78 @@ void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
   }
 }
 
+#if CONFIG_FLEX_PARTITION
+void av1_fwd_txfm2d_4x32_c(const int16_t *input, int32_t *output, int stride,
+                           TX_TYPE tx_type, int bd) {
+  DECLARE_ALIGNED(32, int32_t, txfm_buf[32 * 4]);
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_4X32, &cfg);
+  fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
+}
+
+void av1_fwd_txfm2d_32x4_c(const int16_t *input, int32_t *output, int stride,
+                           TX_TYPE tx_type, int bd) {
+  int32_t txfm_buf[32 * 4];
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_32X4, &cfg);
+  fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
+}
+
+void av1_fwd_txfm2d_8x64_c(const int16_t *input, int32_t *output, int stride,
+                           TX_TYPE tx_type, int bd) {
+  DECLARE_ALIGNED(32, int32_t, txfm_buf[64 * 8]);
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_8X64, &cfg);
+  fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
+  // Zero out the bottom 8x32 area.
+  memset(output + 8 * 32, 0, 8 * 32 * sizeof(*output));
+  // Note: no repacking needed here.
+}
+
+void av1_fwd_txfm2d_64x8_c(const int16_t *input, int32_t *output, int stride,
+                           TX_TYPE tx_type, int bd) {
+  int32_t txfm_buf[64 * 8];
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_64X8, &cfg);
+  fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
+  // Zero out right 32x8 area.
+  for (int row = 0; row < 8; ++row) {
+    memset(output + row * 64 + 32, 0, 32 * sizeof(*output));
+  }
+  // Re-pack non-zero coeffs in the first 32x16 indices.
+  for (int row = 1; row < 8; ++row) {
+    memcpy(output + row * 32, output + row * 64, 32 * sizeof(*output));
+  }
+}
+
+void av1_fwd_txfm2d_4x64_c(const int16_t *input, int32_t *output, int stride,
+                           TX_TYPE tx_type, int bd) {
+  DECLARE_ALIGNED(32, int32_t, txfm_buf[64 * 4]);
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_4X64, &cfg);
+  fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
+  // Zero out the bottom 4x32 area.
+  memset(output + 4 * 32, 0, 4 * 32 * sizeof(*output));
+  // Note: no repacking needed here.
+}
+
+void av1_fwd_txfm2d_64x4_c(const int16_t *input, int32_t *output, int stride,
+                           TX_TYPE tx_type, int bd) {
+  int32_t txfm_buf[64 * 4];
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_64X4, &cfg);
+  fwd_txfm2d_c(input, output, stride, &cfg, txfm_buf, bd);
+  // Zero out right 32x4 area.
+  for (int row = 0; row < 4; ++row) {
+    memset(output + row * 64 + 32, 0, 32 * sizeof(*output));
+  }
+  // Re-pack non-zero coeffs in the first 32x4 indices.
+  for (int row = 1; row < 4; ++row) {
+    memcpy(output + row * 32, output + row * 64, 32 * sizeof(*output));
+  }
+}
+#endif  // CONFIG_FLEX_PARTITION
+
 static const int8_t fwd_shift_4x4[3] = { 2, 0, 0 };
 static const int8_t fwd_shift_8x8[3] = { 2, -1, 0 };
 static const int8_t fwd_shift_16x16[3] = { 2, -2, 0 };
@@ -333,6 +405,14 @@ static const int8_t fwd_shift_8x32[3] = { 2, -2, 0 };
 static const int8_t fwd_shift_32x8[3] = { 2, -2, 0 };
 static const int8_t fwd_shift_16x64[3] = { 0, -2, 0 };
 static const int8_t fwd_shift_64x16[3] = { 2, -4, 0 };
+#if CONFIG_FLEX_PARTITION
+static const int8_t fwd_shift_4x32[3] = { 2, -2, 0 };
+static const int8_t fwd_shift_32x4[3] = { 2, -2, 0 };
+static const int8_t fwd_shift_8x64[3] = { 0, -2, 0 };
+static const int8_t fwd_shift_64x8[3] = { 2, -4, 0 };
+static const int8_t fwd_shift_4x64[3] = { 0, 0, 0 };
+static const int8_t fwd_shift_64x4[3] = { 2, -2, 0 };
+#endif  // CONFIG_FLEX_PARTITION
 
 const int8_t *av1_fwd_txfm_shift_ls[TX_SIZES_ALL] = {
   fwd_shift_4x4,   fwd_shift_8x8,   fwd_shift_16x16, fwd_shift_32x32,
@@ -340,24 +420,28 @@ const int8_t *av1_fwd_txfm_shift_ls[TX_SIZES_ALL] = {
   fwd_shift_16x8,  fwd_shift_16x32, fwd_shift_32x16, fwd_shift_32x64,
   fwd_shift_64x32, fwd_shift_4x16,  fwd_shift_16x4,  fwd_shift_8x32,
   fwd_shift_32x8,  fwd_shift_16x64, fwd_shift_64x16,
+#if CONFIG_FLEX_PARTITION
+  fwd_shift_4x32,  fwd_shift_32x4,  fwd_shift_8x64,  fwd_shift_64x8,
+  fwd_shift_4x64,  fwd_shift_64x4,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 const int8_t av1_fwd_cos_bit_col[MAX_TXWH_IDX /*txw_idx*/]
                                 [MAX_TXWH_IDX /*txh_idx*/] = {
-                                  { 13, 13, 13, 0, 0 },
-                                  { 13, 13, 13, 12, 0 },
                                   { 13, 13, 13, 12, 13 },
-                                  { 0, 13, 13, 12, 13 },
-                                  { 0, 0, 13, 12, 13 }
+                                  { 13, 13, 13, 12, 13 },
+                                  { 13, 13, 13, 12, 13 },
+                                  { 13, 13, 13, 12, 13 },
+                                  { 13, 13, 13, 12, 13 }
                                 };
 
 const int8_t av1_fwd_cos_bit_row[MAX_TXWH_IDX /*txw_idx*/]
                                 [MAX_TXWH_IDX /*txh_idx*/] = {
-                                  { 13, 13, 12, 0, 0 },
-                                  { 13, 13, 13, 12, 0 },
+                                  { 13, 13, 12, 12, 12 },
+                                  { 13, 13, 13, 12, 12 },
                                   { 13, 13, 12, 13, 12 },
-                                  { 0, 12, 13, 12, 11 },
-                                  { 0, 0, 12, 11, 10 }
+                                  { 12, 12, 13, 12, 11 },
+                                  { 12, 12, 12, 11, 10 }
                                 };
 
 static const int8_t fdct4_range_mult2[4] = { 0, 2, 3, 3 };

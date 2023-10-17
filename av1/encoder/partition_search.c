@@ -2602,9 +2602,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->horizontal4a[0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
@@ -2624,9 +2623,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     }
     case PARTITION_HORZ_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->horizontal4b[0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
@@ -2646,9 +2644,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     }
     case PARTITION_VERT_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->vertical4a[0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
@@ -2668,9 +2665,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     }
     case PARTITION_VERT_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->vertical4b[0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
@@ -5402,9 +5398,8 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
 #if CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->horizontal4a[0],
                                mi_row, mi_col, subsize);
       trace_partition_boundary(partition_boundaries, pc_tree->horizontal4a[1],
@@ -5417,9 +5412,8 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
     }
     case PARTITION_HORZ_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->horizontal4b[0],
                                mi_row, mi_col, subsize);
       trace_partition_boundary(partition_boundaries, pc_tree->horizontal4b[1],
@@ -5432,9 +5426,8 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
     }
     case PARTITION_VERT_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->vertical4a[0],
                                mi_row, mi_col, subsize);
       trace_partition_boundary(partition_boundaries, pc_tree->vertical4a[1],
@@ -5447,9 +5440,8 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
     }
     case PARTITION_VERT_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->vertical4b[0],
                                mi_row, mi_col, subsize);
       trace_partition_boundary(partition_boundaries, pc_tree->vertical4b[1],
@@ -5739,6 +5731,8 @@ static AOM_INLINE void prune_ext_partitions_4way(
   const AV1_COMMON *const cm = &cpi->common;
   const PARTITION_SPEED_FEATURES *part_sf = &cpi->sf.part_sf;
   const PARTITION_TYPE forced_partition = part_search_state->forced_partition;
+
+  // Prune HORZ 4A with speed features
   if (part_search_state->partition_4a_allowed[HORZ] &&
       forced_partition != PARTITION_HORZ_4A) {
     if (part_sf->prune_ext_part_with_part_none &&
@@ -5746,6 +5740,38 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in horz
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_horz(pc_tree->horizontal[0]) &&
+          !node_uses_horz(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4a[HORZ] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_horz(pc_tree->vertical[0]) &&
+          !node_uses_horz(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4a[HORZ] = 1;
+      }
+    }
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm)) {
+      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
+          !node_uses_horz(pc_tree->horizontal3[0]) &&
+          !node_uses_horz(pc_tree->horizontal3[3])) {
+        // Prune if best partition is horizontal H, but first and last
+        // subpartitions did not further split in horizontal direction.
+        part_search_state->prune_partition_4a[HORZ] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_VERT_3 &&
+          !node_uses_horz(pc_tree->vertical3[1]) &&
+          !node_uses_horz(pc_tree->vertical3[2])) {
+        // Prune if best partition is vertical H, but middle two
+        // subpartitions did not further split in horizontal direction.
+        part_search_state->prune_partition_4a[HORZ] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_HORZ &&
         !node_uses_horz(pc_tree->horizontal[0]) &&
@@ -5762,6 +5788,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in horizontal direction.
       part_search_state->prune_partition_4a[HORZ] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
@@ -5777,6 +5804,38 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in horz
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_horz(pc_tree->horizontal[0]) &&
+          !node_uses_horz(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4b[HORZ] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_horz(pc_tree->vertical[0]) &&
+          !node_uses_horz(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4b[HORZ] = 1;
+      }
+    }
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm)) {
+      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
+          !node_uses_horz(pc_tree->horizontal3[0]) &&
+          !node_uses_horz(pc_tree->horizontal3[3])) {
+        // Prune if best partition is horizontal H, but first and last
+        // subpartitions did not further split in horizontal direction.
+        part_search_state->prune_partition_4b[HORZ] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_VERT_3 &&
+          !node_uses_horz(pc_tree->vertical3[1]) &&
+          !node_uses_horz(pc_tree->vertical3[2])) {
+        // Prune if best partition is vertical H, but middle two
+        // subpartitions did not further split in horizontal direction.
+        part_search_state->prune_partition_4b[HORZ] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_HORZ &&
         !node_uses_horz(pc_tree->horizontal[0]) &&
@@ -5793,6 +5852,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in horizontal direction.
       part_search_state->prune_partition_4b[HORZ] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_VERT &&
         part_search_state->partition_rect_allowed[HORZ]) {
@@ -5808,6 +5868,38 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4a[VERT] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in vert
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_vert(pc_tree->vertical[0]) &&
+          !node_uses_vert(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4a[VERT] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_vert(pc_tree->horizontal[0]) &&
+          !node_uses_vert(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4a[VERT] = 1;
+      }
+    }
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm)) {
+      if (pc_tree->partitioning == PARTITION_VERT_3 &&
+          !node_uses_vert(pc_tree->vertical3[0]) &&
+          !node_uses_vert(pc_tree->vertical3[3])) {
+        // Prune if best partition is vertical H, but first and last
+        // subpartitions did not further split in vertical direction.
+        part_search_state->prune_partition_4a[VERT] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
+          !node_uses_vert(pc_tree->horizontal3[1]) &&
+          !node_uses_vert(pc_tree->horizontal3[2])) {
+        // Prune if best partition is horizontal H, but middle two
+        // subpartitions did not further split in vertical direction.
+        part_search_state->prune_partition_4a[VERT] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_VERT &&
         !node_uses_vert(pc_tree->vertical[0]) &&
@@ -5824,6 +5916,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in vertical direction.
       part_search_state->prune_partition_4a[VERT] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
@@ -5839,6 +5932,38 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // Prune if the best partition does not split
       part_search_state->prune_partition_4b[VERT] = 1;
     }
+#if CONFIG_FLEX_PARTITION
+    if (part_sf->prune_ext_part_with_part_rect) {
+      // Prune if the best partition is rect but subtrees did not further split
+      // in vert
+      if (pc_tree->partitioning == PARTITION_VERT &&
+          !node_uses_vert(pc_tree->vertical[0]) &&
+          !node_uses_vert(pc_tree->vertical[1])) {
+        part_search_state->prune_partition_4b[VERT] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_HORZ &&
+          !node_uses_vert(pc_tree->horizontal[0]) &&
+          !node_uses_vert(pc_tree->horizontal[1])) {
+        part_search_state->prune_partition_4b[VERT] = 1;
+      }
+    }
+    if (part_sf->prune_part_4_with_part_3 && !frame_is_intra_only(cm)) {
+      if (pc_tree->partitioning == PARTITION_VERT_3 &&
+          !node_uses_vert(pc_tree->vertical3[0]) &&
+          !node_uses_vert(pc_tree->vertical3[3])) {
+        // Prune if best partition is vertical H, but first and last
+        // subpartitions did not further split in vertical direction.
+        part_search_state->prune_partition_4b[VERT] = 1;
+      }
+      if (pc_tree->partitioning == PARTITION_HORZ_3 &&
+          !node_uses_vert(pc_tree->horizontal3[1]) &&
+          !node_uses_vert(pc_tree->horizontal3[2])) {
+        // Prune if best partition is horizontal H, but middle two
+        // subpartitions did not further split in vertical direction.
+        part_search_state->prune_partition_4b[VERT] = 1;
+      }
+    }
+#else
     if (part_sf->prune_ext_part_with_part_rect &&
         pc_tree->partitioning == PARTITION_VERT &&
         !node_uses_vert(pc_tree->vertical[0]) &&
@@ -5855,6 +5980,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
       // subpartitions did not further split in vertical direction.
       part_search_state->prune_partition_4b[VERT] = 1;
     }
+#endif  // CONFIG_FLEX_PARTITION
     if (part_sf->prune_part_4_horz_or_vert && !frame_is_intra_only(cm) &&
         pc_tree->partitioning == PARTITION_HORZ &&
         part_search_state->partition_rect_allowed[VERT]) {
@@ -5945,9 +6071,8 @@ static INLINE void search_partition_horz_4a(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_HORZ_4A);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_HORZ);
-  assert(sml_subsize == get_partition_subsize(med_subsize, PARTITION_HORZ));
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_HORZ][big_subsize];
+  assert(sml_subsize == subsize_lookup[PARTITION_HORZ][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 3, 7 };
   const BLOCK_SIZE subblock_sizes[4] = { sml_subsize, med_subsize, big_subsize,
@@ -6053,9 +6178,8 @@ static INLINE void search_partition_horz_4b(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_HORZ_4B);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_HORZ);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_HORZ);
-  assert(sml_subsize == get_partition_subsize(med_subsize, PARTITION_HORZ));
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_HORZ][big_subsize];
+  assert(sml_subsize == subsize_lookup[PARTITION_HORZ][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 5, 7 };
   const BLOCK_SIZE subblock_sizes[4] = { sml_subsize, big_subsize, med_subsize,
@@ -6161,9 +6285,8 @@ static INLINE void search_partition_vert_4a(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_VERT_4A);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_VERT);
-  assert(sml_subsize == get_partition_subsize(med_subsize, PARTITION_VERT));
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_VERT][big_subsize];
+  assert(sml_subsize == subsize_lookup[PARTITION_VERT][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 3, 7 };
   const BLOCK_SIZE subblock_sizes[4] = { sml_subsize, med_subsize, big_subsize,
@@ -6269,9 +6392,8 @@ static INLINE void search_partition_vert_4b(
   const BLOCK_SIZE sml_subsize =
       get_partition_subsize(bsize, PARTITION_VERT_4B);
   const BLOCK_SIZE big_subsize = get_partition_subsize(bsize, PARTITION_VERT);
-  const BLOCK_SIZE med_subsize =
-      get_partition_subsize(big_subsize, PARTITION_VERT);
-  assert(sml_subsize == get_partition_subsize(med_subsize, PARTITION_VERT));
+  const BLOCK_SIZE med_subsize = subsize_lookup[PARTITION_VERT][big_subsize];
+  assert(sml_subsize == subsize_lookup[PARTITION_VERT][med_subsize]);
 
   const int cum_step_multipliers[4] = { 0, 1, 5, 7 };
   const BLOCK_SIZE subblock_sizes[4] = { sml_subsize, big_subsize, med_subsize,

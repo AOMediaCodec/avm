@@ -27,6 +27,46 @@ using libaom_test::ACMRandom;
 #define NUM_ITERATIONS (100)
 #define NUM_ITERATIONS_SPEED (INT16_MAX)
 
+#if CONFIG_FLEX_PARTITION
+
+#define ALL_CFL_TX_SIZES(function)                           \
+  make_tuple(static_cast<TX_SIZE>(TX_4X4), &function),       \
+      make_tuple(static_cast<TX_SIZE>(TX_4X8), &function),   \
+      make_tuple(static_cast<TX_SIZE>(TX_4X16), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_4X32), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_8X4), &function),   \
+      make_tuple(static_cast<TX_SIZE>(TX_8X8), &function),   \
+      make_tuple(static_cast<TX_SIZE>(TX_8X16), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_8X32), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X4), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X8), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X16), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_16X32), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X4), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_32X8), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_32X16), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X32), &function)
+
+#define ALL_CFL_TX_SIZES_SUBSAMPLE(fun420, fun422, fun444)                   \
+  make_tuple(static_cast<TX_SIZE>(TX_4X4), &fun420, &fun422, &fun444),       \
+      make_tuple(static_cast<TX_SIZE>(TX_4X8), &fun420, &fun422, &fun444),   \
+      make_tuple(static_cast<TX_SIZE>(TX_4X16), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_4X32), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_8X4), &fun420, &fun422, &fun444),   \
+      make_tuple(static_cast<TX_SIZE>(TX_8X8), &fun420, &fun422, &fun444),   \
+      make_tuple(static_cast<TX_SIZE>(TX_8X16), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_8X32), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X4), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X8), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X16), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_16X32), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X4), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_32X8), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_32X16), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X32), &fun420, &fun422, &fun444)
+
+#else
+
 #define ALL_CFL_TX_SIZES(function)                           \
   make_tuple(static_cast<TX_SIZE>(TX_4X4), &function),       \
       make_tuple(static_cast<TX_SIZE>(TX_4X8), &function),   \
@@ -58,6 +98,8 @@ using libaom_test::ACMRandom;
       make_tuple(static_cast<TX_SIZE>(TX_32X8), &fun420, &fun422, &fun444),  \
       make_tuple(static_cast<TX_SIZE>(TX_32X16), &fun420, &fun422, &fun444), \
       make_tuple(static_cast<TX_SIZE>(TX_32X32), &fun420, &fun422, &fun444)
+
+#endif  // CONFIG_FLEX_PARTITION
 
 namespace {
 

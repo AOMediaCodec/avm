@@ -3205,9 +3205,8 @@ static AOM_INLINE void write_modes_sb(
 #if CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
@@ -3227,9 +3226,8 @@ static AOM_INLINE void write_modes_sb(
     }
     case PARTITION_HORZ_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
@@ -3249,9 +3247,8 @@ static AOM_INLINE void write_modes_sb(
     }
     case PARTITION_VERT_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);
@@ -3271,9 +3268,8 @@ static AOM_INLINE void write_modes_sb(
     }
     case PARTITION_VERT_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       write_modes_sb(cpi, tile, w, tok, tok_end, ptree->sub_tree[0],
                      get_partition_subtree_const(ptree_luma, 0), mi_row, mi_col,
                      subsize);

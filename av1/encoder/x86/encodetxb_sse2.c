@@ -599,9 +599,6 @@ void av1_get_nz_map_contexts_sse2(const uint8_t *const levels,
       get_4_nz_map_contexts_2d(levels, height, offsets, coeff_contexts);
     } else if (width == 8) {
       get_8_coeff_contexts_2d(levels, height, offsets, coeff_contexts);
-    } else if (width == 16) {
-      get_16n_coeff_contexts_2d(levels, real_width, real_height, width, height,
-                                offsets, coeff_contexts);
     } else {
       get_16n_coeff_contexts_2d(levels, real_width, real_height, width, height,
                                 offsets, coeff_contexts);

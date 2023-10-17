@@ -114,7 +114,11 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
   const int num_pix = block_size_wide[bsize] * block_size_high[bsize];
   const int num_blk = num_pix / 16;
 
-#if CONFIG_UNEVEN_4WAY
+#if CONFIG_FLEX_PARTITION
+  // Biggest chroma block covering multiple luma blocks is of size 16X32 /
+  // 32x16, when a 32x64 / 64x32 block uses a HORZ / VERTICAL 4A/4B partition.
+  const int num_pix_chroma = AOMMAX(num_pix, 16 * 32);
+#elif CONFIG_UNEVEN_4WAY
   // Biggest chroma block covering multiple luma blocks is of size 8X16 / 16X8,
   // when a 16X32 / 32X16 block uses a HORZ / VERTICAL 4A/4B partition.
   const int num_pix_chroma = AOMMAX(num_pix, 16 * 8);
@@ -125,7 +129,7 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
   // is only allowed for bsize >= BLOCK_8X8, and all these block sizes have at
   // least 64 pixels.
   const int num_pix_chroma = num_pix;
-#endif  // CONFIG_UNEVEN_4WAY
+#endif  // CONFIG_FLEX_PARTITION
 
   AOM_CHECK_MEM_ERROR(&error, ctx->blk_skip,
                       aom_calloc(num_blk, sizeof(*ctx->blk_skip)));
@@ -147,15 +151,23 @@ PICK_MODE_CONTEXT *av1_alloc_pmc(const AV1_COMMON *cm, TREE_TYPE tree_type,
     ctx->coeff[i] = shared_bufs->coeff_buf[i];
     ctx->qcoeff[i] = shared_bufs->qcoeff_buf[i];
     ctx->dqcoeff[i] = shared_bufs->dqcoeff_buf[i];
-    AOM_CHECK_MEM_ERROR(&error, ctx->eobs[i],
-                        aom_memalign(32, num_blk * sizeof(*ctx->eobs[i])));
+#if CONFIG_FLEX_PARTITION
+    const int num_blk_plane =
+        (i == 0) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
+#else
+    const int num_blk_plane = ctx->num_4x4_blk;
+#endif  // CONFIG_FLEX_PARTITION
+    AOM_CHECK_MEM_ERROR(
+        &error, ctx->eobs[i],
+        aom_memalign(32, num_blk_plane * sizeof(*ctx->eobs[i])));
 #if CONFIG_ATC_DCTX_ALIGNED
-    AOM_CHECK_MEM_ERROR(&error, ctx->bobs[i],
-                        aom_memalign(32, num_blk * sizeof(*ctx->bobs[i])));
+    AOM_CHECK_MEM_ERROR(
+        &error, ctx->bobs[i],
+        aom_memalign(32, num_blk_plane * sizeof(*ctx->bobs[i])));
 #endif  // CONFIG_ATC_DCTX_ALIGNED
     AOM_CHECK_MEM_ERROR(
         &error, ctx->txb_entropy_ctx[i],
-        aom_memalign(32, num_blk * sizeof(*ctx->txb_entropy_ctx[i])));
+        aom_memalign(32, num_blk_plane * sizeof(*ctx->txb_entropy_ctx[i])));
   }
 
   if (num_pix <= MAX_PALETTE_SQUARE) {
@@ -491,9 +503,8 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_row + ebh * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_HORZ);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_HORZ);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+        assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_med, bsize_big,
                                          subsize };
         for (int i = 0; i < 4; ++i) {
@@ -520,9 +531,8 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_row + ebh * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_HORZ);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_HORZ);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+        assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_big, bsize_med,
                                          subsize };
         for (int i = 0; i < 4; ++i) {
@@ -549,9 +559,8 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_col + ebw * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_VERT);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_VERT);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+        assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_med, bsize_big,
                                          subsize };
         for (int i = 0; i < 4; ++i) {
@@ -578,9 +587,8 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
                                  mi_col + ebw * 7 };
         const BLOCK_SIZE bsize_big =
             get_partition_subsize(bsize, PARTITION_VERT);
-        const BLOCK_SIZE bsize_med =
-            get_partition_subsize(bsize_big, PARTITION_VERT);
-        assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+        const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+        assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
         const BLOCK_SIZE subsizes[4] = { subsize, bsize_big, bsize_med,
                                          subsize };
         for (int i = 0; i < 4; ++i) {

@@ -696,9 +696,8 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
 #if CONFIG_UNEVEN_4WAY
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
                           ptree->sub_tree[0]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_med,
@@ -711,9 +710,8 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
     }
     case PARTITION_HORZ_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_HORZ);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_HORZ));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
                           ptree->sub_tree[0]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row + ebs_h, mi_col, bsize_big,
@@ -726,9 +724,8 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
     }
     case PARTITION_VERT_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
                           ptree->sub_tree[0]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_med,
@@ -741,9 +738,8 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
     }
     case PARTITION_VERT_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
-      const BLOCK_SIZE bsize_med =
-          get_partition_subsize(bsize_big, PARTITION_VERT);
-      assert(subsize == get_partition_subsize(bsize_med, PARTITION_VERT));
+      const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
+      assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
                           ptree->sub_tree[0]);
       collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + ebs_w, bsize_big,

@@ -121,6 +121,91 @@ DECLARE_ALIGNED(16, static const int16_t, mcol_scan_16x4[64]) = {
   12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47, 63,
 };
 
+#if CONFIG_FLEX_PARTITION
+#if CONFIG_ATC
+DECLARE_ALIGNED(16, static const int16_t, default_scan_4x32[128]) = {
+  0,   4,   1,   8,   5,   2,   12,  9,   6,   3,   16,  13,  10,  7,   20,
+  17,  14,  11,  24,  21,  18,  15,  28,  25,  22,  19,  32,  29,  26,  23,
+  36,  33,  30,  27,  40,  37,  34,  31,  44,  41,  38,  35,  48,  45,  42,
+  39,  52,  49,  46,  43,  56,  53,  50,  47,  60,  57,  54,  51,  64,  61,
+  58,  55,  68,  65,  62,  59,  72,  69,  66,  63,  76,  73,  70,  67,  80,
+  77,  74,  71,  84,  81,  78,  75,  88,  85,  82,  79,  92,  89,  86,  83,
+  96,  93,  90,  87,  100, 97,  94,  91,  104, 101, 98,  95,  108, 105, 102,
+  99,  112, 109, 106, 103, 116, 113, 110, 107, 120, 117, 114, 111, 124, 121,
+  118, 115, 125, 122, 119, 126, 123, 127
+};
+#else
+DECLARE_ALIGNED(16, static const int16_t, default_scan_4x32[128]) = {
+  0,   1,   4,   2,   5,   8,   3,   6,   9,   12,  7,   10,  13,  16,  11,
+  14,  17,  20,  15,  18,  21,  24,  19,  22,  25,  28,  23,  26,  29,  32,
+  27,  30,  33,  36,  31,  34,  37,  40,  35,  38,  41,  44,  39,  42,  45,
+  48,  43,  46,  49,  52,  47,  50,  53,  56,  51,  54,  57,  60,  55,  58,
+  61,  64,  59,  62,  65,  68,  63,  66,  69,  72,  67,  70,  73,  76,  71,
+  74,  77,  80,  75,  78,  81,  84,  79,  82,  85,  88,  83,  86,  89,  92,
+  87,  90,  93,  96,  91,  94,  97,  100, 95,  98,  101, 104, 99,  102, 105,
+  108, 103, 106, 109, 112, 107, 110, 113, 116, 111, 114, 117, 120, 115, 118,
+  121, 124, 119, 122, 125, 123, 126, 127,
+};
+#endif  // CONFIG_ATC
+
+DECLARE_ALIGNED(16, static const int16_t, default_scan_32x4[128]) = {
+  0,  32, 1,   64, 33, 2,  96,  65, 34, 3,  97,  66, 35, 4,   98,  67,
+  36, 5,  99,  68, 37, 6,  100, 69, 38, 7,  101, 70, 39, 8,   102, 71,
+  40, 9,  103, 72, 41, 10, 104, 73, 42, 11, 105, 74, 43, 12,  106, 75,
+  44, 13, 107, 76, 45, 14, 108, 77, 46, 15, 109, 78, 47, 16,  110, 79,
+  48, 17, 111, 80, 49, 18, 112, 81, 50, 19, 113, 82, 51, 20,  114, 83,
+  52, 21, 115, 84, 53, 22, 116, 85, 54, 23, 117, 86, 55, 24,  118, 87,
+  56, 25, 119, 88, 57, 26, 120, 89, 58, 27, 121, 90, 59, 28,  122, 91,
+  60, 29, 123, 92, 61, 30, 124, 93, 62, 31, 125, 94, 63, 126, 95,  127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, mrow_scan_4x32[128]) = {
+  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
+  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
+  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
+  45,  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,
+  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,
+  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,
+  90,  91,  92,  93,  94,  95,  96,  97,  98,  99,  100, 101, 102, 103, 104,
+  105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
+  120, 121, 122, 123, 124, 125, 126, 127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, mrow_scan_32x4[128]) = {
+  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
+  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
+  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
+  45,  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,
+  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,
+  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,
+  90,  91,  92,  93,  94,  95,  96,  97,  98,  99,  100, 101, 102, 103, 104,
+  105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
+  120, 121, 122, 123, 124, 125, 126, 127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, mcol_scan_4x32[128]) = {
+  0,  4,  8,  12, 16, 20, 24, 28, 32, 36,  40,  44,  48,  52,  56,  60,
+  64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124,
+  1,  5,  9,  13, 17, 21, 25, 29, 33, 37,  41,  45,  49,  53,  57,  61,
+  65, 69, 73, 77, 81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125,
+  2,  6,  10, 14, 18, 22, 26, 30, 34, 38,  42,  46,  50,  54,  58,  62,
+  66, 70, 74, 78, 82, 86, 90, 94, 98, 102, 106, 110, 114, 118, 122, 126,
+  3,  7,  11, 15, 19, 23, 27, 31, 35, 39,  43,  47,  51,  55,  59,  63,
+  67, 71, 75, 79, 83, 87, 91, 95, 99, 103, 107, 111, 115, 119, 123, 127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, mcol_scan_32x4[128]) = {
+  0,  32, 64, 96,  1,  33, 65, 97,  2,  34, 66, 98,  3,  35, 67, 99,
+  4,  36, 68, 100, 5,  37, 69, 101, 6,  38, 70, 102, 7,  39, 71, 103,
+  8,  40, 72, 104, 9,  41, 73, 105, 10, 42, 74, 106, 11, 43, 75, 107,
+  12, 44, 76, 108, 13, 45, 77, 109, 14, 46, 78, 110, 15, 47, 79, 111,
+  16, 48, 80, 112, 17, 49, 81, 113, 18, 50, 82, 114, 19, 51, 83, 115,
+  20, 52, 84, 116, 21, 53, 85, 117, 22, 54, 86, 118, 23, 55, 87, 119,
+  24, 56, 88, 120, 25, 57, 89, 121, 26, 58, 90, 122, 27, 59, 91, 123,
+  28, 60, 92, 124, 29, 61, 93, 125, 30, 62, 94, 126, 31, 63, 95, 127,
+};
+#endif  // CONFIG_FLEX_PARTITION
+
 #if CONFIG_ATC
 DECLARE_ALIGNED(16, static const int16_t, default_scan_8x32[256]) = {
   0,   8,   1,   16,  9,   2,   24,  17,  10,  3,   32,  25,  18,  11,  4,
@@ -1154,6 +1239,91 @@ DECLARE_ALIGNED(16, static const int16_t, av1_mcol_iscan_16x4[64]) = {
   2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62,
   3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63,
 };
+
+#if CONFIG_FLEX_PARTITION
+#if CONFIG_ATC
+DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_4x32[128]) = {
+  0,   2,   5,   9,   1,   4,   8,   13,  3,   7,   12,  17,  6,   11,  16,
+  21,  10,  15,  20,  25,  14,  19,  24,  29,  18,  23,  28,  33,  22,  27,
+  32,  37,  26,  31,  36,  41,  30,  35,  40,  45,  34,  39,  44,  49,  38,
+  43,  48,  53,  42,  47,  52,  57,  46,  51,  56,  61,  50,  55,  60,  65,
+  54,  59,  64,  69,  58,  63,  68,  73,  62,  67,  72,  77,  66,  71,  76,
+  81,  70,  75,  80,  85,  74,  79,  84,  89,  78,  83,  88,  93,  82,  87,
+  92,  97,  86,  91,  96,  101, 90,  95,  100, 105, 94,  99,  104, 109, 98,
+  103, 108, 113, 102, 107, 112, 117, 106, 111, 116, 121, 110, 115, 120, 124,
+  114, 119, 123, 126, 118, 122, 125, 127
+};
+#else
+DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_4x32[128]) = {
+  0,   1,   3,   6,   2,   4,   7,   10,  5,   8,   11,  14,  9,   12,  15,
+  18,  13,  16,  19,  22,  17,  20,  23,  26,  21,  24,  27,  30,  25,  28,
+  31,  34,  29,  32,  35,  38,  33,  36,  39,  42,  37,  40,  43,  46,  41,
+  44,  47,  50,  45,  48,  51,  54,  49,  52,  55,  58,  53,  56,  59,  62,
+  57,  60,  63,  66,  61,  64,  67,  70,  65,  68,  71,  74,  69,  72,  75,
+  78,  73,  76,  79,  82,  77,  80,  83,  86,  81,  84,  87,  90,  85,  88,
+  91,  94,  89,  92,  95,  98,  93,  96,  99,  102, 97,  100, 103, 106, 101,
+  104, 107, 110, 105, 108, 111, 114, 109, 112, 115, 118, 113, 116, 119, 122,
+  117, 120, 123, 125, 121, 124, 126, 127,
+};
+#endif  // CONFIG_ATC
+
+DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_32x4[128]) = {
+  0,  2,  5,  9,  13, 17, 21, 25, 29,  33,  37,  41,  45,  49,  53,  57,
+  61, 65, 69, 73, 77, 81, 85, 89, 93,  97,  101, 105, 109, 113, 117, 121,
+  1,  4,  8,  12, 16, 20, 24, 28, 32,  36,  40,  44,  48,  52,  56,  60,
+  64, 68, 72, 76, 80, 84, 88, 92, 96,  100, 104, 108, 112, 116, 120, 124,
+  3,  7,  11, 15, 19, 23, 27, 31, 35,  39,  43,  47,  51,  55,  59,  63,
+  67, 71, 75, 79, 83, 87, 91, 95, 99,  103, 107, 111, 115, 119, 123, 126,
+  6,  10, 14, 18, 22, 26, 30, 34, 38,  42,  46,  50,  54,  58,  62,  66,
+  70, 74, 78, 82, 86, 90, 94, 98, 102, 106, 110, 114, 118, 122, 125, 127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, av1_mrow_iscan_4x32[128]) = {
+  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
+  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
+  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
+  45,  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,
+  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,
+  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,
+  90,  91,  92,  93,  94,  95,  96,  97,  98,  99,  100, 101, 102, 103, 104,
+  105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
+  120, 121, 122, 123, 124, 125, 126, 127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, av1_mrow_iscan_32x4[128]) = {
+  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
+  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
+  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
+  45,  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,
+  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,
+  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,
+  90,  91,  92,  93,  94,  95,  96,  97,  98,  99,  100, 101, 102, 103, 104,
+  105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
+  120, 121, 122, 123, 124, 125, 126, 127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, av1_mcol_iscan_4x32[128]) = {
+  0,  32, 64, 96,  1,  33, 65, 97,  2,  34, 66, 98,  3,  35, 67, 99,
+  4,  36, 68, 100, 5,  37, 69, 101, 6,  38, 70, 102, 7,  39, 71, 103,
+  8,  40, 72, 104, 9,  41, 73, 105, 10, 42, 74, 106, 11, 43, 75, 107,
+  12, 44, 76, 108, 13, 45, 77, 109, 14, 46, 78, 110, 15, 47, 79, 111,
+  16, 48, 80, 112, 17, 49, 81, 113, 18, 50, 82, 114, 19, 51, 83, 115,
+  20, 52, 84, 116, 21, 53, 85, 117, 22, 54, 86, 118, 23, 55, 87, 119,
+  24, 56, 88, 120, 25, 57, 89, 121, 26, 58, 90, 122, 27, 59, 91, 123,
+  28, 60, 92, 124, 29, 61, 93, 125, 30, 62, 94, 126, 31, 63, 95, 127,
+};
+
+DECLARE_ALIGNED(16, static const int16_t, av1_mcol_iscan_32x4[128]) = {
+  0,  4,  8,  12, 16, 20, 24, 28, 32, 36,  40,  44,  48,  52,  56,  60,
+  64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124,
+  1,  5,  9,  13, 17, 21, 25, 29, 33, 37,  41,  45,  49,  53,  57,  61,
+  65, 69, 73, 77, 81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125,
+  2,  6,  10, 14, 18, 22, 26, 30, 34, 38,  42,  46,  50,  54,  58,  62,
+  66, 70, 74, 78, 82, 86, 90, 94, 98, 102, 106, 110, 114, 118, 122, 126,
+  3,  7,  11, 15, 19, 23, 27, 31, 35, 39,  43,  47,  51,  55,  59,  63,
+  67, 71, 75, 79, 83, 87, 91, 95, 99, 103, 107, 111, 115, 119, 123, 127,
+};
+#endif  // CONFIG_FLEX_PARTITION
 
 #if CONFIG_ATC
 DECLARE_ALIGNED(16, static const int16_t, av1_default_iscan_8x32[256]) = {
@@ -2469,4 +2639,128 @@ const SCAN_ORDER av1_scan_orders[TX_SIZES_ALL][TX_TYPES] = {
       { mrow_scan_32x16, av1_mrow_iscan_32x16 },
       { mcol_scan_32x16, av1_mcol_iscan_32x16 },
   },
+#if CONFIG_FLEX_PARTITION
+  {
+      // TX_4X32
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { mrow_scan_4x32, av1_mrow_iscan_4x32 },
+      { mcol_scan_4x32, av1_mcol_iscan_4x32 },
+      { mrow_scan_4x32, av1_mrow_iscan_4x32 },
+      { mcol_scan_4x32, av1_mcol_iscan_4x32 },
+      { mrow_scan_4x32, av1_mrow_iscan_4x32 },
+      { mcol_scan_4x32, av1_mcol_iscan_4x32 },
+  },
+  {
+      // TX_32X4
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { mrow_scan_32x4, av1_mrow_iscan_32x4 },
+      { mcol_scan_32x4, av1_mcol_iscan_32x4 },
+      { mrow_scan_32x4, av1_mrow_iscan_32x4 },
+      { mcol_scan_32x4, av1_mcol_iscan_32x4 },
+      { mrow_scan_32x4, av1_mrow_iscan_32x4 },
+      { mcol_scan_32x4, av1_mcol_iscan_32x4 },
+  },
+  {
+      // TX_8X64
+      // Half of the coefficients of tx64 at higher frequencies are set to
+      // zeros. So tx32's scan order is used.
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { default_scan_8x32, av1_default_iscan_8x32 },
+      { mrow_scan_8x32, av1_mrow_iscan_8x32 },
+      { mcol_scan_8x32, av1_mcol_iscan_8x32 },
+      { mrow_scan_8x32, av1_mrow_iscan_8x32 },
+      { mcol_scan_8x32, av1_mcol_iscan_8x32 },
+      { mrow_scan_8x32, av1_mrow_iscan_8x32 },
+      { mcol_scan_8x32, av1_mcol_iscan_8x32 },
+  },
+  {
+      // TX_64X8
+      // Half of the coefficients of tx64 at higher frequencies are set to
+      // zeros. So tx32's scan order is used.
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { default_scan_32x8, av1_default_iscan_32x8 },
+      { mrow_scan_32x8, av1_mrow_iscan_32x8 },
+      { mcol_scan_32x8, av1_mcol_iscan_32x8 },
+      { mrow_scan_32x8, av1_mrow_iscan_32x8 },
+      { mcol_scan_32x8, av1_mcol_iscan_32x8 },
+      { mrow_scan_32x8, av1_mrow_iscan_32x8 },
+      { mcol_scan_32x8, av1_mcol_iscan_32x8 },
+  },
+  {
+      // TX_4X64
+      // Half of the coefficients of tx64 at higher frequencies are set to
+      // zeros. So tx32's scan order is used.
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { default_scan_4x32, av1_default_iscan_4x32 },
+      { mrow_scan_4x32, av1_mrow_iscan_4x32 },
+      { mcol_scan_4x32, av1_mcol_iscan_4x32 },
+      { mrow_scan_4x32, av1_mrow_iscan_4x32 },
+      { mcol_scan_4x32, av1_mcol_iscan_4x32 },
+      { mrow_scan_4x32, av1_mrow_iscan_4x32 },
+      { mcol_scan_4x32, av1_mcol_iscan_4x32 },
+  },
+  {
+      // TX_64X4
+      // Half of the coefficients of tx64 at higher frequencies are set to
+      // zeros. So tx32's scan order is used.
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { default_scan_32x4, av1_default_iscan_32x4 },
+      { mrow_scan_32x4, av1_mrow_iscan_32x4 },
+      { mcol_scan_32x4, av1_mcol_iscan_32x4 },
+      { mrow_scan_32x4, av1_mrow_iscan_32x4 },
+      { mcol_scan_32x4, av1_mcol_iscan_32x4 },
+      { mrow_scan_32x4, av1_mrow_iscan_32x4 },
+      { mcol_scan_32x4, av1_mcol_iscan_32x4 },
+  },
+#endif  // CONFIG_FLEX_PARTITION
 };

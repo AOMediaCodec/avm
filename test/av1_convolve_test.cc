@@ -143,7 +143,11 @@ template <typename T>
 
 TEST_F(AV1ConvolveParametersTest, GetHighbdTestParams) {
   auto v = GetHighbdTestParams(av1_highbd_convolve_x_sr_c);
+#if CONFIG_FLEX_PARTITION
+  ASSERT_EQ(80U, v.size());
+#else
   ASSERT_EQ(60U, v.size());
+#endif  // CONFIG_FLEX_PARTITION
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &p : v) {
@@ -576,7 +580,7 @@ std::vector<TestParam<T>> GetHighbdLumaTestParams(T test_func) {
 
 TEST_F(AV1ConvolveParametersTest, GetHighbdLumaTestParams) {
   auto v = GetHighbdLumaTestParams(av1_highbd_dist_wtd_convolve_x_c);
-  ASSERT_EQ(50U, v.size());
+  ASSERT_EQ(static_cast<size_t>(BLOCK_SIZES_ALL * 2), v.size());
   int num_10 = 0;
   int num_12 = 0;
   for (const auto &e : v) {

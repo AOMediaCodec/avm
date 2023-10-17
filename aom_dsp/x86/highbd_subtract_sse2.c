@@ -219,18 +219,33 @@ SUBTRACT_FUN(8x32) { STACK_V(16, subtract_8x16); }
 SUBTRACT_FUN(32x8) { STACK_H(16, subtract_16x8); }
 SUBTRACT_FUN(16x64) { STACK_V(32, subtract_16x32); }
 SUBTRACT_FUN(64x16) { STACK_H(32, subtract_32x16); }
+#if CONFIG_FLEX_PARTITION
+SUBTRACT_FUN(4x32) { STACK_V(16, subtract_4x16); }
+SUBTRACT_FUN(32x4) { STACK_H(16, subtract_16x4); }
+SUBTRACT_FUN(8x64) { STACK_V(32, subtract_8x32); }
+SUBTRACT_FUN(64x8) { STACK_H(32, subtract_32x8); }
+SUBTRACT_FUN(4x64) { STACK_V(32, subtract_4x32); }
+SUBTRACT_FUN(64x4) { STACK_H(32, subtract_32x4); }
+#endif  // CONFIG_FLEX_PARTITION
 
 static SubtractWxHFuncType getSubtractFunc(int rows, int cols) {
   if (rows == 4) {
     if (cols == 4) return subtract_4x4;
     if (cols == 8) return subtract_8x4;
     if (cols == 16) return subtract_16x4;
+#if CONFIG_FLEX_PARTITION
+    if (cols == 32) return subtract_32x4;
+    if (cols == 64) return subtract_64x4;
+#endif  // CONFIG_FLEX_PARTITION
   }
   if (rows == 8) {
     if (cols == 4) return subtract_4x8;
     if (cols == 8) return subtract_8x8;
     if (cols == 16) return subtract_16x8;
     if (cols == 32) return subtract_32x8;
+#if CONFIG_FLEX_PARTITION
+    if (cols == 64) return subtract_64x8;
+#endif  // CONFIG_FLEX_PARTITION
   }
   if (rows == 16) {
     if (cols == 4) return subtract_4x16;
@@ -240,12 +255,19 @@ static SubtractWxHFuncType getSubtractFunc(int rows, int cols) {
     if (cols == 64) return subtract_64x16;
   }
   if (rows == 32) {
+#if CONFIG_FLEX_PARTITION
+    if (cols == 4) return subtract_4x32;
+#endif  // CONFIG_FLEX_PARTITION
     if (cols == 8) return subtract_8x32;
     if (cols == 16) return subtract_16x32;
     if (cols == 32) return subtract_32x32;
     if (cols == 64) return subtract_64x32;
   }
   if (rows == 64) {
+#if CONFIG_FLEX_PARTITION
+    if (cols == 4) return subtract_4x64;
+    if (cols == 8) return subtract_8x64;
+#endif  // CONFIG_FLEX_PARTITION
     if (cols == 16) return subtract_16x64;
     if (cols == 32) return subtract_32x64;
     if (cols == 64) return subtract_64x64;

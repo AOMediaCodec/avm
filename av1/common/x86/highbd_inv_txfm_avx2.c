@@ -4245,7 +4245,8 @@ static void highbd_inv_txfm2d_add_no_identity_avx2(const int32_t *input,
 
       transpose_8x8_avx2(&buf0_cur[0], &buf0_cur[0]);
     }
-    if (rect_type == 1 || rect_type == -1) {
+    // rect special code where size difference is a factor of 2
+    if (abs(rect_type) % 2 == 1) {
       av1_round_shift_rect_array_32_avx2(
           buf0, buf0, buf_size_nonzero_w_div8 << 3, 0, NewInvSqrt2);
     }
@@ -4337,6 +4338,20 @@ void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
     case TX_4X16:
       av1_highbd_inv_txfm_add_4x16_sse4_1(input, dest, stride, txfm_param);
       break;
+#if CONFIG_FLEX_PARTITION
+    case TX_4X32:
+      av1_highbd_inv_txfm_add_4x32_sse4_1(input, dest, stride, txfm_param);
+      break;
+    case TX_32X4:
+      av1_highbd_inv_txfm_add_32x4_sse4_1(input, dest, stride, txfm_param);
+      break;
+    case TX_4X64:
+      av1_highbd_inv_txfm_add_4x64_sse4_1(input, dest, stride, txfm_param);
+      break;
+    case TX_64X4:
+      av1_highbd_inv_txfm_add_64x4_sse4_1(input, dest, stride, txfm_param);
+      break;
+#endif  // CONFIG_FLEX_PARTITION
     default:
       av1_highbd_inv_txfm2d_add_universe_avx2(
           input, dest, stride, txfm_param->tx_type, txfm_param->tx_size,

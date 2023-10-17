@@ -61,6 +61,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       68, 68, 68,
 #endif  // CONFIG_BLOCK_256
       64, 64, 70, 70, 68, 68,
+#if CONFIG_FLEX_PARTITION
+      60, 60, 68, 68, 68, 68,
+#endif  // CONFIG_FLEX_PARTITION
   },
   {
       88, 88, 88, 86, 87, 87, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
@@ -68,6 +71,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       68, 68, 68,
 #endif  // CONFIG_BLOCK_256
       88, 88, 86, 86, 68, 68,
+#if CONFIG_FLEX_PARTITION
+      87, 87, 68, 68, 68, 68,
+#endif  // CONFIG_FLEX_PARTITION
   },
   {
       90, 93, 93, 90, 93, 93, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74,
@@ -75,6 +81,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       74, 74, 74,
 #endif  // CONFIG_BLOCK_256
       90, 90, 90, 90, 74, 74,
+#if CONFIG_FLEX_PARTITION
+      93, 93, 74, 74, 74, 74,
+#endif  // CONFIG_FLEX_PARTITION
   },
 };
 
@@ -90,13 +99,20 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
   TX_16X16, TX_16X16, TX_16X16,
 #endif  // CONFIG_BLOCK_256
   TX_4X16,  TX_16X4,  TX_8X8,   TX_8X8,   TX_16X16, TX_16X16,
+#if CONFIG_FLEX_PARTITION
+  TX_4X16,  TX_16X4,  TX_8X32,  TX_32X8,  TX_4X16,  TX_16X4,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 // look-up table for sqrt of number of pixels in a transform block
 // rounded up to the nearest integer.
-static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = { 4,  8,  16, 32, 32, 6,  6,
-                                                     12, 12, 23, 23, 32, 32, 8,
-                                                     8,  16, 16, 23, 23 };
+// Note that width or height of 64 is considered 32 instead.
+static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = {
+  4,  8,  16, 32, 32, 6,  6, 12, 12, 23, 23, 32, 32, 8, 8, 16, 16, 23, 23,
+#if CONFIG_FLEX_PARTITION
+  11, 11, 16, 16, 11, 11,
+#endif  // CONFIG_FLEX_PARTITION
+};
 
 static int find_tx_size_rd_info(TXB_RD_RECORD *cur_record,
                                 const uint32_t hash) {
@@ -628,13 +644,30 @@ static AOM_INLINE void get_energy_distribution_fine(
   const int bh = block_size_high[bsize];
   unsigned int esq[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-  if (bsize < BLOCK_16X16 || (bsize >= BLOCK_4X16 && bsize <= BLOCK_32X8)) {
+  if (bsize < BLOCK_16X16 || (bsize >= BLOCK_4X16 && bsize <= BLOCK_32X8)
+#if CONFIG_FLEX_PARTITION
+      || (bsize >= BLOCK_4X32 && bsize <= BLOCK_64X4)
+#endif  // CONFIG_FLEX_PARTITION
+  ) {
     // Special cases: calculate 'esq' values manually, as we don't have 'vf'
     // functions for the 16 (very small) sub-blocks of this block.
-    const int w_shift = (bw == 4) ? 0 : (bw == 8) ? 1 : (bw == 16) ? 2 : 3;
-    const int h_shift = (bh == 4) ? 0 : (bh == 8) ? 1 : (bh == 16) ? 2 : 3;
+    const int w_shift = (bw == 4)    ? 0
+                        : (bw == 8)  ? 1
+                        : (bw == 16) ? 2
+                        : (bw == 32) ? 3
+                                     : 4;
+    const int h_shift = (bh == 4)    ? 0
+                        : (bh == 8)  ? 1
+                        : (bh == 16) ? 2
+                        : (bh == 32) ? 3
+                                     : 4;
+#if CONFIG_FLEX_PARTITION
+    assert(bw <= 64);
+    assert(bh <= 64);
+#else
     assert(bw <= 32);
     assert(bh <= 32);
+#endif  // CONFIG_FLEX_PARTITION
     assert(((bw - 1) >> w_shift) + (((bh - 1) >> h_shift) << 2) == 15);
     for (int i = 0; i < bh; ++i)
       for (int j = 0; j < bw; ++j) {
@@ -1785,6 +1818,20 @@ static const float *prune_2D_adaptive_thresholds[] = {
   NULL,
   // TX_64X16
   NULL,
+#if CONFIG_FLEX_PARTITION
+  // TX_4X32
+  NULL,
+  // TX_32X4
+  NULL,
+  // TX_8X64
+  NULL,
+  // TX_64X8
+  NULL,
+  // TX_4X64
+  NULL,
+  // TX_64X4
+  NULL,
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 // Probablities are sorted in descending order.
@@ -3779,6 +3826,14 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
       TX_32X8,   // 32x8 transform
       TX_16X32,  // 16x64 transform
       TX_32X16,  // 64x16 transform
+#if CONFIG_FLEX_PARTITION
+      TX_4X32,  // 4x32 transform
+      TX_32X4,  // 32x4 transform
+      TX_8X32,  // 8x64 transform
+      TX_32X8,  // 64x8 transform
+      TX_4X32,  // 4x64 transform
+      TX_32X4,  // 64x4 transform
+#endif          // CONFIG_FLEX_PARTITION
     };
 
     mbmi->tx_size = tx_size_max_32[mbmi->tx_size];
