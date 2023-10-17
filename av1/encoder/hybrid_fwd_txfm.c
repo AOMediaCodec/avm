@@ -356,7 +356,6 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
       highbd_fwd_txfm_32x8(src_diff, coeff, diff_stride, txfm_param);
       break;
 #if CONFIG_FLEX_PARTITION
-      // TODO(debargha): Turn on when transforms are implemented
     case TX_4X32:
       highbd_fwd_txfm_4x32(src_diff, coeff, diff_stride, txfm_param);
       break;
