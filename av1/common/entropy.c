@@ -224,7 +224,12 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  RESET_CDF_COUNTER(fc->bawp_cdf[0], 2);
+  RESET_CDF_COUNTER(fc->bawp_cdf[1], 2);
+#else
   RESET_CDF_COUNTER(fc->bawp_cdf, 2);
+#endif  // CONFIG_BAWP_CHROMA
 #endif  // CONFIG_BAWP
 #if CONFIG_EXPLICIT_BAWP
   RESET_CDF_COUNTER(fc->explicit_bawp_cdf, 2);

@@ -1119,14 +1119,18 @@ typedef struct {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
   //! bawp flag cost
+#if CONFIG_BAWP_CHROMA
+  int bawp_flg_cost[2][2];
+#else
   int bawp_flg_cost[2];
-#endif
+#endif  // CONFIG_BAWP_CHROMA
 #if CONFIG_EXPLICIT_BAWP
   //! Bawp type flag cost
   int explict_bawp_cost[BAWP_SCALES_CTX_COUNT][2];
   //! Explicit bawp scaling factor cost
   int explict_bawp_scale_cost[EXPLICIT_BAWP_SCALE_CNT];
 #endif  // CONFIG_EXPLICIT_BAWP
+#endif
   //! switchable_interp_costs
   int switchable_interp_costs[SWITCHABLE_FILTER_CONTEXTS][SWITCHABLE_FILTERS];
   /**@}*/

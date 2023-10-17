@@ -121,8 +121,13 @@ static INLINE int16_t resolve_divisor_32_CfL(int32_t N, int32_t D,
     } else {
       ret = 0;
     }
-
+#if CONFIG_BAWP_CHROMA
+    const int clamp_shift = 6;
+    if (ret >= (2 << (shift + clamp_shift)) - 1)
+      ret = (2 << (shift + clamp_shift)) - 1;
+#else
     if (ret >= (2 << shift) - 1) ret = (2 << shift) - 1;
+#endif  // CONFIG_BAWP_CHROMA
 
     if (sign_N) ret = -ret;
     return ret;

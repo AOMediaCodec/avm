@@ -260,7 +260,11 @@ typedef struct frame_contexts {
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  aom_cdf_prob bawp_cdf[2][CDF_SIZE(2)];
+#else
   aom_cdf_prob bawp_cdf[CDF_SIZE(2)];
+#endif  // CONFIG_BAWP_CHROMA
 #if CONFIG_EXPLICIT_BAWP
   aom_cdf_prob explicit_bawp_cdf[BAWP_SCALES_CTX_COUNT][CDF_SIZE(2)];
   aom_cdf_prob explicit_bawp_scale_cdf[CDF_SIZE(EXPLICIT_BAWP_SCALE_CNT)];

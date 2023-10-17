@@ -1988,7 +1988,11 @@ static void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
                                          int ref_stride, int ref, int plane,
                                          int bw, int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_BAWP_CHROMA
+  assert(mbmi->bawp_flag[0] > 1);
+#else
   assert(mbmi->bawp_flag > 1);
+#endif  // CONFIG_BAWP_CHROMA
   // only integer position of reference, may need to consider
   // fractional position of ref samples
   int count = 0;
@@ -2033,7 +2037,11 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
                                    int ref_stride, int ref, int plane, int bw,
                                    int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_BAWP_CHROMA
+  assert(mbmi->bawp_flag[0] == 1);
+#else
   assert(mbmi->bawp_flag == 1);
+#endif  // CONFIG_BAWP_CHROMA
   // only integer position of reference, may need to consider
   // fractional position of ref samples
   int count = 0;
@@ -2072,10 +2080,21 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     nor += der / 16;
     der += der / 16;
 
+#if CONFIG_BAWP_CHROMA
+    if (plane == 0) {
+      if (nor && der)
+        mbmi->bawp_alpha[plane][ref] = resolve_divisor_32_CfL(nor, der, shift);
+      else
+        mbmi->bawp_alpha[plane][ref] = 1 << shift;
+    } else {
+      mbmi->bawp_alpha[plane][ref] = mbmi->bawp_alpha[0][ref];
+    }
+#else
     if (nor && der)
       mbmi->bawp_alpha[plane][ref] = resolve_divisor_32_CfL(nor, der, shift);
     else
       mbmi->bawp_alpha[plane][ref] = 1 << shift;
+#endif  // CONFIG_BAWP_CHROMA
     mbmi->bawp_beta[plane][ref] =
         ((sum_y << shift) - sum_x * mbmi->bawp_alpha[plane][ref]) / count;
   } else {
@@ -2115,24 +2134,35 @@ void av1_build_one_bawp_inter_predictor(
     );
   }
 
-  int shift = 8;
+  const int shift = 8;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  int x_off = mbmi->mv[ref].as_mv.col >> 3;
-  int y_off = mbmi->mv[ref].as_mv.row >> 3;
+  const int x_off = mbmi->mv[ref].as_mv.col >> 3;
+  const int y_off = mbmi->mv[ref].as_mv.row >> 3;
+
+  const int x_off_p = x_off >> inter_pred_params->subsampling_x;
+  const int y_off_p = y_off >> inter_pred_params->subsampling_y;
+
+  const int mi_x_p = mi_x >> inter_pred_params->subsampling_x;
+  const int mi_y_p = mi_y >> inter_pred_params->subsampling_y;
+
+  const int width_p = cm->width >> inter_pred_params->subsampling_x;
+  const int height_p = cm->height >> inter_pred_params->subsampling_y;
 
   int ref_w = bw;
-  if (mi_x + bw >= cm->width) ref_w = cm->width - mi_x;
-  int ref_h = bh;
-  if (mi_y + bh >= cm->height) ref_h = cm->height - mi_y;
+  if ((mi_x_p + bw) >= width_p) ref_w = width_p - mi_x_p;
 
-  if (mi_x + x_off - BAWP_REF_LINES < 0 || mi_y + y_off - BAWP_REF_LINES < 0 ||
-      mi_x + ref_w + x_off >= cm->width || mi_y + ref_h + y_off >= cm->height) {
+  int ref_h = bh;
+  if ((mi_y_p + bh) >= height_p) ref_h = height_p - mi_y_p;
+
+  if ((mi_x_p + x_off_p - BAWP_REF_LINES) < 0 ||
+      (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 ||
+      (mi_x_p + ref_w + x_off_p) >= width_p ||
+      (mi_y_p + ref_h + y_off_p) >= height_p) {
     mbmi->bawp_alpha[plane][ref] = 1 << shift;
     mbmi->bawp_beta[plane][ref] = -(1 << shift);
   } else {
     uint16_t *recon_buf = xd->plane[plane].dst.buf;
     int recon_stride = xd->plane[plane].dst.stride;
-
     if (dst_orig != NULL) {
       recon_buf = dst_orig->plane[plane];
       recon_stride = dst_orig->stride[plane];
@@ -2143,11 +2173,15 @@ void av1_build_one_bawp_inter_predictor(
     // the picture boundary limitation to be checked.
     struct macroblockd_plane *const pd = &xd->plane[plane];
     const int ref_stride = pd->pre[ref].stride;
-    uint16_t *ref_buf = pd->pre[ref].buf + y_off * ref_stride + x_off;
+    uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
     uint16_t *ref_top = ref_buf - BAWP_REF_LINES * ref_stride;
     uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
 #if CONFIG_EXPLICIT_BAWP
+#if CONFIG_BAWP_CHROMA
+    if (mbmi->bawp_flag[0] > 1 && plane == 0) {
+#else
     if (mbmi->bawp_flag > 1) {
+#endif  // CONFIG_BAWP_CHROMA
       const int first_ref_dist =
           cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
       const int bawp_scale_table[3][EXPLICIT_BAWP_SCALE_CNT] = { { -1, 1 },
@@ -2155,7 +2189,11 @@ void av1_build_one_bawp_inter_predictor(
                                                                  { -3, 3 } };
       const int list_index =
           (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+#if CONFIG_BAWP_CHROMA
+      int delta_scales = bawp_scale_table[list_index][mbmi->bawp_flag[0] - 2];
+#else
       int delta_scales = bawp_scale_table[list_index][mbmi->bawp_flag - 2];
+#endif  // CONFIG_BAWP_CHROMA
       const int delta_sign = delta_scales > 0 ? 1 : -1;
       const int delta_magtitude = delta_sign * delta_scales;
       if (first_ref_dist > 4) delta_scales = delta_sign * (delta_magtitude + 1);
@@ -3193,7 +3231,11 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   struct macroblockd_plane *const pd = &xd->plane[plane];
   assert(!is_intrabc_block(mi, xd->tree_type));
   assert(is_compound);
-  assert(!mi->bawp_flag);
+#if CONFIG_BAWP_CHROMA
+  assert(!mi->bawp_flag[0]);
+#else
+    assert(!mi->bawp_flag);
+#endif  // CONFIG_BAWP_CHROMA
   assert(!build_for_obmc);
   assert(!is_masked_compound_type(mi->interinter_comp.type));
   assert(!is_tip_ref_frame(mi->ref_frame[0]));
@@ -3441,7 +3483,11 @@ static void build_inter_predictors_8x8_and_bigger(
   assert(IMPLIES(
       !build_for_obmc && mi->refinemv_flag && switchable_refinemv_flag(cm, mi),
       mi->interinter_comp.type == COMPOUND_AVERAGE));
-  assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag == 0));
+#if CONFIG_BAWP_CHROMA
+  assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag[0] == 0));
+#else
+    assert(IMPLIES(mi->refinemv_flag, mi->bawp_flag == 0));
+#endif  // CONFIG_BAWP_CHROMA
   assert(IMPLIES(mi->refinemv_flag, mi->interp_fltr == MULTITAP_SHARP));
 
   int apply_sub_block_refinemv = mi->refinemv_flag && (!build_for_obmc) &&
@@ -3741,7 +3787,12 @@ static void build_inter_predictors_8x8_and_bigger(
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_BAWP
-    if (mi->bawp_flag > 0 && plane == 0 && !build_for_obmc) {
+#if CONFIG_BAWP_CHROMA
+    if (mi->bawp_flag[0] > 0 && (plane == 0 || mi->bawp_flag[1]) &&
+        !build_for_obmc) {
+#else
+      if (mi->bawp_flag > 0 && plane == 0 && !build_for_obmc) {
+#endif  // CONFIG_BAWP_CHROMA
       av1_build_one_bawp_inter_predictor(
           dst, dst_buf->stride, &mv, &inter_pred_params, cm, xd, dst_orig, bw,
           bh, mi_x, mi_y, ref, plane, mc_buf, calc_subpel_params_func);

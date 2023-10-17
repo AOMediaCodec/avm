@@ -1477,6 +1477,32 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+      if (cm->features.enable_bawp &&
+          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+#if CONFIG_EXPLICIT_BAWP
+        update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] > 0, 2);
+        if (mbmi->bawp_flag[0] > 0 && av1_allow_explicit_bawp(mbmi)) {
+          const int ctx_index =
+              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+          update_cdf(fc->explicit_bawp_cdf[ctx_index], mbmi->bawp_flag[0] > 1,
+                     2);
+          if (mbmi->bawp_flag[0] > 1) {
+            update_cdf(fc->explicit_bawp_scale_cdf, mbmi->bawp_flag[0] - 2,
+                       EXPLICIT_BAWP_SCALE_CNT);
+          }
+        }
+#else
+        update_cdf(fc->bawp_cdf[0], mbmi->bawp_flag[0] == 1, 2);
+#endif  // CONFIG_EXPLICIT_BAWP
+        if (mbmi->bawp_flag[0]) {
+          update_cdf(fc->bawp_cdf[1], mbmi->bawp_flag[1] == 1, 2);
+        }
+#if CONFIG_ENTROPY_STATS
+        counts->bawp[mbmi->bawp_flag[0] == 1]++;
+#endif  // CONFIG_ENTROPY_STATS
+      }
+#else
       if (cm->features.enable_bawp &&
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
@@ -1497,6 +1523,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         counts->bawp[mbmi->bawp_flag == 1]++;
 #endif  // CONFIG_ENTROPY_STATS
       }
+#endif  // CONFIG_BAWP_CHROMA
 #endif  // CONFIG_BAWP
 #if CONFIG_EXTENDED_WARP_PREDICTION
       const int allowed_motion_modes = motion_mode_allowed(
