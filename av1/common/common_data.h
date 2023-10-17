@@ -1019,9 +1019,11 @@ static const BLOCK_SIZE ss_size_lookup[BLOCK_SIZES_ALL][2][2] = {
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 /* clang-format on */
 
-// Generates 5 bit field in which each bit set to 1 represents
-// a blocksize partition  11111 means we split 128x128, 64x64, 32x32, 16x16
-// and 8x8.  10000 means we just split the 128x128 to 64x64
+// Generates 6 bit field in which each bit set to 1 represents
+// a blocksize partition. For example:
+// - 111111 means we split 256x256, 128x128, 64x64, 32x32, 16x16 and 8x8 to 4x4.
+// - 110000 means we split 256x256 and 128x128 to 64x64.
+// - 000000 means we keep 256x256 (no splits).
 /* clang-format off */
 static const struct {
   PARTITION_CONTEXT above;
@@ -1055,12 +1057,12 @@ static const struct {
   { 32 + 28, 32 + 16 },  // 16X64 - {0b111100, 0b110000}
   { 32 + 16, 32 + 28 },  // 64X16 - {0b110000, 0b111100}
 #if CONFIG_FLEX_PARTITION
-  { 31, 24 },  // 4X32  - {0b11111, 0b11000}
-  { 24, 31 },  // 32X4  - {0b11000, 0b11111}
-  { 30, 16 },  // 8X64  - {0b11110, 0b10000}
-  { 16, 30 },  // 64X8  - {0b10000, 0b11110}
-  { 31, 16 },  // 4X64  - {0b11110, 0b10000}
-  { 16, 31 },  // 64X4  - {0b10000, 0b11110}
+  { 32 + 31, 32 + 24 },  // 4X32  - {0b111111, 0b111000}
+  { 32 + 24, 32 + 31 },  // 32X4  - {0b111000, 0b111111}
+  { 32 + 30, 32 + 16 },  // 8X64  - {0b111110, 0b110000}
+  { 32 + 16, 32 + 30 },  // 64X8  - {0b110000, 0b111110}
+  { 32 + 31, 32 + 16 },  // 4X64  - {0b111110, 0b110000}
+  { 32 + 16, 32 + 31 },  // 64X4  - {0b110000, 0b111110}
 #endif  // CONFIG_FLEX_PARTITION
 };
 /* clang-format on */

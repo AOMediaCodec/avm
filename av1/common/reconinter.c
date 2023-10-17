@@ -2210,14 +2210,16 @@ static bool is_sub8x8_inter(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       plane ? mi->chroma_ref_info.bsize_base : mi->sb_type[PLANE_TYPE_Y];
   const int plane_mi_height = mi_size_high[plane_bsize];
   const int plane_mi_width = mi_size_wide[plane_bsize];
+  const int mi_rows = cm->mi_params.mi_rows;
+  const int mi_cols = cm->mi_params.mi_cols;
 
   // Scan through all the blocks in the current chroma unit
   for (int row = 0; row < plane_mi_height; ++row) {
     const int row_coord = row_start + row;
-    if (mi_row + row_coord >= cm->mi_params.mi_rows) break;
+    if (mi_row + row_coord >= mi_rows) break;
     for (int col = 0; col < plane_mi_width; ++col) {
       const int col_coord = col_start + col;
-      if (mi_col + col_coord >= cm->mi_params.mi_cols) break;
+      if (mi_col + col_coord >= mi_cols) break;
       // For the blocks at the lower right of the final chroma block, the mis
       // are not set up correctly yet, so we do not check them.
       if ((row_coord >= 0 && col_coord > 0) ||
@@ -2258,6 +2260,8 @@ static void build_inter_predictors_sub8x8(
   const int pre_x = (mi_x + MI_SIZE * col_start) >> ss_x;
   const int pre_y = (mi_y + MI_SIZE * row_start) >> ss_y;
   const int mi_stride = xd->mi_stride;
+  const int mi_rows = cm->mi_params.mi_rows;
+  const int mi_cols = cm->mi_params.mi_cols;
 
   // Row progress keeps track of which mi block in the row has been set.
   SUB_8_BITMASK_T row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
@@ -2265,9 +2269,9 @@ static void build_inter_predictors_sub8x8(
   assert(plane_mi_width <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
   assert(MAX_MI_LUMA_SIZE_FOR_SUB_8 == SUB_8_BITMASK_SIZE);
   for (int mi_row = 0; mi_row < plane_mi_height; mi_row++) {
-    if (xd->mi_row + row_start + mi_row >= cm->mi_params.mi_rows) break;
+    if (xd->mi_row + row_start + mi_row >= mi_rows) break;
     for (int mi_col = 0; mi_col < plane_mi_width; mi_col++) {
-      if (xd->mi_col + col_start + mi_col >= cm->mi_params.mi_cols) break;
+      if (xd->mi_col + col_start + mi_col >= mi_cols) break;
       const SUB_8_BITMASK_T check_flag = 1 << (SUB_8_BITMASK_SIZE - 1 - mi_col);
       if (row_progress[mi_row] & check_flag) {
         continue;
