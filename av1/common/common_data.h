@@ -26,56 +26,52 @@ extern "C" {
 
 // Log 2 conversion lookup tables in units of mode info (4x4).
 // The Mi_Width_Log2 table in the spec (Section 9.3. Conversion tables).
-static const uint8_t mi_size_wide_log2[BLOCK_SIZES_ALL] = { 0, 0, 1, 1, 1, 2,
-                                                            2, 2, 3, 3, 3, 4,
-                                                            4, 4, 5, 5,
+static const uint8_t mi_size_wide_log2[BLOCK_SIZES_ALL] = {
+  0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5,
 #if CONFIG_BLOCK_256
-                                                            5, 6, 6,
+  5, 6, 6,
 #endif  // CONFIG_BLOCK_256
-                                                            0, 2, 1, 3, 2, 4,
+  0, 2, 1, 3, 2, 4,
 #if CONFIG_FLEX_PARTITION
   0, 3, 1, 4, 0, 4,
 #endif  // CONFIG_FLEX_PARTITION
- };
+};
 // The Mi_Height_Log2 table in the spec (Section 9.3. Conversion tables).
-static const uint8_t mi_size_high_log2[BLOCK_SIZES_ALL] = { 0, 1, 0, 1, 2, 1,
-                                                            2, 3, 2, 3, 4, 3,
-                                                            4, 5, 4, 5,
+static const uint8_t mi_size_high_log2[BLOCK_SIZES_ALL] = {
+  0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 5, 4, 5,
 #if CONFIG_BLOCK_256
-                                                            6, 5, 6,
+  6, 5, 6,
 #endif  // CONFIG_BLOCK_256
-                                                            2, 0, 3, 1, 4, 2,
+  2, 0, 3, 1, 4, 2,
 #if CONFIG_FLEX_PARTITION
   3, 0, 4, 1, 4, 0,
 #endif  // CONFIG_FLEX_PARTITION
- };
+};
 
 // Width/height lookup tables in units of mode info (4x4).
 // The Num_4x4_Blocks_Wide table in the spec (Section 9.3. Conversion tables).
-static const uint8_t mi_size_wide[BLOCK_SIZES_ALL] = { 1,  1,  2,  2,  2, 4,
-                                                       4,  4,  8,  8,  8, 16,
-                                                       16, 16, 32, 32,
+static const uint8_t mi_size_wide[BLOCK_SIZES_ALL] = {
+  1,  1,  2,  2,  2, 4,  4, 4, 8, 8, 8, 16, 16, 16, 32, 32,
 #if CONFIG_BLOCK_256
-                                                       32, 64, 64,
+  32, 64, 64,
 #endif  // CONFIG_BLOCK_256
-                                                       1,  4,  2,  8,  4, 16,
+  1,  4,  2,  8,  4, 16,
 #if CONFIG_FLEX_PARTITION
-  1, 8, 2, 16, 1, 16,
+  1,  8,  2,  16, 1, 16,
 #endif  // CONFIG_FLEX_PARTITION
- };
+};
 
 // The Num_4x4_Blocks_High table in the spec (Section 9.3. Conversion tables).
-static const uint8_t mi_size_high[BLOCK_SIZES_ALL] = { 1,  2,  1,  2,  4,  2,
-                                                       4,  8,  4,  8,  16, 8,
-                                                       16, 32, 16, 32,
+static const uint8_t mi_size_high[BLOCK_SIZES_ALL] = {
+  1,  2,  1,  2, 4,  2, 4, 8, 4, 8, 16, 8, 16, 32, 16, 32,
 #if CONFIG_BLOCK_256
-                                                       64, 32, 64,
+  64, 32, 64,
 #endif  // CONFIG_BLOCK_256
-                                                       4,  1,  8,  2,  16, 4,
+  4,  1,  8,  2, 16, 4,
 #if CONFIG_FLEX_PARTITION
-  8, 1, 16, 2, 16, 1,
+  8,  1,  16, 2, 16, 1,
 #endif  // CONFIG_FLEX_PARTITION
- };
+};
 
 // Width/height lookup tables in units of samples.
 // The Block_Width table in the spec (Section 9.3. Conversion tables).
@@ -86,36 +82,35 @@ static const uint16_t block_size_wide[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_BLOCK_256
   4,   16,  8,   32, 16, 64,
 #if CONFIG_FLEX_PARTITION
-  4,  32, 8,  64,  4,   64,
+  4,   32,  8,   64, 4,  64,
 #endif  // CONFIG_FLEX_PARTITION
 };
 
 // The Block_Height table in the spec (Section 9.3. Conversion tables).
 static const uint16_t block_size_high[BLOCK_SIZES_ALL] = {
-  4,   8,   4,   8, 16, 8, 16, 32, 16, 32, 64, 32, 64, 128, 64, 128,
+  4,   8,   4,   8, 16, 8,  16, 32, 16, 32, 64, 32, 64, 128, 64, 128,
 #if CONFIG_BLOCK_256
   256, 128, 256,
 #endif  // CONFIG_BLOCK_256
   16,  4,   32,  8, 64, 16,
 #if CONFIG_FLEX_PARTITION
-  32, 4,  64,  8,  64,  4,
+  32,  4,   64,  8, 64, 4,
 #endif  // CONFIG_FLEX_PARTITION
 };
 
 // Maps a block size to a context.
 // The Size_Group table in the spec (Section 9.3. Conversion tables).
 // AOMMIN(3, AOMMIN(mi_size_wide_log2(bsize), mi_size_high_log2(bsize)))
-static const uint8_t size_group_lookup[BLOCK_SIZES_ALL] = { 0, 0, 0, 1, 1, 1,
-                                                            2, 2, 2, 3, 3, 3,
-                                                            3, 3, 3, 3,
+static const uint8_t size_group_lookup[BLOCK_SIZES_ALL] = {
+  0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3,
 #if CONFIG_BLOCK_256
-                                                            3, 3, 3,
+  3, 3, 3,
 #endif  // CONFIG_BLOCK_256
-                                                            0, 0, 1, 1, 2, 2,
+  0, 0, 1, 1, 2, 2,
 #if CONFIG_FLEX_PARTITION
   1, 1, 2, 2, 2, 2,
 #endif  // CONFIG_FLEX_PARTITION
- };
+};
 
 #if CONFIG_TX_PARTITION_CTX
 // Maps a block size to a transform partition context.
@@ -164,13 +159,13 @@ static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
 };
 
 static const uint8_t num_pels_log2_lookup[BLOCK_SIZES_ALL] = {
-  4,  5,  5,  6, 7,  7, 8, 9, 9, 10, 11, 11, 12, 13, 13, 14,
+  4,  5,  5,  6, 7,  7,  8, 9, 9, 10, 11, 11, 12, 13, 13, 14,
 #if CONFIG_BLOCK_256
   15, 15, 16,
 #endif  // CONFIG_BLOCK_256
   6,  6,  8,  8, 10, 10,
 #if CONFIG_FLEX_PARTITION
-  7, 7, 9, 9, 8, 8,
+  7,  7,  9,  9, 8,  8,
 #endif  // CONFIG_FLEX_PARTITION
 };
 
@@ -199,7 +194,7 @@ static const BLOCK_SIZE
 #endif  // CONFIG_BLOCK_256
     BLOCK_4X16,    BLOCK_16X4,                   // 4,16
     BLOCK_8X32,    BLOCK_32X8,                   // 8,32
-    BLOCK_16X64,   BLOCK_64X16,                  // 32,64
+    BLOCK_16X64,   BLOCK_64X16,                  // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_4X32,    BLOCK_32X4,                   // 4, 32
     BLOCK_8X64,    BLOCK_64X8,                   // 8, 64
@@ -219,10 +214,10 @@ static const BLOCK_SIZE
     BLOCK_4X8,     BLOCK_INVALID,                // 4,16
 #if CONFIG_FLEX_PARTITION
     BLOCK_8X16,    BLOCK_32X4,                   // 8,32
-    BLOCK_16X32,   BLOCK_64X8,                   // 32,64
+    BLOCK_16X32,   BLOCK_64X8,                   // 16,64
 #else
     BLOCK_8X16,    BLOCK_INVALID,                // 8,32
-    BLOCK_16X32,   BLOCK_INVALID,                // 32,64
+    BLOCK_16X32,   BLOCK_INVALID,                // 16,64
 #endif  // CONFIG_FLEX_PARTITION
 #if CONFIG_FLEX_PARTITION
     BLOCK_4X16,    BLOCK_INVALID,                // 4, 32
@@ -243,10 +238,10 @@ static const BLOCK_SIZE
     BLOCK_INVALID, BLOCK_8X4,                    // 4,16
 #if CONFIG_FLEX_PARTITION
     BLOCK_4X32,    BLOCK_16X8,                   // 8,32
-    BLOCK_8X64,    BLOCK_32X16,                  // 32,64
+    BLOCK_8X64,    BLOCK_32X16,                  // 16,64
 #else
     BLOCK_INVALID, BLOCK_16X8,                   // 8,32
-    BLOCK_INVALID, BLOCK_32X16,                  // 32,64
+    BLOCK_INVALID, BLOCK_32X16,                  // 16,64
 #endif  // CONFIG_FLEX_PARTITION
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_16X4,                   // 4, 32
@@ -272,9 +267,9 @@ static const BLOCK_SIZE
     BLOCK_4X4,     BLOCK_INVALID,                // 4,16
     BLOCK_8X8,     BLOCK_INVALID,                // 8,32
 #if CONFIG_FLEX_PARTITION
-    BLOCK_16X16,   BLOCK_64X4,                   // 32,64
+    BLOCK_16X16,   BLOCK_64X4,                   // 16,64
 #else
-    BLOCK_16X16,   BLOCK_INVALID,                // 32,64
+    BLOCK_16X16,   BLOCK_INVALID,                // 16,64
 #endif  // CONFIG_FLEX_PARTITION
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
@@ -300,9 +295,9 @@ static const BLOCK_SIZE
     BLOCK_INVALID, BLOCK_4X4,                    // 4,16
     BLOCK_INVALID, BLOCK_8X8,                    // 8,32
 #if CONFIG_FLEX_PARTITION
-    BLOCK_4X64,    BLOCK_16X16,                  // 32,64
+    BLOCK_4X64,    BLOCK_16X16,                  // 16,64
 #else
-    BLOCK_INVALID, BLOCK_16X16,                  // 32,64
+    BLOCK_INVALID, BLOCK_16X16,                  // 16,64
 #endif  // CONFIG_FLEX_PARTITION
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
@@ -314,15 +309,20 @@ static const BLOCK_SIZE
     BLOCK_INVALID,                               // 4
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 8
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 16
+#if CONFIG_FLEX_PARTITION
+    BLOCK_16X4,    BLOCK_INVALID, BLOCK_32X4,    // 32
+    BLOCK_32X8,    BLOCK_64X4,    BLOCK_64X8,    // 64
+#else
     BLOCK_16X4,    BLOCK_INVALID, BLOCK_INVALID, // 32
     BLOCK_32X8,    BLOCK_INVALID, BLOCK_INVALID, // 64
+#endif  // CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 128
 #if CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
     BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 32,64
+    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
@@ -332,15 +332,20 @@ static const BLOCK_SIZE
     BLOCK_INVALID,                               // 4
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 8
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 16
+#if CONFIG_FLEX_PARTITION
+    BLOCK_16X4,    BLOCK_INVALID, BLOCK_32X4,    // 32
+    BLOCK_32X8,    BLOCK_64X4,    BLOCK_64X8,    // 64
+#else
     BLOCK_16X4,    BLOCK_INVALID, BLOCK_INVALID, // 32
     BLOCK_32X8,    BLOCK_INVALID, BLOCK_INVALID, // 64
+#endif  // CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 128
 #if CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID, BLOCK_INVALID, // 256
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
     BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 32,64
+    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
@@ -363,7 +368,7 @@ static const BLOCK_SIZE
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
     BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 32,64
+    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
@@ -386,7 +391,7 @@ static const BLOCK_SIZE
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
     BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 32,64
+    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
@@ -406,7 +411,7 @@ static const BLOCK_SIZE
 #endif  // CONFIG_BLOCK_256
     BLOCK_INVALID, BLOCK_INVALID,                // 4,16
     BLOCK_INVALID, BLOCK_INVALID,                // 8,32
-    BLOCK_INVALID, BLOCK_INVALID,                // 32,64
+    BLOCK_INVALID, BLOCK_INVALID,                // 16,64
 #if CONFIG_FLEX_PARTITION
     BLOCK_INVALID, BLOCK_INVALID,                // 4, 32
     BLOCK_INVALID, BLOCK_INVALID,                // 8, 64
@@ -928,6 +933,11 @@ static const BLOCK_SIZE ss_size_lookup[BLOCK_SIZES_ALL][2][2] = {
   { { BLOCK_64X128,  BLOCK_64X64 },   { BLOCK_INVALID, BLOCK_32X64 } },
   { { BLOCK_128X64,  BLOCK_INVALID }, { BLOCK_64X64,   BLOCK_64X32 } },
   { { BLOCK_128X128, BLOCK_128X64 },  { BLOCK_64X128,  BLOCK_64X64 } },
+#if CONFIG_BLOCK_256
+  { { BLOCK_128X256, BLOCK_128X128 }, { BLOCK_INVALID, BLOCK_64X128 } },
+  { { BLOCK_256X128, BLOCK_INVALID }, { BLOCK_128X128, BLOCK_128X64 } },
+  { { BLOCK_256X256, BLOCK_256X128 }, { BLOCK_128X256, BLOCK_128X128 } },
+#endif  // CONFIG_BLOCK_256
   { { BLOCK_4X16,    BLOCK_4X8 },     { BLOCK_INVALID, BLOCK_4X8 } },
   { { BLOCK_16X4,    BLOCK_INVALID }, { BLOCK_8X4,     BLOCK_8X4 } },
   { { BLOCK_8X32,    BLOCK_8X16 },    { BLOCK_4X32, BLOCK_4X16 } },
