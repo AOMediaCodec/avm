@@ -876,15 +876,16 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed(
     BLOCK_SIZE bsize, RECT_PART_TYPE rect_type, TREE_TYPE tree_type) {
   assert(is_ext_partition_allowed(bsize, rect_type, tree_type));
 #if CONFIG_FLEX_PARTITION
-  (void)rect_type;
-  if (bsize >= BLOCK_32X64) {  // 32x64, 64x32, 64x64
-    assert(bsize <= BLOCK_64X64);
-    return true;
-  }
-  if (tree_type != CHROMA_PART &&
-      bsize >= BLOCK_16X32) {  // 16x32, 32x16, 32x32
-    assert(bsize <= BLOCK_32X32);
-    return true;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  assert(bw <= 64 && bh <= 64);
+  if (rect_type == HORZ) {
+    if (bh == 64) return true;
+    if (bh >= 32 && tree_type != CHROMA_PART) return true;
+  } else {
+    assert(rect_type == VERT);
+    if (bw == 64) return true;
+    if (bw >= 32 && tree_type != CHROMA_PART) return true;
   }
 #else
   if (rect_type == HORZ) {

@@ -688,8 +688,8 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
           { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_16X32,
           { AOM_CDF2(24095) }, { AOM_CDF2(26595) }, { AOM_CDF2(19427) }, { AOM_CDF2(23129) },
-          // BLOCK_32X16,
-          { AOM_CDF2(32685) }, { AOM_CDF2(32714) }, { AOM_CDF2(32710) }, { AOM_CDF2(32744) },
+          // BLOCK_32X16, unused
+          { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_32X32,
           { AOM_CDF2(23604) }, { AOM_CDF2(24402) }, { AOM_CDF2(18013) }, { AOM_CDF2(18834) },
           // BLOCK_32X64,
@@ -729,8 +729,8 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
           { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_16X16, unused
           { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-          // BLOCK_16X32,
-          { AOM_CDF2(32591) }, { AOM_CDF2(32660) }, { AOM_CDF2(32502) }, { AOM_CDF2(32640) },
+          // BLOCK_16X32, unused
+          { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_32X16,
           { AOM_CDF2(19723) }, { AOM_CDF2(15777) }, { AOM_CDF2(21276) }, { AOM_CDF2(19857) },
           // BLOCK_32X32,
@@ -783,8 +783,8 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
           { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_32X64,
           { AOM_CDF2(20518) }, { AOM_CDF2(21727) }, { AOM_CDF2(19718) }, { AOM_CDF2(23394) },
-          // BLOCK_64X32,
-          { AOM_CDF2(31676) }, { AOM_CDF2(32071) }, { AOM_CDF2(31804) }, { AOM_CDF2(32382) },
+          // BLOCK_64X32, unused
+          { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_64X64, unused
           { AOM_CDF2(29355) }, { AOM_CDF2(21639) }, { AOM_CDF2(19973) }, { AOM_CDF2(19516) },
           // BLOCK_64X128, unused
@@ -824,8 +824,8 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
           { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_32X32, unused
           { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-          // BLOCK_32X64,
-          { AOM_CDF2(31928) }, { AOM_CDF2(32172) }, { AOM_CDF2(31988) }, { AOM_CDF2(31969) },
+          // BLOCK_32X64, unused
+          { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
           // BLOCK_64X32,
           { AOM_CDF2(16819) }, { AOM_CDF2(16425) }, { AOM_CDF2(25321) }, { AOM_CDF2(22141) },
           // BLOCK_64X64,
