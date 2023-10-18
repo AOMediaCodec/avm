@@ -658,18 +658,28 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
         specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", "sse4_1";
         specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", "sse4_1";
       }
-      if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
-        if ($w != 128 && $h != 128 && $w != 4 && !($w == 16 && $h == 16) &&
-            !($w == 16 && $h == 8) && !($w == 16 && $h == 4) && $w != 256 && $h != 256) {
-          specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
-          specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
-        }
-      } else {
-        if ($w != 128 && $h != 128 && $w != 4 && $w != 256 && $h != 256) {
-          specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
-          specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
-        }
-      }  # CONFIG_UNEVEN_4WAY
+
+      if ($w != 128 && $h != 128 && $w != 4 && $w != 256 && $h != 256) {
+        if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
+          if (!($w == 16 && $h == 4) && !($w == 16 && $h == 8) && !($w == 16 && $h == 16)) {
+            if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+              if (!($w == 16 && $h == 32) && !($w == 16 && $h == 64)) {
+                specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
+                specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
+              }
+            } else {
+              specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
+              specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
+            }  # CONFIG_FLEX_PARTITION
+          }
+        } else {
+            specialize "aom_highbd_${bd}_sub_pixel_variance${w}x${h}", qw/sse2/;
+            specialize "aom_highbd_${bd}_sub_pixel_avg_variance${w}x${h}", qw/sse2/;
+        }  # CONFIG_UNEVEN_4WAY
+      }
+
+
+
 
       add_proto qw/uint32_t/, "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance${w}x${h}", "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred, const DIST_WTD_COMP_PARAMS* jcp_param";
     }
@@ -1009,8 +1019,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_12_sub_pixel_variance32x16 sse2/;
 
   add_proto qw/uint32_t aom_highbd_12_sub_pixel_variance16x32/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
-  # specialize qw/aom_highbd_12_sub_pixel_variance16x32 sse2 avx2/;
-  specialize qw/aom_highbd_12_sub_pixel_variance16x32 sse2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    # specialize qw/aom_highbd_12_sub_pixel_variance16x32 avx2/;
+  } else {
+    # specialize qw/aom_highbd_12_sub_pixel_variance16x32 sse2 avx2/;
+    specialize qw/aom_highbd_12_sub_pixel_variance16x32 sse2/;
+  }
 
   add_proto qw/uint32_t aom_highbd_12_sub_pixel_variance16x16/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
   if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
@@ -1090,7 +1104,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_10_sub_pixel_variance32x16 sse2 avx2/;
 
   add_proto qw/uint32_t aom_highbd_10_sub_pixel_variance16x32/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
-  specialize qw/aom_highbd_10_sub_pixel_variance16x32 sse2 avx2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    specialize qw/aom_highbd_10_sub_pixel_variance16x32 avx2/;
+  } else {
+    specialize qw/aom_highbd_10_sub_pixel_variance16x32 sse2 avx2/;
+  }
 
   add_proto qw/uint32_t aom_highbd_10_sub_pixel_variance16x16/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
   if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
@@ -1167,7 +1185,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_8_sub_pixel_variance32x16 sse2 avx2/;
 
   add_proto qw/uint32_t aom_highbd_8_sub_pixel_variance16x32/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
-  specialize qw/aom_highbd_8_sub_pixel_variance16x32 sse2 avx2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") eq "yes") {
+    specialize qw/aom_highbd_8_sub_pixel_variance16x32 avx2/;
+  } else {
+    specialize qw/aom_highbd_8_sub_pixel_variance16x32 sse2 avx2/;
+  }
 
   add_proto qw/uint32_t aom_highbd_8_sub_pixel_variance16x16/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse";
   if (aom_config("CONFIG_UNEVEN_4WAY") eq "yes") {
@@ -1232,7 +1254,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_12_sub_pixel_avg_variance32x16 sse2/;
 
   add_proto qw/uint32_t aom_highbd_12_sub_pixel_avg_variance16x32/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred";
-  specialize qw/aom_highbd_12_sub_pixel_avg_variance16x32 sse2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") ne "yes") {
+    specialize qw/aom_highbd_12_sub_pixel_avg_variance16x32 sse2/;
+  }
 
   add_proto qw/uint32_t aom_highbd_12_sub_pixel_avg_variance16x16/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred";
   if (aom_config("CONFIG_UNEVEN_4WAY") ne "yes") {
@@ -1272,7 +1296,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_10_sub_pixel_avg_variance32x16 sse2/;
 
   add_proto qw/uint32_t aom_highbd_10_sub_pixel_avg_variance16x32/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred";
-  specialize qw/aom_highbd_10_sub_pixel_avg_variance16x32 sse2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") ne "yes") {
+    specialize qw/aom_highbd_10_sub_pixel_avg_variance16x32 sse2/;
+  }
 
   add_proto qw/uint32_t aom_highbd_10_sub_pixel_avg_variance16x16/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred";
   if (aom_config("CONFIG_UNEVEN_4WAY") ne "yes") {
@@ -1312,7 +1338,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_8_sub_pixel_avg_variance32x16 sse2/;
 
   add_proto qw/uint32_t aom_highbd_8_sub_pixel_avg_variance16x32/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred";
-  specialize qw/aom_highbd_8_sub_pixel_avg_variance16x32 sse2/;
+  if (aom_config("CONFIG_FLEX_PARTITION") ne "yes") {
+    specialize qw/aom_highbd_8_sub_pixel_avg_variance16x32 sse2/;
+  }
 
   add_proto qw/uint32_t aom_highbd_8_sub_pixel_avg_variance16x16/, "const uint16_t *src_ptr, int source_stride, int xoffset, int  yoffset, const uint16_t *ref_ptr, int ref_stride, uint32_t *sse, const uint16_t *second_pred";
   if (aom_config("CONFIG_UNEVEN_4WAY") ne "yes") {
