@@ -4132,21 +4132,25 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
 
 static AOM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
                                          struct aom_read_bit_buffer *rb) {
-  BLOCK_SIZE sb_size = BLOCK_INVALID;
+  static const BLOCK_SIZE sb_sizes[] = {
 #if CONFIG_BLOCK_256
-  bool is_256 = aom_rb_read_bit(rb);
-  if (is_256) {
-    sb_size = BLOCK_256X256;
-  } else {
-#endif  // CONFIG_BLOCK_256
-    if (aom_rb_read_bit(rb)) {
-      sb_size = BLOCK_128X128;
-    } else {
-      sb_size = BLOCK_64X64;
+    BLOCK_256X256,
+#endif
+    BLOCK_128X128,
+    BLOCK_64X64
+  };
+  int index = 0;
+  bool bit = aom_rb_read_bit(rb);
+  if (!bit) {
+    index++;
+#if CONFIG_BLOCK_256
+    bit = aom_rb_read_bit(rb);
+    if (!bit) {
+      index++;
     }
-#if CONFIG_BLOCK_256
+#endif
   }
-#endif  // CONFIG_BLOCK_256
+  BLOCK_SIZE sb_size = sb_sizes[index];
   seq_params->sb_size = sb_size;
   seq_params->mib_size = mi_size_wide[sb_size];
   seq_params->mib_size_log2 = mi_size_wide_log2[sb_size];
