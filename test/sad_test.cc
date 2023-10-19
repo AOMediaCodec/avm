@@ -1696,7 +1696,9 @@ const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(32, 64, &aom_highbd_sad_skip_32x64_sse2, 8),
   make_tuple(32, 32, &aom_highbd_sad_skip_32x32_sse2, 8),
   make_tuple(32, 16, &aom_highbd_sad_skip_32x16_sse2, 8),
+#if !CONFIG_FLEX_PARTITION
   make_tuple(16, 32, &aom_highbd_sad_skip_16x32_sse2, 8),
+#endif  // !CONFIG_FLEX_PARTITION
 #if !CONFIG_UNEVEN_4WAY
   make_tuple(16, 16, &aom_highbd_sad_skip_16x16_sse2, 8),
   make_tuple(16, 8, &aom_highbd_sad_skip_16x8_sse2, 8),
@@ -1705,7 +1707,9 @@ const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(8, 8, &aom_highbd_sad_skip_8x8_sse2, 8),
   make_tuple(4, 8, &aom_highbd_sad_skip_4x8_sse2, 8),
   make_tuple(64, 16, &aom_highbd_sad_skip_64x16_sse2, 8),
+#if !CONFIG_FLEX_PARTITION
   make_tuple(16, 64, &aom_highbd_sad_skip_16x64_sse2, 8),
+#endif  // !CONFIG_FLEX_PARTITION
   make_tuple(32, 8, &aom_highbd_sad_skip_32x8_sse2, 8),
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32_sse2, 8),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16_sse2, 8),
@@ -1715,7 +1719,9 @@ const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(32, 64, &aom_highbd_sad_skip_32x64_sse2, 10),
   make_tuple(32, 32, &aom_highbd_sad_skip_32x32_sse2, 10),
   make_tuple(32, 16, &aom_highbd_sad_skip_32x16_sse2, 10),
+#if !CONFIG_FLEX_PARTITION
   make_tuple(16, 32, &aom_highbd_sad_skip_16x32_sse2, 10),
+#endif  // !CONFIG_FLEX_PARTITION
 #if !CONFIG_UNEVEN_4WAY
   make_tuple(16, 16, &aom_highbd_sad_skip_16x16_sse2, 10),
   make_tuple(16, 8, &aom_highbd_sad_skip_16x8_sse2, 10),
@@ -1724,7 +1730,9 @@ const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(8, 8, &aom_highbd_sad_skip_8x8_sse2, 10),
   make_tuple(4, 8, &aom_highbd_sad_skip_4x8_sse2, 10),
   make_tuple(64, 16, &aom_highbd_sad_skip_64x16_sse2, 10),
+#if !CONFIG_FLEX_PARTITION
   make_tuple(16, 64, &aom_highbd_sad_skip_16x64_sse2, 10),
+#endif  // !CONFIG_FLEX_PARTITION
   make_tuple(32, 8, &aom_highbd_sad_skip_32x8_sse2, 10),
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32_sse2, 10),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16_sse2, 10),
@@ -1734,7 +1742,9 @@ const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(32, 64, &aom_highbd_sad_skip_32x64_sse2, 12),
   make_tuple(32, 32, &aom_highbd_sad_skip_32x32_sse2, 12),
   make_tuple(32, 16, &aom_highbd_sad_skip_32x16_sse2, 12),
+#if !CONFIG_FLEX_PARTITION
   make_tuple(16, 32, &aom_highbd_sad_skip_16x32_sse2, 12),
+#endif  // !CONFIG_FLEX_PARTITION
 #if !CONFIG_UNEVEN_4WAY
   make_tuple(16, 16, &aom_highbd_sad_skip_16x16_sse2, 12),
   make_tuple(16, 8, &aom_highbd_sad_skip_16x8_sse2, 12),
@@ -1743,7 +1753,9 @@ const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(8, 8, &aom_highbd_sad_skip_8x8_sse2, 12),
   make_tuple(4, 8, &aom_highbd_sad_skip_4x8_sse2, 12),
   make_tuple(64, 16, &aom_highbd_sad_skip_64x16_sse2, 12),
+#if !CONFIG_FLEX_PARTITION
   make_tuple(16, 64, &aom_highbd_sad_skip_16x64_sse2, 12),
+#endif  // !CONFIG_FLEX_PARTITION
   make_tuple(32, 8, &aom_highbd_sad_skip_32x8_sse2, 12),
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32_sse2, 12),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16_sse2, 12),
