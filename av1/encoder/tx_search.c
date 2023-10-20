@@ -554,7 +554,7 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
 
 // Used to set proper context for early termination with skip = 1.
 static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
-                                     int bsize, int64_t dist) {
+                                     BLOCK_SIZE bsize, int64_t dist) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int n4 = bsize_to_num_blk(bsize);

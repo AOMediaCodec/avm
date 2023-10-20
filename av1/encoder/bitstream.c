@@ -303,7 +303,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
   int plane_type = (xd->tree_type == CHROMA_PART);
   const int max_blocks_high = max_block_high(xd, mbmi->sb_type[plane_type], 0);
   const int max_blocks_wide = max_block_wide(xd, mbmi->sb_type[plane_type], 0);
-  const int bsize = mbmi->sb_type[plane_type];
+  const BLOCK_SIZE bsize = mbmi->sb_type[plane_type];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int txb_size_index =
       is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;

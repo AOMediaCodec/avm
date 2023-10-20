@@ -32,7 +32,7 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, MvCosts *const mv_costs,
                          const int mi_col, int *const rdmult) {
   const AV1_COMMON *const cm = &cpi->common;
 
-  const int bsize_base = BLOCK_16X16;
+  const BLOCK_SIZE bsize_base = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[bsize_base];
   const int num_mi_h = mi_size_high[bsize_base];
   const int num_cols = (cm->mi_params.mi_cols + num_mi_w - 1) / num_mi_w;
@@ -104,7 +104,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const int block_mi_width_sr =
       coded_to_superres_mi(mi_size_wide[bsize], cm->superres_scale_denominator);
 
-  const int bsize_base = BLOCK_16X16;
+  const BLOCK_SIZE bsize_base = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[bsize_base];
   const int num_mi_h = mi_size_high[bsize_base];
   const int num_cols = (mi_cols_sr + num_mi_w - 1) / num_mi_w;

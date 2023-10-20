@@ -114,8 +114,8 @@ const int cdef_sec_taps[2] = { 2, 1 };
 /* Smooth in the direction detected. */
 void cdef_filter_block_c(uint8_t *dst8, uint16_t *dst16, int dstride,
                          const uint16_t *in, int pri_strength, int sec_strength,
-                         int dir, int pri_damping, int sec_damping, int bsize,
-                         int coeff_shift) {
+                         int dir, int pri_damping, int sec_damping,
+                         BLOCK_SIZE bsize, int coeff_shift) {
   int i, j, k;
   const int s = CDEF_BSTRIDE;
   const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
@@ -227,7 +227,7 @@ void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
     }
   }
 
-  const int bsize =
+  const BLOCK_SIZE bsize =
       ydec ? (xdec ? BLOCK_4X4 : BLOCK_8X4) : (xdec ? BLOCK_4X8 : BLOCK_8X8);
   const int t = pri_strength;
   const int s = sec_strength;

@@ -67,7 +67,7 @@ void av1_cyclic_refresh_free(CYCLIC_REFRESH *cr) {
 // mode, and rate/distortion.
 static int candidate_refresh_aq(const CYCLIC_REFRESH *cr,
                                 const MB_MODE_INFO *mbmi, int64_t rate,
-                                int64_t dist, int bsize) {
+                                int64_t dist, BLOCK_SIZE bsize) {
   MV mv = mbmi->mv[0].as_mv;
   // Reject the block for lower-qp coding if projected distortion
   // is above the threshold, and any of the following is true:

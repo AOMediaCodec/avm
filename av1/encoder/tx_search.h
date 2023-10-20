@@ -96,7 +96,7 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
   const int allow_vert = allow_tx_vert_split(max_tx_size);
 #if CONFIG_TX_PARTITION_CTX
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  const int bsize = mbmi->sb_type[PLANE_TYPE_Y];
+  const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
   int do_partition = 0;
   if (allow_horz || allow_vert) {

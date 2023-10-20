@@ -48,7 +48,7 @@ class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
   virtual void TearDown() { libaom_test::ClearSystemState(); }
 
  protected:
-  int bsize;
+  BLOCK_SIZE bsize;
   int boundary;
   int depth;
   cdef_filter_block_func cdef;
@@ -59,7 +59,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFBlockTest);
 typedef CDEFBlockTest CDEFSpeedTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFSpeedTest);
 
-void test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
+void test_cdef(BLOCK_SIZE bsize, int iterations, cdef_filter_block_func cdef,
                cdef_filter_block_func ref_cdef, int boundary, int depth) {
   const int size = 8;
   const int ysize = size + 2 * CDEF_VBORDER;
@@ -165,7 +165,8 @@ void test_cdef(int bsize, int iterations, cdef_filter_block_func cdef,
                       << std::endl;
 }
 
-void test_cdef_speed(int bsize, int iterations, cdef_filter_block_func cdef,
+void test_cdef_speed(BLOCK_SIZE bsize, int iterations,
+                     cdef_filter_block_func cdef,
                      cdef_filter_block_func ref_cdef, int boundary, int depth) {
   aom_usec_timer ref_timer;
   aom_usec_timer timer;
