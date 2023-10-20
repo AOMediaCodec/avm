@@ -22,11 +22,13 @@
 extern "C" {
 #endif
 
+#if !CONFIG_PRIMARY_REF_FRAME_OPT
 typedef struct {
   int pyr_level;
   int disp_order;
   int base_qindex;
 } RefFrameMapPair;
+#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
 
 static INLINE void init_ref_map_pair(AV1_COMMON *cm,
                                      RefFrameMapPair *ref_frame_map_pairs,
@@ -63,6 +65,9 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
     ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
     ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
     ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    ref_frame_map_pairs[map_idx].frame_type = buf->frame_type;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   }
 }
 
@@ -85,6 +90,11 @@ typedef struct {
 void av1_get_past_future_cur_ref_lists(AV1_COMMON *cm, RefScoreData *scores);
 int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                        RefFrameMapPair *ref_frame_map_pairs);
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+// Derive the primary reference frame from the reference list based on qindex
+// and frame distances.
+int choose_primary_ref_frame(const AV1_COMMON *const cm);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {

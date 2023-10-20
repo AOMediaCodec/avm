@@ -191,6 +191,7 @@ static void set_ext_overrides(AV1_COMMON *const cm,
   frame_params->error_resilient_mode |= frame_params->frame_type == S_FRAME;
 }
 
+#if !CONFIG_PRIMARY_REF_FRAME_OPT
 static int get_current_frame_ref_type(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params) {
   // We choose the reference "type" of this frame from the flags which indicate
@@ -244,6 +245,7 @@ static int choose_primary_ref_frame(
 
   return primary_ref_frame;
 }
+#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
 
 // Map the subgop cfg reference list to actual reference buffers. Disable
 // any reference frames that are not listed in the sub gop.
@@ -342,6 +344,7 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
     if (!ref_frame_used[frame]) *ref_frame_flags &= ~(1 << (frame));
 }
 
+#if !CONFIG_PRIMARY_REF_FRAME_OPT
 static void update_fb_of_context_type(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
     int *const fb_of_context_type) {
@@ -379,6 +382,7 @@ static void update_fb_of_context_type(
     }
   }
 }
+#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
 
 static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
   TimeStamps *time_stamps = &cpi->time_stamps;
@@ -1107,17 +1111,31 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   const int order_offset = gf_group->arf_src_offset[gf_group->index];
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
+                    gf_group->update_type[gf_group->index] == KF_UPDATE);
+#else
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(&cpi->common, ref_frame_map_pairs,
                     gf_group->update_type[gf_group->index] == KF_UPDATE);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
     cm->features.error_resilient_mode = frame_params.error_resilient_mode;
+
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    if (cm->seq_params.explicit_ref_frame_map)
+      av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+    else
+      av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#else
     if (cm->seq_params.explicit_ref_frame_map)
       av1_get_ref_frames_enc(cm, cur_frame_disp, ref_frame_map_pairs);
     else
       av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
     cm->ref_frames_info.num_same_ref_compound =
         AOMMIN(cm->seq_params.num_same_ref_compound,
@@ -1132,8 +1150,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.ref_frame_flags =
         (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
 
+#if !CONFIG_PRIMARY_REF_FRAME_OPT
     frame_params.primary_ref_frame =
         choose_primary_ref_frame(cpi, &frame_params);
+#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
     frame_params.order_offset = gf_group->arf_src_offset[gf_group->index];
 
     if (!is_stat_generation_stage(cpi) &&
@@ -1145,7 +1165,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+        cur_frame_disp, cm->ref_frame_map_pairs);
+#else
         cur_frame_disp, ref_frame_map_pairs);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
@@ -1213,7 +1237,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif
 
   if (!is_stat_generation_stage(cpi)) {
+#if !CONFIG_PRIMARY_REF_FRAME_OPT
     update_fb_of_context_type(cpi, &frame_params, cpi->fb_of_context_type);
+#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
     set_additional_frame_flags(cm, frame_flags);
     update_rc_counts(cpi);
   }

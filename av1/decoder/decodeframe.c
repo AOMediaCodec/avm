@@ -7215,6 +7215,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_IBC_SR_EXT
   features->primary_ref_frame = PRIMARY_REF_NONE;
 
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  int signal_primary_ref_frame = -1;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
   if (!seq_params->reduced_still_picture_hdr) {
     if (seq_params->frame_id_numbers_present_flag) {
       int frame_id_length = seq_params->frame_id_length;
@@ -7267,7 +7271,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     current_frame->frame_number = current_frame->order_hint;
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+      signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
+      if (signal_primary_ref_frame)
+        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+#else
       features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     }
   }
 
@@ -7478,11 +7488,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       // Implicitly derive the reference mapping
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+      init_ref_map_pair(cm, cm->ref_frame_map_pairs,
+                        current_frame->frame_type == KEY_FRAME);
+      int n_ranked = av1_get_ref_frames(cm, current_frame->display_order_hint,
+                                        cm->ref_frame_map_pairs);
+#else
       RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
       init_ref_map_pair(cm, ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME);
       int n_ranked = av1_get_ref_frames(cm, current_frame->display_order_hint,
                                         ref_frame_map_pairs);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
       cm->ref_frames_info.num_same_ref_compound =
           AOMMIN(cm->seq_params.num_same_ref_compound,
@@ -7564,10 +7582,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
           scores[i].score = i;
           int ref = cm->remapped_ref_idx[i];
-          scores[i].distance = seq_params->order_hint_info.enable_order_hint
-                                   ? ((int)current_frame->display_order_hint -
-                                      (int)ref_frame_map_pairs[ref].disp_order)
-                                   : 1;
+          scores[i].distance =
+              seq_params->order_hint_info.enable_order_hint
+                  ? ((int)current_frame->display_order_hint -
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+                     (int)cm->ref_frame_map_pairs[ref].disp_order)
+#else
+                     (int)ref_frame_map_pairs[ref].disp_order)
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+                  : 1;
         }
         av1_get_past_future_cur_ref_lists(cm, scores);
       }
@@ -7695,6 +7718,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_TIP
     }
 
+#if !CONFIG_PRIMARY_REF_FRAME_OPT
     cm->prev_frame = get_primary_ref_frame_buf(cm);
     if (features->primary_ref_frame != PRIMARY_REF_NONE &&
         get_primary_ref_frame_buf(cm) == NULL) {
@@ -7702,6 +7726,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                          "Reference frame containing this frame's initial "
                          "frame context is unavailable.");
     }
+#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
 
     if (!(current_frame->frame_type == INTRA_ONLY_FRAME) &&
         pbi->need_resync != 1) {
@@ -7845,6 +7870,33 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                      cm->seq_params.separate_uv_delta_q, rb);
   cm->cur_frame->base_qindex = quant_params->base_qindex;
   xd->bd = (int)seq_params->bit_depth;
+
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  if (!seq_params->reduced_still_picture_hdr) {
+    features->derived_primary_ref_frame = choose_primary_ref_frame(cm);
+
+    if (!signal_primary_ref_frame)
+      features->primary_ref_frame = features->derived_primary_ref_frame;
+  }
+
+  if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
+      features->primary_ref_frame != PRIMARY_REF_NONE) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Invalid primary_ref_frame");
+  }
+
+  if (current_frame->frame_type != KEY_FRAME) {
+    cm->prev_frame =
+        get_primary_ref_frame_buf(cm, features->derived_primary_ref_frame);
+    if (features->derived_primary_ref_frame != PRIMARY_REF_NONE &&
+        get_primary_ref_frame_buf(cm, features->derived_primary_ref_frame) ==
+            NULL) {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Reference frame containing this frame's initial "
+                         "frame context is unavailable.");
+    }
+  }
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   CommonContexts *const above_contexts = &cm->above_contexts;
   if (above_contexts->num_planes < av1_num_planes(cm) ||
@@ -8165,7 +8217,12 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     // use the default frame context values
     *cm->fc = *cm->default_frame_context;
   } else {
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    *cm->fc = get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame)
+                  ->frame_context;
+#else
     *cm->fc = get_primary_ref_frame_buf(cm)->frame_context;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   }
   if (!cm->fc->initialized)
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,

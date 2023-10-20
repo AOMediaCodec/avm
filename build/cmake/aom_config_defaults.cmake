@@ -268,7 +268,8 @@ set_aom_config_var(CONFIG_REFINEMV 1 "Enable refinemv modes")
 
 set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
                    "Enable to explicit temporal distance calculation")
-
+set_aom_config_var(CONFIG_PRIMARY_REF_FRAME_OPT 1
+                   "Enable the primary reference frame improvement")
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 set_aom_config_var(CONFIG_SEP_COMP_DRL 1

@@ -205,6 +205,85 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   return n_ranked;
 }
 
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+typedef struct {
+  int idx;
+  int disp_order;
+  int base_qindex;
+} PrimaryRefCand;
+
+// Check if one reference frame is better based on its distance to the current
+// frame.
+static int is_ref_better(int cur_disp, int ref_disp, int best_disp_so_far) {
+  if (abs(cur_disp - ref_disp) < abs(cur_disp - best_disp_so_far)) return 1;
+  if (abs(cur_disp - ref_disp) == abs(cur_disp - best_disp_so_far) &&
+      ref_disp > best_disp_so_far)
+    return 1;
+  return 0;
+}
+
+// Derive the primary reference frame from the reference list based on qindex
+// and frame distances.
+int choose_primary_ref_frame(const AV1_COMMON *const cm) {
+  const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
+                         cm->current_frame.frame_type == INTRA_ONLY_FRAME;
+  if (intra_only || cm->features.error_resilient_mode) {
+    return PRIMARY_REF_NONE;
+  }
+
+  // In large scale case, always use Last frame's frame contexts.
+  if (cm->tiles.large_scale) return 0;
+
+  // Find the most recent reference frame with the same reference type as the
+  // current frame
+  int primary_ref_frame = PRIMARY_REF_NONE;
+  const int n_refs = cm->ref_frames_info.num_total_refs;
+
+  const RefFrameMapPair *ref_frame_map_pairs = cm->ref_frame_map_pairs;
+  const int cur_frame_disp = cm->current_frame.display_order_hint;
+  int i;
+
+  PrimaryRefCand cand_lower_qp = { -1, -1, 0 };
+  PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX };
+
+  for (i = 0; i < n_refs; i++) {
+    // Get reference frame buffer
+    RefFrameMapPair cur_ref = ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+    if (cur_ref.disp_order == -1) continue;
+    if (cur_ref.frame_type != INTER_FRAME) continue;
+
+    const int ref_base_qindex = cur_ref.base_qindex;
+
+    if (ref_base_qindex > cm->quant_params.base_qindex) {
+      if ((ref_base_qindex < cand_higher_qp.base_qindex) ||
+          (ref_base_qindex == cand_higher_qp.base_qindex &&
+           is_ref_better(cur_frame_disp, cur_ref.disp_order,
+                         cand_higher_qp.disp_order))) {
+        cand_higher_qp.idx = i;
+        cand_higher_qp.base_qindex = ref_base_qindex;
+        cand_higher_qp.disp_order = cur_ref.disp_order;
+      }
+    } else {
+      if ((ref_base_qindex > cand_lower_qp.base_qindex) ||
+          (ref_base_qindex == cand_lower_qp.base_qindex &&
+           is_ref_better(cur_frame_disp, cur_ref.disp_order,
+                         cand_lower_qp.disp_order))) {
+        cand_lower_qp.idx = i;
+        cand_lower_qp.base_qindex = ref_base_qindex;
+        cand_lower_qp.disp_order = cur_ref.disp_order;
+      }
+    }
+  }
+
+  if (cand_lower_qp.idx != -1)
+    primary_ref_frame = cand_lower_qp.idx;
+  else if (cand_higher_qp.idx != -1)
+    primary_ref_frame = cand_higher_qp.idx;
+
+  return primary_ref_frame;
+}
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
 // Returns a context number for the given MB prediction signal
 static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         const MACROBLOCKD *xd, int dir,

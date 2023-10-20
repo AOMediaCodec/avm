@@ -297,6 +297,17 @@ typedef struct RefCntBuffer {
   FrameHash grain_frame_hash;
 } RefCntBuffer;
 
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+// Store the characteristics related to each reference frame, which can be used
+// in reference frame ranking.
+typedef struct {
+  FRAME_TYPE frame_type;
+  int pyr_level;
+  int disp_order;
+  int base_qindex;
+} RefFrameMapPair;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
 typedef struct BufferPool {
 // Protect BufferPool from being accessed by several FrameWorkers at
 // the same time during frame parallel decode.
@@ -697,6 +708,12 @@ typedef struct {
    * should be loaded at the start of the frame.
    */
   int primary_ref_frame;
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  /*!
+   * The derived primary reference frame by the decoder.
+   */
+  int derived_primary_ref_frame;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   /*!
    * Byte alignment of the planes in the reference buffers.
    */
@@ -1509,6 +1526,13 @@ typedef struct AV1Common {
    */
   RefCntBuffer *ref_frame_map[REF_FRAMES];
 
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  /*!
+   * Ref frame data.
+   */
+  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
   /*!
    * If true, this frame is actually shown after decoding.
    * If false, this frame is coded in the bitstream, but not shown. It is only
@@ -1985,8 +2009,12 @@ static INLINE struct scale_factors *get_ref_scale_factors(
 }
 
 static INLINE RefCntBuffer *get_primary_ref_frame_buf(
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    const AV1_COMMON *const cm, int primary_ref_frame) {
+#else
     const AV1_COMMON *const cm) {
   const int primary_ref_frame = cm->features.primary_ref_frame;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   if (primary_ref_frame == PRIMARY_REF_NONE) return NULL;
 #if CONFIG_TIP
   if (is_tip_ref_frame(primary_ref_frame)) {

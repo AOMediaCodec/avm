@@ -823,7 +823,12 @@ void av1_setup_frame(AV1_COMP *cpi) {
       set_sb_size(cm, av1_select_sb_size(cpi));
     }
   } else {
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    const RefCntBuffer *const primary_ref_buf =
+        get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame);
+#else
     const RefCntBuffer *const primary_ref_buf = get_primary_ref_frame_buf(cm);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     if (primary_ref_buf == NULL) {
       av1_setup_past_independence(cm);
       cm->seg.update_map = 1;
@@ -859,7 +864,12 @@ void av1_setup_frame(AV1_COMP *cpi) {
   }
 
   av1_zero(cm->cur_frame->interp_filter_selected);
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  cm->prev_frame =
+      get_primary_ref_frame_buf(cm, cm->features.derived_primary_ref_frame);
+#else
   cm->prev_frame = get_primary_ref_frame_buf(cm);
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
   cpi->vaq_refresh = 0;
 }
 

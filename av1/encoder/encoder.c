@@ -40,6 +40,9 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/filter.h"
 #include "av1/common/idct.h"
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+#include "av1/common/pred_common.h"
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
 #include "av1/common/cfl.h"
@@ -2607,6 +2610,17 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
+
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  // Got the derived_primary_ref_frame.
+  cm->features.derived_primary_ref_frame = choose_primary_ref_frame(cm);
+  // The primary_ref_frame can be set to other refs other than the derived one.
+  // If that is needed, disable primary_ref_frame search.
+  cm->features.primary_ref_frame = cm->features.derived_primary_ref_frame;
+  if (cpi->ext_flags.use_primary_ref_none)
+    cm->features.primary_ref_frame = PRIMARY_REF_NONE;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
   av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                      &cm->quant_params);
@@ -2793,6 +2807,17 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq);
+
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    // Got the derived_primary_ref_frame.
+    cm->features.derived_primary_ref_frame = choose_primary_ref_frame(cm);
+    // The primary_ref_frame can be set to other refs other than the derived
+    // one. If that is needed, disable primary_ref_frame search.
+    cm->features.primary_ref_frame = cm->features.derived_primary_ref_frame;
+    if (cpi->ext_flags.use_primary_ref_none)
+      cm->features.primary_ref_frame = PRIMARY_REF_NONE;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                        &cm->quant_params);
@@ -2803,7 +2828,12 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
     if (loop_count == 0) {
       av1_setup_frame(cpi);
-    } else if (get_primary_ref_frame_buf(cm) == NULL) {
+    } else if (get_primary_ref_frame_buf(cm
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+                                         ,
+                                         cm->features.primary_ref_frame
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+                                         ) == NULL) {
       // Base q-index may have changed, so we need to assign proper default coef
       // probs before every iteration.
       av1_default_coef_probs(cm);
@@ -3057,6 +3087,60 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
 }
 #endif  // CONFIG_TIP
 
+#if CONFIG_PRIMARY_REF_FRAME_OPT && CONFIG_LR_FLEX_SYNTAX
+/*!\brief Parameters for representing LR flexible syntax.
+ */
+typedef struct {
+  /*!\brief Mask of lr tool(s) to disable */
+  uint8_t lr_tools_disable_mask[MAX_MB_PLANE];
+  /*!\brief Number of lr tools enabled */
+  int lr_tools_count[MAX_MB_PLANE];
+  /*!\brief Number of lr options in switchable mode */
+  int lr_switchable_tools_count[MAX_MB_PLANE];
+  /*!\brief Number of lr modes available at frame level */
+  int lr_frame_tools_count[MAX_MB_PLANE];
+  /*!\brief Index of last bit transmitted */
+  int lr_last_switchable_ndx[MAX_MB_PLANE];
+  /*!\brief Restoration Type if last bit transmitted is 0 */
+  int lr_last_switchable_ndx_0_type[MAX_MB_PLANE];
+} LrParams;
+
+static void store_lr_parameters(AV1_COMMON *const cm, LrParams *lr_params) {
+  const int num_planes = av1_num_planes(cm);
+  FeatureFlags *const fea_params = &cm->features;
+
+  for (int i = 0; i < num_planes; ++i) {
+    lr_params->lr_tools_disable_mask[i] = fea_params->lr_tools_disable_mask[i];
+    lr_params->lr_tools_count[i] = fea_params->lr_tools_count[i];
+    lr_params->lr_switchable_tools_count[i] =
+        fea_params->lr_switchable_tools_count[i];
+    lr_params->lr_frame_tools_count[i] = fea_params->lr_frame_tools_count[i];
+    lr_params->lr_last_switchable_ndx[i] =
+        fea_params->lr_last_switchable_ndx[i];
+    lr_params->lr_last_switchable_ndx_0_type[i] =
+        fea_params->lr_last_switchable_ndx_0_type[i];
+  }
+}
+
+static void restore_lr_parameters(AV1_COMMON *const cm,
+                                  const LrParams *lr_params) {
+  const int num_planes = av1_num_planes(cm);
+  FeatureFlags *const fea_params = &cm->features;
+
+  for (int i = 0; i < num_planes; ++i) {
+    fea_params->lr_tools_disable_mask[i] = lr_params->lr_tools_disable_mask[i];
+    fea_params->lr_tools_count[i] = lr_params->lr_tools_count[i];
+    fea_params->lr_switchable_tools_count[i] =
+        lr_params->lr_switchable_tools_count[i];
+    fea_params->lr_frame_tools_count[i] = lr_params->lr_frame_tools_count[i];
+    fea_params->lr_last_switchable_ndx[i] =
+        lr_params->lr_last_switchable_ndx[i];
+    fea_params->lr_last_switchable_ndx_0_type[i] =
+        lr_params->lr_last_switchable_ndx_0_type[i];
+  }
+}
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT && CONFIG_LR_FLEX_SYNTAX
+
 /*!\brief Recode loop or a single loop for encoding one frame, followed by
  * in-loop deblocking filters, CDEF filters, and restoration filters.
  *
@@ -3180,6 +3264,66 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #ifdef OUTPUT_YUV_REC
   aom_write_one_yuv_frame(cm, &cm->cur_frame->buf);
 #endif
+
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+  if (cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
+      !cm->tiles.large_scale) {
+    const int n_refs = cm->ref_frames_info.num_total_refs;
+    //    int frame_size[REF_FRAMES];
+    int best_ref_idx = -1;
+    int best_frame_size = INT32_MAX;
+    int cur_frame_size = INT32_MAX;
+
+#if CONFIG_LR_FLEX_SYNTAX
+    // Save LR parameters
+    LrParams lr_params = { { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 } };
+    store_lr_parameters(cm, &lr_params);
+#endif  // CONFIG_LR_FLEX_SYNTAX
+
+    for (int i = 0; i < n_refs; ++i) {
+      const int temp_map_idx = get_ref_frame_map_idx(cm, i);
+      const RefCntBuffer *const temp_ref_buf = cm->ref_frame_map[temp_map_idx];
+      if (temp_ref_buf->frame_type != INTER_FRAME) continue;
+
+      *cm->fc = temp_ref_buf->frame_context;
+      if (!cm->fc->initialized)
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "Uninitialized entropy context.");
+
+      av1_finalize_encoded_frame(cpi);
+      size_t temp_size;
+      int temp_largest_tile_id = 0;  // Output from bitstream: unused here
+      if (av1_pack_bitstream(cpi, dest, &temp_size, &temp_largest_tile_id) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+#if CONFIG_LR_FLEX_SYNTAX
+      restore_lr_parameters(cm, &lr_params);
+#endif  // CONFIG_LR_FLEX_SYNTAX
+
+      const int frame_size = (int)(temp_size);
+      if (cm->features.primary_ref_frame == i) cur_frame_size = frame_size;
+      if (frame_size < best_frame_size) {
+        best_frame_size = frame_size;
+        best_ref_idx = i;
+      }
+    }
+
+    if (cm->features.primary_ref_frame != best_ref_idx &&
+        best_frame_size < cur_frame_size) {
+      cm->features.primary_ref_frame = best_ref_idx;
+    }
+
+    const int map_idx =
+        get_ref_frame_map_idx(cm, cm->features.primary_ref_frame);
+    const RefCntBuffer *const ref_buf = cm->ref_frame_map[map_idx];
+
+    *cm->fc = ref_buf->frame_context;
+    if (!cm->fc->initialized)
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Uninitialized entropy context.");
+  }
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
   av1_finalize_encoded_frame(cpi);
   // Build the bitstream
@@ -3776,7 +3920,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
   cm->features.error_resilient_mode = frame_params->error_resilient_mode;
+#if !CONFIG_PRIMARY_REF_FRAME_OPT
   cm->features.primary_ref_frame = frame_params->primary_ref_frame;
+#endif  // !CONFIG_PRIMARY_REF_FRAME_OPT
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
