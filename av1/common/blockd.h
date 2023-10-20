@@ -2015,7 +2015,17 @@ typedef struct {
    * to be used as frame filter predictors.
    */
   int match_indices[WIENERNS_MAX_CLASSES];
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+   /*!
+   * Filter data - number of classes before merge
+   */
+  int num_classes_before_merge;
+  /*!
+   * Class indices of each class merges to.
+   */
+  int merged_to_indices[WIENERNS_MAX_CLASSES];
+#endif //CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+#endif  // CONFIG_COMBINE_PC_NS_WIENE
 } WienerNonsepInfo;
 
 /*!\brief Parameters related to Nonseparable Wiener Filter Bank */

@@ -4182,6 +4182,35 @@ static AOM_INLINE void wb_write_uniform(struct aom_write_bit_buffer *wb, int n,
   }
 }
 
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+static void encode_wienerns_merge_map(struct aom_write_bit_buffer *wb, int *merged_to_indices, int num_filter_classes, int num_classes_before_merge) {
+  assert(num_filter_classes < num_classes_before_merge);
+  assert(num_filter_classes >= 2);
+  assert(num_classes_before_merge >= 4);
+  merged_to_indices[0] = 0;
+  int continue_writing = 1; // ??????? to be updated
+  int curr_max_id_after_merge = 0;
+  for (int c_id = 1; c_id < num_classes_before_merge; c_id++) {
+    if (num_filter_classes >= num_classes_before_merge / 2 - 1) {
+      int is_merged = merged_to_indices[c_id] <= curr_max_id_after_merge;
+      aom_wb_write_bit(wb, is_merged);
+      if (!is_merged) {
+        ++ curr_max_id_after_merge;
+        assert(merged_to_indices[c_id] == curr_max_id_after_merge);
+      } else {
+        int bit_per_idx = curr_max_id_after_merge ? av1_ceil_log2(curr_max_id_after_merge + 1) : 0;
+        if (bit_per_idx > 0)
+          aom_wb_write_literal(wb, merged_to_indices[c_id], bit_per_idx);
+        else
+          assert (merged_to_indices[c_id] == curr_max_id_after_merge);
+      }
+    } else {
+      int bit_per_idx = av1_ceil_log2(num_filter_classes);
+      aom_wb_write_literal(wb, merged_to_indices[c_id], bit_per_idx);
+    }
+  }
+}
+#endif
 #if CONFIG_LR_IMPROVEMENTS
 // Converts frame restoration type to a coded index depending on lr tools
 // that are enabled for the frame for a given plane.
@@ -4295,9 +4324,34 @@ static AOM_INLINE void encode_restoration_mode(
             write_num_classes && NUM_WIENERNS_CLASS_INIT_LUMA > 1;
         if (write_num_classes) {
           aom_wb_write_literal(wb, rsi->frame_filters_on, 1);
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+          if(rsi->frame_filters_on) {
+            aom_wb_write_literal(
+              wb, encode_num_filter_classes(rsi->num_classes_before_merge),
+              NUM_FILTER_CLASSES_BITS);
+            if (rsi->num_classes_before_merge > 2) {
+              assert (rsi->num_filter_classes >= 2 && rsi->num_filter_classes <= rsi->num_classes_before_merge);
+              int bit_num = encode_num_filter_classes(rsi->num_classes_before_merge);
+              aom_wb_write_literal(wb, rsi->num_filter_classes - 1, bit_num);
+
+              if (rsi->num_filter_classes < rsi->num_classes_before_merge)
+                encode_wienerns_merge_map(wb, rsi->merged_to_indices, rsi->num_filter_classes, rsi->num_classes_before_merge);
+            } else {
+              assert (rsi->num_filter_classes == rsi->num_classes_before_merge);
+            }
+
+#if 1 // debug_point
+          printf ("Frame_fitler_num: %d, %d \n", rsi->num_classes_before_merge, rsi->num_filter_classes);
+#endif
+          } else {
+            assert(rsi->num_filter_classes == 1);
+            assert(rsi->num_filter_classes == 1);
+          }
+#else
           aom_wb_write_literal(
               wb, encode_num_filter_classes(rsi->num_filter_classes),
               NUM_FILTER_CLASSES_BITS);
+#endif
         }
       } else {
         assert(rsi->frame_filters_on == 0);
@@ -4682,6 +4736,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #if CONFIG_COMBINE_PC_NS_WIENER
   if (plane == AOM_PLANE_Y && rsi->frame_filters_initialized) {
     WienerNonsepInfoBank *bank = &xd->wienerns_info[plane];
+    bank->filter[0].num_classes = rsi->frame_filters.num_classes;
     if (!bank->frame_filter_predictors_are_set) {
       av1_add_to_wienerns_bank(bank, &rsi->frame_filters, ALL_WIENERNS_CLASSES);
       bank->frame_filter_predictors_are_set = 1;

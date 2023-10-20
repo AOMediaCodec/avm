@@ -1848,7 +1848,11 @@ void apply_wienerns_class_id_highbd(
   const int block_size = 4;
 #if CONFIG_COMBINE_PC_NS_WIENER
   const uint8_t *pc_wiener_sub_classify =
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+      get_pc_wiener_sub_classifier(wienerns_info->num_classes_before_merge, set_index);
+#else
       get_pc_wiener_sub_classifier(num_classes, set_index);
+#endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
   for (int r = 0; r < height; r += block_size) {
     const int h = AOMMIN(block_size, height - r);
@@ -1865,6 +1869,9 @@ void apply_wienerns_class_id_highbd(
                      (c >> MI_SIZE_LOG2)];
         sub_class_id = pc_wiener_sub_classify[full_class_id];
 
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+        sub_class_id = wienerns_info->merged_to_indices[sub_class_id];
+#endif
         if (class_id_restrict >= 0 && sub_class_id != class_id_restrict) {
           continue;
         }
