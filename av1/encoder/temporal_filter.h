@@ -25,7 +25,11 @@ extern "C" {
 #define BW 32
 
 // Block size used in temporal filtering.
+#if CONFIG_LARGE_TF_BLOCK
+#define TF_BLOCK_SIZE BLOCK_64X64
+#else
 #define TF_BLOCK_SIZE BLOCK_32X32
+#endif  // CONFIG_LARGE_TF_BLOCK
 
 // Window size for temporal filtering.
 #define TF_WINDOW_LENGTH 5

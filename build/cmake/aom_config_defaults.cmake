@@ -280,6 +280,9 @@ set_aom_config_var(CONFIG_TX_PARTITION_CTX 1
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")
+# This is an encode-only change.
+set_aom_config_var(CONFIG_LARGE_TF_BLOCK 1
+                   "Enable large adaptively selected temporal filter blocks.")
 set_aom_config_var(CONFIG_FIX_CDEF_SYNTAX 1
                    "AV2 experiment flag to fix CDEF syntax.")
 set_aom_config_var(CONFIG_IMPROVED_CFL 1
