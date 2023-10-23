@@ -319,7 +319,11 @@ void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
   for (int i = 0; i < LR_BANK_SIZE; ++i) {
     set_default_wienerns(&bank->filter[i], qindex, num_classes, chroma);
   }
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+  for (int c_id = 0; c_id < WIENERNS_MAX_CLASSES; ++c_id) {
+#else
   for (int c_id = 0; c_id < num_classes; ++c_id) {
+#endif
     bank->bank_size_for_class[c_id] = 0;
     bank->bank_ptr_for_class[c_id] = 0;
   }

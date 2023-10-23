@@ -4340,7 +4340,7 @@ static AOM_INLINE void encode_restoration_mode(
               assert (rsi->num_filter_classes == rsi->num_classes_before_merge);
             }
 
-#if 1 // debug_point
+#if 0 // debug_point
           printf ("Frame_fitler_num: %d, %d \n", rsi->num_classes_before_merge, rsi->num_filter_classes);
 #endif
           } else {
