@@ -1176,6 +1176,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
                   aom_calloc((mi_params->mi_rows * mi_params->mi_cols) >> 2,
                              sizeof(*cpi->consec_zero_mv)));
+#if CONFIG_SCC_DETERMINATION
+  cpi->palette_pixel_num = 0;
+#endif  // CONFIG_SCC_DETERMINATION
 
   {
     const BLOCK_SIZE bsize = BLOCK_16X16;
@@ -3371,6 +3374,18 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
 #if CONFIG_IBC_SR_EXT
   av1_set_screen_content_options(cpi, features);
+#if CONFIG_SCC_DETERMINATION
+  if (cm->current_frame.frame_type != KEY_FRAME) {
+    // the current kf_allow_sc_tools will be considered when we set
+    // allow_screen_content_tools flag for arf frames, in order to reduce
+    // the chances that could be missed detection as screen content.
+    if (frame_is_kf_gf_arf(cpi)) {
+      features->allow_screen_content_tools |= features->kf_allow_sc_tools;
+    }
+  } else {
+    features->kf_allow_sc_tools = features->allow_screen_content_tools;
+  }
+#endif  // CONFIG_SCC_DETERMINATION
   cpi->is_screen_content_type = features->allow_screen_content_tools;
   if (cm->features.allow_intrabc) {
     cm->features.allow_global_intrabc =
