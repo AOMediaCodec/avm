@@ -112,4 +112,8 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_FLEX_PARTITION 0 !CONFIG_UNEVEN_4WAY)
   endif()
 
+  # CONFIG_BAWP_CHROMA depends on CONFIG_BAWP
+  if(NOT CONFIG_BAWP AND CONFIG_BAWP_CHROMA)
+    change_config_and_warn(CONFIG_BAWP_CHROMA 0 !CONFIG_BAWP)
+  endif()
 endmacro()

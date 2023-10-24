@@ -2089,7 +2089,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   if (mbmi->refinemv_flag && switchable_refinemv_flag(cm, mbmi)) {
     assert(mbmi->interinter_comp.type == COMPOUND_AVERAGE);
     assert(mbmi->comp_group_idx == 0);
+#if CONFIG_BAWP_CHROMA
+    assert(mbmi->bawp_flag[0] == 0);
+#else
     assert(mbmi->bawp_flag == 0);
+#endif  // CONFIG_BAWP_CHROMA
   }
 #if CONFIG_CWP
   assert(IMPLIES(mbmi->refinemv_flag, mbmi->cwp_idx == CWP_EQUAL));
@@ -2114,7 +2118,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
 #endif
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+    assert(mbmi->bawp_flag[0] == 0);
+#else
     assert(mbmi->bawp_flag == 0);
+#endif  // CONFIG_BAWP_CHROMA
 #endif
   }
 #endif  // CONFIG_WARPMV
@@ -2195,6 +2203,34 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
 #if CONFIG_WARPMV
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+      if (cm->features.enable_bawp &&
+          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+#if CONFIG_EXPLICIT_BAWP
+        aom_write_symbol(w, mbmi->bawp_flag[0] > 0, xd->tile_ctx->bawp_cdf[0],
+                         2);
+        if (mbmi->bawp_flag[0] > 0 && av1_allow_explicit_bawp(mbmi)) {
+          const int ctx_index =
+              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+          aom_write_symbol(w, mbmi->bawp_flag[0] > 1,
+                           xd->tile_ctx->explicit_bawp_cdf[ctx_index], 2);
+          if (mbmi->bawp_flag[0] > 1) {
+            aom_write_symbol(w, mbmi->bawp_flag[0] - 2,
+                             xd->tile_ctx->explicit_bawp_scale_cdf,
+                             EXPLICIT_BAWP_SCALE_CNT);
+          }
+        }
+#else
+        aom_write_symbol(w, mbmi->bawp_flag[0] == 1, xd->tile_ctx->bawp_cdf[0],
+                         2);
+#endif  // CONFIG_EXPLICIT_BAWP
+      }
+
+      if (mbmi->bawp_flag[0]) {
+        aom_write_symbol(w, mbmi->bawp_flag[1] == 1, xd->tile_ctx->bawp_cdf[1],
+                         2);
+      }
+#else
       if (cm->features.enable_bawp &&
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
 #if CONFIG_EXPLICIT_BAWP
@@ -2214,6 +2250,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         aom_write_symbol(w, mbmi->bawp_flag == 1, xd->tile_ctx->bawp_cdf, 2);
 #endif  // CONFIG_EXPLICIT_BAWP
       }
+#endif  // CONFIG_BAWP_CHROMA
 #endif
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
       int is_warpmv_warp_causal =
@@ -2359,10 +2396,22 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     }
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #if CONFIG_BAWP && !CONFIG_WARPMV
+#if CONFIG_BAWP_CHROMA
+    if (cm->features.enable_bawp &&
+        av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+      aom_write_symbol(w, mbmi->bawp_flag[0] == 1, xd->tile_ctx->bawp_cdf[0],
+                       2);
+    }
+    if (mbmi->bawp_flag[0]) {
+      aom_write_symbol(w, mbmi->bawp_flag[1] == 1, xd->tile_ctx->bawp_cdf[1],
+                       2);
+    }
+#else
     if (cm->features.enable_bawp &&
         av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
       aom_write_symbol(w, mbmi->bawp_flag == 1, xd->tile_ctx->bawp_cdf, 2);
     }
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION

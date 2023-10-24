@@ -1502,7 +1502,13 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+    for (int plane = 0; plane < 2; ++plane) {
+      mbmi->bawp_flag[plane] = 0;
+    }
+#else
     mbmi->bawp_flag = 0;
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 #if !CONFIG_C076_INTER_MOD_CTX
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
@@ -2239,7 +2245,13 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #endif
 
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  for (int plane = 0; plane < 2; ++plane) {
+    mbmi->bawp_flag[plane] = 0;
+  }
+#else
   mbmi->bawp_flag = 0;
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 
 #if CONFIG_REFINEMV
@@ -2813,7 +2825,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  for (int plane = 0; plane < 2; ++plane) {
+    mbmi->bawp_flag[plane] = 0;
+  }
+#else
   mbmi->bawp_flag = 0;
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 
 #if CONFIG_REFINEMV
@@ -2975,6 +2993,34 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
 #if CONFIG_WARPMV
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+      if (cm->features.enable_bawp &&
+          av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+        mbmi->bawp_flag[0] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[0], 2,
+                                             ACCT_INFO("bawp_flag_luma"));
+#if CONFIG_EXPLICIT_BAWP
+        if (mbmi->bawp_flag[0] && av1_allow_explicit_bawp(mbmi)) {
+          const int ctx_index =
+              (mbmi->mode == NEARMV) ? 0 : (mbmi->mode == AMVDNEWMV ? 1 : 2);
+          mbmi->bawp_flag[0] +=
+              aom_read_symbol(r, xd->tile_ctx->explicit_bawp_cdf[ctx_index], 2,
+                              ACCT_INFO("explicit_bawp_flag"));
+        }
+        if (mbmi->bawp_flag[0] > 1) {
+          mbmi->bawp_flag[0] += aom_read_symbol(
+              r, xd->tile_ctx->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT,
+              ACCT_INFO("explicit_bawp_scales"));
+        }
+#endif  // CONFIG_EXPLICIT_BAWP
+      }
+
+      if (mbmi->bawp_flag[0]) {
+        mbmi->bawp_flag[1] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[1], 2,
+                                             ACCT_INFO("bawp_flag_chroma"));
+      } else {
+        mbmi->bawp_flag[1] = 0;
+      }
+#else
       if (cm->features.enable_bawp &&
           av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
         mbmi->bawp_flag = aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2,
@@ -2994,6 +3040,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         }
 #endif  // CONFIG_EXPLICIT_BAWP
       }
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 
       for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
@@ -3169,9 +3216,23 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
 #if CONFIG_BAWP && !CONFIG_WARPMV
+#if CONFIG_BAWP_CHROMA
+  if (cm->features.enable_bawp &&
+      av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col)) {
+    mbmi->bawp_flag[0] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[0], 2,
+                                         ACCT_INFO("bawp_flag_luma"));
+  }
+  if (mbmi->bawp_flag[0]) {
+    mbmi->bawp_flag[1] = aom_read_symbol(r, xd->tile_ctx->bawp_cdf[1], 2,
+                                         ACCT_INFO("bawp_flag_chroma"));
+  } else {
+    mbmi->bawp_flag[1] = 0;
+  }
+#else
   if (cm->features.enable_bawp && av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col))
     mbmi->bawp_flag =
         aom_read_symbol(r, xd->tile_ctx->bawp_cdf, 2, ACCT_INFO("bawp_flag"));
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -3481,7 +3542,13 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  for (int plane = 0; plane < 2; ++plane) {
+    mbmi->bawp_flag[plane] = 0;
+  }
+#else
   mbmi->bawp_flag = 0;
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 
 #if CONFIG_REFINEMV

@@ -142,7 +142,8 @@ struct av1_extracfg {
 #endif             // CONFIG_CWP
 #if CONFIG_D071_IMP_MSK_BLD
   int enable_imp_msk_bld;
-#endif             // CONFIG_D071_IMP_MSK_BLD
+#endif  // CONFIG_D071_IMP_MSK_BLD
+
   int enable_fsc;  // enable forward skip coding
 #if CONFIG_ORIP
   int enable_orip;  // enable ORIP

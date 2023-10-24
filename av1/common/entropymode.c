@@ -4469,7 +4469,12 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->skip_drl_cdf, default_skip_drl_cdf);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  av1_copy(fc->bawp_cdf[0], default_bawp_cdf);
+  av1_copy(fc->bawp_cdf[1], default_bawp_cdf);
+#else
   av1_copy(fc->bawp_cdf, default_bawp_cdf);
+#endif  // CONFIG_BAWP_CHROMA
 #endif  // CONFIG_BAWP
 #if CONFIG_EXPLICIT_BAWP
   av1_copy(fc->explicit_bawp_cdf, default_explicit_bawp_cdf);

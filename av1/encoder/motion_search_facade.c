@@ -1530,7 +1530,13 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->mode = NEWMV;
 #endif
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  for (int plane = 0; plane < 2; ++plane) {
+    mbmi->bawp_flag[plane] = 0;
+  }
+#else
   mbmi->bawp_flag = 0;
+#endif  // CONFIG_BAWP_CHROMA
 #endif
 
 #if CONFIG_REFINEMV

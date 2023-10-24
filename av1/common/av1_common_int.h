@@ -449,8 +449,9 @@ typedef struct SequenceHeader {
   uint8_t enable_cwp;  // enables/disables compound weighted prediction
 #endif                 // CONFIG_CWP
 #if CONFIG_D071_IMP_MSK_BLD
-  uint8_t enable_imp_msk_bld;        // enable implicit maksed blending
-#endif                               // CONFIG_D071_IMP_MSK_BLD
+  uint8_t enable_imp_msk_bld;  // enable implicit maksed blending
+#endif                         // CONFIG_D071_IMP_MSK_BLD
+
   uint8_t enable_fsc;                // enables/disables forward skip coding
   uint8_t enable_filter_intra;       // enables/disables filterintra
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
@@ -3758,7 +3759,11 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   }
 
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  if (mbmi->bawp_flag[0] > 0) {
+#else
   if (mbmi->bawp_flag > 0) {
+#endif  // CONFIG_BAWP_CHROMA
     return (1 << SIMPLE_TRANSLATION);
   }
 #endif  // CONFIG_BAWP
@@ -3862,7 +3867,11 @@ static INLINE MOTION_MODE motion_mode_allowed(const AV1_COMMON *cm,
     return SIMPLE_TRANSLATION;
   }
 #if CONFIG_BAWP
+#if CONFIG_BAWP_CHROMA
+  if (mbmi->bawp_flag[0] > 0) return SIMPLE_TRANSLATION;
+#else
   if (mbmi->bawp_flag > 0) return SIMPLE_TRANSLATION;
+#endif  // CONFIG_BAWP_CHROMA
 #endif  // CONFIG_BAWP
 
 #if CONFIG_TIP
