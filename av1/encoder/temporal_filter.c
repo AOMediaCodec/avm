@@ -1198,7 +1198,7 @@ static FRAME_DIFF tf_do_filtering(AV1_COMP *cpi, YV12_BUFFER_CONFIG **frames,
                                    cpi->alt_ref_buffer.y_buffer + filter_offset,
                                    filter_y_stride, &sse);
         diff.sum += sse;
-        diff.sse += sse * sse;
+        diff.sse += (int64_t)sse * sse;
       }
     }
   }
