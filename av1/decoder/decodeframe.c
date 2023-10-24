@@ -3423,9 +3423,14 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           rsi->frame_filters_on = aom_rb_read_literal(rb, 1);
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
           if(rsi->frame_filters_on) {
+#if SIXTEEN_CLASSES_BEFORE_MERGE // only allow 1 or 16
+            rsi->num_classes_before_merge = aom_rb_read_bit(rb) ? 16 : 1;
+            if (rsi->num_classes_before_merge == 16) {
+#else
             rsi->num_classes_before_merge = decode_num_filter_classes(
                 aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
             if (rsi->num_classes_before_merge > 2) {
+#endif
               int bit_num = encode_num_filter_classes(rsi->num_classes_before_merge);
               rsi->num_filter_classes = aom_rb_read_literal(rb, bit_num) + 1;
               assert (rsi->num_filter_classes >= 2 && rsi->num_filter_classes <= rsi->num_classes_before_merge);

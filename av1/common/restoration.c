@@ -1808,6 +1808,61 @@ static void adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
 }
 #endif  // ADD_CENTER_TAP_TO_WIENERNS
 
+#if CONFIG_NEW_CLASSIFY_NS_WIENER
+int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int width, int bit_depth) {
+  int gred_hor = 0;
+  int gred_ver = 0;
+  int gred_45 = 0;
+  int gred_135 = 0;
+  for (int i = 0; i < height; i ++ ){
+    for ( int j = 0; j < width; j ++) {
+      const int curr_pos = i * stride + j;
+      gred_hor += abs(2*dgd[curr_pos] - dgd[curr_pos - 1] - dgd[curr_pos + 1]);
+      gred_ver += abs(2*dgd[curr_pos] - dgd[curr_pos - stride] - dgd[curr_pos + stride]);
+      gred_45 += abs(2*dgd[curr_pos] - dgd[curr_pos - stride + 1] - dgd[curr_pos + stride - 1]);
+      gred_135 += abs(2*dgd[curr_pos] - dgd[curr_pos - stride - 1] - dgd[curr_pos + stride + 1]);
+    }
+  }
+
+  const int strong_dir_threshold = 3;
+  const int activity_threshold[4] = { 3, 14,  28 };
+  const int bd8 = bit_depth - 8;
+  int dir = 0;
+
+  if (gred_ver > strong_dir_threshold * gred_hor)
+    dir = 0;
+  else if (gred_hor > strong_dir_threshold * gred_ver)
+    dir = 2;
+  else if (gred_45 > strong_dir_threshold * gred_135)
+    dir = 1;
+  else if (gred_135 > strong_dir_threshold * gred_45)
+    dir = 3;
+  else
+    dir = 4; // text area;
+
+  int activity = gred_hor + gred_ver;
+  int act_idx = 0;
+  int block_impact = height * width << bd8;
+  if (activity <= activity_threshold[0] * block_impact)
+    act_idx = 0;
+  else if (activity <= activity_threshold[1] * block_impact)
+    act_idx = 1;
+  else if (activity <= activity_threshold[2] * block_impact)
+    act_idx = 2;
+  else //
+    act_idx = 3;
+
+  int class_id = 0;
+  if (act_idx == 0)
+    class_id = 0;
+  else
+    class_id = dir * 3  + act_idx;
+
+  assert (class_id < 16);
+  return class_id;
+}
+#endif
+
 void apply_wienerns_class_id_highbd(
     const uint16_t *dgd, int width, int height, int stride,
     const WienerNonsepInfo *wienerns_info,
@@ -1864,6 +1919,9 @@ void apply_wienerns_class_id_highbd(
       int sub_class_id = 0;
 #if CONFIG_COMBINE_PC_NS_WIENER
       if (num_classes > 1) {
+#if CONFIG_NEW_CLASSIFY_NS_WIENER
+        int sub_class_id = get_sub_block_class_id(dgd_row + c, stride, h, w, bit_depth);
+#else
         const int full_class_id =
             class_id[(r >> MI_SIZE_LOG2) * class_id_stride +
                      (c >> MI_SIZE_LOG2)];
@@ -1871,6 +1929,7 @@ void apply_wienerns_class_id_highbd(
 
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
         sub_class_id = wienerns_info->merged_to_indices[sub_class_id];
+#endif
 #endif
         if (class_id_restrict >= 0 && sub_class_id != class_id_restrict) {
           continue;

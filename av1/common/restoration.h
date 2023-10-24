@@ -727,6 +727,9 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
 void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst);
 #endif  // CONFIG_LR_IMPROVEMENTS
+#if CONFIG_NEW_CLASSIFY_NS_WIENER
+int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int width, int bit_depth);
+#endif
 /*!\endcond */
 
 #ifdef __cplusplus

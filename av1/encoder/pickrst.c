@@ -3071,11 +3071,18 @@ static int64_t compute_stats_for_wienerns_filter(
 #if CONFIG_COMBINE_PC_NS_WIENER
         // Skip pixel if not of sub_class_id.
         if (num_classes > 1) {
+#if CONFIG_NEW_CLASSIFY_NS_WIENER // speed to be improved
+          const int i4 = i / 4 * 4;
+          const int j4 = j / 4 * 4;
+          const int dgd4_id = i4 * dgd_stride + j4;
+          const int sub_class_id = get_sub_block_class_id(dgd_hbd + dgd4_id, dgd_stride, AOMMIN(4, limits->v_end - i4), AOMMIN(limits->h_end - j4, 4), bit_depth );
+#else
           const int full_class_id =
               rui->wiener_class_id[(i >> MI_SIZE_LOG2) *
                                        rui->wiener_class_id_stride +
                                    (j >> MI_SIZE_LOG2)];
           const int sub_class_id = pc_wiener_sub_classify[full_class_id];
+#endif
           if (c_id != sub_class_id) continue;
         }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -5074,7 +5081,11 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   const int max_num_classes_allowed = rsc->plane == AOM_PLANE_Y
                                           ? NUM_WIENERNS_CLASS_INIT_LUMA
                                           : NUM_WIENERNS_CLASS_INIT_CHROMA;
+#if SIXTEEN_CLASSES_BEFORE_MERGE // only allow 1 or 16
+  const int num_classes_to_try[2] = { 16, 1 };
+#else
   const int num_classes_to_try[5] = { 16, 8, 4, 2, 1 };
+#endif
   const int num_try = sizeof(num_classes_to_try) / sizeof(*num_classes_to_try);
 
   WienerNonsepInfoBank tmp_bank = { 0 };  // Needed for filter rate calculation.

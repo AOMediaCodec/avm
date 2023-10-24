@@ -4326,10 +4326,16 @@ static AOM_INLINE void encode_restoration_mode(
           aom_wb_write_literal(wb, rsi->frame_filters_on, 1);
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
           if(rsi->frame_filters_on) {
+#if SIXTEEN_CLASSES_BEFORE_MERGE // only allow 1 or 16
+            assert (rsi->num_classes_before_merge == 16 || rsi->num_classes_before_merge == 1);
+            aom_wb_write_bit(wb, rsi->num_classes_before_merge == 16);
+            if (rsi->num_classes_before_merge == 16) {
+#else
             aom_wb_write_literal(
               wb, encode_num_filter_classes(rsi->num_classes_before_merge),
               NUM_FILTER_CLASSES_BITS);
             if (rsi->num_classes_before_merge > 2) {
+#endif
               assert (rsi->num_filter_classes >= 2 && rsi->num_filter_classes <= rsi->num_classes_before_merge);
               int bit_num = encode_num_filter_classes(rsi->num_classes_before_merge);
               aom_wb_write_literal(wb, rsi->num_filter_classes - 1, bit_num);
