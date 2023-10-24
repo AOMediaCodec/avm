@@ -42,7 +42,12 @@ typedef void (*CCSO_WO_BUF)(const uint16_t *src_y, uint16_t *dst_yuv,
                             const int y_uv_vscale, const int thr,
                             const int neg_thr, const int *src_loc,
                             const int max_val, const int blk_size,
-                            const bool isSingleBand, const uint8_t shift_bits);
+                            const bool isSingleBand, const uint8_t shift_bits
+#if CONFIG_CCSO_EDGE_CLF
+                            ,
+                            const int edge_clf
+#endif
+);
 typedef libaom_test::FuncParam<CCSO_WO_BUF> TestFuncsCCSO_WO_BUF;
 
 template <typename F>
@@ -112,6 +117,9 @@ class CCSOFilterTest : public FunctionEquivalenceTest<F> {
   int max_val_;
   bool isSingleBand_;
   uint8_t shift_bits_;
+#if CONFIG_CCSO_EDGE_CLF
+  int edge_clf_;
+#endif
 };
 
 class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
@@ -120,12 +128,22 @@ class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
     params_.ref_func(src_y_, dst_ref_, 0, 0, pic_width_, pic_height_, src_cls_,
                      offset_buf_, src_y_stride_, dst_stride_, y_uv_hscale_,
                      y_uv_vscale_, thr_, neg_thr_, src_loc_, max_val_,
-                     blk_size_, isSingleBand_, shift_bits_);
+                     blk_size_, isSingleBand_, shift_bits_
+#if CONFIG_CCSO_EDGE_CLF
+                     ,
+                     edge_clf_
+#endif
+    );
 
     ASM_REGISTER_STATE_CHECK(params_.tst_func(
         src_y_, dst_tst_, 0, 0, pic_width_, pic_height_, src_cls_, offset_buf_,
         src_y_stride_, dst_stride_, y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_,
-        src_loc_, max_val_, blk_size_, isSingleBand_, shift_bits_));
+        src_loc_, max_val_, blk_size_, isSingleBand_, shift_bits_
+#if CONFIG_CCSO_EDGE_CLF
+        ,
+        edge_clf_
+#endif
+        ));
 
     for (int r = 0; r < blk_size_; ++r) {
       for (int c = 0; c < blk_size_; ++c) {
@@ -219,7 +237,12 @@ typedef void (*CCSO_Derive_Src)(const uint16_t *src_y, uint8_t *const src_cls0,
                                 const int pic_width, const int pic_height,
                                 const int y_uv_hscale, const int y_uv_vscale,
                                 const int thr, const int neg_thr,
-                                const int *src_loc, const int blk_size);
+                                const int *src_loc, const int blk_size
+#if CONFIG_CCSO_EDGE_CLF
+                                ,
+                                const int edge_clf
+#endif
+);
 typedef libaom_test::FuncParam<CCSO_Derive_Src> TestFuncsCCSO_Derive_Src;
 
 class CCSODeriveSrcTest : public CCSOFilterTest<CCSO_Derive_Src> {
@@ -228,12 +251,22 @@ class CCSODeriveSrcTest : public CCSOFilterTest<CCSO_Derive_Src> {
     ccso_stride_ = src_y_stride_ - (CCSO_PADDING_SIZE << 1);
     params_.ref_func(src_y_, src_cls0_ref, src_cls1_ref, src_y_stride_,
                      ccso_stride_, 0, 0, pic_width_, pic_height_, y_uv_hscale_,
-                     y_uv_vscale_, thr_, neg_thr_, src_loc_, blk_size_);
+                     y_uv_vscale_, thr_, neg_thr_, src_loc_, blk_size_
+#if CONFIG_CCSO_EDGE_CLF
+                     ,
+                     edge_clf_
+#endif
+    );
 
     ASM_REGISTER_STATE_CHECK(params_.tst_func(
         src_y_, src_cls0_tst, src_cls1_tst, src_y_stride_, ccso_stride_, 0, 0,
         pic_width_, pic_height_, y_uv_hscale_, y_uv_vscale_, thr_, neg_thr_,
-        src_loc_, blk_size_));
+        src_loc_, blk_size_
+#if CONFIG_CCSO_EDGE_CLF
+        ,
+        edge_clf_
+#endif
+        ));
 
     for (int r = 0; r < blk_size_; ++r) {
       for (int c = 0; c < blk_size_; ++c) {

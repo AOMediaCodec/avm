@@ -4249,6 +4249,16 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
 }
 
 #if CONFIG_CCSO
+#if CONFIG_CCSO_EDGE_CLF
+// write CCSO offset idx using truncated unary coding
+static AOM_INLINE void write_ccso_offset_idx(struct aom_write_bit_buffer *wb,
+                                             int offset_idx) {
+  for (int idx = 0; idx < 7; ++idx) {
+    aom_wb_write_bit(wb, offset_idx != idx);
+    if (offset_idx == idx) break;
+  }
+}
+#endif  // CONFIG_CCSO_EDGE_CLF
 static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
   if (is_global_intrabc_allowed(cm)) return;
@@ -4267,8 +4277,16 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
       aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
       const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+      const int edge_clf = cm->ccso_info.edge_clf[plane];
+      aom_wb_write_bit(wb, edge_clf);
+      const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
+      for (int d0 = 0; d0 < max_edge_interval; d0++) {
+        for (int d1 = 0; d1 < max_edge_interval; d1++) {
+#else
       for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
         for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+#endif  // CONFIG_CCSO_EDGE_CLF
 #if !CONFIG_CCSO_EXT
           const int lut_idx_ext = (d0 << 2) + d1;
 #else
@@ -4278,7 +4296,11 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
           for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
             if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
                 ccso_offset[offset_idx]) {
-              aom_wb_write_literal(wb, offset_idx, 3);
+#if CONFIG_CCSO_EDGE_CLF
+              write_ccso_offset_idx(wb, offset_idx);
+#else
+                aom_wb_write_literal(wb, offset_idx, 3);
+#endif  // CONFIG_CCSO_EDGE_CLF
               break;
             }
           }
