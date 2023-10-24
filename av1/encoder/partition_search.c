@@ -2307,7 +2307,7 @@ static void update_partition_stats(MACROBLOCKD *const xd,
     const int square_split_ctx =
         square_split_context(xd, mi_row, mi_col, bsize);
 #if CONFIG_ENTROPY_STATS
-    counts->do_sqaure_split[plane_index][square_split_ctx][do_square_split]++;
+    counts->do_square_split[plane_index][square_split_ctx][do_square_split]++;
 #endif  // CONFIG_ENTROPY_STATS
     update_cdf(fc->do_square_split_cdf[plane_index][square_split_ctx],
                do_square_split, 2);
