@@ -2662,6 +2662,13 @@ typedef struct AV1_COMP {
    * Number of frames left to be encoded, is 0 if limit is not set.
    */
   int frames_left;
+#if CONFIG_SCC_DETERMINATION
+  /*!
+   * Number of pixels that choose palette mode for luma in the
+   * fast encoding pass in av1_determine_sc_tools_with_encoding().
+   */
+  int palette_pixel_num;
+#endif  // CONFIG_SCC_DETERMINATION
 } AV1_COMP;
 
 /*!

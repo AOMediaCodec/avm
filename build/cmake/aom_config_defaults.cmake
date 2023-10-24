@@ -147,7 +147,9 @@ set_aom_config_var(ZERO_DC_DELTAQ_OFS 1
 # This is an encode-only change.
 set_aom_config_var(CONFIG_LARGE_TF_BLOCK 1
                    "Enable large adaptively selected temporal filter blocks.")
-
+# This is an encode-only change.                   
+set_aom_config_var(CONFIG_SCC_DETERMINATION 1
+                   "Enable the screen content tools determination improvement.")                 
 #
 # Variables in this section control optional features of the build system.
 #

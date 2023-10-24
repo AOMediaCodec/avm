@@ -1178,6 +1178,12 @@ typedef struct macroblock {
   //! SSE of the current predictor.
   unsigned int pred_sse[REF_FRAMES];
   /**@}*/
+#if CONFIG_SCC_DETERMINATION
+  /*!\brief Number of pixels in current thread that choose palette mode in the
+   * fast encoding stage for screen content tool detemination.
+   */
+  int palette_pixels;
+#endif  // CONFIG_SCC_DETERMINATION
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 

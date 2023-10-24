@@ -474,8 +474,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
 #if CONFIG_EXTQUANT
 #if ZERO_DC_DELTAQ_OFS
-    seq->base_y_dc_delta_q = 0;
-    seq->base_uv_dc_delta_q = 0;
+  seq->base_y_dc_delta_q = 0;
+  seq->base_uv_dc_delta_q = 0;
 #else
   const int is_360p_or_larger =
       AOMMIN(seq->max_frame_width, seq->max_frame_height) >= 360;
@@ -1060,7 +1060,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
                   aom_calloc((mi_params->mi_rows * mi_params->mi_cols) >> 2,
                              sizeof(*cpi->consec_zero_mv)));
-
+#if CONFIG_SCC_DETERMINATION
+  cpi->palette_pixel_num = 0;
+#endif  // CONFIG_SCC_DETERMINATION
   {
     const int bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];
