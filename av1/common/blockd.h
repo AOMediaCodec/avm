@@ -920,6 +920,14 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed(
 static AOM_INLINE RECT_PART_TYPE
 rect_type_implied_by_bsize(BLOCK_SIZE bsize, TREE_TYPE tree_type) {
   // Handle luma part first
+#if CONFIG_BLOCK_256
+  if (bsize == BLOCK_128X256) {
+    return HORZ;
+  }
+  if (bsize == BLOCK_256X128) {
+    return VERT;
+  }
+#endif  // CONFIG_BLOCK_256
   if (bsize == BLOCK_4X8 || bsize == BLOCK_64X128) {
     return HORZ;
   }
