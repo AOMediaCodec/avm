@@ -15,6 +15,35 @@
 
 #include "av1/common/ccso.h"
 
+#if CONFIG_CCSO_EDGE_CLF
+__m256i cal_filter_support_edge0_avx2(__m256i d, __m256i cmp_thr1,
+                                      __m256i cmp_thr2, __m256i all1,
+                                      __m256i cmp_idxa, __m256i cmp_idxb,
+                                      __m256i cmp_idxc) {
+  __m256i idx_mask1a = _mm256_cmpgt_epi16(d, cmp_thr1);
+  __m256i idx_mask1b = _mm256_cmpgt_epi16(cmp_thr2, d);
+  __m256i idx_mask1c = _mm256_xor_si256(idx_mask1a, idx_mask1b);
+  idx_mask1c = _mm256_xor_si256(idx_mask1c, all1);
+  idx_mask1a = _mm256_and_si256(idx_mask1a, cmp_idxa);
+  idx_mask1b = _mm256_and_si256(idx_mask1b, cmp_idxb);
+  idx_mask1c = _mm256_and_si256(idx_mask1c, cmp_idxc);
+
+  __m256i idx = _mm256_add_epi16(idx_mask1a, idx_mask1b);
+  idx = _mm256_add_epi16(idx, idx_mask1c);
+  return idx;
+}
+__m256i cal_filter_support_edge1_avx2(__m256i d, __m256i cmp_thr2, __m256i all1,
+                                      __m256i cmp_idxb, __m256i cmp_idxc) {
+  __m256i idx_mask1a = _mm256_cmpgt_epi16(cmp_thr2, d);
+  __m256i idx_mask1b = _mm256_xor_si256(idx_mask1a, all1);
+  idx_mask1a = _mm256_and_si256(idx_mask1a, cmp_idxb);
+  idx_mask1b = _mm256_and_si256(idx_mask1b, cmp_idxc);
+
+  __m256i idx = _mm256_add_epi16(idx_mask1a, idx_mask1b);
+  return idx;
+}
+#endif  // CONFIG_CCSO_EDGE_CLF
+
 void ccso_filter_block_hbd_wo_buf_avx2(
     const uint16_t *src_y, uint16_t *dts_yuv, const int x, const int y,
     const int pic_width, const int pic_height, int *rec_luma_idx,
@@ -25,7 +54,12 @@ void ccso_filter_block_hbd_wo_buf_avx2(
     // const int pad_stride, no pad size anymore
     const int quant_step_size, const int inv_quant_step, const int *rec_idx,
     const int max_val, const int blk_size, const bool isSingleBand,
-    const uint8_t shift_bits) {
+    const uint8_t shift_bits
+#if CONFIG_CCSO_EDGE_CLF
+    ,
+    const int edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+) {
   __m256i cmp_thr1 = _mm256_set1_epi16(quant_step_size);
   __m256i cmp_thr2 = _mm256_set1_epi16(inv_quant_step);
   __m256i cmp_idxa = _mm256_set1_epi16(2);  // d > quant_step_size
@@ -137,6 +171,20 @@ void ccso_filter_block_hbd_wo_buf_avx2(
       }
       __m256i dst_rec = _mm256_loadu_si256((const __m256i *)(dst_rec2 + xOff));
 
+#if CONFIG_CCSO_EDGE_CLF
+      __m256i idx1, idx2;
+      if (edge_clf == 0) {
+        idx1 = cal_filter_support_edge0_avx2(d1, cmp_thr1, cmp_thr2, all1,
+                                             cmp_idxa, cmp_idxb, cmp_idxc);
+        idx2 = cal_filter_support_edge0_avx2(d2, cmp_thr1, cmp_thr2, all1,
+                                             cmp_idxa, cmp_idxb, cmp_idxc);
+      } else {  // if (edge_clf == 1)
+        idx1 = cal_filter_support_edge1_avx2(d1, cmp_thr2, all1, cmp_idxb,
+                                             cmp_idxc);
+        idx2 = cal_filter_support_edge1_avx2(d2, cmp_thr2, all1, cmp_idxb,
+                                             cmp_idxc);
+      }
+#else
       __m256i idx_mask1a = _mm256_cmpgt_epi16(d1, cmp_thr1);
       __m256i idx_mask1b = _mm256_cmpgt_epi16(cmp_thr2, d1);
       __m256i idx_mask1c = _mm256_xor_si256(idx_mask1a, idx_mask1b);
@@ -158,6 +206,7 @@ void ccso_filter_block_hbd_wo_buf_avx2(
 
       __m256i idx2 = _mm256_add_epi16(idx_mask2a, idx_mask2b);
       idx2 = _mm256_add_epi16(idx2, idx_mask2c);
+#endif  // CONFIG_CCSO_EDGE_CLF
 
       __m256i offset;
       // const int band_num = src_y[x_pos] >> shift_bits;
@@ -205,7 +254,12 @@ void ccso_filter_block_hbd_wo_buf_avx2(
       cal_filter_support(rec_luma_idx,
                          &src_y[((yOff << y_uv_vscale) * src_y_stride +
                                  ((x + xOff) << y_uv_hscale))],
-                         quant_step_size, inv_quant_step, rec_idx);
+                         quant_step_size, inv_quant_step, rec_idx
+#if CONFIG_CCSO_EDGE_CLF
+                         ,
+                         edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+      );
       const int band_num = isSingleBand
                                ? 0
                                : src_y[((yOff << y_uv_vscale) * src_y_stride +
@@ -226,7 +280,12 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
                                 const int pic_width, const int pic_height,
                                 const int y_uv_hscale, const int y_uv_vscale,
                                 const int qstep, const int neg_qstep,
-                                const int *src_loc, const int blk_size) {
+                                const int *src_loc, const int blk_size
+#if CONFIG_CCSO_EDGE_CLF
+                                ,
+                                const int edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+) {
   const int quant_step_size = qstep;
   const int inv_quant_step = neg_qstep;
   __m256i cmp_thr1 = _mm256_set1_epi16(quant_step_size);
@@ -338,6 +397,20 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
         d2 = _mm256_sub_epi16(rec_tap2lo, rec_curlo);
       }
 
+#if CONFIG_CCSO_EDGE_CLF
+      __m256i idx1, idx2;
+      if (edge_clf == 0) {
+        idx1 = cal_filter_support_edge0_avx2(d1, cmp_thr1, cmp_thr2, all1,
+                                             cmp_idxa, cmp_idxb, cmp_idxc);
+        idx2 = cal_filter_support_edge0_avx2(d2, cmp_thr1, cmp_thr2, all1,
+                                             cmp_idxa, cmp_idxb, cmp_idxc);
+      } else {  // if (edge_clf == 1)
+        idx1 = cal_filter_support_edge1_avx2(d1, cmp_thr2, all1, cmp_idxb,
+                                             cmp_idxc);
+        idx2 = cal_filter_support_edge1_avx2(d2, cmp_thr2, all1, cmp_idxb,
+                                             cmp_idxc);
+      }
+#else
       __m256i idx_mask1a = _mm256_cmpgt_epi16(d1, cmp_thr1);
       __m256i idx_mask1b = _mm256_cmpgt_epi16(cmp_thr2, d1);
       __m256i idx_mask1c = _mm256_xor_si256(idx_mask1a, idx_mask1b);
@@ -359,6 +432,7 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
 
       __m256i idx2 = _mm256_add_epi16(idx_mask2a, idx_mask2b);
       idx2 = _mm256_add_epi16(idx2, idx_mask2c);
+#endif  // CONFIG_CCSO_EDGE_CLF
 
       idx1 = _mm256_packs_epi16(idx1, idx1);
       idx1 = _mm256_permutevar8x32_epi32(idx1, masksub2);
@@ -397,7 +471,12 @@ void ccso_derive_src_block_avx2(const uint16_t *src_y, uint8_t *const src_cls0,
       cal_filter_support(src_cls,
                          &src_y[((yOff << y_uv_vscale) * src_y_stride +
                                  ((x + xOff) << y_uv_hscale))],
-                         quant_step_size, inv_quant_step, src_loc);
+                         quant_step_size, inv_quant_step, src_loc
+#if CONFIG_CCSO_EDGE_CLF
+                         ,
+                         edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+      );
       src_cls0[(yOff << y_uv_vscale) * ccso_stride +
                ((x + xOff) << y_uv_hscale)] = src_cls[0];
       src_cls1[(yOff << y_uv_vscale) * ccso_stride +

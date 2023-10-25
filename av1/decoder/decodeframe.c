@@ -3806,6 +3806,18 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
 }
 
 #if CONFIG_CCSO
+#if CONFIG_CCSO_EDGE_CLF
+// read offset idx using truncated unary coding
+static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
+  int offset_idx = 0;
+  for (int idx = 0; idx < 7; ++idx) {
+    const int cur_bit = aom_rb_read_bit(rb);
+    if (!cur_bit) break;
+    offset_idx++;
+  }
+  return offset_idx;
+}
+#endif  // CONFIG_CCSO_EDGE_CLF
 static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
   if (is_global_intrabc_allowed(cm)) return;
@@ -3824,15 +3836,26 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
       cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2);
       const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+      const int edge_clf = cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
+      const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
+      for (int d0 = 0; d0 < max_edge_interval; d0++) {
+        for (int d1 = 0; d1 < max_edge_interval; d1++) {
+#else
       for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
         for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+#endif  // CONFIG_CCSO_EDGE_CLF
 #if !CONFIG_CCSO_EXT
           const int lut_idx_ext = (d0 << 2) + d1;
 #else
           for (int band_num = 0; band_num < max_band; band_num++) {
             const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
 #endif
-          const int offset_idx = aom_rb_read_literal(rb, 3);
+#if CONFIG_CCSO_EDGE_CLF
+          const int offset_idx = read_ccso_offset_idx(rb);
+#else
+            const int offset_idx = aom_rb_read_literal(rb, 3);
+#endif  // CONFIG_CCSO_EDGE_CLF
           cm->ccso_info.filter_offset[plane][lut_idx_ext] =
               ccso_offset[offset_idx];
         }

@@ -366,6 +366,10 @@ typedef struct {
   uint8_t quant_idx[CCSO_NUM_COMPONENTS];
   /** extended filter support */
   uint8_t ext_filter_support[CCSO_NUM_COMPONENTS];
+#if CONFIG_CCSO_EDGE_CLF
+  /** edge classifier index */
+  uint8_t edge_clf[CCSO_NUM_COMPONENTS];
+#endif  // CONFIG_CCSO_EDGE_CLF
 } CcsoInfo;
 #endif
 

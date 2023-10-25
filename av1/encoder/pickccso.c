@@ -65,7 +65,12 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
                              const int pic_width, const int pic_height,
                              const int y_uv_hscale, const int y_uv_vscale,
                              const int qstep, const int neg_qstep,
-                             const int *src_loc, const int blk_size) {
+                             const int *src_loc, const int blk_size
+#if CONFIG_CCSO_EDGE_CLF
+                             ,
+                             const int edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+) {
   int src_cls[2];
   const int y_end = AOMMIN(pic_height - y, blk_size);
   const int x_end = AOMMIN(pic_width - x, blk_size);
@@ -76,7 +81,12 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
       cal_filter_support(src_cls,
                          &src_y[(y_pos << y_uv_vscale) * src_y_stride +
                                 (x_pos << y_uv_hscale)],
-                         qstep, neg_qstep, src_loc);
+                         qstep, neg_qstep, src_loc
+#if CONFIG_CCSO_EDGE_CLF
+                         ,
+                         edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+      );
       src_cls0[(y_pos << y_uv_vscale) * src_cls_stride +
                (x_pos << y_uv_hscale)] = src_cls[0];
       src_cls1[(y_pos << y_uv_vscale) * src_cls_stride +
@@ -89,7 +99,12 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
 void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
                           const uint16_t *src_y, const uint8_t qstep,
                           const uint8_t filter_sup, uint8_t *src_cls0,
-                          uint8_t *src_cls1) {
+                          uint8_t *src_cls1
+#if CONFIG_CCSO_EDGE_CLF
+                          ,
+                          int edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -105,7 +120,12 @@ void ccso_derive_src_info(MACROBLOCKD *xd, const int plane,
       ccso_derive_src_block(src_y, src_cls0, src_cls1, ccso_stride_ext,
                             ccso_stride, x, y, pic_width, pic_height,
                             y_uv_hscale, y_uv_vscale, qstep, neg_qstep, src_loc,
-                            blk_size);
+                            blk_size
+#if CONFIG_CCSO_EDGE_CLF
+                            ,
+                            edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+      );
     }
     src_y += (ccso_stride_ext << (blk_log2 + y_uv_vscale));
     src_cls0 += (ccso_stride << (blk_log2 + y_uv_vscale));
@@ -307,7 +327,12 @@ void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                    const uint64_t *unfiltered_dist,
                    const uint64_t *training_dist, bool *m_filter_control,
                    uint64_t *cur_total_dist, int *cur_total_rate,
-                   bool *filter_enable, const int rdmult) {
+                   bool *filter_enable
+#if !CONFIG_CCSO_EDGE_CLF
+                   ,
+                   const int rdmult
+#endif  // !CONFIG_CCSO_EDGE_CLF
+) {
 #if CONFIG_CCSO_EXT
   aom_cdf_prob ccso_cdf[CDF_SIZE(2)];
   static const aom_cdf_prob default_ccso_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
@@ -334,7 +359,9 @@ void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       uint64_t ssd;
       uint64_t best_ssd = UINT64_MAX;
       int best_rate = INT_MAX;
+#if !CONFIG_CCSO_EDGE_CLF
       uint64_t best_cost = UINT64_MAX;
+#endif  // !CONFIG_CCSO_EDGE_CLF
       uint8_t cur_best_filter_control = 0;
 #if CONFIG_CCSO_EXT
       int cost_from_cdf[2];
@@ -350,6 +377,7 @@ void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
         } else {
           ssd = training_dist[sb_idx];
         }
+#if !CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_EXT
         const uint64_t rd_cost =
             RDCOST(rdmult, cost_from_cdf[cur_filter_control], ssd * 16);
@@ -358,6 +386,9 @@ void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #endif
         if (rd_cost < best_cost) {
           best_cost = rd_cost;
+#else
+        if (ssd < best_ssd) {
+#endif  // !CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_EXT
           best_rate = cost_from_cdf[cur_filter_control];
 #else
@@ -393,6 +424,10 @@ void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
                          ,
                          const int shift_bits
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+                         ,
+                         int edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
 ) {
   const int log2_filter_unit_size =
       plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
@@ -462,7 +497,12 @@ void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
               &ext_rec_luma[((ccso_stride_ext_idx[y_off] << y_uv_vert_scale) +
                              ((x + x_off) << y_uv_hori_scale)) +
                             pad_stride],
-              quant_step_size, inv_quant_step, rec_idx);
+              quant_step_size, inv_quant_step, rec_idx
+#if CONFIG_CCSO_EDGE_CLF
+              ,
+              edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+          );
           chroma_error[
 #if CONFIG_CCSO_EXT
               (band_num << 4) +
@@ -490,7 +530,12 @@ void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
  * blocks
  */
 void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
-                            const int max_band_log2) {
+                            const int max_band_log2
+#if CONFIG_CCSO_EDGE_CLF
+                            ,
+                            const int max_edge_interval
+#endif  // CONFIG_CCSO_EDGE_CLF
+) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int nvfb = ((mi_params->mi_rows >> xd->plane[plane].subsampling_y) +
@@ -502,8 +547,13 @@ void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   const int fb_count = nvfb * nhfb;
   for (int fb_idx = 0; fb_idx < fb_count; fb_idx++) {
     if (!filter_control[fb_idx]) continue;
+#if CONFIG_CCSO_EDGE_CLF
+    for (int d0 = 0; d0 < max_edge_interval; d0++) {
+      for (int d1 = 0; d1 < max_edge_interval; d1++) {
+#else
     for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
       for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+#endif  // CONFIG_CCSO_EDGE_CLF
         for (int band_num = 0; band_num < (1 << max_band_log2); band_num++) {
           const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
           chroma_error[lut_idx_ext] +=
@@ -517,16 +567,62 @@ void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
 }
 #endif
 
+#if CONFIG_CCSO_EDGE_CLF
+/* Count the bits for signaling the offset index */
+static INLINE int count_lut_bits(int8_t *temp_filter_offset
+#if CONFIG_CCSO_EXT
+                                 ,
+                                 const int max_band_log2
+#endif
+                                 ,
+                                 const int max_edge_interval) {
+#if CONFIG_CCSO_EXT
+  const int ccso_offset_reordered[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
+#else
+  const int ccso_offset_reordered[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
+#endif  // CONFIG_CCSO_EXT
+  int temp_bits = 0;
+  for (int d0 = 0; d0 < max_edge_interval; d0++) {
+    for (int d1 = 0; d1 < max_edge_interval; d1++) {
+#if CONFIG_CCSO_EXT
+      for (int band_num = 0; band_num < (1 << max_band_log2); band_num++) {
+        const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
+#else
+      const int lut_idx_ext = (d0 << 2) + d1;
+#endif
+        for (int idx = 0; idx < 7; ++idx) {
+          temp_bits++;
+          if (ccso_offset_reordered[idx] == temp_filter_offset[lut_idx_ext])
+            break;
+        }
+#if CONFIG_CCSO_EXT
+      }
+#endif
+    }
+  }
+  return temp_bits;
+}
+#endif  // CONFIG_CCSO_EDGE_CLF
+
 /* Derive the offset value in the look-up table */
 void derive_lut_offset(int8_t *temp_filter_offset
 #if CONFIG_CCSO_EXT
                        ,
                        const int max_band_log2
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+                       ,
+                       const int max_edge_interval
+#endif  // CONFIG_CCSO_EDGE_CLF
 ) {
   float temp_offset = 0;
+#if CONFIG_CCSO_EDGE_CLF
+  for (int d0 = 0; d0 < max_edge_interval; d0++) {
+    for (int d1 = 0; d1 < max_edge_interval; d1++) {
+#else
   for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
     for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+#endif  // CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_EXT
       for (int band_num = 0; band_num < (1 << max_band_log2); band_num++) {
         const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
@@ -615,10 +711,20 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   compute_distortion(org_uv, ccso_stride, rec_uv, ccso_stride,
                      log2_filter_unit_size, pic_height_c, pic_width_c,
                      unfiltered_dist_block, ccso_nhfb, &unfiltered_dist_frame);
+#if CONFIG_CCSO_EDGE_CLF
+  const double best_unfiltered_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+      rdmult, 1, unfiltered_dist_frame, cm->seq_params.bit_depth);
+  double best_filtered_cost;
+  double final_filtered_cost = DBL_MAX;
+  uint8_t best_edge_classifier = 0;
+  uint8_t final_edge_classifier = 0;
+  const int total_edge_classifier = 2;
+#else
   const uint64_t best_unfiltered_cost =
       RDCOST(rdmult, av1_cost_literal(1), unfiltered_dist_frame * 16);
   uint64_t best_filtered_cost;
   uint64_t final_filtered_cost = UINT64_MAX;
+#endif  // CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_EXT
   int8_t filter_offset[8 * 16];
 #else
@@ -632,6 +738,9 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   uint8_t frame_bits = 1;
   frame_bits += 2;  // quant step size
   frame_bits += 3;  // filter support index
+#if CONFIG_CCSO_EDGE_CLF
+  frame_bits += 1;  // edge_clf
+#endif              // CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_EXT
   frame_bits += 2;  // band number log2
   uint8_t *src_cls0;
@@ -648,51 +757,82 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   for (int ext_filter_support = 0; ext_filter_support < total_filter_support;
        ext_filter_support++) {
     for (int quant_idx = 0; quant_idx < total_quant_idx; quant_idx++) {
+#if CONFIG_CCSO_EDGE_CLF
+      for (int edge_clf = 0; edge_clf < total_edge_classifier; edge_clf++) {
+        const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
+#endif  // CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_EXT
-      ccso_derive_src_info(xd, plane, ext_rec_y, quant_sz[quant_idx],
-                           ext_filter_support, src_cls0, src_cls1);
-      for (int max_band_log2 = 0; max_band_log2 < total_band_log2_plus1;
-           max_band_log2++) {
-        const int shift_bits = cm->seq_params.bit_depth - max_band_log2;
+        ccso_derive_src_info(xd, plane, ext_rec_y, quant_sz[quant_idx],
+                             ext_filter_support, src_cls0, src_cls1
+#if CONFIG_CCSO_EDGE_CLF
+                             ,
+                             edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
+        );
+        for (int max_band_log2 = 0; max_band_log2 < total_band_log2_plus1;
+             max_band_log2++) {
+          const int shift_bits = cm->seq_params.bit_depth - max_band_log2;
+#if CONFIG_CCSO_EDGE_CLF
+          const int max_band = 1 << max_band_log2;
+#endif  // CONFIG_CCSO_EDGE_CLF
 #endif
-        best_filtered_cost = UINT64_MAX;
-        bool ccso_enable = true;
-        bool keep_training = true;
-        bool improvement = false;
-        uint64_t prev_total_cost = UINT64_MAX;
-        int control_idx = 0;
-        for (int y = 0; y < ccso_nvfb; y++) {
-          for (int x = 0; x < ccso_nhfb; x++) {
-            filter_control[control_idx] = 1;
-            control_idx++;
-          }
-        }
-#if CONFIG_CCSO_EXT
-        for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
-          for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
-            for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
-              memset(total_class_err[d0][d1][band_num], 0,
-                     sizeof(*total_class_err[d0][d1][band_num]) * sb_count);
-              memset(total_class_cnt[d0][d1][band_num], 0,
-                     sizeof(*total_class_cnt[d0][d1][band_num]) * sb_count);
+#if CONFIG_CCSO_EDGE_CLF
+          best_filtered_cost = DBL_MAX;
+#else
+      best_filtered_cost = UINT64_MAX;
+#endif  // CONFIG_CCSO_EDGE_CLF
+          bool ccso_enable = true;
+          bool keep_training = true;
+          bool improvement = false;
+#if CONFIG_CCSO_EDGE_CLF
+          double prev_total_cost = DBL_MAX;
+#else
+      uint64_t prev_total_cost = UINT64_MAX;
+#endif  // CONFIG_CCSO_EDGE_CLF
+          int control_idx = 0;
+          for (int y = 0; y < ccso_nvfb; y++) {
+            for (int x = 0; x < ccso_nhfb; x++) {
+              filter_control[control_idx] = 1;
+              control_idx++;
             }
           }
-        }
-        ccso_pre_compute_class_err(xd, plane, ext_rec_y, org_uv, rec_uv,
-                                   src_cls0, src_cls1, shift_bits);
-#endif
-        int training_iter_count = 0;
-        while (keep_training) {
-          improvement = false;
-          if (ccso_enable) {
-            memset(chroma_error, 0, sizeof(chroma_error));
-            memset(chroma_count, 0, sizeof(chroma_count));
-            memset(filter_offset, 0, sizeof(filter_offset));
-            memcpy(temp_rec_uv_buf, rec_uv,
-                   sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height *
-                       ccso_stride);
 #if CONFIG_CCSO_EXT
-            ccso_compute_class_err(cm, plane, xd, max_band_log2);
+#if CONFIG_CCSO_EDGE_CLF
+          for (int d0 = 0; d0 < max_edge_interval; d0++) {
+            for (int d1 = 0; d1 < max_edge_interval; d1++) {
+              for (int band_num = 0; band_num < max_band; band_num++) {
+#else
+          for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
+            for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
+              for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
+#endif  // CONFIG_CCSO_EDGE_CLF
+                memset(total_class_err[d0][d1][band_num], 0,
+                       sizeof(*total_class_err[d0][d1][band_num]) * sb_count);
+                memset(total_class_cnt[d0][d1][band_num], 0,
+                       sizeof(*total_class_cnt[d0][d1][band_num]) * sb_count);
+              }
+            }
+          }
+          ccso_pre_compute_class_err(xd, plane, ext_rec_y, org_uv, rec_uv,
+                                     src_cls0, src_cls1, shift_bits);
+#endif
+          int training_iter_count = 0;
+          while (keep_training) {
+            improvement = false;
+            if (ccso_enable) {
+              memset(chroma_error, 0, sizeof(chroma_error));
+              memset(chroma_count, 0, sizeof(chroma_count));
+              memset(filter_offset, 0, sizeof(filter_offset));
+              memcpy(temp_rec_uv_buf, rec_uv,
+                     sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height *
+                         ccso_stride);
+#if CONFIG_CCSO_EXT
+              ccso_compute_class_err(cm, plane, xd, max_band_log2
+#if CONFIG_CCSO_EDGE_CLF
+                                     ,
+                                     max_edge_interval
+#endif  // CONFIG_CCSO_EDGE_CLF
+              );
 #else
           compute_total_error(xd, ext_rec_y, plane, org_uv, temp_rec_uv_buf,
                               quant_sz[quant_idx], ext_filter_support
@@ -700,86 +840,111 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                               ,
                               shift_bits
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+                              ,
+                              edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
           );
 #endif
-            derive_lut_offset(filter_offset
+              derive_lut_offset(filter_offset
 #if CONFIG_CCSO_EXT
-                              ,
-                              max_band_log2
+                                ,
+                                max_band_log2
 #endif
-            );
-          }
-          memcpy(
-              temp_rec_uv_buf, rec_uv,
-              sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height * ccso_stride);
+#if CONFIG_CCSO_EDGE_CLF
+                                ,
+                                max_edge_interval
+#endif  // CONFIG_CCSO_EDGE_CLF
+              );
+            }
+            memcpy(temp_rec_uv_buf, rec_uv,
+                   sizeof(*temp_rec_uv_buf) * xd->plane[0].dst.height *
+                       ccso_stride);
 #if CONFIG_CCSO_EXT
-          if (plane > 0)
-            ccso_try_chroma_filter(cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
+            if (plane > 0)
+              ccso_try_chroma_filter(cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
+                                     ccso_stride, filter_offset, src_cls0,
+                                     src_cls1, shift_bits);
+            else
+              ccso_try_luma_filter(cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
                                    ccso_stride, filter_offset, src_cls0,
                                    src_cls1, shift_bits);
-          else
-            ccso_try_luma_filter(cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
-                                 ccso_stride, filter_offset, src_cls0, src_cls1,
-                                 shift_bits);
 #else
         apply_ccso_filter_hbd(cm, xd, plane, ext_rec_y, temp_rec_uv_buf,
                               ccso_stride, filter_offset, quant_sz[quant_idx],
                               ext_filter_support);
 #endif
-          filtered_dist_frame = 0;
-          compute_distortion(org_uv, ccso_stride, temp_rec_uv_buf, ccso_stride,
-                             log2_filter_unit_size, pic_height_c, pic_width_c,
-                             training_dist_block, ccso_nhfb,
-                             &filtered_dist_frame);
-          uint64_t cur_total_dist = 0;
-          int cur_total_rate = 0;
-          derive_blk_md(cm, xd, plane, unfiltered_dist_block,
-                        training_dist_block, filter_control, &cur_total_dist,
-                        &cur_total_rate, &ccso_enable, rdmult);
-          if (ccso_enable) {
+            filtered_dist_frame = 0;
+            compute_distortion(org_uv, ccso_stride, temp_rec_uv_buf,
+                               ccso_stride, log2_filter_unit_size, pic_height_c,
+                               pic_width_c, training_dist_block, ccso_nhfb,
+                               &filtered_dist_frame);
+            uint64_t cur_total_dist = 0;
+            int cur_total_rate = 0;
+            derive_blk_md(cm, xd, plane, unfiltered_dist_block,
+                          training_dist_block, filter_control, &cur_total_dist,
+                          &cur_total_rate, &ccso_enable
+#if !CONFIG_CCSO_EDGE_CLF
+                          ,
+                          rdmult
+#endif  // !CONFIG_CCSO_EDGE_CLF
+            );
+            if (ccso_enable) {
+#if CONFIG_CCSO_EDGE_CLF
+              const int lut_bits = count_lut_bits(filter_offset, max_band_log2,
+                                                  max_edge_interval);
+              const int cur_total_bits = lut_bits + frame_bits + sb_count;
+              const double cur_total_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+                  rdmult, cur_total_bits, cur_total_dist,
+                  cm->seq_params.bit_depth);
+#else
 #if CONFIG_CCSO_EXT
-            const int lut_bits = (1 << max_band_log2) * 9;
+          const int lut_bits = (1 << max_band_log2) * 9;
 #else
           const int lut_bits = 9;
 #endif
-            cur_total_rate +=
-                av1_cost_literal(lut_bits * 3) + av1_cost_literal(frame_bits);
-            const uint64_t cur_total_cost =
-                RDCOST(rdmult, cur_total_rate, cur_total_dist * 16);
-            if (cur_total_cost < prev_total_cost) {
-              prev_total_cost = cur_total_cost;
-              improvement = true;
-            }
-            if (cur_total_cost < best_filtered_cost) {
-              best_filtered_cost = cur_total_cost;
+          cur_total_rate +=
+              av1_cost_literal(lut_bits * 3) + av1_cost_literal(frame_bits);
+          const uint64_t cur_total_cost =
+              RDCOST(rdmult, cur_total_rate, cur_total_dist * 16);
+#endif  // CONFIG_CCSO_EDGE_CLF
+              if (cur_total_cost < prev_total_cost) {
+                prev_total_cost = cur_total_cost;
+                improvement = true;
+              }
+              if (cur_total_cost < best_filtered_cost) {
+                best_filtered_cost = cur_total_cost;
 #if CONFIG_CCSO_EXT
-              best_filter_enabled[plane] = ccso_enable;
-              memcpy(best_filter_offset[plane], filter_offset,
-                     sizeof(filter_offset));
+                best_filter_enabled[plane] = ccso_enable;
+                memcpy(best_filter_offset[plane], filter_offset,
+                       sizeof(filter_offset));
 #else
             best_filter_enabled[plane - 1] = ccso_enable;
             memcpy(best_filter_offset[plane - 1], filter_offset,
                    sizeof(filter_offset));
 #endif
-              memcpy(best_filter_control, filter_control,
-                     sizeof(*filter_control) * sb_count);
+#if CONFIG_CCSO_EDGE_CLF
+                best_edge_classifier = edge_clf;
+#endif  // CONFIG_CCSO_EDGE_CLF
+                memcpy(best_filter_control, filter_control,
+                       sizeof(*filter_control) * sb_count);
+              }
+            }
+            training_iter_count++;
+            if (!improvement || training_iter_count > CCSO_MAX_ITERATIONS) {
+              keep_training = false;
             }
           }
-          training_iter_count++;
-          if (!improvement || training_iter_count > CCSO_MAX_ITERATIONS) {
-            keep_training = false;
-          }
-        }
 
-        if (best_filtered_cost < final_filtered_cost) {
-          final_filtered_cost = best_filtered_cost;
+          if (best_filtered_cost < final_filtered_cost) {
+            final_filtered_cost = best_filtered_cost;
 #if CONFIG_CCSO_EXT
-          final_filter_enabled[plane] = best_filter_enabled[plane];
-          final_quant_idx[plane] = quant_idx;
-          final_ext_filter_support[plane] = ext_filter_support;
-          memcpy(final_filter_offset[plane], best_filter_offset[plane],
-                 sizeof(best_filter_offset[plane]));
-          final_band_log2 = max_band_log2;
+            final_filter_enabled[plane] = best_filter_enabled[plane];
+            final_quant_idx[plane] = quant_idx;
+            final_ext_filter_support[plane] = ext_filter_support;
+            memcpy(final_filter_offset[plane], best_filter_offset[plane],
+                   sizeof(best_filter_offset[plane]));
+            final_band_log2 = max_band_log2;
 #else
         final_filter_enabled[plane - 1] = best_filter_enabled[plane - 1];
         final_quant_idx[plane - 1] = quant_idx;
@@ -787,12 +952,18 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
         memcpy(final_filter_offset[plane - 1], best_filter_offset[plane - 1],
                sizeof(best_filter_offset[plane - 1]));
 #endif
-          memcpy(final_filter_control, best_filter_control,
-                 sizeof(*best_filter_control) * sb_count);
-        }
+#if CONFIG_CCSO_EDGE_CLF
+            final_edge_classifier = best_edge_classifier;
+#endif  // CONFIG_CCSO_EDGE_CLF
+            memcpy(final_filter_control, best_filter_control,
+                   sizeof(*best_filter_control) * sb_count);
+          }
 #if CONFIG_CCSO_EXT
-      }
+        }
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+      }
+#endif  // CONFIG_CCSO_EDGE_CLF
     }
   }
 
@@ -868,6 +1039,9 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
     cm->ccso_info.ext_filter_support[plane - 1] =
         final_ext_filter_support[plane - 1];
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+    cm->ccso_info.edge_clf[plane] = final_edge_classifier;
+#endif  // CONFIG_CCSO_EDGE_CLF
   }
   aom_free(unfiltered_dist_block);
   aom_free(training_dist_block);
@@ -893,8 +1067,12 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
 void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
                  const uint16_t *ext_rec_y, uint16_t *rec_uv[3],
                  uint16_t *org_uv[3]) {
+#if CONFIG_CCSO_EDGE_CLF
+  int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
+#else
   double rdmult_weight =
       clamp_dbl(0.012 * pow(2, 0.0456 * cm->quant_params.base_qindex), 1, 37);
+#endif  // CONFIG_CCSO_EDGE_CLF
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
   if (rdmult_temp < INT_MAX) rdmult = (int)rdmult_temp;
 #if CONFIG_CCSO_EXT

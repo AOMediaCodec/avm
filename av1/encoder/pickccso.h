@@ -54,7 +54,12 @@ void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                    const uint64_t *unfiltered_dist,
                    const uint64_t *training_dist, bool *m_filter_control,
                    uint64_t *cur_total_dist, int *cur_total_rate,
-                   bool *filter_enable, const int rdmult);
+                   bool *filter_enable
+#if !CONFIG_CCSO_EDGE_CLF
+                   ,
+                   const int rdmult
+#endif  // !CONFIG_CCSO_EDGE_CLF
+);
 
 void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
                          const int plane, const uint16_t *org_chroma,
@@ -64,10 +69,19 @@ void compute_total_error(MACROBLOCKD *xd, const uint16_t *ext_rec_luma,
                          ,
                          const int shift_bits
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+                         ,
+                         int edge_clf
+#endif  // CONFIG_CCSO_EDGE_CLF
 );
 #if CONFIG_CCSO_EXT
 void ccso_compute_class_err(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
-                            const int max_band_log2);
+                            const int max_band_log2
+#if CONFIG_CCSO_EDGE_CLF
+                            ,
+                            const int max_edge_interval
+#endif  // CONFIG_CCSO_EDGE_CLF
+);
 #endif
 
 void derive_lut_offset(int8_t *temp_filter_offset
@@ -75,6 +89,10 @@ void derive_lut_offset(int8_t *temp_filter_offset
                        ,
                        const int max_band_log2
 #endif
+#if CONFIG_CCSO_EDGE_CLF
+                       ,
+                       const int max_edge_interval
+#endif  // CONFIG_CCSO_EDGE_CLF
 );
 
 #ifdef __cplusplus
