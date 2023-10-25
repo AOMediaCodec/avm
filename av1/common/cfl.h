@@ -63,8 +63,9 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
     // their shortest side, as otherwise they would be chroma reference
     // blocks.
     // Also, their largest dimention must be <= 32.
-    assert(block_size_wide[mbmi->sb_type[0]] <= 32 &&
-           block_size_high[mbmi->sb_type[0]] <= 32);
+    assert(IMPLIES(xd->tree_type == SHARED_PART,
+                   block_size_wide[mbmi->sb_type[0]] <= 32 &&
+                       block_size_high[mbmi->sb_type[0]] <= 32));
     return CFL_ALLOWED;
 #endif  // CONFIG_FLEX_PARTITION
   }
