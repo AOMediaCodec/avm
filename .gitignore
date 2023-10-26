@@ -5,3 +5,4 @@ cmbuild
 .vscode
 .gitignore
 TAGS
+__pycache__

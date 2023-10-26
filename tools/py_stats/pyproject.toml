@@ -1,0 +1,25 @@
+
+[tool.poetry]
+name = "avm-stats"
+version = "0.1.0"
+description = "Helper library to work with AVM stats protobufs."
+authors = ["Conor McCullough <comc@google.com>"]
+license = "BSD-3-Clause"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+absl-py = "^2.0.0"
+matplotlib = "^3.7.0"
+numpy = "^1.26.0"
+protobuf = "^4.21.0"
+pytest = "^7.4.0"
+python = "^3.8"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".", "avm_stats"
+]
