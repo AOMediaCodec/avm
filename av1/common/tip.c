@@ -279,6 +279,8 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
         }
         tpl_mvs_base[next_tpl_offset].mfmv0.as_int =
             tpl_mvs_base[cur_tpl_offset].mfmv0.as_int;
+        tpl_mvs_base[next_tpl_offset].ref_frame_offset =
+            tpl_mvs_base[cur_tpl_offset].ref_frame_offset;
         tmvp_mvs[write_pos].mv[0].as_mv.row = next_row;
         tmvp_mvs[write_pos].mv[0].as_mv.col = next_col;
         write_pos++;
