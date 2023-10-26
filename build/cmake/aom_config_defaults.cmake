@@ -92,6 +92,8 @@ set_aom_config_var(CONFIG_EXCLUDE_SIMD_MISMATCH 1
 # AV1 feature flags.
 set_aom_config_var(CONFIG_ACCOUNTING 0 "Enables bit accounting.")
 set_aom_config_var(CONFIG_ANALYZER 0 "Enables bit stream analyzer.")
+set_aom_config_var(CONFIG_EXTRACT_PROTO 0
+                   "Enables protobuf-based inspection tool.")
 set_aom_config_var(CONFIG_COEFFICIENT_RANGE_CHECKING 0
                    "Coefficient range check.")
 set_aom_config_var(CONFIG_DENOISE 1

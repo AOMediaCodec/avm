@@ -1,0 +1,252 @@
+/*
+ * Copyright (c) 2023, Alliance for Open Media. All rights reserved
+ *
+ * This source code is subject to the terms of the BSD 3-Clause Clear License
+ * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+ * License was not distributed with this source code in the LICENSE file, you
+ * can obtain it at aomedia.org/license/software-license/bsd-3-c-c/.  If the
+ * Alliance for Open Media Patent License 1.0 was not distributed with this
+ * source code in the PATENTS file, you can obtain it at
+ * aomedia.org/license/patent-license/.
+ */
+
+// Protobuf messages for frame data extraction from AVM streams.
+
+syntax = "proto3";
+
+package avm.tools;
+
+// Metadata for a symbol, including source information (C file/line/function).
+message SymbolInfo {
+  // Unique identifier for this symbol type. Note: these ids aren't stable
+  // across frames.
+  int32 id = 1;
+  string source_file = 2;
+  int32 source_line = 3;
+  string source_function = 4;
+  // Additional arbitrary tags that can be added per symbol. For example, if a
+  // symbol type is decoded for both luma and chroma, there might be a "luma" or
+  // "chroma" tag on the symbol.
+  repeated string tags = 5;
+}
+
+message Symbol {
+  // Unique ID for each "type" of symbol. Can be looked up in symbol_info (see
+  // definition of Frame message) to get metadata for each symbol.
+  int32 info_id = 1;
+  // Raw value of this symbol
+  int32 value = 2;
+  // Entropy coding mode for this symbol (e.g. literal bit, CDF, etc...)
+  int32 coding_mode = 3;
+  float bits = 4;
+}
+
+// Range of symbols that make up some object. Symbols are stored at the
+// superblock level, but lower-level constructs (e.g. transform blocks) can
+// refer to a range in its superblock's symbol list for the exact subsequence of
+// symbols that created it. Note that end is exclusive, e.g. (start =
+// 5, end = 9) would refer to symbols 5, 6, 7, 8 in the superblock.
+message SymbolRange {
+  uint32 start = 1;
+  uint32 end = 2;
+}
+
+// Size of a coding block, in pixel units
+message BlockSize {
+  int32 width = 1;
+  int32 height = 2;
+  // av1/common/enums.h enum value that corresponds to this block size
+  int32 enum_value = 3;
+}
+
+// This contains the same fields as BlockSize, but is a distinct type since the
+// meaning of its enum values is different than BlockSize.
+message TransformSize {
+  int32 width = 1;
+  int32 height = 2;
+  // av1/common/enums.h enum value that corresponds to this transform block size
+  int32 enum_value = 3;
+}
+
+// Absolute position within a frame, in pixel units
+message Position {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message TransformUnit {
+  Position position = 1;
+  int32 tx_type = 2;
+  TransformSize size = 3;
+  int32 skip = 4;
+  repeated int32 quantized_coeffs = 5;
+  repeated int32 dequantized_coeffs = 6;
+  repeated int32 dequantizer_values = 7;
+  SymbolRange symbol_range = 8;
+}
+
+message TransformPlane {
+  int32 plane = 1;
+  repeated TransformUnit transform_units = 2;
+}
+
+message MotionVector {
+  int32 ref_frame = 1;
+  sint32 dx = 2;
+  sint32 dy = 3;
+  SymbolRange symbol_range = 4;
+}
+
+message PredictionParams {
+  int32 mode = 1;
+  int32 uv_mode = 2;
+  int32 angle_delta = 3;
+  repeated MotionVector motion_vectors = 4;
+  bool use_intrabc = 5;
+  int32 palette_count = 6;
+  int32 uv_palette_count = 7;
+  int32 compound_type = 8;
+  int32 motion_mode = 9;
+  int32 interpolation_filter = 10;
+  int32 cfl_alpha_idx = 11;
+  int32 cfl_alpha_sign = 12;
+}
+
+message PixelBuffer {
+  int32 width = 1;
+  int32 height = 2;
+  int32 bit_depth = 3;
+  repeated uint32 pixels = 4;
+}
+
+message PixelData {
+  int32 plane = 1;
+  // Original source pixels before encoding. Not available in the bitstream, so
+  // the source YUV needs to be passed in separately to the extract_proto tool.
+  PixelBuffer original = 2;
+  PixelBuffer reconstruction = 3;
+  PixelBuffer prediction = 4;
+  // Reconstructed pixels BEFORE any filters are applied.
+  PixelBuffer pre_filtered = 5;
+}
+
+// Leaf of the partition tree
+message CodingUnit {
+  Position position = 1;
+  BlockSize size = 2;
+  bool skip = 3;
+  PredictionParams prediction_mode = 4;
+  // TODO(comc): Support transform tree partition (max depth = 2?)
+  // With SDP enabled, for the luma partition tree, exactly one plane will be present.
+  // With SDP enabled, for the chroma partition tree, exactly two planes (U, V) will be present.
+  // With SDP disabled, only a single shared partition tree exists, and all three planes will be present.
+  repeated TransformPlane transform_planes = 5;
+  SymbolRange symbol_range = 6;
+  int32 qindex = 7;
+  int32 segment_id = 8;
+  int32 cdef_level = 9;
+  int32 cdef_strength = 10;
+}
+
+// Range of coding units that make up a block at some level in the partition
+// tree. Note that end is exclusive, e.g. (start = 5, end = 9) would refer to
+// coding units 5, 6, 7, 8 in the superblock.
+message CodingUnitRange {
+  uint32 start = 1;
+  uint32 end = 2;
+}
+
+message Partition {
+  Position position = 1;
+  BlockSize size = 2;
+  int32 partition_type = 3;
+  repeated Partition children = 4;
+  // If this partition has children, coding_units will be a range representing
+  // the coding units comprising all its children. If this is a leaf node,
+  // coding_units will refer to exactly one CodingUnit, i.e. the range start is
+  // equal to the range end.
+  CodingUnitRange coding_unit_range = 5;
+  SymbolRange symbol_range = 6;
+  // True if this partition has more children, or false if it contains exactly
+  // one coding unit.
+  bool is_leaf_node = 7;
+}
+
+message Superblock {
+  Position position = 1;
+  BlockSize size = 2;
+  Partition luma_partition_tree = 3;
+  Partition chroma_partition_tree = 4;
+  // Is SDP (semi-decoupled partitioning) enabled?
+  bool has_separate_chroma_partition_tree = 5;
+  // If this frame does not use SDP, all coding units will be stored in
+  // coding_units_shared and coding_units_chroma will be empty.
+  // If this frame uses SDP, the luma coding units will be stored in
+  // coding_units_shared, and the chroma coding units will be stored in
+  // coding_units_chroma.
+  repeated CodingUnit coding_units_shared = 6;
+  repeated CodingUnit coding_units_chroma = 7;
+  repeated Symbol symbols = 8;
+  repeated PixelData pixel_data = 9;
+}
+
+// Map C enum values to names. This is done rather than just using proto enums
+// for a few reasons:
+// - Proto3 enums REQUIRE a zero value, and strongly recommend it's used as an
+//   unknown / unspecified value. This doesn't map cleanly to the AVM enums.
+// - AVM's enums can evolve over time, or even within the same anchor if
+//   different experiments / defines are used. Defining this enum mapping is
+//   more maintainable than having a separate source of truth in this proto
+//   schema.
+message EnumMappings {
+  map<int32, string> transform_type_mapping = 1;
+  map<int32, string> entropy_coding_mode_mapping = 2;
+  map<int32, string> interpolation_filter_mapping = 3;
+  map<int32, string> prediction_mode_mapping = 4;
+  map<int32, string> uv_prediction_mode_mapping = 5;
+  map<int32, string> motion_mode_mapping = 6;
+  map<int32, string> transform_size_mapping = 7;
+  map<int32, string> block_size_mapping = 8;
+  map<int32, string> partition_type_mapping = 9;
+  map<int32, string> frame_type_mapping = 10;
+}
+
+// TODO(comc): Add tile info and refactor FrameParams if necessary
+message FrameParams {
+  int32 frame_type = 1;
+  int32 width = 2;
+  int32 height = 3;
+  int32 decode_index = 4;
+  int32 display_index = 5;
+  BlockSize superblock_size = 6;
+  bool show_frame = 7;
+  int32 base_qindex = 8;
+  int32 bit_depth = 9;
+}
+
+message StreamParams {
+  string stream_hash = 1;
+  string stream_name = 2;
+  float frame_rate = 3;
+  // Note: these are present both here and in FrameParms. For most streams we
+  // care about, the frame dimensions will be the same across every frame. For
+  // streams with variable-sized frames, these fields can be omitted.
+  int32 width = 4;
+  int32 height = 5;
+  string avm_version = 6;
+  map<string, string> encoder_args = 7;
+}
+
+message Frame {
+  // Note: StreamParams encapsulates all parameters that are common to the
+  // entire stream, e.g. the encoder version and args used to produce it. Since
+  // the storage granularity of these protos is individual frames, not entire
+  // streams, it is stored as a field of the Frame message. Identical
+  // StreamParams will be present on each individual Frame message that make up
+  // one stream.
+  StreamParams stream_params = 1;
+  FrameParams frame_params = 2;
+  repeated Superblock superblocks = 3;
+  map<int32, SymbolInfo> symbol_info = 4;
+  EnumMappings enum_mappings = 5;
+}

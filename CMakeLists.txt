@@ -199,8 +199,14 @@ list(APPEND AOM_WEBM_DECODER_SOURCES "${AOM_ROOT}/common/webmdec.cc"
 list(APPEND AOM_WEBM_ENCODER_SOURCES "${AOM_ROOT}/common/webmenc.cc"
      "${AOM_ROOT}/common/webmenc.h")
 
-include_directories(${AOM_ROOT} ${AOM_CONFIG_DIR} ${AOM_ROOT}/apps
-                    ${AOM_ROOT}/common ${AOM_ROOT}/examples ${AOM_ROOT}/stats)
+include_directories(
+  ${AOM_ROOT}
+  ${AOM_CONFIG_DIR}
+  ${AOM_ROOT}/apps
+  ${AOM_ROOT}/common
+  ${AOM_ROOT}/examples
+  ${AOM_ROOT}/stats
+  ${AOM_ROOT}/third_party/abseil-cpp)
 
 # Targets
 add_library(aom_version ${AOM_VERSION_SOURCES})
@@ -426,6 +432,55 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
 
       em_link_post_js(inspect "${AOM_ROOT}/tools/inspect-post.js")
     endif()
+  endif()
+
+  if(CONFIG_EXTRACT_PROTO)
+    list(APPEND AOM_EXTRACT_PROTO_SOURCES
+         "${AOM_ROOT}/tools/extract_proto/extract_proto.cc"
+         "${AOM_ROOT}/tools/extract_proto/enum_mappings.h")
+    set(AVM_FRAME_PROTO_PATH "${AOM_ROOT}/tools/extract_proto/avm_frame.proto")
+    find_package(Protobuf REQUIRED)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(ABSL_PROPAGATE_CXX_STD ON)
+    include_directories(${Protobuf_INCLUDE_DIRS})
+    protobuf_generate_cpp(AVM_FRAME_PROTO_SRCS AVM_FRAME_PROTO_HDRS
+                          ${AVM_FRAME_PROTO_PATH})
+    add_subdirectory(third_party/abseil-cpp)
+    # Find Python and generate the enums mapping for extract_proto.
+    find_package(Python3)
+    if(NOT PYTHON3_FOUND)
+      message(FATAL_ERROR "python3 is required to build extract_proto.")
+    endif()
+
+    set(EXTRACT_PROTO_ENUMS_MAPPING_HEADER
+        "${AOM_ROOT}/tools/extract_proto/enum_mappings.h")
+    execute_process(
+      COMMAND
+        ${PYTHON_EXECUTABLE}
+        "${AOM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
+        --enums_header "${AOM_ROOT}/av1/common/enums.h" --output
+        "${AOM_ROOT}/tools/extract_proto/enum_mappings.h"
+      OUTPUT_FILE ${EXTRACT_PROTO_ENUMS_MAPPING_HEADER})
+    add_executable(
+      extract_proto
+      ${AOM_EXTRACT_PROTO_SOURCES} ${AVM_FRAME_PROTO_SRCS}
+      ${AVM_FRAME_PROTO_HDRS} $<TARGET_OBJECTS:aom_common_app_util>
+      $<TARGET_OBJECTS:aom_decoder_app_util>)
+    target_link_libraries(
+      extract_proto
+      PRIVATE absl::base
+              absl::flags
+              absl::flags_parse
+              absl::log
+              absl::log_flags
+              absl::log_globals
+              absl::log_initialize
+              absl::status
+              absl::strings
+              ${Protobuf_LIBRARIES})
+
+    list(APPEND AOM_APP_TARGETS extract_proto)
   endif()
 
   # Maintain a list of decoder example targets.
