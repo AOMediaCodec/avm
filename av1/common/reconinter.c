@@ -2038,7 +2038,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
                                    int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_BAWP_CHROMA
-  assert(mbmi->bawp_flag[0] == 1);
+  assert(mbmi->bawp_flag[0] >= 1);
 #else
   assert(mbmi->bawp_flag == 1);
 #endif  // CONFIG_BAWP_CHROMA
