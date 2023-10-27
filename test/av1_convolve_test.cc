@@ -792,6 +792,58 @@ class AV1Convolve2DCopyHighbdCompoundTest
     }
   }
 
+ public:
+  void SpeedTest() {
+    auto compound_params = GetCompoundParams();
+    for (const auto &compound : compound_params) {
+      SpeedTestConvolve(compound);
+    }
+  }
+
+ private:
+  void SpeedTestConvolve(const CompoundParam &compound) {
+    const BlockSize &block = GetParam().Block();
+    const int width = block.Width();
+    const int height = block.Height();
+    const int bit_depth = GetParam().BitDepth();
+    int nob = 100000;
+
+    const uint16_t *input = FirstRandomInput16(GetParam());
+    DECLARE_ALIGNED(32, uint16_t, conv_buf[MAX_SB_SQUARE]);
+    highbd_compound_conv_2d_copy_func test_func = GetParam().TestFunction();
+
+    ConvolveParams conv_params =
+        GetConvolveParams(0, conv_buf, kOutputStride, bit_depth, compound);
+    ConvolveParams conv_params_do_avg =
+        GetConvolveParams(1, conv_buf, kOutputStride, bit_depth, compound);
+
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < nob; i++) {
+      av1_highbd_dist_wtd_convolve_2d_copy_c(input, width, conv_buf,
+                                             kOutputStride, width, height,
+                                             &conv_params, bit_depth);
+      av1_highbd_dist_wtd_convolve_2d_copy_c(input, width, conv_buf,
+                                             kOutputStride, width, height,
+                                             &conv_params_do_avg, bit_depth);
+    }
+    aom_usec_timer_mark(&timer);
+    const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+
+    aom_usec_timer timer1;
+    aom_usec_timer_start(&timer1);
+    for (int i = 0; i < nob; i++) {
+      test_func(input, width, conv_buf, kOutputStride, width, height,
+                &conv_params, bit_depth);
+      test_func(input, width, conv_buf, kOutputStride, width, height,
+                &conv_params_do_avg, bit_depth);
+    }
+    aom_usec_timer_mark(&timer1);
+    const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer1));
+    printf("%d x %d block: bd: %d, Scaling = %.2f\n", width, height, bit_depth,
+           (double)elapsed_time / elapsed_time1);
+  }
+
  private:
   void TestConvolve(const CompoundParam &compound) {
     const BlockSize &block = GetParam().Block();
@@ -802,7 +854,7 @@ class AV1Convolve2DCopyHighbdCompoundTest
     const uint16_t *input2 = SecondRandomInput16(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
-    Convolve(av1_highbd_dist_wtd_convolve_2d_copy, input1, input2, reference,
+    Convolve(av1_highbd_dist_wtd_convolve_2d_copy_c, input1, input2, reference,
              reference_conv_buf, compound);
 
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
@@ -835,6 +887,7 @@ class AV1Convolve2DCopyHighbdCompoundTest
 };
 
 TEST_P(AV1Convolve2DCopyHighbdCompoundTest, RunTest) { RunTest(); }
+TEST_P(AV1Convolve2DCopyHighbdCompoundTest, DISABLED_SpeedTest) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV1Convolve2DCopyHighbdCompoundTest,

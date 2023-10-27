@@ -23,6 +23,44 @@
 #include "aom_dsp/aom_filter.h"
 #include "av1/common/convolve.h"
 
+static INLINE __m128i loadh_epi64(const void *const src, __m128i s) {
+  return _mm_castps_si128(
+      _mm_loadh_pi(_mm_castsi128_ps(s), (const __m64 *)src));
+}
+
+static INLINE void _mm_storeh_epi64(__m128i *const d, __m128i s) {
+  _mm_storeh_pi((__m64 *)d, _mm_castsi128_ps(s));
+}
+
+static INLINE void highbd_dist_wtd_convolve_2d_copy_do_average(
+    __m256i data, __m256i zero, __m256i res, const __m256i *offset_const,
+    const __m256i *wt0, const __m256i *wt1, int use_wtd_comp_avg,
+    const __m256i *const rounding_const, int rounding_shift,
+    __m256i clip_pixel_to_bd, __m256i *res_clip) {
+  const __m256i data_ref_0_lo = _mm256_unpacklo_epi16(data, zero);
+  const __m256i data_ref_0_hi = _mm256_unpackhi_epi16(data, zero);
+
+  const __m256i res_32b_lo = _mm256_unpacklo_epi16(res, zero);
+  const __m256i res_unsigned_lo = _mm256_add_epi32(res_32b_lo, *offset_const);
+
+  const __m256i comp_avg_res_lo = highbd_comp_avg(
+      &data_ref_0_lo, &res_unsigned_lo, wt0, wt1, use_wtd_comp_avg);
+
+  const __m256i res_32b_hi = _mm256_unpackhi_epi16(res, zero);
+  const __m256i res_unsigned_hi = _mm256_add_epi32(res_32b_hi, *offset_const);
+
+  const __m256i comp_avg_res_hi = highbd_comp_avg(
+      &data_ref_0_hi, &res_unsigned_hi, wt0, wt1, use_wtd_comp_avg);
+
+  const __m256i round_result_lo = highbd_convolve_rounding(
+      &comp_avg_res_lo, offset_const, rounding_const, rounding_shift);
+  const __m256i round_result_hi = highbd_convolve_rounding(
+      &comp_avg_res_hi, offset_const, rounding_const, rounding_shift);
+
+  const __m256i res_16b = _mm256_packus_epi32(round_result_lo, round_result_hi);
+  *res_clip = _mm256_min_epi16(res_16b, clip_pixel_to_bd);
+}
+
 void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
                                                int src_stride, uint16_t *dst0,
                                                int dst_stride0, int w, int h,
@@ -55,48 +93,114 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
       _mm256_set1_epi16(bd == 10 ? 1023 : (bd == 12 ? 4095 : 255));
 
   assert(bits <= 4);
+  assert((w % 4) == 0);
 
-  if (!(w % 16)) {
-    for (i = 0; i < h; i += 1) {
-      for (j = 0; j < w; j += 16) {
-        const __m256i src_16bit =
-            _mm256_loadu_si256((__m256i *)(&src[i * src_stride + j]));
+  if (do_average) {
+    if (!(w % 16)) {
+      __m256i res_clip;
+      for (i = 0; i < h; i += 1) {
+        for (j = 0; j < w; j += 16) {
+          const __m256i src_16bit =
+              _mm256_loadu_si256((__m256i *)(&src[i * src_stride + j]));
 
-        const __m256i res = _mm256_sll_epi16(src_16bit, left_shift);
-
-        if (do_average) {
+          const __m256i res = _mm256_sll_epi16(src_16bit, left_shift);
           const __m256i data_0 =
               _mm256_loadu_si256((__m256i *)(&dst[i * dst_stride + j]));
 
-          const __m256i data_ref_0_lo = _mm256_unpacklo_epi16(data_0, zero);
-          const __m256i data_ref_0_hi = _mm256_unpackhi_epi16(data_0, zero);
-
-          const __m256i res_32b_lo = _mm256_unpacklo_epi16(res, zero);
-          const __m256i res_unsigned_lo =
-              _mm256_add_epi32(res_32b_lo, offset_const);
-
-          const __m256i comp_avg_res_lo = highbd_comp_avg(
-              &data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
-
-          const __m256i res_32b_hi = _mm256_unpackhi_epi16(res, zero);
-          const __m256i res_unsigned_hi =
-              _mm256_add_epi32(res_32b_hi, offset_const);
-
-          const __m256i comp_avg_res_hi = highbd_comp_avg(
-              &data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1, use_wtd_comp_avg);
-
-          const __m256i round_result_lo = highbd_convolve_rounding(
-              &comp_avg_res_lo, &offset_const, &rounding_const, rounding_shift);
-          const __m256i round_result_hi = highbd_convolve_rounding(
-              &comp_avg_res_hi, &offset_const, &rounding_const, rounding_shift);
-
-          const __m256i res_16b =
-              _mm256_packus_epi32(round_result_lo, round_result_hi);
-          const __m256i res_clip = _mm256_min_epi16(res_16b, clip_pixel_to_bd);
+          highbd_dist_wtd_convolve_2d_copy_do_average(
+              data_0, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
+              &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
 
           _mm256_storeu_si256((__m256i *)(&dst0[i * dst_stride0 + j]),
                               res_clip);
-        } else {
+        }
+      }
+    } else if (!(w % 8)) {
+      __m256i res_clip;
+      for (i = 0; i < h; i += 2) {
+        for (j = 0; j < w; j += 8) {
+          const __m128i src_row_0 =
+              _mm_loadu_si128((__m128i *)(&src[i * src_stride + j]));
+          const __m128i src_row_1 = _mm_loadu_si128(
+              (__m128i *)(&src[i * src_stride + j + src_stride]));
+          // since not all compilers yet support _mm256_set_m128i()
+          const __m256i src_10 = _mm256_insertf128_si256(
+              _mm256_castsi128_si256(src_row_0), src_row_1, 1);
+
+          const __m256i res = _mm256_sll_epi16(src_10, left_shift);
+
+          const __m256i data_0 = _mm256_castsi128_si256(
+              _mm_loadu_si128((__m128i *)(&dst[i * dst_stride + j])));
+          const __m256i data_1 = _mm256_castsi128_si256(_mm_loadu_si128(
+              (__m128i *)(&dst[i * dst_stride + j + dst_stride])));
+          const __m256i data_01 =
+              _mm256_permute2x128_si256(data_0, data_1, 0x20);
+
+          highbd_dist_wtd_convolve_2d_copy_do_average(
+              data_01, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
+              &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
+
+          const __m128i res_0 = _mm256_castsi256_si128(res_clip);
+          const __m128i res_1 = _mm256_extracti128_si256(res_clip, 1);
+
+          _mm_storeu_si128((__m128i *)(&dst0[i * dst_stride0 + j]), res_0);
+          _mm_storeu_si128(
+              (__m128i *)(&dst0[i * dst_stride0 + j + dst_stride0]), res_1);
+        }
+      }
+    } else if (!(w % 4)) {
+      __m256i res_clip;
+      for (i = 0; i < h; i += 4) {
+        for (j = 0; j < w; j += 8) {
+          const __m128i src_row_0 = loadh_epi64(
+              (__m128i *)(&src[(i + 1) * src_stride + j]),
+              _mm_loadl_epi64((__m128i *)(&src[i * src_stride + j])));
+          const __m128i src_row_1 = loadh_epi64(
+              (__m128i *)(&src[(i + 3) * src_stride + j]),
+              _mm_loadl_epi64((__m128i *)(&src[(i + 2) * src_stride + j])));
+
+          // since not all compilers yet support _mm256_set_m128i()
+          const __m256i src_10 = _mm256_insertf128_si256(
+              _mm256_castsi128_si256(src_row_0), src_row_1, 1);
+
+          const __m256i res = _mm256_sll_epi16(src_10, left_shift);
+
+          const __m256i data_0 = _mm256_castsi128_si256(loadh_epi64(
+              (__m128i *)(&dst[(i + 1) * dst_stride + j]),
+              _mm_loadl_epi64((__m128i *)(&dst[i * dst_stride + j]))));
+          const __m256i data_1 = _mm256_castsi128_si256(loadh_epi64(
+              (__m128i *)(&dst[(i + 3) * dst_stride + j]),
+              _mm_loadl_epi64((__m128i *)(&dst[(i + 2) * dst_stride + j]))));
+
+          const __m256i data_01 =
+              _mm256_permute2x128_si256(data_0, data_1, 0x20);
+
+          highbd_dist_wtd_convolve_2d_copy_do_average(
+              data_01, zero, res, &offset_const, &wt0, &wt1, use_wtd_comp_avg,
+              &rounding_const, rounding_shift, clip_pixel_to_bd, &res_clip);
+
+          const __m128i res_0 = _mm256_castsi256_si128(res_clip);
+          const __m128i res_1 = _mm256_extracti128_si256(res_clip, 1);
+
+          _mm_storel_epi64((__m128i *)(&dst0[i * dst_stride0 + j]), res_0);
+          _mm_storeh_epi64((__m128i *)(&dst0[(i + 1) * dst_stride0 + j]),
+                           res_0);
+          _mm_storel_epi64((__m128i *)(&dst0[(i + 2) * dst_stride0 + j]),
+                           res_1);
+          _mm_storeh_epi64((__m128i *)(&dst0[(i + 3) * dst_stride0 + j]),
+                           res_1);
+        }
+      }
+    }
+  } else {
+    // do_average = 0
+    if (!(w % 16)) {
+      for (i = 0; i < h; i += 1) {
+        for (j = 0; j < w; j += 16) {
+          const __m256i src_16bit =
+              _mm256_loadu_si256((__m256i *)(&src[i * src_stride + j]));
+
+          const __m256i res = _mm256_sll_epi16(src_16bit, left_shift);
           const __m256i res_unsigned_16b =
               _mm256_adds_epu16(res, offset_const_16b);
 
@@ -104,117 +208,52 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
                              res_unsigned_16b);
         }
       }
-    }
-  } else if (!(w % 4)) {
-    for (i = 0; i < h; i += 2) {
-      for (j = 0; j < w; j += 8) {
-        const __m128i src_row_0 =
-            _mm_loadu_si128((__m128i *)(&src[i * src_stride + j]));
-        const __m128i src_row_1 =
-            _mm_loadu_si128((__m128i *)(&src[i * src_stride + j + src_stride]));
-        // since not all compilers yet support _mm256_set_m128i()
-        const __m256i src_10 = _mm256_insertf128_si256(
-            _mm256_castsi128_si256(src_row_0), src_row_1, 1);
+    } else if (!(w % 8)) {
+      for (i = 0; i < h; i += 2) {
+        for (j = 0; j < w; j += 8) {
+          const __m128i src_row_0 =
+              _mm_loadu_si128((__m128i *)(&src[i * src_stride + j]));
+          const __m128i src_row_1 = _mm_loadu_si128(
+              (__m128i *)(&src[i * src_stride + j + src_stride]));
+          // since not all compilers yet support _mm256_set_m128i()
+          const __m256i src_10 = _mm256_insertf128_si256(
+              _mm256_castsi128_si256(src_row_0), src_row_1, 1);
 
-        const __m256i res = _mm256_sll_epi16(src_10, left_shift);
+          const __m256i res = _mm256_sll_epi16(src_10, left_shift);
+          const __m256i res_unsigned_16b =
+              _mm256_adds_epu16(res, offset_const_16b);
+          const __m128i res_0 = _mm256_castsi256_si128(res_unsigned_16b);
+          const __m128i res_1 = _mm256_extracti128_si256(res_unsigned_16b, 1);
 
-        if (w - j < 8) {
-          if (do_average) {
-            const __m256i data_0 = _mm256_castsi128_si256(
-                _mm_loadl_epi64((__m128i *)(&dst[i * dst_stride + j])));
-            const __m256i data_1 = _mm256_castsi128_si256(_mm_loadl_epi64(
-                (__m128i *)(&dst[i * dst_stride + j + dst_stride])));
-            const __m256i data_01 =
-                _mm256_permute2x128_si256(data_0, data_1, 0x20);
+          _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_0);
+          _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j + dst_stride]),
+                           res_1);
+        }
+      }
+    } else if (!(w % 4)) {
+      for (i = 0; i < h; i += 4) {
+        for (j = 0; j < w; j += 8) {
+          const __m128i src_row_0 = loadh_epi64(
+              (__m128i *)(&src[(i + 1) * src_stride + j]),
+              _mm_loadl_epi64((__m128i *)(&src[i * src_stride + j])));
+          const __m128i src_row_1 = loadh_epi64(
+              (__m128i *)(&src[(i + 3) * src_stride + j]),
+              _mm_loadl_epi64((__m128i *)(&src[(i + 2) * src_stride + j])));
 
-            const __m256i data_ref_0 = _mm256_unpacklo_epi16(data_01, zero);
+          // since not all compilers yet support _mm256_set_m128i()
+          const __m256i src_10 = _mm256_insertf128_si256(
+              _mm256_castsi128_si256(src_row_0), src_row_1, 1);
 
-            const __m256i res_32b = _mm256_unpacklo_epi16(res, zero);
-            const __m256i res_unsigned_lo =
-                _mm256_add_epi32(res_32b, offset_const);
+          const __m256i res = _mm256_sll_epi16(src_10, left_shift);
 
-            const __m256i comp_avg_res = highbd_comp_avg(
-                &data_ref_0, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
-
-            const __m256i round_result = highbd_convolve_rounding(
-                &comp_avg_res, &offset_const, &rounding_const, rounding_shift);
-
-            const __m256i res_16b =
-                _mm256_packus_epi32(round_result, round_result);
-            const __m256i res_clip =
-                _mm256_min_epi16(res_16b, clip_pixel_to_bd);
-
-            const __m128i res_0 = _mm256_castsi256_si128(res_clip);
-            const __m128i res_1 = _mm256_extracti128_si256(res_clip, 1);
-
-            _mm_storel_epi64((__m128i *)(&dst0[i * dst_stride0 + j]), res_0);
-            _mm_storel_epi64(
-                (__m128i *)(&dst0[i * dst_stride0 + j + dst_stride0]), res_1);
-          } else {
-            const __m256i res_unsigned_16b =
-                _mm256_adds_epu16(res, offset_const_16b);
-
-            const __m128i res_0 = _mm256_castsi256_si128(res_unsigned_16b);
-            const __m128i res_1 = _mm256_extracti128_si256(res_unsigned_16b, 1);
-
-            _mm_storel_epi64((__m128i *)(&dst[i * dst_stride + j]), res_0);
-            _mm_storel_epi64((__m128i *)(&dst[i * dst_stride + j + dst_stride]),
-                             res_1);
-          }
-        } else {
-          if (do_average) {
-            const __m256i data_0 = _mm256_castsi128_si256(
-                _mm_loadu_si128((__m128i *)(&dst[i * dst_stride + j])));
-            const __m256i data_1 = _mm256_castsi128_si256(_mm_loadu_si128(
-                (__m128i *)(&dst[i * dst_stride + j + dst_stride])));
-            const __m256i data_01 =
-                _mm256_permute2x128_si256(data_0, data_1, 0x20);
-
-            const __m256i data_ref_0_lo = _mm256_unpacklo_epi16(data_01, zero);
-            const __m256i data_ref_0_hi = _mm256_unpackhi_epi16(data_01, zero);
-
-            const __m256i res_32b_lo = _mm256_unpacklo_epi16(res, zero);
-            const __m256i res_unsigned_lo =
-                _mm256_add_epi32(res_32b_lo, offset_const);
-
-            const __m256i comp_avg_res_lo = highbd_comp_avg(
-                &data_ref_0_lo, &res_unsigned_lo, &wt0, &wt1, use_wtd_comp_avg);
-
-            const __m256i res_32b_hi = _mm256_unpackhi_epi16(res, zero);
-            const __m256i res_unsigned_hi =
-                _mm256_add_epi32(res_32b_hi, offset_const);
-
-            const __m256i comp_avg_res_hi = highbd_comp_avg(
-                &data_ref_0_hi, &res_unsigned_hi, &wt0, &wt1, use_wtd_comp_avg);
-
-            const __m256i round_result_lo =
-                highbd_convolve_rounding(&comp_avg_res_lo, &offset_const,
-                                         &rounding_const, rounding_shift);
-            const __m256i round_result_hi =
-                highbd_convolve_rounding(&comp_avg_res_hi, &offset_const,
-                                         &rounding_const, rounding_shift);
-
-            const __m256i res_16b =
-                _mm256_packus_epi32(round_result_lo, round_result_hi);
-            const __m256i res_clip =
-                _mm256_min_epi16(res_16b, clip_pixel_to_bd);
-
-            const __m128i res_0 = _mm256_castsi256_si128(res_clip);
-            const __m128i res_1 = _mm256_extracti128_si256(res_clip, 1);
-
-            _mm_storeu_si128((__m128i *)(&dst0[i * dst_stride0 + j]), res_0);
-            _mm_storeu_si128(
-                (__m128i *)(&dst0[i * dst_stride0 + j + dst_stride0]), res_1);
-          } else {
-            const __m256i res_unsigned_16b =
-                _mm256_adds_epu16(res, offset_const_16b);
-            const __m128i res_0 = _mm256_castsi256_si128(res_unsigned_16b);
-            const __m128i res_1 = _mm256_extracti128_si256(res_unsigned_16b, 1);
-
-            _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j]), res_0);
-            _mm_storeu_si128((__m128i *)(&dst[i * dst_stride + j + dst_stride]),
-                             res_1);
-          }
+          const __m256i res_unsigned_16b =
+              _mm256_adds_epu16(res, offset_const_16b);
+          const __m128i res_0 = _mm256_castsi256_si128(res_unsigned_16b);
+          const __m128i res_1 = _mm256_extracti128_si256(res_unsigned_16b, 1);
+          _mm_storel_epi64((__m128i *)(&dst[i * dst_stride0 + j]), res_0);
+          _mm_storeh_epi64((__m128i *)(&dst[(i + 1) * dst_stride0 + j]), res_0);
+          _mm_storel_epi64((__m128i *)(&dst[(i + 2) * dst_stride0 + j]), res_1);
+          _mm_storeh_epi64((__m128i *)(&dst[(i + 3) * dst_stride0 + j]), res_1);
         }
       }
     }
