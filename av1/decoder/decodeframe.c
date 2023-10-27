@@ -7412,10 +7412,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       features->allow_local_intrabc =
           features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
 #if CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_MAX_DRL
+      features->max_bvp_drl_bits =
+          aom_rb_read_primitive_quniform(
+              rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
+          MIN_MAX_IBC_DRL_BITS;
+#else
       features->max_drl_bits =
           aom_rb_read_primitive_quniform(
               rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
           MIN_MAX_DRL_BITS;
+#endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
@@ -7443,10 +7450,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_local_intrabc =
             features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
 #if CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_MAX_DRL
+        features->max_bvp_drl_bits =
+            aom_rb_read_primitive_quniform(
+                rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
+            MIN_MAX_IBC_DRL_BITS;
+#else
         features->max_drl_bits =
             aom_rb_read_primitive_quniform(
                 rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
             MIN_MAX_DRL_BITS;
+#endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
@@ -7614,6 +7628,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_rb_read_primitive_quniform(
                 rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
             MIN_MAX_DRL_BITS;
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        if (features->allow_intrabc) {
+          features->max_bvp_drl_bits =
+              aom_rb_read_primitive_quniform(
+                  rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
+              MIN_MAX_IBC_DRL_BITS;
+        }
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 
 #if CONFIG_FLEX_MVRES
         if (features->cur_frame_force_integer_mv) {

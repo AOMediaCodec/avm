@@ -710,6 +710,13 @@ typedef struct {
    * Max_drl_bits. Note number of ref MVs allowed is max_drl_bits + 1
    */
   int max_drl_bits;
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+  /*!
+   * Max_bvp_drl_bits. Note number of IntraBC ref BVs allowed is
+   * max_bvp_drl_bits + 1
+   */
+  int max_bvp_drl_bits;
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_OPTFLOW_REFINEMENT
   /*!
    * Ternary symbol for optical flow refinement type. 0: do not refine,

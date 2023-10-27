@@ -1518,7 +1518,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     // ref_mvs
     int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
 #if CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_MAX_DRL
+    for (int i = 0; i < cm->features.max_bvp_drl_bits + 1; ++i) {
+#else
     for (int i = 0; i < MAX_REF_BV_STACK_SIZE; ++i) {
+#endif  // CONFIG_IBC_MAX_DRL
       xd->ref_mv_stack[INTRA_FRAME][i].this_mv.as_int = 0;
       xd->ref_mv_stack[INTRA_FRAME][i].comp_mv.as_int = 0;
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -1547,7 +1551,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_IBC_BV_IMPROVEMENT
     mbmi->intrabc_mode =
         aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 2, ACCT_INFO());
+#if CONFIG_IBC_MAX_DRL
+    read_intrabc_drl_idx(cm->features.max_bvp_drl_bits + 1, ec_ctx, mbmi, r);
+#else
     read_intrabc_drl_idx(MAX_REF_BV_STACK_SIZE, ec_ctx, mbmi, r);
+#endif  // CONFIG_IBC_MAX_DRL
     int_mv dv_ref =
         xd->ref_mv_stack[INTRA_FRAME][mbmi->intrabc_drl_idx].this_mv;
 #else

@@ -88,7 +88,9 @@
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
 
 #define DEF_MAX_DRL_REFMVS 4
-
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#define DEF_MAX_DRL_REFBVS 4
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 #if CONFIG_ENTROPY_STATS
 FRAME_COUNTS aggregate_fc;
 #endif  // CONFIG_ENTROPY_STATS
@@ -652,6 +654,23 @@ static void set_max_drl_bits(struct AV1_COMP *cpi) {
   assert(cm->features.max_drl_bits >= MIN_MAX_DRL_BITS &&
          cm->features.max_drl_bits <= MAX_MAX_DRL_BITS);
 }
+
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+static void set_max_bvp_drl_bits(struct AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  // Add logic to choose this in the range [MIN_MAX_IBC_DRL_BITS,
+  // MAX_MAX_IBC_DRL_BITS]
+  if (cpi->oxcf.tool_cfg.max_drl_refbvs == 0) {
+    // TODO(any): Implement an auto mode that potentially adapts the parameter
+    // frame to frame. Currently set at a default value.
+    cm->features.max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
+  } else {
+    cm->features.max_bvp_drl_bits = cpi->oxcf.tool_cfg.max_drl_refbvs - 1;
+  }
+  assert(cm->features.max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
+         cm->features.max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
+}
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 
 #if CONFIG_LR_FLEX_SYNTAX
 static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
@@ -3391,6 +3410,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->features.allow_global_intrabc =
         (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
     cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+    set_max_bvp_drl_bits(cpi);
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   } else {
     cm->features.allow_global_intrabc = 0;
     cm->features.allow_local_intrabc = 0;
