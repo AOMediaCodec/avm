@@ -111,12 +111,16 @@ static uint16_t
 static int frame_stride = MAX_FRAME_STRIDE;
 static int frame_height = MAX_FRAME_HEIGHT;
 static int frame_size = MAX_FRAME_STRIDE * MAX_FRAME_HEIGHT;
-void mismatch_move_frame_idx_w() {
+void mismatch_move_frame_idx_w(int check_overflow) {
+  // printf("mismatch_move_frame_idx_w %d ->", frame_buf_idx_w);
   frame_buf_idx_w = (frame_buf_idx_w + 1) % MAX_FRAME_BUF_NUM;
-  if (frame_buf_idx_w == frame_buf_idx_r) {
-    printf("frame_buf overflow\n");
-    assert(0);
+  if (check_overflow) {
+    if (frame_buf_idx_w == frame_buf_idx_r) {
+      printf("frame_buf overflow\n");
+      assert(0);
+    }
   }
+  // printf(" %d\n", frame_buf_idx_w);
 }
 
 void mismatch_reset_frame(int num_planes) {
@@ -128,12 +132,16 @@ void mismatch_reset_frame(int num_planes) {
   }
 }
 
-void mismatch_move_frame_idx_r() {
-  if (frame_buf_idx_w == frame_buf_idx_r) {
-    printf("frame_buf underflow\n");
-    assert(0);
+void mismatch_move_frame_idx_r(int check_underflow) {
+  // printf("mismatch_move_frame_idx_r %d ->", frame_buf_idx_r);
+  if (check_underflow) {
+    if (frame_buf_idx_w == frame_buf_idx_r) {
+      printf("frame_buf underflow\n");
+      assert(0);
+    }
   }
   frame_buf_idx_r = (frame_buf_idx_r + 1) % MAX_FRAME_BUF_NUM;
+  // printf(" %d\n", frame_buf_idx_r);
 }
 
 void mismatch_record_block_pre(const uint16_t *src, int src_stride,

@@ -8088,7 +8088,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
                                      cm->show_frame);
 #endif
 #if CONFIG_MISMATCH_DEBUG
-  mismatch_move_frame_idx_r();
+  mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
 
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {

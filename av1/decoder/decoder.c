@@ -25,6 +25,9 @@
 #include "aom_ports/aom_timer.h"
 #include "aom_scale/aom_scale.h"
 #include "aom_util/aom_thread.h"
+#if CONFIG_MISMATCH_DEBUG
+#include "aom_util/debug_util.h"
+#endif  // CONFIG_MISMATCH_DEBUG
 
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
@@ -511,6 +514,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
             pbi->output_frames[k] = cm->ref_frame_map[i];
             pbi->num_output_frames++;
             successive_output++;
+#if CONFIG_MISMATCH_DEBUG
+            mismatch_move_frame_idx_r(0);
+#endif  // CONFIG_MISMATCH_DEBUG
           }
         }
       }

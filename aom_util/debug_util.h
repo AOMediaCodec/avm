@@ -46,8 +46,8 @@ void bitstream_queue_set_skip_read(int skip);
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #if CONFIG_MISMATCH_DEBUG
-void mismatch_move_frame_idx_w();
-void mismatch_move_frame_idx_r();
+void mismatch_move_frame_idx_w(int check_overflow);
+void mismatch_move_frame_idx_r(int check_underflow);
 void mismatch_reset_frame(int num_planes);
 void mismatch_record_block_pre(const uint16_t *src, int src_stride,
                                int frame_offset, int plane, int pixel_c,

@@ -1068,7 +1068,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
   } else if (is_stat_consumption_stage(cpi)) {
 #if CONFIG_MISMATCH_DEBUG
-    mismatch_move_frame_idx_w();
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    mismatch_move_frame_idx_w(!cm->seq_params.enable_frame_output_order ||
+                              !frame_params.show_existing_frame);
+#else
+    mismatch_move_frame_idx_w(1);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
 #endif  // CONFIG_MISMATCH_DEBUG
 #if TXCOEFF_COST_TIMER
     cm->txcoeff_cost_timer = 0;
@@ -1077,7 +1082,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 
 #if CONFIG_MISMATCH_DEBUG
-  if (has_no_stats_stage(cpi)) mismatch_move_frame_idx_w();
+  if (has_no_stats_stage(cpi)) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+    mismatch_move_frame_idx_w(!cm->seq_params.enable_frame_output_order ||
+                              !frame_params.show_existing_frame);
+#else
+    mismatch_move_frame_idx_w(1);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+  }
 #endif  // CONFIG_MISMATCH_DEBUG
 
   if (!is_stat_generation_stage(cpi))
