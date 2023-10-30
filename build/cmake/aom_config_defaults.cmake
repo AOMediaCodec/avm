@@ -137,6 +137,7 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 0
                    "Use zero offset for non-normative bit upshift")
 
 # AV2 experiment flags.
+set_aom_config_var(CONFIG_ENTROPY_PARA 1 "AV2 enable PARA method for entropy.")
 set_aom_config_var(CONFIG_ATC 1 "AV2 enable adaptive transform coding.")
 set_aom_config_var(CONFIG_ATC_REDUCED_TXSET 1
                    "AV2 enable reduced transform set.")

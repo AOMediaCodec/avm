@@ -22,12 +22,21 @@
 #include "av1/common/token_cdfs.h"
 #include "av1/common/txb_common.h"
 
+#if CONFIG_ENTROPY_PARA
+static int get_q_ctx(int q) {
+  if (q <= 90) return 0;
+  if (q <= 140) return 1;
+  if (q <= 190) return 2;
+  return 3;
+}
+#else
 static int get_q_ctx(int q) {
   if (q <= 20) return 0;
   if (q <= 60) return 1;
   if (q <= 120) return 2;
   return 3;
 }
+#endif  // CONFIG_ENTROPY_PARA
 
 void av1_default_coef_probs(AV1_COMMON *cm) {
   const int index = get_q_ctx(cm->quant_params.base_qindex);
