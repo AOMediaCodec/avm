@@ -4563,6 +4563,26 @@ static int count_and_merge_classes_with_no_pixels(const RestSearchCtxt *rsc, int
 
   return unoccupied;
 }
+
+#if FURTHER_REFINE_THE_MERGE_MAP
+static void refine_merged_to_index_array (int* merged_to_indices, int classes_num_before_merge, int classes_num_after_merge, int class_id_be_moved, int filter_set_idx_moved_in) {
+
+  int is_current_class_first_in_filter = 1;
+
+  for (int c_id = 0; c_id < class_id_be_moved; ++c_id) {
+    if (merged_to_indices[c_id] == merged_to_indices[class_id_be_moved])
+      is_current_class_first_in_filter = 0;
+  }
+
+  merged_to_indices[class_id_be_moved] = filter_set_idx_moved_in;
+
+  if (is_current_class_first_in_filter)
+  {
+    // to be updated ????????????;
+  }
+}
+#endif
+
 #endif
 // Calculates the weighted sum of all frame-level statistics. Useful in deriving
 // frame-level Wiener filters.
@@ -5114,7 +5134,8 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
                num_target_classes)) == num_target_classes);
     if (num_target_classes > max_num_classes_allowed) continue;
 
-    collapse_all_stats(rsc, num_stats_classes, num_target_classes);
+    if (num_stats_classes > num_target_classes)
+      collapse_all_stats(rsc, num_stats_classes, num_target_classes);
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
     tmp_filter.num_classes_before_merge = num_target_classes;
     rsc->num_filter_classes_before_merge = num_target_classes;
@@ -5196,6 +5217,67 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
           }
         }
       }
+
+#if FURTHER_REFINE_THE_MERGE_MAP
+      int max_refine_ite = 8, max_classes_for_refine = 4;
+      if (best_num_classes_after_merge == num_classes_after_merge && num_classes_after_merge <= max_classes_for_refine && num_classes_after_merge < best_num_classes_before_merge/2) {
+        int filter_set_classes_count[WIENERNS_MAX_CLASSES] = {0};
+        for (int ite = 0; ite < max_refine_ite; ite++) {
+          int is_moved = 0;
+          for (int class_id = 0; class_id < num_classes_before_merge; class_id ++) {
+            filter_set_classes_count[best_merged_to_indices[class_id]]++;
+          };
+
+          for (int class_id_be_moved = 1;
+               class_id_be_moved < num_classes_before_merge;
+               class_id_be_moved++) {
+            if (filter_set_classes_count
+                    [best_merged_to_indices[class_id_be_moved]] > 1) {
+              for (int filter_set_idx_moved_in = 0;
+                   filter_set_idx_moved_in < num_classes_after_merge;
+                   filter_set_idx_moved_in++) {
+                memcpy(merged_to_indices, best_merged_to_indices,
+                       sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+                refine_merged_to_index_array(
+                    merged_to_indices, num_classes_before_merge,
+                    num_classes_after_merge, class_id_be_moved, filter_set_idx_moved_in);
+                memcpy(tmp_filter.merged_to_indices, merged_to_indices,
+                       sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+                memcpy(rsc->merged_to_indices, merged_to_indices,
+                       sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+
+                utilization = 0;
+                cost = optimize_frame_filters_for_target_classes(
+                    rsc, &tmp_filter, &utilization, work_cost_array);
+
+                // Reset this bank to account for bits that signal the frame level filters.
+                initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
+                                                             &tmp_bank);
+#if 0  // debug_point
+          printf (" %d, %d, %d, %d: %.3f\n", num_classes_before_merge, num_classes_after_merge, filter_idx_0, filter_idx_1, cost);
+#endif
+                if (cost < best_cost) {
+                  best_cost = cost;
+                  best_num_classes_after_merge = num_classes_after_merge;
+                  best_num_classes_before_merge = num_classes_before_merge;
+                  best_filter = tmp_filter;
+                  double *tmp_array = work_cost_array;
+                  work_cost_array = best_cost_array;
+                  best_cost_array = tmp_array;
+                  memcpy(best_merged_to_indices, merged_to_indices,
+                         sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+                  is_moved = 1;
+                  break;
+                }
+                if (is_moved) break;
+              }
+            }
+            if (is_moved) break;
+          }
+        if (!is_moved) break;
+        }
+      }
+#endif
       // if no merge in this round, break; , to be added
       if (best_num_classes_after_merge > num_classes_after_merge)
         break;

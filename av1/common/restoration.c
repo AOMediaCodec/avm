@@ -1825,7 +1825,7 @@ int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int widt
   }
 
   const int strong_dir_threshold = 3;
-  const int activity_threshold[4] = { 3, 14,  28 };
+  const int activity_threshold[3] = { 4, 16,  32 }; // 4;
   const int bd8 = bit_depth - 8;
   int dir = 0;
 
@@ -1843,11 +1843,11 @@ int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int widt
   int activity = gred_hor + gred_ver;
   int act_idx = 0;
   int block_impact = height * width << bd8;
-  if (activity <= activity_threshold[0] * block_impact)
+  if (activity <= activity_threshold[0] * block_impact / 4)
     act_idx = 0;
-  else if (activity <= activity_threshold[1] * block_impact)
+  else if (activity <= activity_threshold[1] * block_impact / 4)
     act_idx = 1;
-  else if (activity <= activity_threshold[2] * block_impact)
+  else if (activity <= activity_threshold[2] * block_impact / 4)
     act_idx = 2;
   else //
     act_idx = 3;

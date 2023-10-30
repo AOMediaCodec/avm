@@ -228,7 +228,7 @@ set_aom_config_var(
     "AV2 pixel-classified, frame-level, and flexible-mergeing nonsep Wiener filter experiment flag")
 
 set_aom_config_var(
-    CONFIG_NEW_CLASSIFY_NS_WIENER 1 NUMBER
+    CONFIG_NEW_CLASSIFY_NS_WIENER 0 NUMBER
     "AV2 pixel-classified, frame-level, with new classification nonsep Wiener filter experiment flag")
 
 set_aom_config_var(CONFIG_HIGH_PASS_CROSS_WIENER_FILTER 1
