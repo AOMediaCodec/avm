@@ -3936,11 +3936,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
 #endif
   cpi->bytes += frame_bytes;
   if (cm->show_frame) {
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
-    const YV12_BUFFER_CONFIG *orig = cpi->unfiltered_source;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     const YV12_BUFFER_CONFIG *orig = cpi->source;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
     double y, u, v, frame_all;
 
