@@ -296,6 +296,7 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                                  const int16_t mode_ctx) {
   assert(is_inter_compound_mode(mode));
+
 #if CONFIG_OPTFLOW_REFINEMENT
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
       opfl_allowed_for_cur_refs(cm, mbmi)) {
@@ -623,7 +624,11 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                            &base_params, NULL
 #if CONFIG_WARP_REF_LIST
                            ,
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                           mbmi_ext_frame->warp_param_stack[0]
+#else
                            mbmi_ext_frame->warp_param_stack
+#endif
 #endif  // CONFIG_WARP_REF_LIST
   );
 
@@ -2160,7 +2165,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const struct segmentation *const seg = &cm->seg;
   struct segmentation_probs *const segp = &ec_ctx->seg;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  MB_MODE_INFO *mbmi = xd->mi[0];
+#else
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+#endif
   const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_frame = x->mbmi_ext_frame;
   const PREDICTION_MODE mode = mbmi->mode;
   const int segment_id = mbmi->segment_id;
@@ -2410,6 +2419,21 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       }
 #endif  // CONFIG_BAWP_CHROMA
 #endif
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y],
+                                            xd->mi_row, xd->mi_col) &&
+#if CONFIG_TIP
+          !is_tip_ref_frame(mbmi->ref_frame[0]) &&
+#endif
+          !mbmi->skip_mode &&
+          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(mbmi))) {
+        int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
+        mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
+        mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts, pts_inref, 0);
+        if (has_second_ref(mbmi))
+          mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts, pts_inref, 1);
+      }
+#endif
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
       int is_warpmv_warp_causal =
           ((mbmi->motion_mode == WARPED_CAUSAL) && mbmi->mode == WARPMV);
@@ -2461,7 +2485,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     if (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       WarpedMotionParams ref_warp_model =
+#if CONFIG_COMPOUND_WARP_CAUSAL
+          x->mbmi_ext_frame->warp_param_stack[0][mbmi->warp_ref_idx].wm_params;
+#else
           x->mbmi_ext_frame->warp_param_stack[mbmi->warp_ref_idx].wm_params;
+#endif
       const int_mv ref_mv =
           get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
                           xd->mi_col, xd->mi_row);
@@ -2652,7 +2680,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       } else {
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
+#if CONFIG_COMPOUND_WARP_CAUSAL
+               (mbmi->motion_mode == SIMPLE_TRANSLATION ||
+                is_compound_warp_causal_allowed(mbmi)));
+#else
                mbmi->motion_mode == SIMPLE_TRANSLATION);
+#endif
         assert(masked_compound_used);
         // compound_diffwtd, wedge
         assert(mbmi->interinter_comp.type == COMPOUND_WEDGE ||

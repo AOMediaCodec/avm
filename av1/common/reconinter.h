@@ -1100,6 +1100,7 @@ static INLINE void set_default_interp_filters(
     return;
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+
 #if CONFIG_OPTFLOW_REFINEMENT
   mbmi->interp_fltr = (opfl_allowed_for_cur_block(cm, mbmi)
 #if CONFIG_REFINEMV

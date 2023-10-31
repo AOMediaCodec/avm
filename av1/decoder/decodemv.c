@@ -570,7 +570,12 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
 #if CONFIG_C071_SUBBLK_WARPMV
-  assign_warpmv(cm, xd->submi, bsize, params, mi_row, mi_col);
+  assign_warpmv(cm, xd->submi, bsize, params, mi_row, mi_col
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                ,
+                0
+#endif
+  );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 }
 
@@ -3009,7 +3014,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int_mv ref_mv[2];
   int_mv ref_mvs[MODE_CTX_REF_FRAMES][MAX_MV_REF_CANDIDATES] = { { { 0 } } };
   int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  int pts0[SAMPLES_ARRAY_SIZE], pts0_inref[SAMPLES_ARRAY_SIZE];
+  int pts1[SAMPLES_ARRAY_SIZE], pts1_inref[SAMPLES_ARRAY_SIZE];
+#else
   int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
+#endif
   MACROBLOCKD *const xd = &dcb->xd;
 #if CONFIG_FLEX_MVRES
   SB_INFO *sbi = xd->sbi;
@@ -3046,6 +3056,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
+
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  mbmi->num_proj_ref[0] = 0;  // assume num_proj_ref >=1
+  mbmi->num_proj_ref[1] = 0;  // assume num_proj_ref >=1
+  mbmi->wm_params[0].invalid = 1;
+  mbmi->wm_params[1].invalid = 1;
+#endif
 
   av1_collect_neighbors_ref_counts(xd);
 
@@ -3115,6 +3132,17 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if !CONFIG_D072_SKIP_MODE_IMPROVE
     assert(is_compound);
 #endif  // !CONFIG_D072_SKIP_MODE_IMPROVE
+
+#if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+    mbmi->mode = (cm->features.opfl_refine_type
+#if CONFIG_CWP
+                          && !cm->features.enable_cwp
+#endif  // CONFIG_CWP
+                      ? NEAR_NEARMV_OPTFLOW
+                      : NEAR_NEARMV);
+#else
+    mbmi->mode = NEAR_NEARMV;
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     read_drl_idx(cm->features.max_drl_bits,
@@ -3204,7 +3232,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_SEP_COMP_DRL
       av1_find_mv_refs(
           cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
-          xd->weight, ref_mvs, /*global_mvs=*/NULL
+          xd->weight, ref_mvs,
+          /*global_mvs=*/NULL
 #if !CONFIG_C076_INTER_MOD_CTX
           ,
           inter_mode_ctx
@@ -3280,8 +3309,16 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_TIP
           !is_tip_ref_frame(mbmi->ref_frame[0]) &&
 #endif  // CONFIG_TIP
+#if CONFIG_COMPOUND_WARP_CAUSAL
+          !mbmi->skip_mode &&
+          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(mbmi))) {
+        mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts0, pts0_inref, 0);
+        if (has_second_ref(mbmi))
+          mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts1, pts1_inref, 1);
+#else
           !mbmi->skip_mode && !has_second_ref(mbmi)) {
         mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       }
       av1_count_overlappable_neighbors(cm, xd);
       mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
@@ -3521,9 +3558,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   av1_count_overlappable_neighbors(cm, xd);
   mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
 #else
+#if !CONFIG_COMPOUND_WARP_CAUSAL
   assert(IMPLIES(mbmi->motion_mode != SIMPLE_TRANSLATION,
                  mbmi->mode >= SINGLE_INTER_MODE_START &&
                      mbmi->mode < SINGLE_INTER_MODE_END));
+#endif
   if (mbmi->motion_mode == WARP_DELTA) {
     read_warp_delta(cm, xd, mbmi, r
 #if CONFIG_WARP_REF_LIST
@@ -3629,7 +3668,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     } else {
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&
+#if CONFIG_COMPOUND_WARP_CAUSAL
+             (mbmi->motion_mode == SIMPLE_TRANSLATION ||
+              is_compound_warp_causal_allowed(mbmi)));
+#else
              mbmi->motion_mode == SIMPLE_TRANSLATION);
+#endif
       assert(masked_compound_used);
 
       // compound_diffwtd, wedge
@@ -3701,6 +3745,47 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->motion_mode == WARPED_CAUSAL) {
     mbmi->wm_params[0].wmtype = DEFAULT_WMTYPE;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+    mbmi->wm_params[1].wmtype = DEFAULT_WMTYPE;
+    mbmi->wm_params[0].invalid = 1;
+    mbmi->wm_params[1].invalid = 1;
+    MV mv0 = mbmi->mv[0].as_mv;
+    MV mv1 = mbmi->mv[1].as_mv;
+
+    if (mbmi->num_proj_ref[0] > 1) {
+      mbmi->num_proj_ref[0] = av1_selectSamples(
+          &mbmi->mv[0].as_mv, pts0, pts0_inref, mbmi->num_proj_ref[0], bsize);
+    }
+
+    if (mbmi->num_proj_ref[0] > 0) {
+      if (!av1_find_projection(mbmi->num_proj_ref[0], pts0, pts0_inref, bsize,
+                               mv0, &mbmi->wm_params[0], mi_row, mi_col))
+        mbmi->wm_params[0].invalid = 0;
+    }
+    if (has_second_ref(mbmi)) {
+      if (mbmi->num_proj_ref[1] > 1) {
+        mbmi->num_proj_ref[1] = av1_selectSamples(
+            &mbmi->mv[1].as_mv, pts1, pts1_inref, mbmi->num_proj_ref[1], bsize);
+      }
+      if (mbmi->num_proj_ref[1] > 0) {
+        if (!av1_find_projection(mbmi->num_proj_ref[1], pts1, pts1_inref, bsize,
+                                 mv1, &mbmi->wm_params[1], mi_row, mi_col))
+          mbmi->wm_params[1].invalid = 0;
+      }
+    }
+#if WARPED_MOTION_DEBUG
+    if (mbmi->wm_params[0].invalid && mbmi->wm_params[1].invalid)
+      printf("Warning: unexpected warped model from aomenc\n");
+#endif
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (!mbmi->wm_params[0].invalid && mbmi->mode != NEW_NEWMV)
+      assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col,
+                    0);
+    if (!mbmi->wm_params[1].invalid && mbmi->mode != NEW_NEWMV)
+      assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1], mi_row, mi_col,
+                    1);
+#endif
+#else
     mbmi->wm_params[0].invalid = 0;
     MV mv = mbmi->mv[0].as_mv;
 
@@ -3719,6 +3804,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_C071_SUBBLK_WARPMV
     assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   }
 
   if (mbmi->motion_mode == WARP_EXTEND) {
@@ -3739,7 +3825,17 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
     if (mbmi->mode == NEARMV) {
       assert(is_warp_mode(neighbor_mi->motion_mode));
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      if (mbmi->ref_frame[0] == neighbor_mi->ref_frame[1] &&
+          !neighbor_mi->wm_params[1].invalid)
+        mbmi->wm_params[0] = neighbor_mi->wm_params[1];
+      else if (!neighbor_mi->wm_params[0].invalid)
+        mbmi->wm_params[0] = neighbor_mi->wm_params[0];
+      else
+        mbmi->wm_params[0] = neighbor_mi->wm_params[1];
+#else
       mbmi->wm_params[0] = neighbor_mi->wm_params[0];
+#endif
     } else {
       assert(mbmi->mode == NEWMV);
 
@@ -3758,7 +3854,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
     }
 #if CONFIG_C071_SUBBLK_WARPMV
-    assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
+    assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                  ,
+                  0
+#endif
+    );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   }
 #else
@@ -3812,8 +3913,15 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->mv[1].as_int = 0;
 #if CONFIG_C071_SUBBLK_WARPMV
   xd->submi[0]->mv[0].as_int = xd->submi[0]->mv[1].as_int = 0;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  span_submv(cm, xd->submi, xd->mi_row, xd->mi_col, mbmi->sb_type[PLANE_TYPE_Y],
+             0);
+  span_submv(cm, xd->submi, xd->mi_row, xd->mi_col, mbmi->sb_type[PLANE_TYPE_Y],
+             1);
+#else
   span_submv(cm, xd->submi, xd->mi_row, xd->mi_col,
              mbmi->sb_type[PLANE_TYPE_Y]);
+#endif
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);

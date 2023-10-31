@@ -3930,6 +3930,12 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 );
 
+#if CONFIG_COMPOUND_WARP_CAUSAL
+static INLINE int is_compound_warp_causal_allowed(const MB_MODE_INFO *mbmi) {
+  return (mbmi->mode == NEW_NEWMV);
+}
+#endif
+
 static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd,
                                       const CANDIDATE_MV *ref_mv_stack,
@@ -3944,7 +3950,11 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     int allowed_motion_mode_warpmv = (1 << WARP_DELTA);
     int frame_warp_causal_allowed =
         cm->features.enabled_motion_modes & (1 << WARPED_CAUSAL);
+#if CONFIG_COMPOUND_WARP_CAUSAL
+    if (frame_warp_causal_allowed && mbmi->num_proj_ref[0] >= 1) {
+#else
     if (frame_warp_causal_allowed && mbmi->num_proj_ref >= 1) {
+#endif
       allowed_motion_mode_warpmv |= (1 << WARPED_CAUSAL);
     }
     return (allowed_motion_mode_warpmv & enabled_motion_modes);
@@ -4012,7 +4022,20 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
       !xd->cur_frame_force_integer_mv;
 
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  const int allow_warp_causal_motion =
+      is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      is_inter_mode(mbmi->mode) &&
+      !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
+      !xd->cur_frame_force_integer_mv &&
+      (is_motion_variation_allowed_compound(mbmi) ||
+       is_compound_warp_causal_allowed(mbmi));
+  if (allow_warp_causal_motion &&
+      (mbmi->num_proj_ref[0] >= 1 &&
+       (!has_second_ref(mbmi) || mbmi->num_proj_ref[1] >= 1))
+#else
   if (obmc_allowed && allow_warped_motion && mbmi->num_proj_ref >= 1
+#endif
 #if CONFIG_WARPMV
       && mbmi->mode != NEARMV
 #endif  // CONFIG_WARPMV

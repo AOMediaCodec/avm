@@ -620,7 +620,12 @@ void av1_find_best_ref_mvs(int allow_hp, int_mv *mvlist, int_mv *nearest_mv,
 uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
                           BLOCK_SIZE bsize);
 uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
-                        int *pts_inref);
+                        int *pts_inref
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                        ,
+                        int ref_idx
+#endif
+);
 
 #define INTRABC_DELAY_PIXELS 256  //  Delay of 256 pixels
 #define INTRABC_DELAY_SB64 (INTRABC_DELAY_PIXELS / 64)
@@ -927,11 +932,21 @@ void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #if CONFIG_C071_SUBBLK_WARPMV
 // assign subblock mv from warp into submi
 void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
-                   WarpedMotionParams *wm_params, int mi_row, int mi_col);
+                   WarpedMotionParams *wm_params, int mi_row, int mi_col
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                   ,
+                   int ref
+#endif
+);
 
 // span the first subblock info into all the rest subblocks in the same block
 void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
-                int mi_col, BLOCK_SIZE bsize);
+                int mi_col, BLOCK_SIZE bsize
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                ,
+                int ref
+#endif
+);
 #endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -1207,7 +1222,6 @@ static INLINE int is_ref_motion_field_eligible(
 // Check all 3 neighbors to generate projected points
 int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
                                  int *np, MV_REFERENCE_FRAME ref_frame);
-
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #ifdef __cplusplus

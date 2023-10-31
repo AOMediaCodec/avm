@@ -807,13 +807,26 @@ static INLINE uint8_t is_valid_warp_parameters(
     const AV1_COMMON *cm, const MB_MODE_INFO *neighbor_mbmi,
     const int ref_frame, WarpedMotionParams *neighbor_params) {
   (void)cm;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  if (is_warp_mode(neighbor_mbmi->motion_mode)) {
+    for (int ref_idx = 0;
+         ref_idx < 1 + is_inter_compound_mode(neighbor_mbmi->mode); ref_idx++) {
+      int is_same_ref = (neighbor_mbmi->ref_frame[ref_idx] == ref_frame);
+      if (is_same_ref && !neighbor_mbmi->wm_params[ref_idx].invalid &&
+          neighbor_params) {
+        *neighbor_params = neighbor_mbmi->wm_params[ref_idx];
+        return 1;
+      }
+    }
+  }
+#else
   int is_same_ref = (neighbor_mbmi->ref_frame[0] == ref_frame);
   if (is_same_ref && is_warp_mode(neighbor_mbmi->motion_mode) &&
       !neighbor_mbmi->wm_params[0].invalid && neighbor_params) {
     *neighbor_params = neighbor_mbmi->wm_params[0];
     return 1;
   }
-
+#endif
   return 0;
 }
 
@@ -4046,9 +4059,18 @@ uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
 // Sample are the neighbor block center point's coordinates relative to the
 // left-top pixel of current block.
 uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
-                        int *pts_inref) {
+                        int *pts_inref
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                        ,
+                        int ref_idx
+#endif
+) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  const int ref_frame = mbmi->ref_frame[ref_idx];
+#else
   const int ref_frame = mbmi->ref_frame[0];
+#endif
   const int up_available = xd->up_available;
   const int left_available = xd->left_available;
   int i, mi_step;
@@ -4448,7 +4470,12 @@ void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 
 #if CONFIG_C071_SUBBLK_WARPMV
 void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
-                   WarpedMotionParams *wm_params, int mi_row, int mi_col) {
+                   WarpedMotionParams *wm_params, int mi_row, int mi_col
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                   ,
+                   int ref
+#endif
+) {
   assert(wm_params->invalid == 0);
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
@@ -4473,18 +4500,36 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
           ROUND_POWER_OF_TWO_SIGNED(submv_y_hp, WARPEDMODEL_PREC_BITS - 3);
       const int mv_col =
           ROUND_POWER_OF_TWO_SIGNED(submv_x_hp, WARPEDMODEL_PREC_BITS - 3);
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      submi[mi_y * mi_stride + mi_x]->mv[ref].as_mv.row =
+#else
       submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.row =
+#endif
           clamp(mv_row, MV_LOW + 1, MV_UPP - 1);
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      submi[mi_y * mi_stride + mi_x]->mv[ref].as_mv.col =
+#else
       submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.col =
+#endif
           clamp(mv_col, MV_LOW + 1, MV_UPP - 1);
-      span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row + mi_y,
-                 mi_col + mi_x, BLOCK_8X8);
+      span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row, mi_col,
+                 BLOCK_8X8
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                 ,
+                 ref
+#endif
+      );
     }
   }
 }
 
 void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
-                int mi_col, BLOCK_SIZE bsize) {
+                int mi_col, BLOCK_SIZE bsize
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                ,
+                int ref
+#endif
+) {
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
   const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
@@ -4493,8 +4538,12 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
   for (int y = 0; y < y_inside_boundary; y++) {
     for (int x = 0; x < x_inside_boundary; x++) {
       if (x == 0 && y == 0) continue;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      submi[y * stride + x]->mv[ref] = submi[0]->mv[ref];
+#else
       submi[y * stride + x]->mv[0] = submi[0]->mv[0];
       submi[y * stride + x]->mv[1] = submi[0]->mv[1];
+#endif
     }
   }
 }
@@ -4509,20 +4558,40 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 //  bank.
 static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
                                           WARP_PARAM_BANK *warp_param_bank) {
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  for (int ref_idx = 0; ref_idx < 1 + is_inter_compound_mode(mbmi->mode);
+       ref_idx++) {
+    if (!mbmi->wm_params[ref_idx].invalid) {
+      const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[ref_idx];
+#else
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
-  WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
-  const int start_idx = warp_param_bank->wpb_start_idx[ref_frame];
-  const int count = warp_param_bank->wpb_count[ref_frame];
-  int found = -1;
+#endif
+      WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
+      const int start_idx = warp_param_bank->wpb_start_idx[ref_frame];
+      const int count = warp_param_bank->wpb_count[ref_frame];
+      int found = -1;
 
-  // If max hits have been reached return.
-  if (warp_param_bank->wpb_sb_hits >= MAX_WARP_SB_HITS) return;
-  // else increment count and proceed with updating.
-  ++warp_param_bank->wpb_sb_hits;
+      // If max hits have been reached return.
+      if (warp_param_bank->wpb_sb_hits >= MAX_WARP_SB_HITS) return;
+      // else increment count and proceed with updating.
+      ++warp_param_bank->wpb_sb_hits;
 
-  // Check if current warp parameters is already existing in the buffer.
-  for (int i = 0; i < count; ++i) {
-    const int idx = (start_idx + i) % WARP_PARAM_BANK_SIZE;
+      // Check if current warp parameters is already existing in the buffer.
+      for (int i = 0; i < count; ++i) {
+        const int idx = (start_idx + i) % WARP_PARAM_BANK_SIZE;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+        int same_param =
+            (mbmi->wm_params[ref_idx].wmmat[2] == queue[idx].wmmat[2]);
+        same_param &=
+            (mbmi->wm_params[ref_idx].wmmat[3] == queue[idx].wmmat[3]);
+
+        same_param &=
+            (mbmi->wm_params[ref_idx].wmmat[4] == queue[idx].wmmat[4]);
+        same_param &=
+            (mbmi->wm_params[ref_idx].wmmat[5] == queue[idx].wmmat[5]);
+
+        same_param &= (mbmi->wm_params[ref_idx].wmtype == queue[idx].wmtype);
+#else
     int same_param = (mbmi->wm_params[0].wmmat[2] == queue[idx].wmmat[2]);
     same_param &= (mbmi->wm_params[0].wmmat[3] == queue[idx].wmmat[3]);
 
@@ -4530,31 +4599,41 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
     same_param &= (mbmi->wm_params[0].wmmat[5] == queue[idx].wmmat[5]);
 
     same_param &= (mbmi->wm_params[0].wmtype == queue[idx].wmtype);
+#endif
 
-    if (same_param) {
-      found = i;
-      break;
-    }
-  }
+        if (same_param) {
+          found = i;
+          break;
+        }
+      }
 
-  // If current warp parameters is found in the buffer, move it to the end of
-  // the buffer.
-  if (found >= 0) {
-    const int idx = (start_idx + found) % WARP_PARAM_BANK_SIZE;
-    const WarpedMotionParams cand = queue[idx];
-    for (int i = found; i < count - 1; ++i) {
-      const int idx0 = (start_idx + i) % WARP_PARAM_BANK_SIZE;
-      const int idx1 = (start_idx + i + 1) % WARP_PARAM_BANK_SIZE;
-      queue[idx0] = queue[idx1];
-    }
-    const int tail = (start_idx + count - 1) % WARP_PARAM_BANK_SIZE;
-    queue[tail] = cand;
-    return;
-  }
+      // If current warp parameters is found in the buffer, move it to the end
+      // of the buffer.
+      if (found >= 0) {
+        const int idx = (start_idx + found) % WARP_PARAM_BANK_SIZE;
+        const WarpedMotionParams cand = queue[idx];
+        for (int i = found; i < count - 1; ++i) {
+          const int idx0 = (start_idx + i) % WARP_PARAM_BANK_SIZE;
+          const int idx1 = (start_idx + i + 1) % WARP_PARAM_BANK_SIZE;
+          queue[idx0] = queue[idx1];
+        }
+        const int tail = (start_idx + count - 1) % WARP_PARAM_BANK_SIZE;
+        queue[tail] = cand;
+        return;
+      }
 
-  // If current warp parameter is not found in the buffer, append it to the end
-  // of the buffer, and update the count and start_idx accordingly.
-  const int idx = (start_idx + count) % WARP_PARAM_BANK_SIZE;
+      // If current warp parameter is not found in the buffer, append it to the
+      // end of the buffer, and update the count and start_idx accordingly.
+      const int idx = (start_idx + count) % WARP_PARAM_BANK_SIZE;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      queue[idx].wmtype = mbmi->wm_params[ref_idx].wmtype;
+      queue[idx].wmmat[0] = mbmi->wm_params[ref_idx].wmmat[0];
+      queue[idx].wmmat[1] = mbmi->wm_params[ref_idx].wmmat[1];
+      queue[idx].wmmat[2] = mbmi->wm_params[ref_idx].wmmat[2];
+      queue[idx].wmmat[3] = mbmi->wm_params[ref_idx].wmmat[3];
+      queue[idx].wmmat[4] = mbmi->wm_params[ref_idx].wmmat[4];
+      queue[idx].wmmat[5] = mbmi->wm_params[ref_idx].wmmat[5];
+#else
   queue[idx].wmtype = mbmi->wm_params[0].wmtype;
   queue[idx].wmmat[0] = mbmi->wm_params[0].wmmat[0];
   queue[idx].wmmat[1] = mbmi->wm_params[0].wmmat[1];
@@ -4562,12 +4641,17 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
   queue[idx].wmmat[3] = mbmi->wm_params[0].wmmat[3];
   queue[idx].wmmat[4] = mbmi->wm_params[0].wmmat[4];
   queue[idx].wmmat[5] = mbmi->wm_params[0].wmmat[5];
+#endif
 
-  if (count < WARP_PARAM_BANK_SIZE) {
-    ++warp_param_bank->wpb_count[ref_frame];
-  } else {
-    ++warp_param_bank->wpb_start_idx[ref_frame];
+      if (count < WARP_PARAM_BANK_SIZE) {
+        ++warp_param_bank->wpb_count[ref_frame];
+      } else {
+        ++warp_param_bank->wpb_start_idx[ref_frame];
+      }
+#if CONFIG_COMPOUND_WARP_CAUSAL
+    }
   }
+#endif
 }
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,
@@ -4970,10 +5054,11 @@ static int fill_warp_corner_projected_point(const MB_MODE_INFO *neighbor_mi,
   // return if the source point is invalid
   if (pos_col < 0 || pos_row < 0) return 0;
 
-  if (!is_inter_ref_frame(neighbor_mi->ref_frame[0])) return 0;
-  if (neighbor_mi->ref_frame[0] != this_ref) return 0;
   int mv_row;
   int mv_col;
+
+  if (!is_inter_ref_frame(neighbor_mi->ref_frame[0])) return 0;
+  if (neighbor_mi->ref_frame[0] != this_ref) return 0;
   if (is_warp_mode(neighbor_mi->motion_mode)) {
     int_mv warp_mv =
         get_warp_motion_vector_xy_pos(&neighbor_mi->wm_params[0], pos_col,
@@ -5025,8 +5110,10 @@ int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
+
     int pos_row = xd->mi_row * MI_SIZE;
     int pos_col = xd->mi_col * MI_SIZE + bw;
+
     int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
                                                  pos_row, pts, mvs, np);
     if (valid) {

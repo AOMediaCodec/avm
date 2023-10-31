@@ -319,7 +319,11 @@ typedef struct {
 
 #if CONFIG_WARP_REF_LIST
   //! warp_param_stack is the warp candidate list.
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  WARP_CANDIDATE warp_param_stack[2][MAX_WARP_REF_CANDIDATES];
+#else
   WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES];
+#endif
 #endif  // CONFIG_WARP_REF_LIST
 
 } MB_MODE_INFO_EXT_FRAME;

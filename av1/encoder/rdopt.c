@@ -1815,7 +1815,9 @@ static int64_t motion_mode_rd(
       cm->seq_params.enable_interintra_compound && is_interintra_allowed(mbmi);
 #endif  // !CONFIG_EXTENDED_WARP_PREDICTION
   int pts0[SAMPLES_ARRAY_SIZE], pts_inref0[SAMPLES_ARRAY_SIZE];
-
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  int pts1[SAMPLES_ARRAY_SIZE], pts_inref1[SAMPLES_ARRAY_SIZE];
+#endif
 #if CONFIG_WARPMV
   assert(IMPLIES(mbmi->mode == WARPMV, (rate_mv0 == 0)));
 #endif  // CONFIG_WARPMV
@@ -1825,7 +1827,14 @@ static int64_t motion_mode_rd(
   (void)tile_data;
   av1_invalid_rd_stats(&best_rd_stats);
   aom_clear_system_state();
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  mbmi->num_proj_ref[0] = 1;  // assume num_proj_ref >=1
+  mbmi->num_proj_ref[1] = 1;  // assume num_proj_ref >=1
+  mbmi->wm_params[0].invalid = 1;
+  mbmi->wm_params[1].invalid = 1;
+#else
   mbmi->num_proj_ref = 1;  // assume num_proj_ref >=1
+#endif
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
@@ -1839,10 +1848,24 @@ static int64_t motion_mode_rd(
   if ((allowed_motion_modes & (1 << WARPED_CAUSAL))) {
     // Collect projection samples used in least squares approximation of
     // the warped motion parameters if WARPED_CAUSAL is going to be searched.
+#if CONFIG_COMPOUND_WARP_CAUSAL
+    mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts0, pts_inref0, 0);
+    if (has_second_ref(mbmi))
+      mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts1, pts_inref1, 1);
+    else
+      mbmi->num_proj_ref[1] = 0;
+#else
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
+#endif
   }
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  const int total_samples0 = mbmi->num_proj_ref[0];
+  const int total_samples1 = mbmi->num_proj_ref[1];
+  if ((total_samples0 == 0 && total_samples1 == 0)) {
+#else
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
+#endif
     // Do not search WARPED_CAUSAL if there are no samples to use to determine
     // warped parameters.
     allowed_motion_modes &= ~(1 << WARPED_CAUSAL);
@@ -1868,6 +1891,10 @@ static int64_t motion_mode_rd(
     previous_mvs[w_ref_idx].as_int = INVALID_MV;
   }
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  mbmi->num_proj_ref[0] = 0;  // assume num_proj_ref >=1 ??????????
+  mbmi->num_proj_ref[1] = 0;  // assume num_proj_ref >=1
+#endif
   int num_rd_check = 0;
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
@@ -2039,7 +2066,6 @@ static int64_t motion_mode_rd(
         if ((!enable_obmc || cpi->sf.inter_sf.disable_obmc || prune_obmc) &&
             mbmi->motion_mode == OBMC_CAUSAL)
           continue;
-
         if (is_warp_mode(mbmi->motion_mode)) {
           mbmi->interp_fltr = av1_unswitchable_filter(interp_filter);
         }
@@ -2075,11 +2101,16 @@ static int64_t motion_mode_rd(
               args->left_pred_buf, args->left_pred_stride);
         } else if (mbmi->motion_mode == WARPED_CAUSAL) {
           int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
-#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_COMPOUND_WARP_CAUSAL
           mbmi->wm_params[0].wmtype = DEFAULT_WMTYPE;
+          mbmi->wm_params[1].wmtype = DEFAULT_WMTYPE;
+#else
+#if CONFIG_EXTENDED_WARP_PREDICTION
+      mbmi->wm_params[0].wmtype = DEFAULT_WMTYPE;
 #else
       mbmi->wm_params.wmtype = DEFAULT_WMTYPE;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#endif
 
 #if CONFIG_WARPMV
 #if CONFIG_CWG_D067_IMPROVED_WARP
@@ -2126,30 +2157,71 @@ static int64_t motion_mode_rd(
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
           }
 #endif  // CONFIG_WARPMV
-
-          memcpy(pts, pts0, total_samples * 2 * sizeof(*pts0));
+#if CONFIG_COMPOUND_WARP_CAUSAL
+          int l0_invalid = 1, l1_invalid = 1;
+          mbmi->num_proj_ref[0] = total_samples0;
+          mbmi->num_proj_ref[1] = total_samples1;
+          memcpy(pts, pts0, total_samples0 * 2 * sizeof(*pts0));
           memcpy(pts_inref, pts_inref0,
-                 total_samples * 2 * sizeof(*pts_inref0));
+                 total_samples0 * 2 * sizeof(*pts_inref0));
           // Select the samples according to motion vector difference
-          if (mbmi->num_proj_ref > 1) {
-            mbmi->num_proj_ref = av1_selectSamples(
-                &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
+          if (mbmi->num_proj_ref[0] > 1) {
+            mbmi->num_proj_ref[0] =
+                av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
+                                  mbmi->num_proj_ref[0], bsize);
           }
-
           // Compute the warped motion parameters with a least squares fit
           //  using the collected samples
+          mbmi->wm_params[0].invalid = l0_invalid = av1_find_projection(
+              mbmi->num_proj_ref[0], pts, pts_inref, bsize, mbmi->mv[0].as_mv,
+              &mbmi->wm_params[0], mi_row, mi_col);
+
+          if (has_second_ref(mbmi)) {
+            memcpy(pts, pts1, total_samples1 * 2 * sizeof(*pts1));
+            memcpy(pts_inref, pts_inref1,
+                   total_samples1 * 2 * sizeof(*pts_inref1));
+            // Select the samples according to motion vector difference
+            if (mbmi->num_proj_ref[1] > 1) {
+              mbmi->num_proj_ref[1] =
+                  av1_selectSamples(&mbmi->mv[1].as_mv, pts, pts_inref,
+                                    mbmi->num_proj_ref[1], bsize);
+            }
+            // Compute the warped motion parameters with a least squares fit
+            //  using the collected samples
+            mbmi->wm_params[1].invalid = l1_invalid = av1_find_projection(
+                mbmi->num_proj_ref[1], pts, pts_inref, bsize, mbmi->mv[1].as_mv,
+                &mbmi->wm_params[1], mi_row, mi_col);
+          }
+
+          if (!l0_invalid && (!has_second_ref(mbmi) || !l1_invalid)) {
+#else
+      memcpy(pts, pts0, total_samples * 2 * sizeof(*pts0));
+      memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
+      // Select the samples according to motion vector difference
+      if (mbmi->num_proj_ref > 1) {
+        mbmi->num_proj_ref = av1_selectSamples(
+            &mbmi->mv[0].as_mv, pts, pts_inref, mbmi->num_proj_ref, bsize);
+      }
+
+      // Compute the warped motion parameters with a least squares fit
+      //  using the collected samples
 #if CONFIG_EXTENDED_WARP_PREDICTION
-          if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                                   mbmi->mv[0].as_mv, &mbmi->wm_params[0],
-                                   mi_row, mi_col)) {
+      if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
+                               mbmi->mv[0].as_mv, &mbmi->wm_params[0], mi_row,
+                               mi_col)) {
 #else
       if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                mbmi->mv[0].as_mv, &mbmi->wm_params, mi_row,
                                mi_col)) {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-            assert(!is_comp_pred);
+        assert(!is_comp_pred);
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+#if CONFIG_COMPOUND_WARP_CAUSAL
+            if ((((this_mode == NEWMV || this_mode == NEW_NEWMV) && !l0_invalid)
+#else
             if ((this_mode == NEWMV
+#endif
 #if CONFIG_FLEX_MVRES
                  && (mbmi->pb_mv_precision >= MV_PRECISION_ONE_PEL))
 #endif
@@ -2181,7 +2253,11 @@ static int64_t motion_mode_rd(
                                                 NULL);
               // Refine MV in a small range.
               av1_refine_warped_mv(xd, cm, &ms_params, bsize, pts0, pts_inref0,
-                                   total_samples,
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                                   total_samples0, 0,
+#else
+                               total_samples,
+#endif
                                    cpi->sf.mv_sf.warp_search_method,
                                    cpi->sf.mv_sf.warp_search_iters);
               if (mv0.as_int != mbmi->mv[0].as_int
@@ -2190,13 +2266,62 @@ static int64_t motion_mode_rd(
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
               ) {
                 // Keep the refined MV and WM parameters.
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                // Keep the refined MV and WM parameters.
+                if (mbmi->mode == NEW_NEWMV) {
 #if CONFIG_FLEX_MVRES
-                tmp_rate_mv = av1_mv_bit_cost(
-                    &mbmi->mv[0].as_mv, &ref_mv.as_mv, pb_mv_precision,
-                    &x->mv_costs, MV_COST_WEIGHT
+                  int tmp_rate_mv0 = av1_mv_bit_cost(
+                      &mv0.as_mv, &ref_mv.as_mv, pb_mv_precision, &x->mv_costs,
+                      MV_COST_WEIGHT
 #if CONFIG_ADAPTIVE_MVD
-                    ,
-                    ms_params.mv_cost_params.is_adaptive_mvd
+                      ,
+                      ms_params.mv_cost_params.is_adaptive_mvd
+#endif
+                  );
+                  tmp_rate_mv = av1_mv_bit_cost(
+                      &mbmi->mv[0].as_mv, &ref_mv.as_mv, pb_mv_precision,
+                      &x->mv_costs, MV_COST_WEIGHT
+#if CONFIG_ADAPTIVE_MVD
+                      ,
+                      ms_params.mv_cost_params.is_adaptive_mvd
+#endif
+                  );
+#else
+                int tmp_rate_mv0 = av1_mv_bit_cost(
+                    &mv0.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
+                    x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+                tmp_rate_mv =
+                    av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
+                                    x->mv_costs.nmv_joint_cost,
+                                    x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+#endif
+                  tmp_rate2 = rate2_nocoeff - tmp_rate_mv0 + tmp_rate_mv;
+                } else {
+#if CONFIG_FLEX_MVRES
+                  tmp_rate_mv = av1_mv_bit_cost(
+                      &mbmi->mv[0].as_mv, &ref_mv.as_mv, pb_mv_precision,
+                      &x->mv_costs, MV_COST_WEIGHT
+#if CONFIG_ADAPTIVE_MVD
+                      ,
+                      ms_params.mv_cost_params.is_adaptive_mvd
+#endif
+                  );
+#else
+                tmp_rate_mv =
+                    av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
+                                    x->mv_costs.nmv_joint_cost,
+                                    x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+#endif
+                  tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
+                }
+#else
+#if CONFIG_FLEX_MVRES
+            tmp_rate_mv =
+                av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
+                                pb_mv_precision, &x->mv_costs, MV_COST_WEIGHT
+#if CONFIG_ADAPTIVE_MVD
+                                ,
+                                ms_params.mv_cost_params.is_adaptive_mvd
 #endif
                 );
 #else
@@ -2204,20 +2329,81 @@ static int64_t motion_mode_rd(
                 &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
                 x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
 #endif
-                tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
+            tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
 #if CONFIG_CWG_D067_IMPROVED_WARP
-                assert(
-                    IMPLIES(mbmi->mode == WARPMV, mbmi->warpmv_with_mvd_flag));
+            assert(IMPLIES(mbmi->mode == WARPMV, mbmi->warpmv_with_mvd_flag));
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
               }
             }
+#if CONFIG_COMPOUND_WARP_CAUSAL
+            if (!l1_invalid && this_mode == NEW_NEWMV) {
+              // Refine MV for NEWMV mode
+              const int_mv mv1 = mbmi->mv[1];
+              const int_mv ref_mv = av1_get_ref_mv(x, 1);
+#if CONFIG_FLEX_MVRES
+              const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
+#endif
+              SUBPEL_MOTION_SEARCH_PARAMS ms_params;
+              av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
+                                                &ref_mv.as_mv,
+#if CONFIG_FLEX_MVRES
+                                                pb_mv_precision,
+#endif
+                                                NULL);
+              // Refine MV in a small range.
+              av1_refine_warped_mv(xd, cm, &ms_params, bsize, pts1, pts_inref1,
+                                   total_samples1, 1,
+                                   cpi->sf.mv_sf.warp_search_method,
+                                   cpi->sf.mv_sf.warp_search_iters);
+
+              if (mv1.as_int != mbmi->mv[1].as_int) {
+                // Keep the refined MV and WM parameters.
+#if CONFIG_FLEX_MVRES
+                int tmp_rate_mv1 =
+                    av1_mv_bit_cost(&mv1.as_mv, &ref_mv.as_mv, pb_mv_precision,
+                                    &x->mv_costs, MV_COST_WEIGHT
+#if CONFIG_ADAPTIVE_MVD
+                                    ,
+                                    ms_params.mv_cost_params.is_adaptive_mvd
+#endif
+                    );
+                tmp_rate_mv = av1_mv_bit_cost(
+                    &mbmi->mv[1].as_mv, &ref_mv.as_mv, pb_mv_precision,
+                    &x->mv_costs, MV_COST_WEIGHT
+#if CONFIG_ADAPTIVE_MVD
+                    ,
+                    ms_params.mv_cost_params.is_adaptive_mvd
+#endif
+                );
+#else
+              int tmp_rate_mv1 = av1_mv_bit_cost(
+                  &mv1.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
+                  x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+              tmp_rate_mv = av1_mv_bit_cost(
+                  &mbmi->mv[1].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
+                  x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+#endif
+                tmp_rate2 = tmp_rate2 - tmp_rate_mv1 + tmp_rate_mv;
+              }
+            }
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_COMPOUND_WARP_CAUSAL
+            if (!mbmi->wm_params[0].invalid && mbmi->mode != NEW_NEWMV)
+              assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
+                            mi_col, 0);
+            if (!mbmi->wm_params[1].invalid && mbmi->mode != NEW_NEWMV)
+              assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1], mi_row,
+                            mi_col, 1);
+#else
 #if CONFIG_EXTENDED_WARP_PREDICTION
-            assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
-                          mi_col);
+          assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
+                        mi_col);
 #else
           assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params, mi_row, mi_col);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#endif
 #endif  // CONFIG_C071_SUBBLK_WARPMV
         // Build the warped predictor
             av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
@@ -2236,10 +2422,6 @@ static int64_t motion_mode_rd(
                                                       ref_best_rd, &tmp_rate_mv,
                                                       &tmp_rate2, orig_dst);
           if (ret < 0) continue;
-#if CONFIG_INTERINTRA_IMPROVEMENT
-          assert(mbmi->motion_mode == INTERINTRA);
-          // assert(mbmi->ref_frame[1] == INTRA_FRAME);
-#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 #if CONFIG_EXTENDED_WARP_PREDICTION
         } else if (mbmi->motion_mode == WARP_DELTA) {
 #if CONFIG_FLEX_MVRES
@@ -2383,7 +2565,12 @@ static int64_t motion_mode_rd(
           }
 #if CONFIG_C071_SUBBLK_WARPMV
           assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
-                        mi_col);
+                        mi_col
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                        ,
+                        0
+#endif
+          );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                         av1_num_planes(cm) - 1);
@@ -2413,11 +2600,26 @@ static int64_t motion_mode_rd(
 
           if (mbmi->mode == NEARMV) {
             assert(is_warp_mode(neighbor_mi->motion_mode));
-            if (neighbor_mi->wm_params[0].invalid) {
+#if CONFIG_COMPOUND_WARP_CAUSAL
+            if (neighbor_mi->wm_params[0].invalid &&
+                neighbor_mi->wm_params[1].invalid) {
               // Skip invalid models
               continue;
             }
-            mbmi->wm_params[0] = neighbor_mi->wm_params[0];
+            if (mbmi->ref_frame[0] == neighbor_mi->ref_frame[1] &&
+                !neighbor_mi->wm_params[1].invalid)
+              mbmi->wm_params[0] = neighbor_mi->wm_params[1];
+            else if (!neighbor_mi->wm_params[0].invalid)
+              mbmi->wm_params[0] = neighbor_mi->wm_params[0];
+            else
+              mbmi->wm_params[0] = neighbor_mi->wm_params[1];
+#else
+          if (neighbor_mi->wm_params[0].invalid) {
+            // Skip invalid models
+            continue;
+          }
+          mbmi->wm_params[0] = neighbor_mi->wm_params[0];
+#endif
           } else {
             assert(mbmi->mode == NEWMV);
 
@@ -2474,6 +2676,7 @@ static int64_t motion_mode_rd(
                 xd, &neighbor_params, features->allow_high_precision_mv, bsize,
                 mi_col, mi_row, features->cur_frame_force_integer_mv);
 #endif
+
 #if CONFIG_C071_SUBBLK_WARPMV
               if (
 #if CONFIG_FLEX_MVRES
@@ -2553,7 +2756,12 @@ static int64_t motion_mode_rd(
 
 #if CONFIG_C071_SUBBLK_WARPMV
           assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row,
-                        mi_col);
+                        mi_col
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                        ,
+                        0
+#endif
+          );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
         // Build the warped predictor
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
@@ -2626,19 +2834,6 @@ static int64_t motion_mode_rd(
 #else
       bool continue_motion_mode_signaling = true;
 #endif  // CONFIG_WARPMV
-
-        if (continue_motion_mode_signaling &&
-            allowed_motion_modes & (1 << INTERINTRA)) {
-          rd_stats->rate +=
-              mode_costs->interintra_cost[size_group_lookup[bsize]]
-                                         [motion_mode == INTERINTRA];
-          if (motion_mode == INTERINTRA) {
-            // Note(rachelbarker): Costs for other interintra-related
-            // signaling are already accounted for by
-            // `av1_handle_inter_intra_mode`
-            continue_motion_mode_signaling = false;
-          }
-        }
 
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << OBMC_CAUSAL)) {
@@ -3541,7 +3736,11 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
 
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
+#else
   mbmi->num_proj_ref = 0;
+#endif
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_SEP_COMP_DRL
   mbmi->ref_mv_idx[0] = ref_mv_idx[0];
@@ -3607,7 +3806,11 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_CWP
   mbmi->cwp_idx = CWP_EQUAL;
 #endif  // CONFIG_CWP
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
+#else
   mbmi->num_proj_ref = 0;
+#endif
   if (is_comp_pred) {
     // Only compound_average
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -4430,7 +4633,6 @@ static int process_compound_inter_mode(
     mode_search_mask = (1 << COMPOUND_AVERAGE);
   }
 #endif  // CONFIG_CWP
-
   const int num_planes = av1_num_planes(cm);
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -5253,7 +5455,11 @@ static int64_t handle_inter_mode(
           if (mbmi->ref_frame[1] == INTRA_FRAME)
             mbmi->ref_frame[1] = NONE_FRAME;
 
+#if CONFIG_COMPOUND_WARP_CAUSAL
+          mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
+#else
           mbmi->num_proj_ref = 0;
+#endif
           mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_SEP_COMP_DRL
           mbmi->ref_mv_idx[1] = ref_mv_idx[1];
@@ -5370,7 +5576,11 @@ static int64_t handle_inter_mode(
             if (mbmi->ref_frame[1] == INTRA_FRAME)
               mbmi->ref_frame[1] = NONE_FRAME;
 
-            mbmi->num_proj_ref = 0;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+            mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
+#else
+          mbmi->num_proj_ref = 0;
+#endif
             mbmi->motion_mode = SIMPLE_TRANSLATION;
             mbmi->ref_mv_idx = ref_mv_idx;
             // Compute cost for signalling this DRL index
@@ -5404,7 +5614,11 @@ static int64_t handle_inter_mode(
 #if CONFIG_WARPMV
             // For WARPMV mode we will build MV in the later stage
             // Currently initialize to 0
+#if CONFIG_WARPMV
             if (mbmi->mode == WARPMV) {
+#else
+          if (mbmi->mode == WARPMV) {
+#endif
               cur_mv[0].as_int = 0;
               cur_mv[1].as_int = 0;
 
@@ -5791,7 +6005,11 @@ static int64_t handle_inter_mode(
                   if (mbmi->ref_frame[1] == INTRA_FRAME)
                     mbmi->ref_frame[1] = NONE_FRAME;
 
-                  mbmi->num_proj_ref = 0;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+                  mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
+#else
+              mbmi->num_proj_ref = 0;
+#endif
                   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_SEP_COMP_DRL
                   mbmi->ref_mv_idx[0] = ref_mv_idx[0];
@@ -8469,7 +8687,11 @@ static bool mask_says_skip(const mode_skip_mask_t *mode_skip_mask,
 #endif  // CONFIG_TIP
 
   if (mode_skip_mask->pred_modes[COMPACT_INDEX0_NRS(ref_frame[0])] &
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      ((int64_t)1 << this_mode)) {
+#else
       (1 << this_mode)) {
+#endif
     return true;
   }
 
@@ -8798,7 +9020,12 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
 static INLINE void init_submi(MACROBLOCKD *const xd, AV1_COMMON *const cm,
                               int mi_row, int mi_col, BLOCK_SIZE bsize) {
   xd->submi[0]->mv[0].as_int = xd->submi[0]->mv[1].as_int = 0;
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  span_submv(cm, xd->submi, mi_row, mi_col, bsize, 0);
+  span_submv(cm, xd->submi, mi_row, mi_col, bsize, 1);
+#else
   span_submv(cm, xd->submi, mi_row, mi_col, bsize);
+#endif
 }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
@@ -10101,12 +10328,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         mbmi->angle_delta[PLANE_TYPE_Y] = 0;
         mbmi->angle_delta[PLANE_TYPE_UV] = 0;
         mbmi->filter_intra_mode_info.use_filter_intra = 0;
-#if CONFIG_SEP_COMP_DRL
-        mbmi->ref_mv_idx[0] = 0;
-        mbmi->ref_mv_idx[1] = 0;
-#else
-        mbmi->ref_mv_idx = 0;
-#endif
 #if CONFIG_WARP_REF_LIST
         mbmi->warp_ref_idx = 0;
         mbmi->max_num_warp_candidates = 0;
@@ -10753,6 +10974,25 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 #endif  // CONFIG_REFINEMV
 
   av1_count_overlappable_neighbors(cm, xd);
+#if CONFIG_COMPOUND_WARP_CAUSAL
+  if (is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
+      (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(mbmi))) {
+    int pts0[SAMPLES_ARRAY_SIZE], pts0_inref[SAMPLES_ARRAY_SIZE];
+    mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts0, pts0_inref, 0);
+    // Select the samples according to motion vector difference
+    if (mbmi->num_proj_ref[0] > 1)
+      mbmi->num_proj_ref[0] = av1_selectSamples(
+          &mbmi->mv[0].as_mv, pts0, pts0_inref, mbmi->num_proj_ref[0], bsize);
+    if (has_second_ref(mbmi)) {
+      int pts1[SAMPLES_ARRAY_SIZE], pts1_inref[SAMPLES_ARRAY_SIZE];
+      mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts1, pts1_inref, 1);
+      // Select the samples according to motion vector difference
+      if (mbmi->num_proj_ref[1] > 1)
+        mbmi->num_proj_ref[1] = av1_selectSamples(
+            &mbmi->mv[1].as_mv, pts1, pts1_inref, mbmi->num_proj_ref[1], bsize);
+    }
+  }
+#else
   if (is_motion_variation_allowed_bsize(bsize, mi_row, mi_col) &&
       !has_second_ref(mbmi)) {
     int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
@@ -10762,6 +11002,7 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
       mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
                                              mbmi->num_proj_ref, bsize);
   }
+#endif
 
 #if CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES

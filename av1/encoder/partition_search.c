@@ -1854,7 +1854,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       ) {
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
+#if CONFIG_COMPOUND_WARP_CAUSAL
+               (mbmi->motion_mode == SIMPLE_TRANSLATION ||
+                is_compound_warp_causal_allowed(mbmi)));
+#else
                mbmi->motion_mode == SIMPLE_TRANSLATION);
+#endif
 
         const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                          cm->seq_params.enable_masked_compound;
@@ -1969,7 +1974,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                    JOINT_NEWMV_SCALE_FACTOR_CNT);
 #endif  // CONFIG_ADAPTIVE_MVD
       }
-
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
     } else {
       av1_update_inter_mode_stats(fc, counts, mode, mode_ctx
