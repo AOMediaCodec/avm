@@ -23,7 +23,7 @@ void av1_highbd_wiener_convolve_add_src_ssse3(
     const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst,
     ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
     const int16_t *filter_y, int y_step_q4, int w, int h,
-    const ConvolveParams *conv_params, int bd) {
+    const WienerConvolveParams *conv_params, int bd) {
   assert(x_step_q4 == 16 && y_step_q4 == 16);
   assert(!(w & 7));
   assert(bd + FILTER_BITS - conv_params->round_0 + 2 <= 16);

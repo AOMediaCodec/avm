@@ -682,7 +682,7 @@ void av1_highbd_wiener_convolve_add_src_c(
     const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst,
     ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
     const int16_t *filter_y, int y_step_q4, int w, int h,
-    const ConvolveParams *conv_params, int bd) {
+    const WienerConvolveParams *conv_params, int bd) {
   const InterpKernel *const filters_x = get_filter_base(filter_x);
   const int x0_q4 = get_filter_offset(filter_x, filters_x);
 

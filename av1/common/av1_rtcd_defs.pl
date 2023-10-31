@@ -82,7 +82,7 @@ if ($opts{arch} eq "x86_64") {
 add_proto qw/void av1_highbd_convolve_horiz_rs/, "const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w, int h, const int16_t *x_filters, int x0_qn, int x_step_qn, int bd";
 specialize qw/av1_highbd_convolve_horiz_rs sse4_1/;
 
-add_proto qw/void av1_highbd_wiener_convolve_add_src/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, const ConvolveParams *conv_params, int bd";
+add_proto qw/void av1_highbd_wiener_convolve_add_src/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, const WienerConvolveParams *conv_params, int bd";
 specialize qw/av1_highbd_wiener_convolve_add_src ssse3 avx2/;
 
 if (aom_config("CONFIG_PC_WIENER") eq "yes") {

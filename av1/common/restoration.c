@@ -2208,7 +2208,7 @@ static void wiener_filter_stripe_highbd(const RestorationUnitInfo *rui,
                                         int dst_stride, int32_t *tmpbuf,
                                         int bit_depth) {
   (void)tmpbuf;
-  const ConvolveParams conv_params = get_conv_params_wiener(bit_depth);
+  const WienerConvolveParams conv_params = get_conv_params_wiener(bit_depth);
 
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, (stripe_width - j + 15) & ~15);
