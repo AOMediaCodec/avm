@@ -131,7 +131,7 @@ set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0
                    "AV1 experiment flag for optical flow API.")
-set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 0
+set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
 # AV2 experiment flags.
