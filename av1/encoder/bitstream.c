@@ -4334,7 +4334,7 @@ static AOM_INLINE void encode_restoration_mode(
             aom_wb_write_literal(
               wb, encode_num_filter_classes(rsi->num_classes_before_merge),
               NUM_FILTER_CLASSES_BITS);
-            if (rsi->num_classes_before_merge > 2) {
+            if (rsi->num_classes_before_merge == 16) {
 #endif
               assert (rsi->num_filter_classes >= 2 && rsi->num_filter_classes <= rsi->num_classes_before_merge);
               int bit_num = encode_num_filter_classes(rsi->num_classes_before_merge);

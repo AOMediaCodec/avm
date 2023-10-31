@@ -5140,7 +5140,15 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     tmp_filter.num_classes_before_merge = num_target_classes;
     rsc->num_filter_classes_before_merge = num_target_classes;
 
-    const int unoccupied = count_and_merge_classes_with_no_pixels(rsc, merged_to_indices);
+    int unoccupied = 0;
+    if (i == 0)
+      unoccupied = count_and_merge_classes_with_no_pixels(rsc, merged_to_indices);
+    else {
+      // init merged_to_indices array
+      for (int c_id = 0; c_id < num_target_classes; ++c_id) {
+        merged_to_indices[c_id] = c_id;
+      }
+    }
     int num_classes_before_merge = num_target_classes;
     int num_classes_after_merge = num_target_classes - unoccupied;
     num_stats_classes = num_classes_before_merge;
@@ -5173,114 +5181,129 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       memcpy(best_merged_to_indices, merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
     }
 
-    for (num_classes_after_merge = num_classes_after_merge - 1; num_classes_after_merge >= 2; num_classes_after_merge -- ) {  // loop of number of class after merge
-      if (num_classes_after_merge == num_target_classes - unoccupied - 1) {
-        memcpy(temp_best_merged_to_indices, merged_to_indices,
-               sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-      } else {
-        memcpy(temp_best_merged_to_indices, best_merged_to_indices,
-               sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-      }
-
-      tmp_filter.num_classes = num_classes_after_merge;
-      tmp_filter.num_classes_before_merge = num_classes_before_merge;
-      rsc->num_filter_classes = num_classes_after_merge;
-      rsc->num_filter_classes_before_merge = num_classes_before_merge;
-
-      for (int filter_idx_0 = 0; filter_idx_0 < num_classes_after_merge ; filter_idx_0++) { // loop to find the one to merge to
-        for (int filter_idx_1 = filter_idx_0 + 1; filter_idx_1 < num_classes_after_merge + 1; filter_idx_1 ++) {  // loop to find the one to be merge
-          memcpy(merged_to_indices, temp_best_merged_to_indices,
-               sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-          update_merged_to_index_array (merged_to_indices, num_classes_before_merge, num_classes_after_merge + 1, filter_idx_0, filter_idx_1);
-          memcpy (tmp_filter.merged_to_indices, merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-          memcpy (rsc->merged_to_indices, merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-
-          utilization = 0;
-          cost = optimize_frame_filters_for_target_classes(
-              rsc, &tmp_filter, &utilization, work_cost_array);
-
-          // Reset this bank to account for bits that signal the frame level filters.
-          initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
-                                                       &tmp_bank);
-#if 0 // debug_point
-          printf (" %d, %d, %d, %d: %.3f\n", num_classes_before_merge, num_classes_after_merge, filter_idx_0, filter_idx_1, cost);
-#endif
-          if (cost < best_cost) {
-            best_cost = cost;
-            best_num_classes_after_merge = num_classes_after_merge;
-            best_num_classes_before_merge = num_classes_before_merge;
-            best_filter = tmp_filter;
-            double *tmp_array = work_cost_array;
-            work_cost_array = best_cost_array;
-            best_cost_array = tmp_array;
-            memcpy(best_merged_to_indices, merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-          }
+    if (i == 0) {
+      for (num_classes_after_merge = num_classes_after_merge - 1;
+           num_classes_after_merge >= 2;
+           num_classes_after_merge--) {  // loop of number of class after merge
+        if (num_classes_after_merge == num_target_classes - unoccupied - 1) {
+          memcpy(temp_best_merged_to_indices, merged_to_indices,
+                 sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+        } else {
+          memcpy(temp_best_merged_to_indices, best_merged_to_indices,
+                 sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
         }
-      }
 
-#if FURTHER_REFINE_THE_MERGE_MAP
-      int max_refine_ite = 8, max_classes_for_refine = 4;
-      if (best_num_classes_after_merge == num_classes_after_merge && num_classes_after_merge <= max_classes_for_refine && num_classes_after_merge < best_num_classes_before_merge/2) {
-        int filter_set_classes_count[WIENERNS_MAX_CLASSES] = {0};
-        for (int ite = 0; ite < max_refine_ite; ite++) {
-          int is_moved = 0;
-          for (int class_id = 0; class_id < num_classes_before_merge; class_id ++) {
-            filter_set_classes_count[best_merged_to_indices[class_id]]++;
-          };
+        tmp_filter.num_classes = num_classes_after_merge;
+        tmp_filter.num_classes_before_merge = num_classes_before_merge;
+        rsc->num_filter_classes = num_classes_after_merge;
+        rsc->num_filter_classes_before_merge = num_classes_before_merge;
 
-          for (int class_id_be_moved = 1;
-               class_id_be_moved < num_classes_before_merge;
-               class_id_be_moved++) {
-            if (filter_set_classes_count
-                    [best_merged_to_indices[class_id_be_moved]] > 1) {
-              for (int filter_set_idx_moved_in = 0;
-                   filter_set_idx_moved_in < num_classes_after_merge;
-                   filter_set_idx_moved_in++) {
-                memcpy(merged_to_indices, best_merged_to_indices,
-                       sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-                refine_merged_to_index_array(
-                    merged_to_indices, num_classes_before_merge,
-                    num_classes_after_merge, class_id_be_moved, filter_set_idx_moved_in);
-                memcpy(tmp_filter.merged_to_indices, merged_to_indices,
-                       sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-                memcpy(rsc->merged_to_indices, merged_to_indices,
-                       sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+        for (int filter_idx_0 = 0; filter_idx_0 < num_classes_after_merge;
+             filter_idx_0++) {  // loop to find the one to merge to
+          for (int filter_idx_1 = filter_idx_0 + 1;
+               filter_idx_1 < num_classes_after_merge + 1;
+               filter_idx_1++) {  // loop to find the one to be merge
+            memcpy(merged_to_indices, temp_best_merged_to_indices,
+                   sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+            update_merged_to_index_array(
+                merged_to_indices, num_classes_before_merge,
+                num_classes_after_merge + 1, filter_idx_0, filter_idx_1);
+            memcpy(tmp_filter.merged_to_indices, merged_to_indices,
+                   sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+            memcpy(rsc->merged_to_indices, merged_to_indices,
+                   sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
 
-                utilization = 0;
-                cost = optimize_frame_filters_for_target_classes(
-                    rsc, &tmp_filter, &utilization, work_cost_array);
+            utilization = 0;
+            cost = optimize_frame_filters_for_target_classes(
+                rsc, &tmp_filter, &utilization, work_cost_array);
 
-                // Reset this bank to account for bits that signal the frame level filters.
-                initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
-                                                             &tmp_bank);
+            // Reset this bank to account for bits that signal the frame level filters.
+            initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
+                                                         &tmp_bank);
 #if 0  // debug_point
           printf (" %d, %d, %d, %d: %.3f\n", num_classes_before_merge, num_classes_after_merge, filter_idx_0, filter_idx_1, cost);
 #endif
-                if (cost < best_cost) {
-                  best_cost = cost;
-                  best_num_classes_after_merge = num_classes_after_merge;
-                  best_num_classes_before_merge = num_classes_before_merge;
-                  best_filter = tmp_filter;
-                  double *tmp_array = work_cost_array;
-                  work_cost_array = best_cost_array;
-                  best_cost_array = tmp_array;
-                  memcpy(best_merged_to_indices, merged_to_indices,
-                         sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-                  is_moved = 1;
-                  break;
-                }
-                if (is_moved) break;
-              }
+            if (cost < best_cost) {
+              best_cost = cost;
+              best_num_classes_after_merge = num_classes_after_merge;
+              best_num_classes_before_merge = num_classes_before_merge;
+              best_filter = tmp_filter;
+              double *tmp_array = work_cost_array;
+              work_cost_array = best_cost_array;
+              best_cost_array = tmp_array;
+              memcpy(best_merged_to_indices, merged_to_indices,
+                     sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
             }
-            if (is_moved) break;
           }
-        if (!is_moved) break;
         }
-      }
+
+#if FURTHER_REFINE_THE_MERGE_MAP
+        int max_refine_ite = 8, max_classes_for_refine = 4;
+        if (best_num_classes_after_merge == num_classes_after_merge &&
+            num_classes_after_merge <= max_classes_for_refine &&
+            num_classes_after_merge < best_num_classes_before_merge / 2) {
+          int filter_set_classes_count[WIENERNS_MAX_CLASSES] = { 0 };
+          for (int ite = 0; ite < max_refine_ite; ite++) {
+            int is_moved = 0;
+            for (int class_id = 0; class_id < num_classes_before_merge;
+                 class_id++) {
+              filter_set_classes_count[best_merged_to_indices[class_id]]++;
+            };
+
+            for (int class_id_be_moved = 1;
+                 class_id_be_moved < num_classes_before_merge;
+                 class_id_be_moved++) {
+              if (filter_set_classes_count
+                      [best_merged_to_indices[class_id_be_moved]] > 1) {
+                for (int filter_set_idx_moved_in = 0;
+                     filter_set_idx_moved_in < num_classes_after_merge;
+                     filter_set_idx_moved_in++) {
+                  memcpy(merged_to_indices, best_merged_to_indices,
+                         sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+                  refine_merged_to_index_array(
+                      merged_to_indices, num_classes_before_merge,
+                      num_classes_after_merge, class_id_be_moved,
+                      filter_set_idx_moved_in);
+                  memcpy(tmp_filter.merged_to_indices, merged_to_indices,
+                         sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+                  memcpy(rsc->merged_to_indices, merged_to_indices,
+                         sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+
+                  utilization = 0;
+                  cost = optimize_frame_filters_for_target_classes(
+                      rsc, &tmp_filter, &utilization, work_cost_array);
+
+                  // Reset this bank to account for bits that signal the frame level filters.
+                  initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
+                                                               &tmp_bank);
+#if 0  // debug_point
+          printf (" %d, %d, %d, %d: %.3f\n", num_classes_before_merge, num_classes_after_merge, filter_idx_0, filter_idx_1, cost);
 #endif
-      // if no merge in this round, break; , to be added
-      if (best_num_classes_after_merge > num_classes_after_merge)
-        break;
+                  if (cost < best_cost) {
+                    best_cost = cost;
+                    best_num_classes_after_merge = num_classes_after_merge;
+                    best_num_classes_before_merge = num_classes_before_merge;
+                    best_filter = tmp_filter;
+                    double *tmp_array = work_cost_array;
+                    work_cost_array = best_cost_array;
+                    best_cost_array = tmp_array;
+                    memcpy(best_merged_to_indices, merged_to_indices,
+                           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+                    is_moved = 1;
+                    break;
+                  }
+                  if (is_moved) break;
+                }
+              }
+              if (is_moved) break;
+            }
+            if (!is_moved) break;
+          }
+        }
+#endif
+        // if no merge in this round, break; , to be added
+        if (best_num_classes_after_merge > num_classes_after_merge) break;
+      }
     }
 #else
     const int unoccupied = count_classes_with_no_pixels(rsc);

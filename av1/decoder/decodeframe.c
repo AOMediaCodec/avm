@@ -3429,7 +3429,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #else
             rsi->num_classes_before_merge = decode_num_filter_classes(
                 aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
-            if (rsi->num_classes_before_merge > 2) {
+            if (rsi->num_classes_before_merge == 16) {
 #endif
               int bit_num = encode_num_filter_classes(rsi->num_classes_before_merge);
               rsi->num_filter_classes = aom_rb_read_literal(rb, bit_num) + 1;
@@ -3438,6 +3438,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                 decode_wienerns_merge_map(rb, rsi->merged_to_indices, rsi->num_filter_classes, rsi->num_classes_before_merge);
             } else {
               rsi->num_filter_classes = rsi->num_classes_before_merge;
+               // init merged_to_indices array
+              for (int c_id = 0; c_id < rsi->num_filter_classes; ++c_id) {
+                rsi->merged_to_indices[c_id] = c_id;
+              }
             }
          } else {
            rsi->num_filter_classes = 1;
