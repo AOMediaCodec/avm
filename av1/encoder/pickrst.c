@@ -2600,7 +2600,7 @@ static int get_bits_cost_merge_map(int *merged_to_indices, int num_filter_classe
       bits += bit_per_idx;
     }
   }
-  return bits * (1 << NUM_FRAME_PREDICTOR_BITS);
+  return bits * (1 << AV1_PROB_COST_SHIFT);
 }
 #endif
 static int16_t quantize_wienerns_tap(double x, int16_t minv, int16_t n,
@@ -4666,9 +4666,9 @@ static double calculate_frame_filters_cost(const RestSearchCtxt *rsc,
   // debug_point, to be fixed
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   //class_number and
-  bits += (1 << NUM_FRAME_PREDICTOR_BITS) * NUM_FILTER_CLASSES_BITS;
-  if (filter->num_classes_before_merge > 2) {
-    bits += (1 << NUM_FRAME_PREDICTOR_BITS) *
+  bits += (1 << AV1_PROB_COST_SHIFT) * NUM_FILTER_CLASSES_BITS;
+  if (filter->num_classes_before_merge == 16) {
+    bits += (1 << AV1_PROB_COST_SHIFT) *
             encode_num_filter_classes(filter->num_classes_before_merge);
     if (filter->num_classes < filter->num_classes_before_merge)
         bits += get_bits_cost_merge_map(filter->merged_to_indices, filter->num_classes, filter->num_classes_before_merge);
