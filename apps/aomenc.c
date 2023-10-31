@@ -720,7 +720,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_PEF
   config->enable_pef = 1;
 #endif  // CONFIG_PEF
-  config->enable_obmc = 1;
+  config->enable_obmc = 0;
   config->enable_warped_motion = 1;
 #if CONFIG_EXTENDED_WARP_PREDICTION
   config->enable_warped_causal = 1;

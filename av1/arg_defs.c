@@ -562,7 +562,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .force_video_mode = ARG_DEF(NULL, "force-video-mode", 1,
                               "Force video mode (0: false, 1: true (default))"),
   .enable_obmc = ARG_DEF(NULL, "enable-obmc", 1,
-                         "Enable OBMC (0: false, 1: true (default))"),
+                         "Enable OBMC (0: false (default), 1: true)"),
   .enable_overlay =
       ARG_DEF(NULL, "enable-overlay", 1,
               "Enable coding overlay frames (0: false, 1: true (default))"),
