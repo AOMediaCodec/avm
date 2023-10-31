@@ -92,7 +92,20 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   *px_top_right = px_tr_common;
 
   if (row_off > 0) {  // Just need to check if enough pixels on the right.
+    const int plane_bw_unit_64 = mi_size_wide[BLOCK_64X64] >> ss_x;
     if (block_size_wide[bsize] > block_size_wide[BLOCK_64X64]) {
+#if CONFIG_BLOCK_256
+      // Special case: For 256 and 128 blocks, if the tx unit's top right center
+      // is aligned with 64x64 boundary and we are not at the right most column,
+      // then the tx unit does in fact have pixels available at its top-right
+      // corner.
+      const int tr_col = col_off + top_right_count_unit;
+      const int plane_bh_unit_64 = mi_size_high[BLOCK_64X64] >> ss_y;
+      if (tr_col != plane_bw_unit && tr_col % plane_bw_unit_64 == 0 &&
+          row_off % plane_bh_unit_64 == 0) {
+        return 1;
+      }
+#else
       // Special case: For 128x128 blocks, the transform unit whose
       // top-right corner is at the center of the block does in fact have
       // pixels available at its top-right corner.
@@ -100,7 +113,7 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
           col_off + top_right_count_unit == mi_size_wide[BLOCK_64X64] >> ss_x) {
         return 1;
       }
-      const int plane_bw_unit_64 = mi_size_wide[BLOCK_64X64] >> ss_x;
+#endif  // CONFIG_BLOCK_256
       const int col_off_64 = col_off % plane_bw_unit_64;
       return col_off_64 + top_right_count_unit < plane_bw_unit_64;
     }
