@@ -3781,6 +3781,13 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
   if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
+
+#if CONFIG_OPTFLOW_ON_TIP
+  if (!has_second_ref(mbmi) && !is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
+#else
+  if (!has_second_ref(mbmi)) return 0;
+#endif  // CONFIG_OPTFLOW_ON_TIP
+
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
 #else

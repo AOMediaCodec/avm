@@ -3305,11 +3305,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_OPTFLOW_REFINEMENT
   int_mv mv_refined[2 * N_OF_OFFSETS];
   const int use_optflow_refinement =
-      (mi->mode >= NEAR_NEARMV_OPTFLOW ||
-       (cm->features.opfl_refine_type == REFINE_ALL &&
-        mi->mode != GLOBAL_GLOBALMV &&
-        mi->interinter_comp.type == COMPOUND_AVERAGE)) &&
-      is_compound && opfl_allowed_for_cur_refs(cm, mi);
+      opfl_allowed_for_cur_refs(cm, mi) && opfl_allowed_for_cur_block(cm, mi);
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));
@@ -3640,14 +3636,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_OPTFLOW_REFINEMENT
   int_mv mv_refined[2 * N_OF_OFFSETS];
   const int use_optflow_refinement =
-      (mi->mode >= NEAR_NEARMV_OPTFLOW ||
-       (cm->features.opfl_refine_type == REFINE_ALL &&
-        mi->mode != GLOBAL_GLOBALMV &&
-#if CONFIG_CWP
-        mi->cwp_idx == CWP_EQUAL &&
-#endif  // CONFIG_CWP
-        mi->interinter_comp.type == COMPOUND_AVERAGE)) &&
-      is_compound && opfl_allowed_for_cur_refs(cm, mi);
+      opfl_allowed_for_cur_refs(cm, mi) && opfl_allowed_for_cur_block(cm, mi);
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));

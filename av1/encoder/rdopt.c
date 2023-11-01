@@ -10051,8 +10051,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         // Optical flow compound modes are only enabled with enable_order_hint
         // and when prediction is bi-directional
         if (this_mode >= NEAR_NEARMV_OPTFLOW &&
-            (!cm->seq_params.order_hint_info.enable_order_hint ||
-             !has_second_ref(mbmi) || !opfl_allowed_for_cur_refs(cm, mbmi)))
+            !opfl_allowed_for_cur_refs(cm, mbmi))
           continue;
         // In REFINE_ALL, optical flow refinement has been applied to regular
         // compound modes.
