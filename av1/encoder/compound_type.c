@@ -488,7 +488,7 @@ static INLINE void compute_best_interintra_mode(
   int64_t dist, skip_sse_sb;
   const int bw = block_size_wide[bsize];
   mbmi->interintra_mode = interintra_mode;
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
   assert(mbmi->motion_mode == INTERINTRA);
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
@@ -565,7 +565,7 @@ static AOM_INLINE int64_t compute_best_wedge_interintra(
   int64_t best_total_rd = INT64_MAX;
   for (INTERINTRA_MODE mode = 0; mode < INTERINTRA_MODES; ++mode) {
     mbmi->interintra_mode = mode;
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
     assert(mbmi->motion_mode == INTERINTRA);
     assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
@@ -686,7 +686,7 @@ static int handle_wedge_inter_intra_mode(
       !cpi->sf.inter_sf.disable_smooth_interintra;
 
   mbmi->use_wedge_interintra = 1;
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
   assert(mbmi->motion_mode == INTERINTRA);
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
@@ -788,7 +788,7 @@ static int handle_wedge_inter_intra_mode(
       // Set ref_frame[1] to NONE_FRAME temporarily so that the intra
       // predictor is not calculated again in av1_enc_build_inter_predictor().
 
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
       mbmi->motion_mode = SIMPLE_TRANSLATION;
 #else
       mbmi->ref_frame[1] = NONE_FRAME;
@@ -797,7 +797,7 @@ static int handle_wedge_inter_intra_mode(
       const int mi_col = xd->mi_col;
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                     AOM_PLANE_Y, AOM_PLANE_Y);
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
       mbmi->motion_mode = INTERINTRA;
 #else
       mbmi->ref_frame[1] = INTRA_FRAME;
@@ -859,7 +859,7 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
   // Single reference inter prediction
 
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
   // Only generate inter part of inter-intra
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #else
@@ -879,7 +879,7 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   // Restore the buffers for intra prediction
   restore_dst_buf(xd, *orig_dst, num_planes);
 
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
   mbmi->motion_mode = INTERINTRA;
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #else
@@ -902,7 +902,7 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
     }
   }
 
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
   assert(mbmi->motion_mode == INTERINTRA);
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT

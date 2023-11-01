@@ -545,7 +545,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
 
-#if !CLEANUP_MBMI_REF
+#if !CONFIG_INTERINTRA_IMPROVEMENT
       mbmi->ref_frame[1] = INTRA_FRAME;
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 

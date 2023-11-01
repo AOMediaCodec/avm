@@ -2245,7 +2245,7 @@ static int64_t motion_mode_rd(
                                                       ref_best_rd, &tmp_rate_mv,
                                                       &tmp_rate2, orig_dst);
           if (ret < 0) continue;
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
           assert(mbmi->motion_mode == INTERINTRA);
           // assert(mbmi->ref_frame[1] == INTRA_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT

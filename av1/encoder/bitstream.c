@@ -607,7 +607,7 @@ static AOM_INLINE void write_motion_mode(
   // Note(rachelbarker): Both of the conditions in brackets here are used in
   // various places to mean "is this block interintra?". This assertion is a
   // quick check to ensure these conditions can't get out of sync.
-#if !CLEANUP_MBMI_REF
+#if !CONFIG_INTERINTRA_IMPROVEMENT
   assert((mbmi->ref_frame[1] == INTRA_FRAME) == (motion_mode == INTERINTRA));
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 

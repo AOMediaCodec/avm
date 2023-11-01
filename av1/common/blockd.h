@@ -3604,7 +3604,7 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
-#if CONFIG_INTERINTRA_IMPROVEMENT && CLEANUP_MBMI_REF
+#if CONFIG_INTERINTRA_IMPROVEMENT
   return mbmi->motion_mode == INTERINTRA;
 #else
   return (is_inter_ref_frame(mbmi->ref_frame[0]) &&
@@ -3682,7 +3682,7 @@ static INLINE int is_interintra_allowed_bsize_group(int group) {
 }
 
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
-#if CLEANUP_MBMI_REF && CONFIG_INTERINTRA_IMPROVEMENT
+#if CONFIG_INTERINTRA_IMPROVEMENT
   assert(IMPLIES(mbmi->motion_mode == INTERINTRA,
                  mbmi->ref_frame[1] == NONE_FRAME));
   return (mbmi->motion_mode == INTERINTRA);
