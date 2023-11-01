@@ -126,7 +126,11 @@ static AOM_INLINE int keep_one_comp_stat_low_precision(
   nmv_component *mvcomp_ctx = nmvc->comps;
   nmv_component *cur_mvcomp_ctx = &mvcomp_ctx[comp_idx];
   aom_cdf_prob *sign_cdf = cur_mvcomp_ctx->sign_cdf;
+#if CONFIG_ENTROPY_PARA
+  aom_cdf_prob(*bits_cdf)[CDF_SIZE(2)] = cur_mvcomp_ctx->bits_cdf;
+#else
   aom_cdf_prob(*bits_cdf)[3] = cur_mvcomp_ctx->bits_cdf;
+#endif  // CONFIG_ENTROPY_PARA
 
   const int sign_rate = get_symbol_cost(sign_cdf, sign);
   rates[r_idx++] = sign_rate;
@@ -225,7 +229,11 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
 #endif
 
   aom_cdf_prob *class0_cdf = cur_mvcomp_ctx->class0_cdf;
+#if CONFIG_ENTROPY_PARA
+  aom_cdf_prob(*bits_cdf)[CDF_SIZE(2)] = cur_mvcomp_ctx->bits_cdf;
+#else
   aom_cdf_prob(*bits_cdf)[3] = cur_mvcomp_ctx->bits_cdf;
+#endif  // CONFIG_ENTROPY_PARA
 #if !CONFIG_FLEX_MVRES
   aom_cdf_prob *frac_part_cdf = mv_class
                                     ? (cur_mvcomp_ctx->fp_cdf)

@@ -29,7 +29,13 @@ extern "C" {
 
 typedef uint16_t aom_cdf_prob;
 
+#if CONFIG_ENTROPY_PARA
+#define CDF_SIZE(x) ((x) + 2)
+#define NUM_PARA_COMBINATIONS 125
+#define NUM_PARA_INTERVALS 3
+#else
 #define CDF_SIZE(x) ((x) + 1)
+#endif  // CONFIG_ENTROPY_PARA
 #define CDF_PROB_BITS 15
 #define CDF_PROB_TOP (1 << CDF_PROB_BITS)
 #define CDF_INIT_TOP 32768
@@ -641,6 +647,63 @@ static INLINE uint8_t get_prob(unsigned int num, unsigned int den) {
   }
 }
 
+#if CONFIG_ENTROPY_PARA
+/* para_adjustment_list array defines all possible triplets of adjustment
+ parameters allowed in PARA method. The first entry with {0, 0, 0} corresponds
+ to the default setting where no adjustment is made for the speed of adaptation.
+ Note: Developers may use the default (0) value for newly introduced contexts.
+ As an example, for the newly introduced default_stx_set_cdf table below, 0
+ values are added to explicitly set to default rate adaptation.
+ ----------------------------------------------------------------------------
+ static const aom_cdf_prob
+       default_stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)] = {
+         { AOM_CDF7(32744, 32748, 32752, 32756, 32760, 32764), 0 },
+         { AOM_CDF7(4, 32748, 32752, 32756, 32760, 32764), 0 },
+         { AOM_CDF7(4, 8, 32752, 32756, 32760, 32764), 0 },
+         { AOM_CDF7(4, 8, 12, 32756, 32760, 32764), 0 },
+         { AOM_CDF7(4, 8, 12, 16, 32760, 32764), 0 },
+         { AOM_CDF7(4, 8, 12, 16, 20, 32764), 0 },
+         { AOM_CDF7(4, 8, 12, 16, 20, 24), 0 },
+       };
+ ----------------------------------------------------------------------------
+ */
+static const int
+    para_adjustment_list[NUM_PARA_COMBINATIONS][NUM_PARA_INTERVALS] = {
+      { 0, 0, 0 },    { 0, 0, -1 },   { 0, 0, -2 },   { 0, 0, 1 },
+      { 0, 0, 2 },    { 0, -1, 0 },   { 0, -1, -1 },  { 0, -1, -2 },
+      { 0, -1, 1 },   { 0, -1, 2 },   { 0, -2, 0 },   { 0, -2, -1 },
+      { 0, -2, -2 },  { 0, -2, 1 },   { 0, -2, 2 },   { 0, 1, 0 },
+      { 0, 1, -1 },   { 0, 1, -2 },   { 0, 1, 1 },    { 0, 1, 2 },
+      { 0, 2, 0 },    { 0, 2, -1 },   { 0, 2, -2 },   { 0, 2, 1 },
+      { 0, 2, 2 },    { -1, 0, 0 },   { -1, 0, -1 },  { -1, 0, -2 },
+      { -1, 0, 1 },   { -1, 0, 2 },   { -1, -1, 0 },  { -1, -1, -1 },
+      { -1, -1, -2 }, { -1, -1, 1 },  { -1, -1, 2 },  { -1, -2, 0 },
+      { -1, -2, -1 }, { -1, -2, -2 }, { -1, -2, 1 },  { -1, -2, 2 },
+      { -1, 1, 0 },   { -1, 1, -1 },  { -1, 1, -2 },  { -1, 1, 1 },
+      { -1, 1, 2 },   { -1, 2, 0 },   { -1, 2, -1 },  { -1, 2, -2 },
+      { -1, 2, 1 },   { -1, 2, 2 },   { -2, 0, 0 },   { -2, 0, -1 },
+      { -2, 0, -2 },  { -2, 0, 1 },   { -2, 0, 2 },   { -2, -1, 0 },
+      { -2, -1, -1 }, { -2, -1, -2 }, { -2, -1, 1 },  { -2, -1, 2 },
+      { -2, -2, 0 },  { -2, -2, -1 }, { -2, -2, -2 }, { -2, -2, 1 },
+      { -2, -2, 2 },  { -2, 1, 0 },   { -2, 1, -1 },  { -2, 1, -2 },
+      { -2, 1, 1 },   { -2, 1, 2 },   { -2, 2, 0 },   { -2, 2, -1 },
+      { -2, 2, -2 },  { -2, 2, 1 },   { -2, 2, 2 },   { 1, 0, 0 },
+      { 1, 0, -1 },   { 1, 0, -2 },   { 1, 0, 1 },    { 1, 0, 2 },
+      { 1, -1, 0 },   { 1, -1, -1 },  { 1, -1, -2 },  { 1, -1, 1 },
+      { 1, -1, 2 },   { 1, -2, 0 },   { 1, -2, -1 },  { 1, -2, -2 },
+      { 1, -2, 1 },   { 1, -2, 2 },   { 1, 1, 0 },    { 1, 1, -1 },
+      { 1, 1, -2 },   { 1, 1, 1 },    { 1, 1, 2 },    { 1, 2, 0 },
+      { 1, 2, -1 },   { 1, 2, -2 },   { 1, 2, 1 },    { 1, 2, 2 },
+      { 2, 0, 0 },    { 2, 0, -1 },   { 2, 0, -2 },   { 2, 0, 1 },
+      { 2, 0, 2 },    { 2, -1, 0 },   { 2, -1, -1 },  { 2, -1, -2 },
+      { 2, -1, 1 },   { 2, -1, 2 },   { 2, -2, 0 },   { 2, -2, -1 },
+      { 2, -2, -2 },  { 2, -2, 1 },   { 2, -2, 2 },   { 2, 1, 0 },
+      { 2, 1, -1 },   { 2, 1, -2 },   { 2, 1, 1 },    { 2, 1, 2 },
+      { 2, 2, 0 },    { 2, 2, -1 },   { 2, 2, -2 },   { 2, 2, 1 },
+      { 2, 2, 2 },
+    };
+#endif  // CONFIG_ENTROPY_PARA
+
 static INLINE void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
   int rate;
   int i, tmp;
@@ -648,8 +711,14 @@ static INLINE void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
   static const int nsymbs2speed[17] = { 0, 0, 1, 1, 2, 2, 2, 2, 2,
                                         2, 2, 2, 2, 2, 2, 2, 2 };
   assert(nsymbs < 17);
+#if CONFIG_ENTROPY_PARA
+  const int time_interval = cdf[nsymbs] > 31 ? 2 : cdf[nsymbs] > 15 ? 1 : 0;
+  rate = 3 + time_interval + nsymbs2speed[nsymbs] +
+         para_adjustment_list[cdf[nsymbs + 1]][time_interval];
+#else
   rate = 3 + (cdf[nsymbs] > 15) + (cdf[nsymbs] > 31) +
          nsymbs2speed[nsymbs];  // + get_msb(nsymbs);
+#endif  // CONFIG_ENTROPY_PARA
   tmp = AOM_ICDF(0);
 
   // Single loop (faster)
