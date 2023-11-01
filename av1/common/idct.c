@@ -411,7 +411,7 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
   (void)filter;
 
   // Work buffer for secondary transform
-  DECLARE_ALIGNED(32, tran_low_t, temp_dqcoeff[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(32, tran_low_t, temp_dqcoeff[MAX_TX_SQUARE]);
   memcpy(temp_dqcoeff, dqcoeff, sizeof(tran_low_t) * tx_size_2d[tx_size]);
 
   av1_inv_stxfm(temp_dqcoeff, &txfm_param);
