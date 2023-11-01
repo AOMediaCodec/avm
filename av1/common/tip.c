@@ -873,7 +873,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   dst0 = cm->dst0_16_tip;
   dst1 = cm->dst1_16_tip;
 
-  int do_opfl = (is_opfl_refine_allowed(cm, mbmi) && plane == 0);
+  int do_opfl = (opfl_allowed_for_cur_refs(cm, mbmi) && plane == 0);
 
   const unsigned int sad_thres =
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT ? 15 : 6;

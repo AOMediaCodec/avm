@@ -792,7 +792,7 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
 #if CONFIG_OPTFLOW_REFINEMENT
   int use_optical_flow = 0;
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      is_opfl_refine_allowed(cm, mbmi)) {
+      opfl_allowed_for_cur_refs(cm, mbmi)) {
     use_optical_flow = aom_read_symbol(r, xd->tile_ctx->use_optflow_cdf[ctx], 2,
                                        ACCT_INFO("use_optical_flow"));
   }

@@ -959,18 +959,6 @@ static INLINE int32_t divide_and_round_signed(int64_t num, int64_t den) {
 #endif  // NDEBUG
   return out;
 }
-
-// Return 1 if current frame is REFINE_ALL and the current block uses optical
-// flow refinement, i.e., inter mode is in {NEAR_NEARMV, NEAR_NEWMV,
-// NEW_NEARMV, NEW_NEWMV}, and compound type is simple compound average.
-static INLINE int use_opfl_refine_all(const AV1_COMMON *cm,
-                                      const MB_MODE_INFO *mbmi) {
-  return cm->features.opfl_refine_type == REFINE_ALL &&
-         mbmi->mode >= COMP_INTER_MODE_START &&
-         mbmi->mode < COMP_OPTFLOW_MODE_START &&
-         mbmi->mode != GLOBAL_GLOBALMV &&
-         mbmi->interinter_comp.type == COMPOUND_AVERAGE;
-}
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
 // TODO(jkoleszar): yet another mv clamping function :-(
@@ -1098,7 +1086,7 @@ static INLINE void set_default_interp_filters(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
   mbmi->interp_fltr =
-      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || opfl_allowed_for_cur_block(cm, mbmi)
 #if CONFIG_REFINEMV
        || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
@@ -1122,7 +1110,7 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
 
 #if CONFIG_OPTFLOW_REFINEMENT
   // No interpolation filter search when optical flow MV refinement is used.
-  if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi))
+  if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || opfl_allowed_for_cur_block(cm, mbmi))
     return 0;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 

@@ -3309,7 +3309,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
        (cm->features.opfl_refine_type == REFINE_ALL &&
         mi->mode != GLOBAL_GLOBALMV &&
         mi->interinter_comp.type == COMPOUND_AVERAGE)) &&
-      is_compound && is_opfl_refine_allowed(cm, mi);
+      is_compound && opfl_allowed_for_cur_refs(cm, mi);
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));
@@ -3647,7 +3647,7 @@ static void build_inter_predictors_8x8_and_bigger(
         mi->cwp_idx == CWP_EQUAL &&
 #endif  // CONFIG_CWP
         mi->interinter_comp.type == COMPOUND_AVERAGE)) &&
-      is_compound && is_opfl_refine_allowed(cm, mi);
+      is_compound && opfl_allowed_for_cur_refs(cm, mi);
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
   assert(IMPLIES(use_optflow_refinement, !build_for_obmc));

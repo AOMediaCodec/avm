@@ -298,7 +298,7 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
   assert(is_inter_compound_mode(mode));
 #if CONFIG_OPTFLOW_REFINEMENT
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      is_opfl_refine_allowed(cm, mbmi)) {
+      opfl_allowed_for_cur_refs(cm, mbmi)) {
     const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
     aom_write_symbol(w, use_optical_flow,
                      xd->tile_ctx->use_optflow_cdf[mode_ctx], 2);
@@ -1232,15 +1232,15 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_DEBUG
 #if CONFIG_OPTFLOW_REFINEMENT
     // Sharp filter is always used whenever optical flow refinement is applied.
-    int mb_interp_filter =
-        (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+    int mb_interp_filter = (mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+                            opfl_allowed_for_cur_block(cm, mbmi)
 
 #if CONFIG_REFINEMV
-         || mbmi->refinemv_flag
+                            || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
-         )
-            ? MULTITAP_SHARP
-            : cm->features.interp_filter;
+                            )
+                               ? MULTITAP_SHARP
+                               : cm->features.interp_filter;
 #else
     int mb_interp_filter = cm->features.interp_filter;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -1251,19 +1251,21 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   }
   if (cm->features.interp_filter == SWITCHABLE) {
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi)
+    if (mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+        opfl_allowed_for_cur_block(cm, mbmi)
 #if CONFIG_REFINEMV
         || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
     ) {
 #if CONFIG_REFINEMV
       assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                         use_opfl_refine_all(cm, mbmi) || mbmi->refinemv_flag,
+                         opfl_allowed_for_cur_block(cm, mbmi) ||
+                         mbmi->refinemv_flag,
                      mbmi->interp_fltr == MULTITAP_SHARP));
 #else
-      assert(IMPLIES(
-          mbmi->mode >= NEAR_NEARMV_OPTFLOW || use_opfl_refine_all(cm, mbmi),
-          mbmi->interp_fltr == MULTITAP_SHARP));
+      assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
+                         opfl_allowed_for_cur_block(cm, mbmi),
+                     mbmi->interp_fltr == MULTITAP_SHARP));
 #endif  // CONFIG_REFINEMV
       return;
     }

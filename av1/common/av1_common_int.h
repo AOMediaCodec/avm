@@ -3774,8 +3774,8 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
 // If k is set to 1, refinement will only be enabled when |d0|=|d1|.
 #define OPFL_DIST_RATIO_THR 0
 
-static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
-                                         const MB_MODE_INFO *mbmi) {
+static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
+                                            const MB_MODE_INFO *mbmi) {
   if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
@@ -3811,6 +3811,18 @@ static INLINE int is_opfl_refine_allowed(const AV1_COMMON *cm,
   return OPFL_DIST_RATIO_THR == 0 ||
          (AOMMAX(abs(d0), abs(d1)) <=
           OPFL_DIST_RATIO_THR * AOMMIN(abs(d0), abs(d1)));
+}
+
+// Return 1 if current frame is REFINE_ALL and the current block uses optical
+// flow refinement, i.e., inter mode is in {NEAR_NEARMV, NEAR_NEWMV,
+// NEW_NEARMV, NEW_NEWMV}, and compound type is simple compound average.
+static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
+                                             const MB_MODE_INFO *mbmi) {
+  return cm->features.opfl_refine_type == REFINE_ALL &&
+         mbmi->mode >= COMP_INTER_MODE_START &&
+         mbmi->mode < COMP_OPTFLOW_MODE_START &&
+         mbmi->mode != GLOBAL_GLOBALMV &&
+         mbmi->interinter_comp.type == COMPOUND_AVERAGE;
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
