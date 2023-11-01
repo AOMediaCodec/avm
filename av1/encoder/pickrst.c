@@ -3431,9 +3431,11 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       // use the c_id filter from the bank. The latter is needed to calculate
       // merge bits for c_id, the former all other bits.
       WienerNonsepInfo token_wienerns_info_cand = rui_merge_best.wienerns_info;
-      copy_nsfilter_taps(&token_wienerns_info_cand,
-                         av1_constref_from_wienerns_bank(&rsc->wienerns_bank,
-                                                         bank_ref_cand, c_id));
+      copy_nsfilter_taps_for_class(
+          &token_wienerns_info_cand,
+          av1_constref_from_wienerns_bank(&rsc->wienerns_bank, bank_ref_cand,
+                                          c_id),
+          c_id);
       token_wienerns_info_cand.bank_ref_for_class[c_id] = bank_ref_cand;
 
       // Keep track of would be merge leader's bank.
