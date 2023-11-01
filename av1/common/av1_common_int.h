@@ -3823,12 +3823,14 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
 }
 
 // Check whether optical flow refinement is applicable based on the block and
-// mode info (mode, cwp_idx, compound average type). This is separated from
-// opfl_allowed_for_cur_refs because, unlike in REFINE_SWITCHABLE, where optical
-// flow is always used in *MV_OPTFLOW modes, the on/off switch for optical flow
-// in REFINE_ALL (--enable-opfl-refine=2) is based on these block level flags.
+// mode info (mode, cwp_idx, compound average type). In REFINE_SWITCHABLE,
+// optical flow is always used in *MV_OPTFLOW modes, but in REFINE_ALL
+// (--enable-opfl-refine=2) the on/off switch for optical flow is based on these
+// block level flags.
 static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
                                              const MB_MODE_INFO *mbmi) {
+  if (!opfl_allowed_for_cur_refs(cm, mbmi)) return 0;
+
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE)
     return mbmi->mode >= NEAR_NEARMV_OPTFLOW;
 
