@@ -1085,14 +1085,13 @@ static INLINE void set_default_interp_filters(
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
-  mbmi->interp_fltr =
-      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || opfl_allowed_for_cur_block(cm, mbmi)
+  mbmi->interp_fltr = (opfl_allowed_for_cur_block(cm, mbmi)
 #if CONFIG_REFINEMV
-       || mbmi->refinemv_flag
+                       || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
-       )
-          ? MULTITAP_SHARP
-          : av1_unswitchable_filter(frame_interp_filter);
+                       )
+                          ? MULTITAP_SHARP
+                          : av1_unswitchable_filter(frame_interp_filter);
 #else
   mbmi->interp_fltr = av1_unswitchable_filter(frame_interp_filter);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -1110,8 +1109,7 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
 
 #if CONFIG_OPTFLOW_REFINEMENT
   // No interpolation filter search when optical flow MV refinement is used.
-  if (mbmi->mode >= NEAR_NEARMV_OPTFLOW || opfl_allowed_for_cur_block(cm, mbmi))
-    return 0;
+  if (opfl_allowed_for_cur_block(cm, mbmi)) return 0;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_REFINEMV

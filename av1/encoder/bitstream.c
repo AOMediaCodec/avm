@@ -1232,8 +1232,7 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_DEBUG
 #if CONFIG_OPTFLOW_REFINEMENT
     // Sharp filter is always used whenever optical flow refinement is applied.
-    int mb_interp_filter = (mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                            opfl_allowed_for_cur_block(cm, mbmi)
+    int mb_interp_filter = (opfl_allowed_for_cur_block(cm, mbmi)
 
 #if CONFIG_REFINEMV
                             || mbmi->refinemv_flag
@@ -1251,22 +1250,12 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   }
   if (cm->features.interp_filter == SWITCHABLE) {
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-        opfl_allowed_for_cur_block(cm, mbmi)
+    if (opfl_allowed_for_cur_block(cm, mbmi)
 #if CONFIG_REFINEMV
         || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
     ) {
-#if CONFIG_REFINEMV
-      assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                         opfl_allowed_for_cur_block(cm, mbmi) ||
-                         mbmi->refinemv_flag,
-                     mbmi->interp_fltr == MULTITAP_SHARP));
-#else
-      assert(IMPLIES(mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                         opfl_allowed_for_cur_block(cm, mbmi),
-                     mbmi->interp_fltr == MULTITAP_SHARP));
-#endif  // CONFIG_REFINEMV
+      assert(mbmi->interp_fltr == MULTITAP_SHARP);
       return;
     }
 #endif  // CONFIG_OPTFLOW_REFINEMENT

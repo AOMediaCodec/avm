@@ -196,7 +196,7 @@ static INLINE int64_t interpolation_filter_rd(
   mbmi->interp_fltr = filter_idx;
 #if CONFIG_OPTFLOW_REFINEMENT
   const int tmp_rs =
-      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || opfl_allowed_for_cur_block(cm, mbmi)
+      (opfl_allowed_for_cur_block(cm, mbmi)
 #if CONFIG_REFINEMV
        || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
@@ -451,7 +451,7 @@ int64_t av1_interpolation_filter_search(
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
 #if CONFIG_OPTFLOW_REFINEMENT
   *switchable_rate =
-      (mbmi->mode >= NEAR_NEARMV_OPTFLOW || opfl_allowed_for_cur_block(cm, mbmi)
+      (opfl_allowed_for_cur_block(cm, mbmi)
 #if CONFIG_REFINEMV
        || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
@@ -493,13 +493,11 @@ int64_t av1_interpolation_filter_search(
 #if CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
     assert(mbmi->interp_fltr ==
-           ((mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-             opfl_allowed_for_cur_block(cm, mbmi) || mbmi->refinemv_flag)
+           ((opfl_allowed_for_cur_block(cm, mbmi) || mbmi->refinemv_flag)
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
 #else
-    assert(mbmi->interp_fltr == ((mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                                  opfl_allowed_for_cur_block(cm, mbmi))
+    assert(mbmi->interp_fltr == (opfl_allowed_for_cur_block(cm, mbmi)
                                      ? MULTITAP_SHARP
                                      : EIGHTTAP_REGULAR));
 #endif  // CONFIG_REFINEMV
@@ -512,15 +510,13 @@ int64_t av1_interpolation_filter_search(
 #if CONFIG_REFINEMV
     int use_default_filter = mbmi->refinemv_flag
 #if CONFIG_OPTFLOW_REFINEMENT
-                             || mbmi->mode >= NEAR_NEARMV_OPTFLOW ||
-                             opfl_allowed_for_cur_block(cm, mbmi)
+                             || opfl_allowed_for_cur_block(cm, mbmi)
 #endif
         ;
     if (has_second_ref(mbmi) && !use_default_filter) {
 #else
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
-        !opfl_allowed_for_cur_block(cm, mbmi)) {
+    if (has_second_ref(mbmi) && !opfl_allowed_for_cur_block(cm, mbmi)) {
 #else
     if (has_second_ref(mbmi)) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT

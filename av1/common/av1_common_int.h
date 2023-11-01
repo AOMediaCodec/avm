@@ -3818,6 +3818,7 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
 // NEW_NEARMV, NEW_NEWMV}, and compound type is simple compound average.
 static INLINE int opfl_allowed_for_cur_block(const AV1_COMMON *cm,
                                              const MB_MODE_INFO *mbmi) {
+  if (mbmi->mode >= NEAR_NEARMV_OPTFLOW) return 1;
   return cm->features.opfl_refine_type == REFINE_ALL &&
          mbmi->mode >= COMP_INTER_MODE_START &&
          mbmi->mode < COMP_OPTFLOW_MODE_START &&
