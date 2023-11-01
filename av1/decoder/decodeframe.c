@@ -7847,6 +7847,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_OPTFLOW_REFINEMENT
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           features->opfl_refine_type = aom_rb_read_literal(rb, 2);
+          if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
+            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                               "Invalid frame level optical flow refine type");
         } else {
           features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
         }
