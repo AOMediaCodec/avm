@@ -494,35 +494,6 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_ADAPTIVE_DS_FILTER
-void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
-                                              const int width, const int height,
-                                              const int stride,
-                                              const int chroma_stride,
-                                              int *alpha) {
-  int count = 0;
-  int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
-  for (int j = 0; j < height; ++j) {
-    for (int i = 0; i < width; ++i) {
-      sum_x += l[i + j * stride] >> 3;
-      sum_y += c[i + j * chroma_stride];
-      sum_xy += (l[i + j * stride] >> 3) * c[i + j * chroma_stride];
-      sum_xx += (l[i + j * stride] >> 3) * (l[i + j * stride] >> 3);
-    }
-    count += width;
-  }
-
-  if (count > 0) {
-    const int32_t der = sum_xx - (int32_t)((int64_t)sum_x * sum_x / count);
-    const int32_t nor = sum_xy - (int32_t)((int64_t)sum_x * sum_y / count);
-    const int16_t shift = 3 + CFL_ADD_BITS_ALPHA;
-    *alpha = resolve_divisor_32_CfL(nor, der, shift);
-  } else {
-    *alpha = 0;
-  }
-}
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
-
 void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
                                         int row, int col, TX_SIZE tx_size) {
   CFL_CTX *const cfl = &xd->cfl;
@@ -584,6 +555,35 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
 }
 #endif
 
+#if CONFIG_ADAPTIVE_DS_FILTER
+void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
+                                              const int width, const int height,
+                                              const int stride,
+                                              const int chroma_stride,
+                                              int *alpha) {
+  int count = 0;
+  int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
+  for (int j = 0; j < height; ++j) {
+    for (int i = 0; i < width; ++i) {
+      sum_x += l[i + j * stride] >> 3;
+      sum_y += c[i + j * chroma_stride];
+      sum_xy += (l[i + j * stride] >> 3) * c[i + j * chroma_stride];
+      sum_xx += (l[i + j * stride] >> 3) * (l[i + j * stride] >> 3);
+    }
+    count += width;
+  }
+
+  if (count > 0) {
+    const int32_t der = sum_xx - (int32_t)((int64_t)sum_x * sum_x / count);
+    const int32_t nor = sum_xy - (int32_t)((int64_t)sum_x * sum_y / count);
+    const int16_t shift = 3 + CFL_ADD_BITS_ALPHA;
+    *alpha = resolve_divisor_32_CfL(nor, der, shift);
+  } else {
+    *alpha = 0;
+  }
+}
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane) {
   CFL_CTX *const cfl = &xd->cfl;
@@ -627,23 +627,6 @@ static void cfl_luma_subsampling_420_hbd_c(const uint16_t *input,
   }
 }
 
-#if CONFIG_IMPROVED_CFL
-void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
-                                        uint16_t *output_q3, int width,
-                                        int height) {
-  for (int j = 0; j < height; j += 2) {
-    output_q3[0] = 3 * input[0] + input[1] + 3 * input[input_stride] +
-                   input[input_stride + 1];
-    for (int i = 2; i < width; i += 2) {
-      const int bot = i + input_stride;
-      output_q3[i >> 1] = input[i - 1] + 2 * input[i] + input[i + 1] +
-                          input[bot - 1] + 2 * input[bot] + input[bot + 1];
-    }
-    input += input_stride << 1;
-    output_q3 += CFL_BUF_LINE;
-  }
-}
-#endif
 #if CONFIG_ADAPTIVE_DS_FILTER
 void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int input_stride,
@@ -659,6 +642,21 @@ void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
 #else
       output_q3[i >> 1] = input[i] * 8;
 #endif  // CONFIG_CFL_IMPROVEMENTS
+    }
+    input += input_stride << 1;
+    output_q3 += CFL_BUF_LINE;
+  }
+}
+void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
+                                        uint16_t *output_q3, int width,
+                                        int height) {
+  for (int j = 0; j < height; j += 2) {
+    output_q3[0] = 3 * input[0] + input[1] + 3 * input[input_stride] +
+                   input[input_stride + 1];
+    for (int i = 2; i < width; i += 2) {
+      const int bot = i + input_stride;
+      output_q3[i >> 1] = input[i - 1] + 2 * input[i] + input[i + 1] +
+                          input[bot - 1] + 2 * input[bot] + input[bot + 1];
     }
     input += input_stride << 1;
     output_q3 += CFL_BUF_LINE;

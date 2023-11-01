@@ -124,11 +124,6 @@ void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
 #endif  // CONFIG_ADPTIVE_DS_422 && !CONFIG_ADAPTIVE_DS_FILTER
 
 #if CONFIG_IMPROVED_CFL
-// 121 subsample filter
-void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
-                                        uint16_t *output_q3, int width,
-                                        int height);
-
 // Get neighbor luma reconstruction pixels
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
@@ -154,6 +149,10 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
                                               const int stride,
                                               const int chroma_stride,
                                               int *alpha);
+// 121 subsample filter
+void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
+                                        uint16_t *output_q3, int width,
+                                        int height);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 
 void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
