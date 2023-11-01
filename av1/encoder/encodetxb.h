@@ -685,7 +685,16 @@ static INLINE int av1_cost_skip_txb(const CoeffCosts *coeff_costs,
 #if CONFIG_CONTEXT_DERIVATION
   int txb_skip_ctx = txb_ctx->txb_skip_ctx;
   if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    MACROBLOCKD *const xd = &x->e_mbd;
+    const MB_MODE_INFO *mbmi = xd->mi[0];
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    return coeff_costs_->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
+#else
     return coeff_costs_->txb_skip_cost[txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   } else {
     txb_skip_ctx +=
         (x->plane[AOM_PLANE_U].eobs[block] ? V_TXB_SKIP_CONTEXT_OFFSET : 0);

@@ -594,8 +594,17 @@ static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
   TXB_CTX txb_ctx;
   get_txb_ctx(bsize, tx_size, 0, ta, tl, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const int pred_mode_ctx =
+      (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+  const int zero_blk_rate =
+      x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
+          .txb_skip_cost[pred_mode_ctx][txb_ctx.txb_skip_ctx][1];
+#else
   const int zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
                                 .txb_skip_cost[txb_ctx.txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   rd_stats->rate = zero_blk_rate *
                    (block_size_wide[bsize] >> tx_size_wide_log2[tx_size]) *
                    (block_size_high[bsize] >> tx_size_high_log2[tx_size]);
@@ -2482,8 +2491,17 @@ static INLINE void predict_dc_only_block(
 #if CONFIG_CONTEXT_DERIVATION
     int zero_blk_rate = 0;
     if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+      const int is_inter = is_inter_block(mbmi, xd->tree_type);
+      const int pred_mode_ctx =
+          (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+      zero_blk_rate =
+          x->coeff_costs.coeff_costs[txs_ctx][plane_type]
+              .txb_skip_cost[pred_mode_ctx][txb_ctx_tmp.txb_skip_ctx][1];
+#else
       zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][plane_type]
                           .txb_skip_cost[txb_ctx_tmp.txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     } else {
       zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][plane_type]
                           .v_txb_skip_cost[txb_ctx_tmp.txb_skip_ctx][1];
@@ -3399,8 +3417,17 @@ static AOM_INLINE void try_tx_block_no_split(
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, 0, pta, ptl, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const int pred_mode_ctx =
+      (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+  const int zero_blk_rate =
+      x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
+          .txb_skip_cost[pred_mode_ctx][txb_ctx.txb_skip_ctx][1];
+#else
   const int zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
                                 .txb_skip_cost[txb_ctx.txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   rd_stats->zero_rate = zero_blk_rate;
   const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
   mbmi->inter_tx_size[index] = tx_size;

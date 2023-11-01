@@ -372,8 +372,20 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   int txb_skip_ctx = txb_ctx->txb_skip_ctx;
   int all_zero;
   if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    MB_MODE_INFO *const mbmi = xd->mi[0];
+#if !CONFIG_ATC_DCTX_ALIGNED
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#endif
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    all_zero = aom_read_symbol(
+        r, ec_ctx->txb_skip_cdf[pred_mode_ctx][txs_ctx][txb_skip_ctx], 2,
+        ACCT_INFO("all_zero", "plane_y_or_u"));
+#else
     all_zero = aom_read_symbol(r, ec_ctx->txb_skip_cdf[txs_ctx][txb_skip_ctx],
                                2, ACCT_INFO("all_zero", "plane_y_or_u"));
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   } else {
     txb_skip_ctx += (xd->eob_u_flag ? V_TXB_SKIP_CONTEXT_OFFSET : 0);
     all_zero = aom_read_symbol(r, ec_ctx->v_txb_skip_cdf[txb_skip_ctx], 2,

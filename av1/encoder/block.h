@@ -153,7 +153,11 @@ typedef struct macroblock_plane {
  */
 typedef struct {
   //! Cost to skip txfm for the current txfm block.
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+  int txb_skip_cost[2][TXB_SKIP_CONTEXTS][2];
+#else
   int txb_skip_cost[TXB_SKIP_CONTEXTS][2];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
 #if CONFIG_CONTEXT_DERIVATION
   //! Cost to skip txfm for the current AOM_PLANE_V txfm block.
   int v_txb_skip_cost[V_TXB_SKIP_CONTEXTS][2];

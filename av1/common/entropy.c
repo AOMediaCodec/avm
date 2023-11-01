@@ -44,7 +44,12 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   cm->coef_cdf_category = index;
 #endif
 
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+  av1_copy(cm->fc->txb_skip_cdf[0], av1_default_txb_skip_cdfs[index]);
+  av1_copy(cm->fc->txb_skip_cdf[1], av1_default_txb_skip_cdfs[index]);
+#else
   av1_copy(cm->fc->txb_skip_cdf, av1_default_txb_skip_cdfs[index]);
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
 #if CONFIG_CONTEXT_DERIVATION
   av1_copy(cm->fc->v_txb_skip_cdf, av1_default_v_txb_skip_cdfs[index]);
 #endif  // CONFIG_CONTEXT_DERIVATION

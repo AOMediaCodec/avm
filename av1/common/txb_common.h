@@ -765,6 +765,15 @@ static INLINE void get_txb_ctx_skip(const BLOCK_SIZE plane_bsize,
                                     const ENTROPY_CONTEXT *const a,
                                     const ENTROPY_CONTEXT *const l,
                                     TXB_CTX *const txb_ctx) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+  (void)plane_bsize;
+  (void)tx_size;
+  (void)a;
+  (void)l;
+  const int skip_offset = 13;
+  txb_ctx->dc_sign_ctx = 0;
+  txb_ctx->txb_skip_ctx = skip_offset;
+#else
   const int txb_w_unit = tx_size_wide_unit[tx_size];
   const int txb_h_unit = tx_size_high_unit[tx_size];
   const int skip_offset = 13;
@@ -793,6 +802,7 @@ static INLINE void get_txb_ctx_skip(const BLOCK_SIZE plane_bsize,
     left = AOMMIN(left, 4);
     txb_ctx->txb_skip_ctx = skip_contexts[top][left] + skip_offset;
   }
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
 }
 
 static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
@@ -835,6 +845,26 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
     if (plane_bsize == txsize_to_bsize[tx_size]) {
       txb_ctx->txb_skip_ctx = 0;
     } else {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+      // This is the algorithm to generate table skip_contexts[top][left].
+      //    const int diag = top + left;
+      //    const int min = AOMMIN(AOMMIN(top, left), 4);
+      //    if (diag == 0)
+      //      txb_skip_ctx = 1;
+      //    else if (diag==1 || diag==2)
+      //      txb_skip_ctx = 2;
+      //    else if (diag==3 || diag==4)
+      //      txb_skip_ctx = 3;
+      //    else if (diag==5 || diag==6)
+      //      txb_skip_ctx = 4;
+      //    else
+      //      txb_skip_ctx = 5;
+      static const uint8_t skip_contexts[5][5] = { { 1, 2, 2, 3, 3 },
+                                                   { 2, 2, 3, 3, 4 },
+                                                   { 2, 3, 3, 4, 4 },
+                                                   { 3, 3, 4, 4, 5 },
+                                                   { 3, 4, 4, 5, 5 } };
+#else
       // This is the algorithm to generate table skip_contexts[top][left].
       //    const int max = AOMMIN(top | left, 4);
       //    const int min = AOMMIN(AOMMIN(top, left), 4);
@@ -853,6 +883,7 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
                                                    { 2, 4, 4, 4, 5 },
                                                    { 2, 4, 4, 4, 5 },
                                                    { 3, 5, 5, 5, 6 } };
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
       // For top and left, we only care about which of the following three
       // categories they belong to: { 0 }, { 1, 2, 3 }, or { 4, 5, ... }. The
       // spec calculates top and left with the Max() function. We can calculate
@@ -882,10 +913,14 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
 #if CONFIG_CONTEXT_DERIVATION
     int ctx_offset = 0;
     if (plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+      ctx_offset = 7;
+#else
       ctx_offset = (num_pels_log2_lookup[plane_bsize] >
                     num_pels_log2_lookup[txsize_to_bsize[tx_size]])
                        ? 10
                        : 7;
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     } else {
       ctx_offset = (num_pels_log2_lookup[plane_bsize] >
                     num_pels_log2_lookup[txsize_to_bsize[tx_size]])
@@ -894,11 +929,15 @@ static INLINE void get_txb_ctx(const BLOCK_SIZE plane_bsize,
     }
     txb_ctx->txb_skip_ctx = ctx_base + ctx_offset;
 #else
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    const int ctx_offset = 7;
+#else
     const int ctx_offset = (num_pels_log2_lookup[plane_bsize] >
                             num_pels_log2_lookup[txsize_to_bsize[tx_size]])
                                ? 10
                                : 7;
     txb_ctx->txb_skip_ctx = ctx_base + ctx_offset;
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
 #endif  // CONFIG_CONTEXT_DERIVATION
   }
 #undef MAX_TX_SIZE_UNIT

@@ -1122,8 +1122,18 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       LV_MAP_COEFF_COST *pcost = &coeff_costs->coeff_costs[tx_size][plane];
 
       for (int ctx = 0; ctx < TXB_SKIP_CONTEXTS; ++ctx)
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+      {
+        av1_cost_tokens_from_cdf(pcost->txb_skip_cost[0][ctx],
+                                 fc->txb_skip_cdf[0][tx_size][ctx], NULL);
+        av1_cost_tokens_from_cdf(pcost->txb_skip_cost[1][ctx],
+                                 fc->txb_skip_cdf[1][tx_size][ctx], NULL);
+      }
+#else
         av1_cost_tokens_from_cdf(pcost->txb_skip_cost[ctx],
                                  fc->txb_skip_cdf[tx_size][ctx], NULL);
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+
 #if CONFIG_CONTEXT_DERIVATION
       for (int ctx = 0; ctx < V_TXB_SKIP_CONTEXTS; ++ctx)
         av1_cost_tokens_from_cdf(pcost->v_txb_skip_cost[ctx],

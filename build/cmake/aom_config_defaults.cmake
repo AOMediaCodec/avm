@@ -362,6 +362,10 @@ set_aom_config_var(CONFIG_D143_CCSO_FM_FLAG 1
 set_aom_config_var(CONFIG_CCSO_BO_ONLY_OPTION 1
                    "Enable CCSO band offset only option.")
 
+set_aom_config_var(
+  CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX 1
+  "CWG-D086: Context modeling for transform block zero flag signaling")
+
 #
 # Variables in this section control optional features of the build system.
 #

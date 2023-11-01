@@ -782,8 +782,19 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
     xd->eob_u_flag = eob ? 1 : 0;
   }
   if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+#if !CONFIG_ATC_DCTX_ALIGNED
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#endif
+    const int pred_mode_ctx =
+        (is_inter || xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    aom_write_symbol(w, eob == 0,
+                     ec_ctx->txb_skip_cdf[pred_mode_ctx][txs_ctx][txb_skip_ctx],
+                     2);
+#else
     aom_write_symbol(w, eob == 0, ec_ctx->txb_skip_cdf[txs_ctx][txb_skip_ctx],
                      2);
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   } else {
     aom_write_symbol(w, eob == 0, ec_ctx->v_txb_skip_cdf[txb_skip_ctx], 2);
   }
@@ -1643,14 +1654,24 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
   const int16_t *const scan = scan_order->scan;
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, width);
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const int pred_mode_ctx =
+      (is_inter || xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+  int cost = coeff_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
+#else
   int cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   int8_t signs_buf[TX_PAD_2D];
   int8_t *const signs = set_signs(signs_buf, width);
   av1_txb_init_levels_signs(qcoeff, width, height, levels_buf, signs_buf);
 #if CONFIG_ATC_DCTX_ALIGNED
   const int bob_code = p->bobs[block];
   const int bob = av1_get_max_eob(tx_size) - bob_code;
+#if !CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane == PLANE_TYPE_Y) ||
                      use_inter_fsc(cm, plane, tx_type, is_inter);
@@ -1775,7 +1796,15 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
   if (plane == AOM_PLANE_V) {
     cost = coeff_costs->v_txb_skip_cost[txb_skip_ctx][0];
   } else {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    const MB_MODE_INFO *mbmi = xd->mi[0];
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    cost = coeff_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
+#else
     cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   }
 #else
   int cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
@@ -2062,7 +2091,15 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
   if (plane == AOM_PLANE_V) {
     cost = coeff_costs->v_txb_skip_cost[txb_skip_ctx][0];
   } else {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    const MB_MODE_INFO *mbmi = xd->mi[0];
+    const int is_inter = is_inter_block(mbmi, xd->tree_type);
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    cost = coeff_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
+#else
     cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   }
 #else
   int cost = coeff_costs->txb_skip_cost[txb_skip_ctx][0];
@@ -2196,7 +2233,15 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
 #if CONFIG_CONTEXT_DERIVATION
     int txb_skip_ctx = txb_ctx->txb_skip_ctx;
     if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+      const MB_MODE_INFO *mbmi = xd->mi[0];
+      const int is_inter = is_inter_block(mbmi, xd->tree_type);
+      const int pred_mode_ctx =
+          (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+      skip_cost += coeff_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
+#else
       skip_cost += coeff_costs->txb_skip_cost[txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     } else {
       txb_skip_ctx +=
           (x->plane[AOM_PLANE_U].eobs[block] ? V_TXB_SKIP_CONTEXT_OFFSET : 0);
@@ -2285,7 +2330,15 @@ int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
 #if CONFIG_CONTEXT_DERIVATION
     int txb_skip_ctx = txb_ctx->txb_skip_ctx;
     if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+      const MB_MODE_INFO *mbmi = xd->mi[0];
+      const int is_inter = is_inter_block(mbmi, xd->tree_type);
+      const int pred_mode_ctx =
+          (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+      skip_cost += coeff_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
+#else
       skip_cost += coeff_costs->txb_skip_cost[txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     } else {
       txb_skip_ctx +=
           (x->plane[AOM_PLANE_U].eobs[block] ? V_TXB_SKIP_CONTEXT_OFFSET : 0);
@@ -3516,8 +3569,15 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     non_skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][0];
     skip_cost = txb_costs->v_txb_skip_cost[txb_skip_ctx][1];
   } else {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+    const int pred_mode_ctx =
+        (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+    non_skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
+    skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
+#else
     non_skip_cost = txb_costs->txb_skip_cost[txb_skip_ctx][0];
     skip_cost = txb_costs->txb_skip_cost[txb_skip_ctx][1];
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
   }
 #else
   const int non_skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][0];
@@ -4045,8 +4105,19 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
     ++td->counts->txb_skip[cdf_idx][txsize_ctx][txb_ctx.txb_skip_ctx][eob == 0];
 #endif  // CONFIG_ENTROPY_STATS
     if (allow_update_cdf) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+#if !CONFIG_EOB_POS_LUMA
+      const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#endif  // CONFIG_EOB_POS_LUMA
+      const int pred_mode_ctx =
+          (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+      update_cdf(
+          ec_ctx->txb_skip_cdf[pred_mode_ctx][txsize_ctx][txb_ctx.txb_skip_ctx],
+          eob == 0, 2);
+#else
       update_cdf(ec_ctx->txb_skip_cdf[txsize_ctx][txb_ctx.txb_skip_ctx],
                  eob == 0, 2);
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
     }
     CB_COEFF_BUFFER *cb_coef_buff = x->cb_coef_buff;
     const int txb_offset =
@@ -4318,7 +4389,18 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #if CONFIG_CONTEXT_DERIVATION
       int txb_skip_ctx = txb_ctx.txb_skip_ctx;
       if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
+#if CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
+#if !CONFIG_ATC_DCTX_ALIGNED
+        const int is_inter = is_inter_block(mbmi, xd->tree_type);
+#endif
+        const int pred_mode_ctx =
+            (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
+        update_cdf(
+            ec_ctx->txb_skip_cdf[pred_mode_ctx][txsize_ctx][txb_skip_ctx],
+            eob == 0, 2);
+#else
         update_cdf(ec_ctx->txb_skip_cdf[txsize_ctx][txb_skip_ctx], eob == 0, 2);
+#endif  // CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX
       } else {
         txb_skip_ctx +=
             (x->plane[AOM_PLANE_U].eobs[block] ? V_TXB_SKIP_CONTEXT_OFFSET : 0);
