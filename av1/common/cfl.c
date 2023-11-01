@@ -233,7 +233,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
 #endif  // CONFIG_CFL_IMPROVEMENTS
         } else {
           output_q3[i >> 1] =
-              (input[i] + input[i + 1] + input[bot] + input[bot + 1] + 2) << 1;
+              (input[i] + input[i + 1] + input[bot] + input[bot + 1]) << 1;
         }
 #else
 #if CONFIG_IMPROVED_CFL
@@ -242,7 +242,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                             2 * input[bot] + input[bot + 1];
 #else
         output_q3[i >> 1] =
-            (input[i] + input[i + 1] + input[bot] + input[bot + 1] + 2) << 1;
+            (input[i] + input[i + 1] + input[bot] + input[bot + 1]) << 1;
 #endif
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
       }
