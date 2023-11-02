@@ -1572,8 +1572,8 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                             INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
   for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
 #if CONFIG_ATC_DCTX_ALIGNED
-    int skip_cctx = !is_inter_block(xd->mi[0], xd->tree_type) && *eob_c1 == 1;
-    if (plane == AOM_PLANE_V && skip_cctx) {
+    if (plane == AOM_PLANE_V && !is_inter_block(xd->mi[0], xd->tree_type) &&
+        *eob_c1 == 1) {
       update_cctx_array(xd, blk_row, blk_col, 0, 0,
                         args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
       cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
@@ -1619,8 +1619,8 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
                          cm->quant_params.base_qindex);
     }
 #if CONFIG_ATC_DCTX_ALIGNED
-    skip_cctx = !is_inter_block(xd->mi[0], xd->tree_type) && *eob_c1 == 1;
-    if (plane == AOM_PLANE_V && skip_cctx) {
+    if (plane == AOM_PLANE_V && !is_inter_block(xd->mi[0], xd->tree_type) &&
+        *eob_c1 == 1) {
       update_cctx_array(xd, blk_row, blk_col, 0, 0,
                         args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
       cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
