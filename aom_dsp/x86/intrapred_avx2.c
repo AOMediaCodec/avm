@@ -88,50 +88,6 @@ static DECLARE_ALIGNED(32, uint16_t, HighbdBaseMask[17][16]) = {
     0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff }
 };
 
-static INLINE void highbd_transpose16x4_8x8_sse2(__m128i *x, __m128i *d) {
-  __m128i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
-
-  r0 = _mm_unpacklo_epi16(x[0], x[1]);
-  r1 = _mm_unpacklo_epi16(x[2], x[3]);
-  r2 = _mm_unpacklo_epi16(x[4], x[5]);
-  r3 = _mm_unpacklo_epi16(x[6], x[7]);
-
-  r4 = _mm_unpacklo_epi16(x[8], x[9]);
-  r5 = _mm_unpacklo_epi16(x[10], x[11]);
-  r6 = _mm_unpacklo_epi16(x[12], x[13]);
-  r7 = _mm_unpacklo_epi16(x[14], x[15]);
-
-  r8 = _mm_unpacklo_epi32(r0, r1);
-  r9 = _mm_unpackhi_epi32(r0, r1);
-  r10 = _mm_unpacklo_epi32(r2, r3);
-  r11 = _mm_unpackhi_epi32(r2, r3);
-
-  r12 = _mm_unpacklo_epi32(r4, r5);
-  r13 = _mm_unpackhi_epi32(r4, r5);
-  r14 = _mm_unpacklo_epi32(r6, r7);
-  r15 = _mm_unpackhi_epi32(r6, r7);
-
-  r0 = _mm_unpacklo_epi64(r8, r9);
-  r1 = _mm_unpackhi_epi64(r8, r9);
-  r2 = _mm_unpacklo_epi64(r10, r11);
-  r3 = _mm_unpackhi_epi64(r10, r11);
-
-  r4 = _mm_unpacklo_epi64(r12, r13);
-  r5 = _mm_unpackhi_epi64(r12, r13);
-  r6 = _mm_unpacklo_epi64(r14, r15);
-  r7 = _mm_unpackhi_epi64(r14, r15);
-
-  d[0] = _mm_unpacklo_epi64(r0, r2);
-  d[1] = _mm_unpacklo_epi64(r4, r6);
-  d[2] = _mm_unpacklo_epi64(r1, r3);
-  d[3] = _mm_unpacklo_epi64(r5, r7);
-
-  d[4] = _mm_unpackhi_epi64(r0, r2);
-  d[5] = _mm_unpackhi_epi64(r4, r6);
-  d[6] = _mm_unpackhi_epi64(r1, r3);
-  d[7] = _mm_unpackhi_epi64(r5, r7);
-}
-
 static INLINE void highbd_transpose4x16_avx2(__m256i *x0, __m256i *x1,
                                              __m256i *x2, __m256i *x3,
                                              __m256i *d0, __m256i *d1,

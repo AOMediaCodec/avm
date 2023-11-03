@@ -250,10 +250,10 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
               _mm256_adds_epu16(res, offset_const_16b);
           const __m128i res_0 = _mm256_castsi256_si128(res_unsigned_16b);
           const __m128i res_1 = _mm256_extracti128_si256(res_unsigned_16b, 1);
-          _mm_storel_epi64((__m128i *)(&dst[i * dst_stride0 + j]), res_0);
-          _mm_storeh_epi64((__m128i *)(&dst[(i + 1) * dst_stride0 + j]), res_0);
-          _mm_storel_epi64((__m128i *)(&dst[(i + 2) * dst_stride0 + j]), res_1);
-          _mm_storeh_epi64((__m128i *)(&dst[(i + 3) * dst_stride0 + j]), res_1);
+          _mm_storel_epi64((__m128i *)(&dst[i * dst_stride + j]), res_0);
+          _mm_storeh_epi64((__m128i *)(&dst[(i + 1) * dst_stride + j]), res_0);
+          _mm_storel_epi64((__m128i *)(&dst[(i + 2) * dst_stride + j]), res_1);
+          _mm_storeh_epi64((__m128i *)(&dst[(i + 3) * dst_stride + j]), res_1);
         }
       }
     }
