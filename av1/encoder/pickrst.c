@@ -211,7 +211,13 @@ typedef struct {
   // a subset needs to be considered for merging for a given drl candidate.
   Vector *unit_indices;
 #endif  // CONFIG_LR_MERGE_COEFFS
-
+#if CONFIG_TEMP_LR
+  //whether frame filter is predicted from a reference picture
+  uint8_t tempoporal_pred_flag;
+  //reference picture index for frame level filter prediction
+  uint8_t rst_ref_pic_idx;
+  WienerNonsepInfo frame_filters;
+#endif
   AV1PixelRect tile_rect;
 } RestSearchCtxt;
 
@@ -1243,6 +1249,9 @@ static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
   rui->plane = rsc->plane;
   rui->wienerns_info.num_classes = rsc->num_filter_classes;
   rui->wienerns_info.frame_filters_on = rsc->frame_filters_on;
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+  rui->wienerns_info.num_classes_before_merge = rsc->num_filter_classes_before_merge;
+#endif
 }
 
 static int count_pc_wiener_bits() {
@@ -4417,6 +4426,9 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
 #if CONFIG_COMBINE_PC_NS_WIENER
   rsi->frame_filters_on = rsc->frame_filters_on;
   rsi->num_filter_classes = rsc->num_filter_classes;
+#if CONFIG_TEMP_LR
+  rsi->frame_filters = rsc->frame_filters;
+#endif
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   rsi->num_classes_before_merge = rsc->num_filter_classes_before_merge;
   memcpy(rsi->merged_to_indices, rsc->best_merged_to_indices, sizeof(rsc->merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
@@ -4855,6 +4867,28 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
   }
   return results;
 }
+#if CONFIG_TEMP_LR
+static double obtain_temp_pred_frame_filters_cost(
+    RestSearchCtxt *rsc, WienerNonsepInfo *filter) {
+  assert (rsc->tempoporal_pred_flag);
+
+  double *work_cost_array = (double *)(aom_malloc(rsc->wienerns_stats->size *
+                                                  sizeof(*work_cost_array)));
+  RestorationUnitInfo rui;
+  initialize_rui_for_nonsep_search(rsc, &rui);
+  rui.restoration_type = RESTORE_WIENER_NONSEP;
+
+  rui.wienerns_info = *filter;
+  RdResults rd_results =
+    update_cost_and_weights_wienerns(rsc, &rui, work_cost_array, 0);
+
+  double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+        rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
+        rsc->cm->seq_params.bit_depth);
+  // cost += frame level infor cos, to be added;
+  return cost;
+}
+#endif
 
 static double optimize_frame_filters_for_target_classes(
     RestSearchCtxt *rsc, WienerNonsepInfo *filter, int *best_utilization,
@@ -5128,6 +5162,9 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 #endif
   int num_stats_classes = rsc->num_stats_classes;
   initialize_stat_weights(rsc);
+#if CONFIG_TEMP_LR
+  rsc->tempoporal_pred_flag = 0;
+#endif
   for (int i = 0; i < num_try; ++i) {
     const int num_target_classes = num_classes_to_try[i];
     assert(decode_num_filter_classes(encode_num_filter_classes(
@@ -5144,6 +5181,8 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     if (i == 0)
       unoccupied = count_and_merge_classes_with_no_pixels(rsc, merged_to_indices);
     else {
+      const int unoccupied = count_classes_with_no_pixels(rsc); // redundant code?
+      (void)unoccupied;
       // init merged_to_indices array
       for (int c_id = 0; c_id < num_target_classes; ++c_id) {
         merged_to_indices[c_id] = c_id;
@@ -5371,6 +5410,61 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   rsc->frame_filter_cost =
       calculate_frame_filters_cost(rsc, &tmp_bank, &best_filter);
 
+#if CONFIG_TEMP_LR
+  int8_t best_ref_idx = -1;
+  for (int ref_idx = 0; ref_idx < rsc->cm->ref_frames_info.num_total_refs; ref_idx ++) {
+    RestorationInfo *rsi = &rsc->cm->ref_frame_map[ref_idx]->rst_info[rsc->plane];
+    if (!rsi->frame_filters_on) continue;
+//    assert(rsi->restoration_unit_size == RESTORE_WIENER_NONSEP || rsi->restoration_unit_size == RESTORE_SWITCHABLE);
+    rsc->tempoporal_pred_flag = 1;
+    tmp_filter = rsi->frame_filters;
+    rsc->num_filter_classes = tmp_filter.num_classes;
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+    rsc->num_filter_classes_before_merge = tmp_filter.num_classes_before_merge;
+    memcpy (rsc->merged_to_indices, tmp_filter.merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+#endif
+
+    int utilization = 0;
+    double cost = obtain_temp_pred_frame_filters_cost(
+              rsc, &tmp_filter);
+
+    // Reset this bank to account for bits that signal the frame level filters.
+    initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
+                                                       &tmp_bank);
+
+    if (cost < best_cost) {
+      best_cost = cost;
+      best_ref_idx = ref_idx;
+      best_filter = tmp_filter;
+    }
+  }
+
+  best_num_classes = best_filter.num_classes;
+  rsc->num_filter_classes = best_filter.num_classes;
+  rsc->best_num_filter_classes = best_filter.num_classes;
+
+  if (best_ref_idx >= 0) {
+    rsc->tempoporal_pred_flag = 1;
+    rsc->rst_ref_pic_idx = best_ref_idx;
+    rsc->frame_filter_cost = 0;
+
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+    rsc->num_filter_classes_before_merge = best_filter.num_classes_before_merge;
+    rsc->best_num_filter_classes_before_merge = best_filter.num_classes_before_merge;
+    memcpy (rsc->merged_to_indices, best_filter.merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy (rsc->best_merged_to_indices, best_filter.merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+#endif
+  } else {
+    rsc->tempoporal_pred_flag = 0;
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+    rsc->num_filter_classes_before_merge = best_num_classes_before_merge;
+    rsc->best_num_filter_classes_before_merge = best_num_classes_before_merge;
+    memcpy (rsc->merged_to_indices, best_merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy (rsc->best_merged_to_indices, best_merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+#endif
+  }
+#endif
+
   rsc->frame_filters_total_cost = best_cost;
   av1_reset_wienerns_bank(&rsc->frame_filter_dictionary,
                           rsc->cm->quant_params.base_qindex, best_num_classes,
@@ -5394,6 +5488,10 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
         best_filter.match_indices[c_id];
     assert(rsc->frame_filter_dictionary.bank_size_for_class[c_id] == 1);
   }
+
+#if CONFIG_TEMP_LR
+  rsc->frame_filters = best_filter;
+#endif
 
   aom_free(best_cost_array);
   aom_free(work_cost_array);
@@ -5532,6 +5630,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   WienerNonsepInfoBank frame_filter_dict;
   double frame_filter_cost = DBL_MAX;
   int best_frame_filters_state = 0;
+#if CONFIG_TEMP_LR
+  int8_t best_temp_pred_flag = 0;
+  int8_t best_temp_ref_idx = -1;
+#endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   uint16_t *luma = NULL;
@@ -5578,6 +5680,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     RestorationType best_rtype = RESTORE_NONE;
 #if CONFIG_COMBINE_PC_NS_WIENER
     best_frame_filters_state = 0;
+#if CONFIG_TEMP_LR
+  int8_t best_temp_pred_flag = 0;
+  int8_t best_temp_ref_idx = -1;
+#endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_LR_IMPROVEMENTS
@@ -5698,6 +5804,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if CONFIG_COMBINE_PC_NS_WIENER
             if (rsc.plane == AOM_PLANE_Y) {
               best_frame_filters_state = rsc.frame_filters_on;
+#if CONFIG_TEMP_LR
+              best_temp_pred_flag = rsc.tempoporal_pred_flag;
+              best_temp_ref_idx = rsc.rst_ref_pic_idx;
+#endif
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
           }
@@ -5715,6 +5825,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if CONFIG_COMBINE_PC_NS_WIENER
       if (rsc.plane == AOM_PLANE_Y) {
         rsc.frame_filters_on = best_frame_filters_state;
+#if CONFIG_TEMP_LR
+        rsc.tempoporal_pred_flag = best_temp_pred_flag;
+        rsc.rst_ref_pic_idx = best_temp_ref_idx;
+#endif
       }
 #endif // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_LR_IMPROVEMENTS

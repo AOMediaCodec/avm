@@ -4238,6 +4238,12 @@ static AOM_INLINE void encode_restoration_mode(
 #endif  // CONFIG_LR_IMPROVEMENTS
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
+#if CONFIG_TEMP_LR
+    cm->cur_frame->rst_info[p].frame_filters_on = 0;
+#endif
+#if CONFIG_COMBINE_PC_NS_WIENER
+    rsi->frame_filters_initialized = 0;
+#endif
     if (rsi->frame_restoration_type != RESTORE_NONE) {
 #if CONFIG_LR_IMPROVEMENTS
       luma_none &= p > 0;
@@ -4324,6 +4330,20 @@ static AOM_INLINE void encode_restoration_mode(
             write_num_classes && NUM_WIENERNS_CLASS_INIT_LUMA > 1;
         if (write_num_classes) {
           aom_wb_write_literal(wb, rsi->frame_filters_on, 1);
+#if CONFIG_TEMP_LR
+          if (rsi->frame_filters_on) {
+            if (cm->ref_frames_info.num_total_refs > 0)
+              aom_wb_write_bit(wb, rsi->tempoporal_pred_flag);
+            if (rsi->tempoporal_pred_flag &&
+                cm->ref_frames_info.num_total_refs > 1)
+              aom_wb_write_literal(
+                  wb, rsi->rst_ref_pic_idx,
+                  av1_ceil_log2(
+                      cm->ref_frames_info
+                          .num_total_refs));  // write_lr_reference_idx
+          }
+          if (!rsi->tempoporal_pred_flag) {
+#endif  // CONFIG_TEMP_LR
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
           if(rsi->frame_filters_on) {
 #if SIXTEEN_CLASSES_BEFORE_MERGE // only allow 1 or 16
@@ -4346,11 +4366,10 @@ static AOM_INLINE void encode_restoration_mode(
               assert (rsi->num_filter_classes == rsi->num_classes_before_merge);
             }
 
-#if 0 // debug_point
+#if 1 // debug_point
           printf ("Frame_fitler_num: %d, %d \n", rsi->num_classes_before_merge, rsi->num_filter_classes);
 #endif
           } else {
-            assert(rsi->num_filter_classes == 1);
             assert(rsi->num_filter_classes == 1);
           }
 #else
@@ -4358,6 +4377,12 @@ static AOM_INLINE void encode_restoration_mode(
               wb, encode_num_filter_classes(rsi->num_filter_classes),
               NUM_FILTER_CLASSES_BITS);
 #endif
+#if CONFIG_TEMP_LR
+        }
+        if (rsi->frame_filters_on)
+          av1_copy_frame_rst_info( &cm->cur_frame->rst_info[p], rsi);
+#endif  // CONFIG_TEMP_LR
+
         }
       } else {
         assert(rsi->frame_filters_on == 0);

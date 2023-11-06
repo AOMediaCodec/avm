@@ -293,6 +293,11 @@ typedef struct RefCntBuffer {
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];
 
   FRAME_CONTEXT frame_context;
+
+#if CONFIG_TEMP_LR
+  RestorationInfo rst_info[MAX_MB_PLANE];
+#endif  // CONFIG_TEMP_LR
+
   int base_qindex;
 #if CONFIG_TIP_IMPLICIT_QUANT
   int u_ac_delta_q;

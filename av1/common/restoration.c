@@ -2963,9 +2963,14 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     int16_t *wienerns_filter = nsfilter_taps(filter, c_id);
     const int filter_index = match_indices[c_id];
+
+#if CONFIG_TEMP_LR // ????????? for bug fix???
+    assert(filter_index >= 0 &&
+           filter_index <= ((1 << NUM_FRAME_PREDICTOR_BITS) - 1));
+#else
     assert(filter_index >= 0 &&
            filter_index < NUM_PC_WIENER_FILTERS + NUM_WIENERNS_CLASS_INIT_LUMA);
-
+#endif
     if (filter_index < NUM_PC_WIENER_FILTERS) {
       // TODO: Work in the reference filters and trained filters.
       const int16_t *matching_filter = all_zeros_filter;
@@ -3023,3 +3028,21 @@ void fill_first_slot_of_bank_with_filter_match(
 }
 
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+
+#if CONFIG_TEMP_LR
+void av1_copy_frame_rst_info(RestorationInfo *to, RestorationInfo *from) {
+  assert (from->frame_filters_on);
+#if 0
+  *to = *from;
+#else
+  to->frame_filters_on = from->frame_filters_on;
+  to->num_filter_classes = from->num_filter_classes;
+  to->frame_filters = from->frame_filters;
+#if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+  to->num_classes_before_merge = from->num_classes_before_merge;
+  memcpy(to->merged_to_indices, from->merged_to_indices, sizeof (from->merged_to_indices[0]*WIENERNS_MAX_CLASSES));
+#endif
+#endif
+}
+#endif  // CONFIG_TEMP_LR
+

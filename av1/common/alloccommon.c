@@ -49,6 +49,11 @@ void av1_free_ref_frame_buffers(BufferPool *pool) {
     aom_free(pool->frame_bufs[i].seg_map);
     pool->frame_bufs[i].seg_map = NULL;
     aom_free_frame_buffer(&pool->frame_bufs[i].buf);
+#if CONFIG_TEMP_LR
+    for (int p = 0; p < MAX_MB_PLANE; ++p) {
+      av1_free_restoration_struct(&pool->frame_bufs[i].rst_info[p]);
+    }
+#endif  // CONFIG_TEMP_LR
   }
 }
 

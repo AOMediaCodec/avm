@@ -477,6 +477,16 @@ typedef struct {
   int merged_to_indices[WIENERNS_MAX_CLASSES];
 #endif //CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
 #endif // CONFIG_LR_IMPROVEMENTS
+#if CONFIG_TEMP_LR
+   /*!
+   * whether frame filter is predicted from a reference picture
+   */
+  uint8_t tempoporal_pred_flag;
+   /*!
+   * reference picture index for frame level filter prediction
+   */
+  uint8_t rst_ref_pic_idx;
+#endif
 } RestorationInfo;
 
 /*!\cond */
@@ -727,6 +737,11 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
 void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst);
 #endif  // CONFIG_LR_IMPROVEMENTS
+
+#if CONFIG_TEMP_LR
+void av1_copy_frame_rst_info(RestorationInfo *to, RestorationInfo *from);
+#endif  // CONFIG_TEMP_LR
+
 #if CONFIG_NEW_CLASSIFY_NS_WIENER
 int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int width, int bit_depth);
 #endif

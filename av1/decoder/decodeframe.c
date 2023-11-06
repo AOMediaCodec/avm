@@ -3351,6 +3351,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #endif  // CONFIG_LR_IMPROVEMENTS
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
+#if CONFIG_TEMP_LR
+    cm->cur_frame->rst_info[p].frame_filters_on = 0;
+#endif
 #if CONFIG_LR_IMPROVEMENTS
     uint8_t plane_lr_tools_disable_mask =
         cm->seq_params.lr_tools_disable_mask[p > 0];
@@ -3421,6 +3424,27 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         read_num_classes = read_num_classes && NUM_WIENERNS_CLASS_INIT_LUMA > 1;
         if (read_num_classes) {
           rsi->frame_filters_on = aom_rb_read_literal(rb, 1);
+#if CONFIG_TEMP_LR
+          rsi->tempoporal_pred_flag = 0;
+          rsi->rst_ref_pic_idx = 0;
+          if(rsi->frame_filters_on) {
+            if (cm->ref_frames_info.num_total_refs > 0)
+              rsi->tempoporal_pred_flag = aom_rb_read_bit(rb);
+            if (rsi->tempoporal_pred_flag &&
+                cm->ref_frames_info.num_total_refs > 1) {
+              rsi->rst_ref_pic_idx = aom_rb_read_literal(
+                  rb,
+                  av1_ceil_log2(cm->ref_frames_info
+                                    .num_total_refs));  // read_lr_reference_idx
+            }
+          }
+
+          if (rsi->tempoporal_pred_flag) {
+            av1_copy_frame_rst_info(
+                rsi, &cm->ref_frame_map[rsi->rst_ref_pic_idx]->rst_info[p]);
+            rsi->frame_filters_initialized = 1;
+          } else {
+#endif  // CONFIG_TEMP_LR
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
           if(rsi->frame_filters_on) {
 #if SIXTEEN_CLASSES_BEFORE_MERGE // only allow 1 or 16
@@ -3452,7 +3476,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           rsi->num_filter_classes = decode_num_filter_classes(
               aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
 #endif
-        } else {
+#if CONFIG_TEMP_LR
+       }
+#endif
+     } else {
           rsi->frame_filters_on = 0;
           rsi->num_filter_classes = NUM_WIENERNS_CLASS_INIT_LUMA;
         }
