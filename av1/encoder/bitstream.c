@@ -609,7 +609,7 @@ static AOM_INLINE void write_motion_mode(
   // quick check to ensure these conditions can't get out of sync.
 #if !CONFIG_INTERINTRA_IMPROVEMENT
   assert((mbmi->ref_frame[1] == INTRA_FRAME) == (motion_mode == INTERINTRA));
-#endif  // CONFIG_INTERINTRA_IMPROVEMENT
+#endif  // !CONFIG_INTERINTRA_IMPROVEMENT
 
 #if CONFIG_WARPMV
   if (mbmi->mode == WARPMV) {
