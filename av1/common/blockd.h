@@ -3677,13 +3677,13 @@ static INLINE int is_interintra_allowed_bsize_group(int group) {
 }
 
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
+  assert(IMPLIES(mbmi->motion_mode == INTERINTRA, mbmi->ref_frame[1] ==
 #if CONFIG_INTERINTRA_IMPROVEMENT
-  assert(IMPLIES(mbmi->motion_mode == INTERINTRA,
-                 mbmi->ref_frame[1] == NONE_FRAME));
+                                                      NONE_FRAME
 #else
-  assert(IMPLIES(mbmi->motion_mode == INTERINTRA,
-                 mbmi->ref_frame[1] == INTRA_FRAME));
-#endif  // CONFIG_INTERINTRA_IMPROVEMENT
+                                                      INTRA_FRAME
+#endif
+                 ));
   return (mbmi->motion_mode == INTERINTRA);
 }
 
