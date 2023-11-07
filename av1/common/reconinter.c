@@ -985,16 +985,15 @@ void av1_warp_plane_bicubic(WarpedMotionParams *wm, int bd, const uint16_t *ref,
   }
 }
 #endif  // AFFINE_FAST_WARP_METHOD == 2
+void av1_warp_plane_bilinear_c(WarpedMotionParams *wm, int bd,
+                               const uint16_t *ref, int width, int height,
+                               int stride, uint16_t *pred, int p_col, int p_row,
+                               int p_width, int p_height, int p_stride,
+                               int subsampling_x, int subsampling_y,
+                               ConvolveParams *conv_params) {
+  (void)conv_params;
 #if AFFINE_FAST_WARP_METHOD == 3
 #define BILINEAR_WARP_PREC_BITS 12
-// Warp prediction using bilinear interpolation (effectively 2-tap filter)
-void av1_warp_plane_bilinear(WarpedMotionParams *wm, int bd,
-                             const uint16_t *ref, int width, int height,
-                             int stride, uint16_t *pred, int p_col, int p_row,
-                             int p_width, int p_height, int p_stride,
-                             int subsampling_x, int subsampling_y,
-                             ConvolveParams *conv_params) {
-  (void)conv_params;
   assert(wm->wmtype <= AFFINE);
   assert(!is_uneven_wtd_comp_avg(conv_params));
   assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
@@ -1044,8 +1043,23 @@ void av1_warp_plane_bilinear(WarpedMotionParams *wm, int bd,
       *p = clip_pixel_highbd(sum, bd);
     }
   }
-}
+#else
+  (void)wm;
+  (void)bd;
+  (void)ref;
+  (void)width;
+  (void)height;
+  (void)stride;
+  (void)pred;
+  (void)p_col;
+  (void)p_row;
+  (void)p_width;
+  (void)p_height;
+  (void)p_stride;
+  (void)subsampling_x;
+  (void)subsampling_y;
 #endif  // AFFINE_FAST_WARP_METHOD == 3
+}
 
 // Compute intermediate results for 4D linear solver.
 void getsub_4d(int64_t *sub, int64_t *mat, int64_t *vec) {
@@ -1407,11 +1421,12 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
 #if CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH
 // Apply average pooling to reduce the sizes of pred difference and gradients
 // arrays. It reduces the complexity of the parameter solving routine
-// TODO(kslu) add SIMD version, and/or combine this operation into
-// av1_bicubic_grad* function
-void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
-                                 int16_t *gy, const int gstride, const int bw,
-                                 const int bh, const int n) {
+void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
+                                       int16_t *gx, int16_t *gy,
+                                       const int gstride, const int bw,
+                                       const int bh, const int n) {
+#if CONFIG_OPFL_MV_SEARCH || \
+    (AFFINE_AVERAGING_BITS > 0 && OPFL_COMBINE_INTERP_GRAD_LS)
   const int bh_low = AOMMIN(bh, n);
   const int bw_low = AOMMIN(bw, n);
   const int step_h = bh / bh_low;
@@ -1446,6 +1461,17 @@ void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
           (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_pdiff, avg_bits);
     }
   }
+#else
+  (void)pdiff;
+  (void)pstride;
+  (void)gx;
+  (void)gy;
+  (void)gstride;
+  (void)bw;
+  (void)bh;
+  (void)n;
+#endif  // CONFIG_OPFL_MV_SEARCH || (AFFINE_AVERAGING_BITS > 0 &&
+        // OPFL_COMBINE_INTERP_GRAD_LS)
 }
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH
 
@@ -1789,8 +1815,6 @@ int derive_rotation_scale_translation_4p(const uint16_t *p0, int pstride0,
 }
 
 #if OPFL_COMBINE_INTERP_GRAD_LS
-// Find the maximum element of pdiff/gx/gy in absolute value
-// TODO(kslu) add SIMD version
 int64_t find_max_matrix_element_interp_grad(const int16_t *pdiff, int pstride,
                                             const int16_t *gx,
                                             const int16_t *gy, int gstride,
@@ -1913,13 +1937,14 @@ int derive_rotation_scale_2p_interp_grad(const int16_t *pdiff, int pstride,
       alpha * (1 << (WARPEDMODEL_PREC_BITS - AFFINE_PREC_BITS));
   return 0;
 }
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
 
-// Derivation of four parameters in the rotation-scale-translation affine model
-// (in the pipeline where gradients are computed directly from d0*P0-d1*P1)
-int derive_rotation_scale_translation_4p_interp_grad(
-    const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
-    int gstride, int bw, int bh, int grad_prec_bits,
-    AffineModelParams *am_params) {
+void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
+                                              const int16_t *gx,
+                                              const int16_t *gy, int gstride,
+                                              int bw, int bh, int64_t *mat_a,
+                                              int64_t *vec_b) {
+#if OPFL_COMBINE_INTERP_GRAD_LS
   int x_range_log2 = get_msb_signed(bw);
   int y_range_log2 = get_msb_signed(bh);
 #if AFFINE_AVERAGING_BITS > 0
@@ -1944,10 +1969,6 @@ int derive_rotation_scale_translation_4p_interp_grad(
                     AOMMAX(x_range_log2, y_range_log2) - AFFINE_GRAD_BITS_THR);
   const int coords_bits = AOMMAX(
       0, ((x_range_log2 + y_range_log2) >> 1) - AFFINE_COORDS_OFFSET_BITS);
-
-  int64_t mat_a[16] = { 0 };
-  int64_t vec_b[4] = { 0 };
-  int64_t vec_x[4];
   for (int i = 0; i < bh; ++i) {
     for (int j = 0; j < bw; ++j) {
 #if OPFL_DOWNSAMP_QUINCUNX
@@ -1998,7 +2019,35 @@ int derive_rotation_scale_translation_4p_interp_grad(
     }
     vec_b[s] = clamp64(vec_b[s], -AFFINE_COV_CLAMP_VAL, AFFINE_COV_CLAMP_VAL);
   }
+#else
+  (void)pdiff;
+  (void)pstride;
+  (void)gx;
+  (void)gy;
+  (void)gstride;
+  (void)bw;
+  (void)bh;
+  (void)mat_a;
+  (void)vec_b;
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+}
 
+#if OPFL_COMBINE_INTERP_GRAD_LS
+int derive_rotation_scale_translation_4p_interp_grad(
+    const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
+    int gstride, int bw, int bh, int grad_prec_bits,
+    AffineModelParams *am_params) {
+  int64_t mat_a[16] = { 0 };
+  int64_t vec_b[4] = { 0 };
+
+  av1_calc_affine_autocorrelation_matrix(pdiff, pstride, gx, gy, gstride, bw,
+                                         bh, mat_a, vec_b);
+
+  int64_t vec_x[4];
+  int x_range_log2 = get_msb_signed(bw);
+  int y_range_log2 = get_msb_signed(bh);
+  const int coords_bits = AOMMAX(
+      0, ((x_range_log2 + y_range_log2) >> 1) - AFFINE_COORDS_OFFSET_BITS);
   int prec_bits[4] = {
     grad_prec_bits + AFFINE_PREC_BITS - coords_bits,
     grad_prec_bits + AFFINE_PREC_BITS - coords_bits,
@@ -2565,7 +2614,8 @@ void av1_get_optflow_based_mv_highbd(
 
 #if AFFINE_AVERAGING_BITS > 0
     const int block_len_low = 1 << (7 - AFFINE_AVERAGING_BITS);
-    avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, block_len_low);
+    av1_avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh,
+                                    block_len_low);
 #endif  // AFFINE_AVERAGING_BITS > 0
 
     av1_opfl_affine_refinement_mxn_interp_grad_c(

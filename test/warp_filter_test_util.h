@@ -26,6 +26,7 @@
 
 #include "av1/common/mv.h"
 #include "av1/common/common_data.h"
+#include "av1/common/reconinter.h"
 
 namespace libaom_test {
 
@@ -100,6 +101,40 @@ class AV1HighbdWarpFilterTest
 };
 
 }  // namespace AV1HighbdWarpFilter
+
+#if CONFIG_AFFINE_REFINEMENT
+#if AFFINE_FAST_WARP_METHOD == 3
+namespace AV1HighbdWarpBilinearFilter {
+typedef void (*highbd_warp_plane_bilinear_func)(
+    WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height,
+    int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
+    int p_stride, int subsampling_x, int subsampling_y,
+    ConvolveParams *conv_params);
+
+typedef std::tuple<int, int, int, int, highbd_warp_plane_bilinear_func>
+    HighbdWarpBilinearTestParam;
+typedef std::tuple<HighbdWarpBilinearTestParam, int, int, int, int>
+    HighbdWarpBilinearTestParams;
+
+::testing::internal::ParamGenerator<HighbdWarpBilinearTestParams> BuildParams(
+    highbd_warp_plane_bilinear_func filter);
+
+class AV1HighbdWarpBilinearFilterTest
+    : public ::testing::TestWithParam<HighbdWarpBilinearTestParams> {
+ public:
+  virtual ~AV1HighbdWarpBilinearFilterTest();
+  virtual void SetUp();
+
+  virtual void TearDown();
+
+ protected:
+  void RunCheckOutput(highbd_warp_plane_bilinear_func test_impl);
+  void RunSpeedTest(highbd_warp_plane_bilinear_func test_impl);
+  libaom_test::ACMRandom rnd_;
+};
+}  // namespace AV1HighbdWarpBilinearFilter
+#endif  // AFFINE_FAST_WARP_METHOD == 3
+#endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_EXT_WARP_FILTER
 namespace AV1ExtHighbdWarpFilter {

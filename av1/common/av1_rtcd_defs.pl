@@ -267,6 +267,14 @@ specialize qw/av1_build_compound_diffwtd_mask_highbd ssse3 avx2/;
 add_proto qw/void av1_build_compound_diffwtd_mask_d16/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0, int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w, ConvolveParams *conv_params, int bd";
 specialize qw/av1_build_compound_diffwtd_mask_d16 sse4_1 avx2 neon/;
 
+if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes" and aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
+    add_proto qw/void av1_calc_affine_autocorrelation_matrix/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int64_t *mat_a, int64_t *vec_b";
+    specialize qw/av1_calc_affine_autocorrelation_matrix avx2/;
+    
+    add_proto qw/void av1_avg_pooling_pdiff_gradients/,"int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy, const int gstride, const int bw, const int bh, const int n";
+    specialize qw/av1_avg_pooling_pdiff_gradients avx2/;
+}
+
 # Helper functions.
 add_proto qw/void av1_round_shift_array/, "int32_t *arr, int size, int bit";
 specialize "av1_round_shift_array", qw/sse4_1 neon/;
@@ -528,6 +536,11 @@ if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
   add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params";
   specialize qw/av1_ext_highbd_warp_affine sse4_1/;
 }
+
+if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
+    add_proto qw/void av1_warp_plane_bilinear/, "WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row,int p_width, int p_height, int p_stride,int subsampling_x, int subsampling_y, ConvolveParams *conv_params";
+    specialize qw/av1_warp_plane_bilinear avx2/;
+ }
 
 if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/double av1_compute_cross_correlation/, "unsigned char *im1, int stride1, int x1, int y1, unsigned char *im2, int stride2, int x2, int y2";

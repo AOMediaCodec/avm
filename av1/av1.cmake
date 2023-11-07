@@ -342,6 +342,10 @@ list(
   "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c")
 list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
      "${AOM_ROOT}/av1/common/x86/highbd_pef_avx2.c")
+if(CONFIG_AFFINE_REFINEMENT)
+  list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+       "${AOM_ROOT}/av1/common/x86/affine_optflow_refine_avx2.c")
+endif()
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm")
 

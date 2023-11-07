@@ -387,7 +387,7 @@ int opfl_refine_fullpel_mv_one_sided(
   int bits = 3 + get_opfl_mv_upshift_bits(mbmi);
 #if OMVS_AVG_POOLING
   int n = AOMMIN(8, AOMMIN(bw, bh));
-  avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, n);
+  av1_avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, n);
   // The SIMD version performs refinement for every 4x8 or 8x8 region. It is
   // only applicable when n == 8 in optical flow based MV search
   if (n == 8)

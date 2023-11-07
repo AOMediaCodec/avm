@@ -102,13 +102,23 @@ class AV1OptFlowTest : public ::testing::TestWithParam<TestParam<T>> {
     }
   }
 
+  // Check that two outputs are identical.
+  void AssertOutputParamsEq(int bw_low1, int bh_low1, int step_w1, int step_h1,
+                            int bw_low2, int bh_low2, int step_w2,
+                            int step_h2) {
+    ASSERT_EQ(bw_low1, bw_low2) << "Mismatch for bw_low " << bw_low1;
+    ASSERT_EQ(bh_low1, bh_low2) << "Mismatch for bh_low " << bh_low1;
+    ASSERT_EQ(step_w1, step_w2) << "Mismatch for step_w " << step_w1;
+    ASSERT_EQ(step_h1, step_h2) << "Mismatch for step_h " << step_h1;
+  }
+
   // Check that two 16-bit output buffers are identical.
   void AssertOutputBufferEq(const int16_t *ref, const int16_t *test, int width,
-                            int height) {
+                            int height, int stride) {
     ASSERT_TRUE(ref != test) << "Buffers must be in different memory locations";
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
-        ASSERT_EQ(ref[row * width + col], test[row * width + col])
+        ASSERT_EQ(ref[row * stride + col], test[row * stride + col])
             << width << "x" << height << " Pixel mismatch at (" << col << ", "
             << row << ")";
       }
@@ -620,8 +630,8 @@ class AV1OptFlowBiCubicGradHighbdTest
     ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bh);
     test_func(pred_src, x_grad_test, y_grad_test, bw, bh);
 
-    AssertOutputBufferEq(x_grad_ref, x_grad_test, bw, bh);
-    AssertOutputBufferEq(y_grad_ref, y_grad_test, bw, bh);
+    AssertOutputBufferEq(x_grad_ref, x_grad_test, bw, bh, bw);
+    AssertOutputBufferEq(y_grad_ref, y_grad_test, bw, bh, bw);
   }
 
   void BicubicGradHighbdSpeed(bicubic_grad_interp_highbd ref_func,
@@ -995,8 +1005,8 @@ class AV1OptFlowCopyPredHighbdTest
     test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0, d1,
               0);
 
-    AssertOutputBufferEq(dst_buf1_ref, dst_buf1_test, bw, bh);
-    AssertOutputBufferEq(dst_buf2_ref, dst_buf2_test, bw, bh);
+    AssertOutputBufferEq(dst_buf1_ref, dst_buf1_test, bw, bh, bw);
+    AssertOutputBufferEq(dst_buf2_ref, dst_buf2_test, bw, bh, bw);
   }
 
   void CopyPredArraySpeed(pred_buffer_copy_highbd ref_func,
@@ -1058,6 +1068,360 @@ INSTANTIATE_TEST_SUITE_P(
     BuildOptFlowHighbdParams(av1_copy_pred_array_highbd_sse4_1));
 #endif
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
+
+#if CONFIG_AFFINE_REFINEMENT
+#if OPFL_COMBINE_INTERP_GRAD_LS
+typedef void (*calc_affine_autocorrelation_matrix)(
+    const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
+    int gstride, int bw, int bh, int64_t *mat_a, int64_t *vec_b);
+
+class AV1CalcAffineAutocorrelationMatrixTest
+    : public AV1OptFlowTest<calc_affine_autocorrelation_matrix> {
+ public:
+  AV1CalcAffineAutocorrelationMatrixTest() {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    gx_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    gy_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    pdiff_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+  }
+
+  ~AV1CalcAffineAutocorrelationMatrixTest() {
+    aom_free(gx_);
+    aom_free(gy_);
+    aom_free(pdiff_);
+  }
+
+  void RunTest(const int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bd = GetParam().BitDepth();
+    const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
+    const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
+    const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
+
+    for (int count = 0; count < numIter; count++) {
+      RandomInput16(gx_, GetParam(), 16);
+      RandomInput16(gy_, GetParam(), 16);
+      RandomInput16(pdiff_, GetParam(), bd + 1);
+
+      TestCalcAffineAutoCorrelationMatrix(pdiff_, gx_, gy_, is_speed);
+    }
+    if (is_speed) return;
+
+    // Extreme value test
+    for (int count = 0; count < numIter; count++) {
+      RandomInput16Extreme(gx_, GetParam(), 16);
+      RandomInput16Extreme(gy_, GetParam(), 16);
+      RandomInput16Extreme(pdiff_, GetParam(), bd + 1);
+
+      TestCalcAffineAutoCorrelationMatrix(pdiff_, gx_, gy_, is_speed);
+    }
+  }
+
+ private:
+  void TestCalcAffineAutoCorrelationMatrix(const int16_t *pdiff, int16_t *gx,
+                                           int16_t *gy, const int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+    int pstride = bw;
+    int gstride = bw;
+
+    calc_affine_autocorrelation_matrix ref_func =
+        av1_calc_affine_autocorrelation_matrix_c;
+    calc_affine_autocorrelation_matrix test_func = GetParam().TestFunction();
+
+    if (is_speed)
+      CalcAffineAutoCorrelationMatrixSpeed(ref_func, test_func, pdiff, pstride,
+                                           gx, gy, gstride, bw, bh);
+    else
+      AffineAutoCorrelationMatrix(ref_func, test_func, pdiff, pstride, gx, gy,
+                                  gstride, bw, bh);
+  }
+
+  void AffineAutoCorrelationMatrix(calc_affine_autocorrelation_matrix ref_func,
+                                   calc_affine_autocorrelation_matrix test_func,
+                                   const int16_t *pdiff, int pstride,
+                                   const int16_t *gx, const int16_t *gy,
+                                   int gstride, int bw, int bh) {
+    DECLARE_ALIGNED(32, int64_t, mat_ref[16]);
+    DECLARE_ALIGNED(32, int64_t, mat_test[16]);
+    DECLARE_ALIGNED(32, int64_t, vec_ref[4]);
+    DECLARE_ALIGNED(32, int64_t, vec_test[4]);
+    memset(mat_ref, 0, sizeof(mat_ref));
+    memset(mat_test, 0, sizeof(mat_test));
+    memset(vec_ref, 0, sizeof(vec_ref));
+    memset(vec_test, 0, sizeof(vec_test));
+    ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_ref, vec_ref);
+    test_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_test, vec_test);
+
+    int failed = 0;
+    for (int i = 0; i < 16; ++i) {
+      if (mat_ref[i] != mat_test[i]) {
+        failed = 1;
+        printf("Mat [%4d] ref %6" PRId64 " test %6" PRId64 " \n", i, mat_ref[i],
+               mat_test[i]);
+        break;
+      }
+    }
+
+    for (int i = 0; i < 4; ++i) {
+      if (vec_ref[i] != vec_test[i]) {
+        failed = 1;
+        printf("Vec [%4d] ref %6" PRId64 " test %6" PRId64 " \n", i, vec_ref[i],
+               vec_test[i]);
+        break;
+      }
+    }
+    ASSERT_EQ(failed, 0);
+  }
+
+  void CalcAffineAutoCorrelationMatrixSpeed(
+      calc_affine_autocorrelation_matrix ref_func,
+      calc_affine_autocorrelation_matrix test_func, const int16_t *pdiff,
+      int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw,
+      int bh) {
+    DECLARE_ALIGNED(32, int64_t, mat_ref[16]);
+    DECLARE_ALIGNED(32, int64_t, mat_test[16]);
+    DECLARE_ALIGNED(32, int64_t, vec_ref[4]);
+    DECLARE_ALIGNED(32, int64_t, vec_test[4]);
+    memset(mat_ref, 0, sizeof(mat_ref));
+    memset(mat_test, 0, sizeof(mat_test));
+    memset(vec_ref, 0, sizeof(vec_ref));
+    memset(vec_test, 0, sizeof(vec_test));
+    const int knumIter = 1000000;
+    aom_usec_timer timer_ref;
+    aom_usec_timer timer_test;
+
+    aom_usec_timer_start(&timer_ref);
+    for (int count = 0; count < knumIter; count++) {
+      ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_ref, vec_ref);
+    }
+    aom_usec_timer_mark(&timer_ref);
+
+    aom_usec_timer_start(&timer_test);
+    for (int count = 0; count < knumIter; count++) {
+      test_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_test, vec_test);
+    }
+    aom_usec_timer_mark(&timer_test);
+
+    const int total_time_ref =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+    const int total_time_test =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+
+    printf(
+        "Block size: %dx%d, ref_time = %d \t simd_time = %d \t Scaling = %4.2f "
+        "\n",
+        bw, bh, total_time_ref, total_time_test,
+        (static_cast<float>(total_time_ref) /
+         static_cast<float>(total_time_test)));
+  }
+
+  int16_t *gx_;
+  int16_t *gy_;
+  int16_t *pdiff_;
+};
+
+TEST_P(AV1CalcAffineAutocorrelationMatrixTest, CheckOutput) { RunTest(0); }
+TEST_P(AV1CalcAffineAutocorrelationMatrixTest, DISABLED_Speed) { RunTest(1); }
+
+INSTANTIATE_TEST_SUITE_P(
+    C, AV1CalcAffineAutocorrelationMatrixTest,
+    BuildOptFlowHighbdParams(av1_calc_affine_autocorrelation_matrix_c));
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1CalcAffineAutocorrelationMatrixTest,
+    BuildOptFlowHighbdParams(av1_calc_affine_autocorrelation_matrix_avx2));
+#endif  // HAVE_AVX2
+
+#if AFFINE_AVERAGING_BITS > 0
+typedef void (*av1_avg_pooling_pdiff_gradients_fun)(
+    int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
+    const int gstride, const int bw, const int bh, int16_t *pdiff_avg,
+    int16_t *gx_avg, int16_t *gy_avg, int *bw_low, int *bh_low, int *step_w,
+    int *step_h);
+
+class AV1AvgPoolingPdiffGradientTest
+    : public AV1OptFlowTest<av1_avg_pooling_pdiff_gradients_fun> {
+ public:
+  AV1AvgPoolingPdiffGradientTest() {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+
+    gx_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    gy_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    pdiff_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    gx_avg1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    gy_avg1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    pdiff_avg1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    gx_avg2_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    gy_avg2_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+    pdiff_avg2_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
+  }
+
+  ~AV1AvgPoolingPdiffGradientTest() {
+    aom_free(gx_);
+    aom_free(gy_);
+    aom_free(pdiff_);
+    aom_free(gx_avg1_);
+    aom_free(gy_avg1_);
+    aom_free(pdiff_avg1_);
+    aom_free(gx_avg2_);
+    aom_free(gy_avg2_);
+    aom_free(pdiff_avg2_);
+  }
+
+  void RunTest(const int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bd = GetParam().BitDepth();
+    const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
+    const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
+    const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
+
+    for (int count = 0; count < numIter;) {
+      RandomInput16(gx_, GetParam(), 16);
+      RandomInput16(gy_, GetParam(), 16);
+      RandomInput16(pdiff_, GetParam(), bd + 1);
+
+      TestAvgPoolingPdiffGrad(pdiff_, gx_, gy_, pdiff_avg1_, gx_avg1_, gy_avg1_,
+                              pdiff_avg2_, gx_avg2_, gy_avg2_, is_speed);
+      count++;
+    }
+    if (is_speed) return;
+
+    // Extreme value test
+    for (int count = 0; count < numIter; count++) {
+      RandomInput16Extreme(gx_, GetParam(), 16);
+      RandomInput16Extreme(gy_, GetParam(), 16);
+      RandomInput16Extreme(pdiff_, GetParam(), bd + 1);
+
+      TestAvgPoolingPdiffGrad(pdiff_, gx_, gy_, pdiff_avg1_, gx_avg1_, gy_avg1_,
+                              pdiff_avg2_, gx_avg2_, gy_avg2_, is_speed);
+    }
+  }
+
+ private:
+  void TestAvgPoolingPdiffGrad(int16_t *pdiff, int16_t *gx, int16_t *gy,
+                               int16_t *pdiff_avg1, int16_t *gx_avg1,
+                               int16_t *gy_avg1, int16_t *pdiff_avg2,
+                               int16_t *gx_avg2, int16_t *gy_avg2,
+                               const int is_speed) {
+    const BlockSize &block = GetParam().Block();
+    const int bw = block.Width();
+    const int bh = block.Height();
+    int pstride = bw;
+    int gstride = bw;
+
+    av1_avg_pooling_pdiff_gradients_fun ref_func =
+        av1_avg_pooling_pdiff_gradients_c;
+    av1_avg_pooling_pdiff_gradients_fun test_func = GetParam().TestFunction();
+
+    if (is_speed)
+      AvgPoolingPdiffGradSpeed(ref_func, test_func, pdiff, pstride, gx, gy,
+                               gstride, bw, bh, pdiff_avg1, gx_avg1, gy_avg1,
+                               pdiff_avg2, gx_avg2, gy_avg2);
+    else
+      AvgPoolingPdiffGrad(ref_func, test_func, pdiff, pstride, gx, gy, gstride,
+                          bw, bh, pdiff_avg1, gx_avg1, gy_avg1, pdiff_avg2,
+                          gx_avg2, gy_avg2);
+  }
+
+  void AvgPoolingPdiffGrad(av1_avg_pooling_pdiff_gradients_fun ref_func,
+                           av1_avg_pooling_pdiff_gradients_fun test_func,
+                           int16_t *pdiff, int pstride, int16_t *gx,
+                           int16_t *gy, int gstride, int bw, int bh,
+                           int16_t *pdiff_avg1, int16_t *gx_avg1,
+                           int16_t *gy_avg1, int16_t *pdiff_avg2,
+                           int16_t *gx_avg2, int16_t *gy_avg2) {
+    int bw_low1, bh_low1, step_w1, step_h1;
+    int bw_low2, bh_low2, step_w2, step_h2;
+
+    ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg1, gx_avg1,
+             gy_avg1, &bw_low1, &bh_low1, &step_w1, &step_h1);
+    test_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg2, gx_avg2,
+              gy_avg2, &bw_low2, &bh_low2, &step_w2, &step_h2);
+    int out_width = AOMMIN(16, bw);
+    int out_height = AOMMIN(16, bh);
+    AssertOutputBufferEq(pdiff_avg1, pdiff_avg2, out_width, out_height, bw);
+    AssertOutputBufferEq(gx_avg1, gx_avg2, out_width, out_height, bw);
+    AssertOutputBufferEq(gy_avg1, gy_avg2, out_width, out_height, bw);
+
+    AssertOutputParamsEq(bw_low1, bh_low1, step_w1, step_h1, bw_low2, bh_low2,
+                         step_w2, step_h2);
+  }
+
+  void AvgPoolingPdiffGradSpeed(av1_avg_pooling_pdiff_gradients_fun ref_func,
+                                av1_avg_pooling_pdiff_gradients_fun test_func,
+                                int16_t *pdiff, int pstride, int16_t *gx,
+                                int16_t *gy, int gstride, int bw, int bh,
+                                int16_t *pdiff_avg1, int16_t *gx_avg1,
+                                int16_t *gy_avg1, int16_t *pdiff_avg2,
+                                int16_t *gx_avg2, int16_t *gy_avg2) {
+    int bw_low1, bh_low1, step_w1, step_h1;
+    int bw_low2, bh_low2, step_w2, step_h2;
+
+    const int numIter = 1000000;
+    aom_usec_timer timer_ref;
+    aom_usec_timer timer_test;
+
+    aom_usec_timer_start(&timer_ref);
+    for (int count = 0; count < numIter; count++) {
+      ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg1, gx_avg1,
+               gy_avg1, &bw_low1, &bh_low1, &step_w1, &step_h1);
+    }
+    aom_usec_timer_mark(&timer_ref);
+
+    aom_usec_timer_start(&timer_test);
+    for (int count = 0; count < numIter; count++) {
+      test_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg2, gx_avg2,
+                gy_avg2, &bw_low2, &bh_low2, &step_w2, &step_h2);
+    }
+    aom_usec_timer_mark(&timer_test);
+
+    const int total_time_ref =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
+    const int total_time_test =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
+
+    printf(
+        "Block size: %dx%d, C time = %d \t SIMD time = %d \t Scaling = %4.2f "
+        "\n",
+        bw, bh, total_time_ref, total_time_test,
+        (static_cast<float>(total_time_ref) /
+         static_cast<float>(total_time_test)));
+  }
+
+  int16_t *gx_;
+  int16_t *gy_;
+  int16_t *pdiff_;
+  int16_t *gx_avg1_;
+  int16_t *gy_avg1_;
+  int16_t *pdiff_avg1_;
+  int16_t *gx_avg2_;
+  int16_t *gy_avg2_;
+  int16_t *pdiff_avg2_;
+};
+
+TEST_P(AV1AvgPoolingPdiffGradientTest, CheckOutput) { RunTest(0); }
+TEST_P(AV1AvgPoolingPdiffGradientTest, DISABLED_Speed) { RunTest(1); }
+
+INSTANTIATE_TEST_SUITE_P(
+    C, AV1AvgPoolingPdiffGradientTest,
+    BuildOptFlowHighbdParams(av1_avg_pooling_pdiff_gradients_c));
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1AvgPoolingPdiffGradientTest,
+    BuildOptFlowHighbdParams(av1_avg_pooling_pdiff_gradients_avx2));
+#endif  // HAVE_AVX2
+#endif  // AFFINE_AVERAGING_BITS > 0
+#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+#endif  // CONFIG_AFFINE_REFINEMENT
 }  // namespace
 
 #endif  // CONFIG_OPTFLOW_REFINEMENT
