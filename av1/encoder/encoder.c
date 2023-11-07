@@ -2124,7 +2124,7 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
   if (aom_realloc_frame_buffer(
           &tip_frame->buf, cm->width, cm->height, cm->seq_params.subsampling_x,
           cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL)) {
+          cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
@@ -2174,7 +2174,8 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   if (aom_realloc_frame_buffer(
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL))
+          cm->features.byte_alignment, NULL, NULL, NULL,
+          cpi->oxcf.tool_cfg.enable_global_motion))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
@@ -2244,7 +2245,7 @@ static void save_pre_filter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
           pre_filter_frame, frame_width, frame_height,
           seq_params->subsampling_x, seq_params->subsampling_y,
           AOM_RESTORATION_FRAME_BORDER, cm->features.byte_alignment, NULL, NULL,
-          NULL) < 0)
+          NULL, 0) < 0)
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate restoration dst buffer");
 
@@ -4104,7 +4105,8 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
       res = -1;
 #endif  //  CONFIG_DENOISE
 
-  if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags))
+  if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags,
+                         cpi->oxcf.tool_cfg.enable_global_motion))
     res = -1;
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&timer);

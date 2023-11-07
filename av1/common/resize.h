@@ -98,7 +98,8 @@ void av1_calculate_scaled_superres_size(int *width, int *height,
 // denominator.
 void av1_calculate_unscaled_superres_size(int *width, int *height, int denom);
 
-void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool);
+void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
+                          int enable_global_motion);
 
 // Returns 1 if a superres upscaled frame is scaled and 0 otherwise.
 static INLINE int av1_superres_scaled(const AV1_COMMON *cm) {

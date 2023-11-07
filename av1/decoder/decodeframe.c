@@ -4049,7 +4049,7 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
   if (aom_realloc_frame_buffer(
           tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
-          cm->features.byte_alignment, NULL, NULL, NULL)) {
+          cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
@@ -4078,7 +4078,7 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
           cm->features.byte_alignment, &cm->cur_frame->raw_frame_buffer,
-          pool->get_fb_cb, pool->cb_priv)) {
+          pool->get_fb_cb, pool->cb_priv, 0)) {
     unlock_buffer_pool(pool);
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
@@ -7456,7 +7456,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                   seq_params->max_frame_height, seq_params->subsampling_x,
                   seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
                   features->byte_alignment, &buf->raw_frame_buffer,
-                  pool->get_fb_cb, pool->cb_priv)) {
+                  pool->get_fb_cb, pool->cb_priv, 0)) {
             decrease_ref_count(buf, pool);
             unlock_buffer_pool(pool);
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
@@ -8179,7 +8179,7 @@ static AOM_INLINE void superres_post_decode(AV1Decoder *pbi) {
   if (!av1_superres_scaled(cm)) return;
   assert(!cm->features.all_lossless);
 
-  av1_superres_upscale(cm, pool);
+  av1_superres_upscale(cm, pool, 0);
 }
 
 #if CONFIG_TIP
@@ -8358,14 +8358,16 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   av1_loop_filter_frame_init(cm, 0, num_planes);
 #endif
 #if CONFIG_INSPECTION
-  aom_realloc_frame_buffer(
-      &cm->predicted_pixels, cm->width, cm->height,
-      cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-      AOM_DEC_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL, NULL);
-  aom_realloc_frame_buffer(
-      &cm->prefiltered_pixels, cm->width, cm->height,
-      cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
-      AOM_DEC_BORDER_IN_PIXELS, cm->features.byte_alignment, NULL, NULL, NULL);
+  aom_realloc_frame_buffer(&cm->predicted_pixels, cm->width, cm->height,
+                           cm->seq_params.subsampling_x,
+                           cm->seq_params.subsampling_y,
+                           AOM_DEC_BORDER_IN_PIXELS,
+                           cm->features.byte_alignment, NULL, NULL, NULL, 0);
+  aom_realloc_frame_buffer(&cm->prefiltered_pixels, cm->width, cm->height,
+                           cm->seq_params.subsampling_x,
+                           cm->seq_params.subsampling_y,
+                           AOM_DEC_BORDER_IN_PIXELS,
+                           cm->features.byte_alignment, NULL, NULL, NULL, 0);
 #endif  // CONFIG_INSPECTION
   if (pbi->max_threads > 1 && !(tiles->large_scale && !pbi->ext_tile_debug) &&
       pbi->row_mt)

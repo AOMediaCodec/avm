@@ -1335,7 +1335,8 @@ static void copy_buffer_config(const YV12_BUFFER_CONFIG *const src,
 // TODO(afergs): Look for in-place upscaling
 // TODO(afergs): aom_ vs av1_ functions? Which can I use?
 // Upscale decoded image.
-void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
+void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
+                          int enable_global_motion) {
   const int num_planes = av1_num_planes(cm);
   if (!av1_superres_scaled(cm)) return;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -1349,7 +1350,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
   const int aligned_width = ALIGN_POWER_OF_TWO(cm->width, 3);
   if (aom_alloc_frame_buffer(
           &copy_buffer, aligned_width, cm->height, seq_params->subsampling_x,
-          seq_params->subsampling_y, AOM_BORDER_IN_PIXELS, byte_alignment))
+          seq_params->subsampling_y, AOM_BORDER_IN_PIXELS, byte_alignment, 0))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate copy buffer for superres upscaling");
 
@@ -1381,7 +1382,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
             frame_to_show, cm->superres_upscaled_width,
             cm->superres_upscaled_height, seq_params->subsampling_x,
             seq_params->subsampling_y, AOM_BORDER_IN_PIXELS, byte_alignment, fb,
-            cb, cb_priv)) {
+            cb, cb_priv, enable_global_motion)) {
       unlock_buffer_pool(pool);
       aom_internal_error(
           &cm->error, AOM_CODEC_MEM_ERROR,
@@ -1394,10 +1395,11 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool) {
 
     // Don't use callbacks on the encoder.
     // aom_alloc_frame_buffer() clears the config data for frame_to_show
-    if (aom_alloc_frame_buffer(
-            frame_to_show, cm->superres_upscaled_width,
-            cm->superres_upscaled_height, seq_params->subsampling_x,
-            seq_params->subsampling_y, AOM_BORDER_IN_PIXELS, byte_alignment))
+    if (aom_alloc_frame_buffer(frame_to_show, cm->superres_upscaled_width,
+                               cm->superres_upscaled_height,
+                               seq_params->subsampling_x,
+                               seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
+                               byte_alignment, enable_global_motion))
       aom_internal_error(
           &cm->error, AOM_CODEC_MEM_ERROR,
           "Failed to reallocate current frame buffer for superres upscaling");

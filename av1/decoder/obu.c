@@ -389,7 +389,7 @@ static void alloc_tile_list_buffer(AV1Decoder *pbi) {
   if (aom_alloc_frame_buffer(&pbi->tile_list_outbuf, output_frame_width,
                              output_frame_height, cm->seq_params.subsampling_x,
                              cm->seq_params.subsampling_y, 0,
-                             cm->features.byte_alignment))
+                             cm->features.byte_alignment, 0))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate the tile list output buffer");
 }
