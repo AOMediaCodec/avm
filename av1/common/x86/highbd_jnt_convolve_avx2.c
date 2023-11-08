@@ -148,7 +148,8 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
               (__m128i *)(&dst0[i * dst_stride0 + j + dst_stride0]), res_1);
         }
       }
-    } else if (!(w % 4)) {
+    } else {
+      // !(w % 4)
       __m256i res_clip;
       for (i = 0; i < h; i += 4) {
         for (j = 0; j < w; j += 8) {
@@ -230,7 +231,8 @@ void av1_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
                            res_1);
         }
       }
-    } else if (!(w % 4)) {
+    } else {
+      // !(w % 4)
       for (i = 0; i < h; i += 4) {
         for (j = 0; j < w; j += 8) {
           const __m128i src_row_0 = loadh_epi64(
