@@ -420,15 +420,8 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
   // TODO(kslu) add this as a speed feature or sequence level flag
   // if (!cm->seq_params.enable_opfl_mv_search) return 0;
 
-#if OMVS_RESTRICTION == 1
-  if (cpi->oxcf.gf_cfg.lag_in_frames > 0 &&
-      !cm->features.allow_screen_content_tools)
-    return 0;
-#elif OMVS_RESTRICTION == 2
+  // Allowed only for screen content
   if (!cm->features.allow_screen_content_tools) return 0;
-#elif OMVS_RESTRICTION == 3
-  if (!cm->features.allow_intrabc) return 0;
-#endif  // OMVS_DISABLED_FOR_LOW_MV_PREC
 
   const int its_comp1 = 0;  // NEAR_NEWMV/NEW_NEARMV
   const int its_sing = 3;   // NEWMV/WARPMV
@@ -585,6 +578,7 @@ int opfl_refine_fullpel_mv_one_sided(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
     const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize) {
   (void)cm;
+  (void)xd;
   (void)mbmi;
   int bw = block_size_wide[bsize];
   int bh = block_size_high[bsize];
@@ -610,22 +604,7 @@ int opfl_refine_fullpel_mv_one_sided(
 
   // Obrain Pred as dst0 and Cur as dst1
   aom_highbd_convolve_copy(pred_ptr, pred->stride, dst0, bw, bw, bh);
-#if OMVS_FILTER_SRC
-  // TODO(kslu) fine tune the filter
-#if OMVS_OPFL_DEBUG
-  fprintf(stderr, "Cur (before filter):\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", src->buf[i * src->stride + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-#endif
-  apply_smooth_filter(src->buf, src->stride, bw, bh, dst1, bw, xd->bd);
-#else
-  (void)xd;
   aom_highbd_convolve_copy(src->buf, src->stride, dst1, bw, bw, bh);
-#endif
 
 #if OMVS_OPFL_DEBUG
   fprintf(stderr, "Ref:\n");
@@ -764,22 +743,8 @@ int opfl_refine_subpel_mv_one_sided(
   if (sad < bw * bh * OMVS_SAD_THR) return 1;
 #endif
 
-    // Obtain Cur as dst1
-#if OMVS_FILTER_SRC
-    // TODO(kslu) fine tune the filter
-#if OMVS_OPFL_DEBUG
-  fprintf(stderr, "Cur (before filter):\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", src->buf[i * src->stride + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-#endif
-  apply_smooth_filter(src->buf, src->stride, bw, bh, dst1, bw, xd->bd);
-#else
+  // Obtain Cur as dst1
   aom_highbd_convolve_copy(src->buf, src->stride, dst1, bw, bw, bh);
-#endif
 
 #if OMVS_OPFL_DEBUG
   fprintf(stderr, "Ref:\n");
@@ -2977,11 +2942,6 @@ int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     { { 1, 1 }, 1 * SEARCH_GRID_STRIDE_8P + 1 }
   };
 
-#if CONFIG_OPFL_MV_SEARCH
-  // Search with a bigger step to increase search range when optical flow
-  // refinement is applied.
-  const int step = use_opfl ? OPFL_NEWMV_SEARCH_STEP : 1;
-#endif  // CONFIG_OPFL_MV_SEARCH
   uint8_t do_refine_search_grid[SEARCH_GRID_STRIDE_8P *
                                 SEARCH_GRID_STRIDE_8P] = { 0 };
   int grid_center = SEARCH_GRID_CENTER_8P;
@@ -3019,13 +2979,8 @@ int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
       if (do_refine_search_grid[grid_coord] == 1) {
         continue;
       }
-#if CONFIG_OPFL_MV_SEARCH
-      const FULLPEL_MV mv = { best_mv->row + neighbors[j].coord.row * step,
-                              best_mv->col + neighbors[j].coord.col * step };
-#else
       const FULLPEL_MV mv = { best_mv->row + neighbors[j].coord.row,
                               best_mv->col + neighbors[j].coord.col };
-#endif  // CONFIG_OPFL_MV_SEARCH
 
       do_refine_search_grid[grid_coord] = 1;
       if (av1_is_fullmv_in_range(mv_limits, mv
@@ -3055,13 +3010,8 @@ int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     if (best_site == -1) {
       break;
     } else {
-#if CONFIG_OPFL_MV_SEARCH
-      best_mv->row += neighbors[best_site].coord.row * step;
-      best_mv->col += neighbors[best_site].coord.col * step;
-#else
       best_mv->row += neighbors[best_site].coord.row;
       best_mv->col += neighbors[best_site].coord.col;
-#endif  // CONFIG_OPFL_MV_SEARCH
       grid_center += neighbors[best_site].coord_offset;
     }
   }

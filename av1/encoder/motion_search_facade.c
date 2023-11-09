@@ -1553,7 +1553,6 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                 this_mv->row, this_mv->col, other_mv->row, other_mv->col);
 #endif
 
-#if OMVS_JMV_TWOSIDED
         int d0 = cm->ref_frame_relative_dist[mbmi->ref_frame[ref_idx]];
         int d1 = cm->ref_frame_relative_dist[mbmi->ref_frame[1 - ref_idx]];
         d1 = is_ref_frame_same_side(cm, mbmi) ? d1 : -d1;
@@ -1575,14 +1574,6 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         get_mv_projection(&diff_mv0, diff_mv, d0, AOMMAX(0, d0 - d1));
         cur_mv.as_mv.row = best_opfl_mv.as_mv.row + diff_mv0.row;
         cur_mv.as_mv.col = best_opfl_mv.as_mv.col + diff_mv0.col;
-#else
-        term = opfl_refine_subpel_mv_one_sided(cm, xd, &ms_params, mbmi,
-                                               &refined_mv[ref_idx], ref_idx,
-                                               bsize, &inter_pred_params);
-        if (term) break;
-        cur_mv.as_mv.row = refined_mv[ref_idx].as_mv.row;
-        cur_mv.as_mv.col = refined_mv[ref_idx].as_mv.col;
-#endif
 
 #if CONFIG_FLEX_MVRES
         lower_mv_precision(&prev_mv, pb_mv_precision);

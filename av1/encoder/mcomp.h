@@ -353,20 +353,10 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 #define OMVS_OPFL_DEBUG 0
 #define OMVS_USE_SIMD 1
 #define OMVS_AVG_POOLING 1
-#define OMVS_FILTER_SRC 0
-// Restrictions on optical flow MV search
-// 0: no restrictions
-// 1: allowed only for low delay and screen content
-// 2: allowed only for screen content
-// 3: allowed only when intrabc is allowed (most strict)
-#define OMVS_RESTRICTION 2
-#define OMVS_JMV_TWOSIDED 1
 #define OMVS_RANGE_THR 2
 #define OMVS_BIG_STEP 4
-#define OMVS_RELAX_CONSTRAINTS 1
 #define OMVS_EARLY_TERM 1
 #define OMVS_SAD_THR 8
-#define OPFL_NEWMV_SEARCH_STEP 1
 
 static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
   if (mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW) return 1;
@@ -378,19 +368,8 @@ static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
 static INLINE int allow_one_sided_opfl_mv_step(const AV1_COMMON *cm,
                                                const MB_MODE_INFO *mbmi,
                                                int ref) {
-  if (mbmi->ref_frame[ref] == NONE_FRAME) return 0;
-#if OMVS_RELAX_CONSTRAINTS
   (void)cm;
-#else
-  if (mbmi->mode != WARPMV && mbmi->motion_mode != SIMPLE_TRANSLATION) return 0;
-  if (mbmi->interinter_comp.type != COMPOUND_AVERAGE) return 0;
-  const unsigned int cur_index = cm->cur_frame->display_order_hint;
-  const RefCntBuffer *const ref_buf =
-      get_ref_frame_buf(cm, mbmi->ref_frame[ref]);
-  int d = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
-                            ref_buf->display_order_hint);
-  if (d == 0) return 0;
-#endif
+  if (mbmi->ref_frame[ref] == NONE_FRAME) return 0;
   return 1;
 }
 
