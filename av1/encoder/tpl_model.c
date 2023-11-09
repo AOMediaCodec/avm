@@ -60,6 +60,63 @@ static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
   *sse = AOMMAX(*sse, 1);
 }
 
+static AOM_INLINE void set_tpl_stats_block_size(uint8_t *block_mis_log2,
+                                                uint8_t *tpl_bsize_1d) {
+  // tpl stats bsize: 2 means 16x16
+  *block_mis_log2 = 2;
+  // Block size used in tpl motion estimation
+  *tpl_bsize_1d = 16;
+  // MIN_TPL_BSIZE_1D = 16;
+  assert(*tpl_bsize_1d >= 16);
+}
+
+void setup_tpl_buffers(AV1_COMMON *const cm, TplParams *const tpl_data,
+                           int enable_tpl_model, int lag_in_frames) {
+  CommonModeInfoParams *const mi_params = &cm->mi_params;
+  set_tpl_stats_block_size(&tpl_data->tpl_stats_block_mis_log2,
+                           &tpl_data->tpl_bsize_1d);
+  const uint8_t block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
+  tpl_data->border_in_pixels =
+      ALIGN_POWER_OF_TWO(tpl_data->tpl_bsize_1d + 2 * AOM_INTERP_EXTEND, 5);
+
+  for (int frame = 0; frame < MAX_LENGTH_TPL_FRAME_STATS; ++frame) {
+    const int mi_cols =
+        ALIGN_POWER_OF_TWO(mi_params->mi_cols, MAX_MIB_SIZE_LOG2);
+    const int mi_rows =
+        ALIGN_POWER_OF_TWO(mi_params->mi_rows, MAX_MIB_SIZE_LOG2);
+
+    tpl_data->tpl_stats_buffer[frame].is_valid = 0;
+    tpl_data->tpl_stats_buffer[frame].width = mi_cols >> block_mis_log2;
+    tpl_data->tpl_stats_buffer[frame].height = mi_rows >> block_mis_log2;
+    tpl_data->tpl_stats_buffer[frame].stride =
+        tpl_data->tpl_stats_buffer[frame].width;
+    tpl_data->tpl_stats_buffer[frame].mi_rows = mi_params->mi_rows;
+    tpl_data->tpl_stats_buffer[frame].mi_cols = mi_params->mi_cols;
+  }
+  tpl_data->tpl_frame = &tpl_data->tpl_stats_buffer[REF_FRAMES + 1];
+
+  // The TPL module is not invoked for the following cases
+  // 1. enable_tpl_model is equal to 0.
+  // 2. lag_in_frames is less than or equal to 1.
+  // Hence, dynamic memory allocations of TPL buffers are avoided for the above
+  // mentioned cases.
+  if (!enable_tpl_model || lag_in_frames <= 1) return;
+
+  for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
+    CHECK_MEM_ERROR(
+        cm, tpl_data->tpl_stats_pool[frame],
+        aom_calloc(tpl_data->tpl_stats_buffer[frame].width *
+                       tpl_data->tpl_stats_buffer[frame].height,
+                   sizeof(*tpl_data->tpl_stats_buffer[frame].tpl_stats_ptr)));
+    if (aom_alloc_frame_buffer(
+            &tpl_data->tpl_rec_pool[frame], cm->width, cm->height,
+            cm->seq_params.subsampling_x, cm->seq_params.subsampling_y,
+            tpl_data->border_in_pixels, cm->features.byte_alignment))
+      aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate frame buffer");
+  }
+}
+
 static AOM_INLINE void tpl_fwd_txfm(const int16_t *src_diff, int bw,
                                     tran_low_t *coeff, TX_SIZE tx_size,
                                     int bit_depth) {

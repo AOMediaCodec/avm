@@ -1014,6 +1014,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cpi->time_stamps.prev_end_seen = source->ts_start;
   }
 
+  if (!is_stat_generation_stage(cpi)) {
+    if (cpi->tpl_data.tpl_stats_pool[0] == NULL) {
+      setup_tpl_buffers(cm, &cpi->tpl_data, cpi->oxcf.algo_cfg.enable_tpl_model,
+                        oxcf->gf_cfg.lag_in_frames);
+    }
+  }
+
   av1_apply_encoding_flags(cpi, source->flags);
   if (!frame_params.show_existing_frame)
     *frame_flags = (source->flags & AOM_EFLAG_FORCE_KF) ? FRAMEFLAGS_KEY : 0;
