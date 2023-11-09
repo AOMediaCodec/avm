@@ -359,8 +359,6 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 #define OMVS_SAD_THR 8
 
 static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
-  if (mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW) return 1;
-  if (mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW) return 1;
   if (mbmi->mode == NEWMV || mbmi->mode == WARPMV) return 3;
   return 0;
 }
@@ -369,8 +367,7 @@ static INLINE int allow_one_sided_opfl_mv_step(const AV1_COMMON *cm,
                                                const MB_MODE_INFO *mbmi,
                                                int ref) {
   (void)cm;
-  if (mbmi->ref_frame[ref] == NONE_FRAME) return 0;
-  return 1;
+  return mbmi->ref_frame[ref] != NONE_FRAME;
 }
 
 int get_opfl_mv_iterations(const struct AV1_COMP *cpi,
@@ -384,11 +381,7 @@ void av1_set_tip_mv_search_range(FullMvLimits *mv_limits);
 int av1_init_search_range(int size);
 
 int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-                             const FULLPEL_MV start_mv,
-#if CONFIG_OPFL_MV_SEARCH
-                             int use_opfl,
-#endif  // CONFIG_OPFL_MV_SEARCH
-                             FULLPEL_MV *best_mv);
+                             const FULLPEL_MV start_mv, FULLPEL_MV *best_mv);
 #if CONFIG_FLEX_MVRES
 int av1_refining_search_8p_c_low_precision(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const FULLPEL_MV start_mv,

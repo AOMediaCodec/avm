@@ -423,42 +423,9 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
   // Allowed only for screen content
   if (!cm->features.allow_screen_content_tools) return 0;
 
-  const int its_comp1 = 0;  // NEAR_NEWMV/NEW_NEARMV
-  const int its_sing = 3;   // NEWMV/WARPMV
-  const int its_comp2 = 0;  // NEW_NEWMV
-  const int its_jcomp = 0;  // JOINT_NEWMV
-
   switch (mbmi->mode) {
     case WARPMV:
-    case NEWMV: return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_sing : 0;
-    case NEW_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEW_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
-                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
-                 ? its_comp2
-                 : 0;
-    case NEAR_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEAR_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 1) ? its_comp1 : 0;
-    case NEW_NEARMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case NEW_NEARMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? its_comp1 : 0;
-#if CONFIG_JOINT_MVD
-    case JOINT_NEWMV:
-#if CONFIG_OPTFLOW_REFINEMENT
-    case JOINT_NEWMV_OPTFLOW:
-#endif  // CONFIG_OPTFLOW_REFINEMENT
-      return allow_one_sided_opfl_mv_step(cm, mbmi, 0) &&
-                     allow_one_sided_opfl_mv_step(cm, mbmi, 1)
-                 ? its_jcomp
-                 : 0;
-#endif  // CONFIG_JOINT_MVD
+    case NEWMV: return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? 3 : 0;
     default: return 0;
   }
 
@@ -2926,11 +2893,7 @@ static int full_pixel_exhaustive(const FULLPEL_MV start_mv,
 // This function is called when we do joint motion search in comp_inter_inter
 // mode, or when searching for one component of an ext-inter compound mode.
 int av1_refining_search_8p_c(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
-                             const FULLPEL_MV start_mv,
-#if CONFIG_OPFL_MV_SEARCH
-                             int use_opfl,
-#endif  // CONFIG_OPFL_MV_SEARCH
-                             FULLPEL_MV *best_mv) {
+                             const FULLPEL_MV start_mv, FULLPEL_MV *best_mv) {
   static const search_neighbors neighbors[8] = {
     { { -1, 0 }, -1 * SEARCH_GRID_STRIDE_8P + 0 },
     { { 0, -1 }, 0 * SEARCH_GRID_STRIDE_8P - 1 },
