@@ -4439,6 +4439,7 @@ void set_most_probable_mv_precision(const AV1_COMMON *const cm,
       break;
     }
   }
+  (void)mpp_found;
   assert(mpp_found);
 #endif
 }

@@ -4816,6 +4816,7 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 #if CONFIG_DEBUG
   const MV xxmv = { bestmv->row, bestmv->col };
   assert(is_this_mv_precision_compliant(xxmv, mbmi->pb_mv_precision));
+  (void)xxmv;
 #endif
 
   return besterr;

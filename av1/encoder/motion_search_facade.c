@@ -1466,8 +1466,10 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   int bestsme = INT_MAX;
   int_mv best_mv;
+  best_mv.as_mv = kZeroMv;
 #if CONFIG_JOINT_MVD
   int_mv best_other_mv;
+  best_other_mv.as_mv = kZeroMv;
 #endif  // CONFIG_JOINT_MVD
 #if CONFIG_ADAPTIVE_MVD
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
@@ -1800,7 +1802,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_OPFL_MV_SEARCH
                                            smv, use_opfl,
 #else
-                                       start_fullmv,
+                                     start_fullmv,
 #endif  // CONFIG_OPFL_MV_SEARCH
                                            &best_mv.as_fullmv);
 #if CONFIG_FLEX_MVRES
