@@ -394,7 +394,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
           AOMMIN(prev_y_step, y_step) >= filt_len) {
         bool diff_mv = 0;
         check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs,
-                 mvs_stride, n_blocks, pef_input->mv_refined, wn
+                 mvs_stride, n_blocks, pef_input->mv_refined, 2 * wn
 #if CONFIG_REFINEMV
                  ,
                  (pef_mode == 3) ? (pef_input->refinemv_subinfo +
