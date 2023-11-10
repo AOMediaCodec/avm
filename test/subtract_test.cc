@@ -51,8 +51,12 @@ class AV1HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
 
-    const size_t max_width = 128;
-    const size_t max_block_size = max_width * max_width;
+#if CONFIG_BLOCK_256
+    max_width_ = 256;
+#else
+    max_width_ = 128;
+#endif  // CONFIG_BLOCK_256
+    const size_t max_block_size = max_width_ * max_width_;
     src_ = reinterpret_cast<uint16_t *>(
         aom_memalign(16, max_block_size * sizeof(uint16_t)));
     pred_ = reinterpret_cast<uint16_t *>(
@@ -73,6 +77,7 @@ class AV1HBDSubtractBlockTest : public ::testing::TestWithParam<Params> {
 
  private:
   ACMRandom rnd_;
+  size_t max_width_;
   int block_height_;
   int block_width_;
   aom_bit_depth_t bit_depth_;
@@ -85,8 +90,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HBDSubtractBlockTest);
 
 void AV1HBDSubtractBlockTest::CheckResult() {
   const int test_num = 100;
-  const size_t max_width = 128;
-  const int max_block_size = max_width * max_width;
+  const int max_block_size = max_width_ * max_width_;
   const int mask = (1 << bit_depth_) - 1;
   int i, j;
 
@@ -113,8 +117,7 @@ TEST_P(AV1HBDSubtractBlockTest, CheckResult) { CheckResult(); }
 
 void AV1HBDSubtractBlockTest::RunForSpeed() {
   const int test_num = 200000;
-  const size_t max_width = 128;
-  const int max_block_size = max_width * max_width;
+  const int max_block_size = max_width_ * max_width_;
   const int mask = (1 << bit_depth_) - 1;
   int i, j;
 
@@ -164,7 +167,39 @@ const Params kAV1HBDSubtractBlock_sse2[] = {
   make_tuple(128, 64, 12, &aom_highbd_subtract_block_sse2),
   make_tuple(128, 64, 12, &aom_highbd_subtract_block_c),
   make_tuple(128, 128, 12, &aom_highbd_subtract_block_sse2),
-  make_tuple(128, 128, 12, &aom_highbd_subtract_block_c)
+  make_tuple(128, 128, 12, &aom_highbd_subtract_block_c),
+#if CONFIG_BLOCK_256
+  make_tuple(128, 256, 12, &aom_highbd_subtract_block_c),
+  make_tuple(256, 128, 12, &aom_highbd_subtract_block_c),
+  make_tuple(256, 256, 12, &aom_highbd_subtract_block_c),
+  make_tuple(128, 256, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(256, 128, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(256, 256, 12, &aom_highbd_subtract_block_sse2),
+#endif  // CONFIG_BLOCK_256
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(64, 256, 12, &aom_highbd_subtract_block_c),
+  make_tuple(256, 64, 12, &aom_highbd_subtract_block_c),
+  make_tuple(32, 128, 12, &aom_highbd_subtract_block_c),
+  make_tuple(128, 32, 12, &aom_highbd_subtract_block_c),
+  make_tuple(64, 256, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(256, 64, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(32, 128, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(128, 32, 12, &aom_highbd_subtract_block_sse2),
+#endif  // CONFIG_BLOCK_256_EXT
+#if CONFIG_FLEX_PARTITION
+  make_tuple(64, 8, 12, &aom_highbd_subtract_block_c),
+  make_tuple(8, 64, 12, &aom_highbd_subtract_block_c),
+  make_tuple(32, 4, 12, &aom_highbd_subtract_block_c),
+  make_tuple(4, 32, 12, &aom_highbd_subtract_block_c),
+  make_tuple(64, 4, 12, &aom_highbd_subtract_block_c),
+  make_tuple(4, 64, 12, &aom_highbd_subtract_block_c),
+  make_tuple(64, 8, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(8, 64, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(32, 4, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(4, 32, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(64, 4, 12, &aom_highbd_subtract_block_sse2),
+  make_tuple(4, 64, 12, &aom_highbd_subtract_block_sse2),
+#endif  // CONFIG_FLEX_PARTITION
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, AV1HBDSubtractBlockTest,

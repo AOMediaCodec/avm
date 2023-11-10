@@ -673,10 +673,19 @@ highbd_sadMxN_avx2(64, 128);
 
 highbd_sadMxN_avx2(128, 64);
 highbd_sadMxN_avx2(128, 128);
+#if CONFIG_BLOCK_256
 highbd_sadMxN_avx2(128, 256);
 
 highbd_sadMxN_avx2(256, 128);
 highbd_sadMxN_avx2(256, 256);
+#endif  // CONFIG_BLOCK_256
+
+#if CONFIG_BLOCK_256_EXT
+highbd_sadMxN_avx2(64, 256);
+highbd_sadMxN_avx2(256, 64);
+highbd_sadMxN_avx2(128, 32);
+highbd_sadMxN_avx2(32, 128);
+#endif  // CONFIG_BLOCK_256_EXT
 
 highbd_sad_skip_MxN_avx2(16, 8);
 highbd_sad_skip_MxN_avx2(16, 16);
@@ -695,10 +704,19 @@ highbd_sad_skip_MxN_avx2(64, 128);
 
 highbd_sad_skip_MxN_avx2(128, 64);
 highbd_sad_skip_MxN_avx2(128, 128);
+#if CONFIG_BLOCK_256
 highbd_sad_skip_MxN_avx2(128, 256);
 
 highbd_sad_skip_MxN_avx2(256, 128);
 highbd_sad_skip_MxN_avx2(256, 256);
+#endif  // CONFIG_BLOCK_256
+
+#if CONFIG_BLOCK_256_EXT
+highbd_sad_skip_MxN_avx2(64, 256);
+highbd_sad_skip_MxN_avx2(256, 64);
+highbd_sad_skip_MxN_avx2(128, 32);
+highbd_sad_skip_MxN_avx2(32, 128);
+#endif  // CONFIG_BLOCK_256_EXT
 
 unsigned int aom_highbd_sad16x4_avg_avx2(const uint16_t *src, int src_stride,
                                          const uint16_t *ref, int ref_stride,
@@ -921,6 +939,7 @@ unsigned int aom_highbd_sad128x128_avg_avx2(const uint16_t *src, int src_stride,
   return sum;
 }
 
+#if CONFIG_BLOCK_256
 unsigned int aom_highbd_sad128x256_avg_avx2(const uint16_t *src, int src_stride,
                                             const uint16_t *ref, int ref_stride,
                                             const uint16_t *second_pred) {
@@ -967,6 +986,68 @@ unsigned int aom_highbd_sad256x256_avg_avx2(const uint16_t *src, int src_stride,
                                         second_pred);
   return sum;
 }
+#endif  // CONFIG_BLOCK_256
+#if CONFIG_BLOCK_256_EXT
+unsigned int aom_highbd_sad32x128_avg_avx2(const uint16_t *src, int src_stride,
+                                           const uint16_t *ref, int ref_stride,
+                                           const uint16_t *second_pred) {
+  const int left_shift = 6;
+  uint32_t sum = aom_highbd_sad32x64_avg_avx2(src, src_stride, ref, ref_stride,
+                                              second_pred);
+  src += src_stride << left_shift;
+  ref += ref_stride << left_shift;
+  second_pred += 32 << left_shift;
+  sum += aom_highbd_sad32x64_avg_avx2(src, src_stride, ref, ref_stride,
+                                      second_pred);
+  return sum;
+}
+
+unsigned int aom_highbd_sad128x32_avg_avx2(const uint16_t *src, int src_stride,
+                                           const uint16_t *ref, int ref_stride,
+                                           const uint16_t *second_pred) {
+  __m256i sad = _mm256_setzero_si256();
+  int row = 0;
+  while (row < 32) {
+    sad128x1(src, ref, second_pred, &sad);
+    src += src_stride;
+    ref += ref_stride;
+    second_pred += 16 << 3;
+    row += 1;
+  }
+  return get_sad_from_mm256_epi32(&sad);
+}
+
+unsigned int aom_highbd_sad64x256_avg_avx2(const uint16_t *src, int src_stride,
+                                           const uint16_t *ref, int ref_stride,
+                                           const uint16_t *second_pred) {
+  unsigned int sum;
+  const int left_shift = 7;
+
+  sum = aom_highbd_sad64x128_avg_avx2(src, src_stride, ref, ref_stride,
+                                      second_pred);
+  src += src_stride << left_shift;
+  ref += ref_stride << left_shift;
+  second_pred += 64 << left_shift;
+  sum += aom_highbd_sad64x128_avg_avx2(src, src_stride, ref, ref_stride,
+                                       second_pred);
+  return sum;
+}
+
+unsigned int aom_highbd_sad256x64_avg_avx2(const uint16_t *src, int src_stride,
+                                           const uint16_t *ref, int ref_stride,
+                                           const uint16_t *second_pred) {
+  __m256i sad = _mm256_setzero_si256();
+  int row = 0;
+  while (row < 64) {
+    sad256x1(src, ref, second_pred, &sad);
+    src += src_stride;
+    ref += ref_stride;
+    second_pred += 256;
+    row += 1;
+  }
+  return get_sad_from_mm256_epi32(&sad);
+}
+#endif  // CONFIG_BLOCK_256_EXT
 
 // SAD 4D
 // Combine 4 __m256i input vectors  v to uint32_t result[4]
@@ -1161,10 +1242,19 @@ highbd_sadMxNx4d_avx2(64, 128);
 
 highbd_sadMxNx4d_avx2(128, 64);
 highbd_sadMxNx4d_avx2(128, 128);
+#if CONFIG_BLOCK_256
 highbd_sadMxNx4d_avx2(128, 256);
 
 highbd_sadMxNx4d_avx2(256, 128);
 highbd_sadMxNx4d_avx2(256, 256);
+#endif  // CONFIG_BLOCK_256
+        //
+#if CONFIG_BLOCK_256_EXT
+highbd_sadMxNx4d_avx2(64, 256);
+highbd_sadMxNx4d_avx2(256, 64);
+highbd_sadMxNx4d_avx2(128, 32);
+highbd_sadMxNx4d_avx2(32, 128);
+#endif  // CONFIG_BLOCK_256_EXT
 
 highbd_sad_skip_MxNx4d_avx2(16, 8);
 highbd_sad_skip_MxNx4d_avx2(16, 16);
@@ -1183,7 +1273,16 @@ highbd_sad_skip_MxNx4d_avx2(64, 128);
 
 highbd_sad_skip_MxNx4d_avx2(128, 64);
 highbd_sad_skip_MxNx4d_avx2(128, 128);
+#if CONFIG_BLOCK_256
 highbd_sad_skip_MxNx4d_avx2(128, 256);
 
 highbd_sad_skip_MxNx4d_avx2(256, 128);
 highbd_sad_skip_MxNx4d_avx2(256, 256);
+#endif  // CONFIG_BLOCK_256
+        //
+#if CONFIG_BLOCK_256_EXT
+highbd_sad_skip_MxNx4d_avx2(64, 256);
+highbd_sad_skip_MxNx4d_avx2(256, 64);
+highbd_sad_skip_MxNx4d_avx2(128, 32);
+highbd_sad_skip_MxNx4d_avx2(32, 128);
+#endif  // CONFIG_BLOCK_256_EXT

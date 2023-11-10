@@ -157,6 +157,13 @@ ObmcSadHBDTest::ParamType avx2_functions_hbd[] = {
   TestFuncs(aom_highbd_obmc_sad16x4_c, aom_highbd_obmc_sad16x4_avx2),
   TestFuncs(aom_highbd_obmc_sad4x16_c, aom_highbd_obmc_sad4x16_avx2),
 
+#if CONFIG_BLOCK_256_EXT
+  TestFuncs(aom_highbd_obmc_sad256x64_c, aom_highbd_obmc_sad256x64_avx2),
+  TestFuncs(aom_highbd_obmc_sad64x256_c, aom_highbd_obmc_sad64x256_avx2),
+  TestFuncs(aom_highbd_obmc_sad32x128_c, aom_highbd_obmc_sad32x128_avx2),
+  TestFuncs(aom_highbd_obmc_sad128x32_c, aom_highbd_obmc_sad128x32_avx2),
+#endif  // CONFIG_BLOCK_256_EXT
+
 #if CONFIG_FLEX_PARTITION
   TestFuncs(aom_highbd_obmc_sad64x8_c, aom_highbd_obmc_sad64x8_avx2),
   TestFuncs(aom_highbd_obmc_sad8x64_c, aom_highbd_obmc_sad8x64_avx2),

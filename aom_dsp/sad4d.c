@@ -186,6 +186,18 @@ highbd_sadMxNx4D(16, 64);
 highbd_avg_skip_sadMxN(64, 16);
 highbd_sadMxNx4D(64, 16);
 
+#if CONFIG_BLOCK_256_EXT
+highbd_avg_skip_sadMxN(256, 64);
+highbd_avg_skip_sadMxN(64, 256);
+highbd_avg_skip_sadMxN(32, 128);
+highbd_avg_skip_sadMxN(128, 32);
+
+highbd_sadMxNx4D(256, 64);
+highbd_sadMxNx4D(64, 256);
+highbd_sadMxNx4D(32, 128);
+highbd_sadMxNx4D(128, 32);
+#endif  // CONFIG_BLOCK_256_EXT
+
 #if CONFIG_FLEX_PARTITION
 highbd_avg_skip_sadMxN(4, 32);
 highbd_sadMxNx4D(4, 32);

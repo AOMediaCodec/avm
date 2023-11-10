@@ -150,6 +150,13 @@ highbd_sadMxN(32, 8);
 highbd_sadMxN(16, 64);
 highbd_sadMxN(64, 16);
 
+#if CONFIG_BLOCK_256_EXT
+highbd_sadMxN(256, 64);
+highbd_sadMxN(64, 256);
+highbd_sadMxN(32, 128);
+highbd_sadMxN(128, 32);
+#endif  // CONFIG_BLOCK_256_EXT
+
 #if CONFIG_FLEX_PARTITION
 highbd_sadMxN(4, 32);
 highbd_sadMxN(32, 4);

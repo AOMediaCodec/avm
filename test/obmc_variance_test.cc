@@ -138,6 +138,17 @@ ObmcVarianceHBDTest::ParamType sse4_functions_hbd[] = {
   TestFuncs(aom_highbd_obmc_variance4x4_c, aom_highbd_obmc_variance4x4_sse4_1,
             8),
 
+#if CONFIG_BLOCK_256_EXT
+  TestFuncs(aom_highbd_obmc_variance256x64_c,
+            aom_highbd_obmc_variance256x64_sse4_1, 8),
+  TestFuncs(aom_highbd_obmc_variance64x256_c,
+            aom_highbd_obmc_variance64x256_sse4_1, 8),
+  TestFuncs(aom_highbd_obmc_variance32x128_c,
+            aom_highbd_obmc_variance32x128_sse4_1, 8),
+  TestFuncs(aom_highbd_obmc_variance128x32_c,
+            aom_highbd_obmc_variance128x32_sse4_1, 8),
+#endif  // CONFIG_BLOCK_256_EXT
+
 #if CONFIG_BLOCK_256
   TestFuncs(aom_highbd_obmc_variance256x256_c,
             aom_highbd_obmc_variance256x256_sse4_1, 10),
@@ -179,6 +190,17 @@ ObmcVarianceHBDTest::ParamType sse4_functions_hbd[] = {
   TestFuncs(aom_highbd_10_obmc_variance4x4_c,
             aom_highbd_10_obmc_variance4x4_sse4_1, 10),
 
+#if CONFIG_BLOCK_256_EXT
+  TestFuncs(aom_highbd_obmc_variance256x64_c,
+            aom_highbd_obmc_variance256x64_sse4_1, 10),
+  TestFuncs(aom_highbd_obmc_variance64x256_c,
+            aom_highbd_obmc_variance64x256_sse4_1, 10),
+  TestFuncs(aom_highbd_obmc_variance32x128_c,
+            aom_highbd_obmc_variance32x128_sse4_1, 10),
+  TestFuncs(aom_highbd_obmc_variance128x32_c,
+            aom_highbd_obmc_variance128x32_sse4_1, 10),
+#endif  // CONFIG_BLOCK_256_EXT
+
 #if CONFIG_BLOCK_256
   TestFuncs(aom_highbd_obmc_variance256x256_c,
             aom_highbd_obmc_variance256x256_sse4_1, 12),
@@ -219,6 +241,17 @@ ObmcVarianceHBDTest::ParamType sse4_functions_hbd[] = {
             aom_highbd_12_obmc_variance4x8_sse4_1, 12),
   TestFuncs(aom_highbd_12_obmc_variance4x4_c,
             aom_highbd_12_obmc_variance4x4_sse4_1, 12),
+
+#if CONFIG_BLOCK_256_EXT
+  TestFuncs(aom_highbd_obmc_variance256x64_c,
+            aom_highbd_obmc_variance256x64_sse4_1, 12),
+  TestFuncs(aom_highbd_obmc_variance64x256_c,
+            aom_highbd_obmc_variance64x256_sse4_1, 12),
+  TestFuncs(aom_highbd_obmc_variance32x128_c,
+            aom_highbd_obmc_variance32x128_sse4_1, 12),
+  TestFuncs(aom_highbd_obmc_variance128x32_c,
+            aom_highbd_obmc_variance128x32_sse4_1, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 
   TestFuncs(aom_highbd_obmc_variance64x16_c,
             aom_highbd_obmc_variance64x16_sse4_1, 8),

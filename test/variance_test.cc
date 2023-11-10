@@ -1504,6 +1504,12 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(5, 3, &aom_highbd_8_variance32x8_avx2, 8),
   VarianceParams(4, 6, &aom_highbd_8_variance16x64_avx2, 8),
   VarianceParams(6, 4, &aom_highbd_8_variance64x16_avx2, 8),
+#if CONFIG_BLOCK_256_EXT
+  VarianceParams(8, 6, &aom_highbd_8_variance256x64_avx2, 8),
+  VarianceParams(6, 8, &aom_highbd_8_variance64x256_avx2, 8),
+  VarianceParams(7, 5, &aom_highbd_8_variance128x32_avx2, 8),
+  VarianceParams(5, 7, &aom_highbd_8_variance32x128_avx2, 8),
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
   VarianceParams(6, 3, &aom_highbd_8_variance64x8_avx2, 8),
   VarianceParams(3, 6, &aom_highbd_8_variance8x64_avx2, 8),
@@ -1532,6 +1538,12 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(5, 3, &aom_highbd_10_variance32x8_avx2, 10),
   VarianceParams(4, 6, &aom_highbd_10_variance16x64_avx2, 10),
   VarianceParams(6, 4, &aom_highbd_10_variance64x16_avx2, 10),
+#if CONFIG_BLOCK_256_EXT
+  VarianceParams(8, 6, &aom_highbd_10_variance256x64_avx2, 10),
+  VarianceParams(6, 8, &aom_highbd_10_variance64x256_avx2, 10),
+  VarianceParams(7, 5, &aom_highbd_10_variance128x32_avx2, 10),
+  VarianceParams(5, 7, &aom_highbd_10_variance32x128_avx2, 10),
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
   VarianceParams(6, 3, &aom_highbd_10_variance64x8_avx2, 10),
   VarianceParams(3, 6, &aom_highbd_10_variance8x64_avx2, 10),
@@ -1560,6 +1572,12 @@ const VarianceParams kArrayHBDVariance_avx2[] = {
   VarianceParams(5, 3, &aom_highbd_12_variance32x8_avx2, 12),
   VarianceParams(4, 6, &aom_highbd_12_variance16x64_avx2, 12),
   VarianceParams(6, 4, &aom_highbd_12_variance64x16_avx2, 12),
+#if CONFIG_BLOCK_256_EXT
+  VarianceParams(8, 6, &aom_highbd_12_variance256x64_avx2, 12),
+  VarianceParams(6, 8, &aom_highbd_12_variance64x256_avx2, 12),
+  VarianceParams(7, 5, &aom_highbd_12_variance128x32_avx2, 12),
+  VarianceParams(5, 7, &aom_highbd_12_variance32x128_avx2, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
   VarianceParams(6, 3, &aom_highbd_12_variance64x8_avx2, 12),
   VarianceParams(3, 6, &aom_highbd_12_variance8x64_avx2, 12),
@@ -1570,14 +1588,16 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDVarianceTest,
                          ::testing::ValuesIn(kArrayHBDVariance_avx2));
 
 const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
-#if CONFIG_BLOCK_256X256
+// TODO(any): The AVX2 optimizations for 12-bit subpel variance doesn't work
+// right now. So disable these tests until they are fixed.
+#if CONFIG_BLOCK_256
 //  SubpelVarianceParams(8, 8, &aom_highbd_12_sub_pixel_variance256x256_avx2,
 //  12),
 //  SubpelVarianceParams(8, 7, &aom_highbd_12_sub_pixel_variance256x128_avx2,
 //  12),
 //  SubpelVarianceParams(7, 8, &aom_highbd_12_sub_pixel_variance128x256_avx2,
 //  12),
-#endif  // CONFIG_BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
   // SubpelVarianceParams(7, 7, &aom_highbd_12_sub_pixel_variance128x128_avx2,
   // 12),
   // SubpelVarianceParams(7, 6, &aom_highbd_12_sub_pixel_variance128x64_avx2,
@@ -1600,11 +1620,11 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
   // 12),
   SubpelVarianceParams(4, 3, &aom_highbd_12_sub_pixel_variance16x8_avx2, 12),
 
-#if CONFIG_BLOCK_256X256
+#if CONFIG_BLOCK_256
   SubpelVarianceParams(8, 8, &aom_highbd_10_sub_pixel_variance256x256_avx2, 10),
   SubpelVarianceParams(8, 7, &aom_highbd_10_sub_pixel_variance256x128_avx2, 10),
   SubpelVarianceParams(7, 8, &aom_highbd_10_sub_pixel_variance128x256_avx2, 10),
-#endif  // CONFIG_BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
   SubpelVarianceParams(7, 7, &aom_highbd_10_sub_pixel_variance128x128_avx2, 10),
   SubpelVarianceParams(7, 6, &aom_highbd_10_sub_pixel_variance128x64_avx2, 10),
   SubpelVarianceParams(6, 7, &aom_highbd_10_sub_pixel_variance64x128_avx2, 10),
@@ -1617,11 +1637,11 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
   SubpelVarianceParams(4, 4, &aom_highbd_10_sub_pixel_variance16x16_avx2, 10),
   SubpelVarianceParams(4, 3, &aom_highbd_10_sub_pixel_variance16x8_avx2, 10),
 
-#if CONFIG_BLOCK_256X256
+#if CONFIG_BLOCK_256
   SubpelVarianceParams(8, 8, &aom_highbd_8_sub_pixel_variance256x256_avx2, 8),
   SubpelVarianceParams(8, 7, &aom_highbd_8_sub_pixel_variance256x128_avx2, 8),
   SubpelVarianceParams(7, 8, &aom_highbd_8_sub_pixel_variance128x256_avx2, 8),
-#endif  // CONFIG_BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
   SubpelVarianceParams(7, 7, &aom_highbd_8_sub_pixel_variance128x128_avx2, 8),
   SubpelVarianceParams(7, 6, &aom_highbd_8_sub_pixel_variance128x64_avx2, 8),
   SubpelVarianceParams(6, 7, &aom_highbd_8_sub_pixel_variance64x128_avx2, 8),
@@ -1641,15 +1661,36 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
   // SubpelVarianceParams(5, 3, &aom_highbd_12_sub_pixel_variance32x8_avx2, 12),
   SubpelVarianceParams(4, 2, &aom_highbd_12_sub_pixel_variance16x4_avx2, 12),
 
+#if CONFIG_BLOCK_256_EXT
+// SubpelVarianceParams(8, 6, &aom_highbd_10_sub_pixel_variance256x64_avx2, 12),
+// SubpelVarianceParams(6, 8, &aom_highbd_10_sub_pixel_variance64x256_avx2, 12),
+// SubpelVarianceParams(7, 5, &aom_highbd_10_sub_pixel_variance128x32_avx2, 12),
+// SubpelVarianceParams(5, 7, &aom_highbd_10_sub_pixel_variance32x128_avx2, 12),
+#endif  // CONFIG_BLOCK_256_EXT
+
   SubpelVarianceParams(6, 4, &aom_highbd_10_sub_pixel_variance64x16_avx2, 10),
   SubpelVarianceParams(4, 6, &aom_highbd_10_sub_pixel_variance16x64_avx2, 10),
   SubpelVarianceParams(5, 3, &aom_highbd_10_sub_pixel_variance32x8_avx2, 10),
   SubpelVarianceParams(4, 2, &aom_highbd_10_sub_pixel_variance16x4_avx2, 10),
 
+#if CONFIG_BLOCK_256_EXT
+  SubpelVarianceParams(8, 6, &aom_highbd_10_sub_pixel_variance256x64_avx2, 10),
+  SubpelVarianceParams(6, 8, &aom_highbd_10_sub_pixel_variance64x256_avx2, 10),
+  SubpelVarianceParams(7, 5, &aom_highbd_10_sub_pixel_variance128x32_avx2, 10),
+  SubpelVarianceParams(5, 7, &aom_highbd_10_sub_pixel_variance32x128_avx2, 10),
+#endif  // CONFIG_BLOCK_256_EXT
+
   SubpelVarianceParams(6, 4, &aom_highbd_8_sub_pixel_variance64x16_avx2, 8),
   SubpelVarianceParams(4, 6, &aom_highbd_8_sub_pixel_variance16x64_avx2, 8),
   SubpelVarianceParams(5, 3, &aom_highbd_8_sub_pixel_variance32x8_avx2, 8),
   SubpelVarianceParams(4, 2, &aom_highbd_8_sub_pixel_variance16x4_avx2, 8),
+
+#if CONFIG_BLOCK_256_EXT
+  SubpelVarianceParams(8, 6, &aom_highbd_8_sub_pixel_variance256x64_avx2, 8),
+  SubpelVarianceParams(6, 8, &aom_highbd_8_sub_pixel_variance64x256_avx2, 8),
+  SubpelVarianceParams(7, 5, &aom_highbd_8_sub_pixel_variance128x32_avx2, 8),
+  SubpelVarianceParams(5, 7, &aom_highbd_8_sub_pixel_variance32x128_avx2, 8),
+#endif  // CONFIG_BLOCK_256_EXT
 };
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDSubpelVarianceTest,

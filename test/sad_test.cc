@@ -1095,6 +1095,13 @@ const SadMxNParam c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4_c, 8),
   make_tuple(4, 8, &aom_highbd_sad4x8_c, 8),
   make_tuple(4, 4, &aom_highbd_sad4x4_c, 8),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_c, 8),
+  make_tuple(64, 256, &aom_highbd_sad64x256_c, 8),
+  make_tuple(32, 128, &aom_highbd_sad32x128_c, 8),
+  make_tuple(128, 32, &aom_highbd_sad128x32_c, 8),
+#endif  // CONFIG_BLOCK_256_EXT
+
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad256x256_c, 10),
   make_tuple(256, 128, &aom_highbd_sad256x128_c, 10),
@@ -1116,6 +1123,13 @@ const SadMxNParam c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4_c, 10),
   make_tuple(4, 8, &aom_highbd_sad4x8_c, 10),
   make_tuple(4, 4, &aom_highbd_sad4x4_c, 10),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_c, 10),
+  make_tuple(64, 256, &aom_highbd_sad64x256_c, 10),
+  make_tuple(32, 128, &aom_highbd_sad32x128_c, 10),
+  make_tuple(128, 32, &aom_highbd_sad128x32_c, 10),
+#endif  // CONFIG_BLOCK_256_EXT
+
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad256x256_c, 12),
   make_tuple(256, 128, &aom_highbd_sad256x128_c, 12),
@@ -1151,6 +1165,13 @@ const SadMxNParam c_tests[] = {
   make_tuple(20, 20, &aom_highbd_sad20x20_c, 10),
   make_tuple(20, 20, &aom_highbd_sad20x20_c, 12),
 #endif
+
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_c, 12),
+  make_tuple(64, 256, &aom_highbd_sad64x256_c, 12),
+  make_tuple(32, 128, &aom_highbd_sad32x128_c, 12),
+  make_tuple(128, 32, &aom_highbd_sad128x32_c, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 
   make_tuple(64, 16, &aom_highbd_sad64x16_c, 8),
   make_tuple(16, 64, &aom_highbd_sad16x64_c, 8),
@@ -1226,6 +1247,12 @@ const SadSkipMxNParam skip_c_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32_c, 8),
   make_tuple(16, 4, &aom_highbd_sad_skip_16x4_c, 8),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16_c, 8),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64_c, 8),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256_c, 8),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128_c, 8),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32_c, 8),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad_skip_256x256_c, 10),
@@ -1254,6 +1281,12 @@ const SadSkipMxNParam skip_c_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32_c, 10),
   make_tuple(16, 4, &aom_highbd_sad_skip_16x4_c, 10),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16_c, 10),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64_c, 10),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256_c, 10),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128_c, 10),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32_c, 10),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad_skip_256x256_c, 12),
@@ -1282,6 +1315,12 @@ const SadSkipMxNParam skip_c_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32_c, 12),
   make_tuple(16, 4, &aom_highbd_sad_skip_16x4_c, 12),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16_c, 12),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64_c, 12),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256_c, 12),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128_c, 12),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32_c, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 };
 INSTANTIATE_TEST_SUITE_P(C, SADSkipTest, ::testing::ValuesIn(skip_c_tests));
 
@@ -1307,6 +1346,12 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4_avg_c, 8),
   make_tuple(4, 8, &aom_highbd_sad4x8_avg_c, 8),
   make_tuple(4, 4, &aom_highbd_sad4x4_avg_c, 8),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_avg_c, 8),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avg_c, 8),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avg_c, 8),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avg_c, 8),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad256x256_avg_c, 10),
@@ -1329,6 +1374,12 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4_avg_c, 10),
   make_tuple(4, 8, &aom_highbd_sad4x8_avg_c, 10),
   make_tuple(4, 4, &aom_highbd_sad4x4_avg_c, 10),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_avg_c, 10),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avg_c, 10),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avg_c, 10),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avg_c, 10),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad256x256_avg_c, 12),
@@ -1351,6 +1402,12 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4_avg_c, 12),
   make_tuple(4, 8, &aom_highbd_sad4x8_avg_c, 12),
   make_tuple(4, 4, &aom_highbd_sad4x4_avg_c, 12),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_avg_c, 12),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avg_c, 12),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avg_c, 12),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avg_c, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 
   make_tuple(64, 16, &aom_highbd_sad64x16_avg_c, 8),
   make_tuple(16, 64, &aom_highbd_sad16x64_avg_c, 8),
@@ -1420,6 +1477,12 @@ const SadMxNx4Param x4d_c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4x4d_c, 8),
   make_tuple(4, 8, &aom_highbd_sad4x8x4d_c, 8),
   make_tuple(4, 4, &aom_highbd_sad4x4x4d_c, 8),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64x4d_c, 8),
+  make_tuple(64, 256, &aom_highbd_sad64x256x4d_c, 8),
+  make_tuple(32, 128, &aom_highbd_sad32x128x4d_c, 8),
+  make_tuple(128, 32, &aom_highbd_sad128x32x4d_c, 8),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad256x256x4d_c, 10),
@@ -1442,6 +1505,12 @@ const SadMxNx4Param x4d_c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4x4d_c, 10),
   make_tuple(4, 8, &aom_highbd_sad4x8x4d_c, 10),
   make_tuple(4, 4, &aom_highbd_sad4x4x4d_c, 10),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64x4d_c, 10),
+  make_tuple(64, 256, &aom_highbd_sad64x256x4d_c, 10),
+  make_tuple(32, 128, &aom_highbd_sad32x128x4d_c, 10),
+  make_tuple(128, 32, &aom_highbd_sad128x32x4d_c, 10),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad256x256x4d_c, 12),
@@ -1464,6 +1533,12 @@ const SadMxNx4Param x4d_c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4x4d_c, 12),
   make_tuple(4, 8, &aom_highbd_sad4x8x4d_c, 12),
   make_tuple(4, 4, &aom_highbd_sad4x4x4d_c, 12),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64x4d_c, 12),
+  make_tuple(64, 256, &aom_highbd_sad64x256x4d_c, 12),
+  make_tuple(32, 128, &aom_highbd_sad32x128x4d_c, 12),
+  make_tuple(128, 32, &aom_highbd_sad128x32x4d_c, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 
   make_tuple(64, 16, &aom_highbd_sad64x16x4d_c, 8),
   make_tuple(16, 64, &aom_highbd_sad16x64x4d_c, 8),
@@ -1539,6 +1614,12 @@ const SadMxNx4Param skip_x4d_c_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32x4d_c, 8),
   make_tuple(16, 4, &aom_highbd_sad_skip_16x4x4d_c, 8),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16x4d_c, 8),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64x4d_c, 8),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256x4d_c, 8),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128x4d_c, 8),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32x4d_c, 8),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad_skip_256x256x4d_c, 10),
@@ -1567,6 +1648,12 @@ const SadMxNx4Param skip_x4d_c_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32x4d_c, 10),
   make_tuple(16, 4, &aom_highbd_sad_skip_16x4x4d_c, 10),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16x4d_c, 10),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64x4d_c, 10),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256x4d_c, 10),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128x4d_c, 10),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32x4d_c, 10),
+#endif  // CONFIG_BLOCK_256_EXT
 
 #if CONFIG_BLOCK_256
   make_tuple(256, 256, &aom_highbd_sad_skip_256x256x4d_c, 12),
@@ -1595,6 +1682,12 @@ const SadMxNx4Param skip_x4d_c_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad_skip_8x32x4d_c, 12),
   make_tuple(16, 4, &aom_highbd_sad_skip_16x4x4d_c, 12),
   make_tuple(4, 16, &aom_highbd_sad_skip_4x16x4d_c, 12),
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64x4d_c, 12),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256x4d_c, 12),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128x4d_c, 12),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32x4d_c, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 };
 INSTANTIATE_TEST_SUITE_P(C, SADSkipx4Test,
                          ::testing::ValuesIn(skip_x4d_c_tests));
@@ -2041,6 +2134,22 @@ const SadMxNParam avx2_tests[] = {
   make_tuple(256, 128, &aom_highbd_sad256x128_avx2, 12),
   make_tuple(128, 256, &aom_highbd_sad128x256_avx2, 12),
 #endif  // CONFIG_BLOCK_256
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_avx2, 8),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avx2, 8),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avx2, 8),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avx2, 8),
+
+  make_tuple(256, 64, &aom_highbd_sad256x64_avx2, 10),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avx2, 10),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avx2, 10),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avx2, 10),
+
+  make_tuple(256, 64, &aom_highbd_sad256x64_avx2, 12),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avx2, 12),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avx2, 12),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avx2, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 
   make_tuple(128, 128, &aom_highbd_sad128x128_avx2, 8),
   make_tuple(128, 128, &aom_highbd_sad128x128_avx2, 10),
@@ -2118,6 +2227,23 @@ const SadSkipMxNParam skip_avx2_tests[] = {
   make_tuple(128, 256, &aom_highbd_sad_skip_128x256_avx2, 12),
 #endif  // CONFIG_BLOCK_256
 
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64_avx2, 8),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256_avx2, 8),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128_avx2, 8),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32_avx2, 8),
+
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64_avx2, 10),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256_avx2, 10),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128_avx2, 10),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32_avx2, 10),
+
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64_avx2, 12),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256_avx2, 12),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128_avx2, 12),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32_avx2, 12),
+#endif  // CONFIG_BLOCK_256_EXT
+
   make_tuple(128, 128, &aom_highbd_sad_skip_128x128_avx2, 8),
   make_tuple(128, 64, &aom_highbd_sad_skip_128x64_avx2, 8),
   make_tuple(64, 128, &aom_highbd_sad_skip_64x128_avx2, 8),
@@ -2172,6 +2298,23 @@ const SadMxNAvgParam avg_avx2_tests[] = {
   make_tuple(256, 128, &aom_highbd_sad256x128_avg_avx2, 12),
   make_tuple(128, 256, &aom_highbd_sad128x256_avg_avx2, 12),
 #endif  // CONFIG_BLOCK_256
+
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64_avg_avx2, 8),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avg_avx2, 8),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avg_avx2, 8),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avg_avx2, 8),
+
+  make_tuple(256, 64, &aom_highbd_sad256x64_avg_avx2, 10),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avg_avx2, 10),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avg_avx2, 10),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avg_avx2, 10),
+
+  make_tuple(256, 64, &aom_highbd_sad256x64_avg_avx2, 12),
+  make_tuple(64, 256, &aom_highbd_sad64x256_avg_avx2, 12),
+  make_tuple(32, 128, &aom_highbd_sad32x128_avg_avx2, 12),
+  make_tuple(128, 32, &aom_highbd_sad128x32_avg_avx2, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_avx2, 8),
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_avx2, 10),
@@ -2235,6 +2378,23 @@ const SadSkipMxNx4Param skip_x4d_avx2_tests[] = {
   make_tuple(128, 256, &aom_highbd_sad_skip_128x256x4d_avx2, 12),
 #endif  // CONFIG_BLOCK_256
 
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64x4d_avx2, 8),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256x4d_avx2, 8),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128x4d_avx2, 8),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32x4d_avx2, 8),
+
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64x4d_avx2, 10),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256x4d_avx2, 10),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128x4d_avx2, 10),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32x4d_avx2, 10),
+
+  make_tuple(256, 64, &aom_highbd_sad_skip_256x64x4d_avx2, 12),
+  make_tuple(64, 256, &aom_highbd_sad_skip_64x256x4d_avx2, 12),
+  make_tuple(32, 128, &aom_highbd_sad_skip_32x128x4d_avx2, 12),
+  make_tuple(128, 32, &aom_highbd_sad_skip_128x32x4d_avx2, 12),
+#endif  // CONFIG_BLOCK_256_EXT
+
   make_tuple(128, 128, &aom_highbd_sad_skip_128x128x4d_avx2, 8),
   make_tuple(128, 64, &aom_highbd_sad_skip_128x64x4d_avx2, 8),
   make_tuple(64, 128, &aom_highbd_sad_skip_64x128x4d_avx2, 8),
@@ -2295,6 +2455,23 @@ const SadMxNx4Param x4d_avx2_tests[] = {
   make_tuple(256, 128, &aom_highbd_sad256x128x4d_avx2, 12),
   make_tuple(128, 256, &aom_highbd_sad128x256x4d_avx2, 12),
 #endif  // CONFIG_BLOCK_256
+
+#if CONFIG_BLOCK_256_EXT
+  make_tuple(256, 64, &aom_highbd_sad256x64x4d_avx2, 8),
+  make_tuple(64, 256, &aom_highbd_sad64x256x4d_avx2, 8),
+  make_tuple(32, 128, &aom_highbd_sad32x128x4d_avx2, 8),
+  make_tuple(128, 32, &aom_highbd_sad128x32x4d_avx2, 8),
+
+  make_tuple(256, 64, &aom_highbd_sad256x64x4d_avx2, 10),
+  make_tuple(64, 256, &aom_highbd_sad64x256x4d_avx2, 10),
+  make_tuple(32, 128, &aom_highbd_sad32x128x4d_avx2, 10),
+  make_tuple(128, 32, &aom_highbd_sad128x32x4d_avx2, 10),
+
+  make_tuple(256, 64, &aom_highbd_sad256x64x4d_avx2, 12),
+  make_tuple(64, 256, &aom_highbd_sad64x256x4d_avx2, 12),
+  make_tuple(32, 128, &aom_highbd_sad32x128x4d_avx2, 12),
+  make_tuple(128, 32, &aom_highbd_sad128x32x4d_avx2, 12),
+#endif  // CONFIG_BLOCK_256_EXT
 
   make_tuple(128, 128, &aom_highbd_sad128x128x4d_avx2, 8),
   make_tuple(128, 128, &aom_highbd_sad128x128x4d_avx2, 10),

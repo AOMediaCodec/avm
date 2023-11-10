@@ -121,6 +121,12 @@ static AOM_FORCE_INLINE unsigned int hbd_obmc_sad_w8n(
     }                                                             \
   }
 
+#if CONFIG_BLOCK_256_EXT
+HBD_OBMCSADWXH(64, 256)
+HBD_OBMCSADWXH(256, 64)
+HBD_OBMCSADWXH(32, 128)
+HBD_OBMCSADWXH(128, 32)
+#endif  // CONFIG_BLOCK_256_EXT
 HBD_OBMCSADWXH(128, 128)
 HBD_OBMCSADWXH(128, 64)
 HBD_OBMCSADWXH(64, 128)
