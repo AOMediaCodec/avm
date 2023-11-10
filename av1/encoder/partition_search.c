@@ -1946,18 +1946,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif
       update_cdf(fc->inter_compound_mode_cdf[mode_ctx], comp_mode_idx,
                  INTER_COMPOUND_REF_TYPES);
-#if GET_MODE_COUNTS
-      ++counts->compound_mode[comp_mode_idx][mode >= NEAR_NEARMV_OPTFLOW];
-#endif  // GET_MODE_COUNTS
 #else
 #if CONFIG_ENTROPY_STATS
       ++counts->inter_compound_mode[mode_ctx][INTER_COMPOUND_OFFSET(mode)];
 #endif
       update_cdf(fc->inter_compound_mode_cdf[mode_ctx],
                  INTER_COMPOUND_OFFSET(mode), INTER_COMPOUND_MODES);
-#if GET_MODE_COUNTS
-      ++counts->compound_mode[comp_mode_idx][0];
-#endif  // GET_MODE_COUNTS
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       if (is_joint_mvd_coding_mode(mbmi->mode)) {

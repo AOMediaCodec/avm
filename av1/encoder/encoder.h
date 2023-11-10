@@ -67,9 +67,6 @@
 extern "C" {
 #endif
 
-#define GET_MODE_COUNTS 1
-
-// TODO(yunqing, any): Added suppression tag to quiet Doxygen warnings. Need to
 // adjust it while we work on documentation.
 /*!\cond */
 // Number of frames required to test for scene cut detection
@@ -1536,9 +1533,6 @@ typedef struct FRAME_COUNTS {
   unsigned int wienerns_restore[2];
 #endif  // CONFIG_WIENER_NONSEP
 #endif  // CONFIG_ENTROPY_STATS
-#if GET_MODE_COUNTS
-  unsigned int compound_mode[INTER_COMPOUND_REF_TYPES][2];
-#endif  // GET_MODE_COUNTS
   unsigned int switchable_interp[SWITCHABLE_FILTER_CONTEXTS]
                                 [SWITCHABLE_FILTERS];
 } FRAME_COUNTS;
