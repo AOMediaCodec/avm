@@ -464,12 +464,6 @@ int opfl_refine_fullpel_mv_one_sided(
     const AV1_COMMON *cm, MACROBLOCKD *xd,
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
     const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize);
-
-int opfl_refine_subpel_mv_one_sided(
-    const AV1_COMMON *cm, MACROBLOCKD *xd,
-    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
-    int_mv *mv_refined, int ref, BLOCK_SIZE bsize,
-    InterPredParams *inter_pred_params);
 #endif  // CONFIG_OPFL_MV_SEARCH
 
 #if CONFIG_JOINT_MVD
