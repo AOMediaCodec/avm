@@ -1175,10 +1175,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm);
 
-  CHECK_MEM_ERROR(
-      cm, cpi->td.mb.inter_modes_info,
-      (InterModesInfo *)aom_malloc(sizeof(*cpi->td.mb.inter_modes_info)));
-
   for (int x = 0; x < 2; x++)
     for (int y = 0; y < 2; y++)
       CHECK_MEM_ERROR(
@@ -1323,7 +1319,7 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     release_obmc_buffers(&thread_data->td->obmc_buffer);
     aom_free(thread_data->td->vt64x64);
 
-    aom_free(thread_data->td->inter_modes_info);
+    aom_free(thread_data->td->mb.inter_modes_info);
     for (int x = 0; x < 2; x++) {
       for (int y = 0; y < 2; y++) {
         aom_free(thread_data->td->hash_value_buffer[x][y]);

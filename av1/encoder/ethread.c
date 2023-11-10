@@ -13,6 +13,7 @@
 #include "av1/common/warped_motion.h"
 
 #include "av1/encoder/encodeframe.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_alloc.h"
 #include "av1/encoder/ethread.h"
@@ -561,10 +562,6 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
 
       alloc_obmc_buffers(&thread_data->td->obmc_buffer, cm);
 
-      CHECK_MEM_ERROR(cm, thread_data->td->inter_modes_info,
-                      (InterModesInfo *)aom_malloc(
-                          sizeof(*thread_data->td->inter_modes_info)));
-
       for (int x = 0; x < 2; x++)
         for (int y = 0; y < 2; y++)
           CHECK_MEM_ERROR(
@@ -735,6 +732,8 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
 #if CONFIG_SCC_DETERMINATION
     cpi->palette_pixel_num += thread_data->td->mb.palette_pixels;
 #endif  // CONFIG_SCC_DETERMINATION
+    dealloc_inter_modes_info_data(&thread_data->td->mb);
+
     // Accumulate counters.
     if (i > 0) {
       av1_accumulate_frame_counts(&cpi->counts, thread_data->td->counts);
@@ -774,7 +773,6 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->rd_counts = cpi->td.rd_counts;
       thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
 
-      thread_data->td->mb.inter_modes_info = thread_data->td->inter_modes_info;
       for (int x = 0; x < 2; x++) {
         for (int y = 0; y < 2; y++) {
           memcpy(thread_data->td->hash_value_buffer[x][y],
@@ -790,6 +788,8 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 #if CONFIG_SCC_DETERMINATION
     thread_data->td->mb.palette_pixels = 0;
 #endif  // CONFIG_SCC_DETERMINATION
+
+    alloc_inter_modes_info_data(&cpi->common, &thread_data->td->mb);
     if (thread_data->td->counts != &cpi->counts) {
       memcpy(thread_data->td->counts, &cpi->counts, sizeof(cpi->counts));
     }

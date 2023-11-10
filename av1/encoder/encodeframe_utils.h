@@ -337,6 +337,18 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
   }
 }
 
+static AOM_INLINE void alloc_inter_modes_info_data(AV1_COMMON *const cm,
+                                                   struct macroblock *mb) {
+  if (frame_is_intra_only(cm)) return;
+  CHECK_MEM_ERROR(cm, mb->inter_modes_info,
+                  (InterModesInfo *)aom_malloc(sizeof(*mb->inter_modes_info)));
+}
+
+static AOM_INLINE void dealloc_inter_modes_info_data(struct macroblock *mb) {
+  aom_free(mb->inter_modes_info);
+  mb->inter_modes_info = NULL;
+}
+
 int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
                          int mi_col, int orig_rdmult);
 

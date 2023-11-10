@@ -1710,7 +1710,6 @@ typedef struct ThreadData {
   struct SimpleMotionDataBufs *sms_bufs;
   BLOCK_SIZE sb_size;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  InterModesInfo *inter_modes_info;
   uint32_t *hash_value_buffer[2][2];
   OBMCBuffer obmc_buffer;
   PALETTE_BUFFER *palette_buffer;
