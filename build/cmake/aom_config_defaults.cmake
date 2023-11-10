@@ -344,8 +344,6 @@ set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
 
 set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
                    "Enable to improve temporal motion projection")
-set_aom_config_var(CONFIG_NEWNEWMV_SEARCH_FIX 0
-                   "Fix of MV search in NEW_NEWMV mode")
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 0 "Optical flow based MV search")
 
 set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")

@@ -24,9 +24,7 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tpl_model.h"
 
-#if !CONFIG_NEWNEWMV_SEARCH_FIX
 #define RIGHT_SHIFT_MV(x) (((x) + 3 + ((x) >= 0)) >> 3)
-#endif  // !CONFIG_NEWNEWMV_SEARCH_FIX
 
 typedef struct {
   FULLPEL_MV fmv;
@@ -208,14 +206,10 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
             int unique = 1;
             for (int m = 0; m < cnt; m++) {
-#if CONFIG_NEWNEWMV_SEARCH_FIX
-              if (fmv.row == cand[m].fmv.row && fmv.col == cand[m].fmv.col) {
-#else
               // TODO (Mohammed): fmv is already in full pel, do we need right
               // shift here?
               if (RIGHT_SHIFT_MV(fmv.row) == RIGHT_SHIFT_MV(cand[m].fmv.row) &&
                   RIGHT_SHIFT_MV(fmv.col) == RIGHT_SHIFT_MV(cand[m].fmv.col)) {
-#endif  // CONFIG_NEWNEWMV_SEARCH_FIX
                 unique = 0;
                 cand[m].weight++;
                 break;
@@ -917,10 +911,6 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   // Do joint motion search in compound mode to get more accurate mv.
   struct buf_2d backup_yv12[2][MAX_MB_PLANE];
-#if CONFIG_NEWNEWMV_SEARCH_FIX
-  FULLPEL_MV init_fullmv[2] = { get_fullmv_from_mv(&init_mv[0].as_mv),
-                                get_fullmv_from_mv(&init_mv[1].as_mv) };
-#endif  // CONFIG_NEWNEWMV_SEARCH_FIX
   int last_besterr[2] = { INT_MAX, INT_MAX };
   const YV12_BUFFER_CONFIG *const scaled_ref_frame[2] = {
     av1_get_scaled_ref_frame(cpi, refs[0]),
@@ -931,9 +921,9 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   DECLARE_ALIGNED(16, uint16_t, second_pred[MAX_SB_SQUARE]);
   int_mv best_mv;
 
-#if CONFIG_NEWNEWMV_SEARCH_FIX || CONFIG_OPFL_MV_SEARCH
+#if CONFIG_OPFL_MV_SEARCH
   FULLPEL_MV cur_fullmv;
-#endif  // CONFIG_NEWNEWMV_SEARCH_FIX || CONFIG_OPFL_MV_SEARCH
+#endif  // CONFIG_OPFL_MV_SEARCH
 
   // Allow joint search multiple times iteratively for each reference frame
   // and break out of the search loop if it couldn't find a better mv.
@@ -949,12 +939,6 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       if (cur_mv[id].as_int == init_mv[id].as_int) {
         break;
       } else {
-#if CONFIG_NEWNEWMV_SEARCH_FIX
-        cur_fullmv = get_fullmv_from_mv(&cur_mv[id].as_mv);
-        if (cur_fullmv.row == init_fullmv[id].row &&
-            cur_fullmv.col == init_fullmv[id].col)
-          break;
-#else
         int_mv cur_int_mv, init_int_mv;
         cur_int_mv.as_mv.col = cur_mv[id].as_mv.col >> 3;
         cur_int_mv.as_mv.row = cur_mv[id].as_mv.row >> 3;
@@ -963,7 +947,6 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         if (cur_int_mv.as_int == init_int_mv.as_int) {
           break;
         }
-#endif  // CONFIG_NEWNEWMV_SEARCH_FIX
       }
     }
     for (ref = 0; ref < 2; ++ref) {
