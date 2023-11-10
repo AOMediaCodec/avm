@@ -363,13 +363,6 @@ static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
   return 0;
 }
 
-static INLINE int allow_one_sided_opfl_mv_step(const AV1_COMMON *cm,
-                                               const MB_MODE_INFO *mbmi,
-                                               int ref) {
-  (void)cm;
-  return mbmi->ref_frame[ref] != NONE_FRAME;
-}
-
 int get_opfl_mv_iterations(const struct AV1_COMP *cpi,
                            const MB_MODE_INFO *mbmi);
 #endif  // CONFIG_OPFL_MV_SEARCH

@@ -416,18 +416,12 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 
 #if CONFIG_OPFL_MV_SEARCH
 int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
-  const AV1_COMMON *cm = &cpi->common;
-  // TODO(kslu) add this as a speed feature or sequence level flag
-  // if (!cm->seq_params.enable_opfl_mv_search) return 0;
-
   // Allowed only for screen content
+  const AV1_COMMON *cm = &cpi->common;
   if (!cm->features.allow_screen_content_tools) return 0;
 
-  switch (mbmi->mode) {
-    case WARPMV:
-    case NEWMV: return allow_one_sided_opfl_mv_step(cm, mbmi, 0) ? 3 : 0;
-    default: return 0;
-  }
+  if (mbmi->ref_frame[0] == NONE_FRAME) return 0;
+  if (mbmi->mode == WARPMV || mbmi->mode == NEWMV) return 3;
 
   return 0;
 }
@@ -4325,10 +4319,6 @@ int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         unsigned int sad =
             check_better(xd, cm, &cur_mv, bestmv, mv_limits, var_params,
                          mv_cost_params, &besterr, sse1, distortion, &dummy);
-#if CONFIG_OPFL_MV_SEARCH && OMVS_MV_DEBUG && 0
-        fprintf(stderr, "      cur_mvd (%d,%d) sad %d\n", cur_mvd.row,
-                cur_mvd.col, sad);
-#endif
 
         if (sad == besterr && bestmv->row == cur_mv.row &&
             bestmv->col == cur_mv.col) {

@@ -67,6 +67,7 @@
 extern "C" {
 #endif
 
+// TODO(yunqing, any): Added suppression tag to quiet Doxygen warnings. Need to
 // adjust it while we work on documentation.
 /*!\cond */
 // Number of frames required to test for scene cut detection

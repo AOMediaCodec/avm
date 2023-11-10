@@ -921,10 +921,6 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   DECLARE_ALIGNED(16, uint16_t, second_pred[MAX_SB_SQUARE]);
   int_mv best_mv;
 
-#if CONFIG_OPFL_MV_SEARCH
-  FULLPEL_MV cur_fullmv;
-#endif  // CONFIG_OPFL_MV_SEARCH
-
   // Allow joint search multiple times iteratively for each reference frame
   // and break out of the search loop if it couldn't find a better mv.
   for (ite = 0; ite < 4; ite++) {
