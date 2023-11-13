@@ -2379,11 +2379,11 @@ static int64_t motion_mode_rd(
 
             tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
 #if CONFIG_WARPMV
-            assert(mbmi->mode == NEWMV
 #if CONFIG_CWG_D067_IMPROVED_WARP
-                   || mbmi->warpmv_with_mvd_flag
+            assert(mbmi->mode == NEWMV || mbmi->warpmv_with_mvd_flag);
+#else
+            assert(mbmi->mode == NEWMV);
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
-            );
 #if CONFIG_CWG_D067_IMPROVED_WARP
             assert(IMPLIES(mbmi->mode == WARPMV, rate_mv0 == 0));
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
