@@ -238,11 +238,11 @@ set_aom_config_var(
   1
   "AV2 experiment flag for palette parsing independency and improved palette color map coding."
 )
-set_aom_config_var(CONFIG_PALETTE_LINE_COPY 0
+set_aom_config_var(CONFIG_PALETTE_LINE_COPY 1
                    "AV2 experiment flag to enable improved palette coding.")
-set_aom_config_var(CONFIG_PALETTE_TRANSVERSE 0
+set_aom_config_var(CONFIG_PALETTE_TRANSVERSE 1
                    "AV2 experiment flag to enable improved palette coding.")
-set_aom_config_var(CONFIG_PALETTE_D114_RESTRICT 0
+set_aom_config_var(CONFIG_PALETTE_D114_RESTRICT 1
                    "AV2 experiment flag to enable improved palette coding.")
 set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
                    "AV2 experiment flag to fix the SSE calc bug for skip mode.")
