@@ -39,6 +39,7 @@ Style Check:
       # Run clang-format check.
       for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.[hc]pp' '*.cc' '*.[ch]' \
         | grep -v third_party); do
+        exit_code=0
         clang-format -i --style=file $f -n -Werror || exit_code=$?
         if [ ${exit_code} -ne 0 ]; then
           echo "Please format your code by following instructions here:"
@@ -50,6 +51,7 @@ Style Check:
       # Run cmake-format check.
       for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.cmake' 'CMakeLists.txt' \
         | grep -v third_party); do
+        exit_code=0
         cmake-format --check $f || exit_code=$?
         if [ ${exit_code} -ne 0 ]; then
           echo "Please format your code by following instructions here:"
@@ -246,6 +248,7 @@ Test Data Check:
       echo "CMake Flags:       $CMAKE_FLAGS"
       echo "Extra CMake Flags: $EXTRA_CMAKE_FLAGS"
       echo "Configuration:     $AOM_BUILD_CONFIG"
+    - exit_code=0
     - cmake -B aom_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS $EXTRA_CMAKE_FLAGS
     - cmake --build aom_build -j 2 || exit_code=$?
     - |
