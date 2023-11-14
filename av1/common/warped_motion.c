@@ -687,6 +687,26 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
 }
 
 #if CONFIG_EXT_WARP_FILTER
+/* Extended-range warp filter, used for strong warps where the regular
+   affine filter (av1_highbd_warp_affine) is not usable.
+
+   This filter operates by splitting the prediction unit into 4x4 pixel
+   chunks. Then, for each chunk, the following process is applied:
+
+   * Compute the effective motion vector at the center of the 4x4 chunk
+     (actually at pixel offset (1, 1) into the chunk), at 1/64 pel precision
+
+   * Translate the entire 4x4 pixel chunk by this compute motion vector
+
+   This generates a prediction of intermediate quality - better than translating
+   the prediction unit as a whole, but worse than a full affine shear.
+   However, it is able to handle any encode-able warp model, and is not
+   constrained in the same way as the regular warp filter.
+
+   Note that this will produce blocking between adjacent 4x4 units, so we need
+   apply some form of deblocking to the output of this function. This is handled
+   separately.
+*/
 void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
                                   int width, int height, int stride,
                                   uint16_t *pred, int p_col, int p_row,
@@ -694,9 +714,7 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
                                   int subsampling_x, int subsampling_y, int bd,
                                   ConvolveParams *conv_params) {
   int32_t im_block[(4 + EXT_WARP_TAPS - 1) * 4];
-  const int reduce_bits_horiz =
-      conv_params->round_0 +
-      AOMMAX(bd + FILTER_BITS - conv_params->round_0 - 14, 0);
+  const int reduce_bits_horiz = conv_params->round_0;
   const int reduce_bits_vert = conv_params->is_compound
                                    ? conv_params->round_1
                                    : 2 * FILTER_BITS - reduce_bits_horiz;
@@ -709,6 +727,10 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
   const int use_wtd_comp_avg = is_uneven_wtd_comp_avg(conv_params);
   (void)max_bits_horiz;
   assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
+
+  // Check that, even with 12-bit input, the intermediate values will fit
+  // into an unsigned 16-bit intermediate array.
+  assert(bd + FILTER_BITS + 2 - conv_params->round_0 <= 16);
 
   for (int i = p_row; i < p_row + p_height; i += 4) {
     for (int j = p_col; j < p_col + p_width; j += 4) {
