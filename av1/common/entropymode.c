@@ -6291,20 +6291,13 @@ static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
 
 #if CONFIG_LR_IMPROVEMENTS
 #if CONFIG_ENTROPY_PARA
-static const aom_cdf_prob
-    default_wienerns_reduce_cdf[WIENERNS_REDUCE_STEPS][CDF_SIZE(2)] = {
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(25052), 76 }, { AOM_CDF2(16384), 0 },
-      { AOM_CDF2(26384), 1 }, { AOM_CDF2(16384), 0 },
-    };
+static const aom_cdf_prob default_wienerns_length_cdf[2][CDF_SIZE(2)] = {
+  { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }
+};
 #else
-static const aom_cdf_prob default_wienerns_reduce_cdf[WIENERNS_REDUCE_STEPS]
-                                                     [CDF_SIZE(2)] = {
-                                                       { AOM_CDF2(25000) },
-                                                       { AOM_CDF2(22500) },
-                                                       { AOM_CDF2(20000) },
-                                                       { AOM_CDF2(17500) },
-                                                       { AOM_CDF2(15000) }
-                                                     };
+static const aom_cdf_prob default_wienerns_length_cdf[2][CDF_SIZE(2)] = {
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
+};
 #endif  // CONFIG_ENTROPY_PARA
 #if ENABLE_LR_4PART_CODE
 #if CONFIG_ENTROPY_PARA
@@ -6964,7 +6957,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
 #if CONFIG_LR_IMPROVEMENTS
   av1_copy(fc->wienerns_restore_cdf, default_wienerns_restore_cdf);
-  av1_copy(fc->wienerns_reduce_cdf, default_wienerns_reduce_cdf);
+  av1_copy(fc->wienerns_length_cdf, default_wienerns_length_cdf);
 #if ENABLE_LR_4PART_CODE
   av1_copy(fc->wienerns_4part_cdf, default_wienerns_4part_cdf);
 #endif  // ENABLE_LR_4PART_CODE

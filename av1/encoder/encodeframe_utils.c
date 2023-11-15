@@ -1506,7 +1506,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
 #if CONFIG_LR_IMPROVEMENTS
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
-  AVERAGE_CDF(ctx_left->wienerns_reduce_cdf, ctx_tr->wienerns_reduce_cdf, 2);
+  AVERAGE_CDF(ctx_left->wienerns_length_cdf, ctx_tr->wienerns_length_cdf, 2);
 #if ENABLE_LR_4PART_CODE
   AVERAGE_CDF(ctx_left->wienerns_4part_cdf, ctx_tr->wienerns_4part_cdf, 4);
 #endif  // ENABLE_LR_4PART_CODE

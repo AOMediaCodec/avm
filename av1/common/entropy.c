@@ -347,7 +347,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->sgrproj_restore_cdf, 2);
 #if CONFIG_LR_IMPROVEMENTS
   RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);
-  RESET_CDF_COUNTER(fc->wienerns_reduce_cdf, 2);
+  RESET_CDF_COUNTER(fc->wienerns_length_cdf, 2);
 #if ENABLE_LR_4PART_CODE
   RESET_CDF_COUNTER(fc->wienerns_4part_cdf, 4);
 #endif  // ENABLE_LR_4PART_CODE

@@ -1258,9 +1258,9 @@ typedef struct {
    */
   int wienerns_restore_cost[2];
   /*!
-   * wienerns_reduce_cost
+   * wienerns_length_cost
    */
-  int wienerns_reduce_cost[WIENERNS_REDUCE_STEPS][2];
+  int wienerns_length_cost[2][2];
 #if ENABLE_LR_4PART_CODE
   /*!
    * wienerns_4part_cost

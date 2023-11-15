@@ -2462,15 +2462,12 @@ static int64_t count_wienerns_bits(
     ref_for_class[c_id] = ref;
   }
 #endif  // CONFIG_LR_MERGE_COEFFS
-  const int(*reduce_cost)[2] = mode_costs->wienerns_reduce_cost;
+  const int(*length_cost)[2] = mode_costs->wienerns_length_cost;
 #if ENABLE_LR_4PART_CODE
   const int(*cost_4part)[4] = mode_costs->wienerns_4part_cost;
 #endif  // ENABLE_LR_4PART_CODE
-  const int beg_feat = 0;
-  const int end_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
-  int reduce_step[WIENERNS_REDUCE_STEPS];
   assert(c_id_begin >= 0);
   assert(c_id_end <= WIENERNS_MAX_CLASSES);
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
@@ -2482,48 +2479,27 @@ static int64_t count_wienerns_bits(
         const_nsfilter_taps(wienerns_info, c_id);
     const int16_t *ref_wienerns_info_nsfilter =
         const_nsfilter_taps(ref_wienerns_info, c_id);
-    memset(reduce_step, 0, sizeof(reduce_step));
-    if (end_feat - beg_feat > 1 && wienerns_info_nsfilter[end_feat - 1] == 0) {
-      reduce_step[WIENERNS_REDUCE_STEPS - 1] = 1;
-      if (end_feat - beg_feat > 2 &&
-          wienerns_info_nsfilter[end_feat - 2] == 0) {
-        reduce_step[WIENERNS_REDUCE_STEPS - 2] = 1;
-        if (end_feat - beg_feat > 3 &&
-            wienerns_info_nsfilter[end_feat - 3] == 0) {
-          reduce_step[WIENERNS_REDUCE_STEPS - 3] = 1;
-          if (end_feat - beg_feat > 4 &&
-              wienerns_info_nsfilter[end_feat - 4] == 0) {
-            reduce_step[WIENERNS_REDUCE_STEPS - 4] = 1;
-            if (end_feat - beg_feat > 5 &&
-                wienerns_info_nsfilter[end_feat - 5] == 0) {
-              reduce_step[WIENERNS_REDUCE_STEPS - 5] = 1;
-            }
-          }
-        }
+
+    const int beg_feat = 0;
+    int end_feat = nsfilter_params->ncoeffs;
+    if (end_feat > 6) {
+      // Decide whether to signal a short (0) or long (1) filter
+      int filter_length_bit = 1;
+      if (wienerns_info_nsfilter[end_feat - 1] == 0 &&
+          wienerns_info_nsfilter[end_feat - 2] == 0 &&
+          wienerns_info_nsfilter[end_feat - 3] == 0 &&
+          wienerns_info_nsfilter[end_feat - 4] == 0 &&
+          wienerns_info_nsfilter[end_feat - 5] == 0 &&
+          wienerns_info_nsfilter[end_feat - 6] == 0) {
+        filter_length_bit = 0;
       }
+      bits += length_cost[is_uv][filter_length_bit];
+      end_feat = filter_length_bit ? nsfilter_params->ncoeffs
+                                   : (nsfilter_params->ncoeffs - 6);
     }
-    const int rodd = is_uv ? 0 : (end_feat & 1);
+    assert((end_feat & 1) == 0);
+
     for (int i = beg_feat; i < end_feat; ++i) {
-      if (rodd && i == end_feat - 5 && i != beg_feat) {
-        bits += reduce_cost[0][reduce_step[0]];
-        if (reduce_step[0]) break;
-      }
-      if (!rodd && i == end_feat - 4 && i != beg_feat) {
-        bits += reduce_cost[1][reduce_step[1]];
-        if (reduce_step[1]) break;
-      }
-      if (rodd && i == end_feat - 3 && i != beg_feat) {
-        bits += reduce_cost[2][reduce_step[2]];
-        if (reduce_step[2]) break;
-      }
-      if (!rodd && i == end_feat - 2 && i != beg_feat) {
-        bits += reduce_cost[3][reduce_step[3]];
-        if (reduce_step[3]) break;
-      }
-      if (rodd && i == end_feat - 1 && i != beg_feat) {
-        bits += reduce_cost[4][reduce_step[4]];
-        if (reduce_step[4]) break;
-      }
 #if ENABLE_LR_4PART_CODE
       bits += aom_count_4part_wref(
           ref_wienerns_info_nsfilter[i] -
@@ -2642,7 +2618,6 @@ static int64_t finer_tile_search_wienerns(
   double best_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       x->rdmult, best_bits >> 4, best_err, rsc->cm->seq_params.bit_depth);
 
-  int is_uv = (rui->plane != AOM_PLANE_Y);
   const int beg_feat = 0;
   const int end_feat = nsfilter_params->ncoeffs;
   const int num_feat = nsfilter_params->ncoeffs;
@@ -2712,223 +2687,45 @@ static int64_t finer_tile_search_wienerns(
 
   if (!ext_search) return best_err;
 
-  // Try reduced filters by forcing trailing 2, 4, 6 coeffs to 0
-  const int rodd = is_uv ? 0 : (end_feat & 1);
+  // Try reduced filters by forcing trailing 6 coeffs to 0
+  assert((end_feat & 1) == 0);
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     int16_t *rui_wienerns_info_nsfilter =
         nsfilter_taps(&rui->wienerns_info, c_id);
     rui->wiener_class_id_restrict = c_id;
-    if (rodd) {
-      if (end_feat - beg_feat > 1 &&
-          (rui_wienerns_info_nsfilter[end_feat - 1] != 0)) {
-        rui_wienerns_info_nsfilter[end_feat - 1] = 0;
-        const int64_t err =
-            calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
+
+    if (end_feat - beg_feat > 6 &&
+        (rui_wienerns_info_nsfilter[end_feat - 1] != 0 ||
+         rui_wienerns_info_nsfilter[end_feat - 2] != 0 ||
+         rui_wienerns_info_nsfilter[end_feat - 3] != 0 ||
+         rui_wienerns_info_nsfilter[end_feat - 4] != 0 ||
+         rui_wienerns_info_nsfilter[end_feat - 5] != 0 ||
+         rui_wienerns_info_nsfilter[end_feat - 6] != 0)) {
+      rui_wienerns_info_nsfilter[end_feat - 1] = 0;
+      rui_wienerns_info_nsfilter[end_feat - 2] = 0;
+      rui_wienerns_info_nsfilter[end_feat - 3] = 0;
+      rui_wienerns_info_nsfilter[end_feat - 4] = 0;
+      rui_wienerns_info_nsfilter[end_feat - 5] = 0;
+      rui_wienerns_info_nsfilter[end_feat - 6] = 0;
+      const int64_t err =
+          calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
 #if CONFIG_LR_MERGE_COEFFS
-        const int64_t bits = count_wienerns_bits_set(
-            rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
-            nsfilter_params, c_id);
+      const int64_t bits = count_wienerns_bits_set(
+          rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
+          nsfilter_params, c_id);
 #else
-        const int64_t bits =
-            count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
-                                ref_wienerns_bank, nsfilter_params, c_id);
+      const int64_t bits =
+          count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
+                              ref_wienerns_bank, nsfilter_params, c_id);
 #endif  // CONFIG_LR_MERGE_COEFFS
-        const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-        if (cost < best_cost) {
-          best_err = err;
-          best_cost = cost;
-          copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        } else {
-          copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        }
-      }
-      if (end_feat - beg_feat > 3 &&
-          (rui_wienerns_info_nsfilter[end_feat - 1] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 2] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 3] != 0)) {
-        rui_wienerns_info_nsfilter[end_feat - 1] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 2] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 3] = 0;
-        const int64_t err =
-            calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-#if CONFIG_LR_MERGE_COEFFS
-        const int64_t bits = count_wienerns_bits_set(
-            rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
-            nsfilter_params, c_id);
-#else
-        const int64_t bits =
-            count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
-                                ref_wienerns_bank, nsfilter_params, c_id);
-#endif  // CONFIG_LR_MERGE_COEFFS
-        const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-        if (cost < best_cost) {
-          best_err = err;
-          best_cost = cost;
-          copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        } else {
-          copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        }
-      }
-      if (end_feat - beg_feat > 5 &&
-          (rui_wienerns_info_nsfilter[end_feat - 1] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 2] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 3] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 4] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 5] != 0)) {
-        rui_wienerns_info_nsfilter[end_feat - 1] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 2] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 3] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 4] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 5] = 0;
-        const int64_t err =
-            calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-#if CONFIG_LR_MERGE_COEFFS
-        const int64_t bits = count_wienerns_bits_set(
-            rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
-            nsfilter_params, c_id);
-#else
-        const int64_t bits =
-            count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
-                                ref_wienerns_bank, nsfilter_params, c_id);
-#endif  // CONFIG_LR_MERGE_COEFFS
-        const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-        if (cost < best_cost) {
-          best_err = err;
-          best_cost = cost;
-          copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        } else {
-          copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        }
-      }
-      if (end_feat - beg_feat > 5 &&
-          (rui_wienerns_info_nsfilter[end_feat - 1] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 2] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 3] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 4] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 5] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 6] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 7] != 0)) {
-        rui_wienerns_info_nsfilter[end_feat - 1] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 2] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 3] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 4] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 5] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 6] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 7] = 0;
-        const int64_t err =
-            calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-#if CONFIG_LR_MERGE_COEFFS
-        const int64_t bits = count_wienerns_bits_set(
-            rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
-            nsfilter_params, c_id);
-#else
-        const int64_t bits =
-            count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
-                                ref_wienerns_bank, nsfilter_params, c_id);
-#endif  // CONFIG_LR_MERGE_COEFFS
-        const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-        if (cost < best_cost) {
-          best_err = err;
-          best_cost = cost;
-          copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        } else {
-          copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        }
-      }
-    } else {
-      if (end_feat - beg_feat > 2 &&
-          (rui_wienerns_info_nsfilter[end_feat - 1] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 2] != 0)) {
-        rui_wienerns_info_nsfilter[end_feat - 1] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 2] = 0;
-        const int64_t err =
-            calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-#if CONFIG_LR_MERGE_COEFFS
-        const int64_t bits = count_wienerns_bits_set(
-            rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
-            nsfilter_params, c_id);
-#else
-        const int64_t bits =
-            count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
-                                ref_wienerns_bank, nsfilter_params, c_id);
-#endif  // CONFIG_LR_MERGE_COEFFS
-        const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-        if (cost < best_cost) {
-          best_err = err;
-          best_cost = cost;
-          copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        } else {
-          copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        }
-      }
-      if (end_feat - beg_feat > 4 &&
-          (rui_wienerns_info_nsfilter[end_feat - 1] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 2] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 3] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 4] != 0)) {
-        rui_wienerns_info_nsfilter[end_feat - 1] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 2] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 3] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 4] = 0;
-        const int64_t err =
-            calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-#if CONFIG_LR_MERGE_COEFFS
-        const int64_t bits = count_wienerns_bits_set(
-            rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
-            nsfilter_params, c_id);
-#else
-        const int64_t bits =
-            count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
-                                ref_wienerns_bank, nsfilter_params, c_id);
-#endif  // CONFIG_LR_MERGE_COEFFS
-        const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-        if (cost < best_cost) {
-          best_err = err;
-          best_cost = cost;
-          copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        } else {
-          copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        }
-      }
-      if (end_feat - beg_feat > 6 &&
-          (rui_wienerns_info_nsfilter[end_feat - 1] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 2] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 3] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 4] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 5] != 0 ||
-           rui_wienerns_info_nsfilter[end_feat - 6] != 0)) {
-        rui_wienerns_info_nsfilter[end_feat - 1] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 2] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 3] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 4] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 5] = 0;
-        rui_wienerns_info_nsfilter[end_feat - 6] = 0;
-        const int64_t err =
-            calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-#if CONFIG_LR_MERGE_COEFFS
-        const int64_t bits = count_wienerns_bits_set(
-            rsc->plane, &x->mode_costs, &rui->wienerns_info, ref_wienerns_bank,
-            nsfilter_params, c_id);
-#else
-        const int64_t bits =
-            count_wienerns_bits(rsc->plane, &x->mode_costs, &rui->wienerns_info,
-                                ref_wienerns_bank, nsfilter_params, c_id);
-#endif  // CONFIG_LR_MERGE_COEFFS
-        const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-            x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
-        if (cost < best_cost) {
-          best_err = err;
-          best_cost = cost;
-          copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
-        } else {
-          copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
-        }
+      const double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+          x->rdmult, bits >> 4, err, rsc->cm->seq_params.bit_depth);
+      if (cost < best_cost) {
+        best_err = err;
+        best_cost = cost;
+        copy_nsfilter_taps_for_class(&best, &rui->wienerns_info, c_id);
+      } else {
+        copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
       }
     }
     // Re-establish dst.
@@ -3274,7 +3071,6 @@ static int compute_quantized_wienerns_filter(
   const int stride_b = WIENERNS_MAX;
 
   double solver_x[WIENERNS_MAX_CLASSES * WIENERNS_MAX];
-  int is_uv = (rui->plane != AOM_PLANE_Y);
   const int num_feat = nsfilter_params->ncoeffs;
 
   int ret = 0;
@@ -3282,10 +3078,9 @@ static int compute_quantized_wienerns_filter(
   best.num_classes = num_classes;
   double best_cost = DBL_MAX;
 
-  const int rodd = is_uv ? 0 : (num_feat & 1);
-  const int max_reduce_steps_search = 4 + rodd;
-  for (int reduce = 0; reduce <= max_reduce_steps_search;
-       reduce += (reduce ? 2 : 2 - rodd)) {
+  assert((num_feat & 1) == 0);
+  const int max_reduce_steps_search = (num_feat > 6) ? 6 : 0;
+  for (int reduce = 0; reduce <= max_reduce_steps_search; reduce += 6) {
     memset(solver_x, 0, sizeof(*solver_x) * total_dim_b);
     // Try a filter shape with #parameters num_feat - reduce
     int success = 0;

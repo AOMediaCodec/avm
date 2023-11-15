@@ -92,7 +92,6 @@ extern "C" {
 #define MAX_REFS_ARF 4
 
 #if CONFIG_LR_IMPROVEMENTS
-#define WIENERNS_REDUCE_STEPS 5
 #if ENABLE_LR_4PART_CODE
 #define WIENERNS_4PART_CTX_MAX 4
 #endif  // ENABLE_LR_4PART_CODE
@@ -433,7 +432,7 @@ typedef struct frame_contexts {
   aom_cdf_prob sgrproj_restore_cdf[CDF_SIZE(2)];
 #if CONFIG_LR_IMPROVEMENTS
   aom_cdf_prob wienerns_restore_cdf[CDF_SIZE(2)];
-  aom_cdf_prob wienerns_reduce_cdf[WIENERNS_REDUCE_STEPS][CDF_SIZE(2)];
+  aom_cdf_prob wienerns_length_cdf[2][CDF_SIZE(2)];
 #if ENABLE_LR_4PART_CODE
   aom_cdf_prob wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)];
 #endif  // ENABLE_LR_4PART_CODE

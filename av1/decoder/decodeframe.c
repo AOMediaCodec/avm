@@ -3356,10 +3356,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 #else
       get_wienerns_parameters(xd->current_base_qindex, is_uv);
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  const int beg_feat = 0;
-  const int end_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
-  int reduce_step[WIENERNS_REDUCE_STEPS];
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_read_for_class[c_id]) continue;
     const int ref = ref_for_class[c_id];
@@ -3371,49 +3368,21 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
     const int16_t *ref_wienerns_info_nsfilter =
         const_nsfilter_taps(ref_wienerns_info, c_id);
 
-    memset(reduce_step, 0, sizeof(reduce_step));
-    memset(wienerns_info_nsfilter + beg_feat, 0,
-           (end_feat - beg_feat) * sizeof(wienerns_info_nsfilter[0]));
-    // Whether the number of taps is odd or even. For luma
-    // the #taps can be either odd or even. If odd, the last
-    // tap corresponds to dc offset. For chroma, the #taps is
-    // assumed to be always even.
-    // if #taps is odd, the exit points for signaling are:
-    // #total_taps - 1, #total_taps - 3, #total_taps - 5.
-    // If #taps is even, the exit points for signaling are:
-    // #total_taps - 2, #total_taps - 4, #total_taps - 6.
-    const int rodd = is_uv ? 0 : (end_feat & 1);
+    memset(wienerns_info_nsfilter, 0,
+           nsfilter_params->ncoeffs * sizeof(wienerns_info_nsfilter[0]));
+
+    const int beg_feat = 0;
+    int end_feat = nsfilter_params->ncoeffs;
+    if (end_feat > 6) {
+      const int filter_length_bit =
+          aom_read_symbol(rb, xd->tile_ctx->wienerns_length_cdf[is_uv], 2,
+                          ACCT_INFO("wienerns_length"));
+      end_feat = filter_length_bit ? nsfilter_params->ncoeffs
+                                   : (nsfilter_params->ncoeffs - 6);
+    }
+    assert((end_feat & 1) == 0);
+
     for (int i = beg_feat; i < end_feat; ++i) {
-      if (rodd && i == end_feat - 5 && i != beg_feat) {
-        reduce_step[0] =
-            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[0], 2,
-                            ACCT_INFO("wienerns_reduce_cdf0"));
-        if (reduce_step[0]) break;
-      }
-      if (!rodd && i == end_feat - 4 && i != beg_feat) {
-        reduce_step[1] =
-            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[1], 2,
-                            ACCT_INFO("wienerns_reduce_cdf1"));
-        if (reduce_step[1]) break;
-      }
-      if (rodd && i == end_feat - 3 && i != beg_feat) {
-        reduce_step[2] =
-            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[2], 2,
-                            ACCT_INFO("wienerns_reduce_cdf2"));
-        if (reduce_step[2]) break;
-      }
-      if (!rodd && i == end_feat - 2 && i != beg_feat) {
-        reduce_step[3] =
-            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[3], 2,
-                            ACCT_INFO("wienerns_reduce_cdf3"));
-        if (reduce_step[3]) break;
-      }
-      if (rodd && i == end_feat - 1 && i != beg_feat) {
-        reduce_step[4] =
-            aom_read_symbol(rb, xd->tile_ctx->wienerns_reduce_cdf[4], 2,
-                            ACCT_INFO("wienerns_reduce_cdf4"));
-        if (reduce_step[4]) break;
-      }
 #if ENABLE_LR_4PART_CODE
       wienerns_info_nsfilter[i] =
           aom_read_4part_wref(
