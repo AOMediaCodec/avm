@@ -71,7 +71,7 @@ static AOM_INLINE void set_tpl_stats_block_size(uint8_t *block_mis_log2,
 }
 
 void setup_tpl_buffers(AV1_COMMON *const cm, TplParams *const tpl_data,
-                           int enable_tpl_model, int lag_in_frames) {
+                       int enable_tpl_model, int lag_in_frames) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   set_tpl_stats_block_size(&tpl_data->tpl_stats_block_mis_log2,
                            &tpl_data->tpl_bsize_1d);

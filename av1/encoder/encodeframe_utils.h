@@ -337,6 +337,9 @@ static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
   }
 }
 
+// Allocates memory for 'InterModesInfo' buffer, which is used during the
+// evaluation of inter modes. The allocation is avoided for intra frames as
+// this buffer is required only for inter frames.
 static AOM_INLINE void alloc_inter_modes_info_data(AV1_COMMON *const cm,
                                                    struct macroblock *mb) {
   if (frame_is_intra_only(cm)) return;
@@ -344,6 +347,7 @@ static AOM_INLINE void alloc_inter_modes_info_data(AV1_COMMON *const cm,
                   (InterModesInfo *)aom_malloc(sizeof(*mb->inter_modes_info)));
 }
 
+// Free the memory corresponding to 'InterModesInfo' buffer.
 static AOM_INLINE void dealloc_inter_modes_info_data(struct macroblock *mb) {
   aom_free(mb->inter_modes_info);
   mb->inter_modes_info = NULL;
