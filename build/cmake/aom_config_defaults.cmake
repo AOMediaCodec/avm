@@ -296,6 +296,9 @@ set_aom_config_var(CONFIG_REFRESH_FLAG 0
 set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
                    "Enable to optimize block size dependent context modeling")
 
+set_aom_config_var(CONFIG_D072_SKIP_MODE_IMPROVE 1
+                   "Enable to improve skip mode")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

@@ -2206,7 +2206,13 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
         assert(has_second_ref(mbmi));
 #endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
-        rdc->compound_ref_used_flag = 1;
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+        if (has_second_ref(mbmi)) {
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+          rdc->compound_ref_used_flag = 1;
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+        }
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
       }
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     } else {
@@ -2292,10 +2298,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   {
     if (mbmi->skip_mode) {
+      MV_REFERENCE_FRAME rf[2];
       const SkipModeInfo *const skip_mode_info =
           &cpi->common.current_frame.skip_mode_info;
-
-      MV_REFERENCE_FRAME rf[2];
       rf[0] = skip_mode_info->ref_frame_idx_0;
       rf[1] = skip_mode_info->ref_frame_idx_1;
       MV_REFERENCE_FRAME ref_frame_type = av1_ref_frame_type(rf);

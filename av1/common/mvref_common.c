@@ -202,6 +202,10 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
   int index = 0;
   int derived_idx = 0;
 
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+  if (mbmi->skip_mode) return;
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+
   if (rf[1] == NONE_FRAME) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     assert(!mbmi->skip_mode);
@@ -480,6 +484,45 @@ static AOM_INLINE void add_ref_mv_candidate(
         ++(*refmv_count);
       }
     }
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+    else if (is_inter_ref_frame(candidate->ref_frame[0]) &&
+             candidate->ref_frame[1] == NONE_FRAME
+#if CONFIG_TIP
+             && !is_tip_ref_frame(candidate->ref_frame[0])
+#endif  // CONFIG_TIP
+    ) {
+      int_mv this_refmv;
+      if (is_global_mv_block(candidate, gm_params[rf[0]].wmtype)) {
+        return;
+      } else {
+        this_refmv = get_block_mv(candidate,
+#if CONFIG_C071_SUBBLK_WARPMV
+                                  submi,
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+                                  0);
+      }
+
+      for (index = 0; index < *refmv_count; ++index) {
+        if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int &&
+            ref_mv_stack[index].comp_mv.as_int == INVALID_MV &&
+            ref_frame_idx0[index] == candidate->ref_frame[0] &&
+            ref_frame_idx1[index] == candidate->ref_frame[1]) {
+          ref_mv_weight[index] += weight;
+          break;
+        }
+      }
+
+      // Add a new item to the list.
+      if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[index].this_mv = this_refmv;
+        ref_mv_stack[index].comp_mv.as_int = INVALID_MV;
+        ref_frame_idx0[index] = candidate->ref_frame[0];
+        ref_frame_idx1[index] = candidate->ref_frame[1];
+        ref_mv_weight[index] = weight;
+        ++(*refmv_count);
+      }
+    }
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
     return;
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -2176,9 +2219,16 @@ static AOM_INLINE void setup_ref_mv_list(
 
 #if CONFIG_IBC_SR_EXT
   if (cm->features.allow_ref_frame_mvs &&
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+      (xd->mi[0]->skip_mode || rf[0] != rf[1]) &&
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
       !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
 #else
-  if (cm->features.allow_ref_frame_mvs) {
+  if (cm->features.allow_ref_frame_mvs
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+      && (xd->mi[0]->skip_mode || rf[0] != rf[1])
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+  ) {
 #endif  // CONFIG_IBC_SR_EXT
 #if !CONFIG_C076_INTER_MOD_CTX
     int is_available = 0;
@@ -2854,6 +2904,28 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 }
+
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+void get_skip_mode_ref_offsets(const AV1_COMMON *cm, int ref_order_hint[2]) {
+  const SkipModeInfo *const skip_mode_info = &cm->current_frame.skip_mode_info;
+  ref_order_hint[0] = ref_order_hint[1] = 0;
+  if (!skip_mode_info->skip_mode_allowed) return;
+
+  const RefCntBuffer *const buf_0 =
+      get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_0);
+  const RefCntBuffer *const buf_1 =
+      get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1);
+  assert(buf_0 != NULL && buf_1 != NULL);
+
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  ref_order_hint[0] = buf_0->display_order_hint;
+  ref_order_hint[1] = buf_1->display_order_hint;
+#else
+  ref_order_hint[0] = buf_0->order_hint;
+  ref_order_hint[1] = buf_1->order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+}
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
 #if CONFIG_WARP_REF_LIST
 // Initialize the warp parameter list
@@ -4189,8 +4261,11 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   skip_mode_info->ref_frame_idx_0 = INVALID_IDX;
   skip_mode_info->ref_frame_idx_1 = INVALID_IDX;
 
-  if (!order_hint_info->enable_order_hint || frame_is_intra_only(cm) ||
-      cm->current_frame.reference_mode == SINGLE_REFERENCE)
+  if (!order_hint_info->enable_order_hint || frame_is_intra_only(cm)
+#if !CONFIG_D072_SKIP_MODE_IMPROVE
+      || cm->current_frame.reference_mode == SINGLE_REFERENCE
+#endif  // !CONFIG_D072_SKIP_MODE_IMPROVE
+  )
     return;
 
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
@@ -4199,6 +4274,24 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   if (cm->ref_frames_info.num_total_refs > 1) {
     skip_mode_info->ref_frame_idx_1 = 1;
     skip_mode_info->ref_frame_idx_0 = 0;
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    const int cur_order_hint = cm->current_frame.display_order_hint;
+#else
+    const int cur_order_hint = cm->current_frame.order_hint;
+#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+    int ref_offset[2];
+    get_skip_mode_ref_offsets(cm, ref_offset);
+    const int cur_to_ref0 = abs(get_relative_dist(
+        &cm->seq_params.order_hint_info, cur_order_hint, ref_offset[0]));
+    const int cur_to_ref1 = abs(get_relative_dist(
+        &cm->seq_params.order_hint_info, cur_order_hint, ref_offset[1]));
+
+    if (abs(cur_to_ref0 - cur_to_ref1) > 1) {
+      skip_mode_info->ref_frame_idx_0 = 0;
+      skip_mode_info->ref_frame_idx_1 = 0;
+    }
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
   } else {
     skip_mode_info->ref_frame_idx_1 = 0;
     skip_mode_info->ref_frame_idx_0 = 0;

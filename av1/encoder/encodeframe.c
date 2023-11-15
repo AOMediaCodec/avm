@@ -1237,6 +1237,7 @@ static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
          cm->ref_frames_info.num_future_refs == 0;
 }
 
+#if !CONFIG_D072_SKIP_MODE_IMPROVE
 static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
                                              int ref_order_hint[2]) {
   const SkipModeInfo *const skip_mode_info = &cm->current_frame.skip_mode_info;
@@ -1257,6 +1258,7 @@ static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
   ref_order_hint[1] = buf_1->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 }
+#endif  // !CONFIG_D072_SKIP_MODE_IMPROVE
 
 static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
@@ -1273,8 +1275,13 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int ref_offset[2];
   get_skip_mode_ref_offsets(cm, ref_offset);
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+  const int cur_to_ref0 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
+                                                cur_offset, ref_offset[0]));
+#else
   const int cur_to_ref0 = get_relative_dist(&cm->seq_params.order_hint_info,
                                             cur_offset, ref_offset[0]);
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
   const int cur_to_ref1 = abs(get_relative_dist(&cm->seq_params.order_hint_info,
                                                 cur_offset, ref_offset[1]));
   if (abs(cur_to_ref0 - cur_to_ref1) > 1) return 0;
@@ -1950,8 +1957,11 @@ void av1_encode_frame(AV1_COMP *cpi) {
     // Re-check on the skip mode status as reference mode may have been
     // changed.
     SkipModeInfo *const skip_mode_info = &current_frame->skip_mode_info;
-    if (frame_is_intra_only(cm) ||
-        current_frame->reference_mode == SINGLE_REFERENCE) {
+    if (frame_is_intra_only(cm)
+#if !CONFIG_D072_SKIP_MODE_IMPROVE
+        || current_frame->reference_mode == SINGLE_REFERENCE
+#endif  // !CONFIG_D072_SKIP_MODE_IMPROVE
+    ) {
       skip_mode_info->skip_mode_allowed = 0;
       skip_mode_info->skip_mode_flag = 0;
     }

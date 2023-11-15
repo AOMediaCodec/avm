@@ -133,4 +133,13 @@ macro(fix_experiment_configs)
   if(NOT CONFIG_AIMC AND CONFIG_UV_CFL)
     change_config_and_warn(CONFIG_UV_CFL 0 !CONFIG_AIMC)
   endif()
+
+  # CONFIG_D072_SKIP_MODE_IMPROVE is dependent on CONFIG_SKIP_MODE_ENHANCEMENT
+  # If CONFIG_SKIP_MODE_ENHANCEMENT is off, CONFIG_D072_SKIP_MODE_IMPROVE needs
+  # to be turned off.
+  if(NOT CONFIG_SKIP_MODE_ENHANCEMENT AND CONFIG_D072_SKIP_MODE_IMPROVE)
+    change_config_and_warn(CONFIG_D072_SKIP_MODE_IMPROVE 0
+                           !CONFIG_SKIP_MODE_ENHANCEMENT)
+  endif()
+
 endmacro()

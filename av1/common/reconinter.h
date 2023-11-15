@@ -708,6 +708,9 @@ static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
 static INLINE int is_refinemv_allowed_skip_mode(const AV1_COMMON *const cm,
                                                 const MB_MODE_INFO *mbmi) {
   assert(mbmi->skip_mode);
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+  if (mbmi->ref_frame[1] == NONE_FRAME) return 0;
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
   return cm->seq_params.enable_refinemv &&
          cm->superres_scale_denominator == SCALE_NUMERATOR &&
          is_refinemv_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
