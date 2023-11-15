@@ -595,6 +595,10 @@ void av1_find_mv_refs(
 #endif  // CONFIG_WARP_REF_LIST
 );
 
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+void get_skip_mode_ref_offsets(const AV1_COMMON *cm, int ref_order_hint[2]);
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+
 #if CONFIG_WARP_REF_LIST
 // Initialize the warp cadidate lists to invalid values
 void av1_initialize_warp_wrl_list(

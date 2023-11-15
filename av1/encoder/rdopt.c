@@ -3160,23 +3160,29 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
     ret &= clamp_and_check_mv(cur_mv, this_mv, cm, x);
 
-    this_mv =
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+    if (is_comp_pred) {
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+      this_mv =
 #if CONFIG_SEP_COMP_DRL
-        xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
-            .comp_mv;
+          xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
+              .comp_mv;
 #else
         xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx].comp_mv;
 #endif
-    cur_mv[1] = this_mv;
+      cur_mv[1] = this_mv;
 #if !CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
-    lower_mv_precision(&cur_mv[1].as_mv, mbmi->pb_mv_precision);
+      lower_mv_precision(&cur_mv[1].as_mv, mbmi->pb_mv_precision);
 #else
-    lower_mv_precision(&cur_mv[1].as_mv, cm->features.allow_high_precision_mv,
-                       cm->features.cur_frame_force_integer_mv);
+      lower_mv_precision(&cur_mv[1].as_mv, cm->features.allow_high_precision_mv,
+                         cm->features.cur_frame_force_integer_mv);
 #endif
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
-    ret &= clamp_and_check_mv(cur_mv + 1, this_mv, cm, x);
+      ret &= clamp_and_check_mv(cur_mv + 1, this_mv, cm, x);
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+    }
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
     return ret;
   }
@@ -7334,8 +7340,20 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #endif
 #endif  // CONFIG_CWP
 
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+    const int is_compound = has_second_ref(mbmi);
+    if (is_compound) {
+      mbmi->mode = this_mode;
+    } else {
+      mbmi->mode = NEARMV;
+    }
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+
 #if CONFIG_REFINEMV
     mbmi->refinemv_flag = (
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+                              is_compound &&
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 #if CONFIG_CWP
                               mbmi->cwp_idx == CWP_EQUAL &&
 #endif
@@ -7344,7 +7362,11 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
                               : 0;
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+    if (!build_cur_mv(mbmi->mv, mbmi->mode, cm, x, 0)) {
+#else
     if (!build_cur_mv(mbmi->mv, this_mode, cm, x, 0)) {
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
       assert(av1_check_newmv_joint_nonzero(cm, x));
       continue;
     }
@@ -7353,10 +7375,23 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
     for (int i = 0; i < num_planes; i++) {
 #if CONFIG_TIP
       xd->plane[i].pre[0] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[0])][i];
-      xd->plane[i].pre[1] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[1])][i];
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+      if (is_compound) {
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+        xd->plane[i].pre[1] =
+            yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[1])][i];
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+      }
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 #else
       xd->plane[i].pre[0] = yv12_mb[mbmi->ref_frame[0]][i];
-      xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+      if (is_compound) {
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+        xd->plane[i].pre[1] = yv12_mb[mbmi->ref_frame[1]][i];
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+      }
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 #endif
     }
 
@@ -7452,12 +7487,16 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
       search_state->best_mbmode.fsc_mode[xd->tree_type == CHROMA_PART] = 0;
 
-      search_state->best_mbmode.mode = (cm->features.opfl_refine_type
+      search_state->best_mbmode.mode =
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+          !is_compound ? NEARMV :
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+                       (cm->features.opfl_refine_type
 #if CONFIG_CWP
-                                                && !cm->features.enable_cwp
+                                && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
-                                            ? NEAR_NEARMV_OPTFLOW
-                                            : NEAR_NEARMV);
+                            ? NEAR_NEARMV_OPTFLOW
+                            : NEAR_NEARMV);
       search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
       search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
       search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;
@@ -9765,6 +9804,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   mbmi->bawp_flag = 0;
 #endif  // CONFIG_BAWP_CHROMA
 #endif
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+  // Reset skip mode flag.
+  mbmi->skip_mode = 0;
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
 
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
@@ -10635,6 +10678,10 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   assert(segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP));
 
+#if CONFIG_D072_SKIP_MODE_IMPROVE
+  // Reset skip mode flag.
+  mbmi->skip_mode = 0;
+#endif  // CONFIG_D072_SKIP_MODE_IMPROVE
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   mbmi->filter_intra_mode_info.use_filter_intra = 0;
