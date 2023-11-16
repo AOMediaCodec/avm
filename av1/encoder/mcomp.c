@@ -596,7 +596,7 @@ int opfl_refine_fullpel_mv_one_sided(
 #if OMVS_EARLY_TERM
   // Early termination based on SAD
   // int sad = ms_params->vfp->sdf(dst0, bw, dst1, bw);
-  int sad = ms_params->vfp->sdf(pred_ptr, pred->stride, src->buf, src->stride);
+  int sad = ms_params->vfp->sdf(src->buf, src->stride, pred_ptr, pred->stride);
   if (sad < bw * bh * OMVS_SAD_THR) return 1;
 #endif
 
