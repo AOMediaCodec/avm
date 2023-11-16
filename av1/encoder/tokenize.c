@@ -115,14 +115,12 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
           (*t)->identity_row_cdf = identity_row_pb_cdf[ctx];
           (*t)->identity_row_ctx = ctx;
           (*t)->direction = direction;
-          // Is this star ok?
-          (*t)->direction_cdf = *palette_direction_pb_cdf;
+          (*t)->direction_cdf = palette_direction_pb_cdf;
           (*t)++;
           if (allow_update_cdf) {
 #if CONFIG_PALETTE_D114_RESTRICT
             if (plane_block_width < 64 && plane_block_height < 64) {
-              // Is this star ok?
-              update_cdf(*param->direction_cdf, direction, 2);
+              update_cdf(param->direction_cdf, direction, 2);
             }
 #else
             // Is this star ok?
@@ -157,7 +155,7 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
           (*t)->identity_row_cdf = identity_row_pb_cdf[ctx];
           (*t)->identity_row_ctx = ctx;
           (*t)->direction = direction;
-          (*t)->direction_cdf = *palette_direction_pb_cdf;
+          (*t)->direction_cdf = palette_direction_pb_cdf;
           (*t)++;
 
           if (allow_update_cdf) {

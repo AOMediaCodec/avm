@@ -3442,7 +3442,7 @@ typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
 #if CONFIG_PALETTE_TRANSVERSE
-typedef aom_cdf_prob (*PaletteDirectionCdf)[CDF_SIZE(2)];
+typedef aom_cdf_prob (*PaletteDirectionCdf);
 typedef const int (*PaletteDirectionCost)[2];
 #endif //CONFIG_PALETTE_TRANSVERSE
 
@@ -3465,7 +3465,7 @@ typedef struct {
   ColorCost color_cost;
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_TRANSVERSE
-  PaletteDirectionCdf direction_cdf;
+  aom_cdf_prob *direction_cdf;
   PaletteDirectionCost direction_cost;
 #endif  // CONFIG_PALETTE_TRANSVERSE
   IdentityRowCdf identity_row_cdf;
