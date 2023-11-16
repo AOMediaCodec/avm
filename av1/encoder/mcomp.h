@@ -303,8 +303,6 @@ static INLINE void av1_set_mv_search_method(
   if (search_sites && search_method < NUM_SEARCH_METHODS) {
     ms_params->search_sites =
         &search_sites[search_method_lookup[ms_params->search_method]];
-  } else {
-    assert(0);
   }
 }
 
