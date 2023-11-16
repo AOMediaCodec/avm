@@ -642,21 +642,61 @@ int main(int argc, const char **argv) {
                      "default_interintra_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE("
                      "INTERINTRA_MODES)]");
 
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.wedge_interintra[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_wedge_interintra_cdf[CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
       &fc.wedge_interintra[0][0], probsfile, 2, cts_each_dim,
       "static const aom_cdf_prob\n"
       "default_wedge_interintra_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
   /* Compound type */
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = COMPOUND_TYPES - 1;
+  optimize_cdf_table(&fc.compound_type[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob default_compound_type_cdf"
+                     "[CDF_SIZE(COMPOUND_TYPES - 1)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = COMPOUND_TYPES - 1;
   optimize_cdf_table(&fc.compound_type[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob default_compound_type_cdf"
                      "[BLOCK_SIZES_ALL][CDF_SIZE(COMPOUND_TYPES - 1)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.wedge_angle_dir_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_angle_dir_cdf[CDF_SIZE(2)]");
+
+  cts_each_dim[0] = H_WEDGE_ANGLES;
+  optimize_cdf_table(&fc.wedge_angle_0_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_angle_0_cdf[CDF_SIZE(H_WEDGE_ANGLES)]");
+
+  cts_each_dim[0] = H_WEDGE_ANGLES;
+  optimize_cdf_table(&fc.wedge_angle_1_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)]");
+
+  cts_each_dim[0] = NUM_WEDGE_DIST;
+  optimize_cdf_table(&fc.wedge_dist_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_dist_cdf[CDF_SIZE(NUM_WEDGE_DIST)]");
+
+  cts_each_dim[0] = NUM_WEDGE_DIST - 1;
+  optimize_cdf_table(&fc.wedge_dist2_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_wedge_dist_cdf2[CDF_SIZE(NUM_WEDGE_DIST - 1)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
   optimize_cdf_table(
@@ -685,6 +725,14 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob "
       "default_wedge_dist_cdf[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST)]");
 
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = NUM_WEDGE_DIST - 1;
+  optimize_cdf_table(
+      &fc.wedge_dist2_cnt[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_wedge_dist_cdf2[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST - 1)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+
 #else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 16;
@@ -694,22 +742,46 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_WEDGE_MOD_EXT
 
   /* motion_var and warped_motion experiments */
-#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.obmc[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_obmc_cdf[CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.obmc[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+
+#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.warped_causal[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warped_causal_cdf[CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.warped_causal[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.warp_delta[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warp_delta_cdf[CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.warp_delta[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+
   cts_each_dim[0] = 2;
   cts_each_dim[1] = WARP_DELTA_NUM_SYMBOLS;
   optimize_cdf_table(&fc.warp_delta_param[0][0], probsfile, 2, cts_each_dim,
@@ -723,6 +795,37 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob "
       "default_warp_extend_cdf[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2]"
       "[CDF_SIZE(2)]");
+#if CONFIG_WARPMV
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.warped_causal_warpmv[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warped_causal_warpmv_cdf[CDF_SIZE(2)]");
+#else
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.warped_causal_warpmv[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_warped_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_WARPMV
+
+#if CONFIG_WARP_REF_LIST && CONFIG_CWG_D067_IMPROVED_WARP
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.warpmv_with_mvd_flag[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warpmv_with_mvd_flag_cdf[CDF_SIZE(2)]");
+#else
+  cts_each_dim[0] = BLOCK_SIZES_ALL;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(
+      &fc.warpmv_with_mvd_flag[0][0], probsfile, 2, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_warpmv_with_mvd_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_WARP_REF_LIST && CONFIG_CWG_D067_IMPROVED_WARP
 #else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = MOTION_MODES;
@@ -730,11 +833,6 @@ int main(int argc, const char **argv) {
       &fc.motion_mode[0][0], probsfile, 2, cts_each_dim,
       "static const aom_cdf_prob\n"
       "default_motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(MOTION_MODES)]");
-  cts_each_dim[0] = BLOCK_SIZES_ALL;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.obmc[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
   /* Bawp flag */
 #if CONFIG_BAWP
@@ -961,11 +1059,18 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob "
       "default_filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)]");
 
+#if CONFIG_D149_CTX_MODELING_OPT
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.filter_intra[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_filter_intra_cdfs[CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = BLOCK_SIZES_ALL;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.filter_intra[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)]");
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
   /* forward skip coding flag */
   cts_each_dim[0] = FSC_MODE_CONTEXTS;

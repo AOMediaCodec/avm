@@ -3150,6 +3150,11 @@ static const aom_cdf_prob
                                { AOM_CDF4(4238, 11537, 25926) } };
 #endif  // CONFIG_ENTROPY_PARA
 
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_wedge_interintra_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+#else
 static const aom_cdf_prob
     default_wedge_interintra_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -3168,7 +3173,14 @@ static const aom_cdf_prob
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob
+    default_compound_type_cdf[CDF_SIZE(MASKED_COMPOUND_TYPES)] = {
+      AOM_CDF2(16384),
+    };
+#else
 static const aom_cdf_prob default_compound_type_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
     MASKED_COMPOUND_TYPES)] = {
   { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -3187,11 +3199,34 @@ static const aom_cdf_prob default_compound_type_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
   { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
 #endif  // CONFIG_FLEX_PARTITION
 };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_WEDGE_MOD_EXT
 /*wedge_angle_dir is first decoded. Depending on the wedge angle_dir, the
  * wedge_angle is decoded. Depending on the wedge_angle, the wedge_dist is
  * decoded.*/
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_wedge_angle_dir_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+
+static const aom_cdf_prob
+    default_wedge_angle_0_cdf[CDF_SIZE(H_WEDGE_ANGLES)] = {
+      AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214, 29491),
+    };
+static const aom_cdf_prob
+    default_wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)] = {
+      AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214, 29491),
+    };
+
+static const aom_cdf_prob default_wedge_dist_cdf[CDF_SIZE(NUM_WEDGE_DIST)] = {
+  AOM_CDF4(8192, 16384, 24576),
+};
+static const aom_cdf_prob
+    default_wedge_dist_cdf2[CDF_SIZE(NUM_WEDGE_DIST - 1)] = {
+      AOM_CDF3(10923, 21845),
+    };
+#else
 static const aom_cdf_prob
     default_wedge_angle_dir_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -3210,6 +3245,7 @@ static const aom_cdf_prob
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+
 static const aom_cdf_prob
     default_wedge_angle_0_cdf[BLOCK_SIZES_ALL][CDF_SIZE(H_WEDGE_ANGLES)] = {
       { AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214, 29491) },
@@ -3286,6 +3322,7 @@ static const aom_cdf_prob
       { AOM_CDF10(3277, 6554, 9830, 13107, 16384, 19661, 22938, 26214, 29491) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+
 static const aom_cdf_prob
     default_wedge_dist_cdf[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST)] = {
       { AOM_CDF4(8192, 16384, 24576) }, { AOM_CDF4(8192, 16384, 24576) },
@@ -3332,6 +3369,7 @@ static const aom_cdf_prob
       { AOM_CDF3(10923, 21845) }, { AOM_CDF3(10923, 21845) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #else
 static const aom_cdf_prob default_wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
     16)] = { { AOM_CDF16(2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384,
@@ -3389,6 +3427,9 @@ static const aom_cdf_prob default_wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
 #endif  // CONFIG_WEDGE_MOD_EXT
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_obmc_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384) };
+#else
 static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
   { AOM_CDF2(21846) }, { AOM_CDF2(21846) }, { AOM_CDF2(21846) },
   { AOM_CDF2(15659) }, { AOM_CDF2(12741) }, { AOM_CDF2(12631) },
@@ -3406,7 +3447,13 @@ static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
   { AOM_CDF2(24000) }, { AOM_CDF2(24000) }, { AOM_CDF2(24000) },
 #endif  // CONFIG_FLEX_PARTITION
 };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_warped_causal_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+#else
 static const aom_cdf_prob
     default_warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -3425,8 +3472,14 @@ static const aom_cdf_prob
       { AOM_CDF2(24000) }, { AOM_CDF2(24000) }, { AOM_CDF2(24000) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_WARPMV
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_warped_causal_warpmv_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+#else
 static const aom_cdf_prob
     default_warped_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -3445,6 +3498,7 @@ static const aom_cdf_prob
       { AOM_CDF2(24000) }, { AOM_CDF2(24000) }, { AOM_CDF2(24000) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_WARPMV
 
 #if CONFIG_REFINEMV
@@ -3475,6 +3529,11 @@ static const aom_cdf_prob default_refinemv_flag_cdf[NUM_REFINEMV_CTX][CDF_SIZE(
 #endif  // CONFIG_ENTROPY_PARA
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_warp_delta_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+#else
 static const aom_cdf_prob
     default_warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -3493,6 +3552,7 @@ static const aom_cdf_prob
       { AOM_CDF2(24000) }, { AOM_CDF2(24000) }, { AOM_CDF2(24000) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_WARP_REF_LIST
 #if CONFIG_ENTROPY_PARA
@@ -3517,6 +3577,11 @@ static const aom_cdf_prob default_warp_ref_idx2_cdf[WARP_REF_CONTEXTS][CDF_SIZE(
     2)] = { { AOM_CDF2(18242) } };
 #endif  // CONFIG_ENTROPY_PARA
 #if CONFIG_CWG_D067_IMPROVED_WARP
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_warpmv_with_mvd_flag_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+#else
 static const aom_cdf_prob
     default_warpmv_with_mvd_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
@@ -3535,6 +3600,7 @@ static const aom_cdf_prob
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
 
@@ -3644,6 +3710,11 @@ static const aom_cdf_prob default_motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(
                        { AOM_CDF3(28799, 31390) }, { AOM_CDF3(26431, 30774) },
                        { AOM_CDF3(28973, 31594) }, { AOM_CDF3(29742, 31203) } };
 
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_obmc_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+#else
 static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
   { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
   { AOM_CDF2(10437) }, { AOM_CDF2(9371) },  { AOM_CDF2(9301) },
@@ -3661,6 +3732,7 @@ static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
   { AOM_CDF2(24000) }, { AOM_CDF2(24000) }, { AOM_CDF2(24000) },
 #endif  // CONFIG_FLEX_PARTITION
 };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_BAWP
@@ -4861,6 +4933,12 @@ static const aom_cdf_prob default_filter_intra_mode_cdf[CDF_SIZE(
 static const aom_cdf_prob default_filter_intra_mode_cdf[CDF_SIZE(
     FILTER_INTRA_MODES)] = { AOM_CDF5(8949, 12776, 17211, 29558) };
 #endif  // CONFIG_ENTROPY_PARA
+
+#if CONFIG_D149_CTX_MODELING_OPT
+static const aom_cdf_prob default_filter_intra_cdfs[CDF_SIZE(2)] = {
+  AOM_CDF2(16384),
+};
+#else
 static const aom_cdf_prob
     default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
       { AOM_CDF2(4621) },  { AOM_CDF2(6743) },  { AOM_CDF2(5893) },
@@ -4879,6 +4957,7 @@ static const aom_cdf_prob
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
 #endif  // CONFIG_FLEX_PARTITION
     };
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_LR_FLEX_SYNTAX
 #if CONFIG_ENTROPY_PARA
@@ -5545,8 +5624,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->refinemv_flag_cdf, default_refinemv_flag_cdf);
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   av1_copy(fc->obmc_cdf, default_obmc_cdf);
+#if CONFIG_EXTENDED_WARP_PREDICTION
   av1_copy(fc->warped_causal_cdf, default_warped_causal_cdf);
   av1_copy(fc->warp_delta_cdf, default_warp_delta_cdf);
 #if CONFIG_WARPMV
@@ -5564,7 +5643,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->warp_extend_cdf, default_warp_extend_cdf);
 #else
   av1_copy(fc->motion_mode_cdf, default_motion_mode_cdf);
-  av1_copy(fc->obmc_cdf, default_obmc_cdf);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   av1_copy(fc->skip_drl_cdf, default_skip_drl_cdf);

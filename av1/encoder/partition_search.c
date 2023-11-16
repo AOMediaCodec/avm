@@ -1538,8 +1538,19 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_WARPMV
       if (mbmi->mode == WARPMV) {
         if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+          counts->warped_causal_warpmv[motion_mode == WARPED_CAUSAL]++;
+#endif
+          update_cdf(fc->warped_causal_warpmv_cdf, motion_mode == WARPED_CAUSAL,
+                     2);
+#else
+#if CONFIG_ENTROPY_STATS
+          counts->warped_causal_warpmv[bsize][motion_mode == WARPED_CAUSAL]++;
+#endif
           update_cdf(fc->warped_causal_warpmv_cdf[bsize],
                      motion_mode == WARPED_CAUSAL, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
         }
       }
 #endif  // CONFIG_WARPMV
@@ -1572,11 +1583,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           update_cdf(fc->interintra_mode_cdf[bsize_group],
                      mbmi->interintra_mode, INTERINTRA_MODES);
           if (av1_is_wedge_used(bsize)) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_interintra[mbmi->use_wedge_interintra]++;
+#endif
+            update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
+#else
 #if CONFIG_ENTROPY_STATS
             counts->wedge_interintra[bsize][mbmi->use_wedge_interintra]++;
 #endif
             update_cdf(fc->wedge_interintra_cdf[bsize],
                        mbmi->use_wedge_interintra, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
             if (mbmi->use_wedge_interintra) {
 #if CONFIG_WEDGE_MOD_EXT
               update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
@@ -1600,10 +1618,17 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << OBMC_CAUSAL))) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+        counts->obmc[motion_mode == OBMC_CAUSAL]++;
+#endif
+        update_cdf(fc->obmc_cdf, motion_mode == OBMC_CAUSAL, 2);
+#else
 #if CONFIG_ENTROPY_STATS
         counts->obmc[bsize][motion_mode == OBMC_CAUSAL]++;
 #endif
         update_cdf(fc->obmc_cdf[bsize], motion_mode == OBMC_CAUSAL, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
         if (motion_mode == OBMC_CAUSAL) {
           continue_motion_mode_signaling = false;
         }
@@ -1625,11 +1650,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << WARPED_CAUSAL))) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+        counts->warped_causal[motion_mode == WARPED_CAUSAL]++;
+#endif
+        update_cdf(fc->warped_causal_cdf, motion_mode == WARPED_CAUSAL, 2);
+#else
 #if CONFIG_ENTROPY_STATS
         counts->warped_causal[bsize][motion_mode == WARPED_CAUSAL]++;
 #endif
         update_cdf(fc->warped_causal_cdf[bsize], motion_mode == WARPED_CAUSAL,
                    2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
         if (motion_mode == WARPED_CAUSAL) {
           continue_motion_mode_signaling = false;
         }
@@ -1637,10 +1669,17 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << WARP_DELTA))) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+        counts->warp_delta[motion_mode == WARP_DELTA]++;
+#endif
+        update_cdf(fc->warp_delta_cdf, motion_mode == WARP_DELTA, 2);
+#else
 #if CONFIG_ENTROPY_STATS
         counts->warp_delta[bsize][motion_mode == WARP_DELTA]++;
 #endif
         update_cdf(fc->warp_delta_cdf[bsize], motion_mode == WARP_DELTA, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
       }
 
       if (motion_mode == WARP_DELTA
@@ -1677,11 +1716,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           update_cdf(fc->interintra_mode_cdf[bsize_group],
                      mbmi->interintra_mode, INTERINTRA_MODES);
           if (av1_is_wedge_used(bsize)) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+            counts->wedge_interintra[mbmi->use_wedge_interintra]++;
+#endif
+            update_cdf(fc->wedge_interintra_cdf, mbmi->use_wedge_interintra, 2);
+#else
 #if CONFIG_ENTROPY_STATS
             counts->wedge_interintra[bsize][mbmi->use_wedge_interintra]++;
 #endif
             update_cdf(fc->wedge_interintra_cdf[bsize],
                        mbmi->use_wedge_interintra, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
             if (mbmi->use_wedge_interintra) {
 #if CONFIG_WEDGE_MOD_EXT
               update_wedge_mode_cdf(fc, bsize, mbmi->interintra_wedge_index
@@ -1716,18 +1762,35 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           update_cdf(fc->motion_mode_cdf[bsize], mbmi->motion_mode,
                      MOTION_MODES);
         } else if (motion_allowed == OBMC_CAUSAL) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+          counts->obmc[mbmi->motion_mode == OBMC_CAUSAL]++;
+#endif
+          update_cdf(fc->obmc_cdf, mbmi->motion_mode == OBMC_CAUSAL, 2);
+#else
 #if CONFIG_ENTROPY_STATS
           counts->obmc[bsize][mbmi->motion_mode == OBMC_CAUSAL]++;
 #endif
           update_cdf(fc->obmc_cdf[bsize], mbmi->motion_mode == OBMC_CAUSAL, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
         }
       }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_CWG_D067_IMPROVED_WARP
       if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
-        update_cdf(fc->warpmv_with_mvd_flag_cdf[mbmi->sb_type[PLANE_TYPE_Y]],
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+        counts->warpmv_with_mvd_flag[mbmi->warpmv_with_mvd_flag]++;
+#endif
+        update_cdf(fc->warpmv_with_mvd_flag_cdf, mbmi->warpmv_with_mvd_flag, 2);
+#else
+#if CONFIG_ENTROPY_STATS
+        counts->warpmv_with_mvd_flag[bsize][mbmi->warpmv_with_mvd_flag]++;
+#endif
+        update_cdf(fc->warpmv_with_mvd_flag_cdf[bsize],
                    mbmi->warpmv_with_mvd_flag, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
       } else {
         assert(mbmi->warpmv_with_mvd_flag == 0);
       }
@@ -1773,6 +1836,15 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         if (mbmi->comp_group_idx == 1) {
           assert(masked_compound_used);
           if (is_interinter_compound_used(COMPOUND_WEDGE, bsize)) {
+#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_ENTROPY_STATS
+            ++counts
+                  ->compound_type[mbmi->interinter_comp.type - COMPOUND_WEDGE];
+#endif
+            update_cdf(fc->compound_type_cdf,
+                       mbmi->interinter_comp.type - COMPOUND_WEDGE,
+                       MASKED_COMPOUND_TYPES);
+#else
 #if CONFIG_ENTROPY_STATS
             ++counts->compound_type[bsize][mbmi->interinter_comp.type -
                                            COMPOUND_WEDGE];
@@ -1780,6 +1852,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
             update_cdf(fc->compound_type_cdf[bsize],
                        mbmi->interinter_comp.type - COMPOUND_WEDGE,
                        MASKED_COMPOUND_TYPES);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
           }
         }
       }

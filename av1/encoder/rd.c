@@ -292,11 +292,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 
   av1_cost_tokens_from_cdf(mode_costs->filter_intra_mode_cost,
                            fc->filter_intra_mode_cdf, NULL);
+#if CONFIG_D149_CTX_MODELING_OPT
+  av1_cost_tokens_from_cdf(mode_costs->filter_intra_cost, fc->filter_intra_cdfs,
+                           NULL);
+#else
   for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
     if (av1_filter_intra_allowed_bsize(cm, i))
       av1_cost_tokens_from_cdf(mode_costs->filter_intra_cost[i],
                                fc->filter_intra_cdfs[i], NULL);
   }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
   for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; ++i)
     av1_cost_tokens_from_cdf(mode_costs->switchable_interp_costs[i],
@@ -636,9 +641,27 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],
                                fc->inter_compound_mode_cdf[i], NULL);
+#if CONFIG_D149_CTX_MODELING_OPT
+    av1_cost_tokens_from_cdf(mode_costs->compound_type_cost,
+                             fc->compound_type_cdf, NULL);
+#else
     for (i = 0; i < BLOCK_SIZES_ALL; ++i)
       av1_cost_tokens_from_cdf(mode_costs->compound_type_cost[i],
                                fc->compound_type_cdf[i], NULL);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+
+#if CONFIG_D149_CTX_MODELING_OPT && CONFIG_WEDGE_MOD_EXT
+    av1_cost_tokens_from_cdf(mode_costs->wedge_angle_dir_cost,
+                             fc->wedge_angle_dir_cdf, NULL);
+    av1_cost_tokens_from_cdf(mode_costs->wedge_angle_0_cost,
+                             fc->wedge_angle_0_cdf, NULL);
+    av1_cost_tokens_from_cdf(mode_costs->wedge_angle_1_cost,
+                             fc->wedge_angle_1_cdf, NULL);
+    av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost, fc->wedge_dist_cdf,
+                             NULL);
+    av1_cost_tokens_from_cdf(mode_costs->wedge_dist_cost2, fc->wedge_dist_cdf2,
+                             NULL);
+#else
     for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
       if (av1_is_wedge_used(i)) {
 #if CONFIG_WEDGE_MOD_EXT
@@ -658,16 +681,23 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_WEDGE_MOD_EXT
       }
     }
+#endif  // CONFIG_D149_CTX_MODELING_OPT && CONFIG_WEDGE_MOD_EXT
+
     for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->interintra_cost[i],
                                fc->interintra_cdf[i], NULL);
       av1_cost_tokens_from_cdf(mode_costs->interintra_mode_cost[i],
                                fc->interintra_mode_cdf[i], NULL);
     }
+#if CONFIG_D149_CTX_MODELING_OPT
+    av1_cost_tokens_from_cdf(mode_costs->wedge_interintra_cost,
+                             fc->wedge_interintra_cdf, NULL);
+#else
     for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->wedge_interintra_cost[i],
                                fc->wedge_interintra_cdf[i], NULL);
     }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_REFINEMV
     for (i = 0; i < NUM_REFINEMV_CTX; ++i) {
@@ -676,25 +706,44 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_D149_CTX_MODELING_OPT
+    av1_cost_tokens_from_cdf(mode_costs->obmc_cost, fc->obmc_cdf, NULL);
+#else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->obmc_cost[i], fc->obmc_cdf[i], NULL);
     }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_D149_CTX_MODELING_OPT
+    av1_cost_tokens_from_cdf(mode_costs->warped_causal_cost,
+                             fc->warped_causal_cdf, NULL);
+#else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warped_causal_cost[i],
                                fc->warped_causal_cdf[i], NULL);
     }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_WARPMV
+#if CONFIG_D149_CTX_MODELING_OPT
+    av1_cost_tokens_from_cdf(mode_costs->warped_causal_warpmv_cost,
+                             fc->warped_causal_warpmv_cdf, NULL);
+#else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warped_causal_warpmv_cost[i],
                                fc->warped_causal_warpmv_cdf[i], NULL);
     }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_WARPMV
 #if CONFIG_CWG_D067_IMPROVED_WARP
+#if CONFIG_D149_CTX_MODELING_OPT
+    av1_cost_tokens_from_cdf(mode_costs->warpmv_with_mvd_flag_cost,
+                             fc->warpmv_with_mvd_flag_cdf, NULL);
+#else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warpmv_with_mvd_flag_cost[i],
                                fc->warpmv_with_mvd_flag_cdf[i], NULL);
     }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 
 #if CONFIG_WARP_REF_LIST
@@ -706,10 +755,15 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #endif  // CONFIG_WARP_REF_LIST
 
+#if CONFIG_D149_CTX_MODELING_OPT
+    av1_cost_tokens_from_cdf(mode_costs->warp_delta_cost, fc->warp_delta_cdf,
+                             NULL);
+#else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warp_delta_cost[i],
                                fc->warp_delta_cdf[i], NULL);
     }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
     for (i = 0; i < 2; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warp_delta_param_cost[i],
                                fc->warp_delta_param_cdf[i], NULL);
@@ -724,10 +778,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->motion_mode_cost[i],
                                fc->motion_mode_cdf[i], NULL);
-    }
-    for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
-      av1_cost_tokens_from_cdf(mode_costs->motion_mode_cost1[i],
-                               fc->obmc_cdf[i], NULL);
     }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP

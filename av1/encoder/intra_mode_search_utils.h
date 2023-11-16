@@ -249,9 +249,11 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
         mode_costs->fsc_cost[fsc_ctx][fsc_bsize_groups[bsize]][use_fsc];
   }
   if (av1_filter_intra_allowed(&cpi->common, mbmi)) {
-    total_rate +=
-        mode_costs
-            ->filter_intra_cost[mbmi->sb_type[PLANE_TYPE_Y]][use_filter_intra];
+#if CONFIG_D149_CTX_MODELING_OPT
+    total_rate += mode_costs->filter_intra_cost[use_filter_intra];
+#else
+    total_rate += mode_costs->filter_intra_cost[bsize][use_filter_intra];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
     if (use_filter_intra) {
       total_rate +=
           mode_costs->filter_intra_mode_cost[mbmi->filter_intra_mode_info
@@ -385,15 +387,23 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #endif  // !CONFIG_AIMC
   if (mbmi->mode == DC_PRED &&
       av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y])) {
+#if CONFIG_D149_CTX_MODELING_OPT
     if (mbmi->filter_intra_mode_info.use_filter_intra) {
       const int mode = mbmi->filter_intra_mode_info.filter_intra_mode;
-      mode_cost +=
-          mode_costs->filter_intra_cost[mbmi->sb_type[PLANE_TYPE_Y]][1] +
-          mode_costs->filter_intra_mode_cost[mode];
+      mode_cost += mode_costs->filter_intra_cost[1] +
+                   mode_costs->filter_intra_mode_cost[mode];
     } else {
-      mode_cost +=
-          mode_costs->filter_intra_cost[mbmi->sb_type[PLANE_TYPE_Y]][0];
+      mode_cost += mode_costs->filter_intra_cost[0];
     }
+#else
+    if (mbmi->filter_intra_mode_info.use_filter_intra) {
+      const int mode = mbmi->filter_intra_mode_info.filter_intra_mode;
+      mode_cost += mode_costs->filter_intra_cost[bsize][1] +
+                   mode_costs->filter_intra_mode_cost[mode];
+    } else {
+      mode_cost += mode_costs->filter_intra_cost[bsize][0];
+    }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   }
   this_rd =
       RDCOST(x->rdmult, this_rd_stats.rate + mode_cost, this_rd_stats.dist);

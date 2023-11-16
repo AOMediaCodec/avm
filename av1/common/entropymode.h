@@ -223,32 +223,68 @@ typedef struct frame_contexts {
   aom_cdf_prob jmvd_scale_mode_cdf[CDF_SIZE(JOINT_NEWMV_SCALE_FACTOR_CNT)];
   aom_cdf_prob jmvd_amvd_scale_mode_cdf[CDF_SIZE(JOINT_AMVD_SCALE_FACTOR_CNT)];
 #endif  // CONFIG_IMPROVED_JMVD
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob compound_type_cdf[CDF_SIZE(MASKED_COMPOUND_TYPES)];
+#else
   aom_cdf_prob compound_type_cdf[BLOCK_SIZES_ALL]
                                 [CDF_SIZE(MASKED_COMPOUND_TYPES)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob wedge_angle_dir_cdf[CDF_SIZE(2)];
+  aom_cdf_prob wedge_angle_0_cdf[CDF_SIZE(H_WEDGE_ANGLES)];
+  aom_cdf_prob wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)];
+  aom_cdf_prob wedge_dist_cdf[CDF_SIZE(NUM_WEDGE_DIST)];
+  aom_cdf_prob wedge_dist_cdf2[CDF_SIZE(NUM_WEDGE_DIST - 1)];
+#else
   aom_cdf_prob wedge_angle_dir_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
   aom_cdf_prob wedge_angle_0_cdf[BLOCK_SIZES_ALL][CDF_SIZE(H_WEDGE_ANGLES)];
   aom_cdf_prob wedge_angle_1_cdf[BLOCK_SIZES_ALL][CDF_SIZE(H_WEDGE_ANGLES)];
   aom_cdf_prob wedge_dist_cdf[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST)];
   aom_cdf_prob wedge_dist_cdf2[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST - 1)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #else
   aom_cdf_prob wedge_idx_cdf[BLOCK_SIZES_ALL][CDF_SIZE(16)];
 #endif  // CONFIG_WEDGE_MOD_EXT
   aom_cdf_prob interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)];
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob wedge_interintra_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob wedge_interintra_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob interintra_mode_cdf[BLOCK_SIZE_GROUPS]
                                   [CDF_SIZE(INTERINTRA_MODES)];
-#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob obmc_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob warped_causal_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob warp_delta_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob warp_delta_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_WARPMV
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob warped_causal_warpmv_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob warped_causal_warpmv_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_WARPMV
 #if CONFIG_WARP_REF_LIST
   aom_cdf_prob warp_ref_idx_cdf[3][WARP_REF_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_CWG_D067_IMPROVED_WARP
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob warpmv_with_mvd_flag_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob warpmv_with_mvd_flag_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   aom_cdf_prob warp_delta_param_cdf[2][CDF_SIZE(WARP_DELTA_NUM_SYMBOLS)];
@@ -257,7 +293,6 @@ typedef struct frame_contexts {
                               [CDF_SIZE(2)];
 #else
   aom_cdf_prob motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(MOTION_MODES)];
-  aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
@@ -336,7 +371,11 @@ typedef struct frame_contexts {
   aom_cdf_prob intrabc_drl_idx_cdf[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)];
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   struct segmentation_probs seg;
+#if CONFIG_D149_CTX_MODELING_OPT
+  aom_cdf_prob filter_intra_cdfs[CDF_SIZE(2)];
+#else
   aom_cdf_prob filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)];
 #if CONFIG_LR_FLEX_SYNTAX
 #define MAX_LR_FLEX_MB_PLANE 3  // Needs to match MAX_MB_PLANE.

@@ -2652,7 +2652,11 @@ static int64_t motion_mode_rd(
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << OBMC_CAUSAL)) {
           rd_stats->rate +=
-              mode_costs->obmc_cost[bsize][motion_mode == OBMC_CAUSAL];
+#if CONFIG_D149_CTX_MODELING_OPT
+              mode_costs->obmc_cost[motion_mode == OBMC_CAUSAL];
+#else
+            mode_costs->obmc_cost[bsize][motion_mode == OBMC_CAUSAL];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
           if (motion_mode == OBMC_CAUSAL) {
             continue_motion_mode_signaling = false;
           }
@@ -2673,8 +2677,11 @@ static int64_t motion_mode_rd(
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << WARPED_CAUSAL)) {
           rd_stats->rate +=
-              mode_costs
-                  ->warped_causal_cost[bsize][motion_mode == WARPED_CAUSAL];
+#if CONFIG_D149_CTX_MODELING_OPT
+              mode_costs->warped_causal_cost[motion_mode == WARPED_CAUSAL];
+#else
+            mode_costs->warped_causal_cost[bsize][motion_mode == WARPED_CAUSAL];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
           if (motion_mode == WARPED_CAUSAL) {
             continue_motion_mode_signaling = false;
           }
@@ -2683,15 +2690,24 @@ static int64_t motion_mode_rd(
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << WARP_DELTA)) {
           rd_stats->rate +=
-              mode_costs->warp_delta_cost[bsize][motion_mode == WARP_DELTA];
+#if CONFIG_D149_CTX_MODELING_OPT
+              mode_costs->warp_delta_cost[motion_mode == WARP_DELTA];
+#else
+            mode_costs->warp_delta_cost[bsize][motion_mode == WARP_DELTA];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
         }
 
 #if CONFIG_WARPMV
         if (mbmi->mode == WARPMV) {
           if (allowed_motion_modes & (1 << WARPED_CAUSAL)) {
             rd_stats->rate +=
+#if CONFIG_D149_CTX_MODELING_OPT
+                mode_costs
+                    ->warped_causal_warpmv_cost[motion_mode != WARP_DELTA];
+#else
                 mode_costs->warped_causal_warpmv_cost[bsize][motion_mode !=
                                                              WARP_DELTA];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
           } else {
             assert(motion_mode == WARP_DELTA);
@@ -2699,9 +2715,14 @@ static int64_t motion_mode_rd(
 #if CONFIG_CWG_D067_IMPROVED_WARP
           if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
             rd_stats->rate +=
+#if CONFIG_D149_CTX_MODELING_OPT
+                mode_costs
+                    ->warpmv_with_mvd_flag_cost[mbmi->warpmv_with_mvd_flag];
+#else
                 mode_costs
                     ->warpmv_with_mvd_flag_cost[bsize]
                                                [mbmi->warpmv_with_mvd_flag];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
           }
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
         }
@@ -2734,8 +2755,11 @@ static int64_t motion_mode_rd(
         rd_stats->rate +=
             mode_costs->motion_mode_cost[bsize][mbmi->motion_mode];
       } else {
-        rd_stats->rate +=
-            mode_costs->motion_mode_cost1[bsize][mbmi->motion_mode];
+#if CONFIG_D149_CTX_MODELING_OPT
+        rd_stats->rate += mode_costs->obmc_cost[mbmi->motion_mode];
+#else
+        rd_stats->rate += mode_costs->obmc_cost[bsize][mbmi->motion_mode];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
       }
     }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION

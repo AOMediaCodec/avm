@@ -199,10 +199,30 @@ static int8_t estimate_wedge_sign(const AV1_COMP *cpi, const MACROBLOCK *x,
 #if CONFIG_WEDGE_MOD_EXT
 static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
                           const MACROBLOCK *const x) {
+#if CONFIG_D149_CTX_MODELING_OPT
+  (void)bsize;
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   assert(wedge_index >= 0 && wedge_index < MAX_WEDGE_TYPES);
   const int wedge_angle = wedge_index_2_angle[wedge_index];
   const int wedge_dist = wedge_index_2_dist[wedge_index];
   const int wedge_angle_dir = wedge_angle >= H_WEDGE_ANGLES;
+#if CONFIG_D149_CTX_MODELING_OPT
+  int wedge_cost = x->mode_costs.wedge_angle_dir_cost[wedge_angle_dir];
+  if (wedge_angle_dir == 0) {
+    wedge_cost += x->mode_costs.wedge_angle_0_cost[wedge_angle];
+  } else {
+    wedge_cost +=
+        x->mode_costs.wedge_angle_1_cost[wedge_angle - H_WEDGE_ANGLES];
+  }
+
+  if ((wedge_angle >= H_WEDGE_ANGLES) ||
+      (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
+    assert(wedge_dist != 0);
+    wedge_cost += x->mode_costs.wedge_dist_cost2[wedge_dist - 1];
+  } else {
+    wedge_cost += x->mode_costs.wedge_dist_cost[wedge_dist];
+  }
+#else
   int wedge_cost = x->mode_costs.wedge_angle_dir_cost[bsize][wedge_angle_dir];
   if (wedge_angle_dir == 0) {
     wedge_cost += x->mode_costs.wedge_angle_0_cost[bsize][wedge_angle];
@@ -210,6 +230,7 @@ static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
     wedge_cost +=
         x->mode_costs.wedge_angle_1_cost[bsize][wedge_angle - H_WEDGE_ANGLES];
   }
+
   if ((wedge_angle >= H_WEDGE_ANGLES) ||
       (wedge_angle == WEDGE_90 || wedge_angle == WEDGE_180)) {
     assert(wedge_dist != 0);
@@ -217,6 +238,7 @@ static int get_wedge_cost(const BLOCK_SIZE bsize, const int8_t wedge_index,
   } else {
     wedge_cost += x->mode_costs.wedge_dist_cost[bsize][wedge_dist];
   }
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   return wedge_cost;
 }
 #endif
@@ -646,9 +668,14 @@ static int handle_smooth_inter_intra_mode(
   // Compute rd cost for best smooth_interintra
   RD_STATS rd_stats;
   const int is_wedge_used = av1_is_wedge_used(bsize);
-  const int rmode =
-      interintra_mode_cost[*best_interintra_mode] +
-      (is_wedge_used ? mode_costs->wedge_interintra_cost[bsize][0] : 0);
+  const int rmode = interintra_mode_cost[*best_interintra_mode] +
+                    (is_wedge_used ?
+#if CONFIG_D149_CTX_MODELING_OPT
+                                   mode_costs->wedge_interintra_cost[0]
+#else
+                                   mode_costs->wedge_interintra_cost[bsize][0]
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+                                   : 0);
   const int total_mode_rate = rmode + *rate_mv;
   const int64_t rd_thresh = compute_rd_thresh(x, total_mode_rate, ref_best_rd);
   int64_t rd = estimate_yrd_for_sb(cpi, bsize, x, rd_thresh, &rd_stats);
@@ -766,7 +793,11 @@ static int handle_wedge_inter_intra_mode(
                    mode_costs
                        ->wedge_idx_cost[bsize][mbmi->interintra_wedge_index] +
 #endif  // CONFIG_WEDGE_MOD_EXT
+#if CONFIG_D149_CTX_MODELING_OPT
+                   mode_costs->wedge_interintra_cost[1];
+#else
                    mode_costs->wedge_interintra_cost[bsize][1];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   *best_rd += RDCOST(x->rdmult, *rate_overhead + *rate_mv, 0);
 
   int64_t rd = INT64_MAX;
@@ -1023,6 +1054,9 @@ static INLINE void calc_masked_type_cost(const ModeCosts *mode_costs,
                                          int comp_group_idx_ctx,
                                          int masked_compound_used,
                                          int *masked_type_cost) {
+#if CONFIG_D149_CTX_MODELING_OPT
+  (void)bsize;
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   av1_zero_array(masked_type_cost, COMPOUND_TYPES);
   // Account for group index cost when wedge and/or diffwtd prediction are
   // enabled
@@ -1037,9 +1071,14 @@ static INLINE void calc_masked_type_cost(const ModeCosts *mode_costs,
   }
 
   // Compute the cost to signal compound index/type
+#if CONFIG_D149_CTX_MODELING_OPT
+  masked_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[0];
+  masked_type_cost[COMPOUND_DIFFWTD] += mode_costs->compound_type_cost[1];
+#else
   masked_type_cost[COMPOUND_WEDGE] += mode_costs->compound_type_cost[bsize][0];
   masked_type_cost[COMPOUND_DIFFWTD] +=
       mode_costs->compound_type_cost[bsize][1];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 }
 
 // Updates mbmi structure with the relevant compound type info

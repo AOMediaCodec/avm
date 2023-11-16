@@ -615,17 +615,25 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
     if (av1_filter_intra_allowed(cm, mbmi)) {
       const int use_filter_intra_mode =
           mbmi->filter_intra_mode_info.use_filter_intra;
+#if CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_ENTROPY_STATS
-      ++counts->filter_intra[mbmi->sb_type[xd->tree_type == CHROMA_PART]]
-                            [use_filter_intra_mode];
+      ++counts->filter_intra[use_filter_intra_mode];
       if (use_filter_intra_mode) {
         ++counts->filter_intra_mode[mbmi->filter_intra_mode_info
                                         .filter_intra_mode];
       }
 #endif  // CONFIG_ENTROPY_STATS
-      update_cdf(
-          fc->filter_intra_cdfs[mbmi->sb_type[xd->tree_type == CHROMA_PART]],
-          use_filter_intra_mode, 2);
+      update_cdf(fc->filter_intra_cdfs, use_filter_intra_mode, 2);
+#else
+#if CONFIG_ENTROPY_STATS
+      ++counts->filter_intra[bsize][use_filter_intra_mode];
+      if (use_filter_intra_mode) {
+        ++counts->filter_intra_mode[mbmi->filter_intra_mode_info
+                                        .filter_intra_mode];
+      }
+#endif  // CONFIG_ENTROPY_STATS
+      update_cdf(fc->filter_intra_cdfs[bsize], use_filter_intra_mode, 2);
+#endif  // CONFIG_D149_CTX_MODELING_OPT
       if (use_filter_intra_mode) {
         update_cdf(fc->filter_intra_mode_cdf,
                    mbmi->filter_intra_mode_info.filter_intra_mode,
@@ -1326,8 +1334,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->wedge_interintra_cdf, ctx_tr->wedge_interintra_cdf, 2);
   AVERAGE_CDF(ctx_left->interintra_mode_cdf, ctx_tr->interintra_mode_cdf,
               INTERINTRA_MODES);
-#if CONFIG_EXTENDED_WARP_PREDICTION
   AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
+#if CONFIG_EXTENDED_WARP_PREDICTION
   AVERAGE_CDF(ctx_left->warped_causal_cdf, ctx_tr->warped_causal_cdf, 2);
   AVERAGE_CDF(ctx_left->warp_delta_cdf, ctx_tr->warp_delta_cdf, 2);
   AVERAGE_CDF(ctx_left->warp_delta_param_cdf, ctx_tr->warp_delta_param_cdf,
@@ -1349,7 +1357,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->warp_extend_cdf, ctx_tr->warp_extend_cdf, 2);
 #else
   AVERAGE_CDF(ctx_left->motion_mode_cdf, ctx_tr->motion_mode_cdf, MOTION_MODES);
-  AVERAGE_CDF(ctx_left->obmc_cdf, ctx_tr->obmc_cdf, 2);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA

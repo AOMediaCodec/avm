@@ -292,6 +292,9 @@ set_aom_config_var(CONFIG_INTERINTRA_IMPROVEMENT 1
 set_aom_config_var(CONFIG_REFRESH_FLAG 0
                    "Experiment flag to Signal refresh frame flag with 3 bits")
 
+set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
+                   "Enable to optimize block size dependent context modeling")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

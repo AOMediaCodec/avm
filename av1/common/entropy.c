@@ -211,8 +211,8 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->refinemv_flag_cdf, REFINEMV_NUM_MODES);
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
   RESET_CDF_COUNTER(fc->obmc_cdf, 2);
+#if CONFIG_EXTENDED_WARP_PREDICTION
   RESET_CDF_COUNTER(fc->warped_causal_cdf, 2);
   RESET_CDF_COUNTER(fc->warp_delta_cdf, 2);
 #if CONFIG_WARPMV
@@ -230,7 +230,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->warp_extend_cdf, 2);
 #else
   RESET_CDF_COUNTER(fc->motion_mode_cdf, MOTION_MODES);
-  RESET_CDF_COUNTER(fc->obmc_cdf, 2);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA

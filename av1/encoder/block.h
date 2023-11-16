@@ -876,7 +876,11 @@ typedef struct {
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
 #endif  // !CONFIG_AIMC
   //! filter_intra_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int filter_intra_cost[2];
+#else
   int filter_intra_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   //! filter_intra_mode_cost
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
   //! angle_delta_cost
@@ -1045,9 +1049,25 @@ typedef struct {
   int jmvd_amvd_scale_mode_cost[JOINT_AMVD_SCALE_FACTOR_CNT];
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   //! compound_type_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int compound_type_cost[MASKED_COMPOUND_TYPES];
+#else
   int compound_type_cost[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   //! wedge_idx_cost
 #if CONFIG_WEDGE_MOD_EXT
+#if CONFIG_D149_CTX_MODELING_OPT
+  //! wedge_angle_dir_cost
+  int wedge_angle_dir_cost[2];
+  //! wedge_angle_0_cost
+  int wedge_angle_0_cost[H_WEDGE_ANGLES];
+  //! wedge_angle_1_cost
+  int wedge_angle_1_cost[H_WEDGE_ANGLES];
+  //! wedge_dist_cost
+  int wedge_dist_cost[NUM_WEDGE_DIST];
+  //! wedge_dist_cost2
+  int wedge_dist_cost2[NUM_WEDGE_DIST - 1];
+#else
   //! wedge_angle_dir_cost
   int wedge_angle_dir_cost[BLOCK_SIZES_ALL][2];
   //! wedge_angle_0_cost
@@ -1058,13 +1078,18 @@ typedef struct {
   int wedge_dist_cost[BLOCK_SIZES_ALL][NUM_WEDGE_DIST];
   //! wedge_dist_cost2
   int wedge_dist_cost2[BLOCK_SIZES_ALL][NUM_WEDGE_DIST - 1];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #else
   int wedge_idx_cost[BLOCK_SIZES_ALL][16];
 #endif  // CONFIG_WEDGE_MOD_EXT
   //! interintra_cost
   int interintra_cost[BLOCK_SIZE_GROUPS][2];
   //! wedge_interintra_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int wedge_interintra_cost[2];
+#else
   int wedge_interintra_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   //! interintra_mode_cost
   int interintra_mode_cost[BLOCK_SIZE_GROUPS][INTERINTRA_MODES];
   /**@}*/
@@ -1081,17 +1106,33 @@ typedef struct {
    * \name Inter Costs: Motion Modes/Filters
    ****************************************************************************/
   /**@{*/
-#if CONFIG_EXTENDED_WARP_PREDICTION
   //! obmc_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int obmc_cost[2];
+#else
   int obmc_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_EXTENDED_WARP_PREDICTION
   //! warped_causal_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int warped_causal_cost[2];
+#else
   int warped_causal_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
   //! warp_delta_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int warp_delta_cost[2];
+#else
   int warp_delta_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_WARPMV
   //! warped_causal_warpmv_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int warped_causal_warpmv_cost[2];
+#else
   int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_WARPMV
 
 #if CONFIG_REFINEMV
@@ -1106,7 +1147,11 @@ typedef struct {
   int warp_ref_idx_cost[3][WARP_REF_CONTEXTS][2];
 #if CONFIG_CWG_D067_IMPROVED_WARP
   //! warpmv_with_mvd_flag_cost
+#if CONFIG_D149_CTX_MODELING_OPT
+  int warpmv_with_mvd_flag_cost[2];
+#else
   int warpmv_with_mvd_flag_cost[BLOCK_SIZES_ALL][2];
+#endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_CWG_D067_IMPROVED_WARP
 #endif  // CONFIG_WARP_REF_LIST
   //! warp_extend_cost
@@ -1114,8 +1159,6 @@ typedef struct {
 #else
   //! motion_mode_cost
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
-  //! motion_mode_cost1
-  int motion_mode_cost1[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_BAWP
   //! bawp flag cost

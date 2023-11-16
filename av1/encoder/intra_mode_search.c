@@ -1130,7 +1130,12 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     int64_t best_rd_so_far = INT64_MAX;
     if (rd_stats_y->rate != INT_MAX) {
       const int tmp_rate = rd_stats_y->rate +
-                           mode_costs->filter_intra_cost[bsize][0] + mode_cost;
+#if CONFIG_D149_CTX_MODELING_OPT
+                           mode_costs->filter_intra_cost[0] +
+#else
+                           mode_costs->filter_intra_cost[bsize][0] +
+#endif  // CONFIG_D149_CTX_MODELING_OPT
+                           mode_cost;
       best_rd_so_far = RDCOST(x->rdmult, tmp_rate, rd_stats_y->dist);
       try_filter_intra = (best_rd_so_far / 2) <= best_rd;
     }
