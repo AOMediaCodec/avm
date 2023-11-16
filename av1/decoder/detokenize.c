@@ -35,7 +35,7 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
   const bool transverse_allowed = plane_block_width < 64 && plane_block_height < 64;
   int direction;
   if (transverse_allowed) {
-    direction = aom_read_symbol(r, *param->direction_cdf, 2, ACCT_STR);
+    direction = aom_read_symbol(r, param->direction_cdf, 2, ACCT_STR);
   } else {
     direction = 0;
   }
