@@ -709,7 +709,7 @@ void av1_highbd_wiener_convolve_add_src_c(
 }
 
 #if CONFIG_LR_IMPROVEMENTS
-#define USE_CONV_SYM_VERSIONS 1
+#define USE_CONV_SYM_VERSIONS 0
 
 // Convolves a block of pixels with origin-symmetric, non-separable filters.
 // This routine is intended as a starting point for SIMD and other acceleration
@@ -893,7 +893,7 @@ void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
         const int pos = nsfilter->config[k][NONSEP_BUF_POS];
         const int r = nsfilter->config[k][NONSEP_ROW_ID];
         const int c = nsfilter->config[k][NONSEP_COL_ID];
-        if (r == 0 && c == 0) {
+        if (nsfilter->subtract_center && r == 0 && c == 0) {
           tmp += filter[pos];
           continue;
         }
@@ -903,9 +903,15 @@ void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
         const int jc = nsfilter->strict_bounds
                            ? AOMMAX(AOMMIN(j + c, width - 1), 0)
                            : j + c;
-        int16_t diff = clip_base(
-            (int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id], bit_depth);
-        tmp += filter[pos] * diff;
+        int16_t sample;
+        if (nsfilter->subtract_center) {
+          sample =
+              clip_base((int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id],
+                        bit_depth);
+        } else {
+          sample = (int16_t)dgd[(ir)*stride + (jc)];
+        }
+        tmp += filter[pos] * sample;
       }
       tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
       dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
@@ -1411,7 +1417,7 @@ void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
         const int pos = nsfilter->config[k][NONSEP_BUF_POS];
         const int r = nsfilter->config[k][NONSEP_ROW_ID];
         const int c = nsfilter->config[k][NONSEP_COL_ID];
-        if (r == 0 && c == 0) {
+        if (nsfilter->subtract_center && r == 0 && c == 0) {
           tmp += filter[pos];
           continue;
         }
@@ -1421,9 +1427,15 @@ void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
         const int jc = nsfilter->strict_bounds
                            ? AOMMAX(AOMMIN(j + c, width - 1), 0)
                            : j + c;
-        int16_t diff = clip_base(
-            (int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id], bit_depth);
-        tmp += filter[pos] * diff;
+        int16_t sample;
+        if (nsfilter->subtract_center) {
+          sample =
+              clip_base((int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id],
+                        bit_depth);
+        } else {
+          sample = (int16_t)dgd[(ir)*stride + (jc)];
+        }
+        tmp += filter[pos] * sample;
       }
       for (int k = 0; k < nsfilter->num_pixels2; ++k) {
         const int pos = nsfilter->config2[k][NONSEP_BUF_POS];
@@ -1435,10 +1447,15 @@ void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
         const int jc = nsfilter->strict_bounds
                            ? AOMMAX(AOMMIN(j + c, width - 1), 0)
                            : j + c;
-        int16_t diff = clip_base(
-            (int16_t)dgd2[(ir)*stride2 + (jc)] - (int16_t)dgd2[dgd2_id],
-            bit_depth);
-        tmp += filter[pos] * diff;
+        int16_t sample;
+        if (nsfilter->subtract_center) {
+          sample = clip_base(
+              (int16_t)dgd2[(ir)*stride2 + (jc)] - (int16_t)dgd2[dgd2_id],
+              bit_depth);
+        } else {
+          sample = (int16_t)dgd2[(ir)*stride2 + (jc)];
+        }
+        tmp += filter[pos] * sample;
       }
       tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
       dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
