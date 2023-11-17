@@ -501,11 +501,11 @@ static AOM_FORCE_INLINE void calc_mv_process(int64_t su2, int64_t sv2,
 #endif
   // Clamp su2, sv2, suv, suw, and svw to avoid overflow in det, det_x, and
   // det_y
-  su2 = (int64_t)clamp((int)su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  sv2 = (int64_t)clamp((int)sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suv = (int64_t)clamp((int)suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  suw = (int64_t)clamp((int)suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
-  svw = (int64_t)clamp((int)svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  su2 = clamp64(su2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  sv2 = clamp64(sv2, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suv = clamp64(suv, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  suw = clamp64(suw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
+  svw = clamp64(svw, -OPFL_COV_CLAMP_VAL, OPFL_COV_CLAMP_VAL);
 
   // Solve 2x2 matrix inverse: [ su2  suv ]   [ vx0 ]     [ -suw ]
   //                           [ suv  sv2 ] * [ vy0 ]  =  [ -svw ]
@@ -532,20 +532,20 @@ static AOM_FORCE_INLINE void calculate_mv_8x4(
   // by 1.
   const int rls_alpha = 1 << OPFL_RLS_PARAM_BITS;
   int64_t su2_1, suv_1, sv2_1, suw_1, svw_1;
-  u2_0 = _mm_add_epi32(u2_0, _mm_srli_si128(u2_0, 8));
-  u2_1 = _mm_add_epi32(u2_1, _mm_srli_si128(u2_1, 8));
+  u2_0 = _mm_add_epi64(u2_0, _mm_srli_si128(u2_0, 8));
+  u2_1 = _mm_add_epi64(u2_1, _mm_srli_si128(u2_1, 8));
 
-  v2_0 = _mm_add_epi32(v2_0, _mm_srli_si128(v2_0, 8));
-  v2_1 = _mm_add_epi32(v2_1, _mm_srli_si128(v2_1, 8));
+  v2_0 = _mm_add_epi64(v2_0, _mm_srli_si128(v2_0, 8));
+  v2_1 = _mm_add_epi64(v2_1, _mm_srli_si128(v2_1, 8));
 
-  uv_0 = _mm_add_epi32(uv_0, _mm_srli_si128(uv_0, 8));
-  uv_1 = _mm_add_epi32(uv_1, _mm_srli_si128(uv_1, 8));
+  uv_0 = _mm_add_epi64(uv_0, _mm_srli_si128(uv_0, 8));
+  uv_1 = _mm_add_epi64(uv_1, _mm_srli_si128(uv_1, 8));
 
-  uw_0 = _mm_add_epi32(uw_0, _mm_srli_si128(uw_0, 8));
-  uw_1 = _mm_add_epi32(uw_1, _mm_srli_si128(uw_1, 8));
+  uw_0 = _mm_add_epi64(uw_0, _mm_srli_si128(uw_0, 8));
+  uw_1 = _mm_add_epi64(uw_1, _mm_srli_si128(uw_1, 8));
 
-  vw_0 = _mm_add_epi32(vw_0, _mm_srli_si128(vw_0, 8));
-  vw_1 = _mm_add_epi32(vw_1, _mm_srli_si128(vw_1, 8));
+  vw_0 = _mm_add_epi64(vw_0, _mm_srli_si128(vw_0, 8));
+  vw_1 = _mm_add_epi64(vw_1, _mm_srli_si128(vw_1, 8));
 
   _mm_storel_epi64((__m128i *)&su2, u2_0);
   _mm_storel_epi64((__m128i *)&suv, uv_0);
@@ -571,11 +571,11 @@ static AOM_FORCE_INLINE void calculate_mv_8x8(__m128i u2, __m128i v2,
                                               int mv_prec_bits,
                                               int grad_prec_bits, int *vx0,
                                               int *vy0, int *vx1, int *vy1) {
-  u2 = _mm_add_epi32(u2, _mm_srli_si128(u2, 8));
-  v2 = _mm_add_epi32(v2, _mm_srli_si128(v2, 8));
-  uv = _mm_add_epi32(uv, _mm_srli_si128(uv, 8));
-  uw = _mm_add_epi32(uw, _mm_srli_si128(uw, 8));
-  vw = _mm_add_epi32(vw, _mm_srli_si128(vw, 8));
+  u2 = _mm_add_epi64(u2, _mm_srli_si128(u2, 8));
+  v2 = _mm_add_epi64(v2, _mm_srli_si128(v2, 8));
+  uv = _mm_add_epi64(uv, _mm_srli_si128(uv, 8));
+  uw = _mm_add_epi64(uw, _mm_srli_si128(uw, 8));
+  vw = _mm_add_epi64(vw, _mm_srli_si128(vw, 8));
 
   int64_t su2, suv, sv2, suw, svw;
   const int bits = mv_prec_bits + grad_prec_bits;
