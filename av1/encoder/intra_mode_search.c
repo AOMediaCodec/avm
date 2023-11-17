@@ -341,10 +341,17 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
 
   xd->cfl.use_dc_pred_cache = 1;
 #if CONFIG_AIMC
+#if CONFIG_UV_CFL
+  const int cfl_ctx = get_cfl_ctx(xd);
+  ;
+  const int64_t mode_rd =
+      RDCOST(x->rdmult, mode_costs->cfl_mode_cost[cfl_ctx][1], 0);
+#else
   const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
   const int64_t mode_rd = RDCOST(
       x->rdmult,
       mode_costs->intra_uv_mode_cost[CFL_ALLOWED][uv_context][UV_CFL_PRED], 0);
+#endif  // CONFIG_UV_CFL
 #else
   const int64_t mode_rd = RDCOST(
       x->rdmult,
@@ -539,7 +546,11 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
 #if CONFIG_DEBUG && !CONFIG_CROSS_CHROMA_TX
     xd->cfl.rate =
 #if CONFIG_AIMC
+#if CONFIG_UV_CFL
+        mode_costs->cfl_mode_cost[cfl_ctx][1] +
+#else
         mode_costs->intra_uv_mode_cost[CFL_ALLOWED][uv_context][UV_CFL_PRED] +
+#endif  // CONFIG_UV_CFL
 #else
         mode_costs->intra_uv_mode_cost[CFL_ALLOWED][mbmi->mode][UV_CFL_PRED] +
 #endif
@@ -560,9 +571,27 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
 
 #if CONFIG_AIMC
 int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
+#if CONFIG_UV_CFL
+                     MACROBLOCKD *xd,
+#endif  // CONFIG_UV_CFL
                      CFL_ALLOWED_TYPE cfl_allowed, int mode_index) {
+#if CONFIG_UV_CFL
+  assert(mode_index < UV_CFL_PRED);
+  const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
+  if (cfl_allowed) {
+    const int cfl_ctx = get_cfl_ctx(xd);
+    if (mbmi->uv_mode == UV_CFL_PRED) {
+      return mode_costs.cfl_mode_cost[cfl_ctx][1];
+    }
+    int cost = mode_costs.cfl_mode_cost[cfl_ctx][0];
+    cost += mode_costs.intra_uv_mode_cost[uv_context][mode_index];
+    return cost;
+  }
+  return mode_costs.intra_uv_mode_cost[uv_context][mode_index];
+#else
   const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
   return mode_costs.intra_uv_mode_cost[cfl_allowed][uv_context][mode_index];
+#endif  // CONFIG_UV_CFL
 }
 #endif  // CONFIG_AIMC
 
@@ -610,6 +639,26 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   get_uv_intra_mode_set(mbmi);
 #if CONFIG_IMPROVED_CFL
   int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL;
+#if CONFIG_UV_CFL
+  for (int mode_idx = 0; mode_idx < UV_INTRA_MODES + implicit_cfl_mode_num;
+       ++mode_idx) {
+    mbmi->cfl_idx = 0;
+    // Reorder modes to search. Let the encoder search CFL first, then the rest
+    // modes.
+    if (mode_idx == 0) {
+      mbmi->cfl_idx = 0;
+      mbmi->uv_mode = UV_CFL_PRED;
+      mbmi->uv_mode_idx = 0;
+    } else if (mode_idx == 1) {
+      mbmi->cfl_idx = 1;
+      mbmi->uv_mode = UV_CFL_PRED;
+      mbmi->uv_mode_idx = 0;
+    } else {
+      mbmi->cfl_idx = 0;
+      mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 2];
+      mbmi->uv_mode_idx = mode_idx - 2;
+    }
+#else
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES + implicit_cfl_mode_num;
        ++mode_idx) {
     int real_mode_idx = mode_idx;
@@ -620,6 +669,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
     mbmi->uv_mode_idx = real_mode_idx;
     mbmi->uv_mode = mbmi->uv_intra_mode_list[real_mode_idx];
+#endif  // CONFIG_UV_CFL
 #else
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
     mbmi->uv_mode_idx = mode_idx;
@@ -630,8 +680,11 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     else
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
     UV_PREDICTION_MODE mode = mbmi->uv_mode;
-    int mode_cost = get_uv_mode_cost(mbmi, x->mode_costs, is_cfl_allowed(xd),
-                                     mbmi->uv_mode_idx);
+    int mode_cost = get_uv_mode_cost(mbmi, x->mode_costs,
+#if CONFIG_UV_CFL
+                                     xd,
+#endif  // CONFIG_UV_CFL
+                                     is_cfl_allowed(xd), mbmi->uv_mode_idx);
 #else
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
     UV_PREDICTION_MODE mode = uv_rd_search_mode_order[mode_idx];
@@ -728,13 +781,20 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   if (try_palette) {
     uint8_t *best_palette_color_map = x->palette_buffer->best_palette_color_map;
 #if CONFIG_AIMC
+#if !CONFIG_UV_CFL
     const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
+#endif  // CONFIG_UV_CFL
 #endif  // CONFIG_AIMC
     av1_rd_pick_palette_intra_sbuv(
         cpi, x,
 #if CONFIG_AIMC
+#if CONFIG_UV_CFL
+        // This cost is not used actually in the caller function.
+        mode_costs->intra_uv_mode_cost[0][0],
+#else
         mode_costs
             ->intra_uv_mode_cost[is_cfl_allowed(xd)][uv_context][UV_DC_PRED],
+#endif  // CONFIG_UV_CFL
 #else
         mode_costs
             ->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][UV_DC_PRED],
@@ -1250,8 +1310,11 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   if (num_planes > 1 && xd->is_chroma_ref) {
     const int uv_mode_cost =
 #if CONFIG_AIMC
-        get_uv_mode_cost(mbmi, x->mode_costs, is_cfl_allowed(xd),
-                         mbmi->uv_mode_idx);
+        get_uv_mode_cost(mbmi, x->mode_costs,
+#if CONFIG_UV_CFL
+                         xd,
+#endif  // CONFIG_UV_CFL
+                         is_cfl_allowed(xd), mbmi->uv_mode_idx);
 #else
         mode_costs->intra_uv_mode_cost[is_cfl_allowed(xd)][mode][mbmi->uv_mode];
 #endif  // CONFIG_AIMC

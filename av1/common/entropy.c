@@ -338,9 +338,14 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #else
   RESET_CDF_COUNTER(fc->y_mode_cdf, INTRA_MODES);
 #endif  // CONFIG_AIMC
+#if CONFIG_UV_CFL
+  RESET_CDF_COUNTER(fc->uv_mode_cdf, UV_INTRA_MODES - 1);
+  RESET_CDF_COUNTER(fc->cfl_cdf, 2);
+#else
   RESET_CDF_COUNTER_STRIDE(fc->uv_mode_cdf[0], UV_INTRA_MODES - 1,
                            CDF_SIZE(UV_INTRA_MODES));
   RESET_CDF_COUNTER(fc->uv_mode_cdf[1], UV_INTRA_MODES);
+#endif  // CONFIG_UV_CFL
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   for (int plane_index = 0; plane_index < PARTITION_STRUCTURE_NUM;

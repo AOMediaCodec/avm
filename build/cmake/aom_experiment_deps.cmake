@@ -122,4 +122,16 @@ macro(fix_experiment_configs)
   if(NOT CONFIG_BAWP AND CONFIG_BAWP_CHROMA)
     change_config_and_warn(CONFIG_BAWP_CHROMA 0 !CONFIG_BAWP)
   endif()
+
+  # CONFIG_IST_ANY_SET is dependent on CONFIG_IST_SET_FLAG. If
+  # CONFIG_IST_SET_FLAG is off, CONFIG_IST_ANY_SET needs to be turned off.
+  if(NOT CONFIG_IST_SET_FLAG AND CONFIG_IST_ANY_SET)
+    change_config_and_warn(CONFIG_IST_ANY_SET 0 !CONFIG_IST_SET_FLAG)
+  endif()
+
+  # CONFIG_UV_CFL depends on CONFIG_AIMC
+  if(NOT CONFIG_AIMC AND CONFIG_UV_CFL)
+    change_config_and_warn(CONFIG_UV_CFL 0 !CONFIG_AIMC)
+  endif()
+
 endmacro()

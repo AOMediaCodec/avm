@@ -185,6 +185,7 @@ set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
 set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
+set_aom_config_var(CONFIG_UV_CFL 1 "AV2 intra UV mode and CFL coding flag.")
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")

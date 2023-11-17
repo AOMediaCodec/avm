@@ -1246,7 +1246,12 @@ typedef struct FRAME_COUNTS {
   unsigned int y_mode_set_idx[INTRA_MODE_SETS];
   unsigned int y_mode_idx_0[Y_MODE_CONTEXTS][FIRST_MODE_COUNT];
   unsigned int y_mode_idx_1[Y_MODE_CONTEXTS][SECOND_MODE_COUNT];
+#if CONFIG_UV_CFL
+  unsigned int uv_mode[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
+  unsigned int cfl_mode[CFL_CONTEXTS][2];
+#else
   unsigned int uv_mode[CFL_ALLOWED_TYPES][UV_MODE_CONTEXTS][UV_INTRA_MODES];
+#endif  // CONFIG_UV_CFL
 #else
   unsigned int kf_y_mode[KF_MODE_CONTEXTS][KF_MODE_CONTEXTS][INTRA_MODES];
   unsigned int angle_delta[DIRECTIONAL_MODES][2 * MAX_ANGLE_DELTA + 1];

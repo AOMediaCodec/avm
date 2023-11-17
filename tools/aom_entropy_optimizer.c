@@ -408,6 +408,20 @@ int main(int argc, const char **argv) {
       "default_if_y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)]");
 #endif
   /* Intra mode (chroma) */
+#if CONFIG_UV_CFL
+  cts_each_dim[0] = UV_MODE_CONTEXTS;
+  cts_each_dim[1] = UV_INTRA_MODES - 1;
+  optimize_cdf_table(&fc.uv_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_uv_mode_cdf[UV_MODE_CONTEXTS]"
+                     "[CDF_SIZE(UV_INTRA_MODES - 1)]");
+
+  cts_each_dim[0] = CFL_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.cfl_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)]");
+#else
   cts_each_dim[0] = CFL_ALLOWED_TYPES;
 #if CONFIG_AIMC
   cts_each_dim[1] = UV_MODE_CONTEXTS;
@@ -419,6 +433,7 @@ int main(int argc, const char **argv) {
                    "static const aom_cdf_prob\n"
                    "default_uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]"
                    "[CDF_SIZE(UV_INTRA_MODES)]");
+#endif  // CONFIG_UV_CFL
 
 #if CONFIG_EXT_DIR
   /* MRL index */
