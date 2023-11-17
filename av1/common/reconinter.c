@@ -3304,6 +3304,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
 #if CONFIG_OPTFLOW_REFINEMENT
   int_mv mv_refined[2 * N_OF_OFFSETS];
+  memset(mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
   const int use_optflow_refinement = opfl_allowed_for_cur_block(cm, mi);
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
@@ -3634,6 +3635,7 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_REFINEMV
 #if CONFIG_OPTFLOW_REFINEMENT
   int_mv mv_refined[2 * N_OF_OFFSETS];
+  memset(mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
   const int use_optflow_refinement = opfl_allowed_for_cur_block(cm, mi);
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
