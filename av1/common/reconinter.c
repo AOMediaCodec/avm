@@ -1437,9 +1437,20 @@ int av1_get_optflow_based_mv_highbd(
                                        use_4x4
 #endif  // CONFIG_OPTFLOW_ON_TIP
   );
-  int n_blocks = 0;
+  int n_blocks = (bw / n) * (bh / n);
   // Convert output MV to 1/16th pel
   assert(MV_REFINE_PREC_BITS >= 3);
+  const int mv_mult = 1 << (MV_REFINE_PREC_BITS - 3);
+  for (int mvi = 0; mvi < n_blocks; mvi++) {
+    mv_refined[mvi * 2].as_mv.row =
+        clamp(mv_refined[mvi * 2].as_mv.row * mv_mult, INT16_MIN, INT16_MAX);
+    mv_refined[mvi * 2].as_mv.col =
+        clamp(mv_refined[mvi * 2].as_mv.col * mv_mult, INT16_MIN, INT16_MAX);
+    mv_refined[mvi * 2 + 1].as_mv.row = clamp(
+        mv_refined[mvi * 2 + 1].as_mv.row * mv_mult, INT16_MIN, INT16_MAX);
+    mv_refined[mvi * 2 + 1].as_mv.col = clamp(
+        mv_refined[mvi * 2 + 1].as_mv.col * mv_mult, INT16_MIN, INT16_MAX);
+  }
 
   // Obtain d0 and d1
   int d0, d1;
@@ -1557,27 +1568,21 @@ int av1_get_optflow_based_mv_highbd(
 
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
-  const int mv_mult = 1 << (MV_REFINE_PREC_BITS - 3);
   for (int i = 0; i < n_blocks; i++) {
 #if OPFL_CLAMP_MV_DELTA
-    int mvy0 = mv_refined[i * 2].as_mv.row * mv_mult +
-               clamp(vy0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    int mvx0 = mv_refined[i * 2].as_mv.col * mv_mult +
-               clamp(vx0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    int mvy1 = mv_refined[i * 2 + 1].as_mv.row * mv_mult +
-               clamp(vy1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    int mvx1 = mv_refined[i * 2 + 1].as_mv.col * mv_mult +
-               clamp(vx1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-#else
-    int mvy0 = mv_refined[i * 2].as_mv.row * mv_mult + vy0[i];
-    int mvx0 = mv_refined[i * 2].as_mv.col * mv_mult + vx0[i];
-    int mvy1 = mv_refined[i * 2 + 1].as_mv.row * mv_mult + vy1[i];
-    int mvx1 = mv_refined[i * 2 + 1].as_mv.col * mv_mult + vx1[i];
+    vy0[i] = clamp(vy0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
+    vx0[i] = clamp(vx0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
+    vy1[i] = clamp(vy1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
+    vx1[i] = clamp(vx1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
 #endif
-    mv_refined[i * 2].as_mv.row = clamp(mvy0, MV_LOW + 1, MV_UPP - 1);
-    mv_refined[i * 2].as_mv.col = clamp(mvx0, MV_LOW + 1, MV_UPP - 1);
-    mv_refined[i * 2 + 1].as_mv.row = clamp(mvy1, MV_LOW + 1, MV_UPP - 1);
-    mv_refined[i * 2 + 1].as_mv.col = clamp(mvx1, MV_LOW + 1, MV_UPP - 1);
+    mv_refined[i * 2].as_mv.row =
+        clamp(mv_refined[i * 2].as_mv.row + vy0[i], INT16_MIN, INT16_MAX);
+    mv_refined[i * 2].as_mv.col =
+        clamp(mv_refined[i * 2].as_mv.col + vx0[i], INT16_MIN, INT16_MAX);
+    mv_refined[i * 2 + 1].as_mv.row =
+        clamp(mv_refined[i * 2 + 1].as_mv.row + vy1[i], INT16_MIN, INT16_MAX);
+    mv_refined[i * 2 + 1].as_mv.col =
+        clamp(mv_refined[i * 2 + 1].as_mv.col + vx1[i], INT16_MIN, INT16_MAX);
   }
 
   return target_prec;
