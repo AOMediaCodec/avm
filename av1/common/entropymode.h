@@ -82,9 +82,12 @@ extern "C" {
 #define COMPREF_BIT_TYPES 2
 #define RANKED_REF0_TO_PRUNE 3
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
-#define SAME_REF_COMPOUND_PRUNE \
-  1     // Set the number of reference pictures for the same reference mode of
-        // coumpound prediction
+// The number of reference pictures for the same reference compound mode
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+#define SAME_REF_COMPOUND_PRUNE 2
+#else
+#define SAME_REF_COMPOUND_PRUNE 1
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #define MAX_REFS_ARF 4
 

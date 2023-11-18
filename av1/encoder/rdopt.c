@@ -620,34 +620,49 @@ static AOM_INLINE void estimate_ref_frame_costs(
     for (int i = n_refs; i < INTER_REFS_PER_FRAME; i++)
       ref_costs_single[i] = INT_MAX;
 
-#if CONFIG_ALLOW_SAME_REF_COMPOUND
     if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
       for (int i = 0; i < REF_FRAMES; i++) {
         for (int j = 0; j < REF_FRAMES; j++) ref_costs_comp[i][j] = INT_MAX;
       }
 
-      for (int i = 0; i < n_refs; i++) {
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+      int use_same_ref_comp = cm->ref_frames_info.num_same_ref_compound > 0;
+      for (int i = 0; i < n_refs + use_same_ref_comp - 1; i++) {
+        if (i >= RANKED_REF0_TO_PRUNE) break;
+        if (i == n_refs - 1 && i >= cm->ref_frames_info.num_same_ref_compound)
+          break;
         int prev_cost = base_cost;
         for (int j = 0; j < n_refs; j++) {
-          if (j < i) {
-            if (n_refs == 1)
-              continue;  // No bits need to be sent in this case
-                         // Keep track of the cost to encode the first reference
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+          int implicit_ref0_bit =
+              j >= RANKED_REF0_TO_PRUNE - 1 ||
+              (i == j && i < cm->ref_frames_info.num_same_ref_compound &&
+               i + 1 >= cm->ref_frames_info.num_same_ref_compound &&
+               i >= n_refs - 2);
+          int implicit_ref0_ref1_bits =
+              j >= n_refs - 2 && j >= cm->ref_frames_info.num_same_ref_compound;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
+          if (j <= i) {
+            // Keep track of the cost to encode the first reference
             aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
             const int bit = i == j;
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+            if (!implicit_ref0_bit && !implicit_ref0_ref1_bits)
+              prev_cost += mode_costs->comp_ref0_cost[ctx][j][bit];
+#else
             if (j < n_refs - 1 && j < RANKED_REF0_TO_PRUNE - 1)
               prev_cost += mode_costs->comp_ref0_cost[ctx][j][bit];
-          } else {
+#endif
+          }
+          if (j > i ||
+              (j == i && i < cm->ref_frames_info.num_same_ref_compound)) {
             // Assign the cost of signaling both references
             ref_costs_comp[i][j] = prev_cost;
-            ref_costs_comp[j][i] = prev_cost;
-            if (j < n_refs) {
+            if (j < n_refs - 1) {
               aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
               const int bit_type =
                   av1_get_compound_ref_bit_type(&cm->ref_frames_info, i, j);
               ref_costs_comp[i][j] +=
-                  mode_costs->comp_ref1_cost[ctx][bit_type][j][1];
-              ref_costs_comp[j][i] +=
                   mode_costs->comp_ref1_cost[ctx][bit_type][j][1];
               // Maintain the cost of sending a 0 bit for the 2nd reference to
               // be used in the next iteration.
@@ -656,30 +671,9 @@ static AOM_INLINE void estimate_ref_frame_costs(
           }
         }
       }
-      if (n_refs < 2) {
-        ref_costs_comp[0][0] = base_cost;
-      }
-#ifndef NDEBUG
-      for (int i = 0; i < n_refs - 1; i++) {
-        for (int j = i + 1; j < n_refs; j++) {
-          assert(ref_costs_comp[i][j] != INT_MAX);
-        }
-      }
-#endif  // NDEBUG
-    } else {
-      for (int ref0 = 0; ref0 < REF_FRAMES; ++ref0) {
-        for (int ref1 = ref0 + 1; ref1 < REF_FRAMES; ++ref1) {
-          ref_costs_comp[ref0][ref1] = 512;
-          ref_costs_comp[ref1][ref0] = 512;
-        }
-      }
-    }
 #else
-    if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
-      for (int i = 0; i < REF_FRAMES; i++)
-        for (int j = 0; j < REF_FRAMES; j++) ref_costs_comp[i][j] = INT_MAX;
-
       for (int i = 0; i < n_refs - 1; i++) {
+        if (i >= RANKED_REF0_TO_PRUNE) break;
         int prev_cost = base_cost;
         for (int j = 0; j < n_refs; j++) {
           if (j <= i) {
@@ -692,14 +686,11 @@ static AOM_INLINE void estimate_ref_frame_costs(
           } else {
             // Assign the cost of signaling both references
             ref_costs_comp[i][j] = prev_cost;
-            ref_costs_comp[j][i] = prev_cost;
             if (j < n_refs - 1) {
               aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
               const int bit_type =
                   av1_get_compound_ref_bit_type(&cm->ref_frames_info, i, j);
               ref_costs_comp[i][j] +=
-                  mode_costs->comp_ref1_cost[ctx][bit_type][j - 1][1];
-              ref_costs_comp[j][i] +=
                   mode_costs->comp_ref1_cost[ctx][bit_type][j - 1][1];
               // Maintain the cost of sending a 0 bit for the 2nd reference to
               // be used in the next iteration.
@@ -708,10 +699,11 @@ static AOM_INLINE void estimate_ref_frame_costs(
           }
         }
       }
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #ifndef NDEBUG
       for (int i = 0; i < n_refs - 1; i++) {
         for (int j = i + 1; j < n_refs; j++) {
-          assert(ref_costs_comp[i][j] != INT_MAX);
+          if (i < RANKED_REF0_TO_PRUNE) assert(ref_costs_comp[i][j] != INT_MAX);
         }
       }
 #endif  // NDEBUG
@@ -723,7 +715,6 @@ static AOM_INLINE void estimate_ref_frame_costs(
         }
       }
     }
-#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
   }
 }
 
@@ -3253,6 +3244,11 @@ static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
     for (int idx = 0; idx < max_drl_bits; ++idx) {
       int drl_ctx = av1_drl_ctx(mode_ctx_pristine);
       int ref_mv_idx = get_ref_mv_idx(mbmi, ref_idx);
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+      if (ref_idx && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
+          mbmi->mode == NEAR_NEARMV && idx <= mbmi->ref_mv_idx[0])
+        continue;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
       switch (idx) {
         case 0:
           cost += x->mode_costs.drl_mode_cost[0][drl_ctx][ref_mv_idx != idx];
@@ -3426,6 +3422,11 @@ static bool ref_mv_idx_early_breakout(
   const MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   const int8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
   const int is_comp_pred = has_second_ref(mbmi);
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+  if (is_comp_pred && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
+      mbmi->mode == NEAR_NEARMV && ref_mv_idx[0] >= ref_mv_idx[1])
+    return true;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
 #if CONFIG_SEP_COMP_DRL
   if (sf->inter_sf.reduce_inter_modes &&
       (ref_mv_idx[0] > 0 || ref_mv_idx[1] > 0)) {
@@ -3795,6 +3796,13 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
   // Always have at least one motion vector searched.
   if (!good_indices) {
     good_indices = 0x1;
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+    // If reference frames are the same, drl_idx0 < drl_idx1 is required,
+    // so drl_idx0=0, drl_idx1=1 is searched instead
+    if (has_second_ref(mbmi) && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
+        mbmi->mode == NEAR_NEARMV)
+      good_indices = MAX_REF_MV_STACK_SIZE;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
   }
 
   // Only prune in NEARMV mode, if the speed feature is set, and the block
@@ -4447,6 +4455,7 @@ static int process_compound_inter_mode(
       cpi, x, bsize, cur_mv, mode_search_mask, masked_compound_used, orig_dst,
       tmp_dst, rd_buffers, rate_mv, &best_rd_compound, rd_stats, ref_best_rd,
       skip_rd[1], &is_luma_interp_done, rd_thresh);
+
   if (ref_best_rd < INT64_MAX &&
       (best_rd_compound >> comp_type_rd_shift) * comp_type_rd_scale >
           ref_best_rd) {
@@ -5192,6 +5201,11 @@ static int64_t handle_inter_mode(
             continue;
         }
 #endif  // CONFIG_IMPROVED_JMVD
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+        if (mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
+            mbmi->mode == NEAR_NEARMV && ref_mv_idx[0] >= ref_mv_idx[1])
+          continue;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
 #if CONFIG_CWP
         mbmi->cwp_idx = CWP_EQUAL;
         const int same_side = is_ref_frame_same_side(cm, mbmi);

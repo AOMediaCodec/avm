@@ -566,7 +566,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
 #if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
-
                                      NULL, 0);
 
   if (pb_mv_precision < MV_PRECISION_ONE_PEL)

@@ -142,4 +142,8 @@ macro(fix_experiment_configs)
                            !CONFIG_SKIP_MODE_ENHANCEMENT)
   endif()
 
+  if(NOT CONFIG_ALLOW_SAME_REF_COMPOUND AND CONFIG_IMPROVED_SAME_REF_COMPOUND)
+    change_config_and_warn(CONFIG_IMPROVED_SAME_REF_COMPOUND 0
+                           !CONFIG_ALLOW_SAME_REF_COMPOUND)
+  endif()
 endmacro()

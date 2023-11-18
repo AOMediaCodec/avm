@@ -96,7 +96,6 @@ typedef struct {
   int is_ibc_cost;
 #endif
 #endif
-
 } MV_COST_PARAMS;
 #if CONFIG_FLEX_MVRES
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,

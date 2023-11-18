@@ -247,6 +247,8 @@ set_aom_config_var(CONFIG_FLEX_MVRES 1
                    "AV2 flexible mv precision experiment flag")
 set_aom_config_var(CONFIG_ALLOW_SAME_REF_COMPOUND 1
                    "Allow compound mode to refer to the same reference frame")
+set_aom_config_var(CONFIG_IMPROVED_SAME_REF_COMPOUND 1
+                   "Improved same reference compound mode")
 set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
                    "Bug fix on display order hints of key frames")
 set_aom_config_var(CONFIG_PAR_HIDING 1

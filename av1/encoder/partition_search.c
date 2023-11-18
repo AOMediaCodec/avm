@@ -962,6 +962,11 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
                                    ? mbmi_ext->weight[mbmi->ref_frame[ref]]
                                    : mbmi_ext->weight[ref_frame_type];
       aom_cdf_prob *drl_cdf = av1_get_drl_cdf(fc, weight, mode_ctx, idx);
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+      if (ref && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
+          mbmi->mode == NEAR_NEARMV && idx <= mbmi->ref_mv_idx[0])
+        continue;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
 #if CONFIG_ENTROPY_STATS
       int drl_ctx = av1_drl_ctx(mode_ctx);
       switch (idx) {
@@ -1432,7 +1437,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       if (has_second_ref(mbmi)) {
         const int n_refs = cm->ref_frames_info.num_total_refs;
         int n_bits = 0;
-#if CONFIG_ALLOW_SAME_REF_COMPOUND
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+        int may_have_same_ref_comp =
+            cm->ref_frames_info.num_same_ref_compound > 0;
+        assert(ref0 < ref1 + may_have_same_ref_comp);
+        for (int i = 0;
+             (i < n_refs + n_bits - 2 || may_have_same_ref_comp) && n_bits < 2;
+             i++) {
+          const int bit =
+              ((n_bits == 0) && (ref0 == i)) || ((n_bits == 1) && (ref1 == i));
+#elif CONFIG_ALLOW_SAME_REF_COMPOUND
         assert(ref0 <= ref1);
         for (int i = 0; i < n_refs - 1 && n_bits < 2; i++) {
           const int bit =
@@ -1441,28 +1455,48 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         assert(ref0 < ref1);
         for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
           const int bit = ref0 == i || ref1 == i;
-#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
           const int bit_type = n_bits == 0 ? -1
                                            : av1_get_compound_ref_bit_type(
                                                  &cm->ref_frames_info, ref0, i);
-          if (n_bits > 0 || i < RANKED_REF0_TO_PRUNE - 1)
+          int implicit_ref_bit = n_bits == 0 && i >= RANKED_REF0_TO_PRUNE - 1;
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+          implicit_ref_bit |=
+              n_bits == 0 && i >= n_refs - 2 &&
+              i + 1 >= cm->ref_frames_info.num_same_ref_compound;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
+          if (!implicit_ref_bit) {
             update_cdf(
                 av1_get_pred_cdf_compound_ref(xd, i, n_bits, bit_type, n_refs),
                 bit, 2);
 #if CONFIG_ENTROPY_STATS
-          if (n_bits == 0) {
-            if (i < RANKED_REF0_TO_PRUNE - 1)
+            if (n_bits == 0) {
               counts->comp_ref0[av1_get_ref_pred_context(xd, i, n_refs)][i]
                                [bit]++;
-          } else {
-            counts->comp_ref1[av1_get_ref_pred_context(xd, i, n_refs)][bit_type]
-                             [i - 1][bit]++;
-          }
-#endif  // CONFIG_ENTROPY_STATS
-          n_bits += bit;
+            } else {
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
-          if (i < cm->ref_frames_info.num_same_ref_compound) i -= bit;
+              counts->comp_ref1[av1_get_ref_pred_context(xd, i, n_refs)]
+                               [bit_type][i][bit]++;
+#else
+              counts->comp_ref1[av1_get_ref_pred_context(xd, i, n_refs)]
+                               [bit_type][i - 1][bit]++;
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+            }
+#endif  // CONFIG_ENTROPY_STATS
+          }
+          n_bits += bit;
+#if CONFIG_IMPROVED_SAME_REF_COMPOUND
+          if (i < cm->ref_frames_info.num_same_ref_compound &&
+              may_have_same_ref_comp) {
+            may_have_same_ref_comp =
+                !bit && i + 1 < cm->ref_frames_info.num_same_ref_compound;
+            i -= bit;
+          } else {
+            may_have_same_ref_comp = 0;
+          }
+#elif CONFIG_ALLOW_SAME_REF_COMPOUND
+          if (i < cm->ref_frames_info.num_same_ref_compound) i -= bit;
+#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
         }
 #if CONFIG_TIP
       } else if (!is_tip_ref_frame(ref0)) {

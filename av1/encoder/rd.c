@@ -647,9 +647,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     av1_cost_tokens_from_cdf(mode_costs->jmvd_amvd_scale_mode_cost,
                              fc->jmvd_amvd_scale_mode_cdf, NULL);
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
-    for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
+    for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],
                                fc->inter_compound_mode_cdf[i], NULL);
+    }
 #if CONFIG_D149_CTX_MODELING_OPT
     av1_cost_tokens_from_cdf(mode_costs->compound_type_cost,
                              fc->compound_type_cdf, NULL);

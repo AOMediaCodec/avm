@@ -704,6 +704,7 @@ static void build_nmv_component_cost_table(int *mvcost,
 #else
                    int usehp) {
 #endif
+
 #if CONFIG_ADAPTIVE_MVD
       const AV1_COMMON *cm = &cpi->common;
       const MACROBLOCK *const x = &cpi->td.mb;

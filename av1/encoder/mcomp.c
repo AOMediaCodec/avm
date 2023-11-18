@@ -27,6 +27,7 @@
 #include "av1/common/mvref_common.h"
 #include "av1/common/reconinter.h"
 
+#include "av1/encoder/cost.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/mcomp.h"
@@ -80,7 +81,7 @@ static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
 #if CONFIG_ADAPTIVE_MVD
   }
 #endif  // CONFIG_ADAPTIVE_MVD
-#endif
+#endif  // CONFIG_FLEX_MVRES
 }
 
 static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
@@ -130,7 +131,7 @@ void av1_make_default_fullpel_ms_params(
 #if CONFIG_ADAPTIVE_MVD || CONFIG_TIP || CONFIG_FLEX_MVRES
   const MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-#endif  // CONFIG_ADAPTIVE_MVD || CONFIG_TIP
+#endif  // CONFIG_ADAPTIVE_MVD || CONFIG_TIP || CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_MVD
   const int is_adaptive_mvd =
       enable_adaptive_mvd_resolution(&cpi->common, mbmi);
@@ -254,7 +255,7 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
 #if CONFIG_ADAPTIVE_MVD || CONFIG_TIP
   const MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-#endif  // CONFIG_ADAPTIVE_MVD  || CONFIG_TIP
+#endif  // CONFIG_ADAPTIVE_MVD || CONFIG_TIP
 #if CONFIG_ADAPTIVE_MVD
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 
@@ -622,7 +623,6 @@ static INLINE int mv_err_cost(const MV mv,
 #if CONFIG_C071_SUBBLK_WARPMV
   assert(is_this_mv_precision_compliant(diff, pb_mv_precision));
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-
 #endif
 
   const MV abs_diff = { abs(diff.row), abs(diff.col) };
