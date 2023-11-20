@@ -3203,9 +3203,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
     }
 
     cm->tip_global_motion = best_mv;
-    fprintf(stderr, "best_sse = %ld\n", best_sse / 1000);
-    fprintf(stderr, "global mv = (%d, %d)\n", cm->tip_global_motion.as_mv.row,
-            cm->tip_global_motion.as_mv.col);
 
     best_sse = INT64_MAX;
     InterpFilter best_interp_filter = MULTITAP_SHARP;
