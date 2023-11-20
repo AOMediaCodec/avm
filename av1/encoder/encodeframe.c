@@ -1447,6 +1447,11 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
 static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;
   AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_TIP_DIRECT_FRAME_MV
+  cm->tip_global_motion.as_int = 0;
+  cm->tip_interp_filter = MULTITAP_SHARP;
+#endif
+
   if (cm->seq_params.enable_tip) {
     if (cm->features.allow_ref_frame_mvs &&
         cm->seq_params.order_hint_info.enable_order_hint && cm->has_bwd_ref) {

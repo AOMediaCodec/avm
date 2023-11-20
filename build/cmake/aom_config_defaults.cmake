@@ -243,6 +243,8 @@ set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT 1
                    "Enable frame output order derivation from order hint")
 set_aom_config_var(CONFIG_OPTFLOW_ON_TIP 1
                    "Enable optical flow refinement on top of TIP")
+set_aom_config_var(CONFIG_TIP_DIRECT_FRAME_MV 1
+                   "Enable frame level MV for TIP direct mode")
 set_aom_config_var(CONFIG_FLEX_MVRES 1
                    "AV2 flexible mv precision experiment flag")
 set_aom_config_var(CONFIG_ALLOW_SAME_REF_COMPOUND 1

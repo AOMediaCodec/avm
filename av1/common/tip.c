@@ -826,7 +826,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->mv[1].as_mv = mv[1];
   mbmi->ref_frame[0] = TIP_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
+#if CONFIG_TIP_DIRECT_FRAME_MV
+  mbmi->interp_fltr = cm->tip_interp_filter;
+#else
   mbmi->interp_fltr = EIGHTTAP_REGULAR;
+#endif
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   mbmi->use_intrabc[0] = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -939,7 +943,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     InterPredParams inter_pred_params;
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, comp_pixel_y,
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
-                          MULTITAP_SHARP);
+#if CONFIG_TIP_DIRECT_FRAME_MV
+                          cm->tip_interp_filter
+#else
+                          MULTITAP_SHARP
+#endif
+    );
 
 #if CONFIG_REFINEMV
     if (apply_refinemv) {
@@ -1079,7 +1088,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     InterPredParams inter_pred_params;
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, comp_pixel_y,
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
-                          MULTITAP_SHARP);
+#if CONFIG_TIP_DIRECT_FRAME_MV
+                          cm->tip_interp_filter
+#else
+                          MULTITAP_SHARP
+#endif
+    );
 
     inter_pred_params.comp_mode = UNIFORM_COMP;
 
@@ -1207,14 +1221,33 @@ static void tip_setup_tip_frame_plane(
       blk_col += (offset - step);
 
       MV mv[2];
+#if CONFIG_TIP_DIRECT_FRAME_MV
+      MV gm_mv[2];
+      tip_get_mv_projection(&gm_mv[0], cm->tip_global_motion.as_mv,
+                            tip_ref->ref_frames_offset_sf[0]);
+      tip_get_mv_projection(&gm_mv[1], cm->tip_global_motion.as_mv,
+                            tip_ref->ref_frames_offset_sf[1]);
+#endif
       if (tpl_mvs->mfmv0.as_int != 0) {
         tip_get_mv_projection(&mv[0], tpl_mvs->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[0]);
         tip_get_mv_projection(&mv[1], tpl_mvs->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[1]);
+#if CONFIG_TIP_DIRECT_FRAME_MV
+        mv[0].row += gm_mv[0].row;
+        mv[0].col += gm_mv[0].col;
+        mv[1].row -= gm_mv[1].row;
+        mv[1].col -= gm_mv[1].col;
+#endif
       } else {
+#if CONFIG_TIP_DIRECT_FRAME_MV
+        mv[0] = gm_mv[0];
+        mv[1].row = -gm_mv[1].row;
+        mv[1].col = -gm_mv[1].col;
+#else
         mv[0] = zero_mv[0];
         mv[1] = zero_mv[1];
+#endif
       }
 
       tip_component_setup_pred_planes(cm, plane, tpl_row, tpl_col);
@@ -1508,17 +1541,39 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
                               tip_ref->ref_frames_offset_sf[0]);
         tip_get_mv_projection(&this_mv[1].as_mv, tpl_mv->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[1]);
+#if CONFIG_TIP_DIRECT_FRAME_MV
+        MV gm_mv[2];
+        tip_get_mv_projection(&gm_mv[0], cm->tip_global_motion.as_mv,
+                              tip_ref->ref_frames_offset_sf[0]);
+        tip_get_mv_projection(&gm_mv[1], cm->tip_global_motion.as_mv,
+                              tip_ref->ref_frames_offset_sf[1]);
+
+        this_mv[0].as_mv.row += gm_mv[0].row;
+        this_mv[0].as_mv.col += gm_mv[0].col;
+        this_mv[1].as_mv.row -= gm_mv[1].row;
+        this_mv[1].as_mv.col -= gm_mv[1].col;
+#endif
 
         if ((abs(this_mv[0].as_mv.row) <= REFMVS_LIMIT) &&
             (abs(this_mv[0].as_mv.col) <= REFMVS_LIMIT)) {
           mv->ref_frame[0] = tip_ref->ref_frame[0];
+#if CONFIG_TIP_DIRECT_FRAME_MV
+          mv->mv[0].as_mv.row = this_mv[0].as_mv.row;
+          mv->mv[0].as_mv.col = this_mv[0].as_mv.col;
+#else
           mv->mv[0].as_int = this_mv[0].as_int;
+#endif
         }
 
         if ((abs(this_mv[1].as_mv.row) <= REFMVS_LIMIT) &&
             (abs(this_mv[1].as_mv.col) <= REFMVS_LIMIT)) {
           mv->ref_frame[1] = tip_ref->ref_frame[1];
+#if CONFIG_TIP_DIRECT_FRAME_MV
+          mv->mv[1].as_mv.row = this_mv[1].as_mv.row;
+          mv->mv[1].as_mv.col = this_mv[1].as_mv.col;
+#else
           mv->mv[1].as_int = this_mv[1].as_int;
+#endif
         }
       }
       mv++;

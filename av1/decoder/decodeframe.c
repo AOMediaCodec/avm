@@ -16,6 +16,7 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
 #include "av1/common/enums.h"
+#include "av1/common/filter.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
@@ -1109,6 +1110,13 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
 
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
                       tip_dec_calc_subpel_params_and_extend);
+
+#if CONFIG_PEF
+  if (cm->seq_params.enable_pef && cm->features.allow_pef) {
+    enhance_tip_frame(cm, xd);
+    aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
+  }
+#endif  // CONFIG_PEF
 }
 
 static void av1_dec_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -4066,6 +4074,30 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
     tip_frame_buf->render_width = cm->render_width;
     tip_frame_buf->render_height = cm->render_height;
   }
+
+#if CONFIG_TIP_DIRECT_FRAME_MV
+  tip_frame_buf = &cm->tip_ref.tmp_tip_frame->buf;
+  if (aom_realloc_frame_buffer(
+          tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
+          seq_params->subsampling_y, AOM_DEC_BORDER_IN_PIXELS,
+          cm->features.byte_alignment, NULL, NULL, NULL)) {
+    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate frame buffer");
+  }
+
+  if (tip_frame_buf) {
+    tip_frame_buf->bit_depth = (unsigned int)seq_params->bit_depth;
+    tip_frame_buf->color_primaries = seq_params->color_primaries;
+    tip_frame_buf->transfer_characteristics =
+        seq_params->transfer_characteristics;
+    tip_frame_buf->matrix_coefficients = seq_params->matrix_coefficients;
+    tip_frame_buf->monochrome = seq_params->monochrome;
+    tip_frame_buf->chroma_sample_position = seq_params->chroma_sample_position;
+    tip_frame_buf->color_range = seq_params->color_range;
+    tip_frame_buf->render_width = cm->render_width;
+    tip_frame_buf->render_height = cm->render_height;
+  }
+#endif
 }
 #endif  // CONFIG_TIP
 
@@ -7709,6 +7741,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_PEF
 
 #if CONFIG_TIP
+#if CONFIG_TIP_DIRECT_FRAME_MV
+      cm->tip_global_motion.as_int = 0;
+      cm->tip_interp_filter = MULTITAP_SHARP;
+#endif
       if (cm->seq_params.enable_tip) {
         features->tip_frame_mode = aom_rb_read_literal(rb, 2);
 #if CONFIG_OPTFLOW_ON_TIP
@@ -7728,6 +7764,25 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           features->allow_tip_hole_fill = aom_rb_read_bit(rb);
         } else {
           features->allow_tip_hole_fill = false;
+        }
+#if CONFIG_TIP_DIRECT_FRAME_MV
+        if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+          int all_zero = aom_rb_read_bit(rb);
+          if (!all_zero) {
+            cm->tip_global_motion.as_mv.row = aom_rb_read_literal(rb, 4);
+            cm->tip_global_motion.as_mv.col = aom_rb_read_literal(rb, 4);
+            if (cm->tip_global_motion.as_mv.row != 0) {
+              int sign = aom_rb_read_bit(rb);
+              if (sign) cm->tip_global_motion.as_mv.row *= -1;
+            }
+            if (cm->tip_global_motion.as_mv.col != 0) {
+              int sign = aom_rb_read_bit(rb);
+              if (sign) cm->tip_global_motion.as_mv.col *= -1;
+            }
+          }
+          cm->tip_interp_filter =
+              aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
+#endif
         }
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
@@ -7871,7 +7926,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   cm->cur_frame->buf.render_height = cm->render_height;
 
 #if CONFIG_TIP
+#if CONFIG_TIP_DIRECT_FRAME_MV
+  YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tmp_tip_frame->buf;
+#else
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
+#endif
   tip_frame_buf->bit_depth = seq_params->bit_depth;
   tip_frame_buf->color_primaries = seq_params->color_primaries;
   tip_frame_buf->transfer_characteristics =
@@ -8191,11 +8250,13 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
   if (cm->features.allow_ref_frame_mvs && cm->has_bwd_ref) {
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
       av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
+#if !CONFIG_TIP_DIRECT_FRAME_MV
 #if CONFIG_PEF
       if (cm->seq_params.enable_pef && cm->features.allow_pef) {
         enhance_tip_frame(cm, xd);
       }
 #endif  // CONFIG_PEF
+#endif  // !CONFIG_TIP_DIRECT_FRAME_MV
     } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
       av1_setup_tip_motion_field(cm, 0);
       const int mvs_rows =
@@ -8441,9 +8502,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_CCSO_EXT
             ext_rec_y[c] = xd->plane[pli].dst.buf[c];
 #else
-              ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
-                        CCSO_PADDING_SIZE] =
-                  xd->plane[pli].dst.buf[r * dst_stride + c];
+            ext_rec_y[(r + CCSO_PADDING_SIZE) * ccso_stride_ext + c +
+                      CCSO_PADDING_SIZE] =
+                xd->plane[pli].dst.buf[r * dst_stride + c];
 #endif
           }
 #if CONFIG_CCSO_EXT
@@ -8454,7 +8515,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         ext_rec_y -= pic_height * ccso_stride_ext;
         xd->plane[0].dst.buf -= pic_height * ccso_stride_ext;
 #else
-          }
+        }
 #endif
       }
       extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);

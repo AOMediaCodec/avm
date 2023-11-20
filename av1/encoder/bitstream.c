@@ -5775,6 +5775,21 @@ static AOM_INLINE void write_uncompressed_header_obu(
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           aom_wb_write_bit(wb, features->allow_tip_hole_fill);
         }
+
+#if CONFIG_TIP_DIRECT_FRAME_MV
+        if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+          aom_wb_write_bit(wb, cm->tip_global_motion.as_int == 0);
+          if (cm->tip_global_motion.as_int != 0) {
+            aom_wb_write_literal(wb, abs(cm->tip_global_motion.as_mv.row), 4);
+            aom_wb_write_literal(wb, abs(cm->tip_global_motion.as_mv.col), 4);
+            if (cm->tip_global_motion.as_mv.row != 0)
+              aom_wb_write_bit(wb, cm->tip_global_motion.as_mv.row < 0);
+            if (cm->tip_global_motion.as_mv.col != 0)
+              aom_wb_write_bit(wb, cm->tip_global_motion.as_mv.col < 0);
+          }
+          aom_wb_write_bit(wb, cm->tip_interp_filter == MULTITAP_SHARP);
+        }
+#endif
       }
 
       if (!cm->seq_params.enable_tip ||
