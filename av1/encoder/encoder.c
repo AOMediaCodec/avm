@@ -3045,68 +3045,6 @@ static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
   return false;
 }
 
-#if CONFIG_TIP_DIRECT_FRAME_MV
-static int64_t block_prediction_sad(AV1_COMP *cpi,
-                                    const YV12_BUFFER_CONFIG *src,
-                                    const YV12_BUFFER_CONFIG *ref,
-                                    BLOCK_SIZE block_size, const int mb_row,
-                                    const int mb_col, MV ref_mv,
-                                    const int plane) {
-  const int mb_height = block_size_high[block_size];
-  const int mb_width = block_size_wide[block_size];
-  const int stride = src->strides[!!plane];
-  const int offset = mb_row * mb_height * stride + mb_col * mb_width;
-
-  AV1_COMMON *cm = &cpi->common;
-  MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
-  uint16_t *predictor = aom_memalign(32, 1024 * sizeof(uint16_t));
-
-  struct buf_2d ref_buf = { NULL, ref->y_buffer, ref->y_width, ref->y_height,
-                            ref->y_stride };
-  InterPredParams inter_pred_params;
-  av1_init_inter_params(&inter_pred_params, mb_width, mb_height,
-                        mb_row * mb_height, mb_col * mb_width, 0, 0, xd->bd, 0,
-                        &cm->tip_ref.scale_factor, &ref_buf, MULTITAP_SHARP);
-  inter_pred_params.conv_params = get_conv_params(0, 0, xd->bd);
-
-  av1_enc_build_one_inter_predictor(predictor, mb_width, &ref_mv,
-                                    &inter_pred_params);
-
-  int64_t var = aom_highbd_sse(src->buffers[plane] + offset, stride, predictor,
-                               mb_width, mb_width, mb_height);
-
-  aom_free(predictor);
-  return var;
-}
-
-static INLINE int64_t frame_motion_compensation(AV1_COMP *cpi, int_mv ref_mv) {
-  AV1_COMMON *cm = &cpi->common;
-  MACROBLOCK *const mb = &cpi->td.mb;
-  YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-
-  int64_t total_sse = 0;
-
-  BLOCK_SIZE bsize = BLOCK_16X16;
-  int mi_step = mi_size_wide[bsize];
-  int mi_rows = cm->mi_params.mi_rows;
-  int mi_cols = cm->mi_params.mi_cols;
-
-  for (int r = 0; r < mi_rows; r += mi_step) {
-    av1_set_mv_row_limits(&cpi->common.mi_params, &mb->mv_limits, r, mi_step,
-                          cpi->oxcf.border_in_pixels);
-    int mb_row = r / mi_step;
-    for (int c = 0; c < mi_cols; c += mi_step) {
-      int mb_col = c / mi_step;
-      av1_set_mv_col_limits(&cpi->common.mi_params, &mb->mv_limits, c, mi_step,
-                            cpi->oxcf.border_in_pixels);
-      total_sse += block_prediction_sad(cpi, cpi->source, tip_frame_buf, bsize,
-                                        mb_row, mb_col, ref_mv.as_mv, 0);
-    }
-  }
-  return total_sse;
-}
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
-
 static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
                                                     uint8_t *dest, size_t *size,
                                                     int64_t *sse, int64_t *rate,
