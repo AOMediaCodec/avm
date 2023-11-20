@@ -146,4 +146,14 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_IMPROVED_SAME_REF_COMPOUND 0
                            !CONFIG_ALLOW_SAME_REF_COMPOUND)
   endif()
+  # CONFIG_TIP_IMPLICIT_QUANT depends on CONFIG_TIP
+  if(NOT CONFIG_TIP AND CONFIG_TIP_IMPLICIT_QUANT)
+    change_config_and_warn(CONFIG_TIP_IMPLICIT_QUANT 0 !CONFIG_TIP)
+  endif()
+
+  # CONFIG_TIP_IMPLICIT_QUANT depends on CONFIG_PEF
+  if(NOT CONFIG_PEF AND CONFIG_TIP_IMPLICIT_QUANT)
+    change_config_and_warn(CONFIG_TIP_IMPLICIT_QUANT 0 !CONFIG_PEF)
+  endif()
+
 endmacro()

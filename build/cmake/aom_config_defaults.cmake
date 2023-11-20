@@ -368,6 +368,9 @@ set_aom_config_var(
   CONFIG_TX_SKIP_FLAG_MODE_DEP_CTX 1
   "CWG-D086: Context modeling for transform block zero flag signaling")
 
+set_aom_config_var(
+  CONFIG_TIP_IMPLICIT_QUANT 1
+  "Enable implicit quantization derivation for TIP direct mode")
 #
 # Variables in this section control optional features of the build system.
 #

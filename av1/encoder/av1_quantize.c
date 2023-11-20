@@ -558,6 +558,10 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
                        &quant_params->u_dc_delta_q, &quant_params->v_dc_delta_q,
                        &quant_params->u_ac_delta_q,
                        &quant_params->v_ac_delta_q);
+#if CONFIG_TIP_IMPLICIT_QUANT
+  cm->cur_frame->u_ac_delta_q = quant_params->u_ac_delta_q;
+  cm->cur_frame->v_ac_delta_q = quant_params->v_ac_delta_q;
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
 
   quant_params->qmatrix_level_y =
       aom_get_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel,

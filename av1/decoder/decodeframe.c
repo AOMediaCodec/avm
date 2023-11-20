@@ -1110,7 +1110,32 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
 
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
                       tip_dec_calc_subpel_params_and_extend);
-
+#if CONFIG_TIP_IMPLICIT_QUANT
+  if (cm->seq_params.enable_tip_explicit_qp == 0) {
+    const int avg_u_ac_delta_q =
+        (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
+         cm->tip_ref.ref_frame_buffer[1]->u_ac_delta_q + 1) >>
+        1;
+    const int avg_v_ac_delta_q =
+        (cm->tip_ref.ref_frame_buffer[0]->v_ac_delta_q +
+         cm->tip_ref.ref_frame_buffer[1]->v_ac_delta_q + 1) >>
+        1;
+    const int base_qindex =
+        (cm->tip_ref.ref_frame_buffer[0]->base_qindex +
+         cm->tip_ref.ref_frame_buffer[1]->base_qindex + 1) >>
+        1;
+    cm->cur_frame->base_qindex = cm->quant_params.base_qindex = base_qindex;
+    cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
+        avg_u_ac_delta_q;
+    cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
+        avg_v_ac_delta_q;
+#if CONFIG_PEF
+    if (cm->seq_params.enable_pef && cm->features.allow_pef) {
+      init_pef_parameter(cm, 0, av1_num_planes(cm));
+    }
+#endif  // CONFIG_PEF
+  }
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
 #if CONFIG_PEF
   if (cm->seq_params.enable_pef && cm->features.allow_pef) {
     enhance_tip_frame(cm, xd);
@@ -1153,7 +1178,8 @@ static void av1_dec_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
     end_pixel_col += extra_pixel;
   }
 
-  // clamp block start and end locations to make sure the block is in the frame
+  // clamp block start and end locations to make sure the block is in the
+  // frame
   start_pixel_row = AOMMAX(0, start_pixel_row);
   start_pixel_col = AOMMAX(0, start_pixel_col);
   end_pixel_row = AOMMAX(0, end_pixel_row);
@@ -1784,8 +1810,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                               xd->tree_type, &mbmi->chroma_ref_info,
                               plane_start, plane_end);
 #endif  // CONFIG_PC_WIENER
-      // fill cctx_type_map with CCTX_NONE for skip blocks so their
-      // neighbors can derive cctx contexts
+        // fill cctx_type_map with CCTX_NONE for skip blocks so their
+        // neighbors can derive cctx contexts
       const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
       const int ss_x = pd->subsampling_x;
       const int ss_y = pd->subsampling_y;
@@ -1933,9 +1959,9 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 #endif  // CONFIG_TX_PARTITION_CTX
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(partition, max_tx_size, sub_txs);
-  // TODO(sarahparker) This assumes all of the tx sizes in the partition scheme
-  // are the same size. This will need to be adjusted to deal with the case
-  // where they can be different.
+  // TODO(sarahparker) This assumes all of the tx sizes in the partition
+  // scheme are the same size. This will need to be adjusted to deal with the
+  // case where they can be different.
   mbmi->tx_size = sub_txs[0];
   const int index =
       is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
@@ -6665,6 +6691,13 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #endif
 #if CONFIG_PEF
   seq_params->enable_pef = aom_rb_read_bit(rb);
+#if CONFIG_TIP_IMPLICIT_QUANT
+  if (seq_params->enable_tip == 1 && seq_params->enable_pef) {
+    seq_params->enable_tip_explicit_qp = aom_rb_read_bit(rb);
+  } else {
+    seq_params->enable_tip_explicit_qp = 0;
+  }
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
 #endif  // CONFIG_PEF
 #if CONFIG_ORIP
   seq_params->enable_orip = aom_rb_read_bit(rb);
@@ -7995,10 +8028,35 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #if CONFIG_TIP
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+#if CONFIG_TIP_IMPLICIT_QUANT
+    if (cm->seq_params.enable_tip_explicit_qp) {
+      cm->quant_params.base_qindex = aom_rb_read_literal(
+          rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
+                                                     : QINDEX_BITS);
+      if (av1_num_planes(cm) > 1) {
+        int diff_uv_delta = 0;
+        if (cm->seq_params.separate_uv_delta_q) {
+          diff_uv_delta = aom_rb_read_bit(rb);
+        }
+        cm->quant_params.u_ac_delta_q = read_delta_q(rb);
+        if (diff_uv_delta) {
+          cm->quant_params.v_ac_delta_q = read_delta_q(rb);
+        } else {
+          cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q;
+        }
+      } else {
+        cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q = 0;
+      }
+      cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
+      cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
+      cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
+    }
+#else
     cm->quant_params.base_qindex = aom_rb_read_literal(
         rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
                                                    : QINDEX_BITS);
     cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
     read_tile_info(pbi, rb);
     cm->cur_frame->film_grain_params_present =
@@ -8034,6 +8092,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   setup_quantization(quant_params, av1_num_planes(cm), cm->seq_params.bit_depth,
                      cm->seq_params.separate_uv_delta_q, rb);
   cm->cur_frame->base_qindex = quant_params->base_qindex;
+#if CONFIG_TIP_IMPLICIT_QUANT
+  cm->cur_frame->u_ac_delta_q = quant_params->u_ac_delta_q;
+  cm->cur_frame->v_ac_delta_q = quant_params->v_ac_delta_q;
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
   xd->bd = (int)seq_params->bit_depth;
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT

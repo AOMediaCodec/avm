@@ -423,6 +423,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_TIP
   seq->enable_tip = tool_cfg->enable_tip;
   seq->enable_tip_hole_fill = seq->enable_tip;
+#if CONFIG_TIP_IMPLICIT_QUANT
+  seq->enable_tip_explicit_qp = 0;
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
 #endif  // CONFIG_TIP
 #if CONFIG_BAWP
   seq->enable_bawp = tool_cfg->enable_bawp;
@@ -3080,7 +3083,43 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
 #if CONFIG_PEF
     if (cm->seq_params.enable_pef && cm->features.allow_pef) {
+#if CONFIG_TIP_IMPLICIT_QUANT
+      const int u_ac_delta_q_backup = cm->quant_params.u_ac_delta_q;
+      const int v_ac_delta_q_backup = cm->quant_params.v_ac_delta_q;
+      const int base_qindex_backup = cm->quant_params.base_qindex;
+      if (cm->seq_params.enable_tip_explicit_qp == 0) {
+        const int avg_u_ac_delta_q =
+            (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
+             cm->tip_ref.ref_frame_buffer[1]->u_ac_delta_q + 1) >>
+            1;
+        const int avg_v_ac_delta_q =
+            (cm->tip_ref.ref_frame_buffer[0]->v_ac_delta_q +
+             cm->tip_ref.ref_frame_buffer[1]->v_ac_delta_q + 1) >>
+            1;
+        const int avg_base_qindex =
+            (cm->tip_ref.ref_frame_buffer[0]->base_qindex +
+             cm->tip_ref.ref_frame_buffer[1]->base_qindex + 1) >>
+            1;
+        cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
+            avg_u_ac_delta_q;
+        cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
+            avg_v_ac_delta_q;
+        cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
+            avg_base_qindex;
+        init_pef_parameter(cm, 0, av1_num_planes(cm));
+      }
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
       enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
+#if CONFIG_TIP_IMPLICIT_QUANT
+      if (cm->seq_params.enable_tip_explicit_qp == 0) {
+        cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
+            u_ac_delta_q_backup;
+        cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
+            v_ac_delta_q_backup;
+        cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
+            base_qindex_backup;
+      }
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
 #if CONFIG_TIP_DIRECT_FRAME_MV
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
@@ -3236,6 +3275,28 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       rdmult, tip_as_output_rate, tip_as_output_sse, cm->seq_params.bit_depth);
   if (tip_direct_output_rdcost < normal_coding_rdcost) {
     cm->features.tip_frame_mode = TIP_FRAME_AS_OUTPUT;
+#if CONFIG_TIP_IMPLICIT_QUANT
+    if (cm->seq_params.enable_tip_explicit_qp == 0) {
+      const int avg_u_ac_delta_q =
+          (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
+           cm->tip_ref.ref_frame_buffer[1]->u_ac_delta_q + 1) >>
+          1;
+      const int avg_v_ac_delta_q =
+          (cm->tip_ref.ref_frame_buffer[0]->v_ac_delta_q +
+           cm->tip_ref.ref_frame_buffer[1]->v_ac_delta_q + 1) >>
+          1;
+      const int avg_base_qindex =
+          (cm->tip_ref.ref_frame_buffer[0]->base_qindex +
+           cm->tip_ref.ref_frame_buffer[1]->base_qindex + 1) >>
+          1;
+      cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q =
+          avg_u_ac_delta_q;
+      cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
+          avg_v_ac_delta_q;
+      cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
+          avg_base_qindex;
+    }
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
     const int num_planes = av1_num_planes(cm);
     av1_copy_tip_frame_tmvp_mvs(cm);
 #if CONFIG_TIP_DIRECT_FRAME_MV

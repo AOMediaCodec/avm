@@ -5240,6 +5240,11 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #endif
 #if CONFIG_PEF
   aom_wb_write_bit(wb, seq_params->enable_pef);
+#if CONFIG_TIP_IMPLICIT_QUANT
+  if (seq_params->enable_tip == 1 && seq_params->enable_pef) {
+    aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
+  }
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
 #endif  // CONFIG_PEF
 #if CONFIG_ORIP
   aom_wb_write_bit(wb, seq_params->enable_orip);
@@ -5908,10 +5913,30 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
 #if CONFIG_TIP
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-    aom_wb_write_literal(wb, quant_params->base_qindex,
-                         cm->seq_params.bit_depth == AOM_BITS_8
-                             ? QINDEX_BITS_UNEXT
-                             : QINDEX_BITS);
+#if CONFIG_TIP_IMPLICIT_QUANT
+    if (cm->seq_params.enable_tip_explicit_qp) {
+      aom_wb_write_literal(wb, quant_params->base_qindex,
+                           cm->seq_params.bit_depth == AOM_BITS_8
+                               ? QINDEX_BITS_UNEXT
+                               : QINDEX_BITS);
+      if (av1_num_planes(cm) > 1) {
+        const int diff_uv_delta =
+            (quant_params->u_ac_delta_q != quant_params->v_ac_delta_q);
+        if (cm->seq_params.separate_uv_delta_q) {
+          aom_wb_write_bit(wb, diff_uv_delta);
+        }
+        write_delta_q(wb, quant_params->u_ac_delta_q);
+        if (diff_uv_delta) {
+          write_delta_q(wb, quant_params->v_ac_delta_q);
+        }
+      }
+    }
+#else
+      aom_wb_write_literal(wb, quant_params->base_qindex,
+                           cm->seq_params.bit_depth == AOM_BITS_8
+                               ? QINDEX_BITS_UNEXT
+                               : QINDEX_BITS);
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
     write_tile_info(cm, saved_wb, wb);
     if (seq_params->film_grain_params_present &&
         (cm->show_frame || cm->showable_frame))

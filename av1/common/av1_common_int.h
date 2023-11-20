@@ -292,6 +292,10 @@ typedef struct RefCntBuffer {
 
   FRAME_CONTEXT frame_context;
   int base_qindex;
+#if CONFIG_TIP_IMPLICIT_QUANT
+  int u_ac_delta_q;
+  int v_ac_delta_q;
+#endif  // CONFIG_TIP_IMPLICIT_QUANT
 
   FrameHash raw_frame_hash;
   FrameHash grain_frame_hash;
@@ -464,7 +468,10 @@ typedef struct SequenceHeader {
 #if CONFIG_TIP
   uint8_t enable_tip;  // enables/disables temporal interpolated prediction
   uint8_t enable_tip_hole_fill;  // enables/disables hole fill for TIP
-#endif                           // CONFIG_TIP
+#if CONFIG_TIP_IMPLICIT_QUANT
+  uint8_t enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
+#endif                             // CONFIG_TIP_IMPLICIT_QUANT
+#endif                             // CONFIG_TIP
 #if CONFIG_BAWP
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
 #endif                  // CONFIG_BAWP
