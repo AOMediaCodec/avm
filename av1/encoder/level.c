@@ -330,43 +330,6 @@ static void update_ref_buffers(const AV1_COMMON *const cm,
                                int refresh_frame_flags) {
   (void)cm;
   FRAME_BUFFER *const this_buffer = &decoder_model->frame_buffer_pool[idx];
-#if CONFIG_REFRESH_FLAG
-  if (cm->seq_params.enable_short_refresh_frame_flags &&
-      !cm->features.error_resilient_mode) {
-    if (refresh_frame_flags == REFRESH_FRAME_ALL) {
-      for (int i = 0; i < REF_FRAMES; ++i) {
-        const int pre_idx = decoder_model->vbi[i];
-        if (pre_idx != -1) {
-          --decoder_model->frame_buffer_pool[pre_idx].decoder_ref_count;
-        }
-        decoder_model->vbi[i] = idx;
-        ++this_buffer->decoder_ref_count;
-      }
-    } else {
-      for (int i = 0; i < REF_FRAMES; ++i) {
-        if (refresh_frame_flags == i) {
-          const int pre_idx = decoder_model->vbi[i];
-          if (pre_idx != -1) {
-            --decoder_model->frame_buffer_pool[pre_idx].decoder_ref_count;
-          }
-          decoder_model->vbi[i] = idx;
-          ++this_buffer->decoder_ref_count;
-        }
-      }
-    }
-  } else {
-    for (int i = 0; i < REF_FRAMES; ++i) {
-      if (refresh_frame_flags & (1 << i)) {
-        const int pre_idx = decoder_model->vbi[i];
-        if (pre_idx != -1) {
-          --decoder_model->frame_buffer_pool[pre_idx].decoder_ref_count;
-        }
-        decoder_model->vbi[i] = idx;
-        ++this_buffer->decoder_ref_count;
-      }
-    }
-  }
-#else
   for (int i = 0; i < REF_FRAMES; ++i) {
     if (refresh_frame_flags & (1 << i)) {
       const int pre_idx = decoder_model->vbi[i];
@@ -377,7 +340,6 @@ static void update_ref_buffers(const AV1_COMMON *const cm,
       ++this_buffer->decoder_ref_count;
     }
   }
-#endif  // CONFIG_REFRESH_FLAG
 }
 
 // The time (in seconds) required to decode a frame.

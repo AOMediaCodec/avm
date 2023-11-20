@@ -5601,10 +5601,17 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (cm->seq_params.enable_short_refresh_frame_flags &&
         !cm->features.error_resilient_mode) {
       const bool has_refresh_frame_flags =
-          current_frame->refresh_frame_flags != -1;
+          current_frame->refresh_frame_flags != 0;
       if (has_refresh_frame_flags) {
-        aom_wb_write_literal(wb, current_frame->refresh_frame_flags, 3);
-        if (current_frame->refresh_frame_flags == 0) {
+        int refresh_idx = 0;
+        for (int i = 0; i < REF_FRAMES; ++i) {
+          if ((current_frame->refresh_frame_flags >> i) & 1) {
+            refresh_idx = i;
+            break;
+          }
+        }
+        aom_wb_write_literal(wb, refresh_idx, 3);
+        if (refresh_idx == 0) {
           aom_wb_write_literal(wb, 1, 1);
         }
       } else {
