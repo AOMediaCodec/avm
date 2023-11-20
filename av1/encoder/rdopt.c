@@ -284,23 +284,15 @@ static AOM_INLINE void inter_mode_data_push(TileDataEnc *tile_data,
   }
 }
 
-static AOM_INLINE void inter_modes_info_push(
-    InterModesInfo *inter_modes_info, int mode_rate, int64_t sse, int64_t rd,
-    RD_STATS *rd_cost, RD_STATS *rd_cost_y, RD_STATS *rd_cost_uv,
-    const MB_MODE_INFO *mbmi
-#if CONFIG_C071_SUBBLK_WARPMV
-    ,
-    MACROBLOCKD *xd, const AV1_COMMON *const cm
-#endif  // CONFIG_C071_SUBBLK_WARPMV
-) {
+static AOM_INLINE void inter_modes_info_push(InterModesInfo *inter_modes_info,
+                                             int mode_rate, int64_t sse,
+                                             int64_t rd, RD_STATS *rd_cost,
+                                             RD_STATS *rd_cost_y,
+                                             RD_STATS *rd_cost_uv,
+                                             const MB_MODE_INFO *mbmi) {
   const int num = inter_modes_info->num;
   assert(num < MAX_INTER_MODES);
   inter_modes_info->mbmi_arr[num] = *mbmi;
-#if CONFIG_C071_SUBBLK_WARPMV
-  if (is_warp_mode(mbmi->motion_mode))
-    store_submi(xd, cm, inter_modes_info->submi_arr[num],
-                mbmi->sb_type[PLANE_TYPE_Y]);
-#endif  // CONFIG_C071_SUBBLK_WARPMV
   inter_modes_info->mode_rate_arr[num] = mode_rate;
   inter_modes_info->sse_arr[num] = sse;
   inter_modes_info->est_rd_arr[num] = rd;
@@ -3027,23 +3019,13 @@ static int64_t motion_mode_rd(
               assert(curr_sse >= 0);
               inter_modes_info_push(inter_modes_info, mode_rate, curr_sse,
                                     rd_stats->rdcost, rd_stats, rd_stats_y,
-                                    rd_stats_uv, mbmi
-#if CONFIG_C071_SUBBLK_WARPMV
-                                    ,
-                                    xd, cm
-#endif  // CONFIG_C071_SUBBLK_WARPMV
-              );
+                                    rd_stats_uv, mbmi);
             }
           } else {
             assert(curr_sse >= 0);
             inter_modes_info_push(inter_modes_info, mode_rate, curr_sse,
                                   rd_stats->rdcost, rd_stats, rd_stats_y,
-                                  rd_stats_uv, mbmi
-#if CONFIG_C071_SUBBLK_WARPMV
-                                  ,
-                                  xd, cm
-#endif  // CONFIG_C071_SUBBLK_WARPMV
-            );
+                                  rd_stats_uv, mbmi);
           }
           mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
         } else {
@@ -9788,7 +9770,7 @@ static void tx_search_best_inter_candidates(
     *mbmi = inter_modes_info->mbmi_arr[data_idx];
 #if CONFIG_C071_SUBBLK_WARPMV
     if (is_warp_mode(mbmi->motion_mode))
-      update_submi(xd, cm, inter_modes_info->submi_arr[data_idx], bsize);
+      assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
     int64_t curr_est_rd = inter_modes_info->est_rd_arr[data_idx];
     if (curr_est_rd * 0.80 > top_est_rd) break;

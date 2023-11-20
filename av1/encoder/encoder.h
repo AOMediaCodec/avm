@@ -1601,12 +1601,6 @@ typedef struct inter_modes_info {
    * Mode info struct for each of the candidate modes.
    */
   MB_MODE_INFO mbmi_arr[MAX_INTER_MODES];
-#if CONFIG_C071_SUBBLK_WARPMV
-  /*!
-   * Subblock motion info struct for each of the candidate modes.
-   */
-  SUBMB_INFO submi_arr[MAX_INTER_MODES][MAX_MIB_SIZE * MAX_MIB_SIZE];
-#endif  // CONFIG_C071_SUBBLK_WARPMV
   /*!
    * The rate for each of the candidate modes.
    */
