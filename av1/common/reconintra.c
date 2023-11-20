@@ -731,9 +731,9 @@ void get_uv_intra_mode_set(MB_MODE_INFO *mi) {
 #if CONFIG_UV_CFL
 int get_cfl_ctx(MACROBLOCKD *xd) {
   const int above_ctx =
-      xd->above_mbmi ? xd->above_mbmi->uv_mode == UV_CFL_PRED : 0;
+      xd->chroma_above_mbmi ? xd->chroma_above_mbmi->uv_mode == UV_CFL_PRED : 0;
   const int left_ctx =
-      xd->left_mbmi ? xd->left_mbmi->uv_mode == UV_CFL_PRED : 0;
+      xd->chroma_left_mbmi ? xd->chroma_left_mbmi->uv_mode == UV_CFL_PRED : 0;
   return above_ctx + left_ctx;
 }
 #endif  // CONFIG_UV_CFL
