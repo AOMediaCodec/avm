@@ -127,13 +127,8 @@ if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes") {
   add_proto qw/int av1_opfl_mv_refinement_nxn_interp_grad/, " const int16_t *pdiff, int pstride,const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int n,int d0, int d1, int grad_prec_bits,int mv_prec_bits, int *vx0, int *vy0,int *vx1, int *vy1";
   specialize qw/av1_opfl_mv_refinement_nxn_interp_grad sse4_1/;
 
-  add_proto qw/void av1_copy_pred_array_highbd/, "const uint16_t *src1, const uint16_t *src2, int16_t *dst1,int16_t *dst2, int bw, int bh, int d0, int d1";
+  add_proto qw/void av1_copy_pred_array_highbd/, "const uint16_t *src1, const uint16_t *src2, int16_t *dst1,int16_t *dst2, int bw, int bh, int d0, int d1, int centered";
   specialize qw/av1_copy_pred_array_highbd sse4_1/;
-}
-
-if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes") {
-  add_proto qw/void av1_copy_pred_array_one_sided_highbd/, "const uint16_t *src1, const uint16_t *src2, int16_t *dst1,int16_t *dst2, int bw, int bh";
-  specialize qw/av1_copy_pred_array_one_sided_highbd sse4_1/;
 }
 
 # High bitdepth functions

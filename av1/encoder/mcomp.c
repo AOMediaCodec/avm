@@ -425,27 +425,6 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
 
   return 0;
 }
-static AOM_FORCE_INLINE void compute_pred_one_sided_interp_grad_highbd(
-    const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
-    int bw, int bh) {
-  for (int i = 0; i < bh; ++i) {
-    for (int j = 0; j < bw; ++j) {
-      // To avoid overflow, we clamp (P0+cur)/2 and P0-Cur.
-      int32_t tmp_dst = ROUND_POWER_OF_TWO(
-          (int32_t)src1[i * bw + j] + (int32_t)src2[i * bw + j], 1);
-      dst1[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
-      tmp_dst = (int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j];
-      dst2[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
-    }
-  }
-}
-
-// TODO(kslu) SIMD
-void av1_copy_pred_array_one_sided_highbd_c(const uint16_t *src1,
-                                            const uint16_t *src2, int16_t *dst1,
-                                            int16_t *dst2, int bw, int bh) {
-  compute_pred_one_sided_interp_grad_highbd(src1, src2, dst1, dst2, bw, bh);
-}
 
 void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
                                  int16_t *gy, const int gstride, const int bw,
@@ -511,7 +490,6 @@ int opfl_refine_fullpel_mv_one_sided(
   aom_highbd_convolve_copy(pred_ptr, pred->stride, dst0, bw, bw, bh);
   aom_highbd_convolve_copy(src->buf, src->stride, dst1, bw, bw, bh);
 
-  // TODO(kslu) support !COMBINE_INTERP_GRAD_LS and !OPFL_BICUBIC_GRAD
   int grad_prec_bits;
   int16_t *tmp0 =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
@@ -519,9 +497,9 @@ int opfl_refine_fullpel_mv_one_sided(
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   // tmp0 = (P0 + Cur) / 2, tmp1 = P0 - Cur
   if (bw < 8)
-    av1_copy_pred_array_one_sided_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh);
+    av1_copy_pred_array_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, 1);
   else
-    av1_copy_pred_array_one_sided_highbd(dst0, dst1, tmp0, tmp1, bw, bh);
+    av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, 1);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
   int bits = 3 + get_opfl_mv_upshift_bits(mbmi);
