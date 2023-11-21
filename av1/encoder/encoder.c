@@ -2144,7 +2144,7 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
   if (aom_realloc_frame_buffer(
           &tip_frame->buf, cm->width, cm->height, cm->seq_params.subsampling_x,
           cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL)) {
+          cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
