@@ -401,8 +401,6 @@ typedef struct PadArea {
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_OPTFLOW_REFINEMENT
-#define OPFL_EXTEND_BOUNDARY 0
-
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
 #define OF_MIN_BSIZE_LOG2 2
