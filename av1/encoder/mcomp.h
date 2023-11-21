@@ -349,9 +349,6 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 );
 
 #if CONFIG_OPFL_MV_SEARCH
-#define OMVS_MV_DEBUG 0
-#define OMVS_OPFL_DEBUG 0
-#define OMVS_USE_SIMD 1
 #define OMVS_AVG_POOLING 1
 #define OMVS_RANGE_THR 2
 #define OMVS_BIG_STEP 4

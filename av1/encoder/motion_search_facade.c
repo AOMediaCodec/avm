@@ -277,17 +277,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                                      src_search_sites, fine_search_interval);
 #endif
 
-#if CONFIG_OPFL_MV_SEARCH && OMVS_MV_DEBUG
-  if (opfl_its) {
-    fprintf(
-        stderr,
-        "[single] f %d mi (%d,%d) bsize %dx%d ref0 %d ref_mv (%d,%d) prec %d\n",
-        cm->cur_frame->order_hint, mi_row, mi_col, block_size_wide[bsize],
-        block_size_high[bsize], mbmi->ref_frame[0], ref_mv.row, ref_mv.col,
-        pb_mv_precision);
-  }
-#endif  // CONFIG_OPFL_MV_SEARCH && OMVS_MV_DEBUG
-
   switch (mbmi->motion_mode) {
     case SIMPLE_TRANSLATION: {
       int sum_weight = 0;
@@ -297,11 +286,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
         FULLPEL_MV this_best_mv, this_second_best_mv;
 
 #if CONFIG_OPFL_MV_SEARCH
-#if OMVS_MV_DEBUG
-        if (opfl_its > 0) {
-          fprintf(stderr, "  m %d: smv (%d,%d)\n", m, smv.row, smv.col);
-        }
-#endif  // OMVS_MV_DEBUG
         best_opfl_sme = INT_MAX;
         int term = 0;
         for (int it = 0; it < 1 + opfl_its; it++) {
@@ -310,10 +294,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
             FULLPEL_MV prev_smv = smv;
             MV prev_mv = get_mv_from_fullmv(&prev_smv);
             cur_mv.as_mv = prev_mv;
-#if OMVS_MV_DEBUG
-            fprintf(stderr, "  it %d (before): smv (%d,%d) mv (%d,%d)\n", it,
-                    smv.row, smv.col, cur_mv.as_mv.row, cur_mv.as_mv.col);
-#endif
             term = opfl_refine_fullpel_mv_one_sided(cm, xd, &full_ms_params,
                                                     mbmi, &smv, &cur_mv, bsize);
             if (term) break;
@@ -332,10 +312,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
             } else {
               smv = cur_fullmv;
             }
-#if OMVS_MV_DEBUG
-            fprintf(stderr, "       (after):  smv (%d,%d) mv (%d,%d)\n",
-                    smv.row, smv.col, cur_mv.as_mv.row, cur_mv.as_mv.col);
-#endif
           }
 #endif  // CONFIG_OPFL_MV_SEARCH
 
@@ -353,15 +329,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 #endif
 
 #if CONFIG_OPFL_MV_SEARCH
-#if OMVS_MV_DEBUG
-          if (opfl_its > 0)
-            fprintf(stderr,
-                    "    m %d: method %d bestmv (%d,%d) second_best_mv (%d,%d) "
-                    "sme %d\n",
-                    m, full_ms_params.search_method, this_best_mv.row,
-                    this_best_mv.col, this_second_best_mv.row,
-                    this_second_best_mv.col, thissme);
-#endif  // OMVS_MV_DEBUG
           if (thissme < best_opfl_sme) {
             best_opfl_sme = thissme;
             this_best_opfl_mv = this_best_mv;
@@ -393,12 +360,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       break;
     default: assert(0 && "Invalid motion mode!\n");
   }
-
-#if CONFIG_OPFL_MV_SEARCH && OMVS_MV_DEBUG
-  if (opfl_its)
-    fprintf(stderr, "  best_fullmv (%d,%d)\n", best_mv->as_fullmv.row,
-            best_mv->as_fullmv.col);
-#endif
 
   if (scaled_ref_frame) {
     // Swap back the original buffers for subpel motion search.
@@ -683,19 +644,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
 #endif
                                      NULL, 0);
 #if CONFIG_OPFL_MV_SEARCH
-#if OMVS_MV_DEBUG
-  if (opfl_its > 0) {
-    fprintf(stderr,
-            "[single hp] f %d mi (%d,%d) bsize %dx%d ref0 %d ref_mv (%d,%d) "
-            "prec %d\n",
-            cm->cur_frame->order_hint, mi_row, mi_col, block_size_wide[bsize],
-            block_size_high[bsize], mbmi->ref_frame[0], ref_mv.row, ref_mv.col,
-            mbmi->pb_mv_precision);
-    fprintf(stderr, "  start_mv (%d,%d) start_fullmv (%d,%d)\n",
-            start_mv->as_mv.row, start_mv->as_mv.col, start_fullmv.row,
-            start_fullmv.col);
-  }
-#endif  // OMVS_MV_DEBUG
   best_opfl_sme = INT_MAX;
   int term = 0;
   for (int it = 0; it < 1 + opfl_its; it++) {
@@ -704,11 +652,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
       FULLPEL_MV prev_fullmv = start_fullmv;
       MV prev_mv = get_mv_from_fullmv(&prev_fullmv);
       cur_mv.as_mv = prev_mv;
-#if OMVS_MV_DEBUG
-      fprintf(stderr, "  it %d (before): smv (%d,%d) mv (%d,%d)\n", it,
-              start_fullmv.row, start_fullmv.col, cur_mv.as_mv.row,
-              cur_mv.as_mv.col);
-#endif
       term = opfl_refine_fullpel_mv_one_sided(cm, xd, &full_ms_params, mbmi,
                                               &start_fullmv, &cur_mv, bsize);
       if (term) break;
@@ -727,11 +670,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
       } else {
         start_fullmv = cur_fullmv;
       }
-#if OMVS_MV_DEBUG
-      fprintf(stderr, "       (after):  smv (%d,%d) mv (%d,%d)\n",
-              start_fullmv.row, start_fullmv.col, cur_mv.as_mv.row,
-              cur_mv.as_mv.col);
-#endif
     }
 #endif  // CONFIG_OPFL_MV_SEARCH
 
@@ -744,13 +682,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
                                          &curr_best_mv.as_fullmv);
 
 #if CONFIG_OPFL_MV_SEARCH
-#if OMVS_MV_DEBUG
-    if (opfl_its > 0) {
-      fprintf(stderr, "    method %d bestmv (%d,%d) sme %d\n",
-              full_ms_params.search_method, curr_best_mv.as_mv.row,
-              curr_best_mv.as_mv.col, bestsme);
-    }
-#endif  // OMVS_MV_DEBUG
     if (bestsme < best_opfl_sme) {
       best_opfl_sme = bestsme;
       best_opfl_mv = curr_best_mv.as_fullmv;
@@ -760,11 +691,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
   }
   bestsme = best_opfl_sme;
   curr_best_mv.as_fullmv = best_opfl_mv;
-#if OMVS_MV_DEBUG
-  if (opfl_its)
-    fprintf(stderr, "  best_fullmv (%d,%d)\n", curr_best_mv.as_fullmv.row,
-            curr_best_mv.as_fullmv.col);
-#endif
 #endif  // CONFIG_OPFL_MV_SEARCH
 
   if (scaled_ref_frame) {

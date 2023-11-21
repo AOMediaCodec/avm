@@ -511,26 +511,6 @@ int opfl_refine_fullpel_mv_one_sided(
   aom_highbd_convolve_copy(pred_ptr, pred->stride, dst0, bw, bw, bh);
   aom_highbd_convolve_copy(src->buf, src->stride, dst1, bw, bw, bh);
 
-#if OMVS_OPFL_DEBUG
-  fprintf(stderr, "Ref:\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", dst0[i * bw + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-  fprintf(stderr, "Cur:\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", dst1[i * bw + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-#if OMVS_EARLY_TERM
-  fprintf(stderr, "npel %d sad %d\n", bw * bh, sad);
-#endif
-#endif
-
   // TODO(kslu) support !COMBINE_INTERP_GRAD_LS and !OPFL_BICUBIC_GRAD
   int grad_prec_bits;
   int16_t *tmp0 =
@@ -538,14 +518,10 @@ int opfl_refine_fullpel_mv_one_sided(
   int16_t *tmp1 =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   // tmp0 = (P0 + Cur) / 2, tmp1 = P0 - Cur
-#if OMVS_USE_SIMD
   if (bw < 8)
     av1_copy_pred_array_one_sided_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh);
   else
     av1_copy_pred_array_one_sided_highbd(dst0, dst1, tmp0, tmp1, bw, bh);
-#else
-  av1_copy_pred_array_one_sided_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh);
-#endif  // OMVS_USE_SIMD
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
   int bits = 3 + get_opfl_mv_upshift_bits(mbmi);
@@ -567,37 +543,6 @@ int opfl_refine_fullpel_mv_one_sided(
                                      grad_prec_bits, bits, &vx0, &vy0, &vx1,
                                      &vy1);
 #endif
-#if OMVS_OPFL_DEBUG
-  fprintf(stderr, "tmp0:\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", tmp0[i * bw + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-  fprintf(stderr, "tmp1:\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", tmp1[i * bw + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-  fprintf(stderr, "gx:\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", gx0[i * bw + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-  fprintf(stderr, "gy:\n");
-  for (int i = 0; i < bh; i++) {
-    for (int j = 0; j < bw; j++) {
-      fprintf(stderr, "%d,", gy0[i * bw + j]);
-    }
-    fprintf(stderr, "\n");
-  }
-  fprintf(stderr, "vx %d vy %d\n", vx0, vy0);
-#endif  // OMVS_OPFL_DEBUG
 
   aom_free(tmp0);
   aom_free(tmp1);
