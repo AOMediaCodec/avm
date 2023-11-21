@@ -286,6 +286,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
         FULLPEL_MV this_best_mv, this_second_best_mv;
 
 #if CONFIG_OPFL_MV_SEARCH
+        this_best_mv = smv;
         best_opfl_sme = INT_MAX;
         int term = 0;
         for (int it = 0; it < 1 + opfl_its; it++) {
@@ -591,7 +592,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
 #if CONFIG_OPFL_MV_SEARCH
   int opfl_its = get_opfl_mv_iterations(cpi, mbmi);
   int_mv cur_mv;
-  FULLPEL_MV best_opfl_mv;
   int best_opfl_sme = INT_MAX;
 #if CONFIG_FLEX_MVRES
   const int radix =
@@ -644,7 +644,9 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
 #endif
                                      NULL, 0);
 #if CONFIG_OPFL_MV_SEARCH
+  FULLPEL_MV best_opfl_mv = start_fullmv;
   best_opfl_sme = INT_MAX;
+  curr_best_mv = *start_mv;
   int term = 0;
   for (int it = 0; it < 1 + opfl_its; it++) {
     if (it > 0) {
