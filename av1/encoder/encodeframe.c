@@ -1450,7 +1450,7 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #if CONFIG_TIP_DIRECT_FRAME_MV
   cm->tip_global_motion.as_int = 0;
   cm->tip_interp_filter = MULTITAP_SHARP;
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
 
   if (cm->seq_params.enable_tip) {
     if (cm->features.allow_ref_frame_mvs &&

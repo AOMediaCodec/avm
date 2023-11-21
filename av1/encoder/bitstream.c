@@ -5789,7 +5789,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           }
           aom_wb_write_bit(wb, cm->tip_interp_filter == MULTITAP_SHARP);
         }
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
       }
 
       if (!cm->seq_params.enable_tip ||

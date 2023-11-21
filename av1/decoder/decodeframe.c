@@ -4097,7 +4097,7 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
     tip_frame_buf->render_width = cm->render_width;
     tip_frame_buf->render_height = cm->render_height;
   }
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
 }
 #endif  // CONFIG_TIP
 
@@ -7744,7 +7744,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_TIP_DIRECT_FRAME_MV
       cm->tip_global_motion.as_int = 0;
       cm->tip_interp_filter = MULTITAP_SHARP;
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
       if (cm->seq_params.enable_tip) {
         features->tip_frame_mode = aom_rb_read_literal(rb, 2);
 #if CONFIG_OPTFLOW_ON_TIP
@@ -7782,7 +7782,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
           cm->tip_interp_filter =
               aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
         }
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
@@ -7930,7 +7930,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tmp_tip_frame->buf;
 #else
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
   tip_frame_buf->bit_depth = seq_params->bit_depth;
   tip_frame_buf->color_primaries = seq_params->color_primaries;
   tip_frame_buf->transfer_characteristics =

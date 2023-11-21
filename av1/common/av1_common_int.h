@@ -1321,7 +1321,7 @@ typedef struct TIP_Buffer {
    * Buffer to store temporary frame when doing frame motion compensation.
    */
   RefCntBuffer *tmp_tip_frame;
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
   /*!
    * Info specific to each plane.
    */
@@ -1682,7 +1682,7 @@ typedef struct AV1Common {
    * Interpolation filter for TIP direct frames.
    */
   InterpFilter tip_interp_filter;
-#endif
+#endif // CONFIG_TIP_DIRECT_FRAME_MV
 
   /*!
    * Elements part of the sequence header, that are applicable for all the
