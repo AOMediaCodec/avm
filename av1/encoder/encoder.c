@@ -1009,7 +1009,7 @@ static INLINE void init_tip_ref_frame(AV1_COMMON *const cm) {
   cm->tip_ref.tip_frame = aom_calloc(1, sizeof(*cm->tip_ref.tip_frame));
 #if CONFIG_TIP_DIRECT_FRAME_MV
   cm->tip_ref.tmp_tip_frame = aom_calloc(1, sizeof(*cm->tip_ref.tmp_tip_frame));
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 static INLINE void free_tip_ref_frame(AV1_COMMON *const cm) {
@@ -1018,7 +1018,7 @@ static INLINE void free_tip_ref_frame(AV1_COMMON *const cm) {
 #if CONFIG_TIP_DIRECT_FRAME_MV
   aom_free_frame_buffer(&cm->tip_ref.tmp_tip_frame->buf);
   aom_free(cm->tip_ref.tmp_tip_frame);
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 #if CONFIG_OPTFLOW_ON_TIP
@@ -2149,7 +2149,7 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
                        "Failed to allocate frame buffer");
   }
   tip_frame->frame_type = INTER_FRAME;
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 #endif  // CONFIG_TIP
 
@@ -3056,24 +3056,24 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                         av1_tip_enc_calc_subpel_params);
-#endif // CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_OPTFLOW_ON_TIP || CONFIG_TIP_DIRECT_FRAME_MV
 #if !CONFIG_TIP_DIRECT_FRAME_MV
     av1_finalize_encoded_frame(cpi);
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
       return AOM_CODEC_ERROR;
-#endif // !CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // !CONFIG_TIP_DIRECT_FRAME_MV
 
 #if CONFIG_TIP_DIRECT_FRAME_MV
     const int64_t rdmult =
         av1_compute_rd_mult(cpi, cm->quant_params.base_qindex);
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
 #if CONFIG_PEF
     if (cm->seq_params.enable_pef && cm->features.allow_pef) {
       enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
 #if CONFIG_TIP_DIRECT_FRAME_MV
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
     }
 #endif  // CONFIG_PEF
 
@@ -3213,7 +3213,7 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
         cpi->source->v_buffer, cpi->source->uv_stride,
         cm->cur_frame->buf.v_buffer, cm->cur_frame->buf.uv_stride,
         cpi->source->uv_width, cpi->source->uv_height);
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
     const int64_t bits = (*size << 3);
     tip_as_ref_rate = (bits << 5);  // To match scale.
   }
@@ -3236,7 +3236,7 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       enhance_tip_frame(cm, &cpi->td.mb.e_mbd);
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
     }
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
     aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
                         num_planes);
 
@@ -3286,7 +3286,7 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     cm->tip_global_motion.as_int = 0;
     cm->tip_interp_filter = MULTITAP_SHARP;
   }
-#endif // CONFIG_TIP_DIRECT_FRAME_MV
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
   return AOM_CODEC_OK;
 }
