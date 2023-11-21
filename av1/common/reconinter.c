@@ -1386,7 +1386,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd(
       // To avoid overflow, we clamp d0*P0-d1*P1 and P0-P1.
       int32_t tmp_dst =
           d0 * (int32_t)src1[i * bw + j] - d1 * (int32_t)src2[i * bw + j];
-      if (centered) tmp_dst = ROUND_POWER_OF_TWO(tmp_dst + 1, 1);
+      if (centered) tmp_dst = ROUND_POWER_OF_TWO_SIGNED(tmp_dst, 1);
       dst1[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);
       tmp_dst = (int32_t)src1[i * bw + j] - (int32_t)src2[i * bw + j];
       dst2[i * bw + j] = clamp(tmp_dst, INT16_MIN, INT16_MAX);

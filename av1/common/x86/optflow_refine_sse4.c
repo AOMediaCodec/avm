@@ -973,6 +973,19 @@ int av1_opfl_mv_refinement_nxn_interp_grad_sse4_1(
 }
 
 #if OPFL_COMBINE_INTERP_GRAD_LS
+// This round shift function has only been tested for the case d0 = 1, d1 = -1
+// that is used in CONFIG_OPFL_MV_SEARCH. To use centered=1 option for more
+// general d0 and d1, this function needs to be extended.
+static INLINE __m128i round_power_of_two_signed_epi16(__m128i temp1,
+                                                      const int bits) {
+  __m128i ones = _mm_set1_epi16(1);
+  __m128i v_sign_d = _mm_sign_epi16(ones, temp1);
+  __m128i v_bias_d = _mm_set1_epi16((1 << bits) >> 1);
+  __m128i reg = _mm_mullo_epi16(temp1, v_sign_d);
+  reg = _mm_srli_epi16(_mm_add_epi16(reg, v_bias_d), bits);
+  return _mm_mullo_epi16(reg, v_sign_d);
+}
+
 static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
     const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
     int bw, int bh, int d0, int d1, int centered) {
@@ -1000,7 +1013,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
       temp1 = _mm_madd_epi16(reg1, mul_val1);
       temp2 = _mm_madd_epi16(reg2, mul_val1);
       temp1 = _mm_packs_epi32(temp1, temp2);
-      if (centered) temp1 = _mm_srli_epi16(_mm_add_epi16(temp1, mul_one), 1);
+      if (centered) temp1 = round_power_of_two_signed_epi16(temp1, 1);
 
       reg1 = _mm_madd_epi16(reg1, mul_val2);
       reg2 = _mm_madd_epi16(reg2, mul_val2);
