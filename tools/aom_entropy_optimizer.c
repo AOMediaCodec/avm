@@ -1246,9 +1246,10 @@ int main(int argc, const char **argv) {
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = EOB_PLANE_CTXS;
   cts_each_dim[2] = EOB_MAX_SYMS;
-  optimize_cdf_table(&fc.eob_multi1024[0][0][0], probsfile, 3, cts_each_dim,
-                     "static const aom_cdf_prob av1_default_eob_multi1024_cdfs"
-                     "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS)]");
+  optimize_cdf_table(
+      &fc.eob_multi1024[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob av1_default_eob_multi1024_cdfs"
+      "[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS)]");
 #else
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = PLANE_TYPES;
