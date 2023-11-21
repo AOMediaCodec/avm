@@ -4433,53 +4433,60 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
   if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_CCSO_EXT
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
-  for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+#if CONFIG_D143_CCSO_FM_FLAG
+  aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1);
+  if (cm->ccso_info.ccso_frame_flag) {
+#endif  // CONFIG_D143_CCSO_FM_FLAG
+    for (int plane = 0; plane < av1_num_planes(cm); plane++) {
 #else
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 5, -5, -7 };
   for (int plane = 0; plane < 2; plane++) {
 #endif
-    aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
-    if (cm->ccso_info.ccso_enable[plane]) {
-      aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
-      aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
+      aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
+      if (cm->ccso_info.ccso_enable[plane]) {
+        aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
+        aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
 #if CONFIG_CCSO_EXT
-      aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
-      const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
+        aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
+        const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
 #endif
 #if CONFIG_CCSO_EDGE_CLF
-      const int edge_clf = cm->ccso_info.edge_clf[plane];
-      aom_wb_write_bit(wb, edge_clf);
-      const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
-      for (int d0 = 0; d0 < max_edge_interval; d0++) {
-        for (int d1 = 0; d1 < max_edge_interval; d1++) {
+        const int edge_clf = cm->ccso_info.edge_clf[plane];
+        aom_wb_write_bit(wb, edge_clf);
+        const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
+        for (int d0 = 0; d0 < max_edge_interval; d0++) {
+          for (int d1 = 0; d1 < max_edge_interval; d1++) {
 #else
       for (int d0 = 0; d0 < CCSO_INPUT_INTERVAL; d0++) {
         for (int d1 = 0; d1 < CCSO_INPUT_INTERVAL; d1++) {
 #endif  // CONFIG_CCSO_EDGE_CLF
 #if !CONFIG_CCSO_EXT
-          const int lut_idx_ext = (d0 << 2) + d1;
+            const int lut_idx_ext = (d0 << 2) + d1;
 #else
           for (int band_num = 0; band_num < max_band; band_num++) {
             const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
 #endif
-          for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
-            if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
-                ccso_offset[offset_idx]) {
+            for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
+              if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
+                  ccso_offset[offset_idx]) {
 #if CONFIG_CCSO_EDGE_CLF
-              write_ccso_offset_idx(wb, offset_idx);
+                write_ccso_offset_idx(wb, offset_idx);
 #else
                 aom_wb_write_literal(wb, offset_idx, 3);
 #endif  // CONFIG_CCSO_EDGE_CLF
-              break;
+                break;
+              }
             }
-          }
 #if CONFIG_CCSO_EXT
-        }
+          }
 #endif
+        }
       }
     }
   }
+#if CONFIG_D143_CCSO_FM_FLAG
 }
+#endif  // CONFIG_D143_CCSO_FM_FLAG
 }
 #endif
 

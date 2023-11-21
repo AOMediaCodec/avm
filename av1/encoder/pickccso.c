@@ -1087,11 +1087,18 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
 #if CONFIG_CCSO_EXT
   derive_ccso_filter(cm, AOM_PLANE_Y, xd, org_uv[AOM_PLANE_Y], ext_rec_y,
                      rec_uv[AOM_PLANE_Y], rdmult);
+#if CONFIG_D143_CCSO_FM_FLAG
+  cm->ccso_info.ccso_frame_flag = cm->ccso_info.ccso_enable[0];
+#endif  // CONFIG_D143_CCSO_FM_FLAG
 #endif
   if (num_planes > 1) {
     derive_ccso_filter(cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U], ext_rec_y,
                        rec_uv[AOM_PLANE_U], rdmult);
     derive_ccso_filter(cm, AOM_PLANE_V, xd, org_uv[AOM_PLANE_V], ext_rec_y,
                        rec_uv[AOM_PLANE_V], rdmult);
+#if CONFIG_D143_CCSO_FM_FLAG
+    cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[1];
+    cm->ccso_info.ccso_frame_flag |= cm->ccso_info.ccso_enable[2];
+#endif  // CONFIG_D143_CCSO_FM_FLAG
   }
 }
