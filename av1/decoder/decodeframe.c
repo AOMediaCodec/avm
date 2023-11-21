@@ -7598,12 +7598,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                         ref_frame_map_pairs);
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
 
-#if CONFIG_ALLOW_SAME_REF_COMPOUND
-      cm->ref_frames_info.num_same_ref_compound =
-          AOMMIN(cm->seq_params.num_same_ref_compound,
-                 cm->ref_frames_info.num_total_refs);
-#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
-
       // Reference rankings have been implicitly derived in av1_get_ref_frames.
       // However, reference indices can be overwritten if they have been
       // signaled, which happens in error resilient mode or when order hint
@@ -7625,6 +7619,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
       }
+
+#if CONFIG_ALLOW_SAME_REF_COMPOUND
+      cm->ref_frames_info.num_same_ref_compound =
+          AOMMIN(cm->seq_params.num_same_ref_compound,
+                 cm->ref_frames_info.num_total_refs);
+#endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
+
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
           features->primary_ref_frame != PRIMARY_REF_NONE) {
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
