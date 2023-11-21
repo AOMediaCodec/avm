@@ -2299,7 +2299,10 @@ static AOM_INLINE void read_compound_ref(
                     n_refs - 1 < ref_frames_info->num_same_ref_compound)
                        ? n_refs - 1
                        : n_refs - 2;
-  assert(ref_frame[0] >= 0);
+  // TODO(kslu) This is a workaround for the corner case where
+  // num_same_ref_compound = 0 and n_refs = 1. Change the frame header syntax
+  // to disallow the use of REFERENCE_MODE_SELECT for this case.
+  if (ref_frame[0] == NONE_FRAME) ref_frame[0] = 0;
 #elif CONFIG_ALLOW_SAME_REF_COMPOUND
   if (n_bits < 1) ref_frame[0] = n_refs - 1;
 #else
