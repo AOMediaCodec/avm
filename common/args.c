@@ -152,6 +152,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_cfl_intra);
     GET_PARAMS(enable_smooth_intra);
     GET_PARAMS(enable_filter_intra);
+#if CONFIG_DIP
+    GET_PARAMS(enable_intra_dip);
+#endif
     GET_PARAMS(enable_angle_delta);
     GET_PARAMS(enable_opfl_refine);
 #if CONFIG_AFFINE_REFINEMENT

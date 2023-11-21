@@ -211,6 +211,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_warp_delta;
   arg_def_t enable_warp_extend;
   arg_def_t enable_filter_intra;
+#if CONFIG_DIP
+  arg_def_t enable_intra_dip;
+#endif
   arg_def_t enable_smooth_intra;
   arg_def_t enable_paeth_intra;
   arg_def_t enable_cfl_intra;

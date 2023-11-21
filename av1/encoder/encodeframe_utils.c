@@ -13,6 +13,7 @@
 #include "aom_ports/system_state.h"
 
 #include "av1/common/reconintra.h"
+#include "av1/common/intra_dip.h"
 
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodeframe_utils.h"
@@ -569,6 +570,9 @@ static INLINE void update_fsc_cdf(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                          MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
+#if CONFIG_ENTROPY_STATS
+  int cdf_idx = cm->coef_cdf_category;
+#endif
 #if !CONFIG_AIMC
   const PREDICTION_MODE y_mode = mbmi->mode;
 #endif  // !CONFIG_AIMC
@@ -761,6 +765,25 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                    FILTER_INTRA_MODES);
       }
     }
+#if CONFIG_DIP
+    if (av1_intra_dip_allowed(cm, mbmi)) {
+      const int use_intra_dip = mbmi->use_intra_dip;
+      int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
+#if CONFIG_ENTROPY_STATS
+      ++counts->intra_dip[cdf_idx][ctx][use_intra_dip];
+      if (use_intra_dip) {
+        ++counts->intra_dip_mode_n6[mbmi->intra_dip_mode & 15];
+      }
+#endif
+      aom_cdf_prob *cdf = fc->intra_dip_cdf[ctx];
+      update_cdf(cdf, use_intra_dip, 2);
+      if (use_intra_dip) {
+        int n_modes = av1_intra_dip_modes(bsize);
+        aom_cdf_prob *mode_cdf = xd->tile_ctx->intra_dip_mode_n6_cdf;
+        update_cdf(mode_cdf, mbmi->intra_dip_mode & 15, n_modes);
+      }
+    }
+#endif
 #if !CONFIG_AIMC
     if (av1_is_directional_mode(mbmi->mode) && av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS

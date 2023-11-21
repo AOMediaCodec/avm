@@ -23,6 +23,7 @@
 #include "aom_ports/system_state.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/cfl.h"
+#include "av1/common/intra_dip.h"
 #include "av1/common/reconintra.h"
 #include <av1/encoder/block.h>
 
@@ -1528,6 +1529,7 @@ static void build_intra_predictors_high(
     const int enable_idif
 #endif  // CONFIG_IDIF
 ) {
+  MB_MODE_INFO *const mbmi = xd->mi[0];
   int i;
   DECLARE_ALIGNED(16, uint16_t, left_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint16_t, above_data[NUM_INTRA_NEIGHBOUR_PIXELS]);
@@ -1550,6 +1552,9 @@ static void build_intra_predictors_high(
   int p_angle = 0;
   const int is_dr_mode = av1_is_directional_mode(mode);
   const int use_filter_intra = filter_intra_mode != FILTER_INTRA_MODES;
+#if CONFIG_DIP
+  const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
+#endif
   int base = 128 << (xd->bd - 8);
   // The left_data, above_data buffers must be zeroed to fix some intermittent
   // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
@@ -1589,7 +1594,6 @@ static void build_intra_predictors_high(
       p_angle =
           wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
     } else {
-      MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_NEW_TX_PARTITION
       mbmi->is_wide_angle[plane > 0][txb_idx] = 0;
       mbmi->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
@@ -1619,7 +1623,9 @@ static void build_intra_predictors_high(
 #endif
   }
   if (use_filter_intra) need_left = need_above = need_above_left = 1;
-
+#if CONFIG_DIP
+  if (use_intra_dip) need_left = need_above = need_above_left = 1;
+#endif
   assert(n_top_px >= 0);
   assert(n_topright_px >= 0);
   assert(n_left_px >= 0);
@@ -1643,6 +1649,9 @@ static void build_intra_predictors_high(
   if (need_left) {
     int need_bottom = extend_modes[mode] & NEED_BOTTOMLEFT;
     if (use_filter_intra) need_bottom = 0;
+#if CONFIG_DIP
+    if (use_intra_dip) need_bottom = 1;
+#endif
     if (is_dr_mode)
       need_bottom =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
@@ -1675,6 +1684,9 @@ static void build_intra_predictors_high(
   if (need_above) {
     int need_right = extend_modes[mode] & NEED_ABOVERIGHT;
     if (use_filter_intra) need_right = 0;
+#if CONFIG_DIP
+    if (use_intra_dip) need_right = 1;
+#endif
     if (is_dr_mode)
       need_right =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
@@ -1729,6 +1741,14 @@ static void build_intra_predictors_high(
                                   filter_intra_mode, xd->bd);
     return;
   }
+
+#if CONFIG_DIP
+  if (use_intra_dip) {
+    av1_highbd_intra_dip_predictor(mbmi->intra_dip_mode, dst, dst_stride,
+                                   above_row, left_col, tx_size, xd->bd);
+    return;
+  }
+#endif
 
   if (is_dr_mode) {
     int upsample_above = 0;

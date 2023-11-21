@@ -20,6 +20,7 @@
 
 #include "av1/common/pred_common.h"
 #include "av1/common/reconintra.h"
+#include "av1/common/intra_dip.h"
 
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/model_rd.h"
@@ -269,6 +270,22 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
                                                  .filter_intra_mode];
     }
   }
+#if CONFIG_DIP
+  const int use_intra_dip = mbmi->use_intra_dip;
+  if (av1_intra_dip_allowed(&cpi->common, mbmi)) {
+    int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
+    total_rate += mode_costs->intra_dip_cost[ctx][use_intra_dip];
+    if (use_intra_dip) {
+      int n_modes = av1_intra_dip_modes(bsize);
+      int has_transpose = av1_intra_dip_has_transpose(bsize);
+      if (has_transpose) total_rate += av1_cost_literal(1);  // transpose bit
+      if (n_modes > 1) {
+        total_rate +=
+            mode_costs->intra_dip_mode_cost[mbmi->intra_dip_mode & 15];
+      }
+    }
+  }
+#endif
 #if !CONFIG_AIMC
   if (av1_is_directional_mode(mbmi->mode)) {
     if (av1_use_angle_delta(bsize)) {
@@ -428,6 +445,23 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   }
+#if CONFIG_DIP
+  const int use_intra_dip = mbmi->use_intra_dip;
+  if (av1_intra_dip_allowed(&cpi->common, mbmi)) {
+    int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
+    mode_cost += mode_costs->intra_dip_cost[ctx][use_intra_dip];
+    if (use_intra_dip) {
+      int n_modes = av1_intra_dip_modes(bsize);
+      int has_transpose = av1_intra_dip_has_transpose(bsize);
+      if (has_transpose) {
+        mode_cost += av1_cost_literal(1);
+      }
+      if (n_modes > 1) {
+        mode_cost += mode_costs->intra_dip_mode_cost[mbmi->intra_dip_mode & 15];
+      }
+    }
+  }
+#endif
   this_rd =
       RDCOST(x->rdmult, this_rd_stats.rate + mode_cost, this_rd_stats.dist);
   return this_rd;

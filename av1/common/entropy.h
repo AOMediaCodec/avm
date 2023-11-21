@@ -28,6 +28,10 @@ extern "C" {
 
 #define TOKEN_CDF_Q_CTXS 4
 
+#if CONFIG_DIP
+#define IML_CTXS 3
+#endif
+
 #if CONFIG_CONTEXT_DERIVATION
 #define CROSS_COMPONENT_CONTEXTS 3
 #define V_TXB_SKIP_CONTEXTS 12

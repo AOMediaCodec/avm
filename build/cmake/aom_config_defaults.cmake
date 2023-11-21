@@ -165,6 +165,7 @@ set_aom_config_var(CONFIG_CB1TO4_SPLIT 1 NUMBER
                    "AV2 amended flexible partition experiment flag")
 set_aom_config_var(CONFIG_INTRA_SDP_LATENCY_FIX 1 NUMBER
                    "AV2 intra SDP latency issue addressing flag")
+set_aom_config_var(CONFIG_DIP 1 "AV2 intra data-driven prediction.")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")

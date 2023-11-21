@@ -914,6 +914,11 @@ typedef struct {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   //! filter_intra_mode_cost
   int filter_intra_mode_cost[FILTER_INTRA_MODES];
+#if CONFIG_DIP
+  //! intra_dip_cost
+  int intra_dip_cost[IML_CTXS][2];
+  int intra_dip_mode_cost[16];
+#endif
   //! angle_delta_cost
   int angle_delta_cost[PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
                       [2 * MAX_ANGLE_DELTA + 1];

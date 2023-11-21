@@ -39,6 +39,7 @@
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
+#include "av1/common/intra_dip.h"
 #include "av1/common/mvref_common.h"
 #include "av1/common/pred_common.h"
 #include "av1/common/reconinter.h"
@@ -1296,6 +1297,30 @@ static AOM_INLINE void write_filter_intra_mode_info(
   }
 }
 
+#if CONFIG_DIP
+static AOM_INLINE void write_intra_dip_mode_info(const AV1_COMMON *cm,
+                                                 const MACROBLOCKD *xd,
+                                                 const MB_MODE_INFO *const mbmi,
+                                                 aom_writer *w) {
+  if (av1_intra_dip_allowed(cm, mbmi) && xd->tree_type != CHROMA_PART) {
+    BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
+    int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
+    aom_cdf_prob *cdf = xd->tile_ctx->intra_dip_cdf[ctx];
+    aom_write_symbol(w, mbmi->use_intra_dip, cdf, 2);
+    if (mbmi->use_intra_dip) {
+      // Write transpose bit + mode
+      int n_modes = av1_intra_dip_modes(bsize);
+      int has_transpose = av1_intra_dip_has_transpose(bsize);
+      if (has_transpose) {
+        aom_write_literal(w, (mbmi->intra_dip_mode >> 4) & 1, 1);
+      }
+      aom_cdf_prob *mode_cdf = xd->tile_ctx->intra_dip_mode_n6_cdf;
+      aom_write_symbol(w, mbmi->intra_dip_mode & 15, mode_cdf, n_modes);
+    }
+  }
+}
+#endif
+
 #if !CONFIG_AIMC
 static AOM_INLINE void write_angle_delta(aom_writer *w, int angle_delta,
                                          aom_cdf_prob *cdf) {
@@ -2194,6 +2219,11 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 
   // Filter intra.
   write_filter_intra_mode_info(cm, xd, mbmi, w);
+
+#if CONFIG_DIP
+  // Intra ML prediction
+  write_intra_dip_mode_info(cm, xd, mbmi, w);
+#endif
 }
 
 static INLINE int16_t mode_context_analyzer(
@@ -3332,7 +3362,7 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
       }
     }
 #if CONFIG_RD_DEBUG
-    for (int plane = 0; plane < num_planes; ++plane) {
+    for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
       if (mbmi->sb_type[xd->tree_type == CHROMA_PART] >= BLOCK_8X8 &&
           rd_token_stats_mismatch(&mbmi->rd_stats, &token_stats, plane)) {
         dump_mode_info(mbmi);
@@ -5508,6 +5538,9 @@ static AOM_INLINE void write_sequence_header(
 
   write_sb_size(seq_params, wb);
   aom_wb_write_bit(wb, seq_params->enable_filter_intra);
+#if CONFIG_DIP
+  aom_wb_write_bit(wb, seq_params->enable_intra_dip);
+#endif
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
   if (!seq_params->reduced_still_picture_hdr) {
     // Encode allowed motion modes
