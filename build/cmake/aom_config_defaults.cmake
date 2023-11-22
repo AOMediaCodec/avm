@@ -352,7 +352,7 @@ set_aom_config_var(CONFIG_IST_ANY_SET 1
                    "Enable R-D Optimized IST set selection from CWG-D159.")
 
 set_aom_config_var(CONFIG_D143_CCSO_FM_FLAG 1
-                   "Enable CCSO frame level joint flag.")
+                   "Enable CCSO frame level joint flag .")
 
 #
 # Variables in this section control optional features of the build system.
