@@ -1480,8 +1480,14 @@ typedef struct FRAME_COUNTS {
   unsigned int coeff_base_eob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                                    [SIG_COEF_CONTEXTS_EOB][NUM_BASE_LEVELS + 1];
 #endif  // CONFIG_CHROMA_CODING
+
+#if CONFIG_OPT_INTER_MODE_CTX
+  unsigned int inter_single_mode[INTER_MODE_CONTEXTS][INTER_SINGLE_MODES];
+#else
   unsigned int inter_single_mode[INTER_SINGLE_MODE_CONTEXTS]
                                 [INTER_SINGLE_MODES];
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
   unsigned int warp_ref_cnts[3][WARP_REF_CONTEXTS][2];  // placeholder
 
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
@@ -1496,9 +1502,19 @@ typedef struct FRAME_COUNTS {
 
   unsigned int cwp_idx_cnts[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1]
                            [2];  // placeholder
+#if CONFIG_OPT_INTER_MODE_CTX
+  unsigned int use_optflow[INTER_MODE_CONTEXTS][2];
+  unsigned int inter_compound_mode[INTER_MODE_CONTEXTS]
+                                  [INTER_COMPOUND_REF_TYPES];
+  unsigned int
+      inter_compound_mode_same_refs_cnt[INTER_MODE_CONTEXTS]
+                                       [INTER_COMPOUND_SAME_REFS_TYPES];
+#else
   unsigned int use_optflow[INTER_COMPOUND_MODE_CONTEXTS][2];
   unsigned int inter_compound_mode[INTER_COMPOUND_MODE_CONTEXTS]
                                   [INTER_COMPOUND_REF_TYPES];
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
 #if CONFIG_WEDGE_MOD_EXT
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int wedge_angle_dir_cnt[2];

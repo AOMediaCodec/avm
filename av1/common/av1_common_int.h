@@ -4270,6 +4270,17 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 
   return (allowed_motion_modes & enabled_motion_modes);
 }
+
+#if CONFIG_OPT_INTER_MODE_CTX
+static INLINE int not_allow_new_nearmv_pred_mode(const MB_MODE_INFO *mbmi) {
+  if (has_second_ref(mbmi) && mbmi->ref_frame[0] == mbmi->ref_frame[1]) {
+    return 1;
+  }
+
+  return 0;
+}
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

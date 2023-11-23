@@ -473,6 +473,9 @@ static INLINE int16_t av1_mode_context_analyzer(
     const int16_t *const mode_context, const MV_REFERENCE_FRAME *const rf) {
   const int8_t ref_frame = av1_ref_frame_type(rf);
 
+#if CONFIG_OPT_INTER_MODE_CTX
+  return mode_context[ref_frame];
+#else
   if (!is_inter_ref_frame(rf[1])) return mode_context[ref_frame];
 
   const int16_t newmv_ctx = mode_context[ref_frame] & NEWMV_CTX_MASK;
@@ -486,6 +489,7 @@ static INLINE int16_t av1_mode_context_analyzer(
       newmv_ctx, COMP_NEWMV_CTXS - 1)];
 #endif  // CONFIG_C076_INTER_MOD_CTX
   return comp_ctx;
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 }
 
 static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
