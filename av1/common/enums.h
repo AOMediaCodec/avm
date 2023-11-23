@@ -1177,6 +1177,11 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 
 #define TIP_CONTEXTS 3
 
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+#define TIP_PRED_MODES 3
+#define WARP_EXTEND_CTX 3
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+
 #define INTER_REFS_PER_FRAME 7
 #define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
 // NOTE: A limited number of unidirectional reference pairs can be signalled for

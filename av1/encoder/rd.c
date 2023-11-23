@@ -604,6 +604,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->tip_cost[i], fc->tip_cdf[i], NULL);
     }
 
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+    av1_cost_tokens_from_cdf(mode_costs->tip_mode_cost, fc->tip_pred_mode_cdf,
+                             NULL);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+
     for (i = 0; i < REF_CONTEXTS; ++i) {
       for (j = 0; j < INTER_REFS_PER_FRAME - 1; ++j) {
         av1_cost_tokens_from_cdf(mode_costs->single_ref_cost[i][j],
@@ -669,12 +674,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                fc->drl_cdf[2][i], NULL);
     }
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
     for (i = 0; i < 3; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->skip_drl_mode_cost[i],
                                fc->skip_drl_cdf[i], NULL);
     }
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_OPTFLOW_REFINEMENT
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
@@ -823,12 +828,19 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->warp_delta_param_cost[i],
                                fc->warp_delta_param_cdf[i], NULL);
     }
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+    for (i = 0; i < WARP_EXTEND_CTX; i++) {
+      av1_cost_tokens_from_cdf(mode_costs->warp_extend_cost[i],
+                               fc->warp_extend_cdf[i], NULL);
+    }
+#else
     for (i = 0; i < WARP_EXTEND_CTXS1; i++) {
       for (j = 0; j < WARP_EXTEND_CTXS2; j++) {
         av1_cost_tokens_from_cdf(mode_costs->warp_extend_cost[i][j],
                                  fc->warp_extend_cdf[i][j], NULL);
       }
     }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #else
     for (i = BLOCK_8X8; i < BLOCK_SIZES_ALL; i++) {
       av1_cost_tokens_from_cdf(mode_costs->motion_mode_cost[i],

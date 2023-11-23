@@ -1078,10 +1078,48 @@ static void pick_sb_modes(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
 }
 
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
+                                        FRAME_COUNTS *counts,
+                                        const MB_MODE_INFO *mbmi) {
+#if !CONFIG_ENTROPY_STATS
+  (void)counts;
+#endif  // !CONFIG_ENTROPY_STATS
+  assert(have_drl_index(mbmi->mode));
+#if CONFIG_SEP_COMP_DRL
+  assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
+  assert(get_ref_mv_idx(mbmi, 1) < max_drl_bits + 1);
+#else
+  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
+#endif  // CONFIG_SEP_COMP_DRL
+  for (int idx = 0; idx < max_drl_bits; ++idx) {
+    aom_cdf_prob *drl_cdf = fc->skip_drl_cdf[AOMMIN(idx, 2)];
+#if CONFIG_SEP_COMP_DRL
+    update_cdf(drl_cdf, mbmi->ref_mv_idx[0] != idx, 2);
+#if CONFIG_ENTROPY_STATS
+    counts->skip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx[0] != idx]++;
+#endif  // CONFIG_ENTROPY_STATS
+    if (mbmi->ref_mv_idx[0] == idx) break;
+#else
+    update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
+#if CONFIG_ENTROPY_STATS
+    counts->skip_drl_mode[AOMMIN(idx, 2)][mbmi->ref_mv_idx != idx]++;
+#endif  // CONFIG_ENTROPY_STATS
+    if (mbmi->ref_mv_idx == idx) break;
+#endif  // CONFIG_SEP_COMP_DRL
+  }
+}
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+
 static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
                                    FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
-                                   const MB_MODE_INFO *mbmi,
-                                   const MB_MODE_INFO_EXT *mbmi_ext) {
+                                   const MB_MODE_INFO *mbmi) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    update_skip_drl_index_stats(max_drl_bits, fc, counts, mbmi);
+    return;
+  }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #if !CONFIG_ENTROPY_STATS
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
@@ -1090,16 +1128,12 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   assert(IMPLIES(mbmi->mode == WARPMV, 0));
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
   if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
-  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_SEP_COMP_DRL
   assert(mbmi->ref_mv_idx[0] < max_drl_bits + 1);
   assert(mbmi->ref_mv_idx[1] < max_drl_bits + 1);
   for (int ref = 0; ref < 1 + has_second_drl(mbmi); ++ref) {
     for (int idx = 0; idx < max_drl_bits; ++idx) {
-      const uint16_t *weight = has_second_drl(mbmi)
-                                   ? mbmi_ext->weight[mbmi->ref_frame[ref]]
-                                   : mbmi_ext->weight[ref_frame_type];
-      aom_cdf_prob *drl_cdf = av1_get_drl_cdf(fc, weight, mode_ctx, idx);
+      aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, fc, mode_ctx, idx);
 #if CONFIG_IMPROVED_SAME_REF_COMPOUND
       if (ref && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
           mbmi->mode == NEAR_NEARMV && idx <= mbmi->ref_mv_idx[0])
@@ -1107,17 +1141,7 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
 #if CONFIG_ENTROPY_STATS
       int drl_ctx = av1_drl_ctx(mode_ctx);
-      switch (idx) {
-        case 0:
-          counts->drl_mode[0][drl_ctx][mbmi->ref_mv_idx[ref] != idx]++;
-          break;
-        case 1:
-          counts->drl_mode[1][drl_ctx][mbmi->ref_mv_idx[ref] != idx]++;
-          break;
-        default:
-          counts->drl_mode[2][drl_ctx][mbmi->ref_mv_idx[ref] != idx]++;
-          break;
-      }
+      counts->drl_mode[AOMMIN(idx, 2)][drl_ctx][mbmi->ref_mv_idx[ref] != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
       update_cdf(drl_cdf, mbmi->ref_mv_idx[ref] != idx, 2);
       if (mbmi->ref_mv_idx[ref] == idx) break;
@@ -1126,15 +1150,10 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
 #else
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   for (int idx = 0; idx < max_drl_bits; ++idx) {
-    aom_cdf_prob *drl_cdf =
-        av1_get_drl_cdf(fc, mbmi_ext->weight[ref_frame_type], mode_ctx, idx);
+    aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, fc, mode_ctx, idx);
 #if CONFIG_ENTROPY_STATS
     int drl_ctx = av1_drl_ctx(mode_ctx);
-    switch (idx) {
-      case 0: counts->drl_mode[0][drl_ctx][mbmi->ref_mv_idx != idx]++; break;
-      case 1: counts->drl_mode[1][drl_ctx][mbmi->ref_mv_idx != idx]++; break;
-      default: counts->drl_mode[2][drl_ctx][mbmi->ref_mv_idx != idx]++; break;
-    }
+    counts->drl_mode[AOMMIN(idx, 2)][drl_ctx][mbmi->ref_mv_idx != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
     update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
     if (mbmi->ref_mv_idx == idx) break;
@@ -1247,46 +1266,6 @@ static void update_warp_delta_stats(const AV1_COMMON *cm,
   }
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-static void update_skip_drl_index_stats(int max_drl_bits, FRAME_CONTEXT *fc,
-                                        FRAME_COUNTS *counts,
-                                        const MB_MODE_INFO *mbmi) {
-#if !CONFIG_ENTROPY_STATS
-  (void)counts;
-#endif  // !CONFIG_ENTROPY_STATS
-  assert(have_drl_index(mbmi->mode));
-#if CONFIG_SEP_COMP_DRL
-  assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
-  assert(get_ref_mv_idx(mbmi, 1) < max_drl_bits + 1);
-#else
-  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-#endif  // CONFIG_SEP_COMP_DRL
-  for (int idx = 0; idx < max_drl_bits; ++idx) {
-    aom_cdf_prob *drl_cdf = fc->skip_drl_cdf[AOMMIN(idx, 2)];
-#if CONFIG_SEP_COMP_DRL
-    update_cdf(drl_cdf, mbmi->ref_mv_idx[0] != idx, 2);
-#if CONFIG_ENTROPY_STATS
-    switch (idx) {
-      case 0: counts->skip_drl_mode[idx][mbmi->ref_mv_idx[0] != idx]++; break;
-      case 1: counts->skip_drl_mode[idx][mbmi->ref_mv_idx[0] != idx]++; break;
-      default: counts->skip_drl_mode[2][mbmi->ref_mv_idx[0] != idx]++; break;
-    }
-#endif  // CONFIG_ENTROPY_STATS
-    if (mbmi->ref_mv_idx[0] == idx) break;
-#else
-    update_cdf(drl_cdf, mbmi->ref_mv_idx != idx, 2);
-#if CONFIG_ENTROPY_STATS
-    switch (idx) {
-      case 0: counts->skip_drl_mode[idx][mbmi->ref_mv_idx != idx]++; break;
-      case 1: counts->skip_drl_mode[idx][mbmi->ref_mv_idx != idx]++; break;
-      default: counts->skip_drl_mode[2][mbmi->ref_mv_idx != idx]++; break;
-    }
-#endif  // CONFIG_ENTROPY_STATS
-    if (mbmi->ref_mv_idx == idx) break;
-#endif  // CONFIG_SEP_COMP_DRL
-  }
-}
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   MACROBLOCK *x = &td->mb;
@@ -1500,7 +1479,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     const int16_t mode_ctx_pristine =
         av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
     update_drl_index_stats(cm->features.max_drl_bits, mode_ctx_pristine, fc,
-                           counts, mbmi, mbmi_ext);
+                           counts, mbmi);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -1792,6 +1771,14 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
       if (continue_motion_mode_signaling &&
           allowed_motion_modes & (1 << WARP_EXTEND)) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+        const int ctx = av1_get_warp_extend_ctx(xd);
+#if CONFIG_ENTROPY_STATS
+        counts->warp_extend[ctx][mbmi->motion_mode == WARP_EXTEND]++;
+#endif
+        update_cdf(fc->warp_extend_cdf[ctx], mbmi->motion_mode == WARP_EXTEND,
+                   2);
+#else
         const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
         const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
 #if CONFIG_ENTROPY_STATS
@@ -1799,6 +1786,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif
         update_cdf(fc->warp_extend_cdf[ctx1][ctx2],
                    mbmi->motion_mode == WARP_EXTEND, 2);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
         if (motion_mode == WARP_EXTEND) {
           continue_motion_mode_signaling = false;
         }
@@ -2107,7 +2095,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       const int16_t mode_ctx_pristine =
           av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
       update_drl_index_stats(cm->features.max_drl_bits, mode_ctx_pristine, fc,
-                             counts, mbmi, mbmi_ext);
+                             counts, mbmi);
     }
 
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING

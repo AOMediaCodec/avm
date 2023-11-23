@@ -1048,10 +1048,10 @@ typedef struct {
   /*! Costs for coding the mv resolution. */
   int pb_block_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                                  [NUM_MV_PRECISIONS];
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   /**@}*/
 
   /*****************************************************************************
@@ -1075,7 +1075,11 @@ typedef struct {
   //! comp_inter_cost
   int comp_inter_cost[COMP_INTER_CONTEXTS][2];
   //! tip_cost
-  int tip_cost[TIP_CONTEXTS][CDF_SIZE(2)];
+  int tip_cost[TIP_CONTEXTS][2];
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  //! tip_mode_cost
+  int tip_mode_cost[TIP_PRED_MODES];
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   /**@}*/
 
   /*****************************************************************************
@@ -1088,7 +1092,7 @@ typedef struct {
 #else
   int intra_inter_cost[INTRA_INTER_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
-  //! inter_compound_mode_cost
+
 #if CONFIG_OPTFLOW_REFINEMENT
   /*! use_optflow_cost */
   int use_optflow_cost[INTER_COMPOUND_MODE_CONTEXTS][2];
@@ -1100,6 +1104,7 @@ typedef struct {
   int inter_compound_mode_cost[INTER_COMPOUND_MODE_CONTEXTS]
                               [INTER_COMPOUND_MODES];
 #endif  // CONFIG_OPTFLOW_REFINEMENT
+
   //! cwp_idx_cost for compound weighted prediction
   int cwp_idx_cost[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];
   //! jmvd_scale_mode_cost for JOINT_NEWMV
@@ -1202,7 +1207,11 @@ typedef struct {
   int warpmv_with_mvd_flag_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   //! warp_extend_cost
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  int warp_extend_cost[WARP_EXTEND_CTX][2];
+#else
   int warp_extend_cost[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #else
   //! motion_mode_cost
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];

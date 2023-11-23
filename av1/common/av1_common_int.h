@@ -195,6 +195,15 @@ enum {
   TIP_FRAME_MODES,
 } UENUM1BYTE(TIP_FRAME_MODE);
 
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+static const int tip_pred_mode_to_index[INTER_SINGLE_MODES] = { 0, -1, 1, 2 };
+static const int tip_pred_index_to_mode[TIP_PRED_MODES] = {
+  NEARMV,
+  NEWMV,
+  AMVDNEWMV,
+};
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+
 typedef struct {
   int_mv mfmv0;
   uint8_t ref_frame_offset;

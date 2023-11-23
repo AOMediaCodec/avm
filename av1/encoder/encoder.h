@@ -1518,9 +1518,9 @@ typedef struct FRAME_COUNTS {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   unsigned int skip_drl_mode[3][2];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
   unsigned int
       jmvd_scale_mode_cnts[JOINT_NEWMV_SCALE_FACTOR_CNT];  // placeholder
@@ -1599,7 +1599,11 @@ typedef struct FRAME_COUNTS {
   unsigned int warp_delta[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   unsigned int warp_delta_param[2][WARP_DELTA_NUM_SYMBOLS];
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  unsigned int warp_extend[WARP_EXTEND_CTX][2];
+#else
   unsigned int warp_extend[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2][2];
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #else
   unsigned int motion_mode[BLOCK_SIZES_ALL][MOTION_MODES];
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
@@ -1614,6 +1618,9 @@ typedef struct FRAME_COUNTS {
   unsigned int bawp[2];
 #endif  // CONFIG_BAWP
   unsigned int tip_ref[TIP_CONTEXTS][2];
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  unsigned int tip_pred_mode_cnt[TIP_PRED_MODES];
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   unsigned int comp_inter[COMP_INTER_CONTEXTS][2];
   unsigned int single_ref[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
 #if CONFIG_ALLOW_SAME_REF_COMPOUND

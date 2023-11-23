@@ -322,6 +322,8 @@ set_aom_config_var(CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE 1
 
 set_aom_config_var(CONFIG_TIP_DIRECT_MODE_SIGNALING 1
                    "Enable to optimize the signaling of TIP direct output mode")
+set_aom_config_var(CONFIG_OPTIMIZE_CTX_TIP_WARP 1
+                   "Optimize entropy contexts of TIP, warp extended, TIP DRL")
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1

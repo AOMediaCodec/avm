@@ -202,9 +202,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->drl_cdf[0], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[1], 2);
   RESET_CDF_COUNTER(fc->drl_cdf[2], 2);
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   RESET_CDF_COUNTER(fc->skip_drl_cdf, 2);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 #if CONFIG_OPTFLOW_REFINEMENT
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
@@ -260,6 +260,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->explicit_bawp_scale_cdf, EXPLICIT_BAWP_SCALE_CNT);
 #endif  // CONFIG_EXPLICIT_BAWP
   RESET_CDF_COUNTER(fc->tip_cdf, 2);
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  RESET_CDF_COUNTER(fc->tip_pred_mode_cdf, TIP_PRED_MODES);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);
   RESET_CDF_COUNTER(fc->palette_uv_size_cdf, PALETTE_SIZES);
 #if CONFIG_PALETTE_IMPROVEMENTS

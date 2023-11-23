@@ -463,28 +463,31 @@ static INLINE int16_t av1_mode_context_analyzer(
   return comp_ctx;
 }
 
-static INLINE aom_cdf_prob *av1_get_drl_cdf(FRAME_CONTEXT *ec_ctx,
-                                            const uint16_t *ref_mv_weight,
-                                            const int16_t mode_ctx,
-                                            int ref_idx) {
-  (void)ref_mv_weight;
-  const int ctx = av1_drl_ctx(mode_ctx);
-  switch (ref_idx) {
-    case 0: return ec_ctx->drl_cdf[0][ctx];
-    case 1: return ec_ctx->drl_cdf[1][ctx];
-    default: return ec_ctx->drl_cdf[2][ctx];
+static INLINE aom_cdf_prob *av1_get_drl_cdf(const MB_MODE_INFO *const mbmi,
+                                            FRAME_CONTEXT *ec_ctx,
+                                            const int16_t mode_ctx, int idx) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    return ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)];
   }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+  if (mbmi->skip_mode) {
+    return ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)];
+  }
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+
+  const int ctx = av1_drl_ctx(mode_ctx);
+  return ec_ctx->drl_cdf[AOMMIN(idx, 2)][ctx];
 }
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
 // Get the cdf of the warp_ref_idx
 static INLINE aom_cdf_prob *av1_get_warp_ref_idx_cdf(FRAME_CONTEXT *ec_ctx,
                                                      int bit_idx) {
   const int ctx = 0;
-  switch (bit_idx) {
-    case 0: return ec_ctx->warp_ref_idx_cdf[0][ctx];
-    case 1: return ec_ctx->warp_ref_idx_cdf[1][ctx];
-    default: return ec_ctx->warp_ref_idx_cdf[2][ctx];
-  }
+  return ec_ctx->warp_ref_idx_cdf[AOMMIN(bit_idx, 2)][ctx];
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
@@ -1020,6 +1023,19 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
   }
 }
 
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+static INLINE int av1_get_warp_extend_ctx(const MACROBLOCKD *xd) {
+  int ctx = 0;
+  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
+    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
+    if (neighbor != NULL) {
+      ctx += is_warp_mode(neighbor->motion_mode);
+    }
+  }
+
+  return ctx;
+}
+#else
 // The use_warp_extend symbol has two components to its context:
 // First context is the extension type (copy, extend from warp model, etc.)
 // Second context is log2(number of MI units along common edge)
@@ -1077,6 +1093,7 @@ static INLINE int av1_get_warp_extend_ctx2(const MACROBLOCKD *xd,
     }
   }
 }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 // Get the position of back-up WARP_EXTED mode base.
 int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,

@@ -116,7 +116,15 @@ static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 ) {
-  const int16_t ismode_ctx = inter_single_mode_ctx(mode_ctx);
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    const int tip_pred_index =
+        tip_pred_mode_to_index[mode - SINGLE_INTER_MODE_START];
+    aom_write_symbol(w, tip_pred_index, ec_ctx->tip_pred_mode_cdf,
+                     TIP_PRED_MODES);
+    return;
+  }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
@@ -129,6 +137,7 @@ static AOM_INLINE void write_inter_mode(aom_writer *w, PREDICTION_MODE mode,
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+  const int16_t ismode_ctx = inter_single_mode_ctx(mode_ctx);
   aom_write_symbol(w, mode - SINGLE_INTER_MODE_START,
                    ec_ctx->inter_single_mode_cdf[ismode_ctx],
                    INTER_SINGLE_MODES);
@@ -138,6 +147,7 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                           FRAME_CONTEXT *ec_ctx, const MB_MODE_INFO *mbmi,
                           const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                           aom_writer *w) {
+  (void)mbmi_ext_frame;
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
   assert(!mbmi->skip_mode);
 #endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
@@ -179,14 +189,7 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
           mbmi->mode == NEAR_NEARMV && idx <= mbmi->ref_mv_idx[0])
         continue;
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
-      aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-          mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
-                          : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref],
-                                            mode_ctx, idx);
-#else
-          av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight[ref], mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+      aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, ec_ctx, mode_ctx, idx);
       aom_write_symbol(w, mbmi->ref_mv_idx[ref] != idx, drl_cdf, 2);
       if (mbmi->ref_mv_idx[ref] == idx) break;
     }
@@ -201,14 +204,7 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
     assert(mbmi->ref_mv_idx < mbmi_ext_frame->ref_mv_count);
   assert(mbmi->ref_mv_idx < max_drl_bits + 1);
   for (int idx = 0; idx < max_drl_bits; ++idx) {
-    aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-        mbmi->skip_mode
-            ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
-            : av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
-#else
-        av1_get_drl_cdf(ec_ctx, mbmi_ext_frame->weight, mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+    aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, ec_ctx, mode_ctx, idx);
     aom_write_symbol(w, mbmi->ref_mv_idx != idx, drl_cdf, 2);
     if (mbmi->ref_mv_idx == idx) break;
   }
@@ -768,10 +764,16 @@ static AOM_INLINE void write_motion_mode(
   }
 
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+    const int ctx = av1_get_warp_extend_ctx(xd);
+    aom_write_symbol(w, motion_mode == WARP_EXTEND,
+                     xd->tile_ctx->warp_extend_cdf[ctx], 2);
+#else
     const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
     const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
     aom_write_symbol(w, motion_mode == WARP_EXTEND,
                      xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
     if (motion_mode == WARP_EXTEND) {
       return;
     }

@@ -255,9 +255,9 @@ typedef struct frame_contexts {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   aom_cdf_prob skip_drl_cdf[3][CDF_SIZE(2)];
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_REFINEMV
   aom_cdf_prob refinemv_flag_cdf[NUM_REFINEMV_CTX]
@@ -336,8 +336,12 @@ typedef struct frame_contexts {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob warp_delta_param_cdf[2][CDF_SIZE(WARP_DELTA_NUM_SYMBOLS)];
 
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  aom_cdf_prob warp_extend_cdf[WARP_EXTEND_CTX][CDF_SIZE(2)];
+#else
   aom_cdf_prob warp_extend_cdf[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2]
                               [CDF_SIZE(2)];
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 #else
   aom_cdf_prob motion_mode_cdf[BLOCK_SIZES_ALL][CDF_SIZE(MOTION_MODES)];
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
@@ -353,6 +357,9 @@ typedef struct frame_contexts {
 #endif  // CONFIG_EXPLICIT_BAWP
 #endif  // CONFIG_BAWP
   aom_cdf_prob tip_cdf[TIP_CONTEXTS][CDF_SIZE(2)];
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  aom_cdf_prob tip_pred_mode_cdf[CDF_SIZE(TIP_PRED_MODES)];
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
   aom_cdf_prob palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
   aom_cdf_prob palette_uv_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
 #if CONFIG_PALETTE_IMPROVEMENTS

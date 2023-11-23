@@ -1035,7 +1035,7 @@ int main(int argc, const char **argv) {
                      "[CDF_SIZE(SWITCHABLE_FILTERS)]",
                      0, &total_count, 0, mem_wanted, "Filters");
 
-  /* Motion vector referencing */
+  /* Single inter prediction mode */
   cts_each_dim[0] = INTER_SINGLE_MODE_CONTEXTS;
   cts_each_dim[1] = INTER_SINGLE_MODES;
   optimize_cdf_table(&fc.inter_single_mode[0][0], probsfile, 2, cts_each_dim,
@@ -1284,14 +1284,14 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Inter");
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.skip_drl_cnts[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_skip_drl_cdf[3][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   cts_each_dim[0] = WARPMV_MODE_CONTEXT;
@@ -1356,6 +1356,15 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_warp_delta_param_cdf"
                      "[2][CDF_SIZE(WARP_DELTA_NUM_SYMBOLS)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  cts_each_dim[0] = WARP_EXTEND_CTX;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.warp_extend[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_warp_extend_cdf[WARP_EXTEND_CTX]CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = WARP_EXTEND_CTXS1;
   cts_each_dim[1] = WARP_EXTEND_CTXS2;
   cts_each_dim[2] = 2;
@@ -1365,6 +1374,8 @@ int main(int argc, const char **argv) {
       "default_warp_extend_cdf[WARP_EXTEND_CTXS1][WARP_EXTEND_CTXS2]"
       "[CDF_SIZE(2)]",
       0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+
 #if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_D149_CTX_MODELING_OPT
   cts_each_dim[0] = 2;
@@ -1727,6 +1738,14 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_tip_cdf[TIP_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  /* TIP prediction mode flag */
+  cts_each_dim[0] = TIP_PRED_MODES;
+  optimize_cdf_table(&fc.tip_pred_mode_cnt[0], probsfile, 1, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_tip_pred_mode_cdf[CDF_SIZE(TIP_PRED_MODES)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
   /* joint compound group index */
   cts_each_dim[0] = COMP_GROUP_IDX_CONTEXTS;

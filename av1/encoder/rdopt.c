@@ -515,7 +515,13 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
 
   assert(is_inter_mode(mode));
 
-  const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    const int tip_pred_index =
+        tip_pred_mode_to_index[mode - SINGLE_INTER_MODE_START];
+    return mode_costs->tip_mode_cost[tip_pred_index];
+  }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   int warp_mode_cost = 0;
@@ -527,6 +533,7 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+  const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
   return (mode_costs->inter_single_mode_cost[ismode_ctx]
                                             [mode - SINGLE_INTER_MODE_START]
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -2995,11 +3002,17 @@ static int64_t motion_mode_rd(
 
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << WARP_EXTEND)) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+          const int ctx = av1_get_warp_extend_ctx(xd);
+          rd_stats->rate +=
+              mode_costs->warp_extend_cost[ctx][motion_mode == WARP_EXTEND];
+#else
           const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
           const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
           rd_stats->rate +=
               mode_costs
                   ->warp_extend_cost[ctx1][ctx2][motion_mode == WARP_EXTEND];
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
           if (motion_mode == WARP_EXTEND) {
             continue_motion_mode_signaling = false;
           }
@@ -3530,6 +3543,37 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
   return ret;
 }
 
+#if CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+static INLINE int get_skip_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
+                                    const MACROBLOCK *x) {
+#if CONFIG_SEP_COMP_DRL
+  assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
+#else
+  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
+#endif
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  assert(mbmi->skip_mode || is_tip_ref_frame(mbmi->ref_frame[0]));
+#else
+  assert(mbmi->skip_mode);
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+  if (!have_drl_index(mbmi->mode)) {
+    return 0;
+  }
+  int cost = 0;
+#if CONFIG_SEP_COMP_DRL
+  const int ref_mv_idx = get_ref_mv_idx(mbmi, 0);
+#else
+  const int ref_mv_idx = mbmi->ref_mv_idx;
+#endif  // CONFIG_SEP_COMP_DRL
+  for (int idx = 0; idx < max_drl_bits; ++idx) {
+    cost += x->mode_costs.skip_drl_mode_cost[AOMMIN(idx, 2)][ref_mv_idx != idx];
+    if (ref_mv_idx == idx) return cost;
+  }
+
+  return cost;
+}
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
+
 // Computes the bit cost of writing the DRL index with max_drl_bits possible
 // values. It will also guarantee a DRL cost of zero if the mode does not need
 // a DRL index.
@@ -3537,6 +3581,12 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
 static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const MACROBLOCK *x) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    return get_skip_drl_cost(max_drl_bits, mbmi, x);
+  }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
+
   if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
 #if CONFIG_SEP_COMP_DRL
   assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
@@ -3596,55 +3646,6 @@ static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
 #endif
   return cost;
 }
-
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-static INLINE int get_skip_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
-                                    const MACROBLOCK *x) {
-#if CONFIG_SEP_COMP_DRL
-  assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
-#else
-  assert(mbmi->ref_mv_idx < max_drl_bits + 1);
-#endif
-  assert(mbmi->skip_mode);
-  if (!have_drl_index(mbmi->mode)) {
-    return 0;
-  }
-  int cost = 0;
-#if CONFIG_SEP_COMP_DRL
-  int ref_mv_idx = get_ref_mv_idx(mbmi, 0);
-  for (int idx = 0; idx < max_drl_bits; ++idx) {
-    switch (idx) {
-      case 0:
-        cost += x->mode_costs.skip_drl_mode_cost[0][ref_mv_idx != idx];
-        break;
-      case 1:
-        cost += x->mode_costs.skip_drl_mode_cost[1][ref_mv_idx != idx];
-        break;
-      default:
-        cost += x->mode_costs.skip_drl_mode_cost[2][ref_mv_idx != idx];
-        break;
-    }
-    if (ref_mv_idx == idx) return cost;
-  }
-#else
-  for (int idx = 0; idx < max_drl_bits; ++idx) {
-    switch (idx) {
-      case 0:
-        cost += x->mode_costs.skip_drl_mode_cost[0][mbmi->ref_mv_idx != idx];
-        break;
-      case 1:
-        cost += x->mode_costs.skip_drl_mode_cost[1][mbmi->ref_mv_idx != idx];
-        break;
-      default:
-        cost += x->mode_costs.skip_drl_mode_cost[2][mbmi->ref_mv_idx != idx];
-        break;
-    }
-    if (mbmi->ref_mv_idx == idx) return cost;
-  }
-#endif
-  return cost;
-}
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
                                         const MB_MODE_INFO *const mbmi,
@@ -10529,13 +10530,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           MV_REFERENCE_FRAME refs[2] = { INTRA_FRAME, NONE_FRAME };
 
 #if CONFIG_IBC_SR_EXT
-          init_mbmi(mbmi, this_mode, refs, cm, xd, xd->sbi
-
-          );
+          init_mbmi(mbmi, this_mode, refs, cm, xd, xd->sbi);
 #else
-        init_mbmi(mbmi, this_mode, refs, cm, xd->sbi
-
-        );
+        init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
 #endif  // CONFIG_IBC_SR_EXT
           txfm_info->skip_txfm = 0;
 

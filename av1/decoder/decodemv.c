@@ -329,7 +329,13 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                        BLOCK_SIZE bsize
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 ) {
-  const int16_t ismode_ctx = inter_single_mode_ctx(ctx);
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) {
+    const int tip_pred_index = aom_read_symbol(
+        r, ec_ctx->tip_pred_mode_cdf, TIP_PRED_MODES, ACCT_INFO("tip_mode"));
+    return tip_pred_index_to_mode[tip_pred_index];
+  }
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   int is_warpmv = 0;
@@ -344,16 +350,15 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+  const int16_t ismode_ctx = inter_single_mode_ctx(ctx);
   return SINGLE_INTER_MODE_START +
          aom_read_symbol(r, ec_ctx->inter_single_mode_cdf[ismode_ctx],
                          INTER_SINGLE_MODES, ACCT_INFO("inter_single_mode"));
 }
 
 static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
-                         FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
-                         MB_MODE_INFO *mbmi, aom_reader *r) {
-  MACROBLOCKD *const xd = &dcb->xd;
-  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
+                         FRAME_CONTEXT *ec_ctx, MB_MODE_INFO *mbmi,
+                         aom_reader *r) {
 #if CONFIG_SEP_COMP_DRL
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;
@@ -375,16 +380,7 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
         continue;
       }
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
-      const uint16_t *weight = has_second_drl(mbmi)
-                                   ? xd->weight[mbmi->ref_frame[ref]]
-                                   : xd->weight[ref_frame_type];
-      aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-          mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
-                          : av1_get_drl_cdf(ec_ctx, weight, mode_ctx, idx);
-#else
-          av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+      aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, ec_ctx, mode_ctx, idx);
       int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_INFO("drl_idx"));
       mbmi->ref_mv_idx[ref] = idx + drl_idx;
       if (!drl_idx) break;
@@ -403,14 +399,7 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   assert(!mbmi->skip_mode);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   for (int idx = 0; idx < max_drl_bits; ++idx) {
-    aom_cdf_prob *drl_cdf =
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-        mbmi->skip_mode ? ec_ctx->skip_drl_cdf[AOMMIN(idx, 2)]
-                        : av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type],
-                                          mode_ctx, idx);
-#else
-        av1_get_drl_cdf(ec_ctx, xd->weight[ref_frame_type], mode_ctx, idx);
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+    aom_cdf_prob *drl_cdf = av1_get_drl_cdf(mbmi, ec_ctx, mode_ctx, idx);
     int drl_idx = aom_read_symbol(r, drl_cdf, 2, ACCT_INFO("drl_idx"));
     mbmi->ref_mv_idx = idx + drl_idx;
     if (!drl_idx) break;
@@ -660,11 +649,17 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
 
   if (allowed_motion_modes & (1 << WARP_EXTEND)) {
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+    const int ctx = av1_get_warp_extend_ctx(xd);
+    const int use_warp_extend = aom_read_symbol(
+        r, xd->tile_ctx->warp_extend_cdf[ctx], 2, ACCT_INFO("use_warp_extend"));
+#else
     const int ctx1 = av1_get_warp_extend_ctx1(xd, mbmi);
     const int ctx2 = av1_get_warp_extend_ctx2(xd, mbmi);
-    int use_warp_extend =
+    const int use_warp_extend =
         aom_read_symbol(r, xd->tile_ctx->warp_extend_cdf[ctx1][ctx2], 2,
                         ACCT_INFO("use_warp_extend"));
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
     if (use_warp_extend) {
       return WARP_EXTEND;
     }
@@ -1913,6 +1908,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
+#if CONFIG_OPTIMIZE_CTX_TIP_WARP
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+#endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_SKIP_TXFM_OPT
   if (av1_allow_intrabc(cm, xd) && xd->tree_type != CHROMA_PART) {
@@ -2782,6 +2780,9 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
 
+  // Reset to avoid potential bug for warp mode context modeling
+  mbmi->motion_mode = SIMPLE_TRANSLATION;
+
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
 #if CONFIG_AIMC
@@ -3605,7 +3606,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
     read_drl_idx(cm->features.max_drl_bits,
                  av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
-                 ec_ctx, dcb, mbmi, r);
+                 ec_ctx, mbmi, r);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_SEP_COMP_DRL
@@ -3808,7 +3809,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       if (have_drl_index(mbmi->mode))
         read_drl_idx(max_drl_bits,
                      av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
-                     ec_ctx, dcb, mbmi, r);
+                     ec_ctx, mbmi, r);
       set_mv_precision(mbmi, mbmi->max_mv_precision);
       if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
         set_precision_set(cm, xd, mbmi, bsize, mbmi->ref_mv_idx);
