@@ -1051,6 +1051,16 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Filters");
 
   /* Single inter prediction mode */
+#if CONFIG_OPT_INTER_MODE_CTX
+  cts_each_dim[0] = INTER_MODE_CONTEXTS;
+  cts_each_dim[1] = INTER_SINGLE_MODES;
+  optimize_cdf_table(&fc.inter_single_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_inter_single_mode_cdf"
+                     "[INTER_MODE_CONTEXTS][CDF_SIZE("
+                     "INTER_SINGLE_MODES)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = INTER_SINGLE_MODE_CONTEXTS;
   cts_each_dim[1] = INTER_SINGLE_MODES;
   optimize_cdf_table(&fc.inter_single_mode[0][0], probsfile, 2, cts_each_dim,
@@ -1059,8 +1069,18 @@ int main(int argc, const char **argv) {
                      "[INTER_SINGLE_MODE_CONTEXTS][CDF_SIZE("
                      "INTER_SINGLE_MODES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
   // default_drl0_cdf_refmvbank[DRL_MODE_CONTEXTS][CDF_SIZE(2)]
+#if CONFIG_OPT_INTER_MODE_CTX
+  cts_each_dim[0] = 3;
+  cts_each_dim[1] = DRL_MODE_CONTEXTS;
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(&fc.drl_mode[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   cts_each_dim[0] = DRL_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
   optimize_cdf_table(&fc.drl_mode[0][0][0], probsfile, 2, cts_each_dim,
@@ -1081,6 +1101,7 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_drl2_cdf_refmvbank"
                      "[DRL_MODE_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
   cts_each_dim[0] = WARP_REF_CONTEXTS;
   cts_each_dim[1] = 2;
@@ -1128,6 +1149,38 @@ int main(int argc, const char **argv) {
                      "[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 
+#if CONFIG_OPT_INTER_MODE_CTX
+  /* Optical flow MV refinement */
+  cts_each_dim[0] = INTER_MODE_CONTEXTS;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.use_optflow[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\ndefault_use_optflow_cdf"
+                     "[INTER_MODE_CONTEXTS][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+
+  /* ext_inter experiment */
+  /* New compound mode */
+  cts_each_dim[0] = INTER_MODE_CONTEXTS;
+  cts_each_dim[1] = INTER_COMPOUND_REF_TYPES;
+  optimize_cdf_table(&fc.inter_compound_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_inter_compound_mode_cdf"
+                     "[INTER_MODE_CONTEXTS][CDF_SIZE("
+                     "INTER_COMPOUND_REF_TYPES)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+
+  /* Compound mode context without considering NEW_NEARMV when two refs are the
+   * same */
+  cts_each_dim[0] = INTER_MODE_CONTEXTS;
+  cts_each_dim[1] = INTER_COMPOUND_SAME_REFS_TYPES;
+  optimize_cdf_table(&fc.inter_compound_mode_same_refs_cnt[0][0], probsfile, 2,
+                     cts_each_dim,
+                     "static const aom_cdf_prob\n"
+                     "default_inter_compound_mode_same_refs_cdf"
+                     "[INTER_MODE_CONTEXTS][CDF_SIZE("
+                     "INTER_COMPOUND_SAME_REFS_TYPES)]",
+                     0, &total_count, 0, mem_wanted, "Inter");
+#else
   /* Optical flow MV refinement */
   cts_each_dim[0] = INTER_COMPOUND_MODE_CONTEXTS;
   cts_each_dim[1] = 2;
@@ -1146,6 +1199,7 @@ int main(int argc, const char **argv) {
                      "[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE("
                      "INTER_COMPOUND_REF_TYPES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
   /* Interintra */
   cts_each_dim[0] = BLOCK_SIZE_GROUPS;

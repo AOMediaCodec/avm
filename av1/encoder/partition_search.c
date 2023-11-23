@@ -2001,11 +2001,26 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_AFFINE_REFINEMENT
       }
       const int comp_mode_idx = opfl_get_comp_idx(mode);
+#if CONFIG_OPT_INTER_MODE_CTX
+      if (is_new_nearmv_pred_mode_disallowed(mbmi)) {
+        const int signal_mode_idx =
+            comp_mode_idx_to_mode_signal_idx[comp_mode_idx];
 #if CONFIG_ENTROPY_STATS
-      ++counts->inter_compound_mode[mode_ctx][comp_mode_idx];
+        ++counts->inter_compound_mode_same_refs_cnt[mode_ctx][signal_mode_idx];
 #endif
-      update_cdf(fc->inter_compound_mode_cdf[mode_ctx], comp_mode_idx,
-                 INTER_COMPOUND_REF_TYPES);
+        update_cdf(fc->inter_compound_mode_same_refs_cdf[mode_ctx],
+                   signal_mode_idx, INTER_COMPOUND_SAME_REFS_TYPES);
+      } else {
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+#if CONFIG_ENTROPY_STATS
+        ++counts->inter_compound_mode[mode_ctx][comp_mode_idx];
+#endif
+        update_cdf(fc->inter_compound_mode_cdf[mode_ctx], comp_mode_idx,
+                   INTER_COMPOUND_REF_TYPES);
+#if CONFIG_OPT_INTER_MODE_CTX
+      }
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
       if (is_joint_mvd_coding_mode(mbmi->mode)) {
         const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
         aom_cdf_prob *jmvd_scale_mode_cdf = is_joint_amvd_mode

@@ -811,10 +811,25 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
                                       : COMP_REFINE_SUBBLK2P)
                                : COMP_REFINE_NONE;
 #endif  // CONFIG_AFFINE_REFINEMENT
+
+  int mode = 0;
   int use_optical_flow = 0;
-  const int mode = aom_read_symbol(
-      r, xd->tile_ctx->inter_compound_mode_cdf[ctx], INTER_COMPOUND_REF_TYPES,
-      ACCT_INFO("inter_compound_mode_cdf"));
+#if CONFIG_OPT_INTER_MODE_CTX
+  if (is_new_nearmv_pred_mode_disallowed(mbmi)) {
+    const int signal_mode_idx =
+        aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_same_refs_cdf[ctx],
+                        INTER_COMPOUND_SAME_REFS_TYPES,
+                        ACCT_INFO("inter_compound_mode_same_refs_cdf"));
+    mode = comp_mode_signal_idx_to_mode_idx[signal_mode_idx];
+  } else {
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+    mode = aom_read_symbol(r, xd->tile_ctx->inter_compound_mode_cdf[ctx],
+                           INTER_COMPOUND_REF_TYPES,
+                           ACCT_INFO("inter_compound_mode_cdf"));
+#if CONFIG_OPT_INTER_MODE_CTX
+  }
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
       opfl_allowed_for_cur_refs(cm,
 #if CONFIG_COMPOUND_4XN
@@ -845,6 +860,7 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
       return comp_idx_to_opfl_mode[mode];
     }
   }
+
   assert(is_inter_compound_mode(NEAR_NEARMV + mode));
   return NEAR_NEARMV + mode;
 }

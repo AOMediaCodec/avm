@@ -1514,6 +1514,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   AVERAGE_CDF(ctx_left->inter_compound_mode_cdf,
               ctx_tr->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
+#if CONFIG_OPT_INTER_MODE_CTX
+  AVERAGE_CDF(ctx_left->inter_compound_mode_same_refs_cdf,
+              ctx_tr->inter_compound_mode_same_refs_cdf,
+              INTER_COMPOUND_SAME_REFS_TYPES);
+#endif  // CONFIG_OPT_INTER_MODE_CTX
   AVERAGE_CDF(ctx_left->cwp_idx_cdf, ctx_tr->cwp_idx_cdf, 2);
   AVERAGE_CDF(ctx_left->jmvd_scale_mode_cdf, ctx_tr->jmvd_scale_mode_cdf,
               JOINT_NEWMV_SCALE_FACTOR_CNT);

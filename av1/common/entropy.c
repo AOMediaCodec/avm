@@ -205,6 +205,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
   RESET_CDF_COUNTER(fc->use_optflow_cdf, 2);
   RESET_CDF_COUNTER(fc->inter_compound_mode_cdf, INTER_COMPOUND_REF_TYPES);
+#if CONFIG_OPT_INTER_MODE_CTX
+  RESET_CDF_COUNTER(fc->inter_compound_mode_same_refs_cdf,
+                    INTER_COMPOUND_SAME_REFS_TYPES);
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
   RESET_CDF_COUNTER(fc->cwp_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->jmvd_scale_mode_cdf, JOINT_NEWMV_SCALE_FACTOR_CNT);

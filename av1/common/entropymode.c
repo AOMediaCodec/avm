@@ -4979,6 +4979,25 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_ENTROPY_PARA
 
+#if CONFIG_OPT_INTER_MODE_CTX
+static const aom_cdf_prob
+    default_inter_single_mode_cdf[INTER_MODE_CONTEXTS]
+                                 [CDF_SIZE(INTER_SINGLE_MODES)] = {
+#if CONFIG_ENTROPY_PARA
+                                   { AOM_CDF4(11339, 11624, 30039), 31 },
+                                   { AOM_CDF4(24644, 24688, 30865), 6 },
+                                   { AOM_CDF4(27689, 27719, 31612), 7 },
+                                   { AOM_CDF4(13726, 13846, 27717), 1 },
+                                   { AOM_CDF4(16389, 16521, 29001), 6 },
+#else
+                                   { AOM_CDF4(11339, 11624, 30039) },
+                                   { AOM_CDF4(24644, 24688, 30865) },
+                                   { AOM_CDF4(27689, 27719, 31612) },
+                                   { AOM_CDF4(13726, 13846, 27717) },
+                                   { AOM_CDF4(16389, 16521, 29001) },
+#endif  // CONFIG_ENTROPY_PARA
+                                 };
+#else
 #if CONFIG_C076_INTER_MOD_CTX
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
@@ -5027,7 +5046,45 @@ static const aom_cdf_prob
       { AOM_CDF4(24626, 24936, 30200) }, { AOM_CDF4(10923, 21845, 29200) }
     };
 #endif  // CONFIG_C076_INTER_MOD_CTX
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
+#if CONFIG_OPT_INTER_MODE_CTX
+static const aom_cdf_prob default_drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
+#if CONFIG_ENTROPY_PARA
+  { { AOM_CDF2(20581), 118 },
+    { AOM_CDF2(25770), 90 },
+    { AOM_CDF2(27043), 75 },
+    { AOM_CDF2(22024), 118 },
+    { AOM_CDF2(16590), 118 } },
+  { { AOM_CDF2(20638), 118 },
+    { AOM_CDF2(20418), 90 },
+    { AOM_CDF2(21113), 115 },
+    { AOM_CDF2(19645), 123 },
+    { AOM_CDF2(19650), 90 } },
+  { { AOM_CDF2(26306), 90 },
+    { AOM_CDF2(25139), 115 },
+    { AOM_CDF2(23285), 76 },
+    { AOM_CDF2(26265), 115 },
+    { AOM_CDF2(23464), 118 } }
+#else
+  { { AOM_CDF2(20581) },
+    { AOM_CDF2(25770) },
+    { AOM_CDF2(27043) },
+    { AOM_CDF2(22024) },
+    { AOM_CDF2(16590) } },
+  { { AOM_CDF2(20638) },
+    { AOM_CDF2(20418) },
+    { AOM_CDF2(21113) },
+    { AOM_CDF2(19645) },
+    { AOM_CDF2(19650) } },
+  { { AOM_CDF2(26306) },
+    { AOM_CDF2(25139) },
+    { AOM_CDF2(23285) },
+    { AOM_CDF2(26265) },
+    { AOM_CDF2(23464) } },
+#endif  // CONFIG_ENTROPY_PARA
+};
+#else
 #if CONFIG_C076_INTER_MOD_CTX
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
@@ -5116,6 +5173,7 @@ static const aom_cdf_prob default_drl2_cdf[DRL_MODE_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(16618) }, { AOM_CDF2(14980) }, { AOM_CDF2(15963) }
 };
 #endif  // CONFIG_C076_INTER_MOD_CTX
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_cwp_idx_cdf[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1]
@@ -5181,6 +5239,56 @@ static const aom_cdf_prob default_skip_drl_cdf[3][CDF_SIZE(2)] = {
 #endif  // CONFIG_ENTROPY_PARA
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
+#if CONFIG_OPT_INTER_MODE_CTX
+static const aom_cdf_prob
+    default_use_optflow_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(2)] = {
+#if CONFIG_ENTROPY_PARA
+      { AOM_CDF2(24210), 75 }, { AOM_CDF2(19707), 1 }, { AOM_CDF2(15604), 1 },
+      { AOM_CDF2(21549), 1 },  { AOM_CDF2(19455), 1 },
+#else
+      { AOM_CDF2(24210) },
+      { AOM_CDF2(19707) },
+      { AOM_CDF2(15604) },
+      { AOM_CDF2(21549) },
+      { AOM_CDF2(19455) }
+#endif  // CONFIG_ENTROPY_PARA
+    };
+static const aom_cdf_prob
+    default_inter_compound_mode_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
+        INTER_COMPOUND_REF_TYPES)] = {
+#if CONFIG_ENTROPY_PARA
+      { AOM_CDF7(15145, 23670, 26510, 27013, 31822, 32123), 1 },
+      { AOM_CDF7(19679, 24068, 26491, 26994, 30009, 30935), 1 },
+      { AOM_CDF7(22866, 24693, 26120, 26770, 28382, 29803), 76 },
+      { AOM_CDF7(11666, 17847, 21567, 21701, 27927, 29225), 1 },
+      { AOM_CDF7(12678, 15361, 17694, 17983, 22981, 25711), 6 }
+#else
+      { AOM_CDF7(15145, 23670, 26510, 27013, 31822, 32123) },
+      { AOM_CDF7(19679, 24068, 26491, 26994, 30009, 30935) },
+      { AOM_CDF7(22866, 24693, 26120, 26770, 28382, 29803) },
+      { AOM_CDF7(11666, 17847, 21567, 21701, 27927, 29225) },
+      { AOM_CDF7(12678, 15361, 17694, 17983, 22981, 25711) }
+#endif  // CONFIG_ENTROPY_PARA
+    };
+
+static const aom_cdf_prob
+    default_inter_compound_mode_same_refs_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
+        INTER_COMPOUND_SAME_REFS_TYPES)] = {
+#if CONFIG_ENTROPY_PARA
+      { AOM_CDF6(10146, 29250, 29327, 32736, 32740), 1 },
+      { AOM_CDF6(16739, 29951, 30068, 32736, 32740), 1 },
+      { AOM_CDF6(20543, 30035, 30315, 32736, 32740), 76 },
+      { AOM_CDF6(12031, 28914, 29019, 32736, 32740), 1 },
+      { AOM_CDF6(13513, 28044, 28187, 32736, 32740), 6 }
+#else
+      { AOM_CDF6(10146, 29250, 29327, 32736, 32740) },
+      { AOM_CDF6(16739, 29951, 30068, 32736, 32740) },
+      { AOM_CDF6(20543, 30035, 30315, 32736, 32740) },
+      { AOM_CDF6(12031, 28914, 29019, 32736, 32740) },
+      { AOM_CDF6(13513, 28044, 28187, 32736, 32740) }
+#endif  // CONFIG_ENTROPY_PARA
+    };
+#else
 #if CONFIG_C076_INTER_MOD_CTX
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
@@ -5234,6 +5342,7 @@ static const aom_cdf_prob
       { AOM_CDF7(19368, 22274, 23890, 24364, 28364, 31364) }
     };
 #endif  // CONFIG_C076_INTER_MOD_CTX
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_interintra_cdf[BLOCK_SIZE_GROUPS]
@@ -7938,6 +8047,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 
   av1_copy(fc->inter_warp_mode_cdf, default_inter_warp_mode_cdf);
 
+#if CONFIG_OPT_INTER_MODE_CTX
+  av1_copy(fc->drl_cdf, default_drl_cdf);
+#else
 #if CONFIG_ENTROPY_PARA
   av1_copy(fc->drl_cdf[0], default_drl0_cdf_refmvbank);
   av1_copy(fc->drl_cdf[1], default_drl1_cdf_refmvbank);
@@ -7953,6 +8065,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
     av1_copy(fc->drl_cdf[2], default_drl2_cdf);
   }
 #endif  // CONFIG_ENTROPY_PARA
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
 #if CONFIG_REFINEMV
   av1_copy(fc->refinemv_flag_cdf, default_refinemv_flag_cdf);
@@ -7989,6 +8102,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->jmvd_scale_mode_cdf, default_jmvd_scale_mode_cdf);
   av1_copy(fc->jmvd_amvd_scale_mode_cdf, default_jmvd_amvd_scale_mode_cdf);
   av1_copy(fc->inter_compound_mode_cdf, default_inter_compound_mode_cdf);
+#if CONFIG_OPT_INTER_MODE_CTX
+  av1_copy(fc->inter_compound_mode_same_refs_cdf,
+           default_inter_compound_mode_same_refs_cdf);
+#endif  // CONFIG_OPT_INTER_MODE_CTX
   av1_copy(fc->compound_type_cdf, default_compound_type_cdf);
 #if CONFIG_WEDGE_MOD_EXT
   av1_copy(fc->wedge_angle_dir_cdf, default_wedge_angle_dir_cdf);

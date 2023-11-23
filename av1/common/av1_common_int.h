@@ -4366,6 +4366,17 @@ static INLINE int disable_pcwiener_filters_in_framefilters(
   return ((seq->lr_tools_disable_mask[AOM_PLANE_Y] >> RESTORE_PC_WIENER) & 1);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+
+#if CONFIG_OPT_INTER_MODE_CTX
+static INLINE int is_new_nearmv_pred_mode_disallowed(const MB_MODE_INFO *mbmi) {
+  if (has_second_ref(mbmi) && mbmi->ref_frame[0] == mbmi->ref_frame[1]) {
+    return 1;
+  }
+
+  return 0;
+}
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -1053,14 +1053,16 @@ enum {
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 #define COMP_GROUP_IDX_CONTEXTS 12
 
+#define MIN_MAX_DRL_BITS 1
+#define MAX_MAX_DRL_BITS 7
+
+#if !CONFIG_OPT_INTER_MODE_CTX
 #define NMV_CONTEXTS 3
 #define NEWMV_MODE_CONTEXTS 6
 #define GLOBALMV_MODE_CONTEXTS 2
 #define REFMV_MODE_CONTEXTS 6
 
 #define ISREFMV_MODE_CONTEXTS 2
-#define MIN_MAX_DRL_BITS 1
-#define MAX_MAX_DRL_BITS 7
 #if CONFIG_C076_INTER_MOD_CTX
 #define INTER_SINGLE_MODE_CONTEXTS (NEWMV_MODE_CONTEXTS * ISREFMV_MODE_CONTEXTS)
 #else
@@ -1072,6 +1074,7 @@ enum {
 #else
 #define DRL_MODE_CONTEXTS (NEWMV_MODE_CONTEXTS * GLOBALMV_MODE_CONTEXTS)
 #endif  // CONFIG_C076_INTER_MOD_CTX
+#endif  // !CONFIG_OPT_INTER_MODE_CTX
 
 #define WARPMV_MODE_CONTEXT 10
 
@@ -1083,17 +1086,13 @@ enum {
 #endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
+#if CONFIG_OPT_INTER_MODE_CTX
+#define INTER_MODE_CONTEXTS 5
+#define DRL_MODE_CONTEXTS INTER_MODE_CONTEXTS
+#define INTER_COMPOUND_SAME_REFS_TYPES (INTER_COMPOUND_REF_TYPES - 1)
+#else
 #define GLOBALMV_OFFSET 3
 #define REFMV_OFFSET 4
-
-#if CONFIG_EXPLICIT_BAWP
-// Explicit BAWP scaling factor counts
-#define EXPLICIT_BAWP_SCALE_CNT 2
-// Explicit BAWP scaling factor context counts
-#define BAWP_SCALES_CTX_COUNT 3
-// The allowed value range for bawp_flag
-#define BAWP_OPTION_CNT 4
-#endif  // CONFIG_EXPLICIT_BAWP
 
 #define NEWMV_CTX_MASK ((1 << GLOBALMV_OFFSET) - 1)
 #define GLOBALMV_CTX_MASK ((1 << (REFMV_OFFSET - GLOBALMV_OFFSET)) - 1)
@@ -1105,6 +1104,16 @@ enum {
 #else
 #define INTER_COMPOUND_MODE_CONTEXTS 8
 #endif  // CONFIG_C076_INTER_MOD_CTX
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
+#if CONFIG_EXPLICIT_BAWP
+// Explicit BAWP scaling factor counts
+#define EXPLICIT_BAWP_SCALE_CNT 2
+// Explicit BAWP scaling factor context counts
+#define BAWP_SCALES_CTX_COUNT 3
+// The allowed value range for bawp_flag
+#define BAWP_OPTION_CNT 4
+#endif  // CONFIG_EXPLICIT_BAWP
 
 // Number of supported factors for compound weighted prediction
 #define MAX_CWP_NUM 5

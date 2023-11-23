@@ -242,8 +242,13 @@ typedef struct frame_contexts {
                                 [CDF_SIZE(NUM_BASE_LEVELS + 2)];
   aom_cdf_prob coeff_br_ph_cdf[COEFF_BR_PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
 
+#if CONFIG_OPT_INTER_MODE_CTX
+  aom_cdf_prob inter_single_mode_cdf[INTER_MODE_CONTEXTS]
+                                    [CDF_SIZE(INTER_SINGLE_MODES)];
+#else
   aom_cdf_prob inter_single_mode_cdf[INTER_SINGLE_MODE_CONTEXTS]
                                     [CDF_SIZE(INTER_SINGLE_MODES)];
+#endif  // CONFIG_OPT_INTER_MODE_CTX
   aom_cdf_prob inter_warp_mode_cdf[WARPMV_MODE_CONTEXT][CDF_SIZE(2)];
 
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
@@ -256,9 +261,17 @@ typedef struct frame_contexts {
                                 [CDF_SIZE(REFINEMV_NUM_MODES)];
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_OPT_INTER_MODE_CTX
+  aom_cdf_prob use_optflow_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(2)];
+  aom_cdf_prob inter_compound_mode_cdf[INTER_MODE_CONTEXTS]
+                                      [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
+  aom_cdf_prob inter_compound_mode_same_refs_cdf[INTER_MODE_CONTEXTS][CDF_SIZE(
+      INTER_COMPOUND_SAME_REFS_TYPES)];
+#else
   aom_cdf_prob use_optflow_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
                                       [CDF_SIZE(INTER_COMPOUND_REF_TYPES)];
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
   aom_cdf_prob cwp_idx_cdf[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][CDF_SIZE(2)];
   aom_cdf_prob jmvd_scale_mode_cdf[CDF_SIZE(JOINT_NEWMV_SCALE_FACTOR_CNT)];
@@ -779,6 +792,9 @@ static INLINE int av1_ceil_log2(int n) {
 }
 
 static INLINE int16_t inter_single_mode_ctx(int16_t mode_ctx) {
+#if CONFIG_OPT_INTER_MODE_CTX
+  return mode_ctx;
+#else
   // refmv_ctx values 2 and 4 are mapped to binary 1 while the rest map to 0.
   // This is intended to capture the case of ref_match_count >= 2 in
   // setup_ref_mv_list() function in mvref_common.c as a limited binary
@@ -803,10 +819,14 @@ static INLINE int16_t inter_single_mode_ctx(int16_t mode_ctx) {
 #endif  // CONFIG_C076_INTER_MOD_CTX
   assert(ctx < INTER_SINGLE_MODE_CONTEXTS);
   return ctx;
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 }
 
 // Note mode_ctx is the same context used to decode mode information
 static INLINE int16_t av1_drl_ctx(int16_t mode_ctx) {
+#if CONFIG_OPT_INTER_MODE_CTX
+  return mode_ctx;
+#else
 #if CONFIG_C076_INTER_MOD_CTX
   return mode_ctx & NEWMV_CTX_MASK;
 #else
@@ -817,6 +837,7 @@ static INLINE int16_t av1_drl_ctx(int16_t mode_ctx) {
   assert(ctx < DRL_MODE_CONTEXTS);
   return ctx;
 #endif  // CONFIG_C076_INTER_MOD_CTX
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 }
 
 static const int comp_idx_to_opfl_mode[INTER_COMPOUND_REF_TYPES] = {
@@ -842,6 +863,18 @@ static INLINE int opfl_get_comp_idx(int mode) {
     default: assert(0); return 0;
   }
 }
+
+#if CONFIG_OPT_INTER_MODE_CTX
+static const int
+    comp_mode_idx_to_mode_signal_idx[INTER_COMPOUND_SAME_REFS_TYPES + 1] = {
+      0, 1, 1, 2, 3, 4, 5,
+    };
+
+static const int
+    comp_mode_signal_idx_to_mode_idx[INTER_COMPOUND_SAME_REFS_TYPES + 1] = {
+      0, 1, 3, 4, 5, 6,
+    };
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 
 // Returns the context for palette color index at row 'r' and column 'c',
 // along with the 'color_order' of neighbors and the 'color_idx'.

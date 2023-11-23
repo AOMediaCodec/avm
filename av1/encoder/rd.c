@@ -626,7 +626,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #endif  // CONFIG_CONTEXT_DERIVATION && !CONFIG_SKIP_TXFM_OPT
 
+#if CONFIG_OPT_INTER_MODE_CTX
+    for (i = 0; i < INTER_MODE_CONTEXTS; ++i) {
+#else
     for (i = 0; i < INTER_SINGLE_MODE_CONTEXTS; ++i) {
+#endif  // CONFIG_OPT_INTER_MODE_CTX
       av1_cost_tokens_from_cdf(mode_costs->inter_single_mode_cost[i],
                                fc->inter_single_mode_cdf[i], NULL);
     }
@@ -652,9 +656,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT || CONFIG_OPTIMIZE_CTX_TIP_WARP
 
-    for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i)
+#if CONFIG_OPT_INTER_MODE_CTX
+    for (i = 0; i < INTER_MODE_CONTEXTS; ++i) {
+#else
+    for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i) {
+#endif  // CONFIG_OPT_INTER_MODE_CTX
       av1_cost_tokens_from_cdf(mode_costs->use_optflow_cost[i],
                                fc->use_optflow_cdf[i], NULL);
+    }
 
     for (j = 0; j < NUM_MV_PREC_MPP_CONTEXT; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->pb_block_mv_mpp_flag_costs[j],
@@ -672,10 +681,23 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              fc->jmvd_scale_mode_cdf, NULL);
     av1_cost_tokens_from_cdf(mode_costs->jmvd_amvd_scale_mode_cost,
                              fc->jmvd_amvd_scale_mode_cdf, NULL);
+#if CONFIG_OPT_INTER_MODE_CTX
+    for (i = 0; i < INTER_MODE_CONTEXTS; ++i) {
+#else
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i) {
+#endif  // CONFIG_OPT_INTER_MODE_CTX
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],
                                fc->inter_compound_mode_cdf[i], NULL);
     }
+
+#if CONFIG_OPT_INTER_MODE_CTX
+    for (i = 0; i < INTER_MODE_CONTEXTS; ++i) {
+      av1_cost_tokens_from_cdf(
+          mode_costs->inter_compound_mode_same_refs_cost[i],
+          fc->inter_compound_mode_same_refs_cdf[i], NULL);
+    }
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
 #if CONFIG_D149_CTX_MODELING_OPT
     av1_cost_tokens_from_cdf(mode_costs->compound_type_cost,
                              fc->compound_type_cdf, NULL);

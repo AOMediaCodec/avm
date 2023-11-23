@@ -275,10 +275,23 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                                                  const MB_MODE_INFO *const mbmi,
                                                  const int16_t mode_ctx) {
   assert(is_inter_compound_mode(mode));
-  int comp_mode_idx = opfl_get_comp_idx(mode);
-  aom_write_symbol(w, comp_mode_idx,
-                   xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
-                   INTER_COMPOUND_REF_TYPES);
+
+  const int comp_mode_idx = opfl_get_comp_idx(mode);
+#if CONFIG_OPT_INTER_MODE_CTX
+  if (is_new_nearmv_pred_mode_disallowed(mbmi)) {
+    const int signal_mode_idx = comp_mode_idx_to_mode_signal_idx[comp_mode_idx];
+    aom_write_symbol(w, signal_mode_idx,
+                     xd->tile_ctx->inter_compound_mode_same_refs_cdf[mode_ctx],
+                     INTER_COMPOUND_SAME_REFS_TYPES);
+  } else {
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+    aom_write_symbol(w, comp_mode_idx,
+                     xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
+                     INTER_COMPOUND_REF_TYPES);
+#if CONFIG_OPT_INTER_MODE_CTX
+  }
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
       opfl_allowed_for_cur_refs(cm,
 #if CONFIG_COMPOUND_4XN
@@ -2155,6 +2168,10 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 
 static INLINE int16_t mode_context_analyzer(
     const int16_t mode_context, const MV_REFERENCE_FRAME *const rf) {
+#if CONFIG_OPT_INTER_MODE_CTX
+  (void)rf;
+  return mode_context;
+#else
   if (!is_inter_ref_frame(rf[1])) return mode_context;
 
 #if CONFIG_C076_INTER_MOD_CTX
@@ -2167,6 +2184,7 @@ static INLINE int16_t mode_context_analyzer(
       newmv_ctx, COMP_NEWMV_CTXS - 1)];
   return comp_ctx;
 #endif  // CONFIG_C076_INTER_MOD_CTX
+#endif  // CONFIG_OPT_INTER_MODE_CTX
 }
 
 static INLINE int_mv get_ref_mv_from_stack(

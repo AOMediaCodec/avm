@@ -507,8 +507,21 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
         use_optical_flow_cost +=
             mode_costs->use_optflow_cost[mode_context][use_optical_flow];
     }
-    return use_optical_flow_cost +
-           mode_costs->inter_compound_mode_cost[mode_context][comp_mode_idx];
+
+#if CONFIG_OPT_INTER_MODE_CTX
+    if (is_new_nearmv_pred_mode_disallowed(mbmi)) {
+      const int signal_mode_idx =
+          comp_mode_idx_to_mode_signal_idx[comp_mode_idx];
+      return use_optical_flow_cost +
+             mode_costs->inter_compound_mode_same_refs_cost[mode_context]
+                                                           [signal_mode_idx];
+    } else {
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+      return use_optical_flow_cost +
+             mode_costs->inter_compound_mode_cost[mode_context][comp_mode_idx];
+#if CONFIG_OPT_INTER_MODE_CTX
+    }
+#endif  // CONFIG_OPT_INTER_MODE_CTX
   }
 
   assert(is_inter_mode(mode));
@@ -2208,6 +2221,7 @@ static int64_t motion_mode_rd(
 
         if (warpmv_with_mvd_flag && !allow_warpmv_with_mvd_coding(cm, mbmi))
           continue;
+
         mbmi->warpmv_with_mvd_flag = warpmv_with_mvd_flag;
 
         // Only WARP_DELTA and WARPED_CAUSAL are supported for WARPMV mode
@@ -6090,7 +6104,6 @@ static int64_t handle_inter_mode(
             }
 #endif  // CONFIG_SEP_COMP_DRL
 #endif
-
                     // Collect mode stats for multiwinner mode processing
                     store_winner_mode_stats(
                         &cpi->common, x, mbmi, rd_stats, rd_stats_y,
@@ -10034,6 +10047,18 @@ static INLINE int is_tip_mode(PREDICTION_MODE mode) {
   return (mode == NEARMV || mode == NEWMV || mode == AMVDNEWMV);
 }
 
+#if CONFIG_OPT_INTER_MODE_CTX
+static INLINE int is_compound_mode_disallowed(PREDICTION_MODE mode,
+                                              int ref_frame0, int ref_frame1) {
+  if (ref_frame0 == ref_frame1 &&
+      (mode == NEW_NEARMV || mode == NEW_NEARMV_OPTFLOW)) {
+    return 1;
+  }
+
+  return 0;
+}
+#endif  // CONFIG_OPT_INTER_MODE_CTX
+
 // TODO(chiyotsai@google.com): See the todo for av1_rd_pick_intra_mode_sb.
 void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                struct TileDataEnc *tile_data,
@@ -10389,6 +10414,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         if (is_inter_ref_frame(second_ref_frame) &&
 #if CONFIG_SAME_REF_COMPOUND
             ((second_ref_frame < ref_frame) ||
+#if CONFIG_OPT_INTER_MODE_CTX
+             is_compound_mode_disallowed(this_mode, ref_frame,
+                                         second_ref_frame) ||
+#endif  // CONFIG_OPT_INTER_MODE_CTX
              ((second_ref_frame == ref_frame) &&
               (ref_frame >= cm->ref_frames_info.num_same_ref_compound))))
 #else
@@ -10407,9 +10436,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         const int comp_pred = is_inter_ref_frame(second_ref_frame);
 
 #if CONFIG_IBC_SR_EXT
-        init_mbmi(mbmi, this_mode, ref_frames, cm, xd, xd->sbi
-
-        );
+        init_mbmi(mbmi, this_mode, ref_frames, cm, xd, xd->sbi);
 #else
         init_mbmi(mbmi, this_mode, ref_frames, cm, xd->sbi);
 #endif  // CONFIG_IBC_SR_EXT
