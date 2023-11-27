@@ -214,18 +214,29 @@ static const aom_cdf_prob
                                                     { AOM_CDF2(32203) },
                                                     { AOM_CDF2(32283) } } };
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-
+#if CONFIG_ENABLE_MHCCP
 #if CONFIG_IMPROVED_CFL
 #if CONFIG_ENTROPY_PARA
-static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
-  AOM_CDF2(16384), 0
-};
+static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
+    CFL_TYPE_COUNT - 1)] = { AOM_CDF3(16384, 23000), 0 };
 #else
 static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
-  AOM_CDF2(16384)
+  AOM_CDF4(18000, 24000, 29000)
 };
 #endif  // CONFIG_ENTROPY_PARA
+#else
+static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
+    CFL_TYPE_COUNT - 1)] = { AOM_CDF3(16384, 23000) };
 #endif
+#endif  // CONFIG_ENABLE_MHCCP
+#if CONFIG_ENABLE_MHCCP
+static const aom_cdf_prob default_filter_dir_cdf[7][CDF_SIZE(
+    CFL_MULTI_PARAM_H - CFL_MULTI_PARAM_V + 1)] = {
+  { AOM_CDF2(13000), 0 }, { AOM_CDF2(10000), 0 }, { AOM_CDF2(7000), 0 },
+  { AOM_CDF2(4000), 0 },  { AOM_CDF2(7000), 0 },  { AOM_CDF2(10000), 0 },
+  { AOM_CDF2(13000), 0 }
+};
+#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_AIMC
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)] = {
@@ -5820,6 +5831,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_IMPROVED_CFL
   av1_copy(fc->cfl_index_cdf, default_cfl_index_cdf);
 #endif
+#if CONFIG_ENABLE_MHCCP
+  av1_copy(fc->filter_dir_cdf, default_filter_dir_cdf);
+#endif  // CONFIG_ENABLE_MHCCP
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
 #if CONFIG_EXT_RECUR_PARTITIONS
   av1_copy(fc->do_split_cdf, default_do_split_cdf);

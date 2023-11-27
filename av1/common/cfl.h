@@ -37,8 +37,8 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
     return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
   // Spec: CfL is available to luma partitions lesser than or equal to 32x32
-  return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= 32 &&
-                            block_size_high[bsize] <= 32);
+  return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= CFL_BUF_LINE &&
+                            block_size_high[bsize] <= CFL_BUF_LINE);
 }
 
 // Do we need to save the luma pixels from the current block,
@@ -76,6 +76,43 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
                             mbmi->uv_mode == UV_CFL_PRED);
 }
 
+#if CONFIG_ENABLE_MHCCP
+
+// Derive multi parameters for MHCCP
+void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
+                                 int above_lines, int left_lines, int ref_width,
+                                 int ref_height, int dir);
+
+// ldl decomposition
+bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                int64_t diag[MHCCP_NUM_PARAMS], int numEq);
+
+// ldl transpose back substitution
+void ldl_transpose_back_substitution(
+    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS], int64_t *y, int64_t *z,
+    int numEq);
+
+// ldl back substitution
+void ldl_back_substitution(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                           int64_t *z, int64_t *x, int numEq);
+
+// Solve ldl fuction
+void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+               int64_t diag[MHCCP_NUM_PARAMS], int64_t *y, int64_t *x,
+               int numEq, bool decompOk);
+
+// ldl decomposition
+bool ldl_decompose(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                   int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                   int64_t diag[MHCCP_NUM_PARAMS], int numEq);
+
+// Get chroma prediction with MHCCP
+void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
+                            bool have_left, int dst_stride, int64_t *alpha_q3,
+                            int bit_depth, int width, int height, int dir);
+#endif  // CONFIG_ENABLE_MHCCP
+
 static INLINE int get_scaled_luma_q0(int alpha_q3, int16_t pred_buf_q3) {
   int scaled_luma_q6 = alpha_q3 * pred_buf_q3;
   return ROUND_POWER_OF_TWO_SIGNED(scaled_luma_q6, (6 + CFL_ADD_BITS_ALPHA));
@@ -87,7 +124,8 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
 }
 
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                       TX_SIZE tx_size, int plane);
+                       TX_SIZE tx_size, int plane, bool have_top,
+                       bool have_left, int above_lines, int left_lines);
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
 #if CONFIG_ADAPTIVE_DS_FILTER
@@ -128,6 +166,12 @@ void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
                                       TX_SIZE tx_size);
+//// Get neighbor luma reconstruction pixels
+// void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
+//                                       MACROBLOCKD *const xd, int row, int
+//                                       col, TX_SIZE tx_size, int* above_lines,
+//                                       int* left_lines, int* ref_width, int*
+//                                       ref_height);
 
 // Calculate luma DC
 void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size);

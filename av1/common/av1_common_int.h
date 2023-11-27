@@ -2412,6 +2412,17 @@ static INLINE int get_fsc_mode_ctx(const MACROBLOCKD *xd, const int is_key) {
   return ctx;
 }
 
+#if CONFIG_ENABLE_MHCCP
+static INLINE aom_cdf_prob *get_mhccp_dir_cdf(const MACROBLOCKD *xd,
+                                              const BLOCK_SIZE bsize) {
+  FRAME_CONTEXT *tile_ctx = xd->tile_ctx;
+  assert(bsize != BLOCK_INVALID);
+  const uint8_t fsc_size_group = fsc_bsize_groups[bsize];
+  assert(fsc_size_group < FSC_BSIZE_CONTEXTS);
+  return tile_ctx->filter_dir_cdf[fsc_size_group];
+}
+#endif  // CONFIG_ENABLE_MHCCP
+
 static INLINE aom_cdf_prob *get_fsc_mode_cdf(const MACROBLOCKD *xd,
                                              const BLOCK_SIZE bsize,
                                              const int is_key) {

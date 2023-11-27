@@ -1956,9 +1956,243 @@ void av1_predict_intra_block(
   );
   return;
 }
+#if CONFIG_ENABLE_MHCCP
 
+void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
+                                        MACROBLOCKD *const xd, int row, int col,
+                                        TX_SIZE tx_size, int *above_lines,
+                                        int *left_lines, int *ref_width,
+                                        int *ref_height) {
+  CFL_CTX *const cfl = &xd->cfl;
+  struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+
+  int input_stride = pd->dst.stride;
+  uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
+
+  const int sub_x = cfl->subsampling_x;
+  const int sub_y = cfl->subsampling_y;
+  int width = tx_size_wide[tx_size] << sub_x;
+  int height = tx_size_high[tx_size] << sub_y;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int have_top = 0, have_left = 0;
+  set_have_top_and_left(&have_top, &have_left, xd, row, col, 0);
+#else
+  const int have_top =
+      row || (sub_y ? xd->chroma_up_available : xd->up_available);
+  const int have_left =
+      col || (sub_x ? xd->chroma_left_available : xd->left_available);
+#endif
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+  BLOCK_SIZE bsize = mbmi->sb_type[1];
+  const int mi_wide = mi_size_wide[bsize];
+  const int mi_high = mi_size_high[bsize];
+
+  const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
+  const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
+  *above_lines =
+      have_top ? (((int)((xd->mi_row - row_offset) -
+                         (int)((LINE_NUM + 1) >> (MI_SIZE_LOG2 >> sub_y))) <
+                   xd->tile.mi_row_start)
+                      ? ((xd->mi_row - row_offset - xd->tile.mi_row_start)
+                         << MI_SIZE_LOG2)
+                      : ((LINE_NUM + 1) << sub_y))
+               : 0;  // This is luma line num
+  *left_lines =
+      have_left ? (((int)((xd->mi_col - col_offset) -
+                          (int)((LINE_NUM + 1) >> (MI_SIZE_LOG2 >> sub_x))) <
+                    xd->tile.mi_col_start)
+                       ? ((xd->mi_col - col_offset - xd->tile.mi_col_start)
+                          << MI_SIZE_LOG2)
+                       : ((LINE_NUM + 1) << sub_x))
+                : 0;
+  // Distance between the bottom edge of this prediction block to
+  // the frame bottom edge
+  int hpx = pd->height;
+  int txw = pd->width;
+
+  const int x = col << MI_SIZE_LOG2;
+  const int xr =
+      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_col_end - mi_col - mi_wide, 2 - sub_x) +
+      txw - x - width;
+  const int y = row << MI_SIZE_LOG2;
+  const int txh = tx_size_high_unit[tx_size];
+  const int yd =
+      ARITHMETIC_LEFT_SHIFT(xd->tile.mi_row_end - mi_row - mi_high, 2 - sub_y) +
+      hpx - y - height;
+  const int right_available =
+      xd->mi_col + (col + (txw >> MI_SIZE_LOG2)) <
+      AOMMIN(xd->tile.mi_col_end, cm->width >> MI_SIZE_LOG2);
+  const int bottom_available =
+      (yd > 0) && (xd->mi_row + (row + (txh >> MI_SIZE_LOG2)) <
+                   AOMMIN(xd->tile.mi_row_end, cm->height >> MI_SIZE_LOG2));
+
+  const BLOCK_SIZE init_bsize = bsize;
+  // force 4x4 chroma component block size.
+  if (sub_x || sub_y) {
+    bsize = mbmi->chroma_ref_info.bsize_base;
+  }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int px_top_right = 0;
+  const int have_top_right =
+      has_top_right(cm, xd, bsize, mi_row - row_offset, mi_col - col_offset,
+                    have_top, right_available, tx_size, row, col, sub_x, sub_y,
+                    xr, &px_top_right, bsize != init_bsize);
+#else
+  const int have_top_right = has_top_right(cm, bsize, xd->mi_row, xd->mi_col,
+                                           have_top, right_available, partition,
+                                           tx_size, row, col, sub_x, sub_y);
+#endif
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int px_bottom_left = 0;
+  const int have_bottom_left =
+      has_bottom_left(cm, xd, bsize, mi_row - row_offset, mi_col - col_offset,
+                      bottom_available, have_left, tx_size, row, col, sub_x,
+                      sub_y, yd, &px_bottom_left, bsize != init_bsize);
+#else
+  const int have_bottom_left =
+      has_bottom_left(cm, bsize, xd->mi_row, xd->mi_col, bottom_available,
+                      have_left, partition, tx_size, row, col, sub_x, sub_y);
+#endif
+
+  *ref_width = AOMMIN(128, *left_lines + width +
+                               (have_top_right && width > 4
+                                    ? AOMMIN((px_top_right << sub_x), width)
+                                    : 0));
+  if ((((xd->mi_col + col) << MI_SIZE_LOG2) + width +
+       (have_top_right ? AOMMIN((px_top_right << sub_x), width) : 0)) >
+      (int)(xd->tile.mi_col_end << MI_SIZE_LOG2)) {
+    *ref_width = (xd->tile.mi_col_end << MI_SIZE_LOG2) -
+                 ((xd->mi_col + col) << MI_SIZE_LOG2) + *left_lines - 1;
+  }
+
+  *ref_height = AOMMIN(128, *above_lines + height +
+                                (have_bottom_left && height > 4
+                                     ? AOMMIN((px_bottom_left << sub_y), height)
+                                     : 0));
+  if ((((xd->mi_row + row) << MI_SIZE_LOG2) + height +
+       (have_bottom_left ? AOMMIN((px_bottom_left << sub_y), height) : 0)) >
+      (int)(xd->tile.mi_row_end << MI_SIZE_LOG2)) {
+    *ref_height = *above_lines + (xd->tile.mi_row_end << MI_SIZE_LOG2) -
+                  ((xd->mi_row + row) << MI_SIZE_LOG2) - 1;
+  }
+
+  memset(cfl->mhccp_ref_buf_q3[0], 0, sizeof(cfl->mhccp_ref_buf_q3[0]));
+
+  uint16_t *output_q3 = cfl->mhccp_ref_buf_q3[0];
+  int output_stride = CFL_BUF_LINE * 2;
+  uint16_t *input = dst;
+  if (row_offset > 0)
+    input = input - (row_offset << MI_SIZE_LOG2) * input_stride;
+  if (col_offset > 0) input = input - (col_offset << MI_SIZE_LOG2);
+  input = input - (*above_lines) * input_stride - *left_lines;
+  if ((*above_lines) || (*left_lines)) {
+    if (sub_x && sub_y) {
+      for (int h = 0; h < (*ref_height); h += 2) {
+        for (int w = 0; w < (*ref_width); w += 2) {
+          const int bot = w + input_stride;
+          if ((h >= *above_lines && w >= *left_lines + width) ||
+              (h >= *above_lines + height && w >= *left_lines))
+            continue;
+#if CONFIG_ADAPTIVE_DS_FILTER
+          if (cm->seq_params.enable_cfl_ds_filter == 1) {
+            output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 2 * input[w] +
+                                input[w + 1] + input[bot + AOMMAX(-1, -w)] +
+                                2 * input[bot] + input[bot + 1];
+          } else if (cm->seq_params.enable_cfl_ds_filter == 2) {
+#if CONFIG_CFL_IMPROVEMENTS
+            const int top = h != 0 ? w - input_stride : w;
+            output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 4 * input[w] +
+                                input[w + 1] + input[top] + input[bot];
+#else
+            output_q3[w >> 1] = input[w] * 8;
+#endif
+          } else {
+            output_q3[w >> 1] =
+                (input[w] + input[w + 1] + input[bot] + input[bot + 1] + 2)
+                << 1;
+          }
+#else
+#if CONFIG_IMPROVED_CFL
+          output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 2 * input[i] +
+                              input[i + 1] + input[bot + AOMMAX(-1, -i)] +
+                              2 * input[bot] + input[bot + 1];
+#else
+          output_q3[i >> 1] =
+              (input[i] + input[i + 1] + input[bot] + input[bot + 1] + 2) << 1;
+#endif
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+        }
+        output_q3 += output_stride;
+        input += (input_stride << 1);
+      }
+
+    }
+#if CONFIG_ADPTIVE_DS_422
+    else if (sub_x) {
+      input = dst - input_stride;
+      for (int i = 0; i < width; i += 2) {
+#if CONFIG_ADAPTIVE_DS_FILTER
+        const int filter_type = cm->seq_params.enable_cfl_ds_filter;
+        if (filter_type == 1) {
+          output_q3[i >> 1] =
+              (input[AOMMAX(0, i - 1)] + 2 * input[i] + input[i + 1]) << 1;
+        } else if (filter_type == 2) {
+          output_q3[i >> 1] = input[i] << 3;
+        } else {
+          output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
+        }
+#else
+        output_q3[i >> 1] = input[i] << 3;
+#endif  // CONFIG_ADAPTIVE_DS_FILTER
+      }
+#endif                   // CONFIG_ADPTIVE_DS_422
+    } else if (sub_y) {  // @todo extend for 422
+      input = dst - 2 * input_stride;
+      for (int i = 0; i < width; ++i) {
+        const int bot = i + input_stride;
+        output_q3[i] = (input[i] + input[bot]) << 2;
+      }
+    } else {  // @todo extend for 444
+      input = dst - input_stride;
+      for (int i = 0; i < width; ++i) output_q3[i] = input[i] << 3;
+    }
+  }
+}
+
+void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
+                                          int row, int col, TX_SIZE tx_size,
+                                          int above_lines, int left_lines,
+                                          int ref_width, int ref_height) {
+  CFL_CTX *const cfl = &xd->cfl;
+  struct macroblockd_plane *const pd = &xd->plane[plane];
+  int input_stride = pd->dst.stride;
+  uint16_t *dst = &pd->dst.buf[(row * pd->dst.stride + col) << MI_SIZE_LOG2];
+
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+
+  memset(cfl->mhccp_ref_buf_q3[plane], 0, sizeof(cfl->mhccp_ref_buf_q3[plane]));
+
+  uint16_t *output_q3 = cfl->mhccp_ref_buf_q3[plane];
+  int output_stride = CFL_BUF_LINE * 2;
+  uint16_t *input = dst - above_lines * input_stride - left_lines;
+  if (above_lines || left_lines) {
+    for (int h = 0; h < ref_height; ++h) {
+      for (int w = 0; w < ref_width; ++w) {
+        if ((h >= above_lines && w >= left_lines + width) ||
+            (h >= above_lines + height && w >= left_lines))
+          continue;
+        output_q3[w] = input[w];
+      }
+      output_q3 += output_stride;
+      input += input_stride;
+    }
+  }
+}
 #undef ARITHMETIC_LEFT_SHIFT
-
+#endif  // CONFIG_ENABLE_MHCCP
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     int plane, int blk_col, int blk_row,
                                     TX_SIZE tx_size) {
@@ -2039,21 +2273,58 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       cfl_load_dc_pred(xd, dst, dst_stride, tx_size, pred_plane);
     }
 
-    const int luma_tx_size =
-        av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
-    cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
-                                     blk_col << cfl->subsampling_x,
-                                     luma_tx_size);
-    cfl_calc_luma_dc(xd, blk_row, blk_col, tx_size);
-
-    if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
-      cfl_implicit_fetch_neighbor_chroma(cm, xd, plane, blk_row, blk_col,
-                                         tx_size);
+    int above_lines = 0, left_lines = 0, ref_width = 0, ref_height = 0;
+    {
+      const int luma_tx_size =
+          av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
+      if (mbmi->cfl_idx < CFL_MULTI_PARAM_V) {
+        cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
+                                         blk_col << cfl->subsampling_x,
+                                         luma_tx_size);
+        cfl_calc_luma_dc(xd, blk_row, blk_col, tx_size);
+        cfl_implicit_fetch_neighbor_chroma(cm, xd, plane, blk_row, blk_col,
+                                           tx_size);
+      }
+#if CONFIG_ENABLE_MHCCP
+      if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+        cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col,
+                                           tx_size);
+      } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
+        mhccp_implicit_fetch_neighbor_luma(
+            cm, xd, blk_row << cfl->subsampling_y,
+            blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
+            &ref_width, &ref_height);
+        above_lines >>= 1;
+        left_lines >>= 1;
+        ref_width >>= 1;
+        ref_height >>= 1;
+        mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
+                                             tx_size, above_lines, left_lines,
+                                             ref_width, ref_height);
+        mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
+                                    ref_width, ref_height, 0);
+      } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 1) {
+        mhccp_implicit_fetch_neighbor_luma(
+            cm, xd, blk_row << cfl->subsampling_y,
+            blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
+            &ref_width, &ref_height);
+        above_lines >>= 1;
+        left_lines >>= 1;
+        ref_width >>= 1;
+        ref_height >>= 1;
+        mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
+                                             tx_size, above_lines, left_lines,
+                                             ref_width, ref_height);
+        mhccp_derive_multi_param_hv(xd, plane, above_lines, left_lines,
+                                    ref_width, ref_height, 1);
+      }
+#else
       cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col, tx_size);
+#endif  // CONFIG_ENABLE_MHCCP
     }
 #endif
-    cfl_predict_block(xd, dst, dst_stride, tx_size, plane);
-
+    cfl_predict_block(xd, dst, dst_stride, tx_size, plane, above_lines > 0,
+                      left_lines > 0, above_lines, above_lines);
     return;
   }
 

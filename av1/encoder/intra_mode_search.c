@@ -638,13 +638,17 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_AIMC
   get_uv_intra_mode_set(mbmi);
 #if CONFIG_IMPROVED_CFL
+#if CONFIG_ENABLE_MHCCP
+  int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL + CONFIG_ENABLE_MHCCP;
+#else
   int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL;
+#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_UV_CFL
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES + implicit_cfl_mode_num;
        ++mode_idx) {
     mbmi->cfl_idx = 0;
-    // Reorder modes to search. Let the encoder search CFL first, then the rest
-    // modes.
+    // Reorder modes to search. Let the encoder search CFL first, then the
+    // rest modes.
     if (mode_idx == 0) {
       mbmi->cfl_idx = 0;
       mbmi->uv_mode = UV_CFL_PRED;
@@ -653,22 +657,39 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->cfl_idx = 1;
       mbmi->uv_mode = UV_CFL_PRED;
       mbmi->uv_mode_idx = 0;
+    } else if (mode_idx == 2) {
+      mbmi->cfl_idx = 2;
+      mbmi->mh_dir = 0;
+      mbmi->uv_mode = UV_CFL_PRED;
+      mbmi->uv_mode_idx = 0;
+    } else if (mode_idx == 3) {
+      mbmi->cfl_idx = 2;
+      mbmi->mh_dir = 1;
+      mbmi->uv_mode = UV_CFL_PRED;
+      mbmi->uv_mode_idx = 0;
     } else {
       mbmi->cfl_idx = 0;
+#if CONFIG_ENABLE_MHCCP
+      mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 4];
+      mbmi->uv_mode_idx = mode_idx - 4;
+#else
       mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 2];
       mbmi->uv_mode_idx = mode_idx - 2;
+#endif
     }
 #else
-  for (int mode_idx = 0; mode_idx < UV_INTRA_MODES + implicit_cfl_mode_num;
-       ++mode_idx) {
-    int real_mode_idx = mode_idx;
-    mbmi->cfl_idx = 0;
-    if (mode_idx >= UV_INTRA_MODES) {
-      real_mode_idx = UV_INTRA_MODES - 1;
-      mbmi->cfl_idx = mode_idx - real_mode_idx;
+  if (mode_idx >= UV_INTRA_MODES) {
+    real_mode_idx = UV_INTRA_MODES - 1;
+    mbmi->cfl_idx = mode_idx - real_mode_idx;
+#if CONFIG_ENABLE_MHCCP
+    if (mbmi->cfl_idx >= CFL_MULTI_PARAM_V) {
+      mbmi->mh_dir = mbmi->cfl_idx - CFL_MULTI_PARAM_V;
+      mbmi->cfl_idx = CFL_MULTI_PARAM_V;
     }
-    mbmi->uv_mode_idx = real_mode_idx;
-    mbmi->uv_mode = mbmi->uv_intra_mode_list[real_mode_idx];
+#endif  // CONFIG_ENABLE_MHCCP
+  }
+  mbmi->uv_mode_idx = real_mode_idx;
+  mbmi->uv_mode = mbmi->uv_intra_mode_list[real_mode_idx];
 #endif  // CONFIG_UV_CFL
 #else
   for (int mode_idx = 0; mode_idx < UV_INTRA_MODES; ++mode_idx) {
@@ -704,6 +725,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     // Init variables for cfl and angle delta
     int cfl_alpha_rate = 0;
+    int filter_dir_rate = 0;
 #if CONFIG_IMPROVED_CFL
     int cfl_idx_rate = 0;
 #endif
@@ -715,13 +737,20 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #endif
         cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
 #if CONFIG_IMPROVED_CFL
-      cfl_idx_rate = x->mode_costs.cfl_index_cost[mbmi->cfl_idx > 0];
+      cfl_idx_rate = x->mode_costs.cfl_index_cost[mbmi->cfl_idx];
+#if CONFIG_ENABLE_MHCCP
+      if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+        const uint8_t mh_size_group = fsc_bsize_groups[bsize];
+        filter_dir_rate =
+            x->mode_costs.filter_dir_cost[mh_size_group][mbmi->mh_dir];
+      }
+#endif  // CONFIG_ENABLE_MHCCP
 #endif
       if (cfl_alpha_rate == INT_MAX) continue;
     }
 #if CONFIG_AIMC
 #if CONFIG_IMPROVED_CFL
-    mode_cost += cfl_alpha_rate + cfl_idx_rate;
+    mode_cost += cfl_alpha_rate + cfl_idx_rate + filter_dir_rate;
 #else
     mode_cost += cfl_alpha_rate;
 #endif
@@ -970,9 +999,9 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   int this_rate_tokenonly = rd_stats.rate;
   if (!xd->lossless[mbmi->segment_id] &&
       block_signals_txsize(mbmi->sb_type[PLANE_TYPE_Y])) {
-    // av1_pick_uniform_tx_size_type_yrd above includes the cost of the tx_size
-    // in the tokenonly rate, but for intra blocks, tx_size is always coded
-    // (prediction granularity), so we account for it in the full rate,
+    // av1_pick_uniform_tx_size_type_yrd above includes the cost of the
+    // tx_size in the tokenonly rate, but for intra blocks, tx_size is always
+    // coded (prediction granularity), so we account for it in the full rate,
     // not the tokenonly rate.
     this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
   }
@@ -1225,8 +1254,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   av1_init_rd_stats(rd_stats_uv);
   const int num_planes = av1_num_planes(cm);
   if (num_planes > 1) {
-    // TODO(chiyotsai@google.com): Consolidate the chroma search code here with
-    // the one in av1_search_palette_mode.
+    // TODO(chiyotsai@google.com): Consolidate the chroma search code here
+    // with the one in av1_search_palette_mode.
     PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
     const int try_palette =
         cpi->oxcf.tool_cfg.enable_palette &&
@@ -1280,8 +1309,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
     // If we are here, then the encoder has found at least one good intra uv
     // predictor, so we can directly copy its statistics over.
-    // TODO(any): the stats here is probably not right if the current best mode
-    // is cfl.
+    // TODO(any): the stats here is probably not right if the current best
+    // mode is cfl.
     rd_stats_uv->rate = intra_search_state->rate_uv_tokenonly;
     rd_stats_uv->dist = intra_search_state->dist_uvs;
     rd_stats_uv->skip_txfm = intra_search_state->skip_uvs;
@@ -1301,9 +1330,9 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
 
   rd_stats->rate = rd_stats_y->rate + mode_cost_y;
   if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(bsize)) {
-    // av1_pick_uniform_tx_size_type_yrd above includes the cost of the tx_size
-    // in the tokenonly rate, but for intra blocks, tx_size is always coded
-    // (prediction granularity), so we account for it in the full rate,
+    // av1_pick_uniform_tx_size_type_yrd above includes the cost of the
+    // tx_size in the tokenonly rate, but for intra blocks, tx_size is always
+    // coded (prediction granularity), so we account for it in the full rate,
     // not the tokenonly rate.
     rd_stats_y->rate -= tx_size_cost(x, bsize, mbmi->tx_size);
   }
@@ -1786,8 +1815,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 
   // No mode is identified with less rd value than best_rd passed to this
-  // function. In such cases winner mode processing is not necessary and return
-  // best_rd as INT64_MAX to indicate best mode is not identified
+  // function. In such cases winner mode processing is not necessary and
+  // return best_rd as INT64_MAX to indicate best mode is not identified
   if (!beat_best_rd) return INT64_MAX;
 
   // In multi-winner mode processing, perform tx search for few best modes
@@ -1814,9 +1843,9 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         set_mode_eval_params(cpi, x, WINNER_MODE_EVAL);
 
         // Winner mode processing
-        // If previous searches use only the default tx type/no R-D optimization
-        // of quantized coeffs, do an extra search for the best tx type/better
-        // R-D optimization of quantized coeffs
+        // If previous searches use only the default tx type/no R-D
+        // optimization of quantized coeffs, do an extra search for the best
+        // tx type/better R-D optimization of quantized coeffs
         if (intra_block_yrd(cpi, x, bsize,
 #if CONFIG_AIMC
                             mode_costs,
@@ -1836,8 +1865,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
              block_width * block_height * sizeof(*color_map_src));
     }
   } else {
-    // If previous searches use only the default tx type/no R-D optimization of
-    // quantized coeffs, do an extra search for the best tx type/better R-D
+    // If previous searches use only the default tx type/no R-D optimization
+    // of quantized coeffs, do an extra search for the best tx type/better R-D
     // optimization of quantized coeffs
     if (is_winner_mode_processing_enabled(cpi, mbmi, best_mbmi.mode)) {
       // Set params for winner mode evaluation

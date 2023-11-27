@@ -2140,7 +2140,6 @@ int main(int argc, const char **argv_) {
   aom_image_t raw_shift;
   int allocated_raw_shift = 0;
   int input_shift = 0;
-
   struct AvxInputContext input;
   struct AvxEncoderConfig global;
   struct stream_state *streams = NULL;

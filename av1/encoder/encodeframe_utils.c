@@ -702,7 +702,15 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_ENTROPY_STATS
       ++counts->cfl_index[mbmi->cfl_idx];
 #endif
-      update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx > 0, CFL_TYPE_COUNT);
+#if CONFIG_ENABLE_MHCCP
+      update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
+      if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+        aom_cdf_prob *filter_dir_cdf = get_mhccp_dir_cdf(xd, bsize);
+        update_cdf(filter_dir_cdf, mbmi->mh_dir, CFL_MULTI_PARAM_V);
+      }
+#else
+      update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT);
+#endif  // CONFIG_ENABLE_MHCCP
     }
 #endif
 #else
@@ -1490,7 +1498,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
 
 #if CONFIG_IMPROVED_CFL
+#if CONFIG_ENABLE_MHCCP
+  AVERAGE_CDF(ctx_left->filter_dir_cdf, ctx_tr->filter_dir_cdf,
+              CFL_MULTI_PARAM_V);
+  AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
+              CFL_TYPE_COUNT - 1);
+#else
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf, CFL_TYPE_COUNT);
+#endif  // CONFIG_ENABLE_MHCCP
 #endif
 #if CONFIG_AIMC
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,

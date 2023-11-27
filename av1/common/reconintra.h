@@ -322,6 +322,17 @@ static INLINE int av1_get_dy(int angle) {
   }
 }
 
+void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
+                                        MACROBLOCKD *const xd, int row, int col,
+                                        TX_SIZE tx_size, int *above_lines,
+                                        int *left_lines, int *ref_width,
+                                        int *ref_height);
+
+void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
+                                          int row, int col, TX_SIZE tx_size,
+                                          int above_lines, int left_lines,
+                                          int ref_width, int ref_height);
+
 static INLINE int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
                                               int type) {
   const int d = abs(delta);

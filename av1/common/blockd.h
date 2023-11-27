@@ -569,6 +569,10 @@ typedef struct MB_MODE_INFO {
   /*! \brief The implicitly derived scaling factors*/
   int cfl_implicit_alpha[2];  //[u/v]
 #endif
+#if CONFIG_ENABLE_MHCCP
+  uint8_t mh_dir;
+#endif
+  // CONFIG_ENABLE_MHCCP
   /*! \brief Stores the size and colors of palette mode */
   PALETTE_MODE_INFO palette_mode_info;
   /*! \brief Reference line index for multiple reference line selection. */
@@ -684,6 +688,10 @@ typedef struct MB_MODE_INFO {
   /*! \brief Whether we are skipping the current rows or columns. */
   int16_t tx_skip[TXK_TYPE_BUF_LEN];
 #endif
+#if CONFIG_ENABLE_MHCCP
+  /*! \brief The implicitly derived scaling factors*/
+  int64_t mhccp_implicit_param[2][MHCCP_NUM_PARAMS];  //[u/v]
+#endif                                                // CONFIG_ENABLE_MHCCP
 } MB_MODE_INFO;
 
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -1718,6 +1726,10 @@ typedef struct cfl_ctx {
   // Q3 AC contributions (reconstructed luma pixels - tx block avg)
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
 #if CONFIG_IMPROVED_CFL
+#if CONFIG_ENABLE_MHCCP
+  // multi-hypothesis cross component prediction reference area
+  uint16_t mhccp_ref_buf_q3[MAX_MB_PLANE][CFL_BUF_SQUARE * 4];
+#endif  // CONFIG_ENABLE_MHCCP
   // above luma reconstruction buffer
   uint16_t recon_yuv_buf_above[MAX_MB_PLANE][CFL_BUF_LINE];
   // left luma reconstruction buffer

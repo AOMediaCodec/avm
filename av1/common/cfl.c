@@ -585,7 +585,8 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                       TX_SIZE tx_size, int plane) {
+                       TX_SIZE tx_size, int plane, bool have_top,
+                       bool have_left, int above_lines, int left_lines) {
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(is_cfl_allowed(xd));
@@ -593,9 +594,26 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
 #if CONFIG_IMPROVED_CFL
   cfl_compute_parameters_alt(cfl, tx_size);
   int alpha_q3;
-  if (mbmi->cfl_idx == CFL_DERIVED_ALPHA)
+#if CONFIG_ENABLE_MHCCP
+  if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
+    mhccp_predict_hv_hbd_c(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
+                               (uint16_t)above_lines * CFL_BUF_LINE * 2,
+                           dst, have_top, have_left, dst_stride,
+                           mbmi->mhccp_implicit_param[plane - 1], xd->bd,
+                           tx_size_wide[tx_size], tx_size_high[tx_size], 0);
+    return;
+  } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 1) {
+    mhccp_predict_hv_hbd_c(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
+                               (uint16_t)above_lines * CFL_BUF_LINE * 2,
+                           dst, have_top, have_left, dst_stride,
+                           mbmi->mhccp_implicit_param[plane - 1], xd->bd,
+                           tx_size_wide[tx_size], tx_size_high[tx_size], 1);
+    return;
+  } else
+#endif  // CONFIG_ENABLE_MHCCP
+      if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
     alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
-  else {
+  } else {
     alpha_q3 =
         cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, plane - 1);
     alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
@@ -899,3 +917,236 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
             tx_size);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 }
+
+#if CONFIG_ENABLE_MHCCP
+#define NON_LINEAR(V, M, BD) ((V * V + M) >> BD)
+#define BIAS (R) R
+void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
+                                 int above_lines, int left_lines, int ref_width,
+                                 int ref_height, int dir) {
+  CFL_CTX *const cfl = &xd->cfl;
+  MB_MODE_INFO *mbmi = xd->mi[0];
+
+  int count = 0;
+
+  // Collect reference data to input matrix A and target vector Y
+  int16_t A[MHCCP_NUM_PARAMS][MHCCP_MAX_REF_SAMPLES];
+  uint16_t YCb[MHCCP_MAX_REF_SAMPLES];
+  const int16_t mid = (1 << (xd->bd - 1));
+
+  if (above_lines || left_lines) {
+    uint16_t *l = cfl->mhccp_ref_buf_q3[0];
+    uint16_t *c = cfl->mhccp_ref_buf_q3[plane];
+
+    int ref_stride = CFL_BUF_LINE * 2;
+    for (int j = 1; j < ref_height - 1; ++j) {
+      for (int i = 1; i < ref_width - 1; ++i) {
+        if ((i >= left_lines && j >= above_lines)) continue;
+        // 7-tap cross
+        A[0][count] = (l[i + j * ref_stride] >> 3);  // C
+        if (dir == 0) {
+          A[1][count] = (l[i + (j - 1) * ref_stride] >> 3);  // N 1, -1
+          A[2][count] = (l[i + (j + 1) * ref_stride] >> 3);  // S 1,  1
+        } else {
+          A[1][count] = (l[(i - 1) + j * ref_stride] >> 3);  // W 1, -1
+          A[2][count] = (l[(i + 1) + j * ref_stride] >> 3);  // E 1,  1
+        }
+        A[3][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
+        A[4][count] = mid;
+        YCb[count] = c[i + j * ref_stride];
+        ++count;
+      }
+    }
+  }
+
+  if (count > 0) {
+    int64_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
+    int64_t Ty[MHCCP_NUM_PARAMS];
+    memset(ATA, 0x00,
+           sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
+    memset(Ty, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
+    for (int coli0 = 0; coli0 < (MHCCP_NUM_PARAMS); ++coli0) {
+      for (int coli1 = coli0; coli1 < (MHCCP_NUM_PARAMS); ++coli1) {
+        int16_t *col0 = A[coli0];
+        int16_t *col1 = A[coli1];
+
+        for (int rowi = 0; rowi < count; ++rowi) {
+          ATA[coli0][coli1] += col0[rowi] * col1[rowi];
+        }
+      }
+    }
+
+    for (int coli = 0; coli < (MHCCP_NUM_PARAMS); ++coli) {
+      int16_t *col = A[coli];
+
+      for (int rowi = 0; rowi < count; ++rowi) {
+        Ty[coli] += col[rowi] * YCb[rowi];
+      }
+    }
+
+    // Scale the matrix and vector to selected dynamic range
+    int matrixShift = 28 - 2 * xd->bd - (int)ceil(log2(count));
+
+    if (matrixShift > 0) {
+      for (int coli0 = 0; coli0 < MHCCP_NUM_PARAMS; coli0++)
+        for (int coli1 = coli0; coli1 < MHCCP_NUM_PARAMS; coli1++)
+          ATA[coli0][coli1] <<= matrixShift;
+
+      for (int coli = 0; coli < MHCCP_NUM_PARAMS; coli++)
+        Ty[coli] <<= matrixShift;
+    } else if (matrixShift < 0) {
+      matrixShift = -matrixShift;
+
+      for (int coli0 = 0; coli0 < MHCCP_NUM_PARAMS; coli0++)
+        for (int coli1 = coli0; coli1 < MHCCP_NUM_PARAMS; coli1++)
+          ATA[coli0][coli1] >>= matrixShift;
+
+      for (int coli = 0; coli < MHCCP_NUM_PARAMS; coli++)
+        Ty[coli] <<= matrixShift;
+    }
+    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
+    int64_t diag[MHCCP_NUM_PARAMS];
+    memset(U, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
+    memset(diag, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
+    bool decompOk = ldl_decompose(ATA, U, diag, MHCCP_NUM_PARAMS);
+    ldl_solve(U, diag, Ty, mbmi->mhccp_implicit_param[plane - 1],
+              MHCCP_NUM_PARAMS, decompOk);
+  } else {
+    for (int i = 0; i < MHCCP_NUM_PARAMS - 1; ++i) {
+      mbmi->mhccp_implicit_param[plane - 1][i] = 0;
+    }
+    mbmi->mhccp_implicit_param[plane - 1][MHCCP_NUM_PARAMS - 1] =
+        1 << MHCCP_DECIM_BITS;
+  }
+}
+bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                int64_t diag[MHCCP_NUM_PARAMS], int numEq) {
+  for (int i = 0; i < numEq; i++) {
+    diag[i] = A[i][i];
+
+    for (int k = i - 1; k >= 0; k--) {
+      int64_t tmp = FIXED_MULT(U[k][i], U[k][i]);
+      diag[i] -= FIXED_MULT(tmp, diag[k]);
+    }
+
+    if (diag[i] <= 0) {
+      return false;
+    }
+
+    for (int j = i + 1; j < numEq; j++) {
+      int64_t scale = A[i][j];
+
+      for (int k = i - 1; k >= 0; k--) {
+        int64_t tmp = FIXED_MULT(U[k][j], U[k][i]);
+        scale -= FIXED_MULT(tmp, diag[k]);
+      }
+
+      U[i][j] = FIXED_DIV(AOMMAX(scale, 0), diag[i]);
+    }
+  }
+
+  return true;
+}
+
+void ldl_transpose_back_substitution(
+    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS], int64_t *y, int64_t *z,
+    int numEq) {
+  z[0] = y[0];
+
+  for (int i = 1; i < numEq; i++) {
+    int64_t sum = 0;
+
+    for (int j = 0; j < i; j++) {
+      sum += FIXED_MULT(z[j], U[j][i]);
+    }
+
+    z[i] = y[i] - sum;
+  }
+}
+
+void ldl_back_substitution(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                           int64_t *z, int64_t *x, int numEq) {
+  x[numEq - 1] = z[numEq - 1];
+
+  for (int i = numEq - 2; i >= 0; i--) {
+    int64_t sum = 0;
+
+    for (int j = i + 1; j < numEq; j++) {
+      sum += FIXED_MULT(U[i][j], x[j]);
+    }
+
+    x[i] = z[i] - sum;
+  }
+}
+
+bool ldl_decompose(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                   int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                   int64_t diag[MHCCP_NUM_PARAMS], int numEq) {
+  for (int i = 0; i < numEq; i++) {
+    A[i][i] += 1;
+  }
+
+  return ldl_decomp(A, U, diag, numEq);
+}
+
+void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+               int64_t diag[MHCCP_NUM_PARAMS], int64_t *y, int64_t *x,
+               int numEq, bool decomp_ok) {
+  if (decomp_ok) {
+    int64_t aux[MHCCP_NUM_PARAMS];
+    ldl_transpose_back_substitution(U, y, aux, numEq);
+
+    for (int i = 0; i < numEq; i++) {
+      aux[i] = FIXED_DIV(AOMMAX(aux[i], 0), diag[i]);
+    }
+
+    ldl_back_substitution(U, aux, x, numEq);
+  } else {
+    memset(x, 0, sizeof(int64_t) * numEq);
+  }
+}
+
+static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
+  int64_t sum = 0;
+  for (int i = 0; i < numParams; i++) {
+    sum += params[i] * vector[i];
+  }
+  return (int16_t)((sum + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS);
+}
+
+void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
+                            bool have_left, int dst_stride, int64_t *alpha_q3,
+                            int bit_depth, int width, int height, int dir) {
+  const uint16_t mid = (1 << (bit_depth - 1));
+
+  for (int j = 0; j < height; j++) {
+    for (int i = 0; i < width; i++) {
+      uint16_t vector[MHCCP_NUM_PARAMS];
+      vector[0] = input[i] >> 3;  // C
+      uint16_t a =
+          (j - 1 < 0 && !have_top ? input[i] : input[i - CFL_BUF_LINE * 2]) >>
+          3;  // above
+      uint16_t b = (j + 1 >= height ? input[i] : input[i + CFL_BUF_LINE * 2]) >>
+                   3;  // below
+      uint16_t c =
+          (i - 1 < 0 && !have_left ? input[i] : input[i - 1]) >> 3;  // left
+      uint16_t d = (i + 1 >= width ? input[i] : input[i + 1]) >> 3;  // right
+      if (dir == 0) {
+        vector[1] = a;
+        vector[2] = b;
+      } else {
+        vector[1] = c;
+        vector[2] = d;
+      }
+      vector[3] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
+      vector[4] = mid;
+      dst[i] = clip_pixel_highbd(convolve(alpha_q3, vector, MHCCP_NUM_PARAMS),
+                                 bit_depth);
+    }
+    dst += dst_stride;
+    input += CFL_BUF_LINE * 2;
+  }
+}
+#undef NON_LINEAR
+#endif  // CONFIG_ENABLE_MHCCP

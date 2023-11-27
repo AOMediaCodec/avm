@@ -7724,6 +7724,7 @@ BEGIN_PARTITION_SEARCH:
         x->cb_offset[plane] = 0;
       }
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      x->cb_offset[xd->tree_type == CHROMA_PART] = 0;
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, run_type, bsize,
                 pc_tree, xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS

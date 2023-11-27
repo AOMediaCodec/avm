@@ -231,11 +231,25 @@ static uint8_t read_fsc_mode(aom_reader *r, aom_cdf_prob *fsc_cdf) {
 
 #if CONFIG_IMPROVED_CFL
 static uint8_t read_cfl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
+#if CONFIG_ENABLE_MHCCP
+  uint8_t cfl_index = aom_read_symbol(r, ec_ctx->cfl_index_cdf,
+                                      CFL_TYPE_COUNT - 1, ACCT_INFO());
+#else
   uint8_t cfl_index =
       aom_read_symbol(r, ec_ctx->cfl_index_cdf, CFL_TYPE_COUNT, ACCT_INFO());
+#endif  // CONFIG_ENABLE_MHCCP
   return cfl_index;
 }
 #endif
+
+#if CONFIG_ENABLE_MHCCP
+// read mh filter direction
+static uint8_t read_mh_dir(aom_cdf_prob *mh_dir_cdf, aom_reader *r) {
+  uint8_t mh_dir =
+      aom_read_symbol(r, mh_dir_cdf, CFL_MULTI_PARAM_V, ACCT_INFO());
+  return mh_dir;
+}
+#endif  // CONFIG_ENABLE_MHCCP
 
 #if !CONFIG_AIMC
 static UV_PREDICTION_MODE read_intra_mode_uv(FRAME_CONTEXT *ec_ctx,
@@ -1949,7 +1963,17 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #endif  // CONFIG_AIMC
       if (mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_IMPROVED_CFL
-        { mbmi->cfl_idx = read_cfl_index(ec_ctx, r); }
+        {
+          mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+#if CONFIG_ENABLE_MHCCP
+          if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+            const uint8_t mh_size_group = fsc_bsize_groups[bsize];
+            assert(mh_size_group < FSC_BSIZE_CONTEXTS);
+            aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
+            mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);
+          }
+#endif  // CONFIG_ENABLE_MHCCP
+        }
         if (mbmi->cfl_idx == 0)
 #endif
           mbmi->cfl_alpha_idx =
@@ -2488,7 +2512,16 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #endif  // CONFIG_AIMC
     if (mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_IMPROVED_CFL
-      { mbmi->cfl_idx = read_cfl_index(ec_ctx, r); }
+      {
+        mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
+#if CONFIG_ENABLE_MHCCP
+        if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+          const uint8_t mh_size_group = fsc_bsize_groups[bsize];
+          aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
+          mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);
+        }
+#endif  // CONFIG_ENABLE_MHCCP
+      }
       if (mbmi->cfl_idx == 0)
 #endif
       {

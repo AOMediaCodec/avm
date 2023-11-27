@@ -424,8 +424,15 @@ typedef struct frame_contexts {
   aom_cdf_prob fsc_mode_cdf[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS]
                            [CDF_SIZE(FSC_MODES)];
 #if CONFIG_IMPROVED_CFL
+#if CONFIG_ENABLE_MHCCP
+  aom_cdf_prob cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT - 1)];
+#else
   aom_cdf_prob cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)];
+#endif  // CONFIG_ENABLE_MHCCP
 #endif
+#if CONFIG_ENABLE_MHCCP
+  aom_cdf_prob filter_dir_cdf[7][CDF_SIZE(CFL_MULTI_PARAM_V)];
+#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_AIMC
   // y mode cdf
   aom_cdf_prob y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)];

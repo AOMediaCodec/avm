@@ -369,7 +369,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     for (int u = 0; u < CFL_ALPHABET_SIZE; u++)
       cost_u[u] += sign_cost[joint_sign];
   }
-
+#if CONFIG_ENABLE_MHCCP
+  for (int dir = 0; dir < 7; dir++) {
+    av1_cost_tokens_from_cdf(mode_costs->filter_dir_cost[dir],
+                             fc->filter_dir_cdf[dir], NULL);
+  }
+#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_NEW_TX_PARTITION
 #if !CONFIG_TX_PARTITION_CTX
   av1_cost_tokens_from_cdf(mode_costs->intra_2way_txfm_partition_cost,
