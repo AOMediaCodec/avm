@@ -570,9 +570,9 @@ typedef struct MB_MODE_INFO {
   int cfl_implicit_alpha[2];  //[u/v]
 #endif
 #if CONFIG_ENABLE_MHCCP
+  /*! \brief The filter direction of multi hypothesis*/
   uint8_t mh_dir;
-#endif
-  // CONFIG_ENABLE_MHCCP
+#endif  // CONFIG_ENABLE_MHCCP
   /*! \brief Stores the size and colors of palette mode */
   PALETTE_MODE_INFO palette_mode_info;
   /*! \brief Reference line index for multiple reference line selection. */

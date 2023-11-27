@@ -1640,7 +1640,7 @@ static AOM_INLINE void write_cfl_index(FRAME_CONTEXT *ec_ctx, uint8_t cfl_index,
 // write MHCCP filter direction
 static AOM_INLINE void write_mh_dir(aom_cdf_prob *mh_dir_cdf, uint8_t mh_dir,
                                     aom_writer *w) {
-  aom_write_symbol(w, mh_dir, mh_dir_cdf, CFL_MULTI_PARAM_V);
+  aom_write_symbol(w, mh_dir, mh_dir_cdf, MHCCP_MODE_NUM);
 }
 #endif  // CONFIG_ENABLE_MHCCP
 

@@ -230,12 +230,16 @@ static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
 #endif
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_ENABLE_MHCCP
-static const aom_cdf_prob default_filter_dir_cdf[7][CDF_SIZE(
-    CFL_MULTI_PARAM_H - CFL_MULTI_PARAM_V + 1)] = {
-  { AOM_CDF2(13000), 0 }, { AOM_CDF2(10000), 0 }, { AOM_CDF2(7000), 0 },
-  { AOM_CDF2(4000), 0 },  { AOM_CDF2(7000), 0 },  { AOM_CDF2(10000), 0 },
-  { AOM_CDF2(13000), 0 }
-};
+static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
+                                                [CDF_SIZE(MHCCP_MODE_NUM)] = {
+                                                  { AOM_CDF2(13000), 0 },
+                                                  { AOM_CDF2(10000), 0 },
+                                                  { AOM_CDF2(7000), 0 },
+                                                  { AOM_CDF2(4000), 0 },
+                                                  { AOM_CDF2(7000), 0 },
+                                                  { AOM_CDF2(13000), 0 },
+                                                  { AOM_CDF2(10000), 0 }
+                                                };
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_AIMC
 #if CONFIG_ENTROPY_PARA

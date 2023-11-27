@@ -2413,6 +2413,7 @@ static INLINE int get_fsc_mode_ctx(const MACROBLOCKD *xd, const int is_key) {
 }
 
 #if CONFIG_ENABLE_MHCCP
+// Get multi hypothesis cross component prediction context
 static INLINE aom_cdf_prob *get_mhccp_dir_cdf(const MACROBLOCKD *xd,
                                               const BLOCK_SIZE bsize) {
   FRAME_CONTEXT *tile_ctx = xd->tile_ctx;

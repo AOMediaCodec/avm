@@ -639,7 +639,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   get_uv_intra_mode_set(mbmi);
 #if CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
-  int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL + CONFIG_ENABLE_MHCCP;
+  int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL + MHCCP_MODE_NUM;
 #else
   int implicit_cfl_mode_num = CONFIG_IMPROVED_CFL;
 #endif  // CONFIG_ENABLE_MHCCP

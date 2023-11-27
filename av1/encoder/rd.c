@@ -370,7 +370,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       cost_u[u] += sign_cost[joint_sign];
   }
 #if CONFIG_ENABLE_MHCCP
-  for (int dir = 0; dir < 7; dir++) {
+  for (int dir = 0; dir < MHCCP_CONTEXT_GROUP_SIZE; dir++) {
     av1_cost_tokens_from_cdf(mode_costs->filter_dir_cost[dir],
                              fc->filter_dir_cdf[dir], NULL);
   }

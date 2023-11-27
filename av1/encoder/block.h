@@ -905,7 +905,7 @@ typedef struct {
 #endif
 #if CONFIG_ENABLE_MHCCP
   //! cost of signaling filter direction
-  int filter_dir_cost[7][CFL_MULTI_PARAM_V];
+  int filter_dir_cost[MHCCP_CONTEXT_GROUP_SIZE][MHCCP_MODE_NUM];
 #endif  // CONFIG_ENABLE_MHCCP
 
 #if CONFIG_AIMC

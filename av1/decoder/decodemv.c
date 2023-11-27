@@ -243,10 +243,9 @@ static uint8_t read_cfl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
 #endif
 
 #if CONFIG_ENABLE_MHCCP
-// read mh filter direction
+// Read multi hypothesis cross component prediction filter direction
 static uint8_t read_mh_dir(aom_cdf_prob *mh_dir_cdf, aom_reader *r) {
-  uint8_t mh_dir =
-      aom_read_symbol(r, mh_dir_cdf, CFL_MULTI_PARAM_V, ACCT_INFO());
+  uint8_t mh_dir = aom_read_symbol(r, mh_dir_cdf, MHCCP_MODE_NUM, ACCT_INFO());
   return mh_dir;
 }
 #endif  // CONFIG_ENABLE_MHCCP

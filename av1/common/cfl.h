@@ -77,7 +77,6 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 }
 
 #if CONFIG_ENABLE_MHCCP
-
 // Derive multi parameters for MHCCP
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
@@ -166,13 +165,6 @@ void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
                                       TX_SIZE tx_size);
-//// Get neighbor luma reconstruction pixels
-// void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
-//                                       MACROBLOCKD *const xd, int row, int
-//                                       col, TX_SIZE tx_size, int* above_lines,
-//                                       int* left_lines, int* ref_width, int*
-//                                       ref_height);
-
 // Calculate luma DC
 void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size);
 

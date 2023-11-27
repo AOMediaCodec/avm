@@ -1957,7 +1957,6 @@ void av1_predict_intra_block(
   return;
 }
 #if CONFIG_ENABLE_MHCCP
-
 void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                         MACROBLOCKD *const xd, int row, int col,
                                         TX_SIZE tx_size, int *above_lines,

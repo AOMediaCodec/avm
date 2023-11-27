@@ -302,7 +302,6 @@ set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
 
 set_aom_config_var(CONFIG_D072_SKIP_MODE_IMPROVE 1
                    "Enable to improve skip mode")
-
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")
@@ -315,6 +314,8 @@ set_aom_config_var(CONFIG_IMPROVED_CFL 1
                    "Enable improved CfL mode from CWG-C044")
 set_aom_config_var(CONFIG_BLEND_MODE 1
                    "Enable improved intra blend mode from CWG-D046")
+set_aom_config_var(CONFIG_ENABLE_MHCCP 1
+                   "Enable multi hypothesis cross component prediction")
 
 set_aom_config_var(
   CONFIG_PEF 1 "AV2 experiment flag to enable prediction enhancement filter")

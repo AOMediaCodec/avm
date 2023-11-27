@@ -920,7 +920,6 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
 
 #if CONFIG_ENABLE_MHCCP
 #define NON_LINEAR(V, M, BD) ((V * V + M) >> BD)
-#define BIAS (R) R
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
                                  int ref_height, int dir) {
