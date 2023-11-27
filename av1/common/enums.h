@@ -88,7 +88,11 @@ enum {
 #define CCSO_BLK_SIZE 7
 #define CCSO_PADDING_SIZE 5
 #if CONFIG_CCSO_EXT
+#if CONFIG_CCSO_BO_ONLY_OPTION
+#define CCSO_BAND_NUM 128
+#else
 #define CCSO_BAND_NUM 8
+#endif
 #define CCSO_NUM_COMPONENTS 3
 #else
 #define CCSO_BAND_NUM 1

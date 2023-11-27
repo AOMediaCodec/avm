@@ -356,6 +356,9 @@ set_aom_config_var(CONFIG_IST_ANY_SET 1
 set_aom_config_var(CONFIG_D143_CCSO_FM_FLAG 1
                    "Enable CCSO frame level joint flag.")
 
+set_aom_config_var(CONFIG_CCSO_BO_ONLY_OPTION 1
+                   "Enable CCSO band offset only option.")
+
 #
 # Variables in this section control optional features of the build system.
 #
