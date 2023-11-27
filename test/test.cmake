@@ -71,6 +71,7 @@ list(
   "${AOM_ROOT}/test/i420_video_source.h"
   "${AOM_ROOT}/test/level_test.cc"
   "${AOM_ROOT}/test/monochrome_test.cc"
+  "${AOM_ROOT}/test/obmc_encode_test.cc"
   "${AOM_ROOT}/test/resize_test.cc"
   "${AOM_ROOT}/test/y4m_test.cc"
   "${AOM_ROOT}/test/y4m_video_source.h"
