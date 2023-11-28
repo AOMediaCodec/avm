@@ -65,6 +65,7 @@ void ccso_filter_block_hbd_wo_buf_avx2(
 #endif  // CONFIG_CCSO_BO_ONLY_OPTION
 ) {
 #if CONFIG_CCSO_BO_ONLY_OPTION
+  assert(ccso_bo_only == 0);
   (void)ccso_bo_only;
 #endif  // CONFIG_CCSO_BO_ONLY_OPTION
   __m256i cmp_thr1 = _mm256_set1_epi16(quant_step_size);

@@ -717,9 +717,9 @@ static INLINE int count_lut_bits(int8_t *temp_filter_offset
 #endif  // CONFIG_CCSO_EXT
   int temp_bits = 0;
 #if CONFIG_CCSO_BO_ONLY_OPTION
-  int num_eo_iter = ccso_bo_only ? 1 : max_edge_interval;
-  for (int d0 = 0; d0 < num_eo_iter; d0++) {
-    for (int d1 = 0; d1 < num_eo_iter; d1++) {
+  int num_edge_offset_intervals = ccso_bo_only ? 1 : max_edge_interval;
+  for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
+    for (int d1 = 0; d1 < num_edge_offset_intervals; d1++) {
 #else
   for (int d0 = 0; d0 < max_edge_interval; d0++) {
     for (int d1 = 0; d1 < max_edge_interval; d1++) {
@@ -762,9 +762,9 @@ void derive_lut_offset(int8_t *temp_filter_offset
   float temp_offset = 0;
 #if CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_BO_ONLY_OPTION
-  int num_eo_iter = ccso_bo_only ? 1 : max_edge_interval;
-  for (int d0 = 0; d0 < num_eo_iter; d0++) {
-    for (int d1 = 0; d1 < num_eo_iter; d1++) {
+  int num_edge_offset_intervals = ccso_bo_only ? 1 : max_edge_interval;
+  for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
+    for (int d1 = 0; d1 < num_edge_offset_intervals; d1++) {
 #else
   for (int d0 = 0; d0 < max_edge_interval; d0++) {
     for (int d1 = 0; d1 < max_edge_interval; d1++) {

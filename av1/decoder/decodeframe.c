@@ -3871,10 +3871,10 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
             aom_rb_read_bit(rb);
         const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
 #if CONFIG_CCSO_BO_ONLY_OPTION
-        const int num_eo_iter =
+        const int num_edge_offset_intervals =
             cm->ccso_info.ccso_bo_only[plane] ? 1 : max_edge_interval;
-        for (int d0 = 0; d0 < num_eo_iter; d0++) {
-          for (int d1 = 0; d1 < num_eo_iter; d1++) {
+        for (int d0 = 0; d0 < num_edge_offset_intervals; d0++) {
+          for (int d1 = 0; d1 < num_edge_offset_intervals; d1++) {
 #else
       for (int d0 = 0; d0 < max_edge_interval; d0++) {
         for (int d1 = 0; d1 < max_edge_interval; d1++) {
