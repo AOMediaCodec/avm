@@ -1238,7 +1238,7 @@ struct CommonContexts {
 #if CONFIG_THROUGHPUT_ANALYSIS
 struct total_sym_stats {
   /** Frame number (decoding order)*/
-  int frame_dec_order;
+  int64_t frame_dec_order;
   /** Total number of bits*/
   int64_t tot_bits;
   /** total ctx coded symbols. */
@@ -1246,11 +1246,11 @@ struct total_sym_stats {
   /** total bypass coded symbols. */
   int64_t tot_bypass_syms;
   /** peak ctx coded symbols. */
-  int peak_ctx_syms;
+  int64_t peak_ctx_syms;
   /** peak bypass coded symbols. */
-  int peak_bypass_syms;
+  int64_t peak_bypass_syms;
   /** peak bits. */
-  int peak_bits;
+  int64_t peak_bits;
 };
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
 

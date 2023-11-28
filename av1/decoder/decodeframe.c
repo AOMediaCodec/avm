@@ -85,11 +85,11 @@
 #if CONFIG_THROUGHPUT_ANALYSIS
 int64_t tot_ctx_syms = { 0 };
 int64_t tot_bypass_syms = { 0 };
-int max_ctx_syms = { 0 };
-int max_bypass_syms = { 0 };
-int max_bits = { 0 };
+int64_t max_ctx_syms = { 0 };
+int64_t max_bypass_syms = { 0 };
+int64_t max_bits = { 0 };
 int64_t tot_bits = { 0 };
-int tot_frames = { 0 };
+int64_t tot_frames = { 0 };
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
 
 // Checks that the remaining bits start with a 1 and ends with 0s.
@@ -2445,23 +2445,24 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   assert(ctx >= 0);
   aom_cdf_prob *partition_cdf = ec_ctx->partition_cdf[plane][ctx];
   if (has_rows && has_cols) {
-    return (PARTITION_TYPE)aom_read_symbol(
-        r, partition_cdf, partition_cdf_length(bsize), ACCT_INFO());
+    return (PARTITION_TYPE)aom_read_symbol(r, partition_cdf,
+                                           partition_cdf_length(bsize),
+                                           ACCT_INFO("partition_cdf"));
   } else if (!has_rows && has_cols) {
     assert(bsize > BLOCK_8X8);
     aom_cdf_prob cdf[2];
     partition_gather_vert_alike(cdf, partition_cdf, bsize);
     assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_INFO()) ? PARTITION_SPLIT
-                                                : PARTITION_HORZ;
+    return aom_read_cdf(r, cdf, 2, ACCT_INFO("partition_cdf")) ? PARTITION_SPLIT
+                                                               : PARTITION_HORZ;
   } else {
     assert(has_rows && !has_cols);
     assert(bsize > BLOCK_8X8);
     aom_cdf_prob cdf[2];
     partition_gather_horz_alike(cdf, partition_cdf, bsize);
     assert(cdf[1] == AOM_ICDF(CDF_PROB_TOP));
-    return aom_read_cdf(r, cdf, 2, ACCT_INFO()) ? PARTITION_SPLIT
-                                                : PARTITION_VERT;
+    return aom_read_cdf(r, cdf, 2, ACCT_INFO("partition_cdf")) ? PARTITION_SPLIT
+                                                               : PARTITION_VERT;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
@@ -5003,15 +5004,15 @@ static void aom_accounting_cal_total(AV1Decoder *pbi) {
     pbi->common.sym_stats.peak_bits = 0;
   }
   Accounting accounting = pbi->accounting;
-  int frm_ctx_syms = accounting.syms.num_ctx_coded;
-  int frm_bypass_syms = accounting.syms.num_bypass_coded;
-  int frm_bits = 0;
+  int64_t frm_ctx_syms = accounting.syms.num_ctx_coded;
+  int64_t frm_bypass_syms = accounting.syms.num_bypass_coded;
+  int64_t frm_bits = 0;
   for (int i = 0; i < accounting.syms.num_syms; i++) {
     AccountingSymbol sym = accounting.syms.syms[i];
     frm_bits += sym.bits;
   }
-  int peak_ctx_syms = pbi->common.sym_stats.peak_ctx_syms;
-  int peak_bypass_syms = pbi->common.sym_stats.peak_bypass_syms;
+  int64_t peak_ctx_syms = pbi->common.sym_stats.peak_ctx_syms;
+  int64_t peak_bypass_syms = pbi->common.sym_stats.peak_bypass_syms;
   pbi->common.sym_stats.tot_ctx_syms += frm_ctx_syms;
   pbi->common.sym_stats.tot_bypass_syms += frm_bypass_syms;
   pbi->common.sym_stats.frame_dec_order += 1;
