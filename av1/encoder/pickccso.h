@@ -35,6 +35,7 @@ void ccso_pre_compute_class_err(MACROBLOCKD *xd, const int plane,
                                 const uint16_t *dst, uint8_t *src_cls0,
                                 uint8_t *src_cls1, const uint8_t shift_bits);
 #if CONFIG_CCSO_BO_ONLY_OPTION
+// pre compute classes for band offset only option
 void ccso_pre_compute_class_err_bo(MACROBLOCKD *xd, const int plane,
                                    const uint16_t *src_y, const uint16_t *ref,
                                    const uint16_t *dst,

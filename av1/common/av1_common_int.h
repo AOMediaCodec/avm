@@ -366,7 +366,7 @@ enum {
 /** ccso info */
 typedef struct {
 #if CONFIG_CCSO_BO_ONLY_OPTION
-  /** ccso bo only option */
+  /** ccso band offset only option */
   uint8_t ccso_bo_only[CCSO_NUM_COMPONENTS];
 #endif
 #if CONFIG_D143_CCSO_FM_FLAG
