@@ -1817,7 +1817,7 @@ static int64_t motion_mode_rd(
   int pts0[SAMPLES_ARRAY_SIZE], pts_inref0[SAMPLES_ARRAY_SIZE];
 #if CONFIG_COMPOUND_WARP_CAUSAL
   int pts1[SAMPLES_ARRAY_SIZE], pts_inref1[SAMPLES_ARRAY_SIZE];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_WARPMV
   assert(IMPLIES(mbmi->mode == WARPMV, (rate_mv0 == 0)));
 #endif  // CONFIG_WARPMV
@@ -1834,7 +1834,7 @@ static int64_t motion_mode_rd(
   mbmi->wm_params[1].invalid = 1;
 #else
   mbmi->num_proj_ref = 1;  // assume num_proj_ref >=1
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_WARP_REF_LIST
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
@@ -1856,7 +1856,7 @@ static int64_t motion_mode_rd(
       mbmi->num_proj_ref[1] = 0;
 #else
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts0, pts_inref0);
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   }
 #if CONFIG_COMPOUND_WARP_CAUSAL
   const int total_samples0 = mbmi->num_proj_ref[0];
@@ -1865,7 +1865,7 @@ static int64_t motion_mode_rd(
 #else
   const int total_samples = mbmi->num_proj_ref;
   if (total_samples == 0) {
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
     // Do not search WARPED_CAUSAL if there are no samples to use to determine
     // warped parameters.
     allowed_motion_modes &= ~(1 << WARPED_CAUSAL);
@@ -1894,7 +1894,7 @@ static int64_t motion_mode_rd(
 #if CONFIG_COMPOUND_WARP_CAUSAL
   mbmi->num_proj_ref[0] = 0;  // assume num_proj_ref >=1 ??????????
   mbmi->num_proj_ref[1] = 0;  // assume num_proj_ref >=1
-#endif
+#endif                        // CONFIG_COMPOUND_WARP_CAUSAL
   int num_rd_check = 0;
   const MB_MODE_INFO base_mbmi = *mbmi;
   MB_MODE_INFO best_mbmi;
@@ -2110,7 +2110,7 @@ static int64_t motion_mode_rd(
 #else
       mbmi->wm_params.wmtype = DEFAULT_WMTYPE;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
 #if CONFIG_WARPMV
 #if CONFIG_CWG_D067_IMPROVED_WARP
@@ -2221,7 +2221,7 @@ static int64_t motion_mode_rd(
             if ((((this_mode == NEWMV || this_mode == NEW_NEWMV) && !l0_invalid)
 #else
             if ((this_mode == NEWMV
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_FLEX_MVRES
                  && (mbmi->pb_mv_precision >= MV_PRECISION_ONE_PEL))
 #endif
@@ -2257,7 +2257,7 @@ static int64_t motion_mode_rd(
                                    total_samples0, 0,
 #else
                                total_samples,
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
                                    cpi->sf.mv_sf.warp_search_method,
                                    cpi->sf.mv_sf.warp_search_iters);
               if (mv0.as_int != mbmi->mv[0].as_int
@@ -2403,7 +2403,7 @@ static int64_t motion_mode_rd(
 #else
           assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params, mi_row, mi_col);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #endif  // CONFIG_C071_SUBBLK_WARPMV
         // Build the warped predictor
             av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
@@ -2569,7 +2569,7 @@ static int64_t motion_mode_rd(
 #if CONFIG_COMPOUND_WARP_CAUSAL
                         ,
                         0
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
           );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
@@ -2619,7 +2619,7 @@ static int64_t motion_mode_rd(
             continue;
           }
           mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
           } else {
             assert(mbmi->mode == NEWMV);
 
@@ -2760,7 +2760,7 @@ static int64_t motion_mode_rd(
 #if CONFIG_COMPOUND_WARP_CAUSAL
                         ,
                         0
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
           );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
         // Build the warped predictor
@@ -3740,7 +3740,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
 #else
   mbmi->num_proj_ref = 0;
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_SEP_COMP_DRL
   mbmi->ref_mv_idx[0] = ref_mv_idx[0];
@@ -3810,7 +3810,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
 #else
   mbmi->num_proj_ref = 0;
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   if (is_comp_pred) {
     // Only compound_average
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;

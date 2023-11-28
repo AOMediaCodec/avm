@@ -1268,7 +1268,7 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
   if (model->invalid || model->wmtype == IDENTITY) {
 #else
   if (model->wmtype == IDENTITY) {
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
     res.as_int = 0;
     return res;
   }

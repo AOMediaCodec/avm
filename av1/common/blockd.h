@@ -516,7 +516,7 @@ typedef struct MB_MODE_INFO {
   uint8_t num_proj_ref[2];
 #else
   uint8_t num_proj_ref;
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   /*! \brief The number of overlapped neighbors above/left for obmc/warp motion
    * mode. */
   uint8_t overlappable_neighbors[2];
@@ -525,7 +525,7 @@ typedef struct MB_MODE_INFO {
   WarpedMotionParams wm_params[2];
 #else
   WarpedMotionParams wm_params;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL
   /*! \brief The type of intra mode used by inter-intra */
   INTERINTRA_MODE interintra_mode;
   /*! \brief The type of wedge used in interintra mode. */

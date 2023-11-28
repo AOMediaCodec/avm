@@ -826,7 +826,7 @@ static INLINE uint8_t is_valid_warp_parameters(
     *neighbor_params = neighbor_mbmi->wm_params[0];
     return 1;
   }
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   return 0;
 }
 
@@ -4063,14 +4063,14 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                         ,
                         int ref_idx
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 ) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
 #if CONFIG_COMPOUND_WARP_CAUSAL
   const int ref_frame = mbmi->ref_frame[ref_idx];
 #else
   const int ref_frame = mbmi->ref_frame[0];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   const int up_available = xd->up_available;
   const int left_available = xd->left_available;
   int i, mi_step;
@@ -4474,7 +4474,7 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                    ,
                    int ref
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 ) {
   assert(wm_params->invalid == 0);
   const int bw = mi_size_wide[bsize];
@@ -4504,20 +4504,20 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
       submi[mi_y * mi_stride + mi_x]->mv[ref].as_mv.row =
 #else
       submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.row =
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
           clamp(mv_row, MV_LOW + 1, MV_UPP - 1);
 #if CONFIG_COMPOUND_WARP_CAUSAL
       submi[mi_y * mi_stride + mi_x]->mv[ref].as_mv.col =
 #else
       submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.col =
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
           clamp(mv_col, MV_LOW + 1, MV_UPP - 1);
       span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row, mi_col,
                  BLOCK_8X8
 #if CONFIG_COMPOUND_WARP_CAUSAL
                  ,
                  ref
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       );
     }
   }
@@ -4528,7 +4528,7 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                 ,
                 int ref
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 ) {
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
@@ -4543,7 +4543,7 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 #else
       submi[y * stride + x]->mv[0] = submi[0]->mv[0];
       submi[y * stride + x]->mv[1] = submi[0]->mv[1];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
     }
   }
 }
@@ -4565,7 +4565,7 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
       const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[ref_idx];
 #else
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       WarpedMotionParams *queue = warp_param_bank->wpb_buffer[ref_frame];
       const int start_idx = warp_param_bank->wpb_start_idx[ref_frame];
       const int count = warp_param_bank->wpb_count[ref_frame];
@@ -4599,7 +4599,7 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
     same_param &= (mbmi->wm_params[0].wmmat[5] == queue[idx].wmmat[5]);
 
     same_param &= (mbmi->wm_params[0].wmtype == queue[idx].wmtype);
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
         if (same_param) {
           found = i;
@@ -4641,7 +4641,7 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
   queue[idx].wmmat[3] = mbmi->wm_params[0].wmmat[3];
   queue[idx].wmmat[4] = mbmi->wm_params[0].wmmat[4];
   queue[idx].wmmat[5] = mbmi->wm_params[0].wmmat[5];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
       if (count < WARP_PARAM_BANK_SIZE) {
         ++warp_param_bank->wpb_count[ref_frame];
@@ -4651,7 +4651,7 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
 #if CONFIG_COMPOUND_WARP_CAUSAL
     }
   }
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 }
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,

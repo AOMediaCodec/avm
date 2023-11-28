@@ -526,7 +526,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const int *pts_inref0, int total_samples,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                                   int8_t ref,
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
                                   WARP_SEARCH_METHOD search_method,
                                   int num_iterations);
 

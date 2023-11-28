@@ -628,7 +628,7 @@ static void write_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                            mbmi_ext_frame->warp_param_stack[0]
 #else
                            mbmi_ext_frame->warp_param_stack
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #endif  // CONFIG_WARP_REF_LIST
   );
 
@@ -2169,7 +2169,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 #else
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_frame = x->mbmi_ext_frame;
   const PREDICTION_MODE mode = mbmi->mode;
   const int segment_id = mbmi->segment_id;
@@ -2424,7 +2424,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                                             xd->mi_row, xd->mi_col) &&
 #if CONFIG_TIP
           !is_tip_ref_frame(mbmi->ref_frame[0]) &&
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
           !mbmi->skip_mode &&
           (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(mbmi))) {
         int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
@@ -2489,7 +2489,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
           x->mbmi_ext_frame->warp_param_stack[0][mbmi->warp_ref_idx].wm_params;
 #else
           x->mbmi_ext_frame->warp_param_stack[mbmi->warp_ref_idx].wm_params;
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       const int_mv ref_mv =
           get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
                           xd->mi_col, xd->mi_row);
@@ -2685,7 +2685,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                 is_compound_warp_causal_allowed(mbmi)));
 #else
                mbmi->motion_mode == SIMPLE_TRANSLATION);
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
         assert(masked_compound_used);
         // compound_diffwtd, wedge
         assert(mbmi->interinter_comp.type == COMPOUND_WEDGE ||

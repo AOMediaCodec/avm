@@ -1859,7 +1859,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                 is_compound_warp_causal_allowed(mbmi)));
 #else
                mbmi->motion_mode == SIMPLE_TRANSLATION);
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
         const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                          cm->seq_params.enable_masked_compound;

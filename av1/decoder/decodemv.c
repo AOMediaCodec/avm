@@ -574,7 +574,7 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                 ,
                 0
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 }
@@ -3019,7 +3019,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int pts1[SAMPLES_ARRAY_SIZE], pts1_inref[SAMPLES_ARRAY_SIZE];
 #else
   int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   MACROBLOCKD *const xd = &dcb->xd;
 #if CONFIG_FLEX_MVRES
   SB_INFO *sbi = xd->sbi;
@@ -3062,7 +3062,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->num_proj_ref[1] = 0;  // assume num_proj_ref >=1
   mbmi->wm_params[0].invalid = 1;
   mbmi->wm_params[1].invalid = 1;
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
   av1_collect_neighbors_ref_counts(xd);
 
@@ -3562,7 +3562,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   assert(IMPLIES(mbmi->motion_mode != SIMPLE_TRANSLATION,
                  mbmi->mode >= SINGLE_INTER_MODE_START &&
                      mbmi->mode < SINGLE_INTER_MODE_END));
-#endif
+#endif  // !CONFIG_COMPOUND_WARP_CAUSAL
   if (mbmi->motion_mode == WARP_DELTA) {
     read_warp_delta(cm, xd, mbmi, r
 #if CONFIG_WARP_REF_LIST
@@ -3673,7 +3673,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
               is_compound_warp_causal_allowed(mbmi)));
 #else
              mbmi->motion_mode == SIMPLE_TRANSLATION);
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       assert(masked_compound_used);
 
       // compound_diffwtd, wedge
@@ -3835,7 +3835,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->wm_params[0] = neighbor_mi->wm_params[1];
 #else
       mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
     } else {
       assert(mbmi->mode == NEWMV);
 
@@ -3858,7 +3858,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                   ,
                   0
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
     );
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   }
@@ -3921,7 +3921,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #else
   span_submv(cm, xd->submi, xd->mi_row, xd->mi_col,
              mbmi->sb_type[PLANE_TYPE_Y]);
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);

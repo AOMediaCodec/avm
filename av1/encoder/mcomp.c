@@ -5375,7 +5375,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const int *pts_inref0, int total_samples,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                                   int8_t ref,
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
                                   WARP_SEARCH_METHOD search_method,
                                   int num_iterations) {
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -5388,7 +5388,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   MV *best_mv = &mbmi->mv[ref].as_mv;
   WarpedMotionParams best_wm_params = mbmi->wm_params[ref];
   int best_num_proj_ref = mbmi->num_proj_ref[ref];
-#else
+#else  // CONFIG_COMPOUND_WARP_CAUSAL
   MV *best_mv = &mbmi->mv[0].as_mv;
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -5440,7 +5440,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
           mbmi->num_proj_ref[ref] =
 #else
           mbmi->num_proj_ref =
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
               av1_selectSamples(&this_mv, pts, pts_inref, total_samples, bsize);
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -5450,7 +5450,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 #else
         if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                  this_mv, &mbmi->wm_params[0], mi_row,
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
                                  mi_col)) {
 #else
         if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,

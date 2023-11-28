@@ -624,7 +624,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                         ,
                         int ref_idx
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 );
 
 #define INTRABC_DELAY_PIXELS 256  //  Delay of 256 pixels
@@ -936,7 +936,7 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                    ,
                    int ref
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 );
 
 // span the first subblock info into all the rest subblocks in the same block
@@ -945,7 +945,7 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 #if CONFIG_COMPOUND_WARP_CAUSAL
                 ,
                 int ref
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 );
 #endif
 
