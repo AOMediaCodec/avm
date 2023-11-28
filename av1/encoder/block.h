@@ -983,13 +983,13 @@ typedef struct {
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][3];
   //! palette_uv_row_flag_cost
   int palette_uv_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][3];
-#else 
-    //! palette_y_row_flag_cost
+#else
+  //! palette_y_row_flag_cost
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
   //! palette_uv_row_flag_cost
   int palette_uv_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][2];
 #endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS  
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   /**@}*/
 
   /*****************************************************************************

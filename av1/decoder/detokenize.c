@@ -10,16 +10,15 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "config/aom_config.h"
+#include "av1/decoder/detokenize.h"
 
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 #include "av1/common/blockd.h"
-#include "av1/decoder/detokenize.h"
-
 #include "av1/common/common.h"
 #include "av1/common/entropy.h"
 #include "av1/common/idct.h"
+#include "config/aom_config.h"
 
 #if CONFIG_PALETTE_TRANSVERSE
 static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
@@ -32,15 +31,17 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
   int rows = param->rows;
   int cols = param->cols;
 #if CONFIG_PALETTE_D114_RESTRICT
-  const bool transverse_allowed = plane_block_width < 64 && plane_block_height < 64;
+  const bool transverse_allowed =
+      plane_block_width < 64 && plane_block_height < 64;
   int direction;
   if (transverse_allowed) {
-    direction = aom_read_symbol(r, param->direction_cdf, 2, ACCT_STR);
+    direction = aom_read_symbol(r, param->direction_cdf, 2, ACCT_INFO());
   } else {
     direction = 0;
   }
 #else
-  const int direction = aom_read_symbol(r, param->direction_cdf, 2, ACCT_STR);
+  const int direction =
+      aom_read_symbol(r, param->direction_cdf, 2, ACCT_INFO());
 #endif  // CONFIG_PALETTE_D114_RESTRICT
   const int ax1_limit = direction ? rows : cols;
   const int ax2_limit = direction ? cols : rows;
@@ -52,38 +53,38 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
 #if CONFIG_PALETTE_LINE_COPY
     const int ctx = ax2 == 0 ? 3 : prev_identity_row_flag;
     int identity_row_flag =
-        aom_read_symbol(r, identity_row_cdf[ctx], 3, ACCT_STR);
+        aom_read_symbol(r, identity_row_cdf[ctx], 3, ACCT_INFO());
 #else
     const int ctx = ax2 == 0 ? 2 : prev_identity_row_flag;
     int identity_row_flag =
-        aom_read_symbol(r, identity_row_cdf[ctx], 2, ACCT_STR);
-#endif // CONFIG_PALETTE_LINE_COPY
+        aom_read_symbol(r, identity_row_cdf[ctx], 2, ACCT_INFO());
+#endif  // CONFIG_PALETTE_LINE_COPY
     for (int ax1 = 0; ax1 < ax1_limit; ax1++) {
       const int y = direction ? ax1 : ax2;
       const int x = direction ? ax2 : ax1;
 #if CONFIG_PALETTE_LINE_COPY
       if (identity_row_flag == 2) {
-        if(direction){
-            // Vertical
-            color_map[y * plane_block_width + x] =
-                color_map[y * plane_block_width + (x - 1)];
+        if (direction) {
+          // Vertical
+          color_map[y * plane_block_width + x] =
+              color_map[y * plane_block_width + (x - 1)];
         } else {
-            // horizontal
-            color_map[y * plane_block_width + x] =
-                color_map[(y - 1) * plane_block_width + x];
+          // horizontal
+          color_map[y * plane_block_width + x] =
+              color_map[(y - 1) * plane_block_width + x];
         }
       } else if (identity_row_flag == 1 && ax1 > 0) {
 #else
       if (identity_row_flag && x > 0) {
-#endif // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_LINE_COPY
         if (direction) {
-            // Vertical
-            color_map[y * plane_block_width + x] =
-                color_map[(y - 1) * plane_block_width + x];
+          // Vertical
+          color_map[y * plane_block_width + x] =
+              color_map[(y - 1) * plane_block_width + x];
         } else {
-            // horizontal
-            color_map[y * plane_block_width + x] =
-                color_map[y * plane_block_width + x - 1];
+          // horizontal
+          color_map[y * plane_block_width + x] =
+              color_map[y * plane_block_width + x - 1];
         }
       } else if (ax2 == 0 && ax1 == 0) {
         color_map[0] = av1_read_uniform(r, n);
@@ -92,7 +93,7 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
             color_map, plane_block_width, y, x, n, color_order, NULL,
             identity_row_flag, prev_identity_row_flag);
         const int color_idx = aom_read_symbol(
-            r, color_map_cdf[n - PALETTE_MIN_SIZE][color_ctx], n, ACCT_STR);
+            r, color_map_cdf[n - PALETTE_MIN_SIZE][color_ctx], n, ACCT_INFO());
         assert(color_idx >= 0 && color_idx < n);
         color_map[y * plane_block_width + x] = color_order[color_idx];
         // color_map[ax2 * stride + ax1] = color_order[color_idx];
@@ -111,7 +112,7 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
       const int color_ctx = av1_get_palette_color_index_context(
           color_map, plane_block_width, (i - j), j, n, color_order, NULL);
       const int color_idx = aom_read_symbol(
-          r, color_map_cdf[n - PALETTE_MIN_SIZE][color_ctx], n, ACCT_STR);
+          r, color_map_cdf[n - PALETTE_MIN_SIZE][color_ctx], n, ACCT_INFO());
       assert(color_idx >= 0 && color_idx < n);
       color_map[(i - j) * plane_block_width + j] = color_order[color_idx];
     }
@@ -149,12 +150,12 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
 #if CONFIG_PALETTE_LINE_COPY
     const int ctx = y == 0 ? 3 : prev_identity_row_flag;
     int identity_row_flag =
-        aom_read_symbol(r, identity_row_cdf[ctx], 3, ACCT_STR);
+        aom_read_symbol(r, identity_row_cdf[ctx], 3, ACCT_INFO());
 #else
     const int ctx = y == 0 ? 2 : prev_identity_row_flag;
     int identity_row_flag = aom_read_symbol(r, identity_row_cdf[ctx], 2,
                                             ACCT_INFO("identity_row_flag"));
-#endif // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_LINE_COPY
 
     for (int x = 0; x < cols; x++) {
 #if CONFIG_PALETTE_LINE_COPY
@@ -214,7 +215,7 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
            color_map + (rows - 1) * plane_block_width, plane_block_width);
   }
 }
-#endif // CONFIG_PALETTE_TRANSVERSE
+#endif  // CONFIG_PALETTE_TRANSVERSE
 
 void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
                                aom_reader *r) {
@@ -229,7 +230,7 @@ void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
                                   : xd->tile_ctx->identity_row_cdf_y;
 #if CONFIG_PALETTE_TRANSVERSE
   params.direction_cdf = xd->tile_ctx->palette_direction_cdf;
-#endif // CONFIG_PALETTE_TRANSVERSE
+#endif  // CONFIG_PALETTE_TRANSVERSE
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   params.n_colors = mbmi->palette_mode_info.palette_size[plane];

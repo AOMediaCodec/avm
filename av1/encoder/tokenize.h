@@ -32,7 +32,7 @@ typedef struct {
   uint8_t direction;
   aom_cdf_prob *direction_cdf;
   int identity_row_ctx;
-#endif // CONFIG_PALETTE_TRANSVERSE
+#endif  // CONFIG_PALETTE_TRANSVERSE
 } TokenExtra;
 
 typedef struct {

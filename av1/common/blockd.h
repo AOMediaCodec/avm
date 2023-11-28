@@ -319,9 +319,9 @@ typedef struct {
   uint16_t palette_colors[3 * PALETTE_MAX_SIZE];
   // Number of base colors for Y (0) and UV (1)
   uint8_t palette_size[2];
-// #if CONFIG_PALETTE_LINE_COPY
-//   int8_t palette_direction[2];
-// #endif  // CONFIG_PALETTE_LINE_COPY
+  // #if CONFIG_PALETTE_LINE_COPY
+  //   int8_t palette_direction[2];
+  // #endif  // CONFIG_PALETTE_LINE_COPY
 } PALETTE_MODE_INFO;
 
 typedef struct {
@@ -3869,16 +3869,16 @@ typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
 #if CONFIG_PALETTE_TRANSVERSE
-typedef aom_cdf_prob (*PaletteDirectionCdf);
+typedef aom_cdf_prob(*PaletteDirectionCdf);
 typedef const int (*PaletteDirectionCost)[2];
-#endif //CONFIG_PALETTE_TRANSVERSE
+#endif  // CONFIG_PALETTE_TRANSVERSE
 
 typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(3)];
 typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][3];
 #else
 typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(2)];
 typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][2];
-#endif // CONFIG_PALETTE_LINE COPY
+#endif  // CONFIG_PALETTE_LINE COPY
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 typedef struct {

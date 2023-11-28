@@ -41,7 +41,7 @@ extern "C" {
 #define PALETTE_ROW_FLAG_CONTEXTS 4
 #else
 #define PALETTE_ROW_FLAG_CONTEXTS 3
-#endif // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_LINE_COPY
 #else
 // As can be seen from av1_get_palette_color_index_context(), the possible
 // contexts are (2,0,0), (2,2,1), (3,2,0), (4,1,0), (5,0,0). These are mapped to

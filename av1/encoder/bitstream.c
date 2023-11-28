@@ -850,7 +850,7 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
 #if CONFIG_PALETTE_D114_RESTRICT
                                        ,
                                        const bool direction_allowed
-#endif //CONFIG_PALETTE_D114_RESTRICT
+#endif  // CONFIG_PALETTE_D114_RESTRICT
 
 ) {
   const TokenExtra *p = *tp;
@@ -863,13 +863,13 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
 #else
   const int direction = p->direction;
   aom_write_symbol(w, p->direction, p->direction_cdf, 2);
-#endif // CONFIG_PALETTE_D114_RESTRICT
+#endif  // CONFIG_PALETTE_D114_RESTRICT
 #else
   const int direction = 0;
-#endif // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_LINE_COPY
   const int ax1_limit = direction ? rows : cols;
   const int ax2_limit = direction ? cols : rows;
-  
+
   // for (int y = 0; y < rows; y++) {
   for (int ax2 = 0; ax2 < ax2_limit; ax2++) {
     int identity_row_flag = p->identity_row_flag;
@@ -897,7 +897,7 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
         aom_write_symbol(w, p->token, p->color_map_cdf, n);
       }
       if (!identity_row_flag || ax1 == 0) p++;
-#endif // CONFIG_PALETTE_LINE_COPY
+#endif  // CONFIG_PALETTE_LINE_COPY
     }
   }
   *tp = p;
@@ -3221,8 +3221,9 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       const int block_width = block_size_wide[bsize];
       const int plane_block_width = block_width >> pd->subsampling_x;
       const int plane_block_height = block_height >> pd->subsampling_y;
-      const bool direction_allowed = plane_block_width < 64 && plane_block_height < 64;
-#endif // CONFIG_PALETTE_D114_RESTRICT
+      const bool direction_allowed =
+          plane_block_width < 64 && plane_block_height < 64;
+#endif  // CONFIG_PALETTE_D114_RESTRICT
       pack_map_tokens(w, tok, palette_size_plane, cols, rows
 #if CONFIG_PALETTE_D114_RESTRICT
                       ,
