@@ -1290,6 +1290,12 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
     }
   }
 #endif
+#if CONFIG_CCSO_BO_ONLY_OPTION
+  for (int band_num = 0; band_num < CCSO_BAND_NUM; band_num++) {
+    aom_free(total_class_err_bo[band_num]);
+    aom_free(total_class_cnt_bo[band_num]);
+  }
+#endif
 }
 
 /* Derive the look-up table for a frame */
