@@ -2743,13 +2743,13 @@ static int64_t motion_mode_rd(
     if ((last_motion_mode_allowed > SIMPLE_TRANSLATION) &&
         (mbmi->ref_frame[1] != INTRA_FRAME)) {
       if (last_motion_mode_allowed == WARPED_CAUSAL) {
-        rd_stats->rate +=
-            mode_costs->motion_mode_cost[bsize][mbmi->motion_mode];
+            rd_stats->rate +=
+                mode_costs->motion_mode_cost[bsize][mbmi->motion_mode];
       } else {
 #if CONFIG_D149_CTX_MODELING_OPT
-        rd_stats->rate += mode_costs->obmc_cost[mbmi->motion_mode];
+            rd_stats->rate += mode_costs->obmc_cost[mbmi->motion_mode];
 #else
-        rd_stats->rate += mode_costs->obmc_cost[bsize][mbmi->motion_mode];
+            rd_stats->rate += mode_costs->obmc_cost[bsize][mbmi->motion_mode];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
       }
     }
@@ -3268,17 +3268,17 @@ static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
     int drl_ctx = av1_drl_ctx(mode_ctx_pristine);
     switch (idx) {
       case 0:
-        cost +=
-            x->mode_costs.drl_mode_cost[0][drl_ctx][mbmi->ref_mv_idx != idx];
-        break;
+            cost += x->mode_costs
+                        .drl_mode_cost[0][drl_ctx][mbmi->ref_mv_idx != idx];
+            break;
       case 1:
-        cost +=
-            x->mode_costs.drl_mode_cost[1][drl_ctx][mbmi->ref_mv_idx != idx];
-        break;
+            cost += x->mode_costs
+                        .drl_mode_cost[1][drl_ctx][mbmi->ref_mv_idx != idx];
+            break;
       default:
-        cost +=
-            x->mode_costs.drl_mode_cost[2][drl_ctx][mbmi->ref_mv_idx != idx];
-        break;
+            cost += x->mode_costs
+                        .drl_mode_cost[2][drl_ctx][mbmi->ref_mv_idx != idx];
+            break;
     }
     if (mbmi->ref_mv_idx == idx) return cost;
   }
@@ -3453,7 +3453,7 @@ static bool ref_mv_idx_early_breakout(
       }
 #else
       if (mbmi_ext->weight[ref_frame_type][ref_mv_idx] < REF_CAT_LEVEL) {
-        return true;
+            return true;
       }
 #endif
     }
@@ -3476,9 +3476,9 @@ static bool ref_mv_idx_early_breakout(
             return true;
         }
 #else
-        if (mbmi_ext->weight[ref_frame_type][ref_mv_idx] < REF_CAT_LEVEL) {
-          return true;
-        }
+            if (mbmi_ext->weight[ref_frame_type][ref_mv_idx] < REF_CAT_LEVEL) {
+              return true;
+            }
 #endif
       }
     }
@@ -4239,9 +4239,10 @@ static int skip_repeated_newmv(
 #endif
               );
 #else
-        this_rate_mv = av1_mv_bit_cost(
-            &mode_info[i].mv.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
-            x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
+            this_rate_mv =
+                av1_mv_bit_cost(&mode_info[i].mv.as_mv, &ref_mv.as_mv,
+                                x->mv_costs.nmv_joint_cost,
+                                x->mv_costs.mv_cost_stack, MV_COST_WEIGHT);
 #endif
           const int this_cost = this_rate_mv + drl_cost;
 
@@ -4258,7 +4259,7 @@ static int skip_repeated_newmv(
 #if CONFIG_SEP_COMP_DRL
             if (av1_ref_mv_idx_type(best_mbmi, best_mbmi->ref_mv_idx) == i &&
 #else
-          if (best_mbmi->ref_mv_idx == i &&
+              if (best_mbmi->ref_mv_idx == i &&
 #endif
                 best_mbmi->mv[0].as_int != ref_mv.as_int
 #if CONFIG_FLEX_MVRES
@@ -4279,7 +4280,7 @@ static int skip_repeated_newmv(
               best_mbmi->ref_mv_idx[0] = ref_mv_idx[0];
               best_mbmi->ref_mv_idx[1] = ref_mv_idx[1];
 #else
-            best_mbmi->ref_mv_idx = ref_mv_idx;
+                best_mbmi->ref_mv_idx = ref_mv_idx;
 #endif
               motion_mode_cand->rate_mv = this_rate_mv;
               best_rd_stats->rate += this_cost - compare_cost;
@@ -4293,9 +4294,9 @@ static int skip_repeated_newmv(
               mode_info[ref_mv_idx_type].rate_mv = this_rate_mv;
               mode_info[ref_mv_idx_type].rd = *best_rd;
 #else
-            mode_info[ref_mv_idx].mv.as_int = best_mbmi->mv[0].as_int;
-            mode_info[ref_mv_idx].rate_mv = this_rate_mv;
-            mode_info[ref_mv_idx].rd = *best_rd;
+                mode_info[ref_mv_idx].mv.as_int = best_mbmi->mv[0].as_int;
+                mode_info[ref_mv_idx].rate_mv = this_rate_mv;
+                mode_info[ref_mv_idx].rd = *best_rd;
 #endif
               if (*best_rd < *ref_best_rd) *ref_best_rd = *best_rd;
               break;
@@ -4534,8 +4535,8 @@ static int prune_ref_mv_idx_search(const FeatureFlags *const features,
 
       int mv_diff = 0;
       for (i = 0; i < 1 + is_comp_pred; ++i) {
-        mv_diff += abs(save_mv[idx][i].as_mv.row - mbmi->mv[i].as_mv.row) +
-                   abs(save_mv[idx][i].as_mv.col - mbmi->mv[i].as_mv.col);
+            mv_diff += abs(save_mv[idx][i].as_mv.row - mbmi->mv[i].as_mv.row) +
+                       abs(save_mv[idx][i].as_mv.col - mbmi->mv[i].as_mv.col);
       }
 
       // If this mode is not the best one, and current MV is similar to
@@ -6037,8 +6038,8 @@ static int64_t handle_inter_mode(
                                  args->modelled_rd[mode1][get_ref_mv_idx(
                                      mbmi, 1)][refs[1]]);
 #else
-            AOMMIN(args->modelled_rd[mode0][ref_mv_idx][refs[0]],
-                   args->modelled_rd[mode1][ref_mv_idx][refs[1]]);
+                AOMMIN(args->modelled_rd[mode0][ref_mv_idx][refs[0]],
+                       args->modelled_rd[mode1][ref_mv_idx][refs[1]]);
 #endif  // CONFIG_SEP_COMP_DRL
                       if ((rd >> 3) * 6 > mrd && ref_best_rd < INT64_MAX) {
                         restore_dst_buf(xd, orig_dst, num_planes);
@@ -6197,25 +6198,25 @@ static int64_t handle_inter_mode(
 #else
 #if CONFIG_BAWP
       if (tmp_rd < mode_info[bawp_flag][ref_mv_idx].rd) {
-        // Only update mode_info if the new result is actually better.
-        mode_info[bawp_flag][ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
+            // Only update mode_info if the new result is actually better.
+            mode_info[bawp_flag][ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
 #if CONFIG_REFINEMV
-        mode_info[bawp_flag][ref_mv_idx].rate_mv = tmp_rate_mv;
+            mode_info[bawp_flag][ref_mv_idx].rate_mv = tmp_rate_mv;
 #else
-        mode_info[bawp_flag][ref_mv_idx].rate_mv = rate_mv;
+            mode_info[bawp_flag][ref_mv_idx].rate_mv = rate_mv;
 #endif  // CONFIG_REFINEMV
-        mode_info[bawp_flag][ref_mv_idx].rd = tmp_rd;
+            mode_info[bawp_flag][ref_mv_idx].rd = tmp_rd;
       }
 #else
       if (tmp_rd < mode_info[ref_mv_idx].rd) {
-        // Only update mode_info if the new result is actually better.
-        mode_info[ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
+            // Only update mode_info if the new result is actually better.
+            mode_info[ref_mv_idx].mv.as_int = mbmi->mv[0].as_int;
 #if CONFIG_REFINEMV
-        mode_info[ref_mv_idx].rate_mv = tmp_rate_mv;
+            mode_info[ref_mv_idx].rate_mv = tmp_rate_mv;
 #else
-        mode_info[ref_mv_idx].rate_mv = rate_mv;
+            mode_info[ref_mv_idx].rate_mv = rate_mv;
 #endif  // CONFIG_REFINEMV
-        mode_info[ref_mv_idx].rd = tmp_rd;
+            mode_info[ref_mv_idx].rd = tmp_rd;
       }
 #endif  // CONFIG_BAWP
 #endif  // CONFIG_FLEX_MVRES
@@ -6252,7 +6253,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_REFINEMV
                       motion_mode_cand->rate_mv = tmp_rate_mv;
 #else
-        motion_mode_cand->rate_mv = rate_mv;
+            motion_mode_cand->rate_mv = rate_mv;
 #endif  // CONFIG_REFINEMV
                       motion_mode_cand->rate2_nocoeff = rate2_nocoeff;
                     }
@@ -6280,7 +6281,7 @@ static int64_t handle_inter_mode(
                       best_ref_mv_idx[0] = ref_mv_idx[0];
                       best_ref_mv_idx[1] = ref_mv_idx[1];
 #else
-        best_ref_mv_idx = ref_mv_idx;
+            best_ref_mv_idx = ref_mv_idx;
 #endif  // CONFIG_SEP_COMP_DRL
                     }
                   }
@@ -6663,8 +6664,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_IBC_SR_EXT
           fullms_params.mv_limits.row_max = -h;
 #else
-        fullms_params.mv_limits.row_max =
-            (sb_row * cm->mib_size - mi_row) * MI_SIZE - h;
+            fullms_params.mv_limits.row_max =
+                (sb_row * cm->mib_size - mi_row) * MI_SIZE - h;
 #endif  // CONFIG_IBC_SR_EXT
           break;
         case IBC_MOTION_LEFT:
@@ -6673,8 +6674,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_IBC_SR_EXT
           fullms_params.mv_limits.col_max = -w;
 #else
-        fullms_params.mv_limits.col_max =
-            (sb_col * cm->mib_size - mi_col) * MI_SIZE - w;
+            fullms_params.mv_limits.col_max =
+                (sb_col * cm->mib_size - mi_col) * MI_SIZE - w;
 #endif  // CONFIG_IBC_SR_EXT
         // TODO(aconverse@google.com): Minimize the overlap between above and
         // left areas.
@@ -7944,7 +7945,7 @@ static AOM_INLINE void refine_winner_mode_tx(
                                ? mode_costs->skip_txfm_cost[skip_ctx][0]
                                : 0;
 #else
-        rd_stats_y.rate += mode_costs->skip_txfm_cost[skip_ctx][0];
+            rd_stats_y.rate += mode_costs->skip_txfm_cost[skip_ctx][0];
 #endif  // CONFIG_SKIP_TXFM_OPT
       }
       int this_rate = rd_stats.rate + rd_stats_y.rate + rd_stats_uv.rate -
@@ -8228,7 +8229,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
         if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
 #else
-        if (skip_ref_frame_mask & (1 << ref_frame) &&
+            if (skip_ref_frame_mask & (1 << ref_frame) &&
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
             !is_ref_frame_used_by_compound_ref(ref_frame, skip_ref_frame_mask)
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -8278,7 +8279,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
         if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame)
 #else
-        if (skip_ref_frame_mask & (1 << ref_frame)
+            if (skip_ref_frame_mask & (1 << ref_frame)
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #if CONFIG_EXT_RECUR_PARTITIONS
             && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
@@ -8685,7 +8686,7 @@ static int inter_mode_search_order_independent_skip(
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
         if (skip_ref_frame_mask & ((uint64_t)1 << r)) continue;
 #else
-        if (skip_ref_frame_mask & (1 << r)) continue;
+            if (skip_ref_frame_mask & (1 << r)) continue;
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
         MV_REFERENCE_FRAME rf[2];
         av1_set_ref_frame(rf, r);
@@ -9999,7 +10000,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
              ((second_ref_frame == ref_frame) &&
               (ref_frame >= cm->ref_frames_info.num_same_ref_compound))))
 #else
-            second_ref_frame <= ref_frame)
+                second_ref_frame <= ref_frame)
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
           continue;
 
@@ -10024,12 +10025,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
         );
 #else
-        init_mbmi(mbmi, this_mode, ref_frames, cm
+            init_mbmi(mbmi, this_mode, ref_frames, cm
 #if CONFIG_FLEX_MVRES
-                  ,
-                  xd->sbi
+                      ,
+                      xd->sbi
 #endif
-        );
+            );
 #endif  // CONFIG_IBC_SR_EXT
 
 #if CONFIG_WARPMV
@@ -10105,7 +10106,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         mbmi->ref_mv_idx[0] = 0;
         mbmi->ref_mv_idx[1] = 0;
 #else
-        mbmi->ref_mv_idx = 0;
+            mbmi->ref_mv_idx = 0;
 #endif
 #if CONFIG_WARP_REF_LIST
         mbmi->warp_ref_idx = 0;
@@ -10304,7 +10305,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         mbmi->joint_y_mode_delta_angle = mbmi->y_intra_mode_list[mode_idx];
         set_y_mode_and_delta_angle(mbmi->joint_y_mode_delta_angle, mbmi);
 #else
-        set_y_mode_and_delta_angle(mode_idx, mbmi);
+            set_y_mode_and_delta_angle(mode_idx, mbmi);
 #endif  // CONFIG_AIMC
         if ((!cpi->oxcf.intra_mode_cfg.enable_smooth_intra ||
              cpi->sf.intra_sf.disable_smooth_intra) &&
@@ -10366,12 +10367,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif
         );
 #else
-        init_mbmi(mbmi, this_mode, refs, cm
+            init_mbmi(mbmi, this_mode, refs, cm
 #if CONFIG_FLEX_MVRES
-                  ,
-                  xd->sbi
+                      ,
+                      xd->sbi
 #endif
-        );
+            );
 #endif  // CONFIG_IBC_SR_EXT
         txfm_info->skip_txfm = 0;
 

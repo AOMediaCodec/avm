@@ -2278,7 +2278,7 @@ static AOM_INLINE void read_compound_ref(
 #elif CONFIG_ALLOW_SAME_REF_COMPOUND
   for (int i = 0; i < n_refs - 1 && n_bits < 2; i++) {
 #else
-  for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
+    for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
     // bit_type: -1 for ref0, 0 for opposite sided ref1, 1 for same sided ref1
     const int bit_type = n_bits == 0 ? -1
@@ -2330,7 +2330,7 @@ static AOM_INLINE void read_compound_ref(
 #elif CONFIG_ALLOW_SAME_REF_COMPOUND
   if (n_bits < 1) ref_frame[0] = n_refs - 1;
 #else
-  if (n_bits < 1) ref_frame[0] = n_refs - 2;
+    if (n_bits < 1) ref_frame[0] = n_refs - 2;
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
 }
 
