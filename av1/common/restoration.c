@@ -2160,6 +2160,42 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
   const int ss_x = (((width_y + 1) >> 1) == width_uv);
   const int ss_y = (((height_y + 1) >> 1) == height_uv);
+#if CONFIG_IMPROVED_DS_CC_WIENER
+  if (ss_x && ss_y) {
+    if (ds_type == 1) {
+      for (int r = 0; r < height_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          (*luma)[r * out_stride + c] =
+              (dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
+               2 * dgd[2 * r * in_stride + 2 * c] +
+               dgd[2 * r * in_stride + 2 * c + 1] +
+               dgd[(2 * r + 1) * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
+               2 * dgd[(2 * r + 1) * in_stride + 2 * c] +
+               dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
+              3;
+        }
+      }
+    } else if (ds_type == 2) {
+      for (int r = 0; r < height_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          (*luma)[r * out_stride + c] =
+              dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+        }
+      }
+    } else {
+      for (int r = 0; r < height_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          (*luma)[r * out_stride + c] =
+              (dgd[2 * r * in_stride + 2 * c] +
+               dgd[2 * r * in_stride + 2 * c + 1] +
+               dgd[(2 * r + 1) * in_stride + 2 * c] +
+               dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
+              2;
+        }
+      }
+    }
+  } else {
+#else
   if (ss_x && ss_y && ds_type == 1) {
     for (int r = 0; r < height_uv; ++r) {
       for (int c = 0; c < width_uv; ++c) {
@@ -2169,6 +2205,7 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
       }
     }
   } else {
+#endif  // CONFIG_IMPROVED_DS_CC_WIENER
     for (int r = 0; r < height_uv; ++r) {
       for (int c = 0; c < width_uv; ++c) {
         (*luma)[r * out_stride + c] =
@@ -2619,7 +2656,11 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
       cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
+#if CONFIG_IMPROVED_DS_CC_WIENER
+      cm->seq_params.enable_cfl_ds_filter
+#else
       cm->seq_params.enable_cfl_ds_filter == 1
+#endif  // CONFIG_IMPROVED_DS_CC_WIENER
 #endif
   );
   assert(luma_buf != NULL);

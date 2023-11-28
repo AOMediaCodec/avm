@@ -879,7 +879,11 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
       cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
+#if CONFIG_IMPROVED_DS_CC_WIENER
+      cm->seq_params.enable_cfl_ds_filter
+#else
       cm->seq_params.enable_cfl_ds_filter == 1
+#endif  // CONFIG_IMPROVED_DS_CC_WIENER
 #endif
   );
   assert(luma_buf != NULL);
