@@ -47,6 +47,10 @@ typedef void (*CCSO_WO_BUF)(const uint16_t *src_y, uint16_t *dst_yuv,
                             ,
                             const int edge_clf
 #endif
+#if CONFIG_CCSO_BO_ONLY_OPTION
+                            ,
+                            const uint8_t ccso_bo_only
+#endif
 );
 typedef libaom_test::FuncParam<CCSO_WO_BUF> TestFuncsCCSO_WO_BUF;
 
@@ -133,6 +137,10 @@ class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
                      ,
                      edge_clf_
 #endif
+#if CONFIG_CCSO_BO_ONLY_OPTION
+                     ,
+                     0
+#endif
     );
 
     ASM_REGISTER_STATE_CHECK(params_.tst_func(
@@ -142,6 +150,10 @@ class CCSOWOBUFTest : public CCSOFilterTest<CCSO_WO_BUF> {
 #if CONFIG_CCSO_EDGE_CLF
         ,
         edge_clf_
+#endif
+#if CONFIG_CCSO_EDGE_CLF
+        ,
+        0
 #endif
         ));
 
@@ -181,7 +193,12 @@ typedef void (*CCSO_With_BUF)(const uint16_t *src_y, uint16_t *dst_yuv,
                               const int pic_width, const int pic_height,
                               const int8_t *offset_buf, const int blk_size,
                               const int y_uv_hscale, const int y_uv_vscale,
-                              const int max_val, const uint8_t shift_bits);
+                              const int max_val, const uint8_t shift_bits
+#if CONFIG_CCSO_BO_ONLY_OPTION
+                              ,
+                              const uint8_t ccso_bo_only
+#endif
+);
 typedef libaom_test::FuncParam<CCSO_With_BUF> TestFuncsCCSO_With_BUF;
 
 class CCSOWITHBUFTest : public CCSOFilterTest<CCSO_With_BUF> {
@@ -191,12 +208,22 @@ class CCSOWITHBUFTest : public CCSOFilterTest<CCSO_With_BUF> {
     params_.ref_func(src_y_, dst_ref_, src_cls0_, src_cls1_, src_y_stride_,
                      dst_stride_, ccso_stride_, 0, 0, pic_width_, pic_height_,
                      offset_buf_, blk_size_, y_uv_hscale_, y_uv_vscale_,
-                     max_val_, shift_bits_);
+                     max_val_, shift_bits_
+#if CONFIG_CCSO_BO_ONLY_OPTION
+                     ,
+                     0
+#endif
+    );
 
     ASM_REGISTER_STATE_CHECK(params_.tst_func(
         src_y_, dst_tst_, src_cls0_, src_cls1_, src_y_stride_, dst_stride_,
         ccso_stride_, 0, 0, pic_width_, pic_height_, offset_buf_, blk_size_,
-        y_uv_hscale_, y_uv_vscale_, max_val_, shift_bits_));
+        y_uv_hscale_, y_uv_vscale_, max_val_, shift_bits_
+#if CONFIG_CCSO_BO_ONLY_OPTION
+        ,
+        0
+#endif
+        ));
 
     for (int r = 0; r < blk_size_; ++r) {
       for (int c = 0; c < blk_size_; ++c) {

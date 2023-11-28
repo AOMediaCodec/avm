@@ -78,9 +78,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                           \
-  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
-   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
+#define MC_TEMP_BUF_PELS                       \
+  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
+   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
 
 #if CONFIG_THROUGHPUT_ANALYSIS
 int64_t tot_ctx_syms = { 0 };
