@@ -492,7 +492,8 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_TIP
     ) {
       int_mv this_refmv;
-      if (is_global_mv_block(candidate, gm_params[rf[0]].wmtype)) {
+      if (is_global_mv_block(candidate,
+                             gm_params[candidate->ref_frame[0]].wmtype)) {
         return;
       } else {
         this_refmv = get_block_mv(candidate,
