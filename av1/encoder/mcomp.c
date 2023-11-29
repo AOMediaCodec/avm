@@ -415,6 +415,9 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 }
 
 #if CONFIG_OPFL_MV_SEARCH
+// Obtain number of iterations for optical flow based MV search. Currently, it
+// is only allowed for the MVD search in NEWMV and WARPMV modes, but not in
+// compound modes.
 int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
   // Allowed only for screen content
   const AV1_COMMON *cm = &cpi->common;
@@ -426,6 +429,9 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
   return 0;
 }
 
+// Apply average pooling operation to downsize the P0-P1 and gradient arrays.
+// This speeds up the equation solving routine and also improves numerical
+// stability.
 void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
                                  int16_t *gy, const int gstride, const int bw,
                                  const int bh, const int n) {
@@ -457,6 +463,13 @@ void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
   }
 }
 
+// Derive a MVD based on optical flow method. In the two sided optical flow
+// refinement implemented in av1_get_optflow_based_mv_highbd, two predicted
+// blocks (P0, P1) are used to solve a MV delta, which is scaled based on d0
+// and d1 to derive MVs of src relative to P0 and P1. Alternatively, this
+// routine is a one sided optical flow solver, which uses the source block (src)
+// and one predicted block (P0) to derives an MV delta, which is by itself
+// relative to P0.
 int opfl_refine_fullpel_mv_one_sided(
     const AV1_COMMON *cm, MACROBLOCKD *xd,
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, MB_MODE_INFO *mbmi,
