@@ -655,7 +655,7 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
     d0 = cm->tip_ref.ref_offset[0];
     d1 = cm->tip_ref.ref_offset[1];
   } else {
-    if (!mbmi->ref_frame[1]) return 0;
+    if (!has_second_ref(mbmi)) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC

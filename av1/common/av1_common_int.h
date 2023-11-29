@@ -3827,7 +3827,6 @@ static INLINE int opfl_allowed_for_cur_refs(const AV1_COMMON *cm,
     d1 = cm->tip_ref.ref_offset[1];
   } else {
 #endif  // CONFIG_OPTFLOW_ON_TIP
-    if (!mbmi->ref_frame[1]) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
