@@ -847,23 +847,18 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
 #if CONFIG_PALETTE_IMPROVEMENTS
 static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
                                        int n, int cols, int rows
-#if CONFIG_PALETTE_D114_RESTRICT
+#if CONFIG_PALETTE_LINE_COPY
                                        ,
                                        const bool direction_allowed
-#endif  // CONFIG_PALETTE_D114_RESTRICT
+#endif  // CONFIG_PALETTE_LINE_COPY
 
 ) {
   const TokenExtra *p = *tp;
-#if CONFIG_PALETTE_TRANSVERSE
-#if CONFIG_PALETTE_D114_RESTRICT
+#if CONFIG_PALETTE_LINE_COPY
   const int direction = (direction_allowed) ? p->direction : 0;
   if (direction_allowed) {
     aom_write_symbol(w, p->direction, p->direction_cdf, 2);
   }
-#else
-  const int direction = p->direction;
-  aom_write_symbol(w, p->direction, p->direction_cdf, 2);
-#endif  // CONFIG_PALETTE_D114_RESTRICT
 #else
   const int direction = 0;
 #endif  // CONFIG_PALETTE_LINE_COPY
@@ -3213,7 +3208,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
                                &rows, &cols);
       assert(*tok < tok_end);
 #if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_D114_RESTRICT
+#if CONFIG_PALETTE_LINE_COPY
       const struct macroblockd_plane *const pd = &xd->plane[plane];
       assert(IMPLIES(plane == PLANE_TYPE_Y, pd->subsampling_x == 0));
       assert(IMPLIES(plane == PLANE_TYPE_Y, pd->subsampling_y == 0));
@@ -3223,12 +3218,12 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       const int plane_block_height = block_height >> pd->subsampling_y;
       const bool direction_allowed =
           plane_block_width < 64 && plane_block_height < 64;
-#endif  // CONFIG_PALETTE_D114_RESTRICT
+#endif  // CONFIG_PALETTE_LINE_COPY
       pack_map_tokens(w, tok, palette_size_plane, cols, rows
-#if CONFIG_PALETTE_D114_RESTRICT
+#if CONFIG_PALETTE_LINE_COPY
                       ,
                       direction_allowed
-#endif  // CONFIG_PALETTE_D114_RESTRICT
+#endif  // CONFIG_PALETTE_LINE_COPY
       );
 #else
       pack_map_tokens(w, tok, palette_size_plane, rows * cols);

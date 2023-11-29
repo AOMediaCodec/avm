@@ -239,11 +239,7 @@ set_aom_config_var(
   "AV2 experiment flag for palette parsing independency and improved palette color map coding."
 )
 set_aom_config_var(CONFIG_PALETTE_LINE_COPY 1
-                   "AV2 experiment flag to enable palette line copy flag.")
-set_aom_config_var(CONFIG_PALETTE_TRANSVERSE 1
-                   "AV2 experiment flag to enable transverse palette coding.")
-set_aom_config_var(CONFIG_PALETTE_D114_RESTRICT 1
-                   "Restrict palette transverse coding to 32x32 and smaller.")
+                   "AV2 experiment flag to enable palette line copy and transverse coding, D114.")
 set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
                    "AV2 experiment flag to fix the SSE calc bug for skip mode.")
 set_aom_config_var(CONFIG_SKIP_MODE_ENHANCEMENT 1
