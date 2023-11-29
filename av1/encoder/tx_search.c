@@ -2749,8 +2749,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_ATC_DCTX_ALIGNED
          (eob_found) ||
 #endif  // CONFIG_ATC_DCTX_ALIGNED
-         mbmi->fsc_mode[xd->tree_type == CHROMA_PART] ||
-         xd->lossless[mbmi->segment_id]);
+         !xd->enable_ist);
 
 #if CONFIG_IST_ANY_SET
     int max_set_id = skip_stx ? 1 : IST_DIR_SIZE;
