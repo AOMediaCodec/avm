@@ -4512,13 +4512,14 @@ void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
       submi[mi_y * mi_stride + mi_x]->mv[0].as_mv.col =
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
           clamp(mv_col, MV_LOW + 1, MV_UPP - 1);
+
+      span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row + mi_y,
+                 mi_col + mi_x, BLOCK_8X8
 #if CONFIG_COMPOUND_WARP_CAUSAL
-      span_submv(cm, (submi + mi_y * mi_stride + mi_x), mi_row + mi_y, mi_col + mi_x,
-                 BLOCK_8X8, ref);
-#else
-      span_submv(cm, (submi + mi_y * mi_stride + mi_x),
-                 mi_row, mi_col, BLOCK_8X8);
-#endif //CONFIG_COMPOUND_WARP_CAUSAL
+                 ,
+                 ref
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+      );
     }
   }
 }

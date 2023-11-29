@@ -3778,10 +3778,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       printf("Warning: unexpected warped model from aomenc\n");
 #endif
 #if CONFIG_C071_SUBBLK_WARPMV
-    if (!mbmi->wm_params[0].invalid && mbmi->mode != NEW_NEWMV)
+    if (!mbmi->wm_params[0].invalid)
       assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col,
                     0);
-    if (!mbmi->wm_params[1].invalid && mbmi->mode != NEW_NEWMV)
+    if (!mbmi->wm_params[1].invalid)
       assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1], mi_row, mi_col,
                     1);
 #endif
