@@ -415,15 +415,16 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 }
 
 #if CONFIG_OPFL_MV_SEARCH
-// Obtain number of iterations for optical flow based MV search. Currently, it
-// is only allowed for the MVD search in NEWMV and WARPMV modes, but not in
-// compound modes.
+// Obtain number of iterations for optical flow based MV search.
 int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
   // Allowed only for screen content
   const AV1_COMMON *cm = &cpi->common;
   if (!cm->features.allow_screen_content_tools) return 0;
 
   if (mbmi->ref_frame[0] == NONE_FRAME) return 0;
+
+  // Optical flow MV search is allowed for NEWMV and WARPMV only, since it
+  // shows little improvements in compound modes.
   if (mbmi->mode == WARPMV || mbmi->mode == NEWMV) return 3;
 
   return 0;
