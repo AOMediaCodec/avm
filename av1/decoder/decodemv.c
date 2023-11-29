@@ -3188,7 +3188,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->mode = NEARMV;
     } else {
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-      mbmi->mode = (cm->features.opfl_refine_type == REFINE_SWITCHABLE
+      mbmi->mode = (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+                            opfl_allowed_for_cur_refs(cm, mbmi)
 #if CONFIG_CWP
                             && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
@@ -3468,7 +3469,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                ? NEARMV
                :
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-               (cm->features.opfl_refine_type == REFINE_SWITCHABLE
+               (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+                        opfl_allowed_for_cur_refs(cm, mbmi)
 #if CONFIG_CWP
                         && !cm->features.enable_cwp
 #endif  // CONFIG_CWP

@@ -7369,7 +7369,8 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 
 #if CONFIG_OPTFLOW_REFINEMENT
   const PREDICTION_MODE this_mode =
-      cm->features.opfl_refine_type == REFINE_SWITCHABLE
+      cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+              opfl_allowed_for_cur_refs(cm, mbmi)
 #if CONFIG_CWP
               && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
@@ -7440,7 +7441,8 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_OPTFLOW_REFINEMENT
-  assert(this_mode == cm->features.opfl_refine_type == REFINE_SWITCHABLE
+  assert(this_mode == cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+                 opfl_allowed_for_cur_refs(cm, mbmi)
 #if CONFIG_CWP
                  && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
@@ -7732,7 +7734,8 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #if CONFIG_D072_SKIP_MODE_IMPROVE
           !is_compound ? NEARMV :
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-                       (cm->features.opfl_refine_type == REFINE_SWITCHABLE
+                       (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+                                opfl_allowed_for_cur_refs(cm, mbmi)
 #if CONFIG_CWP
                                 && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
