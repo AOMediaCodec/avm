@@ -2422,6 +2422,10 @@ static int64_t motion_mode_rd(
                                                       ref_best_rd, &tmp_rate_mv,
                                                       &tmp_rate2, orig_dst);
           if (ret < 0) continue;
+#if CONFIG_INTERINTRA_IMPROVEMENT
+          assert(mbmi->motion_mode == INTERINTRA);
+          // assert(mbmi->ref_frame[1] == INTRA_FRAME);
+#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 #if CONFIG_EXTENDED_WARP_PREDICTION
         } else if (mbmi->motion_mode == WARP_DELTA) {
 #if CONFIG_FLEX_MVRES
@@ -2834,6 +2838,19 @@ static int64_t motion_mode_rd(
 #else
       bool continue_motion_mode_signaling = true;
 #endif  // CONFIG_WARPMV
+
+        if (continue_motion_mode_signaling &&
+            allowed_motion_modes & (1 << INTERINTRA)) {
+          rd_stats->rate +=
+              mode_costs->interintra_cost[size_group_lookup[bsize]]
+                                         [motion_mode == INTERINTRA];
+          if (motion_mode == INTERINTRA) {
+            // Note(rachelbarker): Costs for other interintra-related
+            // signaling are already accounted for by
+            // `av1_handle_inter_intra_mode`
+            continue_motion_mode_signaling = false;
+          }
+        }
 
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << OBMC_CAUSAL)) {
@@ -10328,6 +10345,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         mbmi->angle_delta[PLANE_TYPE_Y] = 0;
         mbmi->angle_delta[PLANE_TYPE_UV] = 0;
         mbmi->filter_intra_mode_info.use_filter_intra = 0;
+#if CONFIG_SEP_COMP_DRL
+        mbmi->ref_mv_idx[0] = 0;
+        mbmi->ref_mv_idx[1] = 0;
+#else
+        mbmi->ref_mv_idx = 0;
+#endif
 #if CONFIG_WARP_REF_LIST
         mbmi->warp_ref_idx = 0;
         mbmi->max_num_warp_candidates = 0;
