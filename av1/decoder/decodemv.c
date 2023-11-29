@@ -3188,7 +3188,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->mode = NEARMV;
     } else {
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-      mbmi->mode = (cm->features.opfl_refine_type
+      mbmi->mode = (cm->features.opfl_refine_type == REFINE_SWITCHABLE
 #if CONFIG_CWP
                             && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
@@ -3462,30 +3462,18 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   if (mbmi->skip_mode) {
 #if CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT
+    assert(mbmi->mode ==
 #if CONFIG_D072_SKIP_MODE_IMPROVE
-#if CONFIG_CWP
-    assert(mbmi->mode == (!is_compound ? NEARMV
-                                       : (cm->features.opfl_refine_type &&
-                                                  !cm->features.enable_cwp
-                                              ? NEAR_NEARMV_OPTFLOW
-                                              : NEAR_NEARMV)));
-#else
-    assert(mbmi->mode ==
-           (!is_compound ? NEARMV
-                         : (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW
-                                                          : NEAR_NEARMV)));
-#endif  // CONFIG_CWP
-#else
-#if CONFIG_CWP
-    assert(mbmi->mode ==
-           (cm->features.opfl_refine_type && !cm->features.enable_cwp
-                ? NEAR_NEARMV_OPTFLOW
-                : NEAR_NEARMV));
-#else   // CONFIG_CWP
-    assert(mbmi->mode ==
-           (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV));
-#endif  // CONFIG_CWP
+                   !is_compound
+               ? NEARMV
+               :
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
+               (cm->features.opfl_refine_type == REFINE_SWITCHABLE
+#if CONFIG_CWP
+                        && !cm->features.enable_cwp
+#endif  // CONFIG_CWP
+                    ? NEAR_NEARMV_OPTFLOW
+                    : NEAR_NEARMV));
 #else
     assert(mbmi->mode == NEAR_NEARMV);
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT && CONFIG_OPTFLOW_REFINEMENT

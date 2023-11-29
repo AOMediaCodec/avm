@@ -7368,12 +7368,13 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
 
 #if CONFIG_OPTFLOW_REFINEMENT
-  const PREDICTION_MODE this_mode = cm->features.opfl_refine_type
+  const PREDICTION_MODE this_mode =
+      cm->features.opfl_refine_type == REFINE_SWITCHABLE
 #if CONFIG_CWP
-                                            && !cm->features.enable_cwp
+              && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
-                                        ? NEAR_NEARMV_OPTFLOW
-                                        : NEAR_NEARMV;
+          ? NEAR_NEARMV_OPTFLOW
+          : NEAR_NEARMV;
 #else
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -7439,23 +7440,14 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_OPTFLOW_REFINEMENT
+  assert(this_mode == cm->features.opfl_refine_type == REFINE_SWITCHABLE
 #if CONFIG_CWP
-  assert(this_mode == (cm->features.opfl_refine_type && !cm->features.enable_cwp
-                           ? NEAR_NEARMV_OPTFLOW
-                           : NEAR_NEARMV));
-  assert(mbmi->mode ==
-         (cm->features.opfl_refine_type && !cm->features.enable_cwp
-              ? NEAR_NEARMV_OPTFLOW
-              : NEAR_NEARMV));
-#else   // CONFIG_CWP
-  assert(this_mode ==
-         (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV));
-  assert(mbmi->mode ==
-         (cm->features.opfl_refine_type ? NEAR_NEARMV_OPTFLOW : NEAR_NEARMV));
+                 && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
+             ? NEAR_NEARMV_OPTFLOW
+             : NEAR_NEARMV);
 #else
   assert(this_mode == NEAR_NEARMV);
-  assert(mbmi->mode == NEAR_NEARMV);
 #endif
 
 #if !CONFIG_SKIP_MODE_ENHANCEMENT
@@ -7740,7 +7732,7 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #if CONFIG_D072_SKIP_MODE_IMPROVE
           !is_compound ? NEARMV :
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
-                       (cm->features.opfl_refine_type
+                       (cm->features.opfl_refine_type == REFINE_SWITCHABLE
 #if CONFIG_CWP
                                 && !cm->features.enable_cwp
 #endif  // CONFIG_CWP
