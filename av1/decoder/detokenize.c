@@ -159,7 +159,7 @@ static void decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
       color_map[(i - j) * plane_block_width + j] = color_order[color_idx];
     }
   }
-#endif // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_IMPROVEMENTS
   // Copy last column to extra columns.
   if (cols < plane_block_width) {
     for (int i = 0; i < rows; ++i) {

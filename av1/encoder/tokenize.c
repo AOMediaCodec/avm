@@ -319,7 +319,8 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
         (*t)->color_map_cdf = map_pb_cdf[palette_size_idx][color_ctx];
         ++(*t);
         if (allow_update_cdf)
-          update_cdf(map_cdf[palette_size_idx][color_ctx], color_new_idx, num_colors);
+          update_cdf(map_cdf[palette_size_idx][color_ctx], color_new_idx,
+                     num_colors);
 #if CONFIG_ENTROPY_STATS
         if (plane) {
           ++counts->palette_uv_color_index[palette_size_idx][color_ctx]
