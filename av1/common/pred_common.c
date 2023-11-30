@@ -246,7 +246,7 @@ int choose_primary_ref_frame(const AV1_COMMON *const cm) {
   const int cur_frame_disp = cm->current_frame.display_order_hint;
   int i;
 
-  PrimaryRefCand cand_lower_qp = { -1, -1, 0 };
+  PrimaryRefCand cand_lower_qp = { -1, -1, -1 };
   PrimaryRefCand cand_higher_qp = { -1, -1, INT32_MAX };
 
   const OrderHintInfo *oh = &cm->seq_params.order_hint_info;
