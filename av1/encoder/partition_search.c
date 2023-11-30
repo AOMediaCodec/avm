@@ -1974,6 +1974,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                    JOINT_NEWMV_SCALE_FACTOR_CNT);
 #endif  // CONFIG_ADAPTIVE_MVD
       }
+
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
     } else {
       av1_update_inter_mode_stats(fc, counts, mode, mode_ctx

@@ -1390,7 +1390,6 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   for (int k = 1; k < np; k++) {
     all_mvs_same &= (mvs[0] == mvs[2 * k]) & (mvs[1] == mvs[2 * k + 1]);
   }
-
   if (all_mvs_same) {
     derive_model->invalid = 1;
     return 0;

@@ -5055,11 +5055,10 @@ static int fill_warp_corner_projected_point(const MB_MODE_INFO *neighbor_mi,
   // return if the source point is invalid
   if (pos_col < 0 || pos_row < 0) return 0;
 
-  int mv_row;
-  int mv_col;
-
   if (!is_inter_ref_frame(neighbor_mi->ref_frame[0])) return 0;
   if (neighbor_mi->ref_frame[0] != this_ref) return 0;
+  int mv_row;
+  int mv_col;
   if (is_warp_mode(neighbor_mi->motion_mode)) {
     int_mv warp_mv =
         get_warp_motion_vector_xy_pos(&neighbor_mi->wm_params[0], pos_col,
@@ -5111,10 +5110,8 @@ int generate_points_from_corners(const MACROBLOCKD *xd, int *pts, int *mvs,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->up_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-
     int pos_row = xd->mi_row * MI_SIZE;
     int pos_col = xd->mi_col * MI_SIZE + bw;
-
     int valid = fill_warp_corner_projected_point(neighbor_mi, this_ref, pos_col,
                                                  pos_row, pts, mvs, np);
     if (valid) {

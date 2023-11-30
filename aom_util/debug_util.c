@@ -74,10 +74,10 @@ void bitstream_queue_push(int result, const aom_cdf_prob *cdf, int nsymbs) {
   // - Set 'debug_cdf_mismatch' to true
   // - Set target_frame_idx_r and target_queue_r to where CDF error was reported
   // - Set a breakpoint in debugger at the 'fprintf' below.
-  const bool debug_cdf_mismatch = true;
+  const bool debug_cdf_mismatch = false;
   if (debug_cdf_mismatch) {
-    int target_frame_idx_r = 32;
-    int target_queue_r = 33738;
+    int target_frame_idx_r = 1;
+    int target_queue_r = 18005;
     if (frame_idx_w == target_frame_idx_r && queue_w == target_queue_r) {
       fprintf(stderr, "\n *** bitstream queue at frame_idx_w %d queue_w %d\n",
               frame_idx_w, queue_w);

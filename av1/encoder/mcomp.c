@@ -5397,7 +5397,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   WarpedMotionParams best_wm_params = mbmi->wm_params;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
   int best_num_proj_ref = mbmi->num_proj_ref;
-#endif
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   unsigned int bestmse;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 

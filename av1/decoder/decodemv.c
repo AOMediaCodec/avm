@@ -3232,8 +3232,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_SEP_COMP_DRL
       av1_find_mv_refs(
           cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
-          xd->weight, ref_mvs,
-          /*global_mvs=*/NULL
+          xd->weight, ref_mvs, /*global_mvs=*/NULL
 #if !CONFIG_C076_INTER_MOD_CTX
           ,
           inter_mode_ctx
