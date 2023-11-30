@@ -237,7 +237,7 @@ static INLINE void dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
 static INLINE int divide_using_multiply_shift(int num, int shift1,
                                               int multiplier, int shift2) {
   const int interm = num >> shift1;
-  return interm * multiplier >> shift2;
+  return (int)((int64_t)interm * multiplier >> shift2);
 }
 
 static INLINE void highbd_v_predictor(uint16_t *dst, ptrdiff_t stride, int bw,
