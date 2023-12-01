@@ -32,12 +32,14 @@ typedef struct single_mv_candidate {
 #if CONFIG_TIP
 #if CONFIG_REFINED_MVS_IN_TMVP
 #define OPFL_MVS_CLAMPED 0
-// Overwrite the MVs in TMVP list as optical flow based refined MV if applicable
-void av1_copy_frame_all_refined_mvs(const AV1_COMMON *const cm,
-                                    const MACROBLOCKD *xd,
-                                    const MB_MODE_INFO *const mi, int mi_row,
-                                    int mi_col, int x_inside_boundary,
-                                    int y_inside_boundary) {
+// Overwrite the MVs in TMVP list by optical flow refined MVs (for TIP frame
+// mode)
+void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
+                                               const MACROBLOCKD *xd,
+                                               const MB_MODE_INFO *const mi,
+                                               int mi_row, int mi_col,
+                                               int x_inside_boundary,
+                                               int y_inside_boundary) {
   const int frame_mvs_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int cur_tpl_row = (mi_row >> TMVP_SHIFT_BITS);
@@ -138,10 +140,11 @@ void av1_copy_frame_all_refined_mvs(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_REFINED_MVS_IN_TMVP
 
-void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
-                            const MB_MODE_INFO *const mi, int mi_row,
-                            int mi_col, int x_inside_boundary,
-                            int y_inside_boundary) {
+// Copy the MVs into the TMVP list (for TIP frame mode)
+void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
+                                       const MB_MODE_INFO *const mi, int mi_row,
+                                       int mi_col, int x_inside_boundary,
+                                       int y_inside_boundary) {
   const int frame_mvs_stride =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int cur_tpl_row = (mi_row >> TMVP_SHIFT_BITS);
@@ -223,14 +226,15 @@ void av1_copy_frame_all_mvs(const AV1_COMMON *const cm,
 #endif  // CONFIG_TIP
 
 #if CONFIG_REFINED_MVS_IN_TMVP
+// Overwrite the MVs in TMVP list by optical flow refined MVs
 void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
                                 const MACROBLOCKD *xd,
                                 const MB_MODE_INFO *const mi, int mi_row,
                                 int mi_col, int x_inside_boundary,
                                 int y_inside_boundary) {
   if (cm->seq_params.enable_tip && cm->features.tip_frame_mode) {
-    av1_copy_frame_all_refined_mvs(cm, xd, mi, mi_row, mi_col,
-                                   x_inside_boundary, y_inside_boundary);
+    av1_copy_frame_refined_mvs_tip_frame_mode(
+        cm, xd, mi, mi_row, mi_col, x_inside_boundary, y_inside_boundary);
     return;
   }
 
@@ -333,13 +337,14 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_REFINED_MVS_IN_TMVP
 
+// Copy the MVs into the TMVP list
 void av1_copy_frame_mvs(const AV1_COMMON *const cm,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,
                         int x_inside_boundary, int y_inside_boundary) {
 #if CONFIG_TIP
   if (cm->seq_params.enable_tip && cm->features.tip_frame_mode) {
-    av1_copy_frame_all_mvs(cm, mi, mi_row, mi_col, x_inside_boundary,
-                           y_inside_boundary);
+    av1_copy_frame_mvs_tip_frame_mode(cm, mi, mi_row, mi_col, x_inside_boundary,
+                                      y_inside_boundary);
     return;
   }
 #endif  // CONFIG_TIP
