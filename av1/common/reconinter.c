@@ -898,6 +898,7 @@ int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
 #if AFFINE_FAST_WARP_METHOD == 2
 #define BICUBIC_PHASE_BITS 6
 #define BICUBIC_WARP_PREC_BITS 10
+// Warp prediction using bicubic interpolation (effectively 4-tap filter)
 void av1_warp_plane_bicubic(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                             int width, int height, int stride, uint16_t *pred,
                             int p_col, int p_row, int p_width, int p_height,
@@ -992,6 +993,7 @@ void av1_warp_plane_bicubic(WarpedMotionParams *wm, int bd, const uint16_t *ref,
 #endif  // AFFINE_FAST_WARP_METHOD == 2
 #if AFFINE_FAST_WARP_METHOD == 3
 #define BILINEAR_WARP_PREC_BITS 12
+// Warp prediction using bilinear interpolation (effectively 2-tap filter)
 void av1_warp_plane_bilinear(WarpedMotionParams *wm, int bd,
                              const uint16_t *ref, int width, int height,
                              int stride, uint16_t *pred, int p_col, int p_row,
@@ -1068,6 +1070,8 @@ void getsub_4d(int64_t *sub, int64_t *mat, int64_t *vec) {
   sub[9] = mat[3] * vec[1] - vec[0] * mat[7];
 }
 
+// Solve a 4-dimensional matrix inverse using inverse determinant method:
+// x = A^(-1) * b, where A: mat, b: vec, x: sol
 int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol) {
   int64_t a[10], b[10];  // values of 20 specific 2D subdeterminants
 
@@ -1412,6 +1416,7 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
 #if CONFIG_AFFINE_REFINEMENT
+// Combine two set of affine parameters into one.
 void combine_affine_params(AffineModelParams *am1,
                            const AffineModelParams *am2) {
   am1->rot_angle += am2->rot_angle;
@@ -1539,6 +1544,7 @@ void get_ref_affine_params(int bw, int bh, int mi_x, int mi_y,
   wm->invalid = 0;
 }
 
+// Find the maximum element of p/gx/gy in absolute value
 int64_t find_max_matrix_element(const uint16_t *p0, int pstride0,
                                 const uint16_t *p1, int pstride1,
                                 const int16_t *gx0, const int16_t *gy0,
@@ -1560,6 +1566,7 @@ int64_t find_max_matrix_element(const uint16_t *p0, int pstride0,
   return max_el;
 }
 
+// Derivation of two parameters in the rotation-scale affine model
 int derive_rotation_scale_2p(const uint16_t *p0, int pstride0,
                              const uint16_t *p1, int pstride1,
                              const int16_t *gx0, const int16_t *gy0,
@@ -1631,8 +1638,8 @@ int derive_rotation_scale_2p(const uint16_t *p0, int pstride0,
   const int64_t det_x = (sv2 * suw - suv * svw) * (1 << bits);
   const int64_t det_y = (su2 * svw - suv * suw) * (1 << bits);
 
-  int angle = (int)divide_and_round_signed(det_x, det);
-  int alpha = (int)divide_and_round_signed(det_y, det);
+  const int angle = (int)divide_and_round_signed(det_x, det);
+  const int alpha = (int)divide_and_round_signed(det_y, det);
 
   assert(WARPEDMODEL_PREC_BITS - AFFINE_PREC_BITS >= 0);
   am_params->rot_angle = angle;
@@ -1643,6 +1650,7 @@ int derive_rotation_scale_2p(const uint16_t *p0, int pstride0,
   return 0;
 }
 
+// Derivation of four parameters in the rotation-scale-translation affine model
 int derive_rotation_scale_translation_4p(const uint16_t *p0, int pstride0,
                                          const uint16_t *p1, int pstride1,
                                          const int16_t *gx0, const int16_t *gy0,
@@ -1798,6 +1806,7 @@ static void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride,
 }
 #endif  // AFFINE_AVERAGING_BITS > 0
 
+// Find the maximum element of pdiff/gx/gy in absolute value
 // TODO(kslu) add SIMD version
 int64_t find_max_matrix_element_interp_grad(const int16_t *pdiff, int pstride,
                                             const int16_t *gx,
@@ -1822,6 +1831,8 @@ int64_t find_max_matrix_element_interp_grad(const int16_t *pdiff, int pstride,
   return max_el;
 }
 
+// Derivation of two parameters in the rotation-scale affine model (in the
+// pipeline where gradients are computed directly from d0*P0-d1*P1)
 int derive_rotation_scale_2p_interp_grad(const int16_t *pdiff, int pstride,
                                          const int16_t *gx, const int16_t *gy,
                                          int gstride, int bw, int bh,
@@ -1920,6 +1931,8 @@ int derive_rotation_scale_2p_interp_grad(const int16_t *pdiff, int pstride,
   return 0;
 }
 
+// Derivation of four parameters in the rotation-scale-translation affine model
+// (in the pipeline where gradients are computed directly from d0*P0-d1*P1)
 int derive_rotation_scale_translation_4p_interp_grad(
     const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
     int gstride, int bw, int bh, int grad_prec_bits,
@@ -2340,6 +2353,8 @@ static INLINE unsigned int sad_generic(const uint16_t *a, int a_stride,
 
 #if OPFL_COMBINE_INTERP_GRAD_LS
 #if CONFIG_AFFINE_REFINEMENT
+// Update predicted blocks (P0 & P1) and their gradients based on the affine
+// model derived from the first DAMR step
 void update_pred_grad_with_affine_model(MACROBLOCKD *xd, int plane, int bw,
                                         int bh, WarpedMotionParams *wms,
                                         int mi_x, int mi_y, int16_t *tmp0,
