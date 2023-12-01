@@ -2286,6 +2286,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     }
 
     int above_lines = 0, left_lines = 0, ref_width = 0, ref_height = 0;
+    int sub_x = cfl->subsampling_x;
+    int sub_y = cfl->subsampling_y;
     {
       const int luma_tx_size =
           av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
@@ -2306,10 +2308,10 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
             &ref_width, &ref_height);
-        above_lines >>= 1;
-        left_lines >>= 1;
-        ref_width >>= 1;
-        ref_height >>= 1;
+        above_lines >>= sub_y;
+        left_lines >>= sub_x;
+        ref_width >>= sub_x;
+        ref_height >>= sub_y;
         mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
                                              tx_size, above_lines, left_lines,
                                              ref_width, ref_height);
@@ -2320,10 +2322,10 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
             &ref_width, &ref_height);
-        above_lines >>= 1;
-        left_lines >>= 1;
-        ref_width >>= 1;
-        ref_height >>= 1;
+        above_lines >>= sub_y;
+        left_lines >>= sub_x;
+        ref_width >>= sub_x;
+        ref_height >>= sub_y;
         mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
                                              tx_size, above_lines, left_lines,
                                              ref_width, ref_height);
