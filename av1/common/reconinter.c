@@ -1415,6 +1415,51 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
 }
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
+#if CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH
+// Apply average pooling to reduce the sizes of pred difference and gradients
+// arrays. It reduces the complexity of the parameter solving routine
+// TODO(kslu) add SIMD version, and/or combine this operation into
+// av1_bicubic_grad* function
+void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
+                                 int16_t *gy, const int gstride, const int bw,
+                                 const int bh, const int n) {
+  const int bh_low = AOMMIN(bh, n);
+  const int bw_low = AOMMIN(bw, n);
+  const int step_h = bh / bh_low;
+  const int step_w = bw / bw_low;
+  int avg_stride = bw;
+#if OPFL_DOWNSAMP_QUINCUNX
+  int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w) - 1;
+#else
+  int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
+#endif
+  for (int i = 0; i < bh_low; i++) {
+    for (int j = 0; j < bw_low; j++) {
+#if OPFL_DOWNSAMP_QUINCUNX
+      if ((i + j) % 2 == 1) continue;
+#endif
+      int32_t tmp_gx = 0, tmp_gy = 0, tmp_pdiff = 0;
+      for (int k = 0; k < step_h; k++) {
+        for (int l = 0; l < step_w; l++) {
+#if OPFL_DOWNSAMP_QUINCUNX
+          if ((i * step_h + j * step_w + k + l) % 2 == 1) continue;
+#endif
+          tmp_gx += gx[(i * step_h + k) * gstride + (j * step_w + l)];
+          tmp_gy += gy[(i * step_h + k) * gstride + (j * step_w + l)];
+          tmp_pdiff += pdiff[(i * step_h + k) * pstride + (j * step_w + l)];
+        }
+      }
+      gx[i * avg_stride + j] =
+          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gx, avg_bits);
+      gy[i * avg_stride + j] =
+          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gy, avg_bits);
+      pdiff[i * avg_stride + j] =
+          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_pdiff, avg_bits);
+    }
+  }
+}
+#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH
+
 #if CONFIG_AFFINE_REFINEMENT
 // Combine two set of affine parameters into one.
 void combine_affine_params(AffineModelParams *am1,
@@ -1755,57 +1800,6 @@ int derive_rotation_scale_translation_4p(const uint16_t *p0, int pstride0,
 }
 
 #if OPFL_COMBINE_INTERP_GRAD_LS
-#if AFFINE_AVERAGING_BITS > 0
-// Apply average pooling to reduce the sizes of pred difference and gradients
-// arrays. It reduces the complexity of the parameter solving routine
-// TODO(kslu) add SIMD version, and/or combine this operation into
-// av1_bicubic_grad* function
-// TODO(kslu) unify with the similar function in optical flow MV search
-static void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride,
-                                        int16_t *gx, int16_t *gy,
-                                        const int gstride, const int bw,
-                                        const int bh, int16_t *pdiff_avg,
-                                        int16_t *gx_avg, int16_t *gy_avg,
-                                        int *bw_low, int *bh_low, int *step_w,
-                                        int *step_h) {
-  *bh_low = AOMMIN(bh, 1 << (7 - AFFINE_AVERAGING_BITS));
-  *bw_low = AOMMIN(bw, 1 << (7 - AFFINE_AVERAGING_BITS));
-  *step_h = AOMMAX(1, bh >> (7 - AFFINE_AVERAGING_BITS));
-  *step_w = AOMMAX(1, bw >> (7 - AFFINE_AVERAGING_BITS));
-  int avg_stride = bw;
-#if OPFL_DOWNSAMP_QUINCUNX
-  int avg_bits = get_msb_signed(*step_h) + get_msb_signed(*step_w) - 1;
-#else
-  int avg_bits = get_msb_signed(*step_h) + get_msb_signed(*step_w);
-#endif
-  for (int i = 0; i < *bh_low; i++) {
-    for (int j = 0; j < *bw_low; j++) {
-#if OPFL_DOWNSAMP_QUINCUNX
-      if ((i + j) % 2 == 1) continue;
-#endif
-      int32_t tmp_gx = 0, tmp_gy = 0, tmp_pdiff = 0;
-      for (int k = 0; k < *step_h; k++) {
-        for (int l = 0; l < *step_w; l++) {
-#if OPFL_DOWNSAMP_QUINCUNX
-          if ((i * (*step_h) + j * (*step_w) + k + l) % 2 == 1) continue;
-#endif
-          tmp_gx += gx[(i * (*step_h) + k) * gstride + (j * (*step_w) + l)];
-          tmp_gy += gy[(i * (*step_h) + k) * gstride + (j * (*step_w) + l)];
-          tmp_pdiff +=
-              pdiff[(i * (*step_h) + k) * pstride + (j * (*step_w) + l)];
-        }
-      }
-      gx_avg[i * avg_stride + j] =
-          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gx, avg_bits);
-      gy_avg[i * avg_stride + j] =
-          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gy, avg_bits);
-      pdiff_avg[i * avg_stride + j] =
-          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_pdiff, avg_bits);
-    }
-  }
-}
-#endif  // AFFINE_AVERAGING_BITS > 0
-
 // Find the maximum element of pdiff/gx/gy in absolute value
 // TODO(kslu) add SIMD version
 int64_t find_max_matrix_element_interp_grad(const int16_t *pdiff, int pstride,
@@ -2581,9 +2575,8 @@ void av1_get_optflow_based_mv_highbd(
     AffineModelParams affine_params = default_affine_params;
 
 #if AFFINE_AVERAGING_BITS > 0
-    int bw_low, bh_low, step_w, step_h;
-    avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, tmp1, gx0, gy0,
-                                &bw_low, &bh_low, &step_w, &step_h);
+    const int block_len_low = 1 << (7 - AFFINE_AVERAGING_BITS);
+    avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, block_len_low);
 #endif  // AFFINE_AVERAGING_BITS > 0
 
     av1_opfl_affine_refinement_mxn_interp_grad_c(

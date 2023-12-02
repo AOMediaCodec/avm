@@ -669,6 +669,12 @@ static INLINE int32_t divide_and_round_signed(int64_t num, int64_t den) {
 }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
+#if CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH
+void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
+                                 int16_t *gy, const int gstride, const int bw,
+                                 const int bh, const int n);
+#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH
+
 #if CONFIG_AFFINE_REFINEMENT
 #define AFFINE_OPFL_BASED_ON_SAD 1
 #define AFFINE_FAST_ENC_SEARCH 1

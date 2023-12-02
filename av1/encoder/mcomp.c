@@ -430,40 +430,6 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
   return 0;
 }
 
-// Apply average pooling operation to downsize the P0-P1 and gradient arrays.
-// This speeds up the equation solving routine and also improves numerical
-// stability.
-void avg_pooling_pdiff_gradients(int16_t *pdiff, const int pstride, int16_t *gx,
-                                 int16_t *gy, const int gstride, const int bw,
-                                 const int bh, const int n) {
-  assert(bw >= n);
-  assert(bh >= n);
-  const int bh_bits = get_msb(bh);
-  const int bw_bits = get_msb(bw);
-  const int n_bits = get_msb(n);
-  const int step_h = 1 << (bh_bits - n_bits);
-  const int step_w = 1 << (bw_bits - n_bits);
-  int avg_bits = bh_bits + bw_bits - n_bits * 2;
-  for (int i = 0; i < n; i++) {
-    for (int j = 0; j < n; j++) {
-      int32_t tmp_gx = 0, tmp_gy = 0, tmp_pdiff = 0;
-      for (int k = 0; k < step_h; k++) {
-        for (int l = 0; l < step_w; l++) {
-          tmp_gx += gx[(i * step_h + k) * gstride + (j * step_w + l)];
-          tmp_gy += gy[(i * step_h + k) * gstride + (j * step_w + l)];
-          tmp_pdiff += pdiff[(i * step_h + k) * pstride + (j * step_w + l)];
-        }
-      }
-      gx[i * gstride + j] =
-          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gx, avg_bits);
-      gy[i * gstride + j] =
-          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gy, avg_bits);
-      pdiff[i * pstride + j] =
-          (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_pdiff, avg_bits);
-    }
-  }
-}
-
 // Derive a MVD based on optical flow method. In the two sided optical flow
 // refinement implemented in av1_get_optflow_based_mv_highbd, two predicted
 // blocks (P0, P1) are used to solve a MV delta, which is scaled based on d0
