@@ -9769,8 +9769,22 @@ static void tx_search_best_inter_candidates(
     const int data_idx = inter_modes_info->rd_idx_pair_arr[j].idx;
     *mbmi = inter_modes_info->mbmi_arr[data_idx];
 #if CONFIG_C071_SUBBLK_WARPMV
-    if (is_warp_mode(mbmi->motion_mode))
+    if (is_warp_mode(mbmi->motion_mode)) {
+#if CONFIG_COMPOUND_WARP_CAUSAL
+      if (!mbmi->wm_params[0].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col,
+                      0);
+      if (!mbmi->wm_params[1].invalid)
+        assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1], mi_row, mi_col,
+                      1);
+#else
+#if CONFIG_EXTENDED_WARP_PREDICTION
       assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
+#else
+      assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params, mi_row, mi_col);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#endif  // CONFIG_COMPOUND_WARP_CAUSAL
+    }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
     int64_t curr_est_rd = inter_modes_info->est_rd_arr[data_idx];
     if (curr_est_rd * 0.80 > top_est_rd) break;
