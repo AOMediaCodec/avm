@@ -87,8 +87,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           refined_mv.as_mv.col = mv_offset_x;
         } else {
 #endif  // CONFIG_AFFINE_REFINEMENT
-          refined_mv.as_mv.row = mi->mv[idx].as_mv.row;
-          refined_mv.as_mv.col = mi->mv[idx].as_mv.col;
+          refined_mv.as_mv = mi->mv[idx].as_mv;
 #if CONFIG_AFFINE_REFINEMENT
         }
 #endif  // CONFIG_AFFINE_REFINEMENT
@@ -282,8 +281,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
             refined_mv.as_mv.col = mv_offset_x;
           } else {
 #endif  // CONFIG_AFFINE_REFINEMENT
-            refined_mv.as_mv.row = mi->mv[idx].as_mv.row;
-            refined_mv.as_mv.col = mi->mv[idx].as_mv.col;
+            refined_mv.as_mv = mi->mv[idx].as_mv;
 #if CONFIG_AFFINE_REFINEMENT
           }
 #endif  // CONFIG_AFFINE_REFINEMENT
