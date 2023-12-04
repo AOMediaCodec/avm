@@ -2062,7 +2062,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_REFINED_MVS_IN_TMVP
   if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     const MB_MODE_INFO *const mi = &ctx->mic;
-    if (opfl_allowed_for_cur_block(cm, mi)) {
+    if (opfl_allowed_for_cur_block(cm, mi)
+#if CONFIG_REFINEMV
+        || mi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+    ) {
       const int bw = mi_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
       const int bh = mi_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
       const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);

@@ -87,33 +87,45 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           refined_mv.as_mv.col = mv_offset_x;
         } else {
 #endif  // CONFIG_AFFINE_REFINEMENT
-          refined_mv.as_mv = mi->mv[idx].as_mv;
+#if CONFIG_REFINEMV
+          // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
+          // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
+          if (mi->refinemv_flag)
+            refined_mv.as_mv =
+                xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
+                    .refinemv[idx]
+                    .as_mv;
+          else
+#endif  // CONFIG_REFINEMV
+            refined_mv.as_mv = mi->mv[idx].as_mv;
 #if CONFIG_AFFINE_REFINEMENT
         }
 #endif  // CONFIG_AFFINE_REFINEMENT
-        if (n == 4) {
-          // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
-          // subblock, take the average of 4 refined MVs
-          refined_mv.as_mv.row +=
-              ROUND_POWER_OF_TWO_SIGNED(xd->mv_delta[0].mv[idx].as_mv.row +
-                                            xd->mv_delta[1].mv[idx].as_mv.row +
-                                            xd->mv_delta[2].mv[idx].as_mv.row +
-                                            xd->mv_delta[3].mv[idx].as_mv.row,
-                                        2 + MV_REFINE_PREC_BITS - 3);
-          refined_mv.as_mv.col +=
-              ROUND_POWER_OF_TWO_SIGNED(xd->mv_delta[0].mv[idx].as_mv.col +
-                                            xd->mv_delta[1].mv[idx].as_mv.col +
-                                            xd->mv_delta[2].mv[idx].as_mv.col +
-                                            xd->mv_delta[3].mv[idx].as_mv.col,
-                                        2 + MV_REFINE_PREC_BITS - 3);
-        } else {
-          int sbmv_stride = bw >> 3;
-          refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
-              xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.row,
-              MV_REFINE_PREC_BITS - 3);
-          refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
-              xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.col,
-              MV_REFINE_PREC_BITS - 3);
+        if (opfl_allowed_for_cur_block(cm, mi)) {
+          if (n == 4) {
+            // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
+            // subblock, take the average of 4 refined MVs
+            refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[0].mv[idx].as_mv.row +
+                    xd->mv_delta[1].mv[idx].as_mv.row +
+                    xd->mv_delta[2].mv[idx].as_mv.row +
+                    xd->mv_delta[3].mv[idx].as_mv.row,
+                2 + MV_REFINE_PREC_BITS - 3);
+            refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[0].mv[idx].as_mv.col +
+                    xd->mv_delta[1].mv[idx].as_mv.col +
+                    xd->mv_delta[2].mv[idx].as_mv.col +
+                    xd->mv_delta[3].mv[idx].as_mv.col,
+                2 + MV_REFINE_PREC_BITS - 3);
+          } else {
+            int sbmv_stride = bw >> 3;
+            refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.row,
+                MV_REFINE_PREC_BITS - 3);
+            refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
+                xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.col,
+                MV_REFINE_PREC_BITS - 3);
+          }
         }
 #if OPFL_MVS_CLAMPED
         refined_mv.as_mv.row =
@@ -281,33 +293,45 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
             refined_mv.as_mv.col = mv_offset_x;
           } else {
 #endif  // CONFIG_AFFINE_REFINEMENT
-            refined_mv.as_mv = mi->mv[idx].as_mv;
+#if CONFIG_REFINEMV
+            // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
+            // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
+            if (mi->refinemv_flag)
+              refined_mv.as_mv =
+                  xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
+                      .refinemv[idx]
+                      .as_mv;
+            else
+#endif  // CONFIG_REFINEMV
+              refined_mv.as_mv = mi->mv[idx].as_mv;
 #if CONFIG_AFFINE_REFINEMENT
           }
 #endif  // CONFIG_AFFINE_REFINEMENT
-          if (n == 4) {
-            // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
-            // subblock, take the average of 4 refined MVs
-            refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
-                xd->mv_delta[0].mv[idx].as_mv.row +
-                    xd->mv_delta[1].mv[idx].as_mv.row +
-                    xd->mv_delta[2].mv[idx].as_mv.row +
-                    xd->mv_delta[3].mv[idx].as_mv.row,
-                2 + MV_REFINE_PREC_BITS - 3);
-            refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
-                xd->mv_delta[0].mv[idx].as_mv.col +
-                    xd->mv_delta[1].mv[idx].as_mv.col +
-                    xd->mv_delta[2].mv[idx].as_mv.col +
-                    xd->mv_delta[3].mv[idx].as_mv.col,
-                2 + MV_REFINE_PREC_BITS - 3);
-          } else {
-            int sbmv_stride = bw >> 3;
-            refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
-                xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.row,
-                MV_REFINE_PREC_BITS - 3);
-            refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
-                xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.col,
-                MV_REFINE_PREC_BITS - 3);
+          if (opfl_allowed_for_cur_block(cm, mi)) {
+            if (n == 4) {
+              // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
+              // subblock, take the average of 4 refined MVs
+              refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
+                  xd->mv_delta[0].mv[idx].as_mv.row +
+                      xd->mv_delta[1].mv[idx].as_mv.row +
+                      xd->mv_delta[2].mv[idx].as_mv.row +
+                      xd->mv_delta[3].mv[idx].as_mv.row,
+                  2 + MV_REFINE_PREC_BITS - 3);
+              refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
+                  xd->mv_delta[0].mv[idx].as_mv.col +
+                      xd->mv_delta[1].mv[idx].as_mv.col +
+                      xd->mv_delta[2].mv[idx].as_mv.col +
+                      xd->mv_delta[3].mv[idx].as_mv.col,
+                  2 + MV_REFINE_PREC_BITS - 3);
+            } else {
+              int sbmv_stride = bw >> 3;
+              refined_mv.as_mv.row += ROUND_POWER_OF_TWO_SIGNED(
+                  xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.row,
+                  MV_REFINE_PREC_BITS - 3);
+              refined_mv.as_mv.col += ROUND_POWER_OF_TWO_SIGNED(
+                  xd->mv_delta[h * sbmv_stride + w].mv[idx].as_mv.col,
+                  MV_REFINE_PREC_BITS - 3);
+            }
           }
 #if OPFL_MVS_CLAMPED
           refined_mv.as_mv.row =

@@ -2151,7 +2151,11 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   if (!frame_is_intra_only(cm) &&
       cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     MB_MODE_INFO *const mi = xd->mi[0];
-    if (opfl_allowed_for_cur_block(cm, mi)) {
+    if (opfl_allowed_for_cur_block(cm, mi)
+#if CONFIG_REFINEMV
+        || mi->refinemv_flag
+#endif  // CONFIG_REFINEMV
+    ) {
       const int bw = mi_size_wide[bsize];
       const int bh = mi_size_high[bsize];
       const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
