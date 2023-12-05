@@ -1570,14 +1570,14 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDVarianceTest,
                          ::testing::ValuesIn(kArrayHBDVariance_avx2));
 
 const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
-#if CONFIG_BLOCK_256X256
+#if CONFIG_BLOCK_256
 //  SubpelVarianceParams(8, 8, &aom_highbd_12_sub_pixel_variance256x256_avx2,
 //  12),
 //  SubpelVarianceParams(8, 7, &aom_highbd_12_sub_pixel_variance256x128_avx2,
 //  12),
 //  SubpelVarianceParams(7, 8, &aom_highbd_12_sub_pixel_variance128x256_avx2,
 //  12),
-#endif  // CONFIG_BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
   // SubpelVarianceParams(7, 7, &aom_highbd_12_sub_pixel_variance128x128_avx2,
   // 12),
   // SubpelVarianceParams(7, 6, &aom_highbd_12_sub_pixel_variance128x64_avx2,
@@ -1600,11 +1600,11 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
   // 12),
   SubpelVarianceParams(4, 3, &aom_highbd_12_sub_pixel_variance16x8_avx2, 12),
 
-#if CONFIG_BLOCK_256X256
+#if CONFIG_BLOCK_256
   SubpelVarianceParams(8, 8, &aom_highbd_10_sub_pixel_variance256x256_avx2, 10),
   SubpelVarianceParams(8, 7, &aom_highbd_10_sub_pixel_variance256x128_avx2, 10),
   SubpelVarianceParams(7, 8, &aom_highbd_10_sub_pixel_variance128x256_avx2, 10),
-#endif  // CONFIG_BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
   SubpelVarianceParams(7, 7, &aom_highbd_10_sub_pixel_variance128x128_avx2, 10),
   SubpelVarianceParams(7, 6, &aom_highbd_10_sub_pixel_variance128x64_avx2, 10),
   SubpelVarianceParams(6, 7, &aom_highbd_10_sub_pixel_variance64x128_avx2, 10),
@@ -1617,11 +1617,11 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_avx2[] = {
   SubpelVarianceParams(4, 4, &aom_highbd_10_sub_pixel_variance16x16_avx2, 10),
   SubpelVarianceParams(4, 3, &aom_highbd_10_sub_pixel_variance16x8_avx2, 10),
 
-#if CONFIG_BLOCK_256X256
+#if CONFIG_BLOCK_256
   SubpelVarianceParams(8, 8, &aom_highbd_8_sub_pixel_variance256x256_avx2, 8),
   SubpelVarianceParams(8, 7, &aom_highbd_8_sub_pixel_variance256x128_avx2, 8),
   SubpelVarianceParams(7, 8, &aom_highbd_8_sub_pixel_variance128x256_avx2, 8),
-#endif  // CONFIG_BLOCK_256X256
+#endif  // CONFIG_BLOCK_256
   SubpelVarianceParams(7, 7, &aom_highbd_8_sub_pixel_variance128x128_avx2, 8),
   SubpelVarianceParams(7, 6, &aom_highbd_8_sub_pixel_variance128x64_avx2, 8),
   SubpelVarianceParams(6, 7, &aom_highbd_8_sub_pixel_variance64x128_avx2, 8),
