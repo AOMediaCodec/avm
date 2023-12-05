@@ -709,7 +709,7 @@ void av1_highbd_wiener_convolve_add_src_c(
 }
 
 #if CONFIG_LR_IMPROVEMENTS
-#define USE_CONV_SYM_VERSIONS 0
+#define USE_CONV_SYM_VERSIONS 1
 
 // Convolves a block of pixels with origin-symmetric, non-separable filters.
 // This routine is intended as a starting point for SIMD and other acceleration
@@ -1216,7 +1216,9 @@ void av1_convolve_symmetric_dual_highbd_c(
     int block_col_end) {
   assert(!filter_config->subtract_center);
   const int num_sym_taps = filter_config->num_pixels / 2;
-  const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
+  // Remove singleton tap from num_taps_dual if present, as this is handled
+  // separately to the main taps
+  const int num_taps_dual = filter_config->num_pixels2 & ~1;
   int32_t singleton_tap = 1 << filter_config->prec_bits;
   if (filter_config->num_pixels % 2) {
     // Center-tap is unconstrained.
@@ -1240,12 +1242,13 @@ void av1_convolve_symmetric_dual_highbd_c(
     const int diff = r * dgd_stride + c;
     pixel_offset_diffs[k] = diff;
   }
-  assert(num_sym_taps_dual <= 24);
+  // The cross-plane (dual) channel is not necessarily symmetric.
+  assert(num_taps_dual <= 24);
   int16_t compute_buffer_dual[24];
   int pixel_offset_diffs_dual[24];
-  for (int k = 0; k < num_sym_taps_dual; ++k) {
-    const int r = filter_config->config2[2 * k][NONSEP_ROW_ID];
-    const int c = filter_config->config2[2 * k][NONSEP_COL_ID];
+  for (int k = 0; k < num_taps_dual; ++k) {
+    const int r = filter_config->config2[k][NONSEP_ROW_ID];
+    const int c = filter_config->config2[k][NONSEP_COL_ID];
     const int diff = r * dgd_dual_stride + c;
     pixel_offset_diffs_dual[k] = diff;
   }
@@ -1279,16 +1282,11 @@ void av1_convolve_symmetric_dual_highbd_c(
         const int16_t tmp_sum = dgd[dgd_id + diff];
         compute_buffer[k] += tmp_sum;  // 16-bit arithmetic.
       }
-      // Two loops for a potential data cache miss.
-      for (int k = 0; k < num_sym_taps_dual; ++k) {
-        const int diff = pixel_offset_diffs_dual[k];
-        const int16_t tmp_sum = dgd_dual[dgd_dual_id - diff];
-        compute_buffer_dual[k] = tmp_sum;  // 16-bit
-      }
-      for (int k = 0; k < num_sym_taps_dual; ++k) {
+      // Cross-plane part
+      for (int k = 0; k < num_taps_dual; ++k) {
         const int diff = pixel_offset_diffs_dual[k];
         const int16_t tmp_sum = dgd_dual[dgd_dual_id + diff];
-        compute_buffer_dual[k] += tmp_sum;  // 16-bit arithmetic.
+        compute_buffer_dual[k] = tmp_sum;  // 16-bit arithmetic.
       }
 
       // Handle singleton tap.
@@ -1299,8 +1297,8 @@ void av1_convolve_symmetric_dual_highbd_c(
       }
 
       tmp += singleton_tap_dual * dgd_dual[dgd_dual_id];
-      for (int k = 0; k < num_sym_taps_dual; ++k) {
-        const int pos = filter_config->config2[2 * k][NONSEP_BUF_POS];
+      for (int k = 0; k < num_taps_dual; ++k) {
+        const int pos = filter_config->config2[k][NONSEP_BUF_POS];
         tmp += (int32_t)filter[pos] *
                compute_buffer_dual[k];  // 32-bit arithmetic.
       }
@@ -1333,7 +1331,9 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_c(
     int block_col_end) {
   assert(filter_config->subtract_center);
   const int num_sym_taps = filter_config->num_pixels / 2;
-  const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
+  // Remove singleton tap from num_taps_dual if present, as this is handled
+  // separately to the main taps
+  const int num_taps_dual = filter_config->num_pixels2 & ~1;
   int32_t singleton_tap = 1 << filter_config->prec_bits;
   int32_t dc_offset = 0;
   if (filter_config->num_pixels % 2) {
@@ -1359,16 +1359,13 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_c(
             clip_base(dgd[i * dgd_stride + j - diff] - dgd[dgd_id], bit_depth);
         tmp += filter[pos] * tmp_sum;
       }
-      for (int k = 0; k < num_sym_taps_dual; ++k) {
-        const int pos = filter_config->config2[2 * k][NONSEP_BUF_POS];
-        const int r = filter_config->config2[2 * k][NONSEP_ROW_ID];
-        const int c = filter_config->config2[2 * k][NONSEP_COL_ID];
+      for (int k = 0; k < num_taps_dual; ++k) {
+        const int pos = filter_config->config2[k][NONSEP_BUF_POS];
+        const int r = filter_config->config2[k][NONSEP_ROW_ID];
+        const int c = filter_config->config2[k][NONSEP_COL_ID];
         const int diff = r * dgd_dual_stride + c;
-        int16_t tmp_sum = clip_base(
+        const int16_t tmp_sum = clip_base(
             dgd_dual[i * dgd_dual_stride + j + diff] - dgd_dual[dgd_dual_id],
-            bit_depth);
-        tmp_sum += clip_base(
-            dgd_dual[i * dgd_dual_stride + j - diff] - dgd_dual[dgd_dual_id],
             bit_depth);
 
         tmp += filter[pos] * tmp_sum;
@@ -1398,8 +1395,9 @@ void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
                                      int dst_stride, int bit_depth) {
 #if USE_CONV_SYM_VERSIONS
   assert(nsfilter->strict_bounds == false);
+  assert(!nsfilter->subtract_center);
   if (nsfilter->subtract_center)
-    av1_convolve_symmetric_dual_subtract_center_highbd(
+    av1_convolve_symmetric_dual_subtract_center_highbd_c(
         dgd, stride, dgd2, stride2, nsfilter, filter, dst, dst_stride,
         bit_depth, 0, height, 0, width);
   else

@@ -1368,9 +1368,7 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
   libaom_test::ACMRandom rnd_;
   static constexpr int kMaxPrecisionBeforeOverflow = 12;
   static constexpr int kNumSymmetricTaps = 6;
-  // In dual filtering, 7 taps (6 symmetric + 1 center) are required for each of
-  // the buffer.
-  static constexpr int kNumSubtractCenterOffTaps = (2 * kNumSymmetricTaps) + 2;
+  static constexpr int kNumSubtractCenterOffTaps = 20;
   static constexpr int kMaxTapOffset = 2;  // Filters are 5x5.
   static constexpr int kSpeedIterations = 10000;
   static constexpr int kTestIterations = 100;
@@ -1543,9 +1541,9 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
   };
 
   const int wienerns_config_uv_from_y[12][3] = {
-    { 1, 0, 6 },  { -1, 0, 6 },  { 0, 1, 7 },  { 0, -1, 7 },
-    { 1, 1, 8 },  { -1, -1, 8 }, { -1, 1, 9 }, { 1, -1, 9 },
-    { 2, 0, 10 }, { -2, 0, 10 }, { 0, 2, 11 }, { 0, -2, 11 },
+    { 1, 0, 6 },  { -1, 0, 7 },   { 0, 1, 8 },   { 0, -1, 9 },
+    { 1, 1, 10 }, { -1, -1, 11 }, { -1, 1, 12 }, { 1, -1, 13 },
+    { 2, 0, 14 }, { -2, 0, 15 },  { 0, 2, 16 },  { 0, -2, 17 },
   };
 
   const int wienerns_wout_subtract_center_config_uv_from_uv[13][3] = {
@@ -1557,9 +1555,9 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
   // Adjust the beginning tap to account for the above change and add a tap at
   // (0, 0).
   const int wienerns_wout_subtract_center_config_uv_from_y[13][3] = {
-    { 1, 0, 7 },   { -1, 0, 7 },  { 0, 1, 8 },   { 0, -1, 8 }, { 1, 1, 9 },
-    { -1, -1, 9 }, { -1, 1, 10 }, { 1, -1, 10 }, { 2, 0, 11 }, { -2, 0, 11 },
-    { 0, 2, 12 },  { 0, -2, 12 }, { 0, 0, 13 },
+    { 1, 0, 7 },    { -1, 0, 8 },  { 0, 1, 9 },   { 0, -1, 10 }, { 1, 1, 11 },
+    { -1, -1, 12 }, { -1, 1, 13 }, { 1, -1, 14 }, { 2, 0, 15 },  { -2, 0, 16 },
+    { 0, 2, 17 },   { 0, -2, 18 }, { 0, 0, 19 },
   };
 
   const NonsepFilterConfig DualFilterWithCenterConfig_ = {

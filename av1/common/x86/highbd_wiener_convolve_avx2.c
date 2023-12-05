@@ -329,6 +329,21 @@ static __m256i highbd_clamp_epi16(__m256i u, __m256i zero, __m256i max) {
     *accum_out_r2r3 = _mm256_add_epi32(out_3, *accum_out_r2r3); \
   }
 
+// Variant with only two sets of pixels and coefficients
+#define MADD_AND_ACCUM_FOR_CHROMA_FILTERING_2(f0, f1)           \
+  {                                                             \
+    const __m256i res_0 = _mm256_madd_epi16(ru10, f0);          \
+    const __m256i res_1 = _mm256_madd_epi16(ru11, f0);          \
+    const __m256i res_2 = _mm256_madd_epi16(ru12, f1);          \
+    const __m256i res_3 = _mm256_madd_epi16(ru13, f1);          \
+    /* r00 r01 r02 r03 | r10 r11 r12 r13 */                     \
+    const __m256i out_0 = _mm256_add_epi32(res_0, res_2);       \
+    *accum_out_r0r1 = _mm256_add_epi32(out_0, *accum_out_r0r1); \
+    /* r20 r21 r22 r23 | r30 r31 r32 r33 */                     \
+    const __m256i out_1 = _mm256_add_epi32(res_1, res_3);       \
+    *accum_out_r2r3 = _mm256_add_epi32(out_1, *accum_out_r2r3); \
+  }
+
 // Implementation of DIAMOND shaped 7-tap filtering for block size of 4x4.
 // The output for a particular pixel in a 4x4 block is calculated by considering
 // a 5x5 grid surrounded by that pixel. The registers accum_out_r0r1 and
@@ -449,6 +464,103 @@ static INLINE void apply_7tap_filtering_with_subtract_center_off(
   // Multiply the formed registers with filter and add the result to accumulate
   // registers.
   MADD_AND_ACCUM_FOR_CHROMA_FILTERING(fc51, fc61, fc5z)
+}
+
+// Similar to apply_7tap_filtering_with_subtract_center_off, but allow a generic
+// asymmetric filter with 13 independent taps. The only difference is in how
+// the filter taps are matched up with source pixels.
+static INLINE void apply_asym_13tap_filtering_with_subtract_center_off(
+    const uint16_t *dgd, int stride, const __m128i filt_coeff_lo,
+    const __m128i filt_coeff_hi, __m256i *accum_out_r0r1,
+    __m256i *accum_out_r2r3, int block_row_begin, int block_col_begin) {
+  // Load source data
+  const int src_index_start = block_row_begin * stride + block_col_begin;
+  const uint16_t *src_ptr = dgd + src_index_start - 2 * stride - 2;
+
+  // Load source data required for chroma filtering into registers.
+  LOAD_SRC_DATA_FOR_CHROMA_FILTERING(src_ptr, stride)
+
+  // Forms 256bit source registers from loaded 128bit registers and pack them
+  // accordingly for filtering process.
+  FORM_AND_PACK_REG_FOR_CHROMA_FILTERING()
+
+  // Output corresponding to filter coefficient f8,f9.
+  // a2 e2 a3 e3 a4 e4 a5 e5 | b2 f2 b3 f3 b4 f4 b5 f5
+  const __m256i ru8 = _mm256_alignr_epi8(ru1, ru0, 8);
+  // c2 g2 c3 g3 c4 g4 c5 g5 | d2 h2 d3 h3 d4 h4 d5 h5
+  const __m256i ru9 = _mm256_alignr_epi8(ru3, ru2, 8);
+
+  // f9 f8 f9 f8 f9 f8 f9 f8 | f9 f8 f9 f8 f9 f8 f9 f8
+  const __m256i fc98 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_hi, 0x01));
+  // r00 r01 r02 r03 | r10 r11 r12 r13
+  const __m256i out_f98_r0r1 = _mm256_madd_epi16(ru8, fc98);
+  *accum_out_r0r1 = _mm256_add_epi32(out_f98_r0r1, *accum_out_r0r1);
+  // r20 r21 r22 r23 | r30 r31 r32 r33
+  const __m256i out_f98_r2r3 = _mm256_madd_epi16(ru9, fc98);
+  *accum_out_r2r3 = _mm256_add_epi32(out_f98_r2r3, *accum_out_r2r3);
+
+  // Output corresponding to filter coefficient 5, 7, 0, 1, 6, 4
+  // b1 d1 b2 d2 b3 d3 b4 d4 | c1 e1 c2 e2 c3 e3 c4 e4
+  __m256i ru10 = _mm256_alignr_epi8(ru5, ru4, 4);
+  // d1 f1 d2 f2 d3 f3 d4 f4 | e1 g1 e2 g2 e3 g3 e4 g4
+  __m256i ru11 = _mm256_alignr_epi8(ru7, ru6, 4);
+  // b2 d2 b3 d3 b4 d4 b5 d5 | c2 e2 c3 e3 c4 e4 c5 e5
+  __m256i ru12 = _mm256_alignr_epi8(ru5, ru4, 8);
+  // d2 f2 d3 f3 d4 f4 d5 f5 | e2 g2 e3 g3 e4 g4 e5 g5
+  __m256i ru13 = _mm256_alignr_epi8(ru7, ru6, 8);
+  // b3 d3 b4 d4 b5 d5 b6 d6 | c3 e3 c4 e4 c5 e5 c6 e6
+  __m256i ru14 = _mm256_alignr_epi8(ru5, ru4, 12);
+  // d3 f3 d4 f4 d5 f5 d6 f6 | e3 g3 e4 g4 e5 g5 e6 g6
+  __m256i ru15 = _mm256_alignr_epi8(ru7, ru6, 12);
+
+  // f5 f7 f5 f7 - - - -
+  const __m256i fc57 = _mm256_broadcastd_epi32(
+      _mm_shufflelo_epi16(_mm_bsrli_si128(filt_coeff_lo, 8), 0x0D));
+  // f1 f0 f1 f0 - - - -
+  const __m256i fc10 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_lo, 0x01));
+  // f6 f4 f6 f4 - - - -
+  const __m256i fc64 = _mm256_broadcastd_epi32(
+      _mm_shufflelo_epi16(_mm_bsrli_si128(filt_coeff_lo, 8), 0x02));
+
+  // Multiply the formed registers with filter and add the result to accumulate
+  // registers.
+  MADD_AND_ACCUM_FOR_CHROMA_FILTERING(fc57, fc10, fc64)
+
+  // Output corresponding to filter coefficient 5, 1, 6.
+  const __m256i zero = _mm256_set1_epi16(0x0);
+  // c0 c1 c1 c2 c2 c3 c3 c4 || d0 d1 d1 d2 d2 d3 d3 d4
+  ru10 = _mm256_unpacklo_epi16(src_cd, _mm256_bsrli_epi128(src_cd, 2));
+  // e0 e1 e1 e2 e2 e3 e3 e4 || f0 f1 f1 f2 f2 f3 f3 f4
+  ru11 = _mm256_unpacklo_epi16(src_ef, _mm256_bsrli_epi128(src_ef, 2));
+  // c2  0 c3  0 c4  0 c5  0 || d2  0 d3  0 d4  0 d5  0
+  ru12 = _mm256_unpacklo_epi16(_mm256_bsrli_epi128(src_cd, 4), zero);
+  // e2  0 e3  0 e4  0 e5  0 || f2  0 f3  0 f4  0 f5  0
+  ru13 = _mm256_unpacklo_epi16(_mm256_bsrli_epi128(src_ef, 4), zero);
+  // c3 c4 c4 c5 c5 c6 c6 c7 || d3 d4 d4 d5 d5 d6 d6 d7
+  ru14 = _mm256_unpacklo_epi16(_mm256_bsrli_epi128(src_cd, 6),
+                               _mm256_bsrli_epi128(src_cd, 8));
+  // e3 e4 e4 e5 e5 e6 e6 e7 || f3 f4 f4 f5 f5 f6 f6 f7
+  ru15 = _mm256_unpacklo_epi16(_mm256_bsrli_epi128(src_ef, 6),
+                               _mm256_bsrli_epi128(src_ef, 8));
+
+  // f11  f3 f11  f3 - - - -
+  const __m256i fc113 = _mm256_broadcastd_epi32(_mm_unpacklo_epi16(
+      _mm_bsrli_si128(filt_coeff_hi, 6), _mm_bsrli_si128(filt_coeff_lo, 6)));
+
+  // f12 f12 f12 f12 - - - -
+  // Every second coefficient is multiplied by 0, so is ignored
+  const __m256i fc12z =
+      _mm256_broadcastw_epi16(_mm_bsrli_si128(filt_coeff_hi, 8));
+
+  //  f2 f10  f2 f10 - - - -
+  const __m256i fc210 = _mm256_broadcastd_epi32(_mm_unpacklo_epi16(
+      _mm_bsrli_si128(filt_coeff_lo, 4), _mm_bsrli_si128(filt_coeff_hi, 4)));
+
+  // Multiply the formed registers with filter and add the result to accumulate
+  // registers.
+  MADD_AND_ACCUM_FOR_CHROMA_FILTERING(fc113, fc12z, fc210)
 }
 
 // The registers accum_out_r0r1 and accum_out_r2r3 holds the filtered output.
@@ -1086,6 +1198,113 @@ static INLINE void apply_6tap_filtering(const uint16_t *dgd, int stride,
   MADD_AND_ACCUM_FOR_CHROMA_FILTERING(fc51, fc61, fc5z)
 }
 
+static INLINE void apply_asym_12tap_filtering(
+    const uint16_t *dgd, int stride, const __m128i filt_coeff_lo,
+    const __m128i filt_coeff_hi, __m256i *accum_out_r0r1,
+    __m256i *accum_out_r2r3, int block_row_begin, int block_col_begin) {
+  // Load source data
+  const int src_index_start = block_row_begin * stride + block_col_begin;
+  const uint16_t *src_ptr = dgd + src_index_start - 2 * stride - 2;
+
+  // Load source data required for chroma filtering into registers.
+  LOAD_SRC_DATA_FOR_CHROMA_FILTERING(src_ptr, stride)
+
+  // Forms 256bit source registers from loaded 128bit registers and pack them
+  // accordingly for filtering process.
+  FORM_AND_PACK_REG_FOR_CHROMA_FILTERING()
+
+  // Derive registers to hold center pixel
+  // c2 c2 c3 c3 c4 c4 c5 c5 | d2 d2 d3 d3 d4 d4 d5 d5
+  const __m256i cp0 = _mm256_bslli_epi128(src_cd, 4);
+  const __m256i center_pixel_row01_0 = _mm256_unpackhi_epi16(cp0, cp0);
+  // e2 e2 e3 e3 e4 e4 e5 e5 | f2 f2 f3 f3 f4 f4 f5 f5
+  const __m256i cp1 = _mm256_bslli_epi128(src_ef, 4);
+  const __m256i center_pixel_row23_0 = _mm256_unpackhi_epi16(cp1, cp1);
+
+  // Output corresponding to filter coefficient 8 and 9.
+  // a2 e2 a3 e3 a4 e4 a5 e5 | b2 f2 b3 f3 b4 f4 b5 f5
+  const __m256i ru8_0 = _mm256_alignr_epi8(ru1, ru0, 8);
+  const __m256i ru8 = _mm256_sub_epi16(ru8_0, center_pixel_row01_0);
+  // c2 g2 c3 g3 c4 g4 c5 g5 | d2 h2 d3 h3 d4 h4 d5 h5
+  const __m256i ru9_0 = _mm256_alignr_epi8(ru3, ru2, 8);
+  const __m256i ru9 = _mm256_sub_epi16(ru9_0, center_pixel_row23_0);
+
+  // f9 f8 f9 f8 f9 f8 f9 f8 | f9 f8 f9 f8 f9 f8 f9 f8
+  const __m256i fc98 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_hi, 0x01));
+  // r00 r01 r02 r03 | r10 r11 r12 r13
+  const __m256i out_f98_r0r1 = _mm256_madd_epi16(ru8, fc98);
+  *accum_out_r0r1 = _mm256_add_epi32(out_f98_r0r1, *accum_out_r0r1);
+  // r20 r21 r22 r23 | r30 r31 r32 r33
+  const __m256i out_f98_r2r3 = _mm256_madd_epi16(ru9, fc98);
+  *accum_out_r2r3 = _mm256_add_epi32(out_f98_r2r3, *accum_out_r2r3);
+
+  // Output corresponding to filter coefficient 2, 0, 3.
+  // b1 d1 b2 d2 b3 d3 b4 d4 | c1 e1 c2 e2 c3 e3 c4 e4
+  const __m256i ru10_0 = _mm256_alignr_epi8(ru5, ru4, 4);
+  __m256i ru10 = _mm256_sub_epi16(ru10_0, center_pixel_row01_0);
+  // d1 f1 d2 f2 d3 f3 d4 f4 | e1 g1 e2 g2 e3 g3 e4 g4
+  const __m256i ru11_0 = _mm256_alignr_epi8(ru7, ru6, 4);
+  __m256i ru11 = _mm256_sub_epi16(ru11_0, center_pixel_row23_0);
+
+  // b2 d2 b3 d3 b4 d4 b5 d5 | c2 e2 c3 e3 c4 e4 c5 e5
+  const __m256i ru12_0 = _mm256_alignr_epi8(ru5, ru4, 8);
+  __m256i ru12 = _mm256_sub_epi16(ru12_0, center_pixel_row01_0);
+  // d2 f2 d3 f3 d4 f4 d5 f5 | e2 g2 e3 g3 e4 g4 e5 g5
+  const __m256i ru13_0 = _mm256_alignr_epi8(ru7, ru6, 8);
+  __m256i ru13 = _mm256_sub_epi16(ru13_0, center_pixel_row23_0);
+
+  // b3 d3 b4 d4 b5 d5 b6 d6 | c3 e3 c4 e4 c5 e5 c6 e6
+  const __m256i ru14_0 = _mm256_alignr_epi8(ru5, ru4, 12);
+  __m256i ru14 = _mm256_sub_epi16(ru14_0, center_pixel_row01_0);
+  // d3 f3 d4 f4 d5 f5 d6 f6 | e3 g3 e4 g4 e5 g5 e6 g6
+  const __m256i ru15_0 = _mm256_alignr_epi8(ru7, ru6, 12);
+  __m256i ru15 = _mm256_sub_epi16(ru15_0, center_pixel_row23_0);
+
+  // f5 f7 f5 f7 - - - -
+  const __m256i fc57 = _mm256_broadcastd_epi32(
+      _mm_shufflelo_epi16(_mm_bsrli_si128(filt_coeff_lo, 8), 0x0D));
+  // f1 f0 f1 f0 - - - -
+  const __m256i fc10 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_lo, 0x01));
+  // f6 f4 f6 f4 - - - -
+  const __m256i fc64 = _mm256_broadcastd_epi32(
+      _mm_shufflelo_epi16(_mm_bsrli_si128(filt_coeff_lo, 8), 0x02));
+
+  // Multiply the formed registers with filter and add the result to accumulate
+  // registers.
+  MADD_AND_ACCUM_FOR_CHROMA_FILTERING(fc57, fc10, fc64)
+
+  // Output corresponding to filter coefficient 5, 1, 6.
+  // c0 c1 c1 c2 c2 c3 c3 c4 || d0 d1 d1 d2 d2 d3 d3 d4
+  ru10 = _mm256_unpacklo_epi16(src_cd, _mm256_bsrli_epi128(src_cd, 2));
+  ru10 = _mm256_sub_epi16(ru10, center_pixel_row01_0);
+  // e0 e1 e1 e2 e2 e3 e3 e4 || f0 f1 f1 f2 f2 f3 f3 f4
+  ru11 = _mm256_unpacklo_epi16(src_ef, _mm256_bsrli_epi128(src_ef, 2));
+  ru11 = _mm256_sub_epi16(ru11, center_pixel_row23_0);
+
+  // c3 c4 c4 c5 c5 c6 c6 c7 || d3 d4 d4 d5 d5 d6 d6 d7
+  ru12 = _mm256_unpacklo_epi16(_mm256_bsrli_epi128(src_cd, 6),
+                               _mm256_bsrli_epi128(src_cd, 8));
+  ru12 = _mm256_sub_epi16(ru12, center_pixel_row01_0);
+  // e3 e4 e4 e5 e5 e6 e6 e7 || f3 f4 f4 f5 f5 f6 f6 f7
+  ru13 = _mm256_unpacklo_epi16(_mm256_bsrli_epi128(src_ef, 6),
+                               _mm256_bsrli_epi128(src_ef, 8));
+  ru13 = _mm256_sub_epi16(ru13, center_pixel_row23_0);
+
+  // f11  f3 f11  f3 - - - -
+  const __m256i fc113 = _mm256_broadcastd_epi32(_mm_unpacklo_epi16(
+      _mm_bsrli_si128(filt_coeff_hi, 6), _mm_bsrli_si128(filt_coeff_lo, 6)));
+
+  //  f2 f10  f2 f10 - - - -
+  const __m256i fc210 = _mm256_broadcastd_epi32(_mm_unpacklo_epi16(
+      _mm_bsrli_si128(filt_coeff_lo, 4), _mm_bsrli_si128(filt_coeff_hi, 4)));
+
+  // Multiply the formed registers with filter and add the result to accumulate
+  // registers.
+  MADD_AND_ACCUM_FOR_CHROMA_FILTERING_2(fc113, fc210)
+}
+
 // AVX2 intrinsic for convolve wiener non-separable loop restoration with 6-tap
 // filtering. The output for a particular pixel in a 4x4 block is calculated
 // with DIAMOND shaped filter considering a 5x5 grid surrounded by that pixel.
@@ -1709,12 +1928,12 @@ void av1_convolve_symmetric_dual_highbd_avx2(
   assert(num_rows >= 0 && num_cols >= 0);
 
   const int num_sym_taps = filter_config->num_pixels / 2;
-  const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
+  const int num_taps_dual = filter_config->num_pixels2;
   // SIMD is mainly implemented for diamond shape filter using 7-tap filtering
   // for each of first(dgd) and second(dgd_dual) buffer for 4x4 block size. For
   // any other cases invoke the C function.
   if (num_rows != 4 || num_cols != 4 || num_sym_taps != 6 ||
-      num_sym_taps_dual != 6) {
+      num_taps_dual != 13) {
     av1_convolve_symmetric_dual_highbd_c(
         dgd, dgd_stride, dgd_dual, dgd_dual_stride, filter_config, filter, dst,
         dst_stride, bit_depth, block_row_begin, block_row_end, block_col_begin,
@@ -1747,14 +1966,18 @@ void av1_convolve_symmetric_dual_highbd_avx2(
   const __m128i filter_coeff_dgd =
       _mm_blend_epi16(filter_coeff, center_tap1, 0x40);
 
-  // Prepare filter coefficients for dgd_dual(second) buffer 7-tap filtering
-  // fc7 fc8 fc9 fc10 fc11 fc12 fc13(center_tap) x
-  filter_coeff = _mm_loadu_si128((__m128i const *)(filter + 6));
-  filter_coeff = _mm_bsrli_si128(filter_coeff, 2);
-  // Replace the center_tap with derived singleton_tap_dual.
+  // Prepare filter coefficients for dgd_dual(second) buffer 13-tap filtering
+  // Currently we only support the case where there is a center tap in the
+  // in-plane filter, so that the dual filter taps are at indices:
+  // fc7 fc8 fc9 fc10 fc11 fc12 fc13 fc14 | fc15 fc16 fc17 fc18 center x x x
+  assert(filter_config->num_pixels == 13);
+  const __m128i filter_coeff_dual_lo =
+      _mm_loadu_si128((__m128i const *)(filter + 7));
+  __m128i filter_coeff_dual_hi =
+      _mm_bsrli_si128(_mm_loadu_si128((__m128i const *)(filter + 12)), 6);
   const __m128i center_tap2 = _mm_set1_epi16(singleton_tap_dual);
-  const __m128i filter_coeff_dgd_dual =
-      _mm_blend_epi16(filter_coeff, center_tap2, 0x40);
+  filter_coeff_dual_hi =
+      _mm_blend_epi16(filter_coeff_dual_hi, center_tap2, 0x40);
 
   // Initialize the output registers with zero.
   __m256i accum_out_r0r1 = _mm256_setzero_si256();
@@ -1766,9 +1989,9 @@ void av1_convolve_symmetric_dual_highbd_avx2(
       block_row_begin, block_col_begin);
 
   // 7-tap filtering for dgd_dual (second) buffer.
-  apply_7tap_filtering_with_subtract_center_off(
-      dgd_dual, dgd_dual_stride, filter_coeff_dgd_dual, &accum_out_r0r1,
-      &accum_out_r2r3, block_row_begin, block_col_begin);
+  apply_asym_13tap_filtering_with_subtract_center_off(
+      dgd_dual, dgd_dual_stride, filter_coeff_dual_lo, filter_coeff_dual_hi,
+      &accum_out_r0r1, &accum_out_r2r3, block_row_begin, block_col_begin);
 
   // Store the output after rounding and clipping.
   round_and_store_avx2(dst, dst_stride, filter_config, bit_depth,
@@ -1827,12 +2050,12 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_avx2(
   const int num_rows = block_row_end - block_row_begin;
   const int num_cols = block_col_end - block_col_begin;
   const int num_sym_taps = filter_config->num_pixels / 2;
-  const int num_sym_taps_dual = filter_config->num_pixels2 / 2;
+  const int num_taps_dual = filter_config->num_pixels2;
 
   // SIMD is mainly implemented for diamond shape filter with 6 taps for a block
   // size of 4x4. For any other cases invoke the C function.
   if (num_rows != 4 || num_cols != 4 || num_sym_taps != 6 ||
-      num_sym_taps_dual != 6) {
+      num_taps_dual != 12) {
     av1_convolve_symmetric_dual_subtract_center_highbd_c(
         dgd, dgd_stride, dgd_dual, dgd_dual_stride, filter_config, filter, dst,
         dst_stride, bit_depth, block_row_begin, block_row_end, block_col_begin,
@@ -1856,10 +2079,15 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_avx2(
   const __m128i filter_coeff_dgd =
       _mm_blend_epi16(filter_coeff, center_tap, 0x40);
 
-  // Prepare filter coefficients for dgd_dual buffer 6-tap filtering
-  // fc6 fc7 fc8 fc9 fc10 fc11 0 0
-  filter_coeff = _mm_loadu_si128((__m128i const *)(filter + 4));
-  const __m128i filter_coeff_dgd_dual = _mm_bsrli_si128(filter_coeff, 4);
+  // Prepare filter coefficients for dgd_dual buffer 12-tap filtering
+  // Currently we only support the case without a DC coefficient, so that the
+  // dual filter taps are at indices:
+  // fc6 fc7 fc8 fc9 fc10 fc11 fc12 fc13 | fc14 fc15 fc16 fc17 x x x x
+  assert(filter_config->num_pixels == 12);
+  const __m128i filter_coeff_dual_lo =
+      _mm_loadu_si128((__m128i const *)(filter + 6));
+  const __m128i filter_coeff_dual_hi =
+      _mm_bsrli_si128(_mm_loadu_si128((__m128i const *)(filter + 10)), 8);
 
   // Initialize the output registers with zero
   __m256i accum_out_r0r1 = _mm256_setzero_si256();
@@ -1870,9 +2098,9 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_avx2(
                        &accum_out_r2r3, block_row_begin, block_col_begin);
 
   // 6-tap filtering for dgd_dual (second) buffer
-  apply_6tap_filtering(dgd_dual, dgd_dual_stride, filter_coeff_dgd_dual,
-                       &accum_out_r0r1, &accum_out_r2r3, block_row_begin,
-                       block_col_begin);
+  apply_asym_12tap_filtering(dgd_dual, dgd_dual_stride, filter_coeff_dual_lo,
+                             filter_coeff_dual_hi, &accum_out_r0r1,
+                             &accum_out_r2r3, block_row_begin, block_col_begin);
 
   // Offset addition
   const __m128i offset_reg = _mm_set1_epi32(dc_offset);
