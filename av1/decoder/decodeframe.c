@@ -2153,7 +2153,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
     MB_MODE_INFO *const mi = xd->mi[0];
     if (opfl_allowed_for_cur_block(cm, mi)
 #if CONFIG_REFINEMV
-        || mi->refinemv_flag
+        || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
 #endif  // CONFIG_REFINEMV
     ) {
       const int bw = mi_size_wide[bsize];

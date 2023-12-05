@@ -2064,7 +2064,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     const MB_MODE_INFO *const mi = &ctx->mic;
     if (opfl_allowed_for_cur_block(cm, mi)
 #if CONFIG_REFINEMV
-        || mi->refinemv_flag
+        || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
 #endif  // CONFIG_REFINEMV
     ) {
       const int bw = mi_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
