@@ -1998,8 +1998,8 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                 : 0;
   // Distance between the bottom edge of this prediction block to
   // the frame bottom edge
-  int hpx = pd->height;
-  int txw = pd->width;
+  int hpx = block_size_high[bsize];
+  int txw = block_size_wide[bsize];
 
   const int x = col << MI_SIZE_LOG2;
   const int xr =
