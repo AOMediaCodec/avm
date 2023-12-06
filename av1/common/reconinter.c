@@ -3404,8 +3404,8 @@ void av1_build_one_bawp_inter_predictor(
 
   int16_t alpha = mbmi->bawp_alpha[plane][ref];
   int32_t beta = mbmi->bawp_beta[plane][ref];
-  for (int j = 0; j < ref_h; ++j) {
-    for (int i = 0; i < ref_w; ++i) {
+  for (int j = 0; j < bh; ++j) {
+    for (int i = 0; i < bw; ++i) {
       dst[j * dst_stride + i] = clip_pixel_highbd(
           (dst[j * dst_stride + i] * alpha + beta) >> shift, xd->bd);
     }
