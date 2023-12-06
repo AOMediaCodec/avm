@@ -3035,6 +3035,7 @@ void av1_copy_frame_rst_info(RestorationInfo *to, RestorationInfo *from) {
 #if 0
   *to = *from;
 #else
+  to->frame_restoration_type = from->frame_restoration_type;
   to->frame_filters_on = from->frame_filters_on;
   to->num_filter_classes = from->num_filter_classes;
   to->frame_filters = from->frame_filters;

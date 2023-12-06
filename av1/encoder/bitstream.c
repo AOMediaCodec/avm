@@ -3847,6 +3847,29 @@ static AOM_INLINE void write_modes_sb(
               &cm->rst_info[plane].unit_info[runit_idx];
           loop_restoration_write_sb_coeffs(cm, xd, rui, w, plane,
                                            cpi->td.counts);
+#if CONFIG_COMBINE_PC_NS_WIENER
+          if (plane == AOM_PLANE_Y) {
+            // TODO: Needs to be fixed.
+            RestorationInfo *rsi = (RestorationInfo *)cm->rst_info + plane;
+            if (rsi->frame_filters_on && !rsi->frame_filters_initialized &&
+                rui->restoration_type == RESTORE_WIENER_NONSEP
+#if CONFIG_TEMP_LR
+                                                 && !rsi->temporal_pred_flag
+#endif
+                ) {
+              rsi->frame_filters_initialized = 1;
+              const WienerNonsepInfoBank *bank = &xd->wienerns_info[plane];
+              assert(bank->frame_filter_predictors_are_set);
+              rsi->frame_filters.num_classes = bank->filter[0].num_classes;
+              for (int c_id = 0; c_id < rsi->frame_filters.num_classes;
+                   ++c_id) {
+                copy_nsfilter_taps_for_class(
+                    &rsi->frame_filters,
+                    av1_constref_from_wienerns_bank(bank, 0, c_id), c_id);
+              }
+            }
+          }
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
         }
       }
     }
@@ -4333,8 +4356,8 @@ static AOM_INLINE void encode_restoration_mode(
 #if CONFIG_TEMP_LR
           if (rsi->frame_filters_on) {
             if (cm->ref_frames_info.num_total_refs > 0)
-              aom_wb_write_bit(wb, rsi->tempoporal_pred_flag);
-            if (rsi->tempoporal_pred_flag &&
+              aom_wb_write_bit(wb, rsi->temporal_pred_flag);
+            if (rsi->temporal_pred_flag &&
                 cm->ref_frames_info.num_total_refs > 1)
               aom_wb_write_literal(
                   wb, rsi->rst_ref_pic_idx,
@@ -4342,7 +4365,7 @@ static AOM_INLINE void encode_restoration_mode(
                       cm->ref_frames_info
                           .num_total_refs));  // write_lr_reference_idx
           }
-          if (!rsi->tempoporal_pred_flag) {
+          if (!rsi->temporal_pred_flag) {
 #endif  // CONFIG_TEMP_LR
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
           if(rsi->frame_filters_on) {
@@ -4650,8 +4673,15 @@ static AOM_INLINE void write_wienerns_filter(
 
 #if CONFIG_COMBINE_PC_NS_WIENER
   const int skip_filter_write_all_classes =
-      wienerns_info->frame_filters_on && bank->frame_filter_predictors_are_set;
-  if (wienerns_info->frame_filters_on &&
+#if CONFIG_TEMP_LR
+      wienerns_info->temporal_pred_flag ||
+#endif
+      (wienerns_info->frame_filters_on && bank->frame_filter_predictors_are_set);
+  if (
+#if CONFIG_TEMP_LR
+      !wienerns_info->temporal_pred_flag &&
+#endif
+      wienerns_info->frame_filters_on &&
       !bank->frame_filter_predictors_are_set) {
     for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
       assert(wienerns_info->match_indices[c_id] >= 0 &&

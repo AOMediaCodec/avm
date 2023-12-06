@@ -2025,6 +2025,10 @@ typedef struct {
    */
   int merged_to_indices[WIENERNS_MAX_CLASSES];
 #endif //CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+#if CONFIG_TEMP_LR
+  //whether frame filter is predicted from a reference picture
+uint8_t temporal_pred_flag;
+#endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENE
 } WienerNonsepInfo;
 

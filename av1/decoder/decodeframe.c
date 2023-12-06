@@ -2774,7 +2774,11 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
               RestorationInfo *rsi = (RestorationInfo *)cm->rst_info + plane;
               if (rsi->frame_filters_on && !rsi->frame_filters_initialized &&
                   rsi->unit_info[runit_idx].restoration_type ==
-                      RESTORE_WIENER_NONSEP) {
+                      RESTORE_WIENER_NONSEP
+#if CONFIG_TEMP_LR
+                              && !rsi->temporal_pred_flag
+#endif
+                  ) {
                 rsi->frame_filters_initialized = 1;
                 const WienerNonsepInfoBank *bank = &xd->wienerns_info[plane];
                 assert(bank->frame_filter_predictors_are_set);
@@ -2785,6 +2789,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                       &rsi->frame_filters,
                       av1_constref_from_wienerns_bank(bank, 0, c_id), c_id);
                 }
+
+                av1_copy_frame_rst_info( &cm->cur_frame->rst_info[plane], rsi);
               }
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -3425,12 +3431,12 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         if (read_num_classes) {
           rsi->frame_filters_on = aom_rb_read_literal(rb, 1);
 #if CONFIG_TEMP_LR
-          rsi->tempoporal_pred_flag = 0;
+          rsi->temporal_pred_flag = 0;
           rsi->rst_ref_pic_idx = 0;
           if(rsi->frame_filters_on) {
             if (cm->ref_frames_info.num_total_refs > 0)
-              rsi->tempoporal_pred_flag = aom_rb_read_bit(rb);
-            if (rsi->tempoporal_pred_flag &&
+              rsi->temporal_pred_flag = aom_rb_read_bit(rb);
+            if (rsi->temporal_pred_flag &&
                 cm->ref_frames_info.num_total_refs > 1) {
               rsi->rst_ref_pic_idx = aom_rb_read_literal(
                   rb,
@@ -3439,10 +3445,12 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
             }
           }
 
-          if (rsi->tempoporal_pred_flag) {
+          if (rsi->temporal_pred_flag) {
             av1_copy_frame_rst_info(
-                rsi, &cm->ref_frame_map[rsi->rst_ref_pic_idx]->rst_info[p]);
+                rsi, &get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p]);
             rsi->frame_filters_initialized = 1;
+
+            av1_copy_frame_rst_info( &cm->cur_frame->rst_info[p], rsi);
           } else {
 #endif  // CONFIG_TEMP_LR
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
@@ -3754,8 +3762,15 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 #if CONFIG_LR_MERGE_COEFFS
 #if CONFIG_COMBINE_PC_NS_WIENER
   const int skip_filter_read_all_classes =
-      wienerns_info->frame_filters_on && bank->frame_filter_predictors_are_set;
-  if (wienerns_info->frame_filters_on &&
+#if CONFIG_TEMP_LR
+      wienerns_info->temporal_pred_flag ||
+#endif
+      (wienerns_info->frame_filters_on && bank->frame_filter_predictors_are_set);
+  if (
+#if CONFIG_TEMP_LR
+      !wienerns_info->temporal_pred_flag &&
+#endif
+      wienerns_info->frame_filters_on &&
       !bank->frame_filter_predictors_are_set) {
     for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
       wienerns_info->match_indices[c_id] =
@@ -3892,10 +3907,15 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
         assert(bank->bank_size_for_class[c_id] == 0);
       av1_add_to_wienerns_bank(bank, &rsi->frame_filters, ALL_WIENERNS_CLASSES);
       bank->frame_filter_predictors_are_set = 1;
+
+      av1_copy_frame_rst_info( &cm->cur_frame->rst_info[plane], rsi);
     }
   }
 #if CONFIG_LR_IMPROVEMENTS
   rui->wienerns_info.frame_filters_on = rsi->frame_filters_on;
+#if CONFIG_TEMP_LR
+  rui->wienerns_info.temporal_pred_flag = rsi->temporal_pred_flag;
+#endif
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   // to be updated, should define frame_cross_filters_on in rsi to support frame level filter for cross filter
   rui->wienerns_cross_info.frame_filters_on = 0;
@@ -3905,6 +3925,9 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   rui->wienerns_info.num_classes_before_merge = rsi->num_classes_before_merge;
+#endif
+#if CONFIG_TEMP_LR
+  rui->wienerns_cross_info.temporal_pred_flag = 0;
 #endif
 #endif  // CONFIG_LR_IMPROVEMENTS
 

@@ -481,7 +481,7 @@ typedef struct {
    /*!
    * whether frame filter is predicted from a reference picture
    */
-  uint8_t tempoporal_pred_flag;
+  uint8_t temporal_pred_flag;
    /*!
    * reference picture index for frame level filter prediction
    */
