@@ -5422,7 +5422,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   for (int ref_idx = 0; ref_idx < rsc->cm->ref_frames_info.num_total_refs; ref_idx ++) {
     RestorationInfo rsi = get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];
     if (!rsi.frame_filters_on) continue;
-//    assert(rsi->restoration_unit_size == RESTORE_WIENER_NONSEP || rsi->restoration_unit_size == RESTORE_SWITCHABLE);
+    assert(rsi.restoration_unit_size == RESTORE_WIENER_NONSEP || rsi.restoration_unit_size == RESTORE_SWITCHABLE);
     rsc->temporal_pred_flag = 1;
     tmp_filter = rsi.frame_filters;
     rsc->num_filter_classes = tmp_filter.num_classes;

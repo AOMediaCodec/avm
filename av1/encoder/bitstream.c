@@ -4396,7 +4396,8 @@ static AOM_INLINE void encode_restoration_mode(
             assert(rsi->num_filter_classes == 1);
           }
 #else
-          aom_wb_write_literal(
+         if(rsi->frame_filters_on)
+            aom_wb_write_literal(
               wb, encode_num_filter_classes(rsi->num_filter_classes),
               NUM_FILTER_CLASSES_BITS);
 #endif

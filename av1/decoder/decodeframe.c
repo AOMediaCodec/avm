@@ -3480,8 +3480,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
            rsi->num_classes_before_merge = 1;
          }
 #else
-          // ??????? should this be signalled only when frame_mode_on?
-          rsi->num_filter_classes = decode_num_filter_classes(
+          if(rsi->frame_filters_on) // ??????? should this be signalled only when frame_mode_on?
+            rsi->num_filter_classes = decode_num_filter_classes(
               aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
 #endif
 #if CONFIG_TEMP_LR
