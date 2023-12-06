@@ -1852,12 +1852,14 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           && !is_joint_amvd_coding_mode(mbmi->mode)
 #endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
       ) {
+#if CONFIG_COMPOUND_WARP_CAUSAL
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
-#if CONFIG_COMPOUND_WARP_CAUSAL
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
                 is_compound_warp_causal_allowed(mbmi)));
 #else
+        assert(current_frame->reference_mode != SINGLE_REFERENCE &&
+               is_inter_compound_mode(mbmi->mode) &&
                mbmi->motion_mode == SIMPLE_TRANSLATION);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 

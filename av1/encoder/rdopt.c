@@ -7458,13 +7458,18 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
 #if CONFIG_OPTFLOW_REFINEMENT
-  assert(this_mode == (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                               opfl_allowed_for_cur_refs(cm, mbmi)
 #if CONFIG_CWP
-                               && !cm->features.enable_cwp
-#endif  // CONFIG_CWP
+  assert(this_mode == (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+                               opfl_allowed_for_cur_refs(cm, mbmi) &&
+                               !cm->features.enable_cwp
                            ? NEAR_NEARMV_OPTFLOW
                            : NEAR_NEARMV));
+#else
+  assert(this_mode == (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
+                               opfl_allowed_for_cur_refs(cm, mbmi)
+                           ? NEAR_NEARMV_OPTFLOW
+                           : NEAR_NEARMV));
+#endif  // CONFIG_CWP
 #else
   assert(this_mode == NEAR_NEARMV);
 #endif
