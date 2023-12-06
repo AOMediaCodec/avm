@@ -1237,33 +1237,25 @@ static void tip_setup_tip_frame_plane(
       blk_col += (offset - step);
 
       MV mv[2];
-#if CONFIG_TIP_DIRECT_FRAME_MV
-      MV gm_mv[2];
-      tip_get_mv_projection(&gm_mv[0], cm->tip_global_motion.as_mv,
-                            tip_ref->ref_frames_offset_sf[0]);
-      tip_get_mv_projection(&gm_mv[1], cm->tip_global_motion.as_mv,
-                            tip_ref->ref_frames_offset_sf[1]);
-#endif  // CONFIG_TIP_DIRECT_FRAME_MV
       if (tpl_mvs->mfmv0.as_int != 0) {
         tip_get_mv_projection(&mv[0], tpl_mvs->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[0]);
         tip_get_mv_projection(&mv[1], tpl_mvs->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[1]);
 #if CONFIG_TIP_DIRECT_FRAME_MV
-        mv[0].row =
-            (int16_t)clamp(mv[0].row + gm_mv[0].row, MV_LOW + 1, MV_UPP - 1);
-        mv[0].col =
-            (int16_t)clamp(mv[0].col + gm_mv[0].col, MV_LOW + 1, MV_UPP - 1);
-        mv[1].row =
-            (int16_t)clamp(mv[1].row - gm_mv[1].row, MV_LOW + 1, MV_UPP - 1);
-        mv[1].col =
-            (int16_t)clamp(mv[1].col - gm_mv[1].col, MV_LOW + 1, MV_UPP - 1);
+        mv[0].row = (int16_t)clamp(mv[0].row + cm->tip_global_motion.as_mv.row,
+                                   MV_LOW + 1, MV_UPP - 1);
+        mv[0].col = (int16_t)clamp(mv[0].col + cm->tip_global_motion.as_mv.col,
+                                   MV_LOW + 1, MV_UPP - 1);
+        mv[1].row = (int16_t)clamp(mv[1].row + cm->tip_global_motion.as_mv.row,
+                                   MV_LOW + 1, MV_UPP - 1);
+        mv[1].col = (int16_t)clamp(mv[1].col + cm->tip_global_motion.as_mv.col,
+                                   MV_LOW + 1, MV_UPP - 1);
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
       } else {
 #if CONFIG_TIP_DIRECT_FRAME_MV
-        mv[0] = gm_mv[0];
-        mv[1].row = -gm_mv[1].row;
-        mv[1].col = -gm_mv[1].col;
+        mv[0] = cm->tip_global_motion.as_mv;
+        mv[1] = cm->tip_global_motion.as_mv;
 #else
         mv[0] = zero_mv[0];
         mv[1] = zero_mv[1];
@@ -1562,16 +1554,10 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
         tip_get_mv_projection(&this_mv[1].as_mv, tpl_mv->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[1]);
 #if CONFIG_TIP_DIRECT_FRAME_MV
-        MV gm_mv[2];
-        tip_get_mv_projection(&gm_mv[0], cm->tip_global_motion.as_mv,
-                              tip_ref->ref_frames_offset_sf[0]);
-        tip_get_mv_projection(&gm_mv[1], cm->tip_global_motion.as_mv,
-                              tip_ref->ref_frames_offset_sf[1]);
-
-        this_mv[0].as_mv.row += gm_mv[0].row;
-        this_mv[0].as_mv.col += gm_mv[0].col;
-        this_mv[1].as_mv.row -= gm_mv[1].row;
-        this_mv[1].as_mv.col -= gm_mv[1].col;
+        this_mv[0].as_mv.row += cm->tip_global_motion.as_mv.row;
+        this_mv[0].as_mv.col += cm->tip_global_motion.as_mv.col;
+        this_mv[1].as_mv.row += cm->tip_global_motion.as_mv.row;
+        this_mv[1].as_mv.col += cm->tip_global_motion.as_mv.col;
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
         if ((abs(this_mv[0].as_mv.row) <= REFMVS_LIMIT) &&
