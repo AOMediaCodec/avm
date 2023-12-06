@@ -2790,7 +2790,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                       av1_constref_from_wienerns_bank(bank, 0, c_id), c_id);
                 }
 
-                av1_copy_frame_rst_info( &cm->cur_frame->rst_info[plane], rsi);
+                av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
               }
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -3446,11 +3446,11 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           }
 
           if (rsi->temporal_pred_flag) {
-            av1_copy_frame_rst_info(
+            av1_copy_rst_frame_filters(
                 rsi, &get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p]);
             rsi->frame_filters_initialized = 1;
 
-            av1_copy_frame_rst_info( &cm->cur_frame->rst_info[p], rsi);
+            av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[p], rsi);
           } else {
 #endif  // CONFIG_TEMP_LR
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
@@ -3908,7 +3908,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       av1_add_to_wienerns_bank(bank, &rsi->frame_filters, ALL_WIENERNS_CLASSES);
       bank->frame_filter_predictors_are_set = 1;
 
-      av1_copy_frame_rst_info( &cm->cur_frame->rst_info[plane], rsi);
+      av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
     }
   }
 #if CONFIG_LR_IMPROVEMENTS

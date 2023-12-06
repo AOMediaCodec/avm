@@ -4403,7 +4403,9 @@ static AOM_INLINE void encode_restoration_mode(
 #if CONFIG_TEMP_LR
         }
         if (rsi->frame_filters_on)
-          av1_copy_frame_rst_info( &cm->cur_frame->rst_info[p], rsi);
+          av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[p], rsi);
+        if (rsi->temporal_pred_flag)
+            rsi->frame_filters_initialized = 1;
 #endif  // CONFIG_TEMP_LR
 
         }

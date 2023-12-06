@@ -3030,12 +3030,11 @@ void fill_first_slot_of_bank_with_filter_match(
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_TEMP_LR
-void av1_copy_frame_rst_info(RestorationInfo *to, RestorationInfo *from) {
+void av1_copy_rst_frame_filters(RestorationInfo *to, RestorationInfo *from) {
   assert (from->frame_filters_on);
 #if 0
   *to = *from;
 #else
-  to->frame_restoration_type = from->frame_restoration_type;
   to->frame_filters_on = from->frame_filters_on;
   to->num_filter_classes = from->num_filter_classes;
   to->frame_filters = from->frame_filters;
