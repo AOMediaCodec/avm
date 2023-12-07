@@ -3225,7 +3225,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                      get_default_refinemv_flag(cm, mbmi);
 #endif  // CONFIG_REFINEMV && !CONFIG_CWP
 #if CONFIG_AFFINE_REFINEMENT
-    mbmi->comp_refine_type = COMP_REFINE_TYPE_FOR_SKIP;
+    mbmi->comp_refine_type = mbmi->mode == NEAR_NEARMV_OPTFLOW
+                                 ? COMP_REFINE_TYPE_FOR_SKIP
+                                 : COMP_REFINE_SUBBLK2P;
 #endif  // CONFIG_AFFINE_REFINEMENT
   } else {
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP) ||

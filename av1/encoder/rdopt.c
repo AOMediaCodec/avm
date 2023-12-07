@@ -7414,7 +7414,9 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
   mbmi->cwp_idx = CWP_EQUAL;
 #endif  // CONFIG_CWP
 #if CONFIG_AFFINE_REFINEMENT
-  mbmi->comp_refine_type = COMP_REFINE_TYPE_FOR_SKIP;
+  mbmi->comp_refine_type = this_mode == NEAR_NEARMV_OPTFLOW
+                               ? COMP_REFINE_TYPE_FOR_SKIP
+                               : COMP_REFINE_SUBBLK2P;
 #endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
@@ -7768,7 +7770,10 @@ static AOM_INLINE void rd_pick_motion_copy_mode(
       search_state->best_mbmode.mode = NEAR_NEARMV;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
-      search_state->best_mbmode.comp_refine_type = COMP_REFINE_TYPE_FOR_SKIP;
+      search_state->best_mbmode.comp_refine_type =
+          search_state->best_mbmode.mode == NEAR_NEARMV_OPTFLOW
+              ? COMP_REFINE_TYPE_FOR_SKIP
+              : COMP_REFINE_SUBBLK2P;
 #endif  // CONFIG_AFFINE_REFINEMENT
       search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
       search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
