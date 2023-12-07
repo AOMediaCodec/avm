@@ -213,14 +213,14 @@ class AV1OptFlowTest : public ::testing::TestWithParam<TestParam<T>> {
   }
 
   void Randomize(uint16_t *p, int size, int max_bit_range) {
-    assert(max_bit_range < 16);
+    assert(max_bit_range <= 16);
     for (int i = 0; i < size; ++i) {
       p[i] = rnd_.Rand16() & ((1 << max_bit_range) - 1);
     }
   }
 
   void Randomize(int16_t *p, int size, int max_bit_range) {
-    assert(max_bit_range < 16);
+    assert(max_bit_range <= 16);
     for (int i = 0; i < size; ++i) {
       p[i] = (rnd_.Rand16() & ((1 << max_bit_range) - 1)) -
              (1 << (max_bit_range - 1));
@@ -724,9 +724,14 @@ class AV1OptFlowRefineInterpGradTest
         const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
         if (!d0 || !d1) continue;
 
-        RandomInput16(input_, GetParam(), bd);
-        RandomInput16(gx_, GetParam(), bd + 1);
-        RandomInput16(gy_, GetParam(), bd + 1);
+        // Here, the input corresponds to 'd0*p0 - d1*p1' (where P0 and P1 can
+        // be 12 bits, d0 and d1 can be >=5 bits) and gx, gy are gradients of
+        // input. Due to the clamping of these value to [INT16_MIN, INT16_MAX],
+        // testing of the same is required. Hence, populating the input_, gx_
+        // and gy_ buffers as per the requirement.
+        RandomInput16(input_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16(gx_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16(gy_, GetParam(), AOMMIN(16, bd + 6));
 
         TestOptFlowRefine(input_, gx_, gy_, is_speed, d0, d1);
         count++;
@@ -742,9 +747,9 @@ class AV1OptFlowRefineInterpGradTest
         const int d1 = RelativeDistExtreme(oh_bits);
         if (!d0 || !d1) continue;
 
-        RandomInput16Extreme(input_, GetParam(), bd);
-        RandomInput16Extreme(gx_, GetParam(), bd + 1);
-        RandomInput16Extreme(gy_, GetParam(), bd + 1);
+        RandomInput16Extreme(input_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16Extreme(gx_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16Extreme(gy_, GetParam(), AOMMIN(16, bd + 6));
 
         TestOptFlowRefine(input_, gx_, gy_, 0, d0, d1);
         count++;
