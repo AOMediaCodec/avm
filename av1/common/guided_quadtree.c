@@ -189,21 +189,21 @@ int sr7by4ai_2_quantset[] = { 28290, 12216, 1, -3 };
 int sr7by4ai_3_quantset[] = { 11, 9, -7, -8 };
 
 // Superres guided conv unet inter.
-int sr2by1ra_1_quantset[] = { 1149534, 1617706, -6, -7 };
-int sr2by1ra_2_quantset[] = { 23807, 4335, -8, -6 };
-int sr2by1ra_3_quantset[] = { 242788, 346460, -7, -6 };
+int sr2by1ra_1_quantset[] = { 15680, 12890, -10, -9 };
+int sr2by1ra_2_quantset[] = { 85696504, 103679088, -8, -9 };
+int sr2by1ra_3_quantset[] = { 2067139, 493382, -6, -6 };
 
-int sr3by2ra_1_quantset[] = { 124, 143, -6, -2 };
-int sr3by2ra_2_quantset[] = { 10622, 14766, -7, -9 };
-int sr3by2ra_3_quantset[] = { 10871, 23315, -5, -5 };
+int sr3by2ra_1_quantset[] = { 651704, 364241, -9, -9 };
+int sr3by2ra_2_quantset[] = { 89884, 88521, 3, -12 };
+int sr3by2ra_3_quantset[] = { 3133894, 9945744, -7, -11 };
 
-int sr5by4ra_1_quantset[] = { 8492, 7778, -8, -18 };
-int sr5by4ra_2_quantset[] = { 221, 819, -13, 1 };
-int sr5by4ra_3_quantset[] = { 11, 7, -11, -10 };
+int sr5by4ra_1_quantset[] = { 40478, 106889, -3, 3 };
+int sr5by4ra_2_quantset[] = { 424139, 223163, 6, 0 };
+int sr5by4ra_3_quantset[] = { 164313, 57994, -5, -7 };
 
-int sr7by4ra_1_quantset[] = { 2461636, 2223173, -9, -8 };
-int sr7by4ra_2_quantset[] = { 37154, 12358, -1, -3 };
-int sr7by4ra_3_quantset[] = { 179, 72, -7, -3 };
+int sr7by4ra_1_quantset[] = { 8734122, 6400229, -6, -7 };
+int sr7by4ra_2_quantset[] = { 295, 36, -3, -9 };
+int sr7by4ra_3_quantset[] = { 21017, 33976, -13, -6 };
 #endif  // CONFIG_EXT_SUPERRES
 
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
