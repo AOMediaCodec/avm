@@ -8,7 +8,11 @@
 # for Open Media Patent License 1.0 was not distributed with this source code in
 # the PATENTS file, you can obtain it at aomedia.org/license/patent-license/.
 #
-cmake_minimum_required(VERSION 3.5)
+if(CONFIG_TENSORFLOW_LITE)
+  cmake_minimum_required(VERSION 3.16)
+else()
+  cmake_minimum_required(VERSION 3.5)
+endif()
 
 set(AOM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(AOM_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -44,7 +48,6 @@ endif()
 set(SO_VERSION 2)
 set(SO_FILE_VERSION 2.0.0)
 
-include("${AOM_ROOT}/build/cmake/tensorflow_lite.cmake")
 include("${AOM_ROOT}/build/cmake/aom_configure.cmake")
 include("${AOM_ROOT}/aom_dsp/aom_dsp.cmake")
 include("${AOM_ROOT}/aom_mem/aom_mem.cmake")
@@ -514,6 +517,49 @@ if(CONFIG_AV1_ENCODER)
   list(APPEND AOM_APP_TARGETS ${AOM_ENCODER_EXAMPLE_TARGETS}
        ${AOM_ENCODER_TOOL_TARGETS})
 
+  if(CONFIG_TENSORFLOW_LITE)
+    include(FetchContent)
+
+    set(TFLITE_TAG "v2.6.1")
+
+    message(STATUS "Fetching TFLite ${TFLITE_TAG}...")
+
+    # static linking makes life with TFLite much easier
+    set(TFLITE_C_BUILD_SHARED_LIBS OFF)
+
+    # We don't care about comparing against these delegates (yet), and disabling
+    # it reduces compile time meaningfully
+    set(TFLITE_ENABLE_RUY OFF)
+    set(TFLITE_ENABLE_XNNPACK OFF)
+
+    fetchcontent_declare(
+      tflite
+      GIT_REPOSITORY https://github.com/tensorflow/tensorflow
+      GIT_TAG ${TFLITE_TAG}
+      GIT_SHALLOW TRUE)
+
+    fetchcontent_getproperties(tflite)
+    if(NOT tflite_POPULATED)
+      fetchcontent_populate(tflite)
+      # Some of the subprojects (e.g. Eigen) are very noisy and emit status
+      # messages all the time. Temporary ignore status messages while adding
+      # this to silence it. Ugly but effective.
+      set(OLD_CMAKE_MESSAGE_LOG_LEVEL ${CMAKE_MESSAGE_LOG_LEVEL})
+      set(CMAKE_MESSAGE_LOG_LEVEL WARNING)
+      add_subdirectory(${tflite_SOURCE_DIR}/tensorflow/lite/c
+                       ${tflite_BINARY_DIR})
+      set(CMAKE_MESSAGE_LOG_LEVEL ${OLD_CMAKE_MESSAGE_LOG_LEVEL})
+    endif()
+
+    # Disable some noisy warnings in tflite
+    target_compile_options(tensorflow-lite PRIVATE -w)
+
+    # tensorflowlite_c is implicitly declared by this FetchContent
+    include_directories(${tflite_SOURCE_DIR})
+    include_directories("${CMAKE_CURRENT_BINARY_DIR}/flatbuffers/include/")
+    add_dependencies(aom_av1_common tensorflow-lite)
+  endif()
+
   if(CONFIG_USE_VMAF_RC AND NOT CONFIG_TUNE_VMAF)
     message(FATAL_ERROR "Turn on CONFIG_TUNE_VMAF to use CONFIG_USE_VMAF_RC.")
   endif()
@@ -727,24 +773,18 @@ if(XCODE)
 endif()
 
 if(CONFIG_TENSORFLOW_LITE)
-  set(tflite_supported 0)
-  is_tflite_supported(tflite_supported)
-  if(NOT ${tflite_supported})
-    set(CONFIG_TENSORFLOW_LITE 0)
-  else()
-    setup_tensorflow_lite()
-    if(ENABLE_EXAMPLES)
-      add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
-      list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)
-      list(APPEND AOM_APP_TARGETS tf_lite_model)
-      target_link_tf_lite_libraries(tf_lite_model)
-      add_dependencies(tf_lite_model tensorflow_lite fake_dl)
-    endif()
+  if(ENABLE_EXAMPLES)
+    add_executable(tf_lite_model "${AOM_ROOT}/examples/tf_lite_model.cc")
+    list(APPEND AOM_EXAMPLE_TARGETS tf_lite_model)
+    list(APPEND AOM_APP_TARGETS tf_lite_model)
     add_executable(cnn_restore_y4m
                    "${AOM_ROOT}/examples/cnn_restore/cnn_restore_y4m.cc")
     list(APPEND AOM_APP_TARGETS cnn_restore_y4m)
-    target_link_tf_lite_libraries(cnn_restore_y4m)
-    add_dependencies(cnn_restore_y4m tensorflow_lite fake_dl)
+
+    foreach(aom_app ${AOM_APP_TARGETS})
+      add_dependencies(${aom_app} tensorflow-lite)
+      target_link_libraries(${aom_app} PRIVATE tensorflow-lite)
+    endforeach()
   endif()
 endif()
 

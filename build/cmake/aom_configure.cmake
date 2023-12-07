@@ -29,8 +29,6 @@ if(DEFINED CONFIG_LOWBITDEPTH)
     high bit depth internal pipeline is always used.")
 endif()
 
-experiment_requires_tf_lite(CONFIG_CNN_RESTORATION)
-
 # Generate the user config settings.
 list(APPEND aom_build_vars ${AOM_CONFIG_VARS} ${AOM_OPTION_VARS})
 foreach(cache_var ${aom_build_vars})
