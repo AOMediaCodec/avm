@@ -27,7 +27,7 @@
 #define Y4M_HDR_MAX_LEN 256
 #define Y4M_HDR_MAX_WORDS 16
 #define NUM_THREADS 8
-#define USE_XNNPACK 1
+#define USE_XNNPACK 0
 
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 
@@ -198,17 +198,23 @@ static int search_best_model(int p, int q) {
   return mini;
 }
 
+#if USE_XNNPACK
 static TfLiteDelegate *get_tflite_xnnpack_delegate(int num_threads) {
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
   xnnpack_options.num_threads = MAX(num_threads, 1);
   return TfLiteXNNPackDelegateCreate(&xnnpack_options);
 }
+#endif  // USE_XNNPACK
 
 // Builds and returns the TFlite interpreter.
 static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
-    int code, int level, int width, int height, int num_threads,
-    TfLiteDelegate *xnnpack_delegate) {
+    int code, int level, int width, int height, int num_threads
+#if USE_XNNPACK
+    ,
+    TfLiteDelegate *xnnpack_delegate
+#endif  // USE_XNNPACK
+) {
   const unsigned char *const model_tflite_data = get_model(code, level);
   if (model_tflite_data == NULL) return nullptr;
 
@@ -235,12 +241,12 @@ static std::unique_ptr<tflite::Interpreter> get_tflite_interpreter(
     reporter->Report("Failed at tensor allocation");
     return nullptr;
   }
-  if (xnnpack_delegate) {
-    if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
-      reporter->Report("Failed at modifying graph with XNNPack delegate");
-      return nullptr;
-    }
+#if USE_XNNPACK
+  if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
+    reporter->Report("Failed at modifying graph with XNNPack delegate");
+    return nullptr;
   }
+#endif  // USE_XNNPACK
   return interpreter;
 }
 
@@ -328,8 +334,6 @@ static int restore_cnn_img_tflite_highbd(
 }
 
 int main(int argc, char *argv[]) {
-  static const int use_xnnpack = USE_XNNPACK;
-
   int ywidth, yheight;
 
   if (argc < 5) {
@@ -385,11 +389,16 @@ int main(int argc, char *argv[]) {
   uint8_t *outbuf =
       (uint8_t *)malloc((ysize + 2 * uvsize) * bytes_per_pel * sizeof(uint8_t));
 
-  TfLiteDelegate *xnnpack_delegate =
-      use_xnnpack ? get_tflite_xnnpack_delegate(NUM_THREADS) : nullptr;
-  std::unique_ptr<tflite::Interpreter> interpreter =
-      get_tflite_interpreter(restore_code, restore_level, ywidth, yheight,
-                             NUM_THREADS, xnnpack_delegate);
+#if USE_XNNPACK
+  TfLiteDelegate *xnnpack_delegate = get_tflite_xnnpack_delegate(NUM_THREADS);
+#endif  // USE_XNNPACK
+  std::unique_ptr<tflite::Interpreter> interpreter = get_tflite_interpreter(
+      restore_code, restore_level, ywidth, yheight, NUM_THREADS
+#if USE_XNNPACK
+      ,
+      xnnpack_delegate
+#endif  // USE_XNNPACK
+  );
 
   char frametag[] = "FRAME\n";
   for (int n = 0; n < num_frames; ++n) {
@@ -426,7 +435,9 @@ int main(int argc, char *argv[]) {
   }
   // IMPORTANT: release the interpreter before destroying the delegate.
   interpreter.reset();
-  if (xnnpack_delegate) TfLiteXNNPackDelegateDelete(xnnpack_delegate);
+#if USE_XNNPACK
+  TfLiteXNNPackDelegateDelete(xnnpack_delegate);
+#endif  // USE_XNNPACK
 
   fclose(fin);
   fclose(fout);

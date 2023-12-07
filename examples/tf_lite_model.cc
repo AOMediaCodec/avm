@@ -185,6 +185,9 @@ const unsigned char tf_lite_model_data[] = {
 >   AddOpsFromModel(input_model, &builtin_ops, &custom_ops);
    </pre>
  */
+
+#define USE_XNNPACK 0
+
 void RegisterSpecificOps(tflite::MutableOpResolver *resolver) {
   resolver->AddBuiltin(tflite::BuiltinOperator_FULLY_CONNECTED,
                        tflite::ops::builtin::Register_FULLY_CONNECTED(), 3, 3);
@@ -192,12 +195,14 @@ void RegisterSpecificOps(tflite::MutableOpResolver *resolver) {
                        tflite::ops::builtin::Register_SOFTMAX());
 }
 
+#if USE_XNNPACK
 TfLiteDelegate *GetTfliteXnnpackDelegate(int num_threads) {
   TfLiteXNNPackDelegateOptions xnnpack_options =
       TfLiteXNNPackDelegateOptionsDefault();
   xnnpack_options.num_threads = num_threads;
   return TfLiteXNNPackDelegateCreate(&xnnpack_options);
 }
+#endif  // USE_XNNPACK
 
 }  // namespace
 
@@ -220,12 +225,14 @@ int main() {
     return EXIT_FAILURE;
   }
 
+#if USE_XNNPACK
   // Using single-thread as an example. Can be changed as required.
   TfLiteDelegate *xnnpack_delegate = GetTfliteXnnpackDelegate(1);
   if (interpreter->ModifyGraphWithDelegate(xnnpack_delegate) != kTfLiteOk) {
     reporter->Report("Failed at modifying graph with XNNPack delegate");
     return EXIT_FAILURE;
   }
+#endif  // USE_XNNPACK
 
   // Always uses (0, 1, 2, 3) as inputs.
   float *input = interpreter->typed_input_tensor<float>(0);
@@ -240,5 +247,10 @@ int main() {
   float y0 = interpreter->typed_output_tensor<float>(0)[0];
   float y1 = interpreter->typed_output_tensor<float>(0)[1];
   printf("Sample classification probability: %f, %f\n", y0, y1);
+  // IMPORTANT: release the interpreter before destroying the delegate.
+  interpreter.reset();
+#if USE_XNNPACK
+  TfLiteXNNPackDelegateDelete(xnnpack_delegate);
+#endif  // USE_XNNPACK
   return EXIT_SUCCESS;
 }
