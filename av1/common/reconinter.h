@@ -735,7 +735,6 @@ static INLINE int is_affine_refinement_allowed(const AV1_COMMON *cm,
   if (mbmi->skip_mode && COMP_REFINE_TYPE_FOR_SKIP < COMP_AFFINE_REFINE_START)
     return 0;
 
-  if (!mbmi->ref_frame[1]) return 0;
   return 1;
 }
 
