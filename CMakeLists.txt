@@ -520,7 +520,7 @@ if(CONFIG_AV1_ENCODER)
   if(CONFIG_TENSORFLOW_LITE)
     include(FetchContent)
 
-    set(TFLITE_TAG "v2.6.1")
+    set(TFLITE_TAG "v2.15.0")
 
     message(STATUS "Fetching TFLite ${TFLITE_TAG}...")
 
