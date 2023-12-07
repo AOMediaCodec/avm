@@ -2143,32 +2143,43 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     }
 #if CONFIG_ADPTIVE_DS_422
     else if (sub_x) {
-      input = dst - input_stride;
-      for (int i = 0; i < width; i += 2) {
+      for (int h = 0; h < (*ref_height); h++) {
+        for (int i = 0; i < (*ref_width); i += 2) {
 #if CONFIG_ADAPTIVE_DS_FILTER
-        const int filter_type = cm->seq_params.enable_cfl_ds_filter;
-        if (filter_type == 1) {
-          output_q3[i >> 1] =
-              (input[AOMMAX(0, i - 1)] + 2 * input[i] + input[i + 1]) << 1;
-        } else if (filter_type == 2) {
-          output_q3[i >> 1] = input[i] << 3;
-        } else {
-          output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
-        }
+          const int filter_type = cm->seq_params.enable_cfl_ds_filter;
+          if (filter_type == 1) {
+            output_q3[i >> 1] =
+                (input[AOMMAX(0, i - 1)] + 2 * input[i] + input[i + 1]) << 1;
+          } else if (filter_type == 2) {
+            output_q3[i >> 1] = input[i] << 3;
+          } else {
+            output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
+          }
 #else
-        output_q3[i >> 1] = input[i] << 3;
+          output_q3[i >> 1] = input[i] << 3;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
+        }
+        output_q3 += output_stride;
+        input += (input_stride << 1);
       }
-#endif                   // CONFIG_ADPTIVE_DS_422
-    } else if (sub_y) {  // @todo extend for 422
-      input = dst - 2 * input_stride;
-      for (int i = 0; i < width; ++i) {
-        const int bot = i + input_stride;
-        output_q3[i] = (input[i] + input[bot]) << 2;
+#endif
+    } else if (sub_y) {
+      for (int h = 0; h < (*ref_height); h += 2) {
+        for (int i = 0; i < (*ref_width); ++i) {
+          const int bot = i + input_stride;
+          output_q3[i] = (input[i] + input[bot]) << 2;
+        }
+        output_q3 += output_stride;
+        input += input_stride * 2;
       }
-    } else {  // @todo extend for 444
-      input = dst - input_stride;
-      for (int i = 0; i < width; ++i) output_q3[i] = input[i] << 3;
+    } else {
+      for (int h = 0; h < (*ref_height); h++) {
+        for (int i = 0; i < (*ref_width); ++i) {
+          output_q3[i] = input[i] << 3;
+        }
+        output_q3 += output_stride;
+        input += input_stride;
+      }
     }
   }
 }
@@ -2271,7 +2282,14 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     }
 #if CONFIG_IMPROVED_CFL
     CFL_CTX *const cfl = &xd->cfl;
+    const int sub_x = cfl->subsampling_x;
+    const int sub_y = cfl->subsampling_y;
+
     CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
+    if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+      cfl->dc_pred_is_cached[pred_plane] = 0;
+      cfl->use_dc_pred_cache = 0;
+    }
     if (cfl->dc_pred_is_cached[pred_plane] == 0) {
       av1_predict_intra_block(cm, xd, pd->width, pd->height, tx_size, mode,
                               angle_delta, use_palette, filter_intra_mode, dst,
@@ -2306,10 +2324,11 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
             &ref_width, &ref_height);
-        above_lines >>= 1;
-        left_lines >>= 1;
-        ref_width >>= 1;
-        ref_height >>= 1;
+
+        above_lines >>= sub_y;
+        left_lines >>= sub_x;
+        ref_width >>= sub_x;
+        ref_height >>= sub_y;
         mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
                                              tx_size, above_lines, left_lines,
                                              ref_width, ref_height);
@@ -2320,10 +2339,10 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,
             &ref_width, &ref_height);
-        above_lines >>= 1;
-        left_lines >>= 1;
-        ref_width >>= 1;
-        ref_height >>= 1;
+        above_lines >>= sub_y;
+        left_lines >>= sub_x;
+        ref_width >>= sub_x;
+        ref_height >>= sub_y;
         mhccp_implicit_fetch_neighbor_chroma(xd, plane, blk_row, blk_col,
                                              tx_size, above_lines, left_lines,
                                              ref_width, ref_height);
@@ -2336,7 +2355,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     }
 #endif
     cfl_predict_block(xd, dst, dst_stride, tx_size, plane, above_lines > 0,
-                      left_lines > 0, above_lines, above_lines);
+                      left_lines > 0, above_lines, left_lines);
     return;
   }
 

@@ -44,13 +44,15 @@ void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
   assert(pred_plane < CFL_PRED_PLANES);
   assert(width <= CFL_BUF_LINE);
 
-  memcpy(xd->cfl.dc_pred_cache[pred_plane], input, width << 1);
+  memcpy(xd->cfl.dc_pred_cache[pred_plane], input,
+         width << (&xd->cfl)->subsampling_x);
   return;
 }
 
 static void cfl_load_dc_pred_hbd(const int16_t *dc_pred_cache, uint16_t *dst,
-                                 int dst_stride, int width, int height) {
-  const size_t num_bytes = width << 1;
+                                 int dst_stride, int width, int height,
+                                 int sub_x) {
+  const size_t num_bytes = width << sub_x;
   for (int j = 0; j < height; j++) {
     memcpy(dst, dc_pred_cache, num_bytes);
     dst += dst_stride;
@@ -64,7 +66,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   assert(width <= CFL_BUF_LINE);
   assert(height <= CFL_BUF_LINE);
   cfl_load_dc_pred_hbd(xd->cfl.dc_pred_cache[pred_plane], dst, dst_stride,
-                       width, height);
+                       width, height, (&xd->cfl)->subsampling_x);
 }
 
 // Due to frame boundary issues, it is possible that the total area covered by
@@ -956,10 +958,14 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
         A[0][count] = (l[i + j * ref_stride] >> 3);  // C
         if (dir == 0) {
           A[1][count] = (l[i + (j - 1) * ref_stride] >> 3);  // N 1, -1
-          A[2][count] = (l[i + (j + 1) * ref_stride] >> 3);  // S 1,  1
+          A[2][count] = (i >= left_lines && j + 1 >= above_lines)
+                            ? (l[i + (j)*ref_stride] >> 3)
+                            : (l[i + (j + 1) * ref_stride] >> 3);  // S 1,  1
         } else {
           A[1][count] = (l[(i - 1) + j * ref_stride] >> 3);  // W 1, -1
-          A[2][count] = (l[(i + 1) + j * ref_stride] >> 3);  // E 1,  1
+          A[2][count] = (i + 1 >= left_lines && j >= above_lines)
+                            ? (l[(i) + j * ref_stride] >> 3)
+                            : (l[(i + 1) + j * ref_stride] >> 3);  // E 1,  1
         }
         A[3][count] = NON_LINEAR((l[i + j * ref_stride] >> 3), mid, xd->bd);
         A[4][count] = mid;
@@ -1012,7 +1018,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
           ATA[coli0][coli1] >>= matrixShift;
 
       for (int coli = 0; coli < MHCCP_NUM_PARAMS; coli++)
-        Ty[coli] <<= matrixShift;
+        Ty[coli] >>= matrixShift;
     }
     int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
     int64_t diag[MHCCP_NUM_PARAMS];
