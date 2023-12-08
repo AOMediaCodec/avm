@@ -2441,7 +2441,7 @@ void av1_get_optflow_based_mv_highbd(
     CalcSubpelParamsFunc calc_subpel_params_func, int16_t *gx0, int16_t *gy0,
     int16_t *gx1, int16_t *gy1,
 #if CONFIG_AFFINE_REFINEMENT
-    WarpedMotionParams *wms, int *use_translational_opfl,
+    WarpedMotionParams *wms, int *use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int *vx0, int *vy0, int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1
 #if CONFIG_OPTFLOW_ON_TIP
@@ -2453,6 +2453,9 @@ void av1_get_optflow_based_mv_highbd(
     MV *best_mv_ref, int pu_width, int pu_height
 #endif  // CONFIG_REFINEMV
 ) {
+#if CONFIG_AFFINE_REFINEMENT
+  *use_affine_opfl = 0;
+#endif  // CONFIG_AFFINE_REFINEMENT
   const int target_prec = MV_REFINE_PREC_BITS;
   const int n = opfl_get_subblock_size(bw, bh, plane
 #if CONFIG_OPTFLOW_ON_TIP
@@ -2551,9 +2554,6 @@ void av1_get_optflow_based_mv_highbd(
   int16_t *tmp1 =
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
 #endif  // CONFIG_OPTFLOW_ON_TIP
-#if CONFIG_AFFINE_REFINEMENT
-  *use_translational_opfl = 1;
-#endif  // CONFIG_AFFINE_REFINEMENT
   av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, d0, d1, 0);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
@@ -2563,12 +2563,12 @@ void av1_get_optflow_based_mv_highbd(
   const unsigned int sad_thr = 1;
   if (mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START && wms) {
     unsigned int sad_pred = sad_generic(dst0, bw, dst1, bw, bw, bh);
-    if (sad_pred >= sad_thr * bw * bh) *use_translational_opfl = 0;
+    if (sad_pred >= sad_thr * bw * bh) *use_affine_opfl = 1;
   }
 #endif
 
   if (mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START && wms &&
-      (*use_translational_opfl == 0)) {
+      *use_affine_opfl) {
     AffineModelParams affine_params = default_affine_params;
 
 #if AFFINE_AVERAGING_BITS > 0
@@ -2831,7 +2831,7 @@ void make_inter_pred_of_nxn(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
 #if CONFIG_AFFINE_REFINEMENT
     int plane, CompoundRefineType comp_refine_type, WarpedMotionParams *wms,
-    int_mv *mv, const int use_translational_opfl,
+    int_mv *mv, const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
     int n, SubpelParams *subpel_params) {
@@ -2886,7 +2886,7 @@ void make_inter_pred_of_nxn(
     for (int i = 0; i < bw; i += sub_bw) {
 #if CONFIG_AFFINE_REFINEMENT
       if (wms && comp_refine_type >= COMP_AFFINE_REFINE_START &&
-          !use_translational_opfl) {
+          use_affine_opfl) {
         // If warped model is not valid, wmmat[0] and wmmat[1] remain the
         // translational offset parameters in block-relative coordinates. Here
         // they are applied as MV offsets for simple translational prediction
@@ -3093,7 +3093,7 @@ void av1_opfl_rebuild_inter_predictor(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
 #if CONFIG_AFFINE_REFINEMENT
     CompoundRefineType comp_refine_type, WarpedMotionParams *wms, int_mv *mv,
-    const int use_translational_opfl,
+    const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP
@@ -3113,7 +3113,7 @@ void av1_opfl_rebuild_inter_predictor(
   make_inter_pred_of_nxn(
       dst, dst_stride, mv_refined, inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
-      plane, comp_refine_type, wms, mv, use_translational_opfl,
+      plane, comp_refine_type, wms, mv, use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
       ref, mc_buf, calc_subpel_params_func, n, &subpel_params);
 }
@@ -4535,7 +4535,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_AFFINE_REFINEMENT
   int do_affine = 0;
   WarpedMotionParams wms[2];
-  int use_translational_opfl = 0;
+  int use_affine_opfl = 0;
   wms[0] = default_warp_params;
   wms[1] = default_warp_params;
   if (use_optflow_refinement && plane) {
@@ -4564,17 +4564,17 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     dst0 = &dst0_16_refinemv[0];
     dst1 = &dst1_16_refinemv[0];
 
-    av1_get_optflow_based_mv_highbd(
-        cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y, mc_buf,
-        calc_subpel_params_func, gx0, gy0, gx1, gy1,
+    av1_get_optflow_based_mv_highbd(cm, xd, plane, mi, mv_refined, bw, bh, mi_x,
+                                    mi_y, mc_buf, calc_subpel_params_func, gx0,
+                                    gy0, gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
-        do_affine ? wms : NULL, &use_translational_opfl,
+                                    do_affine ? wms : NULL, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
-        vx0, vy0, vx1, vy1, dst0, dst1,
+                                    vx0, vy0, vx1, vy1, dst0, dst1,
 #if CONFIG_OPTFLOW_ON_TIP
-        1, 1,
+                                    1, 1,
 #endif  // CONFIG_OPTFLOW_ON_TIP
-        best_mv_ref, pu_width, pu_height);
+                                    best_mv_ref, pu_width, pu_height);
 #if CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
     const int mvi_stride = pu_width / n;
     const int subblk_rows = bh / n;
@@ -4666,7 +4666,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_AFFINE_REFINEMENT
                                        mi->comp_refine_type,
                                        do_affine ? wms : NULL, &mi->mv[ref],
-                                       use_translational_opfl,
+                                       use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
                                        ref, mc_buf, calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP
@@ -4905,7 +4905,7 @@ static void build_inter_predictors_8x8_and_bigger(
                  cm->features.opfl_refine_type == REFINE_ALL));
 
 #if CONFIG_AFFINE_REFINEMENT
-  int use_translational_opfl = 0;
+  int use_affine_opfl = 0;
   WarpedMotionParams wms[2];
   wms[0] = default_warp_params;
   wms[1] = default_warp_params;
@@ -4966,7 +4966,7 @@ static void build_inter_predictors_8x8_and_bigger(
                                     mi_y, mc_buf, calc_subpel_params_func, gx0,
                                     gy0, gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
-                                    wms, &use_translational_opfl,
+                                    wms, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
                                     vx0, vy0, vx1, vy1, dst0, dst1
 #if CONFIG_OPTFLOW_ON_TIP
@@ -5106,7 +5106,7 @@ static void build_inter_predictors_8x8_and_bigger(
                                        &inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_AFFINE_REFINEMENT
                                        mi->comp_refine_type, wms, &mi->mv[ref],
-                                       use_translational_opfl,
+                                       use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
                                        ref, mc_buf, calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP

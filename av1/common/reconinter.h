@@ -595,7 +595,7 @@ void av1_get_optflow_based_mv_highbd(
     CalcSubpelParamsFunc calc_subpel_params_func, int16_t *gx0, int16_t *gy0,
     int16_t *gx1, int16_t *gy1,
 #if CONFIG_AFFINE_REFINEMENT
-    WarpedMotionParams *wms, int *use_translational_opfl,
+    WarpedMotionParams *wms, int *use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int *vx0, int *vy0, int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1
 #if CONFIG_OPTFLOW_ON_TIP
@@ -614,7 +614,7 @@ void av1_opfl_rebuild_inter_predictor(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
 #if CONFIG_AFFINE_REFINEMENT
     CompoundRefineType comp_refine_type, WarpedMotionParams *wms, int_mv *mv,
-    const int use_translational_opfl,
+    const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP

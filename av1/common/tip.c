@@ -846,7 +846,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 #endif
 #if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = COMP_REFINE_SUBBLK2P;
-  int use_translational_opfl = 0;
+  int use_affine_opfl = 0;
   WarpedMotionParams wms[8];
   for (int mvi = 0; mvi < 4; mvi++) {
     wms[2 * mvi] = default_warp_params;
@@ -936,7 +936,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                                     mi_x, mi_y, mc_buf, calc_subpel_params_func,
                                     gx0, gy0, gx1, gy1,
 #if CONFIG_AFFINE_REFINEMENT
-                                    wms, &use_translational_opfl,
+                                    wms, &use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
                                     vx0, vy0, vx1, vy1, dst0, dst1, 0, use_4x4
 #if CONFIG_REFINEMV
@@ -997,7 +997,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
           dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
           mi_y,
 #if CONFIG_AFFINE_REFINEMENT
-          mbmi->comp_refine_type, wms, &mbmi->mv[ref], use_translational_opfl,
+          mbmi->comp_refine_type, wms, &mbmi->mv[ref], use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
           ref, mc_buf, calc_subpel_params_func, use_4x4);
     } else {
