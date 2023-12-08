@@ -2160,7 +2160,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
         }
         output_q3 += output_stride;
-        input += (input_stride << 1);
+        input += input_stride;
       }
 #endif
     } else if (sub_y) {

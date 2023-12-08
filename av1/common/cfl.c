@@ -45,7 +45,7 @@ void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
   assert(width <= CFL_BUF_LINE);
 
   memcpy(xd->cfl.dc_pred_cache[pred_plane], input,
-         width << (&xd->cfl)->subsampling_x);
+         width << xd->cfl.subsampling_x);
   return;
 }
 
@@ -66,7 +66,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   assert(width <= CFL_BUF_LINE);
   assert(height <= CFL_BUF_LINE);
   cfl_load_dc_pred_hbd(xd->cfl.dc_pred_cache[pred_plane], dst, dst_stride,
-                       width, height, (&xd->cfl)->subsampling_x);
+                       width, height, xd->cfl.subsampling_x);
 }
 
 // Due to frame boundary issues, it is possible that the total area covered by
