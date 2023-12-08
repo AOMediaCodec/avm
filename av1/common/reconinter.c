@@ -1037,17 +1037,14 @@ void av1_warp_plane_bilinear(WarpedMotionParams *wm, int bd,
 
       // Horizontal filter
       int32_t tmp0 = ref[iy0 * stride + ix0] * (unit_offset - coeff_x) +
-                     ref[iy0 * stride + ix1] * coeff_x +
-                     (1 << (BILINEAR_WARP_PREC_BITS - 1));
+                     ref[iy0 * stride + ix1] * coeff_x;
       tmp0 = ROUND_POWER_OF_TWO(tmp0, BILINEAR_WARP_PREC_BITS);
       int32_t tmp1 = ref[iy1 * stride + ix0] * (unit_offset - coeff_x) +
-                     ref[iy1 * stride + ix1] * coeff_x +
-                     (1 << (BILINEAR_WARP_PREC_BITS - 1));
+                     ref[iy1 * stride + ix1] * coeff_x;
       tmp1 = ROUND_POWER_OF_TWO(tmp1, BILINEAR_WARP_PREC_BITS);
 
       // Vertical filter
-      int32_t sum = tmp0 * (unit_offset - coeff_y) + tmp1 * coeff_y +
-                    (1 << (BILINEAR_WARP_PREC_BITS - 1));
+      int32_t sum = tmp0 * (unit_offset - coeff_y) + tmp1 * coeff_y;
       sum = ROUND_POWER_OF_TWO(sum, BILINEAR_WARP_PREC_BITS);
 
       *p = clip_pixel_highbd(sum, bd);
