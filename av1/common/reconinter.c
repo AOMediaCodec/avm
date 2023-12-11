@@ -2187,7 +2187,7 @@ affine_params_solver_interp_grad get_affine_params_solver_interp_grad(
 // Solve the affine model given pdiff = P0 - P1 and the gradients gx/gy of
 // d0 * P0 - d1 * P1.
 // TODO(kslu) add SIMD version
-void av1_opfl_affine_refinement_mxn_interp_grad_c(
+int av1_opfl_affine_refinement_mxn_interp_grad_c(
     const int16_t *pdiff, int pstride0, const int16_t *gx, const int16_t *gy,
     int gstride, int bw, int bh, int d0, int d1, int mi_x, int mi_y,
     const MB_MODE_INFO *mbmi,
@@ -2203,8 +2203,9 @@ void av1_opfl_affine_refinement_mxn_interp_grad_c(
   // In some rare cases, the determinant in the solver may be zero or
   // negative due to numerical errors. In this case we still set invalid=0,
   // but the warped parameters remain the default values.
-  if (!solver(pdiff, pstride0, gx, gy, gstride, bw, bh, grad_prec_bits,
-              &affine_params)) {
+  int valid = !solver(pdiff, pstride0, gx, gy, gstride, bw, bh, grad_prec_bits,
+                      &affine_params);
+  if (valid) {
     combine_affine_params(ams, &affine_params);
 #if CONFIG_REFINEMV
     get_ref_affine_params(bw, bh, mi_x, mi_y, ams, wms, d0, &src_mv[0]);
@@ -2215,6 +2216,7 @@ void av1_opfl_affine_refinement_mxn_interp_grad_c(
                           &mbmi->mv[1].as_mv);
 #endif  // CONFIG_REFINEMV
   }
+  return valid;
 }
 #endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // OPFL_COMBINE_INTERP_GRAD_LS
@@ -2576,7 +2578,7 @@ void av1_get_optflow_based_mv_highbd(
     avg_pooling_pdiff_gradients(tmp1, bw, gx0, gy0, bw, bw, bh, block_len_low);
 #endif  // AFFINE_AVERAGING_BITS > 0
 
-    av1_opfl_affine_refinement_mxn_interp_grad_c(
+    *use_affine_opfl = av1_opfl_affine_refinement_mxn_interp_grad_c(
         tmp1, bw, gx0, gy0, bw, bw, bh, d0, d1, mi_x, mi_y, mbmi,
 #if CONFIG_REFINEMV
         best_mv_ref,
