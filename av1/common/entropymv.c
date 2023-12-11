@@ -20,13 +20,11 @@ static const nmv_context default_nmv_context = {
 #else
   { AOM_CDF4(1126, 6354, 9638) },  // joints_cdf
 #endif  // CONFIG_ENTROPY_PARA
-#if CONFIG_ADAPTIVE_MVD
 #if CONFIG_ENTROPY_PARA
   { AOM_CDF4(4, 18825, 32748), 1 },  // amvd_joints_cdf
 #else
-  { AOM_CDF4(4, 18825, 32748) },  // amvd_joints_cdf
+  { AOM_CDF4(4, 18825, 32748) },   // amvd_joints_cdf
 #endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_ADAPTIVE_MVD
   {
       {
 #if CONFIG_ENTROPY_PARA
@@ -71,7 +69,6 @@ static const nmv_context default_nmv_context = {
                         32720, 32724) } },  // class_cdf // fp
 #endif  // CONFIG_ENTROPY_PARA
 
-#if CONFIG_ADAPTIVE_MVD
 #if CONFIG_ENTROPY_PARA
           { AOM_CDF11(29390, 31689, 32431, 32665, 32712, 32716, 32720, 32724,
                       32728, 32732),
@@ -80,7 +77,6 @@ static const nmv_context default_nmv_context = {
           { AOM_CDF11(29390, 31689, 32431, 32665, 32712, 32716, 32720, 32724,
                       32728, 32732) },  // class_cdf // fp
 #endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_ENTROPY_PARA
           {
               {
@@ -184,7 +180,6 @@ static const nmv_context default_nmv_context = {
             { AOM_CDF11(29338, 31380, 32155, 32475, 32654, 32708, 32712, 32716,
                         32720, 32724) } },
 #endif  // CONFIG_ENTROPY_PARA
-#if CONFIG_ADAPTIVE_MVD
 #if CONFIG_ENTROPY_PARA
           { AOM_CDF11(28341, 31295, 32320, 32640, 32712, 32716, 32720, 32724,
                       32728, 32732),
@@ -193,7 +188,6 @@ static const nmv_context default_nmv_context = {
           { AOM_CDF11(28341, 31295, 32320, 32640, 32712, 32716, 32720, 32724,
                       32728, 32732) },  // class_cdf // fp
 #endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_ENTROPY_PARA
           {
               {
@@ -259,9 +253,7 @@ static const nmv_context default_nmv_context = {
 #else
 static const nmv_context default_nmv_context = {
   { AOM_CDF4(4096, 11264, 19328) },  // joints_cdf
-#if CONFIG_ADAPTIVE_MVD
   { AOM_CDF4(1024, 19328, 32740) },  // amvd_joints_cdf
-#endif  // CONFIG_ADAPTIVE_MVD
   { {
 // Vertical component
 #if CONFIG_FLEX_MVRES
@@ -282,10 +274,8 @@ static const nmv_context default_nmv_context = {
         { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
                     32762, 32767) },  // class_cdf // fp
 #endif
-#if CONFIG_ADAPTIVE_MVD
         { AOM_CDF11(24672, 27976, 29858, 31320, 32758, 32759, 32760, 32762,
                     32764, 32767) },  // class_cdf // fp
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
         { { { AOM_CDF2(24576) }, { AOM_CDF2(21845) }, { AOM_CDF2(8192) } },
           { { AOM_CDF2(21248) },
@@ -338,10 +328,8 @@ static const nmv_context default_nmv_context = {
         { AOM_CDF11(28672, 30976, 31858, 32320, 32551, 32656, 32740, 32757,
                     32762, 32767) },  // class_cdf // fp
 #endif
-#if CONFIG_ADAPTIVE_MVD
         { AOM_CDF11(24672, 27976, 29858, 31320, 32758, 32759, 32760, 32762,
                     32764, 32767) },  // class_cdf // fp
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
         { { { AOM_CDF2(24576) }, { AOM_CDF2(21845) }, { AOM_CDF2(8192) } },
           { { AOM_CDF2(21248) },

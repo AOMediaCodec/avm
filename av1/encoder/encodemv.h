@@ -22,31 +22,25 @@ extern "C" {
 #if CONFIG_FLEX_MVRES
 void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, MV mv, MV ref,
                    nmv_context *mvctx, MvSubpelPrecision pb_mv_precision);
-void av1_update_mv_stats(MV mv, MV ref, nmv_context *mvctx,
-#if CONFIG_ADAPTIVE_MVD
-                         int is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
+void av1_update_mv_stats(MV mv, MV ref, nmv_context *mvctx, int is_adaptive_mvd,
                          MvSubpelPrecision precision);
 #else
 void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx, int usehp);
 void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
-#if CONFIG_ADAPTIVE_MVD
-                         int is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
-                         MvSubpelPrecision precision);
+                         int is_adaptive_mvd, MvSubpelPrecision precision);
 #endif
 
 void av1_build_nmv_cost_table(int *mvjoint,
-#if CONFIG_ADAPTIVE_MVD && !CONFIG_FLEX_MVRES
+#if !CONFIG_FLEX_MVRES
                               int *amvd_mvjoint, int *amvd_mvcost[2],
-#endif  // CONFIG_ADAPTIVE_MVD
+#endif  // !CONFIG_FLEX_MVRES
                               int *mvcost[2], const nmv_context *mvctx,
                               MvSubpelPrecision precision
-#if CONFIG_ADAPTIVE_MVD && CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
                               ,
                               int is_adaptive_mvd
-#endif
+#endif  // CONFIG_FLEX_MVRES
 );
 
 void av1_update_mv_count(ThreadData *td);

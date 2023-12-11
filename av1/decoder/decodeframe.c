@@ -6659,9 +6659,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   seq_params->enable_ibp = aom_rb_read_bit(rb);
-#if CONFIG_ADAPTIVE_MVD
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
-#endif  // CONFIG_ADAPTIVE_MVD
 
 #if CONFIG_REFINEMV
   seq_params->enable_refinemv = aom_rb_read_bit(rb);

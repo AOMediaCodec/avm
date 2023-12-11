@@ -463,9 +463,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
-#if CONFIG_ADAPTIVE_MVD
   seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
 #endif  // CONFIG_FLEX_MVRES

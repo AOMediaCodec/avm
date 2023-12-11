@@ -91,7 +91,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int mi_col = xd->mi_col;
   const MvCosts *mv_costs = &x->mv_costs;
 
-#if CONFIG_FLEX_MVRES && CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 #endif
 
@@ -406,13 +406,9 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     const int ref_mv_idx = mbmi->ref_mv_idx;
 #endif  // CONFIG_SEP_COMP_DRL
 #if CONFIG_FLEX_MVRES
-    const int this_mv_rate = av1_mv_bit_cost(
-        &this_mv.as_mv, &ref_mv, pb_mv_precision, mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-        ,
-        is_adaptive_mvd
-#endif
-    );
+    const int this_mv_rate =
+        av1_mv_bit_cost(&this_mv.as_mv, &ref_mv, pb_mv_precision, mv_costs,
+                        MV_COST_WEIGHT, is_adaptive_mvd);
 #else
     const int this_mv_rate =
         av1_mv_bit_cost(&this_mv.as_mv, &ref_mv, mv_costs->nmv_joint_cost,
@@ -545,12 +541,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   }
 #if CONFIG_FLEX_MVRES
   *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, pb_mv_precision,
-                             mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                             ,
-                             is_adaptive_mvd
-#endif
-  );
+                             mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
 #else
   *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, mv_costs->nmv_joint_cost,
                              mv_costs->mv_cost_stack, MV_COST_WEIGHT);
@@ -603,7 +594,7 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
   const int step = OMVS_BIG_STEP * radix;
 #endif  // CONFIG_OPFL_MV_SEARCH
 
-#if CONFIG_FLEX_MVRES && CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   assert(!is_adaptive_mvd);
 #endif
@@ -729,12 +720,7 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
     const int ref_mv_idx = mbmi->ref_mv_idx;
 #endif  // CONFIG_SEP_COMP_DRL
     const int this_mv_rate = av1_mv_bit_cost(
-        &this_mv.as_mv, &ref_mv, pb_mv_precision, mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-        ,
-        0
-#endif
-    );
+        &this_mv.as_mv, &ref_mv, pb_mv_precision, mv_costs, MV_COST_WEIGHT, 0);
 
     mode_info[ref_mv_idx].full_search_mv.as_int = this_mv.as_int;
     mode_info[ref_mv_idx].full_mv_rate = this_mv_rate;
@@ -791,12 +777,7 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
 
   if (bestsme < INT_MAX) *best_mv = curr_best_mv;
   *rate_mv = av1_mv_bit_cost(&best_mv->as_mv, &ref_mv, pb_mv_precision,
-                             mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                             ,
-                             is_adaptive_mvd
-#endif
-  );
+                             mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
 #if !CONFIG_C071_SUBBLK_WARPMV
   assert(is_this_mv_precision_compliant(best_mv->as_mv, mbmi->pb_mv_precision));
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
@@ -819,7 +800,7 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
 #endif
-#if CONFIG_FLEX_MVRES && CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   assert(!is_adaptive_mvd);
 #endif
@@ -1037,12 +1018,8 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     const int_mv curr_ref_mv = av1_get_ref_mv(x, ref);
 #if CONFIG_FLEX_MVRES
     *rate_mv += av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
-                                mbmi->pb_mv_precision, mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                                ,
-                                is_adaptive_mvd
-#endif
-    );
+                                mbmi->pb_mv_precision, mv_costs, MV_COST_WEIGHT,
+                                is_adaptive_mvd);
 #else
     *rate_mv += av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
                                 mv_costs->nmv_joint_cost,
@@ -1137,12 +1114,7 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   *rate_mv +=
 #if CONFIG_FLEX_MVRES
       av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mbmi->pb_mv_precision, mv_costs,
-                      MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                      ,
-                      ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-      );
+                      MV_COST_WEIGHT, ms_params.mv_cost_params.is_adaptive_mvd);
 #else
       av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mv_costs->amvd_nmv_joint_cost,
                       mv_costs->amvd_mv_cost_stack, MV_COST_WEIGHT);
@@ -1229,7 +1201,6 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   int_mv best_other_mv;
   best_other_mv.as_mv = kZeroMv;
 #endif  // CONFIG_JOINT_MVD
-#if CONFIG_ADAPTIVE_MVD
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 #if BUGFIX_AMVD_AMVR
   if (is_adaptive_mvd) {
@@ -1257,7 +1228,6 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     bestsme = adaptive_mvd_search(cm, xd, &ms_params, ref_mv.as_mv,
                                   &best_mv.as_mv, &dis, &sse);
   } else
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_JOINT_MVD
       if (mbmi->mode == JOINT_NEWMV
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1324,9 +1294,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                            second_pred, &inter_pred_params);
   } else
 #endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
-#if CONFIG_ADAPTIVE_MVD || CONFIG_JOINT_MVD
   {
-#endif  // CONFIG_ADAPTIVE_MVD || CONFIG_JOINT_MVD
     // Make motion search params
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
 
@@ -1432,9 +1400,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       bestsme = cpi->mv_search_params.find_fractional_mv_step(
           xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis, &sse, NULL);
     }
-#if CONFIG_ADAPTIVE_MVD || CONFIG_JOINT_MVD
   }
-#endif  // CONFIG_ADAPTIVE_MVD || CONFIG_JOINT_MVD
 
   // Restore the pointer to the first unscaled prediction buffer.
   if (ref_idx) pd->pre[0] = orig_yv12;
@@ -1448,38 +1414,25 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_JOINT_MVD
 
   *rate_mv = 0;
-#if CONFIG_ADAPTIVE_MVD
   if (is_adaptive_mvd) {
     *rate_mv +=
 #if CONFIG_FLEX_MVRES
         av1_mv_bit_cost(this_mv, &ref_mv.as_mv, pb_mv_precision, mv_costs,
-                        MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                        ,
-                        is_adaptive_mvd
-#endif
-        );
+                        MV_COST_WEIGHT, is_adaptive_mvd);
 #else
         av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mv_costs->amvd_nmv_joint_cost,
                         mv_costs->amvd_mv_cost_stack, MV_COST_WEIGHT);
 #endif
   } else {
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
     *rate_mv += av1_mv_bit_cost(this_mv, &ref_mv.as_mv, pb_mv_precision,
-                                mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                                ,
-                                is_adaptive_mvd
-#endif
-    );
+                                mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
 #else
-  *rate_mv += av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mv_costs->nmv_joint_cost,
-                              mv_costs->mv_cost_stack, MV_COST_WEIGHT);
+    *rate_mv +=
+        av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mv_costs->nmv_joint_cost,
+                        mv_costs->mv_cost_stack, MV_COST_WEIGHT);
 #endif
-#if CONFIG_ADAPTIVE_MVD
   }
-#endif  // CONFIG_ADAPTIVE_MVD
 }
 
 static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,

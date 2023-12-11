@@ -15,9 +15,7 @@
 
 #include "av1/common/mv.h"
 #include "av1/encoder/block.h"
-#if CONFIG_ADAPTIVE_MVD || CONFIG_JOINT_MVD
 #include "av1/common/reconinter.h"
-#endif  // CONFIG_ADAPTIVE_MVD || CONFIG_JOINT_MVD
 
 #include "aom_dsp/variance.h"
 
@@ -89,9 +87,7 @@ typedef struct {
   // and the diff cost.
   const MvCosts *mv_costs;
   MvSubpelPrecision pb_mv_precision;
-#if CONFIG_ADAPTIVE_MVD
   int is_adaptive_mvd;
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_IBC_BV_IMPROVEMENT
   int is_ibc_cost;
 #endif
@@ -100,12 +96,8 @@ typedef struct {
 #if CONFIG_FLEX_MVRES
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
                     const MvSubpelPrecision pb_mv_precision,
-                    const MvCosts *mv_costs, int weight
-#if CONFIG_ADAPTIVE_MVD
-                    ,
-                    const int is_adaptive_mvd
-#endif
-);
+                    const MvCosts *mv_costs, int weight,
+                    const int is_adaptive_mvd);
 
 int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
                             const IntraBCMvCosts *mv_costs, int weight);
@@ -480,13 +472,12 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 #endif
 
 #endif  // CONFIG_JOINT_MVD
-#if CONFIG_ADAPTIVE_MVD
 // motion search for near_new and new_near mode when adaptive MVD resolution is
 // applied
 int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv,
                         MV *bestmv, int *distortion, unsigned int *sse1);
-#endif  // CONFIG_ADAPTIVE_MVD
+
 #if IMPROVED_AMVD && CONFIG_JOINT_MVD
 int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  SUBPEL_MOTION_SEARCH_PARAMS *ms_params,

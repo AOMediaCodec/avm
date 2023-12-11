@@ -5776,9 +5776,7 @@ int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi,
                               const BLOCK_SIZE bsize) {
   (void)bsize;
-#if CONFIG_ADAPTIVE_MVD
   if (enable_adaptive_mvd_resolution(cm, mbmi)) return 0;
-#endif
   return cm->seq_params.enable_flex_mvres &&
          (mbmi->max_mv_precision >= MV_PRECISION_HALF_PEL) &&
          cm->features.use_pb_mv_precision &&

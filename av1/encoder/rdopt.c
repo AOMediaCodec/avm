@@ -998,9 +998,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                             inter_mode_info *mode_info) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_ADAPTIVE_MVD || CONFIG_JOINT_MVD
   const AV1_COMMON *const cm = &cpi->common;
-#endif  // CONFIG_JOINT_MVD || CONFIG_JOINT_MVD
   const int is_comp_pred = has_second_ref(mbmi);
   const PREDICTION_MODE this_mode = mbmi->mode;
   const MV_REFERENCE_FRAME refs[2] = { COMPACT_INDEX0_NRS(mbmi->ref_frame[0]),
@@ -1089,12 +1087,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_FLEX_MVRES
           *rate_mv +=
               av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv, pb_mv_precision,
-                              &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                              ,
-                              0
-#endif
-              );
+                              &x->mv_costs, MV_COST_WEIGHT, 0);
 #else
           *rate_mv += av1_mv_bit_cost(
               &cur_mv[i].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -1174,14 +1167,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                 &cur_mv[i].as_mv);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
-            *rate_mv +=
-                av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv,
-                                pb_mv_precision, &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                                ,
-                                0
-#endif
-                );
+            *rate_mv += av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv,
+                                        pb_mv_precision, &x->mv_costs,
+                                        MV_COST_WEIGHT, 0);
 #else
           *rate_mv += av1_mv_bit_cost(
               &cur_mv[i].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -1246,7 +1234,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
         );
       }
-#if CONFIG_ADAPTIVE_MVD
       if (cm->seq_params.enable_adaptive_mvd) {
 #if CONFIG_FLEX_MVRES
         assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
@@ -1254,7 +1241,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 1);
       } else {
-#endif  // CONFIG_ADAPTIVE_MVD
         // aomenc2
         if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
             !valid_mv1) {
@@ -1275,25 +1261,18 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_FLEX_MVRES
                                      pb_mv_precision, &x->mv_costs,
 #else
-#if CONFIG_ADAPTIVE_MVD
-                                   x->mv_costs.amvd_nmv_joint_cost,
-                                   x->mv_costs.amvd_mv_cost_stack,
-#else
-                                   x->mv_costs.nmv_joint_cost,
-                                   x->mv_costs.mv_cost_stack,
-#endif  // CONFIG_ADAPTIVE_MVD
+                                     x->mv_costs.amvd_nmv_joint_cost,
+                                     x->mv_costs.amvd_mv_cost_stack,
 #endif
                                      MV_COST_WEIGHT
 
-#if CONFIG_ADAPTIVE_MVD && CONFIG_FLEX_MVRES
+#if CONFIG_FLEX_MVRES
                                      ,
                                      0
 #endif
           );
         }
-#if CONFIG_ADAPTIVE_MVD
       }
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_JOINT_MVD
     } else if (is_joint_mvd_coding_mode(this_mode)) {
       if (!cm->seq_params.enable_joint_mvd) return INT64_MAX;
@@ -1381,7 +1360,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
         );
       }
-#if CONFIG_ADAPTIVE_MVD
       if (cm->seq_params.enable_adaptive_mvd) {
 #if CONFIG_FLEX_MVRES
         assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
@@ -1389,7 +1367,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 0);
       } else {
-#endif  // CONFIG_ADAPTIVE_MVD
         // aomenc3
         if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
             !valid_mv0) {
@@ -1410,25 +1387,18 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_FLEX_MVRES
                                      pb_mv_precision, &x->mv_costs,
 #else
-#if CONFIG_ADAPTIVE_MVD
-                                   x->mv_costs.amvd_nmv_joint_cost,
-                                   x->mv_costs.amvd_mv_cost_stack,
-#else
-                                   x->mv_costs.nmv_joint_cost,
-                                   x->mv_costs.mv_cost_stack,
-#endif  // CONFIG_ADAPTIVE_MVD
+                                     x->mv_costs.amvd_nmv_joint_cost,
+                                     x->mv_costs.amvd_mv_cost_stack,
 #endif
                                      MV_COST_WEIGHT
-#if CONFIG_FLEX_MVRES && CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
                                      ,
                                      0
 #endif
 
           );
         }
-#if CONFIG_ADAPTIVE_MVD
       }
-#endif  // CONFIG_ADAPTIVE_MVD
     }
 #if IMPROVED_AMVD
   } else if (this_mode == AMVDNEWMV) {
@@ -2275,20 +2245,11 @@ static int64_t motion_mode_rd(
 #if CONFIG_FLEX_MVRES
                   int tmp_rate_mv0 = av1_mv_bit_cost(
                       &mv0.as_mv, &ref_mv.as_mv, pb_mv_precision, &x->mv_costs,
-                      MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                      ,
-                      ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-                  );
+                      MV_COST_WEIGHT, ms_params.mv_cost_params.is_adaptive_mvd);
                   tmp_rate_mv = av1_mv_bit_cost(
                       &mbmi->mv[0].as_mv, &ref_mv.as_mv, pb_mv_precision,
-                      &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                      ,
-                      ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-                  );
+                      &x->mv_costs, MV_COST_WEIGHT,
+                      ms_params.mv_cost_params.is_adaptive_mvd);
 #else
                 int tmp_rate_mv0 = av1_mv_bit_cost(
                     &mv0.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -2303,12 +2264,8 @@ static int64_t motion_mode_rd(
 #if CONFIG_FLEX_MVRES
                   tmp_rate_mv = av1_mv_bit_cost(
                       &mbmi->mv[0].as_mv, &ref_mv.as_mv, pb_mv_precision,
-                      &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                      ,
-                      ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-                  );
+                      &x->mv_costs, MV_COST_WEIGHT,
+                      ms_params.mv_cost_params.is_adaptive_mvd);
 #else
                 tmp_rate_mv =
                     av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
@@ -2321,12 +2278,8 @@ static int64_t motion_mode_rd(
 #if CONFIG_FLEX_MVRES
             tmp_rate_mv =
                 av1_mv_bit_cost(&mbmi->mv[0].as_mv, &ref_mv.as_mv,
-                                pb_mv_precision, &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                                ,
-                                ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-                );
+                                pb_mv_precision, &x->mv_costs, MV_COST_WEIGHT,
+                                ms_params.mv_cost_params.is_adaptive_mvd);
 #else
             tmp_rate_mv = av1_mv_bit_cost(
                 &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -2363,22 +2316,13 @@ static int64_t motion_mode_rd(
               if (mv1.as_int != mbmi->mv[1].as_int) {
                 // Keep the refined MV and WM parameters.
 #if CONFIG_FLEX_MVRES
-                int tmp_rate_mv1 =
-                    av1_mv_bit_cost(&mv1.as_mv, &ref_mv.as_mv, pb_mv_precision,
-                                    &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                                    ,
-                                    ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-                    );
+                int tmp_rate_mv1 = av1_mv_bit_cost(
+                    &mv1.as_mv, &ref_mv.as_mv, pb_mv_precision, &x->mv_costs,
+                    MV_COST_WEIGHT, ms_params.mv_cost_params.is_adaptive_mvd);
                 tmp_rate_mv = av1_mv_bit_cost(
                     &mbmi->mv[1].as_mv, &ref_mv.as_mv, pb_mv_precision,
-                    &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                    ,
-                    ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-                );
+                    &x->mv_costs, MV_COST_WEIGHT,
+                    ms_params.mv_cost_params.is_adaptive_mvd);
 #else
               int tmp_rate_mv1 = av1_mv_bit_cost(
                   &mv1.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -2544,12 +2488,8 @@ static int64_t motion_mode_rd(
 #if CONFIG_FLEX_MVRES
             tmp_rate_mv = av1_mv_bit_cost(
                 &mbmi->mv[0].as_mv, &ref_mv.as_mv, mbmi->pb_mv_precision,
-                &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                ,
-                ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-            );
+                &x->mv_costs, MV_COST_WEIGHT,
+                ms_params.mv_cost_params.is_adaptive_mvd);
 #else
           tmp_rate_mv = av1_mv_bit_cost(
               &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -2741,12 +2681,8 @@ static int64_t motion_mode_rd(
 #if CONFIG_FLEX_MVRES
               tmp_rate_mv = av1_mv_bit_cost(
                   &mbmi->mv[0].as_mv, &ref_mv.as_mv, mbmi->pb_mv_precision,
-                  &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                  ,
-                  ms_params.mv_cost_params.is_adaptive_mvd
-#endif
-              );
+                  &x->mv_costs, MV_COST_WEIGHT,
+                  ms_params.mv_cost_params.is_adaptive_mvd);
 #else
             tmp_rate_mv = av1_mv_bit_cost(
                 &mbmi->mv[0].as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -3793,12 +3729,9 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   if (is_joint_mvd_coding_mode(mbmi->mode)) {
     int jmvd_scale_mode_cost =
-#if CONFIG_ADAPTIVE_MVD
         is_joint_amvd_coding_mode(mbmi->mode)
             ? mode_costs->jmvd_amvd_scale_mode_cost[mbmi->jmvd_scale_mode]
-            :
-#endif  // CONFIG_ADAPTIVE_MVD
-            mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
+            : mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
     rd_stats->rate += jmvd_scale_mode_cost;
   }
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -4378,7 +4311,7 @@ static int skip_repeated_newmv(
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
 
-#if CONFIG_FLEX_MVRES && CONFIG_ADAPTIVE_MVD
+#if CONFIG_FLEX_MVRES
   MB_MODE_INFO *mbmi = xd->mi[0];
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 #endif
@@ -4438,14 +4371,9 @@ static int skip_repeated_newmv(
           if (!av1_is_subpelmv_in_range(&mv_limits, mode_info[i].mv.as_mv))
             continue;
 
-          this_rate_mv =
-              av1_mv_bit_cost(&mode_info[i].mv.as_mv, &ref_mv.as_mv,
-                              pb_mv_precision, &x->mv_costs, MV_COST_WEIGHT
-#if CONFIG_ADAPTIVE_MVD
-                              ,
-                              is_adaptive_mvd
-#endif
-              );
+          this_rate_mv = av1_mv_bit_cost(&mode_info[i].mv.as_mv, &ref_mv.as_mv,
+                                         pb_mv_precision, &x->mv_costs,
+                                         MV_COST_WEIGHT, is_adaptive_mvd);
 #else
         this_rate_mv = av1_mv_bit_cost(
             &mode_info[i].mv.as_mv, &ref_mv.as_mv, x->mv_costs.nmv_joint_cost,
@@ -5371,11 +5299,9 @@ static int64_t handle_inter_mode(
   for (int scale_index = 0; scale_index < jmvd_scaling_factor_num;
        ++scale_index) {
     mbmi->jmvd_scale_mode = scale_index;
-#if CONFIG_ADAPTIVE_MVD
     if (is_joint_amvd_coding_mode(mbmi->mode)) {
       if (scale_index > JOINT_AMVD_SCALE_FACTOR_CNT - 1) continue;
     }
-#endif  // CONFIG_ADAPTIVE_JMVD
     if (cpi->sf.inter_sf.early_terminate_jmvd_scale_factor) {
       if (scale_index > 0 && best_rd > 1.5 * ref_best_rd &&
           (!is_inter_compound_mode(best_ref_mode)))
@@ -6052,14 +5978,11 @@ static int64_t handle_inter_mode(
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
                   if (is_joint_mvd_coding_mode(mbmi->mode)) {
                     int jmvd_scale_mode_cost =
-#if CONFIG_ADAPTIVE_MVD
                         is_joint_amvd_coding_mode(mbmi->mode)
                             ? mode_costs->jmvd_amvd_scale_mode_cost
                                   [mbmi->jmvd_scale_mode]
-                            :
-#endif  // CONFIG_ADAPTIVE_MVD
-                            mode_costs
-                                ->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
+                            : mode_costs
+                                  ->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
                     rd_stats->rate += jmvd_scale_mode_cost;
                   }
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD

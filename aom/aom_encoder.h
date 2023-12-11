@@ -365,12 +365,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_ibp;
-#if CONFIG_ADAPTIVE_MVD
   /*!\brief enable Adaptive MVD resolution
    *
    */
   unsigned int enable_adaptive_mvd;
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
   /*!\brief enable Flexible MV resolution
    *

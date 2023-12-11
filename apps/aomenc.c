@@ -484,9 +484,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_IBC_SR_EXT
   &g_av1_codec_arg_defs.enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
-#if CONFIG_ADAPTIVE_MVD
   &g_av1_codec_arg_defs.enable_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
   &g_av1_codec_arg_defs.enable_flex_mvres,
 #endif  // CONFIG_FLEX_MVRES
@@ -678,9 +676,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_ist = 1;
   config->enable_cctx = 1;
   config->enable_ibp = 1;
-#if CONFIG_ADAPTIVE_MVD
   config->enable_adaptive_mvd = 1;
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
   config->enable_flex_mvres = 1;
 #endif  // CONFIG_FLEX_MVRES
@@ -1611,11 +1607,9 @@ static void show_stream_config(struct stream_state *stream,
           "OneSideCompound (%d), SmoothInterIntra (%d)\n",
           encoder_cfg->enable_masked_comp, encoder_cfg->enable_onesided_comp,
           encoder_cfg->enable_smooth_interintra);
-#if CONFIG_ADAPTIVE_MVD
   fprintf(stdout,
           "                               : Adaptive MVD resolution: (%d)\n",
           encoder_cfg->enable_adaptive_mvd);
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
   fprintf(stdout,
           "                               : Flexible MV precisions: (%d)\n",

@@ -50,14 +50,12 @@ static AOM_INLINE void av1_set_high_precision_mv(
   mv_costs->nmv_cost_hp[1] = &mv_costs->nmv_cost_hp_alloc[1][MV_MAX];
   mv_costs->mv_cost_stack =
       copy_hp ? mv_costs->nmv_cost_hp : mv_costs->nmv_cost;
-#if CONFIG_ADAPTIVE_MVD
   mv_costs->amvd_nmv_cost[0] = &mv_costs->amvd_nmv_cost_alloc[0][MV_MAX];
   mv_costs->amvd_nmv_cost[1] = &mv_costs->amvd_nmv_cost_alloc[1][MV_MAX];
   mv_costs->amvd_nmv_cost_hp[0] = &mv_costs->amvd_nmv_cost_hp_alloc[0][MV_MAX];
   mv_costs->amvd_nmv_cost_hp[1] = &mv_costs->amvd_nmv_cost_hp_alloc[1][MV_MAX];
   mv_costs->amvd_mv_cost_stack =
       copy_hp ? mv_costs->amvd_nmv_cost_hp : mv_costs->amvd_nmv_cost;
-#endif  // CONFIG_ADAPTIVE_MVD
 }
 #endif
 

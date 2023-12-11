@@ -440,11 +440,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_ibp = ARG_DEF(NULL, "enable-ibp", 1,
                         "Enable intra bi-prediction"
                         "(0: false, 1: true (default))"),
-#if CONFIG_ADAPTIVE_MVD
   .enable_adaptive_mvd = ARG_DEF(NULL, "enable-adaptive-mvd", 1,
                                  "Enable adaptive MVD resolution"
                                  "(0: false, 1: true (default))"),
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_FLEX_MVRES
   .enable_flex_mvres = ARG_DEF(NULL, "enable-flex-mvres", 1,
                                "Enable flexible MV resolution"

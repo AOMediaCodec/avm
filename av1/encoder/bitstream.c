@@ -253,7 +253,6 @@ static void write_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx,
 static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
                                              const MB_MODE_INFO *const mbmi) {
   if (!is_joint_mvd_coding_mode(mbmi->mode)) return;
-#if CONFIG_ADAPTIVE_MVD
   const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
   aom_cdf_prob *jmvd_scale_mode_cdf =
       is_joint_amvd_mode ? xd->tile_ctx->jmvd_amvd_scale_mode_cdf
@@ -263,10 +262,6 @@ static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
 
   aom_write_symbol(w, mbmi->jmvd_scale_mode, jmvd_scale_mode_cdf,
                    jmvd_scale_cnt);
-#else
-  aom_write_symbol(w, mbmi->jmvd_scale_mode, xd->tile_ctx->jmvd_scale_mode_cdf,
-                   JOINT_NEWMV_SCALE_FACTOR_CNT);
-#endif  // CONFIG_ADAPTIVE_MVD
 }
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 
@@ -5331,9 +5326,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   aom_wb_write_bit(wb, seq_params->enable_ibp);
-#if CONFIG_ADAPTIVE_MVD
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
-#endif  // CONFIG_ADAPTIVE_MVD
 
 #if CONFIG_REFINEMV
   aom_wb_write_bit(wb, seq_params->enable_refinemv);

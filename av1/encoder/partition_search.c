@@ -32,9 +32,7 @@
 #include "av1/encoder/partition_strategy.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tokenize.h"
-#if CONFIG_ADAPTIVE_MVD
 #include "av1/common/reconinter.h"
-#endif  // CONFIG_ADAPTIVE_MVD
 #if CONFIG_EXT_RECUR_PARTITIONS
 #include "av1/encoder/erp_tflite.h"
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1314,17 +1312,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     if (use_intrabc) {
       const int_mv ref_mv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
 #if CONFIG_FLEX_MVRES
-      av1_update_mv_stats(mbmi->mv[0].as_mv, ref_mv.as_mv, &fc->ndvc,
-#if CONFIG_ADAPTIVE_MVD
-                          0,
-#endif  // CONFIG_ADAPTIVE_MVD
+      av1_update_mv_stats(mbmi->mv[0].as_mv, ref_mv.as_mv, &fc->ndvc, 0,
                           MV_PRECISION_ONE_PEL);
     }
 #else
-      av1_update_mv_stats(&mbmi->mv[0].as_mv, &ref_mv.as_mv, &fc->ndvc,
-#if CONFIG_ADAPTIVE_MVD
-                          0,
-#endif  // CONFIG_ADAPTIVE_MVD
+      av1_update_mv_stats(&mbmi->mv[0].as_mv, &ref_mv.as_mv, &fc->ndvc, 0,
                           MV_SUBPEL_NONE);
     }
 #endif
@@ -1965,7 +1957,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       if (is_joint_mvd_coding_mode(mbmi->mode)) {
-#if CONFIG_ADAPTIVE_MVD
         const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
         aom_cdf_prob *jmvd_scale_mode_cdf = is_joint_amvd_mode
                                                 ? fc->jmvd_amvd_scale_mode_cdf
@@ -1974,10 +1965,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                                        ? JOINT_AMVD_SCALE_FACTOR_CNT
                                        : JOINT_NEWMV_SCALE_FACTOR_CNT;
         update_cdf(jmvd_scale_mode_cdf, mbmi->jmvd_scale_mode, jmvd_scale_cnt);
-#else
-        update_cdf(fc->jmvd_scale_mode_cdf, mbmi->jmvd_scale_mode,
-                   JOINT_NEWMV_SCALE_FACTOR_CNT);
-#endif  // CONFIG_ADAPTIVE_MVD
       }
 
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
@@ -1997,9 +1984,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                                        ? get_joint_mvd_base_ref_list(cm, mbmi)
                                        : 0;
 #endif  // CONFIG_JOINT_MVD
-#if CONFIG_ADAPTIVE_MVD
     const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
-#endif  // CONFIG_ADAPTIVE_MVD
     if (have_drl_index(mbmi->mode)) {
       const int16_t mode_ctx_pristine =
           av1_mode_context_pristine(mbmi_ext->mode_context, mbmi->ref_frame);
@@ -2022,16 +2007,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
 #if CONFIG_FLEX_MVRES
         av1_update_mv_stats(mbmi->mv[0].as_mv, ref_mv.as_mv, &fc->nmvc,
-#if CONFIG_ADAPTIVE_MVD
-                            is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
-                            mbmi->pb_mv_precision);
+                            is_adaptive_mvd, mbmi->pb_mv_precision);
 #else
         av1_update_mv_stats(&mbmi->mv[0].as_mv, &ref_mv.as_mv, &fc->nmvc,
-#if CONFIG_ADAPTIVE_MVD
-                            is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
-                            allow_hp);
+                            is_adaptive_mvd, allow_hp);
 #endif
       }
 
@@ -2052,9 +2031,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
 #if CONFIG_FLEX_MVRES
         if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
-#if CONFIG_ADAPTIVE_MVD
           assert(!is_adaptive_mvd);
-#endif
           assert(mbmi->most_probable_pb_mv_precision <= mbmi->max_mv_precision);
           const int mpp_flag_context = av1_get_mpp_flag_context(cm, xd);
           const int mpp_flag =
@@ -2083,16 +2060,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 
 #if CONFIG_FLEX_MVRES
             av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
-#if CONFIG_ADAPTIVE_MVD
-                                is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
-                                pb_mv_precision);
+                                is_adaptive_mvd, pb_mv_precision);
 #else
           av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-#if CONFIG_ADAPTIVE_MVD
-                              is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
-                              allow_hp);
+                              is_adaptive_mvd, allow_hp);
 #endif
           }
         } else if (have_nearmv_newmv_in_inter_mode(mbmi->mode)) {
@@ -2107,16 +2078,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
 #if CONFIG_FLEX_MVRES
           av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
-#if CONFIG_ADAPTIVE_MVD
-                              is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
-                              pb_mv_precision);
+                              is_adaptive_mvd, pb_mv_precision);
 #else
         av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-#if CONFIG_ADAPTIVE_MVD
-                            is_adaptive_mvd,
-#endif  // CONFIG_ADAPTIVE_MVD
-                            allow_hp);
+                            is_adaptive_mvd, allow_hp);
 #endif
         }
       }

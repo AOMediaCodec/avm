@@ -1306,7 +1306,6 @@ typedef struct {
   /*! Points to the middle of \ref nmv_costs_alloc. */
   int *nmv_costs[NUM_MV_PRECISIONS][2];
 
-#if CONFIG_ADAPTIVE_MVD
   //! Costs for coding the zero components when adaptive MVD resolution is
   //! applied
   int amvd_nmv_joint_cost[MV_JOINTS];
@@ -1317,7 +1316,6 @@ typedef struct {
 
   //! Points to the middle of \ref amvd_nmv_cost_alloc
   int *amvd_nmv_cost[2];
-#endif  // CONFIG_ADAPTIVE_MVD
 
 #if CONFIG_IBC_BV_IMPROVEMENT
   /*! Costs for coding the zero components of dv cost. */
@@ -1343,40 +1341,32 @@ typedef struct {
   //! Costs for coding the zero components.
   int nmv_joint_cost[MV_JOINTS];
 
-#if CONFIG_ADAPTIVE_MVD
   //! Costs for coding the zero components when adaptive MVD resolution is
   //! applied
   int amvd_nmv_joint_cost[MV_JOINTS];
-#endif  // CONFIG_ADAPTIVE_MVD
 
   //! Allocates memory for 1/4-pel motion vector costs.
   int nmv_cost_alloc[2][MV_VALS];
   //! Allocates memory for 1/8-pel motion vector costs.
   int nmv_cost_hp_alloc[2][MV_VALS];
-#if CONFIG_ADAPTIVE_MVD
   //! Allocates memory for 1/4-pel motion vector costs when adaptive MVD
   //! resolution is applied
   int amvd_nmv_cost_alloc[2][MV_VALS];
   //! Allocates memory for 1/8-pel motion vector costs when adaptive MVD
   //! resolution is applied mode is used.
   int amvd_nmv_cost_hp_alloc[2][MV_VALS];
-#endif  // CONFIG_ADAPTIVE_MVD
   //! Points to the middle of \ref nmv_cost_alloc
   int *nmv_cost[2];
   //! Points to the middle of \ref nmv_cost_hp_alloc
   int *nmv_cost_hp[2];
-#if CONFIG_ADAPTIVE_MVD
   //! Points to the middle of \ref amvd_nmv_cost_alloc
   int *amvd_nmv_cost[2];
   //! Points to the middle of \ref amvd_nmv_cost_hp_alloc
   int *amvd_nmv_cost_hp[2];
-#endif  // CONFIG_ADAPTIVE_MVD
   //! Points to the nmv_cost_hp in use.
   int **mv_cost_stack;
-#if CONFIG_ADAPTIVE_MVD
   //! Points to the nmv_cost_hp in use.
   int **amvd_mv_cost_stack;
-#endif  // CONFIG_ADAPTIVE_MVD
 #endif
   /**@}*/
 } MvCosts;
@@ -1417,13 +1407,11 @@ mv_component[0][i] is the cost of motion vector with horizontal component
   // TODO(huisu@google.com): we can update dv_joint_cost per SB.
   int joint_mv[MV_JOINTS];
 
-#if CONFIG_ADAPTIVE_MVD
   /*! amvd_joint_mv */
   int amvd_joint_mv[MV_JOINTS];
 
   /*! res_mv_component */
   int res_mv_component[2][MV_VALS];
-#endif  // CONFIG_ADAPTIVE_MVD
 } IntraBCMVCosts;
 #endif
 /*! \brief Holds the costs needed to encode the coefficients

@@ -389,7 +389,6 @@ static INLINE int get_cwp_coding_idx(int val, int encode,
 }
 #endif  // CONFIG_CWP
 
-#if CONFIG_ADAPTIVE_MVD
 static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   const int mode = mbmi->mode;
@@ -410,7 +409,7 @@ static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
           ) &&
          cm->seq_params.enable_adaptive_mvd;
 }
-#endif  // CONFIG_ADAPTIVE_MVD
+
 #if CONFIG_JOINT_MVD
 // get the base reference frame list for joint MVD coding, the MVD for base
 // reference frame is the same as the joint MVD, the MVD for the other reference

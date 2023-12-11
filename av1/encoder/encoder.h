@@ -851,10 +851,8 @@ typedef struct {
   // Indicates if prediction enhancement filter should be enabled.
   bool enable_pef;
 #endif  // CONFIG_PEF
-#if CONFIG_ADAPTIVE_MVD
   // Indicates if adaptive MVD resolution should be enabled.
   bool enable_adaptive_mvd;
-#endif  // CONFIG_ADAPTIVE_MVD
 
 #if CONFIG_FLEX_MVRES
   // Indicates if flexible MV resolution should be enabled.
