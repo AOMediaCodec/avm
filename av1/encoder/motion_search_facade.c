@@ -1165,8 +1165,10 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const YV12_BUFFER_CONFIG *const scaled_ref_frame =
       av1_get_scaled_ref_frame(cpi, ref);
 
+#if CONFIG_EXTENDED_WARP_PREDICTION
   // Check that this is either an interinter or an interintra block
   assert(has_second_ref(mbmi) || (ref_idx == 0 && is_interintra_mode(mbmi)));
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   // Store the first prediction buffer.
   struct buf_2d orig_yv12;

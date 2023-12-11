@@ -678,7 +678,9 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
   if (last_motion_mode_allowed == SIMPLE_TRANSLATION) return SIMPLE_TRANSLATION;
 
   if (last_motion_mode_allowed == OBMC_CAUSAL) {
+#if !CONFIG_D149_CTX_MODELING_OPT
     const int bsize = mbmi->sb_type[PLANE_TYPE_Y];
+#endif  // !CONFIG_D149_CTX_MODELING_OPT
     motion_mode = aom_read_symbol(r,
 #if CONFIG_D149_CTX_MODELING_OPT
                                   xd->tile_ctx->obmc_cdf,

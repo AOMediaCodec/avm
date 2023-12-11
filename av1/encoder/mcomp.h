@@ -351,7 +351,12 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv
 // search. The purpose for upscaling the MVD is to increase the search range and
 // obtain a new search point not covered by the traditional local search.
 static INLINE int get_opfl_mv_upshift_bits(const MB_MODE_INFO *mbmi) {
-  if (mbmi->mode == NEWMV || mbmi->mode == WARPMV) return 3;
+  if (mbmi->mode == NEWMV
+#if CONFIG_EXTENDED_WARP_PREDICTION
+      || mbmi->mode == WARPMV
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  )
+    return 3;
   return 0;
 }
 

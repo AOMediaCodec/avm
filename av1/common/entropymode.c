@@ -3271,7 +3271,6 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_D149_CTX_MODELING_OPT
 static const aom_cdf_prob default_warped_causal_warpmv_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(16384),
@@ -3296,35 +3295,6 @@ static const aom_cdf_prob
 #endif  // CONFIG_FLEX_PARTITION
     };
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
-
-#if CONFIG_REFINEMV
-#if CONFIG_ENTROPY_PARA
-static const aom_cdf_prob
-    default_refinemv_flag_cdf[NUM_REFINEMV_CTX][CDF_SIZE(2)] = {
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 1 }, { AOM_CDF2(16384), 1 },
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
-    };
-#else
-static const aom_cdf_prob default_refinemv_flag_cdf[NUM_REFINEMV_CTX][CDF_SIZE(
-    REFINEMV_NUM_MODES)] = {
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
-};
-#endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_REFINEMV
 
 #if CONFIG_D149_CTX_MODELING_OPT
 static const aom_cdf_prob default_warp_delta_cdf[CDF_SIZE(2)] = {
@@ -3351,7 +3321,6 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_warp_ref_idx0_cdf[WARP_REF_CONTEXTS]
                                                    [CDF_SIZE(2)] = {
@@ -3398,7 +3367,6 @@ static const aom_cdf_prob
 #endif  // CONFIG_FLEX_PARTITION
     };
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
@@ -3530,6 +3498,34 @@ static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
 };
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+#if CONFIG_REFINEMV
+#if CONFIG_ENTROPY_PARA
+static const aom_cdf_prob
+    default_refinemv_flag_cdf[NUM_REFINEMV_CTX][CDF_SIZE(2)] = {
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 1 }, { AOM_CDF2(16384), 1 },
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+      { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 },
+    };
+#else
+static const aom_cdf_prob default_refinemv_flag_cdf[NUM_REFINEMV_CTX][CDF_SIZE(
+    REFINEMV_NUM_MODES)] = {
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
+  { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
+};
+#endif  // CONFIG_ENTROPY_PARA
+#endif  // CONFIG_REFINEMV
 
 #if CONFIG_BAWP
 #if CONFIG_ENTROPY_PARA

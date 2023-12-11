@@ -753,7 +753,9 @@ static AOM_INLINE void write_motion_mode(const AV1_COMMON *cm, MACROBLOCKD *xd,
   switch (last_motion_mode_allowed) {
     case SIMPLE_TRANSLATION: break;
     case OBMC_CAUSAL:
+#if !CONFIG_D149_CTX_MODELING_OPT
       const int bsize = mbmi->sb_type[PLANE_TYPE_Y];
+#endif  // !CONFIG_D149_CTX_MODELING_OPT
       aom_write_symbol(w, mbmi->motion_mode == OBMC_CAUSAL,
 #if CONFIG_D149_CTX_MODELING_OPT
                        xd->tile_ctx->obmc_cdf,

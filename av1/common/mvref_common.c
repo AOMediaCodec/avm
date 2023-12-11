@@ -3264,7 +3264,9 @@ void av1_find_mv_refs(
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
       );
     }
+#if CONFIG_EXTENDED_WARP_PREDICTION
     if (derive_wrl) assert(rf[0] == ref_frame);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #else
     setup_ref_mv_list(cm, xd, ref_frame, &ref_mv_count[ref_frame],
                       ref_mv_stack[ref_frame], ref_mv_weight[ref_frame], NULL,

@@ -510,10 +510,12 @@ static INLINE void compute_best_interintra_mode(
   int64_t dist, skip_sse_sb;
   const int bw = block_size_wide[bsize];
   mbmi->interintra_mode = interintra_mode;
-  assert(mbmi->motion_mode == INTERINTRA);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+  assert(is_interintra_mode(mbmi));
 #if CONFIG_INTERINTRA_IMPROVEMENT
   assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   int rmode = interintra_mode_cost[interintra_mode];
 #if CONFIG_EXT_RECUR_PARTITIONS

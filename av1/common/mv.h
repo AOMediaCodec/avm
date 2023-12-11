@@ -558,11 +558,11 @@ typedef struct candidate_mv {
   // candidate, and so does not allow WARP_EXTEND
   int row_offset;
   int col_offset;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_CWP
   // Record the cwp index of the neighboring blocks
   int8_t cwp_idx;
 #endif  // CONFIG_CWP
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 } CANDIDATE_MV;
 
 #if CONFIG_EXTENDED_WARP_PREDICTION

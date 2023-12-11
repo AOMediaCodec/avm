@@ -1125,11 +1125,6 @@ typedef struct {
   int warped_causal_warpmv_cost[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_REFINEMV
-  //! refinemv_flag_cost
-  int refinemv_flag_cost[NUM_REFINEMV_CTX][REFINEMV_NUM_MODES];
-#endif  // CONFIG_REFINEMV
-
   //! warp_delta_param_cost
   int warp_delta_param_cost[2][WARP_DELTA_NUM_SYMBOLS];
   //! warp_ref_idx_cost
@@ -1146,6 +1141,10 @@ typedef struct {
   //! motion_mode_cost
   int motion_mode_cost[BLOCK_SIZES_ALL][MOTION_MODES];
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_REFINEMV
+  //! refinemv_flag_cost
+  int refinemv_flag_cost[NUM_REFINEMV_CTX][REFINEMV_NUM_MODES];
+#endif  // CONFIG_REFINEMV
 #if CONFIG_BAWP
   //! bawp flag cost
 #if CONFIG_BAWP_CHROMA

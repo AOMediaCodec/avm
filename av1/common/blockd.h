@@ -3553,7 +3553,12 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
+#if CONFIG_EXTENDED_WARP_PREDICTION
   return mbmi->motion_mode == INTERINTRA;
+#else
+  return (mbmi->ref_frame[0] > INTRA_FRAME &&
+          mbmi->ref_frame[1] == INTRA_FRAME);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -3623,13 +3628,9 @@ static INLINE int is_interintra_allowed_bsize_group(int group) {
 
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
 #if CONFIG_INTERINTRA_IMPROVEMENT
-  assert(IMPLIES(mbmi->motion_mode == INTERINTRA,
-                 mbmi->ref_frame[1] == NONE_FRAME));
-#else
-  assert(IMPLIES(mbmi->motion_mode == INTERINTRA,
-                 mbmi->ref_frame[1] == INTRA_FRAME));
+  assert(IMPLIES(is_interintra_mode(mbmi), mbmi->ref_frame[1] == NONE_FRAME));
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
-  return (mbmi->motion_mode == INTERINTRA);
+  return is_interintra_mode(mbmi);
 }
 
 static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,

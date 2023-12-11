@@ -394,7 +394,12 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
 
   // Optical flow MV search is allowed for NEWMV and WARPMV only, since it
   // shows little improvements in compound modes.
-  if (mbmi->mode == WARPMV || mbmi->mode == NEWMV) return 3;
+  if (mbmi->mode == NEWMV
+#if CONFIG_EXTENDED_WARP_PREDICTION
+      || mbmi->mode == WARPMV
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  )
+    return 3;
 
   return 0;
 }
