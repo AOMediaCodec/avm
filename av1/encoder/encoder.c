@@ -3380,6 +3380,14 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
 
+
+#if CONFIG_TEMP_LR
+   cm->rst_info[0].frame_filters_on = 0;
+   cm->rst_info[0].temporal_pred_flag = 0;
+   cm->cur_frame->rst_info[0].frame_filters_on = 0;
+   cm->cur_frame->rst_info[0].temporal_pred_flag = 0;
+#endif  // CONFIG_TIP
+
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->global_motion[i] = default_warp_params;
       cm->cur_frame->global_motion[i] = default_warp_params;

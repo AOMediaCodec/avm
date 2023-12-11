@@ -2434,6 +2434,11 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->dst_stride = lr_ctxt->dst->strides[is_uv];
     lr_plane_ctxt->tile_rect = av1_whole_frame_rect(cm, is_uv);
     lr_plane_ctxt->tile_stripe0 = 0;
+
+#if CONFIG_TEMP_LR
+    if (rsi->frame_filters_on) // temporal solution for decoder crash/mismatch
+      av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
+#endif
   }
 }
 

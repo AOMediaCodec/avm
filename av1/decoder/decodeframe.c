@@ -2789,8 +2789,9 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                       &rsi->frame_filters,
                       av1_constref_from_wienerns_bank(bank, 0, c_id), c_id);
                 }
-
+#if CONFIG_TEMP_LR
                 av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
+#endif
               }
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -3483,6 +3484,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           if(rsi->frame_filters_on) // ??????? should this be signalled only when frame_mode_on?
             rsi->num_filter_classes = decode_num_filter_classes(
               aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
+          else
+            rsi->num_filter_classes = 1;
 #endif
 #if CONFIG_TEMP_LR
        }
@@ -3908,7 +3911,9 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       av1_add_to_wienerns_bank(bank, &rsi->frame_filters, ALL_WIENERNS_CLASSES);
       bank->frame_filter_predictors_are_set = 1;
 
+#if CONFIG_TEMP_LR
       av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
+#endif
     }
   }
 #if CONFIG_LR_IMPROVEMENTS

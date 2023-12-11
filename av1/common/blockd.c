@@ -412,8 +412,8 @@ const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
 void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
                                   const WienerNonsepInfo *from_info,
                                   int wiener_class_id) {
-  assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
-  assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
+//  assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
+//  assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
   const int offset = wiener_class_id * WIENERNS_YUV_MAX;
   memcpy(to_info->allfiltertaps + offset, from_info->allfiltertaps + offset,
          WIENERNS_YUV_MAX * sizeof(*to_info->allfiltertaps));

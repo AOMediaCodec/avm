@@ -4389,7 +4389,7 @@ static AOM_INLINE void encode_restoration_mode(
               assert (rsi->num_filter_classes == rsi->num_classes_before_merge);
             }
 
-#if 1 // debug_point
+#if 0 // debug_point
           printf ("Frame_fitler_num: %d, %d \n", rsi->num_classes_before_merge, rsi->num_filter_classes);
 #endif
           } else {
@@ -4405,8 +4405,10 @@ static AOM_INLINE void encode_restoration_mode(
         }
         if (rsi->frame_filters_on)
           av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[p], rsi);
-        if (rsi->temporal_pred_flag)
-            rsi->frame_filters_initialized = 1;
+        if (rsi->temporal_pred_flag) {
+          rsi->frame_filters_initialized = 1;
+          assert (get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p].frame_filters_on);
+        }
 #endif  // CONFIG_TEMP_LR
 
         }

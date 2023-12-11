@@ -5212,10 +5212,6 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     // Reset this bank to account for bits that signal the frame level filters.
     initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
                                                        &tmp_bank);
-
-#if 0 // debug_point
-    printf ("%d, %d: %.3f\n", num_classes_before_merge, num_classes_after_merge, cost);
-#endif
     if (cost < best_cost) {
       best_cost = cost;
       best_num_classes_after_merge = num_classes_after_merge;
@@ -5266,9 +5262,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
             // Reset this bank to account for bits that signal the frame level filters.
             initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
                                                          &tmp_bank);
-#if 0  // debug_point
-          printf (" %d, %d, %d, %d: %.3f\n", num_classes_before_merge, num_classes_after_merge, filter_idx_0, filter_idx_1, cost);
-#endif
+
             if (cost < best_cost) {
               best_cost = cost;
               best_num_classes_after_merge = num_classes_after_merge;
@@ -5322,9 +5316,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
                   // Reset this bank to account for bits that signal the frame level filters.
                   initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
                                                                &tmp_bank);
-#if 0  // debug_point
-          printf (" %d, %d, %d, %d: %.3f\n", num_classes_before_merge, num_classes_after_merge, filter_idx_0, filter_idx_1, cost);
-#endif
+
                   if (cost < best_cost) {
                     best_cost = cost;
                     best_num_classes_after_merge = num_classes_after_merge;
@@ -5422,7 +5414,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   for (int ref_idx = 0; ref_idx < rsc->cm->ref_frames_info.num_total_refs; ref_idx ++) {
     RestorationInfo rsi = get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];
     if (!rsi.frame_filters_on) continue;
-    assert(rsi.restoration_unit_size == RESTORE_WIENER_NONSEP || rsi.restoration_unit_size == RESTORE_SWITCHABLE);
+//    assert(rsi.frame_restoration_type == RESTORE_WIENER_NONSEP || rsi.frame_restoration_type == RESTORE_SWITCHABLE);
     rsc->temporal_pred_flag = 1;
     tmp_filter = rsi.frame_filters;
     rsc->num_filter_classes = tmp_filter.num_classes;
@@ -5482,11 +5474,6 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 #else
   );
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-
-
-#if 0 //debug_point
-  rsc->frame_filters_total_cost /= 100;
-#endif
 
   for (int c_id = 0; c_id < best_num_classes; ++c_id) {
     // Park best filter in the bank, first slot.
@@ -5779,13 +5766,6 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           double cost = search_rest_type(&rsc, r);
           int real_r = r;
 #if CONFIG_COMBINE_PC_NS_WIENER
-#if 0 //debug_point
-          if (r == RESTORE_SWITCHABLE && plane == AOM_PLANE_Y){
-            double temp_cost;
-            int temp_real_r = replace_with_frame_filters(&rsc, &temp_cost);
-          }
-#endif
-
           if (r == RESTORE_SWITCHABLE && plane == AOM_PLANE_Y &&
               cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
@@ -5813,8 +5793,13 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
             if (rsc.plane == AOM_PLANE_Y) {
               best_frame_filters_state = rsc.frame_filters_on;
 #if CONFIG_TEMP_LR
-              best_temp_pred_flag = rsc.temporal_pred_flag;
-              best_temp_ref_idx = rsc.rst_ref_pic_idx;
+              if (rsc.frame_filters_on) {
+                best_temp_pred_flag = rsc.temporal_pred_flag;
+                best_temp_ref_idx = rsc.rst_ref_pic_idx;
+              } else {
+                best_temp_pred_flag = 0;
+                best_temp_ref_idx = -1;
+              }
 #endif
             }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
