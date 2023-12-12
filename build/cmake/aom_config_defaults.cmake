@@ -140,15 +140,9 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
 
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_ENTROPY_PARA 1 "AV2 enable PARA method for entropy.")
-set_aom_config_var(CONFIG_ATC 1 "AV2 enable adaptive transform coding.")
-set_aom_config_var(CONFIG_ATC_REDUCED_TXSET 1
-                   "AV2 enable reduced transform set.")
 set_aom_config_var(
   CONFIG_CHROMA_TX_COEFF_CODING 1
   "AV2 experiment flag to enable improved chroma transform coefficient coding")
-set_aom_config_var(
-  CONFIG_ATC_DCTX_ALIGNED 1
-  "AV2 TX signaling restriction for DC blocks with EOB alignment.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
 set_aom_config_var(CONFIG_EOB_POS_LUMA 1 "EOB position coding for luma.")

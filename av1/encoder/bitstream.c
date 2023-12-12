@@ -1472,23 +1472,16 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
 }
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
-                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w
-#if CONFIG_ATC_DCTX_ALIGNED
-                       ,
+                       TX_TYPE tx_type, TX_SIZE tx_size, aom_writer *w,
                        const int plane, const int eob, const int dc_skip) {
   if (plane != PLANE_TYPE_Y || dc_skip) return;
-#else
-) {
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_ATC
   PREDICTION_MODE intra_dir;
   if (mbmi->filter_intra_mode_info.use_filter_intra)
     intra_dir =
         fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
   else
     intra_dir = mbmi->mode;
-#endif  // CONFIG_ATC
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
@@ -1505,7 +1498,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     // eset == 0 should correspond to a set with only DCT_DCT and there
     // is no need to send the tx_type
     assert(eset > 0);
-#if CONFIG_ATC
     const int size_info = av1_size_class[tx_size];
     if (!is_inter) {
       const int mode_info = av1_md_class[intra_dir];
@@ -1515,53 +1507,25 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                      [get_primary_tx_type(tx_type)]
                  : av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
     }
-#else
-    assert(av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
-#endif  // CONFIG_ATC
     if (is_inter) {
-#if CONFIG_ATC_DCTX_ALIGNED
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
       aom_write_symbol(
           w, av1_ext_tx_ind[tx_set_type][tx_type],
           ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
           av1_num_ext_tx_set[tx_set_type]);
-#else
-      aom_write_symbol(w, av1_ext_tx_ind[tx_set_type][tx_type],
-                       ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
-                       av1_num_ext_tx_set[tx_set_type]);
-#endif  // CONFIG_ATC_DCTX_ALIGNED
     } else {
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         return;
       }
-#if !CONFIG_ATC
-      PREDICTION_MODE intra_dir;
-      if (mbmi->filter_intra_mode_info.use_filter_intra)
-        intra_dir =
-            fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-      else
-        intra_dir = mbmi->mode;
-#endif  // !CONFIG_ATC
       aom_write_symbol(
-#if CONFIG_ATC
           w,
           av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                              intra_dir, size_info),
-#if CONFIG_ATC_REDUCED_TXSET
           ec_ctx->intra_ext_tx_cdf[eset + features->reduced_tx_set_used]
                                   [square_tx_size][intra_dir],
           features->reduced_tx_set_used
               ? av1_num_reduced_tx_set
               : av1_num_ext_tx_set_intra[tx_set_type]);
-#else
-          ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
-          av1_num_ext_tx_set_intra[tx_set_type]);
-#endif  // CONFIG_ATC_REDUCED_TXSET
-#else
-          w, av1_ext_tx_ind_intra[tx_set_type][get_primary_tx_type(tx_type)],
-          ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_dir],
-          av1_num_ext_tx_set_intra[tx_set_type]);
-#endif  // CONFIG_ATC
     }
   }
 }

@@ -1509,11 +1509,9 @@ typedef struct {
   // keeps the index that corresponds to end-of-block (eob)
   eob_info eob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
-#if CONFIG_ATC_DCTX_ALIGNED
   // keeps the index that corresponds to beginning-of-block (bob)
   eob_info bob_data[MAX_MB_PLANE]
                    [MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   DECLARE_ALIGNED(16, uint8_t, color_index_map[2][MAX_SB_SQUARE]);
 } CB_BUFFER;
 
@@ -2395,16 +2393,10 @@ static INLINE int block_signals_txsize(BLOCK_SIZE bsize) {
 }
 
 // Number of transform types in each set type for intra blocks
-static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1, 1,  4,
-                                                                6, 11, 15,
-#if CONFIG_ATC
-                                                                7
-#endif  // CONFIG_ATC
-};
+static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1,  1,  4, 6,
+                                                                11, 15, 7 };
 
-#if CONFIG_ATC && CONFIG_ATC_REDUCED_TXSET
 static const int av1_num_reduced_tx_set = 2;
-#endif  // CONFIG_ATC && CONFIG_ATC_REDUCED_TXSET
 
 // Number of transform types in each set type
 static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
@@ -2418,12 +2410,9 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-#if CONFIG_ATC
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-#endif  // CONFIG_ATC
 };
 
-#if CONFIG_ATC
 static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   {
       { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
@@ -2486,7 +2475,6 @@ static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
       { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
   },  // size_class: 3
 };
-#endif  // CONFIG_ATC
 
 static const uint16_t av1_reduced_intra_tx_used_flag[INTRA_MODES] = {
   0x080F,  // DC_PRED:       0000 1000 0000 1111
@@ -2511,12 +2499,9 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0x0E0F,  // 0000 1110 0000 1111
   0x0FFF,  // 0000 1111 1111 1111
   0xFFFF,  // 1111 1111 1111 1111
-#if CONFIG_ATC
   0xFFFF,
-#endif  // CONFIG_ATC
 };
 
-#if CONFIG_ATC
 static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
   {
       0x218F,
@@ -2579,7 +2564,6 @@ static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
       0x0000,
   },  // size_class: 3
 };
-#endif  // CONFIG_ATC
 
 static const TxSetType av1_ext_tx_set_lookup[2][2] = {
   { EXT_TX_SET_DTT4_IDTX_1DDCT, EXT_TX_SET_DTT4_IDTX },
@@ -2590,40 +2574,21 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
                                                 int use_reduced_set) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
   if (tx_size_sqr_up > TX_32X32) return EXT_TX_SET_DCTONLY;
-  if (tx_size_sqr_up == TX_32X32)
-#if CONFIG_ATC_DCTX_ALIGNED
-    return EXT_TX_SET_DCT_IDTX;
-#else
-    return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DCTONLY;
-#endif  // CONFIG_ATC_DCTX_ALIGNED
-#if CONFIG_ATC_REDUCED_TXSET
+  if (tx_size_sqr_up == TX_32X32) return EXT_TX_SET_DCT_IDTX;
   if (use_reduced_set) return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_NEW_TX_SET;
-#else
-  if (use_reduced_set)
-    return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DTT4_IDTX;
-#endif  // CONFIG_ATC_REDUCED_TXSET
-#if CONFIG_ATC
   if (is_inter) {
     const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
     return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
   } else {
     return EXT_NEW_TX_SET;
   }
-#else
-  const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
-  return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
-#endif  // CONFIG_ATC
 }
 
 // Maps tx set types to the indices.
 static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Intra
-#if CONFIG_ATC
     0, -1, -1, -1, -1, -1, 1 },
-#else
-    0, -1, 2, 1, -1, -1 },
-#endif  // CONFIG_ATC
-  {     // Inter
+  { // Inter
     0, 3, -1, -1, 2, 1 },
 };
 
@@ -2687,11 +2652,7 @@ static INLINE TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
                                           int is_screen_content_type) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   if (is_inter_block(mbmi, xd->tree_type) || plane_type != PLANE_TYPE_Y ||
-#if CONFIG_ATC_DCTX_ALIGNED
       xd->lossless[mbmi->segment_id] || tx_size > TX_32X32 ||
-#else
-      xd->lossless[mbmi->segment_id] || tx_size >= TX_32X32 ||
-#endif  // CONFIG_ATC_DCTX_ALIGNED
       is_screen_content_type)
     return DCT_DCT;
 
@@ -3270,9 +3231,7 @@ static INLINE void set_secondary_tx_set(TX_TYPE *tx_type,
 static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
                                             TX_SIZE tx_size, TX_TYPE tx_type,
                                             int eob) {
-#if CONFIG_ATC_DCTX_ALIGNED
   if (eob <= 1) return 0;
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   const MB_MODE_INFO *mbmi = xd->mi[0];
   PREDICTION_MODE intra_dir;
   if (mbmi->filter_intra_mode_info.use_filter_intra) {

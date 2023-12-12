@@ -4652,9 +4652,7 @@ static AOM_INLINE void set_cb_buffer(AV1Decoder *pbi, DecoderCodingBlock *dcb,
     dcb->dequant_values[plane] = cb_buffer->dequant_values[plane];
 #endif  // CONFIG_INSPECTION
     dcb->eob_data[plane] = cb_buffer->eob_data[plane];
-#if CONFIG_ATC_DCTX_ALIGNED
     dcb->bob_data[plane] = cb_buffer->bob_data[plane];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
     dcb->cb_offset[plane] = 0;
     dcb->txb_offset[plane] = 0;
   }

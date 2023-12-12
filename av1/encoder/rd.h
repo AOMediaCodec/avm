@@ -152,9 +152,7 @@ static INLINE void av1_invalid_rd_stats(RD_STATS *rd_stats) {
 static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
                                       const RD_STATS *rd_stats_src) {
   assert(rd_stats_dst->rate != INT_MAX && rd_stats_src->rate != INT_MAX);
-#if CONFIG_ATC_DCTX_ALIGNED
   if (rd_stats_src->dist == INT64_MAX || rd_stats_src->rate == INT_MAX) return;
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   rd_stats_dst->rate = (int)AOMMIN(
       ((int64_t)rd_stats_dst->rate + (int64_t)rd_stats_src->rate), INT_MAX);
   if (!rd_stats_dst->zero_rate)

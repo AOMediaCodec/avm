@@ -110,17 +110,7 @@ TEST(Av1ScanTest, Dependency) {
       SCAN_MODE scan_mode;
       TX_CLASS tx_class = tx_type_to_class[(TX_TYPE)tx_type];
       if (tx_class == TX_CLASS_2D) {
-#if CONFIG_ATC
         scan_mode = SCAN_MODE_COL_DIAG;
-#else
-        if (rows == cols) {
-          scan_mode = SCAN_MODE_ZIG_ZAG;
-        } else if (rows > cols) {
-          scan_mode = SCAN_MODE_ROW_DIAG;
-        } else {
-          scan_mode = SCAN_MODE_COL_DIAG;
-        }
-#endif  // CONFIG_ATC
       } else if (tx_class == TX_CLASS_VERT) {
         scan_mode = SCAN_MODE_ROW_1D;
       } else {

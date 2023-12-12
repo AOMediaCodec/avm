@@ -73,11 +73,7 @@ extern "C" {
 #define KF_MODE_CONTEXTS 5
 
 #define FSC_MODE_CONTEXTS 4
-#if CONFIG_ATC_DCTX_ALIGNED
 #define FSC_BSIZE_CONTEXTS 6
-#else
-#define FSC_BSIZE_CONTEXTS 5
-#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 #if CONFIG_EXT_DIR
 #define MRL_INDEX_CONTEXTS 3
@@ -158,10 +154,8 @@ typedef struct frame_contexts {
                             [CDF_SIZE(2)];
   aom_cdf_prob v_ac_sign_cdf[CROSS_COMPONENT_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_ATC_DCTX_ALIGNED
   aom_cdf_prob coeff_base_bob_cdf[SIG_COEF_CONTEXTS_BOB][CDF_SIZE(3)];
-#endif
-#if CONFIG_ATC_DCTX_ALIGNED && CONFIG_EOB_POS_LUMA
+#if CONFIG_EOB_POS_LUMA
   aom_cdf_prob eob_flag_cdf16[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 6)];
   aom_cdf_prob eob_flag_cdf32[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 5)];
   aom_cdf_prob eob_flag_cdf64[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 4)];
@@ -169,7 +163,7 @@ typedef struct frame_contexts {
   aom_cdf_prob eob_flag_cdf256[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 2)];
   aom_cdf_prob eob_flag_cdf512[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 1)];
   aom_cdf_prob eob_flag_cdf1024[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS)];
-#elif CONFIG_ATC_DCTX_ALIGNED
+#else
   aom_cdf_prob eob_flag_cdf16[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 6)];
   aom_cdf_prob eob_flag_cdf32[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 5)];
   aom_cdf_prob eob_flag_cdf64[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 4)];
@@ -177,15 +171,7 @@ typedef struct frame_contexts {
   aom_cdf_prob eob_flag_cdf256[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 2)];
   aom_cdf_prob eob_flag_cdf512[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 1)];
   aom_cdf_prob eob_flag_cdf1024[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS)];
-#else
-  aom_cdf_prob eob_flag_cdf16[PLANE_TYPES][2][CDF_SIZE(5)];
-  aom_cdf_prob eob_flag_cdf32[PLANE_TYPES][2][CDF_SIZE(6)];
-  aom_cdf_prob eob_flag_cdf64[PLANE_TYPES][2][CDF_SIZE(7)];
-  aom_cdf_prob eob_flag_cdf128[PLANE_TYPES][2][CDF_SIZE(8)];
-  aom_cdf_prob eob_flag_cdf256[PLANE_TYPES][2][CDF_SIZE(9)];
-  aom_cdf_prob eob_flag_cdf512[PLANE_TYPES][2][CDF_SIZE(10)];
-  aom_cdf_prob eob_flag_cdf1024[PLANE_TYPES][2][CDF_SIZE(11)];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
+#endif  // CONFIG_EOB_POS_LUMA
   aom_cdf_prob coeff_base_eob_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS_EOB]
                                  [CDF_SIZE(3)];
   aom_cdf_prob coeff_base_cdf[TX_SIZES][PLANE_TYPES][SIG_COEF_CONTEXTS]
@@ -193,7 +179,6 @@ typedef struct frame_contexts {
   aom_cdf_prob idtx_sign_cdf[IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob coeff_base_cdf_idtx[IDTX_SIG_COEF_CONTEXTS][CDF_SIZE(4)];
   aom_cdf_prob coeff_br_cdf_idtx[IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-#if CONFIG_ATC
   aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][PLANE_TYPES][LF_SIG_COEF_CONTEXTS]
                                 [CDF_SIZE(LF_BASE_SYMBOLS)];
   aom_cdf_prob coeff_base_lf_eob_cdf[TX_SIZES][PLANE_TYPES]
@@ -202,10 +187,6 @@ typedef struct frame_contexts {
   aom_cdf_prob coeff_br_lf_cdf[PLANE_TYPES][LF_LEVEL_CONTEXTS]
                               [CDF_SIZE(BR_CDF_SIZE)];
   aom_cdf_prob coeff_br_cdf[PLANE_TYPES][LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-#else
-  aom_cdf_prob coeff_br_cdf[TX_SIZES][PLANE_TYPES][LEVEL_CONTEXTS]
-                           [CDF_SIZE(BR_CDF_SIZE)];
-#endif  // CONFIG_ATC
   aom_cdf_prob coeff_base_ph_cdf[COEFF_BASE_PH_CONTEXTS]
                                 [CDF_SIZE(NUM_BASE_LEVELS + 2)];
   aom_cdf_prob coeff_br_ph_cdf[COEFF_BR_PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
@@ -521,13 +502,8 @@ typedef struct frame_contexts {
   aom_cdf_prob delta_lf_cdf[CDF_SIZE(DELTA_LF_PROBS + 1)];
   aom_cdf_prob intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                                [CDF_SIZE(TX_TYPES)];
-#if CONFIG_ATC_DCTX_ALIGNED
   aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                                [CDF_SIZE(TX_TYPES)];
-#else
-  aom_cdf_prob inter_ext_tx_cdf[EXT_TX_SETS_INTER][EXT_TX_SIZES]
-                               [CDF_SIZE(TX_TYPES)];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   aom_cdf_prob cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)];
   aom_cdf_prob cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)];
   aom_cdf_prob stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)];
@@ -581,7 +557,6 @@ static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 4, 5, 3, 6, 7, 8 },
 };
 
-#if CONFIG_ATC
 static const int av1_md_type2idx[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
   {
       { 0, 2, 3, 1, 0, 0, 0, 4, 5, 0, 0, 0, 0, 6, 0, 0 },  // mode_class: 0
@@ -721,7 +696,6 @@ static INLINE int av1_tx_idx_to_type(int tx_idx, int tx_set_type,
              ? av1_md_idx2type[size_idx][av1_md_class[intra_mode]][tx_idx]
              : av1_ext_tx_inv[tx_set_type][tx_idx];
 }
-#endif  // CONFIG_ATC
 
 void av1_set_default_ref_deltas(int8_t *ref_deltas);
 void av1_set_default_mode_deltas(int8_t *mode_deltas);

@@ -137,7 +137,6 @@ static const uint8_t size_to_tx_part_group_lookup[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_TX_PARTITION_CTX
 
 static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
-#if CONFIG_ATC_DCTX_ALIGNED
   0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6,
 #if CONFIG_BLOCK_256
   6, 6, 6,
@@ -146,16 +145,6 @@ static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
 #if CONFIG_FLEX_PARTITION
   4, 4, 6, 6, 6, 6
 #endif  // CONFIG_FLEX_PARTITION
-#else
-  0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-#if CONFIG_BLOCK_256
-  5, 5, 5,
-#endif  // CONFIG_BLOCK_256
-  3, 3, 5, 5, 5, 5,
-#if CONFIG_FLEX_PARTITION
-  5, 5, 5, 5, 5, 5
-#endif  // CONFIG_FLEX_PARTITION
-#endif  // CONFIG_ATC_DCTX_ALIGNED
 };
 
 static const uint8_t num_pels_log2_lookup[BLOCK_SIZES_ALL] = {
@@ -1055,7 +1044,6 @@ static const int quant_dist_lookup_table[4][2] = {
   { 13, 3 },
 };
 
-#if CONFIG_ATC
 // Mapping of mode dependent TX  based on intra modes.
 static const int av1_md_class[INTRA_MODES] = {
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
@@ -1068,7 +1056,6 @@ static const int av1_size_class[TX_SIZES_ALL] = { 0, 1, 2, 3, 3, 0, 0, 1, 1, 3,
                                                   3, 3, 3, 3, 3, 3
 #endif  // CONFIG_FLEX_PARTITION
 };
-#endif  // CONFIG_ATC
 
 static AOM_INLINE bool is_bsize_geq(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
   if (bsize1 == BLOCK_INVALID || bsize2 == BLOCK_INVALID) {

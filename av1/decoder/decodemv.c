@@ -17,9 +17,7 @@
 #include "av1/common/cdef_block.h"
 #include "av1/common/cfl.h"
 #include "av1/common/common.h"
-#if CONFIG_ATC_DCTX_ALIGNED
 #include "av1/common/txb_common.h"
-#endif  // CONFIG_ATC_DCTX_ALIGNED
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
@@ -1311,22 +1309,15 @@ static void read_filter_intra_mode_info(const AV1_COMMON *const cm,
 }
 
 void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
-                      int blk_col, TX_SIZE tx_size, aom_reader *r
-#if CONFIG_ATC_DCTX_ALIGNED
-                      ,
+                      int blk_col, TX_SIZE tx_size, aom_reader *r,
                       const int plane, const int eob, const int dc_skip) {
   if (plane != PLANE_TYPE_Y) return;
-#else
-) {
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   MB_MODE_INFO *mbmi = xd->mi[0];
   TX_TYPE *tx_type =
       &xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   *tx_type = DCT_DCT;
 
-#if CONFIG_ATC_DCTX_ALIGNED
   if (dc_skip == 1) return;
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   // No need to read transform type if block is skipped.
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] ||
       segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP))
@@ -1349,16 +1340,10 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
     if (inter_block) {
-#if CONFIG_ATC_DCTX_ALIGNED
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
       *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
           r, ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
           av1_num_ext_tx_set[tx_set_type], ACCT_INFO("tx_type"))];
-#else
-      *tx_type = av1_ext_tx_inv[tx_set_type][aom_read_symbol(
-          r, ec_ctx->inter_ext_tx_cdf[eset][square_tx_size],
-          av1_num_ext_tx_set[tx_set_type], ACCT_INFO("tx_type"))];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
     } else {
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         *tx_type = IDTX;
@@ -1369,8 +1354,6 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
               ? fimode_to_intradir[mbmi->filter_intra_mode_info
                                        .filter_intra_mode]
               : mbmi->mode;
-#if CONFIG_ATC
-#if CONFIG_ATC_REDUCED_TXSET
       const int size_info = av1_size_class[tx_size];
       *tx_type = av1_tx_idx_to_type(
           aom_read_symbol(
@@ -1382,19 +1365,6 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
                   : av1_num_ext_tx_set_intra[tx_set_type],
               ACCT_INFO("tx_type")),
           tx_set_type, intra_mode, size_info);
-#else
-      const int size_info = av1_size_class[tx_size];
-      *tx_type = av1_tx_idx_to_type(
-          aom_read_symbol(
-              r, ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_mode],
-              av1_num_ext_tx_set_intra[tx_set_type], ACCT_INFO("tx_type")),
-          tx_set_type, intra_mode, size_info);
-#endif  // CONFIG_ATC_REDUCED_TXSET
-#else
-      *tx_type = av1_ext_tx_inv_intra[tx_set_type][aom_read_symbol(
-          r, ec_ctx->intra_ext_tx_cdf[eset][square_tx_size][intra_mode],
-          av1_num_ext_tx_set_intra[tx_set_type], ACCT_INFO("tx_type"))];
-#endif  // CONFIG_ATC
     }
   }
 }

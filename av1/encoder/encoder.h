@@ -1310,11 +1310,9 @@ typedef struct FRAME_COUNTS {
   unsigned int coeff_lps[TX_SIZES][PLANE_TYPES][BR_CDF_SIZE - 1][LEVEL_CONTEXTS]
                         [2];
   unsigned int eob_flag[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS][2];
-#if CONFIG_ATC_DCTX_ALIGNED
   unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB]
                                    [NUM_BASE_LEVELS + 1];
-#endif
-#if CONFIG_ATC_DCTX_ALIGNED && CONFIG_EOB_POS_LUMA
+#if CONFIG_EOB_POS_LUMA
   unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS - 6];
   unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS - 5];
   unsigned int eob_multi64[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS - 4];
@@ -1322,7 +1320,7 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_multi256[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS - 2];
   unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS - 1];
   unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS];
-#elif CONFIG_ATC_DCTX_ALIGNED
+#else
   unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 6];
   unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 5];
   unsigned int eob_multi64[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 4];
@@ -1330,16 +1328,7 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_multi256[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 2];
   unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS - 1];
   unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][EOB_MAX_SYMS];
-#else
-  unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][5];
-  unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][6];
-  unsigned int eob_multi64[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][7];
-  unsigned int eob_multi128[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][8];
-  unsigned int eob_multi256[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][9];
-  unsigned int eob_multi512[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][10];
-  unsigned int eob_multi1024[TOKEN_CDF_Q_CTXS][PLANE_TYPES][2][11];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
-#if CONFIG_ATC
+#endif  // CONFIG_EOB_POS_LUMA
   unsigned int coeff_lps_lf[PLANE_TYPES][BR_CDF_SIZE - 1][LF_LEVEL_CONTEXTS][2];
   unsigned int coeff_base_lf_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                                   [LF_SIG_COEF_CONTEXTS][LF_BASE_SYMBOLS];
@@ -1350,10 +1339,6 @@ typedef struct FRAME_COUNTS {
                                  [LF_LEVEL_CONTEXTS][BR_CDF_SIZE];
   unsigned int coeff_lps_multi[TOKEN_CDF_Q_CTXS][PLANE_TYPES][LEVEL_CONTEXTS]
                               [BR_CDF_SIZE];
-#else
-  unsigned int coeff_lps_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
-                              [LEVEL_CONTEXTS][BR_CDF_SIZE];
-#endif  // CONFIG_ATC
   unsigned int coeff_base_ph_multi[TOKEN_CDF_Q_CTXS][COEFF_BASE_PH_CONTEXTS]
                                   [NUM_BASE_LEVELS + 2];
   unsigned int coeff_lps_ph[BR_CDF_SIZE - 1][COEFF_BR_PH_CONTEXTS][2];
@@ -1497,12 +1482,8 @@ typedef struct FRAME_COUNTS {
   unsigned int delta_lf_multi[FRAME_LF_COUNT][DELTA_LF_PROBS][2];
   unsigned int delta_lf[DELTA_LF_PROBS][2];
 
-#if CONFIG_ATC_DCTX_ALIGNED
   unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                            [TX_TYPES];
-#else
-  unsigned int inter_ext_tx[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   unsigned int intra_ext_tx[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                            [TX_TYPES];
   unsigned int cctx_type[EXT_TX_SIZES][CCTX_CONTEXTS][CCTX_TYPES];

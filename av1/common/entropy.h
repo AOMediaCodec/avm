@@ -41,16 +41,13 @@ extern "C" {
 #define IDTX_LEVEL_CONTEXTS 14
 
 #define EOB_COEF_CONTEXTS 9
-#if CONFIG_ATC_DCTX_ALIGNED
 #define SIG_COEF_CONTEXTS_BOB 3
-#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 #define EOB_MAX_SYMS 11
 
 #define COEFF_BASE_PH_CONTEXTS 5
 #define COEFF_BR_PH_CONTEXTS 7
 
-#if CONFIG_ATC
 // Number of coefficient coding contexts for the low-frequency region
 // for 2D and 1D transforms
 #define LF_SIG_COEF_CONTEXTS_2D 21
@@ -76,13 +73,6 @@ extern "C" {
 #define LF_2D_LIM_UV 1  // row + column limit for chroma
 #define LF_RC_LIM 2     // row or column limit
 #define LF_RC_LIM_UV 1  // row or column limit for chroma
-#else
-#define LEVEL_CONTEXTS 21
-#define SIG_COEF_CONTEXTS_2D 26
-#define SIG_COEF_CONTEXTS_1D 16
-#define SIG_COEF_CONTEXTS_EOB 4
-#define SIG_COEF_CONTEXTS (SIG_COEF_CONTEXTS_2D + SIG_COEF_CONTEXTS_1D)
-#endif  // CONFIG_ATC
 
 #define COEFF_BASE_CONTEXTS (SIG_COEF_CONTEXTS)
 #define DC_SIGN_CONTEXTS 3

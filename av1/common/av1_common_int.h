@@ -2376,7 +2376,6 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 }
 
-#if CONFIG_ATC_DCTX_ALIGNED
 // Return the inter TX context based on last position value.
 static INLINE int get_lp2tx_ctx(TX_SIZE tx_size, int bwl, int eob) {
   assert(eob != 0);
@@ -2393,7 +2392,6 @@ static INLINE int get_lp2tx_ctx(TX_SIZE tx_size, int bwl, int eob) {
   }
   return ctx_idx;
 }
-#endif  // CONFIG_ATC_DCTX_ALIGNED
 
 static INLINE int get_fsc_mode_ctx(const MACROBLOCKD *xd, const int is_key) {
   int ctx = 0;

@@ -46,9 +46,7 @@ typedef struct PICK_MODE_CONTEXT {
   tran_low_t *qcoeff[MAX_MB_PLANE];
   tran_low_t *dqcoeff[MAX_MB_PLANE];
   uint16_t *eobs[MAX_MB_PLANE];
-#if CONFIG_ATC_DCTX_ALIGNED
   uint16_t *bobs[MAX_MB_PLANE];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   uint8_t *txb_entropy_ctx[MAX_MB_PLANE];
   TX_TYPE *tx_type_map;
   CctxType *cctx_type_map;

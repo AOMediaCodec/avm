@@ -113,10 +113,8 @@ typedef struct macroblock_plane {
   tran_low_t *coeff;
   //! Location of the end of qcoeff (end of block).
   uint16_t *eobs;
-#if CONFIG_ATC_DCTX_ALIGNED
   //! Location of the beginning of qcoeff (beginning of block).
   uint16_t *bobs;
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! Contexts used to code the transform coefficients.
   uint8_t *txb_entropy_ctx;
   //! A buffer containing the source frame.
@@ -162,7 +160,6 @@ typedef struct {
   //! Cost to skip txfm for the current AOM_PLANE_V txfm block.
   int v_txb_skip_cost[V_TXB_SKIP_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_ATC
   //! Cost for encoding the base_eob level of a low-frequency coefficient
   int base_lf_eob_cost[SIG_COEF_CONTEXTS_EOB][LF_BASE_SYMBOLS - 1];
   //! Cost for encoding the base level of a low-frequency coefficient
@@ -170,7 +167,6 @@ typedef struct {
   //! Cost for encoding an increment to the low-frequency coefficient
   int lps_lf_cost[LF_LEVEL_CONTEXTS]
                  [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#endif  // CONFIG_ATC
   //! Cost for encoding the base level of a parity-hidden coefficient
   int base_ph_cost[COEFF_BASE_PH_CONTEXTS][4];
   //! Cost for encoding an increment to the parity-hidden coefficient
@@ -208,26 +204,22 @@ typedef struct {
   //! Cost for encoding an increment to the coefficient for IDTX blocks
   int lps_cost_skip[IDTX_LEVEL_CONTEXTS]
                    [COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
-#if CONFIG_ATC_DCTX_ALIGNED
   /*! \brief Cost for encoding the base_bob of a level for IDTX blocks.
    *
    * Decoder uses base_bob to derive the base_level as base_bob := base_bob+1.
    */
   int base_bob_cost[SIG_COEF_CONTEXTS_BOB][3];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
 } LV_MAP_COEFF_COST;
 
 /*! \brief Costs for encoding the eob.
  */
 typedef struct {
   //! eob_cost.
-#if CONFIG_ATC_DCTX_ALIGNED && CONFIG_EOB_POS_LUMA
+#if CONFIG_EOB_POS_LUMA
   int eob_cost[2][16];
-#elif CONFIG_ATC_DCTX_ALIGNED
-  int eob_cost[EOB_MAX_SYMS];
 #else
-  int eob_cost[2][11];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
+  int eob_cost[EOB_MAX_SYMS];
+#endif  // CONFIG_EOB_POS_LUMA
 } LV_MAP_EOB_COST;
 
 /*! \brief Stores the transforms coefficients for the whole superblock.
@@ -237,10 +229,8 @@ typedef struct {
   tran_low_t tcoeff[MAX_MB_PLANE][MAX_SB_SQUARE];
   //! Where the transformed coefficients end.
   uint16_t eobs[MAX_MB_PLANE][MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
-#if CONFIG_ATC_DCTX_ALIGNED
   //! Where the transformed coefficients begin.
   uint16_t bobs[MAX_MB_PLANE][MAX_SB_SQUARE / (TX_SIZE_W_MIN * TX_SIZE_H_MIN)];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   /*! \brief Transform block entropy contexts.
    *
    * Each element is used as a bit field.
@@ -373,10 +363,8 @@ typedef struct {
   int rate;
   //! Location of the end of non-zero entries.
   uint16_t eob;
-#if CONFIG_ATC_DCTX_ALIGNED
   //! Location of the first of non-zero entries.
   uint16_t bob;
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! Transform type used on the current block.
   TX_TYPE tx_type;
   //! Unknown usage
@@ -1217,12 +1205,8 @@ typedef struct {
   int txfm_partition_cost[TXFM_PARTITION_CONTEXTS][2];
 #endif  // CONFIG_NEW_TX_PARTITION
   //! inter_tx_type_costs
-#if CONFIG_ATC_DCTX_ALIGNED
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                          [TX_TYPES];
-#else
-  int inter_tx_type_costs[EXT_TX_SETS_INTER][EXT_TX_SIZES][TX_TYPES];
-#endif  // CONFIG_ATC_DCTX_ALIGNED
   //! intra_tx_type_costs
   int intra_tx_type_costs[EXT_TX_SETS_INTRA][EXT_TX_SIZES][INTRA_MODES]
                          [TX_TYPES];

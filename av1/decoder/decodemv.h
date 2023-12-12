@@ -34,12 +34,8 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                           uint16_t *eob, aom_reader *r);
 
 void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
-                      int blk_col, TX_SIZE tx_size, aom_reader *r
-#if CONFIG_ATC_DCTX_ALIGNED
-                      ,
-                      const int plane, const int eob, const int dc_skip
-#endif  // CONFIG_ATC_DCTX_ALIGNED
-);
+                      int blk_col, TX_SIZE tx_size, aom_reader *r,
+                      const int plane, const int eob, const int dc_skip);
 
 void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         int blk_row, int blk_col, TX_SIZE tx_size,

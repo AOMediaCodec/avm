@@ -390,19 +390,10 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # txb
   add_proto qw/void av1_txb_init_levels_skip/, "const tran_low_t *const coeff, const int width, const int height, uint8_t *const levels";
   specialize qw/av1_txb_init_levels_skip sse4_1 avx2/;
-  if (aom_config("CONFIG_ATC_DCTX_ALIGNED") eq "yes") {
-    add_proto qw/void av1_get_nz_map_contexts_skip/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t bob, const uint16_t eob, const TX_SIZE tx_size, int8_t *const coeff_contexts";
-  } else {
-    add_proto qw/void av1_get_nz_map_contexts_skip/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t eob, const TX_SIZE tx_size, int8_t *const coeff_contexts";
-    specialize qw/av1_get_nz_map_contexts_skip sse2/;
-  }
 
-  if (aom_config("CONFIG_ATC") eq "yes" or aom_config("CONFIG_FLEX_PARTITION") eq "yes" ) {
-    add_proto qw/void av1_get_nz_map_contexts/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t eob, const TX_SIZE tx_size, const TX_CLASS tx_class, int8_t *const coeff_contexts, const int plane";
-  } else {
-    add_proto qw/void av1_get_nz_map_contexts/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t eob, const TX_SIZE tx_size, const TX_CLASS tx_class, int8_t *const coeff_contexts";
-    specialize qw/av1_get_nz_map_contexts sse2 neon/;
-  }
+  add_proto qw/void av1_get_nz_map_contexts_skip/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t bob, const uint16_t eob, const TX_SIZE tx_size, int8_t *const coeff_contexts";
+
+  add_proto qw/void av1_get_nz_map_contexts/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t eob, const TX_SIZE tx_size, const TX_CLASS tx_class, int8_t *const coeff_contexts, const int plane";
 
   add_proto qw/void av1_txb_init_levels_signs/, "const tran_low_t *const coeff, const int width, const int height, uint8_t *const levels, int8_t *const signs";
   specialize qw/av1_txb_init_levels_signs sse4_1 avx2/;
