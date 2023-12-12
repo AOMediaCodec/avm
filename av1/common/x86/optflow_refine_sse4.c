@@ -869,20 +869,21 @@ static void opfl_mv_refinement_interp_grad_8x4_sse4_1(
   vw_lo = _mm_add_epi64(vw_lo, _mm_srli_si128(vw_lo, 8));
   vw_hi = _mm_add_epi64(vw_hi, _mm_srli_si128(vw_hi, 8));
 
-  int64_t su2 = (int64_t)_mm_extract_epi64(u2_lo, 0);
-  int64_t sv2 = (int64_t)_mm_extract_epi64(v2_lo, 0);
-  int64_t suv = (int64_t)_mm_extract_epi64(uv_lo, 0);
-  int64_t suw = (int64_t)_mm_extract_epi64(uw_lo, 0);
-  int64_t svw = (int64_t)_mm_extract_epi64(vw_lo, 0);
+  int64_t su2, sv2, suv, suw, svw;
+  xx_storel_64(&su2, u2_lo);
+  xx_storel_64(&sv2, v2_lo);
+  xx_storel_64(&suv, uv_lo);
+  xx_storel_64(&suw, uw_lo);
+  xx_storel_64(&svw, vw_lo);
 
   calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
                   vx1, vy1);
 
-  su2 = (int64_t)_mm_extract_epi64(u2_hi, 0);
-  sv2 = (int64_t)_mm_extract_epi64(v2_hi, 0);
-  suv = (int64_t)_mm_extract_epi64(uv_hi, 0);
-  suw = (int64_t)_mm_extract_epi64(uw_hi, 0);
-  svw = (int64_t)_mm_extract_epi64(vw_hi, 0);
+  xx_storel_64(&su2, u2_hi);
+  xx_storel_64(&sv2, v2_hi);
+  xx_storel_64(&suv, uv_hi);
+  xx_storel_64(&suw, uw_hi);
+  xx_storel_64(&svw, vw_hi);
 
   calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0 + 1,
                   vy0 + 1, vx1 + 1, vy1 + 1);
@@ -977,16 +978,17 @@ static void opfl_mv_refinement_interp_grad_8x8_sse4_1(
 #endif
   } while (bHeight != 0);
 
-  const int64_t su2 =
-      (int64_t)_mm_extract_epi64(u2, 0) + (int64_t)_mm_extract_epi64(u2, 1);
-  const int64_t sv2 =
-      (int64_t)_mm_extract_epi64(v2, 0) + (int64_t)_mm_extract_epi64(v2, 1);
-  const int64_t suv =
-      (int64_t)_mm_extract_epi64(uv, 0) + (int64_t)_mm_extract_epi64(uv, 1);
-  const int64_t suw =
-      (int64_t)_mm_extract_epi64(uw, 0) + (int64_t)_mm_extract_epi64(uw, 1);
-  const int64_t svw =
-      (int64_t)_mm_extract_epi64(vw, 0) + (int64_t)_mm_extract_epi64(vw, 1);
+  int64_t su2, sv2, suv, suw, svw;
+  u2 = _mm_add_epi64(u2, _mm_srli_si128(u2, 8));
+  v2 = _mm_add_epi64(v2, _mm_srli_si128(v2, 8));
+  uv = _mm_add_epi64(uv, _mm_srli_si128(uv, 8));
+  uw = _mm_add_epi64(uw, _mm_srli_si128(uw, 8));
+  vw = _mm_add_epi64(vw, _mm_srli_si128(vw, 8));
+  xx_storel_64(&su2, u2);
+  xx_storel_64(&sv2, v2);
+  xx_storel_64(&suv, uv);
+  xx_storel_64(&suw, uw);
+  xx_storel_64(&svw, vw);
 
   calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
                   vx1, vy1);
