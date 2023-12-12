@@ -1253,10 +1253,14 @@ static void tip_setup_tip_frame_plane(
         tip_get_mv_projection(&mv[1], tpl_mvs->mfmv0.as_mv,
                               tip_ref->ref_frames_offset_sf[1]);
 #if CONFIG_TIP_DIRECT_FRAME_MV
-        mv[0].row += gm_mv[0].row;
-        mv[0].col += gm_mv[0].col;
-        mv[1].row -= gm_mv[1].row;
-        mv[1].col -= gm_mv[1].col;
+        mv[0].row =
+            (int16_t)clamp(mv[0].row + gm_mv[0].row, MV_LOW + 1, MV_UPP - 1);
+        mv[0].col =
+            (int16_t)clamp(mv[0].col + gm_mv[0].col, MV_LOW + 1, MV_UPP - 1);
+        mv[1].row =
+            (int16_t)clamp(mv[1].row - gm_mv[1].row, MV_LOW + 1, MV_UPP - 1);
+        mv[1].col =
+            (int16_t)clamp(mv[1].col - gm_mv[1].col, MV_LOW + 1, MV_UPP - 1);
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
       } else {
 #if CONFIG_TIP_DIRECT_FRAME_MV
