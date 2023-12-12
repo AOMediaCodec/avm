@@ -2779,7 +2779,6 @@ static const aom_cdf_prob default_cwp_idx_cdf[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1]
                                              };
 #endif  // CONFIG_ENTROPY_PARA
 
-#if CONFIG_IMPROVED_JMVD
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_jmvd_scale_mode_cdf[CDF_SIZE(
     JOINT_NEWMV_SCALE_FACTOR_CNT)] = { AOM_CDF5(22000, 25000, 28000, 30000),
@@ -2797,7 +2796,6 @@ static const aom_cdf_prob
       AOM_CDF3(22000, 27000),
     };
 #endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_IMPROVED_JMVD
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_ENTROPY_PARA
@@ -2835,10 +2833,9 @@ static const aom_cdf_prob
         INTER_COMPOUND_REF_TYPES)] = {
 #else
 static const aom_cdf_prob
-    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
-                                   [CDF_SIZE(INTER_COMPOUND_MODES)] = {
+    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
+        INTER_COMPOUND_MODES)] = {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
 #if CONFIG_ENTROPY_PARA
       { AOM_CDF7(5669, 13946, 20791, 22484, 30450, 31644), 1 },
       { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087), 0 },
@@ -2854,14 +2851,6 @@ static const aom_cdf_prob
       { AOM_CDF7(20767, 23511, 26065, 27191, 27788, 29855) },
       { AOM_CDF7(11099, 16124, 20537, 20678, 22039, 25779) }
 #endif  // CONFIG_ENTROPY_PARA
-#else
-                                     { AOM_CDF5(10510, 17103, 22330, 24536) },
-                                     { AOM_CDF5(14805, 20117, 24655, 25891) },
-                                     { AOM_CDF5(15700, 20333, 24425, 25305) },
-                                     { AOM_CDF5(15047, 20124, 24840, 25223) },
-                                     { AOM_CDF5(22632, 25637, 28394, 29608) },
-                                     { AOM_CDF5(15703, 20315, 24653, 25122) },
-#endif  // CONFIG_JOINT_MVD
     };
 #else
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -2872,7 +2861,6 @@ static const aom_cdf_prob
       { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
     };
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
 static const aom_cdf_prob
     default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS][CDF_SIZE(
@@ -2891,26 +2879,6 @@ static const aom_cdf_prob
       { AOM_CDF7(20458, 22512, 24304, 25008, 29008, 31008) },
       { AOM_CDF7(19368, 22274, 23890, 24364, 28364, 31364) }
     };
-#else
-#if CONFIG_OPTFLOW_REFINEMENT
-static const aom_cdf_prob
-    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
-                                   [CDF_SIZE(INTER_COMPOUND_REF_TYPES)] = {
-#else
-static const aom_cdf_prob
-    default_inter_compound_mode_cdf[INTER_COMPOUND_MODE_CONTEXTS]
-                                   [CDF_SIZE(INTER_COMPOUND_MODES)] = {
-#endif
-                                     { AOM_CDF5(10510, 17103, 22330, 24536) },
-                                     { AOM_CDF5(14805, 20117, 24655, 25891) },
-                                     { AOM_CDF5(15700, 20333, 24425, 25305) },
-                                     { AOM_CDF5(15047, 20124, 24840, 25223) },
-                                     { AOM_CDF5(22632, 25637, 28394, 29608) },
-                                     { AOM_CDF5(15703, 20315, 24653, 25122) },
-                                     { AOM_CDF5(22458, 25512, 28304, 29008) },
-                                     { AOM_CDF5(21368, 24274, 26890, 27364) }
-                                   };
-#endif  // CONFIG_JOINT_MVD
 #endif  // CONFIG_C076_INTER_MOD_CTX
 
 #if CONFIG_ENTROPY_PARA
@@ -5528,10 +5496,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
   av1_copy(fc->cwp_idx_cdf, default_cwp_idx_cdf);
-#if CONFIG_IMPROVED_JMVD
   av1_copy(fc->jmvd_scale_mode_cdf, default_jmvd_scale_mode_cdf);
   av1_copy(fc->jmvd_amvd_scale_mode_cdf, default_jmvd_amvd_scale_mode_cdf);
-#endif  // CONFIG_IMPROVED_JMVD
   av1_copy(fc->inter_compound_mode_cdf, default_inter_compound_mode_cdf);
   av1_copy(fc->compound_type_cdf, default_compound_type_cdf);
 #if CONFIG_WEDGE_MOD_EXT

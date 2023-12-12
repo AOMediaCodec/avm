@@ -377,12 +377,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_cfl_ds_filter;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
   /*!\brief enable joint MVD coding
    *
    */
   unsigned int enable_joint_mvd;
-#endif
 #if CONFIG_REFINEMV
   /*!\brief enable refine MV mode
    *

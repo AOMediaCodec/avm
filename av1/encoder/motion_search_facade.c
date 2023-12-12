@@ -1121,11 +1121,7 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 // given that the other component is fixed.
 void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                        BLOCK_SIZE bsize, MV *this_mv,
-#if CONFIG_JOINT_MVD
                                        MV *other_mv, uint16_t *second_pred,
-#else
-                                       const uint16_t *second_pred,
-#endif  // CONFIG_JOINT_MVD
                                        const uint8_t *mask, int mask_stride,
                                        int *rate_mv, int ref_idx) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -1143,7 +1139,6 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif
 #endif
 
-#if CONFIG_JOINT_MVD
   InterPredParams inter_pred_params;
   if (is_joint_mvd_coding_mode(mbmi->mode)) {
     const int pw = block_size_wide[bsize];
@@ -1159,7 +1154,6 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                           &ref_yv12, mbmi->interp_fltr);
     inter_pred_params.conv_params = get_conv_params(0, PLANE_TYPE_Y, xd->bd);
   }
-#endif  // CONFIG_JOINT_MVD
 
   struct buf_2d backup_yv12[MAX_MB_PLANE];
   const YV12_BUFFER_CONFIG *const scaled_ref_frame =
@@ -1194,10 +1188,8 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   int bestsme = INT_MAX;
   int_mv best_mv;
   best_mv.as_mv = kZeroMv;
-#if CONFIG_JOINT_MVD
   int_mv best_other_mv;
   best_other_mv.as_mv = kZeroMv;
-#endif  // CONFIG_JOINT_MVD
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 #if BUGFIX_AMVD_AMVR
   if (is_adaptive_mvd) {
@@ -1205,11 +1197,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     pb_mv_precision = mbmi->pb_mv_precision;
   }
 #endif
-  if (is_adaptive_mvd
-#if CONFIG_JOINT_MVD
-      && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // CONFIG_JOINT_MVD
-  ) {
+  if (is_adaptive_mvd && !is_joint_amvd_coding_mode(mbmi->mode)) {
     int dis; /* TODO: use dis in distortion calculation later. */
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
@@ -1224,13 +1212,11 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
     bestsme = adaptive_mvd_search(cm, xd, &ms_params, ref_mv.as_mv,
                                   &best_mv.as_mv, &dis, &sse);
-  } else
-#if CONFIG_JOINT_MVD
-      if (mbmi->mode == JOINT_NEWMV
+  } else if (mbmi->mode == JOINT_NEWMV
 #if CONFIG_OPTFLOW_REFINEMENT
-          || mbmi->mode == JOINT_NEWMV_OPTFLOW
+             || mbmi->mode == JOINT_NEWMV_OPTFLOW
 #endif
-      ) {
+  ) {
     int dis; /* TODO: use dis in distortion calculation later. */
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
@@ -1260,8 +1246,6 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     }
 #endif
   } else
-#endif  // CONFIG_JOINT_MVD
-#if CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
       if (mbmi->mode == JOINT_AMVDNEWMV ||
           mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW) {
@@ -1289,9 +1273,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                            &best_mv.as_mv, &dis, &sse, ref_idx,
                                            other_mv, &best_other_mv.as_mv,
                                            second_pred, &inter_pred_params);
-  } else
-#endif  // CONFIG_JOINT_MVD
-  {
+  } else {
     // Make motion search params
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
 
@@ -1404,11 +1386,9 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   if (bestsme < INT_MAX) *this_mv = best_mv.as_mv;
 
-#if CONFIG_JOINT_MVD
   if (is_joint_mvd_coding_mode(mbmi->mode)) {
     if (bestsme < INT_MAX) *other_mv = best_other_mv.as_mv;
   }
-#endif  // CONFIG_JOINT_MVD
 
   *rate_mv = 0;
   if (is_adaptive_mvd) {
@@ -1485,21 +1465,12 @@ void av1_compound_single_motion_search_interinter(
 
   MV *this_mv = &cur_mv[ref_idx].as_mv;
 
-#if CONFIG_JOINT_MVD
   MV *other_mv = &cur_mv[!ref_idx].as_mv;
-#else
-  const MV *other_mv = &cur_mv[!ref_idx].as_mv;
-#endif  // CONFIG_JOINT_MVD
 
   build_second_inter_pred(cpi, x, bsize, other_mv, ref_idx, second_pred);
-#if CONFIG_JOINT_MVD
   av1_compound_single_motion_search(cpi, x, bsize, this_mv, other_mv,
                                     second_pred, mask, mask_stride, rate_mv,
                                     ref_idx);
-#else
-  av1_compound_single_motion_search(cpi, x, bsize, this_mv, second_pred, mask,
-                                    mask_stride, rate_mv, ref_idx);
-#endif  // CONFIG_JOINT_MVD
 }
 
 static AOM_INLINE void do_masked_motion_search_indexed(
@@ -1547,21 +1518,15 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
     mbmi->mv[0].as_int = tmp_mv[0].as_int;
     mbmi->mv[1].as_int = tmp_mv[1].as_int;
   } else if (have_nearmv_newmv_in_inter_mode(this_mode)) {
-#if CONFIG_JOINT_MVD
     const AV1_COMMON *const cm = &cpi->common;
     const int jmvd_base_ref_list = get_joint_mvd_base_ref_list(cm, mbmi);
     const int which =
         (NEWMV == compound_ref1_mode(this_mode) ||
          (is_joint_mvd_coding_mode(this_mode) && jmvd_base_ref_list));
-#else
-    const int which = (NEWMV == compound_ref1_mode(this_mode));
-#endif  // CONFIG_JOINT_MVD
     do_masked_motion_search_indexed(cpi, x, cur_mv, compound_data, bsize,
                                     tmp_mv, &tmp_rate_mv, which);
     mbmi->mv[which].as_int = tmp_mv[which].as_int;
-#if CONFIG_JOINT_MVD
     mbmi->mv[1 - which].as_int = tmp_mv[1 - which].as_int;
-#endif  // CONFIG_JOINT_MVD
   }
   return tmp_rate_mv;
 }

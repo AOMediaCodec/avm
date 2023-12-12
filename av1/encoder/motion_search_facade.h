@@ -72,11 +72,7 @@ void av1_compound_single_motion_search_interinter(
 
 void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                        BLOCK_SIZE bsize, MV *this_mv,
-#if CONFIG_JOINT_MVD
                                        MV *other_mv, uint16_t *second_pred,
-#else
-                                       const uint16_t *second_pred,
-#endif  // CONFIG_JOINT_MVD
                                        const uint8_t *mask, int mask_stride,
                                        int *rate_mv, int ref_idx);
 

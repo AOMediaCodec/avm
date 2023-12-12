@@ -601,12 +601,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
 
 #endif  // CONFIG_FLEX_MVRES
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
     av1_cost_tokens_from_cdf(mode_costs->jmvd_scale_mode_cost,
                              fc->jmvd_scale_mode_cdf, NULL);
     av1_cost_tokens_from_cdf(mode_costs->jmvd_amvd_scale_mode_cost,
                              fc->jmvd_amvd_scale_mode_cdf, NULL);
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
     for (i = 0; i < INTER_COMPOUND_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->inter_compound_mode_cost[i],
                                fc->inter_compound_mode_cdf[i], NULL);

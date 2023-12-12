@@ -1779,10 +1779,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_REFINEMV
           && (!mbmi->refinemv_flag || !is_refinemv_signaled)
 #endif  // CONFIG_REFINEMV
-#if CONFIG_JOINT_MVD
-          && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // CONFIG_JOINT_MVD
-      ) {
+          && !is_joint_amvd_coding_mode(mbmi->mode)) {
 #if CONFIG_COMPOUND_WARP_CAUSAL
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
@@ -1899,7 +1896,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       update_cdf(fc->inter_compound_mode_cdf[mode_ctx],
                  INTER_COMPOUND_OFFSET(mode), INTER_COMPOUND_MODES);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       if (is_joint_mvd_coding_mode(mbmi->mode)) {
         const int is_joint_amvd_mode = is_joint_amvd_coding_mode(mbmi->mode);
         aom_cdf_prob *jmvd_scale_mode_cdf = is_joint_amvd_mode
@@ -1911,7 +1907,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         update_cdf(jmvd_scale_mode_cdf, mbmi->jmvd_scale_mode, jmvd_scale_cnt);
       }
 
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
     } else {
       av1_update_inter_mode_stats(fc, counts, mode, mode_ctx
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -1923,11 +1918,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     }
 
     const int new_mv = have_newmv_in_each_reference(mbmi->mode);
-#if CONFIG_JOINT_MVD
     const int jmvd_base_ref_list = is_joint_mvd_coding_mode(mbmi->mode)
                                        ? get_joint_mvd_base_ref_list(cm, mbmi)
                                        : 0;
-#endif  // CONFIG_JOINT_MVD
     const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
     if (have_drl_index(mbmi->mode)) {
       const int16_t mode_ctx_pristine =
@@ -2014,10 +2007,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_OPTFLOW_REFINEMENT
               mbmi->mode == NEAR_NEWMV_OPTFLOW ||
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
-              jmvd_base_ref_list ||
-#endif  // CONFIG_JOINT_MVD
-              mbmi->mode == NEAR_NEWMV;
+              jmvd_base_ref_list || mbmi->mode == NEAR_NEWMV;
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
 #if CONFIG_FLEX_MVRES
           av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,

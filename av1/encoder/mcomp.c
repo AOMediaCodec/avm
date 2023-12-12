@@ -4001,7 +4001,6 @@ static AOM_INLINE int setup_center_error_facade(
   }
 }
 
-#if CONFIG_JOINT_MVD
 // motion search for joint mvd coding
 int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                      SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV ref_mv,
@@ -4124,9 +4123,7 @@ int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       if (av1_is_subpelmv_in_range(mv_limits, cur_mv)) {
         // fprintf(stdout, "has happened\n");
         get_mv_projection(&other_mvd, cur_mvd, other_ref_dist, cur_ref_dist);
-#if CONFIG_IMPROVED_JMVD
         scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
-#endif  // CONFIG_IMPROVED_JMVD
 #if !CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
         lower_mv_precision(&other_mvd, cm->features.fr_mv_precision);
@@ -4211,9 +4208,7 @@ int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                              candidate_mv[0].col - ref_mv.col };
 
       get_mv_projection(&other_mvd, final_mvd, other_ref_dist, cur_ref_dist);
-#if CONFIG_IMPROVED_JMVD
       scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
-#endif  // CONFIG_IMPROVED_JMVD
 
 #if !CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
@@ -4322,9 +4317,7 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
       if (av1_is_subpelmv_in_range(mv_limits, cur_mv)) {
         get_mv_projection(&other_mvd, cur_mvd, other_ref_dist, cur_ref_dist);
-#if CONFIG_IMPROVED_JMVD
         scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
-#endif  // CONFIG_IMPROVED_JMVD
 #if !CONFIG_C071_SUBBLK_WARPMV
         lower_mv_precision(&other_mvd, cm->features.fr_mv_precision);
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
@@ -4370,7 +4363,6 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
 #endif
 
-#endif  // CONFIG_JOINT_MVD
 // motion search for near_new and new_near mode when adaptive MVD resolution is
 // applied
 int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
@@ -4468,7 +4460,6 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   return besterr;
 }
 
-#if CONFIG_JOINT_MVD
 int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                  const MV *start_mv, MV *bestmv,
@@ -4549,9 +4540,7 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       candidate_mv[0].col = iter_center_mv.col + cur_mvd.col;
 
       get_mv_projection(&other_mvd, cur_mvd, other_ref_dist, cur_ref_dist);
-#if CONFIG_IMPROVED_JMVD
       scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
-#endif  // CONFIG_IMPROVED_JMVD
 #if !CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
       lower_mv_precision(&other_mvd,
@@ -4610,7 +4599,6 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   }
   return besterr;
 }
-#endif  // CONFIG_JOINT_MVD
 
 int av1_find_best_sub_pixel_tree_pruned_evenmore(
     MACROBLOCKD *xd, const AV1_COMMON *const cm,

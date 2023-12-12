@@ -113,9 +113,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_ADAPTIVE_DS_FILTER
     GET_PARAMS(enable_cfl_ds_filter);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
     GET_PARAMS(enable_joint_mvd);
-#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
     GET_PARAMS(enable_refinemv);
 #endif  // CONFIG_REFINEMV

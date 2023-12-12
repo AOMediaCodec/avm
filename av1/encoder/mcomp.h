@@ -454,7 +454,6 @@ int opfl_refine_fullpel_mv_one_sided(
     const FULLPEL_MV *const smv, int_mv *mv_refined, BLOCK_SIZE bsize);
 #endif  // CONFIG_OPFL_MV_SEARCH
 
-#if CONFIG_JOINT_MVD
 // motion search for joint MVD coding
 int joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                      SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV ref_mv,
@@ -474,14 +473,12 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                    InterPredParams *inter_pred_params);
 #endif
 
-#endif  // CONFIG_JOINT_MVD
 // motion search for near_new and new_near mode when adaptive MVD resolution is
 // applied
 int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv,
                         MV *bestmv, int *distortion, unsigned int *sse1);
 
-#if CONFIG_JOINT_MVD
 int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                  const MV *start_mv, MV *bestmv,
@@ -489,7 +486,6 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  int ref_idx, MV *other_mv, MV *best_other_mv,
                                  uint16_t *second_pred,
                                  InterPredParams *inter_pred_params);
-#endif  // CONFIG_JOINT_MVD
 
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const struct AV1_COMP *cpi,

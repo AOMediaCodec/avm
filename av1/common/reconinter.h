@@ -382,20 +382,13 @@ static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
 
   return (mode == NEAR_NEWMV || mode == NEW_NEARMV
 #if CONFIG_OPTFLOW_REFINEMENT
-          || mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW
-#if CONFIG_JOINT_MVD
-          || mode == JOINT_AMVDNEWMV_OPTFLOW
-#endif  // CONFIG_JOINT_MVD
+          || mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW ||
+          mode == JOINT_AMVDNEWMV_OPTFLOW
 #endif
-          || mode == AMVDNEWMV
-#if CONFIG_JOINT_MVD
-          || mode == JOINT_AMVDNEWMV
-#endif
-          ) &&
+          || mode == AMVDNEWMV || mode == JOINT_AMVDNEWMV) &&
          cm->seq_params.enable_adaptive_mvd;
 }
 
-#if CONFIG_JOINT_MVD
 // get the base reference frame list for joint MVD coding, the MVD for base
 // reference frame is the same as the joint MVD, the MVD for the other reference
 // frame is scaled from the joint MVD.
@@ -431,7 +424,6 @@ static INLINE int is_ref_frame_same_side(const AV1_COMMON *const cm,
   }
   return is_same_side;
 }
-#endif  // CONFIG_JOINT_MVD
 
 void av1_init_comp_mode(InterPredParams *inter_pred_params);
 

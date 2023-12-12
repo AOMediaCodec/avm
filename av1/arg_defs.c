@@ -452,11 +452,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "(0: false, 1: filter1, 2: filter 2, 3: filter 3"),
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 
-#if CONFIG_JOINT_MVD
   .enable_joint_mvd = ARG_DEF(NULL, "enable-joint-mvd", 1,
                               "Enable joint MVD coding"
                               "(0: false, 1: true (default))"),
-#endif  // CONFIG_JOINT_MVD
 
 #if CONFIG_REFINEMV
   .enable_refinemv = ARG_DEF(NULL, "enable-refinemv", 1,

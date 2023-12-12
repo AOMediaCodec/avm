@@ -698,7 +698,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 // Read scale mode flag for joint mvd coding mode
 static PREDICTION_MODE read_jmvd_scale_mode(MACROBLOCKD *xd, aom_reader *r,
                                             MB_MODE_INFO *const mbmi) {
@@ -713,7 +712,6 @@ static PREDICTION_MODE read_jmvd_scale_mode(MACROBLOCKD *xd, aom_reader *r,
       r, jmvd_scale_mode_cdf, jmvd_scale_cnt, ACCT_INFO("jmvd_scale_mode"));
   return jmvd_scale_mode;
 }
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 
 // Read index for the weighting factor of compound weighted prediction
 static int read_cwp_idx(MACROBLOCKD *xd, aom_reader *r, const AV1_COMMON *cm,
@@ -2440,7 +2438,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     allow_hp = MV_SUBPEL_NONE;
   }
 #endif
-#if CONFIG_JOINT_MVD
   int first_ref_dist = 0;
   int sec_ref_dist = 0;
   const int same_side = is_ref_frame_same_side(cm, mbmi);
@@ -2453,7 +2450,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
         cm->ref_frame_relative_dist[mbmi->ref_frame[1 - jmvd_base_ref_list]];
     assert(first_ref_dist >= sec_ref_dist);
   }
-#endif  // CONFIG_JOINT_MVD
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 #if CONFIG_FLEX_MVRES
   assert(!(is_adaptive_mvd && is_pb_mv_precision_active(cm, mbmi, bsize)));
@@ -2633,7 +2629,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
               .as_int;
       break;
     }
-#if CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
     case JOINT_NEWMV_OPTFLOW:
     case JOINT_AMVDNEWMV_OPTFLOW:
@@ -2677,9 +2672,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                  ref_mv[jmvd_base_ref_list].as_mv.col;
 #endif
       get_mv_projection(&other_mvd, diff, sec_ref_dist, first_ref_dist);
-#if CONFIG_IMPROVED_JMVD
       scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
-#endif  // CONFIG_IMPROVED_JMVD
 #if !CONFIG_C071_SUBBLK_WARPMV
 #if CONFIG_FLEX_MVRES
       // TODO(Mohammed): Do we need to apply block level lower mv precision?
@@ -2695,7 +2688,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
           (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.col + other_mvd.col);
       break;
     }
-#endif  // CONFIG_JOINT_MVD
     default: {
       return 0;
     }
@@ -2919,9 +2911,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_SEP_COMP_DRL
 
   mbmi->cwp_idx = CWP_EQUAL;
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   mbmi->jmvd_scale_mode = 0;
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   mbmi->warp_ref_idx = 0;
@@ -3150,9 +3140,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       mbmi->jmvd_scale_mode = read_jmvd_scale_mode(xd, r, mbmi);
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       int max_drl_bits = cm->features.max_drl_bits;
       if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
 
@@ -3397,10 +3385,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_REFINEMV
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
 #endif  // CONFIG_REFINEMV
-#if CONFIG_JOINT_MVD
-      !is_joint_amvd_coding_mode(mbmi->mode) &&
-#endif  // CONFIG_JOINT_MVD
-      !mbmi->skip_mode) {
+      !is_joint_amvd_coding_mode(mbmi->mode) && !mbmi->skip_mode) {
     // Read idx to indicate current compound inter prediction mode group
     const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                      cm->seq_params.enable_masked_compound;

@@ -462,9 +462,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_ADAPTIVE_DS_FILTER
   seq->enable_cfl_ds_filter = tool_cfg->enable_cfl_ds_filter;
 #endif  // CONFIG_CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
-#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
   seq->enable_refinemv = tool_cfg->enable_refinemv;
 #endif  // CONFIG_REFINEMV

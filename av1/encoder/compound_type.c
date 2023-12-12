@@ -808,10 +808,8 @@ static int handle_wedge_inter_intra_mode(
     const uint8_t *mask =
         av1_get_contiguous_soft_mask(mbmi->interintra_wedge_index, 1, bsize);
     av1_compound_single_motion_search(cpi, x, bsize, &tmp_mv->as_mv,
-#if CONFIG_JOINT_MVD
-                                      &tmp_mv->as_mv,
-#endif  // CONFIG_JOINT_MVD
-                                      intrapred, mask, bw, tmp_rate_mv, 0);
+                                      &tmp_mv->as_mv, intrapred, mask, bw,
+                                      tmp_rate_mv, 0);
     if (mbmi->mv[0].as_int != tmp_mv->as_int) {
       mbmi->mv[0].as_int = tmp_mv->as_int;
       // Set ref_frame[1] to NONE_FRAME temporarily so that the intra

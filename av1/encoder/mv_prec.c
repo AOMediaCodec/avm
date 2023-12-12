@@ -514,21 +514,13 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
     // has exactly one new_mv
     mv_stats->default_mvs += 1;
 #if CONFIG_OPTFLOW_REFINEMENT
-    int ref_idx =
-#if CONFIG_JOINT_MVD
-        is_joint_mvd_coding_mode(mbmi->mode)
-            ? get_joint_mvd_base_ref_list(cm, mbmi)
-            :
-#endif  // CONFIG_JOINT_MVD
-            (mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW);
+    int ref_idx = is_joint_mvd_coding_mode(mbmi->mode)
+                      ? get_joint_mvd_base_ref_list(cm, mbmi)
+                      : (mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW);
 #else
-    int ref_idx =
-#if CONFIG_JOINT_MVD
-        is_joint_mvd_coding_mode(mbmi->mode)
-            ? get_joint_mvd_base_ref_list(cm, mbmi)
-            :
-#endif  // CONFIG_JOINT_MVD
-            (mode == NEAR_NEWMV);
+    int ref_idx = is_joint_mvd_coding_mode(mbmi->mode)
+                      ? get_joint_mvd_base_ref_list(cm, mbmi)
+                      : (mode == NEAR_NEWMV);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
     const MV ref_mv =

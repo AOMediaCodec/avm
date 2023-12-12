@@ -178,10 +178,8 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
   RESET_CDF_COUNTER(fc->cwp_idx_cdf, 2);
-#if CONFIG_IMPROVED_JMVD
   RESET_CDF_COUNTER(fc->jmvd_scale_mode_cdf, JOINT_NEWMV_SCALE_FACTOR_CNT);
   RESET_CDF_COUNTER(fc->jmvd_amvd_scale_mode_cdf, JOINT_AMVD_SCALE_FACTOR_CNT);
-#endif  // CONFIG_IMPROVED_JMVD
   RESET_CDF_COUNTER(fc->compound_type_cdf, MASKED_COMPOUND_TYPES);
 #if CONFIG_WEDGE_MOD_EXT
   RESET_CDF_COUNTER(fc->wedge_angle_dir_cdf, 2);

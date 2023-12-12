@@ -1263,7 +1263,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
           );
         }
       }
-#if CONFIG_JOINT_MVD
     } else if (is_joint_mvd_coding_mode(this_mode)) {
       if (!cm->seq_params.enable_joint_mvd) return INT64_MAX;
       const int same_side = is_ref_frame_same_side(cm, mbmi);
@@ -1286,12 +1285,12 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_SEP_COMP_DRL
                               [get_ref_mv_idx(mbmi, 1)]
 #else
-                              [ref_mv_idx]
+                            [ref_mv_idx]
 #endif  // CONFIG_SEP_COMP_DRL
                               [refs[jmvd_base_ref_list]]
                                   .as_int;
 #else
-          args->single_newmv[ref_mv_idx][refs[jmvd_base_ref_list]].as_int;
+            args->single_newmv[ref_mv_idx][refs[jmvd_base_ref_list]].as_int;
 #endif
 
 #if CONFIG_FLEX_MVRES
@@ -1308,7 +1307,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
       av1_compound_single_motion_search_interinter(
           cpi, x, bsize, cur_mv, NULL, 0, rate_mv, jmvd_base_ref_list);
-#endif
     } else {
 #if CONFIG_OPTFLOW_REFINEMENT
       assert(this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
@@ -3586,7 +3584,6 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
                                       mode_ctx);
   rd_stats->rate += ref_mv_cost;
 
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   if (is_joint_mvd_coding_mode(mbmi->mode)) {
     int jmvd_scale_mode_cost =
         is_joint_amvd_coding_mode(mbmi->mode)
@@ -3594,7 +3591,6 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
             : mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
     rd_stats->rate += jmvd_scale_mode_cost;
   }
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 
   if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd) {
     return INT64_MAX;
@@ -4714,10 +4710,7 @@ static int64_t handle_inter_mode(
     uint16_t *const tmp_buf, const CompoundTypeRdBuffers *rd_buffers,
     int64_t *best_est_rd, const int do_tx_search,
     InterModesInfo *inter_modes_info, motion_mode_candidate *motion_mode_cand,
-    int64_t *skip_rd,
-#if CONFIG_IMPROVED_JMVD
-    PREDICTION_MODE best_ref_mode,
-#endif  // CONFIG_IMPROVED_JMVD
+    int64_t *skip_rd, PREDICTION_MODE best_ref_mode,
     PruneInfoFromTpl *inter_cost_info_from_tpl) {
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -5145,7 +5138,6 @@ static int64_t handle_inter_mode(
   mbmi->refinemv_flag =
       0;  // initialize to 0; later on the default value is assigned
 #endif    // CONFIG_REFINEMV
-#if CONFIG_IMPROVED_JMVD
   const int jmvd_scaling_factor_num =
       is_joint_mvd_coding_mode(mbmi->mode) ? JOINT_NEWMV_SCALE_FACTOR_CNT : 1;
   for (int scale_index = 0; scale_index < jmvd_scaling_factor_num;
@@ -5159,7 +5151,6 @@ static int64_t handle_inter_mode(
           (!is_inter_compound_mode(best_ref_mode)))
         continue;
     }
-#endif  // CONFIG_IMPROVED_JMVD
     int best_cwp_idx = CWP_EQUAL;
     int64_t best_cwp_cost = INT64_MAX;
 #if CONFIG_SEP_COMP_DRL
@@ -5167,9 +5158,8 @@ static int64_t handle_inter_mode(
     for (ref_mv_idx[1] = 0; ref_mv_idx[1] < ref_set[1]; ++ref_mv_idx[1]) {
       for (ref_mv_idx[0] = 0; ref_mv_idx[0] < ref_set[0]; ++ref_mv_idx[0]) {
 #else
-  for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
+    for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
 #endif  // CONFIG_SEP_COMP_DRL
-#if CONFIG_IMPROVED_JMVD
         // apply early termination method to jmvd scaling factors
         if (cpi->sf.inter_sf.early_terminate_jmvd_scale_factor) {
 #if CONFIG_SEP_COMP_DRL
@@ -5178,13 +5168,11 @@ static int64_t handle_inter_mode(
               (best_mbmi.ref_mv_idx[0] < ref_mv_idx[0] ||
                best_mbmi.ref_mv_idx[1] < ref_mv_idx[1]))
 #else
-          if (scale_index > 0 && ref_mv_idx > 0 &&
-              best_mbmi.jmvd_scale_mode == 0 &&
-              best_mbmi.ref_mv_idx < ref_mv_idx)
+        if (scale_index > 0 && ref_mv_idx > 0 &&
+            best_mbmi.jmvd_scale_mode == 0 && best_mbmi.ref_mv_idx < ref_mv_idx)
 #endif  // CONFIG_SEP_COMP_DRL
             continue;
         }
-#endif  // CONFIG_IMPROVED_JMVD
 #if CONFIG_IMPROVED_SAME_REF_COMPOUND
         if (mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
             mbmi->mode == NEAR_NEARMV && ref_mv_idx[0] >= ref_mv_idx[1])
@@ -5286,7 +5274,6 @@ static int64_t handle_inter_mode(
               continue;
             }
             assert(pb_mv_precision <= mbmi->max_mv_precision);
-#if CONFIG_IMPROVED_JMVD
             // apply early termination method to jmvd scaling factors
             if (cpi->sf.inter_sf.early_terminate_jmvd_scale_factor) {
               if (scale_index > 0 && (!is_inter_compound_mode(best_ref_mode)) &&
@@ -5295,7 +5282,6 @@ static int64_t handle_inter_mode(
                   best_mbmi.pb_mv_precision > MV_PRECISION_HALF_PEL)
                 continue;
             }
-#endif  // CONFIG_IMPROVED_JMVD
 
             if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
               if (cpi->sf.flexmv_sf.terminate_early_4_pel_precision &&
@@ -5817,7 +5803,6 @@ static int64_t handle_inter_mode(
                     continue;
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
                   if (is_joint_mvd_coding_mode(mbmi->mode)) {
                     int jmvd_scale_mode_cost =
                         is_joint_amvd_coding_mode(mbmi->mode)
@@ -5827,7 +5812,6 @@ static int64_t handle_inter_mode(
                                   ->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
                     rd_stats->rate += jmvd_scale_mode_cost;
                   }
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 
 #if CONFIG_REFINEMV
                   rd_stats->rate += tmp_rate_mv;
@@ -5911,10 +5895,7 @@ static int64_t handle_inter_mode(
 
                   // Handle a compound predictor, continue if it is determined
                   // this cannot be the best compound mode
-                  if (is_comp_pred
-#if CONFIG_JOINT_MVD
-                      && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // CONFIG_JOINT_MVD
+                  if (is_comp_pred && !is_joint_amvd_coding_mode(mbmi->mode)
 #if CONFIG_REFINEMV
                       && (!mbmi->refinemv_flag ||
                           !switchable_refinemv_flag(cm, mbmi))
@@ -6297,9 +6278,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_SEP_COMP_DRL
     }
 #endif  // CONFIG_SEP_COMP_DRL
-#if CONFIG_IMPROVED_JMVD
   }
-#endif  // CONFIG_IMPROVED_JMVD
 
   if (best_rd == INT64_MAX) return INT64_MAX;
 
@@ -8535,17 +8514,12 @@ static INLINE int skip_inter_mode_with_cached_mode(
       ) {
         skip_motion_mode_only = (ref_frame[0] == cached_frame[0] ||
                                  ref_frame[0] == cached_frame[1]);
-      }
-#if CONFIG_JOINT_MVD
-      else if (is_joint_mvd_coding_mode(cached_mode)) {
+      } else if (is_joint_mvd_coding_mode(cached_mode)) {
         const int jmvd_base_ref_list =
             get_joint_mvd_base_ref_list(cm, cached_mi);
         skip_motion_mode_only =
             ref_frame[0] == cached_frame[jmvd_base_ref_list];
       }
-#else
-      (void)cm;
-#endif  // CONFIG_JOINT_MVD
 
       return 1 + skip_motion_mode_only;
     } else {
@@ -8729,9 +8703,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->bawp_flag = 0;
 #endif  // CONFIG_BAWP_CHROMA
 #endif
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   mbmi->jmvd_scale_mode = 0;
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 }
 
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -10005,22 +9977,17 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                               ref_frames, &sf_args))
             continue;
 
-          if ((this_mode == AMVDNEWMV
-#if CONFIG_JOINT_MVD
-               || mbmi->mode == JOINT_AMVDNEWMV
+          if ((this_mode == AMVDNEWMV || mbmi->mode == JOINT_AMVDNEWMV
 #if CONFIG_OPTFLOW_REFINEMENT
                || mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW
-#endif
 #endif
                ) &&
               cm->seq_params.enable_adaptive_mvd == 0)
             continue;
 
-#if CONFIG_JOINT_MVD
           if (is_joint_mvd_coding_mode(this_mode) &&
               cm->seq_params.enable_joint_mvd == 0)
             continue;
-#endif
 
           // Select prediction reference frames.
           for (i = 0; i < num_planes; i++) {
@@ -10083,10 +10050,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
               cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv,
               &args, ref_best_rd, tmp_buf, &x->comp_rd_buffer, &best_est_rd,
               do_tx_search, inter_modes_info, &motion_mode_cand, skip_rd,
-#if CONFIG_IMPROVED_JMVD
-              search_state.best_mbmode.mode,
-#endif  // CONFIG_IMPROVED_JMVD
-              &inter_cost_info_from_tpl);
+              search_state.best_mbmode.mode, &inter_cost_info_from_tpl);
 
           if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
               is_inter_singleref_mode(this_mode)) {
@@ -10460,9 +10424,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   if (search_state.best_mbmode.ref_mv_idx != 0 &&
 #endif
       !(have_newmv_in_each_reference(search_state.best_mbmode.mode) ||
-#if CONFIG_JOINT_MVD
         is_joint_mvd_coding_mode(search_state.best_mbmode.mode) ||
-#endif  // CONFIG_JOINT_MVD
         have_nearmv_in_inter_mode(search_state.best_mbmode.mode))) {
 #if CONFIG_SEP_COMP_DRL
     search_state.best_mbmode.ref_mv_idx[0] = 0;

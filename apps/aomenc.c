@@ -487,9 +487,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_ADAPTIVE_DS_FILTER
   &g_av1_codec_arg_defs.enable_cfl_ds_filter,
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
   &g_av1_codec_arg_defs.enable_joint_mvd,
-#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
   &g_av1_codec_arg_defs.enable_refinemv,
 #endif  // CONFIG_REFINEMV
@@ -675,9 +673,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_ADAPTIVE_DS_FILTER
   config->enable_cfl_ds_filter = 1;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
   config->enable_joint_mvd = 1;
-#endif
 #if CONFIG_REFINEMV
   config->enable_refinemv = 1;
 #endif  // CONFIG_REFINEMV
@@ -1603,10 +1599,8 @@ static void show_stream_config(struct stream_state *stream,
           "                               : Flexible MV precisions: (%d)\n",
           encoder_cfg->enable_flex_mvres);
 #endif  // CONFIG_FLEX_MVRES
-#if CONFIG_JOINT_MVD
   fprintf(stdout, "                               : Joint MVD coding: (%d)\n",
           encoder_cfg->enable_joint_mvd);
-#endif
 #if CONFIG_REFINEMV
   fprintf(stdout, "                               : RefineMV mode: (%d)\n",
           encoder_cfg->enable_refinemv);

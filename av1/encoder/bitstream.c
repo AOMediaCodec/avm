@@ -247,7 +247,6 @@ static void write_warpmv_with_mvd_flag(FRAME_CONTEXT *ec_ctx,
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 // Write scale mode flag for joint mvd coding mode
 static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
                                              const MB_MODE_INFO *const mbmi) {
@@ -262,7 +261,6 @@ static AOM_INLINE void write_jmvd_scale_mode(MACROBLOCKD *xd, aom_writer *w,
   aom_write_symbol(w, mbmi->jmvd_scale_mode, jmvd_scale_mode_cdf,
                    jmvd_scale_cnt);
 }
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
 
 // Write the index for the weighting factor of compound weighted prediction
 static AOM_INLINE void write_cwp_idx(MACROBLOCKD *xd, aom_writer *w,
@@ -2311,9 +2309,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     mode_ctx =
         mode_context_analyzer(mbmi_ext_frame->mode_context, mbmi->ref_frame);
 
-#if CONFIG_JOINT_MVD
     const int jmvd_base_ref_list = get_joint_mvd_base_ref_list(cm, mbmi);
-#endif  // CONFIG_JOINT_MVD
 
     // If segment skip is not enabled code the mode.
     if (!segfeature_active(seg, segment_id, SEG_LVL_SKIP)) {
@@ -2407,9 +2403,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       write_jmvd_scale_mode(xd, w, mbmi);
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       int max_drl_bits = cm->features.max_drl_bits;
       if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
 
@@ -2481,10 +2475,8 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_OPTFLOW_REFINEMENT
                  || mode == NEAR_NEWMV_OPTFLOW
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
-                 || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)
-#endif  // CONFIG_JOINT_MVD
-      ) {
+                 ||
+                 (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         const int_mv ref_mv = get_ref_mv(x, 1);
 
@@ -2505,10 +2497,8 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_OPTFLOW_REFINEMENT
                  || mode == NEW_NEARMV_OPTFLOW
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if CONFIG_JOINT_MVD
-                 || (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)
-#endif  // CONFIG_JOINT_MVD
-      ) {
+                 ||
+                 (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         const int_mv ref_mv = get_ref_mv(x, 0);
 
@@ -2604,10 +2594,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_REFINEMV
         && (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))
 #endif  // CONFIG_REFINEMV
-#if CONFIG_JOINT_MVD
-        && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // CONFIG_JOINT_MVD
-    ) {
+        && !is_joint_amvd_coding_mode(mbmi->mode)) {
 
       const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                        cm->seq_params.enable_masked_compound;

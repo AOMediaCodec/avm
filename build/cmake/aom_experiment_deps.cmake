@@ -49,12 +49,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_OPTFLOW_ON_TIP 0 !CONFIG_OPTFLOW_REFINEMENT)
   endif()
 
-  # CONFIG_IMPROVED_JMVD is dependent on CONFIG_JOINT_MVD. If CONFIG_JOINT_MVD
-  # is off, CONFIG_IMPROVED_JMVD needs to be turned off.
-  if(NOT CONFIG_JOINT_MVD AND CONFIG_IMPROVED_JMVD)
-    change_config_and_warn(CONFIG_IMPROVED_JMVD 0 !CONFIG_JOINT_MVD)
-  endif()
-
   # CONFIG_EXPLICIT_BAWP is dependent on CONFIG_BAWP. If CONFIG_BAWP is off,
   # CONFIG_EXPLICIT_BAWP needs to be turned off.
   if(NOT CONFIG_BAWP AND CONFIG_EXPLICIT_BAWP)

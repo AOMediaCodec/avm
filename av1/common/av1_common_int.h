@@ -479,9 +479,7 @@ typedef struct SequenceHeader {
   uint8_t enable_cfl_ds_filter;  // enable/disables adaptive downsampling filter
 #endif                           // CONFIG_ADAPTIVE_DS_FILTER
 
-#if CONFIG_JOINT_MVD
   uint8_t enable_joint_mvd;  // enables/disables joint MVD coding
-#endif                       // CONFIG_JOINT_MVD
 
 #if CONFIG_REFINEMV
   uint8_t enable_refinemv;  // enables/disables refineMV mode
@@ -1724,12 +1722,10 @@ typedef struct AV1Common {
    * TODO(jingning): This can be combined with sign_bias later.
    */
   int8_t ref_frame_side[INTER_REFS_PER_FRAME];
-#if CONFIG_MVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * relative distance between reference 'k' and current frame.
    */
   int ref_frame_relative_dist[REF_FRAMES];
-#endif  // CONFIG_MVP_IMPROVEMENT || CONFIG_JOINT_MVD
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
    */

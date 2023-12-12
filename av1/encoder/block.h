@@ -1030,12 +1030,10 @@ typedef struct {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
   //! cwp_idx_cost for compound weighted prediction
   int cwp_idx_cost[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];
-#if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   //! jmvd_scale_mode_cost for JOINT_NEWMV
   int jmvd_scale_mode_cost[JOINT_NEWMV_SCALE_FACTOR_CNT];
   //! jmvd_scale_mode_cost for JOINT_AMVDNEWMV
   int jmvd_amvd_scale_mode_cost[JOINT_AMVD_SCALE_FACTOR_CNT];
-#endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
   //! compound_type_cost
 #if CONFIG_D149_CTX_MODELING_OPT
   int compound_type_cost[MASKED_COMPOUND_TYPES];

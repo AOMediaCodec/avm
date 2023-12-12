@@ -158,9 +158,7 @@ struct av1_extracfg {
   int enable_cfl_ds_filter;  // enable adaptive downsample filter
 #endif                       // CONFIG_ADAPTIVE_DS_FILTER
 
-#if CONFIG_JOINT_MVD
   int enable_joint_mvd;  // enable joint MVD coding
-#endif                   // CONFIG_ADAPTIVE_MVD
 #if CONFIG_REFINEMV
   int enable_refinemv;           // enable refineMV mode
 #endif                           // CONFIG_REFINEMV
@@ -496,9 +494,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_ADAPTIVE_DS_FILTER
   1,    // enable adaptive downsample filter
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
   1,    // enable joint mvd coding
-#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
   1,    // enable refineMV mode
 #endif  // CONFIG_REFINEMV
@@ -1023,9 +1019,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_cfl_ds_filter = extra_cfg->enable_cfl_ds_filter;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 
-#if CONFIG_JOINT_MVD
   cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
-#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
   cfg->enable_refinemv = extra_cfg->enable_refinemv;
 #endif  // CONFIG_REFINEMV
@@ -1151,9 +1145,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_cfl_ds_filter = cfg->enable_cfl_ds_filter;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 
-#if CONFIG_JOINT_MVD
   extra_cfg->enable_joint_mvd = cfg->enable_joint_mvd;
-#endif  // CONFIG_JOINT_MVD
 
 #if CONFIG_REFINEMV
   extra_cfg->enable_refinemv = cfg->enable_refinemv;
@@ -1441,9 +1433,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_cfl_ds_filter = extra_cfg->enable_cfl_ds_filter;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
 
-#if CONFIG_JOINT_MVD
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
-#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
   tool_cfg->enable_refinemv = extra_cfg->enable_refinemv;
 #endif  // CONFIG_REFINEMV
@@ -3971,11 +3961,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_cfl_ds_filter = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_joint_mvd,
                               argv, err_string)) {
     extra_cfg.enable_joint_mvd = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_JOINT_MVD
 
 #if CONFIG_REFINEMV
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refinemv, argv,
@@ -4465,9 +4453,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_ADAPTIVE_DS_FILTER
         1,
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
-#if CONFIG_JOINT_MVD
         1,
-#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
         1,
 #endif  // CONFIG_REFINEMV

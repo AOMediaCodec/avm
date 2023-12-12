@@ -150,10 +150,7 @@ static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,
 #if CONFIG_OPTFLOW_REFINEMENT
              || this_mode == NEW_NEARMV_OPTFLOW
 #endif
-#if CONFIG_JOINT_MVD
-             || is_joint_mvd_coding_mode(this_mode)
-#endif  // CONFIG_JOINT_MVD
-  ) {
+             || is_joint_mvd_coding_mode(this_mode)) {
     const int_mv ref_mv_0 = av1_get_ref_mv(x, 0);
     if (mbmi->mv[0].as_int == ref_mv_0.as_int) {
       return 0;
@@ -214,7 +211,6 @@ static inline int check_mv_precision(const AV1_COMMON *cm,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
       }
     } else {
-#if CONFIG_JOINT_MVD
       const int jmvd_base_ref_list = get_joint_mvd_base_ref_list(cm, mbmi);
       const int i = (mode == JOINT_NEWMV
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -223,9 +219,6 @@ static inline int check_mv_precision(const AV1_COMMON *cm,
                      )
                         ? jmvd_base_ref_list
                         : (compound_ref1_mode(mode) == NEWMV);
-#else
-      const int i = compound_ref1_mode(mode) == NEWMV;
-#endif
 #if CONFIG_C071_SUBBLK_WARPMV
       MV diff = { mbmi->mv[i].as_mv.row, mbmi->mv[i].as_mv.col };
       MV refmv = av1_get_ref_mv(x, i).as_mv;
