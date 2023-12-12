@@ -1283,21 +1283,12 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       const int first_ref_dist =
           cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
       const int sec_ref_dist = cm->ref_frame_relative_dist[mbmi->ref_frame[1]];
-#if IMPROVED_AMVD
       if (first_ref_dist != sec_ref_dist) return INT64_MAX;
-#else
-    if (first_ref_dist > 2 * sec_ref_dist) return INT64_MAX;
-    if (sec_ref_dist > 2 * first_ref_dist) return INT64_MAX;
-#endif  // IMPROVED_AMVD
 
       const int jmvd_base_ref_list = get_joint_mvd_base_ref_list(cm, mbmi);
       const int valid_mv_base = (!jmvd_base_ref_list && valid_mv0) ||
                                 (jmvd_base_ref_list && valid_mv1);
-      if (valid_mv_base
-#if IMPROVED_AMVD
-          && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // IMPROVED_AMVD
-      ) {
+      if (valid_mv_base && !is_joint_amvd_coding_mode(mbmi->mode)) {
         cur_mv[jmvd_base_ref_list].as_int =
 #if CONFIG_FLEX_MVRES
             args->single_newmv[jmvd_base_ref_list == 0 ? valid_precision_mv0
@@ -1400,7 +1391,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         }
       }
     }
-#if IMPROVED_AMVD
   } else if (this_mode == AMVDNEWMV) {
     const int ref_idx = 0;
     int_mv best_mv;
@@ -1411,7 +1401,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                   ref_idx);
     if (best_mv.as_int == INVALID_MV) return INT64_MAX;
     cur_mv[0].as_int = best_mv.as_int;
-#endif  // IMPROVED_AMVD
   } else {
     // Single ref case.
     const int ref_idx = 0;
@@ -3360,9 +3349,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
 static INLINE int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const MACROBLOCK *x) {
-#if IMPROVED_AMVD
   if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
-#endif  // IMPROVED_AMVD
 #if CONFIG_SEP_COMP_DRL
   assert(get_ref_mv_idx(mbmi, 0) < max_drl_bits + 1);
   assert(get_ref_mv_idx(mbmi, 1) < max_drl_bits + 1);
@@ -3527,9 +3514,7 @@ static int get_drl_refmv_count(int max_drl_bits, const MACROBLOCK *const x,
 
   int ref_mv_count =
       ref_frame_type > NONE_FRAME ? mbmi_ext->ref_mv_count[ref_frame_type] : 0;
-#if IMPROVED_AMVD
   if (mode == AMVDNEWMV) ref_mv_count = AOMMIN(ref_mv_count, 2);
-#endif  // IMPROVED_AMVD
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   if (x->e_mbd.mi[0]->skip_mode)
@@ -6072,9 +6057,9 @@ static int64_t handle_inter_mode(
                   // Handle a compound predictor, continue if it is determined
                   // this cannot be the best compound mode
                   if (is_comp_pred
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
                       && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
 #if CONFIG_REFINEMV
                       && (!mbmi->refinemv_flag ||
                           !switchable_refinemv_flag(cm, mbmi))
@@ -9819,11 +9804,7 @@ static void handle_winner_cand(
 
 #if CONFIG_TIP
 static INLINE int is_tip_mode(PREDICTION_MODE mode) {
-#if IMPROVED_AMVD
   return (mode == NEARMV || mode == NEWMV || mode == AMVDNEWMV);
-#else
-  return (mode == NEARMV || mode == NEWMV);
-#endif  // IMPROVED_AMVD
 }
 #endif  // CONFIG_TIP
 
@@ -10257,7 +10238,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                               ref_frames, &sf_args))
             continue;
 
-#if IMPROVED_AMVD
           if ((this_mode == AMVDNEWMV
 #if CONFIG_JOINT_MVD
                || mbmi->mode == JOINT_AMVDNEWMV
@@ -10268,7 +10248,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                ) &&
               cm->seq_params.enable_adaptive_mvd == 0)
             continue;
-#endif  // IMPROVED_AMVD
 
 #if CONFIG_JOINT_MVD
           if (is_joint_mvd_coding_mode(this_mode) &&

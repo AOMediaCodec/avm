@@ -396,14 +396,12 @@ static INLINE int enable_adaptive_mvd_resolution(const AV1_COMMON *const cm,
   return (mode == NEAR_NEWMV || mode == NEW_NEARMV
 #if CONFIG_OPTFLOW_REFINEMENT
           || mode == NEAR_NEWMV_OPTFLOW || mode == NEW_NEARMV_OPTFLOW
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
           || mode == JOINT_AMVDNEWMV_OPTFLOW
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
 #endif
-#if IMPROVED_AMVD
           || mode == AMVDNEWMV
-#endif  // IMPROVED_AMVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
           || mode == JOINT_AMVDNEWMV
 #endif
           ) &&

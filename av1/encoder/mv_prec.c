@@ -194,12 +194,9 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
 #if CONFIG_FLEX_MVRES
   const int use_hp = pb_mv_precision > MV_PRECISION_QTR_PEL;
 #else
-#if IMPROVED_AMVD
   const int use_hp =
       (cpi->common.features.allow_high_precision_mv && !is_adaptive_mvd);
-#else
-  const int use_hp = cpi->common.features.allow_high_precision_mv;
-#endif  // IMPROVED_AMVD
+
 #endif
 
   int r_idx = 0;
@@ -500,10 +497,7 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   const int most_probable_pb_mv_precision = mbmi->most_probable_pb_mv_precision;
 #endif
 
-  if (mode == NEWMV ||
-#if IMPROVED_AMVD
-      mode == AMVDNEWMV ||
-#endif  // IMPROVED_AMVD
+  if (mode == NEWMV || mode == AMVDNEWMV ||
 #if CONFIG_OPTFLOW_REFINEMENT
       mode == NEW_NEWMV_OPTFLOW ||
 #endif  // CONFIG_OPTFLOW_REFINEMENT

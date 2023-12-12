@@ -2492,19 +2492,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       write_jmvd_scale_mode(xd, w, mbmi);
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
-#if IMPROVED_AMVD
       int max_drl_bits = cm->features.max_drl_bits;
       if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
-#endif  // IMPROVED_AMVD
 
       if (have_drl_index(mode))
-        write_drl_idx(
-#if IMPROVED_AMVD
-            max_drl_bits,
-#else
-            cm->features.max_drl_bits,
-#endif  // IMPROVED_AMVD
-            mbmi_ext_frame->mode_context, ec_ctx, mbmi, mbmi_ext_frame, w);
+        write_drl_idx(max_drl_bits, mbmi_ext_frame->mode_context, ec_ctx, mbmi,
+                      mbmi_ext_frame, w);
       else
 #if CONFIG_SEP_COMP_DRL
       {
@@ -2699,9 +2692,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_REFINEMV
         && (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))
 #endif  // CONFIG_REFINEMV
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
         && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
     ) {
 
       const int masked_compound_used = is_any_masked_compound_used(bsize) &&

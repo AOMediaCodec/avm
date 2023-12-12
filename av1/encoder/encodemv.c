@@ -180,12 +180,10 @@ void av1_update_mv_stats(const MV *mv, const MV *ref, nmv_context *mvctx,
     const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
 
     if (is_adaptive_mvd) assert(j < MV_JOINTS - 1);
-#if IMPROVED_AMVD
 #if !CONFIG_FLEX_MVRES
     if (is_adaptive_mvd && precision > MV_SUBPEL_NONE)
       precision = MV_SUBPEL_LOW_PRECISION;
 #endif
-#endif  // IMPROVED_AMVD
     if (is_adaptive_mvd)
       update_cdf(mvctx->amvd_joints_cdf, j, MV_JOINTS);
     else
@@ -580,13 +578,6 @@ static void build_nmv_component_cost_table(int *mvcost, int *amvd_mvcost,
       if (c == MV_CLASS_0 && d == 0) {
         amvd_cost += class0_fp_cost[d][f];
       }
-#if !IMPROVED_AMVD
-      if (precision > MV_SUBPEL_LOW_PRECISION) {
-        if (c == MV_CLASS_0 && d == 0) {
-          amvd_cost += class0_hp_cost[e];
-        }
-      }
-#endif  // !IMPROVED_AMVD
     }
     if (precision > MV_SUBPEL_NONE) {
       if (c == MV_CLASS_0) {
@@ -655,11 +646,9 @@ static void build_nmv_component_cost_table(int *mvcost, int *amvd_mvcost,
 
       if (is_adaptive_mvd) {
         assert(j < MV_JOINTS - 1);
-#if IMPROVED_AMVD
 #if !CONFIG_FLEX_MVRES
         if (usehp > MV_SUBPEL_NONE) usehp = MV_SUBPEL_LOW_PRECISION;
 #endif
-#endif  // IMPROVED_AMVD
       }
       if (is_adaptive_mvd)
         aom_write_symbol(w, j, mvctx->amvd_joints_cdf, MV_JOINTS);
@@ -730,7 +719,7 @@ static void build_nmv_component_cost_table(int *mvcost, int *amvd_mvcost,
 #if CONFIG_FLEX_MVRES
                                   ,
                                   int is_adaptive_mvd
-#endif / / CONFIG_FLEX_MVRES
+#endif  // CONFIG_FLEX_MVRES
     ) {
 #if CONFIG_FLEX_MVRES
       av1_cost_tokens_from_cdf(

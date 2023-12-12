@@ -99,9 +99,7 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
     NEARMV,         // NEARMV
     GLOBALMV,       // GLOBALMV
     NEWMV,          // NEWMV
-#if IMPROVED_AMVD
-    NEWMV,  // AMVDNEWMV
-#endif      // IMPROVED_AMVD
+    NEWMV,          // AMVDNEWMV
 #if CONFIG_WARPMV
     WARPMV,    // WARPMV
 #endif         // CONFIG_WARPMV
@@ -113,9 +111,9 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
     NEWMV,  // JOINT_NEWMV
 #endif      // CONFIG_JOINT_MVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
     NEWMV,  // JOINT_AMVDNEWMV
-#endif      // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif      // CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
     NEARMV,  // NEAR_NEARMV_OPTFLOW
     NEARMV,  // NEAR_NEWMV_OPTFLOW
@@ -124,9 +122,9 @@ static INLINE PREDICTION_MODE compound_ref0_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
     NEWMV,  // JOINT_NEWMV_OPTFLOW
 #endif      // CONFIG_JOINT_MVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
     NEWMV,  // JOINT_AMVDNEWMV_OPTFLOW
-#endif      // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif      // CONFIG_JOINT_MVD
 #endif      // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
@@ -152,9 +150,7 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
     MB_MODE_COUNT,  // NEARMV
     MB_MODE_COUNT,  // GLOBALMV
     MB_MODE_COUNT,  // NEWMV
-#if IMPROVED_AMVD
     MB_MODE_COUNT,  // AMVDNEWMV
-#endif              // IMPROVED_AMVD
 #if CONFIG_WARPMV
     MB_MODE_COUNT,  // WARPMV
 #endif              // CONFIG_WARPMV
@@ -166,9 +162,9 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
     NEARMV,  // JOINT_NEWMV
 #endif       // CONFIG_JOINT_MVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
     NEARMV,  // JOINT_AMVDNEWMV
-#endif       // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif       // CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
     NEARMV,  // NEAR_NEARMV_OPTFLOW
     NEWMV,   // NEAR_NEWMV_OPTFLOW
@@ -177,9 +173,9 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
     NEARMV,  // JOINT_NEWMV_OPTFLOW
 #endif       // CONFIG_JOINT_MVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
     NEARMV,  // JOINT_AMVDNEWMV_OPTFLOW
-#endif       // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif       // CONFIG_JOINT_MVD
 #endif       // CONFIG_OPTFLOW_REFINEMENT
   };
   assert(NELEMENTS(lut) == MB_MODE_COUNT);
@@ -190,15 +186,9 @@ static INLINE PREDICTION_MODE compound_ref1_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
 // return whether current mode is joint MVD coding mode
 static INLINE int is_joint_mvd_coding_mode(PREDICTION_MODE mode) {
-  return mode == JOINT_NEWMV
-#if IMPROVED_AMVD
-         || mode == JOINT_AMVDNEWMV
-#endif  // IMPROVED_AMVD
+  return mode == JOINT_NEWMV || mode == JOINT_AMVDNEWMV
 #if CONFIG_OPTFLOW_REFINEMENT
-         || mode == JOINT_NEWMV_OPTFLOW
-#if IMPROVED_AMVD
-         || mode == JOINT_AMVDNEWMV_OPTFLOW
-#endif  // IMPROVED_AMVD
+         || mode == JOINT_NEWMV_OPTFLOW || mode == JOINT_AMVDNEWMV_OPTFLOW
 #endif  // CONFIG_OPTFLOW_REFINEMENT
       ;
 }
@@ -221,27 +211,24 @@ static INLINE int have_nearmv_newmv_in_inter_mode(PREDICTION_MODE mode) {
 #if CONFIG_JOINT_MVD
          is_joint_mvd_coding_mode(mode) ||
 #endif  // CONFIG_JOINT_MVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
          mode == JOINT_AMVDNEWMV ||
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
          mode == JOINT_AMVDNEWMV_OPTFLOW ||
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
+#endif  // CONFIG_JOINT_MVD && CONFIG_OPTFLOW_REFINEMENT
          mode == NEW_NEARMV;
 }
 
 static INLINE int have_newmv_in_each_reference(PREDICTION_MODE mode) {
-  return mode == NEWMV ||
-#if IMPROVED_AMVD
-         mode == AMVDNEWMV ||
-#endif  // IMPROVED_AMVD
+  return mode == NEWMV || mode == AMVDNEWMV ||
 #if CONFIG_OPTFLOW_REFINEMENT
          mode == NEW_NEWMV_OPTFLOW ||
 #endif  // CONFIG_OPTFLOW_REFINEMENT
          mode == NEW_NEWMV;
 }
 
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
 // return whether current mode is joint AMVD coding mode
 static INLINE int is_joint_amvd_coding_mode(PREDICTION_MODE mode) {
   return mode == JOINT_AMVDNEWMV
@@ -250,7 +237,7 @@ static INLINE int is_joint_amvd_coding_mode(PREDICTION_MODE mode) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
       ;
 }
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
 
 #if CONFIG_IMPROVED_JMVD
 // Scale the MVD for joint MVD coding mode based on the jmvd_scale_mode.
@@ -260,7 +247,6 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
                                    PREDICTION_MODE mode) {
   // This scaling factor is only applied to joint mvd coding mode
   if (!is_joint_mvd_coding_mode(mode)) return;
-#if IMPROVED_AMVD
   if (is_joint_amvd_coding_mode(mode)) {
     if (jmvd_scaled_mode == 1) {
       other_mvd->row = other_mvd->row * 2;
@@ -272,7 +258,6 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
     assert(jmvd_scaled_mode < JOINT_AMVD_SCALE_FACTOR_CNT);
     return;
   }
-#endif  // IMPROVED_AMVD
   if (is_joint_mvd_coding_mode(mode)) {
     if (jmvd_scaled_mode == 1) {
       other_mvd->row = other_mvd->row * 2;
@@ -290,9 +275,7 @@ static INLINE void scale_other_mvd(MV *other_mvd, int jmvd_scaled_mode,
 
 static INLINE int have_newmv_in_inter_mode(PREDICTION_MODE mode) {
   return (mode == NEWMV || mode == NEW_NEWMV || mode == NEAR_NEWMV ||
-#if IMPROVED_AMVD
           mode == AMVDNEWMV ||
-#endif  // IMPROVED_AMVD
 #if CONFIG_JOINT_MVD
           is_joint_mvd_coding_mode(mode) ||
 #endif  // CONFIG_JOINT_MVD

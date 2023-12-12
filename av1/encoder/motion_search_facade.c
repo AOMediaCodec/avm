@@ -1028,7 +1028,6 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 }
 
-#if IMPROVED_AMVD
 void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                    BLOCK_SIZE bsize, MV *this_mv, int *rate_mv,
                                    int ref_idx) {
@@ -1120,7 +1119,6 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                       mv_costs->amvd_mv_cost_stack, MV_COST_WEIGHT);
 #endif
 }
-#endif  // IMPROVED_AMVD
 
 // Search for the best mv for one component of a compound,
 // given that the other component is fixed.
@@ -1209,9 +1207,9 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 #endif
   if (is_adaptive_mvd
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
       && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
   ) {
     int dis; /* TODO: use dis in distortion calculation later. */
     unsigned int sse;
@@ -1264,7 +1262,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif
   } else
 #endif  // CONFIG_JOINT_MVD
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
       if (mbmi->mode == JOINT_AMVDNEWMV ||
           mbmi->mode == JOINT_AMVDNEWMV_OPTFLOW) {
@@ -1293,7 +1291,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                            other_mv, &best_other_mv.as_mv,
                                            second_pred, &inter_pred_params);
   } else
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
   {
     // Make motion search params
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;

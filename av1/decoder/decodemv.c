@@ -2152,12 +2152,10 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
                            MvSubpelPrecision precision) {
 #endif
   MV diff = kZeroMv;
-#if IMPROVED_AMVD
 #if !CONFIG_FLEX_MVRES
   if (is_adaptive_mvd && precision > MV_SUBPEL_NONE)
     precision = MV_SUBPEL_LOW_PRECISION;
 #endif
-#endif  // IMPROVED_AMVD
   const MV_JOINT_TYPE joint_type =
       is_adaptive_mvd ? (MV_JOINT_TYPE)aom_read_symbol(
                             r, ctx->amvd_joints_cdf, MV_JOINTS,
@@ -2562,9 +2560,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
   assert(!(is_adaptive_mvd && is_pb_mv_precision_active(cm, mbmi, bsize)));
 #endif
   switch (mode) {
-#if IMPROVED_AMVD
     case AMVDNEWMV:
-#endif  // IMPROVED_AMVD
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       read_mv(r, &mv[0].as_mv,
@@ -2760,13 +2756,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_JOINT_MVD
 #if CONFIG_OPTFLOW_REFINEMENT
     case JOINT_NEWMV_OPTFLOW:
-#if IMPROVED_AMVD
     case JOINT_AMVDNEWMV_OPTFLOW:
-#endif  // IMPROVED_AMVD
 #endif  // CONFIG_OPTFLOW_REFINEMENT
-#if IMPROVED_AMVD
     case JOINT_AMVDNEWMV:
-#endif  // IMPROVED_AMVD
     case JOINT_NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       assert(is_compound);
@@ -2813,12 +2805,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       // TODO(Mohammed): Do we need to apply block level lower mv precision?
       lower_mv_precision(&other_mvd, features->fr_mv_precision);
 #else
-      lower_mv_precision(&other_mvd,
-#if IMPROVED_AMVD
-                         allow_hp & !is_adaptive_mvd,
-#else
-                         allow_hp,
-#endif  // IMPROVED_AMVD
+      lower_mv_precision(&other_mvd, allow_hp & !is_adaptive_mvd,
                          features->cur_frame_force_integer_mv);
 #endif
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
@@ -3307,20 +3294,13 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
       mbmi->jmvd_scale_mode = read_jmvd_scale_mode(xd, r, mbmi);
 #endif  // CONFIG_IMPROVED_JMVD && CONFIG_JOINT_MVD
-#if IMPROVED_AMVD
       int max_drl_bits = cm->features.max_drl_bits;
       if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
-#endif  // IMPROVED_AMVD
 
       if (have_drl_index(mbmi->mode))
-        read_drl_idx(
-#if IMPROVED_AMVD
-            max_drl_bits,
-#else
-            cm->features.max_drl_bits,
-#endif  // IMPROVED_AMVD
-            av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame), ec_ctx,
-            dcb, mbmi, r);
+        read_drl_idx(max_drl_bits,
+                     av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
+                     ec_ctx, dcb, mbmi, r);
 #if CONFIG_FLEX_MVRES
       set_mv_precision(mbmi, mbmi->max_mv_precision);
       if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
@@ -3597,9 +3577,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #if CONFIG_REFINEMV
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
 #endif  // CONFIG_REFINEMV
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
       !is_joint_amvd_coding_mode(mbmi->mode) &&
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
       !mbmi->skip_mode) {
     // Read idx to indicate current compound inter prediction mode group
     const int masked_compound_used = is_any_masked_compound_used(bsize) &&

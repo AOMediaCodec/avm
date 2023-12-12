@@ -940,9 +940,7 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
 #if CONFIG_WARPMV
   assert(IMPLIES(mbmi->mode == WARPMV, 0));
 #endif  // CONFIG_WARPMV
-#if IMPROVED_AMVD
   if (mbmi->mode == AMVDNEWMV) max_drl_bits = AOMMIN(max_drl_bits, 1);
-#endif  // IMPROVED_AMVD
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
 #if CONFIG_SEP_COMP_DRL
   assert(mbmi->ref_mv_idx[0] < max_drl_bits + 1);
@@ -1833,9 +1831,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_REFINEMV
           && (!mbmi->refinemv_flag || !is_refinemv_signaled)
 #endif  // CONFIG_REFINEMV
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
           && !is_joint_amvd_coding_mode(mbmi->mode)
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
       ) {
 #if CONFIG_COMPOUND_WARP_CAUSAL
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&

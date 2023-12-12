@@ -4391,11 +4391,7 @@ int low_precision_joint_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv,
                         MV *bestmv, int *distortion, unsigned int *sse1) {
-#if IMPROVED_AMVD
   const int allow_hp = 0;
-#else
-  const int allow_hp = ms_params->allow_hp;
-#endif  // IMPROVED_AMVD
   const int forced_stop = ms_params->forced_stop;
   // const int iters_per_step = ms_params->iters_per_step;
   MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
@@ -4487,7 +4483,7 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   return besterr;
 }
 
-#if IMPROVED_AMVD && CONFIG_JOINT_MVD
+#if CONFIG_JOINT_MVD
 int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                  const MV *start_mv, MV *bestmv,
@@ -4629,7 +4625,7 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   }
   return besterr;
 }
-#endif  // IMPROVED_AMVD && CONFIG_JOINT_MVD
+#endif  // CONFIG_JOINT_MVD
 
 int av1_find_best_sub_pixel_tree_pruned_evenmore(
     MACROBLOCKD *xd, const AV1_COMMON *const cm,
@@ -5454,11 +5450,9 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   int mi_row = xd->mi_row;
   int mi_col = xd->mi_col;
 
-#if IMPROVED_AMVD
   // Note(rachelbarker): Technically we can refine MVs for the AMVDNEWMV mode
   // too, but it requires more complex logic for less payoff compared to
   // refinement for NEWMV. So we don't do that currently.
-#endif  // IMPROVED_AMVD
   bool can_refine_mv = (mbmi->mode == NEWMV);
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
