@@ -28,6 +28,7 @@ void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
 
   memset(&cfl->recon_buf_q3, 0, sizeof(cfl->recon_buf_q3));
   memset(&cfl->ac_buf_q3, 0, sizeof(cfl->ac_buf_q3));
+  memset(&cfl->mhccp_ref_buf_q3, 0, sizeof(cfl->mhccp_ref_buf_q3));
   cfl->subsampling_x = seq_params->subsampling_x;
   cfl->subsampling_y = seq_params->subsampling_y;
   cfl->are_parameters_computed = 0;
@@ -44,15 +45,13 @@ void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
   assert(pred_plane < CFL_PRED_PLANES);
   assert(width <= CFL_BUF_LINE);
 
-  memcpy(xd->cfl.dc_pred_cache[pred_plane], input,
-         width << xd->cfl.subsampling_x);
+  memcpy(xd->cfl.dc_pred_cache[pred_plane], input, width * sizeof(*input));
   return;
 }
 
-static void cfl_load_dc_pred_hbd(const int16_t *dc_pred_cache, uint16_t *dst,
-                                 int dst_stride, int width, int height,
-                                 int sub_x) {
-  const size_t num_bytes = width << sub_x;
+static void cfl_load_dc_pred_hbd(const uint16_t *dc_pred_cache, uint16_t *dst,
+                                 int dst_stride, int width, int height) {
+  const size_t num_bytes = width * sizeof(*dst);
   for (int j = 0; j < height; j++) {
     memcpy(dst, dc_pred_cache, num_bytes);
     dst += dst_stride;
@@ -66,7 +65,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   assert(width <= CFL_BUF_LINE);
   assert(height <= CFL_BUF_LINE);
   cfl_load_dc_pred_hbd(xd->cfl.dc_pred_cache[pred_plane], dst, dst_stride,
-                       width, height, xd->cfl.subsampling_x);
+                       width, height);
 }
 
 // Due to frame boundary issues, it is possible that the total area covered by

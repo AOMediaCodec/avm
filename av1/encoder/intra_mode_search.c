@@ -336,6 +336,8 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   }
 
   xd->cfl.use_dc_pred_cache = 1;
+  xd->cfl.dc_pred_is_cached[0] = 0;
+  xd->cfl.dc_pred_is_cached[1] = 0;
 #if CONFIG_AIMC
 #if CONFIG_UV_CFL
   const int cfl_ctx = get_cfl_ctx(xd);

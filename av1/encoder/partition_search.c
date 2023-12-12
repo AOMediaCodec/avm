@@ -351,7 +351,9 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   const int mi_width = mi_size_wide[bsize];
   const int mi_height = mi_size_high[bsize];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-
+  xd->cfl.use_dc_pred_cache = 0;
+  xd->cfl.dc_pred_is_cached[0] = 0;
+  xd->cfl.dc_pred_is_cached[1] = 0;
   // Initialize tx_mode and tx_size_search_method
   TxfmSearchParams *txfm_params = &x->txfm_search_params;
   set_tx_size_search_method(

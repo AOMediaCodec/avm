@@ -1721,7 +1721,7 @@ typedef struct cfl_ctx {
   // The DC_PRED cache is disable when decoding
   int use_dc_pred_cache;
   // Only cache the first row of the DC_PRED
-  int16_t dc_pred_cache[CFL_PRED_PLANES][CFL_BUF_LINE];
+  uint16_t dc_pred_cache[CFL_PRED_PLANES][CFL_BUF_LINE];
 
   // Height and width currently used in the CfL prediction buffer.
   int buf_height, buf_width;

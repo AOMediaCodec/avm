@@ -1594,6 +1594,10 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                               plane_start, plane_end);
 #endif  // CONFIG_PC_WIENER
     int row, col;
+
+    xd->cfl.use_dc_pred_cache = 0;
+    xd->cfl.dc_pred_is_cached[0] = 0;
+    xd->cfl.dc_pred_is_cached[1] = 0;
     assert(bsize == get_plane_block_size(bsize, xd->plane[0].subsampling_x,
                                          xd->plane[0].subsampling_y));
     const int max_blocks_wide = max_block_wide(xd, bsize, 0);
