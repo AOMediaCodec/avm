@@ -422,14 +422,9 @@ const subsample_hbd_param subsample_hbd_sizes_ssse3[] = {
                              cfl_get_luma_subsampling_444_hbd_ssse3)
 };
 
-const predict_param_hbd predict_sizes_hbd_ssse3[] = { ALL_CFL_TX_SIZES(
-    cfl_get_predict_hbd_fn_ssse3) };
-
 INSTANTIATE_TEST_SUITE_P(SSSE3, CFLSubsampleHBDTest,
                          ::testing::ValuesIn(subsample_hbd_sizes_ssse3));
 
-INSTANTIATE_TEST_SUITE_P(SSSE3, CFLPredictHBDTest,
-                         ::testing::ValuesIn(predict_sizes_hbd_ssse3));
 #endif  // HAVE_SSSE3
 
 #if HAVE_AVX2

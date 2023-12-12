@@ -590,6 +590,6 @@ add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_444_hbd/, "TX_SIZE tx
 specialize qw/cfl_get_luma_subsampling_444_hbd ssse3 avx2 neon/;
 
 add_proto qw/cfl_predict_hbd_fn cfl_get_predict_hbd_fn/, "TX_SIZE tx_size";
-specialize qw/cfl_get_predict_hbd_fn ssse3 avx2 neon/;
+specialize qw/cfl_get_predict_hbd_fn avx2 neon/;
 
 1;
