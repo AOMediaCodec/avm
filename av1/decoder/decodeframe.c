@@ -1102,12 +1102,14 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_PEF
   }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
+#if CONFIG_TIP_DIRECT_FRAME_MV
 #if CONFIG_PEF
   if (cm->seq_params.enable_pef && cm->features.allow_pef) {
     enhance_tip_frame(cm, xd);
     aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
   }
 #endif  // CONFIG_PEF
+#endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
 static void av1_dec_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
