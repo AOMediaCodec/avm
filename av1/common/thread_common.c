@@ -867,7 +867,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
                                            AV1LrSync *lr_sync, AV1_COMMON *cm) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_LR_IMPROVEMENTS
   uint16_t *luma = NULL;
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
@@ -887,7 +887,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
 #endif
   );
   assert(luma_buf != NULL);
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_LR_IMPROVEMENTS
 
   const int num_planes = av1_num_planes(cm);
 
@@ -902,16 +902,12 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     )
       continue;
 
-#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
     ctxt[plane].plane = plane;
     ctxt[plane].base_qindex = cm->quant_params.base_qindex;
-#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
     const int is_uv = (plane != AOM_PLANE_Y);
     ctxt[plane].luma = is_uv ? luma : NULL;
     ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-#if CONFIG_PC_WIENER
     ctxt[plane].tskip = cm->mi_params.tx_skip[plane];
     ctxt[plane].tskip_stride = cm->mi_params.tx_skip_stride[plane];
     if (plane != AOM_PLANE_Y)
@@ -923,7 +919,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     ctxt[plane].wiener_class_id = cm->mi_params.wiener_class_id[plane];
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 
     const AV1PixelRect tile_rect = ctxt[plane].tile_rect;
     const int max_tile_h = tile_rect.bottom - tile_rect.top;
@@ -974,9 +970,9 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     winterface->sync(&workers[i]);
   }
 
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_LR_IMPROVEMENTS
   free(luma_buf);
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,

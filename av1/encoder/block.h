@@ -1203,14 +1203,14 @@ typedef struct {
    * \name Restoration Mode Costs
    ****************************************************************************/
   /**@{*/
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   //! switchable_flex_restore_cost
   int switchable_flex_restore_cost[MAX_LR_FLEX_SWITCHABLE_BITS][MAX_MB_PLANE]
                                   [2];
 #else
   //! switchable_restore_cost
   int switchable_restore_cost[RESTORE_SWITCHABLE_TYPES];
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
   //! wiener_restore_cost
   int wiener_restore_cost[2];
   //! sgrproj_restore_cost
@@ -1221,7 +1221,7 @@ typedef struct {
    */
   int merged_param_cost[2];
 #endif  // CONFIG_LR_MERGE_COEFFS
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   /*!
    * wienerns_restore_cost
    */
@@ -1236,13 +1236,11 @@ typedef struct {
    */
   int wienerns_4part_cost[WIENERNS_4PART_CTX_MAX][4];
 #endif  // ENABLE_LR_4PART_CODE
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
   /*!
    * pc_wiener_restore_cost
    */
   int pc_wiener_restore_cost[2];
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   /**@}*/
 } ModeCosts;
 

@@ -1442,13 +1442,13 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->filter_intra_cdfs, ctx_tr->filter_intra_cdfs, 2);
   AVERAGE_CDF(ctx_left->filter_intra_mode_cdf, ctx_tr->filter_intra_mode_cdf,
               FILTER_INTRA_MODES);
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
               ctx_tr->switchable_flex_restore_cdf, 2);
 #else
   AVERAGE_CDF(ctx_left->switchable_restore_cdf, ctx_tr->switchable_restore_cdf,
               RESTORE_SWITCHABLE_TYPES);
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
   AVERAGE_CDF(ctx_left->wiener_restore_cdf, ctx_tr->wiener_restore_cdf, 2);
 #if CONFIG_CCSO_EXT
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
@@ -1456,17 +1456,15 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
 #endif
   AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_reduce_cdf, ctx_tr->wienerns_reduce_cdf, 2);
 #if ENABLE_LR_4PART_CODE
   AVERAGE_CDF(ctx_left->wienerns_4part_cdf, ctx_tr->wienerns_4part_cdf, 4);
 #endif  // ENABLE_LR_4PART_CODE
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
   AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf, ctx_tr->pc_wiener_restore_cdf,
               2);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_LR_MERGE_COEFFS
   AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
 #endif  // CONFIG_LR_MERGE_COEFFS

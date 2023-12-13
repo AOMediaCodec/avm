@@ -2082,11 +2082,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       assert(x->cb_offset[plane] <
              (1 << num_pels_log2_lookup[cpi->common.sb_size]));
     }
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
     av1_init_txk_skip_array(&cpi->common, mi_row, mi_col, bsize, 0,
                             xd->tree_type, &mbmi->chroma_ref_info, plane_start,
                             plane_end);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   }
 
   encode_superblock(cpi, tile_data, td, tp, dry_run, bsize, plane_start,

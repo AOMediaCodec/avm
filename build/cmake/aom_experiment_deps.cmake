@@ -73,13 +73,6 @@ macro(fix_experiment_configs)
                            !CONFIG_EXTENDED_WARP_PREDICTION)
   endif()
 
-  # Begin: CWG-C016.
-  if(CONFIG_WIENER_NONSEP_CROSS_FILT)
-    change_config_and_warn(CONFIG_WIENER_NONSEP 1
-                           CONFIG_WIENER_NONSEP_CROSS_FILT)
-  endif()
-  # End: CWG-C016.
-
   # CONFIG_FLEX_PARTITION is dependent on CONFIG_EXT_RECUR_PARTITIONS.
   if(NOT CONFIG_EXT_RECUR_PARTITIONS AND CONFIG_FLEX_PARTITION)
     change_config_and_warn(CONFIG_FLEX_PARTITION 0 !CONFIG_EXT_RECUR_PARTITIONS)
@@ -99,6 +92,12 @@ macro(fix_experiment_configs)
   # CONFIG_UV_CFL depends on CONFIG_AIMC
   if(NOT CONFIG_AIMC AND CONFIG_UV_CFL)
     change_config_and_warn(CONFIG_UV_CFL 0 !CONFIG_AIMC)
+  endif()
+
+  # CONFIG_HIGH_PASS_CROSS_WIENER_FILTER depends on CONFIG_LR_IMPROVEMENTS
+  if(NOT CONFIG_LR_IMPROVEMENTS AND CONFIG_HIGH_PASS_CROSS_WIENER_FILTER)
+    change_config_and_warn(CONFIG_HIGH_PASS_CROSS_WIENER_FILTER 0
+                           !CONFIG_LR_IMPROVEMENTS)
   endif()
 
   # CONFIG_D072_SKIP_MODE_IMPROVE is dependent on CONFIG_SKIP_MODE_ENHANCEMENT

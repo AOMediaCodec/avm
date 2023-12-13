@@ -859,12 +859,12 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
           av1_read_coeffs_txb(cm, dcb, r, row, col, plane, &txb_ctx, tx_size);
     }
   }
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   else {
     av1_update_txk_skip_array(cm, xd->mi_row, xd->mi_col, xd->tree_type,
                               &mbmi->chroma_ref_info, plane, row, col, tx_size);
   }
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   av1_set_entropy_contexts(xd, pd, plane, plane_bsize, tx_size, cul_level, col,
                            row);
   if (is_inter_block(mbmi, xd->tree_type)) {

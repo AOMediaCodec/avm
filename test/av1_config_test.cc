@@ -15,9 +15,9 @@
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
 #include "av1/common/restoration.h"
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 namespace {
 

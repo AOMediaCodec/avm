@@ -708,7 +708,7 @@ void av1_highbd_wiener_convolve_add_src_c(
       filters_y, y0_q4, y_step_q4, w, h, conv_params->round_1, bd);
 }
 
-#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
 #define USE_CONV_SYM_VERSIONS 1
 
 // Convolves a block of pixels with origin-symmetric, non-separable filters.
@@ -1036,7 +1036,6 @@ void fill_directional_feature_buffers_highbd_c(
                             buffer_row, col_begin, col_end, buffer_col);
 }
 
-#if CONFIG_PC_WIENER
 // Implements box filtering of directional features using feature_sum_bufs. Each
 // feature is obtained by taking the previous box-filtered value, subtracting
 // the contribution of the out-of-scop column on the left and adding the
@@ -1202,10 +1201,6 @@ void av1_fill_tskip_sum_buffer_c(int row, const uint8_t *tskip,
     }
   }
 }
-#endif  // CONFIG_PC_WIENER
-#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
-
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
 
 void av1_convolve_symmetric_dual_highbd_c(
     const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
@@ -1452,4 +1447,4 @@ void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
 #endif  // USE_CONV_SYM_VERSIONS
 }
 
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_LR_IMPROVEMENTS

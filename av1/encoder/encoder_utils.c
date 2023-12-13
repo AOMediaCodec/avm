@@ -792,10 +792,11 @@ static AOM_INLINE void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi) {
   const int frame_width = cm->superres_upscaled_width;
   const int frame_height = cm->superres_upscaled_height;
 
+#if CONFIG_LR_IMPROVEMENTS
   set_restoration_unit_size(frame_width, frame_height,
                             seq_params->subsampling_x,
                             seq_params->subsampling_y, cm->rst_info);
-
+#endif
   if (old_restoration_unit_size != cm->rst_info[0].restoration_unit_size) {
     for (int i = 0; i < num_planes; ++i)
       cm->rst_info[i].frame_restoration_type = RESTORE_NONE;

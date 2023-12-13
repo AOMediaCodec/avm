@@ -94,11 +94,11 @@ static INLINE unsigned int negative_to_zero(int value) {
   return value & ~(value >> (sizeof(value) * 8 - 1));
 }
 
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 #define ENABLE_LR_4PART_CODE 1
 #else
 #define ENABLE_LR_4PART_CODE 0
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 #ifdef __cplusplus
 }  // extern "C"

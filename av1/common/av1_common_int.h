@@ -515,14 +515,14 @@ typedef struct SequenceHeader {
 #endif
   uint8_t enable_pef;        // To turn on/off prediction enhancement filter
   uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
                                      // enum where:
                                      // 1 <= i <= RESTORE_SWITCHABLE_TYPES, set
                                      // the ith bit in least to most significant
                                      // order to 1.
-#endif                               // CONFIG_LR_FLEX_SYNTAX
+#endif                               // CONFIG_LR_IMPROVEMENTS
   uint8_t enable_parity_hiding;      // To turn on/off PAR_HIDING
 #if CONFIG_EXT_RECUR_PARTITIONS
   uint8_t enable_ext_partitions;  // enable extended partitions
@@ -766,7 +766,7 @@ typedef struct {
    */
   int enabled_motion_modes;
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   /*!
    * mask of lr tool(s) to disable. To disable tool i in RestorationType enum
    * where: * 1 <= i <= RESTORE_SWITCHABLE_TYPES, set the ith bit in least to
@@ -797,7 +797,7 @@ typedef struct {
    * restoration type is lr_last_switchable_ndx_0_type.
    */
   int lr_last_switchable_ndx_0_type[MAX_MB_PLANE];
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 } FeatureFlags;
 
 /*!
@@ -969,7 +969,7 @@ struct CommonModeInfoParams {
    * primary tx_type
    */
   TX_TYPE *tx_type_map;
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   /*!
    * indicate if a transform block has any non-zero coefficients or not.
    * the buffer is allocated for each 4x4 block
@@ -991,7 +991,7 @@ struct CommonModeInfoParams {
    * wiener_class_id stride
    */
   uint32_t wiener_class_id_stride[MAX_MB_PLANE];
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   /*!
    * An array of cctx types for each 4x4 block in the frame.
    * Number of allocated elements is same as 'mi_grid_size', and stride is
@@ -1820,7 +1820,7 @@ typedef struct AV1Common {
 
 /*!\cond */
 
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
 #define ILLEGAL_TXK_SKIP_VALUE 255
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
 void av1_dealloc_txk_skip_array(CommonModeInfoParams *mi_params);
@@ -1840,7 +1840,7 @@ uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
                          int plane, int blk_row, int blk_col);
 void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.
@@ -3357,7 +3357,7 @@ static INLINE void set_sb_size(AV1_COMMON *cm, BLOCK_SIZE sb_size) {
   av1_set_frame_sb_size(cm, sb_size);
 }
 
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
 // Sets the frame's lr specific fields in feature params depending on
 // which tools are enabled for the frame for the given plane.
 static INLINE void av1_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,
@@ -3392,7 +3392,7 @@ static INLINE void av1_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,
     }
   }
 }
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,
                                        int mi_col) {

@@ -197,14 +197,14 @@ static AOM_INLINE void read_coeffs_tx_intra_block(
     ++cm->txb_count;
 #endif
   }
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   else {
     // all tx blocks are skipped.
     av1_update_txk_skip_array(cm, dcb->xd.mi_row, dcb->xd.mi_col,
                               dcb->xd.tree_type, &mbmi->chroma_ref_info, plane,
                               row, col, tx_size);
   }
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 static AOM_INLINE void decode_block_void(const AV1_COMMON *const cm,
@@ -1579,7 +1579,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
   const int plane_end =
       get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
   if (!is_inter_block(mbmi, xd->tree_type)) {
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
     // When row_mt is used, this function can be called with
     // td->read_coeffs_tx_intra_block_visit == decode_block_void.
     // In that case do not reset since it will erase previously set
@@ -1588,7 +1588,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 0,
                               xd->tree_type, &mbmi->chroma_ref_info,
                               plane_start, plane_end);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
     int row, col;
 
     xd->cfl.use_dc_pred_cache = 0;
@@ -1652,7 +1652,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       }
     }
   } else {
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
     // When row_mt is used, this function can be called with
     // td->read_coeffs_tx_inter_block_visit == decode_block_void.
     // In that case do not reset since it will erase previously set
@@ -1661,7 +1661,7 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 0,
                               xd->tree_type, &mbmi->chroma_ref_info,
                               plane_start, plane_end);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
     td->predict_inter_block_visit(cm, dcb, bsize);
     // Reconstruction
     if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
@@ -1727,11 +1727,11 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       }
     } else if (is_cctx_enabled(cm, xd) && xd->is_chroma_ref &&
                xd->tree_type != LUMA_PART) {
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
                               xd->tree_type, &mbmi->chroma_ref_info,
                               plane_start, plane_end);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
         // fill cctx_type_map with CCTX_NONE for skip blocks so their
         // neighbors can derive cctx contexts
       const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_U];
@@ -1759,13 +1759,13 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
         }
       }
     }
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
     else {
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
                               xd->tree_type, &mbmi->chroma_ref_info,
                               plane_start, plane_end);
     }
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
     td->cfl_store_inter_block_visit(cm, xd);
   }
 
@@ -2965,7 +2965,7 @@ static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n) {
     return (v << 1) - m + aom_rb_read_bit(rb);
 }
 
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
 // Converts decoded index to frame restoration type depending on lr tools
 // that are enabled for the frame for a given plane.
 static RestorationType index_to_frame_restoration_type(
@@ -2980,7 +2980,7 @@ static RestorationType index_to_frame_restoration_type(
   assert(r < RESTORE_TYPES);
   return r;
 }
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
@@ -2994,22 +2994,20 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   if (is_global_intrabc_allowed(cm)) return;
-#if CONFIG_FLEXIBLE_RU_SIZE
+#if CONFIG_LR_IMPROVEMENTS
   int luma_none = 1, chroma_none = 1;
 #else
   int all_none = 1, chroma_none = 1;
-#endif  // CONFIG_FLEXIBLE_RU_SIZE
+#endif  // CONFIG_LR_IMPROVEMENTS
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
     uint8_t plane_lr_tools_disable_mask =
         cm->seq_params.lr_tools_disable_mask[p > 0];
-#if CONFIG_PC_WIENER
     // If superres is used turn off PC_WIENER since tx_skip values will
     // be misaligned.
     if (av1_superres_scaled(cm))
       plane_lr_tools_disable_mask |= (1 << RESTORE_PC_WIENER);
-#endif  // CONFIG_PC_WIENER
     av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
     const int ndx = rb_read_uniform(rb, cm->features.lr_frame_tools_count[p]);
     rsi->frame_restoration_type = index_to_frame_restoration_type(cm, p, ndx);
@@ -3038,29 +3036,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       if (aom_rb_read_bit(rb)) {
         rsi->frame_restoration_type = RESTORE_SWITCHABLE;
       } else {
-#if CONFIG_PC_WIENER
-        if (aom_rb_read_bit(rb)) {
-#if CONFIG_WIENER_NONSEP
-          if (aom_rb_read_bit(rb)) {
-            rsi->frame_restoration_type = RESTORE_PC_WIENER;
-          } else {
-            rsi->frame_restoration_type = RESTORE_WIENER_NONSEP;
-          }
-#else
-          rsi->frame_restoration_type = RESTORE_PC_WIENER;
-#endif  // CONFIG_WIENER_NONSEP
-        } else {
-          rsi->frame_restoration_type = RESTORE_NONE;
-        }
-#elif CONFIG_WIENER_NONSEP
-        rsi->frame_restoration_type =
-            aom_rb_read_bit(rb) ? RESTORE_WIENER_NONSEP : RESTORE_NONE;
-#else
         rsi->frame_restoration_type = RESTORE_NONE;
-#endif  // CONFIG_PC_WIENER
       }
     }
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if (p > 0) {
@@ -3073,14 +3052,14 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-#if CONFIG_FLEXIBLE_RU_SIZE
+#if CONFIG_LR_IMPROVEMENTS
       luma_none &= p > 0;
 #else
       all_none = 0;
-#endif  // CONFIG_FLEXIBLE_RU_SIZE
+#endif  // CONFIG_LR_IMPROVEMENTS
       chroma_none &= p == 0;
     }
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
     const int is_wiener_nonsep_possible =
         rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
@@ -3088,9 +3067,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       rsi->num_filter_classes = p == AOM_PLANE_Y
                                     ? NUM_WIENERNS_CLASS_INIT_LUMA
                                     : NUM_WIENERNS_CLASS_INIT_CHROMA;
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
   }
-#if CONFIG_FLEXIBLE_RU_SIZE
+#if CONFIG_LR_IMPROVEMENTS
   const int frame_width = cm->superres_upscaled_width;
   const int frame_height = cm->superres_upscaled_height;
   set_restoration_unit_size(frame_width, frame_height,
@@ -3182,7 +3161,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     cm->rst_info[2].restoration_unit_size =
         cm->rst_info[1].restoration_unit_size;
   }
-#endif  // CONFIG_FLEXIBLE_RU_SIZE
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 static AOM_INLINE void read_wiener_filter(MACROBLOCKD *xd, int wiener_win,
@@ -3331,7 +3310,7 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
   av1_add_to_sgrproj_bank(bank, sgrproj_info);
 }
 
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
                                  WienerNonsepInfo *wienerns_info,
                                  WienerNonsepInfoBank *bank, aom_reader *rb) {
@@ -3449,7 +3428,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
     av1_add_to_wienerns_bank(bank, wienerns_info, c_id);
   }
 }
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
@@ -3476,7 +3455,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   rui->wienerns_cross_info.num_classes =
@@ -3485,10 +3464,10 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   rui->wienerns_info.is_cross_filter = 0;
   rui->wienerns_cross_info.is_cross_filter = 1;
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
     rui->restoration_type = cm->features.lr_last_switchable_ndx_0_type[plane];
     for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
       if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
@@ -3504,7 +3483,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     rui->restoration_type = aom_read_symbol(
         r, xd->tile_ctx->switchable_restore_cdf, RESTORE_SWITCHABLE_TYPES,
         ACCT_INFO("restoration_type"));
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
     switch (rui->restoration_type) {
       case RESTORE_WIENER:
         read_wiener_filter(xd, wiener_win, &rui->wiener_info,
@@ -3514,17 +3493,15 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
         read_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
                             r);
         break;
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
       case RESTORE_WIENER_NONSEP:
         read_wienerns_filter(xd, plane != AOM_PLANE_Y, &rui->wienerns_info,
                              &xd->wienerns_info[plane], r);
         break;
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
       case RESTORE_PC_WIENER:
         // No side-information for now.
         break;
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
       default: assert(rui->restoration_type == RESTORE_NONE); break;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER) {
@@ -3544,7 +3521,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   } else if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP) {
     if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2,
                         ACCT_INFO("wienerns_restore_cdf"))) {
@@ -3554,8 +3531,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
   } else if (rsi->frame_restoration_type == RESTORE_PC_WIENER) {
     if (aom_read_symbol(r, xd->tile_ctx->pc_wiener_restore_cdf, 2,
                         ACCT_INFO("pc_wiener_restore_cdf"))) {
@@ -3564,7 +3539,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     } else {
       rui->restoration_type = RESTORE_NONE;
     }
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   }
 
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
@@ -3578,10 +3553,10 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   }
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
                                         struct aom_read_bit_buffer *rb) {
@@ -4851,16 +4826,16 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
   av1_reset_loop_filter_delta(xd, num_planes);
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   int num_filter_classes[MAX_MB_PLANE];
   for (int p = 0; p < num_planes; ++p)
     num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
   av1_reset_loop_restoration(xd, 0, num_planes
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
                              ,
                              num_filter_classes
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
   );
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
@@ -5368,16 +5343,16 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
   av1_reset_loop_filter_delta(xd, num_planes);
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   int num_filter_classes[MAX_MB_PLANE];
   for (int p = 0; p < num_planes; ++p)
     num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
   av1_reset_loop_restoration(xd, 0, num_planes
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
                              ,
                              num_filter_classes
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
   );
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
@@ -6515,7 +6490,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   seq_params->enable_superres = aom_rb_read_bit(rb);
   seq_params->enable_cdef = aom_rb_read_bit(rb);
   seq_params->enable_restoration = aom_rb_read_bit(rb);
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
       seq_params->lr_tools_disable_mask[0] |= (aom_rb_read_bit(rb) << i);
@@ -6531,7 +6506,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
           (seq_params->lr_tools_disable_mask[0] | DEF_UV_LR_TOOLS_DISABLE_MASK);
     }
   }
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,

@@ -112,9 +112,9 @@ static void dec_setup_mi(CommonModeInfoParams *mi_params) {
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   memset(mi_params->cctx_type_map, 0,
          mi_grid_size * sizeof(*mi_params->cctx_type_map));
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   av1_reset_txk_skip_array_using_mi_params(mi_params);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 static void dec_free_mi(CommonModeInfoParams *mi_params) {
@@ -133,10 +133,10 @@ static void dec_free_mi(CommonModeInfoParams *mi_params) {
   mi_params->tx_type_map = NULL;
   aom_free(mi_params->cctx_type_map);
   mi_params->cctx_type_map = NULL;
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   av1_dealloc_class_id_array(mi_params);
   av1_dealloc_txk_skip_array(mi_params);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 static INLINE void dec_init_tip_ref_frame(AV1_COMMON *const cm) {

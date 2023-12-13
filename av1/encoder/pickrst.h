@@ -89,7 +89,7 @@ static INLINE int check_sgrproj_bank_eq(const SgrprojInfoBank *bank,
   }
   return -1;
 }
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 
 static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
                                     const WienerNonsepInfo *ref, int num_coeffs,
@@ -154,7 +154,7 @@ static INLINE int wienerns_info_diff(
   }
   return diff;
 }
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 #endif  // CONFIG_LR_MERGE_COEFFS
 
 /*!\brief Algorithm for AV1 loop restoration search and estimation.

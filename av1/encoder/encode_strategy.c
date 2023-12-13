@@ -1209,11 +1209,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   if (!frame_params.show_existing_frame) {
     cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[0], 0, &cm->features);
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 1, &cm->features);
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2, &cm->features);
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
   }
   if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
                          &frame_results) != AOM_CODEC_OK) {

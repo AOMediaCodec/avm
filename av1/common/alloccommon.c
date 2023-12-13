@@ -239,10 +239,10 @@ int av1_alloc_above_context_buffers(CommonContexts *above_contexts,
 // 'mi_params->set_mb_mi()' was already called earlier to initialize the rest of
 // the struct members.
 static int alloc_mi(CommonModeInfoParams *mi_params
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
                     ,
                     AV1_COMMON *cm
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 ) {
   const int aligned_mi_rows = calc_mi_size(mi_params->mi_rows);
   const int mi_grid_size = mi_params->mi_stride * aligned_mi_rows;
@@ -263,10 +263,10 @@ static int alloc_mi(CommonModeInfoParams *mi_params
         mi_grid_size, sizeof(*mi_params->mi_grid_base));
     if (!mi_params->mi_grid_base) return 1;
     mi_params->mi_grid_size = mi_grid_size;
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
     av1_alloc_txk_skip_array(mi_params, cm);
     av1_alloc_class_id_array(mi_params, cm);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_C071_SUBBLK_WARPMV
     mi_params->mi_alloc_sub =
         aom_calloc(alloc_mi_size, sizeof(*mi_params->mi_alloc_sub));
@@ -320,11 +320,11 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
 int av1_alloc_context_buffers(AV1_COMMON *cm, int width, int height) {
   CommonModeInfoParams *const mi_params = &cm->mi_params;
   mi_params->set_mb_mi(mi_params, width, height);
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   if (alloc_mi(mi_params, cm)) goto fail;
 #else
   if (alloc_mi(mi_params)) goto fail;
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   CommonSBInfoParams *const sbi_params = &cm->sbi_params;
   set_sb_si(cm);
   if (alloc_sbi(sbi_params)) goto fail;

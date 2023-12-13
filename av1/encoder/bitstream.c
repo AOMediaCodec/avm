@@ -3156,12 +3156,12 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
     write_tokens_b(cpi, w, tok, tok_end);
   }
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   else if (!is_global_intrabc_allowed(cm) && !cm->features.coded_lossless) {
     // Assert only when LR is enabled.
     assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, 0, 0, 0));
   }
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 
   av1_mark_block_as_coded(xd, bsize, cm->sb_size);
 }
@@ -3646,7 +3646,7 @@ static AOM_INLINE void wb_write_uniform(struct aom_write_bit_buffer *wb, int n,
   }
 }
 
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
 // Converts frame restoration type to a coded index depending on lr tools
 // that are enabled for the frame for a given plane.
 static int frame_restoration_type_to_index(
@@ -3658,7 +3658,7 @@ static int frame_restoration_type_to_index(
   }
   return ndx;
 }
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 static AOM_INLINE void encode_restoration_mode(
     AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
@@ -3666,11 +3666,11 @@ static AOM_INLINE void encode_restoration_mode(
   if (!cm->seq_params.enable_restoration) return;
   if (is_global_intrabc_allowed(cm)) return;
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_FLEXIBLE_RU_SIZE
+#if CONFIG_LR_IMPROVEMENTS
   int luma_none = 1, chroma_none = 1;
 #else
   int all_none = 1, chroma_none = 1;
-#endif  // CONFIG_FLEXIBLE_RU_SIZE
+#endif  // CONFIG_LR_IMPROVEMENTS
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
@@ -3680,14 +3680,14 @@ static AOM_INLINE void encode_restoration_mode(
 #else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-#if CONFIG_FLEXIBLE_RU_SIZE
+#if CONFIG_LR_IMPROVEMENTS
       luma_none &= p > 0;
 #else
       all_none = 0;
-#endif  // CONFIG_FLEXIBLE_RU_SIZE
+#endif  // CONFIG_LR_IMPROVEMENTS
       chroma_none &= p == 0;
     }
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
     assert(IMPLIES(cm->features.lr_tools_count[p] < 2,
                    rsi->frame_restoration_type != RESTORE_SWITCHABLE));
     const int ndx =
@@ -3718,12 +3718,19 @@ static AOM_INLINE void encode_restoration_mode(
         av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
       }
     }
+
+    const int is_wiener_nonsep_possible =
+        rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
+        rsi->frame_restoration_type == RESTORE_SWITCHABLE;
+    if (is_wiener_nonsep_possible)
+      assert(rsi->num_filter_classes == (p == AOM_PLANE_Y
+                                             ? NUM_WIENERNS_CLASS_INIT_LUMA
+                                             : NUM_WIENERNS_CLASS_INIT_CHROMA));
 #else
     switch (rsi->frame_restoration_type) {
-      case RESTORE_NONE: aom_wb_write_bit(wb, 0); aom_wb_write_bit(wb, 0);
-#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+      case RESTORE_NONE:
         aom_wb_write_bit(wb, 0);
-#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+        aom_wb_write_bit(wb, 0);
         break;
       case RESTORE_WIENER:
         aom_wb_write_bit(wb, 1);
@@ -3733,42 +3740,13 @@ static AOM_INLINE void encode_restoration_mode(
         aom_wb_write_bit(wb, 1);
         aom_wb_write_bit(wb, 1);
         break;
-#if CONFIG_WIENER_NONSEP
-      case RESTORE_WIENER_NONSEP:
-        aom_wb_write_bit(wb, 0);
-        aom_wb_write_bit(wb, 0);
-        aom_wb_write_bit(wb, 1);
-#if CONFIG_PC_WIENER
-        aom_wb_write_bit(wb, 0);
-#endif  // CONFIG_PC_WIENER
-        break;
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
-      case RESTORE_PC_WIENER:
-        aom_wb_write_bit(wb, 0);
-        aom_wb_write_bit(wb, 0);
-        aom_wb_write_bit(wb, 1);
-#if CONFIG_WIENER_NONSEP
-        aom_wb_write_bit(wb, 1);
-#endif  // CONFIG_WIENER_NONSEP
-        break;
-#endif  // CONFIG_PC_WIENER
       case RESTORE_SWITCHABLE:
         aom_wb_write_bit(wb, 0);
         aom_wb_write_bit(wb, 1);
         break;
       default: assert(0);
     }
-#endif  // CONFIG_LR_FLEX_SYNTAX
-#if CONFIG_WIENER_NONSEP
-    const int is_wiener_nonsep_possible =
-        rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
-        rsi->frame_restoration_type == RESTORE_SWITCHABLE;
-    if (is_wiener_nonsep_possible)
-      assert(rsi->num_filter_classes == (p == AOM_PLANE_Y
-                                             ? NUM_WIENERNS_CLASS_INIT_LUMA
-                                             : NUM_WIENERNS_CLASS_INIT_CHROMA));
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     if (p > 0) {
@@ -3776,7 +3754,7 @@ static AOM_INLINE void encode_restoration_mode(
     }
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
-#if CONFIG_FLEXIBLE_RU_SIZE
+#if CONFIG_LR_IMPROVEMENTS
   int size = cm->rst_info[0].max_restoration_unit_size;
   if (!luma_none) {
     aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size >> 1);
@@ -3845,7 +3823,7 @@ static AOM_INLINE void encode_restoration_mode(
              cm->rst_info[1].restoration_unit_size);
     }
   }
-#endif  // CONFIG_FLEXIBLE_RU_SIZE
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 static AOM_INLINE void write_wiener_filter(MACROBLOCKD *xd, int wiener_win,
@@ -3972,7 +3950,7 @@ static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
   av1_add_to_sgrproj_bank(bank, sgrproj_info);
   return;
 }
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_LR_MERGE_COEFFS
 static int check_and_write_merge_info(
@@ -4120,7 +4098,7 @@ static AOM_INLINE void write_wienerns_filter(
   }
   return;
 }
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 static AOM_INLINE void loop_restoration_write_sb_coeffs(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
@@ -4146,12 +4124,12 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
   info = (WienerNonsepInfo *)&rui->wienerns_cross_info;
   info->is_cross_filter = 1;
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
   if (frame_rtype == RESTORE_SWITCHABLE) {
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
     int found = 0;
     for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
       if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
@@ -4169,7 +4147,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #if CONFIG_ENTROPY_STATS
     ++counts->switchable_restore[unit_rtype];
 #endif
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
     switch (unit_rtype) {
       case RESTORE_WIENER:
         write_wiener_filter(xd, wiener_win, &rui->wiener_info,
@@ -4179,17 +4157,15 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
                              w);
         break;
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
       case RESTORE_WIENER_NONSEP:
         write_wienerns_filter(xd, plane, &rui->wienerns_info,
                               &xd->wienerns_info[plane], w);
         break;
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
       case RESTORE_PC_WIENER:
         // No side-information for now.
         break;
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
       default: assert(unit_rtype == RESTORE_NONE); break;
     }
   } else if (frame_rtype == RESTORE_WIENER) {
@@ -4211,7 +4187,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     if (unit_rtype != RESTORE_NONE) {
       write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
     }
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   } else if (frame_rtype == RESTORE_WIENER_NONSEP) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
                      xd->tile_ctx->wienerns_restore_cdf, 2);
@@ -4222,8 +4198,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
       write_wienerns_filter(xd, plane, &rui->wienerns_info,
                             &xd->wienerns_info[plane], w);
     }
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
   } else if (frame_rtype == RESTORE_PC_WIENER) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,
                      xd->tile_ctx->pc_wiener_restore_cdf, 2);
@@ -4233,7 +4207,7 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     if (unit_rtype != RESTORE_NONE) {
       // No side-information for now.
     }
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   }
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   if (frame_cross_rtype == RESTORE_WIENER_NONSEP) {
@@ -5135,7 +5109,7 @@ static AOM_INLINE void write_sequence_header(
   aom_wb_write_bit(wb, seq_params->enable_superres);
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_restoration);
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
       aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[0] >> i) & 1);
@@ -5151,7 +5125,7 @@ static AOM_INLINE void write_sequence_header(
       }
     }
   }
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 }
 
 static AOM_INLINE void write_sequence_header_beyond_av1(
@@ -6532,16 +6506,16 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
       mode_bc.allow_update_cdf =
           mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
       const int num_planes = av1_num_planes(cm);
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
       int num_filter_classes[MAX_MB_PLANE];
       for (int p = 0; p < num_planes; ++p)
         num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
       av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
                                  ,
                                  num_filter_classes
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
       );
 
       aom_start_encode(&mode_bc, dst + total_size);

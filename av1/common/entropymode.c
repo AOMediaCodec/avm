@@ -4756,7 +4756,7 @@ static const aom_cdf_prob
     };
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
@@ -4809,20 +4809,9 @@ static const aom_cdf_prob
                                        };
 #endif  // CONFIG_ENTROPY_PARA
 #else
-#if CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
-static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
-    RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF5(6000, 12000, 18000, 24000) };
-#elif !CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
-static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
-    RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF4(6000, 12000, 18000) };
-#elif CONFIG_WIENER_NONSEP && !CONFIG_PC_WIENER
-static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
-    RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF4(6000, 12000, 18000) };
-#else
 static const aom_cdf_prob default_switchable_restore_cdf[CDF_SIZE(
     RESTORE_SWITCHABLE_TYPES)] = { AOM_CDF3(9413, 22581) };
-#endif  // CONFIG_WIENER_NONSEP && CONFIG_PC_WIENER
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_wiener_restore_cdf[CDF_SIZE(2)] = {
@@ -4854,7 +4843,7 @@ static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
     16855) };
 #endif  // CONFIG_ENTROPY_PARA
 
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_wienerns_reduce_cdf[WIENERNS_REDUCE_STEPS][CDF_SIZE(2)] = {
@@ -4899,8 +4888,6 @@ static const aom_cdf_prob default_wienerns_restore_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(12000)
 };
 #endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_pc_wiener_restore_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(10000), 7
@@ -4910,7 +4897,7 @@ static const aom_cdf_prob default_pc_wiener_restore_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(10000)
 };
 #endif
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_LR_MERGE_COEFFS
 #if CONFIG_ENTROPY_PARA
@@ -5516,12 +5503,12 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->seg.tree_cdf, default_seg_tree_cdf);
   av1_copy(fc->filter_intra_cdfs, default_filter_intra_cdfs);
   av1_copy(fc->filter_intra_mode_cdf, default_filter_intra_mode_cdf);
-#if CONFIG_LR_FLEX_SYNTAX
+#if CONFIG_LR_IMPROVEMENTS
   av1_copy(fc->switchable_flex_restore_cdf,
            default_switchable_flex_restore_cdf);
 #else
   av1_copy(fc->switchable_restore_cdf, default_switchable_restore_cdf);
-#endif  // CONFIG_LR_FLEX_SYNTAX
+#endif  // CONFIG_LR_IMPROVEMENTS
   av1_copy(fc->wiener_restore_cdf, default_wiener_restore_cdf);
 #if CONFIG_CCSO_EXT
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
@@ -5533,16 +5520,14 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   }
 #endif
   av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   av1_copy(fc->wienerns_restore_cdf, default_wienerns_restore_cdf);
   av1_copy(fc->wienerns_reduce_cdf, default_wienerns_reduce_cdf);
 #if ENABLE_LR_4PART_CODE
   av1_copy(fc->wienerns_4part_cdf, default_wienerns_4part_cdf);
 #endif  // ENABLE_LR_4PART_CODE
-#endif  // CONFIG_WIENER_NONSEP
-#if CONFIG_PC_WIENER
   av1_copy(fc->pc_wiener_restore_cdf, default_pc_wiener_restore_cdf);
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_LR_MERGE_COEFFS
   av1_copy(fc->merged_param_cdf, default_merged_param_cdf);
 #endif  // CONFIG_LR_MERGE_COEFFS

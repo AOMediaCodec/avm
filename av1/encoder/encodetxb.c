@@ -794,13 +794,13 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const uint8_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
   if (!is_global_intrabc_allowed(cm) && !cm->features.coded_lossless) {
     // Assert only when LR is enabled.
     assert((eob == 0) == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, plane,
                                           blk_row, blk_col));
   }
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
   if (eob == 0) return;
 
   const PLANE_TYPE plane_type = get_plane_type(plane);

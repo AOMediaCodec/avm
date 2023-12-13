@@ -182,25 +182,24 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_EXTENDED_WARP_PREDICTION 1
                    "AV2 experiment flag to add new local warp modes")
 # Begin: CWG-C016
+set_aom_config_var(
+  CONFIG_LR_IMPROVEMENTS
+  1
+  "This is a flag which combines
+                   CONFIG_LR_FLEX_SYNTAX: experiment flag to enable LR flexible syntax,
+                   CONFIG_WIENER_NONSEP: nonsep Wiener filter experiment flag,
+                   CONFIG_WIENER_NONSEP_CROSS_FILT: nonsep Wiener cross filter experiment flag,
+                   CONFIG_PC_WIENER: pixel-classified Wiener filter experiment flag,
+                   and CONFIG_FLEXIBLE_RU_SIZE: choose RU size between 128x128, 256x256 and 512x512"
+)
 set_aom_config_var(CONFIG_LR_MERGE_COEFFS 1
                    "AV2 experiment flag to enable LR coefficient merging")
-set_aom_config_var(CONFIG_LR_FLEX_SYNTAX 1
-                   "AV2 experiment flag to enable LR flexible syntax")
-set_aom_config_var(CONFIG_WIENER_NONSEP 1 NUMBER
-                   "AV2 nonsep Wiener filter experiment flag")
-set_aom_config_var(CONFIG_WIENER_NONSEP_CROSS_FILT 1 NUMBER
-                   "AV2 nonsep Wiener cross filter experiment flag")
-set_aom_config_var(CONFIG_PC_WIENER 1 NUMBER
-                   "AV2 pixel-classified Wiener filter experiment flag")
 # End: CWG-C016
 set_aom_config_var(CONFIG_HIGH_PASS_CROSS_WIENER_FILTER 1
                    "AV2 high pass cross non-sep wiener filter experiment flag")
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
   "AV2 improved luma downsampling for high pass cross non-sep wiener filter")
-set_aom_config_var(
-  CONFIG_FLEXIBLE_RU_SIZE 1
-  "AV2 experiment flag to choose RU size between 128x128, 256x256 and 512x512")
 
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0

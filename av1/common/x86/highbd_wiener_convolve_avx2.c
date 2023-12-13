@@ -243,7 +243,7 @@ void av1_highbd_wiener_convolve_add_src_avx2(
   }
 }
 
-#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 // 256bit intrinsic implementation of ROUND_POWER_OF_TWO_SIGNED.
 static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
                                                      int bits) {
@@ -1640,10 +1640,6 @@ void av1_convolve_symmetric_subtract_center_highbd_avx2(
   }
 }
 
-#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
-
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
-
 // AVX2 intrinsic for convolve wiener non-separable dual loop restoration
 // filtering with subtract center off. Two buffers (dgd and dgd_dual) are
 // considered for dual filtering, where each buffer goes through 7-tap
@@ -1891,9 +1887,6 @@ void av1_convolve_symmetric_dual_subtract_center_highbd_avx2(
                        block_col_begin);
 }
 
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
-
-#if CONFIG_PC_WIENER
 /* Computes the gradient across different directions for a given pixel using 3
  * tap filter. The following shows gradient calculation
  * A0 V0 D0
@@ -2602,4 +2595,4 @@ void av1_fill_tskip_feature_accumulator_avx2(
   }
 }
 
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS

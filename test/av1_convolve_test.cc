@@ -24,9 +24,9 @@
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
 #include "av1/common/restoration.h"
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 namespace {
 
@@ -251,11 +251,11 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
     return RandomInput16(input16_2_, param);
   }
 
-#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   const uint16_t *FirstRandomInput16Extreme(const TestParam<T> &param) {
     return RandomInput16Extreme(input16_1_, param);
   }
-#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
  private:
   const uint8_t *RandomInput8(uint8_t *p, const TestParam<T> &param) {
@@ -291,7 +291,7 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
     }
   }
 
-#if CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   const uint16_t *RandomInput16Extreme(uint16_t *p, const TestParam<T> &param) {
     // Check that this is only called with high bit-depths.
     EXPECT_TRUE(param.BitDepth() == 10 || param.BitDepth() == 12);
@@ -316,7 +316,7 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
     // There's a bit more entropy in the upper bits of this implementation.
     return (value >> 7) & 0x1;
   }
-#endif  // CONFIG_PC_WIENER || CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
   static constexpr int kInputStride = MAX_SB_SIZE + kInputPadding;
 
@@ -1000,7 +1000,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Nonseparable convolve-2d functions (high bit-depth)
 //////////////////////////////////////////////////////////
 
-#if CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
 typedef void (*highbd_convolve_nonsep_2d_func)(
     const uint16_t *src, int src_stride,
     const NonsepFilterConfig *filter_config, const int16_t *filter,
@@ -1030,15 +1030,12 @@ class AV1ConvolveNonSep2DHighbdTest
     highbd_convolve_nonsep_2d_func ref_func = av1_convolve_symmetric_highbd_c;
     const int num_planes = 2;
 
-#if CONFIG_PC_WIENER
     if (rtype == RESTORE_PC_WIENER) {
       ref_func = av1_convolve_symmetric_highbd_c;
       filter_config[0] = &UnconstrainedSumFilterConfig_;
       filter_config[1] = &PcWienerNonsepFilterConfigChroma_;
     }
-#endif  // CONFIG_PC_WIENER
 
-#if CONFIG_WIENER_NONSEP
     // When CONFIG_WIENER_NONSEP=1, luma and chroma plane uses different number
     // of filter taps and both needs to be tested. Here, luma is tested for
     // 12/13-tap filtering whereas chroma is tested for 6-tap filtering.
@@ -1047,7 +1044,7 @@ class AV1ConvolveNonSep2DHighbdTest
       filter_config[0] = &UnitSumFilterConfig_;
       filter_config[1] = &UnitSumFilterConfigChroma_;
     }
-#endif  // CONFIG_WIENER_NONSEP
+
     assert(filter_config[0] != NULL && filter_config[1] != NULL);
 
     for (int plane = 0; plane < num_planes; plane++) {
@@ -1107,15 +1104,13 @@ class AV1ConvolveNonSep2DHighbdTest
     // Calculate time taken for C function
     const NonsepFilterConfig *filter_config[2] = { NULL, NULL };
     highbd_convolve_nonsep_2d_func ref_func = av1_convolve_symmetric_highbd_c;
-#if CONFIG_PC_WIENER
+
     if (rtype == RESTORE_PC_WIENER) {
       ref_func = av1_convolve_symmetric_highbd_c;
       filter_config[0] = &UnconstrainedSumFilterConfig_;
       filter_config[1] = &PcWienerNonsepFilterConfigChroma_;
     }
-#endif  // CONFIG_PC_WIENER
 
-#if CONFIG_WIENER_NONSEP
     // When CONFIG_WIENER_NONSEP=1, luma and chroma uses different number of
     // filter taps and both needs to be tested. Here, luma is tested for
     // 12/13-tap filtering whereas chroma is tested for 6-tap filtering.
@@ -1124,7 +1119,6 @@ class AV1ConvolveNonSep2DHighbdTest
       filter_config[0] = &UnitSumFilterConfig_;
       filter_config[1] = &UnitSumFilterConfigChroma_;
     }
-#endif  // CONFIG_WIENER_NONSEP
 
     for (int plane = 0; plane < num_planes; plane++) {
       // Calculate time taken by reference/c function
@@ -1200,7 +1194,6 @@ class AV1ConvolveNonSep2DHighbdTest
   static constexpr int kSpeedIterations = 10000;
   static constexpr int kTestIterations = 100;
 
-#if CONFIG_PC_WIENER
   // Configuration for nonseparable 7x7 filters for DIAMOND shape.
   // Format is offset (i) row and (ii) column from center pixel
   // and the (iii) filter-tap index that multiplies the pixel at
@@ -1239,9 +1232,7 @@ class AV1ConvolveNonSep2DHighbdTest
     0,
     0
   };
-#endif  // CONFIG_PC_WIENER
 
-#if CONFIG_WIENER_NONSEP
   // Configuration for UnitSumFilterConfig_ wiener nonseparable 7x7 filters for
   // DIAMOND shape. Format is offset (i) row and (ii) column from center pixel
   // and the (iii) filter-tap index that multiplies the pixel at the respective
@@ -1308,12 +1299,10 @@ class AV1ConvolveNonSep2DHighbdTest
     0,
     1
   };
-#endif  // CONFIG_WIENER_NONSEP
 
   int16_t FilterTaps_[kNumSymmetricTaps + 1];
 };
 
-#if CONFIG_PC_WIENER
 TEST_P(AV1ConvolveNonSep2DHighbdTest, RunTest) { RunTest(RESTORE_PC_WIENER); }
 
 TEST_P(AV1ConvolveNonSep2DHighbdTest, DISABLED_Speed) {
@@ -1324,9 +1313,7 @@ TEST_P(AV1ConvolveNonSep2DHighbdTest, DISABLED_Speed) {
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveNonSep2DHighbdTest,
                          BuildHighbdParams(av1_convolve_symmetric_highbd_avx2));
 #endif
-#endif  // CONFIG_PC_WIENER
 
-#if CONFIG_WIENER_NONSEP
 class AV1ConvolveWienerNonSep2DHighbdTest
     : public AV1ConvolveNonSep2DHighbdTest {};
 
@@ -1342,9 +1329,8 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1ConvolveWienerNonSep2DHighbdTest,
     BuildHighbdParams(av1_convolve_symmetric_subtract_center_highbd_avx2));
 #endif
-#endif  // CONFIG_WIENER_NONSEP
 
-#endif  // CONFIG_WIENER_NONSEP || CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 //////////////////////////////////////////////////////////
 // Nonseparable convolve-2d Dual functions (high bit-depth)
@@ -1627,7 +1613,7 @@ INSTANTIATE_TEST_SUITE_P(
 // index for each block size (pc_wiener_block_size: 4x4)
 //////////////////////////////////////////////////////////
 
-#if CONFIG_PC_WIENER
+#if CONFIG_LR_IMPROVEMENTS
 
 // Generate the list of all block widths / heights that need to be tested for
 // pc_wiener.
@@ -2315,5 +2301,5 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1TskipAccumHighbdTest,
     ::testing::Values(av1_fill_tskip_feature_accumulator_avx2));
 #endif  // HAVE_AVX2
-#endif  // CONFIG_PC_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 }  // namespace

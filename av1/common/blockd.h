@@ -1585,7 +1585,7 @@ typedef struct {
   int bank_ptr;
 } SgrprojInfoBank;
 
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 #define WIENERNS_MAX_CLASSES 1
 #define NUM_WIENERNS_CLASS_INIT_LUMA 1
 #define NUM_WIENERNS_CLASS_INIT_CHROMA 1
@@ -1648,7 +1648,7 @@ void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
                                   int wiener_class_id);
 void copy_nsfilter_taps(WienerNonsepInfo *to_info,
                         const WienerNonsepInfo *from_info);
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 /*!\cond */
 
 #if CONFIG_DEBUG
@@ -2054,7 +2054,7 @@ typedef struct macroblockd {
   /**@{*/
   WienerInfoBank wiener_info[MAX_MB_PLANE];   /*!< Refs for Wiener filter*/
   SgrprojInfoBank sgrproj_info[MAX_MB_PLANE]; /*!< Refs for SGR filter */
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   /*!
    * Nonseparable Wiener filter information for all planes.
    */
@@ -2066,7 +2066,7 @@ typedef struct macroblockd {
    */
   WienerNonsepInfoBank wienerns_cross_info[MAX_MB_PLANE];
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
   /**@}*/
 
   /**
@@ -3452,7 +3452,7 @@ const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
 void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
                              const SgrprojInfo *info);
 
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
 // Resets the bank data structure holding LR_BANK_SIZE nonseparable Wiener
 // filters. The bank holds a rootating buffer of filters.
 void av1_reset_wienerns_bank(WienerNonsepInfoBank *bank, int qindex,
@@ -3483,13 +3483,13 @@ const WienerNonsepInfo *av1_constref_from_wienerns_bank(
 void av1_upd_to_wienerns_bank(WienerNonsepInfoBank *bank, int ndx,
                               const WienerNonsepInfo *info,
                               int wiener_class_id);
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
                                 ,
                                 const int *num_filter_classes
-#endif  // CONFIG_WIENER_NONSEP
+#endif  // CONFIG_LR_IMPROVEMENTS
 );
 
 typedef void (*foreach_transformed_block_visitor)(int plane, int block,
