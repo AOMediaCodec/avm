@@ -517,13 +517,11 @@ typedef struct frame_contexts {
 #if CONFIG_IST_SET_FLAG
   aom_cdf_prob stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)];
 #endif  // CONFIG_IST_SET_FLAG
-#if CONFIG_FLEX_MVRES
   aom_cdf_prob pb_mv_mpp_flag_cdf[NUM_MV_PREC_MPP_CONTEXT][CDF_SIZE(2)];
 
   aom_cdf_prob pb_mv_precision_cdf[MV_PREC_DOWN_CONTEXTS]
                                   [NUM_PB_FLEX_QUALIFIED_MAX_PREC]
                                   [CDF_SIZE(FLEX_MV_COSTS_SIZE)];
-#endif  // CONFIG_FLEX_MVRES
   aom_cdf_prob cctx_type_cdf[EXT_TX_SIZES][CCTX_CONTEXTS][CDF_SIZE(CCTX_TYPES)];
   int initialized;
 } FRAME_CONTEXT;

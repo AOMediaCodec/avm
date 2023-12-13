@@ -61,7 +61,6 @@ typedef struct mv32 {
   int32_t col;
 } MV32;
 
-#if CONFIG_FLEX_MVRES
 enum {
   MV_PRECISION_8_PEL = 0,
   MV_PRECISION_FOUR_PEL = 1,
@@ -96,8 +95,6 @@ static const PRECISION_SET av1_mv_precision_sets[2] = {
 #define NUM_PB_FLEX_QUALIFIED_MAX_PREC \
   ((NUM_MV_PRECISIONS) - (MV_PRECISION_HALF_PEL))
 
-#endif  // CONFIG_FLEX_MVRES
-
 // The mv limit for fullpel mvs
 typedef struct {
   int col_min;
@@ -122,15 +119,9 @@ static AOM_INLINE FULLPEL_MV get_fullmv_from_mv(const MV *subpel_mv) {
 
 #if CONFIG_C071_SUBBLK_WARPMV
 static AOM_INLINE void get_phase_from_mv(MV ref_mv, MV *sub_mv_offset,
-#if CONFIG_FLEX_MVRES
-                                         MvSubpelPrecision precision
-#else
-                                         bool allow_hp
-#endif
-) {
+                                         MvSubpelPrecision precision) {
   sub_mv_offset->col = 0;
   sub_mv_offset->row = 0;
-#if CONFIG_FLEX_MVRES
   int col_phase = ref_mv.col - GET_MV_SUBPEL(GET_MV_RAWPEL(ref_mv.col));
   int row_phase = ref_mv.row - GET_MV_SUBPEL(GET_MV_RAWPEL(ref_mv.row));
   if (precision == MV_PRECISION_QTR_PEL) {
@@ -146,14 +137,6 @@ static AOM_INLINE void get_phase_from_mv(MV ref_mv, MV *sub_mv_offset,
     assert(precision == MV_PRECISION_ONE_EIGHTH_PEL ||
            precision < MV_PRECISION_ONE_PEL);
   }
-#else
-  if (!allow_hp) {
-    int col_phase = ref_mv.col - GET_MV_SUBPEL(GET_MV_RAWPEL(ref_mv.col));
-    int row_phase = ref_mv.row - GET_MV_SUBPEL(GET_MV_RAWPEL(ref_mv.row));
-    sub_mv_offset->col = (col_phase & 1) ? col_phase : 0;
-    sub_mv_offset->row = (row_phase & 1) ? row_phase : 0;
-  }
-#endif
 }
 #endif  // CONFIG_C071_SUBBLK_WARPMV
 
@@ -167,7 +150,6 @@ static AOM_INLINE void convert_fullmv_to_mv(int_mv *mv) {
   mv->as_mv = get_mv_from_fullmv(&mv->as_fullmv);
 }
 
-#if CONFIG_FLEX_MVRES
 #define ABS(x) (((x) >= 0) ? (x) : (-(x)))
 // Reduce the precision of the MV to the target precision
 // The parameter radix define the step size of the MV .
@@ -257,7 +239,6 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
                         GET_MV_RAWPEL(MV_UPP) - radix);
   }
 }
-#endif  // CONFIG_FLEX_MVRES
 
 // Calculation precision for warp models
 #define WARPEDMODEL_PREC_BITS 16
@@ -468,19 +449,13 @@ static INLINE int block_center_y(int mi_row, BLOCK_SIZE bs) {
   return mi_row * MI_SIZE + bh / 2 - 1;
 }
 
-#if CONFIG_FLEX_MVRES
 static INLINE int convert_to_trans_prec(MvSubpelPrecision precision, int coor) {
   if (precision > MV_PRECISION_QTR_PEL)
-#else
-static INLINE int convert_to_trans_prec(int allow_hp, int coor) {
-  if (allow_hp)
-#endif
     return ROUND_POWER_OF_TWO_SIGNED(coor, WARPEDMODEL_PREC_BITS - 3);
   else
     return ROUND_POWER_OF_TWO_SIGNED(coor, WARPEDMODEL_PREC_BITS - 2) * 2;
 }
 
-#if CONFIG_FLEX_MVRES
 // Returns how many bits do not need to be signaled relative to
 // MV_PRECISION_ONE_EIGHTH_PEL
 static INLINE int get_gm_precision_loss(MvSubpelPrecision precision) {
@@ -488,39 +463,10 @@ static INLINE int get_gm_precision_loss(MvSubpelPrecision precision) {
   // global parameters are sent only at 1/4 or 1/8 pel resolution depending
   // on whether the allow_high_precision_mv flag is 0 or 1, but the
   // cur_frame_force_integer_mv is ignored. Hence the AOMMIN(1, ...)
-  // below, but in CONFIG_FLEX_MVRES we correct that so that translation-
+  // below, but in here we correct that so that translation-
   // only global parameters are sent at the MV resolution of the frame.
   return AOMMIN(1, MV_PRECISION_ONE_EIGHTH_PEL - precision);
 }
-#else
-static INLINE void integer_mv_precision(MV *mv) {
-  int mod = (mv->row % 8);
-  if (mod != 0) {
-    mv->row -= mod;
-    if (abs(mod) > 4) {
-      if (mod > 0) {
-        mv->row += 8;
-      } else {
-        mv->row -= 8;
-      }
-    }
-    mv->row = clamp(mv->row, MV_LOW + 8, MV_UPP - 8);
-  }
-
-  mod = (mv->col % 8);
-  if (mod != 0) {
-    mv->col -= mod;
-    if (abs(mod) > 4) {
-      if (mod > 0) {
-        mv->col += 8;
-      } else {
-        mv->col -= 8;
-      }
-    }
-    mv->col = clamp(mv->col, MV_LOW + 8, MV_UPP - 8);
-  }
-}
-#endif
 
 static INLINE TransformationType get_wmtype(const WarpedMotionParams *model) {
   if (model->wmmat[5] == (1 << WARPEDMODEL_PREC_BITS) && !model->wmmat[4] &&

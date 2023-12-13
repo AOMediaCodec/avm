@@ -111,14 +111,12 @@ static void subblock_motion_search(
   int distortion;
   int cost_list[5];
 
-#if CONFIG_FLEX_MVRES
   const AV1_COMMON *cm = &cpi->common;
 #if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
   assert(cm->features.fr_mv_precision == MV_PRECISION_ONE_EIGHTH_PEL);
   const MvSubpelPrecision pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-#endif
 
   av1_set_mv_row_limits(&cpi->common.mi_params, &mb->mv_limits,
                         (mb_row << mi_h) + (subblock_ofst_i >> MI_SIZE_LOG2),
@@ -132,13 +130,11 @@ static void subblock_motion_search(
   mb->plane[0].src.buf = frame_to_filter->y_buffer + y_offset + boffset;
   mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset + boffset;
   av1_make_default_fullpel_ms_params(full_ms_params, cpi, mb, subblock_size,
-                                     ref_mv,
-#if CONFIG_FLEX_MVRES
-                                     pb_mv_precision,
+                                     ref_mv, pb_mv_precision,
 #if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
-#endif
+
                                      search_site_cfg,
                                      /*fine_search_interval=*/0);
   av1_set_mv_search_method(full_ms_params, search_site_cfg, search_method);
@@ -150,9 +146,8 @@ static void subblock_motion_search(
                         NULL);
 
   av1_make_default_subpel_ms_params(ms_params, cpi, mb, subblock_size, ref_mv,
-#if CONFIG_FLEX_MVRES
                                     pb_mv_precision,
-#endif
+
                                     cost_list);
   ms_params->forced_stop = EIGHTH_PEL;
   ms_params->var_params.subpel_search_type = subpel_ms_type;
@@ -161,15 +156,10 @@ static void subblock_motion_search(
   ms_params->mv_cost_params.mv_cost_type = MV_COST_NONE;
 
   MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
-#if CONFIG_FLEX_MVRES
   error = cpi->mv_search_params.find_fractional_mv_step(
       &mb->e_mbd, cm, ms_params, subpel_start_mv, &best_mv.as_mv, &distortion,
       &sse, NULL);
-#else
-  error = cpi->mv_search_params.find_fractional_mv_step(
-      &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv, &best_mv.as_mv,
-      &distortion, &sse, NULL);
-#endif
+
   subblock_mses[idx] = DIVIDE_AND_ROUND(error, subblock_pels);
   subblock_mvs[idx] = best_mv.as_mv;
 }
@@ -226,12 +216,11 @@ static void tf_motion_search(AV1_COMP *cpi,
   const int y_offset = mb_row * mb_height * y_stride + mb_col * mb_width;
 
   // Save input state.
-#if CONFIG_FLEX_MVRES
   const AV1_COMMON *cm = &cpi->common;
 #if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
-#endif
+
   MACROBLOCK *const mb = &cpi->td.mb;
   MACROBLOCKD *const mbd = &mb->e_mbd;
   const struct buf_2d ori_src_buf = mb->plane[0].src;
@@ -251,17 +240,14 @@ static void tf_motion_search(AV1_COMP *cpi,
       min_frame_size >= 720
           ? MV_COST_L1_HDRES
           : (min_frame_size >= 480 ? MV_COST_L1_MIDRES : MV_COST_L1_LOWRES);
-#if CONFIG_FLEX_MVRES
   assert(cm->features.fr_mv_precision == MV_PRECISION_ONE_EIGHTH_PEL);
   const MvSubpelPrecision pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-#endif
 
   // Starting position for motion search.
   FULLPEL_MV start_mv = get_fullmv_from_mv(ref_mv);
   // Baseline position for motion search (used for rate distortion comparison).
-#if CONFIG_FLEX_MVRES
   full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
-#endif
+
   const MV baseline_mv = kZeroMv;
 
   // Setup.
@@ -285,13 +271,11 @@ static void tf_motion_search(AV1_COMP *cpi,
 #endif  // CONFIG_LARGE_TF_BLOCK
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
-                                     &baseline_mv,
-#if CONFIG_FLEX_MVRES
-                                     pb_mv_precision,
+                                     &baseline_mv, pb_mv_precision,
 #if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
-#endif
+
                                      search_site_cfg,
                                      /*fine_search_interval=*/0);
   av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
@@ -316,9 +300,9 @@ static void tf_motion_search(AV1_COMP *cpi,
   } else {  // Do fractional search on the entire block and all sub-blocks.
     av1_make_default_subpel_ms_params(&ms_params, cpi, mb, block_size,
                                       &baseline_mv,
-#if CONFIG_FLEX_MVRES
+
                                       pb_mv_precision,
-#endif
+
                                       cost_list);
     ms_params.forced_stop = EIGHTH_PEL;
     ms_params.var_params.subpel_search_type = subpel_search_type;
@@ -328,15 +312,10 @@ static void tf_motion_search(AV1_COMP *cpi,
 
     MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));
-#if CONFIG_FLEX_MVRES
     error = cpi->mv_search_params.find_fractional_mv_step(
         &mb->e_mbd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv,
         &distortion, &sse, NULL);
-#else
-    error = cpi->mv_search_params.find_fractional_mv_step(
-        &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv, &best_mv.as_mv,
-        &distortion, &sse, NULL);
-#endif
+
     block_mse = DIVIDE_AND_ROUND(error, mb_pels);
     block_mv = best_mv.as_mv;
     *ref_mv = best_mv.as_mv;
@@ -353,9 +332,8 @@ static void tf_motion_search(AV1_COMP *cpi,
       for (int i = 0; i < mb_height; i += midblock_height) {
         for (int j = 0; j < mb_width; j += midblock_width) {
           start_mv = get_fullmv_from_mv(ref_mv);
-#if CONFIG_FLEX_MVRES
           full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
-#endif
+
           subblock_motion_search(cpi, frame_to_filter, ref_frame, block_size,
                                  mb_row, mb_col, midblock_size, midblock_idx, i,
                                  j, &full_ms_params, &ms_params, &baseline_mv,
@@ -371,9 +349,8 @@ static void tf_motion_search(AV1_COMP *cpi,
             const int subblock_width = block_size_wide[subblock_size];
 
             start_mv = get_fullmv_from_mv(&midblock_mvs[midblock_idx]);
-#if CONFIG_FLEX_MVRES
             full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
-#endif
+
             int bidx = midblock_idx * 4;
             for (int bi = 0; bi < midblock_height; bi += subblock_height) {
               for (int bj = 0; bj < midblock_width; bj += subblock_width) {
@@ -399,9 +376,7 @@ static void tf_motion_search(AV1_COMP *cpi,
     const int subblock_pels = subblock_height * subblock_width;
     start_mv = get_fullmv_from_mv(ref_mv);
 
-#if CONFIG_FLEX_MVRES
     full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
-#endif
 
     int subblock_idx = 0;
     for (int i = 0; i < mb_height; i += subblock_height) {
@@ -411,12 +386,11 @@ static void tf_motion_search(AV1_COMP *cpi,
         mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset + offset;
         av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb,
                                            subblock_size, &baseline_mv,
-#if CONFIG_FLEX_MVRES
                                            pb_mv_precision,
 #if CONFIG_IBC_BV_IMPROVEMENT
                                            is_ibc_cost,
 #endif
-#endif
+
                                            search_site_cfg,
                                            /*fine_search_interval=*/0);
         av1_set_mv_search_method(&full_ms_params, search_site_cfg,
@@ -429,10 +403,8 @@ static void tf_motion_search(AV1_COMP *cpi,
                               &best_mv.as_fullmv, NULL);
 
         av1_make_default_subpel_ms_params(&ms_params, cpi, mb, subblock_size,
-                                          &baseline_mv,
-#if CONFIG_FLEX_MVRES
-                                          pb_mv_precision,
-#endif
+                                          &baseline_mv, pb_mv_precision,
+
                                           cost_list);
         ms_params.forced_stop = EIGHTH_PEL;
         ms_params.var_params.subpel_search_type = subpel_search_type;
@@ -441,15 +413,10 @@ static void tf_motion_search(AV1_COMP *cpi,
         ms_params.mv_cost_params.mv_cost_type = MV_COST_NONE;
 
         subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
-#if CONFIG_FLEX_MVRES
         error = cpi->mv_search_params.find_fractional_mv_step(
             &mb->e_mbd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv,
             &distortion, &sse, NULL);
-#else
-        error = cpi->mv_search_params.find_fractional_mv_step(
-            &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv,
-            &best_mv.as_mv, &distortion, &sse, NULL);
-#endif
+
         subblock_mses[subblock_idx] = DIVIDE_AND_ROUND(error, subblock_pels);
         subblock_mvs[subblock_idx] = best_mv.as_mv;
         ++subblock_idx;

@@ -197,9 +197,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                                 const MV *ref_mv,
                                                 FULLPEL_MV *best_mv,
                                                 int *best_motion_err) {
-#if CONFIG_FLEX_MVRES
   const AV1_COMMON *cm = &cpi->common;
-#endif
   MACROBLOCKD *const xd = &x->e_mbd;
   FULLPEL_MV start_mv = get_fullmv_from_mv(ref_mv);
   int tmp_err;
@@ -211,48 +209,33 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const search_site_config *first_pass_search_sites =
       cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
   const int fine_search_interval =
-#if CONFIG_FLEX_MVRES
       cpi->is_screen_content_type && cm->features.allow_intrabc;
-#else
-      cpi->is_screen_content_type && cpi->common.features.allow_intrabc;
-#endif
+
   if (fine_search_interval) {
     av1_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
   }
-#if CONFIG_FLEX_MVRES
   const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
 #if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
-#endif
 
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
-#if CONFIG_FLEX_MVRES
   av1_make_default_fullpel_ms_params(
       &ms_params, cpi, x, bsize, ref_mv, pb_mv_precision,
 #if CONFIG_IBC_BV_IMPROVEMENT
       is_ibc_cost,
 #endif
       first_pass_search_sites, fine_search_interval);
-#else
-  av1_make_default_fullpel_ms_params(&ms_params, cpi, x, bsize, ref_mv,
-                                     first_pass_search_sites,
-                                     fine_search_interval);
-#endif
+
   av1_set_mv_search_method(&ms_params, first_pass_search_sites, NSTEP);
 
-#if CONFIG_FLEX_MVRES
   full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
-#endif
 
   FULLPEL_MV this_best_mv;
   tmp_err = av1_full_pixel_search(start_mv, &ms_params, step_param, NULL,
                                   &this_best_mv, NULL);
-
-#if CONFIG_FLEX_MVRES
   assert(is_this_mv_precision_compliant(get_mv_from_fullmv(&this_best_mv),
                                         pb_mv_precision));
-#endif
 
   if (tmp_err < INT_MAX) {
     aom_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[bsize];

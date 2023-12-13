@@ -468,10 +468,8 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   const AV1_COMMON *cm = &cpi->common;
   const TileInfo *tile_info = &tile_data->tile_info;
   MACROBLOCK *x = &td->mb;
-#if CONFIG_FLEX_MVRES
   MACROBLOCKD *const xd = &x->e_mbd;
   SB_INFO *sbi = xd->sbi;
-#endif
 
   const SPEED_FEATURES *sf = &cpi->sf;
   const int use_simple_motion_search =
@@ -484,10 +482,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     init_simple_motion_search_mvs(sms_root);
   }
 
-#if CONFIG_FLEX_MVRES
   (void)sbi;
-#endif
-
   init_ref_frame_space(cpi, td, mi_row, mi_col);
   x->sb_energy_level = 0;
   x->part_search_info.cnn_output_valid = 0;
@@ -762,10 +757,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
           ? 2
           : 1;
   MACROBLOCKD *const xd = &x->e_mbd;
-
-#if CONFIG_FLEX_MVRES
   x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
-#endif  // CONFIG_FLEX_MVRES
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   x->sms_bufs = td->sms_bufs;
   x->reuse_inter_mode_cache_type = cpi->sf.inter_sf.reuse_erp_mode_flag;
@@ -860,10 +853,8 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     // as the starting block size for partitioning the sb
     set_max_min_partition_size(sb_enc, cpi, x, sf, sb_size, mi_row, mi_col);
 
-#if CONFIG_FLEX_MVRES
     // Sets the sb_mv_precision
     x->e_mbd.sbi->sb_mv_precision = cm->features.fr_mv_precision;
-#endif  // CONFIG_FLEX_MVRES
 
     if (cpi->oxcf.unit_test_cfg.sb_multipass_unit_test) {
       perform_two_partition_passes(cpi, td, tile_data, tp, mi_row, mi_col);

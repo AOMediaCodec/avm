@@ -17,9 +17,7 @@
 #include "av1/encoder/intra_mode_search_utils.h"
 #include "av1/encoder/palette.h"
 #include "av1/encoder/tx_search.h"
-#if CONFIG_FLEX_MVRES
 #include "av1/common/reconinter.h"
-#endif
 
 /*!\brief Search for the best filter_intra mode when coding intra frame.
  *
@@ -831,10 +829,7 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
   mbmi->uv_mode = UV_DC_PRED;
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
-
-#if CONFIG_FLEX_MVRES
   set_mv_precision(mbmi, mbmi->max_mv_precision);
-#endif
 
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
@@ -995,9 +990,8 @@ static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
   assert(mbmi->mode == DC_PRED &&
          av1_filter_intra_allowed_bsize(&cpi->common, bsize));
 
-#if CONFIG_FLEX_MVRES
   set_mv_precision(mbmi, mbmi->max_mv_precision);
-#endif
+
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV

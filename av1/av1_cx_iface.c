@@ -139,16 +139,13 @@ struct av1_extracfg {
   int enable_fsc;   // enable forward skip coding
   int enable_orip;  // enable ORIP
 #if CONFIG_IDIF
-  int enable_idif;  // enable IDIF
-#endif              // CONFIG_IDIF
-  int enable_ist;   // enable intra secondary transform
-  int enable_cctx;  // enable cross-chroma component transform
-  int enable_ibp;   // enable intra bi-prediction
-
+  int enable_idif;          // enable IDIF
+#endif                      // CONFIG_IDIF
+  int enable_ist;           // enable intra secondary transform
+  int enable_cctx;          // enable cross-chroma component transform
+  int enable_ibp;           // enable intra bi-prediction
   int enable_adaptive_mvd;  // enable adaptive MVD resolution
-#if CONFIG_FLEX_MVRES
-  int enable_flex_mvres;  // enable flexible MV resolution
-#endif                    // CONFIG_FLEX_MVRES
+  int enable_flex_mvres;    // enable flexible MV resolution
 
 #if CONFIG_ADAPTIVE_DS_FILTER
   int enable_cfl_ds_filter;  // enable adaptive downsample filter
@@ -480,9 +477,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable cross-chroma component transform
   1,    // enable intra bi-prediction
   1,    // enable adaptive mvd resolution
-#if CONFIG_FLEX_MVRES
   1,    // enable flexible MV precision
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_DS_FILTER
   1,    // enable adaptive downsample filter
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
@@ -999,9 +994,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_cctx = extra_cfg->enable_cctx;
   cfg->enable_ibp = extra_cfg->enable_ibp;
   cfg->enable_adaptive_mvd = extra_cfg->enable_adaptive_mvd;
-#if CONFIG_FLEX_MVRES
   cfg->enable_flex_mvres = extra_cfg->enable_flex_mvres;
-#endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_ADAPTIVE_DS_FILTER
   cfg->enable_cfl_ds_filter = extra_cfg->enable_cfl_ds_filter;
@@ -1121,9 +1114,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_cctx = cfg->enable_cctx;
   extra_cfg->enable_ibp = cfg->enable_ibp;
   extra_cfg->enable_adaptive_mvd = cfg->enable_adaptive_mvd;
-#if CONFIG_FLEX_MVRES
   extra_cfg->enable_flex_mvres = cfg->enable_flex_mvres;
-#endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_ADAPTIVE_DS_FILTER
   extra_cfg->enable_cfl_ds_filter = cfg->enable_cfl_ds_filter;
@@ -1395,9 +1386,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     }
   }
   tool_cfg->enable_adaptive_mvd = extra_cfg->enable_adaptive_mvd;
-#if CONFIG_FLEX_MVRES
   tool_cfg->enable_flex_mvres = extra_cfg->enable_flex_mvres;
-#endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_ADAPTIVE_DS_FILTER
   tool_cfg->enable_cfl_ds_filter = extra_cfg->enable_cfl_ds_filter;
@@ -3917,11 +3906,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_adaptive_mvd,
                               argv, err_string)) {
     extra_cfg.enable_adaptive_mvd = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_FLEX_MVRES
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_flex_mvres,
                               argv, err_string)) {
     extra_cfg.enable_flex_mvres = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_DS_FILTER
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cfl_ds_filter,
                               argv, err_string)) {
@@ -4412,10 +4399,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif      // CONFIG_IDIF
         1,  // IST
         1,  // enable_cctx
-        1, 1,
-#if CONFIG_FLEX_MVRES
-        1,
-#endif  // CONFIG_FLEX_MVRES
+        1, 1,   1,
 #if CONFIG_ADAPTIVE_DS_FILTER
         1,
 #endif  // CONFIG_ADAPTIVE_DS_FILTER

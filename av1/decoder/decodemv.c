@@ -1408,14 +1408,8 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   }
 }
 
-#if CONFIG_FLEX_MVRES
 static INLINE void read_mv(aom_reader *r, MV *mv, MV ref, int is_adaptive_mvd,
                            nmv_context *ctx, MvSubpelPrecision precision);
-#else
-static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
-                           int is_adaptive_mvd, nmv_context *ctx,
-                           MvSubpelPrecision precision);
-#endif
 
 static INLINE int is_mv_valid(const MV *mv);
 
@@ -1429,12 +1423,8 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
     mv->as_int = ref_mv->as_int;
   } else {
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_FLEX_MVRES
     read_mv(r, &mv->as_mv, ref_mv->as_mv, 0, &ec_ctx->ndvc,
             MV_PRECISION_ONE_PEL);
-#else
-  read_mv(r, &mv->as_mv, &ref_mv->as_mv, 0, &ec_ctx->ndvc, MV_SUBPEL_NONE);
-#endif
 
 #if CONFIG_IBC_BV_IMPROVEMENT
   }
@@ -1494,7 +1484,6 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     mbmi->uv_mode = UV_DC_PRED;
     mbmi->interp_fltr = BILINEAR;
     mbmi->motion_mode = SIMPLE_TRANSLATION;
-#if CONFIG_FLEX_MVRES
     // CHECK(cm->features.fr_mv_precision != MV_PRECISION_ONE_PEL, "
     // fr_mv_precision is not same as MV_PRECISION_ONE_PEL for intra-bc
     // blocks");
@@ -1502,7 +1491,6 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
     set_default_precision_set(cm, mbmi, bsize);
     set_most_probable_mv_precision(cm, mbmi, bsize);
-#endif
 
 #if CONFIG_REFINEMV
     mbmi->refinemv_flag = 0;
@@ -1565,15 +1553,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         xd->ref_mv_stack[INTRA_FRAME][mbmi->intrabc_drl_idx].this_mv;
 #else
     int_mv nearestmv, nearmv;
-#if CONFIG_FLEX_MVRES
     av1_find_best_ref_mvs(ref_mvs[INTRA_FRAME], &nearestmv, &nearmv,
                           mbmi->pb_mv_precision);
 
     assert(cm->features.fr_mv_precision == MV_PRECISION_ONE_PEL &&
            mbmi->max_mv_precision == MV_PRECISION_ONE_PEL);
-#else
-    av1_find_best_ref_mvs(0, ref_mvs[INTRA_FRAME], &nearestmv, &nearmv, 0);
-#endif
     int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     if (dv_ref.as_int == 0)
@@ -1897,7 +1881,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   if (xd->tree_type != CHROMA_PART) read_filter_intra_mode_info(cm, xd, r);
 }
-#if CONFIG_FLEX_MVRES
 // Read the MVD for the lower precision
 // this function is executed when the precision is less than integer pixel
 // precision
@@ -1939,22 +1922,12 @@ static int read_mv_component_low_precision(aom_reader *r, nmv_component *mvcomp,
   return sign ? -mag : mag;
 }
 
-#endif
-
 static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
-                             int is_adaptive_mvd,
-#if CONFIG_FLEX_MVRES
-                             MvSubpelPrecision precision) {
-#else
-                             int use_subpel, int usehp) {
-#endif
-
-#if CONFIG_FLEX_MVRES
+                             int is_adaptive_mvd, MvSubpelPrecision precision) {
   if (precision < MV_PRECISION_ONE_PEL) {
     assert(!is_adaptive_mvd);
     return read_mv_component_low_precision(r, mvcomp, precision);
   }
-#endif
 
   int mag, d, fr, hp;
   const int sign = aom_read_symbol(r, mvcomp->sign_cdf, 2, ACCT_INFO("sign"));
@@ -1962,15 +1935,9 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
       is_adaptive_mvd
           ? aom_read_symbol(r, mvcomp->amvd_classes_cdf, MV_CLASSES,
                             ACCT_INFO("mv_class", "amvd_classes_cdf"))
-          :
-#if CONFIG_FLEX_MVRES
-          aom_read_symbol(
-              r, mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
-              MV_CLASSES, ACCT_INFO("mv_class", "classes_cdf"));
-#else
-          aom_read_symbol(r, mvcomp->classes_cdf, MV_CLASSES,
-                          ACCT_INFO("mv_class", "classes_cdf"));
-#endif
+          : aom_read_symbol(
+                r, mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
+                MV_CLASSES, ACCT_INFO("mv_class", "classes_cdf"));
 
   const int class0 = mv_class == MV_CLASS_0;
 
@@ -1997,22 +1964,15 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
     mag = CLASS0_SIZE << (mv_class + 2);
   }
 
-#if CONFIG_FLEX_MVRES
   int use_subpel = 1;
-#endif
   if (is_adaptive_mvd) {
     use_subpel &= class0;
     use_subpel &= (d == 0);
   }
 
-#if CONFIG_FLEX_MVRES
   if (precision > MV_PRECISION_ONE_PEL && use_subpel) {
-#else
-  if (use_subpel) {
-#endif
     // Fractional part
     // 1/2 and 1/4 pel parts
-#if CONFIG_FLEX_MVRES
     fr = aom_read_symbol(
              r, class0 ? mvcomp->class0_fp_cdf[d][0] : mvcomp->fp_cdf[0], 2,
              ACCT_INFO("class0_fp_cdf"))
@@ -2024,18 +1984,8 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
                                      : mvcomp->fp_cdf[1 + (fr >> 1)],
                               2, ACCT_INFO(class0 ? "class0_fp_cdf" : "fp_cdf"))
             : 1;
-#else
-    fr = aom_read_symbol(r, class0 ? mvcomp->class0_fp_cdf[d] : mvcomp->fp_cdf,
-                         MV_FP_SIZE,
-                         ACCT_INFO(class0 ? "class0_fp_cdf" : "fp_cdf"));
-#endif  // CONFIG_FLEX_MVRES
-
-#if CONFIG_FLEX_MVRES
     // 1/8 pel part (if hp is not used, the default value of the hp is 1)
     hp = (precision > MV_PRECISION_QTR_PEL)
-#else
-    hp = usehp
-#endif
              ? aom_read_symbol(
                    r, class0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf, 2,
                    ACCT_INFO(class0 ? "class0_hp_cdf" : "hp_cdf"))
@@ -2049,19 +1999,10 @@ static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
   mag += ((d << 3) | (fr << 1) | hp) + 1;
   return sign ? -mag : mag;
 }
-#if CONFIG_FLEX_MVRES
+
 static INLINE void read_mv(aom_reader *r, MV *mv, MV ref, int is_adaptive_mvd,
                            nmv_context *ctx, MvSubpelPrecision precision) {
-#else
-static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
-                           int is_adaptive_mvd, nmv_context *ctx,
-                           MvSubpelPrecision precision) {
-#endif
   MV diff = kZeroMv;
-#if !CONFIG_FLEX_MVRES
-  if (is_adaptive_mvd && precision > MV_SUBPEL_NONE)
-    precision = MV_SUBPEL_LOW_PRECISION;
-#endif
   const MV_JOINT_TYPE joint_type =
       is_adaptive_mvd ? (MV_JOINT_TYPE)aom_read_symbol(
                             r, ctx->amvd_joints_cdf, MV_JOINTS,
@@ -2070,24 +2011,11 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
                             r, ctx->joints_cdf, MV_JOINTS,
                             ACCT_INFO("joint_type", "joints_cdf"));
   if (mv_joint_vertical(joint_type))
-    diff.row = read_mv_component(r, &ctx->comps[0], is_adaptive_mvd,
-#if CONFIG_FLEX_MVRES
-                                 precision);
-#else
-                                 precision > MV_SUBPEL_NONE,
-                                 precision > MV_SUBPEL_LOW_PRECISION);
-#endif
+    diff.row = read_mv_component(r, &ctx->comps[0], is_adaptive_mvd, precision);
 
   if (mv_joint_horizontal(joint_type))
-    diff.col = read_mv_component(r, &ctx->comps[1], is_adaptive_mvd,
-#if CONFIG_FLEX_MVRES
-                                 precision);
-#else
-                                 precision > MV_SUBPEL_NONE,
-                                 precision > MV_SUBPEL_LOW_PRECISION);
-#endif
+    diff.col = read_mv_component(r, &ctx->comps[1], is_adaptive_mvd, precision);
 
-#if CONFIG_FLEX_MVRES
 #if BUGFIX_AMVD_AMVR
   if (!is_adaptive_mvd)
 #endif  // BUGFIX_AMVD_AMVR
@@ -2097,10 +2025,6 @@ static INLINE void read_mv(aom_reader *r, MV *mv, const MV *ref,
       lower_mv_precision(&ref, precision);
   mv->row = ref.row + diff.row;
   mv->col = ref.col + diff.col;
-#else
-  mv->row = ref->row + diff.row;
-  mv->col = ref->col + diff.col;
-#endif
 }
 
 static REFERENCE_MODE read_block_reference_mode(AV1_COMMON *cm,
@@ -2295,12 +2219,10 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
 
-#if CONFIG_FLEX_MVRES
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);
   set_default_precision_set(cm, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
-#endif
 
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
@@ -2420,24 +2342,13 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                             PREDICTION_MODE mode,
                             MV_REFERENCE_FRAME ref_frame[2], int_mv mv[2],
                             int_mv ref_mv[2], int is_compound,
-#if !CONFIG_FLEX_MVRES
-                            int allow_hp,
-#else
-                            MvSubpelPrecision precision,
-#endif
-                            aom_reader *r) {
+                            MvSubpelPrecision precision, aom_reader *r) {
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   MB_MODE_INFO *mbmi = xd->mi[0];
   BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   FeatureFlags *const features = &cm->features;
-#if CONFIG_FLEX_MVRES
   assert(IMPLIES(features->cur_frame_force_integer_mv,
                  precision == MV_PRECISION_ONE_PEL));
-#else
-  if (features->cur_frame_force_integer_mv) {
-    allow_hp = MV_SUBPEL_NONE;
-  }
-#endif
   int first_ref_dist = 0;
   int sec_ref_dist = 0;
   const int same_side = is_ref_frame_same_side(cm, mbmi);
@@ -2451,25 +2362,14 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     assert(first_ref_dist >= sec_ref_dist);
   }
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
-#if CONFIG_FLEX_MVRES
   assert(!(is_adaptive_mvd && is_pb_mv_precision_active(cm, mbmi, bsize)));
-#endif
+
   switch (mode) {
     case AMVDNEWMV:
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
-      read_mv(r, &mv[0].as_mv,
-#if CONFIG_FLEX_MVRES
-              ref_mv[0].as_mv,
-#else
-              &ref_mv[0].as_mv,
-#endif
-              is_adaptive_mvd, nmvc,
-#if CONFIG_FLEX_MVRES
+      read_mv(r, &mv[0].as_mv, ref_mv[0].as_mv, is_adaptive_mvd, nmvc,
               precision);
-#else
-              allow_hp);
-#endif
       break;
     }
     case NEARMV: {
@@ -2481,18 +2381,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       mbmi->mv[0] = ref_mv[0];
       if (mbmi->warpmv_with_mvd_flag) {
         nmv_context *const nmvc = &ec_ctx->nmvc;
-        read_mv(r, &mv[0].as_mv,
-#if CONFIG_FLEX_MVRES
-                ref_mv[0].as_mv,
-#else
-                &ref_mv[0].as_mv,
-#endif
-                is_adaptive_mvd, nmvc,
-#if CONFIG_FLEX_MVRES
+        read_mv(r, &mv[0].as_mv, ref_mv[0].as_mv, is_adaptive_mvd, nmvc,
                 precision);
-#else
-                allow_hp);
-#endif
       }
 
       break;
@@ -2503,17 +2393,10 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       if (is_tip_ref_frame(ref_frame[0])) {
         mv[0].as_int = 0;
       } else {
-#if CONFIG_FLEX_MVRES
         mv[0].as_int =
             get_warp_motion_vector(xd, &cm->global_motion[ref_frame[0]],
                                    features->fr_mv_precision, bsize, xd->mi_col,
                                    xd->mi_row)
-#else
-        mv[0].as_int = get_warp_motion_vector(
-                           xd, &cm->global_motion[ref_frame[0]],
-                           features->allow_high_precision_mv, bsize, xd->mi_col,
-                           xd->mi_row, features->cur_frame_force_integer_mv)
-#endif
                 .as_int;
       }
       break;
@@ -2526,19 +2409,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(is_compound);
       for (int i = 0; i < 2; ++i) {
         nmv_context *const nmvc = &ec_ctx->nmvc;
-        read_mv(r, &mv[i].as_mv,
-#if CONFIG_FLEX_MVRES
-                ref_mv[i].as_mv,
-#else
-
-                &ref_mv[i].as_mv,
-#endif
-                is_adaptive_mvd, nmvc,
-#if CONFIG_FLEX_MVRES
+        read_mv(r, &mv[i].as_mv, ref_mv[i].as_mv, is_adaptive_mvd, nmvc,
                 precision);
-#else
-                allow_hp);
-#endif
       }
       break;
     }
@@ -2559,18 +2431,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       mv[0].as_int = ref_mv[0].as_int;
-      read_mv(r, &mv[1].as_mv,
-#if CONFIG_FLEX_MVRES
-              ref_mv[1].as_mv,
-#else
-              &ref_mv[1].as_mv,
-#endif
-              is_adaptive_mvd, nmvc,
-#if CONFIG_FLEX_MVRES
+      read_mv(r, &mv[1].as_mv, ref_mv[1].as_mv, is_adaptive_mvd, nmvc,
               precision);
-#else
-              allow_hp);
-#endif
       assert(is_compound);
       break;
     }
@@ -2582,18 +2444,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       nmv_context *const nmvc = &ec_ctx->nmvc;
       assert(is_compound);
       mv[1].as_int = ref_mv[1].as_int;
-      read_mv(r, &mv[0].as_mv,
-#if CONFIG_FLEX_MVRES
-              ref_mv[0].as_mv,
-#else
-              &ref_mv[0].as_mv,
-#endif
-              is_adaptive_mvd, nmvc,
-#if CONFIG_FLEX_MVRES
+      read_mv(r, &mv[0].as_mv, ref_mv[0].as_mv, is_adaptive_mvd, nmvc,
               precision);
-#else
-              allow_hp);
-#endif
       break;
     }
     case GLOBAL_GLOBALMV: {
@@ -2601,31 +2453,13 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(!is_tip_ref_frame(ref_frame[0]));
       mv[0].as_int =
           get_warp_motion_vector(xd, &cm->global_motion[ref_frame[0]],
-#if CONFIG_FLEX_MVRES
-                                 features->fr_mv_precision,
-#else
-                                 features->allow_high_precision_mv,
-#endif
-                                 bsize, xd->mi_col, xd->mi_row
-#if !CONFIG_FLEX_MVRES
-                                 ,
-                                 features->cur_frame_force_integer_mv
-#endif
-                                 )
+                                 features->fr_mv_precision, bsize, xd->mi_col,
+                                 xd->mi_row)
               .as_int;
       mv[1].as_int =
           get_warp_motion_vector(xd, &cm->global_motion[ref_frame[1]],
-#if CONFIG_FLEX_MVRES
-                                 features->fr_mv_precision,
-#else
-                                 features->allow_high_precision_mv,
-#endif
-                                 bsize, xd->mi_col, xd->mi_row
-#if !CONFIG_FLEX_MVRES
-                                 ,
-                                 features->cur_frame_force_integer_mv
-#endif
-                                 )
+                                 features->fr_mv_precision, bsize, xd->mi_col,
+                                 xd->mi_row)
               .as_int;
       break;
     }
@@ -2639,22 +2473,12 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(is_compound);
       mv[1 - jmvd_base_ref_list].as_int = ref_mv[1 - jmvd_base_ref_list].as_int;
       read_mv(r, &mv[jmvd_base_ref_list].as_mv,
-#if CONFIG_FLEX_MVRES
-              ref_mv[jmvd_base_ref_list].as_mv,
-#else
-              &ref_mv[jmvd_base_ref_list].as_mv,
-#endif
-              is_adaptive_mvd, nmvc,
-#if CONFIG_FLEX_MVRES
+              ref_mv[jmvd_base_ref_list].as_mv, is_adaptive_mvd, nmvc,
               precision);
-#else
-              allow_hp);
-#endif
       sec_ref_dist = same_side ? sec_ref_dist : -sec_ref_dist;
       MV other_mvd = { 0, 0 };
       MV diff = { 0, 0 };
 
-#if CONFIG_FLEX_MVRES
       MV low_prec_refmv = ref_mv[jmvd_base_ref_list].as_mv;
 #if BUGFIX_AMVD_AMVR
       if (!is_adaptive_mvd)
@@ -2665,22 +2489,12 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
           lower_mv_precision(&low_prec_refmv, precision);
       diff.row = mv[jmvd_base_ref_list].as_mv.row - low_prec_refmv.row;
       diff.col = mv[jmvd_base_ref_list].as_mv.col - low_prec_refmv.col;
-#else
-      diff.row = mv[jmvd_base_ref_list].as_mv.row -
-                 ref_mv[jmvd_base_ref_list].as_mv.row;
-      diff.col = mv[jmvd_base_ref_list].as_mv.col -
-                 ref_mv[jmvd_base_ref_list].as_mv.col;
-#endif
+
       get_mv_projection(&other_mvd, diff, sec_ref_dist, first_ref_dist);
       scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
 #if !CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_FLEX_MVRES
       // TODO(Mohammed): Do we need to apply block level lower mv precision?
       lower_mv_precision(&other_mvd, features->fr_mv_precision);
-#else
-      lower_mv_precision(&other_mvd, allow_hp & !is_adaptive_mvd,
-                         features->cur_frame_force_integer_mv);
-#endif
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
       mv[1 - jmvd_base_ref_list].as_mv.row =
           (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.row + other_mvd.row);
@@ -2771,7 +2585,6 @@ static void read_refinemv_flag(AV1_COMMON *const cm, MACROBLOCKD *xd,
 }
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_FLEX_MVRES
 MvSubpelPrecision av1_read_pb_mv_precision(AV1_COMMON *const cm,
                                            MACROBLOCKD *const xd,
                                            aom_reader *r) {
@@ -2801,7 +2614,6 @@ MvSubpelPrecision av1_read_pb_mv_precision(AV1_COMMON *const cm,
       nsymbs, ACCT_INFO("down"));
   return av1_get_precision_from_index(mbmi, down);
 }
-#endif  //  CONFIG_FLEX_MVRES
 
 static void read_inter_block_mode_info(AV1Decoder *const pbi,
                                        DecoderCodingBlock *dcb,
@@ -2810,9 +2622,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   AV1_COMMON *const cm = &pbi->common;
   FeatureFlags *const features = &cm->features;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
-#if !CONFIG_FLEX_MVRES
-  const int allow_hp = features->allow_high_precision_mv;
-#endif
   int_mv ref_mv[2];
   int_mv ref_mvs[MODE_CTX_REF_FRAMES][MAX_MV_REF_CANDIDATES] = { { { 0 } } };
   int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
@@ -2823,9 +2632,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
   MACROBLOCKD *const xd = &dcb->xd;
-#if CONFIG_FLEX_MVRES
+
   SB_INFO *sbi = xd->sbi;
-#endif
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
   mbmi->uv_mode = UV_DC_PRED;
@@ -2838,12 +2646,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->use_intrabc[1] = 0;
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 
-#if CONFIG_FLEX_MVRES
   set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
   set_default_precision_set(cm, mbmi, bsize);
   set_most_probable_mv_precision(cm, mbmi, bsize);
-#endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA
@@ -3148,7 +2954,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         read_drl_idx(max_drl_bits,
                      av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
                      ec_ctx, dcb, mbmi, r);
-#if CONFIG_FLEX_MVRES
       set_mv_precision(mbmi, mbmi->max_mv_precision);
       if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
         set_precision_set(cm, xd, mbmi, bsize, mbmi->ref_mv_idx);
@@ -3159,7 +2964,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       if (enable_adaptive_mvd_resolution(cm, mbmi))
         set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
 #endif  // BUGFIX_AMVD_AMVR
-#endif  // CONFIG_FLEX_MVRES
     }
   }
 
@@ -3264,14 +3068,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // !CONFIG_SKIP_MODE_ENHANCEMENT
   }
 
-  const int mv_corrupted_flag = !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame,
-                                           mbmi->mv, ref_mv, is_compound,
-#if CONFIG_FLEX_MVRES
-                                           mbmi->pb_mv_precision,
-#else
-                                           allow_hp,
-#endif
-                                           r);
+  const int mv_corrupted_flag =
+      !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv,
+                 is_compound, mbmi->pb_mv_precision, r);
 
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
@@ -3659,12 +3458,10 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
              mbmi->sb_type[PLANE_TYPE_Y]);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #endif  // CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_FLEX_MVRES
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
   set_default_precision_set(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
   set_most_probable_mv_precision(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
-#endif  // CONFIG_FLEX_MVRES
 
 #if CONFIG_BAWP
 #if CONFIG_BAWP_CHROMA

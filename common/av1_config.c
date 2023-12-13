@@ -279,9 +279,9 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
 #if CONFIG_REFINEMV
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_refinemv);
 #endif  // CONFIG_REFINEMV
-#if CONFIG_FLEX_MVRES
+
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_flex_mvres);
-#endif  // CONFIG_FLEX_MVRES
+
 #if CONFIG_ADAPTIVE_DS_FILTER
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_cfl_ds_filter);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER

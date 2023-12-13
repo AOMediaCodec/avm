@@ -968,14 +968,12 @@ typedef struct {
 
   //! drl_mode_cost
   int drl_mode_cost[3][DRL_MODE_CONTEXTS][2];
-#if CONFIG_FLEX_MVRES
   /*! Costs for coding the most probable mv resolution. */
   int pb_block_mv_mpp_flag_costs[NUM_MV_PREC_MPP_CONTEXT][2];
 
   /*! Costs for coding the mv resolution. */
   int pb_block_mv_precision_costs[MV_PREC_DOWN_CONTEXTS][FLEX_MV_COSTS_SIZE]
                                  [NUM_MV_PRECISIONS];
-#endif
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   //! skip_drl_mode_cost
   int skip_drl_mode_cost[3][2];
@@ -1256,7 +1254,7 @@ typedef struct {
   //! A multiplier that converts mv cost to l1 error.
   int sadperbit;
   /**@}*/
-#if CONFIG_FLEX_MVRES
+
   /*****************************************************************************
    * \name Encoding Costs
    * Here are the entropy costs needed to encode a given mv.
@@ -1291,54 +1289,9 @@ typedef struct {
   /*! Points to the middle of dvcost. */
   int *dv_nmv_cost[2];
 #endif
-
-#else
-  /*****************************************************************************
-   * \name Encoding Costs
-   * Here are the entropy costs needed to encode a given mv.
-   * \ref nmv_cost_alloc and \ref nmv_cost_hp_alloc are two arrays that holds
-   * the memory for holding the mv cost. But since the motion vectors can be
-   * negative, we shift them to the middle and store the resulting pointer in
-   * \ref nmv_cost and \ref nmv_cost_hp for easier referencing. Finally, \ref
-   * mv_cost_stack points to the \ref nmv_cost with the mv precision we are
-   * currently working with. In essence, only \ref mv_cost_stack is needed for
-   * motion search, the other can be considered private.
-   ****************************************************************************/
-  /**@{*/
-  //! Costs for coding the zero components.
-  int nmv_joint_cost[MV_JOINTS];
-
-  //! Costs for coding the zero components when adaptive MVD resolution is
-  //! applied
-  int amvd_nmv_joint_cost[MV_JOINTS];
-
-  //! Allocates memory for 1/4-pel motion vector costs.
-  int nmv_cost_alloc[2][MV_VALS];
-  //! Allocates memory for 1/8-pel motion vector costs.
-  int nmv_cost_hp_alloc[2][MV_VALS];
-  //! Allocates memory for 1/4-pel motion vector costs when adaptive MVD
-  //! resolution is applied
-  int amvd_nmv_cost_alloc[2][MV_VALS];
-  //! Allocates memory for 1/8-pel motion vector costs when adaptive MVD
-  //! resolution is applied mode is used.
-  int amvd_nmv_cost_hp_alloc[2][MV_VALS];
-  //! Points to the middle of \ref nmv_cost_alloc
-  int *nmv_cost[2];
-  //! Points to the middle of \ref nmv_cost_hp_alloc
-  int *nmv_cost_hp[2];
-  //! Points to the middle of \ref amvd_nmv_cost_alloc
-  int *amvd_nmv_cost[2];
-  //! Points to the middle of \ref amvd_nmv_cost_hp_alloc
-  int *amvd_nmv_cost_hp[2];
-  //! Points to the nmv_cost_hp in use.
-  int **mv_cost_stack;
-  //! Points to the nmv_cost_hp in use.
-  int **amvd_mv_cost_stack;
-#endif
   /**@}*/
 } MvCosts;
 
-#if CONFIG_FLEX_MVRES
 /*! \brief Holds mv costs for intrabc.
  */
 typedef struct {
@@ -1356,31 +1309,7 @@ typedef struct {
   /*! Points to the middle of \ref dv_costs_alloc. */
   int *dv_costs[2];
 } IntraBCMvCosts;
-#endif
 
-#if CONFIG_IBC_BV_IMPROVEMENT && !CONFIG_FLEX_MVRES
-/*! \brief Holds mv costs for intrabc.
- */
-typedef struct {
-  /*! Cost of transmitting the actual motion vector.
-mv_component[0][i] is the cost of motion vector with horizontal component
-(mv_row) equal to i - MV_MAX.
- mv_component[1][i] is the cost of motion vector with vertical component
- (mv_col) equal to i - MV_MAX.*/
-  int mv_component[2][MV_VALS];
-
-  /*! joint_mv[i] is the cost of transmitting joint mv(MV_JOINT_TYPE) of
-   type i.*/
-  // TODO(huisu@google.com): we can update dv_joint_cost per SB.
-  int joint_mv[MV_JOINTS];
-
-  /*! amvd_joint_mv */
-  int amvd_joint_mv[MV_JOINTS];
-
-  /*! res_mv_component */
-  int res_mv_component[2][MV_VALS];
-} IntraBCMVCosts;
-#endif
 /*! \brief Holds the costs needed to encode the coefficients
  */
 typedef struct {
@@ -1523,12 +1452,8 @@ typedef struct macroblock {
 
   //! The rate needed to encode a new block vector to the bitstream and some
   //! multipliers for motion search.
-#if CONFIG_FLEX_MVRES
-  IntraBCMvCosts dv_costs;
-#elif CONFIG_IBC_BV_IMPROVEMENT
-  IntraBCMVCosts dv_costs;
-#endif
 
+  IntraBCMvCosts dv_costs;
   //! The rate needed to signal the txfm coefficients to the bitstream.
   CoeffCosts coeff_costs;
   /**@}*/

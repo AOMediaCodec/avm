@@ -477,9 +477,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
   &g_av1_codec_arg_defs.enable_adaptive_mvd,
-#if CONFIG_FLEX_MVRES
   &g_av1_codec_arg_defs.enable_flex_mvres,
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_DS_FILTER
   &g_av1_codec_arg_defs.enable_cfl_ds_filter,
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
@@ -663,9 +661,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_cctx = 1;
   config->enable_ibp = 1;
   config->enable_adaptive_mvd = 1;
-#if CONFIG_FLEX_MVRES
   config->enable_flex_mvres = 1;
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_DS_FILTER
   config->enable_cfl_ds_filter = 1;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
@@ -1586,11 +1582,9 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "                               : Adaptive MVD resolution: (%d)\n",
           encoder_cfg->enable_adaptive_mvd);
-#if CONFIG_FLEX_MVRES
   fprintf(stdout,
           "                               : Flexible MV precisions: (%d)\n",
           encoder_cfg->enable_flex_mvres);
-#endif  // CONFIG_FLEX_MVRES
   fprintf(stdout, "                               : Joint MVD coding: (%d)\n",
           encoder_cfg->enable_joint_mvd);
 #if CONFIG_REFINEMV

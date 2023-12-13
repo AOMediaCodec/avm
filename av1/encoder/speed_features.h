@@ -564,14 +564,9 @@ typedef struct MV_SPEED_FEATURES {
   // When to stop subpel search in simple motion search.
   SUBPEL_FORCE_STOP simple_motion_subpel_force_stop;
 
-#if CONFIG_FLEX_MVRES
   // The type of interpolation filter used in motion search.
   SUBPEL_SEARCH_TYPE subpel_search_type;
-#else
-  // If true, sub-pixel search uses the exact convolve function used for final
-  // encoding and decoding; otherwise, it uses bilinear interpolation.
-  SUBPEL_SEARCH_TYPE use_accurate_subpel_search;
-#endif
+
   // Threshold for allowing exhaustive motion search.
   int exhaustive_searches_thresh;
 
@@ -1005,7 +1000,6 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   int disable_lr_filter;
 } LOOP_FILTER_SPEED_FEATURES;
 
-#if CONFIG_FLEX_MVRES
 typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
   // Do not search 8-pel precision
   int do_not_search_8_pel_precision;
@@ -1031,7 +1025,6 @@ typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
   // fast motion search
   int fast_motion_search_low_precision;
 } FLEXMV_PRECISION_SPEED_FEATURES;
-#endif
 
 /*!\endcond */
 
@@ -1098,12 +1091,10 @@ typedef struct SPEED_FEATURES {
    * In-loop filter speed features:
    */
   LOOP_FILTER_SPEED_FEATURES lpf_sf;
-#if CONFIG_FLEX_MVRES
   /*!
    * flexible MV precisions speed features:
    */
   FLEXMV_PRECISION_SPEED_FEATURES flexmv_sf;
-#endif
 
 } SPEED_FEATURES;
 /*!\cond */

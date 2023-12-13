@@ -1303,7 +1303,6 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
     // precision < MV_SUBPEL_EIGHTH) fractional bits are always
     // zero.
     //
-#if CONFIG_FLEX_MVRES
     // After the right shifts, there are 3 fractional bits of precision. If
     // precision < MV_SUBPEL_EIGHTH is false, the bottom bit is always zero
     // (so we don't need a call to convert_to_trans_prec here)
@@ -1314,17 +1313,6 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
     if (precision < MV_PRECISION_HALF_PEL)
 #endif  // CONFIG_C071_SUBBLK_WARPMV
       lower_mv_precision(&res.as_mv, precision);
-#else
-    // After the right shifts, there are 3 fractional bits of precision. If
-    // allow_hp is false, the bottom bit is always zero (so we don't need a
-    // call to convert_to_trans_prec here)
-    res.as_mv.col = model->wmmat[0] >> GM_TRANS_ONLY_PREC_DIFF;
-    res.as_mv.row = model->wmmat[1] >> GM_TRANS_ONLY_PREC_DIFF;
-    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));
-    if (is_integer) {
-      integer_mv_precision(&res.as_mv);
-    }
-#endif
     return res;
   }
 
@@ -1341,27 +1329,16 @@ int_mv get_warp_motion_vector_xy_pos(const WarpedMotionParams *model,
   int yc =
       (mat[4] * x + mat[5] * y + mat[1]) - (1 << WARPEDMODEL_PREC_BITS) * y;
 
-#if CONFIG_FLEX_MVRES
   tx = convert_to_trans_prec(precision, xc);
   ty = convert_to_trans_prec(precision, yc);
-#else
-  tx = convert_to_trans_prec(allow_hp, xc);
-  ty = convert_to_trans_prec(allow_hp, yc);
-#endif
 
   res.as_mv.row = ty;
   res.as_mv.col = tx;
 
-#if CONFIG_FLEX_MVRES
 #if CONFIG_C071_SUBBLK_WARPMV
   if (precision < MV_PRECISION_HALF_PEL)
 #endif  // CONFIG_C071_SUBBLK_WARPMV
     lower_mv_precision(&res.as_mv, precision);
-#else
-  if (is_integer) {
-    integer_mv_precision(&res.as_mv);
-  }
-#endif
   return res;
 }
 

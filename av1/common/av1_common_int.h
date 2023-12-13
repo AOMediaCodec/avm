@@ -469,9 +469,7 @@ typedef struct SequenceHeader {
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
   uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
   uint8_t enable_adaptive_mvd;  // enables/disables adaptive MVD resolution
-#if CONFIG_FLEX_MVRES
-  uint8_t enable_flex_mvres;  // enables/disables flexible MV resolution
-#endif                        // CONFIG_FLEX_MVRES
+  uint8_t enable_flex_mvres;    // enables/disables flexible MV resolution
 
 #if CONFIG_ADAPTIVE_DS_FILTER
   uint8_t enable_cfl_ds_filter;  // enable/disables adaptive downsampling filter
@@ -600,7 +598,6 @@ typedef struct {
    * If true, CDF update in the symbol encoding/decoding process is disabled.
    */
   bool disable_cdf_update;
-#if CONFIG_FLEX_MVRES
   /*!
    * The maximum allowable mv precision of the current frame.
    */
@@ -609,25 +606,16 @@ typedef struct {
    * The most probable mv precision of the current frame.
    */
   MvSubpelPrecision most_probable_fr_mv_precision;
-#else
-  /*!
-   * If true, motion vectors are specified to eighth pel precision; and
-   * if false, motion vectors are specified to quarter pel precision.
-   */
-  bool allow_high_precision_mv;
-#endif
 
   /*!
    * If true, force integer motion vectors; if false, use the default.
    */
   bool cur_frame_force_integer_mv;
-#if CONFIG_FLEX_MVRES
   /*!
    * If true, allow the mv precision to be changed at the prediction block
    * level.
    */
   bool use_pb_mv_precision;
-#endif  // CONFIG_FLEX_MVRES
 
   /*!
    * If true, palette tool and/or intra block copy tools may be used.
@@ -3408,10 +3396,7 @@ static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
 
   sbi->mi_row = mi_row;
   sbi->mi_col = mi_col;
-
-#if CONFIG_FLEX_MVRES
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
-#endif  // CONFIG_FLEX_MVRES
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.
@@ -3760,7 +3745,6 @@ static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
 }
 /*!\endcond */
 
-#if CONFIG_FLEX_MVRES
 static inline int is_this_mv_precision_compliant(
     const MV this_mv, MvSubpelPrecision pb_mv_precision) {
   bool check_row = this_mv.row &
@@ -3769,7 +3753,6 @@ static inline int is_this_mv_precision_compliant(
                    ((1 << (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision)) - 1);
   return (check_row || check_col) ? 0 : 1;
 }
-#endif  // CONFIG_FLEX_MVRES
 
 static INLINE bool is_warp_mode(MOTION_MODE motion_mode) {
 #if CONFIG_EXTENDED_WARP_PREDICTION

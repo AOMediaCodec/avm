@@ -100,12 +100,7 @@ enum {
 #endif
 #endif
 
-#if CONFIG_FLEX_MVRES
 #define BUGFIX_AMVD_AMVR 1
-#else
-#define BUGFIX_AMVD_AMVR 0
-#endif  // CONFIG_FLEX_MVRES
-
 // Supported scale modes for JOINT_NEWMV
 #define JOINT_NEWMV_SCALE_FACTOR_CNT 5
 // Supoorted scale modes for JOINT_AMVDNEWMV

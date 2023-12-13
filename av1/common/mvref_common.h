@@ -14,9 +14,7 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
-#if CONFIG_FLEX_MVRES
 #include "av1/common/mv.h"
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -133,19 +131,11 @@ static INLINE int opfl_get_subblock_size(int bw, int bh, int plane
 // precision < MV_SUBPEL_EIGHTH, the bottom bit will always be zero. If
 // CONFIG_AMVR and precision == MV_SUBPEL_NONE, the bottom three bits will be
 // zero (so the motion vector represents an integer)
-#if CONFIG_FLEX_MVRES
 static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
                                             const WarpedMotionParams *model,
                                             MvSubpelPrecision precision,
                                             BLOCK_SIZE bsize, int mi_col,
                                             int mi_row) {
-#else
-static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
-                                            const WarpedMotionParams *model,
-                                            int allow_hp, BLOCK_SIZE bsize,
-                                            int mi_col, int mi_row,
-                                            int is_integer) {
-#endif
   int_mv res;
 
   if (model->wmtype == IDENTITY) {
@@ -163,7 +153,6 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
     // precision < MV_SUBPEL_EIGHTH) fractional bits are always
     // zero.
     //
-#if CONFIG_FLEX_MVRES
     // After the right shifts, there are 3 fractional bits of precision. If
     // precision < MV_SUBPEL_EIGHTH is false, the bottom bit is always zero
     // (so we don't need a call to convert_to_trans_prec here)
@@ -187,21 +176,6 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
     if (precision < MV_PRECISION_HALF_PEL)
 #endif  // CONFIG_C071_SUBBLK_WARPMV
       lower_mv_precision(&res.as_mv, precision);
-#else
-    // After the right shifts, there are 3 fractional bits of precision. If
-    // allow_hp is false, the bottom bit is always zero (so we don't need a
-    // call to convert_to_trans_prec here)
-    res.as_mv.col = model->wmmat[0] >> WARPEDMODEL_TO_MV_SHIFT;
-    res.as_mv.row = model->wmmat[1] >> WARPEDMODEL_TO_MV_SHIFT;
-    clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
-                 xd->height << MI_SIZE_LOG2, xd);
-#if !CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_C071_SUBBLK_WARPMV
-    assert(IMPLIES(1 & (res.as_mv.row | res.as_mv.col), allow_hp));
-#endif
-    if (is_integer) {
-      integer_mv_precision(&res.as_mv);
-    }
-#endif
     return res;
   }
 
@@ -217,13 +191,8 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
       (mat[2] - (1 << WARPEDMODEL_PREC_BITS)) * x + mat[3] * y + mat[0];
   const int yc =
       mat[4] * x + (mat[5] - (1 << WARPEDMODEL_PREC_BITS)) * y + mat[1];
-#if CONFIG_FLEX_MVRES
   tx = convert_to_trans_prec(precision, xc);
   ty = convert_to_trans_prec(precision, yc);
-#else
-  tx = convert_to_trans_prec(allow_hp, xc);
-  ty = convert_to_trans_prec(allow_hp, yc);
-#endif
 
   res.as_mv.row = clamp(ty, MV_LOW + 1, MV_UPP - 1);
   res.as_mv.col = clamp(tx, MV_LOW + 1, MV_UPP - 1);
@@ -231,16 +200,10 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
   clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
                xd->height << MI_SIZE_LOG2, xd);
 
-#if CONFIG_FLEX_MVRES
 #if CONFIG_C071_SUBBLK_WARPMV
   if (precision < MV_PRECISION_HALF_PEL)
 #endif  // CONFIG_C071_SUBBLK_WARPMV
     lower_mv_precision(&res.as_mv, precision);
-#else
-  if (is_integer) {
-    integer_mv_precision(&res.as_mv);
-  }
-#endif
   return res;
 }
 
@@ -261,27 +224,12 @@ static INLINE int_mv get_block_mv(const MB_MODE_INFO *candidate,
 // ref_warp_model is extracted from the WRL listb before calling this function
 static INLINE int_mv get_mv_from_wrl(const MACROBLOCKD *xd,
                                      const WarpedMotionParams *ref_warp_model,
-#if CONFIG_FLEX_MVRES
                                      MvSubpelPrecision pb_mv_precision,
-#else
-                                     int allow_high_precision_mv,
-                                     int cur_frame_force_integer_mv,
-#endif
                                      BLOCK_SIZE bsize, int mi_col, int mi_row) {
   int_mv mv;
   assert(ref_warp_model);
-  mv = get_warp_motion_vector(xd, ref_warp_model,
-#if CONFIG_FLEX_MVRES
-                              pb_mv_precision,
-#else
-                              allow_high_precision_mv,
-#endif
-                              bsize, mi_col, mi_row
-#if !CONFIG_FLEX_MVRES
-                              ,
-                              cur_frame_force_integer_mv
-#endif
-  );
+  mv = get_warp_motion_vector(xd, ref_warp_model, pb_mv_precision, bsize,
+                              mi_col, mi_row);
   return mv;
 }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
@@ -307,18 +255,6 @@ static INLINE int find_valid_col_offset(const TileInfo *const tile, int mi_col,
   return clamp(col_offset, tile->mi_col_start - mi_col,
                tile->mi_col_end - mi_col - 1);
 }
-#if !CONFIG_FLEX_MVRES
-static INLINE void lower_mv_precision(MV *mv, int allow_hp, int is_integer) {
-  if (is_integer) {
-    integer_mv_precision(mv);
-  } else {
-    if (!allow_hp) {
-      if (mv->row & 1) mv->row += (mv->row > 0 ? -1 : 1);
-      if (mv->col & 1) mv->col += (mv->col > 0 ? -1 : 1);
-    }
-  }
-}
-#endif
 
 #if CONFIG_ALLOW_SAME_REF_COMPOUND
 // Converts a pair of distinct indices (rf) each in [0, n-1],
@@ -609,13 +545,8 @@ void av1_initialize_warp_wrl_list(
 // check a list of motion vectors by sad score using a number rows of pixels
 // above and a number cols of pixels in the left to select the one with best
 // score to use as ref motion vector
-#if CONFIG_FLEX_MVRES
 void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
                            MvSubpelPrecision precision);
-#else
-void av1_find_best_ref_mvs(int allow_hp, int_mv *mvlist, int_mv *nearest_mv,
-                           int_mv *near_mv, int is_integer);
-#endif
 
 uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
                           BLOCK_SIZE bsize);

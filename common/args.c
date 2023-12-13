@@ -107,9 +107,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_cctx);
     GET_PARAMS(enable_ibp);
     GET_PARAMS(enable_adaptive_mvd);
-#if CONFIG_FLEX_MVRES
+
     GET_PARAMS(enable_flex_mvres);
-#endif  // CONFIG_FLEX_MVRES
+
 #if CONFIG_ADAPTIVE_DS_FILTER
     GET_PARAMS(enable_cfl_ds_filter);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER

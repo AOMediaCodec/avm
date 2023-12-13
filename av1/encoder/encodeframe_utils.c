@@ -1239,15 +1239,10 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
                 MV_CLASSES);
     AVERAGE_CDF(nmv_left->comps[i].amvd_classes_cdf,
                 nmv_tr->comps[i].amvd_classes_cdf, MV_CLASSES);
-#if CONFIG_FLEX_MVRES
     AVERAGE_CDF(nmv_left->comps[i].class0_fp_cdf,
                 nmv_tr->comps[i].class0_fp_cdf, 2);
     AVERAGE_CDF(nmv_left->comps[i].fp_cdf, nmv_tr->comps[i].fp_cdf, 2);
-#else
-    AVERAGE_CDF(nmv_left->comps[i].class0_fp_cdf,
-                nmv_tr->comps[i].class0_fp_cdf, MV_FP_SIZE);
-    AVERAGE_CDF(nmv_left->comps[i].fp_cdf, nmv_tr->comps[i].fp_cdf, MV_FP_SIZE);
-#endif  // CONFIG_FLEX_MVRES
+
     AVERAGE_CDF(nmv_left->comps[i].sign_cdf, nmv_tr->comps[i].sign_cdf, 2);
     AVERAGE_CDF(nmv_left->comps[i].class0_hp_cdf,
                 nmv_tr->comps[i].class0_hp_cdf, 2);
@@ -1607,7 +1602,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_IST_SET_FLAG
   AVERAGE_CDF(ctx_left->stx_set_cdf, ctx_tr->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_IST_SET_FLAG
-#if CONFIG_FLEX_MVRES
 
   for (int p = 0; p < NUM_MV_PREC_MPP_CONTEXT; ++p) {
     AVG_CDF_STRIDE(ctx_left->pb_mv_mpp_flag_cdf[p],
@@ -1626,20 +1620,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     }
   }
 
-#endif  // CONFIG_FLEX_MVRES
   AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf, 4);
   AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
   AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf, CCTX_TYPES);
 }
 
 // Memset the mbmis at the current superblock to 0
-#if CONFIG_FLEX_MVRES
 void av1_reset_mbmi(const CommonModeInfoParams *const mi_params,
                     BLOCK_SIZE sb_size, int mi_row, int mi_col) {
-#else
-void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
-                    int mi_row, int mi_col) {
-#endif
   // size of sb in unit of mi (BLOCK_4X4)
   const int sb_size_mi = mi_size_wide[sb_size];
   const int mi_alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];
@@ -1812,18 +1800,10 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
           mi_col != tile_info->mi_col_start)
         break;
       av1_fill_mv_costs(xd->tile_ctx, cm->features.cur_frame_force_integer_mv,
-#if CONFIG_FLEX_MVRES
                         cm->features.fr_mv_precision, &x->mv_costs);
-#else
-                        cm->features.allow_high_precision_mv, &x->mv_costs);
-#endif
 #if CONFIG_IBC_BV_IMPROVEMENT
       if (cm->features.allow_intrabc) {
-#if CONFIG_FLEX_MVRES
         fill_dv_costs(&x->dv_costs, xd->tile_ctx, &x->mv_costs);
-#else
-        av1_fill_dv_costs(xd->tile_ctx, &x->dv_costs);
-#endif
       }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
       break;

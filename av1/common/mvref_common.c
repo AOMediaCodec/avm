@@ -602,15 +602,10 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if CONFIG_EXTENDED_WARP_PREDICTION
     int row_offset, int col_offset,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-    uint16_t weight
-#if CONFIG_FLEX_MVRES
-    ,
-    const MvSubpelPrecision precision
-#endif
-) {
-#if CONFIG_C071_SUBBLK_WARPMV && CONFIG_FLEX_MVRES
+    uint16_t weight, const MvSubpelPrecision precision) {
+#if CONFIG_C071_SUBBLK_WARPMV
   (void)precision;
-#endif  // CONFIG_C071_SUBBLK_WARPMV && CONFIG_FLEX_MVRES
+#endif  // CONFIG_C071_SUBBLK_WARPMV
   if (!is_inter_block(candidate, SHARED_PART)) return;
 
 #if CONFIG_IBC_SR_EXT
@@ -777,20 +772,12 @@ static AOM_INLINE void add_ref_mv_candidate(
                                                                submi,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
                                                                ref);
-#if !CONFIG_FLEX_MVRES && !CONFIG_C071_SUBBLK_WARPMV
-          const int allow_hp_mv = cm->features.allow_high_precision_mv;
-          const int force_integer_mv = cm->features.cur_frame_force_integer_mv;
-#endif
 
           int_mv this_refmv;
           get_mv_projection(&this_refmv.as_mv, cand_refmv.as_mv,
                             cur_to_ref_dist, cand_to_ref_dist);
 #if !CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_FLEX_MVRES
           lower_mv_precision(&this_refmv.as_mv, precision);
-#else
-          lower_mv_precision(&this_refmv.as_mv, allow_hp_mv, force_integer_mv);
-#endif
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
           for (index = 0; index < *derived_mv_count; ++index) {
             if (derived_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
@@ -1065,9 +1052,7 @@ static AOM_INLINE void scan_row_mbmi(
   end_mi = AOMMIN(end_mi, mi_size_wide[BLOCK_64X64]);
   const int width_8x8 = mi_size_wide[BLOCK_8X8];
   const int width_16x16 = mi_size_wide[BLOCK_16X16];
-#if CONFIG_FLEX_MVRES
   MvSubpelPrecision precision = cm->features.fr_mv_precision;
-#endif
   int col_offset = 0;
   // TODO(jingning): Revisit this part after cb4x4 is stable.
   if (abs(row_offset) > 1) {
@@ -1161,12 +1146,7 @@ static AOM_INLINE void scan_row_mbmi(
 #if CONFIG_EXTENDED_WARP_PREDICTION
         row_offset, col_offset + i,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-        len * weight
-#if CONFIG_FLEX_MVRES
-        ,
-        precision
-#endif
-    );
+        len * weight, precision);
 
     i += len;
   }
@@ -1223,9 +1203,7 @@ static AOM_INLINE void scan_col_mbmi(
   const int n8_h_8 = mi_size_high[BLOCK_8X8];
   const int n8_h_16 = mi_size_high[BLOCK_16X16];
   int i;
-#if CONFIG_FLEX_MVRES
   MvSubpelPrecision precision = cm->features.fr_mv_precision;
-#endif
   int row_offset = 0;
   if (abs(col_offset) > 1) {
     row_offset = 1;
@@ -1316,11 +1294,8 @@ static AOM_INLINE void scan_col_mbmi(
 #if CONFIG_EXTENDED_WARP_PREDICTION
         row_offset + i, col_offset,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-        len * weight
-#if CONFIG_FLEX_MVRES
-        ,
-        precision
-#endif
+        len * weight, precision
+
     );
     i += len;
   }
@@ -1369,9 +1344,7 @@ static AOM_INLINE void scan_blk_mbmi(
 
   mi_pos.row = row_offset;
   mi_pos.col = col_offset;
-#if CONFIG_FLEX_MVRES
   MvSubpelPrecision precision = cm->features.fr_mv_precision;
-#endif
 
   if (is_inside(tile, mi_col, mi_row, &mi_pos)) {
     const MB_MODE_INFO *const candidate =
@@ -1427,11 +1400,8 @@ static AOM_INLINE void scan_blk_mbmi(
 #else
         2 * len
 #endif
-#if CONFIG_FLEX_MVRES
         ,
-        precision
-#endif
-    );
+        precision);
   }  // Analyze a single 8x8 block motion information.
 }
 
@@ -1690,24 +1660,14 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                              cur_frame_index, frame0_index);
   int idx;
 #if !CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_FLEX_MVRES
   const MvSubpelPrecision fr_mv_precision = cm->features.fr_mv_precision;
-#else
-  const int allow_high_precision_mv = cm->features.allow_high_precision_mv;
-  const int force_integer_mv = cm->features.cur_frame_force_integer_mv;
-#endif
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
 
   int_mv this_refmv;
   get_mv_projection(&this_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
                     cur_offset_0, prev_frame_mvs->ref_frame_offset);
 #if !CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_FLEX_MVRES
   lower_mv_precision(&this_refmv.as_mv, fr_mv_precision);
-#else
-  lower_mv_precision(&this_refmv.as_mv, allow_high_precision_mv,
-                     force_integer_mv);
-#endif
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
 
   if (rf[1] == NONE_FRAME) {
@@ -1755,12 +1715,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     get_mv_projection(&comp_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
                       cur_offset_1, prev_frame_mvs->ref_frame_offset);
 #if !CONFIG_C071_SUBBLK_WARPMV
-#if CONFIG_FLEX_MVRES
     lower_mv_precision(&comp_refmv.as_mv, fr_mv_precision);
-#else
-    lower_mv_precision(&comp_refmv.as_mv, allow_high_precision_mv,
-                       force_integer_mv);
-#endif
 #endif  // !CONFIG_C071_SUBBLK_WARPMV
 
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -3091,39 +3046,19 @@ void av1_find_mv_refs(
     gm_mv[0].as_int = gm_mv[1].as_int = 0;
   } else {
     const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
-#if CONFIG_FLEX_MVRES
     const int fr_mv_precision = cm->features.fr_mv_precision;
-#else
-    const int allow_high_precision_mv = cm->features.allow_high_precision_mv;
-    const int force_integer_mv = cm->features.cur_frame_force_integer_mv;
-#endif
     if (ref_frame < INTER_REFS_PER_FRAME) {
-#if CONFIG_FLEX_MVRES
       gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
                                         fr_mv_precision, bsize, mi_col, mi_row);
-#else
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
-                                        allow_high_precision_mv, bsize, mi_col,
-                                        mi_row, force_integer_mv);
-#endif
       gm_mv[1].as_int = 0;
       if (global_mvs != NULL) global_mvs[ref_frame] = gm_mv[0];
     } else {
       MV_REFERENCE_FRAME rf[2];
       av1_set_ref_frame(rf, ref_frame);
-#if CONFIG_FLEX_MVRES
       gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[0]],
                                         fr_mv_precision, bsize, mi_col, mi_row);
       gm_mv[1] = get_warp_motion_vector(xd, &cm->global_motion[rf[1]],
                                         fr_mv_precision, bsize, mi_col, mi_row);
-#else
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[0]],
-                                        allow_high_precision_mv, bsize, mi_col,
-                                        mi_row, force_integer_mv);
-      gm_mv[1] = get_warp_motion_vector(xd, &cm->global_motion[rf[1]],
-                                        allow_high_precision_mv, bsize, mi_col,
-                                        mi_row, force_integer_mv);
-#endif
     }
   }
 
@@ -3168,15 +3103,9 @@ void av1_find_mv_refs(
       rf[0] = ref_frame;
     else {
       const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
-#if CONFIG_FLEX_MVRES
       const int fr_mv_precision = cm->features.fr_mv_precision;
       gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[0]],
                                         fr_mv_precision, bsize, mi_col, mi_row);
-#else
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
-                                        allow_high_precision_mv, bsize, mi_col,
-                                        mi_row, force_integer_mv);
-#endif
       gm_mv[1].as_int = 0;
     }
     setup_ref_mv_list(cm, xd, rf[0], &ref_mv_count[rf[0]], ref_mv_stack[rf[0]],
@@ -3199,15 +3128,9 @@ void av1_find_mv_refs(
       assert(rf[0] == mi->ref_frame[0]);
       assert(rf[1] == mi->ref_frame[1]);
       const BLOCK_SIZE bsize = mi->sb_type[PLANE_TYPE_Y];
-#if CONFIG_FLEX_MVRES
       const int fr_mv_precision = cm->features.fr_mv_precision;
       gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[rf[1]],
                                         fr_mv_precision, bsize, mi_col, mi_row);
-#else
-      gm_mv[0] = get_warp_motion_vector(xd, &cm->global_motion[ref_frame],
-                                        allow_high_precision_mv, bsize, mi_col,
-                                        mi_row, force_integer_mv);
-#endif
       gm_mv[1].as_int = 0;
 
       setup_ref_mv_list(cm, xd, rf[1], &ref_mv_count[rf[1]],
@@ -3267,21 +3190,12 @@ void av1_find_mv_refs(
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 }
 
-#if CONFIG_FLEX_MVRES
 void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
                            MvSubpelPrecision precision) {
-#else
-void av1_find_best_ref_mvs(int allow_hp, int_mv *mvlist, int_mv *nearest_mv,
-                           int_mv *near_mv, int is_integer) {
-#endif
   int i;
   // Make sure all the candidates are properly clamped etc
   for (i = 0; i < MAX_MV_REF_CANDIDATES; ++i) {
-#if CONFIG_FLEX_MVRES
     lower_mv_precision(&mvlist[i].as_mv, precision);
-#else
-    lower_mv_precision(&mvlist[i].as_mv, allow_hp, is_integer);
-#endif
   }
   *nearest_mv = mvlist[0];
   *near_mv = mvlist[1];

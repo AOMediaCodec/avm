@@ -210,32 +210,28 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   if (search_site_cfg->stride != stride_ref)
     search_site_cfg = cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
   assert(search_site_cfg->stride == stride_ref);
-#if CONFIG_FLEX_MVRES
+
   const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
   full_pel_lower_mv_precision(&start_mv, pb_mv_precision);
 #if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
 #endif
-#endif
 
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
-#if CONFIG_FLEX_MVRES
                                      pb_mv_precision,
 #if CONFIG_IBC_BV_IMPROVEMENT
                                      is_ibc_cost,
 #endif
-#endif
+
                                      search_site_cfg,
                                      /*fine_search_interval=*/0);
   SEARCH_METHODS search_method = tpl_sf->search_method;
-#if CONFIG_FLEX_MVRES
   // MV search of flex MV precision is supported only for NSTEP or DIAMOND
   // search
   if (cpi->common.seq_params.enable_flex_mvres &&
       (search_method != NSTEP && search_method != DIAMOND))
     search_method = NSTEP;
-#endif
 
   av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
 
@@ -245,9 +241,8 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
 
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &center_mv,
-#if CONFIG_FLEX_MVRES
                                     pb_mv_precision,
-#endif
+
                                     cost_list);
   ms_params.forced_stop = tpl_sf->subpel_force_stop;
   ms_params.var_params.subpel_search_type = USE_2_TAPS;
@@ -882,11 +877,9 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   MvCosts *mv_costs = &x->mv_costs;
   av1_set_error_per_bit(mv_costs, rdmult);
   av1_set_sad_per_bit(cpi, mv_costs, base_qindex);
-#if CONFIG_FLEX_MVRES
   av1_fill_mv_costs(cpi->common.fc,
                     cpi->common.features.cur_frame_force_integer_mv,
                     cpi->common.features.fr_mv_precision, mv_costs);
-#endif
 
   tpl_frame->is_valid = 1;
 
@@ -1271,13 +1264,8 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   if (frame_params->frame_type == KEY_FRAME) {
     av1_init_mv_probs(cm);
   }
-#if CONFIG_FLEX_MVRES
   av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
                     cm->features.fr_mv_precision, &cpi->td.mb.mv_costs);
-#else
-  av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
-                    cm->features.allow_high_precision_mv, &cpi->td.mb.mv_costs);
-#endif
 
   // Backward propagation from tpl_group_frames to 1.
   for (int frame_idx = gf_group->index; frame_idx < tpl_gf_group_frames;

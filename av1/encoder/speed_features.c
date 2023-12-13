@@ -136,8 +136,6 @@ static void set_good_speed_feature_framesize_dependent(
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const int is_4k_or_larger = AOMMIN(cm->width, cm->height) >= 2160;
-
-#if CONFIG_FLEX_MVRES
   if (cm->seq_params.enable_flex_mvres) {
     if (is_1080p_or_larger) {
       sf->hl_sf.high_precision_mv_usage = QTR_ONLY;
@@ -148,7 +146,6 @@ static void set_good_speed_feature_framesize_dependent(
     }
     if (!is_480p_or_larger) sf->flexmv_sf.do_not_search_4_pel_precision = 1;
   }
-#endif
 
   if (is_480p_or_larger) {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -327,7 +324,6 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.high_precision_mv_usage = LAST_MV_DATA;
   }
 
-#if CONFIG_FLEX_MVRES
   if (cm->seq_params.enable_flex_mvres) {
     sf->flexmv_sf.terminate_early_4_pel_precision = 1;
     sf->flexmv_sf.low_prec_obmc_full_pixel_search_level = 1;
@@ -336,7 +332,6 @@ static void set_good_speed_features_framesize_independent(
     sf->flexmv_sf.fast_mv_refinement = 1;
     sf->flexmv_sf.fast_motion_search_low_precision = 1;
   }
-#endif
 
   sf->inter_sf.early_terminate_jmvd_scale_factor = 1;
 
@@ -413,11 +408,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
     sf->mv_sf.obmc_full_pixel_search_level = 1;
-#if CONFIG_FLEX_MVRES
     sf->mv_sf.subpel_search_type = USE_4_TAPS;
-#else
-    sf->mv_sf.use_accurate_subpel_search = USE_4_TAPS;
-#endif
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
@@ -772,11 +763,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->subpel_force_stop = EIGHTH_PEL;
   mv_sf->subpel_iters_per_step = 2;
   mv_sf->subpel_search_method = SUBPEL_TREE;
-#if CONFIG_FLEX_MVRES
   mv_sf->subpel_search_type = USE_8_TAPS;
-#else
-  mv_sf->use_accurate_subpel_search = USE_8_TAPS;
-#endif
   mv_sf->use_bsize_dependent_search_method = 0;
   mv_sf->use_fullpel_costlist = 0;
   mv_sf->use_downsampled_sad = 0;
@@ -787,7 +774,6 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
 #endif  // CONFIG_BLOCK_256
 }
 
-#if CONFIG_FLEX_MVRES
 static AOM_INLINE void init_flexmv_sf(
     FLEXMV_PRECISION_SPEED_FEATURES *flexmv_sf) {
   flexmv_sf->do_not_search_4_pel_precision = 0;
@@ -799,7 +785,6 @@ static AOM_INLINE void init_flexmv_sf(
   flexmv_sf->fast_mv_refinement = 0;
   flexmv_sf->fast_motion_search_low_precision = 0;
 }
-#endif
 
 static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->comp_inter_joint_search_thresh = BLOCK_4X4;
@@ -1126,10 +1111,7 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   init_rd_sf(&sf->rd_sf, oxcf);
   init_winner_mode_sf(&sf->winner_mode_sf);
   init_lpf_sf(&sf->lpf_sf);
-
-#if CONFIG_FLEX_MVRES
   init_flexmv_sf(&sf->flexmv_sf);
-#endif
 
   if (oxcf->mode == GOOD)
     set_good_speed_features_framesize_independent(cpi, sf, speed);

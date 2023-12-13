@@ -5562,7 +5562,6 @@ void av1_build_interintra_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                          MAX_SB_SIZE);
 }
 
-#if CONFIG_FLEX_MVRES
 int av1_get_mpp_flag_context(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
   (void)cm;
   const MB_MODE_INFO *const above_mi = xd->above_mbmi;
@@ -5691,7 +5690,7 @@ void set_precision_set(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #if CONFIG_SEP_COMP_DRL
                        int *ref_mv_idx) {
 #else
-                         uint8_t ref_mv_idx) {
+                       uint8_t ref_mv_idx) {
 #endif  // CONFIG_SEP_COMP_DRL
   (void)bsize;
   (void)cm;
@@ -5737,8 +5736,6 @@ int is_pb_mv_precision_active(const AV1_COMMON *const cm,
          cm->features.use_pb_mv_precision &&
          have_newmv_in_inter_mode(mbmi->mode);
 }
-#endif
-
 #if CONFIG_REFINEMV
 // Copy mv0 and mv1 to the sub-blocks
 // submi is the top-left corner of the sub-block need to fill

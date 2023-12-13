@@ -44,11 +44,7 @@ typedef enum ATTRIBUTE_PACKED {
 } InterpFilter;
 
 enum {
-#if CONFIG_FLEX_MVRES
   FILTER_UNUSED = 0,  // No longer used
-#else
-  USE_2_TAPS_ORIG = 0,  // This is used in temporal filtering.
-#endif
   USE_2_TAPS,
   USE_4_TAPS,
   USE_8_TAPS,

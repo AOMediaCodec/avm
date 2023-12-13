@@ -67,27 +67,15 @@ enum {
 #define CLASS0_SIZE (1 << CLASS0_BITS)
 #define MV_OFFSET_BITS (MV_CLASSES + CLASS0_BITS - 2)
 #define MV_BITS_CONTEXTS 6
-#if !CONFIG_FLEX_MVRES
-#define MV_FP_SIZE 4
-#endif
-
 #define MV_MAX_BITS (MV_CLASSES + CLASS0_BITS + 2)
 #define MV_MAX ((1 << MV_MAX_BITS) - 1)
 #define MV_VALS ((MV_MAX << 1) + 1)
 
 typedef struct {
-#if CONFIG_FLEX_MVRES
   aom_cdf_prob classes_cdf[NUM_MV_PRECISIONS][CDF_SIZE(MV_CLASSES)];
   aom_cdf_prob amvd_classes_cdf[CDF_SIZE(MV_CLASSES)];
   aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][3][CDF_SIZE(2)];
   aom_cdf_prob fp_cdf[3][CDF_SIZE(2)];
-#else
-  aom_cdf_prob classes_cdf[CDF_SIZE(MV_CLASSES)];
-  aom_cdf_prob amvd_classes_cdf[CDF_SIZE(MV_CLASSES)];
-  aom_cdf_prob class0_fp_cdf[CLASS0_SIZE][CDF_SIZE(MV_FP_SIZE)];
-  aom_cdf_prob fp_cdf[CDF_SIZE(MV_FP_SIZE)];
-#endif  // CONFIG_FLEX_MVRES
-
   aom_cdf_prob sign_cdf[CDF_SIZE(2)];
   aom_cdf_prob class0_hp_cdf[CDF_SIZE(2)];
   aom_cdf_prob hp_cdf[CDF_SIZE(2)];
@@ -100,14 +88,6 @@ typedef struct {
   aom_cdf_prob amvd_joints_cdf[CDF_SIZE(MV_JOINTS)];
   nmv_component comps[2];
 } nmv_context;
-
-#if !CONFIG_FLEX_MVRES
-enum {
-  MV_SUBPEL_NONE = -1,
-  MV_SUBPEL_LOW_PRECISION = 0,
-  MV_SUBPEL_HIGH_PRECISION,
-} SENUM1BYTE(MvSubpelPrecision);
-#endif
 
 #ifdef __cplusplus
 }  // extern "C"

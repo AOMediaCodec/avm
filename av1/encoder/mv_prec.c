@@ -19,9 +19,7 @@
 #include "av1/encoder/mv_prec.h"
 #include "av1/common/reconinter.h"
 
-#if CONFIG_FLEX_MVRES
 #include "av1/common/reconinter.h"
-#endif
 
 static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
     const MB_MODE_INFO *mbmi, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
@@ -79,7 +77,6 @@ static AOM_INLINE int get_symbol_cost(const aom_cdf_prob *cdf, int symbol) {
   return av1_cost_symbol(p15);
 }
 
-#if CONFIG_FLEX_MVRES
 static AOM_INLINE int keep_one_comp_stat_low_precision(
     MV_STATS *mv_stats, int comp, int comp_idx, const AV1_COMP *cpi, int *rates,
     const MvSubpelPrecision pb_mv_precision) {
@@ -156,25 +153,21 @@ static AOM_INLINE int keep_one_comp_stat_low_precision(
   return total_rate;
 }
 
-#endif
-
 static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
                                          int comp_idx, const AV1_COMP *cpi,
                                          int is_adaptive_mvd, int *rates
-#if CONFIG_FLEX_MVRES
+
                                          ,
                                          const MvSubpelPrecision pb_mv_precision
-#endif
+
 ) {
   assert(comp_val != 0 && "mv component should not have zero value!");
 
-#if CONFIG_FLEX_MVRES
   if (pb_mv_precision < MV_PRECISION_ONE_PEL) {
     assert(!is_adaptive_mvd);
     return keep_one_comp_stat_low_precision(mv_stats, comp_val, comp_idx, cpi,
                                             rates, pb_mv_precision);
   }
-#endif
 
   const int sign = comp_val < 0;
   const int mag = sign ? -comp_val : comp_val;
@@ -185,13 +178,7 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
   const int frac_part = (offset >> 1) & 3;  // fractional mv data
   const int high_part = offset & 1;         // high precision mv data
 
-#if CONFIG_FLEX_MVRES
   const int use_hp = pb_mv_precision > MV_PRECISION_QTR_PEL;
-#else
-  const int use_hp =
-      (cpi->common.features.allow_high_precision_mv && !is_adaptive_mvd);
-
-#endif
 
   int r_idx = 0;
 
@@ -203,24 +190,13 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
   nmv_component *cur_mvcomp_ctx = &mvcomp_ctx[comp_idx];
   aom_cdf_prob *sign_cdf = cur_mvcomp_ctx->sign_cdf;
 
-#if !CONFIG_FLEX_MVRES
-  aom_cdf_prob *class_cdf = is_adaptive_mvd ? cur_mvcomp_ctx->amvd_classes_cdf
-                                            : cur_mvcomp_ctx->classes_cdf;
-#elif !CONFIG_FLEX_MVRES
-  aom_cdf_prob *class_cdf = cur_mvcomp_ctx->classes_cdf;
-#endif
-
   aom_cdf_prob *class0_cdf = cur_mvcomp_ctx->class0_cdf;
 #if CONFIG_ENTROPY_PARA
   aom_cdf_prob(*bits_cdf)[CDF_SIZE(2)] = cur_mvcomp_ctx->bits_cdf;
 #else
   aom_cdf_prob(*bits_cdf)[3] = cur_mvcomp_ctx->bits_cdf;
 #endif  // CONFIG_ENTROPY_PARA
-#if !CONFIG_FLEX_MVRES
-  aom_cdf_prob *frac_part_cdf = mv_class
-                                    ? (cur_mvcomp_ctx->fp_cdf)
-                                    : (cur_mvcomp_ctx->class0_fp_cdf[int_part]);
-#endif
+
   aom_cdf_prob *high_part_cdf =
       mv_class ? (cur_mvcomp_ctx->hp_cdf) : (cur_mvcomp_ctx->class0_hp_cdf);
 
@@ -228,7 +204,6 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
   rates[r_idx++] = sign_rate;  // 0
   update_cdf(sign_cdf, sign, 2);
 
-#if CONFIG_FLEX_MVRES
   const int class_rate =
       is_adaptive_mvd
           ? get_symbol_cost(cur_mvcomp_ctx->amvd_classes_cdf, mv_class)
@@ -237,22 +212,13 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
                     ->classes_cdf[av1_get_mv_class_context(pb_mv_precision)],
                 mv_class);
 
-#else
-  const int class_rate = get_symbol_cost(class_cdf, mv_class);
-#endif
   rates[r_idx++] = class_rate;  // 1
-
-#if CONFIG_FLEX_MVRES
   if (is_adaptive_mvd)
     update_cdf(cur_mvcomp_ctx->amvd_classes_cdf, mv_class, MV_CLASSES);
   else
     update_cdf(
         cur_mvcomp_ctx->classes_cdf[av1_get_mv_class_context(pb_mv_precision)],
         mv_class, MV_CLASSES);
-
-#else
-  update_cdf(class_cdf, mv_class, MV_CLASSES);
-#endif
 
   int int_bit_rate = 0;
   if (mv_class == MV_CLASS_0) {
@@ -272,7 +238,6 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
 
   if (is_adaptive_mvd && (mv_class != MV_CLASS_0 || int_part > 0))
     use_fractional_mv = 0;
-#if CONFIG_FLEX_MVRES
   int frac_part_rate = 0, frac_part_rate_qpel = 0;
   aom_cdf_prob *frac_part_cdf =
       mv_class ? (cur_mvcomp_ctx->fp_cdf[0])
@@ -293,11 +258,6 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
       update_cdf(frac_part_cdf, frac_part & 1, 2);
     }
   }
-#else
-  const int frac_part_rate =
-      use_fractional_mv ? get_symbol_cost(frac_part_cdf, frac_part) : 0;
-  if (use_fractional_mv) update_cdf(frac_part_cdf, frac_part, MV_FP_SIZE);
-#endif
 
   rates[r_idx++] = frac_part_rate;
   const int high_part_rate = (use_hp && use_fractional_mv)
@@ -318,15 +278,10 @@ static AOM_INLINE int keep_one_comp_stat(MV_STATS *mv_stats, int comp_val,
 }
 
 static AOM_INLINE void keep_one_mv_stat(
-    MV_STATS *mv_stats, const MV *ref_mv, const MV *cur_mv, const AV1_COMP *cpi
-#if CONFIG_FLEX_MVRES
-    ,
+    MV_STATS *mv_stats, const MV *ref_mv, const MV *cur_mv, const AV1_COMP *cpi,
     const MvSubpelPrecision max_mv_precision, const int allow_pb_mv_precision,
     const MvSubpelPrecision pb_mv_precision,
-    const int most_probable_pb_mv_precision
-#endif  // CONFIG_FLEX_MVRES
-    ,
-    const MB_MODE_INFO *mbmi) {
+    const int most_probable_pb_mv_precision, const MB_MODE_INFO *mbmi) {
   const MACROBLOCK *const x = &cpi->td.mb;
   const MACROBLOCKD *const xd = &x->e_mbd;
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -336,24 +291,7 @@ static AOM_INLINE void keep_one_mv_stat(
   aom_cdf_prob *joint_cdf =
       is_adaptive_mvd ? nmvc->amvd_joints_cdf : nmvc->joints_cdf;
 
-  const int use_hp =
-#if CONFIG_FLEX_MVRES
-#if CONFIG_FLEX_MVRES
-      pb_mv_precision > MV_PRECISION_QTR_PEL;
-#else
-      cpi->common.features.fr_mv_precision > MV_PRECISION_QTR_PEL;
-#endif
-#else
-      cpi->common.features.allow_high_precision_mv;
-#endif
-
-  // assert(cpi->common.features.fr_mv_precision == max_mv_precision);
-
-#if CONFIG_FLEX_MVRES
-  // const MvSubpelPrecision pb_mv_precision =
-  // allow_pb_mv_precision ? AOMMAX(get_mv_precision(*cur_mv, max_mv_precision),
-  // min_precision)
-  //: max_mv_precision;
+  const int use_hp = pb_mv_precision > MV_PRECISION_QTR_PEL;
 
   const int pb_mv_precision_ctx =
       av1_get_pb_mv_precision_down_context(&cpi->common, xd);
@@ -373,9 +311,6 @@ static AOM_INLINE void keep_one_mv_stat(
       lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { cur_mv->row - low_prec_ref_mv.row,
                     cur_mv->col - low_prec_ref_mv.col };
-#else
-  const MV diff = { cur_mv->row - ref_mv->row, cur_mv->col - ref_mv->col };
-#endif
 
   const int mv_joint = av1_get_mv_joint(&diff);
   // TODO(chiyotsai@google.com): Estimate hp_diff when we are using lp
@@ -394,7 +329,6 @@ static AOM_INLINE void keep_one_mv_stat(
   else
     update_cdf(joint_cdf, mv_joint, MV_JOINTS);
 
-#if CONFIG_FLEX_MVRES
   int flex_mv_rate = 0;
   if (allow_pb_mv_precision) {
     const int mpp_flag = (pb_mv_precision == most_probable_pb_mv_precision);
@@ -412,16 +346,12 @@ static AOM_INLINE void keep_one_mv_stat(
       update_cdf(pb_mv_precision_cdf, down, nsymbs);
     }
 
-#if CONFIG_FLEX_MVRES
     mv_stats->precision_count[pb_mv_precision]++;
-#endif
   }
 
   mv_stats->total_mv_rate += flex_mv_rate;
   mv_stats->hp_total_mv_rate += flex_mv_rate;
   mv_stats->lp_total_mv_rate += flex_mv_rate;
-#endif
-
   mv_stats->total_mv_rate += mv_joint_rate;
   mv_stats->hp_total_mv_rate += hp_mv_joint_rate;
   mv_stats->lp_total_mv_rate += lp_mv_joint_rate;
@@ -436,10 +366,9 @@ static AOM_INLINE void keep_one_mv_stat(
     const int comp_rate = comp_val
                               ? keep_one_comp_stat(mv_stats, comp_val, comp_idx,
                                                    cpi, is_adaptive_mvd, rates
-#if CONFIG_FLEX_MVRES
+
                                                    ,
                                                    pb_mv_precision
-#endif
 
                                                    )
                               : 0;
@@ -483,13 +412,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   const PREDICTION_MODE mode = mbmi->mode;
   const int is_compound = has_second_ref(mbmi);
 
-#if CONFIG_FLEX_MVRES
   const MvSubpelPrecision max_mv_precision = mbmi->max_mv_precision;
   const int allow_pb_mv_precision =
       is_pb_mv_precision_active(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
   MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
   const int most_probable_pb_mv_precision = mbmi->most_probable_pb_mv_precision;
-#endif
 
   if (mode == NEWMV || mode == AMVDNEWMV ||
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -501,12 +428,10 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
       const MV ref_mv =
           get_ref_mv_for_mv_stats(mbmi, mbmi_ext_frame, ref_idx).as_mv;
       const MV cur_mv = mbmi->mv[ref_idx].as_mv;
-      keep_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi
-#if CONFIG_FLEX_MVRES
-                       ,
-                       max_mv_precision, allow_pb_mv_precision, pb_mv_precision,
+      keep_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi, max_mv_precision,
+                       allow_pb_mv_precision, pb_mv_precision,
                        most_probable_pb_mv_precision
-#endif  // CONFIG_FLEX_MVRES
+
                        ,
                        mbmi);
     }
@@ -527,11 +452,11 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
         get_ref_mv_for_mv_stats(mbmi, mbmi_ext_frame, ref_idx).as_mv;
     const MV cur_mv = mbmi->mv[ref_idx].as_mv;
     keep_one_mv_stat(mv_stats, &ref_mv, &cur_mv, cpi
-#if CONFIG_FLEX_MVRES
+
                      ,
                      max_mv_precision, allow_pb_mv_precision, pb_mv_precision,
                      most_probable_pb_mv_precision
-#endif  // CONFIG_FLEX_MVRES
+
                      ,
                      mbmi);
   } else {
@@ -845,21 +770,13 @@ void av1_pick_and_set_high_precision_mv(AV1_COMP *cpi, int qindex) {
     use_hp = get_smart_mv_prec(cpi, &cpi->mv_stats, qindex);
   }
 
-#if CONFIG_FLEX_MVRES
   MvSubpelPrecision prec = MV_PRECISION_QTR_PEL + use_hp;
   if (cpi->common.features.cur_frame_force_integer_mv) {
     prec = MV_PRECISION_ONE_PEL;
   }
   av1_set_high_precision_mv(cpi, prec);
-#if CONFIG_FLEX_MVRES
   cpi->common.features.use_pb_mv_precision =
       cpi->common.seq_params.enable_flex_mvres;
   cpi->common.features.most_probable_fr_mv_precision =
       cpi->common.features.fr_mv_precision;
-
-#endif  // CONFIG_FLEX_MVRES
-#else
-  av1_set_high_precision_mv(cpi, use_hp,
-                            cpi->common.features.cur_frame_force_integer_mv);
-#endif
 }

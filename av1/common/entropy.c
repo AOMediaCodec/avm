@@ -117,13 +117,8 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
     RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[5], MV_CLASSES);
     RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[6], MV_CLASSES);
     RESET_CDF_COUNTER(nmv->comps[i].amvd_classes_cdf, MV_CLASSES);
-#if CONFIG_FLEX_MVRES
     RESET_CDF_COUNTER(nmv->comps[i].class0_fp_cdf, 2);
     RESET_CDF_COUNTER(nmv->comps[i].fp_cdf, 2);
-#else
-    RESET_CDF_COUNTER(nmv->comps[i].class0_fp_cdf, MV_FP_SIZE);
-    RESET_CDF_COUNTER(nmv->comps[i].fp_cdf, MV_FP_SIZE);
-#endif  // CONFIG_FLEX_MVRES
     RESET_CDF_COUNTER(nmv->comps[i].sign_cdf, 2);
     RESET_CDF_COUNTER(nmv->comps[i].class0_hp_cdf, 2);
     RESET_CDF_COUNTER(nmv->comps[i].hp_cdf, 2);
@@ -427,7 +422,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_IST_SET_FLAG
   RESET_CDF_COUNTER(fc->stx_set_cdf, IST_DIR_SIZE);
 #endif  // CONFIG_IST_SET_FLAG
-#if CONFIG_FLEX_MVRES
   for (int p = 0; p < NUM_MV_PREC_MPP_CONTEXT; ++p) {
     RESET_CDF_COUNTER(fc->pb_mv_mpp_flag_cdf[p], 2);
   }
@@ -441,7 +435,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     }
   }
 
-#endif  // CONFIG_FLEX_MVRES
   RESET_CDF_COUNTER(fc->coeff_base_ph_cdf, NUM_BASE_LEVELS + 2);
   RESET_CDF_COUNTER(fc->coeff_br_ph_cdf, BR_CDF_SIZE);
   RESET_CDF_COUNTER(fc->cctx_type_cdf, CCTX_TYPES);

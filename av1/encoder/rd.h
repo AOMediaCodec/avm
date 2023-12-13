@@ -81,24 +81,6 @@ typedef struct RD_OPT {
   double r0;
 } RD_OPT;
 
-#if !CONFIG_FLEX_MVRES && !CONFIG_IBC_BV_IMPROVEMENT
-typedef struct {
-  // Cost of transmitting the actual motion vector.
-  // mv_component[0][i] is the cost of motion vector with horizontal component
-  // (mv_row) equal to i - MV_MAX.
-  // mv_component[1][i] is the cost of motion vector with vertical component
-  // (mv_col) equal to i - MV_MAX.
-  int mv_component[2][MV_VALS];
-
-  // joint_mv[i] is the cost of transmitting joint mv(MV_JOINT_TYPE) of
-  // type i.
-  // TODO(huisu@google.com): we can update dv_joint_cost per SB.
-  int joint_mv[MV_JOINTS];
-  int amvd_joint_mv[MV_JOINTS];
-  int res_mv_component[2][MV_VALS];
-} IntraBCMVCosts;
-#endif
-
 static INLINE void av1_init_rd_stats(RD_STATS *rd_stats) {
 #if CONFIG_RD_DEBUG
   int plane;
@@ -363,20 +345,11 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc);
 void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                           const int num_planes);
 
-#if CONFIG_FLEX_MVRES
 void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
                        MvSubpelPrecision precision, MvCosts *mv_costs);
-#else
-void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv, int usehp,
-                       MvCosts *mv_costs);
-#endif
 
-#if CONFIG_FLEX_MVRES
 void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
                    MvCosts *mv_costs);
-#elif CONFIG_IBC_BV_IMPROVEMENT
-void av1_fill_dv_costs(const FRAME_CONTEXT *fc, IntraBCMVCosts *dv_costs);
-#endif
 
 int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);
 

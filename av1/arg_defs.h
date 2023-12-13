@@ -170,9 +170,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_cctx;
   arg_def_t enable_ibp;
   arg_def_t enable_adaptive_mvd;
-#if CONFIG_FLEX_MVRES
   arg_def_t enable_flex_mvres;
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_DS_FILTER
   arg_def_t enable_cfl_ds_filter;
 #endif  // CONFIG_ADAPTIVE_DS_FILTER

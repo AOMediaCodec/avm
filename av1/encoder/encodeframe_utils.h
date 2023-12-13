@@ -449,13 +449,8 @@ void av1_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
 
 void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                          int wt_left, int wt_tr);
-#if CONFIG_FLEX_MVRES
 void av1_reset_mbmi(const CommonModeInfoParams *const mi_params,
                     BLOCK_SIZE sb_size, int mi_row, int mi_col);
-#else
-void av1_reset_mbmi(CommonModeInfoParams *const mi_params, BLOCK_SIZE sb_size,
-                    int mi_row, int mi_col);
-#endif
 
 void av1_backup_sb_state(SB_FIRST_PASS_STATS *sb_fp_stats, const AV1_COMP *cpi,
                          ThreadData *td, const TileDataEnc *tile_data,

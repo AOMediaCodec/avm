@@ -439,7 +439,6 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_NEW_TX_PARTITION
   /*! \brief Filter used in subpel interpolation. */
   int interp_fltr;
-#if CONFIG_FLEX_MVRES
   /*! The maximum mv_precision allowed for the given partition block. */
   MvSubpelPrecision max_mv_precision;
   /*! The mv_precision used by the given partition block. */
@@ -450,7 +449,7 @@ typedef struct MB_MODE_INFO {
    * The precision_set of the current frame.
    */
   uint8_t mb_precision_set;
-#endif
+
 #if CONFIG_REFINEMV
   /*! \brief The flag to signal if DMVR is used for the inter prediction. */
   uint8_t refinemv_flag;
@@ -712,9 +711,7 @@ typedef struct SB_INFO {
   int mi_row;
   int mi_col;
   PARTITION_TREE *ptree_root[2];
-#if CONFIG_FLEX_MVRES
   MvSubpelPrecision sb_mv_precision;
-#endif  // CONFIG_FLEX_MVRES
 } SB_INFO;
 
 void av1_reset_ptree_in_sbi(SB_INFO *sbi, TREE_TYPE tree_type);

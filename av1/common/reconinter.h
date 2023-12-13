@@ -1350,7 +1350,6 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
                    int build_for_obmc, const struct scale_factors *const sf,
                    WarpedMotionParams *final_warp_params);
 
-#if CONFIG_FLEX_MVRES
 // derive the context of the mpp_flag
 int av1_get_mpp_flag_context(const AV1_COMMON *cm, const MACROBLOCKD *xd);
 
@@ -1406,7 +1405,6 @@ MvSubpelPrecision av1_get_mbmi_max_mv_precision(const AV1_COMMON *const cm,
 // check if pb_mv_precision is allowed or not
 int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize);
-#endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
 // check if the WARPMV mode is allwed for a given blocksize

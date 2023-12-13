@@ -365,12 +365,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_adaptive_mvd;
-#if CONFIG_FLEX_MVRES
   /*!\brief enable Flexible MV resolution
    *
    */
   unsigned int enable_flex_mvres;
-#endif  // CONFIG_FLEX_MVRES
 #if CONFIG_ADAPTIVE_DS_FILTER
   /*!\brief enable downsample filter options for CFL
    *

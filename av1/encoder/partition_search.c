@@ -1283,16 +1283,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_IBC_BV_IMPROVEMENT
     if (use_intrabc) {
       const int_mv ref_mv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
-#if CONFIG_FLEX_MVRES
       av1_update_mv_stats(mbmi->mv[0].as_mv, ref_mv.as_mv, &fc->ndvc, 0,
                           MV_PRECISION_ONE_PEL);
     }
-#else
-      av1_update_mv_stats(&mbmi->mv[0].as_mv, &ref_mv.as_mv, &fc->ndvc, 0,
-                          MV_SUBPEL_NONE);
-    }
-#endif
-
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_BV_IMPROVEMENT
     if (use_intrabc) {
@@ -1941,31 +1934,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
             get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
                             xd->mi_col, xd->mi_row);
         assert(is_adaptive_mvd == 0);
-
-#if CONFIG_FLEX_MVRES
         av1_update_mv_stats(mbmi->mv[0].as_mv, ref_mv.as_mv, &fc->nmvc,
                             is_adaptive_mvd, mbmi->pb_mv_precision);
-#else
-        av1_update_mv_stats(&mbmi->mv[0].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                            is_adaptive_mvd, allow_hp);
-#endif
       }
     } else {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
       if (have_newmv_in_inter_mode(mbmi->mode) &&
           xd->tree_type != CHROMA_PART) {
-#if CONFIG_FLEX_MVRES
         const int pb_mv_precision = mbmi->pb_mv_precision;
         assert(IMPLIES(cm->features.cur_frame_force_integer_mv,
                        pb_mv_precision == MV_PRECISION_ONE_PEL));
-#else
-      const int allow_hp = cm->features.cur_frame_force_integer_mv
-                               ? MV_SUBPEL_NONE
-                               : cm->features.allow_high_precision_mv;
-#endif
 
-#if CONFIG_FLEX_MVRES
         if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
           assert(!is_adaptive_mvd);
           assert(mbmi->most_probable_pb_mv_precision <= mbmi->max_mv_precision);
@@ -1988,19 +1968,12 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                 down, nsymbs);
           }
         }
-#endif  // CONFIG_FLEX_MVRES
 
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
             const int_mv ref_mv = av1_get_ref_mv(x, ref);
-
-#if CONFIG_FLEX_MVRES
             av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
                                 is_adaptive_mvd, pb_mv_precision);
-#else
-          av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                              is_adaptive_mvd, allow_hp);
-#endif
           }
         } else if (have_nearmv_newmv_in_inter_mode(mbmi->mode)) {
           const int ref =
@@ -2009,13 +1982,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
               jmvd_base_ref_list || mbmi->mode == NEAR_NEWMV;
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
-#if CONFIG_FLEX_MVRES
           av1_update_mv_stats(mbmi->mv[ref].as_mv, ref_mv.as_mv, &fc->nmvc,
                               is_adaptive_mvd, pb_mv_precision);
-#else
-        av1_update_mv_stats(&mbmi->mv[ref].as_mv, &ref_mv.as_mv, &fc->nmvc,
-                            is_adaptive_mvd, allow_hp);
-#endif
         }
       }
 

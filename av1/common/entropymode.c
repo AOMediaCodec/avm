@@ -5127,7 +5127,6 @@ static const aom_cdf_prob
 #endif  // CONFIG_IST_ANY_SET
 #endif  // CONFIG_ENTROPY_PARA
 
-#if CONFIG_FLEX_MVRES
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_pb_mv_most_probable_precision_cdf[NUM_MV_PREC_MPP_CONTEXT]
@@ -5164,7 +5163,6 @@ static const aom_cdf_prob default_pb_mv_precision_cdf
                                          { AOM_CDF3(25055, 31858) },
                                          { AOM_CDF3(21049, 31413) } } };
 #endif  // CONFIG_ENTROPY_PARA
-#endif  // CONFIG_FLEX_MVRES
 
 #define MAX_COLOR_CONTEXT_HASH 8
 // Negative values are invalid
@@ -5602,10 +5600,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_IST_SET_FLAG
   av1_copy(fc->stx_set_cdf, default_stx_set_cdf);
 #endif  // CONFIG_IST_SET_FLAG
-#if CONFIG_FLEX_MVRES
   av1_copy(fc->pb_mv_precision_cdf, default_pb_mv_precision_cdf);
   av1_copy(fc->pb_mv_mpp_flag_cdf, default_pb_mv_most_probable_precision_cdf);
-#endif  // CONFIG_FLEX_MVRES
   av1_copy(fc->cctx_type_cdf, default_cctx_type_cdf);
 }
 

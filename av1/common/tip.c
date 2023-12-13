@@ -840,10 +840,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
-#if CONFIG_FLEX_MVRES
   mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
   mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-#endif
+
 #if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = COMP_REFINE_SUBBLK2P;
   int use_affine_opfl = 0;
@@ -1042,10 +1041,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     mbmi->motion_mode = SIMPLE_TRANSLATION;
     mbmi->sb_type[PLANE_TYPE_Y] = BLOCK_8X8;
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
-#if CONFIG_FLEX_MVRES
     mbmi->max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
     mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-#endif
     const int ss_x = plane ? cm->seq_params.subsampling_x : 0;
     const int ss_y = plane ? cm->seq_params.subsampling_y : 0;
     const int comp_pixel_x = (mi_x >> ss_x);

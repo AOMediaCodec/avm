@@ -13,9 +13,7 @@
 #include "aom_dsp/binary_codes_writer.h"
 #include "aom_ports/system_state.h"
 
-#if CONFIG_FLEX_MVRES
 #include "av1/common/mv.h"
-#endif
 #include "av1/encoder/corner_detect.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/ethread.h"
@@ -26,19 +24,12 @@
 
 // Computes the cost for the warp parameters.
 static int gm_get_params_cost(const WarpedMotionParams *gm,
-#if CONFIG_FLEX_MVRES
                               const WarpedMotionParams *ref_gm,
                               MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   (void)precision_loss;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#else
-                              const WarpedMotionParams *ref_gm, int allow_hp) {
-#if CONFIG_IMPROVED_GLOBAL_MOTION
-  (void)allow_hp;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#endif  // CONFIG_FLEX_MVRES
   int params_cost = 0;
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   const int trans_bits = GM_ABS_TRANS_BITS;
@@ -46,18 +37,10 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
   const int trans_max = (1 << trans_bits) - 1;
 #else
   const int trans_bits = (gm->wmtype == TRANSLATION)
-#if CONFIG_FLEX_MVRES
                              ? GM_ABS_TRANS_ONLY_BITS - precision_loss
-#else
-                             ? GM_ABS_TRANS_ONLY_BITS - !allow_hp
-#endif
                              : GM_ABS_TRANS_BITS;
   const int trans_prec_diff = (gm->wmtype == TRANSLATION)
-#if CONFIG_FLEX_MVRES
                                   ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
-#else
-                                  ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
-#endif
                                   : GM_TRANS_PREC_DIFF;
   const int trans_max = (1 << trans_bits);
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
@@ -251,19 +234,11 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 #if !CONFIG_IMPROVED_GLOBAL_MOTION
     if (cm->global_motion[frame].wmtype == TRANSLATION) {
       cm->global_motion[frame].wmmat[0] =
-#if CONFIG_FLEX_MVRES
           convert_to_trans_prec(cm->features.fr_mv_precision,
-#else
-          convert_to_trans_prec(cm->features.allow_high_precision_mv,
-#endif
                                 cm->global_motion[frame].wmmat[0]) *
           GM_TRANS_ONLY_DECODE_FACTOR;
       cm->global_motion[frame].wmmat[1] =
-#if CONFIG_FLEX_MVRES
           convert_to_trans_prec(cm->features.fr_mv_precision,
-#else
-          convert_to_trans_prec(cm->features.allow_high_precision_mv,
-#endif
                                 cm->global_motion[frame].wmmat[1]) *
           GM_TRANS_ONLY_DECODE_FACTOR;
     }
@@ -287,11 +262,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
     if (!av1_is_enough_erroradvantage(
             (double)best_warp_error / best_ref_frame_error,
             gm_get_params_cost(&cm->global_motion[frame], ref_params,
-#if CONFIG_FLEX_MVRES
                                cm->features.fr_mv_precision))) {
-#else
-                               cm->features.allow_high_precision_mv))) {
-#endif
       cm->global_motion[frame] = default_warp_params;
     }
 
@@ -510,14 +481,8 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
     for (int frame = 0; frame < num_total_refs; frame++) {
       const WarpedMotionParams *model = &cm->global_motion[frame];
       if (model->wmtype == IDENTITY) continue;
-
-#if CONFIG_FLEX_MVRES
       int model_cost = gm_get_params_cost(model, &default_warp_params,
                                           cm->features.fr_mv_precision);
-#else
-      int model_cost = gm_get_params_cost(model, &default_warp_params,
-                                          cm->features.allow_high_precision_mv);
-#endif  // CONFIG_FLEX_MVRES
       bool use_model = av1_is_enough_erroradvantage(
           gm_info->erroradvantage[frame], model_cost);
 
@@ -603,13 +568,8 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
         av1_scale_warp_model(base_model, base_temporal_distance, &ref_params,
                              temporal_distance);
 
-#if CONFIG_FLEX_MVRES
         int model_cost = gm_get_params_cost(model, &ref_params,
                                             cm->features.fr_mv_precision);
-#else
-        int model_cost = gm_get_params_cost(
-            model, &ref_params, cm->features.allow_high_precision_mv);
-#endif  // CONFIG_FLEX_MVRES
         bool use_model = av1_is_enough_erroradvantage(
             gm_info->erroradvantage[frame], model_cost);
 

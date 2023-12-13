@@ -2408,22 +2408,18 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
-#if CONFIG_FLEX_MVRES
+
 // Set the superblock level parameters
 static void set_sb_mv_precision(SB_INFO *sbi, AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
 }
-#endif
 
 // TODO(slavarnway): eliminate bsize and subsize in future commits
 static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                                         ThreadData *const td, int mi_row,
                                         int mi_col, aom_reader *reader,
-                                        BLOCK_SIZE bsize,
-#if CONFIG_FLEX_MVRES
-                                        SB_INFO *sbi,
-#endif
+                                        BLOCK_SIZE bsize, SB_INFO *sbi,
                                         PARTITION_TREE *ptree,
 #if CONFIG_EXT_RECUR_PARTITIONS
                                         const PARTITION_TREE *ptree_luma,
@@ -2461,16 +2457,12 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   static const block_visitor_fn_t block_visit[4] = { NULL, parse_decode_block,
                                                      decode_block,
                                                      parse_decode_block };
-#if CONFIG_FLEX_MVRES
   const int is_sb_root = bsize == cm->sb_size;
-#endif
 
   if (parse_decode_flag & 1) {
-#if CONFIG_FLEX_MVRES
     if (is_sb_root) {
       set_sb_mv_precision(sbi, pbi);
     }
-#endif
     const int plane_start = get_partition_plane_start(xd->tree_type);
     const int plane_end =
         get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
@@ -2606,28 +2598,18 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
   block_visit[parse_decode_flag](pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c),     \
                                  reader, DEC_BLOCK_EPT_ARG(db_subsize), ptree, \
                                  index)
-#if CONFIG_FLEX_MVRES && CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_EXT_RECUR_PARTITIONS
 #define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
   decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
                    (db_subsize), sbi, ptree->sub_tree[(index)],      \
-                   get_partition_subtree_const(ptree_luma, index),   \
-                   parse_decode_flag)
-#elif CONFIG_FLEX_MVRES
-#define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
-  decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
-                   (db_subsize), sbi, ptree->sub_tree[(index)],      \
-                   parse_decode_flag)
-#elif CONFIG_EXT_RECUR_PARTITIONS
-#define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
-  decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
-                   (db_subsize), ptree->sub_tree[(index)],           \
                    get_partition_subtree_const(ptree_luma, index),   \
                    parse_decode_flag)
 #else
 #define DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
   decode_partition(pbi, td, DEC_BLOCK_STX_ARG(db_r), (db_c), reader, \
-                   (db_subsize), ptree->sub_tree[(index)], parse_decode_flag)
-#endif  // CONFIG_FLEX_MVRES && CONFIG_EXT_RECUR_PARTITIONS
+                   (db_subsize), sbi, ptree->sub_tree[(index)],      \
+                   parse_decode_flag)
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #if !CONFIG_EXT_RECUR_PARTITIONS
   const BLOCK_SIZE bsize2 = get_partition_subsize(bsize, PARTITION_SPLIT);
@@ -2842,10 +2824,7 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
   if (parse_decode_flag & 1) {
     av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
   }
-  decode_partition(pbi, td, mi_row, mi_col, reader, bsize,
-#if CONFIG_FLEX_MVRES
-                   xd->sbi,
-#endif  // CONFIG_FLEX_MVRES
+  decode_partition(pbi, td, mi_row, mi_col, reader, bsize, xd->sbi,
                    td->dcb.xd.sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS
                    NULL,
@@ -2856,10 +2835,7 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
     if (parse_decode_flag & 1) {
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
     }
-    decode_partition(pbi, td, mi_row, mi_col, reader, bsize,
-#if CONFIG_FLEX_MVRES
-                     xd->sbi,
-#endif  // CONFIG_FLEX_MVRES
+    decode_partition(pbi, td, mi_row, mi_col, reader, bsize, xd->sbi,
                      td->dcb.xd.sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS
                      td->dcb.xd.sbi->ptree_root[0],
@@ -6577,10 +6553,7 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_REFINEMV
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
 #endif  // CONFIG_REFINEMV
-#if CONFIG_FLEX_MVRES
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
-#endif  // CONFIG_FLEX_MVRES
-
 #if CONFIG_ADAPTIVE_DS_FILTER
   seq_params->enable_cfl_ds_filter = aom_rb_read_literal(rb, 2);
 #endif  // CONFIG_ADAPTIVE_DS_FILTER
@@ -6604,18 +6577,11 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
                                      struct aom_read_bit_buffer *rb,
-#if !CONFIG_FLEX_MVRES
-                                     int allow_hp) {
-#if CONFIG_IMPROVED_GLOBAL_MOTION
-  (void)allow_hp;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#else
                                      MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   (void)precision_loss;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#endif  // !CONFIG_FLEX_MVRES
   TransformationType type = aom_rb_read_bit(rb);
   if (type != IDENTITY) {
     if (aom_rb_read_bit(rb)) {
@@ -6668,26 +6634,14 @@ static int read_global_motion_params(WarpedMotionParams *params,
     const int trans_max = GM_TRANS_MAX;
 #else
     const int trans_bits = (type == TRANSLATION)
-#if CONFIG_FLEX_MVRES
                                ? GM_ABS_TRANS_ONLY_BITS - precision_loss
-#else
-                               ? GM_ABS_TRANS_ONLY_BITS - !allow_hp
-#endif
                                : GM_ABS_TRANS_BITS;
     const int trans_dec_factor =
         (type == TRANSLATION)
-#if CONFIG_FLEX_MVRES
             ? GM_TRANS_ONLY_DECODE_FACTOR * (1 << precision_loss)
-#else
-            ? GM_TRANS_ONLY_DECODE_FACTOR * (1 << !allow_hp)
-#endif
             : GM_TRANS_DECODE_FACTOR;
     const int trans_prec_diff = (type == TRANSLATION)
-#if CONFIG_FLEX_MVRES
                                     ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
-#else
-                                    ? GM_TRANS_ONLY_PREC_DIFF + !allow_hp
-#endif
                                     : GM_TRANS_PREC_DIFF;
     const int trans_max = (1 << trans_bits);
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
@@ -6796,13 +6750,8 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
                        : &default_warp_params;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
     int good_params =
-#if !CONFIG_FLEX_MVRES
-        read_global_motion_params(&cm->global_motion[frame], ref_params, rb,
-                                  cm->features.allow_high_precision_mv);
-#else
         read_global_motion_params(&cm->global_motion[frame], ref_params, rb,
                                   cm->features.fr_mv_precision);
-#endif
     if (!good_params) {
 #if WARPED_MOTION_DEBUG
       printf("Warning: unexpected global motion shear params from aomenc\n");
@@ -7707,7 +7656,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
 
-#if CONFIG_FLEX_MVRES
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;
         } else {
@@ -7721,13 +7669,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         } else {
           features->use_pb_mv_precision = cm->seq_params.enable_flex_mvres;
         }
-#else
-      if (features->cur_frame_force_integer_mv) {
-        features->allow_high_precision_mv = 0;
-      } else {
-        features->allow_high_precision_mv = aom_rb_read_bit(rb);
-      }
-#endif
 
         features->interp_filter = read_frame_interp_filter(rb);
 #if CONFIG_EXTENDED_WARP_PREDICTION
