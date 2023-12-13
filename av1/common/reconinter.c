@@ -3496,6 +3496,11 @@ static void build_inter_predictors_sub8x8(
   const int mi_rows = cm->mi_params.mi_rows;
   const int mi_cols = cm->mi_params.mi_cols;
 
+  const int mb_to_top_edge_start = xd->mb_to_top_edge;
+  const int mb_to_left_edge_start = xd->mb_to_left_edge;
+  const int mb_to_bottom_edge_start = xd->mb_to_bottom_edge;
+  const int mb_to_right_edge_start = xd->mb_to_right_edge;
+
   // Row progress keeps track of which mi block in the row has been set.
   SUB_8_BITMASK_T row_progress[MAX_MI_LUMA_SIZE_FOR_SUB_8] = { 0 };
   assert(plane_mi_height <= MAX_MI_LUMA_SIZE_FOR_SUB_8);
@@ -3517,6 +3522,16 @@ static void build_inter_predictors_sub8x8(
       const BLOCK_SIZE bsize = this_mbmi->sb_type[PLANE_TYPE_Y];
       const int mi_width = mi_size_wide[bsize];
       const int mi_height = mi_size_high[bsize];
+
+      int row = row_start + mi_row + xd->mi_row;
+      int col = col_start + mi_col + xd->mi_col;
+      xd->mb_to_top_edge = -GET_MV_SUBPEL(row * MI_SIZE);
+      xd->mb_to_bottom_edge =
+          GET_MV_SUBPEL((cm->mi_params.mi_rows - mi_height - row) * MI_SIZE);
+      xd->mb_to_left_edge = -GET_MV_SUBPEL((col * MI_SIZE));
+      xd->mb_to_right_edge =
+          GET_MV_SUBPEL((cm->mi_params.mi_cols - mi_width - col) * MI_SIZE);
+
       // The flag here is a block of mi_width many 1s offset by the mi_col.
       // For example, if the current mi_col is 2, and the mi_width is 2, then
       // the flag will be 00110000. We or this with row_progress to update the
@@ -3575,6 +3590,10 @@ static void build_inter_predictors_sub8x8(
           mi_y + pixel_row, ref, mc_buf, calc_subpel_params_func);
     }
   }
+  xd->mb_to_top_edge = mb_to_top_edge_start;
+  xd->mb_to_bottom_edge = mb_to_bottom_edge_start;
+  xd->mb_to_left_edge = mb_to_left_edge_start;
+  xd->mb_to_right_edge = mb_to_right_edge_start;
 }
 
 #if CONFIG_REFINEMV
