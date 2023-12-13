@@ -5190,14 +5190,12 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_CCSO
   aom_wb_write_bit(wb, seq_params->enable_ccso);
 #endif
-#if CONFIG_PEF
   aom_wb_write_bit(wb, seq_params->enable_pef);
 #if CONFIG_TIP_IMPLICIT_QUANT
   if (seq_params->enable_tip == 1 && seq_params->enable_pef) {
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
   }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
-#endif  // CONFIG_PEF
   aom_wb_write_bit(wb, seq_params->enable_orip);
 #if CONFIG_IDIF
   aom_wb_write_bit(wb, seq_params->enable_idif);
@@ -5760,14 +5758,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
       } else {
         assert(features->allow_ref_frame_mvs == 0);
       }
-#if CONFIG_PEF
       if (cm->seq_params.enable_pef) {
         aom_wb_write_bit(wb, features->allow_pef);
         if (features->allow_pef) {
           aom_wb_write_bit(wb, cm->pef_params.pef_delta - 1);
         }
       }
-#endif  // CONFIG_PEF
       if (cm->seq_params.enable_tip) {
         assert(IMPLIES(av1_superres_scaled(cm),
                        features->tip_frame_mode != TIP_FRAME_AS_OUTPUT));

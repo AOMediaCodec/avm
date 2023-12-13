@@ -1726,7 +1726,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   end_timing(cpi, av1_setup_motion_field_time);
 #endif
 
-#if CONFIG_PEF
   const int pef_qp_thr =
       PEF_QTHR + (cm->seq_params.bit_depth - AOM_BITS_8) * PEF_BD_FACTOR;
   if (!cm->seq_params.enable_pef || cm->quant_params.base_qindex < pef_qp_thr) {
@@ -1736,7 +1735,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     cm->pef_params.pef_delta = PEF_DELTA;
   }
   if (cm->features.allow_pef) init_pef_parameter(cm, 0, av1_num_planes(cm));
-#endif  // CONFIG_PEF
 
   av1_enc_setup_tip_frame(cpi);
 

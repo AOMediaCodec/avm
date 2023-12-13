@@ -95,10 +95,8 @@ list(
   "${AOM_ROOT}/av1/common/txb_common.h"
   "${AOM_ROOT}/av1/common/warped_motion.c"
   "${AOM_ROOT}/av1/common/warped_motion.h")
-if(CONFIG_PEF)
-  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.h")
-  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.c")
-endif()
+list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.h")
+list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.c")
 
 if(CONFIG_LPF_MASK)
   list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/loopfiltermask.c")
@@ -342,10 +340,8 @@ list(
   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
   "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c"
   "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c")
-if(CONFIG_PEF)
-  list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
-       "${AOM_ROOT}/av1/common/x86/highbd_pef_avx2.c")
-endif()
+list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
+     "${AOM_ROOT}/av1/common/x86/highbd_pef_avx2.c")
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm")
 

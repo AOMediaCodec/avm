@@ -518,12 +518,10 @@ if (aom_config("CONFIG_CCSO") eq "yes") {
 }
 
 # Prediction enhancement filter
-if (aom_config("CONFIG_PEF") eq "yes") {
   add_proto qw / void highbd_filt_horz_pred /, "uint16_t *s, int stride, int bd, uint16_t q_thresh, uint16_t side_thresh, int q_mult, int w_mult, int n, int filt_len ";
   specialize qw / highbd_filt_horz_pred avx2/;
   add_proto qw / void highbd_filt_vert_pred/, "uint16_t *s, int stride, int bd, uint16_t q_thresh, uint16_t side_thresh, int q_mult, int w_mult, int n, int filt_len ";
   specialize qw / highbd_filt_vert_pred avx2/;
-}
 
 # WARPED_MOTION / GLOBAL_MOTION functions
 

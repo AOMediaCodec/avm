@@ -308,9 +308,6 @@ set_aom_config_var(CONFIG_ENABLE_MHCCP 1
                    "Enable multi hypothesis cross component prediction")
 
 set_aom_config_var(
-  CONFIG_PEF 1 "AV2 experiment flag to enable prediction enhancement filter")
-
-set_aom_config_var(
   CONFIG_ADAPTIVE_DS_FILTER
   1
   "Enable adaptive downsampling filter: 0: AV1 filter, 1: 121 filter, 2: 1511 filter"

@@ -124,9 +124,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #if CONFIG_CCSO
     GET_PARAMS(enable_ccso);
 #endif
-#if CONFIG_PEF
     GET_PARAMS(enable_pef);
-#endif  // CONFIG_PEF
     GET_PARAMS(enable_obmc);
     GET_PARAMS(enable_warped_motion);
     GET_PARAMS(enable_global_motion);

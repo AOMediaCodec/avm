@@ -1095,20 +1095,16 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
         avg_u_ac_delta_q;
     cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
         avg_v_ac_delta_q;
-#if CONFIG_PEF
     if (cm->seq_params.enable_pef && cm->features.allow_pef) {
       init_pef_parameter(cm, 0, av1_num_planes(cm));
     }
-#endif  // CONFIG_PEF
   }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
 #if CONFIG_TIP_DIRECT_FRAME_MV
-#if CONFIG_PEF
   if (cm->seq_params.enable_pef && cm->features.allow_pef) {
     enhance_tip_frame(cm, xd);
     aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
   }
-#endif  // CONFIG_PEF
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
@@ -6579,7 +6575,6 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #if CONFIG_CCSO
   seq_params->enable_ccso = aom_rb_read_bit(rb);
 #endif
-#if CONFIG_PEF
   seq_params->enable_pef = aom_rb_read_bit(rb);
 #if CONFIG_TIP_IMPLICIT_QUANT
   if (seq_params->enable_tip == 1 && seq_params->enable_pef) {
@@ -6588,7 +6583,6 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
     seq_params->enable_tip_explicit_qp = 0;
   }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
-#endif  // CONFIG_PEF
   seq_params->enable_orip = aom_rb_read_bit(rb);
 #if CONFIG_IDIF
   seq_params->enable_idif = aom_rb_read_bit(rb);
@@ -7661,7 +7655,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       else
         features->allow_ref_frame_mvs = 0;
 
-#if CONFIG_PEF
       features->allow_pef = false;
       if (cm->seq_params.enable_pef) {
         features->allow_pef = aom_rb_read_bit(rb);
@@ -7669,7 +7662,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->pef_params.pef_delta = aom_rb_read_bit(rb) + 1;
         }
       }
-#endif  // CONFIG_PEF
 
 #if CONFIG_TIP_DIRECT_FRAME_MV
       cm->tip_global_motion.as_int = 0;
@@ -8206,11 +8198,9 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
       av1_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
 #if !CONFIG_TIP_DIRECT_FRAME_MV
-#if CONFIG_PEF
       if (cm->seq_params.enable_pef && cm->features.allow_pef) {
         enhance_tip_frame(cm, xd);
       }
-#endif  // CONFIG_PEF
 #endif  // !CONFIG_TIP_DIRECT_FRAME_MV
     } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
       av1_setup_tip_motion_field(cm, 0);
@@ -8301,11 +8291,9 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     av1_setup_ref_frame_sides(cm);
 #endif  // CONFIG_MVP_IMPROVEMENT
 
-#if CONFIG_PEF
   if (cm->seq_params.enable_pef && cm->features.allow_pef) {
     init_pef_parameter(cm, 0, num_planes);
   }
-#endif  // CONFIG_PEF
 
   process_tip_mode(pbi);
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {

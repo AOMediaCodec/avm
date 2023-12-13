@@ -474,9 +474,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_CCSO
   &g_av1_codec_arg_defs.enable_ccso,
 #endif
-#if CONFIG_PEF
   &g_av1_codec_arg_defs.enable_pef,
-#endif  // CONFIG_PEF
 #if CONFIG_IBC_SR_EXT
   &g_av1_codec_arg_defs.enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
@@ -692,9 +690,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_CCSO
   config->enable_ccso = 1;
 #endif
-#if CONFIG_PEF
   config->enable_pef = 1;
-#endif  // CONFIG_PEF
   config->enable_obmc = 0;
   config->enable_warped_motion = 1;
 #if CONFIG_EXTENDED_WARP_PREDICTION
@@ -1620,10 +1616,8 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, "                               : AffineRefinement (%d)\n",
           encoder_cfg->enable_affine_refine);
 #endif  // CONFIG_AFFINE_REFINEMENT
-#if CONFIG_PEF
   fprintf(stdout, "                               : PEF (%d)\n",
           encoder_cfg->enable_pef);
-#endif  // CONFIG_PEF
 
   fprintf(stdout,
           "Tool setting (Transform)       : Flip & IDT (%d), "

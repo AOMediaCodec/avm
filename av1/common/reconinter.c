@@ -4653,7 +4653,6 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                                   calc_subpel_params_func);
   }
 
-#if CONFIG_PEF
 #if CONFIG_AFFINE_REFINEMENT
   const int apply_pef_opfl =
       (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
@@ -4680,7 +4679,6 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #endif  // CONFIG_EXT_WARP_FILTER
     );
   }
-#endif  // CONFIG_PEF
 }
 #endif  // CONFIG_REFINEMV
 
@@ -4810,7 +4808,6 @@ static void build_inter_predictors_8x8_and_bigger(
       }
     }
 
-#if CONFIG_PEF
     enhance_prediction(cm, xd, plane, dst, dst_stride, bw, bh
 #if CONFIG_OPTFLOW_REFINEMENT
                        ,
@@ -4823,7 +4820,6 @@ static void build_inter_predictors_8x8_and_bigger(
                        false
 #endif  // CONFIG_EXT_WARP_FILTER
     );
-#endif  // CONFIG_PEF
     dst_buf->buf = dst;
     xd->tmp_conv_dst = tmp_conv_dst;
     return;
@@ -5095,7 +5091,6 @@ static void build_inter_predictors_8x8_and_bigger(
                                   xd, mi_x, mi_y, ref, mc_buf,
                                   calc_subpel_params_func);
   }
-#if CONFIG_PEF
 #if CONFIG_AFFINE_REFINEMENT
   const int apply_pef_opfl =
       (mi->comp_refine_type == COMP_REFINE_SUBBLK2P && plane == 0) ||
@@ -5119,7 +5114,6 @@ static void build_inter_predictors_8x8_and_bigger(
                      ext_warp_used
 #endif  // CONFIG_EXT_WARP_FILTER
   );
-#endif  // CONFIG_PEF
 }
 
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,

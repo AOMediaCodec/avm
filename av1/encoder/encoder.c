@@ -410,9 +410,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_CCSO
   seq->enable_ccso = tool_cfg->enable_ccso;
 #endif
-#if CONFIG_PEF
   seq->enable_pef = tool_cfg->enable_pef;
-#endif  // CONFIG_PEF
 #if CONFIG_OPTFLOW_REFINEMENT
   seq->enable_opfl_refine = tool_cfg->enable_opfl_refine;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
@@ -3035,7 +3033,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
         av1_compute_rd_mult(cpi, cm->quant_params.base_qindex);
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 
-#if CONFIG_PEF
     if (cm->seq_params.enable_pef && cm->features.allow_pef) {
 #if CONFIG_TIP_IMPLICIT_QUANT
       const int u_ac_delta_q_backup = cm->quant_params.u_ac_delta_q;
@@ -3078,7 +3075,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
     }
-#endif  // CONFIG_PEF
 
     // Compute sse and rate.
     YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;

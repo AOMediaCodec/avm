@@ -847,10 +847,8 @@ typedef struct {
   // Indicates if ccso should be enabled.
   bool enable_ccso;
 #endif
-#if CONFIG_PEF
   // Indicates if prediction enhancement filter should be enabled.
   bool enable_pef;
-#endif  // CONFIG_PEF
   // Indicates if adaptive MVD resolution should be enabled.
   bool enable_adaptive_mvd;
 
