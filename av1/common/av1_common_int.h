@@ -20,9 +20,7 @@
 #include "aom_util/aom_thread.h"
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_loopfilter.h"
-#if CONFIG_PEF
 #include "av1/common/pef.h"
-#endif  // CONFIG_PEF
 #include "av1/common/blockd.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
@@ -519,9 +517,7 @@ typedef struct SequenceHeader {
 #if CONFIG_CCSO
   uint8_t enable_ccso;  // To turn on/off CCSO
 #endif
-#if CONFIG_PEF
   uint8_t enable_pef;        // To turn on/off prediction enhancement filter
-#endif                       // CONFIG_PEF
   uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
 #if CONFIG_LR_FLEX_SYNTAX
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
@@ -744,12 +740,10 @@ typedef struct {
    * Enables/disables hole fill for TIP
    */
   bool allow_tip_hole_fill;
-#if CONFIG_PEF
   /*!
    * Enables/disables prediction enhancement filter
    */
   bool allow_pef;
-#endif  // CONFIG_PEF
   /*!
    * Enables/disables parity hiding.
    */
@@ -1587,7 +1581,6 @@ typedef struct AV1Common {
   struct loopfilter lf;       /*!< Loop filter parameters */
   /**@}*/
 
-#if CONFIG_PEF
   /**
    * \name Prediction enhancement filter parameters.
    */
@@ -1595,7 +1588,6 @@ typedef struct AV1Common {
   PefInfo pef_info;     /*!< Prediction enhancement filter info*/
   PefParams pef_params; /*!< Prediction enhancement filter parameters*/
   /**@}*/
-#endif  // CONFIG_PEF
 
   /**
    * \name Loop Restoration filter parameters.

@@ -309,10 +309,6 @@ set_aom_config_var(CONFIG_BLEND_MODE 1
                    "Enable improved intra blend mode from CWG-D046")
 set_aom_config_var(CONFIG_ENABLE_MHCCP 1
                    "Enable multi hypothesis cross component prediction")
-
-set_aom_config_var(
-  CONFIG_PEF 1 "AV2 experiment flag to enable prediction enhancement filter")
-
 set_aom_config_var(
   CONFIG_ADAPTIVE_DS_FILTER
   1

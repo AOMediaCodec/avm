@@ -355,11 +355,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                          "Enable cross component sample offset (0: false "
                          "1: true)"),
 #endif
-#if CONFIG_PEF
   .enable_pef = ARG_DEF(NULL, "enable-pef", 1,
                         "Enable prediction enhancement filter (0: false "
                         "1: true)"),
-#endif  // CONFIG_PEF
   .disable_ml_partition_speed_features =
       ARG_DEF(NULL, "disable-ml-partition-speed-features", 1,
               "Disable ML partition speed features "
