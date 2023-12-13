@@ -81,6 +81,7 @@ class AV1DecodeMultiThreadedTest
       encoder->Control(AV1E_SET_TILE_ROWS, n_tile_rows_);
       encoder->Control(AV1E_SET_NUM_TG, n_tile_groups_);
       encoder->Control(AOME_SET_CPUUSED, set_cpu_used_);
+      encoder->Control(AOME_SET_QP, 210);
     }
   }
 
@@ -134,9 +135,8 @@ class AV1DecodeMultiThreadedTest
   void DoTest() {
     const aom_rational timebase = { 33333333, 1000000000 };
     cfg_.g_timebase = timebase;
-    cfg_.rc_target_bitrate = 500;
     cfg_.g_lag_in_frames = 12;
-    cfg_.rc_end_usage = AOM_VBR;
+    cfg_.rc_end_usage = AOM_Q;
 
     libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        timebase.den, timebase.num, 0, 2);
@@ -191,7 +191,7 @@ AV1_INSTANTIATE_TEST_SUITE(AV1DecodeMultiThreadedTest, ::testing::Values(1, 2),
 AV1_INSTANTIATE_TEST_SUITE(AV1DecodeMultiThreadedTestLarge,
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(0, 1, 2, 6),
-                           ::testing::Values(1, 4), ::testing::Values(0),
+                           ::testing::Values(1, 4), ::testing::Values(1),
                            ::testing::Values(0, 1));
 
 class AV1DecodeMultiThreadedLSTestLarge
