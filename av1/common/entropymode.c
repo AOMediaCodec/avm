@@ -77,7 +77,7 @@ static const aom_cdf_prob
     };
 #endif
 
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)] = {
@@ -97,7 +97,7 @@ static const aom_cdf_prob
 static const aom_cdf_prob default_mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)] = {
   AOM_CDF4(24756, 29049, 31092)
 };
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
 #if CONFIG_NEW_CONTEXT_MODELING
 #if CONFIG_ENTROPY_PARA

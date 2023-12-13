@@ -146,7 +146,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
 set_aom_config_var(CONFIG_EOB_POS_LUMA 1 "EOB position coding for luma.")
-set_aom_config_var(CONFIG_EXT_DIR 1 "AV2 extended intra prediction angles.")
 set_aom_config_var(
   CONFIG_EXT_RECUR_PARTITIONS 1 NUMBER
   "AV2 Fully recursive partitions including H partitions experiment flag")
@@ -251,8 +250,7 @@ set_aom_config_var(CONFIG_EXPLICIT_BAWP 0
                    "Explicit signaling for block adaptive weighted prediction")
 set_aom_config_var(CONFIG_BAWP_CHROMA 1
                    "Enable block adaptive weighted prediction for Chroma")
-set_aom_config_var(CONFIG_IMPROVED_ANGULAR_INTRA 1
-                   "Improved angular intra prediction mode")
+set_aom_config_var(CONFIG_IMPROVED_INTRA_DIR_PRED 1 "Improved intra prediction")
 set_aom_config_var(CONFIG_D071_IMP_MSK_BLD 1
                    "Enable single reference mode for frame boundary")
 

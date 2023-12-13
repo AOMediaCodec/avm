@@ -228,14 +228,14 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              fc->skip_txfm_cdfs[i], NULL);
   }
 
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
   for (i = 0; i < MRL_INDEX_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost[i],
                              fc->mrl_index_cdf[i], NULL);
   }
 #else
   av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
   for (i = 0; i < FSC_MODE_CONTEXTS; ++i) {
     for (j = 0; j < FSC_BSIZE_CONTEXTS; ++j) {

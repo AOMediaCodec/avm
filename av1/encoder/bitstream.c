@@ -1584,18 +1584,18 @@ static AOM_INLINE void write_intra_y_mode_nonkf(FRAME_CONTEXT *frame_ctx,
 }
 #endif  // !CONFIG_AIMC
 static AOM_INLINE void write_mrl_index(FRAME_CONTEXT *ec_ctx,
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
                                        const MB_MODE_INFO *neighbor0,
                                        const MB_MODE_INFO *neighbor1,
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                                        uint8_t mrl_index, aom_writer *w) {
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
   int ctx = get_mrl_index_ctx(neighbor0, neighbor1);
   aom_cdf_prob *mrl_cdf = ec_ctx->mrl_index_cdf[ctx];
   aom_write_symbol(w, mrl_index, mrl_cdf, MRL_LINE_NUMBER);
 #else
   aom_write_symbol(w, mrl_index, ec_ctx->mrl_index_cdf, MRL_LINE_NUMBER);
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 }
 
 static AOM_INLINE void write_fsc_mode(uint8_t fsc_mode, aom_writer *w,
@@ -1925,9 +1925,9 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     // Encoding reference line index
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mode)) {
       write_mrl_index(ec_ctx,
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
                       xd->neighbors[0], xd->neighbors[1],
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                       mbmi->mrl_index, w);
     }
   }

@@ -75,9 +75,9 @@ extern "C" {
 #define FSC_MODE_CONTEXTS 4
 #define FSC_BSIZE_CONTEXTS 6
 
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
 #define MRL_INDEX_CONTEXTS 3
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
 #define COMPREF_BIT_TYPES 2
 #define RANKED_REF0_TO_PRUNE 3
@@ -428,11 +428,11 @@ typedef struct frame_contexts {
   aom_cdf_prob uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]
                           [CDF_SIZE(UV_INTRA_MODES)];
 #endif  // !CONFIG_AIMC
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
   aom_cdf_prob mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)];
 #else
   aom_cdf_prob mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)];
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   aom_cdf_prob fsc_mode_cdf[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS]
                            [CDF_SIZE(FSC_MODES)];
 #if CONFIG_IMPROVED_CFL

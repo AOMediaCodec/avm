@@ -1245,11 +1245,11 @@ typedef struct FRAME_COUNTS {
   unsigned int uv_mode[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
 #endif
   unsigned int fsc_mode[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
   unsigned int mrl_index[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
 #else
   unsigned int mrl_index[MRL_LINE_NUMBER];
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_IMPROVED_CFL
   unsigned int cfl_index[CFL_TYPE_COUNT];
 #endif

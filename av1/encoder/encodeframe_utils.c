@@ -593,7 +593,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
                    intraonly);
 #endif  // CONFIG_AIMC
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode)) {
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
       int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
       update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index, MRL_LINE_NUMBER);
 #if CONFIG_ENTROPY_STATS
@@ -604,7 +604,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_ENTROPY_STATS
       ++counts->mrl_index[mbmi->mrl_index];
 #endif  // CONFIG_ENTROPY_STATS
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     }
     if (av1_filter_intra_allowed(cm, mbmi)) {
       const int use_filter_intra_mode =

@@ -1100,20 +1100,20 @@ static void highbd_second_dr_predictor(uint16_t *dst, ptrdiff_t stride,
   const int bh = tx_size_high[tx_size];
 
   if (angle > 0 && angle < 90) {
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = dr_intra_derivative[90 - angle];
 #else
     int dy = second_dr_intra_derivative[angle];
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = 1;
     av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, upsample_left,
                                 dx, dy, bd, 0);
   } else if (angle > 180 && angle < 270) {
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = dr_intra_derivative[angle - 180];
 #else
     int dx = second_dr_intra_derivative[270 - angle];
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = 1;
     av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left,
                                 upsample_above, dx, dy, bd, 0);
@@ -1131,21 +1131,21 @@ static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
   const int max_base = ((bw + bh) - 1);
 
   if (angle > 0 && angle < 90) {
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = dr_intra_derivative[90 - angle];
 #else
     int dy = second_dr_intra_derivative[angle];
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = 1;
     left[max_base + 1] = left[max_base];
     av1_highbd_dr_prediction_z3_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, 0);
   } else if (angle > 180 && angle < 270) {
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = dr_intra_derivative[angle - 180];
 #else
     int dx = second_dr_intra_derivative[270 - angle];
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = 1;
     above[max_base + 1] = above[max_base];
     av1_highbd_dr_prediction_z1_idif(dst, stride, bw, bh, above, left, dx, dy,
@@ -1528,11 +1528,11 @@ static void build_intra_predictors_high(
       seq_intra_pred_filter_flag && (mrl_index == 0);
   if (is_dr_mode) {
     p_angle = mode_to_angle_map[mode] + angle_delta;
-#if CONFIG_EXT_DIR
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
     const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };
     p_angle += mrl_index_to_delta[mrl_index];
     assert(p_angle > 0 && p_angle < 270);
-#endif  // CONFIG_EXT_DIR
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     if (p_angle <= 90)
       need_above = 1, need_left = 0, need_above_left = 1;
     else if (p_angle < 180)
@@ -1740,9 +1740,9 @@ static void build_intra_predictors_high(
 #endif  // CONFIG_IDIF
     if (seq_ibp_flag) {
       if (mrl_index == 0
-#if CONFIG_IMPROVED_ANGULAR_INTRA
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
           && (angle_delta % 2 == 0)
-#endif  // CONFIG_IMPROVED_ANGULAR_INTRA
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
       ) {
         if (p_angle > 0 && p_angle < 90) {
           int mode_index = angle_to_mode_index[p_angle];
