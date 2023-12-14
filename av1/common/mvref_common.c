@@ -324,8 +324,8 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
           mv->ref_frame[idx] = ref_frame;
           mv->mv[idx].as_int = refined_mv.as_int;
         }
-        mv++;
       }
+      mv++;
     }
     frame_mvs += frame_mvs_stride;
   }
