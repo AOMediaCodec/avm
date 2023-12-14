@@ -48,9 +48,7 @@ class AVxFirstPassEncoderThreadTest
     SetMode(encoding_mode_);
 
     cfg_.g_lag_in_frames = 35;
-    cfg_.rc_end_usage = AOM_VBR;
-    cfg_.rc_max_quantizer = 224;
-    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_end_usage = AOM_Q;
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
@@ -74,6 +72,7 @@ class AVxFirstPassEncoderThreadTest
       encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 0);
+      encoder->Control(AOME_SET_QP, 210);
 
       encoder_initialized_ = true;
     }
@@ -131,8 +130,6 @@ TEST_P(AVxFirstPassEncoderThreadTest, FirstPassStatsTest) {
   ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 60);
   aom_fixed_buf_t firstpass_stats;
   size_t single_run_sz;
-
-  cfg_.rc_target_bitrate = 1000;
 
   // 5 encodes will be run:
   // 1. row_mt_=0 and threads=1
@@ -231,9 +228,7 @@ class AVxEncoderThreadTest
     SetMode(encoding_mode_);
 
     cfg_.g_lag_in_frames = 5;
-    cfg_.rc_end_usage = AOM_VBR;
-    cfg_.rc_max_quantizer = 224;
-    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_end_usage = AOM_Q;
   }
 
   virtual void BeginPassHook(unsigned int /*pass*/) {
@@ -250,6 +245,7 @@ class AVxEncoderThreadTest
       encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 0);
+      encoder->Control(AOME_SET_QP, 210);
       encoder_initialized_ = true;
     }
   }
@@ -298,7 +294,6 @@ class AVxEncoderThreadTest
   void DoTest() {
     ::libaom_test::YUVVideoSource video(
         "niklas_640_480_30.yuv", AOM_IMG_FMT_I420, 640, 480, 30, 1, 15, 21);
-    cfg_.rc_target_bitrate = 1000;
 
     if (row_mt_ == 0) {
       // Encode using single thread.
