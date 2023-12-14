@@ -2211,7 +2211,9 @@ static AOM_INLINE void search_wiener_visitor(
       H_AVG[index] = H[index] / current_unit_indices->size;
     }
     // Iterate through vector to get current cost and the sum of M and H so far.
+#ifndef NDEBUG
     int num_units = 0;
+#endif  // NDEBUG
     has_begun = false;
     double cost_nomerge_cand = cost_nomerge_base;
     VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
@@ -2233,7 +2235,9 @@ static AOM_INLINE void search_wiener_visitor(
       for (int index = 0; index < WIENER_WIN2 * WIENER_WIN2; ++index) {
         H_AVG[index] += old_unit->H[index] / current_unit_indices->size;
       }
+#ifndef NDEBUG
       num_units++;
+#endif  // NDEBUG
     }
     assert(num_units + 1 == (int)current_unit_indices->size);
 

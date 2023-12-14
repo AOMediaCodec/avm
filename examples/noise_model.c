@@ -131,6 +131,7 @@ static void parse_args(noise_model_args_t *noise_args, int *argc, char **argv) {
                                           &debug_file_arg,
                                           NULL };
   for (int argi = *argc + 1; *argv; argi++, argv++) {
+    (void)argi;
     if (arg_match(&arg, &help, argv)) {
       fprintf(stdout, "\nOptions:\n");
       arg_show_usage(stdout, main_args);

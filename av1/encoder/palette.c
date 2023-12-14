@@ -84,7 +84,9 @@ int av1_index_color_cache(const uint16_t *color_cache, int n_cache,
     return n_colors;
   }
   memset(cache_color_found, 0, n_cache * sizeof(*cache_color_found));
+#ifndef NDEBUG
   int n_in_cache = 0;
+#endif  // NDEBUG
   int in_cache_flags[PALETTE_MAX_SIZE];
   memset(in_cache_flags, 0, sizeof(in_cache_flags));
 #if CONFIG_PALETTE_IMPROVEMENTS
@@ -101,7 +103,9 @@ int av1_index_color_cache(const uint16_t *color_cache, int n_cache,
       if (colors[j] == color_cache[i]) {
         in_cache_flags[j] = 1;
         cache_color_found[i] = 1;
+#ifndef NDEBUG
         ++n_in_cache;
+#endif  // NDEBUG
         break;
       }
     }
