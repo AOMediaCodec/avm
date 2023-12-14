@@ -822,8 +822,9 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
 }
 
 #if CONFIG_PALETTE_IMPROVEMENTS
-static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
-                                       int n, int cols, int rows
+static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
+                                       const TokenExtra **tp, int n, int cols,
+                                       int rows, int plane
 #if CONFIG_PALETTE_LINE_COPY
                                        ,
                                        const bool direction_allowed
@@ -834,7 +835,7 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
 #if CONFIG_PALETTE_LINE_COPY
   const int direction = (direction_allowed) ? p->direction : 0;
   if (direction_allowed) {
-    aom_write_symbol(w, p->direction, p->direction_cdf, 2);
+    aom_write_symbol(w, p->direction, xd->tile_ctx->palette_direction_cdf, 2);
   }
 #else
   const int direction = 0;
@@ -844,45 +845,70 @@ static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
 
   // for (int y = 0; y < rows; y++) {
   for (int ax2 = 0; ax2 < ax2_limit; ax2++) {
+    assert(p->identity_row_ctx >= 0 &&
+           p->identity_row_ctx < PALETTE_ROW_FLAG_CONTEXTS);
     int identity_row_flag = p->identity_row_flag;
+    const int ctx = p->identity_row_ctx;
+    // Derive the cdf corresponding to identity_row using the context
+    // (i.e.,identify_row_ctx) stored during the encoding.
+    aom_cdf_prob *identity_row_cdf =
+        plane ? xd->tile_ctx->identity_row_cdf_uv[ctx]
+              : xd->tile_ctx->identity_row_cdf_y[ctx];
+
 #if CONFIG_PALETTE_LINE_COPY
-    aom_write_symbol(w, identity_row_flag, p->identity_row_cdf, 3);
+    aom_write_symbol(w, identity_row_flag, identity_row_cdf, 3);
 #else
-    aom_write_symbol(w, identity_row_flag, p->identity_row_cdf, 2);
+    aom_write_symbol(w, identity_row_flag, identity_row_cdf, 2);
 #endif  // CONFIG_PALETTE_LINE_COPY
     // for (int x = 0; x < cols; x++) {
     for (int ax1 = 0; ax1 < ax1_limit; ax1++) {
       // if (y == 0 && x == 0) {
       if (ax2 == 0 && ax1 == 0) {
         write_uniform(w, n, p->token);
+      } else {
+#if CONFIG_PALETTE_LINE_COPY
+        if (!(identity_row_flag == 2) &&
+            (!(identity_row_flag == 1) || ax1 == 0)) {
+#else
+        if (!identity_row_flag || ax1 == 0) {
+#endif  // CONFIG_PALETTE_LINE_COPY
+          assert(p->color_map_palette_size_idx >= 0 &&
+                 p->color_map_ctx_idx >= 0);
+          aom_cdf_prob *color_map_pb_cdf =
+              plane ? xd->tile_ctx->palette_uv_color_index_cdf
+                          [p->color_map_palette_size_idx][p->color_map_ctx_idx]
+                    : xd->tile_ctx->palette_y_color_index_cdf
+                          [p->color_map_palette_size_idx][p->color_map_ctx_idx];
+          aom_write_symbol(w, p->token, color_map_pb_cdf, n);
+        }
       }
 #if CONFIG_PALETTE_LINE_COPY
-      // else if (!(identity_row_flag == 2) &&
-      //          (!(identity_row_flag == 1) || x == 0)) {
-      else if (!(identity_row_flag == 2) &&
-               (!(identity_row_flag == 1) || ax1 == 0)) {
-        aom_write_symbol(w, p->token, p->color_map_cdf, n);
-      }
       p++;
 #else
-      else if (!identity_row_flag || ax1 == 0) {
-        aom_write_symbol(w, p->token, p->color_map_cdf, n);
-      }
       if (!identity_row_flag || ax1 == 0) p++;
-#endif  // CONFIG_PALETTE_LINE_COPY
+#endif
     }
   }
   *tp = p;
 }
 #else
-static AOM_INLINE void pack_map_tokens(aom_writer *w, const TokenExtra **tp,
-                                       int n, int num) {
+static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
+                                       const TokenExtra **tp, int n, int num,
+                                       int plane) {
   const TokenExtra *p = *tp;
   write_uniform(w, n, p->token);  // The first color index.
   ++p;
   --num;
   for (int i = 0; i < num; ++i) {
-    aom_write_symbol(w, p->token, p->color_map_cdf, n);
+    assert(p->color_map_palette_size_idx >= 0 && p->color_map_ctx_idx >= 0);
+    aom_cdf_prob *color_map_pb_cdf =
+        plane ? xd->tile_ctx
+                    ->palette_uv_color_index_cdf[p->color_map_palette_size_idx]
+                                                [p->color_map_ctx_idx]
+              : xd->tile_ctx
+                    ->palette_y_color_index_cdf[p->color_map_palette_size_idx]
+                                               [p->color_map_ctx_idx];
+    aom_write_symbol(w, p->token, color_map_pb_cdf, n);
     ++p;
   }
   *tp = p;
@@ -3048,14 +3074,14 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       const bool direction_allowed =
           plane_block_width < 64 && plane_block_height < 64;
 #endif  // CONFIG_PALETTE_LINE_COPY
-      pack_map_tokens(w, tok, palette_size_plane, cols, rows
+      pack_map_tokens(xd, w, tok, palette_size_plane, cols, rows, plane
 #if CONFIG_PALETTE_LINE_COPY
                       ,
                       direction_allowed
 #endif  // CONFIG_PALETTE_LINE_COPY
       );
 #else
-      pack_map_tokens(w, tok, palette_size_plane, rows * cols);
+      pack_map_tokens(xd, w, tok, palette_size_plane, rows * cols, plane);
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
     }
   }

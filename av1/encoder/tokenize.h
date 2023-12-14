@@ -22,15 +22,16 @@ extern "C" {
 #endif
 
 typedef struct {
-  aom_cdf_prob *color_map_cdf;
+  // The values of palette_size_idx, ctx_idx are saved and uses the same to
+  // derive cdf of color_map during the bitstream preparation.
+  int8_t color_map_palette_size_idx;
+  int8_t color_map_ctx_idx;
   uint8_t token;
 #if CONFIG_PALETTE_IMPROVEMENTS
-  aom_cdf_prob *identity_row_cdf;
   uint8_t identity_row_flag;
-  int identity_row_ctx;
+  uint8_t identity_row_ctx;
 #if CONFIG_PALETTE_LINE_COPY
   uint8_t direction;
-  aom_cdf_prob *direction_cdf;
 #endif  // CONFIG_PALETTE_LINE_COPY
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
 
