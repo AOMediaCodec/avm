@@ -25,6 +25,9 @@ extern "C" {
 #endif
 
 #define MAX_NUM_THREADS 64
+#if defined(__APPLE__)
+#define MIN_THREAD_STACK_SIZE (1 << 22)
+#endif  // __APPLE__
 
 #if CONFIG_MULTITHREAD
 
