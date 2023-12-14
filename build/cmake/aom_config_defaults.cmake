@@ -211,11 +211,6 @@ set_aom_config_var(CONFIG_IBC_MAX_DRL 1
                    "Enables Max DRL index signaling for IntraBC")
 set_aom_config_var(CONFIG_CCSO_EXT 1
                    "AV2 experiment flag to enable extended CCSO.")
-set_aom_config_var(CONFIG_CFL_IMPROVEMENTS 1
-                   "AV2 Cfl improvements from CWG-D029.")
-set_aom_config_var(CONFIG_ADPTIVE_DS_422 1
-                   "AV2 adaptive downsampling in CfL for 422 from CWG-D028.")
-
 set_aom_config_var(
   CONFIG_PALETTE_IMPROVEMENTS
   1
@@ -301,13 +296,6 @@ set_aom_config_var(CONFIG_BLEND_MODE 1
                    "Enable improved intra blend mode from CWG-D046")
 set_aom_config_var(CONFIG_ENABLE_MHCCP 1
                    "Enable multi hypothesis cross component prediction")
-
-set_aom_config_var(
-  CONFIG_ADAPTIVE_DS_FILTER
-  1
-  "Enable adaptive downsampling filter: 0: AV1 filter, 1: 121 filter, 2: 1511 filter"
-)
-
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")
 

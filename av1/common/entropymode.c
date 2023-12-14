@@ -2524,7 +2524,7 @@ static const aom_cdf_prob default_cfl_sign_cdf[CDF_SIZE(CFL_JOINT_SIGNS)] = {
   AOM_CDF8(1418, 2123, 13340, 18405, 26972, 28343, 32294)
 };
 #endif  // CONFIG_ENTROPY_PARA
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_cfl_alpha_cdf[CFL_ALPHA_CONTEXTS][CDF_SIZE(CFL_ALPHABET_SIZE)] = {
@@ -2562,7 +2562,7 @@ static const aom_cdf_prob
       { AOM_CDF16(14738, 21678, 25779, 27901, 29024, 30302, 30980, 31843, 32144,
                   32413, 32520, 32594, 32622, 32656, 32660) }
     };
-#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_IMPROVED_CFL
 
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob

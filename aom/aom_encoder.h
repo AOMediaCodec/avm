@@ -369,12 +369,14 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_flex_mvres;
-#if CONFIG_ADAPTIVE_DS_FILTER
+
+#if CONFIG_IMPROVED_CFL
   /*!\brief enable downsample filter options for CFL
    *
    */
   unsigned int enable_cfl_ds_filter;
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
+
   /*!\brief enable joint MVD coding
    *
    */

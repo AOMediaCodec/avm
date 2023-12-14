@@ -281,10 +281,9 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
 #endif  // CONFIG_REFINEMV
 
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_flex_mvres);
-
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_cfl_ds_filter);
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_parity_hiding);
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   if (!reduced_still_picture_header) {

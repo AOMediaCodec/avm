@@ -127,38 +127,38 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        bool have_left, int above_lines, int left_lines);
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
                      ,
                      int filter_type
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
 );
 
 void cfl_store_tx(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
                   ,
                   int filter_type
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
 );
 
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
 void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int input_stride,
                                             uint16_t *output_q3, int width,
                                             int height);
-#if CONFIG_ADPTIVE_DS_422
+#if CONFIG_IMPROVED_CFL
 void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              int input_stride,
                                              uint16_t *output_q3, int width,
                                              int height, int filter_type);
-#endif  // CONFIG_ADPTIVE_DS_422
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
+#endif  // CONFIG_IMPROVED_CFL
 
-#if CONFIG_ADPTIVE_DS_422 && !CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL && !CONFIG_IMPROVED_CFL
 void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
                                             int input_stride,
                                             uint16_t *output_q3, int width,
                                             int height);
-#endif  // CONFIG_ADPTIVE_DS_422 && !CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL && !CONFIG_IMPROVED_CFL
 
 #if CONFIG_IMPROVED_CFL
 // Get neighbor luma reconstruction pixels
@@ -178,7 +178,7 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
                                         int row, int col, TX_SIZE tx_size);
 #endif
 
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
 // Derive the implicit scaling factor for the block
 void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
                                               const int width, const int height,
@@ -189,7 +189,7 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
 void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
                                         uint16_t *output_q3, int width,
                                         int height);
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
 
 void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint16_t *input,
                        CFL_PRED_TYPE pred_plane, int width);

@@ -455,9 +455,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
   seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
   seq->enable_cfl_ds_filter = tool_cfg->enable_cfl_ds_filter;
-#endif  // CONFIG_CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_CONFIG_IMPROVED_CFL
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
 #if CONFIG_REFINEMV
   seq->enable_refinemv = tool_cfg->enable_refinemv;
@@ -1624,7 +1624,7 @@ static void set_hole_fill_decision(AV1_COMP *cpi, int width, int height,
   }
 }
 
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
 static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
                                int height, int round_offset, int num_pel_log2) {
   int sum = round_offset;
@@ -1645,13 +1645,13 @@ static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
     dst += CFL_BUF_LINE;
   }
 }
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
 static int64_t compute_sad(const uint16_t *src, uint16_t *src2, int width,
                            int height, int round_offset, int src2_stride) {
 #else
 static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
                        int height, int round_offset, int src2_stride) {
-#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_IMPROVED_CFL
   int sad = round_offset;
   for (int j = 0; j < height; ++j) {
     for (int i = 0; i < width; ++i) {
@@ -1660,11 +1660,11 @@ static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
     src += CFL_BUF_LINE;
     src2 += src2_stride;
   }
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
   return sad;
 #else
   return (sad / (height * width));
-#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_IMPROVED_CFL
 }
 
 static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,
@@ -1734,7 +1734,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   const int subsampling_x = cpi->unfiltered_source->subsampling_x;
   const int subsampling_y = cpi->unfiltered_source->subsampling_y;
 
-#if CONFIG_ADPTIVE_DS_422
+#if CONFIG_IMPROVED_CFL
   if (subsampling_x == 0 && subsampling_y == 0) {
     cm->seq_params.enable_cfl_ds_filter =
         0;  // For 4:4:4 chroma format, downsampling filter is not used. There
@@ -1743,25 +1743,25 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
             // MR?
     return;
   }
-#endif  // CONFIG_ADPTIVE_DS_422
+#endif  // CONFIG_IMPROVED_CFL
 
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
   const int blk_w = 16;
   const int blk_h = 16;
 #else
   const int blk_w = 32;
   const int blk_h = 32;
-#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_IMPROVED_CFL
 
   uint16_t recon_buf_q3[CFL_BUF_SQUARE];
   uint16_t dc_buf_q3[CFL_BUF_SQUARE];
   // Q3 AC contributions (reconstructed luma pixels - tx block avg)
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
   int64_t cost[3] = { 0, 0, 0 };
 #else
   int cost[3] = { 0, 0, 0 };
-#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_IMPROVED_CFL
   for (int filter_type = 0; filter_type < 3; ++filter_type) {
     for (int comp = 0; comp < 2; comp++) {
       for (int r = 2; r + blk_h <= height - 2; r += blk_h) {
@@ -1777,14 +1777,14 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           }
 
           int alpha = 0;
-#if CONFIG_ADPTIVE_DS_422
+#if CONFIG_IMPROVED_CFL
           if (subsampling_x == 1 && subsampling_y == 0) {
             cfl_adaptive_luma_subsampling_422_hbd_c(
                 this_src, stride, recon_buf_q3, blk_w, blk_h, filter_type);
           } else if (filter_type == 1) {
 #else
           if (filter_type == 1) {
-#endif  // CONFIG_ADPTIVE_DS_422
+#endif  // CONFIG_IMPROVED_CFL
             cfl_luma_subsampling_420_hbd_121_c(this_src, stride, recon_buf_q3,
                                                blk_w, blk_h);
           } else if (filter_type == 2) {
@@ -1794,7 +1794,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
             cfl_luma_subsampling_420_hbd_c(this_src, stride, recon_buf_q3,
                                            blk_w, blk_h);
           }
-#if CONFIG_ADPTIVE_DS_422
+#if CONFIG_IMPROVED_CFL
           cfl_derive_block_implicit_scaling_factor(
               recon_buf_q3, this_src_chroma, blk_w >> subsampling_x,
               blk_h >> subsampling_y, CFL_BUF_LINE, chroma_stride, &alpha);
@@ -1808,7 +1808,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
                                        alpha, bd, blk_w >> subsampling_x,
                                        blk_h >> subsampling_y);
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
           int64_t filter_cost =
               compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
                           chroma_stride);
@@ -1816,7 +1816,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           int filter_cost =
               compute_sad(dc_buf_q3, this_src_chroma, blk_w >> subsampling_x,
                           blk_h >> subsampling_y, 2, chroma_stride);
-#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_IMPROVED_CFL
 #else
           cfl_derive_block_implicit_scaling_factor(
               recon_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1,
@@ -1827,25 +1827,25 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
                              chroma_stride, blk_w >> 1, blk_h >> 1);
           cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
                                        alpha, bd, blk_w >> 1, blk_h >> 1);
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
           int64_t filter_cost =
               compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
                           chroma_stride);
 #else
           int filter_cost = compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1,
                                         blk_h >> 1, 2, chroma_stride);
-#endif  // CONFIG_CFL_IMPROVEMENTS
-#endif  // CONFIG_ADPTIVE_DS_422
+#endif  // CONFIG_IMPROVED_CFL
+#endif  // CONFIG_IMPROVED_CFL
           cost[filter_type] = cost[filter_type] + filter_cost;
         }
       }
     }
   }
-#if CONFIG_CFL_IMPROVEMENTS
+#if CONFIG_IMPROVED_CFL
   int64_t min_cost = INT64_MAX;
 #else
   int min_cost = INT_MAX;
-#endif  // CONFIG_CFL_IMPROVEMENTS
+#endif  // CONFIG_IMPROVED_CFL
   for (int i = 0; i < 3; ++i) {
     if (cost[i] < min_cost) {
       min_cost = cost[i];
@@ -1853,7 +1853,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
     }
   }
 }
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
 
 void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -3787,11 +3787,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->is_screen_content_type = features->allow_screen_content_tools;
   }
 #endif  // CONFIG_IBC_SR_EXT
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
   if (cpi->common.current_frame.frame_type == KEY_FRAME) {
     av1_set_downsample_filter_options(cpi);
   }
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
   // frame type has been decided outside of this function call
   cm->cur_frame->frame_type = current_frame->frame_type;
 

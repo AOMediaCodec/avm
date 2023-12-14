@@ -853,10 +853,10 @@ typedef struct {
   // Indicates if flexible MV resolution should be enabled.
   bool enable_flex_mvres;
 
-#if CONFIG_ADAPTIVE_DS_FILTER
+#if CONFIG_IMPROVED_CFL
   // Indicates if joint adaptive downsampling filter should be enabled.
   int enable_cfl_ds_filter;
-#endif  // CONFIG_ADAPTIVE_DS_FILTER
+#endif  // CONFIG_IMPROVED_CFL
 
   // Indicates if joint mvd coding should be enabled.
   bool enable_joint_mvd;
