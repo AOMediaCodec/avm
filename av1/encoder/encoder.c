@@ -1734,7 +1734,6 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
   const int subsampling_x = cpi->unfiltered_source->subsampling_x;
   const int subsampling_y = cpi->unfiltered_source->subsampling_y;
 
-#if CONFIG_IMPROVED_CFL
   if (subsampling_x == 0 && subsampling_y == 0) {
     cm->seq_params.enable_cfl_ds_filter =
         0;  // For 4:4:4 chroma format, downsampling filter is not used. There
@@ -1743,25 +1742,15 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
             // MR?
     return;
   }
-#endif  // CONFIG_IMPROVED_CFL
 
-#if CONFIG_IMPROVED_CFL
   const int blk_w = 16;
   const int blk_h = 16;
-#else
-  const int blk_w = 32;
-  const int blk_h = 32;
-#endif  // CONFIG_IMPROVED_CFL
 
   uint16_t recon_buf_q3[CFL_BUF_SQUARE];
   uint16_t dc_buf_q3[CFL_BUF_SQUARE];
   // Q3 AC contributions (reconstructed luma pixels - tx block avg)
   int16_t ac_buf_q3[CFL_BUF_SQUARE];
-#if CONFIG_IMPROVED_CFL
   int64_t cost[3] = { 0, 0, 0 };
-#else
-  int cost[3] = { 0, 0, 0 };
-#endif  // CONFIG_IMPROVED_CFL
   for (int filter_type = 0; filter_type < 3; ++filter_type) {
     for (int comp = 0; comp < 2; comp++) {
       for (int r = 2; r + blk_h <= height - 2; r += blk_h) {
@@ -1777,14 +1766,10 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           }
 
           int alpha = 0;
-#if CONFIG_IMPROVED_CFL
           if (subsampling_x == 1 && subsampling_y == 0) {
             cfl_adaptive_luma_subsampling_422_hbd_c(
                 this_src, stride, recon_buf_q3, blk_w, blk_h, filter_type);
           } else if (filter_type == 1) {
-#else
-          if (filter_type == 1) {
-#endif  // CONFIG_IMPROVED_CFL
             cfl_luma_subsampling_420_hbd_121_c(this_src, stride, recon_buf_q3,
                                                blk_w, blk_h);
           } else if (filter_type == 2) {
@@ -1794,7 +1779,6 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
             cfl_luma_subsampling_420_hbd_c(this_src, stride, recon_buf_q3,
                                            blk_w, blk_h);
           }
-#if CONFIG_IMPROVED_CFL
           cfl_derive_block_implicit_scaling_factor(
               recon_buf_q3, this_src_chroma, blk_w >> subsampling_x,
               blk_h >> subsampling_y, CFL_BUF_LINE, chroma_stride, &alpha);
@@ -1808,44 +1792,15 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
                                        alpha, bd, blk_w >> subsampling_x,
                                        blk_h >> subsampling_y);
-#if CONFIG_IMPROVED_CFL
           int64_t filter_cost =
               compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
                           chroma_stride);
-#else
-          int filter_cost =
-              compute_sad(dc_buf_q3, this_src_chroma, blk_w >> subsampling_x,
-                          blk_h >> subsampling_y, 2, chroma_stride);
-#endif  // CONFIG_IMPROVED_CFL
-#else
-          cfl_derive_block_implicit_scaling_factor(
-              recon_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1,
-              CFL_BUF_LINE, chroma_stride, &alpha);
-          subtract_average_c(recon_buf_q3, ac_buf_q3, blk_w >> 1, blk_h >> 1, 4,
-                             (blk_w >> 1) * (blk_h >> 1));
-          cfl_predict_hbd_dc(this_src_chroma - chroma_stride, dc_buf_q3,
-                             chroma_stride, blk_w >> 1, blk_h >> 1);
-          cfl_predict_hbd_pre_analysis(ac_buf_q3, dc_buf_q3, CFL_BUF_LINE,
-                                       alpha, bd, blk_w >> 1, blk_h >> 1);
-#if CONFIG_IMPROVED_CFL
-          int64_t filter_cost =
-              compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1, blk_h >> 1, 2,
-                          chroma_stride);
-#else
-          int filter_cost = compute_sad(dc_buf_q3, this_src_chroma, blk_w >> 1,
-                                        blk_h >> 1, 2, chroma_stride);
-#endif  // CONFIG_IMPROVED_CFL
-#endif  // CONFIG_IMPROVED_CFL
           cost[filter_type] = cost[filter_type] + filter_cost;
         }
       }
     }
   }
-#if CONFIG_IMPROVED_CFL
   int64_t min_cost = INT64_MAX;
-#else
-  int min_cost = INT_MAX;
-#endif  // CONFIG_IMPROVED_CFL
   for (int i = 0; i < 3; ++i) {
     if (cost[i] < min_cost) {
       min_cost = cost[i];

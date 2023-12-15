@@ -225,33 +225,22 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                               input[i + 1] + input[bot + AOMMAX(-1, -i)] +
                               2 * input[bot] + input[bot + 1];
         } else if (filter_type == 2) {
-#if CONFIG_IMPROVED_CFL
           const int top = i - input_stride;
           output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] +
                               input[i + 1] + input[top] + input[bot];
-#else
-          output_q3[i >> 1] = input[i] * 8;
-#endif  // CONFIG_IMPROVED_CFL
         } else {
           output_q3[i >> 1] =
               (input[i] + input[i + 1] + input[bot] + input[bot + 1]) << 1;
         }
 #else
-#if CONFIG_IMPROVED_CFL
-        output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 2 * input[i] +
-                            input[i + 1] + input[bot + AOMMAX(-1, -i)] +
-                            2 * input[bot] + input[bot + 1];
-#else
         output_q3[i >> 1] =
             (input[i] + input[i + 1] + input[bot] + input[bot + 1]) << 1;
-#endif
 #endif  // CONFIG_IMPROVED_CFL
       }
 #if CONFIG_IMPROVED_CFL
     } else if (sub_x) {
       uint16_t *input = dst - input_stride;
       for (int i = 0; i < width; i += 2) {
-#if CONFIG_IMPROVED_CFL
         const int filter_type = cm->seq_params.enable_cfl_ds_filter;
         if (filter_type == 1) {
           output_q3[i >> 1] =
@@ -261,9 +250,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         } else {
           output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
         }
-#else
-        output_q3[i >> 1] = input[i] << 3;
-#endif  // CONFIG_IMPROVED_CFL
       }
 #endif  // CONFIG_IMPROVED_CFL
     } else if (sub_y) {
@@ -304,25 +290,16 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           output_q3[j >> 1] = input[-1] + 2 * input[0] + input[1] +
                               input[bot - 1] + 2 * input[bot] + input[bot + 1];
         } else if (filter_type == 2) {
-#if CONFIG_IMPROVED_CFL
           const int top = (j == 0) ? 0 : (0 - input_stride);
           output_q3[j >> 1] =
               input[-1] + 4 * input[0] + input[1] + input[top] + input[bot];
-#else
-          output_q3[j >> 1] = input[0] * 8;
-#endif  // CONFIG_IMPROVED_CFL
         } else {
           output_q3[j >> 1] =
               (input[0] + input[1] + input[bot] + input[bot + 1]) << 1;
         }
 #else
-#if CONFIG_IMPROVED_CFL
-        output_q3[j >> 1] = input[-1] + 2 * input[0] + input[1] +
-                            input[bot - 1] + 2 * input[bot] + input[bot + 1];
-#else
         output_q3[j >> 1] = (input[0] + input[1] + input[bot] + input[bot + 1])
                             << 1;
-#endif
 #endif  // CONFIG_IMPROVED_CFL
         input += input_stride * 2;
       }
@@ -330,7 +307,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     } else if (sub_x) {
       uint16_t *input = dst - 2;
       for (int j = 0; j < height; ++j) {
-#if CONFIG_IMPROVED_CFL
         const int filter_type = cm->seq_params.enable_cfl_ds_filter;
         if (filter_type == 1) {
           output_q3[j] = (input[-1] + 2 * input[0] + input[1]) << 1;
@@ -339,9 +315,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
         } else {
           output_q3[j] = (input[0] + input[1]) << 2;
         }
-#else
-        output_q3[j] = input[0] << 3;
-#endif  // CONFIG_IMPROVED_CFL
         input += input_stride;
       }
 #endif  // CONFIG_IMPROVED_CFL
@@ -653,14 +626,10 @@ void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int height) {
   for (int j = 0; j < height; j += 2) {
     for (int i = 0; i < width; i += 2) {
-#if CONFIG_IMPROVED_CFL
       const int top = (j == 0) ? i : (i - input_stride);
       const int bot = i + input_stride;
       output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] +
                           input[i + 1] + input[top] + input[bot];
-#else
-      output_q3[i >> 1] = input[i] * 8;
-#endif  // CONFIG_IMPROVED_CFL
     }
     input += input_stride << 1;
     output_q3 += CFL_BUF_LINE;
@@ -698,7 +667,6 @@ static void cfl_luma_subsampling_422_hbd_c(const uint16_t *input,
 }
 
 #if CONFIG_IMPROVED_CFL
-#if CONFIG_IMPROVED_CFL
 void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              int input_stride,
                                              uint16_t *output_q3, int width,
@@ -719,21 +687,6 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
     output_q3 += CFL_BUF_LINE;
   }
 }
-#else
-void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
-                                            int input_stride,
-                                            uint16_t *output_q3, int width,
-                                            int height) {
-  assert((height - 1) * CFL_BUF_LINE + width <= CFL_BUF_SQUARE);
-  for (int j = 0; j < height; j++) {
-    for (int i = 0; i < width; i += 2) {
-      output_q3[i >> 1] = (input[i]) << 3;
-    }
-    input += input_stride;
-    output_q3 += CFL_BUF_LINE;
-  }
-}
-#endif  // CONFIG_IMPROVED_CFL
 #endif  // CONFIG_IMPROVED_CFL
 
 static void cfl_luma_subsampling_444_hbd_c(const uint16_t *input,
@@ -811,14 +764,10 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
   uint16_t *recon_buf_q3 =
       cfl->recon_buf_q3 + (store_row * CFL_BUF_LINE + store_col);
 #if CONFIG_IMPROVED_CFL
-#if CONFIG_IMPROVED_CFL
   if (sub_x == 1 && sub_y == 0) {
     cfl_adaptive_luma_subsampling_422_hbd_c(input, input_stride, recon_buf_q3,
                                             width, height, filter_type);
   } else if (filter_type == 1) {
-#else
-  if (filter_type == 1) {
-#endif  // CONFIG_IMPROVED_CFL
     if (sub_x && sub_y)
       cfl_luma_subsampling_420_hbd_121_c(input, input_stride, recon_buf_q3,
                                          width, height);
@@ -837,19 +786,7 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
                                                recon_buf_q3);
   }
 #else
-#if CONFIG_IMPROVED_CFL
-  if (sub_x && sub_y)
-    cfl_luma_subsampling_420_hbd_121_c(input, input_stride, recon_buf_q3, width,
-                                       height);
-#if CONFIG_IMPROVED_CFL
-  else if (sub_x == 1 && sub_y == 0)
-    cfl_luma_subsampling_422_hbd_colocated(input, input_stride, recon_buf_q3,
-                                           width, height);
-#endif  // CONFIG_IMPROVED_CFL
-  else
-#endif
-    cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
-                                               recon_buf_q3);
+  cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride, recon_buf_q3);
 #endif  // CONFIG_IMPROVED_CFL
 }
 
