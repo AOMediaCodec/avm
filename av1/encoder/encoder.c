@@ -1645,13 +1645,9 @@ static void subtract_average_c(uint16_t *src, int16_t *dst, int width,
     dst += CFL_BUF_LINE;
   }
 }
-#if CONFIG_IMPROVED_CFL
+
 static int64_t compute_sad(const uint16_t *src, uint16_t *src2, int width,
                            int height, int round_offset, int src2_stride) {
-#else
-static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
-                       int height, int round_offset, int src2_stride) {
-#endif  // CONFIG_IMPROVED_CFL
   int sad = round_offset;
   for (int j = 0; j < height; ++j) {
     for (int i = 0; i < width; ++i) {
@@ -1660,11 +1656,7 @@ static int compute_sad(const uint16_t *src, uint16_t *src2, int width,
     src += CFL_BUF_LINE;
     src2 += src2_stride;
   }
-#if CONFIG_IMPROVED_CFL
   return sad;
-#else
-  return (sad / (height * width));
-#endif  // CONFIG_IMPROVED_CFL
 }
 
 static void cfl_predict_hbd_pre_analysis(const int16_t *ac_buf_q3,

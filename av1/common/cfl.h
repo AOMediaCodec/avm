@@ -145,20 +145,12 @@ void cfl_luma_subsampling_420_hbd_colocated(const uint16_t *input,
                                             int input_stride,
                                             uint16_t *output_q3, int width,
                                             int height);
-#if CONFIG_IMPROVED_CFL
+
 void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              int input_stride,
                                              uint16_t *output_q3, int width,
                                              int height, int filter_type);
 #endif  // CONFIG_IMPROVED_CFL
-#endif  // CONFIG_IMPROVED_CFL
-
-#if CONFIG_IMPROVED_CFL && !CONFIG_IMPROVED_CFL
-void cfl_luma_subsampling_422_hbd_colocated(const uint16_t *input,
-                                            int input_stride,
-                                            uint16_t *output_q3, int width,
-                                            int height);
-#endif  // CONFIG_IMPROVED_CFL && !CONFIG_IMPROVED_CFL
 
 #if CONFIG_IMPROVED_CFL
 // Get neighbor luma reconstruction pixels

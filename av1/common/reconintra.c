@@ -2090,27 +2090,17 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                 input[w + 1] + input[bot + AOMMAX(-1, -w)] +
                                 2 * input[bot] + input[bot + 1];
           } else if (cm->seq_params.enable_cfl_ds_filter == 2) {
-#if CONFIG_IMPROVED_CFL
             const int top = h != 0 ? w - input_stride : w;
             output_q3[w >> 1] = input[AOMMAX(0, w - 1)] + 4 * input[w] +
                                 input[w + 1] + input[top] + input[bot];
-#else
-            output_q3[w >> 1] = input[w] * 8;
-#endif
           } else {
             output_q3[w >> 1] =
                 (input[w] + input[w + 1] + input[bot] + input[bot + 1] + 2)
                 << 1;
           }
 #else
-#if CONFIG_IMPROVED_CFL
-          output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 2 * input[i] +
-                              input[i + 1] + input[bot + AOMMAX(-1, -i)] +
-                              2 * input[bot] + input[bot + 1];
-#else
           output_q3[i >> 1] =
               (input[i] + input[i + 1] + input[bot] + input[bot + 1] + 2) << 1;
-#endif
 #endif  // CONFIG_IMPROVED_CFL
         }
         output_q3 += output_stride;
@@ -2122,7 +2112,6 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     else if (sub_x) {
       for (int h = 0; h < (*ref_height); h++) {
         for (int i = 0; i < (*ref_width); i += 2) {
-#if CONFIG_IMPROVED_CFL
           const int filter_type = cm->seq_params.enable_cfl_ds_filter;
           if (filter_type == 1) {
             output_q3[i >> 1] =
@@ -2132,9 +2121,6 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
           } else {
             output_q3[i >> 1] = (input[i] + input[i + 1]) << 2;
           }
-#else
-          output_q3[i >> 1] = input[i] << 3;
-#endif  // CONFIG_IMPROVED_CFL
         }
         output_q3 += output_stride;
         input += input_stride;
