@@ -585,13 +585,13 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     return;
   } else
 #endif  // CONFIG_ENABLE_MHCCP
-      if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
-    alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
-  } else {
-    alpha_q3 =
-        cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, plane - 1);
-    alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
-  }
+    if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+      alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
+    } else {
+      alpha_q3 = cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs,
+                                  plane - 1);
+      alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
+    }
 #else
   if (!cfl->are_parameters_computed) cfl_compute_parameters(xd, tx_size);
 
