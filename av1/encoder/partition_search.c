@@ -5402,6 +5402,7 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
       break;
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      assert(bsize_big < BLOCK_SIZES_ALL);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->horizontal4a[0],
@@ -5416,6 +5417,7 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
     }
     case PARTITION_HORZ_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
+      assert(bsize_big < BLOCK_SIZES_ALL);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_HORZ][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_HORZ][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->horizontal4b[0],
@@ -5430,6 +5432,7 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
     }
     case PARTITION_VERT_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      assert(bsize_big < BLOCK_SIZES_ALL);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->vertical4a[0],
@@ -5444,6 +5447,7 @@ static AOM_INLINE void trace_partition_boundary(bool *partition_boundaries,
     }
     case PARTITION_VERT_4B: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_VERT);
+      assert(bsize_big < BLOCK_SIZES_ALL);
       const BLOCK_SIZE bsize_med = subsize_lookup[PARTITION_VERT][bsize_big];
       assert(subsize == subsize_lookup[PARTITION_VERT][bsize_med]);
       trace_partition_boundary(partition_boundaries, pc_tree->vertical4b[0],

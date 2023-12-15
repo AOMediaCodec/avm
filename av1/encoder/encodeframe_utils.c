@@ -1181,6 +1181,8 @@ void av1_reset_simple_motion_tree_partition(SIMPLE_MOTION_DATA_TREE *sms_tree,
 
   if (bsize >= BLOCK_8X8) {
     BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);
+    assert(subsize < BLOCK_SIZES_ALL);
+    assert(is_square_block(subsize));
     for (int idx = 0; idx < 4; ++idx)
       av1_reset_simple_motion_tree_partition(sms_tree->split[idx], subsize);
   }
