@@ -729,7 +729,7 @@ class AV1OptFlowRefineInterpGradTest
         // input. Due to the clamping of these value to [INT16_MIN, INT16_MAX],
         // testing of the same is required. Hence, populating the input_, gx_
         // and gy_ buffers as per the requirement.
-        RandomInput16(input_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16(input_, GetParam(), AOMMIN(16, bd + 1));
         RandomInput16(gx_, GetParam(), AOMMIN(16, bd + 6));
         RandomInput16(gy_, GetParam(), AOMMIN(16, bd + 6));
 
@@ -747,7 +747,7 @@ class AV1OptFlowRefineInterpGradTest
         const int d1 = RelativeDistExtreme(oh_bits);
         if (!d0 || !d1) continue;
 
-        RandomInput16Extreme(input_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16Extreme(input_, GetParam(), AOMMIN(16, bd + 1));
         RandomInput16Extreme(gx_, GetParam(), AOMMIN(16, bd + 6));
         RandomInput16Extreme(gy_, GetParam(), AOMMIN(16, bd + 6));
 
