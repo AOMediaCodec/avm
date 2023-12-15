@@ -13,7 +13,7 @@ if(AOM_TEST_TEST_CMAKE_)
 endif() # AOM_TEST_TEST_CMAKE_
 set(AOM_TEST_TEST_CMAKE_ 1)
 
-include(FindPythonInterp)
+include(FindPython)
 include(ProcessorCount)
 
 include("${AOM_ROOT}/test/test_data_util.cmake")
@@ -257,8 +257,8 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(ENABLE_TESTS)
-  find_package(PythonInterp)
-  if(NOT PYTHONINTERP_FOUND)
+  find_package(Python COMPONENTS Interpreter)
+  if(NOT Python_Interpreter_FOUND)
     message(
       FATAL_ERROR
         "--- Unit tests require Python, rerun cmake with "

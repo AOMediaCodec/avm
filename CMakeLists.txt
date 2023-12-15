@@ -460,7 +460,7 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
         "${AOM_ROOT}/tools/extract_proto/enum_mappings.h")
     execute_process(
       COMMAND
-        ${PYTHON_EXECUTABLE}
+        ${Python_EXECUTABLE}
         "${AOM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
         --enums_header "${AOM_ROOT}/av1/common/enums.h" --output
         "${AOM_ROOT}/tools/extract_proto/enum_mappings.h"
