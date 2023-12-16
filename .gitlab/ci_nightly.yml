@@ -184,7 +184,7 @@ Linux Unit (x86_64, sse4_2):
      :fast_unwind_on_fatal=1\
      :allocator_may_return_null=1"
   before_script:
-    - export PATH="/usr/lib/llvm-12/bin:${PATH}"
+    - export PATH="/usr/lib/llvm-15/bin:${PATH}"
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
     - |
