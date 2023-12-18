@@ -34,12 +34,17 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     args = " --verbose --codec=av1 -v --psnr --obu --frame-parallel=0" \
            " --cpu-used=%s --limit=%d --passes=1 --end-usage=q --i%s " \
            " --use-fixed-qp-offsets=1 --deltaq-mode=0 " \
-           " --enable-tpl-model=0 --fps=%d/%d " \
-           " --input-bit-depth=%d --bit-depth=%d -w %d -h %d" \
-           % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom,
-              clip.bit_depth, clip.bit_depth, clip.width, clip.height)
+           " --enable-tpl-model=0 --fps=%d/%d -w %d -h %d" \
+           % (preset, framenum, clip.fmt, clip.fps_num, clip.fps_denom, clip.width, clip.height)
 
-    if CTC_VERSION in ['2.0', '3.0', '4.0', '5.0']:
+    # config enoding bitdepth
+    if ((CTC_VERSION in ['6.0']) and (clip.file_class in ['A2', 'A4', 'B1'])):
+        # CWG-D088
+        args += " --input-bit-depth=%d --bit-depth=10" % (clip.bit_depth)
+    else:
+        args += " --input-bit-depth=%d --bit-depth=%d" % (clip.bit_depth, clip.bit_depth)
+
+    if CTC_VERSION in ['2.0', '3.0', '4.0', '5.0', '6.0']:
         args += " --qp=%d" % QP
     else:
         args += " --use-16bit-internal --cq-level=%d" % QP
@@ -50,7 +55,9 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
         args += " --tile-columns=1 --threads=2 --row-mt=0 "
     elif ((CTC_VERSION in ['4.0']) and (clip.file_class in ['A2', 'B1']) and (test_cfg == "LD")):
         args += " --tile-rows=1 --threads=2 --row-mt=0 "
-    elif ((CTC_VERSION in ['5.0']) and (clip.file_class in ['A2', 'B1']) and (test_cfg == "LD")):
+    elif ((CTC_VERSION in ['5.0', '6.0']) and (clip.file_class in ['A2', 'B1']) and (test_cfg == "LD")):
+        args += " --tile-rows=1 --tile-columns=1 --threads=4 --row-mt=0 "
+    elif ((CTC_VERSION in ['6.0']) and (clip.file_class in ['E', 'G1']) and (test_cfg == "RA")):
         args += " --tile-rows=1 --tile-columns=1 --threads=4 --row-mt=0 "
     else:
         args += " --tile-columns=0 --threads=1 "
