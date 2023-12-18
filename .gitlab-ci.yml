@@ -10,7 +10,7 @@ stages:
   - test
   - report
 
-image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2204:20231129045224
+image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2204:20231216164605
 
 default:
   tags:
