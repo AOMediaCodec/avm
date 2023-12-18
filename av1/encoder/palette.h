@@ -43,17 +43,16 @@ void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int *data, int *centroids,
                                         int max_itr);
 /*!\endcond */
 
-/*!\Extended Palette Coding Flags */
+/*!\brief Extended Palette Coding Flags */
 typedef enum {
-  /*!\No extra palette flags. */
+  /*!\brief No extra palette flags. */
   PALETTE_NO_FLAGS,
 
-  /*!\Identity row flag, all values are the same as first value*/
+  /*!\brief Identity row flag, all values are the same as first value*/
   PALETTE_IDENTIY_ROW,
 
-  /*!\Line Copy flag, all values are the same as above line */
+  /*!\brief Line Copy flag, all values are the same as above line */
   PALETTE_LINE_COPY
-
 } palette_flag_t;
 
 /*!\brief Calculates the cluster to which each data point belong.

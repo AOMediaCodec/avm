@@ -475,6 +475,7 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION || CONFIG_COMPOUND_WARP_CAUSAL ||
         // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT
+  /*! \brief Compound refinement type */
   CompoundRefineType comp_refine_type;
 #endif  // CONFIG_AFFINE_REFINEMENT
   /*! \brief The type of intra mode used by inter-intra */

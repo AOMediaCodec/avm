@@ -888,6 +888,7 @@ typedef struct {
   //! uv mode cost
 #if CONFIG_UV_CFL
   int intra_uv_mode_cost[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
+  //! CFL mode cost
   int cfl_mode_cost[CFL_CONTEXTS][2];
 #else
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][UV_MODE_CONTEXTS][UV_INTRA_MODES];
@@ -938,6 +939,7 @@ typedef struct {
   int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
+  //! palette_direction_cost
   int palette_direction_cost[2];
   //! palette_y_row_flag_cost
   int palette_y_row_flag_cost[PALETTE_ROW_FLAG_CONTEXTS][3];
