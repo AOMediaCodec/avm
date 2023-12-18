@@ -128,9 +128,9 @@ def VMAF_CalQualityMetrics(origfile, recfile, logfilePath, LogCmdOnly=False):
            % (origfile, recfile, vmaf_log)
 
     if CTC_VERSION in ['6.0']:
-        args += " --aom_ctc v6.0 --feature cambi"
+        args += " --aom_ctc v6.0"
     elif CTC_VERSION in ['3.0', '4.0', '5.0']:
-        args += " --aom_ctc v2.0 --feature cambi"
+        args += " --aom_ctc v3.0"
     else:
         args += " --aom_ctc v1.0"
 

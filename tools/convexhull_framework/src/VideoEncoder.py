@@ -72,6 +72,13 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
     else:
         args += " --enable-keyframe-filtering=0 "
 
+    # CWG-D082
+    if CTC_VERSION in ['6.0']:
+        if clip.file_class in ['B2']:
+            args += " --tune-content=screen"
+        else:
+            args += " --enable_intrabc_ext=2"
+
     if test_cfg == "AI" or test_cfg == "STILL":
         args += " --kf-min-dist=0 --kf-max-dist=0 "
     elif test_cfg == "RA" or test_cfg == "AS":
