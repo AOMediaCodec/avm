@@ -4527,7 +4527,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 #if CONFIG_AFFINE_REFINEMENT
   int do_affine = 0;
   WarpedMotionParams wms[2];
-  int use_affine_opfl = 0;
+  int use_affine_opfl = mi->comp_refine_type >= COMP_AFFINE_REFINE_START;
   wms[0] = default_warp_params;
   wms[1] = default_warp_params;
   if (use_optflow_refinement && plane) {
@@ -4885,7 +4885,7 @@ static void build_inter_predictors_8x8_and_bigger(
                  cm->features.opfl_refine_type == REFINE_ALL));
 
 #if CONFIG_AFFINE_REFINEMENT
-  int use_affine_opfl = 0;
+  int use_affine_opfl = mi->comp_refine_type >= COMP_AFFINE_REFINE_START;
   WarpedMotionParams wms[2];
   wms[0] = default_warp_params;
   wms[1] = default_warp_params;
