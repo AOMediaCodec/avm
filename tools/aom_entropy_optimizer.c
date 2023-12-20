@@ -32,6 +32,7 @@
 
 #include "av1/encoder/encoder.h"
 
+#define STRING_MAX 2048  // should be large but limited to copy CDF name
 #define SPACES_PER_TAB 2
 #define CDF_MAX_SIZE 16
 
@@ -113,6 +114,8 @@ static int parse_counts_for_cdf_opt(aom_count_type **ct_ptr,
   return 0;
 }
 
+// helper function to estimate RAM/ROM memory for CDfs/sytax entries
+// only called when --memory is given as an input to the program
 static void count_memory(int *cts_each_dim, int dim_of_cts, char *prefix,
                          int has_rom_multiplier, int *total_count, int *dim_arr,
                          int minus_entries, char *cdf_category) {
@@ -161,7 +164,7 @@ static void count_memory(int *cts_each_dim, int dim_of_cts, char *prefix,
     }
   }
 
-  char string[2048];
+  char string[STRING_MAX];
   strcpy(string, prefix);
   char *subs = strstr(string, "_prob ") + 6;
   char *token = strtok(subs, "[");
