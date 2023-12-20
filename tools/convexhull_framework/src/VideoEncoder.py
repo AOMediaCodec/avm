@@ -77,7 +77,7 @@ def EncodeWithAOM_AV2(clip, test_cfg, QP, framenum, outfile, preset, enc_perf,
         if clip.file_class in ['B2']:
             args += " --tune-content=screen"
         else:
-            args += " --enable_intrabc_ext=2"
+            args += " --enable-intrabc-ext=2"
 
     if test_cfg == "AI" or test_cfg == "STILL":
         args += " --kf-min-dist=0 --kf-max-dist=0 "
