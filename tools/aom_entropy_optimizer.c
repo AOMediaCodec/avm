@@ -119,12 +119,12 @@ static int parse_counts_for_cdf_opt(aom_count_type **ct_ptr,
 static void count_memory(int *cts_each_dim, int dim_of_cts, char *prefix,
                          int has_rom_multiplier, int *total_count, int *dim_arr,
                          int minus_entries, char *cdf_category) {
-  int mfactor = 15;
-  int moffset = 5;
-  int tot_count = 1;
-  int ctx_count = 0;
+  int mfactor = 15;   // number of bits used per context per symbol - 1
+  int moffset = 5;    // bits offset for RAM
+  int tot_count = 1;  // total bit counts per syntax
+  int ctx_count = 0;  // total context count per syntax
 #if CONFIG_ENTROPY_PARA
-  int para_bits = 9;
+  int para_bits = 9;  // additional ROM bits needed by PARA
 #endif
 
   if (dim_arr == NULL) {
