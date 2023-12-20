@@ -876,10 +876,8 @@ Enc compare:
           echo ""
         else
           echo "WARNING: previous-${variant}.md5 and ${variant}.md5 differ!"
-          {
-            printf "%s:%s\n" "previous-${variant}.md5" $(cat previous-${variant}.md5);
-            printf "%s:%s\n" "${variant}.md5" $(cat ${variant}.md5);
-          } | column -t -s ':'
+          echo "previous-${variant}.md5 : $(cat previous-${variant}.md5)"
+          echo "${variant}.md5          : $(cat ${variant}.md5)"
           echo ""
           FAILED=1
         fi
