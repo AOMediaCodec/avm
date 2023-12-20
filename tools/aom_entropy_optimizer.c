@@ -202,6 +202,21 @@ static void count_memory(int *cts_each_dim, int dim_of_cts, char *prefix,
   }
 }
 
+/* Optimize CDF entries with CDF memory counter
+ * counts             : Pointer to relevent syntax counts from
+ * probsfile          : Pointer to probability output
+ * dim_of_cts         : Dimension of the CDF table including
+ * prefix             : Prefix for CDF name as defined in the standard
+ * has_rom_multiplier : Whether the ROM counts need to be multiplied with
+ *                      TOKEN_Q_CDFS
+ * total_cnt          : Variable to keep track of total bits across all syntax
+ * minus_entries      : Some CDF tables have unused context entries that need
+ *                      to be subtracted simply count the unused contexts
+ *                      (excluding the symbol counts)
+ * mem_wanted         : Whether to optimize CDF entries or run in
+ *                      memory computation mode instead
+ * cdf_category       : Input char array to assign CDF to a category
+ */
 static void optimize_cdf_table(aom_count_type *counts, FILE *const probsfile,
                                int dim_of_cts, int *cts_each_dim, char *prefix,
                                int has_rom_multiplier, int *total_cnt,
@@ -256,6 +271,9 @@ static void optimize_uv_mode(aom_count_type *counts, FILE *const probsfile,
 }
 #endif
 
+/* See optimize_cdf_table for usage.
+   modes_each_ctx: input symbol counts per each context row
+*/
 static void optimize_cdf_table_var_modes_2d(aom_count_type *counts,
                                             FILE *const probsfile,
                                             int dim_of_cts, int *cts_each_dim,
@@ -293,6 +311,9 @@ static void optimize_cdf_table_var_modes_2d(aom_count_type *counts,
   fprintf(logfile, "============================\n");
 }
 
+/* See optimize_cdf_table for usage.
+   modes_each_ctx: input symbol counts per each context row
+*/
 static void optimize_cdf_table_var_modes_3d(aom_count_type *counts,
                                             FILE *const probsfile,
                                             int dim_of_cts, int *cts_each_dim,
@@ -335,6 +356,9 @@ static void optimize_cdf_table_var_modes_3d(aom_count_type *counts,
   fprintf(logfile, "============================\n");
 }
 
+/* See optimize_cdf_table for usage.
+   modes_each_ctx: input symbol counts per each context row
+*/
 static void optimize_cdf_table_var_modes_4d(aom_count_type *counts,
                                             FILE *const probsfile,
                                             int dim_of_cts, int *cts_each_dim,
@@ -605,7 +629,7 @@ int main(int argc, const char **argv) {
       "static aom_cdf_prob default_do_split_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]",
       0, &total_count, 20, mem_wanted,
-      "Partitions");  // minus 20 unused entries
+      "Partitions");  // minus 20 unused context entries
 #if CONFIG_BLOCK_256
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = SQUARE_SPLIT_CONTEXTS;
@@ -625,7 +649,7 @@ int main(int argc, const char **argv) {
       "static aom_cdf_prob default_rect_type_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]",
       0, &total_count, 44, mem_wanted,
-      "Partitions");  // minus 44 unused entries
+      "Partitions");  // minus 44 unused context entries
 
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
@@ -637,7 +661,7 @@ int main(int argc, const char **argv) {
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 152, mem_wanted,
-                     "Partitions");  // minus 152 unused entries
+                     "Partitions");  // minus 152 unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
@@ -648,7 +672,7 @@ int main(int argc, const char **argv) {
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 252, mem_wanted,
-                     "Partitions");  // minus 252 unused entries
+                     "Partitions");  // minus 252 unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
@@ -659,7 +683,7 @@ int main(int argc, const char **argv) {
       "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
       "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]",
       0, &total_count, 252, mem_wanted,
-      "Partitions");  // minus 252 unused entries
+      "Partitions");  // minus 252 unused context entries
 #else
   /* block partition */
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;

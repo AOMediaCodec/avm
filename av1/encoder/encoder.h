@@ -1224,37 +1224,45 @@ typedef struct FRAME_COUNTS {
 // Note: This structure should only contain 'unsigned int' fields, or
 // aggregates built solely from 'unsigned int' fields/elements
 #if CONFIG_ENTROPY_STATS
-  unsigned int delta_q_cnts[CDF_SIZE(DELTA_Q_PROBS + 1)];
-  unsigned int delta_lf_multi_cnts[FRAME_LF_COUNT]
-                                  [CDF_SIZE(DELTA_LF_PROBS + 1)];
-  unsigned int delta_lf_cnts[CDF_SIZE(DELTA_LF_PROBS + 1)];
-  unsigned int stx_cnts[TX_SIZES][CDF_SIZE(STX_TYPES)];
+  // TODO(urvang, alican): The below are placeholder counters for missing CDF
+  // entries for memory optimization code. These are not currently incremented
+  // at the encoder to be able to train CDF entries with
+  // "aom_entropy_optimizers", these counters will need be incremented properly.
+  unsigned int delta_q_cnts[CDF_SIZE(DELTA_Q_PROBS + 1)];  // placeholder
+  unsigned int delta_lf_multi_cnts[FRAME_LF_COUNT][CDF_SIZE(DELTA_LF_PROBS +
+                                                            1)];  // placeholder
+  unsigned int delta_lf_cnts[CDF_SIZE(DELTA_LF_PROBS + 1)];       // placeholder
+  unsigned int stx_cnts[TX_SIZES][CDF_SIZE(STX_TYPES)];           // placeholder
 #if CONFIG_IST_SET_FLAG
-  unsigned int stx_set_cnts[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)];
-#endif  // CONFIG_IST_SET_FLAG
-  unsigned int pb_mv_mpp_flag_cnts[NUM_MV_PREC_MPP_CONTEXT][CDF_SIZE(2)];
+  unsigned int stx_set_cnts[IST_DIR_SIZE]
+                           [CDF_SIZE(IST_DIR_SIZE)];  // placeholder
+#endif                                                // CONFIG_IST_SET_FLAG
+  unsigned int pb_mv_mpp_flag_cnts[NUM_MV_PREC_MPP_CONTEXT]
+                                  [CDF_SIZE(2)];  // placeholder
   unsigned int pb_mv_precision_cnts[MV_PREC_DOWN_CONTEXTS]
-                                   [NUM_PB_FLEX_QUALIFIED_MAX_PREC]
-                                   [CDF_SIZE(FLEX_MV_COSTS_SIZE)];
+                                   [NUM_PB_FLEX_QUALIFIED_MAX_PREC][CDF_SIZE(
+                                       FLEX_MV_COSTS_SIZE)];  // placeholder
   unsigned int cctx_type_cnts[EXT_TX_SIZES][CCTX_CONTEXTS]
-                             [CDF_SIZE(CCTX_TYPES)];
-  unsigned int classes_cnts[NUM_MV_PRECISIONS][CDF_SIZE(MV_CLASSES)];
-  unsigned int amvd_classes_cnts[CDF_SIZE(MV_CLASSES)];
-  unsigned int class0_fp_cnts[CLASS0_SIZE][3][CDF_SIZE(2)];
-  unsigned int fp_cnts[3][CDF_SIZE(2)];
-  unsigned int sign_cnts[CDF_SIZE(2)];
-  unsigned int class0_hp_cnts[CDF_SIZE(2)];
-  unsigned int hp_cnts[CDF_SIZE(2)];
-  unsigned int class0_cnts[CDF_SIZE(CLASS0_SIZE)];
-  unsigned int bits_cnts[MV_OFFSET_BITS][CDF_SIZE(2)];
-  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];
+                             [CDF_SIZE(CCTX_TYPES)];  // placeholder
+  unsigned int classes_cnts[NUM_MV_PRECISIONS]
+                           [CDF_SIZE(MV_CLASSES)];           // placeholder
+  unsigned int amvd_classes_cnts[CDF_SIZE(MV_CLASSES)];      // placeholder
+  unsigned int class0_fp_cnts[CLASS0_SIZE][3][CDF_SIZE(2)];  // placeholder
+  unsigned int fp_cnts[3][CDF_SIZE(2)];                      // placeholder
+  unsigned int sign_cnts[CDF_SIZE(2)];                       // placeholder
+  unsigned int class0_hp_cnts[CDF_SIZE(2)];                  // placeholder
+  unsigned int hp_cnts[CDF_SIZE(2)];                         // placeholder
+  unsigned int class0_cnts[CDF_SIZE(CLASS0_SIZE)];           // placeholder
+  unsigned int bits_cnts[MV_OFFSET_BITS][CDF_SIZE(2)];       // placeholder
+  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];             // placeholder
 
-  unsigned int seg_tree_cnts[CDF_SIZE(MAX_SEGMENTS)];
-  unsigned int segment_pred_cnts[SEG_TEMPORAL_PRED_CTXS][CDF_SIZE(2)];
-  unsigned int spatial_pred_seg_tree_cnts[SPATIAL_PREDICTION_PROBS]
-                                         [CDF_SIZE(MAX_SEGMENTS)];
+  unsigned int seg_tree_cnts[CDF_SIZE(MAX_SEGMENTS)];  // placeholder
+  unsigned int segment_pred_cnts[SEG_TEMPORAL_PRED_CTXS]
+                                [CDF_SIZE(2)];  // placeholder
+  unsigned int spatial_pred_seg_tree_cnts[SPATIAL_PREDICTION_PROBS][CDF_SIZE(
+      MAX_SEGMENTS)];  // placeholder
 
-  unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];
+  unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
 
 #if CONFIG_AIMC
   unsigned int y_mode_set_idx[INTRA_MODE_SETS];
@@ -1282,25 +1290,28 @@ typedef struct FRAME_COUNTS {
   unsigned int cfl_index[CFL_TYPE_COUNT];
 #endif
 #if CONFIG_REFINEMV
-  unsigned int refinemv_flag_cnts[NUM_REFINEMV_CTX][REFINEMV_NUM_MODES];
-#endif  // CONFIG_REFINEMV
+  unsigned int refinemv_flag_cnts[NUM_REFINEMV_CTX]
+                                 [REFINEMV_NUM_MODES];  // placeholder
+#endif                                                  // CONFIG_REFINEMV
 
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   unsigned int skip_drl_cnts[3][2];
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-  unsigned int inter_warp_cnts[WARPMV_MODE_CONTEXT][2];
+  unsigned int inter_warp_cnts[WARPMV_MODE_CONTEXT][2];  // placeholder
 
   unsigned int cfl_sign[CFL_JOINT_SIGNS];
   unsigned int cfl_alpha[CFL_ALPHA_CONTEXTS][CFL_ALPHABET_SIZE];
 
 #if CONFIG_PALETTE_IMPROVEMENTS
-  unsigned int identity_row_y_cnts[PALETTE_ROW_FLAG_CONTEXTS][3];
-  unsigned int identity_row_uv_cnts[PALETTE_ROW_FLAG_CONTEXTS][3];
+  unsigned int identity_row_y_cnts[PALETTE_ROW_FLAG_CONTEXTS]
+                                  [3];  // placeholder
+  unsigned int identity_row_uv_cnts[PALETTE_ROW_FLAG_CONTEXTS]
+                                   [3];  // placeholder
 #if CONFIG_PALETTE_LINE_COPY
-  unsigned int palette_direction_cnts[2];
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
+  unsigned int palette_direction_cnts[2];  // placeholder
+#endif                                     // CONFIG_PALETTE_LINE_COPY
+#endif                                     // CONFIG_PALETTE_IMPROVEMENTS
 
   unsigned int palette_y_mode[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
   unsigned int palette_uv_mode[PALETTE_UV_MODE_CONTEXTS][2];
@@ -1390,7 +1401,7 @@ typedef struct FRAME_COUNTS {
   unsigned int inter_single_mode[INTER_SINGLE_MODE_CONTEXTS]
                                 [INTER_SINGLE_MODES];
 #if CONFIG_EXTENDED_WARP_PREDICTION
-  unsigned int warp_ref_cnts[3][WARP_REF_CONTEXTS][2];
+  unsigned int warp_ref_cnts[3][WARP_REF_CONTEXTS][2];  // placeholder
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
   unsigned int drl_mode[3][DRL_MODE_CONTEXTS][2];
@@ -1398,14 +1409,18 @@ typedef struct FRAME_COUNTS {
   unsigned int skip_drl_mode[3][2];
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 
-  unsigned int jmvd_scale_mode_cnts[JOINT_NEWMV_SCALE_FACTOR_CNT];
-  unsigned int jmvd_amvd_scale_mode_cnts[JOINT_AMVD_SCALE_FACTOR_CNT];
+  unsigned int
+      jmvd_scale_mode_cnts[JOINT_NEWMV_SCALE_FACTOR_CNT];  // placeholder
+  unsigned int
+      jmvd_amvd_scale_mode_cnts[JOINT_AMVD_SCALE_FACTOR_CNT];  // placeholder
 
-  unsigned int cwp_idx_cnts[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1][2];
+  unsigned int cwp_idx_cnts[MAX_CWP_CONTEXTS][MAX_CWP_NUM - 1]
+                           [2];  // placeholder
 
 #if CONFIG_OPTFLOW_REFINEMENT
-  unsigned int use_optflow_cnts[INTER_COMPOUND_MODE_CONTEXTS][2];
-#endif  // CONFIG_OPTFLOW_REFINEMENT
+  unsigned int use_optflow_cnts[INTER_COMPOUND_MODE_CONTEXTS]
+                               [2];  // placeholder
+#endif                               // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_OPTFLOW_REFINEMENT
   unsigned int use_optflow[INTER_COMPOUND_MODE_CONTEXTS][2];
@@ -1529,10 +1544,10 @@ typedef struct FRAME_COUNTS {
 
 #if CONFIG_LR_IMPROVEMENTS
   unsigned int switchable_flex_restore_cnts[MAX_LR_FLEX_SWITCHABLE_BITS]
-                                           [MAX_MB_PLANE][2];
+                                           [MAX_MB_PLANE][2];  // placeholder
 #else
   unsigned int switchable_flex_restore_cnts[MAX_LR_FLEX_SWITCHABLE_BITS]
-                                           [MAX_MB_PLANE][2];
+                                           [MAX_MB_PLANE][2];  // placeholder
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_CCSO_EXT
@@ -1555,17 +1570,18 @@ typedef struct FRAME_COUNTS {
   unsigned int sgrproj_restore[2];
 #if CONFIG_LR_IMPROVEMENTS
 #if ENABLE_LR_4PART_CODE
-  unsigned int wienerns_4part_cnts[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)];
-#endif  // ENABLE_LR_4PART_CODE
+  unsigned int wienerns_4part_cnts[WIENERNS_4PART_CTX_MAX]
+                                  [CDF_SIZE(4)];  // placeholder
+#endif                                            // ENABLE_LR_4PART_CODE
 
 #if CONFIG_LR_IMPROVEMENTS
-  unsigned int wienerns_reduce_cnts[WIENERNS_REDUCE_STEPS][2];
+  unsigned int wienerns_reduce_cnts[WIENERNS_REDUCE_STEPS][2];  // placeholder
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_LR_MERGE_COEFFS
-  unsigned int merged_param_cnts[2];
-#endif  // CONFIG_LR_MERGE_COEFFS
-#endif  // CONFIG_LR_IMPROVEMENTS
+  unsigned int merged_param_cnts[2];  // placeholder
+#endif                                // CONFIG_LR_MERGE_COEFFS
+#endif                                // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_LR_IMPROVEMENTS
   unsigned int pc_wiener_restore[2];
   unsigned int wienerns_restore[2];
