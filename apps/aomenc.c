@@ -2457,7 +2457,11 @@ int main(int argc, const char **argv_) {
         const double kbps = (bpf * (double)global.framerate.num /
                              (double)global.framerate.den) /
                             1000.0;
+#if CONFIG_AV2CTC_PSNR_PEAK
+        const double peak = (255 << (stream->config.cfg.g_input_bit_depth - 8));
+#else
         const double peak = (1 << stream->config.cfg.g_input_bit_depth) - 1;
+#endif  // CONFIG_AV2CTC_PSNR_PEAK
         const double ovpsnr = sse_to_psnr((double)stream->psnr_samples_total,
                                           peak, (double)stream->psnr_sse_total);
         double psnr[4] = { 0.0 };
