@@ -1101,7 +1101,6 @@ int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol) {
   int64_t det = a[0] * b[7] + a[7] * b[0] + a[2] * b[4] + a[4] * b[2] -
                 a[5] * b[1] - a[1] * b[5];
 
-  if (det <= 0) return 0;
   sol[0] = a[5] * b[8] + a[8] * b[5] - a[6] * b[7] - a[7] * b[6] - a[4] * b[9] -
            a[9] * b[4];
   sol[1] = a[1] * b[9] + a[9] * b[1] + a[3] * b[7] + a[7] * b[3] - a[2] * b[8] -
@@ -1117,6 +1116,7 @@ int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol) {
 
   int det_red_bits = AOMMAX(0, max_det_msb - 60);
   det = ROUND_POWER_OF_TWO_SIGNED_64(det, det_red_bits);
+  if (det <= 0) return 0;
 
   for (int i = 0; i < 4; i++) {
     int reduce_bits = det_red_bits - precbits[i];
