@@ -267,10 +267,12 @@ specialize qw/av1_build_compound_diffwtd_mask_highbd ssse3 avx2/;
 add_proto qw/void av1_build_compound_diffwtd_mask_d16/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0, int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w, ConvolveParams *conv_params, int bd";
 specialize qw/av1_build_compound_diffwtd_mask_d16 sse4_1 avx2 neon/;
 
-if (aom_config("CONFIG_OPTFLOW_REFINEMENT") eq "yes" and aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
+if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
     add_proto qw/void av1_calc_affine_autocorrelation_matrix/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int64_t *mat_a, int64_t *vec_b";
     specialize qw/av1_calc_affine_autocorrelation_matrix avx2/;
-    
+}
+
+if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes" or aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
     add_proto qw/void av1_avg_pooling_pdiff_gradients/,"int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy, const int gstride, const int bw, const int bh, const int n";
     specialize qw/av1_avg_pooling_pdiff_gradients avx2/;
 }
