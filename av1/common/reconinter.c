@@ -4635,8 +4635,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     }
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
 #if CONFIG_AFFINE_REFINEMENT
-    mi->wm_params[0] = wms[0];
-    mi->wm_params[1] = wms[1];
+    if (do_affine) {
+      mi->wm_params[0] = wms[0];
+      mi->wm_params[1] = wms[1];
+    }
 #endif  // CONFIG_AFFINE_REFINEMENT
   }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
