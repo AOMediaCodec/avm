@@ -28,7 +28,7 @@ namespace {
 class BlockSize {
  public:
   BlockSize(int w, int h) : width_(w), height_(h) {
-    n_ = (w <= 16 && h <= 16) ? OF_MIN_BSIZE : OF_BSIZE;
+    n_ = (w <= 8 && h <= 8) ? OF_MIN_BSIZE : OF_BSIZE;
   }
 
   int Width() const { return width_; }
@@ -100,16 +100,6 @@ class AV1OptFlowTest : public ::testing::TestWithParam<TestParam<T>> {
     for (int idx = 0; idx < n; ++idx) {
       ASSERT_EQ(ref[idx], test[idx]) << "Mismatch at index " << idx;
     }
-  }
-
-  // Check that two outputs are identical.
-  void AssertOutputParamsEq(int bw_low1, int bh_low1, int step_w1, int step_h1,
-                            int bw_low2, int bh_low2, int step_w2,
-                            int step_h2) {
-    ASSERT_EQ(bw_low1, bw_low2) << "Mismatch for bw_low " << bw_low1;
-    ASSERT_EQ(bh_low1, bh_low2) << "Mismatch for bh_low " << bh_low1;
-    ASSERT_EQ(step_w1, step_w2) << "Mismatch for step_w " << step_w1;
-    ASSERT_EQ(step_h1, step_h2) << "Mismatch for step_h " << step_h1;
   }
 
   // Check that two 16-bit output buffers are identical.
@@ -1241,9 +1231,7 @@ INSTANTIATE_TEST_SUITE_P(
 #if AFFINE_AVERAGING_BITS > 0
 typedef void (*av1_avg_pooling_pdiff_gradients_fun)(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
-    const int gstride, const int bw, const int bh, int16_t *pdiff_avg,
-    int16_t *gx_avg, int16_t *gy_avg, int *bw_low, int *bh_low, int *step_w,
-    int *step_h);
+    const int gstride, const int bw, const int bh, const int n);
 
 class AV1AvgPoolingPdiffGradientTest
     : public AV1OptFlowTest<av1_avg_pooling_pdiff_gradients_fun> {
@@ -1253,9 +1241,6 @@ class AV1AvgPoolingPdiffGradientTest
     const int bw = block.Width();
     const int bh = block.Height();
 
-    gx_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    gy_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    pdiff_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
     gx_avg1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
     gy_avg1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
     pdiff_avg1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
@@ -1265,9 +1250,6 @@ class AV1AvgPoolingPdiffGradientTest
   }
 
   ~AV1AvgPoolingPdiffGradientTest() {
-    aom_free(gx_);
-    aom_free(gy_);
-    aom_free(pdiff_);
     aom_free(gx_avg1_);
     aom_free(gy_avg1_);
     aom_free(pdiff_avg1_);
@@ -1283,31 +1265,45 @@ class AV1AvgPoolingPdiffGradientTest
     const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
     const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
 
-    for (int count = 0; count < numIter;) {
-      RandomInput16(gx_, GetParam(), 16);
-      RandomInput16(gy_, GetParam(), 16);
-      RandomInput16(pdiff_, GetParam(), bd + 1);
+    // AVX2 version only supports avg pooling from larger size to 16x16
+    if (block.Width() <= 8 || block.Height() <= 8) return;
 
-      TestAvgPoolingPdiffGrad(pdiff_, gx_, gy_, pdiff_avg1_, gx_avg1_, gy_avg1_,
-                              pdiff_avg2_, gx_avg2_, gy_avg2_, is_speed);
+    for (int count = 0; count < numIter;) {
+      RandomInput16(gx_avg1_, GetParam(), 16);
+      RandomInput16(gy_avg1_, GetParam(), 16);
+      RandomInput16(pdiff_avg1_, GetParam(), bd + 1);
+      memcpy(gx_avg2_, gx_avg1_,
+             sizeof(int16_t) * block.Width() * block.Height());
+      memcpy(gy_avg2_, gy_avg1_,
+             sizeof(int16_t) * block.Width() * block.Height());
+      memcpy(pdiff_avg2_, pdiff_avg1_,
+             sizeof(int16_t) * block.Width() * block.Height());
+
+      TestAvgPoolingPdiffGrad(pdiff_avg1_, gx_avg1_, gy_avg1_, pdiff_avg2_,
+                              gx_avg2_, gy_avg2_, is_speed);
       count++;
     }
     if (is_speed) return;
 
     // Extreme value test
     for (int count = 0; count < numIter; count++) {
-      RandomInput16Extreme(gx_, GetParam(), 16);
-      RandomInput16Extreme(gy_, GetParam(), 16);
-      RandomInput16Extreme(pdiff_, GetParam(), bd + 1);
+      RandomInput16Extreme(gx_avg1_, GetParam(), 16);
+      RandomInput16Extreme(gy_avg1_, GetParam(), 16);
+      RandomInput16Extreme(pdiff_avg1_, GetParam(), bd + 1);
+      memcpy(gx_avg2_, gx_avg1_,
+             sizeof(int16_t) * block.Width() * block.Height());
+      memcpy(gy_avg2_, gy_avg1_,
+             sizeof(int16_t) * block.Width() * block.Height());
+      memcpy(pdiff_avg2_, pdiff_avg1_,
+             sizeof(int16_t) * block.Width() * block.Height());
 
-      TestAvgPoolingPdiffGrad(pdiff_, gx_, gy_, pdiff_avg1_, gx_avg1_, gy_avg1_,
-                              pdiff_avg2_, gx_avg2_, gy_avg2_, is_speed);
+      TestAvgPoolingPdiffGrad(pdiff_avg1_, gx_avg1_, gy_avg1_, pdiff_avg2_,
+                              gx_avg2_, gy_avg2_, is_speed);
     }
   }
 
  private:
-  void TestAvgPoolingPdiffGrad(int16_t *pdiff, int16_t *gx, int16_t *gy,
-                               int16_t *pdiff_avg1, int16_t *gx_avg1,
+  void TestAvgPoolingPdiffGrad(int16_t *pdiff_avg1, int16_t *gx_avg1,
                                int16_t *gy_avg1, int16_t *pdiff_avg2,
                                int16_t *gx_avg2, int16_t *gy_avg2,
                                const int is_speed) {
@@ -1322,48 +1318,36 @@ class AV1AvgPoolingPdiffGradientTest
     av1_avg_pooling_pdiff_gradients_fun test_func = GetParam().TestFunction();
 
     if (is_speed)
-      AvgPoolingPdiffGradSpeed(ref_func, test_func, pdiff, pstride, gx, gy,
-                               gstride, bw, bh, pdiff_avg1, gx_avg1, gy_avg1,
-                               pdiff_avg2, gx_avg2, gy_avg2);
+      AvgPoolingPdiffGradSpeed(ref_func, test_func, pstride, gstride, bw, bh,
+                               pdiff_avg1, gx_avg1, gy_avg1, pdiff_avg2,
+                               gx_avg2, gy_avg2);
     else
-      AvgPoolingPdiffGrad(ref_func, test_func, pdiff, pstride, gx, gy, gstride,
-                          bw, bh, pdiff_avg1, gx_avg1, gy_avg1, pdiff_avg2,
-                          gx_avg2, gy_avg2);
+      AvgPoolingPdiffGrad(ref_func, test_func, pstride, gstride, bw, bh,
+                          pdiff_avg1, gx_avg1, gy_avg1, pdiff_avg2, gx_avg2,
+                          gy_avg2);
   }
 
   void AvgPoolingPdiffGrad(av1_avg_pooling_pdiff_gradients_fun ref_func,
                            av1_avg_pooling_pdiff_gradients_fun test_func,
-                           int16_t *pdiff, int pstride, int16_t *gx,
-                           int16_t *gy, int gstride, int bw, int bh,
+                           int pstride, int gstride, int bw, int bh,
                            int16_t *pdiff_avg1, int16_t *gx_avg1,
                            int16_t *gy_avg1, int16_t *pdiff_avg2,
                            int16_t *gx_avg2, int16_t *gy_avg2) {
-    int bw_low1, bh_low1, step_w1, step_h1;
-    int bw_low2, bh_low2, step_w2, step_h2;
-
-    ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg1, gx_avg1,
-             gy_avg1, &bw_low1, &bh_low1, &step_w1, &step_h1);
-    test_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg2, gx_avg2,
-              gy_avg2, &bw_low2, &bh_low2, &step_w2, &step_h2);
-    int out_width = AOMMIN(16, bw);
-    int out_height = AOMMIN(16, bh);
-    AssertOutputBufferEq(pdiff_avg1, pdiff_avg2, out_width, out_height, bw);
-    AssertOutputBufferEq(gx_avg1, gx_avg2, out_width, out_height, bw);
-    AssertOutputBufferEq(gy_avg1, gy_avg2, out_width, out_height, bw);
-
-    AssertOutputParamsEq(bw_low1, bh_low1, step_w1, step_h1, bw_low2, bh_low2,
-                         step_w2, step_h2);
+    int n = AOMMIN(AOMMIN(bw, bh), 16);
+    ref_func(pdiff_avg1, pstride, gx_avg1, gy_avg1, gstride, bw, bh, n);
+    test_func(pdiff_avg2, pstride, gx_avg2, gy_avg2, gstride, bw, bh, n);
+    AssertOutputBufferEq(pdiff_avg1, pdiff_avg2, n, n, bw);
+    AssertOutputBufferEq(gx_avg1, gx_avg2, n, n, bw);
+    AssertOutputBufferEq(gy_avg1, gy_avg2, n, n, bw);
   }
 
   void AvgPoolingPdiffGradSpeed(av1_avg_pooling_pdiff_gradients_fun ref_func,
                                 av1_avg_pooling_pdiff_gradients_fun test_func,
-                                int16_t *pdiff, int pstride, int16_t *gx,
-                                int16_t *gy, int gstride, int bw, int bh,
+                                int pstride, int gstride, int bw, int bh,
                                 int16_t *pdiff_avg1, int16_t *gx_avg1,
                                 int16_t *gy_avg1, int16_t *pdiff_avg2,
                                 int16_t *gx_avg2, int16_t *gy_avg2) {
-    int bw_low1, bh_low1, step_w1, step_h1;
-    int bw_low2, bh_low2, step_w2, step_h2;
+    int n = AOMMIN(AOMMIN(bw, bh), 16);
 
     const int numIter = 1000000;
     aom_usec_timer timer_ref;
@@ -1371,15 +1355,13 @@ class AV1AvgPoolingPdiffGradientTest
 
     aom_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++) {
-      ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg1, gx_avg1,
-               gy_avg1, &bw_low1, &bh_low1, &step_w1, &step_h1);
+      ref_func(pdiff_avg1, pstride, gx_avg1, gy_avg1, gstride, bw, bh, n);
     }
     aom_usec_timer_mark(&timer_ref);
 
     aom_usec_timer_start(&timer_test);
     for (int count = 0; count < numIter; count++) {
-      test_func(pdiff, pstride, gx, gy, gstride, bw, bh, pdiff_avg2, gx_avg2,
-                gy_avg2, &bw_low2, &bh_low2, &step_w2, &step_h2);
+      test_func(pdiff_avg2, pstride, gx_avg2, gy_avg2, gstride, bw, bh, n);
     }
     aom_usec_timer_mark(&timer_test);
 
@@ -1396,9 +1378,6 @@ class AV1AvgPoolingPdiffGradientTest
          static_cast<float>(total_time_test)));
   }
 
-  int16_t *gx_;
-  int16_t *gy_;
-  int16_t *pdiff_;
   int16_t *gx_avg1_;
   int16_t *gy_avg1_;
   int16_t *pdiff_avg1_;
