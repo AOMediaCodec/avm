@@ -16,11 +16,13 @@
 
 #include "av1/common/reconinter.h"
 
-static const uint16_t col_8_vector[] = { 0, 1, 2, 3, 4, 5, 6, 7,
-                                         0, 1, 2, 3, 4, 5, 6, 7 };
+DECLARE_ALIGNED(32, static const uint16_t,
+                col_8_vector[16]) = { 0, 1, 2, 3, 4, 5, 6, 7,
+                                      0, 1, 2, 3, 4, 5, 6, 7 };
 
-static const uint16_t col_16_vector[] = { 0, 1, 2,  3,  4,  5,  6,  7,
-                                          8, 9, 10, 11, 12, 13, 14, 15 };
+DECLARE_ALIGNED(32, static const uint16_t,
+                col_16_vector[16]) = { 0, 1, 2,  3,  4,  5,  6,  7,
+                                       8, 9, 10, 11, 12, 13, 14, 15 };
 
 DECLARE_ALIGNED(32, static const uint32_t, col_vector[256]) = {
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
