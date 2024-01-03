@@ -3008,7 +3008,7 @@ static int64_t motion_mode_rd(
         if (continue_motion_mode_signaling &&
             allowed_motion_modes & (1 << WARPED_CAUSAL)) {
           rd_stats->rate +=
-#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
               mode_costs->warped_causal_cost[motion_mode == WARPED_CAUSAL];
 #else
               mode_costs

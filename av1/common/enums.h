@@ -968,6 +968,11 @@ enum {
 #define MAX_ANGLE_DELTA 3
 #define ANGLE_STEP 3
 
+#if CONFIG_D149_CTX_MODELING_OPT && CONFIG_COMPOUND_WARP_CAUSAL
+#define NO_D149_FOR_WARPED_CAUSAL 1
+#else
+#define NO_D149_FOR_WARPED_CAUSAL 0
+#endif
 #if CONFIG_AIMC
 // Total delta angles for one nominal directional mode
 #define TOTAL_ANGLE_DELTA_COUNT 7

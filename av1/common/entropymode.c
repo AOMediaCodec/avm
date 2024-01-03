@@ -4656,7 +4656,7 @@ static const aom_cdf_prob default_obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
 };
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
 static const aom_cdf_prob default_warped_causal_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(8354), 76
 };
@@ -4679,7 +4679,7 @@ static const aom_cdf_prob
       { AOM_CDF2(24000) }, { AOM_CDF2(24000) }, { AOM_CDF2(24000) },
 #endif  // CONFIG_FLEX_PARTITION
     };
-#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
 
 #if CONFIG_D149_CTX_MODELING_OPT
 static const aom_cdf_prob default_warped_causal_warpmv_cdf[CDF_SIZE(2)] = {

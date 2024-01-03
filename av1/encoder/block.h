@@ -1131,7 +1131,7 @@ typedef struct {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_EXTENDED_WARP_PREDICTION
   //! warped_causal_cost
-#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   int warped_causal_cost[2];
 #else
   int warped_causal_cost[BLOCK_SIZES_ALL][2];

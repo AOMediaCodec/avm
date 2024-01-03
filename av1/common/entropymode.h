@@ -298,7 +298,7 @@ typedef struct frame_contexts {
   aom_cdf_prob obmc_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   aom_cdf_prob warped_causal_cdf[CDF_SIZE(2)];
 #else
   aom_cdf_prob warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)];
