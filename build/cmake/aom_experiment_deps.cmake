@@ -132,4 +132,9 @@ macro(fix_experiment_configs)
                            !CONFIG_OPTFLOW_REFINEMENT)
   endif()
 
+  # CONFIG_MVP_SIMPLIFY depends on CONFIG_MVP_IMPROVEMENT
+  if(NOT CONFIG_MVP_IMPROVEMENT AND CONFIG_MVP_SIMPLIFY)
+    change_config_and_warn(CONFIG_MVP_SIMPLIFY 0 !CONFIG_MVP_IMPROVEMENT)
+  endif()
+
 endmacro()

@@ -290,6 +290,7 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_D072_SKIP_MODE_IMPROVE 1
                    "Enable to improve skip mode")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")
@@ -316,6 +317,10 @@ set_aom_config_var(CONFIG_WEDGE_MOD_EXT 1 "AV2 wedge modes extensions.")
 
 set_aom_config_var(CONFIG_MF_IMPROVEMENT 1
                    "Enable to improve temporal motion projection")
+
+set_aom_config_var(CONFIG_MVP_SIMPLIFY 1
+                   "Enable to simplify MVP list construction")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 

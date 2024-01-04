@@ -24,6 +24,16 @@ typedef struct single_mv_candidate {
 } SINGLE_MV_CANDIDATE;
 #endif  // CONFIG_MVP_IMPROVEMENT
 
+#if CONFIG_MVP_SIMPLIFY
+#define TMVP_SEARCH_COUNT 5
+#define SMVP_COL_SEARCH_COUNT 3
+typedef struct mvp_unit_status {
+  int is_available;
+  int row_offset;
+  int col_offset;
+} MVP_UNIT_STATUS;
+#endif  // CONFIG_MVP_SIMPLIFY
+
 #define MFMV_STACK_SIZE 3
 
 #if CONFIG_REFINED_MVS_IN_TMVP
@@ -1213,6 +1223,7 @@ static AOM_INLINE void update_processed_cols(const MACROBLOCKD *xd, int mi_row,
 }
 #endif  // CONFIG_MVP_IMPROVEMENT
 
+#if !CONFIG_MVP_SIMPLIFY
 static AOM_INLINE void scan_col_mbmi(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, int mi_row, int mi_col,
     const MV_REFERENCE_FRAME rf[2], int col_offset, CANDIDATE_MV *ref_mv_stack,
@@ -1334,6 +1345,7 @@ static AOM_INLINE void scan_col_mbmi(
     i += len;
   }
 }
+#endif  // !CONFIG_MVP_SIMPLIFY
 
 #if CONFIG_C076_INTER_MOD_CTX
 static AOM_INLINE void scan_blk_mbmi_ctx(
@@ -1390,8 +1402,14 @@ static AOM_INLINE void scan_blk_mbmi(
     const int len = mi_size_wide[BLOCK_8X8];
 
 #if CONFIG_MVP_IMPROVEMENT
+#if CONFIG_MVP_SIMPLIFY
+    // Don't add weight to (-1,-1) or col_offset < -1 which is in the outer area
+    const uint16_t weight =
+        ((row_offset == -1 && col_offset == -1) || col_offset < -1) ? 0 : 2;
+#else
     // Don't add weight to (-1,-1) which is in the outer area
-    uint16_t weight = row_offset == -1 && col_offset == -1 ? 0 : 2;
+    const uint16_t weight = row_offset == -1 && col_offset == -1 ? 0 : 2;
+#endif  // CONFIG_MVP_SIMPLIFY
 #endif
 
     const int cand_mi_row = xd->mi_row + mi_pos.row;
@@ -1818,6 +1836,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   return 1;
 }
 
+#if !CONFIG_MVP_SIMPLIFY
 static AOM_INLINE void process_compound_ref_mv_candidate(
     const MB_MODE_INFO *const candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -1904,6 +1923,7 @@ static AOM_INLINE void process_single_ref_mv_candidate(
     }
   }
 }
+#endif  // !CONFIG_MVP_SIMPLIFY
 
 static AOM_INLINE bool check_rmb_cand(
     CANDIDATE_MV cand_mv, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
@@ -1995,8 +2015,12 @@ static AOM_INLINE void setup_ref_mv_list(
   MV_REFERENCE_FRAME rf[2];
 
   const TileInfo *const tile = &xd->tile;
+#if CONFIG_MVP_SIMPLIFY
+  int max_col_offset = 0;
+#else
   int max_row_offset = 0, max_col_offset = 0;
   const int row_adj = (xd->height < mi_size_high[BLOCK_8X8]) && (mi_row & 0x01);
+#endif  // CONFIG_MVP_SIMPLIFY
   const int col_adj = (xd->width < mi_size_wide[BLOCK_8X8]) && (mi_col & 0x01);
   // when CONFIG_MVP_IMPROVEMENT is true, processed_rows does not needed
 #if !CONFIG_MVP_IMPROVEMENT
@@ -2009,6 +2033,22 @@ static AOM_INLINE void setup_ref_mv_list(
   mode_context[ref_frame] = 0;
 #endif  //! CONFIG_C076_INTER_MOD_CTX
   *refmv_count = 0;
+
+#if CONFIG_MVP_SIMPLIFY
+  /*
+   * The constuction of the DRL after CWG-E021 was adopted:
+   *
+   * 1) Adjacent SMVP search; up to 9 blocks.
+   * 2) TMVP search; up to 5 blocks.
+   * 3) Non-adjacent SMVP search; up to 3 blocks in 2nd or 3rd column
+   * 4) Find the adjacent SMVP candidate with the maximum weight, then switch
+   *    it to the first place of the DRL.
+   * 4) RefMV bank search.
+   * 5) Derived SMVP search.
+   * 6) Global MV is added if there is space in DRL.
+   *
+   */
+#endif  // CONFIG_MVP_SIMPLIFY
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   for (int k = 0; k < MAX_REF_MV_STACK_SIZE; k++) {
@@ -2039,6 +2079,7 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
 
+#if !CONFIG_MVP_SIMPLIFY
   // Find valid maximum row/col offset.
   if (xd->up_available) {
 #if CONFIG_MVP_IMPROVEMENT
@@ -2052,6 +2093,7 @@ static AOM_INLINE void setup_ref_mv_list(
 
     max_row_offset = find_valid_row_offset(tile, mi_row, max_row_offset);
   }
+#endif  // !CONFIG_MVP_SIMPLIFY
 
   if (xd->left_available) {
 #if CONFIG_MVP_IMPROVEMENT
@@ -2350,6 +2392,47 @@ static AOM_INLINE void setup_ref_mv_list(
     int added_tmvp_cnt = 0;
 #endif  // CONFIG_MVP_IMPROVEMENT
 
+#if CONFIG_MVP_SIMPLIFY
+    const MVP_UNIT_STATUS tmvp_units_status[TMVP_SEARCH_COUNT] = {
+      { (blk_row_end - step_h > 0 && blk_col_end - step_w > 0),
+        blk_row_end - step_h, blk_col_end - step_w },
+      { (blk_row_end - step_h > 0 && blk_col_end - step_w == 0),
+        blk_row_end - step_h, 0 },
+      { (blk_row_end - step_h > 1 && blk_col_end - step_w > 1),
+        blk_row_end >> 1, blk_col_end >> 1 },
+      { (blk_row_end - step_h == 0 && blk_col_end - step_w > 0), 0,
+        blk_col_end - step_w },
+      { (blk_row_end - step_h >= 0 && blk_col_end - step_w >= 0), 0, 0 },
+    };
+
+    for (int iter = 0; iter < TMVP_SEARCH_COUNT; ++iter) {
+      if (added_tmvp_cnt) break;
+      if (tmvp_units_status[iter].is_available) {
+        add_tpl_ref_mv(cm, xd, mi_row, mi_col, ref_frame,
+                       tmvp_units_status[iter].row_offset,
+                       tmvp_units_status[iter].col_offset
+#if !CONFIG_C076_INTER_MOD_CTX
+                       ,
+                       gm_mv_candidates
+#endif  //! CONFIG_C076_INTER_MOD_CTX
+                       ,
+                       refmv_count,
+#if CONFIG_MVP_IMPROVEMENT
+                       &added_tmvp_cnt,
+#endif  // CONFIG_MVP_IMPROVEMENT
+                       ref_mv_stack, ref_mv_weight
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+                       ,
+                       ref_frame_idx0, ref_frame_idx1
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#if !CONFIG_C076_INTER_MOD_CTX
+                       ,
+                       mode_context
+#endif  // !CONFIG_C076_INTER_MOD_CTX
+        );
+      }
+    }
+#else
 #if CONFIG_MVP_IMPROVEMENT
     // Use reversed horizontal scan order to check TMVP candidates
     for (int blk_row = blk_row_end - step_h; blk_row >= 0; blk_row -= step_h) {
@@ -2417,9 +2500,12 @@ static AOM_INLINE void setup_ref_mv_list(
       );
     }
 #endif  // !CONFIG_MVP_IMPROVEMENT
+#endif  // CONFIG_MVP_SIMPLIFY
   }
 
+#if !CONFIG_MVP_SIMPLIFY
   uint8_t dummy_newmv_count = 0;
+#endif  // !CONFIG_MVP_SIMPLIFY
 
 #if !CONFIG_MVP_IMPROVEMENT
   // Scan the second outer area.
@@ -2439,6 +2525,44 @@ static AOM_INLINE void setup_ref_mv_list(
                 refmv_count);
 #endif  // !CONFIG_MVP_IMPROVEMENT
 
+#if CONFIG_MVP_SIMPLIFY
+  if (xd->left_available) {
+    for (int idx = 2; idx <= MVREF_COLS; ++idx) {
+      const int col_offset = -(idx << 1) + 1 + col_adj;
+      const MVP_UNIT_STATUS col_units_status[SMVP_COL_SEARCH_COUNT] = {
+        { 1, (xd->height - 1), col_offset },
+        { xd->height > 1, 0, col_offset },
+        { xd->height > 2, (xd->height >> 1), col_offset },
+      };
+      if (abs(col_offset) <= abs(max_col_offset) &&
+          abs(col_offset) > processed_cols) {
+        for (int unit_idx = 0; unit_idx < SMVP_COL_SEARCH_COUNT; unit_idx++) {
+          if (col_units_status[unit_idx].is_available) {
+            scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
+                          col_units_status[unit_idx].row_offset,
+                          col_units_status[unit_idx].col_offset, ref_mv_stack,
+                          ref_mv_weight, &col_match_count, &newmv_count,
+                          gm_mv_candidates,
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+                          ref_frame_idx0, ref_frame_idx1,
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+                          1, single_mv, &single_mv_count, derived_mv_stack,
+                          derived_mv_weight, &derived_mv_count,
+#if CONFIG_EXTENDED_WARP_PREDICTION
+                          warp_param_stack, max_num_of_warp_candidates,
+                          valid_num_warp_candidates, ref_frame,
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+                          refmv_count);
+            update_processed_cols(xd, mi_row, mi_col,
+                                  col_units_status[unit_idx].row_offset,
+                                  col_units_status[unit_idx].col_offset,
+                                  max_col_offset, &processed_cols);
+          }
+        }
+      }
+    }
+  }
+#else
 #if CONFIG_MVP_IMPROVEMENT
   for (int idx = 2; idx <= MVREF_COLS; ++idx) {
     const int col_offset = -(idx << 1) + 1 + col_adj;
@@ -2491,10 +2615,10 @@ static AOM_INLINE void setup_ref_mv_list(
                     warp_param_stack, max_num_of_warp_candidates,
                     valid_num_warp_candidates, ref_frame,
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
-
                     &processed_cols);
   }
 #endif  // CONFIG_MVP_IMPROVEMENT
+#endif  // CONFIG_MVP_SIMPLIFY
 
 #if !CONFIG_C076_INTER_MOD_CTX
 #if CONFIG_MVP_IMPROVEMENT
@@ -2534,6 +2658,38 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif
 #endif  //! CONFIG_C076_INTER_MOD_CTX
 
+#if CONFIG_MVP_SIMPLIFY
+  if (nearest_refmv_count > 1) {
+    int max_weight = ref_mv_weight[0];
+    int max_weight_idx = 0;
+    for (int idx = 1; idx < nearest_refmv_count; ++idx) {
+      if (ref_mv_weight[idx] > max_weight) {
+        max_weight = ref_mv_weight[idx];
+        max_weight_idx = idx;
+      }
+    }
+
+    if (max_weight_idx != 0) {
+      const CANDIDATE_MV tmp_mv = ref_mv_stack[0];
+      const uint16_t tmp_ref_mv_weight = ref_mv_weight[0];
+      ref_mv_stack[0] = ref_mv_stack[max_weight_idx];
+      ref_mv_stack[max_weight_idx] = tmp_mv;
+      ref_mv_weight[0] = ref_mv_weight[max_weight_idx];
+      ref_mv_weight[max_weight_idx] = tmp_ref_mv_weight;
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+      if (xd->mi[0]->skip_mode) {
+        const MV_REFERENCE_FRAME temp_ref0 = ref_frame_idx0[0];
+        const MV_REFERENCE_FRAME temp_ref1 = ref_frame_idx1[0];
+
+        ref_frame_idx0[0] = ref_frame_idx0[max_weight_idx];
+        ref_frame_idx0[max_weight_idx] = temp_ref0;
+        ref_frame_idx1[0] = ref_frame_idx1[max_weight_idx];
+        ref_frame_idx1[max_weight_idx] = temp_ref1;
+      }
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+    }
+  }
+#else
   // Rank the likelihood and assign nearest and near mvs.
   int len = nearest_refmv_count;
   while (len > 0) {
@@ -2581,6 +2737,7 @@ static AOM_INLINE void setup_ref_mv_list(
     len = nr_len;
   }
 #endif
+#endif  // CONFIG_MVP_SIMPLIFY
 
 #if CONFIG_MVP_IMPROVEMENT
   if (cm->seq_params.enable_refmvbank) {
@@ -2649,6 +2806,64 @@ static AOM_INLINE void setup_ref_mv_list(
   }
 #endif  // CONFIG_MVP_IMPROVEMENT
 
+#if CONFIG_MVP_SIMPLIFY
+  for (int idx = 0; idx < *refmv_count; ++idx) {
+    clamp_mv_ref(&ref_mv_stack[idx].this_mv.as_mv, xd->width << MI_SIZE_LOG2,
+                 xd->height << MI_SIZE_LOG2, xd);
+    if (rf[1] > NONE_FRAME) {
+      clamp_mv_ref(&ref_mv_stack[idx].comp_mv.as_mv, xd->width << MI_SIZE_LOG2,
+                   xd->height << MI_SIZE_LOG2, xd);
+    }
+  }
+
+  if (rf[1] == NONE_FRAME && mv_ref_list != NULL) {
+    for (int idx = *refmv_count; idx < MAX_MV_REF_CANDIDATES; ++idx) {
+      mv_ref_list[idx].as_int = gm_mv_candidates[0].as_int;
+    }
+
+    for (int idx = 0; idx < AOMMIN(MAX_MV_REF_CANDIDATES, *refmv_count);
+         ++idx) {
+      mv_ref_list[idx].as_int = ref_mv_stack[idx].this_mv.as_int;
+    }
+  }
+
+  // If there is extra space in the stack, copy the GLOBALMV vector into it.
+  // This also guarantees the existence of at least one vector to search.
+  if (*refmv_count < MAX_REF_MV_STACK_SIZE
+#if CONFIG_IBC_BV_IMPROVEMENT
+      && !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
+  ) {
+    int idx = 0;
+    for (idx = 0; idx < *refmv_count; ++idx) {
+      if ((ref_mv_stack[idx].this_mv.as_int == gm_mv_candidates[0].as_int) &&
+          (rf[1] == NONE_FRAME ||
+           (rf[1] > NONE_FRAME &&
+            ref_mv_stack[idx].comp_mv.as_int == gm_mv_candidates[1].as_int))) {
+        break;
+      }
+    }
+
+    // Add a new item to the list.
+    if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+      ref_mv_stack[idx].this_mv.as_int = gm_mv_candidates[0].as_int;
+      ref_mv_stack[idx].comp_mv.as_int = gm_mv_candidates[1].as_int;
+#if CONFIG_EXTENDED_WARP_PREDICTION
+      ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+      ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+      if (xd->mi[0]->skip_mode) {
+        ref_frame_idx0[idx] = rf[0];
+        ref_frame_idx1[idx] = rf[1];
+      }
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+      ref_mv_weight[idx] = REF_CAT_LEVEL;
+      ++(*refmv_count);
+    }
+  }
+#else  // CONFIG_MVP_SIMPLIFY
   int mi_width = AOMMIN(mi_size_wide[BLOCK_64X64], xd->width);
   mi_width = AOMMIN(mi_width, cm->mi_params.mi_cols - mi_col);
   int mi_height = AOMMIN(mi_size_high[BLOCK_64X64], xd->height);
@@ -2843,6 +3058,8 @@ static AOM_INLINE void setup_ref_mv_list(
       }
     }
   }
+#endif  // CONFIG_MVP_SIMPLIFY
+
 #if !CONFIG_MVP_IMPROVEMENT
   if (!cm->seq_params.enable_refmvbank) return;
   const int ref_mv_limit =
