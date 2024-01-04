@@ -715,7 +715,10 @@ static void screen_content_tools_determination(
 
   if (pass != 1) return;
 
-  const double psnr_diff = psnr[1].psnr[0] - psnr[0].psnr[0];
+  const bool use_hbd_psnr = 1;  // TODO(now).
+  const double psnr_diff = use_hbd_psnr
+                               ? psnr[1].psnr_hbd[0] - psnr[0].psnr_hbd[0]
+                               : psnr[1].psnr[0] - psnr[0].psnr[0];
 #if CONFIG_SCC_DETERMINATION
   // Calculate % of palette mode to be chosen in a frame from mode decision.
   const double palette_ratio =
