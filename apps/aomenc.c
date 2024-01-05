@@ -686,7 +686,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
       if (arg.val)
         global->show_psnr = arg_parse_int(&arg);
       else
-        global->show_psnr = 1;
+        global->show_psnr = 2;
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.recontest, argi)) {
       global->test_decode = arg_parse_enum_or_int(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.framerate, argi)) {
