@@ -897,7 +897,7 @@ static void screen_content_tools_determination(
 
   if (pass != 1) return;
 
-  const bool use_hbd_psnr = 1;  // TODO(now).
+  const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
   const double psnr_diff = use_hbd_psnr
                                ? psnr[1].psnr_hbd[0] - psnr[0].psnr_hbd[0]
                                : psnr[1].psnr[0] - psnr[0].psnr[0];

@@ -4397,7 +4397,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
         (*size > 0 && !is_stat_generation_stage(cpi) && cm->show_frame)) {
 #else
   // Note *size = 0 indicates a dropeed frame for which psnr is not calculated
-  if (cpi->b_calculate_psnr && *size > 0) {
+  if (cpi->b_calculate_psnr >= 1 && *size > 0) {
     if (cm->show_existing_frame ||
         (!is_stat_generation_stage(cpi) && cm->show_frame)) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
