@@ -2435,7 +2435,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     psnr.psnr_hbd[i] = 0;
   }
 
-  if (cpi->b_calculate_psnr) {
+  if (cpi->b_calculate_psnr >= 1) {
     calculate_psnr(cpi, &psnr);
   }
 
@@ -2450,8 +2450,8 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
                              ? -1
                              : ref_poc[ref_idx];
     }
-    if (cpi->b_calculate_psnr) {
-      const bool use_hbd_psnr = 1;  // TODO(now).
+    if (cpi->b_calculate_psnr >= 1) {
+      const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
       fprintf(stdout,
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
               " Bytes, "
@@ -2579,6 +2579,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     // Set up internal flags
     if (ctx->base.init_flags & AOM_CODEC_USE_PSNR) {
       cpi->b_calculate_psnr = 1;
+    }
+    if (ctx->base.init_flags & AOM_CODEC_USE_STREAM_PSNR) {
+      cpi->b_calculate_psnr = 2;
     }
     if (ctx->base.init_flags & AOM_CODEC_USE_PER_FRAME_STATS) {
       cpi->print_per_frame_stats = 1;

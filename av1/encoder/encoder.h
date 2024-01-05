@@ -2399,7 +2399,8 @@ typedef struct AV1_COMP {
 #endif
 
   /*!
-   * Calculates PSNR on each frame when set to 1.
+   * Calculates PSNR on each frame when set to 1 or 2.
+   * Uses stream PSNR when set to 2.
    */
   int b_calculate_psnr;
 
@@ -3264,7 +3265,7 @@ static INLINE int av1_pixels_to_mi(int pixels) {
 static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
 
-  return cpi->b_calculate_psnr && !is_stat_generation_stage(cpi) &&
+  return cpi->b_calculate_psnr >= 1 && !is_stat_generation_stage(cpi) &&
          cm->show_frame;
 }
 

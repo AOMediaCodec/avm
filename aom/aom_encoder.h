@@ -67,6 +67,8 @@ extern "C" {
  *  The available flags are specified by AOM_CODEC_USE_* defines.
  */
 #define AOM_CODEC_USE_PSNR 0x10000 /**< Calculate PSNR on each frame */
+/*!\brief Use stream PSNR instead of input PSNR. */
+#define AOM_CODEC_USE_STREAM_PSNR 0x20000
 /*!\brief Make the encoder output one  partition at a time. */
 #define AOM_CODEC_USE_HIGHBITDEPTH 0x40000 /**< Use high bitdepth */
 /*!\brief Print per frame stats. */
