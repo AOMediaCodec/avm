@@ -1411,8 +1411,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
         const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
         const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-        if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
-            (in_bit_depth < bit_depth)) {
+        if (in_bit_depth < bit_depth) {
           const double peak_hbd = (double)((1 << bit_depth) - 1);
           const double total_psnr_hbd =
               aom_sse_to_psnr((double)cpi->total_samples[1], peak_hbd,
@@ -1537,8 +1536,7 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
     pkt.data.psnr.psnr[i] = psnr.psnr[i];
   }
 
-  if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
-      (in_bit_depth < bit_depth)) {
+  if (in_bit_depth < bit_depth) {
     for (i = 0; i < 4; ++i) {
       pkt.data.psnr.samples_hbd[i] = psnr.samples_hbd[i];
       pkt.data.psnr.sse_hbd[i] = psnr.sse_hbd[i];
@@ -4308,8 +4306,7 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
       cpi->summed_weights += weight;
 
       // Compute PSNR based on stream bit depth
-      if ((cpi->source->flags & YV12_FLAG_HIGHBITDEPTH) &&
-          (in_bit_depth < bit_depth)) {
+      if (in_bit_depth < bit_depth) {
         adjust_image_stat(psnr.psnr_hbd[1], psnr.psnr_hbd[2], psnr.psnr_hbd[3],
                           psnr.psnr_hbd[0], &cpi->psnr[1]);
         cpi->total_sq_error[1] += psnr.sse_hbd[0];
