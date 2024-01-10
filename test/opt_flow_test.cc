@@ -317,227 +317,6 @@ template <typename T>
   return ::testing::ValuesIn(GetOptFlowHighbdTestParams(test_func));
 }
 
-typedef int (*opfl_mv_refinement_highbd)(const uint16_t *p0, int pstride0,
-                                         const uint16_t *p1, int pstride1,
-                                         const int16_t *gx0, const int16_t *gy0,
-                                         const int16_t *gx1, const int16_t *gy1,
-                                         int gstride, int bw, int bh, int n,
-                                         int d0, int d1, int grad_prec_bits,
-                                         int mv_prec_bits, int *vx0, int *vy0,
-                                         int *vx1, int *vy1);
-
-class AV1OptFlowRefineHighbdTest
-    : public AV1OptFlowTest<opfl_mv_refinement_highbd> {
- public:
-  AV1OptFlowRefineHighbdTest() {
-    const BlockSize &block = GetParam().Block();
-    const int bw = block.Width();
-    const int bh = block.Height();
-
-    input0_ = (uint16_t *)aom_memalign(16, bw * bh * sizeof(uint16_t));
-    input1_ = (uint16_t *)aom_memalign(16, bw * bh * sizeof(uint16_t));
-    gx0_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    gy0_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    gx1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-    gy1_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(int16_t));
-  }
-
-  ~AV1OptFlowRefineHighbdTest() {
-    aom_free(input0_);
-    aom_free(input1_);
-    aom_free(gx0_);
-    aom_free(gy0_);
-    aom_free(gx1_);
-    aom_free(gy1_);
-  }
-
-  void RunTest(const int is_speed) {
-    OrderHintInfo oh_info;
-    const BlockSize &block = GetParam().Block();
-    const int bd = GetParam().BitDepth();
-    const int bw_log2 = block.Width() >> MI_SIZE_LOG2;
-    const int bh_log2 = block.Height() >> MI_SIZE_LOG2;
-    const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
-    const int oh_start_bits = is_speed ? kMaxOrderHintBits : 1;
-
-    oh_info.enable_order_hint = 1;
-    for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
-      for (int count = 0; count < numIter;) {
-        const int cur_frm_idx = RandomFrameIdx(oh_bits);
-        const int ref0_frm_idx = RandomFrameIdx(oh_bits);
-        const int ref1_frm_idx = RandomFrameIdx(oh_bits);
-
-        oh_info.order_hint_bits_minus_1 = oh_bits - 1;
-        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
-        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
-        if (!d0 || !d1) continue;
-
-        RandomInput16(input0_, GetParam(), bd);
-        RandomInput16(input1_, GetParam(), bd);
-        RandomInput16(gx0_, GetParam(), bd + 1);
-        RandomInput16(gy0_, GetParam(), bd + 1);
-        RandomInput16(gx1_, GetParam(), bd + 1);
-        RandomInput16(gy1_, GetParam(), bd + 1);
-
-        TestOptFlowRefine(input0_, input1_, gx0_, gy0_, gx1_, gy1_, is_speed,
-                          d0, d1);
-        count++;
-      }
-    }
-    if (is_speed) return;
-
-    // Extreme value test
-    for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits;
-         oh_bits += kMaxOrderHintBits - 1) {
-      for (int count = 0; count < numIter;) {
-        const int d0 = RelativeDistExtreme(oh_bits);
-        const int d1 = RelativeDistExtreme(oh_bits);
-        if (!d0 || !d1) continue;
-
-        RandomInput16Extreme(input0_, GetParam(), bd);
-        RandomInput16Extreme(input1_, GetParam(), bd);
-        RandomInput16Extreme(gx0_, GetParam(), bd + 1);
-        RandomInput16Extreme(gy0_, GetParam(), bd + 1);
-        RandomInput16Extreme(gx1_, GetParam(), bd + 1);
-        RandomInput16Extreme(gy1_, GetParam(), bd + 1);
-
-        TestOptFlowRefine(input0_, input1_, gx0_, gy0_, gx1_, gy1_, 0, d0, d1);
-        count++;
-      }
-    }
-  }
-
- private:
-  void TestOptFlowRefine(uint16_t *input0, uint16_t *input1, int16_t *gx0,
-                         int16_t *gy0, int16_t *gx1, int16_t *gy1,
-                         const int is_speed, int d0, int d1) {
-    const BlockSize &block = GetParam().Block();
-    const int bw = block.Width();
-    const int bh = block.Height();
-    const int n = block.OptFlowBlkSize();
-
-    opfl_mv_refinement_highbd ref_func = av1_opfl_mv_refinement_nxn_highbd_c;
-    opfl_mv_refinement_highbd test_func = GetParam().TestFunction();
-
-    if (is_speed)
-      OptFlowRefineSpeed(ref_func, test_func, input0, input1, gx0, gy0, gx1,
-                         gy1, bw, bh, n, d0, d1);
-    else
-      OptFlowRefine(ref_func, test_func, input0, input1, gx0, gy0, gx1, gy1, bw,
-                    bh, n, d0, d1);
-  }
-
-  void OptFlowRefine(opfl_mv_refinement_highbd ref_func,
-                     opfl_mv_refinement_highbd test_func,
-                     const uint16_t *input0, const uint16_t *input1,
-                     const int16_t *gx0, const int16_t *gy0, const int16_t *gx1,
-                     const int16_t *gy1, int bw, int bh, int n, int d0,
-                     int d1) {
-    int ref_out[4 * N_OF_OFFSETS] = { 0 };
-    int test_out[4 * N_OF_OFFSETS] = { 0 };
-    const int grad_prec_bits = 3 - kSubpelGradDeltaBits - 2;
-    const int mv_prec_bits = MV_REFINE_PREC_BITS;
-    int stride0 = bw;
-    int stride1 = bw;
-    int gstride = bw;
-    int n_blocks = 0;
-
-    n_blocks = ref_func(
-        input0, stride0, input1, stride1, gx0, gy0, gx1, gy1, gstride, bw, bh,
-        n, d0, d1, grad_prec_bits, mv_prec_bits, &ref_out[kVX_0 * N_OF_OFFSETS],
-        &ref_out[kVY_0 * N_OF_OFFSETS], &ref_out[kVX_1 * N_OF_OFFSETS],
-        &ref_out[kVY_1 * N_OF_OFFSETS]);
-    test_func(input0, stride0, input1, stride1, gx0, gy0, gx1, gy1, gstride, bw,
-              bh, n, d0, d1, grad_prec_bits, mv_prec_bits,
-              &test_out[kVX_0 * N_OF_OFFSETS], &test_out[kVY_0 * N_OF_OFFSETS],
-              &test_out[kVX_1 * N_OF_OFFSETS], &test_out[kVY_1 * N_OF_OFFSETS]);
-
-    AssertOutputEq(&ref_out[kVX_0 * N_OF_OFFSETS],
-                   &test_out[kVX_0 * N_OF_OFFSETS], n_blocks);
-    AssertOutputEq(&ref_out[kVY_0 * N_OF_OFFSETS],
-                   &test_out[kVY_0 * N_OF_OFFSETS], n_blocks);
-    AssertOutputEq(&ref_out[kVX_1 * N_OF_OFFSETS],
-                   &test_out[kVX_1 * N_OF_OFFSETS], n_blocks);
-    AssertOutputEq(&ref_out[kVY_1 * N_OF_OFFSETS],
-                   &test_out[kVY_1 * N_OF_OFFSETS], n_blocks);
-  }
-
-  void OptFlowRefineSpeed(opfl_mv_refinement_highbd ref_func,
-                          opfl_mv_refinement_highbd test_func,
-                          const uint16_t *input0, const uint16_t *input1,
-                          const int16_t *gx0, const int16_t *gy0,
-                          const int16_t *gx1, const int16_t *gy1, int bw,
-                          int bh, int n, int d0, int d1) {
-    int ref_out[4 * N_OF_OFFSETS] = { 0 };
-    int test_out[4 * N_OF_OFFSETS] = { 0 };
-    const int grad_prec_bits = 3 - kSubpelGradDeltaBits - 2;
-    const int mv_prec_bits = MV_REFINE_PREC_BITS;
-    const int bw_log2 = bw >> MI_SIZE_LOG2;
-    const int bh_log2 = bh >> MI_SIZE_LOG2;
-    int stride0 = bw;
-    int stride1 = bw;
-    int gstride = bw;
-
-    const int numIter = 2097152 / (bw_log2 * bh_log2);
-    aom_usec_timer timer_ref;
-    aom_usec_timer timer_test;
-
-    aom_usec_timer_start(&timer_ref);
-    for (int count = 0; count < numIter; count++) {
-      ref_func(input0, stride0, input1, stride1, gx0, gy0, gx1, gy1, gstride,
-               bw, bh, n, d0, d1, grad_prec_bits, mv_prec_bits,
-               &ref_out[kVX_0 * N_OF_OFFSETS], &ref_out[kVY_0 * N_OF_OFFSETS],
-               &ref_out[kVX_1 * N_OF_OFFSETS], &ref_out[kVY_1 * N_OF_OFFSETS]);
-    }
-    aom_usec_timer_mark(&timer_ref);
-
-    aom_usec_timer_start(&timer_test);
-    for (int count = 0; count < numIter; count++) {
-      test_func(
-          input0, stride0, input1, stride1, gx0, gy0, gx1, gy1, gstride, bw, bh,
-          n, d0, d1, grad_prec_bits, mv_prec_bits,
-          &test_out[kVX_0 * N_OF_OFFSETS], &test_out[kVY_0 * N_OF_OFFSETS],
-          &test_out[kVX_1 * N_OF_OFFSETS], &test_out[kVY_1 * N_OF_OFFSETS]);
-    }
-    aom_usec_timer_mark(&timer_test);
-
-    const int total_time_ref =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
-    const int total_time_test =
-        static_cast<int>(aom_usec_timer_elapsed(&timer_test));
-
-    printf("ref_time = %d \t simd_time = %d \t Gain = %4.2f \n", total_time_ref,
-           total_time_test,
-           (static_cast<float>(total_time_ref) /
-            static_cast<float>(total_time_test)));
-  }
-
-  static constexpr int kVX_0 = 0;
-  static constexpr int kVX_1 = 1;
-  static constexpr int kVY_0 = 2;
-  static constexpr int kVY_1 = 3;
-  static constexpr int kMaxOrderHintBits = 8;
-  static constexpr int kSubpelGradDeltaBits = 3;
-  uint16_t *input0_;
-  uint16_t *input1_;
-  int16_t *gx0_;
-  int16_t *gy0_;
-  int16_t *gx1_;
-  int16_t *gy1_;
-};
-TEST_P(AV1OptFlowRefineHighbdTest, CheckOutput) { RunTest(0); }
-TEST_P(AV1OptFlowRefineHighbdTest, DISABLED_Speed) { RunTest(1); }
-
-INSTANTIATE_TEST_SUITE_P(
-    C, AV1OptFlowRefineHighbdTest,
-    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_highbd_c));
-
-#if HAVE_SSE4_1
-INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, AV1OptFlowRefineHighbdTest,
-    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_highbd_sse4_1));
-#endif
-
 #if OPFL_BICUBIC_GRAD
 typedef void (*bicubic_grad_interp_highbd)(const int16_t *pred_src,
                                            int16_t *x_grad, int16_t *y_grad,
@@ -678,16 +457,15 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 #endif  // OPFL_BICUBIC_GRAD
 
-#if OPFL_COMBINE_INTERP_GRAD_LS
-typedef int (*opfl_mv_refinement_interp_grad)(
-    const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
-    int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits,
-    int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1);
+typedef int (*opfl_mv_refinement)(const int16_t *pdiff, int pstride,
+                                  const int16_t *gx, const int16_t *gy,
+                                  int gstride, int bw, int bh, int n, int d0,
+                                  int d1, int grad_prec_bits, int mv_prec_bits,
+                                  int *vx0, int *vy0, int *vx1, int *vy1);
 
-class AV1OptFlowRefineInterpGradTest
-    : public AV1OptFlowTest<opfl_mv_refinement_interp_grad> {
+class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
  public:
-  AV1OptFlowRefineInterpGradTest() {
+  AV1OptFlowRefineTest() {
     const BlockSize &block = GetParam().Block();
     const int bw = block.Width();
     const int bh = block.Height();
@@ -697,7 +475,7 @@ class AV1OptFlowRefineInterpGradTest
     gy_ = (int16_t *)aom_memalign(16, bw * bh * sizeof(*gy_));
   }
 
-  ~AV1OptFlowRefineInterpGradTest() {
+  ~AV1OptFlowRefineTest() {
     aom_free(input_);
     aom_free(gx_);
     aom_free(gy_);
@@ -765,9 +543,8 @@ class AV1OptFlowRefineInterpGradTest
     const int bh = block.Height();
     const int n = block.OptFlowBlkSize();
 
-    opfl_mv_refinement_interp_grad ref_func =
-        av1_opfl_mv_refinement_nxn_interp_grad_c;
-    opfl_mv_refinement_interp_grad test_func = GetParam().TestFunction();
+    opfl_mv_refinement ref_func = av1_opfl_mv_refinement_nxn_c;
+    opfl_mv_refinement test_func = GetParam().TestFunction();
 
     if (is_speed)
       OptFlowRefineSpeed(ref_func, test_func, input, gx, gy, bw, bh, n, d0, d1);
@@ -775,8 +552,7 @@ class AV1OptFlowRefineInterpGradTest
       OptFlowRefine(ref_func, test_func, input, gx, gy, bw, bh, n, d0, d1);
   }
 
-  void OptFlowRefine(opfl_mv_refinement_interp_grad ref_func,
-                     opfl_mv_refinement_interp_grad test_func,
+  void OptFlowRefine(opfl_mv_refinement ref_func, opfl_mv_refinement test_func,
                      const int16_t *input, const int16_t *gx, const int16_t *gy,
                      int bw, int bh, int n, int d0, int d1) {
     int ref_out[4 * N_OF_OFFSETS] = { 0 };
@@ -808,11 +584,10 @@ class AV1OptFlowRefineInterpGradTest
                    &test_out[kVY_1 * N_OF_OFFSETS], n_blocks);
   }
 
-  void OptFlowRefineSpeed(opfl_mv_refinement_interp_grad ref_func,
-                          opfl_mv_refinement_interp_grad test_func,
-                          const int16_t *input, const int16_t *gx,
-                          const int16_t *gy, int bw, int bh, int n, int d0,
-                          int d1) {
+  void OptFlowRefineSpeed(opfl_mv_refinement ref_func,
+                          opfl_mv_refinement test_func, const int16_t *input,
+                          const int16_t *gx, const int16_t *gy, int bw, int bh,
+                          int n, int d0, int d1) {
     int ref_out[4 * N_OF_OFFSETS] = { 0 };
     int test_out[4 * N_OF_OFFSETS] = { 0 };
     const int grad_prec_bits = 3 - kSubpelGradDeltaBits - 2;
@@ -866,19 +641,18 @@ class AV1OptFlowRefineInterpGradTest
   int16_t *gx_;
   int16_t *gy_;
 };
-TEST_P(AV1OptFlowRefineInterpGradTest, CheckOutput) { RunTest(0); }
-TEST_P(AV1OptFlowRefineInterpGradTest, DISABLED_Speed) { RunTest(1); }
+TEST_P(AV1OptFlowRefineTest, CheckOutput) { RunTest(0); }
+TEST_P(AV1OptFlowRefineTest, DISABLED_Speed) { RunTest(1); }
 
 INSTANTIATE_TEST_SUITE_P(
-    C, AV1OptFlowRefineInterpGradTest,
-    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_interp_grad_c));
+    C, AV1OptFlowRefineTest,
+    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_c));
 
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, AV1OptFlowRefineInterpGradTest,
-    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_interp_grad_sse4_1));
+    SSE4_1, AV1OptFlowRefineTest,
+    BuildOptFlowHighbdParams(av1_opfl_mv_refinement_nxn_sse4_1));
 #endif
-#endif  // OPFL_COMBINE_INTERP_GRAD_LS
 
 #if OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 typedef void (*pred_buffer_copy_highbd)(const uint16_t *src1,
@@ -1060,10 +834,13 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // OPFL_BILINEAR_GRAD || OPFL_BICUBIC_GRAD
 
 #if CONFIG_AFFINE_REFINEMENT
-#if OPFL_COMBINE_INTERP_GRAD_LS
 typedef void (*calc_affine_autocorrelation_matrix)(
     const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
-    int gstride, int bw, int bh, int64_t *mat_a, int64_t *vec_b);
+    int gstride, int bw, int bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+    int x_offset, int y_offset,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+    int64_t *mat_a, int64_t *vec_b);
 
 class AV1CalcAffineAutocorrelationMatrixTest
     : public AV1OptFlowTest<calc_affine_autocorrelation_matrix> {
@@ -1144,8 +921,16 @@ class AV1CalcAffineAutocorrelationMatrixTest
     memset(mat_test, 0, sizeof(mat_test));
     memset(vec_ref, 0, sizeof(vec_ref));
     memset(vec_test, 0, sizeof(vec_test));
-    ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_ref, vec_ref);
-    test_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_test, vec_test);
+    ref_func(pdiff, pstride, gx, gy, gstride, bw, bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+             0, 0,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+             mat_ref, vec_ref);
+    test_func(pdiff, pstride, gx, gy, gstride, bw, bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+              0, 0,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+              mat_test, vec_test);
 
     int failed = 0;
     for (int i = 0; i < 16; ++i) {
@@ -1187,13 +972,21 @@ class AV1CalcAffineAutocorrelationMatrixTest
 
     aom_usec_timer_start(&timer_ref);
     for (int count = 0; count < knumIter; count++) {
-      ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_ref, vec_ref);
+      ref_func(pdiff, pstride, gx, gy, gstride, bw, bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+               0, 0,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+               mat_ref, vec_ref);
     }
     aom_usec_timer_mark(&timer_ref);
 
     aom_usec_timer_start(&timer_test);
     for (int count = 0; count < knumIter; count++) {
-      test_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_test, vec_test);
+      test_func(pdiff, pstride, gx, gy, gstride, bw, bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+                0, 0,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+                mat_test, vec_test);
     }
     aom_usec_timer_mark(&timer_test);
 
@@ -1228,7 +1021,6 @@ INSTANTIATE_TEST_SUITE_P(
     BuildOptFlowHighbdParams(av1_calc_affine_autocorrelation_matrix_avx2));
 #endif  // HAVE_AVX2
 
-#if AFFINE_AVERAGING_BITS > 0
 typedef void (*av1_avg_pooling_pdiff_gradients_fun)(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
     const int gstride, const int bw, const int bh, const int n);
@@ -1398,8 +1190,6 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1AvgPoolingPdiffGradientTest,
     BuildOptFlowHighbdParams(av1_avg_pooling_pdiff_gradients_avx2));
 #endif  // HAVE_AVX2
-#endif  // AFFINE_AVERAGING_BITS > 0
-#endif  // OPFL_COMBINE_INTERP_GRAD_LS
 #endif  // CONFIG_AFFINE_REFINEMENT
 }  // namespace
 

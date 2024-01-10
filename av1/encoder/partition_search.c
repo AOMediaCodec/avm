@@ -1922,21 +1922,21 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_OPTFLOW_REFINEMENT
       if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
           opfl_allowed_for_cur_refs(cm, mbmi)) {
-#if CONFIG_AFFINE_REFINEMENT && CONFIG_DEBUG
+#if CONFIG_AFFINE_REFINEMENT
         const int allow_translational = is_translational_refinement_allowed(
             cm, comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
         const int allow_affine = is_affine_refinement_allowed(
             cm, xd, comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
         if (allow_affine || allow_translational) {
-#endif  // CONFIG_AFFINE_REFINEMENT && CONFIG_DEBUG
+#endif  // CONFIG_AFFINE_REFINEMENT
           const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
 #if CONFIG_ENTROPY_STATS
           ++counts->use_optflow[mode_ctx][use_optical_flow];
 #endif
           update_cdf(fc->use_optflow_cdf[mode_ctx], use_optical_flow, 2);
-#if CONFIG_AFFINE_REFINEMENT && CONFIG_DEBUG
+#if CONFIG_AFFINE_REFINEMENT
         }
-#endif  // CONFIG_AFFINE_REFINEMENT && CONFIG_DEBUG
+#endif  // CONFIG_AFFINE_REFINEMENT
       }
       const int comp_mode_idx = opfl_get_comp_idx(mode);
 #if CONFIG_ENTROPY_STATS

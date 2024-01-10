@@ -62,10 +62,19 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
                                  1
 #endif  // CONFIG_OPTFLOW_ON_TIP
   );
+#if CONFIG_AFFINE_REFINEMENT_SB
+  int sb_idx = 0;
+  int sub_bw = AOMMIN(AFFINE_MAX_UNIT, bw);
+  int sub_bh = AOMMIN(AFFINE_MAX_UNIT, bh);
+  int wms_stride = bw / sub_bw;
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
 
   for (int h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (int w = 0; w < x_inside_boundary; w++) {
+#if CONFIG_AFFINE_REFINEMENT_SB
+      sb_idx = ((h * 8) / sub_bh) * wms_stride + (w * 8) / sub_bw;
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
       for (int idx = 0; idx < 2; ++idx) {
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (!is_inter_ref_frame(ref_frame) || is_tip_ref_frame(ref_frame))
@@ -75,18 +84,29 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_AFFINE_REFINEMENT
         if (mi->comp_refine_type >= COMP_AFFINE_REFINE_START
 #if CONFIG_REFINEMV
-            && !mi->refinemv_flag
+            && (is_damr_allowed_with_refinemv(mi->mode) || !mi->refinemv_flag)
 #endif  // CONFIG_REFINEMV
         ) {
           // Apply offsets based on the affine parameters
           const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
           const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
+#if CONFIG_AFFINE_REFINEMENT_SB
+          const int32_t dst_x =
+              xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
+              xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
+              xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
+          const int32_t dst_y =
+              xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
+              xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
+              xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
+#else
           const int32_t dst_x = mi->wm_params[idx].wmmat[2] * src_x +
                                 mi->wm_params[idx].wmmat[3] * src_y +
                                 mi->wm_params[idx].wmmat[0];
           const int32_t dst_y = mi->wm_params[idx].wmmat[4] * src_x +
                                 mi->wm_params[idx].wmmat[5] * src_y +
                                 mi->wm_params[idx].wmmat[1];
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
           const int32_t submv_x_hp = dst_x - (src_x << WARPEDMODEL_PREC_BITS);
           const int32_t submv_y_hp = dst_y - (src_y << WARPEDMODEL_PREC_BITS);
           const int mv_offset_y =
@@ -273,10 +293,19 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #endif  // CONFIG_OPTFLOW_ON_TIP
   );
   int w, h;
+#if CONFIG_AFFINE_REFINEMENT_SB
+  int sb_idx = 0;
+  int sub_bw = AOMMIN(AFFINE_MAX_UNIT, bw);
+  int sub_bh = AOMMIN(AFFINE_MAX_UNIT, bh);
+  int wms_stride = bw / sub_bw;
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
 
   for (h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (w = 0; w < x_inside_boundary; w++) {
+#if CONFIG_AFFINE_REFINEMENT_SB
+      sb_idx = ((h * 8) / sub_bh) * wms_stride + (w * 8) / sub_bw;
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
       for (int idx = 0; idx < 2; ++idx) {
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame)) {
@@ -286,18 +315,29 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #if CONFIG_AFFINE_REFINEMENT
           if (mi->comp_refine_type >= COMP_AFFINE_REFINE_START
 #if CONFIG_REFINEMV
-              && !mi->refinemv_flag
+              && (is_damr_allowed_with_refinemv(mi->mode) || !mi->refinemv_flag)
 #endif  // CONFIG_REFINEMV
           ) {
             // Apply offsets based on the affine parameters
             const int32_t src_x = mi_col * MI_SIZE + w * 8 + 4;
             const int32_t src_y = mi_row * MI_SIZE + h * 8 + 4;
+#if CONFIG_AFFINE_REFINEMENT_SB
+            const int32_t dst_x =
+                xd->wm_params_sb[2 * sb_idx + idx].wmmat[2] * src_x +
+                xd->wm_params_sb[2 * sb_idx + idx].wmmat[3] * src_y +
+                xd->wm_params_sb[2 * sb_idx + idx].wmmat[0];
+            const int32_t dst_y =
+                xd->wm_params_sb[2 * sb_idx + idx].wmmat[4] * src_x +
+                xd->wm_params_sb[2 * sb_idx + idx].wmmat[5] * src_y +
+                xd->wm_params_sb[2 * sb_idx + idx].wmmat[1];
+#else
             const int32_t dst_x = mi->wm_params[idx].wmmat[2] * src_x +
                                   mi->wm_params[idx].wmmat[3] * src_y +
                                   mi->wm_params[idx].wmmat[0];
             const int32_t dst_y = mi->wm_params[idx].wmmat[4] * src_x +
                                   mi->wm_params[idx].wmmat[5] * src_y +
                                   mi->wm_params[idx].wmmat[1];
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
             const int32_t submv_x_hp = dst_x - (src_x << WARPEDMODEL_PREC_BITS);
             const int32_t submv_y_hp = dst_y - (src_y << WARPEDMODEL_PREC_BITS);
             const int mv_offset_y = ROUND_POWER_OF_TWO_SIGNED(

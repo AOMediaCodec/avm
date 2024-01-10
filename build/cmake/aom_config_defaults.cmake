@@ -183,6 +183,8 @@ set_aom_config_var(CONFIG_CCSO_EDGE_CLF 1
                    "Enable adaptive edge classifier for CCSO.")
 set_aom_config_var(CONFIG_OPTFLOW_REFINEMENT 1
                    "AV2 experiment flag for optical flow MV refinement")
+set_aom_config_var(CONFIG_REFINEMENT_SIMPLIFY 1
+                   "Simplification of optical flow and affine refinements")
 set_aom_config_var(
   CONFIG_IBP_DC 1
   "AV2 experiment flag to enable intra bi-prediction for DC mode.")
@@ -370,6 +372,8 @@ set_aom_config_var(CONFIG_REFINED_MVS_IN_TMVP 1
                    "Keep optical flow refined MVs in TMVP list.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
                    "Decoder side affine motion refinement.")
+set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 1
+                   "Subblock based affine refinement")
 set_aom_config_var(CONFIG_LF_SUB_PU 1 "AV2 enable LF on sub blocks")
 set_aom_config_var(CONFIG_DERIVED_MVD_SIGN 1 "Enable MVD sign derivations")
 set_aom_config_var(CONFIG_VQ_MVD_CODING 1 "Enable VQ based MVD coding")

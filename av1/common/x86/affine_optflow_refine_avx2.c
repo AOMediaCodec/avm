@@ -232,6 +232,7 @@ static INLINE void sign_extend_32bit_to_64bit(__m256i in, __m256i zero,
   *out_hi = _mm256_unpackhi_epi32(in, sign_bits);
 }
 
+#if !CONFIG_REFINEMENT_SIMPLIFY
 static INLINE __m256i highbd_clamp_epi64(__m256i in, int64_t max_value,
                                          int64_t min_value) {
   __m256i clamp_min = _mm256_set1_epi64x(min_value);
@@ -251,6 +252,7 @@ static INLINE __m256i highbd_clamp_epi64(__m256i in, int64_t max_value,
 
   return in;
 }
+#endif  // !CONFIG_REFINEMENT_SIMPLIFY
 
 static INLINE __m256i round_power_of_two_epi32(__m256i in, int reduce_bits) {
   __m256i rounding_offset = _mm256_set1_epi32((1 << (reduce_bits)) >> 1);
@@ -320,11 +322,11 @@ static INLINE void calc_max_vector(__m256i *gx_vec, __m256i *gy_vec,
   *max_vec = _mm256_max_epu16(*max_vec, max_abs_vec);
 }
 
-static INLINE int64_t find_max_matrix_element_interp_grad(
+static INLINE int64_t find_max_matrix_element_avx2(
     const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
     int gstride, int bw, int bh) {
   __m256i max_vec = _mm256_setzero_si256();
-  const int height_loop = AOMMIN(bh, (1 << (7 - AFFINE_AVERAGING_BITS)));
+  const int height_loop = AOMMIN(bh, AFFINE_AVG_MAX_SIZE);
   if (bw == 8) {
     for (int i = 0; i < height_loop; i += 2) {
       // Load 8 elements from gx, gy, and pdiff
@@ -509,21 +511,29 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
 static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
                                         const int16_t *gx, const int16_t *gy,
                                         int gstride, int bw, int bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+                                        int x_offset, int y_offset,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
                                         const int coords_bits,
                                         const int grad_bits, int64_t *mat_a,
                                         int64_t *vec_b) {
-  int16_t step_h = AOMMAX(1, bh >> (7 - AFFINE_AVERAGING_BITS));
-  int16_t step_w = AOMMAX(1, bw >> (7 - AFFINE_AVERAGING_BITS));
+  int16_t step_h = AOMMAX(1, bh >> AFFINE_AVG_MAX_SIZE_LOG2);
+  int16_t step_w = AOMMAX(1, bw >> AFFINE_AVG_MAX_SIZE_LOG2);
 
   __m256i step_w_vec = _mm256_set1_epi16(step_w);
+#if CONFIG_AFFINE_REFINEMENT_SB
+  __m256i x_offset_vec = _mm256_set1_epi16(1 + x_offset - (bw / 2));
+  __m256i y_offset_vec = _mm256_set1_epi16(1 + y_offset - (bh / 2));
+#else
   __m256i x_offset_vec = _mm256_set1_epi16(1 - (bw / 2));
   __m256i y_offset_vec = _mm256_set1_epi16(1 - (bh / 2));
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
   __m256i zeros = _mm256_setzero_si256();
 
   __m256i a_mat[10] = { zeros, zeros, zeros, zeros, zeros,
                         zeros, zeros, zeros, zeros, zeros };
   __m256i b_vec[4] = { zeros, zeros, zeros, zeros };
-  int height_loop = AOMMIN(bh, (1 << (7 - AFFINE_AVERAGING_BITS)));
+  int height_loop = AOMMIN(bh, AFFINE_AVG_MAX_SIZE);
 
   if (bw == 8) {
     const __m256i step_h_vec = _mm256_set1_epi16(step_h);
@@ -601,17 +611,29 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
   }
 
   __m256i ret[5];
+#if CONFIG_REFINEMENT_SIMPLIFY
+  ret[0] = _mm256_loadu_si256((__m256i *)&mat_a[0]);
+  ret[1] = _mm256_loadu_si256((__m256i *)&mat_a[4]);
+  ret[2] = _mm256_loadu_si256((__m256i *)&mat_a[8]);
+  ret[3] = _mm256_loadu_si256((__m256i *)&mat_a[12]);
+  ret[4] = _mm256_loadu_si256((__m256i *)vec_b);
+#else
   __m256i val = _mm256_loadu_si256((__m256i *)&mat_a[0]);
-  ret[0] = highbd_clamp_epi64(val, AFFINE_COV_CLAMP_VAL, -AFFINE_COV_CLAMP_VAL);
+  ret[0] = highbd_clamp_epi64(val, AFFINE_AUTOCORR_CLAMP_VAL,
+                              -AFFINE_AUTOCORR_CLAMP_VAL);
   val = _mm256_loadu_si256((__m256i *)&mat_a[4]);
-  ret[1] = highbd_clamp_epi64(val, AFFINE_COV_CLAMP_VAL, -AFFINE_COV_CLAMP_VAL);
+  ret[1] = highbd_clamp_epi64(val, AFFINE_AUTOCORR_CLAMP_VAL,
+                              -AFFINE_AUTOCORR_CLAMP_VAL);
   val = _mm256_loadu_si256((__m256i *)&mat_a[8]);
-  ret[2] = highbd_clamp_epi64(val, AFFINE_COV_CLAMP_VAL, -AFFINE_COV_CLAMP_VAL);
+  ret[2] = highbd_clamp_epi64(val, AFFINE_AUTOCORR_CLAMP_VAL,
+                              -AFFINE_AUTOCORR_CLAMP_VAL);
   val = _mm256_loadu_si256((__m256i *)&mat_a[12]);
-  ret[3] = highbd_clamp_epi64(val, AFFINE_COV_CLAMP_VAL, -AFFINE_COV_CLAMP_VAL);
-
+  ret[3] = highbd_clamp_epi64(val, AFFINE_AUTOCORR_CLAMP_VAL,
+                              -AFFINE_AUTOCORR_CLAMP_VAL);
   val = _mm256_loadu_si256((__m256i *)vec_b);
-  ret[4] = highbd_clamp_epi64(val, AFFINE_COV_CLAMP_VAL, -AFFINE_COV_CLAMP_VAL);
+  ret[4] = highbd_clamp_epi64(val, AFFINE_AUTOCORR_CLAMP_VAL,
+                              -AFFINE_AUTOCORR_CLAMP_VAL);
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
   _mm256_storeu_si256((__m256i *)&mat_a[0], ret[0]);
   _mm256_storeu_si256((__m256i *)&mat_a[4], ret[1]);
@@ -624,42 +646,31 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
 void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,
                                                  int pstride, const int16_t *gx,
                                                  const int16_t *gy, int gstride,
-                                                 int bw, int bh, int64_t *mat_a,
+                                                 int bw, int bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+                                                 int x_offset, int y_offset,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+                                                 int64_t *mat_a,
                                                  int64_t *vec_b) {
-#if OPFL_COMBINE_INTERP_GRAD_LS
-#if !OPFL_DOWNSAMP_QUINCUNX && AFFINE_AVERAGING_BITS > 0
-  int x_range_log2 = get_msb_signed(bw);
-  int y_range_log2 = get_msb_signed(bh);
-  int npel_log2 = AOMMIN(7 - AFFINE_AVERAGING_BITS, get_msb_signed(bw)) +
-                  AOMMIN(7 - AFFINE_AVERAGING_BITS, get_msb_signed(bh));
+  int x_range_log2 = get_msb(bw);
+  int y_range_log2 = get_msb(bh);
+  int npel_log2 = AOMMIN(AFFINE_AVG_MAX_SIZE_LOG2, x_range_log2) +
+                  AOMMIN(AFFINE_AVG_MAX_SIZE_LOG2, y_range_log2);
+  int64_t max_el =
+      find_max_matrix_element_avx2(pdiff, pstride, gx, gy, gstride, bw, bh);
 
-  int64_t max_el = find_max_matrix_element_interp_grad(pdiff, pstride, gx, gy,
-                                                       gstride, bw, bh);
-
-  int max_diff_bits = get_msb_signed_64(max_el);
-  const int grad_bits =
-      AOMMAX(0, max_diff_bits * 2 + npel_log2 +
+  int max_el_msb = get_msb((int)max_el);
+  int grad_bits =
+      AOMMAX(0, max_el_msb * 2 + npel_log2 +
                     AOMMAX(x_range_log2, y_range_log2) - AFFINE_GRAD_BITS_THR);
   const int coords_bits = AOMMAX(
       0, ((x_range_log2 + y_range_log2) >> 1) - AFFINE_COORDS_OFFSET_BITS);
 
-  calc_mat_a_and_vec_b(pdiff, pstride, gx, gy, gstride, bw, bh, coords_bits,
-                       grad_bits, mat_a, vec_b);
-#else
-  av1_calc_affine_autocorrelation_matrix_c(pdiff, pstride, gx, gy, gstride, bw,
-                                           bh, mat_a, vec_b);
-#endif  // !OPFL_DOWNSAMP_QUINCUNX && AFFINE_AVERAGING_BITS > 0
-#else
-  (void)pdiff;
-  (void)pstride;
-  (void)gx;
-  (void)gy;
-  (void)gstride;
-  (void)bw;
-  (void)bh;
-  (void)mat_a;
-  (void)vec_b;
-#endif  // OPFL_COMBINE_INTERP_GRAD_LS
+  calc_mat_a_and_vec_b(pdiff, pstride, gx, gy, gstride, bw, bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+                       x_offset, y_offset,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+                       coords_bits, grad_bits, mat_a, vec_b);
 }
 #endif  // CONFIG_AFFINE_REFINEMENT
 
@@ -1617,8 +1628,7 @@ void av1_avg_pooling_pdiff_gradients_avx2(int16_t *pdiff, const int pstride,
                                           int16_t *gx, int16_t *gy,
                                           const int gstride, const int bw,
                                           const int bh, const int n) {
-#if CONFIG_OPFL_MV_SEARCH || \
-    (AFFINE_AVERAGING_BITS > 0 && OPFL_COMBINE_INTERP_GRAD_LS)
+#if CONFIG_OPFL_MV_SEARCH
 #if !OPFL_DOWNSAMP_QUINCUNX
   const int bh_low = AOMMIN(bh, n);
   const int bw_low = AOMMIN(bw, n);
@@ -1658,8 +1668,7 @@ void av1_avg_pooling_pdiff_gradients_avx2(int16_t *pdiff, const int pstride,
   (void)bw;
   (void)bh;
   (void)n;
-#endif  // CONFIG_OPFL_MV_SEARCH || (AFFINE_AVERAGING_BITS > 0 &&
-        // OPFL_COMBINE_INTERP_GRAD_LS)
+#endif  // CONFIG_OPFL_MV_SEARCH
 }
 #endif  // CONFIG_OPFL_MV_SEARCH || CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_OPTFLOW_REFINEMENT

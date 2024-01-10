@@ -264,21 +264,7 @@ typedef struct InterPredParams {
 #endif  // CONFIG_D071_IMP_MSK_BLD
 } InterPredParams;
 
-#if CONFIG_AFFINE_REFINEMENT
-// Affine parameters per unit of temporal distance
-typedef struct AffineModelParams {
-  int rot_angle;    // rotation angle is d*rot_angle
-  int scale_alpha;  // x scaling factor is 1+d*scale_alpha
-  int scale_beta;   // y scaling factor is 1+d*scale_beta
-  int tran_x;       // x translation is d*tran_x
-  int tran_y;       // y translation is d*tran_y
-} AffineModelParams;
-
-static const AffineModelParams default_affine_params = { 0, 0, 0, 0, 0 };
-#endif  // CONFIG_AFFINE_REFINEMENT
-
 #if CONFIG_OPTFLOW_REFINEMENT
-
 // Apply bilinear and bicubic interpolation for subpel gradient to avoid
 // calls of build_one_inter_predictor function. Bicubic interpolation
 // brings better quality but the speed results are neutral. As such, bilinear
@@ -294,23 +280,6 @@ static const AffineModelParams default_affine_params = { 0, 0, 0, 0, 0 };
 // integer-pel. The actual delta value used from the 1/8-pel original MVs
 // is 2^(3 - SUBPEL_GRAD_DELTA_BITS). The max value of this macro is 3.
 #define SUBPEL_GRAD_DELTA_BITS 2
-
-// Combine computations of interpolated gradients and the least squares
-// solver. The basic idea is that, typically we would compute the following:
-// 1. d0, d1, P0 and P1
-// 2. Gradients of P0 and P1: gx0, gx1, gy0, and gy1
-// 3. Solving least squares for vx and vy, which requires d0*gx0-d1*gx1,
-//    d0*gy0-d1*gy1, and P0-P1.
-// When this flag is turned on, we compute the following
-// 1. d0, d1, P0 and P1
-// 2. tmp0 = d0*P0-d1*P1 and tmp1 = P0-P1
-// 3. Gradients of tmp0: gx and gy
-// 4. Solving least squares for vx and vy using gx, gy and tmp1
-// Note that this only requires 2 gradient operators instead of 4 and thus
-// reduces the complexity. However, it is only feasible when gradients are
-// obtained using bilinear or bicubic interpolation. Thus, this flag should
-// only be on when either of OPFL_BILINEAR_GRAD and OPFL_BICUBIC_GRAD is on.
-#define OPFL_COMBINE_INTERP_GRAD_LS 1
 
 // Bilinear and bicubic coefficients. Note that, at boundary, we apply
 // coefficients that are doubled because spatial distance between the two
@@ -552,11 +521,21 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #define OPFL_REGULARIZED_LS 1
 #define OPFL_RLS_PARAM 16
 
+#if CONFIG_REFINEMENT_SIMPLIFY
+// Number of bits allowed for all intermediate results of covariance matrix
+// filling
+#define MAX_OPFL_AUTOCORR_BITS 28
+// Clamp range for u/v/w. If it uses h unsigned bits, then u2/v2 uses 2h
+// unsigned bits. Every sum of 8 u2/v2 use at most 2h+3 unsigned bits, and
+// must not exceed max bd of su2/sv2 minus 2. Thus, 2h+3 <= H-2
+#define OPFL_SAMP_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1)
+#else
 // Number of bits allowed for covariance matrix elements (su2, sv2, suv, suw
 // and svw) so that det, det_x, and det_y does not cause overflow issue in
 // int64_t. Its value must be <= (64 - mv_prec_bits - grad_prec_bits) / 2.
-#define OPFL_COV_CLAMP_BITS 28
-#define OPFL_COV_CLAMP_VAL (1 << OPFL_COV_CLAMP_BITS)
+#define MAX_OPFL_AUTOCORR_BITS 28
+#define OPFL_AUTOCORR_CLAMP_VAL (1 << MAX_OPFL_AUTOCORR_BITS)
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
 void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
@@ -570,7 +549,7 @@ void av1_opfl_build_inter_predictor(
 );
 
 // Generate refined MVs using optflow refinement
-void av1_get_optflow_based_mv_highbd(
+void av1_get_optflow_based_mv(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
     CalcSubpelParamsFunc calc_subpel_params_func, int16_t *gx0, int16_t *gy0,
@@ -594,8 +573,8 @@ void av1_opfl_rebuild_inter_predictor(
     uint16_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
 #if CONFIG_AFFINE_REFINEMENT
-    CompoundRefineType comp_refine_type, WarpedMotionParams *wms, int_mv *mv,
-    const int use_affine_opfl,
+    const AV1_COMMON *cm, int pu_width, CompoundRefineType comp_refine_type,
+    WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func
 #if CONFIG_OPTFLOW_ON_TIP
@@ -604,6 +583,46 @@ void av1_opfl_rebuild_inter_predictor(
 #endif  // CONFIG_OPTFLOW_ON_TIP
 );
 
+#if CONFIG_REFINEMENT_SIMPLIFY
+// We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
+// as the target maximum bit depth of all intermediate results for LS problem.
+#define MAX_LS_BITS 32
+// Divide all elements of a vector by a common factor, and apply shifts.
+// The integer division is based on lookup table.
+// sol: numerator (will be updated to the solution)
+// den: denominator
+// out: output result (sol / den)
+// TODO(kslu) reduce input bit depth to int32_t
+static INLINE void divide_and_round_array(int64_t *sol, int64_t den,
+                                          const int dim, int *shifts) {
+  assert(den != 0);
+  if (den < 0) {
+    for (int i = 0; i < dim; i++) sol[i] = -sol[i];
+    return divide_and_round_array(sol, -den, dim, shifts);
+  }
+  // TODO(kslu) use resolve_divisor_32
+  int16_t den_shift = 0;
+  int16_t inv_den = (den == 1) ? 1 : resolve_divisor_64(den, &den_shift);
+  int inv_den_msb = get_msb_signed(inv_den);
+
+  // Apply shifts to sol[i] and den to keep both bit depths within K.
+  for (int i = 0; i < dim; i++) {
+    if (sol[i] == 0) continue;
+    int sign = sol[i] > 0;
+    sol[i] = sign ? sol[i] : -sol[i];
+    int num_red_bits =
+        AOMMAX(0, get_msb_signed_64(sol[i]) + inv_den_msb + 1 - MAX_LS_BITS);
+    sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], num_red_bits);
+
+    int inc_bits = shifts[i] + num_red_bits - den_shift;
+    if (inc_bits >= 0)
+      sol[i] = sol[i] * inv_den * (1 << inc_bits);
+    else
+      sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i] * inv_den, -inc_bits);
+    sol[i] = sign ? sol[i] : -sol[i];
+  }
+}
+#else
 // Integer division based on lookup table.
 // num: numerator
 // den: denominator
@@ -648,16 +667,24 @@ static INLINE int32_t divide_and_round_signed(int64_t num, int64_t den) {
 #endif  // NDEBUG
   return out;
 }
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_AFFINE_REFINEMENT
+int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol);
 void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
                                        int16_t *gx, int16_t *gy,
                                        const int gstride, const int bw,
                                        const int bh, const int n);
-#endif  // CONFIG_AFFINE_REFINEMENT
+void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
+                                              const int16_t *gx,
+                                              const int16_t *gy, int gstride,
+                                              int bw, int bh,
+#if CONFIG_AFFINE_REFINEMENT_SB
+                                              int x_offset, int y_offset,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+                                              int64_t *mat_a, int64_t *vec_b);
 
-#if CONFIG_AFFINE_REFINEMENT
 #define AFFINE_OPFL_BASED_ON_SAD 1
 #define AFFINE_FAST_ENC_SEARCH 1
 
@@ -675,32 +702,42 @@ void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
 // 3: per pixel bilinear interpolated warp prediction
 #define AFFINE_FAST_WARP_METHOD 3
 
-// Apply averaging of gradient array for nxn subblock of 128x128 block
-// 0: (disable) use all pixels
-// 1: 128->64
-// 2: {128, 64}->32
-// 3: {128, 64, 32}->16
-// 4: {128, 64, 32, 16}->8
-#define AFFINE_AVERAGING_BITS 3
+// Apply averaging of gradient array to downscale prediction block. It can
+// be set to MAX_SB_SIZE_LOG2 to turn off the avg pooling feature.
+#define AFFINE_AVG_MAX_SIZE_LOG2 4
+#define AFFINE_AVG_MAX_SIZE (1 << AFFINE_AVG_MAX_SIZE_LOG2)
 
+#if CONFIG_REFINEMENT_SIMPLIFY
+// We consider this tunable number H=MAX_AFFINE_AUTOCORR_BITS-1 (sign bit
+// excluded) as the maximum bit depth for autocorrelation matrix filling.
+// This value should not be set lower than 25, since gx*x+gy*y can reach 25
+// bits given the most extreme case (16+8+1 bits).
+#define MAX_AFFINE_AUTOCORR_BITS 32
+// Clamp range for a[] and d. If it uses h unsigned bits, then a[s]a[t] uses 2h
+// unsigned bits. Every sum of 16 a[s]a[t] use at most 2h+4 unsigned bits, and
+// must not exceed max bd of A minus 2. Thus, 2h+4 <= H-2
+#define AFFINE_SAMP_CLAMP_VAL \
+  ((1L << ((MAX_AFFINE_AUTOCORR_BITS - 7) >> 1)) - 1)
+#define AFFINE_COORDS_OFFSET_BITS 2
+#else
 // Number of bits allowed for covariance matrix elements so that determinants
 // do not overflow int64_t. For dim=3, input bit depth must be
 // <= (64 - mv_prec_bits - grad_prec_bits) / 3. For dim=4, input bit depth must
 // be <= (64-1)/2 for the first stage (getsub_4d), and <= 64-3-precbits for
 // the second stage (determinant and divide_and_round_signed).
-#define AFFINE_CLAMP_VAL (1 << 15)
-#define AFFINE_COV_CLAMP_VAL (1 << 30)
+#define AFFINE_SAMP_CLAMP_VAL (1 << 15)
+#define AFFINE_AUTOCORR_CLAMP_VAL (1 << 30)
+#define AFFINE_COORDS_OFFSET_BITS 3
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
 // Internal bit depths for affine parameter derivation
 #define AFFINE_GRAD_BITS_THR 32
-#define AFFINE_COORDS_OFFSET_BITS 3
 #define AFFINE_PREC_BITS 12
-#define AFFINE_PARAMS_MAX (1 << (AFFINE_PREC_BITS + 3))
 #define AFFINE_RLS_PARAM 2
 
 #if AFFINE_FAST_WARP_METHOD == 3
 #define BILINEAR_WARP_PREC_BITS 12
-#endif
+#endif  // AFFINE_FAST_WARP_METHOD == 3
 
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
                                                       const int mode) {
@@ -740,8 +777,7 @@ static INLINE int damr_refine_subblock(int plane, const int bw, const int bh,
 #endif
 
   if (comp_refine_type < COMP_AFFINE_REFINE_START) return 0;
-  return comp_refine_type == COMP_REFINE_ROTZOOM4P_SUBBLK2P ||
-         comp_refine_type == COMP_REFINE_ROTZOOM2P_SUBBLK2P;
+  return comp_refine_type == COMP_REFINE_ROTZOOM4P_SUBBLK2P;
 }
 
 static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
@@ -848,6 +884,13 @@ static INLINE int is_refinemv_allowed_bsize(BLOCK_SIZE bsize) {
   return (block_size_wide[bsize] >= 16 || block_size_high[bsize] >= 16);
 }
 
+#if CONFIG_AFFINE_REFINEMENT
+static INLINE int is_damr_allowed_with_refinemv(const PREDICTION_MODE mode) {
+  (void)mode;
+  return 0;
+}
+#endif  // CONFIG_AFFINE_REFINEMENT
+
 // check if the refinemv mode is allwed for a given mode and precision
 static INLINE int is_refinemv_allowed_mode_precision(
     PREDICTION_MODE mode, MvSubpelPrecision precision,
@@ -869,7 +912,10 @@ static INLINE int is_refinemv_allowed_mode_precision(
     return 0;
 
 #if CONFIG_AFFINE_REFINEMENT
-  if (cm->seq_params.enable_affine_refine) return mode == NEAR_NEARMV;
+  if (cm->seq_params.enable_affine_refine) {
+    if (is_damr_allowed_with_refinemv(mode)) return 1;
+    return mode == NEAR_NEARMV;
+  }
 #endif
   return (mode >= NEAR_NEARMV && mode <= JOINT_AMVDNEWMV_OPTFLOW);
 }
@@ -882,9 +928,11 @@ static INLINE int default_refinemv_modes(const AV1_COMMON *cm,
 static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
 #endif
 #if CONFIG_AFFINE_REFINEMENT
-  if (cm->seq_params.enable_affine_refine)
+  if (cm->seq_params.enable_affine_refine) {
+    if (is_damr_allowed_with_refinemv(mbmi->mode)) return 1;
     return (mbmi->skip_mode || mbmi->mode == NEAR_NEARMV ||
             mbmi->mode == JOINT_NEWMV);
+  }
 #endif  // CONFIG_AFFINE_REFINEMENT
   return (mbmi->skip_mode || mbmi->mode == NEAR_NEARMV ||
           mbmi->mode == NEAR_NEARMV_OPTFLOW ||
@@ -1116,31 +1164,17 @@ void tip_common_calc_subpel_params_and_extend(
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
-
 unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
                             const uint16_t *ref_ptr, int ref_stride, int bd,
                             int bw, int bh);
 #endif  // CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 
 #if CONFIG_OPTFLOW_REFINEMENT || CONFIG_OPFL_MV_SEARCH
-void av1_opfl_mv_refinement_highbd(const uint16_t *p0, int pstride0,
-                                   const uint16_t *p1, int pstride1,
-                                   const int16_t *gx0, const int16_t *gy0,
-                                   const int16_t *gx1, const int16_t *gy1,
-                                   int gstride, int bw, int bh, int d0, int d1,
-                                   int grad_prec_bits, int mv_prec_bits,
-                                   int *vx0, int *vy0, int *vx1, int *vy1);
-void av1_opfl_mv_refinement_interp_grad(const int16_t *pdiff, int pstride0,
-                                        const int16_t *gx, const int16_t *gy,
-                                        int gstride, int bw, int bh, int d0,
-                                        int d1, int grad_prec_bits,
-                                        int mv_prec_bits, int *vx0, int *vy0,
-                                        int *vx1, int *vy1);
-void av1_compute_subpel_gradients_mc_highbd(
-    MACROBLOCKD *xd, const MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
-    uint16_t **mc_buf, InterPredParams *inter_pred_params,
-    CalcSubpelParamsFunc calc_subpel_params_func, int ref, int *grad_prec_bits,
-    int16_t *x_grad, int16_t *y_grad);
+void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride0,
+                            const int16_t *gx, const int16_t *gy, int gstride,
+                            int bw, int bh, int d0, int d1, int grad_prec_bits,
+                            int mv_prec_bits, int *vx0, int *vy0, int *vx1,
+                            int *vy1);
 void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
                                          int *grad_prec_bits, int16_t *x_grad,
                                          int16_t *y_grad);

@@ -890,14 +890,23 @@ enum {
 } UENUM1BYTE(MOTION_MODE);
 
 #if CONFIG_AFFINE_REFINEMENT
+#if CONFIG_AFFINE_REFINEMENT_SB
+// Max affine refinement unit size
+#define AFFINE_MAX_UNIT_LOG2 6  // per 64x64 subblock
+#define AFFINE_MAX_UNIT (1 << AFFINE_MAX_UNIT_LOG2)
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+
+#if CONFIG_AFFINE_REFINEMENT_SB
+#define NUM_AFFINE_PARAMS_1D (1 << (MAX_SB_SIZE_LOG2 - AFFINE_MAX_UNIT_LOG2))
+#define NUM_AFFINE_PARAMS (NUM_AFFINE_PARAMS_1D * NUM_AFFINE_PARAMS_1D)
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+
 enum {
   COMP_REFINE_NONE,  // No refinement
   // Refine types to be searched and signaled in *MV_OPTFLOW modes
   COMP_REFINE_SUBBLK2P,            // subblock wise translation, 2-parameter
   COMP_REFINE_ROTZOOM4P_SUBBLK2P,  // rotation/scale/trans & subblock wise trans
   COMP_REFINE_TYPES,
-  // Other supported refine types
-  COMP_REFINE_ROTZOOM2P_SUBBLK2P,  // rotation/scale & subblock wise trans
   // Other enums
   COMP_REFINE_START = COMP_REFINE_NONE,
   COMP_AFFINE_REFINE_START = COMP_REFINE_SUBBLK2P + 1,
