@@ -5411,7 +5411,10 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 
 #if CONFIG_TEMP_LR
   int8_t best_ref_idx = -1;
-  for (int ref_idx = 0; ref_idx < rsc->cm->ref_frames_info.num_total_refs; ref_idx ++) {
+   const int num_ref_frames = rsc->cm->current_frame.frame_type == KEY_FRAME
+                                 ? 0
+                                 : rsc->cm->ref_frames_info.num_total_refs;
+  for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx ++) {
     RestorationInfo rsi = get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];
     if (!rsi.frame_filters_on) continue;
 //    assert(rsi.frame_restoration_type == RESTORE_WIENER_NONSEP || rsi.frame_restoration_type == RESTORE_SWITCHABLE);

@@ -227,7 +227,7 @@ set_aom_config_var(
     CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER 0 NUMBER
     "AV2 pixel-classified, frame-level, and flexible-mergeing nonsep Wiener filter experiment flag")
 
-set_aom_config_var(CONFIG_TEMP_LR 0 "AV2 experiment flag to use temporal LR when frame-level filter is on")
+set_aom_config_var(CONFIG_TEMP_LR 1 "AV2 experiment flag to use temporal LR when frame-level filter is on")
 
 set_aom_config_var(
     CONFIG_NEW_CLASSIFY_NS_WIENER 0 NUMBER

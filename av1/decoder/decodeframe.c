@@ -3435,14 +3435,17 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           rsi->temporal_pred_flag = 0;
           rsi->rst_ref_pic_idx = 0;
           if(rsi->frame_filters_on) {
-            if (cm->ref_frames_info.num_total_refs > 0)
+          const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
+                                 ? 0
+                                 : cm->ref_frames_info.num_total_refs;
+
+            if (num_ref_frames > 0)
               rsi->temporal_pred_flag = aom_rb_read_bit(rb);
             if (rsi->temporal_pred_flag &&
-                cm->ref_frames_info.num_total_refs > 1) {
+                num_ref_frames > 1) {
               rsi->rst_ref_pic_idx = aom_rb_read_literal(
                   rb,
-                  av1_ceil_log2(cm->ref_frames_info
-                                    .num_total_refs));  // read_lr_reference_idx
+                  av1_ceil_log2(num_ref_frames));  // read_lr_reference_idx
             }
           }
 

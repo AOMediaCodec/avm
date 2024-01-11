@@ -4355,15 +4355,17 @@ static AOM_INLINE void encode_restoration_mode(
           aom_wb_write_literal(wb, rsi->frame_filters_on, 1);
 #if CONFIG_TEMP_LR
           if (rsi->frame_filters_on) {
-            if (cm->ref_frames_info.num_total_refs > 0)
+            const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
+                                 ? 0
+                                 : cm->ref_frames_info.num_total_refs;
+            if (num_ref_frames > 0)
               aom_wb_write_bit(wb, rsi->temporal_pred_flag);
             if (rsi->temporal_pred_flag &&
-                cm->ref_frames_info.num_total_refs > 1)
+                num_ref_frames > 1)
               aom_wb_write_literal(
                   wb, rsi->rst_ref_pic_idx,
                   av1_ceil_log2(
-                      cm->ref_frames_info
-                          .num_total_refs));  // write_lr_reference_idx
+                      num_ref_frames));  // write_lr_reference_idx
           }
           if (!rsi->temporal_pred_flag) {
 #endif  // CONFIG_TEMP_LR
