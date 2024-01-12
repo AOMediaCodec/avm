@@ -377,6 +377,8 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
                               (tpl_start_row + mv_rows) < max_tpl_row;
       }
 
+      const int luma_j = (j << ss_y);
+      const int luma_i = (i << ss_x);
       // filter vertical boundary
       if (filter_vert && i > 0 && within_tpl_boundary &&
           AOMMIN(prev_x_step, x_step) >= filt_len) {
@@ -386,8 +388,8 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
 #if CONFIG_REFINEMV
                  ,
                  (pef_mode == 3) ? (pef_input->refinemv_subinfo +
-                                    (j >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
-                                    (i >> MI_SIZE_LOG2))
+                                    (luma_j >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
+                                    (luma_i >> MI_SIZE_LOG2))
                                  : NULL,
                  1
 #endif  // CONFIG_REFINEMV
@@ -410,8 +412,8 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
 #if CONFIG_REFINEMV
                  ,
                  (pef_mode == 3) ? (pef_input->refinemv_subinfo +
-                                    (j >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
-                                    (i >> MI_SIZE_LOG2))
+                                    (luma_j >> MI_SIZE_LOG2) * MAX_MIB_SIZE +
+                                    (luma_i >> MI_SIZE_LOG2))
                                  : NULL,
                  MAX_MIB_SIZE
 #endif  // CONFIG_REFINEMV
