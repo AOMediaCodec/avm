@@ -406,19 +406,16 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   __m256i a0_temp_hi = round_power_of_two_signed_epi32(
       _mm256_madd_epi16(gx_gy_hi, x_minus_y_hi), coords_bits);
 
-  // Clamp the values
-  __m256i a0_lo =
-      highbd_clamp_epi32(a0_temp_lo, AFFINE_CLAMP_VAL, -AFFINE_CLAMP_VAL);
-  __m256i a0_hi =
-      highbd_clamp_epi32(a0_temp_hi, AFFINE_CLAMP_VAL, -AFFINE_CLAMP_VAL);
-  __m256i a1_lo =
-      highbd_clamp_epi32(a1_temp_lo, AFFINE_CLAMP_VAL, -AFFINE_CLAMP_VAL);
-  __m256i a1_hi =
-      highbd_clamp_epi32(a1_temp_hi, AFFINE_CLAMP_VAL, -AFFINE_CLAMP_VAL);
-
-  __m256i a2_lo, a2_hi, a3_lo, a3_hi;
-  sign_extend_16bit_to_32bit(*gx_vec, zeros, &a2_lo, &a2_hi);
-  sign_extend_16bit_to_32bit(*gy_vec, zeros, &a3_lo, &a3_hi);
+  assert(AFFINE_CLAMP_VAL == (1 << 15));
+  // Clip the values of a[] to [-AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL-1] (i.e., to
+  // 16-bit signed range). Here, using the instruction _mm256_packs_epi32() to
+  // clip 32-bit signed values to 16-bit signed range.
+  const __m256i a0_temp_0 = _mm256_packs_epi32(a0_temp_lo, a0_temp_hi);
+  const __m256i a1_temp_0 = _mm256_packs_epi32(a1_temp_lo, a1_temp_hi);
+  const __m256i a0_lo = _mm256_unpacklo_epi16(a0_temp_0, zeros);
+  const __m256i a0_hi = _mm256_unpackhi_epi16(a0_temp_0, zeros);
+  const __m256i a1_lo = _mm256_unpacklo_epi16(a1_temp_0, zeros);
+  const __m256i a1_hi = _mm256_unpackhi_epi16(a1_temp_0, zeros);
 
   __m256i gx_a2_lo = _mm256_unpacklo_epi16(*gx_vec, zeros);
   __m256i gx_a2_hi = _mm256_unpackhi_epi16(*gx_vec, zeros);
@@ -427,13 +424,13 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
 
   // Diagonal elements
   __m256i a00_lo =
-      round_power_of_two_epi32(_mm256_mullo_epi32(a0_lo, a0_lo), grad_bits);
+      round_power_of_two_epi32(_mm256_madd_epi16(a0_lo, a0_lo), grad_bits);
   __m256i a00_hi =
-      round_power_of_two_epi32(_mm256_mullo_epi32(a0_hi, a0_hi), grad_bits);
+      round_power_of_two_epi32(_mm256_madd_epi16(a0_hi, a0_hi), grad_bits);
   __m256i a11_lo =
-      round_power_of_two_epi32(_mm256_mullo_epi32(a1_lo, a1_lo), grad_bits);
+      round_power_of_two_epi32(_mm256_madd_epi16(a1_lo, a1_lo), grad_bits);
   __m256i a11_hi =
-      round_power_of_two_epi32(_mm256_mullo_epi32(a1_hi, a1_hi), grad_bits);
+      round_power_of_two_epi32(_mm256_madd_epi16(a1_hi, a1_hi), grad_bits);
   __m256i a22_lo = round_power_of_two_epi32(
       _mm256_madd_epi16(gx_a2_lo, gx_a2_lo), grad_bits);
   __m256i a22_hi = round_power_of_two_epi32(
@@ -446,26 +443,26 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   // Non-diagonal elements
   // Row0->
   __m256i a01_lo = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_lo, a1_lo), grad_bits);
+      _mm256_madd_epi16(a0_lo, a1_lo), grad_bits);
   __m256i a01_hi = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_hi, a1_hi), grad_bits);
+      _mm256_madd_epi16(a0_hi, a1_hi), grad_bits);
   __m256i a02_lo = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_lo, a2_lo), grad_bits);
+      _mm256_madd_epi16(a0_lo, gx_a2_lo), grad_bits);
   __m256i a02_hi = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_hi, a2_hi), grad_bits);
+      _mm256_madd_epi16(a0_hi, gx_a2_hi), grad_bits);
   __m256i a03_lo = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_lo, a3_lo), grad_bits);
+      _mm256_madd_epi16(a0_lo, gy_a3_lo), grad_bits);
   __m256i a03_hi = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_hi, a3_hi), grad_bits);
+      _mm256_madd_epi16(a0_hi, gy_a3_hi), grad_bits);
   // Row1->
   __m256i a12_lo = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a1_lo, a2_lo), grad_bits);
+      _mm256_madd_epi16(a1_lo, gx_a2_lo), grad_bits);
   __m256i a12_hi = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a1_hi, a2_hi), grad_bits);
+      _mm256_madd_epi16(a1_hi, gx_a2_hi), grad_bits);
   __m256i a13_lo = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a1_lo, a3_lo), grad_bits);
+      _mm256_madd_epi16(a1_lo, gy_a3_lo), grad_bits);
   __m256i a13_hi = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a1_hi, a3_hi), grad_bits);
+      _mm256_madd_epi16(a1_hi, gy_a3_hi), grad_bits);
   // Row2->
   __m256i a23_lo = round_power_of_two_signed_epi32(
       _mm256_madd_epi16(gx_a2_lo, gy_a3_lo), grad_bits);
@@ -494,19 +491,17 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   a_mat[9] = _mm256_add_epi64(a_mat[9], add_epi32_as_epi64(a33_lo, a33_hi));
 
   // Compute vec_b
-  __m256i dv_lo, dv_hi;
-  sign_extend_16bit_to_32bit(*pdiff_vec, zeros, &dv_lo, &dv_hi);
   __m256i pdiff_vec_lo = _mm256_unpacklo_epi16(*pdiff_vec, zeros);
   __m256i pdiff_vec_hi = _mm256_unpackhi_epi16(*pdiff_vec, zeros);
 
   __m256i v0_lo = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_lo, dv_lo), grad_bits);
+      _mm256_madd_epi16(a0_lo, pdiff_vec_lo), grad_bits);
   __m256i v0_hi = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a0_hi, dv_hi), grad_bits);
+      _mm256_madd_epi16(a0_hi, pdiff_vec_hi), grad_bits);
   __m256i v1_lo = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a1_lo, dv_lo), grad_bits);
+      _mm256_madd_epi16(a1_lo, pdiff_vec_lo), grad_bits);
   __m256i v1_hi = round_power_of_two_signed_epi32(
-      _mm256_mullo_epi32(a1_hi, dv_hi), grad_bits);
+      _mm256_madd_epi16(a1_hi, pdiff_vec_hi), grad_bits);
   __m256i v2_lo = round_power_of_two_signed_epi32(
       _mm256_madd_epi16(gx_a2_lo, pdiff_vec_lo), grad_bits);
   __m256i v2_hi = round_power_of_two_signed_epi32(

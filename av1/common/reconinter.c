@@ -1668,8 +1668,8 @@ int derive_rotation_scale_2p(const uint16_t *p0, int pstride0,
       tmp[1] = d0 * (int)gy0[gidx] - d1 * (int)gy1[gidx];
       u = ROUND_POWER_OF_TWO_SIGNED_64(-tmp[0] * y + tmp[1] * x, coords_bits);
       v = ROUND_POWER_OF_TWO_SIGNED_64(tmp[0] * x + tmp[1] * y, coords_bits);
-      u = clamp64(u, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL);
-      v = clamp64(v, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL);
+      u = clamp64(u, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL - 1);
+      v = clamp64(v, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL - 1);
       w = (int64_t)p0[i * pstride0 + j] - (int64_t)p1[i * pstride1 + j];
       su2 += ROUND_POWER_OF_TWO_SIGNED_64(u * u, grad_bits);
       suv += ROUND_POWER_OF_TWO_SIGNED_64(u * v, grad_bits);
@@ -1752,7 +1752,7 @@ int derive_rotation_scale_translation_4p(const uint16_t *p0, int pstride0,
       a[2] = tmp[0];
       a[3] = tmp[1];
       for (int s = 0; s < 4; ++s)
-        a[s] = clamp(a[s], -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL);
+        a[s] = clamp(a[s], -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL - 1);
       const int d = (int)p0[i * pstride0 + j] - (int)p1[i * pstride1 + j];
       for (int s = 0; s < 4; ++s) {
         for (int t = 0; t <= s; ++t) {
@@ -1896,8 +1896,8 @@ int derive_rotation_scale_2p_interp_grad(const int16_t *pdiff, int pstride,
                                        coords_bits);
       v = ROUND_POWER_OF_TWO_SIGNED_64(gx[gidx] * x + gy[gidx] * y,
                                        coords_bits);
-      u = clamp64(u, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL);
-      v = clamp64(v, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL);
+      u = clamp64(u, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL - 1);
+      v = clamp64(v, -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL - 1);
       w = (int64_t)pdiff[i * pstride + j];
       su2 += ROUND_POWER_OF_TWO_SIGNED_64(u * u, grad_bits);
       suv += ROUND_POWER_OF_TWO_SIGNED_64(u * v, grad_bits);
@@ -1991,7 +1991,7 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
       a[2] = gx[gidx];
       a[3] = gy[gidx];
       for (int s = 0; s < 4; ++s)
-        a[s] = clamp(a[s], -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL);
+        a[s] = clamp(a[s], -AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL - 1);
       const int d = pdiff[i * pstride + j];
       for (int s = 0; s < 4; ++s) {
         for (int t = 0; t <= s; ++t) {
