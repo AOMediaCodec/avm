@@ -3273,6 +3273,17 @@ static void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
 #endif  // CONFIG_EXPLICIT_BAWP
 
 #if CONFIG_BAWP
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+static INLINE int scaled_x_gen(int val, const struct scale_factors *sf) {
+  const int64_t tval = (int64_t)val * sf->x_scale_fp;
+  return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
+}
+
+static INLINE int scaled_y_gen(int val, const struct scale_factors *sf) {
+  const int64_t tval = (int64_t)val * sf->y_scale_fp;
+  return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
+}
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
 // Derive the scaling factor and offset of block adaptive weighted prediction
 // mode. One row from the top boundary and one column from the left boundary
 // are used in the less square error process.
@@ -3280,7 +3291,11 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
                                    uint16_t *recon_left, int rec_stride,
                                    uint16_t *ref_top, uint16_t *ref_left,
                                    int ref_stride, int ref, int plane, int bw,
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+                                   int bh, const struct scale_factors *sf) {
+#else   // CONFIG_BAWP_ACROSS_SCALES_FIX
                                    int bh) {
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_BAWP_CHROMA
   assert(mbmi->bawp_flag[0] >= 1);
@@ -3293,25 +3308,54 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
   int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
 
   if (xd->up_available) {
-    for (int i = 0; i < bw; ++i) {
-      sum_x += ref_top[i];
-      sum_y += recon_top[i];
-      sum_xy += ref_top[i] * recon_top[i];
-      sum_xx += ref_top[i] * ref_top[i];
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+    if (sf->x_scale_fp != REF_NO_SCALE) {
+      for (int i = 0; i < bw; i++) {
+        int idx = scaled_x_gen(i, sf);
+        sum_x += ref_top[idx];
+        sum_y += recon_top[i];
+        sum_xy += ref_top[idx] * recon_top[i];
+        sum_xx += ref_top[idx] * ref_top[idx];
+      }
+    } else {
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
+      for (int i = 0; i < bw; ++i) {
+        sum_x += ref_top[i];
+        sum_y += recon_top[i];
+        sum_xy += ref_top[i] * recon_top[i];
+        sum_xx += ref_top[i] * ref_top[i];
+      }
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
     }
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
     count += bw;
   }
 
   if (xd->left_available) {
-    for (int i = 0; i < bh; ++i) {
-      sum_x += ref_left[0];
-      sum_y += recon_left[0];
-      sum_xy += ref_left[0] * recon_left[0];
-      sum_xx += ref_left[0] * ref_left[0];
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+    if (sf->y_scale_fp != REF_NO_SCALE) {
+      for (int i = 0; i < bh; i++) {
+        int ref_left_tmp_idx = scaled_y_gen(i, sf) * ref_stride;
+        sum_x += ref_left[ref_left_tmp_idx];
+        sum_y += recon_left[0];
+        sum_xy += ref_left[ref_left_tmp_idx] * recon_left[0];
+        sum_xx += ref_left[ref_left_tmp_idx] * ref_left[ref_left_tmp_idx];
+        recon_left += rec_stride;
+      }
+    } else {
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
+      for (int i = 0; i < bh; ++i) {
+        sum_x += ref_left[0];
+        sum_y += recon_left[0];
+        sum_xy += ref_left[0] * recon_left[0];
+        sum_xx += ref_left[0] * ref_left[0];
 
-      recon_left += rec_stride;
-      ref_left += ref_stride;
+        recon_left += rec_stride;
+        ref_left += ref_stride;
+      }
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
     }
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
     count += bh;
   }
 
@@ -3417,10 +3461,28 @@ void av1_build_one_bawp_inter_predictor(
 
     // the picture boundary limitation to be checked.
     struct macroblockd_plane *const pd = &xd->plane[plane];
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+    int ref_stride = pd->pre[ref].stride;
+    uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
+    const struct scale_factors *sf = inter_pred_params->scale_factors;
+    if (sf->x_scale_fp != REF_NO_SCALE || sf->y_scale_fp != REF_NO_SCALE) {
+      calc_subpel_params_func(&mbmi->mv[ref].as_mv, inter_pred_params, xd, mi_x,
+                              mi_y, ref,
+#if CONFIG_OPTFLOW_REFINEMENT
+                              0, /* use_optflow_refinement */
+#endif                           // CONFIG_OPTFLOW_REFINEMENT
+                              mc_buf, &ref_buf, &subpel_params, &ref_stride);
+    }
+    uint16_t *ref_top =
+        ref_buf - BAWP_REF_LINES * ref_stride * (sf->y_scale_fp / REF_NO_SCALE);
+    uint16_t *ref_left =
+        ref_buf - BAWP_REF_LINES * (sf->x_scale_fp / REF_NO_SCALE);
+#else   // CONFIG_BAWP_ACROSS_SCALES_FIX
     const int ref_stride = pd->pre[ref].stride;
     uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
     uint16_t *ref_top = ref_buf - BAWP_REF_LINES * ref_stride;
     uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
 #if CONFIG_EXPLICIT_BAWP
 #if CONFIG_BAWP_CHROMA
     if (mbmi->bawp_flag[0] > 1 && plane == 0) {
@@ -3449,7 +3511,12 @@ void av1_build_one_bawp_inter_predictor(
     } else
 #endif  // CONFIG_EXPLICIT_BAWP
       derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
-                             ref_left, ref_stride, ref, plane, ref_w, ref_h);
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+                             ref_left, ref_stride, ref, plane, ref_w, ref_h,
+                             sf);
+#else   // CONFIG_BAWP_ACROSS_SCALES_FIX
+                           ref_left, ref_stride, ref, plane, ref_w, ref_h);
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
   }
 
   int16_t alpha = mbmi->bawp_alpha[plane][ref];
