@@ -252,17 +252,6 @@ static INLINE __m256i highbd_clamp_epi64(__m256i in, int64_t max_value,
   return in;
 }
 
-static INLINE __m256i highbd_clamp_epi32(__m256i in, int max_value,
-                                         int min_value) {
-  __m256i low_vec = _mm256_set1_epi32(min_value);
-  __m256i high_vec = _mm256_set1_epi32(max_value);
-
-  __m256i clamped_vec =
-      _mm256_min_epi32(_mm256_max_epi32(in, low_vec), high_vec);
-
-  return clamped_vec;
-}
-
 static INLINE __m256i round_power_of_two_epi32(__m256i in, int reduce_bits) {
   __m256i rounding_offset = _mm256_set1_epi32((1 << (reduce_bits)) >> 1);
 
