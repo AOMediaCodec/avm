@@ -1711,8 +1711,11 @@ const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index) {
   const PcWienerSubClassifiers *sub_class = get_sub_classifiers(set_index);
   switch (num_classes) {
     case 2: return sub_class->pc_wiener_sub_classify_to_2;
+    case 3: return sub_class->pc_wiener_sub_classify_to_3;
     case 4: return sub_class->pc_wiener_sub_classify_to_4;
+    case 6: return sub_class->pc_wiener_sub_classify_to_6;
     case 8: return sub_class->pc_wiener_sub_classify_to_8;
+    case 12: return sub_class->pc_wiener_sub_classify_to_12;
     case 16: return sub_class->pc_wiener_sub_classify_to_16;
     case 64: return sub_class->pc_wiener_sub_classify_to_64;
     default: return pc_wiener_sub_classify_to_1;
@@ -1809,23 +1812,28 @@ static void adjust_filter_and_config(const NonsepFilterConfig *nsfilter_config,
 #endif  // ADD_CENTER_TAP_TO_WIENERNS
 
 #if CONFIG_NEW_CLASSIFY_NS_WIENER
-int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int width, int bit_depth) {
+int get_sub_block_class_id(const uint16_t *dgd, int stride, int height,
+                           int width, int bit_depth) {
   int gred_hor = 0;
   int gred_ver = 0;
   int gred_45 = 0;
   int gred_135 = 0;
-  for (int i = 0; i < height; i ++ ){
-    for ( int j = 0; j < width; j ++) {
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
       const int curr_pos = i * stride + j;
-      gred_hor += abs(2*dgd[curr_pos] - dgd[curr_pos - 1] - dgd[curr_pos + 1]);
-      gred_ver += abs(2*dgd[curr_pos] - dgd[curr_pos - stride] - dgd[curr_pos + stride]);
-      gred_45 += abs(2*dgd[curr_pos] - dgd[curr_pos - stride + 1] - dgd[curr_pos + stride - 1]);
-      gred_135 += abs(2*dgd[curr_pos] - dgd[curr_pos - stride - 1] - dgd[curr_pos + stride + 1]);
+      gred_hor +=
+          abs(2 * dgd[curr_pos] - dgd[curr_pos - 1] - dgd[curr_pos + 1]);
+      gred_ver += abs(2 * dgd[curr_pos] - dgd[curr_pos - stride] -
+                      dgd[curr_pos + stride]);
+      gred_45 += abs(2 * dgd[curr_pos] - dgd[curr_pos - stride + 1] -
+                     dgd[curr_pos + stride - 1]);
+      gred_135 += abs(2 * dgd[curr_pos] - dgd[curr_pos - stride - 1] -
+                      dgd[curr_pos + stride + 1]);
     }
   }
 
   const int strong_dir_threshold = 3;
-  const int activity_threshold[3] = { 4, 16,  32 }; // 4;
+  const int activity_threshold[3] = { 4, 16, 32 };  // 4;
   const int bd8 = bit_depth - 8;
   int dir = 0;
 
@@ -1838,7 +1846,7 @@ int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int widt
   else if (gred_135 > strong_dir_threshold * gred_45)
     dir = 3;
   else
-    dir = 4; // text area;
+    dir = 4;  // text area;
 
   int activity = gred_hor + gred_ver;
   int act_idx = 0;
@@ -1849,16 +1857,16 @@ int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int widt
     act_idx = 1;
   else if (activity <= activity_threshold[2] * block_impact / 4)
     act_idx = 2;
-  else //
+  else  //
     act_idx = 3;
 
   int class_id = 0;
   if (act_idx == 0)
     class_id = 0;
   else
-    class_id = dir * 3  + act_idx;
+    class_id = dir * 3 + act_idx;
 
-  assert (class_id < 16);
+  assert(class_id < 16);
   return class_id;
 }
 #endif
@@ -1904,7 +1912,8 @@ void apply_wienerns_class_id_highbd(
 #if CONFIG_COMBINE_PC_NS_WIENER
   const uint8_t *pc_wiener_sub_classify =
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-      get_pc_wiener_sub_classifier(wienerns_info->num_classes_before_merge, set_index);
+      get_pc_wiener_sub_classifier(wienerns_info->num_classes_before_merge,
+                                   set_index);
 #else
       get_pc_wiener_sub_classifier(num_classes, set_index);
 #endif
@@ -1920,7 +1929,8 @@ void apply_wienerns_class_id_highbd(
 #if CONFIG_COMBINE_PC_NS_WIENER
       if (num_classes > 1) {
 #if CONFIG_NEW_CLASSIFY_NS_WIENER
-        int sub_class_id = get_sub_block_class_id(dgd_row + c, stride, h, w, bit_depth);
+        int sub_class_id =
+            get_sub_block_class_id(dgd_row + c, stride, h, w, bit_depth);
 #else
         const int full_class_id =
             class_id[(r >> MI_SIZE_LOG2) * class_id_stride +
@@ -2436,8 +2446,8 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->tile_stripe0 = 0;
 
 #if CONFIG_TEMP_LR
-    if (rsi->frame_filters_on) // temporal solution for decoder crash/mismatch
-      av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
+    if (rsi->frame_filters_on)  // temporal solution for decoder crash/mismatch
+      av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
 #endif
   }
 }
@@ -2949,15 +2959,43 @@ void av1_loop_restoration_save_boundary_lines(const YV12_BUFFER_CONFIG *frame,
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
+// Fills tap translator to account for the config diffs.
+int wienerns_to_pcwiener_translator(const NonsepFilterConfig *nsfilter_config,
+                                    int *tap_translator, int max_num_taps) {
+  const int num_sym_taps = nsfilter_config->num_pixels / 2;
+  assert(num_sym_taps <= max_num_taps);
+  for (int i = 0; i < num_sym_taps; ++i) {
+    const int filter_pos_row = nsfilter_config->config[2 * i][0];
+    const int filter_pos_col = nsfilter_config->config[2 * i][1];
+    int found_index = -1;
+    for (int j = 0; j < 2 * num_sym_taps; ++j) {
+      if (pcwiener_tap_config_luma[j][0] == filter_pos_row &&
+          pcwiener_tap_config_luma[j][1] == filter_pos_col) {
+        found_index = j;
+        break;
+      }
+    }
+    assert(found_index != -1);
+    tap_translator[i] = pcwiener_tap_config_luma[found_index][2];
+  }
+  return num_sym_taps;
+}
+
+static inline const int16_t *get_matching_filter(
+    const int16_t *match_filter_dictionary, int dict_stride, int filter_index,
+    int c_id, int num_classes) {
+  assert(filter_index >= 0 && filter_index < num_dictionary_slots(num_classes));
+  // assert(filter_index - prev_filters_begin(num_classes) < c_id);
+  assert(is_match_allowed(filter_index, c_id, num_classes));
+  return match_filter_dictionary + filter_index * dict_stride;
+}
 
 void fill_filter_with_match(WienerNonsepInfo *filter,
-                            const WienerNonsepInfo *reference, int set_index,
-                            const int *match_indices,
+                            const int16_t *match_filter_dictionary,
+                            int dict_stride, const int *match_indices,
                             const WienernsFilterParameters *nsfilter_params,
                             int class_id) {
-  (void)set_index;
   const int num_feat = nsfilter_params->ncoeffs;
-  const int16_t all_zeros_filter[WIENERNS_YUV_MAX] = { 0 };
 
   int c_id_begin = 0;
   int c_id_end = filter->num_classes;
@@ -2967,30 +3005,36 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
   }
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     int16_t *wienerns_filter = nsfilter_taps(filter, c_id);
-    const int filter_index = match_indices[c_id];
 
-#if CONFIG_TEMP_LR // ????????? for bug fix???
-    assert(filter_index >= 0 &&
-           filter_index <= ((1 << NUM_FRAME_PREDICTOR_BITS) - 1));
-#else
-    assert(filter_index >= 0 &&
-           filter_index < NUM_PC_WIENER_FILTERS + NUM_WIENERNS_CLASS_INIT_LUMA);
-#endif
-    if (filter_index < NUM_PC_WIENER_FILTERS) {
-      // TODO: Work in the reference filters and trained filters.
-      const int16_t *matching_filter = all_zeros_filter;
-      for (int i = 0; i < num_feat; ++i) {
-        wienerns_filter[i] = matching_filter[i];
-      }
-    } else {
-      const int16_t *matching_filter = all_zeros_filter;
-      int diff_index = filter_index - NUM_PC_WIENER_FILTERS;
-      if (diff_index) {
-        assert(diff_index <= c_id);
-        matching_filter = const_nsfilter_taps(reference, c_id - diff_index);
-      }
-      for (int i = 0; i < num_feat; ++i) {
-        wienerns_filter[i] = matching_filter[i];
+    int filter_index =
+        get_first_match_index(match_indices[c_id], filter->num_classes);
+    assert(filter_index < num_dictionary_slots(filter->num_classes));
+    const int16_t *matching_filter =
+        get_matching_filter(match_filter_dictionary, dict_stride, filter_index,
+                            c_id, filter->num_classes);
+    for (int i = 0; i < num_feat; ++i) {
+      wienerns_filter[i] = matching_filter[i];
+    }
+    if (use_two_predictors[filter->num_classes]) {
+      filter_index =
+          get_second_match_index(match_indices[c_id], filter->num_classes);
+      assert(filter_index < num_dictionary_slots(filter->num_classes));
+      if (filter_index != ILLEGAL_MATCH) {
+        matching_filter =
+            get_matching_filter(match_filter_dictionary, dict_stride,
+                                filter_index, c_id, filter->num_classes);
+        const int total_scale = SCALE_1 + SCALE_2;
+        for (int i = 0; i < num_feat; ++i) {
+          wienerns_filter[i] =
+              SCALE_1 * wienerns_filter[i] + SCALE_2 * matching_filter[i];
+          if (wienerns_filter[i] >= 0) {
+            wienerns_filter[i] =
+                (wienerns_filter[i] + total_scale / 2) / total_scale;
+          } else {
+            wienerns_filter[i] =
+                (wienerns_filter[i] - total_scale / 2) / total_scale;
+          }
+        }
       }
     }
   }
@@ -2999,8 +3043,8 @@ void fill_filter_with_match(WienerNonsepInfo *filter,
 // TODO: Reorg for more efficient compute.
 void fill_first_slot_of_bank_with_filter_match(
     WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
-    const int *match_indices, int base_qindex, int qindex_offset,
-    int class_id) {
+    const int *match_indices, int base_qindex, int class_id,
+    int16_t *match_filter_dictionary, int dict_stride) {
   assert(!bank->frame_filter_predictors_are_set);
 
   const int is_uv = 0;
@@ -3013,8 +3057,6 @@ void fill_first_slot_of_bank_with_filter_match(
       );
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
-  const int set_index = get_filter_set_index(base_qindex + qindex_offset);
-
   WienerNonsepInfo tmp_filter;
   tmp_filter.num_classes = reference->num_classes;
 
@@ -3024,10 +3066,16 @@ void fill_first_slot_of_bank_with_filter_match(
     c_id_begin = class_id;
     c_id_end = class_id + 1;
   }
+  for (int c_id = 0; c_id < c_id_begin; ++c_id) {
+    add_nsfilter_to_dictionary(reference, c_id, nsfilter_params,
+                               match_filter_dictionary, dict_stride);
+  }
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     assert(bank->bank_size_for_class[c_id] == 0);
-    fill_filter_with_match(&tmp_filter, reference, set_index, match_indices,
-                           nsfilter_params, c_id);
+    fill_filter_with_match(&tmp_filter, match_filter_dictionary, dict_stride,
+                           match_indices, nsfilter_params, c_id);
+    add_nsfilter_to_dictionary(reference, c_id, nsfilter_params,
+                               match_filter_dictionary, dict_stride);
   }
   av1_add_to_wienerns_bank(bank, &tmp_filter, class_id);
 }
@@ -3036,7 +3084,7 @@ void fill_first_slot_of_bank_with_filter_match(
 
 #if CONFIG_TEMP_LR
 void av1_copy_rst_frame_filters(RestorationInfo *to, RestorationInfo *from) {
-  assert (from->frame_filters_on);
+  assert(from->frame_filters_on);
 #if 0
   *to = *from;
 #else
@@ -3045,9 +3093,9 @@ void av1_copy_rst_frame_filters(RestorationInfo *to, RestorationInfo *from) {
   to->frame_filters = from->frame_filters;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   to->num_classes_before_merge = from->num_classes_before_merge;
-  memcpy(to->merged_to_indices, from->merged_to_indices, sizeof (from->merged_to_indices[0]*WIENERNS_MAX_CLASSES));
+  memcpy(to->merged_to_indices, from->merged_to_indices,
+         sizeof(from->merged_to_indices[0] * WIENERNS_MAX_CLASSES));
 #endif
 #endif
 }
 #endif  // CONFIG_TEMP_LR
-

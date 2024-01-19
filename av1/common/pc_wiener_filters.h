@@ -657,6 +657,23 @@ static const uint8_t
       2,  2,  2,  2
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_12_0[NUM_PC_WIENER_LUT_CLASSES] = {
+      9,  2,  6,  5,  9,  9, 11, 9, 5,  9,  5,  5,  10, 1,  5,  5, 7,  4,  1,
+      9,  10, 9,  8,  9,  3, 5,  9, 9,  10, 3,  3,  9,  10, 10, 5, 9,  4,  5,
+      2,  9,  5,  10, 10, 5, 9,  7, 5,  5,  0,  9,  3,  9,  7,  5, 4,  9,  8,
+      5,  5,  4,  0,  5,  1, 1,  3, 9,  1,  9,  6,  3,  7,  7,  4, 5,  2,  2,
+      5,  9,  8,  6,  3,  1, 10, 2, 9,  7,  7,  8,  6,  8,  2,  2, 11, 4,  2,
+      11, 1,  5,  5,  9,  1, 1,  1, 7,  6,  4,  10, 4,  11, 9,  8, 8,  0,  0,
+      0,  9,  8,  7,  7,  9, 4,  0, 2,  2,  3,  3,  11, 7,  9,  8, 8,  10, 11,
+      10, 7,  8,  8,  8,  8, 2,  8, 10, 0,  8,  2,  5,  4,  11, 1, 10, 1,  2,
+      8,  0,  11, 7,  6,  7, 8,  3, 9,  8,  4,  10, 4,  9,  7,  3, 5,  5,  6,
+      5,  9,  9,  8,  5,  5, 11, 8, 6,  7,  5,  11, 9,  4,  0,  3, 0,  2,  10,
+      10, 2,  8,  4,  8,  1, 8,  1, 8,  5,  7,  4,  1,  0,  0,  4, 8,  7,  6,
+      7,  11, 2,  11, 11, 6, 3,  3, 11, 3,  11, 3,  4,  11, 11, 6, 1,  10, 1,
+      1,  8,  1,  8,  6,  4, 6,  3, 8,  8,  6,  3,  0,  0,  4,  2, 3,  11, 7,
+      1,  1,  4,  3,  9,  3, 3,  3, 3,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_8_0[NUM_PC_WIENER_LUT_CLASSES] = {
       0, 2, 6, 5, 0, 0, 7, 0, 5, 0, 5, 5, 1, 1, 5, 5, 7, 4, 1, 0, 1, 0, 3, 0,
       3, 5, 0, 0, 1, 3, 3, 0, 1, 1, 5, 0, 4, 5, 2, 0, 5, 1, 1, 5, 0, 7, 5, 5,
@@ -671,6 +688,20 @@ static const uint8_t
       0, 0, 4, 2, 3, 7, 7, 1, 1, 4, 3, 0, 3, 3, 3, 3
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_6_0[NUM_PC_WIENER_LUT_CLASSES] = {
+      4, 2, 3, 1, 4, 4, 1, 4, 1, 4, 1, 1, 5, 5, 1, 1, 1, 3, 5, 4, 5, 4, 0, 4,
+      0, 1, 4, 4, 5, 0, 0, 4, 5, 5, 1, 4, 3, 1, 2, 4, 1, 5, 5, 1, 4, 1, 1, 1,
+      4, 4, 0, 4, 1, 1, 3, 4, 0, 1, 1, 3, 4, 1, 5, 5, 0, 4, 5, 4, 3, 0, 1, 1,
+      3, 1, 2, 2, 1, 4, 0, 3, 0, 5, 5, 2, 4, 1, 1, 0, 3, 0, 2, 2, 1, 3, 2, 1,
+      5, 1, 1, 4, 5, 5, 5, 1, 3, 3, 5, 3, 1, 4, 0, 0, 4, 4, 4, 4, 0, 1, 1, 4,
+      3, 4, 2, 2, 0, 0, 1, 1, 4, 0, 0, 5, 1, 5, 1, 0, 0, 0, 0, 2, 0, 5, 4, 0,
+      2, 1, 3, 1, 5, 5, 5, 2, 0, 4, 1, 1, 3, 1, 0, 0, 4, 0, 3, 5, 3, 4, 1, 0,
+      1, 1, 3, 1, 4, 4, 0, 1, 1, 1, 0, 3, 1, 1, 1, 4, 3, 4, 0, 4, 2, 5, 5, 2,
+      0, 3, 0, 5, 0, 5, 0, 1, 1, 3, 5, 4, 4, 3, 0, 1, 3, 1, 1, 2, 1, 1, 3, 0,
+      0, 1, 0, 1, 0, 3, 1, 1, 3, 5, 5, 5, 5, 0, 5, 0, 3, 3, 3, 0, 0, 0, 3, 0,
+      4, 4, 3, 2, 0, 1, 1, 5, 5, 3, 0, 4, 0, 0, 0, 0,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_4_0[NUM_PC_WIENER_LUT_CLASSES] = {
       1, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 3, 0, 1, 0, 1, 0, 1,
       0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 3, 1, 2, 1, 1, 0, 0, 1, 1, 1, 1, 1,
@@ -683,6 +714,20 @@ static const uint8_t
       0, 3, 0, 0, 0, 0, 0, 1, 1, 3, 0, 1, 1, 3, 0, 1, 3, 1, 1, 2, 1, 1, 3, 0,
       0, 1, 0, 1, 0, 3, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 0, 0, 3, 0,
       1, 1, 3, 2, 0, 1, 1, 0, 0, 3, 0, 1, 0, 0, 0, 0
+    };
+static const uint8_t
+    pc_wiener_sub_classify_to_3_0[NUM_PC_WIENER_LUT_CLASSES] = {
+      2, 1, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 2, 2, 2, 0, 0, 2, 0, 2, 0, 2,
+      0, 2, 2, 2, 0, 0, 0, 2, 0, 0, 2, 2, 0, 2, 1, 2, 2, 0, 0, 2, 2, 2, 2, 2,
+      2, 2, 0, 2, 2, 2, 0, 2, 0, 2, 2, 0, 2, 2, 0, 0, 0, 2, 0, 2, 0, 0, 2, 2,
+      0, 2, 1, 1, 2, 2, 0, 0, 0, 0, 0, 1, 2, 2, 2, 0, 0, 0, 1, 1, 2, 0, 1, 2,
+      0, 2, 2, 2, 0, 0, 0, 2, 0, 0, 0, 0, 2, 2, 0, 0, 2, 2, 2, 2, 0, 2, 2, 2,
+      0, 2, 1, 1, 0, 0, 2, 2, 2, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0,
+      1, 2, 0, 2, 0, 0, 0, 1, 0, 2, 2, 2, 0, 2, 0, 0, 2, 0, 0, 0, 0, 2, 2, 0,
+      2, 2, 0, 2, 2, 2, 0, 2, 2, 2, 0, 0, 2, 2, 2, 2, 0, 2, 0, 2, 1, 0, 0, 1,
+      0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 0, 2, 2, 1, 2, 2, 0, 0,
+      0, 2, 0, 2, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      2, 2, 0, 1, 0, 2, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0,
     };
 static const uint8_t
     pc_wiener_sub_classify_to_2_0[NUM_PC_WIENER_LUT_CLASSES] = {
@@ -736,6 +781,23 @@ static const uint8_t
       0,  1,  0,  0
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_12_1[NUM_PC_WIENER_LUT_CLASSES] = {
+      8,  2,  2,  9,  1,  11, 5,  1,  11, 11, 9,  9,  2, 11, 9,  9,  5, 10, 2,
+      1,  11, 11, 6,  1,  7,  11, 8,  1,  11, 7,  3,  1, 6,  11, 9,  1, 10, 11,
+      5,  11, 6,  11, 6,  9,  1,  1,  11, 11, 0,  11, 7, 1,  5,  11, 2, 1,  10,
+      9,  0,  2,  8,  0,  6,  9,  7,  1,  10, 1,  2,  7, 3,  5,  10, 9, 4,  5,
+      9,  8,  3,  2,  7,  6,  6,  4,  11, 3,  5,  3,  2, 3,  4,  4,  7, 7,  5,
+      5,  6,  9,  9,  8,  10, 6,  9,  3,  2,  2,  6,  2, 5,  0,  3,  7, 0,  3,
+      5,  8,  6,  5,  5,  8,  3,  8,  4,  5,  3,  7,  5, 3,  1,  6,  7, 11, 5,
+      11, 5,  10, 7,  7,  7,  7,  6,  6,  0,  6,  1,  9, 2,  7,  6,  0, 6,  4,
+      7,  8,  5,  4,  2,  3,  3,  7,  1,  3,  3,  6,  6, 11, 3,  3,  0, 11, 2,
+      0,  1,  11, 3,  11, 0,  5,  10, 2,  3,  11, 7,  8, 2,  0,  7,  0, 4,  0,
+      6,  10, 6,  6,  7,  5,  6,  10, 6,  9,  3,  3,  6, 2,  11, 10, 7, 3,  3,
+      5,  7,  4,  3,  7,  3,  7,  7,  5,  1,  5,  7,  5, 5,  3,  2,  3, 6,  6,
+      6,  6,  6,  10, 2,  10, 2,  7,  10, 10, 10, 10, 3, 5,  10, 5,  7, 5,  3,
+      3,  7,  3,  5,  5,  7,  3,  7,  7,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_8_1[NUM_PC_WIENER_LUT_CLASSES] = {
       0, 2, 2, 0, 1, 0, 5, 1, 0, 0, 0, 0, 2, 0, 0, 0, 5, 3, 2, 1, 0, 0, 6, 1,
       7, 0, 0, 1, 0, 7, 3, 1, 6, 0, 0, 1, 3, 0, 5, 0, 6, 0, 6, 0, 1, 1, 0, 0,
@@ -750,6 +812,20 @@ static const uint8_t
       3, 5, 3, 5, 7, 5, 3, 3, 7, 3, 5, 5, 7, 3, 7, 7
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_6_1[NUM_PC_WIENER_LUT_CLASSES] = {
+      5, 2, 2, 5, 1, 5, 1, 1, 5, 5, 5, 5, 2, 5, 5, 5, 1, 4, 2, 1, 5, 5, 0, 1,
+      0, 5, 5, 1, 5, 0, 4, 1, 0, 5, 5, 1, 4, 5, 1, 5, 0, 5, 0, 5, 1, 1, 5, 5,
+      5, 5, 0, 1, 1, 5, 2, 1, 4, 5, 5, 2, 5, 5, 0, 5, 0, 1, 4, 1, 2, 0, 4, 1,
+      4, 5, 3, 1, 5, 5, 4, 2, 0, 0, 0, 3, 5, 4, 1, 4, 2, 4, 3, 3, 0, 0, 1, 1,
+      0, 5, 5, 5, 4, 0, 5, 4, 2, 2, 0, 2, 1, 5, 4, 0, 5, 4, 1, 5, 0, 1, 1, 5,
+      4, 5, 3, 1, 4, 0, 1, 4, 1, 0, 0, 5, 1, 5, 1, 4, 0, 0, 0, 0, 0, 0, 5, 0,
+      1, 5, 2, 0, 0, 5, 0, 3, 0, 5, 1, 3, 2, 4, 4, 0, 1, 4, 4, 0, 0, 5, 4, 4,
+      5, 5, 2, 5, 1, 5, 4, 5, 5, 1, 4, 2, 4, 5, 0, 5, 2, 5, 0, 5, 3, 5, 0, 4,
+      0, 0, 0, 1, 0, 4, 0, 5, 4, 4, 0, 2, 5, 4, 0, 4, 4, 1, 0, 3, 4, 0, 4, 0,
+      0, 1, 1, 1, 0, 1, 1, 4, 2, 4, 0, 0, 0, 0, 0, 4, 2, 4, 2, 0, 4, 4, 4, 4,
+      4, 1, 4, 1, 0, 1, 4, 4, 0, 4, 1, 1, 0, 4, 0, 0,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_4_1[NUM_PC_WIENER_LUT_CLASSES] = {
       1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 0, 2, 1, 1, 1, 0, 1,
       0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1,
@@ -762,6 +838,20 @@ static const uint8_t
       0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0,
       0, 1, 1, 1, 0, 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0,
       0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0
+    };
+static const uint8_t
+    pc_wiener_sub_classify_to_3_1[NUM_PC_WIENER_LUT_CLASSES] = {
+      1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 0, 2, 1, 1, 1, 0, 1,
+      0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1,
+      1, 1, 0, 1, 1, 1, 2, 1, 0, 1, 1, 2, 1, 1, 0, 1, 0, 1, 0, 1, 2, 0, 0, 1,
+      0, 1, 1, 1, 1, 1, 0, 2, 0, 0, 0, 1, 1, 0, 1, 0, 2, 0, 1, 1, 0, 0, 1, 1,
+      0, 1, 1, 1, 0, 0, 1, 0, 2, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1,
+      0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+      1, 1, 2, 0, 0, 1, 0, 1, 0, 1, 1, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0,
+      1, 1, 2, 1, 1, 1, 0, 1, 1, 1, 0, 2, 0, 1, 0, 1, 2, 1, 0, 1, 1, 1, 0, 0,
+      0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0,
+      0, 1, 1, 1, 0, 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0,
+      0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
     };
 static const uint8_t
     pc_wiener_sub_classify_to_2_1[NUM_PC_WIENER_LUT_CLASSES] = {
@@ -815,6 +905,23 @@ static const uint8_t
       15, 9,  10, 13
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_12_2[NUM_PC_WIENER_LUT_CLASSES] = {
+      10, 3,  8,  7,  3,  3,  11, 3,  3,  3,  10, 10, 8, 3,  10, 10, 1,  9,  9,
+      7,  3,  3,  8,  3,  4,  3,  7,  7,  3,  6,  11, 3, 6,  6,  1,  7,  9,  3,
+      2,  10, 9,  6,  8,  1,  7,  3,  3,  6,  0,  3,  4, 7,  1,  3,  9,  7,  11,
+      1,  10, 10, 7,  10, 6,  7,  11, 7,  6,  3,  8,  4, 2,  1,  9,  9,  7,  7,
+      1,  7,  1,  9,  11, 6,  6,  7,  3,  11, 1,  6,  8, 2,  7,  5,  4,  6,  7,
+      11, 8,  1,  9,  1,  6,  6,  9,  1,  8,  8,  9,  9, 2,  3,  11, 4,  0,  9,
+      1,  7,  6,  7,  1,  1,  9,  7,  5,  7,  2,  11, 7, 11, 7,  10, 10, 10, 11,
+      3,  11, 11, 4,  3,  4,  7,  6,  10, 0,  6,  10, 1, 8,  4,  6,  8,  6,  3,
+      4,  7,  11, 7,  8,  11, 8,  11, 7,  1,  11, 6,  8, 3,  2,  11, 10, 3,  8,
+      10, 3,  3,  1,  3,  10, 7,  11, 8,  6,  3,  4,  1, 8,  10, 4,  10, 5,  9,
+      6,  5,  6,  8,  6,  1,  6,  6,  6,  10, 1,  11, 6, 0,  5,  11, 6,  11, 11,
+      7,  6,  7,  6,  4,  11, 11, 4,  0,  3,  0,  4,  7, 11, 11, 8,  6,  6,  1,
+      8,  6,  8,  8,  8,  9,  8,  4,  8,  8,  8,  8,  9, 1,  9,  5,  6,  11, 11,
+      6,  4,  0,  11, 7,  4,  8,  11, 6,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_8_2[NUM_PC_WIENER_LUT_CLASSES] = {
       3, 3, 6, 7, 3, 3, 2, 3, 3, 3, 3, 3, 6, 3, 3, 3, 1, 6, 6, 7, 3, 3, 6, 3,
       4, 3, 7, 7, 3, 6, 2, 3, 6, 6, 1, 7, 6, 3, 2, 3, 6, 6, 6, 1, 7, 3, 3, 6,
@@ -829,6 +936,20 @@ static const uint8_t
       6, 1, 6, 5, 6, 2, 2, 6, 4, 0, 2, 7, 4, 6, 2, 6
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_6_2[NUM_PC_WIENER_LUT_CLASSES] = {
+      2, 2, 4, 5, 2, 2, 1, 2, 2, 2, 2, 2, 4, 2, 2, 2, 1, 4, 4, 5, 2, 2, 4, 2,
+      3, 2, 5, 5, 2, 4, 1, 2, 4, 4, 1, 5, 4, 2, 1, 2, 4, 4, 4, 1, 5, 2, 2, 4,
+      1, 2, 3, 5, 1, 2, 4, 5, 1, 1, 2, 2, 5, 2, 4, 5, 1, 5, 4, 2, 4, 3, 1, 1,
+      4, 4, 5, 5, 1, 5, 1, 4, 1, 4, 4, 5, 2, 1, 1, 4, 4, 1, 5, 0, 3, 4, 5, 1,
+      4, 1, 4, 1, 4, 4, 4, 1, 4, 4, 4, 4, 1, 2, 1, 3, 1, 4, 1, 5, 4, 5, 1, 1,
+      4, 5, 0, 5, 1, 1, 5, 1, 5, 2, 2, 2, 1, 2, 1, 1, 3, 2, 3, 5, 4, 2, 1, 4,
+      2, 1, 4, 3, 4, 4, 4, 2, 3, 5, 1, 5, 4, 1, 4, 1, 5, 1, 1, 4, 4, 2, 1, 1,
+      2, 2, 4, 2, 2, 2, 1, 2, 2, 5, 1, 4, 4, 2, 3, 1, 4, 2, 3, 2, 0, 4, 4, 0,
+      4, 4, 4, 1, 4, 4, 4, 2, 1, 1, 4, 1, 0, 1, 4, 1, 1, 5, 4, 5, 4, 3, 1, 1,
+      3, 1, 2, 1, 3, 5, 1, 1, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4,
+      4, 1, 4, 0, 4, 1, 1, 4, 3, 1, 1, 5, 3, 4, 1, 4,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_4_2[NUM_PC_WIENER_LUT_CLASSES] = {
       2, 2, 3, 1, 2, 2, 1, 2, 2, 2, 2, 2, 3, 2, 2, 2, 1, 3, 3, 1, 2, 2, 3, 2,
       3, 2, 1, 1, 2, 3, 1, 2, 3, 3, 1, 1, 3, 2, 1, 2, 3, 3, 3, 1, 1, 2, 2, 3,
@@ -841,6 +962,20 @@ static const uint8_t
       3, 3, 3, 1, 3, 3, 3, 2, 1, 1, 3, 1, 0, 1, 3, 1, 1, 1, 3, 1, 3, 3, 1, 1,
       3, 1, 2, 1, 3, 1, 1, 1, 3, 3, 3, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
       3, 1, 3, 0, 3, 1, 1, 3, 3, 1, 1, 1, 3, 3, 1, 3
+    };
+static const uint8_t
+    pc_wiener_sub_classify_to_3_2[NUM_PC_WIENER_LUT_CLASSES] = {
+      2, 2, 1, 1, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 1, 1, 1, 2, 2, 1, 2,
+      1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 2, 1,
+      1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1,
+      2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1,
+      2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 0, 1, 1, 0,
+      1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     };
 static const uint8_t
     pc_wiener_sub_classify_to_2_2[NUM_PC_WIENER_LUT_CLASSES] = {
@@ -894,6 +1029,24 @@ static const uint8_t
       7,  13, 7,  7
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_12_3[NUM_PC_WIENER_LUT_CLASSES] = {
+      10, 5,  8,  9,  6,  9,  1,  10, 9,  2,  9,  9,  9,  5,  9,  9,  10, 11,
+      9,  1,  9,  5,  8,  1,  7,  5,  10, 1,  9,  7,  7,  1,  9,  9,  10, 10,
+      11, 9,  3,  10, 9,  9,  9,  9,  10, 9,  10, 9,  5,  5,  3,  10, 10, 9,
+      9,  10, 1,  10, 9,  9,  9,  9,  9,  9,  7,  10, 11, 5,  11, 7,  3,  10,
+      11, 10, 6,  4,  10, 10, 7,  11, 7,  9,  8,  6,  9,  1,  10, 8,  8,  1,
+      6,  6,  6,  8,  3,  7,  8,  11, 8,  10, 8,  8,  9,  10, 8,  8,  8,  9,
+      3,  5,  1,  2,  1,  9,  10, 10, 9,  7,  10, 10, 8,  10, 4,  6,  3,  7,
+      3,  7,  10, 7,  10, 9,  10, 9,  6,  11, 2,  2,  2,  3,  8,  7,  1,  7,
+      0,  10, 8,  7,  11, 9,  8,  6,  2,  5,  7,  10, 8,  8,  1,  7,  10, 9,
+      11, 9,  8,  5,  3,  1,  11, 9,  9,  9,  1,  1,  7,  1,  8,  10, 11, 8,
+      10, 5,  7,  10, 8,  9,  6,  1,  0,  10, 9,  3,  9,  8,  7,  11, 8,  11,
+      8,  9,  10, 11, 8,  0,  5,  11, 7,  11, 8,  6,  7,  6,  7,  7,  7,  7,
+      7,  3,  6,  0,  7,  0,  7,  1,  8,  8,  8,  11, 8,  8,  8,  8,  8,  8,
+      8,  3,  8,  8,  8,  8,  10, 9,  8,  6,  7,  10, 7,  8,  7,  1,  7,  6,
+      7,  8,  7,  7,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_8_3[NUM_PC_WIENER_LUT_CLASSES] = {
       1, 5, 7, 7, 6, 7, 1, 1, 7, 2, 7, 7, 7, 5, 7, 7, 1, 7, 7, 1, 7, 5, 7, 1,
       7, 5, 1, 1, 7, 7, 7, 1, 7, 7, 1, 1, 7, 7, 3, 1, 7, 7, 7, 7, 1, 7, 1, 7,
@@ -906,6 +1059,20 @@ static const uint8_t
       7, 7, 7, 7, 7, 7, 7, 7, 1, 7, 7, 0, 5, 7, 7, 7, 7, 6, 7, 6, 7, 7, 7, 7,
       7, 3, 6, 0, 7, 0, 7, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 3, 7, 7, 7, 7,
       1, 7, 7, 6, 7, 1, 7, 7, 7, 1, 7, 6, 7, 7, 7, 7
+    };
+static const uint8_t
+    pc_wiener_sub_classify_to_6_3[NUM_PC_WIENER_LUT_CLASSES] = {
+      4, 5, 1, 1, 3, 1, 4, 4, 1, 2, 1, 1, 1, 5, 1, 1, 4, 1, 1, 4, 1, 5, 1, 4,
+      1, 5, 4, 4, 1, 1, 1, 4, 1, 1, 4, 4, 1, 1, 0, 4, 1, 1, 1, 1, 4, 1, 4, 1,
+      5, 5, 0, 4, 4, 1, 1, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 4, 1, 5, 1, 1, 0, 4,
+      1, 4, 3, 3, 4, 4, 1, 1, 1, 1, 1, 3, 1, 4, 4, 1, 1, 4, 3, 3, 3, 1, 0, 1,
+      1, 1, 1, 4, 1, 1, 1, 4, 1, 1, 1, 1, 0, 5, 4, 2, 4, 1, 4, 4, 1, 1, 4, 4,
+      1, 4, 3, 3, 0, 1, 0, 1, 4, 1, 4, 1, 4, 1, 3, 1, 2, 2, 2, 0, 1, 1, 4, 1,
+      0, 4, 1, 1, 1, 1, 1, 3, 2, 5, 1, 4, 1, 1, 4, 1, 4, 1, 1, 1, 1, 5, 0, 4,
+      1, 1, 1, 1, 4, 4, 1, 4, 1, 4, 1, 1, 4, 5, 1, 4, 1, 1, 3, 4, 0, 4, 1, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 0, 5, 1, 1, 1, 1, 3, 1, 3, 1, 1, 1, 1,
+      1, 0, 3, 0, 1, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+      4, 1, 1, 3, 1, 4, 1, 1, 1, 4, 1, 3, 1, 1, 1, 1,
     };
 static const uint8_t
     pc_wiener_sub_classify_to_4_3[NUM_PC_WIENER_LUT_CLASSES] = {
@@ -922,6 +1089,20 @@ static const uint8_t
       1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1
     };
 static const uint8_t
+    pc_wiener_sub_classify_to_3_3[NUM_PC_WIENER_LUT_CLASSES] = {
+      1, 2, 1, 1, 0, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1,
+      1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      2, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 0, 1,
+      1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 2, 2, 2, 0, 1, 1, 1, 1,
+      0, 1, 1, 1, 1, 1, 1, 0, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1,
+      1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+      1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+    };
+static const uint8_t
     pc_wiener_sub_classify_to_2_3[NUM_PC_WIENER_LUT_CLASSES] = {
       1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1,
       1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -935,494 +1116,170 @@ static const uint8_t
       1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
       1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1
     };
-
-static const uint8_t pc_wiener_collapse_16_0[4][16] = {
-  {
-      7,
-      2,
-      3,
-      1,
-      1,
-      3,
-      2,
-      7,
-      4,
-      6,
-      1,
-      6,
-      5,
-      4,
-      0,
-      0,
-  },  // to  8
-  {
-      1,
-      2,
-      0,
-      0,
-      0,
-      0,
-      2,
-      1,
-      3,
-      3,
-      0,
-      3,
-      1,
-      3,
-      1,
-      1,
-  },  // to  4
-  {
-      1,
-      1,
-      0,
-      0,
-      0,
-      0,
-      1,
-      1,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      1,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+// clang-format off
+static const uint8_t pc_wiener_collapse_16_0[7][16] = {
+{ 11, 2, 3, 1, 1, 8, 2, 7, 4, 6, 10, 6, 5, 4, 9, 0,},   // to 12
+{ 7, 2, 3, 1, 1, 3, 2, 7, 4, 6, 1, 6, 5, 4, 0, 0,},   // to 8
+{ 1, 2, 0, 5, 5, 0, 2, 1, 3, 3, 5, 3, 1, 3, 4, 4,},   // to 6
+{ 1, 2, 0, 0, 0, 0, 2, 1, 3, 3, 0, 3, 1, 3, 1, 1,},   // to 4
+{ 2, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 2, 0, 2, 2,},   // to 3
+{ 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_8_0[3][8] = {
-  {
-      1,
-      0,
-      2,
-      0,
-      3,
-      1,
-      3,
-      1,
-  },  // to  4
-  {
-      1,
-      0,
-      1,
-      0,
-      0,
-      1,
-      0,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_12_0[6][12] = {
+{ 0, 1, 2, 3, 4, 5, 6, 7, 3, 0, 1, 7,},   // to 8
+{ 4, 5, 2, 0, 3, 1, 3, 1, 0, 4, 5, 1,},   // to 6
+{ 1, 0, 2, 0, 3, 1, 3, 1, 0, 1, 0, 1,},   // to 4
+{ 2, 0, 1, 0, 0, 2, 0, 2, 0, 2, 0, 2,},   // to 3
+{ 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_4_0[2][4] = {
-  {
-      0,
-      1,
-      1,
-      0,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_8_0[5][8] = {
+{ 4, 5, 2, 0, 3, 1, 3, 1,},   // to 6
+{ 1, 0, 2, 0, 3, 1, 3, 1,},   // to 4
+{ 2, 0, 1, 0, 0, 2, 0, 2,},   // to 3
+{ 1, 0, 1, 0, 0, 1, 0, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_6_0[4][6] = {
+{ 0, 1, 2, 3, 1, 0,},   // to 4
+{ 0, 2, 1, 0, 2, 0,},   // to 3
+{ 0, 1, 1, 0, 1, 0,},   // to 2
+{ 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_4_0[3][4] = {
+{ 0, 2, 1, 0,},   // to 3
+{ 0, 1, 1, 0,},   // to 2
+{ 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_3_0[2][3] = {
+{ 0, 1, 1,},   // to 2
+{ 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_16_1[7][16] = {
+{ 7, 3, 11, 5, 2, 5, 0, 8, 4, 3, 6, 3, 2, 9, 10, 1,},   // to 12
+{ 7, 3, 0, 5, 2, 5, 0, 0, 4, 3, 6, 3, 2, 0, 3, 1,},   // to 8
+{ 0, 4, 5, 1, 2, 1, 5, 5, 3, 4, 0, 4, 2, 5, 4, 1,},   // to 6
+{ 0, 0, 1, 1, 2, 1, 1, 1, 3, 0, 0, 0, 2, 1, 0, 1,},   // to 4
+{ 0, 0, 1, 1, 2, 1, 1, 1, 1, 0, 0, 0, 2, 1, 0, 1,},   // to 3
+{ 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_12_1[6][12] = {
+{ 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 3, 0,},   // to 8
+{ 5, 1, 2, 4, 3, 1, 0, 0, 5, 5, 4, 5,},   // to 6
+{ 1, 1, 2, 0, 3, 1, 0, 0, 1, 1, 0, 1,},   // to 4
+{ 1, 1, 2, 0, 1, 1, 0, 0, 1, 1, 0, 1,},   // to 3
+{ 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_8_1[5][8] = {
+{ 5, 1, 2, 4, 3, 1, 0, 0,},   // to 6
+{ 1, 1, 2, 0, 3, 1, 0, 0,},   // to 4
+{ 1, 1, 2, 0, 1, 1, 0, 0,},   // to 3
+{ 1, 1, 0, 0, 1, 1, 0, 0,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_6_1[4][6] = {
+{ 0, 1, 2, 3, 0, 1,},   // to 4
+{ 0, 1, 2, 1, 0, 1,},   // to 3
+{ 0, 1, 0, 1, 0, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_4_1[3][4] = {
+{ 0, 1, 2, 1,},   // to 3
+{ 0, 1, 0, 1,},   // to 2
+{ 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_3_1[2][3] = {
+{ 0, 1, 0,},   // to 2
+{ 0, 0, 0,},   // to 1
 };
 
-static const uint8_t pc_wiener_collapse_16_1[4][16] = {
-  {
-      7,
-      3,
-      0,
-      5,
-      2,
-      5,
-      0,
-      0,
-      4,
-      3,
-      6,
-      3,
-      2,
-      0,
-      3,
-      1,
-  },  // to  8
-  {
-      0,
-      0,
-      1,
-      1,
-      2,
-      1,
-      1,
-      1,
-      3,
-      0,
-      0,
-      0,
-      2,
-      1,
-      0,
-      1,
-  },  // to  4
-  {
-      0,
-      0,
-      1,
-      1,
-      0,
-      1,
-      1,
-      1,
-      1,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_16_2[7][16] = {
+{ 3, 7, 4, 5, 5, 0, 10, 3, 2, 8, 11, 7, 1, 6, 9, 4,},   // to 12
+{ 3, 7, 4, 5, 5, 0, 3, 3, 2, 6, 2, 7, 1, 6, 6, 4,},   // to 8
+{ 2, 5, 3, 0, 0, 1, 2, 2, 1, 4, 1, 5, 1, 4, 4, 3,},   // to 6
+{ 2, 1, 3, 0, 0, 1, 2, 2, 1, 3, 1, 1, 1, 3, 3, 3,},   // to 4
+{ 2, 1, 1, 0, 0, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1,},   // to 3
+{ 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_8_1[3][8] = {
-  {
-      1,
-      1,
-      2,
-      0,
-      3,
-      1,
-      0,
-      0,
-  },  // to  4
-  {
-      1,
-      1,
-      0,
-      0,
-      1,
-      1,
-      0,
-      0,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_12_2[6][12] = {
+{ 0, 1, 2, 3, 4, 5, 6, 7, 6, 6, 3, 2,},   // to 8
+{ 1, 1, 1, 2, 3, 0, 4, 5, 4, 4, 2, 1,},   // to 6
+{ 1, 1, 1, 2, 3, 0, 3, 1, 3, 3, 2, 1,},   // to 4
+{ 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 2, 1,},   // to 3
+{ 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_4_1[2][4] = {
-  {
-      0,
-      1,
-      0,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_8_2[5][8] = {
+{ 1, 1, 1, 2, 3, 0, 4, 5,},   // to 6
+{ 1, 1, 1, 2, 3, 0, 3, 1,},   // to 4
+{ 1, 1, 1, 2, 1, 0, 1, 1,},   // to 3
+{ 1, 1, 1, 1, 1, 0, 1, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_6_2[4][6] = {
+{ 0, 1, 2, 3, 3, 1,},   // to 4
+{ 0, 1, 2, 1, 1, 1,},   // to 3
+{ 0, 1, 1, 1, 1, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_4_2[3][4] = {
+{ 0, 1, 2, 1,},   // to 3
+{ 0, 1, 1, 1,},   // to 2
+{ 0, 0, 0, 0,},   // to 1
+};
+static const uint8_t pc_wiener_collapse_3_2[2][3] = {
+{ 0, 1, 1,},   // to 2
+{ 0, 0, 0,},   // to 1
 };
 
-static const uint8_t pc_wiener_collapse_16_2[4][16] = {
-  {
-      3,
-      7,
-      4,
-      5,
-      5,
-      0,
-      3,
-      3,
-      2,
-      6,
-      2,
-      7,
-      1,
-      6,
-      6,
-      4,
-  },  // to  8
-  {
-      2,
-      1,
-      3,
-      0,
-      0,
-      1,
-      2,
-      2,
-      1,
-      3,
-      1,
-      1,
-      1,
-      3,
-      3,
-      3,
-  },  // to  4
-  {
-      1,
-      1,
-      1,
-      0,
-      0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_16_3[7][16] = {
+{ 6, 6, 5, 4, 1, 3, 2, 7, 9, 10, 1, 3, 5, 8, 11, 0,},   // to 12
+{ 6, 6, 5, 4, 1, 3, 2, 7, 7, 1, 1, 3, 5, 7, 7, 0,},   // to 8
+{ 3, 3, 5, 3, 4, 0, 2, 1, 1, 4, 4, 0, 5, 1, 1, 0,},   // to 6
+{ 3, 3, 2, 3, 1, 0, 2, 1, 1, 1, 1, 0, 2, 1, 1, 0,},   // to 4
+{ 0, 0, 2, 0, 1, 0, 2, 1, 1, 1, 1, 0, 2, 1, 1, 0,},   // to 3
+{ 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_8_2[3][8] = {
-  {
-      1,
-      1,
-      1,
-      2,
-      3,
-      0,
-      3,
-      1,
-  },  // to  4
-  {
-      1,
-      1,
-      1,
-      1,
-      1,
-      0,
-      1,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_12_3[6][12] = {
+{ 0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 1, 7,},   // to 8
+{ 0, 4, 2, 0, 3, 5, 3, 1, 1, 1, 4, 1,},   // to 6
+{ 0, 1, 2, 0, 3, 2, 3, 1, 1, 1, 1, 1,},   // to 4
+{ 0, 1, 2, 0, 0, 2, 0, 1, 1, 1, 1, 1,},   // to 3
+{ 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_4_2[2][4] = {
-  {
-      0,
-      1,
-      1,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_8_3[5][8] = {
+{ 0, 4, 2, 0, 3, 5, 3, 1,},   // to 6
+{ 0, 1, 2, 0, 3, 2, 3, 1,},   // to 4
+{ 0, 1, 2, 0, 0, 2, 0, 1,},   // to 3
+{ 0, 1, 0, 0, 0, 0, 0, 1,},   // to 2
+{ 0, 0, 0, 0, 0, 0, 0, 0,},   // to 1
 };
-
-static const uint8_t pc_wiener_collapse_16_3[4][16] = {
-  {
-      6,
-      6,
-      5,
-      4,
-      1,
-      3,
-      2,
-      7,
-      7,
-      1,
-      1,
-      3,
-      5,
-      7,
-      7,
-      0,
-  },  // to  8
-  {
-      3,
-      3,
-      2,
-      3,
-      1,
-      0,
-      2,
-      1,
-      1,
-      1,
-      1,
-      0,
-      2,
-      1,
-      1,
-      0,
-  },  // to  4
-  {
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      0,
-      1,
-      1,
-      1,
-      1,
-      0,
-      0,
-      1,
-      1,
-      0,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_6_3[4][6] = {
+{ 0, 1, 2, 3, 1, 2,},   // to 4
+{ 0, 1, 2, 0, 1, 2,},   // to 3
+{ 0, 1, 0, 0, 1, 0,},   // to 2
+{ 0, 0, 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_8_3[3][8] = {
-  {
-      0,
-      1,
-      2,
-      0,
-      3,
-      2,
-      3,
-      1,
-  },  // to  4
-  {
-      0,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_4_3[3][4] = {
+{ 0, 1, 2, 0,},   // to 3
+{ 0, 1, 0, 0,},   // to 2
+{ 0, 0, 0, 0,},   // to 1
 };
-static const uint8_t pc_wiener_collapse_4_3[2][4] = {
-  {
-      0,
-      1,
-      0,
-      0,
-  },  // to  2
-  {
-      0,
-      0,
-      0,
-      0,
-  },  // to  1
+static const uint8_t pc_wiener_collapse_3_3[2][3] = {
+{ 0, 1, 0,},   // to 2
+{ 0, 0, 0,},   // to 1
 };
 
 static const uint8_t pc_wiener_collapse_2[1][2] = {
   { 0 },  // to  1
 };
+// clang-format on
 
 // qindex ranges 0 : [0, 130), 1: [130, 190), 2: [190, 220), 3: [220, 270)]
 static AOM_INLINE int get_filter_set_index(int base_qindex) {
@@ -1461,37 +1318,52 @@ static AOM_INLINE const uint8_t *get_filter_selector(int filter_set_index) {
 typedef struct PcWienerSubClassifiers {
   const uint8_t *pc_wiener_sub_classify_to_64;
   const uint8_t *pc_wiener_sub_classify_to_16;
+  const uint8_t *pc_wiener_sub_classify_to_12;
   const uint8_t *pc_wiener_sub_classify_to_8;
+  const uint8_t *pc_wiener_sub_classify_to_6;
   const uint8_t *pc_wiener_sub_classify_to_4;
+  const uint8_t *pc_wiener_sub_classify_to_3;
   const uint8_t *pc_wiener_sub_classify_to_2;
 } PcWienerSubClassifiers;
 
 static const PcWienerSubClassifiers subclass0 = {
   .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_0,
   .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_0,
+  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_0,
   .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_0,
+  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_0,
   .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_0,
+  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_0,
   .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_0
 };
 static const PcWienerSubClassifiers subclass1 = {
   .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_1,
   .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_1,
+  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_1,
   .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_1,
+  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_1,
   .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_1,
+  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_1,
   .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_1
 };
 static const PcWienerSubClassifiers subclass2 = {
   .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_2,
   .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_2,
+  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_2,
   .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_2,
+  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_2,
   .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_2,
+  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_2,
   .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_2
 };
 static const PcWienerSubClassifiers subclass3 = {
   .pc_wiener_sub_classify_to_64 = pc_wiener_sub_classify_to_64_3,
   .pc_wiener_sub_classify_to_16 = pc_wiener_sub_classify_to_16_3,
+  .pc_wiener_sub_classify_to_12 = pc_wiener_sub_classify_to_12_3,
   .pc_wiener_sub_classify_to_8 = pc_wiener_sub_classify_to_8_3,
+  .pc_wiener_sub_classify_to_6 = pc_wiener_sub_classify_to_6_3,
   .pc_wiener_sub_classify_to_4 = pc_wiener_sub_classify_to_4_3,
+  .pc_wiener_sub_classify_to_3 = pc_wiener_sub_classify_to_3_3,
   .pc_wiener_sub_classify_to_2 = pc_wiener_sub_classify_to_2_3
 };
 
@@ -1512,11 +1384,14 @@ static AOM_INLINE const PcWienerSubClassifiers *get_sub_classifiers(
 
 // Returns a number to encode for each possible value of num_classes.
 static AOM_INLINE int encode_num_filter_classes(int num_classes) {
-  assert((1 << NUM_FILTER_CLASSES_BITS) > 4);
+  assert((1 << NUM_FILTER_CLASSES_BITS) > 7);
   switch (num_classes) {
-    case 16: return 4;
-    case 8: return 3;
-    case 4: return 2;
+    case 16: return 7;
+    case 12: return 6;
+    case 8: return 5;
+    case 6: return 4;
+    case 4: return 3;
+    case 3: return 2;
     case 2: return 1;
     case 1: return 0;
     default: assert(0); return 0;
@@ -1525,11 +1400,14 @@ static AOM_INLINE int encode_num_filter_classes(int num_classes) {
 
 // Returns a number to encode for each possible value of num_classes.
 static AOM_INLINE int decode_num_filter_classes(int encoded_num_classes) {
-  assert((1 << NUM_FILTER_CLASSES_BITS) > 4);
+  assert((1 << NUM_FILTER_CLASSES_BITS) > 7);
   switch (encoded_num_classes) {
-    case 4: return 16;
-    case 3: return 8;
-    case 2: return 4;
+    case 7: return 16;
+    case 6: return 12;
+    case 5: return 8;
+    case 4: return 6;
+    case 3: return 4;
+    case 2: return 3;
     case 1: return 2;
     case 0: return 1;
     default: assert(0); return 1;
@@ -1545,16 +1423,20 @@ static AOM_INLINE const uint8_t *get_converter(int filter_set_index,
     return pc_wiener_sub_classify_to_1;
   }
   if (num_classes == 1) return pc_wiener_sub_classify_to_1;
-  if (num_classes != 16 && num_classes != 8 && num_classes != 4 &&
-      num_classes != 2 && num_classes != 1) {
+  const int allowed_classes[] = { 16, 12, 8, 6, 4, 3, 2, 1 };
+  const int num_allowed_classes =
+      sizeof(allowed_classes) / sizeof(*allowed_classes);
+  int base_idx = -1;
+  int target_idx = -1;
+  for (int i = 0; i < num_allowed_classes; ++i) {
+    if (num_classes == allowed_classes[i]) base_idx = i;
+    if (target_classes == allowed_classes[i]) target_idx = i;
+  }
+  if (base_idx == -1 || target_idx == -1) {
     assert(0);
     return pc_wiener_sub_classify_to_1;
   }
-  if (target_classes != 16 && target_classes != 8 && target_classes != 4 &&
-      target_classes != 2 && target_classes != 1) {
-    assert(0);
-    return pc_wiener_sub_classify_to_1;
-  }
+
   int row = 1;
   while (num_classes >> row > target_classes) ++row;
   --row;
@@ -1563,32 +1445,44 @@ static AOM_INLINE const uint8_t *get_converter(int filter_set_index,
     case 0:
       switch (num_classes) {
         case 16: return pc_wiener_collapse_16_0[row];
+        case 12: return pc_wiener_collapse_12_0[row];
         case 8: return pc_wiener_collapse_8_0[row];
+        case 6: return pc_wiener_collapse_6_0[row];
         case 4: return pc_wiener_collapse_4_0[row];
+        case 3: return pc_wiener_collapse_3_0[row];
         case 2: return pc_wiener_collapse_2[row];
         default: assert(0); return pc_wiener_sub_classify_to_1;
       }
     case 1:
       switch (num_classes) {
         case 16: return pc_wiener_collapse_16_1[row];
+        case 12: return pc_wiener_collapse_12_1[row];
         case 8: return pc_wiener_collapse_8_1[row];
+        case 6: return pc_wiener_collapse_6_1[row];
         case 4: return pc_wiener_collapse_4_1[row];
+        case 3: return pc_wiener_collapse_3_1[row];
         case 2: return pc_wiener_collapse_2[row];
         default: assert(0); return pc_wiener_sub_classify_to_1;
       }
     case 2:
       switch (num_classes) {
         case 16: return pc_wiener_collapse_16_2[row];
+        case 12: return pc_wiener_collapse_12_2[row];
         case 8: return pc_wiener_collapse_8_2[row];
+        case 6: return pc_wiener_collapse_6_2[row];
         case 4: return pc_wiener_collapse_4_2[row];
+        case 3: return pc_wiener_collapse_3_2[row];
         case 2: return pc_wiener_collapse_2[row];
         default: assert(0); return pc_wiener_sub_classify_to_1;
       }
     case 3:
       switch (num_classes) {
         case 16: return pc_wiener_collapse_16_3[row];
+        case 12: return pc_wiener_collapse_12_3[row];
         case 8: return pc_wiener_collapse_8_3[row];
+        case 6: return pc_wiener_collapse_6_3[row];
         case 4: return pc_wiener_collapse_4_3[row];
+        case 3: return pc_wiener_collapse_3_3[row];
         case 2: return pc_wiener_collapse_2[row];
         default: assert(0); return pc_wiener_sub_classify_to_1;
       }

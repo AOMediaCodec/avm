@@ -1648,6 +1648,11 @@ typedef struct AV1Common {
    */
   CdefInfo cdef_info;
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+  int16_t *match_filter_dictionary;
+  int match_dictionary_stride;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
 #if CONFIG_CCSO
   /*!
    * CCSO (Cross Component Sample Offset) parameters.
@@ -1872,6 +1877,20 @@ typedef struct AV1Common {
 } AV1_COMMON;
 
 /*!\cond */
+#if CONFIG_COMBINE_PC_NS_WIENER
+#define PRINT_FILTER 0
+#define PRINT_REFS 1
+int16_t *allocate_match_filter_dictionary(int *dict_stride);
+void free_match_filter_dictionary(int16_t *match_filter_dictionary,
+                                  int *dict_stride);
+void add_nsfilter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
+                                const WienernsFilterParameters *nsfilter_params,
+                                int16_t *match_filter_dictionary,
+                                int dict_stride);
+void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
+                                      int16_t *match_filter_dictionary,
+                                      int dict_stride, const char *prefix);
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_LR_IMPROVEMENTS
 #define ILLEGAL_TXK_SKIP_VALUE 255

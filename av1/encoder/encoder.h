@@ -3645,6 +3645,13 @@ static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
             cm->current_frame.frame_type == KEY_FRAME);
 }
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+static inline int skip_frame_filters(const AV1_COMMON *cm) {
+  (void)cm;
+  return 0;
+}
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
 // Get index into the 'cpi->mbmi_ext_info.frame_base' array for the given
 // 'mi_row' and 'mi_col'.
 static INLINE int get_mi_ext_idx(const int mi_row, const int mi_col,

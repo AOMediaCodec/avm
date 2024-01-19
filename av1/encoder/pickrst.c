@@ -188,7 +188,7 @@ typedef struct {
   int merged_to_indices[WIENERNS_MAX_CLASSES];
   // Best merged to index arrary
   int best_merged_to_indices[WIENERNS_MAX_CLASSES];
-#endif //CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+#endif  // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
 
   WienerNonsepInfoBank frame_filter_dictionary;
   double frame_filter_cost;
@@ -212,9 +212,9 @@ typedef struct {
   Vector *unit_indices;
 #endif  // CONFIG_LR_MERGE_COEFFS
 #if CONFIG_TEMP_LR
-  //whether frame filter is predicted from a reference picture
+  // whether frame filter is predicted from a reference picture
   uint8_t temporal_pred_flag;
-  //reference picture index for frame level filter prediction
+  // reference picture index for frame level filter prediction
   uint8_t rst_ref_pic_idx;
   WienerNonsepInfo frame_filters;
 #endif
@@ -1250,7 +1250,8 @@ static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
   rui->wienerns_info.num_classes = rsc->num_filter_classes;
   rui->wienerns_info.frame_filters_on = rsc->frame_filters_on;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  rui->wienerns_info.num_classes_before_merge = rsc->num_filter_classes_before_merge;
+  rui->wienerns_info.num_classes_before_merge =
+      rsc->num_filter_classes_before_merge;
 #endif
 }
 
@@ -2582,12 +2583,14 @@ static int64_t count_wienerns_bits_set(
 }
 #endif  // CONFIG_LR_MERGE_COEFFS
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-static int get_bits_cost_merge_map(int *merged_to_indices, int num_filter_classes, int num_classes_before_merge) {
+static int get_bits_cost_merge_map(int *merged_to_indices,
+                                   int num_filter_classes,
+                                   int num_classes_before_merge) {
   assert(num_filter_classes < num_classes_before_merge);
   assert(num_filter_classes >= 2);
   assert(num_classes_before_merge >= 4);
-  assert (merged_to_indices[0] == 0);
-  int continue_writing = 1; // ??????? to be updated
+  assert(merged_to_indices[0] == 0);
+  int continue_writing = 1;  // ??????? to be updated
   int curr_max_id_after_merge = 0;
   int bits = 0;
   for (int c_id = 1; c_id < num_classes_before_merge; c_id++) {
@@ -2595,14 +2598,16 @@ static int get_bits_cost_merge_map(int *merged_to_indices, int num_filter_classe
       ++bits;
       int is_merged = merged_to_indices[c_id] <= curr_max_id_after_merge;
       if (!is_merged) {
-        ++ curr_max_id_after_merge;
+        ++curr_max_id_after_merge;
         assert(merged_to_indices[c_id] == curr_max_id_after_merge);
       } else {
-        int bit_per_idx = curr_max_id_after_merge ? av1_ceil_log2(curr_max_id_after_merge + 1) : 0;
+        int bit_per_idx = curr_max_id_after_merge
+                              ? av1_ceil_log2(curr_max_id_after_merge + 1)
+                              : 0;
         if (bit_per_idx > 0)
           bits += bit_per_idx;
         else
-          assert (merged_to_indices[c_id] == curr_max_id_after_merge);
+          assert(merged_to_indices[c_id] == curr_max_id_after_merge);
       }
     } else {
       int bit_per_idx = av1_ceil_log2(num_filter_classes);
@@ -2612,26 +2617,38 @@ static int get_bits_cost_merge_map(int *merged_to_indices, int num_filter_classe
   return bits * (1 << AV1_PROB_COST_SHIFT);
 }
 #endif
+
 static int16_t quantize_wienerns_tap(double x, int16_t minv, int16_t n,
                                      int prec_bits) {
   int scale_x = (int)round(x * (1 << prec_bits));
-  scale_x = AOMMAX(scale_x, minv);
-  scale_x = AOMMIN(scale_x, minv + n - 1);
-  return (int16_t)scale_x;
+  return clip_to_wienerns_range(scale_x, minv, n);
 }
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+#define FINER_UPDATE_BANK 0
+static void initialize_bank_with_best_frame_filter_match(
+    const RestSearchCtxt *rsc, WienerNonsepInfo *filter,
+    WienerNonsepInfoBank *bank);
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
 static int64_t finer_tile_search_wienerns(
-    RestSearchCtxt *rsc, const RestorationTileLimits *limits,
+    const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
     const AV1PixelRect *tile_rect, RestorationUnitInfo *rui,
     const WienernsFilterParameters *nsfilter_params, int ext_search,
-    const WienerNonsepInfoBank *ref_wienerns_bank, int wiener_class_id) {
+    const WienerNonsepInfoBank *reference_wienerns_bank, int wiener_class_id) {
   assert(rsc->plane == rui->plane);
   const MACROBLOCK *const x = rsc->x;
   WienerNonsepInfo curr = rui->wienerns_info;
   WienerNonsepInfo best = curr;
+#if CONFIG_WIENER_NONSEP
+  WienerNonsepInfoBank tmp_bank = *reference_wienerns_bank;
+  WienerNonsepInfoBank *ref_wienerns_bank = &tmp_bank;
+#else
+  const WienerNonsepInfoBank *ref_wienerns_bank = reference_wienerns_bank;
+#endif
 
   int c_id_begin = wiener_class_id;
   int c_id_end = wiener_class_id + 1;
@@ -2722,6 +2739,9 @@ static int64_t finer_tile_search_wienerns(
       copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
       calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
     }
+#if CONFIG_COMBINE_PC_NS_WIENER && FINER_UPDATE_BANK
+    initialize_bank_with_best_frame_filter_match(rsc, &best, ref_wienerns_bank);
+#endif
   }
   copy_nsfilter_taps(&rui->wienerns_info, &best);
 
@@ -2821,6 +2841,9 @@ static int64_t finer_tile_search_wienerns(
       copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
       calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
     }
+#if CONFIG_COMBINE_PC_NS_WIENER && FINER_UPDATE_BANK
+    initialize_bank_with_best_frame_filter_match(rsc, &best, ref_wienerns_bank);
+#endif
   }
   copy_nsfilter_taps(&rui->wienerns_info, &best);
 
@@ -2894,6 +2917,9 @@ static int64_t finer_tile_search_wienerns(
       copy_nsfilter_taps_for_class(&rui->wienerns_info, &best, c_id);
       calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
     }
+#if CONFIG_COMBINE_PC_NS_WIENER && FINER_UPDATE_BANK
+    initialize_bank_with_best_frame_filter_match(rsc, &best, ref_wienerns_bank);
+#endif
   }
 
   copy_nsfilter_taps(&rui->wienerns_info, &best);
@@ -2906,25 +2932,40 @@ static int64_t finer_tile_search_wienerns(
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
+typedef struct BestMatchResults {
+  int use_one_match_index;
+  int64_t use_one_taps_score;
+
+  int use_two_match_indices[2];
+  int64_t use_two_taps_score;
+
+  int64_t all_zero_taps_score;
+} BestMatchResults;
 
 // TODO: Increase efficiency.
-static int find_best_match_for_class(
+static BestMatchResults find_best_match_for_class(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter, int class_id,
-    int set_index, const WienernsFilterParameters *nsfilter_params,
-    WienerNonsepInfoBank *bank, int use_prev_filters) {
+    const int16_t *match_filter_dictionary, int dict_stride,
+    const WienernsFilterParameters *nsfilter_params, WienerNonsepInfoBank *bank,
+    int use_prev_filters) {
+  BestMatchResults best_match_results = { 0 };
   const int bank_ref = 0;
   assert(bank->bank_size_for_class[class_id] == 0);
   WienerNonsepInfo tmp_filter;
   tmp_filter.num_classes = filter->num_classes;
 
+  assert(use_prev_filters == 1);
   int64_t best_scr = INT_MAX;
-  int best_filter_index = -1;
-  const int max_filter_index = use_prev_filters
-                                   ? NUM_PC_WIENER_FILTERS + class_id + 1
-                                   : NUM_PC_WIENER_FILTERS + 1;
+  int64_t all_zeros_score = 0;  // debug
+  int best_filter_index = ILLEGAL_MATCH;
+  const int zero_filter_index = 0;
+  const int max_filter_index = num_dictionary_slots(filter->num_classes);
   for (int filter_index = 0; filter_index < max_filter_index; ++filter_index) {
-    filter->match_indices[class_id] = filter_index;
-    fill_filter_with_match(&tmp_filter, filter, set_index,
+    if (!is_match_allowed(filter_index, class_id, filter->num_classes))
+      continue;
+    filter->match_indices[class_id] = combine_to_single_index(
+        filter_index, ILLEGAL_MATCH, filter->num_classes);
+    fill_filter_with_match(&tmp_filter, match_filter_dictionary, dict_stride,
                            filter->match_indices, nsfilter_params, class_id);
     av1_upd_to_wienerns_bank(bank, bank_ref, &tmp_filter, class_id);
     bank->bank_size_for_class[class_id] = 1;
@@ -2935,18 +2976,63 @@ static int find_best_match_for_class(
       best_scr = score;
       best_filter_index = filter_index;
     }
+    if (filter_index == zero_filter_index) all_zeros_score = score;
+  }
+  assert(best_filter_index != ILLEGAL_MATCH);
+  best_match_results.use_one_match_index = best_filter_index;
+  best_match_results.use_one_taps_score = best_scr;
+  best_match_results.all_zero_taps_score = all_zeros_score;
+
+  int64_t best_second_scr = best_scr;
+  int best_second_filter_index = ILLEGAL_MATCH;
+  if (use_two_predictors[filter->num_classes]) {
+    for (int filter_index1 = 0; filter_index1 < max_filter_index;
+         ++filter_index1) {
+      if (!is_match_allowed(filter_index1, class_id, filter->num_classes))
+        continue;
+      for (int filter_index2 = prev_filters_begin(filter->num_classes);
+           filter_index2 < prev_filters_end(filter->num_classes);
+           ++filter_index2) {
+        if (!is_match_allowed(filter_index2, class_id, filter->num_classes))
+          continue;
+        filter->match_indices[class_id] = combine_to_single_index(
+            filter_index1, filter_index2, filter->num_classes);
+        fill_filter_with_match(&tmp_filter, match_filter_dictionary,
+                               dict_stride, filter->match_indices,
+                               nsfilter_params, class_id);
+        av1_upd_to_wienerns_bank(bank, bank_ref, &tmp_filter, class_id);
+        bank->bank_size_for_class[class_id] = 1;
+        const int64_t score =
+            count_wienerns_bits_set(AOM_PLANE_Y, &rsc->x->mode_costs, filter,
+                                    bank, nsfilter_params, class_id);
+
+        if (score < best_second_scr) {
+          best_second_scr = score;
+          best_filter_index = filter_index1;
+          best_second_filter_index = filter_index2;
+        }
+      }
+    }
+
+    best_match_results.use_two_match_indices[0] = best_filter_index;
+    best_match_results.use_two_match_indices[1] = best_second_filter_index;
+    best_match_results.use_two_taps_score = best_second_scr;
   }
 
-  filter->match_indices[class_id] = best_filter_index;
-  return best_filter_index;
+  return best_match_results;
 }
 
 // Filter will be encoded differentially wrto a matching filter. Finds the
 // matching-filter that minimizes the side-information bits for filter. Fills
 // filter->match_indices with the found match.
+// Filter will be encoded differentially wrto a matching filter. Finds the
+// matching-filter that minimizes the side-information bits for filter. Fills
+// filter->match_indices with the found match.
 static void find_best_match_for_filter(const RestSearchCtxt *rsc,
                                        WienerNonsepInfo *filter,
-                                       int base_qindex, int qindex_offset) {
+                                       int base_qindex,
+                                       int16_t *match_filter_dictionary,
+                                       int dict_stride) {
   const int use_prev_filters = 1;
   assert(rsc->plane == AOM_PLANE_Y);
   const int is_uv = 0;
@@ -2966,12 +3052,85 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
 #else
   );
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-
-  const int set_index = get_filter_set_index(base_qindex + qindex_offset);
-
+        // WienerNonsepInfo tmp_filter = *filter;
+  BestMatchResults best_match_results[WIENERNS_MAX_CLASSES];
   for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
-    find_best_match_for_class(rsc, filter, c_id, set_index, nsfilter_params,
-                              &tmp_bank, use_prev_filters);
+    best_match_results[c_id] = find_best_match_for_class(
+        rsc, filter, c_id, match_filter_dictionary, dict_stride,
+        nsfilter_params, &tmp_bank, use_prev_filters);
+    add_nsfilter_to_dictionary(filter, c_id, nsfilter_params,
+                               match_filter_dictionary, dict_stride);
+  }
+
+  int use_one_match_indices[WIENERNS_MAX_CLASSES] = { 0 };
+  int use_two_match_indices[WIENERNS_MAX_CLASSES] = { 0 };
+  int64_t total_single_score = 0;
+  int64_t total_double_score = 0;
+  int64_t total_all_zero_score = 0;
+  for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
+    total_single_score += best_match_results[c_id].use_one_taps_score;
+    use_one_match_indices[c_id] =
+        combine_to_single_index(best_match_results[c_id].use_one_match_index,
+                                ILLEGAL_MATCH, filter->num_classes);
+    assert(best_match_results[c_id].use_one_match_index ==
+           get_first_match_index(use_one_match_indices[c_id],
+                                 filter->num_classes));
+    total_all_zero_score += best_match_results[c_id].all_zero_taps_score;
+    if (use_two_predictors[filter->num_classes]) {
+      total_double_score += best_match_results[c_id].use_two_taps_score;
+      use_two_match_indices[c_id] = combine_to_single_index(
+          best_match_results[c_id].use_two_match_indices[0],
+          best_match_results[c_id].use_two_match_indices[1],
+          filter->num_classes);
+
+      assert(best_match_results[c_id].use_two_match_indices[0] ==
+             get_first_match_index(use_two_match_indices[c_id],
+                                   filter->num_classes));
+      assert(best_match_results[c_id].use_two_match_indices[1] ==
+             get_second_match_index(use_two_match_indices[c_id],
+                                    filter->num_classes));
+    }
+  }
+  int use_two = 0;
+  int *best_match_indices = use_one_match_indices;
+  const int scale = 1 << AV1_PROB_COST_SHIFT;
+  const int64_t single_overhead =
+      scale *
+      count_match_indices_bits(use_one_match_indices, filter->num_classes);
+  total_single_score += single_overhead;
+  double cost =
+      RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, total_single_score >> 4, 0,
+                                     rsc->cm->seq_params.bit_depth);
+  int64_t double_overhead = 0;
+  if (use_two_predictors[filter->num_classes]) {
+    double_overhead = scale * count_match_indices_bits(use_two_match_indices,
+                                                       filter->num_classes);
+    total_double_score += double_overhead;
+
+    if (total_double_score < total_single_score) {
+      use_two = 1;
+      best_match_indices = use_two_match_indices;
+      cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult,
+                                            total_double_score >> 4, 0,
+                                            rsc->cm->seq_params.bit_depth);
+    }
+  }
+
+  WienerNonsepInfo tmp_filter = *filter;
+  for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
+    filter->match_indices[c_id] = best_match_indices[c_id];
+    // Debug.
+    fill_filter_with_match(&tmp_filter, match_filter_dictionary, dict_stride,
+                           filter->match_indices, nsfilter_params, c_id);
+    av1_upd_to_wienerns_bank(&tmp_bank, /*bank_ref=*/0, &tmp_filter, c_id);
+    tmp_bank.bank_size_for_class[c_id] = 1;
+    const int64_t taps_score =
+        count_wienerns_bits_set(AOM_PLANE_Y, &rsc->x->mode_costs, filter,
+                                &tmp_bank, nsfilter_params, c_id);
+    if (use_two)
+      assert(taps_score == best_match_results[c_id].use_two_taps_score);
+    else
+      assert(taps_score == best_match_results[c_id].use_one_taps_score);
   }
 }
 
@@ -2979,8 +3138,13 @@ static void initialize_bank_with_best_frame_filter_match(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter,
     WienerNonsepInfoBank *bank) {
   const int base_qindex = rsc->cm->quant_params.base_qindex;
-  const int qindex_offset = rsc->cm->quant_params.y_dc_delta_q;
-  find_best_match_for_filter(rsc, filter, base_qindex, qindex_offset);
+  int dict_stride = 0;
+  int16_t *match_filter_dictionary =
+      allocate_match_filter_dictionary(&dict_stride);
+  set_base_match_filter_dictionary(rsc->cm, filter->num_classes,
+                                   match_filter_dictionary, dict_stride, NULL);
+  find_best_match_for_filter(rsc, filter, base_qindex, match_filter_dictionary,
+                             dict_stride);
   av1_reset_wienerns_bank(bank, base_qindex, filter->num_classes,
                           rsc->plane != AOM_PLANE_Y
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
@@ -2989,9 +3153,10 @@ static void initialize_bank_with_best_frame_filter_match(
 #else
   );
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  fill_first_slot_of_bank_with_filter_match(bank, filter, filter->match_indices,
-                                            base_qindex, qindex_offset,
-                                            ALL_WIENERNS_CLASSES);
+  fill_first_slot_of_bank_with_filter_match(
+      bank, filter, filter->match_indices, base_qindex, ALL_WIENERNS_CLASSES,
+      match_filter_dictionary, dict_stride);
+  aom_free(match_filter_dictionary);
 }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -3080,11 +3245,13 @@ static int64_t compute_stats_for_wienerns_filter(
 #if CONFIG_COMBINE_PC_NS_WIENER
         // Skip pixel if not of sub_class_id.
         if (num_classes > 1) {
-#if CONFIG_NEW_CLASSIFY_NS_WIENER // speed to be improved
+#if CONFIG_NEW_CLASSIFY_NS_WIENER  // speed to be improved
           const int i4 = i / 4 * 4;
           const int j4 = j / 4 * 4;
           const int dgd4_id = i4 * dgd_stride + j4;
-          const int sub_class_id = get_sub_block_class_id(dgd_hbd + dgd4_id, dgd_stride, AOMMIN(4, limits->v_end - i4), AOMMIN(limits->h_end - j4, 4), bit_depth );
+          const int sub_class_id = get_sub_block_class_id(
+              dgd_hbd + dgd4_id, dgd_stride, AOMMIN(4, limits->v_end - i4),
+              AOMMIN(limits->h_end - j4, 4), bit_depth);
 #else
           const int full_class_id =
               rui->wiener_class_id[(i >> MI_SIZE_LOG2) *
@@ -3485,10 +3652,14 @@ static int64_t evaluate_frame_filter(RestSearchCtxt *rsc,
     rui->wienerns_info.bank_ref_for_class[c_id] = 0;
   }
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  rui->wienerns_info.num_classes_before_merge = rsc->num_filter_classes_before_merge;
-  memcpy(rui->wienerns_info.merged_to_indices, rsc->best_merged_to_indices, sizeof(rsc->best_merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-  assert (rsc->num_filter_classes == rsc->frame_filter_dictionary.filter[0].num_classes);
-//  assert (rsc->num_filter_classes_before_merge == rsc->frame_filter_dictionary.filter[0].num_classes_before_merge);
+  rui->wienerns_info.num_classes_before_merge =
+      rsc->num_filter_classes_before_merge;
+  memcpy(rui->wienerns_info.merged_to_indices, rsc->best_merged_to_indices,
+         sizeof(rsc->best_merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+  assert(rsc->num_filter_classes ==
+         rsc->frame_filter_dictionary.filter[0].num_classes);
+//  assert (rsc->num_filter_classes_before_merge ==
+//  rsc->frame_filter_dictionary.filter[0].num_classes_before_merge);
 #endif
 
   // Evaluate on RU using all classes.
@@ -3593,7 +3764,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(unit_stats->ru_idx_in_tile + rsc->ru_idx_base ==
          rest_unit_idx_in_rutile);
   assert(unit_stats->plane == rsc->plane);
-
+  assert(rusi->sse[RESTORE_NONE] == unit_stats->real_sse);
+  rusi->wienerns_info.frame_filters_on = 0;
 #if CONFIG_COMBINE_PC_NS_WIENER
   if (rsc->frame_filters_on && rsc->plane == AOM_PLANE_Y) {
     rui.wienerns_info.frame_filters_on = 1;
@@ -4090,14 +4262,21 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   const MACROBLOCK *const x = rsc->x;
 #if CONFIG_COMBINE_PC_NS_WIENER
   if (!rsc->cheat_switchable && rsc->frame_filters_on &&
+      rsc->plane == AOM_PLANE_Y &&
       rsc->wienerns_bank.bank_size_for_class[0] == 1) {
+    int dict_stride = 0;
+    int16_t *match_filter_dictionary =
+        allocate_match_filter_dictionary(&dict_stride);
+    set_base_match_filter_dictionary(
+        rsc->cm, rsc->frame_filter_dictionary.filter->num_classes,
+        match_filter_dictionary, dict_stride, NULL);
     // Initialize bank for first call.
     const int base_qindex = rsc->cm->quant_params.base_qindex;
-    const int qindex_offset = rsc->cm->quant_params.y_dc_delta_q;
     fill_first_slot_of_bank_with_filter_match(
         &rsc->wienerns_bank, rsc->frame_filter_dictionary.filter,
         rsc->frame_filter_dictionary.filter->match_indices, base_qindex,
-        qindex_offset, ALL_WIENERNS_CLASSES);
+        ALL_WIENERNS_CLASSES, match_filter_dictionary, dict_stride);
+    aom_free(match_filter_dictionary);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
@@ -4414,6 +4593,10 @@ static void copy_unit_info_visitor(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   const RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
   const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
+#if CONFIG_COMBINE_PC_NS_WIENER
+  rsi->unit_info[rest_unit_idx].wienerns_info.frame_filters_on =
+      rsi->frame_filters_on;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   copy_unit_info(rsi->frame_restoration_type, rusi,
                  &rsi->unit_info[rest_unit_idx], rsc);
@@ -4430,7 +4613,12 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
   rsi->frame_restoration_type = frame_rtype;
 #if CONFIG_COMBINE_PC_NS_WIENER
   rsi->frame_filters_on = rsc->frame_filters_on;
+  rsi->frame_filters_initialized = 0;
   rsi->num_filter_classes = rsc->num_filter_classes;
+  rsi->frame_filters = rsc->frame_filter_dictionary.filter[0];
+  for (int c_id = 0; c_id < rsi->frame_filters.num_classes; ++c_id) {
+    assert(rsc->frame_filter_dictionary.bank_size_for_class[c_id] == 1);
+  }
 #if CONFIG_TEMP_LR
   rsi->frame_filters = rsc->frame_filters;
   rsi->temporal_pred_flag = rsc->temporal_pred_flag;
@@ -4438,7 +4626,8 @@ static void finalize_frame_and_unit_info(RestorationType frame_rtype,
 #endif
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   rsi->num_classes_before_merge = rsc->num_filter_classes_before_merge;
-  memcpy(rsi->merged_to_indices, rsc->best_merged_to_indices, sizeof(rsc->merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+  memcpy(rsi->merged_to_indices, rsc->best_merged_to_indices,
+         sizeof(rsc->merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
 #endif
 #endif
   if (frame_rtype != RESTORE_NONE) {
@@ -4533,21 +4722,24 @@ static int count_classes_with_no_pixels(const RestSearchCtxt *rsc) {
 }
 
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-static void update_merged_to_index_array (int* merged_to_indices, int classes_num_before_merge, int current_class_num, int filter_idx_0, int filter_idx_1) {
-  assert (filter_idx_0 < filter_idx_1);
-  assert (filter_idx_1 < current_class_num);
+static void update_merged_to_index_array(int *merged_to_indices,
+                                         int classes_num_before_merge,
+                                         int current_class_num,
+                                         int filter_idx_0, int filter_idx_1) {
+  assert(filter_idx_0 < filter_idx_1);
+  assert(filter_idx_1 < current_class_num);
   for (int c_id = 0; c_id < classes_num_before_merge; ++c_id) {
     if (merged_to_indices[c_id] == filter_idx_1)
       merged_to_indices[c_id] = filter_idx_0;
   }
   for (int c_id = 0; c_id < classes_num_before_merge; ++c_id) {
-    if (merged_to_indices[c_id] > filter_idx_1)
-      merged_to_indices[c_id]--;
-    assert (merged_to_indices[c_id] < current_class_num - 1);
+    if (merged_to_indices[c_id] > filter_idx_1) merged_to_indices[c_id]--;
+    assert(merged_to_indices[c_id] < current_class_num - 1);
   }
 }
 
-static int count_and_merge_classes_with_no_pixels(const RestSearchCtxt *rsc, int* merged_to_indices) {
+static int count_and_merge_classes_with_no_pixels(const RestSearchCtxt *rsc,
+                                                  int *merged_to_indices) {
   int pixel_count[WIENERNS_MAX_CLASSES] = { 0 };
   int num_classes = -1;
   VECTOR_FOR_EACH(rsc->wienerns_stats, unit_stats) {
@@ -4559,7 +4751,7 @@ static int count_and_merge_classes_with_no_pixels(const RestSearchCtxt *rsc, int
       pixel_count[c_id] += unit_stats_ptr->num_pixels_in_class[c_id];
     }
   }
-  assert (num_classes == rsc->num_filter_classes_before_merge);
+  assert(num_classes == rsc->num_filter_classes_before_merge);
   // init merged_to_indices array
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     merged_to_indices[c_id] = c_id;
@@ -4577,15 +4769,18 @@ static int count_and_merge_classes_with_no_pixels(const RestSearchCtxt *rsc, int
   }
 
   for (int c_id = 0; c_id < num_classes; ++c_id) {
-    assert (merged_to_indices[c_id] < num_classes - unoccupied);
+    assert(merged_to_indices[c_id] < num_classes - unoccupied);
   }
 
   return unoccupied;
 }
 
 #if FURTHER_REFINE_THE_MERGE_MAP
-static void refine_merged_to_index_array (int* merged_to_indices, int classes_num_before_merge, int classes_num_after_merge, int class_id_be_moved, int filter_set_idx_moved_in) {
-
+static void refine_merged_to_index_array(int *merged_to_indices,
+                                         int classes_num_before_merge,
+                                         int classes_num_after_merge,
+                                         int class_id_be_moved,
+                                         int filter_set_idx_moved_in) {
   int is_current_class_first_in_filter = 1;
 
   for (int c_id = 0; c_id < class_id_be_moved; ++c_id) {
@@ -4595,8 +4790,7 @@ static void refine_merged_to_index_array (int* merged_to_indices, int classes_nu
 
   merged_to_indices[class_id_be_moved] = filter_set_idx_moved_in;
 
-  if (is_current_class_first_in_filter)
-  {
+  if (is_current_class_first_in_filter) {
     // to be updated ????????????;
   }
 }
@@ -4616,7 +4810,8 @@ static void weighted_sum_all_stats(const RestSearchCtxt *rsc,
   sum_stats->plane = sample_stat->plane;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   sum_stats->num_stats_classes = rsc->num_filter_classes;
-  assert (sample_stat->num_stats_classes == rsc->num_filter_classes_before_merge );
+  assert(sample_stat->num_stats_classes ==
+         rsc->num_filter_classes_before_merge);
 #else
   sum_stats->num_stats_classes = sample_stat->num_stats_classes;
 #endif
@@ -4684,16 +4879,19 @@ static double calculate_frame_filters_cost(const RestSearchCtxt *rsc,
 #endif  // CONFIG_LR_MERGE_COEFFS
   // debug_point, to be fixed
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  //class_number and
+  // class_number and
   bits += (1 << AV1_PROB_COST_SHIFT) * NUM_FILTER_CLASSES_BITS;
   if (filter->num_classes_before_merge == 16) {
     bits += (1 << AV1_PROB_COST_SHIFT) *
             encode_num_filter_classes(filter->num_classes_before_merge);
     if (filter->num_classes < filter->num_classes_before_merge)
-        bits += get_bits_cost_merge_map(filter->merged_to_indices, filter->num_classes, filter->num_classes_before_merge);
+      bits += get_bits_cost_merge_map(filter->merged_to_indices,
+                                      filter->num_classes,
+                                      filter->num_classes_before_merge);
   }
 #else
-  bits += NUM_FRAME_PREDICTOR_BITS * filter->num_classes;
+  bits += count_match_indices_bits(filter->match_indices, filter->num_classes) *
+          (1 << AV1_PROB_COST_SHIFT);
 #endif
 
   double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, 0,
@@ -4753,11 +4951,11 @@ static double get_scaled_filter_distortion(const RstUnitStats *stats,
   double distortion = stats->real_sse * tap_qstep * tap_qstep;
   for (int c_id = 0; c_id < stats->num_stats_classes; ++c_id) {
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  assert(filter->num_classes <= stats->num_stats_classes);
-  int c_id_after_merge = c_id;
-  if (stats->num_stats_classes > 2)
+    assert(filter->num_classes <= stats->num_stats_classes);
+    int c_id_after_merge = c_id;
+    if (stats->num_stats_classes > 2)
       c_id_after_merge = filter->merged_to_indices[c_id];
-  const int16_t *filter_taps = const_nsfilter_taps(filter, c_id_after_merge);
+    const int16_t *filter_taps = const_nsfilter_taps(filter, c_id_after_merge);
 #else
     const int16_t *filter_taps = const_nsfilter_taps(filter, c_id);
 #endif
@@ -4875,9 +5073,9 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
   return results;
 }
 #if CONFIG_TEMP_LR
-static double obtain_temp_pred_frame_filters_cost(
-    RestSearchCtxt *rsc, WienerNonsepInfo *filter) {
-  assert (rsc->temporal_pred_flag);
+static double obtain_temp_pred_frame_filters_cost(RestSearchCtxt *rsc,
+                                                  WienerNonsepInfo *filter) {
+  assert(rsc->temporal_pred_flag);
 
   double *work_cost_array = (double *)(aom_malloc(rsc->wienerns_stats->size *
                                                   sizeof(*work_cost_array)));
@@ -4887,11 +5085,11 @@ static double obtain_temp_pred_frame_filters_cost(
 
   rui.wienerns_info = *filter;
   RdResults rd_results =
-    update_cost_and_weights_wienerns(rsc, &rui, work_cost_array, 0);
+      update_cost_and_weights_wienerns(rsc, &rui, work_cost_array, 0);
 
   double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
-        rsc->cm->seq_params.bit_depth);
+      rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
+      rsc->cm->seq_params.bit_depth);
   // cost += frame level infor cos, to be added;
   return cost;
 }
@@ -4916,7 +5114,6 @@ static double optimize_frame_filters_for_target_classes(
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   tmp_filter = *filter;
 #endif
-  initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter, &bank);
 
   double fraction_rus_to_include[][2] = { { .9, .0 }, { .8, .0 }, { .7, .0 },
                                           { .6, .0 }, { .5, .0 }, { .4, .0 },
@@ -5035,10 +5232,6 @@ static double optimize_frame_filters_with_rounding(
 #else
   );
 #endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  RestorationUnitInfo rui;
-  initialize_rui_for_nonsep_search(rsc, &rui);
-  rui.restoration_type = RESTORE_WIENER_NONSEP;
-  rui.wienerns_info = *best_filter;
 
   Vector *current_unit_stack = rsc->unit_stack;
   Vector *current_unit_indices = rsc->unit_indices;
@@ -5066,20 +5259,26 @@ static double optimize_frame_filters_with_rounding(
     aom_vector_push_back(current_unit_stack, &unit_snapshot);
     aom_vector_push_back(current_unit_indices, &stat_slot);
   }
-  if (cnt) {
-    rui.wiener_class_id_restrict = -1;
-    finer_tile_search_wienerns(rsc, NULL, &rsc->tile_rect, &rui,
-                               nsfilter_params, 1, &tmp_bank,
-                               ALL_WIENERNS_CLASSES);
-    *best_filter = rui.wienerns_info;
-  }
+  if (cnt == 0) return -1;
+
+  RestorationUnitInfo rui;
+  initialize_rui_for_nonsep_search(rsc, &rui);
+  rui.restoration_type = RESTORE_WIENER_NONSEP;
+  rui.wienerns_info = *best_filter;
+  rui.wiener_class_id_restrict = -1;
+  finer_tile_search_wienerns(rsc, NULL, &rsc->tile_rect, &rui, nsfilter_params,
+                             1, &tmp_bank, ALL_WIENERNS_CLASSES);
+  *best_filter = rui.wienerns_info;
   RdResults rd_results =
       update_cost_and_weights_wienerns(rsc, &rui, cost_array, 0);
   double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rsc->x->rdmult, rd_results.total_bits >> 4, rd_results.total_distortion,
       rsc->cm->seq_params.bit_depth);
   initialize_bank_with_best_frame_filter_match(rsc, best_filter, &tmp_bank);
-  cost += calculate_frame_filters_cost(rsc, &tmp_bank, best_filter);
+  const double filter_cost =
+      calculate_frame_filters_cost(rsc, &tmp_bank, best_filter);
+  cost += filter_cost;
+
   return cost;
 }
 
@@ -5111,41 +5310,15 @@ static int count_changes_in_filters(RestSearchCtxt *rsc,
 
 #endif  // USE_FINER_TILE
 
-static int count_trivial_filters(RestSearchCtxt *rsc,
-                                 const WienerNonsepInfo *filter) {
-  const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
-      rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-      ,
-      /*is_cross=*/0);
-#else
-  );
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  const int num_feat = nsfilter_params->ncoeffs;
-  int num_filters = 0;
-  for (int c_id = 0; c_id < filter->num_classes; ++c_id) {
-    const int16_t *filter_taps = const_nsfilter_taps(filter, c_id);
-    int all_zero = 1;
-    for (int tap = 0; tap < num_feat; ++tap) {
-      if (filter_taps[tap] != 0) {
-        all_zero = 0;
-        break;
-      }
-    }
-    num_filters += all_zero;
-  }
-  return num_filters;
-}
-
 // At the end of this routine all stats will be collapsed to one.
 static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   const int max_num_classes_allowed = rsc->plane == AOM_PLANE_Y
                                           ? NUM_WIENERNS_CLASS_INIT_LUMA
                                           : NUM_WIENERNS_CLASS_INIT_CHROMA;
-#if SIXTEEN_CLASSES_BEFORE_MERGE // only allow 1 or 16
+#if SIXTEEN_CLASSES_BEFORE_MERGE  // only allow 1 or 16
   const int num_classes_to_try[2] = { 16, 1 };
 #else
-  const int num_classes_to_try[5] = { 16, 8, 4, 2, 1 };
+  const int num_classes_to_try[] = { 16, 12, 8, 6, 4, 3, 2, 1 };
 #endif
   const int num_try = sizeof(num_classes_to_try) / sizeof(*num_classes_to_try);
 
@@ -5186,9 +5359,11 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 
     int unoccupied = 0;
     if (i == 0)
-      unoccupied = count_and_merge_classes_with_no_pixels(rsc, merged_to_indices);
+      unoccupied =
+          count_and_merge_classes_with_no_pixels(rsc, merged_to_indices);
     else {
-      const int unoccupied = count_classes_with_no_pixels(rsc); // redundant code?
+      const int unoccupied =
+          count_classes_with_no_pixels(rsc);  // redundant code?
       (void)unoccupied;
       // init merged_to_indices array
       for (int c_id = 0; c_id < num_target_classes; ++c_id) {
@@ -5202,16 +5377,17 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     // try no merge
     tmp_filter.num_classes = num_classes_after_merge;
     rsc->num_filter_classes = num_classes_after_merge;
-    memcpy (tmp_filter.merged_to_indices, merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-    memcpy (rsc->merged_to_indices, merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy(tmp_filter.merged_to_indices, merged_to_indices,
+           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy(rsc->merged_to_indices, merged_to_indices,
+           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
 
     int utilization = 0;
     double cost = optimize_frame_filters_for_target_classes(
-              rsc, &tmp_filter, &utilization, work_cost_array);
+        rsc, &tmp_filter, &utilization, work_cost_array);
 
     // Reset this bank to account for bits that signal the frame level filters.
-    initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
-                                                       &tmp_bank);
+    initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter, &tmp_bank);
     if (cost < best_cost) {
       best_cost = cost;
       best_num_classes_after_merge = num_classes_after_merge;
@@ -5220,7 +5396,8 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       double *tmp_array = work_cost_array;
       work_cost_array = best_cost_array;
       best_cost_array = tmp_array;
-      memcpy(best_merged_to_indices, merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+      memcpy(best_merged_to_indices, merged_to_indices,
+             sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
     }
 
     if (i == 0) {
@@ -5259,7 +5436,8 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
             cost = optimize_frame_filters_for_target_classes(
                 rsc, &tmp_filter, &utilization, work_cost_array);
 
-            // Reset this bank to account for bits that signal the frame level filters.
+            // Reset this bank to account for bits that signal the frame level
+            // filters.
             initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
                                                          &tmp_bank);
 
@@ -5313,7 +5491,8 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
                   cost = optimize_frame_filters_for_target_classes(
                       rsc, &tmp_filter, &utilization, work_cost_array);
 
-                  // Reset this bank to account for bits that signal the frame level filters.
+                  // Reset this bank to account for bits that signal the frame
+                  // level filters.
                   initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
                                                                &tmp_bank);
 
@@ -5352,8 +5531,6 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
     const double cost = optimize_frame_filters_for_target_classes(
         rsc, &tmp_filter, &utilization, work_cost_array);
 
-    // Reset this bank to account for bits that signal the frame level filters.
-    initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter, &tmp_bank);
     if (cost < best_cost) {
       best_cost = cost;
       best_utilization = utilization;
@@ -5363,7 +5540,7 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       work_cost_array = best_cost_array;
       best_cost_array = tmp_array;
     }
-#endif // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+#endif  // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   }
 
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
@@ -5373,19 +5550,24 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
   rsc->best_num_filter_classes = best_num_classes_after_merge;
   rsc->num_filter_classes_before_merge = best_num_classes_before_merge;
   rsc->best_num_filter_classes_before_merge = best_num_classes_before_merge;
-  memcpy (rsc->merged_to_indices, best_merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-  memcpy (rsc->best_merged_to_indices, best_merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+  memcpy(rsc->merged_to_indices, best_merged_to_indices,
+         sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+  memcpy(rsc->best_merged_to_indices, best_merged_to_indices,
+         sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
 
-  assert (rsc->num_filter_classes == best_filter.num_classes);
-  assert (rsc->num_filter_classes_before_merge == best_filter.num_classes_before_merge);
+  assert(rsc->num_filter_classes == best_filter.num_classes);
+  assert(rsc->num_filter_classes_before_merge ==
+         best_filter.num_classes_before_merge);
 #else
   assert(best_num_classes != -1);
 #ifndef NDEBUG
-  printf(
-      "Plane %2d, found best num classes: %2d, utilization: %3d (%3d), cost: "
-      "%f\n",
-      rsc->plane, best_num_classes, best_utilization,
-      (int)rsc->wienerns_stats->size, best_cost);
+  if (0) {
+    printf(
+        "Plane %2d, found best num classes: %2d, utilization: %3d (%3d), cost: "
+        "%f\n",
+        rsc->plane, best_num_classes, best_utilization,
+        (int)rsc->wienerns_stats->size, best_cost);
+  }
 #endif  // NDEBUG
 
   rsc->num_filter_classes = best_num_classes;
@@ -5393,46 +5575,59 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 #endif
 
 #if USE_FINER_TILE
-  tmp_filter = best_filter;
-  best_cost =
+  const double old_cost = best_cost;
+  const double tmp_cost =
       optimize_frame_filters_with_rounding(rsc, &best_filter, best_cost_array);
   const int num_changes =
       count_changes_in_filters(rsc, &tmp_filter, &best_filter);
+  if (tmp_cost >= 0 && tmp_cost < best_cost) {
+    best_cost = tmp_cost;
+  } else {
+    best_filter = tmp_filter;
+  }
   (void)num_changes;
-#ifndef NDEBUG
-  printf("optimize_frame_filters_with_rounding changes: %3d out of %3d\n",
-         num_changes, best_filter.num_classes);
-#endif  // NDEBUG
 #endif  // USE_FINER_TILE
   initialize_bank_with_best_frame_filter_match(rsc, &best_filter, &tmp_bank);
 
   rsc->frame_filter_cost =
       calculate_frame_filters_cost(rsc, &tmp_bank, &best_filter);
 
+#if USE_FINER_TILE
+#ifndef NDEBUG
+  if (0) {
+    printf(
+        "optimize_frame_filters_with_rounding changes: %3d out of %3d (%15.1f, "
+        "f:%15.1f) (i:%2d) poc: %5d\n",
+        num_changes, best_filter.num_classes, best_cost, rsc->frame_filter_cost,
+        tmp_cost < old_cost ? 1 : 0, rsc->cm->cur_frame->absolute_poc);
+  }
+#endif  // NDEBUG
+#endif  // USE_FINER_TILE
 #if CONFIG_TEMP_LR
   int8_t best_ref_idx = -1;
-   const int num_ref_frames = rsc->cm->current_frame.frame_type == KEY_FRAME
+  const int num_ref_frames = rsc->cm->current_frame.frame_type == KEY_FRAME
                                  ? 0
                                  : rsc->cm->ref_frames_info.num_total_refs;
-  for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx ++) {
-    RestorationInfo rsi = get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];
+  for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx++) {
+    RestorationInfo rsi =
+        get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];
     if (!rsi.frame_filters_on) continue;
-//    assert(rsi.frame_restoration_type == RESTORE_WIENER_NONSEP || rsi.frame_restoration_type == RESTORE_SWITCHABLE);
+    //    assert(rsi.frame_restoration_type == RESTORE_WIENER_NONSEP ||
+    //    rsi.frame_restoration_type == RESTORE_SWITCHABLE);
     rsc->temporal_pred_flag = 1;
     tmp_filter = rsi.frame_filters;
     rsc->num_filter_classes = tmp_filter.num_classes;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
     rsc->num_filter_classes_before_merge = tmp_filter.num_classes_before_merge;
-    memcpy (rsc->merged_to_indices, tmp_filter.merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy(rsc->merged_to_indices, tmp_filter.merged_to_indices,
+           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
 #endif
 
     int utilization = 0;
-    double cost = obtain_temp_pred_frame_filters_cost(
-              rsc, &tmp_filter);
+    double cost = obtain_temp_pred_frame_filters_cost(rsc, &tmp_filter);
 
     // Reset this bank to account for bits that signal the frame level filters.
-    initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter,
-                                                       &tmp_bank);
+    initialize_bank_with_best_frame_filter_match(rsc, &tmp_filter, &tmp_bank);
 
     if (cost < best_cost) {
       best_cost = cost;
@@ -5452,17 +5647,22 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
 
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
     rsc->num_filter_classes_before_merge = best_filter.num_classes_before_merge;
-    rsc->best_num_filter_classes_before_merge = best_filter.num_classes_before_merge;
-    memcpy (rsc->merged_to_indices, best_filter.merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-    memcpy (rsc->best_merged_to_indices, best_filter.merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    rsc->best_num_filter_classes_before_merge =
+        best_filter.num_classes_before_merge;
+    memcpy(rsc->merged_to_indices, best_filter.merged_to_indices,
+           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy(rsc->best_merged_to_indices, best_filter.merged_to_indices,
+           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
 #endif
   } else {
     rsc->temporal_pred_flag = 0;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
     rsc->num_filter_classes_before_merge = best_num_classes_before_merge;
     rsc->best_num_filter_classes_before_merge = best_num_classes_before_merge;
-    memcpy (rsc->merged_to_indices, best_merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
-    memcpy (rsc->best_merged_to_indices, best_merged_to_indices, sizeof (merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy(rsc->merged_to_indices, best_merged_to_indices,
+           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
+    memcpy(rsc->best_merged_to_indices, best_merged_to_indices,
+           sizeof(merged_to_indices[0]) * WIENERNS_MAX_CLASSES);
 #endif
   }
 #endif
@@ -5530,32 +5730,34 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
   rsc->frame_filters_on = 1;
   rsc->num_filter_classes = rsc->best_num_filter_classes;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-  rsc->num_filter_classes_before_merge = rsc->best_num_filter_classes_before_merge;
+  rsc->num_filter_classes_before_merge =
+      rsc->best_num_filter_classes_before_merge;
 #endif
 
   // Update RESTORE_WIENER_NONSEP to use frame-level filters.
   rsc->num_wiener_nonsep = 0;
-  double cost = search_rest_type(rsc, RESTORE_WIENER_NONSEP);
-  if (rsc->num_wiener_nonsep) cost += rsc->frame_filter_cost;
+  double cost_again = search_rest_type(rsc, RESTORE_WIENER_NONSEP);
+  if (rsc->num_wiener_nonsep) cost_again += rsc->frame_filter_cost;
 
-  // should match the earlier calculated cost.
-#if 0 //debug_point
+    // should match the earlier calculated cost.
+#if 0  // debug_point
   assert(fabs(cost - rsc->frame_filters_total_cost) < 1e-3);
 #endif
+  cost_again = rsc->frame_filters_total_cost;
   const int num_wiener_nonsep = rsc->num_wiener_nonsep;
 
   // Update RESTORE_SWITCHABLE to use frame-level filters.
   rsc->cheat_switchable = 1;
   rsc->num_wiener_nonsep = 0;
-  cost = search_rest_type(rsc, RESTORE_SWITCHABLE);
+  double cost = search_rest_type(rsc, RESTORE_SWITCHABLE);
   if (rsc->num_wiener_nonsep) cost += rsc->frame_filter_cost;
   rsc->cheat_switchable = 0;
 
   int final_r = RESTORE_SWITCHABLE;
-  if (cost > rsc->frame_filters_total_cost) {
+  if (cost > cost_again) {
     final_r = RESTORE_WIENER_NONSEP;
     rsc->num_wiener_nonsep = num_wiener_nonsep;
-    cost = rsc->frame_filters_total_cost;
+    cost = cost_again;
   }
   *best_cost = cost;
   return final_r;
@@ -5563,6 +5765,7 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
 
 void print_costs(double cost, char best_highlight, int r, char highlight,
                  const RestSearchCtxt *rsc, int unit_size) {
+  if (!PRINT_FILTER) return;
 #ifndef NDEBUG
   if (rsc->plane != AOM_PLANE_Y) return;
   printf("%c U(%4d) Plane[%1d], %cr[%1d], %15.1f", best_highlight, unit_size,
@@ -5684,8 +5887,10 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
-#if CONFIG_LR_IMPROVEMENTS
+#if CONFIG_LR_IMPROVEMENTS || CONFIG_COMBINE_PC_NS_WIENER
     RestorationInfo *rsi = &cm->rst_info[plane];
+#endif  // CONFIG_FLEXIBLE_RU_SIZE || CONFIG_COMBINE_PC_NS_WIENER
+#if CONFIG_FLEXIBLE_RU_SIZE
     const int max_unit_size = rsi->max_restoration_unit_size;
     const int min_unit_size = rsi->min_restoration_unit_size;
 
@@ -5770,7 +5975,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           int real_r = r;
 #if CONFIG_COMBINE_PC_NS_WIENER
           if (r == RESTORE_SWITCHABLE && plane == AOM_PLANE_Y &&
-              cost > rsc.frame_filters_total_cost &&
+              !skip_frame_filters(cm) && cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
             print_costs(cost, cost < best_cost ? '*' : ' ', r, ' ', &rsc,
                         rsi->restoration_unit_size);

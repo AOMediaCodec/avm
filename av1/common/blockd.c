@@ -412,8 +412,8 @@ const int16_t *const_nsfilter_taps(const WienerNonsepInfo *nsinfo,
 void copy_nsfilter_taps_for_class(WienerNonsepInfo *to_info,
                                   const WienerNonsepInfo *from_info,
                                   int wiener_class_id) {
-//  assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
-//  assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
+  //  assert(wiener_class_id >= 0 && wiener_class_id < to_info->num_classes);
+  //  assert(wiener_class_id >= 0 && wiener_class_id < from_info->num_classes);
   const int offset = wiener_class_id * WIENERNS_YUV_MAX;
   memcpy(to_info->allfiltertaps + offset, from_info->allfiltertaps + offset,
          WIENERNS_YUV_MAX * sizeof(*to_info->allfiltertaps));
@@ -449,6 +449,184 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
     xd->plane[i].subsampling_y = 1;
   }
 }
+
+#if CONFIG_COMBINE_PC_NS_WIENER
+
+static int max_dictionary_size() {
+  const int max_num_predictors = num_dictionary_slots(WIENERNS_MAX_CLASSES);
+  return max_num_predictors * NUM_PC_WIENER_TAPS_LUMA;
+}
+
+int16_t *allocate_match_filter_dictionary(int *dict_stride) {
+  int16_t *match_filter_dictionary =
+      aom_calloc(max_dictionary_size(), sizeof(*match_filter_dictionary));
+  *dict_stride = NUM_PC_WIENER_TAPS_LUMA;
+  return match_filter_dictionary;
+}
+
+void free_match_filter_dictionary(int16_t *match_filter_dictionary,
+                                  int *dict_stride) {
+  aom_free(match_filter_dictionary);
+  match_filter_dictionary = NULL;
+  *dict_stride = 0;
+}
+
+// TODO: Clean this up into a container, probably rsi.
+void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
+                                      int16_t *match_filter_dictionary,
+                                      int dict_stride, const char *prefix) {
+  assert(match_filter_dictionary != NULL);
+  assert(dict_stride > 0);
+  const int base_qindex = cm->quant_params.base_qindex;
+  const int is_uv = 0;
+  const WienernsFilterParameters *nsfilter_params =
+      get_wienerns_parameters(base_qindex, is_uv
+#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+                              ,
+                              /*is_cross=*/0);
+#else
+      );
+#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+
+  assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
+  const int num_feat = nsfilter_params->ncoeffs;
+
+  memset(match_filter_dictionary, 0,
+         max_dictionary_size() * sizeof(*match_filter_dictionary));
+  const int max_predictors = num_dictionary_slots(num_classes);
+
+  // Filters prior to ref_filter_offset are all zeros via calloc. --------------
+  const int ref_filter_offset = reference_filters_begin(num_classes);
+  // ---------------------------------------------------------------------------
+
+  // Copy available reference filters to the dictionary. -----------------------
+  // TODO: Prefer based on current number of classes.
+  int num_ref_filters = 0;
+#if CONFIG_TEMP_LR
+  const int allowed_num_base_filters = max_num_base_filters(num_classes);
+  assert(allowed_num_base_filters < max_predictors);
+  if (prefix != NULL) {
+    printf("%s ", prefix);
+  }
+  //  const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
+  //                                 ? 0
+  //                                 : cm->ref_frames_info.num_total_refs;
+  const int num_ref_frames = 0;  // TODO: Fix the enc-dec issue.
+  for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx++) {
+    const int plane = AOM_PLANE_Y;
+    const RefCntBuffer *ref_frame_buf = get_ref_frame_buf(cm, ref_idx);
+    if (ref_frame_buf == NULL) {
+      assert(0);
+      continue;
+    }
+    RestorationInfo rsi = ref_frame_buf->rst_info[plane];
+    if (prefix != NULL) {
+      printf("(%3d: %2d) ", ref_idx, rsi.frame_filters_on ? 1 : 0);
+    }
+    if (rsi.frame_filters_on) {
+      for (int c_id = 0; c_id < rsi.num_filter_classes; ++c_id) {
+        if (num_ref_filters >= allowed_num_base_filters) break;
+
+        int16_t *match_filter =
+            match_filter_dictionary +
+            (num_ref_filters + ref_filter_offset) * dict_stride;
+        const int16_t *wienerns_filter =
+            const_nsfilter_taps(&rsi.frame_filters, c_id);
+        for (int i = 0; i < num_feat; ++i) {
+          match_filter[i] = wienerns_filter[i];
+        }
+        ++num_ref_filters;
+      }
+    }
+  }
+  if (prefix != NULL) {
+    printf(" num_ref: %3d, poc: ", num_ref_filters);
+    for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx++) {
+      const RefCntBuffer *ref_frame_buf = get_ref_frame_buf(cm, ref_idx);
+      if (ref_frame_buf == NULL) continue;
+      printf("%4d ", ref_frame_buf->absolute_poc);
+    }
+    printf("(%3d, %3d, %3d)", ref_filter_offset,
+           ref_filter_offset + num_ref_filters,
+           ref_filter_offset + num_ref_filters +
+               num_sampled_pc_wiener_filters(num_ref_filters, num_classes));
+    printf("\n");
+  }
+#endif  // CONFIG_TEMP_LR
+  // ---------------------------------------------------------------------------
+
+  // Sample from the pc-wiener filters for the remaining allowed slots. --------
+  int tap_translator[WIENERNS_YUV_MAX];
+  const int num_taps = wienerns_to_pcwiener_translator(
+      &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_YUV_MAX);
+  assert(num_taps == num_feat);
+  const int set_index =
+      0;  // get_filter_set_index(base_qindex + qindex_offset);
+
+  const int num_pc_wiener_filters =
+      num_sampled_pc_wiener_filters(num_ref_filters, num_classes);
+  assert(num_pc_wiener_filters >= 0 &&
+         num_pc_wiener_filters <= NUM_PC_WIENER_FILTERS);
+  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int16_t(*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA] =
+      get_filter_set(set_index);
+  const int precision_diff =
+      PC_WIENER_PREC_FILTER - nsfilter_params->nsfilter_config.prec_bits;
+  assert(precision_diff >= 0);
+
+  const int pc_wiener_skip = num_pc_wiener_filters
+                                 ? NUM_PC_WIENER_FILTERS / num_pc_wiener_filters
+                                 : NUM_PC_WIENER_FILTERS;
+  const int pc_wiener_offset = pc_wiener_skip / 2;
+  for (int pc_wiener_cnt = 0; pc_wiener_cnt < num_pc_wiener_filters;
+       ++pc_wiener_cnt) {
+    int filter_index = pc_wiener_cnt * pc_wiener_skip + pc_wiener_offset;
+    assert(filter_index < NUM_PC_WIENER_FILTERS);
+    if (filter_index >= NUM_PC_WIENER_FILTERS) {
+      filter_index = NUM_PC_WIENER_FILTERS - 1;
+    }
+
+    const int16_t *pcwiener_filter = pcwiener_filters_luma[filter_index];
+
+    const int dict_index = ref_filter_offset + num_ref_filters + pc_wiener_cnt;
+    assert(dict_index < max_predictors);
+    if (dict_index >= max_predictors) {
+      break;
+    }
+
+    int16_t *match_filter = match_filter_dictionary + dict_index * dict_stride;
+    for (int i = 0; i < num_feat; ++i) {
+      const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
+          pcwiener_filter[tap_translator[i]], precision_diff);
+      match_filter[i] = clip_to_wienerns_range(
+          scaled_tap, wienerns_coeffs[i][WIENERNS_MIN_ID],
+          (1 << wienerns_coeffs[i][WIENERNS_BIT_ID]));
+    }
+  }
+  // ---------------------------------------------------------------------------
+
+  // One or more match filters are all zeros via calloc. -----------------------
+  // ---------------------------------------------------------------------------
+}
+
+void add_nsfilter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
+                                const WienernsFilterParameters *nsfilter_params,
+                                int16_t *match_filter_dictionary,
+                                int dict_stride) {
+  assert(match_filter_dictionary != NULL);
+  assert(dict_stride > 0);
+  if (class_id == filter->num_classes - 1) return;
+  const int filter_index = prev_filters_begin(filter->num_classes) + class_id;
+  assert(filter_index < num_dictionary_slots(filter->num_classes));
+  int16_t *match_filter = match_filter_dictionary + filter_index * dict_stride;
+  const int16_t *wienerns_filter = const_nsfilter_taps(filter, class_id);
+  const int num_feat = nsfilter_params->ncoeffs;
+  for (int i = 0; i < num_feat; ++i) {
+    match_filter[i] = wienerns_filter[i];
+  }
+}
+
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_LR_IMPROVEMENTS
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {

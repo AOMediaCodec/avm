@@ -227,6 +227,11 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   cm->mi_params.setup_mi = dec_setup_mi;
   cm->mi_params.set_mb_mi = dec_set_mb_mi;
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+  cm->match_dictionary_stride = 0;
+  cm->match_filter_dictionary = NULL;
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
   av1_loop_filter_init(cm);
 
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));

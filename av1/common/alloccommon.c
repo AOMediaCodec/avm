@@ -63,6 +63,13 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
   for (int p = 0; p < num_planes; ++p)
     av1_alloc_restoration_struct(cm, &cm->rst_info[p], p > 0);
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+  if (cm->match_filter_dictionary == NULL) {
+    cm->match_filter_dictionary =
+        allocate_match_filter_dictionary(&cm->match_dictionary_stride);
+  }
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
   if (cm->rst_tmpbuf == NULL) {
     CHECK_MEM_ERROR(cm, cm->rst_tmpbuf,
                     (int32_t *)aom_memalign(16, RESTORATION_TMPBUF_SIZE));
@@ -132,7 +139,10 @@ void av1_free_restoration_buffers(AV1_COMMON *cm) {
     boundaries->stripe_boundary_above = NULL;
     boundaries->stripe_boundary_below = NULL;
   }
-
+#if CONFIG_COMBINE_PC_NS_WIENER
+  free_match_filter_dictionary(cm->match_filter_dictionary,
+                               &cm->match_dictionary_stride);
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
   aom_free_frame_buffer(&cm->rst_frame);
 }
 

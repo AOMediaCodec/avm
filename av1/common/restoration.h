@@ -226,14 +226,120 @@ static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index);
+int wienerns_to_pcwiener_translator(const NonsepFilterConfig *nsfilter_config,
+                                    int *tap_translator, int max_num_taps);
 void fill_filter_with_match(WienerNonsepInfo *filter,
-                            const WienerNonsepInfo *reference, int set_index,
-                            const int *match_indices,
+                            const int16_t *match_filter_dictionary,
+                            int dict_stride, const int *match_indices,
                             const WienernsFilterParameters *nsfilter_params,
                             int class_id);
 void fill_first_slot_of_bank_with_filter_match(
     WienerNonsepInfoBank *bank, const WienerNonsepInfo *reference,
-    const int *match_indices, int base_qindex, int qindex_offset, int class_id);
+    const int *match_indices, int base_qindex, int class_id,
+    int16_t *match_filter_dictionary, int dict_stride);
+
+#define ILLEGAL_MATCH -1
+
+static inline int get_first_match_index(int compound_match_index,
+                                        int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  return compound_match_index &
+         ((1 << num_frame_first_predictor_bits[num_classes]) - 1);
+}
+
+static inline int get_second_match_index(int compound_match_index,
+                                         int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  if (!use_two_predictors[num_classes]) return ILLEGAL_MATCH;
+  const int second_index =
+      (compound_match_index >> num_frame_first_predictor_bits[num_classes]) - 1;
+  return second_index < 0 ? ILLEGAL_MATCH : second_index;
+}
+
+static inline int combine_to_single_index(int match_index1, int match_index2,
+                                          int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  const int index2_pack = match_index2 == ILLEGAL_MATCH ? 0 : match_index2 + 1;
+  return (index2_pack << num_frame_first_predictor_bits[num_classes]) +
+         match_index1;
+}
+
+static inline int first_match_bits(int class_id, int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  (void)class_id;
+  return num_frame_first_predictor_bits[num_classes];
+}
+static inline int second_match_bits(int class_id) {
+  assert(class_id > 0);
+  assert(NUM_FRAME_SECOND_PREDICTOR_BITS == 4);
+  if (class_id == 1) return 0;
+  if (class_id == 2) return 1;
+  if (class_id <= 4) return 2;
+  if (class_id <= 8) return 3;
+  return 4;
+}
+
+static inline int encode_first_match(int compound_match_index, int class_id,
+                                     int *num_bits, int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  *num_bits = first_match_bits(class_id, num_classes);
+  return get_first_match_index(compound_match_index, num_classes);
+}
+
+static inline int encode_second_match(int compound_match_index, int class_id,
+                                      int *num_bits, int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  if (!use_two_predictors[num_classes]) return ILLEGAL_MATCH;
+  const int second_index =
+      get_second_match_index(compound_match_index, num_classes);
+  if (second_index == ILLEGAL_MATCH) return ILLEGAL_MATCH;
+
+  *num_bits = second_match_bits(class_id);
+  return second_index - prev_filters_begin(num_classes);
+}
+
+static inline int decode_first_match(int encoded_match_index, int class_id) {
+  (void)class_id;
+  return encoded_match_index;
+}
+
+static inline int decode_second_match(int encoded_match_index, int class_id,
+                                      int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  assert(class_id);
+  int decoded_match_index = class_id == 1 ? 0 : encoded_match_index;
+  return decoded_match_index + prev_filters_begin(num_classes);
+}
+
+static inline int count_match_indices_bits(const int *match_indices,
+                                           int num_classes) {
+  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
+  int using_two = 0;
+  int using_two_send = 0;
+  if (use_two_predictors[num_classes]) {
+    using_two_send = num_classes > MIN_CLASS_FOR_CUMUL_USE_TWO_BIT;
+    if (using_two_send) {
+      for (int c_id = 0; c_id < num_classes; ++c_id)
+        if (get_second_match_index(match_indices[c_id], num_classes) !=
+            ILLEGAL_MATCH) {
+          using_two = 1;
+          break;
+        }
+    } else {
+      using_two = 1;
+    }
+  }
+  int total_bits = using_two ? num_classes : 0;
+  if (using_two_send) ++total_bits;
+
+  for (int c_id = 0; c_id < num_classes; ++c_id) {
+    total_bits += first_match_bits(c_id, num_classes);
+    if (using_two && get_second_match_index(match_indices[c_id], num_classes) !=
+                         ILLEGAL_MATCH)
+      total_bits += second_match_bits(c_id);
+  }
+  return total_bits;
+}
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 // Max of SGRPROJ_TMPBUF_SIZE, DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
@@ -467,7 +573,7 @@ typedef struct {
    */
   int frame_filters_initialized;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-   /*!
+  /*!
    * Filter data - number of classes before merge
    */
   int num_classes_before_merge;
@@ -478,11 +584,11 @@ typedef struct {
 #endif //CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
 #endif // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_TEMP_LR
-   /*!
+  /*!
    * whether frame filter is predicted from a reference picture
    */
   uint8_t temporal_pred_flag;
-   /*!
+  /*!
    * reference picture index for frame level filter prediction
    */
   uint8_t rst_ref_pic_idx;
@@ -511,6 +617,15 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info, int chroma) {
 }
 
 #if CONFIG_LR_IMPROVEMENTS
+
+// Clips scale_x to allowed range of Wienerns filter taps.
+static INLINE int16_t clip_to_wienerns_range(int16_t scale_x, int16_t minv,
+                                             int16_t n) {
+  scale_x = AOMMAX(scale_x, minv);
+  scale_x = AOMMIN(scale_x, minv + n - 1);
+  return (int16_t)scale_x;
+}
+
 static INLINE void set_default_wienerns(WienerNonsepInfo *wienerns_info,
                                         int qindex, int num_classes,
                                         int chroma) {
@@ -743,7 +858,8 @@ void av1_copy_rst_frame_filters(RestorationInfo *to, RestorationInfo *from);
 #endif  // CONFIG_TEMP_LR
 
 #if CONFIG_NEW_CLASSIFY_NS_WIENER
-int get_sub_block_class_id(const uint16_t *dgd, int stride, int height, int width, int bit_depth);
+int get_sub_block_class_id(const uint16_t *dgd, int stride, int height,
+                           int width, int bit_depth);
 #endif
 /*!\endcond */
 

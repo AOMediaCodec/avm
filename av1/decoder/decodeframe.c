@@ -128,7 +128,12 @@ static AOM_INLINE void set_planes_to_neutral_grey(
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
-    int runit_idx);
+    int runit_idx
+#if CONFIG_COMBINE_PC_NS_WIENER
+    ,
+    int16_t *match_filter_dictionary, int dict_stride
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+);
 
 static int read_is_valid(const uint8_t *start, size_t len, const uint8_t *end) {
   return len != 0 && len <= (size_t)(end - start);
@@ -2759,6 +2764,16 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
     const int plane_end =
         get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
     for (int plane = plane_start; plane < plane_end; ++plane) {
+#if CONFIG_COMBINE_PC_NS_WIENER
+      int16_t *match_filter_dictionary = NULL;
+      int dict_stride = 0;
+      if (plane == AOM_PLANE_Y && (cm->rst_info + plane)->frame_filters_on) {
+        match_filter_dictionary = cm->match_filter_dictionary;
+        dict_stride = cm->match_dictionary_stride;
+        assert(match_filter_dictionary != NULL);
+        assert(dict_stride > 0);
+      }
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
       int rcol0, rcol1, rrow0, rrow1;
       if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE) &&
           av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
@@ -2767,7 +2782,12 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         for (int rrow = rrow0; rrow < rrow1; ++rrow) {
           for (int rcol = rcol0; rcol < rcol1; ++rcol) {
             const int runit_idx = rcol + rrow * rstride;
-            loop_restoration_read_sb_coeffs(cm, xd, reader, plane, runit_idx);
+            loop_restoration_read_sb_coeffs(cm, xd, reader, plane, runit_idx
+#if CONFIG_COMBINE_PC_NS_WIENER
+                                            ,
+                                            match_filter_dictionary, dict_stride
+#endif
+            );
 #if CONFIG_COMBINE_PC_NS_WIENER
             if (plane == AOM_PLANE_Y) {
               // TODO: Needs to be fixed.
@@ -2776,9 +2796,9 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                   rsi->unit_info[runit_idx].restoration_type ==
                       RESTORE_WIENER_NONSEP
 #if CONFIG_TEMP_LR
-                              && !rsi->temporal_pred_flag
+                  && !rsi->temporal_pred_flag
 #endif
-                  ) {
+              ) {
                 rsi->frame_filters_initialized = 1;
                 const WienerNonsepInfoBank *bank = &xd->wienerns_info[plane];
                 assert(bank->frame_filter_predictors_are_set);
@@ -2790,7 +2810,8 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
                       av1_constref_from_wienerns_bank(bank, 0, c_id), c_id);
                 }
 #if CONFIG_TEMP_LR
-                av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
+                av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane],
+                                           rsi);
 #endif
               }
             }
@@ -3318,21 +3339,26 @@ static RestorationType index_to_frame_restoration_type(
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-static void decode_wienerns_merge_map(struct aom_read_bit_buffer *rb, int *merged_to_indices, int num_filter_classes, int num_classes_before_merge) {
+static void decode_wienerns_merge_map(struct aom_read_bit_buffer *rb,
+                                      int *merged_to_indices,
+                                      int num_filter_classes,
+                                      int num_classes_before_merge) {
   assert(num_filter_classes < num_classes_before_merge);
   assert(num_filter_classes >= 2);
   assert(num_classes_before_merge >= 4);
   merged_to_indices[0] = 0;
-  int continue_reading = 1; // ??????? to be updated
+  int continue_reading = 1;  // ??????? to be updated
   int curr_max_id_after_merge = 0;
   for (int c_id = 1; c_id < num_classes_before_merge; c_id++) {
     if (num_filter_classes >= num_classes_before_merge / 2 - 1) {
       bool is_merged = aom_rb_read_literal(rb, 1);
       if (!is_merged) {
-        ++ curr_max_id_after_merge;
+        ++curr_max_id_after_merge;
         merged_to_indices[c_id] = curr_max_id_after_merge;
       } else {
-        int bit_per_idx = curr_max_id_after_merge ? av1_ceil_log2(curr_max_id_after_merge + 1) : 0;
+        int bit_per_idx = curr_max_id_after_merge
+                              ? av1_ceil_log2(curr_max_id_after_merge + 1)
+                              : 0;
         if (bit_per_idx > 0)
           merged_to_indices[c_id] = aom_rb_read_literal(rb, bit_per_idx);
         else
@@ -3344,7 +3370,7 @@ static void decode_wienerns_merge_map(struct aom_read_bit_buffer *rb, int *merge
     }
   }
 }
-#endif // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+#endif  // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
 
 static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
@@ -3434,15 +3460,14 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #if CONFIG_TEMP_LR
           rsi->temporal_pred_flag = 0;
           rsi->rst_ref_pic_idx = 0;
-          if(rsi->frame_filters_on) {
-          const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
-                                 ? 0
-                                 : cm->ref_frames_info.num_total_refs;
+          if (rsi->frame_filters_on) {
+            const int num_ref_frames = cm->current_frame.frame_type == KEY_FRAME
+                                           ? 0
+                                           : cm->ref_frames_info.num_total_refs;
 
             if (num_ref_frames > 0)
               rsi->temporal_pred_flag = aom_rb_read_bit(rb);
-            if (rsi->temporal_pred_flag &&
-                num_ref_frames > 1) {
+            if (rsi->temporal_pred_flag && num_ref_frames > 1) {
               rsi->rst_ref_pic_idx = aom_rb_read_literal(
                   rb,
                   av1_ceil_log2(num_ref_frames));  // read_lr_reference_idx
@@ -3454,48 +3479,64 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                 rsi, &get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)->rst_info[p]);
             rsi->frame_filters_initialized = 1;
 
-            av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[p], rsi);
+            av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
           } else {
 #endif  // CONFIG_TEMP_LR
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-          if(rsi->frame_filters_on) {
-#if SIXTEEN_CLASSES_BEFORE_MERGE // only allow 1 or 16
-            rsi->num_classes_before_merge = aom_rb_read_bit(rb) ? 16 : 1;
-            if (rsi->num_classes_before_merge == 16) {
+            if (rsi->frame_filters_on) {
+#if SIXTEEN_CLASSES_BEFORE_MERGE  // only allow 1 or 16
+              rsi->num_classes_before_merge = aom_rb_read_bit(rb) ? 16 : 1;
+              if (rsi->num_classes_before_merge == 16) {
 #else
-            rsi->num_classes_before_merge = decode_num_filter_classes(
-                aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
-            if (rsi->num_classes_before_merge == 16) {
+              rsi->num_classes_before_merge = decode_num_filter_classes(
+                  aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
+              if (rsi->num_classes_before_merge == 16) {
 #endif
-              int bit_num = encode_num_filter_classes(rsi->num_classes_before_merge);
-              rsi->num_filter_classes = aom_rb_read_literal(rb, bit_num) + 1;
-              assert (rsi->num_filter_classes >= 2 && rsi->num_filter_classes <= rsi->num_classes_before_merge);
-              if (rsi->num_filter_classes < rsi->num_classes_before_merge)
-                decode_wienerns_merge_map(rb, rsi->merged_to_indices, rsi->num_filter_classes, rsi->num_classes_before_merge);
-            } else {
-              rsi->num_filter_classes = rsi->num_classes_before_merge;
-               // init merged_to_indices array
-              for (int c_id = 0; c_id < rsi->num_filter_classes; ++c_id) {
-                rsi->merged_to_indices[c_id] = c_id;
+                int bit_num =
+                    encode_num_filter_classes(rsi->num_classes_before_merge);
+                rsi->num_filter_classes = aom_rb_read_literal(rb, bit_num) + 1;
+                assert(rsi->num_filter_classes >= 2 &&
+                       rsi->num_filter_classes <=
+                           rsi->num_classes_before_merge);
+                if (rsi->num_filter_classes < rsi->num_classes_before_merge)
+                  decode_wienerns_merge_map(rb, rsi->merged_to_indices,
+                                            rsi->num_filter_classes,
+                                            rsi->num_classes_before_merge);
+              } else {
+                rsi->num_filter_classes = rsi->num_classes_before_merge;
+                // init merged_to_indices array
+                for (int c_id = 0; c_id < rsi->num_filter_classes; ++c_id) {
+                  rsi->merged_to_indices[c_id] = c_id;
+                }
               }
+            } else {
+              rsi->num_filter_classes = 1;
+              rsi->num_classes_before_merge = 1;
             }
-         } else {
-           rsi->num_filter_classes = 1;
-           rsi->num_classes_before_merge = 1;
-         }
 #else
-          if(rsi->frame_filters_on) // ??????? should this be signalled only when frame_mode_on?
+          if (rsi->frame_filters_on)  // ??????? should this be signalled only
+                                      // when frame_mode_on?
             rsi->num_filter_classes = decode_num_filter_classes(
-              aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
+                aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
           else
             rsi->num_filter_classes = 1;
 #endif
 #if CONFIG_TEMP_LR
-       }
+          }
 #endif
-     } else {
+          if (cm->match_filter_dictionary == NULL) {
+            cm->match_filter_dictionary =
+                allocate_match_filter_dictionary(&cm->match_dictionary_stride);
+          }
+          if (rsi->frame_filters_on) {
+            set_base_match_filter_dictionary(
+                cm, rsi->num_filter_classes, cm->match_filter_dictionary,
+                cm->match_dictionary_stride, PRINT_REFS ? "D ref:" : NULL);
+          }
+        } else {
           rsi->frame_filters_on = 0;
           rsi->num_filter_classes = NUM_WIENERNS_CLASS_INIT_LUMA;
+          assert(rsi->num_filter_classes == 1);
         }
       } else {
         rsi->frame_filters_on = 0;
@@ -3752,13 +3793,55 @@ static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
   av1_add_to_sgrproj_bank(bank, sgrproj_info);
 }
 
+#if CONFIG_COMBINE_PC_NS_WIENER
+static void read_match_indices(WienerNonsepInfo *wienerns_info,
+                               aom_reader *rb) {
+  int using_two = use_two_predictors[wienerns_info->num_classes];
+  int using_two_receive =
+      use_two_predictors[wienerns_info->num_classes] &&
+      wienerns_info->num_classes > MIN_CLASS_FOR_CUMUL_USE_TWO_BIT;
+  if (using_two_receive) {
+    using_two = aom_read_bit(rb, ACCT_STR);
+  }
+  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
+    int decoded_match = aom_read_literal(
+        rb, first_match_bits(c_id, wienerns_info->num_classes), ACCT_STR);
+    int first_match = decode_first_match(decoded_match, c_id);
+    int second_match = ILLEGAL_MATCH;
+    if (using_two) {
+      if (aom_read_bit(rb, ACCT_STR)) {
+        const int num_bits = second_match_bits(c_id);
+        if (num_bits) {
+          decoded_match = aom_read_literal(rb, num_bits, ACCT_STR);
+        } else {
+          decoded_match = 0;
+        }
+        second_match = decode_second_match(decoded_match, c_id,
+                                           wienerns_info->num_classes);
+      }
+    }
+    fflush(stdout);
+    wienerns_info->match_indices[c_id] = combine_to_single_index(
+        first_match, second_match, wienerns_info->num_classes);
+    assert(first_match ==
+           get_first_match_index(wienerns_info->match_indices[c_id],
+                                 wienerns_info->num_classes));
+    assert(second_match ==
+           get_second_match_index(wienerns_info->match_indices[c_id],
+                                  wienerns_info->num_classes));
+  }
+}
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
 #if CONFIG_LR_IMPROVEMENTS
 static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
                                  WienerNonsepInfo *wienerns_info,
                                  WienerNonsepInfoBank *bank, aom_reader *rb
 #if CONFIG_COMBINE_PC_NS_WIENER
                                  ,
-                                 int base_qindex, int qindex_offset
+                                 int base_qindex,
+                                 int16_t *match_filter_dictionary,
+                                 int dict_stride
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 ) {
   int skip_filter_read_for_class[WIENERNS_MAX_CLASSES] = { 0 };
@@ -3771,17 +3854,15 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 #if CONFIG_TEMP_LR
       wienerns_info->temporal_pred_flag ||
 #endif
-      (wienerns_info->frame_filters_on && bank->frame_filter_predictors_are_set);
+      (wienerns_info->frame_filters_on &&
+       bank->frame_filter_predictors_are_set);
   if (
 #if CONFIG_TEMP_LR
       !wienerns_info->temporal_pred_flag &&
 #endif
       wienerns_info->frame_filters_on &&
       !bank->frame_filter_predictors_are_set) {
-    for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
-      wienerns_info->match_indices[c_id] =
-          aom_read_literal(rb, NUM_FRAME_PREDICTOR_BITS, ACCT_STR);
-    }
+    read_match_indices(wienerns_info, rb);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
   for (int c_id = 0; c_id < num_classes; ++c_id) {
@@ -3818,8 +3899,8 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
     if (wienerns_info->frame_filters_on &&
         !bank->frame_filter_predictors_are_set) {
       fill_first_slot_of_bank_with_filter_match(
-          bank, wienerns_info, wienerns_info->match_indices, base_qindex,
-          qindex_offset, c_id);
+          bank, wienerns_info, wienerns_info->match_indices, base_qindex, c_id,
+          match_filter_dictionary, dict_stride);
     }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
     if (skip_filter_read_for_class[c_id]) {
@@ -3896,7 +3977,12 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
-    int runit_idx) {
+    int runit_idx
+#if CONFIG_COMBINE_PC_NS_WIENER
+    ,
+    int16_t *match_filter_dictionary, int dict_stride
+#endif  // CONFIG_COMBINE_PC_NS_WIENER
+    ) {
   const RestorationInfo *rsi = &cm->rst_info[plane];
   RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
   assert(rsi->frame_restoration_type != RESTORE_NONE);
@@ -3905,7 +3991,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
 #if CONFIG_COMBINE_PC_NS_WIENER
-  if (plane == AOM_PLANE_Y && rsi->frame_filters_initialized) {
+  if (plane == AOM_PLANE_Y && rsi->frame_filters_on &&
+      rsi->frame_filters_initialized) {
     WienerNonsepInfoBank *bank = &xd->wienerns_info[plane];
     if (!bank->frame_filter_predictors_are_set) {
       bank->filter[0].num_classes = rsi->frame_filters.num_classes;
@@ -3915,7 +4002,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
       bank->frame_filter_predictors_are_set = 1;
 
 #if CONFIG_TEMP_LR
-      av1_copy_rst_frame_filters( &cm->cur_frame->rst_info[plane], rsi);
+      // Is this needed? Bug?
+      av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
 #endif
     }
   }
@@ -3925,7 +4013,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
   rui->wienerns_info.temporal_pred_flag = rsi->temporal_pred_flag;
 #endif
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  // to be updated, should define frame_cross_filters_on in rsi to support frame level filter for cross filter
+  // to be updated, should define frame_cross_filters_on in rsi to support frame
+  // level filter for cross filter
   rui->wienerns_cross_info.frame_filters_on = 0;
 #endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
@@ -3973,7 +4062,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #if CONFIG_COMBINE_PC_NS_WIENER
                              ,
                              cm->quant_params.base_qindex,
-                             cm->quant_params.y_dc_delta_q
+                             match_filter_dictionary, dict_stride
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
         );
         break;
@@ -4010,7 +4099,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #if CONFIG_COMBINE_PC_NS_WIENER
                            ,
                            cm->quant_params.base_qindex,
-                           cm->quant_params.y_dc_delta_q
+                           match_filter_dictionary, dict_stride
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
       );
     } else {
@@ -8801,6 +8890,9 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     cm->global_motion[i] = default_warp_params;
     cm->cur_frame->global_motion[i] = default_warp_params;
   }
+#if CONFIG_TEMP_LR
+  cm->cur_frame->rst_info[AOM_PLANE_Y].frame_filters_on = 0;
+#endif
   xd->global_motion = cm->global_motion;
 
   read_uncompressed_header(pbi, rb);
