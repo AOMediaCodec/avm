@@ -688,7 +688,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
       av1_cost_tokens_from_cdf(mode_costs->warped_causal_cost[i],
                                fc->warped_causal_cdf[i], NULL);
     }
-#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
 #if CONFIG_D149_CTX_MODELING_OPT
     av1_cost_tokens_from_cdf(mode_costs->warped_causal_warpmv_cost,
                              fc->warped_causal_warpmv_cdf, NULL);

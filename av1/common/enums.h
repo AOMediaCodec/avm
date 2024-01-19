@@ -972,7 +972,7 @@ enum {
 #define NO_D149_FOR_WARPED_CAUSAL 1
 #else
 #define NO_D149_FOR_WARPED_CAUSAL 0
-#endif
+#endif  // CONFIG_D149_CTX_MODELING_OPT && CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_AIMC
 // Total delta angles for one nominal directional mode
 #define TOTAL_ANGLE_DELTA_COUNT 7

@@ -3013,7 +3013,7 @@ static int64_t motion_mode_rd(
 #else
               mode_costs
                   ->warped_causal_cost[bsize][motion_mode == WARPED_CAUSAL];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
           if (motion_mode == WARPED_CAUSAL) {
             continue_motion_mode_signaling = false;
           }

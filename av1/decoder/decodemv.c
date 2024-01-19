@@ -644,7 +644,7 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     int use_warped_causal =
         aom_read_symbol(r, xd->tile_ctx->warped_causal_cdf[bsize], 2,
                         ACCT_INFO("use_warped_causal"));
-#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
     if (use_warped_causal) {
       return WARPED_CAUSAL;
     }

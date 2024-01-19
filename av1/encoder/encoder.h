@@ -1537,11 +1537,11 @@ typedef struct FRAME_COUNTS {
   unsigned int obmc[BLOCK_SIZES_ALL][2];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 #if CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   unsigned int warped_causal[2];
 #else
   unsigned int warped_causal[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int warped_causal_warpmv[CDF_SIZE(2)];
 #else

@@ -1279,7 +1279,7 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
-#if CONFIG_D149_CTX_MODELING_OPT
+#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.warped_causal[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "
@@ -1292,7 +1292,7 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_warped_causal_cdf[BLOCK_SIZES_ALL][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#endif  // CONFIG_D149_CTX_MODELING_OPT
+#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARPED_CAUSAL
 
 #if CONFIG_D149_CTX_MODELING_OPT
   cts_each_dim[0] = 2;
