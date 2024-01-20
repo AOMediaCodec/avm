@@ -142,7 +142,10 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       if (motion_models[i].num_inliers == 0) continue;
 
       WarpedMotionParams tmp_wm_params;
-      av1_convert_model_to_params(motion_models[i].params, &tmp_wm_params);
+      memcpy(tmp_wm_params.wmmat, motion_models[i].params,
+             MAX_PARAMDIM * sizeof(*tmp_wm_params.wmmat));
+      tmp_wm_params.wmtype = get_wmtype(&tmp_wm_params);
+      tmp_wm_params.invalid = 0;
 
       // Check that the generated model is warp-able
       if (!av1_get_shear_params(&tmp_wm_params)) continue;

@@ -22,6 +22,7 @@
 #include "aom_mem/aom_mem.h"
 
 // TODO(rachelbarker): Remove dependence on code in av1/encoder/
+#include "av1/common/mv.h"
 #include "av1/encoder/random.h"
 
 #define MAX_MINPTS 4
@@ -55,6 +56,10 @@ typedef struct {
 typedef bool (*FindTransformationFunc)(const Correspondence *points,
                                        const int *indices, int num_indices,
                                        double *params);
+typedef bool (*FindTransformationQuantizeFunc)(const Correspondence *points,
+                                               const int *indices,
+                                               int num_indices,
+                                               int32_t *params);
 typedef void (*ScoreModelFunc)(const double *mat, const Correspondence *points,
                                int num_points, RANSAC_MOTION *model);
 
@@ -62,6 +67,7 @@ typedef void (*ScoreModelFunc)(const double *mat, const Correspondence *points,
 // for a particular model type
 typedef struct {
   FindTransformationFunc find_transformation;
+  FindTransformationQuantizeFunc find_transformation_quantize;
   ScoreModelFunc score_model;
 
   // The minimum number of points which can be passed to find_transformation
@@ -161,6 +167,41 @@ static bool find_translation(const Correspondence *points, const int *indices,
   params[5] = 1;
   return true;
 }
+
+static bool find_translation_quantize(const Correspondence *points,
+                                      const int *indices, int num_indices,
+                                      int32_t *params) {
+  double sumx = 0;
+  double sumy = 0;
+
+  for (int i = 0; i < num_indices; ++i) {
+    int index = indices[i];
+    const double sx = points[index].x;
+    const double sy = points[index].y;
+    const double dx = points[index].rx;
+    const double dy = points[index].ry;
+
+    sumx += dx - sx;
+    sumy += dy - sy;
+  }
+
+  const double tx = sumx / np;
+  const double ty = sumy / np;
+
+  params[0] =
+      clamp((int)rint(tx * (1 << GM_TRANS_ONLY_PREC_BITS)),
+            -(1 << GM_ABS_TRANS_ONLY_BITS), (1 << GM_ABS_TRANS_ONLY_BITS)) *
+      (1 << GM_TRANS_ONLY_PREC_DIFF);
+  params[1] =
+      clamp((int)rint(ty * (1 << GM_TRANS_ONLY_PREC_BITS)),
+            -(1 << GM_ABS_TRANS_ONLY_BITS), (1 << GM_ABS_TRANS_ONLY_BITS)) *
+      (1 << GM_TRANS_ONLY_PREC_DIFF);
+  params[2] = 1 << WARPEDMODEL_PREC_BITS;
+  params[3] = 0;
+  params[4] = 0;
+  params[5] = 1 << WARPEDMODEL_PREC_BITS;
+  return true;
+}
 #endif  // ALLOW_TRANSLATION_MODELS
 
 static bool find_rotzoom(const Correspondence *points, const int *indices,
@@ -195,7 +236,60 @@ static bool find_rotzoom(const Correspondence *points, const int *indices,
   }
 
   // Fill in params[0] .. params[3] with output model
-  if (!least_squares_solve(mat, y, params, n)) {
+  if (!least_squares_solve(mat, mat, y, params, n)) {
+    return false;
+  }
+
+  // Fill in remaining parameters
+  params[4] = -params[3];
+  params[5] = params[2];
+
+  return true;
+}
+
+static bool find_rotzoom_quantize(const Correspondence *points,
+                                  const int *indices, int num_indices,
+                                  int32_t *params) {
+  const int n = 4;    // Size of least-squares problem
+  double mat[4 * 4];  // Accumulator for A'A
+  double y[4];        // Accumulator for A'b
+  double a[4];        // Single row of A
+  double b;           // Single element of b
+
+  least_squares_init(mat, y, n);
+  for (int i = 0; i < num_indices; ++i) {
+    int index = indices[i];
+    const double sx = points[index].x;
+    const double sy = points[index].y;
+    const double dx = points[index].rx;
+    const double dy = points[index].ry;
+
+    a[0] = 1;
+    a[1] = 0;
+    a[2] = sx;
+    a[3] = sy;
+    b = dx;
+    least_squares_accumulate(mat, y, a, b, n);
+
+    a[0] = 0;
+    a[1] = 1;
+    a[2] = sy;
+    a[3] = -sx;
+    b = dy;
+    least_squares_accumulate(mat, y, a, b, n);
+  }
+
+  // Fill in params[0] .. params[3] with output model
+  double prec[4] = { 1 << GM_TRANS_PREC_BITS, 1 << GM_TRANS_PREC_BITS,
+                     1 << GM_ALPHA_PREC_BITS, 1 << GM_ALPHA_PREC_BITS };
+  int32_t min[4] = { GM_TRANS_MIN, GM_TRANS_MIN,
+                     (1 << GM_ALPHA_PREC_BITS) + GM_ALPHA_MIN, GM_ALPHA_MIN };
+  int32_t max[4] = { GM_TRANS_MAX, GM_TRANS_MAX,
+                     (1 << GM_ALPHA_PREC_BITS) + GM_ALPHA_MAX, GM_ALPHA_MAX };
+  int32_t scale[4] = { 1 << GM_TRANS_PREC_DIFF, 1 << GM_TRANS_PREC_DIFF,
+                       1 << GM_ALPHA_PREC_DIFF, 1 << GM_ALPHA_PREC_DIFF };
+  if (!least_squares_solve_quant(mat, mat, y, y, params, n, prec, min, max,
+                                 scale)) {
     return false;
   }
 
@@ -247,10 +341,89 @@ static bool find_affine(const Correspondence *points, const int *indices,
     least_squares_accumulate(mat[1], y[1], a[1], b[1], n);
   }
 
-  if (!least_squares_solve(mat[0], y[0], x[0], n)) {
+  // Each of the two models produces 1 translational + 2 non-translational
+  // params
+  if (!least_squares_solve(mat[0], mat[0], y[0], x[0], n)) {
     return false;
   }
-  if (!least_squares_solve(mat[1], y[1], x[1], n)) {
+  if (!least_squares_solve(mat[1], mat[1], y[1], x[1], n)) {
+    return false;
+  }
+
+  // Rearrange least squares result to form output model
+  params[0] = x[0][0];
+  params[1] = x[1][0];
+  params[2] = x[0][1];
+  params[3] = x[0][2];
+  params[4] = x[1][1];
+  params[5] = x[1][2];
+
+  return true;
+}
+
+static bool find_affine_quantize(const Correspondence *points,
+                                 const int *indices, int num_indices,
+                                 int32_t *params) {
+  // Note: The least squares problem for affine models is 6-dimensional,
+  // but it splits into two independent 3-dimensional subproblems.
+  // Solving these two subproblems separately and recombining at the end
+  // results in less total computation than solving the 6-dimensional
+  // problem directly.
+  //
+  // The two subproblems correspond to all the parameters which contribute
+  // to the x output of the model, and all the parameters which contribute
+  // to the y output, respectively.
+
+  const int n = 3;       // Size of each least-squares problem
+  double mat[2][3 * 3];  // Accumulator for A'A
+  double y[2][3];        // Accumulator for A'b
+  int32_t x[2][3];       // Output vector
+  double a[2][3];        // Single row of A
+  double b[2];           // Single element of b
+
+  least_squares_init(mat[0], y[0], n);
+  least_squares_init(mat[1], y[1], n);
+  for (int i = 0; i < num_indices; ++i) {
+    int index = indices[i];
+    const double sx = points[index].x;
+    const double sy = points[index].y;
+    const double dx = points[index].rx;
+    const double dy = points[index].ry;
+
+    a[0][0] = 1;
+    a[0][1] = sx;
+    a[0][2] = sy;
+    b[0] = dx;
+    least_squares_accumulate(mat[0], y[0], a[0], b[0], n);
+
+    a[1][0] = 1;
+    a[1][1] = sx;
+    a[1][2] = sy;
+    b[1] = dy;
+    least_squares_accumulate(mat[1], y[1], a[1], b[1], n);
+  }
+
+  // Each of the two least squares problems produces 1 translational +
+  // 2 non-translational params
+  double prec[3] = { 1 << GM_TRANS_PREC_BITS, 1 << GM_ALPHA_PREC_BITS,
+                     1 << GM_ALPHA_PREC_BITS };
+  int32_t min[2][3] = {
+    { GM_TRANS_MIN, (1 << GM_ALPHA_PREC_BITS) + GM_ALPHA_MIN, GM_ALPHA_MIN },
+    { GM_TRANS_MIN, GM_ALPHA_MIN, (1 << GM_ALPHA_PREC_BITS) + GM_ALPHA_MIN }
+  };
+  int32_t max[2][3] = {
+    { GM_TRANS_MAX, (1 << GM_ALPHA_PREC_BITS) + GM_ALPHA_MAX, GM_ALPHA_MAX },
+    { GM_TRANS_MAX, GM_ALPHA_MAX, (1 << GM_ALPHA_PREC_BITS) + GM_ALPHA_MAX }
+  };
+  int32_t scale[3] = { 1 << GM_TRANS_PREC_DIFF, 1 << GM_ALPHA_PREC_DIFF,
+                       1 << GM_ALPHA_PREC_DIFF };
+
+  if (!least_squares_solve_quant(mat[0], mat[0], y[0], y[0], x[0], n, prec,
+                                 min[0], max[0], scale)) {
+    return false;
+  }
+  if (!least_squares_solve_quant(mat[1], mat[1], y[1], y[1], x[1], n, prec,
+                                 min[1], max[1], scale)) {
     return false;
   }
 
@@ -453,9 +626,16 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
 
     if (bad_model) continue;
 
-    // Fill in output struct
-    memcpy(motion_models[i].params, params_this_motion,
-           MAX_PARAMDIM * sizeof(*motion_models[i].params));
+    // Generate a final model, taking into account the quantization of the
+    // parameters
+    if (!model_info->find_transformation_quantize(
+            matched_points, motions[i].inlier_indices, motions[i].num_inliers,
+            motion_models[i].params)) {
+      // This fit shouldn't fail; if it does, give up and return the identity
+      continue;
+    }
+
+    // Fill in remaining output fields
     for (int j = 0; j < motions[i].num_inliers; j++) {
       int index = motions[i].inlier_indices[j];
       const Correspondence *corr = &matched_points[index];
@@ -474,17 +654,17 @@ finish_ransac:
 
 static const RansacModelInfo ransac_model_info[TRANS_TYPES] = {
   // IDENTITY
-  { NULL, NULL, 0 },
+  { NULL, NULL, NULL, 0 },
 // TRANSLATION
 #if ALLOW_TRANSLATION_MODELS
-  { find_translation, score_translation, 1 },
+  { find_translation, find_translation_quantize, score_translation, 1 },
 #else
-  { NULL, NULL, 0 },
+  { NULL, NULL, NULL, 0 },
 #endif
   // ROTZOOM
-  { find_rotzoom, score_affine, 2 },
+  { find_rotzoom, find_rotzoom_quantize, score_affine, 2 },
   // AFFINE
-  { find_affine, score_affine, 3 },
+  { find_affine, find_affine_quantize, score_affine, 3 },
 };
 
 // Returns true on success, false on error

@@ -79,6 +79,153 @@ static INLINE int linsolve_const(int n, const double *A, int stride,
   return ret;
 }
 
+// Perform the Cholesky decomposition on a symmetric matrix A, and store
+// the result into R.
+//
+// If A is no longer needed by the caller, it is safe to pass the same pointer
+// as both R and M. This will perform the decomposition in place, with no
+// additional storage needed.
+//
+// Conditions:
+// 1) The input matrix must be symmetric. If not, the result will be
+//    meaningless.
+// 2) The input matrix must be positive-definite. If not, this function
+//    will fail and return 0.
+//
+// A common example of a suitable matrix is the normal matrix A = M^T M from
+// a regularized least squares problem. Without regularization, the matrix
+// may only be positive semi-definite, and the decomposition may fail.
+//
+// Traditionally, the Cholesky decomposition computes a lower-triangular
+// matrix L such that L L^T = A . Here we transpose the process, instead
+// computing an upper-triangular matrix R such that R^T R = A.
+//
+// This is done to help simplify the callers of this code - all of the
+// complicated parts need to work with R (== L^T), and not R^T (== L).
+// So, by building R instead of L, we don't need to implicitly transpose
+// later, which removes a bit of mental overhead from the more complex
+// parts of the code.
+//
+// We also invert the diagonal elements of R, so that later code can use
+// multiplications instead of divisions.
+//
+// Returns 1 on success, 0 on failure.
+static INLINE int cholesky_decompose(int n, const double *A, double *R,
+                                     int stride) {
+  for (int i = 0; i < n; i++) {
+    // Compute diagonal element and invert
+    double diag = A[i * stride + i];
+    for (int k = 0; k < i; k++) {
+      diag -= R[k * stride + i] * R[k * stride + i];
+    }
+    if (diag <= 0.0) return 0;
+    diag = 1.0 / sqrt(diag);
+    R[i * stride + i] = diag;
+
+    // Compute off-diagonal elements on this row
+    for (int j = i + 1; j < n; j++) {
+      double v = A[i * stride + j];
+      for (int k = 0; k < i; k++) {
+        v -= R[k * stride + i] * R[k * stride + j];
+      }
+      R[i * stride + j] = v * diag;
+    }
+  }
+  return 1;
+}
+
+// Solve A x = b, where A is a symmetric positive-definite matrix.
+// See cholesky_decompose() for conditions on A.
+//
+// If A and b are no longer needed by the caller, it is safe to pass the same
+// pointer for R and M, and similarly for x and b. This will solve the equations
+// in place, with no additional storage needed.
+//
+// Returns 1 on success, 0 on failure.
+static INLINE int linsolve_spd(int n, const double *A, double *R, int stride,
+                               const double *b, double *x) {
+  // Decompose A = R^T R
+  if (!cholesky_decompose(n, A, R, stride)) return 0;
+
+  // Forward substitution
+  // This step solves the equations R^T y = b, and stores y into x
+  for (int i = 0; i < n; i++) {
+    double v = b[i];
+    for (int j = 0; j < i; j++) {
+      v -= R[j * stride + i] * x[j];
+    }
+    x[i] = v * R[i * stride + i];
+  }
+
+  // Backward substitution
+  // This step solves the equations R x = y
+  for (int i = n - 1; i >= 0; i--) {
+    double v = x[i];
+    for (int j = i + 1; j < n; j++) {
+      v -= R[i * stride + j] * x[j];
+    }
+    x[i] = v * R[i * stride + i];
+  }
+
+  return 1;
+}
+
+// Similar to linsolve_spd, except that each output parameter is quantized to
+// an integer, which is stored in `x`. This implements the "bootstrap
+// quantization" algorithm [TODO: Insert citation].
+//
+// This function requires n * sizeof(double) bytes of auxiliary storage,
+// provided as the "tmp" argument. If the caller does not need b after this
+// function, it is safe to pass the same pointer as tmp and b, to reuse
+// this space.
+//
+// When applied to a least squares problem, this method almost always gives a
+// better result than a simple solve-then-quantize approach, although the result
+// is still not guaranteed to be completely optimal.
+//
+// The constraints supported are that variable i is quantized in units of
+// prec[i], then clamped between min[i] and max[i], and finally scaled by
+// a multiplier scale[i].
+static INLINE int linsolve_spd_quantize(int n, const double *A, double *R,
+                                        int stride, const double *b,
+                                        double *tmp, int32_t *x,
+                                        const double *prec, const int32_t *min,
+                                        const int32_t *max,
+                                        const int32_t *scale) {
+  if (!cholesky_decompose(n, A, R, stride)) return 0;
+
+  // Forward substitution
+  // This step solves the equations R^T y = b, and stores y into tmp
+  for (int i = 0; i < n; i++) {
+    double v = b[i];
+    for (int j = 0; j < i; j++) {
+      v -= R[j * stride + i] * tmp[j];
+    }
+    tmp[i] = v * R[i * stride + i];
+  }
+
+  // Backward substitution + quantization
+  // This step solves the equations R x = y
+  for (int i = n - 1; i >= 0; i--) {
+    double v = tmp[i];
+    for (int j = i + 1; j < n; j++) {
+      v -= R[i * stride + j] * tmp[j];
+    }
+    v *= R[i * stride + i];
+
+    // Quantize
+    // After quantization, we need to simultaneously rescale:
+    // 1) to the original scale and store back into tmp, for use in later
+    //    equations
+    // 2) to the model scale and store into x, for output
+    int32_t quantized = clamp((int)rint(v * prec[i]), min[i], max[i]);
+    tmp[i] = (double)quantized / prec[i];
+    x[i] = quantized * scale[i];
+  }
+
+  return 1;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Least-squares
 // Solves for n-dim x in a least squares sense to minimize |Ax - b|^2
@@ -116,8 +263,10 @@ static AOM_FORCE_INLINE int iroundpf(float x) {
 
 static INLINE void least_squares_accumulate(double *mat, double *y,
                                             const double *a, double b, int n) {
+  // Only fill the upper triangle of the matrix, as this is all that is
+  // needed by linsolve_spd()
   for (int i = 0; i < n; i++) {
-    for (int j = 0; j < n; j++) {
+    for (int j = i; j < n; j++) {
       mat[i * n + j] += a[i] * a[j];
     }
   }
@@ -126,9 +275,16 @@ static INLINE void least_squares_accumulate(double *mat, double *y,
   }
 }
 
-static INLINE int least_squares_solve(double *mat, double *y, double *x,
-                                      int n) {
-  return linsolve(n, mat, n, y, x);
+static INLINE int least_squares_solve(const double *A, double *R,
+                                      const double *y, double *x, int n) {
+  return linsolve_spd(n, A, R, n, y, x);
+}
+
+static INLINE int least_squares_solve_quant(
+    const double *A, double *R, const double *y, double *tmp, int32_t *x, int n,
+    const double *prec, const int32_t *min, const int32_t *max,
+    const int32_t *scale) {
+  return linsolve_spd_quantize(n, A, R, n, y, tmp, x, prec, min, max, scale);
 }
 
 // Matrix multiply

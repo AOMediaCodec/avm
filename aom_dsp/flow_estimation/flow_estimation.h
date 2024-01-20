@@ -46,7 +46,7 @@ typedef enum {
 } GlobalMotionMethod;
 
 typedef struct {
-  double params[MAX_PARAMDIM];
+  int32_t params[MAX_PARAMDIM];
   int *inliers;
   int num_inliers;
 } MotionModel;
