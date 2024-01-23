@@ -385,6 +385,32 @@ static INLINE int get_br_cost(tran_low_t level, const int *coeff_lps) {
   return coeff_lps[base_range] + get_golomb_cost(level);
 }
 
+#if CONFIG_LCCHROMA
+static INLINE int get_nz_map_ctx_chroma(const uint8_t *const levels,
+                                        const int coeff_idx, const int bwl,
+                                        const int height, const int scan_idx,
+                                        const int is_eob,
+                                        const TX_CLASS tx_class,
+                                        const int plane) {
+  if (is_eob) {
+    return get_lower_levels_ctx_eob(bwl, height, scan_idx);
+  }
+  int stats = 0;
+  const int row = coeff_idx >> bwl;
+  const int col = coeff_idx - (row << bwl);
+  int limits = get_lf_limits(row, col, tx_class, plane);
+  if (limits) {
+    stats = get_nz_mag_lf_chroma(levels + get_padded_idx(coeff_idx, bwl), bwl,
+                                 tx_class);
+    return get_nz_map_ctx_from_stats_lf_chroma(stats, tx_class, plane);
+  } else {
+    stats = get_nz_mag_chroma(levels + get_padded_idx(coeff_idx, bwl), bwl,
+                              tx_class);
+    return get_nz_map_ctx_from_stats_chroma(stats, coeff_idx, tx_class, plane);
+  }
+}
+#endif  // CONFIG_LCCHROMA
+
 static INLINE int get_nz_map_ctx(const uint8_t *const levels,
                                  const int coeff_idx, const int bwl,
                                  const int height, const int scan_idx,
@@ -507,8 +533,18 @@ void av1_get_nz_map_contexts_c(const uint8_t *const levels,
   const int height = get_txb_high(tx_size);
   for (int i = 0; i < eob; ++i) {
     const int pos = scan[i];
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      coeff_contexts[pos] = get_nz_map_ctx_chroma(
+          levels, pos, bwl, height, i, i == eob - 1, tx_class, plane);
+    } else {
+      coeff_contexts[pos] = get_nz_map_ctx(levels, pos, bwl, height, i,
+                                           i == eob - 1, tx_class, plane);
+    }
+#else
     coeff_contexts[pos] = get_nz_map_ctx(levels, pos, bwl, height, i,
                                          i == eob - 1, tx_class, plane);
+#endif  // CONFIG_LCCHROMA
   }
 }
 
@@ -857,6 +893,27 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                           ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx],
+                           LF_BASE_SYMBOLS - 1);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
+                           ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx], 3);
+        }
+      } else {
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                           ec_ctx->coeff_base_lf_eob_cdf[txs_ctx][coeff_ctx],
+                           LF_BASE_SYMBOLS - 1);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
+                           ec_ctx->coeff_base_eob_cdf[txs_ctx][coeff_ctx], 3);
+        }
+      }
+#else
       if (limits) {
         aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
@@ -867,10 +924,32 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
             w, AOMMIN(level, 3) - 1,
             ec_ctx->coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx], 3);
       }
+#endif  // CONFIG_LCCHROMA
     } else {
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+                           ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx],
+                           LF_BASE_SYMBOLS);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3),
+                           ec_ctx->coeff_base_uv_cdf[coeff_ctx], 4);
+        }
+      } else {
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+                           ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx],
+                           LF_BASE_SYMBOLS);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3),
+                           ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx], 4);
+        }
+      }
+#else
       if (limits) {
         aom_write_symbol(
             w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
@@ -881,11 +960,65 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                          ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
                          4);
       }
+#endif  // CONFIG_LCCHROMA
     }
 
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        if (level > LF_NUM_BASE_LEVELS) {
+          const int base_range =
+              level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
+          const int br_ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_lf_uv_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      } else {
+        if (level > NUM_BASE_LEVELS) {
+          const int base_range = level - 1 - NUM_BASE_LEVELS;
+          const int br_ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_uv_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      }
+    } else {
+      if (limits) {
+        if (level > LF_NUM_BASE_LEVELS) {
+          const int base_range =
+              level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
+          const int br_ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_lf_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      } else {
+        if (level > NUM_BASE_LEVELS) {
+          const int base_range = level - 1 - NUM_BASE_LEVELS;
+          const int br_ctx = get_br_ctx(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      }
+    }
+#else
     if (limits) {
       if (level > LF_NUM_BASE_LEVELS) {
         const int base_range =
@@ -910,6 +1043,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         }
       }
     }
+#endif  // CONFIG_LCCHROMA
   }
 
   int num_nz = 0;
@@ -934,6 +1068,61 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
 
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (c == eob - 1) {
+        const int row = pos >> bwl;
+        const int col = pos - (row << bwl);
+        int limits = get_lf_limits(row, col, tx_class, plane);
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                           ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx],
+                           LF_BASE_SYMBOLS - 1);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
+                           ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx], 3);
+        }
+      } else {
+        const int row = pos >> bwl;
+        const int col = pos - (row << bwl);
+        int limits = get_lf_limits(row, col, tx_class, plane);
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+                           ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx],
+                           LF_BASE_SYMBOLS);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3),
+                           ec_ctx->coeff_base_uv_cdf[coeff_ctx], 4);
+        }
+      }
+    } else {
+      if (c == eob - 1) {
+        const int row = pos >> bwl;
+        const int col = pos - (row << bwl);
+        int limits = get_lf_limits(row, col, tx_class, plane);
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                           ec_ctx->coeff_base_lf_eob_cdf[txs_ctx][coeff_ctx],
+                           LF_BASE_SYMBOLS - 1);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3) - 1,
+                           ec_ctx->coeff_base_eob_cdf[txs_ctx][coeff_ctx], 3);
+        }
+      } else {
+        const int row = pos >> bwl;
+        const int col = pos - (row << bwl);
+        int limits = get_lf_limits(row, col, tx_class, plane);
+        if (limits) {
+          aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
+                           ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx],
+                           LF_BASE_SYMBOLS);
+        } else {
+          aom_write_symbol(w, AOMMIN(level, 3),
+                           ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx], 4);
+        }
+      }
+    }
+#else
     if (c == eob - 1) {
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
@@ -963,10 +1152,64 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                          4);
       }
     }
+#endif  // CONFIG_LCCHROMA
 
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        if (level > LF_NUM_BASE_LEVELS) {
+          const int base_range =
+              level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
+          const int br_ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_lf_uv_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      } else {
+        if (level > NUM_BASE_LEVELS) {
+          const int base_range = level - 1 - NUM_BASE_LEVELS;
+          const int br_ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_uv_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      }
+    } else {
+      if (limits) {
+        if (level > LF_NUM_BASE_LEVELS) {
+          const int base_range =
+              level - 1 - LF_NUM_BASE_LEVELS;  // level is above 1.
+          const int br_ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_lf_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      } else {
+        if (level > NUM_BASE_LEVELS) {
+          const int base_range = level - 1 - NUM_BASE_LEVELS;
+          const int br_ctx = get_br_ctx(levels, pos, bwl, tx_class);
+          aom_cdf_prob *cdf = ec_ctx->coeff_br_cdf[br_ctx];
+          for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+            const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+            aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
+            if (k < BR_CDF_SIZE - 1) break;
+          }
+        }
+      }
+    }
+#else
     if (limits) {
       if (level > LF_NUM_BASE_LEVELS) {
         const int base_range =
@@ -991,6 +1234,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         }
       }
     }
+#endif  // CONFIG_LCCHROMA
   }
 
 #if DEBUG_EXTQUANT
@@ -1440,6 +1684,13 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       coeff_costs->lps_cost;
   const int(*lps_lf_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_lf_cost;
+#if CONFIG_LCCHROMA
+  // cost
+  const int(*lps_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+      coeff_costs->lps_cost_uv;
+  const int(*lps_lf_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+      coeff_costs->lps_lf_cost_uv;
+#endif  // CONFIG_LCCHROMA
   int c = eob - 1;
   {
     const int pos = scan[c];
@@ -1450,6 +1701,26 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        cost +=
+            coeff_costs
+                ->base_lf_eob_cost_uv[coeff_ctx]
+                                     [AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
+      } else {
+        cost += coeff_costs->base_eob_cost_uv[coeff_ctx][AOMMIN(level, 3) - 1];
+      }
+    } else {
+      if (limits) {
+        cost += coeff_costs
+                    ->base_lf_eob_cost[coeff_ctx]
+                                      [AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
+      } else {
+        cost += coeff_costs->base_eob_cost[coeff_ctx][AOMMIN(level, 3) - 1];
+      }
+    }
+#else
     if (limits) {
       cost +=
           coeff_costs->base_lf_eob_cost[coeff_ctx]
@@ -1457,9 +1728,37 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     } else {
       cost += coeff_costs->base_eob_cost[coeff_ctx][AOMMIN(level, 3) - 1];
     }
+#endif  // CONFIG_LCCHROMA
 
     if (v) {
       // sign bit cost
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int ctx = get_br_ctx_lf_eob_chroma(pos, tx_class);
+            cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int ctx = 4; /* get_lf_ctx_eob */
+            cost += get_br_cost(level, lps_cost_uv[ctx]);
+          }
+        }
+      } else {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int ctx = get_br_ctx_lf_eob(pos, tx_class);
+            cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int ctx = 7; /* get_lf_ctx_eob */
+            cost += get_br_cost(level, lps_cost[ctx]);
+          }
+        }
+      }
+#else
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int ctx = get_br_ctx_lf_eob(pos, tx_class);
@@ -1471,6 +1770,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
           cost += get_br_cost(level, lps_cost[ctx]);
         }
       }
+#endif  // CONFIG_LCCHROMA
       if (c) {
 #if CONFIG_CONTEXT_DERIVATION
         if (plane == AOM_PLANE_V) {
@@ -1501,6 +1801,11 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
   }
   const int(*base_lf_cost)[LF_BASE_SYMBOLS * 2] = coeff_costs->base_lf_cost;
   const int(*base_cost)[8] = coeff_costs->base_cost;
+#if CONFIG_LCCHROMA
+  const int(*base_lf_cost_uv)[LF_BASE_SYMBOLS * 2] =
+      coeff_costs->base_lf_cost_uv;
+  const int(*base_cost_uv)[8] = coeff_costs->base_cost_uv;
+#endif  // CONFIG_LCCHROMA
   for (c = eob - 2; c >= 1; --c) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
@@ -1509,11 +1814,27 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        cost += base_lf_cost_uv[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+      } else {
+        cost += base_cost_uv[coeff_ctx][AOMMIN(level, 3)];
+      }
+    } else {
+      if (limits) {
+        cost += base_lf_cost[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+      } else {
+        cost += base_cost[coeff_ctx][AOMMIN(level, 3)];
+      }
+    }
+#else
     if (limits) {
       cost += base_lf_cost[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
     } else {
       cost += base_cost[coeff_ctx][AOMMIN(level, 3)];
     }
+#endif  // CONFIG_LCCHROMA
     if (v) {
       // sign bit cost
 #if CONFIG_CONTEXT_DERIVATION
@@ -1527,6 +1848,33 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 #else
       cost += av1_cost_literal(1);
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+            cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+            cost += get_br_cost(level, lps_cost_uv[ctx]);
+          }
+        }
+      } else {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+            cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int ctx = get_br_ctx(levels, pos, bwl, tx_class);
+            cost += get_br_cost(level, lps_cost[ctx]);
+          }
+        }
+      }
+#else
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
@@ -1538,6 +1886,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
           cost += get_br_cost(level, lps_cost[ctx]);
         }
       }
+#endif  // CONFIG_LCCHROMA
     }
   }
   // c == 0 after previous loop
@@ -1574,11 +1923,27 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     const int row = pos >> bwl;
     const int col = pos - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        cost += base_lf_cost_uv[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+      } else {
+        cost += base_cost_uv[coeff_ctx][AOMMIN(level, 3)];
+      }
+    } else {
+      if (limits) {
+        cost += base_lf_cost[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+      } else {
+        cost += base_cost[coeff_ctx][AOMMIN(level, 3)];
+      }
+    }
+#else
     if (limits) {
       cost += base_lf_cost[coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
     } else {
       cost += base_cost[coeff_ctx][AOMMIN(level, 3)];
     }
+#endif  // CONFIG_LCCHROMA
 
     if (v) {
       // sign bit cost
@@ -1594,6 +1959,33 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 #else
       cost += coeff_costs->dc_sign_cost[dc_sign_ctx][sign01];
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+            cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+            cost += get_br_cost(level, lps_cost_uv[ctx]);
+          }
+        }
+      } else {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+            cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int ctx = get_br_ctx(levels, pos, bwl, tx_class);
+            cost += get_br_cost(level, lps_cost[ctx]);
+          }
+        }
+      }
+#else
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
@@ -1605,6 +1997,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
           cost += get_br_cost(level, lps_cost[ctx]);
         }
       }
+#endif  // CONFIG_LCCHROMA
     }
   }
   return cost;
@@ -1874,13 +2267,113 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
   const int col = ci - (row << bwl);
   int cost = 0;
   int limits = get_lf_limits(row, col, tx_class, plane);
+
+#if CONFIG_LCCHROMA
+  if (plane > 0) {
+    if (limits) {
+      cost +=
+          txb_costs
+              ->base_lf_cost_uv[coeff_ctx][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
+    } else {
+      cost += txb_costs->base_cost_uv[coeff_ctx][AOMMIN(abs_qc, 3)];
+    }
+  } else {
+    if (limits) {
+      cost +=
+          txb_costs
+              ->base_lf_cost[coeff_ctx][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
+    } else {
+      cost += txb_costs->base_cost[coeff_ctx][AOMMIN(abs_qc, 3)];
+    }
+  }
+#else
   if (limits) {
     cost +=
         txb_costs->base_lf_cost[coeff_ctx][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
   } else {
     cost += txb_costs->base_cost[coeff_ctx][AOMMIN(abs_qc, 3)];
   }
+#endif  // CONFIG_LCCHROMA
   int diff = 0;
+#if CONFIG_LCCHROMA
+  if (plane > 0) {
+    if (limits) {
+      if (abs_qc <= (LF_BASE_SYMBOLS - 1)) {
+        if (abs_qc == 0) {
+          diff = 0;
+        } else if (abs_qc == 1) {
+          diff = txb_costs->base_lf_cost_uv[coeff_ctx][1] +
+                 av1_cost_literal(1) - txb_costs->base_lf_cost_uv[coeff_ctx][0];
+        } else if (abs_qc == 2) {
+          diff = txb_costs->base_lf_cost_uv[coeff_ctx][2] -
+                 txb_costs->base_lf_cost_uv[coeff_ctx][1];
+        } else if (abs_qc == 3) {
+          diff = txb_costs->base_lf_cost_uv[coeff_ctx][3] -
+                 txb_costs->base_lf_cost_uv[coeff_ctx][2];
+        } else if (abs_qc == 4) {
+          diff = txb_costs->base_lf_cost_uv[coeff_ctx][4] -
+                 txb_costs->base_lf_cost_uv[coeff_ctx][3];
+        } else {
+          diff = txb_costs->base_lf_cost_uv[coeff_ctx][5] -
+                 txb_costs->base_lf_cost_uv[coeff_ctx][4];
+        }
+      }
+    } else {
+      if (abs_qc <= 3) {
+        if (abs_qc == 0) {
+          diff = 0;
+        } else if (abs_qc == 1) {
+          diff = txb_costs->base_cost_uv[coeff_ctx][1] + av1_cost_literal(1) -
+                 txb_costs->base_cost_uv[coeff_ctx][0];
+        } else if (abs_qc == 2) {
+          diff = txb_costs->base_cost_uv[coeff_ctx][2] -
+                 txb_costs->base_cost_uv[coeff_ctx][1];
+        } else {
+          diff = txb_costs->base_cost_uv[coeff_ctx][3] -
+                 txb_costs->base_cost_uv[coeff_ctx][2];
+        }
+      }
+    }
+  } else {
+    if (limits) {
+      if (abs_qc <= (LF_BASE_SYMBOLS - 1)) {
+        if (abs_qc == 0) {
+          diff = 0;
+        } else if (abs_qc == 1) {
+          diff = txb_costs->base_lf_cost[coeff_ctx][1] + av1_cost_literal(1) -
+                 txb_costs->base_lf_cost[coeff_ctx][0];
+        } else if (abs_qc == 2) {
+          diff = txb_costs->base_lf_cost[coeff_ctx][2] -
+                 txb_costs->base_lf_cost[coeff_ctx][1];
+        } else if (abs_qc == 3) {
+          diff = txb_costs->base_lf_cost[coeff_ctx][3] -
+                 txb_costs->base_lf_cost[coeff_ctx][2];
+        } else if (abs_qc == 4) {
+          diff = txb_costs->base_lf_cost[coeff_ctx][4] -
+                 txb_costs->base_lf_cost[coeff_ctx][3];
+        } else {
+          diff = txb_costs->base_lf_cost[coeff_ctx][5] -
+                 txb_costs->base_lf_cost[coeff_ctx][4];
+        }
+      }
+    } else {
+      if (abs_qc <= 3) {
+        if (abs_qc == 0) {
+          diff = 0;
+        } else if (abs_qc == 1) {
+          diff = txb_costs->base_cost[coeff_ctx][1] + av1_cost_literal(1) -
+                 txb_costs->base_cost[coeff_ctx][0];
+        } else if (abs_qc == 2) {
+          diff = txb_costs->base_cost[coeff_ctx][2] -
+                 txb_costs->base_cost[coeff_ctx][1];
+        } else {
+          diff = txb_costs->base_cost[coeff_ctx][3] -
+                 txb_costs->base_cost[coeff_ctx][2];
+        }
+      }
+    }
+  }
+#else
   if (limits) {
     if (abs_qc <= (LF_BASE_SYMBOLS - 1)) {
       if (abs_qc == 0) {
@@ -1918,9 +2411,48 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
       }
     }
   }
-
+#endif  // CONFIG_LCCHROMA
   if (abs_qc) {
     cost += av1_cost_literal(1);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        if (abs_qc > LF_NUM_BASE_LEVELS) {
+          const int br_ctx = get_br_lf_ctx_chroma(levels, ci, bwl, tx_class);
+          int brcost_diff = 0;
+          cost += get_br_lf_cost_with_diff(
+              abs_qc, txb_costs->lps_lf_cost_uv[br_ctx], &brcost_diff);
+          diff += brcost_diff;
+        }
+      } else {
+        if (abs_qc > NUM_BASE_LEVELS) {
+          const int br_ctx = get_br_ctx_chroma(levels, ci, bwl, tx_class);
+          int brcost_diff = 0;
+          cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost_uv[br_ctx],
+                                        &brcost_diff);
+          diff += brcost_diff;
+        }
+      }
+    } else {
+      if (limits) {
+        if (abs_qc > LF_NUM_BASE_LEVELS) {
+          const int br_ctx = get_br_lf_ctx(levels, ci, bwl, tx_class);
+          int brcost_diff = 0;
+          cost += get_br_lf_cost_with_diff(
+              abs_qc, txb_costs->lps_lf_cost[br_ctx], &brcost_diff);
+          diff += brcost_diff;
+        }
+      } else {
+        if (abs_qc > NUM_BASE_LEVELS) {
+          const int br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
+          int brcost_diff = 0;
+          cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost[br_ctx],
+                                        &brcost_diff);
+          diff += brcost_diff;
+        }
+      }
+    }
+#else
     if (limits) {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
         const int br_ctx = get_br_lf_ctx(levels, ci, bwl, tx_class);
@@ -1938,6 +2470,7 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
         diff += brcost_diff;
       }
     }
+#endif  // CONFIG_LCCHROMA
   }
   *cost_low = cost - diff;
 
@@ -1958,6 +2491,26 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
   const int row = ci >> bwl;
   const int col = ci - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+  if (plane > 0) {
+    if (limits) {
+      cost +=
+          txb_costs
+              ->base_lf_eob_cost_uv[coeff_ctx]
+                                   [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1) - 1];
+    } else {
+      cost += txb_costs->base_eob_cost_uv[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
+    }
+  } else {
+    if (limits) {
+      cost +=
+          txb_costs->base_lf_eob_cost[coeff_ctx]
+                                     [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1) - 1];
+    } else {
+      cost += txb_costs->base_eob_cost[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
+    }
+  }
+#else
   if (limits) {
     cost +=
         txb_costs->base_lf_eob_cost[coeff_ctx]
@@ -1965,6 +2518,7 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
   } else {
     cost += txb_costs->base_eob_cost[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
   }
+#endif  // CONFIG_LCCHROMA
   if (abs_qc != 0) {
     if (ci == 0) {
 #if CONFIG_CONTEXT_DERIVATION
@@ -1985,6 +2539,34 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
       cost += av1_cost_literal(1);
 #endif  // CONFIG_CONTEXT_DERIVATION
     }
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        if (abs_qc > LF_NUM_BASE_LEVELS) {
+          int br_ctx = get_br_ctx_lf_eob_chroma(ci, tx_class);
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
+        }
+      } else {
+        if (abs_qc > NUM_BASE_LEVELS) {
+          int br_ctx = 4; /* get_br_ctx_eob */
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx]);
+        }
+      }
+    } else {
+      if (limits) {
+        if (abs_qc > LF_NUM_BASE_LEVELS) {
+          int br_ctx;
+          br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
+        }
+      } else {
+        if (abs_qc > NUM_BASE_LEVELS) {
+          int br_ctx = 7; /* get_br_ctx_eob */
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
+        }
+      }
+    }
+#else
     if (limits) {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
         int br_ctx;
@@ -1997,6 +2579,7 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
         cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
       }
     }
+#endif  // CONFIG_LCCHROMA
   }
   return cost;
 }
@@ -2018,6 +2601,26 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
     const int row = ci >> bwl;
     const int col = ci - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        cost +=
+            txb_costs
+                ->base_lf_eob_cost_uv[coeff_ctx]
+                                     [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1) - 1];
+      } else {
+        cost += txb_costs->base_eob_cost_uv[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
+      }
+    } else {
+      if (limits) {
+        cost += txb_costs
+                    ->base_lf_eob_cost[coeff_ctx]
+                                      [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1) - 1];
+      } else {
+        cost += txb_costs->base_eob_cost[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
+      }
+    }
+#else
     if (limits) {
       cost +=
           txb_costs->base_lf_eob_cost[coeff_ctx]
@@ -2025,10 +2628,29 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
     } else {
       cost += txb_costs->base_eob_cost[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
     }
+#endif  // CONFIG_LCCHROMA
   } else {
     const int row = ci >> bwl;
     const int col = ci - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        cost += txb_costs->base_lf_cost_uv[coeff_ctx]
+                                          [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
+      } else {
+        cost += txb_costs->base_cost_uv[coeff_ctx][AOMMIN(abs_qc, 3)];
+      }
+    } else {
+      if (limits) {
+        cost +=
+            txb_costs
+                ->base_lf_cost[coeff_ctx][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)];
+      } else {
+        cost += txb_costs->base_cost[coeff_ctx][AOMMIN(abs_qc, 3)];
+      }
+    }
+#else
     if (limits) {
       cost +=
           txb_costs
@@ -2036,6 +2658,7 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
     } else {
       cost += txb_costs->base_cost[coeff_ctx][AOMMIN(abs_qc, 3)];
     }
+#endif  // CONFIG_LCCHROMA
   }
   if (abs_qc != 0) {
     if (ci == 0) {
@@ -2060,6 +2683,49 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
     const int row = ci >> bwl;
     const int col = ci - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        if (abs_qc > LF_NUM_BASE_LEVELS) {
+          int br_ctx;
+          if (is_last)
+            br_ctx = get_br_ctx_lf_eob_chroma(ci, tx_class);
+          else
+            br_ctx = get_br_lf_ctx_chroma(levels, ci, bwl, tx_class);
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
+        }
+      } else {
+        if (abs_qc > NUM_BASE_LEVELS) {
+          int br_ctx;
+          if (is_last)
+            br_ctx = 0; /*get_br_ctx_eob*/
+          else
+            br_ctx = get_br_ctx_chroma(levels, ci, bwl, tx_class);
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx]);
+        }
+      }
+    } else {
+      if (limits) {
+        if (abs_qc > LF_NUM_BASE_LEVELS) {
+          int br_ctx;
+          if (is_last)
+            br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+          else
+            br_ctx = get_br_lf_ctx(levels, ci, bwl, tx_class);
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
+        }
+      } else {
+        if (abs_qc > NUM_BASE_LEVELS) {
+          int br_ctx;
+          if (is_last)
+            br_ctx = 0; /*get_br_ctx_eob*/
+          else
+            br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
+        }
+      }
+    }
+#else
     if (limits) {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
         int br_ctx;
@@ -2079,6 +2745,7 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
         cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
       }
     }
+#endif  // CONFIG_LCCHROMA
   }
   return cost;
 }
@@ -2122,11 +2789,27 @@ static INLINE void update_coeff_general(
     const int row = ci >> bwl;
     const int col = ci - (row << bwl);
     int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0];
+      } else {
+        *accu_rate += txb_costs->base_cost_uv[coeff_ctx][0];
+      }
+    } else {
+      if (limits) {
+        *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
+      } else {
+        *accu_rate += txb_costs->base_cost[coeff_ctx][0];
+      }
+    }
+#else
     if (limits) {
       *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
     } else {
       *accu_rate += txb_costs->base_cost[coeff_ctx][0];
     }
+#endif  // CONFIG_LCCHROMA
   } else {
     const int sign = (qc < 0) ? 1 : 0;
     const tran_low_t abs_qc = abs(qc);
@@ -2155,11 +2838,27 @@ static INLINE void update_coeff_general(
       const int row = ci >> bwl;
       const int col = ci - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          rate_low = txb_costs->base_lf_cost_uv[coeff_ctx][0];
+        } else {
+          rate_low = txb_costs->base_cost_uv[coeff_ctx][0];
+        }
+      } else {
+        if (limits) {
+          rate_low = txb_costs->base_lf_cost[coeff_ctx][0];
+        } else {
+          rate_low = txb_costs->base_cost[coeff_ctx][0];
+        }
+      }
+#else
       if (limits) {
         rate_low = txb_costs->base_lf_cost[coeff_ctx][0];
       } else {
         rate_low = txb_costs->base_cost[coeff_ctx][0];
       }
+#endif  // CONFIG_LCCHROMA
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
       abs_qc_low = abs_qc - 1;
@@ -2215,6 +2914,27 @@ static AOM_FORCE_INLINE void update_coeff_simple(
 
   int limits = get_lf_limits(row, col, tx_class, plane);
   int coeff_ctx = 0;
+#if CONFIG_LCCHROMA
+  if (plane > 0) {
+    if (limits) {
+      coeff_ctx =
+          get_lower_levels_lf_ctx_chroma(levels, ci, bwl, tx_class, plane);
+    } else {
+      coeff_ctx = get_lower_levels_ctx_chroma(levels, ci, bwl, tx_class, plane);
+    }
+  } else {
+    if (limits) {
+      coeff_ctx = get_lower_levels_lf_ctx(levels, ci, bwl, tx_class);
+    } else {
+      coeff_ctx = get_lower_levels_ctx(levels, ci, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                       ,
+                                       plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+      );
+    }
+  }
+#else
   if (limits) {
     coeff_ctx = get_lower_levels_lf_ctx(levels, ci, bwl, tx_class);
   } else {
@@ -2225,12 +2945,29 @@ static AOM_FORCE_INLINE void update_coeff_simple(
 #endif  // CONFIG_CHROMA_TX_COEFF_CODING
     );
   }
+#endif  // CONFIG_LCCHROMA
   if (qc == 0) {
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0];
+      } else {
+        *accu_rate += txb_costs->base_cost_uv[coeff_ctx][0];
+      }
+    } else {
+      if (limits) {
+        *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
+      } else {
+        *accu_rate += txb_costs->base_cost[coeff_ctx][0];
+      }
+    }
+#else
     if (limits) {
       *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
     } else {
       *accu_rate += txb_costs->base_cost[coeff_ctx][0];
     }
+#endif  // CONFIG_LCCHROMA
   } else {
     const tran_low_t abs_qc = abs(qc);
     const tran_low_t abs_tqc = abs(tcoeff[ci]);
@@ -2303,6 +3040,27 @@ static AOM_FORCE_INLINE void update_coeff_eob(
   const int col = ci - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, plane);
   int coeff_ctx = 0;
+#if CONFIG_LCCHROMA
+  if (plane > 0) {
+    if (limits) {
+      coeff_ctx =
+          get_lower_levels_lf_ctx_chroma(levels, ci, bwl, tx_class, plane);
+    } else {
+      coeff_ctx = get_lower_levels_ctx_chroma(levels, ci, bwl, tx_class, plane);
+    }
+  } else {
+    if (limits) {
+      coeff_ctx = get_lower_levels_lf_ctx(levels, ci, bwl, tx_class);
+    } else {
+      coeff_ctx = get_lower_levels_ctx(levels, ci, bwl, tx_class
+#if CONFIG_CHROMA_TX_COEFF_CODING
+                                       ,
+                                       plane
+#endif  // CONFIG_CHROMA_TX_COEFF_CODING
+      );
+    }
+  }
+#else
   if (limits) {
     coeff_ctx = get_lower_levels_lf_ctx(levels, ci, bwl, tx_class);
   } else {
@@ -2313,12 +3071,29 @@ static AOM_FORCE_INLINE void update_coeff_eob(
 #endif  // CONFIG_CHROMA_TX_COEFF_CODING
     );
   }
+#endif  // CONFIG_LCCHROMA
   if (qc == 0) {
+#if CONFIG_LCCHROMA
+    if (plane > 0) {
+      if (limits) {
+        *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0];
+      } else {
+        *accu_rate += txb_costs->base_cost_uv[coeff_ctx][0];
+      }
+    } else {
+      if (limits) {
+        *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
+      } else {
+        *accu_rate += txb_costs->base_cost[coeff_ctx][0];
+      }
+    }
+#else
     if (limits) {
       *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
     } else {
       *accu_rate += txb_costs->base_cost[coeff_ctx][0];
     }
+#endif  // CONFIG_LCCHROMA
   } else {
     int64_t rd_eob_low = INT64_MAX >> 1;
     int rate_eob_low = INT32_MAX >> 1;
@@ -2348,11 +3123,27 @@ static AOM_FORCE_INLINE void update_coeff_eob(
       abs_qc_low = 0;
       dqc_low = qc_low = 0;
       dist_low = 0;
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          rate_low = txb_costs->base_lf_cost_uv[coeff_ctx][0];
+        } else {
+          rate_low = txb_costs->base_cost_uv[coeff_ctx][0];
+        }
+      } else {
+        if (limits) {
+          rate_low = txb_costs->base_lf_cost[coeff_ctx][0];
+        } else {
+          rate_low = txb_costs->base_cost[coeff_ctx][0];
+        }
+      }
+#else
       if (limits) {
         rate_low = txb_costs->base_lf_cost[coeff_ctx][0];
       } else {
         rate_low = txb_costs->base_cost[coeff_ctx][0];
       }
+#endif  // CONFIG_LCCHROMA
       rd_low = RDCOST(rdmult, *accu_rate + rate_low, *accu_dist);
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
@@ -3560,6 +4351,27 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           const int row = pos >> bwl;
           const int col = pos - (row << bwl);
           int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+          if (plane > 0) {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                         LF_BASE_SYMBOLS - 1);
+            } else {
+              update_cdf(ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx],
+                         AOMMIN(level, 3) - 1, 3);
+            }
+          } else {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_eob_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                         LF_BASE_SYMBOLS - 1);
+            } else {
+              update_cdf(ec_ctx->coeff_base_eob_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, 3) - 1, 3);
+            }
+          }
+#else
           if (limits) {
             update_cdf(
                 ec_ctx
@@ -3570,10 +4382,30 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 ec_ctx->coeff_base_eob_cdf[txsize_ctx][plane_type][coeff_ctx],
                 AOMMIN(level, 3) - 1, 3);
           }
+#endif  // CONFIG_LCCHROMA
         } else {
           const int row = pos >> bwl;
           const int col = pos - (row << bwl);
           int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+          if (plane > 0) {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+            } else {
+              update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx], AOMMIN(level, 3),
+                         4);
+            }
+          } else {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+            } else {
+              update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, 3), 4);
+            }
+          }
+#else
           if (limits) {
             update_cdf(
                 ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
@@ -3583,6 +4415,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
                 AOMMIN(level, 3), 4);
           }
+#endif  // CONFIG_LCCHROMA
         }
       }
       if (c == eob - 1) {
@@ -3592,6 +4425,27 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+        if (plane > 0) {
+          if (limits) {
+            ++td->counts->coeff_base_lf_eob_multi_uv
+                  [cdf_idx][coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
+          } else {
+            ++td->counts->coeff_base_eob_multi_uv[cdf_idx][coeff_ctx]
+                                                 [AOMMIN(level, 3) - 1];
+          }
+        } else {
+          if (limits) {
+            ++td->counts
+                  ->coeff_base_lf_eob_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                           [AOMMIN(level, LF_BASE_SYMBOLS - 1) -
+                                            1];
+          } else {
+            ++td->counts->coeff_base_eob_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                              [AOMMIN(level, 3) - 1];
+          }
+        }
+#else
         if (limits) {
           ++td->counts->coeff_base_lf_eob_multi
                 [cdf_idx][txsize_ctx][plane_type][coeff_ctx]
@@ -3600,10 +4454,31 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           ++td->counts->coeff_base_eob_multi[cdf_idx][txsize_ctx][plane_type]
                                             [coeff_ctx][AOMMIN(level, 3) - 1];
         }
+#endif  // CONFIG_LCCHROMA
       } else {
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+        if (plane > 0) {
+          if (limits) {
+            ++td->counts->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx][AOMMIN(
+                level, LF_BASE_SYMBOLS - 1)];
+          } else {
+            ++td->counts
+                  ->coeff_base_multi_uv[cdf_idx][coeff_ctx][AOMMIN(level, 3)];
+          }
+        } else {
+          if (limits) {
+            ++td->counts
+                  ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                       [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+          } else {
+            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                          [AOMMIN(level, 3)];
+          }
+        }
+#else
         if (limits) {
           ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
                                            [coeff_ctx]
@@ -3612,11 +4487,105 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
                                         [coeff_ctx][AOMMIN(level, 3)];
         }
+#endif  // CONFIG_LCCHROMA
 #endif
       }
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - LF_NUM_BASE_LEVELS;
+            const int br_ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_lf_uv_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps_lf[lps][br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_lf_multi_uv[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - NUM_BASE_LEVELS;
+            const int br_ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_uv_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps[AOMMIN(txsize_ctx, TX_32X32)][lps]
+                                       [br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_multi_uv[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        }
+      } else {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - LF_NUM_BASE_LEVELS;
+            const int br_ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_lf_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps_lf[lps][br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_lf_multi[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - NUM_BASE_LEVELS;
+            const int br_ctx = get_br_ctx(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps[AOMMIN(txsize_ctx, TX_32X32)][lps]
+                                       [br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_multi[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        }
+      }
+#else
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int base_range = level - 1 - LF_NUM_BASE_LEVELS;
@@ -3663,6 +4632,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           }
         }
       }
+#endif  // CONFIG_LCCHROMA
     }
 
     bool is_hidden = false;
@@ -3697,6 +4667,27 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           const int row = pos >> bwl;
           const int col = pos - (row << bwl);
           int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+          if (plane > 0) {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_eob_uv_cdf[coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                         LF_BASE_SYMBOLS - 1);
+            } else {
+              update_cdf(ec_ctx->coeff_base_eob_uv_cdf[coeff_ctx],
+                         AOMMIN(level, 3) - 1, 3);
+            }
+          } else {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_eob_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1,
+                         LF_BASE_SYMBOLS - 1);
+            } else {
+              update_cdf(ec_ctx->coeff_base_eob_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, 3) - 1, 3);
+            }
+          }
+#else
           if (limits) {
             update_cdf(
                 ec_ctx
@@ -3707,10 +4698,30 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 ec_ctx->coeff_base_eob_cdf[txsize_ctx][plane_type][coeff_ctx],
                 AOMMIN(level, 3) - 1, 3);
           }
+#endif  // CONFIG_LCCHROMA
         } else {
           const int row = pos >> bwl;
           const int col = pos - (row << bwl);
           int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+          if (plane > 0) {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+            } else {
+              update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx], AOMMIN(level, 3),
+                         4);
+            }
+          } else {
+            if (limits) {
+              update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
+            } else {
+              update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx],
+                         AOMMIN(level, 3), 4);
+            }
+          }
+#else
           if (limits) {
             update_cdf(
                 ec_ctx->coeff_base_lf_cdf[txsize_ctx][plane_type][coeff_ctx],
@@ -3720,6 +4731,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 ec_ctx->coeff_base_cdf[txsize_ctx][plane_type][coeff_ctx],
                 AOMMIN(level, 3), 4);
           }
+#endif  // CONFIG_LCCHROMA
         }
       }
       if (c == eob - 1) {
@@ -3728,6 +4740,27 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+        if (plane > 0) {
+          if (limits) {
+            ++td->counts->coeff_base_lf_eob_multi_uv
+                  [cdf_idx][coeff_ctx][AOMMIN(level, LF_BASE_SYMBOLS - 1) - 1];
+          } else {
+            ++td->counts->coeff_base_eob_multi_uv[cdf_idx][coeff_ctx]
+                                                 [AOMMIN(level, 3) - 1];
+          }
+        } else {
+          if (limits) {
+            ++td->counts
+                  ->coeff_base_lf_eob_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                           [AOMMIN(level, LF_BASE_SYMBOLS - 1) -
+                                            1];
+          } else {
+            ++td->counts->coeff_base_eob_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                              [AOMMIN(level, 3) - 1];
+          }
+        }
+#else
         if (limits) {
           ++td->counts->coeff_base_lf_eob_multi
                 [cdf_idx][txsize_ctx][plane_type][coeff_ctx]
@@ -3736,10 +4769,31 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           ++td->counts->coeff_base_eob_multi[cdf_idx][txsize_ctx][plane_type]
                                             [coeff_ctx][AOMMIN(level, 3) - 1];
         }
+#endif  // CONFIG_LCCHROMA
       } else {
         const int row = pos >> bwl;
         const int col = pos - (row << bwl);
         int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+        if (plane > 0) {
+          if (limits) {
+            ++td->counts->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx][AOMMIN(
+                level, LF_BASE_SYMBOLS - 1)];
+          } else {
+            ++td->counts
+                  ->coeff_base_multi_uv[cdf_idx][coeff_ctx][AOMMIN(level, 3)];
+          }
+        } else {
+          if (limits) {
+            ++td->counts
+                  ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                       [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+          } else {
+            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
+                                          [AOMMIN(level, 3)];
+          }
+        }
+#else
         if (limits) {
           ++td->counts->coeff_base_lf_multi[cdf_idx][txsize_ctx][plane_type]
                                            [coeff_ctx]
@@ -3748,11 +4802,105 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][plane_type]
                                         [coeff_ctx][AOMMIN(level, 3)];
         }
+#endif  // CONFIG_LCCHROMA
 #endif
       }
       const int row = pos >> bwl;
       const int col = pos - (row << bwl);
       int limits = get_lf_limits(row, col, tx_class, plane);
+#if CONFIG_LCCHROMA
+      if (plane > 0) {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - LF_NUM_BASE_LEVELS;
+            const int br_ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_lf_uv_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps_lf[lps][br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_lf_multi_uv[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - NUM_BASE_LEVELS;
+            const int br_ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_uv_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps[AOMMIN(txsize_ctx, TX_32X32)][lps]
+                                       [br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_multi_uv[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        }
+      } else {
+        if (limits) {
+          if (level > LF_NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - LF_NUM_BASE_LEVELS;
+            const int br_ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_lf_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps_lf[lps][br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_lf_multi[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        } else {
+          if (level > NUM_BASE_LEVELS) {
+            const int base_range = level - 1 - NUM_BASE_LEVELS;
+            const int br_ctx = get_br_ctx(levels, pos, bwl, tx_class);
+            for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+              const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+              if (allow_update_cdf) {
+                update_cdf(ec_ctx->coeff_br_cdf[br_ctx], k, BR_CDF_SIZE);
+              }
+              for (int lps = 0; lps < BR_CDF_SIZE - 1; lps++) {
+#if CONFIG_ENTROPY_STATS
+                ++td->counts->coeff_lps[AOMMIN(txsize_ctx, TX_32X32)][lps]
+                                       [br_ctx][lps == k];
+#endif  // CONFIG_ENTROPY_STATS
+                if (lps == k) break;
+              }
+#if CONFIG_ENTROPY_STATS
+              ++td->counts->coeff_lps_multi[cdf_idx][br_ctx][k];
+#endif
+              if (k < BR_CDF_SIZE - 1) break;
+            }
+          }
+        }
+      }
+#else
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int base_range = level - 1 - LF_NUM_BASE_LEVELS;
@@ -3799,6 +4947,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           }
         }
       }
+#endif  // CONFIG_LCCHROMA
     }
 
     // Update the context needed to code the DC sign (if applicable)

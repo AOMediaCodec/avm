@@ -48,6 +48,20 @@ extern "C" {
 #define COEFF_BASE_PH_CONTEXTS 5
 #define COEFF_BR_PH_CONTEXTS 7
 
+#if CONFIG_LCCHROMA
+// Number of coefficient coding chroma contexts for the low-frequency region
+// for 2D and 1D transforms
+#define LF_SIG_COEF_CONTEXTS_2D_UV 8
+#define LF_SIG_COEF_CONTEXTS_1D_UV 4
+#define LF_SIG_COEF_CONTEXTS_UV \
+  (LF_SIG_COEF_CONTEXTS_2D_UV + LF_SIG_COEF_CONTEXTS_1D_UV)
+#define LF_LEVEL_CONTEXTS_UV 8
+// Number of coefficient coding chroma contexts for the default region
+// for 2D and 1D transforms
+#define SIG_COEF_CONTEXTS_UV 12  // base range contexts
+#define LEVEL_CONTEXTS_UV 4      // low range contexts
+#endif                           // CONFIG_LCCHROMA
+
 // Number of coefficient coding contexts for the low-frequency region
 // for 2D and 1D transforms
 #define LF_SIG_COEF_CONTEXTS_2D 21

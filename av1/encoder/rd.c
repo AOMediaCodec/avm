@@ -1063,6 +1063,38 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         av1_cost_tokens_from_cdf(pcost->v_txb_skip_cost[ctx],
                                  fc->v_txb_skip_cdf[ctx], NULL);
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_LCCHROMA
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
+        av1_cost_tokens_from_cdf(pcost->base_lf_eob_cost_uv[ctx],
+                                 fc->coeff_base_lf_eob_uv_cdf[ctx], NULL);
+      for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS_UV; ++ctx) {
+        av1_cost_tokens_from_cdf(pcost->base_lf_cost_uv[ctx],
+                                 fc->coeff_base_lf_uv_cdf[ctx], NULL);
+      }
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
+        av1_cost_tokens_from_cdf(pcost->base_eob_cost_uv[ctx],
+                                 fc->coeff_base_eob_uv_cdf[ctx], NULL);
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
+        av1_cost_tokens_from_cdf(pcost->base_cost_uv[ctx],
+                                 fc->coeff_base_uv_cdf[ctx], NULL);
+      }
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
+        av1_cost_tokens_from_cdf(pcost->base_eob_cost[ctx],
+                                 fc->coeff_base_eob_cdf[tx_size][ctx], NULL);
+
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
+        av1_cost_tokens_from_cdf(pcost->base_lf_eob_cost[ctx],
+                                 fc->coeff_base_lf_eob_cdf[tx_size][ctx], NULL);
+      for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS; ++ctx) {
+        av1_cost_tokens_from_cdf(pcost->base_lf_cost[ctx],
+                                 fc->coeff_base_lf_cdf[tx_size][ctx], NULL);
+      }
+
+      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
+        av1_cost_tokens_from_cdf(pcost->base_cost[ctx],
+                                 fc->coeff_base_cdf[tx_size][ctx], NULL);
+      }
+#else
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
         av1_cost_tokens_from_cdf(pcost->base_eob_cost[ctx],
                                  fc->coeff_base_eob_cdf[tx_size][plane][ctx],
@@ -1080,6 +1112,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         av1_cost_tokens_from_cdf(pcost->base_cost[ctx],
                                  fc->coeff_base_cdf[tx_size][plane][ctx], NULL);
       }
+#endif  // CONFIG_LCCHROMA
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_BOB; ++ctx)
         av1_cost_tokens_from_cdf(pcost->base_bob_cost[ctx],
                                  fc->coeff_base_bob_cdf[ctx], NULL);
@@ -1101,12 +1134,64 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       }
 #endif  // CONFIG_CONTEXT_DERIVATION
 
+#if CONFIG_LCCHROMA
+      for (int ctx = 0; ctx < LF_LEVEL_CONTEXTS_UV; ++ctx) {
+        int br_lf_cctx_rate[BR_CDF_SIZE];
+        int prev_cost_lf_cctx = 0;
+        int i, j;
+        av1_cost_tokens_from_cdf(br_lf_cctx_rate, fc->coeff_br_lf_uv_cdf[ctx],
+                                 NULL);
+        for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
+          for (j = 0; j < BR_CDF_SIZE - 1; j++) {
+            pcost->lps_lf_cost_uv[ctx][i + j] =
+                prev_cost_lf_cctx + br_lf_cctx_rate[j];
+          }
+          prev_cost_lf_cctx += br_lf_cctx_rate[j];
+        }
+        pcost->lps_lf_cost_uv[ctx][i] = prev_cost_lf_cctx;
+      }
+      for (int ctx = 0; ctx < LF_LEVEL_CONTEXTS_UV; ++ctx) {
+        pcost->lps_lf_cost_uv[ctx][0 + COEFF_BASE_RANGE + 1] =
+            pcost->lps_lf_cost_uv[ctx][0];
+        for (int i = 1; i <= COEFF_BASE_RANGE; ++i) {
+          pcost->lps_lf_cost_uv[ctx][i + COEFF_BASE_RANGE + 1] =
+              pcost->lps_lf_cost_uv[ctx][i] - pcost->lps_lf_cost_uv[ctx][i - 1];
+        }
+      }
+
+      for (int ctx = 0; ctx < LEVEL_CONTEXTS_UV; ++ctx) {
+        int br_rate_cctx[BR_CDF_SIZE];
+        int prev_cost_cctx = 0;
+        int i, j;
+        av1_cost_tokens_from_cdf(br_rate_cctx, fc->coeff_br_uv_cdf[ctx], NULL);
+        for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
+          for (j = 0; j < BR_CDF_SIZE - 1; j++) {
+            pcost->lps_cost_uv[ctx][i + j] = prev_cost_cctx + br_rate_cctx[j];
+          }
+          prev_cost_cctx += br_rate_cctx[j];
+        }
+        pcost->lps_cost_uv[ctx][i] = prev_cost_cctx;
+      }
+      for (int ctx = 0; ctx < LEVEL_CONTEXTS_UV; ++ctx) {
+        pcost->lps_cost_uv[ctx][0 + COEFF_BASE_RANGE + 1] =
+            pcost->lps_cost_uv[ctx][0];
+        for (int i = 1; i <= COEFF_BASE_RANGE; ++i) {
+          pcost->lps_cost_uv[ctx][i + COEFF_BASE_RANGE + 1] =
+              pcost->lps_cost_uv[ctx][i] - pcost->lps_cost_uv[ctx][i - 1];
+        }
+      }
+#endif  // CONFIG_LCCHROMA
+
       for (int ctx = 0; ctx < LF_LEVEL_CONTEXTS; ++ctx) {
         int br_lf_rate[BR_CDF_SIZE];
         int prev_cost_lf = 0;
         int i, j;
+#if CONFIG_LCCHROMA
+        av1_cost_tokens_from_cdf(br_lf_rate, fc->coeff_br_lf_cdf[ctx], NULL);
+#else
         av1_cost_tokens_from_cdf(br_lf_rate, fc->coeff_br_lf_cdf[plane][ctx],
                                  NULL);
+#endif  // CONFIG_LCCHROMA
         for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
           for (j = 0; j < BR_CDF_SIZE - 1; j++) {
             pcost->lps_lf_cost[ctx][i + j] = prev_cost_lf + br_lf_rate[j];
@@ -1127,7 +1212,13 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
         int br_rate[BR_CDF_SIZE];
         int prev_cost = 0;
         int i, j;
-        av1_cost_tokens_from_cdf(br_rate, fc->coeff_br_cdf[plane][ctx], NULL);
+        av1_cost_tokens_from_cdf(
+#if CONFIG_LCCHROMA
+            br_rate, fc->coeff_br_cdf[ctx],
+#else
+            br_rate, fc->coeff_br_cdf[plane][ctx],
+#endif  // CONFIG_LCCHROMA
+            NULL);
         // printf("br_rate: ");
         // for(j = 0; j < BR_CDF_SIZE; j++)
         //  printf("%4d ", br_rate[j]);
