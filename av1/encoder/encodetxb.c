@@ -18,6 +18,7 @@
 #include "av1/common/pred_common.h"
 #include "av1/common/scan.h"
 #include "av1/common/reconintra.h"
+#include "av1/common/hr_coding.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/cost.h"
 #include "av1/encoder/encodeframe.h"
@@ -98,29 +99,6 @@ void av1_alloc_txb_buf(AV1_COMP *cpi) {
 }
 
 void av1_free_txb_buf(AV1_COMP *cpi) { aom_free(cpi->coeff_buffer_base); }
-
-static void write_golomb(aom_writer *w, int level) {
-  int x = level + 1;
-  int length = 0;
-
-#if CONFIG_BYPASS_IMPROVEMENT
-  length = get_msb(x) + 1;
-  assert(length > 0);
-  aom_write_literal(w, 0, length - 1);
-  aom_write_literal(w, x, length);
-#else
-  int i = x;
-  while (i) {
-    i >>= 1;
-    ++length;
-  }
-  assert(length > 0);
-
-  for (i = 0; i < length - 1; ++i) aom_write_bit(w, 0);
-
-  for (i = length - 1; i >= 0; --i) aom_write_bit(w, (x >> i) & 0x01);
-#endif
-}
 
 static AOM_FORCE_INLINE int64_t get_coeff_dist(tran_low_t tcoeff,
                                                tran_low_t dqcoeff, int shift) {
@@ -289,35 +267,107 @@ static int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
   return eob_cost;
 }
 
-static const int golomb_bits_cost[32] = {
+#if CONFIG_COEFF_HR_ADAPTIVE
+static AOM_FORCE_INLINE int get_br_cost(tran_low_t level, const int *coeff_lps,
+                                        int hr_ctx, int *hr_level) {
+  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
+  int cost = coeff_lps[base_range];
+
+  *hr_level = 0;
+  if (level >= 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
+    const int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS - 1;
+    *hr_level = r;
+    cost += av1_cost_literal(get_adaptive_hr_length(r, hr_ctx));
+  }
+  return cost;
+}
+
+static AOM_FORCE_INLINE int get_br_lf_cost(tran_low_t level,
+                                           const int *coeff_lps, int hr_ctx,
+                                           int *hr_level) {
+  const int base_range =
+      AOMMIN(level - 1 - LF_NUM_BASE_LEVELS, COEFF_BASE_RANGE);
+  int cost = coeff_lps[base_range];
+
+  *hr_level = 0;
+  if (level >= 1 + LF_NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
+    const int r = level - COEFF_BASE_RANGE - LF_NUM_BASE_LEVELS - 1;
+    *hr_level = r;
+    cost += av1_cost_literal(get_adaptive_hr_length(r, hr_ctx));
+  }
+  return cost;
+}
+
+static AOM_FORCE_INLINE int get_br_cost_with_diff(tran_low_t level,
+                                                  const int *coeff_lps,
+                                                  int *diff, int hr_ctx,
+                                                  int *hr_level) {
+  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
+  int cost = coeff_lps[base_range];
+
+  if (level <= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS)
+    *diff += coeff_lps[base_range + COEFF_BASE_RANGE + 1];
+
+  *hr_level = 0;
+  if (level >= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS) {
+    const int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS - 1;
+    *hr_level = r;
+
+    int bits, diff_bits;
+    bits = get_adaptive_hr_length_diff(r, hr_ctx, &diff_bits);
+    *diff += av1_cost_literal(diff_bits);
+    cost += av1_cost_literal(bits);
+  }
+
+  return cost;
+}
+
+static AOM_FORCE_INLINE int get_br_lf_cost_with_diff(tran_low_t level,
+                                                     const int *coeff_lps,
+                                                     int *diff, int hr_ctx,
+                                                     int *hr_level) {
+  const int base_range =
+      AOMMIN(level - 1 - LF_NUM_BASE_LEVELS, COEFF_BASE_RANGE);
+  int cost = coeff_lps[base_range];
+
+  if (level <= COEFF_BASE_RANGE + 1 + LF_NUM_BASE_LEVELS)
+    *diff += coeff_lps[base_range + COEFF_BASE_RANGE + 1];
+
+  *hr_level = 0;
+  if (level >= COEFF_BASE_RANGE + 1 + LF_NUM_BASE_LEVELS) {
+    const int r = level - COEFF_BASE_RANGE - LF_NUM_BASE_LEVELS - 1;
+    *hr_level = r;
+    int bits, diff_bits;
+    bits = get_adaptive_hr_length_diff(r, hr_ctx, &diff_bits);
+    *diff += av1_cost_literal(diff_bits);
+    cost += av1_cost_literal(bits);
+  }
+
+  return cost;
+}
+#else   // CONFIG_COEFF_HR_ADAPTIVE
+static const int exp_golomb0_bits_cost[32] = {
   0,       512,     512 * 3, 512 * 3, 512 * 5, 512 * 5, 512 * 5, 512 * 5,
   512 * 7, 512 * 7, 512 * 7, 512 * 7, 512 * 7, 512 * 7, 512 * 7, 512 * 7,
   512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9,
   512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9
 };
-static const int golomb_cost_diff[32] = {
+static const int exp_golomb0_cost_diff[32] = {
   0,       512, 512 * 2, 0, 512 * 2, 0, 0, 0, 512 * 2, 0, 0, 0, 0, 0, 0, 0,
   512 * 2, 0,   0,       0, 0,       0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0
 };
 
-static AOM_FORCE_INLINE int get_golomb_cost(int abs_qc) {
-  if (abs_qc >= 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
-    const int r = abs_qc - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
-    const int length = get_msb(r) + 1;
-    return av1_cost_literal(2 * length - 1);
-  }
-  return 0;
-}
+static AOM_FORCE_INLINE int get_br_cost(tran_low_t level,
+                                        const int *coeff_lps) {
+  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
+  int cost = coeff_lps[base_range];
 
-// Golomb cost of coding bypass coded level values in the
-// low-frequency region.
-static AOM_FORCE_INLINE int get_golomb_cost_lf(int abs_qc) {
-  if (abs_qc >= 1 + LF_NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
-    const int r = abs_qc - COEFF_BASE_RANGE - LF_NUM_BASE_LEVELS;
-    const int length = get_msb(r) + 1;
-    return av1_cost_literal(2 * length - 1);
+  if (level >= 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
+    const int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS - 1;
+    cost += av1_cost_literal(get_exp_golomb_length(r, 0));
   }
-  return 0;
+
+  return cost;
 }
 
 // Base range cost of coding level values in the
@@ -326,7 +376,35 @@ static AOM_FORCE_INLINE int get_br_lf_cost(tran_low_t level,
                                            const int *coeff_lps) {
   const int base_range =
       AOMMIN(level - 1 - LF_NUM_BASE_LEVELS, COEFF_BASE_RANGE);
-  return coeff_lps[base_range] + get_golomb_cost_lf(level);
+  int cost = coeff_lps[base_range];
+
+  if (level >= 1 + LF_NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
+    const int r = level - COEFF_BASE_RANGE - LF_NUM_BASE_LEVELS - 1;
+    cost += av1_cost_literal(get_exp_golomb_length(r, 0));
+  }
+
+  return cost;
+}
+
+static INLINE int get_br_cost_with_diff(tran_low_t level, const int *coeff_lps,
+                                        int *diff) {
+  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
+  int cost = coeff_lps[base_range];
+
+  if (level <= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS)
+    *diff += coeff_lps[base_range + COEFF_BASE_RANGE + 1];
+
+  if (level >= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS) {
+    int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
+    if (r < 32) {
+      cost += exp_golomb0_bits_cost[r];
+      *diff += exp_golomb0_cost_diff[r];
+    } else {
+      cost += av1_cost_literal(get_exp_golomb_length(r - 1, 0));
+      *diff += (r & (r - 1)) == 0 ? 1024 : 0;
+    }
+  }
+  return cost;
 }
 
 // Calculates differential cost for base range coding in the low-frequency
@@ -336,49 +414,24 @@ static AOM_FORCE_INLINE int get_br_lf_cost_with_diff(tran_low_t level,
                                                      int *diff) {
   const int base_range =
       AOMMIN(level - 1 - LF_NUM_BASE_LEVELS, COEFF_BASE_RANGE);
-  int golomb_bits = 0;
+  int cost = coeff_lps[base_range];
+
   if (level <= COEFF_BASE_RANGE + 1 + LF_NUM_BASE_LEVELS)
     *diff += coeff_lps[base_range + COEFF_BASE_RANGE + 1];
+
   if (level >= COEFF_BASE_RANGE + 1 + LF_NUM_BASE_LEVELS) {
     int r = level - COEFF_BASE_RANGE - LF_NUM_BASE_LEVELS;
     if (r < 32) {
-      golomb_bits = golomb_bits_cost[r];
-      *diff += golomb_cost_diff[r];
+      cost += exp_golomb0_bits_cost[r];
+      *diff += exp_golomb0_cost_diff[r];
     } else {
-      golomb_bits = get_golomb_cost_lf(level);
+      cost += av1_cost_literal(get_exp_golomb_length(r - 1, 0));
       *diff += (r & (r - 1)) == 0 ? 1024 : 0;
     }
   }
-  return coeff_lps[base_range] + golomb_bits;
+  return cost;
 }
-
-static AOM_FORCE_INLINE int get_br_cost_with_diff(tran_low_t level,
-                                                  const int *coeff_lps,
-                                                  int *diff) {
-  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
-  int golomb_bits = 0;
-  if (level <= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS)
-    *diff += coeff_lps[base_range + COEFF_BASE_RANGE + 1];
-
-  if (level >= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS) {
-    int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
-    if (r < 32) {
-      golomb_bits = golomb_bits_cost[r];
-      *diff += golomb_cost_diff[r];
-    } else {
-      golomb_bits = get_golomb_cost(level);
-      *diff += (r & (r - 1)) == 0 ? 1024 : 0;
-    }
-  }
-
-  return coeff_lps[base_range] + golomb_bits;
-}
-
-static AOM_FORCE_INLINE int get_br_cost(tran_low_t level,
-                                        const int *coeff_lps) {
-  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
-  return coeff_lps[base_range] + get_golomb_cost(level);
-}
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 
 #if CONFIG_LCCHROMA
 static INLINE int get_nz_map_ctx_chroma(const uint8_t *const levels,
@@ -479,7 +532,7 @@ void av1_txb_init_levels_signs_c(const tran_low_t *const coeff, const int width,
     }
     for (int j = 0; j < width; j++) {
       *si++ = (int8_t)(coeff[i * width + j] > 0) ? 1 : -1;
-      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, INT8_MAX);
+      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, UINT8_MAX);
     }
 #if !CONFIG_IMPROVEIDTX_RDPH
     // right 4 pad
@@ -506,7 +559,7 @@ void av1_txb_init_levels_skip_c(const tran_low_t *const coeff, const int width,
       *ls++ = 0;
     }
     for (int j = 0; j < width; j++) {
-      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, INT8_MAX);
+      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, UINT8_MAX);
     }
   }
 }
@@ -521,7 +574,7 @@ void av1_txb_init_levels_c(const tran_low_t *const coeff, const int width,
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, INT8_MAX);
+      *ls++ = (uint8_t)clamp(abs(coeff[i * width + j]), 0, UINT8_MAX);
     }
     for (int j = 0; j < TX_PAD_HOR; j++) {
       *ls++ = 0;
@@ -794,6 +847,10 @@ void av1_write_coeffs_txb_skip(const AV1_COMMON *const cm, MACROBLOCK *const x,
       }
     }
   }
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   // Loop to code all signs, bypass levels in the transform block
 #if CONFIG_IMPROVEIDTX_RDPH
   for (int c = 0; c < eob; c++) {
@@ -812,8 +869,15 @@ void av1_write_coeffs_txb_skip(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #else
       aom_write_symbol(w, sign, ec_ctx->idtx_sign_cdf[idtx_sign_ctx], 2);
 #endif  // CONFIG_IMPROVEIDTX_CTXS
-      if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS)
-        write_golomb(w, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS);
+      if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
+#if CONFIG_COEFF_HR_ADAPTIVE
+        int hr_level = level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS;
+        write_adaptive_hr(w, hr_level, hr_level_avg);
+        hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
+        write_exp_golomb(w, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS, 0);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+      }
     }
   }
 }
@@ -1287,9 +1351,12 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   }
 #endif
 
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   // Loop to code all signs in the transform block,
   // starting with the sign of DC (if applicable)
-#if CONFIG_IMPROVEIDTX_RDPH
+#if CONFIG_IMPROVEIDTX_RDPH || CONFIG_COEFF_HR_ADAPTIVE
   for (int c = eob - 1; c >= 0; --c) {
 #else
   for (int c = 0; c < eob; ++c) {
@@ -1356,8 +1423,16 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       }
       if (is_hidden && c == 0) {
         int q_index = level >> 1;
-        if (q_index > COEFF_BASE_RANGE + NUM_BASE_LEVELS)
-          write_golomb(w, q_index - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS);
+        if (q_index > COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_level = q_index - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS;
+          write_adaptive_hr(w, hr_level, hr_level_avg >> 1);
+          hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
+          write_exp_golomb(w, q_index - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS,
+                           0);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+        }
       } else {
 #if !CONFIG_IMPROVEIDTX_CTXS
         const int pos = scan[c];
@@ -1366,11 +1441,27 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif  // !CONFIG_IMPROVEIDTX_CTXS
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
-          if (level > COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS)
-            write_golomb(w, level - COEFF_BASE_RANGE - 1 - LF_NUM_BASE_LEVELS);
+          if (level > COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS) {
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_level = level - COEFF_BASE_RANGE - 1 - LF_NUM_BASE_LEVELS;
+            write_adaptive_hr(w, hr_level, hr_level_avg);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
+            write_exp_golomb(
+                w, level - COEFF_BASE_RANGE - 1 - LF_NUM_BASE_LEVELS, 0);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+          }
         } else {
-          if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS)
-            write_golomb(w, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS);
+          if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_level = level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS;
+            write_adaptive_hr(w, hr_level, hr_level_avg);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
+            write_exp_golomb(w, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS,
+                             0);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+          }
         }
       }
     }
@@ -1910,6 +2001,9 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
       coeff_costs->lps_cost_skip;
   const int(*base_cost)[8] = coeff_costs->idtx_base_cost;
 
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   for (int c = bob; c < eob; c++) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
@@ -1923,7 +2017,13 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
     if (v) {
       if (level > NUM_BASE_LEVELS) {
         const int ctx = get_br_ctx_skip(levels, pos, bwl);
+#if CONFIG_COEFF_HR_ADAPTIVE
+        int hr_level = 0;
+        cost += get_br_cost(level, lps_cost[ctx], hr_level_avg, &hr_level);
+        hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
         cost += get_br_cost(level, lps_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       }
     }
   }
@@ -2024,6 +2124,9 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
   const int(*lps_lf_cost_uv)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_lf_cost_uv;
 #endif  // CONFIG_LCCHROMA
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   int c = eob - 1;
   {
     const int pos = scan[c];
@@ -2070,24 +2173,45 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
             const int ctx = get_br_ctx_lf_eob_chroma(pos, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_ctx = 0; /* eob */
+            cost +=
+                get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_ctx, &hr_level);
+#else
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
             const int ctx = 0; /* get_bf_ctx_eob_chroma */
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_ctx = 0; /* eob */
+            cost += get_br_cost(level, lps_cost_uv[ctx], hr_ctx, &hr_level);
+#else
             cost += get_br_cost(level, lps_cost_uv[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         }
       } else {
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
             const int ctx = get_br_ctx_lf_eob(pos, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_ctx = 0; /* eob */
+            cost += get_br_lf_cost(level, lps_lf_cost[ctx], hr_ctx, &hr_level);
+#else
             cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
             const int ctx = 0; /* get_br_ctx_eob */
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_ctx = 0; /* eob */
+            cost += get_br_cost(level, lps_cost[ctx], hr_ctx, &hr_level);
+#else
             cost += get_br_cost(level, lps_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         }
       }
@@ -2095,12 +2219,22 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int ctx = get_br_ctx_lf_eob(pos, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_ctx = 0; /* eob */
+          cost += get_br_lf_cost(level, lps_lf_cost[ctx], hr_ctx, &hr_level);
+#else
           cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
         if (level > NUM_BASE_LEVELS) {
           const int ctx = 0; /* get_br_ctx_eob */
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_ctx = 0;    /* eob */
+          cost += get_br_cost(level, lps_cost[ctx], hr_ctx, &hr_level);
+#else
           cost += get_br_cost(level, lps_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       }
 #endif  // CONFIG_LCCHROMA
@@ -2164,6 +2298,9 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       coeff_costs->base_lf_cost_uv;
   const int(*base_cost_uv)[8] = coeff_costs->base_cost_uv;
 #endif  // CONFIG_LCCHROMA
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = hr_level >> 1;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   for (c = eob - 2; c >= 1; --c) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
@@ -2237,24 +2374,47 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
             const int ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_level_avg,
+                                   &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
             const int ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost +=
+                get_br_cost(level, lps_cost_uv[ctx], hr_level_avg, &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_cost(level, lps_cost_uv[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         }
       } else {
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
             const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost += get_br_lf_cost(level, lps_lf_cost[ctx], hr_level_avg,
+                                   &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
             const int ctx = get_br_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost += get_br_cost(level, lps_cost[ctx], hr_level_avg, &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_cost(level, lps_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         }
       }
@@ -2262,12 +2422,23 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost +=
+              get_br_lf_cost(level, lps_lf_cost[ctx], hr_level_avg, &hr_level);
+          hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
           cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
         if (level > NUM_BASE_LEVELS) {
           const int ctx = get_br_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_cost(level, lps_cost[ctx], hr_level_avg, &hr_level);
+          hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
           cost += get_br_cost(level, lps_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       }
 #endif  // CONFIG_LCCHROMA
@@ -2275,6 +2446,9 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
   }
   // c == 0 after previous loop
   int num_nz = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+  hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   for (c = eob - 1; c > 0; --c) {
     const int pos = scan[c];
     num_nz += !!qcoeff[pos];
@@ -2300,7 +2474,15 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 
       if (q_index > NUM_BASE_LEVELS) {
         const int ctx = get_par_br_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+        // // Use context divided by 2 since the coefficient is also divided by
+        // 2
+        cost += get_br_cost(q_index, coeff_costs_ph->lps_ph_cost[ctx],
+                            hr_level_avg >> 1, &hr_level);
+        hr_level_avg = (hr_level_avg + q_index) >> 1;
+#else
         cost += get_br_cost(q_index, coeff_costs_ph->lps_ph_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       }
     }
     return cost;
@@ -2368,24 +2550,47 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
             const int ctx = get_br_lf_ctx_chroma(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx], hr_level_avg,
+                                   &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_lf_cost(level, lps_lf_cost_uv[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
             const int ctx = get_br_ctx_chroma(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost +=
+                get_br_cost(level, lps_cost_uv[ctx], hr_level_avg, &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_cost(level, lps_cost_uv[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         }
       } else {
         if (limits) {
           if (level > LF_NUM_BASE_LEVELS) {
             const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost += get_br_lf_cost(level, lps_lf_cost[ctx], hr_level_avg,
+                                   &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
             const int ctx = get_br_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            cost += get_br_cost(level, lps_cost[ctx], hr_level_avg, &hr_level);
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
             cost += get_br_cost(level, lps_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         }
       }
@@ -2393,12 +2598,23 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       if (limits) {
         if (level > LF_NUM_BASE_LEVELS) {
           const int ctx = get_br_lf_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost +=
+              get_br_lf_cost(level, lps_lf_cost[ctx], hr_level_avg, &hr_level);
+          hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
           cost += get_br_lf_cost(level, lps_lf_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
         if (level > NUM_BASE_LEVELS) {
           const int ctx = get_br_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_cost(level, lps_cost[ctx], hr_level_avg, &hr_level);
+          hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
           cost += get_br_cost(level, lps_cost[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       }
 #endif  // CONFIG_LCCHROMA
@@ -2667,7 +2883,12 @@ int av1_cost_coeffs_txb_laplacian(const AV1_COMMON *cm, const MACROBLOCK *x,
 static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
     int plane, int ci, tran_low_t abs_qc, int coeff_ctx,
     const LV_MAP_COEFF_COST *txb_costs, int bwl, TX_CLASS tx_class,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    const uint8_t *levels, int *cost_low, int limits, int hr_level_avg,
+    int *hr_level) {
+#else
     const uint8_t *levels, int *cost_low, int limits) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   // this simple version assumes the coeff's scan_idx is not DC (scan_idx != 0)
   // and not the last (scan_idx != eob - 1)
   assert(ci > 0);
@@ -2755,16 +2976,27 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
         if (abs_qc > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx_chroma(levels, ci, bwl, tx_class);
           int brcost_diff = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_lf_cost_with_diff(
+              abs_qc, txb_costs->lps_lf_cost_uv[br_ctx], &brcost_diff,
+              hr_level_avg, hr_level);
+#else
           cost += get_br_lf_cost_with_diff(
               abs_qc, txb_costs->lps_lf_cost_uv[br_ctx], &brcost_diff);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           diff += brcost_diff;
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx_chroma(levels, ci, bwl, tx_class);
           int brcost_diff = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost_uv[br_ctx],
+                                        &brcost_diff, hr_level_avg, hr_level);
+#else
           cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost_uv[br_ctx],
                                         &brcost_diff);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           diff += brcost_diff;
         }
       }
@@ -2773,16 +3005,27 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
         if (abs_qc > LF_NUM_BASE_LEVELS) {
           const int br_ctx = get_br_lf_ctx(levels, ci, bwl, tx_class);
           int brcost_diff = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost +=
+              get_br_lf_cost_with_diff(abs_qc, txb_costs->lps_lf_cost[br_ctx],
+                                       &brcost_diff, hr_level_avg, hr_level);
+#else
           cost += get_br_lf_cost_with_diff(
               abs_qc, txb_costs->lps_lf_cost[br_ctx], &brcost_diff);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           diff += brcost_diff;
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
           const int br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
           int brcost_diff = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost[br_ctx],
+                                        &brcost_diff, hr_level_avg, hr_level);
+#else
           cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost[br_ctx],
                                         &brcost_diff);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           diff += brcost_diff;
         }
       }
@@ -2792,16 +3035,26 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
       if (abs_qc > LF_NUM_BASE_LEVELS) {
         const int br_ctx = get_br_lf_ctx(levels, ci, bwl, tx_class);
         int brcost_diff = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+        cost += get_br_lf_cost_with_diff(abs_qc, txb_costs->lps_lf_cost[br_ctx],
+                                         &brcost_diff, hr_level_avg, hr_level);
+#else
         cost += get_br_lf_cost_with_diff(abs_qc, txb_costs->lps_lf_cost[br_ctx],
                                          &brcost_diff);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         diff += brcost_diff;
       }
     } else {
       if (abs_qc > NUM_BASE_LEVELS) {
         const int br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
         int brcost_diff = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+        cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost[br_ctx],
+                                      &brcost_diff, hr_level_avg, hr_level);
+#else
         cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost[br_ctx],
                                       &brcost_diff);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         diff += brcost_diff;
       }
     }
@@ -2825,7 +3078,14 @@ static INLINE int get_coeff_cost_bob(int pos, tran_low_t abs_qc, int sign,
     cost += txb_costs->idtx_sign_cost[idtx_sign_ctx][sign];
     if (abs_qc > NUM_BASE_LEVELS) {
       int br_ctx = get_br_ctx_skip(levels, pos, bwl);
+#if CONFIG_COEFF_HR_ADAPTIVE
+      int hr_level_avg = 0;
+      int dummy_hr_level;
+      cost += get_br_cost(abs_qc, txb_costs->lps_cost_skip[br_ctx],
+                          hr_level_avg, &dummy_hr_level);
+#else
       cost += get_br_cost(abs_qc, txb_costs->lps_cost_skip[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     }
   }
   return cost;
@@ -2839,7 +3099,12 @@ static INLINE int get_coeff_cost_fsc(int is_first, int pos, tran_low_t abs_qc,
                                      int sign, int coeff_ctx,
                                      const LV_MAP_COEFF_COST *txb_costs,
                                      int bwl, const uint8_t *levels,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                     const int8_t *signs, int hr_level_avg,
+                                     int *hr_level) {
+#else
                                      const int8_t *signs) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   int cost = 0;
   if (is_first) {
     cost += txb_costs->base_bob_cost[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
@@ -2852,7 +3117,12 @@ static INLINE int get_coeff_cost_fsc(int is_first, int pos, tran_low_t abs_qc,
   }
   if (abs_qc > NUM_BASE_LEVELS) {
     const int ctx = get_br_ctx_skip(levels, pos, bwl);
+#if CONFIG_COEFF_HR_ADAPTIVE
+    cost += get_br_cost(abs_qc, txb_costs->lps_cost_skip[ctx], hr_level_avg,
+                        hr_level);
+#else
     cost += get_br_cost(abs_qc, txb_costs->lps_cost_skip[ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
   return cost;
 }
@@ -2933,24 +3203,52 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
           int br_ctx = get_br_ctx_lf_eob_chroma(ci, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_level_avg = 0;
+          int dummy_hr_level;
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx],
+                                 hr_level_avg, &dummy_hr_level);
+#else
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
           int br_ctx = 0; /* get_br_ctx_eob_chroma */
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_level_avg = 0;
+          int dummy_hr_level;
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx],
+                              hr_level_avg, &dummy_hr_level);
+#else
           cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       }
     } else {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
           int br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_level_avg = 0;
+          int dummy_hr_level;
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx],
+                                 hr_level_avg, &dummy_hr_level);
+#else
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
           int br_ctx = 0; /* get_br_ctx_eob */
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_level_avg = 0;
+          int dummy_hr_level;
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx], hr_level_avg,
+                              &dummy_hr_level);
+#else
           cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       }
     }
@@ -2958,12 +3256,26 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
     if (limits) {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
         int br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+        int hr_level_avg = 0;
+        int dummy_hr_level;
+        cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx],
+                               hr_level_avg, &dummy_hr_level);
+#else
         cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       }
     } else {
       if (abs_qc > NUM_BASE_LEVELS) {
         int br_ctx = 0; /* get_br_ctx_eob */
+#if CONFIG_COEFF_HR_ADAPTIVE
+        int hr_level_avg = 0;
+        int dummy_hr_level;
+        cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx], hr_level_avg,
+                            &dummy_hr_level);
+#else
         cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       }
     }
 #endif  // CONFIG_LCCHROMA
@@ -2971,18 +3283,20 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
   return cost;
 }
 
-static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
-                                         int sign, int coeff_ctx,
-                                         int dc_sign_ctx,
-                                         const LV_MAP_COEFF_COST *txb_costs,
-                                         int bwl, TX_CLASS tx_class,
-                                         const uint8_t *levels
+static INLINE int get_coeff_cost_general(
+    int is_last, int ci, tran_low_t abs_qc, int sign, int coeff_ctx,
+    int dc_sign_ctx, const LV_MAP_COEFF_COST *txb_costs, int bwl,
+    TX_CLASS tx_class, const uint8_t *levels
 #if CONFIG_CONTEXT_DERIVATION
-                                         ,
-                                         int32_t *tmp_sign
+    ,
+    int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
-                                         ,
-                                         int plane, int limits) {
+    ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    int plane, int limits, int hr_level_avg, int *hr_level) {
+#else
+    int plane, int limits) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   int cost = 0;
   if (is_last) {
 #if CONFIG_LCCHROMA
@@ -3075,7 +3389,12 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
             br_ctx = get_br_ctx_lf_eob_chroma(ci, tx_class);
           else
             br_ctx = get_br_lf_ctx_chroma(levels, ci, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx],
+                                 hr_level_avg, hr_level);
+#else
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
@@ -3084,7 +3403,13 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
             br_ctx = 0; /* get_br_ctx_eob_chroma */
           else
             br_ctx = get_br_ctx_chroma(levels, ci, bwl, tx_class);
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx],
+                              hr_level_avg, hr_level);
+#else
           cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       }
     } else {
@@ -3095,7 +3420,12 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
             br_ctx = get_br_ctx_lf_eob(ci, tx_class);
           else
             br_ctx = get_br_lf_ctx(levels, ci, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx],
+                                 hr_level_avg, hr_level);
+#else
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
@@ -3104,7 +3434,13 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
             br_ctx = 0; /* get_br_ctx_eob */
           else
             br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+          cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx], hr_level_avg,
+                              hr_level);
+#else
           cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       }
     }
@@ -3116,7 +3452,13 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
           br_ctx = get_br_ctx_lf_eob(ci, tx_class);
         else
           br_ctx = get_br_lf_ctx(levels, ci, bwl, tx_class);
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+        cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx],
+                               hr_level_avg, hr_level);
+#else
         cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       }
     } else {
       if (abs_qc > NUM_BASE_LEVELS) {
@@ -3125,7 +3467,13 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
           br_ctx = 0; /* get_br_ctx_eob */
         else
           br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+        cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx], hr_level_avg,
+                            hr_level);
+#else
         cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       }
     }
 #endif  // CONFIG_LCCHROMA
@@ -3158,11 +3506,19 @@ static INLINE void update_coeff_fsc_general(
     int64_t rdmult, int shift, const int32_t *dequant, const int16_t *scan,
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels, int8_t *signs,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    const qm_val_t *iqmatrix, int *hr_level_avg) {
+#else
     const qm_val_t *iqmatrix) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   const int pos = scan[si];
   const tran_low_t qc = qcoeff[pos];
   const int is_first = (si == bob);
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level = 0;
+  int hr_level_low = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int coeff_ctx =
       get_upper_levels_ctx_general(is_first, si, bwl, height, levels, pos);
   if (qc == 0) {
@@ -3179,7 +3535,13 @@ static INLINE void update_coeff_fsc_general(
     const int64_t dist = get_coeff_dist(tqc, dqc, shift);
     const int64_t dist0 = get_coeff_dist(tqc, 0, shift);
     const int rate = get_coeff_cost_fsc(is_first, pos, abs_qc, sign, coeff_ctx,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                        txb_costs, bwl, levels, signs,
+                                        *hr_level_avg, &hr_level);
+#else
                                         txb_costs, bwl, levels, signs);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+
     const int64_t rd = RDCOST(rdmult, rate, dist);
     tran_low_t qc_low, dqc_low;
     tran_low_t abs_qc_low;
@@ -3198,7 +3560,12 @@ static INLINE void update_coeff_fsc_general(
       abs_qc_low = abs_qc - 1;
       dist_low = get_coeff_dist(tqc, dqc_low, shift);
       rate_low = get_coeff_cost_fsc(is_first, pos, abs_qc_low, sign, coeff_ctx,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                    txb_costs, bwl, levels, signs,
+                                    *hr_level_avg, &hr_level_low);
+#else
                                     txb_costs, bwl, levels, signs);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     }
     rd_low = RDCOST(rdmult, rate_low, dist_low);
     if (rd_low < rd) {
@@ -3207,9 +3574,15 @@ static INLINE void update_coeff_fsc_general(
       levels[get_padded_idx_left(pos, bwl)] = AOMMIN(abs_qc_low, INT8_MAX);
       *accu_rate += rate_low;
       *accu_dist += dist_low - dist0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+      *hr_level_avg = (*hr_level_avg + hr_level_low) >> 1;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     } else {
       *accu_rate += rate;
       *accu_dist += dist - dist0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+      *hr_level_avg = (*hr_level_avg + hr_level) >> 1;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     }
   }
 }
@@ -3227,13 +3600,24 @@ static INLINE void update_coeff_general(
     int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
     ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    int plane, coeff_info *coef_info, bool enable_parity_hiding,
+    int *hr_level_avg) {
+#else
     int plane, coeff_info *coef_info, bool enable_parity_hiding) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+
   const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   const int ci = scan[si];
   const tran_low_t qc = qcoeff[ci];
   const int is_last = si == (eob - 1);
   const int coeff_ctx = get_lower_levels_ctx_general(
       is_last, si, bwl, height, levels, ci, tx_class, plane);
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level = 0;
+  int hr_level_low = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 #if CONFIG_LCCHROMA
   const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
@@ -3269,7 +3653,11 @@ static INLINE void update_coeff_general(
                                tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
                                ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                               plane, limits, *hr_level_avg, &hr_level);
+#else
                                plane, limits);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     const int64_t rd = RDCOST(rdmult, rate, dist);
 
     tran_low_t qc_low, dqc_low;
@@ -3301,20 +3689,30 @@ static INLINE void update_coeff_general(
                                  tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
                                  ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                 plane, limits, *hr_level_avg, &hr_level_low);
+#else
                                  plane, limits);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     }
 
     rd_low = RDCOST(rdmult, rate_low, dist_low);
     if (rd_low < rd) {
       qcoeff[ci] = qc_low;
       dqcoeff[ci] = dqc_low;
-      levels[get_padded_idx(ci, bwl)] = AOMMIN(abs_qc_low, INT8_MAX);
+      levels[get_padded_idx(ci, bwl)] = AOMMIN(abs_qc_low, UINT8_MAX);
+#if CONFIG_COEFF_HR_ADAPTIVE
+      *hr_level_avg = (*hr_level_avg + hr_level_low) >> 1;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       *accu_rate += rate_low;
       *accu_dist += dist_low - dist0;
       if (enable_parity_hiding)
         set_coeff_info(qc_low, dqc_low, qc, dqc, rd_low, rd, rate_low, rate,
                        false, coef_info, si);
     } else {
+#if CONFIG_COEFF_HR_ADAPTIVE
+      *hr_level_avg = (*hr_level_avg + hr_level) >> 1;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       *accu_rate += rate;
       *accu_dist += dist - dist0;
       if (enable_parity_hiding)
@@ -3330,7 +3728,11 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
     const qm_val_t *iqmatrix, coeff_info *coef_info, bool enable_parity_hiding,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    int plane, int *hr_level_avg) {
+#else
     int plane) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   (void)eob;
   // this simple version assumes the coeff's scan_idx is not DC (scan_idx != 0)
@@ -3341,6 +3743,9 @@ static AOM_FORCE_INLINE void update_coeff_simple(
   const tran_low_t qc = qcoeff[ci];
   const int row = ci >> bwl;
   const int col = ci - (row << bwl);
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 
   int limits = get_lf_limits(row, col, tx_class, plane);
   int coeff_ctx = 0;
@@ -3403,9 +3808,14 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     const tran_low_t abs_tqc = abs(tcoeff[ci]);
     const tran_low_t abs_dqc = abs(dqcoeff[ci]);
     int rate_low = 0;
-    const int rate =
-        get_two_coeff_cost_simple(plane, ci, abs_qc, coeff_ctx, txb_costs, bwl,
-                                  tx_class, levels, &rate_low, limits);
+    const int rate = get_two_coeff_cost_simple(
+        plane, ci, abs_qc, coeff_ctx, txb_costs, bwl,
+#if CONFIG_COEFF_HR_ADAPTIVE
+        tx_class, levels, &rate_low, limits, *hr_level_avg, &hr_level);
+#else
+        tx_class, levels, &rate_low, limits);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+
     if (abs_dqc < abs_tqc) {
       *accu_rate += rate;
       return;
@@ -3430,8 +3840,12 @@ static AOM_FORCE_INLINE void update_coeff_simple(
                        rate, false, coef_info, si);
       qcoeff[ci] = qc_low;
       dqcoeff[ci] = dqc_low;
-      levels[get_padded_idx(ci, bwl)] = AOMMIN(abs_qc_low, INT8_MAX);
+      levels[get_padded_idx(ci, bwl)] = AOMMIN(abs_qc_low, UINT8_MAX);
       *accu_rate += rate_low;
+#if CONFIG_COEFF_HR_ADAPTIVE
+      if (hr_level > 0) hr_level--;
+      *hr_level_avg = (*hr_level_avg + hr_level) >> 1;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     } else {
       *accu_rate += rate;
       tran_low_t qc_low = qc < 0 ? -abs_qc_low : abs_qc_low;
@@ -3439,6 +3853,9 @@ static AOM_FORCE_INLINE void update_coeff_simple(
       if (enable_parity_hiding)
         set_coeff_info(qc_low, dqc_low, qc, dqcoeff[ci], rd_low, rd, rate_low,
                        rate, true, coef_info, si);
+#if CONFIG_COEFF_HR_ADAPTIVE
+      *hr_level_avg = (*hr_level_avg + hr_level) >> 1;
+#endif  //
     }
   }
 }
@@ -3451,11 +3868,19 @@ static AOM_FORCE_INLINE void update_coeff_bob(
     const LV_MAP_EOB_COST *txb_eob_costs, const LV_MAP_COEFF_COST *txb_costs,
     const tran_low_t *tcoeff, tran_low_t *qcoeff, tran_low_t *dqcoeff,
     uint8_t *levels, int8_t *signs, int sharpness, const qm_val_t *iqmatrix,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    const TX_SIZE tx_size, int is_inter, int *hr_level_avg) {
+#else
     const TX_SIZE tx_size, int is_inter) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int dqv = get_dqv(dequant, scan[si], iqmatrix);
   const int pos = scan[si];
   const tran_low_t qc = qcoeff[pos];
   const int coeff_ctx = get_upper_levels_ctx_2d(levels, pos, bwl);
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level = 0;
+  int hr_level_low = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   if (qc == 0) {
     *accu_rate += txb_costs->idtx_base_cost[coeff_ctx][0];
   } else {
@@ -3467,7 +3892,11 @@ static AOM_FORCE_INLINE void update_coeff_bob(
     const int64_t dist0 = get_coeff_dist(tqc, 0, shift);
     int64_t dist = get_coeff_dist(tqc, dqc, shift) - dist0;
     int rate = get_coeff_cost_fsc(0, pos, abs_qc, sign, coeff_ctx, txb_costs,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                  bwl, levels, signs, *hr_level_avg, &hr_level);
+#else
                                   bwl, levels, signs);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     int64_t rd = RDCOST(rdmult, *accu_rate + rate, *accu_dist + dist);
 
     tran_low_t qc_low, dqc_low;
@@ -3485,7 +3914,12 @@ static AOM_FORCE_INLINE void update_coeff_bob(
       abs_qc_low = abs_qc - 1;
       dist_low = get_coeff_dist(tqc, dqc_low, shift) - dist0;
       rate_low = get_coeff_cost_fsc(0, pos, abs_qc_low, sign, coeff_ctx,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                    txb_costs, bwl, levels, signs,
+                                    *hr_level_avg, &hr_level);
+#else
                                     txb_costs, bwl, levels, signs);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       rd_low = RDCOST(rdmult, *accu_rate + rate_low, *accu_dist + dist_low);
     }
     int lower_level_new_bob = 0;
@@ -3540,10 +3974,22 @@ static AOM_FORCE_INLINE void update_coeff_bob(
       *accu_rate = rate_coeff_bob;
       *accu_dist = dist_new_bob;
       lower_level = lower_level_new_bob;
+#if CONFIG_COEFF_HR_ADAPTIVE
+      *hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     } else {
       *accu_rate += rate;
       *accu_dist += dist;
     }
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+    if (lower_level) {
+      *hr_level_avg = (*hr_level_avg + hr_level_low) >> 1;
+    } else {
+      *hr_level_avg = (*hr_level_avg + hr_level) >> 1;
+    }
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+
     if (lower_level) {
       qcoeff[pos] = qc_low;
       dqcoeff[pos] = dqc_low;
@@ -3566,12 +4012,20 @@ static AOM_FORCE_INLINE void update_coeff_simple_facade(
     const LV_MAP_COEFF_COST *txb_costs, const tran_low_t *tcoeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
     const qm_val_t *iqmatrix, coeff_info *coef_info, bool enable_parity_hiding,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    int plane, int *hr_level_avg) {
+#else
     int plane) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   for (; *si >= 1; --*si) {
     update_coeff_simple(accu_rate, *si, eob, tx_class, bwl, rdmult, shift,
                         dequant, scan, txb_costs, tcoeff, qcoeff, dqcoeff,
                         levels, iqmatrix, coef_info, enable_parity_hiding,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                        plane, hr_level_avg);
+#else
                         plane);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
 }
 
@@ -3591,7 +4045,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     int32_t *tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
     ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    int plane, coeff_info *coef_info, bool enable_parity_hiding,
+    int *hr_level_avg) {
+#else
     int plane, coeff_info *coef_info, bool enable_parity_hiding) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int bwl = get_txb_bwl(tx_size);
   const int height = get_txb_high(tx_size);
   const int dqv = get_dqv(dequant, scan[si], iqmatrix);
@@ -3602,6 +4061,11 @@ static AOM_FORCE_INLINE void update_coeff_eob(
   const int col = ci - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, plane);
   int coeff_ctx = 0;
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level = 0;
+  int hr_level_low = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 #if CONFIG_LCCHROMA
   if (plane > 0) {
     if (limits) {
@@ -3674,7 +4138,11 @@ static AOM_FORCE_INLINE void update_coeff_eob(
                                tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
                                ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                               plane, limits, *hr_level_avg, &hr_level);
+#else
                                plane, limits);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     int64_t rd = RDCOST(rdmult, *accu_rate + rate, *accu_dist + dist);
 
     tran_low_t qc_low, dqc_low;
@@ -3719,7 +4187,11 @@ static AOM_FORCE_INLINE void update_coeff_eob(
                                  tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
                                  ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                 plane, limits, *hr_level_avg, &hr_level_low);
+#else
                                  plane, limits);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       rd_low = RDCOST(rdmult, *accu_rate + rate_low, *accu_dist + dist_low);
     }
     int rate_up_backup = rate;
@@ -3786,6 +4258,9 @@ static AOM_FORCE_INLINE void update_coeff_eob(
       }
       *eob = new_eob;
       *nz_num = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+      *hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       *accu_rate = rate_coeff_eob;
       *accu_dist = dist_new_eob;
       lower_level = lower_level_new_eob;
@@ -3801,10 +4276,18 @@ static AOM_FORCE_INLINE void update_coeff_eob(
                        rate_up_backup, !lower_level, coef_info, si);
     }
 
+#if CONFIG_COEFF_HR_ADAPTIVE
+    if (lower_level) {
+      *hr_level_avg = (*hr_level_avg + hr_level_low) >> 1;
+    } else {
+      *hr_level_avg = (*hr_level_avg + hr_level) >> 1;
+    }
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+
     if (lower_level) {
       qcoeff[ci] = qc_low;
       dqcoeff[ci] = dqc_low;
-      levels[get_padded_idx(ci, bwl)] = AOMMIN(abs_qc_low, INT8_MAX);
+      levels[get_padded_idx(ci, bwl)] = AOMMIN(abs_qc_low, UINT8_MAX);
     }
     if (qcoeff[ci]) {
       nz_ci[*nz_num] = ci;
@@ -3824,7 +4307,11 @@ static AOM_FORCE_INLINE void update_coeff_eob_facade(
     const tran_low_t *tcoeff, tran_low_t *qcoeff, tran_low_t *dqcoeff,
     uint8_t *levels, int sharpness, const qm_val_t *iqmatrix, int32_t *tmp_sign,
     int plane, coeff_info *coef_info, bool enable_parity_hiding,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    int max_nz_num, int *hr_level_avg) {
+#else
     int max_nz_num) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 #if !CONFIG_EOB_POS_LUMA
   (void)is_inter;
 #endif  // !CONFIG_EOB_POS_LUMA
@@ -3844,7 +4331,11 @@ static AOM_FORCE_INLINE void update_coeff_eob_facade(
                      tmp_sign
 #endif
                      ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                     plane, coef_info, enable_parity_hiding, hr_level_avg);
+#else
                      plane, coef_info, enable_parity_hiding);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
 }
 
@@ -3879,6 +4370,10 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
                                       ,
                                       int plane
 #endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                      ,
+                                      int hr_level_avg
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 ) {
   tran_low_t abslevel = abs(level), q_index = abslevel >> 1;
   int sign = level < 0;
@@ -3886,6 +4381,9 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
   const int col = pos - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, 0);
   int coeff_ctx = 0;
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int dummy_hr_level;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   if (limits) {
     coeff_ctx = get_lower_levels_lf_ctx(levels, pos, bwl, tx_class);
   } else {
@@ -3903,14 +4401,22 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
                                  0
 #endif  // CONFIG_CONTEXT_DERIVATION
                                  ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                 0, limits, hr_level_avg, &dummy_hr_level);
+#else
                                  0, limits);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 
   const int base_ctx_ph = get_base_ctx_ph(levels, pos, bwl, tx_class);
   int rate_ph = txb_costs_ph->base_ph_cost[base_ctx_ph][AOMMIN(q_index, 3)];
   if (q_index > NUM_BASE_LEVELS) {
-    rate_ph += get_br_cost(
-        q_index,
-        txb_costs_ph->lps_ph_cost[get_par_br_ctx(levels, pos, bwl, tx_class)]);
+    int br_ctx = get_par_br_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+    rate_ph += get_br_cost(q_index, txb_costs_ph->lps_ph_cost[br_ctx],
+                           hr_level_avg, &dummy_hr_level);
+#else
+    rate_ph += get_br_cost(q_index, txb_costs_ph->lps_ph_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
 #if CONFIG_IMPROVEIDTX_CTXS
   const int dc_ph_group = 1;  // PH enabled
@@ -3938,7 +4444,11 @@ static AOM_FORCE_INLINE void cost_hide_par(
     const LV_MAP_COEFF_COST *txb_costs_ph, int dc_sign_ctx, TX_CLASS tx_class,
     uint8_t *levels, const int bwl, const int64_t rdmult,
     const int32_t *dequant, const qm_val_t *iqmatrix, tune_cand *t_cand,
+#if CONFIG_COEFF_HR_ADAPTIVE
+    int rate_cur, int hr_level_avg) {
+#else
     int rate_cur) {
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int dqv = get_dqv(dequant, pos, iqmatrix);
   tran_low_t abslevel = abs(qcoeff), abstqc = abs(tcoeff);
   int64_t dist = get_coeff_dist(tcoeff, dqcoeff, shift);
@@ -3963,9 +4473,14 @@ static AOM_FORCE_INLINE void cost_hide_par(
     rate_cand += txb_costs->dc_sign_cost[dc_sign_ctx][tcoeff < 0];
 #endif  // CONFIG_IMPROVEIDTX_CTXS
     if (q_index > NUM_BASE_LEVELS) {
-      rate_cand +=
-          get_br_cost(q_index, txb_costs_ph->lps_ph_cost[get_par_br_ctx(
-                                   levels, pos, bwl, tx_class)]);
+      int br_ctx = get_par_br_ctx(levels, pos, bwl, tx_class);
+#if CONFIG_COEFF_HR_ADAPTIVE
+      int dummy_hr_level;
+      rate_cand += get_br_cost(q_index, txb_costs_ph->lps_ph_cost[br_ctx],
+                               hr_level_avg, &dummy_hr_level);
+#else
+      rate_cand += get_br_cost(q_index, txb_costs_ph->lps_ph_cost[br_ctx]);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     }
   }
   int64_t cost_cand = RDCOST(rdmult, rate_cand, dist_cand);
@@ -4103,6 +4618,10 @@ static AOM_FORCE_INLINE bool parity_hide_tb(
     ,
     int plane
 #endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_COEFF_HR_ADAPTIVE
+    ,
+    int hr_level_avg
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 ) {
   int nzsbb = 0, sum_abs1 = 0;
   for (int scan_idx = eob - 1; scan_idx > 0; --scan_idx) {
@@ -4127,6 +4646,10 @@ static AOM_FORCE_INLINE bool parity_hide_tb(
                 ,
                 plane
 #endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_COEFF_HR_ADAPTIVE
+                ,
+                hr_level_avg
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       );
 
   if (!needtune && nzsbb >= PHTHRESH) {
@@ -4141,7 +4664,12 @@ static AOM_FORCE_INLINE bool parity_hide_tb(
   if (nzsbb >= PHTHRESH) {
     cost_hide_par(qcoeff[hidepos], dqcoeff[hidepos], tcoeff[hidepos], shift,
                   txb_costs, hidepos, txb_costs_ph, dc_sign_ctx, tx_class,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                  levels, bwl, rdmult, dequant, iqmatrix, &t_cand_dc, rate_cur,
+                  hr_level_avg);
+#else
                   levels, bwl, rdmult, dequant, iqmatrix, &t_cand_dc, rate_cur);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
 
   // we change the level candidates to check the cost change.
@@ -4167,7 +4695,8 @@ static AOM_FORCE_INLINE bool parity_hide_tb(
     qcoeff[tune_pos] = best->qcoeff;
     dqcoeff[tune_pos] = best->dqcoeff;
     *accu_rate += best->rate;
-    levels[get_padded_idx(tune_pos, bwl)] = AOMMIN(abs(best->qcoeff), INT8_MAX);
+    levels[get_padded_idx(tune_pos, bwl)] =
+        AOMMIN(abs(best->qcoeff), UINT8_MAX);
 
     return true;
   }
@@ -4191,6 +4720,9 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   int eob = p->eobs[block];
   int bob_code = p->bobs[block];
   int bob = av1_get_max_eob(tx_size) - bob_code;
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int32_t *dequant = p->dequant_QTX;
   const qm_val_t *iqmatrix =
       av1_get_iqmatrix(&cpi->common.quant_params, xd, plane, tx_size, tx_type);
@@ -4264,7 +4796,12 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   if (abs_qc >= 2) {
     update_coeff_fsc_general(&accu_rate, &accu_dist, si, bob, bwl, height,
                              rdmult, shift, dequant, scan, txb_costs, tcoeff,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                             qcoeff, dqcoeff, levels, signs, iqmatrix,
+                             &hr_level_avg);
+#else
                              qcoeff, dqcoeff, levels, signs, iqmatrix);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     ++si;
   } else {
     assert(abs_qc == 1);
@@ -4284,7 +4821,12 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
     update_coeff_bob(&accu_rate, &accu_dist, &bob_code, &eob, &nz_num, nz_ci,
                      si, bwl, height, rdmult, shift, dequant, scan,
                      txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                     signs, sharpness, iqmatrix, tx_size, is_inter,
+                     &hr_level_avg);
+#else
                      signs, sharpness, iqmatrix, tx_size, is_inter);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
 
   update_skip(&accu_rate, accu_dist, &eob, nz_num, nz_ci, rdmult, skip_cost,
@@ -4293,7 +4835,12 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   for (; si < eob; ++si) {
     update_coeff_fsc_general(&accu_rate, &accu_dist, si, bob, bwl, height,
                              rdmult, shift, dequant, scan, txb_costs, tcoeff,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                             qcoeff, dqcoeff, levels, signs, iqmatrix,
+                             &hr_level_avg);
+#else
                              qcoeff, dqcoeff, levels, signs, iqmatrix);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
 
   if (eob == 0) {
@@ -4347,6 +4894,9 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   assert(width == (1 << bwl));
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int bob_code = p->bobs[block];
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane == PLANE_TYPE_Y) ||
                      use_inter_fsc(&cpi->common, plane, tx_type, is_inter);
@@ -4443,7 +4993,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          xd->tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
                          ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                         plane, coef_info, enable_parity_hiding, &hr_level_avg);
+#else
                          plane, coef_info, enable_parity_hiding);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     --si;
   } else {
     assert(abs_qc == 1);
@@ -4472,7 +5026,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
           TX_CLASS_2D, txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan,
           txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels, sharpness,
           iqmatrix, xd->tmp_sign, plane, coef_info, enable_parity_hiding,
+#if CONFIG_COEFF_HR_ADAPTIVE
+          max_nz_num, &hr_level_avg);
+#else
           max_nz_num);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       break;
     case TX_CLASS_HORIZ:
       update_coeff_eob_facade(
@@ -4480,7 +5038,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
           TX_CLASS_HORIZ, txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan,
           txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels, sharpness,
           iqmatrix, xd->tmp_sign, plane, coef_info, enable_parity_hiding,
+#if CONFIG_COEFF_HR_ADAPTIVE
+          max_nz_num, &hr_level_avg);
+#else
           max_nz_num);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       break;
     case TX_CLASS_VERT:
       update_coeff_eob_facade(
@@ -4488,7 +5050,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
           TX_CLASS_VERT, txb_ctx->dc_sign_ctx, rdmult, shift, dequant, scan,
           txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff, levels, sharpness,
           iqmatrix, xd->tmp_sign, plane, coef_info, enable_parity_hiding,
+#if CONFIG_COEFF_HR_ADAPTIVE
+          max_nz_num, &hr_level_avg);
+#else
           max_nz_num);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       break;
     default: assert(false);
   }
@@ -4503,19 +5069,31 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
       update_coeff_simple_facade(&accu_rate, &si, eob, TX_CLASS_2D, bwl, rdmult,
                                  shift, dequant, scan, txb_costs, tcoeff,
                                  qcoeff, dqcoeff, levels, iqmatrix, coef_info,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                                 enable_parity_hiding, plane, &hr_level_avg);
+#else
                                  enable_parity_hiding, plane);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       break;
     case TX_CLASS_HORIZ:
-      update_coeff_simple_facade(&accu_rate, &si, eob, TX_CLASS_HORIZ, bwl,
-                                 rdmult, shift, dequant, scan, txb_costs,
-                                 tcoeff, qcoeff, dqcoeff, levels, iqmatrix,
-                                 coef_info, enable_parity_hiding, plane);
+      update_coeff_simple_facade(
+          &accu_rate, &si, eob, TX_CLASS_HORIZ, bwl, rdmult, shift, dequant,
+          scan, txb_costs, tcoeff, qcoeff, dqcoeff, levels, iqmatrix,
+#if CONFIG_COEFF_HR_ADAPTIVE
+          coef_info, enable_parity_hiding, plane, &hr_level_avg);
+#else
+          coef_info, enable_parity_hiding, plane);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       break;
     case TX_CLASS_VERT:
-      update_coeff_simple_facade(&accu_rate, &si, eob, TX_CLASS_VERT, bwl,
-                                 rdmult, shift, dequant, scan, txb_costs,
-                                 tcoeff, qcoeff, dqcoeff, levels, iqmatrix,
-                                 coef_info, enable_parity_hiding, plane);
+      update_coeff_simple_facade(
+          &accu_rate, &si, eob, TX_CLASS_VERT, bwl, rdmult, shift, dequant,
+          scan, txb_costs, tcoeff, qcoeff, dqcoeff, levels, iqmatrix,
+#if CONFIG_COEFF_HR_ADAPTIVE
+          coef_info, enable_parity_hiding, plane, &hr_level_avg);
+#else
+          coef_info, enable_parity_hiding, plane);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       break;
     default: assert(false);
   }
@@ -4533,7 +5111,11 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          xd->tmp_sign
 #endif  // CONFIG_CONTEXT_DERIVATION
                          ,
+#if CONFIG_COEFF_HR_ADAPTIVE
+                         plane, coef_info, enable_parity_hiding, &hr_level_avg);
+#else
                          plane, coef_info, enable_parity_hiding);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
   }
 
   if (enable_parity_hiding) {
@@ -4544,6 +5126,10 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                    ,
                    plane
 #endif  // CONFIG_CHROMA_TX_COEFF_CODING
+#if CONFIG_COEFF_HR_ADAPTIVE
+                   ,
+                   hr_level_avg
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
     );
   }
 

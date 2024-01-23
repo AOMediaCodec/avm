@@ -18,39 +18,8 @@
 #include "av1/common/scan.h"
 #include "av1/common/txb_common.h"
 #include "av1/common/reconintra.h"
+#include "av1/common/hr_coding.h"
 #include "av1/decoder/decodemv.h"
-
-static int read_golomb(MACROBLOCKD *xd, aom_reader *r) {
-  int x = 1;
-  int length = 0;
-
-#if CONFIG_BYPASS_IMPROVEMENT
-  length = aom_read_unary(r, 21, ACCT_INFO("length"));
-  if (length > 20) {
-    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                       "Invalid length in read_golomb");
-  }
-  x = 1 << length;
-  x += aom_read_literal(r, length, ACCT_INFO());
-#else
-  int i = 0;
-  while (!i) {
-    i = aom_read_bit(r, ACCT_INFO());
-    ++length;
-    if (length > 20) {
-      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid length in read_golomb");
-      break;
-    }
-  }
-  for (i = 0; i < length - 1; ++i) {
-    x <<= 1;
-    x += aom_read_bit(r, ACCT_INFO());
-  }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
-
-  return x - 1;
-}
 
 static INLINE int rec_eob_pos(const int eob_token, const int extra) {
   int eob = av1_eob_group_start[eob_token];
@@ -663,6 +632,9 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
   }
 
   const int bob = av1_get_max_eob(tx_size) - bob_data->eob;
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
 #if CONFIG_IMPROVEIDTX_RDPH
   for (int c = bob; c < eob_data->eob; c++) {
 #else
@@ -688,7 +660,13 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
 #endif  // CONFIG_IMPROVEIDTX_CTXS
       signs[sign_idx] = sign > 0 ? -1 : 1;
       if (level >= MAX_BASE_BR_RANGE) {
-        level += read_golomb(xd, r);
+#if CONFIG_COEFF_HR_ADAPTIVE
+        int hr_level = read_adaptive_hr(xd, r, hr_level_avg);
+        level += hr_level;
+        hr_level_avg = (hr_level + hr_level_avg) >> 1;
+#else
+        level += read_exp_golomb(xd, r, 0);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
       }
       if (c == 0) dc_val = sign ? -level : level;
       // Bitmasking to clamp level to valid range:
@@ -931,7 +909,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
           aom_read_symbol(r, cdf, 3, ACCT_INFO("level", "coeff_base_eob_cdf")) +
           1;
       if (level > NUM_BASE_LEVELS) {
-        const int br_ctx = 0; /* get_lf_ctx_eob */
+        const int br_ctx = 0; /* get_br_ctx_eob */
         cdf = ec_ctx->coeff_br_cdf[plane_type][br_ctx];
         for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
           const int k = aom_read_symbol(r, cdf, BR_CDF_SIZE,
@@ -1039,7 +1017,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       }
     }
   }
-#if CONFIG_IMPROVEIDTX_RDPH
+
+#if CONFIG_COEFF_HR_ADAPTIVE
+  int hr_level_avg = 0;
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
+#if CONFIG_IMPROVEIDTX_RDPH || CONFIG_COEFF_HR_ADAPTIVE
   for (int c = *eob - 1; c >= 0; --c) {
 #else
   for (int c = 0; c < *eob; ++c) {
@@ -1112,7 +1094,13 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       }
       if (is_hidden && c == 0) {
         if (level >= (MAX_BASE_BR_RANGE << 1)) {
-          level += (read_golomb(xd, r) << 1);
+#if CONFIG_COEFF_HR_ADAPTIVE
+          int hr_level = (read_adaptive_hr(xd, r, hr_level_avg >> 1) << 1);
+          level += hr_level;
+          hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
+          level += (read_exp_golomb(xd, r, 0) << 1);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
       } else {
 #if !CONFIG_IMPROVEIDTX_CTXS
@@ -1122,11 +1110,23 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
           if (level >= LF_MAX_BASE_BR_RANGE) {
-            level += read_golomb(xd, r);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_level = read_adaptive_hr(xd, r, hr_level_avg);
+            level += hr_level;
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
+            level += read_exp_golomb(xd, r, 0);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         } else {
           if (level >= MAX_BASE_BR_RANGE) {
-            level += read_golomb(xd, r);
+#if CONFIG_COEFF_HR_ADAPTIVE
+            int hr_level = read_adaptive_hr(xd, r, hr_level_avg);
+            level += hr_level;
+            hr_level_avg = (hr_level_avg + hr_level) >> 1;
+#else
+            level += read_exp_golomb(xd, r, 0);
+#endif  // CONFIG_COEFF_HR_ADAPTIVE
           }
         }
       }

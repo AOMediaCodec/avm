@@ -279,10 +279,11 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
       dif -= vw;
       ret++;
     } else {
+      bit++;
       break;
     }
   }
-  return od_ec_dec_bypass_normalize(dec, dif, bit + 1, ret);
+  return od_ec_dec_bypass_normalize(dec, dif, bit, ret);
 }
 #endif  // CONFIG_BYPASS_IMPROVEMENT
 
