@@ -170,7 +170,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i c1 = yy_loadu_256(cf + 8);
       const __m256i c0c1 = _mm256_packs_epi32(c0, c1);
       const __m256i abs01 = _mm256_abs_epi16(c0c1);
-      const __m256i abs01_8 = _mm256_packs_epi16(y_zeros, abs01);
+      const __m256i abs01_8 = _mm256_packus_epi16(y_zeros, abs01);
       const __m256i sig01 = _mm256_sign_epi16(one16, c0c1);
       const __m256i sig01_8 = _mm256_packs_epi16(sig01, y_zeros);
       const __m256i res_ = _mm256_shuffle_epi32(abs01_8, 0xd8);
@@ -194,7 +194,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i coeffCD = _mm256_packs_epi32(coeffC, coeffD);
       const __m256i absAB = _mm256_abs_epi16(coeffAB);
       const __m256i absCD = _mm256_abs_epi16(coeffCD);
-      const __m256i absABCD = _mm256_packs_epi16(absAB, absCD);
+      const __m256i absABCD = _mm256_packus_epi16(absAB, absCD);
       const __m256i res_ = _mm256_permute4x64_epi64(absABCD, 0xd8);
       const __m256i res = _mm256_shuffle_epi32(res_, 0xd8);
       const __m128i res0 = _mm256_castsi256_si128(res);
@@ -237,7 +237,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i coeffCD = _mm256_packs_epi32(coeffC, coeffD);
       const __m256i absAB = _mm256_abs_epi16(coeffAB);
       const __m256i absCD = _mm256_abs_epi16(coeffCD);
-      const __m256i absABCD = _mm256_packs_epi16(absAB, absCD);
+      const __m256i absABCD = _mm256_packus_epi16(absAB, absCD);
       const __m256i res_ = _mm256_permute4x64_epi64(absABCD, 0xd8);
       const __m256i res = _mm256_shuffle_epi32(res_, 0xd8);
       const __m256i sigAB = _mm256_sign_epi16(one16, coeffAB);
@@ -269,7 +269,7 @@ void av1_txb_init_levels_signs_avx2(const tran_low_t *const coeff,
       const __m256i coeffCD = _mm256_packs_epi32(coeffC, coeffD);
       const __m256i absAB = _mm256_abs_epi16(coeffAB);
       const __m256i absCD = _mm256_abs_epi16(coeffCD);
-      const __m256i absABCD = _mm256_packs_epi16(absAB, absCD);
+      const __m256i absABCD = _mm256_packus_epi16(absAB, absCD);
       const __m256i res_ = _mm256_permute4x64_epi64(absABCD, 0xd8);
       const __m256i res = _mm256_shuffle_epi32(res_, 0xd8);
       const __m256i sigAB = _mm256_sign_epi16(one16, coeffAB);
@@ -311,7 +311,7 @@ void av1_txb_init_levels_avx2(const tran_low_t *const coeff, const int width,
       const __m256i c0 = yy_loadu_256(cf);
       const __m256i c1 = yy_loadu_256(cf + 8);
       const __m256i abs01 = _mm256_abs_epi16(_mm256_packs_epi32(c0, c1));
-      const __m256i abs01_8 = _mm256_packs_epi16(abs01, y_zeros);
+      const __m256i abs01_8 = _mm256_packus_epi16(abs01, y_zeros);
       const __m256i res_ = _mm256_shuffle_epi32(abs01_8, 0xd8);
       const __m256i res = _mm256_permute4x64_epi64(res_, 0xd8);
       yy_storeu_256(ls, res);
@@ -329,7 +329,7 @@ void av1_txb_init_levels_avx2(const tran_low_t *const coeff, const int width,
       const __m256i coeffCD = _mm256_packs_epi32(coeffC, coeffD);
       const __m256i absAB = _mm256_abs_epi16(coeffAB);
       const __m256i absCD = _mm256_abs_epi16(coeffCD);
-      const __m256i absABCD = _mm256_packs_epi16(absAB, absCD);
+      const __m256i absABCD = _mm256_packus_epi16(absAB, absCD);
       const __m256i res_ = _mm256_permute4x64_epi64(absABCD, 0xd8);
       const __m256i res = _mm256_shuffle_epi32(res_, 0xd8);
       const __m128i res0 = _mm256_castsi256_si128(res);
@@ -356,7 +356,7 @@ void av1_txb_init_levels_avx2(const tran_low_t *const coeff, const int width,
       const __m256i coeffCD = _mm256_packs_epi32(coeffC, coeffD);
       const __m256i absAB = _mm256_abs_epi16(coeffAB);
       const __m256i absCD = _mm256_abs_epi16(coeffCD);
-      const __m256i absABCD = _mm256_packs_epi16(absAB, absCD);
+      const __m256i absABCD = _mm256_packus_epi16(absAB, absCD);
       const __m256i res_ = _mm256_permute4x64_epi64(absABCD, 0xd8);
       const __m256i res = _mm256_shuffle_epi32(res_, 0xd8);
       xx_storeu_128(ls, _mm256_castsi256_si128(res));
@@ -377,7 +377,7 @@ void av1_txb_init_levels_avx2(const tran_low_t *const coeff, const int width,
       const __m256i coeffCD = _mm256_packs_epi32(coeffC, coeffD);
       const __m256i absAB = _mm256_abs_epi16(coeffAB);
       const __m256i absCD = _mm256_abs_epi16(coeffCD);
-      const __m256i absABCD = _mm256_packs_epi16(absAB, absCD);
+      const __m256i absABCD = _mm256_packus_epi16(absAB, absCD);
       const __m256i res_ = _mm256_permute4x64_epi64(absABCD, 0xd8);
       const __m256i res = _mm256_shuffle_epi32(res_, 0xd8);
       yy_storeu_256(ls, res);

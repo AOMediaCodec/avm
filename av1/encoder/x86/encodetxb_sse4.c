@@ -61,7 +61,7 @@ void av1_txb_init_levels_skip_sse4_1(const tran_low_t *const coeff,
       const __m128i absZA = _mm_abs_epi16(coeffZA);
       const __m128i coeffZB = _mm_packs_epi32(zeros, coeffB);
       const __m128i absZB = _mm_abs_epi16(coeffZB);
-      const __m128i coeffAB = _mm_packs_epi16(absZA, absZB);
+      const __m128i coeffAB = _mm_packus_epi16(absZA, absZB);
       xx_storeu_128(ls, coeffAB);
       ls += ((stride) << 1);
       cf += (width << 1);
@@ -75,7 +75,7 @@ void av1_txb_init_levels_skip_sse4_1(const tran_low_t *const coeff,
       const __m128i coeffB = xx_loadu_128(cf + 4);
       const __m128i coeffAB = _mm_packs_epi32(coeffA, coeffB);
       const __m128i absAB = _mm_abs_epi16(coeffAB);
-      const __m128i absAB8 = _mm_packs_epi16(absAB, zeros);
+      const __m128i absAB8 = _mm_packus_epi16(absAB, zeros);
       xx_storeu_128(ls, absAB8);
       ls += stride - TX_PAD_LEFT;
       cf += width;
@@ -95,7 +95,7 @@ void av1_txb_init_levels_skip_sse4_1(const tran_low_t *const coeff,
         const __m128i coeffCD = _mm_packs_epi32(coeffC, coeffD);
         const __m128i absAB = _mm_abs_epi16(coeffAB);
         const __m128i absCD = _mm_abs_epi16(coeffCD);
-        const __m128i absABCD = _mm_packs_epi16(absAB, absCD);
+        const __m128i absABCD = _mm_packus_epi16(absAB, absCD);
         xx_storeu_128(ls + j, absABCD);
         j += 16;
         cf += 16;
@@ -148,7 +148,7 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
       const __m128i coeffB = xx_loadu_128(cf + 4);
       const __m128i absZA = _mm_abs_epi16(_mm_packs_epi32(zeros, coeffA));
       const __m128i absZB = _mm_abs_epi16(_mm_packs_epi32(zeros, coeffB));
-      const __m128i coeffAB = _mm_packs_epi16(absZA, absZB);
+      const __m128i coeffAB = _mm_packus_epi16(absZA, absZB);
       const __m128i signZA =
           _mm_sign_epi16(one16, _mm_packs_epi32(coeffA, zeros));
       const __m128i signZB =
@@ -167,7 +167,7 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
       const __m128i coeffB = xx_loadu_128(cf + 4);
       const __m128i coeffAB = _mm_packs_epi32(coeffA, coeffB);
       const __m128i absAB = _mm_abs_epi16(coeffAB);
-      const __m128i absAB8 = _mm_packs_epi16(absAB, zeros);
+      const __m128i absAB8 = _mm_packus_epi16(absAB, zeros);
       const __m128i signAB = _mm_sign_epi16(one16, coeffAB);
       const __m128i signAB8 = _mm_packs_epi16(signAB, zeros);
       xx_storeu_128(ls, zeros);
@@ -193,7 +193,7 @@ void av1_txb_init_levels_signs_sse4_1(const tran_low_t *const coeff,
         const __m128i coeffCD = _mm_packs_epi32(coeffC, coeffD);
         const __m128i absAB = _mm_abs_epi16(coeffAB);
         const __m128i absCD = _mm_abs_epi16(coeffCD);
-        const __m128i absABCD = _mm_packs_epi16(absAB, absCD);
+        const __m128i absABCD = _mm_packus_epi16(absAB, absCD);
         const __m128i signAB = _mm_sign_epi16(one16, coeffAB);
         const __m128i signCD = _mm_sign_epi16(one16, coeffCD);
         const __m128i signABCD = _mm_packs_epi16(signAB, signCD);
@@ -233,7 +233,7 @@ void av1_txb_init_levels_sse4_1(const tran_low_t *const coeff, const int width,
       const __m128i coeffB = xx_loadu_128(cf + 4);
       const __m128i coeffAB = _mm_packs_epi32(coeffA, coeffB);
       const __m128i absAB = _mm_abs_epi16(coeffAB);
-      const __m128i absAB8 = _mm_packs_epi16(absAB, zeros);
+      const __m128i absAB8 = _mm_packus_epi16(absAB, zeros);
       const __m128i lsAB = _mm_unpacklo_epi32(absAB8, zeros);
       xx_storeu_128(ls, lsAB);
       ls += (stride << 1);
@@ -246,7 +246,7 @@ void av1_txb_init_levels_sse4_1(const tran_low_t *const coeff, const int width,
       const __m128i coeffB = xx_loadu_128(cf + 4);
       const __m128i coeffAB = _mm_packs_epi32(coeffA, coeffB);
       const __m128i absAB = _mm_abs_epi16(coeffAB);
-      const __m128i absAB8 = _mm_packs_epi16(absAB, zeros);
+      const __m128i absAB8 = _mm_packus_epi16(absAB, zeros);
       xx_storeu_128(ls, absAB8);
       ls += stride;
       cf += width;
@@ -264,7 +264,7 @@ void av1_txb_init_levels_sse4_1(const tran_low_t *const coeff, const int width,
         const __m128i coeffCD = _mm_packs_epi32(coeffC, coeffD);
         const __m128i absAB = _mm_abs_epi16(coeffAB);
         const __m128i absCD = _mm_abs_epi16(coeffCD);
-        const __m128i absABCD = _mm_packs_epi16(absAB, absCD);
+        const __m128i absABCD = _mm_packus_epi16(absAB, absCD);
         xx_storeu_128(ls + j, absABCD);
         j += 16;
         cf += 16;

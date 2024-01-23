@@ -94,7 +94,9 @@ list(
   "${AOM_ROOT}/av1/common/txb_common.c"
   "${AOM_ROOT}/av1/common/txb_common.h"
   "${AOM_ROOT}/av1/common/warped_motion.c"
-  "${AOM_ROOT}/av1/common/warped_motion.h")
+  "${AOM_ROOT}/av1/common/warped_motion.h"
+  "${AOM_ROOT}/av1/common/hr_coding.h"
+  "${AOM_ROOT}/av1/common/hr_coding.c")
 list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.h")
 list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/pef.c")
 
