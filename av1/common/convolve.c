@@ -788,7 +788,7 @@ void av1_convolve_symmetric_highbd_c(const uint16_t *dgd, int stride,
       }
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
-        const int16_t tmp_sum = (int32_t)dgd[dgd_id + diff];
+        const int32_t tmp_sum = (int32_t)dgd[dgd_id + diff];
         compute_buffer[k] += (int32_t)tmp_sum;
       }
 
