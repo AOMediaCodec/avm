@@ -420,6 +420,10 @@ void av1_rd_pick_palette_intra_sby(
 
   mbmi->mrl_index = 0;
 
+#if WIDE_ANGLES
+  mbmi->is_wide_angle = 0;
+#endif
+
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
   assert(!is_inter_block(mbmi, xd->tree_type));
   assert(av1_allow_palette(cpi->common.features.allow_screen_content_tools,

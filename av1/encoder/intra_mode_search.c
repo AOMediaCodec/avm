@@ -1575,6 +1575,9 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_AIMC
   get_y_intra_mode_set(mbmi, xd);
 #endif  // CONFIG_AIMC
+#if WIDE_ANGLES
+  mbmi->is_wide_angle = 0;
+#endif
 
   MB_MODE_INFO best_mbmi = *mbmi;
   av1_zero(x->winner_mode_stats);

@@ -757,8 +757,11 @@ void av1_highbd_dr_prediction_z1_c(uint16_t *dst, ptrdiff_t stride, int bw,
   (void)bd;
   assert(dy == 1);
   assert(dx > 0);
-
+#if WIDE_ANGLES
+  const int max_base_x = ((bw + bh) - 1 + (mrl_index << 2)) << upsample_above;
+#else
   const int max_base_x = ((bw + bh) - 1 + (mrl_index << 1)) << upsample_above;
+#endif
   const int frac_bits = 6 - upsample_above;
   const int base_inc = 1 << upsample_above;
   x = dx * (1 + mrl_index);
@@ -838,8 +841,11 @@ void av1_highbd_dr_prediction_z3_c(uint16_t *dst, ptrdiff_t stride, int bw,
   (void)bd;
   assert(dx == 1);
   assert(dy > 0);
-
+#if WIDE_ANGLES
+  const int max_base_y = ((bw + bh - 1) << upsample_left) + (mrl_index << 2);
+#else
   const int max_base_y = ((bw + bh - 1) << upsample_left) + (mrl_index << 1);
+#endif
   const int frac_bits = 6 - upsample_left;
   const int base_inc = 1 << upsample_left;
   y = dy * (1 + mrl_index);
@@ -1526,6 +1532,9 @@ static void build_intra_predictors_high(
 
   int apply_sub_block_based_refinement_filter =
       seq_intra_pred_filter_flag && (mrl_index == 0);
+#if WIDE_ANGLES
+  int is_wide_angles = 0;
+#endif
   if (is_dr_mode) {
     p_angle = mode_to_angle_map[mode] + angle_delta;
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
@@ -1533,6 +1542,28 @@ static void build_intra_predictors_high(
     p_angle += mrl_index_to_delta[mrl_index];
     assert(p_angle > 0 && p_angle < 270);
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+#if WIDE_ANGLES
+    PREDICTION_MODE mapped_modes = DC_PRED;
+    if ((txhpx == 2 * txwpx && p_angle < 61) ||
+        (txhpx == 4 * txwpx && p_angle < 73) ||
+        (txhpx == 8 * txwpx && p_angle < 82) ||
+        (txhpx == 16 * txwpx && p_angle < 86)) {
+      p_angle = 180 + p_angle;
+      is_wide_angles = 1;
+      mapped_modes = D203_PRED;
+    } else if ((txwpx == 2 * txhpx && p_angle > 270 - 61) ||
+               (txwpx == 4 * txhpx && p_angle > 270 - 73) ||
+               (txwpx == 8 * txhpx && p_angle > 270 - 82) ||
+               (txwpx == 16 * txhpx && p_angle > 270 - 86)) {
+      p_angle = p_angle - 180;
+      is_wide_angles = 1;
+      mapped_modes = D45_PRED;
+    }
+    if (plane == PLANE_TYPE_Y) {
+      xd->mi[0]->is_wide_angle = is_wide_angles;
+      xd->mi[0]->mapped_intra_mode = mapped_modes;
+    }
+#endif  // WIDE_ANGLES
     if (p_angle <= 90)
       need_above = 1, need_left = 0, need_above_left = 1;
     else if (p_angle < 180)
@@ -1553,7 +1584,6 @@ static void build_intra_predictors_high(
 #endif
   }
   if (use_filter_intra) need_left = need_above = need_above_left = 1;
-
   assert(n_top_px >= 0);
   assert(n_topright_px >= 0);
   assert(n_left_px >= 0);
@@ -1581,8 +1611,13 @@ static void build_intra_predictors_high(
       need_bottom =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
 #if CONFIG_IDIF
+#if WIDE_ANGLES
+    int num_left_pixels_needed =
+        txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 2) + 1;
+#else
     int num_left_pixels_needed =
         txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 1) + 1;
+#endif
     if (enable_idif && (p_angle > 90 && p_angle < 180)) {
       num_left_pixels_needed += 1;
     }
@@ -1613,8 +1648,13 @@ static void build_intra_predictors_high(
       need_right =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
 #if CONFIG_IDIF
+#if WIDE_ANGLES
+    int num_top_pixels_needed =
+        txwpx + (need_right ? txhpx : 0) + (mrl_index << 2);
+#else
     int num_top_pixels_needed =
         txwpx + (need_right ? txhpx : 0) + (mrl_index << 1);
+#endif
     if (enable_idif && (p_angle > 90 && p_angle < 180)) {
       num_top_pixels_needed += 1;
     }
@@ -1695,13 +1735,21 @@ static void build_intra_predictors_high(
         if (need_above && n_top_px > 0) {
           const int strength = intra_edge_filter_strength(
               txwpx, txhpx, angle_above, filt_type_above);
+#if WIDE_ANGLES
+          const int n_px = n_top_px + ab_le + (need_right ? txwpx : 0);
+#else
           const int n_px = n_top_px + ab_le + (need_right ? txhpx : 0);
+#endif
           av1_filter_intra_edge_high(above_row - ab_le, n_px, strength);
         }
         if (need_left && n_left_px > 0) {
           const int strength = intra_edge_filter_strength(
               txhpx, txwpx, angle_left, filt_type_left);
+#if WIDE_ANGLES
+          const int n_px = n_left_px + ab_le + (need_bottom ? txhpx : 0);
+#else
           const int n_px = n_left_px + ab_le + (need_bottom ? txwpx : 0);
+#endif
           av1_filter_intra_edge_high(left_col - ab_le, n_px, strength);
         }
       }
@@ -1743,6 +1791,9 @@ static void build_intra_predictors_high(
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
           && (angle_delta % 2 == 0)
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+//#if WIDE_ANGLES
+//          && !is_wide_angles
+//#endif
       ) {
         if (p_angle > 0 && p_angle < 90) {
           int mode_index = angle_to_mode_index[p_angle];

@@ -531,6 +531,12 @@ typedef struct MB_MODE_INFO {
   PALETTE_MODE_INFO palette_mode_info;
   /*! \brief Reference line index for multiple reference line selection. */
   uint8_t mrl_index;
+#if WIDE_ANGLES
+  /*! \brief Whether this mode is wide angle mode. */
+  uint8_t is_wide_angle;
+  /*! \brief The mapped prediction mode */
+  PREDICTION_MODE mapped_intra_mode;
+#endif
 #if CONFIG_AIMC
   /*! \brief mode index of y mode and y delta angle after re-ordering. */
   uint8_t y_mode_idx;

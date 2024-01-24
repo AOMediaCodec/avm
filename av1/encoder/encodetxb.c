@@ -1488,7 +1488,12 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
+#if WIDE_ANGLES
+  uint8_t intra_mode =
+      (mbmi->is_wide_angle ? mbmi->mapped_intra_mode : mbmi->mode);
+#else
   uint8_t intra_mode = mbmi->mode;
+#endif
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   return x->mode_costs.stx_set_flag_cost[stx_set_ctx][stx_set_flag];
@@ -1527,6 +1532,10 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
+#if WIDE_ANGLES
+        else if (mbmi->is_wide_angle)
+          intra_dir = mbmi->mapped_intra_mode;
+#endif
         else
           intra_dir = mbmi->mode;
         TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
@@ -4411,7 +4420,12 @@ static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
+#if WIDE_ANGLES
+  uint8_t intra_mode =
+      (mbmi->is_wide_angle ? mbmi->mapped_intra_mode : mbmi->mode);
+#else
   uint8_t intra_mode = mbmi->mode;
+#endif
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   update_cdf(fc->stx_set_cdf[stx_set_ctx], (int8_t)stx_set_flag, IST_DIR_SIZE);
@@ -4480,6 +4494,10 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
+#if WIDE_ANGLES
+        else if (mbmi->is_wide_angle)
+          intra_dir = mbmi->mapped_intra_mode;
+#endif
         else
           intra_dir = mbmi->mode;
 #if CONFIG_ENTROPY_STATS

@@ -3627,13 +3627,22 @@ static void av1_dr_prediction_z1_info(uint8_t *weights, int bw, int bh,
     weights += bw;
   }
 }
-
+#if WIDE_ANGLES
+static const uint8_t angle_to_mode_index[90] = {
+  15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+  15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+  15, 0,  0,  15, 0,  0,  14, 0,  0,  13,
+  0, 0, 12, 0, 0, 11, 0, 0, 10, 0, 0, 0, 9, 0,  0, 8, 0,  0, 7, 0,  0, 6, 0,
+  0, 5, 0,  0, 4, 0,  0, 3, 0,  0, 0, 0, 2, 0,  0, 1, 0,  0, 0, 0,  0
+};
+#else
 static const uint8_t angle_to_mode_index[90] = {
   0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0,
   0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 16, 0, 0, 15, 0, 0, 14, 0, 0, 13,
   0, 0, 12, 0, 0, 11, 0, 0, 10, 0, 0, 0, 9, 0,  0, 8, 0,  0, 7, 0,  0, 6, 0,
   0, 5, 0,  0, 4, 0,  0, 3, 0,  0, 0, 0, 2, 0,  0, 1, 0,  0, 0, 0,  0
 };
+#endif
 
 // Generate weights for IBP of one directional mode
 static INLINE void init_ibp_info_per_mode(

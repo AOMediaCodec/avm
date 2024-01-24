@@ -2138,6 +2138,10 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   if (mbmi->filter_intra_mode_info.use_filter_intra)
     intra_dir =
         fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
+#if WIDE_ANGLES
+  else if (mbmi->is_wide_angle)
+    intra_dir = mbmi->mapped_intra_mode;
+#endif
   else
     intra_dir = mbmi->mode;
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;

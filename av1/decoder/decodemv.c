@@ -1257,6 +1257,38 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
       &xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   *tx_type = DCT_DCT;
 
+#if WIDE_ANGLES
+  const int txwpx = tx_size_wide[tx_size];
+  const int txhpx = tx_size_high[tx_size];
+  const int is_dr_mode = av1_is_directional_mode(mbmi->mode);
+  xd->mi[0]->is_wide_angle = 0;
+  if (is_dr_mode) {
+    const int angle_delta =
+        mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
+    int p_angle = mode_to_angle_map[mbmi->mode] + angle_delta;
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+    const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };
+    p_angle += mrl_index_to_delta[mbmi->mrl_index];
+    assert(p_angle > 0 && p_angle < 270);
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+    if ((txhpx == 2 * txwpx && p_angle < 61) ||
+        (txhpx == 4 * txwpx && p_angle < 73) ||
+        (txhpx == 8 * txwpx && p_angle < 82) ||
+        (txhpx == 16 * txwpx && p_angle < 86)) {
+      p_angle = 180 + p_angle;
+      xd->mi[0]->is_wide_angle = 1;
+      xd->mi[0]->mapped_intra_mode = D203_PRED;
+    } else if ((txwpx == 2 * txhpx && p_angle > 270 - 61) ||
+               (txwpx == 4 * txhpx && p_angle > 270 - 73) ||
+               (txwpx == 8 * txhpx && p_angle > 270 - 82) ||
+               (txwpx == 16 * txhpx && p_angle > 270 - 86)) {
+      p_angle = p_angle - 180;
+      xd->mi[0]->is_wide_angle = 1;
+      xd->mi[0]->mapped_intra_mode = D45_PRED;
+    }
+  }
+#endif
+
   if (dc_skip == 1) return;
   // No need to read transform type if block is skipped.
   if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] ||
@@ -1293,7 +1325,11 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
           mbmi->filter_intra_mode_info.use_filter_intra
               ? fimode_to_intradir[mbmi->filter_intra_mode_info
                                        .filter_intra_mode]
+#if WIDE_ANGLES
+              : (mbmi->is_wide_angle ? mbmi->mapped_intra_mode : mbmi->mode);
+#else
               : mbmi->mode;
+#endif
       const int size_info = av1_size_class[tx_size];
       *tx_type = av1_tx_idx_to_type(
           aom_read_symbol(
@@ -1354,7 +1390,12 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 // This function reads a 'secondary tx set' from the bitstream
 static void read_secondary_tx_set(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                   MB_MODE_INFO *mbmi, TX_TYPE *tx_type) {
+#if WIDE_ANGLES
+  uint8_t intra_mode =
+      (mbmi->is_wide_angle ? mbmi->mapped_intra_mode : mbmi->mode);
+#else
   uint8_t intra_mode = mbmi->mode;
+#endif
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   TX_TYPE stx_set_flag =

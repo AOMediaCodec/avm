@@ -72,6 +72,8 @@ enum {
 #define WEDGE_BLD_LUT_SIZE 128
 #endif  // CONFIG_WEDGE_MOD_EXT
 
+#define WIDE_ANGLES 1  // apply wide angles for non-square blocks
+
 #if CONFIG_EXTENDED_WARP_PREDICTION && CONFIG_MVP_IMPROVEMENT
 #define WARP_CU_BANK 1
 #else
