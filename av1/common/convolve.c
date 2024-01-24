@@ -765,7 +765,7 @@ void av1_convolve_symmetric_highbd_c(const uint16_t *dgd, int stride,
   // are utilzied it is advisable to put them elsewhere to be called when
   // filter_config changes.
   assert(num_sym_taps <= 24);
-  int16_t compute_buffer[24];
+  int32_t compute_buffer[24];
   int pixel_offset_diffs[24];
   for (int k = 0; k < num_sym_taps; ++k) {
     const int r = filter_config->config[2 * k][NONSEP_ROW_ID];
@@ -783,13 +783,13 @@ void av1_convolve_symmetric_highbd_c(const uint16_t *dgd, int stride,
       // Two loops for a potential data cache miss.
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
-        const int16_t tmp_sum = (int16_t)dgd[dgd_id - diff];
-        compute_buffer[k] = (int16_t)tmp_sum;  // 16-bit
+        const int32_t tmp_sum = (int32_t)dgd[dgd_id - diff];
+        compute_buffer[k] = (int32_t)tmp_sum;
       }
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
-        const int16_t tmp_sum = dgd[dgd_id + diff];
-        compute_buffer[k] += (int16_t)tmp_sum;  // 16-bit arithmetic.
+        const int16_t tmp_sum = (int32_t)dgd[dgd_id + diff];
+        compute_buffer[k] += (int32_t)tmp_sum;
       }
 
       // Handle singleton tap.
@@ -826,7 +826,7 @@ void av1_convolve_symmetric_subtract_center_highbd_c(
   }
 
   assert(num_sym_taps <= 24);
-  int16_t compute_buffer[24];
+  int32_t compute_buffer[24];
   int pixel_offset_diffs[24];
   for (int k = 0; k < num_sym_taps; ++k) {
     const int r = filter_config->config[2 * k][NONSEP_ROW_ID];
@@ -843,18 +843,16 @@ void av1_convolve_symmetric_subtract_center_highbd_c(
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
         // Subtract center pixel and pass through a fn.
-        const int16_t subs =
-            ((int16_t)dgd[dgd_id - diff]) - ((int16_t)dgd[dgd_id]);
-        const int16_t tmp_sum = clip_base(subs, bit_depth);
-        compute_buffer[k] = tmp_sum;  // 16-bit
+        const int32_t subs =
+            ((int32_t)dgd[dgd_id - diff]) - ((int32_t)dgd[dgd_id]);
+        compute_buffer[k] = subs;
       }
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
         // Subtract center pixel and pass through a fn.
-        const int16_t subs =
-            ((int16_t)dgd[dgd_id + diff]) - ((int16_t)dgd[dgd_id]);
-        const int16_t tmp_sum = clip_base(subs, bit_depth);
-        compute_buffer[k] += tmp_sum;  // 16-bit arithmetic.
+        const int32_t subs =
+            ((int32_t)dgd[dgd_id + diff]) - ((int32_t)dgd[dgd_id]);
+        compute_buffer[k] += subs;
       }
 
       // Handle singleton tap.
