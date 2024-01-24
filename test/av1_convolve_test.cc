@@ -1175,8 +1175,8 @@ class AV1ConvolveNonSep2DHighbdTest
     ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
     const int sign_max_val = (1 << (max_bit_range - 1)) - 1;
     for (int i = 0; i < size; ++i) {
-      p[i] = static_cast<uint16_t>(RandBool() ? sign_max_val
-                                              : -(sign_max_val + 1));
+      p[i] =
+          static_cast<int16_t>(RandBool() ? sign_max_val : -(sign_max_val + 1));
     }
   }
 
@@ -1396,8 +1396,8 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
     const int sign_max_val = (1 << (max_bit_range - 1)) - 1;
     for (int i = 0; i < size; ++i) {
-      p[i] = static_cast<uint16_t>(RandBool() ? sign_max_val
-                                              : -(sign_max_val + 1));
+      p[i] =
+          static_cast<int16_t>(RandBool() ? sign_max_val : -(sign_max_val + 1));
     }
   }
 
