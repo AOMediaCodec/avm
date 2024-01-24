@@ -850,14 +850,16 @@ void av1_convolve_symmetric_subtract_center_highbd_c(
         const int diff = pixel_offset_diffs[k];
         // Subtract center pixel and pass through a fn.
         const int16_t tmp_sum =
-            (int16_t)clip_pixel_highbd(dgd[dgd_id - diff] - dgd[dgd_id], 12);
+            (int16_t)clip_pixel_highbd(dgd[dgd_id - diff], 12) -
+            (int16_t)clip_pixel_highbd(dgd[dgd_id], 12);
         compute_buffer[k] = tmp_sum;  // 16-bit
       }
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
         // Subtract center pixel and pass through a fn.
         const int16_t tmp_sum =
-            (int16_t)clip_pixel_highbd(dgd[dgd_id + diff] - dgd[dgd_id], 12);
+            (int16_t)clip_pixel_highbd(dgd[dgd_id + diff], 12) -
+            clip_pixel_highbd(dgd[dgd_id], 12);
         compute_buffer[k] += tmp_sum;  // 16-bit arithmetic.
       }
 
