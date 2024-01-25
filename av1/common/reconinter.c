@@ -3274,6 +3274,10 @@ static void derive_explicit_bawp_offsets(MACROBLOCKD *xd, uint16_t *recon_top,
 
 #if CONFIG_BAWP
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
+// The below functions are used for scaling X, Y position
+// for BAWP with across scale prediction
+// In future, more generalized implementations for all inter-coding tools
+// are required for supporting across scale prediction
 static INLINE int scaled_x_gen(int val, const struct scale_factors *sf) {
   const int64_t tval = (int64_t)val * sf->x_scale_fp;
   return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
