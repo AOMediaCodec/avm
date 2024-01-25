@@ -783,6 +783,7 @@ void av1_convolve_symmetric_highbd_c(const uint16_t *dgd, int stride,
       // Two loops for a potential data cache miss.
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
+        assert(dgd[dgd_id - diff] < (1 << 12));
         // pixels should be clipped to unsigned 12 bits max to avoid unsigned to
         // signed overflow
         const int16_t tmp_sum =
@@ -791,6 +792,7 @@ void av1_convolve_symmetric_highbd_c(const uint16_t *dgd, int stride,
       }
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
+        assert(dgd[dgd_id + diff] < (1 << 12));
         // pixels should be clipped to unsigned 12 bits max to avoid unsigned to
         // signed overflow
         const int16_t tmp_sum =
@@ -848,6 +850,9 @@ void av1_convolve_symmetric_subtract_center_highbd_c(
       // Two loops for a potential data cache miss.
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
+        // Make sure input pixels are 12 bits.
+        assert(dgd[dgd_id - diff] < (1 << 12));
+        assert(dgd[dgd_id] < (1 << 12));
         // Subtract center pixel and pass through a fn.
         const int16_t tmp_sum =
             (int16_t)clip_pixel_highbd(dgd[dgd_id - diff], 12) -
@@ -856,6 +861,9 @@ void av1_convolve_symmetric_subtract_center_highbd_c(
       }
       for (int k = 0; k < num_sym_taps; ++k) {
         const int diff = pixel_offset_diffs[k];
+        // Make sure input pixels are 12 bits.
+        assert(dgd[dgd_id + diff] < (1 << 12));
+        assert(dgd[dgd_id] < (1 << 12));
         // Subtract center pixel and pass through a fn.
         const int16_t tmp_sum =
             (int16_t)clip_pixel_highbd(dgd[dgd_id + diff], 12) -
