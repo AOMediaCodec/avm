@@ -289,10 +289,13 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
     EXPECT_TRUE(bit_depth == 10 || bit_depth == 12);
     // Make sure bitdepth is capped in case error not triggered
     const int bd_capped = bit_depth >= 12 ? 12 : bit_depth;
-    const int max_range = (1 << bd_capped);
     for (int i = 0; i < size; ++i) {
-      p[i] = (uint16_t)(rnd_.Rand12() % max_range);
+      p[i] = (uint16_t)Clamp(rnd_.Rand12(), 0, (1 << bd_capped) - 1);
     }
+  }
+
+  int Clamp(int value, int low, int high) {
+    return value < low ? low : (value > high ? high : value);
   }
 
 #if CONFIG_LR_IMPROVEMENTS
