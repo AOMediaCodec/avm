@@ -242,7 +242,7 @@ set_aom_config_var(CONFIG_EXPLICIT_BAWP 0
                    "Explicit signaling for block adaptive weighted prediction")
 set_aom_config_var(CONFIG_BAWP_CHROMA 1
                    "Enable block adaptive weighted prediction for Chroma")
-set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES_FIX 1 NUMBER
+set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES_FIX 0 NUMBER
                    "Fix on BAWP across scales prediction")
 set_aom_config_var(CONFIG_IMPROVED_INTRA_DIR_PRED 1 "Improved intra prediction")
 set_aom_config_var(CONFIG_D071_IMP_MSK_BLD 1
