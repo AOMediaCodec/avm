@@ -243,12 +243,12 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
   }
 
   // Note that the randomized values are capped by bit-depth.
-  const uint16_t *FirstRandomInput16(const TestParam<T> &param) {
-    return RandomInput16(input16_1_, param);
+  const uint16_t *FirstRandomInput12(const TestParam<T> &param) {
+    return RandomInput12(input16_1_, param);
   }
 
-  const uint16_t *SecondRandomInput16(const TestParam<T> &param) {
-    return RandomInput16(input16_2_, param);
+  const uint16_t *SecondRandomInput12(const TestParam<T> &param) {
+    return RandomInput12(input16_2_, param);
   }
 
 #if CONFIG_LR_IMPROVEMENTS
@@ -274,21 +274,28 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
     }
   }
 
-  const uint16_t *RandomInput16(uint16_t *p, const TestParam<T> &param) {
-    // Check that this is only called with high bit-depths.
+  const uint16_t *RandomInput12(uint16_t *p, const TestParam<T> &param) {
+    // Check that this is only called with high bit-depths up to 12.
     EXPECT_TRUE(param.BitDepth() == 10 || param.BitDepth() == 12);
     EXPECT_GE(MAX_SB_SIZE, param.Block().Width());
     EXPECT_GE(MAX_SB_SIZE, param.Block().Height());
     const int padded_width = param.Block().Width() + kInputPadding;
     const int padded_height = param.Block().Height() + kInputPadding;
-    Randomize(p, padded_width * padded_height, param.BitDepth());
+    Randomize12(p, padded_width * padded_height, param.BitDepth());
     return p + (kInputPadding / 2) * padded_width + kInputPadding / 2;
   }
 
-  void Randomize(uint16_t *p, int size, int bit_depth) {
+  void Randomize12(uint16_t *p, int size, int bit_depth) {
+    EXPECT_TRUE(bit_depth == 10 || bit_depth == 12);
+    // Make sure bitdepth is capped in case error not triggered
+    const int bd_capped = bit_depth >= 12 ? 12 : bit_depth;
     for (int i = 0; i < size; ++i) {
-      p[i] = rnd_.Rand16() & ((1 << bit_depth) - 1);
+      p[i] = (uint16_t)Clamp(rnd_.Rand12(), 0, (1 << bd_capped) - 1);
     }
+  }
+
+  int Clamp(int value, int low, int high) {
+    return value < low ? low : (value > high ? high : value);
   }
 
 #if CONFIG_LR_IMPROVEMENTS
@@ -359,7 +366,7 @@ class AV1ConvolveXHighbdTest : public AV1ConvolveTest<highbd_convolve_x_func> {
         av1_get_interp_filter_params_with_block_size(filter, width);
     ConvolveParams conv_params1 =
         get_conv_params_no_round(0, 0, NULL, 0, 0, bit_depth);
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     av1_highbd_convolve_x_sr_c(input, width, reference, kOutputStride, width,
                                height, filter_params_x, sub_x, &conv_params1,
@@ -416,7 +423,7 @@ class AV1ConvolveYHighbdTest : public AV1ConvolveTest<highbd_convolve_y_func> {
     const int bit_depth = GetParam().BitDepth();
     const InterpFilterParams *filter_params_y =
         av1_get_interp_filter_params_with_block_size(filter, height);
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     av1_highbd_convolve_y_sr_c(input, width, reference, kOutputStride, width,
                                height, filter_params_y, sub_y, bit_depth);
@@ -456,7 +463,7 @@ class AV1ConvolveCopyHighbdTest
     const BlockSize &block = GetParam().Block();
     const int width = block.Width();
     const int height = block.Height();
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     aom_highbd_convolve_copy_c(input, width, reference, kOutputStride, width,
                                height);
@@ -517,7 +524,7 @@ class AV1Convolve2DHighbdTest
         av1_get_interp_filter_params_with_block_size(h_f, width);
     const InterpFilterParams *filter_params_y =
         av1_get_interp_filter_params_with_block_size(v_f, height);
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     ConvolveParams conv_params1 =
         get_conv_params_no_round(0, 0, NULL, 0, 0, bit_depth);
@@ -686,8 +693,8 @@ class AV1ConvolveXHighbdCompoundTest
     const int width = GetParam().Block().Width();
     const int height = GetParam().Block().Height();
 
-    const uint16_t *input1 = FirstRandomInput16(GetParam());
-    const uint16_t *input2 = SecondRandomInput16(GetParam());
+    const uint16_t *input1 = FirstRandomInput12(GetParam());
+    const uint16_t *input2 = SecondRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
     Convolve(ReferenceFunc(), input1, input2, reference, reference_conv_buf,
@@ -808,7 +815,7 @@ class AV1Convolve2DCopyHighbdCompoundTest
     const int bit_depth = GetParam().BitDepth();
     int nob = 100000;
 
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, conv_buf[MAX_SB_SQUARE]);
     highbd_compound_conv_2d_copy_func test_func = GetParam().TestFunction();
 
@@ -850,8 +857,8 @@ class AV1Convolve2DCopyHighbdCompoundTest
     const int width = block.Width();
     const int height = block.Height();
 
-    const uint16_t *input1 = FirstRandomInput16(GetParam());
-    const uint16_t *input2 = SecondRandomInput16(GetParam());
+    const uint16_t *input1 = FirstRandomInput12(GetParam());
+    const uint16_t *input2 = SecondRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
     Convolve(av1_highbd_dist_wtd_convolve_2d_copy_c, input1, input2, reference,
@@ -936,8 +943,8 @@ class AV1Convolve2DHighbdCompoundTest
     const BlockSize &block = GetParam().Block();
     const int width = block.Width();
     const int height = block.Height();
-    const uint16_t *input1 = FirstRandomInput16(GetParam());
-    const uint16_t *input2 = SecondRandomInput16(GetParam());
+    const uint16_t *input1 = FirstRandomInput12(GetParam());
+    const uint16_t *input2 = SecondRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
     Convolve(av1_highbd_dist_wtd_convolve_2d_c, input1, input2, reference,
@@ -1063,7 +1070,7 @@ class AV1ConvolveNonSep2DHighbdTest
     const int height = GetParam().Block().Height();
     const int bit_depth = GetParam().BitDepth();
 
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
 
@@ -1092,7 +1099,7 @@ class AV1ConvolveNonSep2DHighbdTest
     const int bit_depth = GetParam().BitDepth();
     const int num_planes = 2;
 
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
 
@@ -1175,8 +1182,8 @@ class AV1ConvolveNonSep2DHighbdTest
     ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
     const int sign_max_val = (1 << (max_bit_range - 1)) - 1;
     for (int i = 0; i < size; ++i) {
-      p[i] = static_cast<uint16_t>(RandBool() ? sign_max_val
-                                              : -(sign_max_val + 1));
+      p[i] =
+          static_cast<int16_t>(RandBool() ? sign_max_val : -(sign_max_val + 1));
     }
   }
 
@@ -1336,7 +1343,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Nonseparable convolve-2d Dual functions (high bit-depth)
 //////////////////////////////////////////////////////////
 
-#if CONFIG_WIENER_NONSEP_CROSS_FILT
+#if CONFIG_LR_IMPROVEMENTS
 typedef void (*highbd_convolve_nonsep_dual_2d_func)(
     const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
     int dgd_dual_stride, const NonsepFilterConfig *filter_config,
@@ -1396,8 +1403,8 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     ASSERT_TRUE(max_bit_range < 16) << "max_bit_range has to be less than 16";
     const int sign_max_val = (1 << (max_bit_range - 1)) - 1;
     for (int i = 0; i < size; ++i) {
-      p[i] = static_cast<uint16_t>(RandBool() ? sign_max_val
-                                              : -(sign_max_val + 1));
+      p[i] =
+          static_cast<int16_t>(RandBool() ? sign_max_val : -(sign_max_val + 1));
     }
   }
 
@@ -1438,8 +1445,8 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     const int height = GetParam().Block().Height();
     const int bit_depth = GetParam().BitDepth();
 
-    const uint16_t *dgd = FirstRandomInput16(GetParam());
-    const uint16_t *dgd_dual = FirstRandomInput16(GetParam());
+    const uint16_t *dgd = FirstRandomInput12(GetParam());
+    const uint16_t *dgd_dual = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
 
@@ -1473,8 +1480,8 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
     const int height = GetParam().Block().Height();
     const int bit_depth = GetParam().BitDepth();
 
-    const uint16_t *dgd = FirstRandomInput16(GetParam());
-    const uint16_t *dgd_dual = FirstRandomInput16(GetParam());
+    const uint16_t *dgd = FirstRandomInput12(GetParam());
+    const uint16_t *dgd_dual = FirstRandomInput12(GetParam());
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
     DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
 
@@ -1606,7 +1613,7 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdParams(av1_convolve_symmetric_dual_highbd_avx2));
 #endif
 
-#endif  // CONFIG_WIENER_NONSEP_CROSS_FILT
+#endif  // CONFIG_LR_IMPROVEMENTS
 
 //////////////////////////////////////////////////////////
 // Unit-test corresponds to buffer accumulations to derive filter
@@ -1728,7 +1735,7 @@ class AV1FillDirFeatureBufHighbdTest
     const int width = GetParam().Block().Width();
     const int height = GetParam().Block().Height();
     // Input buffer allocation.
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     const int input_stride = width;
 
     // C function call
@@ -1765,7 +1772,7 @@ class AV1FillDirFeatureBufHighbdTest
     const int height = GetParam().Block().Height();
 
     // Input buffer allocation.
-    const uint16_t *input = FirstRandomInput16(GetParam());
+    const uint16_t *input = FirstRandomInput12(GetParam());
     const int input_stride = width;
 
     // Calculate time taken for C function
