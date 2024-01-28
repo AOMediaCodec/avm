@@ -234,6 +234,8 @@ set_aom_config_var(CONFIG_OPTFLOW_ON_TIP 1
                    "Enable optical flow refinement on top of TIP")
 set_aom_config_var(CONFIG_TIP_DIRECT_FRAME_MV 1
                    "Enable frame level MV for TIP direct mode")
+set_aom_config_var(CONFIG_TIP_REF_PRED_MERGING 1
+                   "Enable Merge the prediction steps for TIP_FRAME_AS_REF")
 set_aom_config_var(CONFIG_ALLOW_SAME_REF_COMPOUND 1
                    "Allow compound mode to refer to the same reference frame")
 set_aom_config_var(CONFIG_IMPROVED_SAME_REF_COMPOUND 1

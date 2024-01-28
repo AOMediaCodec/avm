@@ -763,11 +763,13 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
 #endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_REFINEMV
+#if !CONFIG_TIP_REF_PRED_MERGING
 // Generate one prediction signal for a TIP block
 void tip_build_one_inter_predictor(
     uint16_t *dst, int dst_stride, const MV *const src_mv,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func);
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 // Compute the SAD between the two predictors when refinemv is ON
 int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
@@ -789,12 +791,23 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 
 // Generate the reference area ( bounding box) based on the signaled MV
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                         int plane, MB_MODE_INFO *mi, int bw,
-                                         int bh, int mi_x, int mi_y,
-                                         ReferenceArea ref_area[2],
+                                         int plane, MB_MODE_INFO *mi,
+#if CONFIG_TIP_REF_PRED_MERGING
+                                         const MV mv[2],
+#endif  // CONFIG_TIP_REF_PRED_MERGING
+                                         int bw, int bh, int mi_x, int mi_y,
+                                         ReferenceArea ref_area[2]
+#if !CONFIG_TIP_REF_PRED_MERGING
+                                         ,
                                          const int comp_pixel_x,
-                                         const int comp_pixel_y);
+                                         const int comp_pixel_y
+#else
+                                         ,
+                                         int pu_width, int pu_height
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
+);
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 // Derive the sub-pixel related parameters of TIP blocks
 // Sub-pel related parameters are stored in the structures pointed by
 // "subpel_params" and "block"
@@ -808,6 +821,7 @@ void tip_dec_calc_subpel_params(const MV *const src_mv,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                 MV32 *scaled_mv, int *subpel_x_mv,
                                 int *subpel_y_mv);
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 // Derive the sub-pixel related parameters of non-TIP blocks
 // Sub-pel related parameters are stored in the structures pointed by
@@ -987,6 +1001,7 @@ static INLINE int switchable_refinemv_flag(const AV1_COMMON *const cm,
   return 0;
 }
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 // Clamp MV to UMV border based on its distance to left/right/top/bottom edge
 static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
     InterPredParams *const inter_pred_params, const MV *src_mv, int bw, int bh,
@@ -1041,12 +1056,16 @@ static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
 
   return clamped_mv;
 }
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 // This function conduct the SAD search between two predictors and find the best
 // MVs
 void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          MB_MODE_INFO *mi, int bw, int bh, int mi_x, int mi_y,
                          uint16_t **mc_buf,
+#if CONFIG_TIP_REF_PRED_MERGING
+                         const MV mv[2],
+#endif  // CONFIG_TIP_REF_PRED_MERGING
                          CalcSubpelParamsFunc calc_subpel_params_func,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
@@ -1075,6 +1094,7 @@ void common_calc_subpel_params_and_extend(
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride);
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 // Derive the sub-pixel related parameters of refinemv TIP blocks
 // Sub-pel related parameters are stored in the structures pointed by
 // "subpel_params" Also do padding if required This function is used for both
@@ -1087,6 +1107,7 @@ void tip_common_calc_subpel_params_and_extend(
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     uint16_t **mc_buf, uint16_t **pre, SubpelParams *subpel_params,
     int *src_stride);
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
@@ -1230,6 +1251,28 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
                           const struct scale_factors *sf, const int num_planes,
                           const CHROMA_REF_INFO *chroma_ref_info);
 
+#if CONFIG_TIP_REF_PRED_MERGING
+static AOM_INLINE void setup_pred_planes_for_tip(const TIP *tip_ref,
+                                                 MACROBLOCKD *xd,
+                                                 int plane_start, int plane_end,
+                                                 int mi_col, int mi_row) {
+  for (int plane = plane_start; plane < AOMMIN(plane_end, MAX_MB_PLANE);
+       ++plane) {
+    struct macroblockd_plane *const pd = &xd->plane[plane];
+    int is_uv = plane > 0;
+
+    for (int ref = 0; ref < 2; ++ref) {
+      const YV12_BUFFER_CONFIG *ref_buf = &tip_ref->ref_frame_buffer[ref]->buf;
+      setup_pred_plane(&pd->pre[ref], ref_buf->buffers[plane],
+                       ref_buf->crop_widths[is_uv],
+                       ref_buf->crop_heights[is_uv], ref_buf->strides[is_uv],
+                       mi_row, mi_col, tip_ref->ref_scale_factor[ref],
+                       pd->subsampling_x, pd->subsampling_y, NULL);
+    }
+  }
+}
+#endif
+
 static INLINE void set_default_interp_filters(
     MB_MODE_INFO *const mbmi,
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -1248,7 +1291,10 @@ static INLINE void set_default_interp_filters(
 #if CONFIG_REFINEMV
                        || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
-                       )
+#if CONFIG_TIP_REF_PRED_MERGING
+                       || is_tip_ref_frame(mbmi->ref_frame[0])
+#endif
+                           )
                           ? MULTITAP_SHARP
                           : av1_unswitchable_filter(frame_interp_filter);
 #else
@@ -1278,6 +1324,9 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
 
   if (is_warp_mode(mbmi->motion_mode)) return 0;
   if (is_nontrans_global_motion(xd, xd->mi[0])) return 0;
+#if CONFIG_TIP_REF_PRED_MERGING
+  if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
+#endif  // CONFIG_TIP_REF_PRED_MERGING
   return 1;
 }
 

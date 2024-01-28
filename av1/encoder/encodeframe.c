@@ -1291,6 +1291,7 @@ static AOM_INLINE void set_default_interp_skip_flags(
                         : INTERP_SKIP_LUMA_SKIP_CHROMA;
 }
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 AOM_INLINE void av1_tip_enc_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
@@ -1423,6 +1424,7 @@ AOM_INLINE void av1_tip_enc_calc_subpel_params(
   }
   *src_stride = pre_buf->stride;
 }
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;
@@ -1443,8 +1445,15 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #if CONFIG_OPTFLOW_ON_TIP
         cm->features.use_optflow_tip = 1;
 #endif  // CONFIG_OPTFLOW_ON_TIP
-        av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av1_tip_enc_calc_subpel_params);
+        av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst
+#if CONFIG_TIP_REF_PRED_MERGING
+                            ,
+                            av1_enc_calc_subpel_params
+#else
+                            ,
+                            av1_tip_enc_calc_subpel_params
+#endif  // CONFIG_TIP_REF_PRED_MERGING
+        );
       }
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, av1_enc_setup_tip_frame_time);

@@ -191,7 +191,11 @@ void setup_pef_input(MACROBLOCKD *xd, int pef_mode, int plane, uint16_t *dst,
 // check if the neighboring mvs are the same
 void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
               int mvs_stride, const TPL_MV_REF *tpl_mvs, int tip_step,
+#if !CONFIG_TIP_REF_PRED_MERGING
               int n_blocks, int_mv *mv_refined, int opfl_step
+#else
+              int offset, int_mv *mv_refined, int step
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 #if CONFIG_REFINEMV
               ,
               REFINEMV_SUBMB_INFO *refinemv_subinfo, int refinemv_step
@@ -206,6 +210,15 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
   if (pef_mode < 0 || pef_mode > 2) return;
 #endif                  // CONFIG_REFINEMV
 #endif                  // CONFIG_EXT_WARP_FILTER
+#if CONFIG_TIP_REF_PRED_MERGING
+  if (pef_mode == 0 || pef_mode == 1) {  // opfl mv || refined tip mv
+    const int_mv *cur_mv_refined_ref0 = &mv_refined[offset];
+    const int_mv *cur_mv_refined_ref1 = &mv_refined[offset + 1];
+    *diff_mv =
+        cur_mv_refined_ref0[0].as_int != cur_mv_refined_ref0[-step].as_int;
+    *diff_mv |=
+        cur_mv_refined_ref1[0].as_int != cur_mv_refined_ref1[-step].as_int;
+#else
   if (pef_mode == 0) {  // opfl mv
     const int_mv *cur_mv_refined_ref0 = &mv_refined[n_blocks * 2 + 0];
     const int_mv *cur_mv_refined_ref1 = &mv_refined[n_blocks * 2 + 1];
@@ -213,6 +226,7 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
         cur_mv_refined_ref0[0].as_int != cur_mv_refined_ref0[-opfl_step].as_int;
     *diff_mv |=
         cur_mv_refined_ref1[0].as_int != cur_mv_refined_ref1[-opfl_step].as_int;
+#endif  // CONFIG_TIP_REF_PRED_MERGING
 #if CONFIG_REFINEMV
   } else if (pef_mode == 3) {  // refinemv mv
     const int_mv *cur_mv_refined_ref0 = &refinemv_subinfo->refinemv[0];
@@ -281,8 +295,10 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const int w_mult = pef_w_mult[filt_len - 1];
 
   // derive blockiness location
+#if !CONFIG_TIP_REF_PRED_MERGING
   int x_offset = 0;
   int y_offset = 0;
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
   int max_tpl_row = 0;
   int max_tpl_col = 0;
   int tpl_start_row = 0;
@@ -292,6 +308,17 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
 
   if (pef_mode == 1) {
+#if CONFIG_TIP_REF_PRED_MERGING
+    const int mi_row = xd->mi_row;
+    const int mi_col = xd->mi_col;
+    int ref_start_pixel_row = (mi_row << MI_SIZE_LOG2);
+    int ref_start_pixel_col = (mi_col << MI_SIZE_LOG2);
+
+    max_tpl_row = ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+    max_tpl_col = ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+    tpl_start_row = ref_start_pixel_row >> TMVP_MI_SZ_LOG2;
+    tpl_start_col = ref_start_pixel_col >> TMVP_MI_SZ_LOG2;
+#else
     const int frame_w = xd->plane[0].dst.width;
     const int frame_h = xd->plane[0].dst.height;
     const int mi_row = xd->mi_row;
@@ -314,11 +341,19 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
     tpl_start_row = ref_start_pixel_row >> TMVP_MI_SZ_LOG2;
     tpl_start_col = ref_start_pixel_col >> TMVP_MI_SZ_LOG2;
     tpl_offset = tpl_start_row * mvs_stride + tpl_start_col;
+#endif  // CONFIG_TIP_REF_PRED_MERGING
   }
 
   const TPL_MV_REF *tpl_mvs = tpl_mvs_base + tpl_offset;
 
   // initialize x_step and y_step based on blockiness location
+#if CONFIG_TIP_REF_PRED_MERGING
+  int last_col_x_step = n;
+  int x_step = n;
+
+  int last_row_y_step = n;
+  int y_step = n;
+#else
   int first_col_x_step = n;
   int last_col_x_step = n;
   int x_step = n;
@@ -336,6 +371,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
     last_row_y_step = n - y_offset;
     y_step = first_row_y_step;
   }
+#endif  // CONFIG_TIP_REF_PRED_MERGING
 
   // start filtering
   const int wn = bw / n;
@@ -347,6 +383,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   int n_blocks = 0;
   int mv_rows = 0;
   for (int j = 0; j <= h; j += y_step) {
+#if !CONFIG_TIP_REF_PRED_MERGING
     if (pef_mode == 1) {
       // update y_step based on current j
       prev_y_step = y_step;
@@ -357,9 +394,11 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
       else  // j == 0
         y_step = first_row_y_step;
     }
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
     int mv_cols = 0;
     for (int i = 0; i <= w; i += x_step) {
+#if !CONFIG_TIP_REF_PRED_MERGING
       if (pef_mode == 1) {
         // update x_step based on current i
         prev_x_step = x_step;
@@ -370,6 +409,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
         else  // i == 0
           x_step = first_col_x_step;
       }
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
       bool within_tpl_boundary = 1;
       if (pef_mode == 1) {
@@ -379,12 +419,25 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
 
       const int luma_j = (j << ss_y);
       const int luma_i = (i << ss_x);
+#if CONFIG_TIP_REF_PRED_MERGING
+      const int mv_offset =
+          (pef_mode == 1) ? 2 * ((luma_j >> TMVP_MI_SZ_LOG2) * TIP_MV_STRIDE +
+                                 (luma_i >> TMVP_MI_SZ_LOG2))
+                          : 2 * n_blocks;
+#endif  // CONFIG_TIP_REF_PRED_MERGING
+
       // filter vertical boundary
       if (filter_vert && i > 0 && within_tpl_boundary &&
           AOMMIN(prev_x_step, x_step) >= filt_len) {
         bool diff_mv = 0;
-        check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs, 1,
+        check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs, 1
+#if CONFIG_TIP_REF_PRED_MERGING
+                 ,
+                 mv_offset, pef_input->mv_refined, 2
+#else
+                 ,
                  n_blocks, pef_input->mv_refined, 2
+#endif  // CONFIG_TIP_REF_PRED_MERGING
 #if CONFIG_REFINEMV
                  ,
                  (pef_mode == 3) ? (pef_input->refinemv_subinfo +
@@ -407,8 +460,16 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
       if (filter_horz && j > 0 && within_tpl_boundary &&
           AOMMIN(prev_y_step, y_step) >= filt_len) {
         bool diff_mv = 0;
+#if CONFIG_TIP_REF_PRED_MERGING
+        const int vstep = (pef_mode == 0) ? 2 * wn : 2 * TIP_MV_STRIDE;
+#endif  // CONFIG_TIP_REF_PRED_MERGING
         check_mv(&diff_mv, pef_mode, mv_rows, mv_cols, mvs_stride, tpl_mvs,
-                 mvs_stride, n_blocks, pef_input->mv_refined, 2 * wn
+                 mvs_stride,
+#if CONFIG_TIP_REF_PRED_MERGING
+                 mv_offset, pef_input->mv_refined, vstep
+#else
+                 n_blocks, pef_input->mv_refined, 2 * wn
+#endif  // CONFIG_TIP_REF_PRED_MERGING
 #if CONFIG_REFINEMV
                  ,
                  (pef_mode == 3) ? (pef_input->refinemv_subinfo +
@@ -514,7 +575,12 @@ void enhance_prediction(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int use_tip = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (use_tip) {
     PefFuncInput pef_input;
-    setup_pef_input(xd, 1, plane, dst, dst_stride, bw, bh, NULL,
+    setup_pef_input(xd, 1, plane, dst, dst_stride, bw, bh,
+#if CONFIG_TIP_REF_PRED_MERGING
+                    mv_refined,
+#else
+                    NULL,
+#endif  // CONFIG_TIP_REF_PRED_MERGING
 #if CONFIG_REFINEMV
                     NULL,
 #endif  // CONFIG_REFINEMV

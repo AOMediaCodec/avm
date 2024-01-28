@@ -34,12 +34,14 @@ void av1_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd, uint16_t **mc_buf,
                          CONV_BUF_TYPE *tmp_conv_dst,
                          CalcSubpelParamsFunc calc_subpel_params_func);
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 // Generate TIP reference block if current block is coded as TIP mode
 void av1_setup_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
                               int blk_row_start, int blk_col_start,
                               int blk_row_end, int blk_col_end, int mvs_stride,
                               uint16_t **mc_buf, CONV_BUF_TYPE *tmp_conv_dst,
                               CalcSubpelParamsFunc calc_subpel_params_func);
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 // Derive TMVP from closest forward and closet backward reference frames
 void av1_derive_tip_nearest_ref_frames_motion_projection(AV1_COMMON *cm);
@@ -67,6 +69,38 @@ static AOM_INLINE void tip_get_mv_projection(MV *output, MV ref,
   output->col = (int16_t)clamp(mv_col, clamp_min, clamp_max);
 }
 
+#if CONFIG_TIP_REF_PRED_MERGING
+// Compute TMVP unit offset related to block mv
+static AOM_INLINE int derive_block_mv_tpl_offset(const AV1_COMMON *const cm,
+                                                 const MV *mv,
+                                                 const int blk_tpl_row,
+                                                 const int blk_tpl_col) {
+  const int frame_mvs_tpl_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  const int frame_mvs_tpl_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+
+  FULLPEL_MV fullmv = get_fullmv_from_mv(mv);
+  int tpl_row_offset = ROUND_POWER_OF_TWO_SIGNED(fullmv.row, TMVP_MI_SZ_LOG2);
+  int tpl_col_offset = ROUND_POWER_OF_TWO_SIGNED(fullmv.col, TMVP_MI_SZ_LOG2);
+
+  if (blk_tpl_row + tpl_row_offset >= frame_mvs_tpl_rows) {
+    tpl_row_offset = frame_mvs_tpl_rows - 1 - blk_tpl_row;
+  } else if (blk_tpl_row + tpl_row_offset < 0) {
+    tpl_row_offset = -blk_tpl_row;
+  }
+
+  if (blk_tpl_col + tpl_col_offset >= frame_mvs_tpl_cols) {
+    tpl_col_offset = frame_mvs_tpl_cols - 1 - blk_tpl_col;
+  } else if (blk_tpl_col + tpl_col_offset < 0) {
+    tpl_col_offset = -blk_tpl_col;
+  }
+
+  const int tpl_offset = tpl_row_offset * frame_mvs_tpl_cols + tpl_col_offset;
+
+  return tpl_offset;
+}
+#else
 // Convert motion vector to fullpel and clamp the fullpel mv if it is outside
 // of frame boundary
 static AOM_INLINE FULLPEL_MV clamp_tip_fullmv(const AV1_COMMON *const cm,
@@ -91,6 +125,7 @@ static AOM_INLINE FULLPEL_MV clamp_tip_fullmv(const AV1_COMMON *const cm,
 
   return fullmv;
 }
+#endif  // CONFIG_TIP_REF_PRED_MERGING
 
 // SMVP candidate which is derived from TIP mode
 static AOM_INLINE void clamp_tip_smvp_refmv(const AV1_COMMON *const cm, MV *mv,
@@ -118,6 +153,7 @@ static AOM_INLINE void clamp_tip_smvp_refmv(const AV1_COMMON *const cm, MV *mv,
   *mv = get_mv_from_fullmv(&fullmv);
 }
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 #if !CONFIG_REFINEMV
 // Clamp MV to UMV border based on its distance to left/right/top/bottom edge
 static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
@@ -174,6 +210,7 @@ static AOM_INLINE MV tip_clamp_mv_to_umv_border_sb(
   return clamped_mv;
 }
 #endif  //! CONFIG_REFINEMV
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 #ifdef __cplusplus
 }  // extern "C"
 #endif

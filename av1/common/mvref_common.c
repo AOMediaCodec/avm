@@ -185,12 +185,17 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 
           int_mv this_mv[2] = { { 0 } };
           const MV *blk_mv = &mi->mv[idx].as_mv;
+#if CONFIG_TIP_REF_PRED_MERGING
+          const int blk_to_tip_frame_offset = derive_block_mv_tpl_offset(
+              cm, blk_mv, cur_tpl_row + h, cur_tpl_col + w);
+#else
           const FULLPEL_MV blk_fullmv =
               clamp_tip_fullmv(cm, blk_mv, cur_tpl_row + h, cur_tpl_col + w);
 
           const int blk_to_tip_frame_offset =
               (blk_fullmv.row >> TMVP_MI_SZ_LOG2) * frame_mvs_stride +
               (blk_fullmv.col >> TMVP_MI_SZ_LOG2);
+#endif  // CONFIG_TIP_REF_PRED_MERGING
 
           const TPL_MV_REF *tip_tpl_mv = tpl_mv + blk_to_tip_frame_offset;
           if (tip_tpl_mv->mfmv0.as_int == 0) {
@@ -509,12 +514,19 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
 #else
   int_mv cand_mv = get_block_mv(candidate, 0);
 #endif  // CONFIG_C071_SUBBLK_WARPMV
+#if CONFIG_TIP_REF_PRED_MERGING
+  const int blk_to_tip_frame_offset = derive_block_mv_tpl_offset(
+      cm, &cand_mv.as_mv, cand_tpl_row, cand_tpl_col);
+  const int offset =
+      cand_tpl_row * frame_mvs_stride + cand_tpl_col + blk_to_tip_frame_offset;
+#else
   const FULLPEL_MV fullmv =
       clamp_tip_fullmv(cm, &cand_mv.as_mv, cand_tpl_row, cand_tpl_col);
   const int ref_blk_row = (fullmv.row >> TMVP_MI_SZ_LOG2) + cand_tpl_row;
   const int ref_blk_col = (fullmv.col >> TMVP_MI_SZ_LOG2) + cand_tpl_col;
 
   const int offset = ref_blk_row * frame_mvs_stride + ref_blk_col;
+#endif  // CONFIG_TIP_REF_PRED_MERGING
   const TPL_MV_REF *tpl_mvs = cm->tpl_mvs + offset;
   if (tpl_mvs->mfmv0.as_int == INVALID_MV) {
     return;

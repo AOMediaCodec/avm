@@ -1279,7 +1279,10 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_REFINEMV
                             || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
-                            )
+#if CONFIG_TIP_REF_PRED_MERGING
+                            || is_tip_ref_frame(mbmi->ref_frame[0])
+#endif
+                                )
                                ? MULTITAP_SHARP
                                : cm->features.interp_filter;
 #else
@@ -1296,6 +1299,9 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_REFINEMV
         || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
+#if CONFIG_TIP_REF_PRED_MERGING
+        || is_tip_ref_frame(mbmi->ref_frame[0])
+#endif
     ) {
       assert(mbmi->interp_fltr == MULTITAP_SHARP);
       return;

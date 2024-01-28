@@ -881,6 +881,7 @@ static void dec_calc_subpel_params_and_extend(
                    inter_pred_params->is_intrabc, mc_buf[ref], pre, src_stride);
 }
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 #if !CONFIG_REFINEMV
 static AOM_INLINE void tip_dec_calc_subpel_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params, int mi_x,
@@ -1070,6 +1071,7 @@ static void tip_dec_calc_subpel_params_and_extend(
                    inter_pred_params->mode == WARP_PRED,
                    inter_pred_params->is_intrabc, mc_buf[ref], pre, src_stride);
 }
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
                                     uint16_t **mc_buf,
@@ -1077,7 +1079,12 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
   av1_setup_tip_motion_field(cm, 0);
 
   av1_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
-                      tip_dec_calc_subpel_params_and_extend);
+#if CONFIG_TIP_REF_PRED_MERGING
+                      dec_calc_subpel_params_and_extend
+#else
+                      tip_dec_calc_subpel_params_and_extend
+#endif  // CONFIG_TIP_REF_PRED_MERGING
+  );
 #if CONFIG_TIP_IMPLICIT_QUANT
   if (cm->seq_params.enable_tip_explicit_qp == 0) {
     const int avg_u_ac_delta_q =
@@ -1110,6 +1117,7 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_TIP_DIRECT_FRAME_MV
 }
 
+#if !CONFIG_TIP_REF_PRED_MERGING
 static void av1_dec_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
                                    uint16_t **mc_buf, CONV_BUF_TYPE *conv_dst) {
   const MV *mv = &xd->mi[0]->mv[0].as_mv;
@@ -1190,6 +1198,7 @@ static void av1_dec_tip_on_the_fly(AV1_COMMON *cm, MACROBLOCKD *xd,
                            tpl_end_col, mvs_cols, mc_buf, conv_dst,
                            tip_dec_calc_subpel_params_and_extend);
 }
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 
 static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
                                          DecoderCodingBlock *dcb, int mi_row,
@@ -1229,10 +1238,12 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
 #if CONFIG_EXT_RECUR_PARTITIONS
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if !CONFIG_TIP_REF_PRED_MERGING
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF &&
       is_tip_ref_frame(xd->mi[0]->ref_frame[0])) {
     av1_dec_tip_on_the_fly(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
   }
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
 }
 
 static void dec_build_inter_predictors(const AV1_COMMON *cm,
@@ -1477,13 +1488,25 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
   const int num_planes = av1_num_planes(cm);
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
+#if CONFIG_TIP_REF_PRED_MERGING
+  const int is_compound =
+      has_second_ref(mbmi) || is_tip_ref_frame(mbmi->ref_frame[0]);
+  for (int ref = 0; ref < 1 + is_compound; ++ref) {
+#else
   for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
+#endif
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     if (frame == INTRA_FRAME) {
       assert(is_intrabc_block(mbmi, xd->tree_type));
       assert(ref == 0);
     } else {
+#if CONFIG_TIP_REF_PRED_MERGING
+      const RefCntBuffer *ref_buf = is_tip_ref_frame(mbmi->ref_frame[0])
+                                        ? cm->tip_ref.ref_frame_buffer[ref]
+                                        : get_ref_frame_buf(cm, frame);
+#else
       const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
+#endif
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, frame);
 
@@ -8140,11 +8163,13 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
 #endif  // !CONFIG_TIP_DIRECT_FRAME_MV
     } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
       av1_setup_tip_motion_field(cm, 0);
+#if !CONFIG_TIP_REF_PRED_MERGING
       const int mvs_rows =
           ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
       const int mvs_cols =
           ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
       av1_zero_array(cm->tip_ref.available_flag, mvs_rows * mvs_cols);
+#endif  // !CONFIG_TIP_REF_PRED_MERGING
     }
   }
 
