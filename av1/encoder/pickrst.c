@@ -2566,34 +2566,10 @@ static int64_t count_wienerns_bits_set(
 }
 #endif  // CONFIG_LR_MERGE_COEFFS
 
-static int16_t quantize_wienerns_tap(double x, int16_t minv, int16_t n,
-                                     int prec_bits) {
-  int scale_x = (int)round(x * (1 << prec_bits));
-  scale_x = AOMMAX(scale_x, minv);
-  scale_x = AOMMIN(scale_x, minv + n - 1);
-  return (int16_t)scale_x;
-}
-
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
-#define USE_Q_WRAPPER 1
-
-// quantize_wrapper() allows a better (in D) solution to the linear system
-// compared to rounding. It is intended as a better initializer than rounding.
-// As is, quantize_wrapper() only uses distortion but it can be augmented to use
-// total D-R cost. Intended use is to initialize with quantize_wrapper() then
-// run a reduced set of iterations within finer_tile_search_wienerns() for
-// complexity and quality improvements.
-//
-// ~20 q_wrapper iterations are ~ 1 finer_tile iteration for a 256 x 256 RU.
-// When effective RU size increases with LR_MERGE the 10x simplifcation will
-// increase.
-#define Q_WRAPPER_MAX_ITER (USE_Q_WRAPPER ? 20 : 0)
-#define MAX_INCREMENT 2  // Controls the extent of each greedy update.
-
-// After Q_WRAPPER_MAX_ITER iterations one can reduce the finer_tile iterations.
-#define FINER_TILE_SEARCH_WIENERNS_ITER_STEP (USE_Q_WRAPPER ? 5 : 12)
+#define FINER_TILE_SEARCH_WIENERNS_ITER_STEP 5
 
 static int64_t finer_tile_search_wienerns(
     RestSearchCtxt *rsc, const RestorationTileLimits *limits,
@@ -2881,127 +2857,49 @@ static int64_t finer_tile_search_wienerns(
   return best_err;
 }
 
-static int linsolve_wrapper(int n, const double *A, int stride, const double *b,
-                            double *x) {
-  int linsolve_successful = linsolve_const(n, A, stride, b, x);
-  if (linsolve_successful) return linsolve_successful;
-  memset(x, 0, WIENERNS_MAX * sizeof(*x));
-  return 1;
-}
+static int compute_wienerns_filter(
+    int n, const double *A, int stride, const double *b, int16_t *nsfilter,
+    const WienernsFilterParameters *nsfilter_params) {
+  assert(n > 0);
+  assert(stride > 0);
 
-static void quantize_wrapper(int n, const double *square_mat_A, int stride,
-                             const double *b, double *float_soln,
-                             const WienernsFilterParameters *nsfilter_params,
-                             WienerNonsepInfo *wienerns_info,
-                             int max_num_iterations, int wiener_class_id) {
-  const int beg_feat = 0;
-  const int end_feat = nsfilter_params->ncoeffs;
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  // Allocate temporary space needed by linsolve_spd_quantize()
+  // This allows us to leave A and b untouched
+  double *R = (double *)malloc(sizeof(*R) * n * stride);
+  double *tmp = (double *)malloc(sizeof(*tmp) * n);
 
-  int c_id_begin = 0;
-  int c_id_end = wienerns_info->num_classes;
-  if (wiener_class_id != ALL_WIENERNS_CLASSES) {
-    c_id_begin = wiener_class_id;
-    c_id_end = wiener_class_id + 1;
+  // Set up quantization data
+  double prec[WIENERNS_MAX] = { 0 };
+  int32_t min[WIENERNS_MAX] = { 0 };
+  int32_t max[WIENERNS_MAX] = { 0 };
+  int32_t scale[WIENERNS_MAX] = { 0 };
+
+  assert(n <= nsfilter_params->ncoeffs);
+  for (int i = 0; i < n; i++) {
+    int min_val = nsfilter_params->coeffs[i][WIENERNS_MIN_ID];
+    int range = 1 << nsfilter_params->coeffs[i][WIENERNS_BIT_ID];
+
+    prec[i] = (double)(1 << nsfilter_params->nsfilter_config.prec_bits);
+    min[i] = min_val;
+    max[i] = min_val + range - 1;
+    scale[i] = 1;
   }
 
-  for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
-    int16_t *nsfilter = nsfilter_taps(wienerns_info, c_id);
-    for (int k = beg_feat; k < end_feat; ++k) {
-      nsfilter[k] = quantize_wienerns_tap(
-          float_soln[k - beg_feat],
-          wienerns_coeffs[k - beg_feat][WIENERNS_MIN_ID],
-          (1 << wienerns_coeffs[k - beg_feat][WIENERNS_BIT_ID]),
-          nsfilter_params->nsfilter_config.prec_bits);
-    }
+  // Solve problem
+  int32_t x[WIENERNS_MAX];
+  int ret =
+      linsolve_spd_quantize(n, A, R, stride, b, tmp, x, prec, min, max, scale);
+  if (!ret) goto finished;
+
+  // Convert results from 32-bit to 16-bit storage
+  for (int i = 0; i < n; i++) {
+    nsfilter[i] = x[i];
   }
 
-  if (max_num_iterations <= 0) return;
-
-  const int dim = n;
-  assert(dim <= end_feat - beg_feat);
-
-  const double tap_qstep = 1 << nsfilter_params->nsfilter_config.prec_bits;
-  const double eps = 1e-10;
-  double *error = (double *)aom_malloc(dim * sizeof(*error));
-  double *half_normalizers = (double *)aom_malloc(dim * sizeof(*error));
-
-  for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
-    int16_t *nsfilter = nsfilter_taps(wienerns_info, c_id);
-
-    // Set baseline error.
-    for (int row = 0; row < dim; ++row) {
-      double sum = 0;
-      for (int col = 0; col < dim; ++col) {
-        const int tap_index = col + beg_feat;
-        sum += square_mat_A[row * stride + col] * nsfilter[tap_index];
-      }
-      error[row] = b[row] * tap_qstep - sum;
-    }
-
-    // Set normalizers.
-    for (int col = 0; col < dim; ++col) {
-      double sum = 0;
-      for (int row = 0; row < dim; ++row) {
-        sum +=
-            square_mat_A[row * stride + col] * square_mat_A[row * stride + col];
-      }
-      half_normalizers[col] = AOMMAX(sum, eps) / 2;
-    }
-#ifndef NDEBUG
-    double prev_err = 1e90;
-#endif
-    int change = 1;
-    int num_iterations = 0;
-    while (change && num_iterations < max_num_iterations) {
-#ifndef NDEBUG
-      double err_sum = 0;
-      for (int row = 0; row < dim; ++row) {
-        err_sum += error[row] * error[row];
-      }
-      assert(err_sum <= prev_err);
-      prev_err = err_sum;
-#endif
-      // TODO: Switch to pseudo-random traversal.
-      const int offset = 1723 * num_iterations;
-      ++num_iterations;
-      change = 0;
-      for (int k = 0; k < dim; ++k) {
-        const int col = (k + offset) % dim;
-        double sum = 0;
-        for (int row = 0; row < dim; ++row) {
-          sum += square_mat_A[row * stride + col] * error[row];
-        }
-
-        const double abs_sum = fabs(sum);
-        const int tap_index = col + beg_feat;
-        int updated_tap = nsfilter[tap_index];
-        if (abs_sum >= half_normalizers[col]) {
-          // This should be an integer division. Can also do a search for
-          // abs(increment) = 0, 1, 2, ...
-          const double increment = CLIP(sum / (2 * half_normalizers[col]),
-                                        -MAX_INCREMENT, MAX_INCREMENT);
-
-          updated_tap = quantize_wienerns_tap(
-              (nsfilter[tap_index] + increment) / tap_qstep,
-              wienerns_coeffs[col][WIENERNS_MIN_ID],
-              (1 << wienerns_coeffs[col][WIENERNS_BIT_ID]),
-              nsfilter_params->nsfilter_config.prec_bits);
-        }
-        const int tap_diff = updated_tap - nsfilter[tap_index];
-        if (tap_diff) {
-          change += abs(tap_diff);
-          // Update error.
-          for (int row = 0; row < dim; ++row) {
-            error[row] -= square_mat_A[row * stride + col] * tap_diff;
-          }
-          nsfilter[tap_index] = updated_tap;
-        }
-      }
-    }
-  }
-  aom_free(half_normalizers);
-  aom_free(error);
+finished:
+  free(R);
+  free(tmp);
+  return ret;
 }
 
 static int64_t compute_stats_for_wienerns_filter(
@@ -3148,19 +3046,14 @@ static int compute_quantized_wienerns_filter(
     int success = 0;
     int linsolve_successful = 0;
     for (int c_id = 0; c_id < num_classes; ++c_id) {
-      linsolve_successful =
-          linsolve_wrapper(num_feat - reduce, A + c_id * stride_A, num_feat,
-                           b + c_id * stride_b, solver_x + c_id * stride_b);
+      int16_t *nsfilter = nsfilter_taps(&rui->wienerns_info, c_id);
+      linsolve_successful = compute_wienerns_filter(
+          num_feat - reduce, A + c_id * stride_A, num_feat, b + c_id * stride_b,
+          nsfilter, nsfilter_params);
       if (!linsolve_successful) break;
     }
     if (num_feat > reduce && linsolve_successful) {
       do {
-        for (int c_id = 0; c_id < num_classes; ++c_id) {
-          quantize_wrapper(num_feat - reduce, A + c_id * stride_A, num_feat,
-                           b + c_id * stride_b, solver_x + c_id * stride_b,
-                           nsfilter_params, &rui->wienerns_info,
-                           Q_WRAPPER_MAX_ITER, c_id);
-        }
         assert(rui->wiener_class_id_restrict == -1);
         int64_t real_errq =
             calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
@@ -3514,7 +3407,6 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   const int class_dim_A = WIENERNS_MAX * WIENERNS_MAX;
   double solver_b_AVG[WIENERNS_MAX];
   const int class_dim_b = WIENERNS_MAX;
-  double solver_merge_filter_stats[WIENERNS_MAX];
 
   int is_uv = (rsc->plane != AOM_PLANE_Y);
   Vector *current_unit_stack = rsc->unit_stack;
@@ -3674,17 +3566,11 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       rui_merge_cand.restoration_type = RESTORE_WIENER_NONSEP;
 
       const int num_feat = nsfilter_params->ncoeffs;
+      int16_t *nsfilter = nsfilter_taps(&rui_merge_cand.wienerns_info, c_id);
       int linsolve_successful =
-          linsolve_wrapper(num_feat, solver_A_AVG, num_feat, solver_b_AVG,
-                           solver_merge_filter_stats);
-      if (linsolve_successful) {
-        quantize_wrapper(num_feat, solver_A_AVG, num_feat, solver_b_AVG,
-                         solver_merge_filter_stats, nsfilter_params,
-                         &rui_merge_cand.wienerns_info, Q_WRAPPER_MAX_ITER,
-                         c_id);
-      } else {
-        continue;
-      }
+          compute_wienerns_filter(num_feat, solver_A_AVG, num_feat,
+                                  solver_b_AVG, nsfilter, nsfilter_params);
+      if (!linsolve_successful) continue;
 
       aom_clear_system_state();
 
