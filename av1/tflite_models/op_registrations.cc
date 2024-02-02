@@ -28,4 +28,10 @@ void RegisterSelectedOpsAllQps(::tflite::MutableOpResolver *resolver) {
                        ::tflite::ops::builtin::Register_SHAPE());
   resolver->AddBuiltin(::tflite::BuiltinOperator_SPLIT_V,
                        ::tflite::ops::builtin::Register_SPLIT_V(), 1, 2);
+  resolver->AddBuiltin(::tflite::BuiltinOperator_STRIDED_SLICE,
+                       ::tflite::ops::builtin::Register_STRIDED_SLICE(), 2, 2);
+  resolver->AddBuiltin(::tflite::BuiltinOperator_PACK,
+                       ::tflite::ops::builtin::Register_PACK(), 2, 2);
+  resolver->AddBuiltin(::tflite::BuiltinOperator_TRANSPOSE_CONV,
+                       ::tflite::ops::builtin::Register_TRANSPOSE_CONV(), 4, 4);
 }
