@@ -2245,8 +2245,6 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     }
 #if CONFIG_IMPROVED_CFL
     CFL_CTX *const cfl = &xd->cfl;
-    const int sub_x = cfl->subsampling_x;
-    const int sub_y = cfl->subsampling_y;
 
     CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
     if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
@@ -2265,21 +2263,28 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     } else {
       cfl_load_dc_pred(xd, dst, dst_stride, tx_size, pred_plane);
     }
-
+#if CONFIG_ENABLE_MHCCP
+    const int sub_x = cfl->subsampling_x;
+    const int sub_y = cfl->subsampling_y;
     int above_lines = 0, left_lines = 0, ref_width = 0, ref_height = 0;
+#endif  // CONFIG_ENABLE_MHCCP
     {
       const int luma_tx_size =
           av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
+#if CONFIG_ENABLE_MHCCP
       if (mbmi->cfl_idx < CFL_MULTI_PARAM_V) {
+#else
+      {
+#endif  // CONFIG_ENABLE_MHCCP
         cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
                                          blk_col << cfl->subsampling_x,
                                          luma_tx_size);
         cfl_calc_luma_dc(xd, blk_row, blk_col, tx_size);
-        cfl_implicit_fetch_neighbor_chroma(cm, xd, plane, blk_row, blk_col,
-                                           tx_size);
       }
 #if CONFIG_ENABLE_MHCCP
       if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+        cfl_implicit_fetch_neighbor_chroma(cm, xd, plane, blk_row, blk_col,
+                                           tx_size);
         cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col,
                                            tx_size);
       } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
@@ -2313,12 +2318,22 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     ref_width, ref_height, 1);
       }
 #else
-      cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col, tx_size);
+      if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+        cfl_implicit_fetch_neighbor_chroma(cm, xd, plane, blk_row, blk_col,
+                                           tx_size);
+        cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col,
+                                           tx_size);
+      }
 #endif  // CONFIG_ENABLE_MHCCP
     }
 #endif
+#if CONFIG_ENABLE_MHCCP
     cfl_predict_block(xd, dst, dst_stride, tx_size, plane, above_lines > 0,
                       left_lines > 0, above_lines, left_lines);
+
+#else
+    cfl_predict_block(xd, dst, dst_stride, tx_size, plane);
+#endif
     return;
   }
 

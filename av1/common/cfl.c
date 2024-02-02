@@ -28,7 +28,9 @@ void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
 
   memset(&cfl->recon_buf_q3, 0, sizeof(cfl->recon_buf_q3));
   memset(&cfl->ac_buf_q3, 0, sizeof(cfl->ac_buf_q3));
+#if CONFIG_ENABLE_MHCCP
   memset(&cfl->mhccp_ref_buf_q3, 0, sizeof(cfl->mhccp_ref_buf_q3));
+#endif  // CONFIG_ENABLE_MHCCP
   cfl->subsampling_x = seq_params->subsampling_x;
   cfl->subsampling_y = seq_params->subsampling_y;
   cfl->are_parameters_computed = 0;
@@ -558,9 +560,14 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
 }
 #endif  // CONFIG_IMPROVED_CFL
 
+#if CONFIG_ENABLE_MHCCP
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane, bool have_top,
                        bool have_left, int above_lines, int left_lines) {
+#else
+void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
+                       TX_SIZE tx_size, int plane) {
+#endif  // CONFIG_ENABLE_MHCCP
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(is_cfl_allowed(xd));
@@ -583,15 +590,23 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                            mbmi->mhccp_implicit_param[plane - 1], xd->bd,
                            tx_size_wide[tx_size], tx_size_high[tx_size], 1);
     return;
-  } else
+  } else if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+    alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
+  } else {
+    alpha_q3 =
+        cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, plane - 1);
+    alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
+  }
+#else
+  if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+    alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
+  } else {
+    alpha_q3 =
+        cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, plane - 1);
+    alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
+  }
 #endif  // CONFIG_ENABLE_MHCCP
-    if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
-      alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
-    } else {
-      alpha_q3 = cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs,
-                                  plane - 1);
-      alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
-    }
+
 #else
   if (!cfl->are_parameters_computed) cfl_compute_parameters(xd, tx_size);
 

@@ -203,6 +203,10 @@ static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
 static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
     CFL_TYPE_COUNT - 1)] = { AOM_CDF3(16384, 23000) };
 #endif
+#else
+static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
+  AOM_CDF2(18000), 0
+};
 #endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_ENABLE_MHCCP
 static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]

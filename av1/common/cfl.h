@@ -122,9 +122,14 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
   return (CFL_PRED_TYPE)(plane - 1);
 }
 
+#if CONFIG_ENABLE_MHCCP
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane, bool have_top,
                        bool have_left, int above_lines, int left_lines);
+#else
+void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
+                       TX_SIZE tx_size, int plane);
+#endif
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size
 #if CONFIG_IMPROVED_CFL

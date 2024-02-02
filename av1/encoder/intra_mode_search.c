@@ -619,7 +619,9 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->cfl_idx = 1;
       mbmi->uv_mode = UV_CFL_PRED;
       mbmi->uv_mode_idx = 0;
-    } else if (mode_idx == 2) {
+    }
+#if CONFIG_ENABLE_MHCCP
+    else if (mode_idx == 2) {
       mbmi->cfl_idx = 2;
       mbmi->mh_dir = 0;
       mbmi->uv_mode = UV_CFL_PRED;
@@ -629,7 +631,9 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->mh_dir = 1;
       mbmi->uv_mode = UV_CFL_PRED;
       mbmi->uv_mode_idx = 0;
-    } else {
+    }
+#endif  // CONFIG_ENABLE_MHCCP
+    else {
       mbmi->cfl_idx = 0;
 #if CONFIG_ENABLE_MHCCP
       mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 4];
@@ -637,7 +641,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #else
       mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 2];
       mbmi->uv_mode_idx = mode_idx - 2;
-#endif
+#endif  // CONFIG_ENABLE_MHCCP
     }
 #else
   if (mode_idx >= UV_INTRA_MODES) {
@@ -687,7 +691,9 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     // Init variables for cfl and angle delta
     int cfl_alpha_rate = 0;
+#if CONFIG_ENABLE_MHCCP
     int filter_dir_rate = 0;
+#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_IMPROVED_CFL
     int cfl_idx_rate = 0;
 #endif
@@ -712,7 +718,11 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
 #if CONFIG_AIMC
 #if CONFIG_IMPROVED_CFL
+#if CONFIG_ENABLE_MHCCP
     mode_cost += cfl_alpha_rate + cfl_idx_rate + filter_dir_rate;
+#else
+  mode_cost += cfl_alpha_rate + cfl_idx_rate;
+#endif  // CONFIG_ENABLE_MHCCP
 #else
     mode_cost += cfl_alpha_rate;
 #endif
