@@ -6294,8 +6294,9 @@ static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = { AOM_CDF2(
 static const aom_cdf_prob default_wienerns_length_cdf[2][CDF_SIZE(2)] = {
   { AOM_CDF2(16384), 0 }, { AOM_CDF2(16384), 0 }
 };
-static const aom_cdf_prob default_wienerns_uv_sym_cdf[CDF_SIZE(2)] = { AOM_CDF2(
-    16384), 0 };
+static const aom_cdf_prob default_wienerns_uv_sym_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(16384), 0
+};
 #else
 static const aom_cdf_prob default_wienerns_length_cdf[2][CDF_SIZE(2)] = {
   { AOM_CDF2(16384) }, { AOM_CDF2(16384) }
@@ -6308,18 +6309,12 @@ static const aom_cdf_prob default_wienerns_uv_sym_cdf[CDF_SIZE(2)] = { AOM_CDF2(
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob
     default_wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)] = {
-      { AOM_CDF4(18094, 25703, 31102), 86 },
-      { AOM_CDF4(17746, 24274, 29486), 81 },
-      { AOM_CDF4(13972, 23084, 29194), 6 },
-      { AOM_CDF4(8192, 16384, 24576), 0 },
+      { AOM_CDF4(16384, 24576, 28672), 6 },
     };
 #else
 static const aom_cdf_prob
     default_wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)] = {
       { AOM_CDF4(16384, 24576, 28672) },
-      { AOM_CDF4(16384, 24576, 28672) },
-      { AOM_CDF4(12288, 24576, 28672) },
-      { AOM_CDF4(8192, 16384, 24576) },
     };
 #endif
 #endif  // ENABLE_LR_4PART_CODE
