@@ -448,6 +448,7 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
     sf->lpf_sf.dual_sgr_penalty_level = 1;
     sf->lpf_sf.enable_sgr_ep_pruning = 1;
+    sf->lpf_sf.wienerns_refine_iters = 0;
 
     // TODO(any, yunqing): move this feature to speed 0.
     sf->tpl_sf.skip_alike_starting_mv = 1;
@@ -948,6 +949,7 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   // Set decoder side speed feature to use less dual sgr modes
   lpf_sf->dual_sgr_penalty_level = 0;
   lpf_sf->disable_lr_filter = 0;
+  lpf_sf->wienerns_refine_iters = 2;
 }
 
 static void av1_disable_ml_based_transform_sf(TX_SPEED_FEATURES *const tx_sf) {

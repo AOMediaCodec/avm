@@ -1004,6 +1004,9 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
 
   // Disable loop restoration filter
   int disable_lr_filter;
+
+  // Number of refinement steps for WIENER_NONSEP tool
+  int wienerns_refine_iters;
 } LOOP_FILTER_SPEED_FEATURES;
 
 typedef struct FLEXMV_PRECISION_SPEED_FEATURES {

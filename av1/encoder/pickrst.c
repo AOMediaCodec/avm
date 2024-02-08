@@ -2580,8 +2580,6 @@ static int64_t count_wienerns_bits_set(
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
-#define FINER_TILE_SEARCH_WIENERNS_ITER_STEP 5
-
 static int64_t finer_tile_search_wienerns(
     RestSearchCtxt *rsc, const RestorationTileLimits *limits,
     const AV1PixelRect *tile_rect, RestorationUnitInfo *rui,
@@ -2622,7 +2620,7 @@ static int64_t finer_tile_search_wienerns(
   const int num_feat = nsfilter_params->ncoeffs;
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
 
-  const int iter_step = FINER_TILE_SEARCH_WIENERNS_ITER_STEP;
+  const int refine_iters = rsc->lpf_sf->wienerns_refine_iters;
   for (int c_id = c_id_begin; c_id < c_id_end; ++c_id) {
     int16_t *curr_nsfilter = nsfilter_taps(&curr, c_id);
     int16_t *rui_wienerns_info_nsfilter =
@@ -2632,7 +2630,7 @@ static int64_t finer_tile_search_wienerns(
     // relevant to c_id.
     rui->wiener_class_id_restrict = c_id;
     int src_range = 2;
-    for (int s = 0; s < iter_step; ++s) {
+    for (int s = 0; s < refine_iters; ++s) {
       int no_improv = 1;
       for (int i = beg_feat; i < end_feat; ++i) {
         int cmin = MAX(curr_nsfilter[i] - src_range,
@@ -2794,7 +2792,7 @@ static int64_t finer_tile_search_wienerns(
         nsfilter_taps(&rui->wienerns_info, c_id);
     int16_t *curr_nsfilter = nsfilter_taps(&curr, c_id);
     rui->wiener_class_id_restrict = c_id;
-    for (int s = 0; s < iter_step; ++s) {
+    for (int s = 0; s < refine_iters; ++s) {
       int no_improv = 1;
       for (int i = beg_feat + (num_feat & 1); i < end_feat; i += 2) {
         int cmin[2] = { wienerns_coeffs[i - beg_feat][WIENERNS_MIN_ID],
