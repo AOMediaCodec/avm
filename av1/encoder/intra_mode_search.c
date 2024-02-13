@@ -575,6 +575,10 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   init_sbuv_mode(mbmi);
 
+#if CONFIG_WAIP
+  mbmi->is_wide_angle[1] = 0;
+#endif  // CONFIG_WAIP
+
   // Return if the current block does not correspond to a chroma block.
   if (!xd->is_chroma_ref) {
     *rate = 0;
@@ -1575,9 +1579,9 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_AIMC
   get_y_intra_mode_set(mbmi, xd);
 #endif  // CONFIG_AIMC
-#if WIDE_ANGLES
-  mbmi->is_wide_angle = 0;
-#endif
+#if CONFIG_WAIP
+  mbmi->is_wide_angle[0] = 0;
+#endif  // CONFIG_WAIP
 
   MB_MODE_INFO best_mbmi = *mbmi;
   av1_zero(x->winner_mode_stats);

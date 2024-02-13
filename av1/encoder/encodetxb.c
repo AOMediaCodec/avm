@@ -716,6 +716,15 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const int dc_skip = (eob == 1) && !is_inter;
   code_eob(x, w, plane, tx_size, esc_eob);
   av1_write_tx_type(cm, xd, tx_type, tx_size, w, plane, esc_eob, dc_skip);
+#if WIDE_ANGLE_DEBUG
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  fprintf(file_enc,
+          "plane = %d, mi_row = %d, mi_col = %d, is_wide_angle = %d, "
+          "mapped_intra_mode = %d\n",
+          plane, mbmi->mi_row_start, mbmi->mi_col_start,
+          mbmi->is_wide_angle[plane > 0], mbmi->mapped_intra_mode[plane > 0]);
+  fflush(file_enc);
+#endif
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
     const int skip_cctx = is_inter ? 0 : (eob == 1);
     CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
@@ -1488,12 +1497,12 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
-#if WIDE_ANGLES
+#if CONFIG_WAIP
   uint8_t intra_mode =
-      (mbmi->is_wide_angle ? mbmi->mapped_intra_mode : mbmi->mode);
+      (mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode);
 #else
   uint8_t intra_mode = mbmi->mode;
-#endif
+#endif  // CONFIG_WAIP
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   return x->mode_costs.stx_set_flag_cost[stx_set_ctx][stx_set_flag];
@@ -1532,10 +1541,10 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
-#if WIDE_ANGLES
-        else if (mbmi->is_wide_angle)
-          intra_dir = mbmi->mapped_intra_mode;
-#endif
+#if CONFIG_WAIP
+        else if (mbmi->is_wide_angle[0])
+          intra_dir = mbmi->mapped_intra_mode[0];
+#endif  // CONFIG_WAIP
         else
           intra_dir = mbmi->mode;
         TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
@@ -4420,12 +4429,12 @@ static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
-#if WIDE_ANGLES
+#if CONFIG_WAIP
   uint8_t intra_mode =
-      (mbmi->is_wide_angle ? mbmi->mapped_intra_mode : mbmi->mode);
+      (mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode);
 #else
   uint8_t intra_mode = mbmi->mode;
-#endif
+#endif  // CONFIG_WAIP
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   update_cdf(fc->stx_set_cdf[stx_set_ctx], (int8_t)stx_set_flag, IST_DIR_SIZE);
@@ -4494,10 +4503,10 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
-#if WIDE_ANGLES
-        else if (mbmi->is_wide_angle)
-          intra_dir = mbmi->mapped_intra_mode;
-#endif
+#if CONFIG_WAIP
+        else if (mbmi->is_wide_angle[0])
+          intra_dir = mbmi->mapped_intra_mode[0];
+#endif  // CONFIG_WAIP
         else
           intra_dir = mbmi->mode;
 #if CONFIG_ENTROPY_STATS

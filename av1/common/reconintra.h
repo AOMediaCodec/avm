@@ -278,6 +278,49 @@ static INLINE int av1_get_dy(int angle) {
     return 1;
   }
 }
+
+#if CONFIG_WAIP
+// Check whether one angular intra prediction needs to be mapped to wide angles.
+// If it needs to be mapped, either add or subtract 180 degrees to make it wide
+// angles.
+static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, TX_SIZE tx_size,
+                                     PREDICTION_MODE mode, const int plane) {
+  const int txwpx = tx_size_wide[tx_size];
+  const int txhpx = tx_size_high[tx_size];
+  int mrl_index = (plane == PLANE_TYPE_Y ? mbmi->mrl_index : 0);
+  const int is_dr_mode = av1_is_directional_mode(mode);
+  mbmi->is_wide_angle[plane > 0] = 0;
+  mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
+  int p_angle = 0;
+  if (is_dr_mode) {
+    const int angle_delta =
+        mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
+    p_angle = mode_to_angle_map[mode] + angle_delta;
+#if CONFIG_IMPROVED_INTRA_DIR_PRED
+    const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };
+    p_angle += mrl_index_to_delta[mrl_index];
+    assert(p_angle > 0 && p_angle < 270);
+#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+    if ((txhpx == 2 * txwpx && p_angle < 61) ||
+        (txhpx == 4 * txwpx && p_angle < 73) ||
+        (txhpx == 8 * txwpx && p_angle < 82) ||
+        (txhpx == 16 * txwpx && p_angle < 86)) {
+      p_angle = 180 + p_angle;
+      mbmi->is_wide_angle[plane > 0] = 1;
+      mbmi->mapped_intra_mode[plane > 0] = D203_PRED;
+    } else if ((txwpx == 2 * txhpx && p_angle > 270 - 61) ||
+               (txwpx == 4 * txhpx && p_angle > 270 - 73) ||
+               (txwpx == 8 * txhpx && p_angle > 270 - 82) ||
+               (txwpx == 16 * txhpx && p_angle > 270 - 86)) {
+      p_angle = p_angle - 180;
+      mbmi->is_wide_angle[plane > 0] = 1;
+      mbmi->mapped_intra_mode[plane > 0] = D45_PRED;
+    }
+  }
+  return p_angle;
+}
+#endif  // CONFIG_WAIP
+
 #if CONFIG_ENABLE_MHCCP
 // fetch neighboring luma samples for multi hypothesis cross component
 // prediction

@@ -510,6 +510,17 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   }
 #endif  // CONFIG_CONTEXT_DERIVATION
 
+#if CONFIG_WAIP
+  MB_MODE_INFO *mbmi = xd->mi[0];
+  if (is_inter_block(mbmi, xd->tree_type)) {
+    mbmi->is_wide_angle[plane > 0] = 0;
+    mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
+  } else {
+    PREDICTION_MODE mode = (plane == PLANE_TYPE_Y ? mbmi->mode : mbmi->uv_mode);
+    wide_angle_mapping(mbmi, tx_size, mode, plane);
+  }
+#endif  // CONFIG_WAIP
+
   if (all_zero) {
     *max_scan_line = 0;
     if (plane == 0) {
@@ -520,6 +531,14 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   decode_eob(dcb, r, plane, tx_size);
   av1_read_tx_type(cm, xd, blk_row, blk_col, tx_size, r, plane, *eob,
                    is_inter ? 0 : *eob);
+#if WIDE_ANGLE_DEBUG
+  fprintf(file_dec,
+          "plane = %d, mi_row = %d, mi_col = %d, is_wide_angle = %d, "
+          "mapped_intra_mode = %d\n",
+          plane, mbmi->mi_row_start, mbmi->mi_col_start,
+          mbmi->is_wide_angle[plane > 0], mbmi->mapped_intra_mode[plane > 0]);
+  fflush(file_dec);
+#endif
 
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
     const int skip_cctx = is_inter ? 0 : (*eob == 1);

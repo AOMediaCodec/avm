@@ -531,12 +531,12 @@ typedef struct MB_MODE_INFO {
   PALETTE_MODE_INFO palette_mode_info;
   /*! \brief Reference line index for multiple reference line selection. */
   uint8_t mrl_index;
-#if WIDE_ANGLES
-  /*! \brief Whether this mode is wide angle mode. */
-  uint8_t is_wide_angle;
-  /*! \brief The mapped prediction mode */
-  PREDICTION_MODE mapped_intra_mode;
-#endif
+#if CONFIG_WAIP
+  /*! \brief Whether this luma/chroma mode is wide angle mode. */
+  uint8_t is_wide_angle[2];
+  /*! \brief The mapped luma/chroma prediction mode */
+  PREDICTION_MODE mapped_intra_mode[2];
+#endif  // CONFIG_WAIP
 #if CONFIG_AIMC
   /*! \brief mode index of y mode and y delta angle after re-ordering. */
   uint8_t y_mode_idx;
@@ -2571,8 +2571,16 @@ static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
     DCT_ADST,   // SMOOTH_H_PRED
     ADST_ADST,  // PAETH_PRED
   };
+#if CONFIG_WAIP
+  const PREDICTION_MODE mode =
+      (plane_type == PLANE_TYPE_Y)
+          ? (mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode)
+          : (mbmi->is_wide_angle[1] ? get_uv_mode(mbmi->mapped_intra_mode[1])
+                                    : get_uv_mode(mbmi->uv_mode));
+#else
   const PREDICTION_MODE mode =
       (plane_type == PLANE_TYPE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+#endif  // CONFIG_WAIP
   assert(mode < INTRA_MODES);
   return _intra_mode_to_tx_type[mode];
 }

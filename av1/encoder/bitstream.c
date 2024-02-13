@@ -1494,10 +1494,10 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
   if (mbmi->filter_intra_mode_info.use_filter_intra)
     intra_dir =
         fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-#if WIDE_ANGLES
-  else if (mbmi->is_wide_angle)
-    intra_dir = mbmi->mapped_intra_mode;
-#endif
+#if CONFIG_WAIP
+  else if (mbmi->is_wide_angle[0])
+    intra_dir = mbmi->mapped_intra_mode[0];
+#endif  // CONFIG_WAIP
   else
     intra_dir = mbmi->mode;
   const FeatureFlags *const features = &cm->features;
@@ -1519,9 +1519,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     const int size_info = av1_size_class[tx_size];
     if (!is_inter) {
       const int mode_info = av1_md_class[intra_dir];
-#if !WIDE_ANGLES
       (void)mode_info;
-#endif
       assert(tx_set_type == EXT_NEW_TX_SET
                  ? av1_mdtx_used_flag[av1_size_class[tx_size]][mode_info]
                                      [get_primary_tx_type(tx_type)]
@@ -1580,12 +1578,12 @@ static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
   assert(stx_set_flag <= IST_SET_SIZE - 1);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
-#if WIDE_ANGLES
+#if CONFIG_WAIP
   uint8_t intra_mode =
-      (mbmi->is_wide_angle ? mbmi->mapped_intra_mode : mbmi->mode);
+      (mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode);
 #else
   uint8_t intra_mode = mbmi->mode;
-#endif
+#endif  // CONFIG_WAIP
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   aom_write_symbol(w, stx_set_flag, ec_ctx->stx_set_cdf[stx_set_ctx],
