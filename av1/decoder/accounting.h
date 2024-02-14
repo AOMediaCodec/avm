@@ -102,6 +102,9 @@ typedef struct {
   int num_bypass_coded;
   /** Context coded. */
   int num_ctx_coded;
+  uint16_t *prev_context_id;
+  int context_switch;
+  int total_hits;
   /** Dictionary for translating strings into id. */
   AccountingDictionary dictionary;
 } AccountingSymbols;

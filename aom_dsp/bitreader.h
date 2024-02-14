@@ -118,7 +118,8 @@ static INLINE void aom_process_accounting(const aom_reader *r, int value,
 
 #if CONFIG_THROUGHPUT_ANALYSIS
 static INLINE void aom_update_symb_counts(const aom_reader *r, int is_binary,
-                                          int is_context_coded, int n_bits) {
+                                          int is_context_coded, int n_bits,
+                                          const aom_cdf_prob *cdf) {
 #else
 static INLINE void aom_update_symb_counts(const aom_reader *r, int is_binary,
                                           int n_bits) {
@@ -131,6 +132,13 @@ static INLINE void aom_update_symb_counts(const aom_reader *r, int is_binary,
       r->accounting->syms.num_ctx_coded += n_bits;
     } else {
       r->accounting->syms.num_bypass_coded += n_bits;
+    }
+    if (is_context_coded && cdf != NULL) {
+      if (cdf != r->accounting->syms.prev_context_id) {
+        r->accounting->syms.context_switch += 1;
+      }
+      r->accounting->syms.total_hits++;
+      r->accounting->syms.prev_context_id = (aom_cdf_prob *)cdf;
     }
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
   }
@@ -179,7 +187,7 @@ static INLINE int aom_read_(aom_reader *r, int prob ACCT_INFO_PARAM) {
   if (ACCT_INFO_NAME.c_file)
     aom_process_accounting(r, bit, SYMBOL_BIT, ACCT_INFO_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
-  aom_update_symb_counts(r, 1, 0, 1);
+  aom_update_symb_counts(r, 1, 0, 1, NULL);
 #else
   aom_update_symb_counts(r, 1, 1);
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
@@ -236,7 +244,7 @@ static INLINE int aom_read_bypass_(aom_reader *r ACCT_INFO_PARAM) {
   if (ACCT_INFO_NAME.c_file)
     aom_process_accounting(r, ret, SYMBOL_BIT_BYPASS, ACCT_INFO_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
-  aom_update_symb_counts(r, 1, 0, 1);
+  aom_update_symb_counts(r, 1, 0, 1, NULL);
 #else
   aom_update_symb_counts(r, 1, 1);
 #endif
@@ -277,7 +285,7 @@ static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_INFO_PARAM) {
   if (ACCT_INFO_NAME.c_file)
     aom_process_accounting(r, literal, SYMBOL_LITERAL_BYPASS, ACCT_INFO_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
-  aom_update_symb_counts(r, 1, 0, bits);
+  aom_update_symb_counts(r, 1, 0, bits, NULL);
 #else
   aom_update_symb_counts(r, 1, bits);
 #endif
@@ -305,7 +313,7 @@ static INLINE int aom_read_unary_(aom_reader *r,
   if (ACCT_INFO_NAME.c_file)
     aom_process_accounting(r, ret, SYMBOL_UNARY, ACCT_INFO_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
-  aom_update_symb_counts(r, 1, 0, n_bits);
+  aom_update_symb_counts(r, 1, 0, n_bits, NULL);
 #else
   aom_update_symb_counts(r, 1, n_bits);
 #endif
@@ -363,7 +371,7 @@ static INLINE int aom_read_cdf_(aom_reader *r, const aom_cdf_prob *cdf,
   if (ACCT_INFO_NAME.c_file)
     aom_process_accounting(r, symb, SYMBOL_CDF, ACCT_INFO_NAME);
 #if CONFIG_THROUGHPUT_ANALYSIS
-  aom_update_symb_counts(r, (nsymbs == 2), 1, 1);
+  aom_update_symb_counts(r, (nsymbs == 2), 1, 1, cdf);
 #else
   aom_update_symb_counts(r, (nsymbs == 2), 1);
 #endif  // CONFIG_THROUGHPUT_ANALYSIS

@@ -1199,6 +1199,10 @@ struct total_sym_stats {
   int64_t peak_bypass_syms;
   /** peak bits. */
   int64_t peak_bits;
+  /** total number of cdf switches */
+  int64_t total_context_switch;
+  /** total number of CDF hits */
+  int64_t total_total_hits;
 };
 #endif  // CONFIG_THROUGHPUT_ANALYSIS
 
