@@ -2348,6 +2348,11 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
+#if IMPLICIT_INTRA_QT_SPLIT
+  if (frame_is_intra_only(cm) && is_square_split_eligible(bsize, cm->sb_size))
+    return PARTITION_SPLIT;
+#endif
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   (void)has_rows;
   (void)has_cols;

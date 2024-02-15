@@ -3327,6 +3327,11 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   if (bsize == BLOCK_8X8 && plane > 0) return;
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
 
+#if IMPLICIT_INTRA_QT_SPLIT
+  if (frame_is_intra_only(cm) && is_square_split_eligible(bsize, cm->sb_size))
+    return;
+#endif
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   const int ssx = cm->seq_params.subsampling_x;
   const int ssy = cm->seq_params.subsampling_y;

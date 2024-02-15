@@ -34,6 +34,9 @@ extern "C" {
 #define SINGLE_STEP_SEARCH 0
 #endif  // CONFIG_REFINEMV
 
+#define IMPLICIT_INTRA_QT_SPLIT 1
+#define INTRA_SDP_DEBUG 0
+
 #if CONFIG_D071_IMP_MSK_BLD
 #define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
 #endif                        // CONFIG_D071_IMP_MSK_BLD
