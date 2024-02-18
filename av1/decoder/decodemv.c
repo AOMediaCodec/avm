@@ -1823,9 +1823,15 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
 
 #if CONFIG_MORPH_PRED
-    const int morph_pred_ctx = get_morph_pred_ctx(xd);
-    mbmi->morph_pred = aom_read_symbol(
-        r, ec_ctx->morph_pred_cdf[morph_pred_ctx], 2, ACCT_INFO());
+#if CONFIG_IMPROVED_MORPH_PRED
+    if (av1_allow_intrabc_morph_pred(cm, bsize)) {
+#endif  // CONFIG_IMPROVED_MORPH_PRED
+      const int morph_pred_ctx = get_morph_pred_ctx(xd);
+      mbmi->morph_pred = aom_read_symbol(
+          r, ec_ctx->morph_pred_cdf[morph_pred_ctx], 2, ACCT_INFO());
+#if CONFIG_IMPROVED_MORPH_PRED
+    }
+#endif  // CONFIG_IMPROVED_MORPH_PRED
 #endif  // CONFIG_MORPH_PRED
   }
 }
@@ -1993,7 +1999,13 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
 #if CONFIG_SKIP_TXFM_OPT
-  if (av1_allow_intrabc(cm, xd) && xd->tree_type != CHROMA_PART) {
+  if (av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                        ,
+                        bsize
+#endif  // CONFIG_ENABLE_IBC_NAT
+                        ) &&
+      xd->tree_type != CHROMA_PART) {
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
@@ -2060,7 +2072,13 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   xd->left_txfm_context =
       xd->left_txfm_context_buffer + (mi_row & MAX_MIB_MASK);
 #endif  // !CONFIG_TX_PARTITION_CTX
-  if (av1_allow_intrabc(cm, xd) && xd->tree_type != CHROMA_PART) {
+  if (av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                        ,
+                        bsize
+#endif  // CONFIG_ENABLE_IBC_NAT
+                        ) &&
+      xd->tree_type != CHROMA_PART) {
     read_intrabc_info(cm, dcb, r);
     if (is_intrabc_block(mbmi, xd->tree_type)) {
 #if CONFIG_LOSSLESS_DPCM
@@ -4487,7 +4505,14 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   }
 
 #if CONFIG_IBC_SR_EXT
-  if (!inter_block && av1_allow_intrabc(cm, xd) &&
+  if (!inter_block &&
+      av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                        ,
+                        mbmi->sb_type[xd->tree_type == CHROMA_PART]
+#endif  // CONFIG_ENABLE_IBC_NAT
+
+                        ) &&
       xd->tree_type != CHROMA_PART) {
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
@@ -4560,7 +4585,13 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #endif  // !CONFIG_TX_PARTITION_CTX
 
 #if CONFIG_IBC_SR_EXT
-  if (!inter_block && av1_allow_intrabc(cm, xd) &&
+  if (!inter_block &&
+      av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                        ,
+                        mbmi->sb_type[xd->tree_type == CHROMA_PART]
+#endif  // CONFIG_ENABLE_IBC_NAT
+                        ) &&
       xd->tree_type != CHROMA_PART) {
     mbmi->ref_frame[0] = INTRA_FRAME;
     mbmi->ref_frame[1] = NONE_FRAME;

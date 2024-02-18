@@ -200,7 +200,12 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
     case AOM_SUPERRES_RANDOM: new_denom = lcg_rand16(&seed) % 9 + 8; break;
     case AOM_SUPERRES_QTHRESH: {
       // Do not use superres when screen content tools are used.
-      if (cpi->common.features.allow_screen_content_tools) break;
+      if (cpi->common.features.allow_screen_content_tools
+#if CONFIG_ENABLE_IBC_NAT
+          || cpi->common.features.allow_intrabc
+#endif  // CONFIG_ENABLE_IBC_NAT
+      )
+        break;
       if (rc_cfg->mode == AOM_VBR || rc_cfg->mode == AOM_CQ)
         av1_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
 
@@ -221,7 +226,12 @@ static uint8_t calculate_next_superres_scale(AV1_COMP *cpi) {
       break;
     }
     case AOM_SUPERRES_AUTO: {
-      if (cpi->common.features.allow_screen_content_tools) break;
+      if (cpi->common.features.allow_screen_content_tools
+#if CONFIG_ENABLE_IBC_NAT
+          || cpi->common.features.allow_intrabc
+#endif  // CONFIG_ENABLE_IBC_NAT
+      )
+        break;
       if (rc_cfg->mode == AOM_VBR || rc_cfg->mode == AOM_CQ)
         av1_set_target_rate(cpi, frm_dim_cfg->width, frm_dim_cfg->height);
 

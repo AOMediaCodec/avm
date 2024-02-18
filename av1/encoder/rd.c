@@ -1602,7 +1602,12 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
     av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
                       cm->features.fr_mv_precision, mv_costs);
 
-  if (cm->features.allow_screen_content_tools &&
+  if (
+#if CONFIG_ENABLE_IBC_NAT
+      cm->features.allow_intrabc &&
+#else
+      cm->features.allow_screen_content_tools &&
+#endif  // CONFIG_ENABLE_IBC_NAT
 #if !CONFIG_IBC_BV_IMPROVEMENT
       frame_is_intra_only(cm) &&
 #endif  // !CONFIG_IBC_BV_IMPROVEMENT

@@ -6646,8 +6646,13 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                        int64_t best_rd) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
-  if (!av1_allow_intrabc(cm, xd) || (xd->tree_type == CHROMA_PART) ||
-      !cpi->oxcf.kf_cfg.enable_intrabc)
+  if (!av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                         ,
+                         bsize
+#endif  // CONFIG_ENABLE_IBC_NAT
+                         ) ||
+      (xd->tree_type == CHROMA_PART) || !cpi->oxcf.kf_cfg.enable_intrabc)
     return INT64_MAX;
   const int num_planes = av1_num_planes(cm);
   const TileInfo *tile = &xd->tile;
@@ -7083,11 +7088,18 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #if CONFIG_MORPH_PRED
+
+#if CONFIG_IMPROVED_MORPH_PRED
+    int allow_morph_pred = av1_allow_intrabc_morph_pred(cm, bsize);
+    int num_modes_to_search = 1 + allow_morph_pred;
+#else
     int num_modes_to_search =
         frame_is_intra_only(cm) ? 2 : 1 + cm->features.allow_intrabc;
     if (block_size_wide[bsize] > 64 || block_size_high[bsize] > 64) {
       num_modes_to_search = 1;
     }
+#endif  // CONFIG_IMPROVED_MORPH_PRED
+
 #if CONFIG_IBC_SR_EXT
     if (num_modes_to_search > 1) {
       const int local_intrabc = is_local_intrabc(dv, cm, xd, mi_row, mi_col,
@@ -7097,10 +7109,18 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     }
 #endif  // CONFIG_IBC_SR_EXT
     for (int morph_idx = 0; morph_idx < num_modes_to_search; ++morph_idx) {
+#if CONFIG_IMPROVED_MORPH_PRED
+      if (morph_idx && !allow_morph_pred) continue;
+#endif  // CONFIG_IMPROVED_MORPH_PRED
       mbmi->morph_pred = morph_idx;
       const int morph_pred_ctx = get_morph_pred_ctx(xd);
       const int morph_pred_cost =
-          x->mode_costs.morph_pred_cost[morph_pred_ctx][morph_idx];
+#if CONFIG_IMPROVED_MORPH_PRED
+          !allow_morph_pred
+              ? 0
+              :
+#endif  // CONFIG_IMPROVED_MORPH_PRED
+              x->mode_costs.morph_pred_cost[morph_pred_ctx][morph_idx];
       if (morph_idx == 0) {
         // Build intra bc predictor for yuv planes as baseline.
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
@@ -7258,16 +7278,37 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
 
   if (rd_cost->rate != INT_MAX && rd_cost->rdcost < best_rd)
     best_rd = rd_cost->rdcost;
-  if (rd_pick_intrabc_mode_sb(cpi, x, ctx, rd_cost, bsize, best_rd) < best_rd) {
-    ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
-    for (int i = 0; i < num_planes; ++i) {
-      const int num_blk_plane =
-          (i == AOM_PLANE_Y) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
-      memcpy(ctx->blk_skip[i], txfm_info->blk_skip[i],
-             sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
+#if CONFIG_ENABLE_IBC_NAT
+  int all_intra = (cpi->oxcf.kf_cfg.key_freq_max == 0) &&
+                  (cpi->oxcf.kf_cfg.key_freq_min == 0);
+  int nz = 0;
+  if (all_intra) {
+    struct macroblock_plane *const p = &x->plane[0];
+    tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(0);
+    // const int eob = p->eobs[0];
+    for (int i = 0;
+         i < tx_size_wide[mbmi->tx_size] * tx_size_high[mbmi->tx_size]; ++i) {
+      if (qcoeff[i] > 0) nz++;
     }
-    assert(rd_cost->rate != INT_MAX);
   }
+  int skip_ibc_search =
+      !cm->features.allow_screen_content_tools && all_intra && (nz <= 0);
+  if (!skip_ibc_search) {
+#endif  // CONFIG_ENABLE_IBC_NAT
+    if (rd_pick_intrabc_mode_sb(cpi, x, ctx, rd_cost, bsize, best_rd) <
+        best_rd) {
+      ctx->rd_stats.skip_txfm = mbmi->skip_txfm[xd->tree_type == CHROMA_PART];
+      for (int i = 0; i < num_planes; ++i) {
+        const int num_blk_plane =
+            (i == AOM_PLANE_Y) ? ctx->num_4x4_blk : ctx->num_4x4_blk_chroma;
+        memcpy(ctx->blk_skip[i], txfm_info->blk_skip[i],
+               sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
+      }
+      assert(rd_cost->rate != INT_MAX);
+    }
+#if CONFIG_ENABLE_IBC_NAT
+  }
+#endif  // CONFIG_ENABLE_IBC_NAT
   if (rd_cost->rate == INT_MAX) return;
 
   ctx->mic = *xd->mi[0];
@@ -10729,7 +10770,13 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   if (search_state.best_skip2 == 0) {
     const int try_intrabc = cpi->oxcf.kf_cfg.enable_intrabc &&
                             cpi->oxcf.kf_cfg.enable_intrabc_ext &&
-                            av1_allow_intrabc(cm, xd) &&
+                            av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                                              ,
+                                              bsize
+#endif  // CONFIG_ENABLE_IBC_NAT
+
+                                              ) &&
                             (xd->tree_type != CHROMA_PART);
     if (try_intrabc) {
       this_rd_cost.rdcost = INT64_MAX;

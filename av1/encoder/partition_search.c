@@ -586,7 +586,13 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   }
 
   if (!dry_run) {
-    if (av1_allow_intrabc(cm, xd) && is_intrabc_block(mbmi, xd->tree_type))
+    if (av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                          ,
+                          bsize
+#endif  // CONFIG_ENABLE_IBC_NAT
+                          ) &&
+        is_intrabc_block(mbmi, xd->tree_type))
       td->intrabc_used = 1;
     if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
         !xd->lossless[mbmi->segment_id] &&
@@ -1334,7 +1340,13 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_ENTROPY_STATS
       update_cdf(fc->intra_inter_cdf[intra_inter_ctx], inter_block, 2);
     }
-    if (!inter_block && av1_allow_intrabc(cm, xd) &&
+    if (!inter_block &&
+        av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                          ,
+                          bsize
+#endif  // CONFIG_ENABLE_IBC_NAT
+                          ) &&
         xd->tree_type != CHROMA_PART) {
 #if CONFIG_NEW_CONTEXT_MODELING
       const int intrabc_ctx = get_intrabc_ctx(xd);
@@ -1429,7 +1441,13 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   if (!is_inter_block(mbmi, xd->tree_type)) {
     av1_sum_intra_stats(cm, td->counts, xd, mbmi);
   }
-  if (av1_allow_intrabc(cm, xd) && xd->tree_type != CHROMA_PART) {
+  if (av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                        ,
+                        bsize
+#endif  // CONFIG_ENABLE_IBC_NAT
+                        ) &&
+      xd->tree_type != CHROMA_PART) {
 #if !CONFIG_SKIP_TXFM_OPT
     const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
 #if CONFIG_NEW_CONTEXT_MODELING
@@ -1490,11 +1508,21 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #endif  // CONFIG_IBC_MAX_DRL
 
 #if CONFIG_MORPH_PRED
-      const int morph_pred_ctx = get_morph_pred_ctx(xd);
-      update_cdf(fc->morph_pred_cdf[morph_pred_ctx], mbmi->morph_pred, 2);
+#if CONFIG_IMPROVED_MORPH_PRED
+      if (av1_allow_intrabc_morph_pred(cm, bsize)) {
+#endif  // CONFIG_IMPROVED_MORPH_PRED
+        const int morph_pred_ctx = get_morph_pred_ctx(xd);
+        update_cdf(fc->morph_pred_cdf[morph_pred_ctx], mbmi->morph_pred, 2);
 #if CONFIG_ENTROPY_STATS
-      ++td->counts->morph_pred_count[morph_pred_ctx][mbmi->morph_pred];
+        ++td->counts->morph_pred_count[morph_pred_ctx][mbmi->morph_pred];
 #endif  // CONFIG_ENTROPY_STATS
+
+#if CONFIG_IMPROVED_MORPH_PRED
+      } else {
+        assert(mbmi->morph_pred == 0);
+      }
+#endif  // CONFIG_IMPROVED_MORPH_PRED
+
 #endif  // CONFIG_MORPH_PRED
     }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT

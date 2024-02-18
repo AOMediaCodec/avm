@@ -658,6 +658,13 @@ typedef struct {
    */
   bool allow_screen_content_tools;
   bool allow_intrabc; /*!< If true, intra block copy tool may be used. */
+#if CONFIG_ENABLE_IBC_NAT
+  /*!
+   * check if the content is detected as screen content from the detector
+   */
+  bool is_scc_content_by_detector;
+#endif  // CONFIG_ENABLE_IBC_NAT
+
 #if CONFIG_SCC_DETERMINATION
   /*!
    * allow_screen_content_tools on key frames

@@ -84,6 +84,8 @@ set_aom_config_var(CONFIG_RUNTIME_CPU_DETECT 1 "Runtime CPU detection support.")
 set_aom_config_var(CONFIG_SHARED 0 "Build shared libs.")
 set_aom_config_var(CONFIG_WEBM_IO 1 "Enables WebM support.")
 
+set_aom_config_var(CONFIG_ENABLE_IBC_NAT 1 "Enables IBC for natural content")
+
 # Debugging flags.
 set_aom_config_var(CONFIG_DEBUG 0 "Enable debug-only code.")
 set_aom_config_var(CONFIG_MISMATCH_DEBUG 0 "Mismatch debugging flag.")
@@ -192,6 +194,8 @@ set_aom_config_var(CONFIG_AIMC 1 "AV2 adaptive intra mode coding flag.")
 set_aom_config_var(CONFIG_WAIP 1 "AV2 wide angular intra prediction flag.")
 set_aom_config_var(CONFIG_UV_CFL 1 "AV2 intra UV mode and CFL coding flag.")
 set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
+set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
+                   "Improvement of AV2 linear intra prediction mode.")
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
@@ -227,7 +231,7 @@ set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
-set_aom_config_var(CONFIG_IBC_SR_EXT 1 "Enables IntraBC search range extension")
+set_aom_config_var(CONFIG_IBC_SR_EXT 2 "Enables IntraBC search range extension")
 set_aom_config_var(CONFIG_IBC_BV_IMPROVEMENT 1
                    "Enables BV improvements for IBC")
 set_aom_config_var(CONFIG_IBC_MAX_DRL 1

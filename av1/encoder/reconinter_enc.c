@@ -358,7 +358,11 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 #if CONFIG_MORPH_PRED
   if (mbmi->morph_pred) {
+#if CONFIG_ENABLE_IBC_NAT
+    assert(av1_allow_intrabc(cm, xd, bsize));
+#else
     assert(av1_allow_intrabc(cm, xd));
+#endif  // CONFIG_ENABLE_IBC_NAT
     assert(is_intrabc_block(mbmi, xd->tree_type));
     av1_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
   }

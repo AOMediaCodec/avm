@@ -1363,7 +1363,14 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
 
 #if CONFIG_MORPH_PRED
   if (mbmi->morph_pred) {
+#if CONFIG_ENABLE_IBC_NAT
+    assert(av1_allow_intrabc(cm, xd, bsize));
+#else
     assert(av1_allow_intrabc(cm, xd));
+#endif  // CONFIG_ENABLE_IBC_NAT
+#if CONFIG_IMPROVED_MORPH_PRED
+    assert(av1_allow_intrabc_morph_pred(cm, bsize));
+#endif  // CONFIG_IMPROVED_MORPH_PRED
     assert(is_intrabc_block(mbmi, xd->tree_type));
     av1_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
   }
@@ -7739,7 +7746,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
 
-    if (features->allow_screen_content_tools && !av1_superres_scaled(cm))
+    if (
+#if !CONFIG_ENABLE_IBC_NAT
+        features->allow_screen_content_tools &&
+#endif  //! CONFIG_ENABLE_IBC_NAT
+        !av1_superres_scaled(cm))
       features->allow_intrabc = aom_rb_read_bit(rb);
 #if CONFIG_IBC_SR_EXT
     if (features->allow_intrabc) {
@@ -7775,7 +7786,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->film_grain_params_present =
           seq_params->film_grain_params_present;
       setup_frame_size(cm, frame_size_override_flag, rb);
-      if (features->allow_screen_content_tools && !av1_superres_scaled(cm))
+      if (
+#if !CONFIG_ENABLE_IBC_NAT
+          features->allow_screen_content_tools &&
+#endif  //! CONFIG_ENABLE_IBC_NAT
+          !av1_superres_scaled(cm))
         features->allow_intrabc = aom_rb_read_bit(rb);
 #if CONFIG_IBC_SR_EXT
       if (features->allow_intrabc) {
@@ -8000,7 +8015,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
       if (features->tip_frame_mode != TIP_FRAME_AS_OUTPUT) {
 #if CONFIG_IBC_SR_EXT
-        if (features->allow_screen_content_tools && !av1_superres_scaled(cm)) {
+        if (
+#if !CONFIG_ENABLE_IBC_NAT
+            features->allow_screen_content_tools &&
+#endif  //! CONFIG_ENABLE_IBC_NAT
+            !av1_superres_scaled(cm)) {
           features->allow_intrabc = aom_rb_read_bit(rb);
           features->allow_global_intrabc = 0;
           features->allow_local_intrabc = features->allow_intrabc;
@@ -8544,7 +8563,13 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       (uint32_t)aom_rb_bytes_read(rb);  // Size of the uncompressed header
   YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
   xd->cur_buf = new_fb;
-  if (av1_allow_intrabc(cm, xd) && xd->tree_type != CHROMA_PART) {
+  if (av1_allow_intrabc(cm, xd
+#if CONFIG_ENABLE_IBC_NAT
+                        ,
+                        BLOCK_4X4
+#endif  // CONFIG_ENABLE_IBC_NAT
+                        ) &&
+      xd->tree_type != CHROMA_PART) {
     av1_setup_scale_factors_for_frame(
         &cm->sf_identity, xd->cur_buf->y_crop_width, xd->cur_buf->y_crop_height,
         xd->cur_buf->y_crop_width, xd->cur_buf->y_crop_height);

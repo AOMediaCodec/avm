@@ -1932,7 +1932,7 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
 
 void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   const AV1_COMMON *const cm = &cpi->common;
-
+#if !CONFIG_ENABLE_IBC_NAT
   if (cm->seq_params.force_screen_content_tools != 2) {
     features->allow_screen_content_tools = features->allow_intrabc =
         cm->seq_params.force_screen_content_tools;
@@ -1943,7 +1943,7 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
     features->allow_screen_content_tools = features->allow_intrabc = 1;
     return;
   }
-
+#endif  // !CONFIG_ENABLE_IBC_NAT
   // Estimate if the source frame is screen content, based on the portion of
   // blocks that have few luma colors.
   const uint16_t *src = cpi->unfiltered_source->y_buffer;
@@ -1993,6 +1993,28 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   features->allow_intrabc =
       features->allow_screen_content_tools &&
       counts_2 * blk_h * blk_w * var_factor > width * height;
+
+#if CONFIG_ENABLE_IBC_NAT
+  features->is_scc_content_by_detector =
+      features->allow_screen_content_tools &&
+      counts_2 * blk_h * blk_w * var_factor > width * height;
+
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    features->allow_screen_content_tools = features->allow_intrabc =
+        features->is_scc_content_by_detector = 1;
+    return;
+  }
+
+  if (cm->seq_params.force_screen_content_tools > 0) {
+    features->allow_intrabc = 1;
+    return;
+  }
+  if (cm->seq_params.force_screen_content_tools != 2) {
+    features->allow_screen_content_tools = features->allow_intrabc =
+        cm->seq_params.force_screen_content_tools;
+    return;
+  }
+#endif  // CONFIG_ENABLE_IBC_NAT
 
   if (frame_is_intra_only(cm) && cm->seq_params.enable_tip) {
     set_hole_fill_decision(cpi, width, height, blk_w, blk_h, counts_1,
@@ -2796,6 +2818,9 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_IBC_SR_EXT
   if (cm->features.allow_intrabc) {
     cm->features.allow_global_intrabc =
+#if CONFIG_ENABLE_IBC_NAT
+        cm->features.is_scc_content_by_detector &&
+#endif  // CONFIG_ENABLE_IBC_NAT
         (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
     cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
   } else {
@@ -3865,7 +3890,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   cpi->is_screen_content_type = features->allow_screen_content_tools;
   if (cm->features.allow_intrabc) {
     cm->features.allow_global_intrabc =
+#if CONFIG_ENABLE_IBC_NAT
+        cm->features.is_scc_content_by_detector &&
+#endif  // CONFIG_ENABLE_IBC_NAT
         (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
+
     cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
     set_max_bvp_drl_bits(cpi);

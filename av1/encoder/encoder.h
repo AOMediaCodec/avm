@@ -3469,15 +3469,23 @@ static INLINE int frame_is_kf_gf_arf(const AV1_COMP *cpi) {
 
 // TODO(huisu@google.com, youzhou@microsoft.com): enable hash-me for HBD.
 static INLINE int av1_use_hash_me(const AV1_COMP *const cpi) {
+#if CONFIG_ENABLE_IBC_NAT
+  if (!cpi->common.features.is_scc_content_by_detector) return 0;
+#endif  // CONFIG_ENABLE_IBC_NAT
 #if CONFIG_IBC_SR_EXT
-  return (cpi->common.features.allow_screen_content_tools &&
-          cpi->common.features.allow_intrabc) &&
+  return (
+#if !CONFIG_ENABLE_IBC_NAT
+             cpi->common.features.allow_screen_content_tools &&
+#endif  //! CONFIG_ENABLE_IBC_NAT
+             cpi->common.features.allow_intrabc) &&
          (frame_is_intra_only(&cpi->common) ||
           cpi->common.features.allow_local_intrabc);
 #else
-  return (cpi->common.features.allow_screen_content_tools &&
-          cpi->common.features.allow_intrabc &&
-          frame_is_intra_only(&cpi->common));
+  return (
+#if !CONFIG_ENABLE_IBC_NAT
+      cpi->common.features.allow_screen_content_tools &&
+#endif  // !CONFIG_ENABLE_IBC_NAT
+      cpi->common.features.allow_intrabc && frame_is_intra_only(&cpi->common));
 #endif  // CONFIG_IBC_SR_EXT
 }
 
