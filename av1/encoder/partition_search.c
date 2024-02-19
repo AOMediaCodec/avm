@@ -2434,9 +2434,6 @@ static void update_partition_stats(MACROBLOCKD *const xd,
 #endif  // CONFIG_ENTROPY_STATS
                                    int allow_update_cdf,
                                    const CommonModeInfoParams *const mi_params,
-#if IMPLICIT_INTRA_QT_SPLIT
-                                   int is_intra_frame,
-#endif
 #if CONFIG_EXT_RECUR_PARTITIONS
                                    int disable_ext_part,
                                    PARTITION_TREE const *ptree_luma,
@@ -2452,10 +2449,6 @@ static void update_partition_stats(MACROBLOCKD *const xd,
   const int plane_index = tree_type == CHROMA_PART;
   FRAME_CONTEXT *fc = xd->tile_ctx;
   assert(ctx >= 0);  // is_partition_point() is true.
-
-#if IMPLICIT_INTRA_QT_SPLIT
-  if (is_intra_frame && is_square_split_eligible(bsize, sb_size)) return;
-#endif
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   const bool ss_x = xd->plane[1].subsampling_x;
@@ -2694,9 +2687,6 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                            td->counts,
 #endif  // CONFIG_ENTROPY_STATS
                            tile_data->allow_update_cdf, mi_params,
-#if IMPLICIT_INTRA_QT_SPLIT
-                           frame_is_intra_only(cm),
-#endif
 #if CONFIG_EXT_RECUR_PARTITIONS
                            disable_ext_part, ptree_luma,
                            &pc_tree->chroma_ref_info,
@@ -3687,12 +3677,6 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
   const MACROBLOCKD *xd = &x->e_mbd;
   const bool ss_x = cm->seq_params.subsampling_x;
   const bool ss_y = cm->seq_params.subsampling_y;
-
-#if IMPLICIT_INTRA_QT_SPLIT
-  if (frame_is_intra_only(cm) && is_square_split_eligible(bsize, cm->sb_size))
-    return PARTITION_SPLIT;
-#endif
-
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(&cm->mi_params, xd->tree_type,
                                               ss_x, ss_y, mi_row, mi_col, bsize,
@@ -4242,12 +4226,6 @@ static AOM_INLINE int is_rect_part_allowed(
 #else
   const int mi_step = blk_params.mi_step;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-#if IMPLICIT_INTRA_QT_SPLIT
-  AV1_COMMON *const cm = &cpi->common;
-  if (frame_is_intra_only(cm) &&
-      is_square_split_eligible(blk_params.bsize, cm->sb_size))
-    return 0;
-#endif
   const int is_part_allowed =
       (!part_search_state->terminate_partition_search &&
        part_search_state->partition_rect_allowed[rect_part] &&
@@ -7350,11 +7328,6 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // Set buffers and offsets.
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
                   &pc_tree->chroma_ref_info);
-
-#if INTRA_SDP_DEBUG
-  static int debug_point = 0;
-  if (mi_row == 64 && mi_col == 0 && bsize == BLOCK_128X128) debug_point += 1;
-#endif
 
   bool search_none_after_split = false;
   bool search_none_after_rect = false;

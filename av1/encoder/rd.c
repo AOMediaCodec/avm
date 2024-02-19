@@ -152,11 +152,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
         for (int context = 0; context < PARTITION_PLOFFSET; context++) {
           const int ctx = PARTITION_PLOFFSET * bsize + context;
           const bool do_split = part != PARTITION_NONE;
-#if IMPLICIT_INTRA_QT_SPLIT
-          if (frame_is_intra_only(cm) &&
-              is_square_split_eligible(bsize, cm->sb_size))
-            continue;
-#endif
           mode_costs->partition_cost[plane_index][ctx][part] +=
               mode_costs->do_split_cost[plane_index][ctx][do_split];
           if (!do_split) {
