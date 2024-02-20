@@ -65,6 +65,14 @@ static const int sgproj_ep_grp2_3[SGRPROJ_EP_GRP2_3_SEARCH_COUNT][14] = {
   { 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15 }
 };
 
+#if CONFIG_LR_IMPROVEMENTS
+// Number of elements needed in the temporary buffer for
+// compute_wienerns_filter
+#define WIENERNS_R_SIZE (WIENERNS_MAX_CLASSES * WIENERNS_MAX * WIENERNS_MAX)
+#define WIENERNS_b_SIZE (WIENERNS_MAX_CLASSES * WIENERNS_MAX)
+#define WIENERNS_TMPBUF_SIZE (WIENERNS_R_SIZE + WIENERNS_b_SIZE)
+#endif  // CONFIG_LR_IMPROVEMENTS
+
 typedef int64_t (*sse_extractor_type)(const YV12_BUFFER_CONFIG *a,
                                       const YV12_BUFFER_CONFIG *b);
 typedef int64_t (*sse_part_extractor_type)(const YV12_BUFFER_CONFIG *a,
@@ -166,6 +174,9 @@ typedef struct {
 
   const uint16_t *luma;
   int luma_stride;
+
+  // Temporary storage used by compute_wienerns_filter
+  double *wienerns_tmpbuf;
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_LR_MERGE_COEFFS
@@ -2858,15 +2869,14 @@ static int64_t finer_tile_search_wienerns(
 }
 
 static int compute_wienerns_filter(
-    int n, const double *A, int stride, const double *b, int16_t *nsfilter,
-    const WienernsFilterParameters *nsfilter_params) {
+    int n, const double *A, int stride, const double *b, double *tmpbuf,
+    int16_t *nsfilter, const WienernsFilterParameters *nsfilter_params) {
   assert(n > 0);
   assert(stride > 0);
 
-  // Allocate temporary space needed by linsolve_spd_quantize()
-  // This allows us to leave A and b untouched
-  double *R = (double *)malloc(sizeof(*R) * n * stride);
-  double *tmp = (double *)malloc(sizeof(*tmp) * n);
+  // Use temporary storage to avoid modifying A and b
+  double *R = tmpbuf;
+  double *tmp = tmpbuf + WIENERNS_R_SIZE;
 
   // Set up quantization data
   double prec[WIENERNS_MAX] = { 0 };
@@ -2897,8 +2907,6 @@ static int compute_wienerns_filter(
   }
 
 finished:
-  free(R);
-  free(tmp);
   return ret;
 }
 
@@ -3049,7 +3057,7 @@ static int compute_quantized_wienerns_filter(
       int16_t *nsfilter = nsfilter_taps(&rui->wienerns_info, c_id);
       linsolve_successful = compute_wienerns_filter(
           num_feat - reduce, A + c_id * stride_A, num_feat, b + c_id * stride_b,
-          nsfilter, nsfilter_params);
+          rsc->wienerns_tmpbuf, nsfilter, nsfilter_params);
       if (!linsolve_successful) break;
     }
     if (num_feat > reduce && linsolve_successful) {
@@ -3567,9 +3575,9 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
 
       const int num_feat = nsfilter_params->ncoeffs;
       int16_t *nsfilter = nsfilter_taps(&rui_merge_cand.wienerns_info, c_id);
-      int linsolve_successful =
-          compute_wienerns_filter(num_feat, solver_A_AVG, num_feat,
-                                  solver_b_AVG, nsfilter, nsfilter_params);
+      int linsolve_successful = compute_wienerns_filter(
+          num_feat, solver_A_AVG, num_feat, solver_b_AVG, rsc->wienerns_tmpbuf,
+          nsfilter, nsfilter_params);
       if (!linsolve_successful) continue;
 
       aom_clear_system_state();
@@ -4271,6 +4279,9 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   );
   assert(luma_buf != NULL);
   rsc.luma = luma;
+
+  rsc.wienerns_tmpbuf =
+      (double *)aom_malloc(WIENERNS_TMPBUF_SIZE * sizeof(*rsc.wienerns_tmpbuf));
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
@@ -4388,6 +4399,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   aom_free(rusi);
 #if CONFIG_LR_IMPROVEMENTS
   free(luma_buf);
+  aom_free(rsc.wienerns_tmpbuf);
   aom_vector_destroy(&wienerns_stats);
 #endif  // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_LR_MERGE_COEFFS
@@ -4534,6 +4546,9 @@ void av1_pick_cross_filter_restoration(const YV12_BUFFER_CONFIG *src,
   assert(luma_buf != NULL);
   rsc.luma = luma;
 
+  rsc.wienerns_tmpbuf =
+      (double *)aom_malloc(WIENERNS_TMPBUF_SIZE * sizeof(*rsc.wienerns_tmpbuf));
+
   rsc.is_cross_filter_round = 1;
 
   for (int plane = plane_start; plane <= plane_end; ++plane) {
@@ -4616,6 +4631,9 @@ void av1_pick_cross_filter_restoration(const YV12_BUFFER_CONFIG *src,
     }
 #endif  // CONFIG_LR_IMPROVEMENTS
   }
+#if CONFIG_LR_IMPROVEMENTS
+  aom_free(rsc.wienerns_tmpbuf);
+#endif  // CONFIG_LR_IMPROVEMENTS
   free(luma_buf);
   aom_free(rusi);
   aom_vector_destroy(&wienerns_stats);
