@@ -1218,6 +1218,27 @@ typedef struct {
   int tx_type_probs[FRAME_UPDATE_TYPES][TX_SIZES_ALL][TX_TYPES];
 } FrameProbInfo;
 
+#if CONFIG_ENTROPY_STATS
+typedef struct {
+  unsigned int classes_cnts[NUM_MV_PRECISIONS]
+                           [CDF_SIZE(MV_CLASSES)];           // placeholder
+  unsigned int amvd_classes_cnts[CDF_SIZE(MV_CLASSES)];      // placeholder
+  unsigned int class0_fp_cnts[CLASS0_SIZE][3][CDF_SIZE(2)];  // placeholder
+  unsigned int fp_cnts[3][CDF_SIZE(2)];                      // placeholder
+  unsigned int sign_cnts[CDF_SIZE(2)];                       // placeholder
+  unsigned int class0_hp_cnts[CDF_SIZE(2)];                  // placeholder
+  unsigned int hp_cnts[CDF_SIZE(2)];                         // placeholder
+  unsigned int class0_cnts[CDF_SIZE(CLASS0_SIZE)];           // placeholder
+  unsigned int bits_cnts[MV_OFFSET_BITS][CDF_SIZE(2)];       // placeholder
+} nmv_component_count;
+
+typedef struct {
+  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];       // placeholder
+  unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
+  nmv_component_count mvd_comp_cnts[2];
+} nmv_context_count;
+#endif  // CONFIG_ENTROPY_STATS
+
 /*!\cond */
 
 typedef struct FRAME_COUNTS {
@@ -1244,17 +1265,6 @@ typedef struct FRAME_COUNTS {
                                        FLEX_MV_COSTS_SIZE)];  // placeholder
   unsigned int cctx_type_cnts[EXT_TX_SIZES][CCTX_CONTEXTS]
                              [CDF_SIZE(CCTX_TYPES)];  // placeholder
-  unsigned int classes_cnts[NUM_MV_PRECISIONS]
-                           [CDF_SIZE(MV_CLASSES)];           // placeholder
-  unsigned int amvd_classes_cnts[CDF_SIZE(MV_CLASSES)];      // placeholder
-  unsigned int class0_fp_cnts[CLASS0_SIZE][3][CDF_SIZE(2)];  // placeholder
-  unsigned int fp_cnts[3][CDF_SIZE(2)];                      // placeholder
-  unsigned int sign_cnts[CDF_SIZE(2)];                       // placeholder
-  unsigned int class0_hp_cnts[CDF_SIZE(2)];                  // placeholder
-  unsigned int hp_cnts[CDF_SIZE(2)];                         // placeholder
-  unsigned int class0_cnts[CDF_SIZE(CLASS0_SIZE)];           // placeholder
-  unsigned int bits_cnts[MV_OFFSET_BITS][CDF_SIZE(2)];       // placeholder
-  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];             // placeholder
 
   unsigned int seg_tree_cnts[CDF_SIZE(MAX_SEGMENTS)];  // placeholder
   unsigned int segment_pred_cnts[SEG_TEMPORAL_PRED_CTXS]
@@ -1262,7 +1272,8 @@ typedef struct FRAME_COUNTS {
   unsigned int spatial_pred_seg_tree_cnts[SPATIAL_PREDICTION_PROBS][CDF_SIZE(
       MAX_SEGMENTS)];  // placeholder
 
-  unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
+  nmv_context_count nmvc_cnts;  // For MVD
+  nmv_context_count ndvc_cnts;  // For block vector of IBC mode
 
 #if CONFIG_AIMC
   unsigned int y_mode_set_idx[INTRA_MODE_SETS];
