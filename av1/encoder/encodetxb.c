@@ -1766,7 +1766,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         }
       } else {
         if (level > NUM_BASE_LEVELS) {
-          const int ctx = 7; /* get_lf_ctx_eob */
+          const int ctx = 0; /* get_br_ctx_eob */
           cost += get_br_cost(level, lps_cost[ctx]);
         }
       }
