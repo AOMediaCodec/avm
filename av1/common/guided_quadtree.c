@@ -163,12 +163,12 @@ int qp120_quadtree_model_quantSet_intra[] = { 133, 199, 1, -7 };
 int qp90_quadtree_model_quantSet_intra[] = { 988, 1428, 0, -11 };
 
 // guided conv unet with attention inter
-int qp255_quadtree_model_quantSet_inter[] = { 87583, 22581, -8, -12 };
-int qp205_quadtree_model_quantSet_inter[] = { 584653, 1108010, -13, -4 };
-int qp175_quadtree_model_quantSet_inter[] = { 2176, 4396, -1, -14 };
-int qp145_quadtree_model_quantSet_inter[] = { 36586, 51484, -18, 1 };
-int qp120_quadtree_model_quantSet_inter[] = { 24608, 28532, -12, -13 };
-int qp90_quadtree_model_quantSet_inter[] = { 5320, 18296, -19, -12 };
+int qp255_quadtree_model_quantSet_inter[] = { 56619, 15796, -9, -13 };
+int qp205_quadtree_model_quantSet_inter[] = { 551342, 949167, -14, -5 };
+int qp175_quadtree_model_quantSet_inter[] = { 2011, 3876, 0, -14 };
+int qp145_quadtree_model_quantSet_inter[] = { 32668, 44115, -18, 2 };
+int qp120_quadtree_model_quantSet_inter[] = { 20817, 19072, -12, -12 };
+int qp90_quadtree_model_quantSet_inter[] = { 3455, 16494, -16, -8 };
 
 #if CONFIG_EXT_SUPERRES
 // Superres guided conv unet intra.
