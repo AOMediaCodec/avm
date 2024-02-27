@@ -120,13 +120,15 @@ typedef struct PartitionBlkParams {
   int has_cols;
 
   // Indicates if at least 7/8th of the rows / cols of this block are within the
-  // frame. Used by HORZ/VERT_4A/4B partitions.
+  // frame. Used by HORZ/VERT_4A/4B partitions, to ensure that we have enough
+  // rows / cols available if chroma block covers multiple luma blocks.
   int has_7_8th_rows;
   int has_7_8th_cols;
 
 #if CONFIG_CB1TO4_SPLIT
   // Indicates if at least 3/4th of the rows / cols of this block are within the
-  // frame. Used by HORZ/VERT_3 partitions.
+  // frame. Used by HORZ/VERT_3 partitions, to ensure that we have enough
+  // rows / cols available if chroma block covers multiple luma blocks.
   int has_3_4th_rows;
   int has_3_4th_cols;
 #endif  // CONFIG_CB1TO4_SPLIT
