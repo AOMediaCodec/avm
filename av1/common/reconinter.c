@@ -4241,8 +4241,8 @@ static void get_ref_area_info(const MV *const src_mv,
 
   ref_area->pad_block.x0 = CLIP(block.x0, 0, frame_width - 1);
   ref_area->pad_block.y0 = CLIP(block.y0, 0, frame_height - 1);
-  ref_area->pad_block.x1 = CLIP(block.x1, 0, frame_width);
-  ref_area->pad_block.y1 = CLIP(block.y1, 0, frame_height);
+  ref_area->pad_block.x1 = CLIP(block.x1, 1, frame_width);
+  ref_area->pad_block.y1 = CLIP(block.y1, 1, frame_height);
 }
 
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
