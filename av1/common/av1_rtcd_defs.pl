@@ -301,6 +301,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";
   specialize qw/av1_fwht4x4 neon/;
 
+  # fwd cctx
+  add_proto qw/void av1_fwd_cross_chroma_tx_block/, "tran_low_t *coeff_c1, tran_low_t *coeff_c2,
+                         TX_SIZE tx_size, CctxType cctx_type";
+  specialize qw/av1_fwd_cross_chroma_tx_block avx2/;
+
   #fwd txfm
   add_proto qw/void fwd_stxfm/ , "tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode, const uint8_t stx_idx, const int size";
   specialize qw/fwd_stxfm sse4_1/;

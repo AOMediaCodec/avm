@@ -21,6 +21,7 @@
 #include "test/acm_random.h"
 #include "test/util.h"
 #include "test/av1_txfm_test.h"
+#include "test/function_equivalence_test.h"
 #include "av1/common/av1_txfm.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
 
@@ -619,4 +620,152 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1HighbdFwdTxfm2dTest,
                                  Values(av1_highbd_fwd_txfm)));
 #endif  // HAVE_NEON && !CONFIG_ADST_TUNED
 
+///////////////////////////////////////////////////////////////
+//       unit-test for 'av1_fwd_cross_chroma_tx_block'       //
+///////////////////////////////////////////////////////////////
+
+typedef void (*CCTXFunc)(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
+                         TX_SIZE tx_size, CctxType cctx_type);
+typedef libaom_test::FuncParam<CCTXFunc> TestFuncs;
+
+class FwdCctxTest : public ::testing::TestWithParam<TestFuncs> {
+ public:
+  virtual ~FwdCctxTest() {}
+  virtual void SetUp() {
+    params_ = this->GetParam();
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    const int max_tx_height = tx_size_high[TX_SIZES_LARGEST];
+    const int max_tx_width = tx_size_wide[TX_SIZES_LARGEST];
+    coeff_alloc_size_ = max_tx_height * max_tx_width * sizeof(coeff_c1_ref_[0]);
+    coeff_c1_ref_ =
+        reinterpret_cast<int32_t *>(aom_memalign(32, coeff_alloc_size_));
+    coeff_c2_ref_ =
+        reinterpret_cast<int32_t *>(aom_memalign(32, coeff_alloc_size_));
+    coeff_c1_test_ =
+        reinterpret_cast<int32_t *>(aom_memalign(32, coeff_alloc_size_));
+    coeff_c2_test_ =
+        reinterpret_cast<int32_t *>(aom_memalign(32, coeff_alloc_size_));
+
+    ASSERT_TRUE(coeff_c1_ref_ != NULL && coeff_c2_ref_ != NULL);
+    ASSERT_TRUE(coeff_c1_test_ != NULL && coeff_c2_test_ != NULL);
+  }
+
+  void GenRandomData(const int ncoeffs, const int coeffRange) {
+    for (int i = 0; i < ncoeffs; i++) {
+      coeff_c1_ref_[i] = rnd_(2) ? rnd_(coeffRange) : -rnd_(coeffRange);
+      coeff_c2_ref_[i] = rnd_(2) ? rnd_(coeffRange) : -rnd_(coeffRange);
+    }
+  }
+
+  void GenExtremeData(const int ncoeffs, const int coeffRange) {
+    const int val = rnd_(2) ? coeffRange : -coeffRange;
+    for (int i = 0; i < ncoeffs; i++) {
+      coeff_c1_ref_[i] = coeff_c2_ref_[i] = val;
+    }
+  }
+
+  virtual void TearDown() {
+    libaom_test::ClearSystemState();
+    aom_free(coeff_c1_ref_);
+    aom_free(coeff_c2_ref_);
+    aom_free(coeff_c1_test_);
+    aom_free(coeff_c2_test_);
+  }
+  void RunTest(int isRandom);
+  void RunSpeedTest();
+
+ protected:
+  TestFuncs params_;
+  tran_low_t *coeff_c1_ref_;
+  tran_low_t *coeff_c1_test_;
+  tran_low_t *coeff_c2_ref_;
+  tran_low_t *coeff_c2_test_;
+  int coeff_alloc_size_;
+  ACMRandom rnd_;
+};
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(FwdCctxTest);
+
+void FwdCctxTest::RunTest(int isRandom) {
+  const int bd_ar[3] = { 8, 10, 12 };
+  const int kNumIterations = 500;
+  for (int i = 0; i < 3; ++i) {
+    const int bd = bd_ar[i];
+    const int msb = bd + 8;  // bit-depth + 8
+    const int coeffRange = (1 << msb) - 1;
+    for (TX_SIZE tx_size = 0; tx_size < TX_SIZES_ALL; tx_size++) {
+      const int ncoeffs = av1_get_max_eob(tx_size);
+      for (CctxType cctx_type = 0; cctx_type < CCTX_TYPES; cctx_type++) {
+        for (int k = 0; k < kNumIterations; k++) {
+          if (isRandom) {
+            GenRandomData(ncoeffs, coeffRange);
+          } else {
+            GenExtremeData(ncoeffs, coeffRange);
+          }
+          memcpy(coeff_c1_test_, coeff_c1_ref_, coeff_alloc_size_);
+          memcpy(coeff_c2_test_, coeff_c2_ref_, coeff_alloc_size_);
+          params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type);
+          params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type);
+
+          for (int i = 0; i < ncoeffs; i++) {
+            EXPECT_EQ(coeff_c1_ref_[i], coeff_c1_test_[i])
+                << "Error: CCTXTest [tx_size=" << tx_size
+                << " cctx_type=" << cctx_type << "] C AVX2 does not match.";
+            EXPECT_EQ(coeff_c2_ref_[i], coeff_c2_test_[i])
+                << "Error: CCTXTest [tx_size=" << tx_size
+                << " cctx_type=" << cctx_type << "] C AVX2 does not match.";
+          }
+        }
+      }
+    }
+  }
+}
+
+void FwdCctxTest::RunSpeedTest() {
+  for (TX_SIZE tx_size = 0; tx_size < TX_SIZES_ALL; tx_size++) {
+    const CctxType cctx_type = CCTX_45;
+    const int ncoeffs = av1_get_max_eob(tx_size);
+    const int msb = 12 + 8;  // bit-depth + 8
+    const int coeffRange = (1 << msb) - 1;
+    GenExtremeData(ncoeffs, coeffRange);
+
+    memcpy(coeff_c1_test_, coeff_c1_ref_, coeff_alloc_size_);
+    memcpy(coeff_c2_test_, coeff_c2_ref_, coeff_alloc_size_);
+
+    const int rows = tx_size_high[tx_size];
+    const int cols = tx_size_wide[tx_size];
+    const int num_loops = 1000000 / (rows * cols);
+    aom_usec_timer ref_timer, test_timer;
+
+    aom_usec_timer_start(&ref_timer);
+    for (int i = 0; i < num_loops; ++i)
+      params_.ref_func(coeff_c1_ref_, coeff_c2_ref_, tx_size, cctx_type);
+    aom_usec_timer_mark(&ref_timer);
+    const int elapsed_time_c =
+        static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
+
+    aom_usec_timer_start(&test_timer);
+    for (int i = 0; i < num_loops; ++i)
+      params_.tst_func(coeff_c1_test_, coeff_c2_test_, tx_size, cctx_type);
+    aom_usec_timer_mark(&test_timer);
+    const int elapsed_time_simd =
+        static_cast<int>(aom_usec_timer_elapsed(&test_timer));
+    printf(
+        "txfm_size[%d] \t cctx_type[%d] \t c_time=%d \t simd_time=%d \t "
+        "scaling=%0.2f \n",
+        tx_size, cctx_type, elapsed_time_c, elapsed_time_simd,
+        (float)elapsed_time_c / elapsed_time_simd);
+  }
+}
+
+TEST_P(FwdCctxTest, BitExactCheck) { RunTest(1); }
+
+TEST_P(FwdCctxTest, ExtremeValues) { RunTest(0); }
+
+TEST_P(FwdCctxTest, DISABLED_Speed) { RunSpeedTest(); }
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, FwdCctxTest,
+    ::testing::Values(TestFuncs(&av1_fwd_cross_chroma_tx_block_c,
+                                &av1_fwd_cross_chroma_tx_block_avx2)));
 }  // namespace

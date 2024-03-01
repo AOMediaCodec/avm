@@ -380,8 +380,8 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
 }
 
 // Apply forward cross chroma component transform
-void av1_fwd_cross_chroma_tx_block(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
-                                   TX_SIZE tx_size, CctxType cctx_type) {
+void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,
+                                     TX_SIZE tx_size, CctxType cctx_type) {
   if (cctx_type == CCTX_NONE) return;
   const int ncoeffs = av1_get_max_eob(tx_size);
   int32_t *src_c1 = (int32_t *)coeff_c1;

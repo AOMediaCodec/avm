@@ -3227,3 +3227,48 @@ void av1_fwd_txfm2d_64x64_avx2(const int16_t *input, int32_t *output,
   }
   store_buffer_avx2(buf1, output, 8, 128);
 }
+
+// 256bit intrinsic implementation of ROUND_POWER_OF_TWO_SIGNED.
+static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
+                                                     int bits) {
+  const __m256i v_bias_d = _mm256_set1_epi32((1 << bits) >> 1);
+  const __m256i v_sign_d = _mm256_srai_epi32(v_val_d, 31);
+  const __m256i v_tmp_d =
+      _mm256_add_epi32(_mm256_add_epi32(v_val_d, v_bias_d), v_sign_d);
+  return _mm256_srai_epi32(v_tmp_d, bits);
+}
+
+void av1_fwd_cross_chroma_tx_block_avx2(tran_low_t *coeff_c1,
+                                        tran_low_t *coeff_c2, TX_SIZE tx_size,
+                                        CctxType cctx_type) {
+  if (cctx_type == CCTX_NONE) return;
+  const int ncoeffs = av1_get_max_eob(tx_size);
+  int32_t *src_c1 = (int32_t *)coeff_c1;
+  int32_t *src_c2 = (int32_t *)coeff_c2;
+
+  const int angle_idx = cctx_type - CCTX_START;
+  const __m256i cos_t = _mm256_set1_epi32(cctx_mtx[angle_idx][0]);
+  const __m256i sin_t = _mm256_set1_epi32(cctx_mtx[angle_idx][1]);
+
+  for (int i = 0; i < ncoeffs; i += 8) {
+    // Load 8 elements from both coeff_c1 and coeff_c2
+    const __m256i v_c1 = _mm256_loadu_si256((__m256i *)&src_c1[i]);
+    const __m256i v_c2 = _mm256_loadu_si256((__m256i *)&src_c2[i]);
+
+    // Perform matrix multiplication
+    const __m256i v_tmp0 = _mm256_mullo_epi32(cos_t, v_c1);
+    const __m256i v_tmp1 = _mm256_mullo_epi32(sin_t, v_c2);
+    const __m256i v_tmp2 = _mm256_mullo_epi32(sin_t, v_c1);
+    const __m256i v_tmp3 = _mm256_mullo_epi32(cos_t, v_c2);
+
+    // Add and round the results to CCTX_PREC_BITS
+    const __m256i v_res0 = round_power_of_two_signed_avx2(
+        _mm256_add_epi32(v_tmp0, v_tmp1), CCTX_PREC_BITS);
+    const __m256i v_res1 = round_power_of_two_signed_avx2(
+        _mm256_sub_epi32(v_tmp3, v_tmp2), CCTX_PREC_BITS);
+
+    // Round and store the results back to src_c1 and src_c2
+    _mm256_storeu_si256((__m256i *)&src_c1[i], v_res0);
+    _mm256_storeu_si256((__m256i *)&src_c2[i], v_res1);
+  }
+}
