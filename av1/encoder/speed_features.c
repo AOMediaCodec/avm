@@ -336,7 +336,7 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.early_terminate_jmvd_scale_factor = 1;
 
   // Speed 0 for all speed features that give neutral coding performance change.
-  sf->gm_sf.max_ref_frames = boosted ? 4 : 2;
+  sf->gm_sf.max_ref_frames = 2;
   sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
   sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
