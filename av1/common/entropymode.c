@@ -443,83 +443,102 @@ static aom_cdf_prob
     default_do_split_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)] = {
       // Luma
       {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(28194), 0 },
-          { AOM_CDF2(26594), 75 },
-          { AOM_CDF2(24734), 0 },
-          { AOM_CDF2(22454), 0 },
-          { AOM_CDF2(27954), 0 },
-          { AOM_CDF2(23649), 0 },
-          { AOM_CDF2(26002), 75 },
-          { AOM_CDF2(20643), 0 },
-          { AOM_CDF2(24288), 1 },
-          { AOM_CDF2(13221), 0 },
-          { AOM_CDF2(12754), 1 },
-          { AOM_CDF2( 7261), 0 },
-          { AOM_CDF2(24132), 1 },
-          { AOM_CDF2(15340), 1 },
-          { AOM_CDF2(14348), 1 },
-          { AOM_CDF2( 6511), 1 },
-          { AOM_CDF2(20945), 1 },
-          { AOM_CDF2( 9504), 1 },
-          { AOM_CDF2(11479), 1 },
-          { AOM_CDF2( 3562), 0 },
-          { AOM_CDF2(19951), 1 },
-          { AOM_CDF2( 7293), 1 },
-          { AOM_CDF2( 7619), 1 },
-          { AOM_CDF2( 2157), 75 },
-          { AOM_CDF2(21508), 75 },
-          { AOM_CDF2( 9317), 76 },
-          { AOM_CDF2(10683), 1 },
-          { AOM_CDF2( 2709), 0 },
-          { AOM_CDF2(18209), 1 },
-          { AOM_CDF2( 5879), 1 },
-          { AOM_CDF2( 6560), 76 },
-          { AOM_CDF2( 1174), 90 },
-          { AOM_CDF2(21089), 1 },
-          { AOM_CDF2( 6150), 1 },
-          { AOM_CDF2( 6826), 1 },
-          { AOM_CDF2( 1202), 75 },
-          { AOM_CDF2(21366), 76 },
-          { AOM_CDF2( 8824), 76 },
-          { AOM_CDF2(12030), 6 },
-          { AOM_CDF2( 2371), 1 },
-          { AOM_CDF2(17649), 76 },
-          { AOM_CDF2( 4196), 1 },
-          { AOM_CDF2( 4840), 76 },
-          { AOM_CDF2( 531), 93 },
-          { AOM_CDF2(17354), 76 },
-          { AOM_CDF2( 4849), 1 },
-          { AOM_CDF2( 5162), 1 },
-          { AOM_CDF2( 639), 115 },
-          { AOM_CDF2(25198), 80 },
-          { AOM_CDF2(10238), 20 },
-          { AOM_CDF2(22876), 98 },
-          { AOM_CDF2( 8560), 22 },
-          { AOM_CDF2(26996), 107 },
-          { AOM_CDF2(21770), 12 },
-          { AOM_CDF2(11453), 85 },
-          { AOM_CDF2( 6203), 60 },
-          { AOM_CDF2(17248), 2 },
-          { AOM_CDF2( 5306), 37 },
-          { AOM_CDF2( 3947), 2 },
-          { AOM_CDF2( 506), 78 },
+        // BLOCK_4X4
+        { AOM_CDF2(16384),   0 },  // unused entry 1
+        { AOM_CDF2(16384),   0 },  // unused entry 2
+        { AOM_CDF2(16384),   0 },  // unused entry 3
+        { AOM_CDF2(16384),   0 },  // unused entry 4
+        // BLOCK_4X8
+        { AOM_CDF2(28194),   0 },
+        { AOM_CDF2(26594),  75 },
+        { AOM_CDF2(24734),   0 },
+        { AOM_CDF2(22454),   0 },
+        // BLOCK_8X4
+        { AOM_CDF2(27954),   0 },
+        { AOM_CDF2(23649),   0 },
+        { AOM_CDF2(26002),  75 },
+        { AOM_CDF2(20643),   0 },
+        // BLOCK_8X8
+        { AOM_CDF2(24288),   1 },
+        { AOM_CDF2(13221),   0 },
+        { AOM_CDF2(12754),   1 },
+        { AOM_CDF2( 7261),   0 },
+        // BLOCK_8x16
+        { AOM_CDF2(24132),   1 },
+        { AOM_CDF2(15340),   1 },
+        { AOM_CDF2(14348),   1 },
+        { AOM_CDF2( 6511),   1 },
+        // BLOCK_16X8
+        { AOM_CDF2(20945),   1 },
+        { AOM_CDF2( 9504),   1 },
+        { AOM_CDF2(11479),   1 },
+        { AOM_CDF2( 3562),   0 },
+        // BLOCK_16x16
+        { AOM_CDF2(19951),   1 },
+        { AOM_CDF2( 7293),   1 },
+        { AOM_CDF2( 7619),   1 },
+        { AOM_CDF2( 2157),  75 },
+        // BLOCK_16X32
+        { AOM_CDF2(21508),  75 },
+        { AOM_CDF2( 9317),  76 },
+        { AOM_CDF2(10683),   1 },
+        { AOM_CDF2( 2709),   0 },
+        // BLOCK_32X16
+        { AOM_CDF2(18209),   1 },
+        { AOM_CDF2( 5879),   1 },
+        { AOM_CDF2( 6560),  76 },
+        { AOM_CDF2( 1174),  90 },
+        // BLOCK_32X32
+        { AOM_CDF2(21089),   1 },
+        { AOM_CDF2( 6150),   1 },
+        { AOM_CDF2( 6826),   1 },
+        { AOM_CDF2( 1202),  75 },
+        // BLOCK_32X64
+        { AOM_CDF2(21366),  76 },
+        { AOM_CDF2( 8824),  76 },
+        { AOM_CDF2(12030),   6 },
+        { AOM_CDF2( 2371),   1 },
+        // BLOCK_64X32
+        { AOM_CDF2(17649),  76 },
+        { AOM_CDF2( 4196),   1 },
+        { AOM_CDF2( 4840),  76 },
+        { AOM_CDF2(  531),  93 },
+        // BLOCK_64X64
+        { AOM_CDF2(17354),  76 },
+        { AOM_CDF2( 4849),   1 },
+        { AOM_CDF2( 5162),   1 },
+        { AOM_CDF2(  639), 115 },
+        // BLOCK_64X128
+        { AOM_CDF2(25198),  80 },
+        { AOM_CDF2(10238),  20 },
+        { AOM_CDF2(22876),  98 },
+        { AOM_CDF2( 8560),  22 },
+        // BLOCK_128X64
+        { AOM_CDF2(26996), 107 },
+        { AOM_CDF2(21770),  12 },
+        { AOM_CDF2(11453),  85 },
+        { AOM_CDF2( 6203),  60 },
+        // BLOCK_128X128
+        { AOM_CDF2(17248),   2 },
+        { AOM_CDF2( 5306),  37 },
+        { AOM_CDF2( 3947),   2 },
+        { AOM_CDF2(  506),  78 },
 #if CONFIG_BLOCK_256
+        // BLOCK_128X256
         { AOM_CDF2(25796), 120 },
-        { AOM_CDF2(11229), 0 },
+        { AOM_CDF2(11229),   0 },
         { AOM_CDF2(19151), 120 },
-        { AOM_CDF2( 4994), 75 },
+        { AOM_CDF2( 4994),  75 },
+        // BLOCK_256X128
         { AOM_CDF2(23826), 109 },
         { AOM_CDF2(20220), 120 },
-        { AOM_CDF2( 5605), 0 },
+        { AOM_CDF2( 5605),   0 },
         { AOM_CDF2( 2749), 100 },
-        { AOM_CDF2(19297), 0 },
-        { AOM_CDF2( 3302), 25 },
-        { AOM_CDF2( 3314), 0 },
-        { AOM_CDF2( 356), 110 },
+        // BLOCK_256X256
+        { AOM_CDF2(19297),   0 },
+        { AOM_CDF2( 3302),  25 },
+        { AOM_CDF2( 3314),   0 },
+        { AOM_CDF2(  356), 110 },
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -556,83 +575,102 @@ static aom_cdf_prob
       },
       // Chroma
       {
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(26672), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(20710), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(26587), 0 },
-        { AOM_CDF2(22028), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(22192), 0 },
-        { AOM_CDF2(11412), 0 },
-        { AOM_CDF2(11721), 75 },
-        { AOM_CDF2( 6263), 90 },
-        { AOM_CDF2(23832), 1 },
-        { AOM_CDF2(11924), 90 },
-        { AOM_CDF2(14591), 6 },
-        { AOM_CDF2( 6202), 0 },
-        { AOM_CDF2(23116), 31 },
-        { AOM_CDF2(12716), 31 },
-        { AOM_CDF2(10065), 0 },
-        { AOM_CDF2( 4723), 90 },
-        { AOM_CDF2(29561), 31 },
-        { AOM_CDF2(11499), 1 },
-        { AOM_CDF2(10640), 6 },
-        { AOM_CDF2( 2921), 0 },
-        { AOM_CDF2(15621), 1 },
-        { AOM_CDF2( 7058), 8 },
-        { AOM_CDF2( 5046), 6 },
-        { AOM_CDF2( 1287), 0 },
-        { AOM_CDF2( 7706), 32 },
-        { AOM_CDF2( 1091), 0 },
-        { AOM_CDF2( 1637), 76 },
-        { AOM_CDF2( 325), 99 },
-        { AOM_CDF2(20097), 32 },
-        { AOM_CDF2( 6851), 7 },
-        { AOM_CDF2( 5020), 1 },
-        { AOM_CDF2( 909), 75 },
+        // BLOCK_4X4
+        { AOM_CDF2(16384),   0 },  // unused entry 5
+        { AOM_CDF2(16384),   0 },  // unused entry 6
+        { AOM_CDF2(16384),   0 },  // unused entry 7
+        { AOM_CDF2(16384),   0 },  // unused entry 8
+        // BLOCK_4X8
+        { AOM_CDF2(16384),   0 },  // unused entry 9
+        { AOM_CDF2(16384),   0 },  // unused entry 10
+        { AOM_CDF2(16384),   0 },  // unused entry 11
+        { AOM_CDF2(16384),   0 },  // unused entry 12
+        // BLOCK_8X4
+        { AOM_CDF2(16384),   0 },  // unused entry 13
+        { AOM_CDF2(16384),   0 },  // unused entry 14
+        { AOM_CDF2(16384),   0 },  // unused entry 15
+        { AOM_CDF2(16384),   0 },  // unused entry 16
+        // BLOCK_8X8
+        { AOM_CDF2(16384),   0 },  // unused entry 17
+        { AOM_CDF2(16384),   0 },  // unused entry 18
+        { AOM_CDF2(16384),   0 },  // unused entry 19
+        { AOM_CDF2(16384),   0 },  // unused entry 20
+        // BLOCK_8x16
+        { AOM_CDF2(26672),   0 },
+        { AOM_CDF2(16384),   0 },  // unused entry 21
+        { AOM_CDF2(20710),   0 },
+        { AOM_CDF2(16384),   0 },  // unused entry 22
+        // BLOCK_16X8
+        { AOM_CDF2(26587),   0 },
+        { AOM_CDF2(22028),   0 },
+        { AOM_CDF2(16384),   0 },  // unused entry 23
+        { AOM_CDF2(16384),   0 },  // unused entry 24
+        // BLOCK_16x16
+        { AOM_CDF2(22192),   0 },
+        { AOM_CDF2(11412),   0 },
+        { AOM_CDF2(11721),  75 },
+        { AOM_CDF2( 6263),  90 },
+        // BLOCK_16X32
+        { AOM_CDF2(23832),   1 },
+        { AOM_CDF2(11924),  90 },
+        { AOM_CDF2(14591),   6 },
+        { AOM_CDF2( 6202),   0 },
+        // BLOCK_32X16
+        { AOM_CDF2(23116),  31 },
+        { AOM_CDF2(12716),  31 },
+        { AOM_CDF2(10065),   0 },
+        { AOM_CDF2( 4723),  90 },
+        // BLOCK_32X32
+        { AOM_CDF2(29561),  31 },
+        { AOM_CDF2(11499),   1 },
+        { AOM_CDF2(10640),   6 },
+        { AOM_CDF2( 2921),   0 },
+        // BLOCK_32X64
+        { AOM_CDF2(15621),   1 },
+        { AOM_CDF2( 7058),   8 },
+        { AOM_CDF2( 5046),   6 },
+        { AOM_CDF2( 1287),   0 },
+        // BLOCK_64X32
+        { AOM_CDF2( 7706),  32 },
+        { AOM_CDF2( 1091),   0 },
+        { AOM_CDF2( 1637),  76 },
+        { AOM_CDF2(  325),  99 },
+        // BLOCK_64X64
+        { AOM_CDF2(20097),  32 },
+        { AOM_CDF2( 6851),   7 },
+        { AOM_CDF2( 5020),   1 },
+        { AOM_CDF2(  909),  75 },
+        // BLOCK_64X128
         { AOM_CDF2(19587), 107 },
         { AOM_CDF2( 9322), 110 },
-        { AOM_CDF2(19769), 5 },
-        { AOM_CDF2( 9100), 8 },
-        { AOM_CDF2(24402), 37 },
-        { AOM_CDF2(19136), 35 },
+        { AOM_CDF2(19769),   5 },
+        { AOM_CDF2( 9100),   8 },
+        // BLOCK_128X64
+        { AOM_CDF2(24402),  37 },
+        { AOM_CDF2(19136),  35 },
         { AOM_CDF2( 8316), 110 },
-        { AOM_CDF2( 4291), 60 },
-        { AOM_CDF2(27951), 1 },
-        { AOM_CDF2(15351), 35 },
-        { AOM_CDF2(10542), 33 },
-        { AOM_CDF2( 2947), 7 },
+        { AOM_CDF2( 4291),  60 },
+        // BLOCK_128X128
+        { AOM_CDF2(27951),   1 },
+        { AOM_CDF2(15351),  35 },
+        { AOM_CDF2(10542),  33 },
+        { AOM_CDF2( 2947),   7 },
 #if CONFIG_BLOCK_256
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
+        // BLOCK_128X256
+        { AOM_CDF2(16384),   0 },  // unused entry 25
+        { AOM_CDF2(16384),   0 },  // unused entry 26
+        { AOM_CDF2(16384),   0 },  // unused entry 27
+        { AOM_CDF2(16384),   0 },  // unused entry 28
+        // BLOCK_256X128
+        { AOM_CDF2(16384),   0 },  // unused entry 29
+        { AOM_CDF2(16384),   0 },  // unused entry 30
+        { AOM_CDF2(16384),   0 },  // unused entry 31
+        { AOM_CDF2(16384),   0 },  // unused entry 32
+        // BLOCK_256X256
+        { AOM_CDF2(16384),   0 },  // unused entry 33
+        { AOM_CDF2(16384),   0 },  // unused entry 34
+        { AOM_CDF2(16384),   0 },  // unused entry 35
+        { AOM_CDF2(16384),   0 },  // unused entry 36
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -667,83 +705,102 @@ static aom_cdf_prob
     default_rect_type_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)] = {
       // Luma
       {
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(17405), 75 },
-         { AOM_CDF2(13772), 75 },
-         { AOM_CDF2(21881), 115 },
-         { AOM_CDF2(19500), 115 },
-         { AOM_CDF2(22464), 1 },
-         { AOM_CDF2(17171), 1 },
-         { AOM_CDF2(28223), 0 },
-         { AOM_CDF2(26546), 1 },
-         { AOM_CDF2( 6820), 76 },
-         { AOM_CDF2( 2633), 75 },
-         { AOM_CDF2(10735), 77 },
-         { AOM_CDF2( 3775), 90 },
-         { AOM_CDF2(18040), 1 },
-         { AOM_CDF2(10648), 1 },
-         { AOM_CDF2(25993), 75 },
-         { AOM_CDF2(22265), 76 },
-         { AOM_CDF2(21076), 1 },
-         { AOM_CDF2(17097), 1 },
-         { AOM_CDF2(29285), 1 },
-         { AOM_CDF2(28199), 1 },
-         { AOM_CDF2( 6588), 76 },
-         { AOM_CDF2( 1588), 90 },
-         { AOM_CDF2( 9365), 7 },
-         { AOM_CDF2( 1930), 75 },
-         { AOM_CDF2(19224), 76 },
-         { AOM_CDF2(13869), 1 },
-         { AOM_CDF2(26476), 115 },
-         { AOM_CDF2(24567), 75 },
-         { AOM_CDF2(20266), 7 },
-         { AOM_CDF2(18322), 6 },
-         { AOM_CDF2(28636), 1 },
-         { AOM_CDF2(29270), 1 },
-         { AOM_CDF2( 6131), 6 },
-         { AOM_CDF2( 1064), 115 },
-         { AOM_CDF2( 9671), 37 },
-         { AOM_CDF2( 1050), 0 },
-         { AOM_CDF2(20007), 7 },
-         { AOM_CDF2(17698), 1 },
-         { AOM_CDF2(26666), 76 },
-         { AOM_CDF2(26592), 75 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(16384), 0 },
-         { AOM_CDF2(18109), 90 },
-         { AOM_CDF2(10515), 0 },
-         { AOM_CDF2(22879), 15 },
-         { AOM_CDF2(14385), 12 },
+        // BLOCK_4X4
+        { AOM_CDF2(16384),   0 },  // unused entry 1
+        { AOM_CDF2(16384),   0 },  // unused entry 2
+        { AOM_CDF2(16384),   0 },  // unused entry 3
+        { AOM_CDF2(16384),   0 },  // unused entry 4
+        // BLOCK_4X8
+        { AOM_CDF2(16384),   0 },  // unused entry 5
+        { AOM_CDF2(16384),   0 },  // unused entry 6
+        { AOM_CDF2(16384),   0 },  // unused entry 7
+        { AOM_CDF2(16384),   0 },  // unused entry 8
+        // BLOCK_8X4
+        { AOM_CDF2(16384),   0 },  // unused entry 9
+        { AOM_CDF2(16384),   0 },  // unused entry 10
+        { AOM_CDF2(16384),   0 },  // unused entry 11
+        { AOM_CDF2(16384),   0 },  // unused entry 12
+        // BLOCK_8X8
+        { AOM_CDF2(17405),  75 },
+        { AOM_CDF2(13772),  75 },
+        { AOM_CDF2(21881), 115 },
+        { AOM_CDF2(19500), 115 },
+        // BLOCK_8x16
+        { AOM_CDF2(22464),   1 },
+        { AOM_CDF2(17171),   1 },
+        { AOM_CDF2(28223),   0 },
+        { AOM_CDF2(26546),   1 },
+        // BLOCK_16X8
+        { AOM_CDF2( 6820),  76 },
+        { AOM_CDF2( 2633),  75 },
+        { AOM_CDF2(10735),  77 },
+        { AOM_CDF2( 3775),  90 },
+        // BLOCK_16x16
+        { AOM_CDF2(18040),   1 },
+        { AOM_CDF2(10648),   1 },
+        { AOM_CDF2(25993),  75 },
+        { AOM_CDF2(22265),  76 },
+        // BLOCK_16X32
+        { AOM_CDF2(21076),   1 },
+        { AOM_CDF2(17097),   1 },
+        { AOM_CDF2(29285),   1 },
+        { AOM_CDF2(28199),   1 },
+        // BLOCK_32X16
+        { AOM_CDF2( 6588),  76 },
+        { AOM_CDF2( 1588),  90 },
+        { AOM_CDF2( 9365),   7 },
+        { AOM_CDF2( 1930),  75 },
+        // BLOCK_32X32
+        { AOM_CDF2(19224),  76 },
+        { AOM_CDF2(13869),   1 },
+        { AOM_CDF2(26476), 115 },
+        { AOM_CDF2(24567),  75 },
+        // BLOCK_32X64
+        { AOM_CDF2(20266),   7 },
+        { AOM_CDF2(18322),   6 },
+        { AOM_CDF2(28636),   1 },
+        { AOM_CDF2(29270),   1 },
+        // BLOCK_64X32
+        { AOM_CDF2( 6131),   6 },
+        { AOM_CDF2( 1064), 115 },
+        { AOM_CDF2( 9671),  37 },
+        { AOM_CDF2( 1050),   0 },
+        // BLOCK_64X64
+        { AOM_CDF2(20007),   7 },
+        { AOM_CDF2(17698),   1 },
+        { AOM_CDF2(26666),  76 },
+        { AOM_CDF2(26592),  75 },
+        // BLOCK_64X128
+        { AOM_CDF2(16384),   0 },  // unused entry 13
+        { AOM_CDF2(16384),   0 },  // unused entry 14
+        { AOM_CDF2(16384),   0 },  // unused entry 15
+        { AOM_CDF2(16384),   0 },  // unused entry 16
+        // BLOCK_128X64
+        { AOM_CDF2(16384),   0 },  // unused entry 17
+        { AOM_CDF2(16384),   0 },  // unused entry 18
+        { AOM_CDF2(16384),   0 },  // unused entry 19
+        { AOM_CDF2(16384),   0 },  // unused entry 20
+        // BLOCK_128X128
+        { AOM_CDF2(18109),  90 },
+        { AOM_CDF2(10515),   0 },
+        { AOM_CDF2(22879),  15 },
+        { AOM_CDF2(14385),  12 },
 #if CONFIG_BLOCK_256
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(18966), 75 },
-        { AOM_CDF2(14351), 0 },
-        { AOM_CDF2(23553), 10 },
-        { AOM_CDF2(19681), 25 },
+        // BLOCK_128X256
+        { AOM_CDF2(16384),   0 },  // unused entry 21
+        { AOM_CDF2(16384),   0 },  // unused entry 22
+        { AOM_CDF2(16384),   0 },  // unused entry 23
+        { AOM_CDF2(16384),   0 },  // unused entry 24
+        // BLOCK_256X128
+        { AOM_CDF2(16384),   0 },  // unused entry 25
+        { AOM_CDF2(16384),   0 },  // unused entry 26
+        { AOM_CDF2(16384),   0 },  // unused entry 27
+        { AOM_CDF2(16384),   0 },  // unused entry 28
+        // BLOCK_256X256
+        { AOM_CDF2(18966),  75 },
+        { AOM_CDF2(14351),   0 },
+        { AOM_CDF2(23553),  10 },
+        { AOM_CDF2(19681),  25 },
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -774,83 +831,102 @@ static aom_cdf_prob
       },
       // Chroma
       {
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(17466), 75 },
-        { AOM_CDF2(11461), 75 },
-        { AOM_CDF2(23069), 90 },
-        { AOM_CDF2(17575), 90 },
-        { AOM_CDF2(21500), 1 },
-        { AOM_CDF2(16941), 1 },
-        { AOM_CDF2(28190), 75 },
-        { AOM_CDF2(25590), 1 },
-        { AOM_CDF2(12489), 2 },
-        { AOM_CDF2( 4568), 76 },
-        { AOM_CDF2(17792), 7 },
-        { AOM_CDF2( 7495), 76 },
-        { AOM_CDF2(19912), 76 },
-        { AOM_CDF2(13861), 76 },
-        { AOM_CDF2(26203), 76 },
-        { AOM_CDF2(21835), 76 },
-        { AOM_CDF2(26349), 4 },
-        { AOM_CDF2(18909), 45 },
-        { AOM_CDF2(31145), 1 },
-        { AOM_CDF2(29434), 6 },
-        { AOM_CDF2( 1359), 1 },
-        { AOM_CDF2( 346), 118 },
-        { AOM_CDF2(11224), 37 },
-        { AOM_CDF2( 1533), 76 },
-        { AOM_CDF2(22373), 5 },
-        { AOM_CDF2(22200), 6 },
-        { AOM_CDF2(27751), 1 },
-        { AOM_CDF2(26876), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(13754), 25 },
-        { AOM_CDF2( 8131), 0 },
-        { AOM_CDF2(19409), 45 },
-        { AOM_CDF2( 8887), 35 },
+        // BLOCK_4X4
+        { AOM_CDF2(16384),   0 },  // unused entry 29
+        { AOM_CDF2(16384),   0 },  // unused entry 30
+        { AOM_CDF2(16384),   0 },  // unused entry 31
+        { AOM_CDF2(16384),   0 },  // unused entry 32
+        // BLOCK_4X8
+        { AOM_CDF2(16384),   0 },  // unused entry 33
+        { AOM_CDF2(16384),   0 },  // unused entry 34
+        { AOM_CDF2(16384),   0 },  // unused entry 35
+        { AOM_CDF2(16384),   0 },  // unused entry 36
+        // BLOCK_8X4
+        { AOM_CDF2(16384),   0 },  // unused entry 37
+        { AOM_CDF2(16384),   0 },  // unused entry 38
+        { AOM_CDF2(16384),   0 },  // unused entry 39
+        { AOM_CDF2(16384),   0 },  // unused entry 40
+        // BLOCK_8X8
+        { AOM_CDF2(16384),   0 },  // unused entry 41
+        { AOM_CDF2(16384),   0 },  // unused entry 42
+        { AOM_CDF2(16384),   0 },  // unused entry 43
+        { AOM_CDF2(16384),   0 },  // unused entry 44
+        // BLOCK_8x16
+        { AOM_CDF2(16384),   0 },  // unused entry 45
+        { AOM_CDF2(16384),   0 },  // unused entry 46
+        { AOM_CDF2(16384),   0 },  // unused entry 47
+        { AOM_CDF2(16384),   0 },  // unused entry 48
+        // BLOCK_16X8
+        { AOM_CDF2(16384),   0 },  // unused entry 49
+        { AOM_CDF2(16384),   0 },  // unused entry 50
+        { AOM_CDF2(16384),   0 },  // unused entry 51
+        { AOM_CDF2(16384),   0 },  // unused entry 52
+        // BLOCK_16x16
+        { AOM_CDF2(17466),  75 },
+        { AOM_CDF2(11461),  75 },
+        { AOM_CDF2(23069),  90 },
+        { AOM_CDF2(17575),  90 },
+        // BLOCK_16X32
+        { AOM_CDF2(21500),   1 },
+        { AOM_CDF2(16941),   1 },
+        { AOM_CDF2(28190),  75 },
+        { AOM_CDF2(25590),   1 },
+        // BLOCK_32X16
+        { AOM_CDF2(12489),   2 },
+        { AOM_CDF2( 4568),  76 },
+        { AOM_CDF2(17792),   7 },
+        { AOM_CDF2( 7495),  76 },
+        // BLOCK_32X32
+        { AOM_CDF2(19912),  76 },
+        { AOM_CDF2(13861),  76 },
+        { AOM_CDF2(26203),  76 },
+        { AOM_CDF2(21835),  76 },
+        // BLOCK_32X64
+        { AOM_CDF2(26349),   4 },
+        { AOM_CDF2(18909),  45 },
+        { AOM_CDF2(31145),   1 },
+        { AOM_CDF2(29434),   6 },
+        // BLOCK_64X32
+        { AOM_CDF2( 1359),   1 },
+        { AOM_CDF2(  346), 118 },
+        { AOM_CDF2(11224),  37 },
+        { AOM_CDF2( 1533),  76 },
+        // BLOCK_64X64
+        { AOM_CDF2(22373),   5 },
+        { AOM_CDF2(22200),   6 },
+        { AOM_CDF2(27751),   1 },
+        { AOM_CDF2(26876),   0 },
+        // BLOCK_64X128
+        { AOM_CDF2(16384),   0 },  // unused entry 53
+        { AOM_CDF2(16384),   0 },  // unused entry 54
+        { AOM_CDF2(16384),   0 },  // unused entry 55
+        { AOM_CDF2(16384),   0 },  // unused entry 56
+        // BLOCK_128X64
+        { AOM_CDF2(16384),   0 },  // unused entry 57
+        { AOM_CDF2(16384),   0 },  // unused entry 58
+        { AOM_CDF2(16384),   0 },  // unused entry 59
+        { AOM_CDF2(16384),   0 },  // unused entry 60
+        // BLOCK_128X128
+        { AOM_CDF2(13754),  25 },
+        { AOM_CDF2( 8131),   0 },
+        { AOM_CDF2(19409),  45 },
+        { AOM_CDF2( 8887),  35 },
 #if CONFIG_BLOCK_256
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
-        { AOM_CDF2(16384), 0 },
+        // BLOCK_128X256
+        { AOM_CDF2(16384),   0 },  // unused entry 61
+        { AOM_CDF2(16384),   0 },  // unused entry 62
+        { AOM_CDF2(16384),   0 },  // unused entry 63
+        { AOM_CDF2(16384),   0 },  // unused entry 64
+        // BLOCK_256X128
+        { AOM_CDF2(16384),   0 },  // unused entry 65
+        { AOM_CDF2(16384),   0 },  // unused entry 66
+        { AOM_CDF2(16384),   0 },  // unused entry 67
+        { AOM_CDF2(16384),   0 },  // unused entry 68
+        // BLOCK_256X256
+        { AOM_CDF2(16384),   0 },  // unused entry 69
+        { AOM_CDF2(16384),   0 },  // unused entry 70
+        { AOM_CDF2(16384),   0 },  // unused entry 71
+        { AOM_CDF2(16384),   0 },  // unused entry 72
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -885,83 +961,102 @@ static aom_cdf_prob default_do_ext_partition_cdf
       {
         // HORZ
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(28126), 0 },
-          { AOM_CDF2(24398), 75 },
-          { AOM_CDF2(23529), 1 },
-          { AOM_CDF2(18352), 90 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 1
+          { AOM_CDF2(16384),   0 },  // unused entry 2
+          { AOM_CDF2(16384),   0 },  // unused entry 3
+          { AOM_CDF2(16384),   0 },  // unused entry 4
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 5
+          { AOM_CDF2(16384),   0 },  // unused entry 6
+          { AOM_CDF2(16384),   0 },  // unused entry 7
+          { AOM_CDF2(16384),   0 },  // unused entry 8
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 9
+          { AOM_CDF2(16384),   0 },  // unused entry 10
+          { AOM_CDF2(16384),   0 },  // unused entry 11
+          { AOM_CDF2(16384),   0 },  // unused entry 12
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 13
+          { AOM_CDF2(16384),   0 },  // unused entry 14
+          { AOM_CDF2(16384),   0 },  // unused entry 15
+          { AOM_CDF2(16384),   0 },  // unused entry 16
+          // BLOCK_8x16
+          { AOM_CDF2(28126),   0 },
+          { AOM_CDF2(24398),  75 },
+          { AOM_CDF2(23529),   1 },
+          { AOM_CDF2(18352),  90 },
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 17
+          { AOM_CDF2(16384),   0 },  // unused entry 18
+          { AOM_CDF2(16384),   0 },  // unused entry 19
+          { AOM_CDF2(16384),   0 },  // unused entry 20
+          // BLOCK_16x16
           { AOM_CDF2(30732), 115 },
           { AOM_CDF2(30747), 118 },
           { AOM_CDF2(30203), 118 },
           { AOM_CDF2(30752), 118 },
-          { AOM_CDF2(27439), 75 },
-          { AOM_CDF2(26381), 75 },
-          { AOM_CDF2(20472), 75 },
-          { AOM_CDF2(19396), 90 },
-          { AOM_CDF2(29051), 76 },
-          { AOM_CDF2(26472), 75 },
-          { AOM_CDF2(26906), 6 },
-          { AOM_CDF2(22036), 7 },
-          { AOM_CDF2(30744), 90 },
+          // BLOCK_16X32
+          { AOM_CDF2(27439),  75 },
+          { AOM_CDF2(26381),  75 },
+          { AOM_CDF2(20472),  75 },
+          { AOM_CDF2(19396),  90 },
+          // BLOCK_32X16
+          { AOM_CDF2(29051),  76 },
+          { AOM_CDF2(26472),  75 },
+          { AOM_CDF2(26906),   6 },
+          { AOM_CDF2(22036),   7 },
+          // BLOCK_32X32
+          { AOM_CDF2(30744),  90 },
           { AOM_CDF2(31624), 115 },
-          { AOM_CDF2(29903), 90 },
+          { AOM_CDF2(29903),  90 },
           { AOM_CDF2(31718), 115 },
-          { AOM_CDF2(26575), 15 },
-          { AOM_CDF2(25376), 92 },
-          { AOM_CDF2(19834), 76 },
-          { AOM_CDF2(17616), 93 },
-          { AOM_CDF2(27828), 13 },
-          { AOM_CDF2(24853), 30 },
-          { AOM_CDF2(27145), 37 },
-          { AOM_CDF2(20656), 37 },
+          // BLOCK_32X64
+          { AOM_CDF2(26575),  15 },
+          { AOM_CDF2(25376),  92 },
+          { AOM_CDF2(19834),  76 },
+          { AOM_CDF2(17616),  93 },
+          // BLOCK_64X32
+          { AOM_CDF2(27828),  13 },
+          { AOM_CDF2(24853),  30 },
+          { AOM_CDF2(27145),  37 },
+          { AOM_CDF2(20656),  37 },
+          // BLOCK_64X64
           { AOM_CDF2(31215), 119 },
           { AOM_CDF2(31941), 117 },
-          { AOM_CDF2(30679), 90 },
+          { AOM_CDF2(30679),  90 },
           { AOM_CDF2(32244), 115 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 21
+          { AOM_CDF2(16384),   0 },  // unused entry 22
+          { AOM_CDF2(16384),   0 },  // unused entry 23
+          { AOM_CDF2(16384),   0 },  // unused entry 24
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 25
+          { AOM_CDF2(16384),   0 },  // unused entry 26
+          { AOM_CDF2(16384),   0 },  // unused entry 27
+          { AOM_CDF2(16384),   0 },  // unused entry 28
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 29
+          { AOM_CDF2(16384),   0 },  // unused entry 30
+          { AOM_CDF2(16384),   0 },  // unused entry 31
+          { AOM_CDF2(16384),   0 },  // unused entry 32
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 33
+          { AOM_CDF2(16384),   0 },  // unused entry 34
+          { AOM_CDF2(16384),   0 },  // unused entry 35
+          { AOM_CDF2(16384),   0 },  // unused entry 36
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 37
+          { AOM_CDF2(16384),   0 },  // unused entry 38
+          { AOM_CDF2(16384),   0 },  // unused entry 39
+          { AOM_CDF2(16384),   0 },  // unused entry 40
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 41
+          { AOM_CDF2(16384),   0 },  // unused entry 42
+          { AOM_CDF2(16384),   0 },  // unused entry 43
+          { AOM_CDF2(16384),   0 },  // unused entry 44
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -989,83 +1084,102 @@ static aom_cdf_prob default_do_ext_partition_cdf
         },
         // VERT
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(30150), 90 },
-          { AOM_CDF2(28639), 75 },
-          { AOM_CDF2(27384), 90 },
-          { AOM_CDF2(25595), 93 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 45
+          { AOM_CDF2(16384),   0 },  // unused entry 46
+          { AOM_CDF2(16384),   0 },  // unused entry 47
+          { AOM_CDF2(16384),   0 },  // unused entry 48
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 49
+          { AOM_CDF2(16384),   0 },  // unused entry 50
+          { AOM_CDF2(16384),   0 },  // unused entry 51
+          { AOM_CDF2(16384),   0 },  // unused entry 52
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 53
+          { AOM_CDF2(16384),   0 },  // unused entry 54
+          { AOM_CDF2(16384),   0 },  // unused entry 55
+          { AOM_CDF2(16384),   0 },  // unused entry 56
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 57
+          { AOM_CDF2(16384),   0 },  // unused entry 58
+          { AOM_CDF2(16384),   0 },  // unused entry 59
+          { AOM_CDF2(16384),   0 },  // unused entry 60
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 61
+          { AOM_CDF2(16384),   0 },  // unused entry 62
+          { AOM_CDF2(16384),   0 },  // unused entry 63
+          { AOM_CDF2(16384),   0 },  // unused entry 64
+          // BLOCK_16X8
+          { AOM_CDF2(30150),  90 },
+          { AOM_CDF2(28639),  75 },
+          { AOM_CDF2(27384),  90 },
+          { AOM_CDF2(25595),  93 },
+          // BLOCK_16x16
           { AOM_CDF2(31199), 123 },
           { AOM_CDF2(30494), 118 },
           { AOM_CDF2(29694), 123 },
           { AOM_CDF2(29315), 123 },
-          { AOM_CDF2(30436), 0 },
-          { AOM_CDF2(27853), 0 },
-          { AOM_CDF2(28515), 6 },
-          { AOM_CDF2(24402), 0 },
-          { AOM_CDF2(29006), 90 },
+          // BLOCK_16X32
+          { AOM_CDF2(30436),   0 },
+          { AOM_CDF2(27853),   0 },
+          { AOM_CDF2(28515),   6 },
+          { AOM_CDF2(24402),   0 },
+          // BLOCK_32X16
+          { AOM_CDF2(29006),  90 },
           { AOM_CDF2(25918), 118 },
           { AOM_CDF2(27758), 118 },
           { AOM_CDF2(26233), 118 },
-          { AOM_CDF2(30119), 90 },
-          { AOM_CDF2(27654), 75 },
-          { AOM_CDF2(29837), 90 },
-          { AOM_CDF2(29583), 90 },
-          { AOM_CDF2(28069), 44 },
-          { AOM_CDF2(24273), 31 },
-          { AOM_CDF2(27312), 20 },
-          { AOM_CDF2(22205), 25 },
+          // BLOCK_32X32
+          { AOM_CDF2(30119),  90 },
+          { AOM_CDF2(27654),  75 },
+          { AOM_CDF2(29837),  90 },
+          { AOM_CDF2(29583),  90 },
+          // BLOCK_32X64
+          { AOM_CDF2(28069),  44 },
+          { AOM_CDF2(24273),  31 },
+          { AOM_CDF2(27312),  20 },
+          { AOM_CDF2(22205),  25 },
+          // BLOCK_64X32
           { AOM_CDF2(29637), 115 },
           { AOM_CDF2(27709), 115 },
           { AOM_CDF2(29419), 115 },
           { AOM_CDF2(28775), 118 },
-          { AOM_CDF2(28966), 90 },
-          { AOM_CDF2(27455), 91 },
+          // BLOCK_64X64
+          { AOM_CDF2(28966),  90 },
+          { AOM_CDF2(27455),  91 },
           { AOM_CDF2(29656), 104 },
-          { AOM_CDF2(30158), 76 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(30158),  76 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 65
+          { AOM_CDF2(16384),   0 },  // unused entry 66
+          { AOM_CDF2(16384),   0 },  // unused entry 67
+          { AOM_CDF2(16384),   0 },  // unused entry 68
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 69
+          { AOM_CDF2(16384),   0 },  // unused entry 70
+          { AOM_CDF2(16384),   0 },  // unused entry 71
+          { AOM_CDF2(16384),   0 },  // unused entry 72
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 73
+          { AOM_CDF2(16384),   0 },  // unused entry 74
+          { AOM_CDF2(16384),   0 },  // unused entry 75
+          { AOM_CDF2(16384),   0 },  // unused entry 76
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 77
+          { AOM_CDF2(16384),   0 },  // unused entry 78
+          { AOM_CDF2(16384),   0 },  // unused entry 79
+          { AOM_CDF2(16384),   0 },  // unused entry 80
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 81
+          { AOM_CDF2(16384),   0 },  // unused entry 82
+          { AOM_CDF2(16384),   0 },  // unused entry 83
+          { AOM_CDF2(16384),   0 },  // unused entry 84
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 85
+          { AOM_CDF2(16384),   0 },  // unused entry 86
+          { AOM_CDF2(16384),   0 },  // unused entry 87
+          { AOM_CDF2(16384),   0 },  // unused entry 88
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1096,83 +1210,102 @@ static aom_cdf_prob default_do_ext_partition_cdf
       {
         // HORZ
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(23344), 75 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 89
+          { AOM_CDF2(16384),   0 },  // unused entry 90
+          { AOM_CDF2(16384),   0 },  // unused entry 91
+          { AOM_CDF2(16384),   0 },  // unused entry 92
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 93
+          { AOM_CDF2(16384),   0 },  // unused entry 94
+          { AOM_CDF2(16384),   0 },  // unused entry 95
+          { AOM_CDF2(16384),   0 },  // unused entry 96
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 97
+          { AOM_CDF2(16384),   0 },  // unused entry 98
+          { AOM_CDF2(16384),   0 },  // unused entry 99
+          { AOM_CDF2(16384),   0 },  // unused entry 100
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 101
+          { AOM_CDF2(16384),   0 },  // unused entry 102
+          { AOM_CDF2(16384),   0 },  // unused entry 103
+          { AOM_CDF2(16384),   0 },  // unused entry 104
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 105
+          { AOM_CDF2(16384),   0 },  // unused entry 106
+          { AOM_CDF2(16384),   0 },  // unused entry 107
+          { AOM_CDF2(16384),   0 },  // unused entry 108
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 109
+          { AOM_CDF2(16384),   0 },  // unused entry 110
+          { AOM_CDF2(16384),   0 },  // unused entry 111
+          { AOM_CDF2(16384),   0 },  // unused entry 112
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 113
+          { AOM_CDF2(16384),   0 },  // unused entry 114
+          { AOM_CDF2(16384),   0 },  // unused entry 115
+          { AOM_CDF2(16384),   0 },  // unused entry 116
+          // BLOCK_16X32
+          { AOM_CDF2(23344),  75 },
           { AOM_CDF2(21307), 124 },
-          { AOM_CDF2(20958), 75 },
+          { AOM_CDF2(20958),  75 },
           { AOM_CDF2(18495), 123 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_32X16
+          { AOM_CDF2(16384),   0 },  // unused entry 117
+          { AOM_CDF2(16384),   0 },  // unused entry 118
+          { AOM_CDF2(16384),   0 },  // unused entry 119
+          { AOM_CDF2(16384),   0 },  // unused entry 120
+          // BLOCK_32X32
           { AOM_CDF2(29125), 115 },
           { AOM_CDF2(29708), 115 },
           { AOM_CDF2(29515), 118 },
           { AOM_CDF2(30210), 115 },
-          { AOM_CDF2(24821), 4 },
+          // BLOCK_32X64
+          { AOM_CDF2(24821),   4 },
           { AOM_CDF2(19830), 110 },
-          { AOM_CDF2(14978), 75 },
+          { AOM_CDF2(14978),  75 },
           { AOM_CDF2(13689), 118 },
-          { AOM_CDF2(20582), 30 },
-          { AOM_CDF2(18547), 10 },
-          { AOM_CDF2(28584), 37 },
-          { AOM_CDF2(19540), 35 },
+          // BLOCK_64X32
+          { AOM_CDF2(20582),  30 },
+          { AOM_CDF2(18547),  10 },
+          { AOM_CDF2(28584),  37 },
+          { AOM_CDF2(19540),  35 },
+          // BLOCK_64X64
           { AOM_CDF2(29777), 109 },
-          { AOM_CDF2(31484), 75 },
-          { AOM_CDF2(30589), 75 },
-          { AOM_CDF2(32081), 90 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(31484),  75 },
+          { AOM_CDF2(30589),  75 },
+          { AOM_CDF2(32081),  90 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 121
+          { AOM_CDF2(16384),   0 },  // unused entry 122
+          { AOM_CDF2(16384),   0 },  // unused entry 123
+          { AOM_CDF2(16384),   0 },  // unused entry 124
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 125
+          { AOM_CDF2(16384),   0 },  // unused entry 126
+          { AOM_CDF2(16384),   0 },  // unused entry 127
+          { AOM_CDF2(16384),   0 },  // unused entry 128
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 129
+          { AOM_CDF2(16384),   0 },  // unused entry 130
+          { AOM_CDF2(16384),   0 },  // unused entry 131
+          { AOM_CDF2(16384),   0 },  // unused entry 132
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 133
+          { AOM_CDF2(16384),   0 },  // unused entry 134
+          { AOM_CDF2(16384),   0 },  // unused entry 135
+          { AOM_CDF2(16384),   0 },  // unused entry 136
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 137
+          { AOM_CDF2(16384),   0 },  // unused entry 138
+          { AOM_CDF2(16384),   0 },  // unused entry 139
+          { AOM_CDF2(16384),   0 },  // unused entry 140
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 141
+          { AOM_CDF2(16384),   0 },  // unused entry 142
+          { AOM_CDF2(16384),   0 },  // unused entry 143
+          { AOM_CDF2(16384),   0 },  // unused entry 144
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1194,83 +1327,102 @@ static aom_cdf_prob default_do_ext_partition_cdf
         },
         // VERT
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(27168), 75 },
-          { AOM_CDF2(26315), 75 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 145
+          { AOM_CDF2(16384),   0 },  // unused entry 146
+          { AOM_CDF2(16384),   0 },  // unused entry 147
+          { AOM_CDF2(16384),   0 },  // unused entry 148
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 149
+          { AOM_CDF2(16384),   0 },  // unused entry 150
+          { AOM_CDF2(16384),   0 },  // unused entry 151
+          { AOM_CDF2(16384),   0 },  // unused entry 152
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 153
+          { AOM_CDF2(16384),   0 },  // unused entry 154
+          { AOM_CDF2(16384),   0 },  // unused entry 155
+          { AOM_CDF2(16384),   0 },  // unused entry 156
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 157
+          { AOM_CDF2(16384),   0 },  // unused entry 158
+          { AOM_CDF2(16384),   0 },  // unused entry 159
+          { AOM_CDF2(16384),   0 },  // unused entry 160
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 161
+          { AOM_CDF2(16384),   0 },  // unused entry 162
+          { AOM_CDF2(16384),   0 },  // unused entry 163
+          { AOM_CDF2(16384),   0 },  // unused entry 164
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 165
+          { AOM_CDF2(16384),   0 },  // unused entry 166
+          { AOM_CDF2(16384),   0 },  // unused entry 167
+          { AOM_CDF2(16384),   0 },  // unused entry 168
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 169
+          { AOM_CDF2(16384),   0 },  // unused entry 170
+          { AOM_CDF2(16384),   0 },  // unused entry 171
+          { AOM_CDF2(16384),   0 },  // unused entry 172
+          // BLOCK_16X32
+          { AOM_CDF2(16384),   0 },  // unused entry 173
+          { AOM_CDF2(16384),   0 },  // unused entry 174
+          { AOM_CDF2(16384),   0 },  // unused entry 175
+          { AOM_CDF2(16384),   0 },  // unused entry 176
+          // BLOCK_32X16
+          { AOM_CDF2(27168),  75 },
+          { AOM_CDF2(26315),  75 },
           { AOM_CDF2(25707), 115 },
           { AOM_CDF2(24315), 115 },
+          // BLOCK_32X32
           { AOM_CDF2(30010), 123 },
           { AOM_CDF2(29350), 123 },
           { AOM_CDF2(29797), 123 },
           { AOM_CDF2(29474), 123 },
-          { AOM_CDF2(24177), 20 },
-          { AOM_CDF2(22570), 35 },
-          { AOM_CDF2(20114), 30 },
-          { AOM_CDF2(15773), 30 },
-          { AOM_CDF2(30934), 0 },
-          { AOM_CDF2(29660), 0 },
-          { AOM_CDF2(28397), 96 },
+          // BLOCK_32X64
+          { AOM_CDF2(24177),  20 },
+          { AOM_CDF2(22570),  35 },
+          { AOM_CDF2(20114),  30 },
+          { AOM_CDF2(15773),  30 },
+          // BLOCK_64X32
+          { AOM_CDF2(30934),   0 },
+          { AOM_CDF2(29660),   0 },
+          { AOM_CDF2(28397),  96 },
           { AOM_CDF2(26230), 123 },
-          { AOM_CDF2(25575), 95 },
-          { AOM_CDF2(25411), 94 },
-          { AOM_CDF2(28377), 76 },
-          { AOM_CDF2(30292), 6 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_64X64
+          { AOM_CDF2(25575),  95 },
+          { AOM_CDF2(25411),  94 },
+          { AOM_CDF2(28377),  76 },
+          { AOM_CDF2(30292),   6 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 177
+          { AOM_CDF2(16384),   0 },  // unused entry 178
+          { AOM_CDF2(16384),   0 },  // unused entry 179
+          { AOM_CDF2(16384),   0 },  // unused entry 180
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 181
+          { AOM_CDF2(16384),   0 },  // unused entry 182
+          { AOM_CDF2(16384),   0 },  // unused entry 183
+          { AOM_CDF2(16384),   0 },  // unused entry 184
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 185
+          { AOM_CDF2(16384),   0 },  // unused entry 186
+          { AOM_CDF2(16384),   0 },  // unused entry 187
+          { AOM_CDF2(16384),   0 },  // unused entry 188
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 189
+          { AOM_CDF2(16384),   0 },  // unused entry 190
+          { AOM_CDF2(16384),   0 },  // unused entry 191
+          { AOM_CDF2(16384),   0 },  // unused entry 192
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 193
+          { AOM_CDF2(16384),   0 },  // unused entry 194
+          { AOM_CDF2(16384),   0 },  // unused entry 195
+          { AOM_CDF2(16384),   0 },  // unused entry 196
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 197
+          { AOM_CDF2(16384),   0 },  // unused entry 198
+          { AOM_CDF2(16384),   0 },  // unused entry 199
+          { AOM_CDF2(16384),   0 },  // unused entry 200
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16, retrain needed
@@ -1300,83 +1452,102 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
       {
         // HORZ
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(20896), 91 },
-          { AOM_CDF2(25423), 87 },
-          { AOM_CDF2(18934), 76 },
-          { AOM_CDF2(24233), 76 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(18886), 5 },
-          { AOM_CDF2(19925), 75 },
-          { AOM_CDF2(14534), 2 },
-          { AOM_CDF2(15937), 12 },
-          { AOM_CDF2(22179), 0 },
-          { AOM_CDF2(25007), 0 },
-          { AOM_CDF2(23004), 2 },
-          { AOM_CDF2(28583), 1 },
-          { AOM_CDF2(28837), 0 },
-          { AOM_CDF2(27058), 0 },
-          { AOM_CDF2(26110), 4 },
-          { AOM_CDF2(25514), 35 },
-          { AOM_CDF2(15474), 25 },
-          { AOM_CDF2(17027), 0 },
-          { AOM_CDF2(11547), 18 },
-          { AOM_CDF2(13274), 10 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 1
+          { AOM_CDF2(16384),   0 },  // unused entry 2
+          { AOM_CDF2(16384),   0 },  // unused entry 3
+          { AOM_CDF2(16384),   0 },  // unused entry 4
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 5
+          { AOM_CDF2(16384),   0 },  // unused entry 6
+          { AOM_CDF2(16384),   0 },  // unused entry 7
+          { AOM_CDF2(16384),   0 },  // unused entry 8
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 9
+          { AOM_CDF2(16384),   0 },  // unused entry 10
+          { AOM_CDF2(16384),   0 },  // unused entry 11
+          { AOM_CDF2(16384),   0 },  // unused entry 12
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 13
+          { AOM_CDF2(16384),   0 },  // unused entry 14
+          { AOM_CDF2(16384),   0 },  // unused entry 15
+          { AOM_CDF2(16384),   0 },  // unused entry 16
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 17
+          { AOM_CDF2(16384),   0 },  // unused entry 18
+          { AOM_CDF2(16384),   0 },  // unused entry 19
+          { AOM_CDF2(16384),   0 },  // unused entry 20
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 21
+          { AOM_CDF2(16384),   0 },  // unused entry 22
+          { AOM_CDF2(16384),   0 },  // unused entry 23
+          { AOM_CDF2(16384),   0 },  // unused entry 24
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 25
+          { AOM_CDF2(16384),   0 },  // unused entry 26
+          { AOM_CDF2(16384),   0 },  // unused entry 27
+          { AOM_CDF2(16384),   0 },  // unused entry 28
+          // BLOCK_16X32
+          { AOM_CDF2(20896),  91 },
+          { AOM_CDF2(25423),  87 },
+          { AOM_CDF2(18934),  76 },
+          { AOM_CDF2(24233),  76 },
+          // BLOCK_32X16
+          { AOM_CDF2(16384),   0 },  // unused entry 29
+          { AOM_CDF2(16384),   0 },  // unused entry 30
+          { AOM_CDF2(16384),   0 },  // unused entry 31
+          { AOM_CDF2(16384),   0 },  // unused entry 32
+          // BLOCK_32X32
+          { AOM_CDF2(18886),   5 },
+          { AOM_CDF2(19925),  75 },
+          { AOM_CDF2(14534),   2 },
+          { AOM_CDF2(15937),  12 },
+          // BLOCK_32X64
+          { AOM_CDF2(22179),   0 },
+          { AOM_CDF2(25007),   0 },
+          { AOM_CDF2(23004),   2 },
+          { AOM_CDF2(28583),   1 },
+          // BLOCK_64X32
+          { AOM_CDF2(28837),   0 },
+          { AOM_CDF2(27058),   0 },
+          { AOM_CDF2(26110),   4 },
+          { AOM_CDF2(25514),  35 },
+          // BLOCK_64X64
+          { AOM_CDF2(15474),  25 },
+          { AOM_CDF2(17027),   0 },
+          { AOM_CDF2(11547),  18 },
+          { AOM_CDF2(13274),  10 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 33
+          { AOM_CDF2(16384),   0 },  // unused entry 34
+          { AOM_CDF2(16384),   0 },  // unused entry 35
+          { AOM_CDF2(16384),   0 },  // unused entry 36
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 37
+          { AOM_CDF2(16384),   0 },  // unused entry 38
+          { AOM_CDF2(16384),   0 },  // unused entry 39
+          { AOM_CDF2(16384),   0 },  // unused entry 40
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 41
+          { AOM_CDF2(16384),   0 },  // unused entry 42
+          { AOM_CDF2(16384),   0 },  // unused entry 43
+          { AOM_CDF2(16384),   0 },  // unused entry 44
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 45
+          { AOM_CDF2(16384),   0 },  // unused entry 46
+          { AOM_CDF2(16384),   0 },  // unused entry 47
+          { AOM_CDF2(16384),   0 },  // unused entry 48
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 49
+          { AOM_CDF2(16384),   0 },  // unused entry 50
+          { AOM_CDF2(16384),   0 },  // unused entry 51
+          { AOM_CDF2(16384),   0 },  // unused entry 52
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 53
+          { AOM_CDF2(16384),   0 },  // unused entry 54
+          { AOM_CDF2(16384),   0 },  // unused entry 55
+          { AOM_CDF2(16384),   0 },  // unused entry 56
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1401,83 +1572,102 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
         },
         // VERT
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(18404), 94 },
-          { AOM_CDF2(13828), 1 },
-          { AOM_CDF2(21848), 92 },
-          { AOM_CDF2(21300), 1 },
-          { AOM_CDF2(17164), 0 },
-          { AOM_CDF2(12467), 7 },
-          { AOM_CDF2(19002), 0 },
-          { AOM_CDF2(15835), 7 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 57
+          { AOM_CDF2(16384),   0 },  // unused entry 58
+          { AOM_CDF2(16384),   0 },  // unused entry 59
+          { AOM_CDF2(16384),   0 },  // unused entry 60
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 61
+          { AOM_CDF2(16384),   0 },  // unused entry 62
+          { AOM_CDF2(16384),   0 },  // unused entry 63
+          { AOM_CDF2(16384),   0 },  // unused entry 64
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 65
+          { AOM_CDF2(16384),   0 },  // unused entry 66
+          { AOM_CDF2(16384),   0 },  // unused entry 67
+          { AOM_CDF2(16384),   0 },  // unused entry 68
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 69
+          { AOM_CDF2(16384),   0 },  // unused entry 70
+          { AOM_CDF2(16384),   0 },  // unused entry 71
+          { AOM_CDF2(16384),   0 },  // unused entry 72
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 73
+          { AOM_CDF2(16384),   0 },  // unused entry 74
+          { AOM_CDF2(16384),   0 },  // unused entry 75
+          { AOM_CDF2(16384),   0 },  // unused entry 76
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 77
+          { AOM_CDF2(16384),   0 },  // unused entry 78
+          { AOM_CDF2(16384),   0 },  // unused entry 79
+          { AOM_CDF2(16384),   0 },  // unused entry 80
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 81
+          { AOM_CDF2(16384),   0 },  // unused entry 82
+          { AOM_CDF2(16384),   0 },  // unused entry 83
+          { AOM_CDF2(16384),   0 },  // unused entry 84
+          // BLOCK_16X32
+          { AOM_CDF2(16384),   0 },  // unused entry 85
+          { AOM_CDF2(16384),   0 },  // unused entry 86
+          { AOM_CDF2(16384),   0 },  // unused entry 87
+          { AOM_CDF2(16384),   0 },  // unused entry 88
+          // BLOCK_32X16
+          { AOM_CDF2(18404),  94 },
+          { AOM_CDF2(13828),   1 },
+          { AOM_CDF2(21848),  92 },
+          { AOM_CDF2(21300),   1 },
+          // BLOCK_32X32
+          { AOM_CDF2(17164),   0 },
+          { AOM_CDF2(12467),   7 },
+          { AOM_CDF2(19002),   0 },
+          { AOM_CDF2(15835),   7 },
+          // BLOCK_32X64
           { AOM_CDF2(18611), 100 },
-          { AOM_CDF2(22116), 99 },
-          { AOM_CDF2(24382), 25 },
-          { AOM_CDF2(23971), 20 },
-          { AOM_CDF2(15558), 0 },
-          { AOM_CDF2(13948), 7 },
-          { AOM_CDF2(23894), 0 },
-          { AOM_CDF2(25244), 1 },
-          { AOM_CDF2(16931), 50 },
-          { AOM_CDF2(15037), 31 },
-          { AOM_CDF2(20386), 25 },
-          { AOM_CDF2(18422), 35 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(22116),  99 },
+          { AOM_CDF2(24382),  25 },
+          { AOM_CDF2(23971),  20 },
+          // BLOCK_64X32
+          { AOM_CDF2(15558),   0 },
+          { AOM_CDF2(13948),   7 },
+          { AOM_CDF2(23894),   0 },
+          { AOM_CDF2(25244),   1 },
+          // BLOCK_64X64
+          { AOM_CDF2(16931),  50 },
+          { AOM_CDF2(15037),  31 },
+          { AOM_CDF2(20386),  25 },
+          { AOM_CDF2(18422),  35 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 89
+          { AOM_CDF2(16384),   0 },  // unused entry 90
+          { AOM_CDF2(16384),   0 },  // unused entry 91
+          { AOM_CDF2(16384),   0 },  // unused entry 92
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 93
+          { AOM_CDF2(16384),   0 },  // unused entry 94
+          { AOM_CDF2(16384),   0 },  // unused entry 95
+          { AOM_CDF2(16384),   0 },  // unused entry 96
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 97
+          { AOM_CDF2(16384),   0 },  // unused entry 98
+          { AOM_CDF2(16384),   0 },  // unused entry 99
+          { AOM_CDF2(16384),   0 },  // unused entry 100
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 101
+          { AOM_CDF2(16384),   0 },  // unused entry 102
+          { AOM_CDF2(16384),   0 },  // unused entry 103
+          { AOM_CDF2(16384),   0 },  // unused entry 104
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 105
+          { AOM_CDF2(16384),   0 },  // unused entry 106
+          { AOM_CDF2(16384),   0 },  // unused entry 107
+          { AOM_CDF2(16384),   0 },  // unused entry 108
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 109
+          { AOM_CDF2(16384),   0 },  // unused entry 110
+          { AOM_CDF2(16384),   0 },  // unused entry 111
+          { AOM_CDF2(16384),   0 },  // unused entry 112
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1505,83 +1695,102 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
       {
         // HORZ
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 113
+          { AOM_CDF2(16384),   0 },  // unused entry 114
+          { AOM_CDF2(16384),   0 },  // unused entry 115
+          { AOM_CDF2(16384),   0 },  // unused entry 116
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 117
+          { AOM_CDF2(16384),   0 },  // unused entry 118
+          { AOM_CDF2(16384),   0 },  // unused entry 119
+          { AOM_CDF2(16384),   0 },  // unused entry 120
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 121
+          { AOM_CDF2(16384),   0 },  // unused entry 122
+          { AOM_CDF2(16384),   0 },  // unused entry 123
+          { AOM_CDF2(16384),   0 },  // unused entry 124
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 125
+          { AOM_CDF2(16384),   0 },  // unused entry 126
+          { AOM_CDF2(16384),   0 },  // unused entry 127
+          { AOM_CDF2(16384),   0 },  // unused entry 128
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 129
+          { AOM_CDF2(16384),   0 },  // unused entry 130
+          { AOM_CDF2(16384),   0 },  // unused entry 131
+          { AOM_CDF2(16384),   0 },  // unused entry 132
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 133
+          { AOM_CDF2(16384),   0 },  // unused entry 134
+          { AOM_CDF2(16384),   0 },  // unused entry 135
+          { AOM_CDF2(16384),   0 },  // unused entry 136
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 137
+          { AOM_CDF2(16384),   0 },  // unused entry 138
+          { AOM_CDF2(16384),   0 },  // unused entry 139
+          { AOM_CDF2(16384),   0 },  // unused entry 140
+          // BLOCK_16X32
+          { AOM_CDF2(16384),   0 },  // unused entry 141
+          { AOM_CDF2(16384),   0 },  // unused entry 142
+          { AOM_CDF2(16384),   0 },  // unused entry 143
+          { AOM_CDF2(16384),   0 },  // unused entry 144
+          // BLOCK_32X16
+          { AOM_CDF2(16384),   0 },  // unused entry 145
+          { AOM_CDF2(16384),   0 },  // unused entry 146
+          { AOM_CDF2(16384),   0 },  // unused entry 147
+          { AOM_CDF2(16384),   0 },  // unused entry 148
+          // BLOCK_32X32
+          { AOM_CDF2(16384),   0 },  // unused entry 149
+          { AOM_CDF2(16384),   0 },  // unused entry 150
+          { AOM_CDF2(16384),   0 },  // unused entry 151
+          { AOM_CDF2(16384),   0 },  // unused entry 152
+          // BLOCK_32X64
           { AOM_CDF2(23490), 120 },
-          { AOM_CDF2(24611), 0 },
-          { AOM_CDF2(21709), 76 },
-          { AOM_CDF2(24109), 77 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(26228), 75 },
+          { AOM_CDF2(24611),   0 },
+          { AOM_CDF2(21709),  76 },
+          { AOM_CDF2(24109),  77 },
+          // BLOCK_64X32
+          { AOM_CDF2(16384),   0 },  // unused entry 153
+          { AOM_CDF2(16384),   0 },  // unused entry 154
+          { AOM_CDF2(16384),   0 },  // unused entry 155
+          { AOM_CDF2(16384),   0 },  // unused entry 156
+          // BLOCK_64X64
+          { AOM_CDF2(26228),  75 },
           { AOM_CDF2(23938), 100 },
-          { AOM_CDF2(21021), 20 },
-          { AOM_CDF2(20071), 8 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(21021),  20 },
+          { AOM_CDF2(20071),   8 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 157
+          { AOM_CDF2(16384),   0 },  // unused entry 158
+          { AOM_CDF2(16384),   0 },  // unused entry 159
+          { AOM_CDF2(16384),   0 },  // unused entry 160
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 161
+          { AOM_CDF2(16384),   0 },  // unused entry 162
+          { AOM_CDF2(16384),   0 },  // unused entry 163
+          { AOM_CDF2(16384),   0 },  // unused entry 164
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 165
+          { AOM_CDF2(16384),   0 },  // unused entry 166
+          { AOM_CDF2(16384),   0 },  // unused entry 167
+          { AOM_CDF2(16384),   0 },  // unused entry 168
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 169
+          { AOM_CDF2(16384),   0 },  // unused entry 170
+          { AOM_CDF2(16384),   0 },  // unused entry 171
+          { AOM_CDF2(16384),   0 },  // unused entry 172
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 173
+          { AOM_CDF2(16384),   0 },  // unused entry 174
+          { AOM_CDF2(16384),   0 },  // unused entry 175
+          { AOM_CDF2(16384),   0 },  // unused entry 176
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 177
+          { AOM_CDF2(16384),   0 },  // unused entry 178
+          { AOM_CDF2(16384),   0 },  // unused entry 179
+          { AOM_CDF2(16384),   0 },  // unused entry 180
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1603,83 +1812,102 @@ static aom_cdf_prob default_do_uneven_4way_partition_cdf
         },
         // VERT
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(21146), 75 },
-          { AOM_CDF2(18757), 2 },
-          { AOM_CDF2(25409), 95 },
-          { AOM_CDF2(22994), 76 },
-          { AOM_CDF2(16091), 75 },
-          { AOM_CDF2(14886), 20 },
-          { AOM_CDF2(17656), 75 },
-          { AOM_CDF2(15202), 15 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 181
+          { AOM_CDF2(16384),   0 },  // unused entry 182
+          { AOM_CDF2(16384),   0 },  // unused entry 183
+          { AOM_CDF2(16384),   0 },  // unused entry 184
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 185
+          { AOM_CDF2(16384),   0 },  // unused entry 186
+          { AOM_CDF2(16384),   0 },  // unused entry 187
+          { AOM_CDF2(16384),   0 },  // unused entry 188
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 189
+          { AOM_CDF2(16384),   0 },  // unused entry 190
+          { AOM_CDF2(16384),   0 },  // unused entry 191
+          { AOM_CDF2(16384),   0 },  // unused entry 192
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 193
+          { AOM_CDF2(16384),   0 },  // unused entry 194
+          { AOM_CDF2(16384),   0 },  // unused entry 195
+          { AOM_CDF2(16384),   0 },  // unused entry 196
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 197
+          { AOM_CDF2(16384),   0 },  // unused entry 198
+          { AOM_CDF2(16384),   0 },  // unused entry 199
+          { AOM_CDF2(16384),   0 },  // unused entry 200
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 201
+          { AOM_CDF2(16384),   0 },  // unused entry 202
+          { AOM_CDF2(16384),   0 },  // unused entry 203
+          { AOM_CDF2(16384),   0 },  // unused entry 204
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 205
+          { AOM_CDF2(16384),   0 },  // unused entry 206
+          { AOM_CDF2(16384),   0 },  // unused entry 207
+          { AOM_CDF2(16384),   0 },  // unused entry 208
+          // BLOCK_16X32
+          { AOM_CDF2(16384),   0 },  // unused entry 209
+          { AOM_CDF2(16384),   0 },  // unused entry 210
+          { AOM_CDF2(16384),   0 },  // unused entry 211
+          { AOM_CDF2(16384),   0 },  // unused entry 212
+          // BLOCK_32X16
+          { AOM_CDF2(16384),   0 },  // unused entry 213
+          { AOM_CDF2(16384),   0 },  // unused entry 214
+          { AOM_CDF2(16384),   0 },  // unused entry 215
+          { AOM_CDF2(16384),   0 },  // unused entry 216
+          // BLOCK_32X32
+          { AOM_CDF2(16384),   0 },  // unused entry 217
+          { AOM_CDF2(16384),   0 },  // unused entry 218
+          { AOM_CDF2(16384),   0 },  // unused entry 219
+          { AOM_CDF2(16384),   0 },  // unused entry 220
+          // BLOCK_32X64
+          { AOM_CDF2(16384),   0 },  // unused entry 221
+          { AOM_CDF2(16384),   0 },  // unused entry 222
+          { AOM_CDF2(16384),   0 },  // unused entry 223
+          { AOM_CDF2(16384),   0 },  // unused entry 224
+          // BLOCK_64X32
+          { AOM_CDF2(21146),  75 },
+          { AOM_CDF2(18757),   2 },
+          { AOM_CDF2(25409),  95 },
+          { AOM_CDF2(22994),  76 },
+          // BLOCK_64X64
+          { AOM_CDF2(16091),  75 },
+          { AOM_CDF2(14886),  20 },
+          { AOM_CDF2(17656),  75 },
+          { AOM_CDF2(15202),  15 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 225
+          { AOM_CDF2(16384),   0 },  // unused entry 226
+          { AOM_CDF2(16384),   0 },  // unused entry 227
+          { AOM_CDF2(16384),   0 },  // unused entry 228
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 229
+          { AOM_CDF2(16384),   0 },  // unused entry 230
+          { AOM_CDF2(16384),   0 },  // unused entry 231
+          { AOM_CDF2(16384),   0 },  // unused entry 232
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 233
+          { AOM_CDF2(16384),   0 },  // unused entry 234
+          { AOM_CDF2(16384),   0 },  // unused entry 235
+          { AOM_CDF2(16384),   0 },  // unused entry 236
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 237
+          { AOM_CDF2(16384),   0 },  // unused entry 238
+          { AOM_CDF2(16384),   0 },  // unused entry 239
+          { AOM_CDF2(16384),   0 },  // unused entry 240
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 241
+          { AOM_CDF2(16384),   0 },  // unused entry 242
+          { AOM_CDF2(16384),   0 },  // unused entry 243
+          { AOM_CDF2(16384),   0 },  // unused entry 244
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 245
+          { AOM_CDF2(16384),   0 },  // unused entry 246
+          { AOM_CDF2(16384),   0 },  // unused entry 247
+          { AOM_CDF2(16384),   0 },  // unused entry 248
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1709,83 +1937,102 @@ static aom_cdf_prob default_uneven_4way_partition_type_cdf
       {
         // HORZ
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(21740), 80 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 1
+          { AOM_CDF2(16384),   0 },  // unused entry 2
+          { AOM_CDF2(16384),   0 },  // unused entry 3
+          { AOM_CDF2(16384),   0 },  // unused entry 4
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 5
+          { AOM_CDF2(16384),   0 },  // unused entry 6
+          { AOM_CDF2(16384),   0 },  // unused entry 7
+          { AOM_CDF2(16384),   0 },  // unused entry 8
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 9
+          { AOM_CDF2(16384),   0 },  // unused entry 10
+          { AOM_CDF2(16384),   0 },  // unused entry 11
+          { AOM_CDF2(16384),   0 },  // unused entry 12
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 13
+          { AOM_CDF2(16384),   0 },  // unused entry 14
+          { AOM_CDF2(16384),   0 },  // unused entry 15
+          { AOM_CDF2(16384),   0 },  // unused entry 16
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 17
+          { AOM_CDF2(16384),   0 },  // unused entry 18
+          { AOM_CDF2(16384),   0 },  // unused entry 19
+          { AOM_CDF2(16384),   0 },  // unused entry 20
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 21
+          { AOM_CDF2(16384),   0 },  // unused entry 22
+          { AOM_CDF2(16384),   0 },  // unused entry 23
+          { AOM_CDF2(16384),   0 },  // unused entry 24
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 25
+          { AOM_CDF2(16384),   0 },  // unused entry 26
+          { AOM_CDF2(16384),   0 },  // unused entry 27
+          { AOM_CDF2(16384),   0 },  // unused entry 28
+          // BLOCK_16X32
+          { AOM_CDF2(21740),  80 },
           { AOM_CDF2(21317), 100 },
           { AOM_CDF2(24285), 115 },
           { AOM_CDF2(24124), 124 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(19671), 75 },
-          { AOM_CDF2(17030), 75 },
-          { AOM_CDF2(20432), 7 },
-          { AOM_CDF2(17357), 17 },
+          // BLOCK_32X16
+          { AOM_CDF2(16384),   0 },  // unused entry 29
+          { AOM_CDF2(16384),   0 },  // unused entry 30
+          { AOM_CDF2(16384),   0 },  // unused entry 31
+          { AOM_CDF2(16384),   0 },  // unused entry 32
+          // BLOCK_32X32
+          { AOM_CDF2(19671),  75 },
+          { AOM_CDF2(17030),  75 },
+          { AOM_CDF2(20432),   7 },
+          { AOM_CDF2(17357),  17 },
+          // BLOCK_32X64
           { AOM_CDF2(21678), 100 },
           { AOM_CDF2(22846), 100 },
-          { AOM_CDF2(23642), 80 },
+          { AOM_CDF2(23642),  80 },
           { AOM_CDF2(23686), 110 },
-          { AOM_CDF2(20055), 0 },
+          // BLOCK_64X32
+          { AOM_CDF2(20055),   0 },
           { AOM_CDF2(24000), 100 },
-          { AOM_CDF2(17744), 0 },
-          { AOM_CDF2(18144), 25 },
-          { AOM_CDF2(19248), 25 },
-          { AOM_CDF2(13999), 75 },
-          { AOM_CDF2(19510), 5 },
-          { AOM_CDF2(12879), 75 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(17744),   0 },
+          { AOM_CDF2(18144),  25 },
+          // BLOCK_64X64
+          { AOM_CDF2(19248),  25 },
+          { AOM_CDF2(13999),  75 },
+          { AOM_CDF2(19510),   5 },
+          { AOM_CDF2(12879),  75 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 33
+          { AOM_CDF2(16384),   0 },  // unused entry 34
+          { AOM_CDF2(16384),   0 },  // unused entry 35
+          { AOM_CDF2(16384),   0 },  // unused entry 36
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 37
+          { AOM_CDF2(16384),   0 },  // unused entry 38
+          { AOM_CDF2(16384),   0 },  // unused entry 39
+          { AOM_CDF2(16384),   0 },  // unused entry 40
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 41
+          { AOM_CDF2(16384),   0 },  // unused entry 42
+          { AOM_CDF2(16384),   0 },  // unused entry 43
+          { AOM_CDF2(16384),   0 },  // unused entry 44
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 45
+          { AOM_CDF2(16384),   0 },  // unused entry 46
+          { AOM_CDF2(16384),   0 },  // unused entry 47
+          { AOM_CDF2(16384),   0 },  // unused entry 48
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 49
+          { AOM_CDF2(16384),   0 },  // unused entry 50
+          { AOM_CDF2(16384),   0 },  // unused entry 51
+          { AOM_CDF2(16384),   0 },  // unused entry 52
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 53
+          { AOM_CDF2(16384),   0 },  // unused entry 54
+          { AOM_CDF2(16384),   0 },  // unused entry 55
+          { AOM_CDF2(16384),   0 },  // unused entry 56
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1810,83 +2057,102 @@ static aom_cdf_prob default_uneven_4way_partition_type_cdf
         },
         // VERT
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 57
+          { AOM_CDF2(16384),   0 },  // unused entry 58
+          { AOM_CDF2(16384),   0 },  // unused entry 59
+          { AOM_CDF2(16384),   0 },  // unused entry 60
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 61
+          { AOM_CDF2(16384),   0 },  // unused entry 62
+          { AOM_CDF2(16384),   0 },  // unused entry 63
+          { AOM_CDF2(16384),   0 },  // unused entry 64
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 65
+          { AOM_CDF2(16384),   0 },  // unused entry 66
+          { AOM_CDF2(16384),   0 },  // unused entry 67
+          { AOM_CDF2(16384),   0 },  // unused entry 68
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 69
+          { AOM_CDF2(16384),   0 },  // unused entry 70
+          { AOM_CDF2(16384),   0 },  // unused entry 71
+          { AOM_CDF2(16384),   0 },  // unused entry 72
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 73
+          { AOM_CDF2(16384),   0 },  // unused entry 74
+          { AOM_CDF2(16384),   0 },  // unused entry 75
+          { AOM_CDF2(16384),   0 },  // unused entry 76
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 77
+          { AOM_CDF2(16384),   0 },  // unused entry 78
+          { AOM_CDF2(16384),   0 },  // unused entry 79
+          { AOM_CDF2(16384),   0 },  // unused entry 80
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 81
+          { AOM_CDF2(16384),   0 },  // unused entry 82
+          { AOM_CDF2(16384),   0 },  // unused entry 83
+          { AOM_CDF2(16384),   0 },  // unused entry 84
+          // BLOCK_16X32
+          { AOM_CDF2(16384),   0 },  // unused entry 85
+          { AOM_CDF2(16384),   0 },  // unused entry 86
+          { AOM_CDF2(16384),   0 },  // unused entry 87
+          { AOM_CDF2(16384),   0 },  // unused entry 88
+          // BLOCK_32X16
           { AOM_CDF2(21198), 100 },
-          { AOM_CDF2(25264), 76 },
-          { AOM_CDF2(21343), 95 },
+          { AOM_CDF2(25264),  76 },
+          { AOM_CDF2(21343),  95 },
           { AOM_CDF2(22641), 116 },
-          { AOM_CDF2(19777), 75 },
+          // BLOCK_32X32
+          { AOM_CDF2(19777),  75 },
           { AOM_CDF2(20825), 115 },
-          { AOM_CDF2(17008), 75 },
-          { AOM_CDF2(18355), 82 },
-          { AOM_CDF2(22149), 75 },
-          { AOM_CDF2(14263), 20 },
-          { AOM_CDF2(23013), 0 },
-          { AOM_CDF2(17554), 25 },
+          { AOM_CDF2(17008),  75 },
+          { AOM_CDF2(18355),  82 },
+          // BLOCK_32X64
+          { AOM_CDF2(22149),  75 },
+          { AOM_CDF2(14263),  20 },
+          { AOM_CDF2(23013),   0 },
+          { AOM_CDF2(17554),  25 },
+          // BLOCK_64X32
           { AOM_CDF2(22601), 100 },
-          { AOM_CDF2(23769), 91 },
-          { AOM_CDF2(19886), 0 },
-          { AOM_CDF2(21578), 84 },
-          { AOM_CDF2(20325), 75 },
+          { AOM_CDF2(23769),  91 },
+          { AOM_CDF2(19886),   0 },
+          { AOM_CDF2(21578),  84 },
+          // BLOCK_64X64
+          { AOM_CDF2(20325),  75 },
           { AOM_CDF2(20781), 105 },
-          { AOM_CDF2(17086), 75 },
-          { AOM_CDF2(16419), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(17086),  75 },
+          { AOM_CDF2(16419),   0 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 89
+          { AOM_CDF2(16384),   0 },  // unused entry 90
+          { AOM_CDF2(16384),   0 },  // unused entry 91
+          { AOM_CDF2(16384),   0 },  // unused entry 92
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 93
+          { AOM_CDF2(16384),   0 },  // unused entry 94
+          { AOM_CDF2(16384),   0 },  // unused entry 95
+          { AOM_CDF2(16384),   0 },  // unused entry 96
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 97
+          { AOM_CDF2(16384),   0 },  // unused entry 98
+          { AOM_CDF2(16384),   0 },  // unused entry 99
+          { AOM_CDF2(16384),   0 },  // unused entry 100
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 101
+          { AOM_CDF2(16384),   0 },  // unused entry 102
+          { AOM_CDF2(16384),   0 },  // unused entry 103
+          { AOM_CDF2(16384),   0 },  // unused entry 104
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 105
+          { AOM_CDF2(16384),   0 },  // unused entry 106
+          { AOM_CDF2(16384),   0 },  // unused entry 107
+          { AOM_CDF2(16384),   0 },  // unused entry 108
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 109
+          { AOM_CDF2(16384),   0 },  // unused entry 110
+          { AOM_CDF2(16384),   0 },  // unused entry 111
+          { AOM_CDF2(16384),   0 },  // unused entry 112
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -1914,83 +2180,102 @@ static aom_cdf_prob default_uneven_4way_partition_type_cdf
       {
         // HORZ
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 113
+          { AOM_CDF2(16384),   0 },  // unused entry 114
+          { AOM_CDF2(16384),   0 },  // unused entry 115
+          { AOM_CDF2(16384),   0 },  // unused entry 116
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 117
+          { AOM_CDF2(16384),   0 },  // unused entry 118
+          { AOM_CDF2(16384),   0 },  // unused entry 119
+          { AOM_CDF2(16384),   0 },  // unused entry 120
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 121
+          { AOM_CDF2(16384),   0 },  // unused entry 122
+          { AOM_CDF2(16384),   0 },  // unused entry 123
+          { AOM_CDF2(16384),   0 },  // unused entry 124
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 125
+          { AOM_CDF2(16384),   0 },  // unused entry 126
+          { AOM_CDF2(16384),   0 },  // unused entry 127
+          { AOM_CDF2(16384),   0 },  // unused entry 128
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 129
+          { AOM_CDF2(16384),   0 },  // unused entry 130
+          { AOM_CDF2(16384),   0 },  // unused entry 131
+          { AOM_CDF2(16384),   0 },  // unused entry 132
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 133
+          { AOM_CDF2(16384),   0 },  // unused entry 134
+          { AOM_CDF2(16384),   0 },  // unused entry 135
+          { AOM_CDF2(16384),   0 },  // unused entry 136
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 137
+          { AOM_CDF2(16384),   0 },  // unused entry 138
+          { AOM_CDF2(16384),   0 },  // unused entry 139
+          { AOM_CDF2(16384),   0 },  // unused entry 140
+          // BLOCK_16X32
+          { AOM_CDF2(16384),   0 },  // unused entry 141
+          { AOM_CDF2(16384),   0 },  // unused entry 142
+          { AOM_CDF2(16384),   0 },  // unused entry 143
+          { AOM_CDF2(16384),   0 },  // unused entry 144
+          // BLOCK_32X16
+          { AOM_CDF2(16384),   0 },  // unused entry 145
+          { AOM_CDF2(16384),   0 },  // unused entry 146
+          { AOM_CDF2(16384),   0 },  // unused entry 147
+          { AOM_CDF2(16384),   0 },  // unused entry 148
+          // BLOCK_32X32
+          { AOM_CDF2(16384),   0 },  // unused entry 149
+          { AOM_CDF2(16384),   0 },  // unused entry 150
+          { AOM_CDF2(16384),   0 },  // unused entry 151
+          { AOM_CDF2(16384),   0 },  // unused entry 152
+          // BLOCK_32X64
           { AOM_CDF2(23000), 100 },
           { AOM_CDF2(22945), 100 },
-          { AOM_CDF2(21130), 16 },
+          { AOM_CDF2(21130),  16 },
           { AOM_CDF2(21467), 115 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(19251), 75 },
-          { AOM_CDF2(13198), 25 },
-          { AOM_CDF2(12824), 75 },
-          { AOM_CDF2(12472), 95 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_64X32
+          { AOM_CDF2(16384),   0 },  // unused entry 153
+          { AOM_CDF2(16384),   0 },  // unused entry 154
+          { AOM_CDF2(16384),   0 },  // unused entry 155
+          { AOM_CDF2(16384),   0 },  // unused entry 156
+          // BLOCK_64X64
+          { AOM_CDF2(19251),  75 },
+          { AOM_CDF2(13198),  25 },
+          { AOM_CDF2(12824),  75 },
+          { AOM_CDF2(12472),  95 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 157
+          { AOM_CDF2(16384),   0 },  // unused entry 158
+          { AOM_CDF2(16384),   0 },  // unused entry 159
+          { AOM_CDF2(16384),   0 },  // unused entry 160
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 161
+          { AOM_CDF2(16384),   0 },  // unused entry 162
+          { AOM_CDF2(16384),   0 },  // unused entry 163
+          { AOM_CDF2(16384),   0 },  // unused entry 164
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 165
+          { AOM_CDF2(16384),   0 },  // unused entry 166
+          { AOM_CDF2(16384),   0 },  // unused entry 167
+          { AOM_CDF2(16384),   0 },  // unused entry 168
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 169
+          { AOM_CDF2(16384),   0 },  // unused entry 170
+          { AOM_CDF2(16384),   0 },  // unused entry 171
+          { AOM_CDF2(16384),   0 },  // unused entry 172
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 173
+          { AOM_CDF2(16384),   0 },  // unused entry 174
+          { AOM_CDF2(16384),   0 },  // unused entry 175
+          { AOM_CDF2(16384),   0 },  // unused entry 176
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 177
+          { AOM_CDF2(16384),   0 },  // unused entry 178
+          { AOM_CDF2(16384),   0 },  // unused entry 179
+          { AOM_CDF2(16384),   0 },  // unused entry 180
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -2012,83 +2297,102 @@ static aom_cdf_prob default_uneven_4way_partition_type_cdf
         },
         // VERT
         {
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_4X4
+          { AOM_CDF2(16384),   0 },  // unused entry 181
+          { AOM_CDF2(16384),   0 },  // unused entry 182
+          { AOM_CDF2(16384),   0 },  // unused entry 183
+          { AOM_CDF2(16384),   0 },  // unused entry 184
+          // BLOCK_4X8
+          { AOM_CDF2(16384),   0 },  // unused entry 185
+          { AOM_CDF2(16384),   0 },  // unused entry 186
+          { AOM_CDF2(16384),   0 },  // unused entry 187
+          { AOM_CDF2(16384),   0 },  // unused entry 188
+          // BLOCK_8X4
+          { AOM_CDF2(16384),   0 },  // unused entry 189
+          { AOM_CDF2(16384),   0 },  // unused entry 190
+          { AOM_CDF2(16384),   0 },  // unused entry 191
+          { AOM_CDF2(16384),   0 },  // unused entry 192
+          // BLOCK_8X8
+          { AOM_CDF2(16384),   0 },  // unused entry 193
+          { AOM_CDF2(16384),   0 },  // unused entry 194
+          { AOM_CDF2(16384),   0 },  // unused entry 195
+          { AOM_CDF2(16384),   0 },  // unused entry 196
+          // BLOCK_8x16
+          { AOM_CDF2(16384),   0 },  // unused entry 197
+          { AOM_CDF2(16384),   0 },  // unused entry 198
+          { AOM_CDF2(16384),   0 },  // unused entry 199
+          { AOM_CDF2(16384),   0 },  // unused entry 200
+          // BLOCK_16X8
+          { AOM_CDF2(16384),   0 },  // unused entry 201
+          { AOM_CDF2(16384),   0 },  // unused entry 202
+          { AOM_CDF2(16384),   0 },  // unused entry 203
+          { AOM_CDF2(16384),   0 },  // unused entry 204
+          // BLOCK_16x16
+          { AOM_CDF2(16384),   0 },  // unused entry 205
+          { AOM_CDF2(16384),   0 },  // unused entry 206
+          { AOM_CDF2(16384),   0 },  // unused entry 207
+          { AOM_CDF2(16384),   0 },  // unused entry 208
+          // BLOCK_16X32
+          { AOM_CDF2(16384),   0 },  // unused entry 209
+          { AOM_CDF2(16384),   0 },  // unused entry 210
+          { AOM_CDF2(16384),   0 },  // unused entry 211
+          { AOM_CDF2(16384),   0 },  // unused entry 212
+          // BLOCK_32X16
+          { AOM_CDF2(16384),   0 },  // unused entry 213
+          { AOM_CDF2(16384),   0 },  // unused entry 214
+          { AOM_CDF2(16384),   0 },  // unused entry 215
+          { AOM_CDF2(16384),   0 },  // unused entry 216
+          // BLOCK_32X32
+          { AOM_CDF2(16384),   0 },  // unused entry 217
+          { AOM_CDF2(16384),   0 },  // unused entry 218
+          { AOM_CDF2(16384),   0 },  // unused entry 219
+          { AOM_CDF2(16384),   0 },  // unused entry 220
+          // BLOCK_32X64
+          { AOM_CDF2(16384),   0 },  // unused entry 221
+          { AOM_CDF2(16384),   0 },  // unused entry 222
+          { AOM_CDF2(16384),   0 },  // unused entry 223
+          { AOM_CDF2(16384),   0 },  // unused entry 224
+          // BLOCK_64X32
           { AOM_CDF2(20707), 100 },
           { AOM_CDF2(21168), 116 },
           { AOM_CDF2(19489), 100 },
           { AOM_CDF2(20945), 118 },
-          { AOM_CDF2(13804), 75 },
+          // BLOCK_64X64
+          { AOM_CDF2(13804),  75 },
           { AOM_CDF2(20684), 100 },
           { AOM_CDF2(17252), 100 },
-          { AOM_CDF2(16447), 25 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(16447),  25 },
+          // BLOCK_64X128
+          { AOM_CDF2(16384),   0 },  // unused entry 225
+          { AOM_CDF2(16384),   0 },  // unused entry 226
+          { AOM_CDF2(16384),   0 },  // unused entry 227
+          { AOM_CDF2(16384),   0 },  // unused entry 228
+          // BLOCK_128X64
+          { AOM_CDF2(16384),   0 },  // unused entry 229
+          { AOM_CDF2(16384),   0 },  // unused entry 230
+          { AOM_CDF2(16384),   0 },  // unused entry 231
+          { AOM_CDF2(16384),   0 },  // unused entry 232
+          // BLOCK_128X128
+          { AOM_CDF2(16384),   0 },  // unused entry 233
+          { AOM_CDF2(16384),   0 },  // unused entry 234
+          { AOM_CDF2(16384),   0 },  // unused entry 235
+          { AOM_CDF2(16384),   0 },  // unused entry 236
 #if CONFIG_BLOCK_256
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(16384), 0 },
+          // BLOCK_128X256
+          { AOM_CDF2(16384),   0 },  // unused entry 237
+          { AOM_CDF2(16384),   0 },  // unused entry 238
+          { AOM_CDF2(16384),   0 },  // unused entry 239
+          { AOM_CDF2(16384),   0 },  // unused entry 240
+          // BLOCK_256X128
+          { AOM_CDF2(16384),   0 },  // unused entry 241
+          { AOM_CDF2(16384),   0 },  // unused entry 242
+          { AOM_CDF2(16384),   0 },  // unused entry 243
+          { AOM_CDF2(16384),   0 },  // unused entry 244
+          // BLOCK_256X256
+          { AOM_CDF2(16384),   0 },  // unused entry 245
+          { AOM_CDF2(16384),   0 },  // unused entry 246
+          { AOM_CDF2(16384),   0 },  // unused entry 247
+          { AOM_CDF2(16384),   0 },  // unused entry 248
 #endif  // CONFIG_BLOCK_256
 #if CONFIG_CB1TO4_SPLIT
         // BLOCK_4X16,
@@ -2849,10 +3153,12 @@ static aom_cdf_prob
     default_do_square_split_cdf[PARTITION_STRUCTURE_NUM][SQUARE_SPLIT_CONTEXTS][CDF_SIZE(2)] = {
       // Luma
       {
+        // BLOCK_128X128
         { AOM_CDF2(20966), 20 },
         { AOM_CDF2(13180), 30 },
         { AOM_CDF2(11157), 37 },
         { AOM_CDF2( 4258), 6 },
+        // BLOCK_256X256
         { AOM_CDF2(20286), 25 },
         { AOM_CDF2(14079), 25 },
         { AOM_CDF2(13942), 35 },
@@ -2860,10 +3166,12 @@ static aom_cdf_prob
       },
       // Chroma
       {
+        // BLOCK_128X128
         { AOM_CDF2(24144), 25 },
         { AOM_CDF2(13301), 35 },
         { AOM_CDF2(13196), 35 },
         { AOM_CDF2( 7273), 6 },
+        // BLOCK_256X256
         { AOM_CDF2(16384), 0 },
         { AOM_CDF2(16384), 0 },
         { AOM_CDF2(16384), 0 },
