@@ -908,15 +908,19 @@ static void screen_content_tools_determination(
   const double palette_ratio =
       (double)cpi->palette_pixel_num / (double)(cm->height * cm->width);
   const int psnr_diff_is_large = (psnr_diff > STRICT_PSNR_DIFF_THRESH);
-  const int ratio_is_large =
-      ((palette_ratio >= 0.0001) && ((psnr_diff / palette_ratio) > 4));
+  int ratio_is_large = (palette_ratio >= 0.0001);
+  if (ratio_is_large) {
+    ratio_is_large = ((psnr_diff / palette_ratio) > 4);
+  }
   const int is_sc_encoding_much_better = (psnr_diff_is_large || ratio_is_large);
 
   // the following two flags are used to determine if we enable intrabc or not.
   // Since intrabc is an expensive tool, we raise the threshold of
   // palette_ratio.
-  const int ratio_is_large_2 =
-      ((palette_ratio >= 0.25) && ((psnr_diff / palette_ratio) > 4));
+  int ratio_is_large_2 = (palette_ratio >= 0.25);
+  if (ratio_is_large_2) {
+    ratio_is_large_2 = ((psnr_diff / palette_ratio) > 4);
+  }
   const int is_sc_encoding_much_better_2 =
       (psnr_diff_is_large || ratio_is_large_2);
 #else
