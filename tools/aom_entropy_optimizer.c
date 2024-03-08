@@ -628,7 +628,7 @@ int main(int argc, const char **argv) {
       &fc.do_split[0][0][0], probsfile, 3, cts_each_dim,
       "static aom_cdf_prob default_do_split_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]",
-      0, &total_count, 20, mem_wanted,
+      0, &total_count, 40, mem_wanted,
       "Partitions");  // minus 20 unused context entries
 #if CONFIG_BLOCK_256
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
@@ -648,7 +648,7 @@ int main(int argc, const char **argv) {
       &fc.rect_type[0][0][0], probsfile, 3, cts_each_dim,
       "static aom_cdf_prob default_rect_type_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]",
-      0, &total_count, 44, mem_wanted,
+      0, &total_count, 96, mem_wanted,
       "Partitions");  // minus 44 unused context entries
 
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
@@ -660,7 +660,7 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_do_ext_partition_cdf"
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
-                     0, &total_count, 152, mem_wanted,
+                     0, &total_count, 264, mem_wanted,
                      "Partitions");  // minus 152 unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
@@ -671,7 +671,7 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_do_uneven_4way_partition_cdf"
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
-                     0, &total_count, 252, mem_wanted,
+                     0, &total_count, 320, mem_wanted,
                      "Partitions");  // minus 252 unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
@@ -682,7 +682,7 @@ int main(int argc, const char **argv) {
       "static aom_cdf_prob default_uneven_4way_partition_type_cdf"
       "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
       "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]",
-      0, &total_count, 252, mem_wanted,
+      0, &total_count, 320, mem_wanted,
       "Partitions");  // minus 252 unused context entries
 #else
   /* block partition */
