@@ -629,7 +629,7 @@ int main(int argc, const char **argv) {
       "static aom_cdf_prob default_do_split_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]",
       0, &total_count, 40, mem_wanted,
-      "Partitions");  // minus 20 unused context entries
+      "Partitions");  // minus unused context entries
 #if CONFIG_BLOCK_256
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = SQUARE_SPLIT_CONTEXTS;
@@ -649,7 +649,7 @@ int main(int argc, const char **argv) {
       "static aom_cdf_prob default_rect_type_cdf"
       "[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS][CDF_SIZE(2)]",
       0, &total_count, 96, mem_wanted,
-      "Partitions");  // minus 44 unused context entries
+      "Partitions");  // minus unused context entries
 
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
@@ -661,7 +661,7 @@ int main(int argc, const char **argv) {
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 264, mem_wanted,
-                     "Partitions");  // minus 152 unused context entries
+                     "Partitions");  // minus unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
@@ -672,7 +672,7 @@ int main(int argc, const char **argv) {
                      "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
                      "CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 320, mem_wanted,
-                     "Partitions");  // minus 252 unused context entries
+                     "Partitions");  // minus unused context entries
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
   cts_each_dim[1] = NUM_RECT_PARTS;
   cts_each_dim[2] = PARTITION_CONTEXTS;
@@ -683,7 +683,7 @@ int main(int argc, const char **argv) {
       "[PARTITION_STRUCTURE_NUM][NUM_RECT_PARTS][PARTITION_"
       "CONTEXTS][CDF_SIZE(NUM_UNEVEN_4WAY_PARTS)]",
       0, &total_count, 320, mem_wanted,
-      "Partitions");  // minus 252 unused context entries
+      "Partitions");  // minus unused context entries
 #else
   /* block partition */
   cts_each_dim[0] = PARTITION_STRUCTURE_NUM;
