@@ -103,9 +103,6 @@ typedef struct PC_TREE {
 #if CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS none_rd;
   bool skippable;
-#if CONFIG_MVP_IMPROVEMENT
-  REF_MV_BANK ref_mv_bank;
-#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   WARP_PARAM_BANK warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -141,8 +138,8 @@ PC_TREE *av1_alloc_pc_tree_node(TREE_TYPE tree_type, int mi_row, int mi_col,
 void av1_free_pc_tree_recursive(PC_TREE *tree, int num_planes, int keep_best,
                                 int keep_none);
 #if CONFIG_EXT_RECUR_PARTITIONS
-void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
-                                PC_TREE *src, int ss_x, int ss_y,
+void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
+                                PC_TREE *dst, PC_TREE *src, int ss_x, int ss_y,
                                 PC_TREE_SHARED_BUFFERS *shared_bufs,
                                 TREE_TYPE tree_type, int num_planes);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

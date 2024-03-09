@@ -7083,14 +7083,11 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #endif  // CONFIG_CB1TO4_SPLIT
   ) {
     if (counterpart_block->rd_cost.rate != INT_MAX) {
-      av1_copy_pc_tree_recursive(cm, pc_tree, counterpart_block,
+      av1_copy_pc_tree_recursive(xd, cm, pc_tree, counterpart_block,
                                  part_search_state.ss_x, part_search_state.ss_y,
                                  &td->shared_coeff_buf, xd->tree_type,
                                  num_planes);
       *rd_cost = pc_tree->rd_cost;
-#if CONFIG_MVP_IMPROVEMENT
-      x->e_mbd.ref_mv_bank = counterpart_block->ref_mv_bank;
-#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
       x->e_mbd.warp_param_bank = counterpart_block->warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -7599,9 +7596,6 @@ BEGIN_PARTITION_SEARCH:
   *rd_cost = best_rdc;
 #if CONFIG_MVP_IMPROVEMENT
   x->e_mbd.ref_mv_bank = level_banks.best_level_bank;
-#if CONFIG_EXT_RECUR_PARTITIONS
-  pc_tree->ref_mv_bank = level_banks.best_level_bank;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   x->e_mbd.warp_param_bank = level_banks.best_level_warp_bank;

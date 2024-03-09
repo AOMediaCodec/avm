@@ -386,8 +386,8 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
 }
 
 #if CONFIG_EXT_RECUR_PARTITIONS
-void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
-                                PC_TREE *src, int ss_x, int ss_y,
+void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
+                                PC_TREE *dst, PC_TREE *src, int ss_x, int ss_y,
                                 PC_TREE_SHARED_BUFFERS *shared_bufs,
                                 TREE_TYPE tree_type, int num_planes) {
   // Copy the best partition type. For basic information like bsize and index,
@@ -396,9 +396,6 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
   dst->rd_cost = src->rd_cost;
   dst->none_rd = src->none_rd;
   dst->skippable = src->skippable;
-#if CONFIG_MVP_IMPROVEMENT
-  dst->ref_mv_bank = src->ref_mv_bank;
-#endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   dst->warp_param_bank = src->warp_param_bank;
 #endif  // WARP_CU_BANK
@@ -417,6 +414,12 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
         dst->none = av1_alloc_pmc(cm, tree_type, mi_row, mi_col, bsize, dst,
                                   PARTITION_NONE, 0, ss_x, ss_y, shared_bufs);
         av1_copy_tree_context(dst->none, src->none);
+#if CONFIG_MVP_IMPROVEMENT
+        if (cm->seq_params.enable_refmvbank &&
+            is_inter_block(&src->none->mic, xd->tree_type)) {
+          av1_update_ref_mv_bank(cm, xd, &dst->none->mic);
+        }
+#endif  // CONFIG_MVP_IMPROVEMENT
       }
       break;
     // PARTITION_SPLIT
@@ -433,8 +436,8 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->split[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_row + y_idx, mi_col + x_idx, subsize, dst,
                 PARTITION_SPLIT, i, i == 3, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->split[i], src->split[i], ss_x,
-                                       ss_y, shared_bufs, tree_type,
+            av1_copy_pc_tree_recursive(xd, cm, dst->split[i], src->split[i],
+                                       ss_x, ss_y, shared_bufs, tree_type,
                                        num_planes);
           }
         }
@@ -453,7 +456,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->horizontal[i] = av1_alloc_pc_tree_node(
                 tree_type, this_mi_row, mi_col, subsize, dst, PARTITION_HORZ, i,
                 i == 1, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->horizontal[i],
+            av1_copy_pc_tree_recursive(xd, cm, dst->horizontal[i],
                                        src->horizontal[i], ss_x, ss_y,
                                        shared_bufs, tree_type, num_planes);
           }
@@ -473,9 +476,9 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->vertical[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_row, this_mi_col, subsize, dst, PARTITION_VERT, i,
                 i == 1, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->vertical[i], src->vertical[i],
-                                       ss_x, ss_y, shared_bufs, tree_type,
-                                       num_planes);
+            av1_copy_pc_tree_recursive(xd, cm, dst->vertical[i],
+                                       src->vertical[i], ss_x, ss_y,
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
@@ -501,7 +504,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->horizontal4a[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_rows[i], mi_col, subsizes[i], dst,
                 PARTITION_HORZ_4A, i, i == 3, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->horizontal4a[i],
+            av1_copy_pc_tree_recursive(xd, cm, dst->horizontal4a[i],
                                        src->horizontal4a[i], ss_x, ss_y,
                                        shared_bufs, tree_type, num_planes);
           }
@@ -529,7 +532,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->horizontal4b[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_rows[i], mi_col, subsizes[i], dst,
                 PARTITION_HORZ_4B, i, i == 3, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->horizontal4b[i],
+            av1_copy_pc_tree_recursive(xd, cm, dst->horizontal4b[i],
                                        src->horizontal4b[i], ss_x, ss_y,
                                        shared_bufs, tree_type, num_planes);
           }
@@ -557,7 +560,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->vertical4a[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_row, mi_cols[i], subsizes[i], dst,
                 PARTITION_VERT_4A, i, i == 3, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->vertical4a[i],
+            av1_copy_pc_tree_recursive(xd, cm, dst->vertical4a[i],
                                        src->vertical4a[i], ss_x, ss_y,
                                        shared_bufs, tree_type, num_planes);
           }
@@ -585,7 +588,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->vertical4b[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_row, mi_cols[i], subsizes[i], dst,
                 PARTITION_VERT_4B, i, i == 3, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->vertical4b[i],
+            av1_copy_pc_tree_recursive(xd, cm, dst->vertical4b[i],
                                        src->vertical4b[i], ss_x, ss_y,
                                        shared_bufs, tree_type, num_planes);
           }
@@ -612,7 +615,7 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->horizontal3[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_row + offset_mr, mi_col + offset_mc, this_subsize,
                 dst, PARTITION_HORZ_3, i, i == 3, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->horizontal3[i],
+            av1_copy_pc_tree_recursive(xd, cm, dst->horizontal3[i],
                                        src->horizontal3[i], ss_x, ss_y,
                                        shared_bufs, tree_type, num_planes);
           }
@@ -638,9 +641,9 @@ void av1_copy_pc_tree_recursive(const AV1_COMMON *cm, PC_TREE *dst,
             dst->vertical3[i] = av1_alloc_pc_tree_node(
                 tree_type, mi_row + offset_mr, mi_col + offset_mc, this_subsize,
                 dst, PARTITION_VERT_3, i, i == 3, ss_x, ss_y);
-            av1_copy_pc_tree_recursive(cm, dst->vertical3[i], src->vertical3[i],
-                                       ss_x, ss_y, shared_bufs, tree_type,
-                                       num_planes);
+            av1_copy_pc_tree_recursive(xd, cm, dst->vertical3[i],
+                                       src->vertical3[i], ss_x, ss_y,
+                                       shared_bufs, tree_type, num_planes);
           }
         }
       }
