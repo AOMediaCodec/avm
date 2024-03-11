@@ -275,52 +275,82 @@ void quad_copy(const QUADInfo *src, QUADInfo *dst, struct AV1Common *cm) {
   dst->signaled = src->signaled;
 }
 
-// Returns (int)floor(x / y),
-#define DIVIDE_WITH_FLOOR(x, y) ((x) / (y))
-// Returns (int)ceil(x / y),
-#define DIVIDE_WITH_CEILING(x, y) (((x) + (y)-1) / (y))
-
 int quad_tree_get_unit_info_length(int width, int height, int unit_length,
                                    const QUADSplitInfo *split_info,
                                    int split_info_length) {
-  // We can compute total units as follows:
-  // (1) regular units: they may / may not be split. So, compute length of
-  // regular unit info by going through the split_info array. (2) unregular
-  // units (blocks near boundary that are NOT unit_length in size): they are
-  // never split. So, length of unregular unit info is same as number of
-  // unregular units.
-  const int regular_units = DIVIDE_WITH_FLOOR(width, unit_length) *
-                            DIVIDE_WITH_FLOOR(height, unit_length);
-  assert(regular_units * 2 == split_info_length);
-  const int total_units = DIVIDE_WITH_CEILING(width, unit_length) *
-                          DIVIDE_WITH_CEILING(height, unit_length);
-  const int unregular_unit_info_len = total_units - regular_units;
-
-  int regular_unit_info_len = 0;
-  for (int i = 0; i < split_info_length; i += 2) {
-    if (split_info == NULL ||
-        (split_info[i].split == 0 && split_info[i + 1].split == 1)) {
-      regular_unit_info_len += 4;  // Split
-    } else if (split_info[i].split == 1 && split_info[i + 1].split == 1) {
-      regular_unit_info_len += 2;  // Horz
-    } else if (split_info[i].split == 1 && split_info[i + 1].split == 0) {
-      regular_unit_info_len += 2;  // Vert
-    } else {
-      assert(split_info[i].split == 0 && split_info[i + 1].split == 0);
-      regular_unit_info_len += 1;  // No split
+  int unit_info_length = 0;
+  int split_info_index = 0;
+  const int ext_size = unit_length * 3 / 2;
+  for (int row = 0; row < height;) {
+    const int remaining_height = height - row;
+    const int this_unit_height =
+        (remaining_height < ext_size) ? remaining_height : unit_length;
+    for (int col = 0; col < width;) {
+      const int remaining_width = width - col;
+      const int this_unit_width =
+          (remaining_width < ext_size) ? remaining_width : unit_length;
+      // Split info only signaled for units of full / extended size. Partial
+      // blocks near boundaries are never split, so no split info is signaled
+      // for those.
+      const bool is_partial_unit =
+          (this_unit_width < unit_length) || (this_unit_height < unit_length);
+      if (is_partial_unit) {
+        // Partial units are never split, so single unit info signaled for them.
+        ++unit_info_length;
+      } else {
+        if (split_info == NULL) {  // Assume split to get upper bound.
+          unit_info_length += 4;
+        } else {
+          // Look at the split info to determine number of (sub)units.
+          assert(split_info_index + 1 < split_info_length);
+          const int split1 = split_info[split_info_index].split;
+          const int split2 = split_info[split_info_index + 1].split;
+          if (split1 == 0 && split2 == 1) {
+            unit_info_length += 4;  // Split
+          } else if (split1 == 1 && split2 == 1) {
+            unit_info_length += 2;  // Horz
+          } else if (split1 == 1 && split2 == 0) {
+            unit_info_length += 2;  // Vert
+          } else {
+            assert(split1 == 0 && split2 == 0);
+            unit_info_length += 1;  // No split
+          }
+        }
+        split_info_index += 2;
+      }
+      col += this_unit_width;
     }
+    row += this_unit_height;
   }
-
-  return regular_unit_info_len + unregular_unit_info_len;
+  assert(split_info_index == split_info_length);
+  (void)split_info_length;
+  return unit_info_length;
 }
 
 int quad_tree_get_split_info_length(int width, int height, int unit_length) {
-  // Split info only signaled for units of full size. Blocks near boundaries are
-  // never split, so no info is signaled for those.
-  const int num_split_info_wide = DIVIDE_WITH_FLOOR(width, unit_length);
-  const int num_split_info_high = DIVIDE_WITH_FLOOR(height, unit_length);
-  // 2 bits signaled for each split info.
-  return num_split_info_wide * num_split_info_high * 2;
+  int split_info_len = 0;
+  const int ext_size = unit_length * 3 / 2;
+  for (int row = 0; row < height;) {
+    const int remaining_height = height - row;
+    const int this_unit_height =
+        (remaining_height < ext_size) ? remaining_height : unit_length;
+    for (int col = 0; col < width;) {
+      const int remaining_width = width - col;
+      const int this_unit_width =
+          (remaining_width < ext_size) ? remaining_width : unit_length;
+      // Split info only signaled for units of full / extended size. Partial
+      // blocks near boundaries are never split, so no split info is signaled
+      // for those.
+      const bool is_partial_unit =
+          (this_unit_width < unit_length) || (this_unit_height < unit_length);
+      if (!is_partial_unit) {
+        split_info_len += 2;  // 2 bits for each splittable unit.
+      }
+      col += this_unit_width;
+    }
+    row += this_unit_height;
+  }
+  return split_info_len;
 }
 
 void av1_alloc_quadtree_struct(struct AV1Common *cm, QUADInfo *quad_info) {
