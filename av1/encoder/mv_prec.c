@@ -547,14 +547,30 @@ static AOM_INLINE void collect_mv_stats_sb(MV_STATS *mv_stats,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
       break;
     case PARTITION_SPLIT:
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize,
-                          ptree->sub_tree[0]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + hbs_w, subsize,
-                          ptree->sub_tree[1]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col, subsize,
-                          ptree->sub_tree[2]);
-      collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col + hbs_w,
-                          subsize, ptree->sub_tree[3]);
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col, subsize
+#if CONFIG_EXT_RECUR_PARTITIONS
+                          ,
+                          ptree->sub_tree[0]
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
+      collect_mv_stats_sb(mv_stats, cpi, mi_row, mi_col + hbs_w, subsize
+#if CONFIG_EXT_RECUR_PARTITIONS
+                          ,
+                          ptree->sub_tree[1]
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col, subsize
+#if CONFIG_EXT_RECUR_PARTITIONS
+                          ,
+                          ptree->sub_tree[2]
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
+      collect_mv_stats_sb(mv_stats, cpi, mi_row + hbs_h, mi_col + hbs_w, subsize
+#if CONFIG_EXT_RECUR_PARTITIONS
+                          ,
+                          ptree->sub_tree[0]
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      );
       break;
 #if CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_4A: {

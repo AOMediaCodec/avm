@@ -6768,6 +6768,7 @@ static AOM_INLINE int get_partition_depth(const PC_TREE *pc_tree,
                                                           curr_depth + 2));
       }
       break;
+#if CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ:
       for (int idx = 0; idx < 2; idx++) {
         max_depth = AOMMAX(
@@ -6796,7 +6797,6 @@ static AOM_INLINE int get_partition_depth(const PC_TREE *pc_tree,
             get_partition_depth(pc_tree->vertical3[idx], curr_depth + 1));
       }
       break;
-#if CONFIG_EXT_RECUR_PARTITIONS
     case PARTITION_HORZ_4A:
       for (int idx = 0; idx < 4; idx++) {
         max_depth = AOMMAX(
@@ -6825,8 +6825,10 @@ static AOM_INLINE int get_partition_depth(const PC_TREE *pc_tree,
             get_partition_depth(pc_tree->vertical4b[idx], curr_depth + 1));
       }
       break;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
     default: assert(0); break;
+#else
+    default: break;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   }
   return max_depth;
 }
@@ -7518,7 +7520,6 @@ BEGIN_PARTITION_SEARCH:
                           &level_banks,
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
                           multi_pass_mode, ext_recur_depth);
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   prune_ext_partitions_4way(cpi, pc_tree, &part_search_state,
                             partition_boundaries);
@@ -7562,6 +7563,7 @@ BEGIN_PARTITION_SEARCH:
                            &level_banks,
 #endif  // CONFIG_MVP_IMPROVEMENT || WARP_CU_BANK
                            multi_pass_mode, ext_recur_depth);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   if (bsize == cm->sb_size && !part_search_state.found_best_partition) {
     if (x->must_find_valid_partition) {

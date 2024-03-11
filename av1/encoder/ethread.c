@@ -551,7 +551,9 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
     thread_data->thread_id = i;
 
     if (i > 0) {
+#if CONFIG_EXT_RECUR_PARTITIONS
       thread_data->td->sb_size = cpi->td.sb_size;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       // Set up sms_tree.
       av1_setup_sms_tree(cpi, thread_data->td);
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -791,10 +793,13 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     if (thread_data->td->counts != &cpi->counts) {
       memcpy(thread_data->td->counts, &cpi->counts, sizeof(cpi->counts));
     }
+
+#if CONFIG_EXT_RECUR_PARTITIONS
     if (thread_data->td->sb_size != cpi->common.sb_size) {
       av1_free_sms_tree(thread_data->td);
       av1_setup_sms_tree(cpi, thread_data->td);
     }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
     if (i > 0) {
       thread_data->td->mb.palette_buffer = thread_data->td->palette_buffer;

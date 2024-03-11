@@ -1314,6 +1314,9 @@ void av1_prune_partitions_before_search(
     int *partition_vert_allowed, int *do_rectangular_split,
     int *do_square_split, bool *prune_horz, bool *prune_vert,
     const PC_TREE *pc_tree) {
+#if !CONFIG_EXT_RECUR_PARTITIONS
+  (void)pc_tree;
+#endif  // !CONFIG_EXT_RECUR_PARTITIONS
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCKD *const xd = &x->e_mbd;

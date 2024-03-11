@@ -2029,20 +2029,21 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                     have_top, right_available, tx_size, row, col, sub_x, sub_y,
                     xr, &px_top_right, bsize != init_bsize);
 #else
-  const int have_top_right = has_top_right(cm, bsize, xd->mi_row, xd->mi_col,
-                                           have_top, right_available, partition,
-                                           tx_size, row, col, sub_x, sub_y);
+  const int have_top_right = has_top_right(
+      cm, bsize, xd->mi_row, xd->mi_col, have_top, right_available,
+      mbmi->partition, tx_size, row, col, sub_x, sub_y);
 #endif
-#if CONFIG_EXT_RECUR_PARTITIONS
   int px_bottom_left = 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
   const int have_bottom_left =
       has_bottom_left(cm, xd, bsize, mi_row - row_offset, mi_col - col_offset,
                       bottom_available, have_left, tx_size, row, col, sub_x,
                       sub_y, yd, &px_bottom_left, bsize != init_bsize);
 #else
   const int have_bottom_left =
-      has_bottom_left(cm, bsize, xd->mi_row, xd->mi_col, bottom_available,
-                      have_left, partition, tx_size, row, col, sub_x, sub_y);
+      has_bottom_left(cm, xd, bsize, xd->mi_row, xd->mi_col, bottom_available,
+                      have_left, tx_size, row, col, sub_x, sub_y, yd,
+                      &px_bottom_left, bsize != init_bsize);
 #endif
 
   *ref_width = AOMMIN(128, *left_lines + width +
