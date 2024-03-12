@@ -1826,15 +1826,13 @@ static AOM_INLINE void read_filter_quadtree(FRAME_CONTEXT *ctx, int QP,
                                             int cnn_index, int superres_denom,
                                             int is_intra_only, QUADInfo *qi,
                                             aom_reader *rb) {
-  int A0_min, A1_min;
-  int *quadtset;
-  quadtset =
+  const int *quadtset =
       get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1, cnn_index);
   const int norestore_ctx =
       get_guided_norestore_ctx(QP, superres_denom, is_intra_only);
 
-  A0_min = quadtset[2];
-  A1_min = quadtset[3];
+  const int A0_min = quadtset[2];
+  const int A1_min = quadtset[3];
 
   int ref_0 = GUIDED_A_MID;
   int ref_1 = GUIDED_A_MID;
@@ -1861,8 +1859,6 @@ static AOM_INLINE void read_filter_quadtree(FRAME_CONTEXT *ctx, int QP,
       ref_0 = qi->unit_info[i].xqd[0] - A0_min;
       ref_1 = qi->unit_info[i].xqd[1] - A1_min;
     }
-    // printf("a0:%d a1:%d\n", qi->unit_info[i].xqd[0],
-    // qi->unit_info[i].xqd[1]);
   }
 }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
