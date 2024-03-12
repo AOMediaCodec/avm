@@ -2335,10 +2335,6 @@ static AOM_INLINE void write_modes_sb(
 #if CONFIG_CNN_GUIDED_QUADTREE
   if (cm->use_cnn[0] && !cm->cnn_quad_info.signaled) {
     QUADInfo *qi = (QUADInfo *)&cm->cnn_quad_info;
-    assert(qi->split_info_length ==
-           quad_tree_get_split_info_length(cm->superres_upscaled_width,
-                                           cm->superres_upscaled_height,
-                                           qi->unit_size));
     write_filter_quadtree(
         xd->tile_ctx, cm->quant_params.base_qindex, cm->cnn_indices[0],
         cm->superres_upscaled_width, cm->superres_upscaled_height,

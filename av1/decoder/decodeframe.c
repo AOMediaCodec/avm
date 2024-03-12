@@ -2244,9 +2244,9 @@ static void decode_cnn(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
         qi->unit_size);
     // We allocate unit info assuming maximum number of possible units for now.
     // Actual length will be set later after actually reading split info.
-    qi->unit_info_length = quad_tree_get_unit_info_length(
+    qi->unit_info_length = quad_tree_get_max_unit_info_length(
         cm->superres_upscaled_width, cm->superres_upscaled_height,
-        qi->unit_size, NULL, qi->split_info_length);
+        qi->unit_size);
     av1_alloc_quadtree_struct(cm, qi);
   }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE

@@ -45,13 +45,10 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
 
 void quad_copy(const QUADInfo *src, QUADInfo *dst, struct AV1Common *cm);
 
-// TODO(now): only handle max length case and rename.
-// Get the length of unit info array based on dimensions and split info.
-// If split_info == NULL, assumes each block uses split, thereby returning
-// longest possible unit info length.
-int quad_tree_get_unit_info_length(int width, int height, int unit_length,
-                                   const QUADSplitInfo *split_info,
-                                   int split_info_length);
+// Get the maximum possible length of unit info array based on dimensions,
+// assuming each block uses split.
+int quad_tree_get_max_unit_info_length(int width, int height, int unit_length);
+
 // Get the length of split info array based on dimensions.
 int quad_tree_get_split_info_length(int width, int height, int unit_length);
 

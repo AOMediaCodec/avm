@@ -275,11 +275,8 @@ void quad_copy(const QUADInfo *src, QUADInfo *dst, struct AV1Common *cm) {
   dst->signaled = src->signaled;
 }
 
-int quad_tree_get_unit_info_length(int width, int height, int unit_length,
-                                   const QUADSplitInfo *split_info,
-                                   int split_info_length) {
+int quad_tree_get_max_unit_info_length(int width, int height, int unit_length) {
   int unit_info_length = 0;
-  int split_info_index = 0;
   const int ext_size = unit_length * 3 / 2;
   for (int row = 0; row < height;) {
     const int remaining_height = height - row;
@@ -298,38 +295,16 @@ int quad_tree_get_unit_info_length(int width, int height, int unit_length,
         // Implicitly no split, so single unit info will be signaled.
         ++unit_info_length;
       } else {
-        if (split_info == NULL) {  // Assume max sub-units to get upper bound.
-          const int max_sub_units =
-              is_horz_partitioning_allowed && is_vert_partitioning_allowed ? 4
-                                                                           : 2;
-          unit_info_length += max_sub_units;
-        } else {
-          // Look at the split info to determine number of (sub)units.
-          assert(split_info_index < split_info_length);
-          const GuidedQuadTreePartitionType partition_type =
-              split_info[split_info_index].split;
-          assert(IMPLIES(!is_horz_partitioning_allowed,
-                         partition_type == GUIDED_QT_NONE ||
-                             partition_type == GUIDED_QT_VERT));
-          assert(IMPLIES(!is_vert_partitioning_allowed,
-                         partition_type == GUIDED_QT_NONE ||
-                             partition_type == GUIDED_QT_HORZ));
-          switch (partition_type) {
-            case GUIDED_QT_NONE: unit_info_length += 1; break;
-            case GUIDED_QT_HORZ:
-            case GUIDED_QT_VERT: unit_info_length += 2; break;
-            case GUIDED_QT_SPLIT: unit_info_length += 4; break;
-            default: assert(0 && "Wrong guided quadtree split type."); break;
-          }
-        }
-        ++split_info_index;
+        // Assume maximum possible sub-units.
+        const int max_sub_units =
+            is_horz_partitioning_allowed && is_vert_partitioning_allowed ? 4
+                                                                         : 2;
+        unit_info_length += max_sub_units;
       }
       col += this_unit_width;
     }
     row += this_unit_height;
   }
-  assert(split_info_index == split_info_length);
-  (void)split_info_length;
   return unit_info_length;
 }
 
