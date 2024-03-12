@@ -31,6 +31,15 @@ extern "C" {
 #define GUIDED_A_RANGE (GUIDED_A_NUM_VALUES - 1)
 #define GUIDED_A_PAIR_BITS (GUIDED_A_BITS * 2 - 1)
 
+typedef enum {
+  GUIDED_QT_NONE,
+  GUIDED_QT_SPLIT,
+  GUIDED_QT_HORZ,
+  GUIDED_QT_VERT,
+  GUIDED_QT_TYPES,
+  GUIDED_QT_INVALID = -1
+} GuidedQuadTreePartitionType;
+
 int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
                               int is_luma, int cnn_index);
 

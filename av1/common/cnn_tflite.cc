@@ -618,15 +618,6 @@ static int generate_interm_guided_restoration(
   return 1;
 }
 
-typedef enum {
-  GUIDED_QT_NONE,
-  GUIDED_QT_SPLIT,
-  GUIDED_QT_HORZ,
-  GUIDED_QT_VERT,
-  GUIDED_QT_TYPES,
-  GUIDED_QT_INVALID = -1
-} GuidedQuadTreePartitionType;
-
 // Get unit width and height based on max size and partition type.
 static void get_unit_size(int max_unit_width, int max_unit_height,
                           GuidedQuadTreePartitionType partition_type,
@@ -1068,25 +1059,8 @@ static void select_quadtree_partitioning(
     assert(best_partition_type == GUIDED_QT_NONE);
     return;
   }
-  switch (best_partition_type) {
-    case GUIDED_QT_NONE:
-      split.push_back(0);
-      split.push_back(0);
-      break;
-    case GUIDED_QT_SPLIT:
-      split.push_back(0);
-      split.push_back(1);
-      break;
-    case GUIDED_QT_HORZ:
-      split.push_back(1);
-      split.push_back(1);
-      break;
-    case GUIDED_QT_VERT:
-      split.push_back(1);
-      split.push_back(0);
-      break;
-    default: assert(0 && "Wrong partition type"); break;
-  }
+  assert(best_partition_type >= 0 && best_partition_type < GUIDED_QT_TYPES);
+  split.push_back(best_partition_type);
 }
 
 static void apply_quadtree_partitioning(
@@ -1321,24 +1295,7 @@ static void apply_quadtree_partitioning(
   // Get partition type.
   GuidedQuadTreePartitionType partition_type = GUIDED_QT_NONE;
   if (!is_partial_unit) {
-    const int spl1 = split[split_index++];
-    const int spl2 = split[split_index++];
-    if (spl1 == 0) {
-      if (spl2 == 0) {
-        partition_type = GUIDED_QT_NONE;  // (0, 0)
-      } else {
-        assert(spl2 == 1);
-        partition_type = GUIDED_QT_SPLIT;  // (0, 1)
-      }
-    } else {
-      assert(spl1 == 1);
-      if (spl2 == 1) {
-        partition_type = GUIDED_QT_HORZ;  // (1, 1)
-      } else {
-        assert(spl2 == 0);
-        partition_type = GUIDED_QT_VERT;  // (1, 0)
-      }
-    }
+    partition_type = (GuidedQuadTreePartitionType)split[split_index++];
   }
   assert(partition_type >= 0 && partition_type < GUIDED_QT_TYPES);
 

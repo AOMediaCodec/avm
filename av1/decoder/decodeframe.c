@@ -1918,11 +1918,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #if CONFIG_CNN_GUIDED_QUADTREE
     if (cm->use_cnn[0] && !cm->cnn_quad_info.signaled) {
       QUADInfo *qi = (QUADInfo *)&cm->cnn_quad_info;
-      for (int s = 0; s < qi->split_info_length; s += 2) {
-        const int split_index = aom_read_symbol(
-            reader, xd->tile_ctx->cnn_guided_quad_cdf, 4, ACCT_STR);
-        qi->split_info[s].split = split_index >> 1;
-        qi->split_info[s + 1].split = split_index & 1;
+      for (int s = 0; s < qi->split_info_length; ++s) {
+        qi->split_info[s].split =
+            aom_read_symbol(reader, xd->tile_ctx->cnn_guided_quad_cdf,
+                            GUIDED_QT_TYPES, ACCT_STR);
       }
       qi->unit_info_length = quad_tree_get_unit_info_length(
           cm->superres_upscaled_width, cm->superres_upscaled_height,

@@ -240,7 +240,7 @@ typedef struct frame_contexts {
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_RST_MERGECOEFFS
 #if CONFIG_CNN_GUIDED_QUADTREE
-  aom_cdf_prob cnn_guided_quad_cdf[CDF_SIZE(4)];
+  aom_cdf_prob cnn_guided_quad_cdf[CDF_SIZE(4)];  // GUIDED_QT_TYPES
   aom_cdf_prob cnn_guided_norestore_cdf[GUIDED_NORESTORE_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 #if !CONFIG_AIMC

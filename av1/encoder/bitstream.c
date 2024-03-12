@@ -2338,10 +2338,9 @@ static AOM_INLINE void write_modes_sb(
            quad_tree_get_split_info_length(cm->superres_upscaled_width,
                                            cm->superres_upscaled_height,
                                            qi->unit_size));
-    for (int s = 0; s < qi->split_info_length; s += 2) {
-      const int split_index =
-          qi->split_info[s].split * 2 + qi->split_info[s + 1].split;
-      aom_write_symbol(w, split_index, xd->tile_ctx->cnn_guided_quad_cdf, 4);
+    for (int s = 0; s < qi->split_info_length; ++s) {
+      aom_write_symbol(w, qi->split_info[s].split,
+                       xd->tile_ctx->cnn_guided_quad_cdf, GUIDED_QT_TYPES);
     }
     assert(qi->unit_info_length ==
            quad_tree_get_unit_info_length(

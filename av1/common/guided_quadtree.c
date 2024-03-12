@@ -302,21 +302,18 @@ int quad_tree_get_unit_info_length(int width, int height, int unit_length,
           unit_info_length += 4;
         } else {
           // Look at the split info to determine number of (sub)units.
-          assert(split_info_index + 1 < split_info_length);
-          const int split1 = split_info[split_info_index].split;
-          const int split2 = split_info[split_info_index + 1].split;
-          if (split1 == 0 && split2 == 1) {
-            unit_info_length += 4;  // Split
-          } else if (split1 == 1 && split2 == 1) {
-            unit_info_length += 2;  // Horz
-          } else if (split1 == 1 && split2 == 0) {
-            unit_info_length += 2;  // Vert
-          } else {
-            assert(split1 == 0 && split2 == 0);
-            unit_info_length += 1;  // No split
+          assert(split_info_index < split_info_length);
+          const GuidedQuadTreePartitionType split_type =
+              split_info[split_info_index].split;
+          switch (split_type) {
+            case GUIDED_QT_NONE: unit_info_length += 1; break;
+            case GUIDED_QT_HORZ:
+            case GUIDED_QT_VERT: unit_info_length += 2; break;
+            case GUIDED_QT_SPLIT: unit_info_length += 4; break;
+            default: assert(0 && "Wrong guided quadtree split type."); break;
           }
         }
-        split_info_index += 2;
+        ++split_info_index;
       }
       col += this_unit_width;
     }
@@ -344,7 +341,7 @@ int quad_tree_get_split_info_length(int width, int height, int unit_length) {
       const bool is_partial_unit =
           (this_unit_width < unit_length) || (this_unit_height < unit_length);
       if (!is_partial_unit) {
-        split_info_len += 2;  // 2 bits for each splittable unit.
+        ++split_info_len;
       }
       col += this_unit_width;
     }
