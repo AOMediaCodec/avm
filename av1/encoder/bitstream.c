@@ -85,8 +85,9 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #if CONFIG_CNN_GUIDED_QUADTREE
 // Write crlc coeffs for one frame
 static void write_filter_quadtree(FRAME_CONTEXT *ctx, int qp, int cnn_index,
-                                  int superres_denom, int is_intra_only,
-                                  const QUADInfo *ci, aom_writer *wb);
+                                  int width, int height, int superres_denom,
+                                  int is_intra_only, const QUADInfo *qi,
+                                  aom_writer *wb);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
 #if CONFIG_IBC_SR_EXT
@@ -2338,19 +2339,10 @@ static AOM_INLINE void write_modes_sb(
            quad_tree_get_split_info_length(cm->superres_upscaled_width,
                                            cm->superres_upscaled_height,
                                            qi->unit_size));
-    // TODO(now): combine writing split info and unit info. And write from quad
-    // and binary cdf.
-    for (int s = 0; s < qi->split_info_length; ++s) {
-      aom_write_symbol(w, qi->split_info[s].split,
-                       xd->tile_ctx->cnn_guided_quad_cdf, GUIDED_QT_TYPES);
-    }
-    assert(qi->unit_info_length ==
-           quad_tree_get_unit_info_length(
-               cm->superres_upscaled_width, cm->superres_upscaled_height,
-               qi->unit_size, qi->split_info, qi->split_info_length));
-    write_filter_quadtree(xd->tile_ctx, cm->quant_params.base_qindex,
-                          cm->cnn_indices[0], cm->superres_scale_denominator,
-                          frame_is_intra_only(cm), qi, w);
+    write_filter_quadtree(
+        xd->tile_ctx, cm->quant_params.base_qindex, cm->cnn_indices[0],
+        cm->superres_upscaled_width, cm->superres_upscaled_height,
+        cm->superres_scale_denominator, frame_is_intra_only(cm), qi, w);
     qi->signaled = 1;
   }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
@@ -3063,9 +3055,75 @@ static bool is_mode_ref_delta_meaningful(AV1_COMMON *cm) {
 #endif  // !CONFIG_NEW_DF
 
 #if CONFIG_CNN_GUIDED_QUADTREE
+static void write_quadtree_split_info(FRAME_CONTEXT *ctx, int width, int height,
+                                      const QUADInfo *qi, aom_writer *wb) {
+#ifndef NDEBUG
+  int unit_info_length = 0;
+#endif  // NDEBUG
+  int split_info_index = 0;
+  const int ext_size = qi->unit_size * 3 / 2;
+  for (int row = 0; row < height;) {
+    const int remaining_height = height - row;
+    const int this_unit_height =
+        (remaining_height < ext_size) ? remaining_height : qi->unit_size;
+    for (int col = 0; col < width;) {
+      const int remaining_width = width - col;
+      const int this_unit_width =
+          (remaining_width < ext_size) ? remaining_width : qi->unit_size;
+      // Check for special cases near boundary.
+      const bool is_horz_partitioning_allowed =
+          (this_unit_height >= qi->unit_size);
+      const bool is_vert_partitioning_allowed =
+          (this_unit_width >= qi->unit_size);
+      if (!is_horz_partitioning_allowed && !is_vert_partitioning_allowed) {
+        // Implicitly no split, and single unit info will be signaled.
+#ifndef NDEBUG
+        ++unit_info_length;
+#endif  // NDEBUG
+      } else {
+        assert(split_info_index < qi->split_info_length);
+        // Write split info, depending on how many partition types are allowed.
+        const bool all_partition_types_allowed =
+            (is_horz_partitioning_allowed && is_vert_partitioning_allowed);
+        const GuidedQuadTreePartitionType partition_type =
+            qi->split_info[split_info_index].split;
+        if (all_partition_types_allowed) {
+          aom_write_symbol(wb, partition_type, ctx->cnn_guided_quad_cdf,
+                           GUIDED_QT_TYPES);
+        } else {
+          aom_write_symbol(wb, partition_type != GUIDED_QT_NONE,
+                           ctx->cnn_guided_binary_cdf, 2);
+        }
+#ifndef NDEBUG
+        // Look at the split info to determine number of (sub)units.
+        switch (partition_type) {
+          case GUIDED_QT_NONE: unit_info_length += 1; break;
+          case GUIDED_QT_HORZ:
+          case GUIDED_QT_VERT: unit_info_length += 2; break;
+          case GUIDED_QT_SPLIT: unit_info_length += 4; break;
+          default: assert(0 && "Wrong guided quadtree split type."); break;
+        }
+#endif  // NDEBUG
+        ++split_info_index;
+      }
+      col += this_unit_width;
+    }
+    row += this_unit_height;
+  }
+  assert(qi->split_info_length == split_info_index);
+#ifndef NDEBUG
+  assert(qi->unit_info_length == unit_info_length);
+#endif  // NDEBUG
+}
+
 static void write_filter_quadtree(FRAME_CONTEXT *ctx, int QP, int cnn_index,
-                                  int superres_denom, int is_intra_only,
-                                  const QUADInfo *ci, aom_writer *wb) {
+                                  int width, int height, int superres_denom,
+                                  int is_intra_only, const QUADInfo *qi,
+                                  aom_writer *wb) {
+  // Write partitioning info.
+  write_quadtree_split_info(ctx, width, height, qi, wb);
+
+  // Write weight parameters 'a'.
   const int *const quadtset =
       get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1, cnn_index);
   const int norestore_ctx =
@@ -3074,9 +3132,9 @@ static void write_filter_quadtree(FRAME_CONTEXT *ctx, int QP, int cnn_index,
   const int A1_min = quadtset[3];
   int ref_0 = GUIDED_A_MID;
   int ref_1 = GUIDED_A_MID;
-  for (int i = 0; i < ci->unit_info_length; i++) {
-    const int a0 = ci->unit_info[i].xqd[0];
-    const int a1 = ci->unit_info[i].xqd[1];
+  for (int i = 0; i < qi->unit_info_length; i++) {
+    const int a0 = qi->unit_info[i].xqd[0];
+    const int a1 = qi->unit_info[i].xqd[1];
     int norestore;
     if (norestore_ctx != -1) {
       norestore = (a0 == 0 && a1 == 0);

@@ -137,7 +137,8 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 
 #if CONFIG_CNN_GUIDED_QUADTREE
 static AOM_INLINE void read_filter_quadtree(FRAME_CONTEXT *ctx, int QP,
-                                            int cnn_index, int superres_denom,
+                                            int cnn_index, int width,
+                                            int height, int superres_denom,
                                             int is_intra_only, QUADInfo *qi,
                                             aom_reader *rb);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
@@ -1822,10 +1823,74 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   }
 }
 #if CONFIG_CNN_GUIDED_QUADTREE
+static void read_quadtree_split_info(FRAME_CONTEXT *ctx, int width, int height,
+                                     QUADInfo *qi, aom_reader *rb) {
+  int unit_info_length = 0;
+  int split_info_index = 0;
+  const int ext_size = qi->unit_size * 3 / 2;
+  for (int row = 0; row < height;) {
+    const int remaining_height = height - row;
+    const int this_unit_height =
+        (remaining_height < ext_size) ? remaining_height : qi->unit_size;
+    for (int col = 0; col < width;) {
+      const int remaining_width = width - col;
+      const int this_unit_width =
+          (remaining_width < ext_size) ? remaining_width : qi->unit_size;
+      // Check for special cases near boundary.
+      const bool is_horz_partitioning_allowed =
+          (this_unit_height >= qi->unit_size);
+      const bool is_vert_partitioning_allowed =
+          (this_unit_width >= qi->unit_size);
+      if (!is_horz_partitioning_allowed && !is_vert_partitioning_allowed) {
+        // Implicitly no split, and single unit info will be signaled.
+        ++unit_info_length;
+      } else {
+        assert(split_info_index < qi->split_info_length);
+        // Read split info, depending on how many partition types are allowed.
+        const bool all_partition_types_allowed =
+            (is_horz_partitioning_allowed && is_vert_partitioning_allowed);
+        if (all_partition_types_allowed) {
+          qi->split_info[split_info_index].split =
+              aom_read_symbol(rb, ctx->cnn_guided_quad_cdf, 4, ACCT_STR);
+        } else {
+          const int do_split =
+              aom_read_symbol(rb, ctx->cnn_guided_binary_cdf, 2, ACCT_STR);
+          if (do_split) {
+            qi->split_info[split_info_index].split =
+                is_horz_partitioning_allowed ? GUIDED_QT_HORZ : GUIDED_QT_VERT;
+          } else {
+            qi->split_info[split_info_index].split = GUIDED_QT_NONE;
+          }
+        }
+        // Look at the split info to determine number of (sub)units.
+        const GuidedQuadTreePartitionType partition_type =
+            qi->split_info[split_info_index].split;
+        switch (partition_type) {
+          case GUIDED_QT_NONE: unit_info_length += 1; break;
+          case GUIDED_QT_HORZ:
+          case GUIDED_QT_VERT: unit_info_length += 2; break;
+          case GUIDED_QT_SPLIT: unit_info_length += 4; break;
+          default: assert(0 && "Wrong guided quadtree split type."); break;
+        }
+        ++split_info_index;
+      }
+      col += this_unit_width;
+    }
+    row += this_unit_height;
+  }
+  assert(qi->split_info_length == split_info_index);
+  qi->unit_info_length = unit_info_length;
+}
+
 static AOM_INLINE void read_filter_quadtree(FRAME_CONTEXT *ctx, int QP,
-                                            int cnn_index, int superres_denom,
+                                            int cnn_index, int width,
+                                            int height, int superres_denom,
                                             int is_intra_only, QUADInfo *qi,
                                             aom_reader *rb) {
+  // Read partitioning info.
+  read_quadtree_split_info(ctx, width, height, qi, rb);
+
+  // Read weight parameters 'a'.
   const int *quadtset =
       get_quadparm_from_qindex(QP, superres_denom, is_intra_only, 1, cnn_index);
   const int norestore_ctx =
@@ -1918,19 +1983,10 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
 #if CONFIG_CNN_GUIDED_QUADTREE
     if (cm->use_cnn[0] && !cm->cnn_quad_info.signaled) {
       QUADInfo *qi = (QUADInfo *)&cm->cnn_quad_info;
-      // TODO(now): combine reading split info and unit info. And read from quad
-      // and binary cdf.
-      for (int s = 0; s < qi->split_info_length; ++s) {
-        qi->split_info[s].split =
-            aom_read_symbol(reader, xd->tile_ctx->cnn_guided_quad_cdf,
-                            GUIDED_QT_TYPES, ACCT_STR);
-      }
-      qi->unit_info_length = quad_tree_get_unit_info_length(
+      read_filter_quadtree(
+          xd->tile_ctx, cm->quant_params.base_qindex, cm->cnn_indices[0],
           cm->superres_upscaled_width, cm->superres_upscaled_height,
-          qi->unit_size, qi->split_info, qi->split_info_length);
-      read_filter_quadtree(xd->tile_ctx, cm->quant_params.base_qindex,
-                           cm->cnn_indices[0], cm->superres_scale_denominator,
-                           frame_is_intra_only(cm), qi, reader);
+          cm->superres_scale_denominator, frame_is_intra_only(cm), qi, reader);
       cm->cnn_quad_info.signaled = 1;
     }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE

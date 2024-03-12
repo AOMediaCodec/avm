@@ -44,6 +44,8 @@ int *get_quadparm_from_qindex(int qindex, int superres_denom, int is_intra_only,
                               int is_luma, int cnn_index);
 
 void quad_copy(const QUADInfo *src, QUADInfo *dst, struct AV1Common *cm);
+
+// TODO(now): only handle max length case and rename.
 // Get the length of unit info array based on dimensions and split info.
 // If split_info == NULL, assumes each block uses split, thereby returning
 // longest possible unit info length.
