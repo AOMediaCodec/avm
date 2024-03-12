@@ -2338,6 +2338,8 @@ static AOM_INLINE void write_modes_sb(
            quad_tree_get_split_info_length(cm->superres_upscaled_width,
                                            cm->superres_upscaled_height,
                                            qi->unit_size));
+    // TODO(now): combine writing split info and unit info. And write from quad
+    // and binary cdf.
     for (int s = 0; s < qi->split_info_length; ++s) {
       aom_write_symbol(w, qi->split_info[s].split,
                        xd->tile_ctx->cnn_guided_quad_cdf, GUIDED_QT_TYPES);

@@ -114,9 +114,9 @@ void av1_restore_cnn_tflite(const struct AV1Common *cm, int num_threads,
 // Apply Guided CNN restoration on encoder side.
 int av1_restore_cnn_quadtree_encode_tflite(
     struct AV1Common *cm, YV12_BUFFER_CONFIG *source_frame, int RDMULT,
-    int *splitcosts, int (*norestorecosts)[2], int num_threads,
-    const int apply_cnn[MAX_MB_PLANE], const int cnn_indices[MAX_MB_PLANE],
-    QUADInfo *quad_info, double *rdcost);
+    int *quad_split_costs, int *binary_split_costs, int (*norestorecosts)[2],
+    int num_threads, const int apply_cnn[MAX_MB_PLANE],
+    const int cnn_indices[MAX_MB_PLANE], QUADInfo *quad_info, double *rdcost);
 
 // Apply Guided CNN restoration on decoder side.
 int av1_restore_cnn_quadtree_decode_tflite(struct AV1Common *cm,

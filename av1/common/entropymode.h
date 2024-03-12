@@ -240,7 +240,12 @@ typedef struct frame_contexts {
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_RST_MERGECOEFFS
 #if CONFIG_CNN_GUIDED_QUADTREE
-  aom_cdf_prob cnn_guided_quad_cdf[CDF_SIZE(4)];  // GUIDED_QT_TYPES
+  // CDF to signal one of GUIDED_QT_TYPES partition types for each unit, when
+  // all types are allowed.
+  aom_cdf_prob cnn_guided_quad_cdf[CDF_SIZE(4)];
+  // CDF to signal one of 2 partition types for each unit: GUIDED_QT_NONE or
+  // GUIDED_QT_HORZ/VERT, when only 2 types are allowed.
+  aom_cdf_prob cnn_guided_binary_cdf[CDF_SIZE(2)];
   aom_cdf_prob cnn_guided_norestore_cdf[GUIDED_NORESTORE_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 #if !CONFIG_AIMC

@@ -884,6 +884,10 @@ typedef struct {
    */
   int cnn_guided_quad_cost[4];
   /*!
+   * cnn_guided binary split cost
+   */
+  int cnn_guided_binary_cost[2];
+  /*!
    * cnn_guided quad norestore cost
    */
   int cnn_guided_norestore_cost[2][2];

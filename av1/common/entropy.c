@@ -241,6 +241,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #endif  // CONFIG_RST_MERGECOEFFS
 #if CONFIG_CNN_GUIDED_QUADTREE
   RESET_CDF_COUNTER(fc->cnn_guided_quad_cdf, 4);
+  RESET_CDF_COUNTER(fc->cnn_guided_binary_cdf, 2);
   RESET_CDF_COUNTER(fc->cnn_guided_norestore_cdf, 2);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 #if CONFIG_AIMC

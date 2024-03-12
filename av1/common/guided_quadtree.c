@@ -289,23 +289,32 @@ int quad_tree_get_unit_info_length(int width, int height, int unit_length,
       const int remaining_width = width - col;
       const int this_unit_width =
           (remaining_width < ext_size) ? remaining_width : unit_length;
-      // Split info only signaled for units of full / extended size. Partial
-      // blocks near boundaries are never split, so no split info is signaled
-      // for those.
-      const bool is_partial_unit =
-          (this_unit_width < unit_length) || (this_unit_height < unit_length);
-      if (is_partial_unit) {
-        // Partial units are never split, so single unit info signaled for them.
+      // Check for special cases near boundary.
+      const bool is_horz_partitioning_allowed =
+          (this_unit_height >= unit_length);
+      const bool is_vert_partitioning_allowed =
+          (this_unit_width >= unit_length);
+      if (!is_horz_partitioning_allowed && !is_vert_partitioning_allowed) {
+        // Implicitly no split, so single unit info will be signaled.
         ++unit_info_length;
       } else {
-        if (split_info == NULL) {  // Assume split to get upper bound.
-          unit_info_length += 4;
+        if (split_info == NULL) {  // Assume max sub-units to get upper bound.
+          const int max_sub_units =
+              is_horz_partitioning_allowed && is_vert_partitioning_allowed ? 4
+                                                                           : 2;
+          unit_info_length += max_sub_units;
         } else {
           // Look at the split info to determine number of (sub)units.
           assert(split_info_index < split_info_length);
-          const GuidedQuadTreePartitionType split_type =
+          const GuidedQuadTreePartitionType partition_type =
               split_info[split_info_index].split;
-          switch (split_type) {
+          assert(IMPLIES(!is_horz_partitioning_allowed,
+                         partition_type == GUIDED_QT_NONE ||
+                             partition_type == GUIDED_QT_VERT));
+          assert(IMPLIES(!is_vert_partitioning_allowed,
+                         partition_type == GUIDED_QT_NONE ||
+                             partition_type == GUIDED_QT_HORZ));
+          switch (partition_type) {
             case GUIDED_QT_NONE: unit_info_length += 1; break;
             case GUIDED_QT_HORZ:
             case GUIDED_QT_VERT: unit_info_length += 2; break;
@@ -335,12 +344,12 @@ int quad_tree_get_split_info_length(int width, int height, int unit_length) {
       const int remaining_width = width - col;
       const int this_unit_width =
           (remaining_width < ext_size) ? remaining_width : unit_length;
-      // Split info only signaled for units of full / extended size. Partial
-      // blocks near boundaries are never split, so no split info is signaled
-      // for those.
-      const bool is_partial_unit =
-          (this_unit_width < unit_length) || (this_unit_height < unit_length);
-      if (!is_partial_unit) {
+      // Check for special cases near boundary.
+      const bool is_horz_partitioning_allowed =
+          (this_unit_height >= unit_length);
+      const bool is_vert_partitioning_allowed =
+          (this_unit_width >= unit_length);
+      if (is_horz_partitioning_allowed || is_vert_partitioning_allowed) {
         ++split_info_len;
       }
       col += this_unit_width;

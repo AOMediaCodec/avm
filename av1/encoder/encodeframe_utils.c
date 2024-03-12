@@ -1271,6 +1271,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_RST_MERGECEOFFS
 #if CONFIG_CNN_GUIDED_QUADTREE
   AVERAGE_CDF(ctx_left->cnn_guided_quad_cdf, ctx_tr->cnn_guided_quad_cdf, 4);
+  AVERAGE_CDF(ctx_left->cnn_guided_binary_cdf, ctx_tr->cnn_guided_binary_cdf,
+              2);
   AVERAGE_CDF(ctx_left->cnn_guided_norestore_cdf,
               ctx_tr->cnn_guided_norestore_cdf, 2);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE

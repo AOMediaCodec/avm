@@ -2339,6 +2339,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
         if (!av1_restore_cnn_quadtree_encode_tflite(
                 cm, cpi->source, cpi->rd.RDMULT,
                 x->mode_costs.cnn_guided_quad_cost,
+                x->mode_costs.cnn_guided_binary_cost,
                 x->mode_costs.cnn_guided_norestore_cost,
                 cpi->mt_info.num_workers, quadtree_cnn, curr_cnn_indices,
                 &quad_info, &curr_cnn_rdcosts)) {

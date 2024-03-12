@@ -1560,6 +1560,9 @@ static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = { AOM_CDF2(
 static const aom_cdf_prob default_cnn_guided_quad_cdf[CDF_SIZE(4)] = {
   AOM_CDF4(23552, 24576, 28672),
 };
+static const aom_cdf_prob default_cnn_guided_binary_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(23552),
+};
 static const aom_cdf_prob
     default_cnn_guided_norestore_cdf[GUIDED_NORESTORE_CONTEXTS][CDF_SIZE(2)] = {
       { AOM_CDF2(16384) }, { AOM_CDF2(24576) }
@@ -1967,6 +1970,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_PC_WIENER
 #if CONFIG_CNN_GUIDED_QUADTREE
   av1_copy(fc->cnn_guided_quad_cdf, default_cnn_guided_quad_cdf);
+  av1_copy(fc->cnn_guided_binary_cdf, default_cnn_guided_binary_cdf);
   av1_copy(fc->cnn_guided_norestore_cdf, default_cnn_guided_norestore_cdf);
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 #if CONFIG_AIMC
