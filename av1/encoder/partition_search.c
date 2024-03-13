@@ -2101,7 +2101,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
             if (this_mvd_comp) {
               last_ref = ref;
               last_comp = comp;
-              sum_mvd += (abs(this_mvd_comp) >> precision_shift);
+              sum_mvd = sum_mvd + (abs(this_mvd_comp) >> precision_shift);
               num_nonzero_mvd_comp++;
             }
           }

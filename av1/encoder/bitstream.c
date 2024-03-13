@@ -2568,7 +2568,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
             if (this_mvd_comp) {
               last_ref = ref;
               last_comp = comp;
-              sum_mvd += (abs(this_mvd_comp) >> precision_shift);
+              sum_mvd = sum_mvd + (abs(this_mvd_comp) >> precision_shift);
               num_nonzero_mvd_comp++;
             }
           }

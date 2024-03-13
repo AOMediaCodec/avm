@@ -887,7 +887,7 @@ void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
   assert((ref->row & 7) == 0);
   const MV diff = { mv->row - ref->row, mv->col - ref->col };
 #if CONFIG_VQ_MVD_CODING
-  const MV dummy;
+  const MV dummy = { 0, 0 };
   av1_encode_mv(NULL, dummy, w, mvctx, diff, MV_PRECISION_ONE_PEL, 0);
 #else
   const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);

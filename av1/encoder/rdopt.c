@@ -1702,12 +1702,12 @@ static int av1_adjust_mvs_for_derive_sign_local_search(
                                    th_for_num_nonzero));
 
   // Get the MV limits for both references
+  SUBPEL_MOTION_SEARCH_PARAMS ms_params[2];
   for (int ref_idx = 0; ref_idx < 1 + is_compound; ref_idx++) {
-    SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-    av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
+    av1_make_default_subpel_ms_params(&ms_params[ref_idx], cpi, x, bsize,
                                       &ref_mvs[ref_idx], mbmi->pb_mv_precision,
                                       NULL);
-    mv_limits[ref_idx] = &ms_params.mv_limits;
+    mv_limits[ref_idx] = &ms_params[ref_idx].mv_limits;
   }
 
   int64_t best_model_rd = INT64_MAX;
@@ -1851,13 +1851,13 @@ static int av1_adjust_mvs_for_derive_sign_clean(
   assert(IMPLIES(!is_compound,
                  start_signaled_mv_ref_idx == 0 && num_signaled_mvd == 1));
 
+  SUBPEL_MOTION_SEARCH_PARAMS ms_params[2];
   for (int ref_idx = start_signaled_mv_ref_idx;
        ref_idx < start_signaled_mv_ref_idx + num_signaled_mvd; ++ref_idx) {
-    SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-    av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
+    av1_make_default_subpel_ms_params(&ms_params[ref_idx], cpi, x, bsize,
                                       &ref_mvs[ref_idx], mbmi->pb_mv_precision,
                                       NULL);
-    mv_limits[ref_idx] = &ms_params.mv_limits;
+    mv_limits[ref_idx] = &ms_params[ref_idx].mv_limits;
   }
   int64_t best_model_rd = INT64_MAX;
   const MV initial_mvs[2] = { mbmi->mv[0].as_mv, mbmi->mv[1].as_mv };
