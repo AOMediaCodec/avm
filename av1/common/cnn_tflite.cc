@@ -1136,7 +1136,8 @@ static int restore_cnn_quadtree_encode_img_tflite_highbd(
   std::vector<int> best_split;              // selected partitioning options.
   std::vector<std::pair<int, int>> best_A;  // selected a0, a1 weight pairs.
   double best_rdcost_total = DBL_MAX;
-  for (int this_unit_index = 0; this_unit_index <= 1; ++this_unit_index) {
+  for (int this_unit_index = 0; this_unit_index < GUIDED_QT_UNIT_SIZES;
+       ++this_unit_index) {
     const int quadtree_max_size =
         quad_tree_get_unit_size(width, height, this_unit_index);
     // For each quadtree unit, compute the best partitioning out of
@@ -1183,6 +1184,7 @@ static int restore_cnn_quadtree_encode_img_tflite_highbd(
   quad_info->split_info_length = (int)best_split.size();
   quad_info->unit_info_length = (int)best_A.size();
   av1_alloc_quadtree_struct(cm, quad_info);
+  fprintf(stderr, "Unit size = %d\n", quad_info->unit_size);
   for (unsigned int i = 0; i < best_split.size(); ++i) {
     quad_info->split_info[i].split = best_split[i];
   }

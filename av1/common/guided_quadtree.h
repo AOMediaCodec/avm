@@ -30,6 +30,7 @@ extern "C" {
 #define GUIDED_A_MID (GUIDED_A_NUM_VALUES >> 1)
 #define GUIDED_A_RANGE (GUIDED_A_NUM_VALUES - 1)
 #define GUIDED_A_PAIR_BITS (GUIDED_A_BITS * 2 - 1)
+#define GUIDED_QT_UNIT_SIZES 4
 
 typedef enum {
   GUIDED_QT_NONE,
@@ -64,10 +65,14 @@ static INLINE int get_guided_norestore_ctx(int qindex, int superres_denom,
 // Get quad tree unit size.
 static INLINE int quad_tree_get_unit_size(int width, int height,
                                           int unit_index) {
-  const bool is_720p_or_smaller = (width * height <= 1280 * 720);
-  const int min_unit_size = is_720p_or_smaller ? 256 : 512;
-  assert(unit_index >= 0 && unit_index <= 1);
-  return min_unit_size << unit_index;
+  const int max_dim = AOMMAX(width, height);
+  const int max_dim_pow_2_bits = 1 + get_msb(max_dim);
+  const int max_dim_pow_2 = 1 << max_dim_pow_2_bits;
+  const int max_unit_size = AOMMAX(AOMMIN(max_dim_pow_2, 2048), 256);
+  fprintf(stderr, "width = %d, height = %d, max_unit_size = %d\n", width,
+          height, max_unit_size);
+  assert(unit_index >= 0 && unit_index < GUIDED_QT_UNIT_SIZES);
+  return max_unit_size >> unit_index;
 }
 
 // Allocates buffers in 'quad_info' assuming 'quad_info->unit_index',

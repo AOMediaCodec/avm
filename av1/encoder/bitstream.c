@@ -3162,8 +3162,8 @@ static void write_filter_quadtree(FRAME_CONTEXT *ctx, int QP, int cnn_index,
 // Write quad tree unit index.
 static INLINE void quad_tree_write_unit_index(struct aom_write_bit_buffer *wb,
                                               const QUADInfo *const qi) {
-  assert(qi->unit_index >= 0 && qi->unit_index <= 1);
-  aom_wb_write_bit(wb, qi->unit_index);
+  assert(qi->unit_index >= 0 && qi->unit_index < GUIDED_QT_UNIT_SIZES);
+  aom_wb_write_literal(wb, qi->unit_index, 2);
 }
 #endif  // CONFIG_CNN_GUIDED_QUADTREE
 
