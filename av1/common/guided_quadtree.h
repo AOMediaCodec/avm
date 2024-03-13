@@ -70,8 +70,6 @@ static INLINE int quad_tree_get_unit_size(int width, int height,
   const int max_dim_pow_2_bits = 1 + get_msb(max_dim);
   const int max_dim_pow_2 = 1 << max_dim_pow_2_bits;
   const int max_unit_size = AOMMAX(AOMMIN(max_dim_pow_2, 2048), 256);
-  fprintf(stderr, "width = %d, height = %d, max_unit_size = %d\n", width,
-          height, max_unit_size);
   assert(unit_index >= 0 && unit_index < GUIDED_QT_UNIT_SIZES);
   return max_unit_size >> unit_index;
 }

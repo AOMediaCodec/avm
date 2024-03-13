@@ -1184,7 +1184,6 @@ static int restore_cnn_quadtree_encode_img_tflite_highbd(
   quad_info->split_info_length = (int)best_split.size();
   quad_info->unit_info_length = (int)best_A.size();
   av1_alloc_quadtree_struct(cm, quad_info);
-  fprintf(stderr, "Unit size = %d\n", quad_info->unit_size);
   for (unsigned int i = 0; i < best_split.size(); ++i) {
     quad_info->split_info[i].split = best_split[i];
   }
