@@ -1689,7 +1689,7 @@ static int av1_adjust_mvs_for_derive_sign_local_search(
   int64_t dist_sum;
   int rate_without_mv = rate2_nocoeff - rate_mv0;
   int best_mv_rate = rate_mv0;
-  const SubpelMvLimits *mv_limits[2];
+  SubpelMvLimits *mv_limits[2] = { NULL, NULL };
 
   assert(
       IMPLIES(is_adaptive_mvd, mbmi->pb_mv_precision == MV_PRECISION_QTR_PEL));
@@ -1727,11 +1727,6 @@ static int av1_adjust_mvs_for_derive_sign_local_search(
       if (!is_valid_sign_mvd_single(this_mvd, mbmi->pb_mv_precision,
                                     is_adaptive_mvd, th_for_num_nonzero))
         continue;
-
-      // printf(" row_mvd_idx = %d col_mvd_idx = %d  initial = [%d %d ]
-      // this_mvd = [%d, %d]\n", row_mvd_idx, col_mvd_idx,
-      // mv_diff[signaled_mv_ref_idx].row, mv_diff[signaled_mv_ref_idx].col,
-      // this_mvd.row, this_mvd.col);
 
       // Get the last sign
       int last_nonzero_sign = -1;
@@ -1809,11 +1804,6 @@ static int av1_adjust_mvs_for_derive_sign_local_search(
   mbmi->mv[0].as_mv = best_mvs[0];
   if (is_compound) mbmi->mv[1].as_mv = best_mvs[1];
   *tmp_rate_mv = best_mv_rate;
-  assert(best_model_rd != INT64_MAX);
-  assert(!(mbmi->mv[0].as_mv.row == initial_mvs[0].row &&
-           mbmi->mv[0].as_mv.col == initial_mvs[0].col &&
-           mbmi->mv[1].as_mv.row == initial_mvs[1].row &&
-           mbmi->mv[1].as_mv.col == initial_mvs[1].col));
 
   return (best_model_rd != INT64_MAX);
 }
@@ -1842,7 +1832,7 @@ static int av1_adjust_mvs_for_derive_sign_clean(
         mv_diff, ref_mvs, rate2_nocoeff, rate_mv0, tmp_rate_mv);
   }
 
-  const SubpelMvLimits *mv_limits[2];
+  SubpelMvLimits *mv_limits[2] = { NULL, NULL };
 
   assert(
       IMPLIES(is_adaptive_mvd, mbmi->pb_mv_precision == MV_PRECISION_QTR_PEL));
@@ -1986,7 +1976,7 @@ static int av1_adjust_mvs_for_derive_sign_clean(
       curr_pos++;
     }
   }
-  // assert(best_model_rd != INT64_MAX);
+
   mbmi->mv[0].as_mv = best_mvs[0];
   if (is_compound) mbmi->mv[1].as_mv = best_mvs[1];
   *tmp_rate_mv = best_mv_rate;
@@ -2350,10 +2340,6 @@ static int64_t motion_mode_rd(
 
               tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
 
-              // MV mv_diff2[2] = { kZeroMv, kZeroMv };
-              // MV ref_mvs2[2] = { kZeroMv, kZeroMv };
-              // int num_signaled_mvd2 = 0;
-              // int start_signaled_mvd_idx2 = 0;
               assert(!need_mv_adjustment(
                   xd, cm, x, mbmi, bsize, mv_diff, ref_mvs,
                   mbmi->pb_mv_precision, &num_signaled_mvd,

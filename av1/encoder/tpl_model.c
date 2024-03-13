@@ -217,6 +217,9 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   const int is_ibc_cost = 0;
 #endif
 
+  // motion search parameter depends on the prediction mode
+  // Set the mode to NEWMV to make sure AMVD mvcost is not used.
+  xd->mi[0]->mode = NEWMV;
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
                                      pb_mv_precision,

@@ -1257,13 +1257,21 @@ typedef struct {
   int sadperbit;
   /**@}*/
 
-  /*****************************************************************************
-   * \name Encoding Costs
-   * Here are the entropy costs needed to encode a given mv.
-   * \ref nmv_costs_alloc is an array that holds the memory for mv cost. Since
-   * the motion vectors can be negative, we save a pointer to the middle of the
-   * array in \ref nmv_costs for easier referencing.
-   ****************************************************************************/
+#if CONFIG_VQ_MVD_CODING
+/*****************************************************************************
+ * \name Encoding Costs
+ * Here are the entropy costs needed to encode a given mv.
+ ****************************************************************************/
+#else
+/*****************************************************************************
+ * \name Encoding Costs
+ * Here are the entropy costs needed to encode a given mv.
+ * \ref nmv_costs_alloc is an array that holds the memory for mv cost. Since
+ * the motion vectors can be negative, we save a pointer to the middle of the
+ * array in \ref nmv_costs for easier referencing.
+ ****************************************************************************/
+#endif  // CONFIG_VQ_MVD_CODING
+
   /**@{*/
 #if CONFIG_VQ_MVD_CODING
   /*! costs to code mvd shell index. */
@@ -1315,10 +1323,17 @@ typedef struct {
 #endif  // CONFIG_DERIVED_MVD_SIGN && !CONFIG_VQ_MVD_CODING
 
 #if CONFIG_VQ_MVD_CODING
+  /*! Costs for coding the shell cost of dv cost. */
   int *dv_joint_shell_cost;
+
+  /*! Costs for coding the col mv greater flags  of dv cost. */
   int dv_col_mv_greater_flags_costs[MAX_COL_TRUNCATED_UNARY_VAL + 1]
                                    [MAX_COL_TRUNCATED_UNARY_VAL + 1];
+
+  /*! Costs for coding the col mv index  of dv cost. */
   int dv_col_mv_index_cost[NUM_CTX_COL_MV_INDEX][2];
+
+  /*! Costs for coding the sign of each component. */
   int dv_sign_cost[2][2];
 #else
 
@@ -1337,9 +1352,13 @@ typedef struct {
  */
 typedef struct {
 #if CONFIG_VQ_MVD_CODING
+  /*! Costs for coding the joint shell. */
   int dv_joint_shell_cost[(2 * MV_MAX) + 1];
+
+  /*! Costs for coding the jgreater flags. */
   int dv_col_mv_greater_flags_costs[MAX_COL_TRUNCATED_UNARY_VAL + 1]
                                    [MAX_COL_TRUNCATED_UNARY_VAL + 1];
+  /*! Costs for coding the column index. */
   int dv_col_mv_index_cost[NUM_CTX_COL_MV_INDEX][2];
 #else
   /*! Costs for coding the joint mv. */
