@@ -908,6 +908,9 @@ static void screen_content_tools_determination(
   const double palette_ratio =
       (double)cpi->palette_pixel_num / (double)(cm->height * cm->width);
   const int psnr_diff_is_large = (psnr_diff > STRICT_PSNR_DIFF_THRESH);
+  // Note: These two conditions are intentionally separated because combining
+  // them can cause division by zero under some compiler configurations (e.g.
+  // clang-16 + address sanitizer) when palette_ratio == 0.0.
   int ratio_is_large = (palette_ratio >= 0.0001);
   if (ratio_is_large) {
     ratio_is_large = ((psnr_diff / palette_ratio) > 4);
@@ -917,6 +920,7 @@ static void screen_content_tools_determination(
   // the following two flags are used to determine if we enable intrabc or not.
   // Since intrabc is an expensive tool, we raise the threshold of
   // palette_ratio.
+  // Note: these two conditions are intentionally separated (see note above).
   int ratio_is_large_2 = (palette_ratio >= 0.25);
   if (ratio_is_large_2) {
     ratio_is_large_2 = ((psnr_diff / palette_ratio) > 4);
