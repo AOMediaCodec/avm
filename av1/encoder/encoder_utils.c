@@ -1029,8 +1029,6 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
         cm->features.interp_filter, 0, false, false);
   }
 
-  av1_setup_frame(cpi);
-
   if (cm->seg.enabled) {
     if (!cm->seg.update_data && cm->prev_frame) {
       segfeatures_copy(&cm->seg, &cm->prev_frame->seg);
@@ -1055,6 +1053,8 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
 
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params,
                        &cm->quant_params);
+
+    av1_setup_frame(cpi);
 
     // transform / motion compensation build reconstruction frame
     av1_encode_frame(cpi);
