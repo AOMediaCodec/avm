@@ -708,7 +708,7 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_IBC_SR_EXT
   config->enable_cfl_intra = 1;
   config->enable_smooth_intra = 1;
-  config->enable_filter_intra = 1;
+  config->enable_filter_intra = 0;
   config->enable_angle_delta = 1;
 #if CONFIG_OPTFLOW_REFINEMENT
   config->enable_opfl_refine = 1;

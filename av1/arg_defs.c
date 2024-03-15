@@ -541,7 +541,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION
   .enable_filter_intra = ARG_DEF(NULL, "enable-filter-intra", 1,
                                  "Enable filter intra prediction mode "
-                                 "(0: false, 1: true (default))"),
+                                 "(0: false (default), 1: true)"),
   .enable_smooth_intra = ARG_DEF(NULL, "enable-smooth-intra", 1,
                                  "Enable smooth intra prediction modes "
                                  "(0: false, 1: true (default))"),
