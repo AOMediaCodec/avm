@@ -208,8 +208,8 @@ void check_mv(bool *diff_mv, int pef_mode, int mv_rows, int mv_cols,
   if (pef_mode < 0 || pef_mode > 3) return;
 #else
   if (pef_mode < 0 || pef_mode > 2) return;
-#endif                  // CONFIG_REFINEMV
-#endif                  // CONFIG_EXT_WARP_FILTER
+#endif  // CONFIG_REFINEMV
+#endif  // CONFIG_EXT_WARP_FILTER
 #if CONFIG_TIP_REF_PRED_MERGING
   if (pef_mode == 0 || pef_mode == 1) {  // opfl mv || refined tip mv
     const int_mv *cur_mv_refined_ref0 = &mv_refined[offset];
