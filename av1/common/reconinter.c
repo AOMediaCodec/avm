@@ -4614,6 +4614,8 @@ assert(IMPLIES(switchable_refinemv_flags,
 }
 
 #if CONFIG_TIP_REF_PRED_MERGING
+// This function consolidates the refinemv enabling check for both TIP ref mode
+// blocks and non-TIP ref mode blocks.
 static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
                                                     const MB_MODE_INFO *mi,
                                                     int build_for_obmc,
@@ -4650,6 +4652,7 @@ static INLINE int is_mv_refine_allowed(const AV1_COMMON *cm,
   return 1;
 }
 
+// Check if the optical flow MV refinement is enabled for a given block.
 static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
                                                     const MB_MODE_INFO *mi,
                                                     int plane,
@@ -4661,6 +4664,8 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
   }
 }
 
+// Calculate the SAD of 2 compound prediction blocks and use it to decide
+// whether or not to skip the optical flow MV refinement for the TIP block.
 static AOM_INLINE int skip_opfl_refine_with_tip(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, int bw, int bh,
     int pu_width, int pu_height, int mi_x, int mi_y, uint16_t **mc_buf,
@@ -5803,6 +5808,7 @@ static AOM_INLINE void get_tip_mv(const AV1_COMMON *cm, MV *block_mv,
   tip_mv[1].col += block_mv->col;
 }
 
+// Find the start row/col and end row/col for a given TIP prediction block.
 static AOM_INLINE void set_tip_start_end_location(
     int start_pixel_col, int start_pixel_row, int block_width, int block_height,
     int *tpl_start_col, int *tpl_start_row, int *tpl_end_col,
@@ -5820,6 +5826,8 @@ static AOM_INLINE void set_tip_start_end_location(
   *tpl_end_col = (end_pixel_col + TMVP_MI_SIZE - 1) >> TMVP_MI_SZ_LOG2;
 }
 
+// This function consolidates the prediction process of the TIP ref mode block
+// and the non-TIP ref mode block.
 static void build_inter_predictors_8x8_and_bigger_facade(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
 #if CONFIG_BAWP
