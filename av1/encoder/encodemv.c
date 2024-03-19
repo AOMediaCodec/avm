@@ -351,9 +351,7 @@ void av1_encode_mv(AV1_COMP *cpi, MV mv, aom_writer *w, nmv_context *mvctx,
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
       aom_write_symbol(w, (shell_cls_offset >> i) & 1,
-                       mvctx->shell_offset_other_class_cdf[get_class_offset_ctx(
-                           pb_mv_precision, shell_class)][i],
-                       2);
+                       mvctx->shell_offset_other_class_cdf[0][i], 2);
     }
   }
 
@@ -442,8 +440,7 @@ void av1_update_mv_stats(nmv_context *mvctx, const MV mv_diff,
     const int num_of_bits_for_this_offset =
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
-      update_cdf(mvctx->shell_offset_other_class_cdf[get_class_offset_ctx(
-                     pb_mv_precision, shell_class)][i],
+      update_cdf(mvctx->shell_offset_other_class_cdf[0][i],
                  (shell_cls_offset >> i) & 1, 2);
     }
   }
@@ -1069,8 +1066,7 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
       assert(num_of_bits_for_this_offset <= SHELL_INT_OFFSET_BIT);
       for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
         shell_cost[shell_index] +=
-            shell_offset_other_class_cost[get_class_offset_ctx(
-                precision, shell_class)][i][(shell_cls_offset >> i) & 1];
+            shell_offset_other_class_cost[0][i][(shell_cls_offset >> i) & 1];
       }
     }
 

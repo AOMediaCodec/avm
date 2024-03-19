@@ -259,7 +259,7 @@ static INLINE int16_t get_index_from_amvd_mvd(int this_mvd_comp) {
   index = this_mvd_comp < 0 ? -1 * index : index;
   return index;
 }
-// Get ehe MVD value from the index for AMVD mode
+// Get the MVD value from the index for AMVD mode
 static INLINE int get_mvd_from_amvd_index(int index) {
   int this_mvd_comp = 0;
   this_mvd_comp = amvd_index_to_mvd[abs(index)];

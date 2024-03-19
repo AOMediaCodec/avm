@@ -1459,10 +1459,6 @@ MvSubpelPrecision av1_get_mbmi_max_mv_precision(const AV1_COMMON *const cm,
 // check if pb_mv_precision is allowed or not
 int is_pb_mv_precision_active(const AV1_COMMON *const cm,
                               const MB_MODE_INFO *mbmi, const BLOCK_SIZE bsize);
-#if CONFIG_VQ_MVD_CODING
-int get_class_offset_ctx(MvSubpelPrecision pb_mv_precision, int shell_class);
-#endif  // CONFIG_VQ_MVD_CODING
-
 #if CONFIG_EXTENDED_WARP_PREDICTION
 // check if the WARPMV mode is allwed for a given blocksize
 static INLINE int is_warpmv_allowed_bsize(BLOCK_SIZE bsize) {
