@@ -871,6 +871,10 @@ typedef struct {
 #if !CONFIG_AIMC
   //! Chroma mode cost
   int intra_uv_mode_cost[CFL_ALLOWED_TYPES][INTRA_MODES][UV_INTRA_MODES];
+#if CONFIG_UV_CFL
+  //! CFL mode cost
+  int cfl_mode_cost[CFL_CONTEXTS][2];
+#endif  // CONFIG_UV_CFL
 #endif  // !CONFIG_AIMC
   //! filter_intra_cost
 #if CONFIG_D149_CTX_MODELING_OPT
@@ -899,7 +903,7 @@ typedef struct {
 #else
   int cfl_index_cost[CFL_TYPE_COUNT];
 #endif  // CONFIG_ENABLE_MHCCP
-#endif
+#endif  // CONFIG_IMPROVED_CFL
 #if CONFIG_ENABLE_MHCCP
   //! cost of signaling filter direction
   int filter_dir_cost[MHCCP_CONTEXT_GROUP_SIZE][MHCCP_MODE_NUM];

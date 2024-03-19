@@ -204,7 +204,7 @@ enum {
 
 // Multiple reference line selection for intra prediction
 #define MRL_LINE_NUMBER 4
-#if CONFIG_AIMC
+#if CONFIG_AIMC || CONFIG_UV_CFL
 #define FIRST_MODE_COUNT 13
 #define SECOND_MODE_COUNT 16
 #define Y_MODE_CONTEXTS 3
@@ -215,7 +215,7 @@ enum {
 #if CONFIG_UV_CFL
 #define CFL_CONTEXTS 3
 #endif  // CONFIG_UV_CFL
-#endif  // CONFIG_AIMC
+#endif  // CONFIG_AIMC || CONFIG_UV_CFL
 
 // Intra Secondary Transform
 #define IST_SET_SIZE 14  // IST kernel set size

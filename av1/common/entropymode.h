@@ -446,6 +446,9 @@ typedef struct frame_contexts {
   aom_cdf_prob y_mode_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(INTRA_MODES)];
   aom_cdf_prob uv_mode_cdf[CFL_ALLOWED_TYPES][INTRA_MODES]
                           [CDF_SIZE(UV_INTRA_MODES)];
+#if CONFIG_UV_CFL
+  aom_cdf_prob cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_UV_CFL
 #endif  // !CONFIG_AIMC
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
   aom_cdf_prob mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)];

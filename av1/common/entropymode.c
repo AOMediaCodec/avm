@@ -348,6 +348,13 @@ static const aom_cdf_prob
 #endif  // CONFIG_UV_CFL
 #endif  // CONFIG_ENTROPY_PARA
 #else
+#if CONFIG_UV_CFL
+static const aom_cdf_prob default_cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)] = {
+  { AOM_CDF2(16384), 0 },
+  { AOM_CDF2(12384), 0 },
+  { AOM_CDF2(6384), 0 },
+};
+#endif  // CONFIG_UV_CFL
 static const aom_cdf_prob default_angle_delta_cdf
     [PARTITION_STRUCTURE_NUM][DIRECTIONAL_MODES]
     [CDF_SIZE(2 * MAX_ANGLE_DELTA + 1)] = {
