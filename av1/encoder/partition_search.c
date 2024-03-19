@@ -7224,9 +7224,6 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                                  &td->shared_coeff_buf, xd->tree_type,
                                  num_planes);
       *rd_cost = pc_tree->rd_cost;
-#if WARP_CU_BANK
-      x->e_mbd.warp_param_bank = counterpart_block->warp_param_bank;
-#endif  // WARP_CU_BANK
       assert(bsize != cm->sb_size);
       if (bsize == cm->sb_size) exit(0);
 
@@ -7735,9 +7732,6 @@ BEGIN_PARTITION_SEARCH:
 #endif  // CONFIG_MVP_IMPROVEMENT
 #if WARP_CU_BANK
   x->e_mbd.warp_param_bank = level_banks.best_level_warp_bank;
-#if CONFIG_EXT_RECUR_PARTITIONS
-  pc_tree->warp_param_bank = level_banks.best_level_warp_bank;
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #endif  // WARP_CU_BANK
   pc_tree->rd_cost = best_rdc;
   if (!part_search_state.found_best_partition) {

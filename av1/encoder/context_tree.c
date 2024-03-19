@@ -396,9 +396,6 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
   dst->rd_cost = src->rd_cost;
   dst->none_rd = src->none_rd;
   dst->skippable = src->skippable;
-#if WARP_CU_BANK
-  dst->warp_param_bank = src->warp_param_bank;
-#endif  // WARP_CU_BANK
 
   const BLOCK_SIZE bsize = dst->block_size;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, src->partitioning);
@@ -415,9 +412,13 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
                                   PARTITION_NONE, 0, ss_x, ss_y, shared_bufs);
         av1_copy_tree_context(dst->none, src->none);
 #if CONFIG_MVP_IMPROVEMENT
-        if (cm->seq_params.enable_refmvbank &&
-            is_inter_block(&src->none->mic, xd->tree_type)) {
-          av1_update_ref_mv_bank(cm, xd, &dst->none->mic);
+        if (is_inter_block(&src->none->mic, xd->tree_type)) {
+#if WARP_CU_BANK
+          av1_update_warp_param_bank(cm, xd, &dst->none->mic);
+#endif  // WARP_CU_BANK
+          if (cm->seq_params.enable_refmvbank) {
+            av1_update_ref_mv_bank(cm, xd, &dst->none->mic);
+          }
         }
 #endif  // CONFIG_MVP_IMPROVEMENT
       }

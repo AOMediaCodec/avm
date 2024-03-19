@@ -103,9 +103,6 @@ typedef struct PC_TREE {
 #if CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS none_rd;
   bool skippable;
-#if WARP_CU_BANK
-  WARP_PARAM_BANK warp_param_bank;
-#endif  // WARP_CU_BANK
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 } PC_TREE;
 
