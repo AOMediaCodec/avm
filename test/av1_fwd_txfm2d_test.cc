@@ -764,8 +764,11 @@ TEST_P(FwdCctxTest, ExtremeValues) { RunTest(0); }
 
 TEST_P(FwdCctxTest, DISABLED_Speed) { RunSpeedTest(); }
 
+#if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, FwdCctxTest,
     ::testing::Values(TestFuncs(&av1_fwd_cross_chroma_tx_block_c,
                                 &av1_fwd_cross_chroma_tx_block_avx2)));
+#endif  // HAVE_AVX2
+
 }  // namespace
