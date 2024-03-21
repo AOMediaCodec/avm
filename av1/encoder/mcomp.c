@@ -575,7 +575,7 @@ static INLINE int get_vq_mvd_cost(const MV mv_diff,
     assert(
         IMPLIES(skip_coding_col_bit, scaled_mv_diff.col == maximum_pair_index));
     if (!skip_coding_col_bit) {
-#if CONFIG_DEBUG
+#ifndef NDEBUG
       int num_mv_class = get_default_num_shell_class(pb_mv_precision);
 #endif
       int shell_cls_offset;
