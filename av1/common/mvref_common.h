@@ -774,10 +774,8 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
         const int src_top_edge_chroma =
             chroma_ref_info->mi_row_chroma_base * MI_SIZE * SCALE_PX_TO_MV +
             dv.row;
-        if (bw < 8 && pd->subsampling_x)
-          if (src_left_edge_chroma < tile_left_edge) return 0;
-        if (bh < 8 && pd->subsampling_y)
-          if (src_top_edge_chroma < tile_top_edge) return 0;
+        if (src_left_edge_chroma < tile_left_edge) return 0;
+        if (src_top_edge_chroma < tile_top_edge) return 0;
       } else {
 #endif
         if (bw < 8 && pd->subsampling_x)
