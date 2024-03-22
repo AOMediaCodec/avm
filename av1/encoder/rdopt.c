@@ -8467,7 +8467,7 @@ static int fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
   for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_h; ++i) {
     for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_w; ++j) {
-      picked_ref_frames_mask |= x->picked_ref_frames_mask[i * 32 + j];
+      picked_ref_frames_mask |= x->picked_ref_frames_mask[i * mib_size + j];
     }
   }
   return picked_ref_frames_mask;
@@ -9689,7 +9689,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           { { xd->mi_row, xd->mi_col },
             { xd->mi_row + mi_size_high[bsize] / 2, xd->mi_col } },
           { { xd->mi_row, xd->mi_col },
-            { xd->mi_row, xd->mi_col + mi_size_wide[bsize] } }
+            { xd->mi_row, xd->mi_col + mi_size_wide[bsize] / 2 } }
         };
         const PARTITION_TYPE part =
             (rect_type == HORZ) ? PARTITION_HORZ : PARTITION_VERT;
