@@ -2195,11 +2195,6 @@ typedef struct {
   YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME];
 
   /*!
-   * Pointer to the source frame buffer.
-   */
-  unsigned char *src_buffer;
-
-  /*!
    * Holds the number of valid reference frames in past and future directions
    * w.r.t. the current frame. num_ref_frames[i] stores the total number of
    * valid reference frames in 'i' direction.
@@ -2221,18 +2216,6 @@ typedef struct {
   int segment_map_w; /*!< segment map width */
   int segment_map_h; /*!< segment map height */
   /**@}*/
-
-  /*!
-   * Holds the total number of corner points detected in the source frame.
-   */
-  int num_src_corners;
-
-  /*!
-   * Holds the x and y co-ordinates of the corner points detected in the source
-   * frame. src_corners[i] holds the x co-ordinate and src_corners[i+1] holds
-   * the y co-ordinate of the ith corner point detected.
-   */
-  int src_corners[2 * MAX_CORNERS];
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   /*!
@@ -3141,6 +3124,12 @@ typedef struct AV1_COMP {
    * found in the frame update type with enum value equal to i
    */
   int valid_gm_model_found[FRAME_UPDATE_TYPES];
+
+  /*!
+   *  Should we allocate a downsampling pyramid for each frame buffer?
+   *  This is currently only used for global motion
+   */
+  bool alloc_pyramid;
 
 #if CONFIG_SCC_DETERMINATION
   /*!

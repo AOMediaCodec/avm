@@ -14,6 +14,7 @@
 #define AOM_AV1_ENCODER_GLOBAL_MOTION_H_
 
 #include "aom/aom_integer.h"
+#include "aom_dsp/flow_estimation/flow_estimation.h"
 #include "aom_scale/yv12config.h"
 #include "aom_util/aom_thread.h"
 
@@ -24,23 +25,9 @@
 extern "C" {
 #endif
 
-#define MAX_CORNERS 4096
 #define RANSAC_NUM_MOTIONS 1
-#define GM_REFINEMENT_COUNT 5
+#define GM_MAX_REFINEMENT_STEPS 5
 #define MAX_DIRECTIONS 2
-
-typedef enum {
-  GLOBAL_MOTION_FEATURE_BASED,
-  GLOBAL_MOTION_DISFLOW_BASED,
-} GlobalMotionEstimationType;
-
-unsigned char *av1_downconvert_frame(YV12_BUFFER_CONFIG *frm, int bit_depth);
-
-typedef struct {
-  double params[MAX_PARAMDIM - 1];
-  int *inliers;
-  int num_inliers;
-} MotionModel;
 
 // The structure holds a valid reference frame type and its temporal distance
 // from the source frame.
@@ -51,9 +38,9 @@ typedef struct {
 
 typedef struct {
   // Array of structure which holds the global motion parameters for a given
-  // motion model. params_by_motion[i] holds the parameters for a given motion
+  // motion model. motion_models[i] holds the parameters for a given motion
   // model for the ith ransac motion.
-  MotionModel params_by_motion[RANSAC_NUM_MOTIONS];
+  MotionModel motion_models[RANSAC_NUM_MOTIONS];
 
   // Pointer to hold inliers from motion model.
   uint8_t *segment_map;
@@ -100,25 +87,36 @@ typedef struct {
 void av1_convert_model_to_params(const double *params,
                                  WarpedMotionParams *model);
 
-// TODO(sarahparker) These need to be retuned for speed 0 and 1 to
-// maximize gains from segmented error metric
+// Criteria for accepting a global motion model
 static const double erroradv_tr = 0.65;
 static const double erroradv_prod_tr = 20000;
 
+// Early exit threshold for global motion refinement
+// This is set slightly higher than erroradv_tr, as a compromise between
+// two factors:
+//
+// 1) By rejecting un-promising models early, we can reduce the encode time
+//    spent trying to refine them
+//
+// 2) When we refine a model, its error may decrease to below the acceptance
+//    threshold even if the model is initially above the threshold
+static const double erroradv_early_tr = 0.70;
+
 int av1_is_enough_erroradvantage(double best_erroradvantage, int params_cost);
 
-void av1_compute_feature_segmentation_map(uint8_t *segment_map, int width,
-                                          int height, int *inliers,
-                                          int num_inliers);
+int64_t av1_segmented_frame_error(int bd, const uint16_t *ref, int ref_stride,
+                                  uint16_t *dst, int dst_stride, int p_width,
+                                  int p_height, uint8_t *segment_map,
+                                  int segment_map_stride);
 
 // Returns the error between the result of applying motion 'wm' to the frame
 // described by 'ref' and the frame described by 'dst'.
 int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
-                       int width, int height, int stride, uint16_t *dst,
-                       int p_col, int p_row, int p_width, int p_height,
-                       int p_stride, int subsampling_x, int subsampling_y,
-                       int64_t best_error, uint8_t *segment_map,
-                       int segment_map_stride);
+                       int ref_width, int ref_height, int ref_stride,
+                       uint16_t *dst, int dst_stride, int p_col, int p_row,
+                       int p_width, int p_height, int subsampling_x,
+                       int subsampling_y, int64_t best_error,
+                       uint8_t *segment_map, int segment_map_stride);
 
 // Returns the av1_warp_error between "dst" and the result of applying the
 // motion params that result from fine-tuning "wm" to "ref". Note that "wm" is
@@ -126,32 +124,13 @@ int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
 int64_t av1_refine_integerized_param(
     WarpedMotionParams *wm, TransformationType wmtype, int bd, uint16_t *ref,
     int r_width, int r_height, int r_stride, uint16_t *dst, int d_width,
-    int d_height, int d_stride, int n_refinements, int64_t best_frame_error,
-    uint8_t *segment_map, int segment_map_stride, int64_t erroradv_threshold);
+    int d_height, int d_stride, int n_refinements, int64_t ref_frame_error,
+    uint8_t *segment_map, int segment_map_stride);
 
-/*
-  Computes "num_motions" candidate global motion parameters between two frames.
-  The array "params_by_motion" should be length 8 * "num_motions". The ordering
-  of each set of parameters is best described  by the homography:
+void av1_compute_feature_segmentation_map(uint8_t *segment_map, int width,
+                                          int height, int *inliers,
+                                          int num_inliers);
 
-        [x'     (m2 m3 m0   [x
-    z .  y'  =   m4 m5 m1 *  y
-         1]      m6 m7 1)    1]
-
-  where m{i} represents the ith value in any given set of parameters.
-
-  "num_inliers" should be length "num_motions", and will be populated with the
-  number of inlier feature points for each motion. Params for which the
-  num_inliers entry is 0 should be ignored by the caller.
-*/
-int av1_compute_global_motion(TransformationType type,
-                              unsigned char *src_buffer, int src_width,
-                              int src_height, int src_stride, int *src_corners,
-                              int num_src_corners, YV12_BUFFER_CONFIG *ref,
-                              int bit_depth,
-                              GlobalMotionEstimationType gm_estimation_type,
-                              int *num_inliers_by_motion,
-                              MotionModel *params_by_motion, int num_motions);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

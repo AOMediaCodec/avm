@@ -643,17 +643,20 @@ static void fill_arr_to_col_double_prec(double *img, int stride, int len,
   }
 }
 
-void av1_resize_plane(const uint8_t *const input, int height, int width,
+bool av1_resize_plane(const uint8_t *const input, int height, int width,
                       int in_stride, uint8_t *output, int height2, int width2,
                       int out_stride) {
   int i;
+  bool mem_status = true;
   uint8_t *intbuf = (uint8_t *)aom_malloc(sizeof(uint8_t) * width2 * height);
   uint8_t *tmpbuf =
       (uint8_t *)aom_malloc(sizeof(uint8_t) * AOMMAX(width, height));
   uint8_t *arrbuf = (uint8_t *)aom_malloc(sizeof(uint8_t) * height);
   uint8_t *arrbuf2 = (uint8_t *)aom_malloc(sizeof(uint8_t) * height2);
-  if (intbuf == NULL || tmpbuf == NULL || arrbuf == NULL || arrbuf2 == NULL)
+  if (intbuf == NULL || tmpbuf == NULL || arrbuf == NULL || arrbuf2 == NULL) {
+    mem_status = false;
     goto Error;
+  }
   assert(width > 0);
   assert(height > 0);
   assert(width2 > 0);
@@ -672,6 +675,7 @@ Error:
   aom_free(tmpbuf);
   aom_free(arrbuf);
   aom_free(arrbuf2);
+  return mem_status;
 }
 
 void av1_upscale_plane_double_prec(const double *const input, int height,
@@ -1336,7 +1340,7 @@ static void copy_buffer_config(const YV12_BUFFER_CONFIG *const src,
 // TODO(afergs): aom_ vs av1_ functions? Which can I use?
 // Upscale decoded image.
 void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
-                          int enable_global_motion) {
+                          bool alloc_pyramid) {
   const int num_planes = av1_num_planes(cm);
   if (!av1_superres_scaled(cm)) return;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -1348,9 +1352,10 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
   YV12_BUFFER_CONFIG *const frame_to_show = &cm->cur_frame->buf;
 
   const int aligned_width = ALIGN_POWER_OF_TWO(cm->width, 3);
-  if (aom_alloc_frame_buffer(
-          &copy_buffer, aligned_width, cm->height, seq_params->subsampling_x,
-          seq_params->subsampling_y, AOM_BORDER_IN_PIXELS, byte_alignment, 0))
+  if (aom_alloc_frame_buffer(&copy_buffer, aligned_width, cm->height,
+                             seq_params->subsampling_x,
+                             seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
+                             byte_alignment, false))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate copy buffer for superres upscaling");
 
@@ -1382,7 +1387,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
             frame_to_show, cm->superres_upscaled_width,
             cm->superres_upscaled_height, seq_params->subsampling_x,
             seq_params->subsampling_y, AOM_BORDER_IN_PIXELS, byte_alignment, fb,
-            cb, cb_priv, enable_global_motion)) {
+            cb, cb_priv, alloc_pyramid)) {
       unlock_buffer_pool(pool);
       aom_internal_error(
           &cm->error, AOM_CODEC_MEM_ERROR,
@@ -1399,7 +1404,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
                                cm->superres_upscaled_height,
                                seq_params->subsampling_x,
                                seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
-                               byte_alignment, enable_global_motion))
+                               byte_alignment, alloc_pyramid))
       aom_internal_error(
           &cm->error, AOM_CODEC_MEM_ERROR,
           "Failed to reallocate current frame buffer for superres upscaling");

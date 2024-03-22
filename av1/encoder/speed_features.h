@@ -367,6 +367,12 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
   // yields gm_type as INVALID/TRANSLATION/IDENTITY
   int prune_ref_frame_for_gm_search;
 
+  // Downsampling pyramid level to use for global motion estimation
+  int downsample_level;
+
+  // Number of refinement steps to apply after initial model generation
+  int num_refinement_steps;
+
   // Disable global motion estimation based on stats of previous frames in the
   // GF group
   int disable_gm_search_based_on_stats;

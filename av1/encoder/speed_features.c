@@ -459,6 +459,8 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.auto_mv_step_size = 1;
     sf->mv_sf.subpel_iters_per_step = 1;
 
+    sf->gm_sf.num_refinement_steps = 2;
+
     // TODO(chiyotsai@google.com): We can get 10% speed up if we move
     // adaptive_rd_thresh to speed 1. But currently it performs poorly on some
     // clips (e.g. 5% loss on dinner_1080p). We need to examine the sequence a
@@ -490,8 +492,6 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
-    sf->gm_sf.max_ref_frames = 0;
-
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg = 1;
     sf->part_sf.prune_4_partition_using_split_info = 1;
@@ -504,6 +504,8 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.simple_motion_subpel_force_stop = QUARTER_PEL;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
+
+    sf->gm_sf.num_refinement_steps = 0;
 
     sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
@@ -557,6 +559,8 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 4) {
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+
+    sf->gm_sf.downsample_level = 1;
 
     sf->part_sf.simple_motion_search_prune_agg = 2;
     sf->part_sf.simple_motion_search_reduce_search_steps = 4;
@@ -643,6 +647,8 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->hl_sf.disable_unequal_scale_refs = true;
 
+    sf->gm_sf.downsample_level = 2;
+
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
 
@@ -693,6 +699,8 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->max_ref_frames = INTER_REFS_PER_FRAME;
   gm_sf->prune_ref_frame_for_gm_search = 0;
+  gm_sf->downsample_level = 0;
+  gm_sf->num_refinement_steps = GM_MAX_REFINEMENT_STEPS;
   gm_sf->disable_gm_search_based_on_stats = 0;
 }
 

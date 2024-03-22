@@ -13,9 +13,9 @@
 #include <limits.h>
 
 #include "config/aom_config.h"
+#include "aom_dsp/mathutils.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/encoder/encoder.h"
-#include "av1/encoder/mathutils.h"
 #include "av1/encoder/optical_flow.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "aom_mem/aom_mem.h"

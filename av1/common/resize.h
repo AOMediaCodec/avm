@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-void av1_resize_plane(const uint8_t *const input, int height, int width,
+bool av1_resize_plane(const uint8_t *const input, int height, int width,
                       int in_stride, uint8_t *output, int height2, int width2,
                       int out_stride);
 void av1_upscale_plane_double_prec(const double *const input, int height,
@@ -99,7 +99,7 @@ void av1_calculate_scaled_superres_size(int *width, int *height,
 void av1_calculate_unscaled_superres_size(int *width, int *height, int denom);
 
 void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
-                          int enable_global_motion);
+                          bool alloc_pyramid);
 
 // Returns 1 if a superres upscaled frame is scaled and 0 otherwise.
 static INLINE int av1_superres_scaled(const AV1_COMMON *cm) {

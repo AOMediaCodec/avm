@@ -547,11 +547,6 @@ if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
 if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
     add_proto qw/void av1_warp_plane_bilinear/, "WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row,int p_width, int p_height, int p_stride,int subsampling_x, int subsampling_y, ConvolveParams *conv_params";
     specialize qw/av1_warp_plane_bilinear avx2/;
- }
-
-if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
-  add_proto qw/double av1_compute_cross_correlation/, "unsigned char *im1, int stride1, int x1, int y1, unsigned char *im2, int stride2, int x2, int y2";
-  specialize qw/av1_compute_cross_correlation sse4_1 avx2/;
 }
 
 # LOOP_RESTORATION functions

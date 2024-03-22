@@ -971,6 +971,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       av1_print_subgop_config_set(&cpi->subgop_config_set);
     }
   }
+
+  cpi->alloc_pyramid = oxcf->tool_cfg.enable_global_motion;
 }
 
 static INLINE void init_frame_info(FRAME_INFO *frame_info,
@@ -2081,7 +2083,7 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
   if (aom_realloc_frame_buffer(
           &tip_frame->buf, cm->width, cm->height, cm->seq_params.subsampling_x,
           cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
+          cm->features.byte_alignment, NULL, NULL, NULL, false)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
@@ -2093,7 +2095,7 @@ static void setup_tip_frame_size(AV1_COMP *cpi) {
   if (aom_realloc_frame_buffer(
           &tip_frame->buf, cm->width, cm->height, cm->seq_params.subsampling_x,
           cm->seq_params.subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL, 0)) {
+          cm->features.byte_alignment, NULL, NULL, NULL, false)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   }
@@ -2142,8 +2144,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   if (aom_realloc_frame_buffer(
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, cpi->oxcf.border_in_pixels,
-          cm->features.byte_alignment, NULL, NULL, NULL,
-          cpi->oxcf.tool_cfg.enable_global_motion))
+          cm->features.byte_alignment, NULL, NULL, NULL, cpi->alloc_pyramid))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
@@ -2211,7 +2212,7 @@ static void save_pre_filter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
           pre_filter_frame, frame_width, frame_height,
           seq_params->subsampling_x, seq_params->subsampling_y,
           AOM_RESTORATION_FRAME_BORDER, cm->features.byte_alignment, NULL, NULL,
-          NULL, 0) < 0)
+          NULL, false) < 0)
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate restoration dst buffer");
 
@@ -2571,7 +2572,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
   int phase_scaler = 0;
 
   set_size_independent_vars(cpi);
-  cpi->source->buf_8bit_valid = 0;
   av1_setup_frame_size(cpi);
   av1_set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
 
@@ -2737,7 +2737,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   assert(IMPLIES(oxcf->rc_cfg.min_cr > 0, allow_recode));
 
   set_size_independent_vars(cpi);
-  cpi->source->buf_8bit_valid = 0;
 
   av1_setup_frame_size(cpi);
 
@@ -4015,6 +4014,13 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
   seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
 
+  if (cpi->oxcf.tool_cfg.enable_global_motion && !frame_is_intra_only(cm)) {
+    // Flush any stale global motion information, which may be left over
+    // from a previous frame
+    aom_invalidate_pyramid(cpi->source->y_pyramid);
+    av1_invalidate_corner_list(cpi->source->corners);
+  }
+
   int largest_tile_id = 0;
   if (av1_superres_in_recode_allowed(cpi)) {
     if (encode_with_and_without_superres(cpi, size, dest, &largest_tile_id) !=
@@ -4251,7 +4257,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 #endif  //  CONFIG_DENOISE
 
   if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags,
-                         cpi->oxcf.tool_cfg.enable_global_motion))
+                         cpi->alloc_pyramid))
     res = -1;
 #if CONFIG_INTERNAL_STATS
   aom_usec_timer_mark(&timer);
