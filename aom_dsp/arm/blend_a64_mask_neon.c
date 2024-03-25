@@ -17,7 +17,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/blend.h"
 #include "aom_ports/mem.h"
-#include "av1/common/arm/mem_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
 #include "config/aom_dsp_rtcd.h"
 
 static INLINE void blend8x1(int16x8_t mask, int16x8_t src_0, int16x8_t src_1,

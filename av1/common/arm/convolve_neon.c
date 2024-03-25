@@ -21,8 +21,8 @@
 #include "av1/common/convolve.h"
 #include "av1/common/filter.h"
 #include "av1/common/arm/convolve_neon.h"
-#include "av1/common/arm/mem_neon.h"
-#include "av1/common/arm/transpose_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
 
 static INLINE int16x4_t convolve8_4x4(const int16x4_t s0, const int16x4_t s1,
                                       const int16x4_t s2, const int16x4_t s3,

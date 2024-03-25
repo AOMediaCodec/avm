@@ -17,7 +17,7 @@
 #include "aom/aom_integer.h"
 #include "aom_dsp/blend.h"
 #include "aom_ports/mem.h"
-#include "av1/common/arm/mem_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "config/aom_dsp_rtcd.h"
 

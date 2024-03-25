@@ -18,7 +18,7 @@
 
 #include "av1/common/quant_common.h"
 #include "av1/common/seg_common.h"
-#include "av1/common/arm/mem_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
 
 #include "av1/encoder/av1_quantize.h"
 #include "av1/encoder/encoder.h"

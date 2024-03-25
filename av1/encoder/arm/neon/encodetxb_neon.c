@@ -16,7 +16,7 @@
 
 #include "av1/common/txb_common.h"
 #include "av1/encoder/encodetxb.h"
-#include "av1/common/arm/mem_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
 
 void av1_txb_init_levels_neon(const tran_low_t *const coeff, const int width,
                               const int height, uint8_t *const levels) {

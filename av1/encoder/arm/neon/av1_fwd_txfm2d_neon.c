@@ -17,7 +17,7 @@
 #include "aom_ports/mem.h"
 #include "av1/common/av1_txfm.h"
 #include "av1/encoder/av1_fwd_txfm1d_cfg.h"
-#include "av1/common/arm/mem_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 

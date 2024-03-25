@@ -13,8 +13,8 @@
 #include "config/aom_dsp_rtcd.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/arm/sum_neon.h"
-#include "av1/common/arm/mem_neon.h"
-#include "av1/common/arm/transpose_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
 
 static INLINE uint32_t highbd_sse_W8x1_neon(uint16x8_t q2, uint16x8_t q3) {
   uint32_t sse;

@@ -24,8 +24,8 @@
 #include "av1/common/common.h"
 #include "av1/common/resize.h"
 #include "av1/common/restoration.h"
-#include "av1/common/arm/mem_neon.h"
-#include "av1/common/arm/transpose_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
 
 // Constants used for right shift in final_filter calculation.
 #define NB_EVEN 5

@@ -13,8 +13,8 @@
 #include "config/aom_dsp_rtcd.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/arm/sum_neon.h"
-#include "av1/common/arm/mem_neon.h"
-#include "av1/common/arm/transpose_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
 
 int aom_satd_lp_neon(const int16_t *coeff, int length) {
   const int16x4_t zero = vdup_n_s16(0);

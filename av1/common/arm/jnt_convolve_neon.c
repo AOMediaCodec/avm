@@ -20,8 +20,8 @@
 #include "aom_ports/mem.h"
 #include "av1/common/common.h"
 #include "av1/common/arm/convolve_neon.h"
-#include "av1/common/arm/mem_neon.h"
-#include "av1/common/arm/transpose_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
 
 #if !defined(__aarch64__)
 static INLINE void compute_avg_4x1(uint16x4_t res0, uint16x4_t d0,
