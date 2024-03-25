@@ -9670,7 +9670,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
-      !x->inter_mode_cache && !is_square_block(bsize)) {
+      !x->inter_mode_cache) {
     bool prune_ref_frames = false;
     assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
 
