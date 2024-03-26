@@ -30,46 +30,41 @@ static void aom_fdct4x4_helper(const int16_t *input, int stride,
     const int16x4_t one = vreinterpret_s16_s64(vdup_n_s64(1));
     *input_0 = vadd_s16(*input_0, one);
   }
-
   for (int i = 0; i < 2; ++i) {
     const int16x8_t input_01 = vcombine_s16(*input_0, *input_1);
     const int16x8_t input_32 = vcombine_s16(*input_3, *input_2);
-
     // in_0 +/- in_3, in_1 +/- in_2
     const int16x8_t s_01 = vaddq_s16(input_01, input_32);
     const int16x8_t s_32 = vsubq_s16(input_01, input_32);
-
     // step_0 +/- step_1, step_2 +/- step_3
     const int16x4_t s_0 = vget_low_s16(s_01);
     const int16x4_t s_1 = vget_high_s16(s_01);
     const int16x4_t s_2 = vget_high_s16(s_32);
     const int16x4_t s_3 = vget_low_s16(s_32);
-
     // (s_0 +/- s_1) * cospi_16_64
     // Must expand all elements to s32. See 'needs32' comment in fwd_txfm.c.
     const int32x4_t s_0_p_s_1 = vaddl_s16(s_0, s_1);
     const int32x4_t s_0_m_s_1 = vsubl_s16(s_0, s_1);
-    const int32x4_t temp1 = vmulq_n_s32(s_0_p_s_1, cospi_16_64);
-    const int32x4_t temp2 = vmulq_n_s32(s_0_m_s_1, cospi_16_64);
-
+    const int32x4_t temp1 = vmulq_n_s32(s_0_p_s_1, (int32_t)cospi_16_64);
+    const int32x4_t temp2 = vmulq_n_s32(s_0_m_s_1, (int32_t)cospi_16_64);
     // fdct_round_shift
     int16x4_t out_0 = vrshrn_n_s32(temp1, DCT_CONST_BITS);
     int16x4_t out_2 = vrshrn_n_s32(temp2, DCT_CONST_BITS);
-
     // s_3 * cospi_8_64 + s_2 * cospi_24_64
     // s_3 * cospi_24_64 - s_2 * cospi_8_64
-    const int32x4_t s_3_cospi_8_64 = vmull_n_s16(s_3, cospi_8_64);
-    const int32x4_t s_3_cospi_24_64 = vmull_n_s16(s_3, cospi_24_64);
-
-    const int32x4_t temp3 = vmlal_n_s16(s_3_cospi_8_64, s_2, cospi_24_64);
-    const int32x4_t temp4 = vmlsl_n_s16(s_3_cospi_24_64, s_2, cospi_8_64);
-
+    const int32x4_t s_3_cospi_8_64 = vmull_n_s16(s_3, (int32_t)cospi_8_64);
+    const int32x4_t s_3_cospi_24_64 = vmull_n_s16(s_3, (int32_t)cospi_24_64);
+    const int32x4_t temp3 =
+        vmlal_n_s16(s_3_cospi_8_64, s_2, (int32_t)cospi_24_64);
+    const int32x4_t temp4 =
+        vmlsl_n_s16(s_3_cospi_24_64, s_2, (int32_t)cospi_8_64);
     // fdct_round_shift
     int16x4_t out_1 = vrshrn_n_s32(temp3, DCT_CONST_BITS);
     int16x4_t out_3 = vrshrn_n_s32(temp4, DCT_CONST_BITS);
-
-    transpose_s16_4x4d(&out_0, &out_1, &out_2, &out_3);
-
+    // Only transpose the first pass
+    if (i == 0) {
+      transpose_elems_inplace_s16_4x4(&out_0, &out_1, &out_2, &out_3);
+    }
     *input_0 = out_0;
     *input_1 = out_1;
     *input_2 = out_2;
