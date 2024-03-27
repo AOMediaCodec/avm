@@ -511,7 +511,9 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_CONTEXT_DERIVATION
 
 #if CONFIG_WAIP
+#if !CONFIG_INSPECTION
   MB_MODE_INFO *mbmi = xd->mi[0];
+#endif  // !CONFIG_INSPECTION
   if (is_inter_block(mbmi, xd->tree_type)) {
     mbmi->is_wide_angle[plane > 0] = 0;
     mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
