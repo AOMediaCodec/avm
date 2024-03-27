@@ -5045,6 +5045,33 @@ static int64_t handle_inter_mode(
 #endif  // CONFIG_C071_SUBBLK_WARPMV
   int best_xskip_txfm = 0;
   int64_t newmv_ret_val = INT64_MAX;
+  const int is_pb_mv_prec_active = is_pb_mv_precision_active(cm, mbmi, bsize);
+  const int has_two_drls = has_second_drl(mbmi);
+
+  // First, perform a simple translation search for each of the indices. If
+  // an index performs well, it will be fully searched in the main loop
+  // of this function.
+#if CONFIG_SEP_COMP_DRL
+  int ref_set[2];
+  ref_set[0] = get_drl_refmv_count(cm->features.max_drl_bits, x,
+                                   mbmi->ref_frame, this_mode, 0);
+  ref_set[1] = 1;
+  if (has_two_drls) {
+    ref_set[1] = get_drl_refmv_count(cm->features.max_drl_bits, x,
+                                     mbmi->ref_frame, this_mode, 1);
+
+    if (mbmi->mode == NEAR_NEWMV) {
+      ref_set[0] = AOMMIN(ref_set[0], SEP_COMP_DRL_SIZE);
+      ref_set[1] = AOMMIN(ref_set[1], SEP_COMP_DRL_SIZE);
+    } else {
+      assert(mbmi->mode == NEAR_NEARMV);
+    }
+  }
+#else
+  const int ref_set = get_drl_refmv_count(cm->features.max_drl_bits, x,
+                                          mbmi->ref_frame, this_mode);
+#endif
+
 #if CONFIG_BAWP
 #if CONFIG_SEP_COMP_DRL
 #if CONFIG_EXPLICIT_BAWP
@@ -5062,21 +5089,34 @@ static int64_t handle_inter_mode(
 #if CONFIG_EXPLICIT_BAWP
   for (int bawp = 0; bawp < BAWP_OPTION_CNT; bawp++) {
 #else
-  for (int bawp = 0; bawp < 2; bawp++) {
+  const int is_bawp_allowed =
+      cm->features.enable_bawp && av1_allow_bawp(mbmi, xd->mi_row, xd->mi_col);
+  const int bawp_limit = is_bawp_allowed ? 2 : 1;
+
+  for (int bawp = 0; bawp < bawp_limit; ++bawp) {
 #endif  // CONFIG_EXPLICIT_BAWP
-    for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
+    for (int prec = MV_PRECISION_8_PEL; prec <= mbmi->max_mv_precision;
+         ++prec) {
+      if (!is_pb_mv_prec_active && prec != mbmi->max_mv_precision) continue;
 #if CONFIG_SEP_COMP_DRL
-      for (int idx = 0; idx < MAX_REF_MV_SEARCH * MAX_REF_MV_SEARCH; idx++) {
+      for (int ref_mv_id_1 = 0; ref_mv_id_1 < ref_set[1]; ++ref_mv_id_1) {
+        for (int ref_mv_id_0 = 0; ref_mv_id_0 < ref_set[0]; ++ref_mv_id_0) {
+          const int idx = has_two_drls
+                              ? ref_mv_id_1 * MAX_REF_MV_SEARCH + ref_mv_id_0
+                              : ref_mv_id_0;
 #else
       for (int idx = 0; idx < MAX_REF_MV_SEARCH; idx++) {
 #endif
-        mode_info[bawp][prec][idx].full_search_mv.as_int = INVALID_MV;
-        mode_info[bawp][prec][idx].mv.as_int = INVALID_MV;
-        mode_info[bawp][prec][idx].rd = INT64_MAX;
-        mode_info[bawp][prec][idx].drl_cost = 0;
-        mode_info[bawp][prec][idx].rate_mv = 0;
-        mode_info[bawp][prec][idx].full_mv_rate = 0;
+          mode_info[bawp][prec][idx].full_search_mv.as_int = INVALID_MV;
+          mode_info[bawp][prec][idx].mv.as_int = INVALID_MV;
+          mode_info[bawp][prec][idx].rd = INT64_MAX;
+          mode_info[bawp][prec][idx].drl_cost = 0;
+          mode_info[bawp][prec][idx].rate_mv = 0;
+          mode_info[bawp][prec][idx].full_mv_rate = 0;
+        }
+#if CONFIG_SEP_COMP_DRL
       }
+#endif
     }
   }
 #else
@@ -5117,30 +5157,6 @@ static int64_t handle_inter_mode(
     ref_match_found_in_left_nb =
         find_ref_match_in_left_nbs(cm->mi_params.mi_rows, xd);
   }
-
-  // First, perform a simple translation search for each of the indices. If
-  // an index performs well, it will be fully searched in the main loop
-  // of this function.
-#if CONFIG_SEP_COMP_DRL
-  int ref_set[2];
-  ref_set[0] = get_drl_refmv_count(cm->features.max_drl_bits, x,
-                                   mbmi->ref_frame, this_mode, 0);
-  ref_set[1] = 1;
-  if (has_second_drl(mbmi)) {
-    ref_set[1] = get_drl_refmv_count(cm->features.max_drl_bits, x,
-                                     mbmi->ref_frame, this_mode, 1);
-
-    if (mbmi->mode == NEAR_NEWMV) {
-      ref_set[0] = AOMMIN(ref_set[0], SEP_COMP_DRL_SIZE);
-      ref_set[1] = AOMMIN(ref_set[1], SEP_COMP_DRL_SIZE);
-    } else {
-      assert(mbmi->mode == NEAR_NEARMV);
-    }
-  }
-#else
-  const int ref_set = get_drl_refmv_count(cm->features.max_drl_bits, x,
-                                          mbmi->ref_frame, this_mode);
-#endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
 #if CONFIG_SEP_COMP_DRL
@@ -5202,7 +5218,7 @@ static int64_t handle_inter_mode(
 #else
   int idx_mask[NUM_MV_PRECISIONS] = { 0, 0, 0, 0, 0, 0, 0 };
 #endif
-  if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
+  if (is_pb_mv_prec_active) {
     const int down_ctx = av1_get_pb_mv_precision_down_context(cm, xd);
     const int mpp_flag_context = av1_get_mpp_flag_context(cm, xd);
     set_precision_set(cm, xd, mbmi, bsize, 0);
@@ -5481,7 +5497,7 @@ static int64_t handle_inter_mode(
             MvSubpelPrecision pb_mv_precision =
                 precision_def->precision[precision_dx];
             mbmi->pb_mv_precision = pb_mv_precision;
-            if (!is_pb_mv_precision_active(cm, mbmi, bsize) &&
+            if (!is_pb_mv_prec_active &&
                 (pb_mv_precision != mbmi->max_mv_precision)) {
               continue;
             }
@@ -5495,7 +5511,7 @@ static int64_t handle_inter_mode(
                 continue;
             }
 
-            if (is_pb_mv_precision_active(cm, mbmi, bsize)) {
+            if (is_pb_mv_prec_active) {
               if (cpi->sf.flexmv_sf.terminate_early_4_pel_precision &&
                   pb_mv_precision < MV_PRECISION_FOUR_PEL &&
                   best_precision_so_far >= MV_PRECISION_QTR_PEL)
@@ -6177,7 +6193,7 @@ static int64_t handle_inter_mode(
                     int64_t tmp_rd =
                         RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
 
-                    if (is_pb_mv_precision_active(cm, mbmi, bsize) &&
+                    if (is_pb_mv_prec_active &&
                         tmp_rd < best_precision_rd_so_far) {
                       best_precision_so_far = mbmi->pb_mv_precision;
                       best_precision_rd_so_far = tmp_rd;
