@@ -716,15 +716,6 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const int dc_skip = (eob == 1) && !is_inter;
   code_eob(x, w, plane, tx_size, esc_eob);
   av1_write_tx_type(cm, xd, tx_type, tx_size, w, plane, esc_eob, dc_skip);
-#if WIDE_ANGLE_DEBUG
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  fprintf(file_enc,
-          "plane = %d, mi_row = %d, mi_col = %d, is_wide_angle = %d, "
-          "mapped_intra_mode = %d\n",
-          plane, mbmi->mi_row_start, mbmi->mi_col_start,
-          mbmi->is_wide_angle[plane > 0], mbmi->mapped_intra_mode[plane > 0]);
-  fflush(file_enc);
-#endif
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
     const int skip_cctx = is_inter ? 0 : (eob == 1);
     CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);

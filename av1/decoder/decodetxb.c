@@ -531,14 +531,6 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   decode_eob(dcb, r, plane, tx_size);
   av1_read_tx_type(cm, xd, blk_row, blk_col, tx_size, r, plane, *eob,
                    is_inter ? 0 : *eob);
-#if WIDE_ANGLE_DEBUG
-  fprintf(file_dec,
-          "plane = %d, mi_row = %d, mi_col = %d, is_wide_angle = %d, "
-          "mapped_intra_mode = %d\n",
-          plane, mbmi->mi_row_start, mbmi->mi_col_start,
-          mbmi->is_wide_angle[plane > 0], mbmi->mapped_intra_mode[plane > 0]);
-  fflush(file_dec);
-#endif
 
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
     const int skip_cctx = is_inter ? 0 : (*eob == 1);
