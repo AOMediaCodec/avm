@@ -97,7 +97,11 @@ extern "C" {
 #define NUM_BASE_LEVELS 2
 
 #define BR_CDF_SIZE (4)
+#if CONFIG_COEFF_HR_LR1
 #define COEFF_BASE_RANGE (1 * (BR_CDF_SIZE - 1))
+#else
+#define COEFF_BASE_RANGE (4 * (BR_CDF_SIZE - 1))
+#endif  // CONFIG_COEFF_HR_LR1
 
 #define COEFF_CONTEXT_BITS 3
 #define COEFF_CONTEXT_MASK ((1 << COEFF_CONTEXT_BITS) - 1)

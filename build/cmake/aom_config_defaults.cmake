@@ -140,6 +140,8 @@ set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
 # AV2 experiment flags.
+set_aom_config_var(CONFIG_COEFF_HR_LR1 1
+                   "AV2 enable coding 1 LR in coefficient coding.")
 set_aom_config_var(CONFIG_LCCHROMA 1 "AV2 enable low-complexity chroma coding.")
 set_aom_config_var(CONFIG_ENTROPY_PARA 1 "AV2 enable PARA method for entropy.")
 set_aom_config_var(
