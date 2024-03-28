@@ -925,18 +925,20 @@ void av1_warp_plane_bicubic(WarpedMotionParams *wm, int bd, const uint16_t *ref,
       // coordinates (if necessary)
       const int32_t src_x = j << subsampling_x;
       const int32_t src_y = i << subsampling_y;
-      const int32_t dst_x = mat[2] * src_x + mat[3] * src_y + mat[0];
-      const int32_t dst_y = mat[4] * src_x + mat[5] * src_y + mat[1];
-      const int32_t x = dst_x >> subsampling_x;
-      const int32_t y = dst_y >> subsampling_y;
+      const int64_t dst_x =
+          (int64_t)mat[2] * src_x + (int64_t)mat[3] * src_y + (int64_t)mat[0];
+      const int64_t dst_y =
+          (int64_t)mat[4] * src_x + (int64_t)mat[5] * src_y + (int64_t)mat[1];
+      const int64_t x = dst_x >> subsampling_x;
+      const int64_t y = dst_y >> subsampling_y;
 
-      const int32_t ix = x >> WARPEDMODEL_PREC_BITS;
+      const int32_t ix = (int32_t)(x >> WARPEDMODEL_PREC_BITS);
       const int32_t ixs[4] = { clamp(ix - 1, 0, width - 1),
                                clamp(ix, 0, width - 1),
                                clamp(ix + 1, 0, width - 1),
                                clamp(ix + 2, 0, width - 1) };
       const int32_t sx = x & ((1 << WARPEDMODEL_PREC_BITS) - 1);
-      const int32_t iy = y >> WARPEDMODEL_PREC_BITS;
+      const int32_t iy = (int32_t)(y >> WARPEDMODEL_PREC_BITS);
       const int32_t iys[4] = { clamp(iy - 1, 0, height - 1),
                                clamp(iy, 0, height - 1),
                                clamp(iy + 1, 0, height - 1),
@@ -1011,16 +1013,18 @@ void av1_warp_plane_bilinear_c(WarpedMotionParams *wm, int bd,
       // coordinates (if necessary)
       const int32_t src_x = j << subsampling_x;
       const int32_t src_y = i << subsampling_y;
-      const int32_t dst_x = mat[2] * src_x + mat[3] * src_y + mat[0];
-      const int32_t dst_y = mat[4] * src_x + mat[5] * src_y + mat[1];
-      const int32_t x = dst_x >> subsampling_x;
-      const int32_t y = dst_y >> subsampling_y;
+      const int64_t dst_x =
+          (int64_t)mat[2] * src_x + (int64_t)mat[3] * src_y + (int64_t)mat[0];
+      const int64_t dst_y =
+          (int64_t)mat[4] * src_x + (int64_t)mat[5] * src_y + (int64_t)mat[1];
+      const int64_t x = dst_x >> subsampling_x;
+      const int64_t y = dst_y >> subsampling_y;
 
-      const int32_t ix = x >> WARPEDMODEL_PREC_BITS;
+      const int32_t ix = (int32_t)(x >> WARPEDMODEL_PREC_BITS);
       const int32_t ix0 = clamp(ix, 0, width - 1);
       const int32_t ix1 = clamp(ix + 1, 0, width - 1);
       const int32_t sx = x & ((1 << WARPEDMODEL_PREC_BITS) - 1);
-      const int32_t iy = y >> WARPEDMODEL_PREC_BITS;
+      const int32_t iy = (int32_t)(y >> WARPEDMODEL_PREC_BITS);
       const int32_t iy0 = clamp(iy, 0, height - 1);
       const int32_t iy1 = clamp(iy + 1, 0, height - 1);
       const int32_t sy = y & ((1 << WARPEDMODEL_PREC_BITS) - 1);
