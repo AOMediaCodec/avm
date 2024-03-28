@@ -1647,8 +1647,8 @@ typedef struct FRAME_COUNTS {
 #endif                                            // ENABLE_LR_4PART_CODE
 
 #if CONFIG_LR_IMPROVEMENTS
-  unsigned int wienerns_reduce_cnts[WIENERNS_REDUCE_STEPS][2];  // placeholder
-#endif  // CONFIG_LR_IMPROVEMENTS
+  unsigned int wienerns_length[2];  // placeholder
+#endif                              // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_LR_MERGE_COEFFS
   unsigned int merged_param_cnts[2];  // placeholder

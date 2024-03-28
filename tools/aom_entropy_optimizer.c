@@ -1773,11 +1773,10 @@ int main(int argc, const char **argv) {
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Filters");
 
-  cts_each_dim[0] = WIENERNS_REDUCE_STEPS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.wienerns_reduce_cnts[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob default_wienerns_reduce_cdf"
-                     "[WIENERNS_REDUCE_STEPS][CDF_SIZE(2)]",
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.wienerns_length[0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob default_wienerns_length_cdf"
+                     "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Filters");
 #endif  // CONFIG_LR_IMPROVEMENTS
 

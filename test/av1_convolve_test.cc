@@ -1367,7 +1367,6 @@ class AV1ConvolveNon_Sep_dual2DHighbdTest
  private:
   libaom_test::ACMRandom rnd_;
   static constexpr int kMaxPrecisionBeforeOverflow = 12;
-  static constexpr int kNumSymmetricTaps = 6;
   static constexpr int kNumSubtractCenterOffTaps = 20;
   static constexpr int kMaxTapOffset = 2;  // Filters are 5x5.
   static constexpr int kSpeedIterations = 10000;
