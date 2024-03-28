@@ -200,9 +200,6 @@ typedef struct {
 typedef struct {
   const WienernsFilterParameters *y;
   const WienernsFilterParameters *uv;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  const WienernsFilterParameters *uv_cross;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 } WienernsFilterPairParameters;
 
 extern const WienernsFilterPairParameters wienerns_filters_lowqp;
@@ -212,33 +209,17 @@ extern const WienernsFilterPairParameters wienerns_filters_highqp;
 #define USE_CENTER_WIENER_NONSEP 0
 
 static INLINE const WienernsFilterParameters *get_wienerns_parameters(
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    int qindex, int is_uv, int is_cross) {
-#else
     int qindex, int is_uv) {
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   const WienernsFilterPairParameters *pair_nsfilter_params = NULL;
   (void)qindex;
   pair_nsfilter_params = &wienerns_filters_midqp;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  if (is_cross) return pair_nsfilter_params->uv_cross;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   return is_uv ? pair_nsfilter_params->uv : pair_nsfilter_params->y;
 }
 
 static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
-                                                            int is_uv
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-                                                            ,
-                                                            int is_cross
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-) {
+                                                            int is_uv) {
   const WienernsFilterParameters *base_nsfilter_params =
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-      get_wienerns_parameters(qindex, is_uv, is_cross);
-#else
       get_wienerns_parameters(qindex, is_uv);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   return &base_nsfilter_params->nsfilter_config;
 }
 #endif  // CONFIG_LR_IMPROVEMENTS
@@ -273,11 +254,6 @@ typedef struct {
    * restoration type
    */
   RestorationType restoration_type;
-
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  /*! Cross restoration type*/
-  RestorationType cross_restoration_type;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   /*!
    * Wiener filter parameters if restoration_type indicates Wiener
@@ -341,17 +317,6 @@ typedef struct {
    */
   PcwienerBuffers *pcwiener_buffers;
 #endif  // CONFIG_LR_IMPROVEMENTS
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  /*!
-   * Nonseparable Wiener cross filter information.
-   */
-  WienerNonsepInfo wienerns_cross_info;
-
-  /*!
-   * wienerns cross filter idx of the current RU
-   */
-  int wienerns_cross_filter_idx;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 } RestorationUnitInfo;
 
 /*!\cond */
@@ -451,11 +416,6 @@ typedef struct {
    */
   RestorationUnitInfo *unit_info;
 
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  /*! Cross restoration type for frame*/
-  RestorationType frame_cross_restoration_type;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-
   /*!
    * Restoration Stripe boundary info
    */
@@ -502,18 +462,10 @@ static INLINE void set_default_wiener(WienerInfo *wiener_info, int chroma) {
 
 #if CONFIG_LR_IMPROVEMENTS
 static INLINE void set_default_wienerns(WienerNonsepInfo *wienerns_info,
-                                        int qindex, int num_classes, int chroma
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-                                        ,
-                                        int is_cross
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-) {
+                                        int qindex, int num_classes,
+                                        int chroma) {
   const WienernsFilterParameters *nsfilter_params =
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-      get_wienerns_parameters(qindex, chroma, is_cross);
-#else
       get_wienerns_parameters(qindex, chroma);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   wienerns_info->num_classes = num_classes;
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
 #if CONFIG_LR_MERGE_COEFFS
@@ -582,9 +534,6 @@ typedef struct AV1LrStruct {
   FilterFrameCtxt ctxt[MAX_MB_PLANE];
   YV12_BUFFER_CONFIG *frame;
   YV12_BUFFER_CONFIG *dst;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  YV12_BUFFER_CONFIG *pre_filter_frame;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 } AV1LrStruct;
 
 extern const sgr_params_type av1_sgr_params[SGRPROJ_PARAMS];
@@ -638,18 +587,6 @@ void av1_loop_restoration_filter_unit(
     const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
     int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
     int32_t *tmpbuf, int optimized_lr);
-
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-/*!\brief Function for applying cross wienerns filter to a single unit.
- * The inputs are same as those of av1_loop_restoration_filter_unit
- */
-void av1_wiener_ns_cross_filter_unit(
-    const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
-    const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
-    const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
-    int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
-    int32_t *tmpbuf, int optimized_lr);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 /*!\brief Function for applying loop restoration filter to a frame
  *
@@ -745,10 +682,6 @@ int av1_lr_count_units_in_tile(int unit_size, int tile_size);
 void av1_lr_sync_read_dummy(void *const lr_sync, int r, int c, int plane);
 void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
                              const int sb_cols, int plane);
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-void copy_tile(int width, int height, const uint16_t *src, int src_stride,
-               uint16_t *dst, int dst_stride);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 #if CONFIG_LR_IMPROVEMENTS
 void set_restoration_unit_size(int width, int height, int sx, int sy,

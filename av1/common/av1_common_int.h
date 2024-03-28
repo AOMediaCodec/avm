@@ -1596,11 +1596,6 @@ typedef struct AV1Common {
   int32_t *rst_tmpbuf; /*!< Scratch buffer for self-guided restoration */
   RestorationLineBuffers *rlbs; /*!< Line buffers needed by loop restoration */
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  YV12_BUFFER_CONFIG pre_rst_frame; /*!< Stores the reconstructed frame before
-                                       loop restoration, only used by encoder,
-                                       to be moved to encoder buffer */
-#endif                              // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   /**@}*/
 
   /*!

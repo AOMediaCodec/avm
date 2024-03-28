@@ -3452,12 +3452,7 @@ static AOM_INLINE void write_modes_sb(
       get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
   for (int plane = plane_start; plane < plane_end; ++plane) {
     int rcol0, rcol1, rrow0, rrow1;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE ||
-         cm->rst_info[plane].frame_cross_restoration_type != RESTORE_NONE) &&
-#else
     if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
       const int rstride = cm->rst_info[plane].horz_units_per_tile;
@@ -3803,13 +3798,7 @@ static AOM_INLINE void encode_restoration_mode(
 #endif  // CONFIG_LR_IMPROVEMENTS
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    if (rsi->frame_restoration_type != RESTORE_NONE ||
-        rsi->frame_cross_restoration_type != RESTORE_NONE) {
-      if (p == 0) assert(rsi->frame_cross_restoration_type == RESTORE_NONE);
-#else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_LR_IMPROVEMENTS
       luma_none &= p > 0;
 #else
@@ -3877,12 +3866,6 @@ static AOM_INLINE void encode_restoration_mode(
       default: assert(0);
     }
 #endif  // CONFIG_LR_IMPROVEMENTS
-
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    if (p > 0) {
-      aom_wb_write_bit(wb, rsi->frame_cross_restoration_type != RESTORE_NONE);
-    }
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   }
 #if CONFIG_LR_IMPROVEMENTS
   int size = cm->rst_info[0].max_restoration_unit_size;
@@ -4118,12 +4101,7 @@ static AOM_INLINE void write_wienerns_filter(
     WienerNonsepInfoBank *bank, aom_writer *wb) {
   const int is_uv = plane > 0;
   const WienernsFilterParameters *nsfilter_params =
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-      get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y,
-                              wienerns_info->is_cross_filter);
-#else
       get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };
   int ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
 #if CONFIG_LR_MERGE_COEFFS
@@ -4211,25 +4189,13 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     aom_writer *const w, int plane, FRAME_COUNTS *counts) {
   const RestorationInfo *rsi = cm->rst_info + plane;
   RestorationType frame_rtype = rsi->frame_restoration_type;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  RestorationType frame_cross_rtype = rsi->frame_cross_restoration_type;
-  RestorationType unit_cross_rtype = rui->cross_restoration_type;
-  assert(frame_rtype != RESTORE_NONE || frame_cross_rtype != RESTORE_NONE);
-#else
   assert(frame_rtype != RESTORE_NONE);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   (void)counts;
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
   RestorationType unit_rtype = rui->restoration_type;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  WienerNonsepInfo *info = (WienerNonsepInfo *)&rui->wienerns_info;
-  info->is_cross_filter = 0;
-  info = (WienerNonsepInfo *)&rui->wienerns_cross_info;
-  info->is_cross_filter = 1;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_LR_IMPROVEMENTS
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
           1) == 0);
@@ -4315,19 +4281,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     }
 #endif  // CONFIG_LR_IMPROVEMENTS
   }
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  if (frame_cross_rtype == RESTORE_WIENER_NONSEP) {
-    aom_write_symbol(w, unit_cross_rtype != RESTORE_NONE,
-                     xd->tile_ctx->wienerns_restore_cdf, 2);
-#if CONFIG_ENTROPY_STATS
-    ++counts->wienerns_restore[unit_cross_rtype != RESTORE_NONE];
-#endif  // CONFIG_ENTROPY_STATS
-    if (unit_cross_rtype != RESTORE_NONE) {
-      write_wienerns_filter(xd, plane, &rui->wienerns_cross_info,
-                            &xd->wienerns_cross_info[plane], w);
-    }
-  }
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 }
 
 static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,

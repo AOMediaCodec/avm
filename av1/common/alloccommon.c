@@ -129,9 +129,6 @@ void av1_free_restoration_buffers(AV1_COMMON *cm) {
   }
 
   aom_free_frame_buffer(&cm->rst_frame);
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  aom_free_frame_buffer(&cm->pre_rst_frame);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 }
 
 void av1_free_above_context_buffers(CommonContexts *above_contexts) {

@@ -107,12 +107,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_UV_CFL 0 !CONFIG_AIMC)
   endif()
 
-  # CONFIG_HIGH_PASS_CROSS_WIENER_FILTER depends on CONFIG_LR_IMPROVEMENTS
-  if(NOT CONFIG_LR_IMPROVEMENTS AND CONFIG_HIGH_PASS_CROSS_WIENER_FILTER)
-    change_config_and_warn(CONFIG_HIGH_PASS_CROSS_WIENER_FILTER 0
-                           !CONFIG_LR_IMPROVEMENTS)
-  endif()
-
   # CONFIG_D072_SKIP_MODE_IMPROVE is dependent on CONFIG_SKIP_MODE_ENHANCEMENT
   # If CONFIG_SKIP_MODE_ENHANCEMENT is off, CONFIG_D072_SKIP_MODE_IMPROVE needs
   # to be turned off.

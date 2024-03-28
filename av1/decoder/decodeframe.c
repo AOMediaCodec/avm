@@ -127,11 +127,7 @@ static AOM_INLINE void set_planes_to_neutral_grey(
 }
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
-#else
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     int runit_idx);
 
 static int read_is_valid(const uint8_t *start, size_t len, const uint8_t *end) {
@@ -2499,11 +2495,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
         get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
     for (int plane = plane_start; plane < plane_end; ++plane) {
       int rcol0, rcol1, rrow0, rrow1;
-      if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-           || cm->rst_info[plane].frame_cross_restoration_type != RESTORE_NONE
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-           ) &&
+      if ((cm->rst_info[plane].frame_restoration_type != RESTORE_NONE) &&
           av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                              &rcol0, &rcol1, &rrow0, &rrow1)) {
         const int rstride = cm->rst_info[plane].horz_units_per_tile;
@@ -2997,13 +2989,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
   assert(!cm->features.all_lossless);
   const int num_planes = av1_num_planes(cm);
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  for (int p = 0; p < num_planes; ++p) {
-    RestorationInfo *rsi = &cm->rst_info[p];
-    rsi->frame_restoration_type = RESTORE_NONE;
-    rsi->frame_cross_restoration_type = RESTORE_NONE;
-  }
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   if (is_global_intrabc_allowed(cm)) return;
 #if CONFIG_LR_IMPROVEMENTS
   int luma_none = 1, chroma_none = 1;
@@ -3052,17 +3037,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     }
 #endif  // CONFIG_LR_IMPROVEMENTS
 
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    if (p > 0) {
-      if (aom_rb_read_bit(rb)) {
-        rsi->frame_cross_restoration_type = RESTORE_WIENER_NONSEP;
-      }
-    }
-    if (rsi->frame_restoration_type != RESTORE_NONE ||
-        rsi->frame_cross_restoration_type != RESTORE_NONE) {
-#else
     if (rsi->frame_restoration_type != RESTORE_NONE) {
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #if CONFIG_LR_IMPROVEMENTS
       luma_none &= p > 0;
 #else
@@ -3350,12 +3325,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   (void)xd;
 #endif  // CONFIG_LR_MERGE_COEFFS
   const WienernsFilterParameters *nsfilter_params =
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-      get_wienerns_parameters(xd->current_base_qindex, is_uv,
-                              wienerns_info->is_cross_filter);
-#else
       get_wienerns_parameters(xd->current_base_qindex, is_uv);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_read_for_class[c_id]) continue;
@@ -3421,39 +3391,17 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 static AOM_INLINE void loop_restoration_read_sb_coeffs(
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
-#else
     const AV1_COMMON *const cm, MACROBLOCKD *xd, aom_reader *const r, int plane,
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
     int runit_idx) {
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  RestorationInfo *rsi = &cm->rst_info[plane];
-#else
   const RestorationInfo *rsi = &cm->rst_info[plane];
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
   RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  assert(rsi->frame_restoration_type != RESTORE_NONE ||
-         rsi->frame_cross_restoration_type != RESTORE_NONE);
-  rui->restoration_type = RESTORE_NONE;
-  rui->cross_restoration_type = RESTORE_NONE;
-#else
   assert(rsi->frame_restoration_type != RESTORE_NONE);
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
   assert(!cm->features.all_lossless);
 
   const int wiener_win = (plane > 0) ? WIENER_WIN_CHROMA : WIENER_WIN;
 #if CONFIG_LR_IMPROVEMENTS
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  rui->wienerns_cross_info.num_classes =
-      xd->wienerns_cross_info[plane].filter[0].num_classes;
-
-  rui->wienerns_info.is_cross_filter = 0;
-  rui->wienerns_cross_info.is_cross_filter = 1;
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 #endif  // CONFIG_LR_IMPROVEMENTS
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
@@ -3531,17 +3479,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     }
 #endif  // CONFIG_LR_IMPROVEMENTS
   }
-
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  if (rsi->frame_cross_restoration_type == RESTORE_WIENER_NONSEP) {
-    if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2,
-                        ACCT_INFO())) {
-      rui->cross_restoration_type = RESTORE_WIENER_NONSEP;
-      read_wienerns_filter(xd, plane != AOM_PLANE_Y, &rui->wienerns_cross_info,
-                           &xd->wienerns_cross_info[plane], r);
-    }
-  }
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
 
 #if CONFIG_LR_IMPROVEMENTS
   assert(((cm->features.lr_tools_disable_mask[plane] >> rui->restoration_type) &
@@ -4276,11 +4213,6 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
                         cdef_info->cdef_strengths[0] == 0 &&
                         cdef_info->cdef_uv_strengths[0] == 0;
     const int no_restoration =
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-        rst_info[0].frame_cross_restoration_type == RESTORE_NONE &&
-        rst_info[1].frame_cross_restoration_type == RESTORE_NONE &&
-        rst_info[2].frame_cross_restoration_type == RESTORE_NONE &&
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
         rst_info[0].frame_restoration_type == RESTORE_NONE &&
         rst_info[1].frame_restoration_type == RESTORE_NONE &&
         rst_info[2].frame_restoration_type == RESTORE_NONE;
@@ -7825,11 +7757,6 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
-    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
-    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
-#endif
   }
 
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
@@ -8012,11 +7939,6 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    cm->rst_info[0].frame_cross_restoration_type = RESTORE_NONE;
-    cm->rst_info[1].frame_cross_restoration_type = RESTORE_NONE;
-    cm->rst_info[2].frame_cross_restoration_type = RESTORE_NONE;
-#endif
   }
   setup_loopfilter(cm, rb);
 
@@ -8271,13 +8193,7 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
 
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-      cm->rst_info[2].frame_restoration_type != RESTORE_NONE
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-      || cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
-      cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
-      cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE
-#endif
-  ) {
+      cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
     av1_alloc_restoration_buffers(cm);
   }
   const int buf_size = MC_TEMP_BUF_PELS << 1;
@@ -8406,11 +8322,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif
 
     const int do_loop_restoration =
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-        cm->rst_info[0].frame_cross_restoration_type != RESTORE_NONE ||
-        cm->rst_info[1].frame_cross_restoration_type != RESTORE_NONE ||
-        cm->rst_info[2].frame_cross_restoration_type != RESTORE_NONE ||
-#endif
         cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE;

@@ -201,8 +201,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_LR_MERGE_COEFFS 1
                    "AV2 experiment flag to enable LR coefficient merging")
 # End: CWG-C016
-set_aom_config_var(CONFIG_HIGH_PASS_CROSS_WIENER_FILTER 0
-                   "AV2 high pass cross non-sep wiener filter experiment flag")
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
   "AV2 improved luma downsampling for high pass cross non-sep wiener filter")
