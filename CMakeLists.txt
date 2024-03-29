@@ -527,9 +527,9 @@ if(CONFIG_AV1_ENCODER)
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
 
-    # We don't care about comparing against these delegates (yet), and disabling
-    # it reduces compile time meaningfully
-    set(TFLITE_ENABLE_RUY OFF)
+    # Keep RUY on. Ruy is a general GEMM library.
+    set(TFLITE_ENABLE_RUY ON)
+    # Turn XNNPack off, as it does NOT support dynamic tensor shapes.
     set(TFLITE_ENABLE_XNNPACK OFF)
 
     fetchcontent_declare(
