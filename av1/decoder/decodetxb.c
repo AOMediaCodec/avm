@@ -519,7 +519,9 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
   } else {
     PREDICTION_MODE mode = (plane == PLANE_TYPE_Y ? mbmi->mode : mbmi->uv_mode);
-    wide_angle_mapping(mbmi, tx_size, mode, plane);
+    const int angle_delta =
+        mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
+    wide_angle_mapping(mbmi, angle_delta, tx_size, mode, plane);
   }
 #endif  // CONFIG_WAIP
 

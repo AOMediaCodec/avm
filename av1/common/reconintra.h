@@ -283,8 +283,9 @@ static INLINE int av1_get_dy(int angle) {
 // Check whether one angular intra prediction needs to be mapped to wide angles.
 // If it needs to be mapped, either add or subtract 180 degrees to make it wide
 // angles.
-static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, TX_SIZE tx_size,
-                                     PREDICTION_MODE mode, const int plane) {
+static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
+                                     TX_SIZE tx_size, PREDICTION_MODE mode,
+                                     const int plane) {
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
   int mrl_index = (plane == PLANE_TYPE_Y ? mbmi->mrl_index : 0);
@@ -293,8 +294,6 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, TX_SIZE tx_size,
   mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
   int p_angle = 0;
   if (is_dr_mode) {
-    const int angle_delta =
-        mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
     p_angle = mode_to_angle_map[mode] + angle_delta;
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
     const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };

@@ -1545,7 +1545,8 @@ static void build_intra_predictors_high(
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_WAIP
     if (is_inter_block(xd->mi[0], xd->tree_type) == 0)
-      p_angle = wide_angle_mapping(xd->mi[0], tx_size, mode, plane);
+      p_angle =
+          wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
     else {
       MB_MODE_INFO *mbmi = xd->mi[0];
       mbmi->is_wide_angle[plane > 0] = 0;
