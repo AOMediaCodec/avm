@@ -2260,8 +2260,6 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
       // current block may cover multiple luma blocks (eg, if partitioned into
       // 4x4 luma blocks).
       // First, find the top-left-most luma block covered by this chroma block
-      const int ss_x = xd->plane[1].subsampling_x;
-      const int ss_y = xd->plane[1].subsampling_y;
       const int mi_row_offset = mi_row - chroma_ref_info->mi_row_chroma_base;
       const int mi_col_offset = mi_col - chroma_ref_info->mi_col_chroma_base;
       MB_MODE_INFO **base_mi =
@@ -2271,13 +2269,46 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
       // chroma prediction. We want to point to the chroma reference block in
       // that region, which is the bottom-right-most mi unit. This leads to the
       // following offsets:
-      MB_MODE_INFO *chroma_above_mi =
-          xd->chroma_up_available ? base_mi[-xd->mi_stride + ss_x] : NULL;
-      xd->chroma_above_mbmi = chroma_above_mi;
-
-      MB_MODE_INFO *chroma_left_mi =
-          xd->chroma_left_available ? base_mi[ss_y * xd->mi_stride - 1] : NULL;
-      xd->chroma_left_mbmi = chroma_left_mi;
+      if (xd->chroma_up_available) {
+        MB_MODE_INFO *const chroma_above_base_mi = base_mi[-xd->mi_stride];
+        const CHROMA_REF_INFO *const above_base_chroma_ref_info =
+            &chroma_above_base_mi->chroma_ref_info;
+        if (xd->tree_type != SHARED_PART ||
+            above_base_chroma_ref_info->is_chroma_ref) {
+          xd->chroma_above_mbmi = chroma_above_base_mi;
+        } else {
+          const int first_col = above_base_chroma_ref_info->mi_col_chroma_base;
+          const int last_col =
+              first_col + mi_size_wide[above_base_chroma_ref_info->bsize_base] -
+              1;
+          const int col_offset = last_col - chroma_ref_info->mi_col_chroma_base;
+          xd->chroma_above_mbmi = base_mi[-xd->mi_stride + col_offset];
+        }
+        assert(IMPLIES(xd->tree_type == SHARED_PART,
+                       xd->chroma_above_mbmi->chroma_ref_info.is_chroma_ref));
+      } else {
+        xd->chroma_above_mbmi = NULL;
+      }
+      if (xd->chroma_left_available) {
+        MB_MODE_INFO *const chroma_left_base_mi = base_mi[-1];
+        const CHROMA_REF_INFO *const left_base_chroma_ref_info =
+            &chroma_left_base_mi->chroma_ref_info;
+        if (xd->tree_type != SHARED_PART ||
+            left_base_chroma_ref_info->is_chroma_ref) {
+          xd->chroma_left_mbmi = chroma_left_base_mi;
+        } else {
+          const int first_row = left_base_chroma_ref_info->mi_row_chroma_base;
+          const int last_row =
+              first_row + mi_size_high[left_base_chroma_ref_info->bsize_base] -
+              1;
+          const int row_offset = last_row - chroma_ref_info->mi_row_chroma_base;
+          xd->chroma_left_mbmi = base_mi[row_offset * xd->mi_stride - 1];
+        }
+        assert(IMPLIES(xd->tree_type == SHARED_PART,
+                       xd->chroma_left_mbmi->chroma_ref_info.is_chroma_ref));
+      } else {
+        xd->chroma_left_mbmi = NULL;
+      }
     }
   } else {
     xd->is_chroma_ref = 1;
