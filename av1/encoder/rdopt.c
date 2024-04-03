@@ -9669,8 +9669,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   int picked_ref_frames_mask = 0;
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
-      !x->inter_mode_cache) {
+  if (cpi->sf.inter_sf.prune_ref_frames && !x->inter_mode_cache) {
     bool prune_ref_frames = false;
     assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
 
@@ -9715,14 +9714,14 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     }
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
-  if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
-      mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
-    // prune_ref_frame_for_rect_partitions = 1 implies prune only extended
-    // partition blocks. prune_ref_frame_for_rect_partitions >=2
+  if (cpi->sf.inter_sf.prune_ref_frames && mbmi->partition != PARTITION_NONE &&
+      mbmi->partition != PARTITION_SPLIT) {
+    // prune_ref_frames = 1 implies prune only extended
+    // partition blocks. prune_ref_frames >=2
     // implies prune for vert, horiz and extended partition blocks.
     if ((mbmi->partition != PARTITION_VERT &&
          mbmi->partition != PARTITION_HORZ) ||
-        cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions >= 2) {
+        cpi->sf.inter_sf.prune_ref_frames >= 2) {
       picked_ref_frames_mask =
           fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
     }

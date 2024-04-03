@@ -360,12 +360,11 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.prune_mode_search_simple_translation = 1;
   sf->inter_sf.prune_motion_mode_level = 1;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  sf->inter_sf.prune_ref_frame_for_rect_partitions = 0;
+  sf->inter_sf.prune_ref_frames = 0;
 #else
-  sf->inter_sf.prune_ref_frame_for_rect_partitions =
-      (boosted || (allow_screen_content_tools))
-          ? 0
-          : (is_boosted_arf2_bwd_type ? 1 : 2);
+  sf->inter_sf.prune_ref_frames = (boosted || (allow_screen_content_tools))
+                                      ? 0
+                                      : (is_boosted_arf2_bwd_type ? 1 : 2);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
   sf->inter_sf.reduce_inter_modes = 1;
@@ -415,7 +414,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_type_by_comp_avg = 1;
     sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
     sf->inter_sf.prune_motion_mode_level = 2;
-    sf->inter_sf.prune_ref_frame_for_rect_partitions =
+    sf->inter_sf.prune_ref_frames =
         (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
             ? 0
             : (boosted ? 1 : 2);
@@ -802,7 +801,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->reduce_inter_modes = 0;
   inter_sf->alt_ref_search_fp = 0;
   inter_sf->selective_ref_frame = 0;
-  inter_sf->prune_ref_frame_for_rect_partitions = 0;
+  inter_sf->prune_ref_frames = 0;
   inter_sf->disable_wedge_search_var_thresh = 0;
   inter_sf->fast_wedge_sign_estimate = 0;
   inter_sf->prune_wedge_pred_diff_based = 0;
@@ -1071,10 +1070,9 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
       sf->part_sf.prune_ext_part_with_part_none = 1;
       AOM_FALLTHROUGH_INTENDED;
     case 2:
-      sf->inter_sf.prune_ref_frame_for_rect_partitions =
-          (boosted || (allow_screen_content_tools))
-              ? 0
-              : (is_boosted_arf2_bwd_type ? 1 : 2);
+      sf->inter_sf.prune_ref_frames = (boosted || (allow_screen_content_tools))
+                                          ? 0
+                                          : (is_boosted_arf2_bwd_type ? 1 : 2);
       AOM_FALLTHROUGH_INTENDED;
     case 1:
       sf->inter_sf.reuse_erp_mode_flag =

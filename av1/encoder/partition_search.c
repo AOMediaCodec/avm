@@ -5218,7 +5218,7 @@ static void none_partition_search(
     pc_tree->skippable = pc_tree->none->skippable;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     // Record picked ref frame to prune ref frames for other partition types.
-    if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions) {
+    if (cpi->sf.inter_sf.prune_ref_frames) {
       const int ref_type = av1_ref_frame_type(pc_tree->none->mic.ref_frame);
       av1_update_picked_ref_frames_mask(x, ref_type, bsize, cm->mib_size,
                                         mi_row, mi_col);
