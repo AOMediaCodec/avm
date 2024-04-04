@@ -2228,9 +2228,10 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   }
 }
 
-static AOM_INLINE void set_offsets_for_pred_and_recon(
-    AV1Decoder *const pbi, ThreadData *const td, int mi_row, int mi_col,
-    BLOCK_SIZE bsize, PARTITION_TREE *parent, int index) {
+static AOM_INLINE void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
+                                                      ThreadData *const td,
+                                                      int mi_row, int mi_col,
+                                                      BLOCK_SIZE bsize) {
   AV1_COMMON *const cm = &pbi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   DecoderCodingBlock *const dcb = &td->dcb;
@@ -2251,11 +2252,6 @@ static AOM_INLINE void set_offsets_for_pred_and_recon(
   xd->cctx_type_map_stride = mi_params->mi_stride;
 
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
-  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
-                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
-                      parent ? parent->bsize : BLOCK_INVALID,
-                      parent ? parent->partition : PARTITION_NONE,
-                      xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
   set_plane_n4(xd, bw, bh, num_planes, chroma_ref_info);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
@@ -2272,7 +2268,9 @@ static AOM_INLINE void decode_block(AV1Decoder *const pbi, ThreadData *const td,
                                     PARTITION_TYPE partition, BLOCK_SIZE bsize,
                                     PARTITION_TREE *parent, int index) {
   (void)partition;
-  set_offsets_for_pred_and_recon(pbi, td, mi_row, mi_col, bsize, parent, index);
+  (void)parent;
+  (void)index;
+  set_offsets_for_pred_and_recon(pbi, td, mi_row, mi_col, bsize);
   decode_token_recon_block(pbi, td, r, partition, bsize);
 }
 
