@@ -160,6 +160,15 @@ static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
 #endif  // CONFIG_NEW_TX_PARTITION
 }
 
+static AOM_INLINE int skip_cctx_eval_based_on_eob(int plane, int is_inter,
+                                                  uint16_t eob_c1,
+                                                  CctxType cctx_type) {
+  if (plane != AOM_PLANE_U) return 0;
+  if (eob_c1 == 0) return 1;
+  if (eob_c1 == 1 && !is_inter && cctx_type != CCTX_NONE) return 1;
+  return 0;
+}
+
 /*!\brief Transform type search for luma macroblock with fixed transform size.
  *
  * \ingroup transform_search

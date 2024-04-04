@@ -3066,6 +3066,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
     update_cctx_array(xd, blk_row, blk_col, 0, 0, TX_4X4, cctx_type);
     forward_cross_chroma_transform(x, block, tx_size, cctx_type);
 
+    int skip_cctx_eval = 0;
     for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
 #if CCTX_C2_DROPPED
       if (plane == AOM_PLANE_V && !keep_chroma_c2(cctx_type)) {
@@ -3082,11 +3083,19 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
                           &quant_param);
       av1_quant(x, plane, block, &txfm_param, &quant_param);
 
+      skip_cctx_eval = skip_cctx_eval_based_on_eob(
+          plane, is_inter, eobs_ptr_c1[block], cctx_type);
+      if (skip_cctx_eval) break;
+
       // Calculate rate cost of quantized coefficients.
       if (quant_param.use_optimize_b) {
         av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                        &txb_ctx_uv[plane - AOM_PLANE_U],
                        &rate_cost[plane - AOM_PLANE_U]);
+
+        skip_cctx_eval = skip_cctx_eval_based_on_eob(
+            plane, is_inter, eobs_ptr_c1[block], cctx_type);
+        if (skip_cctx_eval) break;
       } else {
         rate_cost[plane - AOM_PLANE_U] = cost_coeffs(
             cm, x, plane, block, tx_size, tx_type, cctx_type,
@@ -3101,6 +3110,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
       memcpy(p_c2->coeff + BLOCK_OFFSET(block), orig_coeff_c2,
              sizeof(tran_low_t) * max_eob);
     }
+    if (skip_cctx_eval) continue;
 
     // TODO(kslu) for negative angles, skip av1_xform_quant and reuse previous
     // dqcoeffs
@@ -3109,12 +3119,7 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
         (int16_t *)(p_c1->dqcoeff + BLOCK_OFFSET(block)), (uint32_t)max_eob);
     uint64_t sse_dqcoeff_c2 = aom_sum_squares_i16(
         (int16_t *)(p_c2->dqcoeff + BLOCK_OFFSET(block)), (uint32_t)max_eob);
-    if (eobs_ptr_c1[block] == 0 || sse_dqcoeff_c2 > sse_dqcoeff_c1) {
-      continue;
-    }
-    if (eobs_ptr_c1[block] == 1 && !is_inter && cctx_type != CCTX_NONE) {
-      continue;
-    }
+    if (sse_dqcoeff_c2 > sse_dqcoeff_c1) continue;
 
     // If rd cost based on coeff rate alone is already more than best_rd,
     // terminate early.
