@@ -1863,14 +1863,15 @@ void copy_nsfilter_taps(WienerNonsepInfo *to_info,
 #define CFL_SUB8X8_VAL_MI_SQUARE \
   (CFL_SUB8X8_VAL_MI_SIZE * CFL_SUB8X8_VAL_MI_SIZE)
 #endif  // CONFIG_DEBUG
-#define CFL_64x64 1  // Enable cross-component prediction modes up to luma size 64x64
+#define CFL_64x64 \
+  1  // Enable cross-component prediction modes up to luma size 64x64
 #if CFL_64x64
 #define CFL_MAX_BLOCK_SIZE (BLOCK_64X64)
 #define CFL_BUF_LINE (64)
 #else
 #define CFL_MAX_BLOCK_SIZE (BLOCK_32X32)
 #define CFL_BUF_LINE (32)
-#endif // CFL_64x64
+#endif  // CFL_64x64
 #define CFL_BUF_LINE_I128 (CFL_BUF_LINE >> 3)
 #define CFL_BUF_LINE_I256 (CFL_BUF_LINE >> 4)
 #define CFL_BUF_SQUARE (CFL_BUF_LINE * CFL_BUF_LINE)

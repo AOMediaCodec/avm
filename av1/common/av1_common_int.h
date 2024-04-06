@@ -2357,7 +2357,7 @@ static INLINE aom_cdf_prob *get_mhccp_dir_cdf(const MACROBLOCKD *xd,
   assert(fsc_size_group < MHCCP_CONTEXT_GROUP_SIZE);
 #else
   assert(fsc_size_group < FSC_BSIZE_CONTEXTS);
-#endif // CFL_64x64
+#endif  // CFL_64x64
   return tile_ctx->filter_dir_cdf[fsc_size_group];
 }
 #endif  // CONFIG_ENABLE_MHCCP

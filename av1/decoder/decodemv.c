@@ -1912,7 +1912,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
             assert(mh_size_group < MHCCP_CONTEXT_GROUP_SIZE);
 #else
             assert(mh_size_group < FSC_BSIZE_CONTEXTS);
-#endif // CFL_64x64
+#endif  // CFL_64x64
             aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
             mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);
           }
