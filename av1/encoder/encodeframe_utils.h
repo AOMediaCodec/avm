@@ -136,11 +136,6 @@ typedef struct PartitionBlkParams {
   // Block size of current partition.
   BLOCK_SIZE bsize;
 
-#if CONFIG_CB1TO4_SPLIT
-  // Block size of parent partition.
-  BLOCK_SIZE parent_bsize;
-#endif  // CONFIG_CB1TO4_SPLIT
-
   // Size of current sub-partition.
   BLOCK_SIZE subsize;
 

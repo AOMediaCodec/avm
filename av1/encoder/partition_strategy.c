@@ -1665,10 +1665,10 @@ static INLINE int get_sms_arr_1d_idx(int mi_bsize, int mi_in_sb) {
   if (mi_bsize <= 2) {
     idx = mi_in_sb;
   } else if (mi_bsize <= 8) {
-    assert(mi_in_sb % (mi_bsize / 4) == 0);
+    if (mi_in_sb % (mi_bsize / 4) != 0) return -1;
     idx = mi_in_sb / (mi_bsize / 4);
   } else {
-    assert(mi_in_sb % (mi_bsize / 2) == 0);
+    if (mi_in_sb % (mi_bsize / 2) != 0) return -1;
     idx = mi_in_sb / (mi_bsize / 2);
   }
   assert(idx >= 0 && idx < get_sms_count_from_length(mi_bsize));
@@ -1772,7 +1772,9 @@ SimpleMotionData *av1_get_sms_data_entry(SimpleMotionDataBufs *sms_bufs,
   const int mi_high = mi_size_high[bsize];
   const int mi_wide = mi_size_wide[bsize];
   const int idx_row_in_sb = get_sms_arr_1d_idx(mi_high, mi_row_in_sb);
+  if (idx_row_in_sb == -1) return NULL;
   const int idx_col_in_sb = get_sms_arr_1d_idx(mi_wide, mi_col_in_sb);
+  if (idx_col_in_sb == -1) return NULL;
   const int arr_stride = get_sms_count_from_length(mi_wide);
   SimpleMotionData *sms_arr = get_sms_arr(sms_bufs, bsize);
   return &sms_arr[idx_row_in_sb * arr_stride + idx_col_in_sb];
@@ -1958,7 +1960,7 @@ PARTITION_TYPE av1_get_prev_partition(MACROBLOCK *x, int mi_row, int mi_col,
   SimpleMotionDataBufs *sms_bufs = x->sms_bufs;
   const SimpleMotionData *cur_block =
       av1_get_sms_data_entry(sms_bufs, mi_row, mi_col, bsize, sb_size);
-  if (cur_block->has_prev_partition) {
+  if (cur_block && cur_block->has_prev_partition) {
     return cur_block->prev_partition;
   } else {
     return PARTITION_INVALID;

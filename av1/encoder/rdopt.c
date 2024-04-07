@@ -9995,12 +9995,35 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
     // Prune reference frames if we are either a 1:4 block, or if we are a 1:2
     // block, and we have searched any of the rectangular subblock.
-#if CONFIG_CB1TO4_SPLIT
-    if (!is_partition_point(bsize, BLOCK_INVALID) || bsize > BLOCK_LARGEST) {
-#else
     if (!is_partition_point(bsize)) {
-#endif  // CONFIG_CB1TO4_SPLIT
       prune_ref_frames = true;
+#if CONFIG_CB1TO4_SPLIT
+    } else if (bsize > BLOCK_LARGEST) {
+      // Check horz sub-blocks at different row offsets.
+      BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
+      if (subsize != BLOCK_INVALID) {
+        for (int r = 0; r <= mi_size_high[bsize] / 2; ++r) {
+          const PARTITION_TYPE prev_part = av1_get_prev_partition(
+              x, xd->mi_row + r, xd->mi_col, subsize, cm->sb_size);
+          if (prev_part != PARTITION_INVALID) {
+            prune_ref_frames = true;
+            break;
+          }
+        }
+      }
+      // Check vert sub-blocks at different col offsets.
+      subsize = get_partition_subsize(bsize, PARTITION_VERT);
+      if (subsize != BLOCK_INVALID) {
+        for (int c = 0; c <= mi_size_wide[bsize] / 2; ++c) {
+          const PARTITION_TYPE prev_part = av1_get_prev_partition(
+              x, xd->mi_row, xd->mi_col + c, subsize, cm->sb_size);
+          if (prev_part != PARTITION_INVALID) {
+            prune_ref_frames = true;
+            break;
+          }
+        }
+      }
+#endif  // CONFIG_CB1TO4_SPLIT
     } else {
       for (RECT_PART_TYPE rect_type = HORZ; rect_type < NUM_RECT_PARTS;
            rect_type++) {

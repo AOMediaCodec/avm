@@ -2611,19 +2611,15 @@ static void update_partition_stats(MACROBLOCKD *const xd,
   const TREE_TYPE tree_type = xd->tree_type;
   const int plane_index = tree_type == CHROMA_PART;
   FRAME_CONTEXT *fc = xd->tile_ctx;
-  assert(ctx >= 0);  // is_partition_point() is true.
 
 #if CONFIG_EXT_RECUR_PARTITIONS
   const bool ss_x = xd->plane[1].subsampling_x;
   const bool ss_y = xd->plane[1].subsampling_y;
 
   const PARTITION_TYPE derived_partition =
-      av1_get_normative_forced_partition_type(
-          mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-#if CONFIG_CB1TO4_SPLIT
-          BLOCK_INVALID,  // as it is a partition point
-#endif                    // CONFIG_CB1TO4_SPLIT
-          ptree_luma, chroma_ref_info);
+      av1_get_normative_forced_partition_type(mi_params, tree_type, ss_x, ss_y,
+                                              mi_row, mi_col, bsize, ptree_luma,
+                                              chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     assert(partition == derived_partition &&
            "Partition does not match normatively derived partition.");
@@ -2822,14 +2818,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   const int qbs_w = mi_size_wide[bsize] / 4;
   const int qbs_h = mi_size_high[bsize] / 4;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-  PARTITION_TREE *parent = ptree ? ptree->parent : NULL;
-  const BLOCK_SIZE parent_bsize = parent ? parent->bsize : BLOCK_INVALID;
-  const int is_partition_root = is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                                                   ,
-                                                   parent_bsize
-#endif  // CONFIG_CB1TO4_SPLIT
-  );
+  const int is_partition_root = is_partition_point(bsize);
   const int ctx = is_partition_root
 #if CONFIG_PARTITION_CONTEXT_REDUCE
                       ? partition_plane_context(xd, mi_row, mi_col, bsize, 1)
@@ -2874,6 +2863,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     ptree->bsize = bsize;
     ptree->mi_row = mi_row;
     ptree->mi_col = mi_col;
+    PARTITION_TREE *parent = ptree->parent;
 #if CONFIG_EXTENDED_SDP
     ptree->region_type = pc_tree->region_type;
     const int is_sb_root = bsize == cm->sb_size;
@@ -2894,7 +2884,8 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
     set_chroma_ref_info(
         xd->tree_type, mi_row, mi_col, ptree->index, bsize,
         &ptree->chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
-        parent_bsize, parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
+        parent ? parent->bsize : BLOCK_INVALID,
+        parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
     switch (partition) {
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -3503,9 +3494,6 @@ static PARTITION_TYPE get_preset_partition(const AV1_COMMON *cm,
     const PARTITION_TYPE derived_partition =
         av1_get_normative_forced_partition_type(
             &cm->mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize,
-#if CONFIG_CB1TO4_SPLIT
-            ptree->parent ? ptree->parent->bsize : BLOCK_INVALID,
-#endif  // CONFIG_CB1TO4_SPLIT
             /* ptree_luma= */ NULL, &ptree->chroma_ref_info);
     assert(IMPLIES(derived_partition != PARTITION_INVALID,
                    ptree->partition == derived_partition));
@@ -4099,11 +4087,8 @@ static bool rd_test_partition3(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
 static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
     const AV1_COMMON *const cm, MACROBLOCK *x, int mi_row, int mi_col,
-    BLOCK_SIZE bsize,
-#if CONFIG_CB1TO4_SPLIT
-    BLOCK_SIZE parent_bsize,
-#endif  // CONFIG_CB1TO4_SPLIT
-    const PARTITION_TREE *ptree_luma, const PARTITION_TREE *template_tree,
+    BLOCK_SIZE bsize, const PARTITION_TREE *ptree_luma,
+    const PARTITION_TREE *template_tree,
 #if CONFIG_EXTENDED_SDP
     REGION_TYPE cur_region_type,
 #endif  // CONFIG_EXTENDED_SDP
@@ -4115,9 +4100,6 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(&cm->mi_params, xd->tree_type,
                                               ss_x, ss_y, mi_row, mi_col, bsize,
-#if CONFIG_CB1TO4_SPLIT
-                                              parent_bsize,
-#endif  // CONFIG_CB1TO4_SPLIT
                                               ptree_luma, chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     return derived_partition;
@@ -4129,9 +4111,6 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
   }
 
   if (should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG)
-#if CONFIG_CB1TO4_SPLIT
-      && (parent_bsize == BLOCK_INVALID || parent_bsize <= BLOCK_LARGEST)
-#endif  // CONFIG_CB1TO4_SPLIT
 #if CONFIG_EXTENDED_SDP
       && !is_inter_sdp_chroma(cm, cur_region_type, xd->tree_type)
 #endif  // CONFIG_EXTENDED_SDP
@@ -4168,13 +4147,7 @@ static AOM_INLINE void init_allowed_partitions(
                                  mi_col, ss_x, ss_y, chroma_ref_info);
 
   // Initialize allowed partition types for the partition block.
-  part_search_state->is_block_splittable =
-      is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                         ,
-                         blk_params->parent_bsize
-#endif  // CONFIG_CB1TO4_SPLIT
-      );
+  part_search_state->is_block_splittable = is_partition_point(bsize);
   part_search_state->partition_none_allowed =
       (tree_type == CHROMA_PART && bsize == BLOCK_8X8) ||
       (has_rows && has_cols &&
@@ -4322,12 +4295,6 @@ static void init_partition_search_state_params(
 #endif  // !CONFIG_EXT_RECUR_PARTITIONS
   blk_params->bsize = bsize;
 
-#if CONFIG_CB1TO4_SPLIT
-  assert(pc_tree != NULL);
-  blk_params->parent_bsize =
-      pc_tree->parent ? pc_tree->parent->block_size : BLOCK_INVALID;
-#endif  // CONFIG_CB1TO4_SPLIT
-
   // Chroma subsampling.
   part_search_state->ss_x = x->e_mbd.plane[1].subsampling_x;
   part_search_state->ss_y = x->e_mbd.plane[1].subsampling_y;
@@ -4357,12 +4324,7 @@ static void init_partition_search_state_params(
   // Set partition plane context index.
   part_search_state->pl_ctx_idx =
 #if CONFIG_EXT_RECUR_PARTITIONS
-      is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                         ,
-                         blk_params->parent_bsize
-#endif  // CONFIG_CB1TO4_SPLIT
-                         )
+      is_partition_point(bsize)
 #else
       blk_params->bsize_at_least_8x8
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -4381,11 +4343,8 @@ static void init_partition_search_state_params(
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (av1_get_normative_forced_partition_type(
           mi_params, tree_type, part_search_state->ss_x,
-          part_search_state->ss_y, mi_row, mi_col, bsize,
-#if CONFIG_CB1TO4_SPLIT
-          blk_params->parent_bsize,
-#endif  // CONFIG_CB1TO4_SPLIT
-          ptree_luma, &pc_tree->chroma_ref_info) != PARTITION_INVALID) {
+          part_search_state->ss_y, mi_row, mi_col, bsize, ptree_luma,
+          &pc_tree->chroma_ref_info) != PARTITION_INVALID) {
     part_search_state->partition_cost = kZeroPartitionCosts;
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -4432,11 +4391,7 @@ static void init_partition_search_state_params(
   av1_zero(part_search_state->prune_partition_4b);
 
   part_search_state->forced_partition = get_forced_partition_type(
-      cm, x, mi_row, mi_col, bsize,
-#if CONFIG_CB1TO4_SPLIT
-      blk_params->parent_bsize,
-#endif  // CONFIG_CB1TO4_SPLIT
-      ptree_luma, template_tree,
+      cm, x, mi_row, mi_col, bsize, ptree_luma, template_tree,
 #if CONFIG_EXTENDED_SDP
       (pc_tree ? pc_tree->region_type : MIXED_INTER_INTRA_REGION),
 #endif  // CONFIG_EXTENDED_SDP
@@ -4850,12 +4805,7 @@ static void rectangular_partition_search(
                             mi_pos_rect[VERT][0][VERT]));
 
   if (try_prune_with_ml && bsize != BLOCK_4X8 && bsize != BLOCK_8X4 &&
-      is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                         ,
-                         blk_params.parent_bsize
-#endif  // CONFIG_CB1TO4_SPLIT
-                         )) {
+      is_partition_point(bsize)) {
     float ml_features[19];
     av1_gather_erp_rect_features(ml_features, cpi, x, &tile_data->tile_info,
                                  pc_tree, part_search_state, part_none_rd,
@@ -8465,17 +8415,8 @@ static AOM_INLINE int get_partition_depth(const PC_TREE *pc_tree,
 #if CONFIG_EXT_RECUR_PARTITIONS
 static AOM_INLINE bool try_none_after_rect(
     const MACROBLOCKD *xd, const CommonModeInfoParams *mi_params,
-    BLOCK_SIZE bsize,
-#if CONFIG_CB1TO4_SPLIT
-    BLOCK_SIZE parent_bsize,
-#endif  // CONFIG_CB1TO4_SPLIT
-    int mi_row, int mi_col) {
-  if (!is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                          ,
-                          parent_bsize
-#endif  // CONFIG_CB1TO4_SPLIT
-                          )) {
+    BLOCK_SIZE bsize, int mi_row, int mi_col) {
+  if (!is_partition_point(bsize)) {
     return false;
   }
   const int tree_idx = av1_get_sdp_idx(xd->tree_type);
@@ -8739,15 +8680,6 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   PC_TREE *counterpart_block = av1_look_for_counterpart_block(pc_tree);
   assert(pc_tree != NULL);
   if (counterpart_block
-#if CONFIG_CB1TO4_SPLIT
-      &&
-      (is_partition_point(bsize, pc_tree->parent ? pc_tree->parent->block_size
-                                                 : BLOCK_INVALID) ==
-       is_partition_point(counterpart_block->block_size,
-                          counterpart_block->parent
-                              ? counterpart_block->parent->block_size
-                              : BLOCK_INVALID))
-#endif  // CONFIG_CB1TO4_SPLIT
 #if CONFIG_EXTENDED_SDP
       && (pc_tree->region_type == counterpart_block->region_type &&
           (pc_tree->region_type != INTRA_REGION || frame_is_intra_only(cm)))
@@ -8836,11 +8768,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (part_search_state.forced_partition == PARTITION_INVALID) {
     if (cpi->sf.part_sf.adaptive_partition_search_order) {
-      search_none_after_rect = try_none_after_rect(xd, &cm->mi_params, bsize,
-#if CONFIG_CB1TO4_SPLIT
-                                                   blk_params.parent_bsize,
-#endif  // CONFIG_CB1TO4_SPLIT
-                                                   mi_row, mi_col);
+      search_none_after_rect =
+          try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);
     }
 #if CONFIG_BLOCK_256
     // For 256X256, always search the subblocks first.
@@ -8907,16 +8836,13 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
         partition_vert_allowed, &part_search_state.do_rectangular_split,
         sqr_split_ptr, prune_horz, prune_vert, pc_tree);
 #if CONFIG_EXT_RECUR_PARTITIONS
-    part_search_state.forced_partition = get_forced_partition_type(
-        cm, x, blk_params.mi_row, blk_params.mi_col, blk_params.bsize,
-#if CONFIG_CB1TO4_SPLIT
-        blk_params.parent_bsize,
-#endif  // CONFIG_CB1TO4_SPLIT
-        ptree_luma, template_tree,
+    part_search_state.forced_partition =
+        get_forced_partition_type(cm, x, blk_params.mi_row, blk_params.mi_col,
+                                  blk_params.bsize, ptree_luma, template_tree,
 #if CONFIG_EXTENDED_SDP
-        pc_tree->region_type,
+                                  pc_tree->region_type,
 #endif  // CONFIG_EXTENDED_SDP
-        &pc_tree->chroma_ref_info);
+                                  &pc_tree->chroma_ref_info);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
@@ -9442,12 +9368,7 @@ BEGIN_PARTITION_SEARCH:
   pc_tree->rd_cost = best_rdc;
   if (!part_search_state.found_best_partition) {
     av1_invalid_rd_stats(&pc_tree->rd_cost);
-  } else
-#if CONFIG_CB1TO4_SPLIT
-      if (pc_tree->parent == NULL ||
-          pc_tree->parent->block_size <= BLOCK_LARGEST)
-#endif  // CONFIG_CB1TO4_SPLIT
-  {
+  } else {
 #if CONFIG_EXT_RECUR_PARTITIONS
     av1_cache_best_partition(x->sms_bufs, mi_row, mi_col, bsize, cm->sb_size,
                              pc_tree->partitioning);

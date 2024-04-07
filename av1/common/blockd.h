@@ -1192,18 +1192,9 @@ static INLINE int is_global_mv_block(const MB_MODE_INFO *const mbmi,
          block_size_allowed;
 }
 
-static INLINE int is_partition_point(BLOCK_SIZE bsize
-#if CONFIG_CB1TO4_SPLIT
-                                     ,
-                                     BLOCK_SIZE parent_bsize
-#endif  // CONFIG_CB1TO4_SPLIT
-) {
+static INLINE int is_partition_point(BLOCK_SIZE bsize) {
 #if CONFIG_EXT_RECUR_PARTITIONS
-  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES
-#if CONFIG_CB1TO4_SPLIT
-         && (parent_bsize == BLOCK_INVALID || parent_bsize <= BLOCK_LARGEST)
-#endif  // CONFIG_CB1TO4_SPLIT
-      ;
+  return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
 #else
   return is_square_block(bsize) && bsize >= BLOCK_8X8 && bsize < BLOCK_SIZES;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1231,19 +1222,13 @@ static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
 // Conversion tables).
 // Note: the input block size should be square.
 // Otherwise it's considered invalid.
-// TODO(now): Do we need to use actual parent_bsize?
 static INLINE BLOCK_SIZE get_partition_subsize(BLOCK_SIZE bsize,
                                                PARTITION_TYPE partition) {
   if (partition == PARTITION_INVALID) {
     return BLOCK_INVALID;
   } else {
 #if CONFIG_EXT_RECUR_PARTITIONS
-    if (is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                           ,
-                           BLOCK_INVALID
-#endif  // CONFIG_CB1TO4_SPLIT
-                           ))
+    if (is_partition_point(bsize))
       return subsize_lookup[partition][bsize];
     else
       return partition == PARTITION_NONE ? bsize : BLOCK_INVALID;
@@ -1263,12 +1248,7 @@ static INLINE BLOCK_SIZE get_h_partition_subsize(BLOCK_SIZE bsize, int index,
                                                  PARTITION_TYPE partition) {
   assert(partition == PARTITION_HORZ_3 || partition == PARTITION_VERT_3);
   assert(index >= 0 && index <= 3);
-  if (!is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                          ,
-                          BLOCK_INVALID
-#endif  // CONFIG_CB1TO4_SPLIT
-                          ) ||
+  if (!is_partition_point(bsize) ||
       subsize_lookup[partition][bsize] == BLOCK_INVALID) {
     return BLOCK_INVALID;
   }
@@ -1361,17 +1341,11 @@ static INLINE int get_h_partition_offset_mi_col(BLOCK_SIZE bsize, int index,
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
-// TODO(now): Do we need to use actual parent_bsize?
 static INLINE int is_partition_valid(BLOCK_SIZE bsize, PARTITION_TYPE p) {
 #if CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
   if (p == PARTITION_SPLIT) return 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS && !CONFIG_BLOCK_256
-  if (is_partition_point(bsize
-#if CONFIG_CB1TO4_SPLIT
-                         ,
-                         BLOCK_INVALID
-#endif  // CONFIG_CB1TO4_SPLIT
-                         ))
+  if (is_partition_point(bsize))
     return get_partition_subsize(bsize, p) < BLOCK_SIZES_ALL;
   else
     return p == PARTITION_NONE;

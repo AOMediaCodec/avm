@@ -3697,9 +3697,6 @@ static AOM_INLINE void write_partition(const AV1_COMMON *const cm,
   const PARTITION_TYPE derived_partition =
       av1_get_normative_forced_partition_type(
           &cm->mi_params, xd->tree_type, ssx, ssy, mi_row, mi_col, bsize,
-#if CONFIG_CB1TO4_SPLIT
-          ptree->parent ? ptree->parent->bsize : BLOCK_INVALID,
-#endif  // CONFIG_CB1TO4_SPLIT
           ptree_luma, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID) {
     assert(p == derived_partition);
