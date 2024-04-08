@@ -1000,7 +1000,11 @@ void av1_highbd_dr_prediction_z3_idif_c(uint16_t *dst, ptrdiff_t stride, int bw,
 
   uint16_t ref[4] = { 0 };
 
+#if CONFIG_WAIP
+  const int max_base_y = (bw + bh) - 1 + (mrl_index << 2);
+#else
   const int max_base_y = (bw + bh) - 1 + (mrl_index << 1);
+#endif
   const int frac_bits = 6;
   const int base_inc = 1;
 
