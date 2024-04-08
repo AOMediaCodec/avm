@@ -294,7 +294,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_4xN_internal_avx2(
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 2)) << upsample_above;
 #else
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 1)) << upsample_above;
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   // pre-filter above pixels
@@ -369,7 +369,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_32bit_z1_4xN_internal_avx2(
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 2)) << upsample_above;
 #else
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 1)) << upsample_above;
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   // pre-filter above pixels
@@ -466,7 +466,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_32bit_z1_8xN_internal_avx2(
   const int max_base_x = ((8 + N) - 1 + (mrl_index << 2)) << upsample_above;
 #else
   const int max_base_x = ((8 + N) - 1 + (mrl_index << 1)) << upsample_above;
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   // pre-filter above pixels
@@ -554,7 +554,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_8xN_internal_avx2(
   const int max_base_x = ((8 + N) - 1 + (mrl_index << 2)) << upsample_above;
 #else
   const int max_base_x = ((8 + N) - 1 + (mrl_index << 1)) << upsample_above;
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   // pre-filter above pixels
@@ -665,7 +665,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_32bit_z1_16xN_internal_avx2(
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
   // pre-filter above pixels
   // store in temp buffers:
   //   above[x] * 32 + 16
@@ -748,7 +748,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_16xN_internal_avx2(
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   // pre-filter above pixels
   // store in temp buffers:
@@ -827,7 +827,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_32bit_z1_32xN_internal_avx2(
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
   // pre-filter above pixels
   // store in temp buffers:
   //   above[x] * 32 + 16
@@ -928,7 +928,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_32xN_internal_avx2(
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
   // pre-filter above pixels
   // store in temp buffers:
   //   above[x] * 32 + 16
@@ -1025,7 +1025,7 @@ static void highbd_dr_prediction_32bit_z1_64xN_avx2(int N, uint16_t *dst,
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   // pre-filter above pixels
   // store in temp buffers:
@@ -1128,7 +1128,7 @@ static void highbd_dr_prediction_z1_64xN_avx2(int N, uint16_t *dst,
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
   // pre-filter above pixels
   // store in temp buffers:
   //   above[x] * 32 + 16
@@ -3027,7 +3027,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_4xN_internal_idif_avx2(
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3097,7 +3097,7 @@ highbd_dr_prediction_32bit_z1_4xN_internal_idif_avx2(int N, __m128i *dst,
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((N + 4) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3196,7 +3196,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_8xN_internal_idif_avx2(
   const int max_base_x = ((N + 8) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((N + 8) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3267,7 +3267,7 @@ highbd_dr_prediction_32bit_z1_8xN_internal_idif_avx2(int N, __m128i *dst,
   const int max_base_x = ((N + 8) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((N + 8) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   assert(dx > 0);
   __m256i a0, a1, a2, a3;
@@ -3373,7 +3373,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_16xN_internal_idif_avx2(
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3442,7 +3442,7 @@ highbd_dr_prediction_32bit_z1_16xN_internal_idif_avx2(int N, __m256i *dstvec,
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((16 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
   __m256i a0, a1, a2, a3;
   __m256i val0, val1;
   __m256i f0, f1, f2, f3;
@@ -3563,7 +3563,7 @@ static AOM_FORCE_INLINE void highbd_dr_prediction_z1_32xN_internal_idif_avx2(
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3648,7 +3648,7 @@ highbd_dr_prediction_32bit_z1_32xN_internal_idif_avx2(int N, __m256i *dstvec,
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((32 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3786,7 +3786,7 @@ static void highbd_dr_prediction_z1_64xN_internal_idif_avx2(
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   __m256i a_mbase_x, max_base_x256, base_inc256, mask256;
 
@@ -3868,7 +3868,7 @@ static void highbd_dr_prediction_32bit_z1_64xN_internal_idif_avx2(
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 2));
 #else
   const int max_base_x = ((64 + N) - 1 + (mrl_index << 1));
-#endif
+#endif  // CONFIG_WAIP
 
   __m256i a0, a1, a2, a3;
 
