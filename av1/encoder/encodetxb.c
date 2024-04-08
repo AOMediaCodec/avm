@@ -1741,7 +1741,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
-            const int ctx = 4; /* get_lf_ctx_eob */
+            const int ctx = 0; /* get_bf_ctx_eob_chroma */
             cost += get_br_cost(level, lps_cost_uv[ctx]);
           }
         }
@@ -1753,7 +1753,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
           }
         } else {
           if (level > NUM_BASE_LEVELS) {
-            const int ctx = 7; /* get_lf_ctx_eob */
+            const int ctx = 0; /* get_br_ctx_eob */
             cost += get_br_cost(level, lps_cost[ctx]);
           }
         }
@@ -2548,20 +2548,19 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
-          int br_ctx = 4; /* get_br_ctx_eob */
+          int br_ctx = 0; /* get_br_ctx_eob_chroma */
           cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx]);
         }
       }
     } else {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
-          int br_ctx;
-          br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+          int br_ctx = get_br_ctx_lf_eob(ci, tx_class);
           cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
-          int br_ctx = 7; /* get_br_ctx_eob */
+          int br_ctx = 0; /* get_br_ctx_eob */
           cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
         }
       }
@@ -2569,13 +2568,12 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
 #else
     if (limits) {
       if (abs_qc > LF_NUM_BASE_LEVELS) {
-        int br_ctx;
-        br_ctx = get_br_ctx_lf_eob(ci, tx_class);
+        int br_ctx = get_br_ctx_lf_eob(ci, tx_class);
         cost += get_br_lf_cost(abs_qc, txb_costs->lps_lf_cost[br_ctx]);
       }
     } else {
       if (abs_qc > NUM_BASE_LEVELS) {
-        int br_ctx = 7; /* get_br_ctx_eob */
+        int br_ctx = 0; /* get_br_ctx_eob */
         cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
       }
     }
@@ -2698,7 +2696,7 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
         if (abs_qc > NUM_BASE_LEVELS) {
           int br_ctx;
           if (is_last)
-            br_ctx = 0; /*get_br_ctx_eob*/
+            br_ctx = 0; /* get_br_ctx_eob_chroma */
           else
             br_ctx = get_br_ctx_chroma(levels, ci, bwl, tx_class);
           cost += get_br_cost(abs_qc, txb_costs->lps_cost_uv[br_ctx]);
@@ -2718,7 +2716,7 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
         if (abs_qc > NUM_BASE_LEVELS) {
           int br_ctx;
           if (is_last)
-            br_ctx = 0; /*get_br_ctx_eob*/
+            br_ctx = 0; /* get_br_ctx_eob */
           else
             br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
           cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
@@ -2739,7 +2737,7 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
       if (abs_qc > NUM_BASE_LEVELS) {
         int br_ctx;
         if (is_last)
-          br_ctx = 0; /*get_br_ctx_eob*/
+          br_ctx = 0; /* get_br_ctx_eob */
         else
           br_ctx = get_br_ctx(levels, ci, bwl, tx_class);
         cost += get_br_cost(abs_qc, txb_costs->lps_cost[br_ctx]);
