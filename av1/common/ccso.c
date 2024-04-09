@@ -187,7 +187,10 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+#if CONFIG_CCSO_SIGFIX
+  if (!cm->ccso_info.ccso_bo_only[plane])
+#endif
+    derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
@@ -257,7 +260,10 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+#if CONFIG_CCSO_SIGFIX
+  if (!cm->ccso_info.ccso_bo_only[plane])
+#endif
+    derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
@@ -329,7 +335,10 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+#if CONFIG_CCSO_SIGFIX
+  if (!cm->ccso_info.ccso_bo_only[plane])
+#endif
+    derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
@@ -405,7 +414,10 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_cls[2];
   const int neg_thr = thr * -1;
   int src_loc[2];
-  derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+#if CONFIG_CCSO_SIGFIX
+  if (!cm->ccso_info.ccso_bo_only[plane])
+#endif
+    derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;

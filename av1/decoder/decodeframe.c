@@ -76,9 +76,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                       \
-  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
-   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
+#define MC_TEMP_BUF_PELS                           \
+  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
+   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
 
 #if CONFIG_THROUGHPUT_ANALYSIS
 int64_t tot_ctx_syms = { 0 };
@@ -3720,13 +3720,25 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #if CONFIG_CCSO_BO_ONLY_OPTION
         cm->ccso_info.ccso_bo_only[plane] = aom_rb_read_literal(rb, 1);
 #endif  // CONFIG_CCSO_BO_ONLY_OPTION
+#if !CONFIG_CCSO_SIGFIX
         cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2);
         cm->ccso_info.ext_filter_support[plane] = aom_rb_read_literal(rb, 3);
+#endif
 #if CONFIG_CCSO_EXT
 #if CONFIG_CCSO_BO_ONLY_OPTION
         if (cm->ccso_info.ccso_bo_only[plane]) {
+#if CONFIG_CCSO_SIGFIX
+          cm->ccso_info.quant_idx[plane] = 0;
+          cm->ccso_info.ext_filter_support[plane] = 0;
+          cm->ccso_info.edge_clf[plane] = 0;
+#endif
           cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 3);
         } else {
+#if CONFIG_CCSO_SIGFIX
+          cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2);
+          cm->ccso_info.ext_filter_support[plane] = aom_rb_read_literal(rb, 3);
+          cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
+#endif
           cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2);
         }
 #else
@@ -3735,8 +3747,11 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
         const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
 #endif
 #if CONFIG_CCSO_EDGE_CLF
-        const int edge_clf = cm->ccso_info.edge_clf[plane] =
-            aom_rb_read_bit(rb);
+#if CONFIG_CCSO_SIGFIX
+        const int edge_clf = cm->ccso_info.edge_clf[plane];
+#else
+      const int edge_clf = cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
+#endif
         const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
 #if CONFIG_CCSO_BO_ONLY_OPTION
         const int num_edge_offset_intervals =
