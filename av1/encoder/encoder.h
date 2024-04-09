@@ -1378,25 +1378,41 @@ typedef struct FRAME_COUNTS {
 #endif
   unsigned int eob_extra[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                         [EOB_COEF_CONTEXTS][2];
+#if CONFIG_IMPROVEIDTX_CTXS
+  unsigned int dc_sign[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS][2];
+#else
   unsigned int dc_sign[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_CONTEXTS][2];
+#endif
 #if CONFIG_CONTEXT_DERIVATION
   unsigned int v_dc_sign[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS]
                         [DC_SIGN_CONTEXTS][2];
   unsigned int v_ac_sign[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_IMPROVEIDTX_CTXS
+  unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_BOB][NUM_BASE_LEVELS + 1];
+  unsigned int idtx_sign[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIGN_CONTEXTS][2];
+  unsigned int coeff_lps_skip[TX_SIZES][BR_CDF_SIZE - 1][IDTX_LEVEL_CONTEXTS][2];
+  unsigned int coeff_lps_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_LEVEL_CONTEXTS]
+                                   [BR_CDF_SIZE];
+  unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
+                                    [NUM_BASE_LEVELS + 2];
+#else
   unsigned int idtx_sign[TOKEN_CDF_Q_CTXS][IDTX_SIGN_CONTEXTS][2];
   unsigned int coeff_lps_skip[BR_CDF_SIZE - 1][IDTX_LEVEL_CONTEXTS][2];
   unsigned int coeff_lps_multi_skip[TOKEN_CDF_Q_CTXS][IDTX_LEVEL_CONTEXTS]
                                    [BR_CDF_SIZE];
   unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]
                                     [NUM_BASE_LEVELS + 2];
+#endif
 #if !CONFIG_LCCHROMA
   unsigned int coeff_lps[TX_SIZES][PLANE_TYPES][BR_CDF_SIZE - 1][LEVEL_CONTEXTS]
                         [2];
 #endif  // !CONFIG_LCCHROMA
   unsigned int eob_flag[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS][2];
+#if !CONFIG_IMPROVEIDTX_CTXS
   unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB]
                                    [NUM_BASE_LEVELS + 1];
+#endif
 #if CONFIG_EOB_POS_LUMA
   unsigned int eob_multi16[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS - 6];
   unsigned int eob_multi32[TOKEN_CDF_Q_CTXS][EOB_PLANE_CTXS][EOB_MAX_SYMS - 5];
@@ -1595,8 +1611,13 @@ typedef struct FRAME_COUNTS {
 #endif
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
+#if CONFIG_IMPROVEIDTX_CTXS
+  unsigned int txfm_do_partition[FSC_MODES][2][TXFM_PARTITION_GROUP][2];
+  unsigned int txfm_4way_partition_type[FSC_MODES][2][TXFM_PARTITION_GROUP - 1][3];
+#else
   unsigned int txfm_do_partition[2][TXFM_PARTITION_GROUP][2];
   unsigned int txfm_4way_partition_type[2][TXFM_PARTITION_GROUP - 1][3];
+#endif
 #else
   unsigned int intra_4way_txfm_partition[2][TX_SIZE_CONTEXTS][4];
   unsigned int intra_2way_txfm_partition[2];

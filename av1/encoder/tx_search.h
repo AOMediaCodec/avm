@@ -49,12 +49,21 @@ static AOM_INLINE int inter_tx_partition_cost(
   int cost = 0;
   const int allow_horz = allow_tx_horz_split(max_tx_size);
   const int allow_vert = allow_tx_vert_split(max_tx_size);
+#if CONFIG_IMPROVEIDTX_CTXS
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
+  const int is_fsc = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+#endif
 #if CONFIG_TX_PARTITION_CTX
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
   int do_partition = 0;
   if (allow_horz || allow_vert) {
     do_partition = (partition != TX_PARTITION_NONE);
+#if CONFIG_IMPROVEIDTX_CTXS
+    cost += x->mode_costs.txfm_do_partition_cost[is_fsc][1][bsize_group][do_partition];
+#else
     cost += x->mode_costs.txfm_do_partition_cost[1][bsize_group][do_partition];
+#endif
   }
 
   if (do_partition) {
@@ -62,8 +71,12 @@ static AOM_INLINE int inter_tx_partition_cost(
       assert(bsize_group > 0);
       const TX_PARTITION_TYPE split4_partition =
           get_split4_partition(partition);
+#if CONFIG_IMPROVEIDTX_CTXS
+      cost += x->mode_costs.txfm_4way_partition_type_cost[is_fsc][1][bsize_group - 1][split4_partition - 1];
+#else
       cost += x->mode_costs.txfm_4way_partition_type_cost[1][bsize_group - 1]
                                                          [split4_partition - 1];
+#endif
     }
   }
 #else
@@ -98,10 +111,17 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
+#if CONFIG_IMPROVEIDTX_CTXS
+  const int is_fsc = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+#endif
   int do_partition = 0;
   if (allow_horz || allow_vert) {
     do_partition = (partition != TX_PARTITION_NONE);
+#if CONFIG_IMPROVEIDTX_CTXS
+    cost += x->mode_costs.txfm_do_partition_cost[is_fsc][0][bsize_group][do_partition];
+#else
     cost += x->mode_costs.txfm_do_partition_cost[0][bsize_group][do_partition];
+#endif
   }
 
   if (do_partition) {
@@ -109,7 +129,11 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
       assert(bsize_group > 0);
       const TX_PARTITION_TYPE split4_partition =
           get_split4_partition(partition);
+#if CONFIG_IMPROVEIDTX_CTXS
+      cost += x->mode_costs.txfm_4way_partition_type_cost[is_fsc][0][bsize_group - 1]
+#else
       cost += x->mode_costs.txfm_4way_partition_type_cost[0][bsize_group - 1]
+#endif
                                                          [split4_partition - 1];
     }
   }

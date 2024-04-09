@@ -1810,9 +1810,17 @@ static AOM_INLINE void set_inter_tx_size(MB_MODE_INFO *mbmi, int stride_log2,
 }
 
 #if CONFIG_NEW_TX_PARTITION
-static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
+static TX_SIZE read_tx_partition(
+#if CONFIG_IMPROVEIDTX_CTXS
+                                 AV1_COMMON *const cm,
+#endif
+                                 MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
                                  TX_SIZE max_tx_size, int blk_row, int blk_col,
-                                 aom_reader *r) {
+                                 aom_reader *r
+#if CONFIG_IMPROVEIDTX_CTXS
+                                 , int plane, TX_TYPE tx_type
+#endif
+                                 ) {
   int plane_type = (xd->tree_type == CHROMA_PART);
   const BLOCK_SIZE bsize = mbmi->sb_type[plane_type];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
@@ -1827,12 +1835,23 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   const int allow_horz = allow_tx_horz_split(max_tx_size);
   const int allow_vert = allow_tx_vert_split(max_tx_size);
   TX_PARTITION_TYPE partition = 0;
+#if CONFIG_IMPROVEIDTX_CTXS
+  (void) plane;
+  (void) tx_type;
+  (void) cm;
+  const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                      plane_type == PLANE_TYPE_Y);
+#endif
 #if CONFIG_TX_PARTITION_CTX
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
   int do_partition = 0;
   if (allow_horz || allow_vert) {
     aom_cdf_prob *do_partition_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+        ec_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
+#else
         ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
+#endif
     do_partition =
         aom_read_symbol(r, do_partition_cdf, 2, ACCT_INFO("do_partition"));
   }
@@ -1842,7 +1861,11 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
       // Read 4way tree type
       assert(bsize_group > 0);
       aom_cdf_prob *partition_type_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+          ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter][bsize_group - 1];
+#else
           ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
+#endif
       const TX_PARTITION_TYPE partition_type = aom_read_symbol(
           r, partition_type_cdf, 3, ACCT_INFO("partition_type"));
       partition = partition_type + 1;
@@ -2034,7 +2057,11 @@ static TX_SIZE read_selected_tx_size(const MACROBLOCKD *const xd,
 }
 #endif  // CONFIG_NEW_TX_PARTITION
 
-static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
+static TX_SIZE read_tx_size(
+#if CONFIG_IMPROVEIDTX_CTXS
+                            AV1_COMMON *const cm,
+#endif
+                            MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
                             int allow_select_inter, aom_reader *r) {
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
   if (xd->lossless[xd->mi[0]->segment_id]) return TX_4X4;
@@ -2044,7 +2071,15 @@ static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
 #if CONFIG_NEW_TX_PARTITION
       MB_MODE_INFO *mbmi = xd->mi[0];
       const TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
-      return read_tx_partition(xd, mbmi, max_tx_size, 0, 0, r);
+      return read_tx_partition(
+#if CONFIG_IMPROVEIDTX_CTXS
+                               cm,
+#endif
+                               xd, mbmi, max_tx_size, 0, 0, r
+#if CONFIG_IMPROVEIDTX_CTXS
+                               , 0, DCT_DCT
+#endif
+                               );
 #else
       const TX_SIZE coded_tx_size = read_selected_tx_size(xd, r);
       return coded_tx_size;
@@ -2089,7 +2124,15 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
       for (int idy = 0; idy < height; idy += bh)
         for (int idx = 0; idx < width; idx += bw)
 #if CONFIG_NEW_TX_PARTITION
-          read_tx_partition(xd, mbmi, max_tx_size, idy, idx, r);
+          read_tx_partition(
+#if CONFIG_IMPROVEIDTX_CTXS
+                            cm,
+#endif
+                            xd, mbmi, max_tx_size, idy, idx, r
+#if CONFIG_IMPROVEIDTX_CTXS
+                            , 0, DCT_DCT
+#endif
+                            );
 #else
           read_tx_size_vartx(xd, mbmi, max_tx_size, 0,
 #if CONFIG_LPF_MASK
@@ -2099,7 +2142,11 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
 #endif  // CONFIG_NEW_TX_PARTITION
     } else {
       mbmi->tx_size =
-          read_tx_size(xd, cm->features.tx_mode, inter_block_tx,
+          read_tx_size(
+#if CONFIG_IMPROVEIDTX_CTXS
+                       cm,
+#endif
+                       xd, cm->features.tx_mode, inter_block_tx,
                        !mbmi->skip_txfm[xd->tree_type == CHROMA_PART], r);
       if (inter_block_tx)
         memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
