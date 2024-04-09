@@ -142,10 +142,10 @@ static INLINE void load_buffer_32bit_input(const int32_t *in, int stride,
 }
 
 static INLINE void load_buffer_4x4(const int32_t *coeff, __m128i *in) {
-  in[0] = _mm_load_si128((const __m128i *)(coeff + 0));
-  in[1] = _mm_load_si128((const __m128i *)(coeff + 4));
-  in[2] = _mm_load_si128((const __m128i *)(coeff + 8));
-  in[3] = _mm_load_si128((const __m128i *)(coeff + 12));
+  in[0] = _mm_loadu_si128((const __m128i *)(coeff + 0));
+  in[1] = _mm_loadu_si128((const __m128i *)(coeff + 4));
+  in[2] = _mm_loadu_si128((const __m128i *)(coeff + 8));
+  in[3] = _mm_loadu_si128((const __m128i *)(coeff + 12));
 }
 
 static void addsub_sse4_1(const __m128i in0, const __m128i in1, __m128i *out0,
@@ -863,22 +863,22 @@ void av1_inv_txfm2d_add_4x4_sse4_1(const int32_t *input, uint16_t *output,
 
 // 8x8
 static void load_buffer_8x8(const int32_t *coeff, __m128i *in) {
-  in[0] = _mm_load_si128((const __m128i *)(coeff + 0));
-  in[1] = _mm_load_si128((const __m128i *)(coeff + 4));
-  in[2] = _mm_load_si128((const __m128i *)(coeff + 8));
-  in[3] = _mm_load_si128((const __m128i *)(coeff + 12));
-  in[4] = _mm_load_si128((const __m128i *)(coeff + 16));
-  in[5] = _mm_load_si128((const __m128i *)(coeff + 20));
-  in[6] = _mm_load_si128((const __m128i *)(coeff + 24));
-  in[7] = _mm_load_si128((const __m128i *)(coeff + 28));
-  in[8] = _mm_load_si128((const __m128i *)(coeff + 32));
-  in[9] = _mm_load_si128((const __m128i *)(coeff + 36));
-  in[10] = _mm_load_si128((const __m128i *)(coeff + 40));
-  in[11] = _mm_load_si128((const __m128i *)(coeff + 44));
-  in[12] = _mm_load_si128((const __m128i *)(coeff + 48));
-  in[13] = _mm_load_si128((const __m128i *)(coeff + 52));
-  in[14] = _mm_load_si128((const __m128i *)(coeff + 56));
-  in[15] = _mm_load_si128((const __m128i *)(coeff + 60));
+  in[0] = _mm_loadu_si128((const __m128i *)(coeff + 0));
+  in[1] = _mm_loadu_si128((const __m128i *)(coeff + 4));
+  in[2] = _mm_loadu_si128((const __m128i *)(coeff + 8));
+  in[3] = _mm_loadu_si128((const __m128i *)(coeff + 12));
+  in[4] = _mm_loadu_si128((const __m128i *)(coeff + 16));
+  in[5] = _mm_loadu_si128((const __m128i *)(coeff + 20));
+  in[6] = _mm_loadu_si128((const __m128i *)(coeff + 24));
+  in[7] = _mm_loadu_si128((const __m128i *)(coeff + 28));
+  in[8] = _mm_loadu_si128((const __m128i *)(coeff + 32));
+  in[9] = _mm_loadu_si128((const __m128i *)(coeff + 36));
+  in[10] = _mm_loadu_si128((const __m128i *)(coeff + 40));
+  in[11] = _mm_loadu_si128((const __m128i *)(coeff + 44));
+  in[12] = _mm_loadu_si128((const __m128i *)(coeff + 48));
+  in[13] = _mm_loadu_si128((const __m128i *)(coeff + 52));
+  in[14] = _mm_loadu_si128((const __m128i *)(coeff + 56));
+  in[15] = _mm_loadu_si128((const __m128i *)(coeff + 60));
 }
 
 static void idct8x8_sse4_1(__m128i *in, __m128i *out, int bit, int do_cols,

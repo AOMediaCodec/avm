@@ -171,7 +171,7 @@ void aom_quantize_b_32x32_avx(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 
   // Setup global values.
   // The 32x32 halves zbin and round.
-  zbin = _mm_load_si128((const __m128i *)zbin_ptr);
+  zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
   // Shift with rounding.
   zbin = _mm_add_epi16(zbin, one);
   zbin = _mm_srli_epi16(zbin, 1);
@@ -179,13 +179,13 @@ void aom_quantize_b_32x32_avx(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   // it is a strict "greater" comparison.
   zbin = _mm_sub_epi16(zbin, one);
 
-  round = _mm_load_si128((const __m128i *)round_ptr);
+  round = _mm_loadu_si128((const __m128i *)round_ptr);
   round = _mm_add_epi16(round, one);
   round = _mm_srli_epi16(round, 1);
 
-  quant = _mm_load_si128((const __m128i *)quant_ptr);
-  dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-  shift = _mm_load_si128((const __m128i *)quant_shift_ptr);
+  quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+  dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  shift = _mm_loadu_si128((const __m128i *)quant_shift_ptr);
 
   // Do DC and first 15 AC.
   coeff0 = load_tran_low(coeff_ptr);

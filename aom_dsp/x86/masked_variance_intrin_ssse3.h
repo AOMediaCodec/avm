@@ -31,7 +31,7 @@ static INLINE void comp_mask_pred_16_ssse3(const uint8_t *src0,
 
   const __m128i sA0 = _mm_lddqu_si128((const __m128i *)(src0));
   const __m128i sA1 = _mm_lddqu_si128((const __m128i *)(src1));
-  const __m128i aA = _mm_load_si128((const __m128i *)(mask));
+  const __m128i aA = _mm_loadu_si128((const __m128i *)(mask));
 
   const __m128i maA = _mm_sub_epi8(alpha_max, aA);
 

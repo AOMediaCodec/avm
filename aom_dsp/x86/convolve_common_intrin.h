@@ -20,7 +20,7 @@ static INLINE void add_store(CONV_BUF_TYPE *const dst, const __m128i *const res,
                              const int do_average) {
   __m128i d;
   if (do_average) {
-    d = _mm_load_si128((__m128i *)dst);
+    d = _mm_loadu_si128((__m128i *)dst);
     d = _mm_add_epi32(d, *res);
     d = _mm_srai_epi32(d, 1);
   } else {

@@ -381,6 +381,17 @@ typedef struct CHROMA_REF_INFO {
   BLOCK_SIZE bsize_base;
 } CHROMA_REF_INFO;
 
+#define MAX_TX_PARTITIONS 4
+
+#if CONFIG_TX_PARTITION_TYPE_EXT
+// txfm block position information inside a coding block.
+typedef struct TXB_POS_INFO {
+  int row_offset[MAX_TX_PARTITIONS];  // row starting offset
+  int col_offset[MAX_TX_PARTITIONS];  // column starting offset
+  int n_partitions;                   // number of txfm partitions
+} TXB_POS_INFO;
+#endif
+
 #if CONFIG_BLOCK_256
 #define INTER_TX_SIZE_BUF_LEN 64
 #else
@@ -582,8 +593,15 @@ typedef struct MB_MODE_INFO {
   TX_SIZE tx_size;
   /*! \brief Transform size when recursive txfm tree is on. */
   uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  /*! \brief Transform block relative position information. */
+  struct TXB_POS_INFO txb_pos;
+  /*! \brief Transform size stored for each txfm partition sub-block. */
+  TX_SIZE sub_txs[MAX_TX_PARTITIONS];
+  /*! \brief Transform partition sub-block indexes. */
+  int txb_idx;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   /**@}*/
-
   /*****************************************************************************
    * \name Loop Filter Info
    ****************************************************************************/
@@ -3033,6 +3051,29 @@ static INLINE BLOCK_SIZE get_mb_plane_block_size_from_tree_type(
  * const int bw_uint_log2 = mi_size_wide_log2[bsize];
  * const int stride_log2 = bw_uint_log2 - tx_w_log2;
  */
+#if CONFIG_TX_PARTITION_TYPE_EXT
+static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
+                                         int blk_col) {
+  (void)bsize;
+  int txhl = tx_size_high_log2[TX_64X64] - 2;
+  int txwl = tx_size_wide_log2[TX_64X64] - 2;
+  int stride = 4;
+
+  int index = (blk_row >> txhl) * stride + (blk_col >> txwl);
+
+  assert(index < INTER_TX_SIZE_BUF_LEN);
+  return index;
+}
+
+static INLINE int av1_get_inter_tx_index(BLOCK_SIZE bsize, int blk_row,
+                                         int blk_col) {
+  int blk_width = mi_size_wide[bsize];
+  int index = blk_row * blk_width + blk_col;
+
+  assert(index < 1024);
+  return index;
+}
+#else
 static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
   static const uint8_t tw_w_log2_table[BLOCK_SIZES_ALL] = {
@@ -3152,6 +3193,7 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
   assert(index < INTER_TX_SIZE_BUF_LEN);
   return index;
 }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 
 #if CONFIG_INSPECTION
 /*

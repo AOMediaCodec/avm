@@ -288,7 +288,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
   RESET_CDF_COUNTER(fc->txfm_do_partition_cdf, 2);
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  RESET_CDF_COUNTER(fc->txfm_4way_partition_type_cdf, TX_PARTITION_TYPE_NUM);
+#else
   RESET_CDF_COUNTER(fc->txfm_4way_partition_type_cdf, 3);
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
   // Square blocks
   RESET_CDF_COUNTER(fc->inter_4way_txfm_partition_cdf[0], 4);

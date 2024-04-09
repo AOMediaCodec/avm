@@ -40,16 +40,16 @@ SIMD_INLINE v128 v128_from_32(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
   return _mm_set_epi32(a, b, c, d);
 }
 
-SIMD_INLINE v128 v128_load_aligned(const void *p) {
-  return _mm_load_si128((__m128i *)p);
-}
-
 SIMD_INLINE v128 v128_load_unaligned(const void *p) {
 #if defined(__SSSE3__)
   return _mm_lddqu_si128((__m128i *)p);
 #else
   return _mm_loadu_si128((__m128i *)p);
 #endif
+}
+
+SIMD_INLINE v128 v128_load_aligned(const void *p) {
+  return v128_load_unaligned(p);
 }
 
 SIMD_INLINE void v128_store_aligned(void *p, v128 a) {

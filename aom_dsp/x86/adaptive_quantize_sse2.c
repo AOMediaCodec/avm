@@ -259,11 +259,11 @@ void aom_quantize_b_32x32_adaptive_sse2(
   int first = -1;
 #endif
   // Setup global values.
-  zbin = _mm_load_si128((const __m128i *)zbin_ptr);
-  round = _mm_load_si128((const __m128i *)round_ptr);
-  quant = _mm_load_si128((const __m128i *)quant_ptr);
-  dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-  shift = _mm_load_si128((const __m128i *)quant_shift_ptr);
+  zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
+  round = _mm_loadu_si128((const __m128i *)round_ptr);
+  quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+  dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  shift = _mm_loadu_si128((const __m128i *)quant_shift_ptr);
 
   // Shift with rounding.
   zbin = _mm_add_epi16(zbin, log_scale_vec);
@@ -468,11 +468,11 @@ void aom_quantize_b_64x64_adaptive_sse2(
   int first = -1;
 #endif
   // Setup global values.
-  zbin = _mm_load_si128((const __m128i *)zbin_ptr);
-  round = _mm_load_si128((const __m128i *)round_ptr);
-  quant = _mm_load_si128((const __m128i *)quant_ptr);
-  dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-  shift = _mm_load_si128((const __m128i *)quant_shift_ptr);
+  zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
+  round = _mm_loadu_si128((const __m128i *)round_ptr);
+  quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+  dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  shift = _mm_loadu_si128((const __m128i *)quant_shift_ptr);
 
   // Shift with rounding.
   zbin = _mm_add_epi16(zbin, log_scale_vec);

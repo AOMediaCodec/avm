@@ -291,6 +291,9 @@ set_aom_config_var(CONFIG_ADST_TUNED 1
 set_aom_config_var(CONFIG_TX_PARTITION_CTX 1
                    "Enable to optimize txfm partition context")
 
+set_aom_config_var(CONFIG_TX_PARTITION_TYPE_EXT 1
+                   "Enable txfm partition type extension")
+
 set_aom_config_var(CONFIG_INTERINTRA_IMPROVEMENT 1
                    "Enable additional inter-intra block sizes")
 set_aom_config_var(CONFIG_REFRESH_FLAG 0

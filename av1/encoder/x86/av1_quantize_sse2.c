@@ -16,20 +16,19 @@
 #include "config/av1_rtcd.h"
 
 #include "aom/aom_integer.h"
-
 static INLINE void read_coeff(const tran_low_t *coeff, intptr_t offset,
                               __m128i *c0, __m128i *c1) {
   const tran_low_t *addr = coeff + offset;
   if (sizeof(tran_low_t) == 4) {
-    const __m128i x0 = _mm_load_si128((const __m128i *)addr);
-    const __m128i x1 = _mm_load_si128((const __m128i *)addr + 1);
-    const __m128i x2 = _mm_load_si128((const __m128i *)addr + 2);
-    const __m128i x3 = _mm_load_si128((const __m128i *)addr + 3);
+    const __m128i x0 = _mm_loadu_si128((const __m128i *)addr);
+    const __m128i x1 = _mm_loadu_si128((const __m128i *)addr + 1);
+    const __m128i x2 = _mm_loadu_si128((const __m128i *)addr + 2);
+    const __m128i x3 = _mm_loadu_si128((const __m128i *)addr + 3);
     *c0 = _mm_packs_epi32(x0, x1);
     *c1 = _mm_packs_epi32(x2, x3);
   } else {
-    *c0 = _mm_load_si128((const __m128i *)addr);
-    *c1 = _mm_load_si128((const __m128i *)addr + 1);
+    *c0 = _mm_loadu_si128((const __m128i *)addr);
+    *c1 = _mm_loadu_si128((const __m128i *)addr + 1);
   }
 }
 
@@ -120,9 +119,9 @@ static INLINE void quantize(const int16_t *iscan_ptr,
     const __m128i nzero_coeff0 = _mm_cmpeq_epi16(zero_coeff0, zero);
     const __m128i nzero_coeff1 = _mm_cmpeq_epi16(zero_coeff1, zero);
     const __m128i iscan0 =
-        _mm_load_si128((const __m128i *)(iscan_ptr + n_coeffs));
+        _mm_loadu_si128((const __m128i *)(iscan_ptr + n_coeffs));
     const __m128i iscan1 =
-        _mm_load_si128((const __m128i *)(iscan_ptr + n_coeffs) + 1);
+        _mm_loadu_si128((const __m128i *)(iscan_ptr + n_coeffs) + 1);
     // Add one to convert from indices to counts
     const __m128i iscan0_nz = _mm_sub_epi16(iscan0, nzero_coeff0);
     const __m128i iscan1_nz = _mm_sub_epi16(iscan1, nzero_coeff1);
@@ -152,12 +151,11 @@ void av1_quantize_fp_sse2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   qcoeff_ptr += n_coeffs;
   dqcoeff_ptr += n_coeffs;
   n_coeffs = -n_coeffs;
-
-  const __m128i round0 = _mm_load_si128((const __m128i *)round_ptr);
+  const __m128i round0 = _mm_loadu_si128((const __m128i *)round_ptr);
   const __m128i round1 = _mm_unpackhi_epi64(round0, round0);
-  const __m128i quant0 = _mm_load_si128((const __m128i *)quant_ptr);
+  const __m128i quant0 = _mm_loadu_si128((const __m128i *)quant_ptr);
   const __m128i quant1 = _mm_unpackhi_epi64(quant0, quant0);
-  const __m128i dequant0 = _mm_load_si128((const __m128i *)dequant_ptr);
+  const __m128i dequant0 = _mm_loadu_si128((const __m128i *)dequant_ptr);
   const __m128i dequant1 = _mm_unpackhi_epi64(dequant0, dequant0);
   const __m128i thr0 = _mm_srai_epi16(dequant0, 1);
   const __m128i thr1 = _mm_srai_epi16(dequant1, 1);

@@ -71,6 +71,9 @@ static const uint8_t extend_modes[INTRA_MODES] = {
 static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                          BLOCK_SIZE bsize, int mi_row, int mi_col,
                          int top_available, int right_available, TX_SIZE txsz,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+                         int plane,
+#endif
                          int row_off, int col_off, int ss_x, int ss_y,
                          int px_to_right_edge, int *px_top_right,
                          int is_bsize_altered_for_chroma) {
@@ -84,6 +87,15 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   if (px_tr_common <= 0) return 0;
 
   *px_top_right = px_tr_common;
+
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  if (plane == AOM_PLANE_Y) {
+    int txb_idx = xd->mi[0]->txb_idx;
+    TX_PARTITION_TYPE partition = xd->mi[0]->tx_partition_type[0];
+    if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M)
+      if (txb_idx == 1) return 0;
+  }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 
   if (row_off > 0) {  // Just need to check if enough pixels on the right.
     const int plane_bw_unit_64 = mi_size_wide[BLOCK_64X64] >> ss_x;
@@ -382,8 +394,12 @@ static int has_top_right(const AV1_COMMON *cm, BLOCK_SIZE bsize, int mi_row,
 static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                            BLOCK_SIZE bsize, int mi_row, int mi_col,
                            int bottom_available, int left_available,
-                           TX_SIZE txsz, int row_off, int col_off, int ss_x,
-                           int ss_y, int px_to_bottom_edge, int *px_bottom_left,
+                           TX_SIZE txsz,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+                           int plane,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+                           int row_off, int col_off, int ss_x, int ss_y,
+                           int px_to_bottom_edge, int *px_bottom_left,
                            int is_bsize_altered_for_chroma) {
   if (!bottom_available || !left_available) return 0;
 
@@ -391,6 +407,14 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   if (px_bl_common <= 0) return 0;
 
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  if (plane == AOM_PLANE_Y) {
+    int txb_idx = xd->mi[0]->txb_idx;
+    TX_PARTITION_TYPE partition = xd->mi[0]->tx_partition_type[0];
+    if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M)
+      if (txb_idx == 1) return 0;
+  }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   *px_bottom_left = px_bl_common;
 
   // Special case for 128x* blocks, when col_off is half the block width.
@@ -1539,10 +1563,26 @@ static void build_intra_predictors_high(
     assert(p_angle > 0 && p_angle < 270);
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_WAIP
-    if (!is_inter_block(xd->mi[0], xd->tree_type))
+    if (!is_inter_block(xd->mi[0], xd->tree_type)) {
+#if CONFIG_TX_PARTITION_TYPE_EXT
+      // wide_angle_mapping is only supported for uniform txfm block sizes (i.e,
+      // all txfm block sizes are the same in a coding block) for now.
+      // Temporarily disable it in non-uniform txfm block case. TODO: add
+      // support for non-uniform txfm blocks.
+      if (xd->mi[0]->tx_partition_type[0] != TX_PARTITION_HORZ_M &&
+          xd->mi[0]->tx_partition_type[0] != TX_PARTITION_VERT_M) {
+        p_angle =
+            wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
+      } else {
+        MB_MODE_INFO *mbmi = xd->mi[0];
+        mbmi->is_wide_angle[plane > 0] = 0;
+        mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
+      }
+#else
       p_angle =
           wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
-    else {
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+    } else {
       MB_MODE_INFO *mbmi = xd->mi[0];
       mbmi->is_wide_angle[plane > 0] = 0;
       mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
@@ -1920,6 +1960,9 @@ void av1_predict_intra_block(
   int px_top_right = 0;
   const int have_top_right = has_top_right(
       cm, xd, bsize, mi_row, mi_col, have_top, right_available, tx_size,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+      plane,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
       row_off, col_off, ss_x, ss_y, xr, &px_top_right, bsize != init_bsize);
 #else
   const PARTITION_TYPE partition = mbmi->partition;
@@ -1931,6 +1974,9 @@ void av1_predict_intra_block(
   int px_bottom_left = 0;
   const int have_bottom_left = has_bottom_left(
       cm, xd, bsize, mi_row, mi_col, bottom_available, have_left, tx_size,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+      plane,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
       row_off, col_off, ss_x, ss_y, yd, &px_bottom_left, bsize != init_bsize);
 
   const int disable_edge_filter = !cm->seq_params.enable_intra_edge_filter;
@@ -2039,10 +2085,13 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   }
 #if CONFIG_EXT_RECUR_PARTITIONS
   int px_top_right = 0;
-  const int have_top_right =
-      has_top_right(cm, xd, bsize, mi_row - row_offset, mi_col - col_offset,
-                    have_top, right_available, tx_size, row, col, sub_x, sub_y,
-                    xr, &px_top_right, bsize != init_bsize);
+  const int have_top_right = has_top_right(
+      cm, xd, bsize, mi_row - row_offset, mi_col - col_offset, have_top,
+      right_available, tx_size,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+      0,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+      row, col, sub_x, sub_y, xr, &px_top_right, bsize != init_bsize);
 #else
   const int have_top_right = has_top_right(
       cm, bsize, xd->mi_row, xd->mi_col, have_top, right_available,
@@ -2050,10 +2099,13 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
 #endif
   int px_bottom_left = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
-  const int have_bottom_left =
-      has_bottom_left(cm, xd, bsize, mi_row - row_offset, mi_col - col_offset,
-                      bottom_available, have_left, tx_size, row, col, sub_x,
-                      sub_y, yd, &px_bottom_left, bsize != init_bsize);
+  const int have_bottom_left = has_bottom_left(
+      cm, xd, bsize, mi_row - row_offset, mi_col - col_offset, bottom_available,
+      have_left, tx_size,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+      0,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+      row, col, sub_x, sub_y, yd, &px_bottom_left, bsize != init_bsize);
 #else
   const int have_bottom_left =
       has_bottom_left(cm, xd, bsize, xd->mi_row, xd->mi_col, bottom_available,
@@ -2198,7 +2250,11 @@ void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     int plane, int blk_col, int blk_row,
                                     TX_SIZE tx_size) {
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+#else
   const MB_MODE_INFO *const mbmi = xd->mi[0];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   struct macroblockd_plane *const pd = &xd->plane[plane];
   const int dst_stride = pd->dst.stride;
   uint16_t *dst =
@@ -2212,6 +2268,10 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
           : FILTER_INTRA_MODES;
 
   const int angle_delta = mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
+
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  if (plane != AOM_PLANE_Y) mbmi->txb_idx = 0;
+#endif
 
   if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_DEBUG

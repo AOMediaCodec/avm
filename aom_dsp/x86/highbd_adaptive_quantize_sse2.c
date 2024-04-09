@@ -60,7 +60,7 @@ static INLINE void highbd_update_mask1(__m128i *cmp_mask0,
                                        __m128i *mask) {
   __m128i temp_mask = _mm_setzero_si128();
   if (_mm_movemask_epi8(*cmp_mask0)) {
-    __m128i iscan0 = _mm_load_si128((const __m128i *)(iscan_ptr));
+    __m128i iscan0 = _mm_loadu_si128((const __m128i *)(iscan_ptr));
     __m128i mask0 = _mm_and_si128(*cmp_mask0, iscan0);
     temp_mask = mask0;
     *is_found = 1;
@@ -130,11 +130,11 @@ void aom_highbd_quantize_b_adaptive_sse2(
   int first = -1;
 #endif
   // Setup global values.
-  zbin = _mm_load_si128((const __m128i *)zbin_ptr);
-  round = _mm_load_si128((const __m128i *)round_ptr);
-  quant = _mm_load_si128((const __m128i *)quant_ptr);
-  dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-  shift = _mm_load_si128((const __m128i *)quant_shift_ptr);
+  zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
+  round = _mm_loadu_si128((const __m128i *)round_ptr);
+  quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+  dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  shift = _mm_loadu_si128((const __m128i *)quant_shift_ptr);
 
   __m128i zbin_sign = _mm_srai_epi16(zbin, 15);
   __m128i round_sign = _mm_srai_epi16(round, 15);
@@ -150,8 +150,8 @@ void aom_highbd_quantize_b_adaptive_sse2(
   zbin = _mm_sub_epi32(zbin, one);
 
   // Do DC and first 15 AC.
-  coeff0 = _mm_load_si128((__m128i *)(coeff_ptr));
-  coeff1 = _mm_load_si128((__m128i *)(coeff_ptr + 4));
+  coeff0 = _mm_loadu_si128((__m128i *)(coeff_ptr));
+  coeff1 = _mm_loadu_si128((__m128i *)(coeff_ptr + 4));
 
   coeff0_sign = _mm_srai_epi32(coeff0, 31);
   coeff1_sign = _mm_srai_epi32(coeff1, 31);
@@ -206,9 +206,8 @@ void aom_highbd_quantize_b_adaptive_sse2(
 
   // AC only loop.
   while (index < n_coeffs) {
-    coeff0 = _mm_load_si128((__m128i *)(coeff_ptr + index));
-    coeff1 = _mm_load_si128((__m128i *)(coeff_ptr + index + 4));
-
+    coeff0 = _mm_loadu_si128((__m128i *)(coeff_ptr + index));
+    coeff1 = _mm_loadu_si128((__m128i *)(coeff_ptr + index + 4));
     coeff0_sign = _mm_srai_epi32(coeff0, 31);
     coeff1_sign = _mm_srai_epi32(coeff1, 31);
     qcoeff0 = invert_sign_32_sse2(coeff0, coeff0_sign);
@@ -342,11 +341,11 @@ void aom_highbd_quantize_b_32x32_adaptive_sse2(
   int first = -1;
 #endif
   // Setup global values.
-  zbin = _mm_load_si128((const __m128i *)zbin_ptr);
-  round = _mm_load_si128((const __m128i *)round_ptr);
-  quant = _mm_load_si128((const __m128i *)quant_ptr);
-  dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-  shift = _mm_load_si128((const __m128i *)quant_shift_ptr);
+  zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
+  round = _mm_loadu_si128((const __m128i *)round_ptr);
+  quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+  dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  shift = _mm_loadu_si128((const __m128i *)quant_shift_ptr);
 
   __m128i zbin_sign = _mm_srai_epi16(zbin, 15);
   __m128i round_sign = _mm_srai_epi16(round, 15);
@@ -368,8 +367,8 @@ void aom_highbd_quantize_b_32x32_adaptive_sse2(
   zbin = _mm_sub_epi32(zbin, one);
 
   // Do DC and first 15 AC.
-  coeff0 = _mm_load_si128((__m128i *)(coeff_ptr));
-  coeff1 = _mm_load_si128((__m128i *)(coeff_ptr + 4));
+  coeff0 = _mm_loadu_si128((__m128i *)(coeff_ptr));
+  coeff1 = _mm_loadu_si128((__m128i *)(coeff_ptr + 4));
 
   coeff0_sign = _mm_srai_epi32(coeff0, 31);
   coeff1_sign = _mm_srai_epi32(coeff1, 31);
@@ -424,8 +423,8 @@ void aom_highbd_quantize_b_32x32_adaptive_sse2(
 
   // AC only loop.
   while (index < n_coeffs) {
-    coeff0 = _mm_load_si128((__m128i *)(coeff_ptr + index));
-    coeff1 = _mm_load_si128((__m128i *)(coeff_ptr + index + 4));
+    coeff0 = _mm_loadu_si128((__m128i *)(coeff_ptr + index));
+    coeff1 = _mm_loadu_si128((__m128i *)(coeff_ptr + index + 4));
 
     coeff0_sign = _mm_srai_epi32(coeff0, 31);
     coeff1_sign = _mm_srai_epi32(coeff1, 31);
@@ -559,11 +558,11 @@ void aom_highbd_quantize_b_64x64_adaptive_sse2(
   int first = -1;
 #endif
   // Setup global values.
-  zbin = _mm_load_si128((const __m128i *)zbin_ptr);
-  round = _mm_load_si128((const __m128i *)round_ptr);
-  quant = _mm_load_si128((const __m128i *)quant_ptr);
-  dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-  shift = _mm_load_si128((const __m128i *)quant_shift_ptr);
+  zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
+  round = _mm_loadu_si128((const __m128i *)round_ptr);
+  quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+  dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  shift = _mm_loadu_si128((const __m128i *)quant_shift_ptr);
 
   __m128i zbin_sign = _mm_srai_epi16(zbin, 15);
   __m128i round_sign = _mm_srai_epi16(round, 15);
@@ -585,8 +584,8 @@ void aom_highbd_quantize_b_64x64_adaptive_sse2(
   zbin = _mm_sub_epi32(zbin, one);
 
   // Do DC and first 15 AC.
-  coeff0 = _mm_load_si128((__m128i *)(coeff_ptr));
-  coeff1 = _mm_load_si128((__m128i *)(coeff_ptr + 4));
+  coeff0 = _mm_loadu_si128((__m128i *)(coeff_ptr));
+  coeff1 = _mm_loadu_si128((__m128i *)(coeff_ptr + 4));
 
   coeff0_sign = _mm_srai_epi32(coeff0, 31);
   coeff1_sign = _mm_srai_epi32(coeff1, 31);
@@ -641,8 +640,8 @@ void aom_highbd_quantize_b_64x64_adaptive_sse2(
 
   // AC only loop.
   while (index < n_coeffs) {
-    coeff0 = _mm_load_si128((__m128i *)(coeff_ptr + index));
-    coeff1 = _mm_load_si128((__m128i *)(coeff_ptr + index + 4));
+    coeff0 = _mm_loadu_si128((__m128i *)(coeff_ptr + index));
+    coeff1 = _mm_loadu_si128((__m128i *)(coeff_ptr + index + 4));
 
     coeff0_sign = _mm_srai_epi32(coeff0, 31);
     coeff1_sign = _mm_srai_epi32(coeff1, 31);

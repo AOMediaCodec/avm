@@ -273,6 +273,98 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   }
 }
 
+#if CONFIG_TX_PARTITION_TYPE_EXT
+static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
+                                  const MB_MODE_INFO *const mbmi,
+                                  const EDGE_DIR edge_dir, const int mi_row,
+                                  const int mi_col, const int plane,
+                                  const TREE_TYPE tree_type,
+                                  const struct macroblockd_plane *plane_ptr) {
+  assert(mbmi != NULL);
+  if (xd && xd->lossless[mbmi->segment_id]) return TX_4X4;
+  const int plane_type = av1_get_sdp_idx(tree_type);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize_base =
+      get_bsize_base_from_tree_type(mbmi, tree_type, plane);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+  TX_SIZE tx_size = TX_INVALID;
+  if (plane != AOM_PLANE_Y) {
+    tx_size =
+#if CONFIG_EXT_RECUR_PARTITIONS
+        av1_get_max_uv_txsize(bsize_base, plane_ptr->subsampling_x,
+                              plane_ptr->subsampling_y);
+#else
+        av1_get_max_uv_txsize(mbmi->sb_type[plane_type],
+                              plane_ptr->subsampling_x,
+                              plane_ptr->subsampling_y);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+  }
+
+  if (plane == AOM_PLANE_Y && !mbmi->skip_txfm[SHARED_PART]) {
+    const BLOCK_SIZE sb_type = mbmi->sb_type[plane_type];
+
+    int row_mask = mi_size_high[sb_type] - 1;
+    int col_mask = mi_size_wide[sb_type] - 1;
+    const int blk_row = mi_row & row_mask;
+    const int blk_col = mi_col & col_mask;
+
+    assert(blk_row >= 0);
+    assert(blk_col >= 0);
+
+    int txp_index = is_inter_block(mbmi, SHARED_PART)
+                        ? av1_get_txb_size_index(sb_type, blk_row, blk_col)
+                        : 0;
+    const TX_PARTITION_TYPE partition = mbmi->tx_partition_type[txp_index];
+
+    const TX_SIZE max_tx_size = max_txsize_rect_lookup[sb_type];
+
+    if (partition == TX_PARTITION_HORZ_M || partition == TX_PARTITION_VERT_M) {
+      TXB_POS_INFO txb_pos;
+      TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+      get_tx_partition_sizes(partition, max_tx_size, &txb_pos, sub_txs);
+
+      int mi_blk_row = blk_row & 0xf;
+      int mi_blk_col = blk_col & 0xf;
+
+      int txb_idx;
+      for (txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
+        TX_SIZE sub_tx = sub_txs[txb_idx];
+        int txh = tx_size_high_unit[sub_tx];
+        int txw = tx_size_wide_unit[sub_tx];
+        if (mi_blk_row >= txb_pos.row_offset[txb_idx] &&
+            mi_blk_row < txb_pos.row_offset[txb_idx] + txh &&
+            mi_blk_col >= txb_pos.col_offset[txb_idx] &&
+            mi_blk_col < txb_pos.col_offset[txb_idx] + txw)
+          break;
+      }
+      assert(txb_pos.n_partitions > 1);
+      assert(txb_idx < txb_pos.n_partitions);
+      TX_SIZE tmp_tx_size = sub_txs[txb_idx];
+
+      assert(tmp_tx_size < TX_SIZES_ALL);
+      tx_size = tmp_tx_size;
+    } else {
+      tx_size = get_tx_partition_one_size(partition, max_tx_size);
+    }
+  }
+
+  if (plane == AOM_PLANE_Y && mbmi->skip_txfm[SHARED_PART]) {
+    const BLOCK_SIZE sb_type = mbmi->sb_type[plane_type];
+    tx_size = max_txsize_rect_lookup[sb_type];
+  }
+
+  assert(tx_size < TX_SIZES_ALL);
+  // since in case of chrominance or non-square transform need to convert
+  // transform size into transform size in particular direction.
+  // for vertical edge, filter direction is horizontal, for horizontal
+  // edge, filter direction is vertical.
+  tx_size = (edge_dir == VERT_EDGE) ? txsize_horz_map[tx_size]
+                                    : txsize_vert_map[tx_size];
+
+  return tx_size;
+}
+#else
 static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   const MB_MODE_INFO *const mbmi,
                                   const EDGE_DIR edge_dir, const int mi_row,
@@ -320,6 +412,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                     : txsize_vert_map[tx_size];
   return tx_size;
 }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 
 typedef struct AV1_DEBLOCKING_PARAMETERS {
   // length of the filter applied to the outer edge

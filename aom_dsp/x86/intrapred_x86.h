@@ -18,7 +18,7 @@
 #include "config/aom_config.h"
 
 static INLINE __m128i dc_sum_16_sse2(const uint8_t *ref) {
-  __m128i x = _mm_load_si128((__m128i const *)ref);
+  __m128i x = _mm_loadu_si128((__m128i const *)ref);
   const __m128i zero = _mm_setzero_si128();
   x = _mm_sad_epu8(x, zero);
   const __m128i high = _mm_unpackhi_epi64(x, x);
@@ -26,8 +26,8 @@ static INLINE __m128i dc_sum_16_sse2(const uint8_t *ref) {
 }
 
 static INLINE __m128i dc_sum_32_sse2(const uint8_t *ref) {
-  __m128i x0 = _mm_load_si128((__m128i const *)ref);
-  __m128i x1 = _mm_load_si128((__m128i const *)(ref + 16));
+  __m128i x0 = _mm_loadu_si128((__m128i const *)ref);
+  __m128i x1 = _mm_loadu_si128((__m128i const *)(ref + 16));
   const __m128i zero = _mm_setzero_si128();
   x0 = _mm_sad_epu8(x0, zero);
   x1 = _mm_sad_epu8(x1, zero);

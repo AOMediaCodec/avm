@@ -66,6 +66,86 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
                       plane_type == PLANE_TYPE_Y);
 #endif  // CONFIG_IMPROVEIDTX_CTXS
 #if CONFIG_TX_PARTITION_CTX
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  const int bsize_group = size_to_tx_part_group_lookup[bsize];
+  const int txsize_group = size_to_tx_type_group_lookup[bsize];
+  int do_partition = 0;
+  if (allow_horz || allow_vert) {
+    do_partition = (partition != TX_PARTITION_NONE);
+    if (allow_update_cdf) {
+      aom_cdf_prob *do_partition_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+          xd->tile_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
+#else
+          xd->tile_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+      update_cdf(do_partition_cdf, do_partition, 2);
+    }
+#if CONFIG_ENTROPY_STATS
+#if CONFIG_IMPROVEIDTX_CTXS
+    ++counts->txfm_do_partition[is_fsc][is_inter][bsize_group][do_partition];
+#else
+    ++counts->txfm_do_partition[is_inter][bsize_group][do_partition];
+#endif
+#endif  // CONFIG_ENTROPY_STATS
+  }
+
+  if (do_partition) {
+    if (allow_horz && allow_vert) {
+      assert(txsize_group > 0);
+      const TX_PARTITION_TYPE split4_partition =
+          get_split4_partition(partition);
+      if (allow_update_cdf) {
+        aom_cdf_prob *partition_type_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+            xd->tile_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
+                                                      [txsize_group - 1];
+#else
+            xd->tile_ctx
+                ->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+        update_cdf(partition_type_cdf, split4_partition - 1,
+                   TX_PARTITION_TYPE_NUM);
+      }
+#if CONFIG_ENTROPY_STATS
+#if CONFIG_IMPROVEIDTX_CTXS
+      ++counts->txfm_4way_partition_type[is_fsc][is_inter][txsize_group - 1]
+                                        [split4_partition - 1];
+#else
+      ++counts->txfm_4way_partition_type[is_inter][txsize_group - 1]
+                                        [split4_partition - 1];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+#endif  // CONFIG_ENTROPY_STATS
+    } else if (allow_horz || allow_vert) {
+      int has_first_split = 0;
+      if (partition == TX_PARTITION_VERT_M || partition == TX_PARTITION_HORZ_M)
+        has_first_split = 1;
+
+      if (allow_update_cdf && txsize_group) {
+        aom_cdf_prob *partition_type_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+            xd->tile_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
+                                                      [txsize_group - 1];
+#else
+            xd->tile_ctx
+                ->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+        update_cdf(partition_type_cdf, has_first_split, TX_PARTITION_TYPE_NUM);
+      }
+#if CONFIG_ENTROPY_STATS
+      if (txsize_group) {
+#if CONFIG_IMPROVEIDTX_CTXS
+        ++counts->txfm_4way_partition_type[is_fsc][is_inter][txsize_group - 1]
+                                          [has_first_split];
+#else
+        ++counts->txfm_4way_partition_type[is_inter][txsize_group - 1]
+                                          [has_first_split];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+      }
+#endif  // CONFIG_ENTROPY_STATS
+    }
+  }
+#else
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
   int do_partition = 0;
   if (allow_horz || allow_vert) {
@@ -115,6 +195,7 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
 #endif  // CONFIG_ENTROPY_STATS
     }
   }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
   if (allow_horz && allow_vert) {
     const TX_PARTITION_TYPE split4_partition = get_split4_partition(partition);
@@ -175,6 +256,12 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   assert(tx_size > TX_4X4);
 #if CONFIG_NEW_TX_PARTITION
   (void)depth;
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  int num_txfm_blocks =
+      get_tx_partition_sizes(mbmi->tx_partition_type[txb_size_index], tx_size,
+                             &mbmi->txb_pos, mbmi->sub_txs);
+  TX_SIZE this_size = mbmi->sub_txs[num_txfm_blocks - 1];
+#else
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
   get_tx_partition_sizes(mbmi->tx_partition_type[txb_size_index], tx_size,
                          sub_txs);
@@ -183,6 +270,7 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   // where they can be different.
   TX_SIZE this_size = sub_txs[0];
   assert(mbmi->inter_tx_size[txb_size_index] == this_size);
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   if (mbmi->tx_partition_type[txb_size_index] != TX_PARTITION_NONE)
     ++x->txfm_search_info.txb_split_count;
 
@@ -518,7 +606,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif  // !CONFIG_TX_PARTITION_CTX
             x, bsize, td->counts, tile_data->allow_update_cdf);
       } else {
+#if CONFIG_TX_PARTITION_TYPE_EXT
+        if (mbmi->tx_partition_type[0] != TX_PARTITION_NONE &&
+#else
         if (mbmi->tx_size != max_txsize_rect_lookup[bsize] &&
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
             xd->tree_type != CHROMA_PART)
           ++x->txfm_search_info.txb_split_count;
         if (block_signals_txsize(bsize) && xd->tree_type != CHROMA_PART) {
@@ -544,6 +636,10 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         assert(
             IMPLIES(is_rect_tx(mbmi->tx_size), is_rect_tx_allowed(xd, mbmi)));
     } else {
+#if CONFIG_TX_PARTITION_TYPE_EXT
+      if (mbmi->tx_partition_type[0] != TX_PARTITION_NONE)
+        ++x->txfm_search_info.txb_split_count;
+#else
       int i, j;
       TX_SIZE intra_tx_size;
       // The new intra coding scheme requires no change of transform size
@@ -566,6 +662,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 
       if (intra_tx_size != max_txsize_rect_lookup[bsize])
         ++x->txfm_search_info.txb_split_count;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
     }
 #if !CONFIG_MVP_IMPROVEMENT
 #if CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
@@ -581,6 +678,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     if (is_inter) av1_update_warp_param_bank(cm, xd, mbmi);
 #endif  // CONFIG_EXTENDED_WARP_PREDICTION && !WARP_CU_BANK
   }
+#if !CONFIG_TX_PARTITION_TYPE_EXT
   if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
       block_signals_txsize(mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       is_inter &&
@@ -609,6 +707,7 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                   xd);
 #endif  // !CONFIG_TX_PARTITION_CTX
   }
+#endif  //! CONFIG_TX_PARTITION_TYPE_EXT
 
   if (is_inter_block(mbmi, xd->tree_type) && !xd->is_chroma_ref &&
       is_cfl_allowed(xd)) {
@@ -1461,7 +1560,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
       assert(ref0 < ref1);
       for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
-        const int bit = ref0 == i || ref1 == i;
+            const int bit = ref0 == i || ref1 == i;
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
           const int bit_type = n_bits == 0 ? -1
                                            : av1_get_compound_ref_bit_type(

@@ -901,6 +901,11 @@ typedef struct TX_SPEED_FEATURES {
   // or equal to BLOCK_16X16.
   bool use_largest_tx_size_for_small_bsize;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  // tx_type search pruning at low qp and resolution >= 1080p
+  bool restrict_tx_partition_type_search;
+#endif
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {

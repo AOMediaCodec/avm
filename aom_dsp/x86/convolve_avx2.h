@@ -737,7 +737,7 @@ static INLINE void add_store_aligned_256(CONV_BUF_TYPE *const dst,
                                          const int do_average) {
   __m256i d;
   if (do_average) {
-    d = _mm256_load_si256((__m256i *)dst);
+    d = _mm256_loadu_si256((__m256i *)dst);
     d = _mm256_add_epi32(d, *res);
     d = _mm256_srai_epi32(d, 1);
   } else {

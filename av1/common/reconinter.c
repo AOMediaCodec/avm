@@ -6139,6 +6139,9 @@ void av1_build_intra_predictors_for_interintra(const AV1_COMMON *cm,
   assert(xd->mi[0]->angle_delta[PLANE_TYPE_UV] == 0);
   assert(xd->mi[0]->filter_intra_mode_info.use_filter_intra == 0);
   assert(xd->mi[0]->use_intrabc[PLANE_TYPE_Y] == 0);
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  xd->mi[0]->txb_idx = 0;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   av1_predict_intra_block(cm, xd, pd->width, pd->height,
                           max_txsize_rect_lookup[plane_bsize], mode, 0, 0,
                           FILTER_INTRA_MODES, ctx->plane[plane],

@@ -541,24 +541,40 @@ enum {
 //  |       |      |   |   |
 //  +-------+      +---+---+
 //
-//  HORZ                 VERT
+//  HORZ            VERT
 //  +-------+      +---+---+
 //  |       |      |   |   |
 //  +-------+      |   |   |
 //  |       |      |   |   |
 //  +-------+      +---+---+
 //
+//  HORZ_M          VERT_M
+//  +-------+      +--+----+--+
+//  |       |      |  |    |  |
+//  +-------+      |  |    |  |
+//  |       |      |  |    |  |
+//  |       |      +--+----+--+
+//  +-------+
+//  |       |
+//  +-------+
 enum {
   TX_PARTITION_NONE,
   TX_PARTITION_SPLIT,
   TX_PARTITION_HORZ,
   TX_PARTITION_VERT,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  TX_PARTITION_HORZ_M,
+  TX_PARTITION_VERT_M,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   TX_PARTITION_TYPES,
   TX_PARTITION_TYPES_INTRA = TX_PARTITION_TYPES,
   TX_PARTITION_INVALID = 255
 } UENUM1BYTE(TX_PARTITION_TYPE);
 #endif  // CONFIG_NEW_TX_PARTITION
 
+#if CONFIG_TX_PARTITION_TYPE_EXT
+#define TX_PARTITION_TYPE_NUM (TX_PARTITION_TYPES - 1)
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #define TX_SIZE_LUMA_MIN (TX_4X4)
 /* We don't need to code a transform size unless the allowed size is at least
    one more than the minimum. */
@@ -1109,7 +1125,12 @@ enum {
 #if CONFIG_TX_PARTITION_CTX
 // Group size from mapping block size to tx partition context
 #if CONFIG_FLEX_PARTITION
+#if CONFIG_TX_PARTITION_TYPE_EXT
+#define TXFM_SPLIT_GROUP 9
+#define TXFM_PARTITION_GROUP 17
+#else
 #define TXFM_PARTITION_GROUP 9
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
 #define TXFM_PARTITION_GROUP 8
 #endif  // CONFIG_FLEX_PARTITION

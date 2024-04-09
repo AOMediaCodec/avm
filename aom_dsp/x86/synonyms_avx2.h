@@ -26,15 +26,13 @@
  * Intrinsics prefixed with yy_ operate on or return 256bit YMM registers.
  */
 
-// Loads and stores to do away with the tedium of casting the address
-// to the right type.
-static INLINE __m256i yy_load_256(const void *a) {
-  return _mm256_load_si256((const __m256i *)a);
-}
-
 static INLINE __m256i yy_loadu_256(const void *a) {
   return _mm256_loadu_si256((const __m256i *)a);
 }
+
+// Loads and stores to do away with the tedium of casting the address
+// to the right type.
+static INLINE __m256i yy_load_256(const void *a) { return yy_loadu_256(a); }
 
 static INLINE void yy_store_256(void *const a, const __m256i v) {
   _mm256_store_si256((__m256i *)a, v);

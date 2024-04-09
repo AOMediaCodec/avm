@@ -114,7 +114,7 @@ static INLINE void btf_32_add_sub_out_avx2(__m256i *out0, __m256i *out1,
 }
 
 static INLINE __m256i load_16bit_to_16bit_avx2(const int16_t *a) {
-  return _mm256_load_si256((const __m256i *)a);
+  return _mm256_loadu_si256((const __m256i *)a);
 }
 
 static INLINE void load_buffer_16bit_to_16bit_avx2(const int16_t *in,
@@ -191,17 +191,16 @@ static INLINE void transpose2_8x8_avx2(const __m256i *const in,
 static INLINE void transpose_16bit_16x16_avx2(const __m256i *const in,
                                               __m256i *const out) {
   __m256i t[16];
+#define LOADL(idx)                                                             \
+  t[idx] = _mm256_castsi128_si256(_mm_loadu_si128((__m128i const *)&in[idx])); \
+  t[idx] = _mm256_inserti128_si256(                                            \
+      t[idx], _mm_loadu_si128((__m128i const *)&in[idx + 8]), 1);
 
-#define LOADL(idx)                                                            \
-  t[idx] = _mm256_castsi128_si256(_mm_load_si128((__m128i const *)&in[idx])); \
-  t[idx] = _mm256_inserti128_si256(                                           \
-      t[idx], _mm_load_si128((__m128i const *)&in[idx + 8]), 1);
-
-#define LOADR(idx)                                                           \
-  t[8 + idx] =                                                               \
-      _mm256_castsi128_si256(_mm_load_si128((__m128i const *)&in[idx] + 1)); \
-  t[8 + idx] = _mm256_inserti128_si256(                                      \
-      t[8 + idx], _mm_load_si128((__m128i const *)&in[idx + 8] + 1), 1);
+#define LOADR(idx)                                                            \
+  t[8 + idx] =                                                                \
+      _mm256_castsi128_si256(_mm_loadu_si128((__m128i const *)&in[idx] + 1)); \
+  t[8 + idx] = _mm256_inserti128_si256(                                       \
+      t[8 + idx], _mm_loadu_si128((__m128i const *)&in[idx + 8] + 1), 1);
 
   // load left 8x16
   LOADL(0)

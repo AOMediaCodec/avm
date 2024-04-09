@@ -39,13 +39,11 @@ static INLINE __m128i xx_loadl_64(const void *a) {
   return _mm_loadl_epi64((const __m128i *)a);
 }
 
-static INLINE __m128i xx_load_128(const void *a) {
-  return _mm_load_si128((const __m128i *)a);
-}
-
 static INLINE __m128i xx_loadu_128(const void *a) {
   return _mm_loadu_si128((const __m128i *)a);
 }
+
+static INLINE __m128i xx_load_128(const void *a) { return xx_loadu_128(a); }
 
 // Load 64 bits from each of hi and low, and pack into an SSE register
 // Since directly loading as `int64_t`s and using _mm_set_epi64 may violate

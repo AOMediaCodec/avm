@@ -61,12 +61,12 @@ SIMD_INLINE v256 v256_from_64(uint64_t a, uint64_t b, uint64_t c, uint64_t d) {
   return _mm256_set_epi64x(a, b, c, d);
 }
 
-SIMD_INLINE v256 v256_load_aligned(const void *p) {
-  return _mm256_load_si256((const __m256i *)p);
-}
-
 SIMD_INLINE v256 v256_load_unaligned(const void *p) {
   return _mm256_loadu_si256((const __m256i *)p);
+}
+
+SIMD_INLINE v256 v256_load_aligned(const void *p) {
+  return v256_load_unaligned(p);
 }
 
 SIMD_INLINE void v256_store_aligned(void *p, v256 a) {

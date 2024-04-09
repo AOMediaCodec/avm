@@ -13,18 +13,17 @@
 #include <emmintrin.h>
 
 #include "aom/aom_integer.h"
-
 static INLINE void load_b_values(const int32_t *zbin_ptr, __m128i *zbin,
                                  const int32_t *round_ptr, __m128i *round,
                                  const int32_t *quant_ptr, __m128i *quant,
                                  const int32_t *dequant_ptr, __m128i *dequant,
                                  const int32_t *shift_ptr, __m128i *shift) {
-  *zbin = _mm_load_si128((const __m128i *)zbin_ptr);
-  *round = _mm_load_si128((const __m128i *)round_ptr);
-  *quant = _mm_load_si128((const __m128i *)quant_ptr);
+  *zbin = _mm_loadu_si128((const __m128i *)zbin_ptr);
+  *round = _mm_loadu_si128((const __m128i *)round_ptr);
+  *quant = _mm_loadu_si128((const __m128i *)quant_ptr);
   *zbin = _mm_sub_epi16(*zbin, _mm_set1_epi16(1));
-  *dequant = _mm_load_si128((const __m128i *)dequant_ptr);
-  *shift = _mm_load_si128((const __m128i *)shift_ptr);
+  *dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  *shift = _mm_loadu_si128((const __m128i *)shift_ptr);
 }
 
 // With ssse3 and later abs() and sign() are preferred.
@@ -103,8 +102,8 @@ static INLINE __m128i scan_for_eob(__m128i *coeff0, __m128i *coeff1,
                                    const __m128i zero) {
   const __m128i zero_coeff0 = _mm_cmpeq_epi16(*coeff0, zero);
   const __m128i zero_coeff1 = _mm_cmpeq_epi16(*coeff1, zero);
-  __m128i scan0 = _mm_load_si128((const __m128i *)(scan_ptr + index));
-  __m128i scan1 = _mm_load_si128((const __m128i *)(scan_ptr + index + 8));
+  __m128i scan0 = _mm_loadu_si128((const __m128i *)(scan_ptr + index));
+  __m128i scan1 = _mm_loadu_si128((const __m128i *)(scan_ptr + index + 8));
   __m128i eob0, eob1;
   // Add one to convert from indices to counts
   scan0 = _mm_sub_epi16(scan0, zbin_mask0);
@@ -127,8 +126,8 @@ static INLINE int16_t accumulate_eob(__m128i eob) {
 
 static INLINE __m128i load_coefficients(const tran_low_t *coeff_ptr) {
   assert(sizeof(tran_low_t) == 4);
-  const __m128i coeff1 = _mm_load_si128((__m128i *)(coeff_ptr));
-  const __m128i coeff2 = _mm_load_si128((__m128i *)(coeff_ptr + 4));
+  const __m128i coeff1 = _mm_loadu_si128((__m128i *)(coeff_ptr));
+  const __m128i coeff2 = _mm_loadu_si128((__m128i *)(coeff_ptr + 4));
   return _mm_packs_epi32(coeff1, coeff2);
 }
 
@@ -152,9 +151,9 @@ static INLINE void update_mask1(__m128i *cmp_mask0, __m128i *cmp_mask1,
   __m128i temp_mask = _mm_setzero_si128();
   all_zero = _mm_or_si128(*cmp_mask0, *cmp_mask1);
   if (_mm_movemask_epi8(all_zero)) {
-    __m128i iscan0 = _mm_load_si128((const __m128i *)(iscan_ptr));
+    __m128i iscan0 = _mm_loadu_si128((const __m128i *)(iscan_ptr));
     __m128i mask0 = _mm_and_si128(*cmp_mask0, iscan0);
-    __m128i iscan1 = _mm_load_si128((const __m128i *)(iscan_ptr + 8));
+    __m128i iscan1 = _mm_loadu_si128((const __m128i *)(iscan_ptr + 8));
     __m128i mask1 = _mm_and_si128(*cmp_mask1, iscan1);
     temp_mask = _mm_max_epi16(mask0, mask1);
     *is_found = 1;

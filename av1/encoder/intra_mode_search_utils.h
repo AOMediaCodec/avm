@@ -372,6 +372,14 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const int max_blocks_wide = max_block_wide(xd, bsize, 0);
   const int max_blocks_high = max_block_high(xd, bsize, 0);
   mbmi->tx_size = tx_size;
+
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  mbmi->tx_partition_type[0] = TX_PARTITION_NONE;
+  get_tx_partition_sizes(mbmi->tx_partition_type[0], tx_size, &mbmi->txb_pos,
+                         mbmi->sub_txs);
+  mbmi->txb_idx = 0;
+#endif
+
   // Prediction.
   for (row = 0; row < max_blocks_high; row += stepr) {
     for (col = 0; col < max_blocks_wide; col += stepc) {

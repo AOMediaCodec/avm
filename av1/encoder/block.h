@@ -1205,15 +1205,31 @@ typedef struct {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  //! txfm_do_partition_cost
+  int txfm_do_partition_cost[FSC_MODES][2][TXFM_SPLIT_GROUP][2];
+  //! txfm_4way_partition_type_cost
+  int txfm_4way_partition_type_cost[FSC_MODES][2][TXFM_PARTITION_GROUP - 1]
+                                   [TX_PARTITION_TYPE_NUM];
+#else
   //! txfm_do_partition_cost
   int txfm_do_partition_cost[FSC_MODES][2][TXFM_PARTITION_GROUP][2];
   //! txfm_4way_partition_type_cost
   int txfm_4way_partition_type_cost[FSC_MODES][2][TXFM_PARTITION_GROUP - 1][3];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#else
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  //! txfm_do_partition_cost
+  int txfm_do_partition_cost[2][TXFM_SPLIT_GROUP][2];
+  //! txfm_4way_partition_type_cost
+  int txfm_4way_partition_type_cost[2][TXFM_PARTITION_GROUP - 1]
+                                   [TX_PARTITION_TYPE_NUM];
 #else
   //! txfm_do_partition_cost
   int txfm_do_partition_cost[2][TXFM_PARTITION_GROUP][2];
   //! txfm_4way_partition_type_cost
   int txfm_4way_partition_type_cost[2][TXFM_PARTITION_GROUP - 1][3];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #endif  // CONFIG_IMPROVEIDTX_CTXS
 #else
   //! intra_4way_txfm_partition_cost

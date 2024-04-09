@@ -24,13 +24,13 @@ static INLINE void highbd_load_b_values_avx2(
     __m256i *round, const int32_t *quant_ptr, __m256i *quant,
     const int32_t *dequant_ptr, __m256i *dequant, const int32_t *shift_ptr,
     __m256i *shift) {
-  *zbin = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)zbin_ptr));
+  *zbin = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)zbin_ptr));
   *zbin = _mm256_sub_epi32(*zbin, _mm256_set1_epi32(1));
-  *round = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)round_ptr));
-  *quant = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)quant_ptr));
+  *round = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)round_ptr));
+  *quant = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)quant_ptr));
   *dequant =
-      _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)dequant_ptr));
-  *shift = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)shift_ptr));
+      _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)dequant_ptr));
+  *shift = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)shift_ptr));
 }
 
 static INLINE void highbd_update_mask1_avx2(__m256i *cmp_mask,
@@ -144,9 +144,9 @@ void aom_highbd_quantize_b_adaptive_avx2(
                             &shift);
 
   // Do DC and first 15 AC.
-  coeff0 = _mm256_load_si256((__m256i *)(coeff_ptr));
+  coeff0 = _mm256_loadu_si256((__m256i *)(coeff_ptr));
   qcoeff0 = _mm256_abs_epi32(coeff0);
-  coeff1 = _mm256_load_si256((__m256i *)(coeff_ptr + 8));
+  coeff1 = _mm256_loadu_si256((__m256i *)(coeff_ptr + 8));
   qcoeff1 = _mm256_abs_epi32(coeff1);
   highbd_update_mask0_avx2(&qcoeff0, &qcoeff1, threshold, iscan, &is_found0,
                            &mask0);
@@ -186,9 +186,9 @@ void aom_highbd_quantize_b_adaptive_avx2(
 
   // AC only loop.
   while (index < n_coeffs) {
-    coeff0 = _mm256_load_si256((__m256i *)(coeff_ptr + index));
+    coeff0 = _mm256_loadu_si256((__m256i *)(coeff_ptr + index));
     qcoeff0 = _mm256_abs_epi32(coeff0);
-    coeff1 = _mm256_load_si256((__m256i *)(coeff_ptr + index + 8));
+    coeff1 = _mm256_loadu_si256((__m256i *)(coeff_ptr + index + 8));
     qcoeff1 = _mm256_abs_epi32(coeff1);
     highbd_update_mask0_avx2(&qcoeff0, &qcoeff1, threshold, iscan + index,
                              &is_found0, &mask0);
@@ -312,12 +312,13 @@ void aom_highbd_quantize_b_32x32_adaptive_avx2(
 #endif
 
   // Setup global values.
-  zbin = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)zbin_ptr));
-  round = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)round_ptr));
-  quant = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)quant_ptr));
-  dequant = _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)dequant_ptr));
+  zbin = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)zbin_ptr));
+  round = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)round_ptr));
+  quant = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)quant_ptr));
+  dequant =
+      _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)dequant_ptr));
   shift =
-      _mm256_cvtepi16_epi32(_mm_load_si128((const __m128i *)quant_shift_ptr));
+      _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i *)quant_shift_ptr));
 
   // Shift with rounding.
   zbin = _mm256_add_epi32(zbin, log_scale_vec);
@@ -327,9 +328,9 @@ void aom_highbd_quantize_b_32x32_adaptive_avx2(
   zbin = _mm256_sub_epi32(zbin, one);
 
   // Do DC and first 15 AC.
-  coeff0 = _mm256_load_si256((__m256i *)(coeff_ptr));
+  coeff0 = _mm256_loadu_si256((__m256i *)(coeff_ptr));
   qcoeff0 = _mm256_abs_epi32(coeff0);
-  coeff1 = _mm256_load_si256((__m256i *)(coeff_ptr + 8));
+  coeff1 = _mm256_loadu_si256((__m256i *)(coeff_ptr + 8));
   qcoeff1 = _mm256_abs_epi32(coeff1);
   highbd_update_mask0_avx2(&qcoeff0, &qcoeff1, threshold, iscan, &is_found0,
                            &mask0);
@@ -371,10 +372,11 @@ void aom_highbd_quantize_b_32x32_adaptive_avx2(
 
   // AC only loop.
   while (index < n_coeffs) {
-    coeff0 = _mm256_load_si256((__m256i *)(coeff_ptr + index));
+    coeff0 = _mm256_loadu_si256((__m256i *)(coeff_ptr + index));
     qcoeff0 = _mm256_abs_epi32(coeff0);
-    coeff1 = _mm256_load_si256((__m256i *)(coeff_ptr + index + 8));
+    coeff1 = _mm256_loadu_si256((__m256i *)(coeff_ptr + index + 8));
     qcoeff1 = _mm256_abs_epi32(coeff1);
+
     highbd_update_mask0_avx2(&qcoeff0, &qcoeff1, threshold, iscan + index,
                              &is_found0, &mask0);
     temp0 = _mm256_cmpgt_epi32(qcoeff0, zbin);

@@ -163,6 +163,13 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
     TX_SIZE min_tx_size = depth_to_tx_size(MAX_TX_DEPTH, bsize);
     mbmi->tx_size = (TX_SIZE)TXSIZEMAX(mbmi->tx_size, min_tx_size);
   }
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
+#if CONFIG_NEW_TX_PARTITION
+  memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
+         sizeof(mbmi->tx_partition_type));
+#endif  // CONFIG_NEW_TX_PARTITION
+#else
   if (is_inter_block(mbmi, xd->tree_type)) {
     memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
 #if CONFIG_NEW_TX_PARTITION
@@ -170,6 +177,7 @@ static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
            sizeof(mbmi->tx_partition_type));
 #endif  // CONFIG_NEW_TX_PARTITION
   }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   const int stride = xd->tx_type_map_stride;
   const int bw = mi_size_wide[mbmi->sb_type[plane_index]];
   for (int row = 0; row < mi_size_high[mbmi->sb_type[plane_index]]; ++row) {
@@ -1593,10 +1601,17 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->comp_ref1_cdf, ctx_tr->comp_ref1_cdf, 2);
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  AVERAGE_CDF(ctx_left->txfm_do_partition_cdf, ctx_tr->txfm_do_partition_cdf,
+              2);
+  AVERAGE_CDF(ctx_left->txfm_4way_partition_type_cdf,
+              ctx_tr->txfm_4way_partition_type_cdf, TX_PARTITION_TYPE_NUM);
+#else
   AVERAGE_CDF(ctx_left->txfm_do_partition_cdf, ctx_tr->txfm_do_partition_cdf,
               2);
   AVERAGE_CDF(ctx_left->txfm_4way_partition_type_cdf,
               ctx_tr->txfm_4way_partition_type_cdf, 3);
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
   // Square blocks
   AVERAGE_CDF(ctx_left->inter_4way_txfm_partition_cdf[0],

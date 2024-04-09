@@ -28,10 +28,10 @@ int64_t av1_highbd_block_error_sse2(const tran_low_t *coeff,
 
   for (i = 0; i < block_size; i += 8) {
     // Load the data into xmm registers
-    __m128i mm_coeff = _mm_load_si128((__m128i *)(coeff + i));
-    __m128i mm_coeff2 = _mm_load_si128((__m128i *)(coeff + i + 4));
-    __m128i mm_dqcoeff = _mm_load_si128((__m128i *)(dqcoeff + i));
-    __m128i mm_dqcoeff2 = _mm_load_si128((__m128i *)(dqcoeff + i + 4));
+    __m128i mm_coeff = _mm_loadu_si128((__m128i *)(coeff + i));
+    __m128i mm_coeff2 = _mm_loadu_si128((__m128i *)(coeff + i + 4));
+    __m128i mm_dqcoeff = _mm_loadu_si128((__m128i *)(dqcoeff + i));
+    __m128i mm_dqcoeff2 = _mm_loadu_si128((__m128i *)(dqcoeff + i + 4));
     // Check if any values require more than 15 bit
     max = _mm_set1_epi32(0x3fff);
     min = _mm_set1_epi32(0xffffc000);

@@ -112,6 +112,45 @@ static const uint8_t size_group_lookup[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 
+#if CONFIG_TX_PARTITION_TYPE_EXT
+#if CONFIG_TX_PARTITION_CTX
+// Maps a block size to a transform partition context.
+// 1) 0: for block sizes do not allow 4way partition
+// 2) For 8x8 <= square block size < 64x64, assuming i mapping value is a used
+//    for NxN square block size, then (i + 1) is the mapping value of (N)x(2N)
+//    and (2N)x(N) sizes.
+// 3) For block size >= 64x64, the mapping value is 7
+#if CONFIG_FLEX_PARTITION
+// 4) For 1:4/4:1 and 1:8/8:1 block sizes, mapping value is 8
+#endif  // CONFIG_FLEX_PARTITION
+
+static const uint8_t size_to_tx_part_group_lookup[BLOCK_SIZES_ALL] = {
+  0, 0, 0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 7, 7, 7,
+#if CONFIG_BLOCK_256
+  7, 7, 7,
+#endif  // CONFIG_BLOCK_256
+  8, 8,
+#if CONFIG_FLEX_PARTITION
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8
+#else
+  0, 0, 0, 0
+#endif  // CONFIG_FLEX_PARTITION
+};
+#endif  // CONFIG_TX_PARTITION_CTX
+
+static const uint8_t size_to_tx_type_group_lookup[BLOCK_SIZES_ALL] = {
+  0,  0,  0,  1,  2,  3,  4, 5, 6, 7, 8, 9, 10, 10, 10, 10,
+#if CONFIG_BLOCK_256
+  10, 10, 10,
+#endif  // CONFIG_BLOCK_256
+  11, 12, 13, 14, 15, 16,
+#if CONFIG_FLEX_PARTITION
+  11, 12, 13, 14, 11, 12
+#else
+  0,  0,  0,  0
+#endif  // CONFIG_FLEX_PARTITION
+};
+#else
 #if CONFIG_TX_PARTITION_CTX
 // Maps a block size to a transform partition context.
 // 1) 0: for block sizes do not allow 4way partition
@@ -135,6 +174,7 @@ static const uint8_t size_to_tx_part_group_lookup[BLOCK_SIZES_ALL] = {
 #endif  // CONFIG_FLEX_PARTITION
 };
 #endif  // CONFIG_TX_PARTITION_CTX
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 
 static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
   0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6,

@@ -38,8 +38,8 @@ static INLINE void load_b_values_avx2(const int32_t *zbin_ptr, __m256i *zbin,
 }
 
 static INLINE __m256i load_coefficients_avx2(const tran_low_t *coeff_ptr) {
-  const __m256i coeff1 = _mm256_load_si256((__m256i *)(coeff_ptr));
-  const __m256i coeff2 = _mm256_load_si256((__m256i *)(coeff_ptr + 8));
+  const __m256i coeff1 = _mm256_loadu_si256((__m256i *)(coeff_ptr));
+  const __m256i coeff2 = _mm256_loadu_si256((__m256i *)(coeff_ptr + 8));
   return _mm256_packs_epi32(coeff1, coeff2);
 }
 

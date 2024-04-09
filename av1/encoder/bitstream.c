@@ -342,6 +342,53 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
     const int allow_horz = allow_tx_horz_split(max_tx_size);
     const int allow_vert = allow_tx_vert_split(max_tx_size);
 #if CONFIG_TX_PARTITION_CTX
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    const int bsize_group = size_to_tx_part_group_lookup[bsize];
+    const int txsize_group = size_to_tx_type_group_lookup[bsize];
+    int do_partition = 0;
+    if (allow_horz || allow_vert) {
+      do_partition = (partition != TX_PARTITION_NONE);
+      aom_cdf_prob *do_partition_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+          ec_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
+#else
+          ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+      aom_write_symbol(w, do_partition, do_partition_cdf, 2);
+    }
+
+    if (do_partition) {
+      if (allow_horz && allow_vert) {
+        assert(txsize_group > 0);
+        aom_cdf_prob *partition_type_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+            ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
+                                                [txsize_group - 1];
+#else
+            ec_ctx->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+        aom_write_symbol(w, partition - 1, partition_type_cdf,
+                         TX_PARTITION_TYPE_NUM);
+      } else if (allow_horz || allow_vert) {
+        int has_first_split = 0;
+        if (partition == TX_PARTITION_VERT_M ||
+            partition == TX_PARTITION_HORZ_M)
+          has_first_split = 1;
+
+        if (txsize_group) {
+          aom_cdf_prob *partition_type_cdf =
+#if CONFIG_IMPROVEIDTX_CTXS
+              ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
+                                                  [txsize_group - 1];
+#else
+              ec_ctx->txfm_4way_partition_type_cdf[is_inter][txsize_group - 1];
+#endif  // CONFIG_IMPROVEIDTX_CTXS
+          aom_write_symbol(w, has_first_split, partition_type_cdf,
+                           TX_PARTITION_TYPE_NUM);
+        }
+      }
+    }
+#else
     const int bsize_group = size_to_tx_part_group_lookup[bsize];
     int do_partition = 0;
     if (allow_horz || allow_vert) {
@@ -368,6 +415,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
         aom_write_symbol(w, partition - 1, partition_type_cdf, 3);
       }
     }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
     if (allow_horz && allow_vert) {
       const int split4_ctx =
@@ -963,12 +1011,21 @@ static AOM_INLINE void pack_txb_tokens(
 
   const struct macroblockd_plane *const pd = &xd->plane[plane];
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
+  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
+  const TX_SIZE plane_tx_size =
+      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
+                                    pd->subsampling_y)
+            : mbmi->inter_tx_size[index];
+#else
   const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
                                     pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(mbmi->sb_type[plane > 0], pd->subsampling_x,
@@ -993,6 +1050,29 @@ static AOM_INLINE void pack_txb_tokens(
     (void)token_stats;
     (void)bit_depth;
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    TXB_POS_INFO txb_pos;
+    get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, &txb_pos,
+                           sub_txs);
+    for (int txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
+      const TX_SIZE sub_tx = sub_txs[txb_idx];
+      const int bsw = tx_size_wide_unit[sub_tx];
+      const int bsh = tx_size_high_unit[sub_tx];
+      const int sub_step = bsw * bsh;
+      const int offsetr = blk_row + txb_pos.row_offset[txb_idx];
+      const int offsetc = blk_col + txb_pos.col_offset[txb_idx];
+      if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+      av1_write_coeffs_txb_facade(w, cm, x, xd, mbmi, plane, block, offsetr,
+                                  offsetc, sub_tx);
+#if CONFIG_RD_DEBUG
+      TOKEN_STATS tmp_token_stats;
+      init_token_stats(&tmp_token_stats);
+      token_stats->txb_coeff_cost_map[offsetr][offsetc] = tmp_token_stats.cost;
+      token_stats->cost += tmp_token_stats.cost;
+#endif
+      block += sub_step;
+    }
+#else
     const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, sub_txs);
     int cur_partition = 0;
@@ -1019,6 +1099,7 @@ static AOM_INLINE void pack_txb_tokens(
         cur_partition++;
       }
     }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
     const int bsw = tx_size_wide_unit[sub_txs];

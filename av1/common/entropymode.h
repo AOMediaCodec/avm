@@ -391,16 +391,29 @@ typedef struct frame_contexts {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  aom_cdf_prob txfm_do_partition_cdf[FSC_MODES][2][TXFM_SPLIT_GROUP]
+                                    [CDF_SIZE(2)];
+  aom_cdf_prob txfm_4way_partition_type_cdf[FSC_MODES][2]
+                                           [TXFM_PARTITION_GROUP - 1]
+                                           [CDF_SIZE(TX_PARTITION_TYPE_NUM)];
+#else
   aom_cdf_prob txfm_do_partition_cdf[FSC_MODES][2][TXFM_PARTITION_GROUP]
                                     [CDF_SIZE(2)];
   aom_cdf_prob txfm_4way_partition_type_cdf[FSC_MODES][2][TXFM_PARTITION_GROUP -
                                                           1][CDF_SIZE(3)];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#else
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  aom_cdf_prob txfm_do_partition_cdf[2][TXFM_SPLIT_GROUP][CDF_SIZE(2)];
+  aom_cdf_prob txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1]
+                                           [CDF_SIZE(TX_PARTITION_TYPE_NUM)];
 #else
   aom_cdf_prob txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)];
   aom_cdf_prob txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1]
                                            [CDF_SIZE(3)];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #endif  // CONFIG_IMPROVEIDTX_CTXS
-
 #else
   aom_cdf_prob inter_4way_txfm_partition_cdf[2][TXFM_PARTITION_INTER_CONTEXTS]
                                             [CDF_SIZE(4)];

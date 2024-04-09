@@ -46,7 +46,7 @@ void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
   for (i = ((int)count / 4) - 1; i >= 0; i--) {
     __m128i coeffs, cmp1, cmp2;
     int test;
-    coeffs = _mm_load_si128((const __m128i *)(coeff_ptr + i * 4));
+    coeffs = _mm_loadu_si128((const __m128i *)(coeff_ptr + i * 4));
     cmp1 = _mm_cmplt_epi32(coeffs, zbins[i != 0]);
     cmp2 = _mm_cmpgt_epi32(coeffs, nzbins[i != 0]);
     cmp1 = _mm_and_si128(cmp1, cmp2);
@@ -64,7 +64,7 @@ void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
     int abs_coeff[4];
     int coeff_sign[4];
 
-    coeffs = _mm_load_si128((const __m128i *)(coeff_ptr + i * 4));
+    coeffs = _mm_loadu_si128((const __m128i *)(coeff_ptr + i * 4));
     coeffs_sign = _mm_srai_epi32(coeffs, 31);
     coeffs = _mm_sub_epi32(_mm_xor_si128(coeffs, coeffs_sign), coeffs_sign);
     tmp1 = _mm_cmpgt_epi32(coeffs, zbins[i != 0]);
@@ -122,7 +122,7 @@ void aom_highbd_quantize_b_32x32_sse2(
   for (i = 0; i < n_coeffs / 4; i++) {
     __m128i coeffs, cmp1, cmp2;
     int test;
-    coeffs = _mm_load_si128((const __m128i *)(coeff_ptr + i * 4));
+    coeffs = _mm_loadu_si128((const __m128i *)(coeff_ptr + i * 4));
     cmp1 = _mm_cmplt_epi32(coeffs, zbins[i != 0]);
     cmp2 = _mm_cmpgt_epi32(coeffs, nzbins[i != 0]);
     cmp1 = _mm_and_si128(cmp1, cmp2);
@@ -185,7 +185,7 @@ void aom_highbd_quantize_b_64x64_sse2(
   for (i = 0; i < n_coeffs / 4; i++) {
     __m128i coeffs, cmp1, cmp2;
     int test;
-    coeffs = _mm_load_si128((const __m128i *)(coeff_ptr + i * 4));
+    coeffs = _mm_loadu_si128((const __m128i *)(coeff_ptr + i * 4));
     cmp1 = _mm_cmplt_epi32(coeffs, zbins[i != 0]);
     cmp2 = _mm_cmpgt_epi32(coeffs, nzbins[i != 0]);
     cmp1 = _mm_and_si128(cmp1, cmp2);

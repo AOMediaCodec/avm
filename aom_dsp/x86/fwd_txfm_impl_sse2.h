@@ -242,14 +242,14 @@ void FDCT8x8_2D(const int16_t *input, tran_low_t *output, int stride) {
   const __m128i k__DCT_CONST_ROUNDING = _mm_set1_epi32(DCT_CONST_ROUNDING);
   int overflow;
   // Load input
-  __m128i in0 = _mm_load_si128((const __m128i *)(input + 0 * stride));
-  __m128i in1 = _mm_load_si128((const __m128i *)(input + 1 * stride));
-  __m128i in2 = _mm_load_si128((const __m128i *)(input + 2 * stride));
-  __m128i in3 = _mm_load_si128((const __m128i *)(input + 3 * stride));
-  __m128i in4 = _mm_load_si128((const __m128i *)(input + 4 * stride));
-  __m128i in5 = _mm_load_si128((const __m128i *)(input + 5 * stride));
-  __m128i in6 = _mm_load_si128((const __m128i *)(input + 6 * stride));
-  __m128i in7 = _mm_load_si128((const __m128i *)(input + 7 * stride));
+  __m128i in0 = _mm_loadu_si128((const __m128i *)(input + 0 * stride));
+  __m128i in1 = _mm_loadu_si128((const __m128i *)(input + 1 * stride));
+  __m128i in2 = _mm_loadu_si128((const __m128i *)(input + 2 * stride));
+  __m128i in3 = _mm_loadu_si128((const __m128i *)(input + 3 * stride));
+  __m128i in4 = _mm_loadu_si128((const __m128i *)(input + 4 * stride));
+  __m128i in5 = _mm_loadu_si128((const __m128i *)(input + 5 * stride));
+  __m128i in6 = _mm_loadu_si128((const __m128i *)(input + 6 * stride));
+  __m128i in7 = _mm_loadu_si128((const __m128i *)(input + 7 * stride));
   // Pre-condition input (shift by two)
   in0 = _mm_slli_epi16(in0, 2);
   in1 = _mm_slli_epi16(in1, 2);

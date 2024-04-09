@@ -1623,12 +1623,24 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_IMPROVEIDTX_CTXS
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  unsigned int txfm_do_partition[FSC_MODES][2][TXFM_SPLIT_GROUP][2];
+  unsigned int txfm_4way_partition_type[FSC_MODES][2][TXFM_PARTITION_GROUP - 1]
+                                       [TX_PARTITION_TYPE_NUM];
+#else
   unsigned int txfm_do_partition[FSC_MODES][2][TXFM_PARTITION_GROUP][2];
   unsigned int txfm_4way_partition_type[FSC_MODES][2][TXFM_PARTITION_GROUP - 1]
                                        [3];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#else
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  unsigned int txfm_do_partition[2][TXFM_SPLIT_GROUP][2];
+  unsigned int txfm_4way_partition_type[2][TXFM_PARTITION_GROUP - 1]
+                                       [TX_PARTITION_TYPE_NUM];
 #else
   unsigned int txfm_do_partition[2][TXFM_PARTITION_GROUP][2];
   unsigned int txfm_4way_partition_type[2][TXFM_PARTITION_GROUP - 1][3];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #endif  // CONFIG_IMPROVEIDTX_CTXS
 #else
   unsigned int intra_4way_txfm_partition[2][TX_SIZE_CONTEXTS][4];

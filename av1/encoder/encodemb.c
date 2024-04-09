@@ -960,20 +960,29 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
 
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
 #if CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
+  const TX_SIZE plane_tx_size =
+      plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
+                                    pd->subsampling_y)
+            : mbmi->inter_tx_size[index];
+#else
   const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(bsize_base, pd->subsampling_x,
                                     pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 #else
   const TX_SIZE plane_tx_size =
       plane ? av1_get_max_uv_txsize(mbmi->sb_type[xd->tree_type == CHROMA_PART],
                                     pd->subsampling_x, pd->subsampling_y)
             : mbmi->inter_tx_size[av1_get_txb_size_index(plane_bsize, blk_row,
                                                          blk_col)];
-#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   if (!plane) {
     assert(tx_size_wide[tx_size] >= tx_size_wide[plane_tx_size] &&
            tx_size_high[tx_size] >= tx_size_high[plane_tx_size]);
@@ -984,6 +993,22 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
                  dry_run);
   } else {
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size,
+                           &mbmi->txb_pos, mbmi->sub_txs);
+    for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
+      const TX_SIZE sub_tx = mbmi->sub_txs[txb_idx];
+      int bsw = tx_size_wide_unit[sub_tx];
+      int bsh = tx_size_high_unit[sub_tx];
+      const int sub_step = bsw * bsh;
+      const int offsetr = blk_row + mbmi->txb_pos.row_offset[txb_idx];
+      const int offsetc = blk_col + mbmi->txb_pos.col_offset[txb_idx];
+      if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+      encode_block(plane, block, offsetr, offsetc, plane_bsize, sub_tx, arg,
+                   dry_run);
+      block += sub_step;
+    }
+#else
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
     const int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, sub_txs);
@@ -1004,6 +1029,7 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
         cur_partition++;
       }
     }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #else
     assert(tx_size < TX_SIZES_ALL);
     const TX_SIZE sub_txs = sub_tx_size_map[tx_size];
@@ -1511,8 +1537,61 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
   if (enable_optimize_b) {
     av1_get_entropy_contexts(plane_bsize, pd, ta, tl);
   }
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  if (plane == AOM_PLANE_Y && !xd->lossless[xd->mi[0]->segment_id]) {
+    MB_MODE_INFO *mbmi = xd->mi[0];
+    const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
+    get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
+                           &mbmi->txb_pos, mbmi->sub_txs);
+    // If mb_to_right_edge is < 0 we are in a situation in which
+    // the current block size extends into the UMV and we won't
+    // visit the sub blocks that are wholly within the UMV.
+    const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
+    const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
+    const BLOCK_SIZE max_unit_bsize =
+        get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+    const int mu_blocks_wide =
+        AOMMIN(mi_size_wide[max_unit_bsize], max_blocks_wide);
+    const int mu_blocks_high =
+        AOMMIN(mi_size_high[max_unit_bsize], max_blocks_high);
+
+    // Keep track of the row and column of the blocks we use so that we know
+    // if we are in the unrestricted motion border.
+    int i = 0;
+    for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
+      const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
+      // Skip visiting the sub blocks that are wholly within the UMV.
+      for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
+        const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
+
+        for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
+          TX_SIZE tx_size = mbmi->sub_txs[txb_idx];
+          mbmi->txb_idx = txb_idx;
+
+          const uint8_t txw_unit = tx_size_wide_unit[tx_size];
+          const uint8_t txh_unit = tx_size_high_unit[tx_size];
+          const int step = txw_unit * txh_unit;
+
+          int blk_row = r + mbmi->txb_pos.row_offset[txb_idx];
+          int blk_col = c + mbmi->txb_pos.col_offset[txb_idx];
+
+          if (blk_row >= unit_height || blk_col >= unit_width) continue;
+
+          mbmi->tx_size = tx_size;
+          encode_block_intra_and_set_context(plane, i, blk_row, blk_col,
+                                             plane_bsize, tx_size, &arg);
+          i += step;
+        }
+      }
+    }
+  } else {
+    av1_foreach_transformed_block_in_plane(
+        xd, plane_bsize, plane, encode_block_intra_and_set_context, &arg);
+  }
+#else
   av1_foreach_transformed_block_in_plane(
       xd, plane_bsize, plane, encode_block_intra_and_set_context, &arg);
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 }
 
 // Jointly encode two chroma components for an intra block.

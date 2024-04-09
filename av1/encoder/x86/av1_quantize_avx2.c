@@ -180,9 +180,9 @@ void av1_quantize_lp_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 
     // Setup global values
     {
-      const __m128i round = _mm_load_si128((const __m128i *)round_ptr);
-      const __m128i quant = _mm_load_si128((const __m128i *)quant_ptr);
-      const __m128i dequant = _mm_load_si128((const __m128i *)dequant_ptr);
+      const __m128i round = _mm_loadu_si128((const __m128i *)round_ptr);
+      const __m128i quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+      const __m128i dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
       round256 = _mm256_castsi128_si256(round);
       round256 = _mm256_permute4x64_epi64(round256, 0x54);
 

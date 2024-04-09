@@ -1144,13 +1144,18 @@ static AOM_INLINE void inverse_transform_block_facade(MACROBLOCK *const x,
                                                       int plane, int block,
                                                       int blk_row, int blk_col,
                                                       int eob,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+                                                      TX_SIZE tx_size,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
                                                       int reduced_tx_set) {
   if (!eob) return;
   struct macroblock_plane *const p = &x->plane[plane];
   MACROBLOCKD *const xd = &x->e_mbd;
   tran_low_t *dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
   const PLANE_TYPE plane_type = get_plane_type(plane);
+#if !CONFIG_TX_PARTITION_TYPE_EXT
   const TX_SIZE tx_size = av1_get_tx_size(plane, xd);
+#endif  //! CONFIG_TX_PARTITION_TYPE_EXT
   const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col,
                                           tx_size, reduced_tx_set);
 
@@ -1236,13 +1241,22 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       av1_inv_cross_chroma_tx_block(dqcoeff_c1, dqcoeff_c2, tx_size, cctx_type);
       inverse_transform_block_facade(x, AOM_PLANE_U, block, blk_row, blk_col,
                                      max_chroma_eob,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+                                     tx_size,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
                                      cm->features.reduced_tx_set_used);
       inverse_transform_block_facade(x, AOM_PLANE_V, block, blk_row, blk_col,
                                      max_chroma_eob,
+#if CONFIG_TX_PARTITION_TYPE_EXT
+                                     tx_size,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
                                      cm->features.reduced_tx_set_used);
     } else if (plane == AOM_PLANE_Y) {
       inverse_transform_block_facade(x, plane, block, blk_row, blk_col,
                                      x->plane[plane].eobs[block],
+#if CONFIG_TX_PARTITION_TYPE_EXT
+                                     tx_size,
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
                                      cm->features.reduced_tx_set_used);
     }
 
@@ -3516,10 +3530,33 @@ static void select_tx_partition_type(
         continue;
       }
     }
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    if ((type == TX_PARTITION_HORZ_M &&
+         best_tx_partition == TX_PARTITION_VERT) ||
+        (type == TX_PARTITION_VERT_M &&
+         best_tx_partition == TX_PARTITION_HORZ)) {
+      continue;
+    }
 
+    if (cpi->sf.tx_sf.restrict_tx_partition_type_search) {
+      if ((type == TX_PARTITION_HORZ_M &&
+           best_tx_partition != TX_PARTITION_HORZ) ||
+          (type == TX_PARTITION_VERT_M &&
+           best_tx_partition != TX_PARTITION_VERT)) {
+        continue;
+      }
+
+      if (type >= TX_PARTITION_HORZ_M && !is_rect) {
+        continue;
+      }
+    }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
     RD_STATS partition_rd_stats;
     av1_init_rd_stats(&partition_rd_stats);
     int64_t tmp_rd = 0;
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    bool all_zero_blk = true;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 
     // Initialize entropy contexts for this search iteration
     ENTROPY_CONTEXT cur_ta[MAX_MIB_SIZE] = { 0 };
@@ -3543,6 +3580,62 @@ static void select_tx_partition_type(
     }
 
     // Get transform sizes created by this partition type
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    TXB_POS_INFO txb_pos;
+    get_tx_partition_sizes(type, max_tx_size, &txb_pos, sub_txs);
+    uint8_t this_blk_skip[MAX_TX_PARTITIONS] = { 0 };
+    uint8_t partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
+    TX_PARTITION_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
+    int cur_block = block;
+
+    // Compute cost of each tx size in this partition
+    for (int txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
+      // Terminate early if the rd cost is higher than the reference rd
+      if (tmp_rd > ref_best_rd) {
+        tmp_rd = INT64_MAX;
+        continue;
+      }
+
+      RD_STATS this_rd_stats;
+      av1_init_rd_stats(&this_rd_stats);
+      const TX_SIZE sub_tx = sub_txs[txb_idx];
+      int bsw = tx_size_wide_unit[sub_tx];
+      int bsh = tx_size_high_unit[sub_tx];
+      const int sub_step = bsw * bsh;
+      const int offsetr = blk_row + txb_pos.row_offset[txb_idx];
+      const int offsetc = blk_col + txb_pos.col_offset[txb_idx];
+      if (offsetr >= max_blocks_high || offsetc >= max_blocks_wide) continue;
+      // Try tx size and compute rd cost
+      TxCandidateInfo no_split = { INT64_MAX, 0, TX_TYPES };
+      try_tx_block_no_split(cpi, x, offsetr, offsetc, cur_block, sub_tx, 0,
+                            plane_bsize, cur_ta, cur_tl, -1, &this_rd_stats,
+                            ref_best_rd - tmp_rd, ftxs_mode, rd_info_node,
+                            &no_split);
+      partition_entropy_ctxs[txb_idx] = no_split.txb_entropy_ctx;
+      partition_tx_types[txb_idx] = no_split.tx_type;
+      this_blk_skip[txb_idx] = this_rd_stats.skip_txfm;
+      if (this_rd_stats.skip_txfm == 0) all_zero_blk = false;
+
+      av1_merge_rd_stats(&partition_rd_stats, &this_rd_stats);
+      tmp_rd =
+          RDCOST(x->rdmult, partition_rd_stats.rate, partition_rd_stats.dist);
+
+      // Terminate early if the rd cost is higher than the best so far
+      if (tmp_rd > best_rd) {
+        tmp_rd = INT64_MAX;
+        continue;
+      }
+
+      p->txb_entropy_ctx[cur_block] = no_split.txb_entropy_ctx;
+      av1_set_txb_context(x, 0, cur_block, sub_tx, cur_ta + offsetc,
+                          cur_tl + offsetr);
+      txfm_partition_update(cur_tx_above + offsetc, cur_tx_left + offsetr,
+                            sub_tx, sub_tx);
+      cur_block += sub_step;
+    }
+
+    if (all_zero_blk == true && type != TX_PARTITION_NONE) continue;
+#else
     get_tx_partition_sizes(type, max_tx_size, sub_txs);
     int cur_partition = 0;
     int bsw = 0, bsh = 0;
@@ -3600,7 +3693,7 @@ static void select_tx_partition_type(
         cur_partition++;
       }
     }
-
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
     // Update the best partition so far
     if (tmp_rd <= best_rd) {
       best_rd = tmp_rd;
@@ -3635,6 +3728,33 @@ static void select_tx_partition_type(
   // Finalize tx size selection once best partition is found
   int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
   mbmi->tx_partition_type[index] = best_tx_partition;
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  TXB_POS_INFO txb_pos;
+  get_tx_partition_sizes(best_tx_partition, max_tx_size, &txb_pos, sub_txs);
+
+  for (int txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
+    const TX_SIZE sub_tx = sub_txs[txb_idx];
+    int bsw = tx_size_wide_unit[sub_tx];
+    int bsh = tx_size_high_unit[sub_tx];
+    const int sub_step = bsw * bsh;
+    const int offsetr = blk_row + txb_pos.row_offset[txb_idx];
+    const int offsetc = blk_col + txb_pos.col_offset[txb_idx];
+    ENTROPY_CONTEXT *pta = ta + offsetc;
+    ENTROPY_CONTEXT *ptl = tl + offsetr;
+    const TX_SIZE tx_size_selected = sub_tx;
+    p->txb_entropy_ctx[block] = best_partition_entropy_ctxs[txb_idx];
+    av1_set_txb_context(x, 0, block, tx_size_selected, pta, ptl);
+    txfm_partition_update(tx_above + offsetc, tx_left + offsetr, sub_tx,
+                          sub_tx);
+    mbmi->tx_size = tx_size_selected;
+    mbmi->inter_tx_size[index] = tx_size_selected;
+    update_txk_array(xd, offsetr, offsetc, sub_tx,
+                     best_partition_tx_types[txb_idx]);
+    set_blk_skip(x->txfm_search_info.blk_skip, 0, offsetr * bw + offsetc,
+                 full_blk_skip[txb_idx]);
+    block += sub_step;
+  }
+#else
   get_tx_partition_sizes(best_tx_partition, max_tx_size, sub_txs);
   int cur_partition = 0;
   int bsw = 0, bsh = 0;
@@ -3669,6 +3789,7 @@ static void select_tx_partition_type(
       cur_partition++;
     }
   }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 }
 #else
 // Search for the best transform partition(recursive)/type for a given
@@ -3814,7 +3935,12 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
     mbmi->tx_size = tx_size_max_32[mbmi->tx_size];
   }
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
+         sizeof(mbmi->tx_partition_type));
+#else
   mbmi->tx_partition_type[0] = TX_PARTITION_NONE;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 #endif  // CONFIG_NEW_TX_PARTITION
 
   const int skip_ctx = av1_get_skip_txfm_context(xd);
@@ -3847,7 +3973,12 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
 
   mbmi->tx_size = TX_4X4;
 #if CONFIG_NEW_TX_PARTITION
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
+         sizeof(mbmi->tx_partition_type));
+#else
   mbmi->tx_partition_type[0] = TX_PARTITION_NONE;
+#endif
 #endif  // CONFIG_NEW_TX_PARTITION
   // TODO(any) : Pass this_rd based on skip/non-skip cost
   const int skip_trellis = 0;
@@ -3883,13 +4014,23 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   int64_t best_rd = INT64_MAX;
   x->rd_model = FULL_TXFM_RD;
   int64_t cur_rd = INT64_MAX;
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
+#else
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES_INTRA; ++type) {
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, max_tx_size)) continue;
+
     mbmi->tx_partition_type[0] = type;
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    get_tx_partition_sizes(type, max_tx_size, &mbmi->txb_pos, mbmi->sub_txs);
+    TX_SIZE cur_tx_size = mbmi->sub_txs[mbmi->txb_pos.n_partitions - 1];
+#else
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
     get_tx_partition_sizes(type, max_tx_size, sub_txs);
     TX_SIZE cur_tx_size = sub_txs[0];
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
     if (!tx_select && cur_tx_size != chosen_tx_size) continue;
 #if CONFIG_DIST_8X8
     if (x->using_dist_8x8) {
@@ -3921,10 +4062,17 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
 
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
+
 #if CONFIG_WAIP
     mbmi->is_wide_angle[0] = is_wide_angle_mapped;
 #endif  // CONFIG_WAIP
+
+#if CONFIG_TX_PARTITION_TYPE_EXT
+    memset(mbmi->tx_partition_type, best_tx_partition_type,
+           sizeof(mbmi->tx_partition_type));
+#else
     mbmi->tx_partition_type[0] = best_tx_partition_type;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
     av1_copy_array(xd->tx_type_map, best_txk_type_map, num_blks);
     av1_copy_array(txfm_info->blk_skip, best_blk_skip, num_blks);
   }
@@ -4159,11 +4307,17 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   const int64_t no_this_rd =
       RDCOST(x->rdmult, no_skip_txfm_rate + tx_size_rate, 0);
 #endif  // CONFIG_SKIP_TXFM_OPT
-
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  get_tx_partition_sizes(mbmi->tx_partition_type[0], max_txsize_rect_lookup[bs],
+                         &mbmi->txb_pos, mbmi->sub_txs);
+  mbmi->tx_size = mbmi->sub_txs[mbmi->txb_pos.n_partitions - 1];
+#else
   mbmi->tx_size = tx_size;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AOMMIN(no_this_rd, skip_txfm_rd), AOM_PLANE_Y, bs,
                        tx_size, ftxs_mode, skip_trellis);
+
   if (rd_stats->rate == INT_MAX) return INT64_MAX;
 
   int64_t rd;
@@ -4867,7 +5021,99 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
 
   return is_cost_valid;
 }
+#if CONFIG_TX_PARTITION_TYPE_EXT
+void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
+                          RD_STATS *rd_stats, int64_t ref_best_rd,
+                          int64_t current_rd, int plane, BLOCK_SIZE plane_bsize,
+                          TX_SIZE tx_size, FAST_TX_SEARCH_MODE ftxs_mode,
+                          int skip_trellis) {
+  if (!cpi->oxcf.txfm_cfg.enable_tx64 &&
+      txsize_sqr_up_map[tx_size] == TX_64X64) {
+    av1_invalid_rd_stats(rd_stats);
+    return;
+  }
 
+  if (current_rd > ref_best_rd) {
+    av1_invalid_rd_stats(rd_stats);
+    return;
+  }
+
+  MACROBLOCKD *const xd = &x->e_mbd;
+  const struct macroblockd_plane *const pd = &xd->plane[plane];
+  struct rdcost_block_args args;
+  av1_zero(args);
+  args.x = x;
+  args.cpi = cpi;
+  args.best_rd = ref_best_rd;
+  args.current_rd = current_rd;
+  args.ftxs_mode = ftxs_mode;
+  args.skip_trellis = skip_trellis;
+
+  av1_init_rd_stats(&args.rd_stats);
+  av1_get_entropy_contexts(plane_bsize, pd, args.t_above, args.t_left);
+
+  if (plane == PLANE_TYPE_Y && !xd->lossless[xd->mi[0]->segment_id]) {
+    MB_MODE_INFO *mbmi = xd->mi[0];
+    const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
+    get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
+                           &mbmi->txb_pos, mbmi->sub_txs);
+    // If mb_to_right_edge is < 0 we are in a situation in which
+    // the current block size extends into the UMV and we won't
+    // visit the sub blocks that are wholly within the UMV.
+    const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
+    const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
+    const BLOCK_SIZE max_unit_bsize =
+        get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
+    const int mu_blocks_wide =
+        AOMMIN(mi_size_wide[max_unit_bsize], max_blocks_wide);
+    const int mu_blocks_high =
+        AOMMIN(mi_size_high[max_unit_bsize], max_blocks_high);
+
+    // Keep track of the row and column of the blocks we use so that we know
+    // if we are in the unrestricted motion border.
+    int i = 0;
+    for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
+      const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
+      // Skip visiting the sub blocks that are wholly within the UMV.
+      for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
+        const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
+
+        for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
+          TX_SIZE sub_tx_size = mbmi->sub_txs[txb_idx];
+          mbmi->txb_idx = txb_idx;
+
+          const uint8_t txw_unit = tx_size_wide_unit[sub_tx_size];
+          const uint8_t txh_unit = tx_size_high_unit[sub_tx_size];
+          const int step = txw_unit * txh_unit;
+
+          int blk_row = r + mbmi->txb_pos.row_offset[txb_idx];
+          int blk_col = c + mbmi->txb_pos.col_offset[txb_idx];
+
+          if (blk_row >= unit_height || blk_col >= unit_width) continue;
+
+          mbmi->tx_size = sub_tx_size;
+          block_rd_txfm(plane, i, blk_row, blk_col, plane_bsize, sub_tx_size,
+                        &args);
+          i += step;
+        }
+      }
+    }
+  } else {
+    av1_foreach_transformed_block_in_plane(xd, plane_bsize, plane,
+                                           block_rd_txfm, &args);
+  }
+
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const int invalid_rd = is_inter ? args.incomplete_exit : args.exit_early;
+
+  if (invalid_rd) {
+    av1_invalid_rd_stats(rd_stats);
+  } else {
+    *rd_stats = args.rd_stats;
+  }
+}
+#else
 void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
                           RD_STATS *rd_stats, int64_t ref_best_rd,
                           int64_t current_rd, int plane, BLOCK_SIZE plane_bsize,
@@ -4912,6 +5158,7 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
     *rd_stats = args.rd_stats;
   }
 }
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 
 int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                     RD_STATS *rd_stats, RD_STATS *rd_stats_y,

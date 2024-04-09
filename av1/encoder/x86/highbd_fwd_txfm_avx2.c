@@ -26,25 +26,26 @@ static INLINE void load_buffer_8x8_avx2(const int16_t *input, __m256i *out,
                                         int shift) {
   __m128i out1[8];
   if (!flipud) {
-    out1[0] = _mm_load_si128((const __m128i *)(input + 0 * stride));
-    out1[1] = _mm_load_si128((const __m128i *)(input + 1 * stride));
-    out1[2] = _mm_load_si128((const __m128i *)(input + 2 * stride));
-    out1[3] = _mm_load_si128((const __m128i *)(input + 3 * stride));
-    out1[4] = _mm_load_si128((const __m128i *)(input + 4 * stride));
-    out1[5] = _mm_load_si128((const __m128i *)(input + 5 * stride));
-    out1[6] = _mm_load_si128((const __m128i *)(input + 6 * stride));
-    out1[7] = _mm_load_si128((const __m128i *)(input + 7 * stride));
+    out1[0] = _mm_loadu_si128((const __m128i *)(input + 0 * stride));
+    out1[1] = _mm_loadu_si128((const __m128i *)(input + 1 * stride));
+    out1[2] = _mm_loadu_si128((const __m128i *)(input + 2 * stride));
+    out1[3] = _mm_loadu_si128((const __m128i *)(input + 3 * stride));
+    out1[4] = _mm_loadu_si128((const __m128i *)(input + 4 * stride));
+    out1[5] = _mm_loadu_si128((const __m128i *)(input + 5 * stride));
+    out1[6] = _mm_loadu_si128((const __m128i *)(input + 6 * stride));
+    out1[7] = _mm_loadu_si128((const __m128i *)(input + 7 * stride));
 
   } else {
-    out1[7] = _mm_load_si128((const __m128i *)(input + 0 * stride));
-    out1[6] = _mm_load_si128((const __m128i *)(input + 1 * stride));
-    out1[5] = _mm_load_si128((const __m128i *)(input + 2 * stride));
-    out1[4] = _mm_load_si128((const __m128i *)(input + 3 * stride));
-    out1[3] = _mm_load_si128((const __m128i *)(input + 4 * stride));
-    out1[2] = _mm_load_si128((const __m128i *)(input + 5 * stride));
-    out1[1] = _mm_load_si128((const __m128i *)(input + 6 * stride));
-    out1[0] = _mm_load_si128((const __m128i *)(input + 7 * stride));
+    out1[7] = _mm_loadu_si128((const __m128i *)(input + 0 * stride));
+    out1[6] = _mm_loadu_si128((const __m128i *)(input + 1 * stride));
+    out1[5] = _mm_loadu_si128((const __m128i *)(input + 2 * stride));
+    out1[4] = _mm_loadu_si128((const __m128i *)(input + 3 * stride));
+    out1[3] = _mm_loadu_si128((const __m128i *)(input + 4 * stride));
+    out1[2] = _mm_loadu_si128((const __m128i *)(input + 5 * stride));
+    out1[1] = _mm_loadu_si128((const __m128i *)(input + 6 * stride));
+    out1[0] = _mm_loadu_si128((const __m128i *)(input + 7 * stride));
   }
+
   if (!fliplr) {
     out[0] = _mm256_cvtepi16_epi32(out1[0]);
     out[1] = _mm256_cvtepi16_epi32(out1[1]);

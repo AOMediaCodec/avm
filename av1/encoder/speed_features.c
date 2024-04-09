@@ -893,6 +893,9 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   tx_sf->use_largest_tx_size_for_small_bsize = false;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  tx_sf->restrict_tx_partition_type_search = false;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
 }
 
 static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
@@ -1336,6 +1339,9 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
         sf->tx_sf.use_intra_txb_hash = 1;
+#if CONFIG_TX_PARTITION_TYPE_EXT
+        sf->tx_sf.restrict_tx_partition_type_search = true;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
       }
     }
   }

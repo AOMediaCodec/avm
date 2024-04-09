@@ -343,6 +343,10 @@ static INLINE __m128i LoadUnaligned16(const void *a) {
   return _mm_loadu_si128((const __m128i *)a);
 }
 
+static INLINE __m128i LoadAligned16(const void *a) {
+  return LoadUnaligned16(a);
+}
+
 #if OPFL_DOWNSAMP_QUINCUNX
 static INLINE __m128i LoadAligned16(const void *a) {
   return _mm_load_si128((const __m128i *)a);
