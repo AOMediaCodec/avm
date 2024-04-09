@@ -2251,6 +2251,7 @@ static AOM_INLINE void set_offsets_for_pred_and_recon(AV1Decoder *const pbi,
       &mi_params->cctx_type_map[mi_row * mi_params->mi_stride + mi_col];
   xd->cctx_type_map_stride = mi_params->mi_stride;
 
+  // It is assumed that CHROMA_REF_INFO is already set (during parsing stage).
   CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
   set_plane_n4(xd, bw, bh, num_planes, chroma_ref_info);
 
