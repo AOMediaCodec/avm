@@ -1234,7 +1234,13 @@ void av1_opfl_build_inter_predictor(
 
   av1_init_inter_params(inter_pred_params, bw, bh, pre_y, pre_x,
                         pd->subsampling_x, pd->subsampling_y, xd->bd,
-                        mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
+                        mi->use_intrabc[0], sf, pre_buf,
+#if CONFIG_OPFL_BI
+                        BILINEAR
+#else
+                        mi->interp_fltr
+#endif
+  );
 #if CONFIG_REFINEMV
   inter_pred_params->original_pu_width = pu_width;
   inter_pred_params->original_pu_height = pu_height;
