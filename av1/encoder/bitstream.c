@@ -1579,8 +1579,7 @@ static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
 #if CONFIG_WAIP
-  uint8_t intra_mode =
-      (mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode);
+  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
 #else
   uint8_t intra_mode = mbmi->mode;
 #endif  // CONFIG_WAIP

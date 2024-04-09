@@ -1361,8 +1361,7 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 static void read_secondary_tx_set(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                   MB_MODE_INFO *mbmi, TX_TYPE *tx_type) {
 #if CONFIG_WAIP
-  uint8_t intra_mode =
-      (mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode);
+  uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
 #else
   uint8_t intra_mode = mbmi->mode;
 #endif  // CONFIG_WAIP
