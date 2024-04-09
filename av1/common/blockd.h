@@ -389,6 +389,13 @@ typedef struct CHROMA_REF_INFO {
 #define TXK_TYPE_BUF_LEN 64
 /*!\endcond */
 
+#if CONFIG_WAIP
+#define WAIP_WH_RATIO_2_THRES 61
+#define WAIP_WH_RATIO_4_THRES 73
+#define WAIP_WH_RATIO_8_THRES 82
+#define WAIP_WH_RATIO_16_THRES 86
+#endif
+
 /*! \brief Stores the prediction/txfm mode of the current coding block
  */
 typedef struct MB_MODE_INFO {

@@ -300,17 +300,18 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
     p_angle += mrl_index_to_delta[mrl_index];
     assert(p_angle > 0 && p_angle < 270);
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
-    if ((txhpx == 2 * txwpx && p_angle < 61) ||
-        (txhpx == 4 * txwpx && p_angle < 73) ||
-        (txhpx == 8 * txwpx && p_angle < 82) ||
-        (txhpx == 16 * txwpx && p_angle < 86)) {
+    if ((txhpx == 2 * txwpx && p_angle < WAIP_WH_RATIO_2_THRES) ||
+        (txhpx == 4 * txwpx && p_angle < WAIP_WH_RATIO_4_THRES) ||
+        (txhpx == 8 * txwpx && p_angle < WAIP_WH_RATIO_8_THRES) ||
+        (txhpx == 16 * txwpx && p_angle < WAIP_WH_RATIO_16_THRES)) {
       p_angle = 180 + p_angle;
       mbmi->is_wide_angle[plane > 0] = 1;
       mbmi->mapped_intra_mode[plane > 0] = D203_PRED;
-    } else if ((txwpx == 2 * txhpx && p_angle > 270 - 61) ||
-               (txwpx == 4 * txhpx && p_angle > 270 - 73) ||
-               (txwpx == 8 * txhpx && p_angle > 270 - 82) ||
-               (txwpx == 16 * txhpx && p_angle > 270 - 86)) {
+    } else if ((txwpx == 2 * txhpx && p_angle > 270 - WAIP_WH_RATIO_2_THRES) ||
+               (txwpx == 4 * txhpx && p_angle > 270 - WAIP_WH_RATIO_4_THRES) ||
+               (txwpx == 8 * txhpx && p_angle > 270 - WAIP_WH_RATIO_8_THRES) ||
+               (txwpx == 16 * txhpx &&
+                p_angle > 270 - WAIP_WH_RATIO_16_THRES)) {
       p_angle = p_angle - 180;
       mbmi->is_wide_angle[plane > 0] = 1;
       mbmi->mapped_intra_mode[plane > 0] = D45_PRED;

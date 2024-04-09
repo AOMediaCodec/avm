@@ -757,6 +757,7 @@ void av1_highbd_dr_prediction_z1_c(uint16_t *dst, ptrdiff_t stride, int bw,
   (void)bd;
   assert(dy == 1);
   assert(dx > 0);
+
   const int max_base_x = ((bw + bh) - 1 + (mrl_index << 1)) << upsample_above;
   const int frac_bits = 6 - upsample_above;
   const int base_inc = 1 << upsample_above;
@@ -837,6 +838,7 @@ void av1_highbd_dr_prediction_z3_c(uint16_t *dst, ptrdiff_t stride, int bw,
   (void)bd;
   assert(dx == 1);
   assert(dy > 0);
+
   const int max_base_y = ((bw + bh - 1) << upsample_left) + (mrl_index << 1);
   const int frac_bits = 6 - upsample_left;
   const int base_inc = 1 << upsample_left;
@@ -1536,7 +1538,7 @@ static void build_intra_predictors_high(
     assert(p_angle > 0 && p_angle < 270);
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_WAIP
-    if (is_inter_block(xd->mi[0], xd->tree_type) == 0)
+    if (!is_inter_block(xd->mi[0], xd->tree_type))
       p_angle =
           wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
     else {
@@ -1565,6 +1567,7 @@ static void build_intra_predictors_high(
 #endif
   }
   if (use_filter_intra) need_left = need_above = need_above_left = 1;
+
   assert(n_top_px >= 0);
   assert(n_topright_px >= 0);
   assert(n_left_px >= 0);
