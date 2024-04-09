@@ -782,9 +782,10 @@ static INLINE int get_intra_mode(const MB_MODE_INFO *mbmi, int plane) {
 #endif  // CONFIG_WAIP
   else
 #if CONFIG_WAIP
-    return mbmi->is_wide_angle[1] ? mbmi->mapped_intra_mode[1] : mbmi->uv_mode;
+    return mbmi->is_wide_angle[1] ? mbmi->mapped_intra_mode[1]
+                                  : get_uv_mode(mbmi->uv_mode);
 #else
-    return mbmi->uv_mode;
+    return get_uv_mode(mbmi->uv_mode);
 #endif  // CONFIG_WAIP
 }
 
