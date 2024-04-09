@@ -1592,13 +1592,8 @@ static void build_intra_predictors_high(
       need_bottom =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
 #if CONFIG_IDIF
-#if CONFIG_WAIP
-    int num_left_pixels_needed =
-        txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 2) + 1;
-#else
     int num_left_pixels_needed =
         txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 1) + 1;
-#endif  // CONFIG_WAIP
     if (enable_idif && (p_angle > 90 && p_angle < 180)) {
       num_left_pixels_needed += 1;
     }
