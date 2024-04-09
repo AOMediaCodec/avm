@@ -787,7 +787,7 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
       cfl_luma_subsampling_420_hbd_121_c(input, input_stride, recon_buf_q3,
                                          width, height);
     else
-#if CFL_64x64
+#if CONFIG_CFL_64x64
     {
       if (AOMMAX(width, height) > 32)
         cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
@@ -799,13 +799,13 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
 #else
       cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
                                                  recon_buf_q3);
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
   } else if (filter_type == 2) {
     if (sub_x && sub_y)
       cfl_luma_subsampling_420_hbd_colocated(input, input_stride, recon_buf_q3,
                                              width, height);
     else
-#if CFL_64x64
+#if CONFIG_CFL_64x64
     {
       if (AOMMAX(width, height) > 32)
         cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
@@ -817,9 +817,9 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
 #else
       cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
                                                  recon_buf_q3);
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
   } else {
-#if CFL_64x64
+#if CONFIG_CFL_64x64
     {
       if (AOMMAX(width, height) > 32)
         cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
@@ -831,10 +831,10 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
 #else
     cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
                                                recon_buf_q3);
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
   }
 #else
-#if CFL_64x64
+#if CONFIG_CFL_64x64
   if (AOMMAX(width, height) > 32)
     cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
                                    height);
@@ -843,7 +843,7 @@ static void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl,
                                                recon_buf_q3);
 #else
   cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride, recon_buf_q3);
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
 #endif  // CONFIG_IMPROVED_CFL
 }
 

@@ -211,7 +211,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
 
 // Declare size-specific wrappers for all valid CfL sizes.
 #if CONFIG_FLEX_PARTITION
-#if CFL_64x64
+#if CONFIG_CFL_64x64
 #define CFL_SUBSAMPLE_FUNCTIONS(arch, sub, bd)                            \
   CFL_SUBSAMPLE(arch, sub, bd, 4, 4)                                      \
   CFL_SUBSAMPLE(arch, sub, bd, 8, 8)                                      \
@@ -266,7 +266,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     CFL_SUBSAMPLE_FUNCTION_ARRAY(arch, sub, bd)                           \
     return subfn_##sub[tx_size];                                          \
   }
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
 #else
 #define CFL_SUBSAMPLE_FUNCTIONS(arch, sub, bd)                            \
   CFL_SUBSAMPLE(arch, sub, bd, 4, 4)                                      \
@@ -293,7 +293,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
 // Declare an architecture-specific array of function pointers for size-specific
 // wrappers.
 #if CONFIG_FLEX_PARTITION
-#if CFL_64x64
+#if CONFIG_CFL_64x64
 #define CFL_SUBSAMPLE_FUNCTION_ARRAY(arch, sub, bd)                  \
   static const cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = { \
     cfl_subsample_##bd##_##sub##_4x4_##arch,   /* 4x4 */             \
@@ -351,7 +351,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     NULL,                                      /* 4x64 (invalid CFL size) */  \
     NULL,                                      /* 64x4 (invalid CFL size) */  \
   };
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
 #else
 #define CFL_SUBSAMPLE_FUNCTION_ARRAY(arch, sub, bd)                           \
   static const cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = {          \
@@ -397,7 +397,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
 
 // Declare size-specific wrappers for all valid CfL sizes.
 #if CONFIG_FLEX_PARTITION
-#if CFL_64x64
+#if CONFIG_CFL_64x64
 #define CFL_SUB_AVG_FN(arch)                                              \
   CFL_SUB_AVG_X(arch, 4, 4, 8, 4)                                         \
   CFL_SUB_AVG_X(arch, 4, 8, 16, 5)                                        \
@@ -508,7 +508,7 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     /* index the function pointer array out of bounds. */                 \
     return sub_avg[tx_size % TX_SIZES_ALL];                               \
   }
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
 #else
 #define CFL_SUB_AVG_FN(arch)                                              \
   CFL_SUB_AVG_X(arch, 4, 4, 8, 4)                                         \
@@ -574,7 +574,7 @@ void cfl_subtract_average_4x16_c(const uint16_t *src, int16_t *dst);
   CFL_PREDICT_##bd(arch, width, height)
 
 #if CONFIG_FLEX_PARTITION
-#if CFL_64x64
+#if CONFIG_CFL_64x64
 #define CFL_PREDICT_FN(arch, bd)                                            \
   CFL_PREDICT_X(arch, 4, 4, bd)                                             \
   CFL_PREDICT_X(arch, 4, 8, bd)                                             \
@@ -683,7 +683,7 @@ void cfl_subtract_average_4x16_c(const uint16_t *src, int16_t *dst);
     /* index the function pointer array out of bounds. */                   \
     return pred[tx_size % TX_SIZES_ALL];                                    \
   }
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
 #else
 #define CFL_PREDICT_FN(arch, bd)                                            \
   CFL_PREDICT_X(arch, 4, 4, bd)                                             \

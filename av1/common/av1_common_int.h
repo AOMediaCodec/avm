@@ -2353,11 +2353,11 @@ static INLINE aom_cdf_prob *get_mhccp_dir_cdf(const MACROBLOCKD *xd,
   FRAME_CONTEXT *tile_ctx = xd->tile_ctx;
   assert(bsize != BLOCK_INVALID);
   const uint8_t fsc_size_group = fsc_bsize_groups[bsize];
-#if CFL_64x64
+#if CONFIG_CFL_64x64
   assert(fsc_size_group < MHCCP_CONTEXT_GROUP_SIZE);
 #else
   assert(fsc_size_group < FSC_BSIZE_CONTEXTS);
-#endif  // CFL_64x64
+#endif  // CONFIG_CFL_64x64
   return tile_ctx->filter_dir_cdf[fsc_size_group];
 }
 #endif  // CONFIG_ENABLE_MHCCP
