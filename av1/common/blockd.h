@@ -765,13 +765,15 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
 }
 
 #if CONFIG_WAIP
+// Get the intra mode for luma or chroma plane depending on whether it needs to
+// be mapped.
 static INLINE int get_intra_mode(const MB_MODE_INFO *mbmi, int plane) {
   if (plane == 0)
     return mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode;
   else
     return mbmi->is_wide_angle[1] ? mbmi->mapped_intra_mode[1] : mbmi->uv_mode;
 }
-#endif
+#endif  // CONFIG_WAIP
 
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 // This function return the MVD from MV and refMV
