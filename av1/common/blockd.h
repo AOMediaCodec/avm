@@ -764,6 +764,15 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
          is_inter_ref_frame(mbmi->ref_frame[0]);
 }
 
+#if CONFIG_WAIP
+static INLINE int get_intra_mode(const MB_MODE_INFO *mbmi, int plane) {
+  if (plane == 0)
+    return mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode;
+  else
+    return mbmi->is_wide_angle[1] ? mbmi->mapped_intra_mode[1] : mbmi->uv_mode;
+}
+#endif
+
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 // This function return the MVD from MV and refMV
 static INLINE void get_mvd_from_ref_mv(MV mv, MV ref_mv, int is_adaptive_mvd,
@@ -2572,11 +2581,7 @@ static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
     ADST_ADST,  // PAETH_PRED
   };
 #if CONFIG_WAIP
-  const PREDICTION_MODE mode =
-      (plane_type == PLANE_TYPE_Y)
-          ? (mbmi->is_wide_angle[0] ? mbmi->mapped_intra_mode[0] : mbmi->mode)
-          : (mbmi->is_wide_angle[1] ? get_uv_mode(mbmi->mapped_intra_mode[1])
-                                    : get_uv_mode(mbmi->uv_mode));
+  const PREDICTION_MODE mode = get_intra_mode(mbmi, plane_type);
 #else
   const PREDICTION_MODE mode =
       (plane_type == PLANE_TYPE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
