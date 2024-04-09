@@ -757,11 +757,7 @@ void av1_highbd_dr_prediction_z1_c(uint16_t *dst, ptrdiff_t stride, int bw,
   (void)bd;
   assert(dy == 1);
   assert(dx > 0);
-#if CONFIG_WAIP
-  const int max_base_x = ((bw + bh) - 1 + (mrl_index << 2)) << upsample_above;
-#else
   const int max_base_x = ((bw + bh) - 1 + (mrl_index << 1)) << upsample_above;
-#endif  // CONFIG_WAIP
   const int frac_bits = 6 - upsample_above;
   const int base_inc = 1 << upsample_above;
   x = dx * (1 + mrl_index);
@@ -841,11 +837,7 @@ void av1_highbd_dr_prediction_z3_c(uint16_t *dst, ptrdiff_t stride, int bw,
   (void)bd;
   assert(dx == 1);
   assert(dy > 0);
-#if CONFIG_WAIP
-  const int max_base_y = ((bw + bh - 1) << upsample_left) + (mrl_index << 2);
-#else
   const int max_base_y = ((bw + bh - 1) << upsample_left) + (mrl_index << 1);
-#endif  // CONFIG_WAIP
   const int frac_bits = 6 - upsample_left;
   const int base_inc = 1 << upsample_left;
   y = dy * (1 + mrl_index);
@@ -1000,11 +992,7 @@ void av1_highbd_dr_prediction_z3_idif_c(uint16_t *dst, ptrdiff_t stride, int bw,
 
   uint16_t ref[4] = { 0 };
 
-#if CONFIG_WAIP
-  const int max_base_y = (bw + bh) - 1 + (mrl_index << 2);
-#else
   const int max_base_y = (bw + bh) - 1 + (mrl_index << 1);
-#endif
   const int frac_bits = 6;
   const int base_inc = 1;
 
@@ -1641,13 +1629,8 @@ static void build_intra_predictors_high(
       need_right =
           seq_ibp_flag ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
 #if CONFIG_IDIF
-#if CONFIG_WAIP
-    int num_top_pixels_needed =
-        txwpx + (need_right ? txhpx : 0) + (mrl_index << 2);
-#else
     int num_top_pixels_needed =
         txwpx + (need_right ? txhpx : 0) + (mrl_index << 1);
-#endif  // CONFIG_WAIP
     if (enable_idif && (p_angle > 90 && p_angle < 180)) {
       num_top_pixels_needed += 1;
     }
@@ -1728,21 +1711,13 @@ static void build_intra_predictors_high(
         if (need_above && n_top_px > 0) {
           const int strength = intra_edge_filter_strength(
               txwpx, txhpx, angle_above, filt_type_above);
-#if CONFIG_WAIP
-          const int n_px = n_top_px + ab_le + (need_right ? txwpx : 0);
-#else
           const int n_px = n_top_px + ab_le + (need_right ? txhpx : 0);
-#endif  // CONFIG_WAIP
           av1_filter_intra_edge_high(above_row - ab_le, n_px, strength);
         }
         if (need_left && n_left_px > 0) {
           const int strength = intra_edge_filter_strength(
               txhpx, txwpx, angle_left, filt_type_left);
-#if CONFIG_WAIP
-          const int n_px = n_left_px + ab_le + (need_bottom ? txhpx : 0);
-#else
           const int n_px = n_left_px + ab_le + (need_bottom ? txwpx : 0);
-#endif  // CONFIG_WAIP
           av1_filter_intra_edge_high(left_col - ab_le, n_px, strength);
         }
       }

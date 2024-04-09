@@ -1294,9 +1294,7 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
               ? fimode_to_intradir[mbmi->filter_intra_mode_info
                                        .filter_intra_mode]
 #if CONFIG_WAIP
-              : (mbmi->is_wide_angle[plane > 0]
-                     ? mbmi->mapped_intra_mode[plane > 0]
-                     : mbmi->mode);
+              : get_intra_mode(mbmi, PLANE_TYPE_Y);
 #else
               : mbmi->mode;
 #endif  // CONFIG_WAIP
