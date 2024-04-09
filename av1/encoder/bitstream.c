@@ -1578,11 +1578,7 @@ static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
   assert(stx_set_flag <= IST_SET_SIZE - 1);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
-#if CONFIG_WAIP
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#else
-  uint8_t intra_mode = mbmi->mode;
-#endif  // CONFIG_WAIP
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   aom_write_symbol(w, stx_set_flag, ec_ctx->stx_set_cdf[stx_set_ctx],

@@ -579,14 +579,7 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
   txfm_param->sec_tx_set = 0;
 #endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
-  txfm_param->intra_mode = (plane == AOM_PLANE_Y)
-                               ?
-#if CONFIG_WAIP
-                               get_intra_mode(mbmi, PLANE_TYPE_Y)
-#else
-                               mbmi->mode
-#endif  // CONFIG_WAIP
-                               : get_uv_mode(mbmi->uv_mode);
+  txfm_param->intra_mode = get_intra_mode(mbmi, plane);
   if ((txfm_param->intra_mode < PAETH_PRED) &&
       !xd->lossless[mbmi->segment_id] &&
       !(mbmi->filter_intra_mode_info.use_filter_intra) &&

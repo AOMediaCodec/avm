@@ -1488,11 +1488,7 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
-#if CONFIG_WAIP
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#else
-  uint8_t intra_mode = mbmi->mode;
-#endif  // CONFIG_WAIP
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   return x->mode_costs.stx_set_flag_cost[stx_set_ctx][stx_set_flag];
@@ -4419,11 +4415,7 @@ static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
   assert(stx_set_flag < IST_DIR_SIZE);
-#if CONFIG_WAIP
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#else
-  uint8_t intra_mode = mbmi->mode;
-#endif  // CONFIG_WAIP
   uint8_t stx_set_ctx = stx_transpose_mapping[intra_mode];
   assert(stx_set_ctx < IST_DIR_SIZE);
   update_cdf(fc->stx_set_cdf[stx_set_ctx], (int8_t)stx_set_flag, IST_DIR_SIZE);
