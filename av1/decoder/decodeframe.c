@@ -1851,7 +1851,8 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
       assert(bsize_group > 0);
       aom_cdf_prob *partition_type_cdf =
 #if CONFIG_IMPROVEIDTX_CTXS
-          ec_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter][bsize_group - 1];
+          ec_ctx
+              ->txfm_4way_partition_type_cdf[is_fsc][is_inter][bsize_group - 1];
 #else
           ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
 #endif

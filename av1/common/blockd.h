@@ -2523,22 +2523,22 @@ static INLINE uint8_t *get_buf_by_bd(const MACROBLOCKD *xd, uint8_t *buf16) {
 
 #if CONFIG_IMPROVEIDTX_RDPH
 static const int ph_allowed_tx_types[TX_TYPES] = {
-  1,      // DCT in both horizontal and vertical
-  1,      // ADST in vertical, DCT in horizontal
-  1,      // DCT in vertical, ADST in horizontal
-  1,      // ADST in both directions
-  1,      // FLIPADST in vertical, DCT in horizontal
-  1,      // DCT in vertical, FLIPADST in horizontal
-  1,      // FLIPADST in both directions
-  1,      // ADST in vertical, FLIPADST in horizontal
-  1,      // FLIPADST in vertical, ADST in horizontal
-  0,      // Identity in both directions
-  1,      // DCT in vertical, identity in horizontal
-  1,      // Identity in vertical, DCT in horizontal
-  1,      // ADST in vertical, identity in horizontal
-  1,      // Identity in vertical, ADST in horizontal
-  1,      // FLIPADST in vertical, identity in horizontal
-  1,      // Identity in vertical, FLIPADST in horizontal
+  1,  // DCT in both horizontal and vertical
+  1,  // ADST in vertical, DCT in horizontal
+  1,  // DCT in vertical, ADST in horizontal
+  1,  // ADST in both directions
+  1,  // FLIPADST in vertical, DCT in horizontal
+  1,  // DCT in vertical, FLIPADST in horizontal
+  1,  // FLIPADST in both directions
+  1,  // ADST in vertical, FLIPADST in horizontal
+  1,  // FLIPADST in vertical, ADST in horizontal
+  0,  // Identity in both directions
+  1,  // DCT in vertical, identity in horizontal
+  1,  // Identity in vertical, DCT in horizontal
+  1,  // ADST in vertical, identity in horizontal
+  1,  // Identity in vertical, ADST in horizontal
+  1,  // FLIPADST in vertical, identity in horizontal
+  1,  // Identity in vertical, FLIPADST in horizontal
 };
 #endif
 

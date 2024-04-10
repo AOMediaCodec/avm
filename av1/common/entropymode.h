@@ -169,7 +169,8 @@ typedef struct frame_contexts {
   aom_cdf_prob eob_extra_cdf[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS]
                             [CDF_SIZE(2)];
 #if CONFIG_IMPROVEIDTX_CTXS
-  aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS][CDF_SIZE(2)];
+  aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS]
+                          [CDF_SIZE(2)];
 #else
   aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_CONTEXTS][CDF_SIZE(2)];
 #endif
@@ -233,8 +234,10 @@ typedef struct frame_contexts {
 #endif  // CONFIG_LCCHROMA
 #if CONFIG_IMPROVEIDTX_CTXS
   aom_cdf_prob idtx_sign_cdf[TX_SIZES][IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
-  aom_cdf_prob coeff_base_cdf_idtx[TX_SIZES][IDTX_SIG_COEF_CONTEXTS][CDF_SIZE(4)];
-  aom_cdf_prob coeff_br_cdf_idtx[TX_SIZES][IDTX_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
+  aom_cdf_prob coeff_base_cdf_idtx[TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
+                                  [CDF_SIZE(4)];
+  aom_cdf_prob coeff_br_cdf_idtx[TX_SIZES][IDTX_LEVEL_CONTEXTS]
+                                [CDF_SIZE(BR_CDF_SIZE)];
   aom_cdf_prob coeff_base_bob_cdf[TX_SIZES][SIG_COEF_CONTEXTS_BOB][CDF_SIZE(3)];
 #else
   aom_cdf_prob idtx_sign_cdf[IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
@@ -388,13 +391,14 @@ typedef struct frame_contexts {
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_IMPROVEIDTX_CTXS
-  aom_cdf_prob txfm_do_partition_cdf[FSC_MODES][2][TXFM_PARTITION_GROUP][CDF_SIZE(2)];
-  aom_cdf_prob txfm_4way_partition_type_cdf[FSC_MODES][2][TXFM_PARTITION_GROUP - 1]
-  [CDF_SIZE(3)];
+  aom_cdf_prob txfm_do_partition_cdf[FSC_MODES][2][TXFM_PARTITION_GROUP]
+                                    [CDF_SIZE(2)];
+  aom_cdf_prob txfm_4way_partition_type_cdf[FSC_MODES][2][TXFM_PARTITION_GROUP -
+                                                          1][CDF_SIZE(3)];
 #else
   aom_cdf_prob txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)];
   aom_cdf_prob txfm_4way_partition_type_cdf[2][TXFM_PARTITION_GROUP - 1]
-  [CDF_SIZE(3)];
+                                           [CDF_SIZE(3)];
 #endif
 
 #else

@@ -63,7 +63,7 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
 #if CONFIG_IMPROVEIDTX_CTXS
   const int plane_type = xd->tree_type == CHROMA_PART;
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                      plane_type == PLANE_TYPE_Y) ;
+                      plane_type == PLANE_TYPE_Y);
 #endif
 #if CONFIG_TX_PARTITION_CTX
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
@@ -96,8 +96,8 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
       if (allow_update_cdf) {
         aom_cdf_prob *partition_type_cdf =
 #if CONFIG_IMPROVEIDTX_CTXS
-        xd->tile_ctx
-        ->txfm_4way_partition_type_cdf[is_fsc][is_inter][bsize_group - 1];
+            xd->tile_ctx->txfm_4way_partition_type_cdf[is_fsc][is_inter]
+                                                      [bsize_group - 1];
 #else
             xd->tile_ctx
                 ->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
@@ -107,7 +107,7 @@ static void update_partition_cdfs_and_counts(MACROBLOCKD *xd, int blk_col,
 #if CONFIG_ENTROPY_STATS
 #if CONFIG_IMPROVEIDTX_CTXS
       ++counts->txfm_4way_partition_type[is_fsc][is_inter][bsize_group - 1]
-      [split4_partition - 1];
+                                        [split4_partition - 1];
 #else
       ++counts->txfm_4way_partition_type[is_inter][bsize_group - 1]
                                         [split4_partition - 1];

@@ -603,7 +603,8 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
     memset(levels_buf, 0, sizeof(*levels_buf) * TX_PAD_2D);
     memset(signs_buf, 0, sizeof(*signs_buf) * TX_PAD_2D);
 #if CONFIG_IMPROVEIDTX_CTXS
-    base_cdf_arr base_cdf = ec_ctx->coeff_base_cdf_idtx[AOMMIN(txs_ctx, TX_16X16)];
+    base_cdf_arr base_cdf =
+        ec_ctx->coeff_base_cdf_idtx[AOMMIN(txs_ctx, TX_16X16)];
     br_cdf_arr br_cdf = ec_ctx->coeff_br_cdf_idtx[AOMMIN(txs_ctx, TX_16X16)];
 #else
     base_cdf_arr base_cdf = ec_ctx->coeff_base_cdf_idtx;
@@ -615,7 +616,8 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
       const int coeff_ctx_bob = get_lower_levels_ctx_bob(bwl, height, bob);
       const int nsymbs_bob = 3;
 #if CONFIG_IMPROVEIDTX_CTXS
-      aom_cdf_prob *cdf_bob = ec_ctx->coeff_base_bob_cdf[AOMMIN(txs_ctx, TX_16X16)][coeff_ctx_bob];
+      aom_cdf_prob *cdf_bob =
+          ec_ctx->coeff_base_bob_cdf[AOMMIN(txs_ctx, TX_16X16)][coeff_ctx_bob];
 #else
       aom_cdf_prob *cdf_bob = ec_ctx->coeff_base_bob_cdf[coeff_ctx_bob];
 #endif
@@ -652,11 +654,12 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
       eob_data->max_scan_line = AOMMAX(eob_data->max_scan_line, pos);
       int idtx_sign_ctx = get_sign_ctx_skip(signs, levels, pos, bwl);
 #if CONFIG_IMPROVEIDTX_CTXS
-      sign = aom_read_symbol(r, ec_ctx->idtx_sign_cdf[AOMMIN(txs_ctx, TX_16X16)][idtx_sign_ctx], 2,
+      sign = aom_read_symbol(
+          r, ec_ctx->idtx_sign_cdf[AOMMIN(txs_ctx, TX_16X16)][idtx_sign_ctx], 2,
 #else
       sign = aom_read_symbol(r, ec_ctx->idtx_sign_cdf[idtx_sign_ctx], 2,
 #endif
-                             ACCT_INFO("sign"));
+          ACCT_INFO("sign"));
 #if CONFIG_IMPROVEIDTX_RDPH
       signs[get_padded_idx_left(pos, bwl)] = sign > 0 ? -1 : 1;
 #else
@@ -914,9 +917,9 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   }
 #if CONFIG_IMPROVEIDTX_RDPH
   bool enable_parity_hiding =
-        cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
-        plane == PLANE_TYPE_Y && ph_allowed_tx_types[get_primary_tx_type(tx_type)]
-        && (*eob > PHTHRESH);
+      cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
+      plane == PLANE_TYPE_Y &&
+      ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (*eob > PHTHRESH);
 #else
   bool enable_parity_hiding =
       cm->features.allow_parity_hiding && !xd->lossless[mbmi->segment_id] &&
@@ -1039,8 +1042,10 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_CONTEXT_DERIVATION
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
 #if CONFIG_IMPROVEIDTX_CTXS
-            sign = aom_read_symbol(r, ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx], 2,
-                                   ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
+          sign = aom_read_symbol(
+              r,
+              ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx],
+              2, ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
 #else
           sign = aom_read_symbol(
               r, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx], 2,

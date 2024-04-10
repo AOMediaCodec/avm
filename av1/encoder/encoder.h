@@ -1379,7 +1379,8 @@ typedef struct FRAME_COUNTS {
   unsigned int eob_extra[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES]
                         [EOB_COEF_CONTEXTS][2];
 #if CONFIG_IMPROVEIDTX_CTXS
-  unsigned int dc_sign[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS][2];
+  unsigned int dc_sign[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS]
+                      [DC_SIGN_CONTEXTS][2];
 #else
   unsigned int dc_sign[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_CONTEXTS][2];
 #endif
@@ -1389,12 +1390,15 @@ typedef struct FRAME_COUNTS {
   unsigned int v_ac_sign[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS][2];
 #endif  // CONFIG_CONTEXT_DERIVATION
 #if CONFIG_IMPROVEIDTX_CTXS
-  unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES][SIG_COEF_CONTEXTS_BOB][NUM_BASE_LEVELS + 1];
+  unsigned int coeff_base_bob_multi[TOKEN_CDF_Q_CTXS][TX_SIZES]
+                                   [SIG_COEF_CONTEXTS_BOB][NUM_BASE_LEVELS + 1];
   unsigned int idtx_sign[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIGN_CONTEXTS][2];
-  unsigned int coeff_lps_skip[TX_SIZES][BR_CDF_SIZE - 1][IDTX_LEVEL_CONTEXTS][2];
-  unsigned int coeff_lps_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_LEVEL_CONTEXTS]
-                                   [BR_CDF_SIZE];
-  unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
+  unsigned int coeff_lps_skip[TX_SIZES][BR_CDF_SIZE - 1][IDTX_LEVEL_CONTEXTS]
+                             [2];
+  unsigned int coeff_lps_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES]
+                                   [IDTX_LEVEL_CONTEXTS][BR_CDF_SIZE];
+  unsigned int coeff_base_multi_skip[TOKEN_CDF_Q_CTXS][TX_SIZES]
+                                    [IDTX_SIG_COEF_CONTEXTS]
                                     [NUM_BASE_LEVELS + 2];
 #else
   unsigned int idtx_sign[TOKEN_CDF_Q_CTXS][IDTX_SIGN_CONTEXTS][2];
@@ -1613,7 +1617,8 @@ typedef struct FRAME_COUNTS {
 #if CONFIG_TX_PARTITION_CTX
 #if CONFIG_IMPROVEIDTX_CTXS
   unsigned int txfm_do_partition[FSC_MODES][2][TXFM_PARTITION_GROUP][2];
-  unsigned int txfm_4way_partition_type[FSC_MODES][2][TXFM_PARTITION_GROUP - 1][3];
+  unsigned int txfm_4way_partition_type[FSC_MODES][2][TXFM_PARTITION_GROUP - 1]
+                                       [3];
 #else
   unsigned int txfm_do_partition[2][TXFM_PARTITION_GROUP][2];
   unsigned int txfm_4way_partition_type[2][TXFM_PARTITION_GROUP - 1][3];

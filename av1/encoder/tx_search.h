@@ -60,7 +60,8 @@ static AOM_INLINE int inter_tx_partition_cost(
   if (allow_horz || allow_vert) {
     do_partition = (partition != TX_PARTITION_NONE);
 #if CONFIG_IMPROVEIDTX_CTXS
-    cost += x->mode_costs.txfm_do_partition_cost[is_fsc][1][bsize_group][do_partition];
+    cost += x->mode_costs
+                .txfm_do_partition_cost[is_fsc][1][bsize_group][do_partition];
 #else
     cost += x->mode_costs.txfm_do_partition_cost[1][bsize_group][do_partition];
 #endif
@@ -72,7 +73,9 @@ static AOM_INLINE int inter_tx_partition_cost(
       const TX_PARTITION_TYPE split4_partition =
           get_split4_partition(partition);
 #if CONFIG_IMPROVEIDTX_CTXS
-      cost += x->mode_costs.txfm_4way_partition_type_cost[is_fsc][1][bsize_group - 1][split4_partition - 1];
+      cost += x->mode_costs
+                  .txfm_4way_partition_type_cost[is_fsc][1][bsize_group - 1]
+                                                [split4_partition - 1];
 #else
       cost += x->mode_costs.txfm_4way_partition_type_cost[1][bsize_group - 1]
                                                          [split4_partition - 1];
@@ -118,7 +121,8 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
   if (allow_horz || allow_vert) {
     do_partition = (partition != TX_PARTITION_NONE);
 #if CONFIG_IMPROVEIDTX_CTXS
-    cost += x->mode_costs.txfm_do_partition_cost[is_fsc][0][bsize_group][do_partition];
+    cost += x->mode_costs
+                .txfm_do_partition_cost[is_fsc][0][bsize_group][do_partition];
 #else
     cost += x->mode_costs.txfm_do_partition_cost[0][bsize_group][do_partition];
 #endif
@@ -130,11 +134,12 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
       const TX_PARTITION_TYPE split4_partition =
           get_split4_partition(partition);
 #if CONFIG_IMPROVEIDTX_CTXS
-      cost += x->mode_costs.txfm_4way_partition_type_cost[is_fsc][0][bsize_group - 1]
+      cost += x->mode_costs
+                  .txfm_4way_partition_type_cost[is_fsc][0][bsize_group - 1]
 #else
       cost += x->mode_costs.txfm_4way_partition_type_cost[0][bsize_group - 1]
 #endif
-                                                         [split4_partition - 1];
+                                                [split4_partition - 1];
     }
   }
 #else

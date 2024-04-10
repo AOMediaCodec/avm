@@ -365,9 +365,9 @@ static AOM_FORCE_INLINE int get_sign_skip(const int8_t *const signs,
                                           const int bwl) {
 #if CONFIG_IMPROVEIDTX_RDPH
   int signc = 0;
-  if (levels[-1]) signc += signs[-1];               // { 0, -1 }
+  if (levels[-1]) signc += signs[-1];  // { 0, -1 }
   if (levels[-(1 << bwl) - TX_PAD_LEFT])
-    signc += signs[-(1 << bwl) - TX_PAD_LEFT];      // { -1, 0 }
+    signc += signs[-(1 << bwl) - TX_PAD_LEFT];  // { -1, 0 }
   if (levels[-(1 << bwl) - TX_PAD_LEFT - 1])
     signc += signs[-(1 << bwl) - TX_PAD_LEFT - 1];  // { -1, -1 }
 #else
@@ -859,7 +859,8 @@ static AOM_FORCE_INLINE int get_lower_levels_ctx(const uint8_t *levels,
 
 #if CONFIG_IMPROVEIDTX_RDPH
 static INLINE int get_upper_levels_ctx_general(int is_first, int scan_idx,
-                                               int bwl, int height, const uint8_t *levels,
+                                               int bwl, int height,
+                                               const uint8_t *levels,
                                                int coeff_idx) {
   if (is_first) {
     if (scan_idx <= (height << bwl) / 8) return 0;
