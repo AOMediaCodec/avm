@@ -257,6 +257,18 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
 }
 #endif  // CONFIG_NEW_TX_PARTITION
 
+// Calculate the energy of 32-bit signed data in 1d buffer
+// TODO(any): Implement x86 SIMD for the following function
+static AOM_INLINE uint64_t sum_squares_i32(const int32_t *src, int32_t n) {
+  uint64_t ss = 0;
+  do {
+    const int32_t v = *src++;
+    ss += ((int64_t)v) * v;
+  } while (--n);
+
+  return ss;
+}
+
 static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
                                    TX_SIZE tx_size) {
   assert(bsize == x->e_mbd.mi[0]->sb_type[PLANE_TYPE_Y]);
