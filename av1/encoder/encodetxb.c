@@ -1353,13 +1353,8 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif
         } else {
 #if CONFIG_IMPROVEIDTX_CTXS
-          if (is_hidden) {
-            aom_write_symbol(w, sign,
-                             ec_ctx->dc_sign_cdf[plane_type][1 /*group*/][dc_sign_ctx], 2);
-          } else {
-            aom_write_symbol(w, sign,
-                             ec_ctx->dc_sign_cdf[plane_type][0 /*group*/][dc_sign_ctx], 2);
-          }
+          aom_write_symbol(w, sign,
+                           ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx], 2);
 #else
           aom_write_symbol(w, sign,
                            ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx], 2);
@@ -1882,13 +1877,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
       bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
       if (dc_2dtx || dc_hor || dc_ver) {
-        const int dc_sign_ctx = dc_2dtx ?  txb_ctx->dc_sign_ctx : 0;
+        const int dc_ph_group = 0; // PH disabled
+        const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
         const int sign01 = (sign ^ sign) - sign;
         if (plane == AOM_PLANE_V) {
           cost +=
           coeff_costs->v_dc_sign_cost[xd->tmp_sign[pos]][dc_sign_ctx][sign01];
         } else {
-          cost += coeff_costs->dc_sign_cost[0 /*dc_group*/ ][dc_sign_ctx][sign01];
+          cost += coeff_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign01];
         }
         if (c == 0) return cost;
       } else {
@@ -1919,11 +1915,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
           cost +=
               coeff_costs->v_dc_sign_cost[xd->tmp_sign[0]][dc_sign_ctx][sign01];
         } else {
-#if CONFIG_IMPROVEIDTX_CTXS
-          cost += coeff_costs->dc_sign_cost[0/*dc_group*/][dc_sign_ctx][sign01];
-#else
           cost += coeff_costs->dc_sign_cost[dc_sign_ctx][sign01];
-#endif
         }
 #else
         cost += coeff_costs->dc_sign_cost[dc_sign_ctx][sign01];
@@ -1976,13 +1968,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
       bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
       if (dc_2dtx || dc_hor || dc_ver) {
+        const int dc_ph_group = 0; // PH disabled
         const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
         const int sign = AOMSIGN(v);
         const int sign01 = (sign ^ sign) - sign;
         if (plane == AOM_PLANE_V) {
           cost += coeff_costs->v_dc_sign_cost[xd->tmp_sign[pos]][dc_sign_ctx][sign01];
         } else {
-          cost += coeff_costs->dc_sign_cost[0 /*dc_group*/ ][dc_sign_ctx][sign01];
+          cost += coeff_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign01];
         }
       } else {
         if (plane == AOM_PLANE_V) {
@@ -2063,18 +2056,10 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         levels, pos, bwl, tx_class)][AOMMIN(q_index, 3)];
     if (v) {
 #if CONFIG_IMPROVEIDTX_CTXS
-      const int row = pos >> bwl;
-      const int col = pos - (row << bwl);
+      const int dc_ph_group = 1; // PH enabled
       bool dc_2dtx = (c == 0);
-      bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
-      bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
-      if (dc_2dtx || dc_hor || dc_ver) {
-        const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
-        cost += coeff_costs->dc_sign_cost[1/*dc_group*/][dc_sign_ctx][v < 0];
-      } else {
-        const int dc_sign_ctx = txb_ctx->dc_sign_ctx;
-        cost += coeff_costs->dc_sign_cost[1/*dc_group*/][dc_sign_ctx][v < 0];
-      }
+      const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
+      cost += coeff_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][v < 0];
 #else
       const int dc_sign_ctx = txb_ctx->dc_sign_ctx;
       cost += coeff_costs->dc_sign_cost[dc_sign_ctx][v < 0];
@@ -2120,27 +2105,16 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 
     if (v) {
       // sign bit cost
-#if CONFIG_IMPROVEIDTX_CTXS // rate
-      int dc_group = 0; // PH
+#if CONFIG_IMPROVEIDTX_CTXS
+      const int dc_ph_group = 0; // PH disabled
       bool dc_2dtx = (c == 0);
-      bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
-      bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
       const int sign01 = (sign ^ sign) - sign;
       const int dc_sign_ctx = dc_2dtx ? txb_ctx->dc_sign_ctx : 0;
-      if (dc_2dtx || dc_hor || dc_ver) {
-        if (plane == AOM_PLANE_V) {
-          cost +=
-          coeff_costs->v_dc_sign_cost[xd->tmp_sign[pos]][dc_sign_ctx][sign01];
-        } else {
-          cost += coeff_costs->dc_sign_cost[dc_group][dc_sign_ctx][sign01];
-        }
+      if (plane == AOM_PLANE_V) {
+        cost +=
+        coeff_costs->v_dc_sign_cost[xd->tmp_sign[pos]][dc_sign_ctx][sign01];
       } else {
-        if (plane == AOM_PLANE_V) {
-          cost +=
-          coeff_costs->v_dc_sign_cost[xd->tmp_sign[pos]][dc_sign_ctx][sign01];
-        } else {
-          cost += coeff_costs->dc_sign_cost[dc_group][dc_sign_ctx][sign01];
-        }
+        cost += coeff_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign01];
       }
 #else
       const int sign01 = (sign ^ sign) - sign;
@@ -2150,11 +2124,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
         cost +=
             coeff_costs->v_dc_sign_cost[xd->tmp_sign[0]][dc_sign_ctx][sign01];
       } else {
-#if CONFIG_IMPROVEIDTX_CTXS
-        cost += coeff_costs->dc_sign_cost[dc_group][dc_sign_ctx][sign01];
-#else
         cost += coeff_costs->dc_sign_cost[dc_sign_ctx][sign01];
-#endif
       }
 #else
       cost += coeff_costs->dc_sign_cost[dc_sign_ctx][sign01];
@@ -2767,8 +2737,8 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
   }
 #endif  // CONFIG_LCCHROMA
   if (abs_qc != 0) {
-  #if CONFIG_IMPROVEIDTX_CTXS // rate OK
-    int dc_group = 0; // PH
+  #if CONFIG_IMPROVEIDTX_CTXS
+    const int dc_ph_group = 0; // PH disabled
     bool dc_2dtx = (ci == 0);
     bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
     bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
@@ -2776,7 +2746,7 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][dc_sign_ctx][sign];
       else
-        cost += txb_costs->dc_sign_cost[dc_group][dc_sign_ctx][sign];
+        cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[tmp_sign[ci]][sign];
@@ -2927,7 +2897,7 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
   }
   if (abs_qc != 0) {
 #if CONFIG_IMPROVEIDTX_CTXS
-    int dc_group = 0;
+    const int dc_ph_group = 0; // PH disabled
     const int row = ci >> bwl;
     const int col = ci - (row << bwl);
     bool dc_2dtx = (ci == 0);
@@ -2937,7 +2907,7 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][dc_sign_ctx][sign];
       else
-        cost += txb_costs->dc_sign_cost[dc_group][dc_sign_ctx][sign];
+        cost += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
     } else {
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_ac_sign_cost[tmp_sign[ci]][sign];
@@ -3784,8 +3754,8 @@ static AOM_FORCE_INLINE int rate_save(const LV_MAP_COEFF_COST *txb_costs,
         txb_costs_ph->lps_ph_cost[get_par_br_ctx(levels, pos, bwl, tx_class)]);
   }
 #if CONFIG_IMPROVEIDTX_CTXS
-  int dc_group = 1;
-  if (abslevel) rate_ph += txb_costs->dc_sign_cost[dc_group][dc_sign_ctx][sign];
+  const int dc_ph_group = 1; // PH enabled
+  if (abslevel) rate_ph += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][sign];
 #else
   if (abslevel) rate_ph += txb_costs->dc_sign_cost[dc_sign_ctx][sign];
 #endif
@@ -3827,8 +3797,8 @@ static AOM_FORCE_INLINE void cost_hide_par(
       levels, pos, bwl, tx_class)][AOMMIN(q_index, 3)];
   if (abslevel_cand) {
 #if CONFIG_IMPROVEIDTX_CTXS
-    int dc_group = 1; // PH
-    rate_cand += txb_costs->dc_sign_cost[dc_group][dc_sign_ctx][tcoeff < 0];
+    const int dc_ph_group = 1; // PH enabled
+    rate_cand += txb_costs->dc_sign_cost[dc_ph_group][dc_sign_ctx][tcoeff < 0];
 #else
     rate_cand += txb_costs->dc_sign_cost[dc_sign_ctx][tcoeff < 0];
 #endif
@@ -4146,11 +4116,9 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                      dequant, scan, txb_eob_costs, txb_costs, tcoeff, qcoeff,
                      dqcoeff, levels, signs, sharpness, iqmatrix, tx_size, is_inter);
   }
-  
-  //if (si == eob + 1 && nz_num <= max_nz_num) {
+
   update_skip(&accu_rate, accu_dist, &eob, nz_num, nz_ci, rdmult, skip_cost,
               non_skip_cost, qcoeff, dqcoeff, sharpness);
-  //}
   
   for (; si < eob; ++si) {
     update_coeff_fsc_general(&accu_rate, &accu_dist, si, bob,
@@ -5623,7 +5591,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
 #endif  // CONFIG_LCCHROMA
     }
 
-#if CONFIG_IMPROVEIDTX_CTXS // dc_sign_ctx
+#if CONFIG_IMPROVEIDTX_CTXS
     if (allow_update_cdf) {
       for (int c = 0; c < eob; ++c) {
         const tran_low_t v = tcoeff[scan[c]];
@@ -5640,14 +5608,11 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
             const int dc_sign_ctx = dc_2dtx ? txb_ctx.dc_sign_ctx : 0;
 #if CONFIG_ENTROPY_STATS
             if (allow_update_cdf) {
+              const int dc_ph_group = is_hidden ? 1 : 0;
               if (plane == AOM_PLANE_V) {
                 ++td->counts->v_dc_sign[cdf_idx][xd->tmp_sign[pos]][dc_sign_ctx][dc_sign];
               } else {
-                if (is_hidden) {
-                  ++td->counts->dc_sign[cdf_idx][plane_type][1 /*group*/][dc_sign_ctx][dc_sign];
-                } else {
-                  ++td->counts->dc_sign[cdf_idx][plane_type][0 /*group*/][dc_sign_ctx][dc_sign];
-                }
+                ++td->counts->dc_sign[cdf_idx][plane_type][dc_ph_group][dc_sign_ctx][dc_sign];
               }
             }
 #endif  // CONFIG_ENTROPY_STATS
@@ -5656,11 +5621,8 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 update_cdf(ec_ctx->v_dc_sign_cdf[xd->tmp_sign[pos]][dc_sign_ctx],
                            dc_sign, 2);
               } else {
-                if (is_hidden) {
-                  update_cdf(ec_ctx->dc_sign_cdf[plane_type][1 /*group*/][dc_sign_ctx], dc_sign, 2);
-                } else {
-                  update_cdf(ec_ctx->dc_sign_cdf[plane_type][0 /*group*/][dc_sign_ctx], dc_sign, 2);
-                }
+                const int dc_ph_group = is_hidden ? 1 : 0;
+                update_cdf(ec_ctx->dc_sign_cdf[plane_type][dc_ph_group][dc_sign_ctx], dc_sign, 2);
               }
             }
             if(dc_2dtx) entropy_ctx[block] |= dc_sign_ctx << DC_SIGN_CTX_SHIFT;
@@ -5680,15 +5642,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           ++td->counts
                 ->v_dc_sign[cdf_idx][xd->tmp_sign[0]][dc_sign_ctx][dc_sign];
         } else {
-#if CONFIG_IMPROVEIDTX_CTXS
-          if (is_hidden) {
-            ++td->counts->dc_sign[cdf_idx][plane_type][1 /*group*/][dc_sign_ctx][dc_sign];
-          } else {
-            ++td->counts->dc_sign[cdf_idx][plane_type][0 /*group*/][dc_sign_ctx][dc_sign];
-          }
-#else
           ++td->counts->dc_sign[cdf_idx][plane_type][dc_sign_ctx][dc_sign];
-#endif
         }
       }
 #else
@@ -5702,15 +5656,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           update_cdf(ec_ctx->v_dc_sign_cdf[xd->tmp_sign[0]][dc_sign_ctx],
                      dc_sign, 2);
         } else {
-#if CONFIG_IMPROVEIDTX_CTXS
-          if (is_hidden) {
-            update_cdf(ec_ctx->dc_sign_cdf[plane_type][1 /*group*/][dc_sign_ctx], dc_sign, 2);
-          } else {
-            update_cdf(ec_ctx->dc_sign_cdf[plane_type][0 /*group*/][dc_sign_ctx], dc_sign, 2);
-          }
-#else
           update_cdf(ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx], dc_sign, 2);
-#endif
         }
       }
 #else

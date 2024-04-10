@@ -5916,39 +5916,39 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
           static const aom_cdf_prob default_txfm_do_partition_cdf[FSC_MODES][2][TXFM_PARTITION_GROUP][CDF_SIZE(2)] = {
             {
               {
-                { AOM_CDF2(18916), 0 },
-                { AOM_CDF2(27331), 0 },
-                { AOM_CDF2(21312), 0 },
-                { AOM_CDF2(26123), 0 },
-                { AOM_CDF2(23611), 0 },
-                { AOM_CDF2(27151), 0 },
-                { AOM_CDF2(24772), 0 },
-                { AOM_CDF2(29319), 0 },
-                { AOM_CDF2(18625), 0 }
+                { AOM_CDF2(18493), 0 },
+                { AOM_CDF2(27157), 0 },
+                { AOM_CDF2(21348), 0 },
+                { AOM_CDF2(26962), 0 },
+                { AOM_CDF2(22000), 0 },
+                { AOM_CDF2(27485), 0 },
+                { AOM_CDF2(24906), 0 },
+                { AOM_CDF2(29262), 0 },
+                { AOM_CDF2(19741), 0 }
               },
               {
-                { AOM_CDF2(27933), 0 },
-                { AOM_CDF2(27134), 0 },
-                { AOM_CDF2(19915), 0 },
-                { AOM_CDF2(24001), 0 },
-                { AOM_CDF2(22137), 0 },
-                { AOM_CDF2(22938), 0 },
-                { AOM_CDF2(30141), 0 },
-                { AOM_CDF2(31284), 0 },
-                { AOM_CDF2(17968), 0 }
+                { AOM_CDF2(28254), 0 },
+                { AOM_CDF2(28849), 0 },
+                { AOM_CDF2(22565), 0 },
+                { AOM_CDF2(25705), 0 },
+                { AOM_CDF2(19759), 0 },
+                { AOM_CDF2(23075), 0 },
+                { AOM_CDF2(30041), 0 },
+                { AOM_CDF2(31847), 0 },
+                { AOM_CDF2(20283), 0 }
               }
             },
             {
               {
-                { AOM_CDF2(26121), 0 },
-                { AOM_CDF2(30335), 0 },
-                { AOM_CDF2(21166), 0 },
-                { AOM_CDF2(25337), 0 },
-                { AOM_CDF2(23335), 0 },
-                { AOM_CDF2(24479), 0 },
+                { AOM_CDF2(26648), 0 },
+                { AOM_CDF2(31473), 0 },
+                { AOM_CDF2(20580), 0 },
+                { AOM_CDF2(24814), 0 },
+                { AOM_CDF2(25050), 0 },
+                { AOM_CDF2(27979), 0 },
                 { AOM_CDF2(16384), 0 },
                 { AOM_CDF2(16384), 0 },
-                { AOM_CDF2(20546), 0 }
+                { AOM_CDF2(20823), 0 }
               },
               {
                 { AOM_CDF2(16384), 0 }, // unused
@@ -5968,35 +5968,35 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
             {
               {
                 { AOM_CDF3(32760, 32764), 0 },
-                { AOM_CDF3(4857, 23310), 0 },
-                { AOM_CDF3(15242, 23626), 0 },
-                { AOM_CDF3(5438, 14665), 0 },
-                { AOM_CDF3(24914, 30239), 0 },
-                { AOM_CDF3(491, 30488), 0 },
-                { AOM_CDF3(10834, 26204), 0 },
-                { AOM_CDF3(6361, 20555), 0 }
+                { AOM_CDF3(5348, 22503), 0 },
+                { AOM_CDF3(14327, 22693), 0 },
+                { AOM_CDF3(6990, 13681), 0 },
+                { AOM_CDF3(28171, 31455), 0 },
+                { AOM_CDF3(166, 31347), 0 },
+                { AOM_CDF3(11478, 26297), 0 },
+                { AOM_CDF3(3453, 21785), 0 }
               },
               {
-                { AOM_CDF3(12864, 23787), 0 },
-                { AOM_CDF3(20711, 26566), 0 },
-                { AOM_CDF3(20743, 25896), 0 },
-                { AOM_CDF3(29197, 30779), 0 },
-                { AOM_CDF3(28118, 30778), 0 },
-                { AOM_CDF3(18835, 26361), 0 },
-                { AOM_CDF3(9249, 22673), 0 },
-                { AOM_CDF3(23576, 28500), 0 }
+                { AOM_CDF3(10814, 22332), 0 },
+                { AOM_CDF3(21108, 26672), 0 },
+                { AOM_CDF3(21815, 26412), 0 },
+                { AOM_CDF3(29501, 31015), 0 },
+                { AOM_CDF3(27523, 30572), 0 },
+                { AOM_CDF3(19390, 26638), 0 },
+                { AOM_CDF3(9596, 23871), 0 },
+                { AOM_CDF3(23492, 28393), 0 }
               }
             },
             {
               {
                 { AOM_CDF3(32760, 32764), 0 },
-                { AOM_CDF3(3217, 19402), 0 },
-                { AOM_CDF3(5908, 19037), 0 },
-                { AOM_CDF3(2784, 18434), 0 },
-                { AOM_CDF3(10358, 24420), 0 },
+                { AOM_CDF3(2880, 18330), 0 },
+                { AOM_CDF3(3960, 17957), 0 },
+                { AOM_CDF3(2079, 18898), 0 },
+                { AOM_CDF3(3992, 21317), 0 },
                 { AOM_CDF3(10923, 21845), 0 },
                 { AOM_CDF3(10923, 21845), 0 },
-                { AOM_CDF3(4495, 20063), 0 }
+                { AOM_CDF3(4225, 20618), 0 }
               },
               {
                 { AOM_CDF3(10923, 21845), 0 }, // unused

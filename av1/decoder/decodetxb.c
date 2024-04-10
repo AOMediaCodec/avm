@@ -1039,15 +1039,8 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_CONTEXT_DERIVATION
         if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
 #if CONFIG_IMPROVEIDTX_CTXS
-          if (is_hidden) {
-            sign = aom_read_symbol(
-                                   r, ec_ctx->dc_sign_cdf[plane_type][1 /*group*/][dc_sign_ctx], 2,
+            sign = aom_read_symbol(r, ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx], 2,
                                    ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
-          } else {
-            sign = aom_read_symbol(
-                                   r, ec_ctx->dc_sign_cdf[plane_type][0 /*group*/][dc_sign_ctx], 2,
-                                   ACCT_INFO("sign", "dc_sign_cdf", "plane_y_or_u"));
-          }
 #else
           sign = aom_read_symbol(
               r, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx], 2,

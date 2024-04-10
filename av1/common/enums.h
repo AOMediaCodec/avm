@@ -1099,9 +1099,6 @@ enum {
 #define COMP_REF_TYPE_CONTEXTS 5
 #define UNI_COMP_REF_CONTEXTS 3
 
-#if CONFIG_IMPROVEIDTX_CTXS
-#define FSC_MODES 2
-#endif
 #if CONFIG_NEW_TX_PARTITION
 #if CONFIG_TX_PARTITION_CTX
 // Group size from mapping block size to tx partition context
