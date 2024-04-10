@@ -902,9 +902,9 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   uint8_t frame_bits_bo_only = 1;  // enabling flag
   frame_bits_bo_only += 1;         // bo only flag
   frame_bits += 1;                 // bo only flag
-#endif
-  frame_bits += 2;  // quant step size
-  frame_bits += 3;  // filter support index
+#endif                             // CONFIG_CCSO_SIGFIX
+  frame_bits += 2;                 // quant step size
+  frame_bits += 3;                 // filter support index
 #if CONFIG_CCSO_EDGE_CLF
   frame_bits += 1;  // edge_clf
 #endif              // CONFIG_CCSO_EDGE_CLF
@@ -912,7 +912,7 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   frame_bits += 2;  // band number log2
 #if CONFIG_CCSO_SIGFIX
   frame_bits_bo_only += 3;  // band number log2
-#endif
+#endif                      // CONFIG_CCSO_SIGFIX
   uint8_t *src_cls0;
   uint8_t *src_cls1;
   src_cls0 = aom_malloc(sizeof(*src_cls0) * xd->plane[0].dst.height *
@@ -931,13 +931,17 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
     int num_filter_iter = ccso_bo_only ? 1 : total_filter_support;
     int num_quant_iter = ccso_bo_only ? 1 : total_quant_idx;
     int num_edge_clf_iter = ccso_bo_only ? 1 : total_edge_classifier;
-#endif
+#else
+  int num_filter_iter = total_filter_support;
+  int num_quant_iter = total_quant_idx;
+  int num_edge_clf_iter = total_edge_classifier;
+#endif  // CONFIG_CCSO_SIGFIX
     for (int ext_filter_support = 0; ext_filter_support <
 #if CONFIG_CCSO_SIGFIX
                                      num_filter_iter
 #else
                                    total_filter_support
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
          ;
          ext_filter_support++) {
       for (int quant_idx = 0; quant_idx <
@@ -945,7 +949,7 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                               num_quant_iter
 #else
                             total_quant_idx
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
            ;
            quant_idx++) {
 #if CONFIG_CCSO_EDGE_CLF
@@ -954,7 +958,7 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                                num_edge_clf_iter
 #else
                                total_edge_classifier
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
              ;
              edge_clf++) {
           const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
@@ -1152,7 +1156,7 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                     (ccso_bo_only ? frame_bits_bo_only : frame_bits)
 #else
                     frame_bits
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
                     + sb_count;
                 const double cur_total_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
                     rdmult, cur_total_bits, cur_total_dist,
@@ -1167,7 +1171,7 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                             av1_cost_literal(
 #if CONFIG_CCSO_SIGFIX
                                 ccso_bo_only ? frame_bits_bo_only :
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
                                              frame_bits);
           const uint64_t cur_total_cost =
               RDCOST(rdmult, cur_total_rate, cur_total_dist * 16);

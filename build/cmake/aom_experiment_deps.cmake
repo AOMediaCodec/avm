@@ -149,4 +149,9 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_TMVP_IMPROVE 0 !CONFIG_MVP_IMPROVEMENT)
   endif()
 
+  # CONFIG_CCSO_SIGFIX depends on CONFIG_CCSO_BO_ONLY_OPTION
+  if(NOT CONFIG_CCSO_BO_ONLY_OPTION AND CONFIG_CCSO_SIGFIX)
+    change_config_and_warn(CONFIG_CCSO_SIGFIX 0 !CONFIG_CCSO_BO_ONLY_OPTION)
+  endif()
+
 endmacro()

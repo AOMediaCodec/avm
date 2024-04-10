@@ -189,7 +189,7 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int src_loc[2];
 #if CONFIG_CCSO_SIGFIX
   if (!cm->ccso_info.ccso_bo_only[plane])
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
     derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
@@ -262,7 +262,7 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int src_loc[2];
 #if CONFIG_CCSO_SIGFIX
   if (!cm->ccso_info.ccso_bo_only[plane])
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
     derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
@@ -337,7 +337,7 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_loc[2];
 #if CONFIG_CCSO_SIGFIX
   if (!cm->ccso_info.ccso_bo_only[plane])
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
     derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;
@@ -416,7 +416,7 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_loc[2];
 #if CONFIG_CCSO_SIGFIX
   if (!cm->ccso_info.ccso_bo_only[plane])
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
     derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   const int blk_log2 = plane > 0 ? CCSO_BLK_SIZE : CCSO_BLK_SIZE + 1;
   const int blk_size = 1 << blk_log2;

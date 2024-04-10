@@ -4472,7 +4472,7 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
 #if !CONFIG_CCSO_SIGFIX
         aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
         aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
-#endif
+#endif  // !CONFIG_CCSO_SIGFIX
 #if CONFIG_CCSO_EXT
 #if CONFIG_CCSO_BO_ONLY_OPTION
         if (cm->ccso_info.ccso_bo_only[plane]) {
@@ -4482,7 +4482,7 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
           aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
           aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane], 3);
           aom_wb_write_bit(wb, cm->ccso_info.edge_clf[plane]);
-#endif
+#endif  // CONFIG_CCSO_SIGFIX
           aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
         }
 #else
@@ -4494,7 +4494,7 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
         const int edge_clf = cm->ccso_info.edge_clf[plane];
 #if !CONFIG_CCSO_SIGFIX
         aom_wb_write_bit(wb, edge_clf);
-#endif
+#endif  // !CONFIG_CCSO_SIGFIX
         const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
 #if CONFIG_CCSO_BO_ONLY_OPTION
         const int num_edge_offset_intervals =
