@@ -936,31 +936,11 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
   int num_quant_iter = total_quant_idx;
   int num_edge_clf_iter = total_edge_classifier;
 #endif  // CONFIG_CCSO_SIGFIX
-    for (int ext_filter_support = 0; ext_filter_support <
-#if CONFIG_CCSO_SIGFIX
-                                     num_filter_iter
-#else
-                                   total_filter_support
-#endif  // CONFIG_CCSO_SIGFIX
-         ;
+    for (int ext_filter_support = 0; ext_filter_support < num_filter_iter;
          ext_filter_support++) {
-      for (int quant_idx = 0; quant_idx <
-#if CONFIG_CCSO_SIGFIX
-                              num_quant_iter
-#else
-                            total_quant_idx
-#endif  // CONFIG_CCSO_SIGFIX
-           ;
-           quant_idx++) {
+      for (int quant_idx = 0; quant_idx < num_quant_iter; quant_idx++) {
 #if CONFIG_CCSO_EDGE_CLF
-        for (int edge_clf = 0; edge_clf <
-#if CONFIG_CCSO_SIGFIX
-                               num_edge_clf_iter
-#else
-                               total_edge_classifier
-#endif  // CONFIG_CCSO_SIGFIX
-             ;
-             edge_clf++) {
+        for (int edge_clf = 0; edge_clf < num_edge_clf_iter; edge_clf++) {
           const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
 #endif  // CONFIG_CCSO_EDGE_CLF
 #if CONFIG_CCSO_EXT
@@ -1152,12 +1132,12 @@ void derive_ccso_filter(AV1_COMMON *cm, const int plane, MACROBLOCKD *xd,
                 );
                 const int cur_total_bits =
                     lut_bits +
+                    (
 #if CONFIG_CCSO_SIGFIX
-                    (ccso_bo_only ? frame_bits_bo_only : frame_bits)
-#else
-                    frame_bits
+                        ccso_bo_only ? frame_bits_bo_only :
 #endif  // CONFIG_CCSO_SIGFIX
-                    + sb_count;
+                                     frame_bits) +
+                    sb_count;
                 const double cur_total_cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
                     rdmult, cur_total_bits, cur_total_dist,
                     cm->seq_params.bit_depth);

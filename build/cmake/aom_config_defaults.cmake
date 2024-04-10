@@ -372,8 +372,7 @@ set_aom_config_var(CONFIG_VQ_MVD_CODING 1 "Enable VQ based MVD coding")
 set_aom_config_var(CONFIG_QM_SIMPLIFY 1
                    "Enable new QMs based on 8x8, 8x4, and 4x8 sizes.")
 set_aom_config_var(CONFIG_OPFL_BI 1 "Enable bilinear for initial opfl.")
-set_aom_config_var(CONFIG_CCSO_SIGFIX 1
-                   "Enable signaling fix for CCSO.")
+set_aom_config_var(CONFIG_CCSO_SIGFIX 1 "Enable signaling fix for CCSO.")
 
 #
 # Variables in this section control optional features of the build system.
