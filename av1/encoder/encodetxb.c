@@ -1527,12 +1527,8 @@ static int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
         if (mbmi->filter_intra_mode_info.use_filter_intra)
           intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
                                              .filter_intra_mode];
-#if CONFIG_WAIP
-        else if (mbmi->is_wide_angle[0])
-          intra_dir = mbmi->mapped_intra_mode[0];
-#endif  // CONFIG_WAIP
         else
-          intra_dir = mbmi->mode;
+          intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
         TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
         int tx_type_cost = 0;
         if (eob != 1) {

@@ -288,7 +288,7 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
                                      const int plane) {
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
-  int mrl_index = (plane == PLANE_TYPE_Y ? mbmi->mrl_index : 0);
+  int mrl_index = (plane == AOM_PLANE_Y ? mbmi->mrl_index : 0);
   const int is_dr_mode = av1_is_directional_mode(mode);
   mbmi->is_wide_angle[plane > 0] = 0;
   mbmi->mapped_intra_mode[plane > 0] = DC_PRED;

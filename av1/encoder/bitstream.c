@@ -1494,12 +1494,8 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
   if (mbmi->filter_intra_mode_info.use_filter_intra)
     intra_dir =
         fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-#if CONFIG_WAIP
-  else if (mbmi->is_wide_angle[0])
-    intra_dir = mbmi->mapped_intra_mode[0];
-#endif  // CONFIG_WAIP
   else
-    intra_dir = mbmi->mode;
+    intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
