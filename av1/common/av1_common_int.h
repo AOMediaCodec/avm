@@ -2826,6 +2826,7 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
 
 #if CONFIG_INTRA_SDP_LATENCY_FIX
   if (bsize > BLOCK_64X64) {
+    assert(bsize <= BLOCK_LARGEST);
     return true;
   }
 #endif  // CONFIG_INTRA_SDP_LATENCY_FIX
