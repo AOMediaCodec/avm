@@ -329,7 +329,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
 #if CONFIG_IMPROVEIDTX_CTXS
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane_type == PLANE_TYPE_Y);
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
   const int txb_size_index =
       is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
   if (blk_row >= max_blocks_high || blk_col >= max_blocks_wide) return;
@@ -351,7 +351,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
           ec_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
 #else
           ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
       aom_write_symbol(w, do_partition, do_partition_cdf, 2);
     }
 
@@ -364,7 +364,7 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
                                                 [bsize_group - 1];
 #else
             ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
         aom_write_symbol(w, partition - 1, partition_type_cdf, 3);
       }
     }

@@ -219,7 +219,7 @@ typedef struct {
   int dc_sign_cost[DC_SIGN_GROUPS][DC_SIGN_CONTEXTS][2];
 #else
   int dc_sign_cost[DC_SIGN_CONTEXTS][2];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 #if CONFIG_CONTEXT_DERIVATION
   //! Cost for encoding the AOM_PLANE_V txfm coefficient dc_sign
   int v_dc_sign_cost[CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS][2];
@@ -1210,7 +1210,7 @@ typedef struct {
   int txfm_do_partition_cost[2][TXFM_PARTITION_GROUP][2];
   //! txfm_4way_partition_type_cost
   int txfm_4way_partition_type_cost[2][TXFM_PARTITION_GROUP - 1][3];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 #else
   //! intra_4way_txfm_partition_cost
   int intra_4way_txfm_partition_cost[2][TX_SIZE_CONTEXTS][4];

@@ -111,7 +111,7 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
 int av1_optimize_fsc(const struct AV1_COMP *cpi, MACROBLOCK *mb, int plane,
                      int block, TX_SIZE tx_size, TX_TYPE tx_type,
                      const TXB_CTX *const txb_ctx, int *rate_cost);
-#endif
+#endif  // CONFIG_IMPROVEIDTX_RDPH
 
 int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *mb, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,

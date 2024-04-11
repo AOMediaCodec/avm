@@ -5992,7 +5992,6 @@ static const aom_cdf_prob
             { AOM_CDF3(10923, 21845), 0 }   // unused
         } }
     };
-
 #else
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)] = {
@@ -6045,7 +6044,7 @@ static const aom_cdf_prob
                     { AOM_CDF3(15488, 25573), 35 },
                     { AOM_CDF3(20414, 25479), 0 },
                 } };
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 #else
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[2][TXFM_PARTITION_GROUP][CDF_SIZE(2)] = {

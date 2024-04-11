@@ -1202,32 +1202,25 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         av1_optimize_fsc(cpi, x, plane, block, tx_size, best_tx_type, txb_ctx,
                          rate_cost);
       } else if (quant_param_intra.use_optimize_b) {
+#else
+      if (quant_param_intra.use_optimize_b) {
+#endif  // CONFIG_IMPROVEIDTX_RDPH
         av1_optimize_b(cpi, x, plane, block, tx_size, best_tx_type, cctx_type,
                        txb_ctx, rate_cost);
       } else {
         bool enable_parity_hiding =
             cm->features.allow_parity_hiding &&
             !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
+#if CONFIG_IMPROVEIDTX_RDPH
             ph_allowed_tx_types[get_primary_tx_type(best_tx_type)] &&
             (x->plane[AOM_PLANE_Y].eobs[block] > PHTHRESH);
-        if (enable_parity_hiding)
-          parity_hiding_trellis_off(cpi, x, plane, block, tx_size,
-                                    best_tx_type);
-      }
 #else
-      if (quant_param_intra.use_optimize_b) {
-        av1_optimize_b(cpi, x, plane, block, tx_size, best_tx_type, cctx_type,
-                       txb_ctx, rate_cost);
-      } else {
-        bool enable_parity_hiding = cm->features.allow_parity_hiding &&
-                                    !xd->lossless[mbmi->segment_id] &&
-                                    plane == PLANE_TYPE_Y &&
-                                    get_primary_tx_type(best_tx_type) < IDTX;
+            get_primary_tx_type(best_tx_type) < IDTX;
+#endif  // CONFIG_IMPROVEIDTX_RDPH
         if (enable_parity_hiding)
           parity_hiding_trellis_off(cpi, x, plane, block, tx_size,
                                     best_tx_type);
       }
-#endif
     }
 
     // In CCTX, reconstruction for U plane relies on dqcoeffs of V plane, so the
@@ -2503,7 +2496,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   uint8_t fsc_mode =
       (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && plane == PLANE_TYPE_Y);
   skip_trellis |= fsc_mode;
-#endif
+#endif  // !CONFIG_IMPROVEIDTX_RDPH
 
   // Hashing based speed feature for intra block. If the hash of the residue
   // is found in the hash table, use the previous RD search results stored in
@@ -2652,7 +2645,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         skip_trellis;
 #else
         skip_trellis || use_inter_fsc(cm, plane, txk_map[idx], is_inter);
-#endif
+#endif  // CONFIG_IMPROVEIDTX_RDPH
     av1_update_trellisq(!skip_trellis_in,
                         skip_trellis_in ? xform_quant_b : AV1_XFORM_QUANT_FP,
                         cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
@@ -2766,7 +2759,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                               use_inter_fsc(cm, plane, tx_type, is_inter);
 #if !CONFIG_IMPROVEIDTX_RDPH
         if (fsc_mode_in) quant_param.use_optimize_b = false;
-#endif
+#endif  // !CONFIG_IMPROVEIDTX_RDPH
         av1_quant(x, plane, block, &txfm_param, &quant_param);
         if (fsc_mode_in) {
           if (primary_tx_type == IDTX) {
@@ -2790,14 +2783,21 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           av1_optimize_fsc(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
                            &rate_cost);
         } else if (quant_param.use_optimize_b) {
+#else
+      if (quant_param.use_optimize_b) {
+#endif  // CONFIG_IMPROVEIDTX_RDPH
           av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
                          txb_ctx, &rate_cost);
         } else {
           bool enable_parity_hiding =
               cm->features.allow_parity_hiding &&
               !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
+#if CONFIG_IMPROVEIDTX_RDPH
               ph_allowed_tx_types[get_primary_tx_type(tx_type)] &&
               (p->eobs[block] > PHTHRESH);
+#else
+            primary_tx_type < IDTX;
+#endif  // CONFIG_IMPROVEIDTX_RDPH
           if (enable_parity_hiding)
             parity_hiding_trellis_off(cpi, x, plane, block, tx_size, tx_type);
 
@@ -2805,24 +2805,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
               cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
                           txb_ctx, cm->features.reduced_tx_set_used);
         }
-#else
-      // Calculate rate cost of quantized coefficients.
-      if (quant_param.use_optimize_b) {
-        av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                       txb_ctx, &rate_cost);
-      } else {
-        bool enable_parity_hiding = cm->features.allow_parity_hiding &&
-                                    !xd->lossless[mbmi->segment_id] &&
-                                    plane == PLANE_TYPE_Y &&
-                                    primary_tx_type < IDTX;
-        if (enable_parity_hiding)
-          parity_hiding_trellis_off(cpi, x, plane, block, tx_size, tx_type);
-
-        rate_cost =
-            cost_coeffs(cm, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                        txb_ctx, cm->features.reduced_tx_set_used);
-      }
-#endif
 
         if (*eob == 1 && plane == PLANE_TYPE_Y && !is_inter) {
           // post quant-skip DC only case
@@ -2988,7 +2970,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   skip_trellis &=
       (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && plane == PLANE_TYPE_Y) ||
       use_inter_fsc(cm, plane, best_tx_type, is_inter);
-#endif
+#endif  // !CONFIG_IMPROVEIDTX_RDPH
 
   // Point dqcoeff to the quantized coefficients corresponding to the best
   // transform type, then we can skip transform and quantization, e.g. in the
@@ -3142,30 +3124,28 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
       uint8_t fsc_mode_in = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                              plane == PLANE_TYPE_Y) ||
                             use_inter_fsc(cm, plane, tx_type, is_inter);
-      if (fsc_mode_in && quant_param.use_optimize_b) {
-        av1_optimize_fsc(cpi, x, plane, block, tx_size, tx_type,
+#endif  // CONFIG_IMPROVEIDTX_RDPH
+      if (quant_param.use_optimize_b) {
+#if CONFIG_IMPROVEIDTX_RDPH
+        if (fsc_mode_in) {
+          av1_optimize_fsc(cpi, x, plane, block, tx_size, tx_type,
+                           &txb_ctx_uv[plane - AOM_PLANE_U],
+                           &rate_cost[plane - AOM_PLANE_U]);
+        } else {
+          av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                          &txb_ctx_uv[plane - AOM_PLANE_U],
                          &rate_cost[plane - AOM_PLANE_U]);
-      } else if (quant_param.use_optimize_b) {
-        av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx_uv[plane - AOM_PLANE_U],
-                       &rate_cost[plane - AOM_PLANE_U]);
-      } else {
-        rate_cost[plane - AOM_PLANE_U] = cost_coeffs(
-            cm, x, plane, block, tx_size, tx_type, cctx_type,
-            &txb_ctx_uv[plane - AOM_PLANE_U], cm->features.reduced_tx_set_used);
-      }
+        }
 #else
-      if (quant_param.use_optimize_b) {
         av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                        &txb_ctx_uv[plane - AOM_PLANE_U],
                        &rate_cost[plane - AOM_PLANE_U]);
+#endif  // CONFIG_IMPROVEIDTX_RDPH
       } else {
         rate_cost[plane - AOM_PLANE_U] = cost_coeffs(
             cm, x, plane, block, tx_size, tx_type, cctx_type,
             &txb_ctx_uv[plane - AOM_PLANE_U], cm->features.reduced_tx_set_used);
       }
-#endif
     }
 
     // Recover the original transform coefficients

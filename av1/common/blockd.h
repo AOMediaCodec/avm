@@ -2522,6 +2522,7 @@ static INLINE uint8_t *get_buf_by_bd(const MACROBLOCKD *xd, uint8_t *buf16) {
 */
 
 #if CONFIG_IMPROVEIDTX_RDPH
+/* allowed transform types with parity hiding of DC term */
 static const int ph_allowed_tx_types[TX_TYPES] = {
   1,  // DCT in both horizontal and vertical
   1,  // ADST in vertical, DCT in horizontal
@@ -2540,7 +2541,7 @@ static const int ph_allowed_tx_types[TX_TYPES] = {
   1,  // FLIPADST in vertical, identity in horizontal
   1,  // Identity in vertical, FLIPADST in horizontal
 };
-#endif
+#endif  // CONFIG_IMPROVEIDTX_RDPH
 
 static TX_TYPE intra_mode_to_tx_type(const MB_MODE_INFO *mbmi,
                                      PLANE_TYPE plane_type) {

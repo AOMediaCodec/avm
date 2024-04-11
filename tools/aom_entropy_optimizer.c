@@ -1577,7 +1577,7 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_txfm_4way_partition_type_cdf"
       "[2][TXFM_PARTITION_GROUP - 1][CDF_SIZE(3)]",
       0, &total_count, 0, mem_wanted, "Partitions");
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 #else
   cts_each_dim[0] = 2;
   cts_each_dim[1] = TXFM_PARTITION_INTER_CONTEXTS;
@@ -1876,7 +1876,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_BOB]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 1)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 
 #if CONFIG_CONTEXT_DERIVATION
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
@@ -2270,7 +2270,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][IDTX_SIG_COEF_CONTEXTS]"
       "[CDF_SIZE(NUM_BASE_LEVELS + 2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 
 #if CONFIG_LCCHROMA
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
@@ -2320,7 +2320,7 @@ int main(int argc, const char **argv) {
                      "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_CONTEXTS]"
                      "[CDF_SIZE(2)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = CROSS_COMPONENT_CONTEXTS;

@@ -53,7 +53,7 @@ static AOM_INLINE int inter_tx_partition_cost(
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int is_fsc = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 #if CONFIG_TX_PARTITION_CTX
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
   int do_partition = 0;
@@ -64,7 +64,7 @@ static AOM_INLINE int inter_tx_partition_cost(
                 .txfm_do_partition_cost[is_fsc][1][bsize_group][do_partition];
 #else
     cost += x->mode_costs.txfm_do_partition_cost[1][bsize_group][do_partition];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
   }
 
   if (do_partition) {
@@ -79,7 +79,7 @@ static AOM_INLINE int inter_tx_partition_cost(
 #else
       cost += x->mode_costs.txfm_4way_partition_type_cost[1][bsize_group - 1]
                                                          [split4_partition - 1];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
     }
   }
 #else
@@ -116,7 +116,7 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
 #if CONFIG_IMPROVEIDTX_CTXS
   const int is_fsc = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
   int do_partition = 0;
   if (allow_horz || allow_vert) {
     do_partition = (partition != TX_PARTITION_NONE);
@@ -125,7 +125,7 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
                 .txfm_do_partition_cost[is_fsc][0][bsize_group][do_partition];
 #else
     cost += x->mode_costs.txfm_do_partition_cost[0][bsize_group][do_partition];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
   }
 
   if (do_partition) {
@@ -138,7 +138,7 @@ static AOM_INLINE int intra_tx_partition_cost(const MACROBLOCK *const x,
                   .txfm_4way_partition_type_cost[is_fsc][0][bsize_group - 1]
 #else
       cost += x->mode_costs.txfm_4way_partition_type_cost[0][bsize_group - 1]
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
                                                 [split4_partition - 1];
     }
   }

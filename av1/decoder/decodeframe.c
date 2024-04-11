@@ -1830,7 +1830,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 #if CONFIG_IMPROVEIDTX_CTXS
   const int is_fsc = (xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       plane_type == PLANE_TYPE_Y);
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
 #if CONFIG_TX_PARTITION_CTX
   const int bsize_group = size_to_tx_part_group_lookup[bsize];
   int do_partition = 0;
@@ -1840,7 +1840,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
         ec_ctx->txfm_do_partition_cdf[is_fsc][is_inter][bsize_group];
 #else
         ec_ctx->txfm_do_partition_cdf[is_inter][bsize_group];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
     do_partition =
         aom_read_symbol(r, do_partition_cdf, 2, ACCT_INFO("do_partition"));
   }
@@ -1855,7 +1855,7 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
               ->txfm_4way_partition_type_cdf[is_fsc][is_inter][bsize_group - 1];
 #else
           ec_ctx->txfm_4way_partition_type_cdf[is_inter][bsize_group - 1];
-#endif
+#endif  // CONFIG_IMPROVEIDTX_CTXS
       const TX_PARTITION_TYPE partition_type = aom_read_symbol(
           r, partition_type_cdf, 3, ACCT_INFO("partition_type"));
       partition = partition_type + 1;
