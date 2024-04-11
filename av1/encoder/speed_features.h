@@ -643,11 +643,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // aggressively than lower ones. (0 means no pruning).
   int selective_ref_frame;
 
-  // Prune reference frames for rectangular partitions.
+  // Prune reference frames.
   // 0 implies no pruning
   // 1 implies prune for extended partition
   // 2 implies prune horiz, vert and extended partition
-  int prune_ref_frame_for_rect_partitions;
+  int prune_ref_frames;
 
   // Prune reference frames for ALTREF
   int alt_ref_search_fp;

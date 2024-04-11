@@ -8467,7 +8467,7 @@ static int fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
   for (int i = mi_row_in_sb; i < mi_row_in_sb + mi_h; ++i) {
     for (int j = mi_col_in_sb; j < mi_col_in_sb + mi_w; ++j) {
-      picked_ref_frames_mask |= x->picked_ref_frames_mask[i * 32 + j];
+      picked_ref_frames_mask |= x->picked_ref_frames_mask[i * mib_size + j];
     }
   }
   return picked_ref_frames_mask;
@@ -9669,8 +9669,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   int picked_ref_frames_mask = 0;
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 #if CONFIG_EXT_RECUR_PARTITIONS
-  if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
-      !x->inter_mode_cache && !is_square_block(bsize)) {
+  if (cpi->sf.inter_sf.prune_ref_frames && !x->inter_mode_cache) {
     bool prune_ref_frames = false;
     assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
 
@@ -9689,7 +9688,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           { { xd->mi_row, xd->mi_col },
             { xd->mi_row + mi_size_high[bsize] / 2, xd->mi_col } },
           { { xd->mi_row, xd->mi_col },
-            { xd->mi_row, xd->mi_col + mi_size_wide[bsize] } }
+            { xd->mi_row, xd->mi_col + mi_size_wide[bsize] / 2 } }
         };
         const PARTITION_TYPE part =
             (rect_type == HORZ) ? PARTITION_HORZ : PARTITION_VERT;
@@ -9715,14 +9714,14 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     }
   }
 #else   // CONFIG_EXT_RECUR_PARTITIONS
-  if (cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions &&
-      mbmi->partition != PARTITION_NONE && mbmi->partition != PARTITION_SPLIT) {
-    // prune_ref_frame_for_rect_partitions = 1 implies prune only extended
-    // partition blocks. prune_ref_frame_for_rect_partitions >=2
+  if (cpi->sf.inter_sf.prune_ref_frames && mbmi->partition != PARTITION_NONE &&
+      mbmi->partition != PARTITION_SPLIT) {
+    // prune_ref_frames = 1 implies prune only extended
+    // partition blocks. prune_ref_frames >=2
     // implies prune for vert, horiz and extended partition blocks.
     if ((mbmi->partition != PARTITION_VERT &&
          mbmi->partition != PARTITION_HORZ) ||
-        cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions >= 2) {
+        cpi->sf.inter_sf.prune_ref_frames >= 2) {
       picked_ref_frames_mask =
           fetch_picked_ref_frames_mask(x, bsize, cm->mib_size);
     }
