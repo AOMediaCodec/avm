@@ -5573,48 +5573,44 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
       }
 #endif  // CONFIG_LCCHROMA
     }
-
 #if CONFIG_IMPROVEIDTX_CTXS
-    if (allow_update_cdf) {
-      for (int c = 0; c < eob; ++c) {
-        const tran_low_t v = tcoeff[scan[c]];
-        const tran_low_t level = abs(v);
-        const int dc_sign = (v < 0) ? 1 : 0;
-        if (level) {
-          const int pos = scan[c];
-          const int row = pos >> bwl;
-          const int col = pos - (row << bwl);
-          const bool dc_2dtx = (c == 0);
-          const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
-          const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
-          if (dc_2dtx || dc_hor || dc_ver) {
-            const int dc_sign_ctx = dc_2dtx ? txb_ctx.dc_sign_ctx : 0;
+    for (int c = 0; c < eob; ++c) {
+      const tran_low_t v = tcoeff[scan[c]];
+      const tran_low_t level = abs(v);
+      const int dc_sign = (v < 0) ? 1 : 0;
+      if (level) {
+        const int pos = scan[c];
+        const int row = pos >> bwl;
+        const int col = pos - (row << bwl);
+        const bool dc_2dtx = (c == 0);
+        const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
+        const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
+        if (dc_2dtx || dc_hor || dc_ver) {
+          const int dc_sign_ctx = dc_2dtx ? txb_ctx.dc_sign_ctx : 0;
 #if CONFIG_ENTROPY_STATS
-            if (allow_update_cdf) {
-              const int dc_ph_group = is_hidden ? 1 : 0;
-              if (plane == AOM_PLANE_V) {
-                ++td->counts->v_dc_sign[cdf_idx][xd->tmp_sign[pos]][dc_sign_ctx]
-                                       [dc_sign];
-              } else {
-                ++td->counts->dc_sign[cdf_idx][plane_type][dc_ph_group]
-                                     [dc_sign_ctx][dc_sign];
-              }
+          if (allow_update_cdf) {
+            const int dc_ph_group = is_hidden ? 1 : 0;
+            if (plane == AOM_PLANE_V) {
+              ++td->counts->v_dc_sign[cdf_idx][xd->tmp_sign[pos]][dc_sign_ctx]
+                                     [dc_sign];
+            } else {
+              ++td->counts->dc_sign[cdf_idx][plane_type][dc_ph_group]
+                                   [dc_sign_ctx][dc_sign];
             }
-#endif  // CONFIG_ENTROPY_STATS
-            if (allow_update_cdf) {
-              if (plane == AOM_PLANE_V) {
-                update_cdf(
-                    ec_ctx->v_dc_sign_cdf[xd->tmp_sign[pos]][dc_sign_ctx],
-                    dc_sign, 2);
-              } else {
-                const int dc_ph_group = is_hidden ? 1 : 0;
-                update_cdf(
-                    ec_ctx->dc_sign_cdf[plane_type][dc_ph_group][dc_sign_ctx],
-                    dc_sign, 2);
-              }
-            }
-            if (dc_2dtx) entropy_ctx[block] |= dc_sign_ctx << DC_SIGN_CTX_SHIFT;
           }
+#endif  // CONFIG_ENTROPY_STATS
+          if (allow_update_cdf) {
+            if (plane == AOM_PLANE_V) {
+              update_cdf(ec_ctx->v_dc_sign_cdf[xd->tmp_sign[pos]][dc_sign_ctx],
+                         dc_sign, 2);
+            } else {
+              const int dc_ph_group = is_hidden ? 1 : 0;
+              update_cdf(
+                  ec_ctx->dc_sign_cdf[plane_type][dc_ph_group][dc_sign_ctx],
+                  dc_sign, 2);
+            }
+          }
+          if (dc_2dtx) entropy_ctx[block] |= dc_sign_ctx << DC_SIGN_CTX_SHIFT;
         }
       }
     }
