@@ -2720,9 +2720,9 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
   if (abs_qc != 0) {
 #if CONFIG_IMPROVEIDTX_CTXS
     const int dc_ph_group = 0;  // PH disabled
-    bool dc_2dtx = (ci == 0);
-    bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
-    bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
+    const bool dc_2dtx = (ci == 0);
+    const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
+    const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
     if (dc_2dtx || dc_hor || dc_ver) {
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][dc_sign_ctx][sign];
@@ -2879,9 +2879,9 @@ static INLINE int get_coeff_cost_general(int is_last, int ci, tran_low_t abs_qc,
     const int dc_ph_group = 0;  // PH disabled
     const int row = ci >> bwl;
     const int col = ci - (row << bwl);
-    bool dc_2dtx = (ci == 0);
-    bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
-    bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
+    const bool dc_2dtx = (ci == 0);
+    const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
+    const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
     if (dc_2dtx || dc_hor || dc_ver) {
       if (plane == AOM_PLANE_V)
         cost += txb_costs->v_dc_sign_cost[tmp_sign[ci]][dc_sign_ctx][sign];
