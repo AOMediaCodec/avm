@@ -3161,12 +3161,13 @@ static AOM_INLINE void setup_ref_mv_list(
   // If there are open slots in reference BV candidate list
   // fetch reference BVs from the default BVPs
   if (xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
-    const int w = xd->width;
-    const int h = xd->height;
-
+    const int w = xd->width * MI_SIZE;
+    const int h = xd->height * MI_SIZE;
+    const int sb_width = block_size_wide[cm->sb_size];
+    const int sb_height = block_size_high[cm->sb_size];
     const int default_ref_bv_list[MAX_REF_BV_STACK_SIZE][2] = {
-      { 0, -128 },
-      { -128 - INTRABC_DELAY_PIXELS, 0 },
+      { 0, -sb_height },
+      { -sb_width - INTRABC_DELAY_PIXELS, 0 },
       { 0, -h },
       { -w, 0 },
     };
