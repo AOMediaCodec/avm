@@ -2302,17 +2302,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     );
 #endif  // !CONFIG_SKIP_TXFM_OPT
 
-#if CONFIG_SKIP_MODE_ENHANCEMENT
-  if (mbmi->skip_mode) {
-    av1_collect_neighbors_ref_counts(xd);
-    write_drl_idx(cm->features.max_drl_bits, mbmi_ext_frame->mode_context,
-                  ec_ctx, mbmi, mbmi_ext_frame, w);
-    return;
-  }
-#else
-  if (mbmi->skip_mode) return;
-#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
-
 #if CONFIG_IBC_SR_EXT
   if (!is_inter && av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
     write_intrabc_info(
@@ -2323,6 +2312,17 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
 #endif  // CONFIG_IBC_SR_EXT
+
+#if CONFIG_SKIP_MODE_ENHANCEMENT
+  if (mbmi->skip_mode) {
+    av1_collect_neighbors_ref_counts(xd);
+    write_drl_idx(cm->features.max_drl_bits, mbmi_ext_frame->mode_context,
+                  ec_ctx, mbmi, mbmi_ext_frame, w);
+    return;
+  }
+#else
+  if (mbmi->skip_mode) return;
+#endif  // CONFIG_SKIP_MODE_ENHANCEMENT
   if (!is_inter) {
     write_intra_prediction_modes(cpi, 0, w);
   } else {
@@ -2869,6 +2869,12 @@ static AOM_INLINE void write_intrabc_info(
     }
 #endif  // CONFIG_DERIVED_MVD_SIGN
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+
+#if CONFIG_MORPH_PRED
+    const int morph_pred_ctx = get_morph_pred_ctx(xd);
+    aom_write_symbol(w, mbmi->morph_pred,
+                     ec_ctx->morph_pred_cdf[morph_pred_ctx], 2);
+#endif  // CONFIG_MORPH_PRED
   }
 }
 

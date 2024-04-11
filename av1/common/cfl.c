@@ -519,15 +519,9 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
     count += height;
   }
 
-  if (count > 0) {
-    const int32_t der = sum_xx - (int32_t)((int64_t)sum_x * sum_x / count);
-    const int32_t nor = sum_xy - (int32_t)((int64_t)sum_x * sum_y / count);
-    const int16_t shift = 3 + CFL_ADD_BITS_ALPHA;
-    mbmi->cfl_implicit_alpha[plane - 1] =
-        resolve_divisor_32_CfL(nor, der, shift);
-  } else {
-    mbmi->cfl_implicit_alpha[plane - 1] = 0;
-  }
+  const int shift = 3 + CFL_ADD_BITS_ALPHA;
+  mbmi->cfl_implicit_alpha[plane - 1] = derive_linear_parameters_alpha(
+      sum_x, sum_y, sum_xx, sum_xy, count, shift, 0);
 }
 #endif
 
@@ -549,14 +543,9 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
     count += width;
   }
 
-  if (count > 0) {
-    const int32_t der = sum_xx - (int32_t)((int64_t)sum_x * sum_x / count);
-    const int32_t nor = sum_xy - (int32_t)((int64_t)sum_x * sum_y / count);
-    const int16_t shift = 3 + CFL_ADD_BITS_ALPHA;
-    *alpha = resolve_divisor_32_CfL(nor, der, shift);
-  } else {
-    *alpha = 0;
-  }
+  const int shift = 3 + CFL_ADD_BITS_ALPHA;
+  *alpha = derive_linear_parameters_alpha(sum_x, sum_y, sum_xx, sum_xy, count,
+                                          shift, 0);
 }
 #endif  // CONFIG_IMPROVED_CFL
 

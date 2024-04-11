@@ -957,6 +957,10 @@ typedef struct {
   //! intrabc_drl_idx_cost
   int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_MORPH_PRED
+  //! cost for the new prediction mode
+  int morph_pred_cost[3][2];
+#endif  // CONFIG_MORPH_PRED
 
   //! palette_y_size_cost
   int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];

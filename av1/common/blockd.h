@@ -610,6 +610,11 @@ typedef struct MB_MODE_INFO {
   /*! \brief Which ref_bv to use. */
   int_mv ref_bv;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_MORPH_PRED
+  int morph_pred;
+  int morph_alpha;
+  int morph_beta;
+#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
   /*! \brief Which index to use for warp base parameter. */

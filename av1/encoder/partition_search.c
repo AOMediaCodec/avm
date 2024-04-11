@@ -500,6 +500,12 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   if (!dry_run) {
     if (av1_allow_intrabc(cm) && is_intrabc_block(mbmi, xd->tree_type))
       td->intrabc_used = 1;
+#if CONFIG_MORPH_PRED
+    if (mbmi->morph_pred) {
+      assert(av1_allow_intrabc(cm));
+      assert(is_intrabc_block(mbmi, xd->tree_type));
+    }
+#endif  // CONFIG_MORPH_PRED
     if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
         !xd->lossless[mbmi->segment_id] &&
         mbmi->sb_type[xd->tree_type == CHROMA_PART] > BLOCK_4X4 &&
@@ -1347,6 +1353,14 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
       update_intrabc_drl_idx_stats(MAX_REF_BV_STACK_SIZE, fc, td->counts, mbmi);
 #endif  // CONFIG_IBC_MAX_DRL
+
+#if CONFIG_MORPH_PRED
+      const int morph_pred_ctx = get_morph_pred_ctx(xd);
+      update_cdf(fc->morph_pred_cdf[morph_pred_ctx], mbmi->morph_pred, 2);
+#if CONFIG_ENTROPY_STATS
+      ++td->counts->morph_pred_count[morph_pred_ctx][mbmi->morph_pred];
+#endif  // CONFIG_ENTROPY_STATS
+#endif  // CONFIG_MORPH_PRED
     }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   }

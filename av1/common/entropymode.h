@@ -429,6 +429,9 @@ typedef struct frame_contexts {
   aom_cdf_prob intrabc_mode_cdf[CDF_SIZE(2)];
   aom_cdf_prob intrabc_drl_idx_cdf[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)];
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_MORPH_PRED
+  aom_cdf_prob morph_pred_cdf[3][CDF_SIZE(2)];
+#endif  // CONFIG_MORPH_PRED
   struct segmentation_probs seg;
 #if CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob filter_intra_cdfs[CDF_SIZE(2)];

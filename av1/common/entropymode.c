@@ -6259,6 +6259,18 @@ static const aom_cdf_prob default_filter_intra_mode_cdf[CDF_SIZE(
     FILTER_INTRA_MODES)] = { AOM_CDF5(8949, 12776, 17211, 29558) };
 #endif  // CONFIG_ENTROPY_PARA
 
+#if CONFIG_MORPH_PRED
+#if CONFIG_ENTROPY_PARA
+static const aom_cdf_prob default_morph_pred_cdf[3][CDF_SIZE(2)] = {
+  { AOM_CDF2(19186), 0 }, { AOM_CDF2(16483), 0 }, { AOM_CDF2(8242), 0 }
+};
+#else
+static const aom_cdf_prob default_morph_pred_cdf[3][CDF_SIZE(2)] = {
+  { AOM_CDF2(19186) }, { AOM_CDF2(16483) }, { AOM_CDF2(8242) }
+};
+#endif  // CONFIG_ENTROPY_PARA
+#endif  // CONFIG_MORPH_PRED
+
 #if CONFIG_D149_CTX_MODELING_OPT
 static const aom_cdf_prob default_filter_intra_cdfs[CDF_SIZE(2)] = {
   AOM_CDF2(23506), 5
@@ -7116,6 +7128,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->intrabc_mode_cdf, default_intrabc_mode_cdf);
   av1_copy(fc->intrabc_drl_idx_cdf, default_intrabc_drl_idx_cdf);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_MORPH_PRED
+  av1_copy(fc->morph_pred_cdf, default_morph_pred_cdf);
+#endif  // CONFIG_MORPH_PRED
   av1_copy(fc->stx_cdf, default_stx_cdf);
 #if CONFIG_IST_SET_FLAG
   av1_copy(fc->stx_set_cdf, default_stx_set_cdf);

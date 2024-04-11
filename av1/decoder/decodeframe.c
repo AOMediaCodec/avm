@@ -1268,9 +1268,9 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
                                                  BLOCK_SIZE bsize) {
   MACROBLOCKD *const xd = &dcb->xd;
   const int num_planes = av1_num_planes(cm);
+  MB_MODE_INFO *mbmi = xd->mi[0];
 
 #if CONFIG_REFINEMV
-  MB_MODE_INFO *mbmi = xd->mi[0];
   int need_subblock_mvs = xd->is_chroma_ref && mbmi->refinemv_flag &&
                           !is_intrabc_block(mbmi, xd->tree_type);
   assert(IMPLIES(need_subblock_mvs, !is_interintra_pred(mbmi)));
@@ -1314,6 +1314,14 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
                                      bsize);
     }
   }
+
+#if CONFIG_MORPH_PRED
+  if (mbmi->morph_pred) {
+    assert(av1_allow_intrabc(cm));
+    assert(is_intrabc_block(mbmi, xd->tree_type));
+    av1_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
+  }
+#endif  // CONFIG_MORPH_PRED
 }
 
 static INLINE void dec_build_prediction_by_above_pred(

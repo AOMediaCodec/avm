@@ -22,6 +22,39 @@
 #define CFL_ADD_BITS_ALPHA 0
 #endif
 
+#if CONFIG_IMPROVED_CFL || CONFIG_BAWP || CONFIG_MORPH_PRED
+// Linear modeal Y = alpha * X + beta has been used in a few coding tools.
+// This function derives parameter alpha. The equation is:
+// alpha = (sum_xy - sum_x * sum_y / n) / (sum_xx - sum_x * sum_x / n)
+static INLINE int16_t derive_linear_parameters_alpha(int sum_x, int sum_y,
+                                                     int sum_xx, int sum_xy,
+                                                     int count, int shift,
+                                                     int is_bawp) {
+  if (count == 0) return 0;
+  int32_t der = sum_xx - (int32_t)((int64_t)sum_x * sum_x / count);
+  int32_t nor = sum_xy - (int32_t)((int64_t)sum_x * sum_y / count);
+  if (der == 0 || nor == 0) return 0;
+  if (is_bawp) {
+    // Add a small portion to both self-correlation and cross-correlation to
+    // keep mode stable and have scaling factor leaning to value 1.0
+    // Temporal design, to be further updated
+    nor += der / 16;
+    der += der / 16;
+  }
+  const int16_t alpha = resolve_divisor_32_CfL(nor, der, shift);
+  return alpha;
+}
+
+// This function derives parameter beta, assuming alpha is known/derived.
+// beta = Y - alpha * X.
+static INLINE int derive_linear_parameters_beta(int sum_x, int sum_y, int count,
+                                                int shift, int16_t alpha) {
+  if (count == 0) return 0;
+  const int beta = ((sum_y << shift) - sum_x * alpha) / count;
+  return beta;
+}
+#endif  // CONFIG_IMPROVED_CFL || CONFIG_BAWP || CONFIG_MORPH_PRED
+
 // Can we use CfL for the current block?
 static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];

@@ -1626,6 +1626,12 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                          "Invalid intrabc dv");
     }
+
+#if CONFIG_MORPH_PRED
+    const int morph_pred_ctx = get_morph_pred_ctx(xd);
+    mbmi->morph_pred = aom_read_symbol(
+        r, ec_ctx->morph_pred_cdf[morph_pred_ctx], 2, ACCT_INFO());
+#endif  // CONFIG_MORPH_PRED
   }
 }
 
@@ -1773,6 +1779,9 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_SKIP_MODE_ENHANCEMENT
   mbmi->skip_mode = 0;
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_SKIP_TXFM_OPT
   if (av1_allow_intrabc(cm) && xd->tree_type != CHROMA_PART) {
@@ -4031,6 +4040,9 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
 #endif  // CONFIG_NEW_CONTEXT_MODELING
+#if CONFIG_MORPH_PRED
+  mbmi->morph_pred = 0;
+#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_SKIP_TXFM_OPT
   if (!mbmi->skip_mode) {
