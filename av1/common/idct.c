@@ -400,8 +400,7 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
   assert(av1_ext_tx_used[txfm_param.tx_set_type][txfm_param.tx_type]);
 
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  PREDICTION_MODE intra_mode =
-      (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+  PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
   assert(((intra_mode >= PAETH_PRED || filter) && txfm_param.sec_tx_type) == 0);
   (void)intra_mode;

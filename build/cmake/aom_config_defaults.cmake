@@ -307,7 +307,7 @@ set_aom_config_var(CONFIG_FIX_CDEF_SYNTAX 1
 set_aom_config_var(CONFIG_IMPROVED_CFL 1
                    "Enable improved CfL mode from CWG-C044")
 set_aom_config_var(
-  CONFIG_CFL_64x64 0
+  CONFIG_CFL_64x64 1
   "Enable cross-component prediction modes up to luma size 64x64")
 set_aom_config_var(CONFIG_BLEND_MODE 1
                    "Enable improved intra blend mode from CWG-D046")

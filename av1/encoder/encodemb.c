@@ -471,8 +471,7 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   }
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-  const PREDICTION_MODE intra_mode =
-      (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
+  const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
   const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
   const int is_depth0 = tx_size_is_depth0(txfm_param->tx_size, plane_bsize);
   assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
