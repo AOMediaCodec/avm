@@ -407,7 +407,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_get_nz_map_contexts/, "const uint8_t *const levels, const int16_t *const scan, const uint16_t eob, const TX_SIZE tx_size, const TX_CLASS tx_class, int8_t *const coeff_contexts, const int plane";
 
   add_proto qw/void av1_txb_init_levels_signs/, "const tran_low_t *const coeff, const int width, const int height, uint8_t *const levels, int8_t *const signs";
-  if (aom_config("CONFIG_IMPROVEIDTX_RDPH") eq "no") {
+  if (aom_config("CONFIG_IMPROVEIDTX_RDPH") ne "yes") {
     specialize qw/av1_txb_init_levels_signs sse4_1 avx2/;
   }
 
