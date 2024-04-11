@@ -1291,7 +1291,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
 #if CONFIG_IMPROVEIDTX_CTXS
                                fc->coeff_base_cdf_idtx[tx_size_ctx][ctx], NULL);
 #else
-                                fc->coeff_base_cdf_idtx[ctx], NULL);
+                               fc->coeff_base_cdf_idtx[ctx], NULL);
 #endif  // CONFIG_IMPROVEIDTX_CTXS
     for (int ctx = 0; ctx < IDTX_SIG_COEF_CONTEXTS; ++ctx) {
       pcost->idtx_base_cost[ctx][4] = 0;
@@ -1308,7 +1308,7 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
 #if CONFIG_IMPROVEIDTX_CTXS
                                fc->idtx_sign_cdf[tx_size_ctx][ctx], NULL);
 #else
-                                fc->idtx_sign_cdf[ctx], NULL);
+                               fc->idtx_sign_cdf[ctx], NULL);
 #endif  // CONFIG_IMPROVEIDTX_CTXS
     for (int ctx = 0; ctx < IDTX_LEVEL_CONTEXTS; ++ctx) {
       int br_rate_skip[BR_CDF_SIZE];

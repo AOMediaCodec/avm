@@ -721,17 +721,13 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
 #if CONFIG_IMPROVEIDTX_RDPH
-      if (fsc_mode) {
+      if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
-      } else {
+      else
+#endif  // CONFIG_IMPROVEIDTX_RDPH
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
                        &txb_ctx, &dummy_rate_cost);
-      }
-#else
-      av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                     &txb_ctx, &dummy_rate_cost);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
     }
     if (!quant_param.use_optimize_b && do_dropout && !fsc_mode &&
         !enable_parity_hiding) {
@@ -1305,17 +1301,13 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
 #if CONFIG_IMPROVEIDTX_RDPH
-      if (fsc_mode) {
+      if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
-      } else {
+      else
+#endif  // CONFIG_IMPROVEIDTX_RDPH
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
                        &txb_ctx, &dummy_rate_cost);
-      }
-#else
-      av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                     &txb_ctx, &dummy_rate_cost);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
     }
 
     if (do_dropout && !fsc_mode && !enable_parity_hiding) {
@@ -1339,17 +1331,13 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                     mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
 #if CONFIG_IMPROVEIDTX_RDPH
-        if (fsc_mode) {
+        if (fsc_mode)
           av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
                            &txb_ctx, &dummy_rate_cost);
-        } else {
+        else
+#endif  // CONFIG_IMPROVEIDTX_RDPH
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
                          CCTX_NONE, &txb_ctx, &dummy_rate_cost);
-        }
-#else
-        av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                       &txb_ctx, &dummy_rate_cost);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
       }
       if (do_dropout && !fsc_mode && !enable_parity_hiding) {
         av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1594,17 +1582,13 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
 #if CONFIG_IMPROVEIDTX_RDPH
-      if (fsc_mode) {
+      if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
-      } else {
+      else
+#endif  // CONFIG_IMPROVEIDTX_RDPH
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
                        &txb_ctx, &dummy_rate_cost);
-      }
-#else
-      av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                     &txb_ctx, &dummy_rate_cost);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
     }
     if (do_dropout) {
       av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1628,17 +1612,13 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                     xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
 #if CONFIG_IMPROVEIDTX_RDPH
-        if (fsc_mode) {
+        if (fsc_mode)
           av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
                            &txb_ctx, &dummy_rate_cost);
-        } else {
+        else
+#endif  // CONFIG_IMPROVEIDTX_RDPH
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
                          cctx_type, &txb_ctx, &dummy_rate_cost);
-        }
-#else
-        av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
       }
       if (do_dropout) {
         av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,

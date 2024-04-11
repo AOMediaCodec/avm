@@ -81,8 +81,7 @@ static INLINE int get_padded_idx_left(const int idx, const int bwl) {
  This function returns the base range coefficient coding context index
  for forward skip residual coding for a given coefficient index.
  It assumes padding from left and sums left and above level
- samples: levels[pos - 1] + levels[pos - stride] and adds an
- appropriate offset depending on row and column.
+ samples: levels[pos - 1] + levels[pos - stride].
 */
 static AOM_FORCE_INLINE int get_br_ctx_skip(const uint8_t *const levels,
                                             const int c, const int bwl) {

@@ -3124,28 +3124,23 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
           plane, is_inter, eobs_ptr_c1[block], cctx_type);
       if (skip_cctx_eval) break;
 
-      // Calculate rate cost of quantized coefficients.
+        // Calculate rate cost of quantized coefficients.
 #if CONFIG_IMPROVEIDTX_RDPH
-      uint8_t fsc_mode_in = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                             plane == PLANE_TYPE_Y) ||
-                            use_inter_fsc(cm, plane, tx_type, is_inter);
+      uint8_t fsc_mode = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
+                         use_inter_fsc(cm, plane, tx_type, is_inter);
 #endif  // CONFIG_IMPROVEIDTX_RDPH
       if (quant_param.use_optimize_b) {
 #if CONFIG_IMPROVEIDTX_RDPH
-        if (fsc_mode_in) {
+        if (fsc_mode)
           av1_optimize_fsc(cpi, x, plane, block, tx_size, tx_type,
                            &txb_ctx_uv[plane - AOM_PLANE_U],
                            &rate_cost[plane - AOM_PLANE_U]);
-        } else {
+        else
+#endif  // CONFIG_IMPROVEIDTX_RDPH
           av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                          &txb_ctx_uv[plane - AOM_PLANE_U],
                          &rate_cost[plane - AOM_PLANE_U]);
-        }
-#else
-        av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx_uv[plane - AOM_PLANE_U],
-                       &rate_cost[plane - AOM_PLANE_U]);
-#endif  // CONFIG_IMPROVEIDTX_RDPH
         skip_cctx_eval = skip_cctx_eval_based_on_eob(
             plane, is_inter, eobs_ptr_c1[block], cctx_type);
         if (skip_cctx_eval) break;
