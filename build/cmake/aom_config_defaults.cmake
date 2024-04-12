@@ -387,6 +387,11 @@ set_aom_config_var(CONFIG_QM_SIMPLIFY 1
 set_aom_config_var(CONFIG_OPFL_BI 1 "Enable bilinear for initial opfl.")
 set_aom_config_var(CONFIG_CCSO_SIGFIX 1 "Enable signaling fix for CCSO.")
 
+set_aom_config_var(CONFIG_SUBBLK_REF_EXT 1
+                   "Enable extension for subblock MV refinement.")
+set_aom_config_var(CONFIG_SUBBLK_REF_DS 1
+                   "Enable sad downsampling for subblock MV refinement.")
+
 #
 # Variables in this section control optional features of the build system.
 #

@@ -137,7 +137,11 @@ void av1_highbd_convolve_y_sr_avx2(const uint16_t *src, int src_stride,
                            _mm256_castsi256_si128(res_16bit));
           _mm_storeu_si128((__m128i *)&dst[i * dst_stride + j + dst_stride],
                            _mm256_extracti128_si256(res_16bit, 1));
-        } else if (w == 4) {
+        } else if (w == 4
+#if CONFIG_SUBBLK_REF_EXT
+                   || (w - j == 4)
+#endif  // CONFIG_SUBBLK_REF_EXT
+        ) {
           res_a_round = _mm256_packs_epi32(res_a_round, res_a_round);
           res_a_round = _mm256_min_epi16(res_a_round, clip_pixel);
           res_a_round = _mm256_max_epi16(res_a_round, zero);
@@ -249,7 +253,11 @@ void av1_highbd_convolve_x_sr_avx2(const uint16_t *src, int src_stride,
                          _mm256_castsi256_si128(res));
         _mm_storeu_si128((__m128i *)&dst[i * dst_stride + j + dst_stride],
                          _mm256_extracti128_si256(res, 1));
-      } else if (w == 4) {
+      } else if (w == 4
+#if CONFIG_SUBBLK_REF_EXT
+                 || (w - j == 4)
+#endif  // CONFIG_SUBBLK_REF_EXT
+      ) {
         _mm_storel_epi64((__m128i *)&dst[i * dst_stride + j],
                          _mm256_castsi256_si128(res));
         _mm_storel_epi64((__m128i *)&dst[i * dst_stride + j + dst_stride],

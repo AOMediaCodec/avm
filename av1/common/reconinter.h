@@ -1171,6 +1171,12 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
                             int bw, int bh);
 #endif  // CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 
+#if CONFIG_SUBBLK_REF_DS
+unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
+                               const uint16_t *ref_ptr, int ref_stride, int bd,
+                               int bw, int bh);
+#endif  // CONFIG_SUBBLK_REF_DS
+
 #if CONFIG_OPTFLOW_REFINEMENT || CONFIG_OPFL_MV_SEARCH
 void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride0,
                             const int16_t *gx, const int16_t *gy, int gstride,

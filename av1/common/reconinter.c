@@ -886,11 +886,66 @@ static AOM_INLINE void init_smooth_interintra_masks() {
   }
 }
 
+#if CONFIG_SUBBLK_REF_DS
+unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
+                               const uint16_t *ref_ptr, int ref_stride, int bd,
+                               int bw, int bh) {
+  if (bd == 8) {
+    if (bw == 16 && bh == 8)
+      return aom_highbd_sad16x8_ds(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 16 && bh == 16)
+      return aom_highbd_sad16x16_ds(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
+    else if (bw == 8 && bh == 8)
+      return aom_highbd_sad8x8_ds(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 8 && bh == 16)
+      return aom_highbd_sad8x16_ds(src_ptr, source_stride, ref_ptr, ref_stride);
+    else {
+      assert(0);
+      return 0;
+    }
+  } else if (bd == 10) {
+    if (bw == 16 && bh == 8)
+      return (
+          aom_highbd_sad16x8_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
+          2);
+    else if (bw == 16 && bh == 16)
+      return (
+          aom_highbd_sad16x16_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
+          2);
+    else if (bw == 8 && bh == 8)
+      return (
+          aom_highbd_sad8x8_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
+          2);
+    else if (bw == 8 && bh == 16)
+      return (
+          aom_highbd_sad8x16_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
+          2);
+    else {
+      assert(0);
+      return 0;
+    }
+  } else {
+    assert(0);
+    return 0;
+  }
+}
+#endif  // CONFIG_SUBBLK_REF_DS
+
 #if CONFIG_REFINEMV
 // Compute the SAD values for refineMV modes
 int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
                      int bd) {
+#if CONFIG_SUBBLK_REF_EXT
+  (void)bd;
+  return get_highbd_sad(src1, width, src2, width, 8, width, height);
+#else
+#if CONFIG_SUBBLK_REF_DS
+  return get_highbd_sad_ds(src1, width, src2, width, bd, width, height);
+#else
   return get_highbd_sad(src1, width, src2, width, bd, width, height);
+#endif  // CONFIG_SUBBLK_REF_DS
+#endif  // CONFIG_SUBBLK_REF_EXT
 }
 #endif  // CONFIG_REFINEMV
 
@@ -4148,6 +4203,10 @@ int av1_refinemv_build_predictors_and_get_sad(
     int src_stride;
     uint16_t *dst_ref = ref == 0 ? dst_ref0 : dst_ref1;
     MV *src_mv = ref == 0 ? &mv0 : &mv1;
+#if CONFIG_SUBBLK_REF_EXT
+    src_mv->row -= 8 * SUBBLK_REF_EXT_LINES;
+    src_mv->col -= 8 * SUBBLK_REF_EXT_LINES;
+#endif  // CONFIG_SUBBLK_REF_EXT
     calc_subpel_params_func(src_mv, &inter_pred_params[ref], xd, mi_x, mi_y,
                             ref,
 #if CONFIG_OPTFLOW_REFINEMENT
@@ -4180,6 +4239,10 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   best_mv_ref[0] = mi->mv[0].as_mv;
   best_mv_ref[1] = mi->mv[1].as_mv;
 #endif  // CONFIG_TIP_REF_PRED_MERGING
+#if CONFIG_SUBBLK_REF_EXT
+  bw += 2 * SUBBLK_REF_EXT_LINES;
+  bh += 2 * SUBBLK_REF_EXT_LINES;
+#endif  // CONFIG_SUBBLK_REF_EXT
 
   const MV center_mvs[2] = { best_mv_ref[0], best_mv_ref[1] };
   assert(mi->refinemv_flag < REFINEMV_NUM_MODES);
@@ -4258,8 +4321,9 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                        xd, bw, bh, mi_x, mi_y, mc_buf, calc_subpel_params_func,
                        dst_ref0, dst_ref1, center_mvs[0], center_mvs[1],
                        inter_pred_params);
-
+#if !CONFIG_SUBBLK_REF_EXT
   assert(IMPLIES(mi->ref_frame[0] == TIP_FRAME, bw == 8 && bh == 8));
+#endif  // !CONFIG_SUBBLK_REF_EXT
   if (mi->ref_frame[0] == TIP_FRAME) {
     const int tip_sad_thres = bw * bh;
     if (!switchable_refinemv_flags && sad0 < tip_sad_thres) return;
@@ -4997,10 +5061,19 @@ static void build_inter_predictors_8x8_and_bigger(
         AOMMIN((REFINEMV_SUBBLOCK_WIDTH >> pd->subsampling_x), bw);
     int refinemv_sb_size_height =
         AOMMIN(REFINEMV_SUBBLOCK_HEIGHT >> pd->subsampling_y, bh);
+#if CONFIG_SUBBLK_REF_EXT
     uint16_t
-        dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+        dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) *
+                         (REFINEMV_SUBBLOCK_HEIGHT + 2 * SUBBLK_REF_EXT_LINES)];
     uint16_t
-        dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+        dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) *
+                         (REFINEMV_SUBBLOCK_HEIGHT + 2 * SUBBLK_REF_EXT_LINES)];
+#else
+      uint16_t
+          dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+      uint16_t
+          dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+#endif  // CONFIG_SUBBLK_REF_EXT
     DECLARE_ALIGNED(
         32, int16_t,
         opt_gx0[2 * REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT]);

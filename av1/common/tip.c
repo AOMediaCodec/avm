@@ -754,6 +754,16 @@ MAKE_BFP_SAD_WRAPPER_COMMON8x8(aom_highbd_sad8x8)
       return aom_highbd_sad8x16_8(src_ptr, source_stride, ref_ptr, ref_stride);
     else if (bw == 16 && bh == 16)
       return aom_highbd_sad16x16_8(src_ptr, source_stride, ref_ptr, ref_stride);
+#if CONFIG_SUBBLK_REF_EXT
+    else if (bw == 12 && bh == 12)
+      return aom_highbd_sad12x12(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 20 && bh == 12)
+      return aom_highbd_sad20x12(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 12 && bh == 20)
+      return aom_highbd_sad12x20(src_ptr, source_stride, ref_ptr, ref_stride);
+    else if (bw == 20 && bh == 20)
+      return aom_highbd_sad20x20(src_ptr, source_stride, ref_ptr, ref_stride);
+#endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
       return 0;
@@ -1064,8 +1074,17 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_REFINEMV || CONFIG_OPTFLOW_ON_TIP
 #if CONFIG_REFINEMV
+#if CONFIG_SUBBLK_REF_EXT
+  uint16_t
+      dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) *
+                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * SUBBLK_REF_EXT_LINES)];
+  uint16_t
+      dst1_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH + 2 * SUBBLK_REF_EXT_LINES) *
+                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * SUBBLK_REF_EXT_LINES)];
+#else
   uint16_t dst0_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
   uint16_t dst1_16_refinemv[REFINEMV_SUBBLOCK_WIDTH * REFINEMV_SUBBLOCK_HEIGHT];
+#endif  // CONFIG_SUBBLK_REF_EXT
   int apply_refinemv = (plane == 0);
   ReferenceArea ref_area[2];
   if (apply_refinemv) {

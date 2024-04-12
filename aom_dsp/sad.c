@@ -35,12 +35,43 @@ static INLINE unsigned int highbd_sad(const uint16_t *a, int a_stride,
   return sad;
 }
 
+#if CONFIG_SUBBLK_REF_DS
+static INLINE unsigned int highbd_sad_ds(const uint16_t *a, int a_stride,
+                                         const uint16_t *b, int b_stride,
+                                         int width, int height) {
+  int y, x;
+  unsigned int sad = 0;
+  for (y = 0; y < height; y += 2) {
+    for (x = 0; x < width; x++) {
+      sad += abs(a[x] - b[x]);
+    }
+
+    a += a_stride;
+    b += b_stride;
+  }
+  return sad;
+}
+#endif  // CONFIG_SUBBLK_REF_DS
+
 #define highbd_sadMxN(m, n)                                     \
   unsigned int aom_highbd_sad##m##x##n##_c(                     \
       const uint16_t *src, int src_stride, const uint16_t *ref, \
       int ref_stride) {                                         \
     return highbd_sad(src, src_stride, ref, ref_stride, m, n);  \
   }
+
+#if CONFIG_SUBBLK_REF_DS
+#define highbd_sadMxN_ds(m, n)                                    \
+  unsigned int aom_highbd_sad##m##x##n##_ds_c(                    \
+      const uint16_t *src, int src_stride, const uint16_t *ref,   \
+      int ref_stride) {                                           \
+    return highbd_sad_ds(src, src_stride, ref, ref_stride, m, n); \
+  }
+highbd_sadMxN_ds(16, 16);
+highbd_sadMxN_ds(16, 8);
+highbd_sadMxN_ds(8, 8);
+highbd_sadMxN_ds(8, 16);
+#endif  // CONFIG_SUBBLK_REF_DS
 
 #if CONFIG_BLOCK_256
 // 256X256
@@ -100,6 +131,13 @@ highbd_sadMxN(4, 8);
 
 // 4x4
 highbd_sadMxN(4, 4);
+
+#if CONFIG_SUBBLK_REF_EXT
+highbd_sadMxN(12, 12);
+highbd_sadMxN(12, 20);
+highbd_sadMxN(20, 12);
+highbd_sadMxN(20, 20);
+#endif  // CONFIG_SUBBLK_REF_EXT
 
 highbd_sadMxN(4, 16);
 highbd_sadMxN(16, 4);

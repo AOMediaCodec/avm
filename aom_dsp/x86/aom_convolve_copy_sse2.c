@@ -198,9 +198,11 @@ static INLINE void highbd_copy_128(const uint16_t *src, uint16_t *dst) {
 void aom_highbd_convolve_copy_sse2(const uint16_t *src, ptrdiff_t src_stride,
                                    uint16_t *dst, ptrdiff_t dst_stride, int w,
                                    int h) {
+#if !CONFIG_SUBBLK_REF_EXT
   if (w >= 16) {
     assert(!(dst_stride % 16));
   }
+#endif  // !CONFIG_SUBBLK_REF_EXT
 
   if (w == 2) {
     do {
@@ -240,6 +242,26 @@ void aom_highbd_convolve_copy_sse2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
+#if CONFIG_SUBBLK_REF_EXT
+  } else if (w == 12) {
+    do {
+      __m128i s[2];
+      __m128i s_rem[2];
+      s[0] = _mm_loadu_si128((__m128i *)src);
+      s_rem[0] = _mm_loadl_epi64((__m128i *)(src + 8));
+      src += src_stride;
+      s[1] = _mm_loadu_si128((__m128i *)src);
+      s_rem[1] = _mm_loadl_epi64((__m128i *)(src + 8));
+      src += src_stride;
+      _mm_storeu_si128((__m128i *)dst, s[0]);
+      _mm_storel_epi64((__m128i *)(dst + 8), s_rem[0]);
+      dst += dst_stride;
+      _mm_storeu_si128((__m128i *)dst, s[1]);
+      _mm_storel_epi64((__m128i *)(dst + 8), s_rem[1]);
+      dst += dst_stride;
+      h -= 2;
+    } while (h);
+#endif  // CONFIG_SUBBLK_REF_EXT
   } else if (w == 16) {
     do {
       __m128i s[4];
@@ -257,6 +279,30 @@ void aom_highbd_convolve_copy_sse2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
+#if CONFIG_SUBBLK_REF_EXT
+  } else if (w == 20) {
+    do {
+      __m128i s[4];
+      __m128i s_rem[2];
+      s[0] = _mm_loadu_si128((__m128i *)(src + 0 * 8));
+      s[1] = _mm_loadu_si128((__m128i *)(src + 1 * 8));
+      s_rem[0] = _mm_loadl_epi64((__m128i *)(src + 16));
+      src += src_stride;
+      s[2] = _mm_loadu_si128((__m128i *)(src + 0 * 8));
+      s[3] = _mm_loadu_si128((__m128i *)(src + 1 * 8));
+      s_rem[1] = _mm_loadl_epi64((__m128i *)(src + 16));
+      src += src_stride;
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[0]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[1]);
+      _mm_storel_epi64((__m128i *)(dst + 16), s_rem[0]);
+      dst += dst_stride;
+      _mm_storeu_si128((__m128i *)(dst + 0 * 8), s[2]);
+      _mm_storeu_si128((__m128i *)(dst + 1 * 8), s[3]);
+      _mm_storel_epi64((__m128i *)(dst + 16), s_rem[1]);
+      dst += dst_stride;
+      h -= 2;
+    } while (h);
+#endif  // CONFIG_SUBBLK_REF_EXT
   } else if (w == 32) {
     do {
       __m128i s[8];
