@@ -28,15 +28,34 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
   if (xd->tree_type == LUMA_PART) return CFL_DISALLOWED;
   const BLOCK_SIZE bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
   assert(bsize < BLOCK_SIZES_ALL);
+  const int ssx = xd->plane[AOM_PLANE_U].subsampling_x;
+  const int ssy = xd->plane[AOM_PLANE_U].subsampling_y;
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ssx, ssy);
+
+  // In lossless, CfL is available when the partition size is equal to the
+  // transform size.
   if (xd->lossless[mbmi->segment_id]) {
-    // In lossless, CfL is available when the partition size is equal to the
-    // transform size.
-    const int ssx = xd->plane[AOM_PLANE_U].subsampling_x;
-    const int ssy = xd->plane[AOM_PLANE_U].subsampling_y;
-    const int plane_bsize = get_plane_block_size(bsize, ssx, ssy);
     return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
-  // Spec: CfL is available to luma partitions lesser than or equal to 32x32
+
+#if CONFIG_CFL_64x64
+  // Ensure that plane_bsize doesn't go beyond allowed max chroma tx size (which
+  // is 32x32 currently as per `av1_get_max_uv_txsize`). Specifically,
+  // - For YUV 4:2:0 input, this will imply max luma tx size of 64x64.
+  // - For YUV 4:4:4 input, this will imply max luma tx size of 32x32.
+  //   This is because, for a YUV444 input, luma tx size of 64x64 must NOT be
+  //   allowed for the following reason: when luma (and chroma) coding block
+  //   size is 64x64, it will imply uv_tx_size of 32x32 . So, there will be a
+  //   mismatch between chroma prediction block size and chroma transform block
+  //   size, which is NOT allowed for intra blocks.
+  const TX_SIZE max_uv_tx_size = av1_get_max_uv_txsize(bsize, ssx, ssy);
+  if (block_size_wide[plane_bsize] > tx_size_wide[max_uv_tx_size] ||
+      block_size_high[plane_bsize] > tx_size_high[max_uv_tx_size]) {
+    return CFL_DISALLOWED;
+  }
+#endif  // CONFIG_CFL_64x64
+
+  // CfL is available to luma partitions CFL_BUF_LINE x CFL_BUF_LINE or smaller.
   return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= CFL_BUF_LINE &&
                             block_size_high[bsize] <= CFL_BUF_LINE);
 }
