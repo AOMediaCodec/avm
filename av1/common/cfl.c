@@ -432,7 +432,7 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
     for (int i = 0; i < width; ++i) {
       output_q3[i] = input[i];
     }
-    if (col_start > pic_width_c) {
+    if (col_start >= pic_width_c) {
       const uint16_t mid = (1 << xd->bd) >> 1;
       for (int i = 0; i < width; ++i) {
         output_q3[i] = mid;
@@ -455,7 +455,7 @@ void cfl_implicit_fetch_neighbor_chroma(const AV1_COMMON *cm,
       input += input_stride;
     }
 
-    if (row_start >= cm->height) {
+    if (row_start >= pic_height_c) {
       const uint16_t mid = (1 << xd->bd) >> 1;
       for (int i = 0; i < height; ++i) {
         output_q3[i] = mid;
