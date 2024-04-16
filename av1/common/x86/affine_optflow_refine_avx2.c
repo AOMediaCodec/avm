@@ -397,12 +397,20 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   __m256i a0_temp_hi = round_power_of_two_signed_epi32(
       _mm256_madd_epi16(gx_gy_hi, x_minus_y_hi), coords_bits);
 
-  assert(AFFINE_CLAMP_VAL == (1 << 15));
-  // Clip the values of a[] to [-AFFINE_CLAMP_VAL, AFFINE_CLAMP_VAL-1] (i.e., to
-  // 16-bit signed range). Here, using the instruction _mm256_packs_epi32() to
-  // clip 32-bit signed values to 16-bit signed range.
-  const __m256i a0_temp_0 = _mm256_packs_epi32(a0_temp_lo, a0_temp_hi);
-  const __m256i a1_temp_0 = _mm256_packs_epi32(a1_temp_lo, a1_temp_hi);
+#if CONFIG_REFINEMENT_SIMPLIFY
+  assert(AFFINE_SAMP_CLAMP_VAL <= INT16_MAX);
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
+  // Clip the values of a[] to [-AFFINE_SAMP_CLAMP_VAL, AFFINE_SAMP_CLAMP_VAL-1]
+  // (i.e., to 16-bit signed range). Here, using the instruction
+  // _mm256_packs_epi32() to clip 32-bit signed values to 16-bit signed range.
+  __m256i a0_temp_0 = _mm256_packs_epi32(a0_temp_lo, a0_temp_hi);
+  __m256i a1_temp_0 = _mm256_packs_epi32(a1_temp_lo, a1_temp_hi);
+  __m256i clamp_min = _mm256_set1_epi16(-AFFINE_SAMP_CLAMP_VAL);
+  __m256i clamp_max = _mm256_set1_epi16(AFFINE_SAMP_CLAMP_VAL);
+  a0_temp_0 =
+      _mm256_min_epi16(_mm256_max_epi16(a0_temp_0, clamp_min), clamp_max);
+  a1_temp_0 =
+      _mm256_min_epi16(_mm256_max_epi16(a1_temp_0, clamp_min), clamp_max);
   const __m256i a0_lo = _mm256_unpacklo_epi16(a0_temp_0, zeros);
   const __m256i a0_hi = _mm256_unpackhi_epi16(a0_temp_0, zeros);
   const __m256i a1_lo = _mm256_unpacklo_epi16(a1_temp_0, zeros);
@@ -412,6 +420,10 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   __m256i gx_a2_hi = _mm256_unpackhi_epi16(*gx_vec, zeros);
   __m256i gy_a3_lo = _mm256_unpacklo_epi16(*gy_vec, zeros);
   __m256i gy_a3_hi = _mm256_unpackhi_epi16(*gy_vec, zeros);
+  gx_a2_lo = _mm256_min_epi16(_mm256_max_epi16(gx_a2_lo, clamp_min), clamp_max);
+  gx_a2_hi = _mm256_min_epi16(_mm256_max_epi16(gx_a2_hi, clamp_min), clamp_max);
+  gy_a3_lo = _mm256_min_epi16(_mm256_max_epi16(gy_a3_lo, clamp_min), clamp_max);
+  gy_a3_hi = _mm256_min_epi16(_mm256_max_epi16(gy_a3_hi, clamp_min), clamp_max);
 
   // Diagonal elements
   __m256i a00_lo =
@@ -460,6 +472,28 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   __m256i a23_hi = round_power_of_two_signed_epi32(
       _mm256_madd_epi16(gx_a2_hi, gy_a3_hi), grad_bits);
 
+#if CONFIG_REFINEMENT_SIMPLIFY
+  // a00
+  a_mat[0] = add_epi32_as_epi64(a00_lo, a00_hi);
+  // a01
+  a_mat[1] = add_epi32_as_epi64(a01_lo, a01_hi);
+  // a02
+  a_mat[2] = add_epi32_as_epi64(a02_lo, a02_hi);
+  // a03
+  a_mat[3] = add_epi32_as_epi64(a03_lo, a03_hi);
+  // a11
+  a_mat[4] = add_epi32_as_epi64(a11_lo, a11_hi);
+  // a12
+  a_mat[5] = add_epi32_as_epi64(a12_lo, a12_hi);
+  // a13
+  a_mat[6] = add_epi32_as_epi64(a13_lo, a13_hi);
+  // a22
+  a_mat[7] = add_epi32_as_epi64(a22_lo, a22_hi);
+  // a23
+  a_mat[8] = add_epi32_as_epi64(a23_lo, a23_hi);
+  // a33
+  a_mat[9] = add_epi32_as_epi64(a33_lo, a33_hi);
+#else
   // a00
   a_mat[0] = _mm256_add_epi64(a_mat[0], add_epi32_as_epi64(a00_lo, a00_hi));
   // a01
@@ -480,10 +514,17 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   a_mat[8] = _mm256_add_epi64(a_mat[8], add_epi32_as_epi64(a23_lo, a23_hi));
   // a33
   a_mat[9] = _mm256_add_epi64(a_mat[9], add_epi32_as_epi64(a33_lo, a33_hi));
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
   // Compute vec_b
   __m256i pdiff_vec_lo = _mm256_unpacklo_epi16(*pdiff_vec, zeros);
   __m256i pdiff_vec_hi = _mm256_unpackhi_epi16(*pdiff_vec, zeros);
+#if CONFIG_REFINEMENT_SIMPLIFY
+  pdiff_vec_lo =
+      _mm256_min_epi16(_mm256_max_epi16(pdiff_vec_lo, clamp_min), clamp_max);
+  pdiff_vec_hi =
+      _mm256_min_epi16(_mm256_max_epi16(pdiff_vec_hi, clamp_min), clamp_max);
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
   __m256i v0_lo = round_power_of_two_signed_epi32(
       _mm256_madd_epi16(a0_lo, pdiff_vec_lo), grad_bits);
@@ -502,10 +543,17 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
   __m256i v3_hi = round_power_of_two_signed_epi32(
       _mm256_madd_epi16(gy_a3_hi, pdiff_vec_hi), grad_bits);
 
+#if CONFIG_REFINEMENT_SIMPLIFY
+  b_vec[0] = add_epi32_as_epi64(v0_lo, v0_hi);
+  b_vec[1] = add_epi32_as_epi64(v1_lo, v1_hi);
+  b_vec[2] = add_epi32_as_epi64(v2_lo, v2_hi);
+  b_vec[3] = add_epi32_as_epi64(v3_lo, v3_hi);
+#else
   b_vec[0] = _mm256_add_epi64(b_vec[0], add_epi32_as_epi64(v0_lo, v0_hi));
   b_vec[1] = _mm256_add_epi64(b_vec[1], add_epi32_as_epi64(v1_lo, v1_hi));
   b_vec[2] = _mm256_add_epi64(b_vec[2], add_epi32_as_epi64(v2_lo, v2_hi));
   b_vec[3] = _mm256_add_epi64(b_vec[3], add_epi32_as_epi64(v3_lo, v3_hi));
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
 }
 
 static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
@@ -515,7 +563,7 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
                                         int x_offset, int y_offset,
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
                                         const int coords_bits,
-                                        const int grad_bits, int64_t *mat_a,
+                                        const int grad_bits0, int64_t *mat_a,
                                         int64_t *vec_b) {
   int16_t step_h = AOMMAX(1, bh >> AFFINE_AVG_MAX_SIZE_LOG2);
   int16_t step_w = AOMMAX(1, bw >> AFFINE_AVG_MAX_SIZE_LOG2);
@@ -529,6 +577,7 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
   __m256i y_offset_vec = _mm256_set1_epi16(1 - (bh / 2));
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
   __m256i zeros = _mm256_setzero_si256();
+  int grad_bits = grad_bits0;
 
   __m256i a_mat[10] = { zeros, zeros, zeros, zeros, zeros,
                         zeros, zeros, zeros, zeros, zeros };
@@ -567,6 +616,29 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
       multiply_and_accumulate(&gx_vec, &gy_vec, &x_vec, &y_vec, &pdiff_vec,
                               coords_bits, grad_bits, a_mat, b_vec);
       i_vec = _mm256_add_epi16(i_vec, _mm256_set1_epi16(2));
+#if CONFIG_REFINEMENT_SIMPLIFY
+      int index = 0;
+      // Sum the individual values in upper triangular part of mat_a[] and in
+      // vec_b[]
+      for (int s = 0; s < 4; s++)
+        for (int t = s; t < 4; t++)
+          mat_a[s * 4 + t] += horiz_sum_epi64(a_mat[index++]);
+      for (int l = 0; l < 4; ++l) vec_b[l] += horiz_sum_epi64(b_vec[l]);
+      int64_t max_autocorr =
+          AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
+      int64_t max_xcorr = AOMMAX(AOMMAX(llabs(vec_b[0]), llabs(vec_b[1])),
+                                 AOMMAX(llabs(vec_b[2]), llabs(vec_b[3])));
+      if (get_msb_signed_64(AOMMAX(max_autocorr, max_xcorr)) >=
+          MAX_AFFINE_AUTOCORR_BITS - 2) {
+        for (int s = 0; s < 4; s++) {
+          for (int t = s; t < 4; t++)
+            mat_a[s * 4 + t] =
+                ROUND_POWER_OF_TWO_SIGNED_64(mat_a[s * 4 + t], 1);
+          vec_b[s] = ROUND_POWER_OF_TWO_SIGNED_64(vec_b[s], 1);
+        }
+        grad_bits++;
+      }
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
     }
   } else {
     __m256i j_vec = _mm256_load_si256((__m256i *)col_16_vector);
@@ -584,8 +656,32 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
 
       multiply_and_accumulate(&gx_vec, &gy_vec, &x_vec, &y_vec, &pdiff_vec,
                               coords_bits, grad_bits, a_mat, b_vec);
+#if CONFIG_REFINEMENT_SIMPLIFY
+      int index = 0;
+      // Sum the individual values in upper triangular part of mat_a[] and in
+      // vec_b[]
+      for (int s = 0; s < 4; s++)
+        for (int t = s; t < 4; t++)
+          mat_a[s * 4 + t] += horiz_sum_epi64(a_mat[index++]);
+      for (int l = 0; l < 4; ++l) vec_b[l] += horiz_sum_epi64(b_vec[l]);
+      int64_t max_autocorr =
+          AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
+      int64_t max_xcorr = AOMMAX(AOMMAX(llabs(vec_b[0]), llabs(vec_b[1])),
+                                 AOMMAX(llabs(vec_b[2]), llabs(vec_b[3])));
+      if (get_msb_signed_64(AOMMAX(max_autocorr, max_xcorr)) >=
+          MAX_AFFINE_AUTOCORR_BITS - 2) {
+        for (int s = 0; s < 4; s++) {
+          for (int t = s; t < 4; t++)
+            mat_a[s * 4 + t] =
+                ROUND_POWER_OF_TWO_SIGNED_64(mat_a[s * 4 + t], 1);
+          vec_b[s] = ROUND_POWER_OF_TWO_SIGNED_64(vec_b[s], 1);
+        }
+        grad_bits++;
+      }
+#endif  // CONFIG_REFINEMENT_SIMPLIFY
     }
   }
+#if !CONFIG_REFINEMENT_SIMPLIFY
   int index = 0;
   // Sum the individual values in mat_a[]
   for (int i = 0; i < 4; i++) {
@@ -596,8 +692,10 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
       }
     }
   }
+#endif  // !CONFIG_REFINEMENT_SIMPLIFY
   for (int s = 0; s < 4; ++s) {
     for (int t = s + 1; t < 4; ++t) mat_a[t * 4 + s] = mat_a[s * 4 + t];
+    // for (int t = 0; t < s; ++t) mat_a[s * 4 + t] = mat_a[t * 4 + s];
   }
   const int rls_alpha = (bw * bh >> 4) * AFFINE_RLS_PARAM;
   mat_a[0] += rls_alpha;
@@ -605,19 +703,13 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
   mat_a[10] += rls_alpha;
   mat_a[15] += rls_alpha;
 
+#if !CONFIG_REFINEMENT_SIMPLIFY
   // Sum the individual values in vec_b
   for (int l = 0; l < 4; ++l) {
     vec_b[l] = horiz_sum_epi64(b_vec[l]);
   }
 
   __m256i ret[5];
-#if CONFIG_REFINEMENT_SIMPLIFY
-  ret[0] = _mm256_loadu_si256((__m256i *)&mat_a[0]);
-  ret[1] = _mm256_loadu_si256((__m256i *)&mat_a[4]);
-  ret[2] = _mm256_loadu_si256((__m256i *)&mat_a[8]);
-  ret[3] = _mm256_loadu_si256((__m256i *)&mat_a[12]);
-  ret[4] = _mm256_loadu_si256((__m256i *)vec_b);
-#else
   __m256i val = _mm256_loadu_si256((__m256i *)&mat_a[0]);
   ret[0] = highbd_clamp_epi64(val, AFFINE_AUTOCORR_CLAMP_VAL,
                               -AFFINE_AUTOCORR_CLAMP_VAL);
@@ -633,14 +725,13 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
   val = _mm256_loadu_si256((__m256i *)vec_b);
   ret[4] = highbd_clamp_epi64(val, AFFINE_AUTOCORR_CLAMP_VAL,
                               -AFFINE_AUTOCORR_CLAMP_VAL);
-#endif  // CONFIG_REFINEMENT_SIMPLIFY
 
   _mm256_storeu_si256((__m256i *)&mat_a[0], ret[0]);
   _mm256_storeu_si256((__m256i *)&mat_a[4], ret[1]);
   _mm256_storeu_si256((__m256i *)&mat_a[8], ret[2]);
   _mm256_storeu_si256((__m256i *)&mat_a[12], ret[3]);
-
   _mm256_storeu_si256((__m256i *)vec_b, ret[4]);
+#endif  // !CONFIG_REFINEMENT_SIMPLIFY
 }
 
 void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,

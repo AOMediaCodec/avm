@@ -1221,6 +1221,7 @@ int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       int abits = a_extra_shift + shifts[i] + shifts[j];
+      assert(a_extra_shift < 64);
       mat[i * dim + j] =
           abits >= 0 ? (mat[i * dim + j] * (1 << abits))
                      : ROUND_POWER_OF_TWO_SIGNED_64(mat[i * dim + j], -abits);
@@ -1329,45 +1330,20 @@ void getsub_4d(int64_t *sub, const int64_t *mat, const int64_t *vec) {
 // x = A^(-1) * b, where A: mat, b: vec, x: sol
 int inverse_determinant_4d(int64_t *mat, int64_t *vec, int *precbits,
                            int64_t *sol) {
-  // Bit range adjustment: say K=MAX_LS_BITS-1, here we down shift
-  // the matrix elements to be within L bits.
-  // 2*L+1 <= K, meaning that L <= (K - 1) >> 1
-  int shifts[4] = { 0 };
-  const int max_mat_bits = (MAX_LS_BITS - 2) >> 1;
-  get_mat4d_shifts(mat, shifts, max_mat_bits);
-  for (int i = 0; i < 4; i++) {
-    shifts[i] = AOMMIN(shifts[i], max_mat_bits - 1 - get_msb_signed_64(vec[i]));
-  }
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      int shift_ij = shifts[i] + shifts[j];
-      if (shift_ij < 0)
-        mat[i * 4 + j] =
-            ROUND_POWER_OF_TWO_SIGNED_64(mat[i * 4 + j], -shift_ij);
-      else
-        mat[i * 4 + j] = mat[i * 4 + j] * (1 << shift_ij);
-    }
-    if (shifts[i] < 0)
-      vec[i] = ROUND_POWER_OF_TWO_SIGNED_64(vec[i], -shifts[i]);
-    else
-      vec[i] = vec[i] * (1 << shifts[i]);
-    precbits[i] += shifts[i];
-  }
-
   int64_t a[10], b[10];  // values of 20 2D subdeterminants
   getsub_4d(&a[0], mat, vec);
   getsub_4d(&b[0], mat + 8, vec + 2);
 
   // Flexibly adjust range to avoid overflow without losing precision. This
-  // moves the bit depth of a[] and b[] within M. The sum of 6 terms accounts
-  // for a bit depth increased by 3 at most, corresponding to 2*M+3 <= K. So,
-  // M <= (K - 3) >> 1
-  int abits_max = 0;
-  int bbits_max = 0;
-  get_vec_bit_ranges(a, &abits_max, 10);
-  get_vec_bit_ranges(b, &bbits_max, 10);
-  int subdet_reduce_bits =
-      AOMMAX(0, AOMMAX(abits_max, bbits_max) - ((MAX_LS_BITS - 4) >> 1));
+  // moves the bit depth of a[] and b[] within 29 so that det and sol will
+  // not overflow
+  int64_t max_el = 0;
+  for (int i = 0; i < 10; i++) {
+    max_el = AOMMAX(max_el, llabs(a[i]));
+    max_el = AOMMAX(max_el, llabs(b[i]));
+  }
+  int max_bits = get_msb_signed_64(max_el);
+  int subdet_reduce_bits = AOMMAX(0, max_bits - 28);
   for (int i = 0; i < 10; i++) {
     a[i] = ROUND_POWER_OF_TWO_SIGNED_64(a[i], subdet_reduce_bits);
     b[i] = ROUND_POWER_OF_TWO_SIGNED_64(b[i], subdet_reduce_bits);
@@ -1385,7 +1361,26 @@ int inverse_determinant_4d(int64_t *mat, int64_t *vec, int *precbits,
   sol[3] = a[0] * b[8] + a[8] * b[0] + a[3] * b[4] + a[4] * b[3] - a[6] * b[1] -
            a[1] * b[6];
 
-  divide_and_round_array(sol, det, 4, precbits);
+  int max_det_msb = get_msb_signed_64(det);
+  for (int i = 0; i < 4; i++)
+    max_det_msb = AOMMAX(max_det_msb, get_msb_signed_64(sol[i]) + precbits[i]);
+
+  int det_red_bits = AOMMAX(0, max_det_msb - 60);
+  det = ROUND_POWER_OF_TWO_SIGNED_64(det, det_red_bits);
+  if (det <= 0) return 0;
+
+  for (int i = 0; i < 4; i++) {
+    int reduce_bits = det_red_bits - precbits[i];
+    if (reduce_bits >= 0)
+      sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], reduce_bits);
+    else
+      sol[i] = clamp64(sol[i] * (1 << (-reduce_bits)), INT64_MIN, INT64_MAX);
+  }
+
+  sol[0] = divide_and_round_signed(sol[0], det);
+  sol[1] = divide_and_round_signed(sol[1], det);
+  sol[2] = divide_and_round_signed(sol[2], det);
+  sol[3] = divide_and_round_signed(sol[3], det);
   return 1;
 }
 #endif  // CONFIG_REFINEMENT_SIMPLIFY
@@ -1894,7 +1889,7 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
       if (get_msb_signed_64(AOMMAX(max_autocorr, max_xcorr)) >=
           MAX_AFFINE_AUTOCORR_BITS - 2) {
         for (int s = 0; s < 4; ++s) {
-          for (int t = 0; t < 4; ++t)
+          for (int t = 0; t <= s; ++t)
             mat_a[s * 4 + t] =
                 ROUND_POWER_OF_TWO_SIGNED_64(mat_a[s * 4 + t], 1);
           vec_b[s] = ROUND_POWER_OF_TWO_SIGNED_64(vec_b[s], 1);
@@ -1999,7 +1994,6 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
       if ((i + j) % 2 == 1) continue;
 #endif
 #if CONFIG_REFINEMENT_SIMPLIFY
-      // TODO(kslu) do clamping in SIMD
       const int u =
           clamp(gx[i * gstride + j], -OPFL_SAMP_CLAMP_VAL, OPFL_SAMP_CLAMP_VAL);
       const int v =
@@ -2018,10 +2012,8 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
       svw += ROUND_POWER_OF_TWO_SIGNED_64(v * w, grad_bits);
     }
 #if CONFIG_REFINEMENT_SIMPLIFY
-    // Do a range check and add a downshift if range is getting close to the bit
-    // depth cap. This check is done for every 8 pixels so it can be easily
-    // replicated in the SIMD version.
-    // TODO(kslu) do this check in SIMD
+    // For every 8 pixels, do a range check and add a downshift if range is
+    // getting close to the max allowed bit depth
     if (bw >= 8 || i % 2 == 1) {
       // Do a range check and add a downshift if range is getting close to the
       // bit depth cap
@@ -2077,7 +2069,6 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
   suv = ROUND_POWER_OF_TWO_SIGNED_64(suv, redbit);
   suw = ROUND_POWER_OF_TWO_SIGNED_64(suw, redbit);
   svw = ROUND_POWER_OF_TWO_SIGNED_64(svw, redbit);
-
   const int64_t det = su2 * sv2 - suv * suv;
   if (det <= 0) return;
 
@@ -2700,7 +2691,7 @@ void make_inter_pred_of_nxn(
 #if CONFIG_AFFINE_REFINEMENT_SB
       // Identify warped parameter to used for this nxn subblock
       sb_idx = (j / affine_sub_bh) * wms_stride + (i / affine_sub_bw);
-      WarpedMotionParams *wms_sb = wms + 2 * sb_idx;
+      WarpedMotionParams *wms_sb = wms ? (wms + 2 * sb_idx) : NULL;
 #else
       WarpedMotionParams *wms_sb = wms;
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
@@ -4398,7 +4389,8 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
     int apply_sub_block_refinemv =
         mi->refinemv_flag && (!build_for_obmc) &&
 #if CONFIG_AFFINE_REFINEMENT
-        mi->comp_refine_type < COMP_AFFINE_REFINE_START &&
+        (is_damr_allowed_with_refinemv(mi->mode) ||
+         mi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
 #endif  // CONFIG_AFFINE_REFINEMENT
         !is_tip_ref_frame(mi->ref_frame[0]);
 
@@ -4974,13 +4966,13 @@ static void build_inter_predictors_8x8_and_bigger(
   if (is_sub_block_refinemv_enabled(cm, mi, build_for_obmc, plane,
                                     tip_ref_frame)) {
 #else
-  int apply_sub_block_refinemv =
-      mi->refinemv_flag && (!build_for_obmc) &&
+    int apply_sub_block_refinemv =
+        mi->refinemv_flag && (!build_for_obmc) &&
 #if CONFIG_AFFINE_REFINEMENT
-      (is_damr_allowed_with_refinemv(mi->mode) ||
-       mi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
+        (is_damr_allowed_with_refinemv(mi->mode) ||
+         mi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
 #endif  // CONFIG_AFFINE_REFINEMENT
-      !is_tip_ref_frame(mi->ref_frame[0]);
+        !is_tip_ref_frame(mi->ref_frame[0]);
 
 #if CONFIG_AFFINE_REFINEMENT
     if (apply_sub_block_refinemv && default_refinemv_modes(cm, mi))
@@ -5309,9 +5301,9 @@ static void build_inter_predictors_8x8_and_bigger(
 #if CONFIG_AFFINE_REFINEMENT_SB
       memcpy(xd->wm_params_sb, wms, 2 * NUM_AFFINE_PARAMS * sizeof(wms[0]));
 #elif CONFIG_AFFINE_REFINEMENT
-    // parameters derived are saved here and may be reused by chroma
-    mi->wm_params[0] = wms[0];
-    mi->wm_params[1] = wms[1];
+      // parameters derived are saved here and may be reused by chroma
+      mi->wm_params[0] = wms[0];
+      mi->wm_params[1] = wms[1];
 #endif  // CONFIG_AFFINE_REFINEMENT_SB
 #if CONFIG_TIP_REF_PRED_MERGING
     }

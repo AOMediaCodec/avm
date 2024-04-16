@@ -587,6 +587,7 @@ void av1_opfl_rebuild_inter_predictor(
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
 // as the target maximum bit depth of all intermediate results for LS problem.
 #define MAX_LS_BITS 32
+
 // Divide all elements of a vector by a common factor, and apply shifts.
 // The integer division is based on lookup table.
 // sol: numerator (will be updated to the solution)
@@ -612,7 +613,8 @@ static INLINE void divide_and_round_array(int64_t *sol, int64_t den,
     sol[i] = sign ? sol[i] : -sol[i];
     int num_red_bits =
         AOMMAX(0, get_msb_signed_64(sol[i]) + inv_den_msb + 1 - MAX_LS_BITS);
-    sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], num_red_bits);
+    if (num_red_bits > 0)
+      sol[i] = ROUND_POWER_OF_TWO_SIGNED_64(sol[i], num_red_bits);
 
     int inc_bits = shifts[i] + num_red_bits - den_shift;
     if (inc_bits >= 0)
@@ -725,8 +727,8 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 // <= (64 - mv_prec_bits - grad_prec_bits) / 3. For dim=4, input bit depth must
 // be <= (64-1)/2 for the first stage (getsub_4d), and <= 64-3-precbits for
 // the second stage (determinant and divide_and_round_signed).
-#define AFFINE_SAMP_CLAMP_VAL (1 << 15)
-#define AFFINE_AUTOCORR_CLAMP_VAL (1 << 30)
+#define AFFINE_SAMP_CLAMP_VAL ((1 << 15) - 1)
+#define AFFINE_AUTOCORR_CLAMP_VAL ((1 << 30) - 1)
 #define AFFINE_COORDS_OFFSET_BITS 3
 #endif  // CONFIG_REFINEMENT_SIMPLIFY
 
