@@ -460,6 +460,64 @@ static void release_current_frame(AV1Decoder *pbi) {
   cm->cur_frame = NULL;
 }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
+  AV1_COMMON *const cm = &pbi->common;
+  RefCntBuffer *trigger_frame = NULL;
+  RefCntBuffer *output_candidate = NULL;
+  size_t num_output_frms = pbi->num_output_frames;
+
+  // Determine if the triggering frame is the current frame or a frame
+  // already stored in the refrence buffer.
+  trigger_frame = (ref_idx >= 0) ? cm->ref_frame_map[ref_idx] : cm->cur_frame;
+
+  // Add the previous frames into the output queue.
+  do {
+    output_candidate = trigger_frame;
+    for (int i = 0; i < REF_FRAMES; i++) {
+      if (!cm->ref_frame_map[i]->output_flag &&
+          cm->ref_frame_map[i]->showable_frame) {
+        if (cm->ref_frame_map[i]->display_order_hint <
+            output_candidate->display_order_hint) {
+          output_candidate = cm->ref_frame_map[i];
+          assert(output_candidate->display_order_hint <
+                 trigger_frame->display_order_hint);
+        }
+      }
+    }
+    if (output_candidate != trigger_frame) {
+      pbi->output_frames[num_output_frms] = output_candidate;
+      output_candidate->output_flag = 1;
+      num_output_frms++;
+    }
+  } while (output_candidate != trigger_frame);
+
+  // Add the output triggering frame into the output queue.
+  pbi->output_frames[num_output_frms] = trigger_frame;
+  num_output_frms++;
+  trigger_frame->output_flag = 1;
+
+  // Add the next frames (showable_frame == 1) into the output queue.
+  int successive_output = 1;
+  for (int k = 1; k <= REF_FRAMES && successive_output > 0; k++) {
+    unsigned int next_disp_order = trigger_frame->display_order_hint + k;
+    successive_output = 0;
+    for (int i = 0; i < REF_FRAMES; i++) {
+      if (cm->ref_frame_map[i] &&
+          cm->ref_frame_map[i]->display_order_hint == next_disp_order &&
+          !cm->ref_frame_map[i]->output_flag &&
+          cm->ref_frame_map[i]->showable_frame) {
+        pbi->output_frames[num_output_frms] = cm->ref_frame_map[i];
+        cm->ref_frame_map[i]->output_flag = 1;
+        num_output_frms++;
+        successive_output++;
+      }
+    }
+  }
+  pbi->num_output_frames = num_output_frms;
+}
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+
 // If any buffer updating is signaled it should be done here.
 // Consumes a reference to cm->cur_frame.
 //
@@ -475,7 +533,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
   if (frame_decoded) {
     lock_buffer_pool(pool);
-
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+    if (cm->seq_params.enable_frame_output_order) pbi->num_output_frames = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     // In ext-tile decoding, the camera frame header is only decoded once. So,
     // we don't update the references here.
     if (!pbi->camera_frame_header_ready) {
@@ -484,6 +544,13 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       // cm->cur_frame in cm->ref_frame_map[ref_index].
       for (int mask = cm->current_frame.refresh_frame_flags; mask; mask >>= 1) {
         if (mask & 1) {
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+          if (cm->seq_params.enable_frame_output_order &&
+              cm->ref_frame_map[ref_index] &&
+              cm->ref_frame_map[ref_index]->showable_frame &&
+              !cm->ref_frame_map[ref_index]->output_flag)
+            output_frame_buffers(pbi, ref_index);
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           decrease_ref_count(cm->ref_frame_map[ref_index], pool);
           cm->ref_frame_map[ref_index] = cm->cur_frame;
           ++cm->cur_frame->ref_count;
@@ -495,6 +562,12 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     }
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     if (cm->seq_params.order_hint_info.enable_order_hint &&
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+        cm->seq_params.enable_frame_output_order &&
+        ((cm->show_frame && !cm->cur_frame->output_flag) ||
+         cm->show_existing_frame)) {
+      output_frame_buffers(pbi, -1);
+#else  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
         cm->seq_params.enable_frame_output_order && cm->show_frame &&
         !cm->show_existing_frame) {
       // Refresh the reference slots of output frames in the output queue.
@@ -521,6 +594,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
           }
         }
       }
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     } else if ((!cm->seq_params.order_hint_info.enable_order_hint ||
                 !cm->seq_params.enable_frame_output_order) &&
                (cm->show_existing_frame || cm->show_frame)) {

@@ -7048,7 +7048,9 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
   int i;
 
   lock_buffer_pool(cm->buffer_pool);
+#if !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   reset_ref_frame_map(cm);
+#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   assert(cm->cur_frame->ref_count == 1);
   for (i = 0; i < FRAME_BUFFERS; ++i) {
     // Reset all unreferenced frame buffers. We can also reset cm->cur_frame
@@ -7227,7 +7229,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->lf.filter_level[0] = 0;
       cm->lf.filter_level[1] = 0;
       cm->show_frame = 1;
-
+#if !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       // Section 6.8.2: It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame, that the value
       // of showable_frame for the previous frame was equal to 1.
@@ -7235,6 +7237,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Buffer does not contain a showable frame");
       }
+#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       // Section 6.8.2: It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame with
       // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
@@ -7288,6 +7291,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->showable_frame = aom_rb_read_bit(rb);
     }
     cm->cur_frame->showable_frame = cm->showable_frame;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+    cm->cur_frame->output_flag = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT    
     features->error_resilient_mode =
         frame_is_sframe(cm) ||
                 (current_frame->frame_type == KEY_FRAME && cm->show_frame)

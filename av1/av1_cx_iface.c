@@ -539,7 +539,11 @@ static struct av1_extracfg default_extra_cfg = {
   1,                       // enable Paeth intra mode usage for sequence
   1,                       // enable CFL uv intra mode usage for sequence
   1,                       // superres
-  1,                       // enable overlay
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  0,    // enable overlay
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  1,                        // enable overlay
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   1,                       // enable palette
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
 #if CONFIG_IBC_SR_EXT
