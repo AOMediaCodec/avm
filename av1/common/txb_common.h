@@ -63,7 +63,7 @@ static INLINE uint8_t *set_levels(uint8_t *const levels_buf, const int width) {
   return levels_buf + TX_PAD_TOP * (width + TX_PAD_HOR);
 }
 
-static INLINE int get_padded_idx(const int idx, const int bwl) {
+static AOM_FORCE_INLINE int get_padded_idx(const int idx, const int bwl) {
   return idx + ((idx >> bwl) << TX_PAD_HOR_LOG2);
 }
 
@@ -668,7 +668,8 @@ static AOM_FORCE_INLINE int get_par_br_ctx(const uint8_t *const levels,
   return mag;
 }
 
-static INLINE int get_lower_levels_ctx_eob(int bwl, int height, int scan_idx) {
+static AOM_FORCE_INLINE int get_lower_levels_ctx_eob(int bwl, int height,
+                                                     int scan_idx) {
   if (scan_idx == 0) return 0;
   if (scan_idx <= (height << bwl) / 8) return 1;
   if (scan_idx <= (height << bwl) / 4) return 2;
@@ -676,14 +677,15 @@ static INLINE int get_lower_levels_ctx_eob(int bwl, int height, int scan_idx) {
 }
 
 // Return context index for first position.
-static INLINE int get_lower_levels_ctx_bob(int bwl, int height, int scan_idx) {
+static AOM_FORCE_INLINE int get_lower_levels_ctx_bob(int bwl, int height,
+                                                     int scan_idx) {
   if (scan_idx <= (height << bwl) / 8) return 0;
   if (scan_idx <= (height << bwl) / 4) return 1;
   return 2;
 }
 
-static INLINE int get_upper_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
-                                          int bwl) {
+static AOM_FORCE_INLINE int get_upper_levels_ctx_2d(const uint8_t *levels,
+                                                    int coeff_idx, int bwl) {
   int mag;
   levels = levels + get_padded_idx_left(coeff_idx, bwl);
   mag = AOMMIN(levels[-1], 3);                          // { 0, -1 }
@@ -702,9 +704,8 @@ static INLINE int get_upper_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
 #if CONFIG_LCCHROMA
 // This function returns the base range context index/increment for the
 // coefficients residing in the low-frequency region for 2D transforms.
-static INLINE int get_lower_levels_ctx_lf_2d_chroma(const uint8_t *levels,
-                                                    int coeff_idx, int bwl,
-                                                    int plane) {
+static AOM_FORCE_INLINE int get_lower_levels_ctx_lf_2d_chroma(
+    const uint8_t *levels, int coeff_idx, int bwl, int plane) {
   assert(coeff_idx > 0);
   int mag;
   // Note: AOMMIN(level, 3) is useless for decoder since level < 5.
@@ -811,8 +812,8 @@ static INLINE int get_lower_levels_ctx_2d(const uint8_t *levels, int coeff_idx,
 // coefficient coding region from the higher-frequency default
 // region. It is based on the diagonal sum (row+col) or row, columns
 // of the given coefficient in a scan order.
-static INLINE int get_lf_limits(int row, int col, TX_CLASS tx_class,
-                                int plane) {
+static AOM_FORCE_INLINE int get_lf_limits(int row, int col, TX_CLASS tx_class,
+                                          int plane) {
   int limits = 0;
   if (tx_class == TX_CLASS_2D) {
     limits =
