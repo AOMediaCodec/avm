@@ -16,6 +16,12 @@
 // Note:
 //  This header file should be put below any x86 intrinsics head file
 
+void av1_ext_highbd_warp_horiz_sse4_1(const uint16_t *ref, __m128i *tmp,
+                                      int stride, int32_t ix4, int32_t iy4,
+                                      int32_t offset, int height, int width,
+                                      int bd, const int offset_bits_horiz,
+                                      const int reduce_bits_horiz);
+
 static INLINE void mult_add_store(CONV_BUF_TYPE *const dst,
                                   const __m128i *const res,
                                   const __m128i *const wt0,
