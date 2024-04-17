@@ -462,6 +462,11 @@ static void release_current_frame(AV1Decoder *pbi) {
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 // This function outputs frames that are ready to be output.
+// The output frames may be the output trigger frame along with
+// past frames that have not yet been output,
+// and/or future frames that are continuous with the output trigger frame.
+// The output trigger frame is the current frame or
+// the frame to be flushed out from the ref_frame_map slot.
 // ref_idx == -1 indicates the output process is trigged by
 // decoding the current frame.
 void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {

@@ -612,7 +612,7 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
 #endif
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-// This function writes show_existing_frame OBU header
+// This function writes (a proxy) show_existing_frame OBU header.
 uint32_t av1_write_show_existing_frame_obu(uint8_t *const dst,
                                            int existing_fb_idx_to_show) {
   struct aom_write_bit_buffer wb = { dst, 0 };
