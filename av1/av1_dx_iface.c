@@ -34,6 +34,10 @@
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#include "aom_dsp/bitwriter_buffer.h"
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+
 #include "av1/av1_iface_common.h"
 
 struct aom_codec_alg_priv {
@@ -608,6 +612,28 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
 #endif
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+// This function writes show_existing_frame OBU header
+uint32_t av1_write_show_existing_frame_obu(uint8_t *const dst,
+                                           int existing_fb_idx_to_show) {
+  struct aom_write_bit_buffer wb = { dst, 0 };
+  uint32_t size = 0;
+  int obu_type = OBU_FRAME_HEADER;
+
+  aom_wb_write_literal(&wb, 0, 1);         // forbidden bit.
+  aom_wb_write_literal(&wb, obu_type, 4);  // obu type
+  aom_wb_write_literal(&wb, 0, 1);         // extention flag
+  aom_wb_write_literal(&wb, 1, 1);         // obu_has_payload_length_field
+  aom_wb_write_literal(&wb, 0, 1);         // reserved
+  aom_wb_write_literal(&wb, 0x01, 8);      // obu_size 1
+  aom_wb_write_bit(&wb, 1);                // show_existing_frame
+  aom_wb_write_literal(&wb, existing_fb_idx_to_show,
+                       3);            // signal frame to be output
+  aom_wb_write_literal(&wb, 0x8, 4);  // trailing bits
+  size = aom_wb_bytes_written(&wb);
+
+  return size;
+}
+
 // This function outputs all frames from the frame buffers that are showable but
 // have not yet been output.
 static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
@@ -619,9 +645,7 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   unsigned int display_order = 0;
   int target_idx = -1;
   for (int idx = 0; idx < REF_FRAMES; idx++) {
-    if (pbi->common.ref_frame_map[idx] &&
-        pbi->common.ref_frame_map[idx]->showable_frame &&
-        !pbi->common.ref_frame_map[idx]->output_flag &&
+    if (check_frame_outputtable(pbi->common.ref_frame_map[idx]) &&
         pbi->common.ref_frame_map[idx]->display_order_hint > display_order) {
       display_order = pbi->common.ref_frame_map[idx]->display_order_hint;
       target_idx = idx;
@@ -636,17 +660,11 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   // true. Of course, other implementations are possible.
   if (target_idx >= 0) {
     uint8_t generated_data[3];
-    generated_data[0] = 0x1A;  // forbidden bit: 0, obu type : 3, extention flag
-                               // : 0, has size field : 1, reserved 1 bit : 0
-    generated_data[1] = 0x01;  // obu_size 1
-    generated_data[2] = 0x08;  // show_existing_frame : 1
-    generated_data[2] |=
-        (uint8_t)target_idx;  // set frame_to_show_map_idx to target_idx
-    generated_data[2] <<= 1;
-    generated_data[2] |= 0x01;  // trailing bit  1
-    generated_data[2] <<= 3;    // trailing bits 0
-
     const uint8_t *data_start = (const uint8_t *)generated_data;
+    size_t frame_size;
+    frame_size = av1_write_show_existing_frame_obu(data_start, target_idx);
+    assert(frame_size == 3);
+    data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
     res = decode_one(ctx, &data_start, 3, user_priv);
   }

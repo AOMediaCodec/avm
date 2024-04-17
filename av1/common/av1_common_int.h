@@ -259,8 +259,9 @@ typedef struct RefCntBuffer {
   WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
   int showable_frame;  // frame can be used as show existing frame in future
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  int output_flag;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT  
+  bool frame_output_flag;  // 0: frame is not yet output 1: frame is already
+                           // output
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   uint8_t film_grain_params_present;
   aom_film_grain_t film_grain_params;
   aom_codec_frame_buffer_t raw_frame_buffer;

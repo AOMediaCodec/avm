@@ -7292,8 +7292,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     cm->cur_frame->showable_frame = cm->showable_frame;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-    cm->cur_frame->output_flag = 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT    
+    cm->cur_frame->frame_output_flag = 0;
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     features->error_resilient_mode =
         frame_is_sframe(cm) ||
                 (current_frame->frame_type == KEY_FRAME && cm->show_frame)

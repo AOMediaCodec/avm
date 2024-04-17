@@ -461,6 +461,9 @@ static void release_current_frame(AV1Decoder *pbi) {
 }
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+// This function outputs frames that are ready to be output.
+// ref_idx == -1 indicates the output process is trigged by
+// decoding the current frame.
 void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   AV1_COMMON *const cm = &pbi->common;
   RefCntBuffer *trigger_frame = NULL;
@@ -475,27 +478,32 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   do {
     output_candidate = trigger_frame;
     for (int i = 0; i < REF_FRAMES; i++) {
-      if (!cm->ref_frame_map[i]->output_flag &&
-          cm->ref_frame_map[i]->showable_frame) {
-        if (cm->ref_frame_map[i]->display_order_hint <
-            output_candidate->display_order_hint) {
-          output_candidate = cm->ref_frame_map[i];
-          assert(output_candidate->display_order_hint <
-                 trigger_frame->display_order_hint);
-        }
+      if (check_frame_outputtable(cm->ref_frame_map[i]) &&
+          cm->ref_frame_map[i]->display_order_hint <
+              output_candidate->display_order_hint) {
+        output_candidate = cm->ref_frame_map[i];
+        assert(output_candidate->display_order_hint <
+               trigger_frame->display_order_hint);
       }
     }
     if (output_candidate != trigger_frame) {
       pbi->output_frames[num_output_frms] = output_candidate;
-      output_candidate->output_flag = 1;
+      output_candidate->frame_output_flag = 1;
       num_output_frms++;
+#if CONFIG_MISMATCH_DEBUG
+      mismatch_move_frame_idx_r(0);
+#endif  // CONFIG_MISMATCH_DEBUG
     }
   } while (output_candidate != trigger_frame);
 
   // Add the output triggering frame into the output queue.
   pbi->output_frames[num_output_frms] = trigger_frame;
   num_output_frms++;
-  trigger_frame->output_flag = 1;
+  trigger_frame->frame_output_flag = 1;
+#if CONFIG_MISMATCH_DEBUG
+  if (trigger_frame->display_order_hint != cm->cur_frame->display_order_hint)
+    mismatch_move_frame_idx_r(0);
+#endif  // CONFIG_MISMATCH_DEBUG
 
   // Add the next frames (showable_frame == 1) into the output queue.
   int successive_output = 1;
@@ -503,14 +511,15 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     unsigned int next_disp_order = trigger_frame->display_order_hint + k;
     successive_output = 0;
     for (int i = 0; i < REF_FRAMES; i++) {
-      if (cm->ref_frame_map[i] &&
-          cm->ref_frame_map[i]->display_order_hint == next_disp_order &&
-          !cm->ref_frame_map[i]->output_flag &&
-          cm->ref_frame_map[i]->showable_frame) {
+      if (check_frame_outputtable(cm->ref_frame_map[i]) &&
+          cm->ref_frame_map[i]->display_order_hint == next_disp_order) {
         pbi->output_frames[num_output_frms] = cm->ref_frame_map[i];
-        cm->ref_frame_map[i]->output_flag = 1;
+        cm->ref_frame_map[i]->frame_output_flag = 1;
         num_output_frms++;
         successive_output++;
+#if CONFIG_MISMATCH_DEBUG
+        mismatch_move_frame_idx_r(0);
+#endif  // CONFIG_MISMATCH_DEBUG
       }
     }
   }
@@ -546,9 +555,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         if (mask & 1) {
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           if (cm->seq_params.enable_frame_output_order &&
-              cm->ref_frame_map[ref_index] &&
-              cm->ref_frame_map[ref_index]->showable_frame &&
-              !cm->ref_frame_map[ref_index]->output_flag)
+              check_frame_outputtable(cm->ref_frame_map[ref_index]))
             output_frame_buffers(pbi, ref_index);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           decrease_ref_count(cm->ref_frame_map[ref_index], pool);
@@ -564,7 +571,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     if (cm->seq_params.order_hint_info.enable_order_hint &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
         cm->seq_params.enable_frame_output_order &&
-        ((cm->show_frame && !cm->cur_frame->output_flag) ||
+        ((cm->show_frame && !cm->cur_frame->frame_output_flag) ||
          cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
 #else  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT

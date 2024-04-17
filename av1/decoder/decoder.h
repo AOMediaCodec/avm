@@ -426,6 +426,13 @@ static INLINE void decrease_ref_count(RefCntBuffer *const buf,
   }
 }
 
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+// Check whether the frame is ready to output or not.
+static INLINE bool check_frame_outputtable(RefCntBuffer *const buf) {
+  return ((buf != NULL) && !buf->frame_output_flag && buf->showable_frame);
+}
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+
 static INLINE int av1_read_uniform(aom_reader *r, int n) {
   const int l = get_unsigned_bits(n);
   const int m = (1 << l) - n;
