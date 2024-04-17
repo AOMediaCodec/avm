@@ -207,33 +207,10 @@ void aom_highbd_quantize_b_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                              const int32_t *quant_shift_ptr,
                              tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
                              const int32_t *dequant_ptr, uint16_t *eob_ptr,
-                             const int16_t *scan, const int16_t *iscan) {
+                             const int16_t *scan, const int16_t *iscan,
+                             const int log_scale) {
   aom_highbd_quantize_b_helper_c(coeff_ptr, n_coeffs, zbin_ptr, round_ptr,
                                  quant_ptr, quant_shift_ptr, qcoeff_ptr,
                                  dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan,
-                                 NULL, NULL, 0);
-}
-
-void aom_highbd_quantize_b_32x32_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
-    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan) {
-  aom_highbd_quantize_b_helper_c(coeff_ptr, n_coeffs, zbin_ptr, round_ptr,
-                                 quant_ptr, quant_shift_ptr, qcoeff_ptr,
-                                 dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan,
-                                 NULL, NULL, 1);
-}
-
-void aom_highbd_quantize_b_64x64_c(
-    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
-    const int32_t *round_ptr, const int32_t *quant_ptr,
-    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
-    const int16_t *scan, const int16_t *iscan) {
-  aom_highbd_quantize_b_helper_c(coeff_ptr, n_coeffs, zbin_ptr, round_ptr,
-                                 quant_ptr, quant_shift_ptr, qcoeff_ptr,
-                                 dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan,
-                                 NULL, NULL, 2);
+                                 NULL, NULL, log_scale);
 }

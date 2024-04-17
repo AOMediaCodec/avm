@@ -15,15 +15,15 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
+#include <assert.h>
 
-void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
-                                const int32_t *zbin_ptr,
-                                const int32_t *round_ptr,
-                                const int32_t *quant_ptr,
-                                const int32_t *quant_shift_ptr,
-                                tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
-                                const int32_t *dequant_ptr, uint16_t *eob_ptr,
-                                const int16_t *scan, const int16_t *iscan) {
+void highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
+                            const int32_t *zbin_ptr, const int32_t *round_ptr,
+                            const int32_t *quant_ptr,
+                            const int32_t *quant_shift_ptr,
+                            tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+                            const int32_t *dequant_ptr, uint16_t *eob_ptr,
+                            const int16_t *scan, const int16_t *iscan) {
   int i, j, non_zero_regs = (int)count / 4, eob_i = -1;
   __m128i zbins[2];
   __m128i nzbins[2];
@@ -93,7 +93,7 @@ void aom_highbd_quantize_b_sse2(const tran_low_t *coeff_ptr, intptr_t count,
   *eob_ptr = eob_i + 1;
 }
 
-void aom_highbd_quantize_b_32x32_sse2(
+void highbd_quantize_b_32x32_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
@@ -156,7 +156,7 @@ void aom_highbd_quantize_b_32x32_sse2(
   *eob_ptr = eob + 1;
 }
 
-void aom_highbd_quantize_b_64x64_sse2(
+void highbd_quantize_b_64x64_sse2(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr,
     const int32_t *round_ptr, const int32_t *quant_ptr,
     const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
@@ -216,4 +216,30 @@ void aom_highbd_quantize_b_64x64_sse2(
     if (abs_qcoeff) eob = iscan[idx_arr[i]] > eob ? iscan[idx_arr[i]] : eob;
   }
   *eob_ptr = eob + 1;
+}
+
+void aom_highbd_quantize_b_sse2(
+    const tran_low_t *coeff_ptr, intptr_t count, const int32_t *zbin_ptr,
+    const int32_t *round_ptr, const int32_t *quant_ptr,
+    const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan, const int log_scale) {
+  switch (log_scale) {
+    case 0:
+      highbd_quantize_b_sse2(coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr,
+                             quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr,
+                             dequant_ptr, eob_ptr, scan, iscan);
+      break;
+    case 1:
+      highbd_quantize_b_32x32_sse2(
+          coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr, quant_shift_ptr,
+          qcoeff_ptr, dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan);
+      break;
+    case 2:
+      highbd_quantize_b_64x64_sse2(
+          coeff_ptr, count, zbin_ptr, round_ptr, quant_ptr, quant_shift_ptr,
+          qcoeff_ptr, dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan);
+      break;
+    default: assert(0);
+  }
 }
