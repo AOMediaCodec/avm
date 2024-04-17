@@ -533,18 +533,18 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable_warp_extend at sequence level
 #else
   1,                        // allow_warped_motion at frame level
-#endif                     // CONFIG_EXTENDED_WARP_PREDICTION
-  0,                       // enable filter intra at sequence level
-  1,                       // enable smooth intra modes usage for sequence
-  1,                       // enable Paeth intra mode usage for sequence
-  1,                       // enable CFL uv intra mode usage for sequence
-  1,                       // superres
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+  0,    // enable filter intra at sequence level
+  1,    // enable smooth intra modes usage for sequence
+  1,    // enable Paeth intra mode usage for sequence
+  1,    // enable CFL uv intra mode usage for sequence
+  1,    // superres
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   1,                        // enable overlay
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  1,                       // enable palette
+  1,    // enable palette
   !CONFIG_SHARP_SETTINGS,  // enable intrabc
 #if CONFIG_IBC_SR_EXT
   1,    // enable search range extension for intrabc

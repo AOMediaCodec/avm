@@ -657,8 +657,7 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   if (target_idx >= 0) {
     uint8_t generated_data[3];
     const uint8_t *data_start = (const uint8_t *)generated_data;
-    av1_write_show_existing_frame_obu(data_start, target_idx);
-    assert(frame_size == 3);
+    av1_write_show_existing_frame_obu((uint8_t *const)data_start, target_idx);
     data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
     res = decode_one(ctx, &data_start, 3, user_priv);
