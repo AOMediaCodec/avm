@@ -641,7 +641,7 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   unsigned int display_order = 0;
   int target_idx = -1;
   for (int idx = 0; idx < REF_FRAMES; idx++) {
-    if (check_frame_outputtable(pbi->common.ref_frame_map[idx]) &&
+    if (is_frame_eligible_for_output(pbi->common.ref_frame_map[idx]) &&
         pbi->common.ref_frame_map[idx]->display_order_hint > display_order) {
       display_order = pbi->common.ref_frame_map[idx]->display_order_hint;
       target_idx = idx;
