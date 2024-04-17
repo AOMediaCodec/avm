@@ -564,7 +564,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "enable-overlay", 1,
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
               "Enable coding overlay frames (0: false (default), 1: true)"),
-#else  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#else
               "Enable coding overlay frames (0: false, 1: true (default))"),
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   .enable_palette =

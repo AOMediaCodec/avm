@@ -613,10 +613,9 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 // This function writes (a proxy) show_existing_frame OBU header.
-uint32_t av1_write_show_existing_frame_obu(uint8_t *const dst,
-                                           int existing_fb_idx_to_show) {
+static void av1_write_show_existing_frame_obu(uint8_t *const dst,
+                                              int existing_fb_idx_to_show) {
   struct aom_write_bit_buffer wb = { dst, 0 };
-  uint32_t size = 0;
   int obu_type = OBU_FRAME_HEADER;
 
   aom_wb_write_literal(&wb, 0, 1);         // forbidden bit.
@@ -629,9 +628,6 @@ uint32_t av1_write_show_existing_frame_obu(uint8_t *const dst,
   aom_wb_write_literal(&wb, existing_fb_idx_to_show,
                        3);            // signal frame to be output
   aom_wb_write_literal(&wb, 0x8, 4);  // trailing bits
-  size = aom_wb_bytes_written(&wb);
-
-  return size;
 }
 
 // This function outputs all frames from the frame buffers that are showable but
@@ -661,8 +657,7 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
   if (target_idx >= 0) {
     uint8_t generated_data[3];
     const uint8_t *data_start = (const uint8_t *)generated_data;
-    size_t frame_size;
-    frame_size = av1_write_show_existing_frame_obu(data_start, target_idx);
+    av1_write_show_existing_frame_obu(data_start, target_idx);
     assert(frame_size == 3);
     data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
