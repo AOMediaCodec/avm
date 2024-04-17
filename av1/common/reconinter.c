@@ -1119,6 +1119,7 @@ void get_vec_bit_ranges(const int64_t *vec, int *bits_max, const int dim) {
 }
 
 #define MAX_LS_DIM 4
+// Swap two rows for Gaussian elimination routine
 void swap_rows(int64_t *mat, int64_t *sol, const int i, const int j,
                const int dim) {
   int64_t temp = sol[i];
@@ -1176,6 +1177,7 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
       shift - s1 - s2);
 }
 
+// Perform Gaussian elimination routine to solve a matrix inverse problem
 int gaussian_elimination(int64_t *mat, int64_t *sol, int *precbits,
                          const int dim) {
   int shifts[MAX_LS_DIM] = { 0 };
@@ -1385,6 +1387,7 @@ int inverse_determinant_4d(int64_t *mat, int64_t *vec, int *precbits,
 }
 #endif  // CONFIG_REFINEMENT_SIMPLIFY
 
+// Solve a 4-dimensional matrix inverse
 int solver_4d(int64_t *mat, int64_t *vec, int *precbits, int64_t *sol) {
 #if CONFIG_REFINEMENT_SIMPLIFY
   memcpy(sol, vec, 4 * sizeof(int64_t));
@@ -1810,6 +1813,7 @@ int find_max_matrix_element(const int16_t *pdiff, int pstride,
   return max_el;
 }
 
+// Autocorrelation matrix filling procedure for affine refinement.
 void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
                                               const int16_t *gx,
                                               const int16_t *gy, int gstride,
