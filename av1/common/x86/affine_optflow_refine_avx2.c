@@ -750,7 +750,7 @@ void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,
   int64_t max_el =
       find_max_matrix_element_avx2(pdiff, pstride, gx, gy, gstride, bw, bh);
 
-  int max_el_msb = get_msb((int)max_el);
+  int max_el_msb = max_el > 0 ? get_msb((int)max_el) : 0;
   int grad_bits =
       AOMMAX(0, max_el_msb * 2 + npel_log2 +
                     AOMMAX(x_range_log2, y_range_log2) - AFFINE_GRAD_BITS_THR);
