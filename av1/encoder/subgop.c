@@ -190,23 +190,28 @@ static int process_subgop_config(char *str, SubGOPCfg *config) {
   if (strlen(token) == 0) return 0;
   return process_subgop_steps(token, config);
 }
-
+// frames with show_frame = 1, showable_frame = 1
+// and show_existing_frame = 1 are handled as
+// 'visible' frames when enable_frame_output_order = 1
 static int is_visible(FRAME_TYPE_CODE code) {
   switch (code) {
     case FRAME_TYPE_INO_VISIBLE:
     case FRAME_TYPE_INO_REPEAT:
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT && \
-    !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+    case FRAME_TYPE_OOO_UNFILTERED:
+    case FRAME_TYPE_INO_SHOWEXISTING: return 1;
+    case FRAME_TYPE_OOO_FILTERED: return 0;
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     case FRAME_TYPE_OOO_UNFILTERED: return 1;
     case FRAME_TYPE_INO_SHOWEXISTING:
     case FRAME_TYPE_OOO_FILTERED: return 0;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT &&
-        // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     case FRAME_TYPE_INO_SHOWEXISTING: return 1;
     case FRAME_TYPE_OOO_FILTERED:
     case FRAME_TYPE_OOO_UNFILTERED: return 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT &&
-        // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT
     default: assert(0 && "Invalid frame type code"); return 0;
   }
 }
