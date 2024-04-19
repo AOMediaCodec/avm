@@ -2311,9 +2311,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif
     if (xd->tree_type == CHROMA_PART) {
 #if CONFIG_CFL_64x64
-      const BLOCK_SIZE temp_plane_bsize =
-          get_plane_block_size(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
-      const int luma_tx_size = max_txsize_rect_lookup[temp_plane_bsize];
+      const BLOCK_SIZE luma_bsize = mbmi->sb_type[PLANE_TYPE_UV];
+      const int luma_tx_size = max_txsize_rect_lookup[luma_bsize];
 #else
       const int luma_tx_size =
           av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
@@ -2352,9 +2351,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_ENABLE_MHCCP
     {
 #if CONFIG_CFL_64x64
-      const BLOCK_SIZE temp_plane_bsize =
-          get_plane_block_size(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
-      const int luma_tx_size = max_txsize_rect_lookup[temp_plane_bsize];
+      const BLOCK_SIZE luma_bsize = mbmi->sb_type[PLANE_TYPE_UV];
+      const int luma_tx_size = max_txsize_rect_lookup[luma_bsize];
 #else
       const int luma_tx_size =
           av1_get_max_uv_txsize(mbmi->sb_type[PLANE_TYPE_UV], 0, 0);
