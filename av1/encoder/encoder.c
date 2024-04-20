@@ -2364,8 +2364,10 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
  * \ingroup high_level_algo
  */
 static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
+#if !CONFIG_LF_SUB_PU
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
+#endif  // !CONFIG_LF_SUB_PU
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
 
@@ -2395,11 +2397,8 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   }
 
   if (lf->filter_level[0] || lf->filter_level[1]) {
-    if (num_workers > 1
-#if CONFIG_LF_SUB_PU
-        && !cm->features.allow_lf_sub_pu
-#endif  // CONFIG_LF_SUB_PU
-    )
+#if !CONFIG_LF_SUB_PU
+    if (num_workers > 1)
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
 #if CONFIG_LPF_MASK
                                0,
@@ -2407,6 +2406,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
                                mt_info->workers, num_workers,
                                &mt_info->lf_row_sync);
     else
+#endif  // !CONFIG_LF_SUB_PU
       av1_loop_filter_frame(&cm->cur_frame->buf, cm, xd,
 #if CONFIG_LPF_MASK
                             0,
