@@ -4359,3 +4359,46 @@ void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
       break;
   }
 }
+
+// Inverse secondary transform
+void inv_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
+                    const PREDICTION_MODE mode, const uint8_t stx_idx,
+                    const int size) {
+  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
+                                      : ist_8x8_kernel[mode][stx_idx][0];
+  assert(stx_idx < 4);
+  const int rnd_factor = 1 << (7 - 1);
+  const __m256i round = _mm256_set1_epi32(rnd_factor);
+
+  int reduced_width, reduced_height;
+  if (size == 4) {
+    reduced_height = IST_4x4_HEIGHT;
+    reduced_width = IST_4x4_WIDTH;
+  } else {
+    reduced_height = IST_8x8_HEIGHT;
+    reduced_width = IST_8x8_WIDTH;
+  }
+  for (int j = 0; j < reduced_height; j++) {
+    const int16_t *kernel_tmp = kernel;
+    int *srcPtr = src;
+    int *out = dst;
+    __m256i tmpCoeff = _mm256_set1_epi32(srcPtr[j]);
+    __m256i *tmpBlock = (__m256i *)out;
+    for (int i = 0; i < reduced_width; i += 8, tmpBlock++) {
+      __m256i tmp =
+          _mm256_cvtepi16_epi32(_mm_loadu_si128((__m128i *)(kernel_tmp + i)));
+      __m256i sum = _mm256_loadu_si256(tmpBlock);
+      tmp = _mm256_mullo_epi32(tmpCoeff, tmp);
+      tmp = _mm256_add_epi32(tmp, sum);
+      _mm256_storeu_si256(tmpBlock, tmp);
+    }
+    kernel += (size * size);
+  }
+  int *out = dst;
+  __m256i *tmpBlock = (__m256i *)out;
+  for (int j = 0; j < reduced_width; j += 8, tmpBlock++) {
+    __m256i tmp = _mm256_loadu_si256(tmpBlock);
+    tmp = _mm256_srai_epi32(_mm256_add_epi32(tmp, round), 7);
+    _mm256_storeu_si256(tmpBlock, tmp);
+  }
+}

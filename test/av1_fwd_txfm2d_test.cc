@@ -771,4 +771,190 @@ INSTANTIATE_TEST_SUITE_P(
                                 &av1_fwd_cross_chroma_tx_block_avx2)));
 #endif  // HAVE_AVX2
 
+///////////////////////////////////////////////////////////////
+//       unit-test for 'fwd_stxfm'                           //
+///////////////////////////////////////////////////////////////
+
+typedef void (*FwdSTxfmFunc)(tran_low_t *src, tran_low_t *dst,
+                             const PREDICTION_MODE mode, const uint8_t stx_idx,
+                             const int size);
+class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
+ public:
+  AV1FwdSecTxfmTest() : fwd_stxfm_func_(GetParam()) {}
+  void AV1FwdSecTxfmMatchTest() {
+    for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
+      for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
+        for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
+          int sb_size = (sb_size_idx == 0) ? 4 : 8;
+          DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_WIDTH]) = { 0 };
+          DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_HEIGHT]) = { 0 };
+          DECLARE_ALIGNED(32, tran_low_t, ref_output[IST_8x8_HEIGHT]) = { 0 };
+          ACMRandom rnd(ACMRandom::DeterministicSeed());
+          for (int cnt = 0; cnt < 2; ++cnt) {
+            if (cnt == 0) {
+              for (int r = 0; r < IST_8x8_WIDTH; ++r) {
+                input[r] = (1 << bd) - 1;
+              }
+            } else {
+              for (int r = 0; r < IST_8x8_WIDTH; ++r) {
+                input[r] = rnd.Rand16() % (1 << bd);
+              }
+            }
+            fwd_stxfm_c(input, ref_output, set_id, stx, sb_size);
+            fwd_stxfm_func_(input, output, set_id, stx, sb_size);
+            int check_rows = (sb_size == 4) ? IST_4x4_HEIGHT : IST_8x8_HEIGHT;
+            for (int r = 0; r < check_rows; ++r) {
+              ASSERT_EQ(ref_output[r], output[r])
+                  << "[" << r << "] cnt:" << cnt
+                  << " ref_output: " << ref_output[r]
+                  << " mod_output: " << output[r];
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void AV1FwdSecTxfmSpeedTest() {
+    for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
+      int sb_size = (sb_size_idx == 0) ? 4 : 8;
+      DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_WIDTH]) = { 0 };
+      DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_HEIGHT]) = { 0 };
+      ACMRandom rnd(ACMRandom::DeterministicSeed());
+      for (int r = 0; r < IST_8x8_WIDTH; ++r) {
+        input[r] = rnd.Rand16() % (1 << bd);
+      }
+      aom_usec_timer ref_timer, test_timer;
+      const int knum_loops = 100000000;
+      aom_usec_timer_start(&ref_timer);
+      for (int i = 0; i < knum_loops; ++i) {
+        fwd_stxfm_c(input, output, 0, 0, sb_size);
+      }
+      aom_usec_timer_mark(&ref_timer);
+      const int elapsed_time_c =
+          static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
+
+      aom_usec_timer_start(&test_timer);
+      for (int i = 0; i < knum_loops; ++i) {
+        fwd_stxfm_func_(input, output, 0, 0, sb_size);
+      }
+      aom_usec_timer_mark(&test_timer);
+      const int elapsed_time_simd =
+          static_cast<int>(aom_usec_timer_elapsed(&test_timer));
+
+      printf(
+          "sb_size[%d] \t c_time=%d \t simd_time=%d \t "
+          "gain=%f \n",
+          sb_size, elapsed_time_c, elapsed_time_simd,
+          ((1.0 * elapsed_time_c) / elapsed_time_simd));
+    }
+  }
+  FwdSTxfmFunc fwd_stxfm_func_;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1FwdSecTxfmTest);
+
+TEST_P(AV1FwdSecTxfmTest, match) { AV1FwdSecTxfmMatchTest(); }
+TEST_P(AV1FwdSecTxfmTest, DISABLED_Speed) { AV1FwdSecTxfmSpeedTest(); }
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1FwdSecTxfmTest,
+                         ::testing::Values(fwd_stxfm_sse4_1));
+#endif  // HAVE_SSE4_1
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1FwdSecTxfmTest,
+                         ::testing::Values(fwd_stxfm_avx2));
+#endif  // HAVE_AVX2
+
+///////////////////////////////////////////////////////////////
+//       unit-test for 'inv_stxfm'                           //
+///////////////////////////////////////////////////////////////
+
+typedef void (*InvSTxfmFunc)(tran_low_t *src, tran_low_t *dst,
+                             const PREDICTION_MODE mode, const uint8_t stx_idx,
+                             const int size);
+class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
+ public:
+  AV1InvSecTxfmTest() : inv_stxfm_func_(GetParam()) {}
+  void AV1InvSecTxfmMatchTest() {
+    for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
+      for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
+        for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
+          int sb_size = (sb_size_idx == 0) ? 4 : 8;
+          DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_HEIGHT]) = { 0 };
+          DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_WIDTH]) = { 0 };
+          DECLARE_ALIGNED(32, tran_low_t, ref_output[IST_8x8_WIDTH]) = { 0 };
+          ACMRandom rnd(ACMRandom::DeterministicSeed());
+          const uint16_t inv_input_mask =
+              static_cast<uint16_t>((1 << (bd + 7)) - 1);
+          for (int r = 0; r < IST_8x8_HEIGHT; r++) {
+            input[r] = (rnd.Rand31() & inv_input_mask);
+          }
+          inv_stxfm_c(input, ref_output, set_id, stx, sb_size);
+          inv_stxfm_func_(input, output, set_id, stx, sb_size);
+          int check_rows = (sb_size == 4) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
+          for (int r = 0; r < check_rows; ++r) {
+            ASSERT_EQ(ref_output[r], output[r])
+                << "[" << r << "] "
+                << " ref_output: " << ref_output[r]
+                << " mod_output: " << output[r];
+          }
+        }
+      }
+    }
+  }
+
+  void AV1InvSecTxfmSpeedTest() {
+    for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
+      int sb_size = (sb_size_idx == 0) ? 4 : 8;
+      DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_HEIGHT]) = { 0 };
+      DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_WIDTH]) = { 0 };
+      ACMRandom rnd(ACMRandom::DeterministicSeed());
+      const uint16_t inv_input_mask =
+          static_cast<uint16_t>((1 << (bd + 7)) - 1);
+      for (int r = 0; r < IST_8x8_HEIGHT; ++r) {
+        input[r] = (rnd.Rand31() & inv_input_mask);
+      }
+      aom_usec_timer ref_timer, test_timer;
+      const int knum_loops = 100000000;
+      aom_usec_timer_start(&ref_timer);
+      for (int i = 0; i < knum_loops; ++i) {
+        fwd_stxfm_c(input, output, 0, 0, sb_size);
+      }
+      aom_usec_timer_mark(&ref_timer);
+      const int elapsed_time_c =
+          static_cast<int>(aom_usec_timer_elapsed(&ref_timer));
+
+      aom_usec_timer_start(&test_timer);
+      for (int i = 0; i < knum_loops; ++i) {
+        inv_stxfm_func_(input, output, 0, 0, sb_size);
+      }
+      aom_usec_timer_mark(&test_timer);
+      const int elapsed_time_simd =
+          static_cast<int>(aom_usec_timer_elapsed(&test_timer));
+
+      printf(
+          "sb_size[%d] \t c_time=%d \t simd_time=%d \t "
+          "gain=%f \n",
+          sb_size, elapsed_time_c, elapsed_time_simd,
+          ((1.0 * elapsed_time_c) / elapsed_time_simd));
+    }
+  }
+  InvSTxfmFunc inv_stxfm_func_;
+};
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1InvSecTxfmTest);
+
+TEST_P(AV1InvSecTxfmTest, match) { AV1InvSecTxfmMatchTest(); }
+TEST_P(AV1InvSecTxfmTest, DISABLED_Speed) { AV1InvSecTxfmSpeedTest(); }
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1InvSecTxfmTest,
+                         ::testing::Values(inv_stxfm_sse4_1));
+#endif  // HAVE_SSE4_1
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1InvSecTxfmTest,
+                         ::testing::Values(inv_stxfm_avx2));
+#endif  // HAVE_AVX2
 }  // namespace
