@@ -3691,6 +3691,27 @@ static AOM_INLINE void write_modes_sb(
 
   if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
 
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+  const int total_loop_num =
+      (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+       cm->seq_params.enable_sdp && bsize == BLOCK_64X64)
+          ? 2
+          : 1;
+  if (total_loop_num == 2 && xd->tree_type == SHARED_PART) {
+    xd->tree_type = LUMA_PART;
+    write_modes_sb(cpi, tile, w, tok, tok_end, ptree, ptree_luma, mi_row,
+                   mi_col, bsize);
+    xd->tree_type = CHROMA_PART;
+    write_modes_sb(cpi, tile, w, tok, tok_end, ptree_luma,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                   ptree,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                   mi_row, mi_col, bsize);
+    xd->tree_type = SHARED_PART;
+    return;
+  }
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+
   const int plane_start = get_partition_plane_start(xd->tree_type);
   const int plane_end =
       get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
@@ -3715,12 +3736,14 @@ static AOM_INLINE void write_modes_sb(
 #if CONFIG_EXT_RECUR_PARTITIONS
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, ptree, ptree_luma,
                   w);
+#if !CONFIG_INTRA_SDP_LATENCY_FIX
   const int track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
   if (!track_ptree_luma) {
     ptree_luma = NULL;
   }
   assert(IMPLIES(track_ptree_luma, ptree_luma));
+#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
 #else
   write_partition(cm, xd, mi_row, mi_col, partition, bsize, w);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -4001,18 +4024,31 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
       av1_reset_is_mi_coded_map(xd, cm->mib_size);
       xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
       cpi->td.mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+      xd->tree_type = SHARED_PART;
+      const int intra_sdp_enabled =
+          (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
+           cm->seq_params.enable_sdp);
+#else
       const int total_loop_num =
           (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&
            cm->seq_params.enable_sdp)
               ? 2
               : 1;
       xd->tree_type = (total_loop_num == 1 ? SHARED_PART : LUMA_PART);
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
+
       write_modes_sb(cpi, tile, w, &tok, tok_end,
                      xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+                     (intra_sdp_enabled ? xd->sbi->ptree_root[1] : NULL),
+#else
                      NULL,
+#endif  // CONFIG_INTRA_SDP_LATENCY_FIX
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                      mi_row, mi_col, cm->sb_size);
+#if !CONFIG_INTRA_SDP_LATENCY_FIX
       if (total_loop_num == 2) {
         xd->tree_type = CHROMA_PART;
         write_modes_sb(cpi, tile, w, &tok, tok_end,
@@ -4023,6 +4059,7 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
                        mi_row, mi_col, cm->sb_size);
         xd->tree_type = SHARED_PART;
       }
+#endif  // !CONFIG_INTRA_SDP_LATENCY_FIX
     }
     assert(tok == tok_end);
   }
