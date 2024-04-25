@@ -3668,7 +3668,11 @@ static AOM_INLINE void write_modes_sb(
     const TokenExtra **tok, const TokenExtra *const tok_end,
     PARTITION_TREE *ptree,
 #if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_INTRA_SDP_LATENCY_FIX
+    PARTITION_TREE *ptree_luma,
+#else
     const PARTITION_TREE *ptree_luma,
+#endif
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     int mi_row, int mi_col, BLOCK_SIZE bsize) {
   const AV1_COMMON *const cm = &cpi->common;
