@@ -645,7 +645,7 @@ static AOM_INLINE void apply_sgr(int sgr_params_idx, const uint16_t *dat,
     // Iterate over the stripe in blocks of width pu_width
     for (int j = 0; j < width; j += pu_width) {
       const int w = AOMMIN(pu_width, width - j);
-      const int ret = av1_selfguided_restoration_c(
+      const int ret = av1_selfguided_restoration(
           dat_row + j, w, h, dat_stride, flt0_row + j, flt1_row + j, flt_stride,
           sgr_params_idx, bit_depth);
       (void)ret;

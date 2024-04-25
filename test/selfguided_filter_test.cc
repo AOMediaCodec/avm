@@ -53,7 +53,8 @@ class AV1HighbdSelfguidedFilterTest
     tst_fun_ = GET_PARAM(0);
     const int pu_width = RESTORATION_PROC_UNIT_SIZE;
     const int pu_height = RESTORATION_PROC_UNIT_SIZE;
-    const int width = 256, height = 256, stride = 288, out_stride = 288;
+    // In stride extra 32 is added to ensure that the buffer is aligned to 32 bytes.
+    const int width = 512, height = 512, stride = 544, out_stride = 544;
     const int NUM_ITERS = 2000;
     int i, j, k;
     int bit_depth = GET_PARAM(1);
@@ -137,7 +138,7 @@ class AV1HighbdSelfguidedFilterTest
     // Set the maximum width/height to test here. We actually test a small
     // range of sizes *up to* this size, so that we can check, eg.,
     // the behaviour on tiles which are not a multiple of 4 wide.
-    const int max_w = 260, max_h = 260, stride = 672, out_stride = 672;
+    const int max_w = 516, max_h = 516, stride = 1312, out_stride = 1312;
     const int NUM_ITERS = 81;
     int i, j, k;
     int bit_depth = GET_PARAM(1);
