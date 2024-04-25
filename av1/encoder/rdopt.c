@@ -7233,6 +7233,8 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, struct macroblock *x,
                                   &dist_uv, &uv_skip_txfm,
 
                                   ctx, bsize, max_uv_tx_size);
+      av1_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
+                     ctx->num_4x4_blk_chroma);
     }
 
     // Intra block is always coded as non-skip

@@ -219,9 +219,10 @@ void av1_rd_pick_palette_intra_sbuv(const struct AV1_COMP *cpi,
                                     struct macroblock *x, int dc_mode_cost,
                                     uint8_t *best_palette_color_map,
                                     MB_MODE_INFO *const best_mbmi,
+                                    CctxType *tmp_cctx_type_map,
                                     int64_t *best_rd, int *rate,
                                     int *rate_tokenonly, int64_t *distortion,
-                                    int *skippable);
+                                    int *skippable, int num_4x4_blk_chroma);
 
 /*!\brief Resets palette color map for chroma channels.
  */

@@ -648,9 +648,10 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
                                     int dc_mode_cost,
                                     uint8_t *best_palette_color_map,
                                     MB_MODE_INFO *const best_mbmi,
+                                    CctxType *tmp_cctx_type_map,
                                     int64_t *best_rd, int *rate,
                                     int *rate_tokenonly, int64_t *distortion,
-                                    int *skippable) {
+                                    int *skippable, int num_4x4_blk_chroma) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(!is_inter_block(mbmi, xd->tree_type));
@@ -777,6 +778,10 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
       this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
       if (this_rd < *best_rd) {
         *best_rd = this_rd;
+        // The buffer 'tmp_cctx_type_map' holds the best cross-chroma txfm type
+        // map across the chroma modes.
+        av1_copy_array(tmp_cctx_type_map, xd->cctx_type_map,
+                       num_4x4_blk_chroma);
         *best_mbmi = *mbmi;
         memcpy(best_palette_color_map, color_map,
                plane_block_width * plane_block_height *

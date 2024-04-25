@@ -591,6 +591,9 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   int64_t best_rd = INT64_MAX, this_rd;
   const ModeCosts *mode_costs = &x->mode_costs;
   const IntraModeCfg *const intra_mode_cfg = &cpi->oxcf.intra_mode_cfg;
+  // Temporary buffer to hold the best cross-chroma txfm type corresponds
+  // to best chroma mode of a given partition block.
+  CctxType tmp_cctx_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
 
   init_sbuv_mode(mbmi);
 
@@ -842,7 +845,9 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
       if (this_rd < best_rd) {
         best_mbmi = *mbmi;
-        av1_copy_array(ctx->cctx_type_map, xd->cctx_type_map,
+        // The buffer 'tmp_cctx_type_map' holds the best cross-chroma txfm type
+        // map across the chroma modes.
+        av1_copy_array(tmp_cctx_type_map, xd->cctx_type_map,
                        ctx->num_4x4_blk_chroma);
         best_rd = this_rd;
         *rate = this_rate;
@@ -881,13 +886,14 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         mode_costs
             ->intra_uv_mode_cost[is_cfl_allowed(xd)][mbmi->mode][UV_DC_PRED],
 #endif
-        best_palette_color_map, &best_mbmi, &best_rd, rate, rate_tokenonly,
-        distortion, skippable);
+        best_palette_color_map, &best_mbmi, tmp_cctx_type_map, &best_rd, rate,
+        rate_tokenonly, distortion, skippable, ctx->num_4x4_blk_chroma);
   }
 
   *mbmi = best_mbmi;
-  av1_copy_array(xd->cctx_type_map, ctx->cctx_type_map,
-                 ctx->num_4x4_blk_chroma);
+  // Copy back the best cross-chroma txfm type (tmp_cctx_type_map)
+  // to xd->cctx_type_map.
+  av1_copy_array(xd->cctx_type_map, tmp_cctx_type_map, ctx->num_4x4_blk_chroma);
   // Make sure we actually chose a mode
   assert(best_rd < INT64_MAX);
   return best_rd;
