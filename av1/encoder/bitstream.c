@@ -6194,7 +6194,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
                              ? QINDEX_BITS_UNEXT
                              : QINDEX_BITS);
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
+#if !CONFIG_TIP_DIRECT_MODE_SIGNALING
     write_tile_info(cm, saved_wb, wb);
+#endif  // !CONFIG_TIP_DIRECT_MODE_SIGNALING
     if (seq_params->film_grain_params_present &&
         (cm->show_frame || cm->showable_frame))
       write_film_grain_params(cpi, wb);

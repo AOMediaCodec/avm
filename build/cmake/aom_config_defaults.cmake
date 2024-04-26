@@ -320,6 +320,9 @@ set_aom_config_var(CONFIG_MF_HOLE_FILL_SIMPLIFY 1
 set_aom_config_var(CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE 1
                    "Always enable motion field hole filling")
 
+set_aom_config_var(CONFIG_TIP_DIRECT_MODE_SIGNALING 1
+                   "Enable to optimize the signaling of TIP direct output mode")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

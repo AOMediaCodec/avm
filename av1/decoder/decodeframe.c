@@ -8165,7 +8165,9 @@ YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
   cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#if !CONFIG_TIP_DIRECT_MODE_SIGNALING
     read_tile_info(pbi, rb);
+#endif  // !CONFIG_TIP_DIRECT_MODE_SIGNALING
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
     read_film_grain(cm, rb);
