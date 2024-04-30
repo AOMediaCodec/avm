@@ -61,6 +61,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       68, 68, 68,
 #endif  // CONFIG_BLOCK_256
       64, 64, 70, 70, 68, 68,
+#if CONFIG_BLOCK_256_EXT
+      68, 68, 68, 68,
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
       60, 60, 68, 68, 68, 68,
 #endif  // CONFIG_FLEX_PARTITION
@@ -71,6 +74,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       68, 68, 68,
 #endif  // CONFIG_BLOCK_256
       88, 88, 86, 86, 68, 68,
+#if CONFIG_BLOCK_256_EXT
+      68, 68, 68, 68,
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
       87, 87, 68, 68, 68, 68,
 #endif  // CONFIG_FLEX_PARTITION
@@ -81,6 +87,9 @@ static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
       74, 74, 74,
 #endif  // CONFIG_BLOCK_256
       90, 90, 90, 90, 74, 74,
+#if CONFIG_BLOCK_256_EXT
+      74, 74, 74, 74,
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
       93, 93, 74, 74, 74, 74,
 #endif  // CONFIG_FLEX_PARTITION
@@ -99,6 +108,9 @@ static const TX_SIZE max_predict_sf_tx_size[BLOCK_SIZES_ALL] = {
   TX_16X16, TX_16X16, TX_16X16,
 #endif  // CONFIG_BLOCK_256
   TX_4X16,  TX_16X4,  TX_8X8,   TX_8X8,   TX_16X16, TX_16X16,
+#if CONFIG_BLOCK_256_EXT
+  TX_16X16, TX_16X16, TX_16X16, TX_16X16,
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
   TX_4X16,  TX_16X4,  TX_8X16,  TX_16X8,  TX_4X16,  TX_16X4,
 #endif  // CONFIG_FLEX_PARTITION
@@ -248,6 +260,12 @@ static const RD_RECORD_IDX_NODE *rd_record_tree[BLOCK_SIZES_ALL] = {
   rd_record_tree_4_1,  // BLOCK_32X8
   rd_record_tree_1_4,  // BLOCK_16X64
   rd_record_tree_4_1,  // BLOCK_64X16
+#if CONFIG_BLOCK_256_EXT
+  NULL,  // BLOCK_64X256
+  NULL,  // BLOCK_256X64
+  NULL,  // BLOCK_32X128
+  NULL,  // BLOCK_128X32
+#endif   // CONFIG_BLOCK_256_EXT
 };
 
 static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
@@ -278,6 +296,12 @@ static const int rd_record_tree_size[BLOCK_SIZES_ALL] = {
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_32X8
   sizeof(rd_record_tree_1_4) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_16X64
   sizeof(rd_record_tree_4_1) / sizeof(RD_RECORD_IDX_NODE),  // BLOCK_64X16
+#if CONFIG_BLOCK_256_EXT
+  NULL,  // BLOCK_64X256
+  NULL,  // BLOCK_256X64
+  NULL,  // BLOCK_32X128
+  NULL,  // BLOCK_128X32
+#endif   // CONFIG_BLOCK_256_EXT
 };
 
 static INLINE void init_rd_record_tree(TXB_RD_INFO_NODE *tree,

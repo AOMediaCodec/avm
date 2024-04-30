@@ -624,6 +624,13 @@ typedef struct SimpleMotionDataBufs {
   MAKE_SM_DATA_BUF(32, 8);
   MAKE_SM_DATA_BUF(16, 4);
 
+#if CONFIG_BLOCK_256_EXT
+  MAKE_SM_DATA_BUF(256, 64);
+  MAKE_SM_DATA_BUF(64, 256);
+  MAKE_SM_DATA_BUF(128, 32);
+  MAKE_SM_DATA_BUF(32, 128);
+#endif  // CONFIG_BLOCK_256
+
 #if CONFIG_FLEX_PARTITION
   // 1:8 blocks
   MAKE_SM_DATA_BUF(8, 64);
@@ -1925,6 +1932,12 @@ static INLINE int is_rect_tx_allowed_bsize(BLOCK_SIZE bsize) {
     1,  // BLOCK_16X64
     1,  // BLOCK_64X16
 #endif  // CONFIG_NEW_TX_PARTITION
+#if CONFIG_BLOCK_256_EXT
+    1,  // BLOCK_64X256
+    1,  // BLOCK_256X64
+    1,  // BLOCK_32X128
+    1,  // BLOCK_128X32
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_FLEX_PARTITION
     1,  // BLOCK_4X32
     1,  // BLOCK_32X4

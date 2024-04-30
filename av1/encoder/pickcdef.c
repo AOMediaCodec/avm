@@ -13,6 +13,7 @@
 #include <math.h>
 #include <string.h>
 
+#include "av1/common/common_data.h"
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
 
@@ -428,7 +429,11 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
                                   MI_SIZE_64X64 * fbc];
       BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
 #if CONFIG_BLOCK_256
+#if CONFIG_BLOCK_256_EXT
+      if (AOMMAX(block_size_wide[bs], block_size_high[bs]) > 64) {
+#else
       if (bs > BLOCK_64X64 && bs <= BLOCK_256X256) {
+#endif  // CONFIG_BLOCK_256_EXT
         const int bw = block_size_wide[bs];
         const int bh = block_size_high[bs];
         if ((bw == 256 && (fbc & 3)) || (bh == 256 && (fbr & 3))) {
@@ -451,7 +456,11 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
       int hb_step = 1;
       int vb_step = 1;
 #if CONFIG_BLOCK_256
+#if CONFIG_BLOCK_256_EXT
+      if (AOMMAX(block_size_wide[bs], block_size_high[bs]) > 64) {
+#else
       if (bs > BLOCK_64X64 && bs <= BLOCK_256X256) {
+#endif  // CONFIG_BLOCK_256_EXT
         if (block_size_wide[bs] == 256) {
           nhb =
               AOMMIN(MI_SIZE_256X256, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
@@ -602,6 +611,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     const int bw = mi_size_wide[bsize_y];
     int mi_row = sb_index[i] / mi_params->mi_stride;
     int mi_col = sb_index[i] % mi_params->mi_stride;
+#if CONFIG_BLOCK_256_EXT
+    if (AOMMAX(block_size_wide[bsize_y], block_size_high[bsize_y]) > 64) {
+#else
     if (
 #if CONFIG_BLOCK_256
         bsize_y == BLOCK_256X256 || bsize_y == BLOCK_256X128 ||
@@ -609,6 +621,7 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
 #endif  // CONFIG_BLOCK_256
         bsize_y == BLOCK_128X128 || bsize_y == BLOCK_128X64 ||
         bsize_y == BLOCK_64X128) {
+#endif  // CONFIG_BLOCK_256_EXT
       const int x_inside_boundary = AOMMIN(bw, mi_params->mi_cols - mi_col);
       const int y_inside_boundary = AOMMIN(bh, mi_params->mi_rows - mi_row);
       int idx = mi_params->mi_stride;

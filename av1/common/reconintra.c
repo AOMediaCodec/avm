@@ -251,23 +251,46 @@ static const uint8_t *const has_tr_tables[BLOCK_SIZES_ALL] = {
   // 4X4
   has_tr_4x4,
   // 4X8,       8X4,            8X8
-  has_tr_4x8, has_tr_8x4, has_tr_8x8,
+  has_tr_4x8,
+  has_tr_8x4,
+  has_tr_8x8,
   // 8X16,      16X8,           16X16
-  has_tr_8x16, has_tr_16x8, has_tr_16x16,
+  has_tr_8x16,
+  has_tr_16x8,
+  has_tr_16x16,
   // 16X32,     32X16,          32X32
-  has_tr_16x32, has_tr_32x16, has_tr_32x32,
+  has_tr_16x32,
+  has_tr_32x16,
+  has_tr_32x32,
   // 32X64,     64X32,          64X64
-  has_tr_32x64, has_tr_64x32, has_tr_64x64,
+  has_tr_32x64,
+  has_tr_64x32,
+  has_tr_64x64,
   // 64x128,    128x64,         128x128
-  has_tr_64x128, has_tr_128x64, has_tr_128x128,
+  has_tr_64x128,
+  has_tr_128x64,
+  has_tr_128x128,
 #if CONFIG_BLOCK_256
   // 128X256,   256X128,        256X256,
-  NULL, NULL, NULL,
+  NULL,
+  NULL,
+  NULL,
 #endif  // CONFIG_BLOCK_256
   // 4x16,      16x4,            8x32
-  has_tr_4x16, has_tr_16x4, has_tr_8x32,
+  has_tr_4x16,
+  has_tr_16x4,
+  has_tr_8x32,
   // 32x8,      16x64,           64x16
-  has_tr_32x8, has_tr_16x64, has_tr_64x16
+  has_tr_32x8,
+  has_tr_16x64,
+  has_tr_64x16,
+#if CONFIG_BLOCK_256_EXT
+  // 64X256,   256X64,        32X128, 128X32,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+#endif  // CONFIG_BLOCK_256_EXT
 };
 
 static uint8_t has_tr_vert_8x8[32] = {

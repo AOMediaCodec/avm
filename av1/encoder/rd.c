@@ -62,6 +62,9 @@ static const uint8_t rd_thresh_block_size_factor[BLOCK_SIZES_ALL] = {
   96, 96, 128,
 #endif  // CONFIG_BLOCK_256
   4,  4,  8,   8,  16, 16,
+#if CONFIG_BLOCK_256_EXT
+  64, 64, 32,  32,
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
   6,  6,  12,  12, 8,  8,
 #endif  // CONFIG_FLEX_PARTITION
@@ -1717,6 +1720,12 @@ static const uint8_t bsize_curvfit_model_cat_lookup[BLOCK_SIZES_ALL] = {
   2,
   3,
   3,
+#if CONFIG_BLOCK_256_EXT
+  3,
+  3,
+  3,
+  3,
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
   1,
   1,
@@ -1776,6 +1785,12 @@ static const uint8_t bsize_surffit_model_cat_lookup[BLOCK_SIZES_ALL] = {
   2,
   4,
   4,
+#if CONFIG_BLOCK_256_EXT
+  8,
+  8,
+  6,
+  6,
+#endif  // CONFIG_BLOCK_256_EXT
 #if CONFIG_FLEX_PARTITION
   1,
   1,
