@@ -539,9 +539,8 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): Refactor the code related to following winner mode speed
     // features
     sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
-    // TODO(any): Experiment with this speed feature by enabling for key frames
-    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch =
-        frame_is_intra_only(&cpi->common) ? 0 : 1;
+    // TODO(any): Re-enable for inter frames after fixing speed feature.
+    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
     sf->winner_mode_sf.motion_mode_for_winner_cand =
         boosted                                                      ? 0
@@ -613,7 +612,8 @@ static void set_good_speed_features_framesize_independent(
     sf->winner_mode_sf.multi_winner_mode_type =
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
                                           : MULTI_WINNER_MODE_OFF;
-    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
+    // TODO(any): Re-enable for all frames after fixing speed feature.
+    sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 0;
 
     sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
