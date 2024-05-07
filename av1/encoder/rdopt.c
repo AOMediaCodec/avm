@@ -3809,6 +3809,19 @@ static bool ref_mv_idx_early_breakout(
   return false;
 }
 
+// Returns MVD scaling cost for joint MVD coding mode.
+static INLINE int get_jmvd_scale_mode_cost(const MB_MODE_INFO *mbmi,
+                                           const ModeCosts *mode_costs) {
+  if (!is_joint_mvd_coding_mode(mbmi->mode)) return 0;
+
+  int jmvd_scale_mode_cost =
+      is_joint_amvd_coding_mode(mbmi->mode)
+          ? mode_costs->jmvd_amvd_scale_mode_cost[mbmi->jmvd_scale_mode]
+          : mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
+
+  return jmvd_scale_mode_cost;
+}
+
 // Compute the estimated RD cost for the motion vector with simple translation.
 static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
                                           RD_STATS *rd_stats,
@@ -3894,13 +3907,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
                                       mode_ctx);
   rd_stats->rate += ref_mv_cost;
 
-  if (is_joint_mvd_coding_mode(mbmi->mode)) {
-    int jmvd_scale_mode_cost =
-        is_joint_amvd_coding_mode(mbmi->mode)
-            ? mode_costs->jmvd_amvd_scale_mode_cost[mbmi->jmvd_scale_mode]
-            : mode_costs->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
-    rd_stats->rate += jmvd_scale_mode_cost;
-  }
+  rd_stats->rate += get_jmvd_scale_mode_cost(mbmi, mode_costs);
 
   if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd) {
     return INT64_MAX;
@@ -5501,6 +5508,7 @@ static int64_t handle_inter_mode(
           set_most_probable_mv_precision(cm, mbmi, bsize);
           const PRECISION_SET *precision_def =
               &av1_mv_precision_sets[mbmi->mb_precision_set];
+          int best_precision_dx_so_far = precision_def->num_precisions;
           for (int precision_dx = precision_def->num_precisions - 1;
                precision_dx >= 0; precision_dx--) {
             MvSubpelPrecision pb_mv_precision =
@@ -5511,6 +5519,18 @@ static int64_t handle_inter_mode(
               continue;
             }
             assert(pb_mv_precision <= mbmi->max_mv_precision);
+
+            const int jmvd_scale_mode_cost =
+                get_jmvd_scale_mode_cost(mbmi, mode_costs);
+            const int rate_so_far = base_rate + drl_cost +
+                                    flex_mv_cost[mbmi->pb_mv_precision] +
+                                    jmvd_scale_mode_cost;
+            if (cpi->sf.inter_sf.skip_mode_eval_based_on_rate_cost &&
+                ref_best_rd != INT64_MAX &&
+                RDCOST(x->rdmult, rate_so_far, 0) > ref_best_rd) {
+              continue;
+            }
+
             // apply early termination method to jmvd scaling factors
             if (cpi->sf.inter_sf.early_terminate_jmvd_scale_factor) {
               if (scale_index > 0 && (!is_inter_compound_mode(best_ref_mode)) &&
@@ -5524,6 +5544,10 @@ static int64_t handle_inter_mode(
               if (cpi->sf.flexmv_sf.terminate_early_4_pel_precision &&
                   pb_mv_precision < MV_PRECISION_FOUR_PEL &&
                   best_precision_so_far >= MV_PRECISION_QTR_PEL)
+                continue;
+              if (prune_curr_mv_precision_eval(
+                      cpi->sf.flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far,
+                      precision_dx, best_precision_dx_so_far))
                 continue;
 #if CONFIG_SEP_COMP_DRL
               if (mbmi->ref_mv_idx[0] || mbmi->ref_mv_idx[1]) {
@@ -5911,6 +5935,7 @@ static int64_t handle_inter_mode(
                   rd_stats->rate = base_rate;
                   rd_stats->rate += flex_mv_cost[mbmi->pb_mv_precision];
                   rd_stats->rate += drl_cost;
+                  rd_stats->rate += jmvd_scale_mode_cost;
 
 #if CONFIG_REFINEMV
                   if (refinemv_loop && !switchable_refinemv_flag(cm, mbmi))
@@ -5926,16 +5951,6 @@ static int64_t handle_inter_mode(
                   if (mbmi->refinemv_flag && mbmi->cwp_idx != CWP_EQUAL)
                     continue;
 #endif  // CONFIG_REFINEMV
-
-                  if (is_joint_mvd_coding_mode(mbmi->mode)) {
-                    int jmvd_scale_mode_cost =
-                        is_joint_amvd_coding_mode(mbmi->mode)
-                            ? mode_costs->jmvd_amvd_scale_mode_cost
-                                  [mbmi->jmvd_scale_mode]
-                            : mode_costs
-                                  ->jmvd_scale_mode_cost[mbmi->jmvd_scale_mode];
-                    rd_stats->rate += jmvd_scale_mode_cost;
-                  }
 
 #if CONFIG_REFINEMV
                   rd_stats->rate += tmp_rate_mv;
@@ -6205,6 +6220,7 @@ static int64_t handle_inter_mode(
                     if (is_pb_mv_prec_active &&
                         tmp_rd < best_precision_rd_so_far) {
                       best_precision_so_far = mbmi->pb_mv_precision;
+                      best_precision_dx_so_far = precision_dx;
                       best_precision_rd_so_far = tmp_rd;
                     }
 #if CONFIG_BAWP

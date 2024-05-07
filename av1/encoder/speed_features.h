@@ -808,6 +808,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enable/disable masked compound.
   int disable_masked_comp;
 
+  // flag to skip inter mode evaluation based on rate cost.
+  int skip_mode_eval_based_on_rate_cost;
+
 #if CONFIG_EXT_RECUR_PARTITIONS
   // Under ERP, determines whether to reuse partition mode and prediction mode
   // if a block with the same (mi_row, mi_col, bsize) is visited more than one
@@ -1042,6 +1045,10 @@ typedef struct FLEXMV_PRECISION_SPEED_FEATURES {
 
   // fast motion search
   int fast_motion_search_low_precision;
+
+  // Prune the evaluation of current MV precision based on best MV precision
+  // chosen so far.
+  int prune_mv_prec_using_best_mv_prec_so_far;
 } FLEXMV_PRECISION_SPEED_FEATURES;
 
 /*!\endcond */
