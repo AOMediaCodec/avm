@@ -45,7 +45,7 @@ static int use_fine_search_interval(const AV1_COMP *const cpi) {
   return cpi->is_screen_content_type &&
          (cpi->gf_group.update_type[cpi->gf_group.index] == ARF_UPDATE ||
           cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_UPDATE) &&
-         cpi->oxcf.speed <= 2;
+         cpi->oxcf.speed <= 3;
 }
 
 void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,

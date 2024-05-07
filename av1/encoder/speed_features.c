@@ -27,7 +27,7 @@ static MESH_PATTERN
     good_quality_mesh_patterns[MAX_MESH_SPEED + 1][MAX_MESH_STEP] = {
       { { 64, 8 }, { 28, 4 }, { 15, 1 }, { 7, 1 } },
       { { 64, 8 }, { 28, 4 }, { 15, 1 }, { 7, 1 } },
-      { { 64, 8 }, { 14, 2 }, { 7, 1 }, { 7, 1 } },
+      { { 64, 8 }, { 28, 4 }, { 15, 1 }, { 7, 1 } },
       { { 64, 16 }, { 24, 8 }, { 12, 4 }, { 7, 1 } },
       { { 64, 16 }, { 24, 8 }, { 12, 4 }, { 7, 1 } },
       { { 64, 16 }, { 24, 8 }, { 12, 4 }, { 7, 1 } },
@@ -38,7 +38,7 @@ static MESH_PATTERN
 static MESH_PATTERN intrabc_mesh_patterns[MAX_MESH_SPEED + 1][MAX_MESH_STEP] = {
   { { 256, 1 }, { 256, 1 }, { 0, 0 }, { 0, 0 } },
   { { 256, 1 }, { 256, 1 }, { 0, 0 }, { 0, 0 } },
-  { { 64, 1 }, { 64, 1 }, { 0, 0 }, { 0, 0 } },
+  { { 256, 1 }, { 256, 1 }, { 0, 0 }, { 0, 0 } },
   { { 64, 1 }, { 64, 1 }, { 0, 0 }, { 0, 0 } },
   { { 64, 4 }, { 16, 1 }, { 0, 0 }, { 0, 0 } },
   { { 64, 4 }, { 16, 1 }, { 0, 0 }, { 0, 0 } },
@@ -184,6 +184,8 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (speed >= 1) {
     if (is_720p_or_larger) {
+      // TODO(any): Tune these speed features for better speed quality
+      // trade-off.
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     } else if (is_480p_or_larger) {
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -210,6 +212,33 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 2) {
+    if (is_720p_or_larger) {
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+    } else if (is_480p_or_larger) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    } else {
+#if CONFIG_EXT_RECUR_PARTITIONS
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    }
+
+    if (!is_720p_or_larger) {
+      sf->part_sf.ml_partition_search_breakout_thresh[0] = 200;  // BLOCK_8X8
+      sf->part_sf.ml_partition_search_breakout_thresh[1] = 250;  // BLOCK_16X16
+      sf->part_sf.ml_partition_search_breakout_thresh[2] = 300;  // BLOCK_32X32
+      sf->part_sf.ml_partition_search_breakout_thresh[3] = 300;  // BLOCK_64X64
+      sf->part_sf.ml_partition_search_breakout_thresh[4] = -1;  // BLOCK_128X128
+    }
+    sf->part_sf.ml_early_term_after_part_split_level = 2;
+  }
+
+  if (speed >= 3) {
 #if CONFIG_EXT_RECUR_PARTITIONS
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
@@ -221,15 +250,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
     }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
-
-    if (is_720p_or_larger) {
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 24);
-      sf->part_sf.partition_search_breakout_rate_thr = 120;
-    } else {
-      sf->part_sf.partition_search_breakout_dist_thr = (1 << 22);
-      sf->part_sf.partition_search_breakout_rate_thr = 100;
-    }
-
     if (is_720p_or_larger) {
       sf->inter_sf.prune_obmc_prob_thresh = 16;
     } else {
@@ -239,9 +259,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
     }
-  }
 
-  if (speed >= 3) {
     sf->part_sf.ml_early_term_after_part_split_level = 0;
 
     if (is_720p_or_larger) {
@@ -398,18 +416,21 @@ static void set_good_speed_features_framesize_independent(
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
 
   if (speed >= 1) {
+    // TODO(any): Tune these speed features for better speed quality trade-off.
 #if CONFIG_EXT_RECUR_PARTITIONS
     sf->part_sf.intra_cnn_split = 0;
 #else   // CONFIG_EXT_RECUR_PARTITIONS
     sf->part_sf.intra_cnn_split = 1;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
     sf->part_sf.simple_motion_search_early_term_none = 1;
-    // TODO(Venkat): Clean-up frame type dependency for
-    // simple_motion_search_split in partition search function and set the
-    // speed feature accordingly
     sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
 
-    sf->mv_sf.exhaustive_searches_thresh <<= 1;
+    if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
+        cpi->is_screen_content_type) {
+      sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
+    } else {
+      sf->mv_sf.exhaustive_searches_thresh = (1 << 26);
+    }
     sf->mv_sf.obmc_full_pixel_search_level = 1;
     sf->mv_sf.subpel_search_type = USE_4_TAPS;
 
@@ -458,27 +479,87 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 2) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    sf->part_sf.intra_cnn_split = 0;
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+    sf->part_sf.intra_cnn_split = 1;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    sf->part_sf.simple_motion_search_early_term_none = 1;
+    // TODO(Venkat): Clean-up frame type dependency for
+    // simple_motion_search_split in partition search function and set the
+    // speed feature accordingly
+    sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
+
+    if (cpi->twopass.fr_content_type == FC_HIGHMOTION ||
+        cpi->is_screen_content_type) {
+      sf->mv_sf.exhaustive_searches_thresh = (1 << 21);
+    } else {
+      sf->mv_sf.exhaustive_searches_thresh = (1 << 26);
+    }
+    sf->mv_sf.obmc_full_pixel_search_level = 1;
+    sf->mv_sf.subpel_search_type = USE_4_TAPS;
+
+    sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
+    sf->inter_sf.prune_comp_search_by_single_result = boosted ? 2 : 1;
+    sf->inter_sf.prune_comp_type_by_comp_avg = 1;
+    sf->inter_sf.prune_comp_type_by_model_rd = boosted ? 0 : 1;
+    sf->inter_sf.prune_motion_mode_level = 2;
+    sf->inter_sf.prune_ref_frames =
+        (frame_is_intra_only(&cpi->common) || (allow_screen_content_tools))
+            ? 0
+            : (boosted ? 1 : 2);
+    sf->inter_sf.reduce_inter_modes = boosted ? 1 : 2;
+    sf->inter_sf.reuse_inter_intra_mode = 1;
+    sf->inter_sf.selective_ref_frame = 2;
+    sf->inter_sf.skip_repeated_newmv = 1;
+
+    sf->interp_sf.use_interp_filter = 1;
+    sf->intra_sf.prune_palette_search_level = 1;
+
+    sf->tx_sf.adaptive_txb_search_level = 2;
+    sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
+    sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
+    sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
+    sf->tx_sf.model_based_prune_tx_search_level = 0;
+#if CONFIG_NEW_TX_PARTITION
+    sf->tx_sf.tx_type_search.ml_tx_split_thresh = 400;
+#else
+    sf->tx_sf.tx_type_search.ml_tx_split_thresh = 4000;
+#endif  // CONFIG_NEW_TX_PARTITION
+    sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
+    sf->tx_sf.tx_type_search.skip_tx_search = 1;
+    sf->tx_sf.use_intra_txb_hash = 1;
+
+    sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
+    sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
+    sf->rd_sf.tx_domain_dist_thres_level = 1;
+
+    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
+    sf->lpf_sf.dual_sgr_penalty_level = 1;
+    sf->lpf_sf.enable_sgr_ep_pruning = 1;
+    sf->lpf_sf.wienerns_refine_iters = 0;
+
+    // TODO(any, yunqing): move this feature to speed 0.
+    sf->tpl_sf.skip_alike_starting_mv = 1;
+  }
+
+  if (speed >= 3) {
     sf->part_sf.allow_partition_search_skip = 1;
 
     sf->mv_sf.auto_mv_step_size = 1;
     sf->mv_sf.subpel_iters_per_step = 1;
 
-    sf->gm_sf.num_refinement_steps = 2;
-
     // TODO(chiyotsai@google.com): We can get 10% speed up if we move
-    // adaptive_rd_thresh to speed 1. But currently it performs poorly on some
+    // adaptive_rd_thresh to speed 2. But currently it performs poorly on some
     // clips (e.g. 5% loss on dinner_1080p). We need to examine the sequence a
     // bit more closely to figure out why.
     sf->inter_sf.adaptive_rd_thresh = 1;
     sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
     sf->inter_sf.disable_wedge_search_var_thresh = 100;
     sf->inter_sf.fast_interintra_wedge_search = 1;
-    sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 1;
     sf->inter_sf.prune_compound_using_neighbors = 1;
     sf->inter_sf.prune_comp_type_by_comp_avg = 2;
-    sf->inter_sf.selective_ref_frame = 3;
 
-    // TODO(Sachin): Enable/Enhance this speed feature for speed 2 & 3
     sf->tx_sf.tx_type_search.skip_stx_search = 1;
     sf->tx_sf.tx_type_search.skip_cctx_search = 1;
     sf->intra_sf.disable_smooth_intra =
@@ -486,13 +567,8 @@ static void set_good_speed_features_framesize_independent(
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
 
-    sf->lpf_sf.prune_wiener_based_on_src_var = 1;
-    sf->lpf_sf.prune_sgr_based_on_wiener = 1;
-
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
-  }
 
-  if (speed >= 3) {
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
