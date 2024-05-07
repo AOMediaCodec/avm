@@ -2732,6 +2732,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       const int max_stx = xd->enable_ist && !(eob_found) ? 4 : 1;
 
       for (int stx = 0; stx < max_stx; ++stx) {
+        // Skip repeated evaluation of no secondary transform.
+        if (set_id && !stx) continue;
+
 #if CONFIG_IST_ANY_SET
         TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
         if (eob_found) skip_stx = true;

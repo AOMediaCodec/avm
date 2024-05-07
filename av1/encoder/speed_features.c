@@ -369,6 +369,7 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.prune_wedge_pred_diff_based = 1;
   sf->inter_sf.reduce_inter_modes = 1;
   sf->inter_sf.selective_ref_frame = 1;
+  sf->inter_sf.skip_mode_eval_based_on_rate_cost = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
   sf->intra_sf.intra_pruning_with_hog_thresh = -1.2f;
@@ -796,6 +797,7 @@ static AOM_INLINE void init_flexmv_sf(
   flexmv_sf->skip_repeated_newmv_low_prec = 0;
   flexmv_sf->fast_mv_refinement = 0;
   flexmv_sf->fast_motion_search_low_precision = 0;
+  flexmv_sf->prune_mv_prec_using_best_mv_prec_so_far = 0;
 }
 
 static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
@@ -841,6 +843,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->txfm_rd_gate_level = 0;
   inter_sf->prune_inter_modes_if_skippable = 0;
   inter_sf->disable_masked_comp = 0;
+  inter_sf->skip_mode_eval_based_on_rate_cost = 0;
 #if CONFIG_EXT_RECUR_PARTITIONS
   inter_sf->reuse_erp_mode_flag = 0;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
@@ -1359,6 +1362,14 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->tx_sf.restrict_tx_partition_type_search = true;
 #endif  // CONFIG_TX_PARTITION_TYPE_EXT
       }
+    }
+  }
+
+  if (cpi->oxcf.mode == GOOD && speed >= 0) {
+    const int qindex_thresh = 135 + qindex_offset;
+    if (cm->quant_params.base_qindex <= qindex_thresh &&
+        !cm->features.allow_screen_content_tools) {
+      sf->flexmv_sf.prune_mv_prec_using_best_mv_prec_so_far = boosted ? 0 : 1;
     }
   }
 
