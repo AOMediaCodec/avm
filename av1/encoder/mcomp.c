@@ -4817,8 +4817,30 @@ int av1_return_max_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
+#if CONFIG_C071_SUBBLK_WARPMV
+  const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
+  const MvSubpelPrecision pb_mv_precision = mv_cost_params->pb_mv_precision;
+  MV sub_mv_offset = { 0, 0 };
+  get_phase_from_mv(start_mv, &sub_mv_offset, pb_mv_precision);
   bestmv->row = mv_limits->row_max;
   bestmv->col = mv_limits->col_max;
+  MV diff = { 0, 0 };
+  diff.row = bestmv->row - start_mv.row;
+  diff.col = bestmv->col - start_mv.col;
+  bool check_row =
+      diff.row & ((1 << (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision)) - 1);
+  bool check_col =
+      diff.col & ((1 << (MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision)) - 1);
+  if (check_row) {
+    bestmv->row -= abs(sub_mv_offset.row);
+  }
+  if (check_col) {
+    bestmv->col -= abs(sub_mv_offset.col);
+  }
+#else
+  bestmv->row = mv_limits->row_max;
+  bestmv->col = mv_limits->col_max;
+#endif
 
   unsigned int besterr = 0;
 
