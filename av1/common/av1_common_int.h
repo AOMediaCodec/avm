@@ -2305,9 +2305,16 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
       // following offsets:
       if (xd->chroma_up_available) {
         MB_MODE_INFO *const chroma_above_base_mi = base_mi[-xd->mi_stride];
+        const bool above_mi_uses_decoupled_tree =
+#if CONFIG_EXTENDED_SDP
+            chroma_above_base_mi->region_type != MIXED_INTER_INTRA_REGION
+#else
+            xd->tree_type != SHARED_PART
+#endif  // CONFIG_EXTENDED_SDP
+            ;
         const CHROMA_REF_INFO *const above_base_chroma_ref_info =
             &chroma_above_base_mi->chroma_ref_info;
-        if (xd->tree_type != SHARED_PART ||
+        if (above_mi_uses_decoupled_tree ||
             above_base_chroma_ref_info->is_chroma_ref) {
           xd->chroma_above_mbmi = chroma_above_base_mi;
         } else {
@@ -2325,7 +2332,14 @@ static INLINE void set_mi_row_col(MACROBLOCKD *xd, const TileInfo *const tile,
         MB_MODE_INFO *const chroma_left_base_mi = base_mi[-1];
         const CHROMA_REF_INFO *const left_base_chroma_ref_info =
             &chroma_left_base_mi->chroma_ref_info;
-        if (xd->tree_type != SHARED_PART ||
+        const bool left_mi_uses_decoupled_tree =
+#if CONFIG_EXTENDED_SDP
+            chroma_left_base_mi->region_type != MIXED_INTER_INTRA_REGION
+#else
+            xd->tree_type != SHARED_PART
+#endif  // CONFIG_EXTENDED_SDP
+            ;
+        if (left_mi_uses_decoupled_tree ||
             left_base_chroma_ref_info->is_chroma_ref) {
           xd->chroma_left_mbmi = chroma_left_base_mi;
         } else {
