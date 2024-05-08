@@ -458,6 +458,16 @@ static const aom_cdf_prob
 #if CONFIG_EXTENDED_SDP
 static aom_cdf_prob default_region_type_cdf[INTER_SDP_BSIZE_GROUP]
                                            [CDF_SIZE(REGION_TYPES)] = {
+#if CONFIG_EXTENDED_SDP_64x64
+                                             // w * h <= 128
+                                             { AOM_CDF2(8192), 0 },
+                                             // w * h <= 512
+                                             { AOM_CDF2(8192), 0 },
+                                             // w * h <= 1024
+                                             { AOM_CDF2(8192), 0 },
+                                             // w * h <= 4096
+                                             { AOM_CDF2(8192), 0 },
+#else
                                              // w * h <= 64
                                              { AOM_CDF2(16384), 0 },
                                              // w * h <= 128
@@ -468,6 +478,7 @@ static aom_cdf_prob default_region_type_cdf[INTER_SDP_BSIZE_GROUP]
                                              { AOM_CDF2(16384), 0 },
                                              // w * h <= 1024
                                              { AOM_CDF2(16384), 0 }
+#endif  // CONFIG_EXTENDED_SDP_64x64
                                            };
 #endif  // CONFIG_EXTENDED_SDP
 #if CONFIG_EXT_RECUR_PARTITIONS
@@ -3753,7 +3764,7 @@ static const aom_cdf_prob default_intra_ext_tx_cdf
           },
       },
     };
-#endif  // CONFIG_INTRA_TX_IST_PARSE
+#endif  // CONFIG_INTRA_TX_IST_PARSE/encoder
 
 static const aom_cdf_prob default_inter_ext_tx_cdf
     [EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES][CDF_SIZE(TX_TYPES)] = {

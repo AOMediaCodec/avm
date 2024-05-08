@@ -1381,8 +1381,8 @@ static INLINE int is_bsize_allowed_for_extended_sdp(BLOCK_SIZE bsize,
                                                     PARTITION_TYPE partition) {
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
-  return bw <= 32 && bh <= 32 && bw >= 8 && bh >= 8 &&
-         partition < PARTITION_HORZ_4A;
+  return bw <= INTER_SDP_MAX_BLOCK_SIZE && bh <= INTER_SDP_MAX_BLOCK_SIZE &&
+         bw >= 8 && bh >= 8 && partition < PARTITION_HORZ_4A;
 }
 // Decide whether SDP is allowed for one block in inter frame.
 static INLINE int is_extended_sdp_allowed(BLOCK_SIZE parent_bsize,

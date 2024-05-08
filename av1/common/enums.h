@@ -491,7 +491,13 @@ typedef char PARTITION_CONTEXT;
 // Extended SDP is only allowed for block samples >= 64 and <= 1024. The allowed
 // block size group is 64, 128, 256, 512, 1024, so the number of block size
 // group is 5 in total.
+#if CONFIG_EXTENDED_SDP_64x64
+#define INTER_SDP_BSIZE_GROUP 4
+#define INTER_SDP_MAX_BLOCK_SIZE 64
+#else
 #define INTER_SDP_BSIZE_GROUP 5
+#define INTER_SDP_MAX_BLOCK_SIZE 32
+#endif  // CONFIG_EXTENDED_SDP_64x64
 #endif  // CONFIG_EXTENDED_SDP
 
 #define PARTITION_CONTEXTS (PARTITION_BLOCK_SIZES * PARTITION_PLOFFSET)

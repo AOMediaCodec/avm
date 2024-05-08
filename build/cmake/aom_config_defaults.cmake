@@ -199,6 +199,9 @@ set_aom_config_var(CONFIG_EXTENDED_WARP_PREDICTION 1
                    "AV2 experiment flag to add new local warp modes")
 set_aom_config_var(CONFIG_EXTENDED_SDP 1
                    "Enable SDP for intra blocks in inter frame")
+set_aom_config_var(
+  CONFIG_EXTENDED_SDP_64x64 1
+  "Enable SDP for intra blocks in inter frame up to 64x64 size")
 # Begin: CWG-C016
 set_aom_config_var(
   CONFIG_LR_IMPROVEMENTS

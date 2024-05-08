@@ -2600,6 +2600,16 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
   const int width = block_size_wide[bsize];
   const int height = block_size_high[bsize];
   const int num_samples = width * height;
+#if CONFIG_EXTENDED_SDP_64x64
+  if (num_samples <= 128)
+    return 0;
+  else if (num_samples <= 512)
+    return 1;
+  else if (num_samples <= 1024)
+    return 2;
+  else
+    return 3;
+#else
   if (num_samples <= 64)
     return 0;
   else if (num_samples <= 128)
@@ -2610,6 +2620,7 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
     return 3;
   else
     return 4;
+#endif  // CONFIG_EXTENDED_SDP_64x64
 }
 #endif  // CONFIG_EXTENDED_SDP
 
