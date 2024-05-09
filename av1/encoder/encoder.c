@@ -88,7 +88,7 @@
 #include "av1/encoder/tpl_model.h"
 
 #if CONFIG_ML_PART_SPLIT
-#include "av1/encoder/simple_intrapred_tflite.h"
+#include "av1/encoder/part_split_prune_tflite.h"
 #endif  // CONFIG_ML_PART_SPLIT
 
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
@@ -1021,9 +1021,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cpi->alloc_pyramid = oxcf->tool_cfg.enable_global_motion;
 #if CONFIG_ML_PART_SPLIT
   if (cm->partition_model) {
-    av2_simple_intra_prune_none_tflite_close(&cm->partition_model);
+    av2_part_split_prune_tflite_close(&cm->partition_model);
   }
-  cm->partition_model = av2_simple_intra_prune_none_tflite_init();
+  cm->partition_model = av2_part_split_prune_tflite_init();
 #endif  // CONFIG_ML_PART_SPLIT
 }
 
@@ -1591,7 +1591,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 #endif
 #if CONFIG_ML_PART_SPLIT
-  av2_simple_intra_prune_none_tflite_close(&cm->partition_model);
+  av2_part_split_prune_tflite_close(&cm->partition_model);
 #endif  // CONFIG_ML_PART_SPLIT
 
   aom_free(cpi->subgop_config_str);

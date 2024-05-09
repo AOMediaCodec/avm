@@ -7008,6 +7008,7 @@ static INLINE void search_intra_region_partitioning(
     xd->tree_type = CHROMA_PART;
     av1_rd_stats_subtraction(x->rdmult, best_rdc, sum_rdc, &best_remain_rdcost);
     av1_init_rd_stats(&this_rdc);
+
     if (!av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
 #if CONFIG_EXTENDED_SDP
                                parent_partition,
@@ -8918,7 +8919,8 @@ BEGIN_PARTITION_SEARCH:
     //        prune either one or both.
     if (!force_prune_flags[PRUNE_OTHER]) {
       int ml_result =
-          av1_ml_part_split_infer(cpi, x, mi_row, mi_col, bsize, pc_tree);
+          av1_ml_part_split_infer(cpi, x, mi_row, mi_col, bsize,
+                                  tile_info, td);
       if (ml_result == ML_PART_FORCE_SPLIT) {
         part_search_state.prune_partition_none = 1;
         part_search_state.prune_partition_3[0] = 1;

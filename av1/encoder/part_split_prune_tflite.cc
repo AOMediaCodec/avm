@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "av1/encoder/simple_intrapred_tflite.h"
+#include "av1/encoder/part_split_prune_tflite.h"
 
 #include <cstdio>
 #include <memory>
@@ -21,18 +21,18 @@
 #include "av1/encoder/simple_intrapred_tflite_model_16x16.h"
 #include "av1/encoder/simple_intrapred_tflite_model_32x32.h"
 #include "av1/encoder/simple_intrapred_tflite_model_64x64.h"
+#include "av1/encoder/sms_part_split_prune_tflite_model.h"
 
 struct Context {
   tflite::Model *model_128X128;
   tflite::Model *model_64X64;
   tflite::Model *model_32X32;
   tflite::Model *model_16X16;
-  // TODO: different resolvers for different models?
-  // TODO: shell I create resolver every time?
+  tflite::Model *model_inter;
   tflite::MutableOpResolver resolver;
 };
 
-extern "C" void *av2_simple_intra_prune_none_tflite_init() {
+extern "C" void *av2_part_split_prune_tflite_init() {
   Context *ctx = new Context();
   ctx->model_128X128 = (tflite::Model *)tflite::GetModel(
       a3_qp96_128_160_luma_BLOCK_128X128_intra_tflite);
@@ -42,11 +42,13 @@ extern "C" void *av2_simple_intra_prune_none_tflite_init() {
       a3_qp96_128_160_luma_BLOCK_32X32_intra_tflite);
   ctx->model_16X16 = (tflite::Model *)tflite::GetModel(
       a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite);
+  ctx->model_inter = (tflite::Model*)tflite::GetModel(
+      sms_part_split_prune_tflite_model);
   RegisterSelectedOps(&ctx->resolver);
   return (void *)ctx;
 }
 
-extern "C" int av2_simple_intra_prune_none_tflite_params(
+extern "C" int av2_part_split_prune_tflite_params(
     MODEL_TYPE model_type, int prune_level, struct ModelParams *params) {
   switch (model_type) {
     case MODEL_128X128:
@@ -65,12 +67,15 @@ extern "C" int av2_simple_intra_prune_none_tflite_params(
       *params =
           a3_qp96_128_160_luma_BLOCK_16X16_intra_tflite_params[prune_level];
       break;
+    case MODEL_INTER:
+      *params = sms_part_split_prune_tflite_model_params[prune_level];
+      break;
     default: return -1;
   }
   return 0;
 }
 // Simple intra ML TFLite based inference
-extern "C" int av2_simple_intra_prune_none_tflite_exec(
+extern "C" int av2_part_split_prune_tflite_exec(
     void *context, const float *ml_input, int input_len, float *ml_output,
     int output_len, MODEL_TYPE model_type) {
   // Build the interpreter.
@@ -81,6 +86,7 @@ extern "C" int av2_simple_intra_prune_none_tflite_exec(
     case MODEL_64X64: model = ctx->model_64X64; break;
     case MODEL_32X32: model = ctx->model_32X32; break;
     case MODEL_16X16: model = ctx->model_16X16; break;
+    case MODEL_INTER: model = ctx->model_inter; break;
     default: return -1;
   }
   tflite::InterpreterBuilder builder(model, ctx->resolver);
@@ -112,7 +118,7 @@ extern "C" int av2_simple_intra_prune_none_tflite_exec(
   return 0;
 }
 
-extern "C" void av2_simple_intra_prune_none_tflite_close(void **context) {
+extern "C" void av2_part_split_prune_tflite_close(void **context) {
   Context *ctx = (Context *)*context;
   delete ctx;
   context = nullptr;

@@ -294,12 +294,13 @@ if(CONFIG_ML_PART_SPLIT)
   list(
     APPEND
     AOM_AV1_ENCODER_SOURCES
-    "${AOM_ROOT}/av1/encoder/simple_intrapred_tflite.cc"
-    "${AOM_ROOT}/av1/encoder/simple_intrapred_tflite.h"
+    "${AOM_ROOT}/av1/encoder/part_split_prune_tflite.cc"
+    "${AOM_ROOT}/av1/encoder/part_split_prune_tflite.h"
     "${AOM_ROOT}/av1/encoder/simple_intrapred_tflite_model_128x128.h"
     "${AOM_ROOT}/av1/encoder/simple_intrapred_tflite_model_64x64.h"
     "${AOM_ROOT}/av1/encoder/simple_intrapred_tflite_model_32x32.h"
-    "${AOM_ROOT}/av1/encoder/simple_intrapred_tflite_model_16x16.h")
+    "${AOM_ROOT}/av1/encoder/simple_intrapred_tflite_model_16x16.h"
+    "${AOM_ROOT}/av1/encoder/sms_part_split_prune_tflite_model.h")
 endif()
 
 list(
