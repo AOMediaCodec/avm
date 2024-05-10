@@ -3347,6 +3347,7 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
   const uint16_t *ref = get_buf_from_mv(ms_buffers->ref, *this_mv);
   const int src_stride = ms_buffers->src->stride;
   const int ref_stride = ms_buffers->ref->stride;
+  uint16_t *pred = xd->tmp_upsample_pred;
   const uint16_t *second_pred = ms_buffers->second_pred;
   const uint8_t *mask = ms_buffers->mask;
   const int mask_stride = ms_buffers->mask_stride;
@@ -3363,7 +3364,6 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
   const int is_scaled_ref = ms_buffers->src->width == ms_buffers->ref->width &&
                             ms_buffers->src->height == ms_buffers->ref->height;
 
-  DECLARE_ALIGNED(16, uint16_t, pred[MAX_SB_SQUARE]);
   if (second_pred != NULL) {
     if (mask) {
       aom_highbd_comp_mask_upsampled_pred(

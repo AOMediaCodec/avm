@@ -834,6 +834,13 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     x->e_mbd.tmp_conv_dst = x->tmp_conv_dst;
   }
 
+  if (x->upsample_pred == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->upsample_pred,
+        aom_memalign(16, MAX_SB_SQUARE * sizeof(*x->upsample_pred)));
+    x->e_mbd.tmp_upsample_pred = x->upsample_pred;
+  }
+
   // Temporary buffers used during the DMVR and OPFL processing.
   if (x->opfl_vxy_bufs == NULL) {
     CHECK_MEM_ERROR(
@@ -1346,6 +1353,7 @@ static AOM_INLINE void free_thread_data(AV1_COMP *cpi) {
     if (t == 0) continue;
     aom_free(thread_data->td->palette_buffer);
     aom_free(thread_data->td->tmp_conv_dst);
+    aom_free(thread_data->td->upsample_pred);
 
     // Temporary buffers used during the DMVR and OPFL processing.
     aom_free(thread_data->td->opfl_vxy_bufs);

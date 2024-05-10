@@ -255,6 +255,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->td.mb.palette_buffer);
   release_compound_type_rd_buffers(&cpi->td.mb.comp_rd_buffer);
   aom_free(cpi->td.mb.tmp_conv_dst);
+  aom_free(cpi->td.mb.upsample_pred);
 
   // Temporary buffers used during the DMVR and OPFL processing.
   aom_free(cpi->td.mb.opfl_vxy_bufs);

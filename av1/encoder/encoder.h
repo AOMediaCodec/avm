@@ -1968,6 +1968,8 @@ typedef struct ThreadData {
   // during the OPFL/DMVR.
   uint16_t *opfl_dst_bufs;
   uint16_t *tmp_pred_bufs[2];
+  // Buffer used for upsampled prediction.
+  uint16_t *upsample_pred;
   int intrabc_used;
   int deltaq_used;
   FRAME_CONTEXT *tctx;
