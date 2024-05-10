@@ -1953,7 +1953,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(mbmi)));
+                is_compound_warp_causal_allowed(
+#if CONFIG_COMPOUND_4XN
+                    xd,
+#endif  // CONFIG_COMPOUND_4XN
+                    mbmi)));
 #else
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
@@ -2035,10 +2039,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     if (has_second_ref(mbmi)) {
 #if CONFIG_OPTFLOW_REFINEMENT
       if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-          opfl_allowed_for_cur_refs(cm, mbmi)) {
+          opfl_allowed_for_cur_refs(cm,
+#if CONFIG_COMPOUND_4XN
+                                    xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                    mbmi)) {
 #if CONFIG_AFFINE_REFINEMENT
         const int allow_translational = is_translational_refinement_allowed(
-            cm, comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
+            cm,
+#if CONFIG_COMPOUND_4XN
+            bsize,
+#endif  // CONFIG_COMPOUND_4XN
+            comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
         const int allow_affine = is_affine_refinement_allowed(
             cm, xd, comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
         if (allow_affine || allow_translational) {
@@ -2348,7 +2360,11 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if CONFIG_REFINED_MVS_IN_TMVP
   if (!dry_run && cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     const MB_MODE_INFO *const mi = &ctx->mic;
-    if (opfl_allowed_for_cur_block(cm, mi)
+    if (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                   xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                   mi)
 #if CONFIG_REFINEMV
         || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
 #endif  // CONFIG_REFINEMV

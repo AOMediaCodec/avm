@@ -1037,7 +1037,11 @@ static INLINE int compute_valid_comp_types(
     // enable_masked_type[0] corresponds to COMPOUND_WEDGE
     // enable_masked_type[1] corresponds to COMPOUND_DIFFWTD
     enable_masked_type[0] = enable_wedge_interinter_search(x, cpi);
-    enable_masked_type[1] = cpi->oxcf.comp_type_cfg.enable_diff_wtd_comp;
+    enable_masked_type[1] =
+#if CONFIG_COMPOUND_4XN
+        !is_thin_4xn_nx4_block(bsize) &&
+#endif  // CONFIG_COMPOUND_4XN
+        cpi->oxcf.comp_type_cfg.enable_diff_wtd_comp;
     for (comp_type = COMPOUND_WEDGE; comp_type <= COMPOUND_DIFFWTD;
          comp_type++) {
       if ((mode_search_mask & (1 << comp_type)) &&
@@ -1535,6 +1539,10 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     comp_model_rd_cur = INT64_MAX;
     tmp_rate_mv = *rate_mv;
     best_rd_cur = INT64_MAX;
+
+#if CONFIG_COMPOUND_4XN
+    assert(IMPLIES(is_thin_4xn_nx4_block(bsize), cur_type != COMPOUND_DIFFWTD));
+#endif  // CONFIG_COMPOUND_4XN
 
     // Case COMPOUND_AVERAGE and COMPOUND_DISTWTD
     if (cur_type < COMPOUND_WEDGE) {

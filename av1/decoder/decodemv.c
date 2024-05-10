@@ -782,10 +782,18 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
       r, xd->tile_ctx->inter_compound_mode_cdf[ctx], INTER_COMPOUND_REF_TYPES,
       ACCT_INFO("inter_compound_mode_cdf"));
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      opfl_allowed_for_cur_refs(cm, mbmi)) {
+      opfl_allowed_for_cur_refs(cm,
+#if CONFIG_COMPOUND_4XN
+                                xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                mbmi)) {
 #if CONFIG_AFFINE_REFINEMENT
-    const int allow_translational =
-        is_translational_refinement_allowed(cm, comp_idx_to_opfl_mode[mode]);
+    const int allow_translational = is_translational_refinement_allowed(
+        cm,
+#if CONFIG_COMPOUND_4XN
+        mbmi->sb_type[xd->tree_type == CHROMA_PART],
+#endif  // CONFIG_COMPOUND_4XN
+        comp_idx_to_opfl_mode[mode]);
     const int allow_affine =
         is_affine_refinement_allowed(cm, xd, comp_idx_to_opfl_mode[mode]);
     if (allow_affine || allow_translational)
@@ -2736,6 +2744,9 @@ static INLINE void read_mb_interp_filter(const MACROBLOCKD *const xd,
     set_default_interp_filters(mbmi,
 #if CONFIG_OPTFLOW_REFINEMENT
                                cm,
+#if CONFIG_COMPOUND_4XN
+                               xd,
+#endif  // CONFIG_COMPOUND_4XN
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                interp_filter);
     return;
@@ -3648,7 +3659,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     } else {
 #endif  // CONFIG_D072_SKIP_MODE_IMPROVE
       mbmi->mode = (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                            opfl_allowed_for_cur_refs(cm, mbmi) &&
+                            opfl_allowed_for_cur_refs(cm,
+#if CONFIG_COMPOUND_4XN
+                                                      xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                      mbmi) &&
                             !cm->features.enable_cwp
                         ? NEAR_NEARMV_OPTFLOW
                         : NEAR_NEARMV);
@@ -3763,7 +3778,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           !is_tip_ref_frame(mbmi->ref_frame[0]) &&
 #if CONFIG_COMPOUND_WARP_CAUSAL
           !mbmi->skip_mode &&
-          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(mbmi))) {
+          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(
+#if CONFIG_COMPOUND_4XN
+                                        xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                        mbmi))) {
         mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts0, pts0_inref, 0);
         if (has_second_ref(mbmi))
           mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts1, pts1_inref, 1);
@@ -3905,7 +3924,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
            (!is_compound
                 ? NEARMV
                 : (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-                           opfl_allowed_for_cur_refs(cm, mbmi) &&
+                           opfl_allowed_for_cur_refs(cm,
+#if CONFIG_COMPOUND_4XN
+                                                     xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                     mbmi) &&
                            !cm->features.enable_cwp
                        ? NEAR_NEARMV_OPTFLOW
                        : NEAR_NEARMV)));
@@ -4059,7 +4082,11 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&
              (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-              is_compound_warp_causal_allowed(mbmi)));
+              is_compound_warp_causal_allowed(
+#if CONFIG_COMPOUND_4XN
+                  xd,
+#endif  // CONFIG_COMPOUND_4XN
+                  mbmi)));
 #else
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&

@@ -93,6 +93,9 @@ int av1_find_interp_filter_match(
     MB_MODE_INFO *const mbmi, const AV1_COMP *const cpi,
     const InterpFilter assign_filter, const int need_search,
     INTERPOLATION_FILTER_STATS *interp_filter_stats,
+#if CONFIG_COMPOUND_4XN
+    MACROBLOCKD *xd,
+#endif  // CONFIG_COMPOUND_4XN
     int interp_filter_stats_idx) {
   int match_found_idx = -1;
   if (cpi->sf.interp_sf.use_interp_filter && need_search)
@@ -104,6 +107,9 @@ int av1_find_interp_filter_match(
     set_default_interp_filters(mbmi,
 #if CONFIG_OPTFLOW_REFINEMENT
                                &cpi->common,
+#if CONFIG_COMPOUND_4XN
+                               xd,
+#endif  // CONFIG_COMPOUND_4XN
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                                assign_filter);
   return match_found_idx;
@@ -196,7 +202,11 @@ static INLINE int64_t interpolation_filter_rd(
   mbmi->interp_fltr = filter_idx;
 #if CONFIG_OPTFLOW_REFINEMENT
   const int tmp_rs =
-      (opfl_allowed_for_cur_block(cm, mbmi)
+      (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                  xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                  mbmi)
 #if CONFIG_REFINEMV
        || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
@@ -440,6 +450,9 @@ int64_t av1_interpolation_filter_search(
 
   match_found_idx = av1_find_interp_filter_match(
       mbmi, cpi, assign_filter, need_search, args->interp_filter_stats,
+#if CONFIG_COMPOUND_4XN
+      xd,
+#endif  // CONFIG_COMPOUND_4XN
       args->interp_filter_stats_idx);
 
   if (match_found_idx != -1) {
@@ -454,7 +467,11 @@ int64_t av1_interpolation_filter_search(
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
 #if CONFIG_OPTFLOW_REFINEMENT
   *switchable_rate =
-      (opfl_allowed_for_cur_block(cm, mbmi)
+      (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                  xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                  mbmi)
 #if CONFIG_REFINEMV
        || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
@@ -500,18 +517,30 @@ int64_t av1_interpolation_filter_search(
 #if CONFIG_REFINEMV
 #if CONFIG_TIP_REF_PRED_MERGING
     assert(mbmi->interp_fltr ==
-           ((opfl_allowed_for_cur_block(cm, mbmi) || mbmi->refinemv_flag ||
-             is_tip_ref_frame(mbmi->ref_frame[0]))
+           ((opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                        xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                        mbmi) ||
+             mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
 #else
-    assert(mbmi->interp_fltr ==
-           ((opfl_allowed_for_cur_block(cm, mbmi) || mbmi->refinemv_flag)
-                ? MULTITAP_SHARP
-                : EIGHTTAP_REGULAR));
+    assert(mbmi->interp_fltr == ((opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                             xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                             mbmi) ||
+                                  mbmi->refinemv_flag)
+                                     ? MULTITAP_SHARP
+                                     : EIGHTTAP_REGULAR));
 #endif
 #else
-    assert(mbmi->interp_fltr == (opfl_allowed_for_cur_block(cm, mbmi)
+    assert(mbmi->interp_fltr == (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                            xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                            mbmi)
 #if CONFIG_TIP_REF_PRED_MERGING
                                          || is_tip_ref_frame(mbmi->ref_frame[0])
 #endif
@@ -527,7 +556,11 @@ int64_t av1_interpolation_filter_search(
 #if CONFIG_REFINEMV
     int use_default_filter = mbmi->refinemv_flag
 #if CONFIG_OPTFLOW_REFINEMENT
-                             || opfl_allowed_for_cur_block(cm, mbmi)
+                             || opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                           xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                           mbmi)
 #endif
 #if CONFIG_TIP_REF_PRED_MERGING
                              || is_tip_ref_frame(mbmi->ref_frame[0])
@@ -536,7 +569,11 @@ int64_t av1_interpolation_filter_search(
     if (has_second_ref(mbmi) && !use_default_filter) {
 #else
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (has_second_ref(mbmi) && !opfl_allowed_for_cur_block(cm, mbmi)) {
+    if (has_second_ref(mbmi) && !opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                            xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                            mbmi)) {
 #else
     if (has_second_ref(mbmi)) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT

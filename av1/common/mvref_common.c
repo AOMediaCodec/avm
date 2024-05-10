@@ -72,7 +72,11 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, TMVP_SHIFT_BITS);
   int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
   int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
-  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm, mi);
+  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                       xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                       mi);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
 #if CONFIG_OPTFLOW_ON_TIP
                                  ,
@@ -286,7 +290,12 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
   int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
   int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
-  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm, mi);
+  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                       xd,
+#endif  // CONFIG_COMPOUND_4XN
+
+                                                       mi);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
 #if CONFIG_OPTFLOW_ON_TIP
                                  ,

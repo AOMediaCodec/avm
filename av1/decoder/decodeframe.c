@@ -2403,7 +2403,11 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   if (!frame_is_intra_only(cm) &&
       cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     MB_MODE_INFO *const mi = xd->mi[0];
-    if (opfl_allowed_for_cur_block(cm, mi)
+    if (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                   xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                   mi)
 #if CONFIG_REFINEMV
         || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
 #endif  // CONFIG_REFINEMV

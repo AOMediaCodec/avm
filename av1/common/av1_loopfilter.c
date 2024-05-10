@@ -444,10 +444,17 @@ static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
 // Check whether current block is OPFL mode
 static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
                                        const int plane,
+#if CONFIG_COMPOUND_4XN
+                                       const MACROBLOCKD *xd,
+#endif  // CONFIG_COMPOUND_4XN
                                        const MB_MODE_INFO *const mbmi,
                                        TX_SIZE *ts, int32_t *opfl_edge) {
   if (plane > 0) return;
-  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm, mbmi);
+  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                       xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                       mbmi);
   if (is_opfl_mode) {
     *opfl_edge = 1;
     const int opfl_ts = TX_8X8;
@@ -486,7 +493,12 @@ static AOM_INLINE void check_sub_pu_edge(
 
   check_tip_edge(mbmi, scale_horz, scale_vert, &temp_ts, &temp_edge);
 #if CONFIG_OPTFLOW_REFINEMENT
-  if (!temp_edge) check_opfl_edge(cm, plane, mbmi, &temp_ts, &temp_edge);
+  if (!temp_edge)
+    check_opfl_edge(cm, plane,
+#if CONFIG_COMPOUND_4XN
+                    xd,
+#endif  // CONFIG_COMPOUND_4XN
+                    mbmi, &temp_ts, &temp_edge);
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_REFINEMV
   if (!temp_edge)

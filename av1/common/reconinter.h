@@ -449,8 +449,15 @@ static INLINE int is_interinter_compound_used(COMPOUND_TYPE type,
                                               BLOCK_SIZE sb_type) {
   const int comp_allowed = is_comp_ref_allowed(sb_type);
   switch (type) {
+#if CONFIG_COMPOUND_4XN
+    case COMPOUND_AVERAGE: return comp_allowed;
+    case COMPOUND_DIFFWTD:
+      return comp_allowed && !is_thin_4xn_nx4_block(sb_type);
+#else
     case COMPOUND_AVERAGE:
     case COMPOUND_DIFFWTD: return comp_allowed;
+#endif  //  CONFIG_COMPOUND_4XN
+
     case COMPOUND_WEDGE:
       return comp_allowed && av1_wedge_params_lookup[sb_type].wedge_types > 0;
     default: assert(0); return 0;
@@ -744,9 +751,16 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 #endif  // AFFINE_FAST_WARP_METHOD == 3
 
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
+#if CONFIG_COMPOUND_4XN
+                                                      BLOCK_SIZE bsize,
+#endif  // CONFIG_COMPOUND_4XN
                                                       const int mode) {
   assert(cm->seq_params.enable_opfl_refine);
   if (mode < NEAR_NEARMV_OPTFLOW) return 0;
+#if CONFIG_COMPOUND_4XN
+  if (is_thin_4xn_nx4_block(bsize)) return 0;
+#endif  // CONFIG_COMPOUND_4XN
+
   if (!cm->seq_params.enable_affine_refine) return 1;
 
   return 0;
@@ -766,6 +780,12 @@ static INLINE int is_affine_refinement_allowed(const AV1_COMMON *cm,
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (mbmi->skip_mode && COMP_REFINE_TYPE_FOR_SKIP < COMP_AFFINE_REFINE_START)
     return 0;
+
+#if CONFIG_COMPOUND_4XN
+  if (has_second_ref(mbmi) &&
+      is_thin_4xn_nx4_block(mbmi->sb_type[xd->tree_type == CHROMA_PART]))
+    return 0;
+#endif  // CONFIG_COMPOUND_4XN
 
   return 1;
 }
@@ -793,7 +813,11 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
                                                     const MACROBLOCKD *xd,
                                                     const MB_MODE_INFO *mbmi) {
   if (cm->features.opfl_refine_type == REFINE_ALL &&
-      opfl_allowed_for_cur_block(cm, mbmi)) {
+      opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                 xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                 mbmi)) {
     if (cm->seq_params.enable_affine_refine)
       return 1 << COMP_REFINE_TYPE_FOR_REFINE_ALL;
     else
@@ -802,7 +826,12 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
   if (mbmi->mode < NEAR_NEARMV_OPTFLOW) return 1 << COMP_REFINE_NONE;
 
   int mask = 0;
-  if (is_translational_refinement_allowed(cm, mbmi->mode))
+  if (is_translational_refinement_allowed(
+          cm,
+#if CONFIG_COMPOUND_4XN
+          mbmi->sb_type[xd->tree_type == CHROMA_PART],
+#endif  // CONFIG_COMPOUND_4XN
+          mbmi->mode))
     mask |= (1 << COMP_REFINE_SUBBLK2P);
 
   if (is_affine_refinement_allowed(cm, xd, mbmi->mode)) {
@@ -894,6 +923,10 @@ void dec_calc_subpel_params(const MV *const src_mv,
 // check if the refinemv mode is allwed for a given blocksize
 static INLINE int is_refinemv_allowed_bsize(BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
+#if CONFIG_COMPOUND_4XN
+  if (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8) return 0;
+#endif  // CONFIG_COMPOUND_4XN
+
   return (block_size_wide[bsize] >= 16 || block_size_high[bsize] >= 16);
 }
 
@@ -1337,6 +1370,9 @@ static INLINE void set_default_interp_filters(
     MB_MODE_INFO *const mbmi,
 #if CONFIG_OPTFLOW_REFINEMENT
     const AV1_COMMON *cm,
+#if CONFIG_COMPOUND_4XN
+    const MACROBLOCKD *xd,
+#endif  // CONFIG_COMPOUND_4XN
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     InterpFilter frame_interp_filter) {
 
@@ -1347,7 +1383,11 @@ static INLINE void set_default_interp_filters(
   }
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
 #if CONFIG_OPTFLOW_REFINEMENT
-  mbmi->interp_fltr = (opfl_allowed_for_cur_block(cm, mbmi)
+  mbmi->interp_fltr = (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                                  xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                  mbmi)
 #if CONFIG_REFINEMV
                        || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
@@ -1374,7 +1414,12 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
 
 #if CONFIG_OPTFLOW_REFINEMENT
   // No interpolation filter search when optical flow MV refinement is used.
-  if (opfl_allowed_for_cur_block(cm, mbmi)) return 0;
+  if (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                 xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                 mbmi))
+    return 0;
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 
 #if CONFIG_REFINEMV

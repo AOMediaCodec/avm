@@ -4907,6 +4907,9 @@ static INLINE unsigned int compute_motion_cost(
   set_default_interp_filters(xd->mi[0],
 #if CONFIG_OPTFLOW_REFINEMENT
                              cm,
+#if CONFIG_COMPOUND_4XN
+                             xd,
+#endif  // CONFIG_COMPOUND_4XN
 #endif  // CONFIG_OPTFLOW_REFINEMENT
                              cm->features.interp_filter);
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,

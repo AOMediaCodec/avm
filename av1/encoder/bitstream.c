@@ -288,11 +288,19 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
                    xd->tile_ctx->inter_compound_mode_cdf[mode_ctx],
                    INTER_COMPOUND_REF_TYPES);
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      opfl_allowed_for_cur_refs(cm, mbmi)) {
+      opfl_allowed_for_cur_refs(cm,
+#if CONFIG_COMPOUND_4XN
+                                xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                mbmi)) {
     const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
 #if CONFIG_AFFINE_REFINEMENT
     const int allow_translational = is_translational_refinement_allowed(
-        cm, comp_idx_to_opfl_mode[comp_mode_idx]);
+        cm,
+#if CONFIG_COMPOUND_4XN
+        mbmi->sb_type[xd->tree_type == CHROMA_PART],
+#endif  // CONFIG_COMPOUND_4XN
+        comp_idx_to_opfl_mode[comp_mode_idx]);
     const int allow_affine = is_affine_refinement_allowed(
         cm, xd, comp_idx_to_opfl_mode[comp_mode_idx]);
     if (use_optical_flow) {
@@ -1376,7 +1384,12 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_DEBUG
 #if CONFIG_OPTFLOW_REFINEMENT
     // Sharp filter is always used whenever optical flow refinement is applied.
-    int mb_interp_filter = (opfl_allowed_for_cur_block(cm, mbmi)
+    int mb_interp_filter = (opfl_allowed_for_cur_block(cm,
+
+#if CONFIG_COMPOUND_4XN
+                                                       xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                                       mbmi)
 
 #if CONFIG_REFINEMV
                             || mbmi->refinemv_flag
@@ -1397,7 +1410,11 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
   }
   if (cm->features.interp_filter == SWITCHABLE) {
 #if CONFIG_OPTFLOW_REFINEMENT
-    if (opfl_allowed_for_cur_block(cm, mbmi)
+    if (opfl_allowed_for_cur_block(cm,
+#if CONFIG_COMPOUND_4XN
+                                   xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                   mbmi)
 #if CONFIG_REFINEMV
         || mbmi->refinemv_flag
 #endif  // CONFIG_REFINEMV
@@ -2635,7 +2652,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y],
                                             xd->mi_row, xd->mi_col) &&
           !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode &&
-          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(mbmi))) {
+          (!has_second_ref(mbmi) || is_compound_warp_causal_allowed(
+#if CONFIG_COMPOUND_4XN
+                                        xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                        mbmi))) {
         int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
         mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
         mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts, pts_inref, 0);
@@ -2949,7 +2970,11 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(mbmi)));
+                is_compound_warp_causal_allowed(
+#if CONFIG_COMPOUND_4XN
+                    xd,
+#endif  // CONFIG_COMPOUND_4XN
+                    mbmi)));
 #else
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
