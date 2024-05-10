@@ -1024,7 +1024,7 @@ bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
     diag[i] = A[i][i];
 
     for (int k = i - 1; k >= 0; k--) {
-      int64_t tmp = FIXED_MULT(U[k][i], U[k][i]);
+      uint64_t tmp = FIXED_MULT(U[k][i], U[k][i]);
       diag[i] -= FIXED_MULT(tmp, diag[k]);
     }
 
