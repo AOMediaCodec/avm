@@ -1025,12 +1025,11 @@ bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 
     for (int k = i - 1; k >= 0; k--) {
       uint64_t tmp = FIXED_MULT(U[k][i], U[k][i]);
-      diag[i] -= FIXED_MULT(tmp, diag[k]);
+	  uint64_t mult = FIXED_MULT(tmp, diag[k]);
+	  if (diag[i] < mult) return false;
+      diag[i] -= mult;
     }
 
-    if (diag[i] <= 0) {
-      return false;
-    }
 
     for (int j = i + 1; j < numEq; j++) {
       int64_t scale = A[i][j];
