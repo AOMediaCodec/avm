@@ -6551,6 +6551,9 @@ static bool fetch_neighbor_recon_regions(
   const int ref_right_edge = cur_x + dv.col + bw;
   const int tile_right_edge = tile->mi_col_end * MI_SIZE;
   if (ref_right_edge > tile_right_edge) return false;
+  // The current block's template can't be outside the current tile too.
+  if (cur_tmplt_y < tile_top_edge) return false;
+  if (cur_tmplt_x < tile_left_edge) return false;
 
   const int cur_tmplt_width = cur_x - cur_tmplt_x;
   const int cur_tmplt_height = cur_y - cur_tmplt_y;
