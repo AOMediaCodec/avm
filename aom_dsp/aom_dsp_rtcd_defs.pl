@@ -302,6 +302,10 @@ if (aom_config("CONFIG_SUBBLK_REF_DS") eq "yes") {
   add_proto qw/unsigned int/, "aom_highbd_sad16x16_ds", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
   add_proto qw/unsigned int/, "aom_highbd_sad16x8_ds", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
   add_proto qw/unsigned int/, "aom_highbd_sad8x16_ds", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
+  add_proto qw/unsigned int/, "aom_highbd_sad12x20_ds", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
+  add_proto qw/unsigned int/, "aom_highbd_sad20x12_ds", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
+  add_proto qw/unsigned int/, "aom_highbd_sad12x12_ds", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
+  add_proto qw/unsigned int/, "aom_highbd_sad20x20_ds", "const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr, int ref_stride";
 }
 
 if (aom_config("CONFIG_SUBBLK_REF_EXT") eq "yes") {
@@ -383,6 +387,10 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_sad16x8_ds    avx2/;
     specialize qw/aom_highbd_sad8x16_ds   avx2/;
     specialize qw/aom_highbd_sad8x8_ds    avx2/;
+    specialize qw/aom_highbd_sad12x12_ds    avx2/;
+    specialize qw/aom_highbd_sad20x20_ds    avx2/;
+    specialize qw/aom_highbd_sad12x20_ds    avx2/;
+    specialize qw/aom_highbd_sad20x12_ds    avx2/;
   }
   if (aom_config("CONFIG_SUBBLK_REF_EXT") eq "yes") {
     specialize qw/aom_highbd_sad20x20   avx2/;

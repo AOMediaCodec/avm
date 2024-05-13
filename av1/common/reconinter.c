@@ -900,6 +900,20 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
       return aom_highbd_sad8x8_ds(src_ptr, source_stride, ref_ptr, ref_stride);
     else if (bw == 8 && bh == 16)
       return aom_highbd_sad8x16_ds(src_ptr, source_stride, ref_ptr, ref_stride);
+#if CONFIG_SUBBLK_REF_EXT
+    else if (bw == 12 && bh == 12)
+      return aom_highbd_sad12x12_ds(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
+    else if (bw == 20 && bh == 12)
+      return aom_highbd_sad20x12_ds(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
+    else if (bw == 12 && bh == 20)
+      return aom_highbd_sad12x20_ds(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
+    else if (bw == 20 && bh == 20)
+      return aom_highbd_sad20x20_ds(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
+#endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
       return 0;
@@ -938,7 +952,11 @@ int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int width, int height,
                      int bd) {
 #if CONFIG_SUBBLK_REF_EXT
   (void)bd;
+#if CONFIG_SUBBLK_REF_DS
+  return get_highbd_sad_ds(src1, width, src2, width, 8, width, height);
+#else
   return get_highbd_sad(src1, width, src2, width, 8, width, height);
+#endif
 #else
 #if CONFIG_SUBBLK_REF_DS
   return get_highbd_sad_ds(src1, width, src2, width, bd, width, height);

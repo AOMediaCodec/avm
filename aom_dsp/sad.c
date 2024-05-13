@@ -71,6 +71,10 @@ highbd_sadMxN_ds(16, 16);
 highbd_sadMxN_ds(16, 8);
 highbd_sadMxN_ds(8, 8);
 highbd_sadMxN_ds(8, 16);
+highbd_sadMxN_ds(12, 20);
+highbd_sadMxN_ds(20, 12);
+highbd_sadMxN_ds(12, 12);
+highbd_sadMxN_ds(20, 20);
 #endif  // CONFIG_SUBBLK_REF_DS
 
 #if CONFIG_BLOCK_256

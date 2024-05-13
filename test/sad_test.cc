@@ -1137,6 +1137,20 @@ const SadMxNParam c_tests[] = {
   make_tuple(8, 4, &aom_highbd_sad8x4_c, 12),
   make_tuple(4, 8, &aom_highbd_sad4x8_c, 12),
   make_tuple(4, 4, &aom_highbd_sad4x4_c, 12),
+#if CONFIG_SUBBLK_REF_EXT
+  make_tuple(12, 12, &aom_highbd_sad12x12_c, 8),
+  make_tuple(12, 12, &aom_highbd_sad12x12_c, 10),
+  make_tuple(12, 12, &aom_highbd_sad12x12_c, 12),
+  make_tuple(12, 20, &aom_highbd_sad12x20_c, 8),
+  make_tuple(12, 20, &aom_highbd_sad12x20_c, 10),
+  make_tuple(12, 20, &aom_highbd_sad12x20_c, 12),
+  make_tuple(20, 12, &aom_highbd_sad20x12_c, 8),
+  make_tuple(20, 12, &aom_highbd_sad20x12_c, 10),
+  make_tuple(20, 12, &aom_highbd_sad20x12_c, 12),
+  make_tuple(20, 20, &aom_highbd_sad20x20_c, 8),
+  make_tuple(20, 20, &aom_highbd_sad20x20_c, 10),
+  make_tuple(20, 20, &aom_highbd_sad20x20_c, 12),
+#endif
 
   make_tuple(64, 16, &aom_highbd_sad64x16_c, 8),
   make_tuple(16, 64, &aom_highbd_sad16x64_c, 8),
@@ -2061,6 +2075,20 @@ const SadMxNParam avx2_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avx2, 8),
   make_tuple(16, 8, &aom_highbd_sad16x8_avx2, 10),
   make_tuple(16, 8, &aom_highbd_sad16x8_avx2, 12),
+#if CONFIG_SUBBLK_REF_EXT
+  make_tuple(12, 12, &aom_highbd_sad12x12_avx2, 8),
+  make_tuple(12, 12, &aom_highbd_sad12x12_avx2, 10),
+  make_tuple(12, 12, &aom_highbd_sad12x12_avx2, 12),
+  make_tuple(12, 20, &aom_highbd_sad12x20_avx2, 8),
+  make_tuple(12, 20, &aom_highbd_sad12x20_avx2, 10),
+  make_tuple(12, 20, &aom_highbd_sad12x20_avx2, 12),
+  make_tuple(20, 12, &aom_highbd_sad20x12_avx2, 8),
+  make_tuple(20, 12, &aom_highbd_sad20x12_avx2, 10),
+  make_tuple(20, 12, &aom_highbd_sad20x12_avx2, 12),
+  make_tuple(20, 20, &aom_highbd_sad20x20_avx2, 8),
+  make_tuple(20, 20, &aom_highbd_sad20x20_avx2, 10),
+  make_tuple(20, 20, &aom_highbd_sad20x20_avx2, 12),
+#endif
 
   make_tuple(64, 16, &aom_highbd_sad64x16_avx2, 8),
   make_tuple(64, 16, &aom_highbd_sad64x16_avx2, 10),
