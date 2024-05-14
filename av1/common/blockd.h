@@ -4288,10 +4288,6 @@ static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
   int use_cwp = has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
                 mbmi->interinter_comp.type == COMPOUND_AVERAGE &&
                 mbmi->motion_mode == SIMPLE_TRANSLATION;
-#if CONFIG_IMPROVED_SAME_REF_COMPOUND
-  use_cwp &= mbmi->ref_frame[0] != mbmi->ref_frame[1] ||
-             mbmi->mv[0].as_int != mbmi->mv[1].as_int;
-#endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
   use_cwp &=
       (mbmi->mode == NEAR_NEARMV || is_joint_mvd_coding_mode(mbmi->mode));
   use_cwp &= (mbmi->jmvd_scale_mode == 0);
