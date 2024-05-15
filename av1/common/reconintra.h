@@ -347,6 +347,8 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
       p_angle = 180 + p_angle;
 #if CONFIG_TX_PARTITION_TYPE_EXT
       if (plane) {
+        // Transform partitioning is not allowed for chroma, so index 0 is used
+        // for the second dimension.
         mbmi->is_wide_angle[1][0] = 1;
         mbmi->mapped_intra_mode[1][0] = D203_PRED;
       } else {
@@ -365,6 +367,8 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
       p_angle = p_angle - 180;
 #if CONFIG_TX_PARTITION_TYPE_EXT
       if (plane) {
+        // Transform partitioning is not allowed for chroma, so index 0 is used
+        // for the second dimension.
         mbmi->is_wide_angle[1][0] = 1;
         mbmi->mapped_intra_mode[1][0] = D45_PRED;
       } else {
