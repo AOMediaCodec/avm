@@ -38,6 +38,7 @@
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
 
 #include "aom_util/debug_util.h"
+#include "model_rd.h"
 
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
@@ -1587,7 +1588,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
       assert(ref0 < ref1);
       for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
-            const int bit = ref0 == i || ref1 == i;
+        const int bit = ref0 == i || ref1 == i;
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
           const int bit_type = n_bits == 0 ? -1
                                            : av1_get_compound_ref_bit_type(
@@ -9455,6 +9456,35 @@ BEGIN_PARTITION_SEARCH:
                 NULL,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                 NULL);
+    }
+
+    if (xd->tree_type == LUMA_PART) {
+      static double max_diff_perc = 0;
+      static double min_diff_perc = 100;
+
+      av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
+      av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                           num_planes, NULL);
+
+      // Needs #include "model_rd.h"
+      int64_t sse =
+          calculate_sse(xd, &x->plane[0], &xd->plane[0], block_size_wide[bsize],
+                        block_size_high[bsize]);
+
+      double diff_perc =
+          labs(sse * 16 - best_rdc.dist) * 100.0 / (best_rdc.dist + 1e-10);
+      if (diff_perc > max_diff_perc) max_diff_perc = diff_perc;
+      if (diff_perc < min_diff_perc) min_diff_perc = diff_perc;
+
+      // Print if difference is over 20%.
+      // if ((bsize == cm->sb_size) && (5 * labs(sse * 16 - best_rdc.dist) >
+      // best_rdc.dist)) {
+      if (5 * labs(sse * 16 - best_rdc.dist) > best_rdc.dist) {
+        fprintf(
+            stderr, "[%dx%d] at (%d, %d): %ld, %ld %10.2f (%10.2f, %10.2f)\n",
+            block_size_wide[bsize], block_size_high[bsize], mi_row, mi_col,
+            sse * 16, best_rdc.dist, diff_perc, min_diff_perc, max_diff_perc);
+      }
     }
   }
 
