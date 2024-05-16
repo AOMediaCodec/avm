@@ -1891,6 +1891,13 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
 
+#if CONFIG_EXTENDED_SDP
+  if (xd->tree_type != CHROMA_PART) {
+    set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
+    set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
+  }
+#endif  // CONFIG_EXTENDED_SDP
+
   if (seg->segid_preskip
 #if CONFIG_EXTENDED_SDP
       && !(!frame_is_intra_only(cm) && xd->tree_type == CHROMA_PART)
