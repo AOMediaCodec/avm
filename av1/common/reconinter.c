@@ -3392,10 +3392,8 @@ void av1_build_one_bawp_inter_predictor(
 #endif                           // CONFIG_OPTFLOW_REFINEMENT
                               mc_buf, &ref_buf, &subpel_params, &ref_stride);
     }
-    uint16_t *ref_top =
-        ref_buf - BAWP_REF_LINES * ref_stride * (sf->y_scale_fp / REF_NO_SCALE);
-    uint16_t *ref_left =
-        ref_buf - BAWP_REF_LINES * (sf->x_scale_fp / REF_NO_SCALE);
+    uint16_t *ref_top = ref_buf - ref_stride * scaled_y_gen(BAWP_REF_LINES, sf);
+    uint16_t *ref_left = ref_buf - scaled_x_gen(BAWP_REF_LINES, sf);
 #else   // CONFIG_BAWP_ACROSS_SCALES_FIX
     const int ref_stride = pd->pre[ref].stride;
     uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
