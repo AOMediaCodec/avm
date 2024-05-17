@@ -9458,7 +9458,9 @@ BEGIN_PARTITION_SEARCH:
                 NULL);
     }
 
-    if (xd->tree_type == LUMA_PART) {
+    if (xd->tree_type == LUMA_PART &&
+        (mi_row + mi_size_high[bsize] <= cm->mi_params.mi_rows) &&
+        (mi_col + mi_size_wide[bsize] <= cm->mi_params.mi_cols)) {
       static double max_diff_perc = 0;
       static double min_diff_perc = 100;
 
