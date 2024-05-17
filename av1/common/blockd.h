@@ -2021,21 +2021,34 @@ struct scale_factors;
 /*!\endcond */
 
 #define REF_MV_BANK_SIZE 4
+#if CONFIG_LC_REF_MV_BANK
+#define REF_MV_BANK_LIST_NUM 9
+#define REF_MV_BANK_LIST_FOR_ALL_OTHERS (REF_MV_BANK_LIST_NUM - 1)
+#else
+#define REF_MV_BANK_LIST_NUM MODE_CTX_REF_FRAMES
+#endif  // CONFIG_LC_REF_MV_BANK
 
 /*! \brief Variables related to reference MV bank. */
 typedef struct {
   /*!
    * Number of ref MVs in the buffer.
    */
-  int rmb_count[MODE_CTX_REF_FRAMES];
+  int rmb_count[REF_MV_BANK_LIST_NUM];
   /*!
    * Index corresponding to the first ref MV in the buffer.
    */
-  int rmb_start_idx[MODE_CTX_REF_FRAMES];
+  int rmb_start_idx[REF_MV_BANK_LIST_NUM];
   /*!
    * Circular buffer storing the ref MVs.
    */
-  CANDIDATE_MV rmb_buffer[MODE_CTX_REF_FRAMES][REF_MV_BANK_SIZE];
+  CANDIDATE_MV rmb_buffer[REF_MV_BANK_LIST_NUM][REF_MV_BANK_SIZE];
+#if CONFIG_LC_REF_MV_BANK
+  // Single inter with 0~5 has its own ref mv bank list;
+  // Compound inter with [0, 0] and [0, 1] has its own ref mv bank list;
+  // For all other inter predictions, they share one ref mv bank list, thus it
+  // needs to store the ref frames.
+  MV_REFERENCE_FRAME rmb_ref_frame[REF_MV_BANK_SIZE];
+#endif  // CONFIG_LC_REF_MV_BANK
   /*!
    * Total number of mbmi updates conducted in SB
    */

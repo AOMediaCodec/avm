@@ -2250,6 +2250,33 @@ static AOM_INLINE void process_single_ref_mv_candidate(
 }
 #endif  // !CONFIG_MVP_SIMPLIFY
 
+#if CONFIG_LC_REF_MV_BANK
+static AOM_INLINE int get_rmb_list_index(const MV_REFERENCE_FRAME ref_frame) {
+  MV_REFERENCE_FRAME rf[2];
+  av1_set_ref_frame(rf, ref_frame);
+
+  if (rf[0] == 0 && rf[1] == NONE_FRAME) {
+    return 0;
+  } else if (rf[0] == 1 && rf[1] == NONE_FRAME) {
+    return 1;
+  } else if (rf[0] == 2 && rf[1] == NONE_FRAME) {
+    return 2;
+  } else if (rf[0] == 3 && rf[1] == NONE_FRAME) {
+    return 3;
+  } else if (rf[0] == 4 && rf[1] == NONE_FRAME) {
+    return 4;
+  } else if (rf[0] == 5 && rf[1] == NONE_FRAME) {
+    return 5;
+  } else if (rf[0] == 0 && rf[1] == 0) {
+    return 6;
+  } else if (rf[0] == 0 && rf[1] == 1) {
+    return 7;
+  } else {
+    return 8;
+  }
+}
+#endif  // CONFIG_LC_REF_MV_BANK
+
 static AOM_INLINE bool check_rmb_cand(
     CANDIDATE_MV cand_mv, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     uint8_t *refmv_count, int is_comp, int mi_row, int mi_col, int block_width,
@@ -3076,9 +3103,17 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     ) {
       const REF_MV_BANK *ref_mv_bank = &xd->ref_mv_bank;
-      const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[ref_frame];
-      const int count = ref_mv_bank->rmb_count[ref_frame];
-      const int start_idx = ref_mv_bank->rmb_start_idx[ref_frame];
+#if CONFIG_LC_REF_MV_BANK
+      const int rmb_list_index = get_rmb_list_index(ref_frame);
+#else
+      const int rmb_list_index = ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
+      const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
+#if CONFIG_LC_REF_MV_BANK
+      const MV_REFERENCE_FRAME *rmb_ref_frame = ref_mv_bank->rmb_ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
+      const int count = ref_mv_bank->rmb_count[rmb_list_index];
+      const int start_idx = ref_mv_bank->rmb_start_idx[rmb_list_index];
       const int is_comp = is_inter_ref_frame(rf[1]);
       const int block_width = xd->width * MI_SIZE;
       const int block_height = xd->height * MI_SIZE;
@@ -3087,6 +3122,11 @@ static AOM_INLINE void setup_ref_mv_list(
            ++idx_bank) {
         const int idx = (start_idx + count - 1 - idx_bank) % REF_MV_BANK_SIZE;
         const CANDIDATE_MV cand_mv = queue[idx];
+#if CONFIG_LC_REF_MV_BANK
+        if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS &&
+            rmb_ref_frame[idx] != ref_frame)
+          continue;
+#endif  // CONFIG_LC_REF_MV_BANK
 #if CONFIG_SKIP_MODE_ENHANCEMENT
         bool rmb_candi_exist =
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -3390,9 +3430,17 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   ) {
     const REF_MV_BANK *ref_mv_bank = xd->ref_mv_bank_pt;
-    const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[ref_frame];
-    const int count = ref_mv_bank->rmb_count[ref_frame];
-    const int start_idx = ref_mv_bank->rmb_start_idx[ref_frame];
+#if CONFIG_LC_REF_MV_BANK
+    const int rmb_list_index = get_rmb_list_index(ref_frame);
+#else
+    const int rmb_list_index = ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
+    const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
+#if CONFIG_LC_REF_MV_BANK
+    const MV_REFERENCE_FRAME *rmb_ref_frame = ref_mv_bank->rmb_ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
+    const int count = ref_mv_bank->rmb_count[rmb_list_index];
+    const int start_idx = ref_mv_bank->rmb_start_idx[rmb_list_index];
     const int is_comp = is_inter_ref_frame(rf[1]);
     const int block_width = xd->width * MI_SIZE;
     const int block_height = xd->height * MI_SIZE;
@@ -3401,6 +3449,11 @@ static AOM_INLINE void setup_ref_mv_list(
          ++idx_bank) {
       const int idx = (start_idx + count - 1 - idx_bank) % REF_MV_BANK_SIZE;
       const CANDIDATE_MV cand_mv = queue[idx];
+#if CONFIG_LC_REF_MV_BANK
+      if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS &&
+          rmb_ref_frame[idx] != ref_frame)
+        continue;
+#endif  // CONFIG_LC_REF_MV_BANK
 #if CONFIG_SKIP_MODE_ENHANCEMENT
       bool rmb_candi_exist =
 #endif  // CONFIG_SKIP_MODE_ENHANCEMENT
@@ -5872,16 +5925,29 @@ static INLINE void update_ref_mv_bank(
   ++ref_mv_bank->rmb_sb_hits;
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
-  CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[ref_frame];
+#if CONFIG_LC_REF_MV_BANK
+  const int rmb_list_index = get_rmb_list_index(ref_frame);
+#else
+  const int rmb_list_index = ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
+  CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
+#if CONFIG_LC_REF_MV_BANK
+  MV_REFERENCE_FRAME *rmb_ref_frame = ref_mv_bank->rmb_ref_frame;
+#endif  // CONFIG_LC_REF_MV_BANK
   const int is_comp = has_second_ref(mbmi);
-  const int start_idx = ref_mv_bank->rmb_start_idx[ref_frame];
-  const int count = ref_mv_bank->rmb_count[ref_frame];
+  const int start_idx = ref_mv_bank->rmb_start_idx[rmb_list_index];
+  const int count = ref_mv_bank->rmb_count[rmb_list_index];
   int found = -1;
 
   // Check if current MV is already existing in the buffer.
   for (int i = 0; i < count; ++i) {
     const int idx = (start_idx + i) % REF_MV_BANK_SIZE;
-    if (mbmi->mv[0].as_int == queue[idx].this_mv.as_int &&
+    if (
+#if CONFIG_LC_REF_MV_BANK
+        (rmb_list_index != REF_MV_BANK_LIST_FOR_ALL_OTHERS ||
+         rmb_ref_frame[idx] == ref_frame) &&
+#endif  // CONFIG_LC_REF_MV_BANK
+        mbmi->mv[0].as_int == queue[idx].this_mv.as_int &&
         (!is_comp || mbmi->mv[1].as_int == queue[idx].comp_mv.as_int)) {
       found = i;
       break;
@@ -5896,9 +5962,19 @@ static INLINE void update_ref_mv_bank(
       const int idx0 = (start_idx + i) % REF_MV_BANK_SIZE;
       const int idx1 = (start_idx + i + 1) % REF_MV_BANK_SIZE;
       queue[idx0] = queue[idx1];
+#if CONFIG_LC_REF_MV_BANK
+      if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS) {
+        rmb_ref_frame[idx0] = rmb_ref_frame[idx1];
+      }
+#endif  // CONFIG_LC_REF_MV_BANK
     }
     const int tail = (start_idx + count - 1) % REF_MV_BANK_SIZE;
     queue[tail] = cand;
+#if CONFIG_LC_REF_MV_BANK
+    if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS) {
+      rmb_ref_frame[tail] = ref_frame;
+    }
+#endif  // CONFIG_LC_REF_MV_BANK
     return;
   }
 
@@ -5907,11 +5983,16 @@ static INLINE void update_ref_mv_bank(
   const int idx = (start_idx + count) % REF_MV_BANK_SIZE;
   queue[idx].this_mv = mbmi->mv[0];
   if (is_comp) queue[idx].comp_mv = mbmi->mv[1];
+#if CONFIG_LC_REF_MV_BANK
+  if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS) {
+    rmb_ref_frame[idx] = ref_frame;
+  }
+#endif  // CONFIG_LC_REF_MV_BANK
   queue[idx].cwp_idx = mbmi->cwp_idx;
   if (count < REF_MV_BANK_SIZE) {
-    ++ref_mv_bank->rmb_count[ref_frame];
+    ++ref_mv_bank->rmb_count[rmb_list_index];
   } else {
-    ++ref_mv_bank->rmb_start_idx[ref_frame];
+    ++ref_mv_bank->rmb_start_idx[rmb_list_index];
   }
 }
 

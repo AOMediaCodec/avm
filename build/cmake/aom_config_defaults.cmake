@@ -355,6 +355,11 @@ set_aom_config_var(CONFIG_TMVP_IMPROVE 1
 set_aom_config_var(CONFIG_COMPOUND_4XN 1
                    "Enable compound modes for 4XN/Nx4 blocks")
 
+# 9 bank lists: (ref0, -1), (ref1, -1), (ref2, -1), (ref3, -1), (ref4, -1), 
+# (ref5, -1), (ref0, ref0), (ref0, ref1), all others
+set_aom_config_var(CONFIG_LC_REF_MV_BANK 1
+                   "Enable low complexity refmv bank design")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
 
