@@ -3299,6 +3299,33 @@ void av1_build_one_bawp_inter_predictor(
 
   const int shift = 8;
   MB_MODE_INFO *mbmi = xd->mi[0];
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+  const struct scale_factors *sf = inter_pred_params->scale_factors;
+
+  const int x_off = scaled_x_gen(mbmi->mv[ref].as_mv.col, sf) >> 3;
+  const int y_off = scaled_y_gen(mbmi->mv[ref].as_mv.row, sf) >> 3;
+
+  const int x_off_p = x_off >> inter_pred_params->subsampling_x;
+  const int y_off_p = y_off >> inter_pred_params->subsampling_y;
+
+  const int mi_x_p = scaled_x_gen(mi_x, sf) >> inter_pred_params->subsampling_x;
+  const int mi_y_p = scaled_y_gen(mi_y, sf) >> inter_pred_params->subsampling_y;
+
+  const int width_p =
+      (sf->x_scale_fp != REF_NO_SCALE)
+          ? pd->pre[ref].width >> inter_pred_params->subsampling_x
+          : cm->width >> inter_pred_params->subsampling_x;
+  const int height_p =
+      (sf->y_scale_fp != REF_NO_SCALE)
+          ? pd->pre[ref].height >> inter_pred_params->subsampling_y
+          : cm->height >> inter_pred_params->subsampling_y;
+
+  int ref_w = scaled_x_gen(bw, sf);
+  if ((mi_x_p + ref_w) >= width_p) ref_w = width_p - mi_x_p;
+
+  int ref_h = scaled_y_gen(bh, sf);
+  if ((mi_y_p + ref_h) >= height_p) ref_h = height_p - mi_y_p;
+#else   // CONFIG_BAWP_ACROSS_SCALES_FIX
   const int x_off = mbmi->mv[ref].as_mv.col >> 3;
   const int y_off = mbmi->mv[ref].as_mv.row >> 3;
 
@@ -3316,9 +3343,15 @@ void av1_build_one_bawp_inter_predictor(
 
   int ref_h = bh;
   if ((mi_y_p + bh) >= height_p) ref_h = height_p - mi_y_p;
-
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
+#if CONFIG_BAWP_ACROSS_SCALES_FIX
+  if ((mi_x_p + x_off_p - scaled_x_gen(BAWP_REF_LINES, sf)) < 0 ||
+      (mi_y_p + y_off_p - scaled_y_gen(BAWP_REF_LINES, sf)) < 0 || ref_w <= 0 ||
+      ref_h <= 0 ||
+#else   // CONFIG_BAWP_ACROSS_SCALES_FIX
   if ((mi_x_p + x_off_p - BAWP_REF_LINES) < 0 ||
       (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 ||
+#endif  // CONFIG_BAWP_ACROSS_SCALES_FIX
       (mi_x_p + ref_w + x_off_p) >= width_p ||
       (mi_y_p + ref_h + y_off_p) >= height_p) {
     mbmi->bawp_alpha[plane][ref] = 1 << shift;
@@ -3338,8 +3371,20 @@ void av1_build_one_bawp_inter_predictor(
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
     int ref_stride = pd->pre[ref].stride;
     uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
-    const struct scale_factors *sf = inter_pred_params->scale_factors;
     if (sf->x_scale_fp != REF_NO_SCALE || sf->y_scale_fp != REF_NO_SCALE) {
+      const int mi_x_p_unscaled = mi_x >> inter_pred_params->subsampling_x;
+      const int mi_y_p_unscaled = mi_y >> inter_pred_params->subsampling_y;
+      const int width_p_unscaled =
+          cm->width >> inter_pred_params->subsampling_x;
+      const int height_p_unscaled =
+          cm->height >> inter_pred_params->subsampling_y;
+      ref_w = bw;
+      if ((mi_x_p_unscaled + bw) >= width_p_unscaled)
+        ref_w = width_p_unscaled - mi_x_p_unscaled;
+      ref_h = bh;
+      if ((mi_y_p_unscaled + bh) >= height_p_unscaled)
+        ref_h = height_p_unscaled - mi_y_p_unscaled;
+
       calc_subpel_params_func(&mbmi->mv[ref].as_mv, inter_pred_params, xd, mi_x,
                               mi_y, ref,
 #if CONFIG_OPTFLOW_REFINEMENT
