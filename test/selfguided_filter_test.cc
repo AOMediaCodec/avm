@@ -53,7 +53,8 @@ class AV1HighbdSelfguidedFilterTest
     tst_fun_ = GET_PARAM(0);
     const int pu_width = RESTORATION_PROC_UNIT_SIZE;
     const int pu_height = RESTORATION_PROC_UNIT_SIZE;
-    // In stride extra 32 is added to ensure that the buffer is aligned to 32 bytes.
+    // In stride extra 32 is added to ensure that the buffer is aligned to 32
+    // bytes.
     const int width = 512, height = 512, stride = 544, out_stride = 544;
     const int NUM_ITERS = 2000;
     int i, j, k;
