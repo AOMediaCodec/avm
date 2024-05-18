@@ -25,15 +25,6 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/tokenize.h"
 
-typedef struct {
-  tran_low_t qc;
-  tran_low_t dqc;      // dequantized qc
-  int64_t delta_cost;  // cost change between between coding up and low level
-  int delta_rate;      // rate change between coding up and low level
-  bool upround;        // is quantized into up level
-  bool tunable;        // tunable mark
-} coeff_info;
-
 // set rd related information for the coefficient at current position.
 void set_coeff_info(tran_low_t qc_low, tran_low_t dqc_low, tran_low_t qc_up,
                     tran_low_t dqc_up, int64_t cost_low, int64_t cost_up,
@@ -4304,7 +4295,7 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #else
       get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX_RDPH
-  coeff_info *coef_info = aom_malloc(width * height * sizeof(coeff_info));
+  coeff_info *coef_info = x->coef_info;
   for (int scan_idx = 0; scan_idx < eob; scan_idx++) {
     coef_info[scan_idx].tunable = false;
     coef_info[scan_idx].upround = false;
@@ -4484,8 +4475,6 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #endif  // CONFIG_CHROMA_TX_COEFF_CODING
     );
   }
-
-  aom_free(coef_info);
 
   set_bob(x, plane, block, tx_size, tx_type);
 

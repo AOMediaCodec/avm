@@ -585,6 +585,11 @@ static AOM_INLINE void create_enc_workers(AV1_COMP *cpi, int num_workers) {
           cm, thread_data->td->tmp_conv_dst,
           aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
                                sizeof(*thread_data->td->tmp_conv_dst)));
+
+      CHECK_MEM_ERROR(
+          cm, thread_data->td->coef_info,
+          aom_malloc(MAX_TX_SQUARE * sizeof(*thread_data->td->coef_info)));
+
       // Temporary buffers used during the DMVR and OPFL processing.
       CHECK_MEM_ERROR(
           cm, thread_data->td->opfl_vxy_bufs,
@@ -825,6 +830,7 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.comp_rd_buffer = thread_data->td->comp_rd_buffer;
       thread_data->td->mb.tmp_conv_dst = thread_data->td->tmp_conv_dst;
       thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
+      thread_data->td->mb.coef_info = thread_data->td->coef_info;
       // Temporary buffers used during the DMVR and OPFL processing.
       thread_data->td->mb.opfl_vxy_bufs = thread_data->td->opfl_vxy_bufs;
       thread_data->td->mb.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;

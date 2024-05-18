@@ -1976,6 +1976,8 @@ typedef struct ThreadData {
   MB_MODE_INFO_EXT *mbmi_ext;
   VP64x64 *vt64x64;
   int32_t num_64x64_blocks;
+  // Buffer used to store quantized and dequantized transform coefficients.
+  coeff_info *coef_info;
   PICK_MODE_CONTEXT *firstpass_ctx;
 } ThreadData;
 

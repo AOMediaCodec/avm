@@ -43,6 +43,28 @@ extern "C" {
 //! Number of txfm hash records kept for the txfm block.
 #define TX_SIZE_RD_RECORD_BUFFER_LEN 256
 
+/*! \brief Transform coded coefficient info.
+ *
+ * This structure stores various parameters related transform coded
+ * coefficients.
+ */
+typedef struct {
+  //! Value of quantized coefficient.
+  tran_low_t qc;
+  //! Value of inverse quantized coefficient.
+  tran_low_t dqc;
+  //! Cost change between coding the coefficient at a higher level and lower
+  //! level.
+  int64_t delta_cost;
+  //! Rate change between coding the coefficient at a higher level and lower
+  //! level.
+  int delta_rate;
+  //! Flag to indicate the coefficient is quantized at a higher level.
+  bool upround;
+  //! Flag to indicate the coefficient is within tunable range.
+  bool tunable;
+} coeff_info;
+
 /*! \brief Superblock level encoder info
  *
  * SuperblockEnc stores superblock level information used by the encoder for
@@ -1856,6 +1878,14 @@ typedef struct macroblock {
   bool is_whole_sb;
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
   /**@}*/
+
+  /*! \brief Quantization state of a transform coefficient.
+   *
+   * This structure includes the quantized value, its dequantized equivalent,
+   * the changes in cost and rate due to quantization, and flags indicating
+   * if the coefficient was quantized up and if it can be further adjusted.
+   */
+  coeff_info *coef_info;
 #if CONFIG_SCC_DETERMINATION
   /*!\brief Number of pixels in current thread that choose palette mode in the
    * fast encoding stage for screen content tool detemination.
