@@ -544,38 +544,18 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 3) {
-    sf->part_sf.allow_partition_search_skip = 1;
-
-    sf->mv_sf.auto_mv_step_size = 1;
-    sf->mv_sf.subpel_iters_per_step = 1;
-
-    // TODO(chiyotsai@google.com): We can get 10% speed up if we move
-    // adaptive_rd_thresh to speed 2. But currently it performs poorly on some
-    // clips (e.g. 5% loss on dinner_1080p). We need to examine the sequence a
-    // bit more closely to figure out why.
-    sf->inter_sf.adaptive_rd_thresh = 1;
-    sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
-    sf->inter_sf.disable_wedge_search_var_thresh = 100;
-    sf->inter_sf.fast_interintra_wedge_search = 1;
-    sf->inter_sf.prune_compound_using_neighbors = 1;
-    sf->inter_sf.prune_comp_type_by_comp_avg = 2;
-
-    sf->tx_sf.tx_type_search.skip_stx_search = 1;
-    sf->tx_sf.tx_type_search.skip_cctx_search = 1;
-    sf->intra_sf.disable_smooth_intra =
-        !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
-
-    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
-
-    sf->tpl_sf.prune_ref_frames_in_tpl = 1;
-
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
+    sf->part_sf.allow_partition_search_skip = 1;
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg = 1;
     sf->part_sf.prune_4_partition_using_split_info = 1;
 
+    sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 3 : 4;
+
+    sf->mv_sf.auto_mv_step_size = 1;
+    sf->mv_sf.subpel_iters_per_step = 1;
     // adaptive_motion_search breaks encoder multi-thread tests.
     // The values in x->pred_mv[] differ for single and multi-thread cases.
     // See aomedia:1778.
@@ -587,6 +567,16 @@ static void set_good_speed_features_framesize_independent(
 
     sf->gm_sf.num_refinement_steps = 0;
 
+    // TODO(chiyotsai@google.com): We can get 10% speed up if we move
+    // adaptive_rd_thresh to speed 2. But currently it performs poorly on some
+    // clips (e.g. 5% loss on dinner_1080p). We need to examine the sequence a
+    // bit more closely to figure out why.
+    sf->inter_sf.adaptive_rd_thresh = 1;
+    sf->inter_sf.comp_inter_joint_search_thresh = BLOCK_SIZES_ALL;
+    sf->inter_sf.disable_wedge_search_var_thresh = 100;
+    sf->inter_sf.fast_interintra_wedge_search = 1;
+    sf->inter_sf.prune_compound_using_neighbors = 1;
+    sf->inter_sf.prune_comp_type_by_comp_avg = 2;
     sf->inter_sf.disable_sb_level_mv_cost_upd = 1;
     // TODO(yunqing): evaluate this speed feature for speed 1 & 2, and combine
     // it with cpi->sf.disable_wedge_search_var_thresh.
@@ -604,8 +594,11 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level =
         boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
 
+    sf->intra_sf.disable_smooth_intra =
+        !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key != 1);
     sf->intra_sf.prune_palette_search_level = 2;
 
+    sf->tpl_sf.prune_ref_frames_in_tpl = 1;
     sf->tpl_sf.skip_alike_starting_mv = 2;
     sf->tpl_sf.prune_intra_modes = 1;
     sf->tpl_sf.prune_starting_mv = 1;
@@ -613,6 +606,8 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
     sf->tpl_sf.search_method = DIAMOND;
 
+    sf->tx_sf.tx_type_search.skip_stx_search = 1;
+    sf->tx_sf.tx_type_search.skip_cctx_search = 1;
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
 
