@@ -9469,12 +9469,12 @@ BEGIN_PARTITION_SEARCH:
       // Calculate distortion in pixel domain.
       int64_t pixel_domain_dist =
           calculate_sse(xd, &x->plane[0], &xd->plane[0], block_size_wide[bsize],
-                        block_size_high[bsize]);
+                        block_size_high[bsize])
+          << 4;
       // Update rdcost.
-      best_rdc.dist = pixel_domain_dist;
-      best_rdc.rdcost = RDCOST(x->rdmult, best_rdc.rate, best_rdc.dist);
       rd_cost->dist = pixel_domain_dist;
-      rd_cost->rdcost = RDCOST(x->rdmult, best_rdc.rate, best_rdc.dist);
+      rd_cost->rdcost = RDCOST(x->rdmult, rd_cost->rate, rd_cost->dist);
+      pc_tree->rd_cost = *rd_cost;
     }
   }
 
