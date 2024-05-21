@@ -6979,13 +6979,21 @@ static INLINE void search_intra_region_partitioning(
 
   // Encoder RDO for luma component in intra region
   xd->tree_type = LUMA_PART;
+#if CONFIG_ML_PART_SPLIT
+  int force_prune_flags[3] = { 0, 0, 0 };
+#endif  // CONFIG_ML_PART_SPLIT
   if (!av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
 #if CONFIG_EXTENDED_SDP
                              parent_partition,
 #endif  // CONFIG_EXTENDED_SDP
                              &this_rdc, best_remain_rdcost, pc_tree, ptree_luma,
                              template_tree, max_recursion_depth, NULL, NULL,
-                             multi_pass_mode, NULL)) {
+                             multi_pass_mode, NULL
+#if CONFIG_ML_PART_SPLIT
+                             ,
+                             force_prune_flags
+#endif  // CONFIG_ML_PART_SPLIT
+                             )) {
     av1_invalid_rd_stats(&this_rdc);
     av1_invalid_rd_stats(sum_rdc);
   }
@@ -7003,7 +7011,12 @@ static INLINE void search_intra_region_partitioning(
 #endif  // CONFIG_EXTENDED_SDP
                                &this_rdc, best_remain_rdcost, pc_tree,
                                ptree_luma, template_tree, max_recursion_depth,
-                               NULL, NULL, multi_pass_mode, NULL)) {
+                               NULL, NULL, multi_pass_mode, NULL
+#if CONFIG_ML_PART_SPLIT
+                               ,
+                               force_prune_flags
+#endif  // CONFIG_ML_PART_SPLIT
+                               )) {
       av1_invalid_rd_stats(&this_rdc);
       av1_invalid_rd_stats(sum_rdc);
     }
