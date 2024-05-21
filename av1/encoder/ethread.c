@@ -887,6 +887,12 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
     }
+
+    if (i > 0) {
+      thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
+      thread_data->td->mb.e_mbd.tmp_upsample_pred =
+          thread_data->td->mb.upsample_pred;
+    }
   }
 }
 
@@ -1324,6 +1330,12 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb = cpi->td.mb;
       thread_data->td->mb.obmc_buffer = thread_data->td->obmc_buffer;
       thread_data->td->mb.mbmi_ext = thread_data->td->mbmi_ext;
+    }
+
+    if (i > 0) {
+      thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
+      thread_data->td->mb.e_mbd.tmp_upsample_pred =
+          thread_data->td->mb.upsample_pred;
     }
   }
 }
