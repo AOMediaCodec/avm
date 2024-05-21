@@ -1587,7 +1587,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
       assert(ref0 < ref1);
       for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
-            const int bit = ref0 == i || ref1 == i;
+        const int bit = ref0 == i || ref1 == i;
 #endif  // CONFIG_IMPROVED_SAME_REF_COMPOUND
           const int bit_type = n_bits == 0 ? -1
                                            : av1_get_compound_ref_bit_type(
@@ -8611,6 +8611,8 @@ partition outperforms previously tested partitions
 enum { PRUNE_OTHER = 0, PRUNE_VERT = 1, PRUNE_HORZ = 2 };
 #endif  // CONFIG_ML_PART_SPLIT
 
+#include "model_rd.h"
+
 bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
                            TileDataEnc *tile_data, TokenExtra **tp, int mi_row,
                            int mi_col, BLOCK_SIZE bsize,
@@ -9455,6 +9457,24 @@ BEGIN_PARTITION_SEARCH:
                 NULL,
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
                 NULL);
+    }
+    if (xd->tree_type == LUMA_PART &&
+        (mi_row + mi_size_high[bsize] <= cm->mi_params.mi_rows) &&
+        (mi_col + mi_size_wide[bsize] <= cm->mi_params.mi_cols)) {
+      av1_setup_src_planes(x, cpi->source, mi_row, mi_col, 1, NULL);
+      av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0, 1,
+                           NULL);
+
+      // Needs #include "model_rd.h"
+      // Calculate distortion in pixel domain.
+      int64_t pixel_domain_dist =
+          calculate_sse(xd, &x->plane[0], &xd->plane[0], block_size_wide[bsize],
+                        block_size_high[bsize]);
+      // Update rdcost.
+      best_rdc.dist = pixel_domain_dist;
+      best_rdc.rdcost = RDCOST(x->rdmult, best_rdc.rate, best_rdc.dist);
+      rd_cost->dist = pixel_domain_dist;
+      rd_cost->rdcost = RDCOST(x->rdmult, best_rdc.rate, best_rdc.dist);
     }
   }
 
