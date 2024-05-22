@@ -884,6 +884,9 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_C071_SUBBLK_WARPMV
       bestsme = cpi->mv_search_params.find_fractional_mv_step(
           xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis, &sse, NULL);
+      if (!av1_is_subpelmv_in_range(&ms_params.mv_limits, best_mv.as_mv)) {
+        bestsme = INT_MAX;
+      }
     }
 
     // Restore the pointer to the first prediction buffer.
