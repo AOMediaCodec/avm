@@ -270,7 +270,6 @@ static INLINE void set_offsets_for_motion_search(const AV1_COMP *const cpi,
   xd->mi_col = mi_col;
 
   // Set up distance of MB to edge of frame in 1/8th pel units.
-  assert(!(mi_col & (mi_width - 1)) && !(mi_row & (mi_height - 1)));
   xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
   xd->mb_to_bottom_edge =
       GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
