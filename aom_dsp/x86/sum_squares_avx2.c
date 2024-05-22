@@ -325,3 +325,42 @@ uint64_t aom_var_2d_u16_avx2(uint16_t *srcp1, int src_stride, int width,
   }
   return (ss - s * s / (width * height));
 }
+
+uint64_t aom_sum_squares_i32_avx2(const int32_t *src, int32_t n) {
+  assert(n % 16 == 0);
+  uint64_t sum_squares;
+  const int32_t *const end = src + n;
+  const int *src_temp = src;
+  __m256i accum_sum_squares = _mm256_setzero_si256();
+  while (src_temp < end) {
+    const __m256i src_0 =
+        _mm256_cvtepi32_epi64(_mm_loadu_si128((__m128i *)src_temp));
+    const __m256i src_1 =
+        _mm256_cvtepi32_epi64(_mm_loadu_si128((__m128i *)(src_temp + 4)));
+    const __m256i src_2 =
+        _mm256_cvtepi32_epi64(_mm_loadu_si128((__m128i *)(src_temp + 8)));
+    const __m256i src_3 =
+        _mm256_cvtepi32_epi64(_mm_loadu_si128((__m128i *)(src_temp + 12)));
+
+    const __m256i sum_squares_0 = _mm256_mul_epi32(src_0, src_0);
+    const __m256i sum_squares_1 = _mm256_mul_epi32(src_1, src_1);
+    const __m256i sum_squares_2 = _mm256_mul_epi32(src_2, src_2);
+    const __m256i sum_squares_3 = _mm256_mul_epi32(src_3, src_3);
+
+    const __m256i sum_squares_01 =
+        _mm256_add_epi64(sum_squares_0, sum_squares_1);
+    const __m256i sum_squares_23 =
+        _mm256_add_epi64(sum_squares_2, sum_squares_3);
+    const __m256i sum_squares_0123 =
+        _mm256_add_epi64(sum_squares_01, sum_squares_23);
+
+    accum_sum_squares = _mm256_add_epi64(accum_sum_squares, sum_squares_0123);
+    src_temp += 16;
+  }
+  __m128i sum_reg128 =
+      _mm_add_epi64(_mm256_castsi256_si128(accum_sum_squares),
+                    _mm256_extracti128_si256(accum_sum_squares, 1));
+  xx_storel_64(&sum_squares,
+               _mm_add_epi64(sum_reg128, _mm_srli_si128(sum_reg128, 8)));
+  return sum_squares;
+}

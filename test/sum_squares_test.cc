@@ -243,6 +243,126 @@ INSTANTIATE_TEST_SUITE_P(SSE2, SumSquares1DTest,
 
 #endif  // HAVE_SSE2
 
+typedef uint64_t (*F1DI32)(const int32_t *src, int32_t n);
+typedef libaom_test::FuncParam<F1DI32> TestFuncs1DI32;
+
+class SumSquares1DI32Test : public FunctionEquivalenceTest<F1DI32> {
+ public:
+  virtual ~SumSquares1DI32Test() {}
+  virtual void SetUp() {
+    params_ = this->GetParam();
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    src = reinterpret_cast<int32_t *>(
+        aom_memalign(32, kMaxSize * kMaxSize * sizeof(src[0])));
+    ASSERT_TRUE(src != NULL);
+  }
+
+  void GenRandomData(const int ncoeffs, const int coeffRange) {
+    for (int i = 0; i < ncoeffs; i++) {
+      src[i] = rnd_(2) ? rnd_(coeffRange) : -rnd_(coeffRange);
+    }
+  }
+
+  void GenExtremeData(const int ncoeffs, const int coeffRange) {
+    const int val = rnd_(2) ? coeffRange : -coeffRange;
+    for (int i = 0; i < ncoeffs; i++) {
+      src[i] = val;
+    }
+  }
+
+  virtual void TearDown() {
+    libaom_test::ClearSystemState();
+    aom_free(src);
+  }
+
+ protected:
+  TestFuncs1DI32 params_;
+  int32_t *src;
+  ACMRandom rnd_;
+  static const int kMaxSize = 256;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SumSquares1DI32Test);
+
+TEST_P(SumSquares1DI32Test, RandomValues) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  const int bd_ar[3] = { 8, 10, 12 };
+  const int kNumIterations = 500;
+  for (int i = 0; i < 3; ++i) {
+    const int bd = bd_ar[i];
+    const int msb = bd + 8;  // bit-depth + 8
+    const int coeffRange = (1 << msb) - 1;
+    for (TX_SIZE tx_size = 0; tx_size < TX_SIZES_ALL; tx_size++) {
+      const int ncoeffs = av1_get_max_eob(tx_size);
+      for (int k = 0; k < kNumIterations; k++) {
+        GenRandomData(ncoeffs, coeffRange);
+        const uint64_t ref_res = params_.ref_func(src, ncoeffs);
+        uint64_t tst_res;
+        ASM_REGISTER_STATE_CHECK(tst_res = params_.tst_func(src, ncoeffs));
+
+        ASSERT_EQ(ref_res, tst_res);
+      }
+    }
+  }
+}
+
+TEST_P(SumSquares1DI32Test, ExtremeValues) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  const int bd_ar[3] = { 8, 10, 12 };
+  for (int i = 0; i < 3; ++i) {
+    const int bd = bd_ar[i];
+    const int msb = bd + 8;  // bit-depth + 8
+    const int coeffRange = (1 << msb) - 1;
+    for (TX_SIZE tx_size = 0; tx_size < TX_SIZES_ALL; tx_size++) {
+      const int ncoeffs = av1_get_max_eob(tx_size);
+      GenExtremeData(ncoeffs, coeffRange);
+      const uint64_t ref_res = params_.ref_func(src, ncoeffs);
+      uint64_t tst_res;
+      ASM_REGISTER_STATE_CHECK(tst_res = params_.tst_func(src, ncoeffs));
+
+      ASSERT_EQ(ref_res, tst_res);
+    }
+  }
+}
+
+TEST_P(SumSquares1DI32Test, DISABLED_Speed) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  const int N[7] = {
+    16, 32, 64, 128, 256, 512, 1024,
+  };
+  const int knum_loops = 100000;
+  for (int i = 0; i < 7; ++i) {
+    const int ncoeffs = N[i];
+    GenRandomData(ncoeffs, (1 << 16) - 1);
+
+    aom_usec_timer timer_c;
+    aom_usec_timer_start(&timer_c);
+
+    for (int i = 0; i < knum_loops; ++i) params_.ref_func(src, ncoeffs);
+
+    aom_usec_timer_mark(&timer_c);
+    const int elapsed_time_c =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_c));
+
+    aom_usec_timer timer_simd;
+    aom_usec_timer_start(&timer_simd);
+
+    for (int i = 0; i < knum_loops; ++i) params_.tst_func(src, ncoeffs);
+
+    aom_usec_timer_mark(&timer_simd);
+    const int elapsed_time_simd =
+        static_cast<int>(aom_usec_timer_elapsed(&timer_simd));
+
+    printf("SumSquaresI32Test N %3d: \tScaling%7.2f ns\n", ncoeffs,
+           1.0 * elapsed_time_c / elapsed_time_simd);
+  }
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, SumSquares1DI32Test,
+                         ::testing::Values(TestFuncs1DI32(
+                             aom_sum_squares_i32_c, aom_sum_squares_i32_avx2)));
+#endif  // HAVE_AVX2
+
 typedef int64_t (*sse_func)(const uint16_t *a, int a_stride, const uint16_t *b,
                             int b_stride, int width, int height);
 typedef libaom_test::FuncParam<sse_func> TestSSEFuncs;

@@ -3230,10 +3230,10 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
 
     // TODO(kslu) for negative angles, skip av1_xform_quant and reuse previous
     // dqcoeffs
-    uint64_t sse_dqcoeff_c1 =
-        sum_squares_i32(p_c1->dqcoeff + BLOCK_OFFSET(block), (int32_t)max_eob);
-    uint64_t sse_dqcoeff_c2 =
-        sum_squares_i32(p_c2->dqcoeff + BLOCK_OFFSET(block), (int32_t)max_eob);
+    uint64_t sse_dqcoeff_c1 = aom_sum_squares_i32(
+        p_c1->dqcoeff + BLOCK_OFFSET(block), (int32_t)max_eob);
+    uint64_t sse_dqcoeff_c2 = aom_sum_squares_i32(
+        p_c2->dqcoeff + BLOCK_OFFSET(block), (int32_t)max_eob);
     if (sse_dqcoeff_c2 > sse_dqcoeff_c1) continue;
 
     // If rd cost based on coeff rate alone is already more than best_rd,
