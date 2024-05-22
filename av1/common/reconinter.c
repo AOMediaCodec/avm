@@ -3299,6 +3299,7 @@ void av1_build_one_bawp_inter_predictor(
 
   const int shift = 8;
   MB_MODE_INFO *mbmi = xd->mi[0];
+  struct macroblockd_plane *const pd = &xd->plane[plane];
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
   const struct scale_factors *sf = inter_pred_params->scale_factors;
 
@@ -3367,7 +3368,6 @@ void av1_build_one_bawp_inter_predictor(
     uint16_t *recon_left = recon_buf - BAWP_REF_LINES;
 
     // the picture boundary limitation to be checked.
-    struct macroblockd_plane *const pd = &xd->plane[plane];
 #if CONFIG_BAWP_ACROSS_SCALES_FIX
     int ref_stride = pd->pre[ref].stride;
     uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
