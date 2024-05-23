@@ -317,6 +317,9 @@ set_aom_config_var(CONFIG_MF_HOLE_FILL_SIMPLIFY 1
 set_aom_config_var(CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE 1
                    "Always enable motion field hole filling")
 
+set_aom_config_var(CONFIG_BANK_IMPROVE 1
+                   "Enable to improve refmv bank and warp parameter bank")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

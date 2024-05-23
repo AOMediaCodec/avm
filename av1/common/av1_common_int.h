@@ -2845,6 +2845,60 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
   xd->cctx_type_map_stride = mi_params->mi_stride;
 }
 
+#if CONFIG_BANK_IMPROVE
+#define MAX_RMB_SB_HITS 64
+#define BANK_SB_ABOVE_ROW_MAX_HITS 4
+void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                            int from_within_sb, const MB_MODE_INFO *const mbmi);
+void decide_rmb_unit_update_count(const AV1_COMMON *const cm,
+                                  MACROBLOCKD *const xd,
+                                  const MB_MODE_INFO *const mbmi);
+#if CONFIG_EXTENDED_WARP_PREDICTION
+void av1_update_warp_param_bank(const AV1_COMMON *const cm,
+                                MACROBLOCKD *const xd,
+                                const MB_MODE_INFO *const mbmi);
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+
+static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
+                                        MACROBLOCKD *const xd,
+                                        const TileInfo *tile_info,
+                                        int sb_mi_row, int sb_mi_col) {
+  xd->ref_mv_bank.rmb_sb_hits = 0;
+  xd->ref_mv_bank.remain_hits = 0;
+  xd->ref_mv_bank.rmb_unit_hits = 0;
+  xd->warp_param_bank.wpb_sb_hits = 0;
+
+  if (frame_is_intra_only(cm)) return;
+
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int reset_unit_mi_size = cm->seq_params.mib_size;
+
+  const int block_mi_wide =
+      AOMMIN(reset_unit_mi_size, cm->mi_params.mi_cols - sb_mi_col);
+
+  if (sb_mi_row > tile_info->mi_row_start) {
+    int row_hits = 0;
+    int mi_col = 0;
+    while (mi_col < block_mi_wide && row_hits < BANK_SB_ABOVE_ROW_MAX_HITS) {
+      // Previous row position of SB boundary
+      const int mi_grid_idx =
+          get_mi_grid_idx(mi_params, sb_mi_row - 1, sb_mi_col + mi_col);
+      const MB_MODE_INFO *const candidate =
+          mi_params->mi_grid_base[mi_grid_idx];
+      const int candidate_bsize = candidate->sb_type[0];
+      const int cand_mi_wide = mi_size_wide[candidate_bsize];
+      if (is_inter_ref_frame(candidate->ref_frame[0]) ||
+          candidate->use_intrabc[0]) {
+        av1_update_ref_mv_bank(cm, xd, 0, candidate);
+        av1_update_warp_param_bank(cm, xd, candidate);
+        row_hits++;
+      }
+      mi_col += cand_mi_wide;
+    }
+  }
+}
+#endif  // CONFIG_BANK_IMPROVE
+
 #if CONFIG_EXT_RECUR_PARTITIONS
 // The blocksize above which chroma and luma partitions will stayed coupled.
 // Currently this is set to BLOCK_128X128 (e.g. chroma always follows luma at

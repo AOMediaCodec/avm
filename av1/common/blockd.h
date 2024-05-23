@@ -2099,6 +2099,18 @@ typedef struct {
    * Total number of mbmi updates conducted in SB
    */
   int rmb_sb_hits;
+#if CONFIG_BANK_IMPROVE
+  /*!
+   * Remain hits for current refmv bank updating unit.
+   * Unit size is SB size divide 8
+   */
+  int remain_hits;
+  /*!
+   * Total number of mbmi updates conducted in refmv bank distribute unit.
+   * Unit size is SB size divide 8
+   */
+  int rmb_unit_hits;
+#endif  // CONFIG_BANK_IMPROVE
 } REF_MV_BANK;
 
 #if CONFIG_EXTENDED_WARP_PREDICTION

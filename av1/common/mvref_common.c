@@ -4473,19 +4473,81 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
 #endif  // CONFIG_ALLOW_SAME_REF_COMPOUND
 }
 
-static INLINE void update_ref_mv_bank(const MB_MODE_INFO *const mbmi,
-                                      REF_MV_BANK *ref_mv_bank) {
+#if CONFIG_BANK_IMPROVE
+#define SB_TO_RMB_UNITS_LOG2 3
+#define SB_TO_RMB_UNITS (1 << SB_TO_RMB_UNITS_LOG2)
+#define BANK_1ST_UNIT_UPDATE_COUNT 4
+#define BANK_UNIT_MAX_ALLOWED_LEFTOVER_UPDATES 16
+
+// Divide SB into 64 units, and each unit has one hit. Thus, in worst case,
+// one SB has 64 hits as defined in MAX_RMB_SB_HITS.
+// If SB size is 128x128, then each unit size is (128/8)x(128/8)=16x16
+// If SB size is 256x256, then each unit size is (256/8)x(256/8)=32x32
+
+void decide_rmb_unit_update_count(const AV1_COMMON *const cm,
+                                  MACROBLOCKD *const xd,
+                                  const MB_MODE_INFO *const mbmi) {
+  if (!cm->seq_params.enable_refmvbank) return;
+  if (xd->tree_type == CHROMA_PART) return;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const int mi_sb_size = seq_params->mib_size;
+  const int mi_sb_size_log2 = seq_params->mib_size_log2;
+  const int mi_row_in_sb = xd->mi_row % mi_sb_size;
+  const int mi_col_in_sb = xd->mi_col % mi_sb_size;
+  const int rmb_unit_mi_size_log2 = mi_sb_size_log2 - SB_TO_RMB_UNITS_LOG2;
+  const int rmb_unit_mi_size = (1 << rmb_unit_mi_size_log2);
+
+  BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
+  const int mi_bw = mi_size_wide[bsize];
+  const int mi_bh = mi_size_high[bsize];
+  const int rmb_units_count = AOMMAX(mi_bw >> rmb_unit_mi_size_log2, 1) *
+                              AOMMAX(mi_bh >> rmb_unit_mi_size_log2, 1);
+  if (mi_row_in_sb == 0 && mi_col_in_sb == 0) {
+    xd->ref_mv_bank.remain_hits =
+        AOMMAX(rmb_units_count, BANK_1ST_UNIT_UPDATE_COUNT);
+    xd->ref_mv_bank.rmb_unit_hits = 0;
+  } else if (((mi_row_in_sb % rmb_unit_mi_size) == 0) &&
+             ((mi_col_in_sb % rmb_unit_mi_size) == 0)) {
+    xd->ref_mv_bank.remain_hits += rmb_units_count;
+    xd->ref_mv_bank.rmb_unit_hits = 0;
+  }
+}
+#endif  // CONFIG_BANK_IMPROVE
+
+static INLINE void update_ref_mv_bank(
+#if CONFIG_BANK_IMPROVE
+    const AV1_COMMON *const cm, MACROBLOCKD *const xd, int from_within_sb,
+#endif  // CONFIG_BANK_IMPROVE
+    const MB_MODE_INFO *const mbmi, REF_MV_BANK *ref_mv_bank) {
+#if CONFIG_BANK_IMPROVE
+  if (from_within_sb) {
+    decide_rmb_unit_update_count(cm, xd, mbmi);
+
+    if (ref_mv_bank->remain_hits == 0 ||
+        ref_mv_bank->rmb_unit_hits >= BANK_UNIT_MAX_ALLOWED_LEFTOVER_UPDATES ||
+        ref_mv_bank->rmb_sb_hits >= MAX_RMB_SB_HITS) {
+      return;
+    }
+
+    ref_mv_bank->remain_hits--;
+    ref_mv_bank->rmb_unit_hits++;
+  } else {
+    // If max hits have been reached return.
+    if (ref_mv_bank->rmb_sb_hits >= MAX_RMB_SB_HITS) return;
+  }
+#else
+  // If max hits have been reached return.
+  if (ref_mv_bank->rmb_sb_hits >= MAX_RMB_SB_HITS) return;
+#endif  // CONFIG_BANK_IMPROVE
+  // else increment count and proceed with updating.
+  ++ref_mv_bank->rmb_sb_hits;
+
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
   CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[ref_frame];
   const int is_comp = has_second_ref(mbmi);
   const int start_idx = ref_mv_bank->rmb_start_idx[ref_frame];
   const int count = ref_mv_bank->rmb_count[ref_frame];
   int found = -1;
-
-  // If max hits have been reached return.
-  if (ref_mv_bank->rmb_sb_hits >= MAX_RMB_SB_HITS) return;
-  // else increment count and proceed with updating.
-  ++ref_mv_bank->rmb_sb_hits;
 
   // Check if current MV is already existing in the buffer.
   for (int i = 0; i < count; ++i) {
@@ -4525,8 +4587,15 @@ static INLINE void update_ref_mv_bank(const MB_MODE_INFO *const mbmi,
 }
 
 void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
+#if CONFIG_BANK_IMPROVE
+                            int from_within_sb,
+#endif  // CONFIG_BANK_IMPROVE
                             const MB_MODE_INFO *const mbmi) {
-  update_ref_mv_bank(mbmi, &xd->ref_mv_bank);
+  update_ref_mv_bank(
+#if CONFIG_BANK_IMPROVE
+      cm, xd, from_within_sb,
+#endif  // CONFIG_BANK_IMPROVE
+      mbmi, &xd->ref_mv_bank);
   (void)cm;
 }
 

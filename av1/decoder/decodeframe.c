@@ -4955,6 +4955,11 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
       (mi_row - tile_info.mi_row_start) >> cm->mib_size_log2;
   int sb_col_in_tile = 0;
 
+#if CONFIG_BANK_IMPROVE
+  av1_zero(td->dcb.xd.ref_mv_bank);
+  av1_zero(td->dcb.xd.warp_param_bank);
+#endif  // CONFIG_BANK_IMPROVE
+
   for (int mi_col = tile_info.mi_col_start; mi_col < tile_info.mi_col_end;
        mi_col += cm->mib_size, sb_col_in_tile++) {
     av1_reset_is_mi_coded_map(&td->dcb.xd, cm->mib_size);
@@ -4967,11 +4972,15 @@ static AOM_INLINE void decode_tile_sb_row(AV1Decoder *pbi, ThreadData *const td,
     DecoderCodingBlock *const dcb = &td->dcb;
     MACROBLOCKD *const xd = &dcb->xd;
 
+#if CONFIG_BANK_IMPROVE
+    av1_reset_refmv_bank(cm, xd, &tile_info, mi_row, mi_col);
+#else
     xd->ref_mv_bank.rmb_sb_hits = 0;
+#endif  // CONFIG_BANK_IMPROVE
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
     xd->warp_param_bank.wpb_sb_hits = 0;
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
 
     // Decoding of the super-block
     decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,
@@ -5079,17 +5088,21 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
       // td->ref_mv_bank is initialized as xd->ref_mv_bank, and used
       // for MV referencing during decoding the tile.
       // xd->ref_mv_bank is updated as decoding goes.
+#if CONFIG_BANK_IMPROVE
+      av1_reset_refmv_bank(cm, xd, &tile_info, mi_row, mi_col);
+#else
       xd->ref_mv_bank.rmb_sb_hits = 0;
+#endif  // CONFIG_BANK_IMPROVE
 #if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
 #endif  // !CONFIG_MVP_IMPROVEMENT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
       xd->warp_param_bank.wpb_sb_hits = 0;
 #if !WARP_CU_BANK
       td->warp_param_bank = xd->warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
       decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,
                           0x3);
 
@@ -5607,17 +5620,21 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
       av1_set_sb_info(cm, xd, mi_row, mi_col);
       set_cb_buffer(pbi, dcb, pbi->cb_buffer_base, num_planes, mi_row, mi_col);
 
+#if CONFIG_BANK_IMPROVE
+      av1_reset_refmv_bank(cm, xd, &tile_info, mi_row, mi_col);
+#else
       xd->ref_mv_bank.rmb_sb_hits = 0;
+#endif  // CONFIG_BANK_IMPROVE
 #if !CONFIG_MVP_IMPROVEMENT
       td->ref_mv_bank = xd->ref_mv_bank;
 #endif  // !CONFIG_MVP_IMPROVEMENT
 
-#if CONFIG_EXTENDED_WARP_PREDICTION
+#if CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
       xd->warp_param_bank.wpb_sb_hits = 0;
 #if !WARP_CU_BANK
       td->warp_param_bank = xd->warp_param_bank;
 #endif  //! WARP_CU_BANK
-#endif  // CONFIG_EXTENDED_WARP_PREDICTION
+#endif  // CONFIG_EXTENDED_WARP_PREDICTION && !CONFIG_BANK_IMPROVE
 
       // Bit-stream parsing of the superblock
       decode_partition_sb(pbi, td, mi_row, mi_col, td->bit_reader, cm->sb_size,

@@ -4278,11 +4278,22 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
 #if !CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SR_EXT
-  if (cm->seq_params.enable_refmvbank && !is_intrabc_block(mbmi, xd->tree_type))
+  if (cm->seq_params.enable_refmvbank &&
+      !is_intrabc_block(mbmi, xd->tree_type)) {
 #else
-  if (cm->seq_params.enable_refmvbank)
+  if (cm->seq_params.enable_refmvbank) {
 #endif  // CONFIG_IBC_SR_EXT
-    av1_update_ref_mv_bank(cm, xd, mbmi);
+    av1_update_ref_mv_bank(cm, xd,
+#if CONFIG_BANK_IMPROVE
+                           1,
+#endif  // CONFIG_BANK_IMPROVE
+                           mbmi);
+  }
+#if CONFIG_BANK_IMPROVE
+  else {
+    decide_rmb_unit_update_count(cm, xd, mbmi);
+  }
+#endif  // CONFIG_BANK_IMPROVE
 #endif  // !CONFIG_IBC_BV_IMPROVEMENT
 
 #if DEC_MISMATCH_DEBUG
@@ -4497,8 +4508,18 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
 #if CONFIG_IBC_BV_IMPROVEMENT
     if (cm->seq_params.enable_refmvbank) {
       MB_MODE_INFO *const mbmi = xd->mi[0];
-      if (is_intrabc_block(mbmi, xd->tree_type))
-        av1_update_ref_mv_bank(cm, xd, mbmi);
+      if (is_intrabc_block(mbmi, xd->tree_type)) {
+        av1_update_ref_mv_bank(cm, xd,
+#if CONFIG_BANK_IMPROVE
+                               1,
+#endif  // CONFIG_BANK_IMPROVE
+                               mbmi);
+      }
+#if CONFIG_BANK_IMPROVE
+      else {
+        decide_rmb_unit_update_count(cm, xd, mbmi);
+      }
+#endif  // CONFIG_BANK_IMPROVE
     }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
@@ -4509,8 +4530,18 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
 #if CONFIG_IBC_BV_IMPROVEMENT
     if (cm->seq_params.enable_refmvbank) {
       MB_MODE_INFO *const mbmi = xd->mi[0];
-      if (is_inter_block(mbmi, xd->tree_type))
-        av1_update_ref_mv_bank(cm, xd, mbmi);
+      if (is_inter_block(mbmi, xd->tree_type)) {
+        av1_update_ref_mv_bank(cm, xd,
+#if CONFIG_BANK_IMPROVE
+                               1,
+#endif  // CONFIG_BANK_IMPROVE
+                               mbmi);
+      }
+#if CONFIG_BANK_IMPROVE
+      else {
+        decide_rmb_unit_update_count(cm, xd, mbmi);
+      }
+#endif  // CONFIG_BANK_IMPROVE
     }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 

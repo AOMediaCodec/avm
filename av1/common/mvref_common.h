@@ -869,9 +869,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
   return 1;
 }
 
+#if !CONFIG_BANK_IMPROVE
 #define MAX_RMB_SB_HITS 64
 void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             const MB_MODE_INFO *const mbmi);
+#endif  // !CONFIG_BANK_IMPROVE
 
 #if CONFIG_C071_SUBBLK_WARPMV
 // assign subblock mv from warp into submi
@@ -894,9 +896,11 @@ void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
 #endif
 
 #if CONFIG_EXTENDED_WARP_PREDICTION
+#if !CONFIG_BANK_IMPROVE
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,
                                 const MB_MODE_INFO *const mbmi);
+#endif  // !CONFIG_BANK_IMPROVE
 
 // Decide what the base warp model should be when using WARP_DELTA.
 // The warp model to use is signalled as a delta from this.
