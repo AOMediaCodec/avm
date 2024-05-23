@@ -3292,14 +3292,14 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #if CONFIG_BAWP_CHROMA
     if (plane == 0) {
       const int16_t alpha = derive_linear_parameters_alpha(
-          sum_x, sum_y, sum_xx, sum_xy, count, shift, 1);
+          sum_x, sum_y, sum_xx, sum_xy, count, shift);
       mbmi->bawp_alpha[plane][ref] = (alpha == 0) ? (1 << shift) : alpha;
     } else {
       mbmi->bawp_alpha[plane][ref] = mbmi->bawp_alpha[0][ref];
     }
 #else
-    const int16_t alpha = derive_linear_parameters_alpha(
-        sum_x, sum_y, sum_xx, sum_xy, count, shift, 1);
+    const int16_t alpha = derive_linear_parameters_alpha(sum_x, sum_y, sum_xx,
+                                                         sum_xy, count, shift);
     mbmi->bawp_alpha[plane][ref] = (alpha == 0) ? (1 << shift) : alpha;
 #endif  // CONFIG_BAWP_CHROMA
     const int beta = derive_linear_parameters_beta(
@@ -6015,7 +6015,7 @@ static bool derive_linear_params_from_template(
   if (count == 0) return false;
 
   *alpha = derive_linear_parameters_alpha(sum_x, sum_y, sum_xx, sum_xy, count,
-                                          MORPH_FIT_SHIFT, 0);
+                                          MORPH_FIT_SHIFT);
   *beta = derive_linear_parameters_beta(sum_x, sum_y, count, MORPH_FIT_SHIFT,
                                         *alpha);
   return true;

@@ -23,19 +23,11 @@
 // alpha = (sum_xy - sum_x * sum_y / n) / (sum_xx - sum_x * sum_x / n)
 static INLINE int16_t derive_linear_parameters_alpha(int sum_x, int sum_y,
                                                      int sum_xx, int sum_xy,
-                                                     int count, int shift,
-                                                     int is_bawp) {
+                                                     int count, int shift) {
   if (count == 0) return 0;
   int32_t der = sum_xx - (int32_t)((int64_t)sum_x * sum_x / count);
   int32_t nor = sum_xy - (int32_t)((int64_t)sum_x * sum_y / count);
   if (der == 0 || nor == 0) return 0;
-  if (is_bawp) {
-    // Add a small portion to both self-correlation and cross-correlation to
-    // keep mode stable and have scaling factor leaning to value 1.0
-    // Temporal design, to be further updated
-    nor += der / 16;
-    der += der / 16;
-  }
   const int16_t alpha = resolve_divisor_32_CfL(nor, der, shift);
   return alpha;
 }

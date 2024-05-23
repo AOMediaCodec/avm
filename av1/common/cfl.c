@@ -594,7 +594,7 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
 #endif  // CONFIG_CFL_SIMPLIFICATION
   const int shift = 3 + CFL_ADD_BITS_ALPHA;
   mbmi->cfl_implicit_alpha[plane - 1] = derive_linear_parameters_alpha(
-      sum_x, sum_y, sum_xx, sum_xy, count, shift, 0);
+      sum_x, sum_y, sum_xx, sum_xy, count, shift);
 }
 
 void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
@@ -616,7 +616,7 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
 
   const int shift = 3 + CFL_ADD_BITS_ALPHA;
   *alpha = derive_linear_parameters_alpha(sum_x, sum_y, sum_xx, sum_xy, count,
-                                          shift, 0);
+                                          shift);
 }
 
 #if CONFIG_ENABLE_MHCCP
