@@ -331,6 +331,9 @@ Build (entropy-stats):
 
 Build (ml-part-split):
   extends: .build-common
+  variables:
+    # Allow build warnings.
+    EXTRA_CMAKE_FLAGS: -DENABLE_WERROR=0
   parallel:
     matrix:
       - AOM_BUILD_CONFIG:
