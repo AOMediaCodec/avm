@@ -3709,7 +3709,7 @@ static void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
 
     copy = b_w - left - right;
 
-    if (left) aom_memset16(dst, ref_row[0], left);
+    if (left) aom_memset16(dst, ref_row[ref_area->pad_block.x0], left);
 
     if (copy) memcpy(dst + left, ref_row + x0 + left, copy * sizeof(uint16_t));
 
