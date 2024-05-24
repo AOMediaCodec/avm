@@ -238,7 +238,7 @@ set_aom_config_var(
 )
 set_aom_config_var(
   CONFIG_PALETTE_LINE_COPY
-  1
+  0
   "AV2 experiment flag to enable palette line copy and transverse coding, CWG-D114."
 )
 set_aom_config_var(CONFIG_SKIP_MODE_SSE_BUG_FIX 1
