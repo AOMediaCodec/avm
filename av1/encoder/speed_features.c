@@ -1280,9 +1280,11 @@ static AOM_INLINE void set_erp_speed_features_qindex_dependent(AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
   const unsigned int erp_pruning_level = cpi->oxcf.part_cfg.erp_pruning_level;
+  const int boosted = frame_is_boosted(cpi);
 
   const int qindex_offset = MAXQ_OFFSET * (cm->seq_params.bit_depth - 8);
   const int qindex_thresh2 = 113 + qindex_offset;
+  const int qindex_thresh3 = 135 + qindex_offset;
 
   switch (erp_pruning_level) {
     case 6: AOM_FALLTHROUGH_INTENDED;
@@ -1299,6 +1301,12 @@ static AOM_INLINE void set_erp_speed_features_qindex_dependent(AV1_COMP *cpi) {
     case 1: AOM_FALLTHROUGH_INTENDED;
     case 0: break;
     default: assert(0 && "Invalid ERP pruning level.");
+  }
+
+  if (cpi->speed == 1) {
+    if (!boosted && cm->quant_params.base_qindex < qindex_thresh3) {
+      sf->part_sf.simple_motion_search_split = 1;
+    }
   }
 }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS

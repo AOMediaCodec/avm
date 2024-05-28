@@ -1346,11 +1346,16 @@ void av1_prune_partitions_before_search(
   // Use simple motion search to prune out split or non-split partitions. This
   // must be done prior to PARTITION_SPLIT to propagate the initial mvs to a
   // smaller blocksize.
+  // TODO (any) : Train the ML model for 'BLOCK_256X256' to enable optimization
+  // for NONE partition.
   const int try_split_only =
       !cpi->is_screen_content_type &&
       cpi->sf.part_sf.simple_motion_search_split && *do_square_split &&
       bsize >= BLOCK_8X8 &&
       mi_row + mi_size_high[bsize] <= mi_params->mi_rows &&
+#if CONFIG_BLOCK_256
+      bsize < BLOCK_256X256 &&
+#endif
       mi_col + mi_size_wide[bsize] <= mi_params->mi_cols &&
       !frame_is_intra_only(cm) && !av1_superres_scaled(cm) &&
       is_square_block(bsize) && sms_tree && *partition_none_allowed;
