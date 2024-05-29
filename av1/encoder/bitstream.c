@@ -2874,13 +2874,19 @@ static AOM_INLINE void write_intrabc_info(
     assert(mbmi->mode == DC_PRED);
     assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
 
+#if !CONFIG_IBC_SUBPEL_PRECISION
     assert(mbmi->pb_mv_precision == MV_PRECISION_ONE_PEL);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #if CONFIG_SEP_COMP_DRL
     int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0][0].this_mv;
 #else
     int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0].this_mv;
 #endif
+
+#if CONFIG_IBC_SUBPEL_PRECISION && !CONFIG_IBC_SUBPEL_PRECISION
+    assert(is_this_mv_precision_compliant(dv_ref.as_mv, mbmi->pb_mv_precision));
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #if CONFIG_IBC_BV_IMPROVEMENT
     aom_write_symbol(w, mbmi->intrabc_mode, ec_ctx->intrabc_mode_cdf, 2);
@@ -2892,13 +2898,39 @@ static AOM_INLINE void write_intrabc_info(
 #endif  // CONFIG_IBC_MAX_DRL
         ec_ctx, mbmi, mbmi_ext_frame, w);
 
-    if (!mbmi->intrabc_mode)
-      av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
+#if CONFIG_IBC_SUBPEL_PRECISION
+    if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
+      int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];
+      assert(index < av1_intraBc_precision_sets.num_precisions);
+      assert(index < NUM_ALLOWED_BV_PRECISIONS);
+      aom_write_symbol(w, index, ec_ctx->intrabc_bv_precision_cdf[0],
+                       av1_intraBc_precision_sets.num_precisions);
+    }
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
+    if (!mbmi->intrabc_mode)
+      av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc,
+                    mbmi->pb_mv_precision);
 #if CONFIG_DERIVED_MVD_SIGN
     if (!mbmi->intrabc_mode) {
+#if CONFIG_IBC_SUBPEL_PRECISION
+      MV low_prec_ref_mv = dv_ref.as_mv;
+#if CONFIG_C071_SUBBLK_WARPMV
+      if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+        lower_mv_precision(&low_prec_ref_mv, mbmi->pb_mv_precision);
+      const MV diff = { mbmi->mv[0].as_mv.row - low_prec_ref_mv.row,
+                        mbmi->mv[0].as_mv.col - low_prec_ref_mv.col };
+#else
       const MV diff = { mbmi->mv[0].as_mv.row - dv_ref.as_mv.row,
                         mbmi->mv[0].as_mv.col - dv_ref.as_mv.col };
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+      assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
+                                            mbmi->pb_mv_precision));
+      assert(is_this_mv_precision_compliant(diff, mbmi->pb_mv_precision));
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
       if (diff.row) {
         aom_write_symbol(w, diff.row < 0, ec_ctx->ndvc.comps[0].sign_cdf, 2);
       }
@@ -2908,7 +2940,8 @@ static AOM_INLINE void write_intrabc_info(
     }
 #endif  // CONFIG_DERIVED_MVD_SIGN
 #else
-    av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc);
+    av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc,
+                  mbmi->pb_mv_precision);
 #if CONFIG_DERIVED_MVD_SIGN
     const MV diff = { mbmi->mv[0].as_mv.row - dv_ref.as_mv.row,
                       mbmi->mv[0].as_mv.col - dv_ref.as_mv.col };

@@ -5734,6 +5734,20 @@ int av1_get_mv_class_context(const MvSubpelPrecision pb_mv_precision) {
 void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {
   mbmi->pb_mv_precision = precision;
 }
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+// Function to check if precision need to be signaled or not
+int is_intraBC_bv_precision_active(const int intrabc_mode) {
+  return (intrabc_mode == 0);
+}
+// Set max value as default precision
+void set_default_intraBC_bv_precision(MB_MODE_INFO *mbmi) {
+  mbmi->pb_mv_precision =
+      av1_intraBc_precision_sets
+          .precision[av1_intraBc_precision_sets.num_precisions - 1];
+}
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
 #if BUGFIX_AMVD_AMVR
 // set the mv precision for amvd applied mode
 void set_amvd_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {

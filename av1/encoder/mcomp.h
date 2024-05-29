@@ -95,7 +95,12 @@ int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
                     const int is_adaptive_mvd);
 
 int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
-                            const IntraBCMvCosts *mv_costs, int weight);
+                            const IntraBCMvCosts *mv_costs, int weight
+#if CONFIG_IBC_SUBPEL_PRECISION
+                            ,
+                            MvSubpelPrecision precision
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+);
 
 int av1_get_mvpred_sse(const MV_COST_PARAMS *mv_cost_params,
                        const FULLPEL_MV best_mv,
@@ -464,7 +469,9 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
                                        const MV *ref_mv,
                                        const MvSubpelPrecision pb_mv_precision,
-
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                       const int is_ibc_cost,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
                                        const int *cost_list);
 
 typedef int(fractional_mv_step_fp)(MACROBLOCKD *xd, const AV1_COMMON *const cm,
@@ -480,6 +487,24 @@ extern fractional_mv_step_fp av1_find_best_sub_pixel_tree_pruned_evenmore;
 extern fractional_mv_step_fp av1_return_max_sub_pixel_mv;
 extern fractional_mv_step_fp av1_return_min_sub_pixel_mv;
 extern fractional_mv_step_fp av1_find_best_obmc_sub_pixel_tree_up;
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
+                         const MV *this_mv,
+                         const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+                         unsigned int *sse);
+int av1_find_best_sub_pixel_intraBC_dv(
+    MACROBLOCKD *xd, const AV1_COMMON *const cm,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
+    int *distortion, unsigned int *sse1, FullMvLimits *full_pel_mv_limits,
+    BLOCK_SIZE bsize);
+// Refinement of MVs
+int av1_refine_low_precision_intraBC_dv(
+    MACROBLOCKD *xd, const AV1_COMMON *const cm,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
+    int *distortion, unsigned int *sse1, FullMvLimits *full_pel_mv_limits,
+    BLOCK_SIZE bsize);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -616,6 +641,47 @@ static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
          (mv.row >= mv_limits->row_min) && (mv.row <= mv_limits->row_max);
 }
 
+#if CONFIG_IBC_SUBPEL_PRECISION
+void get_default_ref_bv(int_mv *cur_ref_bv,
+                        const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params);
+static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
+                                       const MvCosts *mv_costs,
+                                       int is_adaptive_mvd, const MV *ref_mv,
+                                       MvSubpelPrecision pb_mv_precision
+#if CONFIG_IBC_BV_IMPROVEMENT
+                                       ,
+                                       const int is_ibc_cost
+#endif
+
+) {
+  mv_cost_params->ref_mv = ref_mv;
+  mv_cost_params->full_ref_mv = get_fullmv_from_mv(ref_mv);
+  mv_cost_params->mv_cost_type = MV_COST_ENTROPY;
+
+  mv_cost_params->mv_costs = mv_costs;
+  mv_cost_params->pb_mv_precision = pb_mv_precision;
+
+  mv_cost_params->is_adaptive_mvd = is_adaptive_mvd;
+
+#if CONFIG_IBC_BV_IMPROVEMENT
+  mv_cost_params->is_ibc_cost = is_ibc_cost;
+#endif
+}
+
+// Check if the MV is valid for IBC mode
+static INLINE int is_sub_pel_bv_valid(const MV dv, const AV1_COMMON *cm,
+                                      const MACROBLOCKD *xd, int mi_row,
+                                      int mi_col, BLOCK_SIZE bsize,
+                                      const SubpelMvLimits *sub_pel_mv_limits,
+                                      const FullMvLimits *full_pel_mv_limits,
+                                      MvSubpelPrecision pb_mv_precision) {
+  return av1_is_fullmv_in_range(full_pel_mv_limits, get_fullmv_from_mv(&dv),
+                                pb_mv_precision) &&
+         av1_is_subpelmv_in_range(sub_pel_mv_limits, dv) &&
+         av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2);
+}
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
 // Returns the cost for signaling the index of compound weighted prediction
 int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,
                          const MACROBLOCK *x);
@@ -637,9 +703,7 @@ int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
                              int max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-                             MACROBLOCK *x,
-                             FULLPEL_MOTION_SEARCH_PARAMS fullms_params,
-                             int ref_bv_cnt);
+                             MACROBLOCK *x, int errorperbit, int ref_bv_cnt);
 
 // Pick the best reference BV for the current BV
 int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,

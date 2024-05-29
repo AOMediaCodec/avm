@@ -308,6 +308,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->intrabc_mode_cdf, 2);
   RESET_CDF_COUNTER(fc->intrabc_drl_idx_cdf, 2);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_SUBPEL_PRECISION
+  RESET_CDF_COUNTER(fc->intrabc_bv_precision_cdf, NUM_ALLOWED_BV_PRECISIONS);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 #if CONFIG_MORPH_PRED
   RESET_CDF_COUNTER(fc->morph_pred_cdf, 2);
 #endif  // CONFIG_MORPH_PRED

@@ -1399,12 +1399,31 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       const int_mv ref_mv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
       MV mv_diff;
+#if CONFIG_IBC_SUBPEL_PRECISION
+      MV low_prec_ref_mv = ref_mv.as_mv;
+#if CONFIG_C071_SUBBLK_WARPMV
+      if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+        lower_mv_precision(&low_prec_ref_mv, mbmi->pb_mv_precision);
+      mv_diff.row = mbmi->mv[0].as_mv.row - low_prec_ref_mv.row;
+      mv_diff.col = mbmi->mv[0].as_mv.col - low_prec_ref_mv.col;
+#else
+
       mv_diff.row = mbmi->mv[0].as_mv.row - ref_mv.as_mv.row;
       mv_diff.col = mbmi->mv[0].as_mv.col - ref_mv.as_mv.col;
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
+#if CONFIG_IBC_SUBPEL_PRECISION
+      assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
+                                            mbmi->pb_mv_precision));
+      assert(is_this_mv_precision_compliant(mv_diff, mbmi->pb_mv_precision));
+#else
+      assert(mbmi->pb_mv_precision == MV_PRECISION_ONE_PEL);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
 #if CONFIG_VQ_MVD_CODING
-      av1_update_mv_stats(&fc->ndvc, mv_diff, MV_PRECISION_ONE_PEL, 0);
+      av1_update_mv_stats(&fc->ndvc, mv_diff, mbmi->pb_mv_precision, 0);
 #if CONFIG_DERIVED_MVD_SIGN
       if (mv_diff.row) {
         update_cdf(fc->ndvc.comps[0].sign_cdf, mv_diff.row < 0, 2);
@@ -1437,6 +1456,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #else
       update_intrabc_drl_idx_stats(MAX_REF_BV_STACK_SIZE, fc, td->counts, mbmi);
 #endif  // CONFIG_IBC_MAX_DRL
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+      if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
+        int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];
+        assert(index < av1_intraBc_precision_sets.num_precisions);
+        assert(index < NUM_ALLOWED_BV_PRECISIONS);
+        update_cdf(fc->intrabc_bv_precision_cdf[0], index,
+                   av1_intraBc_precision_sets.num_precisions);
+      }
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #if CONFIG_MORPH_PRED
 #if CONFIG_IMPROVED_MORPH_PRED

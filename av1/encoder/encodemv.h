@@ -60,7 +60,7 @@ void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
 void av1_update_mv_count(ThreadData *td);
 
 void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
-                   nmv_context *mvctx);
+                   nmv_context *mvctx, MvSubpelPrecision pb_mv_precision);
 int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx);
 int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MV_REFERENCE_FRAME *ref_frame,

@@ -406,7 +406,11 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                      pb_mv_precision, cost_list);
+                                      pb_mv_precision,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                      cost_list);
     MV subpel_start_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
     assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -662,7 +666,11 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
-                                      pb_mv_precision, NULL);
+                                      pb_mv_precision,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                      NULL);
     // ms_params.forced_stop = EIGHTH_PEL;
 
     MV start_mv1 = get_mv_from_fullmv(&curr_best_mv.as_fullmv);
@@ -860,8 +868,12 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       int dis; /* TODO: use dis in distortion calculation later. */
       unsigned int sse;
       SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-      av1_make_default_subpel_ms_params(
-          &ms_params, cpi, x, bsize, &ref_mv[id].as_mv, pb_mv_precision, NULL);
+      av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
+                                        &ref_mv[id].as_mv, pb_mv_precision,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                        0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                        NULL);
       av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
                                mask, mask_stride, id);
       ms_params.forced_stop = EIGHTH_PEL;
@@ -955,7 +967,11 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   unsigned int sse;
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv.as_mv,
-                                    mbmi->pb_mv_precision, NULL);
+                                    mbmi->pb_mv_precision,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                    0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                    NULL);
   ms_params.forced_stop = EIGHTH_PEL;
 
   bestsme = adaptive_mvd_search(cm, xd, &ms_params, ref_mv.as_mv,
@@ -1091,7 +1107,11 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv.as_mv,
-                                      pb_mv_precision, NULL);
+                                      pb_mv_precision,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                      NULL);
     av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
                              mask, mask_stride, ref_idx);
     ms_params.forced_stop = EIGHTH_PEL;
@@ -1115,7 +1135,11 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     unsigned int sse;
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv.as_mv,
-                                      pb_mv_precision, NULL);
+                                      pb_mv_precision,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                      NULL);
     av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
                              mask, mask_stride, ref_idx);
     ms_params.forced_stop = EIGHTH_PEL;
@@ -1147,7 +1171,9 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv.as_mv,
                                       pb_mv_precision,
-
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
                                       NULL);
     av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
                              mask, mask_stride, ref_idx);
@@ -1246,7 +1272,9 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       SUBPEL_MOTION_SEARCH_PARAMS ms_params;
       av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize,
                                         &ref_mv.as_mv, pb_mv_precision,
-
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                        0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
                                         NULL);
       av1_set_ms_compound_refs(&ms_params.var_params.ms_buffers, second_pred,
                                mask, mask_stride, ref_idx);
@@ -1534,7 +1562,9 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     SUBPEL_MOTION_SEARCH_PARAMS ms_params;
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       pb_mv_precision,
-
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
                                       cost_list);
     // TODO(yunqing): integrate this into av1_make_default_subpel_ms_params().
     ms_params.forced_stop = cpi->sf.mv_sf.simple_motion_subpel_force_stop;
@@ -1703,7 +1733,9 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
 
                                       pb_mv_precision,
-
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                      0,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
                                       cost_list);
     // TODO(yunqing): integrate this into av1_make_default_subpel_ms_params().
     ms_params.forced_stop = cpi->sf.mv_sf.simple_motion_subpel_force_stop;

@@ -85,6 +85,8 @@ set_aom_config_var(CONFIG_SHARED 0 "Build shared libs.")
 set_aom_config_var(CONFIG_WEBM_IO 1 "Enables WebM support.")
 
 set_aom_config_var(CONFIG_ENABLE_IBC_NAT 1 "Enables IBC for natural content")
+set_aom_config_var(CONFIG_IBC_SUBPEL_PRECISION 1
+                   "Allow sub-pel precision for intraBC block vector.")
 
 # Debugging flags.
 set_aom_config_var(CONFIG_DEBUG 0 "Enable debug-only code.")

@@ -7195,6 +7195,14 @@ static const aom_cdf_prob
 #endif  // CONFIG_ENTROPY_PARA
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
+#if CONFIG_IBC_SUBPEL_PRECISION
+aom_cdf_prob
+    default_intrabc_bv_precision_cdf[NUM_BV_PRECISION_CONTEXTS]
+                                    [CDF_SIZE(NUM_ALLOWED_BV_PRECISIONS)] = {
+                                      { AOM_CDF2(24576), 0 },
+                                    };
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
 #if CONFIG_ENTROPY_PARA
 static const aom_cdf_prob default_filter_intra_mode_cdf[CDF_SIZE(
     FILTER_INTRA_MODES)] = { AOM_CDF5(7939, 11923, 16608, 28264), 0 };
@@ -8077,6 +8085,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->intrabc_mode_cdf, default_intrabc_mode_cdf);
   av1_copy(fc->intrabc_drl_idx_cdf, default_intrabc_drl_idx_cdf);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_SUBPEL_PRECISION
+  av1_copy(fc->intrabc_bv_precision_cdf, default_intrabc_bv_precision_cdf);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 #if CONFIG_MORPH_PRED
   av1_copy(fc->morph_pred_cdf, default_morph_pred_cdf);
 #endif  // CONFIG_MORPH_PRED

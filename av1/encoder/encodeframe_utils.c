@@ -1616,6 +1616,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->intrabc_mode_cdf, ctx_tr->intrabc_mode_cdf, 2);
   AVERAGE_CDF(ctx_left->intrabc_drl_idx_cdf, ctx_tr->intrabc_drl_idx_cdf, 2);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_SUBPEL_PRECISION
+  AVERAGE_CDF(ctx_left->intrabc_bv_precision_cdf,
+              ctx_tr->intrabc_bv_precision_cdf, NUM_ALLOWED_BV_PRECISIONS);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 #if CONFIG_MORPH_PRED
   AVERAGE_CDF(ctx_left->morph_pred_cdf, ctx_tr->morph_pred_cdf, 2);
 #endif  // CONFIG_MORPH_PRED

@@ -1523,8 +1523,11 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
     MV mv_diff = kZeroMv;
 #endif
+#if !CONFIG_IBC_SUBPEL_PRECISION
+    assert(mbmi->pb_mv_precision == MV_PRECISION_ONE_PEL);
+#endif  //! CONFIG_IBC_SUBPEL_PRECISION
 #if CONFIG_VQ_MVD_CODING
-    read_mv(r, &mv_diff, 1, &ec_ctx->ndvc, MV_PRECISION_ONE_PEL, 0
+    read_mv(r, &mv_diff, 1, &ec_ctx->ndvc, mbmi->pb_mv_precision, 0
 #if !CONFIG_DERIVED_MVD_SIGN
             ,
             &mv->as_mv, ref_mv->as_mv
@@ -1538,7 +1541,7 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
 #else
           &mv->as_mv, ref_mv->as_mv,
 #endif  // CONFIG_DERIVED_MVD_SIGN
-          0, &ec_ctx->ndvc, MV_PRECISION_ONE_PEL);
+          0, &ec_ctx->ndvc, mbmi->pb_mv_precision);
 
 #endif  //   CONFIG_VQ_MVD_CODING
 
@@ -1554,18 +1557,35 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
                                  ACCT_INFO("sign"));
       if (sign) mv_diff.col = -mv_diff.col;
     }
+#if CONFIG_IBC_SUBPEL_PRECISION
+    MV low_prec_refmv = ref_mv->as_mv;
+#if CONFIG_C071_SUBBLK_WARPMV
+    if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
+#endif  // CONFIG_C071_SUBBLK_WARPMV
+      lower_mv_precision(&low_prec_refmv, mbmi->pb_mv_precision);
 
+    mv->as_mv.row = low_prec_refmv.row + mv_diff.row;
+    mv->as_mv.col = low_prec_refmv.col + mv_diff.col;
+#else
     mv->as_mv.row = ref_mv->as_mv.row + mv_diff.row;
     mv->as_mv.col = ref_mv->as_mv.col + mv_diff.col;
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 #endif  // CONFIG_DERIVED_MVD_SIGN
 #if CONFIG_IBC_BV_IMPROVEMENT
   }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+  assert(
+      is_this_mv_precision_compliant(mbmi->mv[0].as_mv, mbmi->pb_mv_precision));
+#else
   // DV should not have sub-pel.
   assert((mv->as_mv.col & 7) == 0);
   assert((mv->as_mv.row & 7) == 0);
   mv->as_mv.col = (mv->as_mv.col >> 3) * 8;
   mv->as_mv.row = (mv->as_mv.row >> 3) * 8;
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
   int valid = is_mv_valid(&mv->as_mv) &&
               av1_is_dv_valid(mv->as_mv, cm, xd, mi_row, mi_col, bsize,
                               cm->mib_size_log2);
@@ -1620,7 +1640,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     // fr_mv_precision is not same as MV_PRECISION_ONE_PEL for intra-bc
     // blocks");
     set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
+#if CONFIG_IBC_SUBPEL_PRECISION
+    set_default_intraBC_bv_precision(mbmi);
+#else
     set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
     set_default_precision_set(cm, mbmi, bsize);
     set_most_probable_mv_precision(cm, mbmi, bsize);
 
@@ -1688,10 +1712,23 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     if (dv_ref.as_int == 0)
       av1_find_ref_dv(&dv_ref, &xd->tile, cm->mib_size, xd->mi_row);
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+    int valid_dv = 1;
+    assert(is_this_mv_precision_compliant(dv_ref.as_mv, mbmi->pb_mv_precision));
+    if (is_intraBC_bv_precision_active(mbmi->intrabc_mode)) {
+      int index = aom_read_symbol(r, ec_ctx->intrabc_bv_precision_cdf[0],
+                                  av1_intraBc_precision_sets.num_precisions,
+                                  ACCT_INFO());
+      mbmi->pb_mv_precision = av1_intraBc_precision_sets.precision[index];
+    }
+#else
     // Ref DV should not have sub-pel.
     int valid_dv = (dv_ref.as_mv.col & 7) == 0 && (dv_ref.as_mv.row & 7) == 0;
     dv_ref.as_mv.col = (dv_ref.as_mv.col >> 3) * 8;
     dv_ref.as_mv.row = (dv_ref.as_mv.row >> 3) * 8;
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
     valid_dv = valid_dv && assign_dv(cm, xd, &mbmi->mv[0], &dv_ref, xd->mi_row,
                                      xd->mi_col, bsize, r);
     if (!valid_dv) {
@@ -1699,6 +1736,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                          "Invalid intrabc dv");
     }
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+    assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
+                                          mbmi->pb_mv_precision));
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #if CONFIG_MORPH_PRED
 #if CONFIG_IMPROVED_MORPH_PRED

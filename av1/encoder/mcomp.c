@@ -37,6 +37,7 @@
 #include "aom_dsp/binary_codes_writer.h"
 #endif
 
+#if !CONFIG_IBC_SUBPEL_PRECISION
 static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
                                        const MvCosts *mv_costs,
                                        int is_adaptive_mvd, const MV *ref_mv,
@@ -60,6 +61,8 @@ static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
   mv_cost_params->is_ibc_cost = is_ibc_cost;
 #endif
 }
+
+#endif  //! CONFIG_IBC_SUBPEL_PRECISION
 
 static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
   ms_buffers->ref = &x->e_mbd.plane[0].pre[0];
@@ -187,11 +190,13 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
                                        const MV *ref_mv,
                                        const MvSubpelPrecision pb_mv_precision,
-
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                       const int is_ibc_cost,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
                                        const int *cost_list) {
   const AV1_COMMON *cm = &cpi->common;
 
-#if CONFIG_IBC_BV_IMPROVEMENT
+#if CONFIG_IBC_BV_IMPROVEMENT && !CONFIG_IBC_SUBPEL_PRECISION
   const int is_ibc_cost = 0;
 #endif
 
@@ -240,6 +245,13 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
         AOMMIN(ms_params->var_params.subpel_search_type, USE_2_TAPS);
   }
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+  if (is_ibc_cost) {
+    ms_params->var_params.subpel_search_type =
+        AOMMIN(ms_params->var_params.subpel_search_type, USE_2_TAPS);
+  }
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
   ms_params->var_params.w = block_size_wide[bsize];
   ms_params->var_params.h = block_size_high[bsize];
@@ -484,10 +496,19 @@ static INLINE int get_vq_col_mvd_cost(const MvCosts *mv_costs,
   cost =
       is_ibc_cost
           ? (dv_costs
+#if CONFIG_IBC_SUBPEL_PRECISION
+                 ? dv_costs
+                       ->dv_col_mv_greater_flags_costs[pb_mv_precision]
+                                                      [max_idx_bits][coded_col]
+                 : mv_costs
+                       ->dv_col_mv_greater_flags_costs[pb_mv_precision]
+                                                      [max_idx_bits][coded_col])
+#else
                  ? dv_costs
                        ->dv_col_mv_greater_flags_costs[max_idx_bits][coded_col]
                  : mv_costs
                        ->dv_col_mv_greater_flags_costs[max_idx_bits][coded_col])
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
           : mv_costs->col_mv_greater_flags_costs[pb_mv_precision][max_idx_bits]
                                                 [coded_col];
   if (max_coded_value > max_trunc_unary_value && col >= max_trunc_unary_value) {
@@ -536,8 +557,13 @@ static INLINE int get_vq_mvd_cost(const MV mv_diff,
   const int shell_index = (scaled_mv_diff.row) + (scaled_mv_diff.col);
   assert(shell_index <= ((2 * MV_MAX) >> start_lsb));
   const int *nmv_joint_shell_cost =
+#if CONFIG_IBC_SUBPEL_PRECISION
+      is_ibc_cost ? (dv_costs ? dv_costs->dv_joint_shell_cost[pb_mv_precision]
+                              : mv_costs->dv_joint_shell_cost[pb_mv_precision])
+#else
       is_ibc_cost ? (dv_costs ? dv_costs->dv_joint_shell_cost
                               : mv_costs->dv_joint_shell_cost)
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
                   : (mv_costs->nmv_joint_shell_cost[pb_mv_precision]);
   assert(nmv_joint_shell_cost);
   total_cost += nmv_joint_shell_cost[shell_index];
@@ -579,12 +605,24 @@ static INLINE int get_vq_mvd_cost(const MV mv_diff,
       assert(context_index < NUM_CTX_COL_MV_INDEX);
       col_cost +=
           is_ibc_cost
+#if CONFIG_IBC_SUBPEL_PRECISION
+              ? (dv_costs ? dv_costs->dv_col_mv_index_cost[pb_mv_precision]
+                                                          [context_index]
+                                                          [scaled_mv_diff.col >
+                                                           maximum_pair_index]
+                          : mv_costs->dv_col_mv_index_cost[pb_mv_precision]
+                                                          [context_index]
+                                                          [scaled_mv_diff.col >
+                                                           maximum_pair_index])
+#else
               ? (dv_costs ? dv_costs->dv_col_mv_index_cost[context_index]
                                                           [scaled_mv_diff.col >
                                                            maximum_pair_index]
                           : mv_costs->dv_col_mv_index_cost[context_index]
                                                           [scaled_mv_diff.col >
                                                            maximum_pair_index])
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
               : mv_costs->col_mv_index_cost[pb_mv_precision][context_index]
                                            [scaled_mv_diff.col >
                                             maximum_pair_index];
@@ -599,8 +637,16 @@ static INLINE int get_vq_mvd_cost(const MV mv_diff,
     if (value) {
       sign_costs +=
           is_ibc_cost
+#if CONFIG_IBC_SUBPEL_PRECISION
+              ? (dv_costs
+                     ? dv_costs
+                           ->dv_sign_cost[pb_mv_precision][component][value < 0]
+                     : mv_costs->dv_sign_cost[pb_mv_precision][component]
+                                             [value < 0])
+#else
               ? (dv_costs ? dv_costs->dv_sign_cost[component][value < 0]
                           : mv_costs->dv_sign_cost[component][value < 0])
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
               : mv_costs->nmv_sign_cost[component][value < 0];
     }
   }
@@ -674,12 +720,22 @@ static INLINE int get_mv_cost_with_precision(
 }
 
 static INLINE int get_intrabc_mv_cost_with_precision(
-    const MV diff, const IntraBCMvCosts *dv_costs, int weight, int round_bits) {
+    const MV diff, const IntraBCMvCosts *dv_costs, int weight, int round_bits
+#if CONFIG_IBC_SUBPEL_PRECISION
+    ,
+    MvSubpelPrecision precision
+#endif
+) {
 #if CONFIG_VQ_MVD_CODING
   if (dv_costs) {
     return (int)ROUND_POWER_OF_TWO_64(
-        (int64_t)get_vq_mvd_cost(diff, MV_PRECISION_ONE_PEL, NULL, 0, 1,
-                                 dv_costs) *
+        (int64_t)get_vq_mvd_cost(diff,
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                 precision,
+#else
+                                 MV_PRECISION_ONE_PEL,
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+                                 NULL, 0, 1, dv_costs) *
             weight,
         round_bits);
   }
@@ -741,9 +797,19 @@ int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
 }
 
 int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
-                            const IntraBCMvCosts *mv_costs, int weight) {
+                            const IntraBCMvCosts *mv_costs, int weight
+#if CONFIG_IBC_SUBPEL_PRECISION
+                            ,
+                            MvSubpelPrecision precision
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+) {
   const MV diff = { mv->row - ref_mv->row, mv->col - ref_mv->col };
-  return get_intrabc_mv_cost_with_precision(diff, mv_costs, weight, 7);
+  return get_intrabc_mv_cost_with_precision(diff, mv_costs, weight, 7
+#if CONFIG_IBC_SUBPEL_PRECISION
+                                            ,
+                                            precision
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+  );
 }
 // Returns the cost of using the current mv during the motion search. This is
 // used when var is used as the error metric.
@@ -2804,7 +2870,8 @@ int av1_get_ref_mvpred_var_cost(const AV1_COMP *cpi, const MACROBLOCKD *xd,
     return INT_MAX;
 
   FULLPEL_MV cur_mv = get_fullmv_from_mv(dv);
-  if (!av1_is_fullmv_in_range(mv_limits, cur_mv, MV_PRECISION_ONE_PEL))
+  if (!av1_is_fullmv_in_range(mv_limits, cur_mv,
+                              ms_params->mv_cost_params.pb_mv_precision))
     return INT_MAX;
 
   int cost = get_mvpred_var_cost(ms_params, &cur_mv) -
@@ -2828,9 +2895,14 @@ void get_default_ref_bv(int_mv *cur_ref_bv,
     const int mi_row = fullms_params->mi_row;
     av1_find_ref_dv(cur_ref_bv, tile, cm->mib_size, mi_row);
   }
+#if CONFIG_IBC_SUBPEL_PRECISION
+  is_this_mv_precision_compliant(cur_ref_bv->as_mv,
+                                 fullms_params->mv_cost_params.pb_mv_precision);
+#else
   // Ref DV should not have sub-pel.
   assert((cur_ref_bv->as_mv.col & 7) == 0);
   assert((cur_ref_bv->as_mv.row & 7) == 0);
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 }
 
 int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx,
@@ -2850,9 +2922,7 @@ int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
                              int max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-                             MACROBLOCK *x,
-                             FULLPEL_MOTION_SEARCH_PARAMS fullms_params,
-                             int ref_bv_cnt) {
+                             MACROBLOCK *x, int errorperbit, int ref_bv_cnt) {
   (void)ref_bv_cnt;
   int ref_bv_cost = 0;
   ref_bv_cost += x->mode_costs.intrabc_mode_cost[intrabc_mode];
@@ -2863,7 +2933,7 @@ int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
       av1_get_intrabc_drl_idx_cost(MAX_REF_BV_STACK_SIZE, intrabc_drl_idx, x);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   ref_bv_cost = (int)ROUND_POWER_OF_TWO_64(
-      (int64_t)ref_bv_cost * fullms_params.mv_cost_params.mv_costs->errorperbit,
+      (int64_t)ref_bv_cost * errorperbit,
       RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT + 4);
 
   return ref_bv_cost;
@@ -2903,15 +2973,17 @@ int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
     av1_set_mv_search_range(&ref_bv_ms_params.mv_limits, &cur_ref_bv.as_mv,
                             mbmi->pb_mv_precision);
     if (!av1_is_fullmv_in_range(&ref_bv_ms_params.mv_limits, *best_full_mv,
-                                MV_PRECISION_ONE_PEL))
+                                mbmi->pb_mv_precision))
       continue;
 
     cur_ref_bv_cost =
-        av1_get_ref_bv_rate_cost(0, cur_intrabc_drl_idx,
+        av1_get_ref_bv_rate_cost(
+            0, cur_intrabc_drl_idx,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-                                 max_bvp_drl_bits,
+            max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-                                 x, ref_bv_ms_params, ref_bv_cnt) +
+            x, ref_bv_ms_params.mv_cost_params.mv_costs->errorperbit,
+            ref_bv_cnt) +
         av1_get_mv_err_cost(&best_mv, &ref_bv_ms_params.mv_cost_params);
 
     if (cur_ref_bv_cost < best_ref_bv_cost) {
@@ -3330,10 +3402,14 @@ static INLINE int estimated_pref_error(
 }
 
 // Calculates the variance of prediction residue.
-static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
-                                const MV *this_mv,
-                                const SUBPEL_SEARCH_VAR_PARAMS *var_params,
-                                unsigned int *sse) {
+#if !CONFIG_IBC_SUBPEL_PRECISION
+static
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+    int
+    upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
+                         const MV *this_mv,
+                         const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+                         unsigned int *sse) {
   const aom_variance_fn_ptr_t *vfp = var_params->vfp;
   const SUBPEL_SEARCH_TYPE subpel_search_type = var_params->subpel_search_type;
 
@@ -4793,6 +4869,227 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
   return besterr;
 }
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+// Check the diagonal MVS at the second level of search
+static AOM_FORCE_INLINE void second_level_check_v2_intraBC(
+    MACROBLOCKD *xd, const AV1_COMMON *const cm, const MV iter_center_mv,
+    MV diag_step, MV *best_mv, const SubpelMvLimits *sub_pel_mv_limits,
+    FullMvLimits *full_pel_mv_limits,
+    const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+    const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
+    unsigned int *sse1, int *distortion, BLOCK_SIZE bsize) {
+  assert(best_mv->row == iter_center_mv.row + diag_step.row ||
+         best_mv->col == iter_center_mv.col + diag_step.col);
+  if (CHECK_MV_EQUAL(iter_center_mv, *best_mv)) {
+    return;
+  } else if (iter_center_mv.row == best_mv->row) {
+    // Search away from diagonal step since diagonal search did not provide any
+    // improvement
+    diag_step.row *= -1;
+  } else if (iter_center_mv.col == best_mv->col) {
+    diag_step.col *= -1;
+  }
+
+  const MV row_bias_mv = { best_mv->row + diag_step.row, best_mv->col };
+  const MV col_bias_mv = { best_mv->row, best_mv->col + diag_step.col };
+  const MV diag_bias_mv = { best_mv->row + diag_step.row,
+                            best_mv->col + diag_step.col };
+  int has_better_mv = 0;
+
+  if (is_sub_pel_bv_valid(row_bias_mv, cm, xd, xd->mi_row, xd->mi_col, bsize,
+                          sub_pel_mv_limits, full_pel_mv_limits,
+                          mv_cost_params->pb_mv_precision)) {
+    check_better(xd, cm, &row_bias_mv, best_mv, sub_pel_mv_limits, var_params,
+                 mv_cost_params, besterr, sse1, distortion, &has_better_mv);
+  }
+
+  if (is_sub_pel_bv_valid(col_bias_mv, cm, xd, xd->mi_row, xd->mi_col, bsize,
+                          sub_pel_mv_limits, full_pel_mv_limits,
+                          mv_cost_params->pb_mv_precision)) {
+    check_better(xd, cm, &col_bias_mv, best_mv, sub_pel_mv_limits, var_params,
+                 mv_cost_params, besterr, sse1, distortion, &has_better_mv);
+  }
+
+  // Do an additional search if the second iteration gives a better mv
+  if (has_better_mv) {
+    if (is_sub_pel_bv_valid(diag_bias_mv, cm, xd, xd->mi_row, xd->mi_col, bsize,
+                            sub_pel_mv_limits, full_pel_mv_limits,
+                            mv_cost_params->pb_mv_precision)) {
+      check_better(xd, cm, &diag_bias_mv, best_mv, sub_pel_mv_limits,
+                   var_params, mv_cost_params, besterr, sse1, distortion,
+                   &has_better_mv);
+    }
+  }
+}
+
+// Search around best integer pixel position
+int av1_find_best_sub_pixel_intraBC_dv(
+    MACROBLOCKD *xd, const AV1_COMMON *const cm,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
+    int *distortion, unsigned int *sse1, FullMvLimits *full_pel_mv_limits,
+    BLOCK_SIZE bsize) {
+  const int forced_stop = ms_params->forced_stop;
+  const int iters_per_step = ms_params->iters_per_step;
+  const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
+  const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
+  const SubpelMvLimits *sub_pel_mv_limits = &ms_params->mv_limits;
+  assert(mv_cost_params->is_ibc_cost);
+  assert(is_this_mv_precision_compliant(start_mv,
+                                        mv_cost_params->pb_mv_precision));
+  assert(is_sub_pel_bv_valid(start_mv, cm, xd, xd->mi_row, xd->mi_col, bsize,
+                             sub_pel_mv_limits, full_pel_mv_limits,
+                             mv_cost_params->pb_mv_precision));
+  assert(av1_is_fullmv_in_range(full_pel_mv_limits,
+                                get_fullmv_from_mv(&start_mv),
+                                mv_cost_params->pb_mv_precision));
+
+  // How many steps to take. A round of 0 means fullpel search only, 1 means
+  // half-pel, and so on.
+
+  const int round =
+      (mv_cost_params->pb_mv_precision >= MV_PRECISION_ONE_PEL)
+          ? AOMMIN(FULL_PEL - forced_stop,
+                   mv_cost_params->pb_mv_precision - MV_PRECISION_ONE_PEL)
+          : 0;
+
+  int hstep = INIT_SUBPEL_STEP_SIZE;  // Step size, initialized to 4/8=1/2 pel
+
+  unsigned int besterr = INT_MAX;
+
+  *bestmv = start_mv;
+  besterr = upsampled_setup_center_error(xd, cm, bestmv, var_params,
+                                         mv_cost_params, sse1, distortion);
+
+  // printf(" subpel_search_type = %d \n", var_params->subpel_search_type);
+
+  // If forced_stop is FULL_PEL, return.
+  if (!round) return besterr;
+
+  for (int iter = 0; iter < round; ++iter) {
+    MV iter_center_mv = *bestmv;
+
+    int dummy = 0;
+    unsigned int costs[4] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX };
+    const MV neighbor_mvs[4] = {
+      { iter_center_mv.row, iter_center_mv.col - hstep },  // left
+      { iter_center_mv.row, iter_center_mv.col + hstep },  // right
+      { iter_center_mv.row - hstep, iter_center_mv.col },  // top
+      { iter_center_mv.row + hstep, iter_center_mv.col }   // bottom
+    };
+
+    for (int k = 0; k < 4; k++) {
+      if (is_sub_pel_bv_valid(neighbor_mvs[k], cm, xd, xd->mi_row, xd->mi_col,
+                              bsize, sub_pel_mv_limits, full_pel_mv_limits,
+                              mv_cost_params->pb_mv_precision)) {
+        costs[k] = check_better(xd, cm, &neighbor_mvs[k], bestmv,
+                                sub_pel_mv_limits, var_params, mv_cost_params,
+                                &besterr, sse1, distortion, &dummy);
+      }
+    }
+
+    const MV diag_step =
+        get_best_diag_step(hstep, costs[0], costs[1], costs[2], costs[3]);
+    const MV diag_mv = { iter_center_mv.row + diag_step.row,
+                         iter_center_mv.col + diag_step.col };
+
+    // Check the diagonal direction with the best mv
+    if (is_sub_pel_bv_valid(diag_mv, cm, xd, xd->mi_row, xd->mi_col, bsize,
+                            sub_pel_mv_limits, full_pel_mv_limits,
+                            mv_cost_params->pb_mv_precision)) {
+      check_better(xd, cm, &diag_mv, bestmv, sub_pel_mv_limits, var_params,
+                   mv_cost_params, &besterr, sse1, distortion, &dummy);
+    }
+
+    // Check diagonal sub-pixel position
+    if (!CHECK_MV_EQUAL(iter_center_mv, *bestmv) && iters_per_step > 1) {
+      second_level_check_v2_intraBC(xd, cm, iter_center_mv, diag_step, bestmv,
+                                    sub_pel_mv_limits, full_pel_mv_limits,
+                                    var_params, mv_cost_params, &besterr, sse1,
+                                    distortion, bsize);
+    }
+    hstep >>= 1;
+  }
+
+  return besterr;
+}
+
+#if CONFIG_IBC_SUBPEL_PRECISION
+int av1_refine_low_precision_intraBC_dv(
+    MACROBLOCKD *xd, const AV1_COMMON *const cm,
+    const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
+    int *distortion, unsigned int *sse1, FullMvLimits *full_pel_mv_limits,
+    BLOCK_SIZE bsize) {
+  const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
+  const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
+  const SubpelMvLimits *sub_pel_mv_limits = &ms_params->mv_limits;
+  assert(mv_cost_params->is_ibc_cost);
+  assert(is_this_mv_precision_compliant(start_mv,
+                                        mv_cost_params->pb_mv_precision));
+
+  const int hstep =
+      (1 << (MV_PRECISION_ONE_EIGHTH_PEL - mv_cost_params->pb_mv_precision));
+  unsigned int besterr = INT_MAX;
+
+  *bestmv = start_mv;
+  if (is_sub_pel_bv_valid(start_mv, cm, xd, xd->mi_row, xd->mi_col, bsize,
+                          sub_pel_mv_limits, full_pel_mv_limits,
+                          mv_cost_params->pb_mv_precision)) {
+    besterr = upsampled_setup_center_error(xd, cm, bestmv, var_params,
+                                           mv_cost_params, sse1, distortion);
+  }
+
+  MV iter_center_mv = *bestmv;
+  int num_of_search_steps = 3;
+  for (int step = 0; step < num_of_search_steps; step++) {
+    int best_site = -1;
+
+    MV neighbor_mvs[8] = {
+      { iter_center_mv.row, iter_center_mv.col - hstep },  // left
+      { iter_center_mv.row, iter_center_mv.col + hstep },  // right
+      { iter_center_mv.row - hstep, iter_center_mv.col },  // top
+      { iter_center_mv.row + hstep, iter_center_mv.col },  // bottom
+      { iter_center_mv.row + hstep, iter_center_mv.col - hstep },
+      { iter_center_mv.row + hstep, iter_center_mv.col + hstep },
+      { iter_center_mv.row - hstep, iter_center_mv.col - hstep },
+      { iter_center_mv.row - hstep, iter_center_mv.col + hstep }
+    };
+
+    for (int k = 0; k < 8; k++) {
+      MV this_mv = neighbor_mvs[k];
+      assert(is_this_mv_precision_compliant(this_mv,
+                                            mv_cost_params->pb_mv_precision));
+
+      if (is_sub_pel_bv_valid(this_mv, cm, xd, xd->mi_row, xd->mi_col, bsize,
+                              sub_pel_mv_limits, full_pel_mv_limits,
+                              mv_cost_params->pb_mv_precision)) {
+        unsigned int sse;
+        unsigned int this_cost =
+            upsampled_pref_error(xd, cm, &this_mv, var_params, &sse);
+        this_cost += mv_err_cost(this_mv, mv_cost_params);
+        if (this_cost < besterr) {
+          besterr = this_cost;
+          *bestmv = this_mv;
+          best_site = k;
+        }
+      }
+    }
+
+    if (best_site == -1) {
+      break;
+    } else {
+      iter_center_mv.row = bestmv->row;
+      iter_center_mv.col = bestmv->col;
+      assert(bestmv->row == neighbor_mvs[best_site].row);
+      assert(bestmv->col == neighbor_mvs[best_site].col);
+    }
+  }
+
+  return besterr;
+}
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
+
+#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 // Note(yunqingwang): The following 2 functions are only used in the motion
 // vector unit test, which return extreme motion vectors allowed by the MV
