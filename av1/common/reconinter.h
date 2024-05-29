@@ -768,11 +768,11 @@ static INLINE int is_affine_refinement_allowed(const AV1_COMMON *cm,
 // applied.
 static INLINE int damr_refine_subblock(int plane, const int bw, const int bh,
                                        CompoundRefineType comp_refine_type,
-                                       const int n) {
-  if (n > bw || n > bh) return 0;
-  if (plane == 0 && n == bw && n == bh) return 0;
+                                       int opfl_sub_bw, int opfl_sub_bh) {
+  if (opfl_sub_bw > bw || opfl_sub_bh > bh) return 0;
+  if (plane == 0 && opfl_sub_bw == bw && opfl_sub_bh == bh) return 0;
 #if !CONFIG_EXT_WARP_FILTER
-  if (n < 8 || bw < 8 || bh < 8) return 0;
+  if (opfl_sub_bw < 8 || opfl_sub_bh < 8 || bw < 8 || bh < 8) return 0;
 #endif  // !CONFIG_EXT_WARP_FILTER
 
 #if AFFINE_CHROMA_REFINE_METHOD == 2

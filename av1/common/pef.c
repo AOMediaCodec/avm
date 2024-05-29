@@ -261,18 +261,25 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   if (pef_mode == 1 && (bw < PEF_MCU_SZ || bh < PEF_MCU_SZ)) return;
   const int plane = pef_input->plane;
 
-  int n = PEF_MCU_SZ;  // n is motion compensation unit size
+  const int sub_bsize_y = PEF_MCU_SZ;  // n is motion compensation unit size
+  int sub_bw = sub_bsize_y;
+  int sub_bh = sub_bsize_y;
 #if CONFIG_OPTFLOW_REFINEMENT
-  if (pef_mode == 0)
-    n = opfl_get_subblock_size(bw, bh, plane
+  if (pef_mode == 0) {
+    opfl_subblock_size_plane(xd, plane
 #if CONFIG_OPTFLOW_ON_TIP
-                               ,
-                               1
+                             ,
+                             1
 #endif  // CONFIG_OPTFLOW_ON_TIP
-    );
+                             ,
+                             &sub_bw, &sub_bh);
+  }
 #endif  // CONFIG_OPTFLOW_REFINEMENT
 #if CONFIG_EXT_WARP_FILTER
-  if (pef_mode == 4) n = PEF_MCU_SZ / 2;
+  if (pef_mode == 4) {
+    sub_bw = PEF_MCU_SZ / 2;
+    sub_bh = PEF_MCU_SZ / 2;
+  }
 #endif  // CONFIG_EXT_WARP_FILTER
 
   const int bit_depth = pef_input->bit_depth;
@@ -290,7 +297,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
   const bool filter_horz = q_horz && side_horz;
   const bool filter_vert = q_vert && side_vert;
   if (!filter_horz && !filter_vert) return;
-  const int filt_len = n == PEF_MCU_SZ ? 3 : 1;
+  const int filt_len = sub_bw == PEF_MCU_SZ ? 3 : 1;
   const int q_mult = pef_q_mult[filt_len - 1];
   const int w_mult = pef_w_mult[filt_len - 1];
 
@@ -331,10 +338,10 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
     ref_start_pixel_col = AOMMAX(0, ref_start_pixel_col);
     ref_start_pixel_row = AOMMIN(frame_h, ref_start_pixel_row);
     ref_start_pixel_col = AOMMIN(frame_w, ref_start_pixel_col);
-    x_offset = (ref_start_pixel_col >> ss_x) % n;
-    y_offset = (ref_start_pixel_row >> ss_y) % n;
-    if (x_offset) x_offset = n - x_offset;
-    if (y_offset) y_offset = n - y_offset;
+    x_offset = (ref_start_pixel_col >> ss_x) % sub_bw;
+    y_offset = (ref_start_pixel_row >> ss_y) % sub_bh;
+    if (x_offset) x_offset = sub_bw - x_offset;
+    if (y_offset) y_offset = sub_bh - y_offset;
 
     max_tpl_row = frame_h >> TMVP_MI_SZ_LOG2;
     max_tpl_col = frame_w >> TMVP_MI_SZ_LOG2;
@@ -348,36 +355,36 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
 
   // initialize x_step and y_step based on blockiness location
 #if CONFIG_TIP_REF_PRED_MERGING
-  int last_col_x_step = n;
-  int x_step = n;
+  int last_col_x_step = sub_bw;
+  int x_step = sub_bw;
 
-  int last_row_y_step = n;
-  int y_step = n;
+  int last_row_y_step = sub_bh;
+  int y_step = sub_bh;
 #else
-  int first_col_x_step = n;
-  int last_col_x_step = n;
-  int x_step = n;
+  int first_col_x_step = sub_bw;
+  int last_col_x_step = sub_bw;
+  int x_step = sub_bw;
   if (x_offset) {
     first_col_x_step = x_offset;
-    last_col_x_step = n - x_offset;
+    last_col_x_step = sub_bw - x_offset;
     x_step = first_col_x_step;
   }
 
-  int first_row_y_step = n;
-  int last_row_y_step = n;
-  int y_step = n;
+  int first_row_y_step = sub_bh;
+  int last_row_y_step = sub_bh;
+  int y_step = sub_bh;
   if (y_offset) {
     first_row_y_step = y_offset;
-    last_row_y_step = n - y_offset;
+    last_row_y_step = sub_bh - y_offset;
     y_step = first_row_y_step;
   }
 #endif  // CONFIG_TIP_REF_PRED_MERGING
 
   // start filtering
-  const int wn = bw / n;
+  const int wn = bw / sub_bw;
   const int h = bh - last_row_y_step;
   const int w = bw - last_col_x_step;
-  const int rw = bw - (bw % n);
+  const int rw = bw - (bw % sub_bw);
   int prev_y_step = y_step;
   int prev_x_step = x_step;
   int n_blocks = 0;
@@ -390,7 +397,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
       if (j == h)
         y_step = last_row_y_step;
       else if (j > 0)
-        y_step = n;
+        y_step = sub_bh;
       else  // j == 0
         y_step = first_row_y_step;
     }
@@ -405,7 +412,7 @@ static INLINE void enhance_sub_prediction_blocks(const AV1_COMMON *cm,
         if (i == w)
           x_step = last_col_x_step;
         else if (i > 0)
-          x_step = n;
+          x_step = sub_bw;
         else  // i == 0
           x_step = first_col_x_step;
       }
