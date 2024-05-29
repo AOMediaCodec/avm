@@ -2610,6 +2610,8 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
       qp > (params[i].qp_high + qp_offset) ||
       qp < (params[i].qp_low + qp_offset);
   }
+  // use intra model only for key frames for now
+  model_disabled[0] |= !key_frame;
   model_disabled[1] |= key_frame;
   if (xd->tree_type == CHROMA_PART || (model_disabled[0] && model_disabled[1]))
     return ML_PART_NOT_SURE;
@@ -2653,7 +2655,6 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     }
   }
   int final_vote = 255;
-  //vote[0] = PART_SPLIT_ML_NOT_SURE;
   if (vote[0] == ML_PART_NOT_SURE)
     final_vote = vote[1];
   else if (vote[1] == ML_PART_NOT_SURE)
