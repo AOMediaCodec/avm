@@ -3448,12 +3448,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       }
 #endif
       if (p == AOM_PLANE_Y) {
-#if CONFIG_LR_FLEX_SYNTAX
-        // TODO: Figure out how to set this and clean up.
+        // TODO: Figure out how to set this with CONFIG_LR_FLEX_SYNTAX.
         int read_num_classes = 1;
-#else
-        int read_num_classes = 1;
-#endif  // #if CONFIG_LR_FLEX_SYNTAX
         read_num_classes = read_num_classes && NUM_WIENERNS_CLASS_INIT_LUMA > 1;
         if (read_num_classes) {
           rsi->frame_filters_on = aom_rb_read_literal(rb, 1);
@@ -3879,11 +3875,6 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
     for (ref = 0; ref < bank->bank_size_for_class[c_id] - 1; ++ref) {
       if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
     }
-    if (exact_match) {
-      copy_nsfilter_taps_for_class(
-          wienerns_info, av1_constref_from_wienerns_bank(bank, ref, c_id),
-          c_id);
-    }
     wienerns_info->bank_ref_for_class[c_id] = ref;
     skip_filter_read_for_class[c_id] = exact_match;
     ref_for_class[c_id] = ref;
@@ -3982,7 +3973,7 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
     ,
     int16_t *match_filter_dictionary, int dict_stride
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
-    ) {
+) {
   const RestorationInfo *rsi = &cm->rst_info[plane];
   RestorationUnitInfo *rui = &rsi->unit_info[runit_idx];
   assert(rsi->frame_restoration_type != RESTORE_NONE);
@@ -4007,24 +3998,15 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(
 #endif
     }
   }
-#if CONFIG_LR_IMPROVEMENTS
   rui->wienerns_info.frame_filters_on = rsi->frame_filters_on;
 #if CONFIG_TEMP_LR
   rui->wienerns_info.temporal_pred_flag = rsi->temporal_pred_flag;
 #endif
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-  // to be updated, should define frame_cross_filters_on in rsi to support frame
-  // level filter for cross filter
-  rui->wienerns_cross_info.frame_filters_on = 0;
-#endif
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
-#if CONFIG_WIENER_NONSEP
+#if CONFIG_LR_IMPROVEMENTS
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
 #if CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
   rui->wienerns_info.num_classes_before_merge = rsi->num_classes_before_merge;
-#endif
-#if CONFIG_TEMP_LR
-  rui->wienerns_cross_info.temporal_pred_flag = 0;
 #endif
 #endif  // CONFIG_LR_IMPROVEMENTS
 

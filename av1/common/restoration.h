@@ -581,8 +581,8 @@ typedef struct {
    * Class indices of each class merges to.
    */
   int merged_to_indices[WIENERNS_MAX_CLASSES];
-#endif //CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
-#endif // CONFIG_LR_IMPROVEMENTS
+#endif  // CONFIG_FLEX_MERGE_MULTI_CLASS_NS_WIENER
+#endif  // CONFIG_LR_IMPROVEMENTS
 #if CONFIG_TEMP_LR
   /*!
    * whether frame filter is predicted from a reference picture
@@ -854,7 +854,8 @@ void set_restoration_unit_size(int width, int height, int sx, int sy,
 #endif  // CONFIG_LR_IMPROVEMENTS
 
 #if CONFIG_TEMP_LR
-void av1_copy_rst_frame_filters(RestorationInfo *to, RestorationInfo *from);
+void av1_copy_rst_frame_filters(RestorationInfo *to,
+                                const RestorationInfo *from);
 #endif  // CONFIG_TEMP_LR
 
 #if CONFIG_NEW_CLASSIFY_NS_WIENER

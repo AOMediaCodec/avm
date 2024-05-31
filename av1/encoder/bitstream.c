@@ -4337,10 +4337,11 @@ static AOM_INLINE void encode_restoration_mode(
     const int is_wiener_nonsep_possible =
         rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
-    if (is_wiener_nonsep_possible)
-      assert(rsi->num_filter_classes == (p == AOM_PLANE_Y
-                                             ? NUM_WIENERNS_CLASS_INIT_LUMA
-                                             : NUM_WIENERNS_CLASS_INIT_CHROMA));
+//    if (is_wiener_nonsep_possible)
+//      assert(rsi->num_filter_classes == (p == AOM_PLANE_Y
+//                                             ? NUM_WIENERNS_CLASS_INIT_LUMA
+//                                             :
+//                                             NUM_WIENERNS_CLASS_INIT_CHROMA));
 #else
     switch (rsi->frame_restoration_type) {
       case RESTORE_NONE:
@@ -4362,20 +4363,13 @@ static AOM_INLINE void encode_restoration_mode(
       default: assert(0);
     }
 #endif  // CONFIG_LR_IMPROVEMENTS
-#if CONFIG_WIENER_NONSEP
-    const int is_wiener_nonsep_possible =
-        rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
-        rsi->frame_restoration_type == RESTORE_SWITCHABLE;
+#if CONFIG_LR_IMPROVEMENTS
     if (is_wiener_nonsep_possible) {
 #if CONFIG_COMBINE_PC_NS_WIENER
       rsi->frame_filters_initialized = 0;
       if (p == AOM_PLANE_Y) {
-#if CONFIG_LR_FLEX_SYNTAX
-        // TODO: Figure out how to set this and clean up.
+        // TODO: Figure out how to set this for CONFIG_LR_FLEX_SYNTAX.
         int write_num_classes = 1;
-#else
-        int write_num_classes = 1;
-#endif  // #if CONFIG_LR_FLEX_SYNTAX
         write_num_classes =
             write_num_classes && NUM_WIENERNS_CLASS_INIT_LUMA > 1;
         if (write_num_classes) {
@@ -4470,13 +4464,7 @@ static AOM_INLINE void encode_restoration_mode(
       assert(rsi->frame_filters_on == 0);
     }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
-#endif  // CONFIG_WIENER_NONSEP
-
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-    if (p > 0) {
-      aom_wb_write_bit(wb, rsi->frame_cross_restoration_type != RESTORE_NONE);
-    }
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+#endif  // CONFIG_LR_IMPROVEMENTS
   }
 #if CONFIG_LR_IMPROVEMENTS
   int size = cm->rst_info[0].max_restoration_unit_size;

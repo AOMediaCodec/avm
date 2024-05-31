@@ -3049,13 +3049,7 @@ void fill_first_slot_of_bank_with_filter_match(
 
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
-      get_wienerns_parameters(base_qindex, is_uv
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-                              ,
-                              /*is_cross=*/0);
-#else
-      );
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+      get_wienerns_parameters(base_qindex, is_uv);
 
   WienerNonsepInfo tmp_filter;
   tmp_filter.num_classes = reference->num_classes;
@@ -3083,7 +3077,8 @@ void fill_first_slot_of_bank_with_filter_match(
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_TEMP_LR
-void av1_copy_rst_frame_filters(RestorationInfo *to, RestorationInfo *from) {
+void av1_copy_rst_frame_filters(RestorationInfo *to,
+                                const RestorationInfo *from) {
   assert(from->frame_filters_on);
 #if 0
   *to = *from;

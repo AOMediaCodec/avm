@@ -233,8 +233,6 @@ set_aom_config_var(
     CONFIG_NEW_CLASSIFY_NS_WIENER 0 NUMBER
     "AV2 pixel-classified, frame-level, with new classification nonsep Wiener filter experiment flag")
 
-set_aom_config_var(CONFIG_HIGH_PASS_CROSS_WIENER_FILTER 1
-                   "AV2 high pass cross non-sep wiener filter experiment flag")
 set_aom_config_var(
   CONFIG_IMPROVED_DS_CC_WIENER 1
   "AV2 improved luma downsampling for high pass cross non-sep wiener filter")

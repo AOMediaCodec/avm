@@ -358,9 +358,8 @@ void av1_add_to_wienerns_bank(WienerNonsepInfoBank *bank,
 // Returns the filter that is at slot ndx from last. When ndx is zero the last
 // filter added is returned. When ndx is one the filter added before the last
 // and so on.
-static WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
-                                                    int ndx,
-                                                    int wiener_class_id) {
+WienerNonsepInfo *av1_ref_from_wienerns_bank(WienerNonsepInfoBank *bank,
+                                             int ndx, int wiener_class_id) {
   assert(wiener_class_id != ALL_WIENERNS_CLASSES);
   if (bank->bank_size_for_class[wiener_class_id] == 0) {
     assert(ndx == 0);
@@ -480,13 +479,7 @@ void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
   const int base_qindex = cm->quant_params.base_qindex;
   const int is_uv = 0;
   const WienernsFilterParameters *nsfilter_params =
-      get_wienerns_parameters(base_qindex, is_uv
-#if CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
-                              ,
-                              /*is_cross=*/0);
-#else
-      );
-#endif  // CONFIG_HIGH_PASS_CROSS_WIENER_FILTER
+      get_wienerns_parameters(base_qindex, is_uv);
 
   assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
   const int num_feat = nsfilter_params->ncoeffs;
