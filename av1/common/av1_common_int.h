@@ -1878,8 +1878,8 @@ typedef struct AV1Common {
 
 /*!\cond */
 #if CONFIG_COMBINE_PC_NS_WIENER
-#define PRINT_FILTER 1
-#define PRINT_REFS 1
+#define PRINT_FILTER 0
+#define PRINT_REFS 0
 int16_t *allocate_match_filter_dictionary(int *dict_stride);
 void free_match_filter_dictionary(int16_t *match_filter_dictionary,
                                   int *dict_stride);

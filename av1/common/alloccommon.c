@@ -67,6 +67,7 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
   if (cm->match_filter_dictionary == NULL) {
     cm->match_filter_dictionary =
         allocate_match_filter_dictionary(&cm->match_dictionary_stride);
+    translate_filters(cm);
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 

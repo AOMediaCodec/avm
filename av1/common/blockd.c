@@ -470,6 +470,54 @@ void free_match_filter_dictionary(int16_t *match_filter_dictionary,
   *dict_stride = 0;
 }
 
+static int16_t translated_pcwiener_filters[NUM_PC_WIENER_FILTERS]
+                                          [NUM_PC_WIENER_TAPS_LUMA];
+
+void translate_filters(const AV1_COMMON *cm) {
+  static int is_translated = 0;
+  if (is_translated) {
+    return;
+  }
+  const int base_qindex = cm->quant_params.base_qindex;
+  const int is_uv = 0;
+  const WienernsFilterParameters *nsfilter_params =
+      get_wienerns_parameters(base_qindex, is_uv);
+  assert(nsfilter_params->ncoeffs <= NUM_PC_WIENER_TAPS_LUMA);
+  const int num_feat = nsfilter_params->ncoeffs;
+
+  int tap_translator[WIENERNS_YUV_MAX];
+  const int num_taps = wienerns_to_pcwiener_translator(
+      &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_YUV_MAX);
+  assert(num_taps == num_feat);
+  const int set_index =
+      0;  // get_filter_set_index(base_qindex + qindex_offset);
+
+  const int num_pc_wiener_filters = NUM_PC_WIENER_FILTERS;
+  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int16_t(*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA] =
+      get_filter_set(set_index);
+  const int precision_diff =
+      PC_WIENER_PREC_FILTER - nsfilter_params->nsfilter_config.prec_bits;
+  assert(precision_diff >= 0);
+
+  for (int pc_wiener_cnt = 0; pc_wiener_cnt < num_pc_wiener_filters;
+       ++pc_wiener_cnt) {
+    int filter_index = pc_wiener_cnt;
+    const int16_t *pcwiener_filter = pcwiener_filters_luma[filter_index];
+
+    const int dict_index = pc_wiener_cnt;
+
+    for (int i = 0; i < num_feat; ++i) {
+      const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
+          pcwiener_filter[tap_translator[i]], precision_diff);
+      translated_pcwiener_filters[dict_index][i] = clip_to_wienerns_range(
+          scaled_tap, wienerns_coeffs[i][WIENERNS_MIN_ID],
+          (1 << wienerns_coeffs[i][WIENERNS_BIT_ID]));
+    }
+  }
+  is_translated = 1;
+}
+
 // TODO: Clean this up into a container, probably rsi.
 void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
                                       int16_t *match_filter_dictionary,
@@ -549,23 +597,10 @@ void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
   // ---------------------------------------------------------------------------
 
   // Sample from the pc-wiener filters for the remaining allowed slots. --------
-  int tap_translator[WIENERNS_YUV_MAX];
-  const int num_taps = wienerns_to_pcwiener_translator(
-      &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_YUV_MAX);
-  assert(num_taps == num_feat);
-  const int set_index =
-      0;  // get_filter_set_index(base_qindex + qindex_offset);
-
   const int num_pc_wiener_filters =
       num_sampled_pc_wiener_filters(num_ref_filters, num_classes);
   assert(num_pc_wiener_filters >= 0 &&
          num_pc_wiener_filters <= NUM_PC_WIENER_FILTERS);
-  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
-  const int16_t(*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA] =
-      get_filter_set(set_index);
-  const int precision_diff =
-      PC_WIENER_PREC_FILTER - nsfilter_params->nsfilter_config.prec_bits;
-  assert(precision_diff >= 0);
 
   const int pc_wiener_skip = num_pc_wiener_filters
                                  ? NUM_PC_WIENER_FILTERS / num_pc_wiener_filters
@@ -579,7 +614,7 @@ void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
       filter_index = NUM_PC_WIENER_FILTERS - 1;
     }
 
-    const int16_t *pcwiener_filter = pcwiener_filters_luma[filter_index];
+    const int16_t *pcwiener_filter = translated_pcwiener_filters[filter_index];
 
     const int dict_index = ref_filter_offset + num_ref_filters + pc_wiener_cnt;
     assert(dict_index < max_predictors);
@@ -589,11 +624,7 @@ void set_base_match_filter_dictionary(const AV1_COMMON *cm, int num_classes,
 
     int16_t *match_filter = match_filter_dictionary + dict_index * dict_stride;
     for (int i = 0; i < num_feat; ++i) {
-      const int16_t scaled_tap = ROUND_POWER_OF_TWO_SIGNED(
-          pcwiener_filter[tap_translator[i]], precision_diff);
-      match_filter[i] = clip_to_wienerns_range(
-          scaled_tap, wienerns_coeffs[i][WIENERNS_MIN_ID],
-          (1 << wienerns_coeffs[i][WIENERNS_BIT_ID]));
+      match_filter[i] = pcwiener_filter[i];
     }
   }
   // ---------------------------------------------------------------------------

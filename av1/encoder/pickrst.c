@@ -2618,12 +2618,6 @@ static int get_bits_cost_merge_map(int *merged_to_indices,
 }
 #endif
 
-static int16_t quantize_wienerns_tap(double x, int16_t minv, int16_t n,
-                                     int prec_bits) {
-  int scale_x = (int)round(x * (1 << prec_bits));
-  return clip_to_wienerns_range(scale_x, minv, n);
-}
-
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
@@ -3124,6 +3118,8 @@ static void initialize_bank_with_best_frame_filter_match(
     WienerNonsepInfoBank *bank) {
   const int base_qindex = rsc->cm->quant_params.base_qindex;
   int dict_stride = 0;
+  assert(rsc->cm->match_filter_dictionary != NULL);
+  // TODO: Lose the allocation.
   int16_t *match_filter_dictionary =
       allocate_match_filter_dictionary(&dict_stride);
   set_base_match_filter_dictionary(rsc->cm, filter->num_classes,

@@ -4444,6 +4444,7 @@ static AOM_INLINE void encode_restoration_mode(
           if (cm->match_filter_dictionary == NULL) {
             cm->match_filter_dictionary =
                 allocate_match_filter_dictionary(&cm->match_dictionary_stride);
+            translate_filters(cm);
           }
           if (rsi->frame_filters_on) {
             set_base_match_filter_dictionary(
