@@ -2119,6 +2119,7 @@ enum {
 };
 
 enum {
+  // final_part_prune_inter_bs6_9_qp_110_135_160_nnz_psnr_32_16_tflite_model
   FEATURE_INTER_RD_MULT = 0,
   FEATURE_INTER_FULL_PSNR,
   FEATURE_INTER_FULL_Q_COEFF_MAX,
@@ -2135,6 +2136,30 @@ enum {
   FEATURE_INTER_SQ_3_PSNR,
   FEATURE_INTER_SQ_3_Q_COEFF_MAX,
   FEATURE_INTER_SQ_3_Q_COEFF_NONZ,
+
+  // final_part_prune_inter_bs3_6_9_12_qp_110_135_160_nnz_psnr_vect_satdq_32_16_tflite_model
+  FEATURE_INTER_FULL_LOG_MAG,
+  FEATURE_INTER_FULL_ANGLE_RAD,
+  FEATURE_INTER_SQ_0_LOG_MAG,
+  FEATURE_INTER_SQ_0_ANGLE_RAD,
+  FEATURE_INTER_SQ_1_LOG_MAG,
+  FEATURE_INTER_SQ_1_ANGLE_RAD,
+  FEATURE_INTER_SQ_2_LOG_MAG,
+  FEATURE_INTER_SQ_2_ANGLE_RAD,
+  FEATURE_INTER_SQ_3_LOG_MAG,
+  FEATURE_INTER_SQ_3_ANGLE_RAD,
+  // 
+  FEATURE_INTER_FULL_LOG_SATDQ,
+  FEATURE_INTER_SQ_0_LOG_SATDQ,
+  FEATURE_INTER_SQ_1_LOG_SATDQ,
+  FEATURE_INTER_SQ_2_LOG_SATDQ,
+  FEATURE_INTER_SQ_3_LOG_SATDQ,
+  FEATURE_INTER_FULL_LOG_SATD,
+  FEATURE_INTER_SQ_0_LOG_SATD,
+  FEATURE_INTER_SQ_1_LOG_SATD,
+  FEATURE_INTER_SQ_2_LOG_SATD,
+  FEATURE_INTER_SQ_3_LOG_SATD,
+
   FEATURE_INTER_MAX
 };
 
@@ -2396,10 +2421,23 @@ static MODEL_TYPE get_model_type(BLOCK_SIZE bsize, bool intra) {
   }
 }
 
+
+static double log_mag(MV mv) {
+  double mag = sqrt(mv.col * mv.col + mv.row * mv.row);
+  return logf(1.0f + mag);
+}
+
+static double angle_rad(MV mv) {
+  double mag = sqrt(mv.col * mv.col + mv.row * mv.row);
+  return mag == 0 ? 0 : asin(mv.row / mag);
+}
+
 struct ResidualStats {
   int q_coeff_max;
   int q_coeff_nonz;
   double psnr;
+  int satdq;
+  int satd;
 };
 
 // Computes residual stats on a transformed and quantized residual of the
@@ -2429,6 +2467,7 @@ static struct ResidualStats compute_residual_stats(
   p->dqcoeff = td->shared_coeff_buf.dqcoeff_buf[plane];
   tran_low_t *const dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
   tran_low_t *const qcoeff = p->qcoeff + BLOCK_OFFSET(block);
+  tran_low_t *const coeff = p->coeff + BLOCK_OFFSET(block);
   AOM_CHECK_MEM_ERROR(&error, p->bobs,
                       aom_memalign(32, num_blk * sizeof(p->bobs[0])));
   AOM_CHECK_MEM_ERROR(
@@ -2447,8 +2486,10 @@ static struct ResidualStats compute_residual_stats(
                   &quant_param);
   const int n_coeffs = av1_get_max_eob(txfm_param.tx_size);
   for (int i = 0; i < n_coeffs; i++) {
-    int abs_coeff = abs(qcoeff[i]);
-    ret.q_coeff_max = AOMMAX(ret.q_coeff_max, abs_coeff);
+    int abs_qcoeff = abs(qcoeff[i]);
+    ret.satd += abs(coeff[i]);
+    ret.satdq += abs_qcoeff;
+    ret.q_coeff_max = AOMMAX(ret.q_coeff_max, abs_qcoeff);
     ret.q_coeff_nonz += qcoeff[i] != 0;
   }
 
@@ -2513,11 +2554,16 @@ static struct ResidualStats compute_motion_data(AV1_COMP *const cpi,
   return compute_residual_stats(cpi, td, x, bsize);
 }
 
-static void blk_features(float *out_features, int offset,
+static void blk_features(float *out_features, int o_psnr, int o_log_mag,
+                         int o_satdq, int o_satd, SimpleMotionData *sms,
                          struct ResidualStats *stats, int blk_area) {
-  out_features[offset + 0] = stats->psnr - 35;
-  out_features[offset + 1] = ((float)stats->q_coeff_max) / 1024;
-  out_features[offset + 2] = ((float)stats->q_coeff_nonz) / blk_area;
+  out_features[o_psnr + 0] = stats->psnr - 35;
+  out_features[o_psnr + 1] = ((float)stats->q_coeff_max) / 1024;
+  out_features[o_psnr + 2] = ((float)stats->q_coeff_nonz) / blk_area;
+  out_features[o_log_mag + 0] = log_mag(sms->submv);
+  out_features[o_log_mag + 1] = angle_rad(sms->submv);
+  out_features[o_satdq] = logf(1.0f + stats->satdq);
+  out_features[o_satd] = logf(1.0f + stats->satd);
 }
 
 static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
@@ -2566,13 +2612,23 @@ static void av1_ml_part_split_features_inter(AV1_COMP *const cpi, MACROBLOCK *x,
 
     if (out_features) {
       int blk_area = block_size_wide[bsize] * block_size_high[bsize];
-      const int features_per_bs = 3;
-      out_features[0] = logf(1.0f + blk_none->rdmult);
-      blk_features(out_features, 1 + 0*features_per_bs, &stats_none, blk_area);
-      blk_features(out_features, 1 + 1*features_per_bs, &stats_sq_0, blk_area);
-      blk_features(out_features, 1 + 2*features_per_bs, &stats_sq_1, blk_area);
-      blk_features(out_features, 1 + 3*features_per_bs, &stats_sq_2, blk_area);
-      blk_features(out_features, 1 + 4*features_per_bs, &stats_sq_3, blk_area);
+      out_features[FEATURE_INTER_RD_MULT] = logf(1.0f + blk_none->rdmult);
+
+      blk_features(out_features, FEATURE_INTER_FULL_PSNR,
+          FEATURE_INTER_FULL_LOG_MAG, FEATURE_INTER_FULL_LOG_SATDQ,
+          FEATURE_INTER_FULL_LOG_SATD, blk_none, &stats_none, blk_area);
+      blk_features(out_features, FEATURE_INTER_SQ_0_PSNR,
+          FEATURE_INTER_SQ_0_LOG_MAG, FEATURE_INTER_SQ_0_LOG_SATDQ,
+          FEATURE_INTER_SQ_0_LOG_SATD, blk_sq_0, &stats_sq_0, blk_area);
+      blk_features(out_features, FEATURE_INTER_SQ_1_PSNR,
+          FEATURE_INTER_SQ_1_LOG_MAG, FEATURE_INTER_SQ_1_LOG_SATDQ,
+          FEATURE_INTER_SQ_1_LOG_SATD, blk_sq_1, &stats_sq_1, blk_area);
+      blk_features(out_features, FEATURE_INTER_SQ_2_PSNR,
+          FEATURE_INTER_SQ_2_LOG_MAG, FEATURE_INTER_SQ_2_LOG_SATDQ,
+          FEATURE_INTER_SQ_2_LOG_SATD, blk_sq_2, &stats_sq_2, blk_area);
+      blk_features(out_features, FEATURE_INTER_SQ_3_PSNR,
+          FEATURE_INTER_SQ_3_LOG_MAG, FEATURE_INTER_SQ_3_LOG_SATDQ,
+          FEATURE_INTER_SQ_3_LOG_SATD, blk_sq_3, &stats_sq_3, blk_area);
     }
   }
 
