@@ -87,6 +87,62 @@ static const uint16_t ac_qlookup_QTX_full[QINDEX_RANGE_8_BITS] = {
 // addition, the minimum allowable quantizer is 4; smaller values will
 // underflow to 0 in the actual quantization routines.
 
+#if CONFIG_DQ
+int tcq_parity(int absLevel, int limits) {
+#if NEWHR
+  (void)limits;
+  int par = absLevel & 1;
+#else
+  int cap = limits ? LF_MAX_BASE_BR_RANGE : MAX_BASE_BR_RANGE;
+  const int absLevelCtx = AOMMIN(cap, absLevel);
+  int par = absLevelCtx & 1;
+#endif
+  return par;
+}
+
+int tcq_init_state(int tcq_mode, int plane, TX_CLASS tx_class) {
+  int state = tcq_mode << 8;
+  if (TCQ_DIS_CHR && plane != 0) {
+    state = 0;
+  }
+  if (TCQ_DIS_1D && tx_class != TX_CLASS_2D) {
+    state = 0;
+  }
+  return state;
+}
+
+int tcq_next_state(const int curState, const int absLevel, const int limits) {
+  int tcq_mode = curState >> 8;
+  int state = curState & 255;
+  int nextState = 0;
+  if (tcq_mode == TCQ_8ST) {
+    switch (state) {
+      case 0: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 4; break;
+      case 1: nextState = !(tcq_parity(absLevel, limits)) ? 4 : 0; break;
+      case 2: nextState = !(tcq_parity(absLevel, limits)) ? 1 : 5; break;
+      case 3: nextState = !(tcq_parity(absLevel, limits)) ? 5 : 1; break;
+      case 4: nextState = !(tcq_parity(absLevel, limits)) ? 6 : 2; break;
+      case 5: nextState = !(tcq_parity(absLevel, limits)) ? 2 : 6; break;
+      case 6: nextState = !(tcq_parity(absLevel, limits)) ? 7 : 3; break;
+      case 7: nextState = !(tcq_parity(absLevel, limits)) ? 3 : 7; break;
+      default: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 4; break;
+    }
+  } else if (tcq_mode == TCQ_4ST) {
+    switch (state) {
+      case 0: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 2; break;
+      case 1: nextState = !(tcq_parity(absLevel, limits)) ? 2 : 0; break;
+      case 2: nextState = !(tcq_parity(absLevel, limits)) ? 1 : 3; break;
+      case 3: nextState = !(tcq_parity(absLevel, limits)) ? 3 : 1; break;
+      default: nextState = !(tcq_parity(absLevel, limits)) ? 0 : 2; break;
+    }
+  } else {  // TCQ_DISABLE
+    nextState = 0;
+  }
+  nextState += (tcq_mode << 8);
+  return nextState;
+}
+#endif
+
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {
   int q_clamped;

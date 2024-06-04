@@ -35,6 +35,13 @@ struct search_site_config;
 struct yv12_buffer_config;
 struct NN_CONFIG;
 typedef struct NN_CONFIG NN_CONFIG;
+struct tcq_node_t;
+struct tcq_ctx_t;
+struct tcq_lf_ctx_t;
+struct prequant_t;
+struct tcq_rate_t;
+struct tcq_coeff_ctx_t;
+struct LV_MAP_COEFF_COST;
 
 enum { NONE, RELU, SOFTSIGN, SIGMOID } UENUM1BYTE(ACTIVATION);
 #if CONFIG_NN_V2
@@ -355,6 +362,46 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_quantize_fp_64x64/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr, const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan";
   add_proto qw/void av1_quantize_lp/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *round_ptr, const int32_t *quant_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan";
   add_proto qw/void aom_quantize_b_helper/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int32_t *zbin_ptr, const int32_t *round_ptr, const int32_t *quant_ptr, const int32_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int32_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr, const int log_scale";
+
+  # trellis quant
+  if (aom_config("CONFIG_DQ") eq "yes") {
+    add_proto qw/void av1_decide_states/, "const struct tcq_node_t *prev, const struct tcq_rate_t *rd, const struct prequant_t *pq, int n_states, int limits, int tru_eob, int64_t rdmult, struct tcq_node_t *decision";
+    specialize qw/av1_decide_states avx2/;
+    add_proto qw/void av1_decide_states_st4/, "const struct tcq_node_t *prev, const struct tcq_rate_t *rd, const struct prequant_t *pq, int n_states, int limits, int tru_eob, int64_t rdmult, struct tcq_node_t *decision";
+    specialize qw/av1_decide_states_st4 avx2/;
+    add_proto qw/void av1_pre_quant/, "tran_low_t tqc, struct prequant_t* pqData, const int32_t* quant_ptr, int dqv, int log_scale, int scan_pos";
+    specialize qw/av1_pre_quant avx2/;
+    add_proto qw/void av1_calc_diag_ctx/, "int scan_hi, int scan_lo, int bwl, const uint8_t *prev_levels, const int16_t* scan, uint8_t *ctx";
+    specialize qw/av1_calc_diag_ctx avx2/;
+
+    add_proto qw/void av1_get_rate_dist_def_luma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, int n_states, struct tcq_rate_t *rd";
+    specialize qw/av1_get_rate_dist_def_luma avx2/;
+    add_proto qw/void av1_get_rate_dist_def_luma_st4/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, int n_states, struct tcq_rate_t *rd";
+    specialize qw/av1_get_rate_dist_def_luma_st4 avx2/;
+    add_proto qw/void av1_get_rate_dist_def_chroma/, "const struct LV_MAP_COEFF_COST* txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int bwl, TX_CLASS tx_class, int diag_ctx, int eob_rate, int plane, int t_sign, int sign, int n_states, struct tcq_rate_t *rd";
+    specialize qw/av1_get_rate_dist_def_chroma avx2/;
+    add_proto qw/void av1_get_rate_dist_lf_luma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int coeff_sign, int n_states, struct tcq_rate_t *rd";
+    specialize qw/av1_get_rate_dist_lf_luma avx2/;
+    add_proto qw/void av1_get_rate_dist_lf_luma_st4/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int coeff_sign, int n_states, struct tcq_rate_t *rd";
+    specialize qw/av1_get_rate_dist_lf_luma_st4 avx2/;
+    add_proto qw/void av1_get_rate_dist_lf_chroma/, "const struct LV_MAP_COEFF_COST *txb_costs, const struct prequant_t *pq, const struct tcq_coeff_ctx_t *coeff_ctx, int blk_pos, int diag_ctx, int eob_rate, int dc_sign_ctx, const int32_t *tmp_sign, int bwl, TX_CLASS tx_class, int plane, int coeff_sign, int n_states, struct tcq_rate_t *rd";
+    specialize qw/av1_get_rate_dist_lf_chroma avx2/;
+
+    add_proto qw/void av1_update_states/, "struct tcq_node_t *decision, int scan_idx, int n_states, const struct tcq_ctx_t *cur_ctx, struct tcq_ctx_t *nxt_ctx";
+    specialize qw/av1_update_states avx2/;
+    add_proto qw/void av1_init_lf_ctx/, "const uint8_t *lev, int scan_hi, int bwl, struct tcq_lf_ctx_t *lf_ctx";
+    specialize qw/av1_init_lf_ctx avx2/;
+    add_proto qw/void av1_calc_lf_ctx_st4/, "const struct tcq_lf_ctx_t *lf_ctx, int scan_pos, struct tcq_coeff_ctx_t *coeff_ctx";
+    specialize qw/av1_calc_lf_ctx_st4 avx2/;
+    add_proto qw/void av1_calc_lf_ctx_st8/, "const struct tcq_lf_ctx_t *lf_ctx, int scan_pos, struct tcq_coeff_ctx_t *coeff_ctx";
+    specialize qw/av1_calc_lf_ctx_st8 avx2/;
+    add_proto qw/void av1_update_lf_ctx/, "const struct tcq_node_t *decision, int n_states, struct tcq_lf_ctx_t *lf_ctx";
+    specialize qw/av1_update_lf_ctx avx2/;
+    add_proto qw/void av1_calc_block_eob_rate/, "struct macroblock *x, int plane, TX_SIZE tx_size, int eob, uint16_t *block_eob_rate";
+    specialize qw/av1_calc_block_eob_rate avx2/;
+    add_proto qw/int av1_find_best_path/, "const struct tcq_node_t *trellis, int n_states_log2, const int16_t *scan, const int32_t *dequant, const qm_val_t *iqmatrix, const tran_low_t *tcoeff, int first_scan_pos, int log_scale, tran_low_t *qcoeff, tran_low_t *dqcoeff, int *min_rate, int64_t *min_cost";
+    specialize qw/av1_find_best_path avx2/;
+  }
 
   # fdct functions
 

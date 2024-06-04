@@ -113,7 +113,12 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,
                          int v_ac_delta_q, int base_y_dc_delta_q,
                          int base_uv_dc_delta_q, QUANTS *const quants,
-                         Dequants *const deq);
+                         Dequants *const deq
+#if CONFIG_DQ
+                         ,
+                         int enable_tcq
+#endif
+);
 
 void av1_init_quantizer(SequenceHeader *seq_params,
                         EncQuantDequantParams *const enc_quant_dequant_params,

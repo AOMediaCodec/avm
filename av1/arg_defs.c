@@ -232,6 +232,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "monochrome", 0, "Monochrome video (no chroma planes)"),
   .full_still_picture_hdr = ARG_DEF(NULL, "full-still-picture-hdr", 0,
                                     "Use full header for still picture"),
+#if CONFIG_DQ
+  .enable_tcq =
+      ARG_DEF(NULL, "enable-tcq", 1, "Enable trellis coded quantization"),
+#endif
   .dropframe_thresh =
       ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)"),
   .resize_mode = ARG_DEF(NULL, "resize-mode", 1, "Frame resize mode"),
@@ -880,4 +884,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "enable-short-refresh-frame-flags", 1,
               "Signal refresh frame flags with N bits. (0: N = 8, 1 : N = 3)"),
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  .txfmblk_enclogfile = ARG_DEF(NULL, "txfmblk-enclogfile", 1,
+                                "Per transform block log file at encoder"),
+  .txfmblk_declogfile = ARG_DEF(NULL, "txfmblk-declogfile", 1,
+                                "Per transform block log file at decoder"),
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 };

@@ -212,19 +212,33 @@ typedef struct frame_contexts {
 #if CONFIG_CHROMA_CODING
   // Y CDFs
   aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][LF_SIG_COEF_CONTEXTS]
+#if CONFIG_DQ
+                                [DQ_CTXS]
+#endif
                                 [CDF_SIZE(LF_BASE_SYMBOLS)];
   aom_cdf_prob coeff_base_lf_eob_cdf[TX_SIZES][SIG_COEF_CONTEXTS_EOB]
                                     [CDF_SIZE(LF_BASE_SYMBOLS - 1)];
-  aom_cdf_prob coeff_base_cdf[TX_SIZES][SIG_COEF_CONTEXTS][CDF_SIZE(4)];
+  aom_cdf_prob coeff_base_cdf[TX_SIZES][SIG_COEF_CONTEXTS]
+#if CONFIG_DQ
+                             [DQ_CTXS]
+#endif
+                             [CDF_SIZE(4)];
   aom_cdf_prob coeff_base_eob_cdf[TX_SIZES][SIG_COEF_CONTEXTS_EOB][CDF_SIZE(3)];
   aom_cdf_prob coeff_br_lf_cdf[LF_LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
   aom_cdf_prob coeff_br_cdf[LEVEL_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
   // UV CDFs
   aom_cdf_prob coeff_base_lf_uv_cdf[LF_SIG_COEF_CONTEXTS_UV]
+#if CONFIG_DQ
+                                   [DQ_CTXS]
+#endif
                                    [CDF_SIZE(LF_BASE_SYMBOLS)];
   aom_cdf_prob coeff_base_lf_eob_uv_cdf[SIG_COEF_CONTEXTS_EOB]
                                        [CDF_SIZE(LF_BASE_SYMBOLS - 1)];
-  aom_cdf_prob coeff_base_uv_cdf[SIG_COEF_CONTEXTS_UV][CDF_SIZE(4)];
+  aom_cdf_prob coeff_base_uv_cdf[SIG_COEF_CONTEXTS_UV]
+#if CONFIG_DQ
+                                [DQ_CTXS]
+#endif
+                                [CDF_SIZE(4)];
   aom_cdf_prob coeff_base_eob_uv_cdf[SIG_COEF_CONTEXTS_EOB][CDF_SIZE(3)];
   aom_cdf_prob coeff_br_lf_uv_cdf[LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];
   aom_cdf_prob coeff_br_uv_cdf[LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];

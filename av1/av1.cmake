@@ -133,6 +133,13 @@ list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/ccso.c"
 list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/pickccso.c"
      "${AOM_ROOT}/av1/encoder/pickccso.h")
 
+if(CONFIG_DQ)
+  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/trellis_quant.c"
+       "${AOM_ROOT}/av1/encoder/trellis_quant.h")
+  list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
+       "${AOM_ROOT}/av1/encoder/x86/trellis_quant_avx2.c")
+endif()
+
 list(
   APPEND
   AOM_AV1_DECODER_SOURCES

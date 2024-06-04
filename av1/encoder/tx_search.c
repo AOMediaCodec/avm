@@ -1258,7 +1258,12 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       if (quant_param_intra.use_optimize_b) {
 #endif  // CONFIG_IMPROVEIDTX
         av1_optimize_b(cpi, x, plane, block, tx_size, best_tx_type, cctx_type,
-                       txb_ctx, rate_cost);
+                       txb_ctx, rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                       ,
+                       blk_row, blk_col, plane_bsize, DRY_RUN_NORMAL
+#endif  //  CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+        );
       } else {
         bool enable_parity_hiding =
             cm->features.allow_parity_hiding &&
@@ -2686,6 +2691,15 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           intra_txb_rd_info->txb_entropy_ctx;
       best_eob = intra_txb_rd_info->eob;
       best_tx_type = intra_txb_rd_info->tx_type;
+#if CONFIG_DQ
+      const TX_CLASS tx_class =
+          tx_type_to_class[get_primary_tx_type(best_tx_type)];
+      if (dq_enable(cm->features.tcq_mode, tx_size, plane, tx_class))
+        // perform_block_coeff_opt : Whether trellis optimization is done.
+        // we do not skip any optimization in loop of txfm search. so make sure
+        // each block is optimized.
+        assert(intra_txb_rd_info->perform_block_coeff_opt);
+#endif
       skip_trellis |= !intra_txb_rd_info->perform_block_coeff_opt;
       update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
       recon_intra(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
@@ -2751,9 +2765,17 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // would be helpful. For larger residuals, R-D optimization may not be
   // effective.
   // TODO(any): Experiment with variance and mean based thresholds
-  const int perform_block_coeff_opt =
-      ((uint64_t)block_mse_q8 <=
-       (uint64_t)txfm_params->coeff_opt_dist_threshold * qstep * qstep);
+  int perform_block_coeff_opt = 0;
+#if CONFIG_DQ
+  if (dq_enable(cm->features.tcq_mode, tx_size, plane, TX_CLASS_2D)) {
+    perform_block_coeff_opt = 1;
+  } else
+#endif
+  {
+    perform_block_coeff_opt =
+        ((uint64_t)block_mse_q8 <=
+         (uint64_t)txfm_params->coeff_opt_dist_threshold * qstep * qstep);
+  }
   skip_trellis |= !perform_block_coeff_opt;
 
   // Flag to indicate if distortion should be calculated in transform domain or
@@ -3009,12 +3031,19 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         }
         *coeffs_available = 1;
 
-        skip_trellis_based_on_satd[txfm_param.tx_type] =
-            skip_trellis_opt_based_on_satd(
-                x, &quant_param, plane, block, tx_size,
-                cpi->oxcf.q_cfg.quant_b_adapt, qstep,
-                txfm_params->coeff_opt_satd_threshold, skip_trellis_in,
-                dc_only_blk);
+#if CONFIG_DQ
+        const TX_CLASS tx_class =
+            tx_type_to_class[get_primary_tx_type(tx_type)];
+        if (dq_enable(cm->features.tcq_mode, tx_size, plane, tx_class)) {
+          skip_trellis_based_on_satd[txfm_param.tx_type] = skip_trellis;
+        } else
+#endif
+          skip_trellis_based_on_satd[txfm_param.tx_type] =
+              skip_trellis_opt_based_on_satd(
+                  x, &quant_param, plane, block, tx_size,
+                  cpi->oxcf.q_cfg.quant_b_adapt, qstep,
+                  txfm_params->coeff_opt_satd_threshold, skip_trellis_in,
+                  dc_only_blk);
 
         uint8_t fsc_mode_in = (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
                                plane == PLANE_TYPE_Y) ||
@@ -3052,7 +3081,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       if (quant_param.use_optimize_b) {
 #endif  // CONFIG_IMPROVEIDTX
           av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                         txb_ctx, &rate_cost);
+                         txb_ctx, &rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                         ,
+                         blk_row, blk_col, plane_bsize, DRY_RUN_NORMAL
+#endif  //  CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+          );
         } else {
           bool enable_parity_hiding =
               cm->features.allow_parity_hiding &&
@@ -3220,10 +3254,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           break;
         }
       }  // for (int stx = 0;
-#if CONFIG_IST_ANY_SET
       if (skip_idx) break;
-    }   // for (int stx_set = 0;
-#endif  // CONFIG_IST_ANY_SET
+    }
     if (skip_idx) break;
   }
 
@@ -3424,7 +3456,12 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
 #endif  // CONFIG_IMPROVEIDTX
           av1_optimize_b(cpi, x, plane, block, tx_size, tx_type, cctx_type,
                          &txb_ctx_uv[plane - AOM_PLANE_U],
-                         &rate_cost[plane - AOM_PLANE_U]);
+                         &rate_cost[plane - AOM_PLANE_U]
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                         ,
+                         blk_row, blk_col, plane_bsize, DRY_RUN_NORMAL
+#endif  //  CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+          );
         skip_cctx_eval = skip_cctx_eval_based_on_eob(
             plane, is_inter, eobs_ptr_c1[block], cctx_type);
         if (skip_cctx_eval) break;

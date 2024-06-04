@@ -1400,7 +1400,11 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 
 static void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding)
+  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding
+#if CONFIG_DQ
+      || cm->features.tcq_mode
+#endif
+  )
     cm->features.allow_parity_hiding = false;
   else
     cm->features.allow_parity_hiding = true;

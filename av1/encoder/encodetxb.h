@@ -531,6 +531,21 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                            int sharpness);
 #endif  // CONFIG_IMPROVEIDTX
 
+// #if CONFIG_DQ
+// int av1_dep_quant(const struct AV1_COMP* cpi, MACROBLOCK* x, int plane,
+//     int block, TX_SIZE tx_size, TX_TYPE tx_type, CctxType cctx_type,
+//     const TXB_CTX* const txb_ctx, int* rate_cost,
+//     int sharpness
+// #if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+//         ,
+//         int blk_row,
+//         int blk_col,
+//         BLOCK_SIZE bsize,
+//         RUN_TYPE dry_run
+// #endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+//     );
+// #endif
+
 /*!\brief Get the corresponding \ref CB_COEFF_BUFFER of the current macro block.
  *
  * \ingroup coefficient_coding
@@ -642,6 +657,37 @@ static const int plane_rd_mult[REF_TYPES][PLANE_TYPES] = {
   { 16, 10 },
 };
 /*!\endcond */
+
+int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
+                     TX_SIZE tx_size, TX_TYPE tx_type, int reduced_tx_set_used,
+                     int eob, int bob_code, int is_fsc);
+
+#if CONFIG_COEFF_LOGS
+void av2_tcq_log_percoeff(const AV1_COMMON *const cm, MACROBLOCK *x,
+                          const int plane, const int block, const int blk_row,
+                          const int blk_col, const BLOCK_SIZE bsize,
+                          TX_SIZE tx_size, TX_TYPE tx_type, const int is_inter,
+                          const int sq_step_dc, const int sq_step_ac,
+                          const int vq_step_dc, const int vq_step_ac,
+                          const int64_t rdmult, const int n_coeffs,
+                          const int dry_run, const int neob, const int *vec,
+                          const char *tag, const bool in_scan_order);
+
+#endif  // CONFIG_COEFF_LOGS
+
+#if CONFIG_TXFMBLK_LOGS
+void av2_tcq_log_blkrd(
+    const AV1_COMMON *const cm, MACROBLOCK *x, const int plane, const int block,
+    const int blk_row, const int blk_col, const BLOCK_SIZE bsize,
+    TX_SIZE tx_size, TX_TYPE tx_type, const int is_inter, const int sq_step_dc,
+    const int sq_step_ac, const int vq_step_dc, const int vq_step_ac,
+    const int64_t rdmult, const int n_coeffs, const int nz_counter,
+    const int neob_sq, const int neob_vq, const int rneob_sq,
+    const int rneob_vq, const int rate_sq, const int rate_vq,
+    const int rate_skip, const uint64_t dist_sq, const uint64_t dist_vq,
+    const uint64_t dist_skip, const uint64_t rd_sq, const uint64_t rd_vq,
+    const uint64_t rd_skip, const int dry_run);
+#endif  // CONFIG_TXFMBLK_LOGS
 
 #ifdef __cplusplus
 }

@@ -2017,6 +2017,16 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
         const int ac_delta_q = j == 0 ? 0
                                       : (j == 1 ? quant_params->u_ac_delta_q
                                                 : quant_params->v_ac_delta_q);
+#if CONFIG_DQ
+        int tcq_mode = cm->features.tcq_mode;
+        xd->plane[j].seg_dequant_QTX[i][0] =
+            av1_dc_quant_QTX_tcq(current_qindex, dc_delta_q,
+                                 j == 0 ? cm->seq_params.base_y_dc_delta_q
+                                        : cm->seq_params.base_uv_dc_delta_q,
+                                 cm->seq_params.bit_depth, tcq_mode);
+        xd->plane[j].seg_dequant_QTX[i][1] = av1_ac_quant_QTX_tcq(
+            current_qindex, ac_delta_q, cm->seq_params.bit_depth, tcq_mode);
+#else
         xd->plane[j].seg_dequant_QTX[i][0] =
             av1_dc_quant_QTX(current_qindex, dc_delta_q,
                              j == 0 ? cm->seq_params.base_y_dc_delta_q
@@ -2024,6 +2034,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
                              cm->seq_params.bit_depth);
         xd->plane[j].seg_dequant_QTX[i][1] = av1_ac_quant_QTX(
             current_qindex, ac_delta_q, cm->seq_params.bit_depth);
+#endif
       }
     }
   }
@@ -4015,9 +4026,29 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
   const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
+#if CONFIG_DQ
+  const int tcq_mode = cm->features.tcq_mode;
+#endif
   CommonQuantParams *const quant_params = &cm->quant_params;
   for (int i = 0; i < max_segments; ++i) {
     const int qindex = xd->qindex[i];
+#if CONFIG_DQ
+    quant_params->y_dequant_QTX[i][0] = av1_dc_quant_QTX_tcq(
+        qindex, quant_params->y_dc_delta_q, cm->seq_params.base_y_dc_delta_q,
+        bit_depth, tcq_mode);
+    quant_params->y_dequant_QTX[i][1] =
+        av1_ac_quant_QTX_tcq(qindex, 0, bit_depth, tcq_mode);
+    quant_params->u_dequant_QTX[i][0] = av1_dc_quant_QTX_tcq(
+        qindex, quant_params->u_dc_delta_q, cm->seq_params.base_uv_dc_delta_q,
+        bit_depth, tcq_mode);
+    quant_params->u_dequant_QTX[i][1] = av1_ac_quant_QTX_tcq(
+        qindex, quant_params->u_ac_delta_q, bit_depth, tcq_mode);
+    quant_params->v_dequant_QTX[i][0] = av1_dc_quant_QTX_tcq(
+        qindex, quant_params->v_dc_delta_q, cm->seq_params.base_uv_dc_delta_q,
+        bit_depth, tcq_mode);
+    quant_params->v_dequant_QTX[i][1] = av1_ac_quant_QTX_tcq(
+        qindex, quant_params->v_ac_delta_q, bit_depth, tcq_mode);
+#else
     quant_params->y_dequant_QTX[i][0] =
         av1_dc_quant_QTX(qindex, quant_params->y_dc_delta_q,
                          cm->seq_params.base_y_dc_delta_q, bit_depth);
@@ -4032,6 +4063,7 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
                          cm->seq_params.base_uv_dc_delta_q, bit_depth);
     quant_params->v_dequant_QTX[i][1] =
         av1_ac_quant_QTX(qindex, quant_params->v_ac_delta_q, bit_depth);
+#endif
     const int use_qmatrix = av1_use_qmatrix(quant_params, xd, i);
     // NB: depends on base index so there is only 1 set per frame
     // No quant weighting when lossless or signalled not using QM
@@ -6605,6 +6637,9 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     seq_params->order_hint_info.enable_ref_frame_mvs = 0;
     seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
     seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
+#if CONFIG_DQ
+    seq_params->enable_tcq = 1;
+#endif
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
     seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
 #if CONFIG_AFFINE_REFINEMENT
@@ -6788,7 +6823,26 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
   seq_params->cfl_ds_filter_index = aom_rb_read_literal(rb, 2);
 
+#if CONFIG_DQ
+#if TCQ_HDR_FLAG
+  seq_params->enable_tcq = 0;
+  int enable_tcq = aom_rb_read_bit(rb);
+  if (enable_tcq) {
+    enable_tcq += aom_rb_read_literal(rb, 2);
+    seq_params->enable_tcq = enable_tcq;
+  }
+#else
+  seq_params->enable_tcq = 1;
+#endif
+  if (seq_params->enable_tcq == TCQ_DISABLE ||
+      seq_params->enable_tcq >= TCQ_4ST_FR) {
+    seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
+  } else {
+    seq_params->enable_parity_hiding = 0;
+  }
+#else
   seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
+#endif
 #if CONFIG_EXT_RECUR_PARTITIONS
   seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
   if (seq_params->enable_ext_partitions)
@@ -8294,6 +8348,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Minimum tile width requirement not satisfied");
   }
 
+#if CONFIG_DQ
+  // Decode frame-level TCQ flag, if applicable.
+  int enable_tcq = seq_params->enable_tcq;
+  if (enable_tcq >= TCQ_4ST_FR) {
+    int use_tcq = aom_rb_read_bit(rb);
+    features->tcq_mode = use_tcq ? enable_tcq - 2 : 0;
+  } else {
+    features->tcq_mode = seq_params->enable_tcq;
+  }
+#endif
+
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm), cm->seq_params.bit_depth,
                      cm->seq_params.separate_uv_delta_q, rb);
@@ -8388,7 +8453,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     setup_ccso(cm, rb);
   }
 
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding)
+  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
+#if CONFIG_DQ
+      || features->tcq_mode
+#endif
+  )
     features->allow_parity_hiding = false;
   else
     features->allow_parity_hiding = aom_rb_read_bit(rb);

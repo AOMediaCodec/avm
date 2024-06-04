@@ -37,7 +37,10 @@
 #include "av1/encoder/rdopt.h"
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
 #include "av1/encoder/rdopt_utils.h"
+#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+#include "av1/encoder/trellis_quant.h"
 
+#if CONFIG_E191_OFS_PRED_RES_HANDLE
 // Compute the average value of the wxh block.
 static AOM_INLINE int16_t avg_wxh_block_c(const int16_t *diff,
                                           ptrdiff_t diff_stride, int w, int h) {
@@ -382,7 +385,12 @@ int av1_optimize_fsc(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                    int block, TX_SIZE tx_size, TX_TYPE tx_type,
                    CctxType cctx_type, const TXB_CTX *const txb_ctx,
-                   int *rate_cost) {
+                   int *rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                   ,
+                   int blk_row, int blk_col, BLOCK_SIZE bsize, RUN_TYPE dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+) {
   MACROBLOCKD *const xd = &x->e_mbd;
   struct macroblock_plane *const p = &x->plane[plane];
   const int eob = p->eobs[block];
@@ -400,9 +408,23 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                                      cctx_type);
     return eob;
   }
-
-  return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                              txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness);
+#if CONFIG_DQ
+  const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+  int use_dq =
+      dq_enable(cpi->common.features.tcq_mode, tx_size, plane, tx_class);
+  if (use_dq) {
+    return av1_dep_quant(cpi, x, plane, block, tx_size, tx_type, cctx_type,
+                         txb_ctx, rate_cost, cpi->oxcf.algo_cfg.sharpness
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                         ,
+                         blk_row, blk_col, bsize, dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    );
+  } else
+#endif  // #if CONFIG_DQ
+    return av1_optimize_txb_new(cpi, x, plane, block, tx_size, tx_type,
+                                cctx_type, txb_ctx, rate_cost,
+                                cpi->oxcf.algo_cfg.sharpness);
 }
 
 // This function returns the multiplier of dequantization for current position.
@@ -626,18 +648,6 @@ void av1_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
         av1_get_txb_entropy_context(qcoeff, scan_order, eob);
   }
 }
-
-// Settings for optimization type. NOTE: To set optimization type for all intra
-// frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should be set.
-// TODO(yjshen): These settings are hard-coded and look okay for now. They
-// should be made configurable later.
-// Blocks of key frames ONLY.
-const OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
-const OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
-const OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
 enum {
   QUANT_FUNC_LOWBD = 0,
@@ -1045,6 +1055,27 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
 #else
         get_primary_tx_type(tx_type) < IDTX;
 #endif  // CONFIG_IMPROVEIDTX
+    // Settings for optimization type. NOTE: To set optimization type for all
+    // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
+    // be set.
+    // TODO(yjshen): These settings are hard-coded and look okay for now. They
+    // should be made configurable later.
+    // Blocks of key frames ONLY.
+    // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
+    // default if trellis optimization is on for inter frames.)
+    OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+
+#if CONFIG_DQ
+    const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+    int use_dq = dq_enable(cm->features.tcq_mode, tx_size, plane, tx_class);
+    if (use_dq) {
+      // Dropout setting should be disabled when Dependent quantization is
+      // enabled.
+      // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by
+      // default if trellis optimization is on for inter frames.)
+      INTER_BLOCK_OPT_TYPE = TRELLIS_OPT;
+    }
+#endif
 
     // Whether trellis or dropout optimization is required for inter frames.
     const bool do_trellis = INTER_BLOCK_OPT_TYPE == TRELLIS_OPT ||
@@ -1062,7 +1093,12 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       else
 #endif  // CONFIG_IMPROVEIDTX
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                       ,
+                       blk_row, blk_col, plane_bsize, args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+        );
     }
     if (!quant_param.use_optimize_b && do_dropout && !fsc_mode &&
         !enable_parity_hiding) {
@@ -1595,6 +1631,25 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       fprintf(cm->fEncCoeffLog, "tx_type = %d, eob = %d", tx_type, *eob);
     }
 #endif
+
+#if CONFIG_TXFMBLK_LOGS
+    // log basic info of skipped blocks
+    if (!args->dry_run) {
+      fprintf(cm->fEncTxfmLog,
+              "[AV2ENC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %4d %04d %04d "
+              "%02d\n",
+              cm->current_frame.absolute_poc,  // 1: POC (picture number)
+              plane,                           // 2: plain ID (Y/U/V)
+              x->e_mbd.mi_row,                 // 3: macroblock row index
+              x->e_mbd.mi_col,                 // 4: macroblock coloumn index
+              blk_row,                         // 5: transform block row index
+              blk_col,      // 6: transform block column index
+              plane_bsize,  // 7: bsize
+              tx_size,      // 8: transform size
+              tx_type,      // 9: transform type
+              0);           // 10: coded flag: 0 for skipped blocks
+    }
+#endif  // CONFIG_TXFMBLK_LOGS
   } else {
 #if !CONFIG_E191_OFS_PRED_RES_HANDLE
     av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size);
@@ -1654,6 +1709,48 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       fprintf(cm->fEncCoeffLog, "\n\n");
     }
 #endif
+
+#if CONFIG_TXFMBLK_LOGS
+    // log basic info of coded block
+    if (!args->dry_run) {
+      fprintf(cm->fEncTxfmLog,
+              "[AV2ENC-TXFMBLK-INFO] %03d %4d %03d %03d %3d %3d %4d %04d %04d "
+              "%02d\n",
+              cm->current_frame.absolute_poc,  // 1: POC (picture number)
+              plane,                           // 2: plane ID (Y/U/V)
+              x->e_mbd.mi_row,                 // 3: macroblock row index
+              x->e_mbd.mi_col,                 // 4: macroblock coloumn index
+              blk_row,                         // 5: transform block row index
+              blk_col,      // 6: transform block column index
+              plane_bsize,  // 7: bsize
+              tx_size,      // 8: transform size
+              tx_type,      // 9: transform type
+              1);           // 10: coded flag: 0 for skipped blocks
+    }
+#endif  // CONFIG_TXFMBLK_LOGS
+
+    // Settings for optimization type. NOTE: To set optimization type for all
+    // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
+    // be set.
+    // TODO(yjshen): These settings are hard-coded and look okay for now. They
+    // should be made configurable later.
+    // Blocks of key frames ONLY.
+    OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+    // Blocks of intra frames (key frames EXCLUSIVE).
+    OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+
+#if CONFIG_DQ
+    const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
+    int use_dq = dq_enable(cm->features.tcq_mode, tx_size, plane, tx_class);
+    if (use_dq) {
+      // Dropout setting should be disabled when Dependent quantization is
+      // enabled.
+      KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
+      // Blocks of intra frames (key frames EXCLUSIVE).
+      INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
+    }
+#endif
+
     // Whether trellis or dropout optimization is required for key frames and
     // intra frames.
     const bool do_trellis = (frame_is_intra_only(cm) &&
@@ -1680,7 +1777,12 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       else
 #endif  // CONFIG_IMPROVEIDTX
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, CCTX_NONE,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                       ,
+                       blk_row, blk_col, plane_bsize, args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+        );
     }
 
     if (do_dropout && !fsc_mode && !enable_parity_hiding) {
@@ -1714,7 +1816,13 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         else
 #endif  // CONFIG_IMPROVEIDTX
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         CCTX_NONE, &txb_ctx, &dummy_rate_cost);
+                         CCTX_NONE, &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                         ,
+                         blk_row, blk_col, plane_bsize, args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
+          );
       }
       if (do_dropout && !fsc_mode && !enable_parity_hiding) {
         av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -1961,6 +2069,28 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
   av1_setup_xform(cm, x, AOM_PLANE_U, tx_size, tx_type, cctx_type, &txfm_param);
   av1_setup_quant(tx_size, use_trellis, quant_idx,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
+
+  // Settings for optimization type. NOTE: To set optimization type for all
+  // intra frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should
+  // be set.
+  // TODO(yjshen): These settings are hard-coded and look okay for now. They
+  // should be made configurable later.
+  // Blocks of key frames ONLY.
+  OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+  // Blocks of intra frames (key frames EXCLUSIVE).
+  OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+
+#if CONFIG_DQ
+  int use_dq = cm->features.tcq_mode != 0;
+  if (use_dq) {
+    // Dropout setting should be disabled when Dependent quantization is
+    // enabled.
+    KEY_BLOCK_OPT_TYPE = TRELLIS_OPT;
+    // Blocks of intra frames (key frames EXCLUSIVE).
+    INTRA_BLOCK_OPT_TYPE = TRELLIS_OPT;
+  }
+#endif
+
   // Whether trellis or dropout optimization is required for key frames and
   // intra frames.
   const bool do_trellis = (frame_is_intra_only(cm) &&
@@ -2027,7 +2157,12 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       else
 #endif  // CONFIG_IMPROVEIDTX
         av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, cctx_type,
-                       &txb_ctx, &dummy_rate_cost);
+                       &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                       ,
+                       blk_row, blk_col, plane_bsize, args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+        );
     }
     if (do_dropout) {
       av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -2057,7 +2192,12 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
         else
 #endif  // CONFIG_IMPROVEIDTX
           av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type,
-                         cctx_type, &txb_ctx, &dummy_rate_cost);
+                         cctx_type, &txb_ctx, &dummy_rate_cost
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+                         ,
+                         blk_row, blk_col, plane_bsize, args->dry_run
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+          );
       }
       if (do_dropout) {
         av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
@@ -2184,3 +2324,110 @@ void av1_encode_intra_block_joint_uv(const struct AV1_COMP *cpi, MACROBLOCK *x,
       xd, plane_bsize, AOM_PLANE_U, encode_block_intra_and_set_context_joint_uv,
       &arg);
 }
+
+#if CONFIG_TXFMBLK_LOGS
+void av2_tcq_log_blkrd(
+    const AV1_COMMON *const cm, MACROBLOCK *x, const int plane, const int block,
+    const int blk_row, const int blk_col, const BLOCK_SIZE bsize,
+    TX_SIZE tx_size, TX_TYPE tx_type, const int is_inter, const int sq_step_dc,
+    const int sq_step_ac, const int vq_step_dc, const int vq_step_ac,
+    const int64_t rdmult, const int n_coeffs, const int nz_counter,
+    const int neob_sq, const int neob_vq, const int rneob_sq,
+    const int rneob_vq, const int rate_sq, const int rate_vq,
+    const int rate_skip, const uint64_t dist_sq, const uint64_t dist_vq,
+    const uint64_t dist_skip, const uint64_t rd_sq, const uint64_t rd_vq,
+    const uint64_t rd_skip, const int dry_run) {
+  FILE *fp = cm->fEncTxfmLog ? cm->fEncTxfmLog : stdout;
+
+  fprintf(
+      fp, "[AV2ENC-TCQ-BLKRD]  %03d %4d %03d %03d %3d %3d %3d %4d  ",
+      cm->current_frame.absolute_poc,  // 1: POC (picture number)
+      plane,                           // 2: plain ID (Y/U/V)
+      x->e_mbd.mi_row,                 // 3: macroblock row index
+      x->e_mbd.mi_col,                 // 4: macroblock coloumn index
+      block,                           // 5: transform block ID
+      blk_row,                         // 6: transform block row index
+      blk_col,                         // 7: transform block column index
+      dry_run);  // 8: coding pass on this block (0: final; 1 or above: dry_run)
+
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld ",
+          bsize,               // 9:  plane_bsize
+          tx_size,             // 10: transform size
+          tx_type,             // 11: transform type
+          is_inter,            // 12: inter/intra mode
+          sq_step_dc,          // 13: SQ step size for DC coefficients
+          sq_step_ac,          // 14: SQ step size for AC coefficients
+          vq_step_dc,          // 15: TCQ step size for DC coefficients
+          vq_step_ac,          // 16: TCQ step size for AC coefficients
+          (long long)rdmult);  // 17: RD multiplier
+
+  fprintf(
+      fp,
+      "%06d %06d %6d %6d %8d %8d %8d %8d %8d %12lld %12lld %12lld %16lld "
+      "%16lld %16lld\n",
+      n_coeffs,            // 18: number of coefficients in the transform block
+      nz_counter,          // 19: number of non-zero pre-quantized coefficients
+      neob_sq,             // 20: number of coded coefficients (neob) via SQ
+      neob_vq,             // 21: number of coded coefficients (neob) via TCQ
+      rneob_sq,            // 22: estimated rate of NEOB for SQ
+      rneob_vq,            // 23: estimated rate of NEOB for TCQ
+      rate_sq,             // 24: estimated rate for coding the block with SQ
+      rate_vq,             // 25: estimated rate for coding the block with TCQ
+      rate_skip,           // 26: estimated rate for coding the block as skip
+      (long long)dist_sq,  // 27: distortion from coding the block with SQ
+      (long long)dist_vq,  // 28: distortion from coding the block with TCQ
+      (long long)dist_skip,  // 29: distortion from coding the block as skip
+      (long long)rd_sq,      // 30: joint RD cost from coding the block with SQ
+      (long long)rd_vq,      // 31: joint RD cost from coding the block with TCQ
+      (long long)rd_skip);   // 32: joint RD cost from coding the block as skip
+
+  fflush(fp);
+}
+#endif  // CONFIG_TXFMBLK_LOGS
+
+#if CONFIG_COEFF_LOGS
+void av2_tcq_log_percoeff(const AV1_COMMON *const cm, MACROBLOCK *x,
+                          const int plane, const int block, const int blk_row,
+                          const int blk_col, const BLOCK_SIZE bsize,
+                          TX_SIZE tx_size, TX_TYPE tx_type, const int is_inter,
+                          const int sq_step_dc, const int sq_step_ac,
+                          const int vq_step_dc, const int vq_step_ac,
+                          const int64_t rdmult, const int n_coeffs,
+                          const int dry_run, const int neob, const int *vec,
+                          const char *tag, const bool in_scan_order) {
+  FILE *fp = cm->fEncTxfmLog ? cm->fEncTxfmLog : stdout;
+  const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+  const int16_t *const scan = scan_order->scan;
+
+  fprintf(
+      fp, "[AV2ENC-TCQ-%s]  %03d %4d %03d %03d %3d %3d %3d %4d %4d  ", tag,
+      cm->current_frame.absolute_poc,  // 1: POC (picture number)
+      plane,                           // 2: plain ID (Y/U/V)
+      x->e_mbd.mi_row,                 // 3: macroblock row index
+      x->e_mbd.mi_col,                 // 4: macroblock coloumn index
+      block,                           // 5: transform block ID
+      blk_row,                         // 6: transform block row index
+      blk_col,                         // 7: transform block column index
+      dry_run,  // 8: coding pass on this block (0: final; 1 or above: dry_run)
+      cm->sb_size);  // 9: superblock size
+
+  fprintf(fp, "%06d %04d %04d %4d %8d %8d %8d %8d %12lld %06d %6d",
+          bsize,              // 10:  plane_bsize
+          tx_size,            // 11: transform size
+          tx_type,            // 12: transform type
+          is_inter,           // 13: inter/intra mode
+          sq_step_dc,         // 14: SQ step size for DC coefficients
+          sq_step_ac,         // 15: SQ step size for AC coefficients
+          vq_step_dc,         // 16: TCQ step size for DC coefficients
+          vq_step_ac,         // 17: TCQ step size for AC coefficients
+          (long long)rdmult,  // 18: RD multiplier
+          n_coeffs,  // 19: number of coefficients in the transform block
+          neob);     // 20: number of coded coefficients (neob) via SQ
+
+  for (int i = 0; i < n_coeffs; i++) {
+    const int val = in_scan_order ? vec[scan[i]] : vec[i];
+    fprintf(fp, "  %6d", val);
+  }
+  fprintf(fp, "\n");
+}
+#endif  // CONFIG_COEFF_LOGS

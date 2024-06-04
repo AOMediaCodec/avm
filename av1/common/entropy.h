@@ -67,6 +67,10 @@ extern "C" {
 #define LEVEL_CONTEXTS_UV 4      // low range contexts
 #endif                           // CONFIG_CHROMA_CODING
 
+#if CONFIG_DQ
+#define DQ_CTXS 2
+#endif
+
 // Number of coefficient coding contexts for the low-frequency region
 // for 2D and 1D transforms
 #define LF_SIG_COEF_CONTEXTS_2D 21

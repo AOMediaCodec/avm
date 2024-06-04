@@ -538,6 +538,10 @@ typedef struct SequenceHeader {
   uint8_t force_integer_mv;            // 0 - Don't force. MV can use subpel
                                        // 1 - force to integer
                                        // 2 - adaptive
+#if CONFIG_DQ
+  uint8_t enable_tcq;  // Seq: 0 - disable, 1: 4st, 2: 8st, 3: 4st (frame), 4:
+                       // 8st (frame)
+#endif
   uint8_t enable_sdp;   // enables/disables semi-decoupled partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection
   uint8_t enable_tip;   // enables/disables temporal interpolated prediction
@@ -898,6 +902,12 @@ typedef struct {
    * restoration type is lr_last_switchable_ndx_0_type.
    */
   int lr_last_switchable_ndx_0_type[MAX_MB_PLANE];
+#if CONFIG_DQ
+  /*!
+   * Frame tcq_mode: 0 = diabled, 1 = 4-state, 2 = 8-state
+   */
+  int tcq_mode;
+#endif
 } FeatureFlags;
 
 /*!
@@ -1251,6 +1261,12 @@ struct CommonQuantParams {
   int qmatrix_level_u; /*!< Level index for U plane */
   int qmatrix_level_v; /*!< Level index for V plane */
   /**@}*/
+#if CONFIG_DQ
+  /*!
+   * Frame tcq_mode: 0 = diabled, 1 = 4-state, 2 = 8-state
+   */
+  int tcq_mode;
+#endif
 };
 
 typedef struct CommonContexts CommonContexts;

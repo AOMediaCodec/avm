@@ -83,6 +83,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t large_scale_tile;
   arg_def_t monochrome;
   arg_def_t full_still_picture_hdr;
+#if CONFIG_DQ
+  arg_def_t enable_tcq;
+#endif
   arg_def_t dropframe_thresh;
   arg_def_t resize_mode;
   arg_def_t resize_denominator;
@@ -316,6 +319,10 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_REFRESH_FLAG
   arg_def_t enable_short_refresh_frame_flags;
 #endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  arg_def_t txfmblk_enclogfile;
+  arg_def_t txfmblk_declogfile;
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

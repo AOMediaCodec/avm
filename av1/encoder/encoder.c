@@ -525,7 +525,16 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
   seq->enable_tiles_cdfs_avg = tool_cfg->enable_tiles_cdfs_avg;
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+#if CONFIG_DQ
+  seq->enable_tcq = tool_cfg->enable_tcq;
+  if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_4ST_FR) {
+    seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
+  } else {
+    seq->enable_parity_hiding = 0;
+  }
+#else
   seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
+#endif
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
   // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
@@ -1096,6 +1105,22 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cm->fEncCoeffLog = fopen("EncCoeffLog.txt", "wt");
 #endif
 
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  if (!cm->fEncTxfmLog) {
+    if (oxcf->txfmblk_enclogfile != NULL) {
+      cm->fEncTxfmLog = fopen(oxcf->txfmblk_enclogfile, "w");
+    } else {
+      // assign a default log file name
+      cm->fEncTxfmLog = fopen("av2_tcq_enc.log", "w");
+    }
+    fprintf(
+        stdout,
+        "[AV2ENC-DEBUG] created a brand new logging file for TCQ Encoder\n");
+    fprintf(cm->fEncTxfmLog,
+            "[AV2ENC-DEBUG] initial line in encoder log file\n");
+  }
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
   cm->error.setjmp = 1;
   cpi->lap_enabled = num_lap_buffers > 0;
   cpi->compressor_stage = stage;
@@ -1588,6 +1613,12 @@ void av1_remove_compressor(AV1_COMP *cpi) {
     fclose(cpi->common.fEncCoeffLog);
   }
 #endif
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  if (cpi->common.fEncTxfmLog != NULL) {
+    fclose(cpi->common.fEncTxfmLog);
+  }
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+
   aom_free(cpi->subgop_config_str);
   aom_free(cpi->subgop_config_path);
   aom_free(cpi);
@@ -4169,6 +4200,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     aom_invalidate_pyramid(cpi->source->y_pyramid);
     av1_invalidate_corner_list(cpi->source->corners);
   }
+
+#if CONFIG_DQ
+  if (cm->seq_params.enable_tcq >= TCQ_4ST_FR) {
+    int use_tcq = frame_is_intra_only(cm) || current_frame->pyramid_level <= 1;
+    features->tcq_mode = use_tcq ? cm->seq_params.enable_tcq - 2 : 0;
+  } else {
+    features->tcq_mode = cm->seq_params.enable_tcq;
+  }
+#endif
 
   int largest_tile_id = 0;
   if (av1_superres_in_recode_allowed(cpi)) {

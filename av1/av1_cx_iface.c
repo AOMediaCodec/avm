@@ -1487,6 +1487,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->superblock_size = extra_cfg->superblock_size;
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
+#if CONFIG_DQ
+  tool_cfg->enable_tcq = cfg->enable_tcq;
+#endif
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
   tool_cfg->ref_frame_mvs_present =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
@@ -1936,6 +1939,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
+
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+  oxcf->txfmblk_enclogfile = cfg->txfmblk_enclogfile;
+  oxcf->txfmblk_declogfile = cfg->txfmblk_declogfile;
+#endif  // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 
   if (update_config) {
     update_encoder_config(&cfg->encoder_cfg, extra_cfg);
@@ -4537,15 +4545,18 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     2000,  // rc_two_pass_vbrmax_section
 
     // keyframing settings (kf)
-    0,                           // fwd_kf_enabled
-    AOM_KF_AUTO,                 // kf_mode
-    0,                           // kf_min_dist
-    9999,                        // kf_max_dist
-    0,                           // sframe_dist
-    1,                           // sframe_mode
-    0,                           // large_scale_tile
-    0,                           // monochrome
-    0,                           // full_still_picture_hdr
+    0,            // fwd_kf_enabled
+    AOM_KF_AUTO,  // kf_mode
+    0,            // kf_min_dist
+    9999,         // kf_max_dist
+    0,            // sframe_dist
+    1,            // sframe_mode
+    0,            // large_scale_tile
+    0,            // monochrome
+    0,            // full_still_picture_hdr
+#if CONFIG_DQ
+    1,  // enable_tcq
+#endif
     0,                           // save_as_annexb
     0,                           // tile_width_count
     0,                           // tile_height_count
@@ -4637,6 +4648,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_REFRESH_FLAG
     },  // cfg
+#if CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
+    NULL,  // txfmblk_enclogfile
+    NULL,  // txfmblk_declogfile
+#endif     // CONFIG_TXFMBLK_LOGS || CONFIG_COEFF_LOGS
 } };
 
 // This data structure and function are exported in aom/aomcx.h
