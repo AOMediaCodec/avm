@@ -1553,8 +1553,9 @@ static void build_intra_predictors_high(
       seq_intra_pred_filter_flag && (mrl_index == 0);
 #if CONFIG_WAIP
 #if CONFIG_TX_PARTITION_TYPE_EXT
-  xd->mi[0]->is_wide_angle[plane > 0][xd->mi[0]->txb_idx] = 0;
-  xd->mi[0]->mapped_intra_mode[plane > 0][xd->mi[0]->txb_idx] = DC_PRED;
+  const int txb_idx = get_tx_partition_idx(xd->mi[0], plane);
+  xd->mi[0]->is_wide_angle[plane > 0][txb_idx] = 0;
+  xd->mi[0]->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
 #else
   xd->mi[0]->is_wide_angle[plane > 0] = 0;
   xd->mi[0]->mapped_intra_mode[plane > 0] = DC_PRED;
@@ -1574,8 +1575,8 @@ static void build_intra_predictors_high(
     } else {
       MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_TX_PARTITION_TYPE_EXT
-      mbmi->is_wide_angle[plane > 0][mbmi->txb_idx] = 0;
-      mbmi->mapped_intra_mode[plane > 0][mbmi->txb_idx] = DC_PRED;
+      mbmi->is_wide_angle[plane > 0][txb_idx] = 0;
+      mbmi->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
 #else
       mbmi->is_wide_angle[plane > 0] = 0;
       mbmi->mapped_intra_mode[plane > 0] = DC_PRED;

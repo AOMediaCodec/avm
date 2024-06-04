@@ -315,6 +315,11 @@ static INLINE int av1_get_dy(int angle) {
 }
 
 #if CONFIG_WAIP
+static INLINE int get_tx_partition_idx(const MB_MODE_INFO *mbmi, int plane) {
+  // Transform partitioning is not allowed for chroma, so index 0 is returned.
+  return (plane == AOM_PLANE_Y) ? mbmi->txb_idx : 0;
+}
+
 // Check whether one angular intra prediction needs to be mapped to wide angles.
 // If it needs to be mapped, either add or subtract 180 degrees to make it wide
 // angles.
@@ -326,8 +331,9 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
   int mrl_index = (plane == AOM_PLANE_Y ? mbmi->mrl_index : 0);
   const int is_dr_mode = av1_is_directional_mode(mode);
 #if CONFIG_TX_PARTITION_TYPE_EXT
-  mbmi->is_wide_angle[plane > 0][mbmi->txb_idx] = 0;
-  mbmi->mapped_intra_mode[plane > 0][mbmi->txb_idx] = DC_PRED;
+  const int txb_idx = get_tx_partition_idx(mbmi, plane);
+  mbmi->is_wide_angle[plane > 0][txb_idx] = 0;
+  mbmi->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
 #else
   mbmi->is_wide_angle[plane > 0] = 0;
   mbmi->mapped_intra_mode[plane > 0] = DC_PRED;
@@ -346,15 +352,8 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
         (txhpx == 16 * txwpx && p_angle < WAIP_WH_RATIO_16_THRES)) {
       p_angle = 180 + p_angle;
 #if CONFIG_TX_PARTITION_TYPE_EXT
-      if (plane) {
-        // Transform partitioning is not allowed for chroma, so index 0 is used
-        // for the second dimension.
-        mbmi->is_wide_angle[1][0] = 1;
-        mbmi->mapped_intra_mode[1][0] = D203_PRED;
-      } else {
-        mbmi->is_wide_angle[0][mbmi->txb_idx] = 1;
-        mbmi->mapped_intra_mode[0][mbmi->txb_idx] = D203_PRED;
-      }
+      mbmi->is_wide_angle[plane > 0][txb_idx] = 1;
+      mbmi->mapped_intra_mode[plane > 0][txb_idx] = D203_PRED;
 #else
       mbmi->is_wide_angle[plane > 0] = 1;
       mbmi->mapped_intra_mode[plane > 0] = D203_PRED;
@@ -366,15 +365,8 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
                 p_angle > 270 - WAIP_WH_RATIO_16_THRES)) {
       p_angle = p_angle - 180;
 #if CONFIG_TX_PARTITION_TYPE_EXT
-      if (plane) {
-        // Transform partitioning is not allowed for chroma, so index 0 is used
-        // for the second dimension.
-        mbmi->is_wide_angle[1][0] = 1;
-        mbmi->mapped_intra_mode[1][0] = D45_PRED;
-      } else {
-        mbmi->is_wide_angle[0][mbmi->txb_idx] = 1;
-        mbmi->mapped_intra_mode[0][mbmi->txb_idx] = D45_PRED;
-      }
+      mbmi->is_wide_angle[plane > 0][txb_idx] = 1;
+      mbmi->mapped_intra_mode[plane > 0][txb_idx] = D45_PRED;
 #else
       mbmi->is_wide_angle[plane > 0] = 1;
       mbmi->mapped_intra_mode[plane > 0] = D45_PRED;
