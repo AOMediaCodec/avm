@@ -769,22 +769,20 @@ void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,
 static INLINE void avg_pool_pdiff_grad_8_avx2(int16_t *pdiff, const int pstride,
                                               int16_t *gx, int16_t *gy,
                                               const int gstride, const int bh) {
-  int avg_stride = 8;
   for (int i = 0; i < bh; i++) {
     __m128i pd0 = _mm_loadu_si128((__m128i *)&pdiff[i * pstride]);
     __m128i gx0 = _mm_loadu_si128((__m128i *)&gx[i * gstride]);
     __m128i gy0 = _mm_loadu_si128((__m128i *)&gy[i * gstride]);
 
-    _mm_storeu_si128((__m128i *)(pdiff + (i * avg_stride)), pd0);
-    _mm_storeu_si128((__m128i *)(gx + (i * avg_stride)), gx0);
-    _mm_storeu_si128((__m128i *)(gy + (i * avg_stride)), gy0);
+    _mm_storeu_si128((__m128i *)(pdiff + (i * pstride)), pd0);
+    _mm_storeu_si128((__m128i *)(gx + (i * gstride)), gx0);
+    _mm_storeu_si128((__m128i *)(gy + (i * gstride)), gy0);
   }
 }
 
 static INLINE void avg_pool_pdiff_grad_8xg32_avx2(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
     const int gstride, const int bh, int step_w, int step_h) {
-  int avg_stride = 8;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
   int k = 0;
   for (int i = 0; i < bh; i += step_h) {
@@ -817,13 +815,13 @@ static INLINE void avg_pool_pdiff_grad_8xg32_avx2(
     addgx0 = round_power_of_two_signed_epi32(addgx0, avg_bits);
     addgy0 = round_power_of_two_signed_epi32(addgy0, avg_bits);
 
-    _mm_storeu_si128((__m128i *)(pdiff + (k * avg_stride)),
+    _mm_storeu_si128((__m128i *)(pdiff + (k * pstride)),
                      _mm_packs_epi32(_mm256_castsi256_si128(addpd0),
                                      _mm256_extractf128_si256(addpd0, 1)));
-    _mm_storeu_si128((__m128i *)(gx + (k * avg_stride)),
+    _mm_storeu_si128((__m128i *)(gx + (k * gstride)),
                      _mm_packs_epi32(_mm256_castsi256_si128(addgx0),
                                      _mm256_extractf128_si256(addgx0, 1)));
-    _mm_storeu_si128((__m128i *)(gy + (k * avg_stride)),
+    _mm_storeu_si128((__m128i *)(gy + (k * gstride)),
                      _mm_packs_epi32(_mm256_castsi256_si128(addgy0),
                                      _mm256_extractf128_si256(addgy0, 1)));
     k++;
@@ -847,22 +845,20 @@ static INLINE void avg_pool_pdiff_grad_16_avx2(int16_t *pdiff,
                                                const int pstride, int16_t *gx,
                                                int16_t *gy, const int gstride,
                                                const int bh) {
-  int avg_stride = 16;
   for (int i = 0; i < bh; i++) {
     __m256i pd0 = _mm256_loadu_si256((__m256i *)&pdiff[i * pstride]);
     __m256i gx0 = _mm256_loadu_si256((__m256i *)&gx[i * gstride]);
     __m256i gy0 = _mm256_loadu_si256((__m256i *)&gy[i * gstride]);
 
-    _mm256_storeu_si256((__m256i *)(pdiff + (i * avg_stride)), pd0);
-    _mm256_storeu_si256((__m256i *)(gx + (i * avg_stride)), gx0);
-    _mm256_storeu_si256((__m256i *)(gy + (i * avg_stride)), gy0);
+    _mm256_storeu_si256((__m256i *)(pdiff + (i * pstride)), pd0);
+    _mm256_storeu_si256((__m256i *)(gx + (i * gstride)), gx0);
+    _mm256_storeu_si256((__m256i *)(gy + (i * gstride)), gy0);
   }
 }
 
 static INLINE void avg_pool_pdiff_grad_16xg32_avx2(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
     const int gstride, const int bh, int step_w, int step_h) {
-  int avg_stride = 16;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
   __m256i pd0_lo, pd1_lo, gx0_lo, gx1_lo, gy0_lo, gy1_lo;
   __m256i pd0_hi, pd1_hi, gx0_hi, gx1_hi, gy0_hi, gy1_hi;
@@ -920,11 +916,11 @@ static INLINE void avg_pool_pdiff_grad_16xg32_avx2(
     addgy_lo = round_power_of_two_signed_epi32(addgy_lo, avg_bits);
     addgy_hi = round_power_of_two_signed_epi32(addgy_hi, avg_bits);
 
-    _mm256_storeu_si256((__m256i *)(pdiff + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(pdiff + (k * pstride)),
                         _mm256_packs_epi32(addpd_lo, addpd_hi));
-    _mm256_storeu_si256((__m256i *)(gx + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(gx + (k * gstride)),
                         _mm256_packs_epi32(addgx_lo, addgx_hi));
-    _mm256_storeu_si256((__m256i *)(gy + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(gy + (k * gstride)),
                         _mm256_packs_epi32(addgy_lo, addgy_hi));
     k++;
   }
@@ -946,7 +942,6 @@ static INLINE void avg_pool_pdiff_grad_32_avx2(int16_t *pdiff,
                                                int16_t *gy, const int gstride,
                                                const int bh, int step_w,
                                                int step_h) {
-  int avg_stride = 32;
   int k = 0;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
   __m256i reg_mask = _mm256_set_epi32(7, 6, 3, 2, 5, 4, 1, 0);
@@ -977,11 +972,11 @@ static INLINE void avg_pool_pdiff_grad_32_avx2(int16_t *pdiff,
     addgx0 = _mm256_packs_epi32(addgx0, addgx1);
     addgy0 = _mm256_packs_epi32(addgy0, addgy1);
 
-    _mm256_storeu_si256((__m256i *)(pdiff + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(pdiff + (k * pstride)),
                         _mm256_permutevar8x32_epi32(addpd0, reg_mask));
-    _mm256_storeu_si256((__m256i *)(gx + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(gx + (k * gstride)),
                         _mm256_permutevar8x32_epi32(addgx0, reg_mask));
-    _mm256_storeu_si256((__m256i *)(gy + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(gy + (k * gstride)),
                         _mm256_permutevar8x32_epi32(addgy0, reg_mask));
 
     k++;
@@ -991,7 +986,6 @@ static INLINE void avg_pool_pdiff_grad_32_avx2(int16_t *pdiff,
 static INLINE void avg_pool_pdiff_grad_32xg32_avx2(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
     const int gstride, const int bh, int step_w, int step_h) {
-  int avg_stride = 32;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
   __m256i pd00_lo, pd10_lo, gx00_lo, gx10_lo, gy00_lo, gy10_lo;
   __m256i pd00_hi, pd10_hi, gx00_hi, gx10_hi, gy00_hi, gy10_hi;
@@ -1100,11 +1094,11 @@ static INLINE void avg_pool_pdiff_grad_32xg32_avx2(
     addgx0_lo = _mm256_packs_epi32(addgx0_hi, addgx1_hi);
     addgy0_lo = _mm256_packs_epi32(addgy0_hi, addgy1_hi);
 
-    _mm256_storeu_si256((__m256i *)(pdiff + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(pdiff + (k * pstride)),
                         _mm256_permutevar8x32_epi32(addpd0_lo, reg_mask));
-    _mm256_storeu_si256((__m256i *)(gx + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(gx + (k * gstride)),
                         _mm256_permutevar8x32_epi32(addgx0_lo, reg_mask));
-    _mm256_storeu_si256((__m256i *)(gy + (k * avg_stride)),
+    _mm256_storeu_si256((__m256i *)(gy + (k * gstride)),
                         _mm256_permutevar8x32_epi32(addgy0_lo, reg_mask));
     k++;
   }
@@ -1127,7 +1121,6 @@ static INLINE void avg_pool_pdiff_grad_64_avx2(int16_t *pdiff,
                                                int16_t *gy, const int gstride,
                                                const int bh, int step_w,
                                                int step_h) {
-  int avg_stride = 64;
   int k, l;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
   __m256i reg_mask = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
@@ -1159,13 +1152,13 @@ static INLINE void avg_pool_pdiff_grad_64_avx2(int16_t *pdiff,
       addgx0 = round_power_of_two_signed_epi32(addgx0, avg_bits);
       addgy0 = round_power_of_two_signed_epi32(addgy0, avg_bits);
 
-      _mm_storeu_si128((__m128i *)(pdiff + (k * avg_stride) + l),
+      _mm_storeu_si128((__m128i *)(pdiff + (k * pstride) + l),
                        _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(
                            _mm256_packs_epi32(addpd0, addpd0), reg_mask)));
-      _mm_storeu_si128((__m128i *)(gx + (k * avg_stride) + l),
+      _mm_storeu_si128((__m128i *)(gx + (k * gstride) + l),
                        _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(
                            _mm256_packs_epi32(addgx0, addgx0), reg_mask)));
-      _mm_storeu_si128((__m128i *)(gy + (k * avg_stride) + l),
+      _mm_storeu_si128((__m128i *)(gy + (k * gstride) + l),
                        _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(
                            _mm256_packs_epi32(addgy0, addgy0), reg_mask)));
       l += 8;
@@ -1177,7 +1170,6 @@ static INLINE void avg_pool_pdiff_grad_64_avx2(int16_t *pdiff,
 static INLINE void avg_pool_pdiff_grad_64xg32_avx2(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
     const int gstride, const int bh, int step_w, int step_h) {
-  int avg_stride = 64;
   int k, l;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
   __m256i pd00_lo, pd10_lo, gx00_lo, gx10_lo, gy00_lo, gy10_lo;
@@ -1295,15 +1287,15 @@ static INLINE void avg_pool_pdiff_grad_64xg32_avx2(
       addgy0_hi = round_power_of_two_signed_epi32(addgy0_hi, avg_bits);
 
       _mm_storeu_si128(
-          (__m128i *)(pdiff + (k * avg_stride) + l),
+          (__m128i *)(pdiff + (k * pstride) + l),
           _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(
               _mm256_packs_epi32(addpd0_hi, addpd0_hi), reg_mask)));
       _mm_storeu_si128(
-          (__m128i *)(gx + (k * avg_stride) + l),
+          (__m128i *)(gx + (k * gstride) + l),
           _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(
               _mm256_packs_epi32(addgx0_hi, addgx0_hi), reg_mask)));
       _mm_storeu_si128(
-          (__m128i *)(gy + (k * avg_stride) + l),
+          (__m128i *)(gy + (k * gstride) + l),
           _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(
               _mm256_packs_epi32(addgy0_hi, addgy0_hi), reg_mask)));
       l += 8;
@@ -1327,7 +1319,6 @@ static INLINE void avg_pool_pdiff_grad_64xbh_avx2(
 static INLINE void avg_pool_pdiff_grad_128xbh_avx2(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
     const int gstride, const int bh, int step_w, int step_h) {
-  int avg_stride = 128;
   int k, l;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
   __m256i pd00_lo, pd10_lo, gx00_lo, gx10_lo, gy00_lo, gy10_lo;
@@ -1452,13 +1443,13 @@ static INLINE void avg_pool_pdiff_grad_128xbh_avx2(
       addgx0_lo = round_power_of_two_signed_epi32(addgx0_hi, avg_bits);
       addgy0_lo = round_power_of_two_signed_epi32(addgy0_hi, avg_bits);
 
-      _mm_storel_epi64((__m128i *)(pdiff + (k * avg_stride) + l),
+      _mm_storel_epi64((__m128i *)(pdiff + (k * pstride) + l),
                        _mm_packs_epi32(_mm256_castsi256_si128(addpd0_lo),
                                        _mm256_castsi256_si128(addpd0_lo)));
-      _mm_storel_epi64((__m128i *)(gx + (k * avg_stride) + l),
+      _mm_storel_epi64((__m128i *)(gx + (k * gstride) + l),
                        _mm_packs_epi32(_mm256_castsi256_si128(addgx0_lo),
                                        _mm256_castsi256_si128(addgx0_lo)));
-      _mm_storel_epi64((__m128i *)(gy + (k * avg_stride) + l),
+      _mm_storel_epi64((__m128i *)(gy + (k * gstride) + l),
                        _mm_packs_epi32(_mm256_castsi256_si128(addgy0_lo),
                                        _mm256_castsi256_si128(addgy0_lo)));
       l += 4;
@@ -1470,7 +1461,6 @@ static INLINE void avg_pool_pdiff_grad_128xbh_avx2(
 static INLINE void avg_pool_pdiff_grad_256xbh_avx2(
     int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy,
     const int gstride, const int bh, int step_w, int step_h) {
-  int avg_stride = 256;
   int k, l;
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w);
 
@@ -1700,13 +1690,13 @@ static INLINE void avg_pool_pdiff_grad_256xbh_avx2(
       addgx0_lo = round_power_of_two_signed_epi32(addgx0_hi, avg_bits);
       addgy0_lo = round_power_of_two_signed_epi32(addgy0_hi, avg_bits);
 
-      _mm_storel_epi64((__m128i *)(pdiff + (k * avg_stride) + l),
+      _mm_storel_epi64((__m128i *)(pdiff + (k * pstride) + l),
                        _mm_packs_epi32(_mm256_castsi256_si128(addpd0_lo),
                                        _mm256_castsi256_si128(addpd0_lo)));
-      _mm_storel_epi64((__m128i *)(gx + (k * avg_stride) + l),
+      _mm_storel_epi64((__m128i *)(gx + (k * gstride) + l),
                        _mm_packs_epi32(_mm256_castsi256_si128(addgx0_lo),
                                        _mm256_castsi256_si128(addgx0_lo)));
-      _mm_storel_epi64((__m128i *)(gy + (k * avg_stride) + l),
+      _mm_storel_epi64((__m128i *)(gy + (k * gstride) + l),
                        _mm_packs_epi32(_mm256_castsi256_si128(addgy0_lo),
                                        _mm256_castsi256_si128(addgy0_lo)));
       l += 4;
@@ -1723,6 +1713,7 @@ void av1_avg_pooling_pdiff_gradients_avx2(int16_t *pdiff, const int pstride,
 #if !OPFL_DOWNSAMP_QUINCUNX
   const int bh_low = AOMMIN(bh, n);
   const int bw_low = AOMMIN(bw, n);
+  if (bh == bh_low && bw == bw_low) return;
   const int step_h = bh / bh_low;
   const int step_w = bw / bw_low;
   if (bw == 8) {

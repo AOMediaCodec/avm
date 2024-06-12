@@ -1711,9 +1711,9 @@ void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
                                        const int bh, const int n) {
   const int bh_low = AOMMIN(bh, n);
   const int bw_low = AOMMIN(bw, n);
+  if (bh == bh_low && bw == bw_low) return;
   const int step_h = bh / bh_low;
   const int step_w = bw / bw_low;
-  int avg_stride = bw;
 #if OPFL_DOWNSAMP_QUINCUNX
   int avg_bits = get_msb_signed(step_h) + get_msb_signed(step_w) - 1;
 #else
@@ -1735,11 +1735,11 @@ void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
           tmp_pdiff += pdiff[(i * step_h + k) * pstride + (j * step_w + l)];
         }
       }
-      gx[i * avg_stride + j] =
+      gx[i * gstride + j] =
           (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gx, avg_bits);
-      gy[i * avg_stride + j] =
+      gy[i * gstride + j] =
           (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_gy, avg_bits);
-      pdiff[i * avg_stride + j] =
+      pdiff[i * pstride + j] =
           (int16_t)ROUND_POWER_OF_TWO_SIGNED(tmp_pdiff, avg_bits);
     }
   }
@@ -2224,7 +2224,7 @@ void av1_opfl_affine_refinement_mxn(int16_t *pdiff, int pstride, int16_t *gx,
   for (int i = 0; i < bh; i += sub_bh) {
     for (int j = 0; j < bw; j += sub_bw) {
       av1_avg_pooling_pdiff_gradients(
-          pdiff + i * pstride + j, bw, gx + i * gstride + j,
+          pdiff + i * pstride + j, pstride, gx + i * gstride + j,
           gy + i * gstride + j, gstride, sub_bw, sub_bh, AFFINE_AVG_MAX_SIZE);
 
       AffineModelParams affine_params = default_affine_params;
