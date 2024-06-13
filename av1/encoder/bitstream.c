@@ -5078,18 +5078,6 @@ static AOM_INLINE void write_color_config(
         aom_wb_write_literal(wb, seq_params->chroma_sample_position, 2);
       }
     }
-    aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
-  }
-
-  assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
-  aom_wb_write_unsigned_literal(
-      wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
-      DELTA_DCQUANT_BITS);
-  if (!is_monochrome) {
-    assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
-    aom_wb_write_unsigned_literal(
-        wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
-        DELTA_DCQUANT_BITS);
   }
 }
 
@@ -5264,13 +5252,6 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
 
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-  aom_wb_write_literal(wb, seq_params->num_bits_width - 1, 4);
-  aom_wb_write_literal(wb, seq_params->num_bits_height - 1, 4);
-  aom_wb_write_literal(wb, seq_params->max_frame_width - 1,
-                       seq_params->num_bits_width);
-  aom_wb_write_literal(wb, seq_params->max_frame_height - 1,
-                       seq_params->num_bits_height);
-
   if (!seq_params->reduced_still_picture_hdr) {
     aom_wb_write_bit(wb, seq_params->frame_id_numbers_present_flag);
     if (seq_params->frame_id_numbers_present_flag) {
@@ -5343,6 +5324,22 @@ static AOM_INLINE void write_sequence_header(
         aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[1] >> i) & 1);
       }
     }
+  }
+
+  const int is_monochrome = seq_params->monochrome;
+  if (!is_monochrome) {
+    aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
+  }
+
+  assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
+  aom_wb_write_unsigned_literal(
+      wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
+      DELTA_DCQUANT_BITS);
+  if (!is_monochrome) {
+    assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
+    aom_wb_write_unsigned_literal(
+        wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
+        DELTA_DCQUANT_BITS);
   }
 }
 
@@ -6371,6 +6368,15 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 
   write_profile(seq_params->profile, &wb);
 
+  aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
+  aom_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
+  aom_wb_write_literal(&wb, seq_params->max_frame_width - 1,
+                       seq_params->num_bits_width);
+  aom_wb_write_literal(&wb, seq_params->max_frame_height - 1,
+                       seq_params->num_bits_height);
+
+  write_color_config(seq_params, &wb);
+
   // Still picture or not
   aom_wb_write_bit(&wb, seq_params->still_picture);
   assert(IMPLIES(!seq_params->still_picture,
@@ -6428,8 +6434,6 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     }
   }
   write_sequence_header(seq_params, &wb);
-
-  write_color_config(seq_params, &wb);
 
   aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
 

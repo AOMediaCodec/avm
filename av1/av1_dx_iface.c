@@ -178,6 +178,95 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
   return AOM_CODEC_OK;
 }
 
+// Reads the high_bitdepth and twelve_bit fields in color_config() and sets
+// *bit_depth based on the values of those fields and profile.
+static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
+                                      BITSTREAM_PROFILE profile,
+                                      aom_bit_depth_t *bit_depth) {
+  const int high_bitdepth = aom_rb_read_bit(rb);
+  if (profile == PROFILE_2 && high_bitdepth) {
+    const int twelve_bit = aom_rb_read_bit(rb);
+    *bit_depth = twelve_bit ? AOM_BITS_12 : AOM_BITS_10;
+  } else if (profile <= PROFILE_2) {
+    *bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
+  } else {
+    // Unsupported profile/bit-depth combination
+    return AOM_CODEC_UNSUP_BITSTREAM;
+  }
+  return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
+                                          BITSTREAM_PROFILE profile) {
+  aom_bit_depth_t bit_depth;
+  aom_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
+  if (err != AOM_CODEC_OK) return err;
+
+  // monochrome bit (not needed for PROFILE_1)
+  const int is_monochrome = profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
+  aom_color_primaries_t color_primaries;
+  aom_transfer_characteristics_t transfer_characteristics;
+  aom_matrix_coefficients_t matrix_coefficients;
+  int color_description_present_flag = aom_rb_read_bit(rb);
+  if (color_description_present_flag) {
+    color_primaries = aom_rb_read_literal(rb, 8);
+    transfer_characteristics = aom_rb_read_literal(rb, 8);
+    matrix_coefficients = aom_rb_read_literal(rb, 8);
+  } else {
+    color_primaries = AOM_CICP_CP_UNSPECIFIED;
+    transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
+    matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
+  }
+  if (is_monochrome) {
+    // [16,235] (including xvycc) vs [0,255] range
+    aom_rb_read_bit(rb);  // color_range
+  } else {
+    if (color_primaries == AOM_CICP_CP_BT_709 &&
+        transfer_characteristics == AOM_CICP_TC_SRGB &&
+        matrix_coefficients == AOM_CICP_MC_IDENTITY) {
+      // 444 only
+      if (!(profile == PROFILE_1 ||
+            (profile == PROFILE_2 && bit_depth == AOM_BITS_12))) {
+        // sRGB colorspace not compatible with specified profile
+        return AOM_CODEC_UNSUP_BITSTREAM;
+      }
+    } else {
+      int subsampling_x;
+      int subsampling_y;
+      aom_rb_read_bit(rb);  // color_range
+      if (profile == PROFILE_0) {
+        // 420 only
+        subsampling_x = subsampling_y = 1;
+      } else if (profile == PROFILE_1) {
+        // 444 only
+        subsampling_x = subsampling_y = 0;
+      } else {
+        assert(profile == PROFILE_2);
+        if (bit_depth == AOM_BITS_12) {
+          subsampling_x = aom_rb_read_bit(rb);
+          if (subsampling_x)
+            subsampling_y = aom_rb_read_bit(rb);  // 422 or 420
+          else
+            subsampling_y = 0;  // 444
+        } else {
+          // 422
+          subsampling_x = 1;
+          subsampling_y = 0;
+        }
+      }
+      if (matrix_coefficients == AOM_CICP_MC_IDENTITY &&
+          (subsampling_x || subsampling_y)) {
+        // Identity CICP Matrix incompatible with non 4:4:4 color sampling
+        return AOM_CODEC_UNSUP_BITSTREAM;
+      }
+      if (subsampling_x && subsampling_y) {
+        aom_rb_read_literal(rb, 2);  // chroma_sample_position
+      }
+    }
+  }
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t parse_timing_info(struct aom_read_bit_buffer *rb) {
   const uint32_t num_units_in_display_tick =
       aom_rb_read_unsigned_literal(rb, 32);
@@ -325,7 +414,18 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       // Read a few values from the sequence header payload
       struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
 
-      av1_read_profile(&rb);  // profile
+      BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
+
+      int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
+      int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
+      int max_frame_width = aom_rb_read_literal(&rb, num_bits_width) + 1;
+      int max_frame_height = aom_rb_read_literal(&rb, num_bits_height) + 1;
+      si->w = max_frame_width;
+      si->h = max_frame_height;
+
+      status = parse_color_config(&rb, profile);
+      if (status != AOM_CODEC_OK) return status;
+
       const uint8_t still_picture = aom_rb_read_bit(&rb);
       reduced_still_picture_hdr = aom_rb_read_bit(&rb);
 
@@ -336,12 +436,6 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       status = parse_operating_points(&rb, reduced_still_picture_hdr, si);
       if (status != AOM_CODEC_OK) return status;
 
-      int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
-      int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
-      int max_frame_width = aom_rb_read_literal(&rb, num_bits_width) + 1;
-      int max_frame_height = aom_rb_read_literal(&rb, num_bits_height) + 1;
-      si->w = max_frame_width;
-      si->h = max_frame_height;
       got_sequence_header = 1;
     } else if (obu_header.type == OBU_FRAME_HEADER ||
                obu_header.type == OBU_FRAME) {

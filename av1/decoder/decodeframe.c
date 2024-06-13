@@ -6168,7 +6168,6 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
     seq_params->color_range = aom_rb_read_bit(rb);
     seq_params->subsampling_y = seq_params->subsampling_x = 1;
     seq_params->chroma_sample_position = AOM_CSP_UNKNOWN;
-    seq_params->separate_uv_delta_q = 0;
   } else {
     if (seq_params->color_primaries == AOM_CICP_CP_BT_709 &&
         seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
@@ -6215,14 +6214,6 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
         seq_params->chroma_sample_position = aom_rb_read_literal(rb, 2);
       }
     }
-    seq_params->separate_uv_delta_q = aom_rb_read_bit(rb);
-  }
-
-  seq_params->base_y_dc_delta_q =
-      DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
-  if (!is_monochrome) {
-    seq_params->base_uv_dc_delta_q =
-        DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
   }
 }
 
@@ -6283,16 +6274,6 @@ static AOM_INLINE void read_temporal_point_info(
 
 void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params) {
-  const int num_bits_width = aom_rb_read_literal(rb, 4) + 1;
-  const int num_bits_height = aom_rb_read_literal(rb, 4) + 1;
-  const int max_frame_width = aom_rb_read_literal(rb, num_bits_width) + 1;
-  const int max_frame_height = aom_rb_read_literal(rb, num_bits_height) + 1;
-
-  seq_params->num_bits_width = num_bits_width;
-  seq_params->num_bits_height = num_bits_height;
-  seq_params->max_frame_width = max_frame_width;
-  seq_params->max_frame_height = max_frame_height;
-
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->frame_id_numbers_present_flag = 0;
   } else {
@@ -6382,6 +6363,20 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
       seq_params->lr_tools_disable_mask[1] =
           (seq_params->lr_tools_disable_mask[0] | DEF_UV_LR_TOOLS_DISABLE_MASK);
     }
+  }
+
+  const int is_monochrome = seq_params->monochrome;
+  if (is_monochrome) {
+    seq_params->separate_uv_delta_q = 0;
+  } else {
+    seq_params->separate_uv_delta_q = aom_rb_read_bit(rb);
+  }
+
+  seq_params->base_y_dc_delta_q =
+      DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
+  if (!is_monochrome) {
+    seq_params->base_uv_dc_delta_q =
+        DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
   }
 }
 

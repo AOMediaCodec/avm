@@ -224,77 +224,8 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     }
   }
 
-  if (!config->monochrome) {
-    AV1C_READ_BIT_OR_RETURN_ERROR(separate_uv_delta_q);
-  }
-
   AV1C_POP_ERROR_HANDLER_DATA();
   return result;
-}
-
-// Parse Sequence Header OBU for coding tools beyond AV1
-int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
-                                     bool reduced_still_picture_header) {
-  (void)reduced_still_picture_header;
-
-  int result = 0;
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_refmvbank);
-  AV1C_READ_BIT_OR_RETURN_ERROR(reduced_ref_frame_set);
-  if (reduced_ref_frame_set) {
-    AV1C_READ_BITS_OR_RETURN_ERROR(max_reference_frames, 2);
-  }
-  AV1C_READ_BIT_OR_RETURN_ERROR(explicit_ref_frame_map);
-  // 0: show_existing_frame, 1: implicit derivation
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_frame_output_order);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_sdp);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_ist);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_inter_ist);
-#if CONFIG_INTER_DDT
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_inter_ddt);
-#endif  // CONFIG_INTER_DDT
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_cctx);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_mrls);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_tip);
-  if (enable_tip) {
-    AV1C_READ_BIT_OR_RETURN_ERROR(enable_tip_hole_fill);
-  }
-#if CONFIG_BAWP
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_bawp);
-#endif  // CONFIG_BAWP
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_cwp);
-#if CONFIG_D071_IMP_MSK_BLD
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_imp_msk_bld);
-#endif  // CONFIG_D071_IMP_MSK_BLD
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_fsc);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_ccso);
-#if CONFIG_LF_SUB_PU
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_lf_sub_pu);
-#endif  // CONFIG_LF_SUB_PU
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_orip);
-#if CONFIG_IDIF
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_idif);
-#endif  // CONFIG_IDIF
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_ibp);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_adaptive_mvd);
-#if CONFIG_REFINEMV
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_refinemv);
-#endif  // CONFIG_REFINEMV
-#if CONFIG_DERIVED_MVD_SIGN
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_mvd_sign_derive);
-#endif  // CONFIG_DERIVED_MVD_SIGN
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_flex_mvres);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_cfl_ds_filter);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_parity_hiding);
-#if CONFIG_IMPROVED_GLOBAL_MOTION
-  if (!reduced_still_picture_header) {
-    AV1C_READ_BIT_OR_RETURN_ERROR(enable_global_motion);
-  }
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#if CONFIG_REFRESH_FLAG
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_short_refresh_frame_flags);
-#endif  // CONFIG_REFRESH_FLAG
-
-  return 0;
 }
 
 // Parse AV1 Sequence Header OBU. See:
@@ -312,6 +243,19 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 
   AV1C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
   config->seq_profile = seq_profile;
+
+  AV1C_READ_BITS_OR_RETURN_ERROR(frame_width_bits_minus_1, 4);
+  AV1C_READ_BITS_OR_RETURN_ERROR(frame_height_bits_minus_1, 4);
+  AV1C_READ_BITS_OR_RETURN_ERROR(max_frame_width_minus_1,
+                                 frame_width_bits_minus_1 + 1);
+  AV1C_READ_BITS_OR_RETURN_ERROR(max_frame_height_minus_1,
+                                 frame_height_bits_minus_1 + 1);
+
+  if (parse_color_config(reader, config) != 0) {
+    fprintf(stderr, "av1c: color_config() parse failed.\n");
+    return -1;
+  }
+
   AV1C_READ_BIT_OR_RETURN_ERROR(still_picture);
   AV1C_READ_BIT_OR_RETURN_ERROR(reduced_still_picture_header);
   if (reduced_still_picture_header) {
@@ -382,78 +326,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
       }
     }
   }
-
-  AV1C_READ_BITS_OR_RETURN_ERROR(frame_width_bits_minus_1, 4);
-  AV1C_READ_BITS_OR_RETURN_ERROR(frame_height_bits_minus_1, 4);
-  AV1C_READ_BITS_OR_RETURN_ERROR(max_frame_width_minus_1,
-                                 frame_width_bits_minus_1 + 1);
-  AV1C_READ_BITS_OR_RETURN_ERROR(max_frame_height_minus_1,
-                                 frame_height_bits_minus_1 + 1);
-
-  uint8_t frame_id_numbers_present = 0;
-  if (!reduced_still_picture_header) {
-    AV1C_READ_BIT_OR_RETURN_ERROR(frame_id_numbers_present_flag);
-    frame_id_numbers_present = frame_id_numbers_present_flag;
-  }
-
-  if (frame_id_numbers_present) {
-    AV1C_READ_BITS_OR_RETURN_ERROR(delta_frame_id_length_minus_2, 4);
-    AV1C_READ_BITS_OR_RETURN_ERROR(additional_frame_id_length_minus_1, 3);
-  }
-
-  AV1C_READ_BIT_OR_RETURN_ERROR(use_128x128_superblock);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_filter_intra);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_intra_edge_filter);
-  if (!reduced_still_picture_header) {
-    for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
-         motion_mode++) {
-      AV1C_READ_BIT_OR_RETURN_ERROR(seq_enabled_motion_modes);
-    }
-    AV1C_READ_BIT_OR_RETURN_ERROR(enable_masked_compound);
-
-    AV1C_READ_BIT_OR_RETURN_ERROR(enable_order_hint);
-    if (enable_order_hint) {
-      AV1C_READ_BIT_OR_RETURN_ERROR(enable_ref_frame_mvs);
-      AV1C_READ_BIT_OR_RETURN_ERROR(enable_opfl_refine);
-#if CONFIG_AFFINE_REFINEMENT
-      AV1C_READ_BIT_OR_RETURN_ERROR(enable_affine_refine);
-#endif  // CONFIG_AFFINE_REFINEMENT
-    }
-
-    const int SELECT_SCREEN_CONTENT_TOOLS = 2;
-    int seq_force_screen_content_tools = SELECT_SCREEN_CONTENT_TOOLS;
-    AV1C_READ_BIT_OR_RETURN_ERROR(seq_choose_screen_content_tools);
-    if (!seq_choose_screen_content_tools) {
-      AV1C_READ_BIT_OR_RETURN_ERROR(seq_force_screen_content_tools_val);
-      seq_force_screen_content_tools = seq_force_screen_content_tools_val;
-    }
-
-    if (seq_force_screen_content_tools > 0) {
-      AV1C_READ_BIT_OR_RETURN_ERROR(seq_choose_integer_mv);
-
-      if (!seq_choose_integer_mv) {
-        AV1C_READ_BIT_OR_RETURN_ERROR(seq_force_integer_mv);
-      }
-    }
-
-    if (enable_order_hint) {
-      AV1C_READ_BITS_OR_RETURN_ERROR(order_hint_bits_minus_1, 3);
-    }
-  }
-
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_superres);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_cdef);
-  AV1C_READ_BIT_OR_RETURN_ERROR(enable_restoration);
-
-  if (parse_color_config(reader, config) != 0) {
-    fprintf(stderr, "av1c: color_config() parse failed.\n");
-    return -1;
-  }
-
-  AV1C_READ_BIT_OR_RETURN_ERROR(film_grain_params_present);
-
-  // Sequence header for coding tools beyond AV1
-  parse_sequence_header_beyond_av1(reader, reduced_still_picture_header);
 
   return 0;
 }

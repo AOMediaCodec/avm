@@ -120,6 +120,26 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     return 0;
   }
 
+  const int num_bits_width = aom_rb_read_literal(rb, 4) + 1;
+  const int num_bits_height = aom_rb_read_literal(rb, 4) + 1;
+  const int max_frame_width = aom_rb_read_literal(rb, num_bits_width) + 1;
+  const int max_frame_height = aom_rb_read_literal(rb, num_bits_height) + 1;
+
+  seq_params->num_bits_width = num_bits_width;
+  seq_params->num_bits_height = num_bits_height;
+  seq_params->max_frame_width = max_frame_width;
+  seq_params->max_frame_height = max_frame_height;
+
+  av1_read_color_config(rb, seq_params, &cm->error);
+  if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
+      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
+      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
+                       "%d %d subsampling is not supported.\n",
+                       seq_params->subsampling_x, seq_params->subsampling_y);
+  }
+
   // Still picture or not
   seq_params->still_picture = aom_rb_read_bit(rb);
   seq_params->reduced_still_picture_hdr = aom_rb_read_bit(rb);
@@ -240,16 +260,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   }
 
   av1_read_sequence_header(cm, rb, seq_params);
-
-  av1_read_color_config(rb, seq_params, &cm->error);
-  if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
-      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
-      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
-    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
-                       "%d %d subsampling is not supported.\n",
-                       seq_params->subsampling_x, seq_params->subsampling_y);
-  }
 
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
