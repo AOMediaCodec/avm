@@ -5409,13 +5409,13 @@ static void highbd_inv_txfm2d_add_h_identity_ssse41(const int32_t *input,
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
   for (int i = 0; i < (buf_size_h_div8 << 1); ++i) {
-    __m128i buf0[16];
+    __m128i buf0[64];
     const int32_t *input_row = input + i * input_stride * 4;
     for (int j = 0; j < buf_size_w_div4; ++j) {
       __m128i *buf0_cur = buf0 + j * 4;
       load_buffer_32bit_input(input_row + j * 4, input_stride, buf0_cur, 4);
     }
-    if (rect_type == 1 || rect_type == -1) {
+    if (abs(rect_type) % 2 == 1) {
       av1_round_shift_rect_array_32_sse4_1(buf0, buf0, input_stride, 0,
                                            NewInvSqrt2);
     }
@@ -5460,7 +5460,7 @@ static void highbd_inv_txfm2d_add_v_identity_ssse41(const int32_t *input,
   const int txfm_size_col = tx_size_wide[tx_size];
   const int txfm_size_row = tx_size_high[tx_size];
   const int input_stride = AOMMIN(32, txfm_size_col);
-  const int buf_size_w_div8 = input_stride >> 2;
+  const int buf_size_w_div8 = txfm_size_col >> 2;
   const int row_max = AOMMIN(32, txfm_size_row);
   const int buf_size_nonzero_w_div8 = (eobx + 8) >> 3;
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
@@ -5473,7 +5473,7 @@ static void highbd_inv_txfm2d_add_v_identity_ssse41(const int32_t *input,
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
   for (int i = 0; i < (row_max >> 2); ++i) {
-    __m128i buf0[16];
+    __m128i buf0[64];
     const int32_t *input_row = input + i * input_stride * 4;
     for (int j = 0; j < (buf_size_nonzero_w_div8 << 1); ++j) {
       __m128i *buf0_cur = buf0 + j * 4;
@@ -5482,7 +5482,7 @@ static void highbd_inv_txfm2d_add_v_identity_ssse41(const int32_t *input,
       TRANSPOSE_4X4(buf0_cur[0], buf0_cur[1], buf0_cur[2], buf0_cur[3],
                     buf0_cur[0], buf0_cur[1], buf0_cur[2], buf0_cur[3]);
     }
-    if (rect_type == 1 || rect_type == -1) {
+    if (abs(rect_type) % 2 == 1) {
       av1_round_shift_rect_array_32_sse4_1(
           buf0, buf0, (buf_size_nonzero_w_div8 << 3), 0, NewInvSqrt2);
     }
@@ -5552,7 +5552,7 @@ static void highbd_inv_txfm2d_add_idtx_ssse41(const int32_t *input,
       __m128i *buf0_cur = buf0 + j * 4;
       load_buffer_32bit_input(input_row + j * 4, input_stride, buf0_cur, 4);
     }
-    if (rect_type == 1 || rect_type == -1) {
+    if (abs(rect_type) % 2 == 1) {
       av1_round_shift_rect_array_32_sse4_1(buf0, buf0, input_stride, 0,
                                            NewInvSqrt2);
     }
@@ -5919,6 +5919,8 @@ static void highbd_inv_txfm2d_add_4x32_sse4_1(const int32_t *input,
 
   assert(col_txfm != NULL);
   assert(row_txfm != NULL);
+  int ud_flip, lr_flip;
+  get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
   // 1st stage: column transform
   __m128i buf0[32];
@@ -5932,10 +5934,18 @@ static void highbd_inv_txfm2d_add_4x32_sse4_1(const int32_t *input,
              av1_inv_cos_bit_row[txw_idx][txh_idx], 0, bd, -shift[0]);
   }
 
-  for (int j = 0; j < buf_size_h_div8; ++j) {
-    TRANSPOSE_4X4(buf0[4 * j], buf0[4 * j + 1], buf0[4 * j + 2],
-                  buf0[4 * j + 3], buf1[4 * j], buf1[4 * j + 1],
-                  buf1[4 * j + 2], buf1[4 * j + 3]);
+  if (lr_flip) {
+    for (int j = 0; j < buf_size_h_div8; ++j) {
+      TRANSPOSE_4X4(buf0[4 * j + 3], buf0[4 * j + 2], buf0[4 * j + 1],
+                    buf0[4 * j], buf1[4 * j], buf1[4 * j + 1], buf1[4 * j + 2],
+                    buf1[4 * j + 3]);
+    }
+  } else {
+    for (int j = 0; j < buf_size_h_div8; ++j) {
+      TRANSPOSE_4X4(buf0[4 * j], buf0[4 * j + 1], buf0[4 * j + 2],
+                    buf0[4 * j + 3], buf1[4 * j], buf1[4 * j + 1],
+                    buf1[4 * j + 2], buf1[4 * j + 3]);
+    }
   }
 
   // 2nd stage: column transform
@@ -5944,7 +5954,8 @@ static void highbd_inv_txfm2d_add_4x32_sse4_1(const int32_t *input,
   av1_round_shift_array_32_sse4_1(buf1, buf1, txfm_size_row, -shift[1]);
 
   // write to buffer
-  highbd_write_buffer_4xn_sse4_1(buf1, output, stride, 0, txfm_size_row, bd);
+  highbd_write_buffer_4xn_sse4_1(buf1, output, stride, ud_flip, txfm_size_row,
+                                 bd);
 }
 
 static void highbd_inv_txfm2d_add_32x4_sse4_1(const int32_t *input,
@@ -5966,6 +5977,8 @@ static void highbd_inv_txfm2d_add_32x4_sse4_1(const int32_t *input,
 
   assert(col_txfm != NULL);
   assert(row_txfm != NULL);
+  int ud_flip, lr_flip;
+  get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
   // 1st stage: column transform
   __m128i buf0[32];
@@ -5981,7 +5994,12 @@ static void highbd_inv_txfm2d_add_32x4_sse4_1(const int32_t *input,
   row_txfm(buf1, buf0, av1_inv_cos_bit_row[txw_idx][txh_idx], 0, bd, -shift[0]);
 
   __m128i *buf1_ptr;
-  buf1_ptr = buf0;
+  if (lr_flip) {
+    flip_buf_sse2(buf0, buf1, txfm_size_col);
+    buf1_ptr = buf1;
+  } else {
+    buf1_ptr = buf0;
+  }
 
   // 2nd stage: column transform
   for (int i = 0; i < buf_size_w_div8; i++) {
@@ -5993,8 +6011,8 @@ static void highbd_inv_txfm2d_add_32x4_sse4_1(const int32_t *input,
   // write to buffer
   for (int i = 0; i < (txfm_size_col >> 3); i++) {
     highbd_write_buffer_8xn_sse4_1(buf1_ptr + i * txfm_size_row * 2,
-                                   output + 8 * i, stride, 0, txfm_size_row,
-                                   bd);
+                                   output + 8 * i, stride, ud_flip,
+                                   txfm_size_row, bd);
   }
 }
 
@@ -6018,6 +6036,8 @@ static void highbd_inv_txfm2d_add_4x64_sse4_1(const int32_t *input,
 
   assert(col_txfm != NULL);
   assert(row_txfm != NULL);
+  int ud_flip, lr_flip;
+  get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
   // 1st stage: column transform
   __m128i buf0[64];
@@ -6030,10 +6050,18 @@ static void highbd_inv_txfm2d_add_4x64_sse4_1(const int32_t *input,
              av1_inv_cos_bit_row[txw_idx][txh_idx], 0, bd, -shift[0]);
   }
 
-  for (int j = 0; j < buf_size_h_div8; ++j) {
-    TRANSPOSE_4X4(buf0[4 * j], buf0[4 * j + 1], buf0[4 * j + 2],
-                  buf0[4 * j + 3], buf1[4 * j], buf1[4 * j + 1],
-                  buf1[4 * j + 2], buf1[4 * j + 3]);
+  if (lr_flip) {
+    for (int j = 0; j < buf_size_h_div8; ++j) {
+      TRANSPOSE_4X4(buf0[4 * j + 3], buf0[4 * j + 2], buf0[4 * j + 1],
+                    buf0[4 * j], buf1[4 * j], buf1[4 * j + 1], buf1[4 * j + 2],
+                    buf1[4 * j + 3]);
+    }
+  } else {
+    for (int j = 0; j < buf_size_h_div8; ++j) {
+      TRANSPOSE_4X4(buf0[4 * j], buf0[4 * j + 1], buf0[4 * j + 2],
+                    buf0[4 * j + 3], buf1[4 * j], buf1[4 * j + 1],
+                    buf1[4 * j + 2], buf1[4 * j + 3]);
+    }
   }
 
   // 2nd stage: column transform
@@ -6042,7 +6070,8 @@ static void highbd_inv_txfm2d_add_4x64_sse4_1(const int32_t *input,
   av1_round_shift_array_32_sse4_1(buf1, buf1, txfm_size_row, -shift[1]);
 
   // write to buffer
-  highbd_write_buffer_4xn_sse4_1(buf1, output, stride, 0, txfm_size_row, bd);
+  highbd_write_buffer_4xn_sse4_1(buf1, output, stride, ud_flip, txfm_size_row,
+                                 bd);
 }
 
 static void highbd_inv_txfm2d_add_64x4_sse4_1(const int32_t *input,
@@ -6065,11 +6094,14 @@ static void highbd_inv_txfm2d_add_64x4_sse4_1(const int32_t *input,
 
   assert(col_txfm != NULL);
   assert(row_txfm != NULL);
+  int ud_flip, lr_flip;
+  get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
   // 1st stage: column transform
   __m128i buf0[64];
   const int32_t *input_row = input;
   load_buffer_32bit_input(input_row, 4, buf0, input_stride);
+
   for (int j = 0; j < buf_size_w_div8 >> 1; j++) {
     TRANSPOSE_4X4(buf0[j], buf0[j + 8], buf0[j + 16], buf0[j + 24], buf1[4 * j],
                   buf1[4 * j + 1], buf1[4 * j + 2], buf1[4 * j + 3]);
@@ -6078,7 +6110,12 @@ static void highbd_inv_txfm2d_add_64x4_sse4_1(const int32_t *input,
   row_txfm(buf1, buf0, av1_inv_cos_bit_row[txw_idx][txh_idx], 0, bd, -shift[0]);
 
   __m128i *buf1_ptr;
-  buf1_ptr = buf0;
+  if (lr_flip) {
+    flip_buf_sse2(buf0, buf1, txfm_size_col);
+    buf1_ptr = buf1;
+  } else {
+    buf1_ptr = buf0;
+  }
 
   // 2nd stage: column transform
   for (int i = 0; i < buf_size_w_div8; i++) {
@@ -6090,8 +6127,8 @@ static void highbd_inv_txfm2d_add_64x4_sse4_1(const int32_t *input,
   // write to buffer
   for (int i = 0; i < (txfm_size_col >> 3); i++) {
     highbd_write_buffer_8xn_sse4_1(buf1_ptr + i * txfm_size_row * 2,
-                                   output + 8 * i, stride, 0, txfm_size_row,
-                                   bd);
+                                   output + 8 * i, stride, ud_flip,
+                                   txfm_size_row, bd);
   }
 }
 #endif  // CONFIG_FLEX_PARTITION

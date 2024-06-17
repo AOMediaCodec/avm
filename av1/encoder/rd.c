@@ -68,10 +68,10 @@ static const uint8_t rd_thresh_block_size_factor[BLOCK_SIZES_ALL] = {
 };
 
 static const int use_intra_ext_tx_for_txsize[EXT_TX_SETS_INTRA]
-                                            [EXT_TX_SIZES] = {
-                                              { 1, 1, 1, 1 },  // unused
-                                              { 1, 1, 1, 0 },
-                                            };
+                                            [EXT_TX_SIZES] = { { 1, 1, 1,
+                                                                 1 },  // unused
+                                                               { 1, 1, 1, 0 },
+                                                               { 1, 1, 1, 1 } };
 
 static const int use_inter_ext_tx_for_txsize[EXT_TX_SETS_INTER]
                                             [EXT_TX_SIZES] = {
@@ -488,6 +488,25 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, const MACROBLOCKD *xd,
                              fc->txfm_partition_cdf[i], NULL);
   }
 #endif  // CONFIG_NEW_TX_PARTITION
+
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  for (i = 0; i < 2; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->tx_ext_32_costs[i],
+                             fc->tx_ext_32_cdf[i], NULL);
+  }
+
+  for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
+    for (int k = 0; k < EOB_TX_CTXS; ++k) {
+      av1_cost_tokens_from_cdf(mode_costs->inter_ext_tx_short_side_costs[k][i],
+                               fc->inter_ext_tx_short_side_cdf[k][i], NULL);
+    }
+  }
+
+  for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->intra_ext_tx_short_side_costs[i],
+                             fc->intra_ext_tx_short_side_cdf[i], NULL);
+  }
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     int s;

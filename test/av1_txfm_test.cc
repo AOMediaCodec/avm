@@ -446,8 +446,8 @@ template void fliplrud<double>(double *dest, int width, int height, int stride);
 
 int bd_arr[BD_NUM] = { 8, 10, 12 };
 
-int8_t low_range_arr[BD_NUM] = { 18, 32, 32 };
-int8_t high_range_arr[BD_NUM] = { 32, 32, 32 };
+int8_t low_range_arr[BD_NUM] = { 21, 35, 35 };
+int8_t high_range_arr[BD_NUM] = { 35, 35, 35 };
 
 void txfm_stage_range_check(const int8_t *stage_range, int stage_num,
                             int8_t cos_bit, int low_range, int high_range) {

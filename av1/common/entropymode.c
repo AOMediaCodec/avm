@@ -3480,7 +3480,34 @@ static const aom_cdf_prob
       }
     };
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+static const aom_cdf_prob
+    default_inter_ext_tx_short_side_cdf[EOB_TX_CTXS][EXT_TX_SIZES][CDF_SIZE(
+        4)] = { { { AOM_CDF4(7821, 18687, 24236) },
+                  { AOM_CDF4(14442, 26756, 32748) },
+                  { AOM_CDF4(16946, 27485, 32748) },
+                  { AOM_CDF4(8192, 16384, 24576) } },
+                { { AOM_CDF4(20461, 26250, 29309) },
+                  { AOM_CDF4(24931, 30589, 32748) },
+                  { AOM_CDF4(28078, 31430, 32748) },
+                  { AOM_CDF4(8192, 16384, 24576) } },
+                { { AOM_CDF4(7593, 15185, 16784) },
+                  { AOM_CDF4(17164, 21845, 31208) },
+                  { AOM_CDF4(9362, 23406, 28087) },
+                  { AOM_CDF4(8192, 16384, 24576) } } };
 
+static const aom_cdf_prob
+    default_intra_ext_tx_short_side_cdf[EXT_TX_SIZES][CDF_SIZE(4)] = {
+      { AOM_CDF4(11656, 26664, 29603) },
+      { AOM_CDF4(22336, 31457, 32748) },
+      { AOM_CDF4(24537, 32017, 32748) },
+      { AOM_CDF4(8192, 16384, 24576) }
+    };
+
+static const aom_cdf_prob default_tx_ext_32_cdf[2][CDF_SIZE(2)] = {
+  { AOM_CDF2(67) }, { AOM_CDF2(129) }
+};
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 #if CONFIG_INTRA_TX_IST_PARSE
 static const aom_cdf_prob
     default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][CDF_SIZE(
@@ -7391,6 +7418,13 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #else
   av1_copy(fc->partition_cdf, default_partition_cdf);
 #endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  av1_copy(fc->intra_ext_tx_short_side_cdf,
+           default_intra_ext_tx_short_side_cdf);
+  av1_copy(fc->inter_ext_tx_short_side_cdf,
+           default_inter_ext_tx_short_side_cdf);
+  av1_copy(fc->tx_ext_32_cdf, default_tx_ext_32_cdf);
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   av1_copy(fc->intra_ext_tx_cdf, default_intra_ext_tx_cdf);
   av1_copy(fc->inter_ext_tx_cdf, default_inter_ext_tx_cdf);
   av1_copy(fc->skip_mode_cdfs, default_skip_mode_cdfs);

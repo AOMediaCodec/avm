@@ -963,7 +963,34 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_spatial_pred_seg_tree_cdf"
                      "[SEG_TEMPORAL_PRED_CTXS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  cts_each_dim[0] = EOB_TX_CTXS;
+  cts_each_dim[1] = EXT_TX_SIZES;
+  cts_each_dim[2] = 4;
+  optimize_cdf_table(
+      &fc.inter_ext_tx_short_side[0][0][0], probsfile, 3, cts_each_dim,
+      "static const aom_cdf_prob "
+      "default_inter_ext_tx_short_side_cdf[EOB_TX_CTXS][EXT_TX_SIZES]"
+      "[CDF_SIZE(4)]",
+      0, &total_count, 0, mem_wanted, "Transforms");
 
+  cts_each_dim[0] = EXT_TX_SIZES;
+  cts_each_dim[1] = 4;
+  optimize_cdf_table(&fc.intra_ext_tx_short_side[0][0], probsfile, 2,
+                     cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_intra_ext_tx_short_side_cdf[EXT_TX_SIZES]"
+                     "[CDF_SIZE(4)]",
+                     0, &total_count, 0, mem_wanted, "Transforms");
+
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = 2;
+  optimize_cdf_table(&fc.tx_ext_32[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_tx_ext_32_cdf[2]"
+                     "[CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Transforms");
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
   /* tx type */
 #if CONFIG_INTRA_TX_IST_PARSE
   cts_each_dim[0] = EXT_TX_SETS_INTRA;

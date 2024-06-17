@@ -1610,6 +1610,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
+    const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
     const TxSetType tx_set_type = av1_get_ext_tx_set_type(
         tx_size, is_inter, features->reduced_tx_set_used);
@@ -1627,8 +1628,40 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                                      [get_primary_tx_type(tx_type)]
                  : av1_ext_tx_used[tx_set_type][get_primary_tx_type(tx_type)]);
     }
+
     if (is_inter) {
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+      if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
+          tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
+#if CONFIG_INTER_IST
+        aom_write_symbol(
+            w, av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
+            ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
+            av1_num_ext_tx_set[tx_set_type]);
+#else
+        aom_write_symbol(
+            w, av1_ext_tx_ind[tx_set_type][tx_type],
+            ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
+            av1_num_ext_tx_set[tx_set_type]);
+#endif  // CONFIG_INTER_IST
+      } else {
+        bool is_long_side_dct =
+            is_dct_type(tx_size, get_primary_tx_type(tx_type));
+        if (tx_size_sqr_up == TX_32X32) {
+          aom_write_symbol(w, is_long_side_dct, ec_ctx->tx_ext_32_cdf[is_inter],
+                           2);
+        }
+        int tx_type_idx = get_idx_from_txtype_for_large_txfm(
+            tx_set_type, get_primary_tx_type(tx_type),
+            is_long_side_dct);  // 0: DCT_DCT, 1: ADST, 2: FLIPADST,
+                                // 3: Identity
+
+        aom_write_symbol(
+            w, tx_type_idx,
+            ec_ctx->inter_ext_tx_short_side_cdf[eob_tx_ctx][square_tx_size], 4);
+      }
+#else
 #if CONFIG_INTER_IST
       aom_write_symbol(
           w, av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
@@ -1640,10 +1673,45 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
           ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
           av1_num_ext_tx_set[tx_set_type]);
 #endif  // CONFIG_INTER_IST
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     } else {
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         return;
       }
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+      if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
+          tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
+        aom_write_symbol(
+            w,
+            av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
+                               intra_dir, size_info),
+#if CONFIG_INTRA_TX_IST_PARSE
+            ec_ctx->intra_ext_tx_cdf[eset + features->reduced_tx_set_used]
+                                    [square_tx_size],
+#else
+            ec_ctx->intra_ext_tx_cdf[eset + features->reduced_tx_set_used]
+                                    [square_tx_size][intra_dir],
+#endif  // CONFIG_INTRA_TX_IST_PARSE
+            features->reduced_tx_set_used
+                ? av1_num_reduced_tx_set
+                : av1_num_ext_tx_set_intra[tx_set_type]);
+      } else {
+        int is_long_side_dct =
+            is_dct_type(tx_size, get_primary_tx_type(tx_type));
+        if (tx_size_sqr_up == TX_32X32) {
+          aom_write_symbol(w, is_long_side_dct, ec_ctx->tx_ext_32_cdf[is_inter],
+                           2);
+        }
+
+        int tx_type_idx = get_idx_from_txtype_for_large_txfm(
+            tx_set_type, get_primary_tx_type(tx_type),
+            is_long_side_dct);  // 0: DCT_DCT, 1: ADST, 2: FLIPADST,
+                                // 3: Identity
+        aom_write_symbol(w, tx_type_idx,
+                         ec_ctx->intra_ext_tx_short_side_cdf[square_tx_size],
+                         4);
+      }
+#else
       aom_write_symbol(
           w,
           av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
@@ -1658,6 +1726,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
           features->reduced_tx_set_used
               ? av1_num_reduced_tx_set
               : av1_num_ext_tx_set_intra[tx_set_type]);
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     }
   }
 }

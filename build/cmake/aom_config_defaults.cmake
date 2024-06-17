@@ -320,6 +320,10 @@ set_aom_config_var(CONFIG_MF_HOLE_FILL_SIMPLIFY 1
 set_aom_config_var(CONFIG_MF_HOLE_FILL_ALWAYS_ENABLE 1
                    "Always enable motion field hole filling")
 
+set_aom_config_var(
+  CONFIG_TX_TYPE_FLEX_IMPROVE 1
+  "Enable transform type flexbility improvement for large transform blocks")
+
 set_aom_config_var(CONFIG_TIP_DIRECT_MODE_SIGNALING 1
                    "Enable to optimize the signaling of TIP direct output mode")
 set_aom_config_var(CONFIG_OPTIMIZE_CTX_TIP_WARP 1

@@ -428,8 +428,10 @@ void av1_rd_pick_palette_intra_sby(
 
 #if CONFIG_WAIP
 #if CONFIG_TX_PARTITION_TYPE_EXT
-  memset(mbmi->is_wide_angle, 0, sizeof(mbmi->is_wide_angle));
-  memset(mbmi->mapped_intra_mode, DC_PRED, sizeof(mbmi->mapped_intra_mode));
+  for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
+    mbmi->is_wide_angle[0][i] = 0;
+    mbmi->mapped_intra_mode[0][i] = DC_PRED;
+  }
 #else
   mbmi->is_wide_angle[0] = 0;
 #endif  // CONFIG_TX_PARTITION_TYPE_EXT
@@ -661,6 +663,15 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_UV];
   mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
+#if CONFIG_WAIP
+#if CONFIG_TX_PARTITION_TYPE_EXT
+  mbmi->is_wide_angle[1][0] = 0;
+  mbmi->mapped_intra_mode[1][0] = DC_PRED;
+#else
+  mbmi->is_wide_angle[1] = 0;
+#endif  // CONFIG_TX_PARTITION_TYPE_EXT
+#endif  // CONFIG_WAIP
+
   const SequenceHeader *const seq_params = &cpi->common.seq_params;
   int this_rate;
   int64_t this_rd;

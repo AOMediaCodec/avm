@@ -97,10 +97,10 @@ static INLINE void fidentity8x32_new_sse2(const __m128i *input, __m128i *output,
 static const transform_1d_sse2 col_txfm8x32_arr[TX_TYPES] = {
   av1_fdct8x32_new_sse2,   // DCT_DCT
   NULL,                    // ADST_DCT
-  NULL,                    // DCT_ADST
+  av1_fdct8x32_new_sse2,   // DCT_ADST
   NULL,                    // ADST_ADST
   NULL,                    // FLIPADST_DCT
-  NULL,                    // DCT_FLIPADST
+  av1_fdct8x32_new_sse2,   // DCT_FLIPADST
   NULL,                    // FLIPADST_FLIPADST
   NULL,                    // ADST_FLIPADST
   NULL,                    // FLIPADST_ADST
@@ -108,9 +108,9 @@ static const transform_1d_sse2 col_txfm8x32_arr[TX_TYPES] = {
   av1_fdct8x32_new_sse2,   // V_DCT
   fidentity8x32_new_sse2,  // H_DCT
   NULL,                    // V_ADST
-  NULL,                    // H_ADST
+  fidentity8x32_new_sse2,  // H_ADST
   NULL,                    // V_FLIPADST
-  NULL                     // H_FLIPADST
+  fidentity8x32_new_sse2   // H_FLIPADST
 };
 
 #ifdef __cplusplus

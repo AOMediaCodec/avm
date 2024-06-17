@@ -86,14 +86,30 @@ static const int input_base = (1 << bd);
 
 static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
+  const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
   TxSetType tx_set_type;
   if (tx_size_sqr_up > TX_32X32) {
-    tx_set_type = EXT_TX_SET_DCTONLY;
+    tx_set_type = (tx_size_sqr >= TX_32X32) ? EXT_TX_SET_DCTONLY
+                                            : EXT_TX_SET_LONG_SIDE_64;
   } else if (tx_size_sqr_up == TX_32X32) {
-    tx_set_type = EXT_TX_SET_DCT_IDTX;
+    tx_set_type = (tx_size_sqr == TX_32X32) ? EXT_TX_SET_DCT_IDTX
+                                            : EXT_TX_SET_LONG_SIDE_32;
   } else {
     tx_set_type = EXT_TX_SET_ALL16;
   }
+
+  if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
+      tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
+    uint16_t ext_tx_used_flag = av1_ext_tx_used_flag[tx_set_type];
+    adjust_ext_tx_used_flag(tx_size, tx_set_type, &ext_tx_used_flag);
+
+    if (!(ext_tx_used_flag & (1 << get_primary_tx_type(tx_type)))) {
+      return 0;
+    } else {
+      return 1;
+    }
+  }
+
   return av1_ext_tx_used[tx_set_type][tx_type] != 0;
 }
 

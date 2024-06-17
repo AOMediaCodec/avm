@@ -1556,7 +1556,7 @@ static INLINE void dist_block_tx_domain(MACROBLOCK *x, int plane, int block,
 uint16_t prune_txk_type_separ(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                               int block, TX_SIZE tx_size, int blk_row,
                               int blk_col, BLOCK_SIZE plane_bsize, int *txk_map,
-                              int16_t allowed_tx_mask, int prune_factor,
+                              uint16_t allowed_tx_mask, int prune_factor,
                               const TXB_CTX *const txb_ctx,
                               int reduced_tx_set_used, int64_t ref_best_rd,
                               int num_sel) {
@@ -2184,7 +2184,20 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
               tx_set_type == EXT_TX_SET_DTT4_IDTX_1DDCT
           ? av1_reduced_intra_tx_used_flag[intra_dir]
           : av1_ext_tx_used_flag[tx_set_type];
-  if (xd->lossless[mbmi->segment_id] || txsize_sqr_up_map[tx_size] > TX_32X32 ||
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
+      tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
+    adjust_ext_tx_used_flag(tx_size, tx_set_type, &ext_tx_used_flag);
+  }
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
+
+  if (xd->lossless[mbmi->segment_id] ||
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+      (txsize_sqr_up_map[tx_size] > TX_32X32 &&
+       txsize_sqr_map[tx_size] == TX_32X32) ||
+#else
+      txsize_sqr_up_map[tx_size] > TX_32X32 ||
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
       ext_tx_used_flag == 0x0001 ||
       (is_inter && cpi->oxcf.txfm_cfg.use_inter_dct_only) ||
       (!is_inter && cpi->oxcf.txfm_cfg.use_intra_dct_only)) {
@@ -2268,7 +2281,11 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
                            plane_bsize, txk_map, allowed_tx_mask, pf, txb_ctx,
                            cm->features.reduced_tx_set_used);
         allowed_tx_mask &= (~prune);
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+      } else if (tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
+#else
       } else {
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
         const int num_sel = (num_allowed * mf + 50) / 100;
         const uint16_t prune = prune_txk_type_separ(
             cpi, x, plane, block, tx_size, blk_row, blk_col, plane_bsize,
@@ -2653,26 +2670,59 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
   int eob_found = 0;
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+  const TxSetType tx_set_type = av1_get_ext_tx_set_type(
+      tx_size, is_inter, cm->features.reduced_tx_set_used);
+
+  const int is_rect_horz = txw > txh;
+
+  int txk_map_rect_horz_32[TX_TYPES] = { 0, 10, 1, 2,  3,  4,  5,  6,
+                                         7, 8,  9, 11, 12, 13, 14, 15 };
+  int txk_map_rect_vert_32[TX_TYPES] = { 0, 11, 1, 2,  3,  4,  5,  6,
+                                         7, 8,  9, 10, 12, 13, 14, 15 };
+
+  const uint16_t tx_mask_32[2][2] = {
+    { 0x0425 & allowed_tx_mask, 0xAA00 & allowed_tx_mask },
+    { 0x0813 & allowed_tx_mask, 0x5600 & allowed_tx_mask }
+  };
+  TX_TYPE best_long_side_tx_type = DCT_DCT;
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
 
   // Iterate through all transform type candidates.
   for (int idx = 0; idx < TX_TYPES; ++idx) {
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+    TX_TYPE primary_tx_type = (TX_TYPE)txk_map[idx];
+    if (tx_set_type == EXT_TX_SET_LONG_SIDE_32 && plane == 0) {
+      primary_tx_type = is_rect_horz ? (TX_TYPE)txk_map_rect_horz_32[idx]
+                                     : (TX_TYPE)txk_map_rect_vert_32[idx];
+      if (idx == 2) {
+        best_long_side_tx_type = get_primary_tx_type(best_tx_type);
+      }
+      if (idx > 1 &&
+          (!(tx_mask_32[is_rect_horz][best_long_side_tx_type != DCT_DCT] &
+             (1 << primary_tx_type)))) {
+        continue;
+      }
+    }
+#else
     const TX_TYPE primary_tx_type = (TX_TYPE)txk_map[idx];
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     if (!(allowed_tx_mask & (1 << primary_tx_type))) continue;
     int skip_trellis_in =
 #if CONFIG_IMPROVEIDTX_RDPH
         skip_trellis;
 #else
-        skip_trellis || use_inter_fsc(cm, plane, txk_map[idx], is_inter);
+        skip_trellis || use_inter_fsc(cm, plane, primary_tx_type, is_inter);
 #endif  // CONFIG_IMPROVEIDTX_RDPH
     av1_update_trellisq(!skip_trellis_in,
                         skip_trellis_in ? xform_quant_b : AV1_XFORM_QUANT_FP,
                         cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
     if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        (TX_TYPE)txk_map[idx] != IDTX && plane == PLANE_TYPE_Y) {
+        primary_tx_type != IDTX && plane == PLANE_TYPE_Y) {
       continue;
     }
     if (!mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        (TX_TYPE)txk_map[idx] == IDTX && !is_inter) {
+        primary_tx_type == IDTX && !is_inter) {
       continue;
     }
     if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
@@ -2681,6 +2731,24 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         plane == PLANE_TYPE_Y) {
       continue;
     }
+#if CONFIG_TX_TYPE_FLEX_IMPROVE
+    if (tx_set_type == EXT_TX_SET_LONG_SIDE_64 ||
+        tx_set_type == EXT_TX_SET_LONG_SIDE_32) {
+      if (primary_tx_type == DCT_FLIPADST &&
+          get_primary_tx_type(best_tx_type) == DCT_ADST) {
+        continue;
+      }
+      if (primary_tx_type == FLIPADST_DCT &&
+          get_primary_tx_type(best_tx_type) == ADST_DCT) {
+        continue;
+      }
+      if (txsize_sqr_map[tx_size] >= TX_8X8 &&
+          (primary_tx_type == IDTX || primary_tx_type == H_DCT ||
+           primary_tx_type == V_DCT)) {
+        continue;
+      }
+    }
+#endif  // CONFIG_TX_TYPE_FLEX_IMPROVE
     bool skip_idx = false;
 #if CONFIG_INTER_IST
     xd->enable_ist =
@@ -2736,11 +2804,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         if (set_id && !stx) continue;
 
 #if CONFIG_IST_ANY_SET
-        TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
+        TX_TYPE tx_type = primary_tx_type;
         if (eob_found) skip_stx = true;
         uint16_t stx_set = 0;
 #else   // CONFIG_IST_ANY_SET
-      TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
+      TX_TYPE tx_type = primary_tx_type;
       skip_stx |= eob_found;
 #endif  // CONFIG_IST_ANY_SET
 
