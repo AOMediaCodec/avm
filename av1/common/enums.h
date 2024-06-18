@@ -91,6 +91,11 @@ enum {
 #define REFINEMV_SUBBLOCK_HEIGHT 16
 #endif  // CONFIG_REFINEMV
 
+#if CONFIG_IBP_WEIGHT
+#define IBP_WEIGHT_SIZE_LOG2 4
+#define IBP_WEIGHT_SIZE (1 << IBP_WEIGHT_SIZE_LOG2)
+#endif  // CONFIG_IBP_WEIGHT
+
 // Cross-Component Sample Offset (CCSO)
 #if CONFIG_CCSO
 #define CCSO_BLK_SIZE 7

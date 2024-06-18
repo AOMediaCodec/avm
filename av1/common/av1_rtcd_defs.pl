@@ -303,10 +303,18 @@ if (aom_config("CONFIG_IDIF") eq "yes") {
     specialize qw/av1_highbd_dr_prediction_z3_idif avx2/
 }
 
-add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
+if (aom_config("CONFIG_IBP_WEIGHT") eq "yes") {
+  add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
+      "const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+  add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
+      "const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+}
+else {
+  add_proto qw / void av1_highbd_ibp_dr_prediction_z1 /,
     "uint8_t* weights, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
-add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
+  add_proto qw / void av1_highbd_ibp_dr_prediction_z3 /,
     "uint8_t* weights, uint16_t *dst, ptrdiff_t stride, uint16_t* second_pred, ptrdiff_t second_stride, int bw, int bh";
+}
 
 # build compound seg mask functions
 add_proto qw/void av1_build_compound_diffwtd_mask_highbd/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const uint16_t *src0, int src0_stride, const uint16_t *src1, int src1_stride, int h, int w, int bd";

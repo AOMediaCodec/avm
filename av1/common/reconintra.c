@@ -1462,6 +1462,51 @@ void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
   }
 }
 
+#if CONFIG_IBP_WEIGHT
+void av1_highbd_ibp_dr_prediction_z1_c(
+    const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx,
+    uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
+    ptrdiff_t second_stride, int bw, int bh) {
+  const int col_shift = bw >> (IBP_WEIGHT_SIZE_LOG2 + 1);
+  const int row_shift = bh >> (IBP_WEIGHT_SIZE_LOG2 + 1);
+  int r, c;
+  for (r = 0; r < bh; ++r) {
+    const int row_idx = r >> row_shift;
+    for (c = 0; c < bw; ++c) {
+      const int col_idx = c >> col_shift;
+      const uint8_t weight = weights[row_idx][col_idx][mode_idx];
+      dst[c] = ROUND_POWER_OF_TWO(
+          dst[c] * weight + second_pred[c] * (IBP_WEIGHT_MAX - weight),
+          IBP_WEIGHT_SHIFT);
+    }
+    dst += stride;
+    second_pred += second_stride;
+  }
+}
+
+void av1_highbd_ibp_dr_prediction_z3_c(
+    const uint8_t weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90], int mode_idx,
+    uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,
+    ptrdiff_t second_stride, int bw, int bh) {
+  const int col_shift = bw >> (IBP_WEIGHT_SIZE_LOG2 + 1);
+  const int row_shift = bh >> (IBP_WEIGHT_SIZE_LOG2 + 1);
+  int r, c;
+  for (c = 0; c < bw; ++c) {
+    const int col_idx = c >> col_shift;
+    uint16_t *tmp_dst = dst + c;
+    uint16_t *tmp_second = second_pred + c;
+    for (r = 0; r < bh; ++r) {
+      const int row_idx = r >> row_shift;
+      const uint8_t weight = weights[col_idx][row_idx][mode_idx];
+      tmp_dst[0] = ROUND_POWER_OF_TWO(
+          tmp_dst[0] * weight + tmp_second[0] * (IBP_WEIGHT_MAX - weight),
+          IBP_WEIGHT_SHIFT);
+      tmp_dst += stride;
+      tmp_second += second_stride;
+    }
+  }
+}
+#else
 void av1_highbd_ibp_dr_prediction_z1_c(uint8_t *weights, uint16_t *dst,
                                        ptrdiff_t stride, uint16_t *second_pred,
                                        ptrdiff_t second_stride, int bw,
@@ -1498,6 +1543,7 @@ void av1_highbd_ibp_dr_prediction_z3_c(uint8_t *weights, uint16_t *dst,
     weights += bh;
   }
 }
+#endif  // CONFIG_IBP_WEIGHT
 
 static void build_intra_predictors_high(
     const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
@@ -1506,7 +1552,11 @@ static void build_intra_predictors_high(
     int disable_edge_filter, int n_top_px, int n_topright_px, int n_left_px,
     int n_bottomleft_px, int plane, int is_sb_boundary,
     const int seq_intra_pred_filter_flag, const int seq_ibp_flag,
+#if CONFIG_IBP_WEIGHT
+    const uint8_t ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]
+#else
     uint8_t *const ibp_weights[TX_SIZES_ALL][DIR_MODES_0_90]
+#endif  // CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
     ,
     const int enable_idif
@@ -1536,9 +1586,9 @@ static void build_intra_predictors_high(
   const int use_filter_intra = filter_intra_mode != FILTER_INTRA_MODES;
   int base = 128 << (xd->bd - 8);
   // The left_data, above_data buffers must be zeroed to fix some intermittent
-  // valgrind errors. Uninitialized reads in intra pred modules (e.g. width = 4
-  // path in av1_highbd_dr_prediction_z2_avx2()) from left_data, above_data are
-  // seen to be the potential reason for this issue.
+  // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
+  // 4 path in av1_highbd_dr_prediction_z2_avx2()) from left_data, above_data
+  // are seen to be the potential reason for this issue.
   aom_memset16(left_data, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
   aom_memset16(above_data, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
 
@@ -1796,46 +1846,72 @@ static void build_intra_predictors_high(
       ) {
         if (p_angle > 0 && p_angle < 90) {
           int mode_index = angle_to_mode_index[p_angle];
+#if CONFIG_IBP_WEIGHT
+          if (is_ibp_enabled[mode_index]) {
+#else
           uint8_t *weights = ibp_weights[tx_size][mode_index];
+#endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-          if (enable_idif) {
-            highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
-                                            above_row, left_col, p_angle,
-                                            xd->bd);
-          } else {
-            highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                       left_col, upsample_above, upsample_left,
-                                       p_angle, xd->bd);
-          }
+            if (enable_idif) {
+              highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
+                                              above_row, left_col, p_angle,
+                                              xd->bd);
+            } else {
+              highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
+                                         left_col, upsample_above,
+                                         upsample_left, p_angle, xd->bd);
+            }
 #else
           highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
                                      left_col, upsample_above, upsample_left,
                                      p_angle, xd->bd);
 #endif  // CONFIG_IDIF
-          av1_highbd_ibp_dr_prediction_z1_c(weights, dst, dst_stride,
-                                            second_pred, txwpx, txwpx, txhpx);
+            av1_highbd_ibp_dr_prediction_z1_c(
+#if CONFIG_IBP_WEIGHT
+                ibp_weights, mode_index
+#else
+              weights
+#endif  // CONFIG_IBP_WEIGHT
+                ,
+                dst, dst_stride, second_pred, txwpx, txwpx, txhpx);
+#if CONFIG_IBP_WEIGHT
+          }
+#endif  // CONFIG_IBP_WEIGHT
         }
         if (p_angle > 180 && p_angle < 270) {
           int mode_index = angle_to_mode_index[270 - p_angle];
+#if CONFIG_IBP_WEIGHT
+          if (is_ibp_enabled[mode_index]) {
+#else
           int transpose_tsize = transpose_tx_size[tx_size];
           uint8_t *weights = ibp_weights[transpose_tsize][mode_index];
+#endif  // !CONFIG_IBP_WEIGHT
 #if CONFIG_IDIF
-          if (enable_idif) {
-            highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
-                                            above_row, left_col, p_angle,
-                                            xd->bd);
-          } else {
-            highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
-                                       left_col, upsample_above, upsample_left,
-                                       p_angle, xd->bd);
-          }
+            if (enable_idif) {
+              highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
+                                              above_row, left_col, p_angle,
+                                              xd->bd);
+            } else {
+              highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
+                                         left_col, upsample_above,
+                                         upsample_left, p_angle, xd->bd);
+            }
 #else
           highbd_second_dr_predictor(second_pred, txwpx, tx_size, above_row,
                                      left_col, upsample_above, upsample_left,
                                      p_angle, xd->bd);
 #endif  // CONFIG_IDIF
-          av1_highbd_ibp_dr_prediction_z3_c(weights, dst, dst_stride,
-                                            second_pred, txwpx, txwpx, txhpx);
+            av1_highbd_ibp_dr_prediction_z3_c(
+#if CONFIG_IBP_WEIGHT
+                ibp_weights, mode_index
+#else
+              weights
+#endif  // CONFIG_IBP_WEIGHT
+                ,
+                dst, dst_stride, second_pred, txwpx, txwpx, txhpx);
+#if CONFIG_IBP_WEIGHT
+          }
+#endif  // CONFIG_IBP_WEIGHT
         }
       }
     }

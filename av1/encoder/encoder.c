@@ -1563,7 +1563,9 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   }
 
   dealloc_compressor_data(cpi);
+#if !CONFIG_IBP_WEIGHT
   free_ibp_info(cm->ibp_directional_weights);
+#endif  //! CONFIG_IBP_WEIGHT
 
 #if CONFIG_INTERNAL_STATS
   aom_free(cpi->ssim_vars);
