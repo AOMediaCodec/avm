@@ -9276,8 +9276,22 @@ BEGIN_PARTITION_SEARCH:
   prune_ext_partitions_3way(cpi, pc_tree, &part_search_state,
                             partition_boundaries);
 
+  int ext_recur_depth_val = 0;
+
+  if (cpi->sf.part_sf.ext_recur_depth_level == 0) {
+    ext_recur_depth_val = INT_MAX;
+  } else if (cpi->sf.part_sf.ext_recur_depth_level == 1) {
+    const uint16_t bw = block_size_wide[bsize];
+    const uint16_t bh = block_size_high[bsize];
+    ext_recur_depth_val = (bw * bh) > 1024 ? 2 : INT_MAX;
+  } else {
+    assert(cpi->sf.part_sf.ext_recur_depth_level == 2);
+    ext_recur_depth_val = 1;
+  }
+
   const int ext_recur_depth =
-      AOMMIN(max_recursion_depth - 1, cpi->sf.part_sf.ext_recur_depth);
+      AOMMIN(max_recursion_depth - 1, ext_recur_depth_val);
+
   const bool track_ptree_luma =
       is_luma_chroma_share_same_partition(xd->tree_type, ptree_luma, bsize);
 

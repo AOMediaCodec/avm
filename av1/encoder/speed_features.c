@@ -740,7 +740,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->two_pass_partition_search = 0;
   part_sf->prune_rect_with_ml = 0;
   part_sf->end_part_search_after_consec_failures = 0;
-  part_sf->ext_recur_depth = INT_MAX;
+  part_sf->ext_recur_depth_level = 0;
 #if CONFIG_BLOCK_256
   part_sf->prune_rect_with_split_depth = 0;
   part_sf->search_256_after_128 = 0;
@@ -1072,7 +1072,7 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
 
   switch (erp_pruning_level) {
     case 6:
-      sf->part_sf.ext_recur_depth = 1;
+      sf->part_sf.ext_recur_depth_level = 2;
       sf->part_sf.simple_motion_search_split = 1;
       sf->part_sf.simple_motion_search_early_term_none = 1;
       AOM_FALLTHROUGH_INTENDED;
@@ -1115,10 +1115,11 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
 #if CONFIG_EXT_RECUR_PARTITIONS
   if (cpi->speed >= 1) {
     // Emulate erp_pruning_level = 6.
-    sf->part_sf.ext_recur_depth = 1;
+    sf->part_sf.ext_recur_depth_level = 1;
   }
 
   if (cpi->speed >= 2) {
+    sf->part_sf.ext_recur_depth_level = 2;
     sf->part_sf.simple_motion_search_split = 1;
     sf->part_sf.simple_motion_search_early_term_none = 1;
   }

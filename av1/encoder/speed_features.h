@@ -514,8 +514,11 @@ typedef struct PARTITION_SPEED_FEATURES {
   // failed PARTITION_NONE
   int end_part_search_after_consec_failures;
 
-  // The recursion depth allowed for ext partitions
-  int ext_recur_depth;
+  // The ext_recur_depth_level sets recursion depth allowed for ext partitions:
+  // If set to 0, recursion depth is set to INT_MAX.
+  // If set to 1, recursion depth is set 2 if block area > 1024 else it is set
+  // to INT_MAX. If set to 2, recursion depth is set to 1.
+  int ext_recur_depth_level;
 
 #if CONFIG_BLOCK_256
   // Prune rect partitions if PARTITION_SPLIT goes deep.
