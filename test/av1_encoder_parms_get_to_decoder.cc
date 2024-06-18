@@ -73,7 +73,7 @@ const EncodeParameters kAV1EncodeParameterSet[] = {
     AOM_CICP_TC_BT_2020_10_BIT,
     AOM_CICP_MC_BT_2020_NCL,
     AOM_CR_FULL_RANGE,
-    AOM_CSP_RESERVED,
+    AOM_CSP_CENTER,
     { 640, 480 } },
 };
 

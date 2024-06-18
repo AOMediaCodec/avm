@@ -136,7 +136,10 @@ typedef enum aom_chroma_sample_position {
   AOM_CSP_VERTICAL = 1,         /**< Horizontally co-located with luma(0, 0)*/
                                 /**< sample, between two vertical samples */
   AOM_CSP_COLOCATED = 2,        /**< Co-located with luma(0, 0) sample */
-  AOM_CSP_RESERVED = 3          /**< Reserved value */
+  AOM_CSP_CENTER = 3            /**< Horizontal position in the middle */
+                                /**< between two luma samples, vertical */
+                                /**< position in the middle between two luma */
+                                /**< samples */
 } aom_chroma_sample_position_t; /**< alias for enum aom_chroma_sample_position
                                  */
 
