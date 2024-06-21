@@ -1060,10 +1060,17 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 
   if (count > 0) {
     int64_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
+#if MHCCP_DIVISION_REMOVAL
+    int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2];
+#endif  // MHCCP_DIVISION_REMOVAL
     int64_t Ty[MHCCP_NUM_PARAMS];
     memset(ATA, 0x00,
            sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
     memset(Ty, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
+#if MHCCP_DIVISION_REMOVAL
+    memset(C, 0x00,
+           sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS + 2));
+#endif  // MHCCP_DIVISION_REMOVAL
     for (int coli0 = 0; coli0 < (MHCCP_NUM_PARAMS); ++coli0) {
       for (int coli1 = coli0; coli1 < (MHCCP_NUM_PARAMS); ++coli1) {
         int16_t *col0 = A[coli0];
@@ -1084,7 +1091,8 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
     }
 
     // Scale the matrix and vector to selected dynamic range
-    int matrixShift = 28 - 2 * xd->bd - (int)ceil(log2(count));
+    int matrixShift =
+        (MHCCP_DECIM_BITS + 6) - 2 * xd->bd - (int)ceil(log2(count));
 
     if (matrixShift > 0) {
       for (int coli0 = 0; coli0 < MHCCP_NUM_PARAMS; coli0++)
@@ -1103,6 +1111,10 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
       for (int coli = 0; coli < MHCCP_NUM_PARAMS; coli++)
         Ty[coli] >>= matrixShift;
     }
+#if MHCCP_DIVISION_REMOVAL
+    gaussElimination(ATA, C, Ty, mbmi->mhccp_implicit_param[plane - 1],
+                     MHCCP_NUM_PARAMS, xd->bd);
+#else
     int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
     int64_t diag[MHCCP_NUM_PARAMS];
     memset(U, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
@@ -1110,6 +1122,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
     bool decompOk = ldl_decompose(ATA, U, diag, MHCCP_NUM_PARAMS);
     ldl_solve(U, diag, Ty, mbmi->mhccp_implicit_param[plane - 1],
               MHCCP_NUM_PARAMS, decompOk);
+#endif
   } else {
     for (int i = 0; i < MHCCP_NUM_PARAMS - 1; ++i) {
       mbmi->mhccp_implicit_param[plane - 1][i] = 0;
@@ -1118,6 +1131,133 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
         1 << MHCCP_DECIM_BITS;
   }
 }
+
+#if MHCCP_DIVISION_REMOVAL
+#define DIV_PREC_BITS 14
+#define DIV_PREC_BITS_POW2 8
+#define DIV_SLOT_BITS 3
+#define DIV_INTR_BITS (DIV_PREC_BITS - DIV_SLOT_BITS)
+#define DIV_INTR_ROUND (1 << DIV_INTR_BITS >> 1)
+
+static inline int floorLog2Uint64(uint64_t x) {
+  if (x == 0) {
+    // note: ceilLog2() expects -1 as return value
+    return -1;
+  }
+  int result = 0;
+  if (x & 0xffffffff00000000) {
+    x >>= 32;
+    result += 32;
+  }
+  if (x & 0xffff0000) {
+    x >>= 16;
+    result += 16;
+  }
+  if (x & 0xff00) {
+    x >>= 8;
+    result += 8;
+  }
+  if (x & 0xf0) {
+    x >>= 4;
+    result += 4;
+  }
+  if (x & 0xc) {
+    x >>= 2;
+    result += 2;
+  }
+  if (x & 0x2) {
+    x >>= 1;
+    result += 1;
+  }
+  return result;
+}
+
+void xGetDivScaleRoundShift(int64_t denom, int *scale, int *round,
+                            int *shift)  // Note: assumes positive denominator
+{
+  static const int pow2W[8] = {
+    214, 153, 113, 86, 67, 53, 43, 35
+  };  // DIV_PREC_BITS_POW2
+  static const int pow2O[8] = {
+    4822, 5952, 6624, 6792, 6408, 5424, 3792, 1466
+  };  // DIV_PREC_BITS
+  static const int pow2B[8] = { 12784, 12054, 11670, 11583,
+                                11764, 12195, 12870, 13782 };  // DIV_PREC_BITS
+
+  *shift = floorLog2Uint64(denom);
+  *round = 1 << (*shift) >> 1;
+  int normDiff = (((denom << DIV_PREC_BITS) + *round) >> (*shift)) &
+                 ((1 << DIV_PREC_BITS) - 1);
+  int diffFull = normDiff >> DIV_INTR_BITS;
+  int normDiff2 = normDiff - pow2O[diffFull];
+
+  *scale = ((pow2W[diffFull] * ((normDiff2 * normDiff2) >> DIV_PREC_BITS)) >>
+            DIV_PREC_BITS_POW2) -
+           (normDiff2 >> 1) + pow2B[diffFull];
+  *scale <<= MHCCP_DECIM_BITS - DIV_PREC_BITS;
+}
+void gaussBacksubstitution(int64_t *x,
+                           int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
+                           int numEq, int col) {
+  x[numEq - 1] = C[numEq - 1][col];
+
+  for (int i = numEq - 2; i >= 0; i--) {
+    x[i] = C[i][col];
+
+    for (int j = i + 1; j < numEq; j++) {
+      x[i] -= FIXED_MULT(C[i][j], x[j]);
+    }
+  }
+}
+
+void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                      int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
+                      int64_t *y0, int64_t *x0, int numEq, int bd) {
+  int colChr0 = numEq;
+
+  int reg = 2 << (bd - 8);
+
+  // Create an [M][M+2] matrix system (could have been done already when
+  // calculating auto/cross-correlations)
+  for (int i = 0; i < numEq; i++) {
+    for (int j = 0; j < numEq; j++) {
+      C[i][j] = j >= i ? A[i][j] : A[j][i];
+    }
+
+    C[i][i] += reg;  // Regularization
+    C[i][colChr0] = y0[i];
+  }
+
+  for (int i = 0; i < numEq; i++) {
+    int64_t *src = C[i];
+    int64_t diag = src[i] < 1 ? 1 : src[i];
+
+    int scale, round, shift;
+
+    xGetDivScaleRoundShift(diag, &scale, &round, &shift);
+
+    for (int j = i + 1; j < numEq + 1; j++) {
+      src[j] = ((int64_t)(src[j]) * scale + round) >> shift;
+    }
+
+    for (int j = i + 1; j < numEq; j++) {
+      int64_t *dst = C[j];
+      int64_t scale = dst[i];
+
+      // On row j all elements with k < i+1 are now zero (not zeroing those here
+      // as backsubstitution does not need them)
+      for (int k = i + 1; k < numEq + 1; k++) {
+        dst[k] -= FIXED_MULT(scale, src[k]);
+      }
+    }
+  }
+
+  // Solve with backsubstitution
+  gaussBacksubstitution(x0, C, numEq, colChr0);
+}
+#endif
+
+#if !MHCCP_DIVISION_REMOVAL
 bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                 int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                 int64_t diag[MHCCP_NUM_PARAMS], int numEq) {
@@ -1204,6 +1344,7 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
     memset(x, 0, sizeof(int64_t) * numEq);
   }
 }
+#endif  // !MHCCP_DIVISION_REMOVAL
 
 static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
   int64_t sum = 0;

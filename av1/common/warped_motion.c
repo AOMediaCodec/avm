@@ -986,6 +986,7 @@ static int32_t get_mult_shift_ndiag(int64_t Px, int16_t iDet, int shift) {
                           WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
 }
 
+#if !MHCCP_DIVISION_REMOVAL
 static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
   int64_t v = Px * (int64_t)iDet;
   return (int32_t)clamp64(
@@ -993,6 +994,7 @@ static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
       (1 << WARPEDMODEL_PREC_BITS) - WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1,
       (1 << WARPEDMODEL_PREC_BITS) + WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
 }
+#endif  // !MHCCP_DIVISION_REMOVAL
 #endif  // USE_LIMITED_PREC_MULT
 
 static int find_affine_int(int np, const int *pts1, const int *pts2,

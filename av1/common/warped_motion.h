@@ -71,6 +71,16 @@ static INLINE int16_t resolve_divisor_64(uint64_t D, int16_t *shift) {
   return div_lut[f];
 }
 
+#if MHCCP_DIVISION_REMOVAL
+static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
+  int64_t v = Px * (int64_t)iDet;
+  return (int32_t)clamp64(
+      ROUND_POWER_OF_TWO_SIGNED_64(v, shift),
+      (1 << WARPEDMODEL_PREC_BITS) - WARPEDMODEL_NONDIAGAFFINE_CLAMP + 1,
+      (1 << WARPEDMODEL_PREC_BITS) + WARPEDMODEL_NONDIAGAFFINE_CLAMP - 1);
+}
+#endif  // MHCCP_DIVISION_REMOVAL
+
 static INLINE int16_t resolve_divisor_32(uint32_t D, int16_t *shift) {
   int32_t f;
   *shift = get_msb(D);

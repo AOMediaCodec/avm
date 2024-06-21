@@ -133,7 +133,17 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
                                  int ref_height, int dir);
+#if MHCCP_DIVISION_REMOVAL
+void gaussBacksubstitution(int64_t *x,
+                           int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
+                           int numEq, int col);
+void gaussElimination(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                      int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 2],
+                      int64_t *y0, int64_t *x0, int numEq, int bd);
+void xGetDivScaleRoundShift(int64_t denom, int *scale, int *round, int *shift);
+#endif
 
+#if !MHCCP_DIVISION_REMOVAL
 // ldl decomposition
 bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                 int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
@@ -157,6 +167,7 @@ void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 bool ldl_decompose(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                    int64_t diag[MHCCP_NUM_PARAMS], int numEq);
+#endif  // MHCCP_DIVISION_REMOVAL
 
 // Get chroma prediction with MHCCP
 void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
