@@ -607,6 +607,13 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
   // not
   int is_mode_selected_list[LUMA_MODE_COUNT];
 
+#if CONFIG_SIMPLIFIED_AIMC
+  const int block_width = block_size_wide[mi->sb_type[PLANE_TYPE_Y]];
+  const int block_height = block_size_high[mi->sb_type[PLANE_TYPE_Y]];
+  // Check whether the block area size is greater than 64 samples
+  const int is_large_block = (block_width * block_height > 64);
+#endif  // CONFIG_SIMPLIFIED_AIMC
+
   const int is_small_block = (mi->sb_type[PLANE_TYPE_Y] < BLOCK_8X8);
 
   int i, j;
@@ -639,27 +646,33 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
     }
 
     // Add offsets to derive the neighboring modes
-    for (i = 0; i < 4; ++i) {
-      for (j = 0; j < directional_mode_cnt; ++j) {
-        int left_derived_mode = (neighbor_joint_modes[j] - i +
-                                 (56 - NON_DIRECTIONAL_MODES_COUNT - 1)) %
-                                    56 +
-                                NON_DIRECTIONAL_MODES_COUNT;
-        int right_derived_mode =
-            (neighbor_joint_modes[j] + i - (NON_DIRECTIONAL_MODES_COUNT - 1)) %
-                56 +
-            NON_DIRECTIONAL_MODES_COUNT;
+#if CONFIG_SIMPLIFIED_AIMC
+    if (is_large_block) {
+#endif  // CONFIG_SIMPLIFIED_AIMC
+      for (i = 0; i < 4; ++i) {
+        for (j = 0; j < directional_mode_cnt; ++j) {
+          int left_derived_mode = (neighbor_joint_modes[j] - i +
+                                   (56 - NON_DIRECTIONAL_MODES_COUNT - 1)) %
+                                      56 +
+                                  NON_DIRECTIONAL_MODES_COUNT;
+          int right_derived_mode = (neighbor_joint_modes[j] + i -
+                                    (NON_DIRECTIONAL_MODES_COUNT - 1)) %
+                                       56 +
+                                   NON_DIRECTIONAL_MODES_COUNT;
 
-        if (is_mode_selected_list[left_derived_mode] == -1) {
-          mi->y_intra_mode_list[mode_idx++] = left_derived_mode;
-          is_mode_selected_list[left_derived_mode] = 1;
-        }
-        if (is_mode_selected_list[right_derived_mode] == -1) {
-          mi->y_intra_mode_list[mode_idx++] = right_derived_mode;
-          is_mode_selected_list[right_derived_mode] = 1;
+          if (is_mode_selected_list[left_derived_mode] == -1) {
+            mi->y_intra_mode_list[mode_idx++] = left_derived_mode;
+            is_mode_selected_list[left_derived_mode] = 1;
+          }
+          if (is_mode_selected_list[right_derived_mode] == -1) {
+            mi->y_intra_mode_list[mode_idx++] = right_derived_mode;
+            is_mode_selected_list[right_derived_mode] = 1;
+          }
         }
       }
+#if CONFIG_SIMPLIFIED_AIMC
     }
+#endif  // CONFIG_SIMPLIFIED_AIMC
   }
 
   // fill the remaining list with default modes
