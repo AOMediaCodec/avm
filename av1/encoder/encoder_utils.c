@@ -753,7 +753,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi) {
   // pass encoding, which is why this heuristic is not configured as a
   // speed-feature.
   if (oxcf->superres_cfg.superres_mode == AOM_SUPERRES_NONE &&
-      oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed >= 1) {
+      oxcf->resize_cfg.resize_mode == RESIZE_NONE && oxcf->speed > 1) {
     return AOMMIN(cm->width, cm->height) > 480 ? BLOCK_128X128 : BLOCK_64X64;
   }
 #if CONFIG_BLOCK_256
