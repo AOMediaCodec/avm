@@ -1027,7 +1027,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     struct buf_2d ref_yv12 = xd->plane[0].pre[!ref_idx];
     av1_init_inter_params(&inter_pred_params, pw, ph, mi_row * MI_SIZE,
                           mi_col * MI_SIZE, 0, 0, xd->bd, 0, &cm->sf_identity,
-                          &ref_yv12, mbmi->interp_fltr);
+                          &ref_yv12, EIGHTTAP_REGULAR);
     inter_pred_params.conv_params = get_conv_params(0, PLANE_TYPE_Y, xd->bd);
   }
 
@@ -1275,7 +1275,6 @@ static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,
   const int pw = block_size_wide[bsize];
   const int ph = block_size_high[bsize];
   MACROBLOCKD *xd = &x->e_mbd;
-  MB_MODE_INFO *mbmi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[0];
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -1283,7 +1282,7 @@ static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,
   const int p_row = ((mi_row * MI_SIZE) >> pd->subsampling_y);
 
   // This function should only ever be called for compound modes
-  assert(has_second_ref(mbmi));
+  assert(has_second_ref(xd->mi[0]));
 
   const int plane = 0;
   struct buf_2d ref_yv12 = xd->plane[plane].pre[!ref_idx];
@@ -1296,7 +1295,7 @@ static AOM_INLINE void build_second_inter_pred(const AV1_COMP *cpi,
 
   av1_init_inter_params(&inter_pred_params, pw, ph, p_row, p_col,
                         pd->subsampling_x, pd->subsampling_y, xd->bd, 0, &sf,
-                        &ref_yv12, mbmi->interp_fltr);
+                        &ref_yv12, EIGHTTAP_REGULAR);
   inter_pred_params.conv_params = get_conv_params(0, plane, xd->bd);
 
   // Get the prediction block from the 'other' reference frame.
