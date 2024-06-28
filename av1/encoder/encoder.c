@@ -503,6 +503,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
 
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
+#if CONFIG_DRL_REORDER_CONTROL
+  seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
+#endif  // CONFIG_DRL_REORDER_CONTROL
   seq->enable_parity_hiding = tool_cfg->enable_parity_hiding;
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this

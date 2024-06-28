@@ -217,6 +217,31 @@ static const int tip_pred_index_to_mode[TIP_PRED_MODES] = {
 };
 #endif  // CONFIG_OPTIMIZE_CTX_TIP_WARP
 
+#if CONFIG_DRL_REORDER_CONTROL
+enum {
+  /**
+   * DRL reorder is disabled
+   */
+  DRL_REORDER_DISABLED = 0,
+  /**
+   * DRL reorder with some constraints for the use cases:
+   * 1. Not screen contents;
+   * 2. Not random access use cases
+   */
+  DRL_REORDER_CONSTRAINT,
+  /**
+   * Always reorder DRL
+   * 1. Screen contents;
+   * 2. Random access
+   */
+  DRL_REORDER_ALWAYS,
+  /**
+   * DRL reorder types
+   */
+  DRL_REORDER_TYPES,
+} UENUM1BYTE(DRL_REORDER_TYPE);
+#endif  // CONFIG_DRL_REORDER_CONTROL
+
 typedef struct {
   int_mv mfmv0;
   uint8_t ref_frame_offset;
@@ -576,9 +601,14 @@ typedef struct SequenceHeader {
   uint8_t enable_restoration;  // To turn on/off loop restoration
   uint8_t enable_ccso;         // To turn on/off CCSO
 #if CONFIG_LF_SUB_PU
-  uint8_t enable_lf_sub_pu;          // To turn on/off sub-block deblocking
-#endif                               // CONFIG_LF_SUB_PU
-  uint8_t enable_refmvbank;          // To turn on/off Ref MV Bank
+  uint8_t enable_lf_sub_pu;  // To turn on/off sub-block deblocking
+#endif                       // CONFIG_LF_SUB_PU
+  uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
+#if CONFIG_DRL_REORDER_CONTROL
+  uint8_t enable_drl_reorder;        // 0 - DRL reorder is disabled
+                                     // 1 - DRL reorder with constraints
+                                     // 2 - Always reorder DRL
+#endif                               // CONFIG_DRL_REORDER_CONTROL
   uint8_t lr_tools_disable_mask[2];  // mask of lr tool(s) to disable.
                                      // To disable tool i in RestorationType
                                      // enum where:

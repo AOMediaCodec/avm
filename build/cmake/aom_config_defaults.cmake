@@ -323,6 +323,9 @@ set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
 set_aom_config_var(CONFIG_WRL_PRUNE_FOUR_PARAMETERS 1
                    "Enable WRL only prune four non-translational parameters")
 
+set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
+                   "Enable to have a flag to turn on and off DRL reorder")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

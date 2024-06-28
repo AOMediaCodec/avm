@@ -464,6 +464,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.max_drl_refbvs,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   &g_av1_codec_arg_defs.enable_refmvbank,
+#if CONFIG_DRL_REORDER_CONTROL
+  &g_av1_codec_arg_defs.enable_drl_reorder,
+#endif  // CONFIG_DRL_REORDER_CONTROL
   &g_av1_codec_arg_defs.enable_opfl_refine,
 #if CONFIG_AFFINE_REFINEMENT
   &g_av1_codec_arg_defs.enable_affine_refine,
@@ -721,6 +724,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_reduced_reference_set = 0;
   config->reduced_tx_type_set = 0;
   config->enable_refmvbank = 1;
+#if CONFIG_DRL_REORDER_CONTROL
+  config->enable_drl_reorder = 1;
+#endif  // CONFIG_DRL_REORDER_CONTROL
   config->enable_parity_hiding = 1;
 #if CONFIG_MRSSE
   config->enable_mrsse = 0;
@@ -1493,6 +1499,9 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout, " max-drl-refbvs (%d)", encoder_cfg->max_drl_refbvs);
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   fprintf(stdout, " , Refmv Bank (%d)", encoder_cfg->enable_refmvbank);
+#if CONFIG_DRL_REORDER_CONTROL
+  fprintf(stdout, " , DRL Reorder (%d)", encoder_cfg->enable_drl_reorder);
+#endif  // CONFIG_DRL_REORDER_CONTROL
   fprintf(stdout, "\n");
 
   fprintf(

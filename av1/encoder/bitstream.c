@@ -5496,6 +5496,15 @@ static AOM_INLINE void write_sequence_header(
 static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(wb, seq_params->enable_refmvbank);
+#if CONFIG_DRL_REORDER_CONTROL
+  const int is_drl_reorder_disable =
+      (seq_params->enable_drl_reorder == DRL_REORDER_DISABLED);
+  aom_wb_write_bit(wb, is_drl_reorder_disable);
+  if (!is_drl_reorder_disable) {
+    aom_wb_write_bit(wb,
+                     seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
+  }
+#endif  // CONFIG_DRL_REORDER_CONTROL
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);

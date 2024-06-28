@@ -230,6 +230,9 @@ struct av1_extracfg {
   unsigned int max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   int enable_refmvbank;
+#if CONFIG_DRL_REORDER_CONTROL
+  int enable_drl_reorder;
+#endif  // CONFIG_DRL_REORDER_CONTROL
   int enable_parity_hiding;
 #if CONFIG_MRSSE
   unsigned int enable_mrsse;
@@ -566,6 +569,9 @@ static struct av1_extracfg default_extra_cfg = {
   0,    // max_drl_refbvs
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   1,    // enable_refmvbank
+#if CONFIG_DRL_REORDER_CONTROL
+  1,    // enable_drl_reorder;
+#endif  // CONFIG_DRL_REORDER_CONTROL
   1,    // enable_parity_hiding
 #if CONFIG_MRSSE
   0,
@@ -1034,6 +1040,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
+#if CONFIG_DRL_REORDER_CONTROL
+  cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
+#endif  // CONFIG_DRL_REORDER_CONTROL
   cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   cfg->enable_mrsse = extra_cfg->enable_mrsse;
@@ -1151,6 +1160,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->max_drl_refbvs = cfg->max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   extra_cfg->enable_refmvbank = cfg->enable_refmvbank;
+#if CONFIG_DRL_REORDER_CONTROL
+  extra_cfg->enable_drl_reorder = cfg->enable_drl_reorder;
+#endif  // CONFIG_DRL_REORDER_CONTROL
   extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   extra_cfg->enable_mrsse = cfg->enable_mrsse;
@@ -1425,6 +1437,16 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
+#if CONFIG_DRL_REORDER_CONTROL
+  tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
+  if (tool_cfg->enable_drl_reorder == 1) {
+    if (cfg->g_lag_in_frames == 0 && extra_cfg->content != AOM_CONTENT_SCREEN) {
+      tool_cfg->enable_drl_reorder = DRL_REORDER_CONSTRAINT;
+    } else {
+      tool_cfg->enable_drl_reorder = DRL_REORDER_ALWAYS;
+    }
+  }
+#endif  // CONFIG_DRL_REORDER_CONTROL
   tool_cfg->enable_opfl_refine = extra_cfg->enable_order_hint
                                      ? extra_cfg->enable_opfl_refine
                                      : AOM_OPFL_REFINE_NONE;
@@ -4077,6 +4099,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refmvbank,
                               argv, err_string)) {
     extra_cfg.enable_refmvbank = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_DRL_REORDER_CONTROL
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_drl_reorder,
+                              argv, err_string)) {
+    extra_cfg.enable_drl_reorder = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_DRL_REORDER_CONTROL
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_parity_hiding,
                               argv, err_string)) {
     extra_cfg.enable_parity_hiding = arg_parse_uint_helper(&arg, err_string);
@@ -4379,7 +4406,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         0,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-        1, 1,
+        1,
+#if CONFIG_DRL_REORDER_CONTROL
+        1,
+#endif  // CONFIG_DRL_REORDER_CONTROL
+        1,
 #if CONFIG_MRSSE
         0,
 #endif  // CONFIG_MRSSE
