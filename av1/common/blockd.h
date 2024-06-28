@@ -1033,8 +1033,6 @@ static AOM_INLINE bool is_uneven_4way_partition_allowed_at_bsize(
     }
     return false;
   }
-#else
-  (void)rect_type;
 #endif                         // CONFIG_CB1TO4_SPLIT
   if (bsize >= BLOCK_32X64) {  // 32x64, 64x32, 64x64
     assert(bsize <= BLOCK_64X64);
