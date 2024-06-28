@@ -239,6 +239,9 @@ int parse_sequence_header_beyond_av1(struct aom_read_bit_buffer *reader,
 
   int result = 0;
   AV1C_READ_BIT_OR_RETURN_ERROR(enable_refmvbank);
+#if CONFIG_DRL_REORDER_CONTROL
+  AV1C_READ_BIT_OR_RETURN_ERROR(enable_drl_reorder);
+#endif  // CONFIG_DRL_REORDER_CONTROL
   AV1C_READ_BIT_OR_RETURN_ERROR(reduced_ref_frame_set);
   if (reduced_ref_frame_set) {
     AV1C_READ_BITS_OR_RETURN_ERROR(max_reference_frames, 2);

@@ -310,6 +310,9 @@ set_aom_config_var(CONFIG_BANK_IMPROVE 1
 set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
                    "Enable to reduce partition contexts")
 
+set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
+                   "Enable to have a flag to turn on and off DRL reorder")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_MV_SEARCH_RANGE 1
                    "Enable a sufficient MV search range.")

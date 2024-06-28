@@ -596,6 +596,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_refmvbank;
+#if CONFIG_DRL_REORDER_CONTROL
+  /*!\brief enable the reorder of DRL
+   *
+   */
+  unsigned int enable_drl_reorder;
+#endif  // CONFIG_DRL_REORDER_CONTROL
   /*!\brief enable parity hiding for coefficients coding
    *
    */

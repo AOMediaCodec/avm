@@ -810,6 +810,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_refmvbank = ARG_DEF(NULL, "enable-refmvbank", 1,
                               "Enable reference MV bank (0: false "
                               "1: true)"),
+#if CONFIG_DRL_REORDER_CONTROL
+  .enable_drl_reorder =
+      ARG_DEF(NULL, "enable-drl-reorder", 1,
+              "Enable DRL reorder (0: false, 1: true (default)"),
+#endif  // CONFIG_DRL_REORDER_CONTROL
   .enable_parity_hiding = ARG_DEF(NULL, "enable-parity-hiding", 1,
                                   "Enable parity hiding "
                                   "(0:false), 1:true (default)"),
