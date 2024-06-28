@@ -2773,6 +2773,7 @@ void make_inter_pred_of_nxn(
   inter_pred_params->block_height = sub_bh;
 
   MV *subblock_mv;
+  MV avg_mv;
   uint16_t *pre;
   int src_stride = 0;
 #if CONFIG_AFFINE_REFINEMENT_SB
@@ -2917,7 +2918,21 @@ void make_inter_pred_of_nxn(
           subblock_mv = &mv_refined[ref].as_mv;
         }
       } else {
-        subblock_mv = &(mv_refined[n_blocks * 2 + ref].as_mv);
+        if (bw == 4 && bh == 4 && n == 4) {
+          avg_mv.row = (mv_refined[0 * 2 + ref].as_mv.row +
+                        mv_refined[1 * 2 + ref].as_mv.row +
+                        mv_refined[2 * 2 + ref].as_mv.row +
+                        mv_refined[3 * 2 + ref].as_mv.row) >>
+                       2;
+          avg_mv.col = (mv_refined[0 * 2 + ref].as_mv.col +
+                        mv_refined[1 * 2 + ref].as_mv.col +
+                        mv_refined[2 * 2 + ref].as_mv.col +
+                        mv_refined[3 * 2 + ref].as_mv.col) >>
+                       2;
+          subblock_mv = &avg_mv;
+        } else {
+          subblock_mv = &(mv_refined[n_blocks * 2 + ref].as_mv);
+        }
       }
 
       const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
@@ -5357,8 +5372,11 @@ static void build_inter_predictors_8x8_and_bigger(
   WarpedMotionParams wms[2 * NUM_AFFINE_PARAMS];
   for (int i = 0; i < 2 * NUM_AFFINE_PARAMS; i++) wms[i] = default_warp_params;
 #if AFFINE_CHROMA_REFINE_METHOD > 0
-  if (use_optflow_refinement && plane)
+  if (use_optflow_refinement && plane) {
+    use_affine_opfl = xd->use_affine_opfl;
+    memcpy(mv_refined, xd->mv_refined, 2 * N_OF_OFFSETS * sizeof(*mv_refined));
     memcpy(wms, xd->wm_params_sb, 2 * NUM_AFFINE_PARAMS * sizeof(wms[0]));
+  }
 #endif
 #else
   WarpedMotionParams wms[2];
@@ -5477,6 +5495,11 @@ static void build_inter_predictors_8x8_and_bigger(
         xd->mv_delta[mvi].mv[1].as_mv.col = 0;
       }
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
+#if CONFIG_AFFINE_REFINEMENT
+      xd->use_affine_opfl = use_affine_opfl;
+      memcpy(xd->mv_refined, mv_refined,
+             2 * N_OF_OFFSETS * sizeof(*mv_refined));
+#endif
 #if CONFIG_AFFINE_REFINEMENT_SB
       memcpy(xd->wm_params_sb, wms, 2 * NUM_AFFINE_PARAMS * sizeof(wms[0]));
 #elif CONFIG_AFFINE_REFINEMENT

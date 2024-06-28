@@ -2685,6 +2685,12 @@ typedef struct macroblockd {
   /** variable to stored optical flow refined MVs */
   SUBMB_INFO mv_delta[N_OF_OFFSETS];
 #endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_REFINED_MVS_IN_TMVP
+#if CONFIG_AFFINE_REFINEMENT
+  /** variable to store if affine refinement was enabled for luma */
+  int use_affine_opfl;
+  /** variable to store optical flow refined MVs per subblock */
+  int_mv mv_refined[2 * N_OF_OFFSETS];
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_AFFINE_REFINEMENT_SB
   /** variable to store affine refinement parameters per subblock */
   WarpedMotionParams wm_params_sb[2 * NUM_AFFINE_PARAMS];

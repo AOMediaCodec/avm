@@ -56,6 +56,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, TMVP_SHIFT_BITS);
   int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
   int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
+  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm, mi);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
 #if CONFIG_OPTFLOW_ON_TIP
                                  ,
@@ -82,7 +83,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 
         int_mv refined_mv;
 #if CONFIG_AFFINE_REFINEMENT
-        if (mi->comp_refine_type >= COMP_AFFINE_REFINE_START
+        if (is_opfl_mode && xd->use_affine_opfl
 #if CONFIG_REFINEMV
             && (is_damr_allowed_with_refinemv(mi->mode) || !mi->refinemv_flag)
 #endif  // CONFIG_REFINEMV
@@ -131,7 +132,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #if CONFIG_AFFINE_REFINEMENT
         }
 #endif  // CONFIG_AFFINE_REFINEMENT
-        if (opfl_allowed_for_cur_block(cm, mi)) {
+        if (is_opfl_mode) {
           if (n == 4) {
             // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
             // subblock, take the average of 4 refined MVs
@@ -294,6 +295,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
   int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
   int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
+  const bool is_opfl_mode = opfl_allowed_for_cur_block(cm, mi);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y
 #if CONFIG_OPTFLOW_ON_TIP
                                  ,
@@ -321,7 +323,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
           if (ref_idx) continue;
           int_mv refined_mv;
 #if CONFIG_AFFINE_REFINEMENT
-          if (mi->comp_refine_type >= COMP_AFFINE_REFINE_START
+          if (is_opfl_mode && xd->use_affine_opfl
 #if CONFIG_REFINEMV
               && (is_damr_allowed_with_refinemv(mi->mode) || !mi->refinemv_flag)
 #endif  // CONFIG_REFINEMV
@@ -370,7 +372,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
 #if CONFIG_AFFINE_REFINEMENT
           }
 #endif  // CONFIG_AFFINE_REFINEMENT
-          if (opfl_allowed_for_cur_block(cm, mi)) {
+          if (is_opfl_mode) {
             if (n == 4) {
               // Since TMVP is stored per 8x8 unit, for refined MV with 4x4
               // subblock, take the average of 4 refined MVs
