@@ -671,18 +671,18 @@ void get_y_intra_mode_set(MB_MODE_INFO *mi, MACROBLOCKD *const xd) {
     // Add offsets to derive the neighboring modes
     for (i = 0; i < 4; ++i) {
       for (j = 0; j < directional_mode_cnt; ++j) {
-        int left_derived_ode = (neighbor_joint_modes[j] - i +
-                                (56 - NON_DIRECTIONAL_MODES_COUNT - 1)) %
-                                   56 +
-                               NON_DIRECTIONAL_MODES_COUNT;
+        int left_derived_mode = (neighbor_joint_modes[j] - i +
+                                 (56 - NON_DIRECTIONAL_MODES_COUNT - 1)) %
+                                    56 +
+                                NON_DIRECTIONAL_MODES_COUNT;
         int right_derived_mode =
             (neighbor_joint_modes[j] + i - (NON_DIRECTIONAL_MODES_COUNT - 1)) %
                 56 +
             NON_DIRECTIONAL_MODES_COUNT;
 
-        if (is_mode_selected_list[left_derived_ode] == -1) {
-          mi->y_intra_mode_list[mode_idx++] = left_derived_ode;
-          is_mode_selected_list[left_derived_ode] = 1;
+        if (is_mode_selected_list[left_derived_mode] == -1) {
+          mi->y_intra_mode_list[mode_idx++] = left_derived_mode;
+          is_mode_selected_list[left_derived_mode] = 1;
         }
         if (is_mode_selected_list[right_derived_mode] == -1) {
           mi->y_intra_mode_list[mode_idx++] = right_derived_mode;
